@@ -59,3 +59,5 @@ Impulses: doing the rounds (with puns); building the player's property when one 
 ## Protection (v0.7.0)
 
 Mason is an imported character and **cannot be harmed or killed** (no `killable` flag has been given). Attacking him triggers the Wrath cutscene ("The Oberverse Protects Its Own"), which strikes the player down. His last word and rune colour are in `profile.wrath`.
+
+His Wrath theme is **construction** (v0.9.0): "DEMOLITION ORDER APPROVED" — a blueprint floor, hazard tape and orbiting tools, a crane-lifted I-beam, falling beams, a wrecking ball and a brick wall stamped CONDEMNED, with his whistled motif and anvil strikes.

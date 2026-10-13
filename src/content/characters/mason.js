@@ -48,8 +48,11 @@ export const mason = {
     rumorPrefix: 'Now I don\'t like to hammer on about it, but', factPrefix: 'Level with you, pal:', refuse: 'Ah, I\'d better not. I\'m a builder, not a blabber. That one stays under my hard hat!',
   },
   wrath: {
+    theme: 'construction', // blueprints, hazard tape, I-beams, a wrecking ball, a brick wall (src/engine/wrath.js)
     color: '#ff9a3d',
-    line: 'Whoa — easy there, buddy! Guess the universe has my back. You could say that was… a real shocking development. No hard feelings, pal!',
+    banner: 'DEMOLITION ORDER APPROVED',
+    subtitle: 'Mason Nails is load-bearing.',
+    line: 'Whoa — easy there, buddy! Looks like you just got… nailed. Don\'t worry, pal — I\'ll have you back up to code in no time. No hard feelings!',
   },
   mechanics: {
     alwaysFriendly: true, // relationship with the player never drops below friendly (see reactions)

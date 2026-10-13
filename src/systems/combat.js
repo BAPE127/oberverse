@@ -198,6 +198,13 @@ export class Combat {
     g.bus.emit('sfx', { id: 'sfx_swing' });
     const reach = wp.range * TILE + HIT_RADIUS;
     const half = ((wp.arc ?? 90) / 2) * (Math.PI / 180);
+    // Raising a hand against a protected character is enough — even across a desk.
+    const sacred = this.raisedAgainst(dir, Math.max(reach, 2.6 * TILE), Math.max(half, (50 * Math.PI) / 180));
+    if (sacred) {
+      this.fx.push({ type: 'swing', x: p.x, y: p.y - BODY_Y, dir, range: wp.range * TILE, arc: half, until: g.realTime + 0.18, start: g.realTime });
+      this.smite(sacred, w);
+      return { ok: true, kind: 'melee', hits: [sacred.id], wrath: true };
+    }
     const hits = [];
     for (const npc of this.targets()) {
       const dx = npc.x - p.x;
@@ -238,6 +245,13 @@ export class Combat {
       const s = Math.sin(spread);
       const d = { x: dir.x * c - dir.y * s, y: dir.x * s + dir.y * c };
       const r = this.raycast(ox, oy, d, wp.range * TILE);
+      // a shot that so much as passes a protected character calls down the Wrath
+      const sacred = this.protectedOnRay(ox, oy, d, r.t + (r.npc ? HIT_RADIUS : 0));
+      if (sacred) {
+        this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
+        this.smite(sacred, w);
+        return { ok: true, kind: 'gun', hits: [sacred.id], wrath: true };
+      }
       this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
       if (r.npc) {
         hits.push(r.npc);
@@ -250,6 +264,38 @@ export class Combat {
     this.gunfireNoise(wp.noise ?? 16);
     if ((p.mags[w.id] ?? 0) <= 0 && g.inventory.count(wp.ammo)) this.reload();
     return { ok: true, kind: 'gun', hits: [...new Set(hits.map((n) => n.id))] };
+  }
+
+  /** A protected character the player is clearly attacking with a melee swing (generous reach, line of sight). */
+  raisedAgainst(dir, reach, half) {
+    const g = this.game;
+    const p = g.player;
+    const map = g.currentMap();
+    for (const npc of this.targets()) {
+      if (!isProtected(npc)) continue;
+      const dx = npc.x - p.x;
+      const dy = npc.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > reach) continue;
+      const ang = d < 1 ? 0 : Math.acos(clamp((dx * dir.x + dy * dir.y) / d, -1, 1));
+      if (ang > half) continue;
+      if (!map.lineOfSight(Math.floor(p.x / TILE), Math.floor(p.y / TILE), Math.floor(npc.x / TILE), Math.floor(npc.y / TILE))) continue;
+      return npc;
+    }
+    return null;
+  }
+
+  /** A protected character within a near miss of a bullet's path (before it stopped). */
+  protectedOnRay(ox, oy, d, maxT) {
+    for (const npc of this.targets()) {
+      if (!isProtected(npc)) continue;
+      const cx = npc.x - ox;
+      const cy = npc.y - BODY_Y - oy;
+      const t = cx * d.x + cy * d.y;
+      if (t <= 0 || t > maxT) continue;
+      if (Math.abs(cx * d.y - cy * d.x) <= HIT_RADIUS * 2) return npc;
+    }
+    return null;
   }
 
   /** First person or wall along a ray from (ox, oy). */
@@ -463,6 +509,7 @@ export class Combat {
       start: g.realTime,
       seed: Math.floor(g.rng.next() * 1e6),
       color: npc.profile.wrath?.color || '#b98cff',
+      theme: npc.profile.wrath?.theme || 'arcane',
       line: (npc.profile.wrath?.line || '{name} is beyond your reach.').replace('{name}', npc.profile.shortName).replace('{player}', p.name),
       weapon: weapon?.id || null,
       over: false,
@@ -473,7 +520,7 @@ export class Combat {
     const seen = g.witnesses(npc.map, npc.x, npc.y).filter((w) => w !== npc);
     for (const w of [npc, ...seen]) g.knowledge.learn(w, 'fact_player_smitten', { kind: 'fact', source: 'witnessed', at: now });
     g.setFlag(`smitten_by_${npc.id}`, (g.getFlag(`smitten_by_${npc.id}`) || 0) + 1);
-    g.bus.emit('combat:wrath', { npcId: npc.id, color: this.wrath.color });
+    g.bus.emit('combat:wrath', { npcId: npc.id, color: this.wrath.color, theme: this.wrath.theme });
   }
 
   /** Advance the cutscene (the world is frozen while it plays). */
@@ -483,7 +530,7 @@ export class Combat {
     const e = g.realTime - w.start;
     while (w.struck < WRATH.strikes.length && e >= WRATH.strikes[w.struck]) {
       w.struck += 1;
-      g.bus.emit('combat:lightning', { index: w.struck });
+      g.bus.emit('combat:lightning', { index: w.struck, theme: w.theme });
     }
     if (e >= WRATH.end && !w.over) {
       w.over = true;

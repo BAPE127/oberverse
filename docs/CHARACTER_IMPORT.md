@@ -68,7 +68,7 @@ Ask the player to correct misunderstandings. Then implement — the goal is the 
 
 ### Protection rule (v0.7.0)
 
-Imported characters (`origin: 'imported'`) **cannot be harmed or killed** by the player. Attacking one triggers the Wrath cutscene, which strikes the player down. Only the project owner can lift this: set `killable: true` in the profile *only when they say so*. Give every imported character a `wrath: { color, line }` — the colour tints the runes and lightning; the line is their last word after the player is struck down (in their own voice). Generated companions (e.g. employees, `origin: 'imported-generated'`) are not protected.
+Imported characters (`origin: 'imported'`) **cannot be harmed or killed** by the player. Attacking one triggers the Wrath cutscene, which strikes the player down. Only the project owner can lift this: set `killable: true` in the profile *only when they say so*. Give every imported character a `wrath: { theme, color, banner, subtitle, line }`. `theme` picks the visual/audio style (`THEMES` in `src/engine/wrath.js`: `arcane` default, `oil`, `construction`) — tie it to who they are, and add a new theme to `THEMES` (with `ground`, `aura`, `strike`, `after`, `finale`) plus score layers in `wrathTheme()` and a strike sound when none fits. `banner`/`subtitle` are the on-screen title; `line` is their last word after the player is struck down (in their own voice). Generated companions (e.g. employees, `origin: 'imported-generated'`) are not protected.
 
 ## Save compatibility
 

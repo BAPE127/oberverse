@@ -122,7 +122,30 @@ export const SFX = {
   },
   sfx_dryfire: (ctx, d) => noise(ctx, d, { dur: 0.03, vol: 0.14, freq: 3500, q: 8 }),
   // ---- the Wrath (an imported character is attacked): timed to WRATH in src/systems/combat.js
-  sfx_wrath: (ctx, d) => wrathTheme(ctx, d),
+  sfx_wrath: (ctx, d, o = {}) => wrathTheme(ctx, d, o.theme),
+  // Sir Moneybucks's strikes: oil geysers (igniting from the third)
+  sfx_gusher: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    noise(ctx, d, { t, dur: 1.0, vol: 0.9, type: 'lowpass', freq: 180, f1: 1400 });
+    for (let i = 0; i < 9; i++) tone(ctx, d, { type: 'sine', f0: 90 + Math.random() * 120, f1: 60, t: t + 0.1 + i * 0.07, dur: 0.08, vol: 0.25 });
+    if ((o.index || 0) >= 3) {
+      noise(ctx, d, { t: t + 0.05, dur: 0.9, vol: 0.5, type: 'lowpass', freq: 500, f1: 120 }); // whoomph
+      noise(ctx, d, { t: t + 0.1, dur: 1.4, vol: 0.18, type: 'bandpass', freq: 900, q: 0.7 }); // crackle
+    }
+  },
+  // Mason's strikes: falling steel I-beams, then the wrecking ball
+  sfx_beam: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    if ((o.index || 0) >= 5) {
+      tone(ctx, d, { type: 'sine', f0: 70, f1: 30, t, dur: 1.2, vol: 0.6, attack: 0.005 });
+      noise(ctx, d, { t, dur: 1.6, vol: 0.55, type: 'lowpass', freq: 1400, f1: 90 });
+      for (let i = 0; i < 14; i++) noise(ctx, d, { t: t + 0.15 + Math.random() * 0.9, dur: 0.05, vol: 0.15, freq: 1800 + Math.random() * 1500, q: 4 });
+      return;
+    }
+    for (const [f, v] of [[330, 0.14], [471, 0.1], [693, 0.08], [947, 0.06], [1302, 0.04]]) tone(ctx, d, { type: 'sine', f0: f, t, dur: 1.3, vol: v, attack: 0.002 });
+    noise(ctx, d, { t, dur: 0.35, vol: 0.4, type: 'lowpass', freq: 2200, f1: 200 });
+    tone(ctx, d, { type: 'sine', f0: 90, f1: 40, t, dur: 0.5, vol: 0.35 });
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -199,7 +222,7 @@ function brass(ctx, dest, midis, t, dur, vol) {
  * timpani roll under a D-minor choir and organ pedal, a rune hum, brass stabs,
  * a rising whoosh into the lightning, and a final crash on D major.
  */
-function wrathTheme(ctx, dest) {
+function wrathTheme(ctx, dest, theme = 'arcane') {
   const t0 = ctx.currentTime + 0.02;
   const bus = ctx.createGain();
   bus.gain.value = 0.6; // peaks stay under full scale (checked offline)
@@ -257,6 +280,23 @@ function wrathTheme(ctx, dest) {
   // 6.6 — the last, low toll
   timp(ctx, bus, t0 + 6.6, 0.45, 36);
   tone(ctx, bus, { type: 'triangle', f0: hz(26), t: t0 + 6.6, dur: 1.6, vol: 0.12 });
+
+  if (theme === 'oil') {
+    // ka-ching, then Sir Moneybucks's own "Dividends" motif on brass; at the end, fire and falling coins
+    tone(ctx, bus, { type: 'sine', f0: 2637, t: t0 + 1.0, dur: 0.5, vol: 0.12 });
+    tone(ctx, bus, { type: 'sine', f0: 3520, t: t0 + 1.06, dur: 0.7, vol: 0.1 });
+    noise(ctx, bus, { t: t0 + 0.98, dur: 0.06, vol: 0.2, freq: 3000, q: 4 });
+    [[46, 0], [53, 0.16], [58, 0.24], [62, 0.32], [65, 0.48]].forEach(([m, dt]) => brass(ctx, bus, [m, m + 12], t0 + 1.3 + dt, 0.3, 0.06));
+    [[46, 0], [58, 0.12], [65, 0.24], [70, 0.4]].forEach(([m, dt]) => brass(ctx, bus, [m, m - 12], t0 + 5.0 + dt, 0.5, 0.07));
+    noise(ctx, bus, { t: t0 + 5.0, dur: 2.6, vol: 0.3, type: 'lowpass', freq: 600, f1: 200 });
+    for (let i = 0; i < 26; i++) tone(ctx, bus, { type: 'sine', f0: 2200 + Math.random() * 2600, t: t0 + 5.2 + Math.random() * 1.8, dur: 0.12, vol: 0.05 });
+  } else if (theme === 'construction') {
+    // anvil strikes through the roll, Mason's whistled motif, and clattering bricks
+    for (let i = 0; i < 7; i++) for (const [f, v] of [[1180, 0.05], [1690, 0.035], [2410, 0.02]]) tone(ctx, bus, { type: 'sine', f0: f, t: t0 + 0.4 + i * 0.42, dur: 0.35, vol: v, attack: 0.002 });
+    [[79, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.36, 0.36], [83, 0.84, 0.12], [84, 0.96, 0.3]].forEach(([m, dt, len]) => tone(ctx, bus, { type: 'sine', f0: hz(m), t: t0 + 1.2 + dt, dur: len + 0.08, vol: 0.07, attack: 0.02 }));
+    for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 6.3 + Math.random() * 1.2, dur: 0.06, vol: 0.18, freq: 1500 + Math.random() * 2000, q: 3 });
+    noise(ctx, bus, { t: t0 + 6.3, dur: 1.6, vol: 0.22, type: 'lowpass', freq: 900, f1: 150 });
+  }
 }
 
 /** A single dialogue "voice" blip using a character's voice parameters. */

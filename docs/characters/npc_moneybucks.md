@@ -59,3 +59,5 @@ Motif `motif_moneybucks` — "Dividends", a pompous low brass figure in B♭. Vo
 ## Protection (v0.7.0)
 
 Sir Moneybucks is an imported character and **cannot be harmed or killed** (no `killable` flag has been given). Attacking him triggers the Wrath cutscene ("The Oberverse Protects Its Own"), which strikes the player down. His last word and rune colour are in `profile.wrath`.
+
+His Wrath theme is **oil** (v0.9.0): "YOU CANNOT AFFORD THIS" — derricks, coins and barrels, a gusher of crude, igniting oil geysers, a pillar of burning oil and raining money, with his "Dividends" motif on brass.

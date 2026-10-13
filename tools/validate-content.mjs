@@ -15,6 +15,7 @@ import { AMBIENCE_IDS } from '../src/audio/ambience.js';
 import { SFX } from '../src/audio/sfx.js';
 import { STATIONS } from '../src/systems/oilCompany.js';
 import { SITE_STATIONS } from '../src/systems/construction.js';
+import { THEMES as WRATH_THEMES } from '../src/engine/wrath.js';
 
 const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
 const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop'];
@@ -331,6 +332,7 @@ export function validateContent(content = CONTENT) {
   }
   for (const c of Object.values(content.characters)) {
     if (c.origin === 'imported' && !c.killable && !c.wrath?.line) warn(`character ${c.id}: imported (protected) but has no wrath.line for the Wrath cutscene`);
+    if (c.wrath?.theme && !WRATH_THEMES[c.wrath.theme]) err(`character ${c.id}: unknown wrath.theme ${c.wrath.theme} (have: ${Object.keys(WRATH_THEMES).join(', ')})`);
     const cb = c.combat;
     if (!cb) continue;
     if (cb.weapon && !content.items[cb.weapon]?.weapon) err(`character ${c.id}: combat.weapon ${cb.weapon} is not a weapon`);

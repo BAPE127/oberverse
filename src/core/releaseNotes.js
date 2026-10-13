@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.9.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Personal Wrath',
+    notes: [
+      'Fixed: attacking Sir Moneybucks (or Mason) from just out of reach — across his desk, dining table or card table — did nothing. Raising a hand against them is now enough, and so is a bullet that passes close by.',
+      'Sir Moneybucks\'s Wrath is now oil: "YOU CANNOT AFFORD THIS". Derricks burst from the floor, coins and barrels orbit him as he rides a gusher of crude, oil geysers erupt under you and ignite, and you burn under a rain of money — to his own motif on brass and a ka-ching.',
+      'Mason\'s Wrath is now construction: "DEMOLITION ORDER APPROVED". A blueprint spreads across the ground, hazard tape and tools spin around him as a crane lifts him on an I-beam, steel beams fall on you, a wrecking ball finishes the job, and a brick wall builds itself over you, is stamped CONDEMNED, and collapses.',
+    ],
+  },
+  {
     version: '0.8.0',
     date: '2026-10-13',
     channel: 'development',

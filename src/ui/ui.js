@@ -305,15 +305,16 @@ export class UI {
     bus.on('sfx', ({ id }) => this.audio.sfx(id));
     bus.on('combat:playerHit', () => this.audio.sfx('sfx_hurt'));
     // The Wrath: an imported character was attacked (src/systems/combat.js, src/engine/wrath.js)
-    bus.on('combat:wrath', () => {
+    bus.on('combat:wrath', ({ theme }) => {
       this.closeAllPanels();
       if (this.dialogue.open) this.dialogue.close();
       this.el.hud.classList.add('cinematic');
       this.caption.classList.add('hidden');
       this.audio.duck(12);
-      this.audio.sfx('sfx_wrath');
+      this.audio.sfx('sfx_wrath', { theme });
     });
-    bus.on('combat:lightning', () => this.audio.sfx('sfx_thunder'));
+    // each strike sounds like what hits you
+    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam' }[theme] || 'sfx_thunder', { index }));
     bus.on('combat:wrathEnd', ({ npcId }) => {
       this.el.hud.classList.add('cinematic');
       this.openPanel('struckDown', { name: game.npcs.get(npcId)?.profile.name || 'them' });

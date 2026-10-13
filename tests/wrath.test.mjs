@@ -89,3 +89,48 @@ test('ordinary characters can still be killed', () => {
   assert.ok(gideon.dead);
   assert.ok(!g.combat.wrath);
 });
+
+test('regression: swinging at a protected character from across a table still calls down the Wrath', () => {
+  const g = newGame(7);
+  setTime(g, 1, '07:20'); // Sir Moneybucks at breakfast, behind the dining table
+  noImpulses(g);
+  const mb = g.npcs.get('npc_moneybucks');
+  g.changeMap(mb.map, Object.keys(g.maps.get(mb.map).spots)[0]);
+  g.player.x = mb.x;
+  g.player.y = mb.y + 2 * 32; // two tiles away — out of fist reach
+  g.player.facing = 'up';
+  g.player.aim = null;
+  const r = g.combat.attack();
+  assert.ok(r.wrath, 'raising a hand is enough');
+  assert.equal(g.combat.wrath.theme, 'oil');
+});
+
+test('regression: a bullet that passes close to a protected character calls down the Wrath', () => {
+  const g = newGame(8);
+  setTime(g, 2, '11:00');
+  noImpulses(g);
+  const mason = g.npcs.get('npc_mason');
+  g.changeMap(mason.map, 'site_center');
+  g.inventory.add('item_pistol', 1);
+  g.combat.equip('item_pistol');
+  g.player.mags.item_pistol = 12;
+  g.player.x = mason.x - 6 * 32;
+  g.player.y = mason.y + 20; // aimed just past him
+  g.player.aim = { x: 1, y: 0 };
+  const r = g.combat.attack();
+  assert.ok(r.wrath);
+  assert.equal(g.combat.wrath.theme, 'construction');
+});
+
+test('each protected character has a themed Wrath with its own banner and strike sound', async () => {
+  const { THEMES } = await import('../src/engine/wrath.js');
+  for (const id of ['npc_moneybucks', 'npc_mason']) {
+    const wr = CONTENT.characters[id].wrath;
+    assert.ok(THEMES[wr.theme], `${id}: theme ${wr.theme}`);
+    assert.ok(wr.banner && wr.subtitle && wr.line);
+  }
+  assert.equal(CONTENT.characters.npc_moneybucks.wrath.theme, 'oil');
+  assert.equal(CONTENT.characters.npc_mason.wrath.theme, 'construction');
+  const { SFX } = await import('../src/audio/sfx.js');
+  for (const s of ['sfx_wrath', 'sfx_thunder', 'sfx_gusher', 'sfx_beam']) assert.equal(typeof SFX[s], 'function');
+});

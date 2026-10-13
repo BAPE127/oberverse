@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.9.0] — 2026-10-13 — "Personal Wrath" (development build)
+
+### Fixed
+- **Attacking a protected character often did nothing.** Melee only hit within ~1.4 tiles, and Sir Moneybucks spends most of the day behind furniture (study desk, dining table, card table) where the player can't get that close, so the swing silently missed. Tests had always placed the player adjacent. Now any melee swing aimed at a protected character within 2.6 tiles (50° cone, line of sight) calls down the Wrath, and so does any shot whose path passes within 28 px of one (`Combat.raisedAgainst`, `Combat.protectedOnRay`). Regression tests reproduce the dining-table case.
+
+### Added
+- **Themed Wraths** (`profile.wrath.theme`; `THEMES` in `src/engine/wrath.js` — `arcane`, `oil`, `construction`), each restyling the same beats (aura → banner → convergence → five strikes → finale), with per-character `banner` and `subtitle`:
+  - **Sir Moneybucks — oil**: "YOU CANNOT AFFORD THIS". Sepia-black sky; a milled-coin "$" sigil; six derricks burst up around him and spout crude; spinning gold coins and oil barrels orbit as he rides a gusher; the strikes are oil geysers under the player that ignite from the third; an oil slick burns; the finale is a pillar of burning oil and black smoke with coins raining down.
+  - **Mason — construction**: "DEMOLITION ORDER APPROVED". A blueprint grid spreads over the ground; hazard-tape rings, orbiting hammers/wrenches/trowels/bricks and a ring of nails; a crane cable lifts him on an I-beam; orange "DEMOLISH" spray paint marks the player; four I-beams fall (dust, sparks) and a wrecking ball swings in; a brick wall builds itself over the player, is stamped CONDEMNED, and collapses into dust.
+- **Themed audio**: `sfx_wrath` takes the theme — oil adds a ka-ching, Sir Moneybucks's motif on brass, a fire roar and coins; construction adds anvil strikes, Mason's whistled motif and clattering bricks. New strike sounds `sfx_gusher` (ignites from the fourth strike) and `sfx_beam` (the fifth is the wrecking ball). All themes rendered offline: peaks 0.88–0.89.
+- Validator: `wrath.theme` must be a known theme.
+
+### Changed
+- Mason's last word is now construction-themed ("Looks like you just got… nailed.").
+
 ## [0.8.0] — 2026-10-13 — "Debug Menu" (development build)
 
 ### Added

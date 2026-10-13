@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-13 — v0.9.0.** Fixed out-of-reach attacks on protected characters; per-character Wrath themes (oil, construction). Lesson: tests must place the player where a real player can stand.
 - **2026-10-13 — v0.8.0.** Debug menu and console (` key) for testing. New commands go in `src/game/debugCommands.js` (add a test).
 - **2026-10-13 — v0.7.0.** Imported characters protected; the Wrath cutscene. Owner's rule: imported characters can't be killed unless they say so.
 - **2026-10-13 — v0.6.0.** Combat system (melee + guns, NPC health bars, knock-outs, death, reactions). Next candidates: police response in Halvermouth, arrests/bounties, armour, touch controls, death-aware dialogue.

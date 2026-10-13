@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.9.0 | 2026-10-13 | development | 1 | Personal Wrath — fixed out-of-reach attacks; oil and construction themes |
 | 0.8.0 | 2026-10-13 | development | 1 | Debug Menu — testing console and toolbox |
 | 0.7.0 | 2026-10-13 | development | 1 | The Oberverse Protects Its Own — imported characters are untouchable |
 | 0.6.0 | 2026-10-13 | development | 1 | Hard Lessons — combat, weapons, NPC health and death |
@@ -13,6 +14,12 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.9.0 — Personal Wrath
+
+- **Fix:** the Wrath now triggers on any clear attack on a protected character, not only on blows that would have landed.
+- **Content:** per-character Wrath themes (visual + audio). New imported characters choose a theme or get the default arcane one.
+- **Save compatibility:** unchanged.
 
 ## 0.8.0 — Debug Menu
 

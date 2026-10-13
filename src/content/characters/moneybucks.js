@@ -41,7 +41,10 @@ export default {
     rumorPrefix: 'One hears, from the lower orders, that', factPrefix: 'It is simply a fact, my good fellow, that', refuse: 'That is a matter for my solicitors, and they are expensive.',
   },
   wrath: {
+    theme: 'oil', // coins, derricks, gushers, burning crude (src/engine/wrath.js)
     color: '#f2c14e',
+    banner: 'YOU CANNOT AFFORD THIS',
+    subtitle: 'Sir Richard E. Moneybucks, Esq. is insured against the likes of you.',
     line: 'Did you truly imagine Sir Moneybucks could be struck down by the likes of you, my good fellow? Some of us are written in ink. You, I fear, were written in pencil.',
   },
   mechanics: {

@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.8.0
+# Known Issues and Limitations — v0.9.0
 
 ## Not yet implemented (planned)
 
