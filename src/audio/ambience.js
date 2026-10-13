@@ -116,6 +116,31 @@ const BEDS = {
       src.start(ctx.currentTime, Math.random(), 0.3);
     }),
   ],
+  amb_city: (ctx, d) => [
+    // distant traffic roar, a low city hum, the odd car horn
+    noiseBed(ctx, d, { type: 'lowpass', freq: 520, vol: 0.09, lfoRate: 0.05, lfoDepth: 0.04 }),
+    hum(ctx, d, 55, 0.012),
+    every(6, 16, () => {
+      const t = ctx.currentTime;
+      const f = 330 + Math.random() * 120;
+      for (const [k, mul] of [[0, 1], [1, 1.26]]) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'square';
+        o.frequency.value = f * mul;
+        g.gain.setValueAtTime(0.0001, t + k * 0.02);
+        g.gain.linearRampToValueAtTime(0.012, t + 0.03);
+        g.gain.setValueAtTime(0.012, t + 0.28);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1400;
+        o.connect(lp).connect(g).connect(d);
+        o.start(t);
+        o.stop(t + 0.4);
+      }
+    }),
+  ],
   amb_site: (ctx, d) => [
     noiseBed(ctx, d, { type: 'bandpass', freq: 420, q: 1, vol: 0.05, lfoRate: 0.11, lfoDepth: 0.03 }),
     hum(ctx, d, 38, 0.018), // the excavator idling somewhere

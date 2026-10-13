@@ -81,12 +81,16 @@ All modal UI (dialogue, panels) pauses the game clock.
 
 Only horizontal (east–west) seams are generated so far. The coast region is Westbrook (x −43) · Lanternside (0) · the Ober Fields (63).
 
+**Separate regions and gateways.** Big areas go in their own region and are joined by ordinary edge doors carrying `gateway: '<name>'` (with `keepTile: true` so the road still looks like road). Walking onto one loads the other region with the normal door transition; nothing from the other region is drawn or simulated as a neighbour. Halvermouth (`city`) is the first: 112×80 tiles, entered from Westbrook's west edge. The full map (M) shows a tab per region and draws gateway arrows at map edges.
+
 ## Companies and properties
 
 - `OilCompany` (`src/systems/oilCompany.js`) and `Construction` (`src/systems/construction.js`) each own a slice of `world` state and expose shift stations; a `workstation` prop names its `company`. Panels call their methods through `choices` options (`call: [system, method, ...args]`).
 - `Properties` (`src/systems/properties.js`) tracks contracts on plots. Plots are content expanded at load by `withPlots()` (`src/world/plots.js`) into ordinary props, an interior map and a container, all shown or hidden by `property` conditions, so the engine has no plot special cases. A finished building is the one runtime change to a map: `Game.rebuildMaps()` recreates `GameMap`s from content and calls `GameMap.addBuilding()` for every finished property (on new game, on load and on completion). Render caches are keyed by `GameMap` object so rebuilt maps redraw.
 
 ## Rendering
+
+Skyscrapers are buildings with `tower: <storeys>`: the facade rises `storeys × 14 px` above the footprint, so they are culled, y-sorted and occlusion-tested by that height (`towerHeight()`), and add a soft night glow in the lighting pass. Burning barrels are light sources like street lamps.
 
 `Renderer` caches a static ground layer per map, then draws flat props, y-sorted buildings/props/characters, interaction highlight, a lighting pass (darkness with light "holes" for lamps, lit windows and the player, plus additive warm glow), and screen-space name tags and speech bubbles. Characters are drawn procedurally from `appearance` data; if `appearance.sprite` names an image that loads, it is used instead (`src/engine/assets.js`), so art can be upgraded without touching simulation code.
 

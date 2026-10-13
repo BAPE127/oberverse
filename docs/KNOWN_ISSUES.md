@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.4.0
+# Known Issues and Limitations — v0.5.0
 
 ## Not yet implemented (planned)
 
@@ -8,6 +8,7 @@
 - **Controller and touch input.** Keyboard + mouse only.
 - **Weather and seasons.**
 - **More of the world:** No. 11 and the Collective Hall have no interiors.
+- **Halvermouth is map-only:** no residents, traffic, shops, jobs or quests yet; the gun shop sells nothing; most buildings are closed (each says why). Parked cars never move.
 - **Property plots:** the property system is groundwork only — there are no plots to build on yet (by design; added on request). Tenants are not simulated characters, and the shopfront pays a flat placeholder income. Player homes have no lock.
 - **Imported characters:** two so far (Sir Moneybucks, Mason Nails). Their employees are lighter residents (fewer topics, no individual motifs).
 - **Moneybucks's upstairs apartments** and the Collective Hall interior are not built.
@@ -28,6 +29,9 @@
 - During a strike, picketing workers stand at the gate but the refinery interior is simply empty (no "scab" behaviour yet).
 - The Ledger can only be played once per day, and a match abandoned mid-way keeps the stake.
 - Region seams are east–west only; maps can't yet be joined north–south.
+- Skyscrapers along the northern edge of Halvermouth are cut off by the top of the map (the camera stops at the map edge).
+- Halvermouth's static ground layer is large (3584×2560 px); fine on desktop Chromium (60 fps measured), not yet measured on phones or tablets.
+- When NPCs are added to Halvermouth, they will need routes through the gateway doors (cross-region travel uses the door graph; untested with residents).
 - Across the seam, the off-map neighbour's NPCs are drawn but you can't talk to them until you step across (interactions use the current map).
 - Sleeping NPCs are drawn standing with closed eyes, not lying in bed.
 - The Mason's Os site never changes (as requested); the crew's "build" impulse sends them to one spot on the Lots whatever plot is being built.

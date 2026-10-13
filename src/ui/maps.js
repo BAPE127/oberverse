@@ -144,10 +144,20 @@ export class MapRenderer {
    * Full map with fog over undiscovered areas, labels and markers. For an
    * outdoor map, its whole region (all seamless neighbours) is drawn as one.
    */
+  /** Every map in an outdoor map's region, with tile offsets (for the full map). */
+  regionLayers(map) {
+    const g = this.game;
+    if (map.kind === 'interior') return [{ map, x: 0, y: 0 }];
+    const region = Object.values(g.content.regions || {}).find((r) => r.maps[map.id]);
+    if (!region) return this.layers(map);
+    const me = region.maps[map.id];
+    return Object.entries(region.maps).filter(([id]) => g.maps.has(id)).map(([id, o]) => ({ map: g.maps.get(id), x: o.x - me.x, y: o.y - me.y }));
+  }
+
   drawWorldMap(canvas, mapId) {
     const g = this.game;
     const map = g.maps.get(mapId);
-    const layers = this.layers(map);
+    const layers = this.regionLayers(map);
     const scale = map.kind === 'interior' ? 24 : layers.length > 1 ? 8 : 10;
     const minX = Math.min(...layers.map((l) => l.x));
     const minY = Math.min(...layers.map((l) => l.y));
@@ -183,7 +193,8 @@ export class MapRenderer {
         ctx.font = `bold ${Math.max(10, scale * 1.05)}px "Trebuchet MS", sans-serif`;
         const tx = (b.x + b.w / 2) * scale;
         const ty = (b.y + b.h / 2 - 0.5) * scale;
-        const label = b.mapLabel || b.name;
+        const label = b.mapLabel ?? b.name;
+        if (!label) continue;
         const tw = ctx.measureText(label).width + 8;
         ctx.fillStyle = 'rgba(251,244,230,0.85)';
         ctx.fillRect(tx - tw / 2, ty - scale * 0.75, tw, scale * 1.5);
@@ -198,6 +209,25 @@ export class MapRenderer {
         ctx.lineWidth = 3;
         ctx.strokeText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
         ctx.fillText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
+      }
+      // gateways to other regions (loaded separately): an arrow and a label at the edge
+      const seen = new Set();
+      for (const d of L.map.doors) {
+        if (!d.gateway || seen.has(d.gateway)) continue;
+        seen.add(d.gateway);
+        const west = d.x === 0;
+        const gx = (d.x + 0.5) * scale;
+        const gy = (d.y + 1) * scale;
+        ctx.font = `bold ${Math.max(11, scale * 1.3)}px "Trebuchet MS", sans-serif`;
+        const label = west ? `◀ ${d.gateway}` : `${d.gateway} ▶`;
+        const tw = ctx.measureText(label).width + 10;
+        const lx = west ? gx + 4 : gx - tw - 4;
+        ctx.fillStyle = 'rgba(232,182,76,0.95)';
+        ctx.fillRect(lx, gy - scale * 0.9, tw, scale * 1.8);
+        ctx.fillStyle = '#2d2433';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, lx + 5, gy);
+        ctx.textAlign = 'center';
       }
       for (const m of this.markers(L.map)) this.marker(ctx, m.x * scale, m.y * scale, m, Math.max(1.4, s));
       if (g.player.map === L.map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));

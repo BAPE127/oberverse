@@ -159,11 +159,25 @@ export function mapPanel(ui, body, opts) {
   );
   const tabs = [];
   const outdoorId = current.kind === 'interior' ? (g.lastOutdoorMap || 'lanternside') : current.id;
-  const regionName = Object.values(g.content.regions || {}).find((r) => r.maps[outdoorId])?.name || g.maps.get(outdoorId).name;
+  const regions = Object.values(g.content.regions || {});
+  const regionOfMap = (id) => regions.find((r) => r.maps[id]);
+  const here = regionOfMap(outdoorId);
   if (current.kind === 'interior') tabs.push({ label: current.name, active: mapId === current.id, onclick: () => ui.openPanel('map', { mapId: current.id }) });
-  tabs.push({ label: regionName, active: mapId === outdoorId, onclick: () => ui.openPanel('map', { mapId: outdoorId }) });
+  tabs.push({ label: here?.name || g.maps.get(outdoorId).name, active: mapId === outdoorId || (here && here.maps[mapId] && mapId !== current.id), onclick: () => ui.openPanel('map', { mapId: outdoorId }) });
+  // every other region gets a tab too, so places you haven't been are still on the map
+  for (const r of regions) {
+    if (r === here) continue;
+    const first = Object.keys(r.maps)[0];
+    tabs.push({ label: r.name, active: Boolean(r.maps[mapId]), onclick: () => ui.openPanel('map', { mapId: first }) });
+  }
   const disc = Object.keys(g.player.discovered.areas).length;
   body.append(h('p', { class: 'muted' }, `Areas discovered: ${disc}. Unexplored districts stay hidden until you visit them.`));
+  const shown = g.maps.get(mapId);
+  const regionMaps = shown ? Object.keys(regionOfMap(mapId)?.maps || { [mapId]: 1 }) : [];
+  if (shown && shown.kind !== 'interior' && !regionMaps.some((id) => g.maps.get(id)?.areas.some((ar) => g.player.discovered.areas[ar.id]))) {
+    const gate = [...g.maps.values()].flatMap((mm) => mm.doors.filter((d) => d.gateway && d.to?.map === mapId).map((d) => mm.name))[0];
+    body.append(h('p', {}, h('b', {}, `You haven't been to ${regionOfMap(mapId)?.name || shown.name} yet.`), gate ? ` The road there leaves from ${gate}.` : ''));
+  }
   return { title: 'Map', tabs };
 }
 

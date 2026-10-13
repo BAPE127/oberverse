@@ -120,6 +120,25 @@ function drawTile(ctx, map, x, y) {
       ctx.fillRect(px + r * 24, py + hash2(y, x) * 24, 6, 4);
       break;
     }
+    case 'm': {
+      // large civic paving slabs
+      ctx.strokeStyle = 'rgba(110,100,85,0.18)';
+      ctx.lineWidth = 1;
+      if (x % 2 === 0) { ctx.beginPath(); ctx.moveTo(px + 0.5, py); ctx.lineTo(px + 0.5, py + T); ctx.stroke(); }
+      if (y % 2 === 0) { ctx.beginPath(); ctx.moveTo(px, py + 0.5); ctx.lineTo(px + T, py + 0.5); ctx.stroke(); }
+      break;
+    }
+    case 'u': {
+      // grimy mud: puddles and litter
+      if (r > 0.7) {
+        ctx.fillStyle = 'rgba(70,80,90,0.35)';
+        ctx.beginPath(); ctx.ellipse(px + 8 + r * 14, py + 10 + hash2(y, x) * 12, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(40,30,20,0.18)';
+      for (let i = 0; i < 4; i++) ctx.fillRect(px + hash2(x + i, y * 2) * T, py + hash2(x * 3, y + i) * T, 2, 2);
+      if (r < 0.06) { ctx.fillStyle = 'rgba(220,210,190,0.5)'; ctx.fillRect(px + 12, py + 14, 5, 3); }
+      break;
+    }
     case 'c': {
       ctx.fillStyle = 'rgba(255,255,255,0.05)';
       if ((x + y) % 2) ctx.fillRect(px, py, T, T);
@@ -236,8 +255,174 @@ export function drawWaterShimmer(ctx, map, view, time) {
  * @param {object} b building def
  * @param {object} opts {lit:boolean, time:number, doorOpen:boolean}
  */
+/** Height in px a tower's facade rises above its footprint's bottom edge. */
+export function towerHeight(b) {
+  return b.tower * 14 + b.h * T * 0.55;
+}
+
+/** Flat roof with a parapet (modern/civic buildings); optional dome. */
+function drawFlatRoof(ctx, b, left, right, roofTop, roofBottom) {
+  const rl = left - 3;
+  const rr = right + 3;
+  ctx.fillStyle = shade(b.roof, -18);
+  ctx.fillRect(rl, roofTop, rr - rl, roofBottom - roofTop + 4);
+  ctx.fillStyle = b.roof;
+  ctx.fillRect(rl + 4, roofTop + 4, rr - rl - 8, roofBottom - roofTop - 6);
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  for (let i = 0; i < (rr - rl) / 40; i++) ctx.fillRect(rl + 12 + i * 40, roofTop + 10, 16, 10); // vents
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(rl, roofBottom + 2, rr - rl, 3);
+  if (b.dome) {
+    const cx = (left + right) / 2;
+    const cy = roofTop + (roofBottom - roofTop) * 0.55;
+    const r = Math.min((right - left) * 0.22, 54);
+    ctx.fillStyle = shade(b.trim, -10);
+    ctx.fillRect(cx - r * 1.05, cy - 6, r * 2.1, 14); // drum
+    ctx.fillStyle = b.dome;
+    ctx.beginPath(); ctx.ellipse(cx, cy - 6, r, r * 0.95, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.ellipse(cx - r * 0.35, cy - r * 0.45, r * 0.18, r * 0.35, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = shade(b.dome, -25);
+    ctx.fillRect(cx - 3, cy - 6 - r * 0.95 - 14, 6, 14); // lantern
+    ctx.beginPath(); ctx.arc(cx, cy - 6 - r * 0.95 - 16, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  if (b.pediment) {
+    const cx = (left + right) / 2;
+    const pw = Math.min(right - left - 20, T * 7);
+    ctx.fillStyle = b.wall;
+    ctx.beginPath(); ctx.moveTo(cx - pw / 2, roofBottom + 4); ctx.lineTo(cx, roofBottom - 22); ctx.lineTo(cx + pw / 2, roofBottom + 4); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = b.trim;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+/** Slum shacks: corrugated, patched roofs and boarded-up windows. */
+function drawShabby(ctx, b, left, right, roofTop, roofBottom, wallH) {
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  for (let x = left; x < right; x += 5) { ctx.beginPath(); ctx.moveTo(x, roofTop + 2); ctx.lineTo(x, roofBottom); ctx.stroke(); }
+  const r = hash2(b.x, b.y);
+  ctx.fillStyle = r > 0.5 ? 'rgba(160,150,120,0.7)' : 'rgba(110,130,150,0.6)';
+  ctx.fillRect(left + (right - left) * (0.2 + r * 0.4), roofTop + 6, 18, 12); // tarp patch
+  ctx.fillStyle = 'rgba(150,90,50,0.55)';
+  ctx.fillRect(left + 6, roofBottom - 14, 12, 9); // rust
+  // boards over the windows
+  const winY = roofBottom + wallH * 0.22;
+  ctx.fillStyle = '#8a7050';
+  for (let wx = left + 0.35 * T; wx + 0.65 * T <= right - 0.2 * T; wx += T * 1.25) {
+    if (hash2(Math.floor(wx), b.y) < 0.5) continue;
+    ctx.save();
+    ctx.translate(wx + 0.35 * T, winY + wallH * 0.21);
+    ctx.rotate(-0.25);
+    ctx.fillRect(-0.45 * T, -3, 0.9 * T, 6);
+    ctx.restore();
+  }
+}
+
+/** A skyscraper: a tall glass-and-steel facade rising above its footprint. */
+function drawTower(ctx, b, opts) {
+  const left = b.x * T;
+  const right = (b.x + b.w) * T;
+  const bottom = (b.y + b.h) * T;
+  const facadeH = b.tower * 14;
+  const depth = b.h * T * 0.55;
+  const faceTop = bottom - facadeH;
+  const roofTop = faceTop - depth;
+  const w = right - left;
+  // soft ground shadow cast to the east
+  ctx.fillStyle = 'rgba(20,20,40,0.14)';
+  ctx.fillRect(right, bottom - b.h * T * 0.9, Math.min(facadeH * 0.15, 64), b.h * T * 0.9);
+  // roof (seen from above)
+  ctx.fillStyle = shade(b.roof || '#4a4f5a', -10);
+  ctx.fillRect(left, roofTop, w, depth + 2);
+  ctx.fillStyle = b.roof || '#4a4f5a';
+  ctx.fillRect(left + 4, roofTop + 4, w - 8, depth - 6);
+  const hr = hash2(b.x, b.y);
+  if (b.helipad) {
+    ctx.strokeStyle = '#f2efe6';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(left + w / 2, roofTop + depth / 2, Math.min(w, depth) * 0.32, Math.min(w, depth) * 0.25, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#f2efe6';
+    ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('H', left + w / 2, roofTop + depth / 2);
+    ctx.textAlign = 'left';
+  } else {
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(left + w * (0.15 + hr * 0.4), roofTop + 8, w * 0.25, depth * 0.4); // plant room
+  }
+  if (b.tower >= 18) { // antenna with a red beacon
+    ctx.fillStyle = '#3a3e48';
+    ctx.fillRect(left + w * 0.7, roofTop - 34, 3, 40);
+    const blink = Math.sin((opts.time || 0) * 3 + hr * 10) > 0.4;
+    ctx.fillStyle = blink ? '#ff4a3a' : '#7a2a24';
+    ctx.beginPath(); ctx.arc(left + w * 0.7 + 1.5, roofTop - 36, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  // facade
+  ctx.fillStyle = b.wall;
+  ctx.fillRect(left, faceTop, w, facadeH);
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.fillRect(left, faceTop, w * 0.18, facadeH); // sunlit edge
+  ctx.fillStyle = 'rgba(0,0,0,0.14)';
+  ctx.fillRect(right - w * 0.12, faceTop, w * 0.12, facadeH);
+  // window grid; at night a scatter of offices stay lit
+  const cols = Math.max(2, Math.floor((w - 8) / 14));
+  const cw = (w - 8) / cols;
+  const lobbyH = 30;
+  const night = opts.night;
+  for (let row = 0; row < b.tower - 2; row++) {
+    const wy = faceTop + 6 + row * 14;
+    if (wy > bottom - lobbyH - 10) break;
+    for (let c = 0; c < cols; c++) {
+      const wx = left + 4 + c * cw;
+      const lit = night && hash2(b.x * 31 + c, b.y * 17 + row) > 0.55;
+      ctx.fillStyle = lit ? '#ffe2a0' : b.glass || '#8fb4c8';
+      ctx.fillRect(wx + 2, wy, cw - 4, 9);
+      if (!lit) {
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(wx + 2, wy, 3, 9);
+      }
+    }
+  }
+  // floor bands
+  ctx.fillStyle = b.trim;
+  for (let fy = faceTop; fy < bottom - lobbyH; fy += 14 * 4) ctx.fillRect(left, fy, w, 2);
+  ctx.fillRect(left, faceTop, w, 3);
+  // lobby
+  ctx.fillStyle = shade(b.trim, -15);
+  ctx.fillRect(left, bottom - lobbyH, w, lobbyH);
+  ctx.fillStyle = night ? 'rgba(255,220,150,0.55)' : 'rgba(170,200,215,0.6)';
+  ctx.fillRect(left + 6, bottom - lobbyH + 6, w - 12, lobbyH - 10);
+  ctx.fillStyle = b.trim;
+  for (let px = left + 6; px < right - 6; px += 18) ctx.fillRect(px, bottom - lobbyH + 6, 2, lobbyH - 10);
+  if (b.door) {
+    const dx = b.door.x * T + 4;
+    ctx.fillStyle = '#2a2e36';
+    ctx.fillRect(dx - 2, bottom - lobbyH + 4, T - 4, lobbyH - 4);
+    ctx.fillStyle = night ? 'rgba(255,214,140,0.7)' : 'rgba(150,185,205,0.8)';
+    ctx.fillRect(dx + 1, bottom - lobbyH + 7, (T - 10) / 2, lobbyH - 9);
+    ctx.fillRect(dx + 3 + (T - 10) / 2, bottom - lobbyH + 7, (T - 10) / 2, lobbyH - 9);
+  }
+  ctx.fillStyle = 'rgba(120,110,100,0.8)';
+  ctx.fillRect(left, bottom, w, 3);
+  if (b.sign) {
+    ctx.font = 'bold 9px "Trebuchet MS", "Segoe UI", sans-serif';
+    const tw = ctx.measureText(b.sign).width + 10;
+    const sx = left + (w - tw) / 2;
+    const sy = bottom - lobbyH - 15;
+    ctx.fillStyle = b.signColor || '#1e2430';
+    rrect(ctx, sx, sy, tw, 13, 2);
+    ctx.fill();
+    ctx.fillStyle = '#f2efe6';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.sign, sx + 5, sy + 7);
+  }
+}
+
 export function drawBuilding(ctx, b, opts) {
   if (b.round) return drawLighthouse(ctx, b, opts);
+  if (b.tower) return drawTower(ctx, b, opts);
   const left = b.x * T;
   const right = (b.x + b.w) * T;
   const top = b.y * T;
@@ -317,35 +502,40 @@ export function drawBuilding(ctx, b, opts) {
     ctx.fillRect(dx - 3, bottom, dw + 6, 3);
   }
 
-  // roof (gabled, seen from above at an angle)
-  const eave = 6;
-  const rl = left - eave;
-  const rr = right + eave;
   const ridge = roofTop + (roofBottom - roofTop) * 0.45;
-  ctx.fillStyle = shade(b.roof, 22);
-  ctx.beginPath();
-  ctx.moveTo(rl + 8, roofTop); ctx.lineTo(rr - 8, roofTop); ctx.lineTo(rr, ridge); ctx.lineTo(rl, ridge); ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = b.roof;
-  ctx.beginPath();
-  ctx.moveTo(rl, ridge); ctx.lineTo(rr, ridge); ctx.lineTo(rr, roofBottom + 4); ctx.lineTo(rl, roofBottom + 4); ctx.closePath();
-  ctx.fill();
-  // tile rows
-  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-  ctx.lineWidth = 1;
-  for (let ry = ridge + 7; ry < roofBottom; ry += 7) {
-    ctx.beginPath(); ctx.moveTo(rl, ry); ctx.lineTo(rr, ry); ctx.stroke();
+  if (b.flatRoof || b.dome) {
+    drawFlatRoof(ctx, b, left, right, roofTop, roofBottom);
+    if (b.shabby) drawShabby(ctx, b, left, right, roofTop, roofBottom, wallH);
+  } else {
+    // roof (gabled, seen from above at an angle)
+    const eave = 6;
+    const rl = left - eave;
+    const rr = right + eave;
+    ctx.fillStyle = shade(b.roof, 22);
+    ctx.beginPath();
+    ctx.moveTo(rl + 8, roofTop); ctx.lineTo(rr - 8, roofTop); ctx.lineTo(rr, ridge); ctx.lineTo(rl, ridge); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = b.roof;
+    ctx.beginPath();
+    ctx.moveTo(rl, ridge); ctx.lineTo(rr, ridge); ctx.lineTo(rr, roofBottom + 4); ctx.lineTo(rl, roofBottom + 4); ctx.closePath();
+    ctx.fill();
+    // tile rows
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 1;
+    for (let ry = ridge + 7; ry < roofBottom; ry += 7) {
+      ctx.beginPath(); ctx.moveTo(rl, ry); ctx.lineTo(rr, ry); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    for (let ry = roofTop + 6; ry < ridge; ry += 7) {
+      ctx.beginPath(); ctx.moveTo(rl + 6, ry); ctx.lineTo(rr - 6, ry); ctx.stroke();
+    }
+    ctx.fillStyle = shade(b.roof, -30);
+    ctx.fillRect(rl, ridge - 1.5, rr - rl, 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(rl, roofBottom + 2, rr - rl, 3);
   }
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  for (let ry = roofTop + 6; ry < ridge; ry += 7) {
-    ctx.beginPath(); ctx.moveTo(rl + 6, ry); ctx.lineTo(rr - 6, ry); ctx.stroke();
-  }
-  ctx.fillStyle = shade(b.roof, -30);
-  ctx.fillRect(rl, ridge - 1.5, rr - rl, 3);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fillRect(rl, roofBottom + 2, rr - rl, 3);
   // chimney on homes
-  if (!b.sign) {
+  if (!b.sign && !b.flatRoof && !b.dome) {
     const cx = right - T * 1.3;
     ctx.fillStyle = '#8a5a48';
     ctx.fillRect(cx, roofTop - 10, 12, (ridge - roofTop) + 4);
@@ -436,7 +626,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board']);
+export const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 export function drawProp(ctx, p, opts) {
   const x = p.x * T;
@@ -651,8 +841,24 @@ export function drawProp(ctx, p, opts) {
       } else if (p.type === 'display') {
         ctx.fillStyle = 'rgba(200,230,240,0.55)';
         ctx.fillRect(x + 5, y - 6, w - 10, h - 4);
-        ctx.fillStyle = '#d99a4e';
-        for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(x + 10 + i * 10, y + 6, 4, 0, Math.PI * 2); ctx.fill(); }
+        if (p.variant === 'guns') {
+          // revolvers and pistols on felt, each on a tag
+          ctx.fillStyle = 'rgba(40,60,40,0.5)';
+          ctx.fillRect(x + 5, y - 6, w - 10, h - 4);
+          for (let i = 0; i < Math.floor((w - 12) / 18); i++) {
+            const gx = x + 9 + i * 18;
+            ctx.fillStyle = '#2a2a2e';
+            ctx.fillRect(gx, y + 1, 11, 3); // barrel
+            ctx.fillRect(gx + 7, y + 1, 4, 8); // grip
+            ctx.fillStyle = '#7a5232';
+            ctx.fillRect(gx + 7, y + 5, 4, 4);
+            ctx.fillStyle = '#f2efe6';
+            ctx.fillRect(gx + 1, y + 8, 4, 3);
+          }
+        } else {
+          ctx.fillStyle = '#d99a4e';
+          for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(x + 10 + i * 10, y + 6, 4, 0, Math.PI * 2); ctx.fill(); }
+        }
       } else {
         ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.fillRect(x + w / 2 - 1, y - 6, 2, h);
@@ -781,6 +987,199 @@ export function drawProp(ctx, p, opts) {
       ctx.beginPath(); ctx.arc(x + 16, y + 18, 4 + glint * 2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#c9ced4';
       ctx.fillRect(x + 10, y + 17, 12, 3);
+      break;
+    }
+    // ---------------------------------------------------------- Halvermouth
+    case 'car': {
+      const vertical = p.h > p.w;
+      const body = p.color || '#3a5a8a';
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      if (vertical) {
+        ctx.fillRect(x + 6, y + 4, w - 8, h - 4);
+        ctx.fillStyle = body; rrect(ctx, x + 4, y + 2, w - 8, h - 6, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(160,200,220,0.85)';
+        ctx.fillRect(x + 8, y + 12, w - 16, 10); ctx.fillRect(x + 8, y + h - 24, w - 16, 8);
+        ctx.fillStyle = shade(body, 18); ctx.fillRect(x + 8, y + 24, w - 16, h - 50);
+      } else {
+        ctx.fillRect(x + 4, y + 8, w - 4, h - 6);
+        ctx.fillStyle = '#1e1e22';
+        ctx.fillRect(x + 8, y + h - 8, 8, 6); ctx.fillRect(x + w - 18, y + h - 8, 8, 6);
+        ctx.fillStyle = body; rrect(ctx, x + 2, y + 6, w - 4, h - 12, 6); ctx.fill();
+        ctx.fillStyle = shade(body, 16); rrect(ctx, x + 14, y, w - 30, 12, 4); ctx.fill();
+        ctx.fillStyle = 'rgba(160,200,220,0.85)';
+        ctx.fillRect(x + 17, y + 2, (w - 36) / 2, 8); ctx.fillRect(x + 19 + (w - 36) / 2, y + 2, (w - 36) / 2, 8);
+        ctx.fillStyle = '#f2e6a0'; ctx.fillRect(x + w - 6, y + 12, 4, 4);
+      }
+      if (p.police) {
+        const on = Math.sin(time * 6) > 0;
+        const cx = x + w / 2;
+        const cy = vertical ? y + h / 2 - 6 : y + 3;
+        ctx.fillStyle = on ? '#ff3a3a' : '#3a5aff';
+        ctx.fillRect(cx - 8, cy - 2, 7, 4);
+        ctx.fillStyle = on ? '#3a5aff' : '#ff3a3a';
+        ctx.fillRect(cx + 1, cy - 2, 7, 4);
+        if (!vertical) { ctx.fillStyle = '#f2efe6'; ctx.font = 'bold 7px "Trebuchet MS", sans-serif'; ctx.fillText('POLICE', x + 18, y + 20); }
+      }
+      if (p.wrecked) {
+        ctx.fillStyle = 'rgba(120,70,40,0.55)';
+        ctx.fillRect(x + 6, y + 10, w * 0.5, h - 16);
+        ctx.fillStyle = '#2a2a2e';
+        ctx.fillRect(x + 6, y + h - 6, 10, 3);
+      }
+      break;
+    }
+    case 'flagpole': {
+      const wave = Math.sin(time * 2.4 + p.x) * 3;
+      ctx.fillStyle = '#c9c6bd';
+      ctx.fillRect(x + 15, y - 52, 3, 80);
+      ctx.fillStyle = p.color || '#2a4a8a';
+      ctx.beginPath(); ctx.moveTo(x + 18, y - 50); ctx.lineTo(x + 40, y - 46 + wave); ctx.lineTo(x + 40, y - 34 + wave); ctx.lineTo(x + 18, y - 36); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8c35a';
+      ctx.beginPath(); ctx.arc(x + 16.5, y - 54, 3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case 'statue': {
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x + 6, y + h - 10, w - 6, 10);
+      ctx.fillStyle = '#c9c3b4';
+      ctx.fillRect(x + 8, y + 18, w - 16, h - 22); // plinth
+      ctx.fillStyle = '#b3ad9e';
+      ctx.fillRect(x + 4, y + h - 10, w - 8, 8);
+      ctx.fillStyle = '#5f7a6a'; // verdigris founder
+      const cx = x + w / 2;
+      ctx.fillRect(cx - 7, y - 16, 14, 34);
+      ctx.beginPath(); ctx.arc(cx, y - 22, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(cx + 6, y - 30, 4, 22); // raised arm
+      ctx.fillRect(cx + 4, y - 36, 10, 6); // a scroll
+      ctx.fillStyle = '#3a2c25';
+      ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
+      ctx.fillText(p.label || 'FOUNDER', x + 12, y + 32);
+      break;
+    }
+    case 'trash': {
+      ctx.fillStyle = '#2a2a30';
+      ctx.beginPath(); ctx.ellipse(x + 12, y + 20, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a3a44';
+      ctx.beginPath(); ctx.ellipse(x + 21, y + 22, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(230,220,200,0.7)';
+      ctx.fillRect(x + 4, y + 25, 8, 4);
+      ctx.fillStyle = 'rgba(200,80,60,0.6)';
+      ctx.fillRect(x + 22, y + 12, 4, 6);
+      break;
+    }
+    case 'barrelfire': {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.ellipse(x + 17, y + 28, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#4a4e54';
+      ctx.fillRect(x + 8, y + 6, 16, 22);
+      ctx.fillStyle = '#8a3b2b';
+      ctx.fillRect(x + 8, y + 12, 16, 3); ctx.fillRect(x + 8, y + 21, 16, 3);
+      for (let i = 0; i < 3; i++) {
+        const f = Math.sin(time * 9 + i * 2.1) * 3;
+        ctx.fillStyle = i === 1 ? '#ffd24a' : '#ff7a2a';
+        ctx.beginPath(); ctx.moveTo(x + 10 + i * 5, y + 7); ctx.lineTo(x + 12 + i * 5 + f * 0.3, y - 6 - Math.abs(f) - (i === 1 ? 5 : 0)); ctx.lineTo(x + 15 + i * 5, y + 7); ctx.closePath(); ctx.fill();
+      }
+      break;
+    }
+    case 'tent': {
+      const c = p.color || '#5a7a6a';
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x + 4, y + h - 6, w - 2, 6);
+      ctx.fillStyle = shade(c, -15);
+      ctx.beginPath(); ctx.moveTo(x + 2, y + h - 2); ctx.lineTo(x + w / 2, y - 2); ctx.lineTo(x + w - 2, y + h - 2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.moveTo(x + 2, y + h - 2); ctx.lineTo(x + w / 2, y - 2); ctx.lineTo(x + w / 2, y + h - 2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#1e1a18';
+      ctx.beginPath(); ctx.moveTo(x + w / 2 - 6, y + h - 2); ctx.lineTo(x + w / 2, y + 10); ctx.lineTo(x + w / 2 + 6, y + h - 2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(160,150,120,0.6)'; // patch
+      ctx.fillRect(x + w * 0.65, y + h * 0.45, 7, 6);
+      break;
+    }
+    case 'laundry': {
+      ctx.fillStyle = '#5a4a3a';
+      ctx.fillRect(x + 2, y - 14, 3, 40); ctx.fillRect(x + w - 5, y - 14, 3, 40);
+      ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 4, y - 12); ctx.quadraticCurveTo(x + w / 2, y - 4, x + w - 4, y - 12); ctx.stroke();
+      const colors = ['#c0614a', '#e8e2d4', '#4a6a8a', '#d9a23a', '#6a8a5a'];
+      for (let i = 0; i < Math.floor(w / 14); i++) {
+        const sway = Math.sin(time * 2 + i) * 1.5;
+        ctx.fillStyle = colors[(i + p.x) % colors.length];
+        ctx.fillRect(x + 10 + i * 13 + sway, y - 9 + (i % 2) * 2, 9, 12 + (i % 3) * 3);
+      }
+      break;
+    }
+    case 'crosswalk': {
+      ctx.fillStyle = 'rgba(240,238,230,0.75)';
+      if (p.vertical) for (let i = 0; i < w; i += 8) ctx.fillRect(x + i + 1, y + 2, 5, h - 4);
+      else for (let j = 0; j < h; j += 8) ctx.fillRect(x + 2, y + j + 1, w - 4, 5);
+      break;
+    }
+    case 'hydrant': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath(); ctx.ellipse(x + 16, y + 27, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c0414a';
+      ctx.fillRect(x + 11, y + 12, 10, 15);
+      ctx.beginPath(); ctx.arc(x + 16, y + 12, 5, Math.PI, 0); ctx.fill();
+      ctx.fillRect(x + 8, y + 16, 16, 4);
+      break;
+    }
+    case 'dumpster': {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 4, y + h - 4, w - 2, 5);
+      ctx.fillStyle = p.color || '#3f6a4a';
+      ctx.fillRect(x + 2, y + 4, w - 4, h - 6);
+      ctx.fillStyle = shade(p.color || '#3f6a4a', -20);
+      ctx.fillRect(x, y, w, 7);
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 8, y + 12, w - 16, 3);
+      break;
+    }
+    case 'chainfence': {
+      ctx.fillStyle = '#7a7e86';
+      ctx.fillRect(x, y + 4, w, 2);
+      for (let i = 0; i <= w; i += T) ctx.fillRect(x + Math.min(i, w - 3), y + 2, 3, 26);
+      ctx.strokeStyle = 'rgba(150,155,165,0.7)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < w; i += 6) {
+        ctx.beginPath(); ctx.moveTo(x + i, y + 6); ctx.lineTo(x + i + 6, y + 26); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + i + 6, y + 6); ctx.lineTo(x + i, y + 26); ctx.stroke();
+      }
+      if (p.razor) { ctx.strokeStyle = '#a8acb4'; for (let i = 0; i < w; i += 6) { ctx.beginPath(); ctx.arc(x + i + 3, y + 1, 3, 0, Math.PI * 2); ctx.stroke(); } }
+      break;
+    }
+    case 'gunrack': {
+      ctx.fillStyle = '#5a3d2a';
+      ctx.fillRect(x + 2, y + 2, w - 4, h - 6);
+      ctx.fillStyle = '#3a2a1e';
+      ctx.fillRect(x + 2, y + h - 10, w - 4, 6);
+      for (let i = 0; i < Math.floor((w - 8) / 9); i++) {
+        ctx.fillStyle = '#2a2a2e';
+        ctx.fillRect(x + 7 + i * 9, y + 4, 3, h - 14);
+        ctx.fillStyle = '#7a5232';
+        ctx.fillRect(x + 6 + i * 9, y + h - 16, 5, 8);
+      }
+      break;
+    }
+    case 'cellbars': {
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(x, y + h - 4, w, 4);
+      ctx.fillStyle = '#5a5e66';
+      ctx.fillRect(x, y + 2, w, 3);
+      for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
+      break;
+    }
+    case 'gatepost': {
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x + 6, y + 24, 24, 8);
+      ctx.fillStyle = '#9a948a';
+      ctx.fillRect(x + 6, y - 30, 20, 58);
+      ctx.fillStyle = '#b8b2a6';
+      ctx.fillRect(x + 3, y - 36, 26, 8);
+      ctx.fillStyle = '#2a4a6a';
+      ctx.fillRect(x + 9, y - 22, 14, 30);
+      ctx.fillStyle = '#e8c35a';
+      ctx.font = 'bold 7px "Trebuchet MS", sans-serif';
+      ctx.fillText('H', x + 13, y - 4);
       break;
     }
     // ---------------------------------------------------- Mason's Os site

@@ -4,6 +4,11 @@
 // tiles on that strip become seamless doors: the player and NPCs simply walk
 // across, and the renderer, minimap and world map draw the neighbours together.
 export const REGIONS = {
+  // Halvermouth is its own region: loaded on entry through the East Gate (too big to stitch).
+  city: {
+    name: 'Halvermouth',
+    maps: { halvermouth: { x: 0, y: 0, fallbackSpot: 'east_gate' } },
+  },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {

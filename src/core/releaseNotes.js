@@ -2,6 +2,20 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.5.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Halvermouth',
+    notes: [
+      'A whole city to the west: follow Gullwing Road out of Westbrook to the city gates of Halvermouth, a sprawling metropolis (loaded when you arrive).',
+      'Skyscrapers in the Financial District — including Ober\'s Oil Tower, thirty storeys of gold glass — with offices that light up at night.',
+      'Civic Plaza and the domed Hall of Justice (courthouse and Mayor\'s office), Police Precinct 1, Rook & Rifle Firearms on Iron Row — all with interiors to explore.',
+      'The Sumps: the city\'s slums, all mud, shacks, tents and burning barrels.',
+      'Also: Market Street, Founders Park, the Docks, and a map (M) that now shows every region, including places you haven\'t been yet.',
+      'This update is the map only: the city has no residents, shops or jobs yet.',
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-10-13',
     channel: 'development',

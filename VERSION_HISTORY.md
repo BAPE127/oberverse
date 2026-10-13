@@ -4,11 +4,18 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.5.0 | 2026-10-13 | development | 1 | Halvermouth — the city map (no residents yet) |
 | 0.4.0 | 2026-10-13 | development | 1 | Mason's Os — second imported character, Westbrook district, property groundwork |
 | 0.3.0 | 2026-10-13 | development | 1 | One Coast — Lanternside and the Ober Fields joined seamlessly |
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.5.0 — Halvermouth
+
+- **World structure:** first separately loaded region (`city`), joined to the coast by gateway doors instead of seams; the coast region stays seamless.
+- **Content:** map-only build of the metropolis (districts, skyscrapers, civic buildings, slums) plus three interiors. Characters and systems come in later updates.
+- **Save compatibility:** schema 1 unchanged; nothing new is stored.
 
 ## 0.4.0 — Mason's Os
 

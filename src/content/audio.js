@@ -71,6 +71,12 @@ export const SONGS = {
     melody: 'B4:4 E5:2 D5:2 | E5:6 -:2 | D5:2 B4:2 G4:4 | A4:6 -:2 | G4:2 B4:2 E5:4 | G5:4 E5:4 | C5:2 E5:2 A4:4 | D#5:4 B4:4',
     lead: 'flute', pad: 'pad', bass: 'bass', bassPattern: 'R...5...', drums: { kick: 'x.......' },
   },
+  mus_halvermouth: {
+    title: 'City of a Thousand Windows', bpm: 96, beatsPerBar: 4, stepsPerBeat: 2, swing: 0.18,
+    chords: ['Dm7', 'G7', 'Cmaj7', 'Am7', 'Dm7', 'G7', 'Em7', 'A7'],
+    melody: 'A4:2 C5:2 F5:3 E5:1 | D5:4 B4:4 | E5:2 G5:2 B5:3 A5:1 | G5:4 E5:4 | F5:2 A5:2 C6:3 B5:1 | A5:2 G5:2 F5:4 | G5:2 E5:2 B4:2 D5:2 | C#5:6 -:2',
+    lead: 'clarinet', pad: 'rhodes', bass: 'bass', bassPattern: 'R.5.8.5.', drums: { kick: 'x...x...', hat: 'x.x.x.x.', snare: '....x...' },
+  },
   mus_westbrook: {
     title: 'Measure Twice', bpm: 118, beatsPerBar: 4, stepsPerBeat: 2, swing: 0.12,
     chords: ['C', 'F', 'G', 'C', 'Am7', 'Dm7', 'G7', 'C'],
@@ -103,6 +109,7 @@ export const AUDIO_REGISTRY = [
   music('mus_manor', 'manor', 'inside Moneybucks Manor'),
   music('mus_refinery', 'refinery', 'inside the refinery'),
   music('mus_fields', 'ober_fields', 'outdoors on the Ober Fields estate'),
+  music('mus_halvermouth', 'halvermouth', 'outdoors in Halvermouth, day and night'),
   music('mus_westbrook', 'westbrook', 'Westbrook Lots by day and inside Mason\'s Os site office'),
   { id: 'motif_mason', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mason', trigger: 'conversation opens with Mason Nails', status: 'implemented', source: 'Original composition' },
   { id: 'motif_moneybucks', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_moneybucks', trigger: 'conversation opens with Sir Moneybucks', status: 'implemented', source: 'Original composition' },
@@ -136,4 +143,5 @@ export const AUDIO_REGISTRY = [
   amb('amb_fields', 'ober_fields'),
   amb('amb_refinery', 'refinery'),
   amb('amb_site', 'westbrook'),
+  amb('amb_city', 'halvermouth'),
 ];

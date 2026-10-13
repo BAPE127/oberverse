@@ -17,6 +17,8 @@ export const TILE_TYPES = {
   t: { name: 'tile floor', solid: false, color: '#dcd6cc', alt: '#d2ccc1' },
   c: { name: 'carpet', solid: false, color: '#8e5a6e', alt: '#875468' },
   g: { name: 'concrete', solid: false, color: '#a7a9a6', alt: '#9fa19e' },
+  m: { name: 'plaza stone', solid: false, color: '#d8d2c4', alt: '#d0c9ba' },
+  u: { name: 'mud', solid: false, color: '#7d6e5a', alt: '#756652' },
   x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
 };
 

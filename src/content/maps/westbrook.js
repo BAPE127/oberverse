@@ -46,7 +46,12 @@ export const westbrook = {
       door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '22:00' } } },
     },
   ],
+  doors: [
+    { id: 'door_wb_west_gate_a', x: 0, y: 12, keepTile: true, gateway: 'Halvermouth', label: 'The road to Halvermouth', to: { map: 'halvermouth', spot: 'east_gate' } },
+    { id: 'door_wb_west_gate_b', x: 0, y: 13, keepTile: true, gateway: 'Halvermouth', label: 'The road to Halvermouth', to: { map: 'halvermouth', spot: 'east_gate' } },
+  ],
   spots: {
+    west_gate: { x: 1, y: 13, facing: 'right' },
     east_edge: { x: 41, y: 13, facing: 'left' },
     site_center: { x: 12, y: 8, facing: 'up' },
     foreman_post: { x: 12, y: 9, facing: 'down' },
@@ -63,6 +68,8 @@ export const westbrook = {
   },
   props: [
     ...fence,
+    { id: 'wb_gatepost_n', type: 'gatepost', x: 1, y: 11 }, { id: 'wb_gatepost_s', type: 'gatepost', x: 1, y: 14 },
+    { id: 'wb_city_sign', type: 'sign', x: 0, y: 9, examine: '"← WEST: HALVERMOUTH. City Centre · Civic Plaza · The Docks. Drive carefully — the city doesn\'t."' },
     { id: 'site_sign', type: 'sign', x: 14, y: 10, examine: '"MASON\'S Os — That\'s O plural! Because we never stop at one. Hard hats beyond this point. Soft hearts everywhere."' },
     { id: 'scaffold_1', type: 'scaffold', x: 7, y: 2, w: 2, h: 2, examine: 'Scaffolding around what will one day be a very respectable wall. Someone has chalked "WALL-E" on a pole.' },
     { id: 'scaffold_2', type: 'scaffold', x: 11, y: 2, w: 2, h: 2 },

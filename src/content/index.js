@@ -4,6 +4,7 @@ import lanternside from './maps/lanternside.js';
 import interiors from './maps/interiors.js';
 import oberMaps from './maps/oberFields.js';
 import westbrookMaps from './maps/westbrook.js';
+import halvermouthMaps from './maps/halvermouth.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
 import { FACTS } from './facts.js';
@@ -38,7 +39,7 @@ const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 
 /** Content before property plots are expanded (tests add fixture plots to this). */

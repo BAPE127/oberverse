@@ -33,6 +33,25 @@ Directly west of Lanternside: Gullwing Road runs straight on into Westbrook (the
 | Westbrook Row | `area_westbrook_row` | Gullwing Road west, the Plumb Line Apartments (Mason is landlord; his crew are the tenants), the canal basin where Barnaby watches gulls. |
 | The Lots | `area_the_lots` | Open land south of the canal marked out with Quinn's survey stakes; a sign invites enquiries. Future property plots (docs/PROPERTIES.md). |
 
+## Halvermouth (map `halvermouth`, 112×80 tiles)
+
+The big city, west of Westbrook along the old coast road: "the City of a Thousand Windows". Founded by Aldous Halver ("He Built A City Where There Was Only Mud" — the Sumps would say he didn't finish). A separate region: the road leaves Westbrook's west edge and arrives at the city's East Gate. The street grid: Crown Street, Grand Avenue and Mill Road run east–west; Tanner Street, Justice Way, Court Street and Harbor Street run north–south.
+
+| District | Area id | Contents |
+| --- | --- | --- |
+| The Financial District | `area_hv_financial` | A wall of skyscrapers along Crown Street: Halvermouth Mutual, the Ledgerline Building, Crown Insurance, Meridian Trust (helipad), the Halvermouth Herald, Copperfield Exchange, the Atlas Rooms, Vantage Point (helipad), the Telephone Co. |
+| Bank Row | `area_hv_bank_row` | **Ober's Oil Tower** (30 storeys, gold glass; appointments only), the First Bank of Halvermouth, Harbourline Apartments and its car park. |
+| Civic Plaza | `area_hv_civic` | The domed **Hall of Justice** (courthouse + Office of the Mayor), the statue of Aldous Halver, flags, benches, the city notice board. |
+| Precinct Row | `area_hv_precinct` | **Police Precinct 1** (open day and night) with its cruiser car park; Ironclad Securities. |
+| The East End | `area_hv_east_end` | The Grand Hotel; the East Gate (gateposts, welcome sign) where the coast road enters. |
+| Market Street | `area_hv_market` | The Rialto cinema, Market Hall and stalls, Dinah's Diner, Golden Hock Pawn & Loan, the Lucky Star bar. |
+| Iron Row | `area_hv_iron_row` | **Rook & Rifle Firearms** (licensed dealer), Tumbler & Sons Locksmiths, Bail Bonds 24/7, Iron Row Garage. |
+| Founders Park | `area_hv_park` | Trees, paths, a pond. "No pigeons." |
+| The Docks | `area_hv_docks` | Warehouses 7, 9 and 12, the Port Authority, Northbank Cold Storage, two piers. |
+| The Sumps | `area_hv_sumps` | The slums (officially the "Mill District Regeneration Zone", Phase 1 "beginning soon" for eleven years): mud, patched shacks, tents, burning oil drums (marked OBER'S OIL), washing lines, wrecked cars behind razor wire, and St. Brennan's Mission ("Soup · Beds · No Questions"). |
+
+Story seeds planted in the map (not yet used): unsolved warehouse fires on Mill Road; the deferred Mill District regeneration file in the Mayor's cabinet; the empty frame where the current Mayor's portrait should hang; Ober's Oil Tower looming over Bank Row.
+
 ## The Ober Fields (map `ober_fields`, 52×40 tiles)
 
 Directly east of Lanternside: Gullwing Road simply becomes the county road (the two maps are one continuous stretch of coast; the Fields' west edge is Lanternside's east edge). The Lantern Canal ends in a culvert pool just past the boundary, and the harbour's eastern shore runs along the Fields' south-west corner. Sir Moneybucks bought a cabbage farm here twenty years ago and struck oil.
@@ -59,6 +78,10 @@ Directly east of Lanternside: Gullwing Road simply becomes the county road (the 
 | Workers' Bunkhouse | `bunkhouse` | The five refinery/field hands | 06:00–22:00 |
 | Mason's Os Site Office | `mason_office` | Mason and crew | 07:00–18:30 |
 | Plumb Line Apartments | `apartments` | Mason (landlord) and crew | 07:00–22:00 |
+| Hall of Justice (Mayor's office, Courtroom One) | `hall_of_justice` | City of Halvermouth | 08:00–18:00 |
+| Police Precinct 1 | `police_station` | Halvermouth Police | Always open |
+| Rook & Rifle Firearms | `gun_shop` | (owner not yet introduced) | 09:00–19:00 |
+| Other Halvermouth buildings | — | No interiors yet | Closed, each with a reason |
 | No. 11 / Collective Hall | — | No interiors yet | Locked |
 
 ## Institutions and factions

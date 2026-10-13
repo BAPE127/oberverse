@@ -4,7 +4,7 @@ A persistent, character-driven, systemic sandbox RPG that runs in your browser.
 
 You have just moved into Number 9, Gullwing Row, in **Lanternside** — a small seaside borough of the city of Obermere. The people here keep schedules, hold opinions, gossip, hold grudges, run businesses and react to what you do. The old lighthouse on the Point has been dark for eleven years, and nobody official wants to say why.
 
-**Version:** 0.4.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
+**Version:** 0.5.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -38,6 +38,7 @@ The game never contacts any external service or AI API.
 ## What's in this build
 
 * **Westbrook Lots, Lanternside and the Ober Fields** — one continuous stretch of coast (walk west along Gullwing Road to the building site, or east into the oil country, no loading) with canal, civic square, park, quay, lighthouse point, a construction site, manor grounds, refinery and oil fields, plus eleven interiors, with a day/night cycle, lit windows, street lamps and a world clock (1 real second = 1 game minute).
+* **Halvermouth** — a sprawling city west of Westbrook (loaded when you walk through its gates): skyscrapers, the domed Hall of Justice and Mayor's office, Police Precinct 1, Rook & Rifle Firearms, Market Street, Founders Park, the Docks and the Sumps slum. *Map only so far — residents and activities come next.*
 * **Three original residents** — Mags (café owner, gossip broker), Osric (Civic Office clerk, keeper of keys), Tibbs (impulsive mechanic). Each has a structured personality, schedule, impulses, moods, bounded memory, relationships, knowledge, voice, musical motif and their own dialogue and mechanics.
 * **Sir Richard E. Moneybucks, Esq.** — the first imported character: ruthless founder of Ober's Oil, with his estate east of town (manor, refinery, oil fields), ten employees, refinery shifts, shares and expansion projects, strikes, and a high-stakes card wager called the Ledger.
 * **Mason Nails** — the second imported character: cheerful, pun-powered owner of Mason's Os ("That's O plural!") in Westbrook, with a Pun of the Day, three crew who live at the Plumb Line Apartments, construction shifts that earn crew goodwill, and the groundwork for building your own home, rental flats or shopfront (plots coming soon).

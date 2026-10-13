@@ -113,6 +113,8 @@ A "say" is an array of pages; a page is a string or `{ if, text, effects }`. `{p
 
 Outdoor maps use `MapBuilder` rectangles; interiors use `roomTiles(w, h, floor, doorX)`. Fields: `id, name, kind, music ('id' | {day, night}), ambience, tiles, areas[], buildings[{id, name, mapLabel, x, y, w, h, roof, wall, trim, sign?, awning?, columns?, round?, door:{x, y, to:{map, spot}, lock?:{key, owners?, hours?, trespass?, message?}}}], doors[], spots{name:{x, y, facing?}}, props[]`. Tile codes are in `src/world/tiles.js`. Preview with `npm run map -- <id>`.
 
+Buildings: `{id, name, mapLabel?, x, y, w, h, roof, wall, trim, sign?, door?: {x, y, to?, lock?, gateway?}, columns?, awning?, round?, flatRoof?, dome?: colour, pediment?, shabby?, tower?: storeys, glass?, helipad?, signColor?}`. A door without `to` never opens and shows `lock.message`. `mapLabel: ''` hides the map label. Tiles include `m` (plaza stone) and `u` (mud).
+
 Props: `{id, type, x, y, w?, h?, solid?, examine?, onExamine?, interact?: {kind, …}, hiddenUnless?, animateWhen?, sortRow?, item?}` with `kind` ∈ `container | read | sleep | sit | noticeboard | obstacle | forage | stockcheck | workstation | useItem | contracts`. `animateWhen` is a condition (e.g. the excavator moves only while `{npcAt: {npc: 'npc_mason', activity: 'excavate'}}`); `sortRow` overrides the draw-order row so an actor can appear inside a prop.
 
 - `read` may set `private: npcId` (+ `caughtBark`): if that character can see you, they stop you and grow suspicious.

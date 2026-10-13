@@ -1,7 +1,7 @@
 // Canvas renderer: camera, y-sorted world drawing, speech bubbles, interaction
 // highlight and day/night lighting. Reads game state; never mutates it.
 import { TILE, clamp, lerp, dist } from '../core/util.js';
-import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS } from './drawWorld.js';
+import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCharacter, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
 import { inWindow } from '../world/clock.js';
@@ -149,9 +149,10 @@ export class Renderer {
         }
       })();
       for (const b of lm.buildings) {
-        if (!inView(b.x * TILE, (b.y - 4) * TILE, b.w * TILE, (b.h + 4) * TILE)) continue;
+        const above = b.tower ? towerHeight(b) / TILE : 4;
+        if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
-        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door) })) });
+        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door) })) });
       }
       for (const p of lm.props) {
         if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
@@ -187,7 +188,7 @@ export class Renderer {
     for (const b of map.buildings) {
       const bottom = (b.y + b.h) * TILE;
       if (p.y >= bottom) continue;
-      const top = b.round ? b.y * TILE - TILE * 4.5 : b.y * TILE - TILE * 0.6;
+      const top = b.tower ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : b.y * TILE - TILE * 0.6;
       if (p.x > b.x * TILE - 8 && p.x < (b.x + b.w) * TILE + 8 && p.y > top && p.y - 40 < bottom) return true;
     }
     return false;
@@ -321,7 +322,13 @@ export class Renderer {
           hole(p.x * TILE + 16 + L.x, p.y * TILE - 10 + L.y, 120, 0.95);
           warm.push([p.x * TILE + 16 + L.x, p.y * TILE - 22 + L.y, 46]);
         }
+        for (const p of L.map.props) {
+          if (p.type !== 'barrelfire') continue;
+          hole(p.x * TILE + 16 + L.x, p.y * TILE + 4 + L.y, 80, 0.85);
+          warm.push([p.x * TILE + 16 + L.x, p.y * TILE + 2 + L.y, 30]);
+        }
         for (const b of L.map.buildings) {
+          if (b.tower) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
           if (!this.buildingLit(b)) continue;
           hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
         }
