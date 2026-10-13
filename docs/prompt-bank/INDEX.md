@@ -31,6 +31,7 @@ Then run `npm run check` before changing anything.
 | 14 | [Emergency Recovery](14-emergency-recovery.md) | The project or saves are broken or half-changed. |
 | 15 | [Independent Technical Audit](15-technical-audit.md) | Reviewing quality, accuracy and consistency. |
 | 16 | [Prompt Bank Maintenance](16-prompt-bank-maintenance.md) | Procedures changed; prompts must follow. |
+| 17 | [Add a Property Plot](17-property-plot.md) | The project owner asks for a building plot (home, rental or shop) somewhere on the map. |
 
 ## Universal rules (apply to every prompt)
 

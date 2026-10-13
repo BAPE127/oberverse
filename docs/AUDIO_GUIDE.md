@@ -40,6 +40,8 @@ Status meanings: *planned* (not built), *placeholder* (temporary), *implemented*
 | mus_manor | music | 3/4 waltz B♭ major, pluck/organ/tuba | manor | inside Moneybucks Manor | "The Moneybucks Waltz" — stately, a little smug | Original | implemented (compile-tested) |
 | mus_refinery | music | D minor, brass/organ/tuba, kick/snare/tick clank | refinery | inside the refinery | "Refinery No. 1" — industrial march | Original | implemented (compile-tested) |
 | mus_fields | music | E minor, flute/pad, slow kick | ober_fields | outdoors on the estate | "Derricks at Dusk" — wind-swept | Original | implemented (compile-tested) |
+| mus_westbrook | music | C major, swung, flute/pad/bass, kick+hat | westbrook, mason_office | outdoors in Westbrook by day; the site office | "Measure Twice" — bouncy, whistle-able | Original | implemented (compile-tested) |
+| motif_mason | motif | G5 E5 G5 C6 · B5 C6 (flute) | npc_mason | dialogue opens | "Measure Twice" whistled — cheerful | Original | implemented |
 | motif_moneybucks | motif | B♭2 F3 B♭3 D4 F4 · F4 B♭4 (brass) | npc_moneybucks | dialogue opens | "Dividends" — pompous low brass | Original | implemented |
 | motif_mags | motif | F4 A4 C5 F5 (clarinet) | npc_mags | dialogue opens | "Kettle's On" — warm, rising | Original | implemented |
 | motif_osric | motif | C4 · C4 · G4 · C5 (reed, staccato) | npc_osric | dialogue opens | "In Triplicate" — stiff march | Original | implemented |
@@ -63,6 +65,7 @@ Status meanings: *planned* (not built), *placeholder* (temporary), *implemented*
 | amb_cafe | ambience | murmur band + cup clinks | cafe | café | bed | Original | implemented |
 | amb_workshop | ambience | mains hum + clanks | workshop | workshop | bed | Original | implemented |
 | amb_fields | ambience | wind band + pumpjack thump every ~2.4 s | ober_fields | outdoors on the estate | bed | Original | implemented |
+| amb_site | ambience | soft wind bed, 38 Hz idling hum, random 2–3-tap hammering | westbrook | outdoors in Westbrook | bed | Original | implemented |
 | amb_refinery | ambience | 50/100 Hz hum, steam hiss, clanks | refinery | refinery | bed | Original | implemented |
 | amb_lighthouse | ambience | resonant wind | lighthouse | lighthouse | bed | Original | implemented |
 

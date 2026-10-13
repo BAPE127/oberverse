@@ -333,7 +333,7 @@ export function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = sys === 'oil' ? ui.game.oil : ui.game;
+      const target = sys === 'oil' ? ui.game.oil : sys === 'construction' ? ui.game.construction : ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -379,6 +379,47 @@ export function investPanel(ui, body, opts) {
   };
   render();
   return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
+}
+
+// --------------------------------------------------------------- contracts
+export function contractsPanel(ui, body, opts) {
+  const g = ui.game;
+  const P = g.properties;
+  const render = (msg) => {
+    body.innerHTML = '';
+    const site = g.construction.state;
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('div', { class: 'grid2', style: 'margin-bottom:12px' },
+      h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, String(g.player.money))),
+      h('div', { class: 'stat' }, h('span', {}, 'Crew goodwill'), h('b', {}, `${site.goodwill} / 30`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Goodwill discount'), h('b', {}, `${Math.round(g.construction.discount() * 100)}%`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Faster builds'), h('b', {}, g.construction.speedup() ? `−${g.construction.speedup()} day(s)` : 'not yet')),
+    ));
+    const plots = P.list();
+    if (!plots.length) {
+      body.append(h('p', { class: 'doc' }, 'The board is covered in blueprints and not one surveyed plot. A note in Quinn\'s tidy hand: "No plots surveyed yet — new land coming soon!" Underneath, in Mason\'s: "We\'re still laying the groundwork. Literally."'),
+        h('p', { class: 'muted' }, 'Working shifts for Dee now builds crew goodwill: cheaper and faster contracts once plots open up.'));
+    }
+    const wrap = h('div', { class: 'list' });
+    for (const { id, plot, status, record } of plots) {
+      if (status !== 'none') {
+        const bp = P.blueprints[record.blueprint];
+        const label = status === 'permit' ? 'awaiting permit (Form 22-B, Civic Office)' : status === 'building' ? `under construction — ${record.daysLeft} day(s) left` : 'finished';
+        wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '🏗️'), h('div', { class: 'grow' }, h('div', { class: 'name' }, plot.name, h('span', { class: 'tag' }, bp.name)), h('div', { class: 'desc' }, label))));
+        continue;
+      }
+      for (const bpId of plot.allowed || Object.keys(P.blueprints)) {
+        const bp = P.blueprints[bpId];
+        const q = P.quote(id, bpId);
+        wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, bpId === 'home' ? '🏠' : bpId === 'rental' ? '🏘️' : '🏪'),
+          h('div', { class: 'grow' }, h('div', { class: 'name' }, `${plot.name}: ${bp.name}`, h('span', { class: 'tag' }, `${q.days} days`)), h('div', { class: 'desc' }, `${bp.text} Land ${q.land} + build ${q.build}.`)),
+          h('button', { class: 'small primary', disabled: g.player.money < q.total, onclick: () => { const r = P.commission(id, bpId); render(r.text); } }, `Sign · ${q.total}`)));
+      }
+    }
+    body.append(wrap);
+  };
+  render();
+  return { title: 'Mason\'s Os — Contracts', onClose: opts.onClose };
 }
 
 // ------------------------------------------------------------------ ledger
@@ -431,6 +472,7 @@ export const PANELS = {
   choices: choicesPanel,
   invest: investPanel,
   ledger: ledgerPanel,
+  contracts: contractsPanel,
   pause: pausePanel,
   inventory: inventoryPanel,
   journal: journalPanel,

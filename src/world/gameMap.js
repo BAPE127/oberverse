@@ -48,6 +48,14 @@ export class GameMap {
     }
   }
 
+  /** Add a building at runtime (finished properties). */
+  addBuilding(b) {
+    if (this.buildings.some((x) => x.id === b.id)) return;
+    this.buildings = [...this.buildings, b];
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) this.grid[y][x] = 'B';
+    if (b.door) this.addDoor({ id: `door_${b.id}`, building: b.id, label: b.name, ...b.door });
+  }
+
   addDoor(d) {
     const door = { ...d };
     if (!door.keepTile) this.grid[door.y][door.x] = 'D';

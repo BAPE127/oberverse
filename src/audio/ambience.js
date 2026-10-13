@@ -116,6 +116,28 @@ const BEDS = {
       src.start(ctx.currentTime, Math.random(), 0.3);
     }),
   ],
+  amb_site: (ctx, d) => [
+    noiseBed(ctx, d, { type: 'bandpass', freq: 420, q: 1, vol: 0.05, lfoRate: 0.11, lfoDepth: 0.03 }),
+    hum(ctx, d, 38, 0.018), // the excavator idling somewhere
+    every(2.5, 6, () => {
+      // a hammer: two or three quick taps
+      const taps = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < taps; i++) {
+        const t = ctx.currentTime + i * 0.32;
+        const src = ctx.createBufferSource();
+        src.buffer = getNoise(ctx);
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 1900 + Math.random() * 500;
+        f.Q.value = 8;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.09, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+        src.connect(f).connect(g).connect(d);
+        src.start(t, Math.random(), 0.1);
+      }
+    }),
+  ],
   amb_lighthouse: (ctx, d) => [
     noiseBed(ctx, d, { type: 'bandpass', freq: 520, q: 5, vol: 0.06, lfoRate: 0.07, lfoDepth: 0.04 }),
     noiseBed(ctx, d, { type: 'lowpass', freq: 300, vol: 0.05 }),

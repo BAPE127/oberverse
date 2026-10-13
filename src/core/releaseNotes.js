@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.4.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Mason\'s Os',
+    notes: [
+      'Second imported character: Mason Nails, cheerful owner of Mason\'s Os construction ("That\'s O plural!") — with his photo as portrait and a new Pun of the Day, every day.',
+      'A new district west of town, joined seamlessly: Westbrook Lots, with the Mason\'s Os yard and site office, an active building site, the Plumb Line Apartments and open surveyed land.',
+      'Three new residents — Dee the foreman, Barnaby the gentle giant (and gull defender) and Quinn the nervous surveyor — who all live next to the site.',
+      'Work construction shifts for Dee: dig, lay bricks, mix cement. Six obols, fair and square. Careful work earns crew goodwill.',
+      'Groundwork for owning property: Mason\'s contracts board, building permits from Osric, and homes, rental flats and shopfronts to build — once plots are surveyed (none yet).',
+    ],
+  },
+  {
     version: '0.3.0',
     date: '2026-10-13',
     channel: 'development',

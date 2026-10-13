@@ -54,6 +54,7 @@ export default {
     npc_osric: { trust: 30, affection: 25, respect: 20, suspicion: 0 },
     npc_tibbs: { trust: 15, affection: 30, respect: 5, suspicion: 0 },
     npc_moneybucks: { trust: -20, affection: -30, respect: -5, suspicion: 20 },
+    npc_mason: { trust: 40, affection: 35, respect: 30, suspicion: 0 },
     npc_mabel: { trust: -10, affection: -25, respect: 10, suspicion: 5 },
     npc_hank: { trust: 10, affection: 15, respect: 5, suspicion: 0 },
   },
@@ -73,6 +74,10 @@ export default {
     npc_osric: {
       warm: 'Osric? Oh, he\'s a sweetheart wrapped in red tape. I\'ve known him since he was a tiny clerk. Well — a smaller clerk.',
       cool: 'Osric\'s been impossible lately. Forms for this, forms for that. I\'ll win him round. I always do.',
+    },
+    npc_mason: {
+      warm: 'Mason\'s in every morning at half six. Pays for his coffee in puns. I charge him double. He pays that in puns too.',
+      cool: 'If Mason tells me one more joke about "brew-tal honesty" I am banning him. For a day. I couldn\'t do longer. Don\'t tell him.',
     },
     npc_moneybucks: {
       warm: 'Sir Moneybucks tips well. In cigars. Nobody here smokes. That\'s the joke, I suppose.',

@@ -23,6 +23,16 @@ Currency: **obols**. Calendar: seven-day weeks — Moonday, Tideday, Wickday, Th
 
 Roads: **Gullwing Road** runs east–west; **Lamplighter Lane** runs north–south, crossing the **Lantern Canal** by a road bridge and continuing to the Quay.
 
+## Westbrook Lots (map `westbrook`, 44×48 tiles)
+
+Directly west of Lanternside: Gullwing Road runs straight on into Westbrook (the Lots' east edge is Lanternside's west edge), and the Lantern Canal's western reach ends in a turning basin. Mostly open land that the borough has started selling for building.
+
+| Area | Area id | Contents |
+| --- | --- | --- |
+| Mason's Os Yard | `area_mason_yard` | The fenced construction site (foundation slab, scaffolding, the excavator "Shovel-ina", lumber, bricks, mixer, trench, a portable toilet stencilled MASON'S LOO-S) and the Mason's Os site office. The site never visibly progresses — Mason says they're "building the anticipation". |
+| Westbrook Row | `area_westbrook_row` | Gullwing Road west, the Plumb Line Apartments (Mason is landlord; his crew are the tenants), the canal basin where Barnaby watches gulls. |
+| The Lots | `area_the_lots` | Open land south of the canal marked out with Quinn's survey stakes; a sign invites enquiries. Future property plots (docs/PROPERTIES.md). |
+
 ## The Ober Fields (map `ober_fields`, 52×40 tiles)
 
 Directly east of Lanternside: Gullwing Road simply becomes the county road (the two maps are one continuous stretch of coast; the Fields' west edge is Lanternside's east edge). The Lantern Canal ends in a culvert pool just past the boundary, and the harbour's eastern shore runs along the Fields' south-west corner. Sir Moneybucks bought a cabbage farm here twenty years ago and struck oil.
@@ -47,6 +57,8 @@ Directly east of Lanternside: Gullwing Road simply becomes the county road (the 
 | Moneybucks Manor | `manor` | Sir Moneybucks and household staff | Callers by invitation (Crisp), 08:00–21:00 |
 | Ober's Oil Refinery No. 1 | `refinery` | Refinery staff | 06:00–20:00 |
 | Workers' Bunkhouse | `bunkhouse` | The five refinery/field hands | 06:00–22:00 |
+| Mason's Os Site Office | `mason_office` | Mason and crew | 07:00–18:30 |
+| Plumb Line Apartments | `apartments` | Mason (landlord) and crew | 07:00–22:00 |
 | No. 11 / Collective Hall | — | No interiors yet | Locked |
 
 ## Institutions and factions
@@ -57,6 +69,7 @@ Directly east of Lanternside: Gullwing Road simply becomes the county road (the 
 | `fac_civic` | Lanternside Civic Office | Order, procedure, the public record | One employee: Osric, who is also its union rep and currently in dispute with himself. |
 | `fac_merchants` | Canal Row Traders | Reliability, custom, good gossip | Mags is the de-facto voice. |
 | `fac_oil` | Ober's Oil | Profit, deference | Sir Moneybucks's company. Pays partly in company scrip. |
+| `fac_builders` | Mason's Os | Good work, fair pay, a decent pun | Mason Nails's construction crew. Pays in coin, never scrip. Neutral in the oil feud. |
 | `fac_quay` | Quay Workers' Collective | Loyalty, practical help | Tibbs is a member; the Hall is members-only. |
 
 ## Residents
@@ -68,6 +81,8 @@ See `docs/CHARACTER_REGISTRY.md` for implementation details.
 - **Tibbs Hollow** — mechanic at Hollow Fixings on the Quay. Building a boat engine called **Duchess**. Impulsive; frequently causes bangs. Has received several noise citations (Form 7-B).
 
 - **Sir Richard E. Moneybucks, Esq.** — founder and owner of Ober's Oil. Everyone calls him Sir Moneybucks (Mags says he bought the title from a bankrupt baronet). Ruthless, grandiose, contemptuous of the poor. See `docs/characters/npc_moneybucks.md`.
+- **Mason Nails** — owner of Mason's Os ("That's O plural!"). Cheerful, endlessly punning, friendly to everyone, neutral; refused to work exclusively for Sir Moneybucks. Breakfasts at the Kettle & Crumb, files permits with Osric every afternoon. See `docs/characters/npc_mason.md`.
+- **The Mason's Os crew** — Dolores "Dee" Rivera (foreman, secret pun tallier), Barnaby Cole (gentle giant; defends the gulls, especially Margaret, who stole Tibbs's sandwich), Quinn Abernathy (nervous apprentice surveyor). All live at the Plumb Line Apartments.
 - **The Ober's Oil household and crew** — Crisp (butler, 30 years), Agnes Thornbury (bookkeeper), Mabel Quince (cook; runner-up at the Harbour Fair bake-off nine years ago, beaten by Mags — "the judges were bribed with buns"), Silas Grimmer (security), Gideon Slate (foreman), Ruby Calder (engineer), Hank Dorsey (rigger), Pip Wexley (apprentice), Delphine Moreau (chemist), Otto Brandt (pipe fitter, wears the union's blue thread).
 
 ## History and mysteries

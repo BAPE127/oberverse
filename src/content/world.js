@@ -5,9 +5,10 @@
 // across, and the renderer, minimap and world map draw the neighbours together.
 export const REGIONS = {
   coast: {
-    name: 'Lanternside & the Ober Fields',
+    name: 'Lanternside & surrounds',
     maps: {
-      lanternside: { x: 0, y: 0, fallbackSpot: 'east_road' },
+      westbrook: { x: -43, y: 0, fallbackSpot: 'east_edge' },
+      lanternside: { x: 0, y: 0, fallbackSpot: 'east_road' }, // west edge joins Westbrook (fallback via west_road)
       ober_fields: { x: 63, y: 0, fallbackSpot: 'west_road' },
     },
   },

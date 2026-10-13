@@ -436,7 +436,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting']);
+export const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board']);
 
 export function drawProp(ctx, p, opts) {
   const x = p.x * T;
@@ -781,6 +781,154 @@ export function drawProp(ctx, p, opts) {
       ctx.beginPath(); ctx.arc(x + 16, y + 18, 4 + glint * 2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#c9ced4';
       ctx.fillRect(x + 10, y + 17, 12, 3);
+      break;
+    }
+    // ---------------------------------------------------- Mason's Os site
+    case 'scaffold': {
+      // timber-and-pipe scaffolding with planks; a fixed look (the site doesn't progress)
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 4, w, 5);
+      ctx.fillStyle = 'rgba(200,170,120,0.35)';
+      ctx.fillRect(x + 4, y - 18, w - 8, h + 14);
+      ctx.strokeStyle = '#8a8f96';
+      ctx.lineWidth = 2;
+      const cols = Math.max(2, p.w + 1);
+      for (let i = 0; i < cols; i++) {
+        const px = x + 3 + ((w - 6) * i) / (cols - 1);
+        ctx.beginPath(); ctx.moveTo(px, y + h - 2); ctx.lineTo(px, y - 20); ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 3, y + h - 4); ctx.lineTo(x + w - 3, y - 18); ctx.stroke();
+      for (const ly of [y - 20, y + h / 2 - 12, y + h - 10]) {
+        ctx.fillStyle = '#b8874a';
+        ctx.fillRect(x, ly, w, 4);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x, ly + 4, w, 1);
+      }
+      break;
+    }
+    case 'excavator': {
+      const active = opts.active;
+      const t = active ? time : 0;
+      const arm = active ? Math.sin(t * 1.3) * 0.35 : 0.1;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 2, y + h - 6, w, 7);
+      // tracks
+      ctx.fillStyle = '#2a2a2e';
+      rrect(ctx, x + 2, y + h - 16, w - 4, 12, 6); ctx.fill();
+      ctx.fillStyle = '#4a4a50';
+      for (let i = 0; i < 6; i++) ctx.fillRect(x + 6 + i * ((w - 14) / 5) + ((t * 30) % 6), y + h - 13, 3, 6);
+      // body + cab (Mason sits inside: the cab is open at the front)
+      ctx.fillStyle = '#e8b23a';
+      rrect(ctx, x + 4, y + 6, w - 10, h - 22, 4); ctx.fill();
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(x + 8, y - 16, 4, 24); ctx.fillRect(x + w - 30, y - 16, 4, 24);
+      ctx.fillStyle = '#d29a22';
+      ctx.fillRect(x + 6, y - 20, w - 32, 6);
+      ctx.fillStyle = 'rgba(160,200,220,0.25)';
+      ctx.fillRect(x + 12, y - 14, w - 42, 18);
+      ctx.fillStyle = '#2a2a2e';
+      ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
+      ctx.fillText('I DIG IT', x + 8, y + 22);
+      // boom and bucket
+      ctx.save();
+      ctx.translate(x + w - 14, y + 8);
+      ctx.rotate(-0.9 + arm);
+      ctx.fillStyle = '#e8b23a';
+      ctx.fillRect(0, -3, 30, 6);
+      ctx.translate(30, 0);
+      ctx.rotate(1.6 - arm * 1.4);
+      ctx.fillRect(0, -2, 20, 5);
+      ctx.fillStyle = '#5a5a60';
+      ctx.beginPath(); ctx.moveTo(18, -4); ctx.lineTo(28, -2); ctx.lineTo(26, 8); ctx.lineTo(16, 6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      if (active) {
+        ctx.fillStyle = `rgba(120,120,120,${0.25 + 0.15 * Math.sin(t * 6)})`;
+        ctx.beginPath(); ctx.arc(x + 14, y - 26 - ((t * 12) % 10), 4, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    case 'lumber': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 4, w - 2, 5);
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 ? '#c99a5e' : '#b8874a';
+        ctx.fillRect(x + 2, y + 4 + i * 6, w - 4, 5);
+        ctx.fillStyle = '#e2c08a';
+        for (let j = 0; j < 4; j++) { ctx.beginPath(); ctx.arc(x + 6 + j * ((w - 12) / 3), y + 6 + i * 6, 2, 0, Math.PI * 2); ctx.fill(); }
+      }
+      break;
+    }
+    case 'bricks': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 4, w - 2, 5);
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(x + 2, y + h - 8, w - 4, 6); // pallet
+      for (let row = 0; row < 4; row++)
+        for (let i = 0; i < p.w * 3; i++) {
+          const bx = x + 3 + i * 10 + (row % 2 ? 5 : 0);
+          if (bx + 9 > x + w - 2) continue;
+          ctx.fillStyle = (i + row) % 3 ? '#b4553a' : '#a24a32';
+          ctx.fillRect(bx, y + h - 13 - row * 5, 9, 4);
+        }
+      break;
+    }
+    case 'mixer': {
+      const spin = time * 2.5;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.ellipse(x + 17, y + h - 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a6a9a';
+      ctx.fillRect(x + 6, y + h - 10, 20, 6);
+      ctx.fillStyle = '#2a2a2e';
+      ctx.beginPath(); ctx.arc(x + 9, y + h - 3, 3, 0, Math.PI * 2); ctx.arc(x + 23, y + h - 3, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(x + 16, y + 6);
+      ctx.rotate(-0.5);
+      ctx.fillStyle = '#e0702a';
+      ctx.beginPath(); ctx.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      for (let i = 0; i < 3; i++) {
+        const a = spin + i * 2.1;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * 10, Math.sin(a) * 6); ctx.lineTo(Math.cos(a + 0.8) * 10, Math.sin(a + 0.8) * 6); ctx.stroke();
+      }
+      ctx.fillStyle = '#7a7a80';
+      ctx.beginPath(); ctx.ellipse(12, -1, 3, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case 'trench': {
+      ctx.fillStyle = '#5a4030';
+      ctx.fillRect(x + 2, y + 6, w - 4, h - 12);
+      ctx.fillStyle = '#3a2a20';
+      ctx.fillRect(x + 4, y + 10, w - 8, h - 18);
+      ctx.fillStyle = '#9a7a5a';
+      ctx.fillRect(x, y + 3, w, 3); // spoil heap edge
+      ctx.strokeStyle = '#f2efe6';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + w, y + 2); ctx.stroke(); // string line
+      ctx.setLineDash([]);
+      break;
+    }
+    case 'stake': {
+      ctx.fillStyle = '#a07a50';
+      ctx.fillRect(x + 15, y + 8, 3, 18);
+      ctx.fillStyle = '#ff7a2a';
+      const flap = Math.sin(time * 4 + p.x * 3) * 3;
+      ctx.beginPath(); ctx.moveTo(x + 18, y + 8); ctx.lineTo(x + 26, y + 10 + flap); ctx.lineTo(x + 18, y + 13); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'board': {
+      // the contracts board on the office wall
+      ctx.fillStyle = '#8a6142';
+      ctx.fillRect(x + 1, y + 4, w * 2 - 2, h - 6);
+      ctx.fillStyle = '#d9c9a0';
+      ctx.fillRect(x + 4, y + 7, w * 2 - 8, h - 12);
+      ctx.fillStyle = '#6a8ac0';
+      ctx.fillRect(x + 7, y + 10, 18, 12);
+      ctx.fillStyle = '#f2efe6';
+      ctx.fillRect(x + 30, y + 10, 14, 10);
+      ctx.fillStyle = '#c0414a';
+      ctx.fillRect(x + 32, y + 12, 10, 2);
       break;
     }
     case 'derrick': {

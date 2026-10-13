@@ -61,6 +61,8 @@ export default {
     npc_mags: { trust: 30, affection: 35, respect: 20, suspicion: 0 },
     npc_osric: { trust: 0, affection: -10, respect: 5, suspicion: 5 },
     npc_moneybucks: { trust: -5, affection: -5, respect: 15, suspicion: 10 },
+    npc_mason: { trust: 25, affection: 20, respect: 30, suspicion: 0 },
+    npc_barnaby: { trust: 5, affection: -15, respect: 20, suspicion: 10 },
     npc_hank: { trust: 20, affection: 25, respect: 10, suspicion: 0 },
     npc_otto: { trust: 10, affection: 15, respect: 10, suspicion: 0 },
   },
@@ -74,6 +76,14 @@ export default {
     npc_mags: {
       warm: 'Mags! Best human. Feeds me. Doesn\'t ask what the smell is.',
       cool: 'Mags told everyone about the toaster incident. EVERYONE.',
+    },
+    npc_mason: {
+      warm: 'Mason let me tune up his excavator. Best afternoon of my life. He made eleven "gear" puns. Worst afternoon of my life.',
+      cool: 'Mason keeps calling me a "nuts-and-bolts kind of guy". I AM. That\'s not a joke, Mason!',
+    },
+    npc_barnaby: {
+      warm: 'Barnaby\'s alright. Big lad. Wrong about gulls.',
+      cool: 'Barnaby\'s "Margaret" stole my sandwich. A whole sandwich. And he TOOK HER SIDE.',
     },
     npc_moneybucks: {
       warm: 'Sir Moneybucks? He\'s a villain. But have you SEEN his pumpjacks? Gorgeous. I\'d die for one of those gearboxes. Not literally. Probably.',

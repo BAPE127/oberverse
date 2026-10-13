@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property',
 ];
 
 /**
@@ -67,6 +67,22 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'site': {
+      const st = game.world.construction || {};
+      return Object.entries(val).every(([k, v]) => compare(st[k] ?? 0, v));
+    }
+    case 'property': {
+      // { plot, state, blueprint } for one plot; { state } = any plot in that state; { surveyed: bool }
+      if (val.surveyed !== undefined) return (Object.keys(game.content.plots || {}).length > 0) === val.surveyed;
+      const owned = game.world.properties?.owned || {};
+      const match = (rec) => {
+        const state = rec?.state || 'none';
+        if (val.state !== undefined && !(Array.isArray(val.state) ? val.state.includes(state) : state === val.state)) return false;
+        if (val.blueprint !== undefined && (state !== 'built' || rec.blueprint !== val.blueprint)) return false;
+        return true;
+      };
+      return val.plot ? match(owned[val.plot]) : Object.values(owned).some(match);
     }
     case 'arrived':
       return Boolean(npc?.arrived && !npc.travel && !(npc.path && npc.path.length)) === val;

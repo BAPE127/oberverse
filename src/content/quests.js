@@ -166,6 +166,33 @@ export const QUESTS = {
     failures: { expired: { journal: 'The shift ended before you finished. Gideon docked the lot.', effects: [{ notify: 'Refinery shift not finished — no pay today.', notifyKind: 'warn' }] } },
   },
 
+  job_construction_shift: {
+    title: 'Job: Construction Shift',
+    kind: 'job',
+    giver: 'npc_dee',
+    summary: 'Day labour on the Mason\'s Os site in Westbrook. Three jobs, one foreman, six obols — and the crew\'s goodwill.',
+    start: 'work',
+    expires: { at: '19:00' },
+    stages: {
+      work: {
+        journal: 'Dig the trench, lay a course at the brick stack and run a batch in the cement mixer. Properly builds crew goodwill; rushing doesn\'t.',
+        objectives: [
+          { id: 'o_trench', text: 'Dig the trench.', if: { not: { flagToday: 'site_trench' } } },
+          { id: 'o_bricks', text: 'Lay a course at the brick stack.', if: { not: { flagToday: 'site_bricks' } } },
+          { id: 'o_mixer', text: 'Run a batch in the cement mixer.', if: { not: { flagToday: 'site_mixer' } } },
+        ],
+        marker: 'westbrook:site_center',
+      },
+      report: {
+        journal: 'All three jobs done. Report to Dee on site to get paid.',
+        objectives: [{ id: 'o_report', text: 'Report to Dee.' }],
+        marker: 'westbrook:foreman_post',
+      },
+    },
+    outcomes: { paid: { journal: 'Six obols, a sore back and a pun from Mason you will not be able to forget.', effects: [{ rep: { fac_builders: 1 } }] } },
+    failures: { expired: { journal: 'The site closed before you finished. Dee says no hard feelings — come back tomorrow.', effects: [{ notify: 'Construction shift not finished — no pay today.', notifyKind: 'warn' }] } },
+  },
+
   job_cafe_delivery: {
     title: 'Job: Coffee for the Clerk',
     kind: 'job',

@@ -23,7 +23,8 @@ export class DialogueSession {
   // ------------------------------------------------------------ text utils
   vars() {
     const g = this.game;
-    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday };
+    const pun = g.dailyPun ? g.dailyPun() : {};
+    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline };
   }
 
   /** Resolve a "say" (array of pages; pages may be conditional objects). Runs page effects. */

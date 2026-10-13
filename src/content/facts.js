@@ -41,6 +41,18 @@ export const FACTS = {
     text: 'The newcomer has bought shares in Ober\'s Oil.', importance: 4, aboutPlayer: true,
     relImpact: {}, reputation: { fac_oil: 3 }, keywords: ['shares', 'invested'],
   },
+  fact_masons_os: { text: 'Mason\'s Os ("That\'s O plural!") is Mason Nails\'s construction company in Westbrook. His crew — Dee, Barnaby and Quinn — live at the Plumb Line Apartments.', importance: 2, keywords: ['mason', 'construction', 'builder', 'westbrook'] },
+  fact_moneybucks_wants_mason: { text: 'Sir Moneybucks tried to hire Mason\'s Os exclusively. Mason refused: "I don\'t take sides — I take measurements."', importance: 4, keywords: ['mason', 'moneybucks', 'exclusive'] },
+  fact_dee_pun_tally: { text: 'Dee secretly keeps a tally of every Mason pun that made her laugh (212 and counting).', importance: 3, spread: false, keywords: ['dee', 'tally', 'puns'] },
+  fact_gull_feud: { text: 'Barnaby Cole and Tibbs Hollow are feuding over a gull named Margaret, who stole Tibbs\'s sandwich.', importance: 3, keywords: ['gull', 'margaret', 'barnaby', 'tibbs'] },
+  fact_player_rushed_site: {
+    text: 'The newcomer rushed a job on the Mason\'s Os site.', importance: 2, aboutPlayer: true,
+    relImpact: { respect: -1 }, reputation: {}, keywords: ['rushed'],
+  },
+  fact_player_punned_mason: {
+    text: 'The newcomer out-punned Mason Nails.', importance: 3, aboutPlayer: true,
+    relImpact: { affection: 2 }, reputation: { lanternside: 1 }, keywords: ['pun'],
+  },
   fact_player_cut_corners: {
     text: 'The newcomer cut corners on a refinery shift.', importance: 4, aboutPlayer: true,
     relImpact: { respect: -2 }, reputation: {}, keywords: ['corners'],

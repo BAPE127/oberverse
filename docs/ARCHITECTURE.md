@@ -79,7 +79,12 @@ All modal UI (dialogue, panels) pauses the game clock.
 - **NPCs:** routing treats seams as doors; `NpcSystem.nearestSeam()` picks the crossing that best lines up with the route; `hop()` maps the position across.
 - **Rendering:** `Renderer` builds `layers` = current map + `Game.neighbors()`, drawing each neighbour's ground, props, buildings, people and lights at its offset; camera bounds span the region. The minimap and full map stitch the region the same way.
 
-Only horizontal (east–west) seams are generated so far.
+Only horizontal (east–west) seams are generated so far. The coast region is Westbrook (x −43) · Lanternside (0) · the Ober Fields (63).
+
+## Companies and properties
+
+- `OilCompany` (`src/systems/oilCompany.js`) and `Construction` (`src/systems/construction.js`) each own a slice of `world` state and expose shift stations; a `workstation` prop names its `company`. Panels call their methods through `choices` options (`call: [system, method, ...args]`).
+- `Properties` (`src/systems/properties.js`) tracks contracts on plots. Plots are content expanded at load by `withPlots()` (`src/world/plots.js`) into ordinary props, an interior map and a container, all shown or hidden by `property` conditions, so the engine has no plot special cases. A finished building is the one runtime change to a map: `Game.rebuildMaps()` recreates `GameMap`s from content and calls `GameMap.addBuilding()` for every finished property (on new game, on load and on completion). Render caches are keyed by `GameMap` object so rebuilt maps redraw.
 
 ## Rendering
 
@@ -96,6 +101,7 @@ See `docs/SAVE_FORMAT.md`. `Game.serialize()` produces plain JSON; `SaveManager`
 ## Adding things without touching unrelated code
 
 - New character: add a profile + dialogue file and register both in `src/content/index.js`. Existing saves gain the character automatically.
-- New map/interior: add a map definition and a door on an existing map pointing to it.
+- New map/interior: add a map definition and a door on an existing map pointing to it (or place an outdoor map in a region in `src/content/world.js`).
+- New property plot: one entry in `PLOTS` (docs/PROPERTIES.md).
 - New quest/event/item/fact: add data; run `npm run validate`.
 - New condition/effect type: add one `case` to `conditions.js`/`effects.js` and its key to `CONDITION_KEYS`/`EFFECT_KEYS`, document it in `CONTENT_FORMAT.md`, add a test.

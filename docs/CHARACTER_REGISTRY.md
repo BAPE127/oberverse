@@ -18,8 +18,12 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_silas` | Silas Grimmer | Generated for the import | Minor | Security; strikebreaker | 〃 | Implemented |
 | `npc_mabel` | Mabel Quince | Generated for the import | Minor | Manor cook; feud with Mags | 〃 | Implemented |
 | `npc_otto` | Otto Brandt | Generated for the import | Minor | Pipe fitter; organiser; strike leader | 〃 | Implemented & tested |
+| `npc_mason` | Mason Nails | **Imported** (2026-10-13) | Major | Owner of Mason's Os construction; pun machine; builds properties | `motif_mason` | Implemented & tested |
+| `npc_dee` | Dolores "Dee" Rivera | Generated for the Mason import | Minor | Site foreman; hires and pays | — | Implemented & tested |
+| `npc_barnaby` | Barnaby Cole | 〃 | Minor | Labourer; birdwatcher; gull defender | — | Implemented & tested |
+| `npc_quinn` | Quinn Abernathy | 〃 | Minor | Apprentice surveyor and draftsperson | — | Implemented & tested |
 
-Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`). His ten employees were generated at the player's request; minor characters have no individual motif.
+Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`) and **Mason Nails** (see `docs/characters/npc_mason.md`). Their employees were generated at the player's request; minor characters have no individual motif.
 
 ## Sir Moneybucks — `npc_moneybucks`
 
@@ -39,6 +43,20 @@ See `docs/characters/npc_moneybucks.md` for the full record (interview, tiers, m
 | Silas | Manor staff bed | Gate 06:00–18:00; tank yard patrol | empathy .1, loyal | Watches the gate; breaks strikes on command |
 | Mabel | Manor staff bed | Kitchen; stands outside the Kettle & Crumb 14:00 | competitiveness .9 | Nine-year feud with Mags (their chats become arguments); manor gossip |
 | Otto | Bunkhouse | Pipeline/valves; organises at 18:00; Quay Collective at 20:00 | empathy .85, discretion .75 | Starts the strike at low morale; strike fund; union thread |
+
+## Mason Nails — `npc_mason`
+
+See `docs/characters/npc_mason.md` for the full record (interview, Pun of the Day, routine, crew).
+
+## The Mason's Os crew (`src/content/characters/mason.js`)
+
+| Character | Home / sleep | Routine highlights | Personality drivers | Hooks |
+| --- | --- | --- | --- | --- |
+| Dee | Plumb Line Apartments | Foreman post 06:45–17:30 (lunch on the site bench) | conscientiousness .95, honesty .85 | Hires 07:00–13:00; pays 6 obols; tells you your crew goodwill; secret pun tally at trust 20+ |
+| Barnaby | Plumb Line Apartments | Mixer mornings, bricks afternoons; gulls at the basin at noon and on the pier 17:00–19:00 | empathy .95, patience .9 | Gull feud with Tibbs; loves gull feathers |
+| Quinn | Plumb Line Apartments | Coffee at the café 07:00; drafting; surveys the lots 12:45–16:00 | conscientiousness 1.0, confidence .2 | Explains plots and blueprints; encouragement (Charm) raises goodwill |
+
+All four (Mason included) join the `build_*` impulse when the player has a property under construction.
 
 ## Mags — `npc_mags`
 

@@ -71,12 +71,19 @@ export const SONGS = {
     melody: 'B4:4 E5:2 D5:2 | E5:6 -:2 | D5:2 B4:2 G4:4 | A4:6 -:2 | G4:2 B4:2 E5:4 | G5:4 E5:4 | C5:2 E5:2 A4:4 | D#5:4 B4:4',
     lead: 'flute', pad: 'pad', bass: 'bass', bassPattern: 'R...5...', drums: { kick: 'x.......' },
   },
+  mus_westbrook: {
+    title: 'Measure Twice', bpm: 118, beatsPerBar: 4, stepsPerBeat: 2, swing: 0.12,
+    chords: ['C', 'F', 'G', 'C', 'Am7', 'Dm7', 'G7', 'C'],
+    melody: 'E5:2 G5:2 C5:2 E5:2 | F5:3 E5:1 D5:4 | D5:2 G5:2 B4:2 D5:2 | E5:6 -:2 | C5:2 E5:2 A4:2 C5:2 | D5:2 F5:2 A5:4 | G5:2 F5:2 D5:2 B4:2 | C5:6 -:2',
+    lead: 'flute', pad: 'pad', bass: 'bass', bassPattern: 'R.5.R.5.', drums: { kick: 'x...x...', hat: '..x...x.' },
+  },
 };
 
 export const MOTIFS = {
   motif_mags: { title: 'Mags — "Kettle\'s On"', bpm: 140, notes: 'F4:1 A4:1 C5:1 F5:3', inst: 'clarinet', character: 'npc_mags' },
   motif_osric: { title: 'Osric — "In Triplicate"', bpm: 150, notes: 'C4:1 -:1 C4:1 -:1 G4:1 -:1 C5:2', inst: 'reed', character: 'npc_osric' },
   motif_moneybucks: { title: 'Sir Moneybucks — "Dividends"', bpm: 112, notes: 'Bb2:2 F3:1 Bb3:1 D4:2 F4:3 -:1 F4:1 Bb4:3', inst: 'brass', character: 'npc_moneybucks' },
+  motif_mason: { title: 'Mason — "Measure Twice" (whistled)', bpm: 160, notes: 'G5:1 E5:1 G5:1 C6:3 -:1 B5:1 C6:2', inst: 'flute', character: 'npc_mason' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -96,6 +103,8 @@ export const AUDIO_REGISTRY = [
   music('mus_manor', 'manor', 'inside Moneybucks Manor'),
   music('mus_refinery', 'refinery', 'inside the refinery'),
   music('mus_fields', 'ober_fields', 'outdoors on the Ober Fields estate'),
+  music('mus_westbrook', 'westbrook', 'Westbrook Lots by day and inside Mason\'s Os site office'),
+  { id: 'motif_mason', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mason', trigger: 'conversation opens with Mason Nails', status: 'implemented', source: 'Original composition' },
   { id: 'motif_moneybucks', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_moneybucks', trigger: 'conversation opens with Sir Moneybucks', status: 'implemented', source: 'Original composition' },
   { id: 'motif_mags', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mags', trigger: 'conversation opens with Mags', status: 'implemented', source: 'Original composition' },
   { id: 'motif_osric', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_osric', trigger: 'conversation opens with Osric', status: 'implemented', source: 'Original composition' },
@@ -126,4 +135,5 @@ export const AUDIO_REGISTRY = [
   amb('amb_lighthouse', 'lighthouse'),
   amb('amb_fields', 'ober_fields'),
   amb('amb_refinery', 'refinery'),
+  amb('amb_site', 'westbrook'),
 ];

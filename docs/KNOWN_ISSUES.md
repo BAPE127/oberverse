@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.3.0
+# Known Issues and Limitations — v0.4.0
 
 ## Not yet implemented (planned)
 
@@ -7,8 +7,9 @@
 - **Character progression**: stats (Charm, Wits, Grit, Finesse) are fixed at 2. Only Charm and Wits are used (dialogue checks).
 - **Controller and touch input.** Keyboard + mouse only.
 - **Weather and seasons.**
-- **More of the world:** No. 11 and the Collective Hall have no interiors; only one outdoor map.
-- **Imported characters:** one so far (Sir Moneybucks). His ten employees are lighter residents (fewer topics, no individual motifs).
+- **More of the world:** No. 11 and the Collective Hall have no interiors.
+- **Property plots:** the property system is groundwork only — there are no plots to build on yet (by design; added on request). Tenants are not simulated characters, and the shopfront pays a flat placeholder income. Player homes have no lock.
+- **Imported characters:** two so far (Sir Moneybucks, Mason Nails). Their employees are lighter residents (fewer topics, no individual motifs).
 - **Moneybucks's upstairs apartments** and the Collective Hall interior are not built.
 - **Upstairs of the lighthouse** (blocked stair is a story hook).
 
@@ -29,6 +30,9 @@
 - Region seams are east–west only; maps can't yet be joined north–south.
 - Across the seam, the off-map neighbour's NPCs are drawn but you can't talk to them until you step across (interactions use the current map).
 - Sleeping NPCs are drawn standing with closed eyes, not lying in bed.
+- The Mason's Os site never changes (as requested); the crew's "build" impulse sends them to one spot on the Lots whatever plot is being built.
+- The excavator is not solid (Mason sits in its cab); the player can walk through it.
+- Mason's afternoon trip to the Civic Office is a long walk from the site office, so he spends part of his permit hour walking; off-screen the trip is estimated.
 
 ## Defects
 

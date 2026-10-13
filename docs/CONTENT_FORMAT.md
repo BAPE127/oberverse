@@ -43,6 +43,8 @@ An object; **all** keys must hold. Unknown keys fail closed (and the validator r
 | `arrived` | bool | NPC has reached its destination (not travelling) |
 | `wealth` | `'>=40'` | player money + value of Ober's Oil shares |
 | `oil` | `{strike: true, morale: '<30', sharesOwned: '>=10', derricks: '>=1', pipeline: true, risk: '>=2'}` | Ober's Oil company state (`world.oil`) |
+| `site` | `{goodwill: '>=15'}` | Mason's Os crew state (`world.construction`) |
+| `property` | `{plot: 'plot_x', state: 'building'}`, `{plot, state: ['permit','building']}`, `{plot, blueprint: 'home'}`, `{state: 'permit'}`, `{surveyed: true}` | property plots (docs/PROPERTIES.md); `'none'` = unowned |
 
 ## Effects (`effects`, `onArrive`, `onExamine`, outcome `effects`)
 
@@ -76,7 +78,9 @@ An array of objects, applied in order. `{ if, then, else }` and `{ chance, then,
 | `noise` | `{sources:['map:spot'], radius, fact, sfx?, text?}` | everyone awake in range hears; player too |
 | `errand` | `{npc?, spot, activity, minutes}` | send an NPC somewhere |
 | `oil` | `{add: {morale: -10, sharesOwned: 5}, set: {strike: true, accidentDay: '$day'}}` | change Ober's Oil state |
-| `payWages` | true | pay today's refinery wages (see `OilCompany.wagesOwed`) |
+| `payWages` | true / `'construction'` | pay today's refinery wages (`OilCompany.wagesOwed`) or a Mason's Os shift (`Construction.payShift`: 6 obols, goodwill) |
+| `site` | `{goodwill: 2}` | change Mason's Os crew goodwill (0–30) |
+| `permit` | true | the Civic Office grants every pending building permit |
 | `schedule` | `{event, at: 'HH:MM'}` or `{event, delayMinutes}` | queue a chained event |
 | `action` | `'invest'` / `'ledger'` | open a UI panel from dialogue |
 
@@ -109,10 +113,11 @@ A "say" is an array of pages; a page is a string or `{ if, text, effects }`. `{p
 
 Outdoor maps use `MapBuilder` rectangles; interiors use `roomTiles(w, h, floor, doorX)`. Fields: `id, name, kind, music ('id' | {day, night}), ambience, tiles, areas[], buildings[{id, name, mapLabel, x, y, w, h, roof, wall, trim, sign?, awning?, columns?, round?, door:{x, y, to:{map, spot}, lock?:{key, owners?, hours?, trespass?, message?}}}], doors[], spots{name:{x, y, facing?}}, props[]`. Tile codes are in `src/world/tiles.js`. Preview with `npm run map -- <id>`.
 
-Props: `{id, type, x, y, w?, h?, solid?, examine?, onExamine?, interact?: {kind, …}, hiddenUnless?, item?}` with `kind` ∈ `container | read | sleep | sit | noticeboard | obstacle | forage | stockcheck | workstation | useItem`.
+Props: `{id, type, x, y, w?, h?, solid?, examine?, onExamine?, interact?: {kind, …}, hiddenUnless?, animateWhen?, sortRow?, item?}` with `kind` ∈ `container | read | sleep | sit | noticeboard | obstacle | forage | stockcheck | workstation | useItem | contracts`. `animateWhen` is a condition (e.g. the excavator moves only while `{npcAt: {npc: 'npc_mason', activity: 'excavate'}}`); `sortRow` overrides the draw-order row so an actor can appear inside a prop.
 
 - `read` may set `private: npcId` (+ `caughtBark`): if that character can see you, they stop you and grow suspicious.
-- `workstation`: `{station: 'valves'|'gauges'|'barrels'}` — refinery shift tasks.
+- `workstation`: `{company?: 'oil'|'construction', station}` — shift tasks. Oil (default): `valves | gauges | barrels`; construction: `trench | bricks | mixer`.
+- `contracts`: opens Mason's Os contracts panel (property plots).
 - `useItem`: `{item, verb, effects, text, missingText, doneFlag, doneText}` — e.g. setting the lens in its cradle.
 
 Doors: `keepTile: true` makes an invisible edge exit (map-to-map roads). Locks: `{key, owners, hours, flag, flagMessage, trespass, message}` — `flag` requires a world flag (an invitation) in addition to hours.

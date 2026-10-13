@@ -73,6 +73,7 @@ export default {
     npc_mags: { trust: 25, affection: 20, respect: 15, suspicion: 0 },
     npc_tibbs: { trust: 5, affection: 0, respect: -5, suspicion: 10 },
     npc_moneybucks: { trust: -25, affection: -10, respect: -15, suspicion: 35 },
+    npc_mason: { trust: 40, affection: 10, respect: 40, suspicion: 0 },
   },
   knowledge: ['fact_lighthouse_dark', 'fact_osric_has_key', 'fact_moneybucks_owns_oil'],
   giftPrefs: { item_honey_bun: 14, item_coffee: 4, item_wildflowers: 2, item_gull_feather: -6, tags: { sweet: 6 } },
@@ -86,6 +87,10 @@ export default {
     npc_mags: {
       warm: 'Mrs. Pell is the closest thing Lanternside has to a newspaper, a heating system and a conscience. Do not tell her I said so.',
       cool: 'Mrs. Pell has filed four patio permits this month. Four. I have begun to dream in patio.',
+    },
+    npc_mason: {
+      warm: 'Mr. Nails files every permit correctly, on time, in triplicate. He is the most exhausting person in Lanternside. His foundations are impeccable.',
+      cool: 'Mr. Nails asked whether my filing cabinet was "cabinet-level material". I have not recovered.',
     },
     npc_moneybucks: {
       warm: 'Sir Moneybucks pays his rates. Late. In full. With a note calling me a "parasite". I have framed it.',

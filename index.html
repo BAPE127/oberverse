@@ -426,8 +426,10 @@ const __default = {
     patio: { x: 14, y: 18, facing: 'left' },
     east_road: { x: 61, y: 13, facing: 'left' },
     pier_mid: { x: 56, y: 37, facing: 'down' },
+    west_road: { x: 1, y: 13, facing: 'right' },
   },
   props: [
+    { id: 'sign_west', type: 'sign', x: 1, y: 10, examine: '"← WEST: Westbrook Lots. Mason\'s Os Construction — That\'s O plural! Build your future here."' },
     { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights
     tree('t_bh1', 1, 2), tree('t_bh2', 11, 3), tree('t_bh3', 20, 2), tree('t_bh4', 27, 3), tree('t_bh5', 1, 8),
@@ -565,6 +567,7 @@ const civicOffice = {
     entry: { x: 7, y: 8, facing: 'up' },
     desk_chair: { x: 8, y: 2, facing: 'down' },
     filing: { x: 2, y: 2, facing: 'up' },
+    counter_front: { x: 8, y: 4, facing: 'up' },
   },
   props: [
     {
@@ -902,6 +905,152 @@ const __default = [oberFields, manor, refinery, bunkhouse];
 return { oberFields, manor, refinery, bunkhouse, default: __default };
 })();
 
+// ---- src/content/maps/westbrook.js
+__m["src/content/maps/westbrook.js"] = (function () {
+// Westbrook Lots — the western edge of Lanternside where new building happens:
+// Mason's Os yard and site office, an active construction site, Plumb Line
+// Apartments (the crew's home) and open land for future property plots.
+// Its east column is the same ground as Lanternside's west column (see world.js).
+const { MapBuilder, roomTiles } = __m["src/world/mapBuilder.js"];
+
+const W = 44;
+const H = 48;
+const m = new MapBuilder(W, H, '.');
+m.rect(0, 12, W, 2, '=').rect(0, 11, 20, 1, ':').rect(0, 14, 20, 1, ':').rect(20, 11, 24, 1, ',').rect(20, 14, 24, 1, ','); // Gullwing Road west
+m.rect(18, 21, 26, 1, ',').rect(18, 22, 26, 2, '~').rect(18, 24, 26, 1, ','); // the Lantern Canal's western reach
+m.rect(15, 21, 3, 4, '~'); // turning basin
+m.rect(3, 1, 20, 9, ':').rect(6, 3, 8, 4, 'g'); // construction site + foundation slab
+m.rect(12, 10, 1, 1, ':'); // site gate
+m.rect(29, 9, 1, 2, ','); // office path
+m.rect(9, 21, 1, 1, ','); // apartment step
+m.rect(41, 26, 3, 22, '~').rect(0, 44, W, 4, '~').rect(0, 42, 41, 2, 's'); // inlet and shore
+
+const fence = [];
+for (let x = 2; x <= 23; x++) if (x < 11 || x > 13) fence.push({ id: `wfence_s${x}`, type: 'fence', x, y: 10 });
+for (let y = 1; y < 10; y++) { fence.push({ id: `wfence_w${y}`, type: 'fence', x: 2, y }); fence.push({ id: `wfence_e${y}`, type: 'fence', x: 23, y }); }
+const stake = (id, x, y) => ({ id, type: 'stake', x, y });
+const lamp = (id, x, y) => ({ id, type: 'streetlamp', x, y });
+
+const westbrook = {
+  id: 'westbrook',
+  name: 'Westbrook Lots',
+  kind: 'outdoor',
+  music: { day: 'mus_westbrook', night: 'mus_lanternside_night' },
+  ambience: 'amb_site',
+  tiles: m.rows(),
+  areas: [
+    { id: 'area_mason_yard', name: 'Mason\'s Os Yard', x: 0, y: 0, w: 44, h: 11 },
+    { id: 'area_westbrook_row', name: 'Westbrook Row', x: 0, y: 11, w: 44, h: 14 },
+    { id: 'area_the_lots', name: 'The Lots', x: 0, y: 25, w: 44, h: 23 },
+  ],
+  buildings: [
+    {
+      id: 'b_mason_office', mapLabel: 'Mason\'s Os', name: 'Mason\'s Os Site Office', x: 26, y: 4, w: 7, h: 5,
+      roof: '#d9a23a', wall: '#f2efe6', trim: '#8a6a2a', sign: 'MASON\'S Os',
+      door: { x: 29, y: 8, to: { map: 'mason_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '18:30' } } },
+    },
+    {
+      id: 'b_plumb_line', mapLabel: 'Plumb Line Apts', name: 'Plumb Line Apartments', x: 4, y: 15, w: 12, h: 6,
+      roof: '#7a8a9a', wall: '#e2d4bd', trim: '#4a5a6a', sign: 'PLUMB LINE APTS',
+      door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '22:00' } } },
+    },
+  ],
+  spots: {
+    east_edge: { x: 41, y: 13, facing: 'left' },
+    site_center: { x: 12, y: 8, facing: 'up' },
+    foreman_post: { x: 12, y: 9, facing: 'down' },
+    excavator_seat: { x: 16, y: 5, facing: 'down' },
+    mixer_spot: { x: 9, y: 8, facing: 'up' },
+    bricks_spot: { x: 6, y: 8, facing: 'up' },
+    trench_spot: { x: 19, y: 8, facing: 'left' },
+    lunch_bench: { x: 21, y: 8, facing: 'down' },
+    office_door_out: { x: 29, y: 9, facing: 'up' },
+    apartments_door_out: { x: 9, y: 21, facing: 'up' },
+    birdwatch: { x: 17, y: 26, facing: 'up' },
+    survey: { x: 20, y: 31, facing: 'down' },
+    lots_sign: { x: 24, y: 27, facing: 'down' },
+  },
+  props: [
+    ...fence,
+    { id: 'site_sign', type: 'sign', x: 14, y: 10, examine: '"MASON\'S Os — That\'s O plural! Because we never stop at one. Hard hats beyond this point. Soft hearts everywhere."' },
+    { id: 'scaffold_1', type: 'scaffold', x: 7, y: 2, w: 2, h: 2, examine: 'Scaffolding around what will one day be a very respectable wall. Someone has chalked "WALL-E" on a pole.' },
+    { id: 'scaffold_2', type: 'scaffold', x: 11, y: 2, w: 2, h: 2 },
+    { id: 'excavator', type: 'excavator', x: 16, y: 4, w: 2, h: 2, solid: false, sortRow: 5, animateWhen: { npcAt: { npc: 'npc_mason', activity: 'excavate' } }, examine: 'A yellow mini excavator. A sticker on the cab reads "I DIG IT". Mason denies putting it there. Mason put it there.' },
+    { id: 'lumber', type: 'lumber', x: 19, y: 2, w: 2, examine: 'A stack of lumber. Mason calls it "the board of directors".' },
+    { id: 'site_bricks', type: 'bricks', x: 5, y: 7, w: 2, interact: { kind: 'workstation', company: 'construction', station: 'bricks', name: 'Brick stack' } },
+    { id: 'site_mixer', type: 'mixer', x: 9, y: 7, interact: { kind: 'workstation', company: 'construction', station: 'mixer', name: 'Cement mixer' } },
+    { id: 'site_trench', type: 'trench', x: 17, y: 7, w: 2, interact: { kind: 'workstation', company: 'construction', station: 'trench', name: 'Trench' } },
+    { id: 'site_loo', type: 'booth', x: 21, y: 2, examine: 'A portable toilet stencilled "MASON\'S LOO-S". Occupied, somehow, at all times.' },
+    { id: 'site_bench', type: 'bench', x: 20, y: 9 },
+    lamp('wl_1', 5, 14), lamp('wl_2', 18, 14), lamp('wl_3', 32, 14), lamp('wl_4', 40, 10), lamp('wl_5', 24, 21),
+    { id: 'tree_w1', type: 'tree', x: 26, y: 1 }, { id: 'tree_w2', type: 'tree', x: 36, y: 3 }, { id: 'tree_w3', type: 'pine', x: 40, y: 6 },
+    { id: 'tree_w4', type: 'tree', x: 1, y: 17 }, { id: 'tree_w5', type: 'pine', x: 34, y: 17 }, { id: 'tree_w6', type: 'tree', x: 38, y: 19 },
+    { id: 'tree_w7', type: 'pine', x: 2, y: 30 }, { id: 'tree_w8', type: 'tree', x: 37, y: 37 }, { id: 'tree_w9', type: 'tree', x: 6, y: 39 },
+    { id: 'fb_apts', type: 'flowerbed', x: 11, y: 21, w: 2 },
+    { id: 'bench_w', type: 'bench', x: 30, y: 20 },
+    // The Lots: surveyed, waiting for future properties (see docs/PROPERTIES.md)
+    { id: 'lots_sign', type: 'sign', x: 24, y: 26, examine: '"SURVEYED LOTS — Build your future here! Enquire at Mason\'s Os. (We\'ll make it brick-ly worth your while.)"' },
+    stake('stk_1', 6, 28), stake('stk_2', 16, 28), stake('stk_3', 6, 35), stake('stk_4', 16, 35),
+    stake('stk_5', 26, 30), stake('stk_6', 36, 30), stake('stk_7', 26, 38), stake('stk_8', 36, 38),
+  ],
+};
+
+const masonOffice = {
+  id: 'mason_office',
+  name: 'Mason\'s Os Site Office',
+  kind: 'interior',
+  music: 'mus_westbrook',
+  ambience: 'amb_indoor',
+  owner: 'npc_mason',
+  tiles: roomTiles(10, 7, 'f', 4),
+  doors: [{ id: 'door_mason_office_exit', x: 4, y: 6, to: { map: 'westbrook', spot: 'office_door_out' } }],
+  spots: { entry: { x: 4, y: 5, facing: 'up' }, desk: { x: 7, y: 2, facing: 'up' }, drafting: { x: 2, y: 4, facing: 'up' }, board_front: { x: 3, y: 1, facing: 'up' } },
+  props: [
+    { id: 'mo_desk', type: 'desk', x: 6, y: 1, color: '#8a6142', examine: 'Mason\'s desk: invoices, a mug reading "WORLD\'S OKAYEST BOSS", and a joke-a-day calendar torn off three weeks ahead.' },
+    { id: 'mo_board', type: 'board', x: 3, y: 0, interact: { kind: 'contracts', name: 'Contracts board' } },
+    { id: 'mo_draft', type: 'desk', x: 1, y: 3, w: 2, color: '#c9b48a', examine: 'Quinn\'s drafting table. Every line is ruler-straight. One margin doodle of a gull in a hard hat.' },
+    { id: 'mo_cab', type: 'cabinet', x: 8, y: 1, examine: 'Permits, in triplicate. Osric would be proud. Osric IS proud; he said so, once, at length.' },
+    { id: 'mo_coffee', type: 'stove', x: 8, y: 4, examine: 'A coffee machine with a label: "BREW-NO-STOP". It has never been cleaned. It has never needed to be. It is perfect.' },
+    { id: 'mo_win', type: 'window', x: 7, y: 0 },
+  ],
+};
+
+const apartments = {
+  id: 'apartments',
+  name: 'Plumb Line Apartments',
+  kind: 'interior',
+  music: 'mus_home',
+  ambience: 'amb_indoor',
+  tiles: roomTiles(16, 9, 'f', 8),
+  doors: [{ id: 'door_apartments_exit', x: 8, y: 8, to: { map: 'westbrook', spot: 'apartments_door_out' } }],
+  spots: {
+    entry: { x: 8, y: 7, facing: 'up' },
+    bed_mason: { x: 2, y: 2, facing: 'left' },
+    bed_dee: { x: 4, y: 2, facing: 'left' },
+    bed_barnaby: { x: 11, y: 2, facing: 'right' },
+    bed_quinn: { x: 13, y: 2, facing: 'right' },
+    common: { x: 6, y: 4, facing: 'right' },
+    common_b: { x: 9, y: 4, facing: 'left' },
+    armchair: { x: 3, y: 6, facing: 'right' },
+    window_seat: { x: 12, y: 5, facing: 'up' },
+  },
+  props: [
+    { id: 'apt_bed1', type: 'bed', x: 1, y: 1, color: '#9a5a3a' }, { id: 'apt_bed2', type: 'bed', x: 3, y: 1, color: '#5a7a9a' },
+    { id: 'apt_bed3', type: 'bed', x: 12, y: 1, color: '#6a8a5a' }, { id: 'apt_bed4', type: 'bed', x: 14, y: 1, color: '#8a6a9a' },
+    { id: 'apt_table', type: 'table', x: 7, y: 4, w: 2, examine: 'The common-room table. A sign: "PUN JAR — 1 obol per groan". The jar is full. It is always full.' },
+    { id: 'apt_stove', type: 'stove', x: 14, y: 6 },
+    { id: 'apt_rug', type: 'rug', x: 6, y: 5, w: 4, h: 2, color: '#a0703a' },
+    { id: 'apt_plant', type: 'plant', x: 1, y: 6 },
+    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: M. NAILS (landlord, handyman, pun enthusiast), D. RIVERA, B. COLE, Q. ABERNATHY.' },
+    { id: 'apt_win', type: 'window', x: 5, y: 0 }, { id: 'apt_win2', type: 'window', x: 10, y: 0 },
+  ],
+};
+
+const __default = [westbrook, masonOffice, apartments];
+
+return { westbrook, masonOffice, apartments, default: __default };
+})();
+
 // ---- src/content/props.js
 __m["src/content/props.js"] = (function () {
 // Prop type registry. Each placed prop in a map references one of these types.
@@ -961,6 +1110,15 @@ const PROP_TYPES = {
   column: { solid: true, label: 'Distillation column', defaults: { w: 2, h: 3 } },
   vault: { solid: true, label: 'Vault', defaults: {} },
   painting: { solid: false, label: 'Painting', defaults: {} },
+  // Mason's Os
+  scaffold: { solid: true, label: 'Scaffolding', defaults: { w: 2, h: 2 } },
+  excavator: { solid: true, label: 'Mini excavator', defaults: { w: 2, h: 2 } },
+  lumber: { solid: true, label: 'Lumber stack', defaults: { w: 2 } },
+  bricks: { solid: true, label: 'Brick stack', defaults: { w: 2 } },
+  mixer: { solid: true, label: 'Cement mixer', defaults: {} },
+  trench: { solid: false, label: 'Trench', defaults: { w: 2 } },
+  stake: { solid: false, label: 'Survey stake', defaults: { examine: 'A survey stake with a fluttering orange ribbon. Quinn has written the coordinates on it to four decimal places.' } },
+  board: { solid: false, label: 'Contracts board', defaults: {} },
 };
 
 return { PROP_TYPES };
@@ -1105,6 +1263,18 @@ const FACTS = {
   fact_player_invested: {
     text: 'The newcomer has bought shares in Ober\'s Oil.', importance: 4, aboutPlayer: true,
     relImpact: {}, reputation: { fac_oil: 3 }, keywords: ['shares', 'invested'],
+  },
+  fact_masons_os: { text: 'Mason\'s Os ("That\'s O plural!") is Mason Nails\'s construction company in Westbrook. His crew — Dee, Barnaby and Quinn — live at the Plumb Line Apartments.', importance: 2, keywords: ['mason', 'construction', 'builder', 'westbrook'] },
+  fact_moneybucks_wants_mason: { text: 'Sir Moneybucks tried to hire Mason\'s Os exclusively. Mason refused: "I don\'t take sides — I take measurements."', importance: 4, keywords: ['mason', 'moneybucks', 'exclusive'] },
+  fact_dee_pun_tally: { text: 'Dee secretly keeps a tally of every Mason pun that made her laugh (212 and counting).', importance: 3, spread: false, keywords: ['dee', 'tally', 'puns'] },
+  fact_gull_feud: { text: 'Barnaby Cole and Tibbs Hollow are feuding over a gull named Margaret, who stole Tibbs\'s sandwich.', importance: 3, keywords: ['gull', 'margaret', 'barnaby', 'tibbs'] },
+  fact_player_rushed_site: {
+    text: 'The newcomer rushed a job on the Mason\'s Os site.', importance: 2, aboutPlayer: true,
+    relImpact: { respect: -1 }, reputation: {}, keywords: ['rushed'],
+  },
+  fact_player_punned_mason: {
+    text: 'The newcomer out-punned Mason Nails.', importance: 3, aboutPlayer: true,
+    relImpact: { affection: 2 }, reputation: { lanternside: 1 }, keywords: ['pun'],
   },
   fact_player_cut_corners: {
     text: 'The newcomer cut corners on a refinery shift.', importance: 4, aboutPlayer: true,
@@ -1290,6 +1460,7 @@ const FACTIONS = {
   fac_civic: { name: 'Lanternside Civic Office', description: 'The borough\'s one-clerk municipal government. Values order, paperwork and quiet.' },
   fac_merchants: { name: 'Canal Row Traders', description: 'The shopkeepers of Canal Row. Value reliability, custom and good gossip.' },
   fac_oil: { name: 'Ober\'s Oil', description: 'Sir Moneybucks\'s company. Values profit, deference and profit.' },
+  fac_builders: { name: 'Mason\'s Os', description: 'Mason Nails\'s construction crew. Value good work, fair pay and a decent pun.' },
   fac_quay: { name: 'Quay Workers\' Collective', description: 'Mechanics, fishers and dockhands of the Quay. Value loyalty and practical help.' },
 };
 
@@ -1464,6 +1635,33 @@ const QUESTS = {
     },
     outcomes: { paid: { journal: 'Paid. Your hands smell of crude and your pockets of… slightly more crude.', effects: [{ rep: { fac_oil: 1 } }] } },
     failures: { expired: { journal: 'The shift ended before you finished. Gideon docked the lot.', effects: [{ notify: 'Refinery shift not finished — no pay today.', notifyKind: 'warn' }] } },
+  },
+
+  job_construction_shift: {
+    title: 'Job: Construction Shift',
+    kind: 'job',
+    giver: 'npc_dee',
+    summary: 'Day labour on the Mason\'s Os site in Westbrook. Three jobs, one foreman, six obols — and the crew\'s goodwill.',
+    start: 'work',
+    expires: { at: '19:00' },
+    stages: {
+      work: {
+        journal: 'Dig the trench, lay a course at the brick stack and run a batch in the cement mixer. Properly builds crew goodwill; rushing doesn\'t.',
+        objectives: [
+          { id: 'o_trench', text: 'Dig the trench.', if: { not: { flagToday: 'site_trench' } } },
+          { id: 'o_bricks', text: 'Lay a course at the brick stack.', if: { not: { flagToday: 'site_bricks' } } },
+          { id: 'o_mixer', text: 'Run a batch in the cement mixer.', if: { not: { flagToday: 'site_mixer' } } },
+        ],
+        marker: 'westbrook:site_center',
+      },
+      report: {
+        journal: 'All three jobs done. Report to Dee on site to get paid.',
+        objectives: [{ id: 'o_report', text: 'Report to Dee.' }],
+        marker: 'westbrook:foreman_post',
+      },
+    },
+    outcomes: { paid: { journal: 'Six obols, a sore back and a pun from Mason you will not be able to forget.', effects: [{ rep: { fac_builders: 1 } }] } },
+    failures: { expired: { journal: 'The site closed before you finished. Dee says no hard feelings — come back tomorrow.', effects: [{ notify: 'Construction shift not finished — no pay today.', notifyKind: 'warn' }] } },
   },
 
   job_cafe_delivery: {
@@ -1737,9 +1935,10 @@ __m["src/content/world.js"] = (function () {
 // across, and the renderer, minimap and world map draw the neighbours together.
 const REGIONS = {
   coast: {
-    name: 'Lanternside & the Ober Fields',
+    name: 'Lanternside & surrounds',
     maps: {
-      lanternside: { x: 0, y: 0, fallbackSpot: 'east_road' },
+      westbrook: { x: -43, y: 0, fallbackSpot: 'east_edge' },
+      lanternside: { x: 0, y: 0, fallbackSpot: 'east_road' }, // west edge joins Westbrook (fallback via west_road)
       ober_fields: { x: 63, y: 0, fallbackSpot: 'west_road' },
     },
   },
@@ -1923,12 +2122,19 @@ const SONGS = {
     melody: 'B4:4 E5:2 D5:2 | E5:6 -:2 | D5:2 B4:2 G4:4 | A4:6 -:2 | G4:2 B4:2 E5:4 | G5:4 E5:4 | C5:2 E5:2 A4:4 | D#5:4 B4:4',
     lead: 'flute', pad: 'pad', bass: 'bass', bassPattern: 'R...5...', drums: { kick: 'x.......' },
   },
+  mus_westbrook: {
+    title: 'Measure Twice', bpm: 118, beatsPerBar: 4, stepsPerBeat: 2, swing: 0.12,
+    chords: ['C', 'F', 'G', 'C', 'Am7', 'Dm7', 'G7', 'C'],
+    melody: 'E5:2 G5:2 C5:2 E5:2 | F5:3 E5:1 D5:4 | D5:2 G5:2 B4:2 D5:2 | E5:6 -:2 | C5:2 E5:2 A4:2 C5:2 | D5:2 F5:2 A5:4 | G5:2 F5:2 D5:2 B4:2 | C5:6 -:2',
+    lead: 'flute', pad: 'pad', bass: 'bass', bassPattern: 'R.5.R.5.', drums: { kick: 'x...x...', hat: '..x...x.' },
+  },
 };
 
 const MOTIFS = {
   motif_mags: { title: 'Mags — "Kettle\'s On"', bpm: 140, notes: 'F4:1 A4:1 C5:1 F5:3', inst: 'clarinet', character: 'npc_mags' },
   motif_osric: { title: 'Osric — "In Triplicate"', bpm: 150, notes: 'C4:1 -:1 C4:1 -:1 G4:1 -:1 C5:2', inst: 'reed', character: 'npc_osric' },
   motif_moneybucks: { title: 'Sir Moneybucks — "Dividends"', bpm: 112, notes: 'Bb2:2 F3:1 Bb3:1 D4:2 F4:3 -:1 F4:1 Bb4:3', inst: 'brass', character: 'npc_moneybucks' },
+  motif_mason: { title: 'Mason — "Measure Twice" (whistled)', bpm: 160, notes: 'G5:1 E5:1 G5:1 C6:3 -:1 B5:1 C6:2', inst: 'flute', character: 'npc_mason' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -1948,6 +2154,8 @@ const AUDIO_REGISTRY = [
   music('mus_manor', 'manor', 'inside Moneybucks Manor'),
   music('mus_refinery', 'refinery', 'inside the refinery'),
   music('mus_fields', 'ober_fields', 'outdoors on the Ober Fields estate'),
+  music('mus_westbrook', 'westbrook', 'Westbrook Lots by day and inside Mason\'s Os site office'),
+  { id: 'motif_mason', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mason', trigger: 'conversation opens with Mason Nails', status: 'implemented', source: 'Original composition' },
   { id: 'motif_moneybucks', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_moneybucks', trigger: 'conversation opens with Sir Moneybucks', status: 'implemented', source: 'Original composition' },
   { id: 'motif_mags', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mags', trigger: 'conversation opens with Mags', status: 'implemented', source: 'Original composition' },
   { id: 'motif_osric', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_osric', trigger: 'conversation opens with Osric', status: 'implemented', source: 'Original composition' },
@@ -1978,6 +2186,7 @@ const AUDIO_REGISTRY = [
   amb('amb_lighthouse', 'lighthouse'),
   amb('amb_fields', 'ober_fields'),
   amb('amb_refinery', 'refinery'),
+  amb('amb_site', 'westbrook'),
 ];
 
 return { SONGS, MOTIFS, AUDIO_REGISTRY };
@@ -2041,6 +2250,7 @@ const __default = {
     npc_osric: { trust: 30, affection: 25, respect: 20, suspicion: 0 },
     npc_tibbs: { trust: 15, affection: 30, respect: 5, suspicion: 0 },
     npc_moneybucks: { trust: -20, affection: -30, respect: -5, suspicion: 20 },
+    npc_mason: { trust: 40, affection: 35, respect: 30, suspicion: 0 },
     npc_mabel: { trust: -10, affection: -25, respect: 10, suspicion: 5 },
     npc_hank: { trust: 10, affection: 15, respect: 5, suspicion: 0 },
   },
@@ -2060,6 +2270,10 @@ const __default = {
     npc_osric: {
       warm: 'Osric? Oh, he\'s a sweetheart wrapped in red tape. I\'ve known him since he was a tiny clerk. Well — a smaller clerk.',
       cool: 'Osric\'s been impossible lately. Forms for this, forms for that. I\'ll win him round. I always do.',
+    },
+    npc_mason: {
+      warm: 'Mason\'s in every morning at half six. Pays for his coffee in puns. I charge him double. He pays that in puns too.',
+      cool: 'If Mason tells me one more joke about "brew-tal honesty" I am banning him. For a day. I couldn\'t do longer. Don\'t tell him.',
     },
     npc_moneybucks: {
       warm: 'Sir Moneybucks tips well. In cigars. Nobody here smokes. That\'s the joke, I suppose.',
@@ -2156,6 +2370,7 @@ const __default = {
     npc_mags: { trust: 25, affection: 20, respect: 15, suspicion: 0 },
     npc_tibbs: { trust: 5, affection: 0, respect: -5, suspicion: 10 },
     npc_moneybucks: { trust: -25, affection: -10, respect: -15, suspicion: 35 },
+    npc_mason: { trust: 40, affection: 10, respect: 40, suspicion: 0 },
   },
   knowledge: ['fact_lighthouse_dark', 'fact_osric_has_key', 'fact_moneybucks_owns_oil'],
   giftPrefs: { item_honey_bun: 14, item_coffee: 4, item_wildflowers: 2, item_gull_feather: -6, tags: { sweet: 6 } },
@@ -2169,6 +2384,10 @@ const __default = {
     npc_mags: {
       warm: 'Mrs. Pell is the closest thing Lanternside has to a newspaper, a heating system and a conscience. Do not tell her I said so.',
       cool: 'Mrs. Pell has filed four patio permits this month. Four. I have begun to dream in patio.',
+    },
+    npc_mason: {
+      warm: 'Mr. Nails files every permit correctly, on time, in triplicate. He is the most exhausting person in Lanternside. His foundations are impeccable.',
+      cool: 'Mr. Nails asked whether my filing cabinet was "cabinet-level material". I have not recovered.',
     },
     npc_moneybucks: {
       warm: 'Sir Moneybucks pays his rates. Late. In full. With a note calling me a "parasite". I have framed it.',
@@ -2249,6 +2468,8 @@ const __default = {
     npc_mags: { trust: 30, affection: 35, respect: 20, suspicion: 0 },
     npc_osric: { trust: 0, affection: -10, respect: 5, suspicion: 5 },
     npc_moneybucks: { trust: -5, affection: -5, respect: 15, suspicion: 10 },
+    npc_mason: { trust: 25, affection: 20, respect: 30, suspicion: 0 },
+    npc_barnaby: { trust: 5, affection: -15, respect: 20, suspicion: 10 },
     npc_hank: { trust: 20, affection: 25, respect: 10, suspicion: 0 },
     npc_otto: { trust: 10, affection: 15, respect: 10, suspicion: 0 },
   },
@@ -2262,6 +2483,14 @@ const __default = {
     npc_mags: {
       warm: 'Mags! Best human. Feeds me. Doesn\'t ask what the smell is.',
       cool: 'Mags told everyone about the toaster incident. EVERYONE.',
+    },
+    npc_mason: {
+      warm: 'Mason let me tune up his excavator. Best afternoon of my life. He made eleven "gear" puns. Worst afternoon of my life.',
+      cool: 'Mason keeps calling me a "nuts-and-bolts kind of guy". I AM. That\'s not a joke, Mason!',
+    },
+    npc_barnaby: {
+      warm: 'Barnaby\'s alright. Big lad. Wrong about gulls.',
+      cool: 'Barnaby\'s "Margaret" stole my sandwich. A whole sandwich. And he TOOK HER SIDE.',
     },
     npc_moneybucks: {
       warm: 'Sir Moneybucks? He\'s a villain. But have you SEEN his pumpjacks? Gorgeous. I\'d die for one of those gearboxes. Not literally. Probably.',
@@ -2286,6 +2515,7 @@ __m["src/content/portraits.js"] = (function () {
 // GENERATED by tools/embed-portraits.mjs from assets/portraits/ — do not edit by hand.
 // Keep images small (≈224px square JPEG); originals live in assets/portraits/reference/.
 const PORTRAITS = {
+  npc_mason: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCADgAOADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAABQYDBAcCCAEA/8QAQxAAAgEDAgQEAwYEBAMHBQAAAQIDAAQRBRIGITFBEyJRYRQycQcjgZGhsRVCUsEkM9HhFjViCENTcoKi8CWDkrLx/8QAGgEAAgMBAQAAAAAAAAAAAAAAAgMBBAUABv/EACURAAICAgMAAgIDAQEAAAAAAAABAhEDIQQSMRNBIjIFI1FCQ//aAAwDAQACEQMRAD8ApafY2dvcNeC7uDM6lguMhWopol9cTtJFdYe13DJB8wPtTPxRbaX8ULmCNGbAWSOFCDjscUu/4WVzLbILaUAEsxwG9wK8zHIsoMlQy6Xf6Usklvcr8TBsztcZA+vp9aMJe2Nrp3w+lPbWsjMHC4AVc+tLmi3t+9rPaW0drcW85wWCgupPcnsKtXWlR3Fk1heW7JG06E3MZGXC9s96HInHVjsbCWp6dPrthLod8yPDcRN4qqg28+4H968g8ZaBPoWt3mnTJh7Vyozy3L2NewdTn06K2S7t5LhZkxEgVvMU6YxWJ/b7oEq3Oj8QG0MMc6G3lB57m6qT9QDV3+PzNS6sLKjChH40D45leYqoV8oarzA294RjC7sED0NV5x4Rkix/NkVv2IRxCxB5VYy3TJqvD81XhbScjjrRJASdEYJx1NftzetTeAwHPFfPAb2rtEWyMkmuGzVj4dvUVwYWI7V1kWcxxljzNX7O2QsN65qkiup696lE0qnAoZWw4sOokar5VAqjcq24ntVMX0ucZyRX3452BBFI+OVjeyIpTlqidCHj92H71MZkyC8ZOfev3iJJLEoi6uvf3FNjoFmrawFW0RVHyxRj/wBoqloK/wCMuHIztiP4Ve1ogW7ALjaEX9KpaIpHxrntHyo0xb9CugLk2uMZaUmsb1Vy2pXrE5zcSEn18xrY9KYw20Tf0rI+ceik1jM7xStI7btzuzfmTQJ7GIqtI3t+VcFietdsV9a5703siDnFfsV2AT2P4V98NycCNz/6TXd0SewdU1sJczG4vPECHAuOQJH9JFLcd3a3Ms0bqHikGYmOSE9qKcQcHX2naBLe38awmSdQsCncT75oC0sOlAF5CBIOmMYPpXlIKMfAZBfhrUX0fUmMjeFDKu3bGeRFNL6+rTWttZqTaAeJPcMdwQ+wpFsPBvWhWOQ+HuOcjkopt4OSymv7lfPIYFPMrlFHblUZaS7MKEtl2xvheXs89tbQ3CyR4Ex5suCe3agn2r2FvqnA13ZW0yO1ttuUBHmVh/tmmxzZi7n+DhgDGNRJFE2Gf3FCLm1ttN0y9a7ty89zBJGAzZMYwRnHfrXcedyTQcpHj/UVIuyV5lwCK+6lavJLC6KT4kYJwO9W9ThWK/jQE+UlfyNOHAzlNe0GdbYTkSbSrIHDfga9FLJ1hYCM8XTbreMQTH/7bf6Vfjsb9EybW8IPQ+C5/tXsy/ghhe3RNOgabG4sLdV2Z6jGOdRanHHfWCWOmwi5nizIwVNrRg9sVRf8ik6oJws8dxafqs7iOLTr1ieYxAwz+lFLPgriq+3GDQ72TH/Tj969Q6bA9o0h1K1Z7dE2JIj84T3BHerAv4Fnjs4YrhIpyDGynLL6saiX8i/pEdEeYB9mvGTRmQaBdbQMnLLy/WuIvsz40mZlXQZ/LzZi64A/OvUnEuu6BwVpM07XGVlUIviHc0rewPOsj137aFjEkWi6aY0243yty3HqcdaZi5eSfiJ+MRovsj4ullKCyt96pvIM3QVWn+zfieCQAWsEyDG6SNiVT6milp9rvEdiZmxZyPMTkOpx+FFeH/twvNDhktLnTYJYpfmAPPn1605zyHKAsL9nWt7syvaKm4KWQlsfp0oxJ9kt9C0ajV7KZmUsRCucY7c61rhP7T+CWju7qK3RLqaLalnMMqTjsfrS9rcsc8JMUUen3bEOAr4D+mBVWfKyRYTikZs/2c3mfDN2xuD0iWIEmrOk/Zm1zMGm1QxGIh9hiBLEEcuvKmhLy/jv44Vl8O5k5CRuQz65r9DYX+najG9u08rAlbi4QEofYk9BRQ5M26B6g7iCfHiDoDPjn7VW08lbS7fBxgCvnEUhdY3IGXmY/rXVqdulSf8AXIBWnHwT9h3To0NlEHYBWifdk45FSOtL1hwPYXbSltHf4cHaZQ4woPTHqacuE4IptT06K4gFzDg74Ty3DaaaoeEp7CS7l0G7tds48aSznUt4QH7e1ZfK5DhKkWIxtGe6hwLwRZ6pZW8JcWvhYuHlUl956eWo/wDgmGS6kt1tdOKRRblAjIcr2J5daY5rm8n1/wD+naarapENqs6FjIe5wfSjejatp9xJcJfwEaoufiQ52u/LG1faqsuTN/YxRQucPaRacOawjNw5bazG8XMQpuCH/WnHhvhqwnf+JXtpcaNPdFlEAiG1F3ch7Z96WuGeKrjTNQls4IhG0tyDsbooGcH8M1rEqyX3Dl/DavNf3MsZIkVTgydQAfaq+Tl5E6CUUZOddvFkFs8s8kK81UtuU+9VruBL6KYXEhhZBlC570Ma6k014nkDQ/yhSchhRZrq3uogZ7VZBz2lf7054yiwJp7vIwCtKGkbw+R6D1rVtNtjpHDrW/xPj3LqXDwc3b1B9hSbBZWU0El1YbvFhxlc9B7Huad+G7m4tmtpYYRaTJEQkrnnNnoMVXzwtB4xfslk+MTLSxyKmTJzwc+vvVu7nE0ziO8l8RIyCznO8H0onFfTS30qOfFeXl4pwShHUYpavLqRrqWzaQIkYYbgmGLHtimYKukczzxr6bdWmXGdsz8/XnR/gWYHUtJVXdGS5yCvUe4oJrJxrFyvpI/70V4JDR39pKmQ6y5BHWtrKv6yYnoXWbK+t9VPiaiJRLtljmMmfDAHQ+hqE3bWt5NPp8s3xShW3B9ykfh+1c8QfFz6DcRaTbtNdzQEFjGdzueoz7UAltk0O00/+GvKZ5YAk8SZOHHVs9jz/SsWUAmNUl/LcLFNK0fmbcyqPM59xSfxP9oUPDmoSRWkCS3JO5MnBiz2ove6mY9KS7CRLKgI8cHzsR61jmtwz6xxE1yWJKLk/WrWDGpehxjZBq+s6jrV7Jd6ncyTyMfIpPyD0ApevYjJJlpCD6GnSy0tVmHiW28kdSKnvuDzcxkxW5+gFX4KMfBnR/RnsNnkncQQe9XFtllRY5AuVPJs5NHU4OuQzJ4iqP6XFT2vA2q7sw2zXA/6VNMckd8cgTY6WWYlJSOXIZxTHo88k7ra3u8vGMIzdatxcL3qqUa0lSQfy7DmohHKsskU0TRzw4+YYI+tV8sexLi16bNwdoFqOFJJ5hbXGpupe1Duu8be2D0pUn4r1vU0kguXUQl2lm8CHaAQMBGPpVK2v7L/AIUvl+AWXUGA8O8VsMnsKoaUuvXVlPdtNKmkxjBVyAJGx29ap4o1PYqQta4cpbYOebMKngUDR07FpM1V1gHxLdQQdqdPxq6QRY2qZA3NmtzxIrXs0j7LNLttU4ntLe6xtWFm5ttycdKbdUj0y/1CfSntLrT52lwZvDOx1XsCPWkjhW6awvWeOHxpWQRoFQuQSRnkPatgs+MNIkgXfIsAtQE8K4jI8/cjNec58vzLUPDPtTuv4BYEQ2BkuC5ZpDEdyA8hzpV12wjuI0urMG3vVHiO2/8Azf8AenzXuJdT4ssdQTRoIzBbMHlVpwsjEd1BPTFZhePBqEyeFAz3l4RHs3ElG9fxqrijJ7YbZb0XT7XiCyuZbrUYLG6iIQb2Clz6k+lP32c33EWmSvpFx8CdMsEMj3asXLg9l9TzrP8Ah/hvRbLUbyx4ojBvEUfDhz93z65Pr0plP2hW3CunRafo9gq3SAqZf5cA4BHrT5RT0QhaSKPU4DC6PbKoyXcZLMp5j260P1WNY3dbG6Z0G3Bx8g/pNWrwya/As1syxPE2CD1Y98kdKg0C7Gj3ktxq1j4sMedgByHfGBn1Gatt2iovSaxnMzeFCT4i42+H3amvS769gl8K8NzCUAiKuOx9KUI9RtolkeZEiOTkA8+fTp2qS11Oa8aRJLpmywYLvycDkDS3AjwZLq3ubO8MVqzt4rbxLnHT0qIozzwnUreQzBmImjPmPLlmrGnpLNbO3ilDADIokXdu9QK+Wlpbak7SwXMlpcPnKyE7JAB29DU440yTz9rYzrt2T1Mj9vc0b4IPh3tqeX+b/ehOvRiPXbpcdJWBz350S4PyZ7cjn99itTIrxhRPSyajZNDHeW8v3NqgV7eNvO0h9B3oTp1w2lLLPc2LRXUzmdfEAIVOy0Gjv7mxkF5pbRzzIVBDoNqn+n/em3hbh62tdWk1PUr9bm5nj8RbXGFic9QB3rEmuoaZn/2i6hDEYxHICs4NwwAwB6Cgv2faQmp2NzeXK5eV/TpRH7ahEmq4RdkeAq59O9XPs6QJoAKqQGbOfWtHBuNljGi/Ho9rApCIM1ct7dEA8tTlRnJOKli8Puw5UZfgtHcVhaudzW8ZPuoovY26BgqKF+gxQ8OqgYNWF4g07T2HjTKCOvLJqTmG0tIuTMg5dyKzj7VtHiF3aX9uFilZSknL5vTNaBBrNveKpWN1Rj5WI60u/aXYNPo4u15rA2SRRxEZEqMz0+QvYTeESjBfTkCKIQ3ep/wWK1u5v8IiPJbrsxuGRzoDpt3I14Yk2hpNw69a0Cyit3srWyltvDVjvLSjznpkfSlqF5CjN0hVh4Av9dvrcvKLSJ4wEYoWLe+B2rnijhK64fNkvxEV1AsoQyJyIJ9V7VoXFPHcfA3DEl9aJG03+RDgZ3N6/QVkWla5qnEd349/I++Vg7bmzuFaeSlErRTbNC4S1STRZry9GMxKEGD5hnuBTLxPrUNqlhfQJEZ5U88Iw6MT0ZjSTpDRT2lzEb5LW6kkARMbvFXHMU8/A6XwpDB/E44Z7W6Qbi0ZHhPjkPpXneTG52W4ihqsEet7ptPsntJtuZlhckSey4pgn4TnttF0y/jZrO/PljhMfm9j9aI8N8U6BodzfW8txFFz3I+CFVeu1fXtXes6sl7ompaxPeBLWeHbaSsoy7e3cGqEpSToNNGbcU3KmV1uSJ5FYFpnGCW7jFL8NrNrFypimii5dZZNqoKpXcF1NI7l2MbdTnIzUen6TeXt0lnbxNJcSNtRf6qtwVK2A5bH27vrGG2tY7eLwTPDh3Tp4nuaD8PxWl5qMmnapcLEhQ+SRvncdBntX29tJ7mQGzRIIPFyYs9/WodT0lVEkqvFcXMg+RRg4HU59asLaKy9CWs2q8PXFwsojmhWNeSgFlz0HvQQ63YRXZnltjG4wAwGDj1xV22l8SNt0okcRFZIpDuwoHIilvQ1Cask86bzzysnNSO1FFa2cxtt9Xl2lhOdrndGwfkaJ6RfyGaJpFbxW3KSRlKjuRpt/bQpa2YS6UbV8M+Ru5J96r2N7dQy28ZcEuTlGX5a6LTZBkfEshPEN4Sefivn8zRPgtjvgbGSs4wKFcQIW4gut2M+K3MfWjHBybY4yDg/EqMmtKeoBRNZ0zU0a/QxFYgW++VhlWOemPWnPVrlL6FBaPLbywffCSaPaxP9IP8A860tNwZIsIeG/VZHPizqFwqgdCCetHTp0t7phYXqNNNkL4hwNqgc8+tY2SSYaMx+1qWS4Szkly8jA7zjGT6UW4U1iw0rQ7a0nuF+JZd3gLzcfhV3iXTVuYUkuHgLpzhZeYJHIkig2m6UhmgvzsEzKYWIHcdDVzjtdSxC6Lmq6rLcygQvJGh55JC1Ug174MtuaWXb1Kndy78hU9xpEW5jctPMWHyp8tDn0iLT7aS5jt2iiRSclssaspIenJBaH7QdNufDgshNczyNsAKFVz9arX2tSJdMoh3Mp57Vz+VNPDPCcM3CkVlHFEl4IxKsm3nvzmqdxplteOJhOsFyOUkTYBVu451LSQdSZ+sdQu5o4nQXuxscwuNtE5tN17U3vbNtQ3WJtw4jkUbs4yRmpdFiRHVZrkNjooOf2pus7Fo7e7n2kGZcKD1VQKizpQMa0bhG2n1y2KlgwkUKuejds+2aLa5rItJi0yRrcRbhLtbIU5AovZRQR6zEJmEIwWMg5Dl61mPFlybzWLpg/kZlGB06/wC1dhdzKvIiok32h3Ed9b6NbZISNnkK+vI1BpaD+JJjChIugFV+KZQdS06I89tvn9aIaHHvu7h8HyQkj2qzketlRehzQeEb3WdNk1i1nija2J2xucGQ56e1GtX474jsoYdK1/Qg0khUfeITkfy496o6I+s2ekxC0nthaSHxJIJGwSAclvpWj8M6rb32mz6pqKLcNFKBEpUMikAYwT61iZ5U7Hx3oGcF8BWtnZnXOIYFe/ZmmW1lbywx+47ml7joaZdyN/D1u7hZiCiohEEXPt7073t/rOrJB4MlvDM24GOXyqR/SW71COFJL6COBrqPYeQiDgKp7lcf3rOyT3Y3oZK+k3VtbolxazQh3BDFDhR706cJ2ujWsKX9xZ3hmLMpvY0JQDHLb6Giuo6lDaO2nRt4kEQAnebDE49KqR63pCGKz0rUm0+0VzuVoNy8x1P40HzOSIUUhcv4JrW/2PaSeHEdnmIztPRq41GxFqIdtxhQTy8PBXPY+lXtb1VLe7GmLElxCqhvHkbJJAPIH09KB63q8l5pllJNbOtu0hjaQci59ffFakXe0U6BSWiaZdvetatJZyIVcxsNwP8ApVaG5CSm2tIiW2blBAJb29qOw2afK1zuVl8pXmF+oqKURwwE2+N5k55XniiUjmWNGNqJjPqsVxbiKMCMIBzJ7Ef3o09xYLJJPb2os0I2IZ2yX5dVFBBctNGZBJ5NwGwjmPehYaS51xYGmnuEdvmXomPauhHZBnGvHOuXBz/3jfvRjg1Fks8uM/4laDa6rDXblTnCysoz9aNcGEJYt7XCmtSa/rCibbPxba3wgspojG6oLeOSQYAweQ+n1q3fazpd/BNE98sv8NXY0AXAzj5gR1oE2sgSQi5t4/ChUp4gi8zE9xSq+k3iX91JazQM0nlVZW2lge1Y7wq7CsKQ+LdXEiyAtEyb49ucLntRHha1MllcRyocrIce1W9D4f1Jra5ivFW2e2jDkYypbHQH0qLQbzZbXTNgSbzkU7DNXRdwbRanhniUnx1OR/MopeKy6jqi2wn3pEdzg4C1dv8AUm8J2JIApXmvESORgxMpPMg1Y770XHSRreh3CQ3cUZbGQByNB/tB0u2F9HqFo0M8xYiRBjOPU+9Z5pfFeo2S7Q7MRkLu5kfjRrTdUmuoy05K7ubMeeTXOZKaGrhbUrNnXbGkbjkRjnWhw3EbW3I4BHTNYba3Ih1OOWCTLbhlR3FarHdeFMBnavhhiD60Hf8A0mVMB6hbW7LdrLzVg4A7j3rHtT2fxDYO8iDI74zWqcS6gLOKW4iIJ5rtPfNZRcjxdSLAchcYAqxx9yszeW9lPiGUycSxqDkJGo/vR3h6QEX8rEYEJFL2qqG4suFB/wAsID/+Io9w/HnT9SbIB2gDP1qzm/UqR9HXTp449LtTMY5yibceGcxA8vxp+ttBs9M4Zj0yJZbuEyrN47EopY8+Y7gVkGq65OtrFZQ2kxhgVd7YwD75p++ybVrq8a4Wc33gxjfEQm+MDuDnvXm+apbY7G9hPjTWINIsDBLcWtzdR4a3ihflGvQk5+tKdtxJd6QHvLNAVkjwxZ8jn15Gn7U7TQtTkd7PSjfXgiyQF2gYPcms41XS4m1loryVrIEBZA3NYx6cutV8VSWx0m14cSXseoytdW6Rq4AUqrcmPc0JvJrlLhUUCKRvMyty3Y9qYbvRdE0WxlurXWVmOcwRRnLM/uOwoFAzazfwyalMI5JGIaTbkhaf0iloS2ySS3ljtbhRFORG+5PKDk+ue9B7TWL64MNk1qtyCzPHBnox9PSr8es3dvGE3CaGFWdjnGKFaXNbalfvIlvJa8wzSRycwPar0aSFJFlLq+d5oo4zFMPKqg8lI6g1etVlMsZcKGxlgflz9a+SlPGWO2OEUZYkeds9ye9U1vJnheO2iLOrnynn+XvS/WcyXVr17VraaBQjSP4bq/yj3q3pi3VpcttkiPjsS0q+bGB60BheS71KOPUbZnVV8satg59TTbpRsYpktmsnYDzMFk5dKdH0Ex3Xf+eTktn7xv3onwi4FnJk4HjpVDiONV126KggeI2M+mas8JEyWkqgZJnUfvWlJf1hQNXLNJIjSJI9rEAAjYwSehqpxLEsdvDNJGoMrqNpOQADzI/CrmkQSo80VzMt1b4DeF8rDA7H2qC/vNKmSB7ywncWpIAMuAM9OXcVmTVsh+l7ifiprbW410RgbKKFIN8ZO2RcdwfSgVpqvwOoXMMrZD+cH1zUOpi2ErzxXqIJkDeGo+Q+mKH67aSx2UFxEwnkiwGdDyK0EIUy1gmGriRb+1uI0ky48wpVijubeeGWQNLAXxMEHmUVBY61JbXHijoxwedMui3EV2WcjCk55inpNFxSTCug/wDC824zW90GBI5oTkdqOSiW7sV07RdGFussZR7mbHlHqB60MtNSt7dT4e1cHrimrSNSimg8TecgZFTSG6QgS6LDw1rMCeIzJGg3MTzZqPTcWPcmSSJs9lGe1AuPbiWW8MiJkDn9RQXR7kSwFWyobPmPau6WA50NNwZ9QiWYx7olceIT2PakiBjNqEZPSSZmH51rnDunrYcEale3WD4tuzKp+nI1k+nJ/jdPz1yWP51c48aRQ5O2C7jM3EuoSY2kSFfyGKP6TJ4Wj3JKnDyIuRS7auZtU1KX1mkP6mmqzgVdCjZifNcL0pmZ/iIh6d3d9qdrcCJlY2sxVct0dc/LW8aZqqaBokUVvpEFvCyLtSBtxyRzJArKNL1GCZra0a3YCVyviMu8AqMj6ZxRW04g1RnaXTrKRHt28zK3M/8ApPavOcqDk6GxdO2GOLdZtoWmltpZoZ5gFMRLIH77lPQVn1pqMWsXszXQKbQRuLZZgOWM0Q431a54isLeBo1jliJYOG5se+aSrF5dInMjq8owa7DiqIM8lsdRpltFY+LHbhUfJWXeCc+hFfdLsDcWrXFw7L4AwoQgHJpcttQS9uEiuLiREbmpXlg9uVMWlyGO7NlLJtZGDRb+asfeioC7JL3QTE8rTbJVKlIVtznPuTS7eNacPwwxrAxjkH3m3mSfen3U+Cb+yt9NOhNNJbKmZXMgId8dR7e1JGryzzxBLnYtxCcGMDAx7+9NhOL0FTTBEF3ca1xTZW1o5iSTChiueXuKPz21xoHEHheNbn4dg7SRAlmB6HbQCPUYtI1CG4gUxXkPnRiM7P8AWiY1nUNXnm1OHS1ury6cI910RR0x6U5x/wAJdNF1j8VJNem4AVnJ3FQCR7UQ0iC0vZrdbO72hwQ248y3saE3HBOvTWbO91bQxmTakCN5ievI/jX7h3T9O02cpdzyGaFzkNkYPpioSaYMooz7iGPbrl0hOQkjD9a+8IvtikHbx1r9rwL61ckEYLsc1Y4GsprsTJFG0hWcEhRnlWt/5kQTbpDzqN/cadJHiNjgqqtIMCVD6ftRGK6N1OYI7aOVwdrxyHOc9s+lR3Mlrph8a7lEgQbVhJ3cvxoJccZxojfBWywjoD/vVDo2yzDit+hO/wBCeC+upZxHZwsoC7ju2+wFUF1S0tY/BtYywZSC8nVwOvLsKX59dudWmWF5XZmOC2egqleXqw6xcwk5WOIIlHDHRbhx4xRzM0bPL4S43HdgdqJ8L6nHHL4LucE4ANULLwnvo4pyAky7Vb0PaqF8k2i6i0ZVl29yOvvTHEVJdXo0y4ntIoQUwF6/U1ei1iC3sFZWVWzkjPWsyOvgwL94WOK+tq7tGvm3ADJOe1AoB/JobNQvxc3ZkGHUDIUHoKm4J0Ftb1hYV3CCNt8rfygelK+j295qt+UtVLb8YOe1NHEXFcHCGkPw9osyy30y4urpP5D3Ue9GlZ0Y3sJfaB9oMU98OG9FYC0t1YTyIeTED5R9KWtLi3apZop6Q5+nI0n6chilmctlxGSefrTbpzyLqTtGu4xWpz7eU/61bgqRU5L/ACANipR7pycguxH4mm+3KjR7FD3uNxHtSZp+TaKe7EU33oMOmWjdFAY/tQ5di8CtjKdDtLlC9nO9jLKM+Q7kP4dqpvbavw7cxXDeI681aWJs5FLem8Qz2qgRyhV9GNO2i8Srcnw2VWJHME5qjkwJmm+NGS0BmuItTa4ks2y+NxRh0HfFLN9JKrSRNuGOfM1pV7wbpuosJ7OX4OX5jGG8r/6Uo69pb2ZlgvIGhcfKTz3D1qm8bj6Z2bA4C/aMlzLGksoh5gMcZ5etHxJIt9D/AA6Y3kSrsDMuDQKx0mK58TdOVKH+QZbHrj0pr4YvJLayuLG2ljM8zLtlZOQGeXPtzqUrK6NA0viWbQ1uUu45bqOEF7WKE5Umsw4zi1WYPqt1Asb3L7gobnzPpWm8aRR8E29nbW12xlnUxgyKA34H+9IHEFzYWNvDdXN7HevKcSR5J8E+lVMEXdj5NgHSjfffJdxRNbOBvdxllHoKcuH4JE00ypJGLdJTGtvnJc9Q2PalLSdUtdRvI7Vpo7a0GWdZcnI7UX0rU40u/Fs7eNTHnbHvIzj+b8quuTEuw7qskWqxSWz3bWsmMKIxgI+PmFL+maTqTszSx7ZoH8O4llP+YD8uPU8qLLdwarDLFIPg7oESAcmVvxqlG19d3oluJZZbMMFUrgbmAPOjgSm3ozq8sZ9U4oksrdQ0rylc9AOfWme2ktuFkbRrBhuQbrm4HWR/T6V3ptp/Cr65vJk/xF1I+0d0QH+9KM+piW9upc43ufyq65NqjW4+BRVss6tqkt3IcucDl160Gu5nKKiE7c8zmpplLeZjhT2qvtJYf09hUxSSHMvabJ4csW3rnrVbVZjHrMjnHPkTUlrmOZCRyBrjX4d14XHRh1rkjmcSysUDEk7eWR29KORcTafrFgtnrNt95GmwXCcyR7+9LkD712v6VDLG6NlTzo6EyVhWbRdPlQm11EKB0DVDbRabYEG6u3nbGAsa5BqntjkUMV2t3HrUDQndy/Wo6grGg8nF91BFJbaZGLSJuRcc3I+vahgdgxY5LMeZPP8AGuIIeWTybuasqoJHL2zRJDVos6ZGSk7Nz3KB+tMdtcC1u9UlAJ2W7qB6chQXSVUnaOrSKn60UYN8FrUynmyEZ/EU2PhmZ3+QN0kfc2yn+Zlpq4lYw6RbAEDMbE0taamGswBTFxkdttbxDtEpx9c0GT0njLYpREjbk8s0a066kS8iVXK+4NAnfaVxRTRA0tyZH5bFLCgaNmI96dxJ8DN4sjBwnLae9MrXEPGlgYn2Q3GMwy46H0PtWQrete3xXdsXPPFPWh6itrsUSAKOXSkZMdomcFNUwPNplza6w8UamO4Q4ZW6Mfb2qWOW4tb7f4It3Xmy9M/hTbxPY2+r6bHqEQHxEGPEZTglPX6ilCVDJKjI7So4+cnJP1rPlcWYmfF8cgzaS6hxlxINb1QvNpyTeHbwg42jt1pM4ksfg9XvLV87VmY46458q159G/hc1xa2cMzmKcRxxP0KgfNWZfaNC1prUpRdrttzzzk4roSXakEB+FV059XYajE0+UPhrnapb/q9q1j/AIWGs2Bh0yGysbKcGT4mQYCMP5Q2e9Yvpty8Ny3hxySkoR5ASR6nl2p0j411HiFYbG9jS0021h2/DW52+J23HPWiywcnoVKifTIpotYFiIRIbdG8SaI78DPPHrRVIbXWbtrixvmhgt2B8CXkz8jk/wDz1oNw/JHpnFFo1l9/Arr4jucAoeob2rRvtGi0DRLZLjS7S2hupoWMxgPlx6CuinaHYMfaVmPavrDXGpapOmNkEYjX2JpEhcSTkAnBOT9aMPOW0+6Zn5zSl3+nYUGtUUS5XmM8q0orRqeaCjIrIBUBTMigdBVoDOM+ldQweIxOOQ6mpJfhEyMw3LyCVFenxWU9TjFEkjBXaByqhcRbGYDpUgWU1j29K+NGTUwi5A11FCXbDfjUnUVlUD5jmu9m45C4q0LRO/XtXQt9uamzqIEiJ7VMsBAzgcq7UFRyqUI0mMd64hon0ZR4yEDn4ymrszleHb9hyLsq/rUdlEsDxbeRyxP4Cv17/wAhIHLdMo/emrwys37Henp9/bqBgbMiinGrgTAD+WJFqlYpm8hAHQAVLxtJ/jJAO0gX9BS5+jOP6K0kgJUD1otBKbSzdgwDMMc6CRKZbtU6+ard9MZZ/Aj5hTjFQzWiXNGXLPMy0bs7xvilKnvjFBopjb26IvzHrV6xlWNwXBAHPNC0GmaPod8gAjmwyt5SvqDVGXSRpuoNsjmaKY/dqvYdaDaTrMQuQsiYU9CO1O6W5vLBHVy7xfeRMD+YNU8+O9iuXhU42dLxBG+0Rm+3oxd3eVckenSlbiaw0/WnFwnxUA5eUENj8cU8pwVJdWbajDfRy2aofOq/MaQtfvpdJiTYgZZBkr0xikQlC9GX1ZLw88PBnxEtiskrXSBHaVFbavPpkcutDv4Xo7TnxIL5hIpH+Yo25/Co9C1Jdb1aSwk8O2DRNIpYkjKjIH41zLqcltEZpIzt29z0PpTrSAcSW006xtNQi2/GOoGzYJB5vryojxneBhLbxllSG3CqrHn2qhw7IdTvpLhohFHbIHznOT2FC+J9SMlzcMxyTHkCjjFN2XuLClYoSfdWFxuHN5dv6VVhBRuQruWUz2UBP87Mx/arEEWF3Nyq0vCy3bLMUb3DhUHX9KuMgiTaPlFQWbGNuR5v+lWWyzHPauIZyCSmQMVWmhLq3fHSrioMYGaiuH8LynG49KgFA5EL+TbgipliAGO9d252sQ/Mmp/CBBbGD6VLCIFiBGa+gDaR0qUe1fmUDmxwBUHECRsTgD8atRQ+GvPma4ifzc+Sn0q1gL16+lEDI437dg7kN+1dakudKt1AxuucV8mwJoOVd3z5ttPj29ZWenrwycn7MuaWpfVoEHP7xF/WoOLpA97MAf8AvWP5Yq5wqvi63bk/+Lu/LnQnX28S4kbPVm/elS/YfxlsE6euZ/EPbJruwjDs0zHqxzXKv8PbyvgZC1HBMVgRAeZ5mpNMJpteTxc5A7VegiMuCD5c8xQ+3dEA3EY9KIwSO2AgCrQhoKwCG380mOXICnHhbiGwB+HkLRhiACTypQsIbc8pm3E9jTJpFtYygoqK2ex5YpM1Y2k1TD93r1zwc17Pi4+HEAeC2UgorN2PY4pR41u11az0u9TA3xktzHmPqa2ZeFuHnuo5xDaXFuRt8FAWP5ZpJ+2SxsoI9LS3tUhVVbkq7cDtWdCCRjiFwRqmm6VPrA1KAO9xbhLclQSjc84PbPL8q+No8M8QeW/yzEAwnOWJ70tu0pvJfh9hkWJm83TFMPDSTSxfHtGjm3XO7PU9hT+lsBQcpUELyG34b057O2YGWRt0revoKz7V7w/GbSc7hijOu6k887kud24k0lX8zm4LuTuzVnHGjSpRVIuxIGs7VcDlu/8A2NWyQ7pbL1ByxoXBcs1qiR/MHIH70X0yxcN4kmS56016OhssNHtbcvarabWI8vbnUFxhRgdRUQuvAwu7LHpUI6SLcsgg/l8x6D0qi4aTLMcn1zX6SZmB5ZJ71Huc9QMCpJR9C45k86tRkMufSqm8DtUkT4BLnao61JDLLKEG4VCWLt6ivrTeLzBwOwr4Mpy6A9a45HaLg56rVlXDrg9R096roVHIHIr8bkKQ3vXES8JZCDdxD0QmpNQT77T1HQRO37VDI+68yOyf2qzqXluYR/Ra5/OnJmPk/ZhHg/Hxwm/8OKR//aaXNaf78AHtk/nTPwmmIb6Xb/l2jH8xilHXH+/cAYIUUv8A6H8b0p6nMIbAx9TKR+VRW0/MADc3r6VU1SRnt4JM/L5a+2Ts4CoMe9SXVLYbUIoBdvP7USgulKKvSg0JtIBm4lLt6LVy31ayRsQ2ck3pmoZYTD1ncRe2exNHdMkilZdrlXzjymlW31y0Rfv9OiQDr5udXrPijToJAbfT2J7lSTQNDEx70nU7rTLsXUOv3EhikLCIwgAL6Vf4i1bR+JHt2uobhCqlXIOQ4/HpS/qFje6Vax3Utg8iNgHwmzgnpmor74mEJGbKXBxgg+vaqSUPow1b0ji14d0BtQYxW9yzMMDn0WouINQsdFtEsLBli2E8s82+p719ub4abbTROrC7dSh2PzVT6e9Z1qUk0pJZ3nQHk5+dPrViMbL+GHXbO9Rud7lmOQejelALpmZssc46GppZ5Y0OSGU9D60OkfPOnRiMnIt2M4DOq/NyK/WnLT1aCxDynLuM/SkC0l23UXpuAp2uLjMKBD5cYNdJEYp2fLm4XAbvQ92y3iE+av0rlhlugqtJdIfwqEMbLTTuMFTyPWuTdkDnVaO5BPMcjVoQRsobcMHtUgnxbncM1+Nw+7byx3z3rtY4wvLB9s1oX2fcH8J8QaO8usSzNftMUSGJ8FR2wO9cczP4ZXOQoC+gJr60+zG4oD7t1r0RY/YRwbEUlvIrqflkI0mP2py03hHg7h6IPa6FZrsHJnTeR+dTYDmeUo9P1WeLxodLv3jI+dLZyp/HFULtjanF0jwN2WRSn717ctWFxAPCjSKI9FCADH0rm40bTb1cXmnWc6Y5+JCpP54rkA8mjxrEd88jDJ8i4P4US1OILdEf02qD86qySCTV9TKqqx/GSqoHRVEhAH5Vb1WTN9dZHyoiUxemXMK6Cpj0XVnBx9wqj6k0g645+Ml59MA/lT9asI+G7/Aw0jxqPzFNUX2PcKcW2sbW2qTWl86DfGT8z4oE9lnA0jz/ADyE27KRnH6V+tZD0DcjWu69/wBm3imyjc6dPa6hGF5KDsb/AHrOL/gXiLQJGGp6VeWyoerRna30NEWE9kMCwhdxXp1JqxFO85CQDwxn5gOtUjbzysBIrogGQuDVmOGZisaRyKp6AA7moSwpF6JLGF90pM8voedGrG8mVcW1nFCD/M3Wg1rpt8v+XZsuT8zjJohAurRErFLbhuyuMVDGRPSicIaoqmW5s5Y7eFfKfEUk+/WkHiO5vIo7mGBSok+d1iJB/HGK07Q9Ie0tI59QmumfHlieQ4Ue4qW8uAylFSML/SFAFZ2HE0zOw4/tnk3iG6voZAZiJ0B+bGGWgrXLXKriQhlGQw7j3r0rxVwZpPEELCa2jimIOJIlA5+4Fed+LeGLvhPVGgkQ7WJKOPlkX2rRhRZb+gLJMRuR1AJ7djVGXG486uTkSxggcv2qg4I602gJMiLFGDA8waYLC/8AE0+UuxJDKBml5hnvRaxtbm4tI4YIySzFiRQyQrFJ9gnbSRXC7WcD6mrK6NDIQFkBz71BBoEqDMvze1W4dJeNg29l980tl5eE8XDWRjNSx6EC+zcMDvXxLqaHyLIWUdTXZ1HwyMKT61BzL2n8MSaleR2NjE09xIcKoHX3+lbhwVwLpHANst1MI7vVyu55yOUXstZfwPxpacKajNdzQGQzR7EdeZUn0rS9D0y+1zGpa00tpZSeZLbJEkn/AJvQULYtsOxa3catckachdV5NK3JVP170Vg09SyPe3Lzupzs/lz/AHoVq+rW+nwRojpbW6dEUYH/APa7tLzUNSRcR/BxY5NKPMR64oUyA9PfspARtu3sO9XrW9Z7SaSR9u2Jz9MKTQCCzs7NmmV3mkIyZXbI/CuNQ1iCPSdTaOQMyWkp5f8AkIo0xc1o8xWKbruZuviXbtn1y5Nd6i5e9vyDy8YL+Vd6Km6a154LSKSPwqrdHdc3jA8jcmnr0zZB5GI0KNMnMl5GPwyKcjq0w1CKRcM0UihAB06UjuztplkFAVjOWB+lGuCLiXW+IrW3a2nCW8gklZWBTbnqTSJToZCLb0ej0umCrkYYgHHpU3iJKmJVWQHswyKBtqKs5YMMZzipItRGeZFLWUvqGixd8OaTdNum0uxkb1MQqCPhjSI1Ma6XYhD1AiFSfHZ/mrpL0nOGzijWRHU0IfHX2eRWds2o6THtjT/NgXsPUVl99bLLDgIpOOQPMGvRcl+JkMT81cFSPUGvP3EMSWGs39nGQBBLgDp5T0FT3ss4nrZ//9k=',
   npc_moneybucks: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCADgAOADASIAAhEBAxEB/8QAHAAAAQUBAQEAAAAAAAAAAAAABQIDBAYHAQAI/8QAQhAAAgEDAgMGBAMFBQgCAwAAAQIDAAQRBSEGEjETIkFRYXEHMoGRFCOhJEKxwdEVM1Jy4QgWNENTYmPwJmSCkvH/xAAaAQADAQEBAQAAAAAAAAAAAAABAgMEAAUG/8QAJREAAgIBBQADAAMBAQAAAAAAAAECEQMEEiExQRMiURQVMlJh/9oADAMBAAIRAxEAPwAj2uWwprkiNjNcSEoc088ZdPKvmD30iIJCprrttmmJpOwfDU4swZaLTOQ3ISRjFQZrYk82KJlgR0pichU3NNFUBsBatqFtoumz392SsUK5OOpPgB6k1hnEPFF/xHdNLcyMsIJ7OBT3Yx/M+taD8ZLt103T7dGIjkmdmA8eUbfxNZPXs6PElHezytXlbltR7NP2+zCo9PwHBHnW5GJ9Fh02XDL2hU46b5zRnKuq4O2OuKrVncyoO4FG/j5UftnZo8MQxIzzCiBEK9YIDg7/AMaDXjBlwoOaL32QcKfXpQe5w24yT51wGDnHjSDTsuBsKaNBlEcr3jXjtXhShFIzI2VJBohZ/nOGGAy7kfzoeN6LaZEMhyOU4+9CULQY5HFj8oyh+tD1G1E7gALlehGR6UNToaypVwb075FoN6Q471LTPNXJB3q5dhfR4DapcozEvvUTwFTZRiFPpSyGXQmcfJ70q46JSrpcKnqa5N/y6QJ9JC7PgM1IiuRIvTFDViZjT8bmE4xXluKNKkxV3GkufCoRYxHHWpE7O47qmozK2e9tTJcHNjhc4qPM5PU07g42NMTRGmSEk6M8+LtuZdFs5xv2Vxg+zKf6Vk9bf8RrTtuEL44yY+SQfRh/WsQxXr6R3jo8vUL72c6U7FsRuN6aNOwAlwBsfOtaM76J9nb9rKAT02zjarUkfZWyqCFHgBQTT1bK4I65yeho6qFYDkEsBknPU0RUDb/GwB28fWg9wwSN12w22Mb0VuwzgBAS2MeVCLnAICgZA6eVcD0HsQNsU0adlxnI8abalZRCa6K4K7g9fCgEXEpLjbO9WOyh5ou8BzZ39Kr1u5SQY8at8SDsA6thWUZ+1HwX0GNkowPQEgUNTx96LsMxEkYyKFAdayt22ejCNJC4yOauOMtXYhlq7Js1L6O+hOBgVNmH5Se9Qj1HvU+QZRPelmMmeuz3Yx616cf3fvXrwf3XvXZclo/ekGR9FCTlp2OVTuwzUQsPOvLKi+NebVl7onmZB+6KjXCiYd3akuVYbEV5XCrXJHWRTE8Z65FeaTmTB6ivTXAGd6ilxnINNQraBfG8Ha8Iat4fs5P2INfP1fQPFs5PC2qrjObZx+lfPtepov8ALPO1dblR2n7bvNynyqOakWmO0GfCtyMT6LJo5ZVKx4PhzH+VG5QxjB5uRsYJNCdFlRmBPy5GPKjdwU5RgE58G60TkgHfRkhcZU+fnQO+5ebrzHzAwBVh1LZPlx6HwqsXqhW3zzUBa5IkjZpsnelt065pGK5lEeFdFcrwpQjkakuMVarbnfTox0YbE+lV2yQPKvQEnHtVqdOyt1AXGcDfbwrpcIEVbIU4xGQPLFCfCjcwHI3tQQjascT06FQ9a6/WvQDeuv8ANXenPoQ2xFT5f7uP3qEw3HvRCdcRxe9CQ0UJvOkfvXphhoq7eDHZe9duPmhpGE2tb4ucU52560FW45DnwqbFdIwAB3rDGikkwhHO2adMu1RIZQTipAjLe1O6Jcka4fJpsMQetTvwyk711rOPlyK7ckFQZX+KD/8AGdUP/wBZ6wYit145/Z+EtUYNjMPL9yBWHxQSXDcsa5JP0r0NH/lmLVqpIYpSsQaNW3D6kc1xKf8AKn9aIR6XZQgckCk+bHNbTKQ9MmmYq0fd8MqRmrFhwiiWQux39qH45VwuF9F2xSDnpnausFD99yspAO+N6rt7Cc8xU5PmKNEYGNqQy4Xqa6w0VdwQcEUjrVguFUjdQfpQmdAGOFrrOuiIRvivAEU4V8q8IyfEUtBslaZ/fjcD3FW27YfhYmXBUkZqpWEZS4QspwSMeRq1M5a0RGz3GFCfQYf6I1yDyt7GgYzvvR652Vh6GgQ6GscT1Wei60tvmrkXWldTR9EPEZYe9T7vaOL3qD+8vvU+73ji/wA1K2OJvDkQ+9emzzxClXQy0I9aXMn5sIpWclZopkAXB60mCZg+ADXbleRyMV23YE9K880B3TmD4zRNiEFB9JfmlwegoVx9xo/DaQWtqiG5uFL877hFBx08TmrQi5ukZsjUeWWN7shsYpX4ksuKxKTjTVJJjI+o3Ybr3JMD7DapkHxEv4lAa8uXx4kKf5Vp/hSM61cS6fEe4xwvNFgnt5EjGPfP8qy+yUCXAFGNQ44/tWAQXqvPGG5uVsYz57UNGu2UW8djGp88CtmnxvHHazNmmpytBWMdzzpRGAfOhB4px8tugptuKJydokqzJoMY5q4UIyeU/agbcS3h6YFNNr9437woUcH+RvBdqSyNg+B96rj6tdt1lI9qaa+uGG8z/euo4OTo+CO76b0Nnh5TlpYx9agNK7fM7H3NI386ajqJREK/NKT/AJVrqy2y/wDUb7VExXulLQQjHe20YUCOTu7DvUQXXkdeVkONvEeFV3NezXbUzk66LWuo210CCShO2djUKWxlhQuOWRM/Mhzj3HUUCFSLe9ntmDRyuv12+1TeJeF455LsnQ7sacxg16CSO8VpYwqSoPzIx0I/xD+Yro+aoSVOmaoSUo2juO8Pep1yO5F/mqIo5mFTp0ysQ9alZQRcL+ZD707OD+Ih2rsy80sOPA09LEfxMVCQ8VwahrlikWXA60CiU8xwTV4120X8K+R0qkCQIzD1rCPHoKWMnZ+O9Vb4p6U1xb2usRAsYfyJceCk5B++31o3FPvsaJXkcV1pMsM4DJKpVgfEVTDkcJpk82LfFowNtuopuiev6VLpN81u4JQ96N/Bl86GV7kZWrR41NOmerqo0h5UUsT4AZriqZGCqMmta4E4HiNlBcSR800oDlmHQVPLlUFbNGDC8jpGc2nDOqXYBW3KA+LUWh4AvpBl3I9lrbYNH0u1TmlmjQDYs21F7C30G4YJDPDI3gNqxPVSZ6MdFBdmAf7gSqO80v2pacBnbKua+jzw/pzkKYlGfHFMNw5p0UnN2YIGxpf5MhlpYfh88ScClVyI2NQZ+EmiOArfevoHU7KyiQsyIirneqRrGoaVFOY44mkJ8qMdRJglpYJGUycOsgzhqiPpJXOCwxWkSQm7RjFYSqp/eI2oJdaaebvJynyx1qyzMzSwJFJe1dKYYEHcYq3to/MTldqBalYNDNyhCN9s1WOS+zPPFXQMr1OSwvE2GBGRkZpGMVYgcrua5Xq44ftbg28yyA+h9QdiPtRU/Nt4UEFGgPCo5vGaNP6h+3GZB9KJypunT5qG2+0gonKR+X/mrGzclwdCgzR+jVLVQ0y58M1GO00R/wC6n2l5J09aVlYm1cVBo7NmUEg1mc9xyucnxrX72OO6tCjjO1ZJxHaizvWRehNZY90DlKztm/OeY0TknL2pBbYUAt5ezX1qXJM3YBRnem28nbuBy64atuJrBrSVwkoGYpcZKN/TzFZVrOjXmhX0llfRGKVPsw8CD4itf0WQwzL1olxRoFjxJZdheJuBmOZfnjPmPT0rXhzuDp9GTLhU1a7MM0yLtGfl3YkKBX0/wtofNbWFiCYy8SgsOp26CsCtuD7/AEnV0s50EiyOvZSL8sgJxn09q+lbGMw/i7hST+Hl/DR46KEUZI9z/AUdVNNqimii1Zb04E0Ka1KXGnR3WNiZBnP3qrcTcHcPcOxQXFlAlpcSScqwpuG2328h6edDNF+IPE+rXc1paw255Oc9pKndXHRR5npknzqsa1JxjxNqBlu45BEoVR2qDA/xEYA5R6fxpWoyjwMt8Zqy56LeR6hL2Kvl49mU9RRbW7BrazM++BvVN4P0i+s9WtJZ42jkXGctkNHzYP8AEGr5xpcqmiuFPLhCetYq7PQt2qMc17iJ57tbCBeeSVsBR40W0nhfSrGaN9Tkae7I5vw8CFyPoKpWi2M+qcUxN2hQHmIbxz5D1rVeF+GpIZZBfzvBanvSJayZklP/AHv82PQYq6jVJCNt2yLrcdpbw7W8lumMKJIyoFZpxAsLSkpjHgR41N1/hDiGPWJWg1MLbIBGhWYgNgnvsGYnJHXaqvObmzuzb3LrJtuyZK586pHHT7sg8u5U40T7ZUnQA/MM7edRde0Jbq1a4TJMY7wHiP8ASpWnWdw6CZQQCasOl24l7S3kACyIykn2pt9Mm8doym4h7a0j5lXMZMbHG49aG29g1x2kfLkrR64tgZLmAhg+eYEeY8a5a89rsyKWIynhzY/lWxS4PNcbdFVmiaCQxv8AMOuKRRXXtMvrKdbi5tmjiuMmJ+ofHXfzFCwCdhvVU7Vk2mnQ9aRdrMi+AOTRQk5piyg7FMn5m6/0p81nnLczZihtjyOxHDj3olO2BF70Nj+ZfcUQuD3Ives7NKHZnIeI+tOTn86Go9wxLQ+9OTk9tD6A0jKLo+hpZAsW/lWTcXXfNqTelajelvwyEeK1kvFMROpOD41CK5Ebe0Zsis5HMcCi1zHEkaAEVW5GezjDgHFOteyyxqWJAqygn6R3teBuG9WG4TfarL+PieNMtgkVQCXPKy5xRBZ5SiZJ2pnjXjB8j/Cx3EC3OtaQI1aV2uFQKoyccwJOB7VpmjX1rLda1pqSxurym6jdGBDBwOYAjxDD9RWOWWqJb6vbXk1zPBFao0jvDnmAAztjfwG3iM1tyWEL6Lp0cFukMzxpKvKAMMygtn3J3qOVNUa9O93KEaLoUVtZkxQqeZiR/qam/wBjPcjlmbK5/u1PX3PlU60uU0mBYbmGYADBMac4P865NqOo6iTHounyx52/F3admkY8wvVjUk2X5bI9rZBtbflwI7OARty9O0Y82PoMUA+I9w0OjyxoTlhjbyq4afax2afhonaQA9+R/mkc/Mx9zVR+I5XsWAHN5DFGi0F4Zjw/GvbRNy4cMN/I1rNpB21up3Dnqynf/Wsc0u9ks9QiEykQyOFz5HNblpsPLaxMB1HXG5oyuxa4AWr6FcXkTBpiT03Teqhc8AFyVZMhjuxG5rW2l5Ryud/Oq9ql2M7YGPClcmugqN9lNfR7fS7QW4QAqMDNAwDbyPLsAu4qw61edzY79NqFPGklmXIPN47enjTY+xcqpGcSRoLl5MbHmJyOoBH67mhN+3I4EJzIc8rY+UeH1qzXelytcJBGATK5Vd/Pbf0qpaddyJqix3aAsk2JFPo24/Q1u3Ojz8eP7ciGlu77h+9t5ZJJUheOZFY83KxPKSPLY/pQu2tBGnO5y/8ACrZdWq6ZDq0A5cNO0S46YVyf6VWycIaKyOqQcuKKnZxOlKpMJyMUo9a5diMeTw96m3XyRe9QU6j3qbcfLH71NjroVJ88Ip2+2kh9jTMxxJDSr18yxb+FL6UT4NhuuJFa1QKwPhVXvo1vboSvihqTxsgVZGH1pSyOpyJ8j1qEoPwSGRekfiS0KWYMfhQe7vOTSIxjD0V1e8Z4VQ8re1BrgrcQKnJuB0qkE0uRMlN8BvSJo5bRQ4yfOpbqxBCUO06aKKHkYYqYLuFOjipSbvgtBLbySdBtxLf3HbjIW2lOCdj3DX0JpxYw6UW3/ZYyffkFfPmmXMaLeyhgT+FlwP8A8Dv7Vv2mXKm5tLSNTI0NpH2h6KmVGAT543x5UZ24lcKSfBbLflbvECmNb1YWlu3Ls2MYrkM4C7HagGvaja2LNd3siiCHLBS2O0I8N6W+CkY27Yuw16LT73sb2NopURWUSbCQHxB8d9jWcfFjjyxtAVgcNKxJ2OQKr/FHxAu+KtSEtwpFlbnMVvH3Vx6nqazzVrOPXGYxJLE4kZRliR+tVhjt8izzKKddnjxib2KVSGXAyM9c+FfR3w31ttU0K27dSsnZru3jtXzFp2kiwliknw+cNy4zzDy9D1r6F4B1zTZ7K2WKREblAC5602ZKPQNPNzX27LtqT8pIBwfKqhrEpPTYDpvuas1+TIpZMAnbc/es/wCJb1rIy3HadrEnedfEAdSPbrisjVs2RpIg30naOVOfX0qLqkostIMjHHMeXbxFemuAV5g6kHpv9aEcW3n4m0tbePKnx8farY0Z87Btrcl5xyE93Em/Ub/6CqsNIvGvU1S6jWOC5mYhwds5yaPaZOI7gxlQ46k+W3h9aJ6Si3X4exlbtbBpC0mcDkwDlvcCquTXBHFHdyVzieeNpuWMEB1abfr32JGfXGKqx3U0X1i9/H3txcgcqscIvkoGAPsKDg9yrJEJu5NnoBtmvcx5q9AcAgUjOHNOlyTZJXbl96m3B2iHrUJN+X3qXOd46kyiF3R70Rpu6f8APiHpXbk5aKmbpv2iP2rkjmzX4NC04w94LmhGp6JYjJSbk+tVb/eG+xy9oRn1qJPfXlxsZTvUIp/osmn4Oavbi2J7K5L+5oZDcup33NSzaF1HfJPrUOWH8O3ebc1TdfBJxrkmjUAgHMv2pa30MnpQ9ITL0YGpMdht8pzQbSGSfgV066/IvhGVH7Ow6bnNb/wxqIS7urWYclwQLiP/AMsTomCPPBBU+wr5whV7QyqejoVreNNNhxLoNlHLJLFcwgqk8L8skRGBsf5Gkm1RpwXZebnWILTTu2aWNML1bwPljz9KxXjLildbuJjLLIYkB5QSPoB/E1G4l0PXtNuD2t9cXtqpJJIw+PXG31qn3UN7OOzjiAndsZx8o8sUIQXdlJzfSRIXULaN5EkAVV3JxsNth709bXdumntKky5ZySnU496t3C3wqNwgutScKNmbI/lV0sdH4X08HsjA0pIVC0XQjr9ao5RHx4LX2MPu7mAxiRFDKAMMDsSDnp/EU7oerpZXJMU/JGTzKpblxnxq1ca8IWM1y8tkwDOOYpCvKvufvVMPBt6jnCsB4f8AvlTXFoz5IzhL6my8PcaR3lqttdzKXXYSA7N67/woJxbqNu8L21vPHJc3SlI4huTnYsfJQDnJrLJrS8tASImLL69PXApy11K8t2cRwqjuO+wG5HqfKkWJJ2UWobVNFoubzsnhtojlUAXPnioV7cm6lK4OQpXI+5/Tehcckh78mCSwz6U3d3BgunCMFGA49dun606iTnksLwfs8ckwfLcrKp2x0/pmq7a8QXEdu9lG7cs3z58qKm4/YXRcd2M8ynYn39d6qVufzwaaCT7E3tdEy4OVaoH7lTJW7rVCPy06EPQ7cxpCnLn3pcZwDTanvn3p12LInJ0X3p+frH71GUnC+9SJm3jz51FlUeuP7yOmpzm5QelO3Ld9KYlP7Sp9KMQSZZ20aBjkPSjp1um3Oc1I/s29xswx702dMuxuX/WvP+T/ANNfxr/kStrEvQ0zcaTDc7s2/vTjWF2P+Z+tc/BXX/U/Wjvf6Bw8aIsOkR278yvRGNooxuKY/BXP/U/WvPazYwZP1o232xVHb0hOoOht5XUfuGrbwTrsluxt2fEchHLjrk4z99v1qmT20vZOM5HKcj6VKsjLFJBJzBSqjc+OBsPerRjcKJ76nZsuo61a6pYoGwEjzz5O4Hp69KCcO6XaSanNcmEO6jmC4yAPT1qgycRSLbyEvyyGQHr456fbFXPgDV4Jb51kXmVh0zj6n60HjajaKRzRlKi0cRz3cenE269nGg7zk4UnwHqazW51e6trpOVGKpjrsd8/rWjaxf2cQEcA7XsSFBPTOdyPL0qkSQQz3AuGXcnLZ8N//fvQgqKTbY+mrGQA9d+8T1K4x96fjuAJo5Z8LDnf19QKET3P4I/uPDzchLjPL4g0ze6+JI3WROXlXDY8cU+1voTeorkka80EUr9mInUjm7x658QR4Gqlf31v+KYKhjI3HvXtV1Yi3UEklR3f8vn+tB72ePkM3Me1yDjGxX3q8YUZJ5VfASS9EzSKUC5TbHmDUKebml5jjC8oxjp71FjvewQSL1XDA+W/Sl2qPqd92MK8wd85yRgetOoVySeS+Ak5ZOH7q5fYTTrFDnq37zfYAUCgH5wrTuMOFo7H4UR6gsYE9vexshxgsjAqfuf4VmEDcxSQdHGRQStbkOpc7WPyjutUM7rUyQ5VqhZ2rkNR5DsaaQd7enR0NNg71QSXhMHRfen5WyY6ZTdVzTsvVPSolWenOXSmZP8AiBS5DmRd6SwzNn0ooD5ZokOr2rpguAB50ifVtPTrL9qy7trvGO1bHvST2zfM7n61m/r1fZb+wlXCNEn13Tl/5n61Ck4jshsrVSVV/HNdw/lVFo4r0m9bN+FtbiO26c1J/t+2b981UsP/AIa7hv8ADT/xYiPUzfhcI9XtZVYBxzEED3xSmvIpYRHFIO0CjHvVNQSB1IB6j+NOrBctdSGMsihz3s9N6eOm/GTnqP1B8zFxLHIhcg/N652NEOH9WexuG7VyCDlceY/l1pfDeh3Ovvc2dnySXUcDTInNu4Ud4AefLk/Q0P8AngKcjqyyFQzDxHX6YNVca4ZBT5tFyTiGSad/zDlvHHjjP9KYt9RNyApcIzA8hzsME5J9Nv1qmrqkscyk5Us5QnwIBqUNUW3SMqWkYx8uD4HJ7v6CoSxfhojnYW1TVM25gYEBpA5P+Hf/APlV+fVjcK4MgCspAOfEdD+pqNq2oSCApLIplOzcvhnr+lAzK5CjbzAq0MfBDLl5J13qDSxFWGCqgL6HxNMrK00mSPlAypO2AKYclnDFebIxtT1uknI6kLlhjJq1JELbH0M0z8ke+SBt+6K0b4d8MG7n7aReztg+WkxjtD/hX09arWjaZHadnPMvaSP3uU/KB4e9XO44yg4d0pZmVe3xlE8M+FZck7+sTZix7ftILfGniCFNOs+HLcr3B+KuFXoiqDyL9z+lYpo7B4zEWyQcqPKputa5NfC6uLmQyXV22XYnfHl7UL0wgSkZwSPKtOPHtjtZlyZblaCbghWBqJTn4oido3AZT60koCe6c+h2NTePaaseZSXI2TgGmlPep2QEdQRTKnvUENJk+M91c065yy00hyi0v94VFlbOSAdotez+ZSnxzUg/PXWdREC70rk3pYHeFLETOe6pNUsnX6NcmBScdali2IHfcL6DeliCOLcrluvep4wbJyyRiQBC8h7ik+tPrZYGZHwT0UdamsOUDIyx+VfL1p2KGNQWkZg58xkVZYl6ZpZm+iPHYiIczRgnzJzTsaplmkdgqHOQMivHl5sZz7CmtQZI7CYAtzkAjbYVVRS6IuTfZO+H3E9zwxxJHrsIMrW8vOY8451wQV+o2r6E+IfwVh4ijbWdCj7C+uAJ2gbZX5hnHod6+eODdIl1C8tYY0Zg8sRkIHyq0qrk+neH3r7tlQKQoGAuw9hUM3DRTGfC2t6BqehSdlfWNxbTNlSsoxzEbHB8d6r000iDPK6kbDfpX3ZxJwxp3EVrJb31rHMrf4xnHqD4V89/EP4PQ6Ixlt4GNuT3ZF6L6N5e/SpqaXZTY30YbKTO4YAinYLZmZQFLHxAqwz6CthLh7c7edSY+G9VvYllt7KW3tW6PykFx6enrT/IvBVjd8leitGaTslXL+nRR6mi1no7SSKiDndjjmxVq0TgO+umWNYGRfbf71oVtwJBw5w9qWrXKjNnaSzd7zCkj9cVGU23SLxgooyHVtattMJUjnkGyxg+W2/kKqN/qdzqU/bXD82PlQdFHkKiszyuXkJZ2OST4mvAFjgCtGPEo8+kMmVz48OMzO2WOSTUq0KK+SGHsaYjTmcD60/Hyj90j2NVIipwDIWz964hJO7bHrSiFbrz0qNE2wrfelZyFIzpkc2V8qcMa5GVwTvlfGuoB0wB4VIjiDRsp6p3h7eNdtTGU2meVAFHKc105zuKVEoYlfPYehrquRs3T18KjLB+GmOp/RDnJ6Uk9c0+8SliGPIfTpXDbMNsgn7VF4pIus0WJSKJdwpYDxO/2p3JCgtnl8F8/wDSlpGHJJ2iTqP5e5pcMX4iUBjsSdh5DwrYoIwubfY0E5V7RsEn5Qf4+1djjLMGI53bZVP7x9acH5sx7TCjGfYDwFPRIs4LwskngVGzL6Yp0qEY0iNC7douXPzBxXXaJv3XBx4NkUtriQDkbDgeDjOP5ikRshk5GiGWzuCRiiATGkbc4KvzcpKnPlUC/bFo6nBLYXJ6/N/rU+yzJI5/8bfwoZqZ55o4wRjmDH/36VwLNk/2cbKObjiTMavF+BchGGxGV2+hFbX8UfiJqXw+05L+DhW51WAjvzpcKI4j5PgFh74x61if+zfciLjyCIn57aZR9s/yr6euYknheORQ6upDIwyGB8CKy5H9uS0FxwfM99/tD8aX0AuLa10bTISM4ETTyY8MFjjP08Kqt/8AGjji7kMlxfRzQkYMLQJyMPIgAbfWpXxHtLCz+IGsWOm2gttPYrJByoVR+6AzJnbk5ubBG2xqlyQZZo8oT4lpAox9asoRa6EcpfoVi+Idy0/by6Po+V3QNHJyqf8ALzb+3Sjth8atVMgS80rSNQi8OQNA/wCmR+lUyz06PtAb6CJYW2Vst3j6HpXJprLTr6S2KxxYGY5ceBHjXfFD8O+Sf6bToHxy4MEvZanYX+luNmYIJowfdd/0o98TOPOE9Q+FGuPo+uWF5JcwC3SOOUc5LMNuU79M+FfMVrYyX8il3wWPXGc1p/BvwZfV4I7q4i5Ec91phlj68v8AWoyhCLKQlKa5MnsdJvdUnEVrA8rscDA2o7xDoEfCcEWmzMr6pOgkn3/4eM9F9Cevt71ul7wzo3wn0a51+8/OlRRHbwtgGaUjuqPTxPoDXzrql5c6tfz311IZJ7iQySOf3mP/ALtTwbm78FnUFXo1Z26s0jkZVRjPmT0/rTjoiHZD781P26dnbovicsf5fp/GnORezJbBycD+dXIohr2fXsz/APtTq8o6Rr9cmusI1O0P3c0tHA+WNF9cZP61KiiOjtplKqGI690YAp63bBViB3Thh/GklZpBnLsPXp/SmoZFiujHzqS3UKc4p0BkmSPsndPIkZpUybrINu0XJ9+hpc6flxyZBLDlPqRt/Sm45YpIXj5svG3y+QP+oonCivNCreKnlOfLwrgJaI9cr09qchXIkTI7yEj3G9NQlRKoOytsfY0tBP/Z',
 };
 
@@ -2374,8 +2604,9 @@ const __default = {
     npc_mags: { trust: -10, affection: -10, respect: -5, suspicion: 10 },
     npc_osric: { trust: -10, affection: -15, respect: -20, suspicion: 10 },
     npc_tibbs: { trust: 0, affection: 0, respect: 10, suspicion: 0 },
+    npc_mason: { trust: 10, affection: -5, respect: 30, suspicion: 5 },
   },
-  knowledge: ['fact_lighthouse_dark', 'fact_moneybucks_owns_oil', 'fact_moneybucks_bought_seal', 'fact_lens_in_vault', 'fact_night_tankers', 'fact_harbourmaster_seal'],
+  knowledge: ['fact_moneybucks_wants_mason', 'fact_lighthouse_dark', 'fact_moneybucks_owns_oil', 'fact_moneybucks_bought_seal', 'fact_lens_in_vault', 'fact_night_tankers', 'fact_harbourmaster_seal'],
   giftPrefs: { item_cigar: 14, item_honey_bun: -3, item_scone: -3, item_wildflowers: -4, item_gull_feather: -8, item_coffee: 1, tags: { luxury: 10, food: -2, junk: -6 } },
   reactions: {
     fact_player_invested: { rel: { respect: 5, trust: 3 } },
@@ -2400,6 +2631,7 @@ const __default = {
     npc_delphine: { warm: 'Moreau is brilliant. I have her under contract until she dies.', cool: 'Moreau looks at me as if I were a chemical. An inert one.' },
     npc_silas: { warm: 'Grimmer is loyal. I value loyalty. I have bought a great deal of it.', cool: 'Grimmer should smile less. He has been smiling.' },
     npc_mabel: { warm: 'Mrs. Quince makes the finest beef Wellington in the county. I own the county\'s finest of most things.', cool: 'Mrs. Quince feuds with the café woman. Excellent. Let them weaken each other.' },
+    npc_mason: { warm: 'Nails builds the best walls on the coast. I intend to own every one of them — and him.', cool: 'Nails refused my exclusive contract. He made a joke about it. A JOKE, my good fellow. At Sir Moneybucks.' },
     npc_otto: { warm: 'Brandt fits pipes adequately.', cool: 'Brandt has a blue thread on his cuff. I know what it means. I know everything that happens on my land.' },
   },
 };
@@ -3125,6 +3357,18 @@ const __default = {
       id: 't_osric_register', label: '"Is there anything I should sign?"', keywords: ['sign', 'register', 'form'],
       if: { notFlag: 'signed_register', map: 'civic_office' },
       say: ['There is a Visitors\' Register on the lectern. Everyone who visits signs it. Nobody does. You could be the exception.'],
+    },
+    {
+      id: 't_osric_permit', label: '"I need a building permit. Form 22-B."', tag: 'quest', keywords: ['permit', 'building', '22-b', 'form', 'mason'],
+      if: { property: { state: 'permit' } },
+      say: ['A Form 22-B. For a Mason\'s Os contract. Mr. Nails\'s paperwork is, regrettably, perfect, so I cannot object on technical grounds.'],
+      choices: [
+        {
+          id: 'c_osric_permit_pay', label: 'Pay the 10-obol fee and sign. Many times.', if: { money: '>=10' },
+          say: ['Sign here. And here. Initial here. Date here. Sign again — no, the other way up.', 'Stamped. Building may commence. Please inform Mr. Nails that I do not wish to hear any jokes about it.'],
+          effects: [{ money: -10 }, { permit: true }, { rel: { respect: 2 } }, { rep: { fac_civic: 1 } }, { notify: 'Building permit granted. Mason\'s Os breaks ground!' }],
+        },
+      ],
     },
   ],
   askAbout: [
@@ -4016,6 +4260,571 @@ const __default = [dlgCrisp, dlgAgnes, dlgGideon, dlgRuby, dlgHank, dlgPip, dlgD
 return { dlgCrisp, dlgAgnes, dlgGideon, dlgRuby, dlgHank, dlgPip, dlgDelphine, dlgSilas, dlgMabel, dlgOtto, default: __default };
 })();
 
+// ---- src/content/characters/mason.js
+__m["src/content/characters/mason.js"] = (function () {
+// Mason Nails — IMPORTED character (player-supplied image and description,
+// 2026-10-13) — and his crew at Mason's Os, invented at the player's request
+// ("about 3 employees… they all live in a nearby apartment building").
+// See docs/characters/npc_mason.md for the interview and what was invented.
+const { PORTRAITS } = __m["src/content/portraits.js"];
+
+const crewHome = ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'];
+
+// When the player has a property under construction, the crew go and build it.
+const buildIt = (id) => ({
+  id: `build_${id}`, activity: 'build', spot: 'westbrook:survey', label: 'building your property out on the lots',
+  trait: 'conscientiousness', weight: 4, duringActivity: ['work'], duration: 90, cooldown: 60, when: { property: { state: 'building' } },
+});
+
+const mason = {
+  id: 'npc_mason',
+  name: 'Mason Nails',
+  shortName: 'Mason',
+  tier: 'major',
+  origin: 'imported',
+  importedFrom: {
+    reference: 'assets/portraits/reference/npc_mason_reference.jpg',
+    interviewDate: '2026-10-13',
+    notes: 'docs/characters/npc_mason.md',
+  },
+  role: 'Owner of Mason\'s Os construction ("That\'s O plural!"). Cheerful, endlessly punning, and the man you hire to build your future.',
+  faction: 'fac_builders',
+  dialogue: 'dlg_mason',
+  motif: 'motif_mason',
+  voice: { wave: 'triangle', pitch: 150, variance: 30, rate: 1.15 },
+  appearance: {
+    skin: '#f0c8a8', hair: '#7a4a2a', hairStyle: 'short', beard: '#8a5232', outfit: '#7a2a32', legs: '#3a3f4a', shoes: '#4a3a2a',
+    accent: '#f2c14e', accessory: 'glasses', build: 'broad', height: 1.02,
+    sprite: null,
+    portrait: PORTRAITS.npc_mason,
+  },
+  personality: {
+    traits: ['cheerful', 'pun machine', 'friendly to everyone', 'neutral', 'honest builder'],
+    sociability: 0.95, conscientiousness: 0.75, impulsiveness: 0.4, curiosity: 0.6, discretion: 0.5,
+    honesty: 0.9, competitiveness: 0.2, empathy: 0.85, confidence: 0.8, riskTolerance: 0.4, patience: 0.9, humor: 1,
+    values: ['good work', 'a fair price', 'a good laugh', 'his crew'],
+    likes: ['puns', 'dad jokes', 'coffee', 'honey buns', 'his excavator', 'square corners'], dislikes: ['taking sides', 'shoddy work', 'people who don\'t groan'],
+  },
+  speech: {
+    formality: 0.2, verbosity: 0.6,
+    habits: ['a pun in nearly every line', 'calls the player "buddy" or "pal"', 'laughs at his own jokes', 'never says a harsh word'],
+    rumorPrefix: 'Now I don\'t like to hammer on about it, but', factPrefix: 'Level with you, pal:', refuse: 'Ah, I\'d better not. I\'m a builder, not a blabber. That one stays under my hard hat!',
+  },
+  mechanics: {
+    alwaysFriendly: true, // relationship with the player never drops below friendly (see reactions)
+    punOfTheDay: true, // a different pun every day (Game.dailyPun)
+    properties: true, // the contracts board: pay Mason's Os to build on surveyed plots
+  },
+  punctuality: 5,
+  schedule: [
+    { from: '06:30', to: '07:30', activity: 'eat', spot: 'cafe:table_window', label: 'breakfast and pun-trading with Mags' },
+    { from: '07:30', to: '10:00', activity: 'work', spot: 'westbrook:site_center' },
+    { from: '10:00', to: '12:00', activity: 'excavate', spot: 'westbrook:excavator_seat', label: 'digging in the excavator' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'westbrook:lunch_bench' },
+    { from: '13:00', to: '15:30', activity: 'work', spot: 'mason_office:desk' },
+    { from: '15:30', to: '16:30', activity: 'business', spot: 'civic_office:counter_front', label: 'filing permits with Osric' },
+    { from: '16:30', to: '18:30', activity: 'work', spot: 'westbrook:site_center' },
+    { from: '18:30', to: '21:00', activity: 'leisure', spot: 'apartments:common' },
+    { from: '21:00', to: '06:30', activity: 'sleep', spot: 'apartments:bed_mason' },
+  ],
+  impulses: [
+    {
+      id: 'pun_rounds', activity: 'work', spot: 'westbrook:foreman_post', label: 'doing the rounds (with puns)',
+      trait: 'sociability', weight: 2, duringActivity: ['work'], duration: 20, cooldown: 180,
+    },
+    buildIt('mason'),
+  ],
+  relationships: {
+    player: { trust: 15, affection: 20, respect: 10, suspicion: 0 },
+    npc_dee: { trust: 60, affection: 45, respect: 55, suspicion: 0 },
+    npc_barnaby: { trust: 55, affection: 50, respect: 35, suspicion: 0 },
+    npc_quinn: { trust: 45, affection: 45, respect: 35, suspicion: 0 },
+    npc_mags: { trust: 40, affection: 40, respect: 30, suspicion: 0 },
+    npc_osric: { trust: 30, affection: 20, respect: 35, suspicion: 0 },
+    npc_tibbs: { trust: 25, affection: 25, respect: 30, suspicion: 0 },
+    npc_moneybucks: { trust: 5, affection: 5, respect: 15, suspicion: 10 },
+  },
+  knowledge: ['fact_masons_os', 'fact_moneybucks_wants_mason'],
+  giftPrefs: { item_honey_bun: 10, item_coffee: 8, item_scone: 6, item_bolts: 5, item_gull_feather: 3, tags: { food: 4, sweet: 4, junk: 1 } },
+  reactions: {
+    fact_player_rushed_site: { bark: 'Hey, no harm done, pal — Rome wasn\'t built in a day. Mostly because they took their time!' },
+    fact_player_invested: { bark: 'Shares in oil, eh? Just don\'t let it go to your well!' },
+  },
+  notices: [{ map: 'mason_office', tag: 'saw_player_office', text: 'The newcomer dropped by the office.', importance: 1 }],
+  opinions: {
+    npc_mags: { warm: 'Mags! Best breakfast on the coast. I tell her a pun, she tells me to pay. It\'s a fair trade.', cool: 'Mags has her moods. Then I bring a pun and she has… worse moods.' },
+    npc_osric: { warm: 'Osric\'s a stand-up guy. Stands up very straight. Files very straight. I respect a man who knows his forms.', cool: 'Osric says I\'m exhausting. I said, "Have you tried a nap? You\'ll be well-rested — I\'ll be well-REST-ored!"' },
+    npc_tibbs: { warm: 'Tibbs fixes engines, I fix foundations. We\'re basically colleagues. He doesn\'t agree. He doesn\'t a-gear!', cool: 'Tibbs and Barnaby are at it about the gulls again.' },
+    npc_moneybucks: { warm: 'Sir Moneybucks pays on time. I\'ll build for anybody who pays on time and doesn\'t ask me to cut corners. He\'s working on the second part.', cool: 'He wants me building only for him. I told him I don\'t take sides — I take measurements!' },
+    npc_dee: { warm: 'Dee runs the site tighter than a fresh-torqued bolt. Couldn\'t do it without her. Wouldn\'t want to try!', cool: 'Dee says I need new material. I told her I\'m already using brick.' },
+    npc_barnaby: { warm: 'Barnaby could lift the excavator. Wouldn\'t hurt a fly. Or a gull. ESPECIALLY a gull.', cool: 'Barnaby mixed a batch with too much water. Concrete evidence!' },
+    npc_quinn: { warm: 'Quinn! Sharpest pencil in the toolbox. Bit nervous, but the lines are perfect.', cool: 'Quinn measured my coffee mug twice yesterday. Measure twice, sip once!' },
+  },
+};
+
+const crew = (o) => ({ tier: 'minor', origin: 'imported-generated', faction: 'fac_builders', walkSpeed: 1, punctuality: 5, impulses: [], notices: [], ...o });
+
+const dee = crew({
+  id: 'npc_dee', name: 'Dolores "Dee" Rivera', shortName: 'Dee',
+  role: 'Site foreman at Mason\'s Os. Hires day labour, pays fairly, checks every course with a level.',
+  dialogue: 'dlg_dee',
+  voice: { wave: 'square', pitch: 300, variance: 25, rate: 1.1 },
+  appearance: { skin: '#c48a62', hair: '#2a1e1a', hairStyle: 'hardhat', hatColor: '#f2c14e', outfit: '#3f5a7a', accessories: ['vest'], vestColor: '#e07a3a', holding: 'clipboard', build: 'average', height: 0.98, accent: '#e07a3a' },
+  personality: { traits: ['no-nonsense', 'fair', 'secretly delighted by puns'], sociability: 0.6, conscientiousness: 0.95, impulsiveness: 0.15, discretion: 0.6, honesty: 0.85, empathy: 0.6, humor: 0.7 },
+  speech: { rumorPrefix: 'Site talk says', factPrefix: 'For the record,', refuse: 'Not on my site, not on my watch, not in my notebook.' },
+  punctuality: 12,
+  schedule: [
+    { from: '06:00', to: '06:45', activity: 'eat', spot: 'apartments:common' },
+    { from: '06:45', to: '13:00', activity: 'work', spot: 'westbrook:foreman_post' },
+    { from: '13:00', to: '13:45', activity: 'eat', spot: 'westbrook:lunch_bench' },
+    { from: '13:45', to: '17:30', activity: 'work', spot: 'westbrook:foreman_post' },
+    { from: '17:30', to: '21:30', activity: 'leisure', spot: 'apartments:common_b' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'apartments:bed_dee' },
+  ],
+  impulses: [buildIt('dee')],
+  relationships: { player: { trust: 5, affection: 5, respect: 0, suspicion: 0 }, npc_mason: { trust: 60, affection: 40, respect: 45, suspicion: 0 }, npc_barnaby: { trust: 50, affection: 40, respect: 35, suspicion: 0 }, npc_quinn: { trust: 40, affection: 45, respect: 40, suspicion: 0 } },
+  knowledge: ['fact_masons_os', 'fact_dee_pun_tally'],
+  giftPrefs: { item_coffee: 8, item_scone: 5, tags: { food: 3 } },
+  reactions: { fact_player_rushed_site: { rel: { respect: -2 } } },
+  opinions: {
+    npc_mason: { warm: 'Best boss I\'ve had. Don\'t tell him. He\'ll make a pun about it.', cool: 'If he says "concrete evidence" one more time I am pouring him into a footing.' },
+    npc_barnaby: { warm: 'Barnaby carries two hods at once and apologises to the bricks.', cool: 'Barnaby, the gulls do not need your lunch.' },
+    npc_quinn: { warm: 'Quinn\'s plans are perfect. Quinn just needs to believe it.', cool: 'Quinn re-checked the string line six times. It was right all six.' },
+  },
+});
+
+const barnaby = crew({
+  id: 'npc_barnaby', name: 'Barnaby Cole', shortName: 'Barnaby',
+  role: 'Labourer at Mason\'s Os. A gentle giant who mixes the cement, lays the bricks and defends every gull in Lanternside.',
+  dialogue: 'dlg_barnaby',
+  voice: { wave: 'sine', pitch: 105, variance: 10, rate: 0.85 },
+  appearance: { skin: '#a06a46', hair: '#2a1c14', hairStyle: 'cap', hatColor: '#4a7a4a', beard: '#4a3226', outfit: '#6a7a5a', legs: '#3a3a3a', build: 'broad', height: 1.12, accent: '#e8e2d4' },
+  personality: { traits: ['gentle', 'enormous', 'birdwatcher', 'soft-spoken'], sociability: 0.5, conscientiousness: 0.7, impulsiveness: 0.3, discretion: 0.6, honesty: 0.9, empathy: 0.95, patience: 0.9, curiosity: 0.6 },
+  speech: { rumorPrefix: 'I heard — and I hope it isn\'t true —', factPrefix: 'Well, it\'s true that', refuse: 'I\'d rather not say. Sorry.' },
+  schedule: [
+    { from: '06:30', to: '07:00', activity: 'eat', spot: 'apartments:common' },
+    { from: '07:00', to: '12:00', activity: 'work', spot: 'westbrook:mixer_spot', label: 'mixing cement' },
+    { from: '12:00', to: '13:00', activity: 'leisure', spot: 'westbrook:birdwatch', label: 'watching the gulls on the canal basin' },
+    { from: '13:00', to: '17:00', activity: 'work', spot: 'westbrook:bricks_spot', label: 'laying bricks' },
+    { from: '17:00', to: '19:00', activity: 'leisure', spot: 'lanternside:pier_mid', label: 'feeding the gulls on the pier' },
+    { from: '19:00', to: '22:00', activity: 'leisure', spot: 'apartments:armchair' },
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'apartments:bed_barnaby' },
+  ],
+  impulses: [buildIt('barnaby')],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 0 }, npc_mason: { trust: 55, affection: 55, respect: 40, suspicion: 0 }, npc_dee: { trust: 50, affection: 40, respect: 50, suspicion: 0 }, npc_quinn: { trust: 45, affection: 50, respect: 30, suspicion: 0 }, npc_tibbs: { trust: 0, affection: -15, respect: 15, suspicion: 15 } },
+  knowledge: ['fact_masons_os', 'fact_gull_feud'],
+  giftPrefs: { item_gull_feather: 14, item_honey_bun: 6, item_scone: 6, item_wildflowers: 5, tags: { food: 4 } },
+  opinions: {
+    npc_tibbs: { warm: 'Tibbs is clever. I just wish he\'d stop throwing spanners at the gulls.', cool: 'Tibbs called a gull "a rat with a pension". I have not forgiven him.' },
+    npc_mason: { warm: 'Mason gave me a job when nobody else would. Also a lot of puns. I keep the job and the puns.', cool: 'Mason. Please. Not before coffee.' },
+  },
+});
+
+const quinn = crew({
+  id: 'npc_quinn', name: 'Quinn Abernathy', shortName: 'Quinn',
+  role: 'Apprentice surveyor and draftsperson at Mason\'s Os. Nervous, meticulous — and the one who will draw your future house.',
+  dialogue: 'dlg_quinn',
+  voice: { wave: 'triangle', pitch: 330, variance: 40, rate: 1.3 },
+  appearance: { skin: '#f2d6c0', hair: '#c9813a', hairStyle: 'messy', outfit: '#5a6a7a', accessory: 'glasses', legs: '#3a3a4a', build: 'thin', height: 0.95, accent: '#f2c14e', holding: 'clipboard' },
+  personality: { traits: ['nervous', 'meticulous', 'secretly brilliant'], sociability: 0.3, conscientiousness: 1, impulsiveness: 0.1, discretion: 0.7, honesty: 0.95, empathy: 0.6, confidence: 0.2, curiosity: 0.8 },
+  speech: { rumorPrefix: 'I-I might have heard — don\'t quote me —', factPrefix: 'Measured and confirmed:', refuse: 'Um. I\'d need to double-check that. Several times.' },
+  punctuality: 15,
+  schedule: [
+    { from: '07:00', to: '07:45', activity: 'eat', spot: 'cafe:table_corner', label: 'a nervous coffee' },
+    { from: '07:45', to: '12:00', activity: 'work', spot: 'mason_office:drafting', label: 'drafting plans' },
+    { from: '12:00', to: '12:45', activity: 'eat', spot: 'apartments:common_b' },
+    { from: '12:45', to: '16:00', activity: 'work', spot: 'westbrook:survey', label: 'surveying the lots' },
+    { from: '16:00', to: '18:00', activity: 'work', spot: 'mason_office:drafting', label: 'drafting plans' },
+    { from: '18:00', to: '20:00', activity: 'leisure', spot: 'lanternside:square_bench' },
+    { from: '20:00', to: '22:30', activity: 'leisure', spot: 'apartments:window_seat' },
+    { from: '22:30', to: '07:00', activity: 'sleep', spot: 'apartments:bed_quinn' },
+  ],
+  impulses: [buildIt('quinn')],
+  relationships: { player: { trust: 0, affection: 5, respect: 5, suspicion: 5 }, npc_mason: { trust: 50, affection: 45, respect: 50, suspicion: 0 }, npc_dee: { trust: 45, affection: 40, respect: 60, suspicion: 0 }, npc_barnaby: { trust: 50, affection: 50, respect: 30, suspicion: 0 }, npc_osric: { trust: 30, affection: 10, respect: 40, suspicion: 0 } },
+  knowledge: ['fact_masons_os'],
+  giftPrefs: { item_coffee: 9, item_honey_bun: 6, tags: { sweet: 4, food: 2 } },
+  opinions: {
+    npc_osric: { warm: 'Mr. Vane\'s filing system is… beautiful. I\'ve never said that out loud.', cool: 'Mr. Vane sent my permit back for a smudge. He was right.' },
+    npc_mason: { warm: 'Mason says my plans are "drawn to perfection". Then he waits for me to laugh. I always do. Eventually.', cool: 'Mason, please stop calling the theodolite "the odd o\' light".' },
+  },
+});
+
+const CREW_HOME = crewHome;
+const __default = [mason, dee, barnaby, quinn];
+
+return { mason, dee, barnaby, quinn, CREW_HOME, default: __default };
+})();
+
+// ---- src/content/dialogue/mason.js
+__m["src/content/dialogue/mason.js"] = (function () {
+// Dialogue for Mason Nails and the Mason's Os crew. Mason is always friendly:
+// no line here lowers his regard for the player below friendly, and he never
+// insults anyone. Every topic carries a pun; the Pun of the Day changes daily.
+
+/** The pun bank. Game.dailyPun() picks one per in-game day. Add freely. */
+const PUNS = [
+  { setup: 'Why did the scarecrow get promoted?', punchline: 'He was outstanding in his field!' },
+  { setup: 'What do you call a builder who loses his tools?', punchline: 'A-wall-ing!' },
+  { setup: 'I used to hate facial hair…', punchline: '…but then it grew on me.' },
+  { setup: 'Why don\'t skeletons ever build houses?', punchline: 'They don\'t have the guts — or the permits!' },
+  { setup: 'I\'m reading a book about anti-gravity.', punchline: 'It\'s impossible to put down!' },
+  { setup: 'What did the wall say to the other wall?', punchline: '"Meet you at the corner!"' },
+  { setup: 'Why did the brick go to therapy?', punchline: 'It had too many layers of issues. Mortar-fying!' },
+  { setup: 'How does a carpenter make friends?', punchline: 'He nails the first impression!' },
+  { setup: 'I told my excavator a joke.', punchline: 'It really dug it.' },
+  { setup: 'What do you call a sleeping bulldozer?', punchline: 'A dozer!' },
+  { setup: 'Why are concrete mixers so wise?', punchline: 'They\'ve seen it all go round!' },
+  { setup: 'Did you hear about the fire at the circus?', punchline: 'It was in tents!' },
+  { setup: 'I only know twenty-five letters of the alphabet.', punchline: 'I don\'t know y.' },
+  { setup: 'What\'s a roof\'s favourite drink?', punchline: 'Anything on the house!' },
+  { setup: 'Why did the gull fly over the bay?', punchline: 'Because if it flew over the bagel, it\'d be a bagull!' },
+  { setup: 'What did the drill say to the plank?', punchline: '"I\'m boring you, aren\'t I?"' },
+];
+
+const gift = (loved, liked, neutral, disliked) => ({
+  loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]],
+  tooMany: [['That\'s plenty, really — you\'re too kind.']], ownStolen: [['Hey, that one\'s mine!']],
+});
+
+const dlgMason = {
+  id: 'dlg_mason',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Well hey there, buddy! Mason Nails — of Mason\'s Os. That\'s O plural! Because we never stop at one!', 'New in town? Welcome to Lanternside. If you need anything built, fixed, or groaned at, I\'m your man.'], effects: [{ learn: 'fact_masons_os' }] },
+    { if: { activity: 'excavate' }, say: ['*leans out of the cab* Hey, pal! Don\'t mind me, just digging in. Get it? Dig? I\'ll stop. I won\'t stop.'] },
+    { if: { activity: 'eat', map: 'cafe' }, say: ['Morning! Mags just charged me double for the pun I paid her with. Worth it.'] },
+    { if: { activity: 'business' }, say: ['Hey, buddy! Just filing a permit with Osric. Twelve pages. I\'ve read it so many times I\'m practically a form-er expert.'] },
+    { if: { quest: { id: 'job_construction_shift', stage: 'report' } }, say: ['Look at you, all done! Go see Dee and get paid — you\'ve earned it, bricks and mortar!'] },
+    { if: { rel: { affection: '>=40' } }, variants: [['There\'s my favourite pal! You\'re the cornerstone of my day.'], ['Hey, it\'s you! Things just got a whole lot more level around here.']] },
+    { if: {}, variants: [['Hey, buddy! How\'s it hanging? Plumb, I hope!'], ['Well if it isn\'t my pal! What can I build for you today?'], ['Howdy! Just nailing the day, one board at a time.'], ['Hey hey! You look like someone who appreciates a solid foundation.']] },
+  ],
+  farewells: [{ if: {}, variants: [['See you later, builder-gator!'], ['Take care, pal — and keep it level!'], ['Bye now! Don\'t be a stranger — be a stranger with a building contract!']] }],
+  topics: [
+    {
+      id: 't_mason_pun', label: '"Got a pun for me?"', keywords: ['pun', 'joke', 'funny'],
+      say: [
+        { if: { flagToday: 'mason_pun_day' }, text: 'You\'ve had today\'s, pal! Puns are like concrete — they need a day to set. Come back tomorrow!' },
+        { if: { not: { flagToday: 'mason_pun_day' } }, text: 'Pun of the Day! Ahem. {pun}' },
+        { if: { not: { flagToday: 'mason_pun_day' } }, text: '…{punchline}' },
+      ],
+      choices: [
+        {
+          id: 'c_mason_groan', label: 'Groan loudly.', if: { not: { flagToday: 'mason_pun_day' } },
+          say: ['THERE it is! The groan! Music to my ears, buddy. A groan is just a laugh that went through the proper channels.'],
+          effects: [{ flag: { mason_pun_day: '$day' } }, { rel: { affection: 2 } }, { flag: { mason_puns_heard: true } }],
+        },
+        {
+          id: 'c_mason_laugh', label: 'Laugh. Genuinely.', if: { not: { flagToday: 'mason_pun_day' } },
+          say: ['Ha! See, Dee? SOMEBODY gets it! You\'ve got a good sense of humour, pal. Solid. Load-bearing.'],
+          effects: [{ flag: { mason_pun_day: '$day' } }, { rel: { affection: 3, trust: 1 } }, { flag: { mason_puns_heard: true } }],
+        },
+        {
+          id: 'c_mason_fire_back', label: 'Fire one back.', if: { not: { flagToday: 'mason_pun_day' } },
+          check: { stat: 'wits', base: 0.45 },
+          say: ['You say: "I\'d tell you a construction joke, but I\'m still working on it."', '…', 'OH! Oh, that\'s GOOD. Dee! DEE! Write that one down! Buddy, you\'re a natural. A natural-born pun-dit!'],
+          effects: [{ flag: { mason_pun_day: '$day' } }, { rel: { affection: 3, respect: 4 } }, { flag: { mason_puns_heard: true } }, { memory: { text: 'The newcomer out-punned me. Respect.', tag: 'out_punned', importance: 5 } }, { npcLearn: 'fact_player_punned_mason' }],
+          fail: { say: ['You try something about a hammer and a nail and lose the thread halfway.', 'Ha! Hey, it\'s the thought that counts. And I counted it — that\'s at least a half-pun! Keep at it, pal.'], effects: [{ flag: { mason_pun_day: '$day' } }, { rel: { affection: 1 } }] },
+        },
+      ],
+    },
+    {
+      id: 't_mason_who', label: '"What\'s Mason\'s Os?"', keywords: ['company', 'masons', 'os', 'construction', 'name'],
+      say: ['Mason\'s Os — that\'s O plural! Because we never stop at one!', 'Construction, renovation, repairs, foundations, and free puns with every invoice. Just me and my crew: Dee runs the site, Barnaby\'s our muscle and Quinn draws the plans. We all live right next door at the Plumb Line. Short commute — it\'s a real con-venience. Con-struction. Eh?'],
+      effects: [{ learn: 'fact_masons_os' }],
+    },
+    {
+      id: 't_mason_work', label: '"Any work going?"', tag: 'quest', keywords: ['work', 'job', 'shift', 'hire'],
+      say: ['Always, pal! Dee handles hiring — she\'s the one at the site gate with the clipboard. Mornings, seven till one. Trench, bricks, mixer, six obols, fair and square. Squarer than fair, even.', 'And do it properly, yeah? Good work makes the crew happy, and a happy crew builds faster and cheaper — for you, when the time comes.'],
+    },
+    {
+      id: 't_mason_contracts', label: '"I\'d like to have something built."', tag: 'quest', keywords: ['build', 'property', 'house', 'home', 'contract', 'plot', 'land'],
+      say: [
+        'Now you\'re talking my language! Homes, rental flats, a shopfront — you pay, we build, you own it. Simple as brick.',
+        { if: { property: { surveyed: false } }, text: 'Only thing is, there\'s no land surveyed for building just yet. Quinn\'s on it. The minute a plot\'s ready, it goes on the contracts board in the office. Here, let me show you the board anyway — it\'s very aspirational.' },
+        { if: { property: { surveyed: true } }, text: 'Let\'s take a look at the board, buddy.' },
+      ],
+      effects: [{ action: 'contracts' }],
+    },
+    {
+      id: 't_mason_permits', label: '"How do building permits work?"', keywords: ['permit', 'form', '22-b', 'osric'],
+      say: ['Every build needs a Form 22-B from the Civic Office. Osric\'s the man. Ten obols and a lot of signing. You sign the contract with me, then you pop over to Osric for the permit, and then we break ground. And then we fix the ground. That\'s the job!'],
+    },
+    {
+      id: 't_mason_moneybucks', label: '"Do you work for Sir Moneybucks?"', keywords: ['moneybucks', 'oil', 'ober', 'exclusive'],
+      say: ['I work for anybody who pays fair and lets me build it right! Sir Moneybucks wants me building only for him. Even offered a pile of cash.', 'I told him: "Sir, I don\'t take sides — I take measurements!" He didn\'t laugh. Tough crowd. Rich crowd. Tough rich crowd.'],
+      effects: [{ learn: 'fact_moneybucks_wants_mason' }],
+    },
+    {
+      id: 't_mason_excavator', label: '"Tell me about the excavator."', keywords: ['excavator', 'digger', 'machine'],
+      say: ['Isn\'t she a beauty? I call her Shovel-ina. Mornings I\'m in the cab from ten till noon. Best seat in Lanternside — the view is ground-breaking.'],
+    },
+    {
+      id: 't_mason_crew', label: '"Tell me about your crew."', keywords: ['crew', 'dee', 'barnaby', 'quinn', 'employees', 'apartments'],
+      say: ['Best crew on the coast! Dee — foreman, runs a tight ship, laughs at my jokes when she thinks I\'m not looking. Barnaby — strong as an ox, gentle as a lamb, sworn protector of the gulls. Quinn — our surveyor, nervous as a cat on a scaffold but draws the straightest lines you\'ll ever see.', 'We all live at the Plumb Line Apartments, right next to the site. I\'m the landlord. Rent\'s cheap and the puns are free. Some say that\'s why the rent\'s cheap.'],
+    },
+  ],
+  askAbout: [
+    { keywords: ['mags', 'cafe', 'kettle'], say: ['Mags! I trade her a pun every morning for a coffee. She says the exchange rate\'s terrible. I think she\'s brewing up trouble.'] },
+    { keywords: ['tibbs', 'gull', 'gulls'], say: ['Barnaby and Tibbs have a… gull-related disagreement. Personally, I stay neutral. I\'m Switzerland. With a hard hat.'] },
+    { keywords: ['lighthouse', 'lamp'], say: ['The old lighthouse? Solid bit of masonry, that. They don\'t build \'em like that anymore. Mostly because I haven\'t been asked!'] },
+  ],
+  unknown: [['Hmm, that one\'s over my hard hat, pal.'], ['No idea, buddy — but if you find out, let me know. I\'ll build a pun around it.']],
+  gift: gift('A honey bun?! Buddy, you\'re the BEST. This is the yeast you could do!', 'Aw, thanks pal! You\'re a real brick.', 'Hey, thanks! Every little bit helps build the pile!', 'Ha — well, I\'ll find a use for it. Everything\'s building material if you believe!'),
+  barks: {
+    greet: ['Hey, buddy!', 'Howdy, pal!', 'Looking sharp — like a fresh-cut two-by-four!'],
+    work: ['Measure twice, cut once!', 'That\'s plumb! Plumb-tastic!', 'Nailed it!', 'Level with me, Dee — is that level?'],
+    excavate: ['Diggin\' it!', '*whistles a little tune*', 'Ground-breaking work!'],
+    eat: ['Lunch break — or as I call it, a brick-fast!', 'Mm! Sand-wich. No sand. Good.'],
+    business: ['Form 22-B… B for Builder!'],
+    leisure: ['Who wants to hear a joke? Anyone? …Barnaby?'],
+    sleep: ['…foundations… *snore*… heh… load-bearing…'],
+    chat: ['Ha! Good one!', 'You know what this conversation needs? Scaffolding.', 'I\'m all ears. And a hard hat.'],
+    argue: ['Hey now, let\'s keep it level!'],
+  },
+};
+
+const dlgDee = {
+  id: 'dlg_dee',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Dolores Rivera — Dee. Site foreman. If you\'re here for a shift, you\'re in luck. If you\'re here to tell me a pun, Mason\'s already got the market cornered.'] },
+    { if: { quest: { id: 'job_construction_shift', stage: 'report' } }, say: ['All three done? Let\'s have a look.'] },
+    { if: { knows: 'fact_player_rushed_site', notFlag: 'dee_rush_talked' }, say: ['I saw that wall. Rushed work comes down eventually — usually on someone\'s foot. No hard feelings. Just slower hands next time.'], effects: [{ flag: { dee_rush_talked: true } }] },
+    { if: {}, variants: [['Morning. Hard hat\'s by the gate.'], ['Yeah? What do you need?'], ['Mind the trench. Seriously.']] },
+  ],
+  farewells: [{ if: {}, variants: [['See you on site.'], ['Keep your boots laced.']] }],
+  topics: [
+    {
+      id: 't_dee_job', label: '"Any work going?"', tag: 'quest', keywords: ['work', 'job', 'shift', 'hire'],
+      if: { not: { quest: { id: 'job_construction_shift', state: 'active' } } },
+      say: [
+        { if: { jobDoneToday: 'job_construction_shift' }, text: 'You did your shift. Go home, rest your back. Tomorrow, seven.' },
+        { if: { not: { jobDoneToday: 'job_construction_shift' }, time: { from: '13:00', to: '07:00' } }, text: 'Hiring\'s seven till one. Come back in the morning.' },
+        {
+          if: { not: { jobDoneToday: 'job_construction_shift' }, time: { from: '07:00', to: '13:00' } },
+          text: 'Day shift: dig the trench, lay a course at the brick stack, and run a batch in the mixer. Then come back to me. Six obols, paid in coin, no scrip, no nonsense. Do it right and the whole crew remembers.',
+          effects: [{ quest: { id: 'job_construction_shift', start: true } }, { flag: { site_hired: true } }],
+        },
+      ],
+    },
+    {
+      id: 't_dee_report', label: '"Shift\'s done."', tag: 'quest', keywords: ['done', 'finished', 'report', 'pay'],
+      if: { quest: { id: 'job_construction_shift', stage: 'report' } },
+      say: [
+        { if: { not: { flagToday: 'site_rushed' } }, text: 'Trench is square, course is level, mix is right. Nice work. That\'s six — and the crew noticed.' },
+        { if: { flagToday: 'site_rushed' }, text: 'It\'s done. Some of it\'s… done-ish. Here\'s your six. Next time, slower — the crew notices that too.' },
+      ],
+      effects: [{ payWages: 'construction' }, { quest: { id: 'job_construction_shift', complete: 'paid' } }, { rel: { respect: 2 } }],
+    },
+    {
+      id: 't_dee_goodwill', label: '"How\'s the crew think of me?"', keywords: ['crew', 'goodwill', 'reputation'],
+      say: [
+        { if: { site: { goodwill: '<5' } }, text: 'Honestly? You\'re new. Work a few shifts properly and that changes.' },
+        { if: { site: { goodwill: '>=5' }, not: { site: { goodwill: '>=15' } } }, text: 'You\'re all right. Barnaby likes you. Quinn\'s stopped hiding when you come in.' },
+        { if: { site: { goodwill: '>=15' } }, text: 'You\'re one of us now. When you sign a contract with Mason, we\'ll build it faster and cheaper. That\'s how crews say thank you.' },
+      ],
+    },
+    {
+      id: 't_dee_tally', label: '"Do you actually like Mason\'s puns?"', keywords: ['puns', 'tally', 'jokes', 'secret'],
+      say: [
+        'I tolerate them.',
+        { if: { rel: { trust: '<20' } }, text: 'That\'s all you\'re getting.' },
+        { if: { rel: { trust: '>=20' } }, text: '…Fine. I keep a tally. In the back of my site book. Every pun that actually got me. Two hundred and twelve. Tell him and I will bury you in a footing.', effects: [{ learn: 'fact_dee_pun_tally' }, { rel: { trust: 3 } }] },
+      ],
+    },
+  ],
+  askAbout: [{ keywords: ['wage', 'pay', 'scrip'], say: ['Six obols. Coin, not scrip. Mason won\'t do scrip. Says it\'s "not worth the paper it\'s written on", and then laughs for a minute.'] }],
+  unknown: [['Not my department.'], ['Ask Quinn. Quinn knows everything to four decimal places.']],
+  gift: gift('…Oh. That\'s nice. Thanks. Really.', 'Thanks.', 'Huh. Thanks.', 'I\'ll put it with the scrap.'),
+  barks: { greet: ['Morning.', 'Hard hat.'], work: ['That\'s not level.', 'Check it again.', 'Good. Next.'], eat: ['Ten minutes. Then back to it.'], leisure: ['Off the clock.'], build: ['Footings first!'], sleep: ['…two hundred and thirteen… *snore*'], chat: ['Mm.', 'Fair.', 'Don\'t tell Mason.'], argue: ['Not on my site!'] },
+};
+
+const dlgBarnaby = {
+  id: 'dlg_barnaby',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Oh — hello. Sorry, didn\'t see you down there. Barnaby. Barnaby Cole. I mix the cement and lay the bricks. And I watch the gulls. Mostly the gulls.'] },
+    { if: { activity: 'leisure', map: 'lanternside' }, say: ['Shh — see that one? Herring gull, third winter. I call her Margaret.'] },
+    { if: {}, variants: [['Hello again.'], ['Oh, hi. Mind your step.'], ['Afternoon. Lovely day for gulls.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Bye now.'], ['Take care. Say hello to the gulls.']] }],
+  topics: [
+    {
+      id: 't_barnaby_gulls', label: '"What\'s so special about gulls?"', keywords: ['gull', 'gulls', 'bird', 'birds'],
+      say: ['Everyone thinks they\'re pests. They\'re clever! They remember faces. They drop shellfish on rocks to open them. They\'re the best engineers on the coast. Apart from Mason. And Dee. And — well, they\'re very good.', 'Bring me a gull feather sometime, if you find one. I keep a collection.'],
+    },
+    {
+      id: 't_barnaby_tibbs', label: '"You and Tibbs don\'t get along?"', keywords: ['tibbs', 'mechanic', 'feud'],
+      say: ['He threw a spanner at Margaret. A SPANNER. He says she stole his sandwich. She did. That is not the point.'],
+      effects: [{ learn: 'fact_gull_feud' }],
+    },
+    {
+      id: 't_barnaby_mason', label: '"What\'s Mason like to work for?"', keywords: ['mason', 'boss'],
+      say: ['Kindest man I know. Nobody would hire me — too big, they said, I\'d break things. Mason said, "Big guy, big heart, big wall." Then he laughed at "big wall" for quite a while.'],
+    },
+  ],
+  askAbout: [{ keywords: ['cement', 'mix', 'mixer'], say: ['Three sand, one cement, water till it holds a peak. Like making a cake. A very heavy cake.'] }],
+  unknown: [['Sorry, I don\'t know.'], ['Hm. You could ask Quinn.']],
+  gift: gift('A gull feather! Oh — oh, that\'s a lovely one. Thank you. Thank you.', 'That\'s kind of you.', 'Oh, thank you.', 'Oh… thanks. I\'ll — find a place for it.'),
+  barks: { greet: ['Hello.', 'Oh, hi.'], work: ['Three sand, one cement…', '*hums*', 'Steady… steady…'], leisure: ['Hello, Margaret.', 'Look at that wingspan.'], build: ['Lift with the legs!'], sleep: ['…Margaret… *snore*'], chat: ['Mm-hm.', 'That\'s nice.', 'Did you see the gulls today?'], argue: ['Leave the gulls out of it!'] },
+};
+
+const dlgQuinn = {
+  id: 'dlg_quinn',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Oh! Um. Hi. Quinn Abernathy. Apprentice surveyor. And draftsperson. Apprentice draftsperson. I draw the plans. Sorry. Hi.'] },
+    { if: { rel: { trust: '>=20' } }, variants: [['Oh, it\'s you! Hi! I mean — hello. Good to see you.']] },
+    { if: {}, variants: [['Oh — hi.'], ['Sorry — I was measuring. Hi.'], ['Um. Hello.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Bye! Sorry. Bye.'], ['See you. Mind the stakes.']] }],
+  topics: [
+    {
+      id: 't_quinn_plots', label: '"Are there any building plots yet?"', tag: 'quest', keywords: ['plot', 'plots', 'land', 'lots', 'survey'],
+      say: [
+        { if: { property: { surveyed: false } }, text: 'Not yet. I\'m surveying the lots south of the canal — every stake to four decimal places — but nothing\'s cleared for building. When it is, it goes on the board in the office. You\'ll be the first to know. Well — second. After me.' },
+        { if: { property: { surveyed: true } }, text: 'Yes! They\'re on the board in the office. I drew every one. Please look at them. Please like them.' },
+      ],
+    },
+    {
+      id: 't_quinn_plans', label: '"What kind of buildings do you design?"', keywords: ['plans', 'blueprints', 'design', 'house'],
+      say: ['Three so far: a cottage — that\'s a home for you, with a bed and a chest that locks; a pair of rental flats, tenants pay every evening; and a shopfront for a business. Mason named them. He wanted to call the cottage "the Hut Dog". Dee said no.'],
+    },
+    {
+      id: 't_quinn_nerves', label: '"You seem nervous."', keywords: ['nervous', 'anxious', 'confidence'],
+      if: { notFlag: 'quinn_encouraged' },
+      say: ['I— is it obvious? Mr. Vane sent back my last permit drawing. For a smudge. A smudge!'],
+      choices: [
+        {
+          id: 'c_quinn_encourage', label: '"Your plans are the best in town. Mason says so."',
+          check: { stat: 'charm', base: 0.55 },
+          say: ['…He does say that. He says "drawn to perfection" and then he waits. But he does say it.', 'Thank you. Really.'],
+          effects: [{ rel: { trust: 8, affection: 5 } }, { flag: { quinn_encouraged: true } }, { site: { goodwill: 1 } }],
+          fail: { say: ['You\'re just being nice. Which is — nice. Thank you.'], effects: [{ rel: { affection: 2 } }] },
+        },
+      ],
+    },
+  ],
+  askAbout: [{ keywords: ['osric', 'vane', 'permit'], say: ['Mr. Vane is the most thorough person I\'ve ever met. I want to be him when I grow up. Except less… Mr. Vane.'] }],
+  unknown: [['I— I\'d have to check.'], ['I don\'t know that one. I\'ll look it up. Twice.']],
+  gift: gift('Coffee! You — thank you, I was running on fumes and graphite.', 'Oh! Thanks.', 'Oh — thank you.', 'Oh… um. Thank you?'),
+  barks: { greet: ['Oh! Hi.', 'Sorry — hi.'], work: ['Point-three-seven-five…', 'Measure twice…', 'Is that a smudge? That\'s a smudge.'], leisure: ['*sketches quietly*'], build: ['Check the string line!'], sleep: ['…four decimal places… *snore*'], chat: ['Um.', 'Interesting!', 'Sorry — go on.'], argue: ['P-please don\'t shout.'] },
+};
+
+const __default = [dlgMason, dlgDee, dlgBarnaby, dlgQuinn];
+
+return { PUNS, dlgMason, dlgDee, dlgBarnaby, dlgQuinn, default: __default };
+})();
+
+// ---- src/content/properties.js
+__m["src/content/properties.js"] = (function () {
+// Property groundwork (v0.4.0). PLOTS are surveyed pieces of land the player
+// can pay Mason's Os to build on; BLUEPRINTS are what can be built. There are
+// deliberately NO plots yet — the player (project owner) will say where and
+// when to create them. See docs/PROPERTIES.md for how to add one.
+//
+// Plot shape:
+//   plot_example: {
+//     name: 'Lot 1, Westbrook', map: 'westbrook', x: 6, y: 28, w: 6, h: 5,   // footprint in tiles
+//     door: { x: 8, y: 32 },                    // on the footprint's bottom row
+//     outside: { x: 8, y: 33, facing: 'up' },   // walkable tile below the door
+//     landPrice: 40,                            // paid once, with the first contract
+//     allowed: ['home', 'rental', 'business'],
+//   }
+
+const PLOTS = {};
+
+const BLUEPRINTS = {
+  home: {
+    name: 'Cottage (personal home)', cost: 120, days: 3,
+    text: 'A snug cottage with a bed you can sleep in and a storage chest that is yours alone.',
+    roof: '#9a4a3a', wall: '#efe2c8', trim: '#5a3a2a',
+  },
+  rental: {
+    name: 'Rental flats', cost: 200, days: 4, rent: 8,
+    text: 'Two small flats. Tenants pay rent every evening at six. (Tenants are named but not simulated yet.)',
+    roof: '#4a6a8a', wall: '#e8dccb', trim: '#2a3a4a',
+  },
+  business: {
+    name: 'Shopfront', cost: 250, days: 5, income: 10,
+    text: 'A shopfront with a counter and a back room. Pays a modest daily income for now; real businesses come later.',
+    roof: '#3a7a5a', wall: '#f0e8d8', trim: '#2a4a3a',
+  },
+};
+
+return { PLOTS, BLUEPRINTS };
+})();
+
+// ---- src/world/plots.js
+__m["src/world/plots.js"] = (function () {
+// Expands property plots into ordinary content at load time, so the rest of
+// the engine needs no special cases: each plot gets survey stakes and a
+// building-site frame on its map (shown by state), an interior map holding
+// the furniture of every blueprint (shown by which blueprint was built), and a
+// storage container. The finished exterior building is added at runtime by
+// Game.rebuildMaps() once the property is complete.
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+
+const plotInteriorId = (plotId) => `${plotId}_inside`;
+const plotContainerId = (plotId) => `cont_${plotId}`;
+
+/** The exterior building for a finished property. */
+function plotBuilding(plotId, plot, bp) {
+  return {
+    id: `b_${plotId}`, name: plot.name, mapLabel: plot.name, x: plot.x, y: plot.y, w: plot.w, h: plot.h,
+    roof: bp.roof, wall: bp.wall, trim: bp.trim, sign: plot.sign || null,
+    door: { x: plot.door.x, y: plot.door.y, to: { map: plotInteriorId(plotId), spot: 'entry' } },
+  };
+}
+
+/**
+ * @param {object} content the content registry (not mutated)
+ * @param {object} plots PLOTS registry
+ * @returns {object} new content object with plots applied
+ */
+function withPlots(content, plots) {
+  const maps = { ...content.maps };
+  const containers = { ...content.containers };
+  for (const [id, plot] of Object.entries(plots)) {
+    const host = maps[plot.map];
+    if (!host) continue;
+    const props = [
+      { id: `${id}_stake_a`, type: 'stake', x: plot.x, y: plot.y, hiddenUnless: { property: { plot: id, state: 'none' } } },
+      { id: `${id}_stake_b`, type: 'stake', x: plot.x + plot.w - 1, y: plot.y + plot.h - 1, hiddenUnless: { property: { plot: id, state: 'none' } } },
+      { id: `${id}_board`, type: 'sign', x: plot.door.x + 1, y: plot.y + plot.h, examine: `"${plot.name} — surveyed by Mason's Os. Enquire at the site office."`, hiddenUnless: { property: { plot: id, state: 'none' } } },
+      { id: `${id}_frame`, type: 'scaffold', x: plot.x, y: plot.y, w: plot.w, h: plot.h, examine: `Mason's Os is building here. A sign: "${plot.name} — UNDER CONSTRUCTION. Pardon our dust; we're working on our foundation jokes."`, hiddenUnless: { property: { plot: id, state: ['permit', 'building'] } } },
+    ];
+    maps[plot.map] = {
+      ...host,
+      spots: { ...host.spots, [`${id}_out`]: plot.outside, [`${id}_crew`]: plot.outside },
+      props: [...host.props, ...props],
+    };
+    const cont = plotContainerId(id);
+    containers[cont] = { name: 'Your storage chest', owner: 'player', items: {}, hiddenUnless: { property: { plot: id, blueprint: 'home' } } };
+    const shown = (bp) => ({ property: { plot: id, blueprint: bp } });
+    maps[plotInteriorId(id)] = {
+      id: plotInteriorId(id),
+      name: plot.name,
+      kind: 'interior',
+      music: 'mus_home',
+      ambience: 'amb_indoor',
+      tiles: roomTiles(10, 7, 'f', 4),
+      doors: [{ id: `door_${id}_exit`, x: 4, y: 6, to: { map: plot.map, spot: `${id}_out` } }],
+      spots: { entry: { x: 4, y: 5, facing: 'up' } },
+      props: [
+        { id: `${id}_bed`, type: 'bed', x: 1, y: 1, interact: { kind: 'sleep' }, hiddenUnless: shown('home') },
+        { id: `${id}_chest`, type: 'chest', x: 7, y: 1, interact: { kind: 'container', container: cont }, hiddenUnless: shown('home') },
+        { id: `${id}_rug`, type: 'rug', x: 3, y: 3, w: 3, h: 2, hiddenUnless: shown('home') },
+        { id: `${id}_bed_a`, type: 'bed', x: 1, y: 1, hiddenUnless: shown('rental') },
+        { id: `${id}_bed_b`, type: 'bed', x: 7, y: 1, hiddenUnless: shown('rental') },
+        { id: `${id}_table_r`, type: 'table', x: 4, y: 3, hiddenUnless: shown('rental'), examine: 'A shared table. A note: "Rent due at six. Thanks! — your tenants."' },
+        { id: `${id}_counter`, type: 'counter', x: 2, y: 2, w: 5, hiddenUnless: shown('business'), examine: 'Your shop counter. It is waiting for something to sell.' },
+        { id: `${id}_shelf`, type: 'shelf', x: 1, y: 1, w: 2, hiddenUnless: shown('business') },
+      ],
+    };
+  }
+  return { ...content, maps, containers, plots };
+}
+
+return { plotInteriorId, plotContainerId, plotBuilding, withPlots };
+})();
+
 // ---- src/content/index.js
 __m["src/content/index.js"] = (function () {
 // Content registry: the single import point for all authored game content.
@@ -4023,6 +4832,7 @@ __m["src/content/index.js"] = (function () {
 const lanternside = __m["src/content/maps/lanternside.js"].default;
 const interiors = __m["src/content/maps/interiors.js"].default;
 const oberMaps = __m["src/content/maps/oberFields.js"].default;
+const westbrookMaps = __m["src/content/maps/westbrook.js"].default;
 const { PROP_TYPES } = __m["src/content/props.js"];
 const { ITEMS } = __m["src/content/items.js"];
 const { FACTS } = __m["src/content/facts.js"];
@@ -4047,15 +4857,21 @@ const dlgOsric = __m["src/content/dialogue/osric.js"].default;
 const dlgTibbs = __m["src/content/dialogue/tibbs.js"].default;
 const dlgMoneybucks = __m["src/content/dialogue/moneybucks.js"].default;
 const dlgOberStaff = __m["src/content/dialogue/oberStaff.js"].default;
+const masonCrew = __m["src/content/characters/mason.js"].default;
+const dlgMasonCrew = __m["src/content/dialogue/mason.js"].default;
+const { PUNS } = __m["src/content/dialogue/mason.js"];
+const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
+const { withPlots } = __m["src/world/plots.js"];
 
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 
-const CONTENT = {
+/** Content before property plots are expanded (tests add fixture plots to this). */
+const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
@@ -4072,15 +4888,20 @@ const CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew]),
+  puns: PUNS,
+  blueprints: BLUEPRINTS,
+  plots: {},
   startingMap: 'player_flat',
   startingSpot: 'entry',
 };
 
+const CONTENT = withPlots(BASE_CONTENT, PLOTS);
+
 const __default = CONTENT;
 
-return { CONTENT, default: __default };
+return { BASE_CONTENT, CONTENT, default: __default };
 })();
 
 // ---- src/core/version.js
@@ -4088,7 +4909,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.3.0';
+const GAME_VERSION = '0.4.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -5046,6 +5867,28 @@ const BEDS = {
       src.start(ctx.currentTime, Math.random(), 0.3);
     }),
   ],
+  amb_site: (ctx, d) => [
+    noiseBed(ctx, d, { type: 'bandpass', freq: 420, q: 1, vol: 0.05, lfoRate: 0.11, lfoDepth: 0.03 }),
+    hum(ctx, d, 38, 0.018), // the excavator idling somewhere
+    every(2.5, 6, () => {
+      // a hammer: two or three quick taps
+      const taps = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < taps; i++) {
+        const t = ctx.currentTime + i * 0.32;
+        const src = ctx.createBufferSource();
+        src.buffer = getNoise(ctx);
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 1900 + Math.random() * 500;
+        f.Q.value = 8;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.09, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+        src.connect(f).connect(g).connect(d);
+        src.start(t, Math.random(), 0.1);
+      }
+    }),
+  ],
   amb_lighthouse: (ctx, d) => [
     noiseBed(ctx, d, { type: 'bandpass', freq: 520, q: 5, vol: 0.06, lfoRate: 0.07, lfoDepth: 0.04 }),
     noiseBed(ctx, d, { type: 'lowpass', freq: 300, vol: 0.05 }),
@@ -5588,6 +6431,14 @@ class GameMap {
     }
   }
 
+  /** Add a building at runtime (finished properties). */
+  addBuilding(b) {
+    if (this.buildings.some((x) => x.id === b.id)) return;
+    this.buildings = [...this.buildings, b];
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) this.grid[y][x] = 'B';
+    if (b.door) this.addDoor({ id: `door_${b.id}`, building: b.id, label: b.name, ...b.door });
+  }
+
   addDoor(d) {
     const door = { ...d };
     if (!door.keepTile) this.grid[door.y][door.x] = 'D';
@@ -6028,7 +6879,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property',
 ];
 
 /**
@@ -6087,6 +6938,22 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'site': {
+      const st = game.world.construction || {};
+      return Object.entries(val).every(([k, v]) => compare(st[k] ?? 0, v));
+    }
+    case 'property': {
+      // { plot, state, blueprint } for one plot; { state } = any plot in that state; { surveyed: bool }
+      if (val.surveyed !== undefined) return (Object.keys(game.content.plots || {}).length > 0) === val.surveyed;
+      const owned = game.world.properties?.owned || {};
+      const match = (rec) => {
+        const state = rec?.state || 'none';
+        if (val.state !== undefined && !(Array.isArray(val.state) ? val.state.includes(state) : state === val.state)) return false;
+        if (val.blueprint !== undefined && (state !== 'built' || rec.blueprint !== val.blueprint)) return false;
+        return true;
+      };
+      return val.plot ? match(owned[val.plot]) : Object.values(owned).some(match);
     }
     case 'arrived':
       return Boolean(npc?.arrived && !npc.travel && !(npc.path && npc.path.length)) === val;
@@ -7082,6 +7949,249 @@ class OilCompany {
 return { OIL_PROJECTS, STATIONS, freshOil, OilCompany };
 })();
 
+// ---- src/systems/construction.js
+__m["src/systems/construction.js"] = (function () {
+// Mason's Os: day shifts on the Westbrook construction site and the crew's
+// goodwill towards the player. State lives in game.world.construction (saved).
+// Goodwill earned by careful work makes property contracts cheaper and faster
+// (see src/systems/properties.js). Unlike the refinery, rushing is never
+// rewarded — and nobody here ever shouts about it.
+const { clamp } = __m["src/core/util.js"];
+
+const SITE_STATIONS = {
+  trench: { name: 'Trench', proper: 'You dig to the string line, square the sides and shore them. (40 min)', rush: 'You scoop out roughly a trench-shaped hole. (10 min)' },
+  bricks: { name: 'Brick stack', proper: 'You lay a true course: buttered, levelled, pointed. (40 min)', rush: 'You stack bricks in a way that is technically a wall. (10 min)' },
+  mixer: { name: 'Cement mixer', proper: 'You measure sand, cement and water to Dee\'s recipe. (40 min)', rush: 'You eyeball it and add water until it looks like porridge. (10 min)' },
+};
+
+const SITE_WAGE = 6;
+const MAX_GOODWILL = 30;
+
+function freshConstruction() {
+  return { goodwill: 0, shiftsWorked: 0, rushDay: -1, rushCount: 0 };
+}
+
+class Construction {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get state() {
+    if (!this.game.world.construction) this.game.world.construction = freshConstruction();
+    return this.game.world.construction;
+  }
+
+  /** Fraction off property contracts (0–0.25) from crew goodwill. */
+  discount() {
+    return Math.min(0.25, this.state.goodwill / 120);
+  }
+
+  /** Days shaved off a build: one at 15 goodwill, two at 30. */
+  speedup() {
+    return this.state.goodwill >= 30 ? 2 : this.state.goodwill >= 15 ? 1 : 0;
+  }
+
+  addGoodwill(n) {
+    this.state.goodwill = clamp(this.state.goodwill + n, 0, MAX_GOODWILL);
+    this.game.bus.emit('construction:goodwill', { goodwill: this.state.goodwill });
+  }
+
+  stationPrompt(prop) {
+    const g = this.game;
+    const station = prop.interact.station;
+    const def = SITE_STATIONS[station];
+    if (!g.quests.matches({ id: 'job_construction_shift', stage: 'work' })) {
+      return { type: 'message', text: `A hand-painted sign on the ${def.name.toLowerCase()}: "CREW ONLY — see Dee for a shift. (She's the one with the clipboard and the laugh.)"` };
+    }
+    if (g.getFlag(`site_${station}`) === g.clock.day) return { type: 'message', text: `You've already done the ${def.name.toLowerCase()} today. It looks great. Probably.` };
+    return {
+      type: 'choices',
+      title: def.name,
+      text: 'How do you want to do this?',
+      options: [
+        { label: `Do it properly — ${def.proper}`, call: ['construction', 'work', prop.id, 'proper'] },
+        { label: `Rush it — ${def.rush}`, call: ['construction', 'work', prop.id, 'rush'] },
+      ],
+    };
+  }
+
+  work(propId, mode) {
+    const g = this.game;
+    const prop = g.currentMap().prop(propId);
+    if (!prop) return { ok: false, text: 'Nothing to work on.' };
+    const station = prop.interact.station;
+    const s = this.state;
+    g.skipTime(mode === 'proper' ? 40 : 10);
+    g.setFlag(`site_${station}`, g.clock.day);
+    if (mode === 'rush') {
+      s.rushCount = s.rushDay === g.clock.day ? s.rushCount + 1 : 1;
+      s.rushDay = g.clock.day;
+      g.setFlag('site_rushed', g.clock.day);
+      const dee = g.npcs.get('npc_dee');
+      if (dee && dee.map === g.player.map && dee.activity !== 'sleep' && g.canSee(dee, g.player.x, g.player.y, g.currentMap(), 10)) {
+        g.knowledge.learn(dee, 'fact_player_rushed_site', { kind: 'fact', source: 'witnessed', at: g.clock.total });
+        g.bark(dee, 'Easy, pal — a wall is only as good as its worst brick!');
+      }
+    }
+    const done = Object.keys(SITE_STATIONS).every((st) => g.getFlag(`site_${st}`) === g.clock.day);
+    if (done) g.quests.setStage('job_construction_shift', 'report');
+    const def = SITE_STATIONS[station];
+    return { ok: true, text: (mode === 'proper' ? def.proper : def.rush).replace(/\s*\(.*\)$/, '') };
+  }
+
+  rushedToday() {
+    return this.state.rushDay === this.game.clock.day ? this.state.rushCount : 0;
+  }
+
+  /** Paid by Dee on report: a fair flat wage. Careful work earns goodwill. */
+  payShift() {
+    const g = this.game;
+    const s = this.state;
+    const rushed = this.rushedToday();
+    g.player.money += SITE_WAGE;
+    g.bus.emit('money:changed', { delta: SITE_WAGE, total: g.player.money });
+    s.shiftsWorked += 1;
+    this.addGoodwill(rushed ? -rushed : 2);
+    return SITE_WAGE;
+  }
+}
+
+return { SITE_STATIONS, SITE_WAGE, MAX_GOODWILL, freshConstruction, Construction };
+})();
+
+// ---- src/systems/properties.js
+__m["src/systems/properties.js"] = (function () {
+// Properties: the player pays Mason's Os to build on a surveyed plot.
+// Flow: commission (pay land + build cost, minus crew goodwill discount)
+//   → 'permit'   (needs a building permit, Form 22-B, from the Civic Office)
+//   → 'building' (the crew works for N days; counts down at 18:00)
+//   → 'built'    (the building appears on the map; home/rental/business pay off)
+// State lives in game.world.properties.owned[plotId] (saved). Plots and
+// blueprints are content (src/content/properties.js); there are none yet.
+const { plotBuilding } = __m["src/world/plots.js"];
+
+const PERMIT_FEE = 10;
+
+function freshProperties() {
+  return { owned: {}, lastTickDay: 0, income: 0 };
+}
+
+class Properties {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get state() {
+    if (!this.game.world.properties) this.game.world.properties = freshProperties();
+    return this.game.world.properties;
+  }
+
+  get plots() {
+    return this.game.content.plots || {};
+  }
+
+  get blueprints() {
+    return this.game.content.blueprints || {};
+  }
+
+  /** 'none' | 'permit' | 'building' | 'built' */
+  status(plotId) {
+    return this.state.owned[plotId]?.state || 'none';
+  }
+
+  list() {
+    return Object.entries(this.plots).map(([id, plot]) => ({ id, plot, status: this.status(id), record: this.state.owned[id] || null }));
+  }
+
+  quote(id, bpId) {
+    const plot = this.plots[id];
+    const bp = this.blueprints[bpId];
+    if (!plot || !bp) return null;
+    const discount = this.game.construction.discount();
+    const build = Math.round(bp.cost * (1 - discount));
+    const land = this.state.owned[id] ? 0 : plot.landPrice || 0;
+    const days = Math.max(1, bp.days - this.game.construction.speedup());
+    return { land, build, discount, total: land + build, days };
+  }
+
+  commission(id, bpId) {
+    const g = this.game;
+    const plot = this.plots[id];
+    if (!plot) return { ok: false, text: 'No such plot.' };
+    if (!(plot.allowed || Object.keys(this.blueprints)).includes(bpId)) return { ok: false, text: 'That can\'t be built there.' };
+    if (this.status(id) !== 'none') return { ok: false, text: 'Mason\'s Os already has a contract on that plot.' };
+    const q = this.quote(id, bpId);
+    if (!q) return { ok: false, text: 'No such blueprint.' };
+    if (g.player.money < q.total) return { ok: false, text: `That comes to ${q.total} obols. You're a little short — no shame in it, pal.` };
+    g.player.money -= q.total;
+    g.bus.emit('money:changed', { delta: -q.total, total: g.player.money });
+    this.state.owned[id] = { blueprint: bpId, state: 'permit', paid: q.total, days: q.days, daysLeft: q.days, commissionedDay: g.clock.day };
+    g.setFlag('property_commissioned', true);
+    g.bus.emit('property:changed', { plot: id, state: 'permit' });
+    return { ok: true, text: `Contract signed: ${this.blueprints[bpId].name} on ${plot.name}, ${q.total} obols. Next: a building permit (Form 22-B) from the Civic Office.` };
+  }
+
+  /** Issue permits for every contract waiting on one. Returns how many. */
+  grantPermits() {
+    let n = 0;
+    for (const [id, rec] of Object.entries(this.state.owned)) {
+      if (rec.state !== 'permit') continue;
+      rec.state = 'building';
+      rec.startedDay = this.game.clock.day;
+      n++;
+      this.game.bus.emit('property:changed', { plot: id, state: 'building' });
+    }
+    return n;
+  }
+
+  /** 18:00: building countdown, completion, rent and income. */
+  dailyTick() {
+    const g = this.game;
+    const s = this.state;
+    if (s.lastTickDay === g.clock.day) return;
+    s.lastTickDay = g.clock.day;
+    let rebuilt = false;
+    for (const [id, rec] of Object.entries(s.owned)) {
+      const plot = this.plots[id];
+      const bp = this.blueprints[rec.blueprint];
+      if (!plot || !bp) continue;
+      if (rec.state === 'building') {
+        rec.daysLeft -= 1;
+        if (rec.daysLeft <= 0) {
+          rec.state = 'built';
+          rec.builtDay = g.clock.day;
+          rebuilt = true;
+          g.notify(`Mason's Os finished your ${bp.name.toLowerCase()} on ${plot.name}! "It's a home run — well, a home, anyway."`, 'good');
+          g.bus.emit('property:changed', { plot: id, state: 'built' });
+        }
+      } else if (rec.state === 'built') {
+        const pay = bp.rent || bp.income || 0;
+        if (pay > 0) {
+          g.player.money += pay;
+          s.income += pay;
+          g.bus.emit('money:changed', { delta: pay, total: g.player.money });
+          g.notify(`${plot.name}: +${pay} obols ${bp.rent ? 'rent' : 'takings'}.`, 'good');
+        }
+      }
+    }
+    if (rebuilt) g.rebuildMaps();
+  }
+
+  /** Exterior buildings for finished properties, by map id. */
+  builtBuildings() {
+    const out = [];
+    for (const [id, rec] of Object.entries(this.state.owned)) {
+      const plot = this.plots[id];
+      const bp = this.blueprints[rec.blueprint];
+      if (rec.state === 'built' && plot && bp) out.push({ map: plot.map, building: plotBuilding(id, plot, bp) });
+    }
+    return out;
+  }
+}
+
+return { PERMIT_FEE, freshProperties, Properties };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -7193,7 +8303,7 @@ const { parseSpotRef, TILE, interpolate } = __m["src/core/util.js"];
 const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit',
 ];
 
 /**
@@ -7357,7 +8467,19 @@ function applyOne(game, eff, npc, result) {
         game.bus.emit('oil:changed', {});
         break;
       }
+      case 'site':
+        // { site: { goodwill: 2 } } — Mason's Os crew goodwill
+        if (val.goodwill) game.construction.addGoodwill(val.goodwill);
+        break;
+      case 'permit':
+        // Civic Office issues building permits for every contract awaiting one.
+        game.properties.grantPermits();
+        break;
       case 'payWages': {
+        if (val === 'construction') {
+          game.construction.payShift();
+          break;
+        }
         const pay = game.oil.wagesOwed();
         game.player.money += pay;
         game.bus.emit('money:changed', { delta: pay, total: game.player.money });
@@ -7437,6 +8559,8 @@ const { Inventory } = __m["src/systems/inventory.js"];
 const { QuestSystem } = __m["src/systems/quests.js"];
 const { EventDirector } = __m["src/systems/eventDirector.js"];
 const { OilCompany, freshOil } = __m["src/systems/oilCompany.js"];
+const { Construction, freshConstruction } = __m["src/systems/construction.js"];
+const { Properties, freshProperties } = __m["src/systems/properties.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -7448,7 +8572,7 @@ const PLAYER_BOX = { w: 16, h: 8 }; // feet hitbox, centred on x, bottom at y+2
 const INTERACT_RANGE = 46;
 const WITNESS_RANGE_TILES = 9;
 
-const DEFAULT_REPUTATION = { lanternside: 0, fac_civic: 0, fac_merchants: 0, fac_quay: 0, fac_oil: 0 };
+const DEFAULT_REPUTATION = { lanternside: 0, fac_civic: 0, fac_merchants: 0, fac_quay: 0, fac_oil: 0, fac_builders: 0 };
 
 class Game {
   constructor(content, { seed } = {}) {
@@ -7462,6 +8586,8 @@ class Game {
     this.events = new EventDirector(this);
     this.npcSystem = new NpcSystem(this);
     this.oil = new OilCompany(this);
+    this.construction = new Construction(this);
+    this.properties = new Properties(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -7503,6 +8629,7 @@ class Game {
       discovered: { maps: { [this.content.startingMap]: true }, areas: {} },
     };
     this.world = this.freshWorld();
+    this.rebuildMaps();
     this.questState = {};
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) this.npcs.set(profile.id, this.createNpc(profile));
@@ -7523,6 +8650,8 @@ class Game {
       flags: {},
       publicFacts: {},
       oil: freshOil(),
+      construction: freshConstruction(),
+      properties: freshProperties(),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -7683,6 +8812,7 @@ class Game {
       this.events.hourly();
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
+    if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
     if (Math.floor(this.clock.total) % 12 === 0) this.player.energy = Math.max(0, this.player.energy - 1);
   }
 
@@ -8053,6 +9183,7 @@ class Game {
       case 'obstacle': return this.world.props[prop.id]?.open ? `Climb through the ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
+      case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
@@ -8110,7 +9241,9 @@ class Game {
         return { type: 'container', containerId: act.container };
       }
       case 'workstation':
-        return this.oil.stationPrompt(prop);
+        return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
+      case 'contracts':
+        return { type: 'contracts' };
       case 'read': {
         if (act.private) {
           const owner = this.npcs.get(act.private);
@@ -8412,6 +9545,9 @@ class Game {
     this.world.containers = { ...fresh.containers, ...(this.world.containers || {}) };
     this.world.shops = { ...fresh.shops, ...(this.world.shops || {}) };
     this.world.oil = { ...fresh.oil, ...(this.world.oil || {}) };
+    this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
+    this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
+    this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) {
@@ -8442,6 +9578,23 @@ class Game {
     }
     this.updateDiscovery();
     return this;
+  }
+
+  /**
+   * Recreate runtime maps from content, then add finished property buildings.
+   * Called on new game, on load and when a property completes.
+   */
+  rebuildMaps() {
+    this.maps = new Map(Object.values(this.content.maps).map((d) => [d.id, new GameMap(d, this.content.propTypes)]));
+    if (this.world?.properties) for (const { map, building } of this.properties.builtBuildings()) this.maps.get(map)?.addBuilding(building);
+    this.bus.emit('maps:rebuilt', {});
+  }
+
+  /** Mason's pun of the day: the same all day, different tomorrow. */
+  dailyPun() {
+    const puns = this.content.puns || [];
+    if (!puns.length) return { setup: '', punchline: '' };
+    return puns[(this.clock.day * 7 + 3) % puns.length];
   }
 
   /** Short metadata for save slot listings. */
@@ -8504,6 +9657,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.4.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Mason\'s Os',
+    notes: [
+      'Second imported character: Mason Nails, cheerful owner of Mason\'s Os construction ("That\'s O plural!") — with his photo as portrait and a new Pun of the Day, every day.',
+      'A new district west of town, joined seamlessly: Westbrook Lots, with the Mason\'s Os yard and site office, an active building site, the Plumb Line Apartments and open surveyed land.',
+      'Three new residents — Dee the foreman, Barnaby the gentle giant (and gull defender) and Quinn the nervous surveyor — who all live next to the site.',
+      'Work construction shifts for Dee: dig, lay bricks, mix cement. Six obols, fair and square. Careful work earns crew goodwill.',
+      'Groundwork for owning property: Mason\'s contracts board, building permits from Osric, and homes, rental flats and shopfronts to build — once plots are surveyed (none yet).',
+    ],
+  },
   {
     version: '0.3.0',
     date: '2026-10-13',
@@ -9396,7 +10562,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting']);
+const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board']);
 
 function drawProp(ctx, p, opts) {
   const x = p.x * T;
@@ -9743,6 +10909,154 @@ function drawProp(ctx, p, opts) {
       ctx.fillRect(x + 10, y + 17, 12, 3);
       break;
     }
+    // ---------------------------------------------------- Mason's Os site
+    case 'scaffold': {
+      // timber-and-pipe scaffolding with planks; a fixed look (the site doesn't progress)
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 4, w, 5);
+      ctx.fillStyle = 'rgba(200,170,120,0.35)';
+      ctx.fillRect(x + 4, y - 18, w - 8, h + 14);
+      ctx.strokeStyle = '#8a8f96';
+      ctx.lineWidth = 2;
+      const cols = Math.max(2, p.w + 1);
+      for (let i = 0; i < cols; i++) {
+        const px = x + 3 + ((w - 6) * i) / (cols - 1);
+        ctx.beginPath(); ctx.moveTo(px, y + h - 2); ctx.lineTo(px, y - 20); ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 3, y + h - 4); ctx.lineTo(x + w - 3, y - 18); ctx.stroke();
+      for (const ly of [y - 20, y + h / 2 - 12, y + h - 10]) {
+        ctx.fillStyle = '#b8874a';
+        ctx.fillRect(x, ly, w, 4);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x, ly + 4, w, 1);
+      }
+      break;
+    }
+    case 'excavator': {
+      const active = opts.active;
+      const t = active ? time : 0;
+      const arm = active ? Math.sin(t * 1.3) * 0.35 : 0.1;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 2, y + h - 6, w, 7);
+      // tracks
+      ctx.fillStyle = '#2a2a2e';
+      rrect(ctx, x + 2, y + h - 16, w - 4, 12, 6); ctx.fill();
+      ctx.fillStyle = '#4a4a50';
+      for (let i = 0; i < 6; i++) ctx.fillRect(x + 6 + i * ((w - 14) / 5) + ((t * 30) % 6), y + h - 13, 3, 6);
+      // body + cab (Mason sits inside: the cab is open at the front)
+      ctx.fillStyle = '#e8b23a';
+      rrect(ctx, x + 4, y + 6, w - 10, h - 22, 4); ctx.fill();
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(x + 8, y - 16, 4, 24); ctx.fillRect(x + w - 30, y - 16, 4, 24);
+      ctx.fillStyle = '#d29a22';
+      ctx.fillRect(x + 6, y - 20, w - 32, 6);
+      ctx.fillStyle = 'rgba(160,200,220,0.25)';
+      ctx.fillRect(x + 12, y - 14, w - 42, 18);
+      ctx.fillStyle = '#2a2a2e';
+      ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
+      ctx.fillText('I DIG IT', x + 8, y + 22);
+      // boom and bucket
+      ctx.save();
+      ctx.translate(x + w - 14, y + 8);
+      ctx.rotate(-0.9 + arm);
+      ctx.fillStyle = '#e8b23a';
+      ctx.fillRect(0, -3, 30, 6);
+      ctx.translate(30, 0);
+      ctx.rotate(1.6 - arm * 1.4);
+      ctx.fillRect(0, -2, 20, 5);
+      ctx.fillStyle = '#5a5a60';
+      ctx.beginPath(); ctx.moveTo(18, -4); ctx.lineTo(28, -2); ctx.lineTo(26, 8); ctx.lineTo(16, 6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      if (active) {
+        ctx.fillStyle = `rgba(120,120,120,${0.25 + 0.15 * Math.sin(t * 6)})`;
+        ctx.beginPath(); ctx.arc(x + 14, y - 26 - ((t * 12) % 10), 4, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    case 'lumber': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 4, w - 2, 5);
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 ? '#c99a5e' : '#b8874a';
+        ctx.fillRect(x + 2, y + 4 + i * 6, w - 4, 5);
+        ctx.fillStyle = '#e2c08a';
+        for (let j = 0; j < 4; j++) { ctx.beginPath(); ctx.arc(x + 6 + j * ((w - 12) / 3), y + 6 + i * 6, 2, 0, Math.PI * 2); ctx.fill(); }
+      }
+      break;
+    }
+    case 'bricks': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 4, w - 2, 5);
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(x + 2, y + h - 8, w - 4, 6); // pallet
+      for (let row = 0; row < 4; row++)
+        for (let i = 0; i < p.w * 3; i++) {
+          const bx = x + 3 + i * 10 + (row % 2 ? 5 : 0);
+          if (bx + 9 > x + w - 2) continue;
+          ctx.fillStyle = (i + row) % 3 ? '#b4553a' : '#a24a32';
+          ctx.fillRect(bx, y + h - 13 - row * 5, 9, 4);
+        }
+      break;
+    }
+    case 'mixer': {
+      const spin = time * 2.5;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.ellipse(x + 17, y + h - 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a6a9a';
+      ctx.fillRect(x + 6, y + h - 10, 20, 6);
+      ctx.fillStyle = '#2a2a2e';
+      ctx.beginPath(); ctx.arc(x + 9, y + h - 3, 3, 0, Math.PI * 2); ctx.arc(x + 23, y + h - 3, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(x + 16, y + 6);
+      ctx.rotate(-0.5);
+      ctx.fillStyle = '#e0702a';
+      ctx.beginPath(); ctx.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      for (let i = 0; i < 3; i++) {
+        const a = spin + i * 2.1;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * 10, Math.sin(a) * 6); ctx.lineTo(Math.cos(a + 0.8) * 10, Math.sin(a + 0.8) * 6); ctx.stroke();
+      }
+      ctx.fillStyle = '#7a7a80';
+      ctx.beginPath(); ctx.ellipse(12, -1, 3, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case 'trench': {
+      ctx.fillStyle = '#5a4030';
+      ctx.fillRect(x + 2, y + 6, w - 4, h - 12);
+      ctx.fillStyle = '#3a2a20';
+      ctx.fillRect(x + 4, y + 10, w - 8, h - 18);
+      ctx.fillStyle = '#9a7a5a';
+      ctx.fillRect(x, y + 3, w, 3); // spoil heap edge
+      ctx.strokeStyle = '#f2efe6';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + w, y + 2); ctx.stroke(); // string line
+      ctx.setLineDash([]);
+      break;
+    }
+    case 'stake': {
+      ctx.fillStyle = '#a07a50';
+      ctx.fillRect(x + 15, y + 8, 3, 18);
+      ctx.fillStyle = '#ff7a2a';
+      const flap = Math.sin(time * 4 + p.x * 3) * 3;
+      ctx.beginPath(); ctx.moveTo(x + 18, y + 8); ctx.lineTo(x + 26, y + 10 + flap); ctx.lineTo(x + 18, y + 13); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'board': {
+      // the contracts board on the office wall
+      ctx.fillStyle = '#8a6142';
+      ctx.fillRect(x + 1, y + 4, w * 2 - 2, h - 6);
+      ctx.fillStyle = '#d9c9a0';
+      ctx.fillRect(x + 4, y + 7, w * 2 - 8, h - 12);
+      ctx.fillStyle = '#6a8ac0';
+      ctx.fillRect(x + 7, y + 10, 18, 12);
+      ctx.fillStyle = '#f2efe6';
+      ctx.fillRect(x + 30, y + 10, 14, 10);
+      ctx.fillStyle = '#c0414a';
+      ctx.fillRect(x + 32, y + 12, 10, 2);
+      break;
+    }
     case 'derrick': {
       const cx = x + w / 2;
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -9920,7 +11234,7 @@ class Renderer {
     this.game = game;
     this.assets = assets;
     this.cam = { x: 0, y: 0, zoom: 2 };
-    this.staticLayers = new Map();
+    this.staticLayers = new WeakMap(); // keyed by GameMap object: rebuilt maps get fresh layers
     this.light = document.createElement('canvas');
     this.layers = [];
     this.time = 0;
@@ -9943,15 +11257,15 @@ class Renderer {
   }
 
   staticLayer(map) {
-    if (!this.staticLayers.has(map.id)) {
-      this.staticLayers.set(map.id, buildStaticLayer(map, (w, h) => {
+    if (!this.staticLayers.has(map)) {
+      this.staticLayers.set(map, buildStaticLayer(map, (w, h) => {
         const c = document.createElement('canvas');
         c.width = w;
         c.height = h;
         return c;
       }));
     }
-    return this.staticLayers.get(map.id);
+    return this.staticLayers.get(map);
   }
 
   snapCamera() {
@@ -10060,8 +11374,10 @@ class Renderer {
       for (const p of lm.props) {
         if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
         if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-        const tallY = p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] })) });
+        // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
+        const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
+        const active = p.animateWhen ? check(p.animateWhen, g) : true;
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -10395,7 +11711,8 @@ class DialogueSession {
   // ------------------------------------------------------------ text utils
   vars() {
     const g = this.game;
-    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday };
+    const pun = g.dailyPun ? g.dailyPun() : {};
+    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline };
   }
 
   /** Resolve a "say" (array of pages; pages may be conditional objects). Runs page effects. */
@@ -10885,6 +12202,11 @@ class DialogueUI {
       this.ui.openPanel('invest', { onClose: () => this.renderOptions() });
       return;
     }
+    if (node.action?.type === 'contracts') {
+      node.action = null;
+      this.ui.openPanel('contracts', { onClose: () => this.renderOptions() });
+      return;
+    }
     if (node.action?.type === 'ledger') {
       node.action = null;
       this.close();
@@ -10987,12 +12309,13 @@ function tileColor(map, ch) {
 class MapRenderer {
   constructor(game) {
     this.game = game;
-    this.cache = new Map();
+    this.cache = new WeakMap(); // GameMap -> Map(scale -> canvas); rebuilt maps redraw
   }
 
   base(map, scale) {
-    const key = `${map.id}@${scale}`;
-    if (this.cache.has(key)) return this.cache.get(key);
+    if (!this.cache.has(map)) this.cache.set(map, new Map());
+    const byScale = this.cache.get(map);
+    if (byScale.has(scale)) return byScale.get(scale);
     const c = document.createElement('canvas');
     c.width = map.width * scale;
     c.height = map.height * scale;
@@ -11011,7 +12334,7 @@ class MapRenderer {
       ctx.fillStyle = p.type === 'fountain' ? '#5aa0c0' : map.kind === 'interior' ? '#8a6142' : '#3f6f3c';
       ctx.fillRect(p.x * scale, p.y * scale, p.w * scale, p.h * scale);
     }
-    this.cache.set(key, c);
+    byScale.set(scale, c);
     return c;
   }
 
@@ -11518,7 +12841,7 @@ function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = sys === 'oil' ? ui.game.oil : ui.game;
+      const target = sys === 'oil' ? ui.game.oil : sys === 'construction' ? ui.game.construction : ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -11564,6 +12887,47 @@ function investPanel(ui, body, opts) {
   };
   render();
   return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
+}
+
+// --------------------------------------------------------------- contracts
+function contractsPanel(ui, body, opts) {
+  const g = ui.game;
+  const P = g.properties;
+  const render = (msg) => {
+    body.innerHTML = '';
+    const site = g.construction.state;
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('div', { class: 'grid2', style: 'margin-bottom:12px' },
+      h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, String(g.player.money))),
+      h('div', { class: 'stat' }, h('span', {}, 'Crew goodwill'), h('b', {}, `${site.goodwill} / 30`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Goodwill discount'), h('b', {}, `${Math.round(g.construction.discount() * 100)}%`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Faster builds'), h('b', {}, g.construction.speedup() ? `−${g.construction.speedup()} day(s)` : 'not yet')),
+    ));
+    const plots = P.list();
+    if (!plots.length) {
+      body.append(h('p', { class: 'doc' }, 'The board is covered in blueprints and not one surveyed plot. A note in Quinn\'s tidy hand: "No plots surveyed yet — new land coming soon!" Underneath, in Mason\'s: "We\'re still laying the groundwork. Literally."'),
+        h('p', { class: 'muted' }, 'Working shifts for Dee now builds crew goodwill: cheaper and faster contracts once plots open up.'));
+    }
+    const wrap = h('div', { class: 'list' });
+    for (const { id, plot, status, record } of plots) {
+      if (status !== 'none') {
+        const bp = P.blueprints[record.blueprint];
+        const label = status === 'permit' ? 'awaiting permit (Form 22-B, Civic Office)' : status === 'building' ? `under construction — ${record.daysLeft} day(s) left` : 'finished';
+        wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '🏗️'), h('div', { class: 'grow' }, h('div', { class: 'name' }, plot.name, h('span', { class: 'tag' }, bp.name)), h('div', { class: 'desc' }, label))));
+        continue;
+      }
+      for (const bpId of plot.allowed || Object.keys(P.blueprints)) {
+        const bp = P.blueprints[bpId];
+        const q = P.quote(id, bpId);
+        wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, bpId === 'home' ? '🏠' : bpId === 'rental' ? '🏘️' : '🏪'),
+          h('div', { class: 'grow' }, h('div', { class: 'name' }, `${plot.name}: ${bp.name}`, h('span', { class: 'tag' }, `${q.days} days`)), h('div', { class: 'desc' }, `${bp.text} Land ${q.land} + build ${q.build}.`)),
+          h('button', { class: 'small primary', disabled: g.player.money < q.total, onclick: () => { const r = P.commission(id, bpId); render(r.text); } }, `Sign · ${q.total}`)));
+      }
+    }
+    body.append(wrap);
+  };
+  render();
+  return { title: 'Mason\'s Os — Contracts', onClose: opts.onClose };
 }
 
 // ------------------------------------------------------------------ ledger
@@ -11616,6 +12980,7 @@ const PANELS = {
   choices: choicesPanel,
   invest: investPanel,
   ledger: ledgerPanel,
+  contracts: contractsPanel,
   pause: pausePanel,
   inventory: inventoryPanel,
   journal: journalPanel,
@@ -11631,7 +12996,7 @@ const PANELS = {
 
 
 
-return { h, itemIcon, pausePanel, inventoryPanel, journalPanel, mapPanel, containerPanel, shopPanel, readPanel, messagePanel, settingsPanel, savesPanel, aboutPanel, choicesPanel, investPanel, ledgerPanel, PANELS, SLOTS };
+return { h, itemIcon, pausePanel, inventoryPanel, journalPanel, mapPanel, containerPanel, shopPanel, readPanel, messagePanel, settingsPanel, savesPanel, aboutPanel, choicesPanel, investPanel, contractsPanel, ledgerPanel, PANELS, SLOTS };
 })();
 
 // ---- src/ui/ui.js
@@ -11993,6 +13358,7 @@ class UI {
       case 'message': this.showCaption(act.text, Math.min(9, 3 + act.text.length / 40)); this.audio.sfx('sfx_ui_click'); break;
       case 'container': this.openPanel('container', { containerId: act.containerId }); break;
       case 'choices': this.openPanel('choices', act); break;
+      case 'contracts': this.openPanel('contracts', {}); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;

@@ -16,7 +16,7 @@ export class Renderer {
     this.game = game;
     this.assets = assets;
     this.cam = { x: 0, y: 0, zoom: 2 };
-    this.staticLayers = new Map();
+    this.staticLayers = new WeakMap(); // keyed by GameMap object: rebuilt maps get fresh layers
     this.light = document.createElement('canvas');
     this.layers = [];
     this.time = 0;
@@ -39,15 +39,15 @@ export class Renderer {
   }
 
   staticLayer(map) {
-    if (!this.staticLayers.has(map.id)) {
-      this.staticLayers.set(map.id, buildStaticLayer(map, (w, h) => {
+    if (!this.staticLayers.has(map)) {
+      this.staticLayers.set(map, buildStaticLayer(map, (w, h) => {
         const c = document.createElement('canvas');
         c.width = w;
         c.height = h;
         return c;
       }));
     }
-    return this.staticLayers.get(map.id);
+    return this.staticLayers.get(map);
   }
 
   snapCamera() {
@@ -156,8 +156,10 @@ export class Renderer {
       for (const p of lm.props) {
         if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
         if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-        const tallY = p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] })) });
+        // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
+        const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
+        const active = p.animateWhen ? check(p.animateWhen, g) : true;
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;

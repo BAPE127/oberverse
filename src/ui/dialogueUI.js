@@ -141,6 +141,11 @@ export class DialogueUI {
       this.ui.openPanel('invest', { onClose: () => this.renderOptions() });
       return;
     }
+    if (node.action?.type === 'contracts') {
+      node.action = null;
+      this.ui.openPanel('contracts', { onClose: () => this.renderOptions() });
+      return;
+    }
     if (node.action?.type === 'ledger') {
       node.action = null;
       this.close();

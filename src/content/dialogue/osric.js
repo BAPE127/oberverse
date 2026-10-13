@@ -245,6 +245,18 @@ export default {
       if: { notFlag: 'signed_register', map: 'civic_office' },
       say: ['There is a Visitors\' Register on the lectern. Everyone who visits signs it. Nobody does. You could be the exception.'],
     },
+    {
+      id: 't_osric_permit', label: '"I need a building permit. Form 22-B."', tag: 'quest', keywords: ['permit', 'building', '22-b', 'form', 'mason'],
+      if: { property: { state: 'permit' } },
+      say: ['A Form 22-B. For a Mason\'s Os contract. Mr. Nails\'s paperwork is, regrettably, perfect, so I cannot object on technical grounds.'],
+      choices: [
+        {
+          id: 'c_osric_permit_pay', label: 'Pay the 10-obol fee and sign. Many times.', if: { money: '>=10' },
+          say: ['Sign here. And here. Initial here. Date here. Sign again — no, the other way up.', 'Stamped. Building may commence. Please inform Mr. Nails that I do not wish to hear any jokes about it.'],
+          effects: [{ money: -10 }, { permit: true }, { rel: { respect: 2 } }, { rep: { fac_civic: 1 } }, { notify: 'Building permit granted. Mason\'s Os breaks ground!' }],
+        },
+      ],
+    },
   ],
   askAbout: [
     { keywords: ['gull', 'gulls'], variants: [['The gulls are not, legally, a nuisance. I have tried. The relevant bylaw defines nuisance as "a person". I am lobbying for amendment.']] },

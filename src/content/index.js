@@ -3,6 +3,7 @@
 import lanternside from './maps/lanternside.js';
 import interiors from './maps/interiors.js';
 import oberMaps from './maps/oberFields.js';
+import westbrookMaps from './maps/westbrook.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
 import { FACTS } from './facts.js';
@@ -27,15 +28,21 @@ import dlgOsric from './dialogue/osric.js';
 import dlgTibbs from './dialogue/tibbs.js';
 import dlgMoneybucks from './dialogue/moneybucks.js';
 import dlgOberStaff from './dialogue/oberStaff.js';
+import masonCrew from './characters/mason.js';
+import dlgMasonCrew from './dialogue/mason.js';
+import { PUNS } from './dialogue/mason.js';
+import { PLOTS, BLUEPRINTS } from './properties.js';
+import { withPlots } from '../world/plots.js';
 
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 
-export const CONTENT = {
+/** Content before property plots are expanded (tests add fixture plots to this). */
+export const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
@@ -52,10 +59,15 @@ export const CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew]),
+  puns: PUNS,
+  blueprints: BLUEPRINTS,
+  plots: {},
   startingMap: 'player_flat',
   startingSpot: 'entry',
 };
+
+export const CONTENT = withPlots(BASE_CONTENT, PLOTS);
 
 export default CONTENT;

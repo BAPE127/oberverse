@@ -118,8 +118,10 @@ export default {
     patio: { x: 14, y: 18, facing: 'left' },
     east_road: { x: 61, y: 13, facing: 'left' },
     pier_mid: { x: 56, y: 37, facing: 'down' },
+    west_road: { x: 1, y: 13, facing: 'right' },
   },
   props: [
+    { id: 'sign_west', type: 'sign', x: 1, y: 10, examine: '"← WEST: Westbrook Lots. Mason\'s Os Construction — That\'s O plural! Build your future here."' },
     { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights
     tree('t_bh1', 1, 2), tree('t_bh2', 11, 3), tree('t_bh3', 20, 2), tree('t_bh4', 27, 3), tree('t_bh5', 1, 8),

@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-13 — v0.4.0.** Second imported character (Mason Nails) + crew, Westbrook Lots west of Lanternside, construction shifts, property groundwork. **No plots exist yet: the project owner will say where to create them** (docs/PROPERTIES.md explains the one-entry change). Next candidates: first plots when asked; tenants/businesses as real simulation; optional combat.
 - **2026-10-13 — v0.3.0.** Lanternside and the Ober Fields joined into one continuous region (seams).
 - **2026-10-13 — v0.2.0.** First imported character (Sir Moneybucks), the Ober Fields district, Ober's Oil economy. Next candidates: optional combat; a second imported character; Moneybucks's upstairs; the blocked lighthouse stair.
 - **2026-10-13 — v0.1.1.** Players now open the generated `index.html` directly; development uses `dev.html`.

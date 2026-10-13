@@ -4,10 +4,17 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.4.0 | 2026-10-13 | development | 1 | Mason's Os — second imported character, Westbrook district, property groundwork |
 | 0.3.0 | 2026-10-13 | development | 1 | One Coast — Lanternside and the Ober Fields joined seamlessly |
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.4.0 — Mason's Os
+
+- **Content:** second player-imported character (Mason Nails), three generated crew, the Westbrook Lots district west of Lanternside.
+- **Systems:** construction shifts with crew goodwill; property groundwork (plots, blueprints, permits, runtime buildings). No plots yet by design — the project owner decides where.
+- **Save compatibility:** schema 1 unchanged; new state is additive and defaulted on load. Verified against `tests/fixtures/save-schema1-v0.1.0.json`.
 
 ## 0.3.0 — One Coast
 

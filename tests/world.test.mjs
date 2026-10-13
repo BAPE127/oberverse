@@ -88,7 +88,7 @@ test('the seam follows walkable ground only (no crossing on water)', () => {
   const seams = g.maps.get('lanternside').doors.filter((d) => d.seamless).map((d) => d.y);
   assert.ok(seams.includes(12) && seams.includes(13), 'the road crosses');
   assert.ok(!seams.includes(22) && !seams.includes(35), 'canal and harbour do not');
-  assert.equal(g.neighbors('lanternside')[0].map.id, 'ober_fields');
+  assert.deepEqual(g.neighbors('lanternside').map((n) => n.map.id).sort(), ['ober_fields', 'westbrook']);
   assert.equal(g.neighbors('cafe').length, 0);
 });
 

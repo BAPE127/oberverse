@@ -13,9 +13,12 @@ import { parseSpotRef } from '../src/core/util.js';
 import { compileSong, parseMelody } from '../src/audio/music.js';
 import { AMBIENCE_IDS } from '../src/audio/ambience.js';
 import { SFX } from '../src/audio/sfx.js';
+import { STATIONS } from '../src/systems/oilCompany.js';
+import { SITE_STATIONS } from '../src/systems/construction.js';
 
 const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
-const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem'];
+const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts'];
+const COMPANY_STATIONS = { oil: STATIONS, construction: SITE_STATIONS };
 
 export function validateContent(content = CONTENT) {
   const errors = [];
@@ -69,7 +72,7 @@ export function validateContent(content = CONTENT) {
         if (p.interact.enter) spotOk(`${p.interact.enter.map}:${p.interact.enter.spot}`, `prop ${p.id}`);
       }
       if (p.type === 'item' && !content.items[p.item]) err(`prop ${p.id}: unknown item ${p.item}`);
-      if (k === 'workstation' && !['valves', 'gauges', 'barrels'].includes(p.interact.station)) err(`prop ${p.id}: unknown station`);
+      if (k === 'workstation' && !COMPANY_STATIONS[p.interact.company || 'oil']?.[p.interact.station]) err(`prop ${p.id}: unknown station ${p.interact.company || 'oil'}/${p.interact.station}`);
       if (k === 'useItem') { if (!content.items[p.interact.item]) err(`prop ${p.id}: unknown item ${p.interact.item}`); checkEffects(p.interact.effects, `prop ${p.id}`); }
       if (k === 'read' && p.interact.private && !charIds.has(p.interact.private)) err(`prop ${p.id}: unknown private owner`);
       if (p.hiddenUnless) checkCond(p.hiddenUnless, `prop ${p.id}`);
@@ -313,6 +316,27 @@ export function validateContent(content = CONTENT) {
   const reg = new Set(content.audioRegistry.map((a) => a.id));
   for (const id of [...Object.keys(content.songs), ...Object.keys(content.motifs), ...Object.keys(SFX), ...AMBIENCE_IDS]) if (!reg.has(id)) err(`audio ${id}: missing from AUDIO_REGISTRY`);
   for (const id of reg) if (!content.songs[id] && !content.motifs[id] && !SFX[id] && !AMBIENCE_IDS.includes(id) && id !== 'voice_blips') err(`AUDIO_REGISTRY ${id}: no implementation`);
+
+  // property plots and blueprints (src/content/properties.js, docs/PROPERTIES.md)
+  const bps = content.blueprints || {};
+  for (const [id, bp] of Object.entries(bps)) {
+    if (!bp.name || !(bp.cost > 0) || !(bp.days >= 1)) err(`blueprint ${id}: needs name, cost > 0 and days >= 1`);
+  }
+  for (const [id, plot] of Object.entries(content.plots || {})) {
+    const m = maps.get(plot.map);
+    if (!m) { err(`plot ${id}: unknown map ${plot.map}`); continue; }
+    if (m.kind === 'interior') err(`plot ${id}: plots must be on outdoor maps`);
+    for (const b of plot.allowed || []) if (!bps[b]) err(`plot ${id}: unknown blueprint ${b}`);
+    if (!plot.door || plot.door.y !== plot.y + plot.h - 1 || plot.door.x < plot.x || plot.door.x >= plot.x + plot.w) err(`plot ${id}: door must be on the footprint's bottom row`);
+    for (let y = plot.y; y < plot.y + plot.h; y++)
+      for (let x = plot.x; x < plot.x + plot.w; x++) {
+        const t = m.tileAt(x, y);
+        if (t === 'B' || t === 'D' || t === '~' || t === 'W' || t === 'x') { err(`plot ${id}: footprint overlaps ${t} at ${x},${y}`); y = 1e9; break; }
+      }
+    if (!plot.outside || m.blockedTile(plot.outside.x, plot.outside.y)) err(`plot ${id}: outside spot must be walkable`);
+    for (const b of m.buildings) if (plot.x < b.x + b.w && b.x < plot.x + plot.w && plot.y < b.y + b.h && b.y < plot.y + plot.h) err(`plot ${id}: overlaps building ${b.id}`);
+  }
+  for (const [i, p] of (content.puns || []).entries()) if (!p.setup || !p.punchline) err(`pun #${i}: needs setup and punchline`);
 
   // start
   if (!maps.get(content.startingMap)?.spot(content.startingSpot)) err('startingMap/startingSpot invalid');

@@ -4,7 +4,7 @@ A persistent, character-driven, systemic sandbox RPG that runs in your browser.
 
 You have just moved into Number 9, Gullwing Row, in **Lanternside** — a small seaside borough of the city of Obermere. The people here keep schedules, hold opinions, gossip, hold grudges, run businesses and react to what you do. The old lighthouse on the Point has been dark for eleven years, and nobody official wants to say why.
 
-**Version:** 0.3.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
+**Version:** 0.4.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -37,11 +37,12 @@ The game never contacts any external service or AI API.
 
 ## What's in this build
 
-* **Lanternside and the Ober Fields** — one continuous stretch of coast (walk east along Gullwing Road from town into the oil country, no loading) with canal, civic square, park, quay, lighthouse point, manor grounds, refinery and oil fields, plus nine interiors, with a day/night cycle, lit windows, street lamps and a world clock (1 real second = 1 game minute).
+* **Westbrook Lots, Lanternside and the Ober Fields** — one continuous stretch of coast (walk west along Gullwing Road to the building site, or east into the oil country, no loading) with canal, civic square, park, quay, lighthouse point, a construction site, manor grounds, refinery and oil fields, plus eleven interiors, with a day/night cycle, lit windows, street lamps and a world clock (1 real second = 1 game minute).
 * **Three original residents** — Mags (café owner, gossip broker), Osric (Civic Office clerk, keeper of keys), Tibbs (impulsive mechanic). Each has a structured personality, schedule, impulses, moods, bounded memory, relationships, knowledge, voice, musical motif and their own dialogue and mechanics.
 * **Sir Richard E. Moneybucks, Esq.** — the first imported character: ruthless founder of Ober's Oil, with his estate east of town (manor, refinery, oil fields), ten employees, refinery shifts, shares and expansion projects, strikes, and a high-stakes card wager called the Ledger.
+* **Mason Nails** — the second imported character: cheerful, pun-powered owner of Mason's Os ("That's O plural!") in Westbrook, with a Pun of the Day, three crew who live at the Plumb Line Apartments, construction shifts that earn crew goodwill, and the groundwork for building your own home, rental flats or shopfront (plots coming soon).
 * **Systemic play** — doors with keys and opening hours, containers with ownership and witnessed theft, shops whose prices follow friendship, gifts, persuasion checks, reputation with three factions, and information that spreads through gossip rather than omniscience.
-* **Quests with multiple solutions** — *The Dark Lamp* (get into the lighthouse by permission, stealth, or a crowbar and a noisy hatch; then decide who to tell), *The Seal of M.* (four endings), *The Lucky Spanner*, and daily café and refinery jobs.
+* **Quests with multiple solutions** — *The Dark Lamp* (get into the lighthouse by permission, stealth, or a crowbar and a noisy hatch; then decide who to tell), *The Seal of M.* (four endings), *The Lucky Spanner*, and daily café, refinery and construction jobs.
 * **Emergent events** — workshop explosions that lead to noise citations only if word reaches Osric, a missing key that Osric notices and investigates, honey-bun sell-outs that ruin Osric's lunch, and gulls with intent.
 * **Original audio** — seven procedurally performed compositions, ambience beds, sound effects, character motifs and per-character dialogue voices, with master/music/SFX/ambience/voice volume and mute.
 * **Durable saves** — autosave + three slots, backups, validation and repair, versioned schema with migrations, JSON export/import.

@@ -14,12 +14,13 @@ function tileColor(map, ch) {
 export class MapRenderer {
   constructor(game) {
     this.game = game;
-    this.cache = new Map();
+    this.cache = new WeakMap(); // GameMap -> Map(scale -> canvas); rebuilt maps redraw
   }
 
   base(map, scale) {
-    const key = `${map.id}@${scale}`;
-    if (this.cache.has(key)) return this.cache.get(key);
+    if (!this.cache.has(map)) this.cache.set(map, new Map());
+    const byScale = this.cache.get(map);
+    if (byScale.has(scale)) return byScale.get(scale);
     const c = document.createElement('canvas');
     c.width = map.width * scale;
     c.height = map.height * scale;
@@ -38,7 +39,7 @@ export class MapRenderer {
       ctx.fillStyle = p.type === 'fountain' ? '#5aa0c0' : map.kind === 'interior' ? '#8a6142' : '#3f6f3c';
       ctx.fillRect(p.x * scale, p.y * scale, p.w * scale, p.h * scale);
     }
-    this.cache.set(key, c);
+    byScale.set(scale, c);
     return c;
   }
 

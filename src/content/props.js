@@ -55,4 +55,13 @@ export const PROP_TYPES = {
   column: { solid: true, label: 'Distillation column', defaults: { w: 2, h: 3 } },
   vault: { solid: true, label: 'Vault', defaults: {} },
   painting: { solid: false, label: 'Painting', defaults: {} },
+  // Mason's Os
+  scaffold: { solid: true, label: 'Scaffolding', defaults: { w: 2, h: 2 } },
+  excavator: { solid: true, label: 'Mini excavator', defaults: { w: 2, h: 2 } },
+  lumber: { solid: true, label: 'Lumber stack', defaults: { w: 2 } },
+  bricks: { solid: true, label: 'Brick stack', defaults: { w: 2 } },
+  mixer: { solid: true, label: 'Cement mixer', defaults: {} },
+  trench: { solid: false, label: 'Trench', defaults: { w: 2 } },
+  stake: { solid: false, label: 'Survey stake', defaults: { examine: 'A survey stake with a fluttering orange ribbon. Quinn has written the coordinates on it to four decimal places.' } },
+  board: { solid: false, label: 'Contracts board', defaults: {} },
 };

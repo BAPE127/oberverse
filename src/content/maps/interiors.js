@@ -72,6 +72,7 @@ export const civicOffice = {
     entry: { x: 7, y: 8, facing: 'up' },
     desk_chair: { x: 8, y: 2, facing: 'down' },
     filing: { x: 2, y: 2, facing: 'up' },
+    counter_front: { x: 8, y: 4, facing: 'up' },
   },
   props: [
     {

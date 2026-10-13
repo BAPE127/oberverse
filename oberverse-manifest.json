@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -34,7 +34,9 @@
     "ui": "src/ui/ui.js, src/ui/panels.js, src/ui/dialogueUI.js, src/ui/maps.js",
     "oilCompany": "src/systems/oilCompany.js",
     "ledgerGame": "src/systems/ledgerGame.js",
-    "regions": "src/world/regions.js + src/content/world.js (seamless outdoor maps)"
+    "regions": "src/world/regions.js + src/content/world.js (seamless outdoor maps)",
+    "construction": "src/systems/construction.js",
+    "properties": "src/systems/properties.js, src/world/plots.js, src/content/properties.js (no plots yet)"
   },
   "contentRegistries": {
     "index": "src/content/index.js",
@@ -133,6 +135,30 @@
       "name": "Otto Brandt",
       "origin": "generated (Moneybucks import)",
       "status": "implemented"
+    },
+    {
+      "id": "npc_mason",
+      "name": "Mason Nails",
+      "origin": "imported",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_dee",
+      "name": "Dolores \"Dee\" Rivera",
+      "origin": "generated (Mason import)",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_barnaby",
+      "name": "Barnaby Cole",
+      "origin": "generated (Mason import)",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_quinn",
+      "name": "Quinn Abernathy",
+      "origin": "generated (Mason import)",
+      "status": "implemented"
     }
   ],
   "importedCharacters": [
@@ -140,6 +166,12 @@
       "id": "npc_moneybucks",
       "doc": "docs/characters/npc_moneybucks.md",
       "image": "assets/portraits/reference/npc_moneybucks_reference.jpg",
+      "interviewDate": "2026-10-13"
+    },
+    {
+      "id": "npc_mason",
+      "doc": "docs/characters/npc_mason.md",
+      "image": "assets/portraits/reference/npc_mason_reference.jpg",
       "interviewDate": "2026-10-13"
     }
   ],

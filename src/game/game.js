@@ -17,6 +17,8 @@ import { Inventory } from '../systems/inventory.js';
 import { QuestSystem } from '../systems/quests.js';
 import { EventDirector } from '../systems/eventDirector.js';
 import { OilCompany, freshOil } from '../systems/oilCompany.js';
+import { Construction, freshConstruction } from '../systems/construction.js';
+import { Properties, freshProperties } from '../systems/properties.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -28,7 +30,7 @@ export const PLAYER_BOX = { w: 16, h: 8 }; // feet hitbox, centred on x, bottom 
 const INTERACT_RANGE = 46;
 const WITNESS_RANGE_TILES = 9;
 
-export const DEFAULT_REPUTATION = { lanternside: 0, fac_civic: 0, fac_merchants: 0, fac_quay: 0, fac_oil: 0 };
+export const DEFAULT_REPUTATION = { lanternside: 0, fac_civic: 0, fac_merchants: 0, fac_quay: 0, fac_oil: 0, fac_builders: 0 };
 
 export class Game {
   constructor(content, { seed } = {}) {
@@ -42,6 +44,8 @@ export class Game {
     this.events = new EventDirector(this);
     this.npcSystem = new NpcSystem(this);
     this.oil = new OilCompany(this);
+    this.construction = new Construction(this);
+    this.properties = new Properties(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -83,6 +87,7 @@ export class Game {
       discovered: { maps: { [this.content.startingMap]: true }, areas: {} },
     };
     this.world = this.freshWorld();
+    this.rebuildMaps();
     this.questState = {};
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) this.npcs.set(profile.id, this.createNpc(profile));
@@ -103,6 +108,8 @@ export class Game {
       flags: {},
       publicFacts: {},
       oil: freshOil(),
+      construction: freshConstruction(),
+      properties: freshProperties(),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -263,6 +270,7 @@ export class Game {
       this.events.hourly();
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
+    if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
     if (Math.floor(this.clock.total) % 12 === 0) this.player.energy = Math.max(0, this.player.energy - 1);
   }
 
@@ -633,6 +641,7 @@ export class Game {
       case 'obstacle': return this.world.props[prop.id]?.open ? `Climb through the ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
+      case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
@@ -690,7 +699,9 @@ export class Game {
         return { type: 'container', containerId: act.container };
       }
       case 'workstation':
-        return this.oil.stationPrompt(prop);
+        return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
+      case 'contracts':
+        return { type: 'contracts' };
       case 'read': {
         if (act.private) {
           const owner = this.npcs.get(act.private);
@@ -992,6 +1003,9 @@ export class Game {
     this.world.containers = { ...fresh.containers, ...(this.world.containers || {}) };
     this.world.shops = { ...fresh.shops, ...(this.world.shops || {}) };
     this.world.oil = { ...fresh.oil, ...(this.world.oil || {}) };
+    this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
+    this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
+    this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) {
@@ -1022,6 +1036,23 @@ export class Game {
     }
     this.updateDiscovery();
     return this;
+  }
+
+  /**
+   * Recreate runtime maps from content, then add finished property buildings.
+   * Called on new game, on load and when a property completes.
+   */
+  rebuildMaps() {
+    this.maps = new Map(Object.values(this.content.maps).map((d) => [d.id, new GameMap(d, this.content.propTypes)]));
+    if (this.world?.properties) for (const { map, building } of this.properties.builtBuildings()) this.maps.get(map)?.addBuilding(building);
+    this.bus.emit('maps:rebuilt', {});
+  }
+
+  /** Mason's pun of the day: the same all day, different tomorrow. */
+  dailyPun() {
+    const puns = this.content.puns || [];
+    if (!puns.length) return { setup: '', punchline: '' };
+    return puns[(this.clock.day * 7 + 3) % puns.length];
   }
 
   /** Short metadata for save slot listings. */

@@ -78,8 +78,9 @@ export default {
     npc_mags: { trust: -10, affection: -10, respect: -5, suspicion: 10 },
     npc_osric: { trust: -10, affection: -15, respect: -20, suspicion: 10 },
     npc_tibbs: { trust: 0, affection: 0, respect: 10, suspicion: 0 },
+    npc_mason: { trust: 10, affection: -5, respect: 30, suspicion: 5 },
   },
-  knowledge: ['fact_lighthouse_dark', 'fact_moneybucks_owns_oil', 'fact_moneybucks_bought_seal', 'fact_lens_in_vault', 'fact_night_tankers', 'fact_harbourmaster_seal'],
+  knowledge: ['fact_moneybucks_wants_mason', 'fact_lighthouse_dark', 'fact_moneybucks_owns_oil', 'fact_moneybucks_bought_seal', 'fact_lens_in_vault', 'fact_night_tankers', 'fact_harbourmaster_seal'],
   giftPrefs: { item_cigar: 14, item_honey_bun: -3, item_scone: -3, item_wildflowers: -4, item_gull_feather: -8, item_coffee: 1, tags: { luxury: 10, food: -2, junk: -6 } },
   reactions: {
     fact_player_invested: { rel: { respect: 5, trust: 3 } },
@@ -104,6 +105,7 @@ export default {
     npc_delphine: { warm: 'Moreau is brilliant. I have her under contract until she dies.', cool: 'Moreau looks at me as if I were a chemical. An inert one.' },
     npc_silas: { warm: 'Grimmer is loyal. I value loyalty. I have bought a great deal of it.', cool: 'Grimmer should smile less. He has been smiling.' },
     npc_mabel: { warm: 'Mrs. Quince makes the finest beef Wellington in the county. I own the county\'s finest of most things.', cool: 'Mrs. Quince feuds with the café woman. Excellent. Let them weaken each other.' },
+    npc_mason: { warm: 'Nails builds the best walls on the coast. I intend to own every one of them — and him.', cool: 'Nails refused my exclusive contract. He made a joke about it. A JOKE, my good fellow. At Sir Moneybucks.' },
     npc_otto: { warm: 'Brandt fits pipes adequately.', cool: 'Brandt has a blue thread on his cuff. I know what it means. I know everything that happens on my land.' },
   },
 };
