@@ -33,6 +33,8 @@ Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`
 
 Everyone else decides by personality (confidence and competitiveness). Anyone below 25% health stops fighting and runs.
 
+**Protected (imported) characters:** Sir Moneybucks and Mason Nails cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
+
 ## Sir Moneybucks — `npc_moneybucks`
 
 See `docs/characters/npc_moneybucks.md` for the full record (interview, tiers, mechanics, routine, audio).

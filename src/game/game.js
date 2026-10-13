@@ -242,6 +242,12 @@ export class Game {
    */
   update(dt, input = { x: 0, y: 0, sprint: false }) {
     if (this.paused) return;
+    if (this.combat.wrath) {
+      // The world holds its breath while the Oberverse protects its own.
+      this.realTime += dt;
+      this.combat.update(dt);
+      return;
+    }
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
     this.updatePlayer(dt, input);

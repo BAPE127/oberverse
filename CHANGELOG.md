@@ -2,6 +2,28 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.7.0] — 2026-10-13 — "The Oberverse Protects Its Own" (development build)
+
+### Added
+- **Imported characters are protected** (`isProtected()` in `src/systems/combat.js`): any character with `origin: 'imported'` cannot be damaged, knocked out or killed — unless their profile sets `killable: true` (the project owner's decision).
+- **The Wrath**: attacking a protected character with anything (fists, melee, guns) triggers a ~10-second cutscene (`src/engine/wrath.js`) that strikes the player down:
+  - the world freezes (clock, NPCs, input), letterbox bars slide in, the camera pushes in and the sky darkens toward the character's colour;
+  - three counter-rotating rings of procedurally drawn runes unfold around the levitating victim, whose eyes burn; a heptagram sigil glows beneath them; motes swirl inward;
+  - the banner "THE OBERVERSE PROTECTS ITS OWN" drifts together letter by letter;
+  - the runes converge on the player and a sigil opens under their feet; five forked lightning bolts strike with white-out flashes and screen shake;
+  - a pillar of light rises, the player dissolves into embers, fade to black, and the victim has the last word (`profile.wrath.line`, coloured by `profile.wrath.color`).
+- **Score**: `sfx_wrath`, an original 8-second procedural piece (impact, timpani roll, detuned "choir" through vowel formants, organ pedal, rune hum, brass stabs, a rising whoosh, final D-major crash), timed to the visuals; `sfx_thunder` on every strike; music and ambience duck for the scene. Rendered offline in Chromium to confirm output and headroom (peak 0.91).
+- **Struck down** card: *Rise again* (wake at home at 08:00 the next day, full health, half your obols gone) or *Load last autosave*.
+- Consequences: the victim remembers; witnesses and the victim learn `fact_player_smitten` (gossip); flag `smitten_by_<id>` counts attempts for future dialogue.
+- Wrath lines and colours for Sir Moneybucks (gold) and Mason Nails (orange).
+- Tests: `tests/wrath.test.mjs` (5 tests).
+
+### Changed
+- `docs/CHARACTER_IMPORT.md` and prompt 03: imported characters are protected by default; ask the owner before setting `killable`, and write a `wrath.line`.
+
+### Compatibility
+- Save schema unchanged (1). The cutscene is never saved (autosave is suspended while it plays).
+
 ## [0.6.0] — 2026-10-13 — "Hard Lessons" (development build)
 
 ### Added

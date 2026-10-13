@@ -14,6 +14,7 @@
 - Present the design preview from `docs/CHARACTER_IMPORT.md` §3 and let the player correct it. Then build it — unless essential information is missing.
 - Fit the character into the existing world; you decide placement, but respect the player's wishes and boundaries.
 - Build mechanics from shared systems; add new condition/effect types only with tests and docs.
+- Imported characters are protected from harm by default (see `docs/CHARACTER_IMPORT.md` → Protection rule). Write their `wrath.line` and `wrath.color`; never set `killable: true` unless the owner explicitly says so.
 - Existing fictional characters: keep them recognisable; write original lines; no copyrighted scripts.
 
 ## Deliverables

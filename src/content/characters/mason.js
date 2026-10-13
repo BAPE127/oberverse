@@ -47,6 +47,10 @@ export const mason = {
     habits: ['a pun in nearly every line', 'calls the player "buddy" or "pal"', 'laughs at his own jokes', 'never says a harsh word'],
     rumorPrefix: 'Now I don\'t like to hammer on about it, but', factPrefix: 'Level with you, pal:', refuse: 'Ah, I\'d better not. I\'m a builder, not a blabber. That one stays under my hard hat!',
   },
+  wrath: {
+    color: '#ff9a3d',
+    line: 'Whoa — easy there, buddy! Guess the universe has my back. You could say that was… a real shocking development. No hard feelings, pal!',
+  },
   mechanics: {
     alwaysFriendly: true, // relationship with the player never drops below friendly (see reactions)
     punOfTheDay: true, // a different pun every day (Game.dailyPun)

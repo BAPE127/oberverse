@@ -5,6 +5,7 @@ import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS,
 import { drawCharacter, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
+import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js';
 import { inWindow } from '../world/clock.js';
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -79,6 +80,15 @@ export class Renderer {
     let ty = g.player.y - 16 - vh / 2;
     tx = mw <= vw ? minX + (mw - vw) / 2 : clamp(tx, minX, maxX - vw);
     ty = mh <= vh ? minY + (mh - vh) / 2 : clamp(ty, minY - TILE, maxY - vh);
+    const wr = g.combat.wrath;
+    if (wr) {
+      const c = wrathCamera(g, wr, vw, vh, zoom);
+      this.cam.zoom = c.zoom;
+      this.cam.x = c.x;
+      this.cam.y = c.y;
+      this.view = { x: c.x, y: c.y, w: this.canvas.width / c.zoom, h: this.canvas.height / c.zoom };
+      return;
+    }
     if (this.cam.snap || this.cam.mapId !== map.id) {
       this.cam.x = tx;
       this.cam.y = ty;
@@ -172,12 +182,14 @@ export class Renderer {
         }
         const nw = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon]?.weapon?.held : null;
         const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
-        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, npc, npc.activity === 'sleep')) });
+        const lift = g.combat.wrath?.npcId === npc.id ? wrathLift(g, g.combat.wrath) : 0;
+        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, lift ? { ...npc, y: npc.y - lift, moving: false } : npc, npc.activity === 'sleep')) });
       }
     }
     const held = g.combat.equipped().weapon.held;
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
-    if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(playerLook, g.player, false) });
+    const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
+    if (!this.hidePlayer && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
     if (!this.hidePlayer && this.playerOccluded(map)) {
@@ -187,6 +199,11 @@ export class Renderer {
     }
     this.drawCombatFx(ctx);
 
+    if (g.combat.wrath) {
+      this.drawLighting(map);
+      drawWrath(this, g, g.combat.wrath);
+      return;
+    }
     this.drawHighlight(ctx);
     this.drawLighting(map);
     this.drawOverlays(map);

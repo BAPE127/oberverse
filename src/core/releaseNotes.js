@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.7.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'The Oberverse Protects Its Own',
+    notes: [
+      'Imported characters — Sir Moneybucks and Mason Nails — can no longer be hurt, knocked out or killed.',
+      'Raise a hand against one and the world freezes: rings of runes unfold, the sky darkens, a choir and timpani swell, the runes turn on you — and five bolts of lightning strike you down. You dissolve into embers in a pillar of light. They get the last word.',
+      'Afterwards, rise again at home the next morning (half your money goes with your dignity), or load your last autosave.',
+      'Everyone else can still be fought as before. Word gets around about people who get struck by lightning out of a clear sky.',
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-10-13',
     channel: 'development',

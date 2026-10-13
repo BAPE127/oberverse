@@ -269,6 +269,34 @@ export function messagePanel(ui, body, opts) {
   return { title: opts.title || '' };
 }
 
+// --------------------------------------------------------------- struck down
+/** After the Wrath: the player's choice. Closing the card counts as rising again. */
+export function struckDownPanel(ui, body, opts) {
+  let chosen = false;
+  const rise = () => {
+    if (chosen) return;
+    chosen = true;
+    ui.game.combat.riseAgain();
+    ui.el.hud.classList.remove('cinematic');
+    ui.closeAllPanels();
+    ui.afterModalClose();
+    ui.renderer.snapCamera();
+  };
+  body.append(
+    h('p', { class: 'doc' }, `You raised a hand against ${opts.name}, and the Oberverse answered.`),
+    h('p', { class: 'muted' }, 'Imported characters are protected. They cannot be harmed — only the hand that strikes at them.'),
+    h('div', { class: 'row' },
+      ui.saves.list().some((x) => x.slot === 'auto' && !x.empty && !x.corrupt) ? h('button', { class: 'ghost', onclick: () => {
+        chosen = true;
+        ui.closeAllPanels();
+        if (ui.loadFrom('auto') === false) { chosen = false; rise(); return; } // couldn't load: rise instead
+        ui.el.hud.classList.remove('cinematic');
+      } }, 'Load last autosave') : null,
+      h('button', { class: 'primary', onclick: rise }, 'Rise again (wake at home tomorrow)')),
+  );
+  return { title: 'You were struck down', onClose: rise };
+}
+
 // ----------------------------------------------------------------- settings
 export function settingsPanel(ui, body) {
   const s = ui.settings;
@@ -500,6 +528,7 @@ export const PANELS = {
   shop: shopPanel,
   read: readPanel,
   message: messagePanel,
+  struckDown: struckDownPanel,
   settings: settingsPanel,
   saves: savesPanel,
   about: aboutPanel,

@@ -63,6 +63,8 @@ Status meanings: *planned* (not built), *placeholder* (temporary), *implemented*
 | sfx_swing / sfx_punch / sfx_whack / sfx_slash | sfx | filtered noise + falling sine | — | melee swings and hits (by weapon) | combat | Original | implemented |
 | sfx_gunshot / sfx_gunshot_heavy / sfx_gunshot_smg | sfx | low-passed noise burst + square thump | — | gunfire (pistols; shotgun/rifle; SMG) | combat | Original | implemented |
 | sfx_reload / sfx_dryfire / sfx_hurt | sfx | clicks; sawtooth yelp | — | reloading, empty gun, player hit | combat | Original | implemented |
+| sfx_wrath | sfx | ~8 s procedural score: impact, timpani roll, detuned-saw choir through vowel formants (Dm → B♭ → Gm → A → D), organ pedal, rune hum, brass stabs, whoosh, crash | — | the Wrath cutscene | "The Oberverse Protects Its Own" — epic, absurd | Original | implemented (offline-rendered: peak 0.91) |
+| sfx_thunder | sfx | high-passed crack + low-passed roll + 70→28 Hz sine | — | each lightning strike | combat | Original | implemented |
 | sfx_page / sfx_eat / sfx_sleep | sfx | noise/tones | — | reading, eating, sleeping | feedback | Original | implemented |
 | amb_harbour | ambience | low-passed surf with swell LFO + gull calls | lanternside | outdoors | bed | Original | implemented |
 | amb_indoor | ambience | quiet room tone | flat, office, house | indoors | bed | Original | implemented |

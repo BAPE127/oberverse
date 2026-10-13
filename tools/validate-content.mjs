@@ -330,6 +330,7 @@ export function validateContent(content = CONTENT) {
     if (w.sound && !SFX[w.sound]) err(`weapon ${id}: unknown sound ${w.sound}`);
   }
   for (const c of Object.values(content.characters)) {
+    if (c.origin === 'imported' && !c.killable && !c.wrath?.line) warn(`character ${c.id}: imported (protected) but has no wrath.line for the Wrath cutscene`);
     const cb = c.combat;
     if (!cb) continue;
     if (cb.weapon && !content.items[cb.weapon]?.weapon) err(`character ${c.id}: combat.weapon ${cb.weapon} is not a weapon`);

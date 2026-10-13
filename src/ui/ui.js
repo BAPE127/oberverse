@@ -303,6 +303,20 @@ export class UI {
     });
     bus.on('sfx', ({ id }) => this.audio.sfx(id));
     bus.on('combat:playerHit', () => this.audio.sfx('sfx_hurt'));
+    // The Wrath: an imported character was attacked (src/systems/combat.js, src/engine/wrath.js)
+    bus.on('combat:wrath', () => {
+      this.closeAllPanels();
+      if (this.dialogue.open) this.dialogue.close();
+      this.el.hud.classList.add('cinematic');
+      this.caption.classList.add('hidden');
+      this.audio.duck(12);
+      this.audio.sfx('sfx_wrath');
+    });
+    bus.on('combat:lightning', () => this.audio.sfx('sfx_thunder'));
+    bus.on('combat:wrathEnd', ({ npcId }) => {
+      this.el.hud.classList.add('cinematic');
+      this.openPanel('struckDown', { name: game.npcs.get(npcId)?.profile.name || 'them' });
+    });
     bus.on('combat:playerDown', () => {
       this.closeAllPanels();
       if (this.dialogue.open) this.dialogue.close();
@@ -351,7 +365,7 @@ export class UI {
       return;
     }
     if (this.dialogue.handleAction(action)) return;
-    if (this.state !== 'playing') return;
+    if (this.state !== 'playing' || this.game?.combat.wrath) return;
     switch (action) {
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
@@ -440,7 +454,7 @@ export class UI {
     if (!g) return;
     if (this.state === 'playing') {
       const move = this.panelOpen || this.dialogue.open ? { x: 0, y: 0, sprint: false } : this.input.movement();
-      const busy = this.panelOpen || this.dialogue.open;
+      const busy = this.panelOpen || this.dialogue.open || g.combat.wrath;
       // aim at the mouse while it is being used; otherwise facing + auto-aim
       if (!busy && this.time - this.mouse.movedAt < 4 && this.renderer.cam) {
         const z = this.renderer.cam.zoom;
@@ -455,7 +469,7 @@ export class UI {
       const target = !g.paused ? g.interactables()[0] : null;
       this.renderer.highlight = target || null;
       this.updateHud(target);
-      if (this.time - this.lastAutosave > AUTOSAVE_INTERVAL) this.autosave();
+      if (this.time - this.lastAutosave > AUTOSAVE_INTERVAL && !g.combat.wrath) this.autosave();
     } else if (this.demo) {
       g.update(dt, { x: 0, y: 0 });
       // drift the camera target slowly around the borough

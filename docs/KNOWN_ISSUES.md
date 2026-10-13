@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.6.0
+# Known Issues and Limitations — v0.7.0
 
 ## Not yet implemented (planned)
 
@@ -19,6 +19,8 @@
 - NPCs do not physically collide with the player or each other (they pass through; it avoids deadlocks in narrow interiors) — so in a fight, attackers can stand inside you.
 - Killing a story character can make quests impossible (by design, they fail). Dialogue elsewhere may still mention a dead character as if alive (lines are not yet death-aware).
 - Fleeing NPCs run in a straight line away from you and can get stuck in corners until their fear wears off (~45 game minutes).
+- The Wrath cutscene can't be skipped (about 10 seconds). Dialogue doesn't yet react to `smitten_by_<id>` (the flag is recorded for future lines).
+- The Wrath's lightning starts above the top of the screen; in tall interiors it appears through the ceiling (intentionally: it's the Oberverse).
 - Gunshots only alarm people on the same map; a fight in a building is not heard outside.
 - Facts are permanent once known; repeated events reuse the same fact id (e.g. a second bang does not "refresh" news for someone who already heard of the first). Event chains that depend on fresh news may therefore trigger from old knowledge.
 - Abstract-tier travel uses Manhattan-distance estimates, so off-screen journeys can be slightly faster or slower than walking them.

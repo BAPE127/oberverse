@@ -55,3 +55,7 @@ Motif `motif_moneybucks` — "Dividends", a pompous low brass figure in B♭. Vo
 ## Tests
 
 `tests/character_moneybucks.test.mjs` — tiers, investing gate, schedule, 14-resident day, invitation, shifts, dividends/projects/slick, the Ledger and etiquette, strike (both resolutions), all four mystery endings, buyout, save/load and old-save compatibility.
+
+## Protection (v0.7.0)
+
+Sir Moneybucks is an imported character and **cannot be harmed or killed** (no `killable` flag has been given). Attacking him triggers the Wrath cutscene ("The Oberverse Protects Its Own"), which strikes the player down. His last word and rune colour are in `profile.wrath`.

@@ -145,6 +145,8 @@ export const AUDIO_REGISTRY = [
   sfx('sfx_reload', 'reloading a gun'),
   sfx('sfx_dryfire', 'firing an empty gun'),
   sfx('sfx_hurt', 'the player is hit'),
+  sfx('sfx_wrath', '"The Oberverse Protects Its Own" — 8-second cutscene score when an imported character is attacked'),
+  sfx('sfx_thunder', 'each lightning strike of the Wrath'),
   amb('amb_harbour', 'lanternside'),
   amb('amb_indoor', 'player_flat, civic_office, osric_house'),
   amb('amb_cafe', 'cafe'),

@@ -27,6 +27,18 @@ export function npcMaxHealth(npc) {
   return npc.profile.combat?.maxHealth ?? 100;
 }
 
+/**
+ * Imported characters are protected: they cannot be hurt, knocked out or
+ * killed — unless their profile says `killable: true` (the project owner's call).
+ * Attacking one calls down the Wrath (see Combat.smite).
+ */
+export function isProtected(npc) {
+  return npc.profile.origin === 'imported' && !npc.profile.killable;
+}
+
+/** The Wrath cutscene timeline (real seconds). The renderer and music follow it. */
+export const WRATH = { runes: 0.3, banner: 1.0, converge: 3.0, lightning: 3.4, strikes: [3.4, 3.62, 3.86, 4.25, 4.7], ascend: 5.0, fade: 6.6, end: 9.6 };
+
 export function isDown(npc, now) {
   return Boolean(npc.dead || (npc.downUntil && now < npc.downUntil));
 }
@@ -35,6 +47,12 @@ const HURT = ['Ow!', 'Argh!', 'Stop it!', 'What are you doing?!', 'Ugh!'];
 const FLEE = ['Help! Help!', 'Somebody stop them!', 'Get away from me!', 'They\'re mad!', 'Run!'];
 const FIGHT = ['Right, that\'s it!', 'You want a fight? You\'ve got one!', 'Big mistake.', 'Come on, then!'];
 const GUNFIRE = ['Was that a gunshot?!', 'Get down!', 'Gun! GUN!'];
+
+const faceTo = (a, b) => {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+};
 
 export class Combat {
   constructor(game) {
@@ -162,7 +180,7 @@ export class Combat {
   /** Player attack with the equipped weapon. Returns what happened (for tests/UI). */
   attack() {
     const g = this.game;
-    if (this.cooldown > 0 || this.reloading || g.paused) return { ok: false, reason: 'busy' };
+    if (this.cooldown > 0 || this.reloading || g.paused || this.wrath) return { ok: false, reason: 'busy' };
     const w = this.equipped();
     const p = g.player;
     const dir = this.aimVector(w);
@@ -259,7 +277,11 @@ export class Combat {
   hitNpc(npc, amount, { weapon, dir, lethal = true }) {
     const g = this.game;
     const now = g.clock.total;
-    if (isDown(npc, now)) return;
+    if (isDown(npc, now) || this.wrath) return;
+    if (isProtected(npc)) {
+      this.smite(npc, weapon);
+      return;
+    }
     const max = npcMaxHealth(npc);
     if (npc.health === undefined) npc.health = max;
     const before = npc.health;
@@ -425,10 +447,70 @@ export class Combat {
     g.notify(`Everything went black. You wake up at home, aching${lost ? `, ${lost} obols lighter` : ''}.`, 'warn');
   }
 
+  // ------------------------------------------------------------ the Wrath
+  /** Someone raised a hand against an imported character. The Oberverse answers. */
+  smite(npc, weapon) {
+    const g = this.game;
+    const now = g.clock.total;
+    const p = g.player;
+    this.reloading = null;
+    this.fx = [];
+    for (const n of g.npcs.values()) n.hostile = null;
+    npc.facing = faceTo(npc, p);
+    this.wrath = {
+      npcId: npc.id,
+      start: g.realTime,
+      seed: Math.floor(g.rng.next() * 1e6),
+      color: npc.profile.wrath?.color || '#b98cff',
+      line: (npc.profile.wrath?.line || '{name} is beyond your reach.').replace('{name}', npc.profile.shortName).replace('{player}', p.name),
+      weapon: weapon?.id || null,
+      over: false,
+      struck: 0,
+    };
+    remember(npc, { text: `${p.name} raised a hand against me. The heavens answered.`, tag: 'smote_player', about: 'player', importance: 10 }, now);
+    g.relationships.adjust(npc, 'player', { trust: -10, respect: -5, suspicion: 20 }, 'attacked');
+    const seen = g.witnesses(npc.map, npc.x, npc.y).filter((w) => w !== npc);
+    for (const w of [npc, ...seen]) g.knowledge.learn(w, 'fact_player_smitten', { kind: 'fact', source: 'witnessed', at: now });
+    g.setFlag(`smitten_by_${npc.id}`, (g.getFlag(`smitten_by_${npc.id}`) || 0) + 1);
+    g.bus.emit('combat:wrath', { npcId: npc.id, color: this.wrath.color });
+  }
+
+  /** Advance the cutscene (the world is frozen while it plays). */
+  updateWrath() {
+    const g = this.game;
+    const w = this.wrath;
+    const e = g.realTime - w.start;
+    while (w.struck < WRATH.strikes.length && e >= WRATH.strikes[w.struck]) {
+      w.struck += 1;
+      g.bus.emit('combat:lightning', { index: w.struck });
+    }
+    if (e >= WRATH.end && !w.over) {
+      w.over = true;
+      g.bus.emit('combat:wrathEnd', { npcId: w.npcId, line: w.line });
+    }
+  }
+
+  /** After the Wrath: wake at home the next morning. You keep your life; not your dignity. */
+  riseAgain() {
+    const g = this.game;
+    if (!this.wrath) return;
+    const p = g.player;
+    this.wrath = null;
+    p.health = 100;
+    const lost = Math.floor(p.money / 2);
+    p.money -= lost;
+    g.changeMap(g.content.startingMap, g.content.startingSpot);
+    const toMorning = ((24 * 60 + 8 * 60) - g.clock.minuteOfDay) % (24 * 60) || 24 * 60;
+    g.skipTime(toMorning);
+    g.bus.emit('combat:risen', { lost });
+    g.notify(`You wake at home, smelling faintly of ozone${lost ? `, ${lost} obols lighter` : ''}. Some people are not meant to be touched.`, 'warn');
+  }
+
   // ---------------------------------------------------------------- update
   /** Per-frame update (real seconds). */
   update(dt) {
     const g = this.game;
+    if (this.wrath) return this.updateWrath();
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.reloading && g.realTime >= this.reloading.until) this.finishReload();
     if (this.fx.length) this.fx = this.fx.filter((f) => f.until > g.realTime);

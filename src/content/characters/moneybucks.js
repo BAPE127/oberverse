@@ -40,6 +40,10 @@ export default {
     habits: ['"my good fellow"', 'speaks of himself as Sir Moneybucks', 'everything is a transaction', 'withering contempt for the poor'],
     rumorPrefix: 'One hears, from the lower orders, that', factPrefix: 'It is simply a fact, my good fellow, that', refuse: 'That is a matter for my solicitors, and they are expensive.',
   },
+  wrath: {
+    color: '#f2c14e',
+    line: 'Did you truly imagine Sir Moneybucks could be struck down by the likes of you, my good fellow? Some of us are written in ink. You, I fear, were written in pencil.',
+  },
   mechanics: {
     statusContempt: true, // treatment depends on the player's wealth & standing (dialogue tiers)
     ledgerChallenge: true, // "The Ledger" card wager in his study

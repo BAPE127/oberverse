@@ -92,6 +92,10 @@ Only horizontal (east–west) seams are generated so far. The coast region is We
 
 `Combat` (`src/systems/combat.js`) runs in real time on the player's map. `Game.update` calls `combat.update(dt)` before NPC movement; NPCs with `hostile` (fight/flee), or who are unconscious or dead, are skipped by the normal schedule logic (`NpcSystem.think`, `updatePhysical`, `updateAbstract`, chats) and steered by `Combat.fightStep` / `fleeStep` instead. `combat.minuteTick()` wakes the knocked-out, ends fights when their timer runs out (handing the NPC back to `think`), and heals slowly. Consequences use the existing systems: `relationships.adjust`, `remember`, `knowledge.learn` (assault/murder facts spread by gossip and apply reputation), `quests.fail(…, 'giver_died')`. Weapons are plain item data; NPC temperaments are `profile.combat`. Visual effects live in `combat.fx` (not saved) and are drawn by the renderer; health bars come from `combat.healthBar(npc)`.
 
+### The Wrath (protected characters)
+
+`Combat.hitNpc` checks `isProtected(npc)` first; if true it calls `smite()`, which records consequences and sets `combat.wrath = {npcId, start, seed, color, line}`. While `wrath` is set, `Game.update` only advances `realTime` and `combat.updateWrath()` (which emits `combat:lightning` on the `WRATH.strikes` timeline and `combat:wrathEnd` at the end) — the clock, NPCs and input are frozen, and the UI suspends autosave. The renderer hands the frame to `drawWrath()` (`src/engine/wrath.js`), which is a pure function of time since `start`, so tests and screenshots can jump to any moment by moving `start`. The UI plays `sfx_wrath` and `sfx_thunder` on the bus events, then opens the *struck down* card, which calls `Combat.riseAgain()` or loads the autosave.
+
 ## Rendering
 
 Skyscrapers are buildings with `tower: <storeys>`: the facade rises `storeys × 14 px` above the footprint, so they are culled, y-sorted and occlusion-tested by that height (`towerHeight()`), and add a soft night glow in the lighting pass. Burning barrels are light sources like street lamps.

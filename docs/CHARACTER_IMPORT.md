@@ -66,6 +66,10 @@ Ask the player to correct misunderstandings. Then implement — the goal is the 
 13. Write `docs/characters/<id>.md` (interview summary, design decisions, what was invented vs. supplied).
 14. MINOR version bump; changelog.
 
+### Protection rule (v0.7.0)
+
+Imported characters (`origin: 'imported'`) **cannot be harmed or killed** by the player. Attacking one triggers the Wrath cutscene, which strikes the player down. Only the project owner can lift this: set `killable: true` in the profile *only when they say so*. Give every imported character a `wrath: { color, line }` — the colour tints the runes and lightning; the line is their last word after the player is struck down (in their own voice). Generated companions (e.g. employees, `origin: 'imported-generated'`) are not protected.
+
 ## Save compatibility
 
 Adding a character never breaks saves: `Game.loadState` creates characters that are missing from a save from their content profile. Never rename or remove an imported character's id; to retire one, give them a schedule elsewhere or mark them absent via a flag.

@@ -70,6 +70,19 @@ export class AudioEngine {
     }
   }
 
+  /** Fade music and ambience right down for `seconds` (cutscenes), then back. */
+  duck(seconds) {
+    if (!this.enabled) return;
+    const t = this.ctx.currentTime;
+    for (const name of ['music', 'ambience']) {
+      const gn = this.buses[name].gain;
+      const back = name === 'music' ? this.settings.music * 0.9 : this.settings.ambience;
+      gn.cancelScheduledValues(t);
+      gn.setTargetAtTime(0.0001, t, 0.15);
+      gn.setTargetAtTime(back, t + seconds, 0.8);
+    }
+  }
+
   setMusic(id) {
     if (!this.enabled || id === this.currentSongId) return;
     this.currentSongId = id;

@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.7.0 | 2026-10-13 | development | 1 | The Oberverse Protects Its Own — imported characters are untouchable |
 | 0.6.0 | 2026-10-13 | development | 1 | Hard Lessons — combat, weapons, NPC health and death |
 | 0.5.0 | 2026-10-13 | development | 1 | Halvermouth — the city map (no residents yet) |
 | 0.4.0 | 2026-10-13 | development | 1 | Mason's Os — second imported character, Westbrook district, property groundwork |
@@ -11,6 +12,11 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.7.0 — The Oberverse Protects Its Own
+
+- **Rule:** imported characters cannot be harmed or killed unless the project owner marks them `killable: true`. Attacking one plays the Wrath cutscene and strikes the player down (respawn or reload).
+- **Save compatibility:** unchanged.
 
 ## 0.6.0 — Hard Lessons
 

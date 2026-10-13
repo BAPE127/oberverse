@@ -7,6 +7,9 @@ export default {
   shortName: 'Short',
   tier: 'major',                     // major | minor
   origin: 'imported',                // original | imported
+  // Imported characters are protected (v0.7.0): attacking them calls down the Wrath.
+  // Only set killable: true if the project owner says so.
+  wrath: { color: '#b98cff', line: 'Their last word, in their own voice, after the player is struck down.' },
   importedFrom: {                    // imported characters only
     reference: 'assets/portraits/npc_example_reference.png', // the player's image, if they consent to storing it
     interviewDate: 'YYYY-MM-DD',

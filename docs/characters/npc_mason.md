@@ -55,3 +55,7 @@ Impulses: doing the rounds (with puns); building the player's property when one 
 - **Dolores "Dee" Rivera** — foreman. Hires 07:00–13:00 and pays six obols in coin. No-nonsense; secretly keeps a tally of Mason's puns that made her laugh (212).
 - **Barnaby Cole** — gentle giant; cement and bricks; birdwatcher who feeds the gulls on the pier after work. Feuding with Tibbs over Margaret, a gull who stole Tibbs's sandwich.
 - **Quinn Abernathy** — nervous apprentice surveyor and draftsperson; surveys the lots; will draw the player's buildings.
+
+## Protection (v0.7.0)
+
+Mason is an imported character and **cannot be harmed or killed** (no `killable` flag has been given). Attacking him triggers the Wrath cutscene ("The Oberverse Protects Its Own"), which strikes the player down. His last word and rune colour are in `profile.wrath`.

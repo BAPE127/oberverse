@@ -57,6 +57,10 @@ export const FACTS = {
     text: 'The newcomer attacked someone — in cold blood, in public.', importance: 8, aboutPlayer: true,
     relImpact: { trust: -12, affection: -10, suspicion: 18 }, reputation: { lanternside: -6 }, keywords: ['attack', 'fight', 'assault', 'violence'],
   },
+  fact_player_smitten: {
+    text: 'The newcomer raised a hand against one of the untouchable — and was struck down by lightning out of a clear sky.', importance: 9,
+    keywords: ['lightning', 'smite', 'struck', 'runes', 'wrath'],
+  },
   fact_player_murder: {
     text: 'The newcomer killed someone.', importance: 10, aboutPlayer: true,
     relImpact: { trust: -35, affection: -30, suspicion: 40 }, reputation: { lanternside: -25 }, keywords: ['murder', 'killed', 'dead', 'body'],
