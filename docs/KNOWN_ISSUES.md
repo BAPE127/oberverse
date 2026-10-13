@@ -1,9 +1,9 @@
-# Known Issues and Limitations — v0.5.0
+# Known Issues and Limitations — v0.6.0
 
 ## Not yet implemented (planned)
 
-- **Combat** (optional system) and its nonviolent counterparts beyond what quests already offer. Health exists but nothing damages the player yet.
-- **Equipment** slots; items are only consumables, tools, keys, gifts and junk.
+- **Combat follow-ups:** no police response yet (Halvermouth has no officers), no arrests, bounties or prison; no armour, cover, dodging or stealth attacks; NPCs only fight on the player's map (leave and the fight ends); no looting bodies; no mourning, funerals or replacement characters after a death.
+- **Equipment** beyond weapons (no armour or clothing slots).
 - **Character progression**: stats (Charm, Wits, Grit, Finesse) are fixed at 2. Only Charm and Wits are used (dialogue checks).
 - **Controller and touch input.** Keyboard + mouse only.
 - **Weather and seasons.**
@@ -16,7 +16,10 @@
 
 ## Limitations of current systems
 
-- NPCs do not physically collide with the player or each other (they pass through; it avoids deadlocks in narrow interiors).
+- NPCs do not physically collide with the player or each other (they pass through; it avoids deadlocks in narrow interiors) — so in a fight, attackers can stand inside you.
+- Killing a story character can make quests impossible (by design, they fail). Dialogue elsewhere may still mention a dead character as if alive (lines are not yet death-aware).
+- Fleeing NPCs run in a straight line away from you and can get stuck in corners until their fear wears off (~45 game minutes).
+- Gunshots only alarm people on the same map; a fight in a building is not heard outside.
 - Facts are permanent once known; repeated events reuse the same fact id (e.g. a second bang does not "refresh" news for someone who already heard of the first). Event chains that depend on fresh news may therefore trigger from old knowledge.
 - Abstract-tier travel uses Manhattan-distance estimates, so off-screen journeys can be slightly faster or slower than walking them.
 - The game clock pauses during dialogue and menus; NPCs freeze while you talk to anyone.

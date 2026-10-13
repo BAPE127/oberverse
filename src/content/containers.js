@@ -1,6 +1,8 @@
 // Containers: searchable storage. `owner` is a character or faction id; taking
 // from a container you do not own is theft if witnessed (see game.takeFromContainer).
 export const CONTAINERS = {
+  ct_police_lockers: { name: 'Officers\' lockers', owner: 'fac_police', items: { item_baton: 1, item_bandage: 2 }, money: 0 },
+  ct_sumps_crate: { name: 'Rotten crate', owner: null, items: { item_bat: 1 }, money: 3 },
   ct_flat_wardrobe: { name: 'Wardrobe', owner: 'player', items: { item_bandage: 1, item_scone: 1 }, money: 8 },
   ct_civic_desk: { name: 'Clerk\'s desk', owner: 'npc_osric', theftFact: 'fact_player_stole_from_osric', items: { item_lighthouse_key: 1, item_rubber_stamp: 1 }, money: 0 },
   ct_workshop_crate: { name: 'Parts crate', owner: 'npc_tibbs', items: { item_bolts: 2, item_brass_cog: 1 }, money: 0 },

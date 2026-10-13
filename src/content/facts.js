@@ -53,6 +53,14 @@ export const FACTS = {
     text: 'The newcomer out-punned Mason Nails.', importance: 3, aboutPlayer: true,
     relImpact: { affection: 2 }, reputation: { lanternside: 1 }, keywords: ['pun'],
   },
+  fact_player_assault: {
+    text: 'The newcomer attacked someone — in cold blood, in public.', importance: 8, aboutPlayer: true,
+    relImpact: { trust: -12, affection: -10, suspicion: 18 }, reputation: { lanternside: -6 }, keywords: ['attack', 'fight', 'assault', 'violence'],
+  },
+  fact_player_murder: {
+    text: 'The newcomer killed someone.', importance: 10, aboutPlayer: true,
+    relImpact: { trust: -35, affection: -30, suspicion: 40 }, reputation: { lanternside: -25 }, keywords: ['murder', 'killed', 'dead', 'body'],
+  },
   fact_player_cut_corners: {
     text: 'The newcomer cut corners on a refinery shift.', importance: 4, aboutPlayer: true,
     relImpact: { respect: -2 }, reputation: {}, keywords: ['corners'],

@@ -60,6 +60,9 @@ Status meanings: *planned* (not built), *placeholder* (temporary), *implemented*
 | sfx_bang | sfx | noise burst + boom | workshop | ev_workshop_bang (if heard) | event | Original | implemented |
 | sfx_gull | sfx | three falling chirps | outdoors | ev_gull_heist, ambience | event | Original | implemented |
 | sfx_pry | sfx | screech + thud | lighthouse hatch | prying the hatch | interaction | Original | implemented |
+| sfx_swing / sfx_punch / sfx_whack / sfx_slash | sfx | filtered noise + falling sine | — | melee swings and hits (by weapon) | combat | Original | implemented |
+| sfx_gunshot / sfx_gunshot_heavy / sfx_gunshot_smg | sfx | low-passed noise burst + square thump | — | gunfire (pistols; shotgun/rifle; SMG) | combat | Original | implemented |
+| sfx_reload / sfx_dryfire / sfx_hurt | sfx | clicks; sawtooth yelp | — | reloading, empty gun, player hit | combat | Original | implemented |
 | sfx_page / sfx_eat / sfx_sleep | sfx | noise/tones | — | reading, eating, sleeping | feedback | Original | implemented |
 | amb_harbour | ambience | low-passed surf with swell LFO + gull calls | lanternside | outdoors | bed | Original | implemented |
 | amb_indoor | ambience | quiet room tone | flat, office, house | indoors | bed | Original | implemented |

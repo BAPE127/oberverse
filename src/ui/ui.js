@@ -37,6 +37,21 @@ export class UI {
     this.lastMapAutosave = -999;
     this.time = 0;
     this.fps = 60;
+    // Mouse aiming and firing (canvas only; panels and dialogue sit above it in the DOM).
+    this.mouse = { x: 0, y: 0, movedAt: -1e9, down: false };
+    canvas.addEventListener('mousemove', (e) => {
+      const r = canvas.getBoundingClientRect();
+      this.mouse.x = (e.clientX - r.left) * (canvas.width / r.width);
+      this.mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
+      this.mouse.movedAt = this.time;
+    });
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      this.mouse.down = true;
+      this.mouse.movedAt = this.time;
+      this.handleAction('attack');
+    });
+    window.addEventListener('mouseup', () => { this.mouse.down = false; });
     this.el = {
       hud: document.getElementById('hud'),
       clock: document.getElementById('hud-clock'),
@@ -46,6 +61,8 @@ export class UI {
       prompt: document.getElementById('hud-prompt'),
       health: document.getElementById('bar-health'),
       energy: document.getElementById('bar-energy'),
+      weapon: document.getElementById('hud-weapon'),
+      hudBl: document.getElementById('hud-bl'),
       toasts: document.getElementById('toasts'),
       minimap: document.getElementById('minimap'),
       debug: document.getElementById('debug'),
@@ -285,6 +302,13 @@ export class UI {
       this.audio.sfx('sfx_notify');
     });
     bus.on('sfx', ({ id }) => this.audio.sfx(id));
+    bus.on('combat:playerHit', () => this.audio.sfx('sfx_hurt'));
+    bus.on('combat:playerDown', () => {
+      this.closeAllPanels();
+      if (this.dialogue.open) this.dialogue.close();
+      this.el.fade.classList.add('on');
+      setTimeout(() => { this.el.fade.classList.remove('on'); this.renderer.snapCamera(); }, 900);
+    });
     bus.on('player:step', ({ surface }) => this.audio.sfx('sfx_step', { surface }));
     bus.on('item:acquired', ({ id, count, silent }) => {
       if (silent) return;
@@ -335,13 +359,38 @@ export class UI {
       case 'map': this.openPanel('map'); break;
       case 'status': this.openPanel('journal', { tab: 'People' }); break;
       case 'interact': this.interact(); break;
+      case 'attack': {
+        const r = this.game.combat.attack();
+        if (r.text) this.showCaption(r.text, 2);
+        break;
+      }
+      case 'reload': {
+        const r = this.game.combat.reload();
+        if (r.text && !r.ok) this.toast(r.text, 'info', 2);
+        break;
+      }
+      case 'nextWeapon': {
+        const r = this.game.combat.cycle(1);
+        if (r.text) this.toast(r.text, 'info', 2);
+        break;
+      }
+      case 'holster': {
+        const r = this.game.combat.equip(null);
+        if (r.text) this.toast(r.text, 'info', 2);
+        break;
+      }
       case 'quicksave': this.saveTo('slot1'); break;
       case 'quickload': this.loadFrom('slot1'); break;
       case 'debug':
         this.settings.showFps = !this.settings.showFps;
         this.applySettings();
         break;
-      default: break;
+      default:
+        if (action.startsWith('choice')) {
+          const r = this.game.combat.select(Number(action.slice(6)));
+          if (r.text) this.toast(r.text, 'info', 2);
+        }
+        break;
     }
   }
 
@@ -356,6 +405,7 @@ export class UI {
       case 'container': this.openPanel('container', { containerId: act.containerId }); break;
       case 'choices': this.openPanel('choices', act); break;
       case 'contracts': this.openPanel('contracts', {}); break;
+      case 'shop': this.openPanel('shop', { shopId: act.shopId }); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;
@@ -390,6 +440,16 @@ export class UI {
     if (!g) return;
     if (this.state === 'playing') {
       const move = this.panelOpen || this.dialogue.open ? { x: 0, y: 0, sprint: false } : this.input.movement();
+      const busy = this.panelOpen || this.dialogue.open;
+      // aim at the mouse while it is being used; otherwise facing + auto-aim
+      if (!busy && this.time - this.mouse.movedAt < 4 && this.renderer.cam) {
+        const z = this.renderer.cam.zoom;
+        const wx = this.renderer.cam.x + this.mouse.x / z;
+        const wy = this.renderer.cam.y + this.mouse.y / z;
+        g.player.aim = { x: wx - g.player.x, y: wy - (g.player.y - 18) };
+      } else g.player.aim = null;
+      // automatic weapons fire while the button is held
+      if (!busy && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
       g.update(dt, move);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;
@@ -416,6 +476,12 @@ export class UI {
     set(this.el.money, `🪙 ${p.money} obols`);
     this.el.health.style.width = `${p.health}%`;
     this.el.energy.style.width = `${p.energy}%`;
+    const w = g.combat.equipped();
+    const ammo = g.combat.ammoStatus();
+    const ammoHtml = ammo ? `<span class="ammo${ammo.loaded ? '' : ' empty'}">${ammo.reloading ? 'reloading…' : `${ammo.loaded}/${ammo.mag}`} · ${ammo.reserve}</span>` : '';
+    const whtml = `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
+    if (this.el.weapon.innerHTML !== whtml) this.el.weapon.innerHTML = whtml;
+    if (p.hurtAt && g.realTime - p.hurtAt < 0.05) { this.el.hudBl.classList.remove('hurt'); void this.el.hudBl.offsetWidth; this.el.hudBl.classList.add('hurt'); }
     if (target) {
       const html = `<kbd>E</kbd>${escapeHtml(target.label)}`;
       if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;

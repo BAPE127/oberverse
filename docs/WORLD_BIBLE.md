@@ -93,6 +93,7 @@ Directly east of Lanternside: Gullwing Road simply becomes the county road (the 
 | `fac_merchants` | Canal Row Traders | Reliability, custom, good gossip | Mags is the de-facto voice. |
 | `fac_oil` | Ober's Oil | Profit, deference | Sir Moneybucks's company. Pays partly in company scrip. |
 | `fac_builders` | Mason's Os | Good work, fair pay, a decent pun | Mason Nails's construction crew. Pays in coin, never scrip. Neutral in the oil feud. |
+| `fac_police` | Halvermouth Police | Order, evidence, paperwork on time | Precinct 1. No officers on patrol yet. |
 | `fac_quay` | Quay Workers' Collective | Loyalty, practical help | Tibbs is a member; the Hall is members-only. |
 
 ## Residents
@@ -118,6 +119,10 @@ See `docs/CHARACTER_REGISTRY.md` for implementation details.
 - **Resolved in v0.2.0 — M. is Sir Moneybucks.** Twelve years ago Ober's Oil bought "Lot 14: Harbourmaster's seal & effects" at the Obermere Harbour Board's dissolution auction (authorised R.E.M.). With the seal he ordered the great lens removed; the dark bay let Ober's Oil tankers cross at night, lamps out, untaxed. The lens sits in the vault in his study and hums. Depending on the player it may be returned (exposed or restored), or stay buried (blackmail or partnership).
 - The shard hums in sympathy with the great lens.
 - Still open: Who oils the clockwork? Why does the glass hum at all? What lies up the blocked lighthouse stair? Are the gulls organised?
+
+## Violence
+
+Anyone can be hurt. Fists, brass knuckles and the police baton knock people out; clubs, blades and guns can kill, and the dead stay dead. People remember who hurt them, witnesses gossip, and the borough's opinion of you sinks. Rook & Rifle sells guns legally (licence talk notwithstanding — the owner, "R.", is never in); Tibbs sells a fire axe; there's a baton in the police lockers and a bat in a Sumps crate.
 
 ## Running jokes and tone
 

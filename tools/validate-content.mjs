@@ -17,7 +17,7 @@ import { STATIONS } from '../src/systems/oilCompany.js';
 import { SITE_STATIONS } from '../src/systems/construction.js';
 
 const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
-const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts'];
+const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop'];
 const COMPANY_STATIONS = { oil: STATIONS, construction: SITE_STATIONS };
 
 export function validateContent(content = CONTENT) {
@@ -279,11 +279,11 @@ export function validateContent(content = CONTENT) {
 
   // shops, containers, docs, notices, facts
   for (const [id, s] of Object.entries(content.shops)) {
-    if (!charIds.has(s.owner)) err(`shop ${id}: unknown owner ${s.owner}`);
+    if (s.owner != null && !charIds.has(s.owner)) err(`shop ${id}: unknown owner ${s.owner}`); // null = unmanned
     for (const it of [...Object.keys(s.stock), ...Object.keys(s.buys || {})]) if (!content.items[it]) err(`shop ${id}: unknown item ${it}`);
   }
   for (const [id, c] of Object.entries(content.containers)) {
-    if (c.owner !== 'player' && !charIds.has(c.owner) && !factionIds.has(c.owner)) err(`container ${id}: unknown owner ${c.owner}`);
+    if (c.owner != null && c.owner !== 'player' && !charIds.has(c.owner) && !factionIds.has(c.owner)) err(`container ${id}: unknown owner ${c.owner}`);
     for (const it of Object.keys(c.items)) if (!content.items[it]) err(`container ${id}: unknown item ${it}`);
   }
   for (const [id, d] of Object.entries(content.docs)) checkEffects(d.effects, `doc ${id}`);
@@ -316,6 +316,26 @@ export function validateContent(content = CONTENT) {
   const reg = new Set(content.audioRegistry.map((a) => a.id));
   for (const id of [...Object.keys(content.songs), ...Object.keys(content.motifs), ...Object.keys(SFX), ...AMBIENCE_IDS]) if (!reg.has(id)) err(`audio ${id}: missing from AUDIO_REGISTRY`);
   for (const id of reg) if (!content.songs[id] && !content.motifs[id] && !SFX[id] && !AMBIENCE_IDS.includes(id) && id !== 'voice_blips') err(`AUDIO_REGISTRY ${id}: no implementation`);
+
+  // weapons and combat temperaments (src/systems/combat.js)
+  for (const [id, it] of Object.entries(content.items)) {
+    const w = it.weapon;
+    if (!w) continue;
+    if (!['melee', 'gun'].includes(w.kind)) err(`weapon ${id}: kind must be melee or gun`);
+    for (const k of ['damage', 'range', 'cooldown']) if (!(w[k] > 0)) err(`weapon ${id}: ${k} must be > 0`);
+    if (w.kind === 'gun') {
+      if (!content.items[w.ammo]) err(`weapon ${id}: unknown ammo ${w.ammo}`);
+      if (!(w.mag > 0) || !(w.reload > 0)) err(`weapon ${id}: guns need mag and reload`);
+    }
+    if (w.sound && !SFX[w.sound]) err(`weapon ${id}: unknown sound ${w.sound}`);
+  }
+  for (const c of Object.values(content.characters)) {
+    const cb = c.combat;
+    if (!cb) continue;
+    if (cb.weapon && !content.items[cb.weapon]?.weapon) err(`character ${c.id}: combat.weapon ${cb.weapon} is not a weapon`);
+    if (Array.isArray(cb.defends)) for (const d of cb.defends) if (!charIds.has(d)) err(`character ${c.id}: defends unknown ${d}`);
+    if (cb.maxHealth !== undefined && !(cb.maxHealth > 0)) err(`character ${c.id}: combat.maxHealth must be > 0`);
+  }
 
   // property plots and blueprints (src/content/properties.js, docs/PROPERTIES.md)
   const bps = content.blueprints || {};

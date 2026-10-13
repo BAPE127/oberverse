@@ -343,6 +343,33 @@ function drawHeld(ctx, item, x, y, dir, t) {
     ctx.strokeStyle = '#9aa3ab';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dir * 2, y - 8); ctx.stroke();
+  } else if (item === 'pistol') {
+    ctx.fillStyle = '#26262b';
+    ctx.fillRect(x + (dir > 0 ? 0 : -9), y - 3, 9, 3); // barrel pointing forward
+    ctx.fillRect(x - 1, y - 2, 3, 5); // grip
+  } else if (item === 'longgun') {
+    ctx.fillStyle = '#6a4a2e';
+    ctx.fillRect(x + (dir > 0 ? -5 : -3), y - 1, 8, 3); // stock
+    ctx.fillStyle = '#26262b';
+    ctx.fillRect(x + (dir > 0 ? 2 : -16), y - 3, 14, 2.5); // barrel
+  } else if (item === 'club') {
+    ctx.strokeStyle = '#7a5232';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x, y + 1); ctx.lineTo(x + dir * 5, y - 14); ctx.stroke();
+  } else if (item === 'blade') {
+    ctx.fillStyle = '#3a2a1e';
+    ctx.fillRect(x - 1, y - 2, 3, 4);
+    ctx.fillStyle = '#c9ced4';
+    ctx.beginPath(); ctx.moveTo(x - 1, y - 2); ctx.lineTo(x + dir * 4, y - 16); ctx.lineTo(x + dir * 6 + 1, y - 14); ctx.lineTo(x + 2, y - 2); ctx.closePath(); ctx.fill();
+  } else if (item === 'axe') {
+    ctx.strokeStyle = '#7a5232';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + dir * 4, y - 16); ctx.stroke();
+    ctx.fillStyle = '#c0414a';
+    ctx.fillRect(x + dir * 4 - (dir > 0 ? 0 : 6), y - 17, 6, 5);
+  } else if (item === 'knuckles') {
+    ctx.fillStyle = '#c9a24a';
+    ctx.fillRect(x - 2, y - 2, 5, 2);
   }
 }
 

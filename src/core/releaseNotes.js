@@ -2,6 +2,20 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.6.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Hard Lessons',
+    notes: [
+      'Combat: you can now attack anyone. Press F or click to attack; aim with the mouse, or face someone and the game helps you aim.',
+      'Twelve weapons: fists, brass knuckles, a police baton, a baseball bat, a crowbar, a machete and a fire axe; a .38 revolver, a 9mm pistol, a pump shotgun, a hunting rifle and a submachine gun. R reloads, X switches weapon, 1–9 picks one, Z puts it away.',
+      'Hit someone and their health bar appears over their head. Some people run; some fight back (and Silas carries a revolver).',
+      'Fists, knuckles and the baton knock people out — they wake up later. Everything else can kill. The dead stay dead, and anything they were giving you is over.',
+      'Witnesses remember, gossip and judge you; gunshots send everyone nearby running. If you lose a fight, you wake up at home, poorer.',
+      'Rook & Rifle in Halvermouth now sells guns, ammo and melee weapons; Tibbs sells a fire axe; there is a baton in the police lockers and a bat in a crate in the Sumps.',
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-10-13',
     channel: 'development',

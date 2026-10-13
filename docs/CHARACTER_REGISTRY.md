@@ -25,6 +25,14 @@ Stable IDs never change once a character exists in a released build (saves refer
 
 Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`) and **Mason Nails** (see `docs/characters/npc_mason.md`). Their employees were generated at the player's request; minor characters have no individual motif.
 
+## Combat temperaments (`profile.combat`)
+
+| Fight back and defend others | Fight back | Never fight (always flee) |
+| --- | --- | --- |
+| Silas (defends anyone; revolver, 130 hp), Barnaby (defends anyone; 160 hp — but won't hit back for himself), Hank, Otto, Mabel, Dee, Mags, Tibbs (each defends particular friends) | Gideon (120 hp), Ruby (crowbar) | Mason, Osric, Sir Moneybucks, Crisp, Agnes, Pip, Delphine, Quinn |
+
+Everyone else decides by personality (confidence and competitiveness). Anyone below 25% health stops fighting and runs.
+
 ## Sir Moneybucks — `npc_moneybucks`
 
 See `docs/characters/npc_moneybucks.md` for the full record (interview, tiers, mechanics, routine, audio).

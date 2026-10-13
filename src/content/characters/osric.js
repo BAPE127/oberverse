@@ -1,6 +1,7 @@
 // Osric Vane — original Oberverse resident (not an imported character).
 export default {
   id: 'npc_osric',
+  combat: { never: true, maxHealth: 85 }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Osric Vane',
   shortName: 'Osric',
   tier: 'major',

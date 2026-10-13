@@ -11,6 +11,8 @@ import { decide, scheduleLead } from './npcBrain.js';
 import { blockAt, blockInstanceKey } from './schedule.js';
 import { remember } from './memory.js';
 
+const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
+
 export const WALK_SPEED = 66; // px per real second
 const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
@@ -37,6 +39,7 @@ export class NpcSystem {
   think(npc, force = false) {
     const g = this.game;
     const now = g.clock.total;
+    if (npc.hostile || incapacitated(npc, now)) return; // combat owns them (src/systems/combat.js)
     if (npc.chat && now < npc.chat.until) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.
@@ -216,7 +219,7 @@ export class NpcSystem {
   updateAbstract(npc) {
     const g = this.game;
     const t = npc.travel;
-    if (!t) return;
+    if (!t || npc.hostile || incapacitated(npc, g.clock.total)) return;
     if (g.clock.total < t.eta) return;
     if (t.route.length) {
       const hop = t.route.shift();
@@ -295,7 +298,7 @@ export class NpcSystem {
   }
 
   canChat(npc, now) {
-    if (npc.chat || npc.activity === 'sleep' || npc.travel) return false;
+    if (npc.chat || npc.activity === 'sleep' || npc.travel || npc.hostile || incapacitated(npc, now)) return false;
     if (npc.path && npc.path.length) return false;
     if (npc.inDialogue) return false;
     return now >= (npc.chatCooldownUntil || 0);

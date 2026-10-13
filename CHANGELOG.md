@@ -2,6 +2,29 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.6.0] — 2026-10-13 — "Hard Lessons" (development build)
+
+### Added
+- **Combat system** (`src/systems/combat.js`). The player can attack any NPC with melee weapons or guns.
+  - Melee: an arc in front of the player (range, arc, cooldown, knockback per weapon). Guns: hitscan rays stopped by walls and buildings, with spread, pellets (shotgun), full auto (SMG), magazines, reloading and ammunition items.
+  - Aiming: the mouse when it is in use; otherwise facing with a forgiving auto-aim cone. A dashed aim line shows for guns.
+  - **NPC health bars** appear over anyone who is hurt or fighting (green → amber → red, white flash on hit), with floating damage numbers; "KNOCKED OUT" under the bar while they are down.
+  - **Fight or flight**: victims and witnesses flee or fight back by temperament (`profile.combat`: `fights`, `defends` (true or a list of people), `never`, `weapon`, `maxHealth`) and personality. Fighters chase with collision and short A* re-plans; badly hurt fighters break and run.
+  - **Non-lethal** weapons (fists, brass knuckles, police baton) knock people out for two game hours; they wake at 30% health, frightened. **Lethal** weapons kill: bodies stay where they fell, the dead never act again, can't be talked to, and quests they gave fail.
+  - Consequences through existing systems: victims' relationships and memories, witnesses learn `fact_player_assault` / `fact_player_murder` (gossip, reputation), a new `frightened` mood, gunshots scare everyone within earshot (and wake sleepers).
+  - The player can be beaten: at 0 health you black out and wake at home six hours later with 45 health, missing a quarter of your money. Health regenerates slowly out of combat.
+- **Weapons** (items with a `weapon` block): brass knuckles, police baton, baseball bat, crowbar (now also a weapon), machete, fire axe; .38 revolver, 9mm pistol, pump shotgun, hunting rifle, submachine gun. **Ammo**: .38, 9mm, shotgun shells, rifle rounds (sold by the box; items take a `bundle` size).
+- Where to get them: **Rook & Rifle** (Halvermouth) is now an unmanned shop (honesty box; restocks at 09:00); Tibbs sells a fire axe; a baton in the police station lockers (faction `fac_police`); a bat in a crate in the Sumps (unowned containers can be taken from freely).
+- Controls: **F / left click** attack (hold for automatic weapons), **R** reload, **X** next weapon, **1–9** pick a weapon, **Z** put weapon away; Equip / Put away buttons in the inventory; HUD shows the weapon and ammo.
+- Art: weapons held in hand, bodies lying down (dead ones over a dark pool), tracers, muzzle flashes, swing arcs, bullet sparks, a red vignette when hurt or low on health.
+- Audio: swing, punch, whack, slash, three gunshots, reload, dry fire, hurt.
+- Combat temperaments for 18 characters (e.g. Silas defends with a revolver; Barnaby protects anyone; Mason, Osric, Sir Moneybucks and others never fight).
+- Validator: weapon definitions, ammo references, combat profiles; interact kind `shop`; shops and containers may have `owner: null`.
+- Tests: `tests/combat.test.mjs` (10 tests).
+
+### Compatibility
+- Save schema unchanged (1). New optional fields: `player.equipped`, `player.mags`; per NPC `health`, `dead`, `downUntil`, `diedAt`. Older saves load with fists and everyone at full health.
+
 ## [0.5.0] — 2026-10-13 — "Halvermouth" (development build; map only)
 
 ### Added

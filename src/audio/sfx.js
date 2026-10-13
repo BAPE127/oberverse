@@ -90,6 +90,41 @@ export const SFX = {
   sfx_sleep: (ctx, d) => {
     [392, 330, 262].forEach((f, i) => tone(ctx, d, { type: 'sine', f0: f, t: ctx.currentTime + i * 0.25, dur: 0.6, vol: 0.08, attack: 0.05 }));
   },
+  // ---- combat
+  sfx_swing: (ctx, d) => noise(ctx, d, { dur: 0.12, vol: 0.07, type: 'bandpass', freq: 900, f1: 2400, q: 1.5 }),
+  sfx_punch: (ctx, d) => {
+    noise(ctx, d, { dur: 0.08, vol: 0.22, type: 'lowpass', freq: 700 });
+    tone(ctx, d, { type: 'sine', f0: 140, f1: 70, dur: 0.1, vol: 0.2 });
+  },
+  sfx_whack: (ctx, d) => {
+    noise(ctx, d, { dur: 0.1, vol: 0.25, type: 'bandpass', freq: 1300, q: 2 });
+    tone(ctx, d, { type: 'triangle', f0: 220, f1: 110, dur: 0.12, vol: 0.16 });
+  },
+  sfx_slash: (ctx, d) => {
+    noise(ctx, d, { dur: 0.16, vol: 0.18, type: 'highpass', freq: 2500, f1: 5000 });
+    tone(ctx, d, { type: 'sine', f0: 160, f1: 80, dur: 0.08, vol: 0.12 });
+  },
+  sfx_gunshot: (ctx, d) => {
+    noise(ctx, d, { dur: 0.22, vol: 0.45, type: 'lowpass', freq: 3200, f1: 500 });
+    tone(ctx, d, { type: 'square', f0: 120, f1: 40, dur: 0.14, vol: 0.18 });
+  },
+  sfx_gunshot_heavy: (ctx, d) => {
+    noise(ctx, d, { dur: 0.45, vol: 0.55, type: 'lowpass', freq: 2200, f1: 200 });
+    tone(ctx, d, { type: 'square', f0: 90, f1: 30, dur: 0.25, vol: 0.22 });
+  },
+  sfx_gunshot_smg: (ctx, d) => {
+    noise(ctx, d, { dur: 0.1, vol: 0.32, type: 'lowpass', freq: 3800, f1: 900 });
+    tone(ctx, d, { type: 'square', f0: 150, f1: 60, dur: 0.06, vol: 0.12 });
+  },
+  sfx_reload: (ctx, d) => {
+    noise(ctx, d, { dur: 0.05, vol: 0.12, freq: 2800, q: 5 });
+    noise(ctx, d, { t: ctx.currentTime + 0.25, dur: 0.06, vol: 0.14, freq: 1800, q: 6 });
+  },
+  sfx_dryfire: (ctx, d) => noise(ctx, d, { dur: 0.03, vol: 0.14, freq: 3500, q: 8 }),
+  sfx_hurt: (ctx, d) => {
+    tone(ctx, d, { type: 'sawtooth', f0: 320, f1: 160, dur: 0.18, vol: 0.08 });
+    noise(ctx, d, { dur: 0.08, vol: 0.15, type: 'lowpass', freq: 600 });
+  },
 };
 
 /** A single dialogue "voice" blip using a character's voice parameters. */

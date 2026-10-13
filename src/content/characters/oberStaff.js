@@ -11,6 +11,7 @@ const staff = (o) => ({ tier: 'minor', origin: 'imported-generated', faction: 'f
 
 export const crisp = staff({
   id: 'npc_crisp', name: 'Bartholomew Crisp', shortName: 'Crisp',
+  combat: { never: true, maxHealth: 80 },
   role: 'Butler of Moneybucks Manor for thirty years. Decides who gets through the front door.',
   dialogue: 'dlg_crisp',
   voice: { wave: 'triangle', pitch: 210, variance: 8, rate: 1.3 },
@@ -35,6 +36,7 @@ export const crisp = staff({
 
 export const agnes = staff({
   id: 'npc_agnes', name: 'Agnes Thornbury', shortName: 'Agnes',
+  combat: { never: true },
   role: 'Secretary and bookkeeper to Sir Moneybucks. Sells Ober\'s Oil shares — and knows exactly what the books hide.',
   dialogue: 'dlg_agnes',
   voice: { wave: 'triangle', pitch: 360, variance: 25, rate: 1 },
@@ -60,6 +62,7 @@ export const agnes = staff({
 
 export const gideon = staff({
   id: 'npc_gideon', name: 'Gideon Slate', shortName: 'Gideon',
+  combat: { fights: true, maxHealth: 120 },
   role: 'Refinery foreman. Hires day labour, docks pay, runs the company store.',
   dialogue: 'dlg_gideon', shop: 'shop_company',
   voice: { wave: 'square', pitch: 165, variance: 20, rate: 1.05 },
@@ -86,6 +89,7 @@ export const gideon = staff({
 
 export const ruby = staff({
   id: 'npc_ruby', name: 'Ruby Calder', shortName: 'Ruby',
+  combat: { fights: true, weapon: 'item_crowbar' },
   role: 'Refinery engineer. Keeps the column from exploding, mostly by shouting at people.',
   dialogue: 'dlg_ruby',
   voice: { wave: 'triangle', pitch: 300, variance: 40, rate: 0.95 },
@@ -112,6 +116,7 @@ export const ruby = staff({
 
 export const hank = staff({
   id: 'npc_hank', name: 'Hank Dorsey', shortName: 'Hank',
+  combat: { fights: true, defends: ['npc_pip', 'npc_ruby', 'npc_otto', 'npc_tibbs'], maxHealth: 120 },
   role: 'Derrick rigger. Fearless, loud, and the source of at least half the tall tales in Lanternside.',
   dialogue: 'dlg_hank',
   voice: { wave: 'sawtooth', pitch: 150, variance: 35, rate: 0.9 },
@@ -138,6 +143,7 @@ export const hank = staff({
 
 export const pip = staff({
   id: 'npc_pip', name: 'Pip Wexley', shortName: 'Pip',
+  combat: { never: true },
   role: 'Apprentice and runner at Ober\'s Oil. Believes every word Sir Moneybucks says.',
   dialogue: 'dlg_pip',
   voice: { wave: 'triangle', pitch: 480, variance: 70, rate: 0.75 },
@@ -164,6 +170,7 @@ export const pip = staff({
 
 export const delphine = staff({
   id: 'npc_delphine', name: 'Delphine Moreau', shortName: 'Delphine',
+  combat: { never: true },
   role: 'Refinery chemist. Cold, brilliant, and far more interested in the mystery than the money.',
   dialogue: 'dlg_delphine',
   voice: { wave: 'sine', pitch: 340, variance: 15, rate: 1.1 },
@@ -186,6 +193,7 @@ export const delphine = staff({
 
 export const silas = staff({
   id: 'npc_silas', name: 'Silas Grimmer', shortName: 'Silas',
+  combat: { fights: true, defends: true, weapon: 'item_revolver', maxHealth: 130 },
   role: 'Head of security at Ober\'s Oil. Watches the gate; breaks strikes when told.',
   dialogue: 'dlg_silas',
   voice: { wave: 'sawtooth', pitch: 110, variance: 8, rate: 1.4 },
@@ -210,6 +218,7 @@ export const silas = staff({
 
 export const mabel = staff({
   id: 'npc_mabel', name: 'Mabel Quince', shortName: 'Mabel',
+  combat: { fights: true, defends: ['npc_crisp', 'npc_agnes'] },
   role: 'Cook at Moneybucks Manor. Champion baker, champion grudge-holder — chiefly against Mags Pell.',
   dialogue: 'dlg_mabel',
   voice: { wave: 'triangle', pitch: 280, variance: 60, rate: 0.9 },
@@ -233,6 +242,7 @@ export const mabel = staff({
 
 export const otto = staff({
   id: 'npc_otto', name: 'Otto Brandt', shortName: 'Otto',
+  combat: { fights: true, defends: ['npc_ruby', 'npc_pip', 'npc_hank'] },
   role: 'Pipe fitter at Ober\'s Oil, quietly organising the workers. Wears a blue thread on his cuff.',
   dialogue: 'dlg_otto',
   voice: { wave: 'triangle', pitch: 190, variance: 25, rate: 1.05 },

@@ -4,12 +4,19 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.6.0 | 2026-10-13 | development | 1 | Hard Lessons — combat, weapons, NPC health and death |
 | 0.5.0 | 2026-10-13 | development | 1 | Halvermouth — the city map (no residents yet) |
 | 0.4.0 | 2026-10-13 | development | 1 | Mason's Os — second imported character, Westbrook district, property groundwork |
 | 0.3.0 | 2026-10-13 | development | 1 | One Coast — Lanternside and the Ober Fields joined seamlessly |
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.6.0 — Hard Lessons
+
+- **Systems:** real-time combat on the player's map (melee and guns), NPC health/knock-out/death, fight-or-flight reactions, witness consequences.
+- **Design note:** any NPC can be attacked and killed, including story characters; death is permanent and fails the quests they gave. This is intentional (systemic sandbox).
+- **Save compatibility:** schema 1 unchanged; new fields are optional and defaulted.
 
 ## 0.5.0 — Halvermouth
 

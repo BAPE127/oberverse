@@ -88,6 +88,10 @@ Only horizontal (east–west) seams are generated so far. The coast region is We
 - `OilCompany` (`src/systems/oilCompany.js`) and `Construction` (`src/systems/construction.js`) each own a slice of `world` state and expose shift stations; a `workstation` prop names its `company`. Panels call their methods through `choices` options (`call: [system, method, ...args]`).
 - `Properties` (`src/systems/properties.js`) tracks contracts on plots. Plots are content expanded at load by `withPlots()` (`src/world/plots.js`) into ordinary props, an interior map and a container, all shown or hidden by `property` conditions, so the engine has no plot special cases. A finished building is the one runtime change to a map: `Game.rebuildMaps()` recreates `GameMap`s from content and calls `GameMap.addBuilding()` for every finished property (on new game, on load and on completion). Render caches are keyed by `GameMap` object so rebuilt maps redraw.
 
+## Combat
+
+`Combat` (`src/systems/combat.js`) runs in real time on the player's map. `Game.update` calls `combat.update(dt)` before NPC movement; NPCs with `hostile` (fight/flee), or who are unconscious or dead, are skipped by the normal schedule logic (`NpcSystem.think`, `updatePhysical`, `updateAbstract`, chats) and steered by `Combat.fightStep` / `fleeStep` instead. `combat.minuteTick()` wakes the knocked-out, ends fights when their timer runs out (handing the NPC back to `think`), and heals slowly. Consequences use the existing systems: `relationships.adjust`, `remember`, `knowledge.learn` (assault/murder facts spread by gossip and apply reputation), `quests.fail(…, 'giver_died')`. Weapons are plain item data; NPC temperaments are `profile.combat`. Visual effects live in `combat.fx` (not saved) and are drawn by the renderer; health bars come from `combat.healthBar(npc)`.
+
 ## Rendering
 
 Skyscrapers are buildings with `tower: <storeys>`: the facade rises `storeys × 14 px` above the footprint, so they are culled, y-sorted and occlusion-tested by that height (`towerHeight()`), and add a soft night glow in the lighting pass. Burning barrels are light sources like street lamps.

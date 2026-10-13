@@ -4,6 +4,7 @@ import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCharacter, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
+import { isDown } from '../systems/combat.js';
 import { inWindow } from '../world/clock.js';
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -165,17 +166,26 @@ export class Renderer {
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
         if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
-        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(npc.profile.appearance, npc, npc.activity === 'sleep')) });
+        if (isDown(npc, g.clock.total)) {
+          items.push({ y: npc.y + L.y - 20, draw: at(() => this.drawLying(npc)) });
+          continue;
+        }
+        const nw = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon]?.weapon?.held : null;
+        const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
+        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, npc, npc.activity === 'sleep')) });
       }
     }
-    if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(g.player.appearance, g.player, false) });
+    const held = g.combat.equipped().weapon.held;
+    const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
+    if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(playerLook, g.player, false) });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
     if (!this.hidePlayer && this.playerOccluded(map)) {
       ctx.globalAlpha = 0.38;
-      this.drawActor(g.player.appearance, g.player, false);
+      this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
     }
+    this.drawCombatFx(ctx);
 
     this.drawHighlight(ctx);
     this.drawLighting(map);
@@ -216,6 +226,59 @@ export class Renderer {
     return true;
   }
 
+  /** An unconscious or dead NPC lying on the ground. */
+  drawLying(npc) {
+    const ctx = this.ctx;
+    if (npc.dead) {
+      ctx.fillStyle = 'rgba(110,20,24,0.55)';
+      ctx.beginPath(); ctx.ellipse(npc.x, npc.y - 2, 26, 9, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(npc.x + 22, npc.y - 2);
+    ctx.rotate(-Math.PI / 2);
+    if (npc.dead) ctx.globalAlpha = 0.85;
+    drawCharacter(ctx, npc.profile.appearance, { x: 0, y: 0, facing: 'down', moving: false, idleTime: 0, sleeping: true });
+    ctx.restore();
+  }
+
+  /** Tracers, muzzle flashes, swing arcs and bullet sparks (world space). */
+  drawCombatFx(ctx) {
+    const g = this.game;
+    const t = g.realTime;
+    for (const f of g.combat.fx) {
+      const k = 1 - (t - f.start) / Math.max(0.001, f.until - f.start);
+      if (f.type === 'tracer') {
+        ctx.strokeStyle = `rgba(255,236,170,${0.85 * k})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(f.x1, f.y1); ctx.lineTo(f.x2, f.y2); ctx.stroke();
+      } else if (f.type === 'flash') {
+        ctx.fillStyle = `rgba(255,214,120,${k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 7 + 4 * k, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,255,240,${k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 3, 0, Math.PI * 2); ctx.fill();
+      } else if (f.type === 'spark') {
+        ctx.fillStyle = `rgba(255,220,150,${k})`;
+        for (let i = 0; i < 4; i++) ctx.fillRect(f.x + Math.cos(i * 1.7) * 5 * (1 - k), f.y + Math.sin(i * 1.7) * 5 * (1 - k), 2, 2);
+      } else if (f.type === 'swing') {
+        const a = Math.atan2(f.dir.y, f.dir.x);
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 * k})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.range * 0.85, a - f.arc, a + f.arc); ctx.stroke();
+      }
+    }
+    // aiming line for guns
+    const w = g.combat.equipped();
+    const p = g.player;
+    if (w.weapon.kind === 'gun' && !g.paused) {
+      const d = g.combat.aimVector(w);
+      ctx.strokeStyle = 'rgba(255,90,70,0.45)';
+      ctx.setLineDash([3, 5]);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(p.x + d.x * 16, p.y - 18 + d.y * 16); ctx.lineTo(p.x + d.x * 70, p.y - 18 + d.y * 70); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
   drawActor(appearance, actor, sleeping) {
     const img = appearance.sprite ? this.assets?.image(appearance.sprite) : null;
     if (img) {
@@ -235,8 +298,10 @@ export class Renderer {
       this.ctx.restore();
       return;
     }
+    // flinch when hit
+    const shake = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.2 ? Math.sin(this.game.realTime * 90) * 2 : 0;
     drawCharacter(this.ctx, appearance, {
-      x: actor.x,
+      x: actor.x + shake,
       y: actor.y,
       facing: actor.facing,
       moving: actor.moving,
@@ -391,7 +456,8 @@ export class Renderer {
       const L = layerOf.get(npc.map);
       if (!L) continue;
       const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
-      const s = this.toScreen(npc.x + L.x, npc.y + L.y - 52 * (npc.profile.appearance.height || 1));
+      const lying = isDown(npc, g.clock.total);
+      const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : 52 * (npc.profile.appearance.height || 1)));
       if (near || npc.bubble) {
         const mood = g.moodOf(npc);
         const icon = g.content.moods[mood]?.icon || '';
@@ -412,8 +478,38 @@ export class Renderer {
         const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - 46 - ((this.time * 8) % 10));
         ctx.fillText('z', zs.x, zs.y);
       }
-      if (npc.bubble && g.realTime < npc.bubble.until) this.drawBubble(npc.bubble.text, s.x, s.y - 14 * dpr);
+      const bar = g.combat.healthBar(npc);
+      if (bar) this.drawHealthBar(npc, bar, s, dpr, near || npc.bubble);
+      if (npc.bubble && g.realTime < npc.bubble.until) this.drawBubble(npc.bubble.text, s.x, s.y - (bar ? 30 : 14) * dpr);
       else if (npc.chat && !npc.bubble) this.drawBubble('…', s.x, s.y - 14 * dpr);
+    }
+    // floating damage numbers
+    for (const f of g.combat.fx) {
+      if (f.type !== 'damage') continue;
+      const age = g.realTime - f.start;
+      const fs = this.toScreen(f.x, f.y - age * 30);
+      ctx.globalAlpha = Math.max(0, 1 - age / 0.9);
+      ctx.font = `bold ${14 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = 'rgba(30,20,30,0.85)';
+      ctx.strokeText(`-${f.amount}`, fs.x, fs.y);
+      ctx.fillStyle = f.player ? '#ff6a5a' : '#ffe08a';
+      ctx.fillText(`-${f.amount}`, fs.x, fs.y);
+      ctx.globalAlpha = 1;
+    }
+    // red vignette when the player is hurt
+    const hurt = g.player.hurtAt ? Math.max(0, 1 - (g.realTime - g.player.hurtAt) / 0.6) : 0;
+    const low = g.player.health < 30 ? 0.25 + Math.sin(this.time * 4) * 0.08 : 0;
+    const vig = Math.max(hurt * 0.55, low);
+    if (vig > 0.01) {
+      const W = this.canvas.width;
+      const H = this.canvas.height;
+      const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.7);
+      grad.addColorStop(0, 'rgba(160,0,0,0)');
+      grad.addColorStop(1, `rgba(160,0,0,${vig})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
     }
     // interaction prompt marker above the player
     if (this.highlight) {
@@ -428,6 +524,39 @@ export class Renderer {
       ctx.fill();
     }
     ctx.textAlign = 'left';
+  }
+
+  /** Health bar (and name, if the tag isn't already shown) above an NPC's head. */
+  drawHealthBar(npc, bar, s, dpr, tagShown) {
+    const ctx = this.ctx;
+    const w = 54 * dpr;
+    const h = 7 * dpr;
+    const x = s.x - w / 2;
+    const y = s.y - 20 * dpr;
+    if (!tagShown) {
+      ctx.font = `bold ${10 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = 'rgba(28,22,38,0.8)';
+      ctx.strokeText(npc.profile.shortName, s.x, y - 2 * dpr);
+      ctx.fillStyle = '#fff6e0';
+      ctx.fillText(npc.profile.shortName, s.x, y - 2 * dpr);
+    }
+    ctx.fillStyle = 'rgba(20,14,24,0.8)';
+    rrect(ctx, x - 2 * dpr, y - 2 * dpr, w + 4 * dpr, h + 4 * dpr, 4 * dpr);
+    ctx.fill();
+    const f = bar.frac;
+    ctx.fillStyle = bar.hurt ? '#ffffff' : f > 0.6 ? '#5fbf6a' : f > 0.3 ? '#e8b64c' : '#d9534a';
+    if (f > 0) { rrect(ctx, x, y, Math.max(2, w * f), h, 3 * dpr); ctx.fill(); }
+    if (npc.downUntil && this.game.clock.total < npc.downUntil) {
+      ctx.font = `bold ${9 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#fff6e0';
+      ctx.fillText('KNOCKED OUT', s.x, y + h + 3 * dpr);
+    }
+    ctx.textBaseline = 'middle';
   }
 
   drawBubble(text, x, y) {

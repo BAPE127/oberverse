@@ -21,7 +21,7 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
 export const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -68,6 +68,11 @@ export function inventoryPanel(ui, body) {
             h('div', { class: 'name' }, e.def.name, e.count > 1 ? ` ×${e.count}` : '', owner ? h('span', { class: 'tag bad' }, `belongs to ${owner}`) : null, h('span', { class: 'tag' }, e.def.category)),
             h('div', { class: 'desc' }, e.def.description),
           ),
+          e.def.weapon ? h('button', { class: g.player.equipped === e.id ? 'small primary' : 'small', onclick: () => {
+            const r = g.combat.equip(g.player.equipped === e.id ? null : e.id);
+            ui.toast(r.text, 'info', 2);
+            render();
+          } }, g.player.equipped === e.id ? 'Put away' : 'Equip') : null,
           e.def.use ? h('button', { class: 'small', onclick: () => {
             const r = g.inventory.use(e.id);
             ui.audio.sfx(r.ok ? 'sfx_eat' : 'sfx_ui_click');

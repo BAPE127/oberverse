@@ -14,6 +14,7 @@ const buildIt = (id) => ({
 
 export const mason = {
   id: 'npc_mason',
+  combat: { never: true, maxHealth: 120 }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Mason Nails',
   shortName: 'Mason',
   tier: 'major',
@@ -102,6 +103,7 @@ const crew = (o) => ({ tier: 'minor', origin: 'imported-generated', faction: 'fa
 
 export const dee = crew({
   id: 'npc_dee', name: 'Dolores "Dee" Rivera', shortName: 'Dee',
+  combat: { fights: true, defends: ['npc_mason', 'npc_quinn', 'npc_barnaby'] },
   role: 'Site foreman at Mason\'s Os. Hires day labour, pays fairly, checks every course with a level.',
   dialogue: 'dlg_dee',
   voice: { wave: 'square', pitch: 300, variance: 25, rate: 1.1 },
@@ -131,6 +133,7 @@ export const dee = crew({
 
 export const barnaby = crew({
   id: 'npc_barnaby', name: 'Barnaby Cole', shortName: 'Barnaby',
+  combat: { defends: true, maxHealth: 160 },
   role: 'Labourer at Mason\'s Os. A gentle giant who mixes the cement, lays the bricks and defends every gull in Lanternside.',
   dialogue: 'dlg_barnaby',
   voice: { wave: 'sine', pitch: 105, variance: 10, rate: 0.85 },
@@ -158,6 +161,7 @@ export const barnaby = crew({
 
 export const quinn = crew({
   id: 'npc_quinn', name: 'Quinn Abernathy', shortName: 'Quinn',
+  combat: { never: true, maxHealth: 80 },
   role: 'Apprentice surveyor and draftsperson at Mason\'s Os. Nervous, meticulous — and the one who will draw your future house.',
   dialogue: 'dlg_quinn',
   voice: { wave: 'triangle', pitch: 330, variance: 40, rate: 1.3 },

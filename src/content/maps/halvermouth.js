@@ -178,7 +178,7 @@ for (const [x, y] of [[2, 44], [28, 51], [8, 61], [22, 61], [29, 58]]) P('laundr
 for (const [x, y] of [[4, 49], [13, 45], [25, 43], [31, 50], [20, 58], [35, 61], [5, 66], [14, 70], [28, 72], [10, 72], [23, 53]]) P('trash', x, y);
 P('car', 21, 44, { wrecked: true, color: '#6a4a3a', examine: 'A car with no wheels, no doors and three residents.' });
 P('car', 33, 64, { wrecked: true, color: '#4a5a4a' });
-P('crate', 24, 58); P('crate', 25, 58); P('barrel', 16, 50); P('barrel', 34, 47);
+props.push({ id: 'hv_sumps_crate', type: 'crate', x: 24, y: 58, interact: { kind: 'container', container: 'ct_sumps_crate' }, examine: 'A rotten crate.' }); P('crate', 25, 58); P('barrel', 16, 50); P('barrel', 34, 47);
 // The Docks
 for (const x of [44, 45, 58, 80, 81, 104, 105]) P('crate', x, 71);
 for (const x of [47, 60, 83, 107]) P('barrel', x, 72);
@@ -290,7 +290,7 @@ export const policeStation = {
     // holding cells
     { id: 'pd_cell_bars', type: 'cellbars', x: 14, y: 4, w: 5, examine: 'The holding cells. Empty — for now.' },
     { id: 'pd_cell_cot1', type: 'cot', x: 14, y: 1 }, { id: 'pd_cell_cot2', type: 'cot', x: 17, y: 1 },
-    { id: 'pd_lockers', type: 'wardrobe', x: 17, y: 8, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
+    { id: 'pd_lockers', type: 'wardrobe', x: 17, y: 8, interact: { kind: 'container', container: 'ct_police_lockers' }, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
     { id: 'pd_plant', type: 'plant', x: 18, y: 10 },
     { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 16, y: 0 },
   ],
@@ -306,7 +306,8 @@ export const gunShop = {
   doors: [{ id: 'door_gunshop_exit', x: 6, y: 8, to: { map: 'halvermouth', spot: 'gunshop_door_out' } }],
   spots: { entry: { x: 6, y: 7, facing: 'up' }, counter_back: { x: 6, y: 2, facing: 'down' } },
   props: [
-    { id: 'gs_counter', type: 'display', variant: 'guns', x: 3, y: 4, w: 6, examine: 'A glass display counter of revolvers and pistols, each tagged and chained. A card: "LICENSED BUYERS ONLY — ASK AT THE COUNTER."' },
+    { id: 'gs_counter', type: 'display', variant: 'guns', x: 3, y: 4, w: 6, interact: { kind: 'shop', shop: 'shop_rook', name: 'Gun counter' }, examine: 'A glass display counter of revolvers and pistols.' },
+    { id: 'gs_bell', type: 'sign', x: 9, y: 4, examine: 'A brass bell and a card: "Back in 5 min — R. Pay at the till, take a receipt, and don\'t do anything I wouldn\'t." The till is an honesty box bolted to the counter.' },
     { id: 'gs_rack1', type: 'gunrack', x: 1, y: 1, w: 3, examine: 'Hunting rifles in a locked rack.' },
     { id: 'gs_rack2', type: 'gunrack', x: 8, y: 1, w: 3, examine: 'Shotguns in a locked rack. A sign: "Duck season. Rabbit season. NO gull season (city ordinance)."' },
     { id: 'gs_ammo', type: 'shelf', x: 1, y: 5, w: 1, h: 2, examine: 'Boxes of ammunition and a stern notice about storage.' },

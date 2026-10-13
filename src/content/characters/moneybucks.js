@@ -5,6 +5,7 @@ import { PORTRAITS } from '../portraits.js';
 
 export default {
   id: 'npc_moneybucks',
+  combat: { never: true, maxHealth: 90 }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Sir Richard E. Moneybucks, Esq.',
   shortName: 'Sir Moneybucks',
   tier: 'major',

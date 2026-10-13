@@ -1,6 +1,7 @@
 // Marguerite "Mags" Pell — original Oberverse resident (not an imported character).
 export default {
   id: 'npc_mags',
+  combat: { fights: true, defends: ['npc_osric', 'npc_tibbs'] }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Marguerite "Mags" Pell',
   shortName: 'Mags',
   tier: 'major',

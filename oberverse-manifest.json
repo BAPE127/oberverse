@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -36,7 +36,8 @@
     "ledgerGame": "src/systems/ledgerGame.js",
     "regions": "src/world/regions.js, src/content/world.js (coast: seamless; city: separate region via gateways)",
     "construction": "src/systems/construction.js",
-    "properties": "src/systems/properties.js, src/world/plots.js, src/content/properties.js (no plots yet)"
+    "properties": "src/systems/properties.js, src/world/plots.js, src/content/properties.js (no plots yet)",
+    "combat": "src/systems/combat.js (weapons in src/content/items.js)"
   },
   "contentRegistries": {
     "index": "src/content/index.js",

@@ -115,6 +115,8 @@ Outdoor maps use `MapBuilder` rectangles; interiors use `roomTiles(w, h, floor, 
 
 Buildings: `{id, name, mapLabel?, x, y, w, h, roof, wall, trim, sign?, door?: {x, y, to?, lock?, gateway?}, columns?, awning?, round?, flatRoof?, dome?: colour, pediment?, shabby?, tower?: storeys, glass?, helipad?, signColor?}`. A door without `to` never opens and shows `lock.message`. `mapLabel: ''` hides the map label. Tiles include `m` (plaza stone) and `u` (mud).
 
+Weapons are items with a `weapon` block: `{kind: 'melee'|'gun', damage, range (tiles), cooldown (s), lethal, held, sound}` plus melee `arc` (degrees), `knockback`; guns `ammo` (item id), `mag`, `reload` (s), `spread` (degrees), `pellets?`, `auto?`, `noise` (tiles). Ammo items have `bundle` (rounds per purchase). Character combat temperament: `combat: {fights?, defends?: true | [ids], never?, weapon?, maxHealth?}`. Interact kind `shop: {shop}` opens a shop directly (unmanned shops have `owner: null` and may `restockAt: 'HH:MM'`); containers with `owner: null` are free to take from.
+
 Props: `{id, type, x, y, w?, h?, solid?, examine?, onExamine?, interact?: {kind, …}, hiddenUnless?, animateWhen?, sortRow?, item?}` with `kind` ∈ `container | read | sleep | sit | noticeboard | obstacle | forage | stockcheck | workstation | useItem | contracts`. `animateWhen` is a condition (e.g. the excavator moves only while `{npcAt: {npc: 'npc_mason', activity: 'excavate'}}`); `sortRow` overrides the draw-order row so an actor can appear inside a prop.
 
 - `read` may set `private: npcId` (+ `caughtBark`): if that character can see you, they stop you and grow suspicious.

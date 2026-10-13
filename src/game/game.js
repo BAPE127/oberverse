@@ -19,6 +19,7 @@ import { EventDirector } from '../systems/eventDirector.js';
 import { OilCompany, freshOil } from '../systems/oilCompany.js';
 import { Construction, freshConstruction } from '../systems/construction.js';
 import { Properties, freshProperties } from '../systems/properties.js';
+import { Combat, isDown } from '../systems/combat.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -46,6 +47,7 @@ export class Game {
     this.oil = new OilCompany(this);
     this.construction = new Construction(this);
     this.properties = new Properties(this);
+    this.combat = new Combat(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -243,10 +245,12 @@ export class Game {
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
     this.updatePlayer(dt, input);
+    this.combat.update(dt);
+    const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
-      if (npc.inDialogue) {
-        npc.moving = false;
+      if (npc.inDialogue || npc.hostile || isDown(npc, now)) {
+        if (!npc.hostile) npc.moving = false;
         continue;
       }
       this.npcSystem.updatePhysical(npc, dt);
@@ -256,6 +260,7 @@ export class Game {
   }
 
   minuteTick() {
+    this.combat.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -271,6 +276,9 @@ export class Game {
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
+    for (const [id, shop] of Object.entries(this.content.shops)) {
+      if (shop.restockAt && this.clock.timeString === shop.restockAt) this.restockShop(id);
+    }
     if (Math.floor(this.clock.total) % 12 === 0) this.player.energy = Math.max(0, this.player.energy - 1);
   }
 
@@ -508,7 +516,7 @@ export class Game {
     const map = this.maps.get(mapId);
     const out = [];
     for (const npc of this.npcs.values()) {
-      if (npc.map !== mapId || npc.activity === 'sleep') continue;
+      if (npc.map !== mapId || npc.activity === 'sleep' || isDown(npc, this.clock.total)) continue;
       if (this.canSee(npc, x, y, map, rangeTiles)) out.push(npc);
     }
     return out;
@@ -600,11 +608,14 @@ export class Game {
       const dot = ((x - p.x) * fx + (y - p.y) * fy) / (d || 1);
       return d - dot * 14;
     };
+    const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== p.map) continue;
       const d = dist(p.x, p.y, npc.x, npc.y);
       if (d > INTERACT_RANGE) continue;
-      out.push({ kind: 'npc', id: npc.id, label: npc.activity === 'sleep' ? `${npc.profile.shortName} (asleep)` : `Talk to ${npc.profile.shortName}`, score: score(npc.x, npc.y) - 6 });
+      const name = npc.profile.shortName;
+      const label = npc.dead ? `Look at ${name}'s body` : isDown(npc, now) ? `${name} (unconscious)` : npc.activity === 'sleep' ? `${name} (asleep)` : `Talk to ${name}`;
+      out.push({ kind: 'npc', id: npc.id, label, score: score(npc.x, npc.y) - 6 });
     }
     for (const prop of map.props) {
       if (!prop.interact && !prop.examine) continue;
@@ -641,6 +652,7 @@ export class Game {
       case 'obstacle': return this.world.props[prop.id]?.open ? `Climb through the ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
+      case 'shop': return `Browse the ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
@@ -657,6 +669,9 @@ export class Game {
     if (target.kind === 'npc') {
       const npc = this.npcs.get(target.id);
       if (!npc) return { type: 'none' };
+      if (npc.dead) return { type: 'message', text: `${npc.profile.shortName} is dead. There is nothing more to say.` };
+      if (isDown(npc, this.clock.total)) return { type: 'message', text: `${npc.profile.shortName} is out cold, breathing shallowly.` };
+      if (npc.hostile) return { type: 'message', text: npc.hostile.mode === 'fight' ? `${npc.profile.shortName} is in no mood to talk — they're trying to hit you!` : `${npc.profile.shortName} backs away from you, terrified.` };
       if (npc.activity === 'sleep') {
         const pool = this.content.dialogues[npc.profile.dialogue]?.barks?.sleep || ['Zzz…'];
         this.bark(npc, this.rng.pick(pool));
@@ -698,6 +713,8 @@ export class Game {
         }
         return { type: 'container', containerId: act.container };
       }
+      case 'shop':
+        return { type: 'shop', shopId: act.shop };
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -811,7 +828,8 @@ export class Game {
     const isMoney = itemId === 'money';
     if (isMoney ? st.money <= 0 : !(st.items[itemId] > 0)) return { ok: false, text: 'Nothing there.' };
     let stolen = false;
-    const permitted = def.owner === 'player' || (itemId === 'item_lighthouse_key' && this.getFlag('lighthouse_permission'));
+    const permitted = def.owner === 'player' || def.owner == null || // unowned (abandoned) containers are fair game
+       (itemId === 'item_lighthouse_key' && this.getFlag('lighthouse_permission'));
     if (!permitted) {
       const seen = this.witnesses(this.player.map, this.player.x, this.player.y, 8);
       const owner = seen.find((n) => n.id === def.owner);
@@ -868,7 +886,7 @@ export class Game {
     if (this.player.money < price) return { ok: false, text: 'You can\'t afford that.' };
     this.player.money -= price;
     st.stock[itemId]--;
-    this.inventory.add(itemId, 1);
+    this.inventory.add(itemId, this.content.items[itemId].bundle || 1);
     this.bus.emit('money:changed', { delta: -price, total: this.player.money });
     this.bus.emit('shop:stock', { shopId, item: itemId, stock: st.stock[itemId], by: 'player' });
     return { ok: true, text: `Bought ${this.content.items[itemId].name} for ${price} obols.` };
@@ -975,10 +993,11 @@ export class Game {
         activity: n.activity, mood: n.mood, met: n.met, relationships: n.relationships, knowledge: n.knowledge,
         memory: n.memory, topicsUsed: n.topicsUsed, recentLines: n.recentLines, gifts: n.gifts,
         chatCooldownUntil: n.chatCooldownUntil, hooksRun: n.hooksRun, impulseCooldowns: n.impulseCooldowns || {},
+        health: n.health, dead: n.dead || undefined, downUntil: n.downUntil || undefined, diedAt: n.diedAt,
         intent: n.intent && n.intent.source === 'errand' ? { activity: n.intent.activity, spot: n.intent.spot, source: 'errand', until: n.intent.until, fromBlock: n.intent.fromBlock } : null,
       };
     }
-    const { vx, vy, moving, animTime, stepAcc, sprintAcc, lastTx, lastTy, areaName, ...player } = this.player;
+    const { vx, vy, moving, animTime, stepAcc, sprintAcc, lastTx, lastTy, areaName, aim, attackAnim, hurtAt, ...player } = this.player;
     return deepClone({
       clock: this.clock.serialize(),
       rng: this.rng.serialize(),

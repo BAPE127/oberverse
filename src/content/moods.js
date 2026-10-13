@@ -10,4 +10,5 @@ export const MOODS = {
   grumpy: { label: 'Grumpy', persuasion: -0.12, icon: '☁' },
   affronted: { label: 'Affronted', persuasion: -0.25, icon: '!' },
   tired: { label: 'Tired', persuasion: -0.05, icon: 'z' },
+  frightened: { label: 'Frightened', persuasion: -0.3, icon: '😨' },
 };

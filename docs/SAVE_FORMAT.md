@@ -27,7 +27,8 @@
       "knowledge": { "fact_lighthouse_dark": { "kind": "fact", "source": "read", "at": 490, "confidence": 1 } },
       "reputation": { "lanternside": 0, "fac_civic": 0, "fac_merchants": 0, "fac_quay": 0 },
       "stats": { "charm": 2, "wits": 2, "grit": 2, "finesse": 2 },
-      "discovered": { "maps": { "player_flat": true }, "areas": { "area_brindle": true } }
+      "discovered": { "maps": { "player_flat": true }, "areas": { "area_brindle": true } },
+      "equipped": "item_pistol", "mags": { "item_pistol": 11 }
     },
     "npcs": {
       "npc_osric": {
@@ -36,7 +37,8 @@
         "relationships": { "player": { "trust": 10, "affection": 8, "respect": 0, "suspicion": 0 } },
         "knowledge": {}, "memory": { "recent": [], "significant": [] },
         "topicsUsed": {}, "recentLines": [], "gifts": { "day": 1, "count": 1 },
-        "chatCooldownUntil": 0, "hooksRun": {}, "impulseCooldowns": {}, "intent": null
+        "chatCooldownUntil": 0, "hooksRun": {}, "impulseCooldowns": {}, "intent": null,
+        "health": 74, "dead": true, "diedAt": 1530, "downUntil": 1700
       }
     },
     "world": {
@@ -52,6 +54,8 @@
   }
 }
 ```
+
+Combat fields (v0.6.0, optional): `player.equipped` (weapon item id, absent = fists), `player.mags` (rounds loaded per gun); per NPC `health` (absent = full), `dead`/`diedAt`, `downUntil` (game minute an unconscious NPC wakes). In-fight state (`hostile`, cooldowns, effects) is not saved: loading ends any fight.
 
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.
 

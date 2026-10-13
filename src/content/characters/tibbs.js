@@ -1,6 +1,7 @@
 // Tibbs Hollow — original Oberverse resident (not an imported character).
 export default {
   id: 'npc_tibbs',
+  combat: { fights: true, defends: ['npc_mags'] }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Tibbs Hollow',
   shortName: 'Tibbs',
   tier: 'major',

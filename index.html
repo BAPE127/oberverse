@@ -58,6 +58,11 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 .bar-fill { height: 100%; border-radius: 6px; transition: width .3s; }
 .bar-fill.health { background: linear-gradient(90deg, #c0614a, #e0876f); }
 .bar-fill.energy { background: linear-gradient(90deg, #e8b64c, #f5d27f); }
+#hud-weapon { margin-top: 5px; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; }
+#hud-weapon .ammo { font-weight: bold; font-variant-numeric: tabular-nums; }
+#hud-weapon .ammo.empty { color: var(--warn); }
+#hud-bl.hurt { animation: hurtPulse .35s ease-out; }
+@keyframes hurtPulse { 0% { box-shadow: 0 0 0 3px rgba(200,40,40,.8); } 100% { box-shadow: 0 0 0 0 rgba(200,40,40,0); } }
 #hud-prompt { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); background: rgba(45,36,51,.9); color: #fff6e0; padding: 7px 14px; border-radius: 999px; font-size: 14px; white-space: nowrap; }
 #hud-prompt kbd { background: #fff6e0; color: var(--ink); border-radius: 5px; padding: 0 6px; margin-right: 6px; font-weight: bold; font-family: var(--font); }
 #hud-keys { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; color: rgba(255,246,224,.85); text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; }
@@ -190,9 +195,10 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
     <div id="hud-bl" class="hud-card">
       <div class="bar"><span>Health</span><div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div></div>
       <div class="bar"><span>Energy</span><div class="bar-track"><div id="bar-energy" class="bar-fill energy"></div></div></div>
+      <div id="hud-weapon"></div>
     </div>
     <div id="hud-prompt" class="hidden"></div>
-    <div id="hud-keys">E interact · Shift sprint · I inventory · J journal · M map · Esc menu</div>
+    <div id="hud-keys">E interact · F / click attack · R reload · X weapon · Shift sprint · I inventory · J journal · M map · Esc menu</div>
     <div id="toasts" aria-live="polite"></div>
     <div id="debug" class="hidden"></div>
   </div>
@@ -1240,7 +1246,7 @@ for (const [x, y] of [[2, 44], [28, 51], [8, 61], [22, 61], [29, 58]]) P('laundr
 for (const [x, y] of [[4, 49], [13, 45], [25, 43], [31, 50], [20, 58], [35, 61], [5, 66], [14, 70], [28, 72], [10, 72], [23, 53]]) P('trash', x, y);
 P('car', 21, 44, { wrecked: true, color: '#6a4a3a', examine: 'A car with no wheels, no doors and three residents.' });
 P('car', 33, 64, { wrecked: true, color: '#4a5a4a' });
-P('crate', 24, 58); P('crate', 25, 58); P('barrel', 16, 50); P('barrel', 34, 47);
+props.push({ id: 'hv_sumps_crate', type: 'crate', x: 24, y: 58, interact: { kind: 'container', container: 'ct_sumps_crate' }, examine: 'A rotten crate.' }); P('crate', 25, 58); P('barrel', 16, 50); P('barrel', 34, 47);
 // The Docks
 for (const x of [44, 45, 58, 80, 81, 104, 105]) P('crate', x, 71);
 for (const x of [47, 60, 83, 107]) P('barrel', x, 72);
@@ -1352,7 +1358,7 @@ const policeStation = {
     // holding cells
     { id: 'pd_cell_bars', type: 'cellbars', x: 14, y: 4, w: 5, examine: 'The holding cells. Empty — for now.' },
     { id: 'pd_cell_cot1', type: 'cot', x: 14, y: 1 }, { id: 'pd_cell_cot2', type: 'cot', x: 17, y: 1 },
-    { id: 'pd_lockers', type: 'wardrobe', x: 17, y: 8, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
+    { id: 'pd_lockers', type: 'wardrobe', x: 17, y: 8, interact: { kind: 'container', container: 'ct_police_lockers' }, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
     { id: 'pd_plant', type: 'plant', x: 18, y: 10 },
     { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 16, y: 0 },
   ],
@@ -1368,7 +1374,8 @@ const gunShop = {
   doors: [{ id: 'door_gunshop_exit', x: 6, y: 8, to: { map: 'halvermouth', spot: 'gunshop_door_out' } }],
   spots: { entry: { x: 6, y: 7, facing: 'up' }, counter_back: { x: 6, y: 2, facing: 'down' } },
   props: [
-    { id: 'gs_counter', type: 'display', variant: 'guns', x: 3, y: 4, w: 6, examine: 'A glass display counter of revolvers and pistols, each tagged and chained. A card: "LICENSED BUYERS ONLY — ASK AT THE COUNTER."' },
+    { id: 'gs_counter', type: 'display', variant: 'guns', x: 3, y: 4, w: 6, interact: { kind: 'shop', shop: 'shop_rook', name: 'Gun counter' }, examine: 'A glass display counter of revolvers and pistols.' },
+    { id: 'gs_bell', type: 'sign', x: 9, y: 4, examine: 'A brass bell and a card: "Back in 5 min — R. Pay at the till, take a receipt, and don\'t do anything I wouldn\'t." The till is an honesty box bolted to the counter.' },
     { id: 'gs_rack1', type: 'gunrack', x: 1, y: 1, w: 3, examine: 'Hunting rifles in a locked rack.' },
     { id: 'gs_rack2', type: 'gunrack', x: 8, y: 1, w: 3, examine: 'Shotguns in a locked rack. A sign: "Duck season. Rabbit season. NO gull season (city ordinance)."' },
     { id: 'gs_ammo', type: 'shelf', x: 1, y: 5, w: 1, h: 2, examine: 'Boxes of ammunition and a stern notice about storage.' },
@@ -1506,8 +1513,9 @@ const ITEMS = {
     use: { health: 25, text: 'You patch yourself up. (+25 health)' },
   },
   item_crowbar: {
-    name: 'Crowbar', category: 'tool', price: 18, tags: ['tool', 'pry'], icon: 'crowbar',
-    description: 'Heavy, honest, and very good at opening things that would rather stay shut.',
+    name: 'Crowbar', category: 'tool', price: 18, tags: ['tool', 'pry', 'weapon'], icon: 'crowbar',
+    description: 'Heavy, honest, and very good at opening things that would rather stay shut. Or heads.',
+    weapon: { kind: 'melee', damage: 24, range: 1.3, arc: 95, cooldown: 0.85, lethal: true, knockback: 24, sound: 'sfx_whack', held: 'club' },
   },
   item_lucky_spanner: {
     name: 'Lucky Spanner', category: 'quest', price: 0, tags: ['quest', 'tool'], icon: 'spanner',
@@ -1556,6 +1564,76 @@ const ITEMS = {
   item_company_scrip: {
     name: 'Company Scrip', category: 'junk', price: 0, tags: ['junk'], icon: 'stamp',
     description: 'Paper "money" redeemable only at the Ober\'s Oil company store. Tibbs says it makes good kindling.',
+  },
+  // ------------------------------------------------------------ weapons
+  // weapon: { kind: 'melee'|'gun', damage, range (tiles), cooldown (s), lethal,
+  //   melee: arc (degrees), knockback · guns: ammo, mag, reload (s), spread (deg),
+  //   pellets?, auto?, noise (tiles) · held: how it is drawn in the hand }
+  item_knuckles: {
+    name: 'Brass Knuckles', category: 'weapon', price: 25, tags: ['weapon', 'melee'], icon: 'knuckles',
+    description: 'Four brass rings and a bad attitude. Hits harder than a bare fist, and puts people down without killing them.',
+    weapon: { kind: 'melee', damage: 14, range: 1.0, arc: 80, cooldown: 0.45, lethal: false, knockback: 16, sound: 'sfx_punch', held: 'knuckles' },
+  },
+  item_baton: {
+    name: 'Police Baton', category: 'weapon', price: 35, tags: ['weapon', 'melee'], icon: 'baton',
+    description: 'A black hardwood nightstick, Halvermouth Police issue. Designed to subdue, not to kill.',
+    weapon: { kind: 'melee', damage: 18, range: 1.25, arc: 90, cooldown: 0.6, lethal: false, knockback: 20, sound: 'sfx_whack', held: 'club' },
+  },
+  item_bat: {
+    name: 'Baseball Bat', category: 'weapon', price: 30, tags: ['weapon', 'melee'], icon: 'bat',
+    description: 'Ash wood, taped grip, a dent that tells a story. Nobody in the Sumps plays baseball.',
+    weapon: { kind: 'melee', damage: 22, range: 1.35, arc: 100, cooldown: 0.8, lethal: true, knockback: 26, sound: 'sfx_whack', held: 'club' },
+  },
+  item_machete: {
+    name: 'Machete', category: 'weapon', price: 45, tags: ['weapon', 'melee'], icon: 'blade',
+    description: 'A long, broad blade for clearing brush. Or anything else.',
+    weapon: { kind: 'melee', damage: 30, range: 1.3, arc: 110, cooldown: 0.7, lethal: true, knockback: 12, sound: 'sfx_slash', held: 'blade' },
+  },
+  item_fire_axe: {
+    name: 'Fire Axe', category: 'weapon', price: 55, tags: ['weapon', 'melee'], icon: 'axe',
+    description: 'Red head, long haft, "IN CASE OF EMERGENCY". Slow, heavy and devastating.',
+    weapon: { kind: 'melee', damage: 42, range: 1.45, arc: 120, cooldown: 1.2, lethal: true, knockback: 30, sound: 'sfx_slash', held: 'axe' },
+  },
+  item_revolver: {
+    name: '.38 Revolver', category: 'weapon', price: 90, tags: ['weapon', 'gun'], icon: 'gun',
+    description: 'A six-shot revolver: simple, reliable and loud. Takes .38 rounds.',
+    weapon: { kind: 'gun', damage: 34, range: 10, cooldown: 0.55, lethal: true, ammo: 'item_ammo_38', mag: 6, reload: 2.0, spread: 3, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
+  },
+  item_pistol: {
+    name: '9mm Pistol', category: 'weapon', price: 120, tags: ['weapon', 'gun'], icon: 'gun',
+    description: 'A semi-automatic pistol with a twelve-round magazine. Takes 9mm rounds.',
+    weapon: { kind: 'gun', damage: 26, range: 11, cooldown: 0.3, lethal: true, ammo: 'item_ammo_9mm', mag: 12, reload: 1.4, spread: 4, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
+  },
+  item_shotgun: {
+    name: 'Pump Shotgun', category: 'weapon', price: 180, tags: ['weapon', 'gun'], icon: 'longgun',
+    description: 'Seven pellets in a wide cone. Devastating up close, useless at range. Takes shotgun shells.',
+    weapon: { kind: 'gun', damage: 15, pellets: 7, range: 6, cooldown: 0.95, lethal: true, ammo: 'item_ammo_shells', mag: 5, reload: 2.6, spread: 14, noise: 22, sound: 'sfx_gunshot_heavy', held: 'longgun' },
+  },
+  item_rifle: {
+    name: 'Hunting Rifle', category: 'weapon', price: 220, tags: ['weapon', 'gun'], icon: 'longgun',
+    description: 'Bolt-action, scoped, accurate across a city block. Takes rifle rounds.',
+    weapon: { kind: 'gun', damage: 75, range: 18, cooldown: 1.3, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 2.8, spread: 0.6, noise: 26, sound: 'sfx_gunshot_heavy', held: 'longgun' },
+  },
+  item_smg: {
+    name: 'Submachine Gun', category: 'weapon', price: 320, tags: ['weapon', 'gun'], icon: 'longgun',
+    description: 'Fully automatic: hold the trigger and it keeps going until it doesn\'t. Takes 9mm rounds.',
+    weapon: { kind: 'gun', damage: 15, range: 9, cooldown: 0.09, auto: true, lethal: true, ammo: 'item_ammo_9mm', mag: 30, reload: 1.9, spread: 7, noise: 20, sound: 'sfx_gunshot_smg', held: 'longgun' },
+  },
+  item_ammo_38: {
+    name: '.38 Rounds', category: 'ammo', price: 8, bundle: 12, tags: ['ammo'], icon: 'ammo',
+    description: 'Revolver cartridges. Sold by the box of 12.',
+  },
+  item_ammo_9mm: {
+    name: '9mm Rounds', category: 'ammo', price: 10, bundle: 20, tags: ['ammo'], icon: 'ammo',
+    description: 'Pistol and submachine-gun cartridges. Sold by the box of 20.',
+  },
+  item_ammo_shells: {
+    name: 'Shotgun Shells', category: 'ammo', price: 9, bundle: 8, tags: ['ammo'], icon: 'ammo',
+    description: 'Red cardboard shells of buckshot. Sold by the box of 8.',
+  },
+  item_ammo_rifle: {
+    name: 'Rifle Rounds', category: 'ammo', price: 12, bundle: 10, tags: ['ammo'], icon: 'ammo',
+    description: 'Long brass rifle cartridges. Sold by the box of 10.',
   },
   item_gull_feather: {
     name: 'Gull Feather', category: 'junk', price: 0, tags: ['junk', 'gift'], icon: 'feather',
@@ -1622,6 +1700,14 @@ const FACTS = {
   fact_player_punned_mason: {
     text: 'The newcomer out-punned Mason Nails.', importance: 3, aboutPlayer: true,
     relImpact: { affection: 2 }, reputation: { lanternside: 1 }, keywords: ['pun'],
+  },
+  fact_player_assault: {
+    text: 'The newcomer attacked someone — in cold blood, in public.', importance: 8, aboutPlayer: true,
+    relImpact: { trust: -12, affection: -10, suspicion: 18 }, reputation: { lanternside: -6 }, keywords: ['attack', 'fight', 'assault', 'violence'],
+  },
+  fact_player_murder: {
+    text: 'The newcomer killed someone.', importance: 10, aboutPlayer: true,
+    relImpact: { trust: -35, affection: -30, suspicion: 40 }, reputation: { lanternside: -25 }, keywords: ['murder', 'killed', 'dead', 'body'],
   },
   fact_player_cut_corners: {
     text: 'The newcomer cut corners on a refinery shift.', importance: 4, aboutPlayer: true,
@@ -1758,6 +1844,8 @@ __m["src/content/containers.js"] = (function () {
 // Containers: searchable storage. `owner` is a character or faction id; taking
 // from a container you do not own is theft if witnessed (see game.takeFromContainer).
 const CONTAINERS = {
+  ct_police_lockers: { name: 'Officers\' lockers', owner: 'fac_police', items: { item_baton: 1, item_bandage: 2 }, money: 0 },
+  ct_sumps_crate: { name: 'Rotten crate', owner: null, items: { item_bat: 1 }, money: 3 },
   ct_flat_wardrobe: { name: 'Wardrobe', owner: 'player', items: { item_bandage: 1, item_scone: 1 }, money: 8 },
   ct_civic_desk: { name: 'Clerk\'s desk', owner: 'npc_osric', theftFact: 'fact_player_stole_from_osric', items: { item_lighthouse_key: 1, item_rubber_stamp: 1 }, money: 0 },
   ct_workshop_crate: { name: 'Parts crate', owner: 'npc_tibbs', items: { item_bolts: 2, item_brass_cog: 1 }, money: 0 },
@@ -1789,9 +1877,14 @@ const SHOPS = {
     prices: { item_coffee: 4, item_bandage: 7 },
     buys: { item_brass_cog: 2, item_bolts: 1 },
   },
+  shop_rook: {
+    name: 'Rook & Rifle Firearms', owner: null, restockAt: '09:00',
+    stock: { item_revolver: 2, item_pistol: 2, item_shotgun: 1, item_rifle: 1, item_smg: 1, item_ammo_38: 10, item_ammo_9mm: 10, item_ammo_shells: 8, item_ammo_rifle: 6, item_knuckles: 2, item_bat: 2, item_machete: 1 },
+    buys: { item_revolver: 45, item_pistol: 60, item_shotgun: 90, item_rifle: 110, item_smg: 160, item_bat: 10, item_machete: 18, item_knuckles: 8, item_fire_axe: 20, item_baton: 12 },
+  },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
-    stock: { item_crowbar: 1, item_bolts: 3 },
+    stock: { item_crowbar: 1, item_bolts: 3, item_fire_axe: 1 },
     buys: { item_brass_cog: 3, item_bolts: 1, item_rubber_stamp: 1, item_gull_feather: 1 },
   },
 };
@@ -1808,6 +1901,7 @@ const FACTIONS = {
   fac_merchants: { name: 'Canal Row Traders', description: 'The shopkeepers of Canal Row. Value reliability, custom and good gossip.' },
   fac_oil: { name: 'Ober\'s Oil', description: 'Sir Moneybucks\'s company. Values profit, deference and profit.' },
   fac_builders: { name: 'Mason\'s Os', description: 'Mason Nails\'s construction crew. Value good work, fair pay and a decent pun.' },
+  fac_police: { name: 'Halvermouth Police', description: 'Precinct 1 of the city police. Values order, evidence and paperwork filed on time.' },
   fac_quay: { name: 'Quay Workers\' Collective', description: 'Mechanics, fishers and dockhands of the Quay. Value loyalty and practical help.' },
 };
 
@@ -2246,6 +2340,7 @@ const MOODS = {
   grumpy: { label: 'Grumpy', persuasion: -0.12, icon: '☁' },
   affronted: { label: 'Affronted', persuasion: -0.25, icon: '!' },
   tired: { label: 'Tired', persuasion: -0.05, icon: 'z' },
+  frightened: { label: 'Frightened', persuasion: -0.3, icon: '😨' },
 };
 
 return { MOODS };
@@ -2540,6 +2635,16 @@ const AUDIO_REGISTRY = [
   sfx('sfx_page', 'reading a document'),
   sfx('sfx_eat', 'eating or drinking'),
   sfx('sfx_sleep', 'sleeping'),
+  sfx('sfx_swing', 'a melee attack whooshes'),
+  sfx('sfx_punch', 'a punch or blunt blow lands'),
+  sfx('sfx_whack', 'a club (bat, baton, crowbar) lands'),
+  sfx('sfx_slash', 'a blade (machete, axe) lands'),
+  sfx('sfx_gunshot', 'revolver or pistol shot'),
+  sfx('sfx_gunshot_heavy', 'shotgun or rifle shot'),
+  sfx('sfx_gunshot_smg', 'submachine gun shot'),
+  sfx('sfx_reload', 'reloading a gun'),
+  sfx('sfx_dryfire', 'firing an empty gun'),
+  sfx('sfx_hurt', 'the player is hit'),
   amb('amb_harbour', 'lanternside'),
   amb('amb_indoor', 'player_flat, civic_office, osric_house'),
   amb('amb_cafe', 'cafe'),
@@ -2559,6 +2664,7 @@ __m["src/content/characters/mags.js"] = (function () {
 // Marguerite "Mags" Pell — original Oberverse resident (not an imported character).
 const __default = {
   id: 'npc_mags',
+  combat: { fights: true, defends: ['npc_osric', 'npc_tibbs'] }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Marguerite "Mags" Pell',
   shortName: 'Mags',
   tier: 'major',
@@ -2660,6 +2766,7 @@ __m["src/content/characters/osric.js"] = (function () {
 // Osric Vane — original Oberverse resident (not an imported character).
 const __default = {
   id: 'npc_osric',
+  combat: { never: true, maxHealth: 85 }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Osric Vane',
   shortName: 'Osric',
   tier: 'major',
@@ -2770,6 +2877,7 @@ __m["src/content/characters/tibbs.js"] = (function () {
 // Tibbs Hollow — original Oberverse resident (not an imported character).
 const __default = {
   id: 'npc_tibbs',
+  combat: { fights: true, defends: ['npc_mags'] }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Tibbs Hollow',
   shortName: 'Tibbs',
   tier: 'major',
@@ -2893,6 +3001,7 @@ const { PORTRAITS } = __m["src/content/portraits.js"];
 
 const __default = {
   id: 'npc_moneybucks',
+  combat: { never: true, maxHealth: 90 }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Sir Richard E. Moneybucks, Esq.',
   shortName: 'Sir Moneybucks',
   tier: 'major',
@@ -3016,6 +3125,7 @@ const staff = (o) => ({ tier: 'minor', origin: 'imported-generated', faction: 'f
 
 const crisp = staff({
   id: 'npc_crisp', name: 'Bartholomew Crisp', shortName: 'Crisp',
+  combat: { never: true, maxHealth: 80 },
   role: 'Butler of Moneybucks Manor for thirty years. Decides who gets through the front door.',
   dialogue: 'dlg_crisp',
   voice: { wave: 'triangle', pitch: 210, variance: 8, rate: 1.3 },
@@ -3040,6 +3150,7 @@ const crisp = staff({
 
 const agnes = staff({
   id: 'npc_agnes', name: 'Agnes Thornbury', shortName: 'Agnes',
+  combat: { never: true },
   role: 'Secretary and bookkeeper to Sir Moneybucks. Sells Ober\'s Oil shares — and knows exactly what the books hide.',
   dialogue: 'dlg_agnes',
   voice: { wave: 'triangle', pitch: 360, variance: 25, rate: 1 },
@@ -3065,6 +3176,7 @@ const agnes = staff({
 
 const gideon = staff({
   id: 'npc_gideon', name: 'Gideon Slate', shortName: 'Gideon',
+  combat: { fights: true, maxHealth: 120 },
   role: 'Refinery foreman. Hires day labour, docks pay, runs the company store.',
   dialogue: 'dlg_gideon', shop: 'shop_company',
   voice: { wave: 'square', pitch: 165, variance: 20, rate: 1.05 },
@@ -3091,6 +3203,7 @@ const gideon = staff({
 
 const ruby = staff({
   id: 'npc_ruby', name: 'Ruby Calder', shortName: 'Ruby',
+  combat: { fights: true, weapon: 'item_crowbar' },
   role: 'Refinery engineer. Keeps the column from exploding, mostly by shouting at people.',
   dialogue: 'dlg_ruby',
   voice: { wave: 'triangle', pitch: 300, variance: 40, rate: 0.95 },
@@ -3117,6 +3230,7 @@ const ruby = staff({
 
 const hank = staff({
   id: 'npc_hank', name: 'Hank Dorsey', shortName: 'Hank',
+  combat: { fights: true, defends: ['npc_pip', 'npc_ruby', 'npc_otto', 'npc_tibbs'], maxHealth: 120 },
   role: 'Derrick rigger. Fearless, loud, and the source of at least half the tall tales in Lanternside.',
   dialogue: 'dlg_hank',
   voice: { wave: 'sawtooth', pitch: 150, variance: 35, rate: 0.9 },
@@ -3143,6 +3257,7 @@ const hank = staff({
 
 const pip = staff({
   id: 'npc_pip', name: 'Pip Wexley', shortName: 'Pip',
+  combat: { never: true },
   role: 'Apprentice and runner at Ober\'s Oil. Believes every word Sir Moneybucks says.',
   dialogue: 'dlg_pip',
   voice: { wave: 'triangle', pitch: 480, variance: 70, rate: 0.75 },
@@ -3169,6 +3284,7 @@ const pip = staff({
 
 const delphine = staff({
   id: 'npc_delphine', name: 'Delphine Moreau', shortName: 'Delphine',
+  combat: { never: true },
   role: 'Refinery chemist. Cold, brilliant, and far more interested in the mystery than the money.',
   dialogue: 'dlg_delphine',
   voice: { wave: 'sine', pitch: 340, variance: 15, rate: 1.1 },
@@ -3191,6 +3307,7 @@ const delphine = staff({
 
 const silas = staff({
   id: 'npc_silas', name: 'Silas Grimmer', shortName: 'Silas',
+  combat: { fights: true, defends: true, weapon: 'item_revolver', maxHealth: 130 },
   role: 'Head of security at Ober\'s Oil. Watches the gate; breaks strikes when told.',
   dialogue: 'dlg_silas',
   voice: { wave: 'sawtooth', pitch: 110, variance: 8, rate: 1.4 },
@@ -3215,6 +3332,7 @@ const silas = staff({
 
 const mabel = staff({
   id: 'npc_mabel', name: 'Mabel Quince', shortName: 'Mabel',
+  combat: { fights: true, defends: ['npc_crisp', 'npc_agnes'] },
   role: 'Cook at Moneybucks Manor. Champion baker, champion grudge-holder — chiefly against Mags Pell.',
   dialogue: 'dlg_mabel',
   voice: { wave: 'triangle', pitch: 280, variance: 60, rate: 0.9 },
@@ -3238,6 +3356,7 @@ const mabel = staff({
 
 const otto = staff({
   id: 'npc_otto', name: 'Otto Brandt', shortName: 'Otto',
+  combat: { fights: true, defends: ['npc_ruby', 'npc_pip', 'npc_hank'] },
   role: 'Pipe fitter at Ober\'s Oil, quietly organising the workers. Wears a blue thread on his cuff.',
   dialogue: 'dlg_otto',
   voice: { wave: 'triangle', pitch: 190, variance: 25, rate: 1.05 },
@@ -4640,6 +4759,7 @@ const buildIt = (id) => ({
 
 const mason = {
   id: 'npc_mason',
+  combat: { never: true, maxHealth: 120 }, // fight-or-flight temperament (src/systems/combat.js)
   name: 'Mason Nails',
   shortName: 'Mason',
   tier: 'major',
@@ -4728,6 +4848,7 @@ const crew = (o) => ({ tier: 'minor', origin: 'imported-generated', faction: 'fa
 
 const dee = crew({
   id: 'npc_dee', name: 'Dolores "Dee" Rivera', shortName: 'Dee',
+  combat: { fights: true, defends: ['npc_mason', 'npc_quinn', 'npc_barnaby'] },
   role: 'Site foreman at Mason\'s Os. Hires day labour, pays fairly, checks every course with a level.',
   dialogue: 'dlg_dee',
   voice: { wave: 'square', pitch: 300, variance: 25, rate: 1.1 },
@@ -4757,6 +4878,7 @@ const dee = crew({
 
 const barnaby = crew({
   id: 'npc_barnaby', name: 'Barnaby Cole', shortName: 'Barnaby',
+  combat: { defends: true, maxHealth: 160 },
   role: 'Labourer at Mason\'s Os. A gentle giant who mixes the cement, lays the bricks and defends every gull in Lanternside.',
   dialogue: 'dlg_barnaby',
   voice: { wave: 'sine', pitch: 105, variance: 10, rate: 0.85 },
@@ -4784,6 +4906,7 @@ const barnaby = crew({
 
 const quinn = crew({
   id: 'npc_quinn', name: 'Quinn Abernathy', shortName: 'Quinn',
+  combat: { never: true, maxHealth: 80 },
   role: 'Apprentice surveyor and draftsperson at Mason\'s Os. Nervous, meticulous — and the one who will draw your future house.',
   dialogue: 'dlg_quinn',
   voice: { wave: 'triangle', pitch: 330, variance: 40, rate: 1.3 },
@@ -5272,7 +5395,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.5.0';
+const GAME_VERSION = '0.6.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -6098,6 +6221,41 @@ const SFX = {
   sfx_sleep: (ctx, d) => {
     [392, 330, 262].forEach((f, i) => tone(ctx, d, { type: 'sine', f0: f, t: ctx.currentTime + i * 0.25, dur: 0.6, vol: 0.08, attack: 0.05 }));
   },
+  // ---- combat
+  sfx_swing: (ctx, d) => noise(ctx, d, { dur: 0.12, vol: 0.07, type: 'bandpass', freq: 900, f1: 2400, q: 1.5 }),
+  sfx_punch: (ctx, d) => {
+    noise(ctx, d, { dur: 0.08, vol: 0.22, type: 'lowpass', freq: 700 });
+    tone(ctx, d, { type: 'sine', f0: 140, f1: 70, dur: 0.1, vol: 0.2 });
+  },
+  sfx_whack: (ctx, d) => {
+    noise(ctx, d, { dur: 0.1, vol: 0.25, type: 'bandpass', freq: 1300, q: 2 });
+    tone(ctx, d, { type: 'triangle', f0: 220, f1: 110, dur: 0.12, vol: 0.16 });
+  },
+  sfx_slash: (ctx, d) => {
+    noise(ctx, d, { dur: 0.16, vol: 0.18, type: 'highpass', freq: 2500, f1: 5000 });
+    tone(ctx, d, { type: 'sine', f0: 160, f1: 80, dur: 0.08, vol: 0.12 });
+  },
+  sfx_gunshot: (ctx, d) => {
+    noise(ctx, d, { dur: 0.22, vol: 0.45, type: 'lowpass', freq: 3200, f1: 500 });
+    tone(ctx, d, { type: 'square', f0: 120, f1: 40, dur: 0.14, vol: 0.18 });
+  },
+  sfx_gunshot_heavy: (ctx, d) => {
+    noise(ctx, d, { dur: 0.45, vol: 0.55, type: 'lowpass', freq: 2200, f1: 200 });
+    tone(ctx, d, { type: 'square', f0: 90, f1: 30, dur: 0.25, vol: 0.22 });
+  },
+  sfx_gunshot_smg: (ctx, d) => {
+    noise(ctx, d, { dur: 0.1, vol: 0.32, type: 'lowpass', freq: 3800, f1: 900 });
+    tone(ctx, d, { type: 'square', f0: 150, f1: 60, dur: 0.06, vol: 0.12 });
+  },
+  sfx_reload: (ctx, d) => {
+    noise(ctx, d, { dur: 0.05, vol: 0.12, freq: 2800, q: 5 });
+    noise(ctx, d, { t: ctx.currentTime + 0.25, dur: 0.06, vol: 0.14, freq: 1800, q: 6 });
+  },
+  sfx_dryfire: (ctx, d) => noise(ctx, d, { dur: 0.03, vol: 0.14, freq: 3500, q: 8 }),
+  sfx_hurt: (ctx, d) => {
+    tone(ctx, d, { type: 'sawtooth', f0: 320, f1: 160, dur: 0.18, vol: 0.08 });
+    noise(ctx, d, { dur: 0.08, vol: 0.15, type: 'lowpass', freq: 600 });
+  },
 };
 
 /** A single dialogue "voice" blip using a character's voice parameters. */
@@ -6505,6 +6663,7 @@ const ACTIONS = {
   KeyJ: 'journal', KeyQ: 'journal',
   KeyM: 'map',
   KeyC: 'status',
+  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster',
   F5: 'quicksave', F9: 'quickload',
   Backquote: 'debug',
 };
@@ -7469,6 +7628,8 @@ const { decide, scheduleLead } = __m["src/sim/npcBrain.js"];
 const { blockAt, blockInstanceKey } = __m["src/sim/schedule.js"];
 const { remember } = __m["src/sim/memory.js"];
 
+const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
+
 const WALK_SPEED = 66; // px per real second
 const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
@@ -7495,6 +7656,7 @@ class NpcSystem {
   think(npc, force = false) {
     const g = this.game;
     const now = g.clock.total;
+    if (npc.hostile || incapacitated(npc, now)) return; // combat owns them (src/systems/combat.js)
     if (npc.chat && now < npc.chat.until) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.
@@ -7674,7 +7836,7 @@ class NpcSystem {
   updateAbstract(npc) {
     const g = this.game;
     const t = npc.travel;
-    if (!t) return;
+    if (!t || npc.hostile || incapacitated(npc, g.clock.total)) return;
     if (g.clock.total < t.eta) return;
     if (t.route.length) {
       const hop = t.route.shift();
@@ -7753,7 +7915,7 @@ class NpcSystem {
   }
 
   canChat(npc, now) {
-    if (npc.chat || npc.activity === 'sleep' || npc.travel) return false;
+    if (npc.chat || npc.activity === 'sleep' || npc.travel || npc.hostile || incapacitated(npc, now)) return false;
     if (npc.path && npc.path.length) return false;
     if (npc.inDialogue) return false;
     return now >= (npc.chatCooldownUntil || 0);
@@ -8580,6 +8742,591 @@ class Properties {
 return { PERMIT_FEE, freshProperties, Properties };
 })();
 
+// ---- src/systems/combat.js
+__m["src/systems/combat.js"] = (function () {
+// Combat: melee weapons and guns, NPC health, injury, knock-outs and death,
+// and how people react — victims and witnesses flee or fight back depending on
+// personality (profile.combat overrides). Real-time parts run per frame on the
+// player's map; consequences (memories, relationships, facts, reputation,
+// quests) go through the same systems as everything else.
+//
+// State:
+//   player.equipped      item id of the drawn weapon (null = fists)
+//   player.mags          { weaponItemId: rounds loaded }
+//   npc.health / npc.dead / npc.downUntil (game minute they wake) — saved
+//   npc.hostile          { mode: 'fight' | 'flee', until } — runtime only
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { remember } = __m["src/sim/memory.js"];
+const { findPath } = __m["src/world/pathfinding.js"];
+
+/** Bare hands: always available, never lethal. */
+const FISTS = { id: null, name: 'Fists', weapon: { kind: 'melee', damage: 8, range: 1.0, arc: 80, cooldown: 0.5, lethal: false, knockback: 14, sound: 'sfx_punch' } };
+
+const HIT_RADIUS = 14; // px around an actor's body centre
+const BODY_Y = 18; // body centre above the feet
+const MOVE_FIGHT = 74; // px/s an angry NPC closes in
+const MOVE_FLEE = 92; // px/s a frightened NPC runs
+const HEALTH_BAR_SECONDS = 7;
+const WALL = new Set(['B', 'W', 'x']);
+
+function npcMaxHealth(npc) {
+  return npc.profile.combat?.maxHealth ?? 100;
+}
+
+function isDown(npc, now) {
+  return Boolean(npc.dead || (npc.downUntil && now < npc.downUntil));
+}
+
+const HURT = ['Ow!', 'Argh!', 'Stop it!', 'What are you doing?!', 'Ugh!'];
+const FLEE = ['Help! Help!', 'Somebody stop them!', 'Get away from me!', 'They\'re mad!', 'Run!'];
+const FIGHT = ['Right, that\'s it!', 'You want a fight? You\'ve got one!', 'Big mistake.', 'Come on, then!'];
+const GUNFIRE = ['Was that a gunshot?!', 'Get down!', 'Gun! GUN!'];
+
+class Combat {
+  constructor(game) {
+    this.game = game;
+    this.cooldown = 0; // seconds until the player can attack again
+    this.reloading = null; // { item, until }
+    this.fx = []; // short-lived visual effects for the renderer (not saved)
+    this.lastHostileAt = -1e9; // realTime of the last fight on this map
+  }
+
+  // ---------------------------------------------------------------- weapons
+  weaponDef(itemId) {
+    if (!itemId) return FISTS;
+    const def = this.game.content.items[itemId];
+    return def?.weapon ? { id: itemId, ...def } : FISTS;
+  }
+
+  equipped() {
+    const p = this.game.player;
+    if (p.equipped && !this.game.inventory.count(p.equipped)) p.equipped = null; // sold, dropped or taken
+    return this.weaponDef(p.equipped);
+  }
+
+  /** Weapons the player owns, in a stable order (melee first). */
+  owned() {
+    const items = this.game.content.items;
+    return Object.keys(this.game.player.inventory || {})
+      .filter((id) => items[id]?.weapon && this.game.inventory.count(id) > 0)
+      .sort((a, b) => (items[a].weapon.kind === items[b].weapon.kind ? items[a].price - items[b].price : items[a].weapon.kind === 'melee' ? -1 : 1));
+  }
+
+  equip(itemId) {
+    const p = this.game.player;
+    if (itemId && (!this.game.content.items[itemId]?.weapon || !this.game.inventory.count(itemId))) return { ok: false, text: 'You don\'t have that.' };
+    p.equipped = itemId || null;
+    this.reloading = null;
+    p.mags = p.mags || {};
+    const w = this.weaponDef(itemId).weapon;
+    if (w.kind === 'gun' && p.mags[itemId] === undefined) p.mags[itemId] = 0;
+    this.game.bus.emit('combat:equip', { item: p.equipped });
+    return { ok: true, text: itemId ? `You ready the ${this.weaponDef(itemId).name.toLowerCase()}.` : 'You put your weapon away.' };
+  }
+
+  /** Cycle through fists and owned weapons. */
+  cycle(dir = 1) {
+    const list = [null, ...this.owned()];
+    const i = list.indexOf(this.game.player.equipped ?? null);
+    return this.equip(list[(i + dir + list.length) % list.length]);
+  }
+
+  /** Quick-select: 1 = fists, 2.. = owned weapons. */
+  select(slot) {
+    const list = [null, ...this.owned()];
+    if (slot < 1 || slot > list.length) return { ok: false };
+    return this.equip(list[slot - 1]);
+  }
+
+  ammoStatus() {
+    const w = this.equipped();
+    if (w.weapon.kind !== 'gun') return null;
+    const p = this.game.player;
+    return { loaded: p.mags?.[w.id] ?? 0, mag: w.weapon.mag, reserve: this.game.inventory.count(w.weapon.ammo), reloading: Boolean(this.reloading) };
+  }
+
+  reload() {
+    const g = this.game;
+    const w = this.equipped();
+    if (w.weapon.kind !== 'gun' || this.reloading) return { ok: false };
+    const p = g.player;
+    const loaded = p.mags?.[w.id] ?? 0;
+    const reserve = g.inventory.count(w.weapon.ammo);
+    if (loaded >= w.weapon.mag) return { ok: false, text: 'Already loaded.' };
+    if (!reserve) return { ok: false, text: `No ${g.content.items[w.weapon.ammo]?.name.toLowerCase() || 'ammunition'}.` };
+    this.reloading = { item: w.id, until: g.realTime + w.weapon.reload };
+    g.bus.emit('sfx', { id: 'sfx_reload' });
+    return { ok: true, text: 'Reloading…' };
+  }
+
+  finishReload() {
+    const g = this.game;
+    const w = this.weaponDef(this.reloading.item);
+    this.reloading = null;
+    if (!w.id || g.player.equipped !== w.id) return;
+    const p = g.player;
+    p.mags = p.mags || {};
+    const need = w.weapon.mag - (p.mags[w.id] ?? 0);
+    const take = Math.min(need, g.inventory.count(w.weapon.ammo));
+    if (take <= 0) return;
+    g.inventory.remove(w.weapon.ammo, take);
+    p.mags[w.id] = (p.mags[w.id] ?? 0) + take;
+  }
+
+  // ------------------------------------------------------------- attacking
+  /** Unit aim vector: the UI's mouse aim if set, else facing with gentle auto-aim. */
+  aimVector(w) {
+    const p = this.game.player;
+    if (p.aim && Math.hypot(p.aim.x, p.aim.y) > 0.01) {
+      const d = Math.hypot(p.aim.x, p.aim.y);
+      return { x: p.aim.x / d, y: p.aim.y / d };
+    }
+    const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.facing] || [0, 1];
+    // auto-aim: the nearest standing person within reach and a forgiving cone
+    const reach = (w.weapon.kind === 'gun' ? w.weapon.range : w.weapon.range + 0.6) * TILE;
+    let best = null;
+    let bestD = Infinity;
+    for (const npc of this.targets()) {
+      const dx = npc.x - p.x;
+      const dy = npc.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > reach || d < 1) continue;
+      const cos = (dx * f[0] + dy * f[1]) / d;
+      if (cos < Math.cos((40 * Math.PI) / 180)) continue;
+      if (d < bestD) { best = { x: dx / d, y: dy / d }; bestD = d; }
+    }
+    return best || { x: f[0], y: f[1] };
+  }
+
+  /** Living, conscious NPCs on the player's map. */
+  targets() {
+    const g = this.game;
+    const now = g.clock.total;
+    return [...g.npcs.values()].filter((n) => n.map === g.player.map && !isDown(n, now) && !n.inDialogue);
+  }
+
+  /** Player attack with the equipped weapon. Returns what happened (for tests/UI). */
+  attack() {
+    const g = this.game;
+    if (this.cooldown > 0 || this.reloading || g.paused) return { ok: false, reason: 'busy' };
+    const w = this.equipped();
+    const p = g.player;
+    const dir = this.aimVector(w);
+    p.facing = Math.abs(dir.x) > Math.abs(dir.y) ? (dir.x > 0 ? 'right' : 'left') : dir.y > 0 ? 'down' : 'up';
+    p.attackAnim = { at: g.realTime, kind: w.weapon.kind, dir };
+    if (w.weapon.kind === 'gun') return this.fire(w, dir);
+    return this.swing(w, dir);
+  }
+
+  swing(w, dir) {
+    const g = this.game;
+    const p = g.player;
+    const wp = w.weapon;
+    this.cooldown = wp.cooldown;
+    g.bus.emit('sfx', { id: 'sfx_swing' });
+    const reach = wp.range * TILE + HIT_RADIUS;
+    const half = ((wp.arc ?? 90) / 2) * (Math.PI / 180);
+    const hits = [];
+    for (const npc of this.targets()) {
+      const dx = npc.x - p.x;
+      const dy = npc.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > reach) continue;
+      const ang = d < 1 ? 0 : Math.acos(clamp((dx * dir.x + dy * dir.y) / d, -1, 1));
+      if (ang > half) continue;
+      hits.push(npc);
+    }
+    this.fx.push({ type: 'swing', x: p.x, y: p.y - BODY_Y, dir, range: wp.range * TILE, arc: half, until: g.realTime + 0.18, start: g.realTime });
+    for (const npc of hits) this.hitNpc(npc, wp.damage, { weapon: w, dir, lethal: wp.lethal });
+    if (hits.length) g.bus.emit('sfx', { id: wp.sound || 'sfx_punch' });
+    return { ok: true, kind: 'melee', hits: hits.map((n) => n.id) };
+  }
+
+  fire(w, dir) {
+    const g = this.game;
+    const p = g.player;
+    const wp = w.weapon;
+    p.mags = p.mags || {};
+    if ((p.mags[w.id] ?? 0) <= 0) {
+      this.cooldown = 0.25;
+      g.bus.emit('sfx', { id: 'sfx_dryfire' });
+      const r = this.reload();
+      return { ok: false, reason: 'empty', text: r.ok ? 'Reloading…' : r.text || 'Click. Empty.' };
+    }
+    p.mags[w.id] -= 1;
+    this.cooldown = wp.cooldown;
+    g.bus.emit('sfx', { id: wp.sound || 'sfx_gunshot' });
+    const ox = p.x + dir.x * 12;
+    const oy = p.y - BODY_Y + dir.y * 8;
+    const hits = [];
+    const pellets = wp.pellets || 1;
+    for (let i = 0; i < pellets; i++) {
+      const spread = (((g.rng.next() - 0.5) * 2 * (wp.spread || 0)) * Math.PI) / 180;
+      const c = Math.cos(spread);
+      const s = Math.sin(spread);
+      const d = { x: dir.x * c - dir.y * s, y: dir.x * s + dir.y * c };
+      const r = this.raycast(ox, oy, d, wp.range * TILE);
+      this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
+      if (r.npc) {
+        hits.push(r.npc);
+        // falloff beyond half range
+        const fall = r.t > (wp.range * TILE) / 2 ? 0.7 : 1;
+        this.hitNpc(r.npc, wp.damage * fall, { weapon: w, dir: d, lethal: wp.lethal !== false });
+      } else if (r.wall) this.fx.push({ type: 'spark', x: ox + d.x * r.t, y: oy + d.y * r.t, until: g.realTime + 0.25, start: g.realTime });
+    }
+    this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, until: g.realTime + 0.06, start: g.realTime });
+    this.gunfireNoise(wp.noise ?? 16);
+    if ((p.mags[w.id] ?? 0) <= 0 && g.inventory.count(wp.ammo)) this.reload();
+    return { ok: true, kind: 'gun', hits: [...new Set(hits.map((n) => n.id))] };
+  }
+
+  /** First person or wall along a ray from (ox, oy). */
+  raycast(ox, oy, d, maxDist) {
+    const map = this.game.currentMap();
+    let wallT = maxDist;
+    for (let t = 0; t < maxDist; t += 6) {
+      const ch = map.tileAt(Math.floor((ox + d.x * t) / TILE), Math.floor((oy + d.y * t + BODY_Y) / TILE));
+      if (WALL.has(ch)) { wallT = t; break; }
+    }
+    let best = null;
+    let bestT = wallT;
+    for (const npc of this.targets()) {
+      const cx = npc.x - ox;
+      const cy = npc.y - BODY_Y - oy;
+      const t = cx * d.x + cy * d.y;
+      if (t <= 0 || t >= bestT) continue;
+      const perp = Math.abs(cx * d.y - cy * d.x);
+      if (perp <= HIT_RADIUS) { best = npc; bestT = t; }
+    }
+    return { npc: best, t: bestT, wall: !best && wallT < maxDist };
+  }
+
+  // --------------------------------------------------------------- damage
+  hitNpc(npc, amount, { weapon, dir, lethal = true }) {
+    const g = this.game;
+    const now = g.clock.total;
+    if (isDown(npc, now)) return;
+    const max = npcMaxHealth(npc);
+    if (npc.health === undefined) npc.health = max;
+    const before = npc.health;
+    const dmg = Math.min(before, Math.max(1, Math.round(amount * (0.85 + g.rng.next() * 0.3))));
+    npc.health = Math.max(0, npc.health - dmg);
+    npc.healthBarUntil = g.realTime + HEALTH_BAR_SECONDS;
+    npc.hurtAt = g.realTime;
+    this.fx.push({ type: 'damage', npcId: npc.id, amount: dmg, x: npc.x, y: npc.y - 46, until: g.realTime + 0.9, start: g.realTime });
+    this.lastHostileAt = g.realTime;
+    // knockback
+    const kb = weapon.weapon.knockback ?? (weapon.weapon.kind === 'gun' ? 6 : 18);
+    const map = g.currentMap();
+    const nx = npc.x + dir.x * kb;
+    const ny = npc.y + dir.y * kb;
+    if (!map.rectBlocked(nx - 7, ny - 6, 14, 6, g.npcSystem.actorFor(npc))) { npc.x = nx; npc.y = ny; }
+    npc.path = null;
+    npc.chat = null;
+    g.bus.emit('combat:hit', { npcId: npc.id, damage: dmg, health: npc.health, weapon: weapon.id });
+    const firstBlow = !npc.hostile;
+    if (firstBlow) {
+      g.relationships.adjust(npc, 'player', { trust: -30, affection: -25, suspicion: 35, respect: -5 }, 'attacked');
+      remember(npc, { text: `${g.player.name} attacked me${weapon.id ? ` with a ${weapon.name.toLowerCase()}` : ''}.`, tag: 'attacked_by_player', about: 'player', importance: 9 }, now);
+      g.setMood(npc, 'frightened', 240);
+      // anyone who saw it will talk
+      const seen = g.witnesses(npc.map, npc.x, npc.y).filter((w) => w !== npc);
+      for (const w of seen) g.knowledge.learn(w, 'fact_player_assault', { kind: 'fact', source: 'witnessed', at: now });
+      g.knowledge.learn(npc, 'fact_player_assault', { kind: 'fact', source: 'witnessed', at: now });
+      for (const w of seen) this.react(w, npc);
+      if (seen.length) g.notify(`${seen.map((n) => n.profile.shortName).join(', ')} saw you attack ${npc.profile.shortName}!`, 'warn');
+      g.bus.emit('crime', { fact: 'fact_player_assault', witnesses: seen.map((n) => n.id), victim: npc.id });
+    } else g.relationships.adjust(npc, 'player', { trust: -4, affection: -4 }, 'attacked');
+    if (npc.health <= 0) {
+      if (lethal) this.kill(npc, weapon);
+      else this.knockOut(npc);
+      return;
+    }
+    // fight or flight
+    this.react(npc, null, true);
+    if (g.rng.chance(0.6)) g.bark(npc, g.rng.pick(npc.hostile?.mode === 'fight' ? FIGHT : HURT));
+  }
+
+  /** Decide whether an NPC fights the player or flees. `victim` = someone else attacked. */
+  react(npc, victim = null, isVictim = false) {
+    const g = this.game;
+    const now = g.clock.total;
+    if (isDown(npc, now)) return;
+    const c = npc.profile.combat || {};
+    const pers = npc.profile.personality || {};
+    const healthFrac = (npc.health ?? npcMaxHealth(npc)) / npcMaxHealth(npc);
+    let fight;
+    if (c.never) fight = false;
+    else if (isVictim) fight = (c.fights || (pers.confidence ?? 0.5) + (pers.competitiveness ?? 0.3) * 0.5 > 0.95) && healthFrac > 0.35;
+    else {
+      const bond = victim ? g.relationships.get(npc, victim.id).affection : 0;
+      fight = Boolean(c.defends && (c.defends === true || c.defends.includes(victim?.id))) || (c.fights && bond > 20);
+      fight = fight && healthFrac > 0.35;
+    }
+    const mode = fight ? 'fight' : 'flee';
+    const changed = npc.hostile?.mode !== mode;
+    npc.hostile = { mode, until: now + (fight ? 30 : 45) };
+    npc.intent = null;
+    npc.travel = null;
+    npc.path = null;
+    npc.arrived = false;
+    npc.activity = fight ? 'fight' : 'flee';
+    if (!isVictim && changed) {
+      g.bark(npc, g.rng.pick(fight ? FIGHT : FLEE));
+      if (!fight) g.setMood(npc, 'frightened', 180);
+    }
+  }
+
+  knockOut(npc) {
+    const g = this.game;
+    npc.health = 0;
+    npc.downUntil = g.clock.total + 120;
+    npc.hostile = null;
+    npc.activity = 'unconscious';
+    npc.path = null;
+    npc.intent = null;
+    npc.bubble = null;
+    remember(npc, { text: `${g.player.name} knocked me out cold.`, tag: 'knocked_out_by_player', about: 'player', importance: 9 }, g.clock.total);
+    g.notify(`${npc.profile.shortName} is out cold.`, 'warn');
+    g.bus.emit('combat:knockout', { npcId: npc.id });
+  }
+
+  kill(npc, weapon) {
+    const g = this.game;
+    const now = g.clock.total;
+    npc.health = 0;
+    npc.dead = true;
+    npc.diedAt = now;
+    npc.hostile = null;
+    npc.activity = 'dead';
+    npc.path = null;
+    npc.intent = null;
+    npc.travel = null;
+    npc.chat = null;
+    npc.bubble = null;
+    const seen = g.witnesses(npc.map, npc.x, npc.y).filter((w) => w !== npc);
+    for (const w of seen) {
+      g.knowledge.learn(w, 'fact_player_murder', { kind: 'fact', source: 'witnessed', at: now });
+      remember(w, { text: `I saw ${g.player.name} kill ${npc.profile.shortName}.`, tag: `saw_killing:${npc.id}`, about: 'player', importance: 10 }, now);
+      this.react(w, npc);
+    }
+    g.notify(`${npc.profile.shortName} is dead.`, 'warn');
+    g.bus.emit('npc:died', { npcId: npc.id, weapon: weapon?.id || null, witnesses: seen.map((n) => n.id) });
+    // Anything they were giving the player is over.
+    for (const [qid, st] of Object.entries(g.questState)) {
+      if (st.state === 'active' && g.content.quests[qid]?.giver === npc.id) g.quests.fail(qid, 'giver_died');
+    }
+  }
+
+  /** Everyone within earshot of a shot: flee unless they're the fighting sort. */
+  gunfireNoise(radiusTiles) {
+    const g = this.game;
+    const p = g.player;
+    const now = g.clock.total;
+    for (const npc of g.npcs.values()) {
+      if (npc.map !== p.map || isDown(npc, now) || npc.hostile) continue;
+      if (dist(npc.x, npc.y, p.x, p.y) > radiusTiles * TILE) continue;
+      if (npc.activity === 'sleep') npc.activity = 'idle'; // woken by the bang
+      const c = npc.profile.combat || {};
+      if (c.defends === true && g.canSee(npc, p.x, p.y, g.currentMap(), 12)) this.react(npc, null);
+      else {
+        npc.hostile = { mode: 'flee', until: now + 30 };
+        npc.intent = null;
+        npc.path = null;
+        npc.activity = 'flee';
+        g.setMood(npc, 'frightened', 180);
+        if (g.rng.chance(0.5)) g.bark(npc, g.rng.pick(GUNFIRE));
+      }
+      remember(npc, { text: 'Heard gunshots nearby.', tag: 'heard_gunfire', about: null, importance: 5 }, now);
+    }
+  }
+
+  damagePlayer(amount, attacker) {
+    const g = this.game;
+    const p = g.player;
+    if (this.playerDownUntil && g.realTime < this.playerDownUntil) return;
+    const dmg = Math.max(1, Math.round(amount * (0.85 + g.rng.next() * 0.3)));
+    p.health = Math.max(0, p.health - dmg);
+    p.hurtAt = g.realTime;
+    this.lastHostileAt = g.realTime;
+    this.fx.push({ type: 'damage', player: true, amount: dmg, x: p.x, y: p.y - 46, until: g.realTime + 0.9, start: g.realTime });
+    g.bus.emit('combat:playerHit', { damage: dmg, by: attacker?.id, health: p.health });
+    if (p.health <= 0) this.playerKnockedOut(attacker);
+  }
+
+  /** The player blacks out: wake later at home, poorer and sore. */
+  playerKnockedOut(attacker) {
+    const g = this.game;
+    const p = g.player;
+    const lost = Math.floor(p.money * 0.25);
+    p.money -= lost;
+    for (const npc of g.npcs.values()) if (npc.hostile) { npc.hostile = null; npc.activity = 'idle'; }
+    if (attacker) remember(attacker, { text: `I beat ${p.name} senseless.`, tag: 'beat_player', about: 'player', importance: 7 }, g.clock.total);
+    this.reloading = null;
+    g.changeMap(g.content.startingMap, g.content.startingSpot);
+    g.skipTime(6 * 60);
+    p.health = 45;
+    p.energy = Math.max(10, p.energy - 20);
+    g.bus.emit('combat:playerDown', { lost, by: attacker?.id || null });
+    g.notify(`Everything went black. You wake up at home, aching${lost ? `, ${lost} obols lighter` : ''}.`, 'warn');
+  }
+
+  // ---------------------------------------------------------------- update
+  /** Per-frame update (real seconds). */
+  update(dt) {
+    const g = this.game;
+    this.cooldown = Math.max(0, this.cooldown - dt);
+    if (this.reloading && g.realTime >= this.reloading.until) this.finishReload();
+    if (this.fx.length) this.fx = this.fx.filter((f) => f.until > g.realTime);
+    for (const npc of g.npcs.values()) {
+      if (!npc.hostile || npc.map !== g.player.map || npc.inDialogue) continue;
+      if (npc.hostile.mode === 'fight') this.fightStep(npc, dt);
+      else this.fleeStep(npc, dt);
+    }
+  }
+
+  /** Per game minute: wake the knocked-out, calm the frightened, heal slowly. */
+  minuteTick() {
+    const g = this.game;
+    const now = g.clock.total;
+    const p = g.player;
+    for (const npc of g.npcs.values()) {
+      if (npc.dead) continue;
+      if (npc.downUntil && now >= npc.downUntil) {
+        npc.downUntil = 0;
+        npc.health = Math.max(npc.health || 0, Math.round(npcMaxHealth(npc) * 0.3));
+        npc.activity = 'idle';
+        npc.hostile = npc.map === p.map ? { mode: 'flee', until: now + 40 } : null;
+        g.setMood(npc, 'frightened', 300);
+        g.bus.emit('combat:wake', { npcId: npc.id });
+        continue;
+      }
+      if (npc.hostile && now >= npc.hostile.until) this.calm(npc);
+      if (!npc.hostile && !npc.downUntil && npc.health !== undefined && npc.health < npcMaxHealth(npc) && Math.floor(now) % 10 === 0) npc.health += 1;
+    }
+    const fighting = g.realTime - this.lastHostileAt < 20;
+    if (!fighting && p.health < 100 && Math.floor(now) % 5 === 0) p.health = Math.min(100, p.health + 1);
+  }
+
+  calm(npc) {
+    npc.hostile = null;
+    npc.activity = 'idle';
+    this.game.npcSystem.think(npc, true);
+  }
+
+  /** Close in on the player and hit them. */
+  fightStep(npc, dt) {
+    const g = this.game;
+    const p = g.player;
+    const w = this.weaponDef(npc.profile.combat?.weapon);
+    const wp = w.weapon;
+    const dx = p.x - npc.x;
+    const dy = p.y - npc.y;
+    const d = Math.hypot(dx, dy);
+    npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    npc.attackCd = Math.max(0, (npc.attackCd || 0) - dt);
+    // running scared once badly hurt
+    if ((npc.health ?? 100) / npcMaxHealth(npc) < 0.25) {
+      npc.hostile = { mode: 'flee', until: g.clock.total + 45 };
+      npc.activity = 'flee';
+      g.bark(npc, g.rng.pick(FLEE));
+      return;
+    }
+    const map = g.currentMap();
+    const canShoot = wp.kind === 'gun' && d < wp.range * TILE * 0.8 && g.canSee(npc, p.x, p.y, map, wp.range);
+    const inReach = wp.kind === 'melee' ? d < wp.range * TILE + 10 : canShoot;
+    if (inReach) {
+      npc.moving = false;
+      if (npc.attackCd <= 0) {
+        npc.attackCd = wp.cooldown * (wp.kind === 'gun' ? 2.2 : 1.6);
+        npc.attackAnim = { at: g.realTime, kind: wp.kind, dir: { x: dx / d, y: dy / d } };
+        if (wp.kind === 'gun') {
+          g.bus.emit('sfx', { id: wp.sound || 'sfx_gunshot' });
+          const ox = npc.x;
+          const oy = npc.y - BODY_Y;
+          const hit = g.rng.chance(0.55);
+          const miss = hit ? 0 : (g.rng.next() - 0.5) * 0.5;
+          const ang = Math.atan2(dy, dx) + miss;
+          this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + Math.cos(ang) * d, y2: oy + Math.sin(ang) * d, until: g.realTime + 0.09, start: g.realTime });
+          this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, until: g.realTime + 0.06, start: g.realTime });
+          if (hit) this.damagePlayer(wp.damage * 0.8, npc);
+        } else {
+          g.bus.emit('sfx', { id: 'sfx_punch' });
+          this.fx.push({ type: 'swing', x: npc.x, y: npc.y - BODY_Y, dir: { x: dx / d, y: dy / d }, range: wp.range * TILE, arc: 0.6, until: g.realTime + 0.18, start: g.realTime });
+          this.damagePlayer(wp.damage * 0.9, npc);
+        }
+      }
+      return;
+    }
+    this.steer(npc, dx / d, dy / d, MOVE_FIGHT * (npc.profile.walkSpeed ?? 1), dt, true);
+  }
+
+  /** Run away from the player. */
+  fleeStep(npc, dt) {
+    const g = this.game;
+    const p = g.player;
+    const dx = npc.x - p.x;
+    const dy = npc.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (d > 16 * TILE) { npc.moving = false; return; }
+    this.steer(npc, dx / d, dy / d, MOVE_FLEE * (npc.profile.walkSpeed ?? 1), dt, false);
+  }
+
+  /** Move with collision, sliding along walls; chase uses A* when the way is blocked. */
+  steer(npc, ux, uy, speed, dt, chasing) {
+    const g = this.game;
+    const map = g.currentMap();
+    const actor = g.npcSystem.actorFor(npc);
+    const step = speed * dt;
+    const blocked = (x, y) => map.rectBlocked(x - 7, y - 6, 14, 6, actor);
+    // follow a short A* path when chasing around obstacles
+    if (chasing && npc.chasePath?.length) {
+      const wp = npc.chasePath[0];
+      const wx = wp.x - npc.x;
+      const wy = wp.y - npc.y;
+      const wd = Math.hypot(wx, wy);
+      if (wd < step + 1) npc.chasePath.shift();
+      else { ux = wx / wd; uy = wy / wd; }
+    }
+    let moved = false;
+    const tries = [[ux, uy], [ux, 0], [0, uy], [-uy, ux], [uy, -ux]];
+    for (const [tx, ty] of tries) {
+      if (!tx && !ty) continue;
+      const len = Math.hypot(tx, ty);
+      const nx = npc.x + (tx / len) * step;
+      const ny = npc.y + (ty / len) * step;
+      if (!blocked(nx, ny)) {
+        npc.x = nx;
+        npc.y = ny;
+        npc.facing = Math.abs(tx) > Math.abs(ty) ? (tx > 0 ? 'right' : 'left') : ty > 0 ? 'down' : 'up';
+        moved = true;
+        break;
+      }
+    }
+    npc.moving = moved;
+    if (moved) npc.animTime = (npc.animTime || 0) + dt * 1.4;
+    if (chasing && (!moved || !npc.chasePath?.length) && g.realTime > (npc.chaseReplanAt || 0)) {
+      npc.chaseReplanAt = g.realTime + 0.6;
+      const p = g.player;
+      const path = findPath(map, Math.floor(npc.x / TILE), Math.floor(npc.y / TILE), Math.floor(p.x / TILE), Math.floor(p.y / TILE), actor, 2500);
+      npc.chasePath = path ? path.slice(0, 6).map((t) => ({ x: (t.x + 0.5) * TILE, y: (t.y + 0.5) * TILE })) : null;
+    }
+  }
+
+  /** NPC health info for the renderer (null when the bar shouldn't show). */
+  healthBar(npc) {
+    const g = this.game;
+    if (npc.health === undefined || npc.dead) return null;
+    const max = npcMaxHealth(npc);
+    const show = npc.hostile || (npc.healthBarUntil && g.realTime < npc.healthBarUntil) || (npc.downUntil && g.clock.total < npc.downUntil);
+    if (!show) return null;
+    return { frac: clamp(npc.health / max, 0, 1), health: Math.ceil(npc.health), max, hurt: npc.hurtAt && g.realTime - npc.hurtAt < 0.25 };
+  }
+}
+
+return { FISTS, npcMaxHealth, isDown, Combat };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -8949,6 +9696,7 @@ const { EventDirector } = __m["src/systems/eventDirector.js"];
 const { OilCompany, freshOil } = __m["src/systems/oilCompany.js"];
 const { Construction, freshConstruction } = __m["src/systems/construction.js"];
 const { Properties, freshProperties } = __m["src/systems/properties.js"];
+const { Combat, isDown } = __m["src/systems/combat.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -8976,6 +9724,7 @@ class Game {
     this.oil = new OilCompany(this);
     this.construction = new Construction(this);
     this.properties = new Properties(this);
+    this.combat = new Combat(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -9173,10 +9922,12 @@ class Game {
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
     this.updatePlayer(dt, input);
+    this.combat.update(dt);
+    const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
-      if (npc.inDialogue) {
-        npc.moving = false;
+      if (npc.inDialogue || npc.hostile || isDown(npc, now)) {
+        if (!npc.hostile) npc.moving = false;
         continue;
       }
       this.npcSystem.updatePhysical(npc, dt);
@@ -9186,6 +9937,7 @@ class Game {
   }
 
   minuteTick() {
+    this.combat.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -9201,6 +9953,9 @@ class Game {
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
+    for (const [id, shop] of Object.entries(this.content.shops)) {
+      if (shop.restockAt && this.clock.timeString === shop.restockAt) this.restockShop(id);
+    }
     if (Math.floor(this.clock.total) % 12 === 0) this.player.energy = Math.max(0, this.player.energy - 1);
   }
 
@@ -9438,7 +10193,7 @@ class Game {
     const map = this.maps.get(mapId);
     const out = [];
     for (const npc of this.npcs.values()) {
-      if (npc.map !== mapId || npc.activity === 'sleep') continue;
+      if (npc.map !== mapId || npc.activity === 'sleep' || isDown(npc, this.clock.total)) continue;
       if (this.canSee(npc, x, y, map, rangeTiles)) out.push(npc);
     }
     return out;
@@ -9530,11 +10285,14 @@ class Game {
       const dot = ((x - p.x) * fx + (y - p.y) * fy) / (d || 1);
       return d - dot * 14;
     };
+    const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== p.map) continue;
       const d = dist(p.x, p.y, npc.x, npc.y);
       if (d > INTERACT_RANGE) continue;
-      out.push({ kind: 'npc', id: npc.id, label: npc.activity === 'sleep' ? `${npc.profile.shortName} (asleep)` : `Talk to ${npc.profile.shortName}`, score: score(npc.x, npc.y) - 6 });
+      const name = npc.profile.shortName;
+      const label = npc.dead ? `Look at ${name}'s body` : isDown(npc, now) ? `${name} (unconscious)` : npc.activity === 'sleep' ? `${name} (asleep)` : `Talk to ${name}`;
+      out.push({ kind: 'npc', id: npc.id, label, score: score(npc.x, npc.y) - 6 });
     }
     for (const prop of map.props) {
       if (!prop.interact && !prop.examine) continue;
@@ -9571,6 +10329,7 @@ class Game {
       case 'obstacle': return this.world.props[prop.id]?.open ? `Climb through the ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
+      case 'shop': return `Browse the ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
@@ -9587,6 +10346,9 @@ class Game {
     if (target.kind === 'npc') {
       const npc = this.npcs.get(target.id);
       if (!npc) return { type: 'none' };
+      if (npc.dead) return { type: 'message', text: `${npc.profile.shortName} is dead. There is nothing more to say.` };
+      if (isDown(npc, this.clock.total)) return { type: 'message', text: `${npc.profile.shortName} is out cold, breathing shallowly.` };
+      if (npc.hostile) return { type: 'message', text: npc.hostile.mode === 'fight' ? `${npc.profile.shortName} is in no mood to talk — they're trying to hit you!` : `${npc.profile.shortName} backs away from you, terrified.` };
       if (npc.activity === 'sleep') {
         const pool = this.content.dialogues[npc.profile.dialogue]?.barks?.sleep || ['Zzz…'];
         this.bark(npc, this.rng.pick(pool));
@@ -9628,6 +10390,8 @@ class Game {
         }
         return { type: 'container', containerId: act.container };
       }
+      case 'shop':
+        return { type: 'shop', shopId: act.shop };
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -9741,7 +10505,8 @@ class Game {
     const isMoney = itemId === 'money';
     if (isMoney ? st.money <= 0 : !(st.items[itemId] > 0)) return { ok: false, text: 'Nothing there.' };
     let stolen = false;
-    const permitted = def.owner === 'player' || (itemId === 'item_lighthouse_key' && this.getFlag('lighthouse_permission'));
+    const permitted = def.owner === 'player' || def.owner == null || // unowned (abandoned) containers are fair game
+       (itemId === 'item_lighthouse_key' && this.getFlag('lighthouse_permission'));
     if (!permitted) {
       const seen = this.witnesses(this.player.map, this.player.x, this.player.y, 8);
       const owner = seen.find((n) => n.id === def.owner);
@@ -9798,7 +10563,7 @@ class Game {
     if (this.player.money < price) return { ok: false, text: 'You can\'t afford that.' };
     this.player.money -= price;
     st.stock[itemId]--;
-    this.inventory.add(itemId, 1);
+    this.inventory.add(itemId, this.content.items[itemId].bundle || 1);
     this.bus.emit('money:changed', { delta: -price, total: this.player.money });
     this.bus.emit('shop:stock', { shopId, item: itemId, stock: st.stock[itemId], by: 'player' });
     return { ok: true, text: `Bought ${this.content.items[itemId].name} for ${price} obols.` };
@@ -9905,10 +10670,11 @@ class Game {
         activity: n.activity, mood: n.mood, met: n.met, relationships: n.relationships, knowledge: n.knowledge,
         memory: n.memory, topicsUsed: n.topicsUsed, recentLines: n.recentLines, gifts: n.gifts,
         chatCooldownUntil: n.chatCooldownUntil, hooksRun: n.hooksRun, impulseCooldowns: n.impulseCooldowns || {},
+        health: n.health, dead: n.dead || undefined, downUntil: n.downUntil || undefined, diedAt: n.diedAt,
         intent: n.intent && n.intent.source === 'errand' ? { activity: n.intent.activity, spot: n.intent.spot, source: 'errand', until: n.intent.until, fromBlock: n.intent.fromBlock } : null,
       };
     }
-    const { vx, vy, moving, animTime, stepAcc, sprintAcc, lastTx, lastTy, areaName, ...player } = this.player;
+    const { vx, vy, moving, animTime, stepAcc, sprintAcc, lastTx, lastTy, areaName, aim, attackAnim, hurtAt, ...player } = this.player;
     return deepClone({
       clock: this.clock.serialize(),
       rng: this.rng.serialize(),
@@ -10045,6 +10811,20 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.6.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Hard Lessons',
+    notes: [
+      'Combat: you can now attack anyone. Press F or click to attack; aim with the mouse, or face someone and the game helps you aim.',
+      'Twelve weapons: fists, brass knuckles, a police baton, a baseball bat, a crowbar, a machete and a fire axe; a .38 revolver, a 9mm pistol, a pump shotgun, a hunting rifle and a submachine gun. R reloads, X switches weapon, 1–9 picks one, Z puts it away.',
+      'Hit someone and their health bar appears over their head. Some people run; some fight back (and Silas carries a revolver).',
+      'Fists, knuckles and the baton knock people out — they wake up later. Everything else can kill. The dead stay dead, and anything they were giving you is over.',
+      'Witnesses remember, gossip and judge you; gunshots send everyone nearby running. If you lose a fight, you wake up at home, poorer.',
+      'Rook & Rifle in Halvermouth now sells guns, ammo and melee weapons; Tibbs sells a fire axe; there is a baton in the police lockers and a bat in a crate in the Sumps.',
+    ],
+  },
   {
     version: '0.5.0',
     date: '2026-10-13',
@@ -10478,6 +11258,33 @@ function drawHeld(ctx, item, x, y, dir, t) {
     ctx.strokeStyle = '#9aa3ab';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dir * 2, y - 8); ctx.stroke();
+  } else if (item === 'pistol') {
+    ctx.fillStyle = '#26262b';
+    ctx.fillRect(x + (dir > 0 ? 0 : -9), y - 3, 9, 3); // barrel pointing forward
+    ctx.fillRect(x - 1, y - 2, 3, 5); // grip
+  } else if (item === 'longgun') {
+    ctx.fillStyle = '#6a4a2e';
+    ctx.fillRect(x + (dir > 0 ? -5 : -3), y - 1, 8, 3); // stock
+    ctx.fillStyle = '#26262b';
+    ctx.fillRect(x + (dir > 0 ? 2 : -16), y - 3, 14, 2.5); // barrel
+  } else if (item === 'club') {
+    ctx.strokeStyle = '#7a5232';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x, y + 1); ctx.lineTo(x + dir * 5, y - 14); ctx.stroke();
+  } else if (item === 'blade') {
+    ctx.fillStyle = '#3a2a1e';
+    ctx.fillRect(x - 1, y - 2, 3, 4);
+    ctx.fillStyle = '#c9ced4';
+    ctx.beginPath(); ctx.moveTo(x - 1, y - 2); ctx.lineTo(x + dir * 4, y - 16); ctx.lineTo(x + dir * 6 + 1, y - 14); ctx.lineTo(x + 2, y - 2); ctx.closePath(); ctx.fill();
+  } else if (item === 'axe') {
+    ctx.strokeStyle = '#7a5232';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + dir * 4, y - 16); ctx.stroke();
+    ctx.fillStyle = '#c0414a';
+    ctx.fillRect(x + dir * 4 - (dir > 0 ? 0 : 6), y - 17, 6, 5);
+  } else if (item === 'knuckles') {
+    ctx.fillStyle = '#c9a24a';
+    ctx.fillRect(x - 2, y - 2, 5, 2);
   }
 }
 
@@ -12023,6 +12830,7 @@ const { TILE, clamp, lerp, dist } = __m["src/core/util.js"];
 const { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
 const { drawCharacter, rrect } = __m["src/engine/drawCharacter.js"];
 const { check } = __m["src/sim/conditions.js"];
+const { isDown } = __m["src/systems/combat.js"];
 const { inWindow } = __m["src/world/clock.js"];
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -12184,17 +12992,26 @@ class Renderer {
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
         if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
-        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(npc.profile.appearance, npc, npc.activity === 'sleep')) });
+        if (isDown(npc, g.clock.total)) {
+          items.push({ y: npc.y + L.y - 20, draw: at(() => this.drawLying(npc)) });
+          continue;
+        }
+        const nw = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon]?.weapon?.held : null;
+        const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
+        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, npc, npc.activity === 'sleep')) });
       }
     }
-    if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(g.player.appearance, g.player, false) });
+    const held = g.combat.equipped().weapon.held;
+    const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
+    if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(playerLook, g.player, false) });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
     if (!this.hidePlayer && this.playerOccluded(map)) {
       ctx.globalAlpha = 0.38;
-      this.drawActor(g.player.appearance, g.player, false);
+      this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
     }
+    this.drawCombatFx(ctx);
 
     this.drawHighlight(ctx);
     this.drawLighting(map);
@@ -12235,6 +13052,59 @@ class Renderer {
     return true;
   }
 
+  /** An unconscious or dead NPC lying on the ground. */
+  drawLying(npc) {
+    const ctx = this.ctx;
+    if (npc.dead) {
+      ctx.fillStyle = 'rgba(110,20,24,0.55)';
+      ctx.beginPath(); ctx.ellipse(npc.x, npc.y - 2, 26, 9, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(npc.x + 22, npc.y - 2);
+    ctx.rotate(-Math.PI / 2);
+    if (npc.dead) ctx.globalAlpha = 0.85;
+    drawCharacter(ctx, npc.profile.appearance, { x: 0, y: 0, facing: 'down', moving: false, idleTime: 0, sleeping: true });
+    ctx.restore();
+  }
+
+  /** Tracers, muzzle flashes, swing arcs and bullet sparks (world space). */
+  drawCombatFx(ctx) {
+    const g = this.game;
+    const t = g.realTime;
+    for (const f of g.combat.fx) {
+      const k = 1 - (t - f.start) / Math.max(0.001, f.until - f.start);
+      if (f.type === 'tracer') {
+        ctx.strokeStyle = `rgba(255,236,170,${0.85 * k})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(f.x1, f.y1); ctx.lineTo(f.x2, f.y2); ctx.stroke();
+      } else if (f.type === 'flash') {
+        ctx.fillStyle = `rgba(255,214,120,${k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 7 + 4 * k, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,255,240,${k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 3, 0, Math.PI * 2); ctx.fill();
+      } else if (f.type === 'spark') {
+        ctx.fillStyle = `rgba(255,220,150,${k})`;
+        for (let i = 0; i < 4; i++) ctx.fillRect(f.x + Math.cos(i * 1.7) * 5 * (1 - k), f.y + Math.sin(i * 1.7) * 5 * (1 - k), 2, 2);
+      } else if (f.type === 'swing') {
+        const a = Math.atan2(f.dir.y, f.dir.x);
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 * k})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.range * 0.85, a - f.arc, a + f.arc); ctx.stroke();
+      }
+    }
+    // aiming line for guns
+    const w = g.combat.equipped();
+    const p = g.player;
+    if (w.weapon.kind === 'gun' && !g.paused) {
+      const d = g.combat.aimVector(w);
+      ctx.strokeStyle = 'rgba(255,90,70,0.45)';
+      ctx.setLineDash([3, 5]);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(p.x + d.x * 16, p.y - 18 + d.y * 16); ctx.lineTo(p.x + d.x * 70, p.y - 18 + d.y * 70); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
   drawActor(appearance, actor, sleeping) {
     const img = appearance.sprite ? this.assets?.image(appearance.sprite) : null;
     if (img) {
@@ -12254,8 +13124,10 @@ class Renderer {
       this.ctx.restore();
       return;
     }
+    // flinch when hit
+    const shake = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.2 ? Math.sin(this.game.realTime * 90) * 2 : 0;
     drawCharacter(this.ctx, appearance, {
-      x: actor.x,
+      x: actor.x + shake,
       y: actor.y,
       facing: actor.facing,
       moving: actor.moving,
@@ -12410,7 +13282,8 @@ class Renderer {
       const L = layerOf.get(npc.map);
       if (!L) continue;
       const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
-      const s = this.toScreen(npc.x + L.x, npc.y + L.y - 52 * (npc.profile.appearance.height || 1));
+      const lying = isDown(npc, g.clock.total);
+      const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : 52 * (npc.profile.appearance.height || 1)));
       if (near || npc.bubble) {
         const mood = g.moodOf(npc);
         const icon = g.content.moods[mood]?.icon || '';
@@ -12431,8 +13304,38 @@ class Renderer {
         const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - 46 - ((this.time * 8) % 10));
         ctx.fillText('z', zs.x, zs.y);
       }
-      if (npc.bubble && g.realTime < npc.bubble.until) this.drawBubble(npc.bubble.text, s.x, s.y - 14 * dpr);
+      const bar = g.combat.healthBar(npc);
+      if (bar) this.drawHealthBar(npc, bar, s, dpr, near || npc.bubble);
+      if (npc.bubble && g.realTime < npc.bubble.until) this.drawBubble(npc.bubble.text, s.x, s.y - (bar ? 30 : 14) * dpr);
       else if (npc.chat && !npc.bubble) this.drawBubble('…', s.x, s.y - 14 * dpr);
+    }
+    // floating damage numbers
+    for (const f of g.combat.fx) {
+      if (f.type !== 'damage') continue;
+      const age = g.realTime - f.start;
+      const fs = this.toScreen(f.x, f.y - age * 30);
+      ctx.globalAlpha = Math.max(0, 1 - age / 0.9);
+      ctx.font = `bold ${14 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = 'rgba(30,20,30,0.85)';
+      ctx.strokeText(`-${f.amount}`, fs.x, fs.y);
+      ctx.fillStyle = f.player ? '#ff6a5a' : '#ffe08a';
+      ctx.fillText(`-${f.amount}`, fs.x, fs.y);
+      ctx.globalAlpha = 1;
+    }
+    // red vignette when the player is hurt
+    const hurt = g.player.hurtAt ? Math.max(0, 1 - (g.realTime - g.player.hurtAt) / 0.6) : 0;
+    const low = g.player.health < 30 ? 0.25 + Math.sin(this.time * 4) * 0.08 : 0;
+    const vig = Math.max(hurt * 0.55, low);
+    if (vig > 0.01) {
+      const W = this.canvas.width;
+      const H = this.canvas.height;
+      const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.7);
+      grad.addColorStop(0, 'rgba(160,0,0,0)');
+      grad.addColorStop(1, `rgba(160,0,0,${vig})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
     }
     // interaction prompt marker above the player
     if (this.highlight) {
@@ -12447,6 +13350,39 @@ class Renderer {
       ctx.fill();
     }
     ctx.textAlign = 'left';
+  }
+
+  /** Health bar (and name, if the tag isn't already shown) above an NPC's head. */
+  drawHealthBar(npc, bar, s, dpr, tagShown) {
+    const ctx = this.ctx;
+    const w = 54 * dpr;
+    const h = 7 * dpr;
+    const x = s.x - w / 2;
+    const y = s.y - 20 * dpr;
+    if (!tagShown) {
+      ctx.font = `bold ${10 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = 'rgba(28,22,38,0.8)';
+      ctx.strokeText(npc.profile.shortName, s.x, y - 2 * dpr);
+      ctx.fillStyle = '#fff6e0';
+      ctx.fillText(npc.profile.shortName, s.x, y - 2 * dpr);
+    }
+    ctx.fillStyle = 'rgba(20,14,24,0.8)';
+    rrect(ctx, x - 2 * dpr, y - 2 * dpr, w + 4 * dpr, h + 4 * dpr, 4 * dpr);
+    ctx.fill();
+    const f = bar.frac;
+    ctx.fillStyle = bar.hurt ? '#ffffff' : f > 0.6 ? '#5fbf6a' : f > 0.3 ? '#e8b64c' : '#d9534a';
+    if (f > 0) { rrect(ctx, x, y, Math.max(2, w * f), h, 3 * dpr); ctx.fill(); }
+    if (npc.downUntil && this.game.clock.total < npc.downUntil) {
+      ctx.font = `bold ${9 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#fff6e0';
+      ctx.fillText('KNOCKED OUT', s.x, y + h + 3 * dpr);
+    }
+    ctx.textBaseline = 'middle';
   }
 
   drawBubble(text, x, y) {
@@ -13367,7 +14303,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -13414,6 +14350,11 @@ function inventoryPanel(ui, body) {
             h('div', { class: 'name' }, e.def.name, e.count > 1 ? ` ×${e.count}` : '', owner ? h('span', { class: 'tag bad' }, `belongs to ${owner}`) : null, h('span', { class: 'tag' }, e.def.category)),
             h('div', { class: 'desc' }, e.def.description),
           ),
+          e.def.weapon ? h('button', { class: g.player.equipped === e.id ? 'small primary' : 'small', onclick: () => {
+            const r = g.combat.equip(g.player.equipped === e.id ? null : e.id);
+            ui.toast(r.text, 'info', 2);
+            render();
+          } }, g.player.equipped === e.id ? 'Put away' : 'Equip') : null,
           e.def.use ? h('button', { class: 'small', onclick: () => {
             const r = g.inventory.use(e.id);
             ui.audio.sfx(r.ok ? 'sfx_eat' : 'sfx_ui_click');
@@ -13892,6 +14833,21 @@ class UI {
     this.lastMapAutosave = -999;
     this.time = 0;
     this.fps = 60;
+    // Mouse aiming and firing (canvas only; panels and dialogue sit above it in the DOM).
+    this.mouse = { x: 0, y: 0, movedAt: -1e9, down: false };
+    canvas.addEventListener('mousemove', (e) => {
+      const r = canvas.getBoundingClientRect();
+      this.mouse.x = (e.clientX - r.left) * (canvas.width / r.width);
+      this.mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
+      this.mouse.movedAt = this.time;
+    });
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      this.mouse.down = true;
+      this.mouse.movedAt = this.time;
+      this.handleAction('attack');
+    });
+    window.addEventListener('mouseup', () => { this.mouse.down = false; });
     this.el = {
       hud: document.getElementById('hud'),
       clock: document.getElementById('hud-clock'),
@@ -13901,6 +14857,8 @@ class UI {
       prompt: document.getElementById('hud-prompt'),
       health: document.getElementById('bar-health'),
       energy: document.getElementById('bar-energy'),
+      weapon: document.getElementById('hud-weapon'),
+      hudBl: document.getElementById('hud-bl'),
       toasts: document.getElementById('toasts'),
       minimap: document.getElementById('minimap'),
       debug: document.getElementById('debug'),
@@ -14140,6 +15098,13 @@ class UI {
       this.audio.sfx('sfx_notify');
     });
     bus.on('sfx', ({ id }) => this.audio.sfx(id));
+    bus.on('combat:playerHit', () => this.audio.sfx('sfx_hurt'));
+    bus.on('combat:playerDown', () => {
+      this.closeAllPanels();
+      if (this.dialogue.open) this.dialogue.close();
+      this.el.fade.classList.add('on');
+      setTimeout(() => { this.el.fade.classList.remove('on'); this.renderer.snapCamera(); }, 900);
+    });
     bus.on('player:step', ({ surface }) => this.audio.sfx('sfx_step', { surface }));
     bus.on('item:acquired', ({ id, count, silent }) => {
       if (silent) return;
@@ -14190,13 +15155,38 @@ class UI {
       case 'map': this.openPanel('map'); break;
       case 'status': this.openPanel('journal', { tab: 'People' }); break;
       case 'interact': this.interact(); break;
+      case 'attack': {
+        const r = this.game.combat.attack();
+        if (r.text) this.showCaption(r.text, 2);
+        break;
+      }
+      case 'reload': {
+        const r = this.game.combat.reload();
+        if (r.text && !r.ok) this.toast(r.text, 'info', 2);
+        break;
+      }
+      case 'nextWeapon': {
+        const r = this.game.combat.cycle(1);
+        if (r.text) this.toast(r.text, 'info', 2);
+        break;
+      }
+      case 'holster': {
+        const r = this.game.combat.equip(null);
+        if (r.text) this.toast(r.text, 'info', 2);
+        break;
+      }
       case 'quicksave': this.saveTo('slot1'); break;
       case 'quickload': this.loadFrom('slot1'); break;
       case 'debug':
         this.settings.showFps = !this.settings.showFps;
         this.applySettings();
         break;
-      default: break;
+      default:
+        if (action.startsWith('choice')) {
+          const r = this.game.combat.select(Number(action.slice(6)));
+          if (r.text) this.toast(r.text, 'info', 2);
+        }
+        break;
     }
   }
 
@@ -14211,6 +15201,7 @@ class UI {
       case 'container': this.openPanel('container', { containerId: act.containerId }); break;
       case 'choices': this.openPanel('choices', act); break;
       case 'contracts': this.openPanel('contracts', {}); break;
+      case 'shop': this.openPanel('shop', { shopId: act.shopId }); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;
@@ -14245,6 +15236,16 @@ class UI {
     if (!g) return;
     if (this.state === 'playing') {
       const move = this.panelOpen || this.dialogue.open ? { x: 0, y: 0, sprint: false } : this.input.movement();
+      const busy = this.panelOpen || this.dialogue.open;
+      // aim at the mouse while it is being used; otherwise facing + auto-aim
+      if (!busy && this.time - this.mouse.movedAt < 4 && this.renderer.cam) {
+        const z = this.renderer.cam.zoom;
+        const wx = this.renderer.cam.x + this.mouse.x / z;
+        const wy = this.renderer.cam.y + this.mouse.y / z;
+        g.player.aim = { x: wx - g.player.x, y: wy - (g.player.y - 18) };
+      } else g.player.aim = null;
+      // automatic weapons fire while the button is held
+      if (!busy && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
       g.update(dt, move);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;
@@ -14271,6 +15272,12 @@ class UI {
     set(this.el.money, `🪙 ${p.money} obols`);
     this.el.health.style.width = `${p.health}%`;
     this.el.energy.style.width = `${p.energy}%`;
+    const w = g.combat.equipped();
+    const ammo = g.combat.ammoStatus();
+    const ammoHtml = ammo ? `<span class="ammo${ammo.loaded ? '' : ' empty'}">${ammo.reloading ? 'reloading…' : `${ammo.loaded}/${ammo.mag}`} · ${ammo.reserve}</span>` : '';
+    const whtml = `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
+    if (this.el.weapon.innerHTML !== whtml) this.el.weapon.innerHTML = whtml;
+    if (p.hurtAt && g.realTime - p.hurtAt < 0.05) { this.el.hudBl.classList.remove('hurt'); void this.el.hudBl.offsetWidth; this.el.hudBl.classList.add('hurt'); }
     if (target) {
       const html = `<kbd>E</kbd>${escapeHtml(target.label)}`;
       if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
