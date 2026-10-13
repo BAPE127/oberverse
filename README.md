@@ -10,10 +10,10 @@ You have just moved into Number 9, Gullwing Row, in **Lanternside** — a small 
 
 ## Playing the game
 
-**Just open `index.html` in your browser.** That's it — the whole game is that one file. No installation, no server, no internet connection.
+**Play online at https://bape127.github.io/oberverse/ — or just open `index.html` in your browser.** That's it — the whole game is that one file. No installation, no server, no internet connection.
 
 - **Download:** on GitHub choose *Code → Download ZIP*, unzip it, and double-click `index.html`. (You can also copy `index.html` on its own anywhere — it doesn't need the other files.)
-- **Play from a link:** if GitHub Pages is enabled for this repository (Settings → Pages → *Deploy from a branch* → choose the branch and `/ (root)`), the game is playable at `https://<owner>.github.io/oberverse/`.
+- **Play online:** **https://bape127.github.io/oberverse/** — served by GitHub Pages from the `claude/funny-mayer-52dll8` branch, `/ (root)`. Every push redeploys it automatically.
 
 Works in current desktop Chrome, Edge, Firefox and Safari. Sound starts after your first click or key press (browser rule). Your progress is saved in the browser automatically; saves made from the downloaded file and saves made on the web link are kept separately — use *Export*/*Import* in the Load menu to move one across.
 
