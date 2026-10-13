@@ -1,0 +1,16 @@
+# Version History
+
+Milestones, compatibility and migration notes. The changelog lists details; this file records what each release means.
+
+| Version | Date | Channel | Save schema | Milestone |
+| --- | --- | --- | --- | --- |
+| 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.1.0 — Foundations of Lanternside
+
+- **Status:** development build (not marked stable).
+- **Roadmap coverage:** Stage 0 (discovery & architecture) and Stage 1 (playable foundation) complete. Early implementations of Stage 2 (world & navigation), Stage 3 (systemic RPG foundation, minus combat/equipment), Stage 4 (character simulation), Stage 5 (import pipeline — documentation, templates and engine support; no imported characters yet) and Stage 6 (audio and presentation).
+- **Save compatibility:** introduces save schema 1. There are no earlier saves to migrate.
+- **Content compatibility:** characters, containers and shops that are added to content later are created fresh when an older save is loaded (tested).
+- **Verification:** see docs/TESTING.md for the checks run for this release.
+- **Recovery point:** git commit tagged in history on branch `claude/funny-mayer-52dll8`.

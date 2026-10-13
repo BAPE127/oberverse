@@ -1,0 +1,415 @@
+{
+ "format": "oberverse-save",
+ "saveVersion": 1,
+ "gameVersion": "0.1.0",
+ "savedAt": "2026-10-13T04:44:09.299Z",
+ "meta": {
+  "playerName": "Fixture",
+  "day": 1,
+  "weekday": "Moonday",
+  "time": "13:00",
+  "location": "Brindle Heights"
+ },
+ "state": {
+  "clock": {
+   "total": 780,
+   "rate": 1
+  },
+  "rng": {
+   "state": 3911322140
+  },
+  "player": {
+   "id": "player",
+   "name": "Fixture",
+   "appearance": {
+    "skin": "#d9a77c",
+    "hair": "#2f2a35",
+    "hairStyle": "short",
+    "outfit": "#3f7f8f",
+    "accent": "#f2c14e",
+    "accessory": "scarf",
+    "build": "average",
+    "height": 1
+   },
+   "map": "lanternside",
+   "x": 208,
+   "y": 336,
+   "facing": "up",
+   "health": 100,
+   "energy": 60,
+   "money": 31,
+   "inventory": {
+    "item_flat_key": 1,
+    "item_honey_bun": 2,
+    "item_lucky_spanner": 1
+   },
+   "stolen": {},
+   "knowledge": {
+    "fact_osric_sweet_tooth": {
+     "kind": "rumor",
+     "source": "told:npc_mags",
+     "at": 480,
+     "confidence": 1
+    }
+   },
+   "reputation": {
+    "lanternside": 0,
+    "fac_civic": 0,
+    "fac_merchants": 0,
+    "fac_quay": 0
+   },
+   "stats": {
+    "charm": 2,
+    "wits": 2,
+    "grit": 2,
+    "finesse": 2
+   },
+   "discovered": {
+    "maps": {
+     "player_flat": true,
+     "lanternside": true
+    },
+    "areas": {
+     "map:player_flat": true,
+     "area_brindle": true
+    }
+   }
+  },
+  "npcs": {
+   "npc_mags": {
+    "map": "cafe",
+    "x": 144,
+    "y": 80,
+    "facing": "down",
+    "activity": "work",
+    "mood": null,
+    "met": true,
+    "relationships": {
+     "player": {
+      "trust": 5,
+      "affection": 10,
+      "respect": 0,
+      "suspicion": 0
+     },
+     "npc_osric": {
+      "trust": 30,
+      "affection": 25,
+      "respect": 20,
+      "suspicion": 0
+     },
+     "npc_tibbs": {
+      "trust": 15,
+      "affection": 31,
+      "respect": 5,
+      "suspicion": 0
+     }
+    },
+    "knowledge": {
+     "fact_lighthouse_dark": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_osric_sweet_tooth": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_gulls_organised": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_hatch_exists": {
+      "kind": "rumor",
+      "source": "told:npc_tibbs",
+      "at": 494,
+      "confidence": 0.85
+     }
+    },
+    "memory": {
+     "recent": [
+      {
+       "text": "Chatted with Tibbs.",
+       "tag": "chatted:npc_tibbs",
+       "about": "npc_tibbs",
+       "importance": 2,
+       "at": 494
+      }
+     ],
+     "significant": []
+    },
+    "topicsUsed": {},
+    "recentLines": [],
+    "gifts": null,
+    "chatCooldownUntil": 576,
+    "hooksRun": {},
+    "impulseCooldowns": {},
+    "intent": null
+   },
+   "npc_osric": {
+    "map": "lanternside",
+    "x": 944,
+    "y": 624,
+    "facing": "up",
+    "activity": "work",
+    "mood": {
+     "id": "content",
+     "until": 911
+    },
+    "met": false,
+    "relationships": {
+     "player": {
+      "trust": 12,
+      "affection": 9,
+      "respect": 0,
+      "suspicion": 5
+     },
+     "npc_mags": {
+      "trust": 25,
+      "affection": 20,
+      "respect": 15,
+      "suspicion": 0
+     },
+     "npc_tibbs": {
+      "trust": 5,
+      "affection": 0,
+      "respect": -5,
+      "suspicion": 10
+     }
+    },
+    "knowledge": {
+     "fact_lighthouse_dark": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_osric_has_key": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     }
+    },
+    "memory": {
+     "recent": [],
+     "significant": []
+    },
+    "topicsUsed": {},
+    "recentLines": [],
+    "gifts": null,
+    "chatCooldownUntil": 0,
+    "hooksRun": {
+     "2": "2@0"
+    },
+    "impulseCooldowns": {},
+    "intent": null
+   },
+   "npc_tibbs": {
+    "map": "workshop",
+    "x": 112,
+    "y": 112,
+    "facing": "up",
+    "activity": "work",
+    "mood": {
+     "id": "sheepish",
+     "until": 720
+    },
+    "met": false,
+    "relationships": {
+     "player": {
+      "trust": 0,
+      "affection": 5,
+      "respect": 0,
+      "suspicion": 0
+     },
+     "npc_mags": {
+      "trust": 30,
+      "affection": 36,
+      "respect": 20,
+      "suspicion": 0
+     },
+     "npc_osric": {
+      "trust": 0,
+      "affection": -10,
+      "respect": 5,
+      "suspicion": 5
+     }
+    },
+    "knowledge": {
+     "fact_lighthouse_dark": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_hatch_exists": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_tibbs_lost_spanner": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_gulls_organised": {
+      "kind": "fact",
+      "source": "innate",
+      "at": 0,
+      "confidence": 1
+     },
+     "fact_osric_sweet_tooth": {
+      "kind": "rumor",
+      "source": "told:npc_mags",
+      "at": 494,
+      "confidence": 0.85
+     },
+     "fact_workshop_bang": {
+      "kind": "fact",
+      "source": "heard",
+      "at": 600,
+      "confidence": 1
+     }
+    },
+    "memory": {
+     "recent": [
+      {
+       "text": "Chatted with Mags.",
+       "tag": "chatted:npc_mags",
+       "about": "npc_mags",
+       "importance": 2,
+       "at": 494
+      },
+      {
+       "text": "Duchess backfired. Loudly.",
+       "tag": "bang",
+       "about": null,
+       "importance": 4,
+       "at": 600
+      }
+     ],
+     "significant": []
+    },
+    "topicsUsed": {},
+    "recentLines": [],
+    "gifts": null,
+    "chatCooldownUntil": 545,
+    "hooksRun": {
+     "0": "0@0"
+    },
+    "impulseCooldowns": {
+     "tinker_itch": 810
+    },
+    "intent": null
+   }
+  },
+  "world": {
+   "containers": {
+    "ct_flat_wardrobe": {
+     "items": {
+      "item_bandage": 1,
+      "item_scone": 1
+     },
+     "money": 8
+    },
+    "ct_civic_desk": {
+     "items": {
+      "item_lighthouse_key": 1,
+      "item_rubber_stamp": 1
+     },
+     "money": 0
+    },
+    "ct_workshop_crate": {
+     "items": {
+      "item_bolts": 2,
+      "item_brass_cog": 1
+     },
+     "money": 0
+    },
+    "ct_lighthouse_chest": {
+     "items": {
+      "item_lens_shard": 1
+     },
+     "money": 6
+    }
+   },
+   "shops": {
+    "shop_kettle": {
+     "stock": {
+      "item_honey_bun": 4,
+      "item_scone": 4,
+      "item_coffee": 7
+     }
+    },
+    "shop_hollow": {
+     "stock": {
+      "item_crowbar": 1,
+      "item_bolts": 3
+     }
+    }
+   },
+   "props": {},
+   "flags": {
+    "read_welcome": true
+   },
+   "publicFacts": {},
+   "events": {
+    "lastFired": {
+     "undefined": 600
+    },
+    "pending": [
+     {
+      "id": "ev_noise_citation",
+      "at": 2040
+     }
+    ],
+    "log": [
+     {
+      "at": 600
+     }
+    ]
+   },
+   "lastHour": 13
+  },
+  "quests": {
+   "q_dark_lamp": {
+    "state": "active",
+    "stage": "find_way_in",
+    "outcome": null,
+    "startedAt": 480,
+    "day": 1,
+    "notes": [
+     {
+      "at": 480,
+      "text": "Mags wants to know why the lighthouse went dark. The tower on Lighthouse Point is locked and off-limits."
+     }
+    ]
+   },
+   "q_lucky_spanner": {
+    "state": "active",
+    "stage": "return",
+    "outcome": null,
+    "startedAt": 480,
+    "day": 1,
+    "notes": [
+     {
+      "at": 480,
+      "text": "Tibbs dropped his lucky spanner somewhere in Gullwing Park, chasing a gull \"with intent\"."
+     },
+     {
+      "at": 480,
+      "text": "You found the spanner under the pines."
+     }
+    ]
+   }
+  },
+  "gameVersion": "0.1.0"
+ }
+}

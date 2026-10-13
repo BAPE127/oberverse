@@ -1,0 +1,72 @@
+{
+  "name": "The Oberverse",
+  "version": "0.1.0",
+  "buildChannel": "development",
+  "saveSchemaVersion": 1,
+  "contentSchemaVersion": 1,
+  "releaseDate": "2026-10-13",
+  "entryPoint": "index.html",
+  "runCommand": "npm start  (or any static file server serving this folder)",
+  "runtime": {
+    "platform": "browser",
+    "language": "JavaScript (ES modules, no build step)",
+    "rendering": "Canvas 2D (procedural, stylised 2D)",
+    "audio": "Web Audio API (procedural, original)",
+    "persistence": "localStorage (versioned saves + backups), JSON import/export",
+    "network": "none required; no external services or AI APIs"
+  },
+  "systems": {
+    "worldClock": "src/world/clock.js",
+    "maps": "src/world/gameMap.js, src/world/mapBuilder.js, src/world/pathfinding.js",
+    "npcSimulation": "src/sim/npcSystem.js, src/sim/npcBrain.js, src/sim/schedule.js",
+    "knowledge": "src/sim/knowledge.js",
+    "relationships": "src/sim/relationships.js",
+    "memory": "src/sim/memory.js",
+    "conditions": "src/sim/conditions.js",
+    "effects": "src/game/effects.js",
+    "dialogue": "src/dialogue/dialogueEngine.js",
+    "quests": "src/systems/quests.js",
+    "events": "src/systems/eventDirector.js",
+    "inventory": "src/systems/inventory.js",
+    "saves": "src/save/saveManager.js, src/save/saveSchema.js, src/save/migrations.js",
+    "rendering": "src/engine/renderer.js, src/engine/drawWorld.js, src/engine/drawCharacter.js",
+    "audio": "src/audio/audioEngine.js, src/audio/music.js, src/audio/synth.js, src/audio/sfx.js, src/audio/ambience.js",
+    "ui": "src/ui/ui.js, src/ui/panels.js, src/ui/dialogueUI.js, src/ui/maps.js"
+  },
+  "contentRegistries": {
+    "index": "src/content/index.js",
+    "characters": "src/content/characters/",
+    "dialogue": "src/content/dialogue/",
+    "maps": "src/content/maps/",
+    "items": "src/content/items.js",
+    "facts": "src/content/facts.js",
+    "quests": "src/content/quests.js",
+    "events": "src/content/events.js",
+    "factions": "src/content/factions.js",
+    "audio": "src/content/audio.js"
+  },
+  "characters": [
+    { "id": "npc_mags", "name": "Marguerite \"Mags\" Pell", "origin": "original", "status": "implemented" },
+    { "id": "npc_osric", "name": "Osric Vane", "origin": "original", "status": "implemented" },
+    { "id": "npc_tibbs", "name": "Tibbs Hollow", "origin": "original", "status": "implemented" }
+  ],
+  "importedCharacters": [],
+  "tooling": {
+    "unitTests": "npm test",
+    "contentValidation": "npm run validate",
+    "browserSmokeTest": "npm run smoke (requires Playwright + Chromium)",
+    "mapPreview": "npm run map -- <mapId>"
+  },
+  "compatibility": {
+    "loadsSaveSchemas": [1],
+    "minimumNode": "18 (only for the dev server and tests)",
+    "browsers": "Current Chromium, Firefox and Safari with ES module support"
+  },
+  "documentation": {
+    "readme": "README.md",
+    "changelog": "CHANGELOG.md",
+    "versionHistory": "VERSION_HISTORY.md",
+    "docs": "docs/",
+    "promptBank": "docs/prompt-bank/INDEX.md"
+  }
+}

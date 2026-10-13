@@ -1,0 +1,90 @@
+# Architecture
+
+## Technology decisions
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Language/runtime | Plain JavaScript ES modules, no build step | Runs from any static server; nothing to install; easy for future agents to read and edit. |
+| Rendering | Canvas 2D, procedural stylised art | Smooth movement and lighting without a framework; art is data-driven and replaceable by images. |
+| UI | DOM overlay (HTML/CSS) | Accessible text, forms and scrolling panels for free. |
+| Audio | Web Audio API synthesis | Original music and SFX with no audio files to license or load; fails silently if unavailable. |
+| Persistence | `localStorage` + JSON export/import | Works offline; saves are inspectable text files. |
+| Tests | Node's built-in `node:test` | Zero dependencies. Simulation code is DOM-free so it runs headlessly. |
+| Dev server | 60-line Node static server (`server.js`) | Browsers block ES modules on `file://`. Not needed for gameplay itself. |
+
+## Layering
+
+```
+          ┌───────────── browser only ─────────────┐
+ main.js → ui/ (DOM)   engine/ (canvas)   audio/ (Web Audio)
+          └──────────────── reads ↓ calls ─────────┘
+                       game/game.js  (Game: all state)
+         ┌──────────┬──────────┬──────────┬─────────┐
+       sim/       systems/   dialogue/   world/    save/
+ (npc brain,   (inventory,  (sessions)  (clock,   (slots,
+  knowledge,    quests,                  maps,     schema,
+  memory,       events)                  paths)    migrations)
+  relations,
+  conditions)
+                       ↑ data
+                  content/ (pure data + small builders)
+```
+
+Rules:
+- `src/game`, `src/sim`, `src/systems`, `src/dialogue`, `src/world`, `src/save` and `src/content` **must not touch the DOM, canvas or audio**. The test suite imports them in Node.
+- Systems talk through the `EventBus` (`game.bus`). Examples: `fact:learned`, `item:acquired`, `map:entered`, `quest:completed`, `npc:chat`, `sfx`, `notify`.
+- Content never contains code paths that bypass systems: consequences are declarative **effects**, requirements are declarative **conditions** (see `docs/CONTENT_FORMAT.md`). The only interpreters are `src/sim/conditions.js` and `src/game/effects.js`.
+
+## Core loop
+
+`main.js` runs `requestAnimationFrame`. Each frame: queued key actions → `ui.handleAction`; `ui.frame(dt)` → `game.update(dt, movement)` → renderer → audio. `dt` is clamped to 0.1 s.
+
+`Game.update`:
+1. Clock advances (`clock.rate` game minutes per real second, default 1).
+2. Player physics (acceleration, axis-separated tile collision, corner nudging, doors).
+3. Physical tier NPCs (those on the player's map) follow paths every frame; ambient barks.
+4. For every whole game minute crossed: `minuteTick()` → NPC decisions, abstract-tier travel, NPC chats, observations, quest timers, chained events, hourly events, energy.
+
+All modal UI (dialogue, panels) pauses the game clock.
+
+## NPC simulation
+
+- **Decision model:** utility scoring (`src/sim/npcBrain.js`). Candidates are the current schedule block (score `1 + conscientiousness × 0.6`) and personality impulses (`weight × trait + mood bonus ± noise`, gated by conditions and the activity they may interrupt). The winner is committed for a duration; impulses then cool down. Schedule lookups are shifted by `punctuality` minutes (Osric leaves early, Tibbs is late).
+- **Tiers:** physical NPCs walk A* paths (`src/world/pathfinding.js`, 8-way, no corner cutting) and hop maps through doors they're allowed to use. Abstract NPCs move by travel-time estimates door-to-door and jump into the physical tier when they enter the player's map. Time skips (sleep) simulate everyone abstractly minute by minute, so schedules, events and quest timers stay consistent.
+- **Social:** NPCs on the same map within 5 tiles may chat (chance from sociability, affection and work ethic). Chats change affection, create memories and run `Knowledge.gossip`, which passes one fact as a *rumour* with reduced confidence.
+- **Observation:** `profile.notices` let characters remember seeing the player in places they care about (Osric remembers visitors to his office).
+- **Errands:** effects can send an NPC somewhere outside their schedule (`errand`).
+
+## Knowledge, memory, relationships
+
+- `Knowledge` stores per-entity `factId → {kind: fact|rumor, source, at, confidence}`. Channels: `innate`, `witnessed`, `heard` (noise), `told:<id>`, `read`, `notice`. Facts flagged `spread:false` or a character's `discretion` limit gossip. Facts `aboutPlayer` change the learner's relationship (rumours count half) and apply faction reputation once, when the fact first becomes public.
+- `Memory` is bounded: 12 recent everyday entries (FIFO) and 24 significant ones (importance ≥ 6, evicting least important then oldest).
+- `Relationships`: trust, affection, respect, suspicion in [-100, 100]; `disposition()` combines them for prices, labels and persuasion.
+
+## Dialogue
+
+`DialogueSession` (`src/dialogue/dialogueEngine.js`) chooses the first greeting whose conditions match, offers available topics, runs choices with optional skill checks (`stat`, `base`, relationship scaling, mood modifier, condition mods), handles gifts (per-character preferences with daily diminishing returns), Mags-style gossip trading, and the bounded "Ask about…" box: keyword → authored topic → authored ask-about lines → opinion of a named character → a fact the character actually knows (secrets refused at low trust) → in-character "I don't know". It never invents facts.
+
+## Quests and events
+
+- `QuestSystem` holds stage/outcome state, listens to bus events via data-driven triggers, applies outcome effects, expires jobs, and builds the journal (objectives + hints revealed by player knowledge).
+- `EventDirector` evaluates templates hourly, on NPC arrival, or as chained follow-ups at a set time, with conditions, chance, cooldowns and effects.
+
+## Rendering
+
+`Renderer` caches a static ground layer per map, then draws flat props, y-sorted buildings/props/characters, interaction highlight, a lighting pass (darkness with light "holes" for lamps, lit windows and the player, plus additive warm glow), and screen-space name tags and speech bubbles. Characters are drawn procedurally from `appearance` data; if `appearance.sprite` names an image that loads, it is used instead (`src/engine/assets.js`), so art can be upgraded without touching simulation code.
+
+## Audio
+
+`AudioEngine` creates the `AudioContext` on the first user gesture, with master → compressor and four buses (music, sfx, ambience, voice). `SongPlayer` schedules compiled note data with a look-ahead timer and crossfades between pieces chosen by map and time of day. Failures are logged to `audio.failures` and never stop the game.
+
+## Persistence
+
+See `docs/SAVE_FORMAT.md`. `Game.serialize()` produces plain JSON; `SaveManager` wraps it in a versioned envelope, keeps a `.bak` of the previous save per slot, validates and repairs on load, runs migrations, and falls back to the backup if the main file is unreadable.
+
+## Adding things without touching unrelated code
+
+- New character: add a profile + dialogue file and register both in `src/content/index.js`. Existing saves gain the character automatically.
+- New map/interior: add a map definition and a door on an existing map pointing to it.
+- New quest/event/item/fact: add data; run `npm run validate`.
+- New condition/effect type: add one `case` to `conditions.js`/`effects.js` and its key to `CONDITION_KEYS`/`EFFECT_KEYS`, document it in `CONTENT_FORMAT.md`, add a test.

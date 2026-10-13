@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Oberverse</title>
+  <meta name="description" content="The Oberverse — a persistent, character-driven, systemic sandbox RPG." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232d2433'/%3E%3Cpath d='M13 26h6l-1-14h-4z' fill='%23f2efe8'/%3E%3Cpath d='M12 12h8l-4-5z' fill='%23c0614a'/%3E%3Ccircle cx='16' cy='10' r='2' fill='%23ffd88a'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="game" aria-label="Game world"></canvas>
+
+  <!-- In-game HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-tl" class="hud-card">
+      <div id="hud-clock"></div>
+      <div id="hud-location"></div>
+      <div id="hud-money"></div>
+    </div>
+    <div id="hud-tr">
+      <div class="hud-card minimap-card"><canvas id="minimap" width="170" height="170"></canvas></div>
+      <div id="hud-tracker" class="hud-card"></div>
+    </div>
+    <div id="hud-bl" class="hud-card">
+      <div class="bar"><span>Health</span><div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div></div>
+      <div class="bar"><span>Energy</span><div class="bar-track"><div id="bar-energy" class="bar-fill energy"></div></div></div>
+    </div>
+    <div id="hud-prompt" class="hidden"></div>
+    <div id="hud-keys">E interact · Shift sprint · I inventory · J journal · M map · Esc menu</div>
+    <div id="toasts" aria-live="polite"></div>
+    <div id="debug" class="hidden"></div>
+  </div>
+
+  <!-- Title screen -->
+  <div id="screen-title" class="screen">
+    <div class="title-card">
+      <div class="logo">The <span>Oberverse</span></div>
+      <div class="tagline">Lanternside is waiting. So is the lighthouse.</div>
+      <div class="menu" id="title-menu"></div>
+      <div class="version" id="title-version"></div>
+    </div>
+    <div class="click-hint" id="audio-hint">Click or press a key to enable sound</div>
+  </div>
+
+  <!-- New game -->
+  <div id="screen-new" class="screen hidden">
+    <div class="panel narrow">
+      <h2>A new arrival</h2>
+      <p class="muted">You've taken a room at Number 9, Gullwing Row, in the seaside borough of Lanternside.</p>
+      <label class="field">Your name <input id="new-name" maxlength="20" value="Wren" autocomplete="off" /></label>
+      <div class="field">Look
+        <div class="swatches" id="new-look"></div>
+      </div>
+      <canvas id="new-preview" width="120" height="120"></canvas>
+      <div class="row">
+        <button id="new-back" class="ghost">Back</button>
+        <button id="new-start" class="primary">Begin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic modal panel (pause, inventory, journal, map, shop, etc.) -->
+  <div id="modal" class="screen hidden" role="dialog" aria-modal="true">
+    <div class="panel" id="modal-panel">
+      <div class="panel-head">
+        <h2 id="modal-title"></h2>
+        <button class="close" id="modal-close" aria-label="Close">×</button>
+      </div>
+      <div id="modal-tabs" class="tabs"></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Dialogue -->
+  <div id="dialogue" class="hidden">
+    <div class="dlg-box">
+      <div class="dlg-side">
+        <canvas id="dlg-portrait" width="112" height="112"></canvas>
+        <div id="dlg-name"></div>
+        <div id="dlg-meta"></div>
+      </div>
+      <div class="dlg-main">
+        <div id="dlg-text"></div>
+        <div id="dlg-continue" class="hidden">▼</div>
+        <form id="dlg-ask" class="hidden" autocomplete="off">
+          <input id="dlg-ask-input" maxlength="40" placeholder="Type a subject, e.g. lighthouse, gulls, Osric…" />
+          <button type="submit" class="primary">Ask</button>
+        </form>
+        <div id="dlg-options"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fade"></div>
+  <noscript><div class="noscript">The Oberverse needs JavaScript enabled.</div></noscript>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
