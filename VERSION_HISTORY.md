@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.14.0 | 2026-10-13 | development | 1 | Gun Running — the global market, shipping, heavy weapons in use |
 | 0.13.0 | 2026-10-13 | development | 1 | Pipecreek — fifth imported character, arms works, staff, research |
 | 0.12.0 | 2026-10-13 | development | 1 | The Calculator Works — warehouses, Sal's parts and deliveries, the factory builder |
 | 0.11.0 | 2026-10-13 | development | 1 | Sums of Anarchy — fourth imported character, the gang, calculators, customers |
@@ -18,6 +19,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.14.0 — Gun Running
+
+The living world market (countries, wars, embargoes), shipping with insurance and heat, and usable RPGs, missiles and drones. Saves: `world.market` is added to older saves on load (the starting world). No migration needed. The Guns and Gun Running update is complete; politics and your own shipping company are planned next.
 
 ## 0.13.0 — Pipecreek
 

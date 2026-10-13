@@ -151,6 +151,59 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
     }
     ctx.globalAlpha = 1;
   });
+  // wars: pulsing red lines between the capitals
+  for (const [a, b] of opts.wars || []) {
+    const A = countries[a];
+    const B = countries[b];
+    if (!A || !B) continue;
+    ctx.strokeStyle = `rgba(255,50,40,${0.55 + 0.45 * Math.sin(time * 5)})`;
+    ctx.lineWidth = 2.6;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    let pen = false;
+    for (const p of arc(A, B, 20)) {
+      const q = project(p.lat, p.lon, rot, tilt);
+      if (q.z <= 0) { pen = false; continue; }
+      const X = cx + q.x * r * p.lift;
+      const Y = cy - q.y * r * p.lift;
+      if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+      pen = true;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // your shipments, crawling from Halvermouth to their buyer
+  if (opts.hq) {
+    const q = project(opts.hq.lat, opts.hq.lon, rot, tilt);
+    if (q.z > 0) {
+      ctx.fillStyle = '#7affc8';
+      ctx.fillRect(cx + q.x * r - 3, cy - q.y * r - 3, 6, 6);
+    }
+    for (const sh of opts.shipments || []) {
+      const B = countries[sh.country];
+      if (!B) continue;
+      const pts = arc(opts.hq, B, 30);
+      ctx.strokeStyle = 'rgba(122,255,200,0.6)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      let pen = false;
+      for (const p of pts) {
+        const q2 = project(p.lat, p.lon, rot, tilt);
+        if (q2.z <= 0) { pen = false; continue; }
+        const X = cx + q2.x * r * p.lift;
+        const Y = cy - q2.y * r * p.lift;
+        if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+        pen = true;
+      }
+      ctx.stroke();
+      const k = Math.min(pts.length - 1, Math.floor(sh.progress * (pts.length - 1)));
+      const q3 = project(pts[k].lat, pts[k].lon, rot, tilt);
+      if (q3.z > 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(cx + q3.x * r * pts[k].lift, cy - q3.y * r * pts[k].lift, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
   // capitals
   ctx.font = `bold ${Math.max(9, size / 38)}px "Trebuchet MS", sans-serif`;
   for (const [id, c] of Object.entries(countries)) {
@@ -212,7 +265,12 @@ export function terminalPanel(ui, body, opts) {
   const t0 = performance.now();
   const loop = () => {
     if (!canvas.isConnected) return;
-    drawGlobe(ctx, 300, (performance.now() - t0) / 1000, cfg.countries);
+    const m = g.market.state;
+    const now = g.clock.total;
+    drawGlobe(ctx, 300, (performance.now() - t0) / 1000, cfg.countries, {
+      wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
+      shipments: m.shipments.map((x) => ({ country: x.country, progress: Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs)) })),
+    });
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -278,12 +336,58 @@ export function terminalPanel(ui, body, opts) {
     }
     sect.append(grid);
   } else if (tab === 'Market') {
-    sect.append(h('p', {}, h('b', {}, 'The global market opens soon. '), 'Until then, Lucas Eastrise buys your output wholesale at Pipecreek Armory, at half of value, up to his daily budget.'));
-    for (const [id, it] of Object.entries(items).filter(([, x]) => x.arms)) {
-      sect.append(row(itemIcon(it), `${it.name}`, `Value ${A.value(id)} obols (×${A.priceMult(it.arms.family).toFixed(2)} research) · Lucas pays ${A.wholesale(id) || Math.round(A.value(id) * cfg.wholesale.share)}`));
+    const M = g.market;
+    const ms = M.state;
+    const cage = g.world.containers[def.outCrate].items;
+    const cargo = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms);
+    // news
+    sect.append(h('h3', { style: 'margin:4px 0 6px' }, 'World news'));
+    sect.append(h('div', { class: 'news' }, ...ms.news.slice(0, 6).map((n) => h('div', {}, `Day ${n.day} — ${n.text}`))));
+    // in transit
+    if (ms.shipments.length) {
+      sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'In transit'));
+      for (const x of ms.shipments) {
+        const hrs = Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60));
+        sect.append(row('🚢', `${cfg.countries[x.country].name} — ${x.value} obols on arrival`, `${cfg.shippers[x.shipper].name} · arrives in ${hrs}h · ${Object.entries(x.items).map(([id, n]) => `${n}× ${items[id].name}`).join(', ')}${x.insured ? ' · insured' : ''}${x.embargo ? ' · EMBARGO RUN' : ''}`));
+      }
     }
-    sect.append(h('h3', { style: 'margin:14px 0 6px' }, 'The world'));
-    for (const c of Object.values(cfg.countries)) sect.append(row('🌐', c.name, c.blurb));
+    // countries
+    sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'Buyers'));
+    for (const [id, c] of Object.entries(cfg.countries)) {
+      const st = ms.countries[id];
+      const enemy = M.enemyOf(id);
+      const tags = [enemy ? `AT WAR with ${cfg.countries[enemy].name}` : 'at peace', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `hostility ${st.hostility}` : null].filter(Boolean).join(' · ');
+      const prices = (cargo.length ? cargo.map(([iid]) => iid) : ['item_pistol', 'item_assault_rifle', 'item_missile_guided', 'item_drone_attack']).map((iid) => `${items[iid].name} ${M.price(id, iid)}`).join(' · ');
+      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. Pays: ${prices}`));
+    }
+    // a new shipment
+    const form = opts.form || { country: Object.keys(cfg.countries)[0], shipper: 'morrow', insured: false, qty: {} };
+    const qty = Object.fromEntries(cargo.map(([id, n]) => [id, Math.min(n, form.qty[id] ?? 0)]));
+    const value = M.quote(form.country, qty);
+    const fee = M.fee(form.shipper, value, form.insured);
+    const sh = cfg.shippers[form.shipper];
+    const upd = (patch) => go('Market', { form: { ...form, ...patch, qty: { ...qty, ...(patch.qty || {}) } } });
+    sect.append(h('h3', { style: 'margin:14px 0 6px' }, 'Ship from this works\' export cage'));
+    if (!cargo.length) sect.append(h('p', { class: 'muted' }, 'The export cage is empty. Finished weapons go in the cage (by belt, or by hand: E on the cage → Store).'));
+    else {
+      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px' },
+        h('select', { onchange: (e) => upd({ country: e.target.value }) }, ...Object.entries(cfg.countries).map(([id, c]) => h('option', { value: id, selected: id === form.country }, `${c.name}${ms.countries[id].embargo ? ' (EMBARGO)' : ''}`))),
+        h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === form.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
+        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` Insure (+${Math.round(cfg.market.insuranceRate * 100)}%, pays ${Math.round(cfg.market.insurancePayout * 100)}% if lost)`)));
+      sect.append(h('p', { class: 'muted' }, sh.blurb));
+      for (const [id, n] of cargo) {
+        sect.append(row(itemIcon(items[id]), `${items[id].name} — ${M.price(form.country, id)} each`, `${n} in the cage`,
+          h('input', { type: 'number', min: 0, max: n, value: qty[id] || 0, style: 'width:64px', onchange: (e) => upd({ qty: { [id]: Math.max(0, Math.min(n, Number(e.target.value) || 0)) } }) }),
+          btn('All', () => upd({ qty: { [id]: n } }))));
+      }
+      sect.append(h('p', {}, h('b', {}, `Value on arrival: ${value} obols · Shipping now: ${fee} obols`), ms.countries[form.country].embargo ? ' · ⚠ Embargo run: illegal; if customs seize it, they\'ll trace it to you.' : ''));
+      sect.append(h('div', { class: 'row' }, btn('Ship it', () => {
+        const res = M.ship({ wh, country: form.country, shipper: form.shipper, insured: form.insured, items: qty });
+        ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
+        go('Market', { msg: res.text, form: res.ok ? { ...form, qty: {} } : form });
+      }, 'primary')));
+    }
+    sect.append(h('p', { class: 'muted' }, `Earned from exports: ${ms.earned} obols. Lucas still buys wholesale at Pipecreek Armory (half value, up to his daily budget).`));
   }
   return { title: `Terminal — ${def.name}`, tabs: TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
 }

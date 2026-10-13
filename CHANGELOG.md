@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.14.0] — 2026-10-13 — "Gun Running" (development build)
+
+Second half of the Guns and Gun Running update.
+
+### Added
+- **The global market** (`src/systems/market.js`, state `world.market`): eight fictional countries with budgets, income, wants per weapon family, aggression and rivals. Daily at 06:00: budgets grow, wars end (after 5+ days, 15%/day) or start (rivals, 5% × aggression), aggressors may be embargoed, sanctions occasionally lift, and news is posted. Prices = value × wants × war boost × (1 − saturation) × (1 − hostility/200); hostile countries (60+) refuse to buy. Starts with Varnistan and Caldera at war and Pallas sanctioned.
+- **Shipping** from a works' export cage to a country: five shipping companies (fee, reliability, days; two run embargoes, at extra risk), optional insurance (+8%, pays 60% if lost — not for seized smuggling), payment on arrival; losses are sunk, hijacked or seized. **Heat**: a seized embargo run is traced to you (record +8, Wanted ★★); a seizure by the buyer's enemy makes them hostile (+30); arming one side of a war annoys the other (+5).
+- **Terminal Market tab**: world news, shipments in transit, every buyer's status, budget and prices, and a shipping form (buyer, shipper, insurance, quantities, live quote). The globe draws wars as pulsing red lines and your shipments crossing from Halvermouth.
+- **Heavy weapons in the field** (`src/systems/heavy.js`): the RPG launcher fires rockets (explode on impact, 2.5-tile blast); Skylance guided missiles home on the nearest person; Longbow cruise missiles strike the aimed point after a 2.5 s countdown (5-tile blast); Hornet drones dive at whoever you're fighting; Kestrel drones fire four missiles. Blasts hurt you too, scorch the ground, shake the camera and make bystanders flee. **Explosions never harm imported characters and drones/missiles never target them; only a direct rocket hit calls down their Wrath.** Explosions are a major crime (record +10).
+- Sounds `sfx_rocket`, `sfx_explosion`, `sfx_drone`; fact `fact_player_explosion`.
+- Debug commands `heavy`, `war <a> <b>`, `peace`, `arrive`, `nextday`.
+- Tests: `tests/market.test.mjs` (12 tests).
+
+### Changed
+- Witnesses to one scene now make a single police call (the worst crime they saw) instead of one each.
+
 ## [0.13.0] — 2026-10-13 — "Pipecreek" (development build)
 
 First half of the Guns and Gun Running update.

@@ -48,6 +48,11 @@ export class Inventory {
     if (!def || !this.count(id)) return { ok: false, text: 'You do not have that.' };
     if (!def.use) return { ok: false, text: def.examine || `You turn the ${def.name} over in your hands.` };
     this.remove(id, 1);
+    if (def.use.heavy) {
+      const r = this.game.heavy.use(def.use.heavy);
+      this.game.bus.emit('item:used', { id });
+      return { ...r, text: `${def.use.text ? `${def.use.text} ` : ''}${r.text}` };
+    }
     if (def.use.calc) {
       const r = this.game.calculators.consume(def.use.calc, def);
       this.game.bus.emit('item:used', { id });

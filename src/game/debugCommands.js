@@ -39,6 +39,10 @@ const HELP = [
   ['stations', 'one of every arms workstation, plus belts, arms and a generator'],
   ['research <id|all>', 'complete a research node (or all of them)'],
   ['hire [n] <works>', 'hire n applicants (default 1) into a works'],
+  ['heavy', 'an RPG, 5 rockets, 2 of each missile and drone'],
+  ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
+  ['arrive', 'every shipment in transit arrives now'],
+  ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -366,6 +370,35 @@ export function runCommand(game, line) {
         if (!game.arms.state.candidates.length) game.arms.state.candidatesDay = 0;
       }
       return out(done.join('\n'));
+    }
+    case 'heavy': {
+      game.inventory.add('item_rpg', 1, { silent: true });
+      game.inventory.add('item_rpg_rocket', 5, { silent: true });
+      for (const id of ['item_missile_guided', 'item_missile_cruise', 'item_drone_attack', 'item_drone_strike']) game.inventory.add(id, 2, { silent: true });
+      return out('An RPG, 5 rockets, and two of each missile and drone. Be careful.');
+    }
+    case 'war': {
+      const [a, b] = args;
+      const cs = game.content.arms.countries;
+      if (!cs[a] || !cs[b] || a === b) return out(`Usage: war <a> <b> — ${Object.keys(cs).join(', ')}`, false);
+      game.market.state.wars = game.market.state.wars.filter((w) => ![w.a, w.b].includes(a) && ![w.a, w.b].includes(b));
+      game.market.state.wars.push({ a, b, since: game.clock.day });
+      game.market.news(`WAR: ${cs[a].name} attacks ${cs[b].name}.`);
+      return out('War.');
+    }
+    case 'peace': {
+      game.market.state.wars = [];
+      return out('Every war is over. For now.');
+    }
+    case 'arrive': {
+      const list = game.market.state.shipments;
+      game.market.state.shipments = [];
+      const fates = list.map((x) => game.market.resolve(x));
+      return out(fates.length ? fates.join(', ') : 'Nothing in transit.');
+    }
+    case 'nextday': {
+      game.market.dailyTick();
+      return out('The world turns.');
     }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);

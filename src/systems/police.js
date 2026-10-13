@@ -75,6 +75,8 @@ export class Police {
       case e.fact === 'gunfire': return 2;
       case e.fact === 'jailbreak': return 8;
       case e.fact === 'fact_player_dealing': return 2;
+      case e.fact === 'fact_player_embargo': return 8;
+      case e.fact === 'fact_player_explosion': return 10;
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -126,6 +128,9 @@ export class Police {
       g.notify('Someone called the police. Chief Order told them to file a form.', 'info');
       return;
     }
+    // several witnesses to the same scene make one call (the worst crime they saw)
+    const open = s.calls.find((c) => c.map === pos.map && Math.hypot(c.x - pos.x, c.y - pos.y) < 20 * 32 && c.at > g.clock.total);
+    if (open) { open.sev = Math.max(open.sev, sev); return; }
     const delay = this.bribed() ? 240 : 8 + g.rng.int(0, 10);
     s.calls.push({ at: g.clock.total + delay, sev, ...pos });
     g.notify(this.bribed() ? 'Someone called the police about a killing. Even Chief Order can\'t sit on that for long…' : 'Someone is calling the police!', 'warn');

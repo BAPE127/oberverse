@@ -237,6 +237,13 @@ export class Combat {
     g.bus.emit('sfx', { id: wp.sound || 'sfx_gunshot' });
     const ox = p.x + dir.x * 12;
     const oy = p.y - BODY_Y + dir.y * 8;
+    if (wp.projectile && g.heavy) {
+      // an RPG: the rocket flies, and explodes on whatever it meets (src/systems/heavy.js)
+      g.heavy.launchRocket(ox, oy, dir, wp);
+      this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, until: g.realTime + 0.12, start: g.realTime });
+      if ((p.mags[w.id] ?? 0) <= 0 && g.inventory.count(wp.ammo)) this.reload();
+      return { ok: true, kind: 'gun', projectile: true, hits: [] };
+    }
     const hits = [];
     const pellets = wp.pellets || 1;
     for (let i = 0; i < pellets; i++) {
@@ -328,6 +335,7 @@ export class Combat {
       this.smite(npc, weapon);
       return;
     }
+    this.lastTarget = npc.id;
     const max = npcMaxHealth(npc);
     if (npc.health === undefined) npc.health = max;
     const before = npc.health;

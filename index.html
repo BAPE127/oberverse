@@ -218,6 +218,7 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
 .research .node.locked { opacity: .55; }
 .research .node.cur { outline: 2px solid #f2c14e; }
 .research .node .desc { font-size: 11px; opacity: .8; }
+.terminal-news, .news { font-size: 12px; line-height: 1.5; background: #05080c; color: #bfe8ff; border-radius: 8px; padding: 8px 10px; font-family: "Courier New", monospace; }
 </style>
 </head>
 <body>
@@ -1779,18 +1780,23 @@ const ARMS_ITEMS = Object.fromEntries([
   ['item_lmg', { name: 'Light Machine Gun', category: 'weapon', price: 900, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 800, family: 'small' },
     description: 'A belt-fed light machine gun. Heavy, loud, persuasive. Rifle rounds.',
     weapon: { kind: 'gun', damage: 20, range: 13, cooldown: 0.08, auto: true, lethal: true, ammo: 'item_ammo_rifle', mag: 100, reload: 4.5, spread: 8, noise: 28, sound: 'sfx_gunshot_smg', held: 'longgun' } }],
-  ['item_rpg', { name: 'RPG Launcher', category: 'weapon', price: 1000, tags: ['weapon', 'heavy'], icon: 'longgun', arms: { value: 900, family: 'heavy' }, heavy: 'rpg',
-    description: 'A reusable shoulder-fired launcher. Fires RPG rockets.' }],
-  ['item_rpg_rocket', { name: 'RPG Rocket', category: 'ammo', price: 240, tags: ['heavy', 'ammo'], icon: 'ammo', arms: { value: 220, family: 'heavy' },
+  ['item_rpg', { name: 'RPG Launcher', category: 'weapon', price: 1000, tags: ['weapon', 'gun', 'heavy'], icon: 'longgun', arms: { value: 900, family: 'heavy' },
+    description: 'A reusable shoulder-fired launcher. Fires RPG rockets that explode on impact (2.5-tile blast). Using it is a major crime.',
+    weapon: { kind: 'gun', projectile: 'rocket', damage: 110, blast: 2.5, range: 16, cooldown: 1.0, lethal: true, ammo: 'item_rpg_rocket', mag: 1, reload: 2.5, spread: 1, noise: 30, sound: 'sfx_rocket', held: 'longgun' } }],
+  ['item_rpg_rocket', { name: 'RPG Rocket', category: 'ammo', price: 240, bundle: 1, tags: ['heavy', 'ammo'], icon: 'ammo', arms: { value: 220, family: 'heavy' },
     description: 'A rocket-propelled grenade for the RPG launcher.' }],
-  ['item_missile_guided', { name: 'Skylance Guided Missile', category: 'heavy', price: 2800, tags: ['heavy'], icon: 'machine', arms: { value: 2600, family: 'missile' }, heavy: 'missile',
-    description: 'A man-portable guided missile with a seeker head. Point, lock, regret.' }],
-  ['item_missile_cruise', { name: 'Longbow Cruise Missile', category: 'heavy', price: 9500, tags: ['heavy'], icon: 'machine', arms: { value: 9000, family: 'missile' }, heavy: 'cruise',
-    description: 'A long-range cruise missile on a launch rail. It has a flight plan and a grudge.' }],
-  ['item_drone_attack', { name: 'Hornet Attack Drone', category: 'heavy', price: 1700, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 1600, family: 'drone' }, heavy: 'drone',
-    description: 'A quadcopter with a warhead and a short attention span.' }],
-  ['item_drone_strike', { name: 'Kestrel Strike Drone', category: 'heavy', price: 5500, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 5200, family: 'drone' }, heavy: 'drone',
-    description: 'A fixed-wing strike drone with a seeker and two warheads.' }],
+  ['item_missile_guided', { name: 'Skylance Guided Missile', category: 'heavy', price: 2800, tags: ['heavy'], icon: 'machine', arms: { value: 2600, family: 'missile' },
+    description: 'A man-portable guided missile with a seeker head. Use it: it locks on to the nearest person in range (never an imported character) — 3.5-tile blast. Point, lock, regret.',
+    use: { heavy: 'guided', text: 'You shoulder the Skylance and squeeze.' } }],
+  ['item_missile_cruise', { name: 'Longbow Cruise Missile', category: 'heavy', price: 9500, tags: ['heavy'], icon: 'machine', arms: { value: 9000, family: 'missile' },
+    description: 'A long-range cruise missile. Use it: it strikes where you\'re aiming 2.5 seconds later — a 5-tile blast. Stand well back.',
+    use: { heavy: 'cruise', text: 'You punch in the coordinates of where you\'re pointing.' } }],
+  ['item_drone_attack', { name: 'Hornet Attack Drone', category: 'heavy', price: 1700, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 1600, family: 'drone' },
+    description: 'A quadcopter with a warhead and a short attention span. Use it: it hovers by you for a minute and dives at whoever you fight (never an imported character).',
+    use: { heavy: 'drone_attack', text: 'You toss the Hornet into the air.' } }],
+  ['item_drone_strike', { name: 'Kestrel Strike Drone', category: 'heavy', price: 5500, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 5200, family: 'drone' },
+    description: 'A strike drone with four small missiles. Use it: for ninety seconds it fires on whoever you fight (never an imported character).',
+    use: { heavy: 'drone_strike', text: 'The Kestrel unfolds its wings and climbs.' } }],
   // --- workstations (placed with B in an arms works; staffed by employees)
   station('lathe', 'CNC Lathe', 'lathe', 400, 'Arms works station (machining). Barrels, receivers, stocks and grips.'),
   station('assembly', 'Assembly Bench', 'assembly', 300, 'Arms works station (machining). Puts guns and launchers together.'),
@@ -1896,19 +1902,47 @@ const STAFF_QUIRKS = {
   nightowl: { name: 'Night Owl', text: 'Works the night shift (19:00–07:00).', night: true },
 };
 
-/** The fictional countries on the terminal's globe (the market opens in v0.14). lat/lon in degrees. */
+/**
+ * The fictional countries on the terminal's globe, and their economies (v0.14).
+ * budget/income in obols; wants: price multiplier by weapon family;
+ * aggression: daily chance factor of starting a war with a rival.
+ */
 const COUNTRIES = {
-  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
-  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, blurb: 'Seven provinces, one parliament, eight opinions.' },
-  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, blurb: 'Built on a volcano. Politically, also built on a volcano.' },
-  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, blurb: 'A fishing monarchy whose king is eleven and very serious.' },
-  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, blurb: 'Free, according to the name. A state, according to some.' },
-  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
-  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, blurb: 'Two hundred islands, two hundred navies.' },
-  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, blurb: 'Neutral. Aggressively, belligerently neutral.' },
+  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, budget: 40000, income: 3000, wants: { small: 1.2, heavy: 1.0, missile: 0.8, drone: 0.8 }, aggression: 0.6, rivals: ['caldera', 'ostmark'], blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
+  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, budget: 80000, income: 6000, wants: { small: 0.9, heavy: 1.0, missile: 1.3, drone: 1.2 }, aggression: 0.3, rivals: ['varn', 'sund'], blurb: 'Seven provinces, one parliament, eight opinions.' },
+  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, budget: 30000, income: 2500, wants: { small: 1.3, heavy: 1.2, missile: 0.9, drone: 0.7 }, aggression: 0.5, rivals: ['varn', 'pallas'], blurb: 'Built on a volcano. Politically, also built on a volcano.' },
+  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, budget: 25000, income: 2000, wants: { small: 1.0, heavy: 0.8, missile: 1.0, drone: 1.1 }, aggression: 0.2, rivals: ['ostmark'], blurb: 'A fishing monarchy whose king is eleven and very serious.' },
+  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, budget: 20000, income: 1800, wants: { small: 1.4, heavy: 1.3, missile: 0.6, drone: 0.6 }, aggression: 0.7, rivals: ['caldera', 'lirre'], blurb: 'Free, according to the name. A state, according to some. Under international embargo.' },
+  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 120000, income: 8000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
+  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 35000, income: 3000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
+  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 60000, income: 4000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
+};
+/** Where your shipments leave from on the globe. */
+const HQ = { name: 'Halvermouth', lat: 49, lon: -30 };
+
+/** Shipping companies (v0.14). fee: share of cargo value; reliability: chance it arrives; embargo: will run embargoed cargo (embargoRisk: extra chance of seizure). */
+const SHIPPERS = {
+  halver: { name: 'Halver Freight & Sons', fee: 0.06, reliability: 0.72, days: 3, embargo: false, blurb: 'Cheap, slow, and their ships are older than their captains.' },
+  morrow: { name: 'Morrow Blue Line', fee: 0.1, reliability: 0.88, days: 2, embargo: false, blurb: 'Respectable container line. Asks to see paperwork. Usually reads it.' },
+  stork: { name: 'Stork Air Charter', fee: 0.22, reliability: 0.96, days: 1, embargo: false, blurb: 'Overnight air freight. Expensive and almost never lost.' },
+  pipecreek: { name: 'Pipecreek Logistics', fee: 0.15, reliability: 0.82, days: 4, embargo: true, embargoRisk: 0.25, blurb: 'Lucas\'s cousin. Doesn\'t ask questions. Doesn\'t answer them either.' },
+  ghost: { name: 'Ghost Fleet', fee: 0.3, reliability: 0.86, days: 3, embargo: true, embargoRisk: 0.12, blurb: 'Ships with no names and captains with several. Embargo runs a speciality.' },
 };
 
-return { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES };
+const MARKET = {
+  /** Price boost per family while a country is at war. */
+  warMult: { small: 1.5, heavy: 2, missile: 2.5, drone: 2.2 },
+  /** Each unit sold to a country lowers what it pays for that family (recovers 30% a day). */
+  saturationPerUnit: 0.02, saturationMax: 0.6, saturationDecay: 0.3,
+  insuranceRate: 0.08, insurancePayout: 0.6,
+  /** A country this hostile won't buy from you; hostility fades 5 a day. */
+  refuseHostility: 60,
+  minWarDays: 5, warEndChance: 0.15, warStartChance: 0.05, embargoOnAggressor: 0.4,
+  initialWars: [['varn', 'caldera']],
+  initialEmbargoes: ['pallas'],
+};
+
+return { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET };
 })();
 
 // ---- src/content/props.js
@@ -2307,6 +2341,10 @@ const FACTS = {
   fact_player_stole_customer: {
     text: 'The newcomer is selling calculators to the Sums of Anarchy\'s customers.', importance: 7, aboutPlayer: true,
     keywords: ['customers', 'stealing', 'turf'],
+  },
+  fact_player_explosion: {
+    text: 'The newcomer set off explosives in the street.', importance: 10, aboutPlayer: true,
+    relImpact: { trust: -25, affection: -15, suspicion: 40 }, reputation: { lanternside: -15 }, keywords: ['explosion', 'rocket', 'missile', 'bomb', 'drone'],
   },
   fact_player_smitten: {
     text: 'The newcomer raised a hand against one of the untouchable — and was struck down by lightning out of a clear sky.', importance: 9,
@@ -3297,6 +3335,9 @@ const AUDIO_REGISTRY = [
   sfx('sfx_thunder', 'each lightning strike of the Wrath (arcane theme)'),
   sfx('sfx_gusher', 'each oil geyser in Sir Moneybucks\'s Wrath (ignites from the third)'),
   sfx('sfx_beam', 'each falling I-beam in Mason\'s Wrath; the fifth is the wrecking ball'),
+  sfx('sfx_rocket', 'an RPG rocket, missile or drone missile launching'),
+  sfx('sfx_explosion', 'an explosion (RPG, missile, drone)'),
+  sfx('sfx_drone', 'a drone taking off'),
   sfx('sfx_crate', 'each crate of guns in Lucas Eastrise\'s Wrath; the fifth is the missile'),
   sfx('sfx_digit', 'each giant digit in Arthur Anderson\'s Wrath; the fifth is the giant calculator'),
   sfx('sfx_ram', 'each squad car ramming in during Chief Order\'s Wrath; the fifth is the gavel'),
@@ -7433,7 +7474,7 @@ const oberMaps = __m["src/content/maps/oberFields.js"].default;
 const westbrookMaps = __m["src/content/maps/westbrook.js"].default;
 const halvermouthMaps = __m["src/content/maps/halvermouth.js"].default;
 const yardsMaps = __m["src/content/maps/yards.js"].default;
-const { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES } = __m["src/content/arms.js"];
+const { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } = __m["src/content/arms.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
 const { ITEMS } = __m["src/content/items.js"];
 const { FACTS } = __m["src/content/facts.js"];
@@ -7505,7 +7546,7 @@ const BASE_CONTENT = {
   recipes: RECIPES,
   deliveries: DELIVERIES,
   unlocks: UNLOCKS,
-  arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES },
+  arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
   blueprints: BLUEPRINTS,
   plots: {},
@@ -7525,7 +7566,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.13.0';
+const GAME_VERSION = '0.14.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -8449,6 +8490,23 @@ const SFX = {
     noise(ctx, d, { t, dur: 0.3, vol: 0.5, type: 'lowpass', freq: 1200, f1: 200 }); // wood
     tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.15, vol: 0.18 });
     for (let i = 0; i < 6; i++) for (const [f, v] of [[1400 + i * 120, 0.05], [2100 + i * 90, 0.03]]) tone(ctx, d, { type: 'sine', f0: f, t: t + 0.08 + i * 0.06 + Math.random() * 0.04, dur: 0.12, vol: v, attack: 0.002 }); // metal clatter
+  },
+  // heavy weapons (v0.14.0)
+  sfx_rocket: (ctx, d) => {
+    const t = ctx.currentTime;
+    noise(ctx, d, { t, dur: 0.6, vol: 1.2, type: 'bandpass', freq: 600, f1: 2400, q: 1.2 });
+    tone(ctx, d, { type: 'sawtooth', f0: 220, f1: 90, t, dur: 0.5, vol: 0.22 });
+  },
+  sfx_explosion: (ctx, d) => {
+    const t = ctx.currentTime;
+    tone(ctx, d, { type: 'sine', f0: 90, f1: 26, t, dur: 1.4, vol: 0.6, attack: 0.003 });
+    noise(ctx, d, { t, dur: 0.2, vol: 0.55, type: 'lowpass', freq: 3000 });
+    noise(ctx, d, { t: t + 0.03, dur: 1.8, vol: 0.45, type: 'lowpass', freq: 1200, f1: 70 });
+    for (let i = 0; i < 10; i++) noise(ctx, d, { t: t + 0.2 + Math.random() * 1.0, dur: 0.04, vol: 0.08, freq: 1500 + Math.random() * 2500, q: 4 });
+  },
+  sfx_drone: (ctx, d) => {
+    const t = ctx.currentTime;
+    for (const f of [180, 186]) tone(ctx, d, { type: 'sawtooth', f0: f * 0.6, f1: f, t, dur: 0.9, vol: 0.2, attack: 0.2 });
   },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
@@ -10507,6 +10565,11 @@ class Inventory {
     if (!def || !this.count(id)) return { ok: false, text: 'You do not have that.' };
     if (!def.use) return { ok: false, text: def.examine || `You turn the ${def.name} over in your hands.` };
     this.remove(id, 1);
+    if (def.use.heavy) {
+      const r = this.game.heavy.use(def.use.heavy);
+      this.game.bus.emit('item:used', { id });
+      return { ...r, text: `${def.use.text ? `${def.use.text} ` : ''}${r.text}` };
+    }
     if (def.use.calc) {
       const r = this.game.calculators.consume(def.use.calc, def);
       this.game.bus.emit('item:used', { id });
@@ -11477,6 +11540,13 @@ class Combat {
     g.bus.emit('sfx', { id: wp.sound || 'sfx_gunshot' });
     const ox = p.x + dir.x * 12;
     const oy = p.y - BODY_Y + dir.y * 8;
+    if (wp.projectile && g.heavy) {
+      // an RPG: the rocket flies, and explodes on whatever it meets (src/systems/heavy.js)
+      g.heavy.launchRocket(ox, oy, dir, wp);
+      this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, until: g.realTime + 0.12, start: g.realTime });
+      if ((p.mags[w.id] ?? 0) <= 0 && g.inventory.count(wp.ammo)) this.reload();
+      return { ok: true, kind: 'gun', projectile: true, hits: [] };
+    }
     const hits = [];
     const pellets = wp.pellets || 1;
     for (let i = 0; i < pellets; i++) {
@@ -11568,6 +11638,7 @@ class Combat {
       this.smite(npc, weapon);
       return;
     }
+    this.lastTarget = npc.id;
     const max = npcMaxHealth(npc);
     if (npc.health === undefined) npc.health = max;
     const before = npc.health;
@@ -12051,6 +12122,8 @@ class Police {
       case e.fact === 'gunfire': return 2;
       case e.fact === 'jailbreak': return 8;
       case e.fact === 'fact_player_dealing': return 2;
+      case e.fact === 'fact_player_embargo': return 8;
+      case e.fact === 'fact_player_explosion': return 10;
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -12102,6 +12175,9 @@ class Police {
       g.notify('Someone called the police. Chief Order told them to file a form.', 'info');
       return;
     }
+    // several witnesses to the same scene make one call (the worst crime they saw)
+    const open = s.calls.find((c) => c.map === pos.map && Math.hypot(c.x - pos.x, c.y - pos.y) < 20 * 32 && c.at > g.clock.total);
+    if (open) { open.sev = Math.max(open.sev, sev); return; }
     const delay = this.bribed() ? 240 : 8 + g.rng.int(0, 10);
     s.calls.push({ at: g.clock.total + delay, sev, ...pos });
     g.notify(this.bribed() ? 'Someone called the police about a killing. Even Chief Order can\'t sit on that for long…' : 'Someone is calling the police!', 'warn');
@@ -14255,6 +14331,460 @@ class Arms extends Factory {
 return { LICENCE_FLAG, freshArms, Arms, DX, DY };
 })();
 
+// ---- src/systems/market.js
+__m["src/systems/market.js"] = (function () {
+// The global arms market (v0.14.0): eight fictional countries with budgets,
+// wants and rivals; wars that break out and end over weeks; embargoes;
+// shipping companies that don't always deliver; insurance; heat.
+//
+//   daily (06:00): budgets grow · saturation and hostility fade · wars end or start
+//   ship(): cargo from a works' export cage → a country, by a shipper
+//     fee + optional insurance paid up front; the country reserves the price
+//     on arrival: delivered (paid) — or lost: sunk, hijacked, seized
+//     seized + embargoed  → customs trace it to you (police heat)
+//     seized by a country → that country turns hostile
+//     insured and not smuggling → part of the value back
+//
+// State: game.world.market. Prices: arms value (with research) × the
+// country's want × war boost × (1 − saturation) × (1 − hostility/200).
+const { clamp } = __m["src/core/util.js"];
+
+function freshMarket(content) {
+  const c = content.arms;
+  const countries = {};
+  for (const [id, def] of Object.entries(c.countries)) countries[id] = { budget: def.budget, sat: {}, hostility: 0, embargo: c.market.initialEmbargoes.includes(id), embargoReason: c.market.initialEmbargoes.includes(id) ? 'international sanctions' : null };
+  const wars = c.market.initialWars.map(([a, b]) => ({ a, b, since: 0 }));
+  return { countries, wars, news: [{ day: 1, text: 'Varnistan and the Republic of Caldera remain at war over the Kestrel Pass.' }, { day: 1, text: 'The Free State of Pallas is under international embargo.' }], shipments: [], nextShip: 1, lastDay: 1, earned: 0 };
+}
+
+class Market {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get cfg() {
+    return this.game.content.arms;
+  }
+
+  get state() {
+    const g = this.game;
+    if (!g.world.market) g.world.market = freshMarket(g.content);
+    return g.world.market;
+  }
+
+  country(id) {
+    return this.state.countries[id];
+  }
+
+  warOf(id) {
+    return this.state.wars.find((w) => w.a === id || w.b === id) || null;
+  }
+
+  enemyOf(id) {
+    const w = this.warOf(id);
+    return w ? (w.a === id ? w.b : w.a) : null;
+  }
+
+  news(text) {
+    const s = this.state;
+    s.news.unshift({ day: this.game.clock.day, text });
+    s.news = s.news.slice(0, 12);
+    this.game.notify(`📰 ${text}`, 'event');
+    this.game.bus.emit('market:news', { text });
+  }
+
+  /** What a country pays for one unit of an item right now (0 = won't buy). */
+  price(countryId, itemId) {
+    const g = this.game;
+    const it = g.content.items[itemId];
+    const def = this.cfg.countries[countryId];
+    const c = this.country(countryId);
+    if (!it?.arms || !def || !c) return 0;
+    if (c.hostility >= this.cfg.market.refuseHostility) return 0;
+    const fam = it.arms.family;
+    const war = this.warOf(countryId) ? this.cfg.market.warMult[fam] : 1;
+    const v = g.arms.value(itemId) * (def.wants[fam] ?? 1) * war * (1 - (c.sat[fam] || 0)) * (1 - c.hostility / 200);
+    return Math.max(1, Math.round(v));
+  }
+
+  quote(countryId, items) {
+    let value = 0;
+    for (const [id, n] of Object.entries(items)) value += this.price(countryId, id) * n;
+    return value;
+  }
+
+  fee(shipperId, value, insured) {
+    const sh = this.cfg.shippers[shipperId];
+    return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
+  }
+
+  /** Book a shipment from a works' export cage. items: {itemId: qty}. */
+  ship({ wh, country, shipper, insured = false, items }) {
+    const g = this.game;
+    const c = this.country(country);
+    const def = this.cfg.countries[country];
+    const sh = this.cfg.shippers[shipper];
+    if (!c || !sh) return { ok: false, text: 'Pick a country and a shipper.' };
+    if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
+    if (!cage) return { ok: false, text: 'No export cage.' };
+    const list = Object.entries(items || {}).filter(([, n]) => n > 0);
+    if (!list.length) return { ok: false, text: 'Choose what to ship.' };
+    for (const [id, n] of list) if ((cage[id] || 0) < n) return { ok: false, text: `Only ${cage[id] || 0}× ${g.content.items[id]?.name} in the export cage.` };
+    if (c.embargo && !sh.embargo) return { ok: false, text: `${sh.name} won't touch embargoed cargo for ${def.name}.` };
+    const value = this.quote(country, Object.fromEntries(list));
+    if (value <= 0) return { ok: false, text: `${def.name} won't buy from you right now.` };
+    if (value > c.budget) return { ok: false, text: `${def.name} can only afford ${c.budget} obols of weapons right now; this lot is worth ${value}.` };
+    const fee = this.fee(shipper, value, insured);
+    if (g.player.money < fee) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
+    g.player.money -= fee;
+    g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+    for (const [id, n] of list) cage[id] -= n;
+    c.budget -= value;
+    const s = this.state;
+    const now = g.clock.total;
+    const shp = { id: s.nextShip++, wh, country, shipper, insured, items: Object.fromEntries(list), value, fee, embargo: c.embargo, departs: now, arrives: now + sh.days * 1440 };
+    s.shipments.push(shp);
+    // selling to one side of a war annoys the other
+    const enemy = this.enemyOf(country);
+    if (enemy) this.country(enemy).hostility = clamp(this.country(enemy).hostility + 5, 0, 100);
+    g.bus.emit('market:shipped', { shipment: shp });
+    return { ok: true, shipment: shp, text: `${sh.name} will deliver to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: worth ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
+  }
+
+  /** Roll a shipment's fate on arrival. */
+  resolve(shp) {
+    const g = this.game;
+    const sh = this.cfg.shippers[shp.shipper];
+    const def = this.cfg.countries[shp.country];
+    const c = this.country(shp.country);
+    const R = g.rng;
+    const pOk = sh.reliability - (shp.embargo ? sh.embargoRisk || 0 : 0);
+    if (R.next() < pOk) {
+      g.player.money += shp.value;
+      g.bus.emit('money:changed', { delta: shp.value, total: g.player.money });
+      this.state.earned += shp.value;
+      for (const [id, n] of Object.entries(shp.items)) {
+        const fam = g.content.items[id].arms.family;
+        c.sat[fam] = clamp((c.sat[fam] || 0) + n * this.cfg.market.saturationPerUnit, 0, this.cfg.market.saturationMax);
+      }
+      g.notify(`🚢 Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
+      g.bus.emit('market:delivered', { shipment: shp });
+      return 'delivered';
+    }
+    // lost
+    c.budget += shp.value; // they never paid
+    const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
+    const fate = kinds[Math.floor(R.next() * kinds.length)];
+    const lines = {
+      sunk: `🌊 ${sh.name}'s ship went down in a storm with your cargo for ${def.name}.`,
+      hijacked: `🏴 Pirates hijacked your cargo for ${def.name} off the coast.`,
+      seized: `⚓ Your cargo for ${def.name} was seized and impounded.`,
+    };
+    let text = lines[fate];
+    if (shp.insured && !(fate === 'seized' && shp.embargo)) {
+      const payout = Math.round(shp.value * this.cfg.market.insurancePayout);
+      g.player.money += payout;
+      g.bus.emit('money:changed', { delta: payout, total: g.player.money });
+      text += ` Insurance paid out ${payout} obols.`;
+    } else if (shp.insured) text += ' The insurers don\'t cover smuggling.';
+    if (fate === 'seized') {
+      if (shp.embargo) {
+        // customs trace an embargo run back to you
+        g.police?.onCrime({ fact: 'fact_player_embargo', witnesses: [], map: g.player.map, x: g.player.x, y: g.player.y });
+        g.police?.raiseWanted(3, 'Customs traced an embargo run to you.');
+        text += ' Customs traced the paperwork back to Halvermouth — to you.';
+      } else {
+        const enemy = this.enemyOf(shp.country);
+        if (enemy) {
+          this.country(enemy).hostility = clamp(this.country(enemy).hostility + 30, 0, 100);
+          text += ` ${this.cfg.countries[enemy].name} seized it, and they're furious with you.`;
+        }
+      }
+    }
+    g.notify(text, 'warn');
+    g.bus.emit('market:lost', { shipment: shp, fate });
+    return fate;
+  }
+
+  /** The world turns: budgets, saturation, hostility, wars, embargoes. */
+  dailyTick() {
+    const g = this.game;
+    const m = this.cfg.market;
+    const s = this.state;
+    for (const [id, c] of Object.entries(s.countries)) {
+      const def = this.cfg.countries[id];
+      c.budget = Math.min(def.budget * 3, c.budget + def.income * (this.warOf(id) ? 1.5 : 1));
+      for (const k of Object.keys(c.sat)) c.sat[k] = Math.max(0, c.sat[k] * (1 - m.saturationDecay));
+      c.hostility = Math.max(0, c.hostility - 5);
+    }
+    // wars end…
+    for (const w of [...s.wars]) {
+      if (g.clock.day - w.since >= m.minWarDays && g.rng.next() < m.warEndChance) {
+        s.wars = s.wars.filter((x) => x !== w);
+        const A = this.cfg.countries[w.a].name;
+        const B = this.cfg.countries[w.b].name;
+        this.news(`Ceasefire: ${A} and ${B} sign a truce.`);
+        for (const id of [w.a, w.b]) if (s.countries[id].embargoReason === 'war') { s.countries[id].embargo = false; s.countries[id].embargoReason = null; this.news(`The embargo on ${this.cfg.countries[id].name} is lifted.`); }
+      }
+    }
+    // …and start
+    for (const [id, def] of Object.entries(this.cfg.countries)) {
+      if (this.warOf(id)) continue;
+      for (const r of def.rivals) {
+        if (this.warOf(r) || this.warOf(id)) continue;
+        if (g.rng.next() < m.warStartChance * def.aggression) {
+          s.wars.push({ a: id, b: r, since: g.clock.day });
+          this.news(`WAR: ${def.name} attacks ${this.cfg.countries[r].name}.`);
+          if (!s.countries[id].embargo && g.rng.next() < m.embargoOnAggressor) {
+            s.countries[id].embargo = true;
+            s.countries[id].embargoReason = 'war';
+            this.news(`${def.name} is placed under an arms embargo.`);
+          }
+        }
+      }
+    }
+    // standing sanctions are occasionally lifted
+    for (const [id, c] of Object.entries(s.countries)) {
+      if (c.embargo && c.embargoReason !== 'war' && g.rng.next() < 0.02) { c.embargo = false; c.embargoReason = null; this.news(`Sanctions on ${this.cfg.countries[id].name} are lifted.`); }
+    }
+  }
+
+  minuteTick() {
+    const g = this.game;
+    const s = this.state;
+    if (g.clock.day > s.lastDay && g.clock.minuteOfDay >= 6 * 60) {
+      s.lastDay = g.clock.day;
+      this.dailyTick();
+    }
+    if (s.shipments.length) {
+      const now = g.clock.total;
+      const due = s.shipments.filter((x) => x.arrives <= now);
+      if (due.length) {
+        s.shipments = s.shipments.filter((x) => x.arrives > now);
+        for (const shp of due) this.resolve(shp);
+      }
+    }
+  }
+}
+
+return { freshMarket, Market };
+})();
+
+// ---- src/systems/heavy.js
+__m["src/systems/heavy.js"] = (function () {
+// Heavy weapons in the field (v0.14.0): RPG rockets, Skylance guided
+// missiles, Longbow cruise missiles, and Hornet / Kestrel drones.
+//
+// Owner's rules: explosions never harm imported (protected) characters, and
+// drones never target them; only a DIRECT attack — a rocket or missile that
+// actually hits one of them — calls down their Wrath. Setting off explosives
+// is a major crime (record +10, Wanted ★★★).
+//
+// Projectiles, drones and scorch marks are runtime-only (not saved); they
+// live on the player's current map and are dropped if you leave it.
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { isProtected, isDown } = __m["src/systems/combat.js"];
+
+const BLAST_WEAPON = { id: 'item_rpg', name: 'explosion', weapon: { kind: 'gun', knockback: 34, lethal: true } };
+const ROCKET_SPEED = 320; // px per real second
+const MISSILE_SPEED = 240;
+const HIT = 16;
+
+class Heavy {
+  constructor(game) {
+    this.game = game;
+    this.projectiles = [];
+    this.drones = [];
+    this.decals = [];
+    this.strikes = [];
+    this.shakeUntil = 0;
+    game.bus.on('map:entered', () => { this.projectiles = []; this.drones = []; this.strikes = []; });
+  }
+
+  /** Valid targets for missiles and drones: conscious, on this map, never imported characters. */
+  targets() {
+    return this.game.combat.targets().filter((n) => !isProtected(n) && !n.dead);
+  }
+
+  nearest(x, y, maxTiles, pred = () => true) {
+    let best = null;
+    let bd = maxTiles * TILE;
+    for (const n of this.targets()) {
+      if (!pred(n)) continue;
+      const d = dist(n.x, n.y, x, y);
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+
+  // ------------------------------------------------------------- launching
+  /** An RPG rocket (Combat.fire, for weapons with `projectile`). */
+  launchRocket(ox, oy, dir, wp) {
+    const g = this.game;
+    this.projectiles.push({ kind: 'rocket', x: ox, y: oy + 18, vx: dir.x * ROCKET_SPEED, vy: dir.y * ROCKET_SPEED, travelled: 0, range: wp.range * TILE, damage: wp.damage, blast: wp.blast, born: g.realTime, by: 'player' });
+  }
+
+  /** Use a missile or drone from the inventory (item use: { heavy: type }). */
+  use(type) {
+    const g = this.game;
+    const p = g.player;
+    const aim = p.aim && Math.hypot(p.aim.x, p.aim.y) > 1 ? { x: p.aim.x, y: p.aim.y } : null;
+    const facing = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.facing] || [0, 1];
+    if (type === 'guided') {
+      const target = this.nearest(p.x, p.y, 16);
+      const d = aim ? norm(aim) : { x: facing[0], y: facing[1] };
+      this.projectiles.push({ kind: 'missile', x: p.x + d.x * 14, y: p.y + d.y * 10, vx: d.x * MISSILE_SPEED, vy: d.y * MISSILE_SPEED, travelled: 0, range: 18 * TILE, damage: 140, blast: 3.5, target: target?.id || null, born: g.realTime, by: 'player' });
+      g.bus.emit('sfx', { id: 'sfx_rocket' });
+      return { ok: true, text: target ? `Skylance away — locked on ${target.profile.shortName}.` : 'Skylance away — no lock, flying straight.' };
+    }
+    if (type === 'cruise') {
+      const tx = aim ? p.x + aim.x : p.x + facing[0] * 8 * TILE;
+      const ty = aim ? p.y - 18 + aim.y + 18 : p.y + facing[1] * 8 * TILE;
+      this.strikes.push({ x: tx, y: ty, at: g.realTime + 2.5, born: g.realTime, damage: 250, blast: 5 });
+      g.bus.emit('sfx', { id: 'sfx_rocket' });
+      return { ok: true, text: 'Longbow inbound. Get clear of the reticle.' };
+    }
+    if (type === 'drone_attack' || type === 'drone_strike') {
+      const kestrel = type === 'drone_strike';
+      this.drones.push({ kind: kestrel ? 'kestrel' : 'hornet', x: p.x, y: p.y - 10, until: g.realTime + (kestrel ? 90 : 60), target: null, cooldown: 1, ammo: kestrel ? 4 : 1, born: g.realTime });
+      g.bus.emit('sfx', { id: 'sfx_drone' });
+      return { ok: true, text: kestrel ? 'The Kestrel climbs into the air above you. It will strike whoever you fight.' : 'The Hornet whirs up beside you. It will dive at whoever you fight.' };
+    }
+    return { ok: false, text: 'Nothing happens.' };
+  }
+
+  // --------------------------------------------------------------- blasts
+  crime(x, y) {
+    const g = this.game;
+    g.reportCrime({ fact: 'fact_player_explosion', map: g.player.map, x, y, radius: 16 });
+  }
+
+  /** An explosion. Imported characters are never harmed by it. */
+  explode(x, y, radiusTiles, damage) {
+    const g = this.game;
+    const R = radiusTiles * TILE;
+    g.combat.fx.push({ type: 'blast', x, y, r: R, until: g.realTime + 0.9, start: g.realTime });
+    this.decals.push({ map: g.player.map, x, y, r: R * 0.7, until: g.realTime + 120 });
+    if (this.decals.length > 30) this.decals.shift();
+    this.shakeUntil = g.realTime + 0.45;
+    g.bus.emit('sfx', { id: 'sfx_explosion' });
+    for (const npc of g.combat.targets()) {
+      if (isProtected(npc)) continue;
+      const d = dist(npc.x, npc.y, x, y);
+      if (d > R) {
+        // close enough to see it: run
+        if (d < R * 3 && !npc.hostile && !npc.profile.staff) g.combat.react(npc, null, false);
+        continue;
+      }
+      const k = 1 - 0.6 * (d / R);
+      const dir = d > 1 ? { x: (npc.x - x) / d, y: (npc.y - y) / d } : { x: 0, y: 1 };
+      g.combat.hitNpc(npc, damage * k, { weapon: BLAST_WEAPON, dir, lethal: true });
+    }
+    const pd = dist(g.player.x, g.player.y, x, y);
+    if (pd <= R) g.combat.damagePlayer(damage * 0.6 * (1 - 0.6 * (pd / R)), null);
+    this.crime(x, y);
+  }
+
+  // --------------------------------------------------------------- update
+  update(dt) {
+    const g = this.game;
+    if (g.combat.wrath) return;
+    const map = g.currentMap();
+    const now = g.realTime;
+    // rockets and missiles
+    for (const pr of [...this.projectiles]) {
+      if (pr.kind === 'missile' && pr.target) {
+        const t = g.npcs.get(pr.target);
+        if (t && t.map === g.player.map && !t.dead && !isDown(t, g.clock.total)) {
+          const d = norm({ x: t.x - pr.x, y: t.y - pr.y });
+          const sp = Math.hypot(pr.vx, pr.vy);
+          pr.vx += (d.x * sp - pr.vx) * clamp(dt * 4, 0, 1);
+          pr.vy += (d.y * sp - pr.vy) * clamp(dt * 4, 0, 1);
+        }
+      }
+      const step = Math.hypot(pr.vx, pr.vy) * dt;
+      const n = Math.max(1, Math.ceil(step / 8));
+      let done = false;
+      for (let i = 0; i < n && !done; i++) {
+        pr.x += (pr.vx * dt) / n;
+        pr.y += (pr.vy * dt) / n;
+        pr.travelled += step / n;
+        // a direct hit on someone
+        for (const npc of g.combat.targets()) {
+          if (dist(npc.x, npc.y, pr.x, pr.y) > HIT) continue;
+          if (isProtected(npc)) {
+            // a direct attack on an imported character: the Wrath, not an explosion
+            g.combat.smite(npc, BLAST_WEAPON);
+            this.projectiles = [];
+            return;
+          }
+          this.explode(pr.x, pr.y, pr.blast, pr.damage);
+          done = true;
+          break;
+        }
+        if (done) break;
+        if (map.blockedTile(Math.floor(pr.x / TILE), Math.floor(pr.y / TILE)) || pr.travelled >= pr.range) {
+          this.explode(pr.x, pr.y, pr.blast, pr.damage);
+          done = true;
+        }
+      }
+      if (done) this.projectiles = this.projectiles.filter((x) => x !== pr);
+    }
+    // cruise missile strikes
+    for (const s of [...this.strikes]) {
+      if (now >= s.at) {
+        this.strikes = this.strikes.filter((x) => x !== s);
+        this.explode(s.x, s.y, s.blast, s.damage);
+      }
+    }
+    // drones
+    for (const d of [...this.drones]) {
+      if (now >= d.until || d.ammo <= 0) { this.drones = this.drones.filter((x) => x !== d); continue; }
+      let t = d.target ? g.npcs.get(d.target) : null;
+      const valid = (n) => n && n.map === g.player.map && !n.dead && !isDown(n, g.clock.total) && !isProtected(n);
+      if (!valid(t)) {
+        // whoever is fighting you; else whoever you last hit
+        t = this.nearest(g.player.x, g.player.y, 14, (n) => n.hostile?.mode === 'fight');
+        const last = g.combat.lastTarget ? g.npcs.get(g.combat.lastTarget) : null;
+        if (!t && valid(last) && dist(last.x, last.y, g.player.x, g.player.y) < 14 * TILE) t = last;
+        d.target = t?.id || null;
+      }
+      const goal = t ? (d.kind === 'hornet' ? { x: t.x, y: t.y } : { x: t.x + Math.cos(now) * 70, y: t.y - 30 + Math.sin(now) * 30 }) : { x: g.player.x + Math.cos(now * 1.3) * 40, y: g.player.y - 30 + Math.sin(now * 1.3) * 16 };
+      const v = norm({ x: goal.x - d.x, y: goal.y - d.y });
+      const gd = dist(goal.x, goal.y, d.x, d.y);
+      const sp = (d.kind === 'hornet' && t ? 200 : 150) * dt;
+      d.x += v.x * Math.min(sp, gd);
+      d.y += v.y * Math.min(sp, gd);
+      if (!t) continue;
+      if (d.kind === 'hornet' && dist(t.x, t.y, d.x, d.y) < HIT) {
+        this.drones = this.drones.filter((x) => x !== d);
+        this.explode(d.x, d.y, 2, 90);
+        continue;
+      }
+      if (d.kind === 'kestrel') {
+        d.cooldown -= dt;
+        if (d.cooldown <= 0 && dist(t.x, t.y, d.x, d.y) < 10 * TILE) {
+          d.cooldown = 4;
+          d.ammo -= 1;
+          const dir = norm({ x: t.x - d.x, y: t.y - d.y });
+          this.projectiles.push({ kind: 'missile', x: d.x, y: d.y, vx: dir.x * MISSILE_SPEED, vy: dir.y * MISSILE_SPEED, travelled: 0, range: 12 * TILE, damage: 80, blast: 2, target: t.id, born: now, by: 'drone' });
+          g.bus.emit('sfx', { id: 'sfx_rocket' });
+        }
+      }
+    }
+    if (this.decals.length) this.decals = this.decals.filter((x) => x.until > now);
+  }
+}
+
+function norm(v) {
+  const d = Math.hypot(v.x, v.y) || 1;
+  return { x: v.x / d, y: v.y / d };
+}
+
+return { Heavy };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -14665,6 +15195,8 @@ const { Calculators } = __m["src/systems/calculators.js"];
 const { Gang, freshGang } = __m["src/systems/gang.js"];
 const { Factory, freshFactory } = __m["src/systems/factory.js"];
 const { Arms, freshArms } = __m["src/systems/arms.js"];
+const { Market, freshMarket } = __m["src/systems/market.js"];
+const { Heavy } = __m["src/systems/heavy.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -14698,6 +15230,8 @@ class Game {
     this.gang = new Gang(this);
     this.factory = new Factory(this);
     this.arms = new Arms(this);
+    this.market = new Market(this);
+    this.heavy = new Heavy(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -14773,6 +15307,7 @@ class Game {
       gang: freshGang(this.content),
       factory: freshFactory(this.content),
       arms: freshArms(this.content),
+      market: freshMarket(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -14915,6 +15450,7 @@ class Game {
     this.combat.update(dt);
     this.police.update(dt);
     this.gang.update(dt);
+    this.heavy.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -14935,6 +15471,7 @@ class Game {
     this.gang.minuteTick();
     this.factory.minuteTick();
     this.arms.minuteTick();
+    this.market.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -15743,6 +16280,7 @@ class Game {
     this.world.arms = { ...fresh.arms, ...(this.world.arms || {}) };
     this.world.arms.warehouses = { ...fresh.arms.warehouses, ...(this.world.arms.warehouses || {}) };
     this.world.arms.research = { ...fresh.arms.research, ...(this.world.arms.research || {}) };
+    this.world.market = this.world.market ? { ...fresh.market, ...this.world.market, countries: { ...fresh.market.countries, ...this.world.market.countries } } : fresh.market;
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -15854,6 +16392,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.14.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Gun Running',
+    notes: [
+      'The global market is open. Eight fictional countries with budgets, wants and rivals — wars break out and end over the weeks, prices soar for whoever is fighting, and some nations end up under embargo. The terminal\'s globe shows the wars and your cargo crossing the sea.',
+      'Ship from your works\' export cage: choose a buyer, a shipping company (cheap and leaky, or expensive and reliable — and two who\'ll run an embargo), and whether to insure it. Cargo can be sunk, hijacked or seized. Get caught smuggling and customs will trace it to you; get seized by a buyer\'s enemy and they\'ll hold a grudge.',
+      'Everything you make can be used. RPGs fire rockets that explode. Skylance missiles lock on; Longbow cruise missiles land where you point. Hornet and Kestrel drones fight at your side. Explosions are a very serious crime — and they never harm the people the Oberverse protects.',
+    ],
+  },
   {
     version: '0.13.0',
     date: '2026-10-13',
@@ -20035,7 +20584,11 @@ class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.setTransform(zoom, 0, 0, zoom, -this.cam.x * zoom, -this.cam.y * zoom);
+    // explosions shake the camera
+    const shake = g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0;
+    const shx = shake ? (Math.random() - 0.5) * shake : 0;
+    const shy = shake ? (Math.random() - 0.5) * shake : 0;
+    ctx.setTransform(zoom, 0, 0, zoom, (-this.cam.x + shx) * zoom, (-this.cam.y + shy) * zoom);
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
@@ -20065,6 +20618,7 @@ class Renderer {
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
           drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total });
         }
+        if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
         const above = b.tower ? towerHeight(b) / TILE : 4;
@@ -20106,6 +20660,7 @@ class Renderer {
     }
     if (this.buildCursor) this.drawBuildCursor(ctx, this.buildCursor);
     this.drawCombatFx(ctx);
+    if (g.heavy) this.drawHeavy(ctx);
 
     if (g.combat.wrath) {
       this.drawLighting(map);
@@ -20184,6 +20739,19 @@ class Renderer {
       } else if (f.type === 'spark') {
         ctx.fillStyle = `rgba(255,220,150,${k})`;
         for (let i = 0; i < 4; i++) ctx.fillRect(f.x + Math.cos(i * 1.7) * 5 * (1 - k), f.y + Math.sin(i * 1.7) * 5 * (1 - k), 2, 2);
+      } else if (f.type === 'blast') {
+        // fireball: a white core, orange flame, dark smoke rolling out
+        const age = 1 - k;
+        const R = f.r * (0.35 + 0.65 * Math.min(1, age * 2.5));
+        ctx.fillStyle = `rgba(60,50,45,${0.5 * k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y - 10 - age * 20, R * 1.05, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,140,40,${0.8 * k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y - 8, R * 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,236,170,${k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y - 8, R * 0.4 * k, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = `rgba(255,255,255,${0.6 * k})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * age * 1.3, f.r * age * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
       } else if (f.type === 'swing') {
         const a = Math.atan2(f.dir.y, f.dir.x);
         ctx.strokeStyle = `rgba(255,255,255,${0.55 * k})`;
@@ -20201,6 +20769,91 @@ class Renderer {
       ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(p.x + d.x * 16, p.y - 18 + d.y * 16); ctx.lineTo(p.x + d.x * 70, p.y - 18 + d.y * 70); ctx.stroke();
       ctx.setLineDash([]);
+    }
+  }
+
+  /** Scorch marks where things exploded (ground level). */
+  drawScorch(ctx, decals) {
+    const t = this.game.realTime;
+    for (const d of decals) {
+      const fade = Math.min(1, (d.until - t) / 20);
+      const gr = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r);
+      gr.addColorStop(0, `rgba(20,16,14,${0.7 * fade})`);
+      gr.addColorStop(1, 'rgba(20,16,14,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.ellipse(d.x, d.y, d.r, d.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  /** Rockets, missiles, drones and incoming cruise-missile reticles (src/systems/heavy.js). */
+  drawHeavy(ctx) {
+    const g = this.game;
+    const H = g.heavy;
+    const t = g.realTime;
+    for (const pr of H.projectiles) {
+      const a = Math.atan2(pr.vy, pr.vx);
+      // smoke trail
+      for (let i = 1; i <= 6; i++) {
+        ctx.fillStyle = `rgba(210,210,210,${0.35 - i * 0.05})`;
+        ctx.beginPath(); ctx.arc(pr.x - Math.cos(a) * i * 7, pr.y - 18 - Math.sin(a) * i * 7, 2 + i, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(pr.x, pr.y - 18);
+      ctx.rotate(a);
+      ctx.fillStyle = pr.kind === 'missile' ? '#d8dce0' : '#5a6a3a';
+      ctx.fillRect(-8, -2.5, 14, 5);
+      ctx.fillStyle = '#c0302a';
+      ctx.beginPath(); ctx.moveTo(6, -2.5); ctx.lineTo(11, 0); ctx.lineTo(6, 2.5); ctx.fill();
+      ctx.fillStyle = Math.floor(t * 30) % 2 ? '#ffd27a' : '#ff8a3a';
+      ctx.beginPath(); ctx.arc(-10, 0, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    for (const s of H.strikes) {
+      const left = Math.max(0, s.at - t);
+      const R = s.blast * TILE;
+      ctx.strokeStyle = `rgba(255,58,42,${0.5 + 0.5 * Math.sin(t * 12)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s.x - R, s.y); ctx.lineTo(s.x + R, s.y); ctx.moveTo(s.x, s.y - R * 0.6); ctx.lineTo(s.x, s.y + R * 0.6); ctx.stroke();
+      ctx.fillStyle = '#ff3a2a';
+      ctx.font = 'bold 10px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`INBOUND ${left.toFixed(1)}s`, s.x, s.y - R * 0.6 - 6);
+      ctx.textAlign = 'left';
+      if (left < 0.6) {
+        // the missile comes down from the sky
+        const k = 1 - left / 0.6;
+        const mx = s.x + 200 * (1 - k);
+        const my = s.y - 400 * (1 - k);
+        ctx.strokeStyle = 'rgba(230,230,230,0.6)';
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(s.x + 200, s.y - 400); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.fillStyle = '#d8dce0';
+        ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    for (const d of H.drones) {
+      const bob = Math.sin(t * 6 + d.born) * 2;
+      ctx.fillStyle = 'rgba(20,20,35,0.25)';
+      ctx.beginPath(); ctx.ellipse(d.x, d.y + 26, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(d.x, d.y - 14 + bob);
+      if (d.kind === 'kestrel') {
+        ctx.fillStyle = '#3a3e46';
+        ctx.beginPath(); ctx.moveTo(-14, 2); ctx.lineTo(0, -4); ctx.lineTo(14, 2); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+        ctx.fillRect(-2, -8, 4, 14);
+      } else {
+        ctx.strokeStyle = '#1e1e22';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(7, 7); ctx.moveTo(7, -7); ctx.lineTo(-7, 7); ctx.stroke();
+        ctx.fillStyle = 'rgba(200,200,210,0.55)';
+        for (const [dx, dy] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) { ctx.beginPath(); ctx.ellipse(dx, dy, 5, 1.4, t * 40, 0, Math.PI * 2); ctx.fill(); }
+        ctx.fillStyle = '#2a2a2e';
+        ctx.fillRect(-3.5, -2.5, 7, 5);
+      }
+      ctx.fillStyle = Math.floor(t * 4) % 2 ? '#ff3a2a' : '#3aff6a';
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
     }
   }
 
@@ -21453,6 +22106,10 @@ const HELP = [
   ['stations', 'one of every arms workstation, plus belts, arms and a generator'],
   ['research <id|all>', 'complete a research node (or all of them)'],
   ['hire [n] <works>', 'hire n applicants (default 1) into a works'],
+  ['heavy', 'an RPG, 5 rockets, 2 of each missile and drone'],
+  ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
+  ['arrive', 'every shipment in transit arrives now'],
+  ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -21780,6 +22437,35 @@ function runCommand(game, line) {
         if (!game.arms.state.candidates.length) game.arms.state.candidatesDay = 0;
       }
       return out(done.join('\n'));
+    }
+    case 'heavy': {
+      game.inventory.add('item_rpg', 1, { silent: true });
+      game.inventory.add('item_rpg_rocket', 5, { silent: true });
+      for (const id of ['item_missile_guided', 'item_missile_cruise', 'item_drone_attack', 'item_drone_strike']) game.inventory.add(id, 2, { silent: true });
+      return out('An RPG, 5 rockets, and two of each missile and drone. Be careful.');
+    }
+    case 'war': {
+      const [a, b] = args;
+      const cs = game.content.arms.countries;
+      if (!cs[a] || !cs[b] || a === b) return out(`Usage: war <a> <b> — ${Object.keys(cs).join(', ')}`, false);
+      game.market.state.wars = game.market.state.wars.filter((w) => ![w.a, w.b].includes(a) && ![w.a, w.b].includes(b));
+      game.market.state.wars.push({ a, b, since: game.clock.day });
+      game.market.news(`WAR: ${cs[a].name} attacks ${cs[b].name}.`);
+      return out('War.');
+    }
+    case 'peace': {
+      game.market.state.wars = [];
+      return out('Every war is over. For now.');
+    }
+    case 'arrive': {
+      const list = game.market.state.shipments;
+      game.market.state.shipments = [];
+      const fates = list.map((x) => game.market.resolve(x));
+      return out(fates.length ? fates.join(', ') : 'Nothing in transit.');
+    }
+    case 'nextday': {
+      game.market.dailyTick();
+      return out('The world turns.');
     }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);
@@ -22633,6 +23319,59 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
     }
     ctx.globalAlpha = 1;
   });
+  // wars: pulsing red lines between the capitals
+  for (const [a, b] of opts.wars || []) {
+    const A = countries[a];
+    const B = countries[b];
+    if (!A || !B) continue;
+    ctx.strokeStyle = `rgba(255,50,40,${0.55 + 0.45 * Math.sin(time * 5)})`;
+    ctx.lineWidth = 2.6;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    let pen = false;
+    for (const p of arc(A, B, 20)) {
+      const q = project(p.lat, p.lon, rot, tilt);
+      if (q.z <= 0) { pen = false; continue; }
+      const X = cx + q.x * r * p.lift;
+      const Y = cy - q.y * r * p.lift;
+      if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+      pen = true;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // your shipments, crawling from Halvermouth to their buyer
+  if (opts.hq) {
+    const q = project(opts.hq.lat, opts.hq.lon, rot, tilt);
+    if (q.z > 0) {
+      ctx.fillStyle = '#7affc8';
+      ctx.fillRect(cx + q.x * r - 3, cy - q.y * r - 3, 6, 6);
+    }
+    for (const sh of opts.shipments || []) {
+      const B = countries[sh.country];
+      if (!B) continue;
+      const pts = arc(opts.hq, B, 30);
+      ctx.strokeStyle = 'rgba(122,255,200,0.6)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      let pen = false;
+      for (const p of pts) {
+        const q2 = project(p.lat, p.lon, rot, tilt);
+        if (q2.z <= 0) { pen = false; continue; }
+        const X = cx + q2.x * r * p.lift;
+        const Y = cy - q2.y * r * p.lift;
+        if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+        pen = true;
+      }
+      ctx.stroke();
+      const k = Math.min(pts.length - 1, Math.floor(sh.progress * (pts.length - 1)));
+      const q3 = project(pts[k].lat, pts[k].lon, rot, tilt);
+      if (q3.z > 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(cx + q3.x * r * pts[k].lift, cy - q3.y * r * pts[k].lift, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
   // capitals
   ctx.font = `bold ${Math.max(9, size / 38)}px "Trebuchet MS", sans-serif`;
   for (const [id, c] of Object.entries(countries)) {
@@ -22694,7 +23433,12 @@ function terminalPanel(ui, body, opts) {
   const t0 = performance.now();
   const loop = () => {
     if (!canvas.isConnected) return;
-    drawGlobe(ctx, 300, (performance.now() - t0) / 1000, cfg.countries);
+    const m = g.market.state;
+    const now = g.clock.total;
+    drawGlobe(ctx, 300, (performance.now() - t0) / 1000, cfg.countries, {
+      wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
+      shipments: m.shipments.map((x) => ({ country: x.country, progress: Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs)) })),
+    });
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -22760,12 +23504,58 @@ function terminalPanel(ui, body, opts) {
     }
     sect.append(grid);
   } else if (tab === 'Market') {
-    sect.append(h('p', {}, h('b', {}, 'The global market opens soon. '), 'Until then, Lucas Eastrise buys your output wholesale at Pipecreek Armory, at half of value, up to his daily budget.'));
-    for (const [id, it] of Object.entries(items).filter(([, x]) => x.arms)) {
-      sect.append(row(itemIcon(it), `${it.name}`, `Value ${A.value(id)} obols (×${A.priceMult(it.arms.family).toFixed(2)} research) · Lucas pays ${A.wholesale(id) || Math.round(A.value(id) * cfg.wholesale.share)}`));
+    const M = g.market;
+    const ms = M.state;
+    const cage = g.world.containers[def.outCrate].items;
+    const cargo = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms);
+    // news
+    sect.append(h('h3', { style: 'margin:4px 0 6px' }, 'World news'));
+    sect.append(h('div', { class: 'news' }, ...ms.news.slice(0, 6).map((n) => h('div', {}, `Day ${n.day} — ${n.text}`))));
+    // in transit
+    if (ms.shipments.length) {
+      sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'In transit'));
+      for (const x of ms.shipments) {
+        const hrs = Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60));
+        sect.append(row('🚢', `${cfg.countries[x.country].name} — ${x.value} obols on arrival`, `${cfg.shippers[x.shipper].name} · arrives in ${hrs}h · ${Object.entries(x.items).map(([id, n]) => `${n}× ${items[id].name}`).join(', ')}${x.insured ? ' · insured' : ''}${x.embargo ? ' · EMBARGO RUN' : ''}`));
+      }
     }
-    sect.append(h('h3', { style: 'margin:14px 0 6px' }, 'The world'));
-    for (const c of Object.values(cfg.countries)) sect.append(row('🌐', c.name, c.blurb));
+    // countries
+    sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'Buyers'));
+    for (const [id, c] of Object.entries(cfg.countries)) {
+      const st = ms.countries[id];
+      const enemy = M.enemyOf(id);
+      const tags = [enemy ? `AT WAR with ${cfg.countries[enemy].name}` : 'at peace', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `hostility ${st.hostility}` : null].filter(Boolean).join(' · ');
+      const prices = (cargo.length ? cargo.map(([iid]) => iid) : ['item_pistol', 'item_assault_rifle', 'item_missile_guided', 'item_drone_attack']).map((iid) => `${items[iid].name} ${M.price(id, iid)}`).join(' · ');
+      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. Pays: ${prices}`));
+    }
+    // a new shipment
+    const form = opts.form || { country: Object.keys(cfg.countries)[0], shipper: 'morrow', insured: false, qty: {} };
+    const qty = Object.fromEntries(cargo.map(([id, n]) => [id, Math.min(n, form.qty[id] ?? 0)]));
+    const value = M.quote(form.country, qty);
+    const fee = M.fee(form.shipper, value, form.insured);
+    const sh = cfg.shippers[form.shipper];
+    const upd = (patch) => go('Market', { form: { ...form, ...patch, qty: { ...qty, ...(patch.qty || {}) } } });
+    sect.append(h('h3', { style: 'margin:14px 0 6px' }, 'Ship from this works\' export cage'));
+    if (!cargo.length) sect.append(h('p', { class: 'muted' }, 'The export cage is empty. Finished weapons go in the cage (by belt, or by hand: E on the cage → Store).'));
+    else {
+      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px' },
+        h('select', { onchange: (e) => upd({ country: e.target.value }) }, ...Object.entries(cfg.countries).map(([id, c]) => h('option', { value: id, selected: id === form.country }, `${c.name}${ms.countries[id].embargo ? ' (EMBARGO)' : ''}`))),
+        h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === form.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
+        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` Insure (+${Math.round(cfg.market.insuranceRate * 100)}%, pays ${Math.round(cfg.market.insurancePayout * 100)}% if lost)`)));
+      sect.append(h('p', { class: 'muted' }, sh.blurb));
+      for (const [id, n] of cargo) {
+        sect.append(row(itemIcon(items[id]), `${items[id].name} — ${M.price(form.country, id)} each`, `${n} in the cage`,
+          h('input', { type: 'number', min: 0, max: n, value: qty[id] || 0, style: 'width:64px', onchange: (e) => upd({ qty: { [id]: Math.max(0, Math.min(n, Number(e.target.value) || 0)) } }) }),
+          btn('All', () => upd({ qty: { [id]: n } }))));
+      }
+      sect.append(h('p', {}, h('b', {}, `Value on arrival: ${value} obols · Shipping now: ${fee} obols`), ms.countries[form.country].embargo ? ' · ⚠ Embargo run: illegal; if customs seize it, they\'ll trace it to you.' : ''));
+      sect.append(h('div', { class: 'row' }, btn('Ship it', () => {
+        const res = M.ship({ wh, country: form.country, shipper: form.shipper, insured: form.insured, items: qty });
+        ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
+        go('Market', { msg: res.text, form: res.ok ? { ...form, qty: {} } : form });
+      }, 'primary')));
+    }
+    sect.append(h('p', { class: 'muted' }, `Earned from exports: ${ms.earned} obols. Lucas still buys wholesale at Pipecreek Armory (half value, up to his daily budget).`));
   }
   return { title: `Terminal — ${def.name}`, tabs: TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
 }

@@ -25,6 +25,8 @@ import { Calculators } from '../systems/calculators.js';
 import { Gang, freshGang } from '../systems/gang.js';
 import { Factory, freshFactory } from '../systems/factory.js';
 import { Arms, freshArms } from '../systems/arms.js';
+import { Market, freshMarket } from '../systems/market.js';
+import { Heavy } from '../systems/heavy.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -58,6 +60,8 @@ export class Game {
     this.gang = new Gang(this);
     this.factory = new Factory(this);
     this.arms = new Arms(this);
+    this.market = new Market(this);
+    this.heavy = new Heavy(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -133,6 +137,7 @@ export class Game {
       gang: freshGang(this.content),
       factory: freshFactory(this.content),
       arms: freshArms(this.content),
+      market: freshMarket(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -275,6 +280,7 @@ export class Game {
     this.combat.update(dt);
     this.police.update(dt);
     this.gang.update(dt);
+    this.heavy.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -295,6 +301,7 @@ export class Game {
     this.gang.minuteTick();
     this.factory.minuteTick();
     this.arms.minuteTick();
+    this.market.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -1103,6 +1110,7 @@ export class Game {
     this.world.arms = { ...fresh.arms, ...(this.world.arms || {}) };
     this.world.arms.warehouses = { ...fresh.arms.warehouses, ...(this.world.arms.warehouses || {}) };
     this.world.arms.research = { ...fresh.arms.research, ...(this.world.arms.research || {}) };
+    this.world.market = this.world.market ? { ...fresh.market, ...this.world.market, countries: { ...fresh.market.countries, ...this.world.market.countries } } : fresh.market;
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();

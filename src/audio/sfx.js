@@ -189,6 +189,23 @@ export const SFX = {
     tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.15, vol: 0.18 });
     for (let i = 0; i < 6; i++) for (const [f, v] of [[1400 + i * 120, 0.05], [2100 + i * 90, 0.03]]) tone(ctx, d, { type: 'sine', f0: f, t: t + 0.08 + i * 0.06 + Math.random() * 0.04, dur: 0.12, vol: v, attack: 0.002 }); // metal clatter
   },
+  // heavy weapons (v0.14.0)
+  sfx_rocket: (ctx, d) => {
+    const t = ctx.currentTime;
+    noise(ctx, d, { t, dur: 0.6, vol: 1.2, type: 'bandpass', freq: 600, f1: 2400, q: 1.2 });
+    tone(ctx, d, { type: 'sawtooth', f0: 220, f1: 90, t, dur: 0.5, vol: 0.22 });
+  },
+  sfx_explosion: (ctx, d) => {
+    const t = ctx.currentTime;
+    tone(ctx, d, { type: 'sine', f0: 90, f1: 26, t, dur: 1.4, vol: 0.6, attack: 0.003 });
+    noise(ctx, d, { t, dur: 0.2, vol: 0.55, type: 'lowpass', freq: 3000 });
+    noise(ctx, d, { t: t + 0.03, dur: 1.8, vol: 0.45, type: 'lowpass', freq: 1200, f1: 70 });
+    for (let i = 0; i < 10; i++) noise(ctx, d, { t: t + 0.2 + Math.random() * 1.0, dur: 0.04, vol: 0.08, freq: 1500 + Math.random() * 2500, q: 4 });
+  },
+  sfx_drone: (ctx, d) => {
+    const t = ctx.currentTime;
+    for (const f of [180, 186]) tone(ctx, d, { type: 'sawtooth', f0: f * 0.6, f1: f, t, dur: 0.9, vol: 0.2, attack: 0.2 });
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack

@@ -66,3 +66,66 @@ Procedurally generated: name, look, four skills (one speciality 3–5), an optio
 ## Selling (v0.13)
 
 Lucas buys any arms item at **half its value**, raised by research, up to **2,500 obols a day**. The global market, shipping companies, insurance and heat arrive in v0.14.
+
+# The global market and heavy weapons (v0.14.0)
+
+Source: `src/systems/market.js`, `src/systems/heavy.js`, the Market tab in `src/ui/terminal.js`; data in `src/content/arms.js` (`COUNTRIES`, `SHIPPERS`, `MARKET`, `HQ`).
+
+## Countries and wars
+
+There are eight fictional countries, each with:
+- a budget, daily income (×1.5 at war, capped at 3× base) and wants (a price multiplier per family: small, heavy, missile, drone)
+- an aggression score and rivals
+
+**Daily tick (06:00):**
+- Budgets grow.
+- Saturation fades 30%.
+- Hostility fades 5.
+- A war older than 5 days ends with a 15% chance.
+- An idle country starts a war with an idle rival with a chance of 5% × aggression. With a 40% chance the aggressor is embargoed for the war.
+- Standing sanctions lift with a 2% chance a day.
+- Every change makes a news line on the terminal.
+
+The game starts with Varnistan and Caldera at war, and Pallas under sanctions.
+
+**Price** = arms value (with research) × wants × war boost (small 1.5, heavy 2, missile 2.5, drone 2.2) × (1 − saturation) × (1 − hostility/200).
+- Saturation rises by 0.02 per unit delivered, up to 0.6.
+- At hostility 60 or more, a country refuses to buy.
+
+## Shipping
+
+On the terminal's Market tab, pick a country, a shipper, insurance and quantities from the works' export cage.
+- The fee (and insurance) is paid up front.
+- The buyer reserves the price from its budget.
+- Selling to one side of a war raises the other side's hostility by 5.
+
+| Shipper | Fee | Reliability | Days | Embargo runs |
+| --- | --- | --- | --- | --- |
+| Halver Freight & Sons | 6% | 72% | 3 | no |
+| Morrow Blue Line | 10% | 88% | 2 | no |
+| Stork Air Charter | 22% | 96% | 1 | no |
+| Pipecreek Logistics | 15% | 82% (−25% if embargoed) | 4 | yes |
+| Ghost Fleet | 30% | 86% (−12% if embargoed) | 3 | yes |
+
+**On arrival:** delivered (paid), or lost. A lost shipment is sunk, hijacked or seized (embargo runs: mostly seized).
+- **Insurance** (+8%) pays 60% of value, except on seized smuggling.
+- **Heat:** a seized embargo run is traced to you: record +8 and Wanted ★★.
+- A shipment seized by the buyer's enemy raises that enemy's hostility by 30.
+
+## Heavy weapons in the field
+
+- **RPG launcher**: fires rockets (one per load, 2.5 s reload). They explode on the first person or obstacle, or at 16 tiles: 2.5-tile blast, 110 damage.
+- **Skylance guided missile** (use from inventory): locks on to the nearest person within 16 tiles and homes in. 3.5-tile blast, 140 damage.
+- **Longbow cruise missile** (use): strikes the point you're aiming at 2.5 s later, with a reticle and countdown. 5-tile blast, 250 damage.
+- **Hornet attack drone** (use, 60 s): dives at whoever is fighting you, or whoever you last hit. 2-tile blast, 90 damage.
+- **Kestrel strike drone** (use, 90 s): fires four small missiles (2-tile blasts) at the same targets.
+
+Blast damage falls off to 40% at the edge and also hurts you if you're inside. Bystanders near a blast flee.
+
+**Owner's rules:**
+- Blasts never harm imported characters.
+- Missiles and drones never target them.
+- Only a rocket that directly hits one triggers their Wrath.
+- Any explosion is a major crime: record +10; witnesses call it in.
+
+Projectiles, drones and scorch marks are runtime-only and dropped when you change map.

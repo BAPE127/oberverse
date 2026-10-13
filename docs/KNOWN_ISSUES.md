@@ -1,8 +1,8 @@
-# Known Issues and Limitations — v0.13.0
+# Known Issues and Limitations — v0.14.0
 
 ## Not yet implemented (planned)
 
-- **Arms trade (v0.13.0):** no global market, shipping, insurance or embargoes yet (v0.14) — Lucas is the only buyer. RPGs, missiles and drones can be made but not used yet (v0.14). Employees never leave their works (by design) and don't fight. Items have no per-unit quality; research raises prices for the whole family.
+- **Arms trade (v0.14.0):** countries can't yet be bribed or influenced (the planned politics update); you can't own a shipping company yet; wars are abstract (no battles shown). Heavy weapons don't damage buildings or props (by the owner's choice); projectiles and drones are lost if you change map. Employees never leave their works (by design) and don't fight. Items have no per-unit quality; research raises prices for the whole family.
 - **Factory (v0.12.0):** no splitters, mergers, underground belts or filtered arms; machines only face one way (no rotation); arms and belts move one item per game minute; power is a simple machine count (no fuel, no wiring). The gang doesn't raid warehouses (owner chose threats, ambushes and a truce). Build mode is mouse-and-keyboard only.
 - **Calculator trade (v0.11.0):** customers live and order only in the Sumps; order meeting spots are fixed points. Gang ambushes and hunts only happen on the player's current map. Officers and gang members only trade insults (no NPC-vs-NPC fights).
 - **Police limits (v0.10.0):** officers only pursue on the player's current map (a dispatched officer travels by schedule pathing, so a call across regions can take a while); no bounties or police vehicles in the open world; the jail has no other prisoners besides Petty; the only way back into the cell block is the jail keys. Being knocked out by anyone now always ends in jail.

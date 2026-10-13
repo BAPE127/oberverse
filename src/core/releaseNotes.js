@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.14.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Gun Running',
+    notes: [
+      'The global market is open. Eight fictional countries with budgets, wants and rivals — wars break out and end over the weeks, prices soar for whoever is fighting, and some nations end up under embargo. The terminal\'s globe shows the wars and your cargo crossing the sea.',
+      'Ship from your works\' export cage: choose a buyer, a shipping company (cheap and leaky, or expensive and reliable — and two who\'ll run an embargo), and whether to insure it. Cargo can be sunk, hijacked or seized. Get caught smuggling and customs will trace it to you; get seized by a buyer\'s enemy and they\'ll hold a grudge.',
+      'Everything you make can be used. RPGs fire rockets that explode. Skylance missiles lock on; Longbow cruise missiles land where you point. Hornet and Kestrel drones fight at your side. Explosions are a very serious crime — and they never harm the people the Oberverse protects.',
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-10-13',
     channel: 'development',

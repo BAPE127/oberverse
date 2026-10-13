@@ -151,7 +151,11 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.setTransform(zoom, 0, 0, zoom, -this.cam.x * zoom, -this.cam.y * zoom);
+    // explosions shake the camera
+    const shake = g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0;
+    const shx = shake ? (Math.random() - 0.5) * shake : 0;
+    const shy = shake ? (Math.random() - 0.5) * shake : 0;
+    ctx.setTransform(zoom, 0, 0, zoom, (-this.cam.x + shx) * zoom, (-this.cam.y + shy) * zoom);
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
@@ -181,6 +185,7 @@ export class Renderer {
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
           drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total });
         }
+        if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
         const above = b.tower ? towerHeight(b) / TILE : 4;
@@ -222,6 +227,7 @@ export class Renderer {
     }
     if (this.buildCursor) this.drawBuildCursor(ctx, this.buildCursor);
     this.drawCombatFx(ctx);
+    if (g.heavy) this.drawHeavy(ctx);
 
     if (g.combat.wrath) {
       this.drawLighting(map);
@@ -300,6 +306,19 @@ export class Renderer {
       } else if (f.type === 'spark') {
         ctx.fillStyle = `rgba(255,220,150,${k})`;
         for (let i = 0; i < 4; i++) ctx.fillRect(f.x + Math.cos(i * 1.7) * 5 * (1 - k), f.y + Math.sin(i * 1.7) * 5 * (1 - k), 2, 2);
+      } else if (f.type === 'blast') {
+        // fireball: a white core, orange flame, dark smoke rolling out
+        const age = 1 - k;
+        const R = f.r * (0.35 + 0.65 * Math.min(1, age * 2.5));
+        ctx.fillStyle = `rgba(60,50,45,${0.5 * k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y - 10 - age * 20, R * 1.05, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,140,40,${0.8 * k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y - 8, R * 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,236,170,${k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y - 8, R * 0.4 * k, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = `rgba(255,255,255,${0.6 * k})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * age * 1.3, f.r * age * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
       } else if (f.type === 'swing') {
         const a = Math.atan2(f.dir.y, f.dir.x);
         ctx.strokeStyle = `rgba(255,255,255,${0.55 * k})`;
@@ -317,6 +336,91 @@ export class Renderer {
       ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(p.x + d.x * 16, p.y - 18 + d.y * 16); ctx.lineTo(p.x + d.x * 70, p.y - 18 + d.y * 70); ctx.stroke();
       ctx.setLineDash([]);
+    }
+  }
+
+  /** Scorch marks where things exploded (ground level). */
+  drawScorch(ctx, decals) {
+    const t = this.game.realTime;
+    for (const d of decals) {
+      const fade = Math.min(1, (d.until - t) / 20);
+      const gr = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r);
+      gr.addColorStop(0, `rgba(20,16,14,${0.7 * fade})`);
+      gr.addColorStop(1, 'rgba(20,16,14,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.ellipse(d.x, d.y, d.r, d.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  /** Rockets, missiles, drones and incoming cruise-missile reticles (src/systems/heavy.js). */
+  drawHeavy(ctx) {
+    const g = this.game;
+    const H = g.heavy;
+    const t = g.realTime;
+    for (const pr of H.projectiles) {
+      const a = Math.atan2(pr.vy, pr.vx);
+      // smoke trail
+      for (let i = 1; i <= 6; i++) {
+        ctx.fillStyle = `rgba(210,210,210,${0.35 - i * 0.05})`;
+        ctx.beginPath(); ctx.arc(pr.x - Math.cos(a) * i * 7, pr.y - 18 - Math.sin(a) * i * 7, 2 + i, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(pr.x, pr.y - 18);
+      ctx.rotate(a);
+      ctx.fillStyle = pr.kind === 'missile' ? '#d8dce0' : '#5a6a3a';
+      ctx.fillRect(-8, -2.5, 14, 5);
+      ctx.fillStyle = '#c0302a';
+      ctx.beginPath(); ctx.moveTo(6, -2.5); ctx.lineTo(11, 0); ctx.lineTo(6, 2.5); ctx.fill();
+      ctx.fillStyle = Math.floor(t * 30) % 2 ? '#ffd27a' : '#ff8a3a';
+      ctx.beginPath(); ctx.arc(-10, 0, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    for (const s of H.strikes) {
+      const left = Math.max(0, s.at - t);
+      const R = s.blast * TILE;
+      ctx.strokeStyle = `rgba(255,58,42,${0.5 + 0.5 * Math.sin(t * 12)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(s.x, s.y, R, R * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s.x - R, s.y); ctx.lineTo(s.x + R, s.y); ctx.moveTo(s.x, s.y - R * 0.6); ctx.lineTo(s.x, s.y + R * 0.6); ctx.stroke();
+      ctx.fillStyle = '#ff3a2a';
+      ctx.font = 'bold 10px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`INBOUND ${left.toFixed(1)}s`, s.x, s.y - R * 0.6 - 6);
+      ctx.textAlign = 'left';
+      if (left < 0.6) {
+        // the missile comes down from the sky
+        const k = 1 - left / 0.6;
+        const mx = s.x + 200 * (1 - k);
+        const my = s.y - 400 * (1 - k);
+        ctx.strokeStyle = 'rgba(230,230,230,0.6)';
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(s.x + 200, s.y - 400); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.fillStyle = '#d8dce0';
+        ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    for (const d of H.drones) {
+      const bob = Math.sin(t * 6 + d.born) * 2;
+      ctx.fillStyle = 'rgba(20,20,35,0.25)';
+      ctx.beginPath(); ctx.ellipse(d.x, d.y + 26, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(d.x, d.y - 14 + bob);
+      if (d.kind === 'kestrel') {
+        ctx.fillStyle = '#3a3e46';
+        ctx.beginPath(); ctx.moveTo(-14, 2); ctx.lineTo(0, -4); ctx.lineTo(14, 2); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+        ctx.fillRect(-2, -8, 4, 14);
+      } else {
+        ctx.strokeStyle = '#1e1e22';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(7, 7); ctx.moveTo(7, -7); ctx.lineTo(-7, 7); ctx.stroke();
+        ctx.fillStyle = 'rgba(200,200,210,0.55)';
+        for (const [dx, dy] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) { ctx.beginPath(); ctx.ellipse(dx, dy, 5, 1.4, t * 40, 0, Math.PI * 2); ctx.fill(); }
+        ctx.fillStyle = '#2a2a2e';
+        ctx.fillRect(-3.5, -2.5, 7, 5);
+      }
+      ctx.fillStyle = Math.floor(t * 4) % 2 ? '#ff3a2a' : '#3aff6a';
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
     }
   }
 

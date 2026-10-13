@@ -208,3 +208,4 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
 .research .node.locked { opacity: .55; }
 .research .node.cur { outline: 2px solid #f2c14e; }
 .research .node .desc { font-size: 11px; opacity: .8; }
+.terminal-news, .news { font-size: 12px; line-height: 1.5; background: #05080c; color: #bfe8ff; border-radius: 8px; padding: 8px 10px; font-family: "Courier New", monospace; }

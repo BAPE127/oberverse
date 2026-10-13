@@ -41,18 +41,23 @@ export const ARMS_ITEMS = Object.fromEntries([
   ['item_lmg', { name: 'Light Machine Gun', category: 'weapon', price: 900, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 800, family: 'small' },
     description: 'A belt-fed light machine gun. Heavy, loud, persuasive. Rifle rounds.',
     weapon: { kind: 'gun', damage: 20, range: 13, cooldown: 0.08, auto: true, lethal: true, ammo: 'item_ammo_rifle', mag: 100, reload: 4.5, spread: 8, noise: 28, sound: 'sfx_gunshot_smg', held: 'longgun' } }],
-  ['item_rpg', { name: 'RPG Launcher', category: 'weapon', price: 1000, tags: ['weapon', 'heavy'], icon: 'longgun', arms: { value: 900, family: 'heavy' }, heavy: 'rpg',
-    description: 'A reusable shoulder-fired launcher. Fires RPG rockets.' }],
-  ['item_rpg_rocket', { name: 'RPG Rocket', category: 'ammo', price: 240, tags: ['heavy', 'ammo'], icon: 'ammo', arms: { value: 220, family: 'heavy' },
+  ['item_rpg', { name: 'RPG Launcher', category: 'weapon', price: 1000, tags: ['weapon', 'gun', 'heavy'], icon: 'longgun', arms: { value: 900, family: 'heavy' },
+    description: 'A reusable shoulder-fired launcher. Fires RPG rockets that explode on impact (2.5-tile blast). Using it is a major crime.',
+    weapon: { kind: 'gun', projectile: 'rocket', damage: 110, blast: 2.5, range: 16, cooldown: 1.0, lethal: true, ammo: 'item_rpg_rocket', mag: 1, reload: 2.5, spread: 1, noise: 30, sound: 'sfx_rocket', held: 'longgun' } }],
+  ['item_rpg_rocket', { name: 'RPG Rocket', category: 'ammo', price: 240, bundle: 1, tags: ['heavy', 'ammo'], icon: 'ammo', arms: { value: 220, family: 'heavy' },
     description: 'A rocket-propelled grenade for the RPG launcher.' }],
-  ['item_missile_guided', { name: 'Skylance Guided Missile', category: 'heavy', price: 2800, tags: ['heavy'], icon: 'machine', arms: { value: 2600, family: 'missile' }, heavy: 'missile',
-    description: 'A man-portable guided missile with a seeker head. Point, lock, regret.' }],
-  ['item_missile_cruise', { name: 'Longbow Cruise Missile', category: 'heavy', price: 9500, tags: ['heavy'], icon: 'machine', arms: { value: 9000, family: 'missile' }, heavy: 'cruise',
-    description: 'A long-range cruise missile on a launch rail. It has a flight plan and a grudge.' }],
-  ['item_drone_attack', { name: 'Hornet Attack Drone', category: 'heavy', price: 1700, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 1600, family: 'drone' }, heavy: 'drone',
-    description: 'A quadcopter with a warhead and a short attention span.' }],
-  ['item_drone_strike', { name: 'Kestrel Strike Drone', category: 'heavy', price: 5500, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 5200, family: 'drone' }, heavy: 'drone',
-    description: 'A fixed-wing strike drone with a seeker and two warheads.' }],
+  ['item_missile_guided', { name: 'Skylance Guided Missile', category: 'heavy', price: 2800, tags: ['heavy'], icon: 'machine', arms: { value: 2600, family: 'missile' },
+    description: 'A man-portable guided missile with a seeker head. Use it: it locks on to the nearest person in range (never an imported character) — 3.5-tile blast. Point, lock, regret.',
+    use: { heavy: 'guided', text: 'You shoulder the Skylance and squeeze.' } }],
+  ['item_missile_cruise', { name: 'Longbow Cruise Missile', category: 'heavy', price: 9500, tags: ['heavy'], icon: 'machine', arms: { value: 9000, family: 'missile' },
+    description: 'A long-range cruise missile. Use it: it strikes where you\'re aiming 2.5 seconds later — a 5-tile blast. Stand well back.',
+    use: { heavy: 'cruise', text: 'You punch in the coordinates of where you\'re pointing.' } }],
+  ['item_drone_attack', { name: 'Hornet Attack Drone', category: 'heavy', price: 1700, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 1600, family: 'drone' },
+    description: 'A quadcopter with a warhead and a short attention span. Use it: it hovers by you for a minute and dives at whoever you fight (never an imported character).',
+    use: { heavy: 'drone_attack', text: 'You toss the Hornet into the air.' } }],
+  ['item_drone_strike', { name: 'Kestrel Strike Drone', category: 'heavy', price: 5500, tags: ['heavy', 'drone'], icon: 'machine', arms: { value: 5200, family: 'drone' },
+    description: 'A strike drone with four small missiles. Use it: for ninety seconds it fires on whoever you fight (never an imported character).',
+    use: { heavy: 'drone_strike', text: 'The Kestrel unfolds its wings and climbs.' } }],
   // --- workstations (placed with B in an arms works; staffed by employees)
   station('lathe', 'CNC Lathe', 'lathe', 400, 'Arms works station (machining). Barrels, receivers, stocks and grips.'),
   station('assembly', 'Assembly Bench', 'assembly', 300, 'Arms works station (machining). Puts guns and launchers together.'),
@@ -158,14 +163,42 @@ export const STAFF_QUIRKS = {
   nightowl: { name: 'Night Owl', text: 'Works the night shift (19:00–07:00).', night: true },
 };
 
-/** The fictional countries on the terminal's globe (the market opens in v0.14). lat/lon in degrees. */
+/**
+ * The fictional countries on the terminal's globe, and their economies (v0.14).
+ * budget/income in obols; wants: price multiplier by weapon family;
+ * aggression: daily chance factor of starting a war with a rival.
+ */
 export const COUNTRIES = {
-  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
-  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, blurb: 'Seven provinces, one parliament, eight opinions.' },
-  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, blurb: 'Built on a volcano. Politically, also built on a volcano.' },
-  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, blurb: 'A fishing monarchy whose king is eleven and very serious.' },
-  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, blurb: 'Free, according to the name. A state, according to some.' },
-  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
-  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, blurb: 'Two hundred islands, two hundred navies.' },
-  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, blurb: 'Neutral. Aggressively, belligerently neutral.' },
+  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, budget: 40000, income: 3000, wants: { small: 1.2, heavy: 1.0, missile: 0.8, drone: 0.8 }, aggression: 0.6, rivals: ['caldera', 'ostmark'], blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
+  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, budget: 80000, income: 6000, wants: { small: 0.9, heavy: 1.0, missile: 1.3, drone: 1.2 }, aggression: 0.3, rivals: ['varn', 'sund'], blurb: 'Seven provinces, one parliament, eight opinions.' },
+  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, budget: 30000, income: 2500, wants: { small: 1.3, heavy: 1.2, missile: 0.9, drone: 0.7 }, aggression: 0.5, rivals: ['varn', 'pallas'], blurb: 'Built on a volcano. Politically, also built on a volcano.' },
+  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, budget: 25000, income: 2000, wants: { small: 1.0, heavy: 0.8, missile: 1.0, drone: 1.1 }, aggression: 0.2, rivals: ['ostmark'], blurb: 'A fishing monarchy whose king is eleven and very serious.' },
+  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, budget: 20000, income: 1800, wants: { small: 1.4, heavy: 1.3, missile: 0.6, drone: 0.6 }, aggression: 0.7, rivals: ['caldera', 'lirre'], blurb: 'Free, according to the name. A state, according to some. Under international embargo.' },
+  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 120000, income: 8000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
+  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 35000, income: 3000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
+  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 60000, income: 4000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
+};
+/** Where your shipments leave from on the globe. */
+export const HQ = { name: 'Halvermouth', lat: 49, lon: -30 };
+
+/** Shipping companies (v0.14). fee: share of cargo value; reliability: chance it arrives; embargo: will run embargoed cargo (embargoRisk: extra chance of seizure). */
+export const SHIPPERS = {
+  halver: { name: 'Halver Freight & Sons', fee: 0.06, reliability: 0.72, days: 3, embargo: false, blurb: 'Cheap, slow, and their ships are older than their captains.' },
+  morrow: { name: 'Morrow Blue Line', fee: 0.1, reliability: 0.88, days: 2, embargo: false, blurb: 'Respectable container line. Asks to see paperwork. Usually reads it.' },
+  stork: { name: 'Stork Air Charter', fee: 0.22, reliability: 0.96, days: 1, embargo: false, blurb: 'Overnight air freight. Expensive and almost never lost.' },
+  pipecreek: { name: 'Pipecreek Logistics', fee: 0.15, reliability: 0.82, days: 4, embargo: true, embargoRisk: 0.25, blurb: 'Lucas\'s cousin. Doesn\'t ask questions. Doesn\'t answer them either.' },
+  ghost: { name: 'Ghost Fleet', fee: 0.3, reliability: 0.86, days: 3, embargo: true, embargoRisk: 0.12, blurb: 'Ships with no names and captains with several. Embargo runs a speciality.' },
+};
+
+export const MARKET = {
+  /** Price boost per family while a country is at war. */
+  warMult: { small: 1.5, heavy: 2, missile: 2.5, drone: 2.2 },
+  /** Each unit sold to a country lowers what it pays for that family (recovers 30% a day). */
+  saturationPerUnit: 0.02, saturationMax: 0.6, saturationDecay: 0.3,
+  insuranceRate: 0.08, insurancePayout: 0.6,
+  /** A country this hostile won't buy from you; hostility fades 5 a day. */
+  refuseHostility: 60,
+  minWarDays: 5, warEndChance: 0.15, warStartChance: 0.05, embargoOnAggressor: 0.4,
+  initialWars: [['varn', 'caldera']],
+  initialEmbargoes: ['pallas'],
 };

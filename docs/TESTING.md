@@ -28,6 +28,7 @@
 | `world_halvermouth.test.mjs` | Halvermouth: separate region, gateway travel both ways, required buildings/districts/slum, reachability of every open door and interior, opening hours, saves. |
 | `combat.test.mjs` | Weapon variety, punching + health bar, flee vs fight-back, the player being beaten, witnesses, knock-outs and waking, killing (permanent, quests fail, saves), buying/loading/shooting a gun, walls stopping bullets, gunfire panic, weapons in the world, old saves. |
 | `wrath.test.mjs` | Protection of imported characters (and only them), the Wrath freezing the world, five strikes, rising again, every weapon type triggering it, `killable: true` lifting it. |
+| `market.test.mjs` | Countries and shippers, prices (wants, war, saturation, hostility), shipping rules, arrival and payment, losses with insurance, embargo heat and enemy seizure, wars starting and ending with embargoes, saves; RPG blasts sparing imported characters, a direct hit calling the Wrath, missiles and drones never targeting them, the cruise missile's delay, debug commands. |
 | `arms.test.mjs` | Lucas and Pipecreek, the pitch and the licence, the Yards and works sizes, terminal orders, station placement and staffing, applicants and bunks, staff staying in their works, research, a staffed assembly line into the export cage, payroll and quitting, wholesale and Lucas's budget, save/load, Lucas's Wrath, the new guns and recipe integrity. |
 | `factory.test.mjs` | Warehouses, signs and doors; Sal's shops and unlocks; hand-crafting the full chain; placement rules; arms, belts, machines; a full parts-to-calculator line; power; backed-up belts and full outputs; deliveries; running while away; save/load as props; the machine panel; debug commands. |
 | `gang.test.mjs` | The Sums of Anarchy cast, calculators (highs, comedowns, tolerance, heal, energy crash), Grit, Minnie's shop and counter, samples and stealing, orders, deliveries, referrals, missed orders, dealing and the police, anger tiers, ambushes and hunts, truce, hurting the crew, Arthur's Wrath, gang-police insults, jail confiscation, saves, debug commands, the Abacus. |
@@ -38,6 +39,13 @@
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.14.0 (2026-10-13)
+
+- `npm run check` — **201/201 tests passed** (12 new in `market.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real mouse): the Market tab listed news, buyers (Varnistan and Caldera at war, Pallas embargoed) and prices; choosing Teshvar, Stork Air Charter and insurance and clicking All on two items quoted 9,720 obols value / 2,916 fees, and "Ship it" booked it (the globe shows the route). In Mill Road Yards an RPG (after a reload) hit Al Gebra and Max Imum with Mason Nails standing beside them: Al and Max hurt, Mason untouched, no Wrath; a Hornet dove at Dee Nominator; a Longbow's reticle counted down and struck. Scorch marks and camera shake visible. Fixed from the run: one explosion produced a stack of identical police-call toasts (calls now merge per scene). No page errors or game warnings.
+- Audio rendered offline: `sfx_explosion` 0.89; `sfx_rocket` and `sfx_drone` were too quiet (0.15, 0.06) and were raised (0.47, 0.28). Not listened to by ear.
 
 ## Verification record — v0.13.0 (2026-10-13)
 
