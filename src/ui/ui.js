@@ -11,9 +11,11 @@ import { MapRenderer } from './maps.js';
 import { PANELS, h } from './panels.js';
 import { terminalPanel } from './terminal.js';
 import { tabletPanel } from './tablet.js';
+import { dealerPanel } from './dealer.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
+PANELS.dealer = dealerPanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -84,6 +86,7 @@ export class UI {
       modal: document.getElementById('modal'),
       modalTitle: document.getElementById('modal-title'),
       modalPanel: document.getElementById('modal-panel'),
+      keys: document.getElementById('hud-keys'),
       tabletBadge: document.getElementById('hud-tablet'),
       modalBody: document.getElementById('modal-body'),
       modalTabs: document.getElementById('modal-tabs'),
@@ -396,7 +399,15 @@ export class UI {
     if (this.state !== 'playing' || this.game?.combat.wrath) return;
     if (this.build && this.buildAction(action)) return;
     switch (action) {
-      case 'build': this.toggleBuild(); break;
+      case 'build': if (!this.game.player.driving) this.toggleBuild(); break;
+      case 'horn': {
+        const g = this.game;
+        if (!g.player.driving) break;
+        this.audio.sfx('sfx_horn');
+        // people nearby jump out of their skin
+        for (const n of g.npcs.values()) if (n.map === g.player.map && Math.hypot(n.x - g.player.x, n.y - g.player.y) < 160 && g.rng.chance(0.4)) g.bark(n, g.rng.pick(['Oi!', 'Alright, alright!', 'I heard you the first time!', '*jumps*']));
+        break;
+      }
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
       case 'journal': this.openPanel('tablet'); break;
@@ -598,6 +609,9 @@ export class UI {
       if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
       if (this.build) this.updateBuild();
       g.update(dt, move);
+      // the engine note follows your speed (src/audio/audioEngine.js)
+      const car = g.vehicles.driving();
+      this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;
       this.renderer.highlight = target || null;
@@ -639,10 +653,23 @@ export class UI {
     const w = g.combat.equipped();
     const ammo = g.combat.ammoStatus();
     const ammoHtml = ammo ? `<span class="ammo${ammo.loaded ? '' : ' empty'}">${ammo.reloading ? 'reloading…' : `${ammo.loaded}/${ammo.mag}`} · ${ammo.reserve}</span>` : '';
-    const whtml = `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
+    const car = g.vehicles.driving();
+    const whtml = car
+      ? `<span>🚗 ${escapeHtml(g.vehicles.model(car).name)}${car.stolen ? ' <span class="tag bad">stolen</span>' : ''}</span><span class="ammo">${Math.round(Math.abs(car.speed || 0) * 0.105)} mph</span>`
+      : `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
     if (this.el.weapon.innerHTML !== whtml) this.el.weapon.innerHTML = whtml;
     if (p.hurtAt && g.realTime - p.hurtAt < 0.05) { this.el.hudBl.classList.remove('hurt'); void this.el.hudBl.offsetWidth; this.el.hudBl.classList.add('hurt'); }
-    if (target) {
+    if (this.el.keys) {
+      if (!this.walkKeys) this.walkKeys = this.el.keys.textContent;
+      set(this.el.keys, car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
+    }
+    const hw = g.vehicles.hotwire;
+    if (hw) {
+      const k = Math.min(1, hw.t / hw.need);
+      const html = `🔧 Hotwiring… <span class="hotwire"><i style="width:${Math.round(k * 100)}%"></i></span> (stand still)`;
+      if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
+      this.el.prompt.classList.remove('hidden');
+    } else if (target) {
       const html = `<kbd>E</kbd>${escapeHtml(target.label)}`;
       if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
       this.el.prompt.classList.remove('hidden');

@@ -73,6 +73,10 @@ export const FACTS = {
     text: 'The newcomer set off explosives in the street.', importance: 10, aboutPlayer: true,
     relImpact: { trust: -25, affection: -15, suspicion: 40 }, reputation: { lanternside: -15 }, keywords: ['explosion', 'rocket', 'missile', 'bomb', 'drone'],
   },
+  fact_player_car_theft: {
+    text: 'The newcomer hotwired a car that wasn\'t theirs and drove off in it.', importance: 7, aboutPlayer: true,
+    relImpact: { trust: -15, affection: -5, suspicion: 30 }, reputation: { lanternside: -5 }, keywords: ['car', 'stolen', 'theft', 'hotwire', 'stole'],
+  },
   fact_player_smitten: {
     text: 'The newcomer raised a hand against one of the untouchable — and was struck down by lightning out of a clear sky.', importance: 9,
     keywords: ['lightning', 'smite', 'struck', 'runes', 'wrath'],

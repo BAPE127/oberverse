@@ -2,6 +2,7 @@
 // highlight and day/night lighting. Reads game state; never mutates it.
 import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
+import { drawCar } from './drawVehicles.js';
 import { drawCharacter, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
@@ -213,14 +214,24 @@ export class Renderer {
         const lift = g.combat.wrath?.npcId === npc.id ? wrathLift(g, g.combat.wrath) : 0;
         items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, lift ? { ...npc, y: npc.y - lift, moving: false } : npc, npc.activity === 'sleep')) });
       }
+      // cars (src/systems/vehicles.js)
+      if (g.vehicles) {
+        const models = g.content.vehicles.models;
+        for (const car of g.vehicles.carsOn(lm.id)) {
+          const m = models[car.model];
+          if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
+          const driven = car.id === g.player.driving;
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: driven && night, time: this.time, siren: false })) });
+        }
+      }
     }
     const held = g.combat.equipped().weapon.held;
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
-    if (!this.hidePlayer && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
+    if (!this.hidePlayer && !g.player.driving && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
-    if (!this.hidePlayer && this.playerOccluded(map)) {
+    if (!this.hidePlayer && !g.player.driving && this.playerOccluded(map)) {
       ctx.globalAlpha = 0.38;
       this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
@@ -550,7 +561,16 @@ export class Renderer {
           this.beam = { x: lx, y: ly };
         }
       }
-      if (!this.hidePlayer) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      if (!this.hidePlayer && !g.player.driving) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      // headlights: a pool of light ahead of the car you're driving
+      const car = g.vehicles?.driving();
+      if (car) {
+        const m = g.content.vehicles.models[car.model];
+        const cs = Math.cos(car.angle);
+        const sn = Math.sin(car.angle);
+        for (const [d, r] of [[m.len / 2 + 30, 55], [m.len / 2 + 80, 75], [m.len / 2 + 140, 90]]) hole(car.x + cs * d, car.y + sn * d - 4, r, 0.85);
+        this.headlights = { x: car.x + cs * (m.len / 2), y: car.y + sn * (m.len / 2) - 4, angle: car.angle };
+      } else this.headlights = null;
     } else {
       for (const p of map.props) if (p.type === 'window' || p.type === 'oven' || p.type === 'stove') hole(p.x * TILE + 16, p.y * TILE + 30, 90, 0.8);
       hole(g.player.x, g.player.y - 14, 110, 0.7);
@@ -568,6 +588,19 @@ export class Renderer {
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    if (this.headlights && outdoor) {
+      const s = this.toScreen(this.headlights.x, this.headlights.y);
+      const len = 230 * z;
+      const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
+      grad.addColorStop(0, `rgba(255,245,200,${0.3 * g.clock.darkness})`);
+      grad.addColorStop(1, 'rgba(255,245,200,0)');
+      this.ctx.fillStyle = grad;
+      this.ctx.beginPath();
+      this.ctx.moveTo(s.x, s.y);
+      this.ctx.arc(s.x, s.y, len, this.headlights.angle - 0.42, this.headlights.angle + 0.42);
+      this.ctx.closePath();
       this.ctx.fill();
     }
     if (this.beam) {

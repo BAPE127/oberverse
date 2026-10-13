@@ -307,6 +307,36 @@ div.tablet-card { border: 2px dashed var(--line); }
 .wmap-canvas { display: block; width: 100%; height: min(560px, calc(100vh - 290px)); min-height: 260px; border: 2px solid var(--ink); border-radius: 10px; cursor: grab; touch-action: none; }
 .wmap-canvas.grabbing { cursor: grabbing; }
 .wmap-tip { position: absolute; z-index: 2; background: var(--paper); border: 2px solid var(--ink); border-radius: 8px; padding: 5px 9px; font-size: 13px; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.3); max-width: 220px; }
+
+/* ---- dealerships (v0.16.0, src/ui/dealer.js) ---- */
+.dealer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: 10px; margin-bottom: 10px; }
+.dealer-head b { font-size: 18px; }
+.dealer-row { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.dealer-car { width: 220px; height: 120px; flex: none; border-radius: 10px; }
+.dealer-name { font-weight: bold; font-size: 16px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.dealer-price { margin-left: auto; font-size: 15px; }
+.dealer-pitch { font-style: italic; font-size: 13px; margin-top: 4px; }
+.dealer-stats { display: grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap: 4px 12px; margin-top: 6px; font-size: 12px; }
+.dealer-stat .meter i { left: 0; }
+.dealer-swatches { display: flex; gap: 6px; }
+.dealer-swatches .swatch { width: 22px; height: 22px; border-radius: 50%; padding: 0; border: 2px solid rgba(0,0,0,.35); }
+.dealer-swatches .swatch.on { outline: 3px solid var(--gold); outline-offset: 1px; }
+.dealer-msg { font-weight: bold; }
+.dealer-fine { font-size: 12px; }
+/* Fender's: garish forecourt bunting */
+.dealer-fender .dealer-head { background: repeating-linear-gradient(90deg, #e8c04a 0 18px, #c8402a 18px 36px); color: #fff; text-shadow: 0 2px 0 #7a2a1a; }
+.dealer-fender .dealer-row { background: #fff6d8; border: 2px dashed #c8402a; }
+.dealer-fender .dealer-car { background: #cfd2cf; }
+.dealer-fender .dealer-price { color: #c8402a; transform: rotate(-3deg); font-family: var(--display); font-size: 18px; }
+/* Beaumont's: navy, gold, marble */
+#modal-panel.dealer-beaumont { background: #f6f3ec; }
+.dealer-beaumont .dealer-head { background: #1e2a3f; color: #e9d8a6; font-family: var(--display); letter-spacing: 1px; }
+.dealer-beaumont .dealer-row { background: linear-gradient(135deg, #fbfaf6, #ece6da); border: 1px solid #d9c08a; }
+.dealer-beaumont .dealer-car { background: radial-gradient(ellipse at center, #ffffff, #d8d2c6); }
+.dealer-beaumont .dealer-name { font-family: var(--display); }
+.dealer-beaumont .dealer-price { color: #8a6a1f; }
+.hotwire { display: inline-block; width: 90px; height: 8px; background: rgba(0,0,0,.2); border-radius: 4px; vertical-align: middle; overflow: hidden; }
+.hotwire i { display: block; height: 100%; background: var(--warn); }
 </style>
 </head>
 <body>
@@ -1063,6 +1093,7 @@ m.rect(3, 1, 20, 9, ':').rect(6, 3, 8, 4, 'g'); // construction site + foundatio
 m.rect(12, 10, 1, 1, ':'); // site gate
 m.rect(29, 9, 1, 2, ','); // office path
 m.rect(9, 21, 1, 1, ','); // apartment step
+m.rect(17, 15, 19, 6, 'g').rect(17, 14, 19, 1, ','); // Fender's Pre-Loved Motors: the forecourt (v0.16.0)
 m.rect(41, 26, 3, 22, '~').rect(0, 44, W, 4, '~').rect(0, 42, 41, 2, 's'); // inlet and shore
 
 const fence = [];
@@ -1090,6 +1121,11 @@ const westbrook = {
       door: { x: 29, y: 8, to: { map: 'mason_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '18:30' } } },
     },
     {
+      id: 'b_fender_office', mapLabel: 'Fender\'s Motors', name: 'Fender\'s Pre-Loved Motors', x: 36, y: 15, w: 6, h: 4,
+      roof: '#c8402a', wall: '#f2e2a0', trim: '#7a2a1a', flatRoof: true, sign: 'FENDER\'S MOTORS', awning: '#e8c04a',
+      door: { x: 38, y: 18, to: { map: 'fender_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_marty'], hours: { from: '08:30', to: '19:00' } } },
+    },
+    {
       id: 'b_plumb_line', mapLabel: 'Plumb Line Apts', name: 'Plumb Line Apartments', x: 4, y: 15, w: 12, h: 6,
       roof: '#7a8a9a', wall: '#e2d4bd', trim: '#4a5a6a', sign: 'PLUMB LINE APTS',
       door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '22:00' } } },
@@ -1114,6 +1150,8 @@ const westbrook = {
     birdwatch: { x: 17, y: 26, facing: 'up' },
     survey: { x: 20, y: 31, facing: 'down' },
     lots_sign: { x: 24, y: 27, facing: 'down' },
+    fender_pitch: { x: 26, y: 19, facing: 'up' },
+    fender_door_out: { x: 38, y: 19, facing: 'down' },
   },
   props: [
     ...fence,
@@ -1131,10 +1169,14 @@ const westbrook = {
     { id: 'site_bench', type: 'bench', x: 20, y: 9 },
     lamp('wl_1', 5, 14), lamp('wl_2', 18, 14), lamp('wl_3', 32, 14), lamp('wl_4', 40, 10), lamp('wl_5', 24, 21),
     { id: 'tree_w1', type: 'tree', x: 26, y: 1 }, { id: 'tree_w2', type: 'tree', x: 36, y: 3 }, { id: 'tree_w3', type: 'pine', x: 40, y: 6 },
-    { id: 'tree_w4', type: 'tree', x: 1, y: 17 }, { id: 'tree_w5', type: 'pine', x: 34, y: 17 }, { id: 'tree_w6', type: 'tree', x: 38, y: 19 },
+    { id: 'tree_w4', type: 'tree', x: 1, y: 17 }, { id: 'tree_w6', type: 'tree', x: 41, y: 20 },
     { id: 'tree_w7', type: 'pine', x: 2, y: 30 }, { id: 'tree_w8', type: 'tree', x: 37, y: 37 }, { id: 'tree_w9', type: 'tree', x: 6, y: 39 },
     { id: 'fb_apts', type: 'flowerbed', x: 11, y: 21, w: 2 },
-    { id: 'bench_w', type: 'bench', x: 30, y: 20 },
+    // Fender's Pre-Loved Motors (v0.16.0)
+    { id: 'fender_flag_w', type: 'flagpole', x: 17, y: 15, color: '#e8c04a', examine: 'A flagpole flying a flag that just says "DEALS".' },
+    { id: 'fender_flag_e', type: 'flagpole', x: 35, y: 20, color: '#c8402a', examine: 'A second flag. It says "MORE DEALS".' },
+    { id: 'fender_sign', type: 'sign', x: 17, y: 20, examine: '"FENDER\'S PRE-LOVED MOTORS — Every car a bargain!* (*Not a guarantee. Sold as seen. No refunds. No questions. No.)"' },
+    { id: 'fender_tyres', type: 'barrel', x: 34, y: 15, color: '#2a2a2a', examine: 'A stack of bald tyres labelled "SPARES (ALLEGEDLY)".' },
     // The Lots: surveyed, waiting for future properties (see docs/PROPERTIES.md)
     { id: 'lots_sign', type: 'sign', x: 24, y: 26, examine: '"SURVEYED LOTS — Build your future here! Enquire at Mason\'s Os. (We\'ll make it brick-ly worth your while.)"' },
     stake('stk_1', 6, 28), stake('stk_2', 16, 28), stake('stk_3', 6, 35), stake('stk_4', 16, 35),
@@ -1159,6 +1201,25 @@ const masonOffice = {
     { id: 'mo_cab', type: 'cabinet', x: 8, y: 1, examine: 'Permits, in triplicate. Osric would be proud. Osric IS proud; he said so, once, at length.' },
     { id: 'mo_coffee', type: 'stove', x: 8, y: 4, examine: 'A coffee machine with a label: "BREW-NO-STOP". It has never been cleaned. It has never needed to be. It is perfect.' },
     { id: 'mo_win', type: 'window', x: 7, y: 0 },
+  ],
+};
+
+const fenderOffice = {
+  id: 'fender_office',
+  name: 'Fender\'s Pre-Loved Motors',
+  kind: 'interior',
+  music: 'mus_westbrook',
+  ambience: 'amb_indoor',
+  owner: 'npc_marty',
+  tiles: roomTiles(8, 6, 'f', 3),
+  doors: [{ id: 'door_fender_office_exit', x: 3, y: 5, to: { map: 'westbrook', spot: 'fender_door_out' } }],
+  spots: { entry: { x: 3, y: 4, facing: 'up' }, desk: { x: 5, y: 2, facing: 'up' }, cot: { x: 2, y: 2, facing: 'left' } },
+  props: [
+    { id: 'fo_desk', type: 'desk', x: 4, y: 1, color: '#6a4a2a', examine: 'A desk buried in carbon-copy sales forms. Every form has the same signature on the "previous owner" line. It is Marty\'s.' },
+    { id: 'fo_cot', type: 'cot', x: 1, y: 1, examine: 'A camp bed. Marty "doesn\'t live here". Marty lives here.' },
+    { id: 'fo_keys', type: 'cabinet', x: 6, y: 1, examine: 'A board of car keys on hooks. Several are labelled "???".' },
+    { id: 'fo_poster', type: 'painting', x: 2, y: 0, examine: 'A poster of Marty, younger, giving a thumbs-up beside a car that is on fire. Caption: "HOT DEALS".' },
+    { id: 'fo_plates', type: 'crate', x: 6, y: 4, examine: 'A crate of blank number plates. A sticky note: "FOR DISPLAY PURPOSES".' },
   ],
 };
 
@@ -1193,9 +1254,9 @@ const apartments = {
   ],
 };
 
-const __default = [westbrook, masonOffice, apartments];
+const __default = [westbrook, masonOffice, apartments, fenderOffice];
 
-return { westbrook, masonOffice, apartments, default: __default };
+return { westbrook, masonOffice, fenderOffice, apartments, default: __default };
 })();
 
 // ---- src/content/maps/halvermouth.js
@@ -1224,6 +1285,7 @@ for (const x of STREETS) m.rect(x, 0, 2, 71, '=');
 // --- blocks
 m.rect(41, 15, 20, 20, 'm'); // Civic Plaza
 m.rect(0, 15, 13, 20, 'g'); // Harbourline car park
+m.rect(101, 20, 10, 4, 'm'); // the Beaumont Motor Gallery's forecourt (v0.16.0)
 m.rect(78, 23, 7, 12, 'g'); // police car park
 m.rect(89, 39, 23, 20, '.'); // Founders Park
 m.rect(89, 48, 23, 1, ':').rect(99, 39, 1, 20, ':'); // park paths
@@ -1298,6 +1360,11 @@ const buildings = [
     roof: '#3a3a32', wall: '#7a6a52', trim: '#2a2418', flatRoof: true, sign: 'PIPECREEK ARMORY', awning: '#5a4a2a',
     door: { x: 69, y: 58, to: { map: 'gun_shop', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '09:00', to: '19:00' } } },
   },
+  {
+    id: 'b_beaumont', name: 'Beaumont Motor Gallery', mapLabel: 'Beaumont Motor Gallery', x: 102, y: 15, w: 9, h: 5,
+    roof: '#1e2a3f', wall: '#e9e4d8', trim: '#b8892f', flatRoof: true, sign: 'BEAUMONT', columns: true, awning: '#1e2a3f',
+    door: { x: 106, y: 19, to: { map: 'beaumont_showroom', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_julian'], hours: { from: '09:30', to: '18:30' } } },
+  },
   shop('b_locksmith', 'Tumbler & Sons Locksmiths', 74, 52, 5, 7, { roof: '#5a4a3a', wall: '#c8b89a', sign: 'LOCKS' }),
   shop('b_bail', 'Bail Bonds 24/7', 80, 52, 5, 7, { roof: '#7a6a2a', wall: '#e8d888', trim: '#5a4a1a', sign: 'BAIL BONDS' }),
   // The Sumps
@@ -1364,8 +1431,10 @@ P('sign', 76, 34, { examine: '"HALVERMOUTH POLICE DEPARTMENT — PRECINCT 1. Ope
 // East End and the East Gate
 P('gatepost', 108, 35); P('gatepost', 108, 38);
 P('sign', 106, 35, { examine: '"WELCOME TO HALVERMOUTH — City of a Thousand Windows. East: Westbrook, Lanternside & the Coast Road."' });
-for (const [x, y] of [[103, 17], [107, 17], [103, 22], [107, 22], [103, 27], [107, 27], [103, 32]]) P('tree', x, y, { color: '#4f8a4a' });
-P('bench', 105, 19); P('bench', 105, 29);
+for (const [x, y] of [[103, 27], [107, 27], [103, 32]]) P('tree', x, y, { color: '#4f8a4a' });
+P('bench', 105, 29);
+P('flagpole', 101, 15, { color: '#1e2a3f', examine: 'A navy pennant with a gold B. It does not flap so much as gesture.' });
+P('sign', 110, 21, { examine: '"BEAUMONT MOTOR GALLERY — Est. in the age of carriages. By appointment, or by sufficient means."' });
 for (const x of [90, 94]) P('car', x, 18, { color: '#1e1e22', examine: 'A black limousine with a chauffeur asleep at the wheel. Grand Hotel guests only.' });
 // Market Street and Iron Row
 for (let x = 54; x < 61; x += 2) P('booth', x, 48, { examine: 'A market stall: fish, flowers, and "genuine" Ober\'s Oil shares at a discount.' });
@@ -1427,6 +1496,7 @@ const halvermouth = {
     hall_door_out: { x: 50, y: 24, facing: 'down' },
     police_door_out: { x: 71, y: 34, facing: 'down' },
     gunshop_door_out: { x: 69, y: 59, facing: 'down' },
+    beaumont_door_out: { x: 106, y: 20, facing: 'down' },
     mill_road_west: { x: 1, y: 60, facing: 'right' },
     sumps_gate: { x: 16, y: 38, facing: 'down' },
     mission_front: { x: 22, y: 46, facing: 'up' },
@@ -1593,6 +1663,33 @@ const jail = {
   ],
 };
 
+// The Beaumont Motor Gallery (v0.16.0): a marble showroom of cars as art,
+// Julian Beaumont's desk, and a lounge for clients (and Julian, after hours).
+const beaumontShowroom = {
+  id: 'beaumont_showroom',
+  name: 'Beaumont Motor Gallery',
+  kind: 'interior',
+  music: 'mus_manor',
+  ambience: 'amb_indoor',
+  owner: 'npc_julian',
+  tiles: roomTiles(18, 11, 't', 9),
+  doors: [{ id: 'door_beaumont_exit', x: 9, y: 10, to: { map: 'halvermouth', spot: 'beaumont_door_out' } }],
+  spots: { entry: { x: 9, y: 9, facing: 'up' }, desk: { x: 14, y: 2, facing: 'down' }, lounge: { x: 3, y: 8, facing: 'right' }, chaise: { x: 15, y: 8, facing: 'left' } },
+  props: [
+    { id: 'bg_aurelia', type: 'car_display', model: 'aurelia', x: 1, y: 1, w: 3, h: 2, examine: 'The Beaumont Aurelia, in midnight blue. A card on a brass stand: "6,500. Enquire with Mr Beaumont."' },
+    { id: 'bg_tempest', type: 'car_display', model: 'tempest', x: 6, y: 1, w: 3, h: 2, examine: 'The Halcyon Tempest GT. The walnut dashboard has been polished until you can see your bank balance in it.' },
+    { id: 'bg_regent', type: 'car_display', model: 'regent', x: 2, y: 4, w: 4, h: 2, examine: 'The Sterling Regent limousine. There is a decanter in the back. It is full. It is always full.' },
+    { id: 'bg_corsair', type: 'car_display', model: 'corsair', x: 8, y: 4, w: 3, h: 2, examine: 'The Vantaggio Corsair, red as an alarm. A card: "18,500. Please do not rev."' },
+    { id: 'bg_desk', type: 'desk', x: 13, y: 1, w: 3, color: '#2a1e18', examine: 'Julian\'s desk: a fountain pen, a leather order book and a single orchid. No computer. "Computers," he says, "are for people who forget things."' },
+    { id: 'bg_plant1', type: 'plant', x: 16, y: 1 }, { id: 'bg_plant2', type: 'plant', x: 1, y: 8 },
+    { id: 'bg_sofa', type: 'bench', x: 4, y: 8, w: 2, examine: 'A leather chesterfield for clients "considering their options".' },
+    { id: 'bg_chaise', type: 'bed', x: 16, y: 7, color: '#6a1f2a', examine: 'A velvet chaise longue in the back corner. Julian insists he never sleeps here.' },
+    { id: 'bg_bar', type: 'counter', x: 13, y: 5, w: 3, examine: 'A little bar: sherry, champagne, and sparkling water "for the drivers".' },
+    { id: 'bg_rug', type: 'rug', x: 7, y: 7, w: 4, h: 2, color: '#1e2a3f' },
+    { id: 'bg_portrait', type: 'painting', x: 11, y: 0, examine: 'Three generations of Beaumonts, each beside a vehicle: a carriage, a motor car, and the Corsair. All three are wearing the same expression.' },
+  ],
+};
+
 const gunShop = {
   id: 'gun_shop',
   name: 'Pipecreek Armory',
@@ -1708,9 +1805,9 @@ const surplus = {
   ],
 };
 
-const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, wh7, wh9, wh12, surplus];
+const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop, beaumontShowroom, abacus, wh7, wh9, wh12, surplus];
 
-return { halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, wh7, wh9, wh12, surplus, default: __default };
+return { halvermouth, hallOfJustice, policeStation, jail, beaumontShowroom, gunShop, abacus, wh7, wh9, wh12, surplus, default: __default };
 })();
 
 // ---- src/content/maps/yards.js
@@ -2096,6 +2193,7 @@ const PROP_TYPES = {
   // Halvermouth
   car: { solid: true, label: 'Car', defaults: { w: 2, examine: 'A parked car. Nobody in Lanternside owns one of these.' } },
   flagpole: { solid: true, label: 'Flagpole', defaults: {} },
+  car_display: { solid: true, label: 'Display car', defaults: { w: 3, h: 2 } },
   statue: { solid: true, label: 'Statue', defaults: { w: 2, h: 2 } },
   trash: { solid: false, label: 'Rubbish', defaults: { examine: 'Bin bags, newspapers and something that used to be a sofa.' } },
   barrelfire: { solid: true, label: 'Burning barrel', defaults: { examine: 'An oil drum with a fire in it. People gather here on cold nights. The drum says OBER\'S OIL.' } },
@@ -2434,6 +2532,10 @@ const FACTS = {
   fact_player_explosion: {
     text: 'The newcomer set off explosives in the street.', importance: 10, aboutPlayer: true,
     relImpact: { trust: -25, affection: -15, suspicion: 40 }, reputation: { lanternside: -15 }, keywords: ['explosion', 'rocket', 'missile', 'bomb', 'drone'],
+  },
+  fact_player_car_theft: {
+    text: 'The newcomer hotwired a car that wasn\'t theirs and drove off in it.', importance: 7, aboutPlayer: true,
+    relImpact: { trust: -15, affection: -5, suspicion: 30 }, reputation: { lanternside: -5 }, keywords: ['car', 'stolen', 'theft', 'hotwire', 'stole'],
   },
   fact_player_smitten: {
     text: 'The newcomer raised a hand against one of the untouchable — and was struck down by lightning out of a clear sky.', importance: 9,
@@ -3427,6 +3529,10 @@ const AUDIO_REGISTRY = [
   sfx('sfx_rocket', 'an RPG rocket, missile or drone missile launching'),
   sfx('sfx_explosion', 'an explosion (RPG, missile, drone)'),
   sfx('sfx_drone', 'a drone taking off'),
+  sfx('sfx_car_start', 'getting into a car (the starter cranks and the engine catches)'),
+  sfx('sfx_crash', 'a car hitting a wall, another car or a person'),
+  sfx('sfx_horn', 'the car horn (H while driving)'),
+  { id: 'loop_engine', category: 'sfx', method: 'procedural: AudioEngine.setEngine (two detuned saws through a low-pass, pitch and level follow speed)', trigger: 'while you drive', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_crate', 'each crate of guns in Lucas Eastrise\'s Wrath; the fifth is the missile'),
   sfx('sfx_digit', 'each giant digit in Arthur Anderson\'s Wrath; the fifth is the giant calculator'),
   sfx('sfx_ram', 'each squad car ramming in during Chief Order\'s Wrath; the fifth is the gavel'),
@@ -7553,6 +7659,312 @@ function withPlots(content, plots) {
 return { plotInteriorId, plotContainerId, plotBuilding, withPlots };
 })();
 
+// ---- src/content/vehicles.js
+__m["src/content/vehicles.js"] = (function () {
+// Vehicles (v0.16.0 "On the Road"): car models, the two dealerships, and the
+// cars parked around the world. Owner's answers: drive cars yourself (E to get
+// in and out; they stay where you park them); running people over hurts them
+// and is a crime (imported characters are never harmed); cars can be stolen
+// and the police look for stolen cars; NPC traffic and the bus follow in v0.17.
+//
+// Model stats: price (obols); top (px/s — walking is 128, sprinting ~200);
+// accel (px/s²); grip (steering, rad/s at speed); len × wid (px, drawn and
+// collided); body (drawing style); colors (choices at the dealer, first is
+// the default).
+const CAR_MODELS = {
+  // ---- Fender's Pre-Loved Motors (Westbrook Row): boring, basic, used ----
+  pipit: {
+    name: 'Halver Pipit', dealer: 'fender', price: 420, top: 250, accel: 190, grip: 2.7, len: 73, wid: 38, body: 'hatch', used: true,
+    colors: ['#c8b98f', '#7f8f6a', '#a35a48'],
+    blurb: 'A three-door hatchback with one previous owner and several previous engines. The heater is stuck on. So is the radio.',
+    pitch: 'The Pipit! Sensible! Economical! Ninety-three thousand miles, and I personally guarantee at least twelve of them were gentle.',
+  },
+  dray: {
+    name: 'Morrow Dray Estate', dealer: 'fender', price: 680, top: 270, accel: 175, grip: 2.4, len: 84, wid: 40, body: 'estate', used: true,
+    colors: ['#6f7f94', '#8a6a4a', '#d9d4c6'],
+    blurb: 'A long beige-adjacent estate car. Fits a family, a dog, or a surprising number of unexplained boxes. Smells faintly of wet labrador.',
+    pitch: 'Room for the whole family! Or one very large dog. The last owner was a priest. Or a pirate. Something with a P.',
+  },
+  mule: {
+    name: 'Ostley Mule Pickup', dealer: 'fender', price: 900, top: 265, accel: 185, grip: 2.3, len: 86, wid: 40, body: 'pickup', used: true,
+    colors: ['#3f5f7a', '#9a3b2f', '#5a5a52'],
+    blurb: 'A rusty workhorse with an open bed. Starts first time on Tuesdays. The tailgate is held on with optimism and a bungee cord.',
+    pitch: 'A working truck for a working person! The rust is structural. That\'s a selling point. Ask anyone. Don\'t ask anyone.',
+  },
+  // ---- Beaumont Motor Gallery (Halvermouth, the East End): high end ----
+  aurelia: {
+    name: 'Beaumont Aurelia', dealer: 'beaumont', price: 6500, top: 400, accel: 330, grip: 3.2, len: 89, wid: 40, body: 'saloon',
+    colors: ['#1d2a3f', '#e8e4da', '#6a1f2a', '#2f3a33'],
+    blurb: 'An executive saloon: quilted leather, a clock in the dashboard that is correct, and a ride so soft the potholes apologise.',
+    pitch: 'The Aurelia. Understated. One doesn\'t arrive in an Aurelia; one is simply, suddenly, already there.',
+  },
+  tempest: {
+    name: 'Halcyon Tempest GT', dealer: 'beaumont', price: 11000, top: 450, accel: 410, grip: 3.4, len: 89, wid: 40, body: 'gt',
+    colors: ['#2a4a6a', '#b8892f', '#3a3a40', '#8c2a1e'],
+    blurb: 'A long-bonneted grand tourer for crossing a country before lunch. Twin exhausts, walnut trim, a boot that holds exactly one weekend.',
+    pitch: 'The Tempest. For when the journey must be the point, and the destination is merely where one stops being admired.',
+  },
+  corsair: {
+    name: 'Vantaggio Corsair', dealer: 'beaumont', price: 18500, top: 480, accel: 520, grip: 3.8, len: 81, wid: 39, body: 'coupe',
+    colors: ['#c8261e', '#f2c230', '#f4f4f0', '#1a1a1e'],
+    blurb: 'A low, loud two-seat coupé that sounds like an argument. Go-faster stripes as standard; going faster is optional, but not really.',
+    pitch: 'The Corsair. I would not normally sell one to a first-time client. But you have, how shall I put it, an appetite.',
+  },
+  cruiser: {
+    name: 'Halvermouth Police Cruiser', dealer: null, price: 4000, top: 430, accel: 380, grip: 3.3, len: 86, wid: 40, body: 'police',
+    colors: ['#e8e2d4', '#1e2a3a'],
+    blurb: 'A police cruiser with a light bar, a radio full of static, and a cup holder with a doughnut-shaped stain.',
+    pitch: '',
+  },
+  regent: {
+    name: 'Sterling Regent Limousine', dealer: 'beaumont', price: 26000, top: 360, accel: 250, grip: 2.4, len: 119, wid: 43, body: 'limo',
+    colors: ['#141418', '#e9e6df', '#2a2430'],
+    blurb: 'A stretched limousine with a privacy screen, a drinks cabinet, and a horn that plays the first four notes of something stately.',
+    pitch: 'The Regent. Sir Moneybucks owns two. He bought the second so the first would have company.',
+  },
+};
+
+/** The dealerships. Display cars sit at `display` (tile x, y, angle in degrees; 0 = east, 90 = south). */
+const DEALERS = {
+  fender: {
+    name: 'Fender\'s Pre-Loved Motors', npc: 'npc_marty', map: 'westbrook', delivery: { x: 21, y: 17, angle: -90 },
+    lot: { x: 17, y: 15, w: 19, h: 6 },
+    models: ['pipit', 'dray', 'mule'],
+    display: [{ model: 'pipit', x: 24, y: 17, angle: -90 }, { model: 'dray', x: 28, y: 17, angle: -90 }, { model: 'mule', x: 32, y: 17, angle: -90 }],
+    tradeIn: 0.4, buysStolen: 0.3, plates: 150,
+  },
+  beaumont: {
+    name: 'Beaumont Motor Gallery', npc: 'npc_julian', map: 'halvermouth', delivery: { x: 93, y: 22, angle: 0 },
+    lot: { x: 88, y: 21, w: 14, h: 3 },
+    models: ['aurelia', 'tempest', 'corsair', 'regent'],
+    display: [{ model: 'corsair', x: 99, y: 22, angle: 0 }],
+    tradeIn: 0.55, buysStolen: 0, plates: 0,
+  },
+};
+
+/**
+ * Cars parked around the world at the start. Owned by an NPC (stealing one is
+ * a crime they take personally) or by nobody in particular.
+ */
+const PARKED_CARS = [
+  { id: 'car_moneybucks', model: 'regent', color: '#141418', map: 'ober_fields', x: 28, y: 11, angle: 0, owner: 'npc_moneybucks' },
+  { id: 'car_mason', model: 'mule', color: '#d9a23a', map: 'westbrook', x: 36, y: 10, angle: 0, owner: 'npc_mason' },
+  { id: 'car_lucas', model: 'tempest', color: '#5a3a24', map: 'halvermouth', x: 70, y: 50, angle: 0, owner: 'npc_lucas' },
+  { id: 'car_osric', model: 'pipit', color: '#5a6a7a', map: 'lanternside', x: 27, y: 10, angle: 0, owner: 'npc_osric' },
+];
+
+/**
+ * The parked cars that maps place as 'car' props (Halvermouth's avenues, the
+ * Harbourline car park, the police cruisers, the Grand Hotel's limousines)
+ * become real cars — every parked car can be driven off, at a price. Wrecks
+ * and the Yards' forklift and flatbed stay scenery. Mutates `maps`.
+ */
+function carPropsToVehicles(maps) {
+  const out = [];
+  const pick = ['pipit', 'dray', 'aurelia', 'mule', 'tempest', 'pipit', 'dray'];
+  for (const map of Object.values(maps)) {
+    if (map.id === 'yards') continue;
+    const keep = [];
+    for (const p of map.props || []) {
+      if (p.type !== 'car' || p.wrecked) { keep.push(p); continue; }
+      const w = p.w ?? 2;
+      const h = p.h ?? 1;
+      const vertical = h > w;
+      const model = p.police ? 'cruiser' : /limousine/i.test(p.examine || '') ? 'regent' : pick[out.length % pick.length];
+      out.push({ id: `car_${p.id}`, model, color: p.color || CAR_MODELS[model].colors[0], map: map.id, x: p.x + w / 2 - 0.5, y: p.y + h / 2 - 0.5, angle: vertical ? 90 : 0, owner: p.police ? 'police' : null });
+    }
+    map.props = keep;
+  }
+  return out;
+}
+
+/** Driving tuning shared by every car. */
+const DRIVING = {
+  reverseShare: 0.35, // top speed in reverse, as a share of top
+  brake: 520, // px/s² when braking against the direction of travel
+  drag: 70, // px/s² rolling resistance (plus a share of speed)
+  offRoad: 0.6, // top speed on grass, sand, mud, dirt
+  hitSpeed: 70, // px/s: slower than this, people are just nudged
+  lethalSpeed: 330, // px/s: faster than this and a hit can kill
+  hitDamage: 0.26, // damage per px/s of speed
+};
+
+return { CAR_MODELS, DEALERS, PARKED_CARS, carPropsToVehicles, DRIVING };
+})();
+
+// ---- src/content/characters/dealers.js
+__m["src/content/characters/dealers.js"] = (function () {
+// The car dealers (v0.16.0 "On the Road"). Original characters written for the
+// transportation update (owner's answer: new original NPCs; ordinary,
+// killable characters). Marty Fender runs a sleazy used-car lot on Westbrook
+// Row; Julian Beaumont runs a high-end showroom in Halvermouth's East End.
+const marty = {
+  id: 'npc_marty', name: 'Marty Fender', shortName: 'Marty', tier: 'minor', origin: 'generated', faction: null,
+  combat: { maxHealth: 90 },
+  role: 'Owner, salesman and sole employee of Fender\'s Pre-Loved Motors, Westbrook Row. Sells three tired cars and buys anything with wheels, no questions asked.',
+  dialogue: 'dlg_marty',
+  voice: { wave: 'square', pitch: 190, variance: 40, rate: 1.35 },
+  appearance: {
+    skin: '#e8b48c', hair: '#1e1a1a', hairStyle: 'parted', outfit: '#8a6a2a', pattern: 'check', patternColor: 'rgba(240,200,90,0.5)',
+    undershirt: '#f0e6c8', legs: '#4a3a2a', shoes: '#f2f0ea', accessories: ['shades', 'chain'], accent: '#e8c04a', build: 'round', height: 0.96,
+  },
+  personality: { traits: ['sleazy', 'relentless', 'charming', 'evasive'], sociability: 0.95, conscientiousness: 0.25, impulsiveness: 0.7, discretion: 0.85, honesty: 0.2, empathy: 0.35, confidence: 0.95 },
+  speech: { rumorPrefix: 'Between you, me and the bonnet,', factPrefix: 'Hand on heart —', refuse: 'Can\'t talk about that. Legal reasons. Legal-ish reasons.' },
+  walkSpeed: 1.0, punctuality: 25, impulses: [], notices: [], knowledge: [],
+  noSnitch: true,
+  schedule: [
+    { from: '08:30', to: '19:00', activity: 'work', spot: 'westbrook:fender_pitch', label: 'working the lot' },
+    { from: '19:00', to: '23:30', activity: 'relax', spot: 'fender_office:desk', label: 'counting the day\'s takings' },
+    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'fender_office:cot' },
+  ],
+  relationships: { player: { trust: 0, affection: 10, respect: 0, suspicion: 0 }, npc_julian: { trust: -10, affection: -20, respect: 15, suspicion: 20 }, npc_mason: { trust: 10, affection: 20, respect: 10, suspicion: 0 } },
+  giftPrefs: { item_coffee: 4, item_cigar: 9, tags: { money: 8 } },
+  opinions: {
+    npc_julian: { warm: 'Julian Beaumont? Lovely suits. Terrible personality. Sells the same thing I sell — four wheels and a dream — at forty times the price.', cool: 'Beaumont once called my lot "a skip with bunting". The bunting is IMPORTED.' },
+    npc_mason: { warm: 'Mason\'s my best customer. Bought the Mule twice. Same Mule. Long story.', cool: 'Mason keeps asking for his money back. On a SOLD AS SEEN vehicle. Tsk.' },
+  },
+};
+
+const julian = {
+  id: 'npc_julian', name: 'Julian Beaumont', shortName: 'Julian', tier: 'minor', origin: 'generated', faction: null,
+  combat: { maxHealth: 80 },
+  role: 'Proprietor of the Beaumont Motor Gallery in Halvermouth\'s East End. Sells cars the way other people sell paintings: slowly, and only to the right sort of person.',
+  dialogue: 'dlg_julian',
+  voice: { wave: 'sine', pitch: 150, variance: 15, rate: 0.95 },
+  appearance: {
+    skin: '#f0d2b8', hair: '#c9c4bc', hairStyle: 'short', outfit: '#1e2230', undershirt: '#f4f2ee', tie: '#2a5a6a', legs: '#1e2230', shoes: '#2a1e18',
+    accessories: ['watchchain'], accent: '#d9c08a', build: 'thin', height: 1.08,
+  },
+  personality: { traits: ['snobbish', 'polished', 'patient', 'precise'], sociability: 0.6, conscientiousness: 0.95, impulsiveness: 0.1, discretion: 0.9, honesty: 0.7, empathy: 0.4, confidence: 0.9 },
+  speech: { rumorPrefix: 'One hears, in certain circles, that', factPrefix: 'I am reliably informed that', refuse: 'I\'m afraid that falls outside the remit of the Gallery.' },
+  walkSpeed: 0.9, punctuality: 2, impulses: [], notices: [], knowledge: [],
+  schedule: [
+    { from: '09:30', to: '18:30', activity: 'work', spot: 'beaumont_showroom:desk', label: 'at the showroom desk' },
+    { from: '18:30', to: '23:00', activity: 'relax', spot: 'beaumont_showroom:lounge', label: 'with a small sherry' },
+    { from: '23:00', to: '09:30', activity: 'sleep', spot: 'beaumont_showroom:chaise' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: -5, suspicion: 5 }, npc_marty: { trust: -30, affection: -10, respect: -30, suspicion: 40 }, npc_moneybucks: { trust: 30, affection: 20, respect: 40, suspicion: 0 } },
+  giftPrefs: { item_coffee: 2, item_cigar: 6, tags: { luxury: 10 } },
+  opinions: {
+    npc_marty: { warm: 'Mr Fender is… enthusiastic. One admires enthusiasm, at a distance.', cool: 'Fender\'s "Pre-Loved Motors". Loved by whom, one wonders. And how roughly.' },
+    npc_moneybucks: { warm: 'Sir Moneybucks is the Gallery\'s most valued patron. He has never once asked the price of anything. A true gentleman.', cool: 'Sir Moneybucks still owes for the second Regent. One does not mention it. I have just mentioned it. Forget I mentioned it.' },
+  },
+};
+
+const __default = [marty, julian];
+
+return { marty, julian, default: __default };
+})();
+
+// ---- src/content/dialogue/dealers.js
+__m["src/content/dialogue/dealers.js"] = (function () {
+// The car dealers (v0.16.0). Both open the dealership panel (effect
+// { dealer: id }): buy a car, sell one parked on the lot, and — at Marty's
+// only — "fresh plates" for a stolen car.
+const dlgMarty = {
+  id: 'dlg_marty',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['HEY! Hey hey hey. There they are! My new best customer! Marty Fender, Fender\'s Pre-Loved Motors. Every car a bargain.*', '*Not a guarantee. Not a legal statement. Not technically a sentence.'] },
+    { if: { flag: 'owns_car' }, variants: [['Back for another? I knew it. You\'ve got the look. The "I need a second car" look.'], ['How\'s she running? Don\'t answer that. Legally I can\'t hear it.']] },
+    { if: {}, variants: [['Step right up! Kick a tyre! Not that one.'], ['Every car on this lot has a story. Most of them are true!'], ['Looking to buy? Looking to sell? Looking to make a problem go away? Ha! Joke! Mostly!']] },
+  ],
+  farewells: [{ if: {}, variants: [['Drive safe! Or don\'t! Not my business once you\'ve left the lot!'], ['Tell your friends! Don\'t tell the police!'], ['Sold as seen!']] }],
+  topics: [
+    {
+      id: 't_marty_buy', label: '"I\'m looking for a car."', tag: 'quest', keywords: ['car', 'buy', 'cars', 'motor', 'vehicle', 'pipit', 'dray', 'mule'],
+      say: ['Course you are! Three beauties on the forecourt. The Pipit — economical. The Dray — spacious. The Mule — structural rust, very fashionable. Have a look. Fall in love. Sign here.'],
+      effects: [{ dealer: 'fender' }],
+    },
+    {
+      id: 't_marty_sell', label: '"Do you buy cars?"', keywords: ['sell', 'trade', 'trade-in', 'buy back'],
+      say: ['Do I buy cars! I buy ANY car. Park it on the lot and I\'ll make you an offer. Forty percent of list, which sounds low, because it is.', 'And if it\'s the kind of car that comes with… a complicated past? Thirty percent. No questions. I don\'t even know what a question is.'],
+      effects: [{ dealer: 'fender' }],
+    },
+    {
+      id: 't_marty_plates', label: '"What are \'fresh plates\'?"', keywords: ['plates', 'stolen', 'paperwork', 'hot', 'respray', 'clean'],
+      say: ['Fresh plates! Say you\'ve got a car. Say it\'s yours, spiritually, but on paper it belongs to some bloke. Park it on my lot, hundred and fifty obols, and by teatime it\'s got new plates, new papers and a brand-new history. Very moving history. The police love it.', 'I don\'t know what you\'re talking about. I never said any of that. Lovely weather.'],
+      effects: [{ dealer: 'fender' }],
+    },
+    {
+      id: 't_marty_warranty', label: '"Do your cars come with a warranty?"', keywords: ['warranty', 'guarantee', 'refund', 'broken', 'reliable'],
+      say: ['Every Fender car comes with the Fender Promise: if it breaks down within the first thirty seconds, I will personally feel bad about it.'],
+    },
+    {
+      id: 't_marty_self', label: '"How did you get into selling cars?"', keywords: ['marty', 'you', 'yourself', 'history', 'how'],
+      say: ['Born on a forecourt! Well — near one. Me mum sold boats. Me dad sold boats that had been other people\'s boats. I\'m the first Fender to go into land vehicles. Proudest day of their lives. Still waiting for them to say so.'],
+    },
+  ],
+  askAbout: [
+    { keywords: ['julian', 'beaumont', 'gallery', 'luxury'], say: ['Beaumont! Halvermouth, East End. Sells the same thing I sell — four wheels and a dream — at forty times the price. Wouldn\'t let me in the door. I wasn\'t even TRYING to sell him anything. Much.'] },
+    { keywords: ['police', 'lawrence', 'law', 'cops'], say: ['The police and I have an understanding. I don\'t understand them and they don\'t understand me. Works beautifully.'] },
+    { keywords: ['steal', 'stealing', 'hotwire', 'theft'], say: ['Stealing cars is a crime and I would never encourage it. However. If one did. Hypothetically. The lot is open till seven.'] },
+    { keywords: ['bus', 'buses', 'public transport'], say: ['The bus?! Why would anybody take the bus? Don\'t answer that. I\'ve got a Pipit that says you won\'t have to.'] },
+  ],
+  unknown: [['Couldn\'t tell you! Could sell you something, though.'], ['No idea! But have you considered a hatchback?']],
+  gift: { loved: [['For ME? You\'re a treasure. I\'ll knock… nothing off. But I\'ll FEEL like knocking something off.']], liked: [['Ta very much!']], neutral: [['Lovely. I\'ll put it in the boot of something.']], disliked: [['Ah. Hm. I\'ll re-gift it to a customer.']], tooMany: [['Steady! People will think I\'m being bribed!']], ownStolen: [['Here, that\'s mine! …Where did you — never mind. Never mind.']] },
+  barks: {
+    greet: ['Step right up!', 'Every car a bargain!', 'You look like a Pipit person!'],
+    work: ['*polishes a dent*', 'Low mileage! …For a submarine!', 'Sold as seen!', '*sticks a SALE sign over a rust patch*', 'Test drives available! Insurance not!'],
+    relax: ['*counts notes, twice*', '*hums the theme from an advert he made up*'],
+    sleep: ['…ninety-nine, ninety-nine… *snore*'],
+    chat: ['Ha! Lovely!', 'Between you and me —'],
+    argue: ['Sold as seen! SOLD AS SEEN!'],
+  },
+};
+
+const dlgJulian = {
+  id: 'dlg_julian',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Good afternoon. Julian Beaumont. Welcome to the Gallery.', 'Do mind the Corsair. It is not a coat stand, whatever the last visitor believed.'] },
+    { if: { wealth: '>=5000' }, variants: [['Ah — welcome back. Champagne? No? Very wise. One should never drink near a Tempest; it feels judged.'], ['How lovely to see you. The Gallery is, as ever, at your disposal.']] },
+    { if: {}, variants: [['Good afternoon. Browsing, I take it.'], ['Welcome. Please don\'t touch the paintwork. Or the air near the paintwork.'], ['Ah. Yes. Hello.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Good day.'], ['Do come again. When convenient.'], ['Mind the step. It\'s marble.']] }],
+  topics: [
+    {
+      id: 't_julian_buy', label: '"I\'d like to see your cars."', tag: 'quest', keywords: ['car', 'buy', 'cars', 'motor', 'aurelia', 'tempest', 'corsair', 'regent', 'see'],
+      say: [
+        { if: { wealth: '<6500' }, text: 'Of course. Looking is, after all, free. The Aurelia, the Tempest, the Corsair and the Regent. Do let me know if anything… becomes affordable.' },
+        { if: { wealth: '>=6500' }, text: 'Certainly. The Aurelia for comfort, the Tempest for distance, the Corsair for — let us say — character, and the Regent for when one has staff. Each is delivered to the forecourt, keys in the ignition.' },
+      ],
+      effects: [{ dealer: 'beaumont' }],
+    },
+    {
+      id: 't_julian_trade', label: '"Would you take my car in part-exchange?"', keywords: ['sell', 'trade', 'part-exchange', 'trade-in', 'part exchange'],
+      say: ['If it is parked on the forecourt, I shall have it appraised. Fifty-five percent of list, for anything with a clean history.', 'Anything with a… less clean history may try its luck on Westbrook Row. I\'m told the standards there are flexible.'],
+      effects: [{ dealer: 'beaumont' }],
+    },
+    {
+      id: 't_julian_fender', label: '"Have you heard of Fender\'s Pre-Loved Motors?"', keywords: ['fender', 'marty', 'used', 'westbrook'],
+      say: ['Mr Fender came to the Gallery once, to "network". He tried to sell my doorman a Pipit. The doorman bought it. We do not speak of the doorman.'],
+    },
+    {
+      id: 't_julian_self', label: '"How long has the Gallery been here?"', keywords: ['gallery', 'history', 'you', 'yourself', 'julian'],
+      say: ['My grandfather opened the Gallery to sell carriages. My father sold the first motor cars in Halvermouth. I sell the last word in them. One likes to think the family has… progressed.'],
+    },
+  ],
+  askAbout: [
+    { keywords: ['moneybucks', 'oil', 'regent'], say: ['Sir Moneybucks is our most valued patron. He owns two Regents. He bought the second so the first would have company. That is the kind of client one dreams of.'] },
+    { keywords: ['steal', 'stolen', 'theft', 'hotwire'], say: ['Every car in the Gallery is fitted with a discreet alarm, a tracking device, and the knowledge that I shall find you.'] },
+    { keywords: ['bus', 'public transport'], say: ['I have heard of it.'] },
+  ],
+  unknown: [['I\'m afraid I couldn\'t say.'], ['That falls outside the remit of the Gallery.']],
+  gift: { loved: [['How very thoughtful. I shall find it a suitable shelf.']], liked: [['Thank you. Quite unnecessary. Quite.']], neutral: [['…Thank you.']], disliked: [['Ah. One will… treasure it. Elsewhere.']], tooMany: [['Please. The Gallery is not a jumble sale.']], ownStolen: [['I believe that is mine.']] },
+  barks: {
+    greet: ['Good afternoon.', 'Welcome to the Gallery.'],
+    work: ['*buffs a wing mirror with a silk cloth*', '*adjusts a price card by a millimetre*', 'Exquisite.', 'Please don\'t lean on the Aurelia.'],
+    relax: ['*sips sherry*', '*reads the motoring column, disapprovingly*'],
+    sleep: ['…walnut trim… *a dignified snore*'],
+    chat: ['Quite.', 'Indeed.'],
+    argue: ['I beg your pardon.'],
+  },
+};
+
+const __default = [dlgMarty, dlgJulian];
+
+return { dlgMarty, dlgJulian, default: __default };
+})();
+
 // ---- src/content/index.js
 __m["src/content/index.js"] = (function () {
 // Content registry: the single import point for all authored game content.
@@ -7602,6 +8014,9 @@ const lucasChars = __m["src/content/characters/lucas.js"].default;
 const dlgLucas = __m["src/content/dialogue/lucas.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
 const { withPlots } = __m["src/world/plots.js"];
+const { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } = __m["src/content/vehicles.js"];
+const dealerChars = __m["src/content/characters/dealers.js"].default;
+const dlgDealers = __m["src/content/dialogue/dealers.js"].default;
 
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
@@ -7609,6 +8024,7 @@ const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) =>
 
 const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
+const STREET_CARS = carPropsToVehicles(MAPS);
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
 const BASE_CONTENT = {
@@ -7628,8 +8044,8 @@ const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -7637,6 +8053,7 @@ const BASE_CONTENT = {
   unlocks: UNLOCKS,
   arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
+  vehicles: { models: CAR_MODELS, dealers: DEALERS, parked: [...PARKED_CARS, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   plots: {},
   startingMap: 'player_flat',
@@ -7655,7 +8072,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.15.1';
+const GAME_VERSION = '0.16.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -8597,6 +9014,23 @@ const SFX = {
     const t = ctx.currentTime;
     for (const f of [180, 186]) tone(ctx, d, { type: 'sawtooth', f0: f * 0.6, f1: f, t, dur: 0.9, vol: 0.2, attack: 0.2 });
   },
+  // v0.16.0: cars
+  sfx_car_start: (ctx, d) => {
+    const t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) tone(ctx, d, { type: 'sawtooth', f0: 38, f1: 52, t: t + i * 0.13, dur: 0.1, vol: 0.18 }); // the starter cranks
+    tone(ctx, d, { type: 'sawtooth', f0: 45, f1: 95, t: t + 0.42, dur: 0.5, vol: 0.3, attack: 0.03 }); // and catches
+    noise(ctx, d, { t: t + 0.42, dur: 0.45, vol: 0.18, type: 'lowpass', freq: 400 });
+  },
+  sfx_crash: (ctx, d) => {
+    const t = ctx.currentTime;
+    noise(ctx, d, { t, dur: 0.35, vol: 0.7, type: 'bandpass', freq: 900, f1: 300, q: 0.8 });
+    tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.18, vol: 0.18 });
+    for (let i = 0; i < 5; i++) noise(ctx, d, { t: t + 0.05 + Math.random() * 0.3, dur: 0.03, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass and bits
+  },
+  sfx_horn: (ctx, d) => {
+    const t = ctx.currentTime;
+    for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: 0.45, vol: 0.12, attack: 0.01 });
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -9073,6 +9507,46 @@ class AudioEngine {
     }
   }
 
+  /**
+   * The engine note while you drive (v0.16.0): null stops it; otherwise
+   * level 0..1 (speed share) raises pitch and volume. Built on first use.
+   */
+  setEngine(level) {
+    if (!this.enabled) return;
+    try {
+      const c = this.ctx;
+      const t = c.currentTime;
+      if (level === null) {
+        if (this.engine) this.engine.gain.gain.setTargetAtTime(0.0001, t, 0.15);
+        return;
+      }
+      if (!this.engine) {
+        const gain = c.createGain();
+        gain.gain.value = 0.0001;
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 420;
+        const oscs = [0, 7].map((det) => {
+          const o = c.createOscillator();
+          o.type = 'sawtooth';
+          o.frequency.value = 40;
+          o.detune.value = det;
+          o.connect(lp);
+          o.start();
+          return o;
+        });
+        lp.connect(gain).connect(this.buses.sfx);
+        this.engine = { gain, lp, oscs };
+      }
+      const f = 34 + level * 95;
+      for (const o of this.engine.oscs) o.frequency.setTargetAtTime(f, t, 0.08);
+      this.engine.lp.frequency.setTargetAtTime(300 + level * 900, t, 0.1);
+      this.engine.gain.gain.setTargetAtTime(0.05 + level * 0.07, t, 0.1);
+    } catch (err) {
+      this.failures.push(`engine: ${err.message}`);
+    }
+  }
+
   /** Fade music and ambience right down for `seconds` (cutscenes), then back. */
   duck(seconds) {
     if (!this.enabled) return;
@@ -9210,7 +9684,7 @@ const ACTIONS = {
   KeyJ: 'journal', KeyQ: 'journal',
   KeyM: 'map',
   KeyC: 'status',
-  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender', KeyB: 'build',
+  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender', KeyB: 'build', KeyH: 'horn',
   F5: 'quicksave', F9: 'quickload',
   Backquote: 'debug',
 };
@@ -11578,6 +12052,7 @@ class Combat {
   attack() {
     const g = this.game;
     if (this.cooldown > 0 || this.reloading || g.paused || this.wrath) return { ok: false, reason: 'busy' };
+    if (g.player.driving) return { ok: false, reason: 'driving' };
     const w = this.equipped();
     const p = g.player;
     const dir = this.aimVector(w);
@@ -12218,6 +12693,7 @@ class Police {
       case e.fact === 'fact_player_dealing': return 2;
       case e.fact === 'fact_player_embargo': return 8;
       case e.fact === 'fact_player_explosion': return 10;
+      case e.fact === 'fact_player_car_theft': return 3;
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -14991,6 +15467,561 @@ class Tablet {
 return { TABLET_APPS, Tablet };
 })();
 
+// ---- src/systems/vehicles.js
+__m["src/systems/vehicles.js"] = (function () {
+// Cars (v0.16.0 "On the Road"). Buy one at a dealership, get in with E and
+// drive it yourself: W/↑ accelerate, S/↓ brake and reverse, A/D steer, Shift
+// handbrake, E to get out. Cars stay where you leave them and cross the seams
+// and region gates with you. Owner's rules: running people over hurts them and
+// is a crime; imported (protected) characters are never harmed; cars can be
+// stolen (a crime), and officers who see you in a stolen car come after you.
+//
+// State: game.world.vehicles = { cars: { id: car }, nextId, restock: {} }
+//   car = { id, model, color, map, x, y (px, centre), angle (rad, 0 = east),
+//           owner: 'player' | npcId | 'dealer:<id>' | null, stolen, from, plate }
+// Runtime only: car.speed, car.braking, car.hitCd.
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { isProtected, isDown } = __m["src/systems/combat.js"];
+
+const CAR_WEAPON = { id: 'car', name: 'car', weapon: { kind: 'melee', knockback: 40, lethal: true } };
+const ENTER_RANGE = 48;
+const HOTWIRE_SECONDS = 2.5;
+const ROAD = new Set(['=', ',', 'm', 'g', 'b', 'D', 'p', 't', 'f', 'c']);
+const PLATE_LETTERS = 'ABCDEFGHJKLMNPRSTVWXYZ';
+
+function freshVehicles(content) {
+  const v = content.vehicles;
+  const cars = {};
+  for (const p of v.parked) cars[p.id] = { id: p.id, model: p.model, color: p.color, map: p.map, x: (p.x + 0.5) * TILE, y: (p.y + 0.5) * TILE, angle: (p.angle * Math.PI) / 180, owner: p.owner, stolen: false, plate: plateFor(p.id) };
+  for (const [did, d] of Object.entries(v.dealers)) {
+    d.display.forEach((s, i) => {
+      const id = `car_${did}_${i}`;
+      cars[id] = { id, model: s.model, color: v.models[s.model].colors[0], map: d.map, x: (s.x + 0.5) * TILE, y: (s.y + 0.5) * TILE, angle: (s.angle * Math.PI) / 180, owner: `dealer:${did}`, stolen: false, plate: 'FOR SALE' };
+    });
+  }
+  return { cars, nextId: 1, restock: {} };
+}
+
+function plateFor(seed) {
+  let h = 7;
+  for (const ch of String(seed)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const L = (k) => PLATE_LETTERS[(h >>> k) % PLATE_LETTERS.length];
+  return `${L(0)}${L(5)}${(h % 90) + 10} ${L(11)}${L(17)}${L(23)}`;
+}
+
+class Vehicles {
+  constructor(game) {
+    this.game = game;
+    this.hotwire = null;
+    game.bus.on('police:jailed', () => this.onJailed());
+  }
+
+  get cfg() {
+    return this.game.content.vehicles;
+  }
+
+  get state() {
+    const g = this.game;
+    if (!g.world.vehicles) g.world.vehicles = freshVehicles(g.content);
+    return g.world.vehicles;
+  }
+
+  model(car) {
+    return this.cfg.models[car.model];
+  }
+
+  car(id) {
+    return this.state.cars[id] || null;
+  }
+
+  carsOn(mapId) {
+    return Object.values(this.state.cars).filter((c) => c.map === mapId);
+  }
+
+  driving() {
+    const id = this.game.player.driving;
+    return id ? this.car(id) : null;
+  }
+
+  ownedCars() {
+    return Object.values(this.state.cars).filter((c) => c.owner === 'player');
+  }
+
+  /** Actor used for car collisions: building doors block, seams and region gates don't. */
+  actor() {
+    return { kind: 'vehicle', canPass: (door) => Boolean(door.seamless || door.gateway) };
+  }
+
+  /** The car's body as three boxes along its length. */
+  blocked(map, x, y, angle, len, wid, ignore) {
+    const g = this.game;
+    const a = this.actor();
+    const half = len / 2 - wid / 2;
+    const box = Math.max(16, wid - 8);
+    for (const k of [-half, 0, half]) {
+      const cx = x + Math.cos(angle) * k;
+      const cy = y + Math.sin(angle) * k;
+      if (map.rectBlocked(cx - box / 2, cy - box / 2, box, box, a)) return true;
+    }
+    return this.carAt(map, x, y, angle, len, wid, ignore);
+  }
+
+  /** Does a box (centre, angle, size) overlap a car on this map? */
+  carAt(map, x, y, angle, len, wid, ignore) {
+    for (const c of this.carsOn(map.id)) {
+      if (c === ignore) continue;
+      const m = this.model(c);
+      if (dist(c.x, c.y, x, y) < (len + m.len) / 2 + 4 && this.overlapCars({ x, y, angle, len, wid }, { ...c, len: m.len, wid: m.wid })) return true;
+    }
+    return false;
+  }
+
+  /** Oriented-box overlap (separating axis) between two cars. */
+  overlapCars(A, B) {
+    const corners = (c) => {
+      const cs = Math.cos(c.angle);
+      const sn = Math.sin(c.angle);
+      return [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([u, v]) => [c.x + (cs * u * c.len) / 2 - (sn * v * c.wid) / 2, c.y + (sn * u * c.len) / 2 + (cs * v * c.wid) / 2]);
+    };
+    const pa = corners(A);
+    const pb = corners(B);
+    for (const c of [A, B]) {
+      for (const ax of [[Math.cos(c.angle), Math.sin(c.angle)], [-Math.sin(c.angle), Math.cos(c.angle)]]) {
+        const pr = (pts) => pts.map(([x, y]) => x * ax[0] + y * ax[1]);
+        const a = pr(pa);
+        const b = pr(pb);
+        if (Math.max(...a) < Math.min(...b) || Math.max(...b) < Math.min(...a)) return false;
+      }
+    }
+    return true;
+  }
+
+  // ------------------------------------------------------------- in and out
+  nearest(range = ENTER_RANGE) {
+    const p = this.game.player;
+    let best = null;
+    let bd = Infinity;
+    for (const c of this.carsOn(p.map)) {
+      const m = this.model(c);
+      // distance to the car's body, not its centre
+      const cs = Math.cos(c.angle);
+      const sn = Math.sin(c.angle);
+      const lx = (p.x - c.x) * cs + (p.y - c.y) * sn;
+      const ly = -(p.x - c.x) * sn + (p.y - c.y) * cs;
+      const d = Math.hypot(Math.max(0, Math.abs(lx) - m.len / 2), Math.max(0, Math.abs(ly) - m.wid / 2));
+      if (d < range && d < bd) { bd = d; best = c; }
+    }
+    return best;
+  }
+
+  label(car) {
+    const m = this.model(car);
+    if (car.owner === 'player') return `Drive your ${m.name}`;
+    if (car.owner?.startsWith('dealer:')) return `Look at the ${m.name}`;
+    return `Look at the ${m.name}`;
+  }
+
+  /** E on a car that isn't yours: what it is, and the option to steal it. */
+  inspect(id) {
+    const car = this.car(id);
+    if (!car) return { type: 'none' };
+    if (car.owner === 'player') return this.enter(id);
+    const m = this.model(car);
+    const whose = car.owner?.startsWith('dealer:') ? `On sale at ${this.cfg.dealers[car.owner.slice(7)].name} for ${m.price} obols. Talk to the salesman to buy one.`
+      : car.owner === 'police' ? 'It belongs to the Halvermouth Police. Stealing it would be very bold and very stupid.'
+        : car.owner ? `It belongs to ${this.game.npcs.get(car.owner)?.profile.name || 'someone'}.` : 'Nobody you know. The doors are locked.';
+    return {
+      type: 'choices', title: m.name,
+      text: `${m.blurb} ${whose}`,
+      options: [
+        { label: 'Hotwire it (car theft — a crime)', call: ['vehicles', 'startHotwire', id] },
+        { label: 'Leave it', call: ['vehicles', 'noop'] },
+      ],
+    };
+  }
+
+  noop() {
+    return { ok: true, text: '' };
+  }
+
+  enter(id) {
+    const g = this.game;
+    const car = this.car(id);
+    if (!car || car.owner !== 'player') return { type: 'message', text: 'It isn\'t your car.' };
+    if (g.combat.equipped().id) g.combat.equip(null);
+    g.player.driving = car.id;
+    car.speed = 0;
+    g.player.x = car.x;
+    g.player.y = car.y;
+    g.player.vx = 0;
+    g.player.vy = 0;
+    g.bus.emit('sfx', { id: 'sfx_car_start' });
+    g.bus.emit('vehicle:entered', { car: car.id });
+    return { type: 'message', text: `${this.model(car).name}${car.stolen ? ' (stolen)' : ''}. W accelerate · S brake/reverse · A/D steer · Shift handbrake · E get out.` };
+  }
+
+  /** Get out beside the car: driver's side first, then anywhere free. */
+  exit() {
+    const g = this.game;
+    const car = this.driving();
+    if (!car) return { ok: false };
+    const map = g.maps.get(car.map);
+    const m = this.model(car);
+    const actor = g.playerActor();
+    const cs = Math.cos(car.angle);
+    const sn = Math.sin(car.angle);
+    const tries = [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.6, -1], [0.6, 1]];
+    let spot = null;
+    for (const [u, v] of tries) {
+      for (const extra of [10, 22, 36]) {
+        const ox = u * (m.len / 2 + extra);
+        const oy = v * (m.wid / 2 + extra);
+        const x = car.x + cs * ox - sn * oy;
+        const y = car.y + sn * ox + cs * oy;
+        if (!map.rectBlocked(x - 8, y - 6, 16, 8, actor) && !this.blocked(map, x, y, 0, 8, 8)) { spot = { x, y }; break; }
+      }
+      if (spot) break;
+    }
+    if (!spot) return { ok: false, text: 'There\'s no room to open the door.' };
+    car.speed = 0;
+    g.player.driving = null;
+    g.player.x = spot.x;
+    g.player.y = spot.y;
+    g.player.lastTx = Math.floor(spot.x / TILE);
+    g.player.lastTy = Math.floor(spot.y / TILE);
+    g.bus.emit('sfx', { id: 'sfx_door' });
+    g.bus.emit('vehicle:exited', { car: car.id });
+    return { ok: true };
+  }
+
+  // -------------------------------------------------------------- theft
+  startHotwire(id) {
+    const car = this.car(id);
+    if (!car || car.owner === 'player') return { ok: false, text: '' };
+    this.hotwire = { id, t: 0, need: HOTWIRE_SECONDS * (1.3 - 0.1 * this.game.stat('finesse')) };
+    this.game.bus.emit('sfx', { id: 'sfx_locked' });
+    return { ok: true, text: 'You jimmy the door and go for the wires under the dash…' };
+  }
+
+  /** Runs while hotwiring: stand still or it's abandoned. */
+  updateHotwire(dt, input) {
+    const g = this.game;
+    const h = this.hotwire;
+    const car = this.car(h.id);
+    if (!car || car.map !== g.player.map || Math.hypot(input.x || 0, input.y || 0) > 0.2 || dist(car.x, car.y, g.player.x, g.player.y) > 120) {
+      this.hotwire = null;
+      g.notify('You leave the wires alone.', 'info');
+      return;
+    }
+    h.t += dt;
+    if (h.t >= h.need) {
+      this.hotwire = null;
+      this.steal(car);
+    }
+  }
+
+  steal(car) {
+    const g = this.game;
+    const prev = car.owner;
+    car.from = prev;
+    car.owner = 'player';
+    car.stolen = true;
+    car.reported = false;
+    if (prev?.startsWith('dealer:')) this.state.restock[prev.slice(7)] = g.clock.day; // the lot fills the gap tomorrow
+    const owner = prev?.startsWith('dealer:') ? g.npcs.get(this.cfg.dealers[prev.slice(7)].npc) : prev ? g.npcs.get(prev) : null;
+    if (owner && prev.startsWith('dealer:') && owner.map === car.map) g.bark(owner, owner.id === 'npc_marty' ? 'OI! That\'s STOCK! …Fair play, though.' : 'I beg your PARDON!');
+    if (owner) g.relationships.adjust(owner, 'player', { trust: -20, affection: -15, suspicion: 30 }, 'stole my car');
+    g.reportCrime({ fact: 'fact_player_car_theft', map: car.map, x: car.x, y: car.y });
+    g.bus.emit('sfx', { id: 'sfx_car_start' });
+    g.bus.emit('vehicle:stolen', { car: car.id, from: prev });
+    g.notify(`The engine coughs into life. The ${this.model(car).name} is yours — as far as you're concerned.`, 'warn');
+    this.enter(car.id);
+  }
+
+  // ------------------------------------------------------------- driving
+  /** Called instead of Game.updatePlayer while the player is driving. */
+  update(dt, input) {
+    const g = this.game;
+    const p = g.player;
+    const car = this.driving();
+    if (!car) return;
+    const m = this.model(car);
+    const D = this.cfg.driving;
+    let map = g.maps.get(car.map);
+    const throttle = -(input.y || 0);
+    const steer = input.x || 0;
+    car.speed ||= 0;
+    const tile = map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
+    const top = m.top * (ROAD.has(tile) ? 1 : D.offRoad);
+    car.braking = false;
+    if (throttle > 0.1) car.speed += (car.speed < 0 ? D.brake : m.accel) * throttle * dt;
+    else if (throttle < -0.1) {
+      if (car.speed > 0) { car.speed -= D.brake * -throttle * dt; car.braking = true; } else car.speed -= m.accel * 0.6 * -throttle * dt;
+    } else {
+      const drag = (D.drag + Math.abs(car.speed) * 0.5) * dt;
+      car.speed = Math.abs(car.speed) <= drag ? 0 : car.speed - Math.sign(car.speed) * drag;
+    }
+    if (input.sprint) { car.speed *= Math.max(0, 1 - 3 * dt); car.braking = true; }
+    if (car.speed > top) car.speed = Math.max(top, car.speed - D.brake * dt);
+    car.speed = clamp(car.speed, -m.top * D.reverseShare, m.top);
+    // steering bites harder at speed (up to a point); reversing turns the other way
+    const bite = clamp(car.speed / 140, -1, 1);
+    car.angle += steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    // move in small steps so nothing tunnels through a wall
+    const total = car.speed * dt;
+    const steps = Math.max(1, Math.ceil(Math.abs(total) / 6));
+    for (let i = 0; i < steps; i++) {
+      const nx = car.x + (Math.cos(car.angle) * total) / steps;
+      const ny = car.y + (Math.sin(car.angle) * total) / steps;
+      if (!this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
+      // slide along the obstacle if we can
+      if (!this.blocked(map, nx, car.y, car.angle, m.len, m.wid, car)) { car.x = nx; car.speed *= 0.92; continue; }
+      if (!this.blocked(map, car.x, ny, car.angle, m.len, m.wid, car)) { car.y = ny; car.speed *= 0.92; continue; }
+      this.crash(car);
+      break;
+    }
+    this.hitPeople(car, m, dt);
+    p.x = car.x;
+    p.y = car.y;
+    p.vx = Math.cos(car.angle) * car.speed;
+    p.vy = Math.sin(car.angle) * car.speed;
+    const c = Math.cos(car.angle);
+    const s = Math.sin(car.angle);
+    p.facing = Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : s > 0 ? 'down' : 'up';
+    p.moving = Math.abs(car.speed) > 5;
+    // seams (by the car's centre) and region gates (by its nose, which reaches the edge first)
+    const door = map.doorAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
+    const dirn = Math.sign(car.speed) || 1;
+    const nose = map.doorAt(clamp(Math.floor((car.x + Math.cos(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.width - 1), clamp(Math.floor((car.y + Math.sin(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.height - 1));
+    if (door?.seamless) this.crossSeam(car, door);
+    else if ((nose || door)?.gateway && Math.abs(car.speed) > 5) this.crossGate(car, (nose || door));
+    map = g.maps.get(car.map);
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    if (tx !== p.lastTx || ty !== p.lastTy) {
+      p.lastTx = tx;
+      p.lastTy = ty;
+      g.updateDiscovery();
+    }
+    this.watchForPolice(car);
+  }
+
+  crash(car) {
+    const g = this.game;
+    const hard = Math.abs(car.speed) > 160;
+    if (hard && (car.crashAt || 0) < g.realTime - 0.6) {
+      car.crashAt = g.realTime;
+      g.bus.emit('sfx', { id: 'sfx_crash' });
+      if (g.heavy) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
+    }
+    car.speed = -car.speed * 0.25;
+  }
+
+  hitPeople(car, m, dt) {
+    const g = this.game;
+    const D = this.cfg.driving;
+    const now = g.clock.total;
+    car.hitCd ||= {};
+    const fx = car.x + Math.cos(car.angle) * (m.len / 2 - 8) * Math.sign(car.speed || 1);
+    const fy = car.y + Math.sin(car.angle) * (m.len / 2 - 8) * Math.sign(car.speed || 1);
+    for (const npc of g.npcs.values()) {
+      if (npc.map !== car.map || npc.dead || isDown(npc, now)) continue;
+      const d = Math.min(dist(npc.x, npc.y, fx, fy), dist(npc.x, npc.y, car.x, car.y));
+      if (d > m.wid / 2 + 8) continue;
+      if ((car.hitCd[npc.id] || 0) > g.realTime) continue;
+      car.hitCd[npc.id] = g.realTime + 1;
+      const speed = Math.abs(car.speed);
+      if (isProtected(npc)) {
+        // the Oberverse protects its own: the car simply stops
+        car.speed = 0;
+        g.bark(npc, g.rng.pick(['Watch where you\'re going!', 'Do you MIND?', 'Eyes on the road!']));
+        continue;
+      }
+      if (speed < D.hitSpeed) {
+        // a nudge: they step out of the way, annoyed
+        car.speed *= 0.3;
+        if (g.rng.chance(0.5)) g.bark(npc, g.rng.pick(['Oi!', 'Hey! Careful!', 'I\'m walking here!']));
+        g.relationships.adjust(npc, 'player', { affection: -2 }, 'nudged by your car');
+        continue;
+      }
+      const dir = { x: Math.cos(car.angle) * Math.sign(car.speed), y: Math.sin(car.angle) * Math.sign(car.speed) };
+      g.combat.hitNpc(npc, speed * D.hitDamage, { weapon: { ...CAR_WEAPON, weapon: { ...CAR_WEAPON.weapon, knockback: Math.min(70, speed * 0.15) } }, dir, lethal: speed >= D.lethalSpeed });
+      g.bus.emit('sfx', { id: 'sfx_crash' });
+      g.bus.emit('vehicle:hit', { npc: npc.id, speed });
+      car.speed *= 0.55;
+    }
+  }
+
+  crossSeam(car, door) {
+    const g = this.game;
+    const off = g.mapOffset(car.map, door.to.map);
+    if (!off) return;
+    const heading = Math.sign(off.x) * Math.cos(car.angle) * car.speed + Math.sign(off.y) * Math.sin(car.angle) * car.speed;
+    if (heading <= 0) return;
+    const nx = car.x - off.x;
+    const ny = car.y - off.y;
+    const dest = g.maps.get(door.to.map);
+    const m = this.model(car);
+    if (this.blocked(dest, nx, ny, car.angle, m.len, m.wid, car)) return;
+    car.map = door.to.map;
+    car.x = nx;
+    car.y = ny;
+    g.changeMap(car.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
+  }
+
+  /** Drive through a gate between regions: arrive on the other side, facing away from it. */
+  crossGate(car, door) {
+    const g = this.game;
+    const dest = g.maps.get(door.to.map);
+    const s = dest?.spotPx(door.to.spot);
+    if (!s) return;
+    // only when driving out through the edge
+    const out = door.x === 0 ? Math.cos(car.angle) * car.speed < 0 : Math.cos(car.angle) * car.speed > 0;
+    if (!out) return;
+    const east = s.x < dest.width * TILE / 2; // arriving at the west edge: drive east
+    const m = this.model(car);
+    let x = s.x + (east ? m.len / 2 : -m.len / 2);
+    const y = s.y;
+    for (let k = 0; k < 6 && this.blocked(dest, x, y, east ? 0 : Math.PI, m.len, m.wid, car); k++) x += east ? 16 : -16;
+    car.map = dest.id;
+    car.x = x;
+    car.y = y;
+    car.angle = east ? 0 : Math.PI;
+    car.speed = Math.min(Math.abs(car.speed), 160);
+    g.bus.emit('sfx', { id: 'sfx_door' });
+    g.changeMap(dest.id, null, { x, y });
+  }
+
+  // ------------------------------------------------------------ the law
+  /** An officer who sees you in a stolen car knows it. */
+  watchForPolice(car) {
+    const g = this.game;
+    if (!car.stolen || car.reported || !g.police) return;
+    if ((this.nextLook || 0) > g.realTime) return;
+    this.nextLook = g.realTime + 0.5;
+    const map = g.maps.get(car.map);
+    for (const o of g.police.activeOfficers()) {
+      if (o.map !== car.map || isDown(o, g.clock.total) || o.activity === 'sleep') continue;
+      if (!g.canSee(o, car.x, car.y, map, 9)) continue;
+      car.reported = true;
+      g.bark(o, 'That\'s a stolen car! Pull over!');
+      g.police.raiseWanted(3, `${o.profile.shortName} recognised the stolen ${this.model(car).name}.`);
+      g.police.startPursuit(o);
+      return;
+    }
+  }
+
+  onJailed() {
+    const g = this.game;
+    const car = this.driving();
+    if (car) g.player.driving = null;
+    // stolen cars are impounded and go back to their owners
+    for (const c of this.ownedCars()) {
+      if (!c.stolen || !c.reported) continue;
+      this.returnToOwner(c);
+    }
+  }
+
+  returnToOwner(c) {
+    const parked = this.cfg.parked.find((p) => p.id === c.id);
+    if (parked) Object.assign(c, { map: parked.map, x: (parked.x + 0.5) * TILE, y: (parked.y + 0.5) * TILE, angle: (parked.angle * Math.PI) / 180, owner: parked.owner, stolen: false, reported: false, from: undefined, speed: 0 });
+    else delete this.state.cars[c.id]; // a dealer's car goes back to the lot's stock
+  }
+
+  // ---------------------------------------------------------- dealerships
+  dealer(id) {
+    return this.cfg.dealers[id];
+  }
+
+  /** Buy a new (or new-to-you) car; it's waiting on the forecourt. */
+  buy(dealerId, modelId, color) {
+    const g = this.game;
+    const d = this.dealer(dealerId);
+    const m = this.cfg.models[modelId];
+    if (!d || !m || !d.models.includes(modelId)) return { ok: false, text: 'That isn\'t for sale here.' };
+    if (g.player.money < m.price) return { ok: false, text: `The ${m.name} is ${m.price} obols. You have ${g.player.money}.` };
+    const map = g.maps.get(d.map);
+    const angle = (d.delivery.angle * Math.PI) / 180;
+    let x = (d.delivery.x + 0.5) * TILE;
+    const y = (d.delivery.y + 0.5) * TILE;
+    for (let k = 0; k < 8 && this.blocked(map, x, y, angle, m.len, m.wid); k++) x += 40;
+    if (this.blocked(map, x, y, angle, m.len, m.wid)) return { ok: false, text: 'The forecourt is full. Move one of your cars first.' };
+    g.player.money -= m.price;
+    g.bus.emit('money:changed', { delta: -m.price, total: g.player.money });
+    const s = this.state;
+    const id = `car_p${s.nextId++}`;
+    s.cars[id] = { id, model: modelId, color: m.colors.includes(color) ? color : m.colors[0], map: d.map, x, y, angle, owner: 'player', stolen: false, plate: plateFor(`${id}${g.clock.total}`) };
+    g.setFlag('owns_car', true);
+    g.bus.emit('vehicle:bought', { car: id, model: modelId, dealer: dealerId });
+    return { ok: true, car: id, text: `The ${m.name} is yours. It's waiting on the forecourt — keys are in it.` };
+  }
+
+  /** Your cars parked on a dealer's lot (you can sell or re-plate those). */
+  onLot(dealerId) {
+    const d = this.dealer(dealerId);
+    const L = d.lot;
+    return this.ownedCars().filter((c) => c.map === d.map && c.x >= L.x * TILE - 32 && c.x <= (L.x + L.w) * TILE + 32 && c.y >= L.y * TILE - 32 && c.y <= (L.y + L.h) * TILE + 32 && c.id !== this.game.player.driving);
+  }
+
+  offer(dealerId, car) {
+    const d = this.dealer(dealerId);
+    const m = this.model(car);
+    if (car.stolen) return d.buysStolen ? Math.round(m.price * d.buysStolen) : 0;
+    return Math.round(m.price * d.tradeIn);
+  }
+
+  sell(dealerId, carId) {
+    const g = this.game;
+    const car = this.car(carId);
+    if (!car || !this.onLot(dealerId).includes(car)) return { ok: false, text: 'Park it on the lot first.' };
+    const price = this.offer(dealerId, car);
+    if (!price) return { ok: false, text: 'We do not handle vehicles of… uncertain provenance.' };
+    delete this.state.cars[carId];
+    g.player.money += price;
+    g.bus.emit('money:changed', { delta: price, total: g.player.money });
+    g.bus.emit('vehicle:sold', { car: carId, dealer: dealerId, stolen: car.stolen });
+    return { ok: true, text: `Sold the ${this.model(car).name} for ${price} obols.` };
+  }
+
+  /** Marty's "fresh plates": a stolen car becomes yours on paper. */
+  replate(dealerId, carId) {
+    const g = this.game;
+    const d = this.dealer(dealerId);
+    const car = this.car(carId);
+    if (!d.plates) return { ok: false, text: 'We don\'t do that here.' };
+    if (!car || !car.stolen || !this.onLot(dealerId).includes(car)) return { ok: false, text: 'Bring the car onto the lot.' };
+    if (g.player.money < d.plates) return { ok: false, text: `Fresh plates are ${d.plates} obols.` };
+    g.player.money -= d.plates;
+    g.bus.emit('money:changed', { delta: -d.plates, total: g.player.money });
+    car.stolen = false;
+    car.reported = false;
+    car.from = undefined;
+    car.plate = plateFor(`${car.id}x${g.clock.total}`);
+    return { ok: true, text: `New plates (${car.plate}), new paperwork, new history. The ${this.model(car).name} has always been yours.` };
+  }
+
+  /** Daily: dealers put a fresh car where a stolen one stood. */
+  dailyTick() {
+    const s = this.state;
+    for (const [did, day] of Object.entries(s.restock)) {
+      if (day >= this.game.clock.day) continue;
+      const d = this.dealer(did);
+      d.display.forEach((sp, i) => {
+        const id = `car_${did}_${i}`;
+        const px = (sp.x + 0.5) * TILE;
+        const py = (sp.y + 0.5) * TILE;
+        if (Object.values(s.cars).some((c) => c.owner === `dealer:${did}` && c.map === d.map && dist(c.x, c.y, px, py) < 8)) return;
+        const nid = s.cars[id] ? `car_${did}_${i}_${s.nextId++}` : id;
+        s.cars[nid] = { id: nid, model: sp.model, color: this.cfg.models[sp.model].colors[0], map: d.map, x: (sp.x + 0.5) * TILE, y: (sp.y + 0.5) * TILE, angle: (sp.angle * Math.PI) / 180, owner: `dealer:${did}`, stolen: false, plate: 'FOR SALE' };
+      });
+      delete s.restock[did];
+    }
+  }
+}
+
+return { freshVehicles, Vehicles };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -15102,7 +16133,7 @@ const { parseSpotRef, TILE, interpolate } = __m["src/core/util.js"];
 const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory', 'arms',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory', 'arms', 'dealer',
 ];
 
 /**
@@ -15270,6 +16301,10 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'dealer':
+        // { dealer: 'fender' } opens that dealership's sales panel
+        result.actions.push({ type: 'dealer', dealer: val });
+        break;
       case 'arms': {
         // { arms: { licence: true } }
         if (val.licence) {
@@ -15404,6 +16439,7 @@ const { Arms, freshArms } = __m["src/systems/arms.js"];
 const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
+const { Vehicles } = __m["src/systems/vehicles.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -15440,6 +16476,7 @@ class Game {
     this.market = new Market(this);
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
+    this.vehicles = new Vehicles(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -15654,7 +16691,11 @@ class Game {
     }
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
-    this.updatePlayer(dt, input);
+    if (this.player.driving) this.vehicles.update(dt, input);
+    else {
+      if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
+      this.updatePlayer(dt, input);
+    }
     this.combat.update(dt);
     this.police.update(dt);
     this.gang.update(dt);
@@ -15695,6 +16736,7 @@ class Game {
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
+    if (Math.floor(this.clock.total) % 1440 === 6 * 60) this.vehicles.dailyTick();
     for (const [id, shop] of Object.entries(this.content.shops)) {
       if (shop.restockAt && this.clock.timeString === shop.restockAt) this.restockShop(id);
     }
@@ -15770,7 +16812,7 @@ class Game {
 
     const actor = this.playerActor();
     const box = (x, y) => [x - PLAYER_BOX.w / 2, y - PLAYER_BOX.h + 2, PLAYER_BOX.w, PLAYER_BOX.h];
-    const blocked = (x, y) => map.rectBlocked(...box(x, y), actor);
+    const blocked = (x, y) => map.rectBlocked(...box(x, y), actor) || this.vehicles.carAt(map, x, y - 2, 0, 14, 10);
     const startX = p.x;
     const startY = p.y;
 
@@ -16020,6 +17062,9 @@ class Game {
     const p = this.player;
     const map = this.currentMap();
     const out = [];
+    if (p.driving) return [{ kind: 'car_exit', id: p.driving, label: 'Get out of the car', score: -999 }];
+    const car = this.vehicles.nearest();
+    if (car) out.push({ kind: 'car', id: car.id, label: this.vehicles.label(car), score: dist(p.x, p.y, car.x, car.y) - 20 });
     const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
     const fy = p.facing === 'up' ? -1 : p.facing === 'down' ? 1 : 0;
     const score = (x, y) => {
@@ -16088,6 +17133,11 @@ class Game {
    */
   interact(target) {
     if (!target) return { type: 'none' };
+    if (target.kind === 'car') return this.vehicles.inspect(target.id);
+    if (target.kind === 'car_exit') {
+      const r = this.vehicles.exit();
+      return r.ok ? { type: 'none' } : { type: 'message', text: r.text || 'You can\'t get out here.' };
+    }
     if (target.kind === 'npc') {
       const npc = this.npcs.get(target.id);
       if (!npc) return { type: 'none' };
@@ -16600,6 +17650,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.16.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'On the Road',
+    notes: [
+      'Cars! Fender\'s Pre-Loved Motors has opened on Westbrook Row: Marty Fender, his checked blazer and three tired cars — the Pipit, the Dray and the Mule. In Halvermouth\'s East End, Julian Beaumont\'s marble-floored Motor Gallery sells the Aurelia, the Tempest GT, the Corsair and the Regent limousine — to the right sort of person.',
+      'Drive them yourself: E to get in, W/S to go and stop, A/D to steer, Shift for the handbrake, H for the horn. Cars stay where you park them, show up on your map and tablet, and drive through the gates between Halvermouth, the coast and the Yards.',
+      'Run someone over and they get hurt — and it\'s a crime. The people the Oberverse protects are never harmed: your car simply stops.',
+      'Every parked car in Halvermouth is real now. Hotwire one (stand still while you do it) and it\'s yours — and a crime. Officers who spot you in a stolen car come after you. Marty buys stolen cars at 30%, no questions asked, and sells "fresh plates" for 150.',
+    ],
+  },
   {
     version: '0.15.1',
     date: '2026-10-13',
@@ -17187,6 +18249,18 @@ function drawCharacter(ctx, a, s) {
       ctx.beginPath(); ctx.moveTo(px, -26); ctx.lineTo(px, -11); ctx.stroke();
     }
   }
+  if (a.pattern === 'check') {
+    // a loud checked blazer (Marty Fender)
+    ctx.strokeStyle = a.patternColor || 'rgba(255,230,120,0.45)';
+    ctx.lineWidth = 0.8;
+    for (let px = -tw / 2 + 2; px < tw / 2 - 1; px += 3.4) { ctx.beginPath(); ctx.moveTo(px, -26); ctx.lineTo(px, -11); ctx.stroke(); }
+    for (let py = -25; py < -11; py += 3.4) { ctx.beginPath(); ctx.moveTo(-tw / 2 + 1, py); ctx.lineTo(tw / 2 - 1, py); ctx.stroke(); }
+  }
+  if (acc.has('chain') && facing === 'down') {
+    ctx.strokeStyle = '#e8c04a';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0, -27, 4.5, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  }
   if (acc.has('apron') || a.apron) {
     ctx.fillStyle = a.apron || '#f4efe6';
     rrect(ctx, -tw / 2 + 2.5, -21, tw - 5, 12, 3);
@@ -17491,6 +18565,22 @@ function drawFaceAccessory(ctx, a, facing, eyeY, dir) {
     ctx.beginPath(); ctx.arc(mx, eyeY, 3, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(mx + 1, eyeY + 3); ctx.quadraticCurveTo(mx + 3, eyeY + 12, mx - 2, eyeY + 18); ctx.stroke();
   }
+  if (acc.has('shades')) {
+    // sunglasses: two dark lenses
+    ctx.fillStyle = '#141218';
+    if (facing === 'left' || facing === 'right') {
+      rrect(ctx, dir * 4.5 - 3, eyeY - 2, 6, 3.6, 1.4); ctx.fill();
+      ctx.strokeStyle = '#141218'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(dir * 1.5, eyeY - 0.8); ctx.lineTo(-dir * 7, eyeY - 1.5); ctx.stroke();
+    } else if (facing === 'down') {
+      rrect(ctx, -7, eyeY - 2, 6, 3.8, 1.5); ctx.fill();
+      rrect(ctx, 1, eyeY - 2, 6, 3.8, 1.5); ctx.fill();
+      ctx.fillRect(-1, eyeY - 1.2, 2, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(-6, eyeY - 1.4, 2, 1); ctx.fillRect(2, eyeY - 1.4, 2, 1);
+    }
+    return;
+  }
   if (!acc.has('glasses')) return;
   ctx.strokeStyle = '#1e1b22';
   ctx.lineWidth = 1;
@@ -17521,6 +18611,164 @@ function drawPortrait(ctx, a, size, opts = {}) {
 return { drawCharacter, drawPortrait, shade, rrect };
 })();
 
+// ---- src/engine/drawVehicles.js
+__m["src/engine/drawVehicles.js"] = (function () {
+// Cars, drawn top-down and rotated (v0.16.0). A two-pass drawing gives a hint
+// of height to match the world's 3/4 view: the chassis on the ground, then the
+// cabin a few pixels "up" the screen. Body styles: hatch, estate, pickup,
+// saloon, gt, coupe, limo, police.
+const { shade, rrect } = __m["src/engine/drawCharacter.js"];
+
+const CABIN = {
+  // [rear edge, front edge] of the cabin along the car, as a share of length (front is +)
+  hatch: [-0.4, 0.14], estate: [-0.44, 0.1], pickup: [-0.06, 0.24], saloon: [-0.26, 0.16],
+  gt: [-0.36, -0.02], coupe: [-0.22, 0.1], limo: [-0.4, 0.2], police: [-0.26, 0.16],
+};
+
+/** Deterministic little number from a string (rust patches, dents). */
+function seed(s) {
+  let h = 3;
+  for (const ch of String(s)) h = (h * 33 + ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+/**
+ * Draw a car centred on (x, y) pointing along `angle` (0 = east).
+ * opts: color, braking, lit (headlights on), time, id (for wear), siren.
+ */
+function drawCar(ctx, model, x, y, angle, opts = {}) {
+  const L = model.len;
+  const W = model.wid;
+  const color = opts.color || model.colors[0];
+  const body = model.body;
+  const k = W / 30; // detail scale
+  const lift = 5 * k; // how far "up" the cabin sits
+  // ---- pass 1: shadow, wheels, chassis
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.fillStyle = 'rgba(10,10,20,0.28)';
+  rrect(ctx, -L / 2 + 2, -W / 2 + 3, L, W, 8);
+  ctx.fill();
+  ctx.fillStyle = '#18181c';
+  const ww = 13 * k;
+  const wh = 7 * k;
+  for (const sx of [-0.31, 0.3]) for (const sy of [-1, 1]) ctx.fillRect(sx * L - ww / 2, sy * (W / 2) - wh / 2, ww, wh);
+  if (body === 'limo') for (const sy of [-1, 1]) ctx.fillRect(-0.05 * L - ww / 2, sy * (W / 2) - wh / 2, ww, wh);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = shade(color, -45);
+  ctx.lineWidth = 1.2;
+  rrect(ctx, -L / 2, -W / 2, L, W, body === 'coupe' || body === 'gt' ? 9 : 6);
+  ctx.fill();
+  ctx.stroke();
+  // side shading for roundness
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(-L / 2 + 3, W / 2 - 5, L - 6, 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(-L / 2 + 3, -W / 2 + 2, L - 6, 2);
+  // lights
+  const lw = 4 * k;
+  const lh = 6 * k;
+  ctx.fillStyle = opts.lit ? '#fff6c0' : '#e8e0b0';
+  ctx.fillRect(L / 2 - lw, -W / 2 + 3 * k, lw, lh);
+  ctx.fillRect(L / 2 - lw, W / 2 - 3 * k - lh, lw, lh);
+  ctx.fillStyle = opts.braking ? '#ff3a2a' : '#a8241c';
+  ctx.fillRect(-L / 2, -W / 2 + 3 * k, lw, lh);
+  ctx.fillRect(-L / 2, W / 2 - 3 * k - lh, lw, lh);
+  if (opts.braking) {
+    ctx.fillStyle = 'rgba(255,60,40,0.35)';
+    ctx.fillRect(-L / 2 - 4, -W / 2 + 1, 5, 9);
+    ctx.fillRect(-L / 2 - 4, W / 2 - 10, 5, 9);
+  }
+  // the pickup's open bed
+  if (body === 'pickup') {
+    ctx.fillStyle = shade(color, -35);
+    ctx.fillRect(-L / 2 + 4, -W / 2 + 4, L * 0.4, W - 8);
+    ctx.strokeStyle = shade(color, -55);
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-L / 2 + 4 + (i * L * 0.4) / 4, -W / 2 + 5); ctx.lineTo(-L / 2 + 4 + (i * L * 0.4) / 4, W / 2 - 5); ctx.stroke(); }
+  }
+  // wear on used cars: rust patches and a dent
+  if (model.used) {
+    const s = seed(opts.id || model.name);
+    ctx.fillStyle = 'rgba(120,64,30,0.55)';
+    for (let i = 0; i < 3; i++) {
+      const px = (((s >>> (i * 5)) % 100) / 100 - 0.5) * 0.9;
+      const py = ((s >>> (i * 7 + 3)) % 2) ? 1 : -1;
+      ctx.beginPath(); ctx.ellipse(px * L * 0.8, py * (W / 2 - 3), 3 + (i % 2) * 2, 2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // police door stripe
+  if (body === 'police') {
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(-L * 0.18, -W / 2, L * 0.36, 4);
+    ctx.fillRect(-L * 0.18, W / 2 - 4, L * 0.36, 4);
+  }
+  ctx.restore();
+
+  // ---- pass 2: the cabin, lifted
+  const [r0, r1] = CABIN[body] || CABIN.saloon;
+  ctx.save();
+  ctx.translate(x, y - lift);
+  ctx.rotate(angle);
+  const cw = W - (body === 'coupe' ? 12 : 9) * k;
+  const cx0 = r0 * L;
+  const cx1 = r1 * L;
+  // pillars / sides
+  ctx.fillStyle = shade(color, -22);
+  rrect(ctx, cx0 - 1, -cw / 2 - 1, cx1 - cx0 + 2, cw + 2, 5);
+  ctx.fill();
+  // windscreen (front) and rear window
+  const glass = ctx.createLinearGradient(cx1 - 11 * k, 0, cx1, 0);
+  glass.addColorStop(0, '#8fb4c8');
+  glass.addColorStop(1, '#d6ecf4');
+  ctx.fillStyle = glass;
+  rrect(ctx, cx1 - 11 * k, -cw / 2 + 1, 11 * k, cw - 2, 3);
+  ctx.fill();
+  ctx.fillStyle = '#7fa4b8';
+  rrect(ctx, cx0, -cw / 2 + 2, 7 * k, cw - 4, 2);
+  ctx.fill();
+  // side windows
+  ctx.fillStyle = 'rgba(120,160,185,0.85)';
+  ctx.fillRect(cx0 + 8 * k, -cw / 2, cx1 - cx0 - 20 * k, 3 * k);
+  ctx.fillRect(cx0 + 8 * k, cw / 2 - 3 * k, cx1 - cx0 - 20 * k, 3 * k);
+  // roof
+  ctx.fillStyle = shade(color, 10);
+  rrect(ctx, cx0 + 7 * k, -cw / 2 + 3 * k, Math.max(4, cx1 - cx0 - 19 * k), cw - 6 * k, 4 * k);
+  ctx.fill();
+  if (body === 'limo') {
+    ctx.fillStyle = 'rgba(30,30,40,0.5)';
+    ctx.fillRect((cx0 + cx1) / 2 - 1, -cw / 2 + 3, 2, cw - 6); // the privacy screen
+  }
+  if (body === 'coupe') {
+    // go-faster stripes, nose to tail
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillRect(-L / 2 + 2, -4 * k, L - 4, 2.5 * k);
+    ctx.fillRect(-L / 2 + 2, 1.5 * k, L - 4, 2.5 * k);
+  }
+  if (body === 'police') {
+    const on = opts.siren ? Math.sin((opts.time || 0) * 10) > 0 : true;
+    const mid = (cx0 + cx1) / 2;
+    ctx.fillStyle = on ? '#ff3a3a' : '#7a1a1a';
+    ctx.fillRect(mid - 2, -cw / 2 + 3, 4, cw / 2 - 3);
+    ctx.fillStyle = on ? '#3a5a8a' : '#3a6aff';
+    ctx.fillRect(mid - 2, 0, 4, cw / 2 - 3);
+  }
+  ctx.restore();
+}
+
+/** A car on a showroom floor (prop 'car_display'), filling its tile rectangle. */
+function drawDisplayCar(ctx, model, x, y, w, h, opts = {}) {
+  // a plinth, then the car on it
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  rrect(ctx, x + 2, y + h - 10, w - 4, 8, 4);
+  ctx.fill();
+  drawCar(ctx, model, x + w / 2, y + h / 2 + 2, 0, opts);
+}
+
+return { drawCar, drawDisplayCar };
+})();
+
 // ---- src/engine/drawWorld.js
 __m["src/engine/drawWorld.js"] = (function () {
 // Procedural drawing for terrain, buildings and props in a soft, stylised
@@ -17530,6 +18778,8 @@ const { drawFactoryProp } = __m["src/engine/drawFactory.js"];
 const { hash2 } = __m["src/core/rng.js"];
 const { TILE_TYPES } = __m["src/world/tiles.js"];
 const { shade, rrect } = __m["src/engine/drawCharacter.js"];
+const { drawDisplayCar } = __m["src/engine/drawVehicles.js"];
+const { CAR_MODELS } = __m["src/content/vehicles.js"];
 
 const T = TILE;
 
@@ -18552,6 +19802,11 @@ function drawProp(ctx, p, opts) {
         ctx.fillStyle = '#2a2a2e';
         ctx.fillRect(x + 6, y + h - 6, 10, 3);
       }
+      break;
+    }
+    case 'car_display': {
+      const model = CAR_MODELS[p.model];
+      if (model) drawDisplayCar(ctx, model, x, y, w, h, { color: p.color, id: p.id });
       break;
     }
     case 'flagpole': {
@@ -20665,6 +21920,7 @@ __m["src/engine/renderer.js"] = (function () {
 // highlight and day/night lighting. Reads game state; never mutates it.
 const { TILE, clamp, lerp, dist } = __m["src/core/util.js"];
 const { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
+const { drawCar } = __m["src/engine/drawVehicles.js"];
 const { drawCharacter, rrect } = __m["src/engine/drawCharacter.js"];
 const { check } = __m["src/sim/conditions.js"];
 const { isDown } = __m["src/systems/combat.js"];
@@ -20876,14 +22132,24 @@ class Renderer {
         const lift = g.combat.wrath?.npcId === npc.id ? wrathLift(g, g.combat.wrath) : 0;
         items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, lift ? { ...npc, y: npc.y - lift, moving: false } : npc, npc.activity === 'sleep')) });
       }
+      // cars (src/systems/vehicles.js)
+      if (g.vehicles) {
+        const models = g.content.vehicles.models;
+        for (const car of g.vehicles.carsOn(lm.id)) {
+          const m = models[car.model];
+          if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
+          const driven = car.id === g.player.driving;
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: driven && night, time: this.time, siren: false })) });
+        }
+      }
     }
     const held = g.combat.equipped().weapon.held;
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
-    if (!this.hidePlayer && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
+    if (!this.hidePlayer && !g.player.driving && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
-    if (!this.hidePlayer && this.playerOccluded(map)) {
+    if (!this.hidePlayer && !g.player.driving && this.playerOccluded(map)) {
       ctx.globalAlpha = 0.38;
       this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
@@ -21213,7 +22479,16 @@ class Renderer {
           this.beam = { x: lx, y: ly };
         }
       }
-      if (!this.hidePlayer) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      if (!this.hidePlayer && !g.player.driving) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      // headlights: a pool of light ahead of the car you're driving
+      const car = g.vehicles?.driving();
+      if (car) {
+        const m = g.content.vehicles.models[car.model];
+        const cs = Math.cos(car.angle);
+        const sn = Math.sin(car.angle);
+        for (const [d, r] of [[m.len / 2 + 30, 55], [m.len / 2 + 80, 75], [m.len / 2 + 140, 90]]) hole(car.x + cs * d, car.y + sn * d - 4, r, 0.85);
+        this.headlights = { x: car.x + cs * (m.len / 2), y: car.y + sn * (m.len / 2) - 4, angle: car.angle };
+      } else this.headlights = null;
     } else {
       for (const p of map.props) if (p.type === 'window' || p.type === 'oven' || p.type === 'stove') hole(p.x * TILE + 16, p.y * TILE + 30, 90, 0.8);
       hole(g.player.x, g.player.y - 14, 110, 0.7);
@@ -21231,6 +22506,19 @@ class Renderer {
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    if (this.headlights && outdoor) {
+      const s = this.toScreen(this.headlights.x, this.headlights.y);
+      const len = 230 * z;
+      const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
+      grad.addColorStop(0, `rgba(255,245,200,${0.3 * g.clock.darkness})`);
+      grad.addColorStop(1, 'rgba(255,245,200,0)');
+      this.ctx.fillStyle = grad;
+      this.ctx.beginPath();
+      this.ctx.moveTo(s.x, s.y);
+      this.ctx.arc(s.x, s.y, len, this.headlights.angle - 0.42, this.headlights.angle + 0.42);
+      this.ctx.closePath();
       this.ctx.fill();
     }
     if (this.beam) {
@@ -21956,6 +23244,12 @@ class DialogueUI {
       this.ui.openPanel('shop', { shopId, onClose: () => this.renderOptions() });
       return;
     }
+    if (node.action?.type === 'dealer') {
+      const { dealer } = node.action;
+      node.action = null;
+      this.ui.openPanel('dealer', { dealer, onClose: () => this.renderOptions() });
+      return;
+    }
     if (node.action?.type === 'invest') {
       node.action = null;
       this.ui.openPanel('invest', { onClose: () => this.renderOptions() });
@@ -22114,6 +23408,9 @@ const BUILDING_ICONS = {
   b_aw3: { icon: '🏭', kind: 'Arms works' },
   b_gatehouse: { icon: '🚧', kind: 'Gatehouse' },
   b_scrapco: { icon: '♻️', kind: 'Scrapyard' },
+  // v0.16.0
+  b_fender_office: { icon: '🚙', kind: 'Used-car dealership' },
+  b_beaumont: { icon: '🏎️', kind: 'Luxury car dealership' },
 };
 
 return { BUILDING_ICONS };
@@ -22518,6 +23815,22 @@ class MapRenderer {
         hits.push({ key, x: bx - iconPx * 0.7, y: by - iconPx * 0.7, w: iconPx * 1.4, h: iconPx * 1.4, info: { icon: meta.icon, name: b.name, kind: meta.kind, place: m.name, yours, home } });
       }
     }
+    // your cars, wherever you left them (v0.16.0)
+    for (const c of g.vehicles?.ownedCars() || []) {
+      const o = L.pos[c.map];
+      if (!o || c.id === g.player.driving) continue;
+      const cx = X(o.x + c.x / TILE);
+      const cy = Y(o.y + c.y / TILE);
+      ctx.fillStyle = '#fff6d8';
+      ctx.strokeStyle = c.stolen ? '#c0614a' : '#e8b64c';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(cx, cy, iconPx * 0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.font = `${iconPx * 0.72}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.fillStyle = '#2d2433';
+      ctx.fillText('🚗', cx, cy + 1);
+      const m = g.content.vehicles.models[c.model];
+      hits.push({ key: `car:${c.id}`, x: cx - iconPx * 0.6, y: cy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚗', name: `Your ${m.name}`, kind: c.stolen ? 'Stolen — parked here' : 'Parked here', place: g.maps.get(c.map).name, yours: false } });
+    }
     // district names (zoomed in) or region names (zoomed out)
     if (z >= 3.5) {
       for (const [id, o] of Object.entries(L.pos)) {
@@ -22615,6 +23928,7 @@ const HELP = [
   ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
   ['arrive', 'every shipment in transit arrives now'],
   ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
+  ['car [model]', 'a car of your own beside you (pipit, dray, mule, aurelia, tempest, corsair, regent, cruiser)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -22920,6 +24234,24 @@ function runCommand(game, line) {
       game.inventory.add('item_inserter', 8, { silent: true });
       game.inventory.add('item_generator', 1, { silent: true });
       return out('One of every workstation, 30 belts, 8 arms, a generator.');
+    }
+    case 'car': {
+      const id = args[0] || 'pipit';
+      const m = game.content.vehicles.models[id];
+      if (!m) return out(`Unknown model. Try: ${Object.keys(game.content.vehicles.models).join(', ')}`, false);
+      const V = game.vehicles;
+      const map = game.currentMap();
+      if (map.kind === 'interior') return out('Go outside first.', false);
+      const p = game.player;
+      for (const [dx, dy] of [[0, 56], [0, -56], [70, 0], [-70, 0], [0, 100], [100, 0]]) {
+        const x = p.x + dx;
+        const y = p.y + dy;
+        if (V.blocked(map, x, y, 0, m.len, m.wid)) continue;
+        const cid = `car_dbg${V.state.nextId++}`;
+        V.state.cars[cid] = { id: cid, model: id, color: m.colors[0], map: map.id, x, y, angle: 0, owner: 'player', stolen: false, plate: 'DEBUG 1' };
+        return out(`A ${m.name} is parked beside you. E to get in.`);
+      }
+      return out('No room for a car here.', false);
     }
     case 'research': {
       const id = args[0];
@@ -23275,7 +24607,7 @@ function mapPanel(ui, body, opts) {
       h('span', {}, h('i', { style: 'background:#fff;border:2px solid #2d2433' }), 'You'),
       h('span', {}, h('i', { style: 'background:#c0614a' }), 'People you\'ve met (zoom in)'),
       h('span', {}, h('i', { style: 'background:#e8b64c' }), 'Objective'),
-      h('span', {}, h('i', { style: 'background:#fbf4e6;border:2px solid #e8b64c;border-radius:50%' }), 'Home and property you own'),
+      h('span', {}, h('i', { style: 'background:#fbf4e6;border:2px solid #e8b64c;border-radius:50%' }), 'Home, property and cars you own'),
     ),
     h('p', { class: 'muted' }, `Drag to pan, scroll or use + / − to zoom, hover an icon to see what it is. Areas discovered: ${Object.keys(g.player.discovered.areas).length}. Unexplored districts stay dark until you visit them.${me?.inside ? ` You are inside ${me.inside}.` : ''}`),
   );
@@ -23579,7 +24911,7 @@ function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -24450,6 +25782,14 @@ function homeApp(ui, body, open) {
   } else {
     cards.append(h('div', { class: 'tablet-card muted' }, h('b', {}, '🏭 Business'), h('span', {}, 'You don\'t own a business yet. Buy an arms works and it will show up here.')));
   }
+  const cars = g.vehicles.ownedCars();
+  if (cars.length) {
+    const models = g.content.vehicles.models;
+    cards.append(h('div', { class: 'tablet-card' },
+      h('b', {}, `🚗 Your cars (${cars.length})`),
+      ...cars.slice(0, 4).map((c) => h('span', {}, `${models[c.model].name}${c.stolen ? ' (stolen)' : ''} — ${c.id === g.player.driving ? 'you\'re driving it' : g.maps.get(c.map).name}`)),
+      cars.length > 4 ? h('span', {}, `…and ${cars.length - 4} more (all on the map).`) : null));
+  }
   const oil = g.oil.state;
   cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
     h('b', {}, '📈 Ober\'s Oil'),
@@ -24523,6 +25863,90 @@ function stocksHeader(g) {
 return { tabletPanel };
 })();
 
+// ---- src/ui/dealer.js
+__m["src/ui/dealer.js"] = (function () {
+// The dealership panel (v0.16.0): opened by talking to Marty Fender or Julian
+// Beaumont. Buy a car (choose a colour), sell one you've parked on the lot,
+// and at Fender's, buy "fresh plates" for a stolen car. See src/systems/vehicles.js.
+const { h } = __m["src/ui/panels.js"];
+const { drawCar } = __m["src/engine/drawVehicles.js"];
+
+const STYLE = {
+  fender: { cls: 'dealer-fender', tag: 'EVERY CAR A BARGAIN!*', fine: '*Not a guarantee. Sold as seen. No refunds.' },
+  beaumont: { cls: 'dealer-beaumont', tag: 'Est. in the age of carriages', fine: 'All vehicles delivered to the forecourt, keys in the ignition.' },
+};
+
+function preview(model, color) {
+  const c = h('canvas', { width: 220, height: 120, class: 'dealer-car' });
+  const ctx = c.getContext('2d');
+  const s = Math.min(1.9, 170 / model.len);
+  ctx.save();
+  ctx.translate(110, 64);
+  ctx.scale(s, s);
+  drawCar(ctx, model, 0, 0, -0.35, { color, id: model.name });
+  ctx.restore();
+  return c;
+}
+
+function bar(label, v) {
+  return h('div', { class: 'dealer-stat' }, h('span', {}, label), h('div', { class: 'meter' }, h('i', { class: 'pos', style: `width:${Math.round(Math.max(0.05, Math.min(1, v)) * 100)}%` })));
+}
+
+function dealerPanel(ui, body, opts) {
+  const g = ui.game;
+  const V = g.vehicles;
+  const did = opts.dealer;
+  const d = V.dealer(did);
+  const st = STYLE[did] || STYLE.fender;
+  const tab = opts.tab || 'Buy';
+  const go = (extra) => ui.openPanel('dealer', { ...opts, msg: null, ...extra });
+  body.classList.add(st.cls);
+  body.append(h('div', { class: 'dealer-head' }, h('b', {}, d.name), h('span', {}, st.tag)));
+  if (opts.msg) body.append(h('p', { class: 'dealer-msg' }, opts.msg));
+  if (tab === 'Buy') {
+    for (const id of d.models) {
+      const m = V.cfg.models[id];
+      const color = opts.colors?.[id] || m.colors[0];
+      const swatches = h('div', { class: 'dealer-swatches' }, ...m.colors.map((c) => h('button', { class: `swatch${c === color ? ' on' : ''}`, style: `background:${c}`, title: 'Choose this colour', onclick: () => go({ colors: { ...(opts.colors || {}), [id]: c } }) })));
+      const can = g.player.money >= m.price;
+      body.append(h('div', { class: 'dealer-row' },
+        preview(m, color),
+        h('div', { class: 'grow' },
+          h('div', { class: 'dealer-name' }, m.name, h('span', { class: 'dealer-price' }, `${m.price.toLocaleString()} obols`)),
+          h('div', { class: 'desc' }, m.blurb),
+          h('div', { class: 'dealer-pitch' }, `“${m.pitch}”`),
+          h('div', { class: 'dealer-stats' }, bar('Top speed', m.top / 500), bar('Acceleration', m.accel / 520), bar('Handling', m.grip / 3.9)),
+          h('div', { class: 'row', style: 'justify-content:space-between;margin-top:6px' }, swatches,
+            h('button', { class: 'small primary', disabled: !can, onclick: () => { const r = V.buy(did, id, color); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, can ? 'Buy' : `Need ${m.price - g.player.money} more`)))));
+    }
+  } else {
+    const lot = V.onLot(did);
+    body.append(h('p', { class: 'muted' }, did === 'fender'
+      ? `Park a car on the lot and Marty will make an offer: ${Math.round(d.tradeIn * 100)}% of list, or ${Math.round(d.buysStolen * 100)}% if its past is "complicated". Fresh plates: ${d.plates} obols — a stolen car becomes yours on paper.`
+      : `Park a car on the forecourt to have it appraised: ${Math.round(d.tradeIn * 100)}% of list. The Gallery does not handle vehicles of uncertain provenance.`));
+    if (!lot.length) body.append(h('p', {}, h('b', {}, 'None of your cars is parked on the lot.')));
+    for (const car of lot) {
+      const m = V.model(car);
+      const offer = V.offer(did, car);
+      body.append(h('div', { class: 'dealer-row' }, preview(m, car.color),
+        h('div', { class: 'grow' },
+          h('div', { class: 'dealer-name' }, m.name, car.stolen ? h('span', { class: 'tag bad' }, 'stolen') : null),
+          h('div', { class: 'desc' }, `Plate ${car.plate}. List price ${m.price}.`),
+          h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
+            h('button', { class: 'small primary', disabled: !offer, onclick: () => { const r = V.sell(did, car.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, offer ? `Sell for ${offer}` : 'Won\'t buy it'),
+            car.stolen && d.plates ? h('button', { class: 'small', disabled: g.player.money < d.plates, onclick: () => { const r = V.replate(did, car.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, `Fresh plates (${d.plates})`) : null))));
+    }
+  }
+  body.append(h('p', { class: 'muted dealer-fine' }, `${st.fine} · You have ${g.player.money} obols.`));
+  return {
+    title: d.name, className: `dealer ${st.cls}`, onClose: opts.onClose,
+    tabs: ['Buy', 'Sell'].map((t) => ({ label: t === 'Sell' ? (did === 'fender' ? 'Sell / plates' : 'Part-exchange') : 'Buy', active: t === tab, onclick: () => ui.openPanel('dealer', { ...opts, tab: t, msg: null }) })),
+  };
+}
+
+return { dealerPanel };
+})();
+
 // ---- src/ui/ui.js
 __m["src/ui/ui.js"] = (function () {
 // UI controller: title/new-game screens, HUD, modal panels, dialogue, and the
@@ -24538,9 +25962,11 @@ const { MapRenderer } = __m["src/ui/maps.js"];
 const { PANELS, h } = __m["src/ui/panels.js"];
 const { terminalPanel } = __m["src/ui/terminal.js"];
 const { tabletPanel } = __m["src/ui/tablet.js"];
+const { dealerPanel } = __m["src/ui/dealer.js"];
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
+PANELS.dealer = dealerPanel;
 const { saveSettings } = __m["src/save/saveManager.js"];
 
 const LOOKS = [
@@ -24611,6 +26037,7 @@ class UI {
       modal: document.getElementById('modal'),
       modalTitle: document.getElementById('modal-title'),
       modalPanel: document.getElementById('modal-panel'),
+      keys: document.getElementById('hud-keys'),
       tabletBadge: document.getElementById('hud-tablet'),
       modalBody: document.getElementById('modal-body'),
       modalTabs: document.getElementById('modal-tabs'),
@@ -24923,7 +26350,15 @@ class UI {
     if (this.state !== 'playing' || this.game?.combat.wrath) return;
     if (this.build && this.buildAction(action)) return;
     switch (action) {
-      case 'build': this.toggleBuild(); break;
+      case 'build': if (!this.game.player.driving) this.toggleBuild(); break;
+      case 'horn': {
+        const g = this.game;
+        if (!g.player.driving) break;
+        this.audio.sfx('sfx_horn');
+        // people nearby jump out of their skin
+        for (const n of g.npcs.values()) if (n.map === g.player.map && Math.hypot(n.x - g.player.x, n.y - g.player.y) < 160 && g.rng.chance(0.4)) g.bark(n, g.rng.pick(['Oi!', 'Alright, alright!', 'I heard you the first time!', '*jumps*']));
+        break;
+      }
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
       case 'journal': this.openPanel('tablet'); break;
@@ -25125,6 +26560,9 @@ class UI {
       if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
       if (this.build) this.updateBuild();
       g.update(dt, move);
+      // the engine note follows your speed (src/audio/audioEngine.js)
+      const car = g.vehicles.driving();
+      this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;
       this.renderer.highlight = target || null;
@@ -25166,10 +26604,23 @@ class UI {
     const w = g.combat.equipped();
     const ammo = g.combat.ammoStatus();
     const ammoHtml = ammo ? `<span class="ammo${ammo.loaded ? '' : ' empty'}">${ammo.reloading ? 'reloading…' : `${ammo.loaded}/${ammo.mag}`} · ${ammo.reserve}</span>` : '';
-    const whtml = `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
+    const car = g.vehicles.driving();
+    const whtml = car
+      ? `<span>🚗 ${escapeHtml(g.vehicles.model(car).name)}${car.stolen ? ' <span class="tag bad">stolen</span>' : ''}</span><span class="ammo">${Math.round(Math.abs(car.speed || 0) * 0.105)} mph</span>`
+      : `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
     if (this.el.weapon.innerHTML !== whtml) this.el.weapon.innerHTML = whtml;
     if (p.hurtAt && g.realTime - p.hurtAt < 0.05) { this.el.hudBl.classList.remove('hurt'); void this.el.hudBl.offsetWidth; this.el.hudBl.classList.add('hurt'); }
-    if (target) {
+    if (this.el.keys) {
+      if (!this.walkKeys) this.walkKeys = this.el.keys.textContent;
+      set(this.el.keys, car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
+    }
+    const hw = g.vehicles.hotwire;
+    if (hw) {
+      const k = Math.min(1, hw.t / hw.need);
+      const html = `🔧 Hotwiring… <span class="hotwire"><i style="width:${Math.round(k * 100)}%"></i></span> (stand still)`;
+      if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
+      this.el.prompt.classList.remove('hidden');
+    } else if (target) {
       const html = `<kbd>E</kbd>${escapeHtml(target.label)}`;
       if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
       this.el.prompt.classList.remove('hidden');

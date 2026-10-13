@@ -181,6 +181,7 @@ export class Combat {
   attack() {
     const g = this.game;
     if (this.cooldown > 0 || this.reloading || g.paused || this.wrath) return { ok: false, reason: 'busy' };
+    if (g.player.driving) return { ok: false, reason: 'driving' };
     const w = this.equipped();
     const p = g.player;
     const dir = this.aimVector(w);

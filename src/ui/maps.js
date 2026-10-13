@@ -395,6 +395,22 @@ export class MapRenderer {
         hits.push({ key, x: bx - iconPx * 0.7, y: by - iconPx * 0.7, w: iconPx * 1.4, h: iconPx * 1.4, info: { icon: meta.icon, name: b.name, kind: meta.kind, place: m.name, yours, home } });
       }
     }
+    // your cars, wherever you left them (v0.16.0)
+    for (const c of g.vehicles?.ownedCars() || []) {
+      const o = L.pos[c.map];
+      if (!o || c.id === g.player.driving) continue;
+      const cx = X(o.x + c.x / TILE);
+      const cy = Y(o.y + c.y / TILE);
+      ctx.fillStyle = '#fff6d8';
+      ctx.strokeStyle = c.stolen ? '#c0614a' : '#e8b64c';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(cx, cy, iconPx * 0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.font = `${iconPx * 0.72}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.fillStyle = '#2d2433';
+      ctx.fillText('🚗', cx, cy + 1);
+      const m = g.content.vehicles.models[c.model];
+      hits.push({ key: `car:${c.id}`, x: cx - iconPx * 0.6, y: cy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚗', name: `Your ${m.name}`, kind: c.stolen ? 'Stolen — parked here' : 'Parked here', place: g.maps.get(c.map).name, yours: false } });
+    }
     // district names (zoomed in) or region names (zoomed out)
     if (z >= 3.5) {
       for (const [id, o] of Object.entries(L.pos)) {

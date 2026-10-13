@@ -46,6 +46,14 @@ function homeApp(ui, body, open) {
   } else {
     cards.append(h('div', { class: 'tablet-card muted' }, h('b', {}, '🏭 Business'), h('span', {}, 'You don\'t own a business yet. Buy an arms works and it will show up here.')));
   }
+  const cars = g.vehicles.ownedCars();
+  if (cars.length) {
+    const models = g.content.vehicles.models;
+    cards.append(h('div', { class: 'tablet-card' },
+      h('b', {}, `🚗 Your cars (${cars.length})`),
+      ...cars.slice(0, 4).map((c) => h('span', {}, `${models[c.model].name}${c.stolen ? ' (stolen)' : ''} — ${c.id === g.player.driving ? 'you\'re driving it' : g.maps.get(c.map).name}`)),
+      cars.length > 4 ? h('span', {}, `…and ${cars.length - 4} more (all on the map).`) : null));
+  }
   const oil = g.oil.state;
   cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
     h('b', {}, '📈 Ober\'s Oil'),

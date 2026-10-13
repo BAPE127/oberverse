@@ -297,3 +297,33 @@ div.tablet-card { border: 2px dashed var(--line); }
 .wmap-canvas { display: block; width: 100%; height: min(560px, calc(100vh - 290px)); min-height: 260px; border: 2px solid var(--ink); border-radius: 10px; cursor: grab; touch-action: none; }
 .wmap-canvas.grabbing { cursor: grabbing; }
 .wmap-tip { position: absolute; z-index: 2; background: var(--paper); border: 2px solid var(--ink); border-radius: 8px; padding: 5px 9px; font-size: 13px; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.3); max-width: 220px; }
+
+/* ---- dealerships (v0.16.0, src/ui/dealer.js) ---- */
+.dealer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: 10px; margin-bottom: 10px; }
+.dealer-head b { font-size: 18px; }
+.dealer-row { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.dealer-car { width: 220px; height: 120px; flex: none; border-radius: 10px; }
+.dealer-name { font-weight: bold; font-size: 16px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.dealer-price { margin-left: auto; font-size: 15px; }
+.dealer-pitch { font-style: italic; font-size: 13px; margin-top: 4px; }
+.dealer-stats { display: grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap: 4px 12px; margin-top: 6px; font-size: 12px; }
+.dealer-stat .meter i { left: 0; }
+.dealer-swatches { display: flex; gap: 6px; }
+.dealer-swatches .swatch { width: 22px; height: 22px; border-radius: 50%; padding: 0; border: 2px solid rgba(0,0,0,.35); }
+.dealer-swatches .swatch.on { outline: 3px solid var(--gold); outline-offset: 1px; }
+.dealer-msg { font-weight: bold; }
+.dealer-fine { font-size: 12px; }
+/* Fender's: garish forecourt bunting */
+.dealer-fender .dealer-head { background: repeating-linear-gradient(90deg, #e8c04a 0 18px, #c8402a 18px 36px); color: #fff; text-shadow: 0 2px 0 #7a2a1a; }
+.dealer-fender .dealer-row { background: #fff6d8; border: 2px dashed #c8402a; }
+.dealer-fender .dealer-car { background: #cfd2cf; }
+.dealer-fender .dealer-price { color: #c8402a; transform: rotate(-3deg); font-family: var(--display); font-size: 18px; }
+/* Beaumont's: navy, gold, marble */
+#modal-panel.dealer-beaumont { background: #f6f3ec; }
+.dealer-beaumont .dealer-head { background: #1e2a3f; color: #e9d8a6; font-family: var(--display); letter-spacing: 1px; }
+.dealer-beaumont .dealer-row { background: linear-gradient(135deg, #fbfaf6, #ece6da); border: 1px solid #d9c08a; }
+.dealer-beaumont .dealer-car { background: radial-gradient(ellipse at center, #ffffff, #d8d2c6); }
+.dealer-beaumont .dealer-name { font-family: var(--display); }
+.dealer-beaumont .dealer-price { color: #8a6a1f; }
+.hotwire { display: inline-block; width: 90px; height: 8px; background: rgba(0,0,0,.2); border-radius: 4px; vertical-align: middle; overflow: hidden; }
+.hotwire i { display: block; height: 100%; background: var(--warn); }

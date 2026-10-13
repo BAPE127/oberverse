@@ -77,6 +77,7 @@ export class Police {
       case e.fact === 'fact_player_dealing': return 2;
       case e.fact === 'fact_player_embargo': return 8;
       case e.fact === 'fact_player_explosion': return 10;
+      case e.fact === 'fact_player_car_theft': return 3;
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;

@@ -289,7 +289,7 @@ export function mapPanel(ui, body, opts) {
       h('span', {}, h('i', { style: 'background:#fff;border:2px solid #2d2433' }), 'You'),
       h('span', {}, h('i', { style: 'background:#c0614a' }), 'People you\'ve met (zoom in)'),
       h('span', {}, h('i', { style: 'background:#e8b64c' }), 'Objective'),
-      h('span', {}, h('i', { style: 'background:#fbf4e6;border:2px solid #e8b64c;border-radius:50%' }), 'Home and property you own'),
+      h('span', {}, h('i', { style: 'background:#fbf4e6;border:2px solid #e8b64c;border-radius:50%' }), 'Home, property and cars you own'),
     ),
     h('p', { class: 'muted' }, `Drag to pan, scroll or use + / − to zoom, hover an icon to see what it is. Areas discovered: ${Object.keys(g.player.discovered.areas).length}. Unexplored districts stay dark until you visit them.${me?.inside ? ` You are inside ${me.inside}.` : ''}`),
   );
@@ -593,7 +593,7 @@ export function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);

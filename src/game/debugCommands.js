@@ -43,6 +43,7 @@ const HELP = [
   ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
   ['arrive', 'every shipment in transit arrives now'],
   ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
+  ['car [model]', 'a car of your own beside you (pipit, dray, mule, aurelia, tempest, corsair, regent, cruiser)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -348,6 +349,24 @@ export function runCommand(game, line) {
       game.inventory.add('item_inserter', 8, { silent: true });
       game.inventory.add('item_generator', 1, { silent: true });
       return out('One of every workstation, 30 belts, 8 arms, a generator.');
+    }
+    case 'car': {
+      const id = args[0] || 'pipit';
+      const m = game.content.vehicles.models[id];
+      if (!m) return out(`Unknown model. Try: ${Object.keys(game.content.vehicles.models).join(', ')}`, false);
+      const V = game.vehicles;
+      const map = game.currentMap();
+      if (map.kind === 'interior') return out('Go outside first.', false);
+      const p = game.player;
+      for (const [dx, dy] of [[0, 56], [0, -56], [70, 0], [-70, 0], [0, 100], [100, 0]]) {
+        const x = p.x + dx;
+        const y = p.y + dy;
+        if (V.blocked(map, x, y, 0, m.len, m.wid)) continue;
+        const cid = `car_dbg${V.state.nextId++}`;
+        V.state.cars[cid] = { id: cid, model: id, color: m.colors[0], map: map.id, x, y, angle: 0, owner: 'player', stolen: false, plate: 'DEBUG 1' };
+        return out(`A ${m.name} is parked beside you. E to get in.`);
+      }
+      return out('No room for a car here.', false);
     }
     case 'research': {
       const id = args[0];

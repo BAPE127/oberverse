@@ -102,6 +102,18 @@ export function drawCharacter(ctx, a, s) {
       ctx.beginPath(); ctx.moveTo(px, -26); ctx.lineTo(px, -11); ctx.stroke();
     }
   }
+  if (a.pattern === 'check') {
+    // a loud checked blazer (Marty Fender)
+    ctx.strokeStyle = a.patternColor || 'rgba(255,230,120,0.45)';
+    ctx.lineWidth = 0.8;
+    for (let px = -tw / 2 + 2; px < tw / 2 - 1; px += 3.4) { ctx.beginPath(); ctx.moveTo(px, -26); ctx.lineTo(px, -11); ctx.stroke(); }
+    for (let py = -25; py < -11; py += 3.4) { ctx.beginPath(); ctx.moveTo(-tw / 2 + 1, py); ctx.lineTo(tw / 2 - 1, py); ctx.stroke(); }
+  }
+  if (acc.has('chain') && facing === 'down') {
+    ctx.strokeStyle = '#e8c04a';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0, -27, 4.5, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  }
   if (acc.has('apron') || a.apron) {
     ctx.fillStyle = a.apron || '#f4efe6';
     rrect(ctx, -tw / 2 + 2.5, -21, tw - 5, 12, 3);
@@ -405,6 +417,22 @@ function drawFaceAccessory(ctx, a, facing, eyeY, dir) {
     ctx.lineWidth = 1.1;
     ctx.beginPath(); ctx.arc(mx, eyeY, 3, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(mx + 1, eyeY + 3); ctx.quadraticCurveTo(mx + 3, eyeY + 12, mx - 2, eyeY + 18); ctx.stroke();
+  }
+  if (acc.has('shades')) {
+    // sunglasses: two dark lenses
+    ctx.fillStyle = '#141218';
+    if (facing === 'left' || facing === 'right') {
+      rrect(ctx, dir * 4.5 - 3, eyeY - 2, 6, 3.6, 1.4); ctx.fill();
+      ctx.strokeStyle = '#141218'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(dir * 1.5, eyeY - 0.8); ctx.lineTo(-dir * 7, eyeY - 1.5); ctx.stroke();
+    } else if (facing === 'down') {
+      rrect(ctx, -7, eyeY - 2, 6, 3.8, 1.5); ctx.fill();
+      rrect(ctx, 1, eyeY - 2, 6, 3.8, 1.5); ctx.fill();
+      ctx.fillRect(-1, eyeY - 1.2, 2, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(-6, eyeY - 1.4, 2, 1); ctx.fillRect(2, eyeY - 1.4, 2, 1);
+    }
+    return;
   }
   if (!acc.has('glasses')) return;
   ctx.strokeStyle = '#1e1b22';

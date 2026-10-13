@@ -206,6 +206,23 @@ export const SFX = {
     const t = ctx.currentTime;
     for (const f of [180, 186]) tone(ctx, d, { type: 'sawtooth', f0: f * 0.6, f1: f, t, dur: 0.9, vol: 0.2, attack: 0.2 });
   },
+  // v0.16.0: cars
+  sfx_car_start: (ctx, d) => {
+    const t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) tone(ctx, d, { type: 'sawtooth', f0: 38, f1: 52, t: t + i * 0.13, dur: 0.1, vol: 0.18 }); // the starter cranks
+    tone(ctx, d, { type: 'sawtooth', f0: 45, f1: 95, t: t + 0.42, dur: 0.5, vol: 0.3, attack: 0.03 }); // and catches
+    noise(ctx, d, { t: t + 0.42, dur: 0.45, vol: 0.18, type: 'lowpass', freq: 400 });
+  },
+  sfx_crash: (ctx, d) => {
+    const t = ctx.currentTime;
+    noise(ctx, d, { t, dur: 0.35, vol: 0.7, type: 'bandpass', freq: 900, f1: 300, q: 0.8 });
+    tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.18, vol: 0.18 });
+    for (let i = 0; i < 5; i++) noise(ctx, d, { t: t + 0.05 + Math.random() * 0.3, dur: 0.03, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass and bits
+  },
+  sfx_horn: (ctx, d) => {
+    const t = ctx.currentTime;
+    for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: 0.45, vol: 0.12, attack: 0.01 });
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack

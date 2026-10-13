@@ -35,6 +35,8 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_max` | Max Imum | Generated for the Arthur import | Minor | Reckless; machete | — | Implemented & tested |
 | 12 customers | Ray, Mo, Dot, Bill, Lena, Gus, Fern, Nico, Hattie, Bram, Pearl, Sol | Generated for the Arthur import | Minor | Sumps residents who buy calculators (`profile.customer`) | — | Implemented & tested |
 | `npc_lucas` | Lucas Eastrise | **Imported** (2026-10-13) | Major | Owner of Pipecreek Armory; sleazy, creepy, conspiratorial; sets you up in the arms trade; protected (arms Wrath) | `motif_lucas` | Implemented & tested |
+| `npc_marty` | Marty Fender | Original (transportation update) | Minor | Fender's Pre-Loved Motors, Westbrook Row: sleazy used cars, buys anything, "fresh plates" | `characters/dealers.js`, `dialogue/dealers.js` | Implemented & tested |
+| `npc_julian` | Julian Beaumont | Original (transportation update) | Minor | Beaumont Motor Gallery, Halvermouth East End: high-end cars | `characters/dealers.js`, `dialogue/dealers.js` | Implemented & tested |
 | `npc_sal` | Sal Vage | Generated for the gang update | Minor | Sal's Surplus Electronics: calculator parts, machinery, deliveries | — | Implemented & tested |
 | `npc_staff_*` | (procedural) | Generated at runtime | Minor | Your arms-works employees (`world.arms.staff`) | — | Implemented & tested |
 | `npc_dee` | Dolores "Dee" Rivera | Generated for the Mason import | Minor | Site foreman; hires and pays | — | Implemented & tested |

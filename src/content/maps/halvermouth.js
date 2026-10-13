@@ -22,6 +22,7 @@ for (const x of STREETS) m.rect(x, 0, 2, 71, '=');
 // --- blocks
 m.rect(41, 15, 20, 20, 'm'); // Civic Plaza
 m.rect(0, 15, 13, 20, 'g'); // Harbourline car park
+m.rect(101, 20, 10, 4, 'm'); // the Beaumont Motor Gallery's forecourt (v0.16.0)
 m.rect(78, 23, 7, 12, 'g'); // police car park
 m.rect(89, 39, 23, 20, '.'); // Founders Park
 m.rect(89, 48, 23, 1, ':').rect(99, 39, 1, 20, ':'); // park paths
@@ -96,6 +97,11 @@ const buildings = [
     roof: '#3a3a32', wall: '#7a6a52', trim: '#2a2418', flatRoof: true, sign: 'PIPECREEK ARMORY', awning: '#5a4a2a',
     door: { x: 69, y: 58, to: { map: 'gun_shop', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '09:00', to: '19:00' } } },
   },
+  {
+    id: 'b_beaumont', name: 'Beaumont Motor Gallery', mapLabel: 'Beaumont Motor Gallery', x: 102, y: 15, w: 9, h: 5,
+    roof: '#1e2a3f', wall: '#e9e4d8', trim: '#b8892f', flatRoof: true, sign: 'BEAUMONT', columns: true, awning: '#1e2a3f',
+    door: { x: 106, y: 19, to: { map: 'beaumont_showroom', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_julian'], hours: { from: '09:30', to: '18:30' } } },
+  },
   shop('b_locksmith', 'Tumbler & Sons Locksmiths', 74, 52, 5, 7, { roof: '#5a4a3a', wall: '#c8b89a', sign: 'LOCKS' }),
   shop('b_bail', 'Bail Bonds 24/7', 80, 52, 5, 7, { roof: '#7a6a2a', wall: '#e8d888', trim: '#5a4a1a', sign: 'BAIL BONDS' }),
   // The Sumps
@@ -162,8 +168,10 @@ P('sign', 76, 34, { examine: '"HALVERMOUTH POLICE DEPARTMENT — PRECINCT 1. Ope
 // East End and the East Gate
 P('gatepost', 108, 35); P('gatepost', 108, 38);
 P('sign', 106, 35, { examine: '"WELCOME TO HALVERMOUTH — City of a Thousand Windows. East: Westbrook, Lanternside & the Coast Road."' });
-for (const [x, y] of [[103, 17], [107, 17], [103, 22], [107, 22], [103, 27], [107, 27], [103, 32]]) P('tree', x, y, { color: '#4f8a4a' });
-P('bench', 105, 19); P('bench', 105, 29);
+for (const [x, y] of [[103, 27], [107, 27], [103, 32]]) P('tree', x, y, { color: '#4f8a4a' });
+P('bench', 105, 29);
+P('flagpole', 101, 15, { color: '#1e2a3f', examine: 'A navy pennant with a gold B. It does not flap so much as gesture.' });
+P('sign', 110, 21, { examine: '"BEAUMONT MOTOR GALLERY — Est. in the age of carriages. By appointment, or by sufficient means."' });
 for (const x of [90, 94]) P('car', x, 18, { color: '#1e1e22', examine: 'A black limousine with a chauffeur asleep at the wheel. Grand Hotel guests only.' });
 // Market Street and Iron Row
 for (let x = 54; x < 61; x += 2) P('booth', x, 48, { examine: 'A market stall: fish, flowers, and "genuine" Ober\'s Oil shares at a discount.' });
@@ -225,6 +233,7 @@ export const halvermouth = {
     hall_door_out: { x: 50, y: 24, facing: 'down' },
     police_door_out: { x: 71, y: 34, facing: 'down' },
     gunshop_door_out: { x: 69, y: 59, facing: 'down' },
+    beaumont_door_out: { x: 106, y: 20, facing: 'down' },
     mill_road_west: { x: 1, y: 60, facing: 'right' },
     sumps_gate: { x: 16, y: 38, facing: 'down' },
     mission_front: { x: 22, y: 46, facing: 'up' },
@@ -391,6 +400,33 @@ export const jail = {
   ],
 };
 
+// The Beaumont Motor Gallery (v0.16.0): a marble showroom of cars as art,
+// Julian Beaumont's desk, and a lounge for clients (and Julian, after hours).
+export const beaumontShowroom = {
+  id: 'beaumont_showroom',
+  name: 'Beaumont Motor Gallery',
+  kind: 'interior',
+  music: 'mus_manor',
+  ambience: 'amb_indoor',
+  owner: 'npc_julian',
+  tiles: roomTiles(18, 11, 't', 9),
+  doors: [{ id: 'door_beaumont_exit', x: 9, y: 10, to: { map: 'halvermouth', spot: 'beaumont_door_out' } }],
+  spots: { entry: { x: 9, y: 9, facing: 'up' }, desk: { x: 14, y: 2, facing: 'down' }, lounge: { x: 3, y: 8, facing: 'right' }, chaise: { x: 15, y: 8, facing: 'left' } },
+  props: [
+    { id: 'bg_aurelia', type: 'car_display', model: 'aurelia', x: 1, y: 1, w: 3, h: 2, examine: 'The Beaumont Aurelia, in midnight blue. A card on a brass stand: "6,500. Enquire with Mr Beaumont."' },
+    { id: 'bg_tempest', type: 'car_display', model: 'tempest', x: 6, y: 1, w: 3, h: 2, examine: 'The Halcyon Tempest GT. The walnut dashboard has been polished until you can see your bank balance in it.' },
+    { id: 'bg_regent', type: 'car_display', model: 'regent', x: 2, y: 4, w: 4, h: 2, examine: 'The Sterling Regent limousine. There is a decanter in the back. It is full. It is always full.' },
+    { id: 'bg_corsair', type: 'car_display', model: 'corsair', x: 8, y: 4, w: 3, h: 2, examine: 'The Vantaggio Corsair, red as an alarm. A card: "18,500. Please do not rev."' },
+    { id: 'bg_desk', type: 'desk', x: 13, y: 1, w: 3, color: '#2a1e18', examine: 'Julian\'s desk: a fountain pen, a leather order book and a single orchid. No computer. "Computers," he says, "are for people who forget things."' },
+    { id: 'bg_plant1', type: 'plant', x: 16, y: 1 }, { id: 'bg_plant2', type: 'plant', x: 1, y: 8 },
+    { id: 'bg_sofa', type: 'bench', x: 4, y: 8, w: 2, examine: 'A leather chesterfield for clients "considering their options".' },
+    { id: 'bg_chaise', type: 'bed', x: 16, y: 7, color: '#6a1f2a', examine: 'A velvet chaise longue in the back corner. Julian insists he never sleeps here.' },
+    { id: 'bg_bar', type: 'counter', x: 13, y: 5, w: 3, examine: 'A little bar: sherry, champagne, and sparkling water "for the drivers".' },
+    { id: 'bg_rug', type: 'rug', x: 7, y: 7, w: 4, h: 2, color: '#1e2a3f' },
+    { id: 'bg_portrait', type: 'painting', x: 11, y: 0, examine: 'Three generations of Beaumonts, each beside a vehicle: a carriage, a motor car, and the Corsair. All three are wearing the same expression.' },
+  ],
+};
+
 export const gunShop = {
   id: 'gun_shop',
   name: 'Pipecreek Armory',
@@ -506,4 +542,4 @@ export const surplus = {
   ],
 };
 
-export default [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, wh7, wh9, wh12, surplus];
+export default [halvermouth, hallOfJustice, policeStation, jail, gunShop, beaumontShowroom, abacus, wh7, wh9, wh12, surplus];

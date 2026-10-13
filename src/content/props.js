@@ -58,6 +58,7 @@ export const PROP_TYPES = {
   // Halvermouth
   car: { solid: true, label: 'Car', defaults: { w: 2, examine: 'A parked car. Nobody in Lanternside owns one of these.' } },
   flagpole: { solid: true, label: 'Flagpole', defaults: {} },
+  car_display: { solid: true, label: 'Display car', defaults: { w: 3, h: 2 } },
   statue: { solid: true, label: 'Statue', defaults: { w: 2, h: 2 } },
   trash: { solid: false, label: 'Rubbish', defaults: { examine: 'Bin bags, newspapers and something that used to be a sofa.' } },
   barrelfire: { solid: true, label: 'Burning barrel', defaults: { examine: 'An oil drum with a fire in it. People gather here on cold nights. The drum says OBER\'S OIL.' } },

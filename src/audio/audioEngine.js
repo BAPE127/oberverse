@@ -70,6 +70,46 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * The engine note while you drive (v0.16.0): null stops it; otherwise
+   * level 0..1 (speed share) raises pitch and volume. Built on first use.
+   */
+  setEngine(level) {
+    if (!this.enabled) return;
+    try {
+      const c = this.ctx;
+      const t = c.currentTime;
+      if (level === null) {
+        if (this.engine) this.engine.gain.gain.setTargetAtTime(0.0001, t, 0.15);
+        return;
+      }
+      if (!this.engine) {
+        const gain = c.createGain();
+        gain.gain.value = 0.0001;
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 420;
+        const oscs = [0, 7].map((det) => {
+          const o = c.createOscillator();
+          o.type = 'sawtooth';
+          o.frequency.value = 40;
+          o.detune.value = det;
+          o.connect(lp);
+          o.start();
+          return o;
+        });
+        lp.connect(gain).connect(this.buses.sfx);
+        this.engine = { gain, lp, oscs };
+      }
+      const f = 34 + level * 95;
+      for (const o of this.engine.oscs) o.frequency.setTargetAtTime(f, t, 0.08);
+      this.engine.lp.frequency.setTargetAtTime(300 + level * 900, t, 0.1);
+      this.engine.gain.gain.setTargetAtTime(0.05 + level * 0.07, t, 0.1);
+    } catch (err) {
+      this.failures.push(`engine: ${err.message}`);
+    }
+  }
+
   /** Fade music and ambience right down for `seconds` (cutscenes), then back. */
   duck(seconds) {
     if (!this.enabled) return;

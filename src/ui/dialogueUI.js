@@ -136,6 +136,12 @@ export class DialogueUI {
       this.ui.openPanel('shop', { shopId, onClose: () => this.renderOptions() });
       return;
     }
+    if (node.action?.type === 'dealer') {
+      const { dealer } = node.action;
+      node.action = null;
+      this.ui.openPanel('dealer', { dealer, onClose: () => this.renderOptions() });
+      return;
+    }
     if (node.action?.type === 'invest') {
       node.action = null;
       this.ui.openPanel('invest', { onClose: () => this.renderOptions() });

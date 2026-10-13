@@ -14,6 +14,7 @@ m.rect(3, 1, 20, 9, ':').rect(6, 3, 8, 4, 'g'); // construction site + foundatio
 m.rect(12, 10, 1, 1, ':'); // site gate
 m.rect(29, 9, 1, 2, ','); // office path
 m.rect(9, 21, 1, 1, ','); // apartment step
+m.rect(17, 15, 19, 6, 'g').rect(17, 14, 19, 1, ','); // Fender's Pre-Loved Motors: the forecourt (v0.16.0)
 m.rect(41, 26, 3, 22, '~').rect(0, 44, W, 4, '~').rect(0, 42, 41, 2, 's'); // inlet and shore
 
 const fence = [];
@@ -41,6 +42,11 @@ export const westbrook = {
       door: { x: 29, y: 8, to: { map: 'mason_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '18:30' } } },
     },
     {
+      id: 'b_fender_office', mapLabel: 'Fender\'s Motors', name: 'Fender\'s Pre-Loved Motors', x: 36, y: 15, w: 6, h: 4,
+      roof: '#c8402a', wall: '#f2e2a0', trim: '#7a2a1a', flatRoof: true, sign: 'FENDER\'S MOTORS', awning: '#e8c04a',
+      door: { x: 38, y: 18, to: { map: 'fender_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_marty'], hours: { from: '08:30', to: '19:00' } } },
+    },
+    {
       id: 'b_plumb_line', mapLabel: 'Plumb Line Apts', name: 'Plumb Line Apartments', x: 4, y: 15, w: 12, h: 6,
       roof: '#7a8a9a', wall: '#e2d4bd', trim: '#4a5a6a', sign: 'PLUMB LINE APTS',
       door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '22:00' } } },
@@ -65,6 +71,8 @@ export const westbrook = {
     birdwatch: { x: 17, y: 26, facing: 'up' },
     survey: { x: 20, y: 31, facing: 'down' },
     lots_sign: { x: 24, y: 27, facing: 'down' },
+    fender_pitch: { x: 26, y: 19, facing: 'up' },
+    fender_door_out: { x: 38, y: 19, facing: 'down' },
   },
   props: [
     ...fence,
@@ -82,10 +90,14 @@ export const westbrook = {
     { id: 'site_bench', type: 'bench', x: 20, y: 9 },
     lamp('wl_1', 5, 14), lamp('wl_2', 18, 14), lamp('wl_3', 32, 14), lamp('wl_4', 40, 10), lamp('wl_5', 24, 21),
     { id: 'tree_w1', type: 'tree', x: 26, y: 1 }, { id: 'tree_w2', type: 'tree', x: 36, y: 3 }, { id: 'tree_w3', type: 'pine', x: 40, y: 6 },
-    { id: 'tree_w4', type: 'tree', x: 1, y: 17 }, { id: 'tree_w5', type: 'pine', x: 34, y: 17 }, { id: 'tree_w6', type: 'tree', x: 38, y: 19 },
+    { id: 'tree_w4', type: 'tree', x: 1, y: 17 }, { id: 'tree_w6', type: 'tree', x: 41, y: 20 },
     { id: 'tree_w7', type: 'pine', x: 2, y: 30 }, { id: 'tree_w8', type: 'tree', x: 37, y: 37 }, { id: 'tree_w9', type: 'tree', x: 6, y: 39 },
     { id: 'fb_apts', type: 'flowerbed', x: 11, y: 21, w: 2 },
-    { id: 'bench_w', type: 'bench', x: 30, y: 20 },
+    // Fender's Pre-Loved Motors (v0.16.0)
+    { id: 'fender_flag_w', type: 'flagpole', x: 17, y: 15, color: '#e8c04a', examine: 'A flagpole flying a flag that just says "DEALS".' },
+    { id: 'fender_flag_e', type: 'flagpole', x: 35, y: 20, color: '#c8402a', examine: 'A second flag. It says "MORE DEALS".' },
+    { id: 'fender_sign', type: 'sign', x: 17, y: 20, examine: '"FENDER\'S PRE-LOVED MOTORS — Every car a bargain!* (*Not a guarantee. Sold as seen. No refunds. No questions. No.)"' },
+    { id: 'fender_tyres', type: 'barrel', x: 34, y: 15, color: '#2a2a2a', examine: 'A stack of bald tyres labelled "SPARES (ALLEGEDLY)".' },
     // The Lots: surveyed, waiting for future properties (see docs/PROPERTIES.md)
     { id: 'lots_sign', type: 'sign', x: 24, y: 26, examine: '"SURVEYED LOTS — Build your future here! Enquire at Mason\'s Os. (We\'ll make it brick-ly worth your while.)"' },
     stake('stk_1', 6, 28), stake('stk_2', 16, 28), stake('stk_3', 6, 35), stake('stk_4', 16, 35),
@@ -110,6 +122,25 @@ export const masonOffice = {
     { id: 'mo_cab', type: 'cabinet', x: 8, y: 1, examine: 'Permits, in triplicate. Osric would be proud. Osric IS proud; he said so, once, at length.' },
     { id: 'mo_coffee', type: 'stove', x: 8, y: 4, examine: 'A coffee machine with a label: "BREW-NO-STOP". It has never been cleaned. It has never needed to be. It is perfect.' },
     { id: 'mo_win', type: 'window', x: 7, y: 0 },
+  ],
+};
+
+export const fenderOffice = {
+  id: 'fender_office',
+  name: 'Fender\'s Pre-Loved Motors',
+  kind: 'interior',
+  music: 'mus_westbrook',
+  ambience: 'amb_indoor',
+  owner: 'npc_marty',
+  tiles: roomTiles(8, 6, 'f', 3),
+  doors: [{ id: 'door_fender_office_exit', x: 3, y: 5, to: { map: 'westbrook', spot: 'fender_door_out' } }],
+  spots: { entry: { x: 3, y: 4, facing: 'up' }, desk: { x: 5, y: 2, facing: 'up' }, cot: { x: 2, y: 2, facing: 'left' } },
+  props: [
+    { id: 'fo_desk', type: 'desk', x: 4, y: 1, color: '#6a4a2a', examine: 'A desk buried in carbon-copy sales forms. Every form has the same signature on the "previous owner" line. It is Marty\'s.' },
+    { id: 'fo_cot', type: 'cot', x: 1, y: 1, examine: 'A camp bed. Marty "doesn\'t live here". Marty lives here.' },
+    { id: 'fo_keys', type: 'cabinet', x: 6, y: 1, examine: 'A board of car keys on hooks. Several are labelled "???".' },
+    { id: 'fo_poster', type: 'painting', x: 2, y: 0, examine: 'A poster of Marty, younger, giving a thumbs-up beside a car that is on fire. Caption: "HOT DEALS".' },
+    { id: 'fo_plates', type: 'crate', x: 6, y: 4, examine: 'A crate of blank number plates. A sticky note: "FOR DISPLAY PURPOSES".' },
   ],
 };
 
@@ -144,4 +175,4 @@ export const apartments = {
   ],
 };
 
-export default [westbrook, masonOffice, apartments];
+export default [westbrook, masonOffice, apartments, fenderOffice];

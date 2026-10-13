@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.16.0 (2026-10-13)
+
+- `npm run check` — **223/223 tests passed** (12 new in `vehicles.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real keyboard and mouse): Fender's lot with Marty and three display cars; E on Marty, "I'm looking for a car" opened the dealership panel; Buy put a Pipit on the forecourt; E got in; W drove onto Westbrook Row, the car reached 26 mph, and driving west through the gate arrived in Halvermouth with the car; night driving showed headlights; the Beaumont showroom and panel rendered. E on Marty's Dray → Hotwire → the bar filled while standing still → driving it, with "Marty saw that!". Fixed from the runs: cars were too small beside people (scaled up 35%); the car couldn't reach a region gate (its nose hit the map edge first); rust patches drawn off the body; walking into doors was blocked by the car check. No page errors.
+
 ## Verification record — v0.15.1 (2026-10-13)
 
 - `npm run check` — **211/211 tests passed** (3 new in `worldmap.test.mjs`); validator 0 errors.

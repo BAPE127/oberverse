@@ -5,6 +5,8 @@ import { drawFactoryProp } from './drawFactory.js';
 import { hash2 } from '../core/rng.js';
 import { TILE_TYPES } from '../world/tiles.js';
 import { shade, rrect } from './drawCharacter.js';
+import { drawDisplayCar } from './drawVehicles.js';
+import { CAR_MODELS } from '../content/vehicles.js';
 
 const T = TILE;
 
@@ -1027,6 +1029,11 @@ export function drawProp(ctx, p, opts) {
         ctx.fillStyle = '#2a2a2e';
         ctx.fillRect(x + 6, y + h - 6, 10, 3);
       }
+      break;
+    }
+    case 'car_display': {
+      const model = CAR_MODELS[p.model];
+      if (model) drawDisplayCar(ctx, model, x, y, w, h, { color: p.color, id: p.id });
       break;
     }
     case 'flagpole': {

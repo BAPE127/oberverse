@@ -2,6 +2,25 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.16.0] — 2026-10-13 — "On the Road" (development build)
+
+First half of the Transportation update. Owner's answers: drive cars yourself; ride the bus for real (next release); original dealer NPCs; hitting people, car theft and NPC traffic (next release) as extras.
+
+### Added
+- **Cars** (`src/systems/vehicles.js`, content `src/content/vehicles.js`, state `world.vehicles`, `player.driving`): eight models with price, top speed, acceleration, grip, size and body style. Tank-style driving (W/↑ throttle, S/↓ brake and reverse, A/D steer — biting harder with speed, Shift handbrake, H horn), off-road slowdown, sub-stepped collision against walls, props, doors and other cars (oriented boxes), sliding along obstacles, crash sound and camera shake. Cars cross map seams and drive through region gates with you; they stay where you park them. Engine note follows speed (`AudioEngine.setEngine`); headlights light the road at night; brake lights.
+- **Fender's Pre-Loved Motors** (Westbrook Row): a forecourt, a sales hut (`fender_office` interior) and **Marty Fender** (`npc_marty`), selling the Halver Pipit (420), Morrow Dray Estate (680) and Ostley Mule Pickup (900). Buys any car parked on the lot at 40% of list, stolen ones at 30%, and sells "fresh plates" (150) that make a stolen car legitimately yours.
+- **Beaumont Motor Gallery** (Halvermouth, the East End): a glass-fronted showroom with a marble interior (`beaumont_showroom`), display cars, and **Julian Beaumont** (`npc_julian`), selling the Beaumont Aurelia (6,500), Halcyon Tempest GT (11,000), Vantaggio Corsair (18,500) and Sterling Regent Limousine (26,000). Part-exchange at 55%; refuses stolen cars.
+- **The dealership panel** (`src/ui/dealer.js`): car previews, stats, colour choice, buy; sell or re-plate cars parked on the lot. Opened through dialogue (effect `{ dealer: id }`).
+- **Hitting people**: above 70 px/s a car hurts whoever it hits (damage by speed; lethal above 330 px/s), with knockback and the usual assault crime and witnesses; slower, they're nudged and annoyed. **Imported characters are never harmed** — the car stops; no Wrath, since it isn't a direct attack.
+- **Car theft**: E on anyone else's car → hotwire (2.5 s, less with finesse; moving cancels it). Fact `fact_player_car_theft` (severity 3, Wanted ★★); the owner holds a grudge; officers who see you driving a stolen car raise the Wanted level and give chase; stolen cars that police have flagged are impounded back to their owners if you're jailed. Dealers restock a stolen display car the next morning.
+- **Every parked car is real**: Halvermouth's 'car' props (avenues, the Harbourline car park, the police cruisers, the Grand Hotel's limousines) become drivable, stealable cars, plus cars belonging to Sir Moneybucks, Mason, Lucas and Osric.
+- Your cars on the world map (🚗, hover for model and place) and a garage card on the tablet's Home screen. Map icons for both dealerships.
+- Driving HUD: car name, speed in mph, a stolen tag; driving key hints. Hotwire progress bar.
+- Character art: `pattern: 'check'` blazers, `chain` and `shades` accessories.
+- Sounds `sfx_car_start`, `sfx_crash`, `sfx_horn`; the engine loop.
+- Debug command `car [model]`.
+- Tests: `tests/vehicles.test.mjs` (12 tests).
+
 ## [0.15.1] — 2026-10-13 — "Overwatch" (development build)
 
 ### Changed

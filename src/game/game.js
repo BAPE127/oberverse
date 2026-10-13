@@ -28,6 +28,7 @@ import { Arms, freshArms } from '../systems/arms.js';
 import { Market, freshMarket } from '../systems/market.js';
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
+import { Vehicles } from '../systems/vehicles.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -64,6 +65,7 @@ export class Game {
     this.market = new Market(this);
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
+    this.vehicles = new Vehicles(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -278,7 +280,11 @@ export class Game {
     }
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
-    this.updatePlayer(dt, input);
+    if (this.player.driving) this.vehicles.update(dt, input);
+    else {
+      if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
+      this.updatePlayer(dt, input);
+    }
     this.combat.update(dt);
     this.police.update(dt);
     this.gang.update(dt);
@@ -319,6 +325,7 @@ export class Game {
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
+    if (Math.floor(this.clock.total) % 1440 === 6 * 60) this.vehicles.dailyTick();
     for (const [id, shop] of Object.entries(this.content.shops)) {
       if (shop.restockAt && this.clock.timeString === shop.restockAt) this.restockShop(id);
     }
@@ -394,7 +401,7 @@ export class Game {
 
     const actor = this.playerActor();
     const box = (x, y) => [x - PLAYER_BOX.w / 2, y - PLAYER_BOX.h + 2, PLAYER_BOX.w, PLAYER_BOX.h];
-    const blocked = (x, y) => map.rectBlocked(...box(x, y), actor);
+    const blocked = (x, y) => map.rectBlocked(...box(x, y), actor) || this.vehicles.carAt(map, x, y - 2, 0, 14, 10);
     const startX = p.x;
     const startY = p.y;
 
@@ -644,6 +651,9 @@ export class Game {
     const p = this.player;
     const map = this.currentMap();
     const out = [];
+    if (p.driving) return [{ kind: 'car_exit', id: p.driving, label: 'Get out of the car', score: -999 }];
+    const car = this.vehicles.nearest();
+    if (car) out.push({ kind: 'car', id: car.id, label: this.vehicles.label(car), score: dist(p.x, p.y, car.x, car.y) - 20 });
     const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
     const fy = p.facing === 'up' ? -1 : p.facing === 'down' ? 1 : 0;
     const score = (x, y) => {
@@ -712,6 +722,11 @@ export class Game {
    */
   interact(target) {
     if (!target) return { type: 'none' };
+    if (target.kind === 'car') return this.vehicles.inspect(target.id);
+    if (target.kind === 'car_exit') {
+      const r = this.vehicles.exit();
+      return r.ok ? { type: 'none' } : { type: 'message', text: r.text || 'You can\'t get out here.' };
+    }
     if (target.kind === 'npc') {
       const npc = this.npcs.get(target.id);
       if (!npc) return { type: 'none' };

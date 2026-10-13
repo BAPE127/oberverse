@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.16.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'On the Road',
+    notes: [
+      'Cars! Fender\'s Pre-Loved Motors has opened on Westbrook Row: Marty Fender, his checked blazer and three tired cars — the Pipit, the Dray and the Mule. In Halvermouth\'s East End, Julian Beaumont\'s marble-floored Motor Gallery sells the Aurelia, the Tempest GT, the Corsair and the Regent limousine — to the right sort of person.',
+      'Drive them yourself: E to get in, W/S to go and stop, A/D to steer, Shift for the handbrake, H for the horn. Cars stay where you park them, show up on your map and tablet, and drive through the gates between Halvermouth, the coast and the Yards.',
+      'Run someone over and they get hurt — and it\'s a crime. The people the Oberverse protects are never harmed: your car simply stops.',
+      'Every parked car in Halvermouth is real now. Hotwire one (stand still while you do it) and it\'s yours — and a crime. Officers who spot you in a stolen car come after you. Marty buys stolen cars at 30%, no questions asked, and sells "fresh plates" for 150.',
+    ],
+  },
+  {
     version: '0.15.1',
     date: '2026-10-13',
     channel: 'development',

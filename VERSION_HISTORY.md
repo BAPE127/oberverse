@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.16.0 | 2026-10-13 | development | 1 | On the Road — cars, two dealerships, driving, theft |
 | 0.15.1 | 2026-10-13 | development | 1 | Overwatch — OSINT terminal, interactive globe, zoomable world map |
 | 0.15.0 | 2026-10-13 | development | 1 | OberPad — the journal becomes a tablet: business, stocks, notifications |
 | 0.14.0 | 2026-10-13 | development | 1 | Gun Running — the global market, shipping, heavy weapons in use |
@@ -21,6 +22,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.16.0 — On the Road
+
+Cars you drive, two dealerships and their salesmen, hitting people and car theft. Saves: `world.vehicles` is created on first use (every parked car in its place); `player.driving` is new. No migration needed. The bus and NPC traffic follow in 0.17.0.
 
 ## 0.15.1 — Overwatch
 
