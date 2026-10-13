@@ -14,7 +14,9 @@
 //
 // Themes: arcane (default: runes and lightning), oil (Sir Moneybucks: coins,
 // derricks, gushers, burning oil), construction (Mason: blueprints, hazard
-// tape, tools, falling I-beams, a wrecking ball, a brick wall).
+// tape, tools, falling I-beams, a wrecking ball, a brick wall), law (Chief
+// Lawrence Order: sirens, searchlights, badges and handcuffs, ramming squad
+// cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars).
 import { clamp, lerp } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
@@ -742,7 +744,291 @@ const CONSTRUCTION = {
   },
 };
 
-export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION };
+// ================================================================= LAW
+function badge(ctx, x, y, s, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = '#e8c35a';
+  ctx.beginPath();
+  for (let k = 0; k < 14; k++) {
+    const a = (k / 14) * Math.PI * 2 - Math.PI / 2;
+    const rr = k % 2 ? 4.2 : 9;
+    ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1e2a44';
+  ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function cuffs(ctx, x, y, s, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.strokeStyle = '#c9ced4';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.arc(-6, 0, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(6, 0, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(-1, 0); ctx.lineTo(1, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function stamp(ctx, x, y, text, s, rot, colour = '#d0302a', alpha = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.globalAlpha *= alpha;
+  ctx.font = 'bold 11px "Trebuchet MS", sans-serif';
+  const tw = ctx.measureText(text).width;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-tw / 2 - 5, -9, tw + 10, 18);
+  ctx.fillStyle = colour;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, 1);
+  ctx.restore();
+}
+
+/** A squad car seen from above-ish, facing +x (flip with dir). */
+function squadCar(ctx, x, y, dir, t, alpha = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(dir, 1);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(-30, 4, 62, 8);
+  ctx.fillStyle = '#1e2a44';
+  rrect(ctx, -32, -14, 64, 22, 5); ctx.fill();
+  ctx.fillStyle = '#f2f2ee';
+  ctx.fillRect(-14, -14, 26, 22);
+  ctx.fillStyle = '#9ec4e8';
+  ctx.fillRect(12, -11, 9, 16); // windscreen
+  ctx.fillStyle = '#1e2a44';
+  ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('POLICE', -1, 0);
+  const on = Math.floor(t * 12) % 2;
+  ctx.fillStyle = on ? '#ff2a2a' : '#5a1010';
+  ctx.fillRect(-6, -18, 5, 4);
+  ctx.fillStyle = on ? '#1a2a5a' : '#3a7aff';
+  ctx.fillRect(0, -18, 5, 4);
+  ctx.fillStyle = '#111';
+  for (const wx of [-22, 20]) { ctx.fillRect(wx, 6, 9, 4); ctx.fillRect(wx, -16, 9, 3); }
+  ctx.restore();
+}
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+const LAW = {
+  banner: 'YOU HAVE THE RIGHT TO REMAIN SILENT',
+  sky: [10, 16, 40, 2, 4, 14],
+  flash: '220,230,255',
+  ground(I) {
+    const { ctx, e, conv, vx, vfeet, p, top } = I;
+    const life = ease((e - 0.2) / 0.6) * (1 - ease((e - WRATH.fade) / 0.6));
+    // sirens: alternating red/blue wash around the scene
+    if (life > 0) {
+      const red = Math.floor(e * 5) % 2 === 0;
+      const cx = lerp(vx, p.x, 0.5);
+      const g2 = ctx.createRadialGradient(cx, vfeet, 10, cx, vfeet, 320);
+      g2.addColorStop(0, red ? `rgba(255,40,40,${0.22 * life})` : `rgba(60,110,255,${0.22 * life})`);
+      g2.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g2;
+      ctx.fillRect(cx - 320, vfeet - 320, 640, 640);
+      // two searchlights sweep down from the sky and lock onto the player
+      for (let k = 0; k < 2; k++) {
+        const sweep = Math.sin(e * 1.6 + k * 2.4) * 120 * (1 - conv);
+        const tx = lerp(vx + sweep + (k ? 40 : -40), p.x, conv);
+        const ty = lerp(vfeet, p.y, conv);
+        const sx = tx + (k ? 160 : -160);
+        ctx.fillStyle = `rgba(255,250,220,${0.13 * life})`;
+        ctx.beginPath(); ctx.moveTo(sx - 6, top); ctx.lineTo(tx - 34, ty); ctx.lineTo(tx + 34, ty); ctx.lineTo(sx + 6, top); ctx.closePath(); ctx.fill();
+        onGround(ctx, tx, ty, () => {
+          ctx.fillStyle = `rgba(255,250,220,${0.22 * life})`;
+          ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+    }
+    // a ring of police tape around Lawrence, then a chalk outline under the player
+    const tape = ease((e - 0.3) / 0.6) * (1 - conv);
+    if (tape > 0) {
+      onGround(ctx, vx, vfeet, () => {
+        ctx.globalAlpha = tape;
+        ctx.strokeStyle = '#f2d23a';
+        ctx.lineWidth = 9;
+        ctx.beginPath(); ctx.arc(0, 0, 70, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#111';
+        ctx.font = 'bold 7px "Trebuchet MS", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let k = 0; k < 10; k++) {
+          const a = (k / 10) * Math.PI * 2 + e * 0.4;
+          ctx.save();
+          ctx.translate(Math.cos(a) * 70, Math.sin(a) * 70);
+          ctx.rotate(a + Math.PI / 2);
+          ctx.fillText('POLICE LINE', 0, 0);
+          ctx.restore();
+        }
+      }, 0.45);
+    }
+    const chalk = ease((e - WRATH.converge) / 0.5) * (1 - ease((e - WRATH.fade) / 0.5));
+    if (chalk > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.globalAlpha = chalk;
+        ctx.strokeStyle = '#f4f4ee';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, -40, 10, 0, Math.PI * 2); // head
+        ctx.moveTo(0, -30); ctx.lineTo(0, 10); // body
+        ctx.moveTo(0, -20); ctx.lineTo(-24, -32); ctx.moveTo(0, -20); ctx.lineTo(22, -6); // arms
+        ctx.moveTo(0, 10); ctx.lineTo(-16, 36); ctx.moveTo(0, 10); ctx.lineTo(18, 34); // legs
+        ctx.stroke();
+      }, 0.5);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const shrink = lerp(1, 0.55, conv) * (1 - ease((e - WRATH.lightning) / 0.5) * 0.4);
+    const fadeOut = 1 - ease((e - WRATH.ascend) / 0.3);
+    const spin = e + e * e * 0.35;
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    for (let i = 0; i < 8; i++) {
+      const a = spin * 1.1 + (i / 8) * Math.PI * 2;
+      const rad = 48 * unfold * shrink;
+      badge(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold * 1.1, a);
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = -spin * 1.4 + (i / 10) * Math.PI * 2;
+      const rad = 80 * unfold * shrink;
+      cuffs(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold, a * 2);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = spin * 0.8 + (i / 6) * Math.PI * 2;
+      const rad = 116 * unfold * shrink;
+      stamp(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, i % 2 ? 'CASE CLOSED' : 'DENIED', 0.8 * unfold, Math.sin(a) * 0.3);
+    }
+    ctx.restore();
+  },
+  strike(I, i, age) {
+    const { ctx, p, top, w } = I;
+    const fade = 1 - ease((I.e - WRATH.fade) / 0.4);
+    if (i < 4) {
+      // squad cars ram in from alternating sides, skid, and stay parked with lights going
+      if (age < -0.3) return;
+      const dir = i % 2 ? -1 : 1;
+      const rest = p.x - dir * (30 + i * 4);
+      const ty = p.y - 4 + (i - 1.5) * 10;
+      const x = age < 0 ? lerp(rest - dir * 360, rest, ease((age + 0.3) / 0.3)) : rest - dir * 6 * Math.exp(-age * 6) * Math.sin(age * 30);
+      squadCar(ctx, x, ty, dir, I.e + i, fade);
+      if (age >= 0 && age < 0.5) {
+        dust(ctx, p.x, p.y, age, w.seed + i * 17, 0.8);
+        ctx.fillStyle = `rgba(255,230,160,${1 - age / 0.5})`;
+        for (let s = 0; s < 6; s++) ctx.fillRect(p.x - dir * 10 + Math.cos(s) * 18 * (age / 0.3), ty - 6 + Math.sin(s * 1.7) * 10, 2, 2);
+      }
+      return;
+    }
+    // the last one: a giant gavel comes down from the sky
+    if (age < -0.4) return;
+    const k = age < 0 ? ease((age + 0.4) / 0.4) : 1;
+    const bounce = age >= 0 ? Math.sin(age * 9) * 6 * Math.exp(-age * 4) : 0;
+    const head = { x: p.x, y: lerp(top - 30, p.y - 26, k) - Math.abs(bounce) };
+    const handleRot = lerp(-1.1, 0, k);
+    ctx.save();
+    ctx.globalAlpha = fade * (1 - ease((age - 1.0) / 0.4));
+    ctx.translate(head.x, head.y);
+    ctx.rotate(handleRot);
+    ctx.fillStyle = '#6a3a1e';
+    ctx.fillRect(-4, -110, 8, 100); // handle up into the sky
+    ctx.fillStyle = '#8a5230';
+    rrect(ctx, -42, -16, 84, 32, 6); ctx.fill();
+    ctx.fillStyle = '#e8c35a';
+    ctx.fillRect(-30, -16, 6, 32); ctx.fillRect(24, -16, 6, 32);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-42, -16, 84, 5);
+    ctx.restore();
+    if (age >= 0) {
+      dust(ctx, p.x, p.y, age, w.seed + 911, 1.8);
+      if (age < 0.25) {
+        onGround(ctx, p.x, p.y, () => {
+          ctx.strokeStyle = `rgba(255,240,200,${1 - age / 0.25})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.arc(0, 0, 30 + age * 400, 0, Math.PI * 2); ctx.stroke();
+        });
+      }
+    }
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    // a blizzard of paperwork buries the player…
+    const R = rng(w.seed + 303);
+    const pile = ease((e - WRATH.ascend) / 1.1);
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    ctx.save();
+    ctx.globalAlpha = out;
+    for (let i = 0; i < 70; i++) {
+      const delay = R() * 1.1;
+      const age = e - WRATH.ascend - delay;
+      const fx = (R() - 0.5) * 60;
+      const restY = p.y + 2 - R() * 46 * pile;
+      const rot0 = (R() - 0.5) * 2;
+      if (age < 0) continue;
+      const fall = ease(age / 0.6);
+      const x = p.x + fx * (0.4 + 0.6 * fall) + Math.sin(age * 6 + i) * 10 * (1 - fall);
+      const y = lerp(p.y - 220, restY, fall);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot0 + (1 - fall) * Math.sin(age * 5 + i) * 1.5);
+      ctx.fillStyle = i % 5 ? '#f4f1e6' : '#f0e2a8';
+      ctx.fillRect(-7, -9, 14, 18);
+      ctx.fillStyle = 'rgba(40,40,60,0.45)';
+      for (let l = 0; l < 4; l++) ctx.fillRect(-5, -6 + l * 4, 10 - (l % 2) * 3, 1);
+      ctx.restore();
+    }
+    ctx.restore();
+    // …is stamped GUILTY…
+    if (e > WRATH.ascend + 1.0) {
+      const s = 1 + 0.6 * (1 - ease((e - WRATH.ascend - 1.0) / 0.15));
+      stamp(ctx, p.x, p.y - 34, 'GUILTY', 1.6 * s, -0.16, '#d0302a', out);
+    }
+    // …and the cell bars come down
+    const drop = ease((e - (WRATH.ascend + 1.3)) / 0.35);
+    if (drop > 0) {
+      const by = lerp(p.y - 260, p.y - 70, drop);
+      ctx.save();
+      ctx.globalAlpha = out;
+      ctx.fillStyle = '#3a3e46';
+      ctx.fillRect(p.x - 48, by, 96, 6);
+      ctx.fillRect(p.x - 48, by + 76, 96, 6);
+      for (let k = 0; k < 9; k++) {
+        ctx.fillStyle = '#5a5e66';
+        ctx.fillRect(p.x - 44 + k * 11, by, 4, 82);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(p.x - 44 + k * 11, by, 1, 82);
+      }
+      ctx.restore();
+    }
+  },
+};
+
+export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW };
 
 // -------------------------------------------------------------- draw
 export function drawWrath(renderer, g, w) {
@@ -819,7 +1105,7 @@ export function drawWrath(renderer, g, w) {
   if (bannerA > 0) {
     const title = victim?.profile.wrath?.banner || theme.banner;
     const sub = victim?.profile.wrath?.subtitle || `${victim?.profile.name || 'They'} cannot be harmed by mortal hands.`;
-    const sz = Math.min(46 * dpr, W / (title.length * 0.62));
+    const sz = Math.min(46 * dpr, W / (title.length * 0.72)); // leaves room for the letter-spacing settle
     ctx.save();
     ctx.globalAlpha = bannerA;
     ctx.textAlign = 'center';

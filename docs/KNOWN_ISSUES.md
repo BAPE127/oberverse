@@ -1,8 +1,9 @@
-# Known Issues and Limitations — v0.9.0
+# Known Issues and Limitations — v0.10.0
 
 ## Not yet implemented (planned)
 
-- **Combat follow-ups:** no police response yet (Halvermouth has no officers), no arrests, bounties or prison; no armour, cover, dodging or stealth attacks; NPCs only fight on the player's map (leave and the fight ends); no looting bodies; no mourning, funerals or replacement characters after a death.
+- **Police limits (v0.10.0):** officers only pursue on the player's current map (a dispatched officer travels by schedule pathing, so a call across regions can take a while); no bounties or police vehicles in the open world; the jail has no other prisoners besides Petty; the only way back into the cell block is the jail keys. Being knocked out by anyone now always ends in jail.
+- **Combat follow-ups:** no armour, cover, dodging or stealth attacks; NPCs only fight on the player's map (leave and the fight ends); no looting bodies; no mourning, funerals or replacement characters after a death.
 - **Equipment** beyond weapons (no armour or clothing slots).
 - **Character progression**: stats (Charm, Wits, Grit, Finesse) are fixed at 2. Only Charm and Wits are used (dialogue checks).
 - **Controller and touch input.** Keyboard + mouse only.

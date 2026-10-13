@@ -32,6 +32,8 @@ import dlgOberStaff from './dialogue/oberStaff.js';
 import masonCrew from './characters/mason.js';
 import dlgMasonCrew from './dialogue/mason.js';
 import { PUNS } from './dialogue/mason.js';
+import police from './characters/police.js';
+import dlgPolice from './dialogue/police.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 
@@ -60,8 +62,8 @@ export const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice]),
   puns: PUNS,
   blueprints: BLUEPRINTS,
   plots: {},

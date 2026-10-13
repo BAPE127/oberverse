@@ -54,7 +54,7 @@ test('his schedule spans the manor, the fields and Lanternside', () => {
 test('all eighteen residents live out a full day across every map without errors', () => {
   const g = newGame(21);
   run(g, 1440, 1);
-  assert.equal(g.npcs.size, 18);
+  assert.equal(g.npcs.size, 25);
   assert.deepEqual(g.warnings, []);
   setTime(g, 2, '10:30');
   run(g, 1);
@@ -281,7 +281,7 @@ test('Ober\'s Oil state and the new residents survive save/load; old saves gain 
   assert.equal(g2.oil.state.sharesOwned, 5);
   assert.equal(g2.oil.state.safety, 1);
   assert.ok(g2.getFlag('manor_invited'));
-  assert.equal(g2.npcs.size, 18);
+  assert.equal(g2.npcs.size, 25);
   // a v0.1.0 save (before Ober's Oil existed)
   return import('node:fs').then(({ readFileSync }) => {
     const raw = readFileSync(new URL('./fixtures/save-schema1-v0.1.0.json', import.meta.url), 'utf8');
@@ -289,7 +289,7 @@ test('Ober\'s Oil state and the new residents survive save/load; old saves gain 
     sm2.importToSlot('slot1', raw);
     const g3 = new Game(CONTENT);
     assert.ok(sm2.load('slot1', g3).ok);
-    assert.equal(g3.npcs.size, 18, 'imported characters join old saves');
+    assert.equal(g3.npcs.size, 25, 'imported characters join old saves');
     assert.equal(g3.oil.state.sharesOwned, 0);
     assert.equal(g3.player.reputation.fac_oil, 0);
     run(g3, 120);

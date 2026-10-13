@@ -270,29 +270,94 @@ export const hallOfJustice = {
   ],
 };
 
+const OFFICERS = ['npc_lawrence', 'npc_justin', 'npc_warren', 'npc_bailey', 'npc_miranda', 'npc_hugh'];
+
 export const policeStation = {
   id: 'police_station',
   name: 'Police Precinct 1',
   kind: 'interior',
   music: 'mus_civic',
   ambience: 'amb_indoor',
-  tiles: roomTiles(20, 12, 't', 6, [[13, 1, 1, 6, 'W']]),
-  doors: [{ id: 'door_police_exit', x: 6, y: 11, to: { map: 'halvermouth', spot: 'police_door_out' } }],
-  spots: { entry: { x: 6, y: 10, facing: 'up' }, front_desk: { x: 6, y: 5, facing: 'down' }, chief: { x: 3, y: 2, facing: 'down' } },
+  // lobby (west), Chief Order's office (north-east), the officers' bunk room (south-east)
+  tiles: (() => {
+    const rows = roomTiles(24, 14, 't', 7, [[14, 1, 1, 4, 'W'], [14, 6, 1, 1, 'W'], [14, 7, 9, 1, 'W'], [14, 8, 1, 2, 'W'], [14, 11, 1, 2, 'W']]).map((r) => r.split(''));
+    for (let y = 1; y < 7; y++) for (let x = 15; x < 23; x++) rows[y][x] = 'c';
+    for (let y = 8; y < 13; y++) for (let x = 15; x < 23; x++) rows[y][x] = 'f';
+    return rows.map((r) => r.join(''));
+  })(),
+  doors: [
+    { id: 'door_police_exit', x: 7, y: 13, to: { map: 'halvermouth', spot: 'police_door_out' } },
+    { id: 'door_police_stairs', x: 2, y: 9, label: 'Stairs to the cell block', to: { map: 'jail', spot: 'stairs_in' }, lock: { key: 'item_jail_keys', owners: OFFICERS, message: 'CELL BLOCK — AUTHORISED PERSONNEL ONLY. (You are not authorised. You are barely personnel.)' } },
+  ],
+  spots: {
+    entry: { x: 7, y: 12, facing: 'up' }, release: { x: 7, y: 11, facing: 'down' }, front_desk: { x: 6, y: 6, facing: 'down' },
+    stairs_out: { x: 3, y: 9, facing: 'right' }, lobby_wait: { x: 10, y: 10, facing: 'left' }, desk_a: { x: 2, y: 4, facing: 'up' }, desk_b: { x: 6, y: 4, facing: 'up' },
+    chief_desk: { x: 18, y: 3, facing: 'down' }, chief_couch: { x: 20, y: 2, facing: 'left' }, chief_visitor: { x: 18, y: 5, facing: 'up' },
+    bunk_1: { x: 16, y: 9, facing: 'left' }, bunk_2: { x: 18, y: 9, facing: 'left' }, bunk_3: { x: 20, y: 9, facing: 'left' }, bunk_4: { x: 22, y: 9, facing: 'left' }, bunk_5: { x: 16, y: 11, facing: 'left' },
+  },
   props: [
-    { id: 'pd_front_desk', type: 'counter', x: 4, y: 6, w: 5, examine: 'The front desk. A bell, a sign reading "TAKE A NUMBER", and no numbers.' },
-    { id: 'pd_waiting1', type: 'bench', x: 9, y: 9, w: 2 }, { id: 'pd_waiting2', type: 'bench', x: 1, y: 9, w: 2 },
-    { id: 'pd_wanted', type: 'noticeboard', x: 9, y: 1, examine: 'WANTED posters. A burglar called "The Cat". A fraudster called "The Other Cat". A sketch of someone who looks remarkably like a gull.' },
-    { id: 'pd_desk1', type: 'desk', x: 1, y: 2, w: 2, color: '#6a6e74' }, { id: 'pd_desk2', type: 'desk', x: 5, y: 2, w: 2, color: '#6a6e74' },
-    { id: 'pd_files', type: 'cabinet', x: 11, y: 1 }, { id: 'pd_files2', type: 'cabinet', x: 12, y: 1, examine: 'Case files. A drawer labelled "WAREHOUSE FIRES — MILL ROAD" is jammed shut.' },
-    { id: 'pd_evidence', type: 'cabinet', x: 11, y: 5, examine: 'EVIDENCE — DO NOT TOUCH. Locked. Good.' },
-    { id: 'pd_coffee', type: 'stove', x: 1, y: 6, examine: 'Precinct coffee. It has been on the hotplate since the last century and has achieved sentience.' },
-    // holding cells
-    { id: 'pd_cell_bars', type: 'cellbars', x: 14, y: 4, w: 5, examine: 'The holding cells. Empty — for now.' },
-    { id: 'pd_cell_cot1', type: 'cot', x: 14, y: 1 }, { id: 'pd_cell_cot2', type: 'cot', x: 17, y: 1 },
-    { id: 'pd_lockers', type: 'wardrobe', x: 17, y: 8, interact: { kind: 'container', container: 'ct_police_lockers' }, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
-    { id: 'pd_plant', type: 'plant', x: 18, y: 10 },
-    { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 16, y: 0 },
+    { id: 'pd_front_desk', type: 'counter', x: 4, y: 7, w: 5, examine: 'The front desk. A bell, a sign reading "TAKE A NUMBER", and no numbers. A second sign: "COMPLAINTS: SEE CHIEF ORDER (HE IS AT LUNCH)".' },
+    { id: 'pd_waiting1', type: 'bench', x: 9, y: 11, w: 2 }, { id: 'pd_waiting2', type: 'bench', x: 11, y: 11, w: 2 },
+    { id: 'pd_wanted', type: 'noticeboard', x: 10, y: 1, examine: 'WANTED posters. A burglar called "The Cat". A fraudster called "The Other Cat". A sketch of someone who looks remarkably like a gull. Space has been left for more.' },
+    { id: 'pd_desk1', type: 'desk', x: 1, y: 3, w: 2, color: '#6a6e74' }, { id: 'pd_desk2', type: 'desk', x: 5, y: 3, w: 2, color: '#6a6e74' },
+    { id: 'pd_files', type: 'cabinet', x: 12, y: 1 }, { id: 'pd_files2', type: 'cabinet', x: 13, y: 1, examine: 'Case files. A drawer labelled "WAREHOUSE FIRES — MILL ROAD" is jammed shut. Another, "UNSOLVED", is jammed open.' },
+    { id: 'pd_evidence', type: 'cabinet', x: 13, y: 3, interact: { kind: 'container', container: 'ct_evidence' }, examine: 'The evidence locker. Confiscated weapons end up here.' },
+    { id: 'pd_coffee', type: 'stove', x: 1, y: 7, examine: 'Precinct coffee. It has been on the hotplate since the last century and has achieved sentience.' },
+    { id: 'pd_stairs', type: 'stairs', x: 1, y: 9, examine: 'Stairs down to the cell block. They smell of damp and regret.' },
+    { id: 'pd_lockers', type: 'wardrobe', x: 13, y: 9, interact: { kind: 'container', container: 'ct_police_lockers' }, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
+    { id: 'pd_plant', type: 'plant', x: 12, y: 7 },
+    // Chief Order's office
+    { id: 'pd_chief_desk', type: 'desk', x: 17, y: 4, w: 3, color: '#5a3a24', examine: 'Chief Order\'s desk. An in-tray stacked to the ceiling, an out-tray with one sandwich in it, and a nameplate: LAWRENCE ORDER — CHIEF OF POLICE — "IF IT\'S URGENT, IT\'LL KEEP".' },
+    { id: 'pd_donuts', type: 'table', x: 15, y: 1, examine: 'A box of a dozen doughnuts. There are two left. There are always two left.' },
+    { id: 'pd_couch', type: 'bed', x: 21, y: 1, color: '#6a4a3a', examine: 'A sagging office couch with a Lawrence-shaped dent in it. A cushion is embroidered "NAP TIME IS POLICE TIME".' },
+    { id: 'pd_chief_cab', type: 'cabinet', x: 22, y: 5, examine: 'Reports, unread, filed under "LATER". There is no "NOW".' },
+    { id: 'pd_chief_flag', type: 'flagpole', x: 15, y: 6, color: '#2a4a8a' },
+    { id: 'pd_rug', type: 'rug', x: 16, y: 5, w: 4, h: 1, color: '#2a4a6a' },
+    // bunks
+    { id: 'pd_cot1', type: 'cot', x: 15, y: 8 }, { id: 'pd_cot2', type: 'cot', x: 17, y: 8 }, { id: 'pd_cot3', type: 'cot', x: 19, y: 8 }, { id: 'pd_cot4', type: 'cot', x: 21, y: 8 }, { id: 'pd_cot5', type: 'cot', x: 15, y: 11 },
+    { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 19, y: 0 },
+  ],
+};
+
+export const jail = {
+  id: 'jail',
+  name: 'Precinct 1 Cell Block',
+  kind: 'interior',
+  music: 'mus_lighthouse',
+  ambience: 'amb_indoor',
+  // three cells along the north wall, a corridor, the guard's desk and the stairs up
+  tiles: roomTiles(22, 12, 't', 19, [[7, 1, 1, 6, 'W'], [14, 1, 1, 6, 'W']]),
+  doors: [
+    { id: 'door_jail_stairs', x: 19, y: 11, label: 'Stairs up to the precinct', to: { map: 'police_station', spot: 'stairs_out' }, lock: { key: 'item_jail_keys', flag: 'jail_stairs_open', owners: OFFICERS, flagMessage: 'The stairwell door is locked from the other side.' } },
+    { id: 'door_cell_a', x: 5, y: 7, label: 'Cell door', to: { map: 'jail', spot: 'corridor_a' }, lock: { key: 'item_jail_keys', flag: 'jail_cell_open', owners: OFFICERS, flagMessage: 'The cell door is locked. Solid iron. Very rude.' } },
+    { id: 'door_cell_b', x: 12, y: 7, label: 'Cell door', to: { map: 'jail', spot: 'corridor_b' }, lock: { key: 'item_jail_keys', flag: 'jail_cell_b_open', owners: OFFICERS, flagMessage: 'Petty\'s cell. Locked.' } },
+    { id: 'door_cell_c', x: 19, y: 7, label: 'Cell door', to: { map: 'jail', spot: 'corridor_c' }, lock: { key: 'item_jail_keys', flag: 'jail_cell_c_open', owners: OFFICERS, flagMessage: 'An empty cell. Locked.' } },
+  ],
+  spots: {
+    cell_a: { x: 3, y: 4, facing: 'down' }, cell_b: { x: 9, y: 3, facing: 'down' }, cell_b_bed: { x: 9, y: 2, facing: 'left' }, cell_c: { x: 17, y: 4, facing: 'down' },
+    corridor_a: { x: 5, y: 8, facing: 'down' }, corridor_b: { x: 12, y: 8, facing: 'down' }, corridor_c: { x: 19, y: 8, facing: 'down' },
+    guard_desk: { x: 2, y: 8, facing: 'up' }, stairs_in: { x: 19, y: 10, facing: 'up' },
+  },
+  props: [
+    // cell A — the player's
+    { id: 'jl_bars_a', type: 'cellbars', x: 1, y: 7, w: 4, interact: { kind: 'jail', action: 'bars', name: 'Cell bars' }, examine: 'Iron bars. The guard\'s desk is just beyond them.' },
+    { id: 'jl_bars_a2', type: 'cellbars', x: 6, y: 7 },
+    { id: 'jl_cot_a', type: 'cot', x: 1, y: 1, interact: { kind: 'jail', action: 'serve', name: 'Cot' }, examine: 'A thin cot with a thinner blanket.' },
+    { id: 'jl_tray', type: 'table', x: 5, y: 2, interact: { kind: 'jail', action: 'tray', name: 'Meal tray' }, examine: 'A dented meal tray.' },
+    { id: 'jl_brick', type: 'loosebrick', x: 1, y: 5, interact: { kind: 'jail', action: 'dig', name: 'Loose brick' }, examine: 'One brick in the wall is a slightly different colour. Older. Softer. Promising.' },
+    { id: 'jl_vent', type: 'vent', x: 4, y: 1, interact: { kind: 'jail', action: 'vent', name: 'Air vent' }, examine: 'A rusty air vent, held shut by four screws. Big enough to crawl through, if you were desperate. You are a bit desperate.' },
+    { id: 'jl_crack', type: 'wallcrack', x: 6, y: 3, interact: { kind: 'jail', action: 'whisper', name: 'Crack in the wall' }, examine: 'A crack in the wall between your cell and the next. Someone on the other side is humming.' },
+    // cell B — Petty Larson's
+    { id: 'jl_bars_b', type: 'cellbars', x: 8, y: 7, w: 4 }, { id: 'jl_bars_b2', type: 'cellbars', x: 13, y: 7 },
+    { id: 'jl_cot_b', type: 'cot', x: 8, y: 1 },
+    { id: 'jl_petty_stash', type: 'crate', x: 12, y: 1, examine: 'Petty\'s "stash": a mouth organ, three buttons and a photograph of his mum.' },
+    // cell C — empty
+    { id: 'jl_bars_c', type: 'cellbars', x: 15, y: 7, w: 4 }, { id: 'jl_bars_c2', type: 'cellbars', x: 20, y: 7 },
+    { id: 'jl_cot_c', type: 'cot', x: 15, y: 1 },
+    // corridor
+    { id: 'jl_desk', type: 'desk', x: 1, y: 9, w: 2, color: '#6a6e74', examine: 'The night guard\'s desk: a crossword (abandoned), a mug (empty), and a ring of keys on a hook beside the chair.' },
+    { id: 'jl_lamp', type: 'streetlamp', x: 9, y: 9 },
+    { id: 'jl_sign', type: 'sign', x: 16, y: 9, examine: '"NO ESCAPES SINCE RECORDS BEGAN." Someone has scratched underneath: "records began on Tuesday".' },
   ],
 };
 
@@ -317,4 +382,4 @@ export const gunShop = {
   ],
 };
 
-export default [halvermouth, hallOfJustice, policeStation, gunShop];
+export default [halvermouth, hallOfJustice, policeStation, jail, gunShop];

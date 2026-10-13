@@ -28,12 +28,20 @@
 | `world_halvermouth.test.mjs` | Halvermouth: separate region, gateway travel both ways, required buildings/districts/slum, reachability of every open door and interior, opening hours, saves. |
 | `combat.test.mjs` | Weapon variety, punching + health bar, flee vs fight-back, the player being beaten, witnesses, knock-outs and waking, killing (permanent, quests fail, saves), buying/loading/shooting a gun, walls stopping bullets, gunfire panic, weapons in the world, old saves. |
 | `wrath.test.mjs` | Protection of imported characters (and only them), the Wrath freezing the world, five strikes, rising again, every weapon type triggering it, `killable: true` lifting it. |
+| `police.test.mjs` | The police cast (imported chief, armed killable officers, beats in all four areas), the lax chief, calls and dispatch, bribes and fines, pursuit and cuffing, surrender, death → jail, serving a sentence, all four breakouts, the LAW Wrath → jail, killing an officer, Wanted lapse and record decay, saves, debug commands, walkable precinct and cells. |
 | `debug.test.mjs` | Debug console: give/take by id or name, money/health/energy/heal/god, weapons and ammo, time/skip/teleport/stats/rep/flags, reviving the dead and knocked-out. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
 
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.10.0 (2026-10-13)
+
+- `npm run check` — **141/141 tests passed** (20 new in `police.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real F key): standing at Chief Order's visitor chair and attacking triggered the LAW Wrath; frames checked across the timeline (banner and orbiting badges/cuffs/stamps, squad cars, the gavel, paperwork stamped GUILTY behind dropping bars); the struck-down card's *Wake up (in a cell)* put the player in the cell block with the HUD showing time left. Outdoors at ★★, Sgt. Case gave chase, the cuffing bar filled and the player was arrested. Fixed from the screenshots: the cuffing label overlapped name tags (moved under the player); the long banner touched the screen edges (narrower). No page errors or game warnings.
+- Audio: `sfx_wrath` (law), `sfx_ram` (car and gavel) rendered offline; peaks 0.43–0.92. The render caught `sfx_ram` scheduling its squeal before time zero (a crash at a fresh audio clock) — fixed. Not listened to by ear.
 
 ## Verification record — v0.9.0 (2026-10-13)
 

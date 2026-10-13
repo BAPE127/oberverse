@@ -57,6 +57,7 @@ export class UI {
       clock: document.getElementById('hud-clock'),
       location: document.getElementById('hud-location'),
       money: document.getElementById('hud-money'),
+      wanted: document.getElementById('hud-wanted'),
       tracker: document.getElementById('hud-tracker'),
       prompt: document.getElementById('hud-prompt'),
       health: document.getElementById('bar-health'),
@@ -314,12 +315,22 @@ export class UI {
       this.audio.sfx('sfx_wrath', { theme });
     });
     // each strike sounds like what hits you
-    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam' }[theme] || 'sfx_thunder', { index }));
+    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram' }[theme] || 'sfx_thunder', { index }));
     bus.on('combat:wrathEnd', ({ npcId }) => {
       this.el.hud.classList.add('cinematic');
-      this.openPanel('struckDown', { name: game.npcs.get(npcId)?.profile.name || 'them' });
+      const victim = game.npcs.get(npcId);
+      this.openPanel('struckDown', { name: victim?.profile.name || 'them', after: victim?.profile.wrath?.after });
     });
     bus.on('combat:playerDown', () => {
+      this.closeAllPanels();
+      if (this.dialogue.open) this.dialogue.close();
+      this.el.fade.classList.add('on');
+      setTimeout(() => { this.el.fade.classList.remove('on'); this.renderer.snapCamera(); }, 900);
+    });
+    // the police (src/systems/police.js)
+    bus.on('police:wanted', ({ level }) => { if (level > 0) this.audio.sfx('sfx_fail'); });
+    bus.on('police:jailed', () => {
+      if (game.combat.wrath) return; // the struck-down card handles the cut
       this.closeAllPanels();
       if (this.dialogue.open) this.dialogue.close();
       this.el.fade.classList.add('on');
@@ -387,6 +398,11 @@ export class UI {
       }
       case 'nextWeapon': {
         const r = this.game.combat.cycle(1);
+        if (r.text) this.toast(r.text, 'info', 2);
+        break;
+      }
+      case 'surrender': {
+        const r = this.game.police.surrender();
         if (r.text) this.toast(r.text, 'info', 2);
         break;
       }
@@ -490,6 +506,14 @@ export class UI {
     set(this.el.location, p.areaName || g.currentMap().name);
     set(this.el.money, `🪙 ${p.money} obols`);
     this.el.health.style.width = `${p.health}%`;
+    // the law: Wanted stars, a bribe running, time left inside
+    const pol = g.world.police;
+    let whtmlWanted = '';
+    if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
+    if (pol?.jail) whtmlWanted += `<span class="tag">⛓ In jail · ${g.police.hoursLeft()}h left</span>`;
+    else if (g.police?.bribed()) whtmlWanted += `<span class="tag">🤝 Police paid off · until end of Day ${pol.bribedUntilDay}</span>`;
+    if (this.el.wanted.innerHTML !== whtmlWanted) this.el.wanted.innerHTML = whtmlWanted;
+    this.el.wanted.classList.toggle('hidden', !whtmlWanted);
     this.el.energy.style.width = `${p.energy}%`;
     const w = g.combat.equipped();
     const ammo = g.combat.ammoStatus();

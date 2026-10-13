@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police',
 ];
 
 /**
@@ -67,6 +67,21 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'police': {
+      // { wanted: '>=1', record: '>=8', bribed: true, jailed: false, canAffordBribe: true, canAffordFine: true, killedOfficer: true }
+      const pol = game.police;
+      const st = game.world.police || {};
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'bribed': return Boolean(pol?.bribed()) === v;
+          case 'jailed': return Boolean(st.jail) === v;
+          case 'canAffordBribe': return (game.player.money >= (pol?.bribePrice() ?? Infinity)) === v;
+          case 'canAffordFine': return (game.player.money >= (pol?.finePrice() ?? Infinity)) === v;
+          case 'killedOfficer': return (st.officersKilled > 0) === v;
+          default: return compare(st[k] ?? 0, v);
+        }
+      });
     }
     case 'site': {
       const st = game.world.construction || {};

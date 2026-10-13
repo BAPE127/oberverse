@@ -20,6 +20,7 @@ import { OilCompany, freshOil } from '../systems/oilCompany.js';
 import { Construction, freshConstruction } from '../systems/construction.js';
 import { Properties, freshProperties } from '../systems/properties.js';
 import { Combat, isDown } from '../systems/combat.js';
+import { Police, freshPolice } from '../systems/police.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -48,6 +49,7 @@ export class Game {
     this.construction = new Construction(this);
     this.properties = new Properties(this);
     this.combat = new Combat(this);
+    this.police = new Police(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -112,6 +114,7 @@ export class Game {
       oil: freshOil(),
       construction: freshConstruction(),
       properties: freshProperties(),
+      police: freshPolice(),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -252,11 +255,12 @@ export class Game {
     const minutes = this.clock.tick(dt);
     this.updatePlayer(dt, input);
     this.combat.update(dt);
+    this.police.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
-      if (npc.inDialogue || npc.hostile || isDown(npc, now)) {
-        if (!npc.hostile) npc.moving = false;
+      if (npc.inDialogue || npc.hostile || npc.pursuit || isDown(npc, now)) {
+        if (!npc.hostile && !npc.pursuit) npc.moving = false;
         continue;
       }
       this.npcSystem.updatePhysical(npc, dt);
@@ -267,6 +271,7 @@ export class Game {
 
   minuteTick() {
     this.combat.minuteTick();
+    this.police.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -532,7 +537,7 @@ export class Game {
     const seen = this.witnesses(map, x, y, radius);
     for (const npc of seen) this.knowledge.learn(npc, fact, { kind: 'fact', source: 'witnessed', at: this.clock.total });
     if (seen.length) this.notify(`${seen.map((n) => n.profile.shortName).join(' and ')} saw that!`, 'warn');
-    this.bus.emit('crime', { fact, witnesses: seen.map((n) => n.id) });
+    this.bus.emit('crime', { fact, witnesses: seen.map((n) => n.id), map, x, y });
     return seen;
   }
 
@@ -659,6 +664,7 @@ export class Game {
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
       case 'shop': return `Browse the ${name.toLowerCase()}`;
+      case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
@@ -677,6 +683,11 @@ export class Game {
       if (!npc) return { type: 'none' };
       if (npc.dead) return { type: 'message', text: `${npc.profile.shortName} is dead. There is nothing more to say.` };
       if (isDown(npc, this.clock.total)) return { type: 'message', text: `${npc.profile.shortName} is out cold, breathing shallowly.` };
+      if (this.police.isOfficer(npc) && this.police.state.wanted > 0 && !this.police.jailed() && npc.id !== 'npc_lawrence') {
+        this.bark(npc, 'Well, well. Saves me a walk. You\'re under arrest.');
+        this.police.arrest(npc, true);
+        return { type: 'none' };
+      }
       if (npc.hostile) return { type: 'message', text: npc.hostile.mode === 'fight' ? `${npc.profile.shortName} is in no mood to talk — they're trying to hit you!` : `${npc.profile.shortName} backs away from you, terrified.` };
       if (npc.activity === 'sleep') {
         const pool = this.content.dialogues[npc.profile.dialogue]?.barks?.sleep || ['Zzz…'];
@@ -721,6 +732,8 @@ export class Game {
       }
       case 'shop':
         return { type: 'shop', shopId: act.shop };
+      case 'jail':
+        return this.police.jailInteract(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -1030,6 +1043,7 @@ export class Game {
     this.world.oil = { ...fresh.oil, ...(this.world.oil || {}) };
     this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
     this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
+    this.world.police = { ...fresh.police, ...(this.world.police || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();

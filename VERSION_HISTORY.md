@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.10.0 | 2026-10-13 | development | 1 | Law & Order — third imported character, police, Wanted, jail and breakouts |
 | 0.9.0 | 2026-10-13 | development | 1 | Personal Wrath — fixed out-of-reach attacks; oil and construction themes |
 | 0.8.0 | 2026-10-13 | development | 1 | Debug Menu — testing console and toolbox |
 | 0.7.0 | 2026-10-13 | development | 1 | The Oberverse Protects Its Own — imported characters are untouchable |
@@ -14,6 +15,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.10.0 — Law & Order
+
+Chief Lawrence Order (imported) and Precinct 1: five officers patrolling all four areas, a criminal record and Wanted stars, bribes and fines, jail on death or arrest with four breakouts. Saves: `world.police` and the `ct_evidence` container are added to older saves on load; no migration needed. Being knocked out now sends you to jail instead of home.
 
 ## 0.9.0 — Personal Wrath
 

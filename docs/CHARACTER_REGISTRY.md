@@ -19,11 +19,18 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_mabel` | Mabel Quince | Generated for the import | Minor | Manor cook; feud with Mags | 〃 | Implemented |
 | `npc_otto` | Otto Brandt | Generated for the import | Minor | Pipe fitter; organiser; strike leader | 〃 | Implemented & tested |
 | `npc_mason` | Mason Nails | **Imported** (2026-10-13) | Major | Owner of Mason's Os construction; pun machine; builds properties | `motif_mason` | Implemented & tested |
+| `npc_lawrence` | Lawrence Order | **Imported** (2026-10-13) | Major | Chief of Police, Precinct 1; careless, bribable; never leaves the station; protected (LAW & ORDER Wrath) | `motif_lawrence` | Implemented & tested |
+| `npc_justin` | Sgt. Justin Case | Generated for the Lawrence import | Minor | Over-prepared sergeant; revolver; Plaza, Bank Row, East Gate, Founders Park | — | Implemented & tested |
+| `npc_warren` | Officer Warren Tee | Generated for the Lawrence import | Minor | By-the-book; pistol; Sumps, Mission, Docks | — | Implemented & tested |
+| `npc_bailey` | Officer Bailey Bond | Generated for the Lawrence import | Minor | Smooth, bail business on the side; pistol; Lanternside | — | Implemented & tested |
+| `npc_miranda` | Officer Miranda Wright | Generated for the Lawrence import | Minor | Earnest rookie; baton; Westbrook, Gullwing Park, Canal Row | — | Implemented & tested |
+| `npc_hugh` | Officer Hugh Jury | Generated for the Lawrence import | Minor | Grumpy veteran; shotgun; Ober Fields, then night guard of the cells | — | Implemented & tested |
+| `npc_petty` | Petty Larson | Generated for the Lawrence import | Minor | Pickpocket in the next cell; sells the vent secret | — | Implemented & tested |
 | `npc_dee` | Dolores "Dee" Rivera | Generated for the Mason import | Minor | Site foreman; hires and pays | — | Implemented & tested |
 | `npc_barnaby` | Barnaby Cole | 〃 | Minor | Labourer; birdwatcher; gull defender | — | Implemented & tested |
 | `npc_quinn` | Quinn Abernathy | 〃 | Minor | Apprentice surveyor and draftsperson | — | Implemented & tested |
 
-Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`) and **Mason Nails** (see `docs/characters/npc_mason.md`). Their employees were generated at the player's request; minor characters have no individual motif.
+Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) and **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`). Their employees were generated at the player's request; minor characters have no individual motif.
 
 ## Combat temperaments (`profile.combat`)
 
@@ -33,7 +40,7 @@ Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`
 
 Everyone else decides by personality (confidence and competitiveness). Anyone below 25% health stops fighting and runs.
 
-**Protected (imported) characters:** Sir Moneybucks and Mason Nails cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
+**Protected (imported) characters:** Sir Moneybucks, Mason Nails and Chief Lawrence Order cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
 
 ## Sir Moneybucks — `npc_moneybucks`
 

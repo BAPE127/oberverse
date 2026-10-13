@@ -67,6 +67,18 @@ export const ITEMS = {
     name: 'Ober Imperial Cigar', category: 'gift', price: 12, tags: ['gift', 'luxury'], icon: 'cigar',
     description: 'A fat cigar banded in gold leaf: "Ober Imperial — For Gentlemen of Means". It costs more than a day\'s wages.',
   },
+  item_jail_keys: {
+    name: 'Jail Keys', category: 'key', price: 0, tags: ['key', 'police'], icon: 'key',
+    description: 'A ring of heavy brass keys lifted off Officer Jury\'s belt. They open every cell door and the stairs up to the precinct.',
+  },
+  item_spoon: {
+    name: 'Tin Spoon', category: 'tool', price: 0, tags: ['tool', 'contraband'], icon: 'spoon',
+    description: 'A bent tin spoon off your breakfast tray. Not much of a shovel. Not much of a spoon, either.',
+  },
+  item_bent_fork: {
+    name: 'Bent Fork', category: 'tool', price: 0, tags: ['tool', 'contraband'], icon: 'spoon',
+    description: 'Petty Larson\'s fork, its tines bent into the exact shape of a vent-cover screw head.',
+  },
   item_vault_key: {
     name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
     description: 'A heavy, ornate key with a dollar-sign bow. It opens the vault in Sir Moneybucks\'s study.',

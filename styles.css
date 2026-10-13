@@ -34,6 +34,12 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 #hud-clock { font-weight: bold; font-size: 15px; }
 #hud-location { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
 #hud-money { font-size: 14px; margin-top: 4px; }
+#hud-wanted { font-size: 13px; margin-top: 4px; }
+#hud-wanted .stars { color: #ffcc33; letter-spacing: 2px; text-shadow: 0 0 6px rgba(255,60,60,0.8); }
+#hud-wanted .stars.flash { animation: wanted-flash 0.8s steps(2) infinite; }
+#hud-wanted .off { color: rgba(255,255,255,0.25); }
+#hud-wanted .tag { display: block; font-size: 12px; opacity: 0.85; }
+@keyframes wanted-flash { 50% { color: #7ab4ff; text-shadow: 0 0 8px rgba(60,130,255,1); } }
 #hud-tr { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .minimap-card { padding: 5px; line-height: 0; }
 #minimap { width: 170px; height: 170px; border-radius: 8px; }

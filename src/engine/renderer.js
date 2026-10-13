@@ -156,7 +156,7 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig });
         }
       })();
       for (const b of lm.buildings) {
@@ -171,7 +171,7 @@ export class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -514,6 +514,20 @@ export class Renderer {
       ctx.fillStyle = f.player ? '#ff6a5a' : '#ffe08a';
       ctx.fillText(`-${f.amount}`, fs.x, fs.y);
       ctx.globalAlpha = 1;
+    }
+    // an officer is cuffing the player
+    const cuff = g.police?.cuffProgress() || 0;
+    if (cuff > 0) {
+      const s = this.toScreen(g.player.x, g.player.y + 16); // under the feet, clear of name tags
+      const bw = 56 * dpr;
+      ctx.fillStyle = 'rgba(20,20,30,0.8)';
+      ctx.fillRect(s.x - bw / 2 - 2 * dpr, s.y - 2 * dpr, bw + 4 * dpr, 9 * dpr);
+      ctx.fillStyle = Math.floor(this.time * 6) % 2 ? '#ff4a4a' : '#4a7aff';
+      ctx.fillRect(s.x - bw / 2, s.y, bw * cuff, 5 * dpr);
+      ctx.font = `bold ${10 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('BEING CUFFED — run!', s.x, s.y + 18 * dpr);
     }
     // red vignette when the player is hurt
     const hurt = g.player.hurtAt ? Math.max(0, 1 - (g.realTime - g.player.hurtAt) / 0.6) : 0;

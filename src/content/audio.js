@@ -90,6 +90,7 @@ export const MOTIFS = {
   motif_osric: { title: 'Osric — "In Triplicate"', bpm: 150, notes: 'C4:1 -:1 C4:1 -:1 G4:1 -:1 C5:2', inst: 'reed', character: 'npc_osric' },
   motif_moneybucks: { title: 'Sir Moneybucks — "Dividends"', bpm: 112, notes: 'Bb2:2 F3:1 Bb3:1 D4:2 F4:3 -:1 F4:1 Bb4:3', inst: 'brass', character: 'npc_moneybucks' },
   motif_mason: { title: 'Mason — "Measure Twice" (whistled)', bpm: 160, notes: 'G5:1 E5:1 G5:1 C6:3 -:1 B5:1 C6:2', inst: 'flute', character: 'npc_mason' },
+  motif_lawrence: { title: 'Lawrence — "Not My Department" (lazy tuba)', bpm: 84, notes: 'C3:2 G2:1 -:1 C3:1 D3:1 E3:3 -:1 D3:1 C3:3', inst: 'bass', character: 'npc_lawrence' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -115,6 +116,7 @@ export const AUDIO_REGISTRY = [
   { id: 'motif_moneybucks', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_moneybucks', trigger: 'conversation opens with Sir Moneybucks', status: 'implemented', source: 'Original composition' },
   { id: 'motif_mags', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mags', trigger: 'conversation opens with Mags', status: 'implemented', source: 'Original composition' },
   { id: 'motif_osric', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_osric', trigger: 'conversation opens with Osric', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_lawrence', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_lawrence', trigger: 'conversation opens with Chief Lawrence Order', status: 'implemented', source: 'Original composition' },
   { id: 'motif_tibbs', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_tibbs', trigger: 'conversation opens with Tibbs', status: 'implemented', source: 'Original composition' },
   { id: 'voice_blips', category: 'voice', method: 'procedural: per-character voice params (characters/*.voice)', trigger: 'dialogue text typing', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_step', 'player footsteps (surface-dependent pitch)'),
@@ -149,6 +151,7 @@ export const AUDIO_REGISTRY = [
   sfx('sfx_thunder', 'each lightning strike of the Wrath (arcane theme)'),
   sfx('sfx_gusher', 'each oil geyser in Sir Moneybucks\'s Wrath (ignites from the third)'),
   sfx('sfx_beam', 'each falling I-beam in Mason\'s Wrath; the fifth is the wrecking ball'),
+  sfx('sfx_ram', 'each squad car ramming in during Chief Order\'s Wrath; the fifth is the gavel'),
   amb('amb_harbour', 'lanternside'),
   amb('amb_indoor', 'player_flat, civic_office, osric_house'),
   amb('amb_cafe', 'cafe'),

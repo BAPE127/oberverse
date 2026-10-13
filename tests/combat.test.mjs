@@ -67,9 +67,10 @@ test('the timid flee, fighters fight back, and the player can be beaten', () => 
   g2.player.money = 40;
   g2.player.health = 1;
   tick(g2, 3);
-  assert.equal(g2.player.map, 'player_flat', 'you wake up at home');
-  assert.equal(g2.player.money, 30, 'a quarter lighter');
+  assert.equal(g2.player.map, 'jail', 'killed is killed: you wake up in a cell (v0.10.0)');
+  assert.equal(g2.player.money, 40, 'the police take your weapons, not your money');
   assert.ok(g2.player.health >= 40);
+  assert.ok(g2.world.police.jail, 'serving a sentence');
   assert.equal(g2.npcs.get('npc_gideon').hostile, null, 'the fight is over');
 });
 

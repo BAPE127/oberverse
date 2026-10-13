@@ -1168,6 +1168,35 @@ export function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
+    case 'loosebrick': {
+      // a different-coloured brick low on the wall; scraped mortar shows the digging
+      const dug = Math.min(4, opts.jailDig || 0);
+      ctx.fillStyle = '#7a4a36';
+      ctx.fillRect(x + 6, y + 10, 20, 11);
+      ctx.strokeStyle = '#4a2a1e';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 6.5, y + 10.5, 19, 10);
+      ctx.fillStyle = '#c9b89a';
+      for (let i = 0; i < dug * 2; i++) ctx.fillRect(x + 4 + (i * 7) % 24, y + 24 + (i % 3) * 2, 2, 2);
+      break;
+    }
+    case 'vent': {
+      ctx.fillStyle = '#3a3e44';
+      ctx.fillRect(x + 4, y + 2, 24, 16);
+      ctx.fillStyle = '#7a7e86';
+      for (let i = 0; i < 4; i++) ctx.fillRect(x + 6, y + 4 + i * 4, 20, 2);
+      ctx.fillStyle = '#a8a49a';
+      for (const [dx, dy] of [[5, 3], [25, 3], [5, 15], [25, 15]]) ctx.fillRect(x + dx, y + dy, 2, 2);
+      break;
+    }
+    case 'wallcrack': {
+      ctx.strokeStyle = '#2a2420';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 30, y + 2); ctx.lineTo(x + 26, y + 9); ctx.lineTo(x + 29, y + 15); ctx.lineTo(x + 25, y + 22); ctx.lineTo(x + 28, y + 30);
+      ctx.stroke();
+      break;
+    }
     case 'gatepost': {
       ctx.fillStyle = 'rgba(0,0,0,0.22)';
       ctx.fillRect(x + 6, y + 24, 24, 8);

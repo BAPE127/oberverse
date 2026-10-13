@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.10.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Law & Order',
+    notes: [
+      'The Halvermouth Police. Chief Lawrence Order runs Precinct 1 from his office couch and never leaves the building. His five armed officers — Sgt. Justin Case, Warren Tee, Bailey Bond, rookie Miranda Wright and night guard Hugh Jury — walk Halvermouth, Lanternside, Westbrook and the Ober Fields.',
+      'A criminal record and Wanted stars (★–★★★). Officers who see a crime come after you; civilians call it in and the nearest officers are dispatched. Get close and they cuff you; at three stars they shoot. Press G near an officer to surrender. The Chief ignores petty stuff until you\'re a known criminal.',
+      'Bribe the Chief and for three days calls go unanswered and officers "didn\'t see anything" (a killing is still reported, hours late). Or pay a fine to clear a warrant. Kill a cop and nobody will take your money.',
+      'Killed or arrested? You wake up in the cell block. Lie on the cot to serve your sentence, or break out: dig with a spoon from the meal tray while Jury naps, lift his keys through the bars, bribe him, or buy Petty Larson\'s secret about the vent.',
+      'Attack Chief Order and face LAW & ORDER: sirens and searchlights, badges and handcuffs, squad cars ramming in, a giant gavel, an avalanche of paperwork stamped GUILTY — and you wake up in a cell.',
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-10-13',
     channel: 'development',

@@ -357,7 +357,7 @@ export class Combat {
       g.knowledge.learn(npc, 'fact_player_assault', { kind: 'fact', source: 'witnessed', at: now });
       for (const w of seen) this.react(w, npc);
       if (seen.length) g.notify(`${seen.map((n) => n.profile.shortName).join(', ')} saw you attack ${npc.profile.shortName}!`, 'warn');
-      g.bus.emit('crime', { fact: 'fact_player_assault', witnesses: seen.map((n) => n.id), victim: npc.id });
+      g.bus.emit('crime', { fact: 'fact_player_assault', witnesses: seen.map((n) => n.id), victim: npc.id, map: npc.map, x: npc.x, y: npc.y });
     } else g.relationships.adjust(npc, 'player', { trust: -4, affection: -4 }, 'attacked');
     if (npc.health <= 0) {
       if (lethal) this.kill(npc, weapon);
@@ -374,6 +374,8 @@ export class Combat {
     const g = this.game;
     const now = g.clock.total;
     if (isDown(npc, now)) return;
+    // Officers who merely witness something arrest rather than brawl (src/systems/police.js).
+    if (!isVictim && g.police?.isOfficer(npc)) return;
     const c = npc.profile.combat || {};
     const pers = npc.profile.personality || {};
     const healthFrac = (npc.health ?? npcMaxHealth(npc)) / npcMaxHealth(npc);
@@ -434,6 +436,7 @@ export class Combat {
     }
     g.notify(`${npc.profile.shortName} is dead.`, 'warn');
     g.bus.emit('npc:died', { npcId: npc.id, weapon: weapon?.id || null, witnesses: seen.map((n) => n.id) });
+    g.bus.emit('crime', { fact: 'fact_player_murder', witnesses: seen.map((n) => n.id), victim: npc.id, map: npc.map, x: npc.x, y: npc.y });
     // Anything they were giving the player is over.
     for (const [qid, st] of Object.entries(g.questState)) {
       if (st.state === 'active' && g.content.quests[qid]?.giver === npc.id) g.quests.fail(qid, 'giver_died');
@@ -445,10 +448,13 @@ export class Combat {
     const g = this.game;
     const p = g.player;
     const now = g.clock.total;
+    const heard = [];
     for (const npc of g.npcs.values()) {
       if (npc.map !== p.map || isDown(npc, now) || npc.hostile) continue;
       if (dist(npc.x, npc.y, p.x, p.y) > radiusTiles * TILE) continue;
+      heard.push(npc.id);
       if (npc.activity === 'sleep') npc.activity = 'idle'; // woken by the bang
+      if (g.police?.isOfficer(npc)) continue; // the police come running instead (src/systems/police.js)
       const c = npc.profile.combat || {};
       if (c.defends === true && g.canSee(npc, p.x, p.y, g.currentMap(), 12)) this.react(npc, null);
       else {
@@ -461,6 +467,7 @@ export class Combat {
       }
       remember(npc, { text: 'Heard gunshots nearby.', tag: 'heard_gunfire', about: null, importance: 5 }, now);
     }
+    if (heard.length) g.bus.emit('crime', { fact: 'gunfire', witnesses: heard, map: p.map, x: p.x, y: p.y });
   }
 
   damagePlayer(amount, attacker) {
@@ -481,10 +488,16 @@ export class Combat {
   playerKnockedOut(attacker) {
     const g = this.game;
     const p = g.player;
+    if (attacker) remember(attacker, { text: `I beat ${p.name} senseless.`, tag: 'beat_player', about: 'player', importance: 7 }, g.clock.total);
+    if (g.police) {
+      // Killed is killed: you wake up in a cell (v0.10.0).
+      g.bus.emit('combat:playerDown', { lost: 0, by: attacker?.id || null });
+      g.police.sendToJail('killed');
+      return;
+    }
     const lost = Math.floor(p.money * 0.25);
     p.money -= lost;
     for (const npc of g.npcs.values()) if (npc.hostile) { npc.hostile = null; npc.activity = 'idle'; }
-    if (attacker) remember(attacker, { text: `I beat ${p.name} senseless.`, tag: 'beat_player', about: 'player', importance: 7 }, g.clock.total);
     this.reloading = null;
     g.changeMap(g.content.startingMap, g.content.startingSpot);
     g.skipTime(6 * 60);
@@ -543,8 +556,14 @@ export class Combat {
     const g = this.game;
     if (!this.wrath) return;
     const p = g.player;
+    const victim = g.npcs.get(this.wrath.npcId);
     this.wrath = null;
     p.health = 100;
+    if (victim?.profile.wrath?.after === 'jail' && g.police) {
+      g.bus.emit('combat:risen', { lost: 0, jail: true });
+      g.police.sendToJail('wrath');
+      return;
+    }
     const lost = Math.floor(p.money / 2);
     p.money -= lost;
     g.changeMap(g.content.startingMap, g.content.startingSpot);

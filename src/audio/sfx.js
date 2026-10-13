@@ -146,6 +146,23 @@ export const SFX = {
     noise(ctx, d, { t, dur: 0.35, vol: 0.4, type: 'lowpass', freq: 2200, f1: 200 });
     tone(ctx, d, { type: 'sine', f0: 90, f1: 40, t, dur: 0.5, vol: 0.35 });
   },
+  // Chief Order's strikes: squad cars ramming in, then the gavel
+  sfx_ram: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    if ((o.index || 0) >= 5) {
+      tone(ctx, d, { type: 'sine', f0: 120, f1: 38, t, dur: 1.1, vol: 0.65, attack: 0.003 }); // the gavel
+      noise(ctx, d, { t, dur: 0.12, vol: 0.6, type: 'lowpass', freq: 2400 });
+      noise(ctx, d, { t: t + 0.02, dur: 1.4, vol: 0.4, type: 'lowpass', freq: 700, f1: 60 });
+      for (const [f, v] of [[196, 0.12], [294, 0.07]]) tone(ctx, d, { type: 'triangle', f0: f, t: t + 0.01, dur: 1.2, vol: v });
+      return;
+    }
+    const sq = Math.max(0, t - 0.25); // the squeal leads the crunch (never scheduled before time zero)
+    tone(ctx, d, { type: 'sawtooth', f0: 900, f1: 420, t: sq, dur: t - sq || 0.05, vol: 0.05 }); // tyre squeal
+    noise(ctx, d, { t: sq, dur: t - sq || 0.05, vol: 0.12, type: 'bandpass', freq: 2600, q: 3 });
+    noise(ctx, d, { t, dur: 0.5, vol: 0.55, type: 'lowpass', freq: 1800, f1: 150 }); // crunch
+    tone(ctx, d, { type: 'square', f0: 110, f1: 45, t, dur: 0.3, vol: 0.18 });
+    for (let i = 0; i < 8; i++) noise(ctx, d, { t: t + 0.08 + Math.random() * 0.5, dur: 0.04, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -296,6 +313,25 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     [[79, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.36, 0.36], [83, 0.84, 0.12], [84, 0.96, 0.3]].forEach(([m, dt, len]) => tone(ctx, bus, { type: 'sine', f0: hz(m), t: t0 + 1.2 + dt, dur: len + 0.08, vol: 0.07, attack: 0.02 }));
     for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 6.3 + Math.random() * 1.2, dur: 0.06, vol: 0.18, freq: 1500 + Math.random() * 2000, q: 3 });
     noise(ctx, bus, { t: t0 + 6.3, dur: 1.6, vol: 0.22, type: 'lowpass', freq: 900, f1: 150 });
+  } else if (theme === 'law') {
+    // a wailing siren through the roll, Lawrence's lazy tuba motif, a typewriter
+    // blizzard under the paperwork, and the cell door slamming shut
+    const siren = ctx.createOscillator();
+    const sg = ctx.createGain();
+    siren.type = 'triangle';
+    siren.frequency.setValueAtTime(650, t0 + 0.3);
+    for (let k = 0; k < 8; k++) siren.frequency.linearRampToValueAtTime(k % 2 ? 650 : 960, t0 + 0.3 + (k + 1) * 0.6);
+    sg.gain.setValueAtTime(0.0001, t0 + 0.3);
+    sg.gain.linearRampToValueAtTime(0.045, t0 + 0.8);
+    sg.gain.setValueAtTime(0.045, t0 + 3.2);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 5.0);
+    siren.connect(sg).connect(bus);
+    siren.start(t0 + 0.3); siren.stop(t0 + 5.1);
+    [[36, 0, 0.5], [31, 0.5, 0.25], [36, 1.0, 0.25], [38, 1.25, 0.25], [40, 1.5, 0.75], [38, 2.5, 0.25], [36, 2.75, 0.6]].forEach(([m, dt, len]) => brass(ctx, bus, [m, m + 12], t0 + 1.0 + dt * 0.7, len, 0.06));
+    for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 5.0 + i * 0.03 + Math.random() * 0.02, dur: 0.02, vol: 0.12, freq: 2500 + Math.random() * 800, q: 6 });
+    tone(ctx, bus, { type: 'sine', f0: 1760, t: t0 + 6.25, dur: 0.6, vol: 0.06 }); // typewriter bell
+    noise(ctx, bus, { t: t0 + 6.35, dur: 0.6, vol: 0.4, type: 'lowpass', freq: 1600, f1: 120 }); // CLANG
+    for (const [f, v] of [[220, 0.08], [331, 0.06], [467, 0.04]]) tone(ctx, bus, { type: 'sine', f0: f, t: t0 + 6.35, dur: 1.4, vol: v, attack: 0.002 });
   }
 }
 

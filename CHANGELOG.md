@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.10.0] — 2026-10-13 — "Law & Order" (development build)
+
+### Added
+- **Chief Lawrence Order** (`npc_lawrence`) — imported from a player-supplied image (stored with permission; portrait embedded) and interview. Careless, comfortable, bribable; never leaves Precinct 1. Protected, with his own Wrath (theme `law`, `after: 'jail'`). See `docs/characters/npc_lawrence.md`.
+- **Five generated officers** (justice-pun names, all armed, all killable): Sgt. Justin Case (revolver; Plaza, Bank Row, East Gate, Founders Park), Warren Tee (pistol; Sumps, Mission, Docks), Bailey Bond (pistol; Lanternside), Miranda Wright (baton; Westbrook, Gullwing Park, Canal Row), Hugh Jury (shotgun; Ober Fields, then the cell block at night — dozing 01:00–04:00). Plus **Petty Larson**, the prisoner in the next cell.
+- **Police system** (`src/systems/police.js`, state `world.police`): criminal record (murder 10, an officer 20; assault 3/6; gunfire 2; jailbreak 8; trespass/theft 1), Wanted 0–3 stars, witness calls with a delay, dispatch of the nearest officers, pursuit, cuffing (1.4 s close contact), shoot-on-sight at ★★★, Wanted lapsing unseen, a point off the record per clean day. The Chief is lax below record 8.
+- **Bribes** (3 days: calls ignored, officers look away; a killing is still reported 4 hours late) and **fines** via Chief Order's dialogue (`police` effect and condition).
+- **Jail** (`jail` map, below the rebuilt precinct with the Chief's office and the officers' bunk room): weapons and contraband go to the evidence locker (`ct_evidence`); sentence 4 h + 2 h per record point; serve it on the cot (gear back, record halved). **Breakouts:** spoon digging (4 nights' hours), the guard's keys (Finesse; +12 h if caught), bribing the guard (no warrant, no gear), Petty's vent (25 obols or a cigar for the bent fork). Escaping is a jailbreak: ★★.
+- **Death and knock-outs** now land you in jail instead of at home.
+- **LAW & ORDER Wrath**: siren wash, sweeping searchlights, police tape, rings of badges, handcuffs and CASE CLOSED/DENIED stamps, a chalk outline, four squad cars ramming in, a giant gavel, a paperwork blizzard stamped GUILTY, and cell bars dropping. Audio: siren, the Chief's tuba motif, typewriter, cell-door clang; strike sound `sfx_ram` (fifth = gavel). Banner "YOU HAVE THE RIGHT TO REMAIN SILENT".
+- HUD Wanted stars / bribe / time-left line; a cuffing bar over the player; **G** to surrender.
+- Debug commands `wanted`, `record`, `jail [hours]`, `release`, `bribe`.
+- Items `item_jail_keys`, `item_spoon`, `item_bent_fork`; props `loosebrick`, `vent`, `wallcrack`; motif `motif_lawrence`.
+- Tests: `tests/police.test.mjs` (20 tests).
+
+### Changed
+- `combat.test.mjs`: being beaten unconscious now ends in a cell, not at home.
+
 ## [0.9.0] — 2026-10-13 — "Personal Wrath" (development build)
 
 ### Fixed

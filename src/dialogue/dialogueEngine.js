@@ -24,7 +24,8 @@ export class DialogueSession {
   vars() {
     const g = this.game;
     const pun = g.dailyPun ? g.dailyPun() : {};
-    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline };
+    const pol = g.police;
+    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline, bribe: pol?.bribePrice(), fine: pol?.finePrice(), bribedUntil: g.world.police?.bribedUntilDay, record: g.world.police?.record ?? 0 };
   }
 
   /** Resolve a "say" (array of pages; pages may be conditional objects). Runs page effects. */

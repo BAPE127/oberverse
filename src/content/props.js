@@ -70,6 +70,9 @@ export const PROP_TYPES = {
   gunrack: { solid: true, label: 'Gun rack', defaults: { w: 2 } },
   cellbars: { solid: true, label: 'Cell bars', defaults: {} },
   gatepost: { solid: true, label: 'Gatepost', defaults: {} },
+  loosebrick: { solid: false, label: 'Loose brick', defaults: {} },
+  vent: { solid: false, label: 'Air vent', defaults: {} },
+  wallcrack: { solid: false, label: 'Crack in the wall', defaults: {} },
   // Mason's Os
   scaffold: { solid: true, label: 'Scaffolding', defaults: { w: 2, h: 2 } },
   excavator: { solid: true, label: 'Mini excavator', defaults: { w: 2, h: 2 } },

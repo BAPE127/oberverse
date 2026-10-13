@@ -22,7 +22,7 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄' };
 export const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -387,7 +387,7 @@ export function struckDownPanel(ui, body, opts) {
         if (ui.loadFrom('auto') === false) { chosen = false; rise(); return; } // couldn't load: rise instead
         ui.el.hud.classList.remove('cinematic');
       } }, 'Load last autosave') : null,
-      h('button', { class: 'primary', onclick: rise }, 'Rise again (wake at home tomorrow)')),
+      h('button', { class: 'primary', onclick: rise }, opts.after === 'jail' ? 'Wake up (in a cell)' : 'Rise again (wake at home tomorrow)')),
   );
   return { title: 'You were struck down', onClose: rise };
 }
@@ -475,7 +475,7 @@ export function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = sys === 'oil' ? ui.game.oil : sys === 'construction' ? ui.game.construction : ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);

@@ -22,6 +22,9 @@ const HELP = [
   ['stat <charm|wits|grit|finesse> <1–5>', 'set a stat'],
   ['rep <faction> <n>', 'set reputation'],
   ['flag <name> [value]', 'show or set a story flag'],
+  ['wanted <0–3> · record <n>', 'set your Wanted level or criminal record'],
+  ['jail [hours] · release', 'go to jail (optional sentence) or walk free'],
+  ['bribe', 'the police look the other way for 3 days (free)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -210,6 +213,43 @@ export function runCommand(game, line) {
       const val = v === 'true' ? true : v === 'false' ? false : parseNum(v) ?? v;
       game.setFlag(name, val);
       return out(`${name} = ${JSON.stringify(val)}`);
+    }
+    case 'wanted': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Wanted: ${game.world.police.wanted}. Usage: wanted <0–3>`, false);
+      const pol = game.police;
+      const lvl = clamp(Math.round(n), 0, 3);
+      if (lvl === 0) {
+        game.world.police.wanted = 0;
+        for (const o of pol.activeOfficers()) { if (o.pursuit) pol.endPursuit(o); o.hostile = null; }
+        game.bus.emit('police:wanted', { level: 0 });
+      } else {
+        game.world.police.wanted = 0;
+        pol.raiseWanted([0, 1, 3, 10][lvl], 'debug');
+      }
+      return out(`Wanted: ${game.world.police.wanted}`);
+    }
+    case 'record': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Record: ${game.world.police.record}. Usage: record <n>`, false);
+      game.world.police.record = Math.max(0, Math.round(n));
+      return out(`Record: ${game.world.police.record}${game.police.lax() ? ' (the Chief doesn\'t care yet)' : ' (known criminal)'}`);
+    }
+    case 'jail': {
+      if (game.police.jailed()) return out('Already in jail.', false);
+      game.police.sendToJail('arrested');
+      const h = parseNum(args[0]);
+      if (h !== null) game.world.police.jail.until = game.clock.total + Math.max(1, h) * 60;
+      return out(`Jailed: ${game.police.hoursLeft()} hours.`);
+    }
+    case 'release': {
+      if (!game.police.jailed()) return out('Not in jail.', false);
+      game.police.release();
+      return out('Released.');
+    }
+    case 'bribe': {
+      game.world.police.bribedUntilDay = game.clock.day + 3;
+      return out(`The police look the other way until the end of Day ${game.world.police.bribedUntilDay}.`);
     }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);

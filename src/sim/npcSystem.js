@@ -39,7 +39,8 @@ export class NpcSystem {
   think(npc, force = false) {
     const g = this.game;
     const now = g.clock.total;
-    if (npc.hostile || incapacitated(npc, now)) return; // combat owns them (src/systems/combat.js)
+    if (npc.hostile || npc.pursuit || incapacitated(npc, now)) return; // combat / police own them
+    if (npc.intent?.source === 'dispatch' && now < npc.intent.until) return; // answering a call
     if (npc.chat && now < npc.chat.until) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.

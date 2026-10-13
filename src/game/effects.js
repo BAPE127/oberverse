@@ -8,7 +8,7 @@ import { parseSpotRef, TILE, interpolate } from '../core/util.js';
 export const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police',
 ];
 
 /**
@@ -176,6 +176,15 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'police': {
+        // { police: { bribe: true } | { payFine: true } | { pettyDeal: 'money' | itemId } }
+        let r = null;
+        if (val.bribe) r = game.police.bribe();
+        if (val.payFine) r = game.police.payFine();
+        if (val.pettyDeal) game.police.pettyDeal(val.pettyDeal);
+        if (r?.text) game.notify(r.text, r.ok ? 'good' : 'warn');
+        break;
+      }
       case 'permit':
         // Civic Office issues building permits for every contract awaiting one.
         game.properties.grantPermits();

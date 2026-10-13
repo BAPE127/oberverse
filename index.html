@@ -44,6 +44,12 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 #hud-clock { font-weight: bold; font-size: 15px; }
 #hud-location { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
 #hud-money { font-size: 14px; margin-top: 4px; }
+#hud-wanted { font-size: 13px; margin-top: 4px; }
+#hud-wanted .stars { color: #ffcc33; letter-spacing: 2px; text-shadow: 0 0 6px rgba(255,60,60,0.8); }
+#hud-wanted .stars.flash { animation: wanted-flash 0.8s steps(2) infinite; }
+#hud-wanted .off { color: rgba(255,255,255,0.25); }
+#hud-wanted .tag { display: block; font-size: 12px; opacity: 0.85; }
+@keyframes wanted-flash { 50% { color: #7ab4ff; text-shadow: 0 0 8px rgba(60,130,255,1); } }
 #hud-tr { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .minimap-card { padding: 5px; line-height: 0; }
 #minimap { width: 170px; height: 170px; border-radius: 8px; }
@@ -197,6 +203,7 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
       <div id="hud-clock"></div>
       <div id="hud-location"></div>
       <div id="hud-money"></div>
+      <div id="hud-wanted" class="hidden"></div>
     </div>
     <div id="hud-tr">
       <div class="hud-card minimap-card"><canvas id="minimap" width="170" height="170"></canvas></div>
@@ -208,7 +215,7 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
       <div id="hud-weapon"></div>
     </div>
     <div id="hud-prompt" class="hidden"></div>
-    <div id="hud-keys">E interact · F / click attack · R reload · X weapon · Shift sprint · I inventory · J journal · M map · Esc menu</div>
+    <div id="hud-keys">E interact · F / click attack · R reload · X weapon · G surrender · Shift sprint · I inventory · J journal · M map · Esc menu</div>
     <div id="toasts" aria-live="polite"></div>
     <div id="debug" class="hidden"></div>
   </div>
@@ -1348,29 +1355,94 @@ const hallOfJustice = {
   ],
 };
 
+const OFFICERS = ['npc_lawrence', 'npc_justin', 'npc_warren', 'npc_bailey', 'npc_miranda', 'npc_hugh'];
+
 const policeStation = {
   id: 'police_station',
   name: 'Police Precinct 1',
   kind: 'interior',
   music: 'mus_civic',
   ambience: 'amb_indoor',
-  tiles: roomTiles(20, 12, 't', 6, [[13, 1, 1, 6, 'W']]),
-  doors: [{ id: 'door_police_exit', x: 6, y: 11, to: { map: 'halvermouth', spot: 'police_door_out' } }],
-  spots: { entry: { x: 6, y: 10, facing: 'up' }, front_desk: { x: 6, y: 5, facing: 'down' }, chief: { x: 3, y: 2, facing: 'down' } },
+  // lobby (west), Chief Order's office (north-east), the officers' bunk room (south-east)
+  tiles: (() => {
+    const rows = roomTiles(24, 14, 't', 7, [[14, 1, 1, 4, 'W'], [14, 6, 1, 1, 'W'], [14, 7, 9, 1, 'W'], [14, 8, 1, 2, 'W'], [14, 11, 1, 2, 'W']]).map((r) => r.split(''));
+    for (let y = 1; y < 7; y++) for (let x = 15; x < 23; x++) rows[y][x] = 'c';
+    for (let y = 8; y < 13; y++) for (let x = 15; x < 23; x++) rows[y][x] = 'f';
+    return rows.map((r) => r.join(''));
+  })(),
+  doors: [
+    { id: 'door_police_exit', x: 7, y: 13, to: { map: 'halvermouth', spot: 'police_door_out' } },
+    { id: 'door_police_stairs', x: 2, y: 9, label: 'Stairs to the cell block', to: { map: 'jail', spot: 'stairs_in' }, lock: { key: 'item_jail_keys', owners: OFFICERS, message: 'CELL BLOCK — AUTHORISED PERSONNEL ONLY. (You are not authorised. You are barely personnel.)' } },
+  ],
+  spots: {
+    entry: { x: 7, y: 12, facing: 'up' }, release: { x: 7, y: 11, facing: 'down' }, front_desk: { x: 6, y: 6, facing: 'down' },
+    stairs_out: { x: 3, y: 9, facing: 'right' }, lobby_wait: { x: 10, y: 10, facing: 'left' }, desk_a: { x: 2, y: 4, facing: 'up' }, desk_b: { x: 6, y: 4, facing: 'up' },
+    chief_desk: { x: 18, y: 3, facing: 'down' }, chief_couch: { x: 20, y: 2, facing: 'left' }, chief_visitor: { x: 18, y: 5, facing: 'up' },
+    bunk_1: { x: 16, y: 9, facing: 'left' }, bunk_2: { x: 18, y: 9, facing: 'left' }, bunk_3: { x: 20, y: 9, facing: 'left' }, bunk_4: { x: 22, y: 9, facing: 'left' }, bunk_5: { x: 16, y: 11, facing: 'left' },
+  },
   props: [
-    { id: 'pd_front_desk', type: 'counter', x: 4, y: 6, w: 5, examine: 'The front desk. A bell, a sign reading "TAKE A NUMBER", and no numbers.' },
-    { id: 'pd_waiting1', type: 'bench', x: 9, y: 9, w: 2 }, { id: 'pd_waiting2', type: 'bench', x: 1, y: 9, w: 2 },
-    { id: 'pd_wanted', type: 'noticeboard', x: 9, y: 1, examine: 'WANTED posters. A burglar called "The Cat". A fraudster called "The Other Cat". A sketch of someone who looks remarkably like a gull.' },
-    { id: 'pd_desk1', type: 'desk', x: 1, y: 2, w: 2, color: '#6a6e74' }, { id: 'pd_desk2', type: 'desk', x: 5, y: 2, w: 2, color: '#6a6e74' },
-    { id: 'pd_files', type: 'cabinet', x: 11, y: 1 }, { id: 'pd_files2', type: 'cabinet', x: 12, y: 1, examine: 'Case files. A drawer labelled "WAREHOUSE FIRES — MILL ROAD" is jammed shut.' },
-    { id: 'pd_evidence', type: 'cabinet', x: 11, y: 5, examine: 'EVIDENCE — DO NOT TOUCH. Locked. Good.' },
-    { id: 'pd_coffee', type: 'stove', x: 1, y: 6, examine: 'Precinct coffee. It has been on the hotplate since the last century and has achieved sentience.' },
-    // holding cells
-    { id: 'pd_cell_bars', type: 'cellbars', x: 14, y: 4, w: 5, examine: 'The holding cells. Empty — for now.' },
-    { id: 'pd_cell_cot1', type: 'cot', x: 14, y: 1 }, { id: 'pd_cell_cot2', type: 'cot', x: 17, y: 1 },
-    { id: 'pd_lockers', type: 'wardrobe', x: 17, y: 8, interact: { kind: 'container', container: 'ct_police_lockers' }, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
-    { id: 'pd_plant', type: 'plant', x: 18, y: 10 },
-    { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 16, y: 0 },
+    { id: 'pd_front_desk', type: 'counter', x: 4, y: 7, w: 5, examine: 'The front desk. A bell, a sign reading "TAKE A NUMBER", and no numbers. A second sign: "COMPLAINTS: SEE CHIEF ORDER (HE IS AT LUNCH)".' },
+    { id: 'pd_waiting1', type: 'bench', x: 9, y: 11, w: 2 }, { id: 'pd_waiting2', type: 'bench', x: 11, y: 11, w: 2 },
+    { id: 'pd_wanted', type: 'noticeboard', x: 10, y: 1, examine: 'WANTED posters. A burglar called "The Cat". A fraudster called "The Other Cat". A sketch of someone who looks remarkably like a gull. Space has been left for more.' },
+    { id: 'pd_desk1', type: 'desk', x: 1, y: 3, w: 2, color: '#6a6e74' }, { id: 'pd_desk2', type: 'desk', x: 5, y: 3, w: 2, color: '#6a6e74' },
+    { id: 'pd_files', type: 'cabinet', x: 12, y: 1 }, { id: 'pd_files2', type: 'cabinet', x: 13, y: 1, examine: 'Case files. A drawer labelled "WAREHOUSE FIRES — MILL ROAD" is jammed shut. Another, "UNSOLVED", is jammed open.' },
+    { id: 'pd_evidence', type: 'cabinet', x: 13, y: 3, interact: { kind: 'container', container: 'ct_evidence' }, examine: 'The evidence locker. Confiscated weapons end up here.' },
+    { id: 'pd_coffee', type: 'stove', x: 1, y: 7, examine: 'Precinct coffee. It has been on the hotplate since the last century and has achieved sentience.' },
+    { id: 'pd_stairs', type: 'stairs', x: 1, y: 9, examine: 'Stairs down to the cell block. They smell of damp and regret.' },
+    { id: 'pd_lockers', type: 'wardrobe', x: 13, y: 9, interact: { kind: 'container', container: 'ct_police_lockers' }, examine: 'Officers\' lockers. One has a photo of a dog taped inside the vent.' },
+    { id: 'pd_plant', type: 'plant', x: 12, y: 7 },
+    // Chief Order's office
+    { id: 'pd_chief_desk', type: 'desk', x: 17, y: 4, w: 3, color: '#5a3a24', examine: 'Chief Order\'s desk. An in-tray stacked to the ceiling, an out-tray with one sandwich in it, and a nameplate: LAWRENCE ORDER — CHIEF OF POLICE — "IF IT\'S URGENT, IT\'LL KEEP".' },
+    { id: 'pd_donuts', type: 'table', x: 15, y: 1, examine: 'A box of a dozen doughnuts. There are two left. There are always two left.' },
+    { id: 'pd_couch', type: 'bed', x: 21, y: 1, color: '#6a4a3a', examine: 'A sagging office couch with a Lawrence-shaped dent in it. A cushion is embroidered "NAP TIME IS POLICE TIME".' },
+    { id: 'pd_chief_cab', type: 'cabinet', x: 22, y: 5, examine: 'Reports, unread, filed under "LATER". There is no "NOW".' },
+    { id: 'pd_chief_flag', type: 'flagpole', x: 15, y: 6, color: '#2a4a8a' },
+    { id: 'pd_rug', type: 'rug', x: 16, y: 5, w: 4, h: 1, color: '#2a4a6a' },
+    // bunks
+    { id: 'pd_cot1', type: 'cot', x: 15, y: 8 }, { id: 'pd_cot2', type: 'cot', x: 17, y: 8 }, { id: 'pd_cot3', type: 'cot', x: 19, y: 8 }, { id: 'pd_cot4', type: 'cot', x: 21, y: 8 }, { id: 'pd_cot5', type: 'cot', x: 15, y: 11 },
+    { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 19, y: 0 },
+  ],
+};
+
+const jail = {
+  id: 'jail',
+  name: 'Precinct 1 Cell Block',
+  kind: 'interior',
+  music: 'mus_lighthouse',
+  ambience: 'amb_indoor',
+  // three cells along the north wall, a corridor, the guard's desk and the stairs up
+  tiles: roomTiles(22, 12, 't', 19, [[7, 1, 1, 6, 'W'], [14, 1, 1, 6, 'W']]),
+  doors: [
+    { id: 'door_jail_stairs', x: 19, y: 11, label: 'Stairs up to the precinct', to: { map: 'police_station', spot: 'stairs_out' }, lock: { key: 'item_jail_keys', flag: 'jail_stairs_open', owners: OFFICERS, flagMessage: 'The stairwell door is locked from the other side.' } },
+    { id: 'door_cell_a', x: 5, y: 7, label: 'Cell door', to: { map: 'jail', spot: 'corridor_a' }, lock: { key: 'item_jail_keys', flag: 'jail_cell_open', owners: OFFICERS, flagMessage: 'The cell door is locked. Solid iron. Very rude.' } },
+    { id: 'door_cell_b', x: 12, y: 7, label: 'Cell door', to: { map: 'jail', spot: 'corridor_b' }, lock: { key: 'item_jail_keys', flag: 'jail_cell_b_open', owners: OFFICERS, flagMessage: 'Petty\'s cell. Locked.' } },
+    { id: 'door_cell_c', x: 19, y: 7, label: 'Cell door', to: { map: 'jail', spot: 'corridor_c' }, lock: { key: 'item_jail_keys', flag: 'jail_cell_c_open', owners: OFFICERS, flagMessage: 'An empty cell. Locked.' } },
+  ],
+  spots: {
+    cell_a: { x: 3, y: 4, facing: 'down' }, cell_b: { x: 9, y: 3, facing: 'down' }, cell_b_bed: { x: 9, y: 2, facing: 'left' }, cell_c: { x: 17, y: 4, facing: 'down' },
+    corridor_a: { x: 5, y: 8, facing: 'down' }, corridor_b: { x: 12, y: 8, facing: 'down' }, corridor_c: { x: 19, y: 8, facing: 'down' },
+    guard_desk: { x: 2, y: 8, facing: 'up' }, stairs_in: { x: 19, y: 10, facing: 'up' },
+  },
+  props: [
+    // cell A — the player's
+    { id: 'jl_bars_a', type: 'cellbars', x: 1, y: 7, w: 4, interact: { kind: 'jail', action: 'bars', name: 'Cell bars' }, examine: 'Iron bars. The guard\'s desk is just beyond them.' },
+    { id: 'jl_bars_a2', type: 'cellbars', x: 6, y: 7 },
+    { id: 'jl_cot_a', type: 'cot', x: 1, y: 1, interact: { kind: 'jail', action: 'serve', name: 'Cot' }, examine: 'A thin cot with a thinner blanket.' },
+    { id: 'jl_tray', type: 'table', x: 5, y: 2, interact: { kind: 'jail', action: 'tray', name: 'Meal tray' }, examine: 'A dented meal tray.' },
+    { id: 'jl_brick', type: 'loosebrick', x: 1, y: 5, interact: { kind: 'jail', action: 'dig', name: 'Loose brick' }, examine: 'One brick in the wall is a slightly different colour. Older. Softer. Promising.' },
+    { id: 'jl_vent', type: 'vent', x: 4, y: 1, interact: { kind: 'jail', action: 'vent', name: 'Air vent' }, examine: 'A rusty air vent, held shut by four screws. Big enough to crawl through, if you were desperate. You are a bit desperate.' },
+    { id: 'jl_crack', type: 'wallcrack', x: 6, y: 3, interact: { kind: 'jail', action: 'whisper', name: 'Crack in the wall' }, examine: 'A crack in the wall between your cell and the next. Someone on the other side is humming.' },
+    // cell B — Petty Larson's
+    { id: 'jl_bars_b', type: 'cellbars', x: 8, y: 7, w: 4 }, { id: 'jl_bars_b2', type: 'cellbars', x: 13, y: 7 },
+    { id: 'jl_cot_b', type: 'cot', x: 8, y: 1 },
+    { id: 'jl_petty_stash', type: 'crate', x: 12, y: 1, examine: 'Petty\'s "stash": a mouth organ, three buttons and a photograph of his mum.' },
+    // cell C — empty
+    { id: 'jl_bars_c', type: 'cellbars', x: 15, y: 7, w: 4 }, { id: 'jl_bars_c2', type: 'cellbars', x: 20, y: 7 },
+    { id: 'jl_cot_c', type: 'cot', x: 15, y: 1 },
+    // corridor
+    { id: 'jl_desk', type: 'desk', x: 1, y: 9, w: 2, color: '#6a6e74', examine: 'The night guard\'s desk: a crossword (abandoned), a mug (empty), and a ring of keys on a hook beside the chair.' },
+    { id: 'jl_lamp', type: 'streetlamp', x: 9, y: 9 },
+    { id: 'jl_sign', type: 'sign', x: 16, y: 9, examine: '"NO ESCAPES SINCE RECORDS BEGAN." Someone has scratched underneath: "records began on Tuesday".' },
   ],
 };
 
@@ -1395,9 +1467,9 @@ const gunShop = {
   ],
 };
 
-const __default = [halvermouth, hallOfJustice, policeStation, gunShop];
+const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop];
 
-return { halvermouth, hallOfJustice, policeStation, gunShop, default: __default };
+return { halvermouth, hallOfJustice, policeStation, jail, gunShop, default: __default };
 })();
 
 // ---- src/content/props.js
@@ -1474,6 +1546,9 @@ const PROP_TYPES = {
   gunrack: { solid: true, label: 'Gun rack', defaults: { w: 2 } },
   cellbars: { solid: true, label: 'Cell bars', defaults: {} },
   gatepost: { solid: true, label: 'Gatepost', defaults: {} },
+  loosebrick: { solid: false, label: 'Loose brick', defaults: {} },
+  vent: { solid: false, label: 'Air vent', defaults: {} },
+  wallcrack: { solid: false, label: 'Crack in the wall', defaults: {} },
   // Mason's Os
   scaffold: { solid: true, label: 'Scaffolding', defaults: { w: 2, h: 2 } },
   excavator: { solid: true, label: 'Mini excavator', defaults: { w: 2, h: 2 } },
@@ -1558,6 +1633,18 @@ const ITEMS = {
   item_cigar: {
     name: 'Ober Imperial Cigar', category: 'gift', price: 12, tags: ['gift', 'luxury'], icon: 'cigar',
     description: 'A fat cigar banded in gold leaf: "Ober Imperial — For Gentlemen of Means". It costs more than a day\'s wages.',
+  },
+  item_jail_keys: {
+    name: 'Jail Keys', category: 'key', price: 0, tags: ['key', 'police'], icon: 'key',
+    description: 'A ring of heavy brass keys lifted off Officer Jury\'s belt. They open every cell door and the stairs up to the precinct.',
+  },
+  item_spoon: {
+    name: 'Tin Spoon', category: 'tool', price: 0, tags: ['tool', 'contraband'], icon: 'spoon',
+    description: 'A bent tin spoon off your breakfast tray. Not much of a shovel. Not much of a spoon, either.',
+  },
+  item_bent_fork: {
+    name: 'Bent Fork', category: 'tool', price: 0, tags: ['tool', 'contraband'], icon: 'spoon',
+    description: 'Petty Larson\'s fork, its tines bent into the exact shape of a vent-cover screw head.',
   },
   item_vault_key: {
     name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
@@ -1859,6 +1946,7 @@ __m["src/content/containers.js"] = (function () {
 // from a container you do not own is theft if witnessed (see game.takeFromContainer).
 const CONTAINERS = {
   ct_police_lockers: { name: 'Officers\' lockers', owner: 'fac_police', items: { item_baton: 1, item_bandage: 2 }, money: 0 },
+  ct_evidence: { name: 'Evidence cabinet', owner: 'fac_police', items: { item_cigar: 1 }, money: 15, lockedText: 'Your confiscated belongings are filed in here. "Pending."' },
   ct_sumps_crate: { name: 'Rotten crate', owner: null, items: { item_bat: 1 }, money: 3 },
   ct_flat_wardrobe: { name: 'Wardrobe', owner: 'player', items: { item_bandage: 1, item_scone: 1 }, money: 8 },
   ct_civic_desk: { name: 'Clerk\'s desk', owner: 'npc_osric', theftFact: 'fact_player_stole_from_osric', items: { item_lighthouse_key: 1, item_rubber_stamp: 1 }, money: 0 },
@@ -2604,6 +2692,7 @@ const MOTIFS = {
   motif_osric: { title: 'Osric — "In Triplicate"', bpm: 150, notes: 'C4:1 -:1 C4:1 -:1 G4:1 -:1 C5:2', inst: 'reed', character: 'npc_osric' },
   motif_moneybucks: { title: 'Sir Moneybucks — "Dividends"', bpm: 112, notes: 'Bb2:2 F3:1 Bb3:1 D4:2 F4:3 -:1 F4:1 Bb4:3', inst: 'brass', character: 'npc_moneybucks' },
   motif_mason: { title: 'Mason — "Measure Twice" (whistled)', bpm: 160, notes: 'G5:1 E5:1 G5:1 C6:3 -:1 B5:1 C6:2', inst: 'flute', character: 'npc_mason' },
+  motif_lawrence: { title: 'Lawrence — "Not My Department" (lazy tuba)', bpm: 84, notes: 'C3:2 G2:1 -:1 C3:1 D3:1 E3:3 -:1 D3:1 C3:3', inst: 'bass', character: 'npc_lawrence' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -2629,6 +2718,7 @@ const AUDIO_REGISTRY = [
   { id: 'motif_moneybucks', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_moneybucks', trigger: 'conversation opens with Sir Moneybucks', status: 'implemented', source: 'Original composition' },
   { id: 'motif_mags', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mags', trigger: 'conversation opens with Mags', status: 'implemented', source: 'Original composition' },
   { id: 'motif_osric', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_osric', trigger: 'conversation opens with Osric', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_lawrence', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_lawrence', trigger: 'conversation opens with Chief Lawrence Order', status: 'implemented', source: 'Original composition' },
   { id: 'motif_tibbs', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_tibbs', trigger: 'conversation opens with Tibbs', status: 'implemented', source: 'Original composition' },
   { id: 'voice_blips', category: 'voice', method: 'procedural: per-character voice params (characters/*.voice)', trigger: 'dialogue text typing', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_step', 'player footsteps (surface-dependent pitch)'),
@@ -2663,6 +2753,7 @@ const AUDIO_REGISTRY = [
   sfx('sfx_thunder', 'each lightning strike of the Wrath (arcane theme)'),
   sfx('sfx_gusher', 'each oil geyser in Sir Moneybucks\'s Wrath (ignites from the third)'),
   sfx('sfx_beam', 'each falling I-beam in Mason\'s Wrath; the fifth is the wrecking ball'),
+  sfx('sfx_ram', 'each squad car ramming in during Chief Order\'s Wrath; the fifth is the gavel'),
   amb('amb_harbour', 'lanternside'),
   amb('amb_indoor', 'player_flat, civic_office, osric_house'),
   amb('amb_cafe', 'cafe'),
@@ -3003,6 +3094,7 @@ __m["src/content/portraits.js"] = (function () {
 // GENERATED by tools/embed-portraits.mjs from assets/portraits/ — do not edit by hand.
 // Keep images small (≈224px square JPEG); originals live in assets/portraits/reference/.
 const PORTRAITS = {
+  npc_lawrence: 'data:image/jpeg;base64,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',
   npc_mason: 'data:image/jpeg;base64,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',
   npc_moneybucks: 'data:image/jpeg;base64,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',
 };
@@ -5229,6 +5321,524 @@ const __default = [dlgMason, dlgDee, dlgBarnaby, dlgQuinn];
 return { PUNS, dlgMason, dlgDee, dlgBarnaby, dlgQuinn, default: __default };
 })();
 
+// ---- src/content/characters/police.js
+__m["src/content/characters/police.js"] = (function () {
+// Halvermouth Police, Precinct 1. Chief Lawrence Order is an IMPORTED character
+// (player-supplied image and interview, 2026-10-13; see
+// docs/characters/npc_lawrence.md). His five officers and the prisoner in the
+// next cell were generated at the player's request ("5 other officers… all
+// officers should carry weapons… names should be justice based").
+const { PORTRAITS } = __m["src/content/portraits.js"];
+
+const UNIFORM = { hairStyle: 'cap', hatColor: '#1e2a44', outfit: '#1e2a44', legs: '#1a2236', shoes: '#14141a', accent: '#c9ced4', accessories: ['vest'], vestColor: '#5a3a24' };
+
+const lawrence = {
+  id: 'npc_lawrence',
+  name: 'Lawrence Order',
+  shortName: 'Chief Order',
+  tier: 'major',
+  origin: 'imported',
+  importedFrom: {
+    reference: 'assets/portraits/reference/npc_lawrence_reference.jpg',
+    interviewDate: '2026-10-13',
+    notes: 'docs/characters/npc_lawrence.md',
+  },
+  role: 'Chief of Police, Halvermouth Precinct 1. Careless, comfortable, and very much for sale.',
+  faction: 'fac_police',
+  dialogue: 'dlg_lawrence',
+  motif: 'motif_lawrence',
+  voice: { wave: 'triangle', pitch: 120, variance: 10, rate: 0.85 },
+  appearance: {
+    skin: '#f0c8a8', hair: '#3a2a20', ...UNIFORM, beard: '#7a4a2a', accessory: 'glasses', build: 'broad', height: 1.03,
+    sprite: null,
+    portrait: PORTRAITS.npc_lawrence,
+  },
+  personality: {
+    traits: ['careless', 'comfortable', 'corruptible', 'not unkind', 'allergic to paperwork'],
+    sociability: 0.55, conscientiousness: 0.12, impulsiveness: 0.45, curiosity: 0.2, discretion: 0.4,
+    honesty: 0.3, competitiveness: 0.2, empathy: 0.45, confidence: 0.65, riskTolerance: 0.3, patience: 0.85, humor: 0.6,
+    values: ['a quiet life', 'lunch', 'a little extra on the side'],
+    likes: ['doughnuts', 'naps', 'cash', 'nothing happening'], dislikes: ['paperwork', 'urgency', 'the word "emergency"', 'being made to stand up'],
+  },
+  speech: {
+    formality: 0.25, verbosity: 0.45,
+    habits: ['"not my department"', 'files everything under "later"', 'yawns mid-sentence', 'treats crime as an inconvenience to him personally'],
+    rumorPrefix: 'Somebody filed a complaint saying', factPrefix: 'Officially — and I hate officially —', refuse: 'That\'s an open investigation. Meaning I haven\'t opened it.',
+  },
+  // Protected: imported characters cannot be harmed (src/systems/combat.js isProtected).
+  wrath: {
+    theme: 'law', // sirens, badges, handcuffs, ramming squad cars, the gavel, a paperwork avalanche (src/engine/wrath.js)
+    color: '#4a7aff',
+    banner: 'YOU HAVE THE RIGHT TO REMAIN SILENT',
+    subtitle: 'Chief Lawrence Order is above the law. He IS the law. Mostly.',
+    line: 'Assaulting the Chief of Police? On my lunch break? …Ugh. Do you know how much paperwork this is? Don\'t worry — you\'ll be doing all of it. From a cell.',
+    after: 'jail',
+  },
+  mechanics: {
+    lax: true, // ignores petty crime until the player's record makes them a known criminal (src/systems/police.js)
+    bribable: true, // pay him and the police ignore or delay calls for 3 days
+    fines: true, // pay off a warrant
+  },
+  combat: { never: true, maxHealth: 140 },
+  punctuality: -15,
+  walkSpeed: 0.8,
+  schedule: [
+    { from: '07:30', to: '08:15', activity: 'eat', spot: 'police_station:chief_desk', label: 'breakfast (doughnuts)' },
+    { from: '08:15', to: '12:00', activity: 'work', spot: 'police_station:chief_desk', label: '"working"' },
+    { from: '12:00', to: '13:30', activity: 'eat', spot: 'police_station:chief_visitor', label: 'a long lunch, delivered' },
+    { from: '13:30', to: '15:00', activity: 'work', spot: 'police_station:chief_desk', label: '"working"' },
+    { from: '15:00', to: '16:00', activity: 'sleep', spot: 'police_station:chief_couch', label: 'a "strategic review" (a nap)' },
+    { from: '16:00', to: '18:30', activity: 'work', spot: 'police_station:chief_desk', label: '"working"' },
+    { from: '18:30', to: '20:30', activity: 'leisure', spot: 'police_station:lobby_wait', label: 'a lap of the lobby he logs as a patrol' },
+    { from: '20:30', to: '22:30', activity: 'leisure', spot: 'police_station:chief_desk', label: 'the crossword' },
+    { from: '22:30', to: '07:30', activity: 'sleep', spot: 'police_station:chief_couch' },
+  ],
+  impulses: [],
+  relationships: {
+    player: { trust: 5, affection: 5, respect: 0, suspicion: 5 },
+    npc_justin: { trust: 30, affection: 15, respect: 20, suspicion: 0 },
+    npc_warren: { trust: 20, affection: -5, respect: 25, suspicion: 10 },
+    npc_bailey: { trust: 35, affection: 30, respect: 15, suspicion: 5 },
+    npc_miranda: { trust: 25, affection: 20, respect: 10, suspicion: 0 },
+    npc_hugh: { trust: 40, affection: 35, respect: 30, suspicion: 0 },
+    npc_moneybucks: { trust: 30, affection: 10, respect: 40, suspicion: 5 },
+  },
+  knowledge: ['fact_moneybucks_owns_oil'],
+  giftPrefs: { item_honey_bun: 14, item_scone: 8, item_coffee: 8, item_cigar: 6, tags: { food: 6, sweet: 6 } },
+  reactions: {
+    fact_player_murder: { rel: { trust: -10, suspicion: 20 }, bark: 'A murder? In MY city? …Somebody write that down. Not me.' },
+    fact_player_assault: { bark: 'Another fight. I\'ll add it to the pile. The pile is a fire hazard.' },
+  },
+  notices: [{ map: 'police_station', tag: 'saw_player_precinct', text: 'The newcomer came into the precinct. Voluntarily. Suspicious.', importance: 2 }],
+  opinions: {
+    npc_moneybucks: { warm: 'Sir Moneybucks funds the Policemen\'s Ball. We have a ball every week now. Lovely man. Lovely wallet.', cool: 'Sir Moneybucks pays for a lot of things around here. I try not to look at which.' },
+    npc_justin: { warm: 'Case is a good sergeant. Brings a spare everything. Just in case.', cool: 'Case wanted a riot shield for the bake sale.' },
+    npc_warren: { warm: 'Tee does everything by the book. Somebody has to. Not me.', cool: 'Tee keeps asking me to sign things. I\'m the Chief. I delegate signing.' },
+    npc_bailey: { warm: 'Bond\'s my favourite. Smooth. Understands that the law is… flexible.', cool: 'Bond runs a bail business on the side. I take ten percent. Of the side.' },
+    npc_miranda: { warm: 'Wright\'s the rookie. Keeps reading people their rights. Even the gulls.', cool: 'Wright asked me what our procedures are. I said "lunch".' },
+    npc_hugh: { warm: 'Jury\'s been on nights since before I joined. Best guard we\'ve got. Sleeps like a baby, though.', cool: 'Jury dozed off during a jailbreak once. Officially it didn\'t happen.' },
+  },
+};
+
+const officer = (o) => ({
+  tier: 'minor', origin: 'imported-generated', faction: 'fac_police', walkSpeed: 1.05, punctuality: 10, impulses: [], notices: [],
+  ...o,
+  appearance: { ...UNIFORM, ...o.appearance },
+});
+
+const justin = officer({
+  id: 'npc_justin', name: 'Sergeant Justin Case', shortName: 'Sgt. Case',
+  combat: { fights: true, defends: true, weapon: 'item_revolver', maxHealth: 130 },
+  role: 'Sergeant. Over-prepared for everything, just in case. Walks the Civic Plaza and the East End.',
+  dialogue: 'dlg_justin',
+  voice: { wave: 'square', pitch: 170, variance: 15, rate: 1.1 },
+  appearance: { skin: '#e2b896', hair: '#5a4030', moustache: 'plain', build: 'average', height: 1.0 },
+  personality: { traits: ['over-prepared', 'anxious', 'thorough'], sociability: 0.5, conscientiousness: 0.9, impulsiveness: 0.1, discretion: 0.6, honesty: 0.8, empathy: 0.5, confidence: 0.45 },
+  speech: { rumorPrefix: 'Just so you know —', factPrefix: 'For the record,', refuse: 'I\'d better not. Just in case.' },
+  schedule: [
+    { from: '06:00', to: '06:45', activity: 'eat', spot: 'police_station:desk_a' },
+    { from: '06:45', to: '10:00', activity: 'patrol', spot: 'halvermouth:plaza_center', label: 'patrolling Civic Plaza' },
+    { from: '10:00', to: '12:00', activity: 'patrol', spot: 'halvermouth:ober_tower_front', label: 'patrolling Bank Row' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'police_station:desk_a' },
+    { from: '13:00', to: '16:00', activity: 'patrol', spot: 'halvermouth:east_gate', label: 'watching the East Gate' },
+    { from: '16:00', to: '19:00', activity: 'patrol', spot: 'halvermouth:park_center', label: 'patrolling Founders Park' },
+    { from: '19:00', to: '21:30', activity: 'work', spot: 'police_station:front_desk', label: 'on the front desk' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'police_station:bunk_1' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_lawrence: { trust: 25, affection: 15, respect: 10, suspicion: 5 }, npc_miranda: { trust: 30, affection: 25, respect: 15, suspicion: 0 } },
+  knowledge: [],
+  giftPrefs: { item_bandage: 8, item_coffee: 5, tags: { medical: 6 } },
+  opinions: { npc_lawrence: { warm: 'The Chief is… relaxed. Somebody has to worry. I worry for both of us.', cool: 'The Chief napped through the bank alarm. It was a drill. Probably.' } },
+});
+
+const warren = officer({
+  id: 'npc_warren', name: 'Officer Warren Tee', shortName: 'Officer Tee',
+  combat: { fights: true, defends: true, weapon: 'item_pistol', maxHealth: 120 },
+  role: 'Beat officer. By the book, obsessed with warrants. Walks the Sumps and the Docks.',
+  dialogue: 'dlg_warren',
+  voice: { wave: 'square', pitch: 190, variance: 8, rate: 1.2 },
+  appearance: { skin: '#8a5a3a', hair: '#1a1410', build: 'thin', height: 1.04 },
+  personality: { traits: ['by the book', 'humourless', 'incorruptible (mostly)'], sociability: 0.3, conscientiousness: 1, impulsiveness: 0.05, discretion: 0.7, honesty: 0.95, empathy: 0.35, confidence: 0.7 },
+  speech: { rumorPrefix: 'Unverified report:', factPrefix: 'Per the record,', refuse: 'Not without a warrant.' },
+  schedule: [
+    { from: '06:30', to: '07:00', activity: 'eat', spot: 'police_station:desk_b' },
+    { from: '07:00', to: '11:00', activity: 'patrol', spot: 'halvermouth:sumps_gate', label: 'patrolling the Sumps' },
+    { from: '11:00', to: '13:00', activity: 'patrol', spot: 'halvermouth:mission_front', label: 'watching the Mission' },
+    { from: '13:00', to: '14:00', activity: 'eat', spot: 'police_station:desk_b' },
+    { from: '14:00', to: '18:00', activity: 'patrol', spot: 'halvermouth:docks_quay', label: 'patrolling the Docks' },
+    { from: '18:00', to: '21:00', activity: 'patrol', spot: 'halvermouth:sumps_gate', label: 'patrolling the Sumps' },
+    { from: '21:00', to: '22:00', activity: 'work', spot: 'police_station:lobby_wait', label: 'filing reports' },
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'police_station:bunk_2' },
+  ],
+  relationships: { player: { trust: -5, affection: 0, respect: 0, suspicion: 15 }, npc_lawrence: { trust: 0, affection: -10, respect: 0, suspicion: 25 }, npc_bailey: { trust: -10, affection: -5, respect: 5, suspicion: 30 } },
+  knowledge: [],
+  giftPrefs: { item_coffee: 4, tags: {} },
+  opinions: { npc_bailey: { warm: 'Bond closes cases.', cool: 'Bond closes cases and opens envelopes. I can\'t prove it. Yet.' } },
+});
+
+const bailey = officer({
+  id: 'npc_bailey', name: 'Officer Bailey Bond', shortName: 'Officer Bond',
+  combat: { fights: true, defends: true, weapon: 'item_pistol', maxHealth: 120 },
+  role: 'Beat officer. Smooth, friendly, with a bail-bond business on the side. Walks Lanternside.',
+  dialogue: 'dlg_bailey',
+  voice: { wave: 'triangle', pitch: 230, variance: 20, rate: 1.05 },
+  appearance: { skin: '#c48a62', hair: '#2a1e1a', build: 'average', height: 0.98 },
+  personality: { traits: ['smooth', 'entrepreneurial', 'friendly'], sociability: 0.85, conscientiousness: 0.45, impulsiveness: 0.3, discretion: 0.6, honesty: 0.45, empathy: 0.55, confidence: 0.8 },
+  speech: { rumorPrefix: 'Between friends,', factPrefix: 'Word is,', refuse: 'That\'d cost you. Kidding. Mostly.' },
+  schedule: [
+    { from: '06:00', to: '07:00', activity: 'patrol', spot: 'halvermouth:east_gate', label: 'heading out to Lanternside' },
+    { from: '07:00', to: '08:00', activity: 'eat', spot: 'cafe:table_center', label: 'coffee at the Kettle & Crumb' },
+    { from: '08:00', to: '12:00', activity: 'patrol', spot: 'lanternside:square_bench', label: 'patrolling Civic Square' },
+    { from: '12:00', to: '15:00', activity: 'patrol', spot: 'lanternside:quay_edge', label: 'patrolling the Quay' },
+    { from: '15:00', to: '18:00', activity: 'patrol', spot: 'lanternside:fountain_side', label: 'patrolling Civic Square' },
+    { from: '18:00', to: '20:00', activity: 'patrol', spot: 'westbrook:lots_sign', label: 'heading back through Westbrook' },
+    { from: '20:00', to: '21:00', activity: 'eat', spot: 'police_station:desk_b' },
+    { from: '21:00', to: '06:00', activity: 'sleep', spot: 'police_station:bunk_3' },
+  ],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 5 }, npc_lawrence: { trust: 40, affection: 25, respect: 15, suspicion: 0 }, npc_mags: { trust: 20, affection: 25, respect: 10, suspicion: 0 } },
+  knowledge: [],
+  giftPrefs: { item_cigar: 10, item_coffee: 6, tags: { luxury: 6 } },
+  opinions: { npc_mags: { warm: 'Mags makes the best coffee on my beat. I pay. Usually.', cool: 'Mags asked me for my badge number. Twice.' } },
+});
+
+const miranda = officer({
+  id: 'npc_miranda', name: 'Officer Miranda Wright', shortName: 'Officer Wright',
+  combat: { fights: true, defends: true, weapon: 'item_baton', maxHealth: 110 },
+  role: 'Rookie. Earnest, nervous, recites people\'s rights at every opportunity. Walks Westbrook and Gullwing Park.',
+  dialogue: 'dlg_miranda',
+  voice: { wave: 'triangle', pitch: 320, variance: 30, rate: 1.25 },
+  appearance: { skin: '#f2d6c0', hair: '#c9813a', build: 'thin', height: 0.95 },
+  personality: { traits: ['earnest', 'by-the-rights', 'eager to please'], sociability: 0.6, conscientiousness: 0.85, impulsiveness: 0.35, discretion: 0.4, honesty: 0.95, empathy: 0.75, confidence: 0.35 },
+  speech: { rumorPrefix: 'I heard — allegedly —', factPrefix: 'It\'s on the record that', refuse: 'You have the right to remain silent, and so do I.' },
+  schedule: [
+    { from: '06:00', to: '06:30', activity: 'eat', spot: 'police_station:desk_b' },
+    { from: '06:30', to: '09:00', activity: 'patrol', spot: 'westbrook:survey', label: 'patrolling the Lots' },
+    { from: '09:00', to: '12:00', activity: 'patrol', spot: 'lanternside:park_bench', label: 'patrolling Gullwing Park' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'lanternside:patio', label: 'lunch on the café patio' },
+    { from: '13:00', to: '16:00', activity: 'patrol', spot: 'lanternside:canal_footbridge', label: 'patrolling Canal Row' },
+    { from: '16:00', to: '19:00', activity: 'patrol', spot: 'westbrook:birdwatch', label: 'patrolling Westbrook' },
+    { from: '19:00', to: '20:00', activity: 'patrol', spot: 'halvermouth:east_gate', label: 'heading back to the precinct' },
+    { from: '20:00', to: '21:30', activity: 'leisure', spot: 'police_station:lobby_wait', label: 'studying procedure' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'police_station:bunk_4' },
+  ],
+  relationships: { player: { trust: 5, affection: 5, respect: 0, suspicion: 5 }, npc_justin: { trust: 30, affection: 25, respect: 35, suspicion: 0 }, npc_lawrence: { trust: 20, affection: 10, respect: 15, suspicion: 10 } },
+  knowledge: [],
+  giftPrefs: { item_honey_bun: 8, item_wildflowers: 6, tags: { sweet: 4 } },
+  opinions: { npc_justin: { warm: 'Sergeant Case is teaching me everything. Mostly what could go wrong.', cool: 'Sergeant Case made me carry a spare spare baton.' } },
+});
+
+const hugh = officer({
+  id: 'npc_hugh', name: 'Officer Hugh Jury', shortName: 'Officer Jury',
+  combat: { fights: true, defends: true, weapon: 'item_shotgun', maxHealth: 140 },
+  role: 'Veteran. Grumpy, immovable. Rides out to the Ober Fields in the afternoon; guards the cells at night (and naps 01:00–04:00).',
+  dialogue: 'dlg_hugh',
+  voice: { wave: 'sawtooth', pitch: 100, variance: 8, rate: 0.85 },
+  appearance: { skin: '#e2b896', hair: '#c9c6c0', beard: '#c9c6c0', build: 'broad', height: 1.06 },
+  personality: { traits: ['grumpy', 'veteran', 'immovable', 'sleepy'], sociability: 0.25, conscientiousness: 0.6, impulsiveness: 0.15, discretion: 0.7, honesty: 0.55, empathy: 0.35, confidence: 0.85, patience: 0.9 },
+  speech: { rumorPrefix: 'Thirty years I\'ve heard things like', factPrefix: 'Fact:', refuse: 'No.' },
+  punctuality: 0,
+  schedule: [
+    { from: '07:00', to: '14:00', activity: 'sleep', spot: 'police_station:bunk_5' },
+    { from: '14:00', to: '14:30', activity: 'eat', spot: 'police_station:desk_a' },
+    { from: '14:30', to: '17:00', activity: 'patrol', spot: 'ober_fields:field_entrance', label: 'riding out to the Ober Fields' },
+    { from: '17:00', to: '19:30', activity: 'patrol', spot: 'ober_fields:gate_post', label: 'watching the oil gate' },
+    { from: '19:30', to: '21:00', activity: 'patrol', spot: 'lanternside:east_road', label: 'heading back along the coast road' },
+    { from: '21:00', to: '22:00', activity: 'eat', spot: 'police_station:desk_b' },
+    { from: '22:00', to: '01:00', activity: 'work', spot: 'jail:guard_desk', label: 'guarding the cells' },
+    { from: '01:00', to: '04:00', activity: 'sleep', spot: 'jail:guard_desk', label: 'dozing at the guard desk' },
+    { from: '04:00', to: '07:00', activity: 'work', spot: 'jail:guard_desk', label: 'guarding the cells' },
+  ],
+  relationships: { player: { trust: 0, affection: -5, respect: 0, suspicion: 10 }, npc_lawrence: { trust: 30, affection: 30, respect: 10, suspicion: 0 }, npc_petty: { trust: 10, affection: 20, respect: 0, suspicion: 30 } },
+  knowledge: [],
+  giftPrefs: { item_coffee: 12, item_cigar: 6, tags: {} },
+  opinions: { npc_petty: { warm: 'Larson? Harmless. He\'s been in that cell so long he pays rent.', cool: 'Larson whistles. All night. I don\'t sleep. Much.' } },
+});
+
+const petty = {
+  id: 'npc_petty', name: 'Petty Larson', shortName: 'Petty', tier: 'minor', origin: 'imported-generated', faction: null,
+  combat: { never: true, maxHealth: 70 },
+  role: 'A pickpocket from the Sumps, permanently in the cell next to yours. Knows a way out. Wants something for it.',
+  dialogue: 'dlg_petty',
+  voice: { wave: 'triangle', pitch: 260, variance: 35, rate: 1.4 },
+  appearance: { skin: '#d9a77c', hair: '#6a5a4a', hairStyle: 'messy', outfit: '#7a7a6a', legs: '#4a4a40', build: 'thin', height: 0.94, accent: '#c9a24a' },
+  personality: { traits: ['chatty', 'shifty', 'loyal to his mum'], sociability: 0.9, conscientiousness: 0.2, impulsiveness: 0.7, discretion: 0.3, honesty: 0.4, empathy: 0.6, curiosity: 0.8 },
+  speech: { rumorPrefix: 'Word through the wall is', factPrefix: 'Straight up,', refuse: 'What\'s it worth?' },
+  walkSpeed: 1, punctuality: 0, impulses: [], notices: [],
+  schedule: [
+    { from: '07:00', to: '22:00', activity: 'leisure', spot: 'jail:cell_b', label: 'humming in his cell' },
+    { from: '22:00', to: '07:00', activity: 'sleep', spot: 'jail:cell_b_bed' },
+  ],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 0 }, npc_hugh: { trust: 15, affection: 25, respect: 10, suspicion: 0 } },
+  knowledge: [],
+  giftPrefs: { item_cigar: 12, item_honey_bun: 8, tags: { food: 4 } },
+  opinions: { npc_hugh: { warm: 'Old Jury? Snores like a foghorn from one till four. Regular as a clock.', cool: 'Jury confiscated my harmonica. I had a second one.' } },
+};
+
+const __default = [lawrence, justin, warren, bailey, miranda, hugh, petty];
+
+return { lawrence, justin, warren, bailey, miranda, hugh, petty, default: __default };
+})();
+
+// ---- src/content/dialogue/police.js
+__m["src/content/dialogue/police.js"] = (function () {
+// Dialogue for Halvermouth Precinct 1. Chief Lawrence Order is careless, not
+// cruel: he would rather you paid than made him fill in a form. Bribes and fines
+// run through the 'police' effect (src/systems/police.js).
+
+const gift = (loved, liked, neutral, disliked) => ({
+  loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]],
+  tooMany: [['Easy. People will think I\'m being bribed. With pastries.']], ownStolen: [['That\'s evidence. Put it back.']],
+});
+
+const dlgLawrence = {
+  id: 'dlg_lawrence',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['*doesn\'t look up* Chief Lawrence Order. Yes, really. My parents were optimists.', 'If you\'re reporting a crime, the form\'s on the noticeboard. If you\'re confessing to one, could you not? I\'m on my break. I\'m always on my break.'] },
+    { if: { activity: 'sleep' }, say: ['*one eye opens* …I\'m reviewing case files. With my eyes closed. It\'s a technique.'] },
+    { if: { activity: 'eat' }, say: ['*mouth full of doughnut* Mm. Whatever it is, it can wait till I\'ve finished. I eat slowly. On purpose.'] },
+    { if: { police: { wanted: '>=1' } }, say: ['Oh, it\'s you. There\'s a warrant out with your face on it. Not a good likeness. Want to make it go away? It\'s cheaper than the alternative, which is me standing up.'] },
+    { if: { police: { bribed: true } }, say: ['My favourite taxpayer! Relax. Nobody\'s seen anything. Nobody ever sees anything.'] },
+    { if: { police: { record: '>=8' } }, say: ['You again. Your file\'s so thick I\'ve started using it as a doorstop. I\'m watching you now. Well — Tee is. I\'m delegating.'] },
+    { if: {}, variants: [['*yawns* Chief Order. What.'], ['Is it an emergency? Please say no.'], ['Precinct 1. We\'re open. Spiritually.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Close the door on your way out. Quietly.'], ['Don\'t do any crimes. Or do, but far away from me.'], ['Mm-hm. Bye.']] }],
+  topics: [
+    {
+      id: 't_lawrence_who', label: '"Lawrence Order? Seriously?"', keywords: ['name', 'who', 'chief', 'lawrence'],
+      say: ['Law-rence. Order. Law and Order. Everyone thinks they\'re the first to notice.', 'Thirty years on the force. Chief for twelve. Do you know how I became Chief? I outlasted everyone who cared.'],
+    },
+    {
+      id: 't_lawrence_crime', label: '"Is there much crime in Halvermouth?"', keywords: ['crime', 'criminals', 'safe', 'city'],
+      say: [
+        'Officially? Crime\'s down forty percent. Unofficially, reporting\'s down forty percent. Same thing if you squint, and I squint a lot.',
+        'Little stuff — a bit of trespassing, a pinched bun — I don\'t chase that. Life\'s too short. Shoot somebody and it\'s different. Shoot a cop and it\'s very different.',
+        { if: { police: { record: '>=8' } }, text: 'And you, friend, are getting a reputation. A reputation means I have to care. I hate caring.' },
+      ],
+    },
+    {
+      id: 't_lawrence_bribe', label: '"Is there a way to make the police… less attentive?"', tag: 'quest', keywords: ['bribe', 'deal', 'attentive', 'look away', 'money'],
+      say: ['*leans back* Hypothetically? A generous donation to the Policemen\'s Ball might mean my officers are… busy. For three days. Calls come in, and somehow they all take the long way round.', 'Hypothetically it\'s {bribe} obols. It goes up the more you\'ve done. Inflation.'],
+      choices: [
+        {
+          id: 'c_lawrence_bribe', label: 'Slide {bribe} obols across the desk.', if: { police: { canAffordBribe: true, killedOfficer: false } },
+          say: ['*the money vanishes into a drawer that\'s labelled "PENS"* Lovely. Three days. Nobody\'s coming to anything. Unless you kill someone — then I have to at least look. That\'s in the contract.'],
+          effects: [{ police: { bribe: true } }, { rel: { trust: 4, affection: 3 } }],
+        },
+        {
+          id: 'c_lawrence_bribe_cant', label: '"I don\'t have that kind of money."', if: { police: { canAffordBribe: false } },
+          say: ['Then I don\'t have that kind of attention span. Oh wait, I do. Shame for you.'],
+        },
+        {
+          id: 'c_lawrence_bribe_cop', label: '"What about a really big donation?"', if: { police: { killedOfficer: true } },
+          say: ['*for once, he sits up* You killed one of mine. There isn\'t a drawer big enough. Get out of my office.'],
+          effects: [{ rel: { trust: -10, affection: -10 } }],
+        },
+        { id: 'c_lawrence_bribe_no', label: '"Just asking."', say: ['Course you were. Just asking\'s free. Everything else costs money.'] },
+      ],
+    },
+    {
+      id: 't_lawrence_fine', label: '"About that warrant…"', tag: 'quest', keywords: ['warrant', 'fine', 'wanted', 'pay'],
+      if: { police: { wanted: '>=1' } },
+      say: ['Ah, the warrant. Paperwork. I hate paperwork. If the fine — {fine} obols — were paid, the paperwork would just… evaporate.'],
+      choices: [
+        {
+          id: 'c_lawrence_fine', label: 'Pay the {fine}-obol fine.', if: { police: { canAffordFine: true } },
+          say: ['*stamps something without reading it* There. You\'re a model citizen. Model. Like a small plastic one.'],
+          effects: [{ police: { payFine: true } }, { rel: { affection: 2 } }],
+        },
+        { id: 'c_lawrence_fine_no', label: '"I can\'t pay."', if: { police: { canAffordFine: false } }, say: ['Then my officers will be along. Eventually. Take your time. They do.'] },
+      ],
+    },
+    {
+      id: 't_lawrence_jail', label: '"What happens if I\'m arrested?"', keywords: ['jail', 'arrest', 'cell', 'prison', 'sentence'],
+      say: [
+        'Cells downstairs. You serve your time, you\'re out. Hours, mostly. Days, if you\'ve been busy. Your things go in the evidence cabinet and come back when you leave. Mostly.',
+        'Nobody\'s ever escaped. Well. Nobody\'s escaped on a day I was in. I\'m not in very often.',
+        'If you get in trouble out there, put your hands up — press G — near an officer. Saves everybody a run. Running\'s for people without desks.',
+      ],
+    },
+    {
+      id: 't_lawrence_officers', label: '"Tell me about your officers."', keywords: ['officers', 'cops', 'team', 'justin', 'warren', 'bailey', 'miranda', 'hugh'],
+      say: ['Five of them. Sergeant Case does the Plaza and Bank Row — worrier. Tee walks the Sumps and the docks — by the book, God help him. Bond takes Lanternside — smooth operator. Wright\'s the rookie, out in Westbrook. Jury goes out to the Ober Fields, then guards the cells at night.', 'They walk the whole coast so I don\'t have to. That\'s called leadership.'],
+    },
+    {
+      id: 't_lawrence_moneybucks', label: '"What do you think of Sir Moneybucks?"', keywords: ['moneybucks', 'oil', 'ober'],
+      say: ['Sir Moneybucks is a pillar of the community. A very wealthy pillar. He funds the Policemen\'s Ball. We have one every Friday now.', '*quieter* If you\'re thinking of making a complaint about him — don\'t. Not because it\'s dangerous. Because it\'s paperwork.'],
+    },
+  ],
+  askAbout: [
+    { keywords: ['doughnut', 'doughnuts', 'food'], say: ['These are evidence. I\'m examining them. Thoroughly. One at a time.'] },
+    { keywords: ['osric', 'civic'], say: ['Osric Vane wrote me a letter about a parking violation in 1998. I\'m still not reading it.'] },
+  ],
+  unknown: [['Not my department.'], ['*yawns* Ask Tee. Tee knows everything. It\'s exhausting.']],
+  gift: gift('A honey bun? For me? I\'ll have you know that this is DEFINITELY not a bribe. *eats it* Definitely not.', 'Oh, nice. Thanks.', 'Huh. I\'ll file it.', 'I\'ll put that with the evidence. Forever.'),
+  barks: {
+    greet: ['Mm.', 'Chief Order. What.', '*yawn*'],
+    work: ['*stamps something without reading it*', 'Later. Everything is later.', 'Filed under "pending".'],
+    eat: ['Mm. Glazed.', 'This is my lunch. All of this is my lunch.'],
+    leisure: ['This counts as a patrol.', 'Lovely evening for doing nothing.'],
+    sleep: ['…zzz… not my department… zzz…'],
+    chat: ['Sure.', 'Fascinating. Truly.', 'Can it wait?'],
+    argue: ['Do NOT make me stand up.'],
+  },
+};
+
+const officerGift = (good, ok) => gift(good, ok, 'Thanks. I\'ll have to log it.', 'I can\'t accept that. Regulations.');
+
+const officerDlg = (id, o) => ({
+  id,
+  farewells: [{ if: {}, variants: o.bye }],
+  askAbout: o.askAbout || [],
+  unknown: [['Not something I can help with, citizen.'], ['Ask at the precinct.']],
+  gift: officerGift(o.loved, 'Appreciated.'),
+  ...o.rest,
+  greetings: [
+    { if: { police: { wanted: '>=1' } }, say: o.wanted },
+    ...o.greetings,
+  ],
+  topics: [
+    {
+      id: `t_${id}_crime`, label: '"Any trouble around here?"', keywords: ['trouble', 'crime', 'patrol', 'beat'],
+      say: o.beat,
+    },
+    {
+      id: `t_${id}_chief`, label: '"What\'s the Chief like?"', keywords: ['chief', 'lawrence', 'order'],
+      say: o.chief,
+    },
+    ...(o.topics || []),
+  ],
+});
+
+const dlgJustin = officerDlg('dlg_justin', {
+  wanted: ['You\'re — you\'re on the list! Hands where I can see them! Please. Just in case.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Sergeant Justin Case. I have a first aid kit, a whistle, a spare whistle, and a rain poncho. Do you need any of those? You might. You never know.'] },
+    { if: {}, variants: [['Stay safe, citizen. Statistically, today is risky.'], ['Afternoon. Mind the kerb. Kerbs are dangerous.']] },
+  ],
+  bye: [['Stay alert!'], ['Be careful. Of everything.']],
+  beat: ['The Plaza\'s quiet, Bank Row is quiet, which is exactly what it would look like right before something terrible happened.', 'If you see a crime, tell an officer. If you DO a crime, tell an officer — press G — and come quietly. Running only makes us chase you. I\'m not a good runner. I have too much equipment.'],
+  chief: ['The Chief is… very relaxed. It\'s fine. I\'m anxious enough for both of us.'],
+  loved: 'Bandages! You can never have too many. I have forty.',
+});
+
+const dlgWarren = officerDlg('dlg_warren', {
+  wanted: ['There is an active warrant in your name. Pay the fine at the precinct or submit to arrest. Those are the options. There are no other options.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Officer Warren Tee. Badge 0041. I am required to tell you that this conversation may be noted. It will be noted.'] },
+    { if: {}, variants: [['Citizen.'], ['Move along. Unless you\'re reporting something. Then stop. Then move along.']] },
+  ],
+  bye: [['Noted.'], ['Move along.']],
+  beat: ['The Sumps. Pickpockets, unlicensed trading, a man who sells "soup". The docks — smuggling, I\'d bet my badge. No warrant yet. Everything in its proper order.'],
+  chief: ['The Chief is my commanding officer and I respect the chain of command.', '*very quietly* I have a folder. It is not about anyone in particular. It is quite thick.'],
+  loved: 'Coffee. Black. Logged as a gift under 2 obols, within regulations. Thank you.',
+});
+
+const dlgBailey = officerDlg('dlg_bailey', {
+  wanted: ['Hey, friend — you\'ve got a warrant out. Between us? The Chief takes cash. Me, I take bail. Either way, see the Chief before somebody keen sees you.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Bailey Bond. Lanternside beat. And if you ever need bailing out — that\'s my side business. Bond, Bailey Bond. Licensed to bail.'] },
+    { if: {}, variants: [['Hey, friend!'], ['Lovely day for it. Whatever "it" is. I didn\'t see it.']] },
+  ],
+  bye: [['Stay out of trouble — or call me if you don\'t.'], ['See you around, friend.']],
+  beat: ['Lanternside? Sleepy. Coffee\'s good, folks are nice, the gulls are the real criminals. Little things I let slide. Big things… well, it depends how big, and on what day it is.'],
+  chief: ['The Chief\'s a businessman, same as me. He\'ll make a warrant disappear if you ask nicely. With money. Asking nicely means money.'],
+  loved: 'An Ober Imperial? Oh, you know how to make friends.',
+});
+
+const dlgMiranda = officerDlg('dlg_miranda', {
+  wanted: ['Stop! You have the right to remain silent! Anything you say can — oh, I always get nervous at this part. Please just come with me?'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Officer Miranda Wright! I\'m new. I mean — I\'m fully trained. I know all your rights. Would you like to hear them? All of them?'] },
+    { if: {}, variants: [['Hi! I mean — good day, citizen.'], ['Everything okay? You have the right to say no!']] },
+  ],
+  bye: [['Stay lawful!'], ['Bye! Remember your rights!']],
+  beat: ['Westbrook\'s all scrubland and survey stakes — I mostly read the gulls their rights. Gullwing Park is lovely. Nothing happens. Sergeant Case says that\'s when to worry.'],
+  chief: ['The Chief says our procedure is "lunch". I\'m almost sure he\'s joking. Ninety percent. Sixty.'],
+  loved: 'A honey bun! Is that allowed? Sergeant Case says gifts have to be logged. I\'ll log it after I eat it.',
+});
+
+const dlgHugh = officerDlg('dlg_hugh', {
+  wanted: ['You. Warrant. Don\'t make me chase you. I won\'t. I\'ll shoot.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Jury. Officer. Thirty-one years. Don\'t.'] },
+    { if: { police: { jailed: true } }, say: ['Lights out at ten. No talking. No singing. Tell Larson, no singing.'] },
+    { if: { activity: 'sleep' }, say: ['…zzz… *snort* …I\'m awake. I was resting my eyes. On duty.'] },
+    { if: {}, variants: [['Hm.'], ['What.'], ['No.']] },
+  ],
+  bye: [['Hm.'], ['Go.']],
+  beat: ['Fields. Oil gate. Cows. Nobody does crime in a field. Then nights in the cells. Quiet. I like quiet.'],
+  chief: ['Order\'s all right. Leaves me alone. I leave him alone. It\'s a system.'],
+  loved: 'Coffee. …Thanks. Long nights.',
+});
+
+const dlgPetty = {
+  id: 'dlg_petty',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['*through the crack in the wall* Psst! New neighbour! Petty Larson. Pickpocket, harmonica player, mother\'s pride. What you in for? Don\'t tell me — you looked at Chief Order funny.'] },
+    { if: { police: { jailed: false } }, say: ['*through the crack* Oi — you got OUT? Respect. Bring me a bun sometime. I\'ll be here. I\'m always here.'] },
+    { if: { flag: 'petty_vent_tip' }, say: ['Fork still in one piece? Vent, four screws, follow the draught. Smells of fish at the end. That\'s how you know it\'s working.'] },
+    { if: {}, variants: [['Psst. Still here?'], ['*hums through the wall*']] },
+  ],
+  farewells: [{ if: {}, variants: [['Keep your chin up and your spoon hidden.'], ['Laters, neighbour.']] }],
+  topics: [
+    {
+      id: 't_petty_out', label: '"Is there a way out of here?"', tag: 'quest', keywords: ['out', 'escape', 'way', 'break'],
+      if: { notFlag: 'petty_vent_tip' },
+      say: [
+        'Ways out? Course. There\'s always ways out. One: old Jury dozes from one till four, keys on the back of his chair. Long arms, quick fingers.',
+        'Two: the brick by your bed\'s rotten. Spoon from the breakfast tray, a few nights\' scraping, and you\'re in the old sewer. Do it while Jury snores.',
+        'Three: Jury\'s honest. Mostly. Not if you\'ve got sixty-odd obols in your sock.',
+        'And four… four is a secret. Four is MY way. It costs.',
+      ],
+      choices: [
+        {
+          id: 'c_petty_pay', label: 'Pay him 25 obols for the secret.', if: { money: '>=25' },
+          say: ['*coins clink through the crack* Lovely. The vent above your bed. Four screws. You need a fork, bent just so — here, have mine. *a bent fork slides through the crack* Crawl till you smell fish. Docks. Don\'t tell Jury.'],
+          effects: [{ police: { pettyDeal: 'money' } }, { rel: { trust: 5, affection: 5 } }],
+        },
+        {
+          id: 'c_petty_cigar', label: 'Pass him an Ober Imperial cigar.', if: { hasItem: 'item_cigar' },
+          say: ['Is that an IMPERIAL? Oh, you beauty. Mum\'ll never believe it. Right — the vent above your bed. Four screws. Take my fork, it\'s bent just right. *a fork slides through the crack* Crawl till you smell fish.'],
+          effects: [{ police: { pettyDeal: 'item_cigar' } }, { rel: { trust: 6, affection: 8 } }],
+        },
+        { id: 'c_petty_no', label: '"I\'ll manage."', say: ['Suit yourself. Spoon\'s slow, mind.'] },
+      ],
+    },
+    {
+      id: 't_petty_who', label: '"What are you in for?"', keywords: ['who', 'crime', 'in for', 'petty'],
+      say: ['Pinched Sir Moneybucks\'s pocket watch. Well — I pinched it, then I pinched it back to him, then he pinched me. Long story. Mostly pinching.', 'I could leave whenever I want, honestly. But it\'s free soup and Jury\'s good company. Don\'t tell him I said that.'],
+    },
+  ],
+  askAbout: [{ keywords: ['hugh', 'jury', 'guard'], say: ['Jury snores from one till four. Like a foghorn. Regular as the tide.'] }],
+  unknown: [['No idea, neighbour.'], ['Ask me something I can sell you.']],
+  gift: gift('For ME? Nobody gives ME things. I\'m usually the one taking them.', 'Ta very much.', 'Cheers.', 'What am I supposed to do with that?'),
+  barks: { greet: ['Psst!', 'Evening, neighbour.'], leisure: ['*plays a few bars on a hidden harmonica*', '*hums*'], sleep: ['…mum… *snore*'], chat: ['Straight up.', 'No word of a lie.'], argue: ['Oi!'] },
+};
+
+const officerBarks = (extra) => ({
+  barks: {
+    greet: ['Citizen.', 'Move along.', 'Stay safe.'],
+    patrol: ['All quiet.', 'Nothing to see here.', '*checks notebook*'],
+    work: ['*shuffles papers*', 'Next.'],
+    eat: ['Coffee break.'],
+    leisure: ['Off duty. Mostly.'],
+    sleep: ['…zzz…'],
+    chat: ['Mm.', 'Noted.'],
+    argue: ['That\'s enough!'],
+    ...extra,
+  },
+});
+Object.assign(dlgJustin, officerBarks({ patrol: ['All clear! For now.', 'Just in case…', '*checks his poncho is still there*'] }));
+Object.assign(dlgWarren, officerBarks({ patrol: ['Everything in order.', '*writes something down*', 'I saw that.'] }));
+Object.assign(dlgBailey, officerBarks({ patrol: ['Lovely day!', 'Nothing to see, friend.', 'Bond. Bailey Bond.'] }));
+Object.assign(dlgMiranda, officerBarks({ patrol: ['You have the right to a lovely day!', '*recites the rights under her breath*', 'All clear! I think!'] }));
+Object.assign(dlgHugh, officerBarks({ patrol: ['Hm.', 'Cows.', '*grunts*'], work: ['Lights out.', 'Quiet.'], sleep: ['…zzz… *SNORT* …zzz…'] }));
+
+const __default = [dlgLawrence, dlgJustin, dlgWarren, dlgBailey, dlgMiranda, dlgHugh, dlgPetty];
+
+return { dlgLawrence, dlgJustin, dlgWarren, dlgBailey, dlgMiranda, dlgHugh, dlgPetty, default: __default };
+})();
+
 // ---- src/content/properties.js
 __m["src/content/properties.js"] = (function () {
 // Property groundwork (v0.4.0). PLOTS are surveyed pieces of land the player
@@ -5378,6 +5988,8 @@ const dlgOberStaff = __m["src/content/dialogue/oberStaff.js"].default;
 const masonCrew = __m["src/content/characters/mason.js"].default;
 const dlgMasonCrew = __m["src/content/dialogue/mason.js"].default;
 const { PUNS } = __m["src/content/dialogue/mason.js"];
+const police = __m["src/content/characters/police.js"].default;
+const dlgPolice = __m["src/content/dialogue/police.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
 const { withPlots } = __m["src/world/plots.js"];
 
@@ -5406,8 +6018,8 @@ const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice]),
   puns: PUNS,
   blueprints: BLUEPRINTS,
   plots: {},
@@ -5427,7 +6039,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.9.0';
+const GAME_VERSION = '0.10.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -6309,6 +6921,23 @@ const SFX = {
     noise(ctx, d, { t, dur: 0.35, vol: 0.4, type: 'lowpass', freq: 2200, f1: 200 });
     tone(ctx, d, { type: 'sine', f0: 90, f1: 40, t, dur: 0.5, vol: 0.35 });
   },
+  // Chief Order's strikes: squad cars ramming in, then the gavel
+  sfx_ram: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    if ((o.index || 0) >= 5) {
+      tone(ctx, d, { type: 'sine', f0: 120, f1: 38, t, dur: 1.1, vol: 0.65, attack: 0.003 }); // the gavel
+      noise(ctx, d, { t, dur: 0.12, vol: 0.6, type: 'lowpass', freq: 2400 });
+      noise(ctx, d, { t: t + 0.02, dur: 1.4, vol: 0.4, type: 'lowpass', freq: 700, f1: 60 });
+      for (const [f, v] of [[196, 0.12], [294, 0.07]]) tone(ctx, d, { type: 'triangle', f0: f, t: t + 0.01, dur: 1.2, vol: v });
+      return;
+    }
+    const sq = Math.max(0, t - 0.25); // the squeal leads the crunch (never scheduled before time zero)
+    tone(ctx, d, { type: 'sawtooth', f0: 900, f1: 420, t: sq, dur: t - sq || 0.05, vol: 0.05 }); // tyre squeal
+    noise(ctx, d, { t: sq, dur: t - sq || 0.05, vol: 0.12, type: 'bandpass', freq: 2600, q: 3 });
+    noise(ctx, d, { t, dur: 0.5, vol: 0.55, type: 'lowpass', freq: 1800, f1: 150 }); // crunch
+    tone(ctx, d, { type: 'square', f0: 110, f1: 45, t, dur: 0.3, vol: 0.18 });
+    for (let i = 0; i < 8; i++) noise(ctx, d, { t: t + 0.08 + Math.random() * 0.5, dur: 0.04, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -6459,6 +7088,25 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     [[79, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.36, 0.36], [83, 0.84, 0.12], [84, 0.96, 0.3]].forEach(([m, dt, len]) => tone(ctx, bus, { type: 'sine', f0: hz(m), t: t0 + 1.2 + dt, dur: len + 0.08, vol: 0.07, attack: 0.02 }));
     for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 6.3 + Math.random() * 1.2, dur: 0.06, vol: 0.18, freq: 1500 + Math.random() * 2000, q: 3 });
     noise(ctx, bus, { t: t0 + 6.3, dur: 1.6, vol: 0.22, type: 'lowpass', freq: 900, f1: 150 });
+  } else if (theme === 'law') {
+    // a wailing siren through the roll, Lawrence's lazy tuba motif, a typewriter
+    // blizzard under the paperwork, and the cell door slamming shut
+    const siren = ctx.createOscillator();
+    const sg = ctx.createGain();
+    siren.type = 'triangle';
+    siren.frequency.setValueAtTime(650, t0 + 0.3);
+    for (let k = 0; k < 8; k++) siren.frequency.linearRampToValueAtTime(k % 2 ? 650 : 960, t0 + 0.3 + (k + 1) * 0.6);
+    sg.gain.setValueAtTime(0.0001, t0 + 0.3);
+    sg.gain.linearRampToValueAtTime(0.045, t0 + 0.8);
+    sg.gain.setValueAtTime(0.045, t0 + 3.2);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 5.0);
+    siren.connect(sg).connect(bus);
+    siren.start(t0 + 0.3); siren.stop(t0 + 5.1);
+    [[36, 0, 0.5], [31, 0.5, 0.25], [36, 1.0, 0.25], [38, 1.25, 0.25], [40, 1.5, 0.75], [38, 2.5, 0.25], [36, 2.75, 0.6]].forEach(([m, dt, len]) => brass(ctx, bus, [m, m + 12], t0 + 1.0 + dt * 0.7, len, 0.06));
+    for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 5.0 + i * 0.03 + Math.random() * 0.02, dur: 0.02, vol: 0.12, freq: 2500 + Math.random() * 800, q: 6 });
+    tone(ctx, bus, { type: 'sine', f0: 1760, t: t0 + 6.25, dur: 0.6, vol: 0.06 }); // typewriter bell
+    noise(ctx, bus, { t: t0 + 6.35, dur: 0.6, vol: 0.4, type: 'lowpass', freq: 1600, f1: 120 }); // CLANG
+    for (const [f, v] of [[220, 0.08], [331, 0.06], [467, 0.04]]) tone(ctx, bus, { type: 'sine', f0: f, t: t0 + 6.35, dur: 1.4, vol: v, attack: 0.002 });
   }
 }
 
@@ -6880,7 +7528,7 @@ const ACTIONS = {
   KeyJ: 'journal', KeyQ: 'journal',
   KeyM: 'map',
   KeyC: 'status',
-  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster',
+  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender',
   F5: 'quicksave', F9: 'quickload',
   Backquote: 'debug',
 };
@@ -7643,7 +8291,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police',
 ];
 
 /**
@@ -7702,6 +8350,21 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'police': {
+      // { wanted: '>=1', record: '>=8', bribed: true, jailed: false, canAffordBribe: true, canAffordFine: true, killedOfficer: true }
+      const pol = game.police;
+      const st = game.world.police || {};
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'bribed': return Boolean(pol?.bribed()) === v;
+          case 'jailed': return Boolean(st.jail) === v;
+          case 'canAffordBribe': return (game.player.money >= (pol?.bribePrice() ?? Infinity)) === v;
+          case 'canAffordFine': return (game.player.money >= (pol?.finePrice() ?? Infinity)) === v;
+          case 'killedOfficer': return (st.officersKilled > 0) === v;
+          default: return compare(st[k] ?? 0, v);
+        }
+      });
     }
     case 'site': {
       const st = game.world.construction || {};
@@ -7873,7 +8536,8 @@ class NpcSystem {
   think(npc, force = false) {
     const g = this.game;
     const now = g.clock.total;
-    if (npc.hostile || incapacitated(npc, now)) return; // combat owns them (src/systems/combat.js)
+    if (npc.hostile || npc.pursuit || incapacitated(npc, now)) return; // combat / police own them
+    if (npc.intent?.source === 'dispatch' && now < npc.intent.until) return; // answering a call
     if (npc.chat && now < npc.chat.until) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.
@@ -9320,7 +9984,7 @@ class Combat {
       g.knowledge.learn(npc, 'fact_player_assault', { kind: 'fact', source: 'witnessed', at: now });
       for (const w of seen) this.react(w, npc);
       if (seen.length) g.notify(`${seen.map((n) => n.profile.shortName).join(', ')} saw you attack ${npc.profile.shortName}!`, 'warn');
-      g.bus.emit('crime', { fact: 'fact_player_assault', witnesses: seen.map((n) => n.id), victim: npc.id });
+      g.bus.emit('crime', { fact: 'fact_player_assault', witnesses: seen.map((n) => n.id), victim: npc.id, map: npc.map, x: npc.x, y: npc.y });
     } else g.relationships.adjust(npc, 'player', { trust: -4, affection: -4 }, 'attacked');
     if (npc.health <= 0) {
       if (lethal) this.kill(npc, weapon);
@@ -9337,6 +10001,8 @@ class Combat {
     const g = this.game;
     const now = g.clock.total;
     if (isDown(npc, now)) return;
+    // Officers who merely witness something arrest rather than brawl (src/systems/police.js).
+    if (!isVictim && g.police?.isOfficer(npc)) return;
     const c = npc.profile.combat || {};
     const pers = npc.profile.personality || {};
     const healthFrac = (npc.health ?? npcMaxHealth(npc)) / npcMaxHealth(npc);
@@ -9397,6 +10063,7 @@ class Combat {
     }
     g.notify(`${npc.profile.shortName} is dead.`, 'warn');
     g.bus.emit('npc:died', { npcId: npc.id, weapon: weapon?.id || null, witnesses: seen.map((n) => n.id) });
+    g.bus.emit('crime', { fact: 'fact_player_murder', witnesses: seen.map((n) => n.id), victim: npc.id, map: npc.map, x: npc.x, y: npc.y });
     // Anything they were giving the player is over.
     for (const [qid, st] of Object.entries(g.questState)) {
       if (st.state === 'active' && g.content.quests[qid]?.giver === npc.id) g.quests.fail(qid, 'giver_died');
@@ -9408,10 +10075,13 @@ class Combat {
     const g = this.game;
     const p = g.player;
     const now = g.clock.total;
+    const heard = [];
     for (const npc of g.npcs.values()) {
       if (npc.map !== p.map || isDown(npc, now) || npc.hostile) continue;
       if (dist(npc.x, npc.y, p.x, p.y) > radiusTiles * TILE) continue;
+      heard.push(npc.id);
       if (npc.activity === 'sleep') npc.activity = 'idle'; // woken by the bang
+      if (g.police?.isOfficer(npc)) continue; // the police come running instead (src/systems/police.js)
       const c = npc.profile.combat || {};
       if (c.defends === true && g.canSee(npc, p.x, p.y, g.currentMap(), 12)) this.react(npc, null);
       else {
@@ -9424,6 +10094,7 @@ class Combat {
       }
       remember(npc, { text: 'Heard gunshots nearby.', tag: 'heard_gunfire', about: null, importance: 5 }, now);
     }
+    if (heard.length) g.bus.emit('crime', { fact: 'gunfire', witnesses: heard, map: p.map, x: p.x, y: p.y });
   }
 
   damagePlayer(amount, attacker) {
@@ -9444,10 +10115,16 @@ class Combat {
   playerKnockedOut(attacker) {
     const g = this.game;
     const p = g.player;
+    if (attacker) remember(attacker, { text: `I beat ${p.name} senseless.`, tag: 'beat_player', about: 'player', importance: 7 }, g.clock.total);
+    if (g.police) {
+      // Killed is killed: you wake up in a cell (v0.10.0).
+      g.bus.emit('combat:playerDown', { lost: 0, by: attacker?.id || null });
+      g.police.sendToJail('killed');
+      return;
+    }
     const lost = Math.floor(p.money * 0.25);
     p.money -= lost;
     for (const npc of g.npcs.values()) if (npc.hostile) { npc.hostile = null; npc.activity = 'idle'; }
-    if (attacker) remember(attacker, { text: `I beat ${p.name} senseless.`, tag: 'beat_player', about: 'player', importance: 7 }, g.clock.total);
     this.reloading = null;
     g.changeMap(g.content.startingMap, g.content.startingSpot);
     g.skipTime(6 * 60);
@@ -9506,8 +10183,14 @@ class Combat {
     const g = this.game;
     if (!this.wrath) return;
     const p = g.player;
+    const victim = g.npcs.get(this.wrath.npcId);
     this.wrath = null;
     p.health = 100;
+    if (victim?.profile.wrath?.after === 'jail' && g.police) {
+      g.bus.emit('combat:risen', { lost: 0, jail: true });
+      g.police.sendToJail('wrath');
+      return;
+    }
     const lost = Math.floor(p.money / 2);
     p.money -= lost;
     g.changeMap(g.content.startingMap, g.content.startingSpot);
@@ -9674,6 +10357,597 @@ class Combat {
 return { FISTS, npcMaxHealth, isProtected, WRATH, isDown, Combat };
 })();
 
+// ---- src/systems/police.js
+__m["src/systems/police.js"] = (function () {
+// The police: a criminal record, Wanted levels, calls from witnesses, dispatch,
+// pursuit and arrest, bribes and fines, jail sentences and breakouts.
+// State lives in game.world.police (saved). Officers are ordinary characters
+// with faction 'fac_police'; Chief Lawrence Order is imported and protected.
+//
+//   crime ──▶ record += severity
+//     ├─ an officer saw it ──────────────▶ Wanted (unless bribed / too petty for a lax chief)
+//     └─ civilians saw it ──▶ a call ──(delay; ignored or hours late if bribed)──▶ Wanted + dispatch
+//   Wanted ──▶ officers who see you pursue and cuff you (or shoot, at 3 stars)
+//   arrested or killed ──▶ jail: serve the sentence, or break out (dig · keys · bribe the guard · the vent)
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { remember } = __m["src/sim/memory.js"];
+const { isDown } = __m["src/systems/combat.js"];
+
+const CHIEF = 'npc_lawrence';
+const GUARD = 'npc_hugh';
+const CELLMATE = 'npc_petty';
+const JAIL_MAP = 'jail';
+const BRIBE_DAYS = 3;
+/** Below this record Chief Order can't be bothered with petty stuff. */
+const KNOWN_CRIMINAL = 8;
+/** Game minutes without being seen before each Wanted level lapses. */
+const WANTED_LAPSE = { 1: 60, 2: 180, 3: 480 };
+const CUFF_SECONDS = 1.4;
+const PURSUE_SPEED = 84;
+const LOSE_SIGHT_SECONDS = 10;
+
+function freshPolice() {
+  return { record: 0, wanted: 0, lastSeen: 0, bribedUntilDay: 0, calls: [], jail: null, arrests: 0, escapes: 0, lastCrimeDay: 0, officersKilled: 0, lastDecayDay: 1 };
+}
+
+const STOP = ['Stop! Police!', 'Hold it right there!', 'Halvermouth Police — freeze!', 'You! Hands where I can see them!'];
+
+class Police {
+  constructor(game) {
+    this.game = game;
+    game.bus.on('crime', (e) => this.onCrime(e));
+    game.bus.on('map:entered', ({ map }) => this.checkEscape(map));
+  }
+
+  get state() {
+    if (!this.game.world.police) this.game.world.police = freshPolice();
+    return this.game.world.police;
+  }
+
+  isOfficer(npc) {
+    return npc?.profile.faction === 'fac_police' && npc.id !== CELLMATE;
+  }
+
+  /** Officers able to act (alive, conscious) — not the chief, who stays at his desk. */
+  activeOfficers() {
+    const now = this.game.clock.total;
+    return [...this.game.npcs.values()].filter((n) => this.isOfficer(n) && n.id !== CHIEF && !isDown(n, now));
+  }
+
+  bribed() {
+    return this.state.bribedUntilDay >= this.game.clock.day;
+  }
+
+  lax() {
+    return this.state.record < KNOWN_CRIMINAL;
+  }
+
+  jailed() {
+    return Boolean(this.state.jail);
+  }
+
+  // ------------------------------------------------------------------ crime
+  severityOf(e) {
+    const victim = e.victim ? this.game.npcs.get(e.victim) : null;
+    const onOfficer = this.isOfficer(victim);
+    switch (true) {
+      case e.fact === 'fact_player_murder': return onOfficer ? 20 : 10;
+      case e.fact === 'fact_player_assault': return onOfficer ? 6 : 3;
+      case e.fact === 'gunfire': return 2;
+      case e.fact === 'jailbreak': return 8;
+      case /trespass/.test(e.fact || ''): return 1;
+      case /stole|theft/.test(e.fact || ''): return 1;
+      default: return 1;
+    }
+  }
+
+  levelFor(sev) {
+    return sev >= 10 ? 3 : sev >= 3 ? 2 : 1;
+  }
+
+  onCrime(e) {
+    const g = this.game;
+    if (this.jailed() && e.fact !== 'jailbreak') return;
+    const s = this.state;
+    const sev = this.severityOf(e);
+    s.record += sev;
+    s.lastCrimeDay = g.clock.day;
+    if (e.fact === 'fact_player_murder' && this.isOfficer(g.npcs.get(e.victim))) s.officersKilled += 1;
+    const ids = [...new Set([...(e.witnesses || []), ...(e.victim ? [e.victim] : [])])];
+    const people = ids.map((id) => g.npcs.get(id)).filter((n) => n && !isDown(n, g.clock.total));
+    const officers = people.filter((n) => this.isOfficer(n) && n.id !== CHIEF);
+    const pos = { map: e.map || g.player.map, x: e.x ?? g.player.x, y: e.y ?? g.player.y };
+    if (officers.length) {
+      if (this.bribed() && sev < 10) {
+        g.bark(officers[0], 'I didn\'t see anything. Chief\'s orders.');
+        return;
+      }
+      if (this.lax() && sev <= 1) {
+        g.bark(officers[0], 'Eh. Not worth the paperwork.');
+        return;
+      }
+      this.raiseWanted(sev, `${officers[0].profile.shortName} saw that!`);
+      for (const o of officers) this.startPursuit(o);
+      return;
+    }
+    if (people.some((n) => !this.isOfficer(n))) this.placeCall(sev, pos);
+  }
+
+  /** A civilian phones it in. */
+  placeCall(sev, pos) {
+    const g = this.game;
+    const s = this.state;
+    if (this.bribed() && sev < 10) {
+      g.notify('Someone called the police. Nobody is coming — Chief Order is looking the other way.', 'info');
+      return;
+    }
+    if (this.lax() && sev <= 2) {
+      g.notify('Someone called the police. Chief Order told them to file a form.', 'info');
+      return;
+    }
+    const delay = this.bribed() ? 240 : 8 + g.rng.int(0, 10);
+    s.calls.push({ at: g.clock.total + delay, sev, ...pos });
+    g.notify(this.bribed() ? 'Someone called the police about a killing. Even Chief Order can\'t sit on that for long…' : 'Someone is calling the police!', 'warn');
+  }
+
+  raiseWanted(sev, why) {
+    const g = this.game;
+    const s = this.state;
+    const lvl = Math.max(s.wanted, this.levelFor(sev));
+    const up = lvl > s.wanted;
+    s.wanted = lvl;
+    s.lastSeen = g.clock.total;
+    if (up) {
+      g.notify(`${why ? why + ' ' : ''}WANTED ${'★'.repeat(lvl)}${lvl >= 3 ? ' — they will shoot on sight.' : ''}`, 'warn');
+      g.bus.emit('police:wanted', { level: lvl });
+    }
+  }
+
+  /** Send the nearest free officers to a call. */
+  respond(call) {
+    const g = this.game;
+    this.raiseWanted(call.sev, 'The police are responding to a call.');
+    const officers = this.activeOfficers().filter((o) => o.activity !== 'sleep' || call.sev >= 10);
+    const score = (o) => (o.map === call.map ? dist(o.x, o.y, call.x, call.y) / TILE : 400);
+    officers.sort((a, b) => score(a) - score(b));
+    for (const o of officers.slice(0, call.sev >= 10 ? 3 : call.sev >= 3 ? 2 : 1)) this.dispatch(o, call.map, call.x, call.y);
+  }
+
+  dispatch(npc, mapId, x, y) {
+    const g = this.game;
+    const map = g.maps.get(mapId);
+    if (!map) return;
+    let best = null;
+    let bestD = Infinity;
+    for (const [name, sp] of Object.entries(map.spots)) {
+      const d = Math.hypot(sp.x * TILE - x, sp.y * TILE - y);
+      if (d < bestD) { bestD = d; best = name; }
+    }
+    if (!best) return;
+    npc.intent = { source: 'dispatch', activity: 'respond', spot: `${mapId}:${best}`, until: g.clock.total + 150 };
+    npc.activity = 'respond';
+    npc.arrived = false;
+    g.npcSystem.plan(npc);
+    g.bus.emit('police:dispatch', { npcId: npc.id, map: mapId, spot: best });
+  }
+
+  startPursuit(npc) {
+    const g = this.game;
+    if (!npc.pursuit) g.bark(npc, g.rng.pick(STOP));
+    npc.pursuit = { lastSeen: g.realTime };
+    npc.cuffT = 0;
+    npc.path = null;
+    npc.activity = 'pursue';
+  }
+
+  endPursuit(npc) {
+    npc.pursuit = null;
+    npc.cuffT = 0;
+    npc.activity = 'idle';
+    this.game.npcSystem.think(npc, true);
+  }
+
+  // ------------------------------------------------------------- per frame
+  update(dt) {
+    const g = this.game;
+    const s = this.state;
+    if (this.jailed() || g.combat.wrath) return;
+    const p = g.player;
+    const map = g.currentMap();
+    for (const npc of this.activeOfficers()) {
+      if (npc.map !== p.map || npc.hostile || npc.inDialogue || npc.activity === 'sleep') continue;
+      if (s.wanted <= 0) {
+        if (npc.pursuit) this.endPursuit(npc);
+        continue;
+      }
+      const sees = g.canSee(npc, p.x, p.y, map, 10);
+      if (sees) {
+        if (!npc.pursuit) this.startPursuit(npc);
+        npc.pursuit.lastSeen = g.realTime;
+        s.lastSeen = g.clock.total;
+      }
+      if (!npc.pursuit) continue;
+      if (g.realTime - npc.pursuit.lastSeen > LOSE_SIGHT_SECONDS) {
+        g.bark(npc, 'Lost them…');
+        this.endPursuit(npc);
+        continue;
+      }
+      if (s.wanted >= 3) {
+        // shoot on sight: hand over to the combat AI
+        npc.pursuit = null;
+        npc.hostile = { mode: 'fight', until: g.clock.total + 30 };
+        npc.activity = 'fight';
+        continue;
+      }
+      const dx = p.x - npc.x;
+      const dy = p.y - npc.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 30) {
+        npc.moving = false;
+        npc.cuffT = (npc.cuffT || 0) + dt;
+        if (npc.cuffT >= CUFF_SECONDS) {
+          this.arrest(npc);
+          return;
+        }
+      } else {
+        npc.cuffT = Math.max(0, (npc.cuffT || 0) - dt * 2);
+        g.combat.steer(npc, dx / d, dy / d, PURSUE_SPEED, dt, true);
+      }
+    }
+  }
+
+  /** The cuffing bar shown over the player (0–1), or 0. */
+  cuffProgress() {
+    let best = 0;
+    for (const npc of this.game.npcs.values()) if (npc.cuffT) best = Math.max(best, npc.cuffT / CUFF_SECONDS);
+    return clamp(best, 0, 1);
+  }
+
+  // ------------------------------------------------------------ per minute
+  minuteTick() {
+    const g = this.game;
+    const s = this.state;
+    const now = g.clock.total;
+    // calls come due
+    const due = s.calls.filter((c) => c.at <= now);
+    if (due.length) {
+      s.calls = s.calls.filter((c) => c.at > now);
+      if (!this.jailed()) for (const c of due) this.respond(c);
+    }
+    // dispatched officers give up after a while
+    for (const npc of g.npcs.values()) if (npc.intent?.source === 'dispatch' && now >= npc.intent.until) { npc.intent = null; g.npcSystem.think(npc, true); }
+    // Wanted lapses when nobody has seen you for a while
+    if (s.wanted > 0 && !this.jailed() && now - s.lastSeen > WANTED_LAPSE[s.wanted] && !this.activeOfficers().some((o) => o.pursuit)) {
+      s.wanted = 0;
+      g.notify('The police seem to have lost interest in you. For now.', 'good');
+      g.bus.emit('police:wanted', { level: 0 });
+    }
+    // a clean day takes a point off your record
+    if (g.clock.day > s.lastDecayDay) {
+      s.lastDecayDay = g.clock.day;
+      if (s.lastCrimeDay < g.clock.day - 1 && s.record > 0) s.record -= 1;
+    }
+    // sentence served (e.g. by waiting it out)
+    if (s.jail && now >= s.jail.until && g.player.map === JAIL_MAP) this.release();
+  }
+
+  // --------------------------------------------------- bribes and fines
+  bribePrice() {
+    return 40 + this.state.record * 8;
+  }
+
+  finePrice() {
+    return 20 * this.state.wanted + this.state.record * 3;
+  }
+
+  bribe() {
+    const g = this.game;
+    const price = this.bribePrice();
+    if (g.player.money < price) return { ok: false, text: 'You can\'t afford that.' };
+    g.player.money -= price;
+    g.bus.emit('money:changed', { delta: -price, total: g.player.money });
+    this.state.bribedUntilDay = g.clock.day + BRIBE_DAYS;
+    g.setFlag('police_bribed', true);
+    const chief = g.npcs.get(CHIEF);
+    if (chief) remember(chief, { text: `${g.player.name} bought ${BRIBE_DAYS} days of my looking the other way.`, tag: 'bribed', about: 'player', importance: 6 }, g.clock.total);
+    return { ok: true, text: `Paid ${price} obols. The police will look the other way until the end of Day ${this.state.bribedUntilDay}.` };
+  }
+
+  payFine() {
+    const g = this.game;
+    const price = this.finePrice();
+    if (g.player.money < price) return { ok: false, text: 'You can\'t afford the fine.' };
+    g.player.money -= price;
+    g.bus.emit('money:changed', { delta: -price, total: g.player.money });
+    this.state.wanted = 0;
+    this.state.calls = [];
+    for (const o of this.activeOfficers()) { if (o.pursuit) this.endPursuit(o); if (o.intent?.source === 'dispatch') o.intent = null; o.hostile = null; }
+    g.bus.emit('police:wanted', { level: 0 });
+    return { ok: true, text: `Fine paid: ${price} obols. Your warrant has been "misplaced".` };
+  }
+
+  // ------------------------------------------------------------- arrest
+  /** Press G near an officer while Wanted. */
+  surrender() {
+    const g = this.game;
+    if (this.jailed()) return { ok: false, text: '' };
+    if (this.state.wanted <= 0) return { ok: false, text: 'Nobody is trying to arrest you.' };
+    const near = this.activeOfficers().find((o) => o.map === g.player.map && dist(o.x, o.y, g.player.x, g.player.y) < 8 * TILE);
+    if (!near) return { ok: false, text: 'There\'s no officer close enough to surrender to.' };
+    g.bark(near, 'Smart choice. Hands behind your back.');
+    this.arrest(near, true);
+    return { ok: true, text: 'You put your hands up.' };
+  }
+
+  arrest(officer, surrendered = false) {
+    const g = this.game;
+    if (officer) remember(officer, { text: `Arrested ${g.player.name}.`, tag: 'arrested_player', about: 'player', importance: 6 }, g.clock.total);
+    g.bus.emit('police:arrest', { by: officer?.id || null, surrendered });
+    this.sendToJail(surrendered ? 'surrendered' : 'arrested');
+  }
+
+  sentenceHours() {
+    return clamp(Math.round(4 + this.state.record * 2), 4, 168);
+  }
+
+  /** Arrested, beaten, or struck down: everything ends in a cell. */
+  sendToJail(reason) {
+    const g = this.game;
+    const s = this.state;
+    const p = g.player;
+    // confiscate weapons, ammunition, stolen goods and any jail keys
+    const evidence = {};
+    for (const [id, n] of Object.entries(p.inventory || {})) {
+      const def = g.content.items[id];
+      if (!n || !def) continue;
+      if (def.weapon || def.category === 'ammo' || p.stolen?.[id] || id === 'item_jail_keys' || id === 'item_spoon' || id === 'item_bent_fork') {
+        evidence[id] = n;
+        g.inventory.remove(id, n);
+      }
+    }
+    p.equipped = null;
+    const locker = g.world.containers.ct_evidence;
+    if (locker) for (const [id, n] of Object.entries(evidence)) if (g.content.items[id].weapon || g.content.items[id].category === 'ammo') locker.items[id] = (locker.items[id] || 0) + n;
+    const hours = this.sentenceHours();
+    s.jail = { since: g.clock.total, until: g.clock.total + hours * 60, reason, dig: 0, evidence, trayDay: 0 };
+    s.wanted = 0;
+    s.calls = [];
+    s.arrests += 1;
+    for (const npc of g.npcs.values()) {
+      npc.hostile = null;
+      npc.pursuit = null;
+      npc.cuffT = 0;
+      if (npc.intent?.source === 'dispatch') npc.intent = null;
+    }
+    for (const f of ['jail_cell_open', 'jail_stairs_open', 'jail_tunnel_open']) g.setFlag(f, false);
+    g.combat.reloading = null;
+    p.health = Math.max(p.health, reason === 'killed' || reason === 'wrath' ? 60 : p.health);
+    g.changeMap(JAIL_MAP, 'cell_a');
+    g.bus.emit('police:jailed', { reason, hours });
+    const why = { arrested: 'You\'ve been arrested.', surrendered: 'You came quietly.', killed: 'You wake up behind bars, patched up by the precinct doctor.', wrath: 'You come to on a cold cot, behind bars, smelling of ink.' }[reason] || 'You\'re in jail.';
+    g.notify(`${why} Sentence: ${hours} hours. (Lie on the cot to serve it — or find another way out.)`, 'warn');
+  }
+
+  hoursLeft() {
+    const j = this.state.jail;
+    return j ? Math.max(0, Math.ceil((j.until - this.game.clock.total) / 60)) : 0;
+  }
+
+  serveSentence() {
+    const g = this.game;
+    const j = this.state.jail;
+    if (!j) return { ok: false };
+    const mins = Math.max(0, Math.ceil(j.until - g.clock.total));
+    g.skipTime(mins);
+    if (this.state.jail) this.release();
+    return { ok: true, text: 'You do your time.' };
+  }
+
+  release() {
+    const g = this.game;
+    const s = this.state;
+    const j = s.jail;
+    if (!j) return;
+    s.jail = null;
+    s.record = Math.floor(s.record / 2);
+    s.wanted = 0;
+    // your weapons back, if they're still in the locker
+    const locker = g.world.containers.ct_evidence;
+    for (const [id, n] of Object.entries(j.evidence || {})) {
+      const def = g.content.items[id];
+      if (!(def?.weapon || def?.category === 'ammo')) continue;
+      const have = Math.min(n, locker?.items[id] || 0);
+      if (have > 0) {
+        locker.items[id] -= have;
+        g.inventory.add(id, have, { silent: true });
+      }
+    }
+    g.changeMap('police_station', 'release');
+    g.bus.emit('police:released', {});
+    g.notify('Sentence served. Your belongings are returned (the legal ones). Your record is half what it was.', 'good');
+  }
+
+  /** Leaving the cell block while serving time — however you managed it. */
+  checkEscape(mapId) {
+    const g = this.game;
+    const s = this.state;
+    if (!s.jail || mapId === JAIL_MAP) return;
+    const how = g.getFlag('jail_escape_method') || 'stairs';
+    s.jail = null;
+    s.escapes += 1;
+    for (const f of ['jail_cell_open', 'jail_stairs_open', 'jail_tunnel_open', 'jail_escape_method']) g.setFlag(f, false);
+    g.bus.emit('police:escaped', { how });
+    if (how === 'bribe') {
+      // Jury files it as a clerical error: no warrant, but no gear back either
+      g.notify('You stroll out past the front desk. Officially you were "released early for good behaviour". Your gear is still in the evidence locker.', 'warn');
+      return;
+    }
+    this.onCrime({ fact: 'jailbreak', witnesses: [], map: mapId, x: g.player.x, y: g.player.y });
+    this.raiseWanted(8, 'JAILBREAK!');
+    g.setFlag('escaped_jail', (g.getFlag('escaped_jail') || 0) + 1);
+    const lines = {
+      tunnel: 'You squeeze through the tunnel into the old sewer and come up in the Sumps, filthy and free.',
+      vent: 'You crawl through the vent, drop into the harbour drain and come out by the docks.',
+      stairs: 'You walk up the stairs and out of the precinct as if you belong there. You do not.',
+    };
+    g.notify(`${lines[how] || lines.stairs} Your gear is still in the evidence locker.`, 'warn');
+  }
+
+  // ---------------------------------------------------------------- jail props
+  guard() {
+    const g = this.game;
+    const h = g.npcs.get(GUARD);
+    return h && h.map === JAIL_MAP && !isDown(h, g.clock.total) ? h : null;
+  }
+
+  night() {
+    const m = this.game.clock.minuteOfDay;
+    return m >= 22 * 60 || m < 5 * 60;
+  }
+
+  /** Interactions with the cell's props (interact kind 'jail'). */
+  jailInteract(prop) {
+    const g = this.game;
+    const action = prop.interact.action;
+    const j = this.state.jail;
+    if (!j && action !== 'whisper') return { type: 'message', text: prop.examine || 'Nothing to do here — you\'re not a prisoner. Right now.' };
+    switch (action) {
+      case 'serve':
+        return {
+          type: 'choices', title: 'The cot', text: `${this.hoursLeft()} hours left on your sentence.`,
+          options: [{ label: 'Lie down and serve your time', call: ['police', 'jailAction', 'serve'] }, { label: 'Not yet', call: ['police', 'jailAction', 'none'] }],
+        };
+      case 'tray':
+        if (j.trayDay === g.clock.day) return { type: 'message', text: 'The tray is empty. Breakfast was gruel. Lunch was the memory of gruel.' };
+        j.trayDay = g.clock.day;
+        if (!g.inventory.count('item_spoon')) {
+          g.inventory.add('item_spoon', 1);
+          return { type: 'message', text: 'Lukewarm gruel. Nobody notices when you keep the spoon.' };
+        }
+        return { type: 'message', text: 'More gruel. You already have a spoon. You keep that quiet.' };
+      case 'dig': return this.dig();
+      case 'vent': return this.vent();
+      case 'whisper': return { type: 'dialogue', npcId: CELLMATE };
+      case 'bars': {
+        const guard = this.guard();
+        const opts = [];
+        if (guard && guard.activity === 'sleep') opts.push({ label: `Reach through the bars for ${guard.profile.shortName}'s keys (Finesse ${Math.round(this.reachChance() * 100)}%)`, call: ['police', 'jailAction', 'keys'] });
+        if (guard && guard.activity !== 'sleep') opts.push({ label: `Whisper to ${guard.profile.shortName}: "${this.guardPrice()} obols says this door is unlocked."`, call: ['police', 'jailAction', 'bribeGuard'] });
+        opts.push({ label: 'Rattle the bars', call: ['police', 'jailAction', 'rattle'] });
+        return { type: 'choices', title: 'Cell bars', text: guard ? (guard.activity === 'sleep' ? `${guard.profile.shortName} is snoring at the desk. His keys hang from the back of his chair.` : `${guard.profile.shortName} is at the desk, doing a crossword badly.`) : 'Nobody is at the guard desk. The keys are gone with whoever left.', options: opts };
+      }
+      default:
+        return { type: 'message', text: prop.examine || '' };
+    }
+  }
+
+  reachChance() {
+    return clamp(0.3 + this.game.player.stats.finesse * 0.08, 0.1, 0.85);
+  }
+
+  guardPrice() {
+    return 60 + this.state.record * 2;
+  }
+
+  /** Called from the choices panel: ['police', 'jailAction', name]. */
+  jailAction(name) {
+    const g = this.game;
+    const j = this.state.jail;
+    if (!j) return { ok: false, text: '' };
+    const guard = this.guard();
+    switch (name) {
+      case 'serve': return this.serveSentence();
+      case 'rattle':
+        if (guard) g.bark(guard, guard.activity === 'sleep' ? '…mmf… five more minutes…' : 'Knock it off.');
+        return { ok: true, text: 'You rattle the bars. It\'s very satisfying and achieves nothing.' };
+      case 'keys': {
+        if (!guard || guard.activity !== 'sleep') return { ok: false, text: 'He\'s awake.' };
+        if (g.rng.next() < this.reachChance()) {
+          g.inventory.add('item_jail_keys', 1);
+          g.setFlag('jail_escape_method', 'stairs');
+          return { ok: true, text: 'Your fingers close on the key ring. Slowly… slowly… got them. Hugh snores on.' };
+        }
+        guard.activity = 'work';
+        g.bark(guard, 'HEY! Hands in the cell!');
+        this.extend(12, `${guard.profile.shortName} caught you reaching for his keys`);
+        return { ok: false, text: 'The keys jingle. Hugh snorts awake. Twelve more hours.' };
+      }
+      case 'bribeGuard': {
+        if (!guard || guard.activity === 'sleep') return { ok: false, text: 'Nobody to bribe.' };
+        if (this.state.officersKilled > 0) return { ok: false, text: `${guard.profile.shortName}: "You killed a cop. There isn't enough money in Halvermouth."` };
+        const price = this.guardPrice();
+        if (g.player.money < price) return { ok: false, text: `${guard.profile.shortName}: "${price}. Not a penny less. Come back when you've got it — oh wait, you can't."` };
+        g.player.money -= price;
+        g.bus.emit('money:changed', { delta: -price, total: g.player.money });
+        g.setFlag('jail_cell_open', true);
+        g.setFlag('jail_stairs_open', true);
+        g.setFlag('jail_escape_method', 'bribe');
+        remember(guard, { text: `Took ${price} obols to leave ${g.player.name}'s cell unlocked.`, tag: 'took_bribe', about: 'player', importance: 6 }, g.clock.total);
+        return { ok: true, text: `${guard.profile.shortName} pockets the ${price} obols, unlocks your door and the stairwell, and becomes extremely interested in his crossword.` };
+      }
+      default:
+        return { ok: true, text: '' };
+    }
+  }
+
+  extend(hours, why) {
+    const j = this.state.jail;
+    if (!j) return;
+    j.until += hours * 60;
+    this.game.notify(`${why}: +${hours} hours on your sentence.`, 'warn');
+  }
+
+  dig() {
+    const g = this.game;
+    const j = this.state.jail;
+    if (g.getFlag('jail_tunnel_open')) {
+      g.setFlag('jail_escape_method', 'tunnel');
+      g.changeMap('halvermouth', 'sumps_gate');
+      return { type: 'none' };
+    }
+    if (!g.inventory.count('item_spoon')) return { type: 'message', text: 'The brick is loose, but you can\'t dig mortar with your fingernails. Something from the meal tray, perhaps.' };
+    if (!this.night()) return { type: 'message', text: 'Too many people about. Scraping at a wall in broad daylight is the kind of thing guards notice. Wait for night (22:00–05:00).' };
+    const guard = this.guard();
+    if (guard && guard.activity !== 'sleep' && g.rng.chance(0.5)) {
+      g.inventory.remove('item_spoon', 1);
+      g.bark(guard, 'What\'s that scraping? Give me that spoon.');
+      this.extend(12, `${guard.profile.shortName} heard you digging`);
+      return { type: 'message', text: 'Hugh confiscates your spoon. (Tip: dig while he naps, 01:00–04:00.)' };
+    }
+    g.skipTime(60);
+    j.dig += 1;
+    if (j.dig >= 4) {
+      g.setFlag('jail_tunnel_open', true);
+      return { type: 'message', text: 'The brick slides out — and behind it, the darkness of the old sewer. A way out. (Use the hole to crawl through.)' };
+    }
+    return { type: 'message', text: `An hour of quiet scraping. The mortar crumbles. (${j.dig}/4)` };
+  }
+
+  vent() {
+    const g = this.game;
+    if (!g.getFlag('petty_vent_tip')) return { type: 'message', text: 'A rusty vent screwed shut. It looks like it goes somewhere — but where, and how would you open it?' };
+    if (!g.inventory.count('item_bent_fork')) return { type: 'message', text: 'The screws won\'t turn with your fingers. Petty said something about a fork.' };
+    g.setFlag('jail_escape_method', 'vent');
+    g.inventory.remove('item_bent_fork', 1);
+    g.changeMap('halvermouth', 'docks_quay');
+    return { type: 'none' };
+  }
+
+  /** Petty Larson's deal (effect { police: { pettyDeal: true } }). */
+  pettyDeal(payWith) {
+    const g = this.game;
+    if (payWith === 'money') {
+      g.player.money = Math.max(0, g.player.money - 25);
+      g.bus.emit('money:changed', { delta: -25, total: g.player.money });
+    } else if (payWith) g.inventory.remove(payWith, 1);
+    g.inventory.add('item_bent_fork', 1);
+    g.setFlag('petty_vent_tip', true);
+  }
+}
+
+return { CHIEF, GUARD, CELLMATE, JAIL_MAP, BRIBE_DAYS, KNOWN_CRIMINAL, freshPolice, Police };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -9785,7 +11059,7 @@ const { parseSpotRef, TILE, interpolate } = __m["src/core/util.js"];
 const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police',
 ];
 
 /**
@@ -9953,6 +11227,15 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'police': {
+        // { police: { bribe: true } | { payFine: true } | { pettyDeal: 'money' | itemId } }
+        let r = null;
+        if (val.bribe) r = game.police.bribe();
+        if (val.payFine) r = game.police.payFine();
+        if (val.pettyDeal) game.police.pettyDeal(val.pettyDeal);
+        if (r?.text) game.notify(r.text, r.ok ? 'good' : 'warn');
+        break;
+      }
       case 'permit':
         // Civic Office issues building permits for every contract awaiting one.
         game.properties.grantPermits();
@@ -10044,6 +11327,7 @@ const { OilCompany, freshOil } = __m["src/systems/oilCompany.js"];
 const { Construction, freshConstruction } = __m["src/systems/construction.js"];
 const { Properties, freshProperties } = __m["src/systems/properties.js"];
 const { Combat, isDown } = __m["src/systems/combat.js"];
+const { Police, freshPolice } = __m["src/systems/police.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -10072,6 +11356,7 @@ class Game {
     this.construction = new Construction(this);
     this.properties = new Properties(this);
     this.combat = new Combat(this);
+    this.police = new Police(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -10136,6 +11421,7 @@ class Game {
       oil: freshOil(),
       construction: freshConstruction(),
       properties: freshProperties(),
+      police: freshPolice(),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -10276,11 +11562,12 @@ class Game {
     const minutes = this.clock.tick(dt);
     this.updatePlayer(dt, input);
     this.combat.update(dt);
+    this.police.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
-      if (npc.inDialogue || npc.hostile || isDown(npc, now)) {
-        if (!npc.hostile) npc.moving = false;
+      if (npc.inDialogue || npc.hostile || npc.pursuit || isDown(npc, now)) {
+        if (!npc.hostile && !npc.pursuit) npc.moving = false;
         continue;
       }
       this.npcSystem.updatePhysical(npc, dt);
@@ -10291,6 +11578,7 @@ class Game {
 
   minuteTick() {
     this.combat.minuteTick();
+    this.police.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -10556,7 +11844,7 @@ class Game {
     const seen = this.witnesses(map, x, y, radius);
     for (const npc of seen) this.knowledge.learn(npc, fact, { kind: 'fact', source: 'witnessed', at: this.clock.total });
     if (seen.length) this.notify(`${seen.map((n) => n.profile.shortName).join(' and ')} saw that!`, 'warn');
-    this.bus.emit('crime', { fact, witnesses: seen.map((n) => n.id) });
+    this.bus.emit('crime', { fact, witnesses: seen.map((n) => n.id), map, x, y });
     return seen;
   }
 
@@ -10683,6 +11971,7 @@ class Game {
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
       case 'shop': return `Browse the ${name.toLowerCase()}`;
+      case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
@@ -10701,6 +11990,11 @@ class Game {
       if (!npc) return { type: 'none' };
       if (npc.dead) return { type: 'message', text: `${npc.profile.shortName} is dead. There is nothing more to say.` };
       if (isDown(npc, this.clock.total)) return { type: 'message', text: `${npc.profile.shortName} is out cold, breathing shallowly.` };
+      if (this.police.isOfficer(npc) && this.police.state.wanted > 0 && !this.police.jailed() && npc.id !== 'npc_lawrence') {
+        this.bark(npc, 'Well, well. Saves me a walk. You\'re under arrest.');
+        this.police.arrest(npc, true);
+        return { type: 'none' };
+      }
       if (npc.hostile) return { type: 'message', text: npc.hostile.mode === 'fight' ? `${npc.profile.shortName} is in no mood to talk — they're trying to hit you!` : `${npc.profile.shortName} backs away from you, terrified.` };
       if (npc.activity === 'sleep') {
         const pool = this.content.dialogues[npc.profile.dialogue]?.barks?.sleep || ['Zzz…'];
@@ -10745,6 +12039,8 @@ class Game {
       }
       case 'shop':
         return { type: 'shop', shopId: act.shop };
+      case 'jail':
+        return this.police.jailInteract(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -11054,6 +12350,7 @@ class Game {
     this.world.oil = { ...fresh.oil, ...(this.world.oil || {}) };
     this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
     this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
+    this.world.police = { ...fresh.police, ...(this.world.police || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -11164,6 +12461,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.10.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Law & Order',
+    notes: [
+      'The Halvermouth Police. Chief Lawrence Order runs Precinct 1 from his office couch and never leaves the building. His five armed officers — Sgt. Justin Case, Warren Tee, Bailey Bond, rookie Miranda Wright and night guard Hugh Jury — walk Halvermouth, Lanternside, Westbrook and the Ober Fields.',
+      'A criminal record and Wanted stars (★–★★★). Officers who see a crime come after you; civilians call it in and the nearest officers are dispatched. Get close and they cuff you; at three stars they shoot. Press G near an officer to surrender. The Chief ignores petty stuff until you\'re a known criminal.',
+      'Bribe the Chief and for three days calls go unanswered and officers "didn\'t see anything" (a killing is still reported, hours late). Or pay a fine to clear a warrant. Kill a cop and nobody will take your money.',
+      'Killed or arrested? You wake up in the cell block. Lie on the cot to serve your sentence, or break out: dig with a spoon from the meal tray while Jury naps, lift his keys through the bars, bribe him, or buy Petty Larson\'s secret about the vent.',
+      'Attack Chief Order and face LAW & ORDER: sirens and searchlights, badges and handcuffs, squad cars ramming in, a giant gavel, an avalanche of paperwork stamped GUILTY — and you wake up in a cell.',
+    ],
+  },
   {
     version: '0.9.0',
     date: '2026-10-13',
@@ -12890,6 +14200,35 @@ function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
+    case 'loosebrick': {
+      // a different-coloured brick low on the wall; scraped mortar shows the digging
+      const dug = Math.min(4, opts.jailDig || 0);
+      ctx.fillStyle = '#7a4a36';
+      ctx.fillRect(x + 6, y + 10, 20, 11);
+      ctx.strokeStyle = '#4a2a1e';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 6.5, y + 10.5, 19, 10);
+      ctx.fillStyle = '#c9b89a';
+      for (let i = 0; i < dug * 2; i++) ctx.fillRect(x + 4 + (i * 7) % 24, y + 24 + (i % 3) * 2, 2, 2);
+      break;
+    }
+    case 'vent': {
+      ctx.fillStyle = '#3a3e44';
+      ctx.fillRect(x + 4, y + 2, 24, 16);
+      ctx.fillStyle = '#7a7e86';
+      for (let i = 0; i < 4; i++) ctx.fillRect(x + 6, y + 4 + i * 4, 20, 2);
+      ctx.fillStyle = '#a8a49a';
+      for (const [dx, dy] of [[5, 3], [25, 3], [5, 15], [25, 15]]) ctx.fillRect(x + dx, y + dy, 2, 2);
+      break;
+    }
+    case 'wallcrack': {
+      ctx.strokeStyle = '#2a2420';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 30, y + 2); ctx.lineTo(x + 26, y + 9); ctx.lineTo(x + 29, y + 15); ctx.lineTo(x + 25, y + 22); ctx.lineTo(x + 28, y + 30);
+      ctx.stroke();
+      break;
+    }
     case 'gatepost': {
       ctx.fillStyle = 'rgba(0,0,0,0.22)';
       ctx.fillRect(x + 6, y + 24, 24, 8);
@@ -13227,7 +14566,9 @@ __m["src/engine/wrath.js"] = (function () {
 //
 // Themes: arcane (default: runes and lightning), oil (Sir Moneybucks: coins,
 // derricks, gushers, burning oil), construction (Mason: blueprints, hazard
-// tape, tools, falling I-beams, a wrecking ball, a brick wall).
+// tape, tools, falling I-beams, a wrecking ball, a brick wall), law (Chief
+// Lawrence Order: sirens, searchlights, badges and handcuffs, ramming squad
+// cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars).
 const { clamp, lerp } = __m["src/core/util.js"];
 const { hash2 } = __m["src/core/rng.js"];
 const { WRATH } = __m["src/systems/combat.js"];
@@ -13955,7 +15296,291 @@ const CONSTRUCTION = {
   },
 };
 
-const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION };
+// ================================================================= LAW
+function badge(ctx, x, y, s, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = '#e8c35a';
+  ctx.beginPath();
+  for (let k = 0; k < 14; k++) {
+    const a = (k / 14) * Math.PI * 2 - Math.PI / 2;
+    const rr = k % 2 ? 4.2 : 9;
+    ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1e2a44';
+  ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function cuffs(ctx, x, y, s, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.strokeStyle = '#c9ced4';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.arc(-6, 0, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(6, 0, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(-1, 0); ctx.lineTo(1, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function stamp(ctx, x, y, text, s, rot, colour = '#d0302a', alpha = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.globalAlpha *= alpha;
+  ctx.font = 'bold 11px "Trebuchet MS", sans-serif';
+  const tw = ctx.measureText(text).width;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-tw / 2 - 5, -9, tw + 10, 18);
+  ctx.fillStyle = colour;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, 1);
+  ctx.restore();
+}
+
+/** A squad car seen from above-ish, facing +x (flip with dir). */
+function squadCar(ctx, x, y, dir, t, alpha = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(dir, 1);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(-30, 4, 62, 8);
+  ctx.fillStyle = '#1e2a44';
+  rrect(ctx, -32, -14, 64, 22, 5); ctx.fill();
+  ctx.fillStyle = '#f2f2ee';
+  ctx.fillRect(-14, -14, 26, 22);
+  ctx.fillStyle = '#9ec4e8';
+  ctx.fillRect(12, -11, 9, 16); // windscreen
+  ctx.fillStyle = '#1e2a44';
+  ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('POLICE', -1, 0);
+  const on = Math.floor(t * 12) % 2;
+  ctx.fillStyle = on ? '#ff2a2a' : '#5a1010';
+  ctx.fillRect(-6, -18, 5, 4);
+  ctx.fillStyle = on ? '#1a2a5a' : '#3a7aff';
+  ctx.fillRect(0, -18, 5, 4);
+  ctx.fillStyle = '#111';
+  for (const wx of [-22, 20]) { ctx.fillRect(wx, 6, 9, 4); ctx.fillRect(wx, -16, 9, 3); }
+  ctx.restore();
+}
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+const LAW = {
+  banner: 'YOU HAVE THE RIGHT TO REMAIN SILENT',
+  sky: [10, 16, 40, 2, 4, 14],
+  flash: '220,230,255',
+  ground(I) {
+    const { ctx, e, conv, vx, vfeet, p, top } = I;
+    const life = ease((e - 0.2) / 0.6) * (1 - ease((e - WRATH.fade) / 0.6));
+    // sirens: alternating red/blue wash around the scene
+    if (life > 0) {
+      const red = Math.floor(e * 5) % 2 === 0;
+      const cx = lerp(vx, p.x, 0.5);
+      const g2 = ctx.createRadialGradient(cx, vfeet, 10, cx, vfeet, 320);
+      g2.addColorStop(0, red ? `rgba(255,40,40,${0.22 * life})` : `rgba(60,110,255,${0.22 * life})`);
+      g2.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g2;
+      ctx.fillRect(cx - 320, vfeet - 320, 640, 640);
+      // two searchlights sweep down from the sky and lock onto the player
+      for (let k = 0; k < 2; k++) {
+        const sweep = Math.sin(e * 1.6 + k * 2.4) * 120 * (1 - conv);
+        const tx = lerp(vx + sweep + (k ? 40 : -40), p.x, conv);
+        const ty = lerp(vfeet, p.y, conv);
+        const sx = tx + (k ? 160 : -160);
+        ctx.fillStyle = `rgba(255,250,220,${0.13 * life})`;
+        ctx.beginPath(); ctx.moveTo(sx - 6, top); ctx.lineTo(tx - 34, ty); ctx.lineTo(tx + 34, ty); ctx.lineTo(sx + 6, top); ctx.closePath(); ctx.fill();
+        onGround(ctx, tx, ty, () => {
+          ctx.fillStyle = `rgba(255,250,220,${0.22 * life})`;
+          ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+    }
+    // a ring of police tape around Lawrence, then a chalk outline under the player
+    const tape = ease((e - 0.3) / 0.6) * (1 - conv);
+    if (tape > 0) {
+      onGround(ctx, vx, vfeet, () => {
+        ctx.globalAlpha = tape;
+        ctx.strokeStyle = '#f2d23a';
+        ctx.lineWidth = 9;
+        ctx.beginPath(); ctx.arc(0, 0, 70, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#111';
+        ctx.font = 'bold 7px "Trebuchet MS", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let k = 0; k < 10; k++) {
+          const a = (k / 10) * Math.PI * 2 + e * 0.4;
+          ctx.save();
+          ctx.translate(Math.cos(a) * 70, Math.sin(a) * 70);
+          ctx.rotate(a + Math.PI / 2);
+          ctx.fillText('POLICE LINE', 0, 0);
+          ctx.restore();
+        }
+      }, 0.45);
+    }
+    const chalk = ease((e - WRATH.converge) / 0.5) * (1 - ease((e - WRATH.fade) / 0.5));
+    if (chalk > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.globalAlpha = chalk;
+        ctx.strokeStyle = '#f4f4ee';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, -40, 10, 0, Math.PI * 2); // head
+        ctx.moveTo(0, -30); ctx.lineTo(0, 10); // body
+        ctx.moveTo(0, -20); ctx.lineTo(-24, -32); ctx.moveTo(0, -20); ctx.lineTo(22, -6); // arms
+        ctx.moveTo(0, 10); ctx.lineTo(-16, 36); ctx.moveTo(0, 10); ctx.lineTo(18, 34); // legs
+        ctx.stroke();
+      }, 0.5);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const shrink = lerp(1, 0.55, conv) * (1 - ease((e - WRATH.lightning) / 0.5) * 0.4);
+    const fadeOut = 1 - ease((e - WRATH.ascend) / 0.3);
+    const spin = e + e * e * 0.35;
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    for (let i = 0; i < 8; i++) {
+      const a = spin * 1.1 + (i / 8) * Math.PI * 2;
+      const rad = 48 * unfold * shrink;
+      badge(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold * 1.1, a);
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = -spin * 1.4 + (i / 10) * Math.PI * 2;
+      const rad = 80 * unfold * shrink;
+      cuffs(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold, a * 2);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = spin * 0.8 + (i / 6) * Math.PI * 2;
+      const rad = 116 * unfold * shrink;
+      stamp(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, i % 2 ? 'CASE CLOSED' : 'DENIED', 0.8 * unfold, Math.sin(a) * 0.3);
+    }
+    ctx.restore();
+  },
+  strike(I, i, age) {
+    const { ctx, p, top, w } = I;
+    const fade = 1 - ease((I.e - WRATH.fade) / 0.4);
+    if (i < 4) {
+      // squad cars ram in from alternating sides, skid, and stay parked with lights going
+      if (age < -0.3) return;
+      const dir = i % 2 ? -1 : 1;
+      const rest = p.x - dir * (30 + i * 4);
+      const ty = p.y - 4 + (i - 1.5) * 10;
+      const x = age < 0 ? lerp(rest - dir * 360, rest, ease((age + 0.3) / 0.3)) : rest - dir * 6 * Math.exp(-age * 6) * Math.sin(age * 30);
+      squadCar(ctx, x, ty, dir, I.e + i, fade);
+      if (age >= 0 && age < 0.5) {
+        dust(ctx, p.x, p.y, age, w.seed + i * 17, 0.8);
+        ctx.fillStyle = `rgba(255,230,160,${1 - age / 0.5})`;
+        for (let s = 0; s < 6; s++) ctx.fillRect(p.x - dir * 10 + Math.cos(s) * 18 * (age / 0.3), ty - 6 + Math.sin(s * 1.7) * 10, 2, 2);
+      }
+      return;
+    }
+    // the last one: a giant gavel comes down from the sky
+    if (age < -0.4) return;
+    const k = age < 0 ? ease((age + 0.4) / 0.4) : 1;
+    const bounce = age >= 0 ? Math.sin(age * 9) * 6 * Math.exp(-age * 4) : 0;
+    const head = { x: p.x, y: lerp(top - 30, p.y - 26, k) - Math.abs(bounce) };
+    const handleRot = lerp(-1.1, 0, k);
+    ctx.save();
+    ctx.globalAlpha = fade * (1 - ease((age - 1.0) / 0.4));
+    ctx.translate(head.x, head.y);
+    ctx.rotate(handleRot);
+    ctx.fillStyle = '#6a3a1e';
+    ctx.fillRect(-4, -110, 8, 100); // handle up into the sky
+    ctx.fillStyle = '#8a5230';
+    rrect(ctx, -42, -16, 84, 32, 6); ctx.fill();
+    ctx.fillStyle = '#e8c35a';
+    ctx.fillRect(-30, -16, 6, 32); ctx.fillRect(24, -16, 6, 32);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-42, -16, 84, 5);
+    ctx.restore();
+    if (age >= 0) {
+      dust(ctx, p.x, p.y, age, w.seed + 911, 1.8);
+      if (age < 0.25) {
+        onGround(ctx, p.x, p.y, () => {
+          ctx.strokeStyle = `rgba(255,240,200,${1 - age / 0.25})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.arc(0, 0, 30 + age * 400, 0, Math.PI * 2); ctx.stroke();
+        });
+      }
+    }
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    // a blizzard of paperwork buries the player…
+    const R = rng(w.seed + 303);
+    const pile = ease((e - WRATH.ascend) / 1.1);
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    ctx.save();
+    ctx.globalAlpha = out;
+    for (let i = 0; i < 70; i++) {
+      const delay = R() * 1.1;
+      const age = e - WRATH.ascend - delay;
+      const fx = (R() - 0.5) * 60;
+      const restY = p.y + 2 - R() * 46 * pile;
+      const rot0 = (R() - 0.5) * 2;
+      if (age < 0) continue;
+      const fall = ease(age / 0.6);
+      const x = p.x + fx * (0.4 + 0.6 * fall) + Math.sin(age * 6 + i) * 10 * (1 - fall);
+      const y = lerp(p.y - 220, restY, fall);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot0 + (1 - fall) * Math.sin(age * 5 + i) * 1.5);
+      ctx.fillStyle = i % 5 ? '#f4f1e6' : '#f0e2a8';
+      ctx.fillRect(-7, -9, 14, 18);
+      ctx.fillStyle = 'rgba(40,40,60,0.45)';
+      for (let l = 0; l < 4; l++) ctx.fillRect(-5, -6 + l * 4, 10 - (l % 2) * 3, 1);
+      ctx.restore();
+    }
+    ctx.restore();
+    // …is stamped GUILTY…
+    if (e > WRATH.ascend + 1.0) {
+      const s = 1 + 0.6 * (1 - ease((e - WRATH.ascend - 1.0) / 0.15));
+      stamp(ctx, p.x, p.y - 34, 'GUILTY', 1.6 * s, -0.16, '#d0302a', out);
+    }
+    // …and the cell bars come down
+    const drop = ease((e - (WRATH.ascend + 1.3)) / 0.35);
+    if (drop > 0) {
+      const by = lerp(p.y - 260, p.y - 70, drop);
+      ctx.save();
+      ctx.globalAlpha = out;
+      ctx.fillStyle = '#3a3e46';
+      ctx.fillRect(p.x - 48, by, 96, 6);
+      ctx.fillRect(p.x - 48, by + 76, 96, 6);
+      for (let k = 0; k < 9; k++) {
+        ctx.fillStyle = '#5a5e66';
+        ctx.fillRect(p.x - 44 + k * 11, by, 4, 82);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(p.x - 44 + k * 11, by, 1, 82);
+      }
+      ctx.restore();
+    }
+  },
+};
+
+const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW };
 
 // -------------------------------------------------------------- draw
 function drawWrath(renderer, g, w) {
@@ -14032,7 +15657,7 @@ function drawWrath(renderer, g, w) {
   if (bannerA > 0) {
     const title = victim?.profile.wrath?.banner || theme.banner;
     const sub = victim?.profile.wrath?.subtitle || `${victim?.profile.name || 'They'} cannot be harmed by mortal hands.`;
-    const sz = Math.min(46 * dpr, W / (title.length * 0.62));
+    const sz = Math.min(46 * dpr, W / (title.length * 0.72)); // leaves room for the letter-spacing settle
     ctx.save();
     ctx.globalAlpha = bannerA;
     ctx.textAlign = 'center';
@@ -14254,7 +15879,7 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig });
         }
       })();
       for (const b of lm.buildings) {
@@ -14269,7 +15894,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -14613,6 +16238,20 @@ class Renderer {
       ctx.fillText(`-${f.amount}`, fs.x, fs.y);
       ctx.globalAlpha = 1;
     }
+    // an officer is cuffing the player
+    const cuff = g.police?.cuffProgress() || 0;
+    if (cuff > 0) {
+      const s = this.toScreen(g.player.x, g.player.y + 16); // under the feet, clear of name tags
+      const bw = 56 * dpr;
+      ctx.fillStyle = 'rgba(20,20,30,0.8)';
+      ctx.fillRect(s.x - bw / 2 - 2 * dpr, s.y - 2 * dpr, bw + 4 * dpr, 9 * dpr);
+      ctx.fillStyle = Math.floor(this.time * 6) % 2 ? '#ff4a4a' : '#4a7aff';
+      ctx.fillRect(s.x - bw / 2, s.y, bw * cuff, 5 * dpr);
+      ctx.font = `bold ${10 * dpr}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('BEING CUFFED — run!', s.x, s.y + 18 * dpr);
+    }
     // red vignette when the player is hurt
     const hurt = g.player.hurtAt ? Math.max(0, 1 - (g.realTime - g.player.hurtAt) / 0.6) : 0;
     const low = g.player.health < 30 ? 0.25 + Math.sin(this.time * 4) * 0.08 : 0;
@@ -14745,7 +16384,8 @@ class DialogueSession {
   vars() {
     const g = this.game;
     const pun = g.dailyPun ? g.dailyPun() : {};
-    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline };
+    const pol = g.police;
+    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline, bribe: pol?.bribePrice(), fine: pol?.finePrice(), bribedUntil: g.world.police?.bribedUntilDay, record: g.world.police?.record ?? 0 };
   }
 
   /** Resolve a "say" (array of pages; pages may be conditional objects). Runs page effects. */
@@ -15593,6 +17233,9 @@ const HELP = [
   ['stat <charm|wits|grit|finesse> <1–5>', 'set a stat'],
   ['rep <faction> <n>', 'set reputation'],
   ['flag <name> [value]', 'show or set a story flag'],
+  ['wanted <0–3> · record <n>', 'set your Wanted level or criminal record'],
+  ['jail [hours] · release', 'go to jail (optional sentence) or walk free'],
+  ['bribe', 'the police look the other way for 3 days (free)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -15782,6 +17425,43 @@ function runCommand(game, line) {
       game.setFlag(name, val);
       return out(`${name} = ${JSON.stringify(val)}`);
     }
+    case 'wanted': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Wanted: ${game.world.police.wanted}. Usage: wanted <0–3>`, false);
+      const pol = game.police;
+      const lvl = clamp(Math.round(n), 0, 3);
+      if (lvl === 0) {
+        game.world.police.wanted = 0;
+        for (const o of pol.activeOfficers()) { if (o.pursuit) pol.endPursuit(o); o.hostile = null; }
+        game.bus.emit('police:wanted', { level: 0 });
+      } else {
+        game.world.police.wanted = 0;
+        pol.raiseWanted([0, 1, 3, 10][lvl], 'debug');
+      }
+      return out(`Wanted: ${game.world.police.wanted}`);
+    }
+    case 'record': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Record: ${game.world.police.record}. Usage: record <n>`, false);
+      game.world.police.record = Math.max(0, Math.round(n));
+      return out(`Record: ${game.world.police.record}${game.police.lax() ? ' (the Chief doesn\'t care yet)' : ' (known criminal)'}`);
+    }
+    case 'jail': {
+      if (game.police.jailed()) return out('Already in jail.', false);
+      game.police.sendToJail('arrested');
+      const h = parseNum(args[0]);
+      if (h !== null) game.world.police.jail.until = game.clock.total + Math.max(1, h) * 60;
+      return out(`Jailed: ${game.police.hoursLeft()} hours.`);
+    }
+    case 'release': {
+      if (!game.police.jailed()) return out('Not in jail.', false);
+      game.police.release();
+      return out('Released.');
+    }
+    case 'bribe': {
+      game.world.police.bribedUntilDay = game.clock.day + 3;
+      return out(`The police look the other way until the end of Day ${game.world.police.bribedUntilDay}.`);
+    }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);
   }
@@ -15818,7 +17498,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -16183,7 +17863,7 @@ function struckDownPanel(ui, body, opts) {
         if (ui.loadFrom('auto') === false) { chosen = false; rise(); return; } // couldn't load: rise instead
         ui.el.hud.classList.remove('cinematic');
       } }, 'Load last autosave') : null,
-      h('button', { class: 'primary', onclick: rise }, 'Rise again (wake at home tomorrow)')),
+      h('button', { class: 'primary', onclick: rise }, opts.after === 'jail' ? 'Wake up (in a cell)' : 'Rise again (wake at home tomorrow)')),
   );
   return { title: 'You were struck down', onClose: rise };
 }
@@ -16271,7 +17951,7 @@ function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = sys === 'oil' ? ui.game.oil : sys === 'construction' ? ui.game.construction : ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -16492,6 +18172,7 @@ class UI {
       clock: document.getElementById('hud-clock'),
       location: document.getElementById('hud-location'),
       money: document.getElementById('hud-money'),
+      wanted: document.getElementById('hud-wanted'),
       tracker: document.getElementById('hud-tracker'),
       prompt: document.getElementById('hud-prompt'),
       health: document.getElementById('bar-health'),
@@ -16749,12 +18430,22 @@ class UI {
       this.audio.sfx('sfx_wrath', { theme });
     });
     // each strike sounds like what hits you
-    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam' }[theme] || 'sfx_thunder', { index }));
+    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram' }[theme] || 'sfx_thunder', { index }));
     bus.on('combat:wrathEnd', ({ npcId }) => {
       this.el.hud.classList.add('cinematic');
-      this.openPanel('struckDown', { name: game.npcs.get(npcId)?.profile.name || 'them' });
+      const victim = game.npcs.get(npcId);
+      this.openPanel('struckDown', { name: victim?.profile.name || 'them', after: victim?.profile.wrath?.after });
     });
     bus.on('combat:playerDown', () => {
+      this.closeAllPanels();
+      if (this.dialogue.open) this.dialogue.close();
+      this.el.fade.classList.add('on');
+      setTimeout(() => { this.el.fade.classList.remove('on'); this.renderer.snapCamera(); }, 900);
+    });
+    // the police (src/systems/police.js)
+    bus.on('police:wanted', ({ level }) => { if (level > 0) this.audio.sfx('sfx_fail'); });
+    bus.on('police:jailed', () => {
+      if (game.combat.wrath) return; // the struck-down card handles the cut
       this.closeAllPanels();
       if (this.dialogue.open) this.dialogue.close();
       this.el.fade.classList.add('on');
@@ -16822,6 +18513,11 @@ class UI {
       }
       case 'nextWeapon': {
         const r = this.game.combat.cycle(1);
+        if (r.text) this.toast(r.text, 'info', 2);
+        break;
+      }
+      case 'surrender': {
+        const r = this.game.police.surrender();
         if (r.text) this.toast(r.text, 'info', 2);
         break;
       }
@@ -16925,6 +18621,14 @@ class UI {
     set(this.el.location, p.areaName || g.currentMap().name);
     set(this.el.money, `🪙 ${p.money} obols`);
     this.el.health.style.width = `${p.health}%`;
+    // the law: Wanted stars, a bribe running, time left inside
+    const pol = g.world.police;
+    let whtmlWanted = '';
+    if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
+    if (pol?.jail) whtmlWanted += `<span class="tag">⛓ In jail · ${g.police.hoursLeft()}h left</span>`;
+    else if (g.police?.bribed()) whtmlWanted += `<span class="tag">🤝 Police paid off · until end of Day ${pol.bribedUntilDay}</span>`;
+    if (this.el.wanted.innerHTML !== whtmlWanted) this.el.wanted.innerHTML = whtmlWanted;
+    this.el.wanted.classList.toggle('hidden', !whtmlWanted);
     this.el.energy.style.width = `${p.energy}%`;
     const w = g.combat.equipped();
     const ammo = g.combat.ammoStatus();
