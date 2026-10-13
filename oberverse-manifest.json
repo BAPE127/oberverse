@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -184,7 +184,8 @@
     "mapPreview": "npm run map -- <mapId>",
     "build": "npm run build (writes the standalone index.html)",
     "devServer": "npm run dev (dev.html, multi-file, for development only)",
-    "embedPortraits": "node tools/embed-portraits.mjs"
+    "embedPortraits": "node tools/embed-portraits.mjs",
+    "debugMenu": "In game: ` (backquote) or Pause → Debug menu. Commands in src/game/debugCommands.js"
   },
   "compatibility": {
     "loadsSaveSchemas": [

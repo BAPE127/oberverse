@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.7.0
+# Known Issues and Limitations — v0.8.0
 
 ## Not yet implemented (planned)
 
@@ -19,6 +19,7 @@
 - NPCs do not physically collide with the player or each other (they pass through; it avoids deadlocks in narrow interiors) — so in a fight, attackers can stand inside you.
 - Killing a story character can make quests impossible (by design, they fail). Dialogue elsewhere may still mention a dead character as if alive (lines are not yet death-aware).
 - Fleeing NPCs run in a straight line away from you and can get stuck in corners until their fear wears off (~45 game minutes).
+- The Debug menu is available to everyone who plays (it's a testing tool, not hidden); saves made with it are flagged `debug_used`. `time` only moves the clock forward. Teleporting into a locked interior bypasses its lock.
 - The Wrath cutscene can't be skipped (about 10 seconds). Dialogue doesn't yet react to `smitten_by_<id>` (the flag is recorded for future lines).
 - The Wrath's lightning starts above the top of the screen; in tall interiors it appears through the ceiling (intentionally: it's the Oberverse).
 - Gunshots only alarm people on the same map; a fight in a building is not heard outside.

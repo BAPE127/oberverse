@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.8.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Debug Menu',
+    notes: [
+      'Press ` (backquote) — or Pause → Debug menu — for a testing toolbox: quick buttons (money, heal, god mode, all weapons, ammo, revive everyone, change the time), teleport to any map, and a searchable item spawner.',
+      'A command console in the same menu: give, take, money, health, energy, heal, god, weapons, ammo, time, skip, tp, revive, npcs, stat, rep, flag — type help for the list. Up/Down recalls earlier commands.',
+      'The old FPS/NPC overlay is now the "Overlay" button inside the menu. Saves where debug tools were used are marked debug_used.',
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-10-13',
     channel: 'development',

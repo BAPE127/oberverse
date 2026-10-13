@@ -219,6 +219,7 @@ export class UI {
     const fn = PANELS[name];
     if (!fn) return;
     if (this.state === 'playing' && this.game) this.game.paused = true;
+    this.caption?.classList.add('hidden'); // captions belong to the world, not to menus
     const top = this.panelStack[this.panelStack.length - 1];
     if (top && top.name === name) this.panelStack.pop();
     this.panelStack.push({ name, opts });
@@ -396,8 +397,7 @@ export class UI {
       case 'quicksave': this.saveTo('slot1'); break;
       case 'quickload': this.loadFrom('slot1'); break;
       case 'debug':
-        this.settings.showFps = !this.settings.showFps;
-        this.applySettings();
+        this.openPanel('debug');
         break;
       default:
         if (action.startsWith('choice')) {

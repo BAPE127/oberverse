@@ -5,6 +5,7 @@ import { RELEASE_NOTES } from '../core/releaseNotes.js';
 import { SLOTS } from '../save/saveManager.js';
 import { STATS } from '../dialogue/dialogueEngine.js';
 import { OIL_PROJECTS } from '../systems/oilCompany.js';
+import { runCommand } from '../game/debugCommands.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -35,6 +36,7 @@ export function pausePanel(ui, body) {
       b('Journal', () => ui.openPanel('journal')),
       b('Settings', () => ui.openPanel('settings')),
       b('About & release history', () => ui.openPanel('about')),
+      b('Debug menu (testing)', () => ui.openPanel('debug')),
       b('Quit to title', () => ui.quitToTitle()),
     ),
     h('p', { class: 'muted', style: 'text-align:center;margin-top:16px' }, `The Oberverse ${versionLabel()} · save schema ${SAVE_SCHEMA_VERSION}`),
@@ -267,6 +269,99 @@ export function messagePanel(ui, body, opts) {
     body.append(h('div', { class: 'row' }, h('button', { class: 'ghost', onclick: () => ui.closePanel() }, opts.cancelLabel || 'Cancel'), h('button', { class: 'primary', onclick: () => opts.confirm() }, opts.confirmLabel || 'OK')));
   }
   return { title: opts.title || '' };
+}
+
+// -------------------------------------------------------------------- debug
+/** Debug menu (` key): testing tools and a command console. Not part of normal play. */
+export function debugPanel(ui, body) {
+  const g = ui.game;
+  ui.debugLog = ui.debugLog || ['Debug console — type help for commands. Changes mark the save as debug_used.'];
+  ui.debugHistory = ui.debugHistory || [];
+  const status = h('div', { class: 'grid2 debug-status' });
+  const log = h('pre', { class: 'debug-log' });
+  const refresh = () => {
+    const p = g.player;
+    const w = g.combat.equipped();
+    const ammo = g.combat.ammoStatus();
+    status.innerHTML = '';
+    status.append(
+      h('div', { class: 'stat' }, h('span', {}, 'Obols'), h('b', {}, String(p.money))),
+      h('div', { class: 'stat' }, h('span', {}, 'Health / energy'), h('b', {}, `${Math.round(p.health)} / ${Math.round(p.energy)}${p.god ? ' · GOD' : ''}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Where'), h('b', {}, `${p.map} ${Math.floor(p.x / 32)},${Math.floor(p.y / 32)}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'When'), h('b', {}, `Day ${g.clock.day} ${g.clock.timeString}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Weapon'), h('b', {}, `${w.name}${ammo ? ` ${ammo.loaded}/${ammo.mag} · ${ammo.reserve}` : ''}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Overlay'), h('b', {}, ui.settings.showFps ? 'on' : 'off')),
+    );
+    log.textContent = ui.debugLog.slice(-200).join('\n');
+    log.scrollTop = log.scrollHeight;
+  };
+  const run = (line) => {
+    if (!line.trim()) return;
+    ui.debugHistory.push(line);
+    ui.debugLog.push(`> ${line}`);
+    if (line.trim() === 'clear') ui.debugLog = [];
+    else if (line.trim() === 'overlay') {
+      ui.settings.showFps = !ui.settings.showFps;
+      ui.applySettings();
+      ui.debugLog.push(`Overlay ${ui.settings.showFps ? 'on' : 'off'}.`);
+    } else {
+      const r = runCommand(g, line);
+      if (r.text) ui.debugLog.push(r.text);
+    }
+    refresh();
+  };
+  const btn = (label, line, cls = 'small') => h('button', { class: cls, onclick: () => run(line) }, label);
+
+  // quick actions
+  const quick = h('div', { class: 'debug-quick' },
+    btn('+100 obols', 'money +100'), btn('+1000 obols', 'money +1000'), btn('Heal', 'heal'), btn('God mode', 'god'),
+    btn('All weapons', 'weapons'), btn('Ammo', 'ammo'), btn('Revive all', 'revive all'),
+    btn('→ 08:00', 'time 08:00'), btn('→ 22:00', 'time 22:00'), btn('Skip 1 h', 'skip 60'), btn('Overlay', 'overlay'),
+  );
+
+  // teleport
+  const mapSel = h('select', { class: 'debug-select' }, ...[...g.maps.values()].map((m) => h('option', { value: m.id, selected: m.id === g.player.map }, `${m.name} (${m.id})`)));
+  const tp = h('div', { class: 'debug-row' }, mapSel, h('button', { class: 'small primary', onclick: () => { run(`tp ${mapSel.value}`); } }, 'Teleport'));
+
+  // item spawner
+  const search = h('input', { type: 'text', class: 'debug-input', placeholder: 'Search items (name, id or category: weapon, ammo, gift…)' });
+  const qty = h('input', { type: 'number', class: 'debug-qty', value: '1', min: '1' });
+  const list = h('div', { class: 'list debug-items' });
+  const drawItems = () => {
+    const q = search.value.trim().toLowerCase();
+    list.innerHTML = '';
+    const matches = Object.entries(g.content.items).filter(([id, it]) => !q || id.includes(q) || it.name.toLowerCase().includes(q) || it.category === q);
+    for (const [id, it] of matches.slice(0, 40)) {
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(it)),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, it.name, h('span', { class: 'tag' }, it.category), g.inventory.count(id) ? h('span', { class: 'tag good' }, `have ${g.inventory.count(id)}`) : null), h('div', { class: 'desc' }, id)),
+        h('button', { class: 'small primary', onclick: () => { run(`give ${id} ${Math.max(1, Number(qty.value) || 1)}`); drawItems(); } }, 'Give')));
+    }
+    if (!matches.length) list.append(h('p', { class: 'muted' }, 'No items match.'));
+  };
+  search.addEventListener('input', drawItems);
+
+  // console
+  let hi = ui.debugHistory.length;
+  const input = h('input', { type: 'text', class: 'debug-input debug-console', placeholder: 'Command (help, give pistol, money 500, tp halvermouth, revive all…)', autocomplete: 'off', spellcheck: 'false' });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { run(input.value); input.value = ''; hi = ui.debugHistory.length; }
+    else if (e.key === 'ArrowUp') { hi = Math.max(0, hi - 1); input.value = ui.debugHistory[hi] || ''; e.preventDefault(); }
+    else if (e.key === 'ArrowDown') { hi = Math.min(ui.debugHistory.length, hi + 1); input.value = ui.debugHistory[hi] || ''; e.preventDefault(); }
+    else if (e.key === 'Escape') { input.blur(); ui.closePanel(); }
+    e.stopPropagation();
+  });
+
+  body.append(
+    status,
+    h('h3', {}, 'Quick'), quick,
+    h('h3', {}, 'Teleport'), tp,
+    h('h3', {}, 'Console'), log, input,
+    h('h3', {}, 'Spawn items'), h('div', { class: 'debug-row' }, search, h('span', { class: 'muted' }, 'qty'), qty), list,
+  );
+  refresh();
+  drawItems();
+  setTimeout(() => input.focus(), 30);
+  return { title: 'Debug menu' };
 }
 
 // --------------------------------------------------------------- struck down
@@ -529,6 +624,7 @@ export const PANELS = {
   read: readPanel,
   message: messagePanel,
   struckDown: struckDownPanel,
+  debug: debugPanel,
   settings: settingsPanel,
   saves: savesPanel,
   about: aboutPanel,

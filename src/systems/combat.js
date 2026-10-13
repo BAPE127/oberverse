@@ -421,6 +421,7 @@ export class Combat {
     const g = this.game;
     const p = g.player;
     if (this.playerDownUntil && g.realTime < this.playerDownUntil) return;
+    if (p.god) return; // debug god mode
     const dmg = Math.max(1, Math.round(amount * (0.85 + g.rng.next() * 0.3)));
     p.health = Math.max(0, p.health - dmg);
     p.hurtAt = g.realTime;

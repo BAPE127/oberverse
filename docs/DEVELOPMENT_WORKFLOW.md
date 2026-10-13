@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-13 — v0.8.0.** Debug menu and console (` key) for testing. New commands go in `src/game/debugCommands.js` (add a test).
 - **2026-10-13 — v0.7.0.** Imported characters protected; the Wrath cutscene. Owner's rule: imported characters can't be killed unless they say so.
 - **2026-10-13 — v0.6.0.** Combat system (melee + guns, NPC health bars, knock-outs, death, reactions). Next candidates: police response in Halvermouth, arrests/bounties, armour, touch controls, death-aware dialogue.
 - **2026-10-13 — v0.5.0.** Halvermouth city map (separate region via gateways; map-only by request: "start by only building the map"). Next: the city's people and systems, as directed by the project owner (Mayor, police, gun-shop owner, Sumps residents, etc. — none designed yet).

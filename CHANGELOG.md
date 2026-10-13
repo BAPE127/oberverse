@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.8.0] — 2026-10-13 — "Debug Menu" (development build)
+
+### Added
+- **Debug menu** (` key, or Pause → *Debug menu (testing)*): live status (obols, health/energy, position, time, weapon/ammo), quick buttons (+100/+1000 obols, heal, god mode, all weapons, ammo, revive all, jump to 08:00/22:00, skip an hour, overlay), a map teleporter, a searchable **item spawner** with quantity, and a **command console** with history (Up/Down).
+- **Console commands** (`src/game/debugCommands.js`, DOM-free and tested): `help`, `give <item> [n]`, `take <item> [n]`, `items [filter]`, `money <n|+n|-n>`, `health <n>`, `energy <n>`, `heal`, `god`, `weapons`, `ammo [n]`, `time HH:MM`, `skip <min>`, `maps`, `spots <map>`, `tp <map> [spot]`, `revive <npc|all>`, `npcs`, `stat <stat> <1–5>`, `rep <faction> <n>`, `flag <name> [value]`, `overlay`, `clear`. Items resolve by id or part of the name.
+- God mode (`player.god`) blocks all damage except the Wrath.
+- Tests: `tests/debug.test.mjs` (5 tests).
+
+### Changed
+- The ` key opens the Debug menu instead of toggling the overlay directly (the overlay is a button and a command in the menu).
+- Opening any menu hides the world caption box so it can't cover the menu.
+- Any state-changing debug command sets the flag `debug_used` in the save.
+
 ## [0.7.0] — 2026-10-13 — "The Oberverse Protects Its Own" (development build)
 
 ### Added
