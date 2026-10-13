@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff',
 ];
 
 /**
@@ -67,6 +67,24 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'arms': {
+      // { licence: true, owns: true, researched: 'smg' }
+      const a = game.arms;
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'licence': return a.licensed() === v;
+          case 'owns': return (a.ownedIds().length > 0) === v;
+          case 'researched': return a.done(v);
+          default: return false;
+        }
+      });
+    }
+    case 'staff': {
+      // this NPC is one of your employees: { morale: '>=50', assigned: true }
+      const st = npc ? game.arms.state.staff.find((x) => x.id === npc.id) : null;
+      if (!st) return false;
+      return Object.entries(val).every(([k, v]) => (k === 'assigned' ? Boolean(st.assigned) === v : compare(st[k] ?? 0, v)));
     }
     case 'factory': {
       // { owns: true (any warehouse), made: '>=5', contract: true }

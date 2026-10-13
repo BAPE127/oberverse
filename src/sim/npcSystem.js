@@ -18,7 +18,7 @@ const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
 
 /** Intents set by other systems (police dispatch, deal meetings, gang hunts) that the schedule must not override. */
-const HELD_INTENTS = ['dispatch', 'deal', 'hunt'];
+const HELD_INTENTS = ['dispatch', 'deal', 'hunt', 'staff'];
 
 export class NpcSystem {
   constructor(game) {

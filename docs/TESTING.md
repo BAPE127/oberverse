@@ -28,6 +28,7 @@
 | `world_halvermouth.test.mjs` | Halvermouth: separate region, gateway travel both ways, required buildings/districts/slum, reachability of every open door and interior, opening hours, saves. |
 | `combat.test.mjs` | Weapon variety, punching + health bar, flee vs fight-back, the player being beaten, witnesses, knock-outs and waking, killing (permanent, quests fail, saves), buying/loading/shooting a gun, walls stopping bullets, gunfire panic, weapons in the world, old saves. |
 | `wrath.test.mjs` | Protection of imported characters (and only them), the Wrath freezing the world, five strikes, rising again, every weapon type triggering it, `killable: true` lifting it. |
+| `arms.test.mjs` | Lucas and Pipecreek, the pitch and the licence, the Yards and works sizes, terminal orders, station placement and staffing, applicants and bunks, staff staying in their works, research, a staffed assembly line into the export cage, payroll and quitting, wholesale and Lucas's budget, save/load, Lucas's Wrath, the new guns and recipe integrity. |
 | `factory.test.mjs` | Warehouses, signs and doors; Sal's shops and unlocks; hand-crafting the full chain; placement rules; arms, belts, machines; a full parts-to-calculator line; power; backed-up belts and full outputs; deliveries; running while away; save/load as props; the machine panel; debug commands. |
 | `gang.test.mjs` | The Sums of Anarchy cast, calculators (highs, comedowns, tolerance, heal, energy crash), Grit, Minnie's shop and counter, samples and stealing, orders, deliveries, referrals, missed orders, dealing and the police, anger tiers, ambushes and hunts, truce, hurting the crew, Arthur's Wrath, gang-police insults, jail confiscation, saves, debug commands, the Abacus. |
 | `police.test.mjs` | The police cast (imported chief, armed killable officers, beats in all four areas), the lax chief, calls and dispatch, bribes and fines, pursuit and cuffing, surrender, death → jail, serving a sentence, all four breakouts, the LAW Wrath → jail, killing an officer, Wanted lapse and record decay, saves, debug commands, walkable precinct and cells. |
@@ -37,6 +38,13 @@
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.13.0 (2026-10-13)
+
+- `npm run check` — **189/189 tests passed** (14 new in `arms.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real keyboard and mouse): Pipecreek Armory with Lucas at the counter; E at the counter opened his shop and buying a pistol set the pitch flag; his dialogue opened with portrait. Mill Road Yards rendered. In Yard 1 Works, B placed six workstations, an arm and belts by clicking; three hired staff were auto-assigned and walked to their stations; a barrel was made in the first minutes. The terminal: rotating globe with countries, borders and routes; Staff, Research, Parts and Market tabs. F on Lucas played the arms Wrath (crates, missile, drones, SOLD tag). Fixed from the run: a stray "null" line on the terminal. No page errors or game warnings.
+- Audio: `sfx_wrath` (arms) and `sfx_crate` rendered offline; peaks 0.37–0.93. Not listened to by ear.
 
 ## Verification record — v0.12.0 (2026-10-13)
 

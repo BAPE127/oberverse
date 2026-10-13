@@ -34,11 +34,14 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_tony` | Tony Tangent | Generated for the Arthur import | Minor | Lookout at the Sumps gate | — | Implemented & tested |
 | `npc_max` | Max Imum | Generated for the Arthur import | Minor | Reckless; machete | — | Implemented & tested |
 | 12 customers | Ray, Mo, Dot, Bill, Lena, Gus, Fern, Nico, Hattie, Bram, Pearl, Sol | Generated for the Arthur import | Minor | Sumps residents who buy calculators (`profile.customer`) | — | Implemented & tested |
+| `npc_lucas` | Lucas Eastrise | **Imported** (2026-10-13) | Major | Owner of Pipecreek Armory; sleazy, creepy, conspiratorial; sets you up in the arms trade; protected (arms Wrath) | `motif_lucas` | Implemented & tested |
+| `npc_sal` | Sal Vage | Generated for the gang update | Minor | Sal's Surplus Electronics: calculator parts, machinery, deliveries | — | Implemented & tested |
+| `npc_staff_*` | (procedural) | Generated at runtime | Minor | Your arms-works employees (`world.arms.staff`) | — | Implemented & tested |
 | `npc_dee` | Dolores "Dee" Rivera | Generated for the Mason import | Minor | Site foreman; hires and pays | — | Implemented & tested |
 | `npc_barnaby` | Barnaby Cole | 〃 | Minor | Labourer; birdwatcher; gull defender | — | Implemented & tested |
 | `npc_quinn` | Quinn Abernathy | 〃 | Minor | Apprentice surveyor and draftsperson | — | Implemented & tested |
 
-Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`) and **Arthur Anderson** (see `docs/characters/npc_arthur.md`). Their employees were generated at the player's request; minor characters have no individual motif.
+Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`) **Arthur Anderson** (see `docs/characters/npc_arthur.md`) and **Lucas Eastrise** (see `docs/characters/npc_lucas.md`). Their employees were generated at the player's request; minor characters have no individual motif.
 
 ## Combat temperaments (`profile.combat`)
 
@@ -48,7 +51,7 @@ Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`
 
 Everyone else decides by personality (confidence and competitiveness). Anyone below 25% health stops fighting and runs.
 
-**Protected (imported) characters:** Sir Moneybucks, Mason Nails, Chief Lawrence Order and Arthur Anderson cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
+**Protected (imported) characters:** Sir Moneybucks, Mason Nails, Chief Lawrence Order, Arthur Anderson and Lucas Eastrise cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
 
 ## Sir Moneybucks — `npc_moneybucks`
 

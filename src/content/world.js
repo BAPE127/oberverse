@@ -9,6 +9,11 @@ export const REGIONS = {
     name: 'Halvermouth',
     maps: { halvermouth: { x: 0, y: 0, fallbackSpot: 'east_gate' } },
   },
+  // Mill Road Yards (v0.13.0): through the gate at the west end of Mill Road.
+  yards: {
+    name: 'Mill Road Yards',
+    maps: { yards: { x: 0, y: 0, fallbackSpot: 'east_gate' } },
+  },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {

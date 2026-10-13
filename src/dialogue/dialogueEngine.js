@@ -36,6 +36,10 @@ export class DialogueSession {
     const o = c?.order;
     const f = g.factory;
     const fx = f ? { made: f.state.made, smallPrice: g.content.deliveries?.small?.price, largePrice: g.content.deliveries?.large?.price, contract: f.state.contract ? g.content.deliveries[f.state.contract].name.toLowerCase() : 'none', deliveryTo: f.deliveryTarget() ? f.def(f.deliveryTarget()).name : 'your warehouse' } : {};
+    const a = g.arms;
+    const st = a?.state.staff.find((x) => x.id === this.npc.id);
+    if (a) Object.assign(fx, { lucasBudget: a.lucasBudgetLeft() });
+    if (st) Object.assign(fx, { staffMain: st.main, staffWage: st.wage, staffMorale: Math.round(st.morale), staffQuirk: st.quirk ? a.cfg.quirks[st.quirk].name : 'none', staffStation: st.assigned ? a.cfg.stations[a.findEntity(st.assigned)?.kind]?.name || 'nothing' : 'nothing' });
     const out = { ...fx, tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
     if (o) Object.assign(out, { orderQty: o.qty, orderName: g.content.items[`item_calc_${o.type}`]?.name, orderPrice: o.price, orderTotal: o.qty * o.price });
     if (this.profile.customer) out.favourite = g.content.items[`item_calc_${this.profile.customer.favourite}`]?.name;

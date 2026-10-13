@@ -24,6 +24,7 @@ import { Police, freshPolice } from '../systems/police.js';
 import { Calculators } from '../systems/calculators.js';
 import { Gang, freshGang } from '../systems/gang.js';
 import { Factory, freshFactory } from '../systems/factory.js';
+import { Arms, freshArms } from '../systems/arms.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -56,6 +57,7 @@ export class Game {
     this.calculators = new Calculators(this);
     this.gang = new Gang(this);
     this.factory = new Factory(this);
+    this.arms = new Arms(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -130,6 +132,7 @@ export class Game {
       police: freshPolice(),
       gang: freshGang(this.content),
       factory: freshFactory(this.content),
+      arms: freshArms(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -291,6 +294,7 @@ export class Game {
     this.calculators.minuteTick();
     this.gang.minuteTick();
     this.factory.minuteTick();
+    this.arms.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -683,6 +687,7 @@ export class Game {
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
       case 'shop': return `Browse the ${name.toLowerCase()}`;
+      case 'arms': return { buy: this.arms.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', terminal: 'Use the terminal', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'factory': return { buy: this.factory.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', workbench: 'Use the workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
@@ -768,6 +773,8 @@ export class Game {
         return this.police.jailInteract(prop);
       case 'factory':
         return this.factory.interact(prop);
+      case 'arms':
+        return this.arms.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -927,7 +934,11 @@ export class Game {
   priceFor(shopId, itemId, selling = false) {
     const shop = this.content.shops[shopId];
     const owner = this.npcs.get(shop.owner);
-    if (selling) return shop.buys?.[itemId] ?? 0;
+    if (selling) {
+      // Lucas buys arms-works output wholesale (src/systems/arms.js)
+      if (shop.armsBuyer && this.content.items[itemId]?.arms && this.arms.licensed()) return this.arms.wholesale(itemId);
+      return shop.buys?.[itemId] ?? 0;
+    }
     const base = shop.prices?.[itemId] ?? this.content.items[itemId]?.price ?? 0;
     const disp = owner ? this.relationships.disposition(owner, 'player') : 0;
     const rep = this.player.reputation[owner?.profile.faction] || 0;
@@ -953,6 +964,10 @@ export class Game {
     if (!price || !this.inventory.count(itemId)) return { ok: false, text: 'They won\'t buy that.' };
     const owner = this.content.shops[shopId].owner;
     if (this.player.stolen[itemId] === owner) return { ok: false, text: 'Selling someone their own things back is a bold move. Too bold.' };
+    if (this.content.shops[shopId].armsBuyer && this.content.items[itemId]?.arms && this.arms.licensed()) {
+      const r = this.arms.sellToLucas(itemId, price);
+      if (!r.ok) return r;
+    }
     this.inventory.remove(itemId, 1);
     this.player.money += price;
     this.bus.emit('money:changed', { delta: price, total: this.player.money });
@@ -1085,6 +1100,9 @@ export class Game {
     this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
     this.world.factory = { ...fresh.factory, ...(this.world.factory || {}) };
     this.world.factory.warehouses = { ...fresh.factory.warehouses, ...(this.world.factory.warehouses || {}) };
+    this.world.arms = { ...fresh.arms, ...(this.world.arms || {}) };
+    this.world.arms.warehouses = { ...fresh.arms.warehouses, ...(this.world.arms.warehouses || {}) };
+    this.world.arms.research = { ...fresh.arms.research, ...(this.world.arms.research || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -1114,6 +1132,7 @@ export class Game {
         this.npcSystem.think(npc, true);
       }
     }
+    this.arms.spawnStaff();
     this.updateDiscovery();
     return this;
   }

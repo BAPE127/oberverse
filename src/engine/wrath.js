@@ -18,7 +18,9 @@
 // Lawrence Order: sirens, searchlights, badges and handcuffs, ramming squad
 // cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars), maths
 // (Arthur Anderson: graph paper, orbiting calculator keys and bad sums, steam,
-// falling digits, a giant calculator reading ERROR, division by zero).
+// falling digits, a giant calculator reading ERROR, division by zero), arms
+// (Lucas Eastrise: a showroom spotlight, orbiting guns, bullets and price
+// tags, crates of guns bursting, a missile strike, a drone swarm, a SOLD tag).
 import { clamp, lerp } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
@@ -1236,7 +1238,240 @@ const MATHS = {
   },
 };
 
-export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS };
+// ================================================================= ARMS
+function gunShape(ctx, x, y, s, rot, colour = '#2a2a2e') {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = colour;
+  ctx.fillRect(-8, -3, 16, 4); // slide/barrel
+  ctx.fillRect(-7, 0, 5, 7); // grip
+  ctx.fillRect(-2, 1, 3, 2); // trigger guard
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(-8, -3, 16, 1);
+  ctx.restore();
+}
+
+function bullet(ctx, x, y, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle = '#d8a83a';
+  ctx.fillRect(-3, -1.5, 5, 3);
+  ctx.fillStyle = '#b87a3a';
+  ctx.beginPath(); ctx.arc(2, 0, 1.5, -Math.PI / 2, Math.PI / 2); ctx.fill();
+  ctx.restore();
+}
+
+function crate(ctx, x, y, s, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.fillStyle = '#8a6a3a';
+  ctx.fillRect(-14, -12, 28, 24);
+  ctx.strokeStyle = '#5a3e22';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-13, -11, 26, 22);
+  ctx.beginPath(); ctx.moveTo(-13, -11); ctx.lineTo(13, 11); ctx.stroke();
+  ctx.fillStyle = '#2a2a2e';
+  ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('NOT GUNS', 0, 2);
+  ctx.restore();
+}
+
+function quad(ctx, x, y, s, t) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.strokeStyle = '#1e1e22';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-8, -8); ctx.lineTo(8, 8); ctx.moveTo(8, -8); ctx.lineTo(-8, 8); ctx.stroke();
+  ctx.fillStyle = '#2a2a2e';
+  ctx.fillRect(-4, -3, 8, 6);
+  ctx.fillStyle = Math.floor(t * 10) % 2 ? '#ff3a2a' : '#3aff6a';
+  ctx.fillRect(-1, -1, 2, 2);
+  ctx.fillStyle = 'rgba(200,200,210,0.5)';
+  for (const [dx, dy] of [[-8, -8], [8, -8], [-8, 8], [8, 8]]) { ctx.beginPath(); ctx.ellipse(dx, dy, 5, 1.5, t * 30, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
+function priceTag(ctx, x, y, s, rot, text) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = '#f4e6b8';
+  ctx.strokeStyle = '#6a4a1e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-26, -10); ctx.lineTo(18, -10); ctx.lineTo(28, 0); ctx.lineTo(18, 10); ctx.lineTo(-26, 10); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#6a4a1e';
+  ctx.beginPath(); ctx.arc(19, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c0302a';
+  ctx.font = 'bold 11px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, -4, 1);
+  ctx.restore();
+}
+
+function fireball(ctx, x, y, age, seed) {
+  const R = rng(seed);
+  const life = 1 - ease(age / 1.2);
+  if (life <= 0) return;
+  for (let i = 0; i < 16; i++) {
+    const a = R() * Math.PI * 2;
+    const d = (10 + R() * 50) * ease(age / 0.5);
+    const rr = (8 + R() * 16) * (0.6 + age);
+    ctx.fillStyle = i % 3 === 0 ? `rgba(60,50,45,${0.6 * life})` : i % 3 === 1 ? `rgba(255,${120 + Math.floor(R() * 80)},40,${0.8 * life})` : `rgba(255,230,140,${0.7 * life})`;
+    ctx.beginPath(); ctx.arc(x + Math.cos(a) * d, y - Math.abs(Math.sin(a)) * d * 0.8 - 10, rr, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+const ARMS = {
+  banner: 'EVERYTHING IS FOR SALE',
+  sky: [40, 30, 8, 8, 6, 2],
+  flash: '255,225,160',
+  ground(I) {
+    const { ctx, e, conv, vx, vfeet, p } = I;
+    // a showroom spotlight under Lucas: velvet and gold
+    const r = 120 * ease((e - 0.2) / 0.9) * (1 - conv * 0.6) * (1 - ease((e - WRATH.fade) / 0.6));
+    if (r > 2) {
+      onGround(ctx, vx, vfeet, () => {
+        const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        gr.addColorStop(0, 'rgba(255,220,140,0.45)');
+        gr.addColorStop(1, 'rgba(120,20,30,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(216,168,58,0.8)';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+      });
+    }
+    // under the player: a red reticle
+    const mark = ease((e - WRATH.converge) / 0.4) * (1 - ease((e - WRATH.fade) / 0.5));
+    if (mark > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.globalAlpha = mark;
+        ctx.strokeStyle = '#ff3a2a';
+        ctx.lineWidth = 3;
+        for (const rr of [16, 30, 44]) { ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.beginPath(); ctx.moveTo(-56, 0); ctx.lineTo(-8, 0); ctx.moveTo(8, 0); ctx.lineTo(56, 0); ctx.moveTo(0, -56); ctx.lineTo(0, -8); ctx.moveTo(0, 8); ctx.lineTo(0, 56); ctx.stroke();
+      }, 0.45);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const shrink = lerp(1, 0.55, conv) * (1 - ease((e - WRATH.lightning) / 0.5) * 0.4);
+    const fadeOut = 1 - ease((e - WRATH.ascend) / 0.3);
+    const spin = e + e * e * 0.35;
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    for (let i = 0; i < 8; i++) {
+      const a = spin * 1.1 + (i / 8) * Math.PI * 2;
+      const rad = 54 * unfold * shrink;
+      gunShape(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold * 1.3, a + Math.PI / 2, i % 2 ? '#2a2a2e' : '#5a4a3a');
+    }
+    for (let i = 0; i < 20; i++) {
+      const a = -spin * 1.6 + (i / 20) * Math.PI * 2;
+      const rad = 86 * unfold * shrink;
+      bullet(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, a + Math.PI / 2);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = spin * 0.7 + (i / 6) * Math.PI * 2;
+      const rad = 118 * unfold * shrink;
+      priceTag(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, 0.7 * unfold, Math.sin(a) * 0.4, ['$$$', 'SALE', '50% OFF', 'NO REFUNDS', 'AS IS', 'FINAL'][i]);
+    }
+    ctx.restore();
+  },
+  strike(I, i, age) {
+    const { ctx, p, top, w } = I;
+    const fade = 1 - ease((I.e - WRATH.fade) / 0.4);
+    if (i < 4) {
+      // crates of guns drop out of the sky and burst
+      if (age < -0.25 || I.e > WRATH.ascend + 0.4) return;
+      const tx = p.x + (hash2(w.seed, i) - 0.5) * 50;
+      const ty = p.y - 6 - i * 3;
+      if (age < 0) { crate(ctx, tx, lerp(top - 20, ty, ease((age + 0.25) / 0.25)), 1.2, fade); return; }
+      const R = rng(w.seed + i * 31);
+      const life = 1 - ease(age / 1.0);
+      for (let k = 0; k < 7; k++) {
+        const a = -Math.PI * (0.15 + R() * 0.7);
+        const sp = 60 + R() * 70;
+        const gx = tx + Math.cos(a) * sp * age;
+        const gy = ty + Math.sin(a) * sp * age + 160 * age * age;
+        ctx.globalAlpha = life * fade;
+        gunShape(ctx, gx, gy, 1.1, age * 8 + k);
+        ctx.fillStyle = '#8a6a3a';
+        ctx.fillRect(tx + Math.cos(a + 1) * sp * age * 0.6 - 4, ty + Math.sin(a) * sp * age * 0.6 + 100 * age * age - 2, 8, 3); // splinters
+      }
+      ctx.globalAlpha = 1;
+      if (age < 0.4) dust(ctx, tx, p.y, age, w.seed + i * 7, 0.7);
+      return;
+    }
+    // the last one: a missile streaks in
+    if (age < -0.4 || I.e > WRATH.end) return;
+    if (age < 0) {
+      const k = ease((age + 0.4) / 0.4);
+      const sx = p.x + 260;
+      const sy = top - 40;
+      const mx = lerp(sx, p.x, k);
+      const my = lerp(sy, p.y - 10, k);
+      ctx.strokeStyle = 'rgba(220,220,220,0.6)';
+      ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(mx, my); ctx.stroke();
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(Math.atan2(p.y - 10 - sy, p.x - sx));
+      ctx.fillStyle = '#c9ced4';
+      ctx.fillRect(-14, -3, 22, 6);
+      ctx.fillStyle = '#c0302a';
+      ctx.beginPath(); ctx.moveTo(8, -3); ctx.lineTo(14, 0); ctx.lineTo(8, 3); ctx.fill();
+      ctx.fillStyle = '#ffb84a';
+      ctx.beginPath(); ctx.arc(-15, 0, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      return;
+    }
+    fireball(ctx, p.x, p.y, age, w.seed + 55);
+    dust(ctx, p.x, p.y, age, w.seed + 66, 1.8);
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    const age = e - WRATH.ascend;
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    // a drone swarm circles in…
+    ctx.save();
+    ctx.globalAlpha = out;
+    for (let i = 0; i < 8; i++) {
+      const a = age * 2.2 + (i / 8) * Math.PI * 2;
+      const rad = lerp(160, 46, ease(age / 1.2));
+      quad(ctx, p.x + Math.cos(a) * rad, p.y - 30 + Math.sin(a) * rad * 0.5 - 20, 1, e + i);
+    }
+    ctx.restore();
+    // …and a giant price tag swings down on its string: SOLD
+    const drop = ease((age - 0.8) / 0.5);
+    if (drop > 0) {
+      const ty = lerp(I.top - 60, p.y - 70, drop);
+      const swing = Math.sin(age * 5) * 0.25 * Math.exp(-(age - 0.8) * 2);
+      ctx.save();
+      ctx.globalAlpha = out;
+      ctx.strokeStyle = '#6a4a1e';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(p.x, I.top - 60); ctx.lineTo(p.x, ty - 26); ctx.stroke();
+      priceTag(ctx, p.x, ty, 2.4, Math.PI / 2 + swing, 'SOLD');
+      ctx.restore();
+    }
+  },
+};
+
+export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS };
 
 // -------------------------------------------------------------- draw
 export function drawWrath(renderer, g, w) {

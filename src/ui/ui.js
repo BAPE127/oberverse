@@ -9,6 +9,9 @@ import { drawPortrait } from '../engine/drawCharacter.js';
 import { DialogueUI } from './dialogueUI.js';
 import { MapRenderer } from './maps.js';
 import { PANELS, h } from './panels.js';
+import { terminalPanel } from './terminal.js';
+
+PANELS.terminal = terminalPanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -321,7 +324,7 @@ export class UI {
       this.audio.sfx('sfx_wrath', { theme });
     });
     // each strike sounds like what hits you
-    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram', maths: 'sfx_digit' }[theme] || 'sfx_thunder', { index }));
+    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram', maths: 'sfx_digit', arms: 'sfx_crate' }[theme] || 'sfx_thunder', { index }));
     bus.on('combat:wrathEnd', ({ npcId }) => {
       this.el.hud.classList.add('cinematic');
       const victim = game.npcs.get(npcId);
@@ -445,6 +448,7 @@ export class UI {
       case 'choices': this.openPanel('choices', act); break;
       case 'contracts': this.openPanel('contracts', {}); break;
       case 'shop': this.openPanel('shop', { shopId: act.shopId }); break;
+      case 'terminal': this.openPanel('terminal', { warehouse: act.warehouse }); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;
@@ -476,10 +480,12 @@ export class UI {
   toggleBuild() {
     const g = this.game;
     if (this.build) return this.exitBuild();
-    const wh = g.factory.warehouseForMap(g.player.map);
+    const sys = [g.factory, g.arms].find((x) => x.warehouseForMap(g.player.map));
+    const wh = sys?.warehouseForMap(g.player.map);
     if (!wh) { this.toast('You can only build inside a warehouse you own.', 'info', 3); return; }
-    if (!g.factory.owns(wh)) { this.toast('This isn\'t your warehouse.', 'info', 3); return; }
-    this.build = { wh, tool: this.buildTools()[0] || 'remove', dir: 0 };
+    if (!sys.owns(wh)) { this.toast('This isn\'t your warehouse.', 'info', 3); return; }
+    this.build = { sys, wh, tool: null, dir: 0 };
+    this.build.tool = this.buildTools()[0] || 'remove';
     this.el.buildBar.classList.remove('hidden');
     this.buildBarKey = null;
     this.audio.sfx('sfx_ui_click');
@@ -492,7 +498,8 @@ export class UI {
   }
 
   buildTools() {
-    return this.game.inventory.list().filter((e) => e.def.build).map((e) => e.id);
+    const dom = this.build?.sys.domain;
+    return this.game.inventory.list().filter((e) => e.def.build && (!dom || (e.def.build.domain || (e.def.build.type === 'machine' ? 'calc' : dom)) === dom)).map((e) => e.id);
   }
 
   /** Returns true if build mode used the action. */
@@ -503,7 +510,7 @@ export class UI {
     if (action === 'build' || action === 'pause') { this.exitBuild(); return true; }
     if (action === 'reload') {
       // R: rotate the tool, or the belt/arm under the cursor when picking up
-      if (b.tool === 'remove' && c) g.factory.rotate(b.wh, c.x, c.y);
+      if (b.tool === 'remove' && c) b.sys.rotate(b.wh, c.x, c.y);
       else b.dir = (b.dir + 1) % 4;
       return true;
     }
@@ -516,13 +523,13 @@ export class UI {
     }
     if (action === 'remove' || (action === 'attack' && b.tool === 'remove')) {
       if (!c) return true;
-      const r = g.factory.remove(b.wh, c.x, c.y);
+      const r = b.sys.remove(b.wh, c.x, c.y);
       if (r.ok) this.audio.sfx('sfx_pickup'); else this.audio.sfx('sfx_fail');
       return true;
     }
     if (action === 'attack') {
       if (!c) return true;
-      const r = g.factory.place(b.wh, b.tool, c.x, c.y, b.dir);
+      const r = b.sys.place(b.wh, b.tool, c.x, c.y, b.dir);
       if (r.ok) this.audio.sfx('sfx_door'); else { this.audio.sfx('sfx_fail'); this.toast(r.text, 'info', 2); }
       if (!g.inventory.count(b.tool)) b.tool = this.buildTools()[0] || 'remove';
       return true;
@@ -533,18 +540,18 @@ export class UI {
   updateBuild() {
     const g = this.game;
     const b = this.build;
-    if (g.player.map !== g.content.warehouses[b.wh].map) return this.exitBuild();
+    if (g.player.map !== b.sys.def(b.wh).map) return this.exitBuild();
     const z = this.renderer.cam.zoom;
     const tx = Math.floor((this.renderer.cam.x + this.mouse.x / z) / TILE);
     const ty = Math.floor((this.renderer.cam.y + this.mouse.y / z) / TILE);
     const def = b.tool !== 'remove' ? g.content.items[b.tool]?.build : null;
     const w = def?.w || 1;
     const hh = def?.h || 1;
-    const valid = def ? !g.factory.blockReason(b.wh, tx, ty, w, hh) : Boolean(g.factory.at(b.wh, tx, ty)?.fx);
+    const valid = def ? !b.sys.blockReason(b.wh, tx, ty, w, hh) : Boolean(b.sys.at(b.wh, tx, ty)?.fx);
     this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter'), remove: !def };
     // the toolbar
     const tools = this.buildTools();
-    const p = g.factory.power(b.wh);
+    const p = b.sys.power(b.wh);
     const key = JSON.stringify([tools.map((id) => [id, g.inventory.count(id)]), b.tool, b.dir, p]);
     if (key === this.buildBarKey) return;
     this.buildBarKey = key;

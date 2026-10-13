@@ -4,6 +4,9 @@
 const ITEM_COLORS = {
   item_part_casing: '#d8d2c4', item_part_keypad: '#3a3a40', item_part_screen: '#9fb48a', item_part_board: '#2a7a3a', item_part_battery: '#c9c6c0',
   item_calc_core: '#3a8a4a', item_calc_shell: '#e8e2d4', item_calc_blank: '#6a6a72',
+  item_ap_steel: '#9aa3ab', item_ap_polymer: '#2a2a2e', item_ap_springs: '#c9ced4', item_ap_optics: '#7ab4ff', item_ap_electronics: '#2a7a3a', item_ap_battery: '#f2d23a',
+  item_ap_propellant: '#c9a24a', item_ap_explosive: '#6a7a3a', item_ap_motor: '#8a8e94', item_ap_guidance: '#3a8a4a', item_ap_airframe: '#3a3a40',
+  item_ai_barrel: '#4a4e56', item_ai_receiver: '#3a3e46', item_ai_furniture: '#5a4a3a', item_ai_warhead: '#6a5a2a', item_ai_seeker: '#e8e2d4', item_ai_flightctl: '#2a6a5a',
   item_calc_charm: '#f08ab0', item_calc_wits: '#9aa0a8', item_calc_grit: '#2a2a2e', item_calc_finesse: '#e2e6ea', item_calc_health: '#5ac87a', item_calc_energy: '#f2d23a',
 };
 const MACHINE = {
@@ -11,9 +14,24 @@ const MACHINE = {
   press: { body: '#7a5a3a', label: 'PRESS', glow: '#e8e2d4' },
   assembler: { body: '#3a6a5a', label: 'ASSEMBLE', glow: '#7ad0b0' },
   tuner: { body: '#6a3a6a', label: 'TUNE', glow: '#f08ab0' },
+  // arms works stations (v0.13.0)
+  lathe: { body: '#5a6a7a', label: 'LATHE', glow: '#ffd27a' },
+  assembly: { body: '#7a5a3a', label: 'ASSEMBLY', glow: '#f2e2b8' },
+  electronics: { body: '#2a5a4a', label: 'ELECTRONICS', glow: '#7affc8' },
+  explosives: { body: '#7a3a22', label: 'EXPLOSIVES', glow: '#ff9a3a', stripes: true },
+  rocket: { body: '#5a2e2e', label: 'ROCKETS', glow: '#ff6a3a', stripes: true },
+  drone: { body: '#2e3a5a', label: 'DRONES', glow: '#7ab4ff' },
+  lab: { body: '#3e2e5a', label: 'RESEARCH', glow: '#c8a8ff' },
 };
 const DX = [1, 0, -1, 0];
 const DY = [0, 1, 0, -1];
+
+/** "TUNE:WITS", "LATHE:BARREL", "RESEARCH"… what a machine is set to make. */
+function machineLabel(p, m) {
+  const settable = p.kind === 'tuner' || ['lathe', 'assembly', 'electronics', 'explosives', 'rocket', 'drone'].includes(p.kind);
+  if (!settable) return m.label;
+  return `${m.label}:${p.setting ? p.setting.replace(/_/g, ' ').toUpperCase() : '?'}`;
+}
 
 export function itemColor(id) {
   return ITEM_COLORS[id] || '#c9a24a';
@@ -171,7 +189,11 @@ export function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       ctx.fillStyle = '#f4efe6';
       ctx.font = 'bold 8px "Trebuchet MS", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(p.kind === 'tuner' ? (p.setting ? `TUNE:${p.setting.toUpperCase()}` : 'TUNE: ?') : m.label, x + w / 2, y - 1);
+      ctx.fillText(machineLabel(p, m), x + w / 2, y - 1);
+      if (m.stripes) {
+        ctx.fillStyle = '#f2c14e';
+        for (let k = 0; k < 5; k++) ctx.fillRect(x + 4 + k * 12, y + h - 8, 6, 3);
+      }
       ctx.textAlign = 'left';
       // progress bar and power light
       ctx.fillStyle = '#1e1e22';
@@ -189,6 +211,28 @@ export function drawFactoryProp(ctx, p, x, y, w, h, opts) {
         ctx.font = 'bold 8px "Trebuchet MS", sans-serif';
         ctx.fillText(`×${outN}`, x + 16, y + h);
       }
+      break;
+    }
+    case 'terminal': {
+      // a console with a little turning globe
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 2, y + h - 5, w - 4, 5);
+      ctx.fillStyle = '#2a2e36';
+      rrect(ctx, x + 2, y - 14, w - 4, h + 10, 4); ctx.fill();
+      ctx.fillStyle = '#05080c';
+      ctx.fillRect(x + 8, y - 10, w - 16, 18);
+      const gx = x + w / 2;
+      const gy = y - 1;
+      ctx.fillStyle = '#0c3444';
+      ctx.beginPath(); ctx.arc(gx, gy, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#4a6a3c';
+      for (let k = 0; k < 4; k++) { const a = t * 0.8 + k * 1.6; const cxp = Math.sin(a) * 5; if (Math.cos(a) > 0) ctx.fillRect(gx + cxp - 1.5, gy - 3 + k * 1.8, 3, 2); }
+      ctx.strokeStyle = 'rgba(122,255,200,0.7)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.arc(gx, gy, 9, -0.6 + t, 0.9 + t); ctx.stroke();
+      ctx.fillStyle = '#7affc8';
+      ctx.fillRect(x + 10, y + 4, 8, 1.5);
+      ctx.fillRect(x + w - 18, y + 4, 6, 1.5);
       break;
     }
     case 'generator': {

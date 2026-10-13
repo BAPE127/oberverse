@@ -35,21 +35,54 @@ export function freshFactory(content) {
 }
 
 export class Factory {
-  constructor(game) {
+  /**
+   * @param {object} game
+   * @param {object} [cfg] which world state, warehouse registry and interact kind this works on
+   *   (the calculator factory uses the defaults; the arms works subclass passes its own).
+   */
+  constructor(game, cfg = {}) {
     this.game = game;
     this.cache = new Map();
+    this.stateKey = cfg.stateKey || 'factory';
+    this.defsKey = cfg.defsKey || 'warehouses';
+    this.kind = cfg.kind || 'factory';
+    this.domain = cfg.domain || 'calc';
     game.bus.on('maps:rebuilt', () => this.install());
+  }
+
+  defs() {
+    return this.game.content[this.defsKey] || {};
+  }
+
+  fresh() {
+    return freshFactory(this.game.content);
   }
 
   get state() {
     const g = this.game;
-    if (!g.world.factory) g.world.factory = freshFactory(g.content);
-    for (const id of Object.keys(g.content.warehouses || {})) if (!g.world.factory.warehouses[id]) g.world.factory.warehouses[id] = { entities: [], nextId: 1 };
-    return g.world.factory;
+    if (!g.world[this.stateKey]) g.world[this.stateKey] = this.fresh();
+    const st = g.world[this.stateKey];
+    for (const id of Object.keys(this.defs())) if (!st.warehouses[id]) st.warehouses[id] = { entities: [], nextId: 1 };
+    return st;
   }
 
   def(id) {
-    return this.game.content.warehouses[id];
+    return this.defs()[id];
+  }
+
+  /** The recipe a machine is running (null if none is set). */
+  recipeOf(e) {
+    return this.game.content.recipes[e.kind] || null;
+  }
+
+  /** Work done per game minute at this machine (staffing, skills, morale…). */
+  rate() {
+    return 1;
+  }
+
+  /** A machine finished one output. */
+  produced(whId, m) {
+    if (m.kind === 'tuner') this.madeOne();
   }
 
   owns(id) {
@@ -57,12 +90,12 @@ export class Factory {
   }
 
   ownedIds() {
-    return Object.keys(this.game.content.warehouses).filter((id) => this.owns(id));
+    return Object.keys(this.defs()).filter((id) => this.owns(id));
   }
 
   /** The warehouse whose interior this map is, if any. */
   warehouseForMap(mapId) {
-    return Object.entries(this.game.content.warehouses).find(([, w]) => w.map === mapId)?.[0] || null;
+    return Object.entries(this.defs()).find(([, w]) => w.map === mapId)?.[0] || null;
   }
 
   /** Deliveries go to the biggest warehouse you own. */
@@ -158,6 +191,8 @@ export class Factory {
     if (!this.owns(whId)) return { ok: false, text: 'This isn\'t your warehouse.' };
     if (!g.inventory.count(itemId)) return { ok: false, text: `You don't have a ${item.name}.` };
     const { type, kind, w = 1, h = 1 } = item.build;
+    const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
+    if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
     const why = this.blockReason(whId, x, y, w, h);
     if (why) return { ok: false, text: why };
     const wh = this.state.warehouses[whId];
@@ -166,8 +201,8 @@ export class Factory {
       solid: type !== 'belt',
       label: item.name,
     };
-    if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: kind === 'tuner' ? null : undefined, interact: { kind: 'factory', action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
-    if (type === 'generator') e.interact = { kind: 'factory', action: 'entity', warehouse: whId, name: 'generator' };
+    if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: this.initialSetting(kind), interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
+    if (type === 'generator') e.interact = { kind: this.kind, action: 'entity', warehouse: whId, name: 'generator' };
     if (type === 'belt') e.carry = null;
     g.inventory.remove(itemId, 1);
     wh.entities.push(e);
@@ -175,6 +210,10 @@ export class Factory {
     this.cache.delete(whId);
     g.bus.emit('factory:built', { warehouse: whId, id: e.id, type });
     return { ok: true, entity: e, text: `Placed: ${item.name}.` };
+  }
+
+  initialSetting(kind) {
+    return kind === 'tuner' ? null : undefined;
   }
 
   /** Pick up whatever is at (x, y); its item and anything it held go back to your pockets. */
@@ -235,9 +274,9 @@ export class Factory {
 
   // ---------------------------------------------------------- simulation
   recipeOut(e) {
-    const r = this.game.content.recipes[e.kind];
+    const r = this.recipeOf(e);
     if (e.kind === 'tuner') return e.setting ? CALC_ITEM(e.setting) : null;
-    return r.out;
+    return r?.out || null;
   }
 
   /** Does this cell want this item right now? */
@@ -246,8 +285,8 @@ export class Factory {
     if (target.chest) return true;
     if (target.type === 'belt') return !target.carry;
     if (target.type === 'machine') {
-      const r = this.game.content.recipes[target.kind];
-      const need = r.in[itemId];
+      const r = this.recipeOf(target);
+      const need = r?.in[itemId];
       return Boolean(need) && (target.in[itemId] || 0) < need * MACHINE_BUFFER;
     }
     return false;
@@ -312,25 +351,33 @@ export class Factory {
     const cap = this.power(whId).capacity;
     c.machines.forEach((m, i) => {
       m.powered = i < cap;
-      if (!m.powered) return;
-      const r = this.game.content.recipes[m.kind];
-      m.minutes = r.minutes;
-      const out = this.recipeOut(m);
-      if (!out) return;
-      if (m.progress > 0) {
-        m.progress += 1;
-        if (m.progress > r.minutes) {
-          m.out[out] = (m.out[out] || 0) + 1;
-          m.progress = 0;
-          if (m.kind === 'tuner') this.madeOne();
-        }
-      }
-      const outTotal = Object.values(m.out).reduce((a, b) => a + b, 0);
-      if (m.progress === 0 && outTotal < OUTPUT_CAP && Object.entries(r.in).every(([id, n]) => (m.in[id] || 0) >= n)) {
-        for (const [id, n] of Object.entries(r.in)) m.in[id] -= n;
-        m.progress = 1;
-      }
+      if (m.powered) this.stepMachine(whId, m);
     });
+  }
+
+  /** One game minute of one powered machine. */
+  stepMachine(whId, m) {
+    const r = this.recipeOf(m);
+    if (!r) return;
+    m.minutes = r.minutes;
+    const out = this.recipeOut(m);
+    if (!out) return;
+    const rate = this.rate(whId, m);
+    m.working = rate > 0;
+    if (rate <= 0) return;
+    if (m.progress > 0) {
+      m.progress += rate;
+      if (m.progress > r.minutes) {
+        m.out[out] = (m.out[out] || 0) + 1;
+        m.progress = 0;
+        this.produced(whId, m, out);
+      }
+    }
+    const outTotal = Object.values(m.out).reduce((a, b) => a + b, 0);
+    if (m.progress === 0 && outTotal < OUTPUT_CAP && Object.entries(r.in).every(([id, n]) => (m.in[id] || 0) >= n)) {
+      for (const [id, n] of Object.entries(r.in)) m.in[id] -= n;
+      m.progress = 1;
+    }
   }
 
   madeOne(n = 1) {
@@ -346,7 +393,7 @@ export class Factory {
     const g = this.game;
     const s = this.state;
     for (const id of this.ownedIds()) if (s.warehouses[id].entities.length) this.step(id);
-    if (s.contract && g.clock.minuteOfDay === DELIVERY_MINUTE && s.lastDelivery < g.clock.day) this.deliver();
+    if (this.domain === 'calc' && s.contract && g.clock.minuteOfDay === DELIVERY_MINUTE && s.lastDelivery < g.clock.day) this.deliver();
   }
 
   deliver() {
@@ -483,18 +530,28 @@ export class Factory {
       const p = this.power(whId);
       return { type: 'message', text: `Generator, humming. Power: ${p.machines} of ${p.capacity} machines.` };
     }
-    const r = g.content.recipes[e.kind];
+    const r = this.recipeOf(e);
     const out = this.recipeOut(e);
     const fmt = (buf) => Object.entries(buf).filter(([, n]) => n > 0).map(([id, n]) => `${g.content.items[id].name} ${n}`).join(', ') || 'empty';
-    const status = !this.powered(whId, e) ? 'NO POWER — place a generator.' : !out ? 'Idle — choose what to make.' : e.progress > 0 ? `Working: ${Math.round(((e.progress - 1) / r.minutes) * 100)}%.` : 'Waiting for inputs.';
-    const options = [];
-    if (e.kind === 'tuner') for (const t of CALC_TYPES) options.push({ label: `Make ${g.content.items[CALC_ITEM(t)].name}${e.setting === t ? ' (current)' : ''}`, call: ['factory', 'setTuner', e.id, t] });
+    const status = !this.powered(whId, e) ? 'NO POWER — place a generator.' : !out ? 'Idle — choose what to make.' : this.statusExtra(whId, e) || (e.progress > 0 ? `Working: ${Math.round(((e.progress - 1) / r.minutes) * 100)}%.` : 'Waiting for inputs.');
+    const options = [...this.settingOptions(e)];
     const outN = Object.values(e.out).reduce((a, b) => a + b, 0);
-    if (outN) options.push({ label: `Collect output (${fmt(e.out)})`, call: ['factory', 'collect', e.id] });
-    const loadable = Object.keys(r.in).filter((id) => g.inventory.count(id));
-    if (loadable.length) options.push({ label: 'Load inputs from your pockets', call: ['factory', 'load', e.id] });
-    options.push({ label: 'Done', call: ['factory', 'noop'] });
+    if (outN) options.push({ label: `Collect output (${fmt(e.out)})`, call: [this.kind, 'collect', e.id] });
+    const loadable = Object.keys(r?.in || {}).filter((id) => g.inventory.count(id));
+    if (loadable.length) options.push({ label: 'Load inputs from your pockets', call: [this.kind, 'load', e.id] });
+    options.push({ label: 'Done', call: [this.kind, 'noop'] });
     return { type: 'choices', title: g.content.items[e.item].name, text: `${status} Inputs: ${fmt(e.in)}. Output: ${fmt(e.out)}.`, options };
+  }
+
+  /** Recipe choices shown in a machine's panel. */
+  settingOptions(e) {
+    if (e.kind !== 'tuner') return [];
+    return CALC_TYPES.map((t) => ({ label: `Make ${this.game.content.items[CALC_ITEM(t)].name}${e.setting === t ? ' (current)' : ''}`, call: ['factory', 'setTuner', e.id, t] }));
+  }
+
+  /** Extra status line (e.g. who's staffing the station); null for the default. */
+  statusExtra() {
+    return null;
   }
 
   collect(entityId) {
@@ -510,9 +567,9 @@ export class Factory {
     const g = this.game;
     const e = this.findEntity(entityId);
     if (!e) return { ok: false, text: '' };
-    const r = g.content.recipes[e.kind];
+    const r = this.recipeOf(e);
     let n = 0;
-    for (const [id, need] of Object.entries(r.in)) {
+    for (const [id, need] of Object.entries(r?.in || {})) {
       const room = need * MACHINE_BUFFER - (e.in[id] || 0);
       const k = clamp(g.inventory.count(id), 0, room);
       if (k > 0) { g.inventory.remove(id, k); e.in[id] = (e.in[id] || 0) + k; n += k; }

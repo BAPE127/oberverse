@@ -1,7 +1,7 @@
 // Halvermouth — the metropolis west of Westbrook. A separate region (loaded on
 // entry through the East Gate, not stitched seamlessly: it is far bigger than
 // the coast maps). Map-only build (v0.5.0): streets, skyscrapers, the Hall of
-// Justice (courthouse + Mayor's office), Police Precinct 1, Rook & Rifle
+// Justice (courthouse + Mayor's office), Police Precinct 1, Pipecreek Armory
 // Firearms and the Sumps slum, with interiors for the three key buildings.
 // No residents yet.
 //
@@ -92,8 +92,8 @@ const buildings = [
   // Iron Row
   shop('b_garage', 'Iron Row Garage', 66, 39, 10, 7, { roof: '#5a5e66', wall: '#9a9ea6', trim: '#3a3e46', sign: 'GARAGE' }),
   {
-    id: 'b_gun_shop', name: 'Rook & Rifle Firearms', mapLabel: 'Rook & Rifle (guns)', x: 66, y: 52, w: 7, h: 7,
-    roof: '#3a3a32', wall: '#7a6a52', trim: '#2a2418', flatRoof: true, sign: 'ROOK & RIFLE', awning: '#5a4a2a',
+    id: 'b_gun_shop', name: 'Pipecreek Armory', mapLabel: 'Pipecreek Armory (guns)', x: 66, y: 52, w: 7, h: 7,
+    roof: '#3a3a32', wall: '#7a6a52', trim: '#2a2418', flatRoof: true, sign: 'PIPECREEK ARMORY', awning: '#5a4a2a',
     door: { x: 69, y: 58, to: { map: 'gun_shop', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '09:00', to: '19:00' } } },
   },
   shop('b_locksmith', 'Tumbler & Sons Locksmiths', 74, 52, 5, 7, { roof: '#5a4a3a', wall: '#c8b89a', sign: 'LOCKS' }),
@@ -216,6 +216,8 @@ export const halvermouth = {
   doors: [
     { id: 'door_hv_east_gate_a', x: 111, y: 36, keepTile: true, gateway: 'Westbrook & the Coast', label: 'The Coast Road east', to: { map: 'westbrook', spot: 'west_gate' } },
     { id: 'door_hv_east_gate_b', x: 111, y: 37, keepTile: true, gateway: 'Westbrook & the Coast', label: 'The Coast Road east', to: { map: 'westbrook', spot: 'west_gate' } },
+    { id: 'door_hv_yards_a', x: 0, y: 60, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
+    { id: 'door_hv_yards_b', x: 0, y: 61, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
   ],
   spots: {
     east_gate: { x: 109, y: 36, facing: 'left' },
@@ -223,6 +225,7 @@ export const halvermouth = {
     hall_door_out: { x: 50, y: 24, facing: 'down' },
     police_door_out: { x: 71, y: 34, facing: 'down' },
     gunshop_door_out: { x: 69, y: 59, facing: 'down' },
+    mill_road_west: { x: 1, y: 60, facing: 'right' },
     sumps_gate: { x: 16, y: 38, facing: 'down' },
     mission_front: { x: 22, y: 46, facing: 'up' },
     park_center: { x: 99, y: 49, facing: 'up' },
@@ -390,22 +393,27 @@ export const jail = {
 
 export const gunShop = {
   id: 'gun_shop',
-  name: 'Rook & Rifle Firearms',
+  name: 'Pipecreek Armory',
   kind: 'interior',
   music: 'mus_workshop',
   ambience: 'amb_indoor',
-  tiles: roomTiles(12, 9, 'f', 6),
-  doors: [{ id: 'door_gunshop_exit', x: 6, y: 8, to: { map: 'halvermouth', spot: 'gunshop_door_out' } }],
-  spots: { entry: { x: 6, y: 7, facing: 'up' }, counter_back: { x: 6, y: 2, facing: 'down' } },
+  // the shop floor, and Lucas Eastrise's back room (east) where he sleeps among the inventory
+  tiles: roomTiles(14, 10, 'f', 6, [[10, 1, 1, 4, 'W'], [10, 6, 1, 3, 'W']]),
+  doors: [{ id: 'door_gunshop_exit', x: 6, y: 9, to: { map: 'halvermouth', spot: 'gunshop_door_out' } }],
+  spots: { entry: { x: 6, y: 8, facing: 'up' }, counter_back: { x: 6, y: 2, facing: 'down' }, counter_front: { x: 6, y: 5, facing: 'up' }, lucas_bed: { x: 11, y: 3, facing: 'left' }, lucas_desk: { x: 12, y: 6, facing: 'up' } },
   props: [
-    { id: 'gs_counter', type: 'display', variant: 'guns', x: 3, y: 4, w: 6, interact: { kind: 'shop', shop: 'shop_rook', name: 'Gun counter' }, examine: 'A glass display counter of revolvers and pistols.' },
-    { id: 'gs_bell', type: 'sign', x: 9, y: 4, examine: 'A brass bell and a card: "Back in 5 min — R. Pay at the till, take a receipt, and don\'t do anything I wouldn\'t." The till is an honesty box bolted to the counter.' },
+    { id: 'gs_counter', type: 'display', variant: 'guns', x: 3, y: 4, w: 6, interact: { kind: 'shop', shop: 'shop_rook', staffed: true, name: 'gun counter', closed: 'Nobody at the counter. Lucas opens 09:00–19:00. The back-room door is ajar, and something in there is humming.' }, examine: 'A glass display counter of revolvers and pistols. Taped to the glass: "ASK ME ABOUT BUSINESS OPPORTUNITIES — L.E."' },
+    { id: 'gs_bell', type: 'sign', x: 9, y: 4, examine: 'A brass bell and a card: "PIPECREEK ARMORY — Lucas Eastrise, prop. Licensed dealer. I see you. ;)" The winking face is hand-drawn. Twice.' },
     { id: 'gs_rack1', type: 'gunrack', x: 1, y: 1, w: 3, examine: 'Hunting rifles in a locked rack.' },
-    { id: 'gs_rack2', type: 'gunrack', x: 8, y: 1, w: 3, examine: 'Shotguns in a locked rack. A sign: "Duck season. Rabbit season. NO gull season (city ordinance)."' },
+    { id: 'gs_rack2', type: 'gunrack', x: 7, y: 1, w: 3, examine: 'Shotguns in a locked rack. A sign: "Duck season. Rabbit season. NO gull season (city ordinance)."' },
     { id: 'gs_ammo', type: 'shelf', x: 1, y: 5, w: 1, h: 2, examine: 'Boxes of ammunition and a stern notice about storage.' },
-    { id: 'gs_targets', type: 'painting', x: 5, y: 0, examine: 'A shot-through paper target, framed. Every hole is in the centre ring. It is signed "R."' },
-    { id: 'gs_cabinet', type: 'cabinet', x: 10, y: 5, examine: 'Licence forms, in triplicate. Osric would approve.' },
+    { id: 'gs_targets', type: 'painting', x: 5, y: 0, examine: 'A framed paper target. Every hole spells out a word. The word is "FREEDOM", misspelled.' },
+    { id: 'gs_cabinet', type: 'cabinet', x: 9, y: 6, examine: 'Licence forms, and under them a stack of pamphlets: "THE MOON IS A FRANCHISE — wake up."' },
     { id: 'gs_rug', type: 'rug', x: 4, y: 6, w: 4, h: 1, color: '#5a3a2a' },
+    // the back room
+    { id: 'gs_cot', type: 'cot', x: 12, y: 1, examine: 'A camp bed under a poster of a missile captioned "HANG IN THERE".' },
+    { id: 'gs_crates', type: 'crate', x: 11, y: 8, w: 2, examine: 'Crates stencilled NOT GUNS. They are guns.' },
+    { id: 'gs_corkboard', type: 'noticeboard', x: 12, y: 0, examine: 'A corkboard of newspaper clippings joined with red string. The string spells "INVEST". Pinned in the middle: a photo of you, from across the street. Recent.' },
   ],
 };
 

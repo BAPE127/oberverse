@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.13.0] — 2026-10-13 — "Pipecreek" (development build)
+
+First half of the Guns and Gun Running update.
+
+### Added
+- **Lucas Eastrise** (`npc_lucas`): imported from a player-supplied photo (stored with permission; portrait embedded). Sleazy, creepy, conspiratorial; 14 rotating rants about the fictional countries and generic real-world-style conspiracies (no real names). Protected, with an `arms` Wrath ("EVERYTHING IS FOR SALE") and strike sound `sfx_crate`. See `docs/characters/npc_lucas.md`.
+- **Pipecreek Armory**: the gun shop renamed, staffed by Lucas (counter 09:00–19:00), with a back room. Buying a gun unlocks his pitch; accepting it unlocks the **arms licence** (500 obols).
+- **Mill Road Yards** (`yards`, a new region through a gateway at the west end of Mill Road), with three **arms works** for sale (Yard 1 Works 2,500, Yard 2 Works 6,000, Foundry Hall 12,000; licence required). Interiors `aw1`/`aw2`/`aw3`, all larger than the calculator warehouses: loading dock, export cage, terminal, staff bunks.
+- **Arms production** (`src/systems/arms.js`), built on the factory engine: seven workstation types (`item_st_*`, domain `arms`) running one recipe each; 11 parts, 6 components, 18 recipes; new weapons: assault rifle, sniper rifle and LMG (usable now, rifle rounds), RPG launcher, RPG rocket, Skylance guided missile, Longbow cruise missile, Hornet and Kestrel drones (use in v0.14).
+- **Employees**: procedurally generated (name, look, four skills, quirk, wage), hired from the terminal into bunks. They are NPCs who live in their works, walk to their assigned station on shift, and run it. Payroll at 19:00; morale, bonuses, quitting.
+- **Research tree**: five branches, 21 nodes (unlocks, speed, price bonuses, cheaper parts), fed by staffed research labs.
+- **The terminal**: a hand-drawn rotating globe with eight fictional countries, borders, glowing trade routes and traffic; tabs for Overview, Parts, Equipment, Staff, Research and Market.
+- **Wholesale**: Lucas buys arms items at half value (with research), up to 2,500 obols a day; the shop shows his remaining budget.
+- Factory engine generalized (`Factory` hooks: `recipeOf`, `rate`, `produced`, `stepMachine`, `settingOptions`, `statusExtra`, per-system state and warehouse registry); calculator machines and arms stations can't be mixed.
+- Debug commands `licence`, `works <id>`, `armsparts [n]`, `stations`, `research <id|all>`, `hire [n] <works>`.
+- `docs/ARMS.md`. Tests: `tests/arms.test.mjs` (14 tests).
+
+### Changed
+- The shop sell list uses `Game.priceFor` (so dynamic prices show).
+
 ## [0.12.0] — 2026-10-13 — "The Calculator Works" (development build)
 
 Second half of the gang update: making your own calculators, Factorio-style.

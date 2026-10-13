@@ -33,6 +33,12 @@ const HELP = [
   ['parts [n]', 'n of every calculator part (default 20)'],
   ['machines', 'two of every machine, 40 belts, 10 arms'],
   ['made <n>', 'set how many calculators you\'ve made (unlocks Sal\'s machinery at 5, deliveries at 10)'],
+  ['licence', 'get an arms licence (free)'],
+  ['works <aw1|aw2|aw3>', 'own an arms works (free)'],
+  ['armsparts [n]', 'n of every arms part (default 20)'],
+  ['stations', 'one of every arms workstation, plus belts, arms and a generator'],
+  ['research <id|all>', 'complete a research node (or all of them)'],
+  ['hire [n] <works>', 'hire n applicants (default 1) into a works'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -312,6 +318,54 @@ export function runCommand(game, line) {
       if (n === null) return out(`Made: ${game.factory.state.made}. Usage: made <n>`, false);
       game.factory.state.made = Math.max(0, Math.round(n));
       return out(`Made: ${game.factory.state.made}`);
+    }
+    case 'licence':
+    case 'license': {
+      game.setFlag('arms_licence', true);
+      game.setFlag('arms_pitch_accepted', true);
+      return out('You hold an arms licence.');
+    }
+    case 'works': {
+      const id = args[0];
+      const def = game.content.armsWarehouses[id];
+      if (!def) return out(`Usage: works <${Object.keys(game.content.armsWarehouses).join('|')}>`, false);
+      game.setFlag('arms_licence', true);
+      game.setFlag(def.flag, true);
+      return out(`${def.name} is yours.`);
+    }
+    case 'armsparts': {
+      const n = Math.max(1, Math.round(parseNum(args[0]) ?? 20));
+      for (const id of Object.keys(game.content.items).filter((k) => k.startsWith('item_ap_'))) game.inventory.add(id, n, { silent: true });
+      return out(`+${n} of every arms part.`);
+    }
+    case 'stations': {
+      for (const id of Object.keys(game.content.items).filter((k) => k.startsWith('item_st_'))) game.inventory.add(id, 1, { silent: true });
+      game.inventory.add('item_belt', 30, { silent: true });
+      game.inventory.add('item_inserter', 8, { silent: true });
+      game.inventory.add('item_generator', 1, { silent: true });
+      return out('One of every workstation, 30 belts, 8 arms, a generator.');
+    }
+    case 'research': {
+      const id = args[0];
+      const tree = game.content.arms.research;
+      if (id === 'all') { for (const k of Object.keys(tree)) game.arms.state.research.done[k] = true; return out('All research complete.'); }
+      if (!tree[id]) return out(`Usage: research <${Object.keys(tree).join('|')}|all>`, false);
+      game.arms.state.research.done[id] = true;
+      return out(`Researched: ${tree[id].name}.`);
+    }
+    case 'hire': {
+      const n = args.length > 1 ? Math.max(1, Math.round(parseNum(args[0]) ?? 1)) : 1;
+      const wh = args[args.length - 1];
+      if (!game.content.armsWarehouses[wh]) return out('Usage: hire [n] <aw1|aw2|aw3>', false);
+      const done = [];
+      for (let i = 0; i < n; i++) {
+        game.arms.candidates();
+        const r = game.arms.hire(0, wh);
+        if (!r.ok) return out(r.text, false);
+        done.push(r.text);
+        if (!game.arms.state.candidates.length) game.arms.state.candidatesDay = 0;
+      }
+      return out(done.join('\n'));
     }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);

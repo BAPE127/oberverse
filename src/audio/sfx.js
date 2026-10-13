@@ -176,6 +176,19 @@ export const SFX = {
     tone(ctx, d, { type: 'sine', f0: 140, f1: 45, t, dur: 0.5, vol: 0.45, attack: 0.003 });
     noise(ctx, d, { t, dur: 0.4, vol: 0.35, type: 'lowpass', freq: 1600, f1: 150 });
   },
+  // Lucas's strikes: crates of guns crashing down, then the missile
+  sfx_crate: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    if ((o.index || 0) >= 5) {
+      noise(ctx, d, { t, dur: 0.4, vol: 0.2, type: 'bandpass', freq: 800, f1: 3000, q: 1.5 }); // whoosh
+      tone(ctx, d, { type: 'sine', f0: 80, f1: 28, t: t + 0.05, dur: 1.4, vol: 0.65, attack: 0.004 });
+      noise(ctx, d, { t: t + 0.05, dur: 1.8, vol: 0.55, type: 'lowpass', freq: 1500, f1: 80 });
+      return;
+    }
+    noise(ctx, d, { t, dur: 0.3, vol: 0.5, type: 'lowpass', freq: 1200, f1: 200 }); // wood
+    tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.15, vol: 0.18 });
+    for (let i = 0; i < 6; i++) for (const [f, v] of [[1400 + i * 120, 0.05], [2100 + i * 90, 0.03]]) tone(ctx, d, { type: 'sine', f0: f, t: t + 0.08 + i * 0.06 + Math.random() * 0.04, dur: 0.12, vol: v, attack: 0.002 }); // metal clatter
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -326,6 +339,22 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     [[79, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.36, 0.36], [83, 0.84, 0.12], [84, 0.96, 0.3]].forEach(([m, dt, len]) => tone(ctx, bus, { type: 'sine', f0: hz(m), t: t0 + 1.2 + dt, dur: len + 0.08, vol: 0.07, attack: 0.02 }));
     for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 6.3 + Math.random() * 1.2, dur: 0.06, vol: 0.18, freq: 1500 + Math.random() * 2000, q: 3 });
     noise(ctx, bus, { t: t0 + 6.3, dur: 1.6, vol: 0.22, type: 'lowpass', freq: 900, f1: 150 });
+  } else if (theme === 'arms') {
+    // a cash-register ding on the banner, gun actions through the roll, Lucas's motif on clarinet, a drone swarm, the SOLD thud
+    tone(ctx, bus, { type: 'sine', f0: 2637, t: t0 + 1.0, dur: 0.5, vol: 0.12 });
+    tone(ctx, bus, { type: 'sine', f0: 3520, t: t0 + 1.06, dur: 0.7, vol: 0.1 });
+    for (let i = 0; i < 6; i++) { noise(ctx, bus, { t: t0 + 0.5 + i * 0.4, dur: 0.03, vol: 0.2, freq: 2600, q: 5 }); noise(ctx, bus, { t: t0 + 0.6 + i * 0.4, dur: 0.04, vol: 0.18, freq: 1800, q: 5 }); }
+    [[64, 0], [67, 0.15], [70, 0.3], [69, 0.6], [67, 0.75], [64, 0.9], [63, 1.2], [64, 1.35]].forEach(([m, dt]) => tone(ctx, bus, { type: 'triangle', f0: hz(m), t: t0 + 1.4 + dt, dur: 0.2, vol: 0.06, attack: 0.02 }));
+    const buzz = ctx.createOscillator();
+    const bg = ctx.createGain();
+    buzz.type = 'sawtooth';
+    buzz.frequency.value = 180;
+    bg.gain.setValueAtTime(0.0001, t0 + 5.0);
+    bg.gain.linearRampToValueAtTime(0.03, t0 + 5.4);
+    bg.gain.linearRampToValueAtTime(0.0001, t0 + 6.6);
+    buzz.connect(bg).connect(bus);
+    buzz.start(t0 + 5.0); buzz.stop(t0 + 6.7);
+    tone(ctx, bus, { type: 'sine', f0: 110, f1: 50, t: t0 + 5.9, dur: 0.6, vol: 0.3 });
   } else if (theme === 'maths') {
     // furious keypad clatter through the roll, Arthur's motif as calculator beeps, an ERROR buzz, a glitchy finale
     for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 0.3 + i * 0.07 + Math.random() * 0.03, dur: 0.015, vol: 0.1, freq: 3000 + Math.random() * 1500, q: 8 });

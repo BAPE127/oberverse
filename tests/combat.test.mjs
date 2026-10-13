@@ -127,11 +127,11 @@ test('lethal weapons kill: the dead stay dead, quests they gave fail, and saves 
   assert.ok(g2.npcs.get('npc_mags').dead);
 });
 
-test('buying a gun and ammo at Rook & Rifle, loading it and shooting', () => {
+test('buying a gun and ammo at Pipecreek Armory, loading it and shooting', () => {
   const g = newGame(11);
   g.player.money = 500;
-  g.changeMap('gun_shop', 'entry');
-  setTime(g, 1, '11:00');
+  setTime(g, 1, '11:00'); // Lucas behind the counter
+  g.changeMap('gun_shop', 'counter_front');
   assert.equal(g.interact({ kind: 'prop', id: 'gs_counter' }).type, 'shop');
   assert.ok(g.buy('shop_rook', 'item_pistol').ok);
   assert.ok(g.buy('shop_rook', 'item_ammo_9mm').ok);

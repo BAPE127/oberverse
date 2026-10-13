@@ -176,12 +176,12 @@ export const ITEMS = {
     weapon: { kind: 'gun', damage: 34, range: 10, cooldown: 0.55, lethal: true, ammo: 'item_ammo_38', mag: 6, reload: 2.0, spread: 3, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
   },
   item_pistol: {
-    name: '9mm Pistol', category: 'weapon', price: 120, tags: ['weapon', 'gun'], icon: 'gun',
+    name: '9mm Pistol', category: 'weapon', price: 120, tags: ['weapon', 'gun'], icon: 'gun', arms: { value: 140, family: 'small' },
     description: 'A semi-automatic pistol with a twelve-round magazine. Takes 9mm rounds.',
     weapon: { kind: 'gun', damage: 26, range: 11, cooldown: 0.3, lethal: true, ammo: 'item_ammo_9mm', mag: 12, reload: 1.4, spread: 4, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
   },
   item_shotgun: {
-    name: 'Pump Shotgun', category: 'weapon', price: 180, tags: ['weapon', 'gun'], icon: 'longgun',
+    name: 'Pump Shotgun', category: 'weapon', price: 180, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 220, family: 'small' },
     description: 'Seven pellets in a wide cone. Devastating up close, useless at range. Takes shotgun shells.',
     weapon: { kind: 'gun', damage: 15, pellets: 7, range: 6, cooldown: 0.95, lethal: true, ammo: 'item_ammo_shells', mag: 5, reload: 2.6, spread: 14, noise: 22, sound: 'sfx_gunshot_heavy', held: 'longgun' },
   },
@@ -191,7 +191,7 @@ export const ITEMS = {
     weapon: { kind: 'gun', damage: 75, range: 18, cooldown: 1.3, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 2.8, spread: 0.6, noise: 26, sound: 'sfx_gunshot_heavy', held: 'longgun' },
   },
   item_smg: {
-    name: 'Submachine Gun', category: 'weapon', price: 320, tags: ['weapon', 'gun'], icon: 'longgun',
+    name: 'Submachine Gun', category: 'weapon', price: 320, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 260, family: 'small' },
     description: 'Fully automatic: hold the trigger and it keeps going until it doesn\'t. Takes 9mm rounds.',
     weapon: { kind: 'gun', damage: 15, range: 9, cooldown: 0.09, auto: true, lethal: true, ammo: 'item_ammo_9mm', mag: 30, reload: 1.9, spread: 7, noise: 20, sound: 'sfx_gunshot_smg', held: 'longgun' },
   },

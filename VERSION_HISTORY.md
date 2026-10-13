@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.13.0 | 2026-10-13 | development | 1 | Pipecreek — fifth imported character, arms works, staff, research |
 | 0.12.0 | 2026-10-13 | development | 1 | The Calculator Works — warehouses, Sal's parts and deliveries, the factory builder |
 | 0.11.0 | 2026-10-13 | development | 1 | Sums of Anarchy — fourth imported character, the gang, calculators, customers |
 | 0.10.0 | 2026-10-13 | development | 1 | Law & Order — third imported character, police, Wanted, jail and breakouts |
@@ -17,6 +18,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.13.0 — Pipecreek
+
+Lucas Eastrise (imported), Pipecreek Armory, Mill Road Yards, arms works with generated staff, workstations and research; wholesale to Lucas. Saves: `world.arms` and six containers are added to older saves on load; employees are respawned from `world.arms.staff`. No migration needed. The global market, shipping and heavy weapons in use follow in 0.14.0.
 
 ## 0.12.0 — The Calculator Works
 

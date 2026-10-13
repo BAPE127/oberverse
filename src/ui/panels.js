@@ -288,13 +288,14 @@ export function shopPanel(ui, body, opts) {
         h('button', { class: 'small primary', disabled: n <= 0 || g.player.money < price, onclick: () => { const r = g.buy(opts.shopId, id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${price}`)));
     }
     body.append(wrap);
-    const sellable = g.inventory.list().filter((e) => def.buys?.[e.id]);
+    const sellable = g.inventory.list().filter((e) => g.priceFor(opts.shopId, e.id, true) > 0);
     if (sellable.length) {
       body.append(h('h3', { style: 'margin:14px 0 6px' }, `${g.npcs.get(def.owner)?.profile.shortName || 'They'} will buy`));
+      if (def.armsBuyer && g.arms.licensed()) body.append(h('p', { class: 'muted' }, `Wholesale for your arms works' output: half of value, with your research. Lucas has ${g.arms.lucasBudgetLeft()} obols left to spend today.`));
       const w2 = h('div', { class: 'list' });
       for (const e of sellable) {
         w2.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(e.def)), h('div', { class: 'grow' }, h('div', { class: 'name' }, e.def.name, e.count > 1 ? ` ×${e.count}` : '')),
-          h('button', { class: 'small', onclick: () => { const r = g.sell(opts.shopId, e.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Sell · ${def.buys[e.id]}`)));
+          h('button', { class: 'small', onclick: () => { const r = g.sell(opts.shopId, e.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Sell · ${g.priceFor(opts.shopId, e.id, true)}`)));
       }
       body.append(w2);
     }
@@ -522,7 +523,7 @@ export function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);

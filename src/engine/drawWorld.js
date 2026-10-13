@@ -1169,7 +1169,7 @@ export function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
-    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator':
+    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator': case 'terminal':
       drawFactoryProp(ctx, p, x, y, w, h, opts);
       break;
     case 'loosebrick': {

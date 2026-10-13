@@ -191,3 +191,20 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
   #dlg-portrait { width: 70px; height: 70px; }
   #dlg-text { font-size: 15px; }
 }
+
+/* arms-works terminal (v0.13.0) */
+.terminal { background: #05080c; color: #bfe8ff; border-radius: 10px; padding: 10px; margin-bottom: 10px; font-family: "Courier New", monospace; }
+.term-top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.terminal .globe { width: 240px; height: 240px; border-radius: 50%; flex: none; }
+.term-status { flex: 1; min-width: 200px; font-size: 13px; line-height: 1.6; }
+.term-title { color: #7affc8; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
+.term-msg { color: #ffe08a; margin-top: 6px; }
+.term-body select { max-width: 190px; font-size: 12px; }
+.research { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.research .branch h4 { margin: 4px 0; font-size: 13px; }
+.research .node { display: block; width: 100%; text-align: left; margin-bottom: 6px; font-size: 12px; padding: 6px; border-radius: 8px; }
+.research .node.done { background: #d8f0d8; opacity: .85; }
+.research .node.avail { background: #fff6e0; }
+.research .node.locked { opacity: .55; }
+.research .node.cur { outline: 2px solid #f2c14e; }
+.research .node .desc { font-size: 11px; opacity: .8; }

@@ -76,6 +76,7 @@ export const PROP_TYPES = {
   outbin: { solid: true, label: 'Output crate', defaults: { w: 2, h: 2 } },
   workbench: { solid: true, label: 'Workbench', defaults: { w: 3 } },
   belt: { solid: false, label: 'Conveyor belt', defaults: {} },
+  terminal: { solid: true, label: 'Terminal', defaults: { w: 2 } },
   inserter: { solid: true, label: 'Inserter arm', defaults: {} },
   machine: { solid: true, label: 'Machine', defaults: { w: 2, h: 2 } },
   generator: { solid: true, label: 'Generator', defaults: { w: 2, h: 2 } },

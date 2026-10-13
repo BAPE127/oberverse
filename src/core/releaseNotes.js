@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.13.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Pipecreek',
+    notes: [
+      'The gun shop is now Pipecreek Armory, run by Lucas Eastrise: sleazy, creepy, and full of theories about how the world really works. Buy a gun from him and he has a business proposition.',
+      'Get an arms licence, then buy a works at Mill Road Yards — through the gate at the west end of Mill Road. Inside, a terminal with a spinning globe: order parts and equipment (they arrive on the loading dock), hire staff, and pick research.',
+      'Place workstations with B — lathe, assembly bench, electronics, explosives, rocket and drone bays, a research lab — and assign staff to run them. Belts and arms carry parts between them. Pistols first; research unlocks SMGs, shotguns, assault and sniper rifles, LMGs, RPGs, guided and cruise missiles, and drones, and raises what they sell for.',
+      'Your staff are generated people with skills, quirks, wages and morale. They live in the works. Pay them at 19:00 or they walk.',
+      'Lucas buys your output wholesale for now. The global market — countries at war, shipping, insurance — comes next.',
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-10-13',
     channel: 'development',

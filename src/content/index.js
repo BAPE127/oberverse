@@ -5,6 +5,8 @@ import interiors from './maps/interiors.js';
 import oberMaps from './maps/oberFields.js';
 import westbrookMaps from './maps/westbrook.js';
 import halvermouthMaps from './maps/halvermouth.js';
+import yardsMaps from './maps/yards.js';
+import { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES } from './arms.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
 import { FACTS } from './facts.js';
@@ -39,6 +41,8 @@ import dlgSums from './dialogue/sums.js';
 import sal from './characters/sal.js';
 import dlgSal from './dialogue/sal.js';
 import { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } from './warehouses.js';
+import lucasChars from './characters/lucas.js';
+import dlgLucas from './dialogue/lucas.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 
@@ -46,7 +50,7 @@ const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -54,7 +58,7 @@ export const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
-  items: ITEMS,
+  items: { ...ITEMS, ...ARMS_ITEMS },
   facts: FACTS,
   docs: DOCS,
   containers: CONTAINERS,
@@ -67,13 +71,15 @@ export const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
   deliveries: DELIVERIES,
   unlocks: UNLOCKS,
+  arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES },
+  armsWarehouses: ARMS_WAREHOUSES,
   blueprints: BLUEPRINTS,
   plots: {},
   startingMap: 'player_flat',
