@@ -53,6 +53,12 @@ export class MapRenderer {
     return out;
   }
 
+  /** The current map plus its seamless neighbours, with tile offsets. */
+  layers(map) {
+    const g = this.game;
+    return [{ map, x: 0, y: 0 }, ...(map.kind === 'interior' ? [] : g.neighbors(map.id).map((n) => ({ map: n.map, x: n.x / TILE, y: n.y / TILE })))];
+  }
+
   drawMinimap(canvas) {
     const g = this.game;
     const map = g.currentMap();
@@ -60,19 +66,21 @@ export class MapRenderer {
     const W = canvas.width;
     const H = canvas.height;
     const scale = map.kind === 'interior' ? Math.floor(Math.min(W / map.width, H / map.height)) : MINI_SCALE;
-    const base = this.base(map, scale);
     const px = (g.player.x / TILE) * scale;
     const py = (g.player.y / TILE) * scale;
     let ox = Math.round(W / 2 - px);
     let oy = Math.round(H / 2 - py);
     if (map.kind === 'interior') {
+      const base = this.base(map, scale);
       ox = Math.round((W - base.width) / 2);
       oy = Math.round((H - base.height) / 2);
     }
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : TILE_TYPES['~'].color;
     ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(base, ox, oy);
-    for (const m of this.markers(map)) this.marker(ctx, ox + m.x * scale, oy + m.y * scale, m, 1);
+    for (const L of this.layers(map)) {
+      ctx.drawImage(this.base(L.map, scale), ox + L.x * scale, oy + L.y * scale);
+      for (const m of this.markers(L.map)) this.marker(ctx, ox + (m.x + L.x) * scale, oy + (m.y + L.y) * scale, m, 1);
+    }
     this.playerArrow(ctx, ox + px, oy + py, g.player.facing, 1);
     if (g.clock.darkness > 0.2) {
       ctx.fillStyle = `rgba(14,18,48,${g.clock.darkness * 0.35})`;
@@ -131,52 +139,68 @@ export class MapRenderer {
     ctx.restore();
   }
 
-  /** Full map with fog over undiscovered areas, labels and markers. */
+  /**
+   * Full map with fog over undiscovered areas, labels and markers. For an
+   * outdoor map, its whole region (all seamless neighbours) is drawn as one.
+   */
   drawWorldMap(canvas, mapId) {
     const g = this.game;
     const map = g.maps.get(mapId);
-    const scale = map.kind === 'interior' ? 24 : 10;
-    const base = this.base(map, scale);
-    canvas.width = base.width;
-    canvas.height = base.height;
+    const layers = this.layers(map);
+    const scale = map.kind === 'interior' ? 24 : layers.length > 1 ? 8 : 10;
+    const minX = Math.min(...layers.map((l) => l.x));
+    const minY = Math.min(...layers.map((l) => l.y));
+    const maxX = Math.max(...layers.map((l) => l.x + l.map.width));
+    const maxY = Math.max(...layers.map((l) => l.y + l.map.height));
+    canvas.width = (maxX - minX) * scale;
+    canvas.height = (maxY - minY) * scale;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(base, 0, 0);
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : TILE_TYPES['~'].color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const disc = g.player.discovered.areas;
-    for (const a of map.areas) {
-      if (disc[a.id]) continue;
-      ctx.fillStyle = 'rgba(30,26,40,0.78)';
-      ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
-      ctx.fillStyle = 'rgba(255,246,224,0.5)';
-      ctx.font = `italic ${scale * 1.4}px Georgia, serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
-    }
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const b of map.buildings) {
-      const area = map.areaAt(b.x, b.y);
-      if (area && !disc[area.id]) continue;
-      ctx.font = `bold ${Math.max(10, scale * 1.05)}px "Trebuchet MS", sans-serif`;
-      const tx = (b.x + b.w / 2) * scale;
-      const ty = (b.y + b.h / 2 - 0.5) * scale;
-      const label = b.mapLabel || b.name;
-      const tw = ctx.measureText(label).width + 8;
-      ctx.fillStyle = 'rgba(251,244,230,0.85)';
-      ctx.fillRect(tx - tw / 2, ty - scale * 0.75, tw, scale * 1.5);
-      ctx.fillStyle = '#2d2433';
-      ctx.fillText(label, tx, ty);
-    }
-    for (const a of map.areas) {
-      if (!disc[a.id]) continue;
-      ctx.font = `italic bold ${scale * 1.5}px Georgia, serif`;
-      ctx.fillStyle = 'rgba(255,246,224,0.95)';
-      ctx.strokeStyle = 'rgba(45,36,51,0.8)';
-      ctx.lineWidth = 3;
-      ctx.strokeText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
-      ctx.fillText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
-    }
     const s = scale / 6;
-    for (const m of this.markers(map)) this.marker(ctx, m.x * scale, m.y * scale, m, Math.max(1.4, s));
-    if (g.player.map === map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));
+    for (const L of layers) {
+      const lx = (L.x - minX) * scale;
+      const ly = (L.y - minY) * scale;
+      ctx.drawImage(this.base(L.map, scale), lx, ly);
+      ctx.save();
+      ctx.translate(lx, ly);
+      for (const a of L.map.areas) {
+        if (disc[a.id]) continue;
+        ctx.fillStyle = 'rgba(30,26,40,0.78)';
+        ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+        ctx.fillStyle = 'rgba(255,246,224,0.5)';
+        ctx.font = `italic ${scale * 1.4}px Georgia, serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
+      }
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const b of L.map.buildings) {
+        const area = L.map.areaAt(b.x, b.y);
+        if (area && !disc[area.id]) continue;
+        ctx.font = `bold ${Math.max(10, scale * 1.05)}px "Trebuchet MS", sans-serif`;
+        const tx = (b.x + b.w / 2) * scale;
+        const ty = (b.y + b.h / 2 - 0.5) * scale;
+        const label = b.mapLabel || b.name;
+        const tw = ctx.measureText(label).width + 8;
+        ctx.fillStyle = 'rgba(251,244,230,0.85)';
+        ctx.fillRect(tx - tw / 2, ty - scale * 0.75, tw, scale * 1.5);
+        ctx.fillStyle = '#2d2433';
+        ctx.fillText(label, tx, ty);
+      }
+      for (const a of L.map.areas) {
+        if (!disc[a.id]) continue;
+        ctx.font = `italic bold ${scale * 1.5}px Georgia, serif`;
+        ctx.fillStyle = 'rgba(255,246,224,0.95)';
+        ctx.strokeStyle = 'rgba(45,36,51,0.8)';
+        ctx.lineWidth = 3;
+        ctx.strokeText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
+        ctx.fillText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
+      }
+      for (const m of this.markers(L.map)) this.marker(ctx, m.x * scale, m.y * scale, m, Math.max(1.4, s));
+      if (g.player.map === L.map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));
+      ctx.restore();
+    }
   }
 }

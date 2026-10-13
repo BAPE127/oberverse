@@ -4,9 +4,15 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.3.0 | 2026-10-13 | development | 1 | One Coast — Lanternside and the Ober Fields joined seamlessly |
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.3.0 — One Coast
+
+- **World structure:** outdoor maps can now form continuous regions. Lanternside (offset 0) and the Ober Fields (offset 63 tiles) share one seam column.
+- **Save compatibility:** unchanged; player and NPC positions are still stored per map.
 
 ## 0.2.0 — Ober's Oil
 

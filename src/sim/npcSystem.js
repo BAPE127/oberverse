@@ -75,6 +75,7 @@ export class NpcSystem {
       npc.stuck = (npc.stuck || 0) + 1;
       return;
     }
+    if (route.length && route[0].door.seamless) route[0] = { ...route[0], door: this.nearestSeam(npc, route[0].door.to.map, target) };
     if (this.isPhysical(npc)) {
       const map = g.maps.get(npc.map);
       const goal = route.length ? { x: route[0].door.x, y: route[0].door.y } : map.spot(target.spot);
@@ -94,6 +95,28 @@ export class NpcSystem {
     } else {
       this.startAbstractTravel(npc, route, target);
     }
+  }
+
+  /** Choose the seam crossing that best lines up with where the NPC is and where it is going. */
+  nearestSeam(npc, toMap, target) {
+    const g = this.game;
+    const map = g.maps.get(npc.map);
+    const tx = npc.x / TILE;
+    const ty = npc.y / TILE;
+    const goal = target.map === toMap ? g.maps.get(toMap)?.spot(target.spot) : null;
+    const off = g.mapOffset(npc.map, toMap);
+    let best = null;
+    let bestCost = Infinity;
+    for (const d of map.doors) {
+      if (!d.seamless || d.to.map !== toMap) continue;
+      let cost = Math.abs(d.x - tx) + Math.abs(d.y - ty);
+      if (goal && off) cost += Math.abs(d.x - off.x / TILE - goal.x) + Math.abs(d.y - off.y / TILE - goal.y);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = d;
+      }
+    }
+    return best;
   }
 
   startAbstractTravel(npc, route, target) {
@@ -150,7 +173,9 @@ export class NpcSystem {
     const g = this.game;
     const from = npc.map;
     const dest = g.maps.get(door.to.map);
-    const spot = dest?.spotPx(door.to.spot);
+    const off = door.seamless ? g.mapOffset(from, door.to.map) : null;
+    // Seamless edges: arrive on the matching tile across the seam, not at a spot.
+    const spot = off ? { x: (door.x + 0.5) * TILE - off.x, y: (door.y + 0.5) * TILE - off.y } : dest?.spotPx(door.to.spot);
     if (!dest || !spot) return;
     npc.map = dest.id;
     npc.x = spot.x;

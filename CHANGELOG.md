@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.3.0] — 2026-10-13 — "One Coast" (development build)
+
+### Changed
+- **Lanternside and the Ober Fields are one continuous space.** Outdoor maps can be placed side by side in a *region* (`src/content/world.js`); the shared edge column becomes a seam the player and NPCs walk across with an exact, jump-free handover (no fade, no camera snap).
+- The renderer draws neighbouring maps (ground, water, buildings, props, people, street lights, the lighthouse beam) beyond the current map's edge, and the camera pans across the seam.
+- The minimap and the full map (M) draw the whole region stitched together as "Lanternside & the Ober Fields".
+- The Ober Fields' west edge continues the Lantern Canal (ending in a culvert pool) and the harbour shore; a westward signpost was added.
+- NPCs choose the seam crossing that best lines up with their route.
+
+### Added
+- `src/world/regions.js`: seam generation (walkable tiles only) and region offsets; `Game.neighbors()`, `Game.mapOffset()`.
+- The welcome letter points new players east to the Ober Fields; loading a save from an older version shows a "what's new" note.
+- Tests: walking across and back with no jump; seams only on walkable ground; an NPC crossing physically.
+
+### Removed
+- The two explicit "Road to …" edge doors (replaced by the generated seam).
+
+### Compatibility
+- Save schema unchanged (1). Saves made on either map load as before.
+
 ## [0.2.0] — 2026-10-13 — "Ober's Oil" (development build)
 
 ### Added

@@ -25,6 +25,13 @@
 | `build.test.mjs` | `index.html` matches a fresh build; the page is self-contained (no module scripts, external files); the bundle parses and includes every module once. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
 
+## Verification record — v0.3.0 (2026-10-13)
+
+- `npm run check` — **79/79 tests passed** (3 new seam tests); validator 0 errors.
+- `npm run smoke` (standalone `file://`) — 24/24 passed.
+- Browser walkthrough: holding D from x 57.8 in Lanternside crossed into the Ober Fields at x 0.9 with no fade or jump (positions logged every 250 ms); the region map and minimap draw both maps stitched. No page errors.
+- Not verified: Firefox/Safari; GitHub Pages (deploys automatically on push).
+
 ## Verification record — v0.2.0 (2026-10-13)
 
 - `npm run check` — **76/76 tests passed** (incl. 14 in `character_moneybucks.test.mjs`); **validator 0 errors** (2 intentional warnings).

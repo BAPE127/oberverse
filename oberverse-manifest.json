@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -33,7 +33,8 @@
     "audio": "src/audio/audioEngine.js, src/audio/music.js, src/audio/synth.js, src/audio/sfx.js, src/audio/ambience.js",
     "ui": "src/ui/ui.js, src/ui/panels.js, src/ui/dialogueUI.js, src/ui/maps.js",
     "oilCompany": "src/systems/oilCompany.js",
-    "ledgerGame": "src/systems/ledgerGame.js"
+    "ledgerGame": "src/systems/ledgerGame.js",
+    "regions": "src/world/regions.js + src/content/world.js (seamless outdoor maps)"
   },
   "contentRegistries": {
     "index": "src/content/index.js",

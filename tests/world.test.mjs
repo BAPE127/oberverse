@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, TILE } from './helpers.mjs';
+import { newGame, TILE, setTime } from './helpers.mjs';
 import { findPath, routeBetweenMaps } from '../src/world/pathfinding.js';
 
 test('A* finds a path inside the café around the counter', () => {
@@ -55,4 +55,57 @@ test('interactables prefer what the player faces', () => {
   g.player.facing = 'right';
   const top = g.interactables()[0];
   assert.equal(top.id, 'flat_desk');
+});
+
+test('Lanternside and the Ober Fields are one continuous space: walk straight across', () => {
+  const g = newGame();
+  g.changeMap('lanternside', 'east_road');
+  g.player.y = 12.6 * TILE;
+  const seen = [];
+  const off = g.mapOffset('lanternside', 'ober_fields');
+  assert.equal(off.x, 63 * TILE);
+  const worldX = () => g.player.x + (g.player.map === 'ober_fields' ? off.x : 0);
+  let maxStep = 0;
+  for (let i = 0; i < 600 && g.player.map === 'lanternside'; i++) {
+    const before = worldX();
+    g.update(1 / 60, { x: 1, y: 0 });
+    maxStep = Math.max(maxStep, Math.abs(worldX() - before));
+  }
+  assert.equal(g.player.map, 'ober_fields');
+  // the player's world position is continuous across the seam (no jump to a spawn spot)
+  assert.ok(maxStep < 6, `largest single-frame move was ${maxStep}px`);
+  for (let i = 0; i < 60; i++) { g.update(1 / 60, { x: 1, y: 0 }); seen.push(g.player.map); }
+  assert.ok(seen.every((m) => m === 'ober_fields'), 'no bouncing back at the seam');
+  for (let i = 0; i < 400 && g.player.map === 'ober_fields'; i++) g.update(1 / 60, { x: -1, y: 0 });
+  assert.equal(g.player.map, 'lanternside', 'and back again');
+  // seams are walked, never offered as "Enter …" prompts
+  g.player.x = 62.5 * TILE;
+  assert.ok(!g.interactables().some((t) => t.kind === 'door'));
+});
+
+test('the seam follows walkable ground only (no crossing on water)', () => {
+  const g = newGame();
+  const seams = g.maps.get('lanternside').doors.filter((d) => d.seamless).map((d) => d.y);
+  assert.ok(seams.includes(12) && seams.includes(13), 'the road crosses');
+  assert.ok(!seams.includes(22) && !seams.includes(35), 'canal and harbour do not');
+  assert.equal(g.neighbors('lanternside')[0].map.id, 'ober_fields');
+  assert.equal(g.neighbors('cafe').length, 0);
+});
+
+test('NPCs walk across the seam physically when the player is watching', () => {
+  const g = newGame(6);
+  setTime(g, 2, '15:25'); // Sir Moneybucks heads home from the Quay at 15:30
+  g.changeMap('lanternside', 'east_road');
+  const mb = g.npcs.get('npc_moneybucks');
+  assert.equal(mb.map, 'lanternside');
+  let crossedAt = null;
+  for (let i = 0; i < 3000 && !crossedAt; i++) {
+    const before = { map: mb.map, x: mb.x, y: mb.y };
+    g.update(0.1, { x: 0, y: 0 });
+    if (before.map === 'lanternside' && mb.map === 'ober_fields') crossedAt = { before, after: { x: mb.x, y: mb.y } };
+  }
+  assert.ok(crossedAt, 'he walked into the Ober Fields');
+  const off = g.mapOffset('lanternside', 'ober_fields');
+  assert.ok(Math.abs(crossedAt.after.x + off.x - crossedAt.before.x) < 40, 'no teleport across the seam');
+  assert.ok(Math.abs(crossedAt.after.y - crossedAt.before.y) < 40);
 });

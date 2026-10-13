@@ -2,7 +2,8 @@
 // glue between game events and feedback (toasts, sound). Owns the current Game.
 import { Game } from '../game/game.js';
 import { TILE } from '../core/util.js';
-import { versionLabel } from '../core/version.js';
+import { versionLabel, GAME_VERSION } from '../core/version.js';
+import { RELEASE_NOTES } from '../core/releaseNotes.js';
 import { Renderer } from '../engine/renderer.js';
 import { drawPortrait } from '../engine/drawCharacter.js';
 import { DialogueUI } from './dialogueUI.js';
@@ -177,6 +178,10 @@ export class UI {
     this.enterPlay(game);
     this.toast(`Loaded ${slot === 'auto' ? 'autosave' : slot}. Day ${game.clock.day}, ${game.clock.timeString}.`, 'good');
     for (const w of r.warnings || []) this.toast(`Save repaired: ${w}`, 'warn');
+    if (r.savedWith && r.savedWith !== GAME_VERSION) {
+      const note = RELEASE_NOTES.find((n) => n.version === GAME_VERSION);
+      if (note) this.toast(`Updated to v${GAME_VERSION} — ${note.title}: ${note.notes[0]}`, 'quest', 12);
+    }
     for (const m of r.migrated || []) this.toast(`Save upgraded: ${m}`, 'info');
     return true;
   }
@@ -294,7 +299,12 @@ export class UI {
     bus.on('quest:stage', ({ title, text }) => { this.audio.sfx('sfx_quest'); this.toast(`${title} — ${text}`, 'quest', 7); });
     bus.on('quest:completed', ({ title }) => { this.audio.sfx('sfx_quest'); this.toast(`Completed: ${title}`, 'quest', 6); });
     bus.on('quest:failed', ({ title, text }) => { this.audio.sfx('sfx_fail'); this.toast(`${title}: ${text || 'failed'}`, 'warn', 7); });
-    bus.on('map:entered', () => {
+    bus.on('map:entered', ({ seamless, from, map }) => {
+      if (seamless) {
+        // Walking across a seam between outdoor maps: no fade, no camera jump.
+        this.renderer.seamlessShift(from, map);
+        return;
+      }
       this.flash();
       this.renderer.snapCamera();
       if (this.time - this.lastMapAutosave > 90) {

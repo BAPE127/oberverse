@@ -158,8 +158,10 @@ export function mapPanel(ui, body, opts) {
     ),
   );
   const tabs = [];
+  const outdoorId = current.kind === 'interior' ? (g.lastOutdoorMap || 'lanternside') : current.id;
+  const regionName = Object.values(g.content.regions || {}).find((r) => r.maps[outdoorId])?.name || g.maps.get(outdoorId).name;
   if (current.kind === 'interior') tabs.push({ label: current.name, active: mapId === current.id, onclick: () => ui.openPanel('map', { mapId: current.id }) });
-  tabs.push({ label: 'Lanternside', active: mapId === 'lanternside', onclick: () => ui.openPanel('map', { mapId: 'lanternside' }) });
+  tabs.push({ label: regionName, active: mapId === outdoorId, onclick: () => ui.openPanel('map', { mapId: outdoorId }) });
   const disc = Object.keys(g.player.discovered.areas).length;
   body.append(h('p', { class: 'muted' }, `Areas discovered: ${disc}. Unexplored districts stay hidden until you visit them.`));
   return { title: 'Map', tabs };

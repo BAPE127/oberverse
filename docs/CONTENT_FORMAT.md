@@ -121,6 +121,10 @@ Containers: `lockedBy: itemId` (+`lockedText`) needs a key to open; `theftFact: 
 
 Shops: optional `prices: {itemId: n}` override list prices (the company store gouges).
 
+## Regions
+
+`src/content/world.js`: `REGIONS = { id: { name, maps: { mapId: { x, y, fallbackSpot } } } }` (tile offsets). Put the eastern map at `x = western.x + western.width - 1` to share a seam column; seams are generated automatically on tiles walkable on both sides. `fallbackSpot` is used only if a seam position can't be mapped. Keep the shared column's terrain consistent on both maps.
+
 ## Quests
 
 `{ title, kind?: 'job', giver, summary, start, expires?: {at}, stages: { id: { journal, objectives[{id, text, if?}], hints[{if, text}], marker?: 'map:spot', onEnter? } }, triggers: [{ event, where, stage?, notStarted?, if?, start?, advance?, complete?, effects? }], outcomes: { id: { journal, effects } }, failures: { id: { journal, effects } } }`. Trigger events: `map:entered`, `item:acquired`, `fact:learned`, `flag:set`, `npc:talked`, `prop:used`.

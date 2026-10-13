@@ -18,6 +18,7 @@ export class Renderer {
     this.cam = { x: 0, y: 0, zoom: 2 };
     this.staticLayers = new Map();
     this.light = document.createElement('canvas');
+    this.layers = [];
     this.time = 0;
     this.highlight = null;
     this.resize();
@@ -60,12 +61,23 @@ export class Renderer {
     this.cam.zoom = zoom;
     const vw = this.canvas.width / zoom;
     const vh = this.canvas.height / zoom;
-    const mw = map.width * TILE;
-    const mh = map.height * TILE;
+    // Camera bounds cover the current map and any seamless neighbours.
+    let minX = 0;
+    let minY = 0;
+    let maxX = map.width * TILE;
+    let maxY = map.height * TILE;
+    for (const l of this.layers.slice(1)) {
+      minX = Math.min(minX, l.x);
+      minY = Math.min(minY, l.y);
+      maxX = Math.max(maxX, l.x + l.map.width * TILE);
+      maxY = Math.max(maxY, l.y + l.map.height * TILE);
+    }
+    const mw = maxX - minX;
+    const mh = maxY - minY;
     let tx = g.player.x - vw / 2;
     let ty = g.player.y - 16 - vh / 2;
-    tx = mw <= vw ? (mw - vw) / 2 : clamp(tx, 0, mw - vw);
-    ty = mh <= vh ? (mh - vh) / 2 : clamp(ty, -TILE, mh - vh);
+    tx = mw <= vw ? minX + (mw - vw) / 2 : clamp(tx, minX, maxX - vw);
+    ty = mh <= vh ? minY + (mh - vh) / 2 : clamp(ty, minY - TILE, maxY - vh);
     if (this.cam.snap || this.cam.mapId !== map.id) {
       this.cam.x = tx;
       this.cam.y = ty;
@@ -79,6 +91,15 @@ export class Renderer {
     this.view = { x: this.cam.x, y: this.cam.y, w: vw, h: vh };
   }
 
+  /** Called when the player walks across a seam: keep the view continuous. */
+  seamlessShift(fromId, toId) {
+    const off = this.game.mapOffset(fromId, toId);
+    if (!off) return this.snapCamera();
+    this.cam.x -= off.x;
+    this.cam.y -= off.y;
+    this.cam.mapId = toId;
+  }
+
   toScreen(wx, wy) {
     return { x: (wx - this.cam.x) * this.cam.zoom, y: (wy - this.cam.y) * this.cam.zoom };
   }
@@ -88,6 +109,7 @@ export class Renderer {
     const g = this.game;
     const ctx = this.ctx;
     const map = g.currentMap();
+    this.layers = [{ map, x: 0, y: 0 }, ...(map.kind === 'interior' ? [] : g.neighbors(map.id))];
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
@@ -98,42 +120,50 @@ export class Renderer {
     ctx.setTransform(zoom, 0, 0, zoom, -this.cam.x * zoom, -this.cam.y * zoom);
     ctx.imageSmoothingEnabled = true;
 
-    const layer = this.staticLayer(map);
-    const sx = Math.max(0, Math.floor(v.x));
-    const sy = Math.max(0, Math.floor(v.y));
-    const sw = Math.min(layer.width - sx, Math.ceil(v.w) + 2);
-    const sh = Math.min(layer.height - sy, Math.ceil(v.h) + 2);
-    if (sw > 0 && sh > 0) ctx.drawImage(layer, sx, sy, sw, sh, sx, sy, sw, sh);
-    if (map.kind !== 'interior') drawWaterShimmer(ctx, map, v, this.time);
-    if (map.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, map, v);
-
     const night = g.clock.darkness > 0.45;
-    const inView = (x, y, w, h, pad = 64) => x + w > v.x - pad && x < v.x + v.w + pad && y + h > v.y - pad * 2 && y < v.y + v.h + pad;
-
-    // flat props
-    for (const p of map.props) {
-      if (!FLAT_PROPS.has(p.type)) continue;
-      if (!this.propVisible(p)) continue;
-      if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-      drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] });
-    }
-
-    // y-sorted drawables
     const items = [];
-    for (const b of map.buildings) {
-      if (!inView(b.x * TILE, (b.y - 4) * TILE, b.w * TILE, (b.h + 4) * TILE)) continue;
-      items.push({ y: (b.y + b.h) * TILE, draw: () => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: b.door && !g.playerCanPass(map.doors.find((d) => d.building === b.id) || b.door) }) });
-    }
-    for (const p of map.props) {
-      if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
-      if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-      const tallY = p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
-      items.push({ y: tallY, draw: () => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] }) });
-    }
-    for (const npc of g.npcs.values()) {
-      if (npc.map !== map.id) continue;
-      if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
-      items.push({ y: npc.y, draw: () => this.drawActor(npc.profile.appearance, npc, npc.activity === 'sleep') });
+    // Draw the current map and its seamless neighbours, each at its offset.
+    for (const L of this.layers) {
+      const lm = L.map;
+      const lv = { x: v.x - L.x, y: v.y - L.y, w: v.w, h: v.h };
+      const inView = (x, y, w, h, pad = 64) => x + w > lv.x - pad && x < lv.x + lv.w + pad && y + h > lv.y - pad * 2 && y < lv.y + lv.h + pad;
+      const at = (fn) => () => {
+        ctx.save();
+        ctx.translate(L.x, L.y);
+        fn();
+        ctx.restore();
+      };
+      const layer = this.staticLayer(lm);
+      const sx = Math.max(0, Math.floor(lv.x));
+      const sy = Math.max(0, Math.floor(lv.y));
+      const sw = Math.min(layer.width - sx, Math.ceil(lv.w) + 2);
+      const sh = Math.min(layer.height - sy, Math.ceil(lv.h) + 2);
+      if (sw > 0 && sh > 0) ctx.drawImage(layer, sx, sy, sw, sh, sx + L.x, sy + L.y, sw, sh);
+      at(() => {
+        if (lm.kind !== 'interior') drawWaterShimmer(ctx, lm, lv, this.time);
+        if (lm.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, lm, lv);
+        for (const p of lm.props) {
+          if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
+          if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] });
+        }
+      })();
+      for (const b of lm.buildings) {
+        if (!inView(b.x * TILE, (b.y - 4) * TILE, b.w * TILE, (b.h + 4) * TILE)) continue;
+        const door = lm.doors.find((d) => d.building === b.id);
+        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door) })) });
+      }
+      for (const p of lm.props) {
+        if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
+        if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
+        const tallY = p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] })) });
+      }
+      for (const npc of g.npcs.values()) {
+        if (npc.map !== lm.id) continue;
+        if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
+        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(npc.profile.appearance, npc, npc.activity === 'sleep')) });
+      }
     }
     if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(g.player.appearance, g.player, false) });
     items.sort((a, b) => a.y - b.y);
@@ -282,22 +312,25 @@ export class Renderer {
     };
     const warm = [];
     if (outdoor) {
-      for (const p of map.props) {
-        if (p.type !== 'streetlamp') continue;
-        hole(p.x * TILE + 16, p.y * TILE - 10, 120, 0.95);
-        warm.push([p.x * TILE + 16, p.y * TILE - 22, 46]);
+      this.beam = null;
+      for (const L of this.layers) {
+        for (const p of L.map.props) {
+          if (p.type !== 'streetlamp') continue;
+          hole(p.x * TILE + 16 + L.x, p.y * TILE - 10 + L.y, 120, 0.95);
+          warm.push([p.x * TILE + 16 + L.x, p.y * TILE - 22 + L.y, 46]);
+        }
+        for (const b of L.map.buildings) {
+          if (!this.buildingLit(b)) continue;
+          hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
+        }
+        const lh = L.map.buildings.find((b) => b.round);
+        if (lh && g.getFlag('lighthouse_relit')) {
+          const lx = (lh.x + lh.w / 2) * TILE + L.x;
+          const ly = lh.y * TILE - TILE * 3.2 - 14 + L.y;
+          hole(lx, ly, 160, 1);
+          this.beam = { x: lx, y: ly };
+        }
       }
-      for (const b of map.buildings) {
-        if (!this.buildingLit(b)) continue;
-        hole((b.x + b.w / 2) * TILE, (b.y + b.h) * TILE, 30 + b.w * 9, 0.75);
-      }
-      const lh = map.buildings.find((b) => b.round);
-      if (lh && g.getFlag('lighthouse_relit')) {
-        const lx = (lh.x + lh.w / 2) * TILE;
-        const ly = lh.y * TILE - TILE * 3.2 - 14;
-        hole(lx, ly, 160, 1);
-        this.beam = { x: lx, y: ly };
-      } else this.beam = null;
       if (!this.hidePlayer) hole(g.player.x, g.player.y - 14, 70, 0.55);
     } else {
       for (const p of map.props) if (p.type === 'window' || p.type === 'oven' || p.type === 'stove') hole(p.x * TILE + 16, p.y * TILE + 30, 90, 0.8);
@@ -344,10 +377,12 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const dpr = this.dpr;
+    const layerOf = new Map(this.layers.map((l) => [l.map.id, l]));
     for (const npc of g.npcs.values()) {
-      if (npc.map !== map.id) continue;
-      const near = dist(npc.x, npc.y, g.player.x, g.player.y) < TILE * 4.5;
-      const s = this.toScreen(npc.x, npc.y - 52 * (npc.profile.appearance.height || 1));
+      const L = layerOf.get(npc.map);
+      if (!L) continue;
+      const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
+      const s = this.toScreen(npc.x + L.x, npc.y + L.y - 52 * (npc.profile.appearance.height || 1));
       if (near || npc.bubble) {
         const mood = g.moodOf(npc);
         const icon = g.content.moods[mood]?.icon || '';
@@ -365,7 +400,7 @@ export class Renderer {
       if (npc.activity === 'sleep') {
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         ctx.font = `bold ${(10 + Math.sin(this.time * 2) * 2) * dpr}px ${FONT}`;
-        const zs = this.toScreen(npc.x + 10, npc.y - 46 - ((this.time * 8) % 10));
+        const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - 46 - ((this.time * 8) % 10));
         ctx.fillText('z', zs.x, zs.y);
       }
       if (npc.bubble && g.realTime < npc.bubble.until) this.drawBubble(npc.bubble.text, s.x, s.y - 14 * dpr);

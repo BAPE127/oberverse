@@ -427,10 +427,6 @@ const __default = {
     east_road: { x: 61, y: 13, facing: 'left' },
     pier_mid: { x: 56, y: 37, facing: 'down' },
   },
-  doors: [
-    { id: 'door_east_road_a', x: 63, y: 12, keepTile: true, label: 'Road to the Ober Fields', to: { map: 'ober_fields', spot: 'west_road' } },
-    { id: 'door_east_road_b', x: 63, y: 13, keepTile: true, label: 'Road to the Ober Fields', to: { map: 'ober_fields', spot: 'west_road' } },
-  ],
   props: [
     { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights
@@ -685,6 +681,9 @@ m.rect(33, 10, 1, 2, 'g'); // manor drive
 m.rect(22, 15, 27, 11, 'g'); // refinery apron
 m.rect(22, 26, 29, 13, ':'); // oil fields
 m.rect(8, 15, 3, 6, ':').rect(5, 21, 9, 2, ':'); // bunkhouse yard
+// Continuations of Lanternside across the seam (x = 0 here is Lanternside's x = 63):
+m.rect(0, 21, 5, 1, ',').rect(0, 22, 4, 2, '~').rect(0, 24, 5, 1, ','); // the Lantern Canal ends in a culvert pool
+m.rect(0, 30, 5, 10, '~').rect(5, 32, 1, 6, '~'); // the harbour's eastern shore
 
 const fence = [];
 for (let y = 1; y < 39; y++) if (y < 11 || y > 14) fence.push({ id: `fence_${y}`, type: 'fence', x: 20, y });
@@ -738,10 +737,6 @@ const oberFields = {
       },
     },
   ],
-  doors: [
-    { id: 'door_fields_west_a', x: 0, y: 12, keepTile: true, label: 'Road to Lanternside', to: { map: 'lanternside', spot: 'east_road' } },
-    { id: 'door_fields_west_b', x: 0, y: 13, keepTile: true, label: 'Road to Lanternside', to: { map: 'lanternside', spot: 'east_road' } },
-  ],
   spots: {
     west_road: { x: 2, y: 12, facing: 'right' },
     gate_post: { x: 22, y: 10, facing: 'left' },
@@ -788,7 +783,8 @@ const oberFields = {
     ...pipeline,
     // around the bunkhouse
     { id: 'tree_b1', type: 'pine', x: 2, y: 17 }, { id: 'tree_b2', type: 'pine', x: 15, y: 17 }, { id: 'tree_b3', type: 'tree', x: 3, y: 4 },
-    { id: 'tree_b4', type: 'tree', x: 11, y: 6 }, { id: 'tree_b5', type: 'pine', x: 7, y: 30 }, { id: 'tree_b6', type: 'pine', x: 14, y: 33 },
+    { id: 'tree_b4', type: 'tree', x: 11, y: 6 }, { id: 'tree_b5', type: 'pine', x: 8, y: 29 },
+    { id: 'sign_west', type: 'sign', x: 2, y: 10, examine: '"WEST ← Lanternside. Civic Office, Kettle & Crumb, the Quay."' }, { id: 'tree_b6', type: 'pine', x: 14, y: 33 },
     { id: 'bench_bunk', type: 'bench', x: 11, y: 22 },
   ],
 };
@@ -1175,6 +1171,7 @@ const DOCS = {
       'Number 9 is yours for the season. The heating knocks, the window sticks, and the gulls are not your friends.',
       'You said in your letter you were looking for "work, people, and something worth finding out". Lanternside has all three. Start at the Kettle & Crumb on Canal Row — Mags Pell knows everyone and everything, and usually has odd jobs going.',
       'Rent is cheap because the borough is quiet. Some say too quiet since the lighthouse went dark.',
+      'If it\'s steady wages you\'re after, follow Gullwing Road east out of town to the Ober Fields. Ober\'s Oil is always hiring — Sir Moneybucks just isn\'t always paying.',
       '— The Obermere Housing Bureau',
       'P.S. Your spare change is in the wardrobe.',
     ],
@@ -1729,6 +1726,126 @@ const NOTICES = [
 ];
 
 return { NOTICES };
+})();
+
+// ---- src/content/world.js
+__m["src/content/world.js"] = (function () {
+// World layout: outdoor maps that sit side by side in one continuous space.
+// Offsets are in tiles. Two maps share a seam column when B.x === A.x + A.width - 1
+// (A's last column and B's first column are the same strip of ground). Walkable
+// tiles on that strip become seamless doors: the player and NPCs simply walk
+// across, and the renderer, minimap and world map draw the neighbours together.
+const REGIONS = {
+  coast: {
+    name: 'Lanternside & the Ober Fields',
+    maps: {
+      lanternside: { x: 0, y: 0, fallbackSpot: 'east_road' },
+      ober_fields: { x: 63, y: 0, fallbackSpot: 'west_road' },
+    },
+  },
+};
+
+return { REGIONS };
+})();
+
+// ---- src/world/tiles.js
+__m["src/world/tiles.js"] = (function () {
+// Tile type registry. Maps are authored as grids of single-character codes.
+// `solid` blocks movement; `water` is used by audio/ambience and rendering.
+const TILE_TYPES = {
+  '.': { name: 'grass', solid: false, color: '#7fb069', alt: '#76a862' },
+  ',': { name: 'paving', solid: false, color: '#cfc6b4', alt: '#c6bca9' },
+  '=': { name: 'road', solid: false, color: '#5f6470', alt: '#5a5f6a' },
+  ':': { name: 'dirt path', solid: false, color: '#c9a978', alt: '#c09f6d' },
+  '~': { name: 'water', solid: true, water: true, color: '#3f88a8', alt: '#3a80a0' },
+  b: { name: 'bridge', solid: false, color: '#9a6b45', alt: '#90623d' },
+  p: { name: 'pier planks', solid: false, color: '#a27650', alt: '#976c47' },
+  s: { name: 'sand', solid: false, color: '#e6d3a1', alt: '#dfca94' },
+  r: { name: 'rock', solid: true, color: '#8d8f94', alt: '#83858a' },
+  B: { name: 'building', solid: true, color: '#6b5b53', alt: '#6b5b53' },
+  D: { name: 'doorway', solid: false, color: '#5a4636', alt: '#5a4636' },
+  W: { name: 'wall', solid: true, wall: true, color: '#e9dcc3', alt: '#e9dcc3' },
+  f: { name: 'wood floor', solid: false, color: '#b98a5e', alt: '#b08157' },
+  t: { name: 'tile floor', solid: false, color: '#dcd6cc', alt: '#d2ccc1' },
+  c: { name: 'carpet', solid: false, color: '#8e5a6e', alt: '#875468' },
+  g: { name: 'concrete', solid: false, color: '#a7a9a6', alt: '#9fa19e' },
+  x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
+};
+
+const isSolidCode = (ch) => Boolean(TILE_TYPES[ch]?.solid);
+
+return { TILE_TYPES, isSolidCode };
+})();
+
+// ---- src/world/regions.js
+__m["src/world/regions.js"] = (function () {
+// Region helpers: stitch side-by-side outdoor maps into one continuous space.
+const { TILE_TYPES } = __m["src/world/tiles.js"];
+
+function solidPropAt(def, propTypes, x, y) {
+  return (def.props || []).some((p) => {
+    const t = propTypes[p.type] || {};
+    const solid = p.solid ?? t.solid;
+    const w = p.w ?? t.defaults?.w ?? 1;
+    const h = p.h ?? t.defaults?.h ?? 1;
+    return solid && !p.hiddenUnless && x >= p.x && x < p.x + w && y >= p.y && y < p.y + h;
+  });
+}
+
+function walkable(def, propTypes, x, y) {
+  const ch = def.tiles[y]?.[x];
+  if (ch === undefined || TILE_TYPES[ch]?.solid) return false;
+  for (const b of def.buildings || []) if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return false;
+  return !solidPropAt(def, propTypes, x, y);
+}
+
+/**
+ * Adds seamless doors to map definitions along shared seam columns.
+ * Mutates `maps` (definitions, before GameMap construction). Idempotent.
+ */
+function addSeams(maps, regions, propTypes) {
+  for (const region of Object.values(regions)) {
+    const entries = Object.entries(region.maps);
+    for (const [aId, a] of entries) {
+      for (const [bId, b] of entries) {
+        const A = maps[aId];
+        const B = maps[bId];
+        if (!A || !B || aId === bId) continue;
+        const wA = A.tiles[0].length;
+        if (b.x !== a.x + wA - 1) continue; // only horizontal seams (B to the east of A)
+        const ax = wA - 1;
+        A.doors = (A.doors || []).filter((d) => !(d.seamless && d.to.map === bId));
+        B.doors = (B.doors || []).filter((d) => !(d.seamless && d.to.map === aId));
+        for (let gy = Math.max(a.y, b.y); gy < Math.min(a.y + A.tiles.length, b.y + B.tiles.length); gy++) {
+          const ya = gy - a.y;
+          const yb = gy - b.y;
+          if (!walkable(A, propTypes, ax, ya) || !walkable(B, propTypes, 0, yb)) continue;
+          A.doors.push({ id: `seam_${aId}_${bId}_${gy}`, x: ax, y: ya, keepTile: true, seamless: true, label: `Toward ${region.name}`, to: { map: bId, spot: b.fallbackSpot } });
+          B.doors.push({ id: `seam_${bId}_${aId}_${gy}`, x: 0, y: yb, keepTile: true, seamless: true, label: `Toward ${region.name}`, to: { map: aId, spot: a.fallbackSpot } });
+        }
+      }
+    }
+  }
+  return maps;
+}
+
+/** Pixel offset of map `otherId` relative to `mapId` (null if not in the same region). */
+function regionOffsetPx(regions, mapId, otherId, tile) {
+  for (const region of Object.values(regions)) {
+    const a = region.maps[mapId];
+    const b = region.maps[otherId];
+    if (a && b) return { x: (b.x - a.x) * tile, y: (b.y - a.y) * tile };
+  }
+  return null;
+}
+
+/** The region a map belongs to, with its id. */
+function regionOf(regions, mapId) {
+  for (const [id, region] of Object.entries(regions)) if (region.maps[mapId]) return { id, ...region };
+  return null;
+}
+
+return { addSeams, regionOffsetPx, regionOf };
 })();
 
 // ---- src/content/audio.js
@@ -3917,6 +4034,8 @@ const { QUESTS } = __m["src/content/quests.js"];
 const { EVENTS } = __m["src/content/events.js"];
 const { MOODS } = __m["src/content/moods.js"];
 const { NOTICES } = __m["src/content/notices.js"];
+const { REGIONS } = __m["src/content/world.js"];
+const { addSeams } = __m["src/world/regions.js"];
 const { SONGS, MOTIFS, AUDIO_REGISTRY } = __m["src/content/audio.js"];
 const mags = __m["src/content/characters/mags.js"].default;
 const osric = __m["src/content/characters/osric.js"].default;
@@ -3933,8 +4052,12 @@ const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
+const MAPS = byId([lanternside, ...interiors, ...oberMaps]);
+addSeams(MAPS, REGIONS, PROP_TYPES);
+
 const CONTENT = {
-  maps: byId([lanternside, ...interiors, ...oberMaps]),
+  maps: MAPS,
+  regions: REGIONS,
   propTypes: PROP_TYPES,
   items: ITEMS,
   facts: FACTS,
@@ -3965,7 +4088,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.2.0';
+const GAME_VERSION = '0.3.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -4200,7 +4323,7 @@ class SaveManager {
     } catch (err) {
       return { ok: false, errors: [`Save could not be applied: ${err.message}`], warnings: res.warnings };
     }
-    return { ok: true, warnings: res.warnings, migrated: res.migrated || [], usedBackup };
+    return { ok: true, warnings: res.warnings, migrated: res.migrated || [], usedBackup, savedWith: res.save.gameVersion };
   }
 
   /** Slot listing for menus. */
@@ -5413,35 +5536,6 @@ class WorldClock {
 return { MINUTES_PER_DAY, START_TIME, DEFAULT_RATE, parseTime, formatTime, inWindow, WEEKDAYS, WorldClock };
 })();
 
-// ---- src/world/tiles.js
-__m["src/world/tiles.js"] = (function () {
-// Tile type registry. Maps are authored as grids of single-character codes.
-// `solid` blocks movement; `water` is used by audio/ambience and rendering.
-const TILE_TYPES = {
-  '.': { name: 'grass', solid: false, color: '#7fb069', alt: '#76a862' },
-  ',': { name: 'paving', solid: false, color: '#cfc6b4', alt: '#c6bca9' },
-  '=': { name: 'road', solid: false, color: '#5f6470', alt: '#5a5f6a' },
-  ':': { name: 'dirt path', solid: false, color: '#c9a978', alt: '#c09f6d' },
-  '~': { name: 'water', solid: true, water: true, color: '#3f88a8', alt: '#3a80a0' },
-  b: { name: 'bridge', solid: false, color: '#9a6b45', alt: '#90623d' },
-  p: { name: 'pier planks', solid: false, color: '#a27650', alt: '#976c47' },
-  s: { name: 'sand', solid: false, color: '#e6d3a1', alt: '#dfca94' },
-  r: { name: 'rock', solid: true, color: '#8d8f94', alt: '#83858a' },
-  B: { name: 'building', solid: true, color: '#6b5b53', alt: '#6b5b53' },
-  D: { name: 'doorway', solid: false, color: '#5a4636', alt: '#5a4636' },
-  W: { name: 'wall', solid: true, wall: true, color: '#e9dcc3', alt: '#e9dcc3' },
-  f: { name: 'wood floor', solid: false, color: '#b98a5e', alt: '#b08157' },
-  t: { name: 'tile floor', solid: false, color: '#dcd6cc', alt: '#d2ccc1' },
-  c: { name: 'carpet', solid: false, color: '#8e5a6e', alt: '#875468' },
-  g: { name: 'concrete', solid: false, color: '#a7a9a6', alt: '#9fa19e' },
-  x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
-};
-
-const isSolidCode = (ch) => Boolean(TILE_TYPES[ch]?.solid);
-
-return { TILE_TYPES, isSolidCode };
-})();
-
 // ---- src/world/gameMap.js
 __m["src/world/gameMap.js"] = (function () {
 // Runtime representation of a map: tile grid, buildings, doors, props, named
@@ -6184,6 +6278,7 @@ class NpcSystem {
       npc.stuck = (npc.stuck || 0) + 1;
       return;
     }
+    if (route.length && route[0].door.seamless) route[0] = { ...route[0], door: this.nearestSeam(npc, route[0].door.to.map, target) };
     if (this.isPhysical(npc)) {
       const map = g.maps.get(npc.map);
       const goal = route.length ? { x: route[0].door.x, y: route[0].door.y } : map.spot(target.spot);
@@ -6203,6 +6298,28 @@ class NpcSystem {
     } else {
       this.startAbstractTravel(npc, route, target);
     }
+  }
+
+  /** Choose the seam crossing that best lines up with where the NPC is and where it is going. */
+  nearestSeam(npc, toMap, target) {
+    const g = this.game;
+    const map = g.maps.get(npc.map);
+    const tx = npc.x / TILE;
+    const ty = npc.y / TILE;
+    const goal = target.map === toMap ? g.maps.get(toMap)?.spot(target.spot) : null;
+    const off = g.mapOffset(npc.map, toMap);
+    let best = null;
+    let bestCost = Infinity;
+    for (const d of map.doors) {
+      if (!d.seamless || d.to.map !== toMap) continue;
+      let cost = Math.abs(d.x - tx) + Math.abs(d.y - ty);
+      if (goal && off) cost += Math.abs(d.x - off.x / TILE - goal.x) + Math.abs(d.y - off.y / TILE - goal.y);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = d;
+      }
+    }
+    return best;
   }
 
   startAbstractTravel(npc, route, target) {
@@ -6259,7 +6376,9 @@ class NpcSystem {
     const g = this.game;
     const from = npc.map;
     const dest = g.maps.get(door.to.map);
-    const spot = dest?.spotPx(door.to.spot);
+    const off = door.seamless ? g.mapOffset(from, door.to.map) : null;
+    // Seamless edges: arrive on the matching tile across the seam, not at a spot.
+    const spot = off ? { x: (door.x + 0.5) * TILE - off.x, y: (door.y + 0.5) * TILE - off.y } : dest?.spotPx(door.to.spot);
     if (!dest || !spot) return;
     npc.map = dest.id;
     npc.x = spot.x;
@@ -7320,6 +7439,7 @@ const { EventDirector } = __m["src/systems/eventDirector.js"];
 const { OilCompany, freshOil } = __m["src/systems/oilCompany.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
+const { regionOffsetPx } = __m["src/world/regions.js"];
 const { GAME_VERSION } = __m["src/core/version.js"];
 
 const PLAYER_SPEED = 128;
@@ -7671,13 +7791,33 @@ class Game {
 
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
+    const seam = map.doorAt(tx, ty);
+    if (seam?.seamless) {
+      // Seams are checked every frame: cross as soon as we are heading that way
+      // and our feet fit inside the neighbouring map (an exact, jump-free handover).
+      if (this.trySeam(seam, box)) return;
+    }
     if (tx !== p.lastTx || ty !== p.lastTy) {
       p.lastTx = tx;
       p.lastTy = ty;
       const door = map.doorAt(tx, ty);
-      if (door && door.to) this.useDoor(door);
+      if (door && door.to && !door.seamless) this.useDoor(door);
       else this.updateDiscovery();
     }
+  }
+
+  trySeam(door, box) {
+    const p = this.player;
+    const off = this.mapOffset(p.map, door.to.map);
+    if (!off) return false;
+    const heading = Math.sign(off.x) * p.vx + Math.sign(off.y) * p.vy;
+    if (heading <= 0) return false;
+    const nx = p.x - off.x;
+    const ny = p.y - off.y;
+    const dest = this.maps.get(door.to.map);
+    if (dest.rectBlocked(...box(nx, ny), this.playerActor())) return false;
+    this.changeMap(door.to.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
+    return true;
   }
 
   /** Small sideways nudge that lets the player slide around corners and into doorways. */
@@ -7705,6 +7845,24 @@ class Game {
     }
   }
 
+  /** Pixel offset of another map in the same region (null if not connected seamlessly). */
+  mapOffset(fromId, toId) {
+    return regionOffsetPx(this.content.regions || {}, fromId, toId, TILE);
+  }
+
+  /** Maps drawn around the current one, with pixel offsets (the continuous outdoors). */
+  neighbors(mapId = this.player.map) {
+    const out = [];
+    for (const region of Object.values(this.content.regions || {})) {
+      if (!region.maps[mapId]) continue;
+      for (const id of Object.keys(region.maps)) {
+        if (id === mapId || !this.maps.has(id)) continue;
+        out.push({ map: this.maps.get(id), ...this.mapOffset(mapId, id) });
+      }
+    }
+    return out;
+  }
+
   useDoor(door) {
     if (!this.playerCanPass(door)) return false;
     const lock = door.lock;
@@ -7716,9 +7874,9 @@ class Game {
     return true;
   }
 
-  changeMap(mapId, spotName) {
+  changeMap(mapId, spotName, pos = null) {
     const map = this.maps.get(mapId);
-    const s = map?.spotPx(spotName);
+    const s = pos || map?.spotPx(spotName);
     if (!map || !s) {
       this.warn(`changeMap: bad target ${mapId}:${spotName}`);
       return false;
@@ -7728,15 +7886,18 @@ class Game {
     p.map = mapId;
     p.x = s.x;
     p.y = s.y;
-    p.vx = 0;
-    p.vy = 0;
+    if (!pos?.keepVelocity) {
+      p.vx = 0;
+      p.vy = 0;
+    }
     if (s.facing) p.facing = s.facing;
     p.lastTx = Math.floor(p.x / TILE);
     p.lastTy = Math.floor(p.y / TILE);
     p.discovered.maps[mapId] = true;
+    if (map.kind !== 'interior') this.lastOutdoorMap = mapId;
     if (map.def.restricted && !this.getFlag(`${map.def.restricted}_permission`)) this.setFlag(`trespassed_${map.def.restricted}`, true);
     this.npcSystem.onPlayerMapChanged();
-    this.bus.emit('map:entered', { map: mapId, from });
+    this.bus.emit('map:entered', { map: mapId, from, seamless: Boolean(pos?.seamless) });
     this.updateDiscovery();
     return true;
   }
@@ -7870,6 +8031,7 @@ class Game {
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
     for (const door of map.doors) {
+      if (door.seamless) continue; // map edges are walked across, not "entered"
       if (Math.abs(door.x - tx) + Math.abs(door.y - ty) !== 1) continue;
       const cx = (door.x + 0.5) * TILE;
       const cy = (door.y + 0.5) * TILE;
@@ -8335,6 +8497,70 @@ function defaultPlayerAppearance() {
 
 
 return { PLAYER_SPEED, PLAYER_SPRINT, PLAYER_BOX, DEFAULT_REPUTATION, Game, defaultPlayerAppearance, MINUTES_PER_DAY };
+})();
+
+// ---- src/core/releaseNotes.js
+__m["src/core/releaseNotes.js"] = (function () {
+// In-game release history (About screen). Keep in sync with CHANGELOG.md;
+// tests/version.test.mjs checks the newest entry matches GAME_VERSION.
+const RELEASE_NOTES = [
+  {
+    version: '0.3.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'One Coast',
+    notes: [
+      'Lanternside and the Ober Fields are now one continuous place: walk east along Gullwing Road and the town simply becomes the oil country — no loading, no fade.',
+      'You can see across the boundary before you cross it, and people walk across it too.',
+      'The map (M) and minimap show Lanternside and the Ober Fields together.',
+      'The canal and harbour continue across the old edge; signposts point both ways.',
+      'The welcome letter now mentions Ober\'s Oil, and loading an older save tells you what\'s new.',
+    ],
+  },
+  {
+    version: '0.2.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Ober\'s Oil',
+    notes: [
+      'First imported character: Sir Richard E. Moneybucks, Esq., ruthless founder of Ober\'s Oil — with a portrait from the supplied image.',
+      'A new district east of town, the Ober Fields: Moneybucks Manor, Refinery No. 1, the oil fields and the workers\' bunkhouse.',
+      'Ten new residents: the Ober\'s Oil household and crew, each with a routine, personality and opinions of their boss.',
+      'Work refinery shifts, buy shares and fund expansion, or challenge Sir Moneybucks to "The Ledger".',
+      'New events: strikes, refinery accidents, a buyout bid for the Kettle & Crumb, and an oily canal.',
+      'The lighthouse mystery continues in "The Seal of M." — with four endings, one of which lights the lamp.',
+      'New music for the manor, refinery and fields; Sir Moneybucks\'s motif.',
+    ],
+  },
+  {
+    version: '0.1.1',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Just Open It',
+    notes: [
+      'The game is now a single self-contained index.html: double-click it to play — no server, no installation, no internet.',
+      'The same file works as a GitHub Pages link.',
+      'Saves persist between sessions when the file is opened directly.',
+    ],
+  },
+  {
+    version: '0.1.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Foundations of Lanternside',
+    notes: [
+      'First playable build: explore Lanternside, five interiors, day/night cycle and world clock.',
+      'Three original residents (Mags, Osric, Tibbs) with schedules, moods, memories, relationships and gossip.',
+      'Quests with multiple solutions: The Dark Lamp, The Lucky Spanner, and a daily café delivery job.',
+      'Inventory, money, shops, containers with ownership and witnessed theft, reputation with three factions.',
+      'Emergent events: workshop explosions, noise citations, missing keys, sell-outs and gull heists.',
+      'Original procedural soundtrack, ambience, sound effects, character motifs and voices.',
+      'Versioned saves with validation, backups, migrations, import and export.',
+    ],
+  },
+];
+
+return { RELEASE_NOTES };
 })();
 
 // ---- src/engine/drawCharacter.js
@@ -9696,6 +9922,7 @@ class Renderer {
     this.cam = { x: 0, y: 0, zoom: 2 };
     this.staticLayers = new Map();
     this.light = document.createElement('canvas');
+    this.layers = [];
     this.time = 0;
     this.highlight = null;
     this.resize();
@@ -9738,12 +9965,23 @@ class Renderer {
     this.cam.zoom = zoom;
     const vw = this.canvas.width / zoom;
     const vh = this.canvas.height / zoom;
-    const mw = map.width * TILE;
-    const mh = map.height * TILE;
+    // Camera bounds cover the current map and any seamless neighbours.
+    let minX = 0;
+    let minY = 0;
+    let maxX = map.width * TILE;
+    let maxY = map.height * TILE;
+    for (const l of this.layers.slice(1)) {
+      minX = Math.min(minX, l.x);
+      minY = Math.min(minY, l.y);
+      maxX = Math.max(maxX, l.x + l.map.width * TILE);
+      maxY = Math.max(maxY, l.y + l.map.height * TILE);
+    }
+    const mw = maxX - minX;
+    const mh = maxY - minY;
     let tx = g.player.x - vw / 2;
     let ty = g.player.y - 16 - vh / 2;
-    tx = mw <= vw ? (mw - vw) / 2 : clamp(tx, 0, mw - vw);
-    ty = mh <= vh ? (mh - vh) / 2 : clamp(ty, -TILE, mh - vh);
+    tx = mw <= vw ? minX + (mw - vw) / 2 : clamp(tx, minX, maxX - vw);
+    ty = mh <= vh ? minY + (mh - vh) / 2 : clamp(ty, minY - TILE, maxY - vh);
     if (this.cam.snap || this.cam.mapId !== map.id) {
       this.cam.x = tx;
       this.cam.y = ty;
@@ -9757,6 +9995,15 @@ class Renderer {
     this.view = { x: this.cam.x, y: this.cam.y, w: vw, h: vh };
   }
 
+  /** Called when the player walks across a seam: keep the view continuous. */
+  seamlessShift(fromId, toId) {
+    const off = this.game.mapOffset(fromId, toId);
+    if (!off) return this.snapCamera();
+    this.cam.x -= off.x;
+    this.cam.y -= off.y;
+    this.cam.mapId = toId;
+  }
+
   toScreen(wx, wy) {
     return { x: (wx - this.cam.x) * this.cam.zoom, y: (wy - this.cam.y) * this.cam.zoom };
   }
@@ -9766,6 +10013,7 @@ class Renderer {
     const g = this.game;
     const ctx = this.ctx;
     const map = g.currentMap();
+    this.layers = [{ map, x: 0, y: 0 }, ...(map.kind === 'interior' ? [] : g.neighbors(map.id))];
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
@@ -9776,42 +10024,50 @@ class Renderer {
     ctx.setTransform(zoom, 0, 0, zoom, -this.cam.x * zoom, -this.cam.y * zoom);
     ctx.imageSmoothingEnabled = true;
 
-    const layer = this.staticLayer(map);
-    const sx = Math.max(0, Math.floor(v.x));
-    const sy = Math.max(0, Math.floor(v.y));
-    const sw = Math.min(layer.width - sx, Math.ceil(v.w) + 2);
-    const sh = Math.min(layer.height - sy, Math.ceil(v.h) + 2);
-    if (sw > 0 && sh > 0) ctx.drawImage(layer, sx, sy, sw, sh, sx, sy, sw, sh);
-    if (map.kind !== 'interior') drawWaterShimmer(ctx, map, v, this.time);
-    if (map.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, map, v);
-
     const night = g.clock.darkness > 0.45;
-    const inView = (x, y, w, h, pad = 64) => x + w > v.x - pad && x < v.x + v.w + pad && y + h > v.y - pad * 2 && y < v.y + v.h + pad;
-
-    // flat props
-    for (const p of map.props) {
-      if (!FLAT_PROPS.has(p.type)) continue;
-      if (!this.propVisible(p)) continue;
-      if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-      drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] });
-    }
-
-    // y-sorted drawables
     const items = [];
-    for (const b of map.buildings) {
-      if (!inView(b.x * TILE, (b.y - 4) * TILE, b.w * TILE, (b.h + 4) * TILE)) continue;
-      items.push({ y: (b.y + b.h) * TILE, draw: () => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: b.door && !g.playerCanPass(map.doors.find((d) => d.building === b.id) || b.door) }) });
-    }
-    for (const p of map.props) {
-      if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
-      if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-      const tallY = p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
-      items.push({ y: tallY, draw: () => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] }) });
-    }
-    for (const npc of g.npcs.values()) {
-      if (npc.map !== map.id) continue;
-      if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
-      items.push({ y: npc.y, draw: () => this.drawActor(npc.profile.appearance, npc, npc.activity === 'sleep') });
+    // Draw the current map and its seamless neighbours, each at its offset.
+    for (const L of this.layers) {
+      const lm = L.map;
+      const lv = { x: v.x - L.x, y: v.y - L.y, w: v.w, h: v.h };
+      const inView = (x, y, w, h, pad = 64) => x + w > lv.x - pad && x < lv.x + lv.w + pad && y + h > lv.y - pad * 2 && y < lv.y + lv.h + pad;
+      const at = (fn) => () => {
+        ctx.save();
+        ctx.translate(L.x, L.y);
+        fn();
+        ctx.restore();
+      };
+      const layer = this.staticLayer(lm);
+      const sx = Math.max(0, Math.floor(lv.x));
+      const sy = Math.max(0, Math.floor(lv.y));
+      const sw = Math.min(layer.width - sx, Math.ceil(lv.w) + 2);
+      const sh = Math.min(layer.height - sy, Math.ceil(lv.h) + 2);
+      if (sw > 0 && sh > 0) ctx.drawImage(layer, sx, sy, sw, sh, sx + L.x, sy + L.y, sw, sh);
+      at(() => {
+        if (lm.kind !== 'interior') drawWaterShimmer(ctx, lm, lv, this.time);
+        if (lm.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, lm, lv);
+        for (const p of lm.props) {
+          if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
+          if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] });
+        }
+      })();
+      for (const b of lm.buildings) {
+        if (!inView(b.x * TILE, (b.y - 4) * TILE, b.w * TILE, (b.h + 4) * TILE)) continue;
+        const door = lm.doors.find((d) => d.building === b.id);
+        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door) })) });
+      }
+      for (const p of lm.props) {
+        if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
+        if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
+        const tallY = p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id] })) });
+      }
+      for (const npc of g.npcs.values()) {
+        if (npc.map !== lm.id) continue;
+        if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
+        items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(npc.profile.appearance, npc, npc.activity === 'sleep')) });
+      }
     }
     if (!this.hidePlayer) items.push({ y: g.player.y, draw: () => this.drawActor(g.player.appearance, g.player, false) });
     items.sort((a, b) => a.y - b.y);
@@ -9960,22 +10216,25 @@ class Renderer {
     };
     const warm = [];
     if (outdoor) {
-      for (const p of map.props) {
-        if (p.type !== 'streetlamp') continue;
-        hole(p.x * TILE + 16, p.y * TILE - 10, 120, 0.95);
-        warm.push([p.x * TILE + 16, p.y * TILE - 22, 46]);
+      this.beam = null;
+      for (const L of this.layers) {
+        for (const p of L.map.props) {
+          if (p.type !== 'streetlamp') continue;
+          hole(p.x * TILE + 16 + L.x, p.y * TILE - 10 + L.y, 120, 0.95);
+          warm.push([p.x * TILE + 16 + L.x, p.y * TILE - 22 + L.y, 46]);
+        }
+        for (const b of L.map.buildings) {
+          if (!this.buildingLit(b)) continue;
+          hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
+        }
+        const lh = L.map.buildings.find((b) => b.round);
+        if (lh && g.getFlag('lighthouse_relit')) {
+          const lx = (lh.x + lh.w / 2) * TILE + L.x;
+          const ly = lh.y * TILE - TILE * 3.2 - 14 + L.y;
+          hole(lx, ly, 160, 1);
+          this.beam = { x: lx, y: ly };
+        }
       }
-      for (const b of map.buildings) {
-        if (!this.buildingLit(b)) continue;
-        hole((b.x + b.w / 2) * TILE, (b.y + b.h) * TILE, 30 + b.w * 9, 0.75);
-      }
-      const lh = map.buildings.find((b) => b.round);
-      if (lh && g.getFlag('lighthouse_relit')) {
-        const lx = (lh.x + lh.w / 2) * TILE;
-        const ly = lh.y * TILE - TILE * 3.2 - 14;
-        hole(lx, ly, 160, 1);
-        this.beam = { x: lx, y: ly };
-      } else this.beam = null;
       if (!this.hidePlayer) hole(g.player.x, g.player.y - 14, 70, 0.55);
     } else {
       for (const p of map.props) if (p.type === 'window' || p.type === 'oven' || p.type === 'stove') hole(p.x * TILE + 16, p.y * TILE + 30, 90, 0.8);
@@ -10022,10 +10281,12 @@ class Renderer {
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const dpr = this.dpr;
+    const layerOf = new Map(this.layers.map((l) => [l.map.id, l]));
     for (const npc of g.npcs.values()) {
-      if (npc.map !== map.id) continue;
-      const near = dist(npc.x, npc.y, g.player.x, g.player.y) < TILE * 4.5;
-      const s = this.toScreen(npc.x, npc.y - 52 * (npc.profile.appearance.height || 1));
+      const L = layerOf.get(npc.map);
+      if (!L) continue;
+      const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
+      const s = this.toScreen(npc.x + L.x, npc.y + L.y - 52 * (npc.profile.appearance.height || 1));
       if (near || npc.bubble) {
         const mood = g.moodOf(npc);
         const icon = g.content.moods[mood]?.icon || '';
@@ -10043,7 +10304,7 @@ class Renderer {
       if (npc.activity === 'sleep') {
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         ctx.font = `bold ${(10 + Math.sin(this.time * 2) * 2) * dpr}px ${FONT}`;
-        const zs = this.toScreen(npc.x + 10, npc.y - 46 - ((this.time * 8) % 10));
+        const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - 46 - ((this.time * 8) % 10));
         ctx.fillText('z', zs.x, zs.y);
       }
       if (npc.bubble && g.realTime < npc.bubble.until) this.drawBubble(npc.bubble.text, s.x, s.y - 14 * dpr);
@@ -10765,6 +11026,12 @@ class MapRenderer {
     return out;
   }
 
+  /** The current map plus its seamless neighbours, with tile offsets. */
+  layers(map) {
+    const g = this.game;
+    return [{ map, x: 0, y: 0 }, ...(map.kind === 'interior' ? [] : g.neighbors(map.id).map((n) => ({ map: n.map, x: n.x / TILE, y: n.y / TILE })))];
+  }
+
   drawMinimap(canvas) {
     const g = this.game;
     const map = g.currentMap();
@@ -10772,19 +11039,21 @@ class MapRenderer {
     const W = canvas.width;
     const H = canvas.height;
     const scale = map.kind === 'interior' ? Math.floor(Math.min(W / map.width, H / map.height)) : MINI_SCALE;
-    const base = this.base(map, scale);
     const px = (g.player.x / TILE) * scale;
     const py = (g.player.y / TILE) * scale;
     let ox = Math.round(W / 2 - px);
     let oy = Math.round(H / 2 - py);
     if (map.kind === 'interior') {
+      const base = this.base(map, scale);
       ox = Math.round((W - base.width) / 2);
       oy = Math.round((H - base.height) / 2);
     }
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : TILE_TYPES['~'].color;
     ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(base, ox, oy);
-    for (const m of this.markers(map)) this.marker(ctx, ox + m.x * scale, oy + m.y * scale, m, 1);
+    for (const L of this.layers(map)) {
+      ctx.drawImage(this.base(L.map, scale), ox + L.x * scale, oy + L.y * scale);
+      for (const m of this.markers(L.map)) this.marker(ctx, ox + (m.x + L.x) * scale, oy + (m.y + L.y) * scale, m, 1);
+    }
     this.playerArrow(ctx, ox + px, oy + py, g.player.facing, 1);
     if (g.clock.darkness > 0.2) {
       ctx.fillStyle = `rgba(14,18,48,${g.clock.darkness * 0.35})`;
@@ -10843,108 +11112,73 @@ class MapRenderer {
     ctx.restore();
   }
 
-  /** Full map with fog over undiscovered areas, labels and markers. */
+  /**
+   * Full map with fog over undiscovered areas, labels and markers. For an
+   * outdoor map, its whole region (all seamless neighbours) is drawn as one.
+   */
   drawWorldMap(canvas, mapId) {
     const g = this.game;
     const map = g.maps.get(mapId);
-    const scale = map.kind === 'interior' ? 24 : 10;
-    const base = this.base(map, scale);
-    canvas.width = base.width;
-    canvas.height = base.height;
+    const layers = this.layers(map);
+    const scale = map.kind === 'interior' ? 24 : layers.length > 1 ? 8 : 10;
+    const minX = Math.min(...layers.map((l) => l.x));
+    const minY = Math.min(...layers.map((l) => l.y));
+    const maxX = Math.max(...layers.map((l) => l.x + l.map.width));
+    const maxY = Math.max(...layers.map((l) => l.y + l.map.height));
+    canvas.width = (maxX - minX) * scale;
+    canvas.height = (maxY - minY) * scale;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(base, 0, 0);
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : TILE_TYPES['~'].color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const disc = g.player.discovered.areas;
-    for (const a of map.areas) {
-      if (disc[a.id]) continue;
-      ctx.fillStyle = 'rgba(30,26,40,0.78)';
-      ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
-      ctx.fillStyle = 'rgba(255,246,224,0.5)';
-      ctx.font = `italic ${scale * 1.4}px Georgia, serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
-    }
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const b of map.buildings) {
-      const area = map.areaAt(b.x, b.y);
-      if (area && !disc[area.id]) continue;
-      ctx.font = `bold ${Math.max(10, scale * 1.05)}px "Trebuchet MS", sans-serif`;
-      const tx = (b.x + b.w / 2) * scale;
-      const ty = (b.y + b.h / 2 - 0.5) * scale;
-      const label = b.mapLabel || b.name;
-      const tw = ctx.measureText(label).width + 8;
-      ctx.fillStyle = 'rgba(251,244,230,0.85)';
-      ctx.fillRect(tx - tw / 2, ty - scale * 0.75, tw, scale * 1.5);
-      ctx.fillStyle = '#2d2433';
-      ctx.fillText(label, tx, ty);
-    }
-    for (const a of map.areas) {
-      if (!disc[a.id]) continue;
-      ctx.font = `italic bold ${scale * 1.5}px Georgia, serif`;
-      ctx.fillStyle = 'rgba(255,246,224,0.95)';
-      ctx.strokeStyle = 'rgba(45,36,51,0.8)';
-      ctx.lineWidth = 3;
-      ctx.strokeText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
-      ctx.fillText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
-    }
     const s = scale / 6;
-    for (const m of this.markers(map)) this.marker(ctx, m.x * scale, m.y * scale, m, Math.max(1.4, s));
-    if (g.player.map === map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));
+    for (const L of layers) {
+      const lx = (L.x - minX) * scale;
+      const ly = (L.y - minY) * scale;
+      ctx.drawImage(this.base(L.map, scale), lx, ly);
+      ctx.save();
+      ctx.translate(lx, ly);
+      for (const a of L.map.areas) {
+        if (disc[a.id]) continue;
+        ctx.fillStyle = 'rgba(30,26,40,0.78)';
+        ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+        ctx.fillStyle = 'rgba(255,246,224,0.5)';
+        ctx.font = `italic ${scale * 1.4}px Georgia, serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
+      }
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const b of L.map.buildings) {
+        const area = L.map.areaAt(b.x, b.y);
+        if (area && !disc[area.id]) continue;
+        ctx.font = `bold ${Math.max(10, scale * 1.05)}px "Trebuchet MS", sans-serif`;
+        const tx = (b.x + b.w / 2) * scale;
+        const ty = (b.y + b.h / 2 - 0.5) * scale;
+        const label = b.mapLabel || b.name;
+        const tw = ctx.measureText(label).width + 8;
+        ctx.fillStyle = 'rgba(251,244,230,0.85)';
+        ctx.fillRect(tx - tw / 2, ty - scale * 0.75, tw, scale * 1.5);
+        ctx.fillStyle = '#2d2433';
+        ctx.fillText(label, tx, ty);
+      }
+      for (const a of L.map.areas) {
+        if (!disc[a.id]) continue;
+        ctx.font = `italic bold ${scale * 1.5}px Georgia, serif`;
+        ctx.fillStyle = 'rgba(255,246,224,0.95)';
+        ctx.strokeStyle = 'rgba(45,36,51,0.8)';
+        ctx.lineWidth = 3;
+        ctx.strokeText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
+        ctx.fillText(a.name, (a.x + a.w / 2) * scale, (a.y + 1.2) * scale);
+      }
+      for (const m of this.markers(L.map)) this.marker(ctx, m.x * scale, m.y * scale, m, Math.max(1.4, s));
+      if (g.player.map === L.map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));
+      ctx.restore();
+    }
   }
 }
 
 return { MapRenderer };
-})();
-
-// ---- src/core/releaseNotes.js
-__m["src/core/releaseNotes.js"] = (function () {
-// In-game release history (About screen). Keep in sync with CHANGELOG.md;
-// tests/version.test.mjs checks the newest entry matches GAME_VERSION.
-const RELEASE_NOTES = [
-  {
-    version: '0.2.0',
-    date: '2026-10-13',
-    channel: 'development',
-    title: 'Ober\'s Oil',
-    notes: [
-      'First imported character: Sir Richard E. Moneybucks, Esq., ruthless founder of Ober\'s Oil — with a portrait from the supplied image.',
-      'A new district east of town, the Ober Fields: Moneybucks Manor, Refinery No. 1, the oil fields and the workers\' bunkhouse.',
-      'Ten new residents: the Ober\'s Oil household and crew, each with a routine, personality and opinions of their boss.',
-      'Work refinery shifts, buy shares and fund expansion, or challenge Sir Moneybucks to "The Ledger".',
-      'New events: strikes, refinery accidents, a buyout bid for the Kettle & Crumb, and an oily canal.',
-      'The lighthouse mystery continues in "The Seal of M." — with four endings, one of which lights the lamp.',
-      'New music for the manor, refinery and fields; Sir Moneybucks\'s motif.',
-    ],
-  },
-  {
-    version: '0.1.1',
-    date: '2026-10-13',
-    channel: 'development',
-    title: 'Just Open It',
-    notes: [
-      'The game is now a single self-contained index.html: double-click it to play — no server, no installation, no internet.',
-      'The same file works as a GitHub Pages link.',
-      'Saves persist between sessions when the file is opened directly.',
-    ],
-  },
-  {
-    version: '0.1.0',
-    date: '2026-10-13',
-    channel: 'development',
-    title: 'Foundations of Lanternside',
-    notes: [
-      'First playable build: explore Lanternside, five interiors, day/night cycle and world clock.',
-      'Three original residents (Mags, Osric, Tibbs) with schedules, moods, memories, relationships and gossip.',
-      'Quests with multiple solutions: The Dark Lamp, The Lucky Spanner, and a daily café delivery job.',
-      'Inventory, money, shops, containers with ownership and witnessed theft, reputation with three factions.',
-      'Emergent events: workshop explosions, noise citations, missing keys, sell-outs and gull heists.',
-      'Original procedural soundtrack, ambience, sound effects, character motifs and voices.',
-      'Versioned saves with validation, backups, migrations, import and export.',
-    ],
-  },
-];
-
-return { RELEASE_NOTES };
 })();
 
 // ---- src/ui/panels.js
@@ -11109,8 +11343,10 @@ function mapPanel(ui, body, opts) {
     ),
   );
   const tabs = [];
+  const outdoorId = current.kind === 'interior' ? (g.lastOutdoorMap || 'lanternside') : current.id;
+  const regionName = Object.values(g.content.regions || {}).find((r) => r.maps[outdoorId])?.name || g.maps.get(outdoorId).name;
   if (current.kind === 'interior') tabs.push({ label: current.name, active: mapId === current.id, onclick: () => ui.openPanel('map', { mapId: current.id }) });
-  tabs.push({ label: 'Lanternside', active: mapId === 'lanternside', onclick: () => ui.openPanel('map', { mapId: 'lanternside' }) });
+  tabs.push({ label: regionName, active: mapId === outdoorId, onclick: () => ui.openPanel('map', { mapId: outdoorId }) });
   const disc = Object.keys(g.player.discovered.areas).length;
   body.append(h('p', { class: 'muted' }, `Areas discovered: ${disc}. Unexplored districts stay hidden until you visit them.`));
   return { title: 'Map', tabs };
@@ -11404,7 +11640,8 @@ __m["src/ui/ui.js"] = (function () {
 // glue between game events and feedback (toasts, sound). Owns the current Game.
 const { Game } = __m["src/game/game.js"];
 const { TILE } = __m["src/core/util.js"];
-const { versionLabel } = __m["src/core/version.js"];
+const { versionLabel, GAME_VERSION } = __m["src/core/version.js"];
+const { RELEASE_NOTES } = __m["src/core/releaseNotes.js"];
 const { Renderer } = __m["src/engine/renderer.js"];
 const { drawPortrait } = __m["src/engine/drawCharacter.js"];
 const { DialogueUI } = __m["src/ui/dialogueUI.js"];
@@ -11579,6 +11816,10 @@ class UI {
     this.enterPlay(game);
     this.toast(`Loaded ${slot === 'auto' ? 'autosave' : slot}. Day ${game.clock.day}, ${game.clock.timeString}.`, 'good');
     for (const w of r.warnings || []) this.toast(`Save repaired: ${w}`, 'warn');
+    if (r.savedWith && r.savedWith !== GAME_VERSION) {
+      const note = RELEASE_NOTES.find((n) => n.version === GAME_VERSION);
+      if (note) this.toast(`Updated to v${GAME_VERSION} — ${note.title}: ${note.notes[0]}`, 'quest', 12);
+    }
     for (const m of r.migrated || []) this.toast(`Save upgraded: ${m}`, 'info');
     return true;
   }
@@ -11696,7 +11937,12 @@ class UI {
     bus.on('quest:stage', ({ title, text }) => { this.audio.sfx('sfx_quest'); this.toast(`${title} — ${text}`, 'quest', 7); });
     bus.on('quest:completed', ({ title }) => { this.audio.sfx('sfx_quest'); this.toast(`Completed: ${title}`, 'quest', 6); });
     bus.on('quest:failed', ({ title, text }) => { this.audio.sfx('sfx_fail'); this.toast(`${title}: ${text || 'failed'}`, 'warn', 7); });
-    bus.on('map:entered', () => {
+    bus.on('map:entered', ({ seamless, from, map }) => {
+      if (seamless) {
+        // Walking across a seam between outdoor maps: no fade, no camera jump.
+        this.renderer.seamlessShift(from, map);
+        return;
+      }
       this.flash();
       this.renderer.snapCamera();
       if (this.time - this.lastMapAutosave > 90) {

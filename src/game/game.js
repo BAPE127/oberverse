@@ -19,6 +19,7 @@ import { EventDirector } from '../systems/eventDirector.js';
 import { OilCompany, freshOil } from '../systems/oilCompany.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
+import { regionOffsetPx } from '../world/regions.js';
 import { GAME_VERSION } from '../core/version.js';
 
 export const PLAYER_SPEED = 128;
@@ -370,13 +371,33 @@ export class Game {
 
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
+    const seam = map.doorAt(tx, ty);
+    if (seam?.seamless) {
+      // Seams are checked every frame: cross as soon as we are heading that way
+      // and our feet fit inside the neighbouring map (an exact, jump-free handover).
+      if (this.trySeam(seam, box)) return;
+    }
     if (tx !== p.lastTx || ty !== p.lastTy) {
       p.lastTx = tx;
       p.lastTy = ty;
       const door = map.doorAt(tx, ty);
-      if (door && door.to) this.useDoor(door);
+      if (door && door.to && !door.seamless) this.useDoor(door);
       else this.updateDiscovery();
     }
+  }
+
+  trySeam(door, box) {
+    const p = this.player;
+    const off = this.mapOffset(p.map, door.to.map);
+    if (!off) return false;
+    const heading = Math.sign(off.x) * p.vx + Math.sign(off.y) * p.vy;
+    if (heading <= 0) return false;
+    const nx = p.x - off.x;
+    const ny = p.y - off.y;
+    const dest = this.maps.get(door.to.map);
+    if (dest.rectBlocked(...box(nx, ny), this.playerActor())) return false;
+    this.changeMap(door.to.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
+    return true;
   }
 
   /** Small sideways nudge that lets the player slide around corners and into doorways. */
@@ -404,6 +425,24 @@ export class Game {
     }
   }
 
+  /** Pixel offset of another map in the same region (null if not connected seamlessly). */
+  mapOffset(fromId, toId) {
+    return regionOffsetPx(this.content.regions || {}, fromId, toId, TILE);
+  }
+
+  /** Maps drawn around the current one, with pixel offsets (the continuous outdoors). */
+  neighbors(mapId = this.player.map) {
+    const out = [];
+    for (const region of Object.values(this.content.regions || {})) {
+      if (!region.maps[mapId]) continue;
+      for (const id of Object.keys(region.maps)) {
+        if (id === mapId || !this.maps.has(id)) continue;
+        out.push({ map: this.maps.get(id), ...this.mapOffset(mapId, id) });
+      }
+    }
+    return out;
+  }
+
   useDoor(door) {
     if (!this.playerCanPass(door)) return false;
     const lock = door.lock;
@@ -415,9 +454,9 @@ export class Game {
     return true;
   }
 
-  changeMap(mapId, spotName) {
+  changeMap(mapId, spotName, pos = null) {
     const map = this.maps.get(mapId);
-    const s = map?.spotPx(spotName);
+    const s = pos || map?.spotPx(spotName);
     if (!map || !s) {
       this.warn(`changeMap: bad target ${mapId}:${spotName}`);
       return false;
@@ -427,15 +466,18 @@ export class Game {
     p.map = mapId;
     p.x = s.x;
     p.y = s.y;
-    p.vx = 0;
-    p.vy = 0;
+    if (!pos?.keepVelocity) {
+      p.vx = 0;
+      p.vy = 0;
+    }
     if (s.facing) p.facing = s.facing;
     p.lastTx = Math.floor(p.x / TILE);
     p.lastTy = Math.floor(p.y / TILE);
     p.discovered.maps[mapId] = true;
+    if (map.kind !== 'interior') this.lastOutdoorMap = mapId;
     if (map.def.restricted && !this.getFlag(`${map.def.restricted}_permission`)) this.setFlag(`trespassed_${map.def.restricted}`, true);
     this.npcSystem.onPlayerMapChanged();
-    this.bus.emit('map:entered', { map: mapId, from });
+    this.bus.emit('map:entered', { map: mapId, from, seamless: Boolean(pos?.seamless) });
     this.updateDiscovery();
     return true;
   }
@@ -569,6 +611,7 @@ export class Game {
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
     for (const door of map.doors) {
+      if (door.seamless) continue; // map edges are walked across, not "entered"
       if (Math.abs(door.x - tx) + Math.abs(door.y - ty) !== 1) continue;
       const cx = (door.x + 0.5) * TILE;
       const cy = (door.y + 0.5) * TILE;

@@ -119,10 +119,6 @@ export default {
     east_road: { x: 61, y: 13, facing: 'left' },
     pier_mid: { x: 56, y: 37, facing: 'down' },
   },
-  doors: [
-    { id: 'door_east_road_a', x: 63, y: 12, keepTile: true, label: 'Road to the Ober Fields', to: { map: 'ober_fields', spot: 'west_road' } },
-    { id: 'door_east_road_b', x: 63, y: 13, keepTile: true, label: 'Road to the Ober Fields', to: { map: 'ober_fields', spot: 'west_road' } },
-  ],
   props: [
     { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights

@@ -71,6 +71,16 @@ All modal UI (dialogue, panels) pauses the game clock.
 - `QuestSystem` holds stage/outcome state, listens to bus events via data-driven triggers, applies outcome effects, expires jobs, and builds the journal (objectives + hints revealed by player knowledge).
 - `EventDirector` evaluates templates hourly, on NPC arrival, or as chained follow-ups at a set time, with conditions, chance, cooldowns and effects.
 
+## Regions (continuous outdoors)
+
+`src/content/world.js` places outdoor maps in a region with tile offsets. When map B sits at `A.x + A.width - 1`, A's last column and B's first column are the same ground; `addSeams()` (`src/world/regions.js`) turns every tile on that strip that is walkable on both sides into a `seamless` door. Each map keeps its own coordinates, saves and simulation; the seam only joins them:
+
+- **Player:** while standing on a seam tile and moving toward the neighbour, `Game.trySeam()` crosses as soon as the hitbox fits on the other side, translating the position by the region offset — no fade, no snap.
+- **NPCs:** routing treats seams as doors; `NpcSystem.nearestSeam()` picks the crossing that best lines up with the route; `hop()` maps the position across.
+- **Rendering:** `Renderer` builds `layers` = current map + `Game.neighbors()`, drawing each neighbour's ground, props, buildings, people and lights at its offset; camera bounds span the region. The minimap and full map stitch the region the same way.
+
+Only horizontal (east–west) seams are generated so far.
+
 ## Rendering
 
 `Renderer` caches a static ground layer per map, then draws flat props, y-sorted buildings/props/characters, interaction highlight, a lighting pass (darkness with light "holes" for lamps, lit windows and the player, plus additive warm glow), and screen-space name tags and speech bubbles. Characters are drawn procedurally from `appearance` data; if `appearance.sprite` names an image that loads, it is used instead (`src/engine/assets.js`), so art can be upgraded without touching simulation code.

@@ -94,7 +94,7 @@ export class SaveManager {
     } catch (err) {
       return { ok: false, errors: [`Save could not be applied: ${err.message}`], warnings: res.warnings };
     }
-    return { ok: true, warnings: res.warnings, migrated: res.migrated || [], usedBackup };
+    return { ok: true, warnings: res.warnings, migrated: res.migrated || [], usedBackup, savedWith: res.save.gameVersion };
   }
 
   /** Slot listing for menus. */

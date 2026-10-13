@@ -11,6 +11,9 @@ m.rect(33, 10, 1, 2, 'g'); // manor drive
 m.rect(22, 15, 27, 11, 'g'); // refinery apron
 m.rect(22, 26, 29, 13, ':'); // oil fields
 m.rect(8, 15, 3, 6, ':').rect(5, 21, 9, 2, ':'); // bunkhouse yard
+// Continuations of Lanternside across the seam (x = 0 here is Lanternside's x = 63):
+m.rect(0, 21, 5, 1, ',').rect(0, 22, 4, 2, '~').rect(0, 24, 5, 1, ','); // the Lantern Canal ends in a culvert pool
+m.rect(0, 30, 5, 10, '~').rect(5, 32, 1, 6, '~'); // the harbour's eastern shore
 
 const fence = [];
 for (let y = 1; y < 39; y++) if (y < 11 || y > 14) fence.push({ id: `fence_${y}`, type: 'fence', x: 20, y });
@@ -64,10 +67,6 @@ export const oberFields = {
       },
     },
   ],
-  doors: [
-    { id: 'door_fields_west_a', x: 0, y: 12, keepTile: true, label: 'Road to Lanternside', to: { map: 'lanternside', spot: 'east_road' } },
-    { id: 'door_fields_west_b', x: 0, y: 13, keepTile: true, label: 'Road to Lanternside', to: { map: 'lanternside', spot: 'east_road' } },
-  ],
   spots: {
     west_road: { x: 2, y: 12, facing: 'right' },
     gate_post: { x: 22, y: 10, facing: 'left' },
@@ -114,7 +113,8 @@ export const oberFields = {
     ...pipeline,
     // around the bunkhouse
     { id: 'tree_b1', type: 'pine', x: 2, y: 17 }, { id: 'tree_b2', type: 'pine', x: 15, y: 17 }, { id: 'tree_b3', type: 'tree', x: 3, y: 4 },
-    { id: 'tree_b4', type: 'tree', x: 11, y: 6 }, { id: 'tree_b5', type: 'pine', x: 7, y: 30 }, { id: 'tree_b6', type: 'pine', x: 14, y: 33 },
+    { id: 'tree_b4', type: 'tree', x: 11, y: 6 }, { id: 'tree_b5', type: 'pine', x: 8, y: 29 },
+    { id: 'sign_west', type: 'sign', x: 2, y: 10, examine: '"WEST ← Lanternside. Civic Office, Kettle & Crumb, the Quay."' }, { id: 'tree_b6', type: 'pine', x: 14, y: 33 },
     { id: 'bench_bunk', type: 'bench', x: 11, y: 22 },
   ],
 };

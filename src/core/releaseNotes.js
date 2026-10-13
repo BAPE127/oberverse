@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.3.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'One Coast',
+    notes: [
+      'Lanternside and the Ober Fields are now one continuous place: walk east along Gullwing Road and the town simply becomes the oil country — no loading, no fade.',
+      'You can see across the boundary before you cross it, and people walk across it too.',
+      'The map (M) and minimap show Lanternside and the Ober Fields together.',
+      'The canal and harbour continue across the old edge; signposts point both ways.',
+      'The welcome letter now mentions Ober\'s Oil, and loading an older save tells you what\'s new.',
+    ],
+  },
+  {
     version: '0.2.0',
     date: '2026-10-13',
     channel: 'development',

@@ -25,7 +25,7 @@ Roads: **Gullwing Road** runs east–west; **Lamplighter Lane** runs north–sou
 
 ## The Ober Fields (map `ober_fields`, 52×40 tiles)
 
-East of Lanternside along the county road (the east edge of Gullwing Road). Sir Moneybucks bought a cabbage farm here twenty years ago and struck oil.
+Directly east of Lanternside: Gullwing Road simply becomes the county road (the two maps are one continuous stretch of coast; the Fields' west edge is Lanternside's east edge). The Lantern Canal ends in a culvert pool just past the boundary, and the harbour's eastern shore runs along the Fields' south-west corner. Sir Moneybucks bought a cabbage farm here twenty years ago and struck oil.
 
 | Area | Area id | Contents |
 | --- | --- | --- |

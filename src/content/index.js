@@ -14,6 +14,8 @@ import { QUESTS } from './quests.js';
 import { EVENTS } from './events.js';
 import { MOODS } from './moods.js';
 import { NOTICES } from './notices.js';
+import { REGIONS } from './world.js';
+import { addSeams } from '../world/regions.js';
 import { SONGS, MOTIFS, AUDIO_REGISTRY } from './audio.js';
 import mags from './characters/mags.js';
 import osric from './characters/osric.js';
@@ -30,8 +32,12 @@ const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
+const MAPS = byId([lanternside, ...interiors, ...oberMaps]);
+addSeams(MAPS, REGIONS, PROP_TYPES);
+
 export const CONTENT = {
-  maps: byId([lanternside, ...interiors, ...oberMaps]),
+  maps: MAPS,
+  regions: REGIONS,
   propTypes: PROP_TYPES,
   items: ITEMS,
   facts: FACTS,

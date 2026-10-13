@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.2.0
+# Known Issues and Limitations — v0.3.0
 
 ## Not yet implemented (planned)
 
@@ -26,6 +26,8 @@
 - Sir Moneybucks's walk from the manor to the Quay takes ~45 game minutes; on the abstract tier the estimate can vary by ±10 minutes.
 - During a strike, picketing workers stand at the gate but the refinery interior is simply empty (no "scab" behaviour yet).
 - The Ledger can only be played once per day, and a match abandoned mid-way keeps the stake.
+- Region seams are east–west only; maps can't yet be joined north–south.
+- Across the seam, the off-map neighbour's NPCs are drawn but you can't talk to them until you step across (interactions use the current map).
 - Sleeping NPCs are drawn standing with closed eyes, not lying in bed.
 
 ## Defects

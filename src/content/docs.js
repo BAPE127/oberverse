@@ -8,6 +8,7 @@ export const DOCS = {
       'Number 9 is yours for the season. The heating knocks, the window sticks, and the gulls are not your friends.',
       'You said in your letter you were looking for "work, people, and something worth finding out". Lanternside has all three. Start at the Kettle & Crumb on Canal Row — Mags Pell knows everyone and everything, and usually has odd jobs going.',
       'Rent is cheap because the borough is quiet. Some say too quiet since the lighthouse went dark.',
+      'If it\'s steady wages you\'re after, follow Gullwing Road east out of town to the Ober Fields. Ober\'s Oil is always hiring — Sir Moneybucks just isn\'t always paying.',
       '— The Obermere Housing Bureau',
       'P.S. Your spare change is in the wardrobe.',
     ],
