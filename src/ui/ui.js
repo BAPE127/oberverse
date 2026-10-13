@@ -10,8 +10,10 @@ import { DialogueUI } from './dialogueUI.js';
 import { MapRenderer } from './maps.js';
 import { PANELS, h } from './panels.js';
 import { terminalPanel } from './terminal.js';
+import { tabletPanel } from './tablet.js';
 
 PANELS.terminal = terminalPanel;
+PANELS.tablet = tabletPanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -81,6 +83,8 @@ export class UI {
       newScreen: document.getElementById('screen-new'),
       modal: document.getElementById('modal'),
       modalTitle: document.getElementById('modal-title'),
+      modalPanel: document.getElementById('modal-panel'),
+      tabletBadge: document.getElementById('hud-tablet'),
       modalBody: document.getElementById('modal-body'),
       modalTabs: document.getElementById('modal-tabs'),
       fade: document.getElementById('fade'),
@@ -88,6 +92,7 @@ export class UI {
     this.caption = h('div', { id: 'caption', class: 'hidden', style: 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);max-width:min(640px,90vw);background:rgba(251,244,230,.96);border:2px solid #2d2433;border-radius:12px;padding:10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none' });
     document.body.appendChild(this.caption);
     document.getElementById('modal-close').addEventListener('click', () => this.closePanel());
+    this.el.tabletBadge?.addEventListener('click', () => { if (this.state === 'playing' && !this.panelOpen && !this.dialogue.open) this.openPanel('tablet'); });
     this.el.modal.addEventListener('click', (e) => { if (e.target === this.el.modal) this.closePanel(); });
     document.getElementById('title-version').textContent = `${versionLabel()}`;
     window.addEventListener('beforeunload', () => { if (this.state === 'playing') this.autosave(); });
@@ -246,6 +251,7 @@ export class UI {
     const res = PANELS[top.name](this, modalBody, top.opts) || {};
     top.onClose = res.onClose;
     modalTitle.textContent = res.title || '';
+    this.el.modalPanel?.classList.toggle('tablet', res.className === 'tablet');
     for (const t of res.tabs || []) modalTabs.appendChild(h('button', { class: t.active ? 'active' : '', onclick: () => { this.panelStack.pop(); t.onclick(); } }, t.label));
     modal.classList.remove('hidden');
   }
@@ -393,9 +399,9 @@ export class UI {
       case 'build': this.toggleBuild(); break;
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
-      case 'journal': this.openPanel('journal'); break;
+      case 'journal': this.openPanel('tablet'); break;
       case 'map': this.openPanel('map'); break;
-      case 'status': this.openPanel('journal', { tab: 'People' }); break;
+      case 'status': this.openPanel('tablet', { tab: 'People' }); break;
       case 'interact': this.interact(); break;
       case 'attack': {
         const r = this.game.combat.attack();
@@ -647,6 +653,12 @@ export class UI {
       const active = g.quests.journal().filter((q) => q.state === 'active').slice(0, 2);
       const html = active.map((q) => `<div class="q-title">${escapeHtml(q.title)}</div>${q.objectives.map((o) => `<div class="q-obj">• ${escapeHtml(o.text)}</div>`).join('')}`).join('');
       if (this.el.tracker.innerHTML !== html) this.el.tracker.innerHTML = html;
+      const unread = g.tablet.unread;
+      const badge = unread ? `📱 ${unread} new` : '';
+      if (this.el.tabletBadge && this.el.tabletBadge.textContent !== badge) {
+        this.el.tabletBadge.textContent = badge;
+        this.el.tabletBadge.classList.toggle('hidden', !unread);
+      }
       if (this.settings.showFps) {
         this.el.debug.textContent = [
           `FPS ${this.fps.toFixed(0)}  ${versionLabel()}`,

@@ -34,7 +34,7 @@ export function pausePanel(ui, body) {
       b('Resume', () => ui.closePanel(), 'primary'),
       b('Save game', () => ui.openPanel('saves', { mode: 'save' })),
       b('Load game', () => ui.openPanel('saves', { mode: 'load' })),
-      b('Journal', () => ui.openPanel('journal')),
+      b('Tablet', () => ui.openPanel('tablet')),
       b('Settings', () => ui.openPanel('settings')),
       b('About & release history', () => ui.openPanel('about')),
       b('Debug menu (testing)', () => ui.openPanel('debug')),
@@ -92,13 +92,14 @@ export function inventoryPanel(ui, body) {
 }
 
 // ------------------------------------------------------------------ journal
-export function journalPanel(ui, body, opts) {
+export const JOURNAL_TABS = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
+
+/** One of the journal's pages (shown as apps on the tablet, src/ui/tablet.js). */
+export function journalTab(ui, body, tab) {
   const g = ui.game;
-  const tabs = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
-  const tab = opts.tab || 'Quests';
   if (tab === 'Quests') {
     const list = g.quests.journal();
-    if (!list.length) body.append(h('p', { class: 'muted' }, 'Nothing in your journal yet. Lanternside is full of people with problems — go and talk to some.'));
+    if (!list.length) body.append(h('p', { class: 'muted' }, 'No quests on your tablet yet. Lanternside is full of people with problems — go and talk to some.'));
     for (const q of list) {
       body.append(
         h('div', { class: `quest ${q.state}` },
@@ -147,7 +148,6 @@ export function journalPanel(ui, body, opts) {
         h('div', { class: 'meter' }, h('i', { class: v >= 0 ? 'pos' : 'neg', style: `width:${Math.min(50, Math.abs(v) / 2)}%` }))));
     }
   }
-  return { title: 'Journal', tabs: tabs.map((t) => ({ label: t, active: t === tab, onclick: () => ui.openPanel('journal', { tab: t }) })) };
 }
 
 /** Base stat as dots, plus a calculator high (green +) or comedown (orange −). */
@@ -535,9 +535,16 @@ export function choicesPanel(ui, body, opts) {
 
 // ----------------------------------------------------------------- invest
 export function investPanel(ui, body, opts) {
+  stocksScreen(ui, body);
+  return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
+}
+
+/** The share register: Sir Moneybucks's desk, and the tablet's Stocks app. */
+export function stocksScreen(ui, body, opts = {}) {
   const g = ui.game;
   const render = (msg) => {
     body.innerHTML = '';
+    if (opts.header) body.append(opts.header());
     const s = g.oil.state;
     const out = g.oil.computeOutput();
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
@@ -568,7 +575,6 @@ export function investPanel(ui, body, opts) {
     if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price}`).join(' · ')}`));
   };
   render();
-  return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
 }
 
 // --------------------------------------------------------------- contracts
@@ -665,7 +671,6 @@ export const PANELS = {
   contracts: contractsPanel,
   pause: pausePanel,
   inventory: inventoryPanel,
-  journal: journalPanel,
   map: mapPanel,
   container: containerPanel,
   shop: shopPanel,

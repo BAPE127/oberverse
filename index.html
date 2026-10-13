@@ -219,6 +219,32 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
 .research .node.cur { outline: 2px solid #f2c14e; }
 .research .node .desc { font-size: 11px; opacity: .8; }
 .terminal-news, .news { font-size: 12px; line-height: 1.5; background: #05080c; color: #bfe8ff; border-radius: 8px; padding: 8px 10px; font-family: "Courier New", monospace; }
+
+/* ---- the tablet (v0.15.0, src/ui/tablet.js): the journal in a slate bezel ---- */
+#hud-tablet { pointer-events: auto; font-weight: bold; font-size: 13px; color: var(--ink); animation: tablet-ping 1.6s ease-in-out infinite; }
+@keyframes tablet-ping { 0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,.25); } 50% { box-shadow: 0 0 0 4px rgba(79,138,139,.45); } }
+#modal-panel.tablet { border: 12px solid #24202a; border-radius: 26px; outline: 2px solid #4a4452; box-shadow: var(--shadow), inset 0 0 0 1px #000; width: min(860px, calc(100vw - 24px)); }
+#modal-panel.tablet .panel-head { background: #2f2a36; color: #f3eee6; border-bottom-color: #3d3746; padding: 8px 14px 6px; }
+#modal-panel.tablet .panel-head .close { color: #f3eee6; }
+#modal-panel.tablet .tabs { background: #2f2a36; flex-wrap: wrap; padding: 6px 12px 0; }
+#modal-panel.tablet .tabs button { background: #48414f; color: #f3eee6; border-color: #1c1820; }
+#modal-panel.tablet .tabs button.active { background: var(--paper); color: var(--ink); }
+.tablet-bar { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-soft); margin: -6px 0 10px; flex-wrap: wrap; }
+.tablet-cards { gap: 10px; }
+.tablet-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 10px 12px; border-radius: 12px; font-size: 13px; background: var(--paper-2); }
+div.tablet-card { border: 2px dashed var(--line); }
+.tablet-feed .item-row.unread { border-left: 4px solid var(--accent-2); }
+.tablet-feed .feed-warn .grow > div:first-child { color: var(--warn); }
+.tablet-feed .feed-good .grow > div:first-child { color: var(--good); }
+.tablet-sub { gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.terminal .globe.small { width: 170px; height: 170px; }
+.tablet-ticker { background: var(--paper-2); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
+.ticker-chart { width: 100%; max-width: 420px; height: auto; display: block; margin: 6px 0 4px; }
+.ticker-axis { stroke: var(--line); stroke-width: 1; }
+.ticker-line { fill: none; stroke: var(--accent-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ticker-dot { fill: var(--accent-2); stroke: var(--paper-2); stroke-width: 2; pointer-events: none; }
+.ticker-hit { fill: transparent; cursor: default; }
+.ticker-hit:hover + .ticker-dot { r: 5; }
 </style>
 </head>
 <body>
@@ -235,6 +261,7 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
     <div id="hud-tr">
       <div class="hud-card minimap-card"><canvas id="minimap" width="170" height="170"></canvas></div>
       <div id="hud-tracker" class="hud-card"></div>
+      <button id="hud-tablet" class="hud-card hidden" title="Open your tablet (J)"></button>
     </div>
     <div id="hud-bl" class="hud-card">
       <div class="bar"><span>Health</span><div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div></div>
@@ -243,7 +270,7 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
     </div>
     <div id="hud-prompt" class="hidden"></div>
     <div id="build-bar" class="hud-card hidden"></div>
-    <div id="hud-keys">E interact · F / click attack · R reload · X weapon · G surrender · Shift sprint · I inventory · J journal · M map · Esc menu</div>
+    <div id="hud-keys">E interact · F / click attack · R reload · X weapon · G surrender · Shift sprint · I inventory · J tablet · M map · Esc menu</div>
     <div id="toasts" aria-live="polite"></div>
     <div id="debug" class="hidden"></div>
   </div>
@@ -7566,7 +7593,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.14.0';
+const GAME_VERSION = '0.15.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -10984,15 +11011,20 @@ class OilCompany {
     const s = this.state;
     const output = this.computeOutput();
     s.output = output;
+    const oldPrice = s.sharePrice;
     s.sharePrice = Math.max(5, Math.round(20 + output / 8 - (s.strike ? 6 : 0)));
     const dividend = Math.floor(s.sharesOwned * this.dividendPerShare(output));
     if (dividend > 0) {
       g.player.money += dividend;
       s.dividendsPaid += dividend;
       g.bus.emit('money:changed', { delta: dividend, total: g.player.money });
-      g.notify(`Ober's Oil dividend: +${dividend} obols (${output} barrels today).`, 'good');
+      g.tablet.post('stocks', `Ober's Oil dividend: +${dividend} obols (${output} barrels today).`, 'good');
     } else if (s.sharesOwned > 0) {
-      g.notify(`Ober's Oil paid no dividend today (${s.strike ? 'strike' : 'no output'}).`, 'warn');
+      g.tablet.post('stocks', `Ober's Oil paid no dividend today (${s.strike ? 'strike' : 'no output'}).`, 'warn');
+    }
+    if (s.sharesOwned > 0 && Math.abs(s.sharePrice - oldPrice) >= 3) {
+      const up = s.sharePrice > oldPrice;
+      g.tablet.post('stocks', `Ober's Oil shares ${up ? 'rose' : 'fell'} to ${s.sharePrice} obols (${up ? '+' : '−'}${Math.abs(s.sharePrice - oldPrice)}). Your ${s.sharesOwned} shares are worth ${s.sharesOwned * s.sharePrice}.`, up ? 'good' : 'warn');
     }
     s.lastDividendDay = g.clock.day;
     s.morale = clamp(s.morale + (s.wageLevel >= 2 ? 5 : 1) - (s.derricks > 1 ? 1 : 0), 0, 100);
@@ -13780,7 +13812,7 @@ class Factory {
   }
 }
 
-return { DX, DY, CALC_ITEM, freshFactory, Factory };
+return { DX, DY, OUTPUT_CAP, CALC_ITEM, freshFactory, Factory };
 })();
 
 // ---- src/systems/arms.js
@@ -13800,7 +13832,7 @@ __m["src/systems/arms.js"] = (function () {
 //
 // State: game.world.arms. Employees are generated characters (world.arms.staff)
 // spawned as NPCs who live in their works and never leave it.
-const { Factory, DX, DY } = __m["src/systems/factory.js"];
+const { Factory, DX, DY, OUTPUT_CAP } = __m["src/systems/factory.js"];
 const { TILE, clamp } = __m["src/core/util.js"];
 const { isDown } = __m["src/systems/combat.js"];
 
@@ -13876,7 +13908,7 @@ class Arms extends Factory {
     const node = this.cfg.research[r.current];
     if (r.progress >= node.cost) {
       r.done[r.current] = true;
-      g.notify(`🔬 Research complete: ${node.name}. ${node.text}`, 'quest');
+      g.tablet.post('arms', `🔬 Research complete: ${node.name}. ${node.text}`, 'quest');
       g.bus.emit('arms:research', { id: r.current });
       r.current = null;
       r.progress = 0;
@@ -14006,6 +14038,11 @@ class Arms extends Factory {
   produced(whId, m, out) {
     const s = this.state;
     s.produced[out] = (s.produced[out] || 0) + 1;
+    // for the tablet's daily report
+    if (!s.today) s.today = {};
+    const t = (s.today[whId] ||= {});
+    t[out] = (t[out] || 0) + 1;
+    this.alerted?.delete(m.id); // it's working again: a later stall is news
     this.game.bus.emit('arms:produced', { warehouse: whId, item: out });
   }
 
@@ -14225,6 +14262,7 @@ class Arms extends Factory {
     const g = this.game;
     const s = this.state;
     s.lastPayDay = g.clock.day;
+    this.dailyReport();
     if (!s.staff.length) return;
     let paid = 0;
     const leaving = [];
@@ -14245,10 +14283,10 @@ class Arms extends Factory {
       if (st.unpaid >= 2 || st.morale < 15) leaving.push(st);
     }
     if (paid) g.bus.emit('money:changed', { delta: -paid, total: g.player.money });
-    if (paid) g.notify(`💼 Payroll: ${paid} obols to ${s.staff.length - leaving.length} staff.`, 'info');
+    if (paid) g.tablet.post('arms', `💼 Payroll: ${paid} obols to ${s.staff.length - leaving.length} staff.`, 'info');
     for (const st of leaving) {
       this.fire(st.id);
-      g.notify(`${st.name} quit${st.unpaid >= 2 ? ' — unpaid twice' : ' — morale hit rock bottom'}.`, 'warn');
+      g.tablet.post('arms', `${st.name} quit ${this.def(st.warehouse).name}${st.unpaid >= 2 ? ' — unpaid twice' : ' — morale hit rock bottom'}.`, 'warn');
     }
   }
 
@@ -14289,7 +14327,7 @@ class Arms extends Factory {
           st.items[o.item] = (st.items[o.item] || 0) + o.qty;
           by[o.wh] = (by[o.wh] || 0) + o.qty;
         }
-        for (const [wh, n] of Object.entries(by)) g.notify(`🚚 ${n} item${n === 1 ? '' : 's'} delivered to ${this.def(wh).name}'s loading dock.`, 'info');
+        for (const [wh, n] of Object.entries(by)) g.tablet.post('arms', `🚚 ${n} item${n === 1 ? '' : 's'} delivered to ${this.def(wh).name}'s loading dock.`, 'info');
       }
     }
     // workers walk to their stations for their shift, and back off it
@@ -14312,6 +14350,54 @@ class Arms extends Factory {
       }
     }
     if (g.clock.minuteOfDay === PAY_MINUTE && s.lastPayDay < g.clock.day) this.payroll();
+    if (g.clock.minuteOfDay === PAY_MINUTE - 60 && s.staff.length) {
+      const due = s.staff.reduce((a, st) => a + st.wage, 0);
+      if (g.player.money < due) g.tablet.post('arms', `⚠ Payroll at 19:00 is ${due} obols and you have ${g.player.money}. Unpaid staff lose morale — twice unpaid and they quit.`, 'warn');
+    }
+    if (g.clock.minuteOfDay % 60 === 30) this.checkStations();
+  }
+
+  // ------------------------------------------------------- tablet alerts
+  /** Hourly: tell the tablet about staffed stations that have stalled (once per stall). */
+  checkStations() {
+    const g = this.game;
+    if (!this.alerted) this.alerted = new Map();
+    for (const wh of this.ownedIds()) {
+      for (const m of this.cells(wh).machines) {
+        const st = this.workerAt(m);
+        let why = null;
+        if (st && m.powered === false) why = 'has no power — build a generator';
+        else if (st && this.present(st, m)) {
+          if (m.kind === 'lab') why = this.state.research.current ? null : 'is idle — pick a research project';
+          else {
+            const r = this.recipeOf(m);
+            const outTotal = Object.values(m.out || {}).reduce((a, b) => a + b, 0);
+            if (!r) why = 'has no recipe set';
+            else if (outTotal >= OUTPUT_CAP) why = 'is full — collect its output';
+            else if (m.progress === 0 && !Object.entries(r.in).every(([id, n]) => (m.in[id] || 0) >= n)) why = 'is out of parts';
+          }
+        }
+        const key = m.id;
+        if (!why) { this.alerted.delete(key); continue; }
+        if (this.alerted.get(key) === why) continue;
+        this.alerted.set(key, why);
+        g.tablet.post('arms', `${this.cfg.stations[m.kind].name} at ${this.def(wh).name} ${why} (${st.shortName} is standing idle).`, 'warn');
+      }
+    }
+  }
+
+  /** At 19:00: what each works made today. */
+  dailyReport() {
+    const g = this.game;
+    const s = this.state;
+    const items = g.content.items;
+    for (const wh of this.ownedIds()) {
+      const made = Object.entries(s.today?.[wh] || {});
+      const list = made.map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ');
+      const cage = Object.values(g.world.containers[this.def(wh).outCrate]?.items || {}).reduce((a, b) => a + b, 0);
+      if (made.length || this.staffOf(wh).length) g.tablet.post('arms', `📊 ${this.def(wh).name} today: ${list || 'nothing made'}. Export cage: ${cage} item${cage === 1 ? '' : 's'}.`, made.length ? 'good' : 'info');
+    }
+    s.today = {};
   }
 
   interact(prop) {
@@ -14389,7 +14475,7 @@ class Market {
     const s = this.state;
     s.news.unshift({ day: this.game.clock.day, text });
     s.news = s.news.slice(0, 12);
-    this.game.notify(`📰 ${text}`, 'event');
+    this.game.tablet.post('news', text, 'event');
     this.game.bus.emit('market:news', { text });
   }
 
@@ -14468,7 +14554,7 @@ class Market {
         const fam = g.content.items[id].arms.family;
         c.sat[fam] = clamp((c.sat[fam] || 0) + n * this.cfg.market.saturationPerUnit, 0, this.cfg.market.saturationMax);
       }
-      g.notify(`🚢 Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
+      g.tablet.post('market', `Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
       g.bus.emit('market:delivered', { shipment: shp });
       return 'delivered';
     }
@@ -14502,7 +14588,7 @@ class Market {
         }
       }
     }
-    g.notify(text, 'warn');
+    g.tablet.post('market', text, 'warn');
     g.bus.emit('market:lost', { shipment: shp, fate });
     return fate;
   }
@@ -14783,6 +14869,64 @@ function norm(v) {
 }
 
 return { Heavy };
+})();
+
+// ---- src/systems/tablet.js
+__m["src/systems/tablet.js"] = (function () {
+// The tablet (v0.15.0): the old journal grew a screen. Besides quests and
+// people it runs your businesses (the arms works) and a brokerage (Ober's
+// Oil), and it keeps a notification feed of what your businesses are doing.
+//
+//   post(app, text, kind) → toast now + a line in the feed (unread until seen)
+//   apps: 'arms' (works, staff, orders) · 'market' (shipments) ·
+//         'news' (wars, embargoes) · 'stocks' (Ober's Oil)
+//
+// State: game.world.tablet = { feed: [{id, at, app, text, kind}], unread, nextId }.
+const TABLET_APPS = {
+  arms: { icon: '🏭', name: 'Business' },
+  market: { icon: '🚢', name: 'Shipping' },
+  news: { icon: '📰', name: 'World news' },
+  stocks: { icon: '📈', name: 'Stocks' },
+};
+const FEED_MAX = 60;
+
+class Tablet {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get state() {
+    const g = this.game;
+    if (!g.world.tablet) g.world.tablet = { feed: [], unread: 0, nextId: 1 };
+    return g.world.tablet;
+  }
+
+  /** A business notification: toast it and keep it in the feed. */
+  post(app, text, kind = 'info') {
+    const g = this.game;
+    const s = this.state;
+    s.feed.unshift({ id: s.nextId++, at: g.clock.total, app, text, kind });
+    if (s.feed.length > FEED_MAX) s.feed.length = FEED_MAX;
+    s.unread = Math.min(FEED_MAX, s.unread + 1);
+    g.notify(`📱 ${text}`, kind);
+    g.bus.emit('tablet:post', { app, text, kind });
+  }
+
+  get unread() {
+    return this.state.unread;
+  }
+
+  markRead() {
+    this.state.unread = 0;
+  }
+
+  /** Which tablet apps are installed: Business needs an arms works. */
+  hasBusiness() {
+    return this.game.arms.ownedIds().length > 0;
+  }
+}
+
+return { TABLET_APPS, Tablet };
 })();
 
 // ---- src/systems/ledgerGame.js
@@ -15197,6 +15341,7 @@ const { Factory, freshFactory } = __m["src/systems/factory.js"];
 const { Arms, freshArms } = __m["src/systems/arms.js"];
 const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Heavy } = __m["src/systems/heavy.js"];
+const { Tablet } = __m["src/systems/tablet.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -15232,6 +15377,7 @@ class Game {
     this.arms = new Arms(this);
     this.market = new Market(this);
     this.heavy = new Heavy(this);
+    this.tablet = new Tablet(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -16392,6 +16538,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.15.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'OberPad',
+    notes: [
+      'Your journal is now a tablet, the OberPad (J). Quests, people, customers, notes and standing are apps on it, alongside two new ones.',
+      'Business: once you own an arms works, run it from anywhere — the same globe and tabs as the works terminal: order parts, hire and assign staff, pick research and ship to the world market. Own more than one works and you can switch between them.',
+      'Stocks: the Ober\'s Oil share register from Sir Moneybucks\'s desk, with a chart of the closing price. Buy, sell and fund projects wherever you are.',
+      'Notifications: deliveries, payroll (and a warning when you can\'t cover it), staff quitting, a daily production report, stations that stall for want of parts, power or a recipe, research finished, shipments delivered or lost, world news, dividends and big share moves. They pop up and wait on the Home screen; a 📱 badge on the HUD counts the unread ones.',
+    ],
+  },
   {
     version: '0.14.0',
     date: '2026-10-13',
@@ -22515,7 +22673,7 @@ function pausePanel(ui, body) {
       b('Resume', () => ui.closePanel(), 'primary'),
       b('Save game', () => ui.openPanel('saves', { mode: 'save' })),
       b('Load game', () => ui.openPanel('saves', { mode: 'load' })),
-      b('Journal', () => ui.openPanel('journal')),
+      b('Tablet', () => ui.openPanel('tablet')),
       b('Settings', () => ui.openPanel('settings')),
       b('About & release history', () => ui.openPanel('about')),
       b('Debug menu (testing)', () => ui.openPanel('debug')),
@@ -22573,13 +22731,14 @@ function inventoryPanel(ui, body) {
 }
 
 // ------------------------------------------------------------------ journal
-function journalPanel(ui, body, opts) {
+const JOURNAL_TABS = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
+
+/** One of the journal's pages (shown as apps on the tablet, src/ui/tablet.js). */
+function journalTab(ui, body, tab) {
   const g = ui.game;
-  const tabs = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
-  const tab = opts.tab || 'Quests';
   if (tab === 'Quests') {
     const list = g.quests.journal();
-    if (!list.length) body.append(h('p', { class: 'muted' }, 'Nothing in your journal yet. Lanternside is full of people with problems — go and talk to some.'));
+    if (!list.length) body.append(h('p', { class: 'muted' }, 'No quests on your tablet yet. Lanternside is full of people with problems — go and talk to some.'));
     for (const q of list) {
       body.append(
         h('div', { class: `quest ${q.state}` },
@@ -22628,7 +22787,6 @@ function journalPanel(ui, body, opts) {
         h('div', { class: 'meter' }, h('i', { class: v >= 0 ? 'pos' : 'neg', style: `width:${Math.min(50, Math.abs(v) / 2)}%` }))));
     }
   }
-  return { title: 'Journal', tabs: tabs.map((t) => ({ label: t, active: t === tab, onclick: () => ui.openPanel('journal', { tab: t }) })) };
 }
 
 /** Base stat as dots, plus a calculator high (green +) or comedown (orange −). */
@@ -23016,9 +23174,16 @@ function choicesPanel(ui, body, opts) {
 
 // ----------------------------------------------------------------- invest
 function investPanel(ui, body, opts) {
+  stocksScreen(ui, body);
+  return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
+}
+
+/** The share register: Sir Moneybucks's desk, and the tablet's Stocks app. */
+function stocksScreen(ui, body, opts = {}) {
   const g = ui.game;
   const render = (msg) => {
     body.innerHTML = '';
+    if (opts.header) body.append(opts.header());
     const s = g.oil.state;
     const out = g.oil.computeOutput();
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
@@ -23049,7 +23214,6 @@ function investPanel(ui, body, opts) {
     if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price}`).join(' · ')}`));
   };
   render();
-  return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
 }
 
 // --------------------------------------------------------------- contracts
@@ -23146,7 +23310,6 @@ const PANELS = {
   contracts: contractsPanel,
   pause: pausePanel,
   inventory: inventoryPanel,
-  journal: journalPanel,
   map: mapPanel,
   container: containerPanel,
   shop: shopPanel,
@@ -23161,7 +23324,7 @@ const PANELS = {
 
 
 
-return { h, itemIcon, pausePanel, inventoryPanel, journalPanel, mapPanel, containerPanel, shopPanel, readPanel, messagePanel, debugPanel, struckDownPanel, settingsPanel, savesPanel, aboutPanel, choicesPanel, investPanel, contractsPanel, ledgerPanel, PANELS, SLOTS };
+return { h, itemIcon, pausePanel, inventoryPanel, JOURNAL_TABS, journalTab, mapPanel, containerPanel, shopPanel, readPanel, messagePanel, debugPanel, struckDownPanel, settingsPanel, savesPanel, aboutPanel, choicesPanel, investPanel, stocksScreen, contractsPanel, ledgerPanel, PANELS, SLOTS };
 })();
 
 // ---- src/ui/terminal.js
@@ -23400,9 +23563,22 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
 }
 
 // ---------------------------------------------------------- the terminal
-const TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
+const TERMINAL_TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
 
+/** The terminal at the works itself. */
 function terminalPanel(ui, body, opts) {
+  const def = ui.game.arms.def(opts.warehouse);
+  const go = (t, extra = {}) => ui.openPanel('terminal', { warehouse: opts.warehouse, tab: t, ...extra });
+  terminalScreen(ui, body, opts, go);
+  const tab = opts.tab || 'Overview';
+  return { title: `Terminal — ${def.name}`, tabs: TERMINAL_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
+}
+
+/**
+ * The terminal's screen: shared by the works terminal and the tablet's
+ * Business app. go(tab, extra) re-renders it on another tab.
+ */
+function terminalScreen(ui, body, opts, go) {
   const g = ui.game;
   const A = g.arms;
   const wh = opts.warehouse;
@@ -23410,18 +23586,17 @@ function terminalPanel(ui, body, opts) {
   const tab = opts.tab || 'Overview';
   const items = g.content.items;
   const cfg = A.cfg;
-  const go = (t, extra = {}) => ui.openPanel('terminal', { warehouse: wh, tab: t, ...extra });
   const say = (r) => { ui.audio.sfx(r.ok ? 'sfx_ui_click' : 'sfx_fail'); go(tab, { msg: r.text }); };
 
   // the screen: globe + status
   const wrap = h('div', { class: 'terminal' });
-  const canvas = h('canvas', { width: 300, height: 300, class: 'globe' });
+  const canvas = h('canvas', { width: 300, height: 300, class: opts.remote ? 'globe small' : 'globe' });
   const status = h('div', { class: 'term-status' });
   const p = A.power(wh);
   const staff = A.staffOf(wh);
   const r = A.state.research;
   status.append(...[
-    h('div', { class: 'term-title' }, `▣ ${def.name.toUpperCase()} — ARMS WORKS TERMINAL`),
+    h('div', { class: 'term-title' }, `▣ ${def.name.toUpperCase()} — ${opts.remote ? 'REMOTE LINK' : 'ARMS WORKS TERMINAL'}`),
     h('div', {}, `Funds: ${g.player.money} obols · Power: ${p.machines}/${p.capacity} stations · Staff: ${staff.length}/${def.bunks}`),
     h('div', {}, `Research: ${r.current ? `${cfg.research[r.current].name} ${Math.floor(r.progress)}/${cfg.research[r.current].cost} RP` : 'none selected'}`),
     h('div', {}, `Lucas's budget today: ${A.lucasBudgetLeft()} obols · Earned to date: ${A.state.earned} obols`),
@@ -23456,7 +23631,7 @@ function terminalPanel(ui, body, opts) {
       h('p', {}, h('b', {}, 'Produced: '), made),
       h('p', {}, h('b', {}, 'Loading dock: '), dock),
       h('p', {}, h('b', {}, 'Export cage: '), cage),
-      h('p', { class: 'muted' }, 'How it works: order parts and equipment here (they land on the loading dock within the hour). Take the equipment from the dock, press B to place stations, then hire staff and assign them. Choose each station\'s recipe with E. Belts and inserter arms can move parts between stations. Carry finished weapons to Lucas at Pipecreek Armory — the global market opens soon.'),
+      h('p', { class: 'muted' }, 'How it works: order parts and equipment here (they land on the loading dock within the hour). Take the equipment from the dock, press B to place stations, then hire staff and assign them. Choose each station\'s recipe with E. Belts and inserter arms can move parts between stations. Put finished weapons in the export cage and ship them abroad from the Market tab — or carry them to Lucas at Pipecreek Armory, who buys at half value.'),
     );
   } else if (tab === 'Parts' || tab === 'Equipment') {
     const list = Object.entries(items).filter(([, it]) => (tab === 'Parts' ? it.category === 'arms_part' && it.price > 0 : it.build && (it.build.domain === 'arms' || ['belt', 'inserter', 'generator'].includes(it.build.type))));
@@ -23557,10 +23732,134 @@ function terminalPanel(ui, body, opts) {
     }
     sect.append(h('p', { class: 'muted' }, `Earned from exports: ${ms.earned} obols. Lucas still buys wholesale at Pipecreek Armory (half value, up to his daily budget).`));
   }
-  return { title: `Terminal — ${def.name}`, tabs: TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
 }
 
-return { drawGlobe, terminalPanel };
+return { drawGlobe, TERMINAL_TABS, terminalPanel, terminalScreen };
+})();
+
+// ---- src/ui/tablet.js
+__m["src/ui/tablet.js"] = (function () {
+// The tablet (v0.15.0) — the journal's replacement. Apps along the top:
+//   Home       — business notifications (src/systems/tablet.js) and a summary
+//   Quests · People · Customers · Notes · Standing — the old journal pages
+//   Business   — a remote link to each arms works' terminal (once you own one)
+//   Stocks     — the Ober's Oil share register, as at Sir Moneybucks's desk
+const { h, journalTab, JOURNAL_TABS, stocksScreen } = __m["src/ui/panels.js"];
+const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
+const { TABLET_APPS } = __m["src/systems/tablet.js"];
+
+function tabletPanel(ui, body, opts) {
+  const g = ui.game;
+  const T = g.tablet;
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), 'Stocks'];
+  const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
+  const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
+  const unread = T.unread;
+
+  const bar = () => h('div', { class: 'tablet-bar' },
+    h('span', {}, `Day ${g.clock.day} · ${g.clock.weekday} · ${g.clock.timeString}`),
+    h('span', {}, `${g.player.money} obols · 📶 ▮▮▮ 🔋`));
+
+  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, bar(), stocksHeader(g)) });
+  else body.append(bar());
+  if (tab === 'Home') homeApp(ui, body, open);
+  else if (tab === 'Business') businessApp(ui, body, opts, open);
+  else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
+  if (tab === 'Home') T.markRead();
+
+  const label = (t) => (t === 'Home' && unread && tab !== 'Home' ? `Home (${unread})` : t);
+  return { title: '📱 OberPad', className: 'tablet', tabs: apps.map((t) => ({ label: label(t), active: t === tab, onclick: () => open(t) })) };
+}
+
+function homeApp(ui, body, open) {
+  const g = ui.game;
+  const T = g.tablet;
+  const cards = h('div', { class: 'grid2 tablet-cards' });
+  if (T.hasBusiness()) {
+    const A = g.arms;
+    const works = A.ownedIds();
+    const staff = A.state.staff.length;
+    const ms = g.market.state;
+    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Business') },
+      h('b', {}, '🏭 Arms business'),
+      h('span', {}, `${works.length} works · ${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea`),
+      h('span', {}, `Research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'} · Exports earned ${ms.earned}`)));
+  } else {
+    cards.append(h('div', { class: 'tablet-card muted' }, h('b', {}, '🏭 Business'), h('span', {}, 'You don\'t own a business yet. Buy an arms works and it will show up here.')));
+  }
+  const oil = g.oil.state;
+  cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
+    h('b', {}, '📈 Ober\'s Oil'),
+    h('span', {}, `${oil.sharePrice} obols a share · you own ${oil.sharesOwned}`),
+    h('span', {}, oil.sharesOwned ? `Worth ${oil.sharesOwned * oil.sharePrice} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
+  body.append(cards);
+
+  const s = T.state;
+  const filter = h('div', { class: 'row', style: 'justify-content:space-between;margin:12px 0 6px' },
+    h('h3', { style: 'margin:0' }, 'Notifications'),
+    s.feed.length ? h('button', { class: 'small', onclick: () => { s.feed = []; s.unread = 0; open('Home'); } }, 'Clear') : null);
+  body.append(filter);
+  if (!s.feed.length) {
+    body.append(h('p', { class: 'muted' }, 'Nothing yet. Deliveries, shipments, payroll, stalled stations, world news and share moves will show up here.'));
+    return;
+  }
+  const list = h('div', { class: 'list tablet-feed' });
+  s.feed.forEach((n, i) => {
+    const app = TABLET_APPS[n.app] || { icon: '•', name: '' };
+    const day = Math.floor(n.at / 1440) + 1;
+    const mins = Math.floor(n.at % 1440);
+    const when = `Day ${day} ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+    list.append(h('div', { class: `item-row feed-${n.kind}${i < T.unread ? ' unread' : ''}` },
+      h('div', { class: 'icon' }, app.icon),
+      h('div', { class: 'grow' }, h('div', {}, n.text), h('div', { class: 'desc' }, `${app.name} · ${when}`))));
+  });
+  body.append(list);
+}
+
+function businessApp(ui, body, opts, open) {
+  const g = ui.game;
+  const works = g.arms.ownedIds();
+  const wh = works.includes(opts.warehouse) ? opts.warehouse : works[0];
+  const sub = TERMINAL_TABS.includes(opts.sub) ? opts.sub : 'Overview';
+  const go = (t, extra = {}) => open('Business', { warehouse: wh, sub: t, ...extra });
+  if (works.length > 1) {
+    body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
+      ...works.map((id) => h('button', { class: `small${id === wh ? ' primary' : ''}`, onclick: () => open('Business', { warehouse: id, sub }) }, g.arms.def(id).name))));
+  }
+  body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
+    ...TERMINAL_TABS.map((t) => h('button', { class: `small${t === sub ? ' primary' : ''}`, onclick: () => go(t) }, t))));
+  terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, form: opts.form, remote: true }, go);
+}
+
+/** The brokerage banner: a line of Ober's Oil's recent closing prices. */
+function stocksHeader(g) {
+  const hist = g.oil.state.history;
+  const wrap = h('div', { class: 'tablet-ticker' }, h('b', {}, 'OBER — Ober\'s Oil, closing price'));
+  if (hist.length < 2) {
+    wrap.append(h('div', { class: 'muted' }, 'The price chart fills in after a couple of trading days (the market closes at 18:00).'));
+    return wrap;
+  }
+  const W = 420;
+  const H = 80;
+  const P = 8;
+  const prices = hist.map((d) => d.price);
+  const lo = Math.min(...prices) - 2;
+  const hi = Math.max(...prices) + 2;
+  const x = (i) => P + (i * (W - 2 * P)) / (hist.length - 1);
+  const y = (v) => H - P - ((v - lo) * (H - 2 * P)) / (hi - lo);
+  // built as markup: an inline <svg> in an HTML document needs no namespace
+  const dots = hist.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.price)}" r="7" class="ticker-hit"><title>Day ${d.day}: ${d.price} obols · ${d.output} barrels · dividend ${d.dividend ?? 0}</title></circle><circle cx="${x(i)}" cy="${y(d.price)}" r="${i === hist.length - 1 ? 4 : 2.5}" class="ticker-dot"></circle>`).join('');
+  const holder = h('div');
+  holder.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="ticker-chart" role="img" aria-label="Share price over the last ${hist.length} days, from ${prices[0]} to ${prices[prices.length - 1]} obols"><line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" class="ticker-axis"></line><polyline points="${hist.map((d, i) => `${x(i)},${y(d.price)}`).join(' ')}" class="ticker-line"></polyline>${dots}</svg>`;
+  const svg = holder.firstChild;
+  const first = prices[0];
+  const last = prices[prices.length - 1];
+  const ch = last - first;
+  wrap.append(svg, h('div', { class: 'desc' }, `Day ${hist[0].day}: ${first} → Day ${hist[hist.length - 1].day}: ${last} (${ch >= 0 ? '+' : '−'}${Math.abs(ch)}). Hover a point for that day.`));
+  return wrap;
+}
+
+return { tabletPanel };
 })();
 
 // ---- src/ui/ui.js
@@ -23577,8 +23876,10 @@ const { DialogueUI } = __m["src/ui/dialogueUI.js"];
 const { MapRenderer } = __m["src/ui/maps.js"];
 const { PANELS, h } = __m["src/ui/panels.js"];
 const { terminalPanel } = __m["src/ui/terminal.js"];
+const { tabletPanel } = __m["src/ui/tablet.js"];
 
 PANELS.terminal = terminalPanel;
+PANELS.tablet = tabletPanel;
 const { saveSettings } = __m["src/save/saveManager.js"];
 
 const LOOKS = [
@@ -23648,6 +23949,8 @@ class UI {
       newScreen: document.getElementById('screen-new'),
       modal: document.getElementById('modal'),
       modalTitle: document.getElementById('modal-title'),
+      modalPanel: document.getElementById('modal-panel'),
+      tabletBadge: document.getElementById('hud-tablet'),
       modalBody: document.getElementById('modal-body'),
       modalTabs: document.getElementById('modal-tabs'),
       fade: document.getElementById('fade'),
@@ -23655,6 +23958,7 @@ class UI {
     this.caption = h('div', { id: 'caption', class: 'hidden', style: 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);max-width:min(640px,90vw);background:rgba(251,244,230,.96);border:2px solid #2d2433;border-radius:12px;padding:10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none' });
     document.body.appendChild(this.caption);
     document.getElementById('modal-close').addEventListener('click', () => this.closePanel());
+    this.el.tabletBadge?.addEventListener('click', () => { if (this.state === 'playing' && !this.panelOpen && !this.dialogue.open) this.openPanel('tablet'); });
     this.el.modal.addEventListener('click', (e) => { if (e.target === this.el.modal) this.closePanel(); });
     document.getElementById('title-version').textContent = `${versionLabel()}`;
     window.addEventListener('beforeunload', () => { if (this.state === 'playing') this.autosave(); });
@@ -23813,6 +24117,7 @@ class UI {
     const res = PANELS[top.name](this, modalBody, top.opts) || {};
     top.onClose = res.onClose;
     modalTitle.textContent = res.title || '';
+    this.el.modalPanel?.classList.toggle('tablet', res.className === 'tablet');
     for (const t of res.tabs || []) modalTabs.appendChild(h('button', { class: t.active ? 'active' : '', onclick: () => { this.panelStack.pop(); t.onclick(); } }, t.label));
     modal.classList.remove('hidden');
   }
@@ -23960,9 +24265,9 @@ class UI {
       case 'build': this.toggleBuild(); break;
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
-      case 'journal': this.openPanel('journal'); break;
+      case 'journal': this.openPanel('tablet'); break;
       case 'map': this.openPanel('map'); break;
-      case 'status': this.openPanel('journal', { tab: 'People' }); break;
+      case 'status': this.openPanel('tablet', { tab: 'People' }); break;
       case 'interact': this.interact(); break;
       case 'attack': {
         const r = this.game.combat.attack();
@@ -24214,6 +24519,12 @@ class UI {
       const active = g.quests.journal().filter((q) => q.state === 'active').slice(0, 2);
       const html = active.map((q) => `<div class="q-title">${escapeHtml(q.title)}</div>${q.objectives.map((o) => `<div class="q-obj">• ${escapeHtml(o.text)}</div>`).join('')}`).join('');
       if (this.el.tracker.innerHTML !== html) this.el.tracker.innerHTML = html;
+      const unread = g.tablet.unread;
+      const badge = unread ? `📱 ${unread} new` : '';
+      if (this.el.tabletBadge && this.el.tabletBadge.textContent !== badge) {
+        this.el.tabletBadge.textContent = badge;
+        this.el.tabletBadge.classList.toggle('hidden', !unread);
+      }
       if (this.settings.showFps) {
         this.el.debug.textContent = [
           `FPS ${this.fps.toFixed(0)}  ${versionLabel()}`,

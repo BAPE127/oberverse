@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.15.0] — 2026-10-13 — "OberPad" (development build)
+
+### Added
+- **The tablet** (`src/ui/tablet.js`, panel `tablet`, title "OberPad") replaces the journal (J / Q). Apps: **Home** (notification feed + business and stock summary cards), the journal's Quests, People, Customers, Notes and Standing, **Business** (only once you own an arms works) and **Stocks**.
+- **Business app**: a remote link to each arms works' terminal — the same globe and Overview / Parts / Equipment / Staff / Research / Market screens (`terminalScreen` in `src/ui/terminal.js`, shared with the works terminal), with a works switcher when you own several.
+- **Stocks app**: the Ober's Oil share register (`stocksScreen` in `src/ui/panels.js`, shared with Sir Moneybucks's register) plus a closing-price chart with per-day hover.
+- **Business notifications** (`src/systems/tablet.js`, state `world.tablet`): `tablet.post(app, text, kind)` toasts and keeps a feed of 60 with an unread count. Posted by: parts deliveries, payroll, a payroll-you-can't-cover warning at 18:00, staff quitting, a daily production report per works at 19:00, staffed stations stalling (out of parts, output full, no recipe, no power, lab with no project; once per stall), research complete, shipments delivered or lost, world news, Ober's Oil dividends and share moves of 3+ obols. HUD badge "📱 N new" (click to open).
+- Tests: `tests/tablet.test.mjs` (7 tests).
+
+### Changed
+- The pause menu's Journal button is now Tablet; the HUD key hint reads "J tablet".
+- The terminal's Overview no longer says the global market "opens soon".
+
 ## [0.14.0] — 2026-10-13 — "Gun Running" (development build)
 
 Second half of the Guns and Gun Running update.

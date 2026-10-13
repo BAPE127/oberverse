@@ -1,7 +1,8 @@
-# Known Issues and Limitations — v0.14.0
+# Known Issues and Limitations — v0.15.0
 
 ## Not yet implemented (planned)
 
+- **Tablet (v0.15.0):** the Business app covers the arms works only (the calculator warehouses are still run in person); stall alerts are checked hourly at :30, so a short stall can go unreported. Notifications posted during a long sleep or time skip all toast at once (the HUD keeps the latest six).
 - **Arms trade (v0.14.0):** countries can't yet be bribed or influenced (the planned politics update); you can't own a shipping company yet; wars are abstract (no battles shown). Heavy weapons don't damage buildings or props (by the owner's choice); projectiles and drones are lost if you change map. Employees never leave their works (by design) and don't fight. Items have no per-unit quality; research raises prices for the whole family.
 - **Factory (v0.12.0):** no splitters, mergers, underground belts or filtered arms; machines only face one way (no rotation); arms and belts move one item per game minute; power is a simple machine count (no fuel, no wiring). The gang doesn't raid warehouses (owner chose threats, ambushes and a truce). Build mode is mouse-and-keyboard only.
 - **Calculator trade (v0.11.0):** customers live and order only in the Sumps; order meeting spots are fixed points. Gang ambushes and hunts only happen on the player's current map. Officers and gang members only trade insults (no NPC-vs-NPC fights).

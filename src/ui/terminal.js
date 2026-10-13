@@ -232,9 +232,22 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
 }
 
 // ---------------------------------------------------------- the terminal
-const TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
+export const TERMINAL_TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
 
+/** The terminal at the works itself. */
 export function terminalPanel(ui, body, opts) {
+  const def = ui.game.arms.def(opts.warehouse);
+  const go = (t, extra = {}) => ui.openPanel('terminal', { warehouse: opts.warehouse, tab: t, ...extra });
+  terminalScreen(ui, body, opts, go);
+  const tab = opts.tab || 'Overview';
+  return { title: `Terminal — ${def.name}`, tabs: TERMINAL_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
+}
+
+/**
+ * The terminal's screen: shared by the works terminal and the tablet's
+ * Business app. go(tab, extra) re-renders it on another tab.
+ */
+export function terminalScreen(ui, body, opts, go) {
   const g = ui.game;
   const A = g.arms;
   const wh = opts.warehouse;
@@ -242,18 +255,17 @@ export function terminalPanel(ui, body, opts) {
   const tab = opts.tab || 'Overview';
   const items = g.content.items;
   const cfg = A.cfg;
-  const go = (t, extra = {}) => ui.openPanel('terminal', { warehouse: wh, tab: t, ...extra });
   const say = (r) => { ui.audio.sfx(r.ok ? 'sfx_ui_click' : 'sfx_fail'); go(tab, { msg: r.text }); };
 
   // the screen: globe + status
   const wrap = h('div', { class: 'terminal' });
-  const canvas = h('canvas', { width: 300, height: 300, class: 'globe' });
+  const canvas = h('canvas', { width: 300, height: 300, class: opts.remote ? 'globe small' : 'globe' });
   const status = h('div', { class: 'term-status' });
   const p = A.power(wh);
   const staff = A.staffOf(wh);
   const r = A.state.research;
   status.append(...[
-    h('div', { class: 'term-title' }, `▣ ${def.name.toUpperCase()} — ARMS WORKS TERMINAL`),
+    h('div', { class: 'term-title' }, `▣ ${def.name.toUpperCase()} — ${opts.remote ? 'REMOTE LINK' : 'ARMS WORKS TERMINAL'}`),
     h('div', {}, `Funds: ${g.player.money} obols · Power: ${p.machines}/${p.capacity} stations · Staff: ${staff.length}/${def.bunks}`),
     h('div', {}, `Research: ${r.current ? `${cfg.research[r.current].name} ${Math.floor(r.progress)}/${cfg.research[r.current].cost} RP` : 'none selected'}`),
     h('div', {}, `Lucas's budget today: ${A.lucasBudgetLeft()} obols · Earned to date: ${A.state.earned} obols`),
@@ -288,7 +300,7 @@ export function terminalPanel(ui, body, opts) {
       h('p', {}, h('b', {}, 'Produced: '), made),
       h('p', {}, h('b', {}, 'Loading dock: '), dock),
       h('p', {}, h('b', {}, 'Export cage: '), cage),
-      h('p', { class: 'muted' }, 'How it works: order parts and equipment here (they land on the loading dock within the hour). Take the equipment from the dock, press B to place stations, then hire staff and assign them. Choose each station\'s recipe with E. Belts and inserter arms can move parts between stations. Carry finished weapons to Lucas at Pipecreek Armory — the global market opens soon.'),
+      h('p', { class: 'muted' }, 'How it works: order parts and equipment here (they land on the loading dock within the hour). Take the equipment from the dock, press B to place stations, then hire staff and assign them. Choose each station\'s recipe with E. Belts and inserter arms can move parts between stations. Put finished weapons in the export cage and ship them abroad from the Market tab — or carry them to Lucas at Pipecreek Armory, who buys at half value.'),
     );
   } else if (tab === 'Parts' || tab === 'Equipment') {
     const list = Object.entries(items).filter(([, it]) => (tab === 'Parts' ? it.category === 'arms_part' && it.price > 0 : it.build && (it.build.domain === 'arms' || ['belt', 'inserter', 'generator'].includes(it.build.type))));
@@ -389,5 +401,4 @@ export function terminalPanel(ui, body, opts) {
     }
     sect.append(h('p', { class: 'muted' }, `Earned from exports: ${ms.earned} obols. Lucas still buys wholesale at Pipecreek Armory (half value, up to his daily budget).`));
   }
-  return { title: `Terminal — ${def.name}`, tabs: TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
 }

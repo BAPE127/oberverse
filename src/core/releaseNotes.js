@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.15.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'OberPad',
+    notes: [
+      'Your journal is now a tablet, the OberPad (J). Quests, people, customers, notes and standing are apps on it, alongside two new ones.',
+      'Business: once you own an arms works, run it from anywhere — the same globe and tabs as the works terminal: order parts, hire and assign staff, pick research and ship to the world market. Own more than one works and you can switch between them.',
+      'Stocks: the Ober\'s Oil share register from Sir Moneybucks\'s desk, with a chart of the closing price. Buy, sell and fund projects wherever you are.',
+      'Notifications: deliveries, payroll (and a warning when you can\'t cover it), staff quitting, a daily production report, stations that stall for want of parts, power or a recipe, research finished, shipments delivered or lost, world news, dividends and big share moves. They pop up and wait on the Home screen; a 📱 badge on the HUD counts the unread ones.',
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-10-13',
     channel: 'development',

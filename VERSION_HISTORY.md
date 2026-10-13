@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.15.0 | 2026-10-13 | development | 1 | OberPad — the journal becomes a tablet: business, stocks, notifications |
 | 0.14.0 | 2026-10-13 | development | 1 | Gun Running — the global market, shipping, heavy weapons in use |
 | 0.13.0 | 2026-10-13 | development | 1 | Pipecreek — fifth imported character, arms works, staff, research |
 | 0.12.0 | 2026-10-13 | development | 1 | The Calculator Works — warehouses, Sal's parts and deliveries, the factory builder |
@@ -19,6 +20,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.15.0 — OberPad
+
+The journal becomes a tablet that runs your arms business and Ober's Oil shares remotely and collects business notifications. Saves: `world.tablet` is created on first use; older saves load with an empty feed. No migration needed.
 
 ## 0.14.0 — Gun Running
 

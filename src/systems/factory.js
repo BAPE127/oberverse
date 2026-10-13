@@ -24,7 +24,7 @@ import { CALC_TYPES } from './calculators.js';
 export const DX = [1, 0, -1, 0];
 export const DY = [0, 1, 0, -1];
 const MACHINE_BUFFER = 4; // ×recipe need, per input
-const OUTPUT_CAP = 10;
+export const OUTPUT_CAP = 10;
 const DELIVERY_MINUTE = 7 * 60;
 export const CALC_ITEM = (t) => `item_calc_${t}`;
 

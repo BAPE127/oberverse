@@ -13,7 +13,7 @@
 //
 // State: game.world.arms. Employees are generated characters (world.arms.staff)
 // spawned as NPCs who live in their works and never leave it.
-import { Factory, DX, DY } from './factory.js';
+import { Factory, DX, DY, OUTPUT_CAP } from './factory.js';
 import { TILE, clamp } from '../core/util.js';
 import { isDown } from './combat.js';
 
@@ -89,7 +89,7 @@ export class Arms extends Factory {
     const node = this.cfg.research[r.current];
     if (r.progress >= node.cost) {
       r.done[r.current] = true;
-      g.notify(`🔬 Research complete: ${node.name}. ${node.text}`, 'quest');
+      g.tablet.post('arms', `🔬 Research complete: ${node.name}. ${node.text}`, 'quest');
       g.bus.emit('arms:research', { id: r.current });
       r.current = null;
       r.progress = 0;
@@ -219,6 +219,11 @@ export class Arms extends Factory {
   produced(whId, m, out) {
     const s = this.state;
     s.produced[out] = (s.produced[out] || 0) + 1;
+    // for the tablet's daily report
+    if (!s.today) s.today = {};
+    const t = (s.today[whId] ||= {});
+    t[out] = (t[out] || 0) + 1;
+    this.alerted?.delete(m.id); // it's working again: a later stall is news
     this.game.bus.emit('arms:produced', { warehouse: whId, item: out });
   }
 
@@ -438,6 +443,7 @@ export class Arms extends Factory {
     const g = this.game;
     const s = this.state;
     s.lastPayDay = g.clock.day;
+    this.dailyReport();
     if (!s.staff.length) return;
     let paid = 0;
     const leaving = [];
@@ -458,10 +464,10 @@ export class Arms extends Factory {
       if (st.unpaid >= 2 || st.morale < 15) leaving.push(st);
     }
     if (paid) g.bus.emit('money:changed', { delta: -paid, total: g.player.money });
-    if (paid) g.notify(`💼 Payroll: ${paid} obols to ${s.staff.length - leaving.length} staff.`, 'info');
+    if (paid) g.tablet.post('arms', `💼 Payroll: ${paid} obols to ${s.staff.length - leaving.length} staff.`, 'info');
     for (const st of leaving) {
       this.fire(st.id);
-      g.notify(`${st.name} quit${st.unpaid >= 2 ? ' — unpaid twice' : ' — morale hit rock bottom'}.`, 'warn');
+      g.tablet.post('arms', `${st.name} quit ${this.def(st.warehouse).name}${st.unpaid >= 2 ? ' — unpaid twice' : ' — morale hit rock bottom'}.`, 'warn');
     }
   }
 
@@ -502,7 +508,7 @@ export class Arms extends Factory {
           st.items[o.item] = (st.items[o.item] || 0) + o.qty;
           by[o.wh] = (by[o.wh] || 0) + o.qty;
         }
-        for (const [wh, n] of Object.entries(by)) g.notify(`🚚 ${n} item${n === 1 ? '' : 's'} delivered to ${this.def(wh).name}'s loading dock.`, 'info');
+        for (const [wh, n] of Object.entries(by)) g.tablet.post('arms', `🚚 ${n} item${n === 1 ? '' : 's'} delivered to ${this.def(wh).name}'s loading dock.`, 'info');
       }
     }
     // workers walk to their stations for their shift, and back off it
@@ -525,6 +531,54 @@ export class Arms extends Factory {
       }
     }
     if (g.clock.minuteOfDay === PAY_MINUTE && s.lastPayDay < g.clock.day) this.payroll();
+    if (g.clock.minuteOfDay === PAY_MINUTE - 60 && s.staff.length) {
+      const due = s.staff.reduce((a, st) => a + st.wage, 0);
+      if (g.player.money < due) g.tablet.post('arms', `⚠ Payroll at 19:00 is ${due} obols and you have ${g.player.money}. Unpaid staff lose morale — twice unpaid and they quit.`, 'warn');
+    }
+    if (g.clock.minuteOfDay % 60 === 30) this.checkStations();
+  }
+
+  // ------------------------------------------------------- tablet alerts
+  /** Hourly: tell the tablet about staffed stations that have stalled (once per stall). */
+  checkStations() {
+    const g = this.game;
+    if (!this.alerted) this.alerted = new Map();
+    for (const wh of this.ownedIds()) {
+      for (const m of this.cells(wh).machines) {
+        const st = this.workerAt(m);
+        let why = null;
+        if (st && m.powered === false) why = 'has no power — build a generator';
+        else if (st && this.present(st, m)) {
+          if (m.kind === 'lab') why = this.state.research.current ? null : 'is idle — pick a research project';
+          else {
+            const r = this.recipeOf(m);
+            const outTotal = Object.values(m.out || {}).reduce((a, b) => a + b, 0);
+            if (!r) why = 'has no recipe set';
+            else if (outTotal >= OUTPUT_CAP) why = 'is full — collect its output';
+            else if (m.progress === 0 && !Object.entries(r.in).every(([id, n]) => (m.in[id] || 0) >= n)) why = 'is out of parts';
+          }
+        }
+        const key = m.id;
+        if (!why) { this.alerted.delete(key); continue; }
+        if (this.alerted.get(key) === why) continue;
+        this.alerted.set(key, why);
+        g.tablet.post('arms', `${this.cfg.stations[m.kind].name} at ${this.def(wh).name} ${why} (${st.shortName} is standing idle).`, 'warn');
+      }
+    }
+  }
+
+  /** At 19:00: what each works made today. */
+  dailyReport() {
+    const g = this.game;
+    const s = this.state;
+    const items = g.content.items;
+    for (const wh of this.ownedIds()) {
+      const made = Object.entries(s.today?.[wh] || {});
+      const list = made.map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ');
+      const cage = Object.values(g.world.containers[this.def(wh).outCrate]?.items || {}).reduce((a, b) => a + b, 0);
+      if (made.length || this.staffOf(wh).length) g.tablet.post('arms', `📊 ${this.def(wh).name} today: ${list || 'nothing made'}. Export cage: ${cage} item${cage === 1 ? '' : 's'}.`, made.length ? 'good' : 'info');
+    }
+    s.today = {};
   }
 
   interact(prop) {

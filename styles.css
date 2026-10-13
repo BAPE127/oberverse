@@ -209,3 +209,29 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
 .research .node.cur { outline: 2px solid #f2c14e; }
 .research .node .desc { font-size: 11px; opacity: .8; }
 .terminal-news, .news { font-size: 12px; line-height: 1.5; background: #05080c; color: #bfe8ff; border-radius: 8px; padding: 8px 10px; font-family: "Courier New", monospace; }
+
+/* ---- the tablet (v0.15.0, src/ui/tablet.js): the journal in a slate bezel ---- */
+#hud-tablet { pointer-events: auto; font-weight: bold; font-size: 13px; color: var(--ink); animation: tablet-ping 1.6s ease-in-out infinite; }
+@keyframes tablet-ping { 0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,.25); } 50% { box-shadow: 0 0 0 4px rgba(79,138,139,.45); } }
+#modal-panel.tablet { border: 12px solid #24202a; border-radius: 26px; outline: 2px solid #4a4452; box-shadow: var(--shadow), inset 0 0 0 1px #000; width: min(860px, calc(100vw - 24px)); }
+#modal-panel.tablet .panel-head { background: #2f2a36; color: #f3eee6; border-bottom-color: #3d3746; padding: 8px 14px 6px; }
+#modal-panel.tablet .panel-head .close { color: #f3eee6; }
+#modal-panel.tablet .tabs { background: #2f2a36; flex-wrap: wrap; padding: 6px 12px 0; }
+#modal-panel.tablet .tabs button { background: #48414f; color: #f3eee6; border-color: #1c1820; }
+#modal-panel.tablet .tabs button.active { background: var(--paper); color: var(--ink); }
+.tablet-bar { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-soft); margin: -6px 0 10px; flex-wrap: wrap; }
+.tablet-cards { gap: 10px; }
+.tablet-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 10px 12px; border-radius: 12px; font-size: 13px; background: var(--paper-2); }
+div.tablet-card { border: 2px dashed var(--line); }
+.tablet-feed .item-row.unread { border-left: 4px solid var(--accent-2); }
+.tablet-feed .feed-warn .grow > div:first-child { color: var(--warn); }
+.tablet-feed .feed-good .grow > div:first-child { color: var(--good); }
+.tablet-sub { gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.terminal .globe.small { width: 170px; height: 170px; }
+.tablet-ticker { background: var(--paper-2); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
+.ticker-chart { width: 100%; max-width: 420px; height: auto; display: block; margin: 6px 0 4px; }
+.ticker-axis { stroke: var(--line); stroke-width: 1; }
+.ticker-line { fill: none; stroke: var(--accent-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ticker-dot { fill: var(--accent-2); stroke: var(--paper-2); stroke-width: 2; pointer-events: none; }
+.ticker-hit { fill: transparent; cursor: default; }
+.ticker-hit:hover + .ticker-dot { r: 5; }

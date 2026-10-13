@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.15.0 (2026-10-13)
+
+- `npm run check` — **208/208 tests passed** (7 new in `tablet.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each (the J check now expects the OberPad).
+- Browser (headless Chromium, real mouse): J on a new game opened the OberPad with no Business app and an empty feed. After buying a works, ordering parts, shipping pistols to Teshvar, buying Ober's Oil shares and skipping days, the HUD showed "📱 9 new"; clicking it opened Home with the delivery, shipment, news, dividend and share-move notifications. Business showed the Yard 1 Works globe and tabs; ordering ×10 steel from Parts worked remotely. Stocks showed the price chart, and Buy 5 took the shares from 10 to 15. Fixed from the run: the status bar vanished after a trade; the chart drew too small; the Overview still said the market "opens soon". No page errors.
+
 ## Verification record — v0.14.0 (2026-10-13)
 
 - `npm run check` — **201/201 tests passed** (12 new in `market.test.mjs`); validator 0 errors.

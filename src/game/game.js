@@ -27,6 +27,7 @@ import { Factory, freshFactory } from '../systems/factory.js';
 import { Arms, freshArms } from '../systems/arms.js';
 import { Market, freshMarket } from '../systems/market.js';
 import { Heavy } from '../systems/heavy.js';
+import { Tablet } from '../systems/tablet.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -62,6 +63,7 @@ export class Game {
     this.arms = new Arms(this);
     this.market = new Market(this);
     this.heavy = new Heavy(this);
+    this.tablet = new Tablet(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;

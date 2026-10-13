@@ -85,12 +85,12 @@ try {
   await hold('KeyD', 900);
   await shot('04-outside');
 
-  // Inventory, journal, map panels
-  for (const [key, name] of [['KeyI', 'inventory'], ['KeyJ', 'journal'], ['KeyM', 'map']]) {
+  // Inventory, tablet (the old journal), map panels
+  for (const [key, name, title] of [['KeyI', 'inventory', 'inventory'], ['KeyJ', 'tablet', 'oberpad'], ['KeyM', 'map', 'map']]) {
     await closeAll();
     await page.keyboard.press(key);
     await wait(300);
-    record(`${name} panel opens`, (await page.textContent('#modal-title')).toLowerCase().includes(name === 'inventory' ? 'inventory' : name));
+    record(`${name} panel opens`, (await page.textContent('#modal-title')).toLowerCase().includes(title));
     await shot(`05-${name}`);
     await page.keyboard.press('Escape');
     await wait(200);

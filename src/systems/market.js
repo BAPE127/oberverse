@@ -54,7 +54,7 @@ export class Market {
     const s = this.state;
     s.news.unshift({ day: this.game.clock.day, text });
     s.news = s.news.slice(0, 12);
-    this.game.notify(`📰 ${text}`, 'event');
+    this.game.tablet.post('news', text, 'event');
     this.game.bus.emit('market:news', { text });
   }
 
@@ -133,7 +133,7 @@ export class Market {
         const fam = g.content.items[id].arms.family;
         c.sat[fam] = clamp((c.sat[fam] || 0) + n * this.cfg.market.saturationPerUnit, 0, this.cfg.market.saturationMax);
       }
-      g.notify(`🚢 Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
+      g.tablet.post('market', `Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
       g.bus.emit('market:delivered', { shipment: shp });
       return 'delivered';
     }
@@ -167,7 +167,7 @@ export class Market {
         }
       }
     }
-    g.notify(text, 'warn');
+    g.tablet.post('market', text, 'warn');
     g.bus.emit('market:lost', { shipment: shp, fate });
     return fate;
   }

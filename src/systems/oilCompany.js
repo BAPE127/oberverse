@@ -141,15 +141,20 @@ export class OilCompany {
     const s = this.state;
     const output = this.computeOutput();
     s.output = output;
+    const oldPrice = s.sharePrice;
     s.sharePrice = Math.max(5, Math.round(20 + output / 8 - (s.strike ? 6 : 0)));
     const dividend = Math.floor(s.sharesOwned * this.dividendPerShare(output));
     if (dividend > 0) {
       g.player.money += dividend;
       s.dividendsPaid += dividend;
       g.bus.emit('money:changed', { delta: dividend, total: g.player.money });
-      g.notify(`Ober's Oil dividend: +${dividend} obols (${output} barrels today).`, 'good');
+      g.tablet.post('stocks', `Ober's Oil dividend: +${dividend} obols (${output} barrels today).`, 'good');
     } else if (s.sharesOwned > 0) {
-      g.notify(`Ober's Oil paid no dividend today (${s.strike ? 'strike' : 'no output'}).`, 'warn');
+      g.tablet.post('stocks', `Ober's Oil paid no dividend today (${s.strike ? 'strike' : 'no output'}).`, 'warn');
+    }
+    if (s.sharesOwned > 0 && Math.abs(s.sharePrice - oldPrice) >= 3) {
+      const up = s.sharePrice > oldPrice;
+      g.tablet.post('stocks', `Ober's Oil shares ${up ? 'rose' : 'fell'} to ${s.sharePrice} obols (${up ? '+' : '−'}${Math.abs(s.sharePrice - oldPrice)}). Your ${s.sharesOwned} shares are worth ${s.sharesOwned * s.sharePrice}.`, up ? 'good' : 'warn');
     }
     s.lastDividendDay = g.clock.day;
     s.morale = clamp(s.morale + (s.wageLevel >= 2 ? 5 : 1) - (s.derricks > 1 ? 1 : 0), 0, 100);
