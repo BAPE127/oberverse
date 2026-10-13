@@ -235,3 +235,65 @@ div.tablet-card { border: 2px dashed var(--line); }
 .ticker-dot { fill: var(--accent-2); stroke: var(--paper-2); stroke-width: 2; pointer-events: none; }
 .ticker-hit { fill: transparent; cursor: default; }
 .ticker-hit:hover + .ticker-dot { r: 5; }
+
+/* ---- the OSINT console (v0.15.1, src/ui/terminal.js) ---- */
+#modal-panel.monitor { width: min(1000px, calc(100vw - 20px)); max-height: calc(100vh - 16px); background: #1c1e21; border: 3px solid #0b0c0d; border-radius: 22px; padding: 0 18px 26px; box-shadow: 0 20px 50px rgba(0,0,0,.6), inset 0 2px 0 #34373b; position: relative; }
+#modal-panel.monitor::after { content: "PIPECREEK SYSTEMS · PS-9000"; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); font: bold 10px/1 "Courier New", monospace; letter-spacing: 3px; color: #5d6168; }
+#modal-panel.monitor::before { content: ""; position: absolute; bottom: 9px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #5cff8a; box-shadow: 0 0 6px #5cff8a; }
+#modal-panel.monitor .panel-head { background: transparent; border: none; padding: 8px 4px 6px; color: #8a8f96; }
+#modal-panel.monitor .panel-head h2 { font: bold 13px "Courier New", monospace; letter-spacing: 2px; text-transform: uppercase; }
+#modal-panel.monitor .close { color: #8a8f96; }
+#modal-panel.monitor #modal-body { background: #010604; border-radius: 14px; padding: 0; box-shadow: inset 0 0 40px rgba(0,0,0,.9), 0 0 0 3px #0b0c0d; }
+.osint { position: relative; background: radial-gradient(ellipse at center, #03140d 0%, #010604 75%); color: #7dffb4; font-family: "Courier New", "Lucida Console", monospace; font-size: 12.5px; padding: 10px 12px 14px; border-radius: 12px; text-shadow: 0 0 4px rgba(90,255,160,.45); overflow: hidden; animation: os-flicker 6s infinite; }
+.osint::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); border-radius: 12px; box-shadow: inset 0 0 70px rgba(0,0,0,.75); }
+@keyframes os-flicker { 0%, 96%, 100% { opacity: 1; } 97% { opacity: .93; } 98% { opacity: .98; } }
+.osint .os-head { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; padding: 4px 8px; margin-bottom: 8px; background: rgba(60,255,150,.12); border: 1px solid rgba(90,255,160,.35); font-size: 11.5px; letter-spacing: 1px; }
+.osint .os-brand { font-weight: bold; color: #b4ffd6; }
+.osint .os-live { color: #ff6a5a; text-shadow: 0 0 6px #ff3a2a; animation: os-blink 1.2s steps(2) infinite; }
+@keyframes os-blink { 50% { opacity: .2; } }
+.osint .os-top { display: flex; gap: 10px; flex-wrap: wrap; }
+.osint .os-globe-box { position: relative; flex: none; max-width: 100%; }
+.osint .os-globe { display: block; max-width: 100%; height: auto !important; border: 1px solid rgba(90,255,160,.35); cursor: crosshair; touch-action: none; }
+.osint .os-globe-ctrl { position: absolute; top: 6px; left: 6px; display: flex; gap: 4px; }
+.osint .os-globe-help { font-size: 10px; opacity: .6; margin-top: 3px; letter-spacing: 1px; }
+.osint .os-mini { padding: 1px 7px; font: bold 11px "Courier New", monospace; background: rgba(0,20,10,.8); color: #7dffb4; border: 1px solid rgba(90,255,160,.5); border-radius: 3px; }
+.osint .os-mini.on { background: #7dffb4; color: #011; text-shadow: none; }
+.osint .os-tip { position: absolute; z-index: 3; width: 240px; background: rgba(1,14,8,.94); border: 1px solid #7dffb4; padding: 6px 8px; font-size: 11px; line-height: 1.45; pointer-events: none; box-shadow: 0 0 12px rgba(90,255,160,.3); }
+.osint .os-tip-title { font-weight: bold; color: #e8fff2; border-bottom: 1px dashed rgba(125,255,180,.5); margin-bottom: 3px; }
+.osint .os-side { flex: 1; min-width: 230px; display: flex; flex-direction: column; gap: 8px; max-height: 450px; }
+.osint .os-box { border: 1px solid rgba(90,255,160,.3); padding: 5px 8px; background: rgba(0,30,15,.35); white-space: pre-wrap; }
+.osint .os-log { flex: 1; overflow: auto; font-size: 11px; }
+.osint .os-label { color: #b4ffd6; font-weight: bold; margin-bottom: 3px; letter-spacing: 1px; }
+.osint .os-dim, .osint .desc { color: #3fae78; text-shadow: none; }
+.osint .os-contact { padding: 3px 0; border-bottom: 1px dotted rgba(90,255,160,.2); cursor: default; }
+.osint .os-contact:hover { background: rgba(255,216,96,.08); color: #ffd860; }
+.osint .os-bar { height: 5px; background: rgba(90,255,160,.12); margin: 2px 0; }
+.osint .os-bar i { display: block; height: 100%; background: #ffd860; box-shadow: 0 0 6px #ffd860; }
+.osint .os-cmds { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 4px; }
+.osint button { font-family: inherit; font-size: 12px; background: transparent; color: #7dffb4; border: 1px solid rgba(90,255,160,.55); border-radius: 2px; padding: 3px 9px; text-shadow: inherit; }
+.osint button:hover:not(:disabled) { background: rgba(90,255,160,.18); transform: none; }
+.osint button.on, .osint button.primary, .osint button.on:hover, .osint button.primary:hover:not(:disabled) { background: #7dffb4; color: #011; text-shadow: none; }
+.osint button:disabled { opacity: .4; }
+.osint .os-prompt { font-size: 12px; padding: 4px 0 8px; border-bottom: 1px solid rgba(90,255,160,.25); }
+.osint .os-msg { color: #ffd860; }
+.osint .os-cursor { animation: os-blink 1s steps(2) infinite; margin-left: 2px; }
+.osint .os-body h3 { font-size: 13px; letter-spacing: 1px; color: #b4ffd6; margin: 12px 0 6px; font-family: inherit; }
+.osint .os-pre { font-family: inherit; font-size: 12px; white-space: pre-wrap; margin: 0; line-height: 1.6; }
+.osint .item-row { background: rgba(0,30,15,.35); border: 1px solid rgba(90,255,160,.2); border-radius: 2px; }
+.osint .item-row .icon { background: transparent; border-color: rgba(90,255,160,.3); filter: grayscale(.6) brightness(1.1); }
+.osint select, .osint input { background: #011; color: #7dffb4; border: 1px solid rgba(90,255,160,.5); font-family: inherit; }
+.osint .research .node { background: rgba(0,30,15,.4) !important; color: #7dffb4; text-align: left; }
+.osint .research .node.done { border-color: #7dffb4; color: #b4ffd6; }
+.osint .research .node.cur { outline: 2px solid #ffd860; }
+.osint .research .node.locked { opacity: .45; }
+#modal-panel.tablet .osint { margin: 0 -4px; }
+@media (max-width: 700px) { .osint .os-side { max-height: none; } }
+
+/* ---- the world map (v0.15.1, src/ui/maps.js drawWorld) ---- */
+#modal-panel.wide { width: min(1120px, calc(100vw - 20px)); }
+.wmap-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.wmap-zoom { min-width: 46px; text-align: center; font-size: 13px; font-weight: bold; }
+.wmap-view { position: relative; }
+.wmap-canvas { display: block; width: 100%; height: min(560px, calc(100vh - 290px)); min-height: 260px; border: 2px solid var(--ink); border-radius: 10px; cursor: grab; touch-action: none; }
+.wmap-canvas.grabbing { cursor: grabbing; }
+.wmap-tip { position: absolute; z-index: 2; background: var(--paper); border: 2px solid var(--ink); border-radius: 8px; padding: 5px 9px; font-size: 13px; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.3); max-width: 220px; }

@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.15.1',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Overwatch',
+    notes: [
+      'The arms-works terminal is now PIPECREEK//OVERWATCH, a trade-intelligence console on a green-screen monitor. Drag the globe to turn it, scroll to zoom, and hover anything: a country shows its war, budget, prices and the cargo you have heading there; your ships and air freight show their cargo, value and ETA. The world\'s other shipping traffic sails the lanes too (some with their transponders off). Click a country to target it in the Market tab.',
+      'The map (M) is now one world map: Mill Road Yards, Halvermouth and the coast laid out together with the roads between them. Drag to pan, scroll to zoom from the whole world down to street level, jump to a region, and hover a building\'s icon to see what it is. Property you own is ringed in gold.',
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-10-13',
     channel: 'development',

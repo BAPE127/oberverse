@@ -186,44 +186,114 @@ function customersTab(g, body) {
 }
 
 // ---------------------------------------------------------------------- map
+/** The world map's camera survives re-opening (world tiles at the centre, px per tile). */
+const MAPVIEW = { cx: null, cy: null, z: 6 };
+
 export function mapPanel(ui, body, opts) {
   const g = ui.game;
   const current = g.currentMap();
-  const mapId = opts.mapId || current.id;
-  const canvas = h('canvas', { id: 'worldmap' });
-  body.append(canvas);
-  ui.maps.drawWorldMap(canvas, mapId);
+  const R = ui.maps;
+  const tabs = [];
+  const inside = current.kind === 'interior';
+  const mode = opts.mode || 'world';
+  tabs.push({ label: 'World', active: mode === 'world', onclick: () => ui.openPanel('map', { mode: 'world' }) });
+  if (inside) tabs.push({ label: current.name, active: mode === 'here', onclick: () => ui.openPanel('map', { mode: 'here' }) });
+  if (mode === 'here') {
+    const canvas = h('canvas', { id: 'worldmap' });
+    body.append(canvas);
+    R.drawWorldMap(canvas, current.id);
+    return { title: 'Map', tabs };
+  }
+
+  const L = R.worldLayout();
+  const me = R.playerWorld();
+  if (MAPVIEW.cx === null || opts.centre) {
+    const c = me || { x: L.bounds.x + L.bounds.w / 2, y: L.bounds.y + L.bounds.h / 2 };
+    MAPVIEW.cx = c.x;
+    MAPVIEW.cy = c.y;
+  }
+  const wrap = h('div', { class: 'wmap' });
+  const canvas = h('canvas', { class: 'wmap-canvas' });
+  const tip = h('div', { class: 'wmap-tip hidden' });
+  const zoomLabel = h('span', { class: 'wmap-zoom' });
+  let W = 0;
+  let H = 0;
+  let hits = [];
+  let hover = null;
+  const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
+  const ZMIN = 1;
+  const ZMAX = 24;
+  const draw = () => {
+    if (!canvas.isConnected) return;
+    W = canvas.clientWidth || 720;
+    H = canvas.clientHeight || 480;
+    if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    hits = R.drawWorld(ctx, W, H, MAPVIEW, hover);
+    zoomLabel.textContent = `${Math.round((MAPVIEW.z / 6) * 100)}%`;
+  };
+  const fit = (box) => {
+    MAPVIEW.cx = box.x + box.w / 2;
+    MAPVIEW.cy = box.y + box.h / 2;
+    MAPVIEW.z = Math.max(ZMIN, Math.min(ZMAX, Math.min((W || 720) / box.w, (H || 480) / (box.h + 8)) * 0.92));
+    draw();
+  };
+  const zoomAt = (k, sx = W / 2, sy = H / 2) => {
+    const wx = MAPVIEW.cx + (sx - W / 2) / MAPVIEW.z;
+    const wy = MAPVIEW.cy + (sy - H / 2) / MAPVIEW.z;
+    MAPVIEW.z = Math.max(ZMIN, Math.min(ZMAX, MAPVIEW.z * k));
+    MAPVIEW.cx = wx - (sx - W / 2) / MAPVIEW.z;
+    MAPVIEW.cy = wy - (sy - H / 2) / MAPVIEW.z;
+    draw();
+  };
+  const bar = h('div', { class: 'wmap-bar' },
+    h('button', { class: 'small', title: 'Zoom out', onclick: () => zoomAt(1 / 1.4) }, '−'),
+    zoomLabel,
+    h('button', { class: 'small', title: 'Zoom in', onclick: () => zoomAt(1.4) }, '+'),
+    h('button', { class: 'small', onclick: () => fit(L.bounds) }, '🌍 Whole world'),
+    me ? h('button', { class: 'small', onclick: () => { MAPVIEW.cx = me.x; MAPVIEW.cy = me.y; MAPVIEW.z = Math.max(MAPVIEW.z, 8); draw(); } }, '◎ Me') : null,
+    ...L.regions.map((r) => h('button', { class: 'small', onclick: () => fit(r) }, r.name)));
+  wrap.append(bar, h('div', { class: 'wmap-view' }, canvas, tip));
+  body.append(wrap);
+
+  let drag = null;
+  const local = (e) => { const b = canvas.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+  canvas.addEventListener('pointerdown', (e) => { drag = local(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); tip.classList.add('hidden'); });
+  canvas.addEventListener('pointerup', () => { drag = null; canvas.classList.remove('grabbing'); });
+  canvas.addEventListener('pointermove', (e) => {
+    const pt = local(e);
+    if (drag) {
+      MAPVIEW.cx -= (pt.x - drag.x) / MAPVIEW.z;
+      MAPVIEW.cy -= (pt.y - drag.y) / MAPVIEW.z;
+      drag = pt;
+      draw();
+      return;
+    }
+    const hit = [...hits].reverse().find((x) => pt.x >= x.x && pt.x <= x.x + x.w && pt.y >= x.y && pt.y <= x.y + x.h);
+    const key = hit?.key || null;
+    if (key !== hover) { hover = key; draw(); }
+    if (!hit) { tip.classList.add('hidden'); return; }
+    const i = hit.info;
+    tip.replaceChildren(h('b', {}, `${i.icon} ${i.name}`), h('div', {}, i.kind + (i.yours ? ' · yours' : '')), i.place ? h('div', { class: 'muted' }, i.place) : null);
+    tip.classList.remove('hidden');
+    tip.style.left = `${Math.min(pt.x + 14, W - 200)}px`;
+    tip.style.top = `${Math.min(pt.y + 14, H - 60)}px`;
+  });
+  canvas.addEventListener('pointerleave', () => { tip.classList.add('hidden'); if (hover) { hover = null; draw(); } });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); const pt = local(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, pt.x, pt.y); }, { passive: false });
+  requestAnimationFrame(draw);
+
   body.append(
     h('div', { class: 'legend' },
       h('span', {}, h('i', { style: 'background:#fff;border:2px solid #2d2433' }), 'You'),
-      h('span', {}, h('i', { style: 'background:#c0614a' }), 'People you\'ve met'),
-      h('span', {}, h('i', { style: 'background:#9a9a9a' }), 'Strangers'),
+      h('span', {}, h('i', { style: 'background:#c0614a' }), 'People you\'ve met (zoom in)'),
       h('span', {}, h('i', { style: 'background:#e8b64c' }), 'Objective'),
-      h('span', {}, h('i', { style: 'background:#e8b64c;border-radius:2px' }), 'Doors'),
+      h('span', {}, h('i', { style: 'background:#fbf4e6;border:2px solid #e8b64c;border-radius:50%' }), 'Home and property you own'),
     ),
+    h('p', { class: 'muted' }, `Drag to pan, scroll or use + / − to zoom, hover an icon to see what it is. Areas discovered: ${Object.keys(g.player.discovered.areas).length}. Unexplored districts stay dark until you visit them.${me?.inside ? ` You are inside ${me.inside}.` : ''}`),
   );
-  const tabs = [];
-  const outdoorId = current.kind === 'interior' ? (g.lastOutdoorMap || 'lanternside') : current.id;
-  const regions = Object.values(g.content.regions || {});
-  const regionOfMap = (id) => regions.find((r) => r.maps[id]);
-  const here = regionOfMap(outdoorId);
-  if (current.kind === 'interior') tabs.push({ label: current.name, active: mapId === current.id, onclick: () => ui.openPanel('map', { mapId: current.id }) });
-  tabs.push({ label: here?.name || g.maps.get(outdoorId).name, active: mapId === outdoorId || (here && here.maps[mapId] && mapId !== current.id), onclick: () => ui.openPanel('map', { mapId: outdoorId }) });
-  // every other region gets a tab too, so places you haven't been are still on the map
-  for (const r of regions) {
-    if (r === here) continue;
-    const first = Object.keys(r.maps)[0];
-    tabs.push({ label: r.name, active: Boolean(r.maps[mapId]), onclick: () => ui.openPanel('map', { mapId: first }) });
-  }
-  const disc = Object.keys(g.player.discovered.areas).length;
-  body.append(h('p', { class: 'muted' }, `Areas discovered: ${disc}. Unexplored districts stay hidden until you visit them.`));
-  const shown = g.maps.get(mapId);
-  const regionMaps = shown ? Object.keys(regionOfMap(mapId)?.maps || { [mapId]: 1 }) : [];
-  if (shown && shown.kind !== 'interior' && !regionMaps.some((id) => g.maps.get(id)?.areas.some((ar) => g.player.discovered.areas[ar.id]))) {
-    const gate = [...g.maps.values()].flatMap((mm) => mm.doors.filter((d) => d.gateway && d.to?.map === mapId).map((d) => mm.name))[0];
-    body.append(h('p', {}, h('b', {}, `You haven't been to ${regionOfMap(mapId)?.name || shown.name} yet.`), gate ? ` The road there leaves from ${gate}.` : ''));
-  }
-  return { title: 'Map', tabs };
+  return { title: 'World Map', tabs, className: 'wide' };
 }
 
 // ---------------------------------------------------------------- container

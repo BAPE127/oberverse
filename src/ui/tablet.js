@@ -85,8 +85,6 @@ function businessApp(ui, body, opts, open) {
     body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
       ...works.map((id) => h('button', { class: `small${id === wh ? ' primary' : ''}`, onclick: () => open('Business', { warehouse: id, sub }) }, g.arms.def(id).name))));
   }
-  body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
-    ...TERMINAL_TABS.map((t) => h('button', { class: `small${t === sub ? ' primary' : ''}`, onclick: () => go(t) }, t))));
   terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, form: opts.form, remote: true }, go);
 }
 

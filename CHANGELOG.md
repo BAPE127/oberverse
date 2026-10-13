@@ -2,6 +2,15 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.15.1] — 2026-10-13 — "Overwatch" (development build)
+
+### Changed
+- **The arms-works terminal is an OSINT console** (`src/ui/terminal.js`): a CRT monitor frame (`className: 'monitor'`), scanlines, phosphor text, a header bar, STATUS / CONTACTS (live shipment progress) / INTERCEPTS (news) panels, F1–F6 command tabs and a shell prompt. The tablet's Business app shows the same console.
+- **The globe is interactive**: drag to rotate, wheel or +/− to zoom, HQ and auto-rotate buttons; hover tooltips for countries (anywhere on their land: status, budget, wants, prices, stance, your inbound cargo), your shipments (operator, destination, cargo, value, progress, ETA, insurance, embargo) and Halvermouth. Your craft sit at their true progress with a sonar ping, a solid wake behind and a flowing dashed route ahead; air freight (Stork) is drawn as a plane on a higher arc. 22 ambient vessels sail the trade lanes continuously (hover: name, route, declared cargo; some run dark). Clicking a country opens the Market with it as the buyer.
+- **The map (M) is a world map** (`MapRenderer.worldLayout` / `drawWorld` in `src/ui/maps.js`): every outdoor map in one space — regions joined by gateways are placed side by side with a road between the gates. Pan by dragging, zoom with the wheel or buttons (1–24 px per tile), Whole world / Me / per-region buttons, building icons (`src/content/mapIcons.js`, 52 buildings) with hover tooltips, names when zoomed in, district names, region names when zoomed out, fog over unexplored districts, gold rings on your home and owned property. Inside a building you're shown at its door; a second tab keeps the building's own floor plan.
+- Panels can set any `className` on the modal (`monitor`, `tablet`, `wide`).
+- Tests: `tests/worldmap.test.mjs` (3 tests).
+
 ## [0.15.0] — 2026-10-13 — "OberPad" (development build)
 
 ### Added

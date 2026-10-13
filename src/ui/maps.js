@@ -1,6 +1,10 @@
 // Minimap and full map rendering (DOM canvases).
 import { TILE } from '../core/util.js';
 import { TILE_TYPES } from '../world/tiles.js';
+import { BUILDING_ICONS } from '../content/mapIcons.js';
+
+const ROAD_GAP = 10; // tiles of open road drawn between regions joined by a gateway
+const BASE = 8; // px per tile of the cached map images the world map scales
 
 const MINI_SCALE = 4;
 
@@ -233,5 +237,207 @@ export class MapRenderer {
       if (g.player.map === L.map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));
       ctx.restore();
     }
+  }
+
+  // ------------------------------------------------------- the world map
+  /**
+   * Every outdoor map placed in one world space (tiles). Seamless regions keep
+   * their offsets; regions joined by gateways are set side by side with a road
+   * between the gates. Cached: the layout never changes in a session.
+   */
+  worldLayout() {
+    if (this.layout) return this.layout;
+    const g = this.game;
+    const regions = Object.entries(g.content.regions || {});
+    const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
+    const pos = {};
+    const roads = [];
+    const placeRegion = (rid, anchorMap, ax, ay) => {
+      const r = g.content.regions[rid];
+      const o = r.maps[anchorMap];
+      for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
+    };
+    const start = regionOf(g.content.startingMap) || regions[0];
+    placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
+    const queue = Object.keys(pos);
+    while (queue.length) {
+      const id = queue.shift();
+      const M = g.maps.get(id);
+      for (const d of M.doors) {
+        if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
+        const T = g.maps.get(d.to.map);
+        const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
+        const west = d.x === 0;
+        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+        const ty = pos[id].y + d.y - back.y;
+        const before = new Set(Object.keys(pos));
+        const rr = regionOf(T.id);
+        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
+        for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
+      }
+    }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [id, p] of Object.entries(pos)) {
+      const m = g.maps.get(id);
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
+    }
+    const regionBoxes = regions.map(([rid, r]) => {
+      const ids = Object.keys(r.maps).filter((id) => pos[id]);
+      if (!ids.length) return null;
+      const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
+      const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
+      return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    }).filter(Boolean);
+    this.layout = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
+    return this.layout;
+  }
+
+  /** Where the player is in world tiles (inside a building: at its door). */
+  playerWorld() {
+    const g = this.game;
+    const L = this.worldLayout();
+    const p = g.player;
+    if (L.pos[p.map]) return { x: L.pos[p.map].x + p.x / TILE, y: L.pos[p.map].y + p.y / TILE, inside: null };
+    for (const [id, o] of Object.entries(L.pos)) {
+      const m = g.maps.get(id);
+      const d = m.doors.find((x) => x.to?.map === p.map);
+      if (d) return { x: o.x + d.x + 0.5, y: o.y + d.y + 0.5, inside: g.currentMap().name };
+    }
+    return null;
+  }
+
+  /**
+   * Draw the world into a W×H canvas for a view { cx, cy (world tiles at the
+   * centre), z (px per tile) }. Returns hover targets [{ x, y, w, h, info }].
+   */
+  drawWorld(ctx, W, H, view, hover) {
+    const g = this.game;
+    const L = this.worldLayout();
+    const z = view.z;
+    const X = (wx) => (wx - view.cx) * z + W / 2;
+    const Y = (wy) => (wy - view.cy) * z + H / 2;
+    const hits = [];
+    const disc = g.player.discovered.areas;
+    ctx.fillStyle = TILE_TYPES['~'].color;
+    ctx.fillRect(0, 0, W, H);
+    // gentle sea texture
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 0; i < 60; i++) ctx.fillRect(((i * 97) % 997) / 997 * W, ((i * 61) % 613) / 613 * H, 10, 1);
+    // roads between regions
+    for (const r of L.roads) {
+      ctx.strokeStyle = '#8a7a5a';
+      ctx.lineWidth = Math.max(3, z * 2);
+      ctx.beginPath(); ctx.moveTo(X(r.x1), Y(r.y1)); ctx.lineTo(X(r.x2), Y(r.y2)); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,240,200,0.6)';
+      ctx.lineWidth = Math.max(1, z * 0.2);
+      ctx.setLineDash([z * 1.2, z * 1.2]);
+      ctx.beginPath(); ctx.moveTo(X(r.x1), Y(r.y1)); ctx.lineTo(X(r.x2), Y(r.y2)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.imageSmoothingEnabled = z < BASE;
+    for (const [id, o] of Object.entries(L.pos)) {
+      const m = g.maps.get(id);
+      const x = X(o.x);
+      const y = Y(o.y);
+      if (x > W || y > H || x + m.width * z < 0 || y + m.height * z < 0) continue;
+      ctx.drawImage(this.base(m, BASE), x, y, m.width * z, m.height * z);
+      for (const a of m.areas) {
+        if (disc[a.id]) continue;
+        ctx.fillStyle = 'rgba(30,26,40,0.82)';
+        ctx.fillRect(X(o.x + a.x), Y(o.y + a.y), a.w * z, a.h * z);
+      }
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // undiscovered districts say so
+    for (const [id, o] of Object.entries(L.pos)) {
+      for (const a of g.maps.get(id).areas) {
+        if (disc[a.id] || a.w * z < 60) continue;
+        ctx.font = `italic ${Math.min(18, Math.max(10, z * 1.3))}px Georgia, serif`;
+        ctx.fillStyle = 'rgba(255,246,224,0.45)';
+        ctx.fillText('unexplored', X(o.x + a.x + a.w / 2), Y(o.y + a.y + a.h / 2));
+      }
+    }
+    // buildings: icons always, names when zoomed in
+    const iconPx = Math.max(13, Math.min(30, z * 2.2));
+    for (const [id, o] of Object.entries(L.pos)) {
+      const m = g.maps.get(id);
+      for (const b of m.buildings) {
+        const area = m.areaAt(b.x, b.y);
+        if (area && !disc[area.id]) continue;
+        const meta = BUILDING_ICONS[b.id];
+        if (!meta) continue;
+        const bx = X(o.x + b.x + b.w / 2);
+        const by = Y(o.y + b.y + b.h / 2 - 0.5);
+        if (bx < -40 || by < -40 || bx > W + 40 || by > H + 40) continue;
+        const yours = b.door?.lock?.flag && g.getFlag(b.door.lock.flag) && /^owns_/.test(b.door.lock.flag);
+        const home = b.id === 'b_number9';
+        const key = `b:${b.id}`;
+        ctx.fillStyle = hover === key ? '#fff' : 'rgba(251,244,230,0.92)';
+        ctx.strokeStyle = yours || home ? '#e8b64c' : '#2d2433';
+        ctx.lineWidth = yours || home ? 3 : 1.5;
+        ctx.beginPath(); ctx.arc(bx, by, iconPx * 0.68, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = `${iconPx * 0.8}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.fillStyle = '#2d2433';
+        ctx.fillText(meta.icon, bx, by + 1);
+        if (z >= 9) {
+          const label = b.mapLabel || b.name;
+          ctx.font = `bold ${Math.min(14, z)}px "Trebuchet MS", sans-serif`;
+          const tw = ctx.measureText(label).width + 8;
+          ctx.fillStyle = 'rgba(251,244,230,0.9)';
+          ctx.fillRect(bx - tw / 2, by + iconPx * 0.75, tw, Math.min(14, z) + 4);
+          ctx.fillStyle = '#2d2433';
+          ctx.fillText(label, bx, by + iconPx * 0.75 + Math.min(14, z) / 2 + 2);
+        }
+        hits.push({ key, x: bx - iconPx * 0.7, y: by - iconPx * 0.7, w: iconPx * 1.4, h: iconPx * 1.4, info: { icon: meta.icon, name: b.name, kind: meta.kind, place: m.name, yours, home } });
+      }
+    }
+    // district names (zoomed in) or region names (zoomed out)
+    if (z >= 3.5) {
+      for (const [id, o] of Object.entries(L.pos)) {
+        for (const a of g.maps.get(id).areas) {
+          if (!disc[a.id]) continue;
+          ctx.font = `italic bold ${Math.min(20, Math.max(11, z * 1.4))}px Georgia, serif`;
+          ctx.fillStyle = 'rgba(255,246,224,0.95)';
+          ctx.strokeStyle = 'rgba(45,36,51,0.8)';
+          ctx.lineWidth = 3;
+          ctx.strokeText(a.name, X(o.x + a.x + a.w / 2), Y(o.y + a.y + 1.4));
+          ctx.fillText(a.name, X(o.x + a.x + a.w / 2), Y(o.y + a.y + 1.4));
+        }
+      }
+    } else {
+      for (const r of L.regions) {
+        const seen = r.maps.some((id) => g.player.discovered.maps[id]);
+        ctx.font = `bold ${Math.max(14, Math.min(26, z * 6))}px Georgia, serif`;
+        ctx.fillStyle = 'rgba(255,246,224,0.97)';
+        ctx.strokeStyle = 'rgba(45,36,51,0.9)';
+        ctx.lineWidth = 4;
+        const t = seen ? r.name : `${r.name} (not visited)`;
+        ctx.strokeText(t, X(r.x + r.w / 2), Y(r.y) - 14);
+        ctx.fillText(t, X(r.x + r.w / 2), Y(r.y) - 14);
+      }
+    }
+    // people and objectives
+    const s = Math.max(1, Math.min(1.8, z / 6));
+    for (const [id, o] of Object.entries(L.pos)) {
+      for (const mk of this.markers(g.maps.get(id))) {
+        if (mk.kind === 'npc' && z < 5) continue;
+        this.marker(ctx, X(o.x + mk.x), Y(o.y + mk.y), mk, s);
+      }
+    }
+    const me = this.playerWorld();
+    if (me) {
+      const px = X(me.x);
+      const py = Y(me.y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, 14 * s, 0, Math.PI * 2); ctx.stroke();
+      this.playerArrow(ctx, px, py, g.player.facing, Math.max(1.2, s));
+      hits.push({ key: 'me', x: px - 12, y: py - 12, w: 24, h: 24, info: { icon: '🧍', name: 'You', kind: me.inside ? `Inside ${me.inside}` : g.currentMap().name } });
+    }
+    return hits;
   }
 }

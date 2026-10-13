@@ -1,7 +1,10 @@
-// The arms-works terminal (v0.13.0): a rotating globe in the style of a
-// live trade map (glowing routes, borders, markers) over the fictional
-// countries, and tabs for parts, equipment, staff, research and the market.
-// See src/systems/arms.js.
+// The arms-works terminal (v0.13.0; OSINT console since v0.15.1). A trade-
+// intelligence console on a CRT monitor: an interactive globe (drag to turn,
+// wheel to zoom, hover anything) showing the fictional countries, wars, your
+// shipments sailing (or flying) from Halvermouth and the world's other
+// shipping traffic, beside live status, contacts and intercepted news. Below
+// it, command tabs for parts, equipment, staff, research and the market.
+// See src/systems/arms.js and src/systems/market.js.
 import { h, itemIcon } from './panels.js';
 
 // --------------------------------------------------------------- the globe
@@ -15,6 +18,8 @@ function landNoise(lat, lon) {
   return Math.sin(b * 2 + 0.6) * Math.cos(a * 3 - 0.4) * 0.55 + Math.sin(b * 5 + a * 4 + 1.3) * 0.25 + Math.cos(b * 3 - a * 6) * 0.18 + Math.sin(b * 9 + a * 2) * 0.08 - Math.abs(lat) / 260;
 }
 
+const wrapLon = (d) => ((d + 540) % 360) - 180;
+
 function buildLand(countries) {
   const pts = [];
   const step = 3;
@@ -24,21 +29,21 @@ function buildLand(countries) {
       let n = landNoise(lat, lon);
       // make sure every capital sits on land
       for (const [, c] of caps) {
-        const d = Math.hypot(lat - c.lat, (((lon - c.lon + 540) % 360) - 180) * Math.cos(lat * D2R));
+        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
         if (d < 14) n = Math.max(n, 0.3 - d / 60);
       }
       if (n < 0.12) continue;
       let best = null;
       let bd = 30;
       for (const [id, c] of caps) {
-        const d = Math.hypot(lat - c.lat, (((lon - c.lon + 540) % 360) - 180) * Math.cos(lat * D2R));
+        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
         if (d < bd) { bd = d; best = id; }
       }
       pts.push({ lat, lon, country: best, n });
     }
   }
-  // border points: a neighbour belongs to another country
-  const key = (lat, lon) => `${lat},${(lon + 540) % 360 - 180}`;
+  // border points: a neighbour belongs to another country (or is sea)
+  const key = (lat, lon) => `${lat},${wrapLon(lon)}`;
   const map = new Map(pts.map((p) => [key(p.lat, p.lon), p]));
   for (const p of pts) {
     const e = map.get(key(p.lat, p.lon + step));
@@ -58,8 +63,8 @@ function project(lat, lon, rot, tilt) {
   return { x, y: y0 * Math.cos(t) - z0 * Math.sin(t), z: y0 * Math.sin(t) + z0 * Math.cos(t) };
 }
 
-/** Great-circle points between two lat/lon pairs. */
-function arc(a, b, n = 28) {
+/** Great-circle points between two lat/lon pairs; `bow` lifts the middle off the surface. */
+function arc(a, b, n = 28, bow = 0.08) {
   const v = (p) => [Math.cos(p.lat * D2R) * Math.cos(p.lon * D2R), Math.cos(p.lat * D2R) * Math.sin(p.lon * D2R), Math.sin(p.lat * D2R)];
   const A = v(a);
   const B = v(b);
@@ -73,249 +78,502 @@ function arc(a, b, n = 28) {
     const x = s1 * A[0] + s2 * B[0];
     const y = s1 * A[1] + s2 * B[1];
     const z = s1 * A[2] + s2 * B[2];
-    const lift = 1 + Math.sin(t * Math.PI) * 0.08; // routes bow off the surface a little
-    out.push({ lat: Math.asin(z) / D2R, lon: Math.atan2(y, x) / D2R, lift });
+    out.push({ lat: Math.asin(z) / D2R, lon: Math.atan2(y, x) / D2R, lift: 1 + Math.sin(t * Math.PI) * bow });
   }
   return out;
 }
 
+/** The world's other shipping lanes, with traffic that never stops. */
 const ROUTES = [['varn', 'ostmark'], ['varn', 'teshvar'], ['caldera', 'pallas'], ['sund', 'lirre'], ['ostmark', 'sund'], ['teshvar', 'morrow'], ['pallas', 'lirre'], ['caldera', 'teshvar'], ['morrow', 'caldera'], ['ostmark', 'lirre'], ['varn', 'caldera']];
+const VESSELS = ['MV Saltmarsh Dawn', 'MV Grey Heron', 'MV Contessa Bell', 'MV Iron Lantern', 'MV Northern Mercy', 'MV Pale Horizon', 'MV Rook Island', 'MV Quiet Tuesday', 'MV Seven Brothers', 'MV Gilded Eel', 'MV Hollow Moon', 'MV Brass Albatross', 'MV Low Tide', 'MV Margarethe', 'MV Unremarkable', 'MV Ninth Wave', 'MV Copper Saint', 'MV Distant Cousin', 'MV Patience', 'MV Kettle Point', 'MV Lucky Anchor', 'MV Small Mercies'];
+const DECLARED = ['grain', 'machine parts', 'refrigerated fish', 'textiles', 'tractor tyres', '"agricultural equipment"', 'cement', 'medical supplies', 'crude oil', 'consumer electronics', 'scrap metal', '"humanitarian aid"', 'timber', 'fertiliser', 'nothing (ballast)'];
+const TRAFFIC = ROUTES.flatMap(([a, b], i) => [0, 1].map((k) => ({
+  key: `tr${i}_${k}`, a: k ? b : a, b: k ? a : b,
+  name: VESSELS[(i * 2 + k) % VESSELS.length],
+  cargo: DECLARED[(i * 5 + k * 3) % DECLARED.length],
+  speed: 0.012 + ((i * 7 + k * 3) % 5) * 0.003,
+  phase: ((i * 0.37 + k * 0.5) % 1),
+  dark: (i + k) % 6 === 5, // AIS off: no name, no story
+})));
 
+/** A little hull (or airframe) pointing along `ang`. */
+function drawCraft(ctx, x, y, ang, s, color, air) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (air) {
+    ctx.moveTo(6 * s, 0); ctx.lineTo(-4 * s, -1.2 * s); ctx.lineTo(-1 * s, -5 * s); ctx.lineTo(-2.4 * s, -5 * s);
+    ctx.lineTo(-5 * s, -1.2 * s); ctx.lineTo(-6 * s, -3 * s); ctx.lineTo(-7 * s, -3 * s); ctx.lineTo(-6.2 * s, 0);
+    ctx.lineTo(-7 * s, 3 * s); ctx.lineTo(-6 * s, 3 * s); ctx.lineTo(-5 * s, 1.2 * s); ctx.lineTo(-2.4 * s, 5 * s);
+    ctx.lineTo(-1 * s, 5 * s); ctx.lineTo(-4 * s, 1.2 * s);
+  } else {
+    ctx.moveTo(6 * s, 0); ctx.lineTo(2 * s, -2.6 * s); ctx.lineTo(-5 * s, -2.6 * s); ctx.lineTo(-5 * s, 2.6 * s); ctx.lineTo(2 * s, 2.6 * s);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Corner brackets around a hovered or selected target. */
+function reticle(ctx, x, y, r, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  const k = r * 0.45;
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    ctx.beginPath();
+    ctx.moveTo(x + sx * r, y + sy * (r - k));
+    ctx.lineTo(x + sx * r, y + sy * r);
+    ctx.lineTo(x + sx * (r - k), y + sy * r);
+    ctx.stroke();
+  }
+}
+
+/**
+ * Draw the globe. Returns the hover targets on screen this frame:
+ * [{ key, kind: 'country'|'ship'|'traffic'|'hq', x, y, r, data }].
+ * opts: rot, tilt, zoom, wars [[a,b]], hq, shipments [{id, country, progress, air, data}], hover (key).
+ */
 export function drawGlobe(ctx, size, time, countries, opts = {}) {
   if (!LAND) LAND = buildLand(countries);
-  const r = size * 0.42;
+  const hits = [];
+  const zoom = opts.zoom || 1;
+  const r = size * 0.42 * zoom;
   const cx = size / 2;
   const cy = size / 2;
-  const rot = -time * 8 + (opts.rot || 0);
-  const tilt = 22;
-  ctx.fillStyle = '#000';
+  const rot = opts.rot ?? -time * 8;
+  const tilt = opts.tilt ?? 22;
+  const P = (lat, lon, lift = 1) => {
+    const q = project(lat, lon, rot, tilt);
+    return { x: cx + q.x * r * lift, y: cy - q.y * r * lift, z: q.z };
+  };
+  // the void, with a faint grid like a radar scope
+  ctx.fillStyle = '#010604';
   ctx.fillRect(0, 0, size, size);
-  // stars
-  for (let i = 0; i < 70; i++) {
-    const sx = (Math.sin(i * 12.9898) * 43758.5453) % 1;
-    const sy = (Math.sin(i * 78.233) * 12543.123) % 1;
-    ctx.fillStyle = `rgba(255,255,255,${0.2 + ((i * 7) % 10) / 20})`;
-    ctx.fillRect(Math.abs(sx) * size, Math.abs(sy) * size, 1, 1);
+  ctx.strokeStyle = 'rgba(60,255,160,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= size; i += size / 12) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size, i); ctx.stroke();
   }
   // ocean
-  const og = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.1, cx, cy, r);
-  og.addColorStop(0, '#1e5a6e');
-  og.addColorStop(0.7, '#0c3444');
-  og.addColorStop(1, '#04141c');
+  const og = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+  og.addColorStop(0, '#08261f');
+  og.addColorStop(1, '#020c0a');
   ctx.fillStyle = og;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-  // land
-  const px = Math.max(1.6, r * 3 * D2R * 1.05);
-  for (const p of LAND) {
-    const q = project(p.lat, p.lon, rot, tilt);
-    if (q.z <= 0) continue;
-    const shade = 0.45 + 0.55 * q.z;
-    const desert = Math.abs(p.lat) < 32 && p.n < 0.4;
-    const base = desert ? [120, 98, 62] : Math.abs(p.lat) > 58 ? [190, 196, 200] : [74, 98, 60];
-    ctx.fillStyle = `rgb(${Math.round(base[0] * shade)},${Math.round(base[1] * shade)},${Math.round(base[2] * shade)})`;
-    ctx.fillRect(cx + q.x * r - px / 2, cy - q.y * r - px / 2, px * (0.6 + 0.4 * q.z), px);
-  }
-  // borders
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  for (const p of LAND) {
-    if (!p.border) continue;
-    const q = project(p.lat, p.lon, rot, tilt);
-    if (q.z <= 0.05) continue;
-    ctx.fillRect(cx + q.x * r - 0.7, cy - q.y * r - 0.7, 1.4, 1.4);
-  }
-  // trade routes, with traffic crawling along them
-  ctx.lineWidth = 1.4;
-  ROUTES.forEach(([a, b], i) => {
-    const A = countries[a];
-    const B = countries[b];
-    if (!A || !B) return;
-    const pts = arc(A, B);
-    ctx.strokeStyle = i % 2 ? A.color : B.color;
-    ctx.globalAlpha = 0.85;
+  // graticule
+  ctx.strokeStyle = 'rgba(80,255,170,0.13)';
+  ctx.lineWidth = 0.8;
+  const line = (pts) => {
     ctx.beginPath();
     let pen = false;
-    for (const p of pts) {
-      const q = project(p.lat, p.lon, rot, tilt);
+    for (const [la, lo] of pts) {
+      const q = P(la, lo);
       if (q.z <= 0) { pen = false; continue; }
-      const X = cx + q.x * r * p.lift;
-      const Y = cy - q.y * r * p.lift;
-      if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+      if (pen) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
       pen = true;
     }
     ctx.stroke();
-    const k = Math.floor(((time * 6 + i * 3) % pts.length));
-    const q = project(pts[k].lat, pts[k].lon, rot, tilt);
-    if (q.z > 0) {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(cx + q.x * r * pts[k].lift - 1.5, cy - q.y * r * pts[k].lift - 1.5, 3, 3);
+  };
+  for (let la = -60; la <= 60; la += 30) line(Array.from({ length: 73 }, (_, i) => [la, -180 + i * 5]));
+  for (let lo = -180; lo < 180; lo += 30) line(Array.from({ length: 37 }, (_, i) => [-90 + i * 5, lo]));
+  // land as a dot matrix, tinted by country; the hovered country lights up
+  const hoverCountry = opts.hover?.startsWith('c:') ? opts.hover.slice(2) : null;
+  const dot = Math.max(1.3, r * 3 * D2R * 0.62);
+  for (const p of LAND) {
+    const q = P(p.lat, p.lon);
+    if (q.z <= 0) continue;
+    const lit = p.country === hoverCountry;
+    const a = (0.25 + 0.6 * q.z) * (lit ? 1.6 : 1);
+    ctx.fillStyle = lit ? `rgba(180,255,220,${Math.min(1, a)})` : p.border ? `rgba(110,255,180,${a})` : `rgba(40,170,110,${a * 0.75})`;
+    ctx.fillRect(q.x - dot / 2, q.y - dot / 2, dot, dot);
+  }
+  // shipping lanes and traffic
+  const at = (pts, t) => {
+    const f = Math.max(0, Math.min(1, t)) * (pts.length - 1);
+    const i = Math.min(pts.length - 2, Math.floor(f));
+    const u = f - i;
+    const A = pts[i];
+    const B = pts[i + 1];
+    const la = A.lat + (B.lat - A.lat) * u;
+    const lo = A.lon + wrapLon(B.lon - A.lon) * u;
+    const lift = A.lift + (B.lift - A.lift) * u;
+    const q = P(la, lo, lift);
+    const q2 = P(B.lat, B.lon, B.lift);
+    const q1 = P(A.lat, A.lon, A.lift);
+    return { ...q, ang: Math.atan2(q2.y - q1.y, q2.x - q1.x) };
+  };
+  const path = (pts, from = 0, to = 1) => {
+    ctx.beginPath();
+    let pen = false;
+    const n = pts.length - 1;
+    for (let i = Math.floor(from * n); i <= Math.ceil(to * n); i++) {
+      const p = pts[i];
+      const q = P(p.lat, p.lon, p.lift);
+      if (q.z <= 0) { pen = false; continue; }
+      if (pen) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      pen = true;
     }
-    ctx.globalAlpha = 1;
-  });
+    ctx.stroke();
+  };
+  ctx.lineWidth = 1;
+  for (const [a, b] of ROUTES) {
+    if (!countries[a] || !countries[b]) continue;
+    ctx.strokeStyle = 'rgba(120,200,255,0.18)';
+    path(arc(countries[a], countries[b], 28, 0.02));
+  }
+  for (const t of TRAFFIC) {
+    const A = countries[t.a];
+    const B = countries[t.b];
+    if (!A || !B) continue;
+    const pts = arc(A, B, 28, 0.02);
+    const q = at(pts, (((t.phase + time * t.speed) % 1) + 1) % 1);
+    if (q.z <= 0.05) continue;
+    const key = `t:${t.key}`;
+    drawCraft(ctx, q.x, q.y, q.ang, 0.75 * Math.min(1.6, zoom), t.dark ? 'rgba(255,190,90,0.75)' : 'rgba(150,210,255,0.7)', false);
+    hits.push({ key, kind: 'traffic', x: q.x, y: q.y, r: 9, data: { ...t, from: A.name, to: B.name } });
+    if (opts.hover === key) reticle(ctx, q.x, q.y, 9, '#9fd8ff');
+  }
   // wars: pulsing red lines between the capitals
   for (const [a, b] of opts.wars || []) {
     const A = countries[a];
     const B = countries[b];
     if (!A || !B) continue;
-    ctx.strokeStyle = `rgba(255,50,40,${0.55 + 0.45 * Math.sin(time * 5)})`;
-    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = `rgba(255,60,50,${0.55 + 0.45 * Math.sin(time * 5)})`;
+    ctx.lineWidth = 2.2;
     ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    let pen = false;
-    for (const p of arc(A, B, 20)) {
-      const q = project(p.lat, p.lon, rot, tilt);
-      if (q.z <= 0) { pen = false; continue; }
-      const X = cx + q.x * r * p.lift;
-      const Y = cy - q.y * r * p.lift;
-      if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
-      pen = true;
-    }
-    ctx.stroke();
+    path(arc(A, B, 20, 0.04));
     ctx.setLineDash([]);
   }
-  // your shipments, crawling from Halvermouth to their buyer
-  if (opts.hq) {
-    const q = project(opts.hq.lat, opts.hq.lon, rot, tilt);
-    if (q.z > 0) {
-      ctx.fillStyle = '#7affc8';
-      ctx.fillRect(cx + q.x * r - 3, cy - q.y * r - 3, 6, 6);
+  // capitals, with labels
+  ctx.font = `bold ${Math.max(10, size / 42)}px "Courier New", monospace`;
+  for (const [id, c] of Object.entries(countries)) {
+    const q = P(c.lat, c.lon);
+    if (q.z <= 0) continue;
+    const pulse = 3 + Math.sin(time * 3 + id.length) * 1.5;
+    ctx.strokeStyle = c.color;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(q.x, q.y, pulse + 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = c.color;
+    ctx.fillRect(q.x - 2.5, q.y - 2.5, 5, 5);
+    if (opts.embargoed?.includes(id)) {
+      ctx.strokeStyle = '#ff5040';
+      ctx.beginPath(); ctx.moveTo(q.x - 6, q.y - 6); ctx.lineTo(q.x + 6, q.y + 6); ctx.moveTo(q.x + 6, q.y - 6); ctx.lineTo(q.x - 6, q.y + 6); ctx.stroke();
     }
+    if (q.z > 0.3 && opts.labels !== false) {
+      ctx.fillStyle = 'rgba(190,255,220,0.92)';
+      ctx.fillText(c.name.toUpperCase(), q.x + 8, q.y - 6);
+    }
+    hits.push({ key: `c:${id}`, kind: 'country', x: q.x, y: q.y, r: 11, data: { id } });
+    if (hoverCountry === id) reticle(ctx, q.x, q.y, 12, '#c8ffe4');
+  }
+  // home port
+  if (opts.hq) {
+    const q = P(opts.hq.lat, opts.hq.lon);
+    if (q.z > 0) {
+      ctx.strokeStyle = '#ffd860';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(q.x - 5, q.y - 5, 10, 10);
+      ctx.fillStyle = '#ffd860';
+      ctx.fillText('HALVERMOUTH [HQ]', q.x + 8, q.y + 12);
+      hits.push({ key: 'hq', kind: 'hq', x: q.x, y: q.y, r: 9, data: opts.hq });
+    }
+    // your shipments: the route flows toward the buyer, the craft sits where it really is
     for (const sh of opts.shipments || []) {
       const B = countries[sh.country];
       if (!B) continue;
-      const pts = arc(opts.hq, B, 30);
-      ctx.strokeStyle = 'rgba(122,255,200,0.6)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      let pen = false;
-      for (const p of pts) {
-        const q2 = project(p.lat, p.lon, rot, tilt);
-        if (q2.z <= 0) { pen = false; continue; }
-        const X = cx + q2.x * r * p.lift;
-        const Y = cy - q2.y * r * p.lift;
-        if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
-        pen = true;
-      }
-      ctx.stroke();
-      const k = Math.min(pts.length - 1, Math.floor(sh.progress * (pts.length - 1)));
-      const q3 = project(pts[k].lat, pts[k].lon, rot, tilt);
-      if (q3.z > 0) {
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(cx + q3.x * r * pts[k].lift, cy - q3.y * r * pts[k].lift, 3.5, 0, Math.PI * 2); ctx.fill();
-      }
+      const pts = arc(opts.hq, B, 36, sh.air ? 0.16 : 0.03);
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(255,216,96,0.9)';
+      path(pts, 0, sh.progress); // wake: where it has been
+      ctx.strokeStyle = 'rgba(255,216,96,0.45)';
+      ctx.setLineDash([5, 5]);
+      ctx.lineDashOffset = -time * 14; // marching toward the buyer
+      path(pts, sh.progress, 1);
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      const q = at(pts, Math.min(0.999, Math.max(0.001, sh.progress)));
+      if (q.z <= 0) continue;
+      // a sonar ping around each of your craft
+      const ping = (time * 0.8 + sh.id * 0.3) % 1;
+      ctx.strokeStyle = `rgba(255,216,96,${1 - ping})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 4 + ping * 14, 0, Math.PI * 2); ctx.stroke();
+      drawCraft(ctx, q.x, q.y + (sh.air ? 0 : Math.sin(time * 2 + sh.id) * 0.8), q.ang, 1.15 * Math.min(1.6, zoom), '#ffd860', sh.air);
+      const key = `s:${sh.id}`;
+      hits.push({ key, kind: 'ship', x: q.x, y: q.y, r: 12, data: sh.data });
+      if (opts.hover === key) reticle(ctx, q.x, q.y, 12, '#fff2b0');
     }
   }
-  // capitals
-  ctx.font = `bold ${Math.max(9, size / 38)}px "Trebuchet MS", sans-serif`;
-  for (const [id, c] of Object.entries(countries)) {
-    const q = project(c.lat, c.lon, rot, tilt);
-    if (q.z <= 0) continue;
-    const X = cx + q.x * r;
-    const Y = cy - q.y * r;
-    const pulse = 3 + Math.sin(time * 3 + id.length) * 1.5;
-    ctx.fillStyle = c.color;
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath(); ctx.arc(X, Y, pulse + 4, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.beginPath(); ctx.arc(X, Y, 3, 0, Math.PI * 2); ctx.fill();
-    if (q.z > 0.35 && opts.labels !== false) {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillText(c.name, X + 6, Y - 4);
-    }
-  }
-  // atmosphere
-  const ag = ctx.createRadialGradient(cx, cy, r * 0.92, cx, cy, r * 1.12);
-  ag.addColorStop(0, 'rgba(120,200,255,0)');
-  ag.addColorStop(0.5, 'rgba(120,200,255,0.25)');
-  ag.addColorStop(1, 'rgba(120,200,255,0)');
+  // rim glow
+  const ag = ctx.createRadialGradient(cx, cy, r * 0.94, cx, cy, r * 1.1);
+  ag.addColorStop(0, 'rgba(80,255,170,0)');
+  ag.addColorStop(0.5, 'rgba(80,255,170,0.22)');
+  ag.addColorStop(1, 'rgba(80,255,170,0)');
   ctx.fillStyle = ag;
-  ctx.beginPath(); ctx.arc(cx, cy, r * 1.12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.1, 0, Math.PI * 2); ctx.fill();
+  return hits;
+}
+
+/** Which country's land is under a screen point (for hovering the land, not only the capital). */
+function countryAtPoint(x, y, size, view) {
+  if (!LAND) return null;
+  const r = size * 0.42 * view.zoom;
+  let best = null;
+  let bd = Math.max(5, r * 3 * D2R);
+  for (const p of LAND) {
+    const q = project(p.lat, p.lon, view.rot, view.tilt);
+    if (q.z <= 0) continue;
+    const d = Math.hypot(size / 2 + q.x * r - x, size / 2 - q.y * r - y);
+    if (d < bd) { bd = d; best = p.country; }
+  }
+  return best;
 }
 
 // ---------------------------------------------------------- the terminal
 export const TERMINAL_TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
 
-/** The terminal at the works itself. */
+/** The globe's camera survives re-renders (each button press redraws the panel). */
+const VIEW = { rot: 40, tilt: 22, zoom: 1, auto: true, hover: null };
+
+/** The terminal at the works itself: a monitor on the desk. */
 export function terminalPanel(ui, body, opts) {
   const def = ui.game.arms.def(opts.warehouse);
   const go = (t, extra = {}) => ui.openPanel('terminal', { warehouse: opts.warehouse, tab: t, ...extra });
   terminalScreen(ui, body, opts, go);
-  const tab = opts.tab || 'Overview';
-  return { title: `Terminal — ${def.name}`, tabs: TERMINAL_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
+  return { title: `${def.name} — terminal`, className: 'monitor' };
 }
 
+const two = (n) => String(n).padStart(2, '0');
+const stamp = (g, total) => `D${Math.floor(total / 1440) + 1} ${two(Math.floor((total % 1440) / 60))}:${two(Math.floor(total % 60))}`;
+
 /**
- * The terminal's screen: shared by the works terminal and the tablet's
- * Business app. go(tab, extra) re-renders it on another tab.
+ * The console: shared by the works terminal and the tablet's Business app.
+ * go(tab, extra) re-renders it on another tab.
  */
 export function terminalScreen(ui, body, opts, go) {
   const g = ui.game;
   const A = g.arms;
+  const M = g.market;
   const wh = opts.warehouse;
   const def = A.def(wh);
   const tab = opts.tab || 'Overview';
   const items = g.content.items;
   const cfg = A.cfg;
   const say = (r) => { ui.audio.sfx(r.ok ? 'sfx_ui_click' : 'sfx_fail'); go(tab, { msg: r.text }); };
-
-  // the screen: globe + status
-  const wrap = h('div', { class: 'terminal' });
-  const canvas = h('canvas', { width: 300, height: 300, class: opts.remote ? 'globe small' : 'globe' });
-  const status = h('div', { class: 'term-status' });
   const p = A.power(wh);
   const staff = A.staffOf(wh);
   const r = A.state.research;
-  status.append(...[
-    h('div', { class: 'term-title' }, `▣ ${def.name.toUpperCase()} — ${opts.remote ? 'REMOTE LINK' : 'ARMS WORKS TERMINAL'}`),
-    h('div', {}, `Funds: ${g.player.money} obols · Power: ${p.machines}/${p.capacity} stations · Staff: ${staff.length}/${def.bunks}`),
-    h('div', {}, `Research: ${r.current ? `${cfg.research[r.current].name} ${Math.floor(r.progress)}/${cfg.research[r.current].cost} RP` : 'none selected'}`),
-    h('div', {}, `Lucas's budget today: ${A.lucasBudgetLeft()} obols · Earned to date: ${A.state.earned} obols`),
-    opts.msg ? h('div', { class: 'term-msg' }, `> ${opts.msg}`) : null,
-  ].filter(Boolean));
-  wrap.append(h('div', { class: 'term-top' }, canvas, status));
-  body.append(wrap);
+  const ms = M.state;
+  const now = g.clock.total;
+
+  const screen = h('div', { class: 'osint' });
+  body.append(screen);
+
+  // header bar
+  screen.append(h('div', { class: 'os-head' },
+    h('span', { class: 'os-brand' }, '◉ PIPECREEK//OVERWATCH'),
+    h('span', {}, 'TRADE-INTEL CONSOLE v4.1'),
+    h('span', {}, `NODE ${def.name.toUpperCase()}${opts.remote ? ' [REMOTE]' : ''}`),
+    h('span', {}, `${stamp(g, now)}Z`),
+    h('span', { class: 'os-live' }, '● LIVE')));
+
+  // globe + side panels
+  const SIZE = 420;
+  const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
+  const canvas = h('canvas', { width: SIZE * dpr, height: SIZE * dpr, class: 'os-globe', style: `width:${SIZE}px;height:${SIZE}px` });
+  const tip = h('div', { class: 'os-tip hidden' });
+  const ctrl = (label, fn, title) => h('button', { class: 'os-mini', title, onclick: fn }, label);
+  const globeBox = h('div', { class: 'os-globe-box' }, canvas, tip,
+    h('div', { class: 'os-globe-ctrl' },
+      ctrl('+', () => { VIEW.zoom = Math.min(2.6, VIEW.zoom * 1.25); }, 'Zoom in'),
+      ctrl('−', () => { VIEW.zoom = Math.max(0.8, VIEW.zoom / 1.25); }, 'Zoom out'),
+      ctrl('HQ', () => { VIEW.rot = -cfg.hq.lon; VIEW.tilt = Math.max(-60, Math.min(60, cfg.hq.lat * 0.8)); VIEW.auto = false; }, 'Centre on Halvermouth'),
+      ctrl('AUTO', (e) => { VIEW.auto = !VIEW.auto; e.currentTarget.classList.toggle('on', VIEW.auto); }, 'Auto-rotate')),
+    h('div', { class: 'os-globe-help' }, 'DRAG: ROTATE · WHEEL: ZOOM · HOVER: INSPECT'));
+  globeBox.querySelector('.os-mini:last-child').classList.toggle('on', VIEW.auto);
+
+  const status = h('div', { class: 'os-box' },
+    h('div', { class: 'os-label' }, '▌STATUS'),
+    h('div', {}, `FUNDS ........ ${g.player.money} OB`),
+    h('div', {}, `POWER ........ ${p.machines}/${p.capacity} STATIONS`),
+    h('div', {}, `STAFF ........ ${staff.length}/${def.bunks} ON BOOKS`),
+    h('div', {}, `RESEARCH ..... ${r.current ? `${cfg.research[r.current].name.toUpperCase()} ${Math.floor(r.progress)}/${cfg.research[r.current].cost}` : 'IDLE'}`),
+    h('div', {}, `EXPORTS ...... ${ms.earned} OB EARNED`),
+    h('div', {}, `PIPECREEK BUY  ${A.lucasBudgetLeft()} OB LEFT TODAY`));
+
+  // contacts: your shipments, live
+  const contactRows = ms.shipments.map((x) => {
+    const sh = cfg.shippers[x.shipper];
+    const prog = Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs));
+    const hrs = Math.max(0, Math.ceil((x.arrives - now) / 60));
+    const row = h('div', { class: 'os-contact', onmouseenter: () => { VIEW.hover = `s:${x.id}`; VIEW.pin = true; }, onmouseleave: () => { VIEW.pin = false; VIEW.hover = null; } },
+      h('div', {}, `${x.shipper === 'stork' ? '✈' : '⛴'} #${String(x.id).padStart(3, '0')} → ${cfg.countries[x.country].name.toUpperCase()}${x.embargo ? ' ⚠EMB' : ''}`),
+      h('div', { class: 'os-bar' }, h('i', { style: `width:${Math.round(prog * 100)}%` })),
+      h('div', { class: 'os-dim' }, `${sh.name.toUpperCase()} · ETA ${hrs}H · ${x.value} OB`));
+    return row;
+  });
+  const contacts = h('div', { class: 'os-box' }, h('div', { class: 'os-label' }, `▌CONTACTS (${ms.shipments.length})`),
+    ...(contactRows.length ? contactRows : [h('div', { class: 'os-dim' }, 'NO CARGO AT SEA. SHIP FROM THE MARKET TAB.')]));
+  const intercepts = h('div', { class: 'os-box os-log' }, h('div', { class: 'os-label' }, '▌INTERCEPTS'),
+    ...ms.news.slice(0, 6).map((n) => h('div', {}, h('span', { class: 'os-dim' }, `[D${n.day}] `), n.text.toUpperCase())));
+  screen.append(h('div', { class: 'os-top' }, globeBox, h('div', { class: 'os-side' }, status, contacts, intercepts)));
+
+  // command bar
+  screen.append(h('div', { class: 'os-cmds' },
+    ...TERMINAL_TABS.map((t, i) => h('button', { class: t === tab ? 'on' : '', onclick: () => go(t) }, `F${i + 1} ${t.toUpperCase()}`))));
+  screen.append(h('div', { class: 'os-prompt' }, `root@${wh}:~$ ${opts.msg ? '' : tab.toLowerCase()}`, opts.msg ? h('span', { class: 'os-msg' }, opts.msg) : null, h('span', { class: 'os-cursor' }, '█')));
+
+  // ------------------------------------------------- the live globe
   const ctx = canvas.getContext('2d');
-  const t0 = performance.now();
-  const loop = () => {
+  let hits = [];
+  let last = performance.now();
+  const t0 = last;
+  const shipInfo = (x) => {
+    const sh = cfg.shippers[x.shipper];
+    return {
+      id: x.id, shipper: sh.name, air: x.shipper === 'stork', dest: cfg.countries[x.country].name,
+      cargo: Object.entries(x.items).map(([id, n]) => `${n}× ${items[id]?.name}`),
+      value: x.value, insured: x.insured, embargo: x.embargo,
+      eta: Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60)),
+      progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)),
+    };
+  };
+  const loop = (ts) => {
     if (!canvas.isConnected) return;
-    const m = g.market.state;
-    const now = g.clock.total;
-    drawGlobe(ctx, 300, (performance.now() - t0) / 1000, cfg.countries, {
+    const dt = Math.min(0.1, (ts - last) / 1000);
+    last = ts;
+    if (VIEW.auto && !drag && !VIEW.hover) VIEW.rot -= dt * 6;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const m = M.state;
+    hits = drawGlobe(ctx, SIZE, Math.max(0, ts - t0) / 1000, cfg.countries, {
+      rot: VIEW.rot, tilt: VIEW.tilt, zoom: VIEW.zoom, hover: VIEW.hover,
       wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
-      shipments: m.shipments.map((x) => ({ country: x.country, progress: Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs)) })),
+      embargoed: Object.entries(m.countries).filter(([, c]) => c.embargo).map(([id]) => id),
+      shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), data: shipInfo(x) })),
     });
+    // scan line sweeping the scope
+    const sy = ((ts - t0) / 1000 * 60) % SIZE;
+    ctx.fillStyle = 'rgba(90,255,170,0.06)';
+    ctx.fillRect(0, sy, SIZE, 3);
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
 
-  const sect = h('div', { class: 'term-body' });
-  body.append(sect);
+  let drag = null;
+  const local = (e) => { const b = canvas.getBoundingClientRect(); return { x: ((e.clientX - b.left) * SIZE) / b.width, y: ((e.clientY - b.top) * SIZE) / b.height }; };
+  const describe = (hit) => {
+    if (hit.kind === 'ship') {
+      const d = hit.data;
+      return [`${d.air ? '✈ AIRFRAME' : '⛴ VESSEL'} #${String(d.id).padStart(3, '0')} — YOUR CARGO`, `OPERATOR  ${d.shipper.toUpperCase()}`, `DEST      ${d.dest.toUpperCase()}`, `CARGO     ${d.cargo.join(', ')}`, `VALUE     ${d.value} OB ON ARRIVAL`, `PROGRESS  ${Math.round(d.progress * 100)}% · ETA ${d.eta}H`, d.insured ? 'INSURED' : 'UNINSURED', d.embargo ? '⚠ EMBARGO RUN — CUSTOMS RISK' : null].filter(Boolean);
+    }
+    if (hit.kind === 'traffic') {
+      const d = hit.data;
+      if (d.dark) return ['◌ UNIDENTIFIED VESSEL', 'AIS TRANSPONDER: OFF', `HEADING   TOWARD ${d.to.toUpperCase()}`, 'CARGO     UNKNOWN', 'NOT ONE OF YOURS'];
+      return [`⛴ ${d.name.toUpperCase()}`, `ROUTE     ${d.from.toUpperCase()} → ${d.to.toUpperCase()}`, `DECLARED  ${d.cargo.toUpperCase()}`, 'AIS TRANSPONDER: ON', 'NOT ONE OF YOURS'];
+    }
+    if (hit.kind === 'hq') return ['■ HALVERMOUTH — HOME PORT', `${M.state.shipments.length} OUTBOUND CONTACT(S)`, `EXPORTS TO DATE ${M.state.earned} OB`];
+    const id = hit.data.id;
+    const c = cfg.countries[id];
+    const st = M.state.countries[id];
+    const enemy = M.enemyOf(id);
+    const fams = Object.entries(c.wants).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([f]) => f.toUpperCase()).join(', ');
+    const ours = M.state.shipments.filter((x) => x.country === id);
+    const inbound = ours.length ? ours.map((x) => `#${x.id}: ${Object.entries(x.items).map(([iid, n]) => `${n}× ${items[iid]?.name}`).join(', ')} (ETA ${Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60))}H)`) : ['NONE'];
+    return [
+      `◆ ${c.name.toUpperCase()}`,
+      `STATUS    ${enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE'}${st.embargo ? ' · EMBARGOED' : ''}`,
+      `BUDGET    ${Math.round(st.budget)} OB`,
+      `WANTS     ${fams}`,
+      `PAYS      PISTOL ${M.price(id, 'item_pistol')} · RIFLE ${M.price(id, 'item_assault_rifle')} · MISSILE ${M.price(id, 'item_missile_guided')}`,
+      `STANCE    ${st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : 'NEUTRAL'}`,
+      'YOUR INBOUND CARGO:', ...inbound.map((t) => `  ${t}`),
+      c.blurb,
+    ];
+  };
+  const hover = (e) => {
+    const pt = local(e);
+    if (drag) {
+      VIEW.rot += (pt.x - drag.x) * 0.35 / VIEW.zoom;
+      VIEW.tilt = Math.max(-70, Math.min(70, VIEW.tilt + (pt.y - drag.y) * 0.3 / VIEW.zoom));
+      drag = pt;
+      return;
+    }
+    // craft first (they sit on top), then capitals, then any land
+    const order = { ship: 0, traffic: 1, hq: 2, country: 3 };
+    const hit = hits.filter((x) => Math.hypot(x.x - pt.x, x.y - pt.y) <= x.r).sort((a, b) => order[a.kind] - order[b.kind])[0]
+      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
+    VIEW.hover = hit?.key || null;
+    if (!hit) { tip.classList.add('hidden'); return; }
+    tip.replaceChildren(...describe(hit).map((t, i) => h('div', { class: i ? '' : 'os-tip-title' }, t)));
+    tip.classList.remove('hidden');
+    const b = canvas.getBoundingClientRect();
+    const box = globeBox.getBoundingClientRect();
+    const x = e.clientX - box.left + 14;
+    const y = e.clientY - box.top + 14;
+    tip.style.left = `${Math.min(x, b.width - 230)}px`;
+    tip.style.top = `${Math.min(y, b.height - 40)}px`;
+  };
+  canvas.addEventListener('pointerdown', (e) => { drag = local(e); canvas.setPointerCapture(e.pointerId); tip.classList.add('hidden'); });
+  canvas.addEventListener('pointerup', (e) => {
+    const was = drag;
+    drag = null;
+    // a click (not a drag) on a country opens the market with it chosen as the buyer
+    const pt = local(e);
+    if (was && Math.hypot(pt.x - was.x, pt.y - was.y) < 3 && VIEW.hover?.startsWith('c:')) {
+      const id = VIEW.hover.slice(2);
+      go('Market', { form: { ...(opts.form || { shipper: 'morrow', insured: false, qty: {} }), country: id }, msg: `TARGET SET: ${cfg.countries[id].name.toUpperCase()}` });
+    }
+  });
+  canvas.addEventListener('pointermove', hover);
+  canvas.addEventListener('pointerleave', () => { if (!VIEW.pin) VIEW.hover = null; tip.classList.add('hidden'); });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); VIEW.zoom = Math.max(0.8, Math.min(2.6, VIEW.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); }, { passive: false });
+
+  // ------------------------------------------------- the command tabs
+  const sect = h('div', { class: 'os-body' });
+  screen.append(sect);
   const row = (icon, name, desc, ...buttons) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, name), desc ? h('div', { class: 'desc' }, desc) : null), ...buttons);
   const btn = (label, fn, cls = 'small') => h('button', { class: cls, onclick: fn }, label);
+  const H3 = (t) => h('h3', {}, `■ ${t.toUpperCase()}`);
 
   if (tab === 'Overview') {
-    const made = Object.entries(A.state.produced).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ') || 'nothing yet';
-    const dock = Object.entries(g.world.containers[def.inBay].items).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ') || 'empty';
-    const cage = Object.entries(g.world.containers[def.outCrate].items).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ') || 'empty';
+    const list = (o) => Object.entries(o).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ');
     sect.append(
-      h('p', {}, h('b', {}, 'Produced: '), made),
-      h('p', {}, h('b', {}, 'Loading dock: '), dock),
-      h('p', {}, h('b', {}, 'Export cage: '), cage),
-      h('p', { class: 'muted' }, 'How it works: order parts and equipment here (they land on the loading dock within the hour). Take the equipment from the dock, press B to place stations, then hire staff and assign them. Choose each station\'s recipe with E. Belts and inserter arms can move parts between stations. Put finished weapons in the export cage and ship them abroad from the Market tab — or carry them to Lucas at Pipecreek Armory, who buys at half value.'),
+      H3('Inventory'),
+      h('pre', { class: 'os-pre' }, [
+        `PRODUCED (ALL TIME) : ${list(A.state.produced) || 'NOTHING YET'}`,
+        `LOADING DOCK        : ${list(g.world.containers[def.inBay].items) || 'EMPTY'}`,
+        `EXPORT CAGE         : ${list(g.world.containers[def.outCrate].items) || 'EMPTY'}`,
+        `ORDERS INBOUND      : ${A.state.orders.filter((o) => o.wh === wh).map((o) => `${o.qty}× ${items[o.item].name}`).join(', ') || 'NONE'}`,
+      ].join('\n')),
+      H3('Operating procedure'),
+      h('pre', { class: 'os-pre os-dim' }, [
+        '01  ORDER PARTS + EQUIPMENT (F2/F3). DELIVERY TO LOADING DOCK < 60 MIN.',
+        '02  COLLECT EQUIPMENT FROM DOCK. [B] TO PLACE STATIONS. [E] ON A STATION SETS ITS RECIPE.',
+        '03  HIRE + ASSIGN STAFF (F4). STATIONS RUN ONLY WHILE STAFFED ON SHIFT.',
+        '04  BELTS + INSERTER ARMS MOVE PARTS BETWEEN STATIONS.',
+        '05  FINISHED UNITS → EXPORT CAGE. SHIP ABROAD (F6) OR SELL TO PIPECREEK ARMORY AT 50%.',
+        '06  CLICK A COUNTRY ON THE GLOBE TO TARGET IT AS A BUYER.',
+      ].join('\n')),
     );
   } else if (tab === 'Parts' || tab === 'Equipment') {
     const list = Object.entries(items).filter(([, it]) => (tab === 'Parts' ? it.category === 'arms_part' && it.price > 0 : it.build && (it.build.domain === 'arms' || ['belt', 'inserter', 'generator'].includes(it.build.type))));
-    if (tab === 'Parts' && A.partsMult() < 1) sect.append(h('p', { class: 'muted' }, `Lean Supply: parts ${Math.round((1 - A.partsMult()) * 100)}% off.`));
+    sect.append(H3(tab === 'Parts' ? 'Supplier catalogue — parts' : 'Supplier catalogue — equipment'));
+    if (tab === 'Parts' && A.partsMult() < 1) sect.append(h('p', { class: 'os-dim' }, `LEAN SUPPLY ACTIVE: PARTS −${Math.round((1 - A.partsMult()) * 100)}%`));
     for (const [id, it] of list) {
       const price = A.partPrice(id);
       const qs = tab === 'Parts' ? [1, 10, 50] : it.build.type === 'belt' ? [10, 50] : [1];
-      sect.append(row(itemIcon(it), `${it.name} — ${price} obols`, it.description, ...qs.map((q) => btn(`×${q}`, () => say(A.order(wh, id, q))))));
+      sect.append(row(itemIcon(it), `${it.name} — ${price} OB`, it.description, ...qs.map((q) => btn(`×${q}`, () => say(A.order(wh, id, q))))));
     }
     const pending = A.state.orders.filter((o) => o.wh === wh);
-    if (pending.length) sect.append(h('p', { class: 'muted' }, `On the way: ${pending.map((o) => `${o.qty}× ${items[o.item].name}`).join(', ')}.`));
+    if (pending.length) sect.append(h('p', { class: 'os-dim' }, `INBOUND: ${pending.map((o) => `${o.qty}× ${items[o.item].name}`).join(', ')}.`));
   } else if (tab === 'Staff') {
     const stations = A.cells(wh).machines;
-    sect.append(h('div', { class: 'row' }, btn('Auto-assign free staff', () => say(A.autoAssign(wh)), 'primary')));
-    if (!staff.length) sect.append(h('p', { class: 'muted' }, 'No staff yet. Hire from the applicants below.'));
+    sect.append(H3('Personnel'), h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('AUTO-ASSIGN FREE STAFF', () => say(A.autoAssign(wh)), 'small primary')));
+    if (!staff.length) sect.append(h('p', { class: 'os-dim' }, 'NO PERSONNEL ON FILE. HIRE FROM THE APPLICANT POOL BELOW.'));
     for (const st of staff) {
       const sel = h('select', { onchange: (e) => say(A.assign(st.id, e.target.value || null)) },
         h('option', { value: '' }, '— unassigned —'),
@@ -323,18 +581,18 @@ export function terminalScreen(ui, body, opts, go) {
       const skills = Object.entries(st.skills).map(([k, v]) => `${k} ${v}`).join(' · ');
       sect.append(row('👷', `${st.name} — ${st.wage}/day — morale ${Math.round(st.morale)}${st.unpaid ? ' (UNPAID)' : ''}`, `${skills}${st.quirk ? ` · ${cfg.quirks[st.quirk].name}: ${cfg.quirks[st.quirk].text}` : ''}`, sel, btn('Bonus', () => say(A.bonus(st.id))), btn('Fire', () => say(A.fire(st.id)))));
     }
-    sect.append(h('h3', { style: 'margin:14px 0 6px' }, `Applicants today (${staff.length}/${def.bunks} bunks used)`));
+    sect.append(H3(`Applicant pool — ${staff.length}/${def.bunks} bunks used`));
     A.candidates().forEach((c, i) => {
       const skills = Object.entries(c.skills).map(([k, v]) => `${k} ${v}`).join(' · ');
       sect.append(row('📋', `${c.name} — ${c.main} specialist — ${c.wage}/day`, `${skills}${c.quirk ? ` · ${cfg.quirks[c.quirk].name}: ${cfg.quirks[c.quirk].text}` : ''}`, btn('Hire', () => say(A.hire(i, wh)))));
     });
-    sect.append(h('p', { class: 'muted' }, 'Wages are paid at 19:00 from your obols. Unpaid twice, or morale under 15, and they quit. Idle staff recover morale; working ones slowly lose it — a bonus (a day\'s wage) helps.'));
+    sect.append(h('p', { class: 'os-dim' }, 'PAYROLL 19:00 FROM YOUR FUNDS. UNPAID TWICE OR MORALE < 15 → RESIGNATION. IDLE STAFF RECOVER MORALE; A BONUS (ONE DAY\'S WAGE) HELPS.'));
   } else if (tab === 'Research') {
     const labs = A.cells(wh).machines.filter((e) => e.kind === 'lab');
-    sect.append(h('p', { class: 'muted' }, labs.length ? 'Research points come from staffed research labs (in any of your works). Pick a project:' : 'You need a Research Lab (Equipment) with a scientist assigned to earn research points.'));
+    sect.append(H3('R&D programme'), h('p', { class: 'os-dim' }, labs.length ? 'RESEARCH POINTS COME FROM STAFFED LABS IN ANY OF YOUR WORKS. SELECT A PROJECT:' : 'NO LAB DETECTED. ORDER A RESEARCH LAB (F3) AND ASSIGN A SCIENTIST.'));
     const grid = h('div', { class: 'research' });
     for (const br of cfg.branches) {
-      const col = h('div', { class: 'branch' }, h('h4', {}, br));
+      const col = h('div', { class: 'branch' }, h('h4', {}, br.toUpperCase()));
       for (const [id, n] of Object.entries(cfg.research).filter(([, x]) => x.branch === br)) {
         const done = A.done(id);
         const avail = A.available(id);
@@ -342,63 +600,51 @@ export function terminalScreen(ui, body, opts, go) {
         const cls = `node${done ? ' done' : avail ? ' avail' : ' locked'}${cur ? ' cur' : ''}`;
         const need = n.requires.filter((q) => !A.done(q)).map((q) => cfg.research[q].name).join(', ');
         col.append(h('button', { class: cls, disabled: !avail || cur, onclick: () => say(A.selectResearch(id)) },
-          h('b', {}, n.name), h('span', {}, done ? ' ✓' : ` ${n.cost} RP`), h('div', { class: 'desc' }, n.text), cur ? h('div', { class: 'desc' }, `In progress: ${Math.floor(r.progress)}/${n.cost}`) : null, !done && need ? h('div', { class: 'desc' }, `Needs: ${need}`) : null));
+          h('b', {}, n.name), h('span', {}, done ? ' ✓' : ` ${n.cost} RP`), h('div', { class: 'desc' }, n.text), cur ? h('div', { class: 'desc' }, `IN PROGRESS: ${Math.floor(r.progress)}/${n.cost}`) : null, !done && need ? h('div', { class: 'desc' }, `NEEDS: ${need}`) : null));
       }
       grid.append(col);
     }
     sect.append(grid);
   } else if (tab === 'Market') {
-    const M = g.market;
-    const ms = M.state;
     const cage = g.world.containers[def.outCrate].items;
     const cargo = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms);
-    // news
-    sect.append(h('h3', { style: 'margin:4px 0 6px' }, 'World news'));
-    sect.append(h('div', { class: 'news' }, ...ms.news.slice(0, 6).map((n) => h('div', {}, `Day ${n.day} — ${n.text}`))));
-    // in transit
-    if (ms.shipments.length) {
-      sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'In transit'));
-      for (const x of ms.shipments) {
-        const hrs = Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60));
-        sect.append(row('🚢', `${cfg.countries[x.country].name} — ${x.value} obols on arrival`, `${cfg.shippers[x.shipper].name} · arrives in ${hrs}h · ${Object.entries(x.items).map(([id, n]) => `${n}× ${items[id].name}`).join(', ')}${x.insured ? ' · insured' : ''}${x.embargo ? ' · EMBARGO RUN' : ''}`));
-      }
-    }
-    // countries
-    sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'Buyers'));
+    // buyers
+    sect.append(H3('Buyers'));
     for (const [id, c] of Object.entries(cfg.countries)) {
       const st = ms.countries[id];
       const enemy = M.enemyOf(id);
-      const tags = [enemy ? `AT WAR with ${cfg.countries[enemy].name}` : 'at peace', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `hostility ${st.hostility}` : null].filter(Boolean).join(' · ');
+      const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : null].filter(Boolean).join(' · ');
       const prices = (cargo.length ? cargo.map(([iid]) => iid) : ['item_pistol', 'item_assault_rifle', 'item_missile_guided', 'item_drone_attack']).map((iid) => `${items[iid].name} ${M.price(id, iid)}`).join(' · ');
-      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. Pays: ${prices}`));
+      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. PAYS: ${prices}`));
     }
     // a new shipment
     const form = opts.form || { country: Object.keys(cfg.countries)[0], shipper: 'morrow', insured: false, qty: {} };
+    form.qty ||= {};
     const qty = Object.fromEntries(cargo.map(([id, n]) => [id, Math.min(n, form.qty[id] ?? 0)]));
     const value = M.quote(form.country, qty);
     const fee = M.fee(form.shipper, value, form.insured);
     const sh = cfg.shippers[form.shipper];
     const upd = (patch) => go('Market', { form: { ...form, ...patch, qty: { ...qty, ...(patch.qty || {}) } } });
-    sect.append(h('h3', { style: 'margin:14px 0 6px' }, 'Ship from this works\' export cage'));
-    if (!cargo.length) sect.append(h('p', { class: 'muted' }, 'The export cage is empty. Finished weapons go in the cage (by belt, or by hand: E on the cage → Store).'));
+    sect.append(H3('Book a shipment from this works\' export cage'));
+    if (!cargo.length) sect.append(h('p', { class: 'os-dim' }, 'EXPORT CAGE EMPTY. FINISHED WEAPONS GO IN THE CAGE (BY BELT, OR BY HAND: E ON THE CAGE → STORE).'));
     else {
-      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px' },
+      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
         h('select', { onchange: (e) => upd({ country: e.target.value }) }, ...Object.entries(cfg.countries).map(([id, c]) => h('option', { value: id, selected: id === form.country }, `${c.name}${ms.countries[id].embargo ? ' (EMBARGO)' : ''}`))),
         h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === form.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
-        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` Insure (+${Math.round(cfg.market.insuranceRate * 100)}%, pays ${Math.round(cfg.market.insurancePayout * 100)}% if lost)`)));
-      sect.append(h('p', { class: 'muted' }, sh.blurb));
+        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)));
+      sect.append(h('p', { class: 'os-dim' }, sh.blurb));
       for (const [id, n] of cargo) {
         sect.append(row(itemIcon(items[id]), `${items[id].name} — ${M.price(form.country, id)} each`, `${n} in the cage`,
           h('input', { type: 'number', min: 0, max: n, value: qty[id] || 0, style: 'width:64px', onchange: (e) => upd({ qty: { [id]: Math.max(0, Math.min(n, Number(e.target.value) || 0)) } }) }),
           btn('All', () => upd({ qty: { [id]: n } }))));
       }
-      sect.append(h('p', {}, h('b', {}, `Value on arrival: ${value} obols · Shipping now: ${fee} obols`), ms.countries[form.country].embargo ? ' · ⚠ Embargo run: illegal; if customs seize it, they\'ll trace it to you.' : ''));
-      sect.append(h('div', { class: 'row' }, btn('Ship it', () => {
+      sect.append(h('p', {}, h('b', {}, `VALUE ON ARRIVAL: ${value} OB · SHIPPING NOW: ${fee} OB`), ms.countries[form.country].embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''));
+      sect.append(h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('SHIP IT', () => {
         const res = M.ship({ wh, country: form.country, shipper: form.shipper, insured: form.insured, items: qty });
         ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
         go('Market', { msg: res.text, form: res.ok ? { ...form, qty: {} } : form });
-      }, 'primary')));
+      }, 'small primary')));
     }
-    sect.append(h('p', { class: 'muted' }, `Earned from exports: ${ms.earned} obols. Lucas still buys wholesale at Pipecreek Armory (half value, up to his daily budget).`));
+    sect.append(h('p', { class: 'os-dim' }, `EXPORTS TO DATE: ${ms.earned} OB. PIPECREEK ARMORY STILL BUYS WHOLESALE AT 50% (UP TO LUCAS'S DAILY BUDGET).`));
   }
 }

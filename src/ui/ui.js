@@ -251,7 +251,7 @@ export class UI {
     const res = PANELS[top.name](this, modalBody, top.opts) || {};
     top.onClose = res.onClose;
     modalTitle.textContent = res.title || '';
-    this.el.modalPanel?.classList.toggle('tablet', res.className === 'tablet');
+    if (this.el.modalPanel) this.el.modalPanel.className = `panel${res.className ? ` ${res.className}` : ''}`;
     for (const t of res.tabs || []) modalTabs.appendChild(h('button', { class: t.active ? 'active' : '', onclick: () => { this.panelStack.pop(); t.onclick(); } }, t.label));
     modal.classList.remove('hidden');
   }

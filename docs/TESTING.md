@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.15.1 (2026-10-13)
+
+- `npm run check` — **211/211 tests passed** (3 new in `worldmap.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real mouse): the terminal in Yard 1 Works with three shipments (sea, air, sea) showed the monitor frame, CONTACTS with progress bars and the globe with routes, ambient traffic and wars; sweeping the mouse found a shipment and showed its tooltip (operator, destination, 8× 9mm Pistol, value, 14%, ETA 62h, insured); hovering land showed Varnistan with its inbound rifles; dragging and the wheel turned and zoomed it; F6 opened the market. The tablet's Business app showed the same console. The world map fitted the whole world (Yards, Halvermouth, coast, joined by roads), zoomed to Halvermouth street level with icons and names, and hovering showed "🛡️ Ironclad Securities — Security firm". Fixed from the runs: a crash when the first animation frame's timestamp preceded the start time; the prompt read "root@undefined"; the active command tab lost its text on hover. No page errors.
+
 ## Verification record — v0.15.0 (2026-10-13)
 
 - `npm run check` — **208/208 tests passed** (7 new in `tablet.test.mjs`); validator 0 errors.

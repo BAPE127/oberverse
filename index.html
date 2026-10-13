@@ -245,6 +245,68 @@ div.tablet-card { border: 2px dashed var(--line); }
 .ticker-dot { fill: var(--accent-2); stroke: var(--paper-2); stroke-width: 2; pointer-events: none; }
 .ticker-hit { fill: transparent; cursor: default; }
 .ticker-hit:hover + .ticker-dot { r: 5; }
+
+/* ---- the OSINT console (v0.15.1, src/ui/terminal.js) ---- */
+#modal-panel.monitor { width: min(1000px, calc(100vw - 20px)); max-height: calc(100vh - 16px); background: #1c1e21; border: 3px solid #0b0c0d; border-radius: 22px; padding: 0 18px 26px; box-shadow: 0 20px 50px rgba(0,0,0,.6), inset 0 2px 0 #34373b; position: relative; }
+#modal-panel.monitor::after { content: "PIPECREEK SYSTEMS · PS-9000"; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); font: bold 10px/1 "Courier New", monospace; letter-spacing: 3px; color: #5d6168; }
+#modal-panel.monitor::before { content: ""; position: absolute; bottom: 9px; right: 26px; width: 7px; height: 7px; border-radius: 50%; background: #5cff8a; box-shadow: 0 0 6px #5cff8a; }
+#modal-panel.monitor .panel-head { background: transparent; border: none; padding: 8px 4px 6px; color: #8a8f96; }
+#modal-panel.monitor .panel-head h2 { font: bold 13px "Courier New", monospace; letter-spacing: 2px; text-transform: uppercase; }
+#modal-panel.monitor .close { color: #8a8f96; }
+#modal-panel.monitor #modal-body { background: #010604; border-radius: 14px; padding: 0; box-shadow: inset 0 0 40px rgba(0,0,0,.9), 0 0 0 3px #0b0c0d; }
+.osint { position: relative; background: radial-gradient(ellipse at center, #03140d 0%, #010604 75%); color: #7dffb4; font-family: "Courier New", "Lucida Console", monospace; font-size: 12.5px; padding: 10px 12px 14px; border-radius: 12px; text-shadow: 0 0 4px rgba(90,255,160,.45); overflow: hidden; animation: os-flicker 6s infinite; }
+.osint::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); border-radius: 12px; box-shadow: inset 0 0 70px rgba(0,0,0,.75); }
+@keyframes os-flicker { 0%, 96%, 100% { opacity: 1; } 97% { opacity: .93; } 98% { opacity: .98; } }
+.osint .os-head { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; padding: 4px 8px; margin-bottom: 8px; background: rgba(60,255,150,.12); border: 1px solid rgba(90,255,160,.35); font-size: 11.5px; letter-spacing: 1px; }
+.osint .os-brand { font-weight: bold; color: #b4ffd6; }
+.osint .os-live { color: #ff6a5a; text-shadow: 0 0 6px #ff3a2a; animation: os-blink 1.2s steps(2) infinite; }
+@keyframes os-blink { 50% { opacity: .2; } }
+.osint .os-top { display: flex; gap: 10px; flex-wrap: wrap; }
+.osint .os-globe-box { position: relative; flex: none; max-width: 100%; }
+.osint .os-globe { display: block; max-width: 100%; height: auto !important; border: 1px solid rgba(90,255,160,.35); cursor: crosshair; touch-action: none; }
+.osint .os-globe-ctrl { position: absolute; top: 6px; left: 6px; display: flex; gap: 4px; }
+.osint .os-globe-help { font-size: 10px; opacity: .6; margin-top: 3px; letter-spacing: 1px; }
+.osint .os-mini { padding: 1px 7px; font: bold 11px "Courier New", monospace; background: rgba(0,20,10,.8); color: #7dffb4; border: 1px solid rgba(90,255,160,.5); border-radius: 3px; }
+.osint .os-mini.on { background: #7dffb4; color: #011; text-shadow: none; }
+.osint .os-tip { position: absolute; z-index: 3; width: 240px; background: rgba(1,14,8,.94); border: 1px solid #7dffb4; padding: 6px 8px; font-size: 11px; line-height: 1.45; pointer-events: none; box-shadow: 0 0 12px rgba(90,255,160,.3); }
+.osint .os-tip-title { font-weight: bold; color: #e8fff2; border-bottom: 1px dashed rgba(125,255,180,.5); margin-bottom: 3px; }
+.osint .os-side { flex: 1; min-width: 230px; display: flex; flex-direction: column; gap: 8px; max-height: 450px; }
+.osint .os-box { border: 1px solid rgba(90,255,160,.3); padding: 5px 8px; background: rgba(0,30,15,.35); white-space: pre-wrap; }
+.osint .os-log { flex: 1; overflow: auto; font-size: 11px; }
+.osint .os-label { color: #b4ffd6; font-weight: bold; margin-bottom: 3px; letter-spacing: 1px; }
+.osint .os-dim, .osint .desc { color: #3fae78; text-shadow: none; }
+.osint .os-contact { padding: 3px 0; border-bottom: 1px dotted rgba(90,255,160,.2); cursor: default; }
+.osint .os-contact:hover { background: rgba(255,216,96,.08); color: #ffd860; }
+.osint .os-bar { height: 5px; background: rgba(90,255,160,.12); margin: 2px 0; }
+.osint .os-bar i { display: block; height: 100%; background: #ffd860; box-shadow: 0 0 6px #ffd860; }
+.osint .os-cmds { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 4px; }
+.osint button { font-family: inherit; font-size: 12px; background: transparent; color: #7dffb4; border: 1px solid rgba(90,255,160,.55); border-radius: 2px; padding: 3px 9px; text-shadow: inherit; }
+.osint button:hover:not(:disabled) { background: rgba(90,255,160,.18); transform: none; }
+.osint button.on, .osint button.primary, .osint button.on:hover, .osint button.primary:hover:not(:disabled) { background: #7dffb4; color: #011; text-shadow: none; }
+.osint button:disabled { opacity: .4; }
+.osint .os-prompt { font-size: 12px; padding: 4px 0 8px; border-bottom: 1px solid rgba(90,255,160,.25); }
+.osint .os-msg { color: #ffd860; }
+.osint .os-cursor { animation: os-blink 1s steps(2) infinite; margin-left: 2px; }
+.osint .os-body h3 { font-size: 13px; letter-spacing: 1px; color: #b4ffd6; margin: 12px 0 6px; font-family: inherit; }
+.osint .os-pre { font-family: inherit; font-size: 12px; white-space: pre-wrap; margin: 0; line-height: 1.6; }
+.osint .item-row { background: rgba(0,30,15,.35); border: 1px solid rgba(90,255,160,.2); border-radius: 2px; }
+.osint .item-row .icon { background: transparent; border-color: rgba(90,255,160,.3); filter: grayscale(.6) brightness(1.1); }
+.osint select, .osint input { background: #011; color: #7dffb4; border: 1px solid rgba(90,255,160,.5); font-family: inherit; }
+.osint .research .node { background: rgba(0,30,15,.4) !important; color: #7dffb4; text-align: left; }
+.osint .research .node.done { border-color: #7dffb4; color: #b4ffd6; }
+.osint .research .node.cur { outline: 2px solid #ffd860; }
+.osint .research .node.locked { opacity: .45; }
+#modal-panel.tablet .osint { margin: 0 -4px; }
+@media (max-width: 700px) { .osint .os-side { max-height: none; } }
+
+/* ---- the world map (v0.15.1, src/ui/maps.js drawWorld) ---- */
+#modal-panel.wide { width: min(1120px, calc(100vw - 20px)); }
+.wmap-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.wmap-zoom { min-width: 46px; text-align: center; font-size: 13px; font-weight: bold; }
+.wmap-view { position: relative; }
+.wmap-canvas { display: block; width: 100%; height: min(560px, calc(100vh - 290px)); min-height: 260px; border: 2px solid var(--ink); border-radius: 10px; cursor: grab; touch-action: none; }
+.wmap-canvas.grabbing { cursor: grabbing; }
+.wmap-tip { position: absolute; z-index: 2; background: var(--paper); border: 2px solid var(--ink); border-radius: 8px; padding: 5px 9px; font-size: 13px; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.3); max-width: 220px; }
 </style>
 </head>
 <body>
@@ -7593,7 +7655,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.15.0';
+const GAME_VERSION = '0.15.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -16539,6 +16601,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.15.1',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Overwatch',
+    notes: [
+      'The arms-works terminal is now PIPECREEK//OVERWATCH, a trade-intelligence console on a green-screen monitor. Drag the globe to turn it, scroll to zoom, and hover anything: a country shows its war, budget, prices and the cargo you have heading there; your ships and air freight show their cargo, value and ETA. The world\'s other shipping traffic sails the lanes too (some with their transponders off). Click a country to target it in the Market tab.',
+      'The map (M) is now one world map: Mill Road Yards, Halvermouth and the coast laid out together with the roads between them. Drag to pan, scroll to zoom from the whole world down to street level, jump to a region, and hover a building\'s icon to see what it is. Property you own is ringed in gold.',
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-10-13',
     channel: 'development',
@@ -21978,11 +22050,84 @@ class DialogueUI {
 return { DialogueUI };
 })();
 
+// ---- src/content/mapIcons.js
+__m["src/content/mapIcons.js"] = (function () {
+// World-map icons (v0.15.1): what each building is, by building id. The map
+// (src/ui/maps.js) draws the icon at the building and shows the kind on hover.
+// Buildings without an entry (shacks) get no icon.
+const BUILDING_ICONS = {
+  // Lanternside
+  b_number9: { icon: '🏠', kind: 'Your home' },
+  b_vane_house: { icon: '🏡', kind: 'Residence' },
+  b_to_let: { icon: '🔑', kind: 'House to let' },
+  b_cafe: { icon: '☕', kind: 'Café' },
+  b_civic: { icon: '🏛️', kind: 'Civic office' },
+  b_workshop: { icon: '🔧', kind: 'Workshop' },
+  b_collective: { icon: '🤝', kind: 'Union hall' },
+  b_lighthouse: { icon: '🗼', kind: 'Lighthouse' },
+  // Ober Fields
+  b_manor: { icon: '🎩', kind: 'Manor house' },
+  b_refinery: { icon: '🛢️', kind: 'Oil refinery' },
+  b_bunkhouse: { icon: '🛏️', kind: 'Workers\' housing' },
+  // Westbrook
+  b_mason_office: { icon: '🏗️', kind: 'Construction site office' },
+  b_plumb_line: { icon: '🏢', kind: 'Apartments' },
+  // Halvermouth — towers
+  t_mutual: { icon: '📄', kind: 'Insurance company' },
+  t_ledgerline: { icon: '💼', kind: 'Office tower' },
+  t_crown: { icon: '📄', kind: 'Insurance company' },
+  t_meridian: { icon: '💼', kind: 'Trust company' },
+  t_herald: { icon: '📰', kind: 'Newspaper' },
+  t_exchange: { icon: '📈', kind: 'Stock exchange' },
+  t_atlas: { icon: '🍸', kind: 'Private club' },
+  t_vantage: { icon: '🏢', kind: 'Office tower' },
+  t_telephone: { icon: '☎️', kind: 'Telephone company' },
+  t_harbourline: { icon: '🏢', kind: 'Apartments' },
+  t_ober: { icon: '🛢️', kind: 'Ober\'s Oil headquarters' },
+  t_ironclad: { icon: '🛡️', kind: 'Security firm' },
+  t_grand_hotel: { icon: '🏨', kind: 'Hotel' },
+  // Halvermouth — streets
+  b_bank: { icon: '🏦', kind: 'Bank' },
+  b_hall_of_justice: { icon: '⚖️', kind: 'Courts & mayor\'s office' },
+  b_police: { icon: '🚓', kind: 'Police station' },
+  b_rialto: { icon: '🎭', kind: 'Theatre' },
+  b_market_hall: { icon: '🧺', kind: 'Market' },
+  b_diner: { icon: '🍳', kind: 'Diner' },
+  b_pawn: { icon: '💍', kind: 'Pawn shop' },
+  b_bar: { icon: '🍺', kind: 'Bar' },
+  b_garage: { icon: '🚗', kind: 'Garage' },
+  b_gun_shop: { icon: '🔫', kind: 'Gun shop' },
+  b_locksmith: { icon: '🔐', kind: 'Locksmith' },
+  b_bail: { icon: '⛓️', kind: 'Bail bonds' },
+  b_mission: { icon: '⛪', kind: 'Mission' },
+  b_abacus: { icon: '🧮', kind: 'Gang hangout' },
+  // Halvermouth — docks
+  b_wh7: { icon: '📦', kind: 'Warehouse' },
+  b_wh9: { icon: '📦', kind: 'Warehouse' },
+  b_wh12: { icon: '📦', kind: 'Warehouse' },
+  b_surplus: { icon: '📟', kind: 'Electronics shop' },
+  b_port: { icon: '⚓', kind: 'Port authority' },
+  b_cold: { icon: '❄️', kind: 'Cold storage' },
+  // Mill Road Yards
+  b_aw1: { icon: '🏭', kind: 'Arms works' },
+  b_aw2: { icon: '🏭', kind: 'Arms works' },
+  b_aw3: { icon: '🏭', kind: 'Arms works' },
+  b_gatehouse: { icon: '🚧', kind: 'Gatehouse' },
+  b_scrapco: { icon: '♻️', kind: 'Scrapyard' },
+};
+
+return { BUILDING_ICONS };
+})();
+
 // ---- src/ui/maps.js
 __m["src/ui/maps.js"] = (function () {
 // Minimap and full map rendering (DOM canvases).
 const { TILE } = __m["src/core/util.js"];
 const { TILE_TYPES } = __m["src/world/tiles.js"];
+const { BUILDING_ICONS } = __m["src/content/mapIcons.js"];
+
+const ROAD_GAP = 10; // tiles of open road drawn between regions joined by a gateway
+const BASE = 8; // px per tile of the cached map images the world map scales
 
 const MINI_SCALE = 4;
 
@@ -22215,6 +22360,208 @@ class MapRenderer {
       if (g.player.map === L.map.id) this.playerArrow(ctx, (g.player.x / TILE) * scale, (g.player.y / TILE) * scale, g.player.facing, Math.max(1.4, s));
       ctx.restore();
     }
+  }
+
+  // ------------------------------------------------------- the world map
+  /**
+   * Every outdoor map placed in one world space (tiles). Seamless regions keep
+   * their offsets; regions joined by gateways are set side by side with a road
+   * between the gates. Cached: the layout never changes in a session.
+   */
+  worldLayout() {
+    if (this.layout) return this.layout;
+    const g = this.game;
+    const regions = Object.entries(g.content.regions || {});
+    const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
+    const pos = {};
+    const roads = [];
+    const placeRegion = (rid, anchorMap, ax, ay) => {
+      const r = g.content.regions[rid];
+      const o = r.maps[anchorMap];
+      for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
+    };
+    const start = regionOf(g.content.startingMap) || regions[0];
+    placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
+    const queue = Object.keys(pos);
+    while (queue.length) {
+      const id = queue.shift();
+      const M = g.maps.get(id);
+      for (const d of M.doors) {
+        if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
+        const T = g.maps.get(d.to.map);
+        const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
+        const west = d.x === 0;
+        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+        const ty = pos[id].y + d.y - back.y;
+        const before = new Set(Object.keys(pos));
+        const rr = regionOf(T.id);
+        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
+        for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
+      }
+    }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [id, p] of Object.entries(pos)) {
+      const m = g.maps.get(id);
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
+    }
+    const regionBoxes = regions.map(([rid, r]) => {
+      const ids = Object.keys(r.maps).filter((id) => pos[id]);
+      if (!ids.length) return null;
+      const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
+      const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
+      return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    }).filter(Boolean);
+    this.layout = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
+    return this.layout;
+  }
+
+  /** Where the player is in world tiles (inside a building: at its door). */
+  playerWorld() {
+    const g = this.game;
+    const L = this.worldLayout();
+    const p = g.player;
+    if (L.pos[p.map]) return { x: L.pos[p.map].x + p.x / TILE, y: L.pos[p.map].y + p.y / TILE, inside: null };
+    for (const [id, o] of Object.entries(L.pos)) {
+      const m = g.maps.get(id);
+      const d = m.doors.find((x) => x.to?.map === p.map);
+      if (d) return { x: o.x + d.x + 0.5, y: o.y + d.y + 0.5, inside: g.currentMap().name };
+    }
+    return null;
+  }
+
+  /**
+   * Draw the world into a W×H canvas for a view { cx, cy (world tiles at the
+   * centre), z (px per tile) }. Returns hover targets [{ x, y, w, h, info }].
+   */
+  drawWorld(ctx, W, H, view, hover) {
+    const g = this.game;
+    const L = this.worldLayout();
+    const z = view.z;
+    const X = (wx) => (wx - view.cx) * z + W / 2;
+    const Y = (wy) => (wy - view.cy) * z + H / 2;
+    const hits = [];
+    const disc = g.player.discovered.areas;
+    ctx.fillStyle = TILE_TYPES['~'].color;
+    ctx.fillRect(0, 0, W, H);
+    // gentle sea texture
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 0; i < 60; i++) ctx.fillRect(((i * 97) % 997) / 997 * W, ((i * 61) % 613) / 613 * H, 10, 1);
+    // roads between regions
+    for (const r of L.roads) {
+      ctx.strokeStyle = '#8a7a5a';
+      ctx.lineWidth = Math.max(3, z * 2);
+      ctx.beginPath(); ctx.moveTo(X(r.x1), Y(r.y1)); ctx.lineTo(X(r.x2), Y(r.y2)); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,240,200,0.6)';
+      ctx.lineWidth = Math.max(1, z * 0.2);
+      ctx.setLineDash([z * 1.2, z * 1.2]);
+      ctx.beginPath(); ctx.moveTo(X(r.x1), Y(r.y1)); ctx.lineTo(X(r.x2), Y(r.y2)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.imageSmoothingEnabled = z < BASE;
+    for (const [id, o] of Object.entries(L.pos)) {
+      const m = g.maps.get(id);
+      const x = X(o.x);
+      const y = Y(o.y);
+      if (x > W || y > H || x + m.width * z < 0 || y + m.height * z < 0) continue;
+      ctx.drawImage(this.base(m, BASE), x, y, m.width * z, m.height * z);
+      for (const a of m.areas) {
+        if (disc[a.id]) continue;
+        ctx.fillStyle = 'rgba(30,26,40,0.82)';
+        ctx.fillRect(X(o.x + a.x), Y(o.y + a.y), a.w * z, a.h * z);
+      }
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // undiscovered districts say so
+    for (const [id, o] of Object.entries(L.pos)) {
+      for (const a of g.maps.get(id).areas) {
+        if (disc[a.id] || a.w * z < 60) continue;
+        ctx.font = `italic ${Math.min(18, Math.max(10, z * 1.3))}px Georgia, serif`;
+        ctx.fillStyle = 'rgba(255,246,224,0.45)';
+        ctx.fillText('unexplored', X(o.x + a.x + a.w / 2), Y(o.y + a.y + a.h / 2));
+      }
+    }
+    // buildings: icons always, names when zoomed in
+    const iconPx = Math.max(13, Math.min(30, z * 2.2));
+    for (const [id, o] of Object.entries(L.pos)) {
+      const m = g.maps.get(id);
+      for (const b of m.buildings) {
+        const area = m.areaAt(b.x, b.y);
+        if (area && !disc[area.id]) continue;
+        const meta = BUILDING_ICONS[b.id];
+        if (!meta) continue;
+        const bx = X(o.x + b.x + b.w / 2);
+        const by = Y(o.y + b.y + b.h / 2 - 0.5);
+        if (bx < -40 || by < -40 || bx > W + 40 || by > H + 40) continue;
+        const yours = b.door?.lock?.flag && g.getFlag(b.door.lock.flag) && /^owns_/.test(b.door.lock.flag);
+        const home = b.id === 'b_number9';
+        const key = `b:${b.id}`;
+        ctx.fillStyle = hover === key ? '#fff' : 'rgba(251,244,230,0.92)';
+        ctx.strokeStyle = yours || home ? '#e8b64c' : '#2d2433';
+        ctx.lineWidth = yours || home ? 3 : 1.5;
+        ctx.beginPath(); ctx.arc(bx, by, iconPx * 0.68, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = `${iconPx * 0.8}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.fillStyle = '#2d2433';
+        ctx.fillText(meta.icon, bx, by + 1);
+        if (z >= 9) {
+          const label = b.mapLabel || b.name;
+          ctx.font = `bold ${Math.min(14, z)}px "Trebuchet MS", sans-serif`;
+          const tw = ctx.measureText(label).width + 8;
+          ctx.fillStyle = 'rgba(251,244,230,0.9)';
+          ctx.fillRect(bx - tw / 2, by + iconPx * 0.75, tw, Math.min(14, z) + 4);
+          ctx.fillStyle = '#2d2433';
+          ctx.fillText(label, bx, by + iconPx * 0.75 + Math.min(14, z) / 2 + 2);
+        }
+        hits.push({ key, x: bx - iconPx * 0.7, y: by - iconPx * 0.7, w: iconPx * 1.4, h: iconPx * 1.4, info: { icon: meta.icon, name: b.name, kind: meta.kind, place: m.name, yours, home } });
+      }
+    }
+    // district names (zoomed in) or region names (zoomed out)
+    if (z >= 3.5) {
+      for (const [id, o] of Object.entries(L.pos)) {
+        for (const a of g.maps.get(id).areas) {
+          if (!disc[a.id]) continue;
+          ctx.font = `italic bold ${Math.min(20, Math.max(11, z * 1.4))}px Georgia, serif`;
+          ctx.fillStyle = 'rgba(255,246,224,0.95)';
+          ctx.strokeStyle = 'rgba(45,36,51,0.8)';
+          ctx.lineWidth = 3;
+          ctx.strokeText(a.name, X(o.x + a.x + a.w / 2), Y(o.y + a.y + 1.4));
+          ctx.fillText(a.name, X(o.x + a.x + a.w / 2), Y(o.y + a.y + 1.4));
+        }
+      }
+    } else {
+      for (const r of L.regions) {
+        const seen = r.maps.some((id) => g.player.discovered.maps[id]);
+        ctx.font = `bold ${Math.max(14, Math.min(26, z * 6))}px Georgia, serif`;
+        ctx.fillStyle = 'rgba(255,246,224,0.97)';
+        ctx.strokeStyle = 'rgba(45,36,51,0.9)';
+        ctx.lineWidth = 4;
+        const t = seen ? r.name : `${r.name} (not visited)`;
+        ctx.strokeText(t, X(r.x + r.w / 2), Y(r.y) - 14);
+        ctx.fillText(t, X(r.x + r.w / 2), Y(r.y) - 14);
+      }
+    }
+    // people and objectives
+    const s = Math.max(1, Math.min(1.8, z / 6));
+    for (const [id, o] of Object.entries(L.pos)) {
+      for (const mk of this.markers(g.maps.get(id))) {
+        if (mk.kind === 'npc' && z < 5) continue;
+        this.marker(ctx, X(o.x + mk.x), Y(o.y + mk.y), mk, s);
+      }
+    }
+    const me = this.playerWorld();
+    if (me) {
+      const px = X(me.x);
+      const py = Y(me.y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, 14 * s, 0, Math.PI * 2); ctx.stroke();
+      this.playerArrow(ctx, px, py, g.player.facing, Math.max(1.2, s));
+      hits.push({ key: 'me', x: px - 12, y: py - 12, w: 24, h: 24, info: { icon: '🧍', name: 'You', kind: me.inside ? `Inside ${me.inside}` : g.currentMap().name } });
+    }
+    return hits;
   }
 }
 
@@ -22825,44 +23172,114 @@ function customersTab(g, body) {
 }
 
 // ---------------------------------------------------------------------- map
+/** The world map's camera survives re-opening (world tiles at the centre, px per tile). */
+const MAPVIEW = { cx: null, cy: null, z: 6 };
+
 function mapPanel(ui, body, opts) {
   const g = ui.game;
   const current = g.currentMap();
-  const mapId = opts.mapId || current.id;
-  const canvas = h('canvas', { id: 'worldmap' });
-  body.append(canvas);
-  ui.maps.drawWorldMap(canvas, mapId);
+  const R = ui.maps;
+  const tabs = [];
+  const inside = current.kind === 'interior';
+  const mode = opts.mode || 'world';
+  tabs.push({ label: 'World', active: mode === 'world', onclick: () => ui.openPanel('map', { mode: 'world' }) });
+  if (inside) tabs.push({ label: current.name, active: mode === 'here', onclick: () => ui.openPanel('map', { mode: 'here' }) });
+  if (mode === 'here') {
+    const canvas = h('canvas', { id: 'worldmap' });
+    body.append(canvas);
+    R.drawWorldMap(canvas, current.id);
+    return { title: 'Map', tabs };
+  }
+
+  const L = R.worldLayout();
+  const me = R.playerWorld();
+  if (MAPVIEW.cx === null || opts.centre) {
+    const c = me || { x: L.bounds.x + L.bounds.w / 2, y: L.bounds.y + L.bounds.h / 2 };
+    MAPVIEW.cx = c.x;
+    MAPVIEW.cy = c.y;
+  }
+  const wrap = h('div', { class: 'wmap' });
+  const canvas = h('canvas', { class: 'wmap-canvas' });
+  const tip = h('div', { class: 'wmap-tip hidden' });
+  const zoomLabel = h('span', { class: 'wmap-zoom' });
+  let W = 0;
+  let H = 0;
+  let hits = [];
+  let hover = null;
+  const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
+  const ZMIN = 1;
+  const ZMAX = 24;
+  const draw = () => {
+    if (!canvas.isConnected) return;
+    W = canvas.clientWidth || 720;
+    H = canvas.clientHeight || 480;
+    if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    hits = R.drawWorld(ctx, W, H, MAPVIEW, hover);
+    zoomLabel.textContent = `${Math.round((MAPVIEW.z / 6) * 100)}%`;
+  };
+  const fit = (box) => {
+    MAPVIEW.cx = box.x + box.w / 2;
+    MAPVIEW.cy = box.y + box.h / 2;
+    MAPVIEW.z = Math.max(ZMIN, Math.min(ZMAX, Math.min((W || 720) / box.w, (H || 480) / (box.h + 8)) * 0.92));
+    draw();
+  };
+  const zoomAt = (k, sx = W / 2, sy = H / 2) => {
+    const wx = MAPVIEW.cx + (sx - W / 2) / MAPVIEW.z;
+    const wy = MAPVIEW.cy + (sy - H / 2) / MAPVIEW.z;
+    MAPVIEW.z = Math.max(ZMIN, Math.min(ZMAX, MAPVIEW.z * k));
+    MAPVIEW.cx = wx - (sx - W / 2) / MAPVIEW.z;
+    MAPVIEW.cy = wy - (sy - H / 2) / MAPVIEW.z;
+    draw();
+  };
+  const bar = h('div', { class: 'wmap-bar' },
+    h('button', { class: 'small', title: 'Zoom out', onclick: () => zoomAt(1 / 1.4) }, '−'),
+    zoomLabel,
+    h('button', { class: 'small', title: 'Zoom in', onclick: () => zoomAt(1.4) }, '+'),
+    h('button', { class: 'small', onclick: () => fit(L.bounds) }, '🌍 Whole world'),
+    me ? h('button', { class: 'small', onclick: () => { MAPVIEW.cx = me.x; MAPVIEW.cy = me.y; MAPVIEW.z = Math.max(MAPVIEW.z, 8); draw(); } }, '◎ Me') : null,
+    ...L.regions.map((r) => h('button', { class: 'small', onclick: () => fit(r) }, r.name)));
+  wrap.append(bar, h('div', { class: 'wmap-view' }, canvas, tip));
+  body.append(wrap);
+
+  let drag = null;
+  const local = (e) => { const b = canvas.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+  canvas.addEventListener('pointerdown', (e) => { drag = local(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); tip.classList.add('hidden'); });
+  canvas.addEventListener('pointerup', () => { drag = null; canvas.classList.remove('grabbing'); });
+  canvas.addEventListener('pointermove', (e) => {
+    const pt = local(e);
+    if (drag) {
+      MAPVIEW.cx -= (pt.x - drag.x) / MAPVIEW.z;
+      MAPVIEW.cy -= (pt.y - drag.y) / MAPVIEW.z;
+      drag = pt;
+      draw();
+      return;
+    }
+    const hit = [...hits].reverse().find((x) => pt.x >= x.x && pt.x <= x.x + x.w && pt.y >= x.y && pt.y <= x.y + x.h);
+    const key = hit?.key || null;
+    if (key !== hover) { hover = key; draw(); }
+    if (!hit) { tip.classList.add('hidden'); return; }
+    const i = hit.info;
+    tip.replaceChildren(h('b', {}, `${i.icon} ${i.name}`), h('div', {}, i.kind + (i.yours ? ' · yours' : '')), i.place ? h('div', { class: 'muted' }, i.place) : null);
+    tip.classList.remove('hidden');
+    tip.style.left = `${Math.min(pt.x + 14, W - 200)}px`;
+    tip.style.top = `${Math.min(pt.y + 14, H - 60)}px`;
+  });
+  canvas.addEventListener('pointerleave', () => { tip.classList.add('hidden'); if (hover) { hover = null; draw(); } });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); const pt = local(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, pt.x, pt.y); }, { passive: false });
+  requestAnimationFrame(draw);
+
   body.append(
     h('div', { class: 'legend' },
       h('span', {}, h('i', { style: 'background:#fff;border:2px solid #2d2433' }), 'You'),
-      h('span', {}, h('i', { style: 'background:#c0614a' }), 'People you\'ve met'),
-      h('span', {}, h('i', { style: 'background:#9a9a9a' }), 'Strangers'),
+      h('span', {}, h('i', { style: 'background:#c0614a' }), 'People you\'ve met (zoom in)'),
       h('span', {}, h('i', { style: 'background:#e8b64c' }), 'Objective'),
-      h('span', {}, h('i', { style: 'background:#e8b64c;border-radius:2px' }), 'Doors'),
+      h('span', {}, h('i', { style: 'background:#fbf4e6;border:2px solid #e8b64c;border-radius:50%' }), 'Home and property you own'),
     ),
+    h('p', { class: 'muted' }, `Drag to pan, scroll or use + / − to zoom, hover an icon to see what it is. Areas discovered: ${Object.keys(g.player.discovered.areas).length}. Unexplored districts stay dark until you visit them.${me?.inside ? ` You are inside ${me.inside}.` : ''}`),
   );
-  const tabs = [];
-  const outdoorId = current.kind === 'interior' ? (g.lastOutdoorMap || 'lanternside') : current.id;
-  const regions = Object.values(g.content.regions || {});
-  const regionOfMap = (id) => regions.find((r) => r.maps[id]);
-  const here = regionOfMap(outdoorId);
-  if (current.kind === 'interior') tabs.push({ label: current.name, active: mapId === current.id, onclick: () => ui.openPanel('map', { mapId: current.id }) });
-  tabs.push({ label: here?.name || g.maps.get(outdoorId).name, active: mapId === outdoorId || (here && here.maps[mapId] && mapId !== current.id), onclick: () => ui.openPanel('map', { mapId: outdoorId }) });
-  // every other region gets a tab too, so places you haven't been are still on the map
-  for (const r of regions) {
-    if (r === here) continue;
-    const first = Object.keys(r.maps)[0];
-    tabs.push({ label: r.name, active: Boolean(r.maps[mapId]), onclick: () => ui.openPanel('map', { mapId: first }) });
-  }
-  const disc = Object.keys(g.player.discovered.areas).length;
-  body.append(h('p', { class: 'muted' }, `Areas discovered: ${disc}. Unexplored districts stay hidden until you visit them.`));
-  const shown = g.maps.get(mapId);
-  const regionMaps = shown ? Object.keys(regionOfMap(mapId)?.maps || { [mapId]: 1 }) : [];
-  if (shown && shown.kind !== 'interior' && !regionMaps.some((id) => g.maps.get(id)?.areas.some((ar) => g.player.discovered.areas[ar.id]))) {
-    const gate = [...g.maps.values()].flatMap((mm) => mm.doors.filter((d) => d.gateway && d.to?.map === mapId).map((d) => mm.name))[0];
-    body.append(h('p', {}, h('b', {}, `You haven't been to ${regionOfMap(mapId)?.name || shown.name} yet.`), gate ? ` The road there leaves from ${gate}.` : ''));
-  }
-  return { title: 'Map', tabs };
+  return { title: 'World Map', tabs, className: 'wide' };
 }
 
 // ---------------------------------------------------------------- container
@@ -23329,10 +23746,13 @@ return { h, itemIcon, pausePanel, inventoryPanel, JOURNAL_TABS, journalTab, mapP
 
 // ---- src/ui/terminal.js
 __m["src/ui/terminal.js"] = (function () {
-// The arms-works terminal (v0.13.0): a rotating globe in the style of a
-// live trade map (glowing routes, borders, markers) over the fictional
-// countries, and tabs for parts, equipment, staff, research and the market.
-// See src/systems/arms.js.
+// The arms-works terminal (v0.13.0; OSINT console since v0.15.1). A trade-
+// intelligence console on a CRT monitor: an interactive globe (drag to turn,
+// wheel to zoom, hover anything) showing the fictional countries, wars, your
+// shipments sailing (or flying) from Halvermouth and the world's other
+// shipping traffic, beside live status, contacts and intercepted news. Below
+// it, command tabs for parts, equipment, staff, research and the market.
+// See src/systems/arms.js and src/systems/market.js.
 const { h, itemIcon } = __m["src/ui/panels.js"];
 
 // --------------------------------------------------------------- the globe
@@ -23346,6 +23766,8 @@ function landNoise(lat, lon) {
   return Math.sin(b * 2 + 0.6) * Math.cos(a * 3 - 0.4) * 0.55 + Math.sin(b * 5 + a * 4 + 1.3) * 0.25 + Math.cos(b * 3 - a * 6) * 0.18 + Math.sin(b * 9 + a * 2) * 0.08 - Math.abs(lat) / 260;
 }
 
+const wrapLon = (d) => ((d + 540) % 360) - 180;
+
 function buildLand(countries) {
   const pts = [];
   const step = 3;
@@ -23355,21 +23777,21 @@ function buildLand(countries) {
       let n = landNoise(lat, lon);
       // make sure every capital sits on land
       for (const [, c] of caps) {
-        const d = Math.hypot(lat - c.lat, (((lon - c.lon + 540) % 360) - 180) * Math.cos(lat * D2R));
+        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
         if (d < 14) n = Math.max(n, 0.3 - d / 60);
       }
       if (n < 0.12) continue;
       let best = null;
       let bd = 30;
       for (const [id, c] of caps) {
-        const d = Math.hypot(lat - c.lat, (((lon - c.lon + 540) % 360) - 180) * Math.cos(lat * D2R));
+        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
         if (d < bd) { bd = d; best = id; }
       }
       pts.push({ lat, lon, country: best, n });
     }
   }
-  // border points: a neighbour belongs to another country
-  const key = (lat, lon) => `${lat},${(lon + 540) % 360 - 180}`;
+  // border points: a neighbour belongs to another country (or is sea)
+  const key = (lat, lon) => `${lat},${wrapLon(lon)}`;
   const map = new Map(pts.map((p) => [key(p.lat, p.lon), p]));
   for (const p of pts) {
     const e = map.get(key(p.lat, p.lon + step));
@@ -23389,8 +23811,8 @@ function project(lat, lon, rot, tilt) {
   return { x, y: y0 * Math.cos(t) - z0 * Math.sin(t), z: y0 * Math.sin(t) + z0 * Math.cos(t) };
 }
 
-/** Great-circle points between two lat/lon pairs. */
-function arc(a, b, n = 28) {
+/** Great-circle points between two lat/lon pairs; `bow` lifts the middle off the surface. */
+function arc(a, b, n = 28, bow = 0.08) {
   const v = (p) => [Math.cos(p.lat * D2R) * Math.cos(p.lon * D2R), Math.cos(p.lat * D2R) * Math.sin(p.lon * D2R), Math.sin(p.lat * D2R)];
   const A = v(a);
   const B = v(b);
@@ -23404,249 +23826,502 @@ function arc(a, b, n = 28) {
     const x = s1 * A[0] + s2 * B[0];
     const y = s1 * A[1] + s2 * B[1];
     const z = s1 * A[2] + s2 * B[2];
-    const lift = 1 + Math.sin(t * Math.PI) * 0.08; // routes bow off the surface a little
-    out.push({ lat: Math.asin(z) / D2R, lon: Math.atan2(y, x) / D2R, lift });
+    out.push({ lat: Math.asin(z) / D2R, lon: Math.atan2(y, x) / D2R, lift: 1 + Math.sin(t * Math.PI) * bow });
   }
   return out;
 }
 
+/** The world's other shipping lanes, with traffic that never stops. */
 const ROUTES = [['varn', 'ostmark'], ['varn', 'teshvar'], ['caldera', 'pallas'], ['sund', 'lirre'], ['ostmark', 'sund'], ['teshvar', 'morrow'], ['pallas', 'lirre'], ['caldera', 'teshvar'], ['morrow', 'caldera'], ['ostmark', 'lirre'], ['varn', 'caldera']];
+const VESSELS = ['MV Saltmarsh Dawn', 'MV Grey Heron', 'MV Contessa Bell', 'MV Iron Lantern', 'MV Northern Mercy', 'MV Pale Horizon', 'MV Rook Island', 'MV Quiet Tuesday', 'MV Seven Brothers', 'MV Gilded Eel', 'MV Hollow Moon', 'MV Brass Albatross', 'MV Low Tide', 'MV Margarethe', 'MV Unremarkable', 'MV Ninth Wave', 'MV Copper Saint', 'MV Distant Cousin', 'MV Patience', 'MV Kettle Point', 'MV Lucky Anchor', 'MV Small Mercies'];
+const DECLARED = ['grain', 'machine parts', 'refrigerated fish', 'textiles', 'tractor tyres', '"agricultural equipment"', 'cement', 'medical supplies', 'crude oil', 'consumer electronics', 'scrap metal', '"humanitarian aid"', 'timber', 'fertiliser', 'nothing (ballast)'];
+const TRAFFIC = ROUTES.flatMap(([a, b], i) => [0, 1].map((k) => ({
+  key: `tr${i}_${k}`, a: k ? b : a, b: k ? a : b,
+  name: VESSELS[(i * 2 + k) % VESSELS.length],
+  cargo: DECLARED[(i * 5 + k * 3) % DECLARED.length],
+  speed: 0.012 + ((i * 7 + k * 3) % 5) * 0.003,
+  phase: ((i * 0.37 + k * 0.5) % 1),
+  dark: (i + k) % 6 === 5, // AIS off: no name, no story
+})));
 
+/** A little hull (or airframe) pointing along `ang`. */
+function drawCraft(ctx, x, y, ang, s, color, air) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (air) {
+    ctx.moveTo(6 * s, 0); ctx.lineTo(-4 * s, -1.2 * s); ctx.lineTo(-1 * s, -5 * s); ctx.lineTo(-2.4 * s, -5 * s);
+    ctx.lineTo(-5 * s, -1.2 * s); ctx.lineTo(-6 * s, -3 * s); ctx.lineTo(-7 * s, -3 * s); ctx.lineTo(-6.2 * s, 0);
+    ctx.lineTo(-7 * s, 3 * s); ctx.lineTo(-6 * s, 3 * s); ctx.lineTo(-5 * s, 1.2 * s); ctx.lineTo(-2.4 * s, 5 * s);
+    ctx.lineTo(-1 * s, 5 * s); ctx.lineTo(-4 * s, 1.2 * s);
+  } else {
+    ctx.moveTo(6 * s, 0); ctx.lineTo(2 * s, -2.6 * s); ctx.lineTo(-5 * s, -2.6 * s); ctx.lineTo(-5 * s, 2.6 * s); ctx.lineTo(2 * s, 2.6 * s);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Corner brackets around a hovered or selected target. */
+function reticle(ctx, x, y, r, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  const k = r * 0.45;
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    ctx.beginPath();
+    ctx.moveTo(x + sx * r, y + sy * (r - k));
+    ctx.lineTo(x + sx * r, y + sy * r);
+    ctx.lineTo(x + sx * (r - k), y + sy * r);
+    ctx.stroke();
+  }
+}
+
+/**
+ * Draw the globe. Returns the hover targets on screen this frame:
+ * [{ key, kind: 'country'|'ship'|'traffic'|'hq', x, y, r, data }].
+ * opts: rot, tilt, zoom, wars [[a,b]], hq, shipments [{id, country, progress, air, data}], hover (key).
+ */
 function drawGlobe(ctx, size, time, countries, opts = {}) {
   if (!LAND) LAND = buildLand(countries);
-  const r = size * 0.42;
+  const hits = [];
+  const zoom = opts.zoom || 1;
+  const r = size * 0.42 * zoom;
   const cx = size / 2;
   const cy = size / 2;
-  const rot = -time * 8 + (opts.rot || 0);
-  const tilt = 22;
-  ctx.fillStyle = '#000';
+  const rot = opts.rot ?? -time * 8;
+  const tilt = opts.tilt ?? 22;
+  const P = (lat, lon, lift = 1) => {
+    const q = project(lat, lon, rot, tilt);
+    return { x: cx + q.x * r * lift, y: cy - q.y * r * lift, z: q.z };
+  };
+  // the void, with a faint grid like a radar scope
+  ctx.fillStyle = '#010604';
   ctx.fillRect(0, 0, size, size);
-  // stars
-  for (let i = 0; i < 70; i++) {
-    const sx = (Math.sin(i * 12.9898) * 43758.5453) % 1;
-    const sy = (Math.sin(i * 78.233) * 12543.123) % 1;
-    ctx.fillStyle = `rgba(255,255,255,${0.2 + ((i * 7) % 10) / 20})`;
-    ctx.fillRect(Math.abs(sx) * size, Math.abs(sy) * size, 1, 1);
+  ctx.strokeStyle = 'rgba(60,255,160,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= size; i += size / 12) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size, i); ctx.stroke();
   }
   // ocean
-  const og = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.1, cx, cy, r);
-  og.addColorStop(0, '#1e5a6e');
-  og.addColorStop(0.7, '#0c3444');
-  og.addColorStop(1, '#04141c');
+  const og = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+  og.addColorStop(0, '#08261f');
+  og.addColorStop(1, '#020c0a');
   ctx.fillStyle = og;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-  // land
-  const px = Math.max(1.6, r * 3 * D2R * 1.05);
-  for (const p of LAND) {
-    const q = project(p.lat, p.lon, rot, tilt);
-    if (q.z <= 0) continue;
-    const shade = 0.45 + 0.55 * q.z;
-    const desert = Math.abs(p.lat) < 32 && p.n < 0.4;
-    const base = desert ? [120, 98, 62] : Math.abs(p.lat) > 58 ? [190, 196, 200] : [74, 98, 60];
-    ctx.fillStyle = `rgb(${Math.round(base[0] * shade)},${Math.round(base[1] * shade)},${Math.round(base[2] * shade)})`;
-    ctx.fillRect(cx + q.x * r - px / 2, cy - q.y * r - px / 2, px * (0.6 + 0.4 * q.z), px);
-  }
-  // borders
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  for (const p of LAND) {
-    if (!p.border) continue;
-    const q = project(p.lat, p.lon, rot, tilt);
-    if (q.z <= 0.05) continue;
-    ctx.fillRect(cx + q.x * r - 0.7, cy - q.y * r - 0.7, 1.4, 1.4);
-  }
-  // trade routes, with traffic crawling along them
-  ctx.lineWidth = 1.4;
-  ROUTES.forEach(([a, b], i) => {
-    const A = countries[a];
-    const B = countries[b];
-    if (!A || !B) return;
-    const pts = arc(A, B);
-    ctx.strokeStyle = i % 2 ? A.color : B.color;
-    ctx.globalAlpha = 0.85;
+  // graticule
+  ctx.strokeStyle = 'rgba(80,255,170,0.13)';
+  ctx.lineWidth = 0.8;
+  const line = (pts) => {
     ctx.beginPath();
     let pen = false;
-    for (const p of pts) {
-      const q = project(p.lat, p.lon, rot, tilt);
+    for (const [la, lo] of pts) {
+      const q = P(la, lo);
       if (q.z <= 0) { pen = false; continue; }
-      const X = cx + q.x * r * p.lift;
-      const Y = cy - q.y * r * p.lift;
-      if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+      if (pen) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
       pen = true;
     }
     ctx.stroke();
-    const k = Math.floor(((time * 6 + i * 3) % pts.length));
-    const q = project(pts[k].lat, pts[k].lon, rot, tilt);
-    if (q.z > 0) {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(cx + q.x * r * pts[k].lift - 1.5, cy - q.y * r * pts[k].lift - 1.5, 3, 3);
+  };
+  for (let la = -60; la <= 60; la += 30) line(Array.from({ length: 73 }, (_, i) => [la, -180 + i * 5]));
+  for (let lo = -180; lo < 180; lo += 30) line(Array.from({ length: 37 }, (_, i) => [-90 + i * 5, lo]));
+  // land as a dot matrix, tinted by country; the hovered country lights up
+  const hoverCountry = opts.hover?.startsWith('c:') ? opts.hover.slice(2) : null;
+  const dot = Math.max(1.3, r * 3 * D2R * 0.62);
+  for (const p of LAND) {
+    const q = P(p.lat, p.lon);
+    if (q.z <= 0) continue;
+    const lit = p.country === hoverCountry;
+    const a = (0.25 + 0.6 * q.z) * (lit ? 1.6 : 1);
+    ctx.fillStyle = lit ? `rgba(180,255,220,${Math.min(1, a)})` : p.border ? `rgba(110,255,180,${a})` : `rgba(40,170,110,${a * 0.75})`;
+    ctx.fillRect(q.x - dot / 2, q.y - dot / 2, dot, dot);
+  }
+  // shipping lanes and traffic
+  const at = (pts, t) => {
+    const f = Math.max(0, Math.min(1, t)) * (pts.length - 1);
+    const i = Math.min(pts.length - 2, Math.floor(f));
+    const u = f - i;
+    const A = pts[i];
+    const B = pts[i + 1];
+    const la = A.lat + (B.lat - A.lat) * u;
+    const lo = A.lon + wrapLon(B.lon - A.lon) * u;
+    const lift = A.lift + (B.lift - A.lift) * u;
+    const q = P(la, lo, lift);
+    const q2 = P(B.lat, B.lon, B.lift);
+    const q1 = P(A.lat, A.lon, A.lift);
+    return { ...q, ang: Math.atan2(q2.y - q1.y, q2.x - q1.x) };
+  };
+  const path = (pts, from = 0, to = 1) => {
+    ctx.beginPath();
+    let pen = false;
+    const n = pts.length - 1;
+    for (let i = Math.floor(from * n); i <= Math.ceil(to * n); i++) {
+      const p = pts[i];
+      const q = P(p.lat, p.lon, p.lift);
+      if (q.z <= 0) { pen = false; continue; }
+      if (pen) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      pen = true;
     }
-    ctx.globalAlpha = 1;
-  });
+    ctx.stroke();
+  };
+  ctx.lineWidth = 1;
+  for (const [a, b] of ROUTES) {
+    if (!countries[a] || !countries[b]) continue;
+    ctx.strokeStyle = 'rgba(120,200,255,0.18)';
+    path(arc(countries[a], countries[b], 28, 0.02));
+  }
+  for (const t of TRAFFIC) {
+    const A = countries[t.a];
+    const B = countries[t.b];
+    if (!A || !B) continue;
+    const pts = arc(A, B, 28, 0.02);
+    const q = at(pts, (((t.phase + time * t.speed) % 1) + 1) % 1);
+    if (q.z <= 0.05) continue;
+    const key = `t:${t.key}`;
+    drawCraft(ctx, q.x, q.y, q.ang, 0.75 * Math.min(1.6, zoom), t.dark ? 'rgba(255,190,90,0.75)' : 'rgba(150,210,255,0.7)', false);
+    hits.push({ key, kind: 'traffic', x: q.x, y: q.y, r: 9, data: { ...t, from: A.name, to: B.name } });
+    if (opts.hover === key) reticle(ctx, q.x, q.y, 9, '#9fd8ff');
+  }
   // wars: pulsing red lines between the capitals
   for (const [a, b] of opts.wars || []) {
     const A = countries[a];
     const B = countries[b];
     if (!A || !B) continue;
-    ctx.strokeStyle = `rgba(255,50,40,${0.55 + 0.45 * Math.sin(time * 5)})`;
-    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = `rgba(255,60,50,${0.55 + 0.45 * Math.sin(time * 5)})`;
+    ctx.lineWidth = 2.2;
     ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    let pen = false;
-    for (const p of arc(A, B, 20)) {
-      const q = project(p.lat, p.lon, rot, tilt);
-      if (q.z <= 0) { pen = false; continue; }
-      const X = cx + q.x * r * p.lift;
-      const Y = cy - q.y * r * p.lift;
-      if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
-      pen = true;
-    }
-    ctx.stroke();
+    path(arc(A, B, 20, 0.04));
     ctx.setLineDash([]);
   }
-  // your shipments, crawling from Halvermouth to their buyer
-  if (opts.hq) {
-    const q = project(opts.hq.lat, opts.hq.lon, rot, tilt);
-    if (q.z > 0) {
-      ctx.fillStyle = '#7affc8';
-      ctx.fillRect(cx + q.x * r - 3, cy - q.y * r - 3, 6, 6);
+  // capitals, with labels
+  ctx.font = `bold ${Math.max(10, size / 42)}px "Courier New", monospace`;
+  for (const [id, c] of Object.entries(countries)) {
+    const q = P(c.lat, c.lon);
+    if (q.z <= 0) continue;
+    const pulse = 3 + Math.sin(time * 3 + id.length) * 1.5;
+    ctx.strokeStyle = c.color;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(q.x, q.y, pulse + 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = c.color;
+    ctx.fillRect(q.x - 2.5, q.y - 2.5, 5, 5);
+    if (opts.embargoed?.includes(id)) {
+      ctx.strokeStyle = '#ff5040';
+      ctx.beginPath(); ctx.moveTo(q.x - 6, q.y - 6); ctx.lineTo(q.x + 6, q.y + 6); ctx.moveTo(q.x + 6, q.y - 6); ctx.lineTo(q.x - 6, q.y + 6); ctx.stroke();
     }
+    if (q.z > 0.3 && opts.labels !== false) {
+      ctx.fillStyle = 'rgba(190,255,220,0.92)';
+      ctx.fillText(c.name.toUpperCase(), q.x + 8, q.y - 6);
+    }
+    hits.push({ key: `c:${id}`, kind: 'country', x: q.x, y: q.y, r: 11, data: { id } });
+    if (hoverCountry === id) reticle(ctx, q.x, q.y, 12, '#c8ffe4');
+  }
+  // home port
+  if (opts.hq) {
+    const q = P(opts.hq.lat, opts.hq.lon);
+    if (q.z > 0) {
+      ctx.strokeStyle = '#ffd860';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(q.x - 5, q.y - 5, 10, 10);
+      ctx.fillStyle = '#ffd860';
+      ctx.fillText('HALVERMOUTH [HQ]', q.x + 8, q.y + 12);
+      hits.push({ key: 'hq', kind: 'hq', x: q.x, y: q.y, r: 9, data: opts.hq });
+    }
+    // your shipments: the route flows toward the buyer, the craft sits where it really is
     for (const sh of opts.shipments || []) {
       const B = countries[sh.country];
       if (!B) continue;
-      const pts = arc(opts.hq, B, 30);
-      ctx.strokeStyle = 'rgba(122,255,200,0.6)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      let pen = false;
-      for (const p of pts) {
-        const q2 = project(p.lat, p.lon, rot, tilt);
-        if (q2.z <= 0) { pen = false; continue; }
-        const X = cx + q2.x * r * p.lift;
-        const Y = cy - q2.y * r * p.lift;
-        if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
-        pen = true;
-      }
-      ctx.stroke();
-      const k = Math.min(pts.length - 1, Math.floor(sh.progress * (pts.length - 1)));
-      const q3 = project(pts[k].lat, pts[k].lon, rot, tilt);
-      if (q3.z > 0) {
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(cx + q3.x * r * pts[k].lift, cy - q3.y * r * pts[k].lift, 3.5, 0, Math.PI * 2); ctx.fill();
-      }
+      const pts = arc(opts.hq, B, 36, sh.air ? 0.16 : 0.03);
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(255,216,96,0.9)';
+      path(pts, 0, sh.progress); // wake: where it has been
+      ctx.strokeStyle = 'rgba(255,216,96,0.45)';
+      ctx.setLineDash([5, 5]);
+      ctx.lineDashOffset = -time * 14; // marching toward the buyer
+      path(pts, sh.progress, 1);
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      const q = at(pts, Math.min(0.999, Math.max(0.001, sh.progress)));
+      if (q.z <= 0) continue;
+      // a sonar ping around each of your craft
+      const ping = (time * 0.8 + sh.id * 0.3) % 1;
+      ctx.strokeStyle = `rgba(255,216,96,${1 - ping})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 4 + ping * 14, 0, Math.PI * 2); ctx.stroke();
+      drawCraft(ctx, q.x, q.y + (sh.air ? 0 : Math.sin(time * 2 + sh.id) * 0.8), q.ang, 1.15 * Math.min(1.6, zoom), '#ffd860', sh.air);
+      const key = `s:${sh.id}`;
+      hits.push({ key, kind: 'ship', x: q.x, y: q.y, r: 12, data: sh.data });
+      if (opts.hover === key) reticle(ctx, q.x, q.y, 12, '#fff2b0');
     }
   }
-  // capitals
-  ctx.font = `bold ${Math.max(9, size / 38)}px "Trebuchet MS", sans-serif`;
-  for (const [id, c] of Object.entries(countries)) {
-    const q = project(c.lat, c.lon, rot, tilt);
-    if (q.z <= 0) continue;
-    const X = cx + q.x * r;
-    const Y = cy - q.y * r;
-    const pulse = 3 + Math.sin(time * 3 + id.length) * 1.5;
-    ctx.fillStyle = c.color;
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath(); ctx.arc(X, Y, pulse + 4, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.beginPath(); ctx.arc(X, Y, 3, 0, Math.PI * 2); ctx.fill();
-    if (q.z > 0.35 && opts.labels !== false) {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillText(c.name, X + 6, Y - 4);
-    }
-  }
-  // atmosphere
-  const ag = ctx.createRadialGradient(cx, cy, r * 0.92, cx, cy, r * 1.12);
-  ag.addColorStop(0, 'rgba(120,200,255,0)');
-  ag.addColorStop(0.5, 'rgba(120,200,255,0.25)');
-  ag.addColorStop(1, 'rgba(120,200,255,0)');
+  // rim glow
+  const ag = ctx.createRadialGradient(cx, cy, r * 0.94, cx, cy, r * 1.1);
+  ag.addColorStop(0, 'rgba(80,255,170,0)');
+  ag.addColorStop(0.5, 'rgba(80,255,170,0.22)');
+  ag.addColorStop(1, 'rgba(80,255,170,0)');
   ctx.fillStyle = ag;
-  ctx.beginPath(); ctx.arc(cx, cy, r * 1.12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.1, 0, Math.PI * 2); ctx.fill();
+  return hits;
+}
+
+/** Which country's land is under a screen point (for hovering the land, not only the capital). */
+function countryAtPoint(x, y, size, view) {
+  if (!LAND) return null;
+  const r = size * 0.42 * view.zoom;
+  let best = null;
+  let bd = Math.max(5, r * 3 * D2R);
+  for (const p of LAND) {
+    const q = project(p.lat, p.lon, view.rot, view.tilt);
+    if (q.z <= 0) continue;
+    const d = Math.hypot(size / 2 + q.x * r - x, size / 2 - q.y * r - y);
+    if (d < bd) { bd = d; best = p.country; }
+  }
+  return best;
 }
 
 // ---------------------------------------------------------- the terminal
 const TERMINAL_TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
 
-/** The terminal at the works itself. */
+/** The globe's camera survives re-renders (each button press redraws the panel). */
+const VIEW = { rot: 40, tilt: 22, zoom: 1, auto: true, hover: null };
+
+/** The terminal at the works itself: a monitor on the desk. */
 function terminalPanel(ui, body, opts) {
   const def = ui.game.arms.def(opts.warehouse);
   const go = (t, extra = {}) => ui.openPanel('terminal', { warehouse: opts.warehouse, tab: t, ...extra });
   terminalScreen(ui, body, opts, go);
-  const tab = opts.tab || 'Overview';
-  return { title: `Terminal — ${def.name}`, tabs: TERMINAL_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go(t) })) };
+  return { title: `${def.name} — terminal`, className: 'monitor' };
 }
 
+const two = (n) => String(n).padStart(2, '0');
+const stamp = (g, total) => `D${Math.floor(total / 1440) + 1} ${two(Math.floor((total % 1440) / 60))}:${two(Math.floor(total % 60))}`;
+
 /**
- * The terminal's screen: shared by the works terminal and the tablet's
- * Business app. go(tab, extra) re-renders it on another tab.
+ * The console: shared by the works terminal and the tablet's Business app.
+ * go(tab, extra) re-renders it on another tab.
  */
 function terminalScreen(ui, body, opts, go) {
   const g = ui.game;
   const A = g.arms;
+  const M = g.market;
   const wh = opts.warehouse;
   const def = A.def(wh);
   const tab = opts.tab || 'Overview';
   const items = g.content.items;
   const cfg = A.cfg;
   const say = (r) => { ui.audio.sfx(r.ok ? 'sfx_ui_click' : 'sfx_fail'); go(tab, { msg: r.text }); };
-
-  // the screen: globe + status
-  const wrap = h('div', { class: 'terminal' });
-  const canvas = h('canvas', { width: 300, height: 300, class: opts.remote ? 'globe small' : 'globe' });
-  const status = h('div', { class: 'term-status' });
   const p = A.power(wh);
   const staff = A.staffOf(wh);
   const r = A.state.research;
-  status.append(...[
-    h('div', { class: 'term-title' }, `▣ ${def.name.toUpperCase()} — ${opts.remote ? 'REMOTE LINK' : 'ARMS WORKS TERMINAL'}`),
-    h('div', {}, `Funds: ${g.player.money} obols · Power: ${p.machines}/${p.capacity} stations · Staff: ${staff.length}/${def.bunks}`),
-    h('div', {}, `Research: ${r.current ? `${cfg.research[r.current].name} ${Math.floor(r.progress)}/${cfg.research[r.current].cost} RP` : 'none selected'}`),
-    h('div', {}, `Lucas's budget today: ${A.lucasBudgetLeft()} obols · Earned to date: ${A.state.earned} obols`),
-    opts.msg ? h('div', { class: 'term-msg' }, `> ${opts.msg}`) : null,
-  ].filter(Boolean));
-  wrap.append(h('div', { class: 'term-top' }, canvas, status));
-  body.append(wrap);
+  const ms = M.state;
+  const now = g.clock.total;
+
+  const screen = h('div', { class: 'osint' });
+  body.append(screen);
+
+  // header bar
+  screen.append(h('div', { class: 'os-head' },
+    h('span', { class: 'os-brand' }, '◉ PIPECREEK//OVERWATCH'),
+    h('span', {}, 'TRADE-INTEL CONSOLE v4.1'),
+    h('span', {}, `NODE ${def.name.toUpperCase()}${opts.remote ? ' [REMOTE]' : ''}`),
+    h('span', {}, `${stamp(g, now)}Z`),
+    h('span', { class: 'os-live' }, '● LIVE')));
+
+  // globe + side panels
+  const SIZE = 420;
+  const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
+  const canvas = h('canvas', { width: SIZE * dpr, height: SIZE * dpr, class: 'os-globe', style: `width:${SIZE}px;height:${SIZE}px` });
+  const tip = h('div', { class: 'os-tip hidden' });
+  const ctrl = (label, fn, title) => h('button', { class: 'os-mini', title, onclick: fn }, label);
+  const globeBox = h('div', { class: 'os-globe-box' }, canvas, tip,
+    h('div', { class: 'os-globe-ctrl' },
+      ctrl('+', () => { VIEW.zoom = Math.min(2.6, VIEW.zoom * 1.25); }, 'Zoom in'),
+      ctrl('−', () => { VIEW.zoom = Math.max(0.8, VIEW.zoom / 1.25); }, 'Zoom out'),
+      ctrl('HQ', () => { VIEW.rot = -cfg.hq.lon; VIEW.tilt = Math.max(-60, Math.min(60, cfg.hq.lat * 0.8)); VIEW.auto = false; }, 'Centre on Halvermouth'),
+      ctrl('AUTO', (e) => { VIEW.auto = !VIEW.auto; e.currentTarget.classList.toggle('on', VIEW.auto); }, 'Auto-rotate')),
+    h('div', { class: 'os-globe-help' }, 'DRAG: ROTATE · WHEEL: ZOOM · HOVER: INSPECT'));
+  globeBox.querySelector('.os-mini:last-child').classList.toggle('on', VIEW.auto);
+
+  const status = h('div', { class: 'os-box' },
+    h('div', { class: 'os-label' }, '▌STATUS'),
+    h('div', {}, `FUNDS ........ ${g.player.money} OB`),
+    h('div', {}, `POWER ........ ${p.machines}/${p.capacity} STATIONS`),
+    h('div', {}, `STAFF ........ ${staff.length}/${def.bunks} ON BOOKS`),
+    h('div', {}, `RESEARCH ..... ${r.current ? `${cfg.research[r.current].name.toUpperCase()} ${Math.floor(r.progress)}/${cfg.research[r.current].cost}` : 'IDLE'}`),
+    h('div', {}, `EXPORTS ...... ${ms.earned} OB EARNED`),
+    h('div', {}, `PIPECREEK BUY  ${A.lucasBudgetLeft()} OB LEFT TODAY`));
+
+  // contacts: your shipments, live
+  const contactRows = ms.shipments.map((x) => {
+    const sh = cfg.shippers[x.shipper];
+    const prog = Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs));
+    const hrs = Math.max(0, Math.ceil((x.arrives - now) / 60));
+    const row = h('div', { class: 'os-contact', onmouseenter: () => { VIEW.hover = `s:${x.id}`; VIEW.pin = true; }, onmouseleave: () => { VIEW.pin = false; VIEW.hover = null; } },
+      h('div', {}, `${x.shipper === 'stork' ? '✈' : '⛴'} #${String(x.id).padStart(3, '0')} → ${cfg.countries[x.country].name.toUpperCase()}${x.embargo ? ' ⚠EMB' : ''}`),
+      h('div', { class: 'os-bar' }, h('i', { style: `width:${Math.round(prog * 100)}%` })),
+      h('div', { class: 'os-dim' }, `${sh.name.toUpperCase()} · ETA ${hrs}H · ${x.value} OB`));
+    return row;
+  });
+  const contacts = h('div', { class: 'os-box' }, h('div', { class: 'os-label' }, `▌CONTACTS (${ms.shipments.length})`),
+    ...(contactRows.length ? contactRows : [h('div', { class: 'os-dim' }, 'NO CARGO AT SEA. SHIP FROM THE MARKET TAB.')]));
+  const intercepts = h('div', { class: 'os-box os-log' }, h('div', { class: 'os-label' }, '▌INTERCEPTS'),
+    ...ms.news.slice(0, 6).map((n) => h('div', {}, h('span', { class: 'os-dim' }, `[D${n.day}] `), n.text.toUpperCase())));
+  screen.append(h('div', { class: 'os-top' }, globeBox, h('div', { class: 'os-side' }, status, contacts, intercepts)));
+
+  // command bar
+  screen.append(h('div', { class: 'os-cmds' },
+    ...TERMINAL_TABS.map((t, i) => h('button', { class: t === tab ? 'on' : '', onclick: () => go(t) }, `F${i + 1} ${t.toUpperCase()}`))));
+  screen.append(h('div', { class: 'os-prompt' }, `root@${wh}:~$ ${opts.msg ? '' : tab.toLowerCase()}`, opts.msg ? h('span', { class: 'os-msg' }, opts.msg) : null, h('span', { class: 'os-cursor' }, '█')));
+
+  // ------------------------------------------------- the live globe
   const ctx = canvas.getContext('2d');
-  const t0 = performance.now();
-  const loop = () => {
+  let hits = [];
+  let last = performance.now();
+  const t0 = last;
+  const shipInfo = (x) => {
+    const sh = cfg.shippers[x.shipper];
+    return {
+      id: x.id, shipper: sh.name, air: x.shipper === 'stork', dest: cfg.countries[x.country].name,
+      cargo: Object.entries(x.items).map(([id, n]) => `${n}× ${items[id]?.name}`),
+      value: x.value, insured: x.insured, embargo: x.embargo,
+      eta: Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60)),
+      progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)),
+    };
+  };
+  const loop = (ts) => {
     if (!canvas.isConnected) return;
-    const m = g.market.state;
-    const now = g.clock.total;
-    drawGlobe(ctx, 300, (performance.now() - t0) / 1000, cfg.countries, {
+    const dt = Math.min(0.1, (ts - last) / 1000);
+    last = ts;
+    if (VIEW.auto && !drag && !VIEW.hover) VIEW.rot -= dt * 6;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const m = M.state;
+    hits = drawGlobe(ctx, SIZE, Math.max(0, ts - t0) / 1000, cfg.countries, {
+      rot: VIEW.rot, tilt: VIEW.tilt, zoom: VIEW.zoom, hover: VIEW.hover,
       wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
-      shipments: m.shipments.map((x) => ({ country: x.country, progress: Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs)) })),
+      embargoed: Object.entries(m.countries).filter(([, c]) => c.embargo).map(([id]) => id),
+      shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), data: shipInfo(x) })),
     });
+    // scan line sweeping the scope
+    const sy = ((ts - t0) / 1000 * 60) % SIZE;
+    ctx.fillStyle = 'rgba(90,255,170,0.06)';
+    ctx.fillRect(0, sy, SIZE, 3);
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
 
-  const sect = h('div', { class: 'term-body' });
-  body.append(sect);
+  let drag = null;
+  const local = (e) => { const b = canvas.getBoundingClientRect(); return { x: ((e.clientX - b.left) * SIZE) / b.width, y: ((e.clientY - b.top) * SIZE) / b.height }; };
+  const describe = (hit) => {
+    if (hit.kind === 'ship') {
+      const d = hit.data;
+      return [`${d.air ? '✈ AIRFRAME' : '⛴ VESSEL'} #${String(d.id).padStart(3, '0')} — YOUR CARGO`, `OPERATOR  ${d.shipper.toUpperCase()}`, `DEST      ${d.dest.toUpperCase()}`, `CARGO     ${d.cargo.join(', ')}`, `VALUE     ${d.value} OB ON ARRIVAL`, `PROGRESS  ${Math.round(d.progress * 100)}% · ETA ${d.eta}H`, d.insured ? 'INSURED' : 'UNINSURED', d.embargo ? '⚠ EMBARGO RUN — CUSTOMS RISK' : null].filter(Boolean);
+    }
+    if (hit.kind === 'traffic') {
+      const d = hit.data;
+      if (d.dark) return ['◌ UNIDENTIFIED VESSEL', 'AIS TRANSPONDER: OFF', `HEADING   TOWARD ${d.to.toUpperCase()}`, 'CARGO     UNKNOWN', 'NOT ONE OF YOURS'];
+      return [`⛴ ${d.name.toUpperCase()}`, `ROUTE     ${d.from.toUpperCase()} → ${d.to.toUpperCase()}`, `DECLARED  ${d.cargo.toUpperCase()}`, 'AIS TRANSPONDER: ON', 'NOT ONE OF YOURS'];
+    }
+    if (hit.kind === 'hq') return ['■ HALVERMOUTH — HOME PORT', `${M.state.shipments.length} OUTBOUND CONTACT(S)`, `EXPORTS TO DATE ${M.state.earned} OB`];
+    const id = hit.data.id;
+    const c = cfg.countries[id];
+    const st = M.state.countries[id];
+    const enemy = M.enemyOf(id);
+    const fams = Object.entries(c.wants).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([f]) => f.toUpperCase()).join(', ');
+    const ours = M.state.shipments.filter((x) => x.country === id);
+    const inbound = ours.length ? ours.map((x) => `#${x.id}: ${Object.entries(x.items).map(([iid, n]) => `${n}× ${items[iid]?.name}`).join(', ')} (ETA ${Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60))}H)`) : ['NONE'];
+    return [
+      `◆ ${c.name.toUpperCase()}`,
+      `STATUS    ${enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE'}${st.embargo ? ' · EMBARGOED' : ''}`,
+      `BUDGET    ${Math.round(st.budget)} OB`,
+      `WANTS     ${fams}`,
+      `PAYS      PISTOL ${M.price(id, 'item_pistol')} · RIFLE ${M.price(id, 'item_assault_rifle')} · MISSILE ${M.price(id, 'item_missile_guided')}`,
+      `STANCE    ${st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : 'NEUTRAL'}`,
+      'YOUR INBOUND CARGO:', ...inbound.map((t) => `  ${t}`),
+      c.blurb,
+    ];
+  };
+  const hover = (e) => {
+    const pt = local(e);
+    if (drag) {
+      VIEW.rot += (pt.x - drag.x) * 0.35 / VIEW.zoom;
+      VIEW.tilt = Math.max(-70, Math.min(70, VIEW.tilt + (pt.y - drag.y) * 0.3 / VIEW.zoom));
+      drag = pt;
+      return;
+    }
+    // craft first (they sit on top), then capitals, then any land
+    const order = { ship: 0, traffic: 1, hq: 2, country: 3 };
+    const hit = hits.filter((x) => Math.hypot(x.x - pt.x, x.y - pt.y) <= x.r).sort((a, b) => order[a.kind] - order[b.kind])[0]
+      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
+    VIEW.hover = hit?.key || null;
+    if (!hit) { tip.classList.add('hidden'); return; }
+    tip.replaceChildren(...describe(hit).map((t, i) => h('div', { class: i ? '' : 'os-tip-title' }, t)));
+    tip.classList.remove('hidden');
+    const b = canvas.getBoundingClientRect();
+    const box = globeBox.getBoundingClientRect();
+    const x = e.clientX - box.left + 14;
+    const y = e.clientY - box.top + 14;
+    tip.style.left = `${Math.min(x, b.width - 230)}px`;
+    tip.style.top = `${Math.min(y, b.height - 40)}px`;
+  };
+  canvas.addEventListener('pointerdown', (e) => { drag = local(e); canvas.setPointerCapture(e.pointerId); tip.classList.add('hidden'); });
+  canvas.addEventListener('pointerup', (e) => {
+    const was = drag;
+    drag = null;
+    // a click (not a drag) on a country opens the market with it chosen as the buyer
+    const pt = local(e);
+    if (was && Math.hypot(pt.x - was.x, pt.y - was.y) < 3 && VIEW.hover?.startsWith('c:')) {
+      const id = VIEW.hover.slice(2);
+      go('Market', { form: { ...(opts.form || { shipper: 'morrow', insured: false, qty: {} }), country: id }, msg: `TARGET SET: ${cfg.countries[id].name.toUpperCase()}` });
+    }
+  });
+  canvas.addEventListener('pointermove', hover);
+  canvas.addEventListener('pointerleave', () => { if (!VIEW.pin) VIEW.hover = null; tip.classList.add('hidden'); });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); VIEW.zoom = Math.max(0.8, Math.min(2.6, VIEW.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); }, { passive: false });
+
+  // ------------------------------------------------- the command tabs
+  const sect = h('div', { class: 'os-body' });
+  screen.append(sect);
   const row = (icon, name, desc, ...buttons) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, name), desc ? h('div', { class: 'desc' }, desc) : null), ...buttons);
   const btn = (label, fn, cls = 'small') => h('button', { class: cls, onclick: fn }, label);
+  const H3 = (t) => h('h3', {}, `■ ${t.toUpperCase()}`);
 
   if (tab === 'Overview') {
-    const made = Object.entries(A.state.produced).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ') || 'nothing yet';
-    const dock = Object.entries(g.world.containers[def.inBay].items).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ') || 'empty';
-    const cage = Object.entries(g.world.containers[def.outCrate].items).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ') || 'empty';
+    const list = (o) => Object.entries(o).filter(([, n]) => n > 0).map(([id, n]) => `${items[id]?.name} ×${n}`).join(', ');
     sect.append(
-      h('p', {}, h('b', {}, 'Produced: '), made),
-      h('p', {}, h('b', {}, 'Loading dock: '), dock),
-      h('p', {}, h('b', {}, 'Export cage: '), cage),
-      h('p', { class: 'muted' }, 'How it works: order parts and equipment here (they land on the loading dock within the hour). Take the equipment from the dock, press B to place stations, then hire staff and assign them. Choose each station\'s recipe with E. Belts and inserter arms can move parts between stations. Put finished weapons in the export cage and ship them abroad from the Market tab — or carry them to Lucas at Pipecreek Armory, who buys at half value.'),
+      H3('Inventory'),
+      h('pre', { class: 'os-pre' }, [
+        `PRODUCED (ALL TIME) : ${list(A.state.produced) || 'NOTHING YET'}`,
+        `LOADING DOCK        : ${list(g.world.containers[def.inBay].items) || 'EMPTY'}`,
+        `EXPORT CAGE         : ${list(g.world.containers[def.outCrate].items) || 'EMPTY'}`,
+        `ORDERS INBOUND      : ${A.state.orders.filter((o) => o.wh === wh).map((o) => `${o.qty}× ${items[o.item].name}`).join(', ') || 'NONE'}`,
+      ].join('\n')),
+      H3('Operating procedure'),
+      h('pre', { class: 'os-pre os-dim' }, [
+        '01  ORDER PARTS + EQUIPMENT (F2/F3). DELIVERY TO LOADING DOCK < 60 MIN.',
+        '02  COLLECT EQUIPMENT FROM DOCK. [B] TO PLACE STATIONS. [E] ON A STATION SETS ITS RECIPE.',
+        '03  HIRE + ASSIGN STAFF (F4). STATIONS RUN ONLY WHILE STAFFED ON SHIFT.',
+        '04  BELTS + INSERTER ARMS MOVE PARTS BETWEEN STATIONS.',
+        '05  FINISHED UNITS → EXPORT CAGE. SHIP ABROAD (F6) OR SELL TO PIPECREEK ARMORY AT 50%.',
+        '06  CLICK A COUNTRY ON THE GLOBE TO TARGET IT AS A BUYER.',
+      ].join('\n')),
     );
   } else if (tab === 'Parts' || tab === 'Equipment') {
     const list = Object.entries(items).filter(([, it]) => (tab === 'Parts' ? it.category === 'arms_part' && it.price > 0 : it.build && (it.build.domain === 'arms' || ['belt', 'inserter', 'generator'].includes(it.build.type))));
-    if (tab === 'Parts' && A.partsMult() < 1) sect.append(h('p', { class: 'muted' }, `Lean Supply: parts ${Math.round((1 - A.partsMult()) * 100)}% off.`));
+    sect.append(H3(tab === 'Parts' ? 'Supplier catalogue — parts' : 'Supplier catalogue — equipment'));
+    if (tab === 'Parts' && A.partsMult() < 1) sect.append(h('p', { class: 'os-dim' }, `LEAN SUPPLY ACTIVE: PARTS −${Math.round((1 - A.partsMult()) * 100)}%`));
     for (const [id, it] of list) {
       const price = A.partPrice(id);
       const qs = tab === 'Parts' ? [1, 10, 50] : it.build.type === 'belt' ? [10, 50] : [1];
-      sect.append(row(itemIcon(it), `${it.name} — ${price} obols`, it.description, ...qs.map((q) => btn(`×${q}`, () => say(A.order(wh, id, q))))));
+      sect.append(row(itemIcon(it), `${it.name} — ${price} OB`, it.description, ...qs.map((q) => btn(`×${q}`, () => say(A.order(wh, id, q))))));
     }
     const pending = A.state.orders.filter((o) => o.wh === wh);
-    if (pending.length) sect.append(h('p', { class: 'muted' }, `On the way: ${pending.map((o) => `${o.qty}× ${items[o.item].name}`).join(', ')}.`));
+    if (pending.length) sect.append(h('p', { class: 'os-dim' }, `INBOUND: ${pending.map((o) => `${o.qty}× ${items[o.item].name}`).join(', ')}.`));
   } else if (tab === 'Staff') {
     const stations = A.cells(wh).machines;
-    sect.append(h('div', { class: 'row' }, btn('Auto-assign free staff', () => say(A.autoAssign(wh)), 'primary')));
-    if (!staff.length) sect.append(h('p', { class: 'muted' }, 'No staff yet. Hire from the applicants below.'));
+    sect.append(H3('Personnel'), h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('AUTO-ASSIGN FREE STAFF', () => say(A.autoAssign(wh)), 'small primary')));
+    if (!staff.length) sect.append(h('p', { class: 'os-dim' }, 'NO PERSONNEL ON FILE. HIRE FROM THE APPLICANT POOL BELOW.'));
     for (const st of staff) {
       const sel = h('select', { onchange: (e) => say(A.assign(st.id, e.target.value || null)) },
         h('option', { value: '' }, '— unassigned —'),
@@ -23654,18 +24329,18 @@ function terminalScreen(ui, body, opts, go) {
       const skills = Object.entries(st.skills).map(([k, v]) => `${k} ${v}`).join(' · ');
       sect.append(row('👷', `${st.name} — ${st.wage}/day — morale ${Math.round(st.morale)}${st.unpaid ? ' (UNPAID)' : ''}`, `${skills}${st.quirk ? ` · ${cfg.quirks[st.quirk].name}: ${cfg.quirks[st.quirk].text}` : ''}`, sel, btn('Bonus', () => say(A.bonus(st.id))), btn('Fire', () => say(A.fire(st.id)))));
     }
-    sect.append(h('h3', { style: 'margin:14px 0 6px' }, `Applicants today (${staff.length}/${def.bunks} bunks used)`));
+    sect.append(H3(`Applicant pool — ${staff.length}/${def.bunks} bunks used`));
     A.candidates().forEach((c, i) => {
       const skills = Object.entries(c.skills).map(([k, v]) => `${k} ${v}`).join(' · ');
       sect.append(row('📋', `${c.name} — ${c.main} specialist — ${c.wage}/day`, `${skills}${c.quirk ? ` · ${cfg.quirks[c.quirk].name}: ${cfg.quirks[c.quirk].text}` : ''}`, btn('Hire', () => say(A.hire(i, wh)))));
     });
-    sect.append(h('p', { class: 'muted' }, 'Wages are paid at 19:00 from your obols. Unpaid twice, or morale under 15, and they quit. Idle staff recover morale; working ones slowly lose it — a bonus (a day\'s wage) helps.'));
+    sect.append(h('p', { class: 'os-dim' }, 'PAYROLL 19:00 FROM YOUR FUNDS. UNPAID TWICE OR MORALE < 15 → RESIGNATION. IDLE STAFF RECOVER MORALE; A BONUS (ONE DAY\'S WAGE) HELPS.'));
   } else if (tab === 'Research') {
     const labs = A.cells(wh).machines.filter((e) => e.kind === 'lab');
-    sect.append(h('p', { class: 'muted' }, labs.length ? 'Research points come from staffed research labs (in any of your works). Pick a project:' : 'You need a Research Lab (Equipment) with a scientist assigned to earn research points.'));
+    sect.append(H3('R&D programme'), h('p', { class: 'os-dim' }, labs.length ? 'RESEARCH POINTS COME FROM STAFFED LABS IN ANY OF YOUR WORKS. SELECT A PROJECT:' : 'NO LAB DETECTED. ORDER A RESEARCH LAB (F3) AND ASSIGN A SCIENTIST.'));
     const grid = h('div', { class: 'research' });
     for (const br of cfg.branches) {
-      const col = h('div', { class: 'branch' }, h('h4', {}, br));
+      const col = h('div', { class: 'branch' }, h('h4', {}, br.toUpperCase()));
       for (const [id, n] of Object.entries(cfg.research).filter(([, x]) => x.branch === br)) {
         const done = A.done(id);
         const avail = A.available(id);
@@ -23673,64 +24348,52 @@ function terminalScreen(ui, body, opts, go) {
         const cls = `node${done ? ' done' : avail ? ' avail' : ' locked'}${cur ? ' cur' : ''}`;
         const need = n.requires.filter((q) => !A.done(q)).map((q) => cfg.research[q].name).join(', ');
         col.append(h('button', { class: cls, disabled: !avail || cur, onclick: () => say(A.selectResearch(id)) },
-          h('b', {}, n.name), h('span', {}, done ? ' ✓' : ` ${n.cost} RP`), h('div', { class: 'desc' }, n.text), cur ? h('div', { class: 'desc' }, `In progress: ${Math.floor(r.progress)}/${n.cost}`) : null, !done && need ? h('div', { class: 'desc' }, `Needs: ${need}`) : null));
+          h('b', {}, n.name), h('span', {}, done ? ' ✓' : ` ${n.cost} RP`), h('div', { class: 'desc' }, n.text), cur ? h('div', { class: 'desc' }, `IN PROGRESS: ${Math.floor(r.progress)}/${n.cost}`) : null, !done && need ? h('div', { class: 'desc' }, `NEEDS: ${need}`) : null));
       }
       grid.append(col);
     }
     sect.append(grid);
   } else if (tab === 'Market') {
-    const M = g.market;
-    const ms = M.state;
     const cage = g.world.containers[def.outCrate].items;
     const cargo = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms);
-    // news
-    sect.append(h('h3', { style: 'margin:4px 0 6px' }, 'World news'));
-    sect.append(h('div', { class: 'news' }, ...ms.news.slice(0, 6).map((n) => h('div', {}, `Day ${n.day} — ${n.text}`))));
-    // in transit
-    if (ms.shipments.length) {
-      sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'In transit'));
-      for (const x of ms.shipments) {
-        const hrs = Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60));
-        sect.append(row('🚢', `${cfg.countries[x.country].name} — ${x.value} obols on arrival`, `${cfg.shippers[x.shipper].name} · arrives in ${hrs}h · ${Object.entries(x.items).map(([id, n]) => `${n}× ${items[id].name}`).join(', ')}${x.insured ? ' · insured' : ''}${x.embargo ? ' · EMBARGO RUN' : ''}`));
-      }
-    }
-    // countries
-    sect.append(h('h3', { style: 'margin:12px 0 6px' }, 'Buyers'));
+    // buyers
+    sect.append(H3('Buyers'));
     for (const [id, c] of Object.entries(cfg.countries)) {
       const st = ms.countries[id];
       const enemy = M.enemyOf(id);
-      const tags = [enemy ? `AT WAR with ${cfg.countries[enemy].name}` : 'at peace', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `hostility ${st.hostility}` : null].filter(Boolean).join(' · ');
+      const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : null].filter(Boolean).join(' · ');
       const prices = (cargo.length ? cargo.map(([iid]) => iid) : ['item_pistol', 'item_assault_rifle', 'item_missile_guided', 'item_drone_attack']).map((iid) => `${items[iid].name} ${M.price(id, iid)}`).join(' · ');
-      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. Pays: ${prices}`));
+      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. PAYS: ${prices}`));
     }
     // a new shipment
     const form = opts.form || { country: Object.keys(cfg.countries)[0], shipper: 'morrow', insured: false, qty: {} };
+    form.qty ||= {};
     const qty = Object.fromEntries(cargo.map(([id, n]) => [id, Math.min(n, form.qty[id] ?? 0)]));
     const value = M.quote(form.country, qty);
     const fee = M.fee(form.shipper, value, form.insured);
     const sh = cfg.shippers[form.shipper];
     const upd = (patch) => go('Market', { form: { ...form, ...patch, qty: { ...qty, ...(patch.qty || {}) } } });
-    sect.append(h('h3', { style: 'margin:14px 0 6px' }, 'Ship from this works\' export cage'));
-    if (!cargo.length) sect.append(h('p', { class: 'muted' }, 'The export cage is empty. Finished weapons go in the cage (by belt, or by hand: E on the cage → Store).'));
+    sect.append(H3('Book a shipment from this works\' export cage'));
+    if (!cargo.length) sect.append(h('p', { class: 'os-dim' }, 'EXPORT CAGE EMPTY. FINISHED WEAPONS GO IN THE CAGE (BY BELT, OR BY HAND: E ON THE CAGE → STORE).'));
     else {
-      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px' },
+      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
         h('select', { onchange: (e) => upd({ country: e.target.value }) }, ...Object.entries(cfg.countries).map(([id, c]) => h('option', { value: id, selected: id === form.country }, `${c.name}${ms.countries[id].embargo ? ' (EMBARGO)' : ''}`))),
         h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === form.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
-        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` Insure (+${Math.round(cfg.market.insuranceRate * 100)}%, pays ${Math.round(cfg.market.insurancePayout * 100)}% if lost)`)));
-      sect.append(h('p', { class: 'muted' }, sh.blurb));
+        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)));
+      sect.append(h('p', { class: 'os-dim' }, sh.blurb));
       for (const [id, n] of cargo) {
         sect.append(row(itemIcon(items[id]), `${items[id].name} — ${M.price(form.country, id)} each`, `${n} in the cage`,
           h('input', { type: 'number', min: 0, max: n, value: qty[id] || 0, style: 'width:64px', onchange: (e) => upd({ qty: { [id]: Math.max(0, Math.min(n, Number(e.target.value) || 0)) } }) }),
           btn('All', () => upd({ qty: { [id]: n } }))));
       }
-      sect.append(h('p', {}, h('b', {}, `Value on arrival: ${value} obols · Shipping now: ${fee} obols`), ms.countries[form.country].embargo ? ' · ⚠ Embargo run: illegal; if customs seize it, they\'ll trace it to you.' : ''));
-      sect.append(h('div', { class: 'row' }, btn('Ship it', () => {
+      sect.append(h('p', {}, h('b', {}, `VALUE ON ARRIVAL: ${value} OB · SHIPPING NOW: ${fee} OB`), ms.countries[form.country].embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''));
+      sect.append(h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('SHIP IT', () => {
         const res = M.ship({ wh, country: form.country, shipper: form.shipper, insured: form.insured, items: qty });
         ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
         go('Market', { msg: res.text, form: res.ok ? { ...form, qty: {} } : form });
-      }, 'primary')));
+      }, 'small primary')));
     }
-    sect.append(h('p', { class: 'muted' }, `Earned from exports: ${ms.earned} obols. Lucas still buys wholesale at Pipecreek Armory (half value, up to his daily budget).`));
+    sect.append(h('p', { class: 'os-dim' }, `EXPORTS TO DATE: ${ms.earned} OB. PIPECREEK ARMORY STILL BUYS WHOLESALE AT 50% (UP TO LUCAS'S DAILY BUDGET).`));
   }
 }
 
@@ -23826,8 +24489,6 @@ function businessApp(ui, body, opts, open) {
     body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
       ...works.map((id) => h('button', { class: `small${id === wh ? ' primary' : ''}`, onclick: () => open('Business', { warehouse: id, sub }) }, g.arms.def(id).name))));
   }
-  body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
-    ...TERMINAL_TABS.map((t) => h('button', { class: `small${t === sub ? ' primary' : ''}`, onclick: () => go(t) }, t))));
   terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, form: opts.form, remote: true }, go);
 }
 
@@ -24117,7 +24778,7 @@ class UI {
     const res = PANELS[top.name](this, modalBody, top.opts) || {};
     top.onClose = res.onClose;
     modalTitle.textContent = res.title || '';
-    this.el.modalPanel?.classList.toggle('tablet', res.className === 'tablet');
+    if (this.el.modalPanel) this.el.modalPanel.className = `panel${res.className ? ` ${res.className}` : ''}`;
     for (const t of res.tabs || []) modalTabs.appendChild(h('button', { class: t.active ? 'active' : '', onclick: () => { this.panelStack.pop(); t.onclick(); } }, t.label));
     modal.classList.remove('hidden');
   }

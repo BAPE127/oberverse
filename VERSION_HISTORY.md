@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.15.1 | 2026-10-13 | development | 1 | Overwatch — OSINT terminal, interactive globe, zoomable world map |
 | 0.15.0 | 2026-10-13 | development | 1 | OberPad — the journal becomes a tablet: business, stocks, notifications |
 | 0.14.0 | 2026-10-13 | development | 1 | Gun Running — the global market, shipping, heavy weapons in use |
 | 0.13.0 | 2026-10-13 | development | 1 | Pipecreek — fifth imported character, arms works, staff, research |
@@ -20,6 +21,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.15.1 — Overwatch
+
+Presentation only: the terminal becomes an OSINT console with an interactive globe, and the map becomes one zoomable world map with building icons. Saves are unchanged.
 
 ## 0.15.0 — OberPad
 
