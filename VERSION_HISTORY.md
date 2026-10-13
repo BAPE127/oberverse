@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.11.0 | 2026-10-13 | development | 1 | Sums of Anarchy — fourth imported character, the gang, calculators, customers |
 | 0.10.0 | 2026-10-13 | development | 1 | Law & Order — third imported character, police, Wanted, jail and breakouts |
 | 0.9.0 | 2026-10-13 | development | 1 | Personal Wrath — fixed out-of-reach attacks; oil and construction themes |
 | 0.8.0 | 2026-10-13 | development | 1 | Debug Menu — testing console and toolbox |
@@ -15,6 +16,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.11.0 — Sums of Anarchy
+
+Arthur Anderson (imported) and the Sums of Anarchy; calculators with temporary stat highs; Schedule I-style customers, orders and gang anger. Saves: `world.gang`, `player.buffs` and `player.tolerance` are added to older saves on load; no migration needed. Warehouses and production follow in 0.12.0.
 
 ## 0.10.0 — Law & Order
 

@@ -18,6 +18,11 @@ export const SHOPS = {
     stock: { item_revolver: 2, item_pistol: 2, item_shotgun: 1, item_rifle: 1, item_smg: 1, item_ammo_38: 10, item_ammo_9mm: 10, item_ammo_shells: 8, item_ammo_rifle: 6, item_knuckles: 2, item_bat: 2, item_machete: 1 },
     buys: { item_revolver: 45, item_pistol: 60, item_shotgun: 90, item_rifle: 110, item_smg: 160, item_bat: 10, item_machete: 18, item_knuckles: 8, item_fire_axe: 20, item_baton: 12 },
   },
+  shop_sums: {
+    name: 'The Abacus counter (Sums of Anarchy)', owner: 'npc_minnie', restockAt: '11:00',
+    stock: { item_calc_charm: 6, item_calc_wits: 6, item_calc_grit: 6, item_calc_finesse: 6, item_calc_health: 6, item_calc_energy: 8 },
+    buys: {},
+  },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
     stock: { item_crowbar: 1, item_bolts: 3, item_fire_axe: 1 },

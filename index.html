@@ -49,6 +49,10 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 #hud-wanted .stars.flash { animation: wanted-flash 0.8s steps(2) infinite; }
 #hud-wanted .off { color: rgba(255,255,255,0.25); }
 #hud-wanted .tag { display: block; font-size: 12px; opacity: 0.85; }
+#hud-wanted .tag.high { color: #7ad08a; }
+#hud-wanted .tag.low { color: #e8a060; }
+#hud-wanted .tag.gang { color: #ff8a70; }
+#hud-wanted .tag.gang.t3 { color: #ff4a3a; font-weight: bold; }
 @keyframes wanted-flash { 50% { color: #7ab4ff; text-shadow: 0 0 8px rgba(60,130,255,1); } }
 #hud-tr { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .minimap-card { padding: 5px; line-height: 0; }
@@ -1188,7 +1192,12 @@ const buildings = [
   shack('sh_1', 1, 40, 4, 3, '#8a5a3a'), shack('sh_2', 7, 40, 4, 3, '#6a6e6a'), shack('sh_3', 1, 46, 3, 3, '#7a4a3a'),
   shack('sh_4', 7, 46, 5, 3, '#5a6a7a'), shack('sh_5', 1, 53, 4, 3, '#8a7a4a'), shack('sh_6', 7, 54, 4, 3, '#7a5a4a'),
   shack('sh_7', 28, 40, 4, 3, '#6a5a4a'), shack('sh_8', 33, 40, 4, 3, '#8a4a3a'), shack('sh_9', 28, 47, 5, 3, '#5a5a4a'),
-  shack('sh_10', 17, 55, 4, 3, '#7a6a5a'), shack('sh_11', 28, 54, 4, 3, '#6a4a3a'), shack('sh_12', 33, 54, 4, 3, '#5a6a5a'),
+  shack('sh_10', 17, 55, 4, 3, '#7a6a5a'),
+  {
+    id: 'b_abacus', name: 'The Abacus', mapLabel: 'The Abacus (Sums of Anarchy)', x: 28, y: 53, w: 9, h: 5,
+    roof: '#5a2a24', wall: '#8a4a3a', trim: '#2a1a14', flatRoof: true, shabby: true, sign: 'THE ABACUS', awning: '#8a2a20',
+    door: { x: 32, y: 57, to: { map: 'abacus', spot: 'entry' } },
+  },
   shack('sh_13', 1, 63, 5, 3, '#8a5a4a'), shack('sh_14', 8, 63, 4, 3, '#6a6a5a'), shack('sh_15', 18, 63, 4, 3, '#7a4a3a'),
   shack('sh_16', 28, 63, 5, 3, '#5a5a6a'), shack('sh_17', 1, 68, 4, 3, '#7a6a4a'), shack('sh_18', 25, 69, 4, 3, '#8a5a3a'),
   // The Docks
@@ -1304,6 +1313,24 @@ const halvermouth = {
     mission_front: { x: 22, y: 46, facing: 'up' },
     park_center: { x: 99, y: 49, facing: 'up' },
     docks_quay: { x: 70, y: 72, facing: 'down' },
+    // the Sumps: the Sums of Anarchy's turf, their customers' haunts and the corners where deals happen
+    abacus_door_out: { x: 32, y: 58, facing: 'down' },
+    abacus_bouncer: { x: 34, y: 59, facing: 'left' },
+    sumps_corner: { x: 20, y: 53, facing: 'down' },
+    sumps_fire_n: { x: 12, y: 43, facing: 'up' },
+    sumps_fire_w: { x: 7, y: 50, facing: 'left' },
+    sumps_fire_s: { x: 11, y: 58, facing: 'up' },
+    sumps_fire_e: { x: 25, y: 48, facing: 'left' },
+    sumps_fire_mill: { x: 22, y: 67, facing: 'up' },
+    sumps_lane: { x: 5, y: 45, facing: 'down' },
+    sumps_wreck: { x: 24, y: 46, facing: 'left' },
+    sumps_tents: { x: 18, y: 49, facing: 'down' },
+    sumps_tents_w: { x: 9, y: 53, facing: 'down' },
+    sumps_mill_road: { x: 20, y: 61, facing: 'down' },
+    sumps_south: { x: 15, y: 68, facing: 'down' },
+    sumps_shore: { x: 12, y: 73, facing: 'down' },
+    sumps_east: { x: 35, y: 66, facing: 'left' },
+    sumps_fence: { x: 36, y: 48, facing: 'left' },
     ober_tower_front: { x: 24, y: 35, facing: 'up' },
   },
   props,
@@ -1467,9 +1494,50 @@ const gunShop = {
   ],
 };
 
-const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop];
+// The Abacus: the Sums of Anarchy's bar and headquarters. Bar (south),
+// a back hall with a pool table, the crew's bunk room (north-west) and
+// Arthur Anderson's office (north-east).
+const abacus = {
+  id: 'abacus',
+  name: 'The Abacus',
+  kind: 'interior',
+  music: 'mus_workshop',
+  ambience: 'amb_indoor',
+  tiles: (() => {
+    const rows = roomTiles(18, 12, 'f', 9, [[6, 1, 1, 2, 'W'], [6, 4, 1, 2, 'W'], [1, 6, 6, 1, 'W'], [11, 1, 1, 3, 'W'], [11, 5, 1, 1, 'W'], [11, 6, 6, 1, 'W']]).map((r) => r.split(''));
+    for (let y = 1; y < 6; y++) for (let x = 12; x < 17; x++) rows[y][x] = 'c';
+    return rows.map((r) => r.join(''));
+  })(),
+  doors: [{ id: 'door_abacus_exit', x: 9, y: 11, to: { map: 'halvermouth', spot: 'abacus_door_out' } }],
+  spots: {
+    entry: { x: 9, y: 10, facing: 'up' }, bar_back: { x: 4, y: 7, facing: 'down' }, bar_front: { x: 4, y: 9, facing: 'up' },
+    table_a: { x: 12, y: 9, facing: 'right' }, table_b: { x: 15, y: 10, facing: 'up' }, pool: { x: 10, y: 3, facing: 'left' }, hall_couch: { x: 9, y: 5, facing: 'down' },
+    arthur_desk: { x: 14, y: 2, facing: 'down' }, arthur_bed: { x: 15, y: 4, facing: 'right' }, arthur_visitor: { x: 13, y: 5, facing: 'up' },
+    bunk_1: { x: 1, y: 3, facing: 'up' }, bunk_2: { x: 2, y: 3, facing: 'up' }, bunk_3: { x: 3, y: 3, facing: 'up' }, bunk_4: { x: 4, y: 3, facing: 'down' }, bunk_5: { x: 5, y: 3, facing: 'down' },
+  },
+  props: [
+    { id: 'ab_counter', type: 'counter', x: 2, y: 8, w: 5, color: '#4a2a1e', interact: { kind: 'shop', shop: 'shop_sums', staffed: true, name: 'counter', closed: 'Nobody behind the counter. Minnie works 11:00–02:00.' }, examine: 'The bar. Taped under the till: a price list in perfect long-hand. Every price ends in .99. "Psychology," says a note in Arthur\'s handwriting.' },
+    { id: 'ab_shelf', type: 'shelf', x: 1, y: 7, w: 1, h: 1, examine: 'Bottles. Behind them, neatly stacked, boxes and boxes of calculators.' },
+    { id: 'ab_table1', type: 'table', x: 13, y: 9, examine: 'A sticky table. Someone has carved 2 + 2 = 5 into it. Someone else has carved "NO IT DOESN\'T — A.A."' },
+    { id: 'ab_table2', type: 'table', x: 15, y: 8 },
+    { id: 'ab_juke', type: 'wardrobe', x: 16, y: 10, color: '#8a2a2a', examine: 'A jukebox. Every song on it is about numbers. "Seven Nation Army". "99 Problems". "Mambo No. 5".' },
+    { id: 'ab_pool', type: 'table', x: 8, y: 2, w: 2, h: 2, color: '#2a5a3a', examine: 'A pool table. The balls are numbered in binary.' },
+    { id: 'ab_couch', type: 'bench', x: 7, y: 5, w: 2, color: '#6a3a2a' }, // Max sleeps beside it
+    { id: 'ab_board', type: 'noticeboard', x: 9, y: 0, examine: 'A chalkboard: this week\'s takings by corner, to the penny. Underlined twice: "THE SUMPS LOOKS AFTER ITS OWN." Underlined three times: "NO COPS."' },
+    // the crew's bunks
+    { id: 'ab_cot1', type: 'cot', x: 1, y: 1 }, { id: 'ab_cot2', type: 'cot', x: 3, y: 1 }, { id: 'ab_cot3', type: 'cot', x: 5, y: 1 },
+    { id: 'ab_cot4', type: 'cot', x: 2, y: 4 }, { id: 'ab_cot5', type: 'cot', x: 4, y: 4 },
+    // Arthur's office
+    { id: 'ab_desk', type: 'desk', x: 13, y: 3, w: 3, color: '#3a1a14', examine: 'Arthur\'s desk: a ledger of grudges, a ledger of takings, and a third ledger that just says "LEDGERS". A desk calculator with the = key worn through.' },
+    { id: 'ab_safe', type: 'cabinet', x: 16, y: 1, color: '#3a3a3e', examine: 'A safe. Painted on the door in red: "TOUCH THIS AND I WILL DO THE MATHS ON YOUR TEETH."' },
+    { id: 'ab_bed', type: 'cot', x: 16, y: 4 },
+    { id: 'ab_portrait', type: 'painting', x: 13, y: 0, examine: 'A framed photo of a very young Arthur at a school maths fair, holding a trophy. He is scowling.' },
+  ],
+};
 
-return { halvermouth, hallOfJustice, policeStation, jail, gunShop, default: __default };
+const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus];
+
+return { halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, default: __default };
 })();
 
 // ---- src/content/props.js
@@ -1646,6 +1714,36 @@ const ITEMS = {
     name: 'Bent Fork', category: 'tool', price: 0, tags: ['tool', 'contraband'], icon: 'spoon',
     description: 'Petty Larson\'s fork, its tines bent into the exact shape of a vent-cover screw head.',
   },
+  item_calc_charm: {
+    name: 'Rose-Gold Sum', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'charm',
+    description: 'A pink four-function calculator with rhinestone keys. Press 5318008, turn it upside down, and the whole world finds you delightful. (+Charm for a few hours.)',
+    use: { calc: 'charm', text: 'You tap out a sum and feel your smile get more expensive.' },
+  },
+  item_calc_wits: {
+    name: 'Big Brain 9000', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'wits',
+    description: 'A chunky grey calculator with a cracked solar strip. One long division and everything clicks. (+Wits for a few hours.)',
+    use: { calc: 'wits', text: 'You divide by seven. The universe divides with you.' },
+  },
+  item_calc_grit: {
+    name: 'The Brick', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'grit',
+    description: 'A heavy black calculator in a rubber case. You could stop a bullet with it. You might. (+Grit for a few hours.)',
+    use: { calc: 'grit', text: 'You multiply. Your jaw sets like concrete.' },
+  },
+  item_calc_finesse: {
+    name: 'Featherkey', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'finesse',
+    description: 'A wafer-thin silver calculator with keys that barely click. Your fingers feel lighter just holding it. (+Finesse for a few hours.)',
+    use: { calc: 'finesse', text: 'Tap-tap-tap. Your fingers go quiet and quick.' },
+  },
+  item_calc_health: {
+    name: 'Plus Pack', category: 'calculator', price: 16, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'health',
+    description: 'A first-aid green calculator with only one big key: +. Patches you up. (Heals.)',
+    use: { calc: 'health', text: 'Plus, plus, plus. The aches add up to less.' },
+  },
+  item_calc_energy: {
+    name: 'Overclock', category: 'calculator', price: 14, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'energy',
+    description: 'A buzzing yellow calculator with a battery taped to the back. A rush now, a crash later. (+Energy.)',
+    use: { calc: 'energy', text: 'You hammer the = key and your heart does it too.' },
+  },
   item_vault_key: {
     name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
     description: 'A heavy, ornate key with a dollar-sign bow. It opens the vault in Sir Moneybucks\'s study.',
@@ -1801,6 +1899,18 @@ const FACTS = {
   fact_player_assault: {
     text: 'The newcomer attacked someone — in cold blood, in public.', importance: 8, aboutPlayer: true,
     relImpact: { trust: -12, affection: -10, suspicion: 18 }, reputation: { lanternside: -6 }, keywords: ['attack', 'fight', 'assault', 'violence'],
+  },
+  fact_sums_of_anarchy: {
+    text: 'The Sums of Anarchy run calculators out of the Sumps. Arthur Anderson is in charge, and he is always angry.', importance: 5,
+    keywords: ['sums', 'anarchy', 'gang', 'arthur', 'calculators', 'abacus'],
+  },
+  fact_player_dealing: {
+    text: 'The newcomer has been dealing calculators.', importance: 6, aboutPlayer: true,
+    relImpact: { trust: -5, suspicion: 15 }, keywords: ['dealing', 'calculators', 'selling'],
+  },
+  fact_player_stole_customer: {
+    text: 'The newcomer is selling calculators to the Sums of Anarchy\'s customers.', importance: 7, aboutPlayer: true,
+    keywords: ['customers', 'stealing', 'turf'],
   },
   fact_player_smitten: {
     text: 'The newcomer raised a hand against one of the untouchable — and was struck down by lightning out of a clear sky.', importance: 9,
@@ -1984,6 +2094,11 @@ const SHOPS = {
     stock: { item_revolver: 2, item_pistol: 2, item_shotgun: 1, item_rifle: 1, item_smg: 1, item_ammo_38: 10, item_ammo_9mm: 10, item_ammo_shells: 8, item_ammo_rifle: 6, item_knuckles: 2, item_bat: 2, item_machete: 1 },
     buys: { item_revolver: 45, item_pistol: 60, item_shotgun: 90, item_rifle: 110, item_smg: 160, item_bat: 10, item_machete: 18, item_knuckles: 8, item_fire_axe: 20, item_baton: 12 },
   },
+  shop_sums: {
+    name: 'The Abacus counter (Sums of Anarchy)', owner: 'npc_minnie', restockAt: '11:00',
+    stock: { item_calc_charm: 6, item_calc_wits: 6, item_calc_grit: 6, item_calc_finesse: 6, item_calc_health: 6, item_calc_energy: 8 },
+    buys: {},
+  },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
     stock: { item_crowbar: 1, item_bolts: 3, item_fire_axe: 1 },
@@ -2004,6 +2119,7 @@ const FACTIONS = {
   fac_oil: { name: 'Ober\'s Oil', description: 'Sir Moneybucks\'s company. Values profit, deference and profit.' },
   fac_builders: { name: 'Mason\'s Os', description: 'Mason Nails\'s construction crew. Value good work, fair pay and a decent pun.' },
   fac_police: { name: 'Halvermouth Police', description: 'Precinct 1 of the city police. Values order, evidence and paperwork filed on time.' },
+  fac_sums: { name: 'Sums of Anarchy', description: 'Arthur Anderson\'s calculator gang in the Sumps. Values loyalty, margins and the Sumps itself. Hates the police.' },
   fac_quay: { name: 'Quay Workers\' Collective', description: 'Mechanics, fishers and dockhands of the Quay. Value loyalty and practical help.' },
 };
 
@@ -2693,6 +2809,7 @@ const MOTIFS = {
   motif_moneybucks: { title: 'Sir Moneybucks — "Dividends"', bpm: 112, notes: 'Bb2:2 F3:1 Bb3:1 D4:2 F4:3 -:1 F4:1 Bb4:3', inst: 'brass', character: 'npc_moneybucks' },
   motif_mason: { title: 'Mason — "Measure Twice" (whistled)', bpm: 160, notes: 'G5:1 E5:1 G5:1 C6:3 -:1 B5:1 C6:2', inst: 'flute', character: 'npc_mason' },
   motif_lawrence: { title: 'Lawrence — "Not My Department" (lazy tuba)', bpm: 84, notes: 'C3:2 G2:1 -:1 C3:1 D3:1 E3:3 -:1 D3:1 C3:3', inst: 'bass', character: 'npc_lawrence' },
+  motif_arthur: { title: 'Arthur — "Carry The One" (angry brass)', bpm: 150, notes: 'D3:1 D3:1 F3:1 D3:1 G#3:2 -:1 A3:1 D4:3', inst: 'brass', character: 'npc_arthur' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -2719,6 +2836,7 @@ const AUDIO_REGISTRY = [
   { id: 'motif_mags', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mags', trigger: 'conversation opens with Mags', status: 'implemented', source: 'Original composition' },
   { id: 'motif_osric', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_osric', trigger: 'conversation opens with Osric', status: 'implemented', source: 'Original composition' },
   { id: 'motif_lawrence', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_lawrence', trigger: 'conversation opens with Chief Lawrence Order', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_arthur', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_arthur', trigger: 'conversation opens with Arthur Anderson', status: 'implemented', source: 'Original composition' },
   { id: 'motif_tibbs', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_tibbs', trigger: 'conversation opens with Tibbs', status: 'implemented', source: 'Original composition' },
   { id: 'voice_blips', category: 'voice', method: 'procedural: per-character voice params (characters/*.voice)', trigger: 'dialogue text typing', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_step', 'player footsteps (surface-dependent pitch)'),
@@ -2753,6 +2871,7 @@ const AUDIO_REGISTRY = [
   sfx('sfx_thunder', 'each lightning strike of the Wrath (arcane theme)'),
   sfx('sfx_gusher', 'each oil geyser in Sir Moneybucks\'s Wrath (ignites from the third)'),
   sfx('sfx_beam', 'each falling I-beam in Mason\'s Wrath; the fifth is the wrecking ball'),
+  sfx('sfx_digit', 'each giant digit in Arthur Anderson\'s Wrath; the fifth is the giant calculator'),
   sfx('sfx_ram', 'each squad car ramming in during Chief Order\'s Wrath; the fifth is the gavel'),
   amb('amb_harbour', 'lanternside'),
   amb('amb_indoor', 'player_flat, civic_office, osric_house'),
@@ -3094,6 +3213,7 @@ __m["src/content/portraits.js"] = (function () {
 // GENERATED by tools/embed-portraits.mjs from assets/portraits/ — do not edit by hand.
 // Keep images small (≈224px square JPEG); originals live in assets/portraits/reference/.
 const PORTRAITS = {
+  npc_arthur: 'data:image/jpeg;base64,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',
   npc_lawrence: 'data:image/jpeg;base64,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',
   npc_mason: 'data:image/jpeg;base64,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',
   npc_moneybucks: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCADgAOADASIAAhEBAxEB/8QAHAAAAQUBAQEAAAAAAAAAAAAABQIDBAYHAQAI/8QAQhAAAgEDAgMGBAMFBQgCAwAAAQIDAAQRBSEGEjETIkFRYXEHMoGRFCOhJEKxwdEVM1Jy4QgWNENTYmPwJmSCkvH/xAAaAQADAQEBAQAAAAAAAAAAAAABAgMEAAUG/8QAJREAAgIBBQADAAMBAQAAAAAAAAECEQMEEiExQRMiURQVMlJh/9oADAMBAAIRAxEAPwAj2uWwprkiNjNcSEoc088ZdPKvmD30iIJCprrttmmJpOwfDU4swZaLTOQ3ISRjFQZrYk82KJlgR0pichU3NNFUBsBatqFtoumz392SsUK5OOpPgB6k1hnEPFF/xHdNLcyMsIJ7OBT3Yx/M+taD8ZLt103T7dGIjkmdmA8eUbfxNZPXs6PElHezytXlbltR7NP2+zCo9PwHBHnW5GJ9Fh02XDL2hU46b5zRnKuq4O2OuKrVncyoO4FG/j5UftnZo8MQxIzzCiBEK9YIDg7/AMaDXjBlwoOaL32QcKfXpQe5w24yT51wGDnHjSDTsuBsKaNBlEcr3jXjtXhShFIzI2VJBohZ/nOGGAy7kfzoeN6LaZEMhyOU4+9CULQY5HFj8oyh+tD1G1E7gALlehGR6UNToaypVwb075FoN6Q471LTPNXJB3q5dhfR4DapcozEvvUTwFTZRiFPpSyGXQmcfJ70q46JSrpcKnqa5N/y6QJ9JC7PgM1IiuRIvTFDViZjT8bmE4xXluKNKkxV3GkufCoRYxHHWpE7O47qmozK2e9tTJcHNjhc4qPM5PU07g42NMTRGmSEk6M8+LtuZdFs5xv2Vxg+zKf6Vk9bf8RrTtuEL44yY+SQfRh/WsQxXr6R3jo8vUL72c6U7FsRuN6aNOwAlwBsfOtaM76J9nb9rKAT02zjarUkfZWyqCFHgBQTT1bK4I65yeho6qFYDkEsBknPU0RUDb/GwB28fWg9wwSN12w22Mb0VuwzgBAS2MeVCLnAICgZA6eVcD0HsQNsU0adlxnI8abalZRCa6K4K7g9fCgEXEpLjbO9WOyh5ou8BzZ39Kr1u5SQY8at8SDsA6thWUZ+1HwX0GNkowPQEgUNTx96LsMxEkYyKFAdayt22ejCNJC4yOauOMtXYhlq7Js1L6O+hOBgVNmH5Se9Qj1HvU+QZRPelmMmeuz3Yx616cf3fvXrwf3XvXZclo/ekGR9FCTlp2OVTuwzUQsPOvLKi+NebVl7onmZB+6KjXCiYd3akuVYbEV5XCrXJHWRTE8Z65FeaTmTB6ivTXAGd6ilxnINNQraBfG8Ha8Iat4fs5P2INfP1fQPFs5PC2qrjObZx+lfPtepov8ALPO1dblR2n7bvNynyqOakWmO0GfCtyMT6LJo5ZVKx4PhzH+VG5QxjB5uRsYJNCdFlRmBPy5GPKjdwU5RgE58G60TkgHfRkhcZU+fnQO+5ebrzHzAwBVh1LZPlx6HwqsXqhW3zzUBa5IkjZpsnelt065pGK5lEeFdFcrwpQjkakuMVarbnfTox0YbE+lV2yQPKvQEnHtVqdOyt1AXGcDfbwrpcIEVbIU4xGQPLFCfCjcwHI3tQQjascT06FQ9a6/WvQDeuv8ANXenPoQ2xFT5f7uP3qEw3HvRCdcRxe9CQ0UJvOkfvXphhoq7eDHZe9duPmhpGE2tb4ucU52560FW45DnwqbFdIwAB3rDGikkwhHO2adMu1RIZQTipAjLe1O6Jcka4fJpsMQetTvwyk711rOPlyK7ckFQZX+KD/8AGdUP/wBZ6wYit145/Z+EtUYNjMPL9yBWHxQSXDcsa5JP0r0NH/lmLVqpIYpSsQaNW3D6kc1xKf8AKn9aIR6XZQgckCk+bHNbTKQ9MmmYq0fd8MqRmrFhwiiWQux39qH45VwuF9F2xSDnpnausFD99yspAO+N6rt7Cc8xU5PmKNEYGNqQy4Xqa6w0VdwQcEUjrVguFUjdQfpQmdAGOFrrOuiIRvivAEU4V8q8IyfEUtBslaZ/fjcD3FW27YfhYmXBUkZqpWEZS4QspwSMeRq1M5a0RGz3GFCfQYf6I1yDyt7GgYzvvR652Vh6GgQ6GscT1Wei60tvmrkXWldTR9EPEZYe9T7vaOL3qD+8vvU+73ji/wA1K2OJvDkQ+9emzzxClXQy0I9aXMn5sIpWclZopkAXB60mCZg+ADXbleRyMV23YE9K880B3TmD4zRNiEFB9JfmlwegoVx9xo/DaQWtqiG5uFL877hFBx08TmrQi5ukZsjUeWWN7shsYpX4ksuKxKTjTVJJjI+o3Ybr3JMD7DapkHxEv4lAa8uXx4kKf5Vp/hSM61cS6fEe4xwvNFgnt5EjGPfP8qy+yUCXAFGNQ44/tWAQXqvPGG5uVsYz57UNGu2UW8djGp88CtmnxvHHazNmmpytBWMdzzpRGAfOhB4px8tugptuKJydokqzJoMY5q4UIyeU/agbcS3h6YFNNr9437woUcH+RvBdqSyNg+B96rj6tdt1lI9qaa+uGG8z/euo4OTo+CO76b0Nnh5TlpYx9agNK7fM7H3NI386ajqJREK/NKT/AJVrqy2y/wDUb7VExXulLQQjHe20YUCOTu7DvUQXXkdeVkONvEeFV3NezXbUzk66LWuo210CCShO2djUKWxlhQuOWRM/Mhzj3HUUCFSLe9ntmDRyuv12+1TeJeF455LsnQ7sacxg16CSO8VpYwqSoPzIx0I/xD+Yro+aoSVOmaoSUo2juO8Pep1yO5F/mqIo5mFTp0ysQ9alZQRcL+ZD707OD+Ih2rsy80sOPA09LEfxMVCQ8VwahrlikWXA60CiU8xwTV4120X8K+R0qkCQIzD1rCPHoKWMnZ+O9Vb4p6U1xb2usRAsYfyJceCk5B++31o3FPvsaJXkcV1pMsM4DJKpVgfEVTDkcJpk82LfFowNtuopuiev6VLpN81u4JQ96N/Bl86GV7kZWrR41NOmerqo0h5UUsT4AZriqZGCqMmta4E4HiNlBcSR800oDlmHQVPLlUFbNGDC8jpGc2nDOqXYBW3KA+LUWh4AvpBl3I9lrbYNH0u1TmlmjQDYs21F7C30G4YJDPDI3gNqxPVSZ6MdFBdmAf7gSqO80v2pacBnbKua+jzw/pzkKYlGfHFMNw5p0UnN2YIGxpf5MhlpYfh88ScClVyI2NQZ+EmiOArfevoHU7KyiQsyIirneqRrGoaVFOY44mkJ8qMdRJglpYJGUycOsgzhqiPpJXOCwxWkSQm7RjFYSqp/eI2oJdaaebvJynyx1qyzMzSwJFJe1dKYYEHcYq3to/MTldqBalYNDNyhCN9s1WOS+zPPFXQMr1OSwvE2GBGRkZpGMVYgcrua5Xq44ftbg28yyA+h9QdiPtRU/Nt4UEFGgPCo5vGaNP6h+3GZB9KJypunT5qG2+0gonKR+X/mrGzclwdCgzR+jVLVQ0y58M1GO00R/wC6n2l5J09aVlYm1cVBo7NmUEg1mc9xyucnxrX72OO6tCjjO1ZJxHaizvWRehNZY90DlKztm/OeY0TknL2pBbYUAt5ezX1qXJM3YBRnem28nbuBy64atuJrBrSVwkoGYpcZKN/TzFZVrOjXmhX0llfRGKVPsw8CD4itf0WQwzL1olxRoFjxJZdheJuBmOZfnjPmPT0rXhzuDp9GTLhU1a7MM0yLtGfl3YkKBX0/wtofNbWFiCYy8SgsOp26CsCtuD7/AEnV0s50EiyOvZSL8sgJxn09q+lbGMw/i7hST+Hl/DR46KEUZI9z/AUdVNNqimii1Zb04E0Ka1KXGnR3WNiZBnP3qrcTcHcPcOxQXFlAlpcSScqwpuG2328h6edDNF+IPE+rXc1paw255Oc9pKndXHRR5npknzqsa1JxjxNqBlu45BEoVR2qDA/xEYA5R6fxpWoyjwMt8Zqy56LeR6hL2Kvl49mU9RRbW7BrazM++BvVN4P0i+s9WtJZ42jkXGctkNHzYP8AEGr5xpcqmiuFPLhCetYq7PQt2qMc17iJ57tbCBeeSVsBR40W0nhfSrGaN9Tkae7I5vw8CFyPoKpWi2M+qcUxN2hQHmIbxz5D1rVeF+GpIZZBfzvBanvSJayZklP/AHv82PQYq6jVJCNt2yLrcdpbw7W8lumMKJIyoFZpxAsLSkpjHgR41N1/hDiGPWJWg1MLbIBGhWYgNgnvsGYnJHXaqvObmzuzb3LrJtuyZK586pHHT7sg8u5U40T7ZUnQA/MM7edRde0Jbq1a4TJMY7wHiP8ASpWnWdw6CZQQCasOl24l7S3kACyIykn2pt9Mm8doym4h7a0j5lXMZMbHG49aG29g1x2kfLkrR64tgZLmAhg+eYEeY8a5a89rsyKWIynhzY/lWxS4PNcbdFVmiaCQxv8AMOuKRRXXtMvrKdbi5tmjiuMmJ+ofHXfzFCwCdhvVU7Vk2mnQ9aRdrMi+AOTRQk5piyg7FMn5m6/0p81nnLczZihtjyOxHDj3olO2BF70Nj+ZfcUQuD3Ives7NKHZnIeI+tOTn86Go9wxLQ+9OTk9tD6A0jKLo+hpZAsW/lWTcXXfNqTelajelvwyEeK1kvFMROpOD41CK5Ebe0Zsis5HMcCi1zHEkaAEVW5GezjDgHFOteyyxqWJAqygn6R3teBuG9WG4TfarL+PieNMtgkVQCXPKy5xRBZ5SiZJ2pnjXjB8j/Cx3EC3OtaQI1aV2uFQKoyccwJOB7VpmjX1rLda1pqSxurym6jdGBDBwOYAjxDD9RWOWWqJb6vbXk1zPBFao0jvDnmAAztjfwG3iM1tyWEL6Lp0cFukMzxpKvKAMMygtn3J3qOVNUa9O93KEaLoUVtZkxQqeZiR/qam/wBjPcjlmbK5/u1PX3PlU60uU0mBYbmGYADBMac4P865NqOo6iTHounyx52/F3admkY8wvVjUk2X5bI9rZBtbflwI7OARty9O0Y82PoMUA+I9w0OjyxoTlhjbyq4afax2afhonaQA9+R/mkc/Mx9zVR+I5XsWAHN5DFGi0F4Zjw/GvbRNy4cMN/I1rNpB21up3Dnqynf/Wsc0u9ks9QiEykQyOFz5HNblpsPLaxMB1HXG5oyuxa4AWr6FcXkTBpiT03Teqhc8AFyVZMhjuxG5rW2l5Ryud/Oq9ql2M7YGPClcmugqN9lNfR7fS7QW4QAqMDNAwDbyPLsAu4qw61edzY79NqFPGklmXIPN47enjTY+xcqpGcSRoLl5MbHmJyOoBH67mhN+3I4EJzIc8rY+UeH1qzXelytcJBGATK5Vd/Pbf0qpaddyJqix3aAsk2JFPo24/Q1u3Ojz8eP7ciGlu77h+9t5ZJJUheOZFY83KxPKSPLY/pQu2tBGnO5y/8ACrZdWq6ZDq0A5cNO0S46YVyf6VWycIaKyOqQcuKKnZxOlKpMJyMUo9a5diMeTw96m3XyRe9QU6j3qbcfLH71NjroVJ88Ip2+2kh9jTMxxJDSr18yxb+FL6UT4NhuuJFa1QKwPhVXvo1vboSvihqTxsgVZGH1pSyOpyJ8j1qEoPwSGRekfiS0KWYMfhQe7vOTSIxjD0V1e8Z4VQ8re1BrgrcQKnJuB0qkE0uRMlN8BvSJo5bRQ4yfOpbqxBCUO06aKKHkYYqYLuFOjipSbvgtBLbySdBtxLf3HbjIW2lOCdj3DX0JpxYw6UW3/ZYyffkFfPmmXMaLeyhgT+FlwP8A8Dv7Vv2mXKm5tLSNTI0NpH2h6KmVGAT543x5UZ24lcKSfBbLflbvECmNb1YWlu3Ls2MYrkM4C7HagGvaja2LNd3siiCHLBS2O0I8N6W+CkY27Yuw16LT73sb2NopURWUSbCQHxB8d9jWcfFjjyxtAVgcNKxJ2OQKr/FHxAu+KtSEtwpFlbnMVvH3Vx6nqazzVrOPXGYxJLE4kZRliR+tVhjt8izzKKddnjxib2KVSGXAyM9c+FfR3w31ttU0K27dSsnZru3jtXzFp2kiwliknw+cNy4zzDy9D1r6F4B1zTZ7K2WKREblAC5602ZKPQNPNzX27LtqT8pIBwfKqhrEpPTYDpvuas1+TIpZMAnbc/es/wCJb1rIy3HadrEnedfEAdSPbrisjVs2RpIg30naOVOfX0qLqkostIMjHHMeXbxFemuAV5g6kHpv9aEcW3n4m0tbePKnx8farY0Z87Btrcl5xyE93Em/Ub/6CqsNIvGvU1S6jWOC5mYhwds5yaPaZOI7gxlQ46k+W3h9aJ6Si3X4exlbtbBpC0mcDkwDlvcCquTXBHFHdyVzieeNpuWMEB1abfr32JGfXGKqx3U0X1i9/H3txcgcqscIvkoGAPsKDg9yrJEJu5NnoBtmvcx5q9AcAgUjOHNOlyTZJXbl96m3B2iHrUJN+X3qXOd46kyiF3R70Rpu6f8APiHpXbk5aKmbpv2iP2rkjmzX4NC04w94LmhGp6JYjJSbk+tVb/eG+xy9oRn1qJPfXlxsZTvUIp/osmn4Oavbi2J7K5L+5oZDcup33NSzaF1HfJPrUOWH8O3ebc1TdfBJxrkmjUAgHMv2pa30MnpQ9ITL0YGpMdht8pzQbSGSfgV066/IvhGVH7Ow6bnNb/wxqIS7urWYclwQLiP/AMsTomCPPBBU+wr5whV7QyqejoVreNNNhxLoNlHLJLFcwgqk8L8skRGBsf5Gkm1RpwXZebnWILTTu2aWNML1bwPljz9KxXjLildbuJjLLIYkB5QSPoB/E1G4l0PXtNuD2t9cXtqpJJIw+PXG31qn3UN7OOzjiAndsZx8o8sUIQXdlJzfSRIXULaN5EkAVV3JxsNth709bXdumntKky5ZySnU496t3C3wqNwgutScKNmbI/lV0sdH4X08HsjA0pIVC0XQjr9ao5RHx4LX2MPu7mAxiRFDKAMMDsSDnp/EU7oerpZXJMU/JGTzKpblxnxq1ca8IWM1y8tkwDOOYpCvKvufvVMPBt6jnCsB4f8AvlTXFoz5IzhL6my8PcaR3lqttdzKXXYSA7N67/woJxbqNu8L21vPHJc3SlI4huTnYsfJQDnJrLJrS8tASImLL69PXApy11K8t2cRwqjuO+wG5HqfKkWJJ2UWobVNFoubzsnhtojlUAXPnioV7cm6lK4OQpXI+5/Tehcckh78mCSwz6U3d3BgunCMFGA49dun606iTnksLwfs8ckwfLcrKp2x0/pmq7a8QXEdu9lG7cs3z58qKm4/YXRcd2M8ynYn39d6qVufzwaaCT7E3tdEy4OVaoH7lTJW7rVCPy06EPQ7cxpCnLn3pcZwDTanvn3p12LInJ0X3p+frH71GUnC+9SJm3jz51FlUeuP7yOmpzm5QelO3Ld9KYlP7Sp9KMQSZZ20aBjkPSjp1um3Oc1I/s29xswx702dMuxuX/WvP+T/ANNfxr/kStrEvQ0zcaTDc7s2/vTjWF2P+Z+tc/BXX/U/Wjvf6Bw8aIsOkR278yvRGNooxuKY/BXP/U/WvPazYwZP1o232xVHb0hOoOht5XUfuGrbwTrsluxt2fEchHLjrk4z99v1qmT20vZOM5HKcj6VKsjLFJBJzBSqjc+OBsPerRjcKJ76nZsuo61a6pYoGwEjzz5O4Hp69KCcO6XaSanNcmEO6jmC4yAPT1qgycRSLbyEvyyGQHr456fbFXPgDV4Jb51kXmVh0zj6n60HjajaKRzRlKi0cRz3cenE269nGg7zk4UnwHqazW51e6trpOVGKpjrsd8/rWjaxf2cQEcA7XsSFBPTOdyPL0qkSQQz3AuGXcnLZ8N//fvQgqKTbY+mrGQA9d+8T1K4x96fjuAJo5Z8LDnf19QKET3P4I/uPDzchLjPL4g0ze6+JI3WROXlXDY8cU+1voTeorkka80EUr9mInUjm7x658QR4Gqlf31v+KYKhjI3HvXtV1Yi3UEklR3f8vn+tB72ePkM3Me1yDjGxX3q8YUZJ5VfASS9EzSKUC5TbHmDUKebml5jjC8oxjp71FjvewQSL1XDA+W/Sl2qPqd92MK8wd85yRgetOoVySeS+Ak5ZOH7q5fYTTrFDnq37zfYAUCgH5wrTuMOFo7H4UR6gsYE9vexshxgsjAqfuf4VmEDcxSQdHGRQStbkOpc7WPyjutUM7rUyQ5VqhZ2rkNR5DsaaQd7enR0NNg71QSXhMHRfen5WyY6ZTdVzTsvVPSolWenOXSmZP8AiBS5DmRd6SwzNn0ooD5ZokOr2rpguAB50ifVtPTrL9qy7trvGO1bHvST2zfM7n61m/r1fZb+wlXCNEn13Tl/5n61Ck4jshsrVSVV/HNdw/lVFo4r0m9bN+FtbiO26c1J/t+2b981UsP/AIa7hv8ADT/xYiPUzfhcI9XtZVYBxzEED3xSmvIpYRHFIO0CjHvVNQSB1IB6j+NOrBctdSGMsihz3s9N6eOm/GTnqP1B8zFxLHIhcg/N652NEOH9WexuG7VyCDlceY/l1pfDeh3Ovvc2dnySXUcDTInNu4Ud4AefLk/Q0P8AngKcjqyyFQzDxHX6YNVca4ZBT5tFyTiGSad/zDlvHHjjP9KYt9RNyApcIzA8hzsME5J9Nv1qmrqkscyk5Us5QnwIBqUNUW3SMqWkYx8uD4HJ7v6CoSxfhojnYW1TVM25gYEBpA5P+Hf/APlV+fVjcK4MgCspAOfEdD+pqNq2oSCApLIplOzcvhnr+lAzK5CjbzAq0MfBDLl5J13qDSxFWGCqgL6HxNMrK00mSPlAypO2AKYclnDFebIxtT1uknI6kLlhjJq1JELbH0M0z8ke+SBt+6K0b4d8MG7n7aReztg+WkxjtD/hX09arWjaZHadnPMvaSP3uU/KB4e9XO44yg4d0pZmVe3xlE8M+FZck7+sTZix7ftILfGniCFNOs+HLcr3B+KuFXoiqDyL9z+lYpo7B4zEWyQcqPKputa5NfC6uLmQyXV22XYnfHl7UL0wgSkZwSPKtOPHtjtZlyZblaCbghWBqJTn4oido3AZT60koCe6c+h2NTePaaseZSXI2TgGmlPep2QEdQRTKnvUENJk+M91c065yy00hyi0v94VFlbOSAdotez+ZSnxzUg/PXWdREC70rk3pYHeFLETOe6pNUsnX6NcmBScdali2IHfcL6DeliCOLcrluvep4wbJyyRiQBC8h7ik+tPrZYGZHwT0UdamsOUDIyx+VfL1p2KGNQWkZg58xkVZYl6ZpZm+iPHYiIczRgnzJzTsaplmkdgqHOQMivHl5sZz7CmtQZI7CYAtzkAjbYVVRS6IuTfZO+H3E9zwxxJHrsIMrW8vOY8451wQV+o2r6E+IfwVh4ijbWdCj7C+uAJ2gbZX5hnHod6+eODdIl1C8tYY0Zg8sRkIHyq0qrk+neH3r7tlQKQoGAuw9hUM3DRTGfC2t6BqehSdlfWNxbTNlSsoxzEbHB8d6r000iDPK6kbDfpX3ZxJwxp3EVrJb31rHMrf4xnHqD4V89/EP4PQ6Ixlt4GNuT3ZF6L6N5e/SpqaXZTY30YbKTO4YAinYLZmZQFLHxAqwz6CthLh7c7edSY+G9VvYllt7KW3tW6PykFx6enrT/IvBVjd8leitGaTslXL+nRR6mi1no7SSKiDndjjmxVq0TgO+umWNYGRfbf71oVtwJBw5w9qWrXKjNnaSzd7zCkj9cVGU23SLxgooyHVtattMJUjnkGyxg+W2/kKqN/qdzqU/bXD82PlQdFHkKiszyuXkJZ2OST4mvAFjgCtGPEo8+kMmVz48OMzO2WOSTUq0KK+SGHsaYjTmcD60/Hyj90j2NVIipwDIWz964hJO7bHrSiFbrz0qNE2wrfelZyFIzpkc2V8qcMa5GVwTvlfGuoB0wB4VIjiDRsp6p3h7eNdtTGU2meVAFHKc105zuKVEoYlfPYehrquRs3T18KjLB+GmOp/RDnJ6Uk9c0+8SliGPIfTpXDbMNsgn7VF4pIus0WJSKJdwpYDxO/2p3JCgtnl8F8/wDSlpGHJJ2iTqP5e5pcMX4iUBjsSdh5DwrYoIwubfY0E5V7RsEn5Qf4+1djjLMGI53bZVP7x9acH5sx7TCjGfYDwFPRIs4LwskngVGzL6Yp0qEY0iNC7douXPzBxXXaJv3XBx4NkUtriQDkbDgeDjOP5ikRshk5GiGWzuCRiiATGkbc4KvzcpKnPlUC/bFo6nBLYXJ6/N/rU+yzJI5/8bfwoZqZ55o4wRjmDH/36VwLNk/2cbKObjiTMavF+BchGGxGV2+hFbX8UfiJqXw+05L+DhW51WAjvzpcKI4j5PgFh74x61if+zfciLjyCIn57aZR9s/yr6euYknheORQ6upDIwyGB8CKy5H9uS0FxwfM99/tD8aX0AuLa10bTISM4ETTyY8MFjjP08Kqt/8AGjji7kMlxfRzQkYMLQJyMPIgAbfWpXxHtLCz+IGsWOm2gttPYrJByoVR+6AzJnbk5ubBG2xqlyQZZo8oT4lpAox9asoRa6EcpfoVi+Idy0/by6Po+V3QNHJyqf8ALzb+3Sjth8atVMgS80rSNQi8OQNA/wCmR+lUyz06PtAb6CJYW2Vst3j6HpXJprLTr6S2KxxYGY5ceBHjXfFD8O+Sf6bToHxy4MEvZanYX+luNmYIJowfdd/0o98TOPOE9Q+FGuPo+uWF5JcwC3SOOUc5LMNuU79M+FfMVrYyX8il3wWPXGc1p/BvwZfV4I7q4i5Ec91phlj68v8AWoyhCLKQlKa5MnsdJvdUnEVrA8rscDA2o7xDoEfCcEWmzMr6pOgkn3/4eM9F9Cevt71ul7wzo3wn0a51+8/OlRRHbwtgGaUjuqPTxPoDXzrql5c6tfz311IZJ7iQySOf3mP/ALtTwbm78FnUFXo1Z26s0jkZVRjPmT0/rTjoiHZD781P26dnbovicsf5fp/GnORezJbBycD+dXIohr2fXsz/APtTq8o6Rr9cmusI1O0P3c0tHA+WNF9cZP61KiiOjtplKqGI690YAp63bBViB3Thh/GklZpBnLsPXp/SmoZFiujHzqS3UKc4p0BkmSPsndPIkZpUybrINu0XJ9+hpc6flxyZBLDlPqRt/Sm45YpIXj5svG3y+QP+oonCivNCreKnlOfLwrgJaI9cr09qchXIkTI7yEj3G9NQlRKoOytsfY0tBP/Z',
@@ -5839,6 +5959,561 @@ const __default = [dlgLawrence, dlgJustin, dlgWarren, dlgBailey, dlgMiranda, dlg
 return { dlgLawrence, dlgJustin, dlgWarren, dlgBailey, dlgMiranda, dlgHugh, dlgPetty, default: __default };
 })();
 
+// ---- src/content/characters/sums.js
+__m["src/content/characters/sums.js"] = (function () {
+// The Sums of Anarchy: Arthur Anderson's calculator gang in the Sumps, and the
+// Sumps residents who buy from them. Arthur is an IMPORTED character
+// (player-supplied image and interview, 2026-10-13; see
+// docs/characters/npc_arthur.md). His crew (6) and the customers (12) were
+// generated at the player's request ("about 5-8 gang members", "fill the slum
+// with npc customers").
+const { PORTRAITS } = __m["src/content/portraits.js"];
+
+const arthur = {
+  id: 'npc_arthur',
+  name: 'Arthur Anderson',
+  shortName: 'Arthur',
+  tier: 'major',
+  origin: 'imported',
+  importedFrom: {
+    reference: 'assets/portraits/reference/npc_arthur_reference.jpg',
+    interviewDate: '2026-10-13',
+    notes: 'docs/characters/npc_arthur.md',
+  },
+  role: 'Leader of the Sums of Anarchy. Always angry. Runs the Sumps\' calculator trade like a spreadsheet, and protects the Sumps like family.',
+  faction: 'fac_sums',
+  dialogue: 'dlg_arthur',
+  motif: 'motif_arthur',
+  noSnitch: true,
+  voice: { wave: 'sawtooth', pitch: 135, variance: 30, rate: 1.15 },
+  appearance: {
+    // red-faced with anger (owner's answer): a permanent flush, brows slammed down, steam
+    skin: '#e8a890', hair: '#4a2a1a', hairStyle: 'short', beard: '#8a4a2a', accessory: 'glasses',
+    outfit: '#8a1e1e', legs: '#2a2224', shoes: '#1a1416', accent: '#f2efe8', build: 'broad', height: 1.02, angry: true,
+    sprite: null,
+    portrait: PORTRAITS.npc_arthur,
+  },
+  personality: {
+    traits: ['always angry', 'maths-obsessed', 'fiercely protective', 'petty', 'vengeful'],
+    sociability: 0.4, conscientiousness: 0.85, impulsiveness: 0.7, curiosity: 0.5, discretion: 0.5,
+    honesty: 0.6, competitiveness: 0.95, empathy: 0.35, confidence: 0.9, riskTolerance: 0.7, patience: 0.05, humor: 0.1,
+    values: ['the Sumps', 'his crew', 'numbers that add up', 'getting even'],
+    likes: ['exact change', 'long division', 'loyalty', 'the Sumps'], dislikes: ['cops', 'rounding errors', 'Halvermouth\'s regeneration plans', 'anyone who touches his customers', 'everything else'],
+  },
+  speech: {
+    formality: 0.3, verbosity: 0.6,
+    habits: ['shouts', 'quotes margins and percentages', 'keeps a grudge ledger', 'says "do the maths"'],
+    rumorPrefix: 'I HEARD — and I wrote it down —', factPrefix: 'Do the maths:', refuse: 'NO. Zero. Nought. Nil.',
+  },
+  // Protected: imported characters cannot be harmed (src/systems/combat.js isProtected).
+  wrath: {
+    theme: 'maths', // equations, calculator keys, ERROR readouts, falling digits, division by zero (src/engine/wrath.js)
+    color: '#ff3a2a',
+    banner: 'YOU DON\'T ADD UP',
+    subtitle: 'Arthur Anderson has done the maths. You are the remainder.',
+    line: 'You put your hands on me? ME? In MY Sumps? …Write that down, Percy. In red. Underline it.',
+  },
+  combat: { never: true, maxHealth: 160 },
+  punctuality: 15,
+  walkSpeed: 1.05,
+  schedule: [
+    { from: '08:00', to: '08:30', activity: 'eat', spot: 'abacus:arthur_desk', label: 'breakfast over the books' },
+    { from: '08:30', to: '12:00', activity: 'work', spot: 'abacus:arthur_desk', label: 'doing the books, furiously' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'abacus:table_a', label: 'lunch (angrily)' },
+    { from: '13:00', to: '16:00', activity: 'work', spot: 'abacus:arthur_desk', label: 'doing the books, furiously' },
+    { from: '16:00', to: '18:00', activity: 'patrol', spot: 'halvermouth:sumps_corner', label: 'walking his Sumps' },
+    { from: '18:00', to: '19:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_n', label: 'checking on the fire barrels' },
+    { from: '19:00', to: '23:30', activity: 'leisure', spot: 'abacus:table_b', label: 'glaring at the bar' },
+    { from: '23:30', to: '08:00', activity: 'sleep', spot: 'abacus:arthur_bed' },
+  ],
+  impulses: [],
+  relationships: {
+    player: { trust: 0, affection: -5, respect: 0, suspicion: 20 },
+    npc_al: { trust: 60, affection: 30, respect: 40, suspicion: 0 },
+    npc_percy: { trust: 70, affection: 20, respect: 50, suspicion: 5 },
+    npc_minnie: { trust: 50, affection: 30, respect: 30, suspicion: 0 },
+    npc_dee_nom: { trust: 50, affection: 25, respect: 35, suspicion: 0 },
+    npc_tony: { trust: 40, affection: 35, respect: 5, suspicion: 0 },
+    npc_max: { trust: 30, affection: 40, respect: 10, suspicion: 15 },
+    npc_lawrence: { trust: -60, affection: -70, respect: -30, suspicion: 80 },
+  },
+  knowledge: ['fact_sums_of_anarchy'],
+  giftPrefs: { item_coffee: 4, item_cigar: 8, tags: { food: 2 } },
+  reactions: {
+    fact_player_stole_customer: { rel: { trust: -15, affection: -15, suspicion: 20 }, bark: 'ANOTHER ONE? That\'s going in the ledger.' },
+    fact_player_murder: { bark: 'Bodies in the Sumps bring cops to the Sumps. I hate that.' },
+  },
+  notices: [{ map: 'abacus', tag: 'saw_player_abacus', text: 'The newcomer walked into the Abacus. Into MY Abacus.', importance: 3 }],
+  opinions: {
+    npc_lawrence: { warm: 'Order? He\'s lazy. Lazy\'s fine. Lazy stays out of the Sumps.', cool: 'Lawrence Order is a rounding error in a hat.' },
+    npc_moneybucks: { warm: 'Moneybucks? Rich. Doesn\'t come down here. Good.', cool: 'Moneybucks wants to "regenerate" the Sumps. Over my dead — over HIS dead —' },
+    npc_al: { warm: 'Al\'s my right hand. Solves for X. X is usually someone\'s face.', cool: 'Al needs to stop solving things with his fists. That\'s MY job.' },
+    npc_percy: { warm: 'Percy\'s books balance to the penny. I love Percy. Don\'t tell Percy.', cool: 'Percy takes a cut of everything. Including me. I respect it.' },
+  },
+};
+
+const crew = (o) => ({
+  tier: 'minor', origin: 'imported-generated', faction: 'fac_sums', noSnitch: true, walkSpeed: 1.05, punctuality: 5, impulses: [], notices: [], knowledge: ['fact_sums_of_anarchy'],
+  ...o,
+  appearance: { accent: '#c9302a', ...o.appearance },
+});
+
+const al = crew({
+  id: 'npc_al', name: 'Al Gebra', shortName: 'Al',
+  combat: { fights: true, defends: true, weapon: 'item_knuckles', maxHealth: 140 },
+  role: 'Arthur\'s right hand and enforcer. Solves for X. Delivers the gang\'s warnings in person.',
+  dialogue: 'dlg_al',
+  voice: { wave: 'square', pitch: 120, variance: 10, rate: 0.95 },
+  appearance: { skin: '#a8714e', hair: '#1a1410', hairStyle: 'short', beard: '#1a1410', outfit: '#3a1a1a', legs: '#1e1e22', build: 'broad', height: 1.06 },
+  personality: { traits: ['calm', 'menacing', 'loyal'], sociability: 0.3, conscientiousness: 0.7, impulsiveness: 0.3, discretion: 0.8, honesty: 0.6, empathy: 0.3, confidence: 0.9 },
+  speech: { rumorPrefix: 'Word is', factPrefix: 'Known quantity:', refuse: 'No.' },
+  schedule: [
+    { from: '09:00', to: '13:00', activity: 'patrol', spot: 'halvermouth:sumps_corner', label: 'watching the corners' },
+    { from: '13:00', to: '14:00', activity: 'eat', spot: 'abacus:table_a' },
+    { from: '14:00', to: '18:00', activity: 'patrol', spot: 'halvermouth:sumps_wreck', label: 'watching the corners' },
+    { from: '18:00', to: '23:00', activity: 'patrol', spot: 'halvermouth:sumps_mill_road', label: 'walking Mill Road' },
+    { from: '23:00', to: '01:00', activity: 'leisure', spot: 'abacus:pool' },
+    { from: '01:00', to: '09:00', activity: 'sleep', spot: 'abacus:bunk_1' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 20 }, npc_arthur: { trust: 70, affection: 40, respect: 60, suspicion: 0 } },
+  giftPrefs: { item_cigar: 6, tags: {} },
+  opinions: { npc_arthur: { warm: 'Arthur shouts. Arthur\'s always right. Those are related.', cool: 'Arthur shouts at the books. The books don\'t care. I care.' } },
+});
+
+const percy = crew({
+  id: 'npc_percy', name: 'Percy Ntage', shortName: 'Percy',
+  combat: { never: true, maxHealth: 80 },
+  role: 'The gang\'s bookkeeper. Takes a cut of everything. Keeps the grudge ledger up to date for Arthur.',
+  dialogue: 'dlg_percy',
+  voice: { wave: 'triangle', pitch: 240, variance: 12, rate: 1.3 },
+  appearance: { skin: '#f0d2b8', hair: '#8a7a6a', hairStyle: 'parted', outfit: '#5a4a3a', legs: '#2a2420', build: 'thin', height: 0.97, accessory: 'glasses', tie: '#c9302a' },
+  personality: { traits: ['precise', 'greedy', 'nervous'], sociability: 0.4, conscientiousness: 1, impulsiveness: 0.1, discretion: 0.6, honesty: 0.5, empathy: 0.3, confidence: 0.4 },
+  speech: { rumorPrefix: 'The figures suggest', factPrefix: 'Per the ledger,', refuse: 'That information carries a fee.' },
+  schedule: [
+    { from: '08:00', to: '12:00', activity: 'work', spot: 'abacus:table_a', label: 'balancing the books' },
+    { from: '12:00', to: '14:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_e', label: 'collecting from the corners' },
+    { from: '14:00', to: '21:00', activity: 'work', spot: 'abacus:table_a', label: 'balancing the books' },
+    { from: '21:00', to: '22:00', activity: 'eat', spot: 'abacus:table_b' },
+    { from: '22:00', to: '08:00', activity: 'sleep', spot: 'abacus:bunk_2' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 15 }, npc_arthur: { trust: 60, affection: 20, respect: 60, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, tags: {} },
+  opinions: { npc_arthur: { warm: 'Arthur is an excellent manager. Volatile, but excellent. Margins up 14% year on year.', cool: 'Arthur threw a stapler at me on Tideday. I have invoiced him.' } },
+});
+
+const minnie = crew({
+  id: 'npc_minnie', name: 'Minnie Mus', shortName: 'Minnie',
+  combat: { fights: true, defends: true, weapon: 'item_knuckles', maxHealth: 100 },
+  role: 'Runs the counter at the Abacus. Sells the gang\'s calculators — to customers, and to you, if Arthur allows it.',
+  dialogue: 'dlg_minnie',
+  voice: { wave: 'triangle', pitch: 300, variance: 25, rate: 1.25 },
+  appearance: { skin: '#d9a77c', hair: '#2a1a14', hairStyle: 'bun', outfit: '#c9302a', legs: '#2a2224', build: 'thin', height: 0.95 },
+  personality: { traits: ['quick', 'sharp-tongued', 'loyal'], sociability: 0.8, conscientiousness: 0.6, impulsiveness: 0.4, discretion: 0.5, honesty: 0.55, empathy: 0.5, confidence: 0.8 },
+  speech: { rumorPrefix: 'Over the counter I hear', factPrefix: 'Fact:', refuse: 'Minus that.' },
+  schedule: [
+    { from: '11:00', to: '15:00', activity: 'work', spot: 'abacus:bar_back', label: 'behind the counter' },
+    { from: '15:00', to: '16:00', activity: 'eat', spot: 'abacus:table_b' },
+    { from: '16:00', to: '02:00', activity: 'work', spot: 'abacus:bar_back', label: 'behind the counter' },
+    { from: '02:00', to: '11:00', activity: 'sleep', spot: 'abacus:bunk_3' },
+  ],
+  relationships: { player: { trust: 0, affection: 5, respect: 0, suspicion: 10 }, npc_arthur: { trust: 50, affection: 40, respect: 40, suspicion: 0 } },
+  giftPrefs: { item_honey_bun: 8, tags: { sweet: 4 } },
+  opinions: { npc_arthur: { warm: 'Arthur took me in when nobody else would. He shouted the whole time. Still counts.', cool: 'Arthur made me recount the till four times. It was right all four times.' } },
+});
+
+const deeNom = crew({
+  id: 'npc_dee_nom', name: 'Dee Nominator', shortName: 'Dee Nom',
+  combat: { fights: true, defends: true, weapon: 'item_bat', maxHealth: 170 },
+  role: 'The muscle. Bouncer at the Abacus door. "Everything comes down to the bottom line. I am the bottom line."',
+  dialogue: 'dlg_dee_nom',
+  voice: { wave: 'sawtooth', pitch: 95, variance: 6, rate: 0.8 },
+  appearance: { skin: '#6a4430', hair: '#0e0a08', hairStyle: 'short', outfit: '#2a2a2e', legs: '#1a1a1e', build: 'broad', height: 1.1 },
+  personality: { traits: ['huge', 'quiet', 'literal'], sociability: 0.2, conscientiousness: 0.6, impulsiveness: 0.2, discretion: 0.9, honesty: 0.8, empathy: 0.4, confidence: 0.9 },
+  speech: { rumorPrefix: 'Heard', factPrefix: 'Bottom line:', refuse: 'No.' },
+  schedule: [
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'abacus:table_b' },
+    { from: '13:00', to: '19:00', activity: 'work', spot: 'halvermouth:abacus_bouncer', label: 'on the door' },
+    { from: '19:00', to: '20:00', activity: 'eat', spot: 'abacus:table_b' },
+    { from: '20:00', to: '03:00', activity: 'work', spot: 'halvermouth:abacus_bouncer', label: 'on the door' },
+    { from: '03:00', to: '12:00', activity: 'sleep', spot: 'abacus:bunk_4' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_arthur: { trust: 50, affection: 30, respect: 50, suspicion: 0 } },
+  giftPrefs: { item_scone: 6, tags: { food: 4 } },
+  opinions: { npc_arthur: { warm: 'Boss is fair.', cool: 'Boss is loud.' } },
+});
+
+const tony = crew({
+  id: 'npc_tony', name: 'Tony Tangent', shortName: 'Tony',
+  combat: { fights: true, defends: true, weapon: null, maxHealth: 100 },
+  role: 'Lookout at the Sumps gate. Watches for cops. Never finishes a — oh, look, a pigeon.',
+  dialogue: 'dlg_tony',
+  voice: { wave: 'square', pitch: 260, variance: 40, rate: 1.5 },
+  appearance: { skin: '#f2d6c0', hair: '#c9813a', hairStyle: 'messy', outfit: '#4a6a3a', legs: '#2a2a2e', build: 'wiry', height: 0.98 },
+  personality: { traits: ['scatterbrained', 'chatty', 'sharp-eyed'], sociability: 0.9, conscientiousness: 0.2, impulsiveness: 0.8, discretion: 0.2, honesty: 0.7, empathy: 0.6, curiosity: 0.95 },
+  speech: { rumorPrefix: 'So — right — so', factPrefix: 'Funny thing is,', refuse: 'Can\'t say. Wait, what were we —' },
+  schedule: [
+    { from: '08:00', to: '12:00', activity: 'patrol', spot: 'halvermouth:sumps_gate', label: 'watching for cops' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:sumps_tents' },
+    { from: '13:00', to: '20:00', activity: 'patrol', spot: 'halvermouth:sumps_gate', label: 'watching for cops' },
+    { from: '20:00', to: '23:00', activity: 'leisure', spot: 'abacus:pool' },
+    { from: '23:00', to: '08:00', activity: 'sleep', spot: 'abacus:bunk_5' },
+  ],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 5 }, npc_arthur: { trust: 40, affection: 40, respect: 30, suspicion: 0 } },
+  giftPrefs: { item_honey_bun: 6, tags: { food: 3 } },
+  opinions: { npc_arthur: { warm: 'Arthur\'s like a dad. A dad who\'s — you know when a kettle — yeah. That.', cool: 'Arthur shouted at me for watching a pigeon instead of a cop. It was a REALLY good pigeon.' } },
+});
+
+const max = crew({
+  id: 'npc_max', name: 'Max Imum', shortName: 'Max',
+  combat: { fights: true, defends: true, weapon: 'item_machete', maxHealth: 120 },
+  role: 'The reckless one. Always pushes it to the limit. Wanders the fire barrels starting arguments.',
+  dialogue: 'dlg_max',
+  voice: { wave: 'sawtooth', pitch: 200, variance: 35, rate: 1.35 },
+  appearance: { skin: '#c48a62', hair: '#c9302a', hairStyle: 'messy', outfit: '#1e1e22', legs: '#3a1a1a', build: 'wiry', height: 1.0, accessories: ['vest'], vestColor: '#c9302a' },
+  personality: { traits: ['reckless', 'loud', 'loyal to a fault'], sociability: 0.7, conscientiousness: 0.15, impulsiveness: 0.95, discretion: 0.1, honesty: 0.6, empathy: 0.3, confidence: 1 },
+  speech: { rumorPrefix: 'MAXIMUM GOSSIP:', factPrefix: 'Listen —', refuse: 'Make me.' },
+  schedule: [
+    { from: '10:00', to: '13:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_w', label: 'starting arguments at the fires' },
+    { from: '13:00', to: '14:00', activity: 'eat', spot: 'halvermouth:sumps_fire_s' },
+    { from: '14:00', to: '19:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_mill', label: 'starting arguments at the fires' },
+    { from: '19:00', to: '02:00', activity: 'leisure', spot: 'halvermouth:sumps_fire_n', label: 'drinking by the fire' },
+    { from: '02:00', to: '10:00', activity: 'sleep', spot: 'abacus:hall_couch' },
+  ],
+  relationships: { player: { trust: -5, affection: 0, respect: 0, suspicion: 20 }, npc_arthur: { trust: 40, affection: 50, respect: 30, suspicion: 0 } },
+  giftPrefs: { item_cigar: 10, tags: {} },
+  opinions: { npc_arthur: { warm: 'Arthur\'s the angriest man alive. Respect.', cool: 'Arthur says I "overflow". I don\'t know what that means but I\'m PROUD.' } },
+});
+
+// ------------------------------------------------------------------ customers
+// Each has a favourite calculator, a budget (most they'll pay for one) and who
+// they'll refer once they're happy with you. `startsKnown`: approachable from
+// day one; the rest only talk to you once a friend vouches for you.
+const customer = (o) => ({
+  tier: 'minor', origin: 'imported-generated', faction: null, noSnitch: true, walkSpeed: 0.9, punctuality: -5, impulses: [], notices: [], knowledge: [],
+  combat: { never: true, maxHealth: 80 },
+  dialogue: 'dlg_customer',
+  giftPrefs: { item_honey_bun: 6, item_scone: 5, tags: { food: 4 } },
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_minnie: { trust: 30, affection: 20, respect: 10, suspicion: 0 } },
+  ...o,
+});
+const day = (sleep, a, b, label = 'hanging around') => [
+  { from: '07:30', to: '12:00', activity: 'leisure', spot: `halvermouth:${a}`, label },
+  { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:mission_front', label: 'queueing for soup' },
+  { from: '13:00', to: '22:30', activity: 'leisure', spot: `halvermouth:${b}`, label },
+  { from: '22:30', to: '07:30', activity: 'sleep', spot: `halvermouth:${sleep}` },
+];
+
+const customers = [
+  customer({ id: 'npc_ray', name: 'Ray Doyle', shortName: 'Ray', role: 'Dockhand on the early shift. Runs on Overclocks.', customer: { favourite: 'energy', budget: 26, refers: 'npc_gus', startsKnown: true },
+    voice: { wave: 'square', pitch: 150, variance: 15, rate: 1.1 }, appearance: { skin: '#c48a62', hair: '#2a1e1a', hairStyle: 'cap', hatColor: '#4a5a3a', outfit: '#5a6a4a', build: 'broad' },
+    personality: { traits: ['tired', 'friendly'], sociability: 0.6, conscientiousness: 0.5, impulsiveness: 0.5, empathy: 0.5 }, speech: { rumorPrefix: 'Down the docks they say', factPrefix: 'Honest,', refuse: 'Nah.' },
+    schedule: day('sumps_tents', 'docks_quay', 'sumps_fire_s', 'between shifts') }),
+  customer({ id: 'npc_mo', name: 'Mo Kettering', shortName: 'Mo', role: 'Busker. Needs to be charming for tips. Swears by Rose-Gold Sums.', customer: { favourite: 'charm', budget: 28, refers: 'npc_lena', startsKnown: true },
+    voice: { wave: 'triangle', pitch: 210, variance: 30, rate: 1.2 }, appearance: { skin: '#e2b896', hair: '#6a3a2a', hairStyle: 'long', outfit: '#8a5aa0', build: 'thin' },
+    personality: { traits: ['showy', 'hopeful'], sociability: 0.9, conscientiousness: 0.3, impulsiveness: 0.7, empathy: 0.6 }, speech: { rumorPrefix: 'Word on the street —', factPrefix: 'True story:', refuse: 'Not for free, darling.' },
+    schedule: day('sumps_tents_w', 'plaza_center', 'sumps_corner', 'busking') }),
+  customer({ id: 'npc_dot', name: 'Dot Pruitt', shortName: 'Dot', role: 'Dropped out of the university. Thinks a Big Brain 9000 is the only way to keep up.', customer: { favourite: 'wits', budget: 24, refers: 'npc_fern', startsKnown: true },
+    voice: { wave: 'triangle', pitch: 290, variance: 25, rate: 1.3 }, appearance: { skin: '#f2d6c0', hair: '#1a1410', hairStyle: 'ponytail', outfit: '#4a6a8a', build: 'thin', accessory: 'glasses' },
+    personality: { traits: ['anxious', 'clever'], sociability: 0.4, conscientiousness: 0.6, impulsiveness: 0.4, empathy: 0.6 }, speech: { rumorPrefix: 'Statistically,', factPrefix: 'Technically,', refuse: 'I\'d rather not.' },
+    schedule: day('sumps_tents', 'sumps_lane', 'sumps_wreck', 'reading old textbooks') }),
+  customer({ id: 'npc_bill', name: 'Bill Hobb', shortName: 'Bill', role: 'Bare-knuckle boxer past his prime. Takes a Brick before every fight.', customer: { favourite: 'grit', budget: 30, refers: 'npc_nico', startsKnown: true },
+    voice: { wave: 'sawtooth', pitch: 110, variance: 10, rate: 0.9 }, appearance: { skin: '#e2b896', hair: '#5a4030', hairStyle: 'short', outfit: '#6a2a2a', build: 'broad', height: 1.04 },
+    personality: { traits: ['tough', 'proud'], sociability: 0.5, conscientiousness: 0.4, impulsiveness: 0.6, empathy: 0.4 }, speech: { rumorPrefix: 'Heard in the ring:', factPrefix: 'Straight,', refuse: 'No chance.' },
+    schedule: day('sumps_south', 'sumps_fire_w', 'sumps_fire_mill', 'shadow-boxing') }),
+  customer({ id: 'npc_lena', name: 'Lena Szabo', shortName: 'Lena', role: 'Pickpocket. Featherkeys keep her fingers quick.', customer: { favourite: 'finesse', budget: 30, refers: 'npc_hattie' },
+    voice: { wave: 'triangle', pitch: 260, variance: 20, rate: 1.3 }, appearance: { skin: '#d9a77c', hair: '#2a2a2e', hairStyle: 'short', outfit: '#2a3a4a', build: 'thin' },
+    personality: { traits: ['quick', 'wary'], sociability: 0.4, conscientiousness: 0.5, impulsiveness: 0.5, empathy: 0.4 }, speech: { rumorPrefix: 'I lifted a rumour:', factPrefix: 'Truth:', refuse: 'Hands off.' },
+    schedule: day('sumps_tents_w', 'plaza_center', 'sumps_fence', 'working the crowds') }),
+  customer({ id: 'npc_gus', name: 'Gus Oakley', shortName: 'Gus', role: 'Old sailor with a bad leg. Plus Packs keep him walking.', customer: { favourite: 'health', budget: 22, refers: 'npc_bram' },
+    voice: { wave: 'triangle', pitch: 130, variance: 15, rate: 0.85 }, appearance: { skin: '#e2b896', hair: '#e8e2d4', hairStyle: 'hat', hatColor: '#2a3a5a', beard: '#e8e2d4', outfit: '#2a3a5a', build: 'round' },
+    personality: { traits: ['salty', 'kind'], sociability: 0.7, conscientiousness: 0.4, impulsiveness: 0.3, empathy: 0.7 }, speech: { rumorPrefix: 'Sailors say', factPrefix: 'Aye,', refuse: 'Belay that.' },
+    schedule: day('sumps_shore', 'sumps_shore', 'sumps_fire_n', 'watching the water') }),
+  customer({ id: 'npc_fern', name: 'Fern Abara', shortName: 'Fern', role: 'Volunteers at the Mission. Needs the charm to keep the donations coming.', customer: { favourite: 'charm', budget: 26, refers: 'npc_pearl' },
+    voice: { wave: 'triangle', pitch: 280, variance: 20, rate: 1.15 }, appearance: { skin: '#8a5a3a', hair: '#1a1410', hairStyle: 'curly', outfit: '#c9a24a', build: 'average' },
+    personality: { traits: ['warm', 'conflicted'], sociability: 0.8, conscientiousness: 0.7, impulsiveness: 0.3, empathy: 0.9 }, speech: { rumorPrefix: 'At the Mission they say', factPrefix: 'Truly,', refuse: 'I shouldn\'t.' },
+    schedule: day('sumps_tents', 'mission_front', 'mission_front', 'helping at the Mission') }),
+  customer({ id: 'npc_nico', name: 'Nico Varga', shortName: 'Nico', role: 'Works nights at Cold Storage. Lives on Overclocks and regret.', customer: { favourite: 'energy', budget: 28, refers: 'npc_sol' },
+    voice: { wave: 'square', pitch: 170, variance: 20, rate: 1.2 }, appearance: { skin: '#f0c8a8', hair: '#3a2a20', hairStyle: 'messy', outfit: '#3a4a6a', build: 'thin' },
+    personality: { traits: ['jittery', 'loyal'], sociability: 0.5, conscientiousness: 0.5, impulsiveness: 0.6, empathy: 0.5 }, speech: { rumorPrefix: 'On the night shift —', factPrefix: 'Look,', refuse: 'Can\'t.' },
+    schedule: day('sumps_south', 'sumps_mill_road', 'sumps_east', 'killing time before the night shift') }),
+  customer({ id: 'npc_hattie', name: 'Hattie Crane', shortName: 'Hattie', role: 'Runs card games behind the Mission. Big Brains help her count.', customer: { favourite: 'wits', budget: 32 },
+    voice: { wave: 'triangle', pitch: 230, variance: 15, rate: 1.1 }, appearance: { skin: '#f0d2b8', hair: '#c9c6c0', hairStyle: 'bun', outfit: '#4a2a4a', build: 'average', accessory: 'glasses' },
+    personality: { traits: ['shrewd', 'patient'], sociability: 0.6, conscientiousness: 0.7, impulsiveness: 0.2, empathy: 0.4 }, speech: { rumorPrefix: 'The cards say', factPrefix: 'Odds are,', refuse: 'Fold.' },
+    schedule: day('sumps_tents_w', 'sumps_fire_e', 'sumps_tents', 'dealing cards') }),
+  customer({ id: 'npc_bram', name: 'Bram Stokes', shortName: 'Bram', role: 'Scrap collector. Hauls metal all day on Bricks.', customer: { favourite: 'grit', budget: 24 },
+    voice: { wave: 'sawtooth', pitch: 120, variance: 12, rate: 0.95 }, appearance: { skin: '#a8714e', hair: '#2a1e1a', hairStyle: 'short', beard: '#2a1e1a', outfit: '#6a5a3a', build: 'broad' },
+    personality: { traits: ['quiet', 'hard-working'], sociability: 0.3, conscientiousness: 0.8, impulsiveness: 0.3, empathy: 0.5 }, speech: { rumorPrefix: 'In the scrap I heard', factPrefix: 'Fact is,', refuse: 'No.' },
+    schedule: day('sumps_south', 'sumps_east', 'sumps_fire_mill', 'sorting scrap') }),
+  customer({ id: 'npc_pearl', name: 'Pearl Quigley', shortName: 'Pearl', role: 'Seamstress with failing eyes. Featherkeys steady her hands.', customer: { favourite: 'finesse', budget: 26 },
+    voice: { wave: 'triangle', pitch: 250, variance: 15, rate: 1.0 }, appearance: { skin: '#f2d6c0', hair: '#9a8a7a', hairStyle: 'bun', outfit: '#7a8a6a', build: 'thin' },
+    personality: { traits: ['gentle', 'proud'], sociability: 0.5, conscientiousness: 0.8, impulsiveness: 0.2, empathy: 0.7 }, speech: { rumorPrefix: 'I overheard', factPrefix: 'Honestly,', refuse: 'Oh, no.' },
+    schedule: day('sumps_tents_w', 'sumps_tents_w', 'sumps_lane', 'mending clothes') }),
+  customer({ id: 'npc_sol', name: 'Sol Mendel', shortName: 'Sol', role: 'Former boxer\'s cornerman, now a wreck. Plus Packs for the hangovers.', customer: { favourite: 'health', budget: 22 },
+    voice: { wave: 'triangle', pitch: 140, variance: 20, rate: 0.9 }, appearance: { skin: '#e2b896', hair: '#6a6a6a', hairStyle: 'messy', outfit: '#5a4a4a', build: 'round' },
+    personality: { traits: ['rueful', 'funny'], sociability: 0.7, conscientiousness: 0.2, impulsiveness: 0.6, empathy: 0.6 }, speech: { rumorPrefix: 'Back in the day,', factPrefix: 'Kid,', refuse: 'Not today.' },
+    schedule: day('sumps_tents', 'sumps_fire_n', 'sumps_corner', 'nursing a headache') }),
+];
+
+const __default = [arthur, al, percy, minnie, deeNom, tony, max, ...customers];
+
+return { arthur, al, percy, minnie, deeNom, tony, max, customers, default: __default };
+})();
+
+// ---- src/content/dialogue/sums.js
+__m["src/content/dialogue/sums.js"] = (function () {
+// Dialogue for the Sums of Anarchy and their customers. Arthur Anderson is
+// always angry (owner's brief), maths-obsessed, fiercely protective of the
+// Sumps and his crew, petty and vengeful: he keeps a grudge ledger.
+// Gang effects: { gang: { sample | deliver | tribute | split } } (src/systems/gang.js).
+
+const gift = (loved, liked, neutral, disliked) => ({
+  loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]],
+  tooMany: [['ENOUGH. Gifts are a liability on the balance sheet.']], ownStolen: [['That\'s OURS.']],
+});
+
+const dlgArthur = {
+  id: 'dlg_arthur',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['*doesn\'t look up from the ledger* WHAT. Who let you in? DEE! — Fine. Arthur Anderson. Sums of Anarchy. This is my bar, my Sumps, my numbers.', 'You\'ve got thirty seconds. That\'s half a minute. That\'s one forty-eighth of an hour I will never get back.'], effects: [{ learn: 'fact_sums_of_anarchy' }] },
+    { if: { gang: { tier: '>=3' } }, say: ['YOU. You\'ve got a nerve walking in here. I\'ve done the maths on you, and the answer is a very small number. Talk fast.'] },
+    { if: { gang: { tier: '>=2' } }, say: ['*slams the ledger* You are in RED INK. Do you know what red ink means? It means I underline you. Twice.'] },
+    { if: { gang: { tier: '>=1' } }, say: ['You. Al told you. Stay off my corners. Every customer you take is a number I have to cross out, and I HATE crossing out.'] },
+    { if: { gang: { truce: true } }, say: ['*grunts* Truce holds. For now. I\'m counting the days. I\'m counting EVERYTHING.'] },
+    { if: { activity: 'sleep' }, say: ['*snores furiously* …carry the one… CARRY THE ONE…'] },
+    { if: {}, variants: [['WHAT.'], ['Make it quick. Time is margin.'], ['*glares* Speak.'], ['Is this about money? It had better be about money.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Door\'s there. USE it.'], ['Go. And don\'t touch anything on the way out.'], ['*already back in the ledger* Mm.']] }],
+  topics: [
+    {
+      id: 't_arthur_who', label: '"What are the Sums of Anarchy?"', keywords: ['sums', 'anarchy', 'gang', 'who', 'crew'],
+      say: [
+        'We\'re the only thing in the Sumps that adds up. The city forgot this place. The cops won\'t come in. Moneybucks wants to bulldoze it. So we run it. We keep the fires lit, the soup coming, and the calculators flowing.',
+        'Al, Percy, Minnie, Dee, Tony, Max. Six. Seven with me. Prime number. On purpose. Touch any of them and I will find out, I will write it down, and I will come for you.',
+      ],
+      effects: [{ learn: 'fact_sums_of_anarchy' }],
+    },
+    {
+      id: 't_arthur_calc', label: '"Why calculators?"', keywords: ['calculators', 'calculator', 'why', 'product'],
+      say: ['Because people down here need an edge, and a four-function calculator is the purest edge there is. Plus, minus, times, divide. Nothing fancy. Nothing wasted. Charm, wits, grit, a steady hand. A bit of health. A kick of energy.', 'Six products. Minnie sells them at the counter. Exact change. I do not do change.'],
+    },
+    {
+      id: 't_arthur_buy', label: '"I want to buy some."', tag: 'quest', keywords: ['buy', 'purchase', 'shop'],
+      say: [
+        { if: { gang: { tier: '<2' } }, text: 'Talk to Minnie. At the counter. I don\'t touch stock. I touch NUMBERS.' },
+        { if: { gang: { tier: '>=2' } }, text: 'Buy? From US? After what you did? NO. Zero. Nought. Nil. Get out of my sight before I find a larger number to be angry with.' },
+      ],
+    },
+    {
+      id: 't_arthur_cops', label: '"What about the police?"', keywords: ['police', 'cops', 'lawrence', 'order'],
+      say: ['Lawrence Order is a rounding error in a hat. His officers come through here and look at us like we\'re a smell.', 'The Sumps doesn\'t talk to cops. Nobody down here will ever call them on you. That\'s not a favour. That\'s a principle. Mind you — if they see you dealing with their own eyes, that\'s your problem.'],
+    },
+    {
+      id: 't_arthur_sumps', label: '"You care about this place."', keywords: ['sumps', 'slum', 'home', 'care'],
+      say: ['*very quietly, which is somehow worse* I grew up three shacks from here. My mum did the books for the Mission for thirty years. By hand. Every penny.', '*loud again* So yes. I CARE. And anyone who comes into MY Sumps and takes from MY people goes in the ledger.'],
+    },
+    {
+      id: 't_arthur_ledger', label: '"What\'s in the ledger?"', keywords: ['ledger', 'grudge', 'book', 'list'],
+      say: [
+        'Grudges. Alphabetical. Cross-referenced. Interest compounding daily.',
+        { if: { gang: { anger: '<1' } }, text: 'You\'re not in it. Yet. I\'ve left a space. I always leave a space.' },
+        { if: { gang: { anger: '>=1' }, not: { gang: { anger: '>=50' } } }, text: 'You\'re in it. Page forty. Small writing. For now.' },
+        { if: { gang: { anger: '>=50' } }, text: 'You have your OWN PAGE. In RED.' },
+      ],
+    },
+    {
+      id: 't_arthur_truce', label: '"Can we sort this out?"', tag: 'quest', keywords: ['truce', 'deal', 'peace', 'sort', 'tribute'],
+      if: { gang: { anger: '>=25' } },
+      say: ['*leans back. Breathes. Fails to calm down.* Sort it out. Right. Two options. Do the maths.', 'One: tribute. {tribute} obols, now, and I take you down a page. Two: you hand back half the customers you took. Half. Rounded UP. And we call it a truce for a week.'],
+      choices: [
+        { id: 'c_arthur_tribute', label: 'Pay the tribute ({tribute} obols).', if: { gang: { canAffordTribute: true } }, say: ['*counts it. Counts it again. Counts it a third time.* …Fine. You\'re down a page. Don\'t make me turn it back.'], effects: [{ gang: { tribute: true } }, { rel: { respect: 3 } }] },
+        { id: 'c_arthur_tribute_cant', label: '"I can\'t afford that."', if: { gang: { canAffordTribute: false } }, say: ['THEN STOP TAKING MY CUSTOMERS. That\'s free.'] },
+        { id: 'c_arthur_split', label: 'Hand back half your customers for a week\'s truce.', if: { gang: { customers: '>=1' } }, say: ['*writes something down with great satisfaction* Half. Rounded up. A week. If you so much as look at one of mine before then, it\'s WAR.'], effects: [{ gang: { split: true } }, { rel: { trust: 4 } }] },
+        { id: 'c_arthur_truce_no', label: '"I\'ll take my chances."', say: ['*underlines something* Noted.'], effects: [{ rel: { affection: -3 } }] },
+      ],
+    },
+  ],
+  askAbout: [
+    { keywords: ['moneybucks', 'regeneration', 'bulldoze'], say: ['Moneybucks wants to "regenerate" the Sumps. That means bulldozers. That means no Sumps. Over my dead — over HIS — over SOMEBODY\'s dead body.'] },
+    { keywords: ['maths', 'math', 'numbers'], say: ['Numbers don\'t lie. People lie. Numbers just sit there being RIGHT, which is more than I can say for anyone in this city.'] },
+  ],
+  unknown: [['I don\'t know and I\'m ANGRY that I don\'t know.'], ['Ask Percy. Percy knows things. Percy charges for things.']],
+  gift: gift('*stares at it* …That\'s… thoughtful. I HATE that it\'s thoughtful.', 'Hm. Fine. It goes on the asset side.', 'What is this. Why is this.', 'This is a LIABILITY.'),
+  barks: {
+    greet: ['WHAT.', 'Speak.', '*glares*'],
+    work: ['WHO ROUNDED THIS?!', 'Carry the one… CARRY THE ONE!', 'Fourteen percent. FOURTEEN.', 'That\'s not a margin, that\'s an INSULT.'],
+    patrol: ['My Sumps.', 'Anyone giving you trouble? Tell me. I\'ll do the maths.', '*kicks a can furiously*'],
+    eat: ['*eats aggressively*', 'This sandwich is 40% crust. FORTY.'],
+    leisure: ['*glares at the jukebox*', 'Who put on "99 Problems"? It\'s TOO ACCURATE.'],
+    sleep: ['…carry the one… *snore*…'],
+    chat: ['WRONG.', 'Do the maths!', 'Hmph.'],
+    argue: ['DON\'T. TEST. ME.'],
+  },
+};
+
+const crewGift = (loved) => gift(loved, 'Cheers.', 'Right.', 'What\'s this rubbish?');
+const crewDlg = (id, o) => ({
+  id,
+  farewells: [{ if: {}, variants: o.bye }],
+  askAbout: o.askAbout || [],
+  unknown: [['Ask Arthur.'], ['Dunno.']],
+  gift: crewGift(o.loved),
+  greetings: [
+    { if: { gang: { tier: '>=2' } }, say: o.hostile },
+    ...o.greetings,
+  ],
+  topics: [
+    { id: `t_${id}_arthur`, label: '"What\'s Arthur like?"', keywords: ['arthur', 'boss', 'leader'], say: o.arthur },
+    ...(o.topics || []),
+  ],
+  barks: o.barks,
+});
+
+const dlgAl = crewDlg('dlg_al', {
+  hostile: ['You were told. Now we settle it.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Al. Al Gebra. I solve for X.', '*cracks knuckles* X is usually someone who took something that wasn\'t theirs.'] },
+    { if: { gang: { tier: '>=1' } }, say: ['You got the message. Good. Don\'t make me deliver a second one.'] },
+    { if: {}, variants: [['Mm.'], ['Keep walking.'], ['Arthur\'s inside. If you\'re smart, you aren\'t.']] },
+  ],
+  bye: [['Mm.'], ['Go.']],
+  arthur: ['Shouts. Always right. Those are related. He took me in when I was twelve. I don\'t let anyone near him.'],
+  loved: 'A cigar. …Respect.',
+  topics: [{ id: 't_al_rules', label: '"What are the rules round here?"', keywords: ['rules', 'turf', 'corners'], say: ['Three. Don\'t bring cops. Don\'t touch the crew. Don\'t sell on our corners.', 'Break the third one and I come and find you. Break it enough and we ALL come and find you.'] }],
+  barks: { greet: ['Mm.', 'Keep walking.'], patrol: ['*watches the street*', 'All quiet.', '*cracks knuckles*'], eat: ['*eats in silence*'], leisure: ['*pots the eight ball without looking*'], sleep: ['…zzz…'], chat: ['Mm.', 'Right.'], argue: ['Careful.'] },
+});
+
+const dlgPercy = crewDlg('dlg_percy', {
+  hostile: ['I— I\'m not involved in the, ah, enforcement side. Please talk to Al. No — please DON\'T talk to Al.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Percy Ntage. Bookkeeper. I take a small percentage of everything. A modest percentage. A… reasonable percentage.'] },
+    { if: {}, variants: [['Yes? I\'m reconciling.'], ['Mind the ledgers.'], ['Is this billable?']] },
+  ],
+  bye: [['Good day.'], ['Mind the ledgers on the way out.']],
+  arthur: ['An excellent manager. Volatile, but excellent. Margins are up fourteen percent year on year. He wanted fifteen. He was very loud about the one percent.'],
+  loved: 'Coffee! Fuel for reconciliation. Thank you.',
+  topics: [{ id: 't_percy_numbers', label: '"How\'s business?"', keywords: ['business', 'money', 'takings', 'numbers'], say: [
+    'Steady. Twelve regulars across the Sumps, mostly. Overclocks for the night shifts, Bricks for the boxers, Rose-Gold Sums for the buskers.',
+    { if: { gang: { customers: '>=1' } }, text: 'Well. Fewer regulars than there were. Someone has been… diverting. Arthur has a page about it.' },
+  ] }],
+  barks: { greet: ['Yes?', 'Ahem.'], work: ['*scribbles*', 'Point-oh-four… point-oh-four…', 'That doesn\'t balance.'], patrol: ['Collection time.', '*counts coins*'], eat: ['*eats over the ledger*'], sleep: ['…debits… credits… *snore*'], chat: ['Indeed.', 'Hm.'], argue: ['That\'s not in the budget!'] },
+});
+
+const dlgMinnie = crewDlg('dlg_minnie', {
+  hostile: ['Out. We don\'t sell to rats. Arthur\'s orders.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Minnie. Minnie Mus. I run the counter. You want calculators, you come to me. You want trouble, you go to Dee.'] },
+    { if: {}, variants: [['What\'ll it be?'], ['Counter\'s open.'], ['Exact change, love.']] },
+  ],
+  bye: [['Come back soon.'], ['Don\'t spend it all at once.']],
+  arthur: ['Arthur took me in when nobody else would. He shouted the whole time. Still counts.'],
+  loved: 'A honey bun! You\'re all right, you are.',
+  topics: [
+    {
+      id: 't_minnie_buy', label: '"I\'d like some calculators."', tag: 'quest', keywords: ['buy', 'calculators', 'shop', 'counter'],
+      if: { gang: { tier: '<2' } },
+      say: ['Here\'s what we\'ve got. Arthur sets the prices. Don\'t haggle — he\'ll hear about it.'],
+      effects: [{ openShop: 'shop_sums' }],
+    },
+    {
+      id: 't_minnie_how', label: '"How do these work?"', keywords: ['how', 'work', 'effects', 'use'],
+      say: ['Press a few buttons. Feel it kick in. Rose-Gold Sum for Charm, Big Brain 9000 for Wits, The Brick for Grit, Featherkey for Finesse. Each one, a few hours. Then you come down for a bit.', 'Plus Pack patches you up. Overclock wakes you up — then drops you later. And don\'t go mad. Use too many of one kind and they stop working till you lay off a day or two.'],
+    },
+  ],
+  barks: { greet: ['What\'ll it be?', 'Counter\'s open.'], work: ['Next!', '*wipes the counter*', 'Exact change!'], eat: ['Break. Five minutes.'], sleep: ['…zzz…'], chat: ['Ha!', 'Yeah?'], argue: ['Oi!'] },
+});
+
+const dlgDeeNom = crewDlg('dlg_dee_nom', {
+  hostile: ['*cracks neck* Bottom line.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Dee. Dee Nominator. I\'m the bottom line.'] },
+    { if: {}, variants: [['Mm.'], ['In or out.'], ['*stares*']] },
+  ],
+  bye: [['Mm.']],
+  arthur: ['Boss is fair. Boss is loud. Both true.'],
+  loved: 'Scone. Good.',
+  barks: { greet: ['Mm.', 'In or out.'], work: ['*crosses arms*', 'No cops.', 'Members only. You\'re a member? No.'], eat: ['*chews*'], sleep: ['…zzz…'], chat: ['Mm.'], argue: ['Bottom line.'] },
+});
+
+const dlgTony = crewDlg('dlg_tony', {
+  hostile: ['It\'s — oh no, it\'s you, Arthur said — I\'m supposed to — HEY GUYS!'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Tony! Tony Tangent. I watch for cops. And pigeons. Mostly cops. Did you know pigeons can — anyway. Cops.'] },
+    { if: {}, variants: [['Oh hey! I was just — what was I —'], ['Seen any cops? Seen any pigeons? Either.'], ['Hi! So, right, so —']] },
+  ],
+  bye: [['See ya! Watch for — you know.'], ['Bye! Wait, did I —']],
+  arthur: ['Arthur\'s like a dad. A dad who\'s — you know when a kettle — yeah. That.'],
+  loved: 'A honey bun! You know honey never goes off? There\'s honey in — anyway thanks!',
+  topics: [{ id: 't_tony_cops', label: '"Any cops about?"', keywords: ['cops', 'police', 'watch'], say: ['Sergeant Case comes round the Plaza side mornings. Tee does the Sumps — Tee\'s the one to watch, Tee writes EVERYTHING down. If you\'re selling, do it where Tee isn\'t. Or — where was I — oh! Pigeon.'] }],
+  barks: { greet: ['Oh hey!', 'Hi! So —'], patrol: ['Clear! I think!', 'Is that a — no, pigeon.', 'COP! …no, postman.'], eat: ['*eats while talking*'], leisure: ['*misses an easy shot*'], sleep: ['…pigeons… *snore*'], chat: ['Right, right, so —', 'Ha!'], argue: ['Hey! HEY!'] },
+});
+
+const dlgMax = crewDlg('dlg_max', {
+  hostile: ['FINALLY. MAXIMUM VIOLENCE.'],
+  greetings: [
+    { if: { firstMeeting: true }, say: ['MAX. Max Imum. I go all the way. Every time. Ask anyone. Ask the fire barrel. I set it on fire.'] },
+    { if: {}, variants: [['WHAT\'S UP.'], ['Looking for trouble? I\'m right here!'], ['Turn it UP.']] },
+  ],
+  bye: [['LATER.'], ['Don\'t be BORING.']],
+  arthur: ['Arthur\'s the angriest man alive. RESPECT. He says I "overflow". I don\'t know what that means but I\'m PROUD.'],
+  loved: 'A CIGAR. YES.',
+  barks: { greet: ['WHAT\'S UP.', 'Oi!'], patrol: ['WHO WANTS IT?', '*kicks the fire barrel*', 'MAXIMUM!'], eat: ['*eats loudly*'], leisure: ['ANOTHER ROUND!', '*stokes the fire too much*'], sleep: ['…MAXIMUM… *snore*'], chat: ['HA!', 'YEAH!'], argue: ['COME ON THEN!'] },
+});
+
+// ----------------------------------------------------------------- customers
+const dlgCustomer = {
+  id: 'dlg_customer',
+  greetings: [
+    { if: { gang: { customer: 'locked' } }, say: ['*eyes you up and down* Don\'t know you. Don\'t talk to people I don\'t know. Not round here.'] },
+    { if: { gang: { order: 'due' } }, say: ['There you are. Got my {orderQty}× {orderName}?'] },
+    { if: { gang: { order: 'pending' } }, say: ['Not yet — I said when and where. Don\'t make it obvious.'] },
+    { if: { gang: { customer: 'player' } }, variants: [['Hey. You holding?'], ['Good to see you. Quietly.'], ['Not here. Well — fine, here.']] },
+    { if: { firstMeeting: true }, say: ['Yeah? What? I\'m {name}. If you\'re selling something, Minnie\'s got the Sumps sewn up.'] },
+    { if: {}, variants: [['What?'], ['Yeah?'], ['Spare change?']] },
+  ],
+  farewells: [{ if: {}, variants: [['Later.'], ['Keep your head down.'], ['See you around.']] }],
+  topics: [
+    {
+      id: 't_cust_sample', label: '"Try this — on the house."', tag: 'quest', keywords: ['sample', 'free', 'try', 'calculator'],
+      if: { gang: { customer: 'gang', hasCalc: true } },
+      say: ['*glances around* …Go on then. What is it? I usually go for {favourite}.'],
+      effects: [{ gang: { sample: true } }, { endDialogue: true }],
+    },
+    {
+      id: 't_cust_deliver', label: '"Here\'s your order." ({orderQty}× {orderName}, {orderTotal} obols)', tag: 'quest', keywords: ['order', 'deliver', 'here'],
+      if: { gang: { order: 'due' } },
+      say: ['*quick look around* Nice doing business.'],
+      effects: [{ gang: { deliver: true } }, { endDialogue: true }],
+    },
+    {
+      id: 't_cust_fav', label: '"What do you usually take?"', keywords: ['favourite', 'usually', 'take', 'like'],
+      if: { not: { gang: { customer: 'locked' } } },
+      say: ['{favourite}. Every time. Get me one of those and we\'ll talk.'],
+    },
+    {
+      id: 't_cust_minnie', label: '"Who do you buy from?"', keywords: ['buy', 'minnie', 'gang', 'sums'],
+      if: { gang: { customer: 'gang' } },
+      say: ['Minnie, at the Abacus. Everyone does. The Sums of Anarchy look after the Sumps — and they don\'t like people selling on their corners. Just so you know.'],
+    },
+  ],
+  askAbout: [{ keywords: ['arthur', 'anderson'], say: ['Arthur? Angriest man in Halvermouth. Also the only one who fixed the Mission roof. Both true.'] }],
+  unknown: [['Dunno.'], ['Couldn\'t say.']],
+  gift: { loved: [['For me? …Thanks. Really.']], liked: [['Ta.']], neutral: [['Right. Thanks.']], disliked: [['What\'s this for?']], tooMany: [['That\'s plenty.']], ownStolen: [['Hey, that\'s mine!']] },
+  barks: {
+    greet: ['Yeah?', 'Alright.'],
+    leisure: ['*warms their hands*', '*hums*', 'Cold one.'],
+    wait: ['*checks the time*', 'Where are they…', '*looks around nervously*'],
+    eat: ['*slurps soup*'],
+    sleep: ['…zzz…'],
+    chat: ['Yeah.', 'Mm.', 'True.'],
+    argue: ['Back off!'],
+  },
+};
+
+const __default = [dlgArthur, dlgAl, dlgPercy, dlgMinnie, dlgDeeNom, dlgTony, dlgMax, dlgCustomer];
+
+return { dlgArthur, dlgAl, dlgPercy, dlgMinnie, dlgDeeNom, dlgTony, dlgMax, dlgCustomer, default: __default };
+})();
+
 // ---- src/content/properties.js
 __m["src/content/properties.js"] = (function () {
 // Property groundwork (v0.4.0). PLOTS are surveyed pieces of land the player
@@ -5990,6 +6665,8 @@ const dlgMasonCrew = __m["src/content/dialogue/mason.js"].default;
 const { PUNS } = __m["src/content/dialogue/mason.js"];
 const police = __m["src/content/characters/police.js"].default;
 const dlgPolice = __m["src/content/dialogue/police.js"].default;
+const sums = __m["src/content/characters/sums.js"].default;
+const dlgSums = __m["src/content/dialogue/sums.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
 const { withPlots } = __m["src/world/plots.js"];
 
@@ -6018,8 +6695,8 @@ const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums]),
   puns: PUNS,
   blueprints: BLUEPRINTS,
   plots: {},
@@ -6039,7 +6716,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.10.0';
+const GAME_VERSION = '0.11.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -6938,6 +7615,19 @@ const SFX = {
     tone(ctx, d, { type: 'square', f0: 110, f1: 45, t, dur: 0.3, vol: 0.18 });
     for (let i = 0; i < 8; i++) noise(ctx, d, { t: t + 0.08 + Math.random() * 0.5, dur: 0.04, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass
   },
+  // Arthur's strikes: giant digits slamming down, then the calculator itself
+  sfx_digit: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    if ((o.index || 0) >= 5) {
+      tone(ctx, d, { type: 'sine', f0: 90, f1: 35, t, dur: 1.0, vol: 0.6, attack: 0.003 });
+      noise(ctx, d, { t, dur: 0.9, vol: 0.45, type: 'lowpass', freq: 1200, f1: 90 });
+      for (let i = 0; i < 6; i++) tone(ctx, d, { type: 'square', f0: 220, t: t + 0.2 + i * 0.16, dur: 0.1, vol: 0.05 }); // ERROR buzz
+      return;
+    }
+    tone(ctx, d, { type: 'square', f0: 1800 + (o.index || 0) * 240, t, dur: 0.06, vol: 0.06 }); // a keypad beep
+    tone(ctx, d, { type: 'sine', f0: 140, f1: 45, t, dur: 0.5, vol: 0.45, attack: 0.003 });
+    noise(ctx, d, { t, dur: 0.4, vol: 0.35, type: 'lowpass', freq: 1600, f1: 150 });
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -7088,6 +7778,13 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     [[79, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.36, 0.36], [83, 0.84, 0.12], [84, 0.96, 0.3]].forEach(([m, dt, len]) => tone(ctx, bus, { type: 'sine', f0: hz(m), t: t0 + 1.2 + dt, dur: len + 0.08, vol: 0.07, attack: 0.02 }));
     for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 6.3 + Math.random() * 1.2, dur: 0.06, vol: 0.18, freq: 1500 + Math.random() * 2000, q: 3 });
     noise(ctx, bus, { t: t0 + 6.3, dur: 1.6, vol: 0.22, type: 'lowpass', freq: 900, f1: 150 });
+  } else if (theme === 'maths') {
+    // furious keypad clatter through the roll, Arthur's motif as calculator beeps, an ERROR buzz, a glitchy finale
+    for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 0.3 + i * 0.07 + Math.random() * 0.03, dur: 0.015, vol: 0.1, freq: 3000 + Math.random() * 1500, q: 8 });
+    [[62, 0], [62, 0.12], [65, 0.24], [62, 0.36], [68, 0.48], [69, 0.84], [74, 0.96]].forEach(([m, dt]) => tone(ctx, bus, { type: 'square', f0: hz(m + 12), t: t0 + 1.1 + dt, dur: 0.1, vol: 0.05 }));
+    for (let i = 0; i < 5; i++) tone(ctx, bus, { type: 'sawtooth', f0: 110, t: t0 + 2.6 + i * 0.12, dur: 0.08, vol: 0.06 });
+    for (let i = 0; i < 24; i++) tone(ctx, bus, { type: 'square', f0: 400 + Math.random() * 3000, t: t0 + 5.1 + i * 0.05, dur: 0.04, vol: 0.04 });
+    tone(ctx, bus, { type: 'sine', f0: 1000, f1: 40, t: t0 + 6.3, dur: 1.2, vol: 0.12 }); // the power-down
   } else if (theme === 'law') {
     // a wailing siren through the roll, Lawrence's lazy tuba motif, a typewriter
     // blizzard under the paperwork, and the cell door slamming shut
@@ -8291,7 +8988,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang',
 ];
 
 /**
@@ -8350,6 +9047,25 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'gang': {
+      // { anger: '>=25', tier: '>=2', truce: true, customer: 'gang'|'locked'|'player' (this NPC), order: 'due'|'pending'|'none' (this NPC),
+      //   hasCalc: true, canAffordTribute: true, customers: '>=1' (how many buy from you) }
+      const gang = game.gang;
+      const st = game.world.gang || {};
+      const c = npc ? gang?.customer(npc.id) : null;
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'truce': return Boolean(gang?.truce()) === v;
+          case 'tier': return compare(gang?.tier() ?? 0, v);
+          case 'customer': return (c?.status ?? null) === v;
+          case 'order': return v === 'due' ? Boolean(npc && gang.orderDue(npc)) : v === 'pending' ? Boolean(c?.order) : !c?.order;
+          case 'hasCalc': return game.inventory.hasTag('calculator') === v;
+          case 'canAffordTribute': return (game.player.money >= (gang?.tributePrice() ?? Infinity)) === v;
+          case 'customers': return compare(gang?.playerCustomers().length ?? 0, v);
+          default: return compare(st[k] ?? 0, v);
+        }
+      });
     }
     case 'police': {
       // { wanted: '>=1', record: '>=8', bribed: true, jailed: false, canAffordBribe: true, canAffordFine: true, killedOfficer: true }
@@ -8514,6 +9230,9 @@ const WALK_SPEED = 66; // px per real second
 const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
 
+/** Intents set by other systems (police dispatch, deal meetings, gang hunts) that the schedule must not override. */
+const HELD_INTENTS = ['dispatch', 'deal', 'hunt'];
+
 class NpcSystem {
   constructor(game) {
     this.game = game;
@@ -8537,7 +9256,7 @@ class NpcSystem {
     const g = this.game;
     const now = g.clock.total;
     if (npc.hostile || npc.pursuit || incapacitated(npc, now)) return; // combat / police own them
-    if (npc.intent?.source === 'dispatch' && now < npc.intent.until) return; // answering a call
+    if (HELD_INTENTS.includes(npc.intent?.source) && now < npc.intent.until) return; // answering a call, meeting you for a deal, hunting you
     if (npc.chat && now < npc.chat.until) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.
@@ -8899,6 +9618,11 @@ class Inventory {
     if (!def || !this.count(id)) return { ok: false, text: 'You do not have that.' };
     if (!def.use) return { ok: false, text: def.examine || `You turn the ${def.name} over in your hands.` };
     this.remove(id, 1);
+    if (def.use.calc) {
+      const r = this.game.calculators.consume(def.use.calc, def);
+      this.game.bus.emit('item:used', { id });
+      return r;
+    }
     const p = this.player;
     if (def.use.energy) p.energy = Math.min(100, p.energy + def.use.energy);
     if (def.use.health) p.health = Math.min(100, p.health + def.use.health);
@@ -10102,7 +10826,9 @@ class Combat {
     const p = g.player;
     if (this.playerDownUntil && g.realTime < this.playerDownUntil) return;
     if (p.god) return; // debug god mode
-    const dmg = Math.max(1, Math.round(amount * (0.85 + g.rng.next() * 0.3)));
+    // Grit soaks damage: 8% less per point above 2 (8% more at 1)
+    const grit = g.stat ? g.stat('grit') : 2;
+    const dmg = Math.max(1, Math.round(amount * (0.85 + g.rng.next() * 0.3) * (1 - (grit - 2) * 0.08)));
     p.health = Math.max(0, p.health - dmg);
     p.hurtAt = g.realTime;
     this.lastHostileAt = g.realTime;
@@ -10435,6 +11161,7 @@ class Police {
       case e.fact === 'fact_player_assault': return onOfficer ? 6 : 3;
       case e.fact === 'gunfire': return 2;
       case e.fact === 'jailbreak': return 8;
+      case e.fact === 'fact_player_dealing': return 2;
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -10470,7 +11197,8 @@ class Police {
       for (const o of officers) this.startPursuit(o);
       return;
     }
-    if (people.some((n) => !this.isOfficer(n))) this.placeCall(sev, pos);
+    // the Sumps doesn't snitch: gang members and their customers never call the police
+    if (people.some((n) => !this.isOfficer(n) && !n.profile.noSnitch)) this.placeCall(sev, pos);
   }
 
   /** A civilian phones it in. */
@@ -10700,7 +11428,7 @@ class Police {
     for (const [id, n] of Object.entries(p.inventory || {})) {
       const def = g.content.items[id];
       if (!n || !def) continue;
-      if (def.weapon || def.category === 'ammo' || p.stolen?.[id] || id === 'item_jail_keys' || id === 'item_spoon' || id === 'item_bent_fork') {
+      if (def.weapon || def.category === 'ammo' || p.stolen?.[id] || def.tags?.includes('contraband') || id === 'item_jail_keys') {
         evidence[id] = n;
         g.inventory.remove(id, n);
       }
@@ -10842,7 +11570,7 @@ class Police {
   }
 
   reachChance() {
-    return clamp(0.3 + this.game.player.stats.finesse * 0.08, 0.1, 0.85);
+    return clamp(0.3 + this.game.stat('finesse') * 0.08, 0.1, 0.85);
   }
 
   guardPrice() {
@@ -10946,6 +11674,555 @@ class Police {
 }
 
 return { CHIEF, GUARD, CELLMATE, JAIL_MAP, BRIBE_DAYS, KNOWN_CRIMINAL, freshPolice, Police };
+})();
+
+// ---- src/systems/calculators.js
+__m["src/systems/calculators.js"] = (function () {
+// Calculators — the illicit substance of the Oberverse. Each stat has its own
+// calculator (items with `calc: <stat>`). Consuming one gives a temporary boost
+// followed by a comedown; repeated use builds tolerance, which weakens and
+// shortens the effect and fades over time.
+//
+//   charm · wits · grit · finesse ─▶ +1 for ~4 h, then −1 for 1 h
+//   health ─▶ heals                 energy ─▶ +energy now, −energy crash later
+//
+// State: player.buffs [{stat, delta, from, until, source}] and
+// player.tolerance {type: n}. Game.stat(name) reads base + active buffs.
+const { clamp } = __m["src/core/util.js"];
+
+const STATS = ['charm', 'wits', 'grit', 'finesse'];
+const CALC_TYPES = [...STATS, 'health', 'energy'];
+const HIGH_MINUTES = 240;
+const COMEDOWN_MINUTES = 60;
+/** Minutes for one point of tolerance to fade. */
+const TOLERANCE_FADE = 8 * 60;
+const STAT_MAX = 6;
+
+class Calculators {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get player() {
+    const p = this.game.player;
+    if (!p.buffs) p.buffs = [];
+    if (!p.tolerance) p.tolerance = {};
+    return p;
+  }
+
+  /** 1 for a first use, falling with tolerance. */
+  potency(type) {
+    return 1 / (1 + 0.6 * (this.player.tolerance[type] || 0));
+  }
+
+  /** Effective stat: base plus whatever is in your system right now. */
+  stat(name) {
+    const p = this.player;
+    const now = this.game.clock.total;
+    let v = p.stats[name] ?? 2;
+    for (const b of p.buffs) if (b.stat === name && now >= b.from && now < b.until) v += b.delta;
+    return clamp(v, 1, STAT_MAX);
+  }
+
+  /** Active buffs for the HUD: [{stat, delta, minutesLeft}]. */
+  active() {
+    const now = this.game.clock.total;
+    return this.player.buffs.filter((b) => STATS.includes(b.stat) && now >= b.from && now < b.until).map((b) => ({ stat: b.stat, delta: b.delta, minutesLeft: Math.ceil(b.until - now) }));
+  }
+
+  consume(type, def) {
+    const g = this.game;
+    const p = this.player;
+    const now = g.clock.total;
+    const pot = this.potency(type);
+    p.tolerance[type] = (p.tolerance[type] || 0) + 1;
+    p.lastToleranceTick = p.lastToleranceTick ?? now;
+    const flavour = def?.use?.text ? `${def.use.text} ` : '';
+    if (STATS.includes(type)) {
+      if (pot < 0.3) return { ok: true, text: `${flavour}…Nothing. You've used too many ${def?.name || 'calculators'} lately. Your tolerance needs a day or two.` };
+      const minutes = Math.round(HIGH_MINUTES * pot);
+      // a fresh high replaces any running high of the same stat (and its comedown)
+      p.buffs = p.buffs.filter((b) => b.stat !== type || b.until <= now);
+      p.buffs.push({ stat: type, delta: 1, from: now, until: now + minutes, source: 'high' });
+      p.buffs.push({ stat: type, delta: -1, from: now + minutes, until: now + minutes + COMEDOWN_MINUTES, source: 'comedown' });
+      g.bus.emit('calc:used', { type, minutes });
+      return { ok: true, text: `${flavour}+1 ${cap(type)} for ${fmt(minutes)}, then an hour's comedown.` };
+    }
+    if (type === 'health') {
+      const heal = Math.round(40 * pot);
+      p.health = Math.min(100, p.health + heal);
+      g.bus.emit('calc:used', { type });
+      return { ok: true, text: `${flavour}+${heal} health.` };
+    }
+    if (type === 'energy') {
+      const boost = Math.round(45 * pot);
+      p.energy = Math.min(100, p.energy + boost);
+      p.buffs.push({ stat: 'energy', delta: -Math.round(15 * pot), from: now + 180, until: now + 181, source: 'crash' });
+      g.bus.emit('calc:used', { type });
+      return { ok: true, text: `${flavour}+${boost} energy. (You'll crash in about three hours.)` };
+    }
+    return { ok: false, text: 'Nothing happens.' };
+  }
+
+  minuteTick() {
+    const g = this.game;
+    const p = this.player;
+    const now = g.clock.total;
+    // energy crashes land
+    for (const b of p.buffs) {
+      if (b.source === 'crash' && !b.done && now >= b.from) {
+        b.done = true;
+        p.energy = Math.max(0, p.energy + b.delta);
+        g.notify(`The Overclock wears off. You crash. (${b.delta} energy)`, 'warn');
+      }
+      if (b.source === 'comedown' && !b.announced && now >= b.from && now < b.until) {
+        b.announced = true;
+        g.notify(`The ${cap(b.stat)} high wears off. Comedown: −1 ${cap(b.stat)} for an hour.`, 'warn');
+      }
+    }
+    if (p.buffs.length) p.buffs = p.buffs.filter((b) => b.until > now);
+    // tolerance fades
+    if (p.lastToleranceTick !== undefined && now - p.lastToleranceTick >= TOLERANCE_FADE) {
+      p.lastToleranceTick = now;
+      for (const k of Object.keys(p.tolerance)) {
+        p.tolerance[k] = Math.max(0, p.tolerance[k] - 1);
+        if (!p.tolerance[k]) delete p.tolerance[k];
+      }
+    }
+  }
+}
+
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const fmt = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`);
+
+return { STATS, CALC_TYPES, STAT_MAX, Calculators };
+})();
+
+// ---- src/systems/gang.js
+__m["src/systems/gang.js"] = (function () {
+// The Sums of Anarchy and the calculator trade (v0.11.0).
+//
+//   customers ── start out buying from the gang ('gang'); some only talk to you
+//   once a friend vouches for you ('locked'). A free sample may win one over
+//   ('player') — which steals them from the gang.
+//   your customers ── page you orders (type, quantity, price, a meeting spot
+//   and a two-hour window). Deliver on time: money, satisfaction, habit, and
+//   after three good deals a referral. Miss it and they sour; sour enough and
+//   they go back to the gang.
+//   gang anger 0–100 ── rises with every stolen customer and deal, and with
+//   violence against the crew; fades on quiet days. 25+ a warning, 50+ the
+//   crew jump you in the Sumps, 75+ they hunt you across Halvermouth.
+//   A truce (tribute, or handing back half your customers) cools it down.
+//   Dealing is a crime: an officer who sees it comes for you.
+//
+// State: game.world.gang (saved).
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { remember } = __m["src/sim/memory.js"];
+const { isDown, isProtected } = __m["src/systems/combat.js"];
+const { CALC_TYPES } = __m["src/systems/calculators.js"];
+
+const CHIEF = 'npc_arthur';
+const ENFORCER = 'npc_al';
+/** Meeting spots for orders. */
+const DEAL_SPOTS = ['sumps_corner', 'sumps_fire_n', 'sumps_fire_w', 'sumps_fire_s', 'sumps_fire_e', 'sumps_fire_mill', 'sumps_lane', 'sumps_wreck', 'sumps_mill_road', 'sumps_south', 'sumps_shore', 'sumps_east'];
+const TIERS = [
+  { min: 0, name: 'calm' },
+  { min: 25, name: 'warned' },
+  { min: 50, name: 'hostile' },
+  { min: 75, name: 'war' },
+];
+const STEAL_ANGER = 12;
+const DEAL_ANGER = 2;
+const TRUCE_BREAK_ANGER = 40;
+const TRUCE_DAYS = 7;
+const AMBUSH_COOLDOWN = 120;
+const HUNT_EVERY = 180;
+const REFERRAL_AFTER = 3;
+
+const calcItem = (type) => `item_calc_${type}`;
+
+function freshGang(content) {
+  const customers = {};
+  for (const c of Object.values(content.characters)) {
+    if (!c.customer) continue;
+    customers[c.id] = { status: c.customer.startsKnown ? 'gang' : 'locked', addiction: 0.25, satisfaction: 50, orders: 0, misses: 0, warmth: 0, order: null };
+  }
+  return { anger: 0, warned: false, truceUntilDay: 0, stolen: 0, lastStealDay: 0, lastDecayDay: 1, lastOrdersDay: 0, lastHunt: 0, ambush: {}, brawl: {}, tributes: 0, customers };
+}
+
+class Gang {
+  constructor(game) {
+    this.game = game;
+    game.bus.on('crime', (e) => this.onCrime(e));
+  }
+
+  get state() {
+    const g = this.game;
+    if (!g.world.gang) g.world.gang = freshGang(g.content);
+    const s = g.world.gang;
+    // customers added by newer content
+    for (const c of Object.values(g.content.characters)) if (c.customer && !s.customers[c.id]) s.customers[c.id] = freshGang({ characters: { [c.id]: c } }).customers[c.id];
+    return s;
+  }
+
+  isGang(npc) {
+    return npc?.profile.faction === 'fac_sums';
+  }
+
+  crew() {
+    const now = this.game.clock.total;
+    return [...this.game.npcs.values()].filter((n) => this.isGang(n) && !isDown(n, now));
+  }
+
+  customer(id) {
+    return this.state.customers[id] || null;
+  }
+
+  tier() {
+    const a = this.state.anger;
+    let t = 0;
+    TIERS.forEach((x, i) => { if (a >= x.min) t = i; });
+    return t;
+  }
+
+  truce() {
+    return this.state.truceUntilDay >= this.game.clock.day;
+  }
+
+  playerCustomers() {
+    return Object.entries(this.state.customers).filter(([, c]) => c.status === 'player').map(([id]) => id);
+  }
+
+  // ---------------------------------------------------------------- anger
+  addAnger(n, why) {
+    const g = this.game;
+    const s = this.state;
+    const before = this.tier();
+    s.anger = clamp(s.anger + n, 0, 100);
+    const after = this.tier();
+    if (after > before) {
+      const lines = [
+        null,
+        'Al Gebra finds you. "Arthur\'s been doing some maths about you. He doesn\'t like the answer. Stay off our corners." (Sums of Anarchy: WARNED)',
+        'Word comes through the Sumps: the Sums of Anarchy want you gone. Their crew will jump you on sight in the Sumps. (HOSTILE)',
+        'Arthur Anderson has declared war on you. His crew will hunt you anywhere in Halvermouth. (WAR)',
+      ];
+      g.notify(lines[after], 'warn');
+      if (after >= 1) s.warned = true;
+      const al = g.npcs.get(ENFORCER);
+      if (al && after === 1) remember(al, { text: `Warned ${g.player.name} off our corners.`, tag: 'warned_player', about: 'player', importance: 6 }, g.clock.total);
+      g.bus.emit('gang:tier', { tier: after, why });
+    } else if (after < before) {
+      g.notify(after === 0 ? 'The Sums of Anarchy seem to have calmed down about you. For now.' : `The Sums of Anarchy are cooling off a little. (${TIERS[after].name.toUpperCase()})`, 'good');
+      g.bus.emit('gang:tier', { tier: after, why });
+    }
+  }
+
+  onCrime(e) {
+    const victim = e.victim ? this.game.npcs.get(e.victim) : null;
+    if (!this.isGang(victim)) return;
+    if (e.fact === 'fact_player_murder') this.addAnger(40, 'murder');
+    else if (e.fact === 'fact_player_assault') this.addAnger(10, 'assault');
+  }
+
+  /** Taking one of their customers. */
+  steal(npc) {
+    const g = this.game;
+    const s = this.state;
+    s.stolen += 1;
+    s.lastStealDay = g.clock.day;
+    if (this.truce()) {
+      s.truceUntilDay = 0;
+      g.notify('You broke the truce. Arthur will have heard by now. He hears everything.', 'warn');
+      this.addAnger(TRUCE_BREAK_ANGER, 'truce broken');
+    } else this.addAnger(STEAL_ANGER, 'stolen customer');
+    const arthur = g.npcs.get(CHIEF);
+    if (arthur) {
+      remember(arthur, { text: `${g.player.name} took ${npc.profile.name} off us. In the ledger. In red.`, tag: 'stole_customer', about: 'player', importance: 7 }, g.clock.total);
+      g.knowledge.learn(arthur, 'fact_player_stole_customer', { kind: 'fact', source: 'gang', at: g.clock.total });
+    }
+  }
+
+  // -------------------------------------------------------------- dealing
+  /** Report a deal as a crime: officers who see it come for you. Finesse shrinks who notices. */
+  dealt() {
+    const g = this.game;
+    const p = g.player;
+    const radius = Math.max(3, 9 - (g.stat('finesse') - 2) * 1.5);
+    g.reportCrime({ fact: 'fact_player_dealing', map: p.map, x: p.x, y: p.y, radius });
+  }
+
+  /** Best calculator to offer this customer as a sample (their favourite if you have it). */
+  sampleFor(npc) {
+    const fav = npc.profile.customer?.favourite;
+    if (fav && this.game.inventory.count(calcItem(fav))) return fav;
+    return CALC_TYPES.find((t) => this.game.inventory.count(calcItem(t))) || null;
+  }
+
+  sampleChance(npc, type) {
+    const c = this.customer(npc.id);
+    const fav = npc.profile.customer.favourite === type;
+    return clamp(0.3 + (fav ? 0.3 : 0) + (this.game.stat('charm') - 2) * 0.07 + (c?.warmth || 0), 0.05, 0.95);
+  }
+
+  /** Give a free sample. Returns {ok, text}. */
+  sample(npc) {
+    const g = this.game;
+    const c = this.customer(npc.id);
+    if (!c) return { ok: false, text: '' };
+    if (c.status === 'player') return { ok: false, text: `${npc.profile.shortName} already buys from you.` };
+    if (c.status === 'locked') return { ok: false, text: `${npc.profile.shortName} doesn't know you. Someone they trust will have to vouch for you.` };
+    const type = this.sampleFor(npc);
+    if (!type) return { ok: false, text: 'You don\'t have any calculators to offer.' };
+    const chance = this.sampleChance(npc, type);
+    g.inventory.remove(calcItem(type), 1);
+    this.dealt();
+    const name = g.content.items[calcItem(type)].name;
+    if (g.rng.next() < chance) {
+      c.status = 'player';
+      c.addiction = Math.max(c.addiction, 0.3);
+      c.satisfaction = 60;
+      c.warmth = 0;
+      this.steal(npc);
+      g.bark(npc, npc.profile.customer.favourite === type ? 'Oh, that\'s the good stuff.' : 'Huh. Not bad.');
+      remember(npc, { text: `${g.player.name} gave me a ${name}. Better than Minnie's.`, tag: 'sampled', about: 'player', importance: 5 }, g.clock.total);
+      g.bus.emit('gang:customer', { npcId: npc.id, status: 'player' });
+      return { ok: true, text: `${npc.profile.shortName} tries the ${name}… and likes it. They'll buy from you now — they'll page you when they want more. (The Sums of Anarchy won't be happy.)` };
+    }
+    c.warmth = Math.min(0.4, (c.warmth || 0) + 0.15);
+    g.bark(npc, 'Nah. I\'ll stick with Minnie.');
+    return { ok: false, text: `${npc.profile.shortName} tries the ${name} but isn't convinced. They warm to you a little. (${Math.round(chance * 100)}% chance; better with their favourite and more Charm.)` };
+  }
+
+  // --------------------------------------------------------------- orders
+  placeOrders() {
+    const g = this.game;
+    const s = this.state;
+    s.lastOrdersDay = g.clock.day;
+    for (const id of this.playerCustomers()) {
+      const c = s.customers[id];
+      if (c.order) continue;
+      const npc = g.npcs.get(id);
+      if (!npc || npc.dead) continue;
+      if (g.rng.next() > 0.3 + c.addiction * 0.6) continue;
+      this.newOrder(npc);
+    }
+  }
+
+  newOrder(npc) {
+    const g = this.game;
+    const c = this.customer(npc.id);
+    const prof = npc.profile.customer;
+    const type = g.rng.next() < 0.8 ? prof.favourite : g.rng.pick(CALC_TYPES);
+    const qty = 1 + (c.addiction > 0.5 ? 1 : 0) + (g.rng.next() < 0.3 ? 1 : 0);
+    const base = g.content.items[calcItem(type)].price;
+    const price = Math.round(Math.min(prof.budget, base * (1 + c.addiction * 0.4)));
+    const startHour = 10 + g.rng.int(0, 10);
+    const dayStart = (g.clock.day - 1) * 1440;
+    let from = dayStart + startHour * 60;
+    if (from < g.clock.total + 30) from = Math.ceil((g.clock.total + 30) / 60) * 60;
+    const spot = g.rng.pick(DEAL_SPOTS);
+    c.order = { type, qty, price, spot, from, until: from + 120, day: g.clock.day };
+    const where = g.maps.get('halvermouth').def.spots[spot] ? spotName(spot) : spot;
+    g.notify(`📟 ${npc.profile.shortName}: ${qty}× ${g.content.items[calcItem(type)].name} at ${price} obols each — ${where}, ${hhmm(from)}–${hhmm(from + 120)}.`, 'quest');
+    g.bus.emit('gang:order', { npcId: npc.id, order: c.order });
+    return c.order;
+  }
+
+  orderDue(npc) {
+    const c = this.customer(npc.id);
+    const now = this.game.clock.total;
+    return Boolean(c?.order && now >= c.order.from && now < c.order.until);
+  }
+
+  /** Hand over an order. */
+  deliver(npc) {
+    const g = this.game;
+    const c = this.customer(npc.id);
+    const o = c?.order;
+    if (!o) return { ok: false, text: `${npc.profile.shortName} hasn't ordered anything.` };
+    const item = calcItem(o.type);
+    const name = g.content.items[item].name;
+    if (g.inventory.count(item) < o.qty) return { ok: false, text: `${npc.profile.shortName} wants ${o.qty}× ${name}. You have ${g.inventory.count(item)}.` };
+    g.inventory.remove(item, o.qty);
+    const total = o.qty * o.price;
+    g.player.money += total;
+    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    c.order = null;
+    c.orders += 1;
+    c.satisfaction = Math.min(100, c.satisfaction + 15);
+    c.addiction = Math.min(1, c.addiction + 0.07);
+    npc.intent = null;
+    g.npcSystem.think(npc, true);
+    this.dealt();
+    if (!this.truce()) this.addAnger(DEAL_ANGER, 'deal');
+    let text = `Sold ${o.qty}× ${name} to ${npc.profile.shortName} for ${total} obols.`;
+    const ref = npc.profile.customer.refers;
+    if (ref && c.orders >= REFERRAL_AFTER && this.customer(ref)?.status === 'locked') {
+      this.customer(ref).status = 'gang';
+      const who = g.npcs.get(ref);
+      text += ` ${npc.profile.shortName} says they'll put in a word for you with ${who?.profile.name || 'a friend'}.`;
+      g.bus.emit('gang:referral', { from: npc.id, to: ref });
+    }
+    return { ok: true, text };
+  }
+
+  // ------------------------------------------------------------- truce
+  tributePrice() {
+    return 30 + Math.round(this.state.anger * 2);
+  }
+
+  tribute() {
+    const g = this.game;
+    const price = this.tributePrice();
+    if (g.player.money < price) return { ok: false, text: `Arthur wants ${price} obols. You don't have it.` };
+    g.player.money -= price;
+    g.bus.emit('money:changed', { delta: -price, total: g.player.money });
+    this.state.tributes += 1;
+    this.addAnger(-35, 'tribute');
+    return { ok: true, text: `You pay Arthur ${price} obols. He counts it twice. The Sums of Anarchy cool off.` };
+  }
+
+  /** Hand back half your customers (rounded up) for a week's truce. */
+  split() {
+    const g = this.game;
+    const s = this.state;
+    const mine = this.playerCustomers();
+    if (!mine.length) return { ok: false, text: 'You don\'t have any customers to give back.' };
+    const back = mine.slice(0, Math.ceil(mine.length / 2));
+    for (const id of back) {
+      const c = s.customers[id];
+      c.status = 'gang';
+      c.order = null;
+      c.warmth = 0;
+      const npc = g.npcs.get(id);
+      if (npc?.intent?.source === 'deal') { npc.intent = null; g.npcSystem.think(npc, true); }
+    }
+    s.anger = Math.min(s.anger, 10);
+    s.truceUntilDay = g.clock.day + TRUCE_DAYS;
+    g.bus.emit('gang:tier', { tier: this.tier(), why: 'truce' });
+    const names = back.map((id) => g.npcs.get(id)?.profile.shortName).join(', ');
+    return { ok: true, text: `You hand ${names} back to the Sums of Anarchy. Truce until the end of Day ${s.truceUntilDay}. Steal from them before then and it's war.` };
+  }
+
+  // ---------------------------------------------------------- per minute
+  minuteTick() {
+    const g = this.game;
+    const s = this.state;
+    const now = g.clock.total;
+    // a new day: anger fades if you kept your head down; customers page orders at 08:00
+    if (g.clock.day > s.lastDecayDay) {
+      s.lastDecayDay = g.clock.day;
+      if (s.lastStealDay < g.clock.day - 1 && s.anger > 0) this.addAnger(-4, 'quiet day');
+    }
+    if (s.lastOrdersDay < g.clock.day && g.clock.minuteOfDay >= 8 * 60) this.placeOrders();
+    // orders: customers head to the meeting spot during the window; missed orders sour them
+    for (const [id, c] of Object.entries(s.customers)) {
+      const o = c.order;
+      if (!o) continue;
+      const npc = g.npcs.get(id);
+      if (!npc || npc.dead) { c.order = null; continue; }
+      if (now >= o.until) {
+        c.order = null;
+        c.misses += 1;
+        c.satisfaction -= 20;
+        if (npc.intent?.source === 'deal') { npc.intent = null; g.npcSystem.think(npc, true); }
+        if (c.satisfaction <= 0 && c.status === 'player') {
+          c.status = 'gang';
+          c.satisfaction = 30;
+          g.notify(`📟 ${npc.profile.shortName}: "Forget it. I'm going back to Minnie." (Lost a customer.)`, 'warn');
+        } else g.notify(`📟 ${npc.profile.shortName} gave up waiting for you.`, 'warn');
+        continue;
+      }
+      if (now >= o.from && npc.intent?.source !== 'deal' && npc.activity !== 'sleep' && !isDown(npc, now)) {
+        npc.intent = { source: 'deal', activity: 'wait', spot: `halvermouth:${o.spot}`, until: o.until, label: 'waiting for you' };
+        npc.activity = 'wait';
+        npc.arrived = false;
+        g.npcSystem.plan(npc);
+      }
+    }
+    // war: the crew go looking for you
+    if (this.tier() >= 3 && g.player.map === 'halvermouth' && now - s.lastHunt >= HUNT_EVERY && !g.police?.jailed()) {
+      s.lastHunt = now;
+      const hunters = this.crew().filter((n) => n.profile.combat?.fights && !isProtected(n) && n.activity !== 'sleep' && !n.hostile)
+        .sort((a, b) => (a.map === 'halvermouth' ? dist(a.x, a.y, g.player.x, g.player.y) : 1e9) - (b.map === 'halvermouth' ? dist(b.x, b.y, g.player.x, g.player.y) : 1e9))
+        .slice(0, 2);
+      const map = g.maps.get('halvermouth');
+      let best = null;
+      let bd = Infinity;
+      for (const [name, sp] of Object.entries(map.spots)) {
+        const d = Math.hypot(sp.x * TILE - g.player.x, sp.y * TILE - g.player.y);
+        if (d < bd) { bd = d; best = name; }
+      }
+      for (const h of hunters) {
+        h.intent = { source: 'hunt', activity: 'hunt', spot: `halvermouth:${best}`, until: now + 90, label: 'hunting you' };
+        h.activity = 'hunt';
+        h.arrived = false;
+        g.npcSystem.plan(h);
+      }
+      if (hunters.length) g.notify(`${hunters.map((h) => h.profile.shortName).join(' and ')} are out looking for you.`, 'warn');
+    }
+    this.brawls();
+  }
+
+  /** The gang and the police don't mix: insults fly whenever they cross paths. */
+  brawls() {
+    const g = this.game;
+    const s = this.state;
+    const now = g.clock.total;
+    if (!g.police) return;
+    const officers = g.police.activeOfficers().filter((o) => o.activity !== 'sleep' && !o.inDialogue);
+    if (!officers.length) return;
+    for (const m of this.crew()) {
+      if (m.activity === 'sleep' || m.inDialogue || (s.brawl[m.id] || 0) > now) continue;
+      const cop = officers.find((o) => o.map === m.map && dist(o.x, o.y, m.x, m.y) < 4 * TILE);
+      if (!cop) continue;
+      s.brawl[m.id] = now + 60;
+      g.bark(m, g.rng.pick(['Oi! Pig! This is OUR street.', 'Smell that? Bacon.', 'Go back to your doughnuts.', 'No cops in the Sumps!']));
+      g.bark(cop, g.rng.pick(['Watch your mouth.', 'Move along.', 'I\'ve got my eye on you.', 'One day, Sums. One day.']));
+      g.bus.emit('gang:brawl', { gang: m.id, cop: cop.id });
+    }
+  }
+
+  // ------------------------------------------------------------ per frame
+  /** Hostile crew jump you when they see you on their turf (or anywhere in the city at war). */
+  update() {
+    const g = this.game;
+    const t = this.tier();
+    if (t < 2 || g.combat.wrath || g.police?.jailed()) return;
+    const p = g.player;
+    const map = g.currentMap();
+    const onTurf = p.map === 'abacus' || (p.map === 'halvermouth' && (t >= 3 || /Sumps/.test(p.areaName || '')));
+    if (!onTurf) return;
+    const now = g.clock.total;
+    const s = this.state;
+    for (const m of this.crew()) {
+      if (m.map !== p.map || m.hostile || m.inDialogue || m.activity === 'sleep' || isProtected(m) || !m.profile.combat?.fights) continue;
+      if ((s.ambush[m.id] || 0) > now) continue;
+      if (!g.canSee(m, p.x, p.y, map, 7)) continue;
+      s.ambush[m.id] = now + AMBUSH_COOLDOWN;
+      m.hostile = { mode: 'fight', until: now + 20 };
+      m.activity = 'fight';
+      g.bark(m, g.rng.pick(['That\'s the one stealing our customers!', 'Arthur says hello.', 'Time to settle the account!', 'You owe us. With interest.']));
+      g.bus.emit('gang:ambush', { npcId: m.id });
+    }
+  }
+}
+
+const hhmm = (total) => {
+  const m = ((Math.round(total) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+};
+
+const SPOT_NAMES = {
+  sumps_corner: 'the corner by the shacks', sumps_fire_n: 'the north fire barrel', sumps_fire_w: 'the west fire barrel', sumps_fire_s: 'the south fire barrel',
+  sumps_fire_e: 'the east fire barrel', sumps_fire_mill: 'the fire barrel off Mill Road', sumps_lane: 'the west lane', sumps_wreck: 'the burnt-out car',
+  sumps_mill_road: 'Mill Road in the Sumps', sumps_south: 'the south shacks', sumps_shore: 'the shore', sumps_east: 'the east wreck',
+};
+const spotName = (spot) => SPOT_NAMES[spot] || spot.replace(/_/g, ' ');
+
+
+return { CHIEF, ENFORCER, DEAL_SPOTS, TIERS, calcItem, freshGang, Gang, spotName, hhmm };
 })();
 
 // ---- src/systems/ledgerGame.js
@@ -11059,7 +12336,7 @@ const { parseSpotRef, TILE, interpolate } = __m["src/core/util.js"];
 const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang',
 ];
 
 /**
@@ -11227,6 +12504,16 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'gang': {
+        // { gang: { sample: true } | { deliver: true } | { tribute: true } | { split: true } } — sample/deliver act on this NPC
+        let r = null;
+        if (val.sample && npc) r = game.gang.sample(npc);
+        if (val.deliver && npc) r = game.gang.deliver(npc);
+        if (val.tribute) r = game.gang.tribute();
+        if (val.split) r = game.gang.split();
+        if (r?.text) game.notify(r.text, r.ok ? 'good' : 'warn');
+        break;
+      }
       case 'police': {
         // { police: { bribe: true } | { payFine: true } | { pettyDeal: 'money' | itemId } }
         let r = null;
@@ -11328,6 +12615,8 @@ const { Construction, freshConstruction } = __m["src/systems/construction.js"];
 const { Properties, freshProperties } = __m["src/systems/properties.js"];
 const { Combat, isDown } = __m["src/systems/combat.js"];
 const { Police, freshPolice } = __m["src/systems/police.js"];
+const { Calculators } = __m["src/systems/calculators.js"];
+const { Gang, freshGang } = __m["src/systems/gang.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -11357,6 +12646,8 @@ class Game {
     this.properties = new Properties(this);
     this.combat = new Combat(this);
     this.police = new Police(this);
+    this.calculators = new Calculators(this);
+    this.gang = new Gang(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -11365,6 +12656,11 @@ class Game {
     this.warnings = [];
     this.lockMessageAt = -10;
     this.bus.on('fact:learned', (e) => this.onFactLearned(e));
+  }
+
+  /** Effective stat (base + calculator highs and comedowns). Use this, not player.stats, for checks. */
+  stat(name) {
+    return this.calculators.stat(name);
   }
 
   warn(msg) {
@@ -11395,6 +12691,8 @@ class Game {
       knowledge: {},
       reputation: { ...DEFAULT_REPUTATION },
       stats: { charm: 2, wits: 2, grit: 2, finesse: 2 },
+      buffs: [],
+      tolerance: {},
       discovered: { maps: { [this.content.startingMap]: true }, areas: {} },
     };
     this.world = this.freshWorld();
@@ -11422,6 +12720,7 @@ class Game {
       construction: freshConstruction(),
       properties: freshProperties(),
       police: freshPolice(),
+      gang: freshGang(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -11563,6 +12862,7 @@ class Game {
     this.updatePlayer(dt, input);
     this.combat.update(dt);
     this.police.update(dt);
+    this.gang.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -11579,6 +12879,8 @@ class Game {
   minuteTick() {
     this.combat.minuteTick();
     this.police.minuteTick();
+    this.calculators.minuteTick();
+    this.gang.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -12037,8 +13339,20 @@ class Game {
         }
         return { type: 'container', containerId: act.container };
       }
-      case 'shop':
+      case 'shop': {
+        // a staffed counter: the owner has to be behind it (and willing to serve you)
+        const shop = this.content.shops[act.shop];
+        const owner = act.staffed && shop?.owner ? this.npcs.get(shop.owner) : null;
+        if (act.staffed) {
+          const here = owner && owner.map === this.player.map && owner.activity !== 'sleep' && !isDown(owner, this.clock.total) && Math.hypot(owner.x - this.player.x, owner.y - this.player.y) < 4 * TILE;
+          if (!here) return { type: 'message', text: act.closed || 'Nobody is behind the counter.' };
+          if (act.shop === 'shop_sums' && this.gang.tier() >= 2) {
+            this.bark(owner, 'We don\'t sell to rats.');
+            return { type: 'message', text: `${owner.profile.shortName} folds her arms. Arthur's orders: nothing for you.` };
+          }
+        }
         return { type: 'shop', shopId: act.shop };
+      }
       case 'jail':
         return this.police.jailInteract(prop);
       case 'workstation':
@@ -12351,6 +13665,8 @@ class Game {
     this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
     this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
     this.world.police = { ...fresh.police, ...(this.world.police || {}) };
+    this.world.gang = { ...fresh.gang, ...(this.world.gang || {}) };
+    this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -12461,6 +13777,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.11.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Sums of Anarchy',
+    notes: [
+      'The Sums of Anarchy run the Sumps from a bar called the Abacus. Their leader, Arthur Anderson, is always angry, obsessed with maths, fiercely protective of the Sumps and his crew of six — and he keeps a ledger of grudges.',
+      'Calculators: the Oberverse\'s illicit substance. Rose-Gold Sum (Charm), Big Brain 9000 (Wits), The Brick (Grit), Featherkey (Finesse), Plus Pack (heals) and Overclock (energy, then a crash). A few hours\' high, then an hour\'s comedown; use too many and they stop working for a while. Grit now soaks damage.',
+      'Buy them from Minnie at the Abacus counter — or sell your own. Twelve Sumps residents buy from the gang. Win them over with a free sample, then they page you orders with a time and place. Three good deals and they\'ll vouch for you with a friend. Journal → Customers keeps track.',
+      'Every customer you steal makes the gang angrier: first a warning from Al Gebra, then ambushes in the Sumps, then war across Halvermouth. Pay Arthur tribute or hand back half your customers for a week\'s truce.',
+      'Officers who see you deal will come for you. The Sumps itself never calls the police. And raising a hand to Arthur? You don\'t add up.',
+    ],
+  },
   {
     version: '0.10.0',
     date: '2026-10-13',
@@ -12795,10 +14124,30 @@ function drawCharacter(ctx, a, s) {
       ctx.beginPath(); ctx.arc(-6, eyeY + 3.5, 2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(6, eyeY + 3.5, 2, 0, Math.PI * 2); ctx.fill();
     }
+    if (a.angry && !s.sleeping) {
+      // permanently furious: a deep flush and brows slammed down into a V
+      ctx.fillStyle = 'rgba(210,40,30,0.32)';
+      ctx.beginPath(); ctx.arc(0, hy + 1, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2a1a14';
+      ctx.lineWidth = 1.6;
+      for (const bx of side ? [dir * 4.5] : [-3.6, 3.6]) {
+        const inner = side ? -dir : -Math.sign(bx);
+        ctx.beginPath(); ctx.moveTo(bx - inner * 2.4, eyeY - 4.4); ctx.lineTo(bx + inner * 2.2, eyeY - 2.4); ctx.stroke();
+      }
+    }
     drawFacialHair(ctx, a, facing, hy, dir);
     drawFaceAccessory(ctx, a, facing, eyeY, dir);
   }
   drawHat(ctx, a, facing, hy);
+  if (a.angry && !s.sleeping) {
+    // steam
+    const tt = s.idleTime || t;
+    for (let k = 0; k < 3; k++) {
+      const ph = (tt * 0.9 + k / 3) % 1;
+      ctx.fillStyle = `rgba(240,235,235,${0.55 * (1 - ph)})`;
+      ctx.beginPath(); ctx.arc((k - 1) * 6 + Math.sin(tt * 3 + k) * 1.5, hy - 11 - ph * 14, 2.2 + ph * 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   if (acc.has('goggles')) {
     ctx.fillStyle = '#5b4a3a';
     ctx.fillRect(-9.5, hy - 6, 19, 3);
@@ -14568,7 +15917,9 @@ __m["src/engine/wrath.js"] = (function () {
 // derricks, gushers, burning oil), construction (Mason: blueprints, hazard
 // tape, tools, falling I-beams, a wrecking ball, a brick wall), law (Chief
 // Lawrence Order: sirens, searchlights, badges and handcuffs, ramming squad
-// cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars).
+// cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars), maths
+// (Arthur Anderson: graph paper, orbiting calculator keys and bad sums, steam,
+// falling digits, a giant calculator reading ERROR, division by zero).
 const { clamp, lerp } = __m["src/core/util.js"];
 const { hash2 } = __m["src/core/rng.js"];
 const { WRATH } = __m["src/systems/combat.js"];
@@ -15580,7 +16931,213 @@ const LAW = {
   },
 };
 
-const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW };
+// ================================================================= MATHS
+const KEYS = ['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '−', '0', '.', '=', '+'];
+const SUMS = ['2+2=5', 'x÷0', '∑', 'π≠3', '√−1', '∞', '1/0', '%', 'NaN', 'ERR'];
+
+function calcKey(ctx, x, y, s, label, rot, hot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = hot ? '#ff4a3a' : '#3a3a40';
+  rrect(ctx, -7, -7, 14, 14, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(-6, -6, 12, 3);
+  ctx.fillStyle = '#f4efe6';
+  ctx.font = 'bold 10px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, 0, 1);
+  ctx.restore();
+}
+
+/** A seven-segment LCD readout. */
+function lcd(ctx, x, y, w, h, text, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = '#2a2a2e';
+  rrect(ctx, x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8, 5); ctx.fill();
+  ctx.fillStyle = '#9fb48a';
+  ctx.fillRect(x - w / 2, y - h / 2, w, h);
+  ctx.fillStyle = '#1e2a14';
+  ctx.font = `bold ${Math.round(h * 0.7)}px "Courier New", monospace`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + w / 2 - 4, y + 1);
+  ctx.restore();
+}
+
+const MATHS = {
+  banner: 'YOU DON\'T ADD UP',
+  sky: [60, 6, 4, 18, 2, 2],
+  flash: '255,110,90',
+  ground(I) {
+    const { ctx, e, conv, vx, vfeet, p } = I;
+    // graph paper spreads out from Arthur, axes and all
+    const r = 180 * ease((e - 0.2) / 1.0) * (1 - ease((e - WRATH.fade) / 0.6));
+    if (r > 2) {
+      onGround(ctx, vx, vfeet, () => {
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
+        ctx.fillStyle = 'rgba(250,240,230,0.12)';
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.strokeStyle = 'rgba(255,90,70,0.35)';
+        ctx.lineWidth = 1;
+        for (let k = -r; k < r; k += 12) {
+          ctx.beginPath(); ctx.moveTo(k, -r); ctx.lineTo(k, r); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-r, k); ctx.lineTo(r, k); ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(255,200,180,0.9)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.stroke();
+        // y = 1/x, plotted in anger
+        ctx.strokeStyle = 'rgba(255,60,40,0.9)';
+        ctx.lineWidth = 3;
+        for (const sgn of [1, -1]) {
+          ctx.beginPath();
+          for (let x = 4; x < r; x += 4) ctx.lineTo(sgn * x, -sgn * (900 / x));
+          ctx.stroke();
+        }
+      });
+    }
+    // under the player: the target — a ring with ÷0
+    const mark = ease((e - WRATH.converge) / 0.4) * (1 - ease((e - WRATH.fade) / 0.5));
+    if (mark > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.globalAlpha = mark;
+        ctx.strokeStyle = '#ff3a2a';
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.stroke();
+        ctx.font = 'bold 30px Georgia, serif';
+        ctx.fillStyle = '#ff3a2a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('÷0', 0, 2);
+      }, 0.45);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv, vx, vy } = I;
+    // his anger, made visible: steam jets
+    if (e > 0.3 && e < WRATH.fade) {
+      for (let k = 0; k < 8; k++) {
+        const ph = (e * 1.4 + k / 8) % 1;
+        ctx.fillStyle = `rgba(255,${120 + k * 10},${100},${0.35 * (1 - ph)})`;
+        ctx.beginPath(); ctx.arc(vx + (k - 3.5) * 5 + Math.sin(e * 4 + k) * 4, vy - 50 - ph * 70, 4 + ph * 9, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const shrink = lerp(1, 0.55, conv) * (1 - ease((e - WRATH.lightning) / 0.5) * 0.4);
+    const fadeOut = 1 - ease((e - WRATH.ascend) / 0.3);
+    const spin = e + e * e * 0.35;
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    for (let i = 0; i < 16; i++) {
+      const a = spin * 1.2 + (i / 16) * Math.PI * 2;
+      const rad = 60 * unfold * shrink;
+      calcKey(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold * 1.05, KEYS[i], a * 0.5, Math.floor(e * 6) % 16 === i);
+    }
+    ctx.font = 'italic bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < SUMS.length; i++) {
+      const a = -spin * 0.8 + (i / SUMS.length) * Math.PI * 2;
+      const rad = 112 * unfold * shrink;
+      ctx.fillStyle = i % 3 ? '#ffd8c8' : '#ff4a3a';
+      ctx.fillText(SUMS[i], centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8);
+    }
+    ctx.restore();
+  },
+  strike(I, i, age) {
+    const { ctx, p, top, w } = I;
+    const fade = 1 - ease((I.e - WRATH.fade) / 0.4);
+    if (i < 4) {
+      // giant digits fall out of the sky and slam down on the player
+      if (age < -0.25 || age > 2.5) return;
+      const digit = ['7', '3', '9', '1'][i];
+      if (I.e > WRATH.ascend + 0.4) return; // cleared away for the finale
+      const k = ease((age + 0.25) / 0.25);
+      const tx = p.x + (hash2(w.seed, i) - 0.5) * 40;
+      const ty = lerp(top - 30, p.y - 4 - i * 4, k);
+      ctx.save();
+      ctx.globalAlpha = fade * (1 - ease((I.e - WRATH.ascend) / 0.4));
+      ctx.translate(tx, ty);
+      ctx.rotate((hash2(i, w.seed) - 0.5) * 0.5 * (1 - k * 0.6));
+      ctx.font = 'bold 70px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#2a0a08';
+      ctx.strokeText(digit, 0, 0);
+      ctx.fillStyle = '#ff3a2a';
+      ctx.fillText(digit, 0, 0);
+      ctx.restore();
+      if (age >= 0) dust(ctx, tx, p.y, age, w.seed + i * 19, 0.9);
+      return;
+    }
+    // the last one: a giant calculator comes down like a stamp, reading ERROR
+    if (age < -0.35 || age > 2.5) return;
+    const k = age < 0 ? ease((age + 0.35) / 0.35) : 1;
+    const bounce = age >= 0 ? Math.abs(Math.sin(age * 10)) * 6 * Math.exp(-age * 5) : 0;
+    const cy = lerp(top - 120, p.y - 60, k) - bounce;
+    ctx.save();
+    ctx.globalAlpha = fade * (1 - ease((age - 1.1) / 0.4));
+    ctx.fillStyle = '#2a2a30';
+    rrect(ctx, p.x - 50, cy - 70, 100, 136, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(p.x - 50, cy - 70, 100, 8);
+    lcd(ctx, p.x, cy - 44, 80, 24, Math.floor(I.e * 8) % 2 ? 'ERROR' : 'E', 1);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) calcKey(ctx, p.x - 33 + c * 22, cy - 6 + r * 18, 1.15, KEYS[r * 4 + c], 0, r === 0 && c === 3);
+    ctx.restore();
+    if (age >= 0) {
+      dust(ctx, p.x, p.y, age, w.seed + 913, 1.8);
+      if (age < 0.25) {
+        onGround(ctx, p.x, p.y, () => {
+          ctx.strokeStyle = `rgba(255,140,110,${1 - age / 0.25})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.arc(0, 0, 30 + age * 420, 0, Math.PI * 2); ctx.stroke();
+        });
+      }
+    }
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    // the player is divided by zero: they come apart into pixels and numbers…
+    const age = e - WRATH.ascend;
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    const R = rng(w.seed + 707);
+    const cols = ['#c9302a', '#f2efe8', '#2a2224', '#e2b896', '#3a6a8a'];
+    ctx.save();
+    ctx.globalAlpha = out;
+    for (let i = 0; i < 90; i++) {
+      const ox = (R() - 0.5) * 22;
+      const oy = -R() * 46;
+      const a = Math.atan2(oy + 23, ox) + (R() - 0.5) * 0.8;
+      const sp = 30 + R() * 110;
+      const d = sp * ease(age / 1.4);
+      const x = p.x + ox + Math.cos(a) * d;
+      const y = p.y + oy + Math.sin(a) * d * 0.7 - age * 12;
+      if (i % 3 === 0) {
+        ctx.fillStyle = '#ff6a50';
+        ctx.font = 'bold 11px "Courier New", monospace';
+        ctx.fillText(String(Math.floor(R() * 10)), x, y);
+      } else {
+        ctx.fillStyle = cols[i % cols.length];
+        ctx.fillRect(x, y, 3, 3);
+      }
+    }
+    ctx.restore();
+    // …and the readout says what they are now
+    if (age > 0.6) {
+      const text = age < 1.1 ? (Math.floor(e * 12) % 2 ? '÷0' : '1/0') : 'UNDEFINED';
+      lcd(ctx, p.x, p.y - 70, 120, 26, text, out * ease((age - 0.6) / 0.2));
+    }
+  },
+};
+
+const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS };
 
 // -------------------------------------------------------------- draw
 function drawWrath(renderer, g, w) {
@@ -16385,7 +17942,19 @@ class DialogueSession {
     const g = this.game;
     const pun = g.dailyPun ? g.dailyPun() : {};
     const pol = g.police;
-    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline, bribe: pol?.bribePrice(), fine: pol?.finePrice(), bribedUntil: g.world.police?.bribedUntilDay, record: g.world.police?.record ?? 0 };
+    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline, bribe: pol?.bribePrice(), fine: pol?.finePrice(), bribedUntil: g.world.police?.bribedUntilDay, record: g.world.police?.record ?? 0, ...this.gangVars() };
+  }
+
+  /** Order details for customers; tribute for Arthur. */
+  gangVars() {
+    const g = this.game;
+    if (!g.gang) return {};
+    const c = g.gang.customer(this.npc.id);
+    const o = c?.order;
+    const out = { tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
+    if (o) Object.assign(out, { orderQty: o.qty, orderName: g.content.items[`item_calc_${o.type}`]?.name, orderPrice: o.price, orderTotal: o.qty * o.price });
+    if (this.profile.customer) out.favourite = g.content.items[`item_calc_${this.profile.customer.favourite}`]?.name;
+    return out;
   }
 
   /** Resolve a "say" (array of pages; pages may be conditional objects). Runs page effects. */
@@ -16469,7 +18038,7 @@ class DialogueSession {
 
   menuOptions() {
     this.mode = 'menu';
-    const opts = this.availableTopics().map((t) => ({ id: `topic:${t.id}`, label: t.label, tag: t.tag || null, fresh: !(this.npc.topicsUsed || {})[t.id] }));
+    const opts = this.availableTopics().map((t) => ({ id: `topic:${t.id}`, label: interpolate(t.label, this.vars()), tag: t.tag || null, fresh: !(this.npc.topicsUsed || {})[t.id] }));
     if (this.profile.mechanics?.gossipBroker) opts.push({ id: 'gossip', label: '"Heard anything interesting?"', tag: 'gossip' });
     if (this.giftables().length) opts.push({ id: 'gift', label: 'Give a gift…', tag: 'gift' });
     opts.push({ id: 'ask', label: 'Ask about…', tag: 'ask' });
@@ -16530,7 +18099,7 @@ class DialogueSession {
 
   successChance(chk) {
     const g = this.game;
-    const statVal = g.player.stats[chk.stat] ?? 2;
+    const statVal = g.stat ? g.stat(chk.stat) : g.player.stats[chk.stat] ?? 2;
     let p = (chk.base ?? 0.4) + (statVal - 2) * 0.08;
     const rel = g.relationships.get(this.npc, 'player');
     for (const [dim, k] of Object.entries(chk.relScale || {})) p += (rel[dim] || 0) * k;
@@ -16544,7 +18113,7 @@ class DialogueSession {
     for (const c of t.choices) {
       if (c.if && !check(c.if, this.game, this.npc)) continue;
       const locked = c.require && !check(c.require, this.game, this.npc);
-      let label = c.label;
+      let label = interpolate(c.label, this.vars());
       if (c.check && !locked) label += ` [${cap(c.check.stat)} ${Math.round(this.successChance(c.check) * 100)}%]`;
       opts.push({ id: `choice:${c.id}`, label, disabled: Boolean(locked), hint: locked ? c.lockedHint || 'Not available.' : null, tag: c.check ? 'check' : null });
     }
@@ -17236,6 +18805,10 @@ const HELP = [
   ['wanted <0–3> · record <n>', 'set your Wanted level or criminal record'],
   ['jail [hours] · release', 'go to jail (optional sentence) or walk free'],
   ['bribe', 'the police look the other way for 3 days (free)'],
+  ['calcs [n]', 'n of every calculator (default 5)'],
+  ['gang <0–100>', 'set the Sums of Anarchy\'s anger'],
+  ['customer <name> <player|gang|locked>', 'set a customer\'s status (customers lists them)'],
+  ['order <name>', 'that customer pages you an order right now'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -17286,7 +18859,7 @@ function runCommand(game, line) {
   const [cmd, ...args] = parts;
   const p = game.player;
   const out = (text, ok = true) => {
-    if (ok && cmd !== 'help' && cmd !== 'items' && cmd !== 'npcs' && cmd !== 'maps' && cmd !== 'spots') game.setFlag('debug_used', true);
+    if (ok && cmd !== 'help' && cmd !== 'items' && cmd !== 'npcs' && cmd !== 'maps' && cmd !== 'spots' && cmd !== 'customers') game.setFlag('debug_used', true);
     return { ok, text };
   };
   switch (cmd.toLowerCase()) {
@@ -17462,6 +19035,36 @@ function runCommand(game, line) {
       game.world.police.bribedUntilDay = game.clock.day + 3;
       return out(`The police look the other way until the end of Day ${game.world.police.bribedUntilDay}.`);
     }
+    case 'calcs': {
+      const n = Math.max(1, Math.round(parseNum(args[0]) ?? 5));
+      for (const id of Object.keys(game.content.items).filter((k) => k.startsWith('item_calc_'))) game.inventory.add(id, n, { silent: true });
+      return out(`+${n} of every calculator.`);
+    }
+    case 'gang': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Anger: ${game.world.gang.anger} (tier ${game.gang.tier()}). Usage: gang <0–100>`, false);
+      game.gang.addAnger(clamp(Math.round(n), 0, 100) - game.world.gang.anger, 'debug');
+      return out(`Sums of Anarchy anger: ${game.world.gang.anger} (tier ${game.gang.tier()})`);
+    }
+    case 'customers': {
+      return out(Object.entries(game.world.gang.customers).map(([id, c]) => `${id.padEnd(12)} ${c.status.padEnd(7)} ${c.order ? `order ${c.order.qty}× ${c.order.type}` : ''}`).join('\n'));
+    }
+    case 'customer':
+    case 'order': {
+      const q = (args[0] || '').toLowerCase();
+      const id = Object.keys(game.world.gang.customers).find((k) => k === q || k === `npc_${q}` || game.npcs.get(k)?.profile.name.toLowerCase().includes(q));
+      if (!q || !id) return out(`Usage: ${cmd} <name>. Try: customers`, false);
+      const npc = game.npcs.get(id);
+      if (cmd === 'order') {
+        game.gang.customer(id).status = 'player';
+        const o = game.gang.newOrder(npc);
+        return out(`${npc.profile.shortName} wants ${o.qty}× ${o.type} at ${o.spot}.`);
+      }
+      const st = args[1];
+      if (!['player', 'gang', 'locked'].includes(st)) return out('Status must be player, gang or locked.', false);
+      game.gang.customer(id).status = st;
+      return out(`${npc.profile.name}: ${st}`);
+    }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);
   }
@@ -17482,6 +19085,7 @@ const { SLOTS } = __m["src/save/saveManager.js"];
 const { STATS } = __m["src/dialogue/dialogueEngine.js"];
 const { OIL_PROJECTS } = __m["src/systems/oilCompany.js"];
 const { runCommand } = __m["src/game/debugCommands.js"];
+const { spotName, hhmm } = __m["src/systems/gang.js"];
 
 function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -17498,7 +19102,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -17531,7 +19135,7 @@ function inventoryPanel(ui, body) {
         h('div', { class: 'stat' }, h('span', {}, 'Obols'), h('b', {}, String(p.money))),
         h('div', { class: 'stat' }, h('span', {}, 'Health'), h('b', {}, `${Math.round(p.health)}/100`)),
         h('div', { class: 'stat' }, h('span', {}, 'Energy'), h('b', {}, `${Math.round(p.energy)}/100`)),
-        ...STATS.map((s) => h('div', { class: 'stat' }, h('span', {}, s[0].toUpperCase() + s.slice(1)), h('b', {}, '●'.repeat(p.stats[s]) + '○'.repeat(5 - p.stats[s])))),
+        ...STATS.map((s) => h('div', { class: 'stat' }, h('span', {}, s[0].toUpperCase() + s.slice(1)), h('b', {}, statDots(p.stats[s], ui.game.stat(s))))),
       ),
     );
     const list = g.inventory.list();
@@ -17569,7 +19173,7 @@ function inventoryPanel(ui, body) {
 // ------------------------------------------------------------------ journal
 function journalPanel(ui, body, opts) {
   const g = ui.game;
-  const tabs = ['Quests', 'People', 'Notes', 'Standing'];
+  const tabs = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
   const tab = opts.tab || 'Quests';
   if (tab === 'Quests') {
     const list = g.quests.journal();
@@ -17601,6 +19205,8 @@ function journalPanel(ui, body, opts) {
         ),
       );
     }
+  } else if (tab === 'Customers') {
+    customersTab(g, body);
   } else if (tab === 'Notes') {
     const entries = Object.entries(g.player.knowledge || {}).sort((a, b) => b[1].at - a[1].at);
     if (!entries.length) body.append(h('p', { class: 'muted' }, 'You don\'t know much about Lanternside yet.'));
@@ -17621,6 +19227,41 @@ function journalPanel(ui, body, opts) {
     }
   }
   return { title: 'Journal', tabs: tabs.map((t) => ({ label: t, active: t === tab, onclick: () => ui.openPanel('journal', { tab: t }) })) };
+}
+
+/** Base stat as dots, plus a calculator high (green +) or comedown (orange −). */
+function statDots(base, eff) {
+  const dots = '●'.repeat(Math.max(0, Math.min(5, base))) + '○'.repeat(Math.max(0, 5 - base));
+  return eff > base ? `${dots} +${eff - base}🧮` : eff < base ? `${dots} −${base - eff}🧮` : dots;
+}
+
+/** Journal → Customers: the calculator trade (src/systems/gang.js). */
+function customersTab(g, body) {
+  const st = g.world.gang;
+  const tier = g.gang.tier();
+  const tierName = ['Calm', 'Warned you', 'Hostile', 'At war'][tier];
+  body.append(h('div', { class: 'quest' },
+    h('h3', {}, 'Sums of Anarchy', h('span', { class: `tag ${tier >= 2 ? 'bad' : tier === 1 ? '' : 'good'}` }, g.gang.truce() ? `Truce to Day ${st.truceUntilDay}` : tierName)),
+    h('div', { class: 'muted' }, `Anger ${Math.round(st.anger)}/100. 25: a warning · 50: they jump you in the Sumps · 75: they hunt you across Halvermouth. Stealing customers and dealing raise it; quiet days lower it. Talk to Arthur at the Abacus about a truce.`),
+    h('div', { class: 'meter' }, h('i', { class: 'neg', style: `width:${Math.min(100, st.anger) / 2}%` }))));
+  const rows = Object.entries(st.customers).map(([id, c]) => ({ id, c, npc: g.npcs.get(id) })).filter((r) => r.npc);
+  const order = { player: 0, gang: 1, locked: 2 };
+  rows.sort((a, b) => order[a.c.status] - order[b.c.status] || a.npc.profile.name.localeCompare(b.npc.profile.name));
+  const wrap = h('div', { class: 'list' });
+  for (const { c, npc } of rows) {
+    const fav = g.content.items[`item_calc_${npc.profile.customer.favourite}`];
+    const status = { player: 'Your customer', gang: 'Buys from the gang', locked: 'Doesn\'t know you' }[c.status];
+    let line = `Favourite: ${fav?.name || '?'} · pays up to ${npc.profile.customer.budget} obols`;
+    if (c.status === 'player') line += ` · ${c.orders} deals · happiness ${Math.round(c.satisfaction)} · habit ${Math.round(c.addiction * 100)}%`;
+    if (c.status === 'locked') line += ' · needs a friend to vouch for you';
+    const o = c.order;
+    const orderLine = o ? `📟 ${o.qty}× ${g.content.items[`item_calc_${o.type}`]?.name} at ${o.price} each — ${spotName(o.spot)}, ${hhmm(o.from)}–${hhmm(o.until)}${g.clock.total >= o.from ? ' (NOW)' : ''}` : null;
+    wrap.append(h('div', { class: 'item-row' },
+      h('div', { class: 'icon' }, c.status === 'player' ? '🧮' : c.status === 'gang' ? '∑' : '🔒'),
+      h('div', { class: 'grow' }, h('div', {}, `${npc.profile.name} — ${status}`), h('div', { class: 'desc' }, line), orderLine ? h('div', { class: 'hint' }, orderLine) : null)));
+  }
+  body.append(wrap);
+  body.append(h('p', { class: 'muted' }, 'Win a customer with a free sample (their favourite works best; Charm helps). They page you orders with a time and place — deliver in person. Three good deals and they\'ll vouch for you with a friend. Officers who see you deal will arrest you.'));
 }
 
 // ---------------------------------------------------------------------- map
@@ -18430,7 +20071,7 @@ class UI {
       this.audio.sfx('sfx_wrath', { theme });
     });
     // each strike sounds like what hits you
-    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram' }[theme] || 'sfx_thunder', { index }));
+    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram', maths: 'sfx_digit' }[theme] || 'sfx_thunder', { index }));
     bus.on('combat:wrathEnd', ({ npcId }) => {
       this.el.hud.classList.add('cinematic');
       const victim = game.npcs.get(npcId);
@@ -18627,6 +20268,11 @@ class UI {
     if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
     if (pol?.jail) whtmlWanted += `<span class="tag">⛓ In jail · ${g.police.hoursLeft()}h left</span>`;
     else if (g.police?.bribed()) whtmlWanted += `<span class="tag">🤝 Police paid off · until end of Day ${pol.bribedUntilDay}</span>`;
+    // calculator highs and comedowns; the Sums of Anarchy's mood
+    for (const b of g.calculators.active()) whtmlWanted += `<span class="tag ${b.delta > 0 ? 'high' : 'low'}">🧮 ${b.stat[0].toUpperCase()}${b.stat.slice(1)} ${b.delta > 0 ? '+' : ''}${b.delta} · ${b.minutesLeft >= 60 ? `${Math.floor(b.minutesLeft / 60)}h` : `${b.minutesLeft}m`}</span>`;
+    const tier = g.gang.tier();
+    if (tier > 0) whtmlWanted += `<span class="tag gang t${tier}">∑ Sums of Anarchy: ${['', 'warned you', 'HOSTILE', 'AT WAR'][tier]}</span>`;
+    else if (g.gang.truce()) whtmlWanted += `<span class="tag">∑ Truce with the Sums · Day ${g.world.gang.truceUntilDay}</span>`;
     if (this.el.wanted.innerHTML !== whtmlWanted) this.el.wanted.innerHTML = whtmlWanted;
     this.el.wanted.classList.toggle('hidden', !whtmlWanted);
     this.el.energy.style.width = `${p.energy}%`;

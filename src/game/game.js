@@ -21,6 +21,8 @@ import { Construction, freshConstruction } from '../systems/construction.js';
 import { Properties, freshProperties } from '../systems/properties.js';
 import { Combat, isDown } from '../systems/combat.js';
 import { Police, freshPolice } from '../systems/police.js';
+import { Calculators } from '../systems/calculators.js';
+import { Gang, freshGang } from '../systems/gang.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -50,6 +52,8 @@ export class Game {
     this.properties = new Properties(this);
     this.combat = new Combat(this);
     this.police = new Police(this);
+    this.calculators = new Calculators(this);
+    this.gang = new Gang(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -58,6 +62,11 @@ export class Game {
     this.warnings = [];
     this.lockMessageAt = -10;
     this.bus.on('fact:learned', (e) => this.onFactLearned(e));
+  }
+
+  /** Effective stat (base + calculator highs and comedowns). Use this, not player.stats, for checks. */
+  stat(name) {
+    return this.calculators.stat(name);
   }
 
   warn(msg) {
@@ -88,6 +97,8 @@ export class Game {
       knowledge: {},
       reputation: { ...DEFAULT_REPUTATION },
       stats: { charm: 2, wits: 2, grit: 2, finesse: 2 },
+      buffs: [],
+      tolerance: {},
       discovered: { maps: { [this.content.startingMap]: true }, areas: {} },
     };
     this.world = this.freshWorld();
@@ -115,6 +126,7 @@ export class Game {
       construction: freshConstruction(),
       properties: freshProperties(),
       police: freshPolice(),
+      gang: freshGang(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -256,6 +268,7 @@ export class Game {
     this.updatePlayer(dt, input);
     this.combat.update(dt);
     this.police.update(dt);
+    this.gang.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -272,6 +285,8 @@ export class Game {
   minuteTick() {
     this.combat.minuteTick();
     this.police.minuteTick();
+    this.calculators.minuteTick();
+    this.gang.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -730,8 +745,20 @@ export class Game {
         }
         return { type: 'container', containerId: act.container };
       }
-      case 'shop':
+      case 'shop': {
+        // a staffed counter: the owner has to be behind it (and willing to serve you)
+        const shop = this.content.shops[act.shop];
+        const owner = act.staffed && shop?.owner ? this.npcs.get(shop.owner) : null;
+        if (act.staffed) {
+          const here = owner && owner.map === this.player.map && owner.activity !== 'sleep' && !isDown(owner, this.clock.total) && Math.hypot(owner.x - this.player.x, owner.y - this.player.y) < 4 * TILE;
+          if (!here) return { type: 'message', text: act.closed || 'Nobody is behind the counter.' };
+          if (act.shop === 'shop_sums' && this.gang.tier() >= 2) {
+            this.bark(owner, 'We don\'t sell to rats.');
+            return { type: 'message', text: `${owner.profile.shortName} folds her arms. Arthur's orders: nothing for you.` };
+          }
+        }
         return { type: 'shop', shopId: act.shop };
+      }
       case 'jail':
         return this.police.jailInteract(prop);
       case 'workstation':
@@ -1044,6 +1071,8 @@ export class Game {
     this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
     this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
     this.world.police = { ...fresh.police, ...(this.world.police || {}) };
+    this.world.gang = { ...fresh.gang, ...(this.world.gang || {}) };
+    this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();

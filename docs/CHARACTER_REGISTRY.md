@@ -26,11 +26,19 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_miranda` | Officer Miranda Wright | Generated for the Lawrence import | Minor | Earnest rookie; baton; Westbrook, Gullwing Park, Canal Row | — | Implemented & tested |
 | `npc_hugh` | Officer Hugh Jury | Generated for the Lawrence import | Minor | Grumpy veteran; shotgun; Ober Fields, then night guard of the cells | — | Implemented & tested |
 | `npc_petty` | Petty Larson | Generated for the Lawrence import | Minor | Pickpocket in the next cell; sells the vent secret | — | Implemented & tested |
+| `npc_arthur` | Arthur Anderson | **Imported** (2026-10-13) | Major | Leader of the Sums of Anarchy; always angry, maths-obsessed, protective, vengeful; protected (maths Wrath) | `motif_arthur` | Implemented & tested |
+| `npc_al` | Al Gebra | Generated for the Arthur import | Minor | Enforcer; delivers warnings; knuckles | — | Implemented & tested |
+| `npc_percy` | Percy Ntage | Generated for the Arthur import | Minor | Bookkeeper; never fights | — | Implemented & tested |
+| `npc_minnie` | Minnie Mus | Generated for the Arthur import | Minor | Runs the Abacus counter (`shop_sums`) | — | Implemented & tested |
+| `npc_dee_nom` | Dee Nominator | Generated for the Arthur import | Minor | Bouncer; bat | — | Implemented & tested |
+| `npc_tony` | Tony Tangent | Generated for the Arthur import | Minor | Lookout at the Sumps gate | — | Implemented & tested |
+| `npc_max` | Max Imum | Generated for the Arthur import | Minor | Reckless; machete | — | Implemented & tested |
+| 12 customers | Ray, Mo, Dot, Bill, Lena, Gus, Fern, Nico, Hattie, Bram, Pearl, Sol | Generated for the Arthur import | Minor | Sumps residents who buy calculators (`profile.customer`) | — | Implemented & tested |
 | `npc_dee` | Dolores "Dee" Rivera | Generated for the Mason import | Minor | Site foreman; hires and pays | — | Implemented & tested |
 | `npc_barnaby` | Barnaby Cole | 〃 | Minor | Labourer; birdwatcher; gull defender | — | Implemented & tested |
 | `npc_quinn` | Quinn Abernathy | 〃 | Minor | Apprentice surveyor and draftsperson | — | Implemented & tested |
 
-Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) and **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`). Their employees were generated at the player's request; minor characters have no individual motif.
+Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`) and **Arthur Anderson** (see `docs/characters/npc_arthur.md`). Their employees were generated at the player's request; minor characters have no individual motif.
 
 ## Combat temperaments (`profile.combat`)
 
@@ -40,7 +48,7 @@ Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`
 
 Everyone else decides by personality (confidence and competitiveness). Anyone below 25% health stops fighting and runs.
 
-**Protected (imported) characters:** Sir Moneybucks, Mason Nails and Chief Lawrence Order cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
+**Protected (imported) characters:** Sir Moneybucks, Mason Nails, Chief Lawrence Order and Arthur Anderson cannot be harmed at all — attacking them calls down the Wrath. Their `combat` entries only matter if the owner ever marks them `killable: true`.
 
 ## Sir Moneybucks — `npc_moneybucks`
 

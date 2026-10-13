@@ -17,6 +17,9 @@ export const WALK_SPEED = 66; // px per real second
 const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
 
+/** Intents set by other systems (police dispatch, deal meetings, gang hunts) that the schedule must not override. */
+const HELD_INTENTS = ['dispatch', 'deal', 'hunt'];
+
 export class NpcSystem {
   constructor(game) {
     this.game = game;
@@ -40,7 +43,7 @@ export class NpcSystem {
     const g = this.game;
     const now = g.clock.total;
     if (npc.hostile || npc.pursuit || incapacitated(npc, now)) return; // combat / police own them
-    if (npc.intent?.source === 'dispatch' && now < npc.intent.until) return; // answering a call
+    if (HELD_INTENTS.includes(npc.intent?.source) && now < npc.intent.until) return; // answering a call, meeting you for a deal, hunting you
     if (npc.chat && now < npc.chat.until) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.

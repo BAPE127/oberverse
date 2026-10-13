@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang',
 ];
 
 /**
@@ -67,6 +67,25 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'gang': {
+      // { anger: '>=25', tier: '>=2', truce: true, customer: 'gang'|'locked'|'player' (this NPC), order: 'due'|'pending'|'none' (this NPC),
+      //   hasCalc: true, canAffordTribute: true, customers: '>=1' (how many buy from you) }
+      const gang = game.gang;
+      const st = game.world.gang || {};
+      const c = npc ? gang?.customer(npc.id) : null;
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'truce': return Boolean(gang?.truce()) === v;
+          case 'tier': return compare(gang?.tier() ?? 0, v);
+          case 'customer': return (c?.status ?? null) === v;
+          case 'order': return v === 'due' ? Boolean(npc && gang.orderDue(npc)) : v === 'pending' ? Boolean(c?.order) : !c?.order;
+          case 'hasCalc': return game.inventory.hasTag('calculator') === v;
+          case 'canAffordTribute': return (game.player.money >= (gang?.tributePrice() ?? Infinity)) === v;
+          case 'customers': return compare(gang?.playerCustomers().length ?? 0, v);
+          default: return compare(st[k] ?? 0, v);
+        }
+      });
     }
     case 'police': {
       // { wanted: '>=1', record: '>=8', bribed: true, jailed: false, canAffordBribe: true, canAffordFine: true, killedOfficer: true }

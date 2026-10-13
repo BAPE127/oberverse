@@ -8,7 +8,7 @@ import { parseSpotRef, TILE, interpolate } from '../core/util.js';
 export const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang',
 ];
 
 /**
@@ -176,6 +176,16 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'gang': {
+        // { gang: { sample: true } | { deliver: true } | { tribute: true } | { split: true } } — sample/deliver act on this NPC
+        let r = null;
+        if (val.sample && npc) r = game.gang.sample(npc);
+        if (val.deliver && npc) r = game.gang.deliver(npc);
+        if (val.tribute) r = game.gang.tribute();
+        if (val.split) r = game.gang.split();
+        if (r?.text) game.notify(r.text, r.ok ? 'good' : 'warn');
+        break;
+      }
       case 'police': {
         // { police: { bribe: true } | { payFine: true } | { pettyDeal: 'money' | itemId } }
         let r = null;

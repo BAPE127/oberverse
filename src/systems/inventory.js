@@ -48,6 +48,11 @@ export class Inventory {
     if (!def || !this.count(id)) return { ok: false, text: 'You do not have that.' };
     if (!def.use) return { ok: false, text: def.examine || `You turn the ${def.name} over in your hands.` };
     this.remove(id, 1);
+    if (def.use.calc) {
+      const r = this.game.calculators.consume(def.use.calc, def);
+      this.game.bus.emit('item:used', { id });
+      return r;
+    }
     const p = this.player;
     if (def.use.energy) p.energy = Math.min(100, p.energy + def.use.energy);
     if (def.use.health) p.health = Math.min(100, p.health + def.use.health);

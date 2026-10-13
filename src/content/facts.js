@@ -57,6 +57,18 @@ export const FACTS = {
     text: 'The newcomer attacked someone — in cold blood, in public.', importance: 8, aboutPlayer: true,
     relImpact: { trust: -12, affection: -10, suspicion: 18 }, reputation: { lanternside: -6 }, keywords: ['attack', 'fight', 'assault', 'violence'],
   },
+  fact_sums_of_anarchy: {
+    text: 'The Sums of Anarchy run calculators out of the Sumps. Arthur Anderson is in charge, and he is always angry.', importance: 5,
+    keywords: ['sums', 'anarchy', 'gang', 'arthur', 'calculators', 'abacus'],
+  },
+  fact_player_dealing: {
+    text: 'The newcomer has been dealing calculators.', importance: 6, aboutPlayer: true,
+    relImpact: { trust: -5, suspicion: 15 }, keywords: ['dealing', 'calculators', 'selling'],
+  },
+  fact_player_stole_customer: {
+    text: 'The newcomer is selling calculators to the Sums of Anarchy\'s customers.', importance: 7, aboutPlayer: true,
+    keywords: ['customers', 'stealing', 'turf'],
+  },
   fact_player_smitten: {
     text: 'The newcomer raised a hand against one of the untouchable — and was struck down by lightning out of a clear sky.', importance: 9,
     keywords: ['lightning', 'smite', 'struck', 'runes', 'wrath'],

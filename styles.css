@@ -39,6 +39,10 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 #hud-wanted .stars.flash { animation: wanted-flash 0.8s steps(2) infinite; }
 #hud-wanted .off { color: rgba(255,255,255,0.25); }
 #hud-wanted .tag { display: block; font-size: 12px; opacity: 0.85; }
+#hud-wanted .tag.high { color: #7ad08a; }
+#hud-wanted .tag.low { color: #e8a060; }
+#hud-wanted .tag.gang { color: #ff8a70; }
+#hud-wanted .tag.gang.t3 { color: #ff4a3a; font-weight: bold; }
 @keyframes wanted-flash { 50% { color: #7ab4ff; text-shadow: 0 0 8px rgba(60,130,255,1); } }
 #hud-tr { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .minimap-card { padding: 5px; line-height: 0; }

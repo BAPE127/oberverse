@@ -25,7 +25,19 @@ export class DialogueSession {
     const g = this.game;
     const pun = g.dailyPun ? g.dailyPun() : {};
     const pol = g.police;
-    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline, bribe: pol?.bribePrice(), fine: pol?.finePrice(), bribedUntil: g.world.police?.bribedUntilDay, record: g.world.police?.record ?? 0 };
+    return { player: g.player.name, name: this.profile.shortName, time: g.clock.timeString, day: g.clock.weekday, pun: pun.setup, punchline: pun.punchline, bribe: pol?.bribePrice(), fine: pol?.finePrice(), bribedUntil: g.world.police?.bribedUntilDay, record: g.world.police?.record ?? 0, ...this.gangVars() };
+  }
+
+  /** Order details for customers; tribute for Arthur. */
+  gangVars() {
+    const g = this.game;
+    if (!g.gang) return {};
+    const c = g.gang.customer(this.npc.id);
+    const o = c?.order;
+    const out = { tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
+    if (o) Object.assign(out, { orderQty: o.qty, orderName: g.content.items[`item_calc_${o.type}`]?.name, orderPrice: o.price, orderTotal: o.qty * o.price });
+    if (this.profile.customer) out.favourite = g.content.items[`item_calc_${this.profile.customer.favourite}`]?.name;
+    return out;
   }
 
   /** Resolve a "say" (array of pages; pages may be conditional objects). Runs page effects. */
@@ -109,7 +121,7 @@ export class DialogueSession {
 
   menuOptions() {
     this.mode = 'menu';
-    const opts = this.availableTopics().map((t) => ({ id: `topic:${t.id}`, label: t.label, tag: t.tag || null, fresh: !(this.npc.topicsUsed || {})[t.id] }));
+    const opts = this.availableTopics().map((t) => ({ id: `topic:${t.id}`, label: interpolate(t.label, this.vars()), tag: t.tag || null, fresh: !(this.npc.topicsUsed || {})[t.id] }));
     if (this.profile.mechanics?.gossipBroker) opts.push({ id: 'gossip', label: '"Heard anything interesting?"', tag: 'gossip' });
     if (this.giftables().length) opts.push({ id: 'gift', label: 'Give a gift…', tag: 'gift' });
     opts.push({ id: 'ask', label: 'Ask about…', tag: 'ask' });
@@ -170,7 +182,7 @@ export class DialogueSession {
 
   successChance(chk) {
     const g = this.game;
-    const statVal = g.player.stats[chk.stat] ?? 2;
+    const statVal = g.stat ? g.stat(chk.stat) : g.player.stats[chk.stat] ?? 2;
     let p = (chk.base ?? 0.4) + (statVal - 2) * 0.08;
     const rel = g.relationships.get(this.npc, 'player');
     for (const [dim, k] of Object.entries(chk.relScale || {})) p += (rel[dim] || 0) * k;
@@ -184,7 +196,7 @@ export class DialogueSession {
     for (const c of t.choices) {
       if (c.if && !check(c.if, this.game, this.npc)) continue;
       const locked = c.require && !check(c.require, this.game, this.npc);
-      let label = c.label;
+      let label = interpolate(c.label, this.vars());
       if (c.check && !locked) label += ` [${cap(c.check.stat)} ${Math.round(this.successChance(c.check) * 100)}%]`;
       opts.push({ id: `choice:${c.id}`, label, disabled: Boolean(locked), hint: locked ? c.lockedHint || 'Not available.' : null, tag: c.check ? 'check' : null });
     }

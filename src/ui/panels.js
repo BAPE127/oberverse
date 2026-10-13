@@ -6,6 +6,7 @@ import { SLOTS } from '../save/saveManager.js';
 import { STATS } from '../dialogue/dialogueEngine.js';
 import { OIL_PROJECTS } from '../systems/oilCompany.js';
 import { runCommand } from '../game/debugCommands.js';
+import { spotName, hhmm } from '../systems/gang.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -22,7 +23,7 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮' };
 export const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -55,7 +56,7 @@ export function inventoryPanel(ui, body) {
         h('div', { class: 'stat' }, h('span', {}, 'Obols'), h('b', {}, String(p.money))),
         h('div', { class: 'stat' }, h('span', {}, 'Health'), h('b', {}, `${Math.round(p.health)}/100`)),
         h('div', { class: 'stat' }, h('span', {}, 'Energy'), h('b', {}, `${Math.round(p.energy)}/100`)),
-        ...STATS.map((s) => h('div', { class: 'stat' }, h('span', {}, s[0].toUpperCase() + s.slice(1)), h('b', {}, '●'.repeat(p.stats[s]) + '○'.repeat(5 - p.stats[s])))),
+        ...STATS.map((s) => h('div', { class: 'stat' }, h('span', {}, s[0].toUpperCase() + s.slice(1)), h('b', {}, statDots(p.stats[s], ui.game.stat(s))))),
       ),
     );
     const list = g.inventory.list();
@@ -93,7 +94,7 @@ export function inventoryPanel(ui, body) {
 // ------------------------------------------------------------------ journal
 export function journalPanel(ui, body, opts) {
   const g = ui.game;
-  const tabs = ['Quests', 'People', 'Notes', 'Standing'];
+  const tabs = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
   const tab = opts.tab || 'Quests';
   if (tab === 'Quests') {
     const list = g.quests.journal();
@@ -125,6 +126,8 @@ export function journalPanel(ui, body, opts) {
         ),
       );
     }
+  } else if (tab === 'Customers') {
+    customersTab(g, body);
   } else if (tab === 'Notes') {
     const entries = Object.entries(g.player.knowledge || {}).sort((a, b) => b[1].at - a[1].at);
     if (!entries.length) body.append(h('p', { class: 'muted' }, 'You don\'t know much about Lanternside yet.'));
@@ -145,6 +148,41 @@ export function journalPanel(ui, body, opts) {
     }
   }
   return { title: 'Journal', tabs: tabs.map((t) => ({ label: t, active: t === tab, onclick: () => ui.openPanel('journal', { tab: t }) })) };
+}
+
+/** Base stat as dots, plus a calculator high (green +) or comedown (orange −). */
+function statDots(base, eff) {
+  const dots = '●'.repeat(Math.max(0, Math.min(5, base))) + '○'.repeat(Math.max(0, 5 - base));
+  return eff > base ? `${dots} +${eff - base}🧮` : eff < base ? `${dots} −${base - eff}🧮` : dots;
+}
+
+/** Journal → Customers: the calculator trade (src/systems/gang.js). */
+function customersTab(g, body) {
+  const st = g.world.gang;
+  const tier = g.gang.tier();
+  const tierName = ['Calm', 'Warned you', 'Hostile', 'At war'][tier];
+  body.append(h('div', { class: 'quest' },
+    h('h3', {}, 'Sums of Anarchy', h('span', { class: `tag ${tier >= 2 ? 'bad' : tier === 1 ? '' : 'good'}` }, g.gang.truce() ? `Truce to Day ${st.truceUntilDay}` : tierName)),
+    h('div', { class: 'muted' }, `Anger ${Math.round(st.anger)}/100. 25: a warning · 50: they jump you in the Sumps · 75: they hunt you across Halvermouth. Stealing customers and dealing raise it; quiet days lower it. Talk to Arthur at the Abacus about a truce.`),
+    h('div', { class: 'meter' }, h('i', { class: 'neg', style: `width:${Math.min(100, st.anger) / 2}%` }))));
+  const rows = Object.entries(st.customers).map(([id, c]) => ({ id, c, npc: g.npcs.get(id) })).filter((r) => r.npc);
+  const order = { player: 0, gang: 1, locked: 2 };
+  rows.sort((a, b) => order[a.c.status] - order[b.c.status] || a.npc.profile.name.localeCompare(b.npc.profile.name));
+  const wrap = h('div', { class: 'list' });
+  for (const { c, npc } of rows) {
+    const fav = g.content.items[`item_calc_${npc.profile.customer.favourite}`];
+    const status = { player: 'Your customer', gang: 'Buys from the gang', locked: 'Doesn\'t know you' }[c.status];
+    let line = `Favourite: ${fav?.name || '?'} · pays up to ${npc.profile.customer.budget} obols`;
+    if (c.status === 'player') line += ` · ${c.orders} deals · happiness ${Math.round(c.satisfaction)} · habit ${Math.round(c.addiction * 100)}%`;
+    if (c.status === 'locked') line += ' · needs a friend to vouch for you';
+    const o = c.order;
+    const orderLine = o ? `📟 ${o.qty}× ${g.content.items[`item_calc_${o.type}`]?.name} at ${o.price} each — ${spotName(o.spot)}, ${hhmm(o.from)}–${hhmm(o.until)}${g.clock.total >= o.from ? ' (NOW)' : ''}` : null;
+    wrap.append(h('div', { class: 'item-row' },
+      h('div', { class: 'icon' }, c.status === 'player' ? '🧮' : c.status === 'gang' ? '∑' : '🔒'),
+      h('div', { class: 'grow' }, h('div', {}, `${npc.profile.name} — ${status}`), h('div', { class: 'desc' }, line), orderLine ? h('div', { class: 'hint' }, orderLine) : null)));
+  }
+  body.append(wrap);
+  body.append(h('p', { class: 'muted' }, 'Win a customer with a free sample (their favourite works best; Charm helps). They page you orders with a time and place — deliver in person. Three good deals and they\'ll vouch for you with a friend. Officers who see you deal will arrest you.'));
 }
 
 // ---------------------------------------------------------------------- map

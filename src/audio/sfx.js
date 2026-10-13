@@ -163,6 +163,19 @@ export const SFX = {
     tone(ctx, d, { type: 'square', f0: 110, f1: 45, t, dur: 0.3, vol: 0.18 });
     for (let i = 0; i < 8; i++) noise(ctx, d, { t: t + 0.08 + Math.random() * 0.5, dur: 0.04, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass
   },
+  // Arthur's strikes: giant digits slamming down, then the calculator itself
+  sfx_digit: (ctx, d, o = {}) => {
+    const t = ctx.currentTime;
+    if ((o.index || 0) >= 5) {
+      tone(ctx, d, { type: 'sine', f0: 90, f1: 35, t, dur: 1.0, vol: 0.6, attack: 0.003 });
+      noise(ctx, d, { t, dur: 0.9, vol: 0.45, type: 'lowpass', freq: 1200, f1: 90 });
+      for (let i = 0; i < 6; i++) tone(ctx, d, { type: 'square', f0: 220, t: t + 0.2 + i * 0.16, dur: 0.1, vol: 0.05 }); // ERROR buzz
+      return;
+    }
+    tone(ctx, d, { type: 'square', f0: 1800 + (o.index || 0) * 240, t, dur: 0.06, vol: 0.06 }); // a keypad beep
+    tone(ctx, d, { type: 'sine', f0: 140, f1: 45, t, dur: 0.5, vol: 0.45, attack: 0.003 });
+    noise(ctx, d, { t, dur: 0.4, vol: 0.35, type: 'lowpass', freq: 1600, f1: 150 });
+  },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
     noise(ctx, d, { t, dur: 0.18, vol: 0.6, type: 'highpass', freq: 1800 }); // the crack
@@ -313,6 +326,13 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     [[79, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.36, 0.36], [83, 0.84, 0.12], [84, 0.96, 0.3]].forEach(([m, dt, len]) => tone(ctx, bus, { type: 'sine', f0: hz(m), t: t0 + 1.2 + dt, dur: len + 0.08, vol: 0.07, attack: 0.02 }));
     for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 6.3 + Math.random() * 1.2, dur: 0.06, vol: 0.18, freq: 1500 + Math.random() * 2000, q: 3 });
     noise(ctx, bus, { t: t0 + 6.3, dur: 1.6, vol: 0.22, type: 'lowpass', freq: 900, f1: 150 });
+  } else if (theme === 'maths') {
+    // furious keypad clatter through the roll, Arthur's motif as calculator beeps, an ERROR buzz, a glitchy finale
+    for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 0.3 + i * 0.07 + Math.random() * 0.03, dur: 0.015, vol: 0.1, freq: 3000 + Math.random() * 1500, q: 8 });
+    [[62, 0], [62, 0.12], [65, 0.24], [62, 0.36], [68, 0.48], [69, 0.84], [74, 0.96]].forEach(([m, dt]) => tone(ctx, bus, { type: 'square', f0: hz(m + 12), t: t0 + 1.1 + dt, dur: 0.1, vol: 0.05 }));
+    for (let i = 0; i < 5; i++) tone(ctx, bus, { type: 'sawtooth', f0: 110, t: t0 + 2.6 + i * 0.12, dur: 0.08, vol: 0.06 });
+    for (let i = 0; i < 24; i++) tone(ctx, bus, { type: 'square', f0: 400 + Math.random() * 3000, t: t0 + 5.1 + i * 0.05, dur: 0.04, vol: 0.04 });
+    tone(ctx, bus, { type: 'sine', f0: 1000, f1: 40, t: t0 + 6.3, dur: 1.2, vol: 0.12 }); // the power-down
   } else if (theme === 'law') {
     // a wailing siren through the roll, Lawrence's lazy tuba motif, a typewriter
     // blizzard under the paperwork, and the cell door slamming shut

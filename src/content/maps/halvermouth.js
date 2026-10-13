@@ -103,7 +103,12 @@ const buildings = [
   shack('sh_1', 1, 40, 4, 3, '#8a5a3a'), shack('sh_2', 7, 40, 4, 3, '#6a6e6a'), shack('sh_3', 1, 46, 3, 3, '#7a4a3a'),
   shack('sh_4', 7, 46, 5, 3, '#5a6a7a'), shack('sh_5', 1, 53, 4, 3, '#8a7a4a'), shack('sh_6', 7, 54, 4, 3, '#7a5a4a'),
   shack('sh_7', 28, 40, 4, 3, '#6a5a4a'), shack('sh_8', 33, 40, 4, 3, '#8a4a3a'), shack('sh_9', 28, 47, 5, 3, '#5a5a4a'),
-  shack('sh_10', 17, 55, 4, 3, '#7a6a5a'), shack('sh_11', 28, 54, 4, 3, '#6a4a3a'), shack('sh_12', 33, 54, 4, 3, '#5a6a5a'),
+  shack('sh_10', 17, 55, 4, 3, '#7a6a5a'),
+  {
+    id: 'b_abacus', name: 'The Abacus', mapLabel: 'The Abacus (Sums of Anarchy)', x: 28, y: 53, w: 9, h: 5,
+    roof: '#5a2a24', wall: '#8a4a3a', trim: '#2a1a14', flatRoof: true, shabby: true, sign: 'THE ABACUS', awning: '#8a2a20',
+    door: { x: 32, y: 57, to: { map: 'abacus', spot: 'entry' } },
+  },
   shack('sh_13', 1, 63, 5, 3, '#8a5a4a'), shack('sh_14', 8, 63, 4, 3, '#6a6a5a'), shack('sh_15', 18, 63, 4, 3, '#7a4a3a'),
   shack('sh_16', 28, 63, 5, 3, '#5a5a6a'), shack('sh_17', 1, 68, 4, 3, '#7a6a4a'), shack('sh_18', 25, 69, 4, 3, '#8a5a3a'),
   // The Docks
@@ -219,6 +224,24 @@ export const halvermouth = {
     mission_front: { x: 22, y: 46, facing: 'up' },
     park_center: { x: 99, y: 49, facing: 'up' },
     docks_quay: { x: 70, y: 72, facing: 'down' },
+    // the Sumps: the Sums of Anarchy's turf, their customers' haunts and the corners where deals happen
+    abacus_door_out: { x: 32, y: 58, facing: 'down' },
+    abacus_bouncer: { x: 34, y: 59, facing: 'left' },
+    sumps_corner: { x: 20, y: 53, facing: 'down' },
+    sumps_fire_n: { x: 12, y: 43, facing: 'up' },
+    sumps_fire_w: { x: 7, y: 50, facing: 'left' },
+    sumps_fire_s: { x: 11, y: 58, facing: 'up' },
+    sumps_fire_e: { x: 25, y: 48, facing: 'left' },
+    sumps_fire_mill: { x: 22, y: 67, facing: 'up' },
+    sumps_lane: { x: 5, y: 45, facing: 'down' },
+    sumps_wreck: { x: 24, y: 46, facing: 'left' },
+    sumps_tents: { x: 18, y: 49, facing: 'down' },
+    sumps_tents_w: { x: 9, y: 53, facing: 'down' },
+    sumps_mill_road: { x: 20, y: 61, facing: 'down' },
+    sumps_south: { x: 15, y: 68, facing: 'down' },
+    sumps_shore: { x: 12, y: 73, facing: 'down' },
+    sumps_east: { x: 35, y: 66, facing: 'left' },
+    sumps_fence: { x: 36, y: 48, facing: 'left' },
     ober_tower_front: { x: 24, y: 35, facing: 'up' },
   },
   props,
@@ -382,4 +405,45 @@ export const gunShop = {
   ],
 };
 
-export default [halvermouth, hallOfJustice, policeStation, jail, gunShop];
+// The Abacus: the Sums of Anarchy's bar and headquarters. Bar (south),
+// a back hall with a pool table, the crew's bunk room (north-west) and
+// Arthur Anderson's office (north-east).
+export const abacus = {
+  id: 'abacus',
+  name: 'The Abacus',
+  kind: 'interior',
+  music: 'mus_workshop',
+  ambience: 'amb_indoor',
+  tiles: (() => {
+    const rows = roomTiles(18, 12, 'f', 9, [[6, 1, 1, 2, 'W'], [6, 4, 1, 2, 'W'], [1, 6, 6, 1, 'W'], [11, 1, 1, 3, 'W'], [11, 5, 1, 1, 'W'], [11, 6, 6, 1, 'W']]).map((r) => r.split(''));
+    for (let y = 1; y < 6; y++) for (let x = 12; x < 17; x++) rows[y][x] = 'c';
+    return rows.map((r) => r.join(''));
+  })(),
+  doors: [{ id: 'door_abacus_exit', x: 9, y: 11, to: { map: 'halvermouth', spot: 'abacus_door_out' } }],
+  spots: {
+    entry: { x: 9, y: 10, facing: 'up' }, bar_back: { x: 4, y: 7, facing: 'down' }, bar_front: { x: 4, y: 9, facing: 'up' },
+    table_a: { x: 12, y: 9, facing: 'right' }, table_b: { x: 15, y: 10, facing: 'up' }, pool: { x: 10, y: 3, facing: 'left' }, hall_couch: { x: 9, y: 5, facing: 'down' },
+    arthur_desk: { x: 14, y: 2, facing: 'down' }, arthur_bed: { x: 15, y: 4, facing: 'right' }, arthur_visitor: { x: 13, y: 5, facing: 'up' },
+    bunk_1: { x: 1, y: 3, facing: 'up' }, bunk_2: { x: 2, y: 3, facing: 'up' }, bunk_3: { x: 3, y: 3, facing: 'up' }, bunk_4: { x: 4, y: 3, facing: 'down' }, bunk_5: { x: 5, y: 3, facing: 'down' },
+  },
+  props: [
+    { id: 'ab_counter', type: 'counter', x: 2, y: 8, w: 5, color: '#4a2a1e', interact: { kind: 'shop', shop: 'shop_sums', staffed: true, name: 'counter', closed: 'Nobody behind the counter. Minnie works 11:00–02:00.' }, examine: 'The bar. Taped under the till: a price list in perfect long-hand. Every price ends in .99. "Psychology," says a note in Arthur\'s handwriting.' },
+    { id: 'ab_shelf', type: 'shelf', x: 1, y: 7, w: 1, h: 1, examine: 'Bottles. Behind them, neatly stacked, boxes and boxes of calculators.' },
+    { id: 'ab_table1', type: 'table', x: 13, y: 9, examine: 'A sticky table. Someone has carved 2 + 2 = 5 into it. Someone else has carved "NO IT DOESN\'T — A.A."' },
+    { id: 'ab_table2', type: 'table', x: 15, y: 8 },
+    { id: 'ab_juke', type: 'wardrobe', x: 16, y: 10, color: '#8a2a2a', examine: 'A jukebox. Every song on it is about numbers. "Seven Nation Army". "99 Problems". "Mambo No. 5".' },
+    { id: 'ab_pool', type: 'table', x: 8, y: 2, w: 2, h: 2, color: '#2a5a3a', examine: 'A pool table. The balls are numbered in binary.' },
+    { id: 'ab_couch', type: 'bench', x: 7, y: 5, w: 2, color: '#6a3a2a' }, // Max sleeps beside it
+    { id: 'ab_board', type: 'noticeboard', x: 9, y: 0, examine: 'A chalkboard: this week\'s takings by corner, to the penny. Underlined twice: "THE SUMPS LOOKS AFTER ITS OWN." Underlined three times: "NO COPS."' },
+    // the crew's bunks
+    { id: 'ab_cot1', type: 'cot', x: 1, y: 1 }, { id: 'ab_cot2', type: 'cot', x: 3, y: 1 }, { id: 'ab_cot3', type: 'cot', x: 5, y: 1 },
+    { id: 'ab_cot4', type: 'cot', x: 2, y: 4 }, { id: 'ab_cot5', type: 'cot', x: 4, y: 4 },
+    // Arthur's office
+    { id: 'ab_desk', type: 'desk', x: 13, y: 3, w: 3, color: '#3a1a14', examine: 'Arthur\'s desk: a ledger of grudges, a ledger of takings, and a third ledger that just says "LEDGERS". A desk calculator with the = key worn through.' },
+    { id: 'ab_safe', type: 'cabinet', x: 16, y: 1, color: '#3a3a3e', examine: 'A safe. Painted on the door in red: "TOUCH THIS AND I WILL DO THE MATHS ON YOUR TEETH."' },
+    { id: 'ab_bed', type: 'cot', x: 16, y: 4 },
+    { id: 'ab_portrait', type: 'painting', x: 13, y: 0, examine: 'A framed photo of a very young Arthur at a school maths fair, holding a trophy. He is scowling.' },
+  ],
+};
+
+export default [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus];

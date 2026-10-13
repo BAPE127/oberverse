@@ -16,7 +16,9 @@
 // derricks, gushers, burning oil), construction (Mason: blueprints, hazard
 // tape, tools, falling I-beams, a wrecking ball, a brick wall), law (Chief
 // Lawrence Order: sirens, searchlights, badges and handcuffs, ramming squad
-// cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars).
+// cars, a giant gavel, a paperwork avalanche stamped GUILTY, cell bars), maths
+// (Arthur Anderson: graph paper, orbiting calculator keys and bad sums, steam,
+// falling digits, a giant calculator reading ERROR, division by zero).
 import { clamp, lerp } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
@@ -1028,7 +1030,213 @@ const LAW = {
   },
 };
 
-export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW };
+// ================================================================= MATHS
+const KEYS = ['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '−', '0', '.', '=', '+'];
+const SUMS = ['2+2=5', 'x÷0', '∑', 'π≠3', '√−1', '∞', '1/0', '%', 'NaN', 'ERR'];
+
+function calcKey(ctx, x, y, s, label, rot, hot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = hot ? '#ff4a3a' : '#3a3a40';
+  rrect(ctx, -7, -7, 14, 14, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(-6, -6, 12, 3);
+  ctx.fillStyle = '#f4efe6';
+  ctx.font = 'bold 10px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, 0, 1);
+  ctx.restore();
+}
+
+/** A seven-segment LCD readout. */
+function lcd(ctx, x, y, w, h, text, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = '#2a2a2e';
+  rrect(ctx, x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8, 5); ctx.fill();
+  ctx.fillStyle = '#9fb48a';
+  ctx.fillRect(x - w / 2, y - h / 2, w, h);
+  ctx.fillStyle = '#1e2a14';
+  ctx.font = `bold ${Math.round(h * 0.7)}px "Courier New", monospace`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + w / 2 - 4, y + 1);
+  ctx.restore();
+}
+
+const MATHS = {
+  banner: 'YOU DON\'T ADD UP',
+  sky: [60, 6, 4, 18, 2, 2],
+  flash: '255,110,90',
+  ground(I) {
+    const { ctx, e, conv, vx, vfeet, p } = I;
+    // graph paper spreads out from Arthur, axes and all
+    const r = 180 * ease((e - 0.2) / 1.0) * (1 - ease((e - WRATH.fade) / 0.6));
+    if (r > 2) {
+      onGround(ctx, vx, vfeet, () => {
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
+        ctx.fillStyle = 'rgba(250,240,230,0.12)';
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.strokeStyle = 'rgba(255,90,70,0.35)';
+        ctx.lineWidth = 1;
+        for (let k = -r; k < r; k += 12) {
+          ctx.beginPath(); ctx.moveTo(k, -r); ctx.lineTo(k, r); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-r, k); ctx.lineTo(r, k); ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(255,200,180,0.9)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.stroke();
+        // y = 1/x, plotted in anger
+        ctx.strokeStyle = 'rgba(255,60,40,0.9)';
+        ctx.lineWidth = 3;
+        for (const sgn of [1, -1]) {
+          ctx.beginPath();
+          for (let x = 4; x < r; x += 4) ctx.lineTo(sgn * x, -sgn * (900 / x));
+          ctx.stroke();
+        }
+      });
+    }
+    // under the player: the target — a ring with ÷0
+    const mark = ease((e - WRATH.converge) / 0.4) * (1 - ease((e - WRATH.fade) / 0.5));
+    if (mark > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.globalAlpha = mark;
+        ctx.strokeStyle = '#ff3a2a';
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.stroke();
+        ctx.font = 'bold 30px Georgia, serif';
+        ctx.fillStyle = '#ff3a2a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('÷0', 0, 2);
+      }, 0.45);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv, vx, vy } = I;
+    // his anger, made visible: steam jets
+    if (e > 0.3 && e < WRATH.fade) {
+      for (let k = 0; k < 8; k++) {
+        const ph = (e * 1.4 + k / 8) % 1;
+        ctx.fillStyle = `rgba(255,${120 + k * 10},${100},${0.35 * (1 - ph)})`;
+        ctx.beginPath(); ctx.arc(vx + (k - 3.5) * 5 + Math.sin(e * 4 + k) * 4, vy - 50 - ph * 70, 4 + ph * 9, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const shrink = lerp(1, 0.55, conv) * (1 - ease((e - WRATH.lightning) / 0.5) * 0.4);
+    const fadeOut = 1 - ease((e - WRATH.ascend) / 0.3);
+    const spin = e + e * e * 0.35;
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    for (let i = 0; i < 16; i++) {
+      const a = spin * 1.2 + (i / 16) * Math.PI * 2;
+      const rad = 60 * unfold * shrink;
+      calcKey(ctx, centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8, unfold * 1.05, KEYS[i], a * 0.5, Math.floor(e * 6) % 16 === i);
+    }
+    ctx.font = 'italic bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < SUMS.length; i++) {
+      const a = -spin * 0.8 + (i / SUMS.length) * Math.PI * 2;
+      const rad = 112 * unfold * shrink;
+      ctx.fillStyle = i % 3 ? '#ffd8c8' : '#ff4a3a';
+      ctx.fillText(SUMS[i], centre.x + Math.cos(a) * rad, centre.y + Math.sin(a) * rad * 0.8);
+    }
+    ctx.restore();
+  },
+  strike(I, i, age) {
+    const { ctx, p, top, w } = I;
+    const fade = 1 - ease((I.e - WRATH.fade) / 0.4);
+    if (i < 4) {
+      // giant digits fall out of the sky and slam down on the player
+      if (age < -0.25 || age > 2.5) return;
+      const digit = ['7', '3', '9', '1'][i];
+      if (I.e > WRATH.ascend + 0.4) return; // cleared away for the finale
+      const k = ease((age + 0.25) / 0.25);
+      const tx = p.x + (hash2(w.seed, i) - 0.5) * 40;
+      const ty = lerp(top - 30, p.y - 4 - i * 4, k);
+      ctx.save();
+      ctx.globalAlpha = fade * (1 - ease((I.e - WRATH.ascend) / 0.4));
+      ctx.translate(tx, ty);
+      ctx.rotate((hash2(i, w.seed) - 0.5) * 0.5 * (1 - k * 0.6));
+      ctx.font = 'bold 70px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#2a0a08';
+      ctx.strokeText(digit, 0, 0);
+      ctx.fillStyle = '#ff3a2a';
+      ctx.fillText(digit, 0, 0);
+      ctx.restore();
+      if (age >= 0) dust(ctx, tx, p.y, age, w.seed + i * 19, 0.9);
+      return;
+    }
+    // the last one: a giant calculator comes down like a stamp, reading ERROR
+    if (age < -0.35 || age > 2.5) return;
+    const k = age < 0 ? ease((age + 0.35) / 0.35) : 1;
+    const bounce = age >= 0 ? Math.abs(Math.sin(age * 10)) * 6 * Math.exp(-age * 5) : 0;
+    const cy = lerp(top - 120, p.y - 60, k) - bounce;
+    ctx.save();
+    ctx.globalAlpha = fade * (1 - ease((age - 1.1) / 0.4));
+    ctx.fillStyle = '#2a2a30';
+    rrect(ctx, p.x - 50, cy - 70, 100, 136, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(p.x - 50, cy - 70, 100, 8);
+    lcd(ctx, p.x, cy - 44, 80, 24, Math.floor(I.e * 8) % 2 ? 'ERROR' : 'E', 1);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) calcKey(ctx, p.x - 33 + c * 22, cy - 6 + r * 18, 1.15, KEYS[r * 4 + c], 0, r === 0 && c === 3);
+    ctx.restore();
+    if (age >= 0) {
+      dust(ctx, p.x, p.y, age, w.seed + 913, 1.8);
+      if (age < 0.25) {
+        onGround(ctx, p.x, p.y, () => {
+          ctx.strokeStyle = `rgba(255,140,110,${1 - age / 0.25})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.arc(0, 0, 30 + age * 420, 0, Math.PI * 2); ctx.stroke();
+        });
+      }
+    }
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    // the player is divided by zero: they come apart into pixels and numbers…
+    const age = e - WRATH.ascend;
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    const R = rng(w.seed + 707);
+    const cols = ['#c9302a', '#f2efe8', '#2a2224', '#e2b896', '#3a6a8a'];
+    ctx.save();
+    ctx.globalAlpha = out;
+    for (let i = 0; i < 90; i++) {
+      const ox = (R() - 0.5) * 22;
+      const oy = -R() * 46;
+      const a = Math.atan2(oy + 23, ox) + (R() - 0.5) * 0.8;
+      const sp = 30 + R() * 110;
+      const d = sp * ease(age / 1.4);
+      const x = p.x + ox + Math.cos(a) * d;
+      const y = p.y + oy + Math.sin(a) * d * 0.7 - age * 12;
+      if (i % 3 === 0) {
+        ctx.fillStyle = '#ff6a50';
+        ctx.font = 'bold 11px "Courier New", monospace';
+        ctx.fillText(String(Math.floor(R() * 10)), x, y);
+      } else {
+        ctx.fillStyle = cols[i % cols.length];
+        ctx.fillRect(x, y, 3, 3);
+      }
+    }
+    ctx.restore();
+    // …and the readout says what they are now
+    if (age > 0.6) {
+      const text = age < 1.1 ? (Math.floor(e * 12) % 2 ? '÷0' : '1/0') : 'UNDEFINED';
+      lcd(ctx, p.x, p.y - 70, 120, 26, text, out * ease((age - 0.6) / 0.2));
+    }
+  },
+};
+
+export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS };
 
 // -------------------------------------------------------------- draw
 export function drawWrath(renderer, g, w) {

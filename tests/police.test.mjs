@@ -321,7 +321,7 @@ test('police state survives save/load; old saves gain it', () => {
   g3.loadState(state);
   assert.equal(g3.world.police.wanted, 0);
   assert.ok(g3.world.containers.ct_evidence);
-  assert.equal(g3.npcs.size, 25);
+  assert.equal(g3.npcs.size, Object.keys(CONTENT.characters).length);
 });
 
 test('debug commands: wanted, record, jail, release, bribe', () => {

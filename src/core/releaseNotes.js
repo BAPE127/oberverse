@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.11.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Sums of Anarchy',
+    notes: [
+      'The Sums of Anarchy run the Sumps from a bar called the Abacus. Their leader, Arthur Anderson, is always angry, obsessed with maths, fiercely protective of the Sumps and his crew of six — and he keeps a ledger of grudges.',
+      'Calculators: the Oberverse\'s illicit substance. Rose-Gold Sum (Charm), Big Brain 9000 (Wits), The Brick (Grit), Featherkey (Finesse), Plus Pack (heals) and Overclock (energy, then a crash). A few hours\' high, then an hour\'s comedown; use too many and they stop working for a while. Grit now soaks damage.',
+      'Buy them from Minnie at the Abacus counter — or sell your own. Twelve Sumps residents buy from the gang. Win them over with a free sample, then they page you orders with a time and place. Three good deals and they\'ll vouch for you with a friend. Journal → Customers keeps track.',
+      'Every customer you steal makes the gang angrier: first a warning from Al Gebra, then ambushes in the Sumps, then war across Halvermouth. Pay Arthur tribute or hand back half your customers for a week\'s truce.',
+      'Officers who see you deal will come for you. The Sumps itself never calls the police. And raising a hand to Arthur? You don\'t add up.',
+    ],
+  },
+  {
     version: '0.10.0',
     date: '2026-10-13',
     channel: 'development',

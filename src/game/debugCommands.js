@@ -25,6 +25,10 @@ const HELP = [
   ['wanted <0–3> · record <n>', 'set your Wanted level or criminal record'],
   ['jail [hours] · release', 'go to jail (optional sentence) or walk free'],
   ['bribe', 'the police look the other way for 3 days (free)'],
+  ['calcs [n]', 'n of every calculator (default 5)'],
+  ['gang <0–100>', 'set the Sums of Anarchy\'s anger'],
+  ['customer <name> <player|gang|locked>', 'set a customer\'s status (customers lists them)'],
+  ['order <name>', 'that customer pages you an order right now'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -75,7 +79,7 @@ export function runCommand(game, line) {
   const [cmd, ...args] = parts;
   const p = game.player;
   const out = (text, ok = true) => {
-    if (ok && cmd !== 'help' && cmd !== 'items' && cmd !== 'npcs' && cmd !== 'maps' && cmd !== 'spots') game.setFlag('debug_used', true);
+    if (ok && cmd !== 'help' && cmd !== 'items' && cmd !== 'npcs' && cmd !== 'maps' && cmd !== 'spots' && cmd !== 'customers') game.setFlag('debug_used', true);
     return { ok, text };
   };
   switch (cmd.toLowerCase()) {
@@ -250,6 +254,36 @@ export function runCommand(game, line) {
     case 'bribe': {
       game.world.police.bribedUntilDay = game.clock.day + 3;
       return out(`The police look the other way until the end of Day ${game.world.police.bribedUntilDay}.`);
+    }
+    case 'calcs': {
+      const n = Math.max(1, Math.round(parseNum(args[0]) ?? 5));
+      for (const id of Object.keys(game.content.items).filter((k) => k.startsWith('item_calc_'))) game.inventory.add(id, n, { silent: true });
+      return out(`+${n} of every calculator.`);
+    }
+    case 'gang': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Anger: ${game.world.gang.anger} (tier ${game.gang.tier()}). Usage: gang <0–100>`, false);
+      game.gang.addAnger(clamp(Math.round(n), 0, 100) - game.world.gang.anger, 'debug');
+      return out(`Sums of Anarchy anger: ${game.world.gang.anger} (tier ${game.gang.tier()})`);
+    }
+    case 'customers': {
+      return out(Object.entries(game.world.gang.customers).map(([id, c]) => `${id.padEnd(12)} ${c.status.padEnd(7)} ${c.order ? `order ${c.order.qty}× ${c.order.type}` : ''}`).join('\n'));
+    }
+    case 'customer':
+    case 'order': {
+      const q = (args[0] || '').toLowerCase();
+      const id = Object.keys(game.world.gang.customers).find((k) => k === q || k === `npc_${q}` || game.npcs.get(k)?.profile.name.toLowerCase().includes(q));
+      if (!q || !id) return out(`Usage: ${cmd} <name>. Try: customers`, false);
+      const npc = game.npcs.get(id);
+      if (cmd === 'order') {
+        game.gang.customer(id).status = 'player';
+        const o = game.gang.newOrder(npc);
+        return out(`${npc.profile.shortName} wants ${o.qty}× ${o.type} at ${o.spot}.`);
+      }
+      const st = args[1];
+      if (!['player', 'gang', 'locked'].includes(st)) return out('Status must be player, gang or locked.', false);
+      game.gang.customer(id).status = st;
+      return out(`${npc.profile.name}: ${st}`);
     }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);

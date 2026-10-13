@@ -183,10 +183,30 @@ export function drawCharacter(ctx, a, s) {
       ctx.beginPath(); ctx.arc(-6, eyeY + 3.5, 2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(6, eyeY + 3.5, 2, 0, Math.PI * 2); ctx.fill();
     }
+    if (a.angry && !s.sleeping) {
+      // permanently furious: a deep flush and brows slammed down into a V
+      ctx.fillStyle = 'rgba(210,40,30,0.32)';
+      ctx.beginPath(); ctx.arc(0, hy + 1, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2a1a14';
+      ctx.lineWidth = 1.6;
+      for (const bx of side ? [dir * 4.5] : [-3.6, 3.6]) {
+        const inner = side ? -dir : -Math.sign(bx);
+        ctx.beginPath(); ctx.moveTo(bx - inner * 2.4, eyeY - 4.4); ctx.lineTo(bx + inner * 2.2, eyeY - 2.4); ctx.stroke();
+      }
+    }
     drawFacialHair(ctx, a, facing, hy, dir);
     drawFaceAccessory(ctx, a, facing, eyeY, dir);
   }
   drawHat(ctx, a, facing, hy);
+  if (a.angry && !s.sleeping) {
+    // steam
+    const tt = s.idleTime || t;
+    for (let k = 0; k < 3; k++) {
+      const ph = (tt * 0.9 + k / 3) % 1;
+      ctx.fillStyle = `rgba(240,235,235,${0.55 * (1 - ph)})`;
+      ctx.beginPath(); ctx.arc((k - 1) * 6 + Math.sin(tt * 3 + k) * 1.5, hy - 11 - ph * 14, 2.2 + ph * 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   if (acc.has('goggles')) {
     ctx.fillStyle = '#5b4a3a';
     ctx.fillRect(-9.5, hy - 6, 19, 3);

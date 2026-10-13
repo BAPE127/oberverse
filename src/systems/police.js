@@ -74,6 +74,7 @@ export class Police {
       case e.fact === 'fact_player_assault': return onOfficer ? 6 : 3;
       case e.fact === 'gunfire': return 2;
       case e.fact === 'jailbreak': return 8;
+      case e.fact === 'fact_player_dealing': return 2;
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -109,7 +110,8 @@ export class Police {
       for (const o of officers) this.startPursuit(o);
       return;
     }
-    if (people.some((n) => !this.isOfficer(n))) this.placeCall(sev, pos);
+    // the Sumps doesn't snitch: gang members and their customers never call the police
+    if (people.some((n) => !this.isOfficer(n) && !n.profile.noSnitch)) this.placeCall(sev, pos);
   }
 
   /** A civilian phones it in. */
@@ -339,7 +341,7 @@ export class Police {
     for (const [id, n] of Object.entries(p.inventory || {})) {
       const def = g.content.items[id];
       if (!n || !def) continue;
-      if (def.weapon || def.category === 'ammo' || p.stolen?.[id] || id === 'item_jail_keys' || id === 'item_spoon' || id === 'item_bent_fork') {
+      if (def.weapon || def.category === 'ammo' || p.stolen?.[id] || def.tags?.includes('contraband') || id === 'item_jail_keys') {
         evidence[id] = n;
         g.inventory.remove(id, n);
       }
@@ -481,7 +483,7 @@ export class Police {
   }
 
   reachChance() {
-    return clamp(0.3 + this.game.player.stats.finesse * 0.08, 0.1, 0.85);
+    return clamp(0.3 + this.game.stat('finesse') * 0.08, 0.1, 0.85);
   }
 
   guardPrice() {

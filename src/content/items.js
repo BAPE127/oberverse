@@ -79,6 +79,36 @@ export const ITEMS = {
     name: 'Bent Fork', category: 'tool', price: 0, tags: ['tool', 'contraband'], icon: 'spoon',
     description: 'Petty Larson\'s fork, its tines bent into the exact shape of a vent-cover screw head.',
   },
+  item_calc_charm: {
+    name: 'Rose-Gold Sum', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'charm',
+    description: 'A pink four-function calculator with rhinestone keys. Press 5318008, turn it upside down, and the whole world finds you delightful. (+Charm for a few hours.)',
+    use: { calc: 'charm', text: 'You tap out a sum and feel your smile get more expensive.' },
+  },
+  item_calc_wits: {
+    name: 'Big Brain 9000', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'wits',
+    description: 'A chunky grey calculator with a cracked solar strip. One long division and everything clicks. (+Wits for a few hours.)',
+    use: { calc: 'wits', text: 'You divide by seven. The universe divides with you.' },
+  },
+  item_calc_grit: {
+    name: 'The Brick', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'grit',
+    description: 'A heavy black calculator in a rubber case. You could stop a bullet with it. You might. (+Grit for a few hours.)',
+    use: { calc: 'grit', text: 'You multiply. Your jaw sets like concrete.' },
+  },
+  item_calc_finesse: {
+    name: 'Featherkey', category: 'calculator', price: 20, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'finesse',
+    description: 'A wafer-thin silver calculator with keys that barely click. Your fingers feel lighter just holding it. (+Finesse for a few hours.)',
+    use: { calc: 'finesse', text: 'Tap-tap-tap. Your fingers go quiet and quick.' },
+  },
+  item_calc_health: {
+    name: 'Plus Pack', category: 'calculator', price: 16, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'health',
+    description: 'A first-aid green calculator with only one big key: +. Patches you up. (Heals.)',
+    use: { calc: 'health', text: 'Plus, plus, plus. The aches add up to less.' },
+  },
+  item_calc_energy: {
+    name: 'Overclock', category: 'calculator', price: 14, tags: ['calculator', 'contraband'], icon: 'calc', calc: 'energy',
+    description: 'A buzzing yellow calculator with a battery taped to the back. A rush now, a crash later. (+Energy.)',
+    use: { calc: 'energy', text: 'You hammer the = key and your heart does it too.' },
+  },
   item_vault_key: {
     name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
     description: 'A heavy, ornate key with a dollar-sign bow. It opens the vault in Sir Moneybucks\'s study.',

@@ -6,5 +6,6 @@ export const FACTIONS = {
   fac_oil: { name: 'Ober\'s Oil', description: 'Sir Moneybucks\'s company. Values profit, deference and profit.' },
   fac_builders: { name: 'Mason\'s Os', description: 'Mason Nails\'s construction crew. Value good work, fair pay and a decent pun.' },
   fac_police: { name: 'Halvermouth Police', description: 'Precinct 1 of the city police. Values order, evidence and paperwork filed on time.' },
+  fac_sums: { name: 'Sums of Anarchy', description: 'Arthur Anderson\'s calculator gang in the Sumps. Values loyalty, margins and the Sumps itself. Hates the police.' },
   fac_quay: { name: 'Quay Workers\' Collective', description: 'Mechanics, fishers and dockhands of the Quay. Value loyalty and practical help.' },
 };

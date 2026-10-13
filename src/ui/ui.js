@@ -315,7 +315,7 @@ export class UI {
       this.audio.sfx('sfx_wrath', { theme });
     });
     // each strike sounds like what hits you
-    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram' }[theme] || 'sfx_thunder', { index }));
+    bus.on('combat:lightning', ({ theme, index }) => this.audio.sfx({ oil: 'sfx_gusher', construction: 'sfx_beam', law: 'sfx_ram', maths: 'sfx_digit' }[theme] || 'sfx_thunder', { index }));
     bus.on('combat:wrathEnd', ({ npcId }) => {
       this.el.hud.classList.add('cinematic');
       const victim = game.npcs.get(npcId);
@@ -512,6 +512,11 @@ export class UI {
     if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
     if (pol?.jail) whtmlWanted += `<span class="tag">⛓ In jail · ${g.police.hoursLeft()}h left</span>`;
     else if (g.police?.bribed()) whtmlWanted += `<span class="tag">🤝 Police paid off · until end of Day ${pol.bribedUntilDay}</span>`;
+    // calculator highs and comedowns; the Sums of Anarchy's mood
+    for (const b of g.calculators.active()) whtmlWanted += `<span class="tag ${b.delta > 0 ? 'high' : 'low'}">🧮 ${b.stat[0].toUpperCase()}${b.stat.slice(1)} ${b.delta > 0 ? '+' : ''}${b.delta} · ${b.minutesLeft >= 60 ? `${Math.floor(b.minutesLeft / 60)}h` : `${b.minutesLeft}m`}</span>`;
+    const tier = g.gang.tier();
+    if (tier > 0) whtmlWanted += `<span class="tag gang t${tier}">∑ Sums of Anarchy: ${['', 'warned you', 'HOSTILE', 'AT WAR'][tier]}</span>`;
+    else if (g.gang.truce()) whtmlWanted += `<span class="tag">∑ Truce with the Sums · Day ${g.world.gang.truceUntilDay}</span>`;
     if (this.el.wanted.innerHTML !== whtmlWanted) this.el.wanted.innerHTML = whtmlWanted;
     this.el.wanted.classList.toggle('hidden', !whtmlWanted);
     this.el.energy.style.width = `${p.energy}%`;

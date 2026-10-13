@@ -270,7 +270,7 @@ test('old saves gain Westbrook, the crew and fresh construction state', () => {
   const g = new Game(CONTENT, { seed: 1 });
   const res = sm.load('slot2', g);
   assert.ok(res.ok, res.errors?.join());
-  assert.equal(g.npcs.size, 25);
+  assert.equal(g.npcs.size, Object.keys(CONTENT.characters).length);
   assert.ok(g.npcs.get('npc_mason'));
   assert.equal(g.construction.state.goodwill, 0);
   assert.deepEqual(g.properties.state.owned, {});

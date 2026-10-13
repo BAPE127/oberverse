@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.11.0] — 2026-10-13 — "Sums of Anarchy" (development build)
+
+First half of the gang update (the warehouse and factory builder follow in 0.12.0).
+
+### Added
+- **Arthur Anderson** (`npc_arthur`) — imported from a player-supplied image (stored with permission; portrait embedded) and interview. Leader of the Sums of Anarchy; always angry (a permanent flush, slammed brows and steam: new `appearance.angry`), maths-obsessed, protective, petty, vengeful. Protected, with a `maths` Wrath ("YOU DON'T ADD UP": graph paper, orbiting calculator keys and bad sums, falling digits, a giant calculator reading ERROR, division by zero → UNDEFINED) and strike sound `sfx_digit`. See `docs/characters/npc_arthur.md`.
+- **The crew** (generated, killable, faction `fac_sums`): Al Gebra (enforcer), Percy Ntage (bookkeeper), Minnie Mus (the counter), Dee Nominator (bouncer), Tony Tangent (lookout), Max Imum (reckless).
+- **The Abacus** — the gang's bar in the Sumps (`abacus` map): bar, pool hall, bunk room, Arthur's office. 17 new Sumps spots.
+- **Calculators** (`src/systems/calculators.js`): six items (`item_calc_*`). Stat calculators give +1 for ~4 h then −1 for 1 h; Plus Pack heals 40; Overclock +45 energy then a crash 3 h later. Tolerance per type weakens and shortens each use (1 / (1 + 0.6 × uses)) and fades a point every 8 h. `Game.stat(name)` gives effective stats; dialogue checks and the jail key reach use it. Grit now reduces damage taken (8% per point above 2).
+- **Customers and dealing** (`src/systems/gang.js`, state `world.gang`): 12 Sumps residents with a favourite calculator, budget and referral. Free samples win gang customers (chance from favourite, Charm and earlier attempts); won customers page daily orders (type, quantity, price, meeting spot, two-hour window) and walk to the spot; deliveries pay and build habit; three deliveries unlock a referral; missed orders sour them back to the gang.
+- **Gang anger** 0–100: +12 per stolen customer, +2 per deal, +10 assault / +40 murder of a member, −4 per quiet day. 25 a warning, 50 the crew jump you in the Sumps and the Abacus, 75 war: they jump you anywhere in Halvermouth and send hunters every 3 hours. **Truce**: tribute (30 + 2 × anger) or hand back half your customers for 7 days (stealing during a truce: +40).
+- **Police**: dealing is a crime (severity 2) — an officer who sees it makes you Wanted (bribes cover it); Finesse shrinks the witness range; gang members and customers never call the police; jail confiscates contraband (calculators). Gang members and officers trade insults when they meet.
+- Minnie's counter (`shop_sums`) works across the bar while she's behind it, and refuses you once the gang is hostile (`interact.staffed`).
+- HUD: calculator highs and comedowns, the gang's mood. Journal → **Customers** tab with every customer, orders and gang anger. Character panel shows boosted stats.
+- Debug commands `calcs [n]`, `gang <n>`, `customers`, `customer <name> <status>`, `order <name>`.
+- Tests: `tests/gang.test.mjs` (21 tests).
+
+### Fixed
+- Dialogue topic and choice labels weren't interpolated, so Chief Order's bribe choice showed a literal "{bribe}".
+
 ## [0.10.0] — 2026-10-13 — "Law & Order" (development build)
 
 ### Added
