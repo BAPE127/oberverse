@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.12.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'The Calculator Works',
+    notes: [
+      'Make your own calculators. Three warehouses are for sale on the Halvermouth docks — Warehouse 7, the Pier 9 Shed and the Old Cannery. Buy one at the FOR SALE sign by its door.',
+      'Sal\'s Surplus Electronics, down the quay, sells the parts: casings, button pads, LCD screens, circuit boards and batteries. Solder a core, press a shell, assemble a blank, then tune it into whichever calculator you need — by hand at your workbench, slowly.',
+      'Make five and Sal sells you machinery: soldering stations, case presses, assemblers, tuning benches, conveyor belts, inserter arms and generators. Press B in your warehouse to build — click to place, R to rotate, right-click to pick up. Your factory keeps running while you\'re out.',
+      'Make ten and Sal will deliver a crate of parts to your input bay every morning at seven. Sell what you make to your customers in the Sumps — or back to Sal, cheap.',
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-10-13',
     channel: 'development',

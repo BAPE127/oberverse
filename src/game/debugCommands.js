@@ -29,6 +29,10 @@ const HELP = [
   ['gang <0–100>', 'set the Sums of Anarchy\'s anger'],
   ['customer <name> <player|gang|locked>', 'set a customer\'s status (customers lists them)'],
   ['order <name>', 'that customer pages you an order right now'],
+  ['warehouse <wh7|wh9|wh12>', 'own a warehouse (free)'],
+  ['parts [n]', 'n of every calculator part (default 20)'],
+  ['machines', 'two of every machine, 40 belts, 10 arms'],
+  ['made <n>', 'set how many calculators you\'ve made (unlocks Sal\'s machinery at 5, deliveries at 10)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -284,6 +288,30 @@ export function runCommand(game, line) {
       if (!['player', 'gang', 'locked'].includes(st)) return out('Status must be player, gang or locked.', false);
       game.gang.customer(id).status = st;
       return out(`${npc.profile.name}: ${st}`);
+    }
+    case 'warehouse': {
+      const id = args[0];
+      const def = game.content.warehouses[id];
+      if (!def) return out(`Usage: warehouse <${Object.keys(game.content.warehouses).join('|')}>`, false);
+      game.setFlag(def.flag, true);
+      return out(`${def.name} is yours.`);
+    }
+    case 'parts': {
+      const n = Math.max(1, Math.round(parseNum(args[0]) ?? 20));
+      for (const id of Object.keys(game.content.items).filter((k) => k.startsWith('item_part_'))) game.inventory.add(id, n, { silent: true });
+      return out(`+${n} of every part.`);
+    }
+    case 'machines': {
+      for (const id of Object.keys(game.content.items).filter((k) => game.content.items[k].build?.type === 'machine' || k === 'item_generator')) game.inventory.add(id, 2, { silent: true });
+      game.inventory.add('item_belt', 40, { silent: true });
+      game.inventory.add('item_inserter', 10, { silent: true });
+      return out('Two of every machine, 40 belts, 10 inserter arms.');
+    }
+    case 'made': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Made: ${game.factory.state.made}. Usage: made <n>`, false);
+      game.factory.state.made = Math.max(0, Math.round(n));
+      return out(`Made: ${game.factory.state.made}`);
     }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);

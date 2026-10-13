@@ -48,6 +48,28 @@ export class GameMap {
     }
   }
 
+  /** Add a prop at runtime (factory machinery). The object is kept by reference. */
+  addProp(prop) {
+    if (this.propIndex.has(prop.id)) this.removeProp(prop.id);
+    this.props.push(prop);
+    this.propIndex.set(prop.id, prop);
+    if (prop.solid) for (let y = prop.y; y < prop.y + prop.h; y++) for (let x = prop.x; x < prop.x + prop.w; x++) this.propBlock.add(y * this.width + x);
+  }
+
+  removeProp(id) {
+    const prop = this.propIndex.get(id);
+    if (!prop) return;
+    this.props = this.props.filter((p) => p !== prop);
+    this.propIndex.delete(id);
+    if (prop.solid) {
+      for (let y = prop.y; y < prop.y + prop.h; y++) for (let x = prop.x; x < prop.x + prop.w; x++) {
+        const idx = y * this.width + x;
+        // another solid prop may share the cell
+        if (!this.props.some((q) => q.solid && x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h)) this.propBlock.delete(idx);
+      }
+    }
+  }
+
   /** Add a building at runtime (finished properties). */
   addBuilding(b) {
     if (this.buildings.some((x) => x.id === b.id)) return;

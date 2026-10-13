@@ -8,7 +8,7 @@ import { parseSpotRef, TILE, interpolate } from '../core/util.js';
 export const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory',
 ];
 
 /**
@@ -176,6 +176,14 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'factory': {
+        // { factory: { contract: 'small' | 'large' | null } }
+        if ('contract' in val) {
+          const r = game.factory.setContract(val.contract);
+          if (r.text) game.notify(r.text, r.ok ? 'good' : 'warn');
+        }
+        break;
+      }
       case 'gang': {
         // { gang: { sample: true } | { deliver: true } | { tribute: true } | { split: true } } — sample/deliver act on this NPC
         let r = null;

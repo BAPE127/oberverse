@@ -28,6 +28,7 @@
 | `world_halvermouth.test.mjs` | Halvermouth: separate region, gateway travel both ways, required buildings/districts/slum, reachability of every open door and interior, opening hours, saves. |
 | `combat.test.mjs` | Weapon variety, punching + health bar, flee vs fight-back, the player being beaten, witnesses, knock-outs and waking, killing (permanent, quests fail, saves), buying/loading/shooting a gun, walls stopping bullets, gunfire panic, weapons in the world, old saves. |
 | `wrath.test.mjs` | Protection of imported characters (and only them), the Wrath freezing the world, five strikes, rising again, every weapon type triggering it, `killable: true` lifting it. |
+| `factory.test.mjs` | Warehouses, signs and doors; Sal's shops and unlocks; hand-crafting the full chain; placement rules; arms, belts, machines; a full parts-to-calculator line; power; backed-up belts and full outputs; deliveries; running while away; save/load as props; the machine panel; debug commands. |
 | `gang.test.mjs` | The Sums of Anarchy cast, calculators (highs, comedowns, tolerance, heal, energy crash), Grit, Minnie's shop and counter, samples and stealing, orders, deliveries, referrals, missed orders, dealing and the police, anger tiers, ambushes and hunts, truce, hurting the crew, Arthur's Wrath, gang-police insults, jail confiscation, saves, debug commands, the Abacus. |
 | `police.test.mjs` | The police cast (imported chief, armed killable officers, beats in all four areas), the lax chief, calls and dispatch, bribes and fines, pursuit and cuffing, surrender, death → jail, serving a sentence, all four breakouts, the LAW Wrath → jail, killing an officer, Wanted lapse and record decay, saves, debug commands, walkable precinct and cells. |
 | `debug.test.mjs` | Debug console: give/take by id or name, money/health/energy/heal/god, weapons and ammo, time/skip/teleport/stats/rep/flags, reviving the dead and knocked-out. |
@@ -36,6 +37,13 @@
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.12.0 (2026-10-13)
+
+- `npm run check` — **175/175 tests passed** (13 new in `factory.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real keyboard and mouse): bought Warehouse 7 at its FOR SALE sign through the choices panel; pressed B; picked tools from the build bar; placed an arm (rotated with R), a soldering station, a second arm and a 12-belt line ending in the output crate by clicking tiles; right-clicked a belt away and placed it back; Esc left build mode. In real time the arm fed parts from the input bay, the station soldered cores, they rode the belt (sliding between tiles) into the output crate. The workbench menu listed what could be hand-crafted. Fixed from the run: the build bar's buttons were unclickable (the HUD layer ignores the mouse; the bar now takes it); item names were lowercased in the workbench menu. No page errors or game warnings.
+- Performance: 382 fully loaded belts across two warehouses — a whole skipped day (sleeping) in ~0.4 s; belts are simulated in one downstream-first pass.
 
 ## Verification record — v0.11.0 (2026-10-13)
 

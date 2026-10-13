@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.12.0] — 2026-10-13 — "The Calculator Works" (development build)
+
+Second half of the gang update: making your own calculators, Factorio-style.
+
+### Added
+- **Warehouses** for sale on the Halvermouth docks (`src/content/warehouses.js`): Warehouse 7 (300 obols), Pier 9 Shed (750), The Old Cannery (1,500), each with its own interior (`wh7`, `wh9`, `wh12`): concrete floor, an input bay, an output crate and a workbench. Bought at the FOR SALE sign; the door unlocks (`owns_<id>`).
+- **Sal's Surplus Electronics** (`surplus` map) and **Sal Vage** (`npc_sal`, generated): parts (`shop_surplus`; also buys calculators back at 7 and blanks at 3), machinery (`shop_machines`, after 5 made), daily **delivery contracts** (small 50 / large 140 obols, after 10 made) into your biggest warehouse's input bay at 07:00, paid on delivery.
+- **Production chain**: five parts (`item_part_*`) → core, shell → blank → tuned calculator. **Hand-crafting** at the workbench (10/10/15/8 game minutes, from pockets and the input bay).
+- **Factory** (`src/systems/factory.js`): machines (soldering station, case press, assembler, tuning bench; 2×2, buffered), conveyor belts (one item a minute; the end of a line feeds machines and crates; lines back up, never drop), inserter arms (one item a minute, only what the target wants), generators (power: the wall socket runs the first 2–3 machines, each generator 4 more). Runs one step per game minute for every owned warehouse — on or off the map and through skipped time. Entities are saved and reinstalled as runtime props (`GameMap.addProp/removeProp`).
+- **Build mode** (B in a warehouse you own): a toolbar of your machinery, number keys or click to choose, R to rotate, click to place, right-click to pick up (contents come back), a green/red placement ghost with direction arrows, power readout. E on a machine: status, set the tuner, load inputs, collect output.
+- Containers you own have **All** buttons and **Store all parts**.
+- Drawing for every fitting and machine (`src/engine/drawFactory.js`): crawling belt chevrons, items sliding along belts, swinging arms, glowing machine windows, progress bars, power lights, generator exhaust.
+- Debug commands `warehouse <id>`, `parts [n]`, `machines`, `made <n>`.
+- `docs/FACTORY.md`. Tests: `tests/factory.test.mjs` (13 tests, including a full parts-to-calculator production line).
+
 ## [0.11.0] — 2026-10-13 — "Sums of Anarchy" (development build)
 
 First half of the gang update (the warehouse and factory builder follow in 0.12.0).

@@ -1,8 +1,9 @@
-# Known Issues and Limitations — v0.11.0
+# Known Issues and Limitations — v0.12.0
 
 ## Not yet implemented (planned)
 
-- **Calculator trade (v0.11.0):** warehouses and production are not in yet (v0.12.0) — for now you can only resell calculators bought from Minnie, at a loss. Customers live and order only in the Sumps; order meeting spots are fixed points. Gang ambushes and hunts only happen on the player's current map. Officers and gang members only trade insults (no NPC-vs-NPC fights).
+- **Factory (v0.12.0):** no splitters, mergers, underground belts or filtered arms; machines only face one way (no rotation); arms and belts move one item per game minute; power is a simple machine count (no fuel, no wiring). The gang doesn't raid warehouses (owner chose threats, ambushes and a truce). Build mode is mouse-and-keyboard only.
+- **Calculator trade (v0.11.0):** customers live and order only in the Sumps; order meeting spots are fixed points. Gang ambushes and hunts only happen on the player's current map. Officers and gang members only trade insults (no NPC-vs-NPC fights).
 - **Police limits (v0.10.0):** officers only pursue on the player's current map (a dispatched officer travels by schedule pathing, so a call across regions can take a while); no bounties or police vehicles in the open world; the jail has no other prisoners besides Petty; the only way back into the cell block is the jail keys. Being knocked out by anyone now always ends in jail.
 - **Combat follow-ups:** no armour, cover, dodging or stealth attacks; NPCs only fight on the player's map (leave and the fight ends); no looting bodies; no mourning, funerals or replacement characters after a death.
 - **Equipment** beyond weapons (no armour or clothing slots).

@@ -3,6 +3,12 @@
 export const CONTAINERS = {
   ct_police_lockers: { name: 'Officers\' lockers', owner: 'fac_police', items: { item_baton: 1, item_bandage: 2 }, money: 0 },
   ct_evidence: { name: 'Evidence cabinet', owner: 'fac_police', items: { item_cigar: 1 }, money: 15, lockedText: 'Your confiscated belongings are filed in here. "Pending."' },
+  ct_wh7_in: { name: 'Input bay', owner: 'player', items: {}, money: 0 },
+  ct_wh7_out: { name: 'Output crate', owner: 'player', items: {}, money: 0 },
+  ct_wh9_in: { name: 'Input bay', owner: 'player', items: {}, money: 0 },
+  ct_wh9_out: { name: 'Output crate', owner: 'player', items: {}, money: 0 },
+  ct_wh12_in: { name: 'Input bay', owner: 'player', items: {}, money: 0 },
+  ct_wh12_out: { name: 'Output crate', owner: 'player', items: {}, money: 0 },
   ct_sumps_crate: { name: 'Rotten crate', owner: null, items: { item_bat: 1 }, money: 3 },
   ct_flat_wardrobe: { name: 'Wardrobe', owner: 'player', items: { item_bandage: 1, item_scone: 1 }, money: 8 },
   ct_civic_desk: { name: 'Clerk\'s desk', owner: 'npc_osric', theftFact: 'fact_player_stole_from_osric', items: { item_lighthouse_key: 1, item_rubber_stamp: 1 }, money: 0 },

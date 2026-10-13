@@ -45,6 +45,11 @@ export class UI {
       this.mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
       this.mouse.movedAt = this.time;
     });
+    canvas.addEventListener('contextmenu', (e) => {
+      if (!this.build) return;
+      e.preventDefault();
+      this.buildAction('remove');
+    });
     canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       this.mouse.down = true;
@@ -57,6 +62,7 @@ export class UI {
       clock: document.getElementById('hud-clock'),
       location: document.getElementById('hud-location'),
       money: document.getElementById('hud-money'),
+      buildBar: document.getElementById('build-bar'),
       wanted: document.getElementById('hud-wanted'),
       tracker: document.getElementById('hud-tracker'),
       prompt: document.getElementById('hud-prompt'),
@@ -379,7 +385,9 @@ export class UI {
     }
     if (this.dialogue.handleAction(action)) return;
     if (this.state !== 'playing' || this.game?.combat.wrath) return;
+    if (this.build && this.buildAction(action)) return;
     switch (action) {
+      case 'build': this.toggleBuild(); break;
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
       case 'journal': this.openPanel('journal'); break;
@@ -463,6 +471,100 @@ export class UI {
     }
   }
 
+  // ---------------------------------------------------- factory build mode
+  /** B in a warehouse you own: place machinery on the floor grid (src/systems/factory.js). */
+  toggleBuild() {
+    const g = this.game;
+    if (this.build) return this.exitBuild();
+    const wh = g.factory.warehouseForMap(g.player.map);
+    if (!wh) { this.toast('You can only build inside a warehouse you own.', 'info', 3); return; }
+    if (!g.factory.owns(wh)) { this.toast('This isn\'t your warehouse.', 'info', 3); return; }
+    this.build = { wh, tool: this.buildTools()[0] || 'remove', dir: 0 };
+    this.el.buildBar.classList.remove('hidden');
+    this.buildBarKey = null;
+    this.audio.sfx('sfx_ui_click');
+  }
+
+  exitBuild() {
+    this.build = null;
+    this.renderer.buildCursor = null;
+    this.el.buildBar.classList.add('hidden');
+  }
+
+  buildTools() {
+    return this.game.inventory.list().filter((e) => e.def.build).map((e) => e.id);
+  }
+
+  /** Returns true if build mode used the action. */
+  buildAction(action) {
+    const g = this.game;
+    const b = this.build;
+    const c = this.renderer.buildCursor;
+    if (action === 'build' || action === 'pause') { this.exitBuild(); return true; }
+    if (action === 'reload') {
+      // R: rotate the tool, or the belt/arm under the cursor when picking up
+      if (b.tool === 'remove' && c) g.factory.rotate(b.wh, c.x, c.y);
+      else b.dir = (b.dir + 1) % 4;
+      return true;
+    }
+    const m = /^choice(\d)$/.exec(action);
+    if (m) {
+      const tools = [...this.buildTools(), 'remove'];
+      const pick = tools[Number(m[1]) - 1];
+      if (pick) b.tool = pick;
+      return true;
+    }
+    if (action === 'remove' || (action === 'attack' && b.tool === 'remove')) {
+      if (!c) return true;
+      const r = g.factory.remove(b.wh, c.x, c.y);
+      if (r.ok) this.audio.sfx('sfx_pickup'); else this.audio.sfx('sfx_fail');
+      return true;
+    }
+    if (action === 'attack') {
+      if (!c) return true;
+      const r = g.factory.place(b.wh, b.tool, c.x, c.y, b.dir);
+      if (r.ok) this.audio.sfx('sfx_door'); else { this.audio.sfx('sfx_fail'); this.toast(r.text, 'info', 2); }
+      if (!g.inventory.count(b.tool)) b.tool = this.buildTools()[0] || 'remove';
+      return true;
+    }
+    return false;
+  }
+
+  updateBuild() {
+    const g = this.game;
+    const b = this.build;
+    if (g.player.map !== g.content.warehouses[b.wh].map) return this.exitBuild();
+    const z = this.renderer.cam.zoom;
+    const tx = Math.floor((this.renderer.cam.x + this.mouse.x / z) / TILE);
+    const ty = Math.floor((this.renderer.cam.y + this.mouse.y / z) / TILE);
+    const def = b.tool !== 'remove' ? g.content.items[b.tool]?.build : null;
+    const w = def?.w || 1;
+    const hh = def?.h || 1;
+    const valid = def ? !g.factory.blockReason(b.wh, tx, ty, w, hh) : Boolean(g.factory.at(b.wh, tx, ty)?.fx);
+    this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter'), remove: !def };
+    // the toolbar
+    const tools = this.buildTools();
+    const p = g.factory.power(b.wh);
+    const key = JSON.stringify([tools.map((id) => [id, g.inventory.count(id)]), b.tool, b.dir, p]);
+    if (key === this.buildBarKey) return;
+    this.buildBarKey = key;
+    const bar = this.el.buildBar;
+    bar.innerHTML = '';
+    const row = document.createElement('div');
+    row.className = 'tools';
+    [...tools, 'remove'].forEach((id, i) => {
+      const btn = document.createElement('button');
+      btn.className = `small${b.tool === id ? ' on' : ''}`;
+      btn.textContent = id === 'remove' ? `${i + 1} · Pick up` : `${i + 1} · ${g.content.items[id].name} ×${g.inventory.count(id)}`;
+      btn.onclick = () => { b.tool = id; this.buildBarKey = null; };
+      row.append(btn);
+    });
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = `Click to place · Right-click to pick up · R rotate (${['→', '↓', '←', '↑'][b.dir]}) · B or Esc to finish · Power: ${p.machines}/${p.capacity} machines${tools.length ? '' : ' · You have no machinery — buy some from Sal'}`;
+    bar.append(row, hint);
+  }
+
   // -------------------------------------------------------------- frame
   frame(dt) {
     this.time += dt;
@@ -480,7 +582,8 @@ export class UI {
         g.player.aim = { x: wx - g.player.x, y: wy - (g.player.y - 18) };
       } else g.player.aim = null;
       // automatic weapons fire while the button is held
-      if (!busy && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
+      if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
+      if (this.build) this.updateBuild();
       g.update(dt, move);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;

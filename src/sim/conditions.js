@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory',
 ];
 
 /**
@@ -67,6 +67,17 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'factory': {
+      // { owns: true (any warehouse), made: '>=5', contract: true }
+      const f = game.factory;
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'owns': return (f.ownedIds().length > 0) === v;
+          case 'contract': return Boolean(f.state.contract) === v;
+          default: return compare(f.state[k] ?? 0, v);
+        }
+      });
     }
     case 'gang': {
       // { anger: '>=25', tier: '>=2', truce: true, customer: 'gang'|'locked'|'player' (this NPC), order: 'due'|'pending'|'none' (this NPC),

@@ -13,7 +13,7 @@ const ACTIONS = {
   KeyJ: 'journal', KeyQ: 'journal',
   KeyM: 'map',
   KeyC: 'status',
-  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender',
+  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender', KeyB: 'build',
   F5: 'quicksave', F9: 'quickload',
   Backquote: 'debug',
 };

@@ -52,6 +52,29 @@ export class Renderer {
     return this.staticLayers.get(map);
   }
 
+  /** Factory build mode: the placement ghost (green = fits, red = blocked). */
+  drawBuildCursor(ctx, c) {
+    const x = c.x * TILE;
+    const y = c.y * TILE;
+    ctx.fillStyle = c.valid ? (c.remove ? 'rgba(255,170,60,0.25)' : 'rgba(90,224,122,0.25)') : 'rgba(255,74,58,0.22)';
+    ctx.fillRect(x, y, c.w * TILE, c.h * TILE);
+    ctx.strokeStyle = c.valid ? (c.remove ? '#ffaa3c' : '#5ae07a') : '#ff4a3a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(x + 1, y + 1, c.w * TILE - 2, c.h * TILE - 2);
+    ctx.setLineDash([]);
+    if (c.arrow) {
+      const cx = x + TILE / 2;
+      const cy = y + TILE / 2;
+      const dx = [1, 0, -1, 0][c.dir];
+      const dy = [0, 1, 0, -1][c.dir];
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx - dx * 9, cy - dy * 9); ctx.lineTo(cx + dx * 9, cy + dy * 9); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + dx * 10, cy + dy * 10); ctx.lineTo(cx + dx * 3 - dy * 6, cy + dy * 3 + dx * 6); ctx.moveTo(cx + dx * 10, cy + dy * 10); ctx.lineTo(cx + dx * 3 + dy * 6, cy + dy * 3 - dx * 6); ctx.stroke();
+    }
+  }
+
   snapCamera() {
     this.cam.snap = true;
   }
@@ -156,7 +179,7 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total });
         }
       })();
       for (const b of lm.buildings) {
@@ -171,7 +194,7 @@ export class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -197,6 +220,7 @@ export class Renderer {
       this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
     }
+    if (this.buildCursor) this.drawBuildCursor(ctx, this.buildCursor);
     this.drawCombatFx(ctx);
 
     if (g.combat.wrath) {

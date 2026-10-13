@@ -23,6 +23,16 @@ export const SHOPS = {
     stock: { item_calc_charm: 6, item_calc_wits: 6, item_calc_grit: 6, item_calc_finesse: 6, item_calc_health: 6, item_calc_energy: 8 },
     buys: {},
   },
+  shop_surplus: {
+    name: 'Sal\'s Surplus — parts', owner: 'npc_sal', restockAt: '08:00',
+    stock: { item_part_casing: 40, item_part_keypad: 40, item_part_screen: 40, item_part_board: 40, item_part_battery: 60 },
+    buys: { item_calc_charm: 7, item_calc_wits: 7, item_calc_grit: 7, item_calc_finesse: 7, item_calc_health: 7, item_calc_energy: 7, item_calc_blank: 3 },
+  },
+  shop_machines: {
+    name: 'Sal\'s Surplus — machinery', owner: 'npc_sal', restockAt: '08:00',
+    stock: { item_machine_solderer: 3, item_machine_press: 3, item_machine_assembler: 3, item_machine_tuner: 6, item_generator: 3, item_belt: 200, item_inserter: 30 },
+    buys: { item_machine_solderer: 60, item_machine_press: 75, item_machine_assembler: 110, item_machine_tuner: 90, item_generator: 125, item_belt: 1, item_inserter: 7 },
+  },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
     stock: { item_crowbar: 1, item_bolts: 3, item_fire_axe: 1 },

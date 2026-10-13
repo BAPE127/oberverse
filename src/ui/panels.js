@@ -23,7 +23,7 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾' };
 export const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -241,7 +241,8 @@ export function containerPanel(ui, body, opts) {
     }
     for (const it of v.items) {
       wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(it.def)), h('div', { class: 'grow' }, h('div', { class: 'name' }, it.def.name, it.count > 1 ? ` ×${it.count}` : ''), h('div', { class: 'desc' }, it.def.description)),
-        h('button', { class: 'small', onclick: () => { const r = g.takeFromContainer(v.id, it.id); if (!r.ok) ui.audio.sfx('sfx_fail'); render(r.text); } }, 'Take')));
+        h('button', { class: 'small', onclick: () => { const r = g.takeFromContainer(v.id, it.id); if (!r.ok) ui.audio.sfx('sfx_fail'); render(r.text); } }, 'Take'),
+        v.owner === 'player' && it.count > 1 ? h('button', { class: 'small', onclick: () => { const r = g.takeFromContainer(v.id, it.id, it.count); render(r.text); } }, 'All') : null));
     }
     if (!v.items.length && v.money <= 0) wrap.append(h('p', { class: 'muted' }, 'Empty.'));
     body.append(wrap);
@@ -251,9 +252,17 @@ export function containerPanel(ui, body, opts) {
       const w2 = h('div', { class: 'list' });
       for (const e of returnable) {
         w2.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(e.def)), h('div', { class: 'grow' }, h('div', { class: 'name' }, e.def.name)),
-          h('button', { class: 'small', onclick: () => { const r = g.putInContainer(v.id, e.id); render(r.text); } }, 'Put')));
+          h('button', { class: 'small', onclick: () => { const r = g.putInContainer(v.id, e.id); render(r.text); } }, 'Put'),
+          v.owner === 'player' && e.count > 1 ? h('button', { class: 'small', onclick: () => { const r = g.putInContainer(v.id, e.id, e.count); render(r.text); } }, 'All') : null));
       }
       body.append(w2);
+      if (v.owner === 'player' && returnable.some((e) => e.def.category === 'part')) {
+        body.append(h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { onclick: () => {
+          let n = 0;
+          for (const e of g.inventory.list()) if (e.def.category === 'part') { g.putInContainer(v.id, e.id, e.count); n += e.count; }
+          render(`Stored ${n} parts.`);
+        } }, 'Store all parts')));
+      }
     }
   };
   render();
@@ -513,7 +522,7 @@ export function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);

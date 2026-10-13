@@ -71,6 +71,14 @@ export const PROP_TYPES = {
   cellbars: { solid: true, label: 'Cell bars', defaults: {} },
   gatepost: { solid: true, label: 'Gatepost', defaults: {} },
   loosebrick: { solid: false, label: 'Loose brick', defaults: {} },
+  // calculator production (v0.12.0)
+  loadingbay: { solid: true, label: 'Input bay', defaults: { w: 2, h: 2 } },
+  outbin: { solid: true, label: 'Output crate', defaults: { w: 2, h: 2 } },
+  workbench: { solid: true, label: 'Workbench', defaults: { w: 3 } },
+  belt: { solid: false, label: 'Conveyor belt', defaults: {} },
+  inserter: { solid: true, label: 'Inserter arm', defaults: {} },
+  machine: { solid: true, label: 'Machine', defaults: { w: 2, h: 2 } },
+  generator: { solid: true, label: 'Generator', defaults: { w: 2, h: 2 } },
   vent: { solid: false, label: 'Air vent', defaults: {} },
   wallcrack: { solid: false, label: 'Crack in the wall', defaults: {} },
   // Mason's Os

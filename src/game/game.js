@@ -23,6 +23,7 @@ import { Combat, isDown } from '../systems/combat.js';
 import { Police, freshPolice } from '../systems/police.js';
 import { Calculators } from '../systems/calculators.js';
 import { Gang, freshGang } from '../systems/gang.js';
+import { Factory, freshFactory } from '../systems/factory.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -54,6 +55,7 @@ export class Game {
     this.police = new Police(this);
     this.calculators = new Calculators(this);
     this.gang = new Gang(this);
+    this.factory = new Factory(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -127,6 +129,7 @@ export class Game {
       properties: freshProperties(),
       police: freshPolice(),
       gang: freshGang(this.content),
+      factory: freshFactory(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -287,6 +290,7 @@ export class Game {
     this.police.minuteTick();
     this.calculators.minuteTick();
     this.gang.minuteTick();
+    this.factory.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -679,6 +683,7 @@ export class Game {
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
       case 'shop': return `Browse the ${name.toLowerCase()}`;
+      case 'factory': return { buy: this.factory.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', workbench: 'Use the workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
@@ -761,6 +766,8 @@ export class Game {
       }
       case 'jail':
         return this.police.jailInteract(prop);
+      case 'factory':
+        return this.factory.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -867,7 +874,7 @@ export class Game {
    * whether this is allowed, theft, or blocked.
    * @returns {{ok:boolean, text:string, stolen?:boolean}}
    */
-  takeFromContainer(id, itemId) {
+  takeFromContainer(id, itemId, count = 1) {
     const def = this.content.containers[id];
     const st = this.world.containers[id];
     if (!def || !st) return { ok: false, text: 'Nothing there.' };
@@ -896,21 +903,24 @@ export class Game {
       this.bus.emit('money:changed', { delta: amount, total: this.player.money });
       return { ok: true, stolen, text: `You take ${amount} obols${stolen ? ' that aren\'t yours' : ''}.` };
     }
-    st.items[itemId]--;
-    this.inventory.add(itemId, 1, { stolenFrom: stolen ? def.owner : null });
-    return { ok: true, stolen, text: `Taken: ${this.content.items[itemId].name}${stolen ? ' (not yours)' : ''}.` };
+    const n = Math.max(1, Math.min(count, st.items[itemId]));
+    st.items[itemId] -= n;
+    this.inventory.add(itemId, n, { stolenFrom: stolen ? def.owner : null });
+    return { ok: true, stolen, text: `Taken: ${this.content.items[itemId].name}${n > 1 ? ` ×${n}` : ''}${stolen ? ' (not yours)' : ''}.` };
   }
 
-  putInContainer(id, itemId) {
+  putInContainer(id, itemId, count = 1) {
     const def = this.content.containers[id];
     const st = this.world.containers[id];
     if (!def || !st || !this.inventory.count(itemId)) return { ok: false, text: 'You can\'t put that there.' };
     if (def.owner !== 'player' && !this.player.stolen[itemId]) return { ok: false, text: 'That isn\'t your storage.' };
     const wasStolenFrom = this.player.stolen[itemId];
-    this.inventory.remove(itemId, 1);
-    st.items[itemId] = (st.items[itemId] || 0) + 1;
+    const n = Math.max(1, Math.min(count, this.inventory.count(itemId)));
+    this.inventory.remove(itemId, n);
+    st.items[itemId] = (st.items[itemId] || 0) + n;
     if (wasStolenFrom === def.owner && itemId === 'item_lighthouse_key') this.setFlag('key_returned', true);
-    return { ok: true, text: `Put back: ${this.content.items[itemId].name}.` };
+    this.bus.emit('container:changed', { id });
+    return { ok: true, text: `${def.owner === 'player' ? 'Stored' : 'Put back'}: ${this.content.items[itemId].name}${n > 1 ? ` ×${n}` : ''}.` };
   }
 
   // ----------------------------------------------------------------- shops
@@ -1073,6 +1083,8 @@ export class Game {
     this.world.police = { ...fresh.police, ...(this.world.police || {}) };
     this.world.gang = { ...fresh.gang, ...(this.world.gang || {}) };
     this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
+    this.world.factory = { ...fresh.factory, ...(this.world.factory || {}) };
+    this.world.factory.warehouses = { ...fresh.factory.warehouses, ...(this.world.factory.warehouses || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();

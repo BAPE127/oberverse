@@ -75,6 +75,11 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 @keyframes hurtPulse { 0% { box-shadow: 0 0 0 3px rgba(200,40,40,.8); } 100% { box-shadow: 0 0 0 0 rgba(200,40,40,0); } }
 #hud-prompt { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); background: rgba(45,36,51,.9); color: #fff6e0; padding: 7px 14px; border-radius: 999px; font-size: 14px; white-space: nowrap; }
 #hud-prompt kbd { background: #fff6e0; color: var(--ink); border-radius: 5px; padding: 0 6px; margin-right: 6px; font-weight: bold; font-family: var(--font); }
+#build-bar { pointer-events: auto; position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; max-width: 92vw; }
+#build-bar .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#build-bar button { font-size: 12px; padding: 5px 9px; }
+#build-bar button.on { outline: 2px solid #f2c14e; background: #5a4a2a; color: #fff6e0; }
+#build-bar .hint { font-size: 12px; opacity: .85; }
 #hud-keys { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; color: rgba(255,246,224,.85); text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; }
 #toasts { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; max-width: min(380px, 70vw); }
 .toast { background: rgba(251,244,230,.96); border-left: 5px solid var(--accent-2); padding: 7px 12px; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.25); animation: toastIn .25s ease-out; }

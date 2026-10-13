@@ -34,7 +34,9 @@ export class DialogueSession {
     if (!g.gang) return {};
     const c = g.gang.customer(this.npc.id);
     const o = c?.order;
-    const out = { tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
+    const f = g.factory;
+    const fx = f ? { made: f.state.made, smallPrice: g.content.deliveries?.small?.price, largePrice: g.content.deliveries?.large?.price, contract: f.state.contract ? g.content.deliveries[f.state.contract].name.toLowerCase() : 'none', deliveryTo: f.deliveryTarget() ? f.def(f.deliveryTarget()).name : 'your warehouse' } : {};
+    const out = { ...fx, tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
     if (o) Object.assign(out, { orderQty: o.qty, orderName: g.content.items[`item_calc_${o.type}`]?.name, orderPrice: o.price, orderTotal: o.qty * o.price });
     if (this.profile.customer) out.favourite = g.content.items[`item_calc_${this.profile.customer.favourite}`]?.name;
     return out;

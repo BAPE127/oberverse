@@ -85,6 +85,11 @@ button.small { padding: 4px 10px; font-size: 13px; border-width: 1.5px; }
 @keyframes hurtPulse { 0% { box-shadow: 0 0 0 3px rgba(200,40,40,.8); } 100% { box-shadow: 0 0 0 0 rgba(200,40,40,0); } }
 #hud-prompt { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); background: rgba(45,36,51,.9); color: #fff6e0; padding: 7px 14px; border-radius: 999px; font-size: 14px; white-space: nowrap; }
 #hud-prompt kbd { background: #fff6e0; color: var(--ink); border-radius: 5px; padding: 0 6px; margin-right: 6px; font-weight: bold; font-family: var(--font); }
+#build-bar { pointer-events: auto; position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; max-width: 92vw; }
+#build-bar .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#build-bar button { font-size: 12px; padding: 5px 9px; }
+#build-bar button.on { outline: 2px solid #f2c14e; background: #5a4a2a; color: #fff6e0; }
+#build-bar .hint { font-size: 12px; opacity: .85; }
 #hud-keys { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; color: rgba(255,246,224,.85); text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; }
 #toasts { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; max-width: min(380px, 70vw); }
 .toast { background: rgba(251,244,230,.96); border-left: 5px solid var(--accent-2); padding: 7px 12px; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.25); animation: toastIn .25s ease-out; }
@@ -219,6 +224,7 @@ kbd { background: var(--paper-2); border: 1px solid var(--line); border-bottom-w
       <div id="hud-weapon"></div>
     </div>
     <div id="hud-prompt" class="hidden"></div>
+    <div id="build-bar" class="hud-card hidden"></div>
     <div id="hud-keys">E interact · F / click attack · R reload · X weapon · G surrender · Shift sprint · I inventory · J journal · M map · Esc menu</div>
     <div id="toasts" aria-live="polite"></div>
     <div id="debug" class="hidden"></div>
@@ -1201,11 +1207,13 @@ const buildings = [
   shack('sh_13', 1, 63, 5, 3, '#8a5a4a'), shack('sh_14', 8, 63, 4, 3, '#6a6a5a'), shack('sh_15', 18, 63, 4, 3, '#7a4a3a'),
   shack('sh_16', 28, 63, 5, 3, '#5a5a6a'), shack('sh_17', 1, 68, 4, 3, '#7a6a4a'), shack('sh_18', 25, 69, 4, 3, '#8a5a3a'),
   // The Docks
-  shop('b_wh7', 'Warehouse 7', 41, 63, 10, 6, { roof: '#6a6e74', wall: '#a8a49a', trim: '#4a4a4a', sign: 'WAREHOUSE 7', closed: 'Warehouse 7 is padlocked. Something inside is ticking. Probably a clock.' }),
-  shop('b_wh9', 'Warehouse 9', 52, 63, 9, 6, { roof: '#7a5a4a', wall: '#b09a84', trim: '#4a3a2e', sign: 'WAREHOUSE 9' }),
+  // warehouses for sale (v0.12.0): bought at the FOR SALE sign beside each door
+  shop('b_wh7', 'Warehouse 7', 41, 63, 10, 6, { roof: '#6a6e74', wall: '#a8a49a', trim: '#4a4a4a', sign: 'WAREHOUSE 7', door: { x: 46, y: 68, to: { map: 'wh7', spot: 'entry' }, lock: { flag: 'owns_wh7', flagMessage: 'Warehouse 7 is padlocked. A sign beside the door says FOR SALE.' } } }),
+  shop('b_wh9', 'Pier 9 Shed', 52, 63, 9, 6, { roof: '#7a5a4a', wall: '#b09a84', trim: '#4a3a2e', sign: 'PIER 9', door: { x: 56, y: 68, to: { map: 'wh9', spot: 'entry' }, lock: { flag: 'owns_wh9', flagMessage: 'The Pier 9 Shed is chained shut. A sign beside the door says FOR SALE.' } } }),
+  shop('b_surplus', 'Sal\'s Surplus Electronics', 78, 63, 7, 6, { roof: '#4a5a3a', wall: '#a8b08a', trim: '#2a3a1a', sign: 'SAL\'S SURPLUS', awning: '#6a7a3a', door: { x: 81, y: 68, to: { map: 'surplus', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '08:00', to: '20:00' } } } }),
   shop('b_port', 'Port Authority', 65, 63, 12, 6, { roof: '#3a4a5a', wall: '#d8dce0', trim: '#2a3a4a', sign: 'PORT AUTHORITY' }),
   shop('b_cold', 'Northbank Cold Storage', 89, 63, 12, 6, { roof: '#8a9aa6', wall: '#dce6ea', trim: '#4a5a66', sign: 'COLD STORAGE' }),
-  shop('b_wh12', 'Warehouse 12', 102, 63, 9, 6, { roof: '#5a5a52', wall: '#a49e8e', trim: '#3a3a32', sign: 'WAREHOUSE 12' }),
+  shop('b_wh12', 'The Old Cannery', 102, 63, 9, 6, { roof: '#5a5a52', wall: '#a49e8e', trim: '#3a3a32', sign: 'OLD CANNERY', door: { x: 106, y: 68, to: { map: 'wh12', spot: 'entry' }, lock: { flag: 'owns_wh12', flagMessage: 'The Old Cannery is boarded up. A sign beside the door says FOR SALE.' } } }),
 ];
 
 // ---------------------------------------------------------------- props
@@ -1277,6 +1285,7 @@ props.push({ id: 'hv_sumps_crate', type: 'crate', x: 24, y: 58, interact: { kind
 for (const x of [44, 45, 58, 80, 81, 104, 105]) P('crate', x, 71);
 for (const x of [47, 60, 83, 107]) P('barrel', x, 72);
 P('boat', 74, 75, { w: 3, h: 2 }); P('boat', 100, 75, { w: 3, h: 2 });
+for (const [id, wh, x] of [['hv_wh7_sale', 'wh7', 48], ['hv_wh9_sale', 'wh9', 58], ['hv_wh12_sale', 'wh12', 108]]) props.push({ id, type: 'sign', x, y: 69, interact: { kind: 'factory', action: 'buy', warehouse: wh, name: 'FOR SALE sign' }, examine: 'FOR SALE.' });
 P('sign', 64, 70, { examine: '"PORT OF HALVERMOUTH. Authorised personnel only beyond this point. Unauthorised personnel: please be discreet."' });
 
 const halvermouth = {
@@ -1313,6 +1322,7 @@ const halvermouth = {
     mission_front: { x: 22, y: 46, facing: 'up' },
     park_center: { x: 99, y: 49, facing: 'up' },
     docks_quay: { x: 70, y: 72, facing: 'down' },
+    wh7_door_out: { x: 46, y: 69, facing: 'down' }, wh9_door_out: { x: 56, y: 69, facing: 'down' }, wh12_door_out: { x: 106, y: 69, facing: 'down' }, surplus_door_out: { x: 81, y: 69, facing: 'down' },
     // the Sumps: the Sums of Anarchy's turf, their customers' haunts and the corners where deals happen
     abacus_door_out: { x: 32, y: 58, facing: 'down' },
     abacus_bouncer: { x: 34, y: 59, facing: 'left' },
@@ -1535,9 +1545,57 @@ const abacus = {
   ],
 };
 
-const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus];
+// --------------------------------------------------- warehouses (v0.12.0)
+// Concrete floors you build on. Fixed fittings: the input bay (deliveries and
+// parts you drop off), the output crate (finished goods) and the workbench
+// (hand-crafting). Everything else is placed by the player (src/systems/factory.js).
+const warehouse = (id, name, w, h, o = {}) => ({
+  id,
+  name,
+  kind: 'interior',
+  warehouse: id,
+  music: 'mus_workshop',
+  ambience: 'amb_indoor',
+  tiles: roomTiles(w, h, 'g', Math.floor(w / 2)),
+  doors: [{ id: `door_${id}_exit`, x: Math.floor(w / 2), y: h - 1, to: { map: 'halvermouth', spot: `${id}_door_out` } }],
+  spots: { entry: { x: Math.floor(w / 2), y: h - 2, facing: 'up' } },
+  // the tile inside the door is kept clear so you can always get out
+  keepClear: [[Math.floor(w / 2), h - 2]],
+  props: [
+    { id: `${id}_inbay`, type: 'loadingbay', x: 1, y: 1, w: 2, h: 2, interact: { kind: 'container', container: `ct_${id}_in`, name: 'input bay' }, examine: 'The input bay. Sal\'s deliveries land here at 07:00 — and you can drop parts in by hand.' },
+    { id: `${id}_outbin`, type: 'outbin', x: w - 3, y: 1, w: 2, h: 2, interact: { kind: 'container', container: `ct_${id}_out`, name: 'output crate' }, examine: 'The output crate. Finished calculators end up here.' },
+    { id: `${id}_bench`, type: 'workbench', x: 4, y: 1, w: 3, h: 1, interact: { kind: 'factory', action: 'workbench', warehouse: id, name: 'workbench' }, examine: 'A scarred workbench with a soldering iron, a vice and a magnifying lamp. Craft by hand here; press B to build machinery.' },
+    { id: `${id}_board`, type: 'noticeboard', x: Math.floor(w / 2) - 1, y: 0, examine: o.board || 'A chalkboard for production notes. It\'s blank. For now.' },
+    ...(o.props || []),
+  ],
+});
+const wh7 = warehouse('wh7', 'Warehouse 7', 16, 11, { board: 'Chalked by the last tenant: "THE TICKING IS THE PIPES. PROBABLY."' });
+const wh9 = warehouse('wh9', 'Pier 9 Shed', 20, 13, { board: 'Fishing nets on hooks, and a faded tide table for a year long gone.' });
+const wh12 = warehouse('wh12', 'The Old Cannery', 26, 15, { board: '"NORTHBANK SARDINE CO. — 1,000,000 TINS AND COUNTING." The counter stopped at 412,077.' });
 
-return { halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, default: __default };
+// Sal's Surplus Electronics: parts, machinery and delivery contracts.
+const surplus = {
+  id: 'surplus',
+  name: 'Sal\'s Surplus Electronics',
+  kind: 'interior',
+  music: 'mus_workshop',
+  ambience: 'amb_indoor',
+  tiles: roomTiles(12, 9, 'f', 6, [[8, 1, 1, 2, 'W']]),
+  doors: [{ id: 'door_surplus_exit', x: 6, y: 8, to: { map: 'halvermouth', spot: 'surplus_door_out' } }],
+  spots: { entry: { x: 6, y: 7, facing: 'up' }, counter_front: { x: 4, y: 5, facing: 'up' }, counter_back: { x: 4, y: 3, facing: 'down' }, back_cot: { x: 9, y: 2, facing: 'right' } },
+  props: [
+    { id: 'sp_counter', type: 'counter', x: 2, y: 4, w: 5, color: '#3a4a2a', interact: { kind: 'shop', shop: 'shop_surplus', staffed: true, name: 'counter', closed: 'Nobody at the counter. Sal works 08:00–20:00.' }, examine: 'A counter buried in bins of keypads, screens and loose batteries.' },
+    { id: 'sp_shelf1', type: 'shelf', x: 1, y: 1, w: 3, h: 1, examine: 'Shelves of LCD screens, each one reading 8.8.8.8.8.8.8.8.' },
+    { id: 'sp_shelf2', type: 'shelf', x: 5, y: 1, w: 2, h: 1, examine: 'Boxes labelled CASINGS (PINK), CASINGS (GREY), CASINGS (??).' },
+    { id: 'sp_machines', type: 'crate', x: 1, y: 6, w: 2, examine: 'Crated machinery: a soldering station, a case press, coils of conveyor belt. "ASK SAL," says a sticker.' },
+    { id: 'sp_cot', type: 'cot', x: 10, y: 1 },
+    { id: 'sp_sign', type: 'sign', x: 9, y: 6, examine: '"SAL\'S SURPLUS — If it beeps, I\'ve got it. If it doesn\'t beep, I\'ve probably got it. No questions asked; no answers given."' },
+  ],
+};
+
+const __default = [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, wh7, wh9, wh12, surplus];
+
+return { halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, wh7, wh9, wh12, surplus, default: __default };
 })();
 
 // ---- src/content/props.js
@@ -1615,6 +1673,14 @@ const PROP_TYPES = {
   cellbars: { solid: true, label: 'Cell bars', defaults: {} },
   gatepost: { solid: true, label: 'Gatepost', defaults: {} },
   loosebrick: { solid: false, label: 'Loose brick', defaults: {} },
+  // calculator production (v0.12.0)
+  loadingbay: { solid: true, label: 'Input bay', defaults: { w: 2, h: 2 } },
+  outbin: { solid: true, label: 'Output crate', defaults: { w: 2, h: 2 } },
+  workbench: { solid: true, label: 'Workbench', defaults: { w: 3 } },
+  belt: { solid: false, label: 'Conveyor belt', defaults: {} },
+  inserter: { solid: true, label: 'Inserter arm', defaults: {} },
+  machine: { solid: true, label: 'Machine', defaults: { w: 2, h: 2 } },
+  generator: { solid: true, label: 'Generator', defaults: { w: 2, h: 2 } },
   vent: { solid: false, label: 'Air vent', defaults: {} },
   wallcrack: { solid: false, label: 'Crack in the wall', defaults: {} },
   // Mason's Os
@@ -1744,6 +1810,22 @@ const ITEMS = {
     description: 'A buzzing yellow calculator with a battery taped to the back. A rush now, a crash later. (+Energy.)',
     use: { calc: 'energy', text: 'You hammer the = key and your heart does it too.' },
   },
+  // --- calculator production (v0.12.0): parts from Sal's Surplus, intermediates, and placeable machinery
+  item_part_casing: { name: 'Plastic Casing', category: 'part', price: 2, tags: ['part'], icon: 'casing', description: 'An empty calculator shell, front and back. Sal buys them by the thousand from a factory that doesn\'t exist any more.' },
+  item_part_keypad: { name: 'Button Pad', category: 'part', price: 2, tags: ['part'], icon: 'keypad', description: 'A rubber sheet of sixteen keys: 0–9, + − × ÷, = and a decimal point.' },
+  item_part_screen: { name: 'LCD Screen', category: 'part', price: 3, tags: ['part'], icon: 'screen', description: 'An eight-digit liquid-crystal display. It reads 8.8.8.8.8.8.8.8 when it\'s happy.' },
+  item_part_board: { name: 'Circuit Board', category: 'part', price: 3, tags: ['part'], icon: 'chip', description: 'A tiny green circuit board with one black blob of a chip in the middle. The brains.' },
+  item_part_battery: { name: 'Button Battery', category: 'part', price: 1, tags: ['part'], icon: 'battery', description: 'A coin-sized battery. Do not eat. (People in the Sumps have asked.)' },
+  item_calc_core: { name: 'Calculator Core', category: 'part', price: 0, tags: ['part', 'intermediate'], icon: 'chip', description: 'A circuit board with its battery soldered on. Step 1 of 3.' },
+  item_calc_shell: { name: 'Calculator Shell', category: 'part', price: 0, tags: ['part', 'intermediate'], icon: 'casing', description: 'A casing with its keypad and screen pressed in. Step 2 of 3.' },
+  item_calc_blank: { name: 'Blank Calculator', category: 'part', price: 0, tags: ['part', 'intermediate'], icon: 'calc', description: 'A working four-function calculator with no "tuning" — it just does sums. Tune it at a workbench or tuning bench to make it a Charm, Wits, Grit, Finesse, Health or Energy calculator.' },
+  item_machine_solderer: { name: 'Soldering Station', category: 'machine', price: 120, tags: ['machine'], icon: 'machine', build: { type: 'machine', kind: 'solderer', w: 2, h: 2 }, description: 'Place in your warehouse (B to build). Board + battery → core, every 4 minutes. Needs power.' },
+  item_machine_press: { name: 'Case Press', category: 'machine', price: 150, tags: ['machine'], icon: 'machine', build: { type: 'machine', kind: 'press', w: 2, h: 2 }, description: 'Place in your warehouse. Casing + keypad + screen → shell, every 4 minutes. Needs power.' },
+  item_machine_assembler: { name: 'Assembler', category: 'machine', price: 220, tags: ['machine'], icon: 'machine', build: { type: 'machine', kind: 'assembler', w: 2, h: 2 }, description: 'Place in your warehouse. Core + shell → blank calculator, every 6 minutes. Needs power.' },
+  item_machine_tuner: { name: 'Tuning Bench', category: 'machine', price: 180, tags: ['machine'], icon: 'machine', build: { type: 'machine', kind: 'tuner', w: 2, h: 2 }, description: 'Place in your warehouse, then set what it makes (E). Blank → a finished calculator, every 3 minutes. Needs power.' },
+  item_belt: { name: 'Conveyor Belt', category: 'machine', price: 3, tags: ['machine'], icon: 'belt', build: { type: 'belt', w: 1, h: 1 }, description: 'Place in your warehouse; R rotates. Carries one item a minute to the next belt — and straight into a machine or crate at its end.' },
+  item_inserter: { name: 'Inserter Arm', category: 'machine', price: 15, tags: ['machine'], icon: 'arm', build: { type: 'inserter', w: 1, h: 1 }, description: 'Place in your warehouse; R rotates. Grabs one item a minute from behind it (crate, belt, machine output) and drops it in front, if what\'s in front wants it.' },
+  item_generator: { name: 'Generator', category: 'machine', price: 250, tags: ['machine'], icon: 'machine', build: { type: 'generator', w: 2, h: 2 }, description: 'Place in your warehouse. Powers four more machines. (Every warehouse\'s wall socket powers the first two.)' },
   item_vault_key: {
     name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
     description: 'A heavy, ornate key with a dollar-sign bow. It opens the vault in Sir Moneybucks\'s study.',
@@ -2057,6 +2139,12 @@ __m["src/content/containers.js"] = (function () {
 const CONTAINERS = {
   ct_police_lockers: { name: 'Officers\' lockers', owner: 'fac_police', items: { item_baton: 1, item_bandage: 2 }, money: 0 },
   ct_evidence: { name: 'Evidence cabinet', owner: 'fac_police', items: { item_cigar: 1 }, money: 15, lockedText: 'Your confiscated belongings are filed in here. "Pending."' },
+  ct_wh7_in: { name: 'Input bay', owner: 'player', items: {}, money: 0 },
+  ct_wh7_out: { name: 'Output crate', owner: 'player', items: {}, money: 0 },
+  ct_wh9_in: { name: 'Input bay', owner: 'player', items: {}, money: 0 },
+  ct_wh9_out: { name: 'Output crate', owner: 'player', items: {}, money: 0 },
+  ct_wh12_in: { name: 'Input bay', owner: 'player', items: {}, money: 0 },
+  ct_wh12_out: { name: 'Output crate', owner: 'player', items: {}, money: 0 },
   ct_sumps_crate: { name: 'Rotten crate', owner: null, items: { item_bat: 1 }, money: 3 },
   ct_flat_wardrobe: { name: 'Wardrobe', owner: 'player', items: { item_bandage: 1, item_scone: 1 }, money: 8 },
   ct_civic_desk: { name: 'Clerk\'s desk', owner: 'npc_osric', theftFact: 'fact_player_stole_from_osric', items: { item_lighthouse_key: 1, item_rubber_stamp: 1 }, money: 0 },
@@ -2098,6 +2186,16 @@ const SHOPS = {
     name: 'The Abacus counter (Sums of Anarchy)', owner: 'npc_minnie', restockAt: '11:00',
     stock: { item_calc_charm: 6, item_calc_wits: 6, item_calc_grit: 6, item_calc_finesse: 6, item_calc_health: 6, item_calc_energy: 8 },
     buys: {},
+  },
+  shop_surplus: {
+    name: 'Sal\'s Surplus — parts', owner: 'npc_sal', restockAt: '08:00',
+    stock: { item_part_casing: 40, item_part_keypad: 40, item_part_screen: 40, item_part_board: 40, item_part_battery: 60 },
+    buys: { item_calc_charm: 7, item_calc_wits: 7, item_calc_grit: 7, item_calc_finesse: 7, item_calc_health: 7, item_calc_energy: 7, item_calc_blank: 3 },
+  },
+  shop_machines: {
+    name: 'Sal\'s Surplus — machinery', owner: 'npc_sal', restockAt: '08:00',
+    stock: { item_machine_solderer: 3, item_machine_press: 3, item_machine_assembler: 3, item_machine_tuner: 6, item_generator: 3, item_belt: 200, item_inserter: 30 },
+    buys: { item_machine_solderer: 60, item_machine_press: 75, item_machine_assembler: 110, item_machine_tuner: 90, item_generator: 125, item_belt: 1, item_inserter: 7 },
   },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
@@ -6514,6 +6612,137 @@ const __default = [dlgArthur, dlgAl, dlgPercy, dlgMinnie, dlgDeeNom, dlgTony, dl
 return { dlgArthur, dlgAl, dlgPercy, dlgMinnie, dlgDeeNom, dlgTony, dlgMax, dlgCustomer, default: __default };
 })();
 
+// ---- src/content/characters/sal.js
+__m["src/content/characters/sal.js"] = (function () {
+// Sal Vage of Sal's Surplus Electronics, the docks. Generated for the gang
+// update (owner's answer: "a shady parts supplier; carry parts yourself at
+// first, delivery contracts later").
+const sal = {
+  id: 'npc_sal', name: 'Sal Vage', shortName: 'Sal', tier: 'minor', origin: 'imported-generated', faction: null, noSnitch: true,
+  combat: { never: true, maxHealth: 90 },
+  role: 'Runs Sal\'s Surplus Electronics at the docks. Sells calculator parts, machinery and delivery contracts. Asks no questions.',
+  dialogue: 'dlg_sal',
+  voice: { wave: 'triangle', pitch: 180, variance: 25, rate: 1.2 },
+  appearance: { skin: '#d9a77c', hair: '#8a8a8a', hairStyle: 'cap', hatColor: '#4a5a3a', outfit: '#6a7a4a', legs: '#3a3a2e', build: 'round', height: 0.97, accessory: 'glasses', accent: '#c9a24a' },
+  personality: { traits: ['shifty', 'cheerful', 'discreet'], sociability: 0.7, conscientiousness: 0.5, impulsiveness: 0.4, discretion: 0.95, honesty: 0.45, empathy: 0.4, confidence: 0.7 },
+  speech: { rumorPrefix: 'Not that I heard it from anyone, but', factPrefix: 'Hypothetically,', refuse: 'No questions asked. No answers given.' },
+  walkSpeed: 0.95, punctuality: 10, impulses: [], notices: [], knowledge: [],
+  schedule: [
+    { from: '07:45', to: '20:00', activity: 'work', spot: 'surplus:counter_back', label: 'behind the counter' },
+    { from: '20:00', to: '07:45', activity: 'sleep', spot: 'surplus:back_cot' },
+  ],
+  relationships: { player: { trust: 5, affection: 5, respect: 0, suspicion: 5 }, npc_arthur: { trust: 10, affection: 0, respect: 20, suspicion: 20 } },
+  giftPrefs: { item_coffee: 6, item_cigar: 8, tags: {} },
+  opinions: { npc_arthur: { warm: 'Arthur buys his parts elsewhere. Says my margins are "an insult to arithmetic". Lovely man.', cool: 'Arthur threw a calculator at me once. Bought it first, mind.' } },
+};
+
+const __default = [sal];
+
+return { sal, default: __default };
+})();
+
+// ---- src/content/dialogue/sal.js
+__m["src/content/dialogue/sal.js"] = (function () {
+// Sal Vage: parts, machinery (once you've proven you can build by hand), and
+// daily delivery contracts. Effects: { factory: { contract: 'small'|'large'|null } }.
+const dlgSal = {
+  id: 'dlg_sal',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Welcome, welcome! Sal Vage, Sal\'s Surplus. If it beeps, I\'ve got it. If it doesn\'t beep, I\'ve probably still got it.', 'No questions asked. No answers given. What\'ll it be?'] },
+    { if: { factory: { owns: true } }, variants: [['My favourite warehouse owner!'], ['How\'s production? Don\'t tell me. I don\'t want to know. Tell me what you need.']] },
+    { if: {}, variants: [['What\'ll it be?'], ['Welcome back!'], ['Everything must go! Except the stuff that mustn\'t.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Come back soon!'], ['Mind the batteries on the floor.']] }],
+  topics: [
+    {
+      id: 't_sal_parts', label: '"I need calculator parts."', tag: 'quest', keywords: ['parts', 'buy', 'casing', 'keypad', 'screen', 'board', 'battery'],
+      say: ['Casings, button pads, screens, boards, batteries. Five parts make one calculator. Hypothetically.'],
+      effects: [{ openShop: 'shop_surplus' }],
+    },
+    {
+      id: 't_sal_how', label: '"How are calculators made?"', keywords: ['how', 'make', 'build', 'recipe', 'craft'],
+      say: [
+        'Three steps and a twist. Solder a board to a battery — that\'s your core. Press a casing, a keypad and a screen together — that\'s your shell. Put core in shell — that\'s a blank. Then tune the blank, and it\'s whatever you need it to be. Charm, wits, the lot.',
+        'You can do it all by hand at a workbench. Slow, mind. Get yourself a warehouse — there\'s three for sale on this quay — and once you\'ve shown me you can make a few by hand, I\'ll sell you the machinery to do it properly.',
+      ],
+    },
+    {
+      id: 't_sal_machines', label: '"I want machinery."', tag: 'quest', keywords: ['machines', 'machinery', 'belt', 'inserter', 'generator', 'automation'],
+      say: [
+        { if: { factory: { made: '<5' } }, text: 'Machinery is for professionals. Make me five calculators by hand first — any kind — and come back. You\'ve made {made}.' },
+        { if: { factory: { made: '>=5' } }, text: 'A real producer! Soldering stations, case presses, assemblers, tuning benches, belts, arms and generators. Place them in your warehouse — press B in there to build.' },
+      ],
+      effects: [{ if: { factory: { made: '>=5' } }, then: [{ openShop: 'shop_machines' }] }],
+    },
+    {
+      id: 't_sal_deliveries', label: '"Can you deliver parts?"', tag: 'quest', keywords: ['deliver', 'delivery', 'contract', 'crate'],
+      say: [
+        { if: { factory: { owns: false } }, text: 'Deliver where? You need a warehouse first. Three for sale on this quay.' },
+        { if: { factory: { owns: true, made: '<10' } }, text: 'Deliveries are for regulars. Ten calculators made — by hand or machine — and we\'ll talk. You\'re at {made}.' },
+        { if: { factory: { owns: true, made: '>=10' } }, text: 'Every morning at seven, straight into your input bay at {deliveryTo}. Paid on delivery. Small crate: five of each part, {smallPrice} obols. Large crate: fifteen of each, {largePrice} obols. Current order: {contract}.' },
+      ],
+      choices: [
+        { id: 'c_sal_small', label: 'Small crate every morning ({smallPrice} obols).', if: { factory: { owns: true, made: '>=10' } }, say: ['Small it is. Seven sharp.'], effects: [{ factory: { contract: 'small' } }] },
+        { id: 'c_sal_large', label: 'Large crate every morning ({largePrice} obols).', if: { factory: { owns: true, made: '>=10' } }, say: ['Large! A professional. Seven sharp.'], effects: [{ factory: { contract: 'large' } }] },
+        { id: 'c_sal_cancel', label: 'Cancel deliveries.', if: { factory: { contract: true } }, say: ['Cancelled. No hard feelings. Some soft ones.'], effects: [{ factory: { contract: null } }] },
+        { id: 'c_sal_nvm', label: '"Never mind."', say: ['Suit yourself.'] },
+      ],
+    },
+    {
+      id: 't_sal_sell', label: '"Do you buy calculators?"', keywords: ['sell', 'buy back', 'surplus'],
+      say: ['I buy anything that beeps. Finished calculators, seven obols. Blanks, three. It\'s not a lot. It\'s surplus. That\'s the name of the shop.'],
+      effects: [{ openShop: 'shop_surplus' }],
+    },
+  ],
+  askAbout: [
+    { keywords: ['warehouse', 'warehouses', 'cannery', 'pier'], say: ['Warehouse 7, three hundred. Pier 9 Shed, seven-fifty. The Old Cannery, fifteen hundred — smells of sardines, but you can fit a whole production line in there. Signs by the doors.'] },
+    { keywords: ['arthur', 'sums', 'gang'], say: ['The Sums buy elsewhere. Arthur says my margins are an insult to arithmetic. If you\'re thinking of competing with them… I didn\'t hear that. I don\'t hear anything. It\'s the batteries. Tinnitus.'] },
+  ],
+  unknown: [['No questions asked. No answers given.'], ['Couldn\'t say. Wouldn\'t say. Both.']],
+  gift: { loved: [['For me? Sal\'s Surplus thanks you!']], liked: [['Ta!']], neutral: [['Into the bin it goes. The keeping bin.']], disliked: [['I\'ll… find a shelf for it.']], tooMany: [['Steady on.']], ownStolen: [['That\'s mine, that is.']] },
+  barks: { greet: ['Welcome!', 'What\'ll it be?'], work: ['*tests a screen: 8.8.8.8*', 'Everything must go!', '*counts batteries*'], sleep: ['…beep… *snore*'], chat: ['Hypothetically!', 'Ha!'], argue: ['No refunds!'] },
+};
+
+const __default = [dlgSal];
+
+return { dlgSal, default: __default };
+})();
+
+// ---- src/content/warehouses.js
+__m["src/content/warehouses.js"] = (function () {
+// Warehouses for sale at the Halvermouth docks, and the calculator production
+// chain (v0.12.0). See src/systems/factory.js and docs/FACTORY.md.
+//
+//   board + battery ──(solderer 4 min)──▶ core ─┐
+//   casing + keypad + screen ──(press 4 min)──▶ shell ─┴─(assembler 6 min)──▶ blank ──(tuner 3 min)──▶ calculator
+//
+// By hand at a warehouse workbench the same steps take 10 / 10 / 15 / 8 minutes.
+
+const WAREHOUSES = {
+  wh7: { name: 'Warehouse 7', map: 'wh7', price: 300, flag: 'owns_wh7', inBay: 'ct_wh7_in', outCrate: 'ct_wh7_out', basePower: 2, sign: 'hv_wh7_sale' },
+  wh9: { name: 'Pier 9 Shed', map: 'wh9', price: 750, flag: 'owns_wh9', inBay: 'ct_wh9_in', outCrate: 'ct_wh9_out', basePower: 2, sign: 'hv_wh9_sale' },
+  wh12: { name: 'The Old Cannery', map: 'wh12', price: 1500, flag: 'owns_wh12', inBay: 'ct_wh12_in', outCrate: 'ct_wh12_out', basePower: 3, sign: 'hv_wh12_sale' },
+};
+
+const RECIPES = {
+  solderer: { name: 'Soldering station', in: { item_part_board: 1, item_part_battery: 1 }, out: 'item_calc_core', minutes: 4, handMinutes: 10, verb: 'Solder a core' },
+  press: { name: 'Case press', in: { item_part_casing: 1, item_part_keypad: 1, item_part_screen: 1 }, out: 'item_calc_shell', minutes: 4, handMinutes: 10, verb: 'Press a shell' },
+  assembler: { name: 'Assembler', in: { item_calc_core: 1, item_calc_shell: 1 }, out: 'item_calc_blank', minutes: 6, handMinutes: 15, verb: 'Assemble a blank calculator' },
+  tuner: { name: 'Tuning bench', in: { item_calc_blank: 1 }, out: null, minutes: 3, handMinutes: 8, verb: 'Tune a blank' },
+};
+
+/** Sal's delivery contracts: what lands in your input bay at 07:00 each day. */
+const DELIVERIES = {
+  small: { name: 'Small crate', price: 50, items: { item_part_casing: 5, item_part_keypad: 5, item_part_screen: 5, item_part_board: 5, item_part_battery: 5 } },
+  large: { name: 'Large crate', price: 140, items: { item_part_casing: 15, item_part_keypad: 15, item_part_screen: 15, item_part_board: 15, item_part_battery: 15 } },
+};
+
+/** Calculators you must have made before Sal sells machines / signs delivery contracts. */
+const UNLOCKS = { machines: 5, deliveries: 10 };
+
+return { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS };
+})();
+
 // ---- src/content/properties.js
 __m["src/content/properties.js"] = (function () {
 // Property groundwork (v0.4.0). PLOTS are surveyed pieces of land the player
@@ -6667,6 +6896,9 @@ const police = __m["src/content/characters/police.js"].default;
 const dlgPolice = __m["src/content/dialogue/police.js"].default;
 const sums = __m["src/content/characters/sums.js"].default;
 const dlgSums = __m["src/content/dialogue/sums.js"].default;
+const sal = __m["src/content/characters/sal.js"].default;
+const dlgSal = __m["src/content/dialogue/sal.js"].default;
+const { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } = __m["src/content/warehouses.js"];
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
 const { withPlots } = __m["src/world/plots.js"];
 
@@ -6695,9 +6927,13 @@ const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal]),
   puns: PUNS,
+  warehouses: WAREHOUSES,
+  recipes: RECIPES,
+  deliveries: DELIVERIES,
+  unlocks: UNLOCKS,
   blueprints: BLUEPRINTS,
   plots: {},
   startingMap: 'player_flat',
@@ -6716,7 +6952,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.11.0';
+const GAME_VERSION = '0.12.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -8225,7 +8461,7 @@ const ACTIONS = {
   KeyJ: 'journal', KeyQ: 'journal',
   KeyM: 'map',
   KeyC: 'status',
-  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender',
+  KeyF: 'attack', KeyR: 'reload', KeyX: 'nextWeapon', KeyZ: 'holster', KeyG: 'surrender', KeyB: 'build',
   F5: 'quicksave', F9: 'quickload',
   Backquote: 'debug',
 };
@@ -8536,6 +8772,28 @@ class GameMap {
       if (prop.solid && !prop.hiddenUnless) {
         for (let y = prop.y; y < prop.y + prop.h; y++)
           for (let x = prop.x; x < prop.x + prop.w; x++) this.propBlock.add(y * this.width + x);
+      }
+    }
+  }
+
+  /** Add a prop at runtime (factory machinery). The object is kept by reference. */
+  addProp(prop) {
+    if (this.propIndex.has(prop.id)) this.removeProp(prop.id);
+    this.props.push(prop);
+    this.propIndex.set(prop.id, prop);
+    if (prop.solid) for (let y = prop.y; y < prop.y + prop.h; y++) for (let x = prop.x; x < prop.x + prop.w; x++) this.propBlock.add(y * this.width + x);
+  }
+
+  removeProp(id) {
+    const prop = this.propIndex.get(id);
+    if (!prop) return;
+    this.props = this.props.filter((p) => p !== prop);
+    this.propIndex.delete(id);
+    if (prop.solid) {
+      for (let y = prop.y; y < prop.y + prop.h; y++) for (let x = prop.x; x < prop.x + prop.w; x++) {
+        const idx = y * this.width + x;
+        // another solid prop may share the cell
+        if (!this.props.some((q) => q.solid && x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h)) this.propBlock.delete(idx);
       }
     }
   }
@@ -8988,7 +9246,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory',
 ];
 
 /**
@@ -9047,6 +9305,17 @@ function checkKey(key, val, game, npc) {
     case 'oil': {
       const st = game.world.oil || {};
       return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
+    case 'factory': {
+      // { owns: true (any warehouse), made: '>=5', contract: true }
+      const f = game.factory;
+      return Object.entries(val).every(([k, v]) => {
+        switch (k) {
+          case 'owns': return (f.ownedIds().length > 0) === v;
+          case 'contract': return Boolean(f.state.contract) === v;
+          default: return compare(f.state[k] ?? 0, v);
+        }
+      });
     }
     case 'gang': {
       // { anger: '>=25', tier: '>=2', truce: true, customer: 'gang'|'locked'|'player' (this NPC), order: 'due'|'pending'|'none' (this NPC),
@@ -12225,6 +12494,542 @@ const spotName = (spot) => SPOT_NAMES[spot] || spot.replace(/_/g, ' ');
 return { CHIEF, ENFORCER, DEAL_SPOTS, TIERS, calcItem, freshGang, Gang, spotName, hhmm };
 })();
 
+// ---- src/systems/factory.js
+__m["src/systems/factory.js"] = (function () {
+// Calculator production (v0.12.0): warehouses, hand-crafting, and a grid
+// factory of machines, conveyor belts and inserter arms, Factorio-style.
+//
+//   buy a warehouse (FOR SALE sign at the docks) ─▶ its door unlocks
+//   parts: buy from Sal and carry them in, or (after 10 made) a daily delivery
+//          into the input bay at 07:00
+//   hand-craft at the workbench: core, shell, blank, tune  (slow, uses game time)
+//   after 5 made, Sal sells machinery; press B in a warehouse to build:
+//     machine (2×2): pulls its recipe's inputs, makes one output every N minutes
+//     belt (1×1, facing): moves one item a minute to the next tile; at its end
+//          it feeds straight into a machine or crate that will take the item
+//     inserter (1×1, facing): moves one item a minute from the tile behind it
+//          (crate, belt, machine output) to the tile in front, if that wants it
+//     generator (2×2): powers four more machines (the wall socket powers the
+//          first `basePower`)
+//
+// Factory entities are runtime props on the warehouse maps (GameMap.addProp),
+// so they draw, block and take E like any prop. State: game.world.factory.
+// The simulation advances one step per game minute — on or off the map, and
+// while time is skipped.
+const { TILE, clamp } = __m["src/core/util.js"];
+const { CALC_TYPES } = __m["src/systems/calculators.js"];
+
+const DX = [1, 0, -1, 0];
+const DY = [0, 1, 0, -1];
+const MACHINE_BUFFER = 4; // ×recipe need, per input
+const OUTPUT_CAP = 10;
+const DELIVERY_MINUTE = 7 * 60;
+const CALC_ITEM = (t) => `item_calc_${t}`;
+
+function freshFactory(content) {
+  const warehouses = {};
+  for (const id of Object.keys(content.warehouses || {})) warehouses[id] = { entities: [], nextId: 1 };
+  return { warehouses, made: 0, contract: null, contractTo: null, lastDelivery: 0 };
+}
+
+class Factory {
+  constructor(game) {
+    this.game = game;
+    this.cache = new Map();
+    game.bus.on('maps:rebuilt', () => this.install());
+  }
+
+  get state() {
+    const g = this.game;
+    if (!g.world.factory) g.world.factory = freshFactory(g.content);
+    for (const id of Object.keys(g.content.warehouses || {})) if (!g.world.factory.warehouses[id]) g.world.factory.warehouses[id] = { entities: [], nextId: 1 };
+    return g.world.factory;
+  }
+
+  def(id) {
+    return this.game.content.warehouses[id];
+  }
+
+  owns(id) {
+    return Boolean(this.game.getFlag(this.def(id)?.flag));
+  }
+
+  ownedIds() {
+    return Object.keys(this.game.content.warehouses).filter((id) => this.owns(id));
+  }
+
+  /** The warehouse whose interior this map is, if any. */
+  warehouseForMap(mapId) {
+    return Object.entries(this.game.content.warehouses).find(([, w]) => w.map === mapId)?.[0] || null;
+  }
+
+  /** Deliveries go to the biggest warehouse you own. */
+  deliveryTarget() {
+    const ids = this.ownedIds();
+    return ids.length ? ids.reduce((a, b) => (this.def(b).price > this.def(a).price ? b : a)) : null;
+  }
+
+  // ---------------------------------------------------------------- props
+  /** Put every saved entity back on its map (after a new game, a load, or a map rebuild). */
+  install() {
+    const g = this.game;
+    if (!g.world) return;
+    this.cache.clear();
+    for (const [id, wh] of Object.entries(this.state.warehouses)) {
+      const map = g.maps.get(this.def(id)?.map);
+      if (!map) continue;
+      for (const e of wh.entities) map.addProp(e);
+    }
+  }
+
+  /** Cell lookup for a warehouse: "x,y" → entity or a fixed crate. */
+  cells(whId) {
+    if (this.cache.has(whId)) return this.cache.get(whId);
+    const def = this.def(whId);
+    const map = this.game.maps.get(def.map);
+    const cells = new Map();
+    for (const p of map.props) {
+      const crate = p.interact?.kind === 'container' && (p.interact.container === def.inBay || p.interact.container === def.outCrate) ? { chest: true, container: p.interact.container, out: p.interact.container === def.outCrate } : null;
+      const ent = p.fx ? p : crate;
+      if (!ent) continue;
+      for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) cells.set(`${x},${y}`, ent);
+    }
+    const ents = this.state.warehouses[whId].entities;
+    const belts = ents.filter((e) => e.type === 'belt');
+    // downstream-first order: a belt's distance to the end of its line
+    const dist = new Map();
+    const distOf = (b0) => {
+      const seen = new Set();
+      let b = b0;
+      let d = 0;
+      while (b && !seen.has(b)) {
+        if (dist.has(b)) { d += dist.get(b); break; }
+        seen.add(b);
+        const next = cells.get(`${b.x + DX[b.dir]},${b.y + DY[b.dir]}`);
+        if (next?.type !== 'belt') break;
+        b = next;
+        d += 1;
+      }
+      return d;
+    };
+    for (const b of belts) dist.set(b, distOf(b));
+    const out = {
+      cells,
+      belts: [...belts].sort((a, b) => dist.get(a) - dist.get(b)),
+      inserters: ents.filter((e) => e.type === 'inserter'),
+      machines: ents.filter((e) => e.type === 'machine'),
+      generators: ents.filter((e) => e.type === 'generator'),
+    };
+    this.cache.set(whId, out);
+    return out;
+  }
+
+  at(whId, x, y) {
+    return this.cells(whId).cells.get(`${x},${y}`) || null;
+  }
+
+  // ------------------------------------------------------------- building
+  /** Why you can't place a w×h thing at (x, y), or null if you can. */
+  blockReason(whId, x, y, w, h) {
+    const g = this.game;
+    const def = this.def(whId);
+    const map = g.maps.get(def.map);
+    const keep = map.def.keepClear || [];
+    const ptx = Math.floor(g.player.x / TILE);
+    const pty = Math.floor(g.player.y / TILE);
+    for (let yy = y; yy < y + h; yy++) {
+      for (let xx = x; xx < x + w; xx++) {
+        if (!map.inBounds(xx, yy) || map.grid[yy][xx] !== 'g') return 'Not on the warehouse floor.';
+        if (keep.some(([kx, ky]) => kx === xx && ky === yy)) return 'Keep the doorway clear.';
+        if (map.props.some((p) => xx >= p.x && xx < p.x + p.w && yy >= p.y && yy < p.y + p.h)) return 'Something is already there.';
+        if (xx === ptx && yy === pty) return 'You\'re standing there.';
+      }
+    }
+    return null;
+  }
+
+  /** Place a machine/belt/inserter/generator item from your inventory. */
+  place(whId, itemId, x, y, dir = 0) {
+    const g = this.game;
+    const item = g.content.items[itemId];
+    if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
+    if (!this.owns(whId)) return { ok: false, text: 'This isn\'t your warehouse.' };
+    if (!g.inventory.count(itemId)) return { ok: false, text: `You don't have a ${item.name}.` };
+    const { type, kind, w = 1, h = 1 } = item.build;
+    const why = this.blockReason(whId, x, y, w, h);
+    if (why) return { ok: false, text: why };
+    const wh = this.state.warehouses[whId];
+    const e = {
+      id: `fx_${whId}_${wh.nextId++}`, fx: true, type, x, y, w, h, dir: ((dir % 4) + 4) % 4, item: itemId,
+      solid: type !== 'belt',
+      label: item.name,
+    };
+    if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: kind === 'tuner' ? null : undefined, interact: { kind: 'factory', action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
+    if (type === 'generator') e.interact = { kind: 'factory', action: 'entity', warehouse: whId, name: 'generator' };
+    if (type === 'belt') e.carry = null;
+    g.inventory.remove(itemId, 1);
+    wh.entities.push(e);
+    g.maps.get(this.def(whId).map).addProp(e);
+    this.cache.delete(whId);
+    g.bus.emit('factory:built', { warehouse: whId, id: e.id, type });
+    return { ok: true, entity: e, text: `Placed: ${item.name}.` };
+  }
+
+  /** Pick up whatever is at (x, y); its item and anything it held go back to your pockets. */
+  remove(whId, x, y) {
+    const g = this.game;
+    const e = this.at(whId, x, y);
+    if (!e || !e.fx) return { ok: false, text: 'Nothing to pick up there.' };
+    const wh = this.state.warehouses[whId];
+    wh.entities = wh.entities.filter((q) => q !== e);
+    g.maps.get(this.def(whId).map).removeProp(e.id);
+    this.cache.delete(whId);
+    g.inventory.add(e.item, 1, { silent: true });
+    const back = [];
+    if (e.carry) back.push([e.carry, 1]);
+    for (const buf of [e.in, e.out]) for (const [id, n] of Object.entries(buf || {})) if (n > 0) back.push([id, n]);
+    for (const [id, n] of back) g.inventory.add(id, n, { silent: true });
+    return { ok: true, text: `Picked up the ${g.content.items[e.item].name}${back.length ? ' and what was in it' : ''}.` };
+  }
+
+  /** Rotate a belt or inserter in place. */
+  rotate(whId, x, y) {
+    const e = this.at(whId, x, y);
+    if (!e?.fx || (e.type !== 'belt' && e.type !== 'inserter')) return { ok: false, text: 'Only belts and arms rotate.' };
+    e.dir = (e.dir + 1) % 4;
+    return { ok: true, text: '' };
+  }
+
+  setTuner(entityId, type) {
+    const e = this.findEntity(entityId);
+    if (!e || e.kind !== 'tuner' || !CALC_TYPES.includes(type)) return { ok: false, text: '' };
+    e.setting = type;
+    return { ok: true, text: `The tuning bench will make ${this.game.content.items[CALC_ITEM(type)].name}s.` };
+  }
+
+  findEntity(id) {
+    for (const wh of Object.values(this.state.warehouses)) {
+      const e = wh.entities.find((q) => q.id === id);
+      if (e) return e;
+    }
+    return null;
+  }
+
+  whOf(entityId) {
+    return Object.entries(this.state.warehouses).find(([, wh]) => wh.entities.some((q) => q.id === entityId))?.[0] || null;
+  }
+
+  // --------------------------------------------------------------- power
+  power(whId) {
+    const c = this.cells(whId);
+    const capacity = (this.def(whId).basePower || 0) + 4 * c.generators.length;
+    return { capacity, used: Math.min(capacity, c.machines.length), machines: c.machines.length };
+  }
+
+  powered(whId, e) {
+    const c = this.cells(whId);
+    return c.machines.indexOf(e) < this.power(whId).capacity;
+  }
+
+  // ---------------------------------------------------------- simulation
+  recipeOut(e) {
+    const r = this.game.content.recipes[e.kind];
+    if (e.kind === 'tuner') return e.setting ? CALC_ITEM(e.setting) : null;
+    return r.out;
+  }
+
+  /** Does this cell want this item right now? */
+  accepts(target, itemId) {
+    if (!target) return false;
+    if (target.chest) return true;
+    if (target.type === 'belt') return !target.carry;
+    if (target.type === 'machine') {
+      const r = this.game.content.recipes[target.kind];
+      const need = r.in[itemId];
+      return Boolean(need) && (target.in[itemId] || 0) < need * MACHINE_BUFFER;
+    }
+    return false;
+  }
+
+  give(target, itemId) {
+    const g = this.game;
+    if (target.chest) {
+      const st = g.world.containers[target.container];
+      st.items[itemId] = (st.items[itemId] || 0) + 1;
+    } else if (target.type === 'belt') { target.carry = itemId; target.arrived = g.clock.total; }
+    else if (target.type === 'machine') target.in[itemId] = (target.in[itemId] || 0) + 1;
+  }
+
+  /** Items a source cell can hand out (an inserter takes from the tile behind it). */
+  offers(src) {
+    const g = this.game;
+    if (!src) return [];
+    if (src.chest) return Object.entries(g.world.containers[src.container]?.items || {}).filter(([, n]) => n > 0).map(([id]) => id);
+    if (src.type === 'belt') return src.carry ? [src.carry] : [];
+    if (src.type === 'machine') return Object.entries(src.out).filter(([, n]) => n > 0).map(([id]) => id);
+    return [];
+  }
+
+  take(src, itemId) {
+    const g = this.game;
+    if (src.chest) g.world.containers[src.container].items[itemId] -= 1;
+    else if (src.type === 'belt') src.carry = null;
+    else if (src.type === 'machine') src.out[itemId] -= 1;
+  }
+
+  /** One game minute of one warehouse. */
+  step(whId) {
+    const c = this.cells(whId);
+    // belts: carry items forward one tile; the end of a line feeds a machine or crate
+    // one pass, downstream first, so a moving line advances as a whole (and compresses)
+    const moved = new Set();
+    for (const b of c.belts) {
+      if (!b.carry || moved.has(b)) continue;
+      const next = this.at(whId, b.x + DX[b.dir], b.y + DY[b.dir]);
+      if (!next || next === b || moved.has(next)) continue;
+      if (next.type === 'belt' ? !next.carry : this.accepts(next, b.carry)) {
+        this.give(next, b.carry);
+        if (next.type === 'belt') moved.add(next);
+        b.carry = null;
+        moved.add(b);
+      }
+    }
+    // inserters: one item a minute, behind → in front
+    for (const ins of c.inserters) {
+      const src = this.at(whId, ins.x - DX[ins.dir], ins.y - DY[ins.dir]);
+      const dst = this.at(whId, ins.x + DX[ins.dir], ins.y + DY[ins.dir]);
+      ins.busy = false;
+      if (!src || !dst || src === dst) continue;
+      const item = this.offers(src).find((id) => this.accepts(dst, id));
+      if (!item) continue;
+      this.take(src, item);
+      this.give(dst, item);
+      ins.busy = true;
+    }
+    // machines
+    const cap = this.power(whId).capacity;
+    c.machines.forEach((m, i) => {
+      m.powered = i < cap;
+      if (!m.powered) return;
+      const r = this.game.content.recipes[m.kind];
+      m.minutes = r.minutes;
+      const out = this.recipeOut(m);
+      if (!out) return;
+      if (m.progress > 0) {
+        m.progress += 1;
+        if (m.progress > r.minutes) {
+          m.out[out] = (m.out[out] || 0) + 1;
+          m.progress = 0;
+          if (m.kind === 'tuner') this.madeOne();
+        }
+      }
+      const outTotal = Object.values(m.out).reduce((a, b) => a + b, 0);
+      if (m.progress === 0 && outTotal < OUTPUT_CAP && Object.entries(r.in).every(([id, n]) => (m.in[id] || 0) >= n)) {
+        for (const [id, n] of Object.entries(r.in)) m.in[id] -= n;
+        m.progress = 1;
+      }
+    });
+  }
+
+  madeOne(n = 1) {
+    const s = this.state;
+    const before = s.made;
+    s.made += n;
+    const u = this.game.content.unlocks;
+    if (before < u.machines && s.made >= u.machines) this.game.notify(`You've made ${s.made} calculators. Sal will sell you machinery now.`, 'quest');
+    if (before < u.deliveries && s.made >= u.deliveries) this.game.notify(`You've made ${s.made} calculators. Sal will sign a delivery contract now.`, 'quest');
+  }
+
+  minuteTick() {
+    const g = this.game;
+    const s = this.state;
+    for (const id of this.ownedIds()) if (s.warehouses[id].entities.length) this.step(id);
+    if (s.contract && g.clock.minuteOfDay === DELIVERY_MINUTE && s.lastDelivery < g.clock.day) this.deliver();
+  }
+
+  deliver() {
+    const g = this.game;
+    const s = this.state;
+    s.lastDelivery = g.clock.day;
+    const to = this.deliveryTarget();
+    const d = g.content.deliveries[s.contract];
+    if (!to || !d) return;
+    if (g.player.money < d.price) {
+      g.notify(`Sal's ${d.name.toLowerCase()} came — but you couldn't pay ${d.price} obols, so it went back on the van.`, 'warn');
+      return;
+    }
+    g.player.money -= d.price;
+    g.bus.emit('money:changed', { delta: -d.price, total: g.player.money });
+    const st = g.world.containers[this.def(to).inBay];
+    for (const [id, n] of Object.entries(d.items)) st.items[id] = (st.items[id] || 0) + n;
+    g.notify(`🚚 Sal's ${d.name.toLowerCase()} was delivered to ${this.def(to).name}'s input bay. (−${d.price} obols)`, 'info');
+    g.bus.emit('factory:delivery', { warehouse: to, contract: s.contract });
+  }
+
+  setContract(size) {
+    const s = this.state;
+    if (size && !this.game.content.deliveries[size]) return { ok: false, text: '' };
+    s.contract = size || null;
+    const to = this.deliveryTarget();
+    return { ok: true, text: size ? `Delivery contract: ${this.game.content.deliveries[size].name}, every morning at 07:00 to ${this.def(to)?.name}.` : 'Deliveries cancelled.' };
+  }
+
+  // ---------------------------------------------------------- warehouses
+  buyPrompt(whId) {
+    const def = this.def(whId);
+    if (this.owns(whId)) return { type: 'message', text: `${def.name} is yours. (The FOR SALE sign now says SOLD.)` };
+    return {
+      type: 'choices', title: def.name, text: `FOR SALE: ${def.name}, ${def.price} obols. Concrete floor, power for ${def.basePower} machines, an input bay and an output crate. "Enquiries: Port Authority. Or just leave the money under the door."`,
+      options: [{ label: `Buy it for ${def.price} obols`, call: ['factory', 'buy', whId] }, { label: 'Not now', call: ['factory', 'noop'] }],
+    };
+  }
+
+  noop() {
+    return { ok: true, text: '' };
+  }
+
+  buy(whId) {
+    const g = this.game;
+    const def = this.def(whId);
+    if (this.owns(whId)) return { ok: false, text: 'You already own it.' };
+    if (g.player.money < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${g.player.money}.` };
+    g.player.money -= def.price;
+    g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });
+    g.setFlag(def.flag, true);
+    g.bus.emit('factory:bought', { warehouse: whId });
+    return { ok: true, text: `${def.name} is yours. Buy parts from Sal's Surplus down the quay, then craft at the workbench inside.` };
+  }
+
+  // ------------------------------------------------------------ crafting
+  /** Count of an item in your pockets plus the warehouse's input bay. */
+  have(whId, itemId) {
+    const bay = this.game.world.containers[this.def(whId).inBay]?.items || {};
+    return this.game.inventory.count(itemId) + (bay[itemId] || 0);
+  }
+
+  spend(whId, itemId, n) {
+    const g = this.game;
+    const fromPockets = Math.min(n, g.inventory.count(itemId));
+    if (fromPockets) g.inventory.remove(itemId, fromPockets);
+    const rest = n - fromPockets;
+    if (rest) g.world.containers[this.def(whId).inBay].items[itemId] -= rest;
+  }
+
+  canCraft(whId, key) {
+    const r = this.game.content.recipes[key];
+    return Math.min(...Object.entries(r.in).map(([id, n]) => Math.floor(this.have(whId, id) / n)));
+  }
+
+  workbench(prop) {
+    const g = this.game;
+    const whId = prop.interact.warehouse;
+    if (!this.owns(whId)) return { type: 'message', text: 'Not your workbench.' };
+    const options = [];
+    for (const key of ['solderer', 'press', 'assembler']) {
+      const r = g.content.recipes[key];
+      const n = this.canCraft(whId, key);
+      const parts = Object.keys(r.in).map((id) => g.content.items[id].name).join(' + ');
+      if (n > 0) {
+        options.push({ label: `${r.verb} (${parts}) — ${r.handMinutes} min`, call: ['factory', 'craft', whId, key, null, 1] });
+        if (n > 1) options.push({ label: `${r.verb} ×${n} — ${r.handMinutes * n} min`, call: ['factory', 'craft', whId, key, null, n] });
+      }
+    }
+    const blanks = this.canCraft(whId, 'tuner');
+    if (blanks > 0) {
+      for (const t of CALC_TYPES) {
+        const name = g.content.items[CALC_ITEM(t)].name;
+        options.push({ label: `Tune ${blanks > 1 ? `all ${blanks} blanks` : 'a blank'} into ${name} — ${g.content.recipes.tuner.handMinutes * blanks} min`, call: ['factory', 'craft', whId, 'tuner', t, blanks] });
+      }
+    }
+    options.push({ label: 'Build machinery (B)', call: ['factory', 'buildHint'] });
+    options.push({ label: 'Done', call: ['factory', 'noop'] });
+    const have = ['item_part_casing', 'item_part_keypad', 'item_part_screen', 'item_part_board', 'item_part_battery', 'item_calc_core', 'item_calc_shell', 'item_calc_blank']
+      .map((id) => [g.content.items[id].name, this.have(whId, id)]).filter(([, n]) => n > 0).map(([nm, n]) => `${nm} ${n}`).join(' · ');
+    return {
+      type: 'choices', title: 'Workbench',
+      text: `${have ? `On hand (pockets + input bay): ${have}.` : 'You have no parts. Sal\'s Surplus, down the quay, sells them.'} Made so far: ${this.state.made}.`,
+      options,
+    };
+  }
+
+  buildHint() {
+    return { ok: true, text: 'Press B to build: pick a machine from the bar, R rotates, click to place, right-click to pick up. Buy machinery from Sal once you\'ve made five by hand.' };
+  }
+
+  /** Hand-craft n of a recipe (tuner: into `setting`). Takes game time. */
+  craft(whId, key, setting, n = 1) {
+    const g = this.game;
+    const r = g.content.recipes[key];
+    n = Math.min(n, this.canCraft(whId, key));
+    if (n <= 0) return { ok: false, text: 'You don\'t have the parts.' };
+    if (key === 'tuner' && !CALC_TYPES.includes(setting)) return { ok: false, text: '' };
+    for (const [id, k] of Object.entries(r.in)) this.spend(whId, id, k * n);
+    const out = key === 'tuner' ? CALC_ITEM(setting) : r.out;
+    g.skipTime(r.handMinutes * n);
+    g.inventory.add(out, n, { silent: true });
+    if (key === 'tuner') this.madeOne(n);
+    g.bus.emit('factory:crafted', { recipe: key, out, n });
+    return { ok: true, text: `${n}× ${g.content.items[out].name} made by hand (${r.handMinutes * n} minutes).` };
+  }
+
+  // ------------------------------------------------------------ machines
+  entityPrompt(prop) {
+    const g = this.game;
+    const e = prop;
+    const whId = prop.interact.warehouse;
+    if (e.type === 'generator') {
+      const p = this.power(whId);
+      return { type: 'message', text: `Generator, humming. Power: ${p.machines} of ${p.capacity} machines.` };
+    }
+    const r = g.content.recipes[e.kind];
+    const out = this.recipeOut(e);
+    const fmt = (buf) => Object.entries(buf).filter(([, n]) => n > 0).map(([id, n]) => `${g.content.items[id].name} ${n}`).join(', ') || 'empty';
+    const status = !this.powered(whId, e) ? 'NO POWER — place a generator.' : !out ? 'Idle — choose what to make.' : e.progress > 0 ? `Working: ${Math.round(((e.progress - 1) / r.minutes) * 100)}%.` : 'Waiting for inputs.';
+    const options = [];
+    if (e.kind === 'tuner') for (const t of CALC_TYPES) options.push({ label: `Make ${g.content.items[CALC_ITEM(t)].name}${e.setting === t ? ' (current)' : ''}`, call: ['factory', 'setTuner', e.id, t] });
+    const outN = Object.values(e.out).reduce((a, b) => a + b, 0);
+    if (outN) options.push({ label: `Collect output (${fmt(e.out)})`, call: ['factory', 'collect', e.id] });
+    const loadable = Object.keys(r.in).filter((id) => g.inventory.count(id));
+    if (loadable.length) options.push({ label: 'Load inputs from your pockets', call: ['factory', 'load', e.id] });
+    options.push({ label: 'Done', call: ['factory', 'noop'] });
+    return { type: 'choices', title: g.content.items[e.item].name, text: `${status} Inputs: ${fmt(e.in)}. Output: ${fmt(e.out)}.`, options };
+  }
+
+  collect(entityId) {
+    const g = this.game;
+    const e = this.findEntity(entityId);
+    if (!e) return { ok: false, text: '' };
+    let n = 0;
+    for (const [id, k] of Object.entries(e.out)) if (k > 0) { g.inventory.add(id, k, { silent: true }); n += k; e.out[id] = 0; }
+    return { ok: true, text: `Collected ${n} item${n === 1 ? '' : 's'}.` };
+  }
+
+  load(entityId) {
+    const g = this.game;
+    const e = this.findEntity(entityId);
+    if (!e) return { ok: false, text: '' };
+    const r = g.content.recipes[e.kind];
+    let n = 0;
+    for (const [id, need] of Object.entries(r.in)) {
+      const room = need * MACHINE_BUFFER - (e.in[id] || 0);
+      const k = clamp(g.inventory.count(id), 0, room);
+      if (k > 0) { g.inventory.remove(id, k); e.in[id] = (e.in[id] || 0) + k; n += k; }
+    }
+    return { ok: true, text: n ? `Loaded ${n} item${n === 1 ? '' : 's'}.` : 'It\'s full.' };
+  }
+
+  interact(prop) {
+    const act = prop.interact;
+    if (act.action === 'buy') return this.buyPrompt(act.warehouse);
+    if (act.action === 'workbench') return this.workbench(prop);
+    if (act.action === 'entity') return this.entityPrompt(prop);
+    return { type: 'none' };
+  }
+}
+
+return { DX, DY, CALC_ITEM, freshFactory, Factory };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -12336,7 +13141,7 @@ const { parseSpotRef, TILE, interpolate } = __m["src/core/util.js"];
 const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory',
 ];
 
 /**
@@ -12504,6 +13309,14 @@ function applyOne(game, eff, npc, result) {
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
         break;
+      case 'factory': {
+        // { factory: { contract: 'small' | 'large' | null } }
+        if ('contract' in val) {
+          const r = game.factory.setContract(val.contract);
+          if (r.text) game.notify(r.text, r.ok ? 'good' : 'warn');
+        }
+        break;
+      }
       case 'gang': {
         // { gang: { sample: true } | { deliver: true } | { tribute: true } | { split: true } } — sample/deliver act on this NPC
         let r = null;
@@ -12617,6 +13430,7 @@ const { Combat, isDown } = __m["src/systems/combat.js"];
 const { Police, freshPolice } = __m["src/systems/police.js"];
 const { Calculators } = __m["src/systems/calculators.js"];
 const { Gang, freshGang } = __m["src/systems/gang.js"];
+const { Factory, freshFactory } = __m["src/systems/factory.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -12648,6 +13462,7 @@ class Game {
     this.police = new Police(this);
     this.calculators = new Calculators(this);
     this.gang = new Gang(this);
+    this.factory = new Factory(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -12721,6 +13536,7 @@ class Game {
       properties: freshProperties(),
       police: freshPolice(),
       gang: freshGang(this.content),
+      factory: freshFactory(this.content),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -12881,6 +13697,7 @@ class Game {
     this.police.minuteTick();
     this.calculators.minuteTick();
     this.gang.minuteTick();
+    this.factory.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -13273,6 +14090,7 @@ class Game {
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
       case 'shop': return `Browse the ${name.toLowerCase()}`;
+      case 'factory': return { buy: this.factory.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', workbench: 'Use the workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
@@ -13355,6 +14173,8 @@ class Game {
       }
       case 'jail':
         return this.police.jailInteract(prop);
+      case 'factory':
+        return this.factory.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -13461,7 +14281,7 @@ class Game {
    * whether this is allowed, theft, or blocked.
    * @returns {{ok:boolean, text:string, stolen?:boolean}}
    */
-  takeFromContainer(id, itemId) {
+  takeFromContainer(id, itemId, count = 1) {
     const def = this.content.containers[id];
     const st = this.world.containers[id];
     if (!def || !st) return { ok: false, text: 'Nothing there.' };
@@ -13490,21 +14310,24 @@ class Game {
       this.bus.emit('money:changed', { delta: amount, total: this.player.money });
       return { ok: true, stolen, text: `You take ${amount} obols${stolen ? ' that aren\'t yours' : ''}.` };
     }
-    st.items[itemId]--;
-    this.inventory.add(itemId, 1, { stolenFrom: stolen ? def.owner : null });
-    return { ok: true, stolen, text: `Taken: ${this.content.items[itemId].name}${stolen ? ' (not yours)' : ''}.` };
+    const n = Math.max(1, Math.min(count, st.items[itemId]));
+    st.items[itemId] -= n;
+    this.inventory.add(itemId, n, { stolenFrom: stolen ? def.owner : null });
+    return { ok: true, stolen, text: `Taken: ${this.content.items[itemId].name}${n > 1 ? ` ×${n}` : ''}${stolen ? ' (not yours)' : ''}.` };
   }
 
-  putInContainer(id, itemId) {
+  putInContainer(id, itemId, count = 1) {
     const def = this.content.containers[id];
     const st = this.world.containers[id];
     if (!def || !st || !this.inventory.count(itemId)) return { ok: false, text: 'You can\'t put that there.' };
     if (def.owner !== 'player' && !this.player.stolen[itemId]) return { ok: false, text: 'That isn\'t your storage.' };
     const wasStolenFrom = this.player.stolen[itemId];
-    this.inventory.remove(itemId, 1);
-    st.items[itemId] = (st.items[itemId] || 0) + 1;
+    const n = Math.max(1, Math.min(count, this.inventory.count(itemId)));
+    this.inventory.remove(itemId, n);
+    st.items[itemId] = (st.items[itemId] || 0) + n;
     if (wasStolenFrom === def.owner && itemId === 'item_lighthouse_key') this.setFlag('key_returned', true);
-    return { ok: true, text: `Put back: ${this.content.items[itemId].name}.` };
+    this.bus.emit('container:changed', { id });
+    return { ok: true, text: `${def.owner === 'player' ? 'Stored' : 'Put back'}: ${this.content.items[itemId].name}${n > 1 ? ` ×${n}` : ''}.` };
   }
 
   // ----------------------------------------------------------------- shops
@@ -13667,6 +14490,8 @@ class Game {
     this.world.police = { ...fresh.police, ...(this.world.police || {}) };
     this.world.gang = { ...fresh.gang, ...(this.world.gang || {}) };
     this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
+    this.world.factory = { ...fresh.factory, ...(this.world.factory || {}) };
+    this.world.factory.warehouses = { ...fresh.factory.warehouses, ...(this.world.factory.warehouses || {}) };
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -13777,6 +14602,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.12.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'The Calculator Works',
+    notes: [
+      'Make your own calculators. Three warehouses are for sale on the Halvermouth docks — Warehouse 7, the Pier 9 Shed and the Old Cannery. Buy one at the FOR SALE sign by its door.',
+      'Sal\'s Surplus Electronics, down the quay, sells the parts: casings, button pads, LCD screens, circuit boards and batteries. Solder a core, press a shell, assemble a blank, then tune it into whichever calculator you need — by hand at your workbench, slowly.',
+      'Make five and Sal sells you machinery: soldering stations, case presses, assemblers, tuning benches, conveyor belts, inserter arms and generators. Press B in your warehouse to build — click to place, R to rotate, right-click to pick up. Your factory keeps running while you\'re out.',
+      'Make ten and Sal will deliver a crate of parts to your input bay every morning at seven. Sell what you make to your customers in the Sumps — or back to Sal, cheap.',
+    ],
+  },
   {
     version: '0.11.0',
     date: '2026-10-13',
@@ -13935,6 +14772,225 @@ const RELEASE_NOTES = [
 ];
 
 return { RELEASE_NOTES };
+})();
+
+// ---- src/engine/drawFactory.js
+__m["src/engine/drawFactory.js"] = (function () {
+// Drawing for warehouse fittings and factory entities (v0.12.0): the input
+// bay, output crate, workbench, conveyor belts (with the items they carry),
+// inserter arms, machines and generators. Called from drawProp.
+const ITEM_COLORS = {
+  item_part_casing: '#d8d2c4', item_part_keypad: '#3a3a40', item_part_screen: '#9fb48a', item_part_board: '#2a7a3a', item_part_battery: '#c9c6c0',
+  item_calc_core: '#3a8a4a', item_calc_shell: '#e8e2d4', item_calc_blank: '#6a6a72',
+  item_calc_charm: '#f08ab0', item_calc_wits: '#9aa0a8', item_calc_grit: '#2a2a2e', item_calc_finesse: '#e2e6ea', item_calc_health: '#5ac87a', item_calc_energy: '#f2d23a',
+};
+const MACHINE = {
+  solderer: { body: '#4a6a8a', label: 'SOLDER', glow: '#ffb84a' },
+  press: { body: '#7a5a3a', label: 'PRESS', glow: '#e8e2d4' },
+  assembler: { body: '#3a6a5a', label: 'ASSEMBLE', glow: '#7ad0b0' },
+  tuner: { body: '#6a3a6a', label: 'TUNE', glow: '#f08ab0' },
+};
+const DX = [1, 0, -1, 0];
+const DY = [0, 1, 0, -1];
+
+function itemColor(id) {
+  return ITEM_COLORS[id] || '#c9a24a';
+}
+
+/** A little item on a belt or in a hand. */
+function drawItem(ctx, id, cx, cy, s = 1) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(cx - 5 * s, cy - 3 * s, 11 * s, 9 * s);
+  ctx.fillStyle = itemColor(id);
+  ctx.fillRect(cx - 5 * s, cy - 6 * s, 10 * s, 10 * s);
+  if (id.startsWith('item_calc_') && !/core|shell|blank/.test(id)) {
+    ctx.fillStyle = '#9fb48a';
+    ctx.fillRect(cx - 3.5 * s, cy - 4.5 * s, 7 * s, 2.5 * s);
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx - 5 * s + 0.5, cy - 6 * s + 0.5, 10 * s - 1, 10 * s - 1);
+}
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawFactoryProp(ctx, p, x, y, w, h, opts) {
+  const t = opts.time || 0;
+  switch (p.type) {
+    case 'loadingbay': {
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.strokeStyle = '#f2c14e';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 6]);
+      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#9a6b45';
+      ctx.fillRect(x + 10, y + 16, w - 20, h - 24);
+      for (const [bx, by, c] of [[14, 22, '#c8b08a'], [30, 20, '#b89a74'], [20, 34, '#d2bc96']]) { ctx.fillStyle = c; ctx.fillRect(x + bx, y + by, 14, 12); }
+      ctx.fillStyle = '#f2c14e';
+      ctx.font = 'bold 8px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('INPUT BAY', x + w / 2, y + 12);
+      ctx.textAlign = 'left';
+      break;
+    }
+    case 'outbin': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 4, y + h - 8, w - 8, 6);
+      ctx.fillStyle = '#3a7a4a';
+      rrect(ctx, x + 6, y + 8, w - 12, h - 14, 4); ctx.fill();
+      ctx.fillStyle = '#2a5a3a';
+      ctx.fillRect(x + 4, y + 6, w - 8, 6);
+      ctx.fillStyle = '#e8f2e0';
+      ctx.font = 'bold 10px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('OUT', x + w / 2, y + h / 2 + 6);
+      ctx.textAlign = 'left';
+      break;
+    }
+    case 'workbench': {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 2, y + h - 6, w - 4, 6);
+      ctx.fillStyle = '#7a5232';
+      ctx.fillRect(x + 1, y + 6, w - 2, h - 10);
+      ctx.fillStyle = '#5a3a22';
+      ctx.fillRect(x + 1, y + h - 6, w - 2, 3);
+      ctx.fillStyle = '#6a6e74'; // vice
+      ctx.fillRect(x + 8, y + 2, 10, 8);
+      ctx.strokeStyle = '#c9a24a'; // the soldering iron's cable
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x + 40, y + 10); ctx.quadraticCurveTo(x + 50, y + 2, x + 60, y + 12); ctx.stroke();
+      ctx.fillStyle = '#e8e2d4'; // a blank calculator
+      ctx.fillRect(x + 70, y + 8, 8, 11);
+      ctx.fillStyle = '#9fb48a';
+      ctx.fillRect(x + 71, y + 9, 6, 3);
+      break;
+    }
+    case 'belt': {
+      ctx.fillStyle = '#3a3a40';
+      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.fillStyle = '#2a2a2e';
+      const dir = p.dir || 0;
+      const horiz = dir % 2 === 0;
+      if (horiz) { ctx.fillRect(x + 1, y + 1, w - 2, 3); ctx.fillRect(x + 1, y + h - 4, w - 2, 3); } else { ctx.fillRect(x + 1, y + 1, 3, h - 2); ctx.fillRect(x + w - 4, y + 1, 3, h - 2); }
+      // chevrons crawl along the belt
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x + 2, y + 2, w - 4, h - 4); ctx.clip();
+      ctx.strokeStyle = '#6a6a72';
+      ctx.lineWidth = 2;
+      const phase = (t * 16) % 12;
+      for (let k = -12; k < 36; k += 12) {
+        const o = k + phase;
+        ctx.beginPath();
+        if (dir === 0) { ctx.moveTo(x + o, y + 9); ctx.lineTo(x + o + 6, y + 16); ctx.lineTo(x + o, y + 23); }
+        if (dir === 2) { ctx.moveTo(x + w - o, y + 9); ctx.lineTo(x + w - o - 6, y + 16); ctx.lineTo(x + w - o, y + 23); }
+        if (dir === 1) { ctx.moveTo(x + 9, y + o); ctx.lineTo(x + 16, y + o + 6); ctx.lineTo(x + 23, y + o); }
+        if (dir === 3) { ctx.moveTo(x + 9, y + h - o); ctx.lineTo(x + 16, y + h - o - 6); ctx.lineTo(x + 23, y + h - o); }
+        ctx.stroke();
+      }
+      ctx.restore();
+      if (p.carry) {
+        // slide in from the previous tile over the minute it arrived
+        const since = opts.clock !== undefined && p.arrived !== undefined ? opts.clock - p.arrived : 1;
+        const back = since < 1 ? (1 - since) * w : 0;
+        drawItem(ctx, p.carry, x + w / 2 - DX[dir] * back, y + h / 2 + 2 - DY[dir] * back);
+      }
+      break;
+    }
+    case 'inserter': {
+      const dir = p.dir || 0;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.fillStyle = '#4a4a50';
+      ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f2c14e';
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+      // the arm swings from behind to in front once a minute while busy
+      const swing = p.busy ? Math.cos(((opts.clock || 0) % 1) * Math.PI) : 1;
+      const ax = cx + DX[dir] * 13 * swing;
+      const ay = cy + DY[dir] * 13 * swing;
+      ctx.strokeStyle = '#f2c14e';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay); ctx.stroke();
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(ax - 3, ay - 3, 6, 6);
+      // a direction tick so you can read which way it moves things
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(cx + DX[dir] * 14 + DY[dir] * 3, cy + DY[dir] * 14 - DX[dir] * 3);
+      ctx.lineTo(cx + DX[dir] * 14 - DY[dir] * 3, cy + DY[dir] * 14 + DX[dir] * 3);
+      ctx.lineTo(cx + DX[dir] * 18, cy + DY[dir] * 18);
+      ctx.fill();
+      break;
+    }
+    case 'machine': {
+      const m = MACHINE[p.kind] || MACHINE.press;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 3, y + h - 6, w - 4, 6);
+      ctx.fillStyle = m.body;
+      rrect(ctx, x + 2, y - 10, w - 4, h + 4, 5); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(x + 2, y - 10, w - 4, 5);
+      // the window: glows while working
+      const working = p.progress > 0 && p.powered !== false;
+      ctx.fillStyle = working ? m.glow : '#1e1e22';
+      ctx.globalAlpha = working ? 0.6 + 0.4 * Math.sin(t * 8) : 1;
+      ctx.fillRect(x + 12, y + 2, w - 24, 18);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#f4efe6';
+      ctx.font = 'bold 8px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.kind === 'tuner' ? (p.setting ? `TUNE:${p.setting.toUpperCase()}` : 'TUNE: ?') : m.label, x + w / 2, y - 1);
+      ctx.textAlign = 'left';
+      // progress bar and power light
+      ctx.fillStyle = '#1e1e22';
+      ctx.fillRect(x + 8, y + h - 16, w - 16, 5);
+      ctx.fillStyle = '#7ad08a';
+      ctx.fillRect(x + 8, y + h - 16, (w - 16) * Math.min(1, Math.max(0, (p.progress || 0) - 1) / (p.minutes || 4)), 5);
+      ctx.fillStyle = p.powered === false ? '#ff4a3a' : '#5ae07a';
+      ctx.beginPath(); ctx.arc(x + w - 9, y - 4, 3, 0, Math.PI * 2); ctx.fill();
+      // output waiting
+      const outN = Object.values(p.out || {}).reduce((a, b) => a + b, 0);
+      if (outN) {
+        const id = Object.keys(p.out).find((k) => p.out[k] > 0);
+        drawItem(ctx, id, x + 10, y + h - 2, 0.8);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 8px "Trebuchet MS", sans-serif';
+        ctx.fillText(`×${outN}`, x + 16, y + h);
+      }
+      break;
+    }
+    case 'generator': {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 3, y + h - 6, w - 4, 6);
+      ctx.fillStyle = '#c9a24a';
+      rrect(ctx, x + 3, y - 4, w - 6, h - 2, 4); ctx.fill();
+      ctx.fillStyle = '#2a2a2e';
+      for (let k = 0; k < 4; k++) ctx.fillRect(x + 8 + k * 12, y + 6, 6, 20);
+      ctx.fillStyle = '#ffe24a';
+      ctx.beginPath(); ctx.moveTo(x + w / 2 + 2, y + 30); ctx.lineTo(x + w / 2 - 6, y + 44); ctx.lineTo(x + w / 2, y + 44); ctx.lineTo(x + w / 2 - 2, y + 56); ctx.lineTo(x + w / 2 + 6, y + 40); ctx.lineTo(x + w / 2, y + 40); ctx.fill();
+      // exhaust
+      for (let k = 0; k < 3; k++) {
+        const ph = (t * 0.8 + k / 3) % 1;
+        ctx.fillStyle = `rgba(200,200,200,${0.4 * (1 - ph)})`;
+        ctx.beginPath(); ctx.arc(x + w - 10, y - 8 - ph * 20, 3 + ph * 5, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    default:
+  }
+}
+
+return { itemColor, drawFactoryProp };
 })();
 
 // ---- src/engine/drawCharacter.js
@@ -14382,6 +15438,7 @@ __m["src/engine/drawWorld.js"] = (function () {
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 const { TILE } = __m["src/core/util.js"];
+const { drawFactoryProp } = __m["src/engine/drawFactory.js"];
 const { hash2 } = __m["src/core/rng.js"];
 const { TILE_TYPES } = __m["src/world/tiles.js"];
 const { shade, rrect } = __m["src/engine/drawCharacter.js"];
@@ -15007,7 +16064,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+const FLAT_PROPS = new Set(['belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 function drawProp(ctx, p, opts) {
   const x = p.x * T;
@@ -15549,6 +16606,9 @@ function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
+    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator':
+      drawFactoryProp(ctx, p, x, y, w, h, opts);
+      break;
     case 'loosebrick': {
       // a different-coloured brick low on the wall; scraped mortar shows the digging
       const dug = Math.min(4, opts.jailDig || 0);
@@ -17332,6 +18392,29 @@ class Renderer {
     return this.staticLayers.get(map);
   }
 
+  /** Factory build mode: the placement ghost (green = fits, red = blocked). */
+  drawBuildCursor(ctx, c) {
+    const x = c.x * TILE;
+    const y = c.y * TILE;
+    ctx.fillStyle = c.valid ? (c.remove ? 'rgba(255,170,60,0.25)' : 'rgba(90,224,122,0.25)') : 'rgba(255,74,58,0.22)';
+    ctx.fillRect(x, y, c.w * TILE, c.h * TILE);
+    ctx.strokeStyle = c.valid ? (c.remove ? '#ffaa3c' : '#5ae07a') : '#ff4a3a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(x + 1, y + 1, c.w * TILE - 2, c.h * TILE - 2);
+    ctx.setLineDash([]);
+    if (c.arrow) {
+      const cx = x + TILE / 2;
+      const cy = y + TILE / 2;
+      const dx = [1, 0, -1, 0][c.dir];
+      const dy = [0, 1, 0, -1][c.dir];
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx - dx * 9, cy - dy * 9); ctx.lineTo(cx + dx * 9, cy + dy * 9); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + dx * 10, cy + dy * 10); ctx.lineTo(cx + dx * 3 - dy * 6, cy + dy * 3 + dx * 6); ctx.moveTo(cx + dx * 10, cy + dy * 10); ctx.lineTo(cx + dx * 3 + dy * 6, cy + dy * 3 - dx * 6); ctx.stroke();
+    }
+  }
+
   snapCamera() {
     this.cam.snap = true;
   }
@@ -17436,7 +18519,7 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total });
         }
       })();
       for (const b of lm.buildings) {
@@ -17451,7 +18534,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -17477,6 +18560,7 @@ class Renderer {
       this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
     }
+    if (this.buildCursor) this.drawBuildCursor(ctx, this.buildCursor);
     this.drawCombatFx(ctx);
 
     if (g.combat.wrath) {
@@ -17951,7 +19035,9 @@ class DialogueSession {
     if (!g.gang) return {};
     const c = g.gang.customer(this.npc.id);
     const o = c?.order;
-    const out = { tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
+    const f = g.factory;
+    const fx = f ? { made: f.state.made, smallPrice: g.content.deliveries?.small?.price, largePrice: g.content.deliveries?.large?.price, contract: f.state.contract ? g.content.deliveries[f.state.contract].name.toLowerCase() : 'none', deliveryTo: f.deliveryTarget() ? f.def(f.deliveryTarget()).name : 'your warehouse' } : {};
+    const out = { ...fx, tribute: g.gang.tributePrice(), anger: g.world.gang?.anger ?? 0, truceUntil: g.world.gang?.truceUntilDay ?? 0 };
     if (o) Object.assign(out, { orderQty: o.qty, orderName: g.content.items[`item_calc_${o.type}`]?.name, orderPrice: o.price, orderTotal: o.qty * o.price });
     if (this.profile.customer) out.favourite = g.content.items[`item_calc_${this.profile.customer.favourite}`]?.name;
     return out;
@@ -18809,6 +19895,10 @@ const HELP = [
   ['gang <0–100>', 'set the Sums of Anarchy\'s anger'],
   ['customer <name> <player|gang|locked>', 'set a customer\'s status (customers lists them)'],
   ['order <name>', 'that customer pages you an order right now'],
+  ['warehouse <wh7|wh9|wh12>', 'own a warehouse (free)'],
+  ['parts [n]', 'n of every calculator part (default 20)'],
+  ['machines', 'two of every machine, 40 belts, 10 arms'],
+  ['made <n>', 'set how many calculators you\'ve made (unlocks Sal\'s machinery at 5, deliveries at 10)'],
 ];
 
 const parseNum = (s) => (s === undefined || s === '' || Number.isNaN(Number(s)) ? null : Number(s));
@@ -19065,6 +20155,30 @@ function runCommand(game, line) {
       game.gang.customer(id).status = st;
       return out(`${npc.profile.name}: ${st}`);
     }
+    case 'warehouse': {
+      const id = args[0];
+      const def = game.content.warehouses[id];
+      if (!def) return out(`Usage: warehouse <${Object.keys(game.content.warehouses).join('|')}>`, false);
+      game.setFlag(def.flag, true);
+      return out(`${def.name} is yours.`);
+    }
+    case 'parts': {
+      const n = Math.max(1, Math.round(parseNum(args[0]) ?? 20));
+      for (const id of Object.keys(game.content.items).filter((k) => k.startsWith('item_part_'))) game.inventory.add(id, n, { silent: true });
+      return out(`+${n} of every part.`);
+    }
+    case 'machines': {
+      for (const id of Object.keys(game.content.items).filter((k) => game.content.items[k].build?.type === 'machine' || k === 'item_generator')) game.inventory.add(id, 2, { silent: true });
+      game.inventory.add('item_belt', 40, { silent: true });
+      game.inventory.add('item_inserter', 10, { silent: true });
+      return out('Two of every machine, 40 belts, 10 inserter arms.');
+    }
+    case 'made': {
+      const n = parseNum(args[0]);
+      if (n === null) return out(`Made: ${game.factory.state.made}. Usage: made <n>`, false);
+      game.factory.state.made = Math.max(0, Math.round(n));
+      return out(`Made: ${game.factory.state.made}`);
+    }
     default:
       return out(`Unknown command "${cmd}". Type help.`, false);
   }
@@ -19102,7 +20216,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -19320,7 +20434,8 @@ function containerPanel(ui, body, opts) {
     }
     for (const it of v.items) {
       wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(it.def)), h('div', { class: 'grow' }, h('div', { class: 'name' }, it.def.name, it.count > 1 ? ` ×${it.count}` : ''), h('div', { class: 'desc' }, it.def.description)),
-        h('button', { class: 'small', onclick: () => { const r = g.takeFromContainer(v.id, it.id); if (!r.ok) ui.audio.sfx('sfx_fail'); render(r.text); } }, 'Take')));
+        h('button', { class: 'small', onclick: () => { const r = g.takeFromContainer(v.id, it.id); if (!r.ok) ui.audio.sfx('sfx_fail'); render(r.text); } }, 'Take'),
+        v.owner === 'player' && it.count > 1 ? h('button', { class: 'small', onclick: () => { const r = g.takeFromContainer(v.id, it.id, it.count); render(r.text); } }, 'All') : null));
     }
     if (!v.items.length && v.money <= 0) wrap.append(h('p', { class: 'muted' }, 'Empty.'));
     body.append(wrap);
@@ -19330,9 +20445,17 @@ function containerPanel(ui, body, opts) {
       const w2 = h('div', { class: 'list' });
       for (const e of returnable) {
         w2.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(e.def)), h('div', { class: 'grow' }, h('div', { class: 'name' }, e.def.name)),
-          h('button', { class: 'small', onclick: () => { const r = g.putInContainer(v.id, e.id); render(r.text); } }, 'Put')));
+          h('button', { class: 'small', onclick: () => { const r = g.putInContainer(v.id, e.id); render(r.text); } }, 'Put'),
+          v.owner === 'player' && e.count > 1 ? h('button', { class: 'small', onclick: () => { const r = g.putInContainer(v.id, e.id, e.count); render(r.text); } }, 'All') : null));
       }
       body.append(w2);
+      if (v.owner === 'player' && returnable.some((e) => e.def.category === 'part')) {
+        body.append(h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { onclick: () => {
+          let n = 0;
+          for (const e of g.inventory.list()) if (e.def.category === 'part') { g.putInContainer(v.id, e.id, e.count); n += e.count; }
+          render(`Stored ${n} parts.`);
+        } }, 'Store all parts')));
+      }
     }
   };
   render();
@@ -19592,7 +20715,7 @@ function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -19801,6 +20924,11 @@ class UI {
       this.mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
       this.mouse.movedAt = this.time;
     });
+    canvas.addEventListener('contextmenu', (e) => {
+      if (!this.build) return;
+      e.preventDefault();
+      this.buildAction('remove');
+    });
     canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       this.mouse.down = true;
@@ -19813,6 +20941,7 @@ class UI {
       clock: document.getElementById('hud-clock'),
       location: document.getElementById('hud-location'),
       money: document.getElementById('hud-money'),
+      buildBar: document.getElementById('build-bar'),
       wanted: document.getElementById('hud-wanted'),
       tracker: document.getElementById('hud-tracker'),
       prompt: document.getElementById('hud-prompt'),
@@ -20135,7 +21264,9 @@ class UI {
     }
     if (this.dialogue.handleAction(action)) return;
     if (this.state !== 'playing' || this.game?.combat.wrath) return;
+    if (this.build && this.buildAction(action)) return;
     switch (action) {
+      case 'build': this.toggleBuild(); break;
       case 'pause': this.openPanel('pause'); break;
       case 'inventory': this.openPanel('inventory'); break;
       case 'journal': this.openPanel('journal'); break;
@@ -20219,6 +21350,100 @@ class UI {
     }
   }
 
+  // ---------------------------------------------------- factory build mode
+  /** B in a warehouse you own: place machinery on the floor grid (src/systems/factory.js). */
+  toggleBuild() {
+    const g = this.game;
+    if (this.build) return this.exitBuild();
+    const wh = g.factory.warehouseForMap(g.player.map);
+    if (!wh) { this.toast('You can only build inside a warehouse you own.', 'info', 3); return; }
+    if (!g.factory.owns(wh)) { this.toast('This isn\'t your warehouse.', 'info', 3); return; }
+    this.build = { wh, tool: this.buildTools()[0] || 'remove', dir: 0 };
+    this.el.buildBar.classList.remove('hidden');
+    this.buildBarKey = null;
+    this.audio.sfx('sfx_ui_click');
+  }
+
+  exitBuild() {
+    this.build = null;
+    this.renderer.buildCursor = null;
+    this.el.buildBar.classList.add('hidden');
+  }
+
+  buildTools() {
+    return this.game.inventory.list().filter((e) => e.def.build).map((e) => e.id);
+  }
+
+  /** Returns true if build mode used the action. */
+  buildAction(action) {
+    const g = this.game;
+    const b = this.build;
+    const c = this.renderer.buildCursor;
+    if (action === 'build' || action === 'pause') { this.exitBuild(); return true; }
+    if (action === 'reload') {
+      // R: rotate the tool, or the belt/arm under the cursor when picking up
+      if (b.tool === 'remove' && c) g.factory.rotate(b.wh, c.x, c.y);
+      else b.dir = (b.dir + 1) % 4;
+      return true;
+    }
+    const m = /^choice(\d)$/.exec(action);
+    if (m) {
+      const tools = [...this.buildTools(), 'remove'];
+      const pick = tools[Number(m[1]) - 1];
+      if (pick) b.tool = pick;
+      return true;
+    }
+    if (action === 'remove' || (action === 'attack' && b.tool === 'remove')) {
+      if (!c) return true;
+      const r = g.factory.remove(b.wh, c.x, c.y);
+      if (r.ok) this.audio.sfx('sfx_pickup'); else this.audio.sfx('sfx_fail');
+      return true;
+    }
+    if (action === 'attack') {
+      if (!c) return true;
+      const r = g.factory.place(b.wh, b.tool, c.x, c.y, b.dir);
+      if (r.ok) this.audio.sfx('sfx_door'); else { this.audio.sfx('sfx_fail'); this.toast(r.text, 'info', 2); }
+      if (!g.inventory.count(b.tool)) b.tool = this.buildTools()[0] || 'remove';
+      return true;
+    }
+    return false;
+  }
+
+  updateBuild() {
+    const g = this.game;
+    const b = this.build;
+    if (g.player.map !== g.content.warehouses[b.wh].map) return this.exitBuild();
+    const z = this.renderer.cam.zoom;
+    const tx = Math.floor((this.renderer.cam.x + this.mouse.x / z) / TILE);
+    const ty = Math.floor((this.renderer.cam.y + this.mouse.y / z) / TILE);
+    const def = b.tool !== 'remove' ? g.content.items[b.tool]?.build : null;
+    const w = def?.w || 1;
+    const hh = def?.h || 1;
+    const valid = def ? !g.factory.blockReason(b.wh, tx, ty, w, hh) : Boolean(g.factory.at(b.wh, tx, ty)?.fx);
+    this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter'), remove: !def };
+    // the toolbar
+    const tools = this.buildTools();
+    const p = g.factory.power(b.wh);
+    const key = JSON.stringify([tools.map((id) => [id, g.inventory.count(id)]), b.tool, b.dir, p]);
+    if (key === this.buildBarKey) return;
+    this.buildBarKey = key;
+    const bar = this.el.buildBar;
+    bar.innerHTML = '';
+    const row = document.createElement('div');
+    row.className = 'tools';
+    [...tools, 'remove'].forEach((id, i) => {
+      const btn = document.createElement('button');
+      btn.className = `small${b.tool === id ? ' on' : ''}`;
+      btn.textContent = id === 'remove' ? `${i + 1} · Pick up` : `${i + 1} · ${g.content.items[id].name} ×${g.inventory.count(id)}`;
+      btn.onclick = () => { b.tool = id; this.buildBarKey = null; };
+      row.append(btn);
+    });
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = `Click to place · Right-click to pick up · R rotate (${['→', '↓', '←', '↑'][b.dir]}) · B or Esc to finish · Power: ${p.machines}/${p.capacity} machines${tools.length ? '' : ' · You have no machinery — buy some from Sal'}`;
+    bar.append(row, hint);
+  }
+
   // -------------------------------------------------------------- frame
   frame(dt) {
     this.time += dt;
@@ -20236,7 +21461,8 @@ class UI {
         g.player.aim = { x: wx - g.player.x, y: wy - (g.player.y - 18) };
       } else g.player.aim = null;
       // automatic weapons fire while the button is held
-      if (!busy && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
+      if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
+      if (this.build) this.updateBuild();
       g.update(dt, move);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;

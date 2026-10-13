@@ -1,6 +1,7 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 import { TILE } from '../core/util.js';
+import { drawFactoryProp } from './drawFactory.js';
 import { hash2 } from '../core/rng.js';
 import { TILE_TYPES } from '../world/tiles.js';
 import { shade, rrect } from './drawCharacter.js';
@@ -626,7 +627,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 export function drawProp(ctx, p, opts) {
   const x = p.x * T;
@@ -1168,6 +1169,9 @@ export function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
+    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator':
+      drawFactoryProp(ctx, p, x, y, w, h, opts);
+      break;
     case 'loosebrick': {
       // a different-coloured brick low on the wall; scraped mortar shows the digging
       const dug = Math.min(4, opts.jailDig || 0);

@@ -112,11 +112,13 @@ const buildings = [
   shack('sh_13', 1, 63, 5, 3, '#8a5a4a'), shack('sh_14', 8, 63, 4, 3, '#6a6a5a'), shack('sh_15', 18, 63, 4, 3, '#7a4a3a'),
   shack('sh_16', 28, 63, 5, 3, '#5a5a6a'), shack('sh_17', 1, 68, 4, 3, '#7a6a4a'), shack('sh_18', 25, 69, 4, 3, '#8a5a3a'),
   // The Docks
-  shop('b_wh7', 'Warehouse 7', 41, 63, 10, 6, { roof: '#6a6e74', wall: '#a8a49a', trim: '#4a4a4a', sign: 'WAREHOUSE 7', closed: 'Warehouse 7 is padlocked. Something inside is ticking. Probably a clock.' }),
-  shop('b_wh9', 'Warehouse 9', 52, 63, 9, 6, { roof: '#7a5a4a', wall: '#b09a84', trim: '#4a3a2e', sign: 'WAREHOUSE 9' }),
+  // warehouses for sale (v0.12.0): bought at the FOR SALE sign beside each door
+  shop('b_wh7', 'Warehouse 7', 41, 63, 10, 6, { roof: '#6a6e74', wall: '#a8a49a', trim: '#4a4a4a', sign: 'WAREHOUSE 7', door: { x: 46, y: 68, to: { map: 'wh7', spot: 'entry' }, lock: { flag: 'owns_wh7', flagMessage: 'Warehouse 7 is padlocked. A sign beside the door says FOR SALE.' } } }),
+  shop('b_wh9', 'Pier 9 Shed', 52, 63, 9, 6, { roof: '#7a5a4a', wall: '#b09a84', trim: '#4a3a2e', sign: 'PIER 9', door: { x: 56, y: 68, to: { map: 'wh9', spot: 'entry' }, lock: { flag: 'owns_wh9', flagMessage: 'The Pier 9 Shed is chained shut. A sign beside the door says FOR SALE.' } } }),
+  shop('b_surplus', 'Sal\'s Surplus Electronics', 78, 63, 7, 6, { roof: '#4a5a3a', wall: '#a8b08a', trim: '#2a3a1a', sign: 'SAL\'S SURPLUS', awning: '#6a7a3a', door: { x: 81, y: 68, to: { map: 'surplus', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '08:00', to: '20:00' } } } }),
   shop('b_port', 'Port Authority', 65, 63, 12, 6, { roof: '#3a4a5a', wall: '#d8dce0', trim: '#2a3a4a', sign: 'PORT AUTHORITY' }),
   shop('b_cold', 'Northbank Cold Storage', 89, 63, 12, 6, { roof: '#8a9aa6', wall: '#dce6ea', trim: '#4a5a66', sign: 'COLD STORAGE' }),
-  shop('b_wh12', 'Warehouse 12', 102, 63, 9, 6, { roof: '#5a5a52', wall: '#a49e8e', trim: '#3a3a32', sign: 'WAREHOUSE 12' }),
+  shop('b_wh12', 'The Old Cannery', 102, 63, 9, 6, { roof: '#5a5a52', wall: '#a49e8e', trim: '#3a3a32', sign: 'OLD CANNERY', door: { x: 106, y: 68, to: { map: 'wh12', spot: 'entry' }, lock: { flag: 'owns_wh12', flagMessage: 'The Old Cannery is boarded up. A sign beside the door says FOR SALE.' } } }),
 ];
 
 // ---------------------------------------------------------------- props
@@ -188,6 +190,7 @@ props.push({ id: 'hv_sumps_crate', type: 'crate', x: 24, y: 58, interact: { kind
 for (const x of [44, 45, 58, 80, 81, 104, 105]) P('crate', x, 71);
 for (const x of [47, 60, 83, 107]) P('barrel', x, 72);
 P('boat', 74, 75, { w: 3, h: 2 }); P('boat', 100, 75, { w: 3, h: 2 });
+for (const [id, wh, x] of [['hv_wh7_sale', 'wh7', 48], ['hv_wh9_sale', 'wh9', 58], ['hv_wh12_sale', 'wh12', 108]]) props.push({ id, type: 'sign', x, y: 69, interact: { kind: 'factory', action: 'buy', warehouse: wh, name: 'FOR SALE sign' }, examine: 'FOR SALE.' });
 P('sign', 64, 70, { examine: '"PORT OF HALVERMOUTH. Authorised personnel only beyond this point. Unauthorised personnel: please be discreet."' });
 
 export const halvermouth = {
@@ -224,6 +227,7 @@ export const halvermouth = {
     mission_front: { x: 22, y: 46, facing: 'up' },
     park_center: { x: 99, y: 49, facing: 'up' },
     docks_quay: { x: 70, y: 72, facing: 'down' },
+    wh7_door_out: { x: 46, y: 69, facing: 'down' }, wh9_door_out: { x: 56, y: 69, facing: 'down' }, wh12_door_out: { x: 106, y: 69, facing: 'down' }, surplus_door_out: { x: 81, y: 69, facing: 'down' },
     // the Sumps: the Sums of Anarchy's turf, their customers' haunts and the corners where deals happen
     abacus_door_out: { x: 32, y: 58, facing: 'down' },
     abacus_bouncer: { x: 34, y: 59, facing: 'left' },
@@ -446,4 +450,52 @@ export const abacus = {
   ],
 };
 
-export default [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus];
+// --------------------------------------------------- warehouses (v0.12.0)
+// Concrete floors you build on. Fixed fittings: the input bay (deliveries and
+// parts you drop off), the output crate (finished goods) and the workbench
+// (hand-crafting). Everything else is placed by the player (src/systems/factory.js).
+const warehouse = (id, name, w, h, o = {}) => ({
+  id,
+  name,
+  kind: 'interior',
+  warehouse: id,
+  music: 'mus_workshop',
+  ambience: 'amb_indoor',
+  tiles: roomTiles(w, h, 'g', Math.floor(w / 2)),
+  doors: [{ id: `door_${id}_exit`, x: Math.floor(w / 2), y: h - 1, to: { map: 'halvermouth', spot: `${id}_door_out` } }],
+  spots: { entry: { x: Math.floor(w / 2), y: h - 2, facing: 'up' } },
+  // the tile inside the door is kept clear so you can always get out
+  keepClear: [[Math.floor(w / 2), h - 2]],
+  props: [
+    { id: `${id}_inbay`, type: 'loadingbay', x: 1, y: 1, w: 2, h: 2, interact: { kind: 'container', container: `ct_${id}_in`, name: 'input bay' }, examine: 'The input bay. Sal\'s deliveries land here at 07:00 — and you can drop parts in by hand.' },
+    { id: `${id}_outbin`, type: 'outbin', x: w - 3, y: 1, w: 2, h: 2, interact: { kind: 'container', container: `ct_${id}_out`, name: 'output crate' }, examine: 'The output crate. Finished calculators end up here.' },
+    { id: `${id}_bench`, type: 'workbench', x: 4, y: 1, w: 3, h: 1, interact: { kind: 'factory', action: 'workbench', warehouse: id, name: 'workbench' }, examine: 'A scarred workbench with a soldering iron, a vice and a magnifying lamp. Craft by hand here; press B to build machinery.' },
+    { id: `${id}_board`, type: 'noticeboard', x: Math.floor(w / 2) - 1, y: 0, examine: o.board || 'A chalkboard for production notes. It\'s blank. For now.' },
+    ...(o.props || []),
+  ],
+});
+export const wh7 = warehouse('wh7', 'Warehouse 7', 16, 11, { board: 'Chalked by the last tenant: "THE TICKING IS THE PIPES. PROBABLY."' });
+export const wh9 = warehouse('wh9', 'Pier 9 Shed', 20, 13, { board: 'Fishing nets on hooks, and a faded tide table for a year long gone.' });
+export const wh12 = warehouse('wh12', 'The Old Cannery', 26, 15, { board: '"NORTHBANK SARDINE CO. — 1,000,000 TINS AND COUNTING." The counter stopped at 412,077.' });
+
+// Sal's Surplus Electronics: parts, machinery and delivery contracts.
+export const surplus = {
+  id: 'surplus',
+  name: 'Sal\'s Surplus Electronics',
+  kind: 'interior',
+  music: 'mus_workshop',
+  ambience: 'amb_indoor',
+  tiles: roomTiles(12, 9, 'f', 6, [[8, 1, 1, 2, 'W']]),
+  doors: [{ id: 'door_surplus_exit', x: 6, y: 8, to: { map: 'halvermouth', spot: 'surplus_door_out' } }],
+  spots: { entry: { x: 6, y: 7, facing: 'up' }, counter_front: { x: 4, y: 5, facing: 'up' }, counter_back: { x: 4, y: 3, facing: 'down' }, back_cot: { x: 9, y: 2, facing: 'right' } },
+  props: [
+    { id: 'sp_counter', type: 'counter', x: 2, y: 4, w: 5, color: '#3a4a2a', interact: { kind: 'shop', shop: 'shop_surplus', staffed: true, name: 'counter', closed: 'Nobody at the counter. Sal works 08:00–20:00.' }, examine: 'A counter buried in bins of keypads, screens and loose batteries.' },
+    { id: 'sp_shelf1', type: 'shelf', x: 1, y: 1, w: 3, h: 1, examine: 'Shelves of LCD screens, each one reading 8.8.8.8.8.8.8.8.' },
+    { id: 'sp_shelf2', type: 'shelf', x: 5, y: 1, w: 2, h: 1, examine: 'Boxes labelled CASINGS (PINK), CASINGS (GREY), CASINGS (??).' },
+    { id: 'sp_machines', type: 'crate', x: 1, y: 6, w: 2, examine: 'Crated machinery: a soldering station, a case press, coils of conveyor belt. "ASK SAL," says a sticker.' },
+    { id: 'sp_cot', type: 'cot', x: 10, y: 1 },
+    { id: 'sp_sign', type: 'sign', x: 9, y: 6, examine: '"SAL\'S SURPLUS — If it beeps, I\'ve got it. If it doesn\'t beep, I\'ve probably got it. No questions asked; no answers given."' },
+  ],
+};
+
+export default [halvermouth, hallOfJustice, policeStation, jail, gunShop, abacus, wh7, wh9, wh12, surplus];

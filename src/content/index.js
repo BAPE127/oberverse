@@ -36,6 +36,9 @@ import police from './characters/police.js';
 import dlgPolice from './dialogue/police.js';
 import sums from './characters/sums.js';
 import dlgSums from './dialogue/sums.js';
+import sal from './characters/sal.js';
+import dlgSal from './dialogue/sal.js';
+import { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } from './warehouses.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 
@@ -64,9 +67,13 @@ export const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal]),
   puns: PUNS,
+  warehouses: WAREHOUSES,
+  recipes: RECIPES,
+  deliveries: DELIVERIES,
+  unlocks: UNLOCKS,
   blueprints: BLUEPRINTS,
   plots: {},
   startingMap: 'player_flat',
