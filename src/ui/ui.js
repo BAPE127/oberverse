@@ -612,6 +612,15 @@ export class UI {
       // the engine note follows your speed (src/audio/audioEngine.js)
       const car = g.vehicles.driving();
       this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
+      // sirens: louder the closer the nearest cruiser (src/systems/pursuit.js)
+      let siren = null;
+      if (!g.paused && !busy) for (const c of g.pursuit.cars()) {
+        const at = g.pursuit.playerIn(c.map);
+        if (!at) continue;
+        const k = 1 - Math.min(1, Math.hypot(c.x - at.x, c.y - at.y) / (30 * TILE));
+        if (k > 0) siren = Math.max(siren ?? 0, k);
+      }
+      this.audio.setSiren(siren);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;
       this.renderer.highlight = target || null;
@@ -640,6 +649,9 @@ export class UI {
     const pol = g.world.police;
     let whtmlWanted = '';
     if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
+    const cruisers = g.pursuit?.active().filter((c) => c.chase.mode === 'chase').length || 0;
+    if (pol?.wanted > 0 && cruisers) whtmlWanted += ` <span class="tag">🚓 ×${cruisers} in pursuit</span>`;
+    else if (pol?.wanted > 0 && g.pursuit?.active().length) whtmlWanted += ' <span class="tag">🔦 They\'re searching</span>';
     if (pol?.jail) whtmlWanted += `<span class="tag">⛓ In jail · ${g.police.hoursLeft()}h left</span>`;
     else if (g.police?.bribed()) whtmlWanted += `<span class="tag">🤝 Police paid off · until end of Day ${pol.bribedUntilDay}</span>`;
     // calculator highs and comedowns; the Sums of Anarchy's mood

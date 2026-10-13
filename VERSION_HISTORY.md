@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.18.0 | 2026-10-13 | development | 1 | Hot Pursuit — police chases |
 | 0.17.0 | 2026-10-13 | development | 1 | Route 1 — the bus and NPC traffic |
 | 0.16.0 | 2026-10-13 | development | 1 | On the Road — cars, two dealerships, driving, theft |
 | 0.15.1 | 2026-10-13 | development | 1 | Overwatch — OSINT terminal, interactive globe, zoomable world map |
@@ -23,6 +24,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.18.0 — Hot Pursuit
+
+Police cruisers chase you while you're Wanted. Chases aren't saved (cruisers in pursuit are removed on load). No migration needed.
 
 ## 0.17.0 — Route 1
 

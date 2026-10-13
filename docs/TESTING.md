@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.18.0 (2026-10-13)
+
+- `npm run check` — **237/237 tests passed** (7 new in `pursuit.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Simulated chases (node): at ★★★ two cruisers converged and rammed, and sitting still got you pulled over; floored east in a Corsair at ★, the Halvermouth cruiser was left behind at the gate and a fresh one picked you up in Westbrook. Browser (headless Chromium): in a stolen Pipit at ★★ by Civic Plaza a cruiser arrived with its light bar flashing, rammed, and the HUD showed "🚓 ×1 in pursuit" and "PULLED OVER — drive!", then jail. Fixed from the runs: a cruiser could turn into a tree and stay wedged (turning is now collision-checked and wedged cars can move free); cruisers cut across Civic Plaza (roads now much cheaper than plazas); a cruiser stuck behind traffic stopped for the player (cruisers pass through traffic; stuck = not moving, not low speed); pinned against the canal with the throttle down counted as "moving" (real ground speed); new cruisers kept spawning after you'd lost them. No page errors.
+
 ## Verification record — v0.17.0 (2026-10-13)
 
 - `npm run check` — **230/230 tests passed** (7 new in `transit.test.mjs`); validator 0 errors.

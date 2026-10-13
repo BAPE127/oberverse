@@ -30,6 +30,7 @@ import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
 import { Transit } from '../systems/transit.js';
+import { Pursuit } from '../systems/pursuit.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -68,6 +69,7 @@ export class Game {
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
     this.transit = new Transit(this);
+    this.pursuit = new Pursuit(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -293,6 +295,7 @@ export class Game {
     this.gang.update(dt);
     this.heavy.update(dt);
     this.transit.update(dt);
+    this.pursuit.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -1139,6 +1142,8 @@ export class Game {
     this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
     this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
     this.world.police = { ...fresh.police, ...(this.world.police || {}) };
+    // police chases don't survive a save (v0.18.0)
+    if (this.world.vehicles?.cars) for (const [id, c] of Object.entries(this.world.vehicles.cars)) if (c.chase) delete this.world.vehicles.cars[id];
     this.world.gang = { ...fresh.gang, ...(this.world.gang || {}) };
     this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
     this.world.factory = { ...fresh.factory, ...(this.world.factory || {}) };

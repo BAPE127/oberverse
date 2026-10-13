@@ -110,6 +110,43 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Police sirens (v0.18.0): null stops them; otherwise level 0..1 (how close
+   * the nearest cruiser is). A two-tone wail from one oscillator.
+   */
+  setSiren(level) {
+    if (!this.enabled) return;
+    try {
+      const c = this.ctx;
+      const t = c.currentTime;
+      if (level === null || level <= 0) {
+        if (this.siren) this.siren.gain.gain.setTargetAtTime(0.0001, t, 0.3);
+        return;
+      }
+      if (!this.siren) {
+        const gain = c.createGain();
+        gain.gain.value = 0.0001;
+        const o = c.createOscillator();
+        o.type = 'triangle';
+        o.frequency.value = 700;
+        // the wail: an LFO sweeping the pitch between two tones
+        const lfo = c.createOscillator();
+        lfo.type = 'square';
+        lfo.frequency.value = 1.6;
+        const depth = c.createGain();
+        depth.gain.value = 150;
+        lfo.connect(depth).connect(o.frequency);
+        o.connect(gain).connect(this.buses.sfx);
+        o.start();
+        lfo.start();
+        this.siren = { gain, o };
+      }
+      this.siren.gain.gain.setTargetAtTime(0.02 + level * 0.09, t, 0.2);
+    } catch (err) {
+      this.failures.push(`siren: ${err.message}`);
+    }
+  }
+
   /** Fade music and ambience right down for `seconds` (cutscenes), then back. */
   duck(seconds) {
     if (!this.enabled) return;

@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.18.0] — 2026-10-13 — "Hot Pursuit" (development build)
+
+Owner's request: "Can you also add police chases too?"
+
+### Added
+- **Police chases** (`src/systems/pursuit.js`): while Wanted, outdoors, and seen in the last 60 game minutes, cruisers spawn out of view on a road 16–28 tiles away — up to one per star. They're real cars (`owner: 'police'`, `chase: {...}`, model `cruiser`) driven by the shared car physics, steering along an A* route over tiles a car fits through (roads cheapest; repathed every 0.6 s), straight at you within 8 tiles; they back up and repath when stuck, follow you across seams but not through region gates, brake for pedestrians (never hurting anyone), and drive through traffic (which "pulls over"). ★: no reckless speeds; ★★★: they ram (aiming ahead of your car; contact halves your speed and knocks you off line).
+- **Getting caught**: in a car, stopped or pinned (judged by actual movement) beside a cruiser for 2 s → pulled over; on foot, a cruiser within 150 px for 1.6 s → cuffed; on the bus, at its next stop → arrested. The bar under you reads "PULLED OVER — drive!".
+- **Getting away**: out of every cruiser's sight for 12 s → they search your last known position for 20 s, then leave; no new cruisers until someone sees you again. Cruisers left in another region search and give up. Wanted cleared or arrest → they drive off (or vanish).
+- Cruisers' sightings keep the Wanted level fresh (`police.lastSeen`).
+- Sirens (`AudioEngine.setSiren`: a two-tone wail, louder as they close in), flashing light bars, red and blue light at night, flashing "P" markers on the minimap, "🚓 ×N in pursuit" / "🔦 They're searching" on the HUD, shouted orders.
+- Tests: `tests/pursuit.test.mjs` (7 tests).
+
+### Changed
+- Car physics is shared (`Vehicles.physics`, `Vehicles.crossings`): turning no longer swings a car into a wall, a wedged car can work itself loose, and cars report their real ground speed (`car.moved`).
+
 ## [0.17.0] — 2026-10-13 — "Route 1" (development build)
 
 Second half of the Transportation update.

@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.18.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Hot Pursuit',
+    notes: [
+      'Police chases. While you\'re Wanted and the police know where you are, cruisers come after you — one per star — with sirens wailing and lights flashing. They find their way through the streets to you, and at three stars they ram.',
+      'Get caught stopped (or pinned against a wall) beside a cruiser and you\'re pulled over; on foot, an officer jumps out and cuffs you; on the bus, they board at the next stop.',
+      'Escape by breaking their line of sight — duck into a building, outrun them round corners, or drive through a city gate (cruisers don\'t follow you out of the region). They search where they last saw you, then give up, and no more come until someone spots you again.',
+      'Police drivers never run people over, and a cruiser on a chase can\'t be stolen. Traffic pulls over for them.',
+    ],
+  },
+  {
     version: '0.17.0',
     date: '2026-10-13',
     channel: 'development',

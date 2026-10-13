@@ -316,7 +316,7 @@ export function validateContent(content = CONTENT) {
   }
   const reg = new Set(content.audioRegistry.map((a) => a.id));
   for (const id of [...Object.keys(content.songs), ...Object.keys(content.motifs), ...Object.keys(SFX), ...AMBIENCE_IDS]) if (!reg.has(id)) err(`audio ${id}: missing from AUDIO_REGISTRY`);
-  for (const id of reg) if (!content.songs[id] && !content.motifs[id] && !SFX[id] && !AMBIENCE_IDS.includes(id) && !['voice_blips', 'loop_engine'].includes(id)) err(`AUDIO_REGISTRY ${id}: no implementation`);
+  for (const id of reg) if (!content.songs[id] && !content.motifs[id] && !SFX[id] && !AMBIENCE_IDS.includes(id) && !['voice_blips', 'loop_engine', 'loop_siren'].includes(id)) err(`AUDIO_REGISTRY ${id}: no implementation`);
 
   // weapons and combat temperaments (src/systems/combat.js)
   for (const [id, it] of Object.entries(content.items)) {

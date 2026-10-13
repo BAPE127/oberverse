@@ -3532,6 +3532,7 @@ const AUDIO_REGISTRY = [
   sfx('sfx_car_start', 'getting into a car (the starter cranks and the engine catches)'),
   sfx('sfx_crash', 'a car hitting a wall, another car or a person'),
   sfx('sfx_horn', 'the car horn (H while driving)'),
+  { id: 'loop_siren', category: 'sfx', method: 'procedural: AudioEngine.setSiren (a triangle wail swept by a square LFO; louder as cruisers close in)', trigger: 'police cruisers chasing you', status: 'implemented', source: 'Original synthesis' },
   { id: 'loop_engine', category: 'sfx', method: 'procedural: AudioEngine.setEngine (two detuned saws through a low-pass, pitch and level follow speed)', trigger: 'while you drive', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_crate', 'each crate of guns in Lucas Eastrise\'s Wrath; the fifth is the missile'),
   sfx('sfx_digit', 'each giant digit in Arthur Anderson\'s Wrath; the fifth is the giant calculator'),
@@ -8136,7 +8137,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.17.0';
+const GAME_VERSION = '0.18.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -9608,6 +9609,43 @@ class AudioEngine {
       this.engine.gain.gain.setTargetAtTime(0.05 + level * 0.07, t, 0.1);
     } catch (err) {
       this.failures.push(`engine: ${err.message}`);
+    }
+  }
+
+  /**
+   * Police sirens (v0.18.0): null stops them; otherwise level 0..1 (how close
+   * the nearest cruiser is). A two-tone wail from one oscillator.
+   */
+  setSiren(level) {
+    if (!this.enabled) return;
+    try {
+      const c = this.ctx;
+      const t = c.currentTime;
+      if (level === null || level <= 0) {
+        if (this.siren) this.siren.gain.gain.setTargetAtTime(0.0001, t, 0.3);
+        return;
+      }
+      if (!this.siren) {
+        const gain = c.createGain();
+        gain.gain.value = 0.0001;
+        const o = c.createOscillator();
+        o.type = 'triangle';
+        o.frequency.value = 700;
+        // the wail: an LFO sweeping the pitch between two tones
+        const lfo = c.createOscillator();
+        lfo.type = 'square';
+        lfo.frequency.value = 1.6;
+        const depth = c.createGain();
+        depth.gain.value = 150;
+        lfo.connect(depth).connect(o.frequency);
+        o.connect(gain).connect(this.buses.sfx);
+        o.start();
+        lfo.start();
+        this.siren = { gain, o };
+      }
+      this.siren.gain.gain.setTargetAtTime(0.02 + level * 0.09, t, 0.2);
+    } catch (err) {
+      this.failures.push(`siren: ${err.message}`);
     }
   }
 
@@ -15632,7 +15670,8 @@ class Vehicles {
 
   /** Does a box (centre, angle, size) overlap a car on this map? */
   carAt(map, x, y, angle, len, wid, ignore) {
-    for (const b of this.game.transit?.boxesOn(map.id) || []) {
+    // traffic pulls over for a police car on a chase
+    if (!ignore?.chase) for (const b of this.game.transit?.boxesOn(map.id) || []) {
       if (dist(b.x, b.y, x, y) < (len + b.len) / 2 + 4 && this.overlapCars({ x, y, angle, len, wid }, b)) return true;
     }
     for (const c of this.carsOn(map.id)) {
@@ -15669,6 +15708,7 @@ class Vehicles {
     let best = null;
     let bd = Infinity;
     for (const c of this.carsOn(p.map)) {
+      if (c.chase) continue; // a police car in pursuit has an officer in it
       const m = this.model(c);
       // distance to the car's body, not its centre
       const cs = Math.cos(c.angle);
@@ -15813,8 +15853,37 @@ class Vehicles {
     const car = this.driving();
     if (!car) return;
     const m = this.model(car);
+    this.physics(car, input, dt);
+    this.hitPeople(car, m, dt);
+    p.x = car.x;
+    p.y = car.y;
+    p.vx = Math.cos(car.angle) * car.speed;
+    p.vy = Math.sin(car.angle) * car.speed;
+    const c = Math.cos(car.angle);
+    const s = Math.sin(car.angle);
+    p.facing = Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : s > 0 ? 'down' : 'up';
+    p.moving = Math.abs(car.speed) > 5;
+    this.crossings(car, true);
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    if (tx !== p.lastTx || ty !== p.lastTy) {
+      p.lastTx = tx;
+      p.lastTy = ty;
+      g.updateDiscovery();
+    }
+    this.watchForPolice(car);
+  }
+
+  /**
+   * One frame of a car's physics from driver input { x: steer, y: −throttle, sprint: handbrake }.
+   * Shared by you and by police drivers (src/systems/pursuit.js). Returns true if it hit something.
+   */
+  physics(car, input, dt) {
+    const g = this.game;
+    const m = this.model(car);
     const D = this.cfg.driving;
-    let map = g.maps.get(car.map);
+    const map = g.maps.get(car.map);
+    let crashed = false;
     const throttle = -(input.y || 0);
     const steer = input.x || 0;
     car.speed ||= 0;
@@ -15833,53 +15902,51 @@ class Vehicles {
     car.speed = clamp(car.speed, -m.top * D.reverseShare, m.top);
     // steering bites harder at speed (up to a point); reversing turns the other way
     const bite = clamp(car.speed / 140, -1, 1);
-    car.angle += steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    const wedged = this.blocked(map, car.x, car.y, car.angle, m.len, m.wid, car); // already overlapping something
+    const turned = car.angle + steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    // turning swings the car's ends: don't rotate into a wall
+    if (wedged || !this.blocked(map, car.x, car.y, turned, m.len, m.wid, car)) car.angle = turned;
     // move in small steps so nothing tunnels through a wall
+    const x0 = car.x;
+    const y0 = car.y;
     const total = car.speed * dt;
     const steps = Math.max(1, Math.ceil(Math.abs(total) / 6));
     for (let i = 0; i < steps; i++) {
       const nx = car.x + (Math.cos(car.angle) * total) / steps;
       const ny = car.y + (Math.sin(car.angle) * total) / steps;
-      if (!this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
+      // free to move — or wedged, in which case any move is allowed so it can work itself loose
+      if (wedged || !this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
       // slide along the obstacle if we can
       if (!this.blocked(map, nx, car.y, car.angle, m.len, m.wid, car)) { car.x = nx; car.speed *= 0.92; continue; }
       if (!this.blocked(map, car.x, ny, car.angle, m.len, m.wid, car)) { car.y = ny; car.speed *= 0.92; continue; }
+      crashed = true;
       this.crash(car);
       break;
     }
-    this.hitPeople(car, m, dt);
-    p.x = car.x;
-    p.y = car.y;
-    p.vx = Math.cos(car.angle) * car.speed;
-    p.vy = Math.sin(car.angle) * car.speed;
-    const c = Math.cos(car.angle);
-    const s = Math.sin(car.angle);
-    p.facing = Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : s > 0 ? 'down' : 'up';
-    p.moving = Math.abs(car.speed) > 5;
-    // seams (by the car's centre) and region gates (by its nose, which reaches the edge first)
+    car.moved = dt > 0 ? Math.hypot(car.x - x0, car.y - y0) / dt : 0; // actual speed over the ground
+    return crashed;
+  }
+
+  /** Seams (by the car's centre) and region gates (by its nose, which reaches the edge first). Police drivers don't take gates. */
+  crossings(car, isPlayer) {
+    const map = this.game.maps.get(car.map);
+    const m = this.model(car);
     const door = map.doorAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
     const dirn = Math.sign(car.speed) || 1;
     const nose = map.doorAt(clamp(Math.floor((car.x + Math.cos(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.width - 1), clamp(Math.floor((car.y + Math.sin(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.height - 1));
-    if (door?.seamless) this.crossSeam(car, door);
-    else if ((nose || door)?.gateway && Math.abs(car.speed) > 5) this.crossGate(car, (nose || door));
-    map = g.maps.get(car.map);
-    const tx = Math.floor(p.x / TILE);
-    const ty = Math.floor(p.y / TILE);
-    if (tx !== p.lastTx || ty !== p.lastTy) {
-      p.lastTx = tx;
-      p.lastTy = ty;
-      g.updateDiscovery();
-    }
-    this.watchForPolice(car);
+    if (door?.seamless) this.crossSeam(car, door, isPlayer);
+    else if (isPlayer && (nose || door)?.gateway && Math.abs(car.speed) > 5) this.crossGate(car, (nose || door));
   }
 
   crash(car) {
     const g = this.game;
     const hard = Math.abs(car.speed) > 160;
+    car.impact = Math.abs(car.speed);
     if (hard && (car.crashAt || 0) < g.realTime - 0.6) {
       car.crashAt = g.realTime;
-      g.bus.emit('sfx', { id: 'sfx_crash' });
-      if (g.heavy) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
+      const near = car.map === g.player.map && dist(car.x, car.y, g.player.x, g.player.y) < 500;
+      if (near) g.bus.emit('sfx', { id: 'sfx_crash' });
+      if (g.heavy && (car.id === g.player.driving || car.rammed)) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
     }
     car.speed = -car.speed * 0.25;
   }
@@ -15919,7 +15986,7 @@ class Vehicles {
     }
   }
 
-  crossSeam(car, door) {
+  crossSeam(car, door, isPlayer = true) {
     const g = this.game;
     const off = g.mapOffset(car.map, door.to.map);
     if (!off) return;
@@ -15933,7 +16000,7 @@ class Vehicles {
     car.map = door.to.map;
     car.x = nx;
     car.y = ny;
-    g.changeMap(car.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
+    if (isPlayer) g.changeMap(car.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
   }
 
   /** Drive through a gate between regions: arrive on the other side, facing away from it. */
@@ -15982,6 +16049,7 @@ class Vehicles {
     const g = this.game;
     const car = this.driving();
     if (car) g.player.driving = null;
+    g.player.riding = null;
     // stolen cars are impounded and go back to their owners
     for (const c of this.ownedCars()) {
       if (!c.stolen || !c.reported) continue;
@@ -16636,6 +16704,375 @@ class Transit {
 return { freshTransit, Transit };
 })();
 
+// ---- src/systems/pursuit.js
+__m["src/systems/pursuit.js"] = (function () {
+// Police chases (v0.18.0 "Hot Pursuit"). While you're Wanted and the police
+// know where you are, cruisers come after you: one per star. They are real
+// cars (owner 'police', chase: true) driven by the same physics as yours,
+// steering along an A* route over the tiles toward you.
+//
+//   spawn   — off-screen on a road, 16–28 tiles away, while you were seen in the last minute
+//   chase   — drive at you; ★★★ rams; anyone who sees you keeps the Wanted level fresh
+//   caught  — in a car: stopped (or boxed in) beside a cruiser for 2 s → pulled over
+//             on foot: a cruiser stops beside you, an officer gets out → cuffed
+//             on the bus: they wait for it to stop
+//   escape  — out of every cruiser's sight for 12 s: they drive to where they last
+//             saw you, search, and give up; no new cruisers until you're spotted again
+//   over    — Wanted gone, or you're arrested: they leave (despawn out of view)
+//
+// Cruisers never hurt pedestrians (they brake), never take region gates, and
+// aren't stealable while chasing. Runtime only: chase cars are removed on load.
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { isDown } = __m["src/systems/combat.js"];
+
+const LOSE_SECONDS = 12;
+const SEARCH_SECONDS = 20;
+const SPAWN_COOLDOWN = 4;
+const RECENT_SIGHTING = 60; // game minutes: the police only send cars when they know where you are
+const PULL_OVER_SECONDS = 2;
+const CUFF_SECONDS = 1.6;
+const SIGHT_TILES = 12;
+/** Path costs per tile: cruisers keep to the roads. */
+const COST = { '=': 1, b: 1, ',': 2.5, ':': 2.5, g: 3, m: 4, p: 3, u: 4, s: 5 };
+const STOP = ['Pull over!', 'Halvermouth Police — stop the vehicle!', 'Stop the car! Now!', 'You\'re not getting away!'];
+
+/** A* over tiles a car can fit through; roads are cheaper. Returns [{x, y}] tile centres in px. */
+function carPath(map, sx, sy, gx, gy, actor, maxNodes = 5000) {
+  const W = map.width;
+  const H = map.height;
+  const open = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H || map.blockedTile(x, y, actor)) return false;
+    // clearance: a car is wider than a tile, so it can't squeeze between two obstacles
+    const l = map.blockedTile(x - 1, y, actor);
+    const r = map.blockedTile(x + 1, y, actor);
+    const u = map.blockedTile(x, y - 1, actor);
+    const d = map.blockedTile(x, y + 1, actor);
+    return !((l && r) || (u && d));
+  };
+  if (!open(gx, gy)) {
+    // aim for the nearest open tile instead
+    let best = null;
+    for (let r = 1; r < 5 && !best; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (!best && open(gx + dx, gy + dy)) best = [gx + dx, gy + dy];
+    if (!best) return null;
+    [gx, gy] = best;
+  }
+  const key = (x, y) => y * W + x;
+  const g = new Map([[key(sx, sy), 0]]);
+  const prev = new Map();
+  const heap = [[Math.hypot(gx - sx, gy - sy), sx, sy]];
+  let n = 0;
+  while (heap.length && n++ < maxNodes) {
+    // a small binary-ish pop: the open list stays short on these maps
+    let bi = 0;
+    for (let i = 1; i < heap.length; i++) if (heap[i][0] < heap[bi][0]) bi = i;
+    const [, x, y] = heap[bi];
+    heap[bi] = heap[heap.length - 1];
+    heap.pop();
+    if (x === gx && y === gy) {
+      const out = [];
+      let k = key(x, y);
+      while (k !== undefined) { out.push({ x: ((k % W) + 0.5) * TILE, y: (Math.floor(k / W) + 0.5) * TILE }); k = prev.get(k); }
+      return out.reverse();
+    }
+    const base = g.get(key(x, y));
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (!open(nx, ny)) continue;
+      if (dx && dy && (!open(x + dx, y) || !open(x, y + dy))) continue; // no corner cutting
+      const cost = base + (dx && dy ? 1.42 : 1) * (COST[map.tileAt(nx, ny)] ?? 6);
+      const k = key(nx, ny);
+      if (cost >= (g.get(k) ?? Infinity)) continue;
+      g.set(k, cost);
+      prev.set(k, key(x, y));
+      heap.push([cost + Math.hypot(gx - nx, gy - ny), nx, ny]);
+    }
+  }
+  return null;
+}
+
+class Pursuit {
+  constructor(game) {
+    this.game = game;
+    this.lostAt = null;
+    this.spawnCd = 0;
+    this.nextId = 1;
+    this.arrestT = 0;
+    game.bus.on('police:jailed', () => this.endAll(true));
+    game.bus.on('police:wanted', ({ level }) => { if (level <= 0) this.endAll(false); });
+  }
+
+  get V() {
+    return this.game.vehicles;
+  }
+
+  /** Cruisers chasing you (or searching, or leaving). */
+  cars() {
+    return Object.values(this.V.state.cars).filter((c) => c.chase);
+  }
+
+  active() {
+    return this.cars().filter((c) => c.chase.mode === 'chase' || c.chase.mode === 'search');
+  }
+
+  /** Where the player is, in a map's pixel space (null if they're not in that map's region). */
+  playerIn(mapId) {
+    const g = this.game;
+    const p = g.player;
+    if (p.map === mapId) return { x: p.x, y: p.y };
+    const off = g.mapOffset(mapId, p.map);
+    return off ? { x: p.x + off.x, y: p.y + off.y } : null;
+  }
+
+  wanted() {
+    const pol = this.game.police;
+    return pol && !pol.jailed() ? pol.state.wanted : 0;
+  }
+
+  // -------------------------------------------------------------- per frame
+  update(dt) {
+    const g = this.game;
+    const lvl = this.wanted();
+    const outdoor = g.currentMap().kind !== 'interior';
+    if (lvl > 0 && outdoor && !g.combat.wrath) this.maybeSpawn(dt, lvl);
+    let seen = false;
+    for (const car of this.cars()) {
+      if (this.drive(car, dt, lvl)) seen = true;
+    }
+    if (lvl > 0) {
+      const active = this.active();
+      if (seen) {
+        this.lostAt = null;
+        this.lostAnnounced = false;
+        g.police.state.lastSeen = g.clock.total;
+      } else if (active.length && this.lostAt === null) this.lostAt = g.realTime;
+      if (active.length && this.lostAt !== null && g.realTime - this.lostAt > LOSE_SECONDS && !this.lostAnnounced) {
+        this.lostAnnounced = true;
+        for (const c of active) if (c.chase.mode === 'chase') { c.chase.mode = 'search'; c.chase.until = g.realTime + SEARCH_SECONDS; c.chase.path = null; }
+        this.lostMark = g.police.state.lastSeen; // no more cruisers until someone sees you again
+        g.notify('The cruisers have lost sight of you. Keep your head down.', 'good');
+        g.bus.emit('pursuit:lost', {});
+      }
+      this.checkArrest(dt);
+    }
+  }
+
+  maybeSpawn(dt, lvl) {
+    const g = this.game;
+    this.spawnCd -= dt;
+    if (this.spawnCd > 0) return;
+    // only while the police know where you are
+    if (g.clock.total - g.police.state.lastSeen > RECENT_SIGHTING) return;
+    if (this.lostMark !== null && this.lostMark !== undefined && g.police.state.lastSeen <= this.lostMark) return;
+    const here = this.cars().filter((c) => c.chase.mode !== 'leave' && this.playerIn(c.map));
+    if (here.length >= lvl) return;
+    this.spawnCd = SPAWN_COOLDOWN;
+    const map = g.currentMap();
+    const p = g.player;
+    const actor = this.V.actor();
+    const model = this.V.cfg.models.cruiser;
+    // a road tile out of view, 16–28 tiles away
+    const tries = [];
+    for (let i = 0; i < 80; i++) {
+      const a = g.rng.next() * Math.PI * 2;
+      const r = (16 + g.rng.next() * 12) * TILE;
+      const x = p.x + Math.cos(a) * r;
+      const y = p.y + Math.sin(a) * r;
+      const tx = Math.floor(x / TILE);
+      const ty = Math.floor(y / TILE);
+      if (!map.inBounds(tx, ty) || map.tileAt(tx, ty) !== '=') continue;
+      const cx = (tx + 0.5) * TILE;
+      const cy = (ty + 0.5) * TILE;
+      const angle = Math.atan2(p.y - cy, p.x - cx);
+      if (this.V.blocked(map, cx, cy, angle, model.len, model.wid)) continue;
+      tries.push({ x: cx, y: cy, angle });
+      break;
+    }
+    const s = tries[0];
+    if (!s) return;
+    const id = `chase_${this.nextId++}`;
+    this.V.state.cars[id] = { id, model: 'cruiser', color: model.colors[0], map: map.id, x: s.x, y: s.y, angle: s.angle, owner: 'police', stolen: false, plate: `HPD ${10 + this.nextId}`, chase: { mode: 'chase', path: null, repath: 0, stuck: 0, reverse: 0, lastX: s.x, lastY: s.y, known: { map: map.id, x: p.x, y: p.y } } };
+    if (!this.announced) {
+      this.announced = true;
+      g.notify('🚓 Sirens! A police cruiser is coming for you.', 'warn');
+    }
+    g.bus.emit('pursuit:spawned', { car: id });
+  }
+
+  /** Drive one cruiser. Returns true if it can see you. */
+  drive(car, dt, lvl) {
+    const g = this.game;
+    const V = this.V;
+    const c = car.chase;
+    const map = g.maps.get(car.map);
+    const me = this.playerIn(car.map);
+    const p = g.player;
+    const riding = p.riding !== null && p.riding !== undefined;
+    let sees = false;
+    if (me && c.mode !== 'leave' && g.currentMap().kind !== 'interior') {
+      const d = dist(car.x, car.y, me.x, me.y);
+      sees = d < SIGHT_TILES * TILE && map.lineOfSight(Math.floor(car.x / TILE), Math.floor(car.y / TILE), Math.floor(me.x / TILE), Math.floor(me.y / TILE));
+      if (sees) {
+        c.known = { map: car.map, x: me.x, y: me.y };
+        if (c.mode === 'search') c.mode = 'chase';
+        if ((c.shoutAt || 0) < g.realTime && d < 9 * TILE) { c.shoutAt = g.realTime + 7; this.shout(car, g.rng.pick(STOP)); }
+      }
+    }
+    // you've left its region (it can't follow through the gates): it searches, then gives up
+    if (!me && c.mode === 'chase') { c.mode = 'search'; c.until = g.realTime + SEARCH_SECONDS; }
+    // where to go
+    let target = null;
+    if (c.mode === 'chase') target = me || (c.known?.map === car.map ? c.known : null);
+    else if (c.mode === 'search') {
+      target = c.known?.map === car.map ? c.known : null;
+      if (g.realTime > c.until) { c.mode = 'leave'; c.until = g.realTime + 15; }
+    } else if (c.mode === 'leave') {
+      // drive off; vanish once out of view (or after a while)
+      const off = !me || dist(car.x, car.y, me.x, me.y) > 22 * TILE;
+      if (off || g.realTime > c.until) { delete V.state.cars[car.id]; return false; }
+      target = me ? { x: car.x + (car.x - me.x), y: car.y + (car.y - me.y) } : null;
+    }
+    const input = { x: 0, y: 0, sprint: false };
+    if (target) {
+      const td = dist(car.x, car.y, target.x, target.y);
+      // route: straight at you when close, along an A* path otherwise
+      let aim = target;
+      const close = td < 8 * TILE && sees;
+      if (!close) {
+        c.repath -= dt;
+        if (c.repath <= 0 || !c.path) {
+          c.repath = 0.6;
+          c.path = carPath(map, Math.floor(car.x / TILE), Math.floor(car.y / TILE), clamp(Math.floor(target.x / TILE), 0, map.width - 1), clamp(Math.floor(target.y / TILE), 0, map.height - 1), V.actor());
+        }
+        if (c.path) {
+          while (c.path.length > 1 && dist(c.path[0].x, c.path[0].y, car.x, car.y) < 52) c.path.shift();
+          // look a little further ahead for smoother lines
+          aim = c.path[Math.min(1, c.path.length - 1)] || target;
+        }
+      } else if (lvl >= 3 && p.driving) {
+        // ★★★: ram — aim where your car is going
+        const pc = V.driving();
+        aim = { x: target.x + Math.cos(pc.angle) * pc.speed * 0.35, y: target.y + Math.sin(pc.angle) * pc.speed * 0.35 };
+      }
+      const want = Math.atan2(aim.y - car.y, aim.x - car.x);
+      let diff = ((want - car.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      if (c.reverse > 0) {
+        c.reverse -= dt;
+        input.y = 1; // back up
+        input.x = diff > 0 ? -1 : 1;
+      } else {
+        input.x = clamp(diff * 2.2, -1, 1);
+        // speed: slow into corners; ease up beside you unless ramming
+        let throttle = Math.abs(diff) > 1.1 ? 0.35 : Math.abs(diff) > 0.6 ? 0.7 : 1;
+        if (close && !(lvl >= 3 && p.driving)) throttle = td < 70 ? -0.6 : td < 120 ? 0.25 : 0.8;
+        if (c.mode === 'search' && td < 2 * TILE) throttle = -0.4;
+        if (lvl <= 1 && car.speed > 320) throttle = 0; // ★: no reckless driving
+        input.y = -throttle;
+        if (Math.abs(diff) > 1.2 && car.speed > 180) input.sprint = true;
+      }
+      // brake for pedestrians: the police don't run people over
+      if (this.personAhead(car)) { input.y = Math.max(input.y, 0.8); input.sprint = car.speed > 60; }
+      // stuck against something (trying to go, but not getting anywhere): back up and try again
+      const moved = dist(car.x, car.y, c.lastX, c.lastY);
+      c.lastX = car.x;
+      c.lastY = car.y;
+      const wantsToGo = input.y < -0.2 && !(close && td < 130);
+      if (wantsToGo && c.reverse <= 0 && moved < 40 * dt) {
+        c.stuck += dt;
+        if (c.stuck > 1.1) { c.stuck = 0; c.reverse = 0.9; c.path = null; }
+      } else c.stuck = Math.max(0, c.stuck - dt);
+    } else input.y = car.speed > 0 ? 1 : 0; // nowhere to go: stop
+    const before = car.speed;
+    const hit = V.physics(car, input, dt);
+    if (hit && p.driving && before > 120) {
+      // contact with your car: a ram
+      const pc = V.driving();
+      if (pc && pc.map === car.map && dist(pc.x, pc.y, car.x, car.y) < (V.model(pc).len + V.model(car).len) / 2 + 12) {
+        pc.speed *= 0.45;
+        pc.angle += (g.rng.next() - 0.5) * 0.5;
+        pc.rammed = true;
+        V.crash(pc);
+        pc.rammed = false;
+        g.bus.emit('pursuit:rammed', { car: car.id });
+      }
+    }
+    V.crossings(car, false);
+    return sees;
+  }
+
+  personAhead(car) {
+    const g = this.game;
+    const m = this.V.model(car);
+    const cs = Math.cos(car.angle) * Math.sign(car.speed || 1);
+    const sn = Math.sin(car.angle) * Math.sign(car.speed || 1);
+    for (const n of g.npcs.values()) {
+      if (n.map !== car.map || n.dead || isDown(n, g.clock.total)) continue;
+      const rx = n.x - car.x;
+      const ry = n.y - car.y;
+      const along = rx * cs + ry * sn;
+      const lat = Math.abs(-rx * sn + ry * cs);
+      if (along > 0 && along < m.len / 2 + 30 + Math.abs(car.speed) * 0.3 && lat < m.wid / 2 + 10) return true;
+    }
+    return false;
+  }
+
+  shout(car, text) {
+    const g = this.game;
+    g.bus.emit('pursuit:shout', { car: car.id, text });
+    if (car.map === g.player.map) g.notify(`🚓 "${text}"`, 'warn');
+  }
+
+  /** Caught: pulled over in a car, cuffed on foot, or met at the bus stop. */
+  checkArrest(dt) {
+    const g = this.game;
+    const p = g.player;
+    const riding = p.riding !== null && p.riding !== undefined;
+    const pc = this.V.driving();
+    const near = this.cars().filter((c) => c.chase.mode === 'chase' && c.map === p.map && Math.abs(c.speed) < 90 && dist(c.x, c.y, p.x, p.y) < (pc ? this.V.model(pc).len / 2 + 70 : 150)); // on foot: an officer gets out and walks over
+    let caught = false;
+    if (near.length) {
+      if (pc) caught = (pc.moved ?? Math.abs(pc.speed)) < 40; // stopped — or pinned against something
+      else if (riding) caught = g.transit.dwelling(g.transit.bus(p.riding));
+      else caught = Math.hypot(p.vx || 0, p.vy || 0) < 150 || near.length > 1;
+    }
+    if (!caught) { this.arrestT = Math.max(0, this.arrestT - dt * 2); return; }
+    this.arrestT += dt;
+    const need = pc ? PULL_OVER_SECONDS : CUFF_SECONDS;
+    if (this.arrestT < need) return;
+    this.arrestT = 0;
+    const officer = g.police.activeOfficers().find((o) => o.id !== 'npc_hugh') || null;
+    g.notify(pc ? '🚓 Boxed in. An officer yanks your door open: "Out of the car. Hands where I can see them."' : riding ? '🚓 Two officers step onto the bus and walk straight to your seat.' : '🚓 The cruiser door flies open and an officer tackles you to the pavement.', 'warn');
+    if (riding) p.riding = null;
+    g.bus.emit('pursuit:caught', { how: pc ? 'pulled_over' : riding ? 'bus' : 'on_foot' });
+    g.police.arrest(officer);
+  }
+
+  /** The cuffing / pull-over bar (0–1). */
+  progress() {
+    return clamp(this.arrestT / (this.V.driving() ? PULL_OVER_SECONDS : CUFF_SECONDS), 0, 1);
+  }
+
+  /** The chase is over: cruisers drive away (or vanish, if you're off to jail). */
+  endAll(now) {
+    this.arrestT = 0;
+    this.lostAt = null;
+    this.lostMark = null;
+    this.announced = false;
+    for (const c of this.cars()) {
+      if (now) delete this.V.state.cars[c.id];
+      else { c.chase.mode = 'leave'; c.chase.until = this.game.realTime + 15; }
+    }
+  }
+
+  /** On load: chases don't survive a save. */
+  clear() {
+    for (const c of this.cars()) delete this.V.state.cars[c.id];
+  }
+}
+
+return { Pursuit };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -17055,6 +17492,7 @@ const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
 const { Transit } = __m["src/systems/transit.js"];
+const { Pursuit } = __m["src/systems/pursuit.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -17093,6 +17531,7 @@ class Game {
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
     this.transit = new Transit(this);
+    this.pursuit = new Pursuit(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -17318,6 +17757,7 @@ class Game {
     this.gang.update(dt);
     this.heavy.update(dt);
     this.transit.update(dt);
+    this.pursuit.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -18164,6 +18604,8 @@ class Game {
     this.world.construction = { ...fresh.construction, ...(this.world.construction || {}) };
     this.world.properties = { ...fresh.properties, ...(this.world.properties || {}) };
     this.world.police = { ...fresh.police, ...(this.world.police || {}) };
+    // police chases don't survive a save (v0.18.0)
+    if (this.world.vehicles?.cars) for (const [id, c] of Object.entries(this.world.vehicles.cars)) if (c.chase) delete this.world.vehicles.cars[id];
     this.world.gang = { ...fresh.gang, ...(this.world.gang || {}) };
     this.world.gang.customers = { ...fresh.gang.customers, ...(this.world.gang.customers || {}) };
     this.world.factory = { ...fresh.factory, ...(this.world.factory || {}) };
@@ -18283,6 +18725,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.18.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Hot Pursuit',
+    notes: [
+      'Police chases. While you\'re Wanted and the police know where you are, cruisers come after you — one per star — with sirens wailing and lights flashing. They find their way through the streets to you, and at three stars they ram.',
+      'Get caught stopped (or pinned against a wall) beside a cruiser and you\'re pulled over; on foot, an officer jumps out and cuffs you; on the bus, they board at the next stop.',
+      'Escape by breaking their line of sight — duck into a building, outrun them round corners, or drive through a city gate (cruisers don\'t follow you out of the region). They search where they last saw you, then give up, and no more come until someone spots you again.',
+      'Police drivers never run people over, and a cruiser on a chase can\'t be stolen. Traffic pulls over for them.',
+    ],
+  },
   {
     version: '0.17.0',
     date: '2026-10-13',
@@ -22875,7 +23329,7 @@ class Renderer {
           const m = models[car.model];
           if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
           const driven = car.id === g.player.driving;
-          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: driven && night, time: this.time, siren: false })) });
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase) })) });
         }
       }
       // the bus and the traffic (src/systems/transit.js)
@@ -23228,6 +23682,12 @@ class Renderer {
         }
       }
       if (!this.hidePlayer && !g.player.driving && (g.player.riding === null || g.player.riding === undefined)) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      // police cruisers: flashing red and blue
+      for (const c of g.vehicles?.carsOn(map.id) || []) {
+        if (!c.chase) continue;
+        hole(c.x, c.y - 6, 95, 0.75);
+        warm.push([c.x, c.y - 10, 0, Math.floor(this.time * 6) % 2 ? 'red' : 'blue']);
+      }
       // every vehicle on the road lights its way
       for (const f of g.transit?.on(map.id) || []) {
         const cs = Math.cos(f.angle);
@@ -23253,11 +23713,13 @@ class Renderer {
     this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, this.canvas.width, this.canvas.height);
     // warm glow on top
     this.ctx.globalCompositeOperation = 'lighter';
-    for (const [wx, wy, r] of warm) {
+    for (const [wx, wy, r0, tint] of warm) {
       const s = this.toScreen(wx, wy);
+      const r = tint ? 110 : r0;
+      const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
       const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * z);
-      grad.addColorStop(0, `rgba(255,190,90,${0.28 * g.clock.darkness})`);
-      grad.addColorStop(1, 'rgba(255,190,90,0)');
+      grad.addColorStop(0, `rgba(${rgb},${(tint ? 0.5 : 0.28) * g.clock.darkness})`);
+      grad.addColorStop(1, `rgba(${rgb},0)`);
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
@@ -23350,7 +23812,8 @@ class Renderer {
       ctx.globalAlpha = 1;
     }
     // an officer is cuffing the player
-    const cuff = g.police?.cuffProgress() || 0;
+    const pulled = g.pursuit?.progress() || 0;
+    const cuff = Math.max(g.police?.cuffProgress() || 0, pulled);
     if (cuff > 0) {
       const s = this.toScreen(g.player.x, g.player.y + 16); // under the feet, clear of name tags
       const bw = 56 * dpr;
@@ -23361,7 +23824,7 @@ class Renderer {
       ctx.font = `bold ${10 * dpr}px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#fff';
-      ctx.fillText('BEING CUFFED — run!', s.x, s.y + 18 * dpr);
+      ctx.fillText(pulled && g.player.driving ? 'PULLED OVER — drive!' : 'BEING CUFFED — run!', s.x, s.y + 18 * dpr);
     }
     // red vignette when the player is hurt
     const hurt = g.player.hurtAt ? Math.max(0, 1 - (g.realTime - g.player.hurtAt) / 0.6) : 0;
@@ -24229,6 +24692,8 @@ class MapRenderer {
       out.push({ x: npc.x / TILE, y: npc.y / TILE, color: npc.met ? npc.profile.appearance.accent || '#c0614a' : '#9a9a9a', label: npc.met ? npc.profile.shortName[0] : '?', kind: 'npc' });
     }
     for (const m of g.questMarkers()) if (m.map === map.id) out.push({ x: m.x, y: m.y, color: '#e8b64c', kind: 'quest' });
+    // police cruisers in pursuit, flashing
+    for (const c of g.vehicles?.carsOn(map.id) || []) if (c.chase) out.push({ x: c.x / TILE, y: c.y / TILE, color: Math.floor(performance.now() / 250) % 2 ? '#ff3a3a' : '#3a6aff', label: 'P', kind: 'npc' });
     return out;
   }
 
@@ -27305,6 +27770,15 @@ class UI {
       // the engine note follows your speed (src/audio/audioEngine.js)
       const car = g.vehicles.driving();
       this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
+      // sirens: louder the closer the nearest cruiser (src/systems/pursuit.js)
+      let siren = null;
+      if (!g.paused && !busy) for (const c of g.pursuit.cars()) {
+        const at = g.pursuit.playerIn(c.map);
+        if (!at) continue;
+        const k = 1 - Math.min(1, Math.hypot(c.x - at.x, c.y - at.y) / (30 * TILE));
+        if (k > 0) siren = Math.max(siren ?? 0, k);
+      }
+      this.audio.setSiren(siren);
       this.dialogue.update(dt);
       const target = !g.paused ? g.interactables()[0] : null;
       this.renderer.highlight = target || null;
@@ -27333,6 +27807,9 @@ class UI {
     const pol = g.world.police;
     let whtmlWanted = '';
     if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
+    const cruisers = g.pursuit?.active().filter((c) => c.chase.mode === 'chase').length || 0;
+    if (pol?.wanted > 0 && cruisers) whtmlWanted += ` <span class="tag">🚓 ×${cruisers} in pursuit</span>`;
+    else if (pol?.wanted > 0 && g.pursuit?.active().length) whtmlWanted += ' <span class="tag">🔦 They\'re searching</span>';
     if (pol?.jail) whtmlWanted += `<span class="tag">⛓ In jail · ${g.police.hoursLeft()}h left</span>`;
     else if (g.police?.bribed()) whtmlWanted += `<span class="tag">🤝 Police paid off · until end of Day ${pol.bribedUntilDay}</span>`;
     // calculator highs and comedowns; the Sums of Anarchy's mood

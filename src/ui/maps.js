@@ -54,6 +54,8 @@ export class MapRenderer {
       out.push({ x: npc.x / TILE, y: npc.y / TILE, color: npc.met ? npc.profile.appearance.accent || '#c0614a' : '#9a9a9a', label: npc.met ? npc.profile.shortName[0] : '?', kind: 'npc' });
     }
     for (const m of g.questMarkers()) if (m.map === map.id) out.push({ x: m.x, y: m.y, color: '#e8b64c', kind: 'quest' });
+    // police cruisers in pursuit, flashing
+    for (const c of g.vehicles?.carsOn(map.id) || []) if (c.chase) out.push({ x: c.x / TILE, y: c.y / TILE, color: Math.floor(performance.now() / 250) % 2 ? '#ff3a3a' : '#3a6aff', label: 'P', kind: 'npc' });
     return out;
   }
 

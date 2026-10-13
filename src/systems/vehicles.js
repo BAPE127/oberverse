@@ -97,7 +97,8 @@ export class Vehicles {
 
   /** Does a box (centre, angle, size) overlap a car on this map? */
   carAt(map, x, y, angle, len, wid, ignore) {
-    for (const b of this.game.transit?.boxesOn(map.id) || []) {
+    // traffic pulls over for a police car on a chase
+    if (!ignore?.chase) for (const b of this.game.transit?.boxesOn(map.id) || []) {
       if (dist(b.x, b.y, x, y) < (len + b.len) / 2 + 4 && this.overlapCars({ x, y, angle, len, wid }, b)) return true;
     }
     for (const c of this.carsOn(map.id)) {
@@ -134,6 +135,7 @@ export class Vehicles {
     let best = null;
     let bd = Infinity;
     for (const c of this.carsOn(p.map)) {
+      if (c.chase) continue; // a police car in pursuit has an officer in it
       const m = this.model(c);
       // distance to the car's body, not its centre
       const cs = Math.cos(c.angle);
@@ -278,8 +280,37 @@ export class Vehicles {
     const car = this.driving();
     if (!car) return;
     const m = this.model(car);
+    this.physics(car, input, dt);
+    this.hitPeople(car, m, dt);
+    p.x = car.x;
+    p.y = car.y;
+    p.vx = Math.cos(car.angle) * car.speed;
+    p.vy = Math.sin(car.angle) * car.speed;
+    const c = Math.cos(car.angle);
+    const s = Math.sin(car.angle);
+    p.facing = Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : s > 0 ? 'down' : 'up';
+    p.moving = Math.abs(car.speed) > 5;
+    this.crossings(car, true);
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    if (tx !== p.lastTx || ty !== p.lastTy) {
+      p.lastTx = tx;
+      p.lastTy = ty;
+      g.updateDiscovery();
+    }
+    this.watchForPolice(car);
+  }
+
+  /**
+   * One frame of a car's physics from driver input { x: steer, y: −throttle, sprint: handbrake }.
+   * Shared by you and by police drivers (src/systems/pursuit.js). Returns true if it hit something.
+   */
+  physics(car, input, dt) {
+    const g = this.game;
+    const m = this.model(car);
     const D = this.cfg.driving;
-    let map = g.maps.get(car.map);
+    const map = g.maps.get(car.map);
+    let crashed = false;
     const throttle = -(input.y || 0);
     const steer = input.x || 0;
     car.speed ||= 0;
@@ -298,53 +329,51 @@ export class Vehicles {
     car.speed = clamp(car.speed, -m.top * D.reverseShare, m.top);
     // steering bites harder at speed (up to a point); reversing turns the other way
     const bite = clamp(car.speed / 140, -1, 1);
-    car.angle += steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    const wedged = this.blocked(map, car.x, car.y, car.angle, m.len, m.wid, car); // already overlapping something
+    const turned = car.angle + steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    // turning swings the car's ends: don't rotate into a wall
+    if (wedged || !this.blocked(map, car.x, car.y, turned, m.len, m.wid, car)) car.angle = turned;
     // move in small steps so nothing tunnels through a wall
+    const x0 = car.x;
+    const y0 = car.y;
     const total = car.speed * dt;
     const steps = Math.max(1, Math.ceil(Math.abs(total) / 6));
     for (let i = 0; i < steps; i++) {
       const nx = car.x + (Math.cos(car.angle) * total) / steps;
       const ny = car.y + (Math.sin(car.angle) * total) / steps;
-      if (!this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
+      // free to move — or wedged, in which case any move is allowed so it can work itself loose
+      if (wedged || !this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
       // slide along the obstacle if we can
       if (!this.blocked(map, nx, car.y, car.angle, m.len, m.wid, car)) { car.x = nx; car.speed *= 0.92; continue; }
       if (!this.blocked(map, car.x, ny, car.angle, m.len, m.wid, car)) { car.y = ny; car.speed *= 0.92; continue; }
+      crashed = true;
       this.crash(car);
       break;
     }
-    this.hitPeople(car, m, dt);
-    p.x = car.x;
-    p.y = car.y;
-    p.vx = Math.cos(car.angle) * car.speed;
-    p.vy = Math.sin(car.angle) * car.speed;
-    const c = Math.cos(car.angle);
-    const s = Math.sin(car.angle);
-    p.facing = Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : s > 0 ? 'down' : 'up';
-    p.moving = Math.abs(car.speed) > 5;
-    // seams (by the car's centre) and region gates (by its nose, which reaches the edge first)
+    car.moved = dt > 0 ? Math.hypot(car.x - x0, car.y - y0) / dt : 0; // actual speed over the ground
+    return crashed;
+  }
+
+  /** Seams (by the car's centre) and region gates (by its nose, which reaches the edge first). Police drivers don't take gates. */
+  crossings(car, isPlayer) {
+    const map = this.game.maps.get(car.map);
+    const m = this.model(car);
     const door = map.doorAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
     const dirn = Math.sign(car.speed) || 1;
     const nose = map.doorAt(clamp(Math.floor((car.x + Math.cos(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.width - 1), clamp(Math.floor((car.y + Math.sin(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.height - 1));
-    if (door?.seamless) this.crossSeam(car, door);
-    else if ((nose || door)?.gateway && Math.abs(car.speed) > 5) this.crossGate(car, (nose || door));
-    map = g.maps.get(car.map);
-    const tx = Math.floor(p.x / TILE);
-    const ty = Math.floor(p.y / TILE);
-    if (tx !== p.lastTx || ty !== p.lastTy) {
-      p.lastTx = tx;
-      p.lastTy = ty;
-      g.updateDiscovery();
-    }
-    this.watchForPolice(car);
+    if (door?.seamless) this.crossSeam(car, door, isPlayer);
+    else if (isPlayer && (nose || door)?.gateway && Math.abs(car.speed) > 5) this.crossGate(car, (nose || door));
   }
 
   crash(car) {
     const g = this.game;
     const hard = Math.abs(car.speed) > 160;
+    car.impact = Math.abs(car.speed);
     if (hard && (car.crashAt || 0) < g.realTime - 0.6) {
       car.crashAt = g.realTime;
-      g.bus.emit('sfx', { id: 'sfx_crash' });
-      if (g.heavy) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
+      const near = car.map === g.player.map && dist(car.x, car.y, g.player.x, g.player.y) < 500;
+      if (near) g.bus.emit('sfx', { id: 'sfx_crash' });
+      if (g.heavy && (car.id === g.player.driving || car.rammed)) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
     }
     car.speed = -car.speed * 0.25;
   }
@@ -384,7 +413,7 @@ export class Vehicles {
     }
   }
 
-  crossSeam(car, door) {
+  crossSeam(car, door, isPlayer = true) {
     const g = this.game;
     const off = g.mapOffset(car.map, door.to.map);
     if (!off) return;
@@ -398,7 +427,7 @@ export class Vehicles {
     car.map = door.to.map;
     car.x = nx;
     car.y = ny;
-    g.changeMap(car.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
+    if (isPlayer) g.changeMap(car.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
   }
 
   /** Drive through a gate between regions: arrive on the other side, facing away from it. */
@@ -447,6 +476,7 @@ export class Vehicles {
     const g = this.game;
     const car = this.driving();
     if (car) g.player.driving = null;
+    g.player.riding = null;
     // stolen cars are impounded and go back to their owners
     for (const c of this.ownedCars()) {
       if (!c.stolen || !c.reported) continue;

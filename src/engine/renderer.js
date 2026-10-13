@@ -221,7 +221,7 @@ export class Renderer {
           const m = models[car.model];
           if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
           const driven = car.id === g.player.driving;
-          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: driven && night, time: this.time, siren: false })) });
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase) })) });
         }
       }
       // the bus and the traffic (src/systems/transit.js)
@@ -574,6 +574,12 @@ export class Renderer {
         }
       }
       if (!this.hidePlayer && !g.player.driving && (g.player.riding === null || g.player.riding === undefined)) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      // police cruisers: flashing red and blue
+      for (const c of g.vehicles?.carsOn(map.id) || []) {
+        if (!c.chase) continue;
+        hole(c.x, c.y - 6, 95, 0.75);
+        warm.push([c.x, c.y - 10, 0, Math.floor(this.time * 6) % 2 ? 'red' : 'blue']);
+      }
       // every vehicle on the road lights its way
       for (const f of g.transit?.on(map.id) || []) {
         const cs = Math.cos(f.angle);
@@ -599,11 +605,13 @@ export class Renderer {
     this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, this.canvas.width, this.canvas.height);
     // warm glow on top
     this.ctx.globalCompositeOperation = 'lighter';
-    for (const [wx, wy, r] of warm) {
+    for (const [wx, wy, r0, tint] of warm) {
       const s = this.toScreen(wx, wy);
+      const r = tint ? 110 : r0;
+      const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
       const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * z);
-      grad.addColorStop(0, `rgba(255,190,90,${0.28 * g.clock.darkness})`);
-      grad.addColorStop(1, 'rgba(255,190,90,0)');
+      grad.addColorStop(0, `rgba(${rgb},${(tint ? 0.5 : 0.28) * g.clock.darkness})`);
+      grad.addColorStop(1, `rgba(${rgb},0)`);
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
@@ -696,7 +704,8 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     // an officer is cuffing the player
-    const cuff = g.police?.cuffProgress() || 0;
+    const pulled = g.pursuit?.progress() || 0;
+    const cuff = Math.max(g.police?.cuffProgress() || 0, pulled);
     if (cuff > 0) {
       const s = this.toScreen(g.player.x, g.player.y + 16); // under the feet, clear of name tags
       const bw = 56 * dpr;
@@ -707,7 +716,7 @@ export class Renderer {
       ctx.font = `bold ${10 * dpr}px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#fff';
-      ctx.fillText('BEING CUFFED — run!', s.x, s.y + 18 * dpr);
+      ctx.fillText(pulled && g.player.driving ? 'PULLED OVER — drive!' : 'BEING CUFFED — run!', s.x, s.y + 18 * dpr);
     }
     // red vignette when the player is hurt
     const hurt = g.player.hurtAt ? Math.max(0, 1 - (g.realTime - g.player.hurtAt) / 0.6) : 0;

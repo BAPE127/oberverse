@@ -161,6 +161,7 @@ export const AUDIO_REGISTRY = [
   sfx('sfx_car_start', 'getting into a car (the starter cranks and the engine catches)'),
   sfx('sfx_crash', 'a car hitting a wall, another car or a person'),
   sfx('sfx_horn', 'the car horn (H while driving)'),
+  { id: 'loop_siren', category: 'sfx', method: 'procedural: AudioEngine.setSiren (a triangle wail swept by a square LFO; louder as cruisers close in)', trigger: 'police cruisers chasing you', status: 'implemented', source: 'Original synthesis' },
   { id: 'loop_engine', category: 'sfx', method: 'procedural: AudioEngine.setEngine (two detuned saws through a low-pass, pitch and level follow speed)', trigger: 'while you drive', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_crate', 'each crate of guns in Lucas Eastrise\'s Wrath; the fifth is the missile'),
   sfx('sfx_digit', 'each giant digit in Arthur Anderson\'s Wrath; the fifth is the giant calculator'),

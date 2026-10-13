@@ -1,4 +1,4 @@
-# Cars and transport (v0.16.0, v0.17.0)
+# Cars, transport and police chases (v0.16.0–v0.18.0)
 
 Owner's answers (transportation interview): drive cars yourself; ride the bus for real (v0.17.0); new original dealer NPCs; extras: hitting people, car theft, NPC traffic (v0.17.0). Not chosen: fuel and repairs. Bus fare: 2 obols.
 
@@ -55,3 +55,14 @@ Three buses on one loop (`src/content/transit.js`, world tiles): Mill Road Yards
 ## Traffic (v0.17.0)
 
 Eleven cars on four one-way loops (left-hand traffic): round Halvermouth's Financial District, Market Street and Iron Row blocks, and back and forth along the coast road. Near you they stop for anything in their lane (they honk at you); elsewhere they keep moving once a minute. Your car collides with them. E beside a stopped one carjacks it (car theft); it rejoins the traffic two hours later.
+
+## Police chases (v0.18.0)
+
+`src/systems/pursuit.js`. While you're Wanted, outdoors, and the police have seen you in the last hour (game time):
+
+| | |
+| --- | --- |
+| Cruisers | One per star, spawned out of view on a road 16–28 tiles away. Real cars on the shared physics; A* along roads, straight at you within 8 tiles. ★ drives carefully; ★★★ rams. |
+| Caught | In a car: stopped or pinned beside a cruiser for 2 s (pulled over). On foot: a cruiser within 150 px for 1.6 s (cuffed). On the bus: at the next stop. |
+| Escape | Out of every cruiser's sight for 12 s → they search your last position for 20 s → they leave. No new cruisers until someone sees you again. They never follow through region gates. |
+| Rules | Police drivers brake for pedestrians and never hurt them; traffic pulls over for them; a chasing cruiser can't be stolen; chases aren't saved. |
