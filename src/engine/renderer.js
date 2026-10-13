@@ -2,7 +2,7 @@
 // highlight and day/night lighting. Reads game state; never mutates it.
 import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
-import { drawCar } from './drawVehicles.js';
+import { drawCar, drawBus } from './drawVehicles.js';
 import { drawCharacter, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
@@ -224,14 +224,26 @@ export class Renderer {
           items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: driven && night, time: this.time, siren: false })) });
         }
       }
+      // the bus and the traffic (src/systems/transit.js)
+      if (g.transit) {
+        const models = g.content.vehicles.models;
+        for (const f of g.transit.on(lm.id)) {
+          if (!inView(f.x - f.len / 2, f.y - f.len / 2, f.len, f.len)) continue;
+          const sortY = f.y + L.y + Math.abs(Math.sin(f.angle)) * f.len * 0.4 + 4;
+          const braking = f.speed < f.max * 0.3;
+          if (f.kind === 'bus') items.push({ y: sortY, draw: at(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking })) });
+          else items.push({ y: sortY, draw: at(() => drawCar(ctx, models[f.model], f.x, f.y, f.angle, { color: f.color, id: f.id, lit: night, braking })) });
+        }
+      }
     }
     const held = g.combat.equipped().weapon.held;
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
-    if (!this.hidePlayer && !g.player.driving && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
+    const aboard = g.player.driving || (g.player.riding !== null && g.player.riding !== undefined);
+    if (!this.hidePlayer && !aboard && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
-    if (!this.hidePlayer && !g.player.driving && this.playerOccluded(map)) {
+    if (!this.hidePlayer && !aboard && this.playerOccluded(map)) {
       ctx.globalAlpha = 0.38;
       this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
@@ -561,7 +573,14 @@ export class Renderer {
           this.beam = { x: lx, y: ly };
         }
       }
-      if (!this.hidePlayer && !g.player.driving) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      if (!this.hidePlayer && !g.player.driving && (g.player.riding === null || g.player.riding === undefined)) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      // every vehicle on the road lights its way
+      for (const f of g.transit?.on(map.id) || []) {
+        const cs = Math.cos(f.angle);
+        const sn = Math.sin(f.angle);
+        hole(f.x + cs * (f.len / 2 + 40), f.y + sn * (f.len / 2 + 40) - 4, 60, 0.6);
+        if (f.kind === 'bus') hole(f.x, f.y - 8, 80, 0.5); // a lit bus interior
+      }
       // headlights: a pool of light ahead of the car you're driving
       const car = g.vehicles?.driving();
       if (car) {

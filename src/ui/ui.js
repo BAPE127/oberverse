@@ -654,14 +654,17 @@ export class UI {
     const ammo = g.combat.ammoStatus();
     const ammoHtml = ammo ? `<span class="ammo${ammo.loaded ? '' : ' empty'}">${ammo.reloading ? 'reloading…' : `${ammo.loaded}/${ammo.mag}`} · ${ammo.reserve}</span>` : '';
     const car = g.vehicles.driving();
-    const whtml = car
+    const riding = p.riding !== null && p.riding !== undefined ? g.transit.bus(p.riding) : null;
+    const whtml = riding
+      ? `<span>🚌 ${escapeHtml(g.content.transit.bus.name)} ${escapeHtml(g.transit.heading(riding))}</span><span class="ammo">${g.transit.dwelling(riding) ? `at ${escapeHtml(g.transit.stopFor(riding).name)}` : `next: ${escapeHtml(g.transit.stopFor(riding, true).name)}`}</span>`
+      : car
       ? `<span>🚗 ${escapeHtml(g.vehicles.model(car).name)}${car.stolen ? ' <span class="tag bad">stolen</span>' : ''}</span><span class="ammo">${Math.round(Math.abs(car.speed || 0) * 0.105)} mph</span>`
       : `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
     if (this.el.weapon.innerHTML !== whtml) this.el.weapon.innerHTML = whtml;
     if (p.hurtAt && g.realTime - p.hurtAt < 0.05) { this.el.hudBl.classList.remove('hurt'); void this.el.hudBl.offsetWidth; this.el.hudBl.classList.add('hurt'); }
     if (this.el.keys) {
       if (!this.walkKeys) this.walkKeys = this.el.keys.textContent;
-      set(this.el.keys, car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
+      set(this.el.keys, riding ? 'Riding the bus · E get off when it stops · J tablet · M map' : car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
     }
     const hw = g.vehicles.hotwire;
     if (hw) {

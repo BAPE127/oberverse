@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.17.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Route 1',
+    notes: [
+      'The No. 1 bus is running: three green single-deckers on one loop from Mill Road Yards through the Sumps, Civic Plaza and the East End, out along the coast road through Westbrook Row and Gullwing Road to Ober\'s Oil Refinery — and back. Two obols a ride.',
+      'Ride it for real: board one waiting at a stop, watch the world go by as it drives (through the city gates and all), and get off at any stop. The signs show when the next bus is due, and you can wait for it. Buses and stops are on your map.',
+      'Traffic: cars circle Halvermouth\'s blocks and run the coast road, keeping to the left. They stop for people in the road (and honk at you), and you can\'t drive through them. Catch one stopped and you can carjack it — a crime, naturally.',
+      'The avenue cars that were parked in the traffic lanes have been moved on.',
+    ],
+  },
+  {
     version: '0.16.0',
     date: '2026-10-13',
     channel: 'development',

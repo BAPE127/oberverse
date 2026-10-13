@@ -46,6 +46,7 @@ import dlgLucas from './dialogue/lucas.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 import { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } from './vehicles.js';
+import { BUS, TRAFFIC, addBusStops } from './transit.js';
 import dealerChars from './characters/dealers.js';
 import dlgDealers from './dialogue/dealers.js';
 
@@ -56,6 +57,7 @@ const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) =>
 const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 const STREET_CARS = carPropsToVehicles(MAPS);
+addBusStops(MAPS);
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
 export const BASE_CONTENT = {
@@ -84,6 +86,7 @@ export const BASE_CONTENT = {
   unlocks: UNLOCKS,
   arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
+  transit: { bus: BUS, traffic: TRAFFIC },
   vehicles: { models: CAR_MODELS, dealers: DEALERS, parked: [...PARKED_CARS, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   plots: {},

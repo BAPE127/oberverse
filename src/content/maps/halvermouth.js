@@ -142,8 +142,7 @@ for (const x of [38, 62, 86]) for (const y of [12, 36, 60]) {
 // hydrants and parked cars along the avenues
 for (const [x, y] of [[20, 14], [44, 38], [68, 11], [92, 14], [58, 35], [83, 38], [10, 11], [104, 38]]) P('hydrant', x, y);
 const carColors = ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a'];
-for (let i = 0, x = 18; x < 108; x += 7, i++) if (!STREETS.some((s) => x >= s - 2 && x <= s + 2)) P('car', x, 12, { color: carColors[i % carColors.length], solid: false });
-for (let i = 0, x = 44; x < 104; x += 9, i++) if (!STREETS.some((s) => x >= s - 2 && x <= s + 2)) P('car', x, 37, { color: carColors[(i + 3) % carColors.length], solid: false });
+// (v0.17.0: the avenues' parked cars moved off the lanes — the bus and traffic use them)
 // Harbourline car park
 for (let i = 0; i < 4; i++) P('car', 1 + i * 3, 26, { w: 1, h: 2, color: carColors[(i + 1) % carColors.length] });
 for (let i = 0; i < 4; i++) P('car', 1 + i * 3, 31, { w: 1, h: 2, color: carColors[(i + 4) % carColors.length] });

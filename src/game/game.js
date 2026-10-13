@@ -29,6 +29,7 @@ import { Market, freshMarket } from '../systems/market.js';
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
+import { Transit } from '../systems/transit.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -66,6 +67,7 @@ export class Game {
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
+    this.transit = new Transit(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -280,7 +282,8 @@ export class Game {
     }
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
-    if (this.player.driving) this.vehicles.update(dt, input);
+    const riding = this.player.riding !== null && this.player.riding !== undefined;
+    if (riding) { /* the bus carries you (Transit.update) */ } else if (this.player.driving) this.vehicles.update(dt, input);
     else {
       if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
       this.updatePlayer(dt, input);
@@ -289,6 +292,7 @@ export class Game {
     this.police.update(dt);
     this.gang.update(dt);
     this.heavy.update(dt);
+    this.transit.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -310,6 +314,7 @@ export class Game {
     this.factory.minuteTick();
     this.arms.minuteTick();
     this.market.minuteTick();
+    this.transit.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -652,6 +657,14 @@ export class Game {
     const map = this.currentMap();
     const out = [];
     if (p.driving) return [{ kind: 'car_exit', id: p.driving, label: 'Get out of the car', score: -999 }];
+    if (p.riding !== null && p.riding !== undefined) {
+      const bus = this.transit.bus(p.riding);
+      return bus && this.transit.dwelling(bus) ? [{ kind: 'bus_off', id: p.riding, label: `Get off at ${this.transit.stopFor(bus).name}`, score: -999 }] : [];
+    }
+    const bus = this.transit.boardable();
+    if (bus) out.push({ kind: 'bus_on', id: bus.idx, label: `Board the ${this.content.transit.bus.name} bus ${this.transit.heading(bus)} (${this.content.transit.bus.fare} obols)`, score: -30 });
+    const jack = this.transit.carjackable();
+    if (jack) out.push({ kind: 'carjack', id: jack.id, label: `Carjack the ${this.content.vehicles.models[jack.model].name}`, score: dist(p.x, p.y, jack.x, jack.y) - 10 });
     const car = this.vehicles.nearest();
     if (car) out.push({ kind: 'car', id: car.id, label: this.vehicles.label(car), score: dist(p.x, p.y, car.x, car.y) - 20 });
     const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
@@ -710,6 +723,7 @@ export class Game {
       case 'factory': return { buy: this.factory.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', workbench: 'Use the workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
+      case 'busstop': return 'Check the bus times';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
@@ -723,6 +737,9 @@ export class Game {
   interact(target) {
     if (!target) return { type: 'none' };
     if (target.kind === 'car') return this.vehicles.inspect(target.id);
+    if (target.kind === 'bus_on') { const r = this.transit.board(target.id); return { type: 'message', text: r.text }; }
+    if (target.kind === 'bus_off') { const r = this.transit.alight(); return r.ok ? { type: 'none' } : { type: 'message', text: r.text }; }
+    if (target.kind === 'carjack') { this.transit.carjack(target.id); return { type: 'none' }; }
     if (target.kind === 'car_exit') {
       const r = this.vehicles.exit();
       return r.ok ? { type: 'none' } : { type: 'message', text: r.text || 'You can\'t get out here.' };
@@ -799,6 +816,8 @@ export class Game {
         return this.factory.interact(prop);
       case 'arms':
         return this.arms.interact(prop);
+      case 'busstop':
+        return this.transit.stopInfo(act.stop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':

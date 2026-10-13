@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.17.0 (2026-10-13)
+
+- `npm run check` — **230/230 tests passed** (7 new in `transit.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real keyboard and mouse): at the Gullwing Road stop, E showed the bus times; "Wait for the bus" brought the No. 1 in three minutes later; E boarded it (12 → 10 obols); the HUD showed the direction and next stop; the bus drove west through Westbrook, through the gate into Halvermouth and stopped at the East End by the Grand Hotel, with city traffic on the streets; the world map showed stops and buses. Fixed from the runs: buses crept and lurched when something stood in the road (a steady look-ahead plus braking distance, and a short hold). No page errors.
+
 ## Verification record — v0.16.0 (2026-10-13)
 
 - `npm run check` — **223/223 tests passed** (12 new in `vehicles.test.mjs`); validator 0 errors.

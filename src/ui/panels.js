@@ -593,7 +593,7 @@ export function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles, transit: ui.game.transit }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);

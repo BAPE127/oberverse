@@ -5,7 +5,7 @@ import { drawFactoryProp } from './drawFactory.js';
 import { hash2 } from '../core/rng.js';
 import { TILE_TYPES } from '../world/tiles.js';
 import { shade, rrect } from './drawCharacter.js';
-import { drawDisplayCar } from './drawVehicles.js';
+import { drawDisplayCar, drawBusStop } from './drawVehicles.js';
 import { CAR_MODELS } from '../content/vehicles.js';
 
 const T = TILE;
@@ -1031,6 +1031,9 @@ export function drawProp(ctx, p, opts) {
       }
       break;
     }
+    case 'busstop':
+      drawBusStop(ctx, x, y);
+      break;
     case 'car_display': {
       const model = CAR_MODELS[p.model];
       if (model) drawDisplayCar(ctx, model, x, y, w, h, { color: p.color, id: p.id });

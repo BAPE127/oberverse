@@ -1405,8 +1405,7 @@ for (const x of [38, 62, 86]) for (const y of [12, 36, 60]) {
 // hydrants and parked cars along the avenues
 for (const [x, y] of [[20, 14], [44, 38], [68, 11], [92, 14], [58, 35], [83, 38], [10, 11], [104, 38]]) P('hydrant', x, y);
 const carColors = ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a'];
-for (let i = 0, x = 18; x < 108; x += 7, i++) if (!STREETS.some((s) => x >= s - 2 && x <= s + 2)) P('car', x, 12, { color: carColors[i % carColors.length], solid: false });
-for (let i = 0, x = 44; x < 104; x += 9, i++) if (!STREETS.some((s) => x >= s - 2 && x <= s + 2)) P('car', x, 37, { color: carColors[(i + 3) % carColors.length], solid: false });
+// (v0.17.0: the avenues' parked cars moved off the lanes — the bus and traffic use them)
 // Harbourline car park
 for (let i = 0; i < 4; i++) P('car', 1 + i * 3, 26, { w: 1, h: 2, color: carColors[(i + 1) % carColors.length] });
 for (let i = 0; i < 4; i++) P('car', 1 + i * 3, 31, { w: 1, h: 2, color: carColors[(i + 4) % carColors.length] });
@@ -2194,6 +2193,7 @@ const PROP_TYPES = {
   car: { solid: true, label: 'Car', defaults: { w: 2, examine: 'A parked car. Nobody in Lanternside owns one of these.' } },
   flagpole: { solid: true, label: 'Flagpole', defaults: {} },
   car_display: { solid: true, label: 'Display car', defaults: { w: 3, h: 2 } },
+  busstop: { solid: true, label: 'Bus stop', defaults: {} },
   statue: { solid: true, label: 'Statue', defaults: { w: 2, h: 2 } },
   trash: { solid: false, label: 'Rubbish', defaults: { examine: 'Bin bags, newspapers and something that used to be a sofa.' } },
   barrelfire: { solid: true, label: 'Burning barrel', defaults: { examine: 'An oil drum with a fire in it. People gather here on cold nights. The drum says OBER\'S OIL.' } },
@@ -7792,6 +7792,67 @@ const DRIVING = {
 return { CAR_MODELS, DEALERS, PARKED_CARS, carPropsToVehicles, DRIVING };
 })();
 
+// ---- src/content/transit.js
+__m["src/content/transit.js"] = (function () {
+// Transit (v0.17.0 "Route 1"): the bus and the traffic. All paths are in
+// WORLD tiles (src/world/layout.js: Halvermouth at 0,0; the coast road runs
+// along world rows 36–37 from Halvermouth to the Ober Fields; Mill Road along
+// rows 60–61 to the Yards). Traffic keeps to the LEFT: eastbound on the
+// northern lane (row + 0.5), westbound on the southern lane (row + 1.5);
+// southbound on a street's eastern lane, northbound on its western lane.
+// Owner's answers: ride the bus for real; the fare was my call (2 obols);
+// NPC traffic on the roads.
+
+/** A rectangular one-way loop around city blocks: streets x1, x2 and avenues y1, y2 (the left column/row of each 2-wide road). */
+const ring = (x1, x2, y1, y2) => [[x1 + 0.5, y1 + 0.5], [x2 + 1.5, y1 + 0.5], [x2 + 1.5, y2 + 1.5], [x1 + 0.5, y2 + 1.5]];
+
+const BUS = {
+  name: 'No. 1',
+  fare: 2,
+  buses: 3, // spaced evenly round the loop
+  speed: 230, // px per second (= per game minute)
+  dwell: 8, // game minutes at each stop
+  len: 150,
+  wid: 46,
+  color: '#2f6b4f',
+  // one closed loop: the Yards → Mill Road → up Station Street (street 38) → east along the
+  // coast road through Westbrook and Lanternside to the Ober Fields, and back
+  route: [[-70, 60.5], [38.5, 60.5], [38.5, 36.5], [277, 36.5], [278.4, 37], [277, 37.5], [39.5, 37.5], [39.5, 61.5], [-70, 61.5], [-71.4, 61]],
+  // stops: a sign on the pavement (map + tile); the bus stops beside it in both directions.
+  // road: which road it's on (world row of its northern lane's tile).
+  stops: [
+    { id: 'stop_yards', name: 'Mill Road Yards', road: 60, x: -64, sign: { map: 'yards', x: 10, y: 17 } },
+    { id: 'stop_sumps', name: 'Mill Road (the Sumps)', road: 60, x: 24, sign: { map: 'halvermouth', x: 24, y: 59 } },
+    { id: 'stop_civic', name: 'Civic Plaza', road: 36, x: 52, sign: { map: 'halvermouth', x: 52, y: 35 } },
+    { id: 'stop_eastend', name: 'The East End', road: 36, x: 96, sign: { map: 'halvermouth', x: 96, y: 35 } },
+    { id: 'stop_westbrook', name: 'Westbrook Row', road: 36, x: 148, sign: { map: 'westbrook', x: 26, y: 11 } },
+    { id: 'stop_lanternside', name: 'Gullwing Road', road: 36, x: 201, sign: { map: 'lanternside', x: 36, y: 11 } },
+    { id: 'stop_ober', name: 'Ober\'s Oil Refinery', road: 36, x: 268, sign: { map: 'ober_fields', x: 40, y: 11 } },
+  ],
+};
+
+/** Put a bus-stop sign on each stop's map (props, at load). Mutates `maps`. */
+function addBusStops(maps) {
+  for (const s of BUS.stops) {
+    const m = maps[s.sign.map];
+    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${BUS.name}.` }];
+  }
+}
+
+const TRAFFIC = {
+  models: ['pipit', 'dray', 'mule', 'pipit', 'aurelia', 'dray', 'tempest'],
+  colors: ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a', '#6f7f94', '#a35a48'],
+  loops: [
+    { id: 'city_ring', cars: 4, speed: [170, 220], path: ring(14, 86, 12, 36) }, // round the Financial District, Bank Row and Precinct Row
+    { id: 'market_ring', cars: 2, speed: [150, 190], path: ring(38, 62, 36, 60) }, // round Market Street
+    { id: 'iron_ring', cars: 2, speed: [150, 200], path: ring(62, 86, 36, 60) }, // round Iron Row
+    { id: 'coast_road', cars: 3, speed: [190, 240], path: [[124, 36.5], [277, 36.5], [278.4, 37], [277, 37.5], [124, 37.5], [122.6, 37]] },
+  ],
+};
+
+return { BUS, addBusStops, TRAFFIC };
+})();
+
 // ---- src/content/characters/dealers.js
 __m["src/content/characters/dealers.js"] = (function () {
 // The car dealers (v0.16.0 "On the Road"). Original characters written for the
@@ -8015,6 +8076,7 @@ const dlgLucas = __m["src/content/dialogue/lucas.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
 const { withPlots } = __m["src/world/plots.js"];
 const { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } = __m["src/content/vehicles.js"];
+const { BUS, TRAFFIC, addBusStops } = __m["src/content/transit.js"];
 const dealerChars = __m["src/content/characters/dealers.js"].default;
 const dlgDealers = __m["src/content/dialogue/dealers.js"].default;
 
@@ -8025,6 +8087,7 @@ const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) =>
 const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 const STREET_CARS = carPropsToVehicles(MAPS);
+addBusStops(MAPS);
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
 const BASE_CONTENT = {
@@ -8053,6 +8116,7 @@ const BASE_CONTENT = {
   unlocks: UNLOCKS,
   arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
+  transit: { bus: BUS, traffic: TRAFFIC },
   vehicles: { models: CAR_MODELS, dealers: DEALERS, parked: [...PARKED_CARS, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   plots: {},
@@ -8072,7 +8136,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.16.0';
+const GAME_VERSION = '0.17.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -12052,7 +12116,7 @@ class Combat {
   attack() {
     const g = this.game;
     if (this.cooldown > 0 || this.reloading || g.paused || this.wrath) return { ok: false, reason: 'busy' };
-    if (g.player.driving) return { ok: false, reason: 'driving' };
+    if (g.player.driving || (g.player.riding !== null && g.player.riding !== undefined)) return { ok: false, reason: 'driving' };
     const w = this.equipped();
     const p = g.player;
     const dir = this.aimVector(w);
@@ -15568,6 +15632,9 @@ class Vehicles {
 
   /** Does a box (centre, angle, size) overlap a car on this map? */
   carAt(map, x, y, angle, len, wid, ignore) {
+    for (const b of this.game.transit?.boxesOn(map.id) || []) {
+      if (dist(b.x, b.y, x, y) < (len + b.len) / 2 + 4 && this.overlapCars({ x, y, angle, len, wid }, b)) return true;
+    }
     for (const c of this.carsOn(map.id)) {
       if (c === ignore) continue;
       const m = this.model(c);
@@ -16022,6 +16089,553 @@ class Vehicles {
 return { freshVehicles, Vehicles };
 })();
 
+// ---- src/world/layout.js
+__m["src/world/layout.js"] = (function () {
+// The world layout (v0.15.1; shared since v0.17.0): every outdoor map placed
+// in one world space, in tiles. Seamless regions keep their offsets; regions
+// joined by gateways sit side by side with ROAD_GAP tiles of open road between
+// the gates. Used by the world map and by everything that travels between
+// regions (the bus and traffic, src/systems/transit.js). Cached on the game.
+const { TILE } = __m["src/core/util.js"];
+
+const ROAD_GAP = 10;
+
+/**
+ * Every outdoor map placed in one world space (tiles). Seamless regions keep
+ * their offsets; regions joined by gateways are set side by side with a road
+ * between the gates. Cached: the layout never changes in a session.
+ */
+function worldLayout(g) {
+  if (g.layoutCache) return g.layoutCache;
+  const regions = Object.entries(g.content.regions || {});
+  const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
+  const pos = {};
+  const roads = [];
+  const placeRegion = (rid, anchorMap, ax, ay) => {
+    const r = g.content.regions[rid];
+    const o = r.maps[anchorMap];
+    for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
+  };
+  const start = regionOf(g.content.startingMap) || regions[0];
+  placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
+  const queue = Object.keys(pos);
+  while (queue.length) {
+    const id = queue.shift();
+    const M = g.maps.get(id);
+    for (const d of M.doors) {
+      if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
+      const T = g.maps.get(d.to.map);
+      const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
+      const west = d.x === 0;
+      const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+      const ty = pos[id].y + d.y - back.y;
+      const before = new Set(Object.keys(pos));
+      const rr = regionOf(T.id);
+      if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+      roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
+      for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
+    }
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [id, p] of Object.entries(pos)) {
+    const m = g.maps.get(id);
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
+  }
+  const regionBoxes = regions.map(([rid, r]) => {
+    const ids = Object.keys(r.maps).filter((id) => pos[id]);
+    if (!ids.length) return null;
+    const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
+    const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
+    return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }).filter(Boolean);
+  g.layoutCache = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
+  return g.layoutCache;
+}
+
+/** World tiles → { map, x, y } in that map's pixels (null between regions). */
+function worldToMap(g, wx, wy) {
+  const L = worldLayout(g);
+  for (const [id, o] of Object.entries(L.pos)) {
+    const m = g.maps.get(id);
+    if (wx >= o.x && wx < o.x + m.width && wy >= o.y && wy < o.y + m.height) return { map: id, x: (wx - o.x) * TILE, y: (wy - o.y) * TILE };
+  }
+  return null;
+}
+
+/** A map's pixels → world tiles. */
+function mapToWorld(g, mapId, x, y) {
+  const o = worldLayout(g).pos[mapId];
+  return o ? { x: o.x + x / TILE, y: o.y + y / TILE } : null;
+}
+
+return { ROAD_GAP, worldLayout, worldToMap, mapToWorld };
+})();
+
+// ---- src/systems/transit.js
+__m["src/systems/transit.js"] = (function () {
+// Transit (v0.17.0 "Route 1"): the No. 1 bus and the traffic.
+//
+// Everything here drives along fixed lanes in WORLD space (src/world/layout.js),
+// so a bus can run from the Yards through Halvermouth and along the coast road
+// to the Ober Fields, crossing maps and region gates without caring which map
+// it's on. Near you (same region), vehicles move every frame and stop for
+// whatever is in front of them — you, people, other vehicles, parked cars;
+// elsewhere (or while time skips) they move once a game minute and never stop.
+//
+// The bus: three buses on one loop, 2 obols a ride, a stop in every district.
+// Board one that's waiting at a stop (E), ride it for real while it drives,
+// and get off (E) at any stop. Bus-stop signs show the next buses and let you
+// wait for one. Traffic: cars circling Halvermouth's blocks and running the
+// coast road; carjack one that's stopped (a crime).
+//
+// State: game.world.transit = { buses: [{ dist, dwellUntil }] } — traffic is
+// regenerated each session. Runtime: this.followers (buses + traffic).
+const { TILE, clamp, dist } = __m["src/core/util.js"];
+const { worldLayout, worldToMap, mapToWorld } = __m["src/world/layout.js"];
+const { isDown } = __m["src/systems/combat.js"];
+
+/** A closed polyline in world pixels with arc-length lookup. */
+class Route {
+  constructor(points) {
+    this.pts = points.map(([x, y]) => ({ x: x * TILE, y: y * TILE }));
+    this.cum = [0];
+    for (let i = 0; i < this.pts.length; i++) {
+      const a = this.pts[i];
+      const b = this.pts[(i + 1) % this.pts.length];
+      this.cum.push(this.cum[i] + Math.hypot(b.x - a.x, b.y - a.y));
+    }
+    this.length = this.cum[this.pts.length];
+  }
+
+  wrap(d) {
+    return ((d % this.length) + this.length) % this.length;
+  }
+
+  at(d) {
+    d = this.wrap(d);
+    let i = 0;
+    while (i < this.pts.length - 1 && this.cum[i + 1] <= d) i++;
+    const a = this.pts[i];
+    const b = this.pts[(i + 1) % this.pts.length];
+    const seg = this.cum[i + 1] - this.cum[i] || 1;
+    const t = (d - this.cum[i]) / seg;
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, angle: Math.atan2(b.y - a.y, b.x - a.x), seg: i };
+  }
+
+  /** Distances along the route where a horizontal segment on `road` (a tile row; lanes road+0.5 and road+1.5) passes world tile x. */
+  crossings(x, road) {
+    const out = [];
+    const px = x * TILE;
+    for (let i = 0; i < this.pts.length; i++) {
+      const a = this.pts[i];
+      const b = this.pts[(i + 1) % this.pts.length];
+      if (Math.abs(a.y - b.y) > 1) continue;
+      const row = a.y / TILE;
+      if (row < road || row > road + 2) continue;
+      if (px < Math.min(a.x, b.x) || px > Math.max(a.x, b.x)) continue;
+      out.push(this.cum[i] + Math.abs(px - a.x));
+    }
+    return out;
+  }
+}
+
+function freshTransit(content) {
+  const B = content.transit.bus;
+  const r = new Route(B.route);
+  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: (r.length * i) / B.buses, dwellUntil: 0 })) };
+}
+
+class Transit {
+  constructor(game) {
+    this.game = game;
+    this.followers = [];
+    this.ready = false;
+    this.nextId = 1;
+  }
+
+  get cfg() {
+    return this.game.content.transit;
+  }
+
+  get state() {
+    const g = this.game;
+    if (!g.world.transit) g.world.transit = freshTransit(g.content);
+    return g.world.transit;
+  }
+
+  /** Build routes, stops, buses and traffic (lazily: the maps must exist). */
+  setup() {
+    if (this.ready) return;
+    const g = this.game;
+    const B = this.cfg.bus;
+    this.busRoute = new Route(B.route);
+    // each stop, at its distance along the loop in each direction
+    this.stops = [];
+    for (const s of B.stops) for (const d of this.busRoute.crossings(s.x, s.road)) this.stops.push({ ...s, dist: d });
+    this.stops.sort((a, b) => a.dist - b.dist);
+    this.turn = this.busRoute.cum[B.route.findIndex(([x]) => x >= 270)]; // the far end of the line
+    this.followers = this.state.buses.map((b, i) => ({ id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b }));
+    // traffic, spread round each loop
+    const T = this.cfg.traffic;
+    let n = 0;
+    for (const loop of T.loops) {
+      const route = new Route(loop.path);
+      for (let i = 0; i < loop.cars; i++) {
+        const model = T.models[(n * 3 + i) % T.models.length];
+        const m = g.content.vehicles.models[model];
+        const max = loop.speed[0] + ((n * 37 + i * 53) % 100) / 100 * (loop.speed[1] - loop.speed[0]);
+        this.followers.push({ id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: (route.length * (i + 0.3 * ((n % 3) / 3))) / loop.cars, speed: max, max, len: m.len, wid: m.wid, model, color: T.colors[(n * 5 + i * 2) % T.colors.length] });
+        n++;
+      }
+    }
+    this.ready = true;
+    for (const f of this.followers) this.place(f);
+  }
+
+  /** Recompute a follower's world position, heading and map. */
+  place(f) {
+    const p = f.route.at(f.dist);
+    f.wx = p.x;
+    f.wy = p.y;
+    f.angle = p.angle;
+    const m = worldToMap(this.game, p.x / TILE, p.y / TILE);
+    f.map = m?.map || null;
+    f.x = m?.x;
+    f.y = m?.y;
+  }
+
+  /** Followers drawn on a map, in its pixels. */
+  on(mapId) {
+    this.setup();
+    return this.followers.filter((f) => f.map === mapId);
+  }
+
+  bus(i) {
+    this.setup();
+    return this.followers.find((f) => f.kind === 'bus' && f.idx === i);
+  }
+
+  dwelling(f) {
+    return f.kind === 'bus' && this.game.clock.total < f.state.dwellUntil;
+  }
+
+  /** The stop a bus is at (while dwelling), or the next one ahead. */
+  stopFor(f, ahead = false) {
+    const d = f.dist;
+    if (!ahead) {
+      const here = this.stops.find((s) => Math.abs(s.dist - d) < 2);
+      if (here) return here;
+    }
+    return this.stops.find((s) => s.dist > d + 2) || this.stops[0];
+  }
+
+  /** "towards the Ober Fields" or "towards the Yards". */
+  heading(f) {
+    return f.dist < this.turn ? 'towards the Ober Fields' : 'towards Mill Road Yards';
+  }
+
+  regionOf(mapId) {
+    const regions = this.game.content.regions || {};
+    for (const [id, r] of Object.entries(regions)) if (r.maps[mapId]) return id;
+    return null;
+  }
+
+  /** Is this follower near enough to the player to drive carefully, every frame? */
+  near(f) {
+    const g = this.game;
+    const pm = g.currentMap();
+    if (pm.kind === 'interior' || !f.map) return false;
+    return this.regionOf(f.map) === this.regionOf(pm.id);
+  }
+
+  // ------------------------------------------------------------- driving
+  /** Per frame: everything near you moves carefully; the bus you're on carries you. */
+  update(dt) {
+    this.setup();
+    for (const f of this.followers) {
+      if (!this.near(f) && !(f.kind === 'bus' && this.game.player.riding === f.idx)) continue;
+      this.step(f, dt, true);
+    }
+    if (this.game.player.riding !== null && this.game.player.riding !== undefined) this.carryRider();
+  }
+
+  /** Per game minute: everything else moves, without looking. */
+  minuteTick() {
+    this.setup();
+    const g = this.game;
+    for (const f of this.followers) {
+      if (this.near(f) && !g.skipping) continue;
+      if (f.kind === 'bus' && g.player.riding === f.idx && !g.skipping) continue;
+      this.step(f, 1, false);
+    }
+    if (g.skipping && g.player.riding !== null && g.player.riding !== undefined) this.carryRider();
+    // carjacked cars come back to the roads after a while
+    if (this.respawn?.length) {
+      const due = this.respawn.filter((r) => r.at <= g.clock.total);
+      this.respawn = this.respawn.filter((r) => r.at > g.clock.total);
+      for (const r of due) { r.f.dist = r.f.route.wrap(r.f.dist + r.f.route.length / 2); r.f.speed = 0; this.followers.push(r.f); this.place(r.f); }
+    }
+  }
+
+  step(f, dt, careful) {
+    const g = this.game;
+    const B = this.cfg.bus;
+    if (f.kind === 'bus') {
+      if (g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
+    }
+    let target = f.max;
+    // ease into the next stop
+    let toStop = Infinity;
+    let stop = null;
+    if (f.kind === 'bus') {
+      stop = this.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || this.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
+      if (stop) toStop = f.route.wrap(stop.dist - f.dist);
+      if (careful) target = Math.min(target, 30 + toStop * 1.6);
+    }
+    // slow for corners
+    const ahead = f.route.at(f.dist + f.len);
+    const turn = Math.abs(((ahead.angle - f.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    if (turn > 0.3) target = Math.min(target, careful ? 110 : target);
+    if (careful) {
+      let ob = this.obstacleAhead(f);
+      if (ob) { f.holdUntil = g.realTime + 0.6; f.holdFor = ob; } else if ((f.holdUntil || 0) > g.realTime) ob = f.holdFor; // don't creep and lurch
+      if (ob) {
+        target = 0;
+        f.waitT = (f.waitT || 0) + dt;
+        if (ob === 'player' && f.waitT > 1.5 && (f.honkAt || 0) < g.realTime) {
+          f.honkAt = g.realTime + 4;
+          g.bus.emit('sfx', { id: 'sfx_horn' });
+          g.bus.emit('transit:honk', { id: f.id });
+        }
+        if (ob !== 'player' && f.waitT > 8) f.ghostUntil = g.realTime + 2; // never jam forever
+      } else f.waitT = 0;
+      f.speed += clamp(target - f.speed, -700 * dt, 260 * dt);
+    } else f.speed = target;
+    let move = Math.max(0, f.speed) * dt;
+    if (f.kind === 'bus' && stop && move >= toStop) {
+      // arrive: stop exactly at the sign and wait
+      move = toStop;
+      f.dist = f.route.wrap(f.dist + move);
+      f.speed = 0;
+      f.state.dwellUntil = g.clock.total + B.dwell;
+      f.state.lastStop = `${stop.id}@${Math.round(stop.dist)}`;
+      f.state.dist = f.dist;
+      this.place(f);
+      if (g.player.riding === f.idx) g.bus.emit('transit:stop', { stop: stop.id, name: stop.name });
+      return;
+    }
+    f.dist = f.route.wrap(f.dist + move);
+    if (f.kind === 'bus') f.state.dist = f.dist;
+    this.place(f);
+  }
+
+  /** What's in front of a follower: 'player', 'npc', 'car' or null. */
+  obstacleAhead(f) {
+    const g = this.game;
+    if (!f.map || (f.ghostUntil || 0) > g.realTime) return null;
+    const cs = Math.cos(f.angle);
+    const sn = Math.sin(f.angle);
+    const reach = f.len / 2 + 44 + (Math.max(0, f.speed) ** 2) / 1100; // a steady gap plus braking distance
+    const test = (wx, wy, r) => {
+      const rx = wx - f.wx;
+      const ry = wy - f.wy;
+      const along = rx * cs + ry * sn;
+      const lat = Math.abs(-rx * sn + ry * cs);
+      return along > 0 && along < reach + r && lat < 12 + r;
+    };
+    const p = g.player;
+    const riding = p.riding !== null && p.riding !== undefined;
+    if (!riding) {
+      const pw = mapToWorld(g, p.map, p.x, p.y);
+      if (pw && test(pw.x * TILE, pw.y * TILE, p.driving ? 18 : 8)) return 'player';
+    }
+    for (const n of g.npcs.values()) {
+      if (n.map !== f.map || n.dead || isDown(n, g.clock.total)) continue;
+      const w = mapToWorld(g, n.map, n.x, n.y);
+      if (w && test(w.x * TILE, w.y * TILE, 8)) return 'npc';
+    }
+    for (const o of this.followers) {
+      if (o === f || !o.map) continue;
+      if (Math.abs(o.wx - f.wx) > 400 || Math.abs(o.wy - f.wy) > 400) continue;
+      if (!test(o.wx, o.wy, 6)) continue;
+      // two that block each other: the older one goes first
+      if (o.blockedBy === f.id && o.id < f.id) continue;
+      f.blockedBy = o.id;
+      return 'car';
+    }
+    for (const c of g.vehicles.carsOn(f.map)) {
+      if (c.id === p.driving) continue; // the player's car counts as the player (above)
+      const w = mapToWorld(g, c.map, c.x, c.y);
+      if (w && test(w.x * TILE, w.y * TILE, 12)) return 'car';
+    }
+    f.blockedBy = null;
+    return null;
+  }
+
+  /** Oriented boxes of moving vehicles on a map, in its pixels (for the player's car to collide with). */
+  boxesOn(mapId) {
+    return this.on(mapId).map((f) => ({ x: f.x, y: f.y, angle: f.angle, len: f.len, wid: f.wid, id: f.id }));
+  }
+
+  // ------------------------------------------------------------- the bus
+  /** Buses waiting at a stop within reach of the player (on foot). */
+  boardable() {
+    const g = this.game;
+    const p = g.player;
+    if (p.driving || (p.riding !== null && p.riding !== undefined)) return null;
+    return this.on(p.map).find((f) => this.dwelling(f) && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 70) || null;
+  }
+
+  board(idx) {
+    const g = this.game;
+    const f = this.bus(idx);
+    const fare = this.cfg.bus.fare;
+    if (!f || !this.dwelling(f)) return { ok: false, text: 'The bus has gone.' };
+    if (g.player.money < fare) return { ok: false, text: `The driver taps the sign: FARE ${fare} OBOLS. You can't afford it.` };
+    g.player.money -= fare;
+    g.bus.emit('money:changed', { delta: -fare, total: g.player.money });
+    if (g.combat.equipped().id) g.combat.equip(null);
+    g.player.riding = idx;
+    g.player.vx = 0;
+    g.player.vy = 0;
+    this.carryRider();
+    g.bus.emit('sfx', { id: 'sfx_door' });
+    g.bus.emit('transit:boarded', { bus: f.id });
+    return { ok: true, text: `You pay ${fare} obols and find a seat on the ${this.cfg.bus.name}, ${this.heading(f)}. Next stop: ${this.stopFor(f, true).name}. (E to get off when it stops.)` };
+  }
+
+  /** Keep the rider on the bus, changing map as it does. */
+  carryRider() {
+    const g = this.game;
+    const f = this.bus(g.player.riding);
+    if (!f) { g.player.riding = null; return; }
+    if (!f.map) return; // between regions: the road outside the maps
+    const p = g.player;
+    if (p.map !== f.map) {
+      const seamless = Boolean(g.mapOffset(p.map, f.map));
+      g.changeMap(f.map, null, { x: f.x, y: f.y, seamless });
+    }
+    p.x = f.x;
+    p.y = f.y;
+    const c = Math.cos(f.angle);
+    const s = Math.sin(f.angle);
+    p.facing = Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : s > 0 ? 'down' : 'up';
+  }
+
+  /** Get off at the stop the bus is waiting at: you step out beside the sign. */
+  alight() {
+    const g = this.game;
+    const f = this.bus(g.player.riding);
+    if (!f || !this.dwelling(f)) return { ok: false, text: 'Wait for the next stop.' };
+    const stop = this.stopFor(f);
+    const map = g.maps.get(stop.sign.map);
+    let spot = null;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1], [1, -1], [-1, -1], [2, 0]]) {
+      const x = (stop.sign.x + dx + 0.5) * TILE;
+      const y = (stop.sign.y + dy + 0.5) * TILE;
+      if (!map.rectBlocked(x - 8, y - 6, 16, 8, g.playerActor())) { spot = { x, y }; break; }
+    }
+    g.player.riding = null;
+    if (g.player.map !== map.id) g.changeMap(map.id, null, spot);
+    else if (spot) { g.player.x = spot.x; g.player.y = spot.y; }
+    g.player.lastTx = Math.floor(g.player.x / TILE);
+    g.player.lastTy = Math.floor(g.player.y / TILE);
+    g.updateDiscovery();
+    g.bus.emit('sfx', { id: 'sfx_door' });
+    g.bus.emit('transit:alighted', { stop: stop.id });
+    return { ok: true, text: `${stop.name}.` };
+  }
+
+  /** Minutes until a bus next stops at this stop (either direction), and which bus. */
+  eta(stopId) {
+    this.setup();
+    const B = this.cfg.bus;
+    let best = null;
+    for (const f of this.followers.filter((x) => x.kind === 'bus')) {
+      let t = Math.max(0, f.state.dwellUntil - this.game.clock.total);
+      let d = f.dist;
+      for (let k = 0; k < this.stops.length + 1; k++) {
+        const next = this.stops.find((s) => s.dist > d + 0.5) || this.stops[0];
+        const gap = f.route.wrap(next.dist - d) || f.route.length;
+        t += gap / B.speed;
+        if (next.id === stopId) {
+          if (!best || t < best.minutes) best = { minutes: Math.ceil(t), bus: f.idx, dist: next.dist, heading: next.dist < this.turn ? 'towards the Ober Fields' : 'towards Mill Road Yards' };
+          break;
+        }
+        t += B.dwell;
+        d = next.dist;
+      }
+    }
+    return best;
+  }
+
+  /** E on a bus-stop sign. */
+  stopInfo(stopId) {
+    const s = this.cfg.bus.stops.find((x) => x.id === stopId);
+    const e = this.eta(stopId);
+    const at = this.on(this.game.player.map).find((f) => this.dwelling(f) && this.stopFor(f).id === stopId);
+    return {
+      type: 'choices', title: `🚏 ${s.name}`,
+      text: `${this.cfg.bus.name} bus — Mill Road Yards · Mill Road (the Sumps) · Civic Plaza · The East End · Westbrook Row · Gullwing Road · Ober's Oil Refinery. Fare ${this.cfg.bus.fare} obols. ${at ? 'A bus is waiting here now.' : e ? `Next bus: about ${e.minutes} min (${e.heading}).` : ''}`,
+      options: at ? [{ label: 'OK', call: ['transit', 'noop'] }] : [
+        { label: `Wait for the bus (about ${e?.minutes ?? '?'} min)`, call: ['transit', 'waitFor', stopId] },
+        { label: 'Leave it', call: ['transit', 'noop'] },
+      ],
+    };
+  }
+
+  noop() {
+    return { ok: true, text: '' };
+  }
+
+  /** Sit at the stop until a bus arrives (time passes). */
+  waitFor(stopId) {
+    const g = this.game;
+    const e = this.eta(stopId);
+    if (!e) return { ok: false, text: 'No buses today.' };
+    g.skipTime(Math.max(0, e.minutes - 1));
+    // make sure it's here and waiting, whatever happened on the way
+    const f = this.bus(e.bus);
+    f.dist = e.dist;
+    f.state.dist = e.dist;
+    f.speed = 0;
+    f.state.dwellUntil = g.clock.total + this.cfg.bus.dwell;
+    const stop = this.stops.find((s) => Math.abs(s.dist - e.dist) < 1);
+    f.state.lastStop = `${stop.id}@${Math.round(stop.dist)}`;
+    this.place(f);
+    return { ok: true, text: `After about ${e.minutes} minutes the ${this.cfg.bus.name} pulls in, ${e.heading}.` };
+  }
+
+  // ------------------------------------------------------------ traffic
+  /** A stopped (or crawling) traffic car beside you. */
+  carjackable() {
+    const g = this.game;
+    const p = g.player;
+    if (p.driving || (p.riding !== null && p.riding !== undefined)) return null;
+    return this.on(p.map).find((f) => f.kind === 'traffic' && f.speed < 40 && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 28) || null;
+  }
+
+  carjack(id) {
+    const g = this.game;
+    const f = this.followers.find((x) => x.id === id);
+    if (!f || f.kind !== 'traffic' || !f.map) return { ok: false, text: '' };
+    this.followers = this.followers.filter((x) => x !== f);
+    (this.respawn ||= []).push({ f, at: g.clock.total + 120 });
+    const V = g.vehicles;
+    const cid = `car_jack${V.state.nextId++}`;
+    V.state.cars[cid] = { id: cid, model: f.model, color: f.color, map: f.map, x: f.x, y: f.y, angle: f.angle, owner: 'player', stolen: true, from: 'traffic', plate: 'JACKED' };
+    g.reportCrime({ fact: 'fact_player_car_theft', map: f.map, x: f.x, y: f.y });
+    g.bus.emit('vehicle:stolen', { car: cid, from: 'traffic' });
+    g.notify(`You yank the door open. The driver scrambles out and runs. ${g.rng.pick(['"MY CAR!"', '"Take it! TAKE IT!"', '"I\'m calling my mum!"'])}`, 'warn');
+    V.enter(cid);
+    return { ok: true };
+  }
+}
+
+return { freshTransit, Transit };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -16440,6 +17054,7 @@ const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
+const { Transit } = __m["src/systems/transit.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -16477,6 +17092,7 @@ class Game {
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
+    this.transit = new Transit(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -16691,7 +17307,8 @@ class Game {
     }
     this.realTime += dt;
     const minutes = this.clock.tick(dt);
-    if (this.player.driving) this.vehicles.update(dt, input);
+    const riding = this.player.riding !== null && this.player.riding !== undefined;
+    if (riding) { /* the bus carries you (Transit.update) */ } else if (this.player.driving) this.vehicles.update(dt, input);
     else {
       if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
       this.updatePlayer(dt, input);
@@ -16700,6 +17317,7 @@ class Game {
     this.police.update(dt);
     this.gang.update(dt);
     this.heavy.update(dt);
+    this.transit.update(dt);
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
       if (npc.map !== this.player.map) continue;
@@ -16721,6 +17339,7 @@ class Game {
     this.factory.minuteTick();
     this.arms.minuteTick();
     this.market.minuteTick();
+    this.transit.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -17063,6 +17682,14 @@ class Game {
     const map = this.currentMap();
     const out = [];
     if (p.driving) return [{ kind: 'car_exit', id: p.driving, label: 'Get out of the car', score: -999 }];
+    if (p.riding !== null && p.riding !== undefined) {
+      const bus = this.transit.bus(p.riding);
+      return bus && this.transit.dwelling(bus) ? [{ kind: 'bus_off', id: p.riding, label: `Get off at ${this.transit.stopFor(bus).name}`, score: -999 }] : [];
+    }
+    const bus = this.transit.boardable();
+    if (bus) out.push({ kind: 'bus_on', id: bus.idx, label: `Board the ${this.content.transit.bus.name} bus ${this.transit.heading(bus)} (${this.content.transit.bus.fare} obols)`, score: -30 });
+    const jack = this.transit.carjackable();
+    if (jack) out.push({ kind: 'carjack', id: jack.id, label: `Carjack the ${this.content.vehicles.models[jack.model].name}`, score: dist(p.x, p.y, jack.x, jack.y) - 10 });
     const car = this.vehicles.nearest();
     if (car) out.push({ kind: 'car', id: car.id, label: this.vehicles.label(car), score: dist(p.x, p.y, car.x, car.y) - 20 });
     const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
@@ -17121,6 +17748,7 @@ class Game {
       case 'factory': return { buy: this.factory.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', workbench: 'Use the workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
+      case 'busstop': return 'Check the bus times';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
@@ -17134,6 +17762,9 @@ class Game {
   interact(target) {
     if (!target) return { type: 'none' };
     if (target.kind === 'car') return this.vehicles.inspect(target.id);
+    if (target.kind === 'bus_on') { const r = this.transit.board(target.id); return { type: 'message', text: r.text }; }
+    if (target.kind === 'bus_off') { const r = this.transit.alight(); return r.ok ? { type: 'none' } : { type: 'message', text: r.text }; }
+    if (target.kind === 'carjack') { this.transit.carjack(target.id); return { type: 'none' }; }
     if (target.kind === 'car_exit') {
       const r = this.vehicles.exit();
       return r.ok ? { type: 'none' } : { type: 'message', text: r.text || 'You can\'t get out here.' };
@@ -17210,6 +17841,8 @@ class Game {
         return this.factory.interact(prop);
       case 'arms':
         return this.arms.interact(prop);
+      case 'busstop':
+        return this.transit.stopInfo(act.stop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -17650,6 +18283,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.17.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Route 1',
+    notes: [
+      'The No. 1 bus is running: three green single-deckers on one loop from Mill Road Yards through the Sumps, Civic Plaza and the East End, out along the coast road through Westbrook Row and Gullwing Road to Ober\'s Oil Refinery — and back. Two obols a ride.',
+      'Ride it for real: board one waiting at a stop, watch the world go by as it drives (through the city gates and all), and get off at any stop. The signs show when the next bus is due, and you can wait for it. Buses and stops are on your map.',
+      'Traffic: cars circle Halvermouth\'s blocks and run the coast road, keeping to the left. They stop for people in the road (and honk at you), and you can\'t drive through them. Catch one stopped and you can carjack it — a crime, naturally.',
+      'The avenue cars that were parked in the traffic lanes have been moved on.',
+    ],
+  },
   {
     version: '0.16.0',
     date: '2026-10-13',
@@ -18766,7 +19411,95 @@ function drawDisplayCar(ctx, model, x, y, w, h, opts = {}) {
   drawCar(ctx, model, x + w / 2, y + h / 2 + 2, 0, opts);
 }
 
-return { drawCar, drawDisplayCar };
+/**
+ * The No. 1 bus (v0.17.0): a long single-decker, top-down — a cream roof
+ * stripe, a row of windows down each side, roof vents, and the route number.
+ */
+function drawBus(ctx, x, y, angle, opts = {}) {
+  const L = opts.len || 150;
+  const W = opts.wid || 46;
+  const color = opts.color || '#2f6b4f';
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  // shadow and wheels
+  ctx.fillStyle = 'rgba(10,10,20,0.3)';
+  rrect(ctx, -L / 2 + 3, -W / 2 + 4, L, W, 8);
+  ctx.fill();
+  ctx.fillStyle = '#18181c';
+  for (const sx of [-0.33, 0.3]) for (const sy of [-1, 1]) ctx.fillRect(sx * L - 9, sy * (W / 2) - 4, 18, 8);
+  // body
+  ctx.fillStyle = color;
+  ctx.strokeStyle = shade(color, -45);
+  ctx.lineWidth = 1.5;
+  rrect(ctx, -L / 2, -W / 2, L, W, 7);
+  ctx.fill();
+  ctx.stroke();
+  // lights
+  ctx.fillStyle = opts.lit ? '#fff6c0' : '#e8e0b0';
+  ctx.fillRect(L / 2 - 4, -W / 2 + 4, 4, 7);
+  ctx.fillRect(L / 2 - 4, W / 2 - 11, 4, 7);
+  ctx.fillStyle = opts.braking ? '#ff3a2a' : '#a8241c';
+  ctx.fillRect(-L / 2, -W / 2 + 4, 4, 7);
+  ctx.fillRect(-L / 2, W / 2 - 11, 4, 7);
+  ctx.restore();
+  // the roof, lifted
+  ctx.save();
+  ctx.translate(x, y - 7);
+  ctx.rotate(angle);
+  const rw = W - 6;
+  ctx.fillStyle = shade(color, -18);
+  rrect(ctx, -L / 2 + 3, -rw / 2, L - 6, rw, 6);
+  ctx.fill();
+  // windows down both sides and the windscreen
+  ctx.fillStyle = 'rgba(150,190,210,0.95)';
+  for (let wx = -L / 2 + 14; wx < L / 2 - 22; wx += 17) {
+    ctx.fillRect(wx, -rw / 2 + 1, 13, 5);
+    ctx.fillRect(wx, rw / 2 - 6, 13, 5);
+  }
+  ctx.fillStyle = '#cfe6f0';
+  rrect(ctx, L / 2 - 14, -rw / 2 + 2, 10, rw - 4, 3);
+  ctx.fill();
+  // roof: a cream stripe, vents, and the route number
+  ctx.fillStyle = '#efe6cc';
+  ctx.fillRect(-L / 2 + 8, -5, L - 26, 10);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (const vx of [-0.25, 0.1]) ctx.fillRect(vx * L - 8, -rw / 2 + 8, 16, 6);
+  ctx.save();
+  ctx.translate(-L / 2 + 22, 0);
+  ctx.rotate(-angle); // keep the number upright
+  ctx.fillStyle = color;
+  ctx.font = 'bold 14px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(opts.number || '1', 0, 1);
+  ctx.restore();
+  ctx.restore();
+}
+
+/** A bus-stop sign with a little shelter roof (prop 'busstop'). */
+function drawBusStop(ctx, x, y) {
+  ctx.fillStyle = 'rgba(20,20,30,0.25)';
+  ctx.fillRect(x + 4, y + 26, 26, 5);
+  ctx.fillStyle = '#4a4a52';
+  ctx.fillRect(x + 15, y - 12, 3, 40);
+  ctx.fillStyle = '#2f6b4f';
+  ctx.beginPath(); ctx.arc(x + 16.5, y - 16, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#efe6cc';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#efe6cc';
+  ctx.font = 'bold 11px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', x + 16.5, y - 15.5);
+  ctx.fillStyle = '#f2efe6';
+  ctx.fillRect(x + 19, y + 2, 9, 12); // the timetable
+  ctx.fillStyle = '#7a8a8a';
+  for (let i = 0; i < 4; i++) ctx.fillRect(x + 20.5, y + 4 + i * 2.5, 6, 1);
+}
+
+return { drawCar, drawDisplayCar, drawBus, drawBusStop };
 })();
 
 // ---- src/engine/drawWorld.js
@@ -18778,7 +19511,7 @@ const { drawFactoryProp } = __m["src/engine/drawFactory.js"];
 const { hash2 } = __m["src/core/rng.js"];
 const { TILE_TYPES } = __m["src/world/tiles.js"];
 const { shade, rrect } = __m["src/engine/drawCharacter.js"];
-const { drawDisplayCar } = __m["src/engine/drawVehicles.js"];
+const { drawDisplayCar, drawBusStop } = __m["src/engine/drawVehicles.js"];
 const { CAR_MODELS } = __m["src/content/vehicles.js"];
 
 const T = TILE;
@@ -19804,6 +20537,9 @@ function drawProp(ctx, p, opts) {
       }
       break;
     }
+    case 'busstop':
+      drawBusStop(ctx, x, y);
+      break;
     case 'car_display': {
       const model = CAR_MODELS[p.model];
       if (model) drawDisplayCar(ctx, model, x, y, w, h, { color: p.color, id: p.id });
@@ -21920,7 +22656,7 @@ __m["src/engine/renderer.js"] = (function () {
 // highlight and day/night lighting. Reads game state; never mutates it.
 const { TILE, clamp, lerp, dist } = __m["src/core/util.js"];
 const { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
-const { drawCar } = __m["src/engine/drawVehicles.js"];
+const { drawCar, drawBus } = __m["src/engine/drawVehicles.js"];
 const { drawCharacter, rrect } = __m["src/engine/drawCharacter.js"];
 const { check } = __m["src/sim/conditions.js"];
 const { isDown } = __m["src/systems/combat.js"];
@@ -22142,14 +22878,26 @@ class Renderer {
           items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: driven && night, time: this.time, siren: false })) });
         }
       }
+      // the bus and the traffic (src/systems/transit.js)
+      if (g.transit) {
+        const models = g.content.vehicles.models;
+        for (const f of g.transit.on(lm.id)) {
+          if (!inView(f.x - f.len / 2, f.y - f.len / 2, f.len, f.len)) continue;
+          const sortY = f.y + L.y + Math.abs(Math.sin(f.angle)) * f.len * 0.4 + 4;
+          const braking = f.speed < f.max * 0.3;
+          if (f.kind === 'bus') items.push({ y: sortY, draw: at(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking })) });
+          else items.push({ y: sortY, draw: at(() => drawCar(ctx, models[f.model], f.x, f.y, f.angle, { color: f.color, id: f.id, lit: night, braking })) });
+        }
+      }
     }
     const held = g.combat.equipped().weapon.held;
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
-    if (!this.hidePlayer && !g.player.driving && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
+    const aboard = g.player.driving || (g.player.riding !== null && g.player.riding !== undefined);
+    if (!this.hidePlayer && !aboard && pAlpha > 0) items.push({ y: g.player.y, draw: () => { ctx.globalAlpha = pAlpha; this.drawActor(playerLook, g.player, false); ctx.globalAlpha = 1; } });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
-    if (!this.hidePlayer && !g.player.driving && this.playerOccluded(map)) {
+    if (!this.hidePlayer && !aboard && this.playerOccluded(map)) {
       ctx.globalAlpha = 0.38;
       this.drawActor(playerLook, g.player, false);
       ctx.globalAlpha = 1;
@@ -22479,7 +23227,14 @@ class Renderer {
           this.beam = { x: lx, y: ly };
         }
       }
-      if (!this.hidePlayer && !g.player.driving) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      if (!this.hidePlayer && !g.player.driving && (g.player.riding === null || g.player.riding === undefined)) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      // every vehicle on the road lights its way
+      for (const f of g.transit?.on(map.id) || []) {
+        const cs = Math.cos(f.angle);
+        const sn = Math.sin(f.angle);
+        hole(f.x + cs * (f.len / 2 + 40), f.y + sn * (f.len / 2 + 40) - 4, 60, 0.6);
+        if (f.kind === 'bus') hole(f.x, f.y - 8, 80, 0.5); // a lit bus interior
+      }
       // headlights: a pool of light ahead of the car you're driving
       const car = g.vehicles?.driving();
       if (car) {
@@ -23422,8 +24177,7 @@ __m["src/ui/maps.js"] = (function () {
 const { TILE } = __m["src/core/util.js"];
 const { TILE_TYPES } = __m["src/world/tiles.js"];
 const { BUILDING_ICONS } = __m["src/content/mapIcons.js"];
-
-const ROAD_GAP = 10; // tiles of open road drawn between regions joined by a gateway
+const { worldLayout } = __m["src/world/layout.js"];
 const BASE = 8; // px per tile of the cached map images the world map scales
 
 const MINI_SCALE = 4;
@@ -23660,58 +24414,9 @@ class MapRenderer {
   }
 
   // ------------------------------------------------------- the world map
-  /**
-   * Every outdoor map placed in one world space (tiles). Seamless regions keep
-   * their offsets; regions joined by gateways are set side by side with a road
-   * between the gates. Cached: the layout never changes in a session.
-   */
+  /** Every outdoor map in one world space (src/world/layout.js). */
   worldLayout() {
-    if (this.layout) return this.layout;
-    const g = this.game;
-    const regions = Object.entries(g.content.regions || {});
-    const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
-    const pos = {};
-    const roads = [];
-    const placeRegion = (rid, anchorMap, ax, ay) => {
-      const r = g.content.regions[rid];
-      const o = r.maps[anchorMap];
-      for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
-    };
-    const start = regionOf(g.content.startingMap) || regions[0];
-    placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
-    const queue = Object.keys(pos);
-    while (queue.length) {
-      const id = queue.shift();
-      const M = g.maps.get(id);
-      for (const d of M.doors) {
-        if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
-        const T = g.maps.get(d.to.map);
-        const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
-        const west = d.x === 0;
-        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
-        const ty = pos[id].y + d.y - back.y;
-        const before = new Set(Object.keys(pos));
-        const rr = regionOf(T.id);
-        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
-        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
-        for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
-      }
-    }
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const [id, p] of Object.entries(pos)) {
-      const m = g.maps.get(id);
-      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-      maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
-    }
-    const regionBoxes = regions.map(([rid, r]) => {
-      const ids = Object.keys(r.maps).filter((id) => pos[id]);
-      if (!ids.length) return null;
-      const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
-      const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
-      return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-    }).filter(Boolean);
-    this.layout = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
-    return this.layout;
+    return worldLayout(this.game);
   }
 
   /** Where the player is in world tiles (inside a building: at its door). */
@@ -23831,6 +24536,31 @@ class MapRenderer {
       const m = g.content.vehicles.models[c.model];
       hits.push({ key: `car:${c.id}`, x: cx - iconPx * 0.6, y: cy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚗', name: `Your ${m.name}`, kind: c.stolen ? 'Stolen — parked here' : 'Parked here', place: g.maps.get(c.map).name, yours: false } });
     }
+    // the No. 1 bus: its stops and where each bus is now (v0.17.0)
+    if (g.transit) {
+      for (const s of g.content.transit.bus.stops) {
+        const o = L.pos[s.sign.map];
+        if (!o) continue;
+        const sx = X(o.x + s.sign.x + 0.5);
+        const sy = Y(o.y + s.sign.y + 0.5);
+        ctx.fillStyle = '#2f6b4f';
+        ctx.strokeStyle = '#efe6cc';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy, iconPx * 0.45, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = `${iconPx * 0.5}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.fillStyle = '#fff';
+        ctx.fillText('🚏', sx, sy + 1);
+        const e = g.transit.eta(s.id);
+        hits.push({ key: `stop:${s.id}`, x: sx - iconPx * 0.5, y: sy - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚏', name: `${s.name} (bus stop)`, kind: e ? `Next bus in about ${e.minutes} min` : 'Bus stop', place: g.content.transit.bus.name } });
+      }
+      for (const f of g.transit.followers.filter((x) => x.kind === 'bus')) {
+        const bx = X(f.wx / TILE);
+        const by = Y(f.wy / TILE);
+        ctx.font = `${iconPx * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.fillText('🚌', bx, by);
+        hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.content.transit.bus.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
+      }
+    }
     // district names (zoomed in) or region names (zoomed out)
     if (z >= 3.5) {
       for (const [id, o] of Object.entries(L.pos)) {
@@ -23928,6 +24658,7 @@ const HELP = [
   ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
   ['arrive', 'every shipment in transit arrives now'],
   ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
+  ['bus [stop]', 'list the bus stops and the next bus at each; with a stop id, wait there until a bus arrives'],
   ['car [model]', 'a car of your own beside you (pipit, dray, mule, aurelia, tempest, corsair, regent, cruiser)'],
 ];
 
@@ -24234,6 +24965,17 @@ function runCommand(game, line) {
       game.inventory.add('item_inserter', 8, { silent: true });
       game.inventory.add('item_generator', 1, { silent: true });
       return out('One of every workstation, 30 belts, 8 arms, a generator.');
+    }
+    case 'bus': {
+      const T = game.transit;
+      T.setup();
+      if (args[0]) {
+        const s = game.content.transit.bus.stops.find((x) => x.id === args[0] || x.id === `stop_${args[0]}`);
+        if (!s) return out('Unknown stop.', false);
+        game.changeMap(s.sign.map, null, { x: (s.sign.x + 1.5) * TILE, y: (s.sign.y + 0.5) * TILE });
+        return out(T.waitFor(s.id).text);
+      }
+      return out(game.content.transit.bus.stops.map((s) => `${s.id.replace('stop_', '')}: ${s.name} — next bus ${T.eta(s.id)?.minutes ?? '?'} min`).join('\n'));
     }
     case 'car': {
       const id = args[0] || 'pipit';
@@ -24911,7 +25653,7 @@ function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles, transit: ui.game.transit }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -26605,14 +27347,17 @@ class UI {
     const ammo = g.combat.ammoStatus();
     const ammoHtml = ammo ? `<span class="ammo${ammo.loaded ? '' : ' empty'}">${ammo.reloading ? 'reloading…' : `${ammo.loaded}/${ammo.mag}`} · ${ammo.reserve}</span>` : '';
     const car = g.vehicles.driving();
-    const whtml = car
+    const riding = p.riding !== null && p.riding !== undefined ? g.transit.bus(p.riding) : null;
+    const whtml = riding
+      ? `<span>🚌 ${escapeHtml(g.content.transit.bus.name)} ${escapeHtml(g.transit.heading(riding))}</span><span class="ammo">${g.transit.dwelling(riding) ? `at ${escapeHtml(g.transit.stopFor(riding).name)}` : `next: ${escapeHtml(g.transit.stopFor(riding, true).name)}`}</span>`
+      : car
       ? `<span>🚗 ${escapeHtml(g.vehicles.model(car).name)}${car.stolen ? ' <span class="tag bad">stolen</span>' : ''}</span><span class="ammo">${Math.round(Math.abs(car.speed || 0) * 0.105)} mph</span>`
       : `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;
     if (this.el.weapon.innerHTML !== whtml) this.el.weapon.innerHTML = whtml;
     if (p.hurtAt && g.realTime - p.hurtAt < 0.05) { this.el.hudBl.classList.remove('hurt'); void this.el.hudBl.offsetWidth; this.el.hudBl.classList.add('hurt'); }
     if (this.el.keys) {
       if (!this.walkKeys) this.walkKeys = this.el.keys.textContent;
-      set(this.el.keys, car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
+      set(this.el.keys, riding ? 'Riding the bus · E get off when it stops · J tablet · M map' : car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
     }
     const hw = g.vehicles.hotwire;
     if (hw) {

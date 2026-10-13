@@ -2,8 +2,7 @@
 import { TILE } from '../core/util.js';
 import { TILE_TYPES } from '../world/tiles.js';
 import { BUILDING_ICONS } from '../content/mapIcons.js';
-
-const ROAD_GAP = 10; // tiles of open road drawn between regions joined by a gateway
+import { worldLayout } from '../world/layout.js';
 const BASE = 8; // px per tile of the cached map images the world map scales
 
 const MINI_SCALE = 4;
@@ -240,58 +239,9 @@ export class MapRenderer {
   }
 
   // ------------------------------------------------------- the world map
-  /**
-   * Every outdoor map placed in one world space (tiles). Seamless regions keep
-   * their offsets; regions joined by gateways are set side by side with a road
-   * between the gates. Cached: the layout never changes in a session.
-   */
+  /** Every outdoor map in one world space (src/world/layout.js). */
   worldLayout() {
-    if (this.layout) return this.layout;
-    const g = this.game;
-    const regions = Object.entries(g.content.regions || {});
-    const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
-    const pos = {};
-    const roads = [];
-    const placeRegion = (rid, anchorMap, ax, ay) => {
-      const r = g.content.regions[rid];
-      const o = r.maps[anchorMap];
-      for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
-    };
-    const start = regionOf(g.content.startingMap) || regions[0];
-    placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
-    const queue = Object.keys(pos);
-    while (queue.length) {
-      const id = queue.shift();
-      const M = g.maps.get(id);
-      for (const d of M.doors) {
-        if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
-        const T = g.maps.get(d.to.map);
-        const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
-        const west = d.x === 0;
-        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
-        const ty = pos[id].y + d.y - back.y;
-        const before = new Set(Object.keys(pos));
-        const rr = regionOf(T.id);
-        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
-        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
-        for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
-      }
-    }
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const [id, p] of Object.entries(pos)) {
-      const m = g.maps.get(id);
-      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-      maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
-    }
-    const regionBoxes = regions.map(([rid, r]) => {
-      const ids = Object.keys(r.maps).filter((id) => pos[id]);
-      if (!ids.length) return null;
-      const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
-      const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
-      return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-    }).filter(Boolean);
-    this.layout = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
-    return this.layout;
+    return worldLayout(this.game);
   }
 
   /** Where the player is in world tiles (inside a building: at its door). */
@@ -410,6 +360,31 @@ export class MapRenderer {
       ctx.fillText('🚗', cx, cy + 1);
       const m = g.content.vehicles.models[c.model];
       hits.push({ key: `car:${c.id}`, x: cx - iconPx * 0.6, y: cy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚗', name: `Your ${m.name}`, kind: c.stolen ? 'Stolen — parked here' : 'Parked here', place: g.maps.get(c.map).name, yours: false } });
+    }
+    // the No. 1 bus: its stops and where each bus is now (v0.17.0)
+    if (g.transit) {
+      for (const s of g.content.transit.bus.stops) {
+        const o = L.pos[s.sign.map];
+        if (!o) continue;
+        const sx = X(o.x + s.sign.x + 0.5);
+        const sy = Y(o.y + s.sign.y + 0.5);
+        ctx.fillStyle = '#2f6b4f';
+        ctx.strokeStyle = '#efe6cc';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy, iconPx * 0.45, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = `${iconPx * 0.5}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.fillStyle = '#fff';
+        ctx.fillText('🚏', sx, sy + 1);
+        const e = g.transit.eta(s.id);
+        hits.push({ key: `stop:${s.id}`, x: sx - iconPx * 0.5, y: sy - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚏', name: `${s.name} (bus stop)`, kind: e ? `Next bus in about ${e.minutes} min` : 'Bus stop', place: g.content.transit.bus.name } });
+      }
+      for (const f of g.transit.followers.filter((x) => x.kind === 'bus')) {
+        const bx = X(f.wx / TILE);
+        const by = Y(f.wy / TILE);
+        ctx.font = `${iconPx * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.fillText('🚌', bx, by);
+        hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.content.transit.bus.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
+      }
     }
     // district names (zoomed in) or region names (zoomed out)
     if (z >= 3.5) {

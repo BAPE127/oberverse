@@ -40,7 +40,7 @@ test('every parked car starts on clear ground, and the street cars are real cars
   const g = fresh();
   const V = g.vehicles;
   const cars = Object.values(V.state.cars);
-  assert.ok(cars.length >= 30, `${cars.length} cars`);
+  assert.ok(cars.length >= 18, `${cars.length} cars`);
   for (const c of cars) {
     const m = V.model(c);
     assert.ok(!V.blocked(g.maps.get(c.map), c.x, c.y, c.angle, m.len, m.wid, c), `${c.id} is clear`);

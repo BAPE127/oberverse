@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.17.0 | 2026-10-13 | development | 1 | Route 1 — the bus and NPC traffic |
 | 0.16.0 | 2026-10-13 | development | 1 | On the Road — cars, two dealerships, driving, theft |
 | 0.15.1 | 2026-10-13 | development | 1 | Overwatch — OSINT terminal, interactive globe, zoomable world map |
 | 0.15.0 | 2026-10-13 | development | 1 | OberPad — the journal becomes a tablet: business, stocks, notifications |
@@ -22,6 +23,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.17.0 — Route 1
+
+The No. 1 bus (ride it for real, 2 obols) and NPC traffic with carjacking. Saves: `world.transit` (bus positions) is created on first use; `player.riding` is new; traffic is regenerated each session. Older saves lose the avenue cars that stood in the lanes (unless you'd taken one). No migration needed. The Transportation update is complete.
 
 ## 0.16.0 — On the Road
 

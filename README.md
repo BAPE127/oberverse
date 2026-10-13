@@ -4,7 +4,7 @@ A persistent, character-driven, systemic sandbox RPG that runs in your browser.
 
 You have just moved into Number 9, Gullwing Row, in **Lanternside** — a small seaside borough of the city of Obermere. The people here keep schedules, hold opinions, gossip, hold grudges, run businesses and react to what you do. The old lighthouse on the Point has been dark for eleven years, and nobody official wants to say why.
 
-**Version:** 0.16.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
+**Version:** 0.17.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -35,6 +35,7 @@ The game never contacts any external service or AI API.
 | C | People you know |
 | M | Map |
 | E by a car | Get in (your car) · look at it / hotwire it (anyone else's) |
+| E at a bus stop | Bus times · wait for the next bus · board one that's waiting (2 obols) · on board: get off when it stops |
 | Driving | W/↑ accelerate · S/↓ brake & reverse · A/D steer · Shift handbrake · H horn · E get out |
 | Esc / P | Pause menu · back |
 | F5 / F9 | Quick save / quick load (slot 1) |

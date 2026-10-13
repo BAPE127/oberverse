@@ -97,6 +97,9 @@ export class Vehicles {
 
   /** Does a box (centre, angle, size) overlap a car on this map? */
   carAt(map, x, y, angle, len, wid, ignore) {
+    for (const b of this.game.transit?.boxesOn(map.id) || []) {
+      if (dist(b.x, b.y, x, y) < (len + b.len) / 2 + 4 && this.overlapCars({ x, y, angle, len, wid }, b)) return true;
+    }
     for (const c of this.carsOn(map.id)) {
       if (c === ignore) continue;
       const m = this.model(c);

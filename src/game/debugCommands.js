@@ -43,6 +43,7 @@ const HELP = [
   ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
   ['arrive', 'every shipment in transit arrives now'],
   ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
+  ['bus [stop]', 'list the bus stops and the next bus at each; with a stop id, wait there until a bus arrives'],
   ['car [model]', 'a car of your own beside you (pipit, dray, mule, aurelia, tempest, corsair, regent, cruiser)'],
 ];
 
@@ -349,6 +350,17 @@ export function runCommand(game, line) {
       game.inventory.add('item_inserter', 8, { silent: true });
       game.inventory.add('item_generator', 1, { silent: true });
       return out('One of every workstation, 30 belts, 8 arms, a generator.');
+    }
+    case 'bus': {
+      const T = game.transit;
+      T.setup();
+      if (args[0]) {
+        const s = game.content.transit.bus.stops.find((x) => x.id === args[0] || x.id === `stop_${args[0]}`);
+        if (!s) return out('Unknown stop.', false);
+        game.changeMap(s.sign.map, null, { x: (s.sign.x + 1.5) * TILE, y: (s.sign.y + 0.5) * TILE });
+        return out(T.waitFor(s.id).text);
+      }
+      return out(game.content.transit.bus.stops.map((s) => `${s.id.replace('stop_', '')}: ${s.name} — next bus ${T.eta(s.id)?.minutes ?? '?'} min`).join('\n'));
     }
     case 'car': {
       const id = args[0] || 'pipit';

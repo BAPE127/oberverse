@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.17.0] — 2026-10-13 — "Route 1" (development build)
+
+Second half of the Transportation update.
+
+### Added
+- **Transit** (`src/systems/transit.js`, content `src/content/transit.js`, state `world.transit`): vehicles that follow lanes in **world space** (`src/world/layout.js`, now shared by the world map), so they cross maps and region gates freely. Near you (same region) they move every frame and stop for anything ahead — you (they honk), people, other vehicles (mutual blocks resolve oldest-first; any jam clears after 8 s), parked cars — with a short hold so they don't lurch; elsewhere, or during time skips, they move once a game minute. Left-hand traffic.
+- **The No. 1 bus**: three buses on one loop (≈216 game minutes) — Mill Road Yards, Mill Road (the Sumps), Civic Plaza, the East End, Westbrook Row, Gullwing Road, Ober's Oil Refinery, and back — stopping 8 minutes at each stop in both directions. **Fare 2 obols.** Board a waiting bus (E), ride it for real while it drives (the camera and HUD follow; you change map with it), get off (E) at any stop beside its sign. **Bus-stop signs** (prop `busstop`, interact kind `busstop`): the next bus's ETA and direction, and "Wait for the bus" (time passes until it arrives).
+- **NPC traffic**: 11 cars on four loops — round Halvermouth's Financial District, Market Street and Iron Row blocks, and back and forth along the coast road. Your car collides with them. **Carjacking**: E beside a stopped traffic car takes it (a stolen car; `fact_player_car_theft`); it rejoins the traffic two hours later.
+- Night: buses and traffic light the road ahead; the bus interior glows.
+- World map: bus stops (hover: next bus) and the buses (hover: direction, next stop).
+- Riding HUD: direction and the next stop; key hints.
+- Debug command `bus [stop]`.
+- Tests: `tests/transit.test.mjs` (7 tests).
+
+### Changed
+- Halvermouth's avenue cars (parked in the traffic lanes) were removed; the car parks, police cruisers, hotel limousines and named owners' cars remain.
+- `MapRenderer.worldLayout` moved to `src/world/layout.js` (`worldLayout`, `worldToMap`, `mapToWorld`).
+
 ## [0.16.0] — 2026-10-13 — "On the Road" (development build)
 
 First half of the Transportation update. Owner's answers: drive cars yourself; ride the bus for real (next release); original dealer NPCs; hitting people, car theft and NPC traffic (next release) as extras.
