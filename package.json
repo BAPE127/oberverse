@@ -1,14 +1,16 @@
 {
   "name": "oberverse",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The Oberverse — a persistent, character-driven, systemic sandbox RPG for the browser.",
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node tools/build.mjs",
     "start": "node server.js",
     "test": "node --test tests/*.test.mjs",
     "validate": "node tools/validate-content.mjs",
     "check": "node tools/validate-content.mjs && node --test tests/*.test.mjs",
+    "dev": "node server.js",
     "smoke": "node tools/smoke-test.mjs",
     "map": "node tools/print-map.mjs"
   },

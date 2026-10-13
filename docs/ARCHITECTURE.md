@@ -4,13 +4,14 @@
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Language/runtime | Plain JavaScript ES modules, no build step | Runs from any static server; nothing to install; easy for future agents to read and edit. |
+| Language/runtime | Plain JavaScript ES modules in `src/`, bundled into one file | Readable modular source for development; players get a single `index.html`. |
+| Distribution | Generated self-contained `index.html` (`tools/build.mjs`) | Opens by double-click (`file://`) and on GitHub Pages; no server or install for players. A tiny in-repo bundler (no dependencies) inlines CSS and modules as one classic script. |
 | Rendering | Canvas 2D, procedural stylised art | Smooth movement and lighting without a framework; art is data-driven and replaceable by images. |
 | UI | DOM overlay (HTML/CSS) | Accessible text, forms and scrolling panels for free. |
 | Audio | Web Audio API synthesis | Original music and SFX with no audio files to license or load; fails silently if unavailable. |
 | Persistence | `localStorage` + JSON export/import | Works offline; saves are inspectable text files. |
 | Tests | Node's built-in `node:test` | Zero dependencies. Simulation code is DOM-free so it runs headlessly. |
-| Dev server | 60-line Node static server (`server.js`) | Browsers block ES modules on `file://`. Not needed for gameplay itself. |
+| Dev server | 60-line Node static server (`server.js`) | Only for `dev.html`, because browsers block ES modules on `file://`. Players never need it. |
 
 ## Layering
 

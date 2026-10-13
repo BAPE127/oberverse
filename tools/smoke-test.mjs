@@ -1,10 +1,12 @@
-// Browser smoke test: serves the game locally, drives it in headless Chromium
-// with Playwright, checks for runtime errors and writes screenshots to
-// tools/out/. Requires Playwright (globally installed is fine):
-//   npm run smoke
+// Browser smoke test: opens the standalone index.html straight from disk
+// (file://, no server — exactly how players run it), drives it in headless
+// Chromium with Playwright, checks for runtime errors and writes screenshots
+// to tools/out/. Requires Playwright (globally installed is fine):
+//   npm run smoke            standalone index.html via file://
+//   npm run smoke -- --dev   multi-file dev.html via the local dev server
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { startServer } from '../server.js';
 
 const require = createRequire(import.meta.url);
@@ -17,13 +19,18 @@ function loadPlaywright() {
 const OUT = new URL('./out/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 const PORT = 8765;
+const VERSION = readFileSync(new URL('../VERSION', import.meta.url), 'utf8').trim();
+const versionRe = new RegExp(VERSION.replace(/\./g, '\\.'));
 const results = [];
 const record = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
 };
 
-const server = await startServer(PORT, '127.0.0.1');
+const DEV = process.argv.includes('--dev');
+const server = DEV ? await startServer(PORT, '127.0.0.1') : null;
+const URL_UNDER_TEST = DEV ? `http://127.0.0.1:${PORT}/dev.html` : new URL('../index.html', import.meta.url).href;
+console.log(`Testing ${URL_UNDER_TEST}`);
 const { chromium } = loadPlaywright();
 const launchOpts = { headless: true };
 try { require('node:fs').accessSync('/opt/pw-browsers/chromium'); } catch { /* use default */ }
@@ -43,11 +50,11 @@ const hold = async (key, ms) => { await page.keyboard.down(key); await wait(ms);
 const closeAll = () => page.evaluate(() => { const ui = window.oberverse.ui; ui.closeAllPanels(); if (ui.dialogue.open) ui.dialogue.close(); ui.afterModalClose(); });
 
 try {
-  await page.goto(`http://127.0.0.1:${PORT}/`);
+  await page.goto(URL_UNDER_TEST);
   await wait(1500);
   record('title screen renders', await page.isVisible('#screen-title'));
   const ver = await page.textContent('#title-version');
-  record('version shown on title', /0\.1\.0/.test(ver), ver);
+  record('version shown on title', versionRe.test(ver), ver);
   await shot('01-title');
 
   await page.click('text=New game');
@@ -180,18 +187,33 @@ try {
   await page.keyboard.press('Escape');
   await wait(300);
   const pauseText = await page.textContent('#modal-body');
-  record('pause menu shows version', /0\.1\.0/.test(pauseText));
+  record('pause menu shows version', versionRe.test(pauseText));
   await shot('09-pause');
   await page.keyboard.press('Escape');
 
   s = await state();
   record('no game warnings', s.warnings.length === 0, s.warnings.join('; '));
+
+  // Saves survive closing and reopening the page
+  await closeAll();
+  await page.keyboard.press('F5');
+  await wait(300);
+  await page.reload();
+  await wait(1200);
+  const menu = await page.textContent('#title-menu');
+  record('saves persist across a page reload (Continue offered)', /Continue/.test(menu), menu.slice(0, 60));
+  await page.click('#title-menu button.primary');
+  await wait(600);
+  s = await state();
+  record('Continue resumes the saved game', s.state === 'playing', JSON.stringify({ map: s.map, time: s.time }));
 } catch (err) {
   record('smoke test script', false, err.stack);
 } finally {
+  const persisted = await page.evaluate(() => window.oberverse.ui.saves.storage !== undefined && typeof window.localStorage !== 'undefined').catch(() => false);
+  record('saves use browser storage', persisted);
   record('no page errors', errors.length === 0, errors.join(' || '));
   await browser.close();
-  server.close();
+  server?.close();
 }
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} smoke checks passed. Screenshots in tools/out/.`);

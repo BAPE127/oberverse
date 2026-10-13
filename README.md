@@ -4,23 +4,20 @@ A persistent, character-driven, systemic sandbox RPG that runs in your browser.
 
 You have just moved into Number 9, Gullwing Row, in **Lanternside** — a small seaside borough of the city of Obermere. The people here keep schedules, hold opinions, gossip, hold grudges, run businesses and react to what you do. The old lighthouse on the Point has been dark for eleven years, and nobody official wants to say why.
 
-**Version:** 0.1.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
+**Version:** 0.1.1 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## Running the game
+## Playing the game
 
-The game is plain HTML/CSS/JavaScript (ES modules) with no build step and no dependencies. Browsers will not load ES modules from `file://`, so serve the folder over HTTP:
+**Just open `index.html` in your browser.** That's it — the whole game is that one file. No installation, no server, no internet connection.
 
-```bash
-npm start            # zero-dependency Node server → http://127.0.0.1:8080/
-```
+- **Download:** on GitHub choose *Code → Download ZIP*, unzip it, and double-click `index.html`. (You can also copy `index.html` on its own anywhere — it doesn't need the other files.)
+- **Play from a link:** if GitHub Pages is enabled for this repository (Settings → Pages → *Deploy from a branch* → choose the branch and `/ (root)`), the game is playable at `https://<owner>.github.io/oberverse/`.
 
-Any static file server works too, e.g. `python3 -m http.server 8080` or `npx serve`. The server is only a file server; the game itself runs entirely in the browser, works offline once loaded, and never contacts any external service or AI API.
+Works in current desktop Chrome, Edge, Firefox and Safari. Sound starts after your first click or key press (browser rule). Your progress is saved in the browser automatically; saves made from the downloaded file and saves made on the web link are kept separately — use *Export*/*Import* in the Load menu to move one across.
 
-Requirements: a current desktop browser (Chromium, Firefox or Safari). Node 18+ is needed only for `npm start`, the tests and the tools.
-
-Sound starts after your first click or key press (browser autoplay rules).
+The game never contacts any external service or AI API.
 
 ## Controls
 
@@ -52,11 +49,15 @@ Combat is not in this build (it is planned as an optional system; see [docs/KNOW
 
 ## Development
 
+The source is plain HTML/CSS/JavaScript ES modules with no dependencies. `index.html` is **generated** — edit `dev.html`, `styles.css` or `src/`, then rebuild:
+
 ```bash
+npm run build        # regenerate the standalone index.html (commit it)
+npm run dev          # serve dev.html (multi-file, live source) at http://127.0.0.1:8080/dev.html
 npm test             # unit/integration tests (Node's built-in test runner)
 npm run validate     # content reference validator
 npm run check        # both of the above
-npm run smoke        # headless browser smoke test with screenshots (needs Playwright)
+npm run smoke        # headless browser test of index.html via file:// (needs Playwright); add -- --dev for dev.html
 npm run map -- cafe  # ASCII preview of a map
 ```
 
@@ -69,8 +70,9 @@ The Oberverse is designed to take in characters you supply (an image plus a desc
 ## Project layout
 
 ```
-index.html, styles.css     page shell and UI styling
-server.js                  optional zero-dependency static server
+index.html                 GENERATED standalone game (open this to play)
+dev.html, styles.css       page shell and UI styling used for development and as the build template
+server.js                  development-only static server for dev.html
 src/core/                  version, RNG, event bus, input, release notes
 src/world/                 clock, tiles, maps, pathfinding
 src/sim/                   NPC brain & tiers, schedules, knowledge, memory, relationships, conditions

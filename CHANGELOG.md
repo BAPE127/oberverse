@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.1.1] — 2026-10-13 — "Just Open It" (development build)
+
+### Changed
+- **The game is now a single, self-contained `index.html`.** Double-click it to play: no server, no installation, no internet. The same file is served as-is by GitHub Pages, so the game can be shared as a link.
+- The multi-file module page moved to `dev.html` (development only, `npm run dev`).
+
+### Added
+- `tools/build.mjs` (`npm run build`): zero-dependency bundler that inlines the stylesheet and every module into `index.html`.
+- `tests/build.test.mjs`: fails if `index.html` is out of date with the sources, or stops being self-contained.
+- Smoke test now runs against `index.html` over `file://` (24 checks, including saves persisting across a reload); `--dev` tests `dev.html` through the dev server.
+- `.nojekyll` so GitHub Pages serves files untouched.
+
 ## [0.1.0] — 2026-10-13 — "Foundations of Lanternside" (development build)
 
 First playable foundation (roadmap stages 0–1, with early parts of stages 2–6).

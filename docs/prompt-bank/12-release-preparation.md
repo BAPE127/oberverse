@@ -9,7 +9,7 @@
 ## Steps
 
 1. `git status` clean; note the commit.
-2. `npm run check` and `npm run smoke` — record exact results.
+2. `npm run build`, `npm run check`, `npm run smoke` and `npm run smoke -- --dev` — record exact results.
 3. Manual play-through (see workflow) — record what you actually did.
 4. Save/load: current saves and every fixture.
 5. Validator: no missing assets/broken references.

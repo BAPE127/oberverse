@@ -1,12 +1,12 @@
 {
   "name": "The Oberverse",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
   "releaseDate": "2026-10-13",
-  "entryPoint": "index.html",
-  "runCommand": "npm start  (or any static file server serving this folder)",
+  "entryPoint": "index.html (generated, self-contained — open directly or via GitHub Pages)",
+  "runCommand": "Open index.html in a browser. Developers: dev.html via `npm run dev`; rebuild index.html with `npm run build`.",
   "runtime": {
     "platform": "browser",
     "language": "JavaScript (ES modules, no build step)",
@@ -46,19 +46,38 @@
     "audio": "src/content/audio.js"
   },
   "characters": [
-    { "id": "npc_mags", "name": "Marguerite \"Mags\" Pell", "origin": "original", "status": "implemented" },
-    { "id": "npc_osric", "name": "Osric Vane", "origin": "original", "status": "implemented" },
-    { "id": "npc_tibbs", "name": "Tibbs Hollow", "origin": "original", "status": "implemented" }
+    {
+      "id": "npc_mags",
+      "name": "Marguerite \"Mags\" Pell",
+      "origin": "original",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_osric",
+      "name": "Osric Vane",
+      "origin": "original",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_tibbs",
+      "name": "Tibbs Hollow",
+      "origin": "original",
+      "status": "implemented"
+    }
   ],
   "importedCharacters": [],
   "tooling": {
     "unitTests": "npm test",
     "contentValidation": "npm run validate",
-    "browserSmokeTest": "npm run smoke (requires Playwright + Chromium)",
-    "mapPreview": "npm run map -- <mapId>"
+    "browserSmokeTest": "npm run smoke (standalone file://) / npm run smoke -- --dev (requires Playwright + Chromium)",
+    "mapPreview": "npm run map -- <mapId>",
+    "build": "npm run build (writes the standalone index.html)",
+    "devServer": "npm run dev (dev.html, multi-file, for development only)"
   },
   "compatibility": {
-    "loadsSaveSchemas": [1],
+    "loadsSaveSchemas": [
+      1
+    ],
     "minimumNode": "18 (only for the dev server and tests)",
     "browsers": "Current Chromium, Firefox and Safari with ES module support"
   },

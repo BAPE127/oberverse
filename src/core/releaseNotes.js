@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.1.1',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Just Open It',
+    notes: [
+      'The game is now a single self-contained index.html: double-click it to play — no server, no installation, no internet.',
+      'The same file works as a GitHub Pages link.',
+      'Saves persist between sessions when the file is opened directly.',
+    ],
+  },
+  {
     version: '0.1.0',
     date: '2026-10-13',
     channel: 'development',

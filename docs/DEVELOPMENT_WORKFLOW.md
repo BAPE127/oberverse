@@ -24,7 +24,7 @@ npm run check   # content validator + all tests
 npm run smoke   # browser smoke test (Playwright + Chromium) — screenshots in tools/out/
 ```
 
-Also play the changed feature in a browser (`npm start`). Record what was actually verified in `docs/TESTING.md` when it changes, and never claim a check you did not run.
+Then `npm run build` and commit the regenerated `index.html` (a test fails if it is stale). Also play the changed feature in a browser — `npm run dev` for live source, and open `index.html` directly to check the shipped build. Record what was actually verified in `docs/TESTING.md` when it changes, and never claim a check you did not run.
 
 ## Versioning (semantic)
 
@@ -40,7 +40,7 @@ The version must agree in **five** places (enforced by `tests/version.test.mjs`)
 ## Release procedure
 
 1. `npm run check` passes.
-2. `npm run smoke` passes; review the screenshots.
+2. `npm run build`, then `npm run smoke` (standalone file) and `npm run smoke -- --dev` pass; review the screenshots.
 3. Manually play: new game → leave flat → talk to all three residents → buy something → complete at least one quest → sleep → save → reload → continue.
 4. Save/load across schema versions using fixtures in `tests/fixtures/`.
 5. Validator reports no missing assets or broken references.
@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-13 — v0.1.1.** Players now open the generated `index.html` directly; development uses `dev.html`.
 - **2026-10-13 — v0.1.0.** Foundation complete and verified (see `docs/TESTING.md`). Next recommended steps, in order:
   1. Import the first player-supplied character (Stage 5) using `docs/prompt-bank/03-character-import.md` when the player provides one.
   2. Optional combat + a nonviolent alternative (Stage 3), equipment slots.

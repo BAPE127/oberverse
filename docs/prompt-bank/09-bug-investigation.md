@@ -8,7 +8,7 @@
 
 ## Steps
 
-1. Reproduce. Prefer a headless test (`tests/helpers.mjs`: `newGame`, `run`, `setTime`, `besideNpc`). For visual/UI bugs, use the browser (`npm start`) or extend `tools/smoke-test.mjs`. For save bugs, load the provided save through `SaveManager.parse`.
+1. Reproduce. Prefer a headless test (`tests/helpers.mjs`: `newGame`, `run`, `setTime`, `besideNpc`). For visual/UI bugs, use the browser (`npm run dev` for live source; reproduce in the built `index.html` too) or extend `tools/smoke-test.mjs`. For save bugs, load the provided save through `SaveManager.parse`.
 2. Write a failing test that captures the bug.
 3. Find the root cause (not just the symptom). Check whether other callers share it.
 4. Fix minimally.
