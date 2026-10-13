@@ -38,6 +38,24 @@ export const DOCS = {
       },
     ],
   },
+  doc_company_ledger: {
+    title: 'Ober\'s Oil — General Ledger',
+    body: [
+      'Columns of figures in Agnes Thornbury\'s immaculate hand. Wages: "deferred". Safety: "deferred". Sir Moneybucks\'s cigars: paid, promptly.',
+      'An old volume is wedged at the back. Twelve years ago: "Dissolution auction, Obermere Harbour Board. Lot 14 — Harbourmaster\'s seal & effects. PAID. Authorised: R.E.M."',
+      'A week later: "Night shipments, bay crossing — lamps extinguished per instruction. Bonus to crews for discretion."',
+    ],
+    effects: [{ learn: 'fact_moneybucks_bought_seal' }, { learn: 'fact_night_tankers' }],
+  },
+  doc_union_pamphlet: {
+    title: 'A pamphlet under a teacup',
+    body: [
+      'WORKERS OF OBER\'S OIL! Three months\' back pay owed. Double shifts. Wages in company scrip, good only at the company store — where coffee costs four obols!',
+      'We built his fortune. We can stop it. Ask a friend who wears a blue thread on his cuff.',
+      'Someone has written in the margin: "Not yet, Otto. Not until they\'re ready."',
+    ],
+    effects: [{ learn: 'fact_workers_grievances' }],
+  },
   doc_keeper_log: {
     title: 'The Keeper\'s Log',
     body: [

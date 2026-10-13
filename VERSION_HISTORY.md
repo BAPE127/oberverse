@@ -4,8 +4,15 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.2.0 — Ober's Oil
+
+- **Content:** first player-imported character (Sir Moneybucks) with ten generated employees and a new district.
+- **Save compatibility:** schema 1 unchanged; additive state (`world.oil`, new NPCs, `fac_oil`) is defaulted on load. Verified against `tests/fixtures/save-schema1-v0.1.0.json`.
+- **Behaviour changes in existing content:** impulses for Mags, Osric and Tibbs now actually fire; Osric sometimes stays late instead of inspecting the Point.
 
 ## 0.1.1 — Just Open It
 

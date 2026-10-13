@@ -83,6 +83,89 @@ export const QUESTS = {
     },
   },
 
+  q_seal_of_m: {
+    title: 'The Seal of M.',
+    summary: 'The keeper\'s log names "M.", who ordered the lens removed under "the old seal". Who was M. — and where is the lens now?',
+    start: 'investigate',
+    stages: {
+      investigate: {
+        journal: 'Someone signed "M." used an old seal to darken the lighthouse. Find out who — and where the great lens went.',
+        objectives: [
+          { id: 'o_who', text: 'Find out who used the old seal.', if: { not: { playerKnows: 'fact_moneybucks_bought_seal' } } },
+          { id: 'o_where', text: 'Find out where the great lens went.', if: { not: { any: [{ playerKnows: 'fact_lens_in_vault' }, { hasItem: 'item_great_lens' }] } } },
+        ],
+        hints: [
+          { if: { not: { playerKnows: 'fact_harbourmaster_seal' } }, text: 'Osric knows every seal and stamp in the borough. Ask him about "M." or the seal.' },
+          { if: { playerKnows: 'fact_harbourmaster_seal', not: { playerKnows: 'fact_moneybucks_bought_seal' } }, text: 'The Harbourmaster\'s office was abolished — someone acquired its seal. Ober\'s Oil has been here a long time, and Agnes Thornbury keeps its books.' },
+          { if: { hasItem: 'item_lens_shard', not: { playerKnows: 'fact_shard_matches' } }, text: 'The lens shard hums. A chemist might know why — Delphine works at the refinery.' },
+          { if: { playerKnows: 'fact_shard_matches', not: { playerKnows: 'fact_lens_in_vault' } }, text: 'Something in Moneybucks Manor resonates with the shard. Pip mentioned a vault that hums.' },
+          { if: { playerKnows: 'fact_night_tankers' }, text: 'Ober\'s Oil tankers once crossed the bay at night "when the lighthouse wasn\'t looking".' },
+        ],
+      },
+      decide: {
+        journal: 'Sir Moneybucks is "M." He bought the Harbourmaster\'s seal and darkened the bay so his tankers could run untaxed. The great lens is in his vault.',
+        objectives: [{ id: 'o_decide', text: 'Expose him to Osric, confront Sir Moneybucks yourself, or take the lens back to the lighthouse.' }],
+        hints: [
+          { if: {}, text: 'Osric will want proof — and will act on it. Sir Moneybucks will want to negotiate. The lens itself needs only its cradle.' },
+          { if: { not: { hasItem: 'item_vault_key' } }, text: 'The vault key is kept in Sir Moneybucks\'s desk. Agnes may have a copy, if she trusts you.' },
+        ],
+      },
+    },
+    triggers: [
+      { event: 'quest:completed', where: { id: 'q_dark_lamp' }, notStarted: true, start: true },
+      { event: 'fact:learned', where: { who: 'player', factId: 'fact_harbourmaster_seal' }, notStarted: true, start: true },
+      { event: 'fact:learned', where: { who: 'player', factId: 'fact_moneybucks_bought_seal' }, notStarted: true, start: true },
+      { event: 'item:acquired', where: { id: 'item_great_lens' }, effects: [{ learn: 'fact_lens_in_vault' }] },
+      { event: 'fact:learned', where: { who: 'player', factId: 'fact_moneybucks_bought_seal' }, stage: 'investigate', if: { playerKnows: 'fact_lens_in_vault' }, advance: 'decide' },
+      { event: 'fact:learned', where: { who: 'player', factId: 'fact_lens_in_vault' }, stage: 'investigate', if: { playerKnows: 'fact_moneybucks_bought_seal' }, advance: 'decide' },
+    ],
+    outcomes: {
+      exposed: {
+        journal: 'You brought the proof to Osric. The Civic Office — all one of it — opened proceedings against Ober\'s Oil. The lens is coming home.',
+        effects: [{ money: 20 }, { notify: 'Quest complete: The Seal of M. (exposed)' }],
+      },
+      restored: {
+        journal: 'You carried the great lens back up the Point yourself and set it in its cradle. The old clockwork turned. Lanternside has a lighthouse again.',
+        effects: [{ rep: { lanternside: 8 } }, { notify: 'Quest complete: The Seal of M. (restored)' }],
+      },
+      blackmailed: {
+        journal: 'You sold your silence to Sir Moneybucks for 150 obols. The bay stays dark. He will not forget.',
+        effects: [{ notify: 'Quest complete: The Seal of M. (blackmail)' }],
+      },
+      bargained: {
+        journal: 'You took fifteen shares and a seat at Sir Moneybucks\'s table. The lens stays in the vault. The bay stays dark.',
+        effects: [{ notify: 'Quest complete: The Seal of M. (partner)' }],
+      },
+    },
+  },
+
+  job_refinery_shift: {
+    title: 'Job: Refinery Shift',
+    kind: 'job',
+    giver: 'npc_gideon',
+    summary: 'Day labour at Ober\'s Oil Refinery No. 1. Three stations, one foreman, five obols.',
+    start: 'work',
+    expires: { at: '20:00' },
+    stages: {
+      work: {
+        journal: 'Work the valve bank, the gauge panel and the barrel line inside the refinery. Properly — or quickly.',
+        objectives: [
+          { id: 'o_valves', text: 'Work the valve bank.', if: { not: { flagToday: 'shift_valves' } } },
+          { id: 'o_gauges', text: 'Work the gauge panel.', if: { not: { flagToday: 'shift_gauges' } } },
+          { id: 'o_barrels', text: 'Work the barrel line.', if: { not: { flagToday: 'shift_barrels' } } },
+        ],
+        marker: 'ober_fields:refinery_door_out',
+      },
+      report: {
+        journal: 'All three stations done. Report to Gideon Slate to get paid.',
+        objectives: [{ id: 'o_report', text: 'Report to Gideon at the foreman\'s desk.' }],
+        marker: 'ober_fields:refinery_door_out',
+      },
+    },
+    outcomes: { paid: { journal: 'Paid. Your hands smell of crude and your pockets of… slightly more crude.', effects: [{ rep: { fac_oil: 1 } }] } },
+    failures: { expired: { journal: 'The shift ended before you finished. Gideon docked the lot.', effects: [{ notify: 'Refinery shift not finished — no pay today.', notifyKind: 'warn' }] } },
+  },
+
   job_cafe_delivery: {
     title: 'Job: Coffee for the Clerk',
     kind: 'job',

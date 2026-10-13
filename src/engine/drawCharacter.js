@@ -35,6 +35,7 @@ export function drawCharacter(ctx, a, s) {
   const walk = s.moving ? Math.sin(t * 11) : 0;
   const bob = s.moving ? Math.abs(Math.sin(t * 11)) * 1.6 : Math.sin((s.idleTime || 0) * 2.2) * 0.5;
   const bw = BUILD_WIDTH[a.build] || 18;
+  const acc = accessorySet(a);
   const outline = 'rgba(30,24,40,0.55)';
 
   ctx.save();
@@ -94,7 +95,14 @@ export function drawCharacter(ctx, a, s) {
   ctx.fill();
   ctx.stroke();
   // outfit details
-  if (a.accessory === 'apron' || a.apron) {
+  if (a.pattern === 'pinstripe') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 0.6;
+    for (let px = -tw / 2 + 2.5; px < tw / 2 - 1; px += 2.6) {
+      ctx.beginPath(); ctx.moveTo(px, -26); ctx.lineTo(px, -11); ctx.stroke();
+    }
+  }
+  if (acc.has('apron') || a.apron) {
     ctx.fillStyle = a.apron || '#f4efe6';
     rrect(ctx, -tw / 2 + 2.5, -21, tw - 5, 12, 3);
     ctx.fill();
@@ -114,11 +122,23 @@ export function drawCharacter(ctx, a, s) {
     ctx.beginPath();
     ctx.moveTo(-1.5, -26); ctx.lineTo(1.5, -26); ctx.lineTo(2, -16); ctx.lineTo(0, -14); ctx.lineTo(-2, -16); ctx.closePath(); ctx.fill();
   }
-  if (a.accessory === 'scarf' && facing !== 'up') {
+  if (acc.has('scarf') && facing !== 'up') {
     ctx.fillStyle = a.accent || '#f2c14e';
     rrect(ctx, -tw / 2 + 1, -28.5, tw - 2, 4.5, 2);
     ctx.fill();
     if (facing === 'down') ctx.fillRect(2, -25, 3.5, 7);
+  }
+  if (acc.has('watchchain') && facing === 'down') {
+    ctx.strokeStyle = '#d9b24a';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-5, -17); ctx.quadraticCurveTo(-1, -13, 4, -16.5); ctx.stroke();
+  }
+  if (acc.has('vest') && facing !== 'up') {
+    ctx.fillStyle = a.vestColor || '#f2a33a';
+    ctx.fillRect(-tw / 2 + 1, -26, 3, 14);
+    ctx.fillRect(tw / 2 - 4, -26, 3, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillRect(-tw / 2 + 1, -19, tw - 2, 1.5);
   }
   // belt line
   ctx.fillStyle = 'rgba(0,0,0,0.12)';
@@ -127,8 +147,10 @@ export function drawCharacter(ctx, a, s) {
   if (!side) {
     drawArm(-tw / 2 - 1.5, walk * 2);
     drawArm(tw / 2 + 1.5, -walk * 2);
+    if (a.holding) drawHeld(ctx, a.holding, tw / 2 + 1.5, -13 - walk * 2, 1, s.idleTime || 0);
   } else {
     drawArm(dir * 2, walk * 2);
+    if (a.holding) drawHeld(ctx, a.holding, dir * 2, -13 + walk * 2, dir, s.idleTime || 0);
   }
 
   // head
@@ -161,9 +183,11 @@ export function drawCharacter(ctx, a, s) {
       ctx.beginPath(); ctx.arc(-6, eyeY + 3.5, 2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(6, eyeY + 3.5, 2, 0, Math.PI * 2); ctx.fill();
     }
+    drawFacialHair(ctx, a, facing, hy, dir);
     drawFaceAccessory(ctx, a, facing, eyeY, dir);
   }
-  if (a.accessory === 'goggles') {
+  drawHat(ctx, a, facing, hy);
+  if (acc.has('goggles')) {
     ctx.fillStyle = '#5b4a3a';
     ctx.fillRect(-9.5, hy - 6, 19, 3);
     if (facing !== 'up') {
@@ -232,16 +256,110 @@ function drawHair(ctx, a, facing, hy) {
       const ang = Math.PI + (i / 8) * Math.PI;
       ctx.beginPath(); ctx.arc(Math.cos(ang) * 9, hy - 1 + Math.sin(ang) * 9, 3.6, 0, Math.PI * 2); ctx.fill();
     }
-  } else if (style === 'hat') {
-    ctx.fillStyle = a.hatColor || a.accent || '#444';
-    ctx.fillRect(-12, hy - 8, 24, 3);
-    rrect(ctx, -7.5, hy - 17, 15, 10, 3);
-    ctx.fill();
   }
 }
 
+/** Hats are drawn after the face so brims sit over the hair. */
+function drawHat(ctx, a, facing, hy) {
+  const style = a.hairStyle;
+  const c = a.hatColor || a.accent || '#444';
+  if (style === 'hat') {
+    ctx.fillStyle = c;
+    ctx.fillRect(-12, hy - 8, 24, 3);
+    rrect(ctx, -7.5, hy - 17, 15, 10, 3);
+    ctx.fill();
+  } else if (style === 'tophat') {
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.ellipse(0, hy - 7.5, 13, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+    rrect(ctx, -8.5, hy - 27, 17, 20, 2.5);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(-6.5, hy - 25, 3, 16);
+    ctx.fillStyle = a.hatBand || '#1a1a1f';
+    ctx.fillRect(-8.5, hy - 12, 17, 3);
+  } else if (style === 'hardhat') {
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.arc(0, hy - 4, 10.5, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-12.5, hy - 5, 25, 2.5);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(-1, hy - 14, 2, 9);
+  } else if (style === 'cap') {
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.ellipse(0, hy - 6, 10.5, 5.5, 0, Math.PI, 0); ctx.fill();
+    if (facing !== 'up') { ctx.beginPath(); ctx.ellipse(facing === 'left' ? -6 : facing === 'right' ? 6 : 0, hy - 5, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+
+function drawFacialHair(ctx, a, facing, hy, dir) {
+  const side = facing === 'left' || facing === 'right';
+  if (a.beard) {
+    ctx.fillStyle = a.beard;
+    ctx.beginPath();
+    if (side) ctx.ellipse(dir * 3, hy + 5, 6.5, 5.5, 0, 0, Math.PI * 2);
+    else {
+      ctx.moveTo(-9.3, hy);
+      ctx.quadraticCurveTo(-9, hy + 10, 0, hy + 11.5);
+      ctx.quadraticCurveTo(9, hy + 10, 9.3, hy);
+      ctx.quadraticCurveTo(5, hy + 6, 0, hy + 6);
+      ctx.quadraticCurveTo(-5, hy + 6, -9.3, hy);
+    }
+    ctx.fill();
+  }
+  if (a.moustache) {
+    ctx.strokeStyle = a.moustacheColor || a.beard || a.hair;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    const my = hy + 4.2;
+    const curl = a.moustache === 'handlebar';
+    const half = (s) => {
+      const x0 = side ? dir * 4 : 0;
+      ctx.beginPath();
+      ctx.moveTo(x0, my);
+      ctx.quadraticCurveTo(x0 + s * 4, my + 1.5, x0 + s * 7, my - 0.5);
+      if (curl) ctx.quadraticCurveTo(x0 + s * 9, my - 3, x0 + s * 7.5, my - 3.5);
+      ctx.stroke();
+    };
+    if (side) half(dir);
+    else { half(-1); half(1); }
+    ctx.lineCap = 'butt';
+  }
+}
+
+function drawHeld(ctx, item, x, y, dir, t) {
+  if (item === 'cigar') {
+    ctx.fillStyle = '#8a5a34';
+    ctx.fillRect(x - 1 + dir * 1, y - 2.5, 6 * dir, 2);
+    ctx.fillStyle = '#ff8a3d';
+    ctx.fillRect(x - 1 + dir * 7, y - 2.5, dir, 2);
+    ctx.fillStyle = 'rgba(220,220,230,0.45)';
+    const rise = (t * 6) % 10;
+    ctx.beginPath(); ctx.arc(x + dir * 8 + Math.sin(t * 2), y - 5 - rise, 1.5 + rise * 0.15, 0, Math.PI * 2); ctx.fill();
+  } else if (item === 'clipboard') {
+    ctx.fillStyle = '#8a6142';
+    ctx.fillRect(x - 3, y - 7, 7, 9);
+    ctx.fillStyle = '#f3efe6';
+    ctx.fillRect(x - 2, y - 5, 5, 6);
+  } else if (item === 'wrench') {
+    ctx.strokeStyle = '#9aa3ab';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dir * 2, y - 8); ctx.stroke();
+  }
+}
+
+function accessorySet(a) {
+  return new Set([a.accessory, ...(a.accessories || [])].filter(Boolean));
+}
+
 function drawFaceAccessory(ctx, a, facing, eyeY, dir) {
-  if (a.accessory !== 'glasses') return;
+  const acc = accessorySet(a);
+  if (acc.has('monocle') && facing !== (a.monocleSide === 'left' ? 'right' : 'left')) {
+    const mx = facing === 'down' ? 3.7 : dir * 4.5;
+    ctx.strokeStyle = '#d9b24a';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.arc(mx, eyeY, 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mx + 1, eyeY + 3); ctx.quadraticCurveTo(mx + 3, eyeY + 12, mx - 2, eyeY + 18); ctx.stroke();
+  }
+  if (!acc.has('glasses')) return;
   ctx.strokeStyle = '#1e1b22';
   ctx.lineWidth = 1;
   if (facing === 'left' || facing === 'right') {

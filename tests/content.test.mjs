@@ -32,7 +32,7 @@ test('all songs compile into whole bars', () => {
 });
 
 test('every major character has a motif, voice and personality that drives behaviour', () => {
-  for (const c of Object.values(CONTENT.characters)) {
+  for (const c of Object.values(CONTENT.characters).filter((x) => x.tier === 'major')) {
     assert.ok(CONTENT.motifs[c.motif], `${c.id} motif`);
     assert.ok(c.voice?.pitch, `${c.id} voice`);
     for (const k of ['sociability', 'conscientiousness', 'impulsiveness']) assert.equal(typeof c.personality[k], 'number', `${c.id}.${k}`);

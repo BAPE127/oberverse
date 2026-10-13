@@ -53,13 +53,16 @@ export default {
     },
     {
       id: 'gull_watch', activity: 'wander', spot: 'lanternside:park_pond', label: 'keeping an eye on the gulls',
-      trait: 'curiosity', weight: 0.85, duringActivity: ['wander', 'fish'], duration: 40,
+      trait: 'curiosity', weight: 1.15, duringActivity: ['wander', 'fish'], duration: 40,
     },
   ],
   relationships: {
     player: { trust: 0, affection: 5, respect: 0, suspicion: 0 },
     npc_mags: { trust: 30, affection: 35, respect: 20, suspicion: 0 },
     npc_osric: { trust: 0, affection: -10, respect: 5, suspicion: 5 },
+    npc_moneybucks: { trust: -5, affection: -5, respect: 15, suspicion: 10 },
+    npc_hank: { trust: 20, affection: 25, respect: 10, suspicion: 0 },
+    npc_otto: { trust: 10, affection: 15, respect: 10, suspicion: 0 },
   },
   knowledge: ['fact_lighthouse_dark', 'fact_hatch_exists', 'fact_tibbs_lost_spanner', 'fact_gulls_organised'],
   giftPrefs: { item_coffee: 8, item_brass_cog: 10, item_bolts: 4, item_gull_feather: 6, tags: { mechanical: 5, food: 3 } },
@@ -71,6 +74,14 @@ export default {
     npc_mags: {
       warm: 'Mags! Best human. Feeds me. Doesn\'t ask what the smell is.',
       cool: 'Mags told everyone about the toaster incident. EVERYONE.',
+    },
+    npc_moneybucks: {
+      warm: 'Sir Moneybucks? He\'s a villain. But have you SEEN his pumpjacks? Gorgeous. I\'d die for one of those gearboxes. Not literally. Probably.',
+      cool: 'Moneybucks offered me a job. "Mechanic, third class." THIRD. I\'m at least second.',
+    },
+    npc_hank: {
+      warm: 'Hank! Fishing buddy! We\'ve caught zero fish together. It\'s a record.',
+      cool: 'Hank still owes me a bait bucket.',
     },
     npc_osric: {
       warm: 'Osric\'s alright. Under the forms. Way under. Like, geologically.',

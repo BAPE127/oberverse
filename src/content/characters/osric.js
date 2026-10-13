@@ -60,7 +60,7 @@ export default {
   impulses: [
     {
       id: 'overtime', activity: 'work', spot: 'civic_office:desk_chair', label: 'staying late over paperwork',
-      trait: 'conscientiousness', weight: 0.75, duringActivity: ['patrol'], duration: 30,
+      trait: 'conscientiousness', weight: 1.55, duringActivity: ['patrol'], duration: 30,
     },
     {
       id: 'search_point', activity: 'patrol', spot: 'lanternside:lighthouse_gate', label: 'searching the Point for the missing key',
@@ -72,8 +72,9 @@ export default {
     player: { trust: 0, affection: 0, respect: 0, suspicion: 5 },
     npc_mags: { trust: 25, affection: 20, respect: 15, suspicion: 0 },
     npc_tibbs: { trust: 5, affection: 0, respect: -5, suspicion: 10 },
+    npc_moneybucks: { trust: -25, affection: -10, respect: -15, suspicion: 35 },
   },
-  knowledge: ['fact_lighthouse_dark', 'fact_osric_has_key'],
+  knowledge: ['fact_lighthouse_dark', 'fact_osric_has_key', 'fact_moneybucks_owns_oil'],
   giftPrefs: { item_honey_bun: 14, item_coffee: 4, item_wildflowers: 2, item_gull_feather: -6, tags: { sweet: 6 } },
   reactions: {
     fact_player_trespassed_lighthouse: { rel: { trust: -6, respect: -4 }, mood: { id: 'affronted', minutes: 240 } },
@@ -85,6 +86,10 @@ export default {
     npc_mags: {
       warm: 'Mrs. Pell is the closest thing Lanternside has to a newspaper, a heating system and a conscience. Do not tell her I said so.',
       cool: 'Mrs. Pell has filed four patio permits this month. Four. I have begun to dream in patio.',
+    },
+    npc_moneybucks: {
+      warm: 'Sir Moneybucks pays his rates. Late. In full. With a note calling me a "parasite". I have framed it.',
+      cool: 'Sir Moneybucks regards the law as a menu. He orders what he likes and sends the rest back.',
     },
     npc_tibbs: {
       warm: 'Mr. Hollow is... enthusiastic. Enthusiasm is not a crime. Usually.',

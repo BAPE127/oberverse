@@ -25,6 +25,15 @@
 | `build.test.mjs` | `index.html` matches a fresh build; the page is self-contained (no module scripts, external files); the bundle parses and includes every module once. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
 
+## Verification record — v0.2.0 (2026-10-13)
+
+- `npm run check` — **76/76 tests passed** (incl. 14 in `character_moneybucks.test.mjs`); **validator 0 errors** (2 intentional warnings).
+- `npm run smoke` (standalone `index.html` via `file://`) and `npm run smoke -- --dev` — **24/24 each**, no page errors or engine warnings.
+- Scripted browser walkthrough of the new content, no errors: walking east into the Ober Fields through the road exit; the estate and fields by day; Sir Moneybucks's study, dialogue with the supplied portrait, the share register opened from dialogue, a full Ledger match; the relit lighthouse and canal slick at night.
+- Ledger balance (simulation, 4–6k matches): naive play wins ~45%; reading tells wins ~50–53%, rising with Wits.
+- Frame rate with 14 residents: ~57–60 fps at 1600×900 in headless software rendering.
+- Not verified: audio by ear; Firefox/Safari; GitHub Pages hosting.
+
 ## Verification record — v0.1.1 (2026-10-13)
 
 - `npm run check` — **62/62 tests passed; validator 0 errors.**

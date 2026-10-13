@@ -116,8 +116,15 @@ export default {
     lighthouse_gate: { x: 14, y: 41, facing: 'left' },
     canal_footbridge: { x: 16, y: 25, facing: 'up' },
     patio: { x: 14, y: 18, facing: 'left' },
+    east_road: { x: 61, y: 13, facing: 'left' },
+    pier_mid: { x: 56, y: 37, facing: 'down' },
   },
+  doors: [
+    { id: 'door_east_road_a', x: 63, y: 12, keepTile: true, label: 'Road to the Ober Fields', to: { map: 'ober_fields', spot: 'west_road' } },
+    { id: 'door_east_road_b', x: 63, y: 13, keepTile: true, label: 'Road to the Ober Fields', to: { map: 'ober_fields', spot: 'west_road' } },
+  ],
   props: [
+    { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights
     tree('t_bh1', 1, 2), tree('t_bh2', 11, 3), tree('t_bh3', 20, 2), tree('t_bh4', 27, 3), tree('t_bh5', 1, 8),
     { id: 'fb_n9', type: 'flowerbed', x: 3, y: 10, w: 2 },

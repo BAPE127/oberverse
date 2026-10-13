@@ -62,6 +62,26 @@ export const ITEMS = {
     name: 'Lens Shard', category: 'quest', price: 0, tags: ['quest', 'mystery'], icon: 'shard',
     description: 'A curved sliver of thick glass that throws tiny rainbows. It hums very faintly when held to the light.',
   },
+  item_cigar: {
+    name: 'Ober Imperial Cigar', category: 'gift', price: 12, tags: ['gift', 'luxury'], icon: 'cigar',
+    description: 'A fat cigar banded in gold leaf: "Ober Imperial — For Gentlemen of Means". It costs more than a day\'s wages.',
+  },
+  item_vault_key: {
+    name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
+    description: 'A heavy, ornate key with a dollar-sign bow. It opens the vault in Sir Moneybucks\'s study.',
+  },
+  item_great_lens: {
+    name: 'The Great Lens', category: 'quest', price: 0, tags: ['quest', 'mystery'], icon: 'shard',
+    description: 'The lighthouse\'s great lens: a beehive of ringed glass the size of a barrel, humming softly. It is very heavy and very obviously stolen.',
+  },
+  item_ledger_page: {
+    name: 'Ledger Page', category: 'quest', price: 0, tags: ['quest', 'evidence'], icon: 'stamp',
+    description: 'A page copied from the Ober\'s Oil books in Agnes Thornbury\'s neat hand: "Lot 14 — Harbourmaster\'s seal & effects. Purchased. 12 yrs ago."',
+  },
+  item_company_scrip: {
+    name: 'Company Scrip', category: 'junk', price: 0, tags: ['junk'], icon: 'stamp',
+    description: 'Paper "money" redeemable only at the Ober\'s Oil company store. Tibbs says it makes good kindling.',
+  },
   item_gull_feather: {
     name: 'Gull Feather', category: 'junk', price: 0, tags: ['junk', 'gift'], icon: 'feather',
     description: 'A long grey gull feather. A trophy, or a warning.',

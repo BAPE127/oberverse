@@ -4,7 +4,7 @@ A persistent, character-driven, systemic sandbox RPG that runs in your browser.
 
 You have just moved into Number 9, Gullwing Row, in **Lanternside** — a small seaside borough of the city of Obermere. The people here keep schedules, hold opinions, gossip, hold grudges, run businesses and react to what you do. The old lighthouse on the Point has been dark for eleven years, and nobody official wants to say why.
 
-**Version:** 0.1.1 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
+**Version:** 0.2.0 (development build) · **Save schema:** 1 · See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -37,10 +37,11 @@ The game never contacts any external service or AI API.
 
 ## What's in this build
 
-* **Lanternside** — an outdoor borough (canal, civic square, park, quay, lighthouse point) and six interiors, with a day/night cycle, lit windows, street lamps and a world clock (1 real second = 1 game minute).
+* **Lanternside and the Ober Fields** — two outdoor districts (canal, civic square, park, quay, lighthouse point; manor grounds, refinery, oil fields) and nine interiors, with a day/night cycle, lit windows, street lamps and a world clock (1 real second = 1 game minute).
 * **Three original residents** — Mags (café owner, gossip broker), Osric (Civic Office clerk, keeper of keys), Tibbs (impulsive mechanic). Each has a structured personality, schedule, impulses, moods, bounded memory, relationships, knowledge, voice, musical motif and their own dialogue and mechanics.
+* **Sir Richard E. Moneybucks, Esq.** — the first imported character: ruthless founder of Ober's Oil, with his estate east of town (manor, refinery, oil fields), ten employees, refinery shifts, shares and expansion projects, strikes, and a high-stakes card wager called the Ledger.
 * **Systemic play** — doors with keys and opening hours, containers with ownership and witnessed theft, shops whose prices follow friendship, gifts, persuasion checks, reputation with three factions, and information that spreads through gossip rather than omniscience.
-* **Quests with multiple solutions** — *The Dark Lamp* (get into the lighthouse by permission, stealth, or a crowbar and a noisy hatch; then decide who to tell), *The Lucky Spanner*, and a daily delivery job.
+* **Quests with multiple solutions** — *The Dark Lamp* (get into the lighthouse by permission, stealth, or a crowbar and a noisy hatch; then decide who to tell), *The Seal of M.* (four endings), *The Lucky Spanner*, and daily café and refinery jobs.
 * **Emergent events** — workshop explosions that lead to noise citations only if word reaches Osric, a missing key that Osric notices and investigates, honey-bun sell-outs that ruin Osric's lunch, and gulls with intent.
 * **Original audio** — seven procedurally performed compositions, ambience beds, sound effects, character motifs and per-character dialogue voices, with master/music/SFX/ambience/voice volume and mute.
 * **Durable saves** — autosave + three slots, backups, validation and repair, versioned schema with migrations, JSON export/import.

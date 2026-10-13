@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.1.0
+# Known Issues and Limitations — v0.2.0
 
 ## Not yet implemented (planned)
 
@@ -8,7 +8,8 @@
 - **Controller and touch input.** Keyboard + mouse only.
 - **Weather and seasons.**
 - **More of the world:** No. 11 and the Collective Hall have no interiors; only one outdoor map.
-- **Imported characters:** pipeline documented and supported by the engine, none imported yet (requires player material + interview).
+- **Imported characters:** one so far (Sir Moneybucks). His ten employees are lighter residents (fewer topics, no individual motifs).
+- **Moneybucks's upstairs apartments** and the Collective Hall interior are not built.
 - **Upstairs of the lighthouse** (blocked stair is a story hook).
 
 ## Limitations of current systems
@@ -22,6 +23,15 @@
 - Music is synthesised; quality is intentional but not production-grade (see `docs/AUDIO_GUIDE.md`).
 - Text is English only; no localisation layer.
 
+- Sir Moneybucks's walk from the manor to the Quay takes ~45 game minutes; on the abstract tier the estimate can vary by ±10 minutes.
+- During a strike, picketing workers stand at the gate but the refinery interior is simply empty (no "scab" behaviour yet).
+- The Ledger can only be played once per day, and a match abandoned mid-way keeps the stake.
+- Sleeping NPCs are drawn standing with closed eyes, not lying in bed.
+
 ## Defects
 
-- None known at release. Report new ones here with steps to reproduce.
+Fixed in 0.2.0 (found while building it):
+- Event templates had no `id`, so all events shared one cooldown slot; "once" events could be blocked by any other event. Saves from 0.1.x may contain a harmless `lastFired.undefined` entry.
+- Several personality impulses could never outscore schedules (e.g. Mags's patio natter); weights corrected and the validator now rejects impossible impulses.
+
+None known otherwise. Report new ones here with steps to reproduce.

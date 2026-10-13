@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, run, runUntil, setTime } from './helpers.mjs';
+import { newGame, run, runUntil, setTime, noImpulses } from './helpers.mjs';
 import { coverageGaps } from '../src/sim/schedule.js';
 import { remember, recall, RECENT_CAP, SIGNIFICANT_CAP } from '../src/sim/memory.js';
 import { CONTENT } from '../src/content/index.js';
@@ -11,6 +11,7 @@ test('every schedule covers the whole day', () => {
 
 test('NPCs follow their schedules across a simulated day (abstract tier)', () => {
   const g = newGame(7);
+  noImpulses(g);
   // player stays inside the flat, so everyone else is simulated abstractly
   const at = {};
   const sample = (label) => { at[label] = Object.fromEntries([...g.npcs.values()].map((n) => [n.id, `${n.map}/${n.activity}`])); };

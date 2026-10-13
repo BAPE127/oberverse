@@ -8,7 +8,7 @@ import { parseSpotRef, TILE, interpolate } from '../core/util.js';
 export const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule',
 ];
 
 /**
@@ -163,6 +163,37 @@ function applyOne(game, eff, npc, result) {
         if (c) c.items[val.item] = (c.items[val.item] || 0) + (val.count ?? 1);
         break;
       }
+      case 'oil': {
+        // { oil: { add: { morale: -10, sharesOwned: 5 }, set: { strike: true, accidentDay: '$day' } } }
+        const st = game.oil.state;
+        for (const [k, v] of Object.entries(val.add || {})) st[k] = (st[k] || 0) + v;
+        for (const [k, v] of Object.entries(val.set || {})) st[k] = v === '$day' ? game.clock.day : v;
+        st.morale = Math.max(0, Math.min(100, st.morale));
+        game.bus.emit('oil:changed', {});
+        break;
+      }
+      case 'payWages': {
+        const pay = game.oil.wagesOwed();
+        game.player.money += pay;
+        game.bus.emit('money:changed', { delta: pay, total: game.player.money });
+        break;
+      }
+      case 'schedule': {
+        // { schedule: { event: 'ev_x', at: 'HH:MM' } } or { event, delayMinutes }
+        const now = game.clock.total;
+        let at = now + (val.delayMinutes ?? 0);
+        if (val.at) {
+          const [h, m] = val.at.split(':').map(Number);
+          at = Math.floor(now / 1440) * 1440 + h * 60 + m;
+          if (at <= now) at += 1440;
+        }
+        game.world.events.pending.push({ id: val.event, at });
+        break;
+      }
+      case 'action':
+        // UI actions from dialogue, e.g. { action: 'invest' } or { action: 'ledger' }
+        result.actions.push({ type: val });
+        break;
       case 'containerTake': {
         const c = game.world.containers[val.container];
         if (c && (c.items[val.item] || 0) > 0) c.items[val.item] -= 1;

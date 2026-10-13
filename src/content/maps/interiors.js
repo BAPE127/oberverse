@@ -132,6 +132,16 @@ export const lighthouse = {
       id: 'lh_mechanism', type: 'lamp_mechanism', x: 6, y: 1,
       examine: 'The clockwork that once turned the great lens. Every gear is oiled — recently. The lens cradle at its heart is empty.',
       onExamine: [{ learn: 'fact_lens_missing' }],
+      interact: {
+        kind: 'useItem', item: 'item_great_lens', verb: 'Set the great lens in its cradle', doneFlag: 'lighthouse_relit',
+        doneText: 'The great lens turns slowly in its cradle, throwing light out across the bay. The clockwork ticks like it never stopped.',
+        text: 'You heave the great lens into its cradle. It settles with a deep, ringing hum — and the old clockwork, oiled all these years, begins to turn. Light pours out across the bay.',
+        effects: [
+          { take: 'item_great_lens' }, { flag: { lighthouse_relit: true } }, { clearStolen: 'item_great_lens' },
+          { noise: { sources: ['lighthouse:entry', 'lanternside:lighthouse_gate', 'lanternside:square_bench', 'lanternside:quay_edge'], radius: 40, fact: 'fact_lighthouse_relit' } },
+          { if: { quest: { id: 'q_seal_of_m', state: 'active' } }, then: [{ quest: { id: 'q_seal_of_m', complete: 'restored' } }] },
+        ],
+      },
     },
     { id: 'lh_lectern', type: 'lectern', x: 4, y: 3, interact: { kind: 'read', doc: 'doc_keeper_log' } },
     { id: 'lh_chest', type: 'chest', x: 7, y: 6, interact: { kind: 'container', container: 'ct_lighthouse_chest' } },

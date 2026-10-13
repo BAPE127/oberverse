@@ -4,6 +4,7 @@ import { GAME_VERSION, BUILD_CHANNEL, SAVE_SCHEMA_VERSION, versionLabel } from '
 import { RELEASE_NOTES } from '../core/releaseNotes.js';
 import { SLOTS } from '../save/saveManager.js';
 import { STATS } from '../dialogue/dialogueEngine.js';
+import { OIL_PROJECTS } from '../systems/oilCompany.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -20,7 +21,7 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶' };
+const ICONS = { bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬' };
 export const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -211,8 +212,9 @@ export function shopPanel(ui, body, opts) {
     for (const [id, n] of Object.entries(st.stock)) {
       const item = g.content.items[id];
       const price = g.priceFor(opts.shopId, id);
+      const listPrice = def.prices?.[id] ?? item.price;
       wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(item)),
-        h('div', { class: 'grow' }, h('div', { class: 'name' }, item.name, h('span', { class: 'tag' }, n > 0 ? `${n} left` : 'sold out'), price < item.price ? h('span', { class: 'tag good' }, 'friend price') : null), h('div', { class: 'desc' }, item.description)),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, item.name, h('span', { class: 'tag' }, n > 0 ? `${n} left` : 'sold out'), price < listPrice ? h('span', { class: 'tag good' }, 'friend price') : null, listPrice > item.price ? h('span', { class: 'tag bad' }, 'company price') : null), h('div', { class: 'desc' }, item.description)),
         h('button', { class: 'small primary', disabled: n <= 0 || g.player.money < price, onclick: () => { const r = g.buy(opts.shopId, id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${price}`)));
     }
     body.append(wrap);
@@ -321,7 +323,112 @@ export function aboutPanel(ui, body) {
   return { title: 'About the Oberverse' };
 }
 
+// ---------------------------------------------------------------- choices
+export function choicesPanel(ui, body, opts) {
+  body.append(h('p', {}, opts.text));
+  const wrap = h('div', { class: 'list' });
+  for (const o of opts.options) {
+    wrap.append(h('button', { style: 'text-align:left', onclick: () => {
+      ui.audio.sfx('sfx_ui_click');
+      const [sys, method, ...args] = o.call;
+      const target = sys === 'oil' ? ui.game.oil : ui.game;
+      const r = target[method](...args);
+      ui.closePanel();
+      if (r?.text) ui.showCaption(r.text, 5);
+    } }, o.label));
+  }
+  body.append(wrap);
+  return { title: opts.title };
+}
+
+// ----------------------------------------------------------------- invest
+export function investPanel(ui, body, opts) {
+  const g = ui.game;
+  const render = (msg) => {
+    body.innerHTML = '';
+    const s = g.oil.state;
+    const out = g.oil.computeOutput();
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(
+      h('div', { class: 'grid2', style: 'margin-bottom:12px' },
+        h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, String(g.player.money))),
+        h('div', { class: 'stat' }, h('span', {}, 'Your shares'), h('b', {}, String(s.sharesOwned))),
+        h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${s.sharePrice} obols`)),
+        h('div', { class: 'stat' }, h('span', {}, 'Output today'), h('b', {}, `${out} barrels${s.strike ? ' (STRIKE)' : ''}`)),
+        h('div', { class: 'stat' }, h('span', {}, 'Dividend/share'), h('b', {}, `≈${g.oil.dividendPerShare(out).toFixed(2)} at 18:00`)),
+        h('div', { class: 'stat' }, h('span', {}, 'Dividends received'), h('b', {}, `${s.dividendsPaid} obols`)),
+      ),
+      h('div', { class: 'row', style: 'justify-content:flex-start' },
+        ...[1, 5].map((n) => h('button', { class: 'small primary', disabled: g.player.money < s.sharePrice * n, onclick: () => { const r = g.oil.buyShares(n); render(r.text); } }, `Buy ${n} (${s.sharePrice * n})`)),
+        ...[1, 5].map((n) => h('button', { class: 'small', disabled: s.sharesOwned < n, onclick: () => { const r = g.oil.sellShares(n); render(r.text); } }, `Sell ${n}`)),
+      ),
+      h('h3', { style: 'margin:16px 0 6px' }, 'Expansion projects'),
+      h('p', { class: 'muted' }, 'Funding a project earns bonus shares — and has consequences.'),
+    );
+    const wrap = h('div', { class: 'list' });
+    for (const [id, p] of Object.entries(OIL_PROJECTS)) {
+      const done = g.oil.projectCount(id) >= p.max;
+      wrap.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, id === 'derrick' ? '🛢️' : id === 'pipeline' ? '🔧' : '⛑️'),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, p.name, h('span', { class: 'tag' }, `+${p.bonusShares} shares`), done ? h('span', { class: 'tag good' }, 'done') : null), h('div', { class: 'desc' }, p.text)),
+        h('button', { class: 'small primary', disabled: done || g.player.money < p.cost, onclick: () => { const r = g.oil.fundProject(id); render(r.text); } }, `Fund · ${p.cost}`)));
+    }
+    body.append(wrap);
+    if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price}`).join(' · ')}`));
+  };
+  render();
+  return { title: 'Ober\'s Oil — Share Register', onClose: opts.onClose };
+}
+
+// ------------------------------------------------------------------ ledger
+export function ledgerPanel(ui, body) {
+  const g = ui.game;
+  if (!g.ledger) {
+    const r = g.startLedger();
+    if (!r.ok) {
+      body.append(h('p', {}, r.text));
+      return { title: 'The Ledger' };
+    }
+  }
+  const render = (last) => {
+    body.innerHTML = '';
+    const m = g.ledger;
+    const pointsRow = (pp, hp) => h('div', { class: 'grid2', style: 'margin-bottom:10px' },
+      h('div', { class: 'stat' }, h('span', {}, 'You'), h('b', {}, `${pp} pts`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Sir Moneybucks'), h('b', {}, `${hp} pts`)));
+    if (last) {
+      const txt = last.folded ? `You fold. He shows a ${last.houseCard}${last.bluff ? ' — it was a bluff' : ''}. He takes 1 point.` :
+        `You play ${last.playerCard}, he shows ${last.houseCard}${last.bluff ? ' (a bluff!)' : ''}. ${last.winner === 'player' ? `You take ${last.points}.` : `He takes ${last.points}${last.playerCard === last.houseCard ? ' — ties go to the house' : ''}.`}`;
+      body.append(h('p', {}, h('b', {}, txt)));
+    }
+    if (!m) return;
+    if (m.finished) {
+      const res = g.finishLedger();
+      body.append(pointsRow(res.playerPoints, res.housePoints),
+        h('p', { class: 'doc' }, res.won ? 'You win the purse: 40 obols. Sir Moneybucks lights a cigar very slowly and says nothing for a full ten seconds.' : 'The house wins. Sir Moneybucks pockets your stake without looking at it.'),
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => ui.closePanel() }, 'Leave the table')));
+      ui.audio.sfx(res.won ? 'sfx_quest' : 'sfx_fail');
+      return;
+    }
+    const c = m.current;
+    body.append(
+      pointsRow(m.playerPoints, m.housePoints),
+      h('p', {}, `Round ${m.round + 1} of 3. Sir Moneybucks lays a card face down and announces: `, h('b', {}, c.raise ? '"RAISE." (this round is worth 2)' : '"Steady." (this round is worth 1)')),
+      h('p', { class: 'muted' }, `You watch him closely… ${c.tell}`),
+      h('p', {}, 'Play a card (higher wins; ties go to the house), or fold and concede only 1 point:'),
+      h('div', { class: 'row', style: 'justify-content:flex-start' },
+        ...m.playerHand.map((card) => h('button', { class: 'primary', style: 'min-width:54px;font-size:20px', onclick: () => { ui.audio.sfx('sfx_page'); render(g.playLedger(card)); } }, String(card))),
+        h('button', { class: 'ghost', onclick: () => { ui.audio.sfx('sfx_ui_click'); render(g.playLedger(null)); } }, 'Fold')),
+      h('p', { class: 'muted', style: 'font-size:13px' }, 'Rules: you hold 3 cards, he holds 4. He raises on strong cards — and sometimes on weak ones. Your Wits decide how often you can read him.'),
+    );
+  };
+  render();
+  return { title: 'The Ledger — Stake 20 obols' };
+}
+
 export const PANELS = {
+  choices: choicesPanel,
+  invest: investPanel,
+  ledger: ledgerPanel,
   pause: pausePanel,
   inventory: inventoryPanel,
   journal: journalPanel,

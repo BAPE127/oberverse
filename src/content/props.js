@@ -43,4 +43,16 @@ export const PROP_TYPES = {
   display: { solid: true, label: 'Display case', defaults: { w: 2 } },
   window: { solid: false, label: 'Window', defaults: {} },
   item: { solid: false, label: 'Item', defaults: {} },
+  // Ober's Oil
+  derrick: { solid: true, label: 'Oil derrick', defaults: { w: 2, h: 2 } },
+  pumpjack: { solid: true, label: 'Pumpjack', defaults: { w: 2 } },
+  tank: { solid: true, label: 'Storage tank', defaults: { w: 2, h: 2, examine: 'A storage tank stencilled OBER\'S OIL. It booms faintly when the wind blows.' } },
+  pipe: { solid: true, label: 'Pipe', defaults: {} },
+  booth: { solid: true, label: 'Gatehouse', defaults: {} },
+  valve: { solid: true, label: 'Valve bank', defaults: { w: 3 } },
+  gauge: { solid: true, label: 'Gauge panel', defaults: { w: 3 } },
+  barrelline: { solid: true, label: 'Barrel line', defaults: { w: 3 } },
+  column: { solid: true, label: 'Distillation column', defaults: { w: 2, h: 3 } },
+  vault: { solid: true, label: 'Vault', defaults: {} },
+  painting: { solid: false, label: 'Painting', defaults: {} },
 };

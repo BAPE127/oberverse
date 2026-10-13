@@ -59,7 +59,8 @@ export class DialogueUI {
   drawPortrait() {
     const ctx = this.portrait.getContext('2d');
     const a = this.npc.profile.appearance;
-    const img = a.portrait ? this.ui.assets.image(a.portrait) : null;
+    const npcId = this.npc.id;
+    const img = a.portrait ? this.ui.assets.image(a.portrait, () => { if (this.open && this.npc?.id === npcId) this.drawPortrait(); }) : null;
     if (img) {
       ctx.clearRect(0, 0, this.portrait.width, this.portrait.height);
       ctx.drawImage(img, 0, 0, this.portrait.width, this.portrait.height);
@@ -133,6 +134,17 @@ export class DialogueUI {
       const { shopId } = node.action;
       node.action = null;
       this.ui.openPanel('shop', { shopId, onClose: () => this.renderOptions() });
+      return;
+    }
+    if (node.action?.type === 'invest') {
+      node.action = null;
+      this.ui.openPanel('invest', { onClose: () => this.renderOptions() });
+      return;
+    }
+    if (node.action?.type === 'ledger') {
+      node.action = null;
+      this.close();
+      this.ui.openPanel('ledger', {});
       return;
     }
     if (node.end) {

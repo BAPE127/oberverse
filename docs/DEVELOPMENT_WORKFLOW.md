@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-13 — v0.2.0.** First imported character (Sir Moneybucks), the Ober Fields district, Ober's Oil economy. Next candidates: optional combat; a second imported character; Moneybucks's upstairs; the blocked lighthouse stair.
 - **2026-10-13 — v0.1.1.** Players now open the generated `index.html` directly; development uses `dev.html`.
 - **2026-10-13 — v0.1.0.** Foundation complete and verified (see `docs/TESTING.md`). Next recommended steps, in order:
   1. Import the first player-supplied character (Stage 5) using `docs/prompt-bank/03-character-import.md` when the player provides one.

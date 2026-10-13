@@ -14,8 +14,8 @@ import { compileSong, parseMelody } from '../src/audio/music.js';
 import { AMBIENCE_IDS } from '../src/audio/ambience.js';
 import { SFX } from '../src/audio/sfx.js';
 
-const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used'];
-const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck'];
+const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
+const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem'];
 
 export function validateContent(content = CONTENT) {
   const errors = [];
@@ -69,6 +69,9 @@ export function validateContent(content = CONTENT) {
         if (p.interact.enter) spotOk(`${p.interact.enter.map}:${p.interact.enter.spot}`, `prop ${p.id}`);
       }
       if (p.type === 'item' && !content.items[p.item]) err(`prop ${p.id}: unknown item ${p.item}`);
+      if (k === 'workstation' && !['valves', 'gauges', 'barrels'].includes(p.interact.station)) err(`prop ${p.id}: unknown station`);
+      if (k === 'useItem') { if (!content.items[p.interact.item]) err(`prop ${p.id}: unknown item ${p.interact.item}`); checkEffects(p.interact.effects, `prop ${p.id}`); }
+      if (k === 'read' && p.interact.private && !charIds.has(p.interact.private)) err(`prop ${p.id}: unknown private owner`);
       if (p.hiddenUnless) checkCond(p.hiddenUnless, `prop ${p.id}`);
       if (p.onExamine) checkEffects(p.onExamine, `prop ${p.id}`);
     }
@@ -134,6 +137,8 @@ export function validateContent(content = CONTENT) {
           if (v.sfx && !SFX[v.sfx]) err(`${where}: unknown sfx ${v.sfx}`);
         }
         if (k === 'errand') spotOk(v.spot, where);
+        if (k === 'schedule' && !content.events[v.event]) err(`${where}: unknown scheduled event ${v.event}`);
+        if (k === 'oil') for (const key of [...Object.keys(v.add || {}), ...Object.keys(v.set || {})]) if (!['sharesOwned', 'morale', 'risk', 'strike', 'accidentDay', 'derricks', 'pipeline', 'safety', 'wageLevel', 'scandalDays'].includes(key)) err(`${where}: unknown oil field ${key}`);
       }
     }
   }
@@ -153,6 +158,7 @@ export function validateContent(content = CONTENT) {
     if (c.shop && !content.shops[c.shop]) err(`${w}: unknown shop ${c.shop}`);
     if (c.faction && !factionIds.has(c.faction)) err(`${w}: unknown faction ${c.faction}`);
     if (c.motif && !content.motifs[c.motif]) err(`${w}: unknown motif ${c.motif}`);
+    if (c.tier === 'major' && !c.motif) err(`${w}: major characters need a motif`);
     if (!c.appearance?.skin || !c.appearance?.outfit) err(`${w}: appearance needs at least skin and outfit colours`);
     const gaps = coverageGaps(c.schedule || []);
     if (gaps) err(`${w}: schedule leaves ${gaps} minutes of the day uncovered`);
@@ -166,6 +172,10 @@ export function validateContent(content = CONTENT) {
       spotOk(imp.spot, `${w} impulse ${imp.id}`);
       checkCond(imp.when, `${w} impulse ${imp.id}`);
       if (!(imp.trait in (c.personality || {}))) err(`${w} impulse ${imp.id}: trait ${imp.trait} not in personality`);
+      // Mirror of npcBrain.decide(): an impulse that can never outscore the schedule is dead content.
+      const best = (imp.weight ?? 1) * (c.personality?.[imp.trait] ?? 0.5) + Math.max(0, ...Object.values(imp.moods || {})) + 0.25;
+      const sched = 1 + (c.personality?.conscientiousness ?? 0.5) * 0.6;
+      if (best <= sched) err(`${w} impulse ${imp.id}: can never beat the schedule (best ${best.toFixed(2)} vs ${sched.toFixed(2)}) — raise its weight`);
     }
     // reachability between consecutive schedule spots
     for (let i = 0; i < spots.length; i++) {
@@ -256,6 +266,7 @@ export function validateContent(content = CONTENT) {
   // events
   for (const [id, e] of Object.entries(content.events)) {
     const w = `event ${id}`;
+    if (e.id !== id) err(`${w}: entry id "${e.id}" does not match its key (cooldowns would collide)`);
     if (e.npc && !charIds.has(e.npc)) err(`${w}: unknown npc ${e.npc}`);
     if (!['hourly', 'onArrive', 'chained'].includes(e.check)) err(`${w}: unknown check ${e.check}`);
     checkCond(e.when, w);

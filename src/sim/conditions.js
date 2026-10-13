@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil',
 ];
 
 /**
@@ -62,6 +62,12 @@ function checkKey(key, val, game, npc) {
       return game.quests.doneToday(val);
     case 'flag':
       return Boolean(game.getFlag(val));
+    case 'wealth':
+      return compare(game.player.money + (game.oil?.holdingsValue() ?? 0), val);
+    case 'oil': {
+      const st = game.world.oil || {};
+      return Object.entries(val).every(([k, v]) => (typeof v === 'boolean' ? Boolean(st[k]) === v : compare(st[k] ?? 0, v)));
+    }
     case 'arrived':
       return Boolean(npc?.arrived && !npc.travel && !(npc.path && npc.path.length)) === val;
     case 'flagToday':

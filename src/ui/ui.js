@@ -344,6 +344,7 @@ export class UI {
       case 'dialogue': this.dialogue.start(act.npcId); break;
       case 'message': this.showCaption(act.text, Math.min(9, 3 + act.text.length / 40)); this.audio.sfx('sfx_ui_click'); break;
       case 'container': this.openPanel('container', { containerId: act.containerId }); break;
+      case 'choices': this.openPanel('choices', act); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;

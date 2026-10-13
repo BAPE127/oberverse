@@ -44,4 +44,12 @@ export function setTime(g, day, hhmm) {
   g.settleNpcs();
 }
 
+/** Suppress personality impulses (for tests that check pure schedule adherence). */
+export function noImpulses(g, ids = [...g.npcs.keys()]) {
+  for (const id of ids) {
+    const n = g.npcs.get(id);
+    n.impulseCooldowns = Object.fromEntries((n.profile.impulses || []).map((i) => [i.id, Infinity]));
+  }
+}
+
 export { CONTENT, Game, TILE };

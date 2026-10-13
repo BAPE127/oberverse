@@ -83,6 +83,39 @@ const BEDS = {
       src.start(ctx.currentTime, Math.random(), 0.25);
     }),
   ],
+  amb_fields: (ctx, d) => [
+    noiseBed(ctx, d, { type: 'bandpass', freq: 380, q: 1.2, vol: 0.07, lfoRate: 0.09, lfoDepth: 0.05 }),
+    every(2.2, 2.6, () => {
+      // the pumpjacks' slow thump
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.setValueAtTime(70, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.25);
+      g.gain.setValueAtTime(0.06, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+      o.connect(g).connect(d);
+      o.start();
+      o.stop(ctx.currentTime + 0.35);
+    }),
+  ],
+  amb_refinery: (ctx, d) => [
+    hum(ctx, d, 50, 0.04),
+    hum(ctx, d, 100, 0.015),
+    noiseBed(ctx, d, { type: 'bandpass', freq: 4200, q: 1.5, vol: 0.018, lfoRate: 0.3, lfoDepth: 0.012 }),
+    every(3, 8, () => {
+      const src = ctx.createBufferSource();
+      src.buffer = getNoise(ctx);
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 1600;
+      f.Q.value = 6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.07, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+      src.connect(f).connect(g).connect(d);
+      src.start(ctx.currentTime, Math.random(), 0.3);
+    }),
+  ],
   amb_lighthouse: (ctx, d) => [
     noiseBed(ctx, d, { type: 'bandpass', freq: 520, q: 5, vol: 0.06, lfoRate: 0.07, lfoDepth: 0.04 }),
     noiseBed(ctx, d, { type: 'lowpass', freq: 300, vol: 0.05 }),

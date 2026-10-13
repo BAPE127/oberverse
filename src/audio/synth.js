@@ -191,6 +191,21 @@ export function playNote(ctx, dest, inst, freq, t, dur, vel = 1) {
       end = env(ctx, out, t, { a: 0.01, d: 0.15, s: 0.6, r: 0.1, peak: 0.28 * vel, dur: dur * 0.9 });
       break;
     }
+    case 'brass': {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(freq * 1.5, t);
+      f.frequency.linearRampToValueAtTime(Math.min(3200, freq * 5), t + 0.08);
+      f.connect(out);
+      for (const det of [-5, 5]) {
+        const o = osc(ctx, 'sawtooth', freq, t);
+        o.detune.value = det;
+        o.connect(f);
+        stops.push(o);
+      }
+      end = env(ctx, out, t, { a: 0.05, d: 0.12, s: 0.7, r: 0.12, peak: 0.07 * vel, dur });
+      break;
+    }
     case 'tuba': {
       const o = osc(ctx, 'sawtooth', freq, t);
       const f = ctx.createBiquadFilter();

@@ -40,7 +40,8 @@ export class GameMap {
       const prop = { w: 1, h: 1, ...type.defaults, ...p, solid: p.solid ?? type.solid ?? false };
       this.props.push(prop);
       this.propIndex.set(prop.id, prop);
-      if (prop.solid) {
+      // Props that only appear under conditions (e.g. future derricks) never block movement.
+      if (prop.solid && !prop.hiddenUnless) {
         for (let y = prop.y; y < prop.y + prop.h; y++)
           for (let x = prop.x; x < prop.x + prop.w; x++) this.propBlock.add(y * this.width + x);
       }
@@ -49,7 +50,7 @@ export class GameMap {
 
   addDoor(d) {
     const door = { ...d };
-    this.grid[door.y][door.x] = 'D';
+    if (!door.keepTile) this.grid[door.y][door.x] = 'D';
     this.doors.push(door);
     this.doorIndex.set(door.y * this.width + door.x, door);
   }

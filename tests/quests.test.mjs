@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, run, setTime, TILE } from './helpers.mjs';
+import { newGame, run, setTime, TILE, noImpulses } from './helpers.mjs';
 import { DialogueSession } from '../src/dialogue/dialogueEngine.js';
 
 const say = (g, npc, ...choices) => {
@@ -97,6 +97,7 @@ test('Approach 3 — the maintenance hatch with a crowbar (noisy, may be witness
 
 test('Approach 3b — prying the hatch in front of Osric on patrol is witnessed', () => {
   const g = newGame(2);
+  noImpulses(g, ['npc_osric']); // he sometimes stays late instead; this test needs him on patrol
   setTime(g, 1, '17:10');
   g.changeMap('lanternside', 'lighthouse_gate');
   const osric = g.npcs.get('npc_osric');

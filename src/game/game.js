@@ -16,6 +16,8 @@ import { check } from '../sim/conditions.js';
 import { Inventory } from '../systems/inventory.js';
 import { QuestSystem } from '../systems/quests.js';
 import { EventDirector } from '../systems/eventDirector.js';
+import { OilCompany, freshOil } from '../systems/oilCompany.js';
+import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { GAME_VERSION } from '../core/version.js';
 
@@ -25,7 +27,7 @@ export const PLAYER_BOX = { w: 16, h: 8 }; // feet hitbox, centred on x, bottom 
 const INTERACT_RANGE = 46;
 const WITNESS_RANGE_TILES = 9;
 
-export const DEFAULT_REPUTATION = { lanternside: 0, fac_civic: 0, fac_merchants: 0, fac_quay: 0 };
+export const DEFAULT_REPUTATION = { lanternside: 0, fac_civic: 0, fac_merchants: 0, fac_quay: 0, fac_oil: 0 };
 
 export class Game {
   constructor(content, { seed } = {}) {
@@ -38,6 +40,7 @@ export class Game {
     this.quests = new QuestSystem(this);
     this.events = new EventDirector(this);
     this.npcSystem = new NpcSystem(this);
+    this.oil = new OilCompany(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -98,6 +101,7 @@ export class Game {
       props: {},
       flags: {},
       publicFacts: {},
+      oil: freshOil(),
       events: { lastFired: {}, pending: [], log: [] },
       lastHour: Math.floor(this.clock.total / 60),
     };
@@ -198,7 +202,9 @@ export class Game {
     const lock = door.lock;
     if (!lock) return null;
     if (holder(lock.key)) return null;
+    if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
     if (lock.hours && inWindow(this.clock.minuteOfDay, lock.hours.from, lock.hours.to)) return null;
+    if (lock.flag && !lock.hours) return null;
     if (lock.message) return lock.message;
     if (lock.hours) return `Locked. Open ${lock.hours.from}–${lock.hours.to}.`;
     return 'Locked.';
@@ -210,7 +216,9 @@ export class Game {
 
   npcCanPass(npc, door) {
     if (!door.to) return false;
-    return this.doorLockReason(door, () => (door.lock?.owners || []).includes(npc.id)) === null;
+    if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
+    // Non-owners use public opening hours only (invitations are for the player).
+    return Boolean(door.lock.hours && !door.lock.flag && inWindow(this.clock.minuteOfDay, door.lock.hours.from, door.lock.hours.to));
   }
 
   playerActor() {
@@ -253,6 +261,7 @@ export class Game {
       this.world.lastHour = hour;
       this.events.hourly();
     }
+    if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 12 === 0) this.player.energy = Math.max(0, this.player.energy - 1);
   }
 
@@ -580,6 +589,8 @@ export class Game {
       case 'noticeboard': return 'Read the notice board';
       case 'obstacle': return this.world.props[prop.id]?.open ? `Climb through the ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'forage': return 'Pick wildflowers';
+      case 'workstation': return `Work the ${name.toLowerCase()}`;
+      case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
@@ -627,9 +638,26 @@ export class Game {
       return { type: 'message', text: prop.examine };
     }
     switch (act.kind) {
-      case 'container':
+      case 'container': {
+        const cdef = this.content.containers[act.container];
+        if (cdef?.lockedBy && !this.inventory.count(cdef.lockedBy)) {
+          this.bus.emit('sfx', { id: 'sfx_locked' });
+          return { type: 'message', text: cdef.lockedText || 'It is locked.' };
+        }
         return { type: 'container', containerId: act.container };
+      }
+      case 'workstation':
+        return this.oil.stationPrompt(prop);
       case 'read': {
+        if (act.private) {
+          const owner = this.npcs.get(act.private);
+          if (owner && owner.map === this.player.map && owner.activity !== 'sleep' && this.canSee(owner, this.player.x, this.player.y, this.currentMap(), 8)) {
+            this.bark(owner, act.caughtBark || 'Those are private.');
+            this.relationships.adjust(owner, 'player', { suspicion: 8, trust: -3 }, 'snooping');
+            remember(owner, { text: 'Caught the newcomer reading my private papers.', tag: 'caught_snooping', about: 'player', importance: 6 }, this.clock.total);
+            return { type: 'message', text: `${owner.profile.shortName} sees you reaching for the papers and closes them firmly.` };
+          }
+        }
         const doc = this.content.docs[act.doc];
         this.applyEffects(doc?.effects);
         this.bus.emit('doc:read', { id: act.doc });
@@ -656,6 +684,15 @@ export class Game {
       }
       case 'obstacle':
         return this.useObstacle(prop);
+      case 'useItem': {
+        if (act.doneFlag && this.getFlag(act.doneFlag)) return { type: 'message', text: act.doneText || prop.examine };
+        if (this.inventory.count(act.item) > 0) {
+          this.applyEffects(act.effects);
+          return { type: 'message', text: act.text };
+        }
+        if (prop.onExamine) this.applyEffects(prop.onExamine);
+        return { type: 'message', text: act.missingText || prop.examine };
+      }
       default:
         return { type: 'message', text: prop.examine || 'Nothing happens.' };
     }
@@ -732,7 +769,7 @@ export class Game {
         return { ok: false, text: `${owner.profile.shortName} catches you reaching in. You pull your hand back.` };
       }
       stolen = true;
-      if (seen.length && def.owner === 'npc_osric') this.reportCrime({ fact: 'fact_player_stole_from_osric', map: this.player.map, x: this.player.x, y: this.player.y, radius: 8 });
+      if (seen.length && def.theftFact) this.reportCrime({ fact: def.theftFact, map: this.player.map, x: this.player.x, y: this.player.y, radius: 8 });
     }
     if (isMoney) {
       const amount = st.money;
@@ -763,7 +800,7 @@ export class Game {
     const shop = this.content.shops[shopId];
     const owner = this.npcs.get(shop.owner);
     if (selling) return shop.buys?.[itemId] ?? 0;
-    const base = this.content.items[itemId]?.price ?? 0;
+    const base = shop.prices?.[itemId] ?? this.content.items[itemId]?.price ?? 0;
     const disp = owner ? this.relationships.disposition(owner, 'player') : 0;
     const rep = this.player.reputation[owner?.profile.faction] || 0;
     const discount = clamp(disp / 250 + rep / 400, -0.25, 0.2);
@@ -803,6 +840,44 @@ export class Game {
       st.stock[item] = Math.max(st.stock[item] || 0, base);
     }
     this.bus.emit('shop:restocked', { shopId });
+  }
+
+  // ------------------------------------------------------- the Ledger wager
+  startLedger() {
+    if (this.player.money < LEDGER_STAKE) return { ok: false, text: `The stake is ${LEDGER_STAKE} obols.` };
+    this.player.money -= LEDGER_STAKE;
+    this.bus.emit('money:changed', { delta: -LEDGER_STAKE, total: this.player.money });
+    this.setFlag('ledger_played', '$day');
+    const mb = this.npcs.get('npc_moneybucks');
+    this.ledger = newLedgerMatch(this.rng, { wits: this.player.stats.wits, bluffiness: mb?.profile.personality.competitiveness * 0.45 || 0.4 });
+    return { ok: true, match: this.ledger };
+  }
+
+  playLedger(card) {
+    if (!this.ledger) return null;
+    return playLedgerRound(this.ledger, card, this.rng);
+  }
+
+  finishLedger() {
+    const m = this.ledger;
+    this.ledger = null;
+    const mb = this.npcs.get('npc_moneybucks');
+    if (!m?.finished || !mb) return null;
+    const won = ledgerWinner(m) === 'player';
+    if (won) {
+      this.player.money += LEDGER_STAKE * 2;
+      this.bus.emit('money:changed', { delta: LEDGER_STAKE * 2, total: this.player.money });
+      this.setFlag('ledger_won', true);
+      this.knowledge.learn(mb, 'fact_player_won_ledger', { kind: 'fact', source: 'witnessed', at: this.clock.total });
+      this.relationships.adjust(mb, 'player', { respect: 8 }, 'ledger_won');
+      remember(mb, { text: `${this.player.name} beat me at the Ledger. Luck. Surely luck.`, tag: 'ledger_lost', about: 'player', importance: 6 }, this.clock.total);
+      this.bark(mb, 'Luck. Pure luck. Again tomorrow, my good fellow.');
+    } else {
+      this.relationships.adjust(mb, 'player', { respect: 1 }, 'ledger_lost');
+      remember(mb, { text: `Took ${this.player.name}'s money at the Ledger. As is proper.`, tag: 'ledger_won', about: 'player', importance: 3 }, this.clock.total);
+      this.bark(mb, 'Ties, losses and stakes go to the house. Thank you for your custom.');
+    }
+    return { won, playerPoints: m.playerPoints, housePoints: m.housePoints };
   }
 
   // ------------------------------------------------------------- time skip
@@ -873,6 +948,7 @@ export class Game {
     // Containers/shops added in newer content versions get defaults.
     this.world.containers = { ...fresh.containers, ...(this.world.containers || {}) };
     this.world.shops = { ...fresh.shops, ...(this.world.shops || {}) };
+    this.world.oil = { ...fresh.oil, ...(this.world.oil || {}) };
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) {

@@ -23,6 +23,17 @@ Currency: **obols**. Calendar: seven-day weeks — Moonday, Tideday, Wickday, Th
 
 Roads: **Gullwing Road** runs east–west; **Lamplighter Lane** runs north–south, crossing the **Lantern Canal** by a road bridge and continuing to the Quay.
 
+## The Ober Fields (map `ober_fields`, 52×40 tiles)
+
+East of Lanternside along the county road (the east edge of Gullwing Road). Sir Moneybucks bought a cabbage farm here twenty years ago and struck oil.
+
+| Area | Area id | Contents |
+| --- | --- | --- |
+| County Road | `area_county_road` | The road from Lanternside; the workers' bunkhouse outside the company fence; the gate and gatehouse booth (Silas). Sign: "Trespassers will be invoiced." |
+| Moneybucks Estate | `area_estate` | Moneybucks Manor, a marble fountain topped with a gilded derrick, hedges. |
+| Ober's Oil Refinery | `area_refinery` | Refinery No. 1, storage tanks, pipes, the yard. |
+| The Oil Fields | `area_oilfields` | Derricks No. 1–3, pumpjacks (one named Gerald), pipes; new derricks appear as investors fund them. |
+
 ## Places and access
 
 | Place | Map id | Owner/keys | Hours |
@@ -33,6 +44,9 @@ Roads: **Gullwing Road** runs east–west; **Lamplighter Lane** runs north–sou
 | Hollow Fixings | `workshop` | Tibbs | 07:00–23:00 |
 | The Old Lighthouse | `lighthouse` | Civic property; key in the Clerk's desk, top drawer | Closed. Entry without permission is trespass. |
 | Vane residence | `osric_house` | Osric | Private |
+| Moneybucks Manor | `manor` | Sir Moneybucks and household staff | Callers by invitation (Crisp), 08:00–21:00 |
+| Ober's Oil Refinery No. 1 | `refinery` | Refinery staff | 06:00–20:00 |
+| Workers' Bunkhouse | `bunkhouse` | The five refinery/field hands | 06:00–22:00 |
 | No. 11 / Collective Hall | — | No interiors yet | Locked |
 
 ## Institutions and factions
@@ -42,6 +56,7 @@ Roads: **Gullwing Road** runs east–west; **Lamplighter Lane** runs north–sou
 | `lanternside` | The borough at large | — | General reputation. |
 | `fac_civic` | Lanternside Civic Office | Order, procedure, the public record | One employee: Osric, who is also its union rep and currently in dispute with himself. |
 | `fac_merchants` | Canal Row Traders | Reliability, custom, good gossip | Mags is the de-facto voice. |
+| `fac_oil` | Ober's Oil | Profit, deference | Sir Moneybucks's company. Pays partly in company scrip. |
 | `fac_quay` | Quay Workers' Collective | Loyalty, practical help | Tibbs is a member; the Hall is members-only. |
 
 ## Residents
@@ -52,6 +67,9 @@ See `docs/CHARACTER_REGISTRY.md` for implementation details.
 - **Osric Vane** — Clerk of the Lanternside Civic Office. Punctilious, honest, secretly sentimental, helpless before a honey bun. Lunches at the café 12:00–13:00 daily; inspects the Point around 17:00.
 - **Tibbs Hollow** — mechanic at Hollow Fixings on the Quay. Building a boat engine called **Duchess**. Impulsive; frequently causes bangs. Has received several noise citations (Form 7-B).
 
+- **Sir Richard E. Moneybucks, Esq.** — founder and owner of Ober's Oil. Everyone calls him Sir Moneybucks (Mags says he bought the title from a bankrupt baronet). Ruthless, grandiose, contemptuous of the poor. See `docs/characters/npc_moneybucks.md`.
+- **The Ober's Oil household and crew** — Crisp (butler, 30 years), Agnes Thornbury (bookkeeper), Mabel Quince (cook; runner-up at the Harbour Fair bake-off nine years ago, beaten by Mags — "the judges were bribed with buns"), Silas Grimmer (security), Gideon Slate (foreman), Ruby Calder (engineer), Hank Dorsey (rigger), Pip Wexley (apprentice), Delphine Moreau (chemist), Otto Brandt (pipe fitter, wears the union's blue thread).
+
 ## History and mysteries
 
 - **Eleven years ago** the lighthouse went dark. Officially "decommissioned" by city instruction; the Civic Office paperwork is incomplete.
@@ -59,7 +77,9 @@ See `docs/CHARACTER_REGISTRY.md` for implementation details.
 - The **lamp mechanism** has been oiled recently — someone still maintains it.
 - A **lens shard** in the keeper's chest hums faintly in light.
 - Osric (if told): the "old seal" was the **Harbourmaster's**, an office abolished **twelve** years ago — a year *before* the letter.
-- Open questions (do not resolve casually): Who is M? Where is the lens? Who oils the clockwork? Why does the shard hum? Are the gulls organised?
+- **Resolved in v0.2.0 — M. is Sir Moneybucks.** Twelve years ago Ober's Oil bought "Lot 14: Harbourmaster's seal & effects" at the Obermere Harbour Board's dissolution auction (authorised R.E.M.). With the seal he ordered the great lens removed; the dark bay let Ober's Oil tankers cross at night, lamps out, untaxed. The lens sits in the vault in his study and hums. Depending on the player it may be returned (exposed or restored), or stay buried (blackmail or partnership).
+- The shard hums in sympathy with the great lens.
+- Still open: Who oils the clockwork? Why does the glass hum at all? What lies up the blocked lighthouse stair? Are the gulls organised?
 
 ## Running jokes and tone
 
@@ -70,3 +90,5 @@ Warm, dry, slightly absurd. Paperwork (Form 12-C Temporary Access, Supervised (U
 - 1 real second = 1 game minute at default rate. A day is 24 real minutes.
 - A new game starts on Day 1 (Moonday) at 08:00 in the player's flat with 12 obols and the flat key; 8 more obols and a bandage are in the wardrobe.
 - The café bakes at 05:30 and restocks to 5 honey buns, 4 scones, 8 coffees.
+- Ober's Oil pumps 100 barrels a day at baseline; share price starts at 30 obols; dividends are paid at 18:00.
+- Company store prices: coffee 4 (café: 3), bandage 7 (list: 5), Ober Imperial cigar 12.

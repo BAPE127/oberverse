@@ -19,7 +19,52 @@ export const FACTS = {
   fact_workshop_bang: { text: 'There was a loud bang at Hollow Fixings.', importance: 4, keywords: ['bang', 'explosion', 'workshop', 'noise'] },
   fact_osric_citation: { text: 'Osric issued Tibbs a formal noise citation.', importance: 4, keywords: ['citation', 'noise', 'complaint'] },
   fact_key_missing: { text: 'The lighthouse key has gone missing from the Civic Office.', importance: 6, keywords: ['key', 'missing', 'theft'] },
+  // Ober's Oil and Sir Moneybucks
+  fact_moneybucks_owns_oil: { text: 'Sir Richard E. Moneybucks, Esq. owns Ober\'s Oil — the refinery, the fields and most of the people in them.', importance: 3, keywords: ['moneybucks', 'oil', 'ober', 'refinery'] },
+  fact_harbourmaster_seal: { secretOf: 'npc_moneybucks', text: 'The "old seal" on the lighthouse order belonged to the Harbourmaster\'s office, abolished a year before the letter was written.', importance: 7, keywords: ['seal', 'harbourmaster', 'harbormaster'] },
+  fact_moneybucks_bought_seal: { text: 'Ober\'s Oil bought "Lot 14: Harbourmaster\'s seal & effects" at the dissolution auction twelve years ago.', importance: 9, spread: false, keywords: ['lot 14', 'auction', 'seal', 'ledger'] },
+  fact_night_tankers: { secretOf: 'npc_moneybucks', text: 'Years ago, Ober\'s Oil tankers crossed the bay at night with their lights off — "when the lighthouse wasn\'t looking".', importance: 6, keywords: ['tanker', 'tankers', 'night', 'bay'] },
+  fact_lens_in_vault: { text: 'The lighthouse\'s great lens sits in the vault in Sir Moneybucks\'s study.', importance: 10, spread: false, keywords: ['lens', 'vault'] },
+  fact_shard_matches: { text: 'Delphine says the humming lens shard resonates with something large nearby — "in the manor, if I had to guess".', importance: 7, keywords: ['shard', 'resonate', 'hum'] },
+  fact_workers_grievances: { text: 'The refinery workers are owed back pay and work double shifts for company scrip.', importance: 4, keywords: ['wages', 'pay', 'scrip', 'workers'] },
+  fact_otto_organizing: { text: 'Otto Brandt is quietly organising the refinery workers.', importance: 5, secretOf: 'npc_otto', keywords: ['union', 'organising', 'organizing', 'otto'] },
+  fact_refinery_accident: { text: 'There was an accident at the Ober\'s Oil refinery.', importance: 6, keywords: ['accident', 'refinery'] },
+  fact_refinery_strike: { text: 'The Ober\'s Oil workers are on strike.', importance: 7, keywords: ['strike', 'picket'] },
+  fact_strike_broken: { text: 'Sir Moneybucks had Silas break the refinery strike.', importance: 6, keywords: ['strike', 'broken'] },
+  fact_buyout_offer: { text: 'Sir Moneybucks tried to buy the Kettle & Crumb out from under Mags.', importance: 5, keywords: ['buyout', 'buy', 'cafe'] },
+  fact_canal_slick: { text: 'There\'s an oily slick on the Lantern Canal, and it smells like Ober\'s Oil.', importance: 6, keywords: ['slick', 'canal', 'oil'] },
+  fact_mabel_mags_feud: { text: 'Mabel Quince and Mags Pell have been feuding over a baking competition for nine years.', importance: 2, keywords: ['mabel', 'feud', 'baking'] },
+  fact_crisp_insult_ledger: { text: 'Bartholomew Crisp keeps a ledger of every insult Sir Moneybucks has ever paid him.', importance: 4, secretOf: 'npc_crisp', keywords: ['crisp', 'butler', 'insult'] },
+  fact_lighthouse_relit: { text: 'The lighthouse on the Point is shining again.', importance: 8, keywords: ['lighthouse', 'relit', 'light'] },
   // Facts about the player. relImpact applies to whoever learns them.
+  fact_player_invested: {
+    text: 'The newcomer has bought shares in Ober\'s Oil.', importance: 4, aboutPlayer: true,
+    relImpact: {}, reputation: { fac_oil: 3 }, keywords: ['shares', 'invested'],
+  },
+  fact_player_cut_corners: {
+    text: 'The newcomer cut corners on a refinery shift.', importance: 4, aboutPlayer: true,
+    relImpact: { respect: -2 }, reputation: {}, keywords: ['corners'],
+  },
+  fact_player_backed_strike: {
+    text: 'The newcomer gave money to the refinery strike fund.', importance: 6, aboutPlayer: true,
+    relImpact: {}, reputation: { fac_quay: 5, fac_oil: -8 }, keywords: ['strike fund'],
+  },
+  fact_player_broke_strike: {
+    text: 'The newcomer helped Sir Moneybucks break the strike.', importance: 7, aboutPlayer: true,
+    relImpact: {}, reputation: { fac_quay: -10, fac_oil: 8, lanternside: -3 }, keywords: ['strike'],
+  },
+  fact_player_exposed_moneybucks: {
+    text: 'The newcomer proved Sir Moneybucks darkened the lighthouse.', importance: 9, aboutPlayer: true,
+    relImpact: {}, reputation: { lanternside: 10, fac_civic: 8, fac_oil: -30 }, keywords: ['exposed'],
+  },
+  fact_player_stole_lens: {
+    text: 'Someone took the great lens from Sir Moneybucks\'s vault.', importance: 9, aboutPlayer: true,
+    relImpact: {}, reputation: {}, keywords: ['vault', 'theft'],
+  },
+  fact_player_won_ledger: {
+    text: 'The newcomer beat Sir Moneybucks at the Ledger.', importance: 5, aboutPlayer: true,
+    relImpact: { respect: 3 }, reputation: { fac_oil: 2 }, keywords: ['ledger', 'cards'],
+  },
   fact_player_trespassed_lighthouse: {
     text: 'The newcomer was seen sneaking into the old lighthouse.', importance: 6, aboutPlayer: true,
     relImpact: { trust: -8, respect: -2 }, reputation: { fac_civic: -6, lanternside: -2 }, keywords: ['trespass'],

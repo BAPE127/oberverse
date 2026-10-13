@@ -214,6 +214,28 @@ export default {
       ],
     },
     {
+      id: 't_osric_expose', label: '"I can prove Sir Moneybucks is \'M.\'"', tag: 'quest', keywords: ['moneybucks', 'proof', 'expose', 'm.'],
+      if: { quest: { id: 'q_seal_of_m', stage: 'decide' }, playerKnows: 'fact_moneybucks_bought_seal', any: [{ playerKnows: 'fact_lens_in_vault' }, { hasItem: 'item_great_lens' }] },
+      say: [
+        'Lot fourteen. The Harbourmaster\'s seal. Purchased by Ober\'s Oil and used to order a public light extinguished for private profit.',
+        '…I have waited eleven years to open this drawer. It is the drawer for "Serious Matters". It has never been opened. It sticks.',
+        { if: { hasItem: 'item_great_lens' }, text: 'And you have the lens itself. Then it goes home tonight, by order of this office. Thank you, {player}. Officially. And — unofficially.' },
+        { if: { not: { hasItem: 'item_great_lens' } }, text: 'The lens is evidence and civic property. I shall requisition it tomorrow morning at ten — with constables. Borrowed constables. But constables.' },
+      ],
+      effects: [
+        { npcLearn: 'fact_moneybucks_bought_seal' }, { npcLearn: 'fact_player_exposed_moneybucks' },
+        { tell: { npc: 'npc_moneybucks', fact: 'fact_player_exposed_moneybucks' } }, { tell: { npc: 'npc_mags', fact: 'fact_moneybucks_bought_seal' } },
+        { oil: { add: { scandalDays: 5 } } }, { rel: { trust: 12, respect: 10 } },
+        { memory: { text: '{player} proved who darkened the lighthouse.', tag: 'exposed_m', importance: 10 } },
+        {
+          if: { hasItem: 'item_great_lens' },
+          then: [{ take: 'item_great_lens' }, { flag: { lighthouse_relit: true } }, { noise: { sources: ['lanternside:lighthouse_gate', 'lanternside:square_bench', 'lanternside:quay_edge'], radius: 40, fact: 'fact_lighthouse_relit', text: 'That night, the Old Lighthouse shines again.' } }],
+          else: [{ flag: { lens_requisitioned: true } }, { schedule: { event: 'ev_lens_requisition', at: '10:00' } }],
+        },
+        { quest: { id: 'q_seal_of_m', complete: 'exposed' } },
+      ],
+    },
+    {
       id: 't_osric_job', label: '"What does a clerk actually do?"', keywords: ['clerk', 'job', 'office', 'work'],
       say: ['Everything nobody else wants to do, in triplicate.', 'Permits, complaints, keys, notices, complaints about notices. I am the only employee of the Lanternside Civic Office. I am also its union representative. We are in dispute.'],
       repeat: [['As previously stated: everything, in triplicate.']],
@@ -228,7 +250,8 @@ export default {
     { keywords: ['gull', 'gulls'], variants: [['The gulls are not, legally, a nuisance. I have tried. The relevant bylaw defines nuisance as "a person". I am lobbying for amendment.']] },
     { keywords: ['honey', 'bun', 'sweet'], say: ['I have no idea what you are referring to. ...Mrs. Pell talks too much.'] },
     { keywords: ['form', 'forms', 'paperwork'], say: ['There is a form for everything. If there is not, there is Form 0: Request for a Form.'] },
-    { keywords: ['m.', 'signed m', ' m '], if: { knows: 'fact_keeper_log' }, say: ['"M". The old seal was the Harbourmaster\'s. The Harbourmaster\'s office was abolished twelve years ago. One year BEFORE that letter. You see the problem.'] },
+    { keywords: ['m.', 'signed m', ' m ', 'seal', 'harbourmaster'], if: { any: [{ knows: 'fact_keeper_log' }, { playerKnows: 'fact_keeper_log' }] }, say: ['"M". The old seal was the Harbourmaster\'s. The Harbourmaster\'s office was abolished twelve years ago. One year BEFORE that letter. You see the problem.', 'Its effects were auctioned. I never saw the list. I asked. Repeatedly. In writing.'], effects: [{ learn: 'fact_harbourmaster_seal' }] },
+    { keywords: ['moneybucks', 'oil'], say: ['Sir Moneybucks has received four hundred and twelve forms from this office. He has returned none. I have a form for that. He has not returned it either.'] },
     { keywords: ['obermere', 'city'], say: ['Obermere City Council sends us a memorandum every quarter. It is always the same memorandum. I reply to it anyway.'] },
   ],
   askPrompt: [['Please phrase your enquiry concisely.']],

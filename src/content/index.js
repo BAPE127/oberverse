@@ -2,6 +2,7 @@
 // New characters, maps, quests etc. are registered here (see docs/CONTENT_FORMAT.md).
 import lanternside from './maps/lanternside.js';
 import interiors from './maps/interiors.js';
+import oberMaps from './maps/oberFields.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
 import { FACTS } from './facts.js';
@@ -17,14 +18,20 @@ import { SONGS, MOTIFS, AUDIO_REGISTRY } from './audio.js';
 import mags from './characters/mags.js';
 import osric from './characters/osric.js';
 import tibbs from './characters/tibbs.js';
+import moneybucks from './characters/moneybucks.js';
+import oberStaff from './characters/oberStaff.js';
 import dlgMags from './dialogue/mags.js';
 import dlgOsric from './dialogue/osric.js';
 import dlgTibbs from './dialogue/tibbs.js';
+import dlgMoneybucks from './dialogue/moneybucks.js';
+import dlgOberStaff from './dialogue/oberStaff.js';
 
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
+/** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
+const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
 export const CONTENT = {
-  maps: byId([lanternside, ...interiors]),
+  maps: byId([lanternside, ...interiors, ...oberMaps]),
   propTypes: PROP_TYPES,
   items: ITEMS,
   facts: FACTS,
@@ -33,14 +40,14 @@ export const CONTENT = {
   shops: SHOPS,
   factions: FACTIONS,
   quests: QUESTS,
-  events: EVENTS,
+  events: withIds(EVENTS),
   moods: MOODS,
   notices: NOTICES,
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff]),
   startingMap: 'player_flat',
   startingSpot: 'entry',
 };

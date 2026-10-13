@@ -105,6 +105,7 @@ export class Renderer {
     const sh = Math.min(layer.height - sy, Math.ceil(v.h) + 2);
     if (sw > 0 && sh > 0) ctx.drawImage(layer, sx, sy, sw, sh, sx, sy, sw, sh);
     if (map.kind !== 'interior') drawWaterShimmer(ctx, map, v, this.time);
+    if (map.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, map, v);
 
     const night = g.clock.darkness > 0.45;
     const inView = (x, y, w, h, pad = 64) => x + w > v.x - pad && x < v.x + v.w + pad && y + h > v.y - pad * 2 && y < v.y + v.h + pad;
@@ -121,7 +122,7 @@ export class Renderer {
     const items = [];
     for (const b of map.buildings) {
       if (!inView(b.x * TILE, (b.y - 4) * TILE, b.w * TILE, (b.h + 4) * TILE)) continue;
-      items.push({ y: (b.y + b.h) * TILE, draw: () => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, doorLocked: b.door && !g.playerCanPass(map.doors.find((d) => d.building === b.id) || b.door) }) });
+      items.push({ y: (b.y + b.h) * TILE, draw: () => drawBuilding(ctx, b, { lit: this.buildingLit(b), time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: b.door && !g.playerCanPass(map.doors.find((d) => d.building === b.id) || b.door) }) });
     }
     for (const p of map.props) {
       if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
@@ -158,6 +159,22 @@ export class Renderer {
       if (p.x > b.x * TILE - 8 && p.x < (b.x + b.w) * TILE + 8 && p.y > top && p.y - 40 < bottom) return true;
     }
     return false;
+  }
+
+  /** Oily rainbow sheen on the Lantern Canal (rows 22–23) after the pipeline leaks. */
+  drawCanalSlick(ctx, map, v) {
+    const x0 = Math.max(0, Math.floor(v.x / TILE));
+    const x1 = Math.min(map.width - 1, Math.ceil((v.x + v.w) / TILE));
+    for (let x = x0; x <= x1; x++) {
+      for (const y of [22, 23]) {
+        if (map.tileAt(x, y) !== '~') continue;
+        const hue = (x * 37 + y * 11 + this.time * 20) % 360;
+        ctx.fillStyle = `hsla(${hue}, 60%, 45%, 0.18)`;
+        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+        ctx.fillStyle = 'rgba(20,15,25,0.22)';
+        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+      }
+    }
   }
 
   propVisible(p) {
@@ -274,6 +291,13 @@ export class Renderer {
         if (!this.buildingLit(b)) continue;
         hole((b.x + b.w / 2) * TILE, (b.y + b.h) * TILE, 30 + b.w * 9, 0.75);
       }
+      const lh = map.buildings.find((b) => b.round);
+      if (lh && g.getFlag('lighthouse_relit')) {
+        const lx = (lh.x + lh.w / 2) * TILE;
+        const ly = lh.y * TILE - TILE * 3.2 - 14;
+        hole(lx, ly, 160, 1);
+        this.beam = { x: lx, y: ly };
+      } else this.beam = null;
       if (!this.hidePlayer) hole(g.player.x, g.player.y - 14, 70, 0.55);
     } else {
       for (const p of map.props) if (p.type === 'window' || p.type === 'oven' || p.type === 'stove') hole(p.x * TILE + 16, p.y * TILE + 30, 90, 0.8);
@@ -293,6 +317,23 @@ export class Renderer {
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
       this.ctx.fill();
+    }
+    if (this.beam) {
+      // the restored lighthouse's sweeping beam
+      const s = this.toScreen(this.beam.x, this.beam.y);
+      const ang = this.time * 0.6;
+      const len = 900 * z;
+      for (const a of [ang, ang + Math.PI]) {
+        const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
+        grad.addColorStop(0, `rgba(255,240,180,${0.45 * g.clock.darkness})`);
+        grad.addColorStop(1, 'rgba(255,240,180,0)');
+        this.ctx.fillStyle = grad;
+        this.ctx.beginPath();
+        this.ctx.moveTo(s.x, s.y);
+        this.ctx.arc(s.x, s.y, len, a - 0.09, a + 0.09);
+        this.ctx.closePath();
+        this.ctx.fill();
+      }
     }
     this.ctx.globalCompositeOperation = 'source-over';
   }

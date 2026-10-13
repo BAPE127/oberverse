@@ -53,7 +53,8 @@ Ask the player to correct misunderstandings. Then implement — the goal is the 
 1. Choose a permanent id `npc_<name>`; add a row to `docs/CHARACTER_REGISTRY.md`.
 2. Copy `docs/templates/character.template.js` → `src/content/characters/<name>.js`; set `origin: 'imported'`.
 3. Copy `docs/templates/dialogue.template.js` → `src/content/dialogue/<name>.js`; write greetings (first meeting, moods, friendship, default variants), farewells, 6+ topics, ask-about entries, unknown lines, gifts, barks.
-4. Appearance: map the image to `appearance` fields. Optionally add `sprite`/`portrait` images under `assets/` (they fall back to procedural art if they fail to load).
+4. Appearance: map the image to `appearance` fields (see `docs/CONTENT_FORMAT.md#appearance` — top hats, beards, monocles etc. exist). If the player allows storing the image: keep the original in `assets/portraits/reference/`, save a ~224 px square crop to `assets/portraits/<id>.jpg`, run `node tools/embed-portraits.mjs`, and set `portrait: PORTRAITS.<id>` (data URIs keep the single-file `index.html` self-contained). Images fall back to procedural art if they fail to load.
+   - Worked example: Sir Moneybucks (`docs/characters/npc_moneybucks.md`).
 5. Schedule covering 24 h with spots on existing maps (add spots/interiors if needed — see the World Expansion prompt). Personality-driven impulses.
 6. Mechanics: build from shared systems first (conditions/effects, knowledge, relationships, shops, containers, events). Add new condition/effect types only if truly needed (and test them).
 7. Relationships both ways (edit existing characters' `relationships`/`opinions` too), initial knowledge, gift prefs, reactions, notices.
@@ -61,7 +62,7 @@ Ask the player to correct misunderstandings. Then implement — the goal is the 
 9. Optional quest/events in `quests.js`/`events.js`.
 10. Register in `src/content/index.js`. Update `oberverse-manifest.json` `importedCharacters`.
 11. `npm run check`; add a test file `tests/character_<name>.test.mjs` covering greeting, a mechanic, schedule placement and save/load.
-12. Play it in the browser; `npm run smoke`.
+12. `npm run build`, play it in the browser (open `index.html`), `npm run smoke`.
 13. Write `docs/characters/<id>.md` (interview summary, design decisions, what was invented vs. supplied).
 14. MINOR version bump; changelog.
 

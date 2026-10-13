@@ -52,11 +52,31 @@ export const SONGS = {
     melody: 'G4:2 Bb4:2 D5:4 | Eb5:3 D5:1 C5:4 | C5:2 Eb5:2 G5:3 F5:1 | D5:4 Bb4:4 | G4:2 Bb4:2 Eb5:4 | G5:2 F5:2 Eb5:4 | Ab4:2 C5:2 Eb5:2 C5:2 | D5:4 F5:4',
     lead: 'rhodes', pad: 'rhodesPad', bass: 'bass', bassPattern: 'R...5.R.', drums: { shaker: '..x...x.' },
   },
+  mus_manor: {
+    title: 'The Moneybucks Waltz', bpm: 108, beatsPerBar: 3, stepsPerBeat: 2, swing: 0,
+    chords: ['Bbmaj7', 'Gm7', 'Cm7', 'F7', 'Dm7', 'Gm7', 'Cm7', 'F7'],
+    melody: 'F5:2 D5:2 Bb4:2 | G5:3 F5:1 D5:2 | Eb5:2 C5:2 G4:2 | A4:4 C5:2 | F5:2 A5:2 F5:2 | D5:4 Bb4:2 | C5:2 Eb5:2 G5:2 | F5:4 -:2',
+    lead: 'pluck', pad: 'organ', bass: 'tuba', bassPattern: 'R.5.5.', drums: { tick: 'x.....' },
+  },
+  mus_refinery: {
+    title: 'Refinery No. 1', bpm: 96, beatsPerBar: 4, stepsPerBeat: 2, swing: 0,
+    chords: ['Dm', 'Dm', 'Bb', 'A7', 'Dm', 'Dm', 'Gm', 'A7'],
+    melody: 'D4:1 -:1 D4:1 F4:1 A4:2 -:2 | D4:1 -:1 D4:1 F4:1 G4:2 F4:2 | Bb3:2 D4:2 F4:2 D4:2 | A3:2 C#4:2 E4:2 G4:2 | ' +
+      'D5:2 C5:1 A4:1 F4:2 D4:2 | F4:1 -:1 A4:1 -:1 D5:4 | G4:2 Bb4:2 D5:2 Bb4:2 | A4:4 C#5:2 E5:2',
+    lead: 'brass', pad: 'organ', bass: 'tuba', bassPattern: 'R.R.R5R.', drums: { kick: 'x...x...', snare: '....x...', tick: 'x.x.x.x.' },
+  },
+  mus_fields: {
+    title: 'Derricks at Dusk', bpm: 72, beatsPerBar: 4, stepsPerBeat: 2, swing: 0.05,
+    chords: ['Em7', 'Cmaj7', 'G', 'D', 'Em7', 'Cmaj7', 'Am7', 'B7'],
+    melody: 'B4:4 E5:2 D5:2 | E5:6 -:2 | D5:2 B4:2 G4:4 | A4:6 -:2 | G4:2 B4:2 E5:4 | G5:4 E5:4 | C5:2 E5:2 A4:4 | D#5:4 B4:4',
+    lead: 'flute', pad: 'pad', bass: 'bass', bassPattern: 'R...5...', drums: { kick: 'x.......' },
+  },
 };
 
 export const MOTIFS = {
   motif_mags: { title: 'Mags — "Kettle\'s On"', bpm: 140, notes: 'F4:1 A4:1 C5:1 F5:3', inst: 'clarinet', character: 'npc_mags' },
   motif_osric: { title: 'Osric — "In Triplicate"', bpm: 150, notes: 'C4:1 -:1 C4:1 -:1 G4:1 -:1 C5:2', inst: 'reed', character: 'npc_osric' },
+  motif_moneybucks: { title: 'Sir Moneybucks — "Dividends"', bpm: 112, notes: 'Bb2:2 F3:1 Bb3:1 D4:2 F4:3 -:1 F4:1 Bb4:3', inst: 'brass', character: 'npc_moneybucks' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -72,7 +92,11 @@ export const AUDIO_REGISTRY = [
   music('mus_civic', 'civic_office', 'inside the Civic Office'),
   music('mus_workshop', 'workshop', 'inside Hollow Fixings'),
   music('mus_lighthouse', 'lighthouse', 'inside the lighthouse'),
-  music('mus_home', 'player_flat, osric_house', 'inside homes'),
+  music('mus_home', 'player_flat, osric_house, bunkhouse', 'inside homes'),
+  music('mus_manor', 'manor', 'inside Moneybucks Manor'),
+  music('mus_refinery', 'refinery', 'inside the refinery'),
+  music('mus_fields', 'ober_fields', 'outdoors on the Ober Fields estate'),
+  { id: 'motif_moneybucks', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_moneybucks', trigger: 'conversation opens with Sir Moneybucks', status: 'implemented', source: 'Original composition' },
   { id: 'motif_mags', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_mags', trigger: 'conversation opens with Mags', status: 'implemented', source: 'Original composition' },
   { id: 'motif_osric', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_osric', trigger: 'conversation opens with Osric', status: 'implemented', source: 'Original composition' },
   { id: 'motif_tibbs', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_tibbs', trigger: 'conversation opens with Tibbs', status: 'implemented', source: 'Original composition' },
@@ -100,4 +124,6 @@ export const AUDIO_REGISTRY = [
   amb('amb_cafe', 'cafe'),
   amb('amb_workshop', 'workshop'),
   amb('amb_lighthouse', 'lighthouse'),
+  amb('amb_fields', 'ober_fields'),
+  amb('amb_refinery', 'refinery'),
 ];

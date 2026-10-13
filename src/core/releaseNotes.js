@@ -2,6 +2,21 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.2.0',
+    date: '2026-10-13',
+    channel: 'development',
+    title: 'Ober\'s Oil',
+    notes: [
+      'First imported character: Sir Richard E. Moneybucks, Esq., ruthless founder of Ober\'s Oil — with a portrait from the supplied image.',
+      'A new district east of town, the Ober Fields: Moneybucks Manor, Refinery No. 1, the oil fields and the workers\' bunkhouse.',
+      'Ten new residents: the Ober\'s Oil household and crew, each with a routine, personality and opinions of their boss.',
+      'Work refinery shifts, buy shares and fund expansion, or challenge Sir Moneybucks to "The Ledger".',
+      'New events: strikes, refinery accidents, a buyout bid for the Kettle & Crumb, and an oily canal.',
+      'The lighthouse mystery continues in "The Seal of M." — with four endings, one of which lights the lamp.',
+      'New music for the manor, refinery and fields; Sir Moneybucks\'s motif.',
+    ],
+  },
+  {
     version: '0.1.1',
     date: '2026-10-13',
     channel: 'development',

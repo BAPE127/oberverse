@@ -15,6 +15,11 @@ function boot() {
   const input = new Input(window);
   const ui = new UI({ content: CONTENT, settings, saves, audio, assets: new Assets(), canvas: document.getElementById('game'), input });
   ui.applySettings();
+  // Preload character portraits/sprites so the first conversation shows them.
+  for (const c of Object.values(CONTENT.characters)) {
+    ui.assets.image(c.appearance.portrait);
+    ui.assets.image(c.appearance.sprite);
+  }
   ui.showTitle();
 
   const unlock = () => {

@@ -7,6 +7,12 @@ export const SHOPS = {
     stock: { item_honey_bun: 5, item_scone: 4, item_coffee: 8 },
     buys: {},
   },
+  shop_company: {
+    name: 'Ober\'s Oil Company Store', owner: 'npc_gideon',
+    stock: { item_coffee: 6, item_bandage: 3, item_cigar: 2 },
+    prices: { item_coffee: 4, item_bandage: 7 },
+    buys: { item_brass_cog: 2, item_bolts: 1 },
+  },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
     stock: { item_crowbar: 1, item_bolts: 3 },

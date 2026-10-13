@@ -40,6 +40,9 @@ An object; **all** keys must hold. Unknown keys fail closed (and the validator r
 | `stock` | `{shop, item, count:'>=1'}` | shop stock |
 | `containerHas` | `{container, item, count?}` | container contents |
 | `propState` | `{id, key: value}` | prop state |
+| `arrived` | bool | NPC has reached its destination (not travelling) |
+| `wealth` | `'>=40'` | player money + value of Ober's Oil shares |
+| `oil` | `{strike: true, morale: '<30', sharesOwned: '>=10', derricks: '>=1', pipeline: true, risk: '>=2'}` | Ober's Oil company state (`world.oil`) |
 
 ## Effects (`effects`, `onArrive`, `onExamine`, outcome `effects`)
 
@@ -72,6 +75,10 @@ An array of objects, applied in order. `{ if, then, else }` and `{ chance, then,
 | `clearStolen` | item id | the item is no longer "stolen" |
 | `noise` | `{sources:['map:spot'], radius, fact, sfx?, text?}` | everyone awake in range hears; player too |
 | `errand` | `{npc?, spot, activity, minutes}` | send an NPC somewhere |
+| `oil` | `{add: {morale: -10, sharesOwned: 5}, set: {strike: true, accidentDay: '$day'}}` | change Ober's Oil state |
+| `payWages` | true | pay today's refinery wages (see `OilCompany.wagesOwed`) |
+| `schedule` | `{event, at: 'HH:MM'}` or `{event, delayMinutes}` | queue a chained event |
+| `action` | `'invest'` / `'ledger'` | open a UI panel from dialogue |
 
 ## Characters (`src/content/characters/*.js`)
 
@@ -79,7 +86,7 @@ See `docs/templates/character.template.js` for a complete annotated example. Key
 
 ### Appearance
 
-`skin`, `hair`, `hairStyle` (`short|bun|parted|messy|long|ponytail|curly|hat`), `outfit`, optional `apron`, `undershirt`, `tie`, `legs`, `shoes`, `sleeves`, `accent`, `hatColor`, `accessory` (`apron|glasses|goggles|scarf|none`), `build` (`round|average|thin|wiry|broad`), `height` (≈0.9–1.1). Optional `sprite` and `portrait` image paths (under `assets/`) replace the procedural drawing when they load.
+`skin`, `hair`, `hairStyle` (`short|bun|parted|messy|long|ponytail|curly|hat|tophat|hardhat|cap`), `outfit`, optional `apron`, `undershirt`, `tie`, `legs`, `shoes`, `sleeves`, `accent`, `hatColor`, `hatBand`, `beard` (colour), `moustache` (`plain|handlebar`), `pattern` (`pinstripe`), `holding` (`cigar|clipboard|wrench`), `vestColor`, `accessory` and/or `accessories: []` (`apron|glasses|goggles|scarf|monocle|watchchain|vest`), `build` (`round|average|thin|wiry|broad`), `height` (≈0.9–1.1). Optional `sprite` and `portrait` images (paths, or data URIs from `src/content/portraits.js` so they work in the single-file build) replace the procedural drawing when they load. Add portraits with `node tools/embed-portraits.mjs`.
 
 ## Dialogue (`src/content/dialogue/*.js`)
 
@@ -102,7 +109,17 @@ A "say" is an array of pages; a page is a string or `{ if, text, effects }`. `{p
 
 Outdoor maps use `MapBuilder` rectangles; interiors use `roomTiles(w, h, floor, doorX)`. Fields: `id, name, kind, music ('id' | {day, night}), ambience, tiles, areas[], buildings[{id, name, mapLabel, x, y, w, h, roof, wall, trim, sign?, awning?, columns?, round?, door:{x, y, to:{map, spot}, lock?:{key, owners?, hours?, trespass?, message?}}}], doors[], spots{name:{x, y, facing?}}, props[]`. Tile codes are in `src/world/tiles.js`. Preview with `npm run map -- <id>`.
 
-Props: `{id, type, x, y, w?, h?, solid?, examine?, onExamine?, interact?: {kind, …}, hiddenUnless?, item?}` with `kind` ∈ `container | read | sleep | sit | noticeboard | obstacle | forage | stockcheck`.
+Props: `{id, type, x, y, w?, h?, solid?, examine?, onExamine?, interact?: {kind, …}, hiddenUnless?, item?}` with `kind` ∈ `container | read | sleep | sit | noticeboard | obstacle | forage | stockcheck | workstation | useItem`.
+
+- `read` may set `private: npcId` (+ `caughtBark`): if that character can see you, they stop you and grow suspicious.
+- `workstation`: `{station: 'valves'|'gauges'|'barrels'}` — refinery shift tasks.
+- `useItem`: `{item, verb, effects, text, missingText, doneFlag, doneText}` — e.g. setting the lens in its cradle.
+
+Doors: `keepTile: true` makes an invisible edge exit (map-to-map roads). Locks: `{key, owners, hours, flag, flagMessage, trespass, message}` — `flag` requires a world flag (an invitation) in addition to hours.
+
+Containers: `lockedBy: itemId` (+`lockedText`) needs a key to open; `theftFact: factId` is reported to witnesses when you take from it.
+
+Shops: optional `prices: {itemId: n}` override list prices (the company store gouges).
 
 ## Quests
 

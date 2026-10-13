@@ -8,7 +8,7 @@ export class QuestSystem {
   constructor(game) {
     this.game = game;
     const bus = game.bus;
-    for (const evt of ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used']) {
+    for (const evt of ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed']) {
       bus.on(evt, (payload) => this.onEvent(evt, payload));
     }
   }
