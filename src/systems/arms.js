@@ -589,7 +589,43 @@ export class Arms extends Factory {
       return { type: 'terminal', warehouse: act.warehouse };
     }
     if (act.action === 'entity') return this.entityPrompt(prop);
+    if (act.action === 'bench') {
+      if (!this.owns(act.warehouse)) return { type: 'message', text: 'Not your workbench.' };
+      return { type: 'armsbench', warehouse: act.warehouse };
+    }
     return { type: 'none' };
+  }
+
+  // ---------------------------------------------- the armourer's workbench
+  benchUnlocked(rid) {
+    const r = this.cfg.bench[rid];
+    return Boolean(r) && (!r.requires || this.done(r.requires));
+  }
+
+  /** How many of each part the dock is short for a bench recipe ({} = none). */
+  benchShort(whId, rid) {
+    const r = this.cfg.bench[rid];
+    const dock = this.game.world.containers[this.def(whId).inBay]?.items || {};
+    const short = {};
+    for (const [id, n] of Object.entries(r.in)) if ((dock[id] || 0) < n) short[id] = n - (dock[id] || 0);
+    return short;
+  }
+
+  /** Hand-make one weapon (or a box of ammo) for yourself: parts off the dock, time passes, it's in your pocket. */
+  benchCraft(whId, rid) {
+    const g = this.game;
+    const r = this.cfg.bench[rid];
+    if (!r || !this.owns(whId)) return { ok: false, text: '' };
+    if (!this.benchUnlocked(rid)) return { ok: false, text: `Research ${this.cfg.research[r.requires].name} first.` };
+    const short = this.benchShort(whId, rid);
+    if (Object.keys(short).length) return { ok: false, text: `Not enough on the loading dock: need ${Object.entries(short).map(([id, n]) => `${n} more ${g.content.items[id].name}`).join(', ')}.` };
+    const dock = g.world.containers[this.def(whId).inBay].items;
+    for (const [id, n] of Object.entries(r.in)) dock[id] -= n;
+    g.skipTime(r.minutes);
+    g.inventory.add(r.out, r.count, { silent: true });
+    g.bus.emit('arms:bench', { warehouse: whId, item: r.out, count: r.count });
+    const it = g.content.items[r.out];
+    return { ok: true, text: `${r.minutes} minutes of filing, fitting and swearing later: ${r.count > 1 ? `${r.count}× ` : ''}${it.name}${r.count > 1 ? '' : ', made by your own hands'}. (In your pack.)` };
   }
 }
 

@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.19.0 (2026-10-14)
+
+- `npm run check` — **240/240 tests passed** (market and arms tests rewritten for crates; new: crate content and order limits, the workbench, `crates`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real mouse): the Market tab listed open orders (e.g. Varnistan 21× Crate of 9mm Pistols at 1,297 per crate, expiring Day 4); FILL opened the shipper form; SHIP 21 CRATES booked it ("Morrow Blue Line will deliver 21 crates to Varnistan in 2 days: 27,237 obols on arrival"). E at the armourer's workbench opened it; Make on the 9mm Pistol used the dock's parts, passed 30 minutes and put one pistol in the pack. Fixed from the runs: stray "null" lines in the Market tab. No page errors.
+
 ## Verification record — v0.18.0 (2026-10-13)
 
 - `npm run check` — **237/237 tests passed** (7 new in `pursuit.test.mjs`); validator 0 errors.

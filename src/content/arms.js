@@ -102,6 +102,65 @@ export const ARMS_RECIPES = {
   drone_strike: R('drone', { item_ap_airframe: 2, item_ai_flightctl: 2, item_ai_seeker: 1, item_ai_warhead: 2 }, 'item_drone_strike', 36, 'drone_strike'),
 };
 
+/**
+ * The armourer's workbench (v0.19.0): hand-make ONE weapon, or a box of its
+ * ammunition, for yourself — straight from parts on the loading dock, no staff.
+ * minutes: game time it takes. requires: a research node (as at the stations).
+ */
+const B = (out, inputs, minutes, requires = null, count = 1) => ({ out, in: inputs, minutes, requires, count });
+export const BENCH_RECIPES = {
+  pistol: B('item_pistol', { item_ap_steel: 3, item_ap_springs: 1, item_ap_polymer: 2 }, 30),
+  smg: B('item_smg', { item_ap_steel: 4, item_ap_springs: 3, item_ap_polymer: 2 }, 40, 'smg'),
+  shotgun: B('item_shotgun', { item_ap_steel: 5, item_ap_springs: 1, item_ap_polymer: 2 }, 40, 'shotgun'),
+  assault: B('item_assault_rifle', { item_ap_steel: 4, item_ap_springs: 2, item_ap_polymer: 3, item_ap_optics: 1 }, 60, 'assault'),
+  sniper: B('item_sniper_rifle', { item_ap_steel: 5, item_ap_springs: 1, item_ap_polymer: 2, item_ap_optics: 2 }, 70, 'precision'),
+  lmg: B('item_lmg', { item_ap_steel: 7, item_ap_springs: 4, item_ap_polymer: 2 }, 80, 'lmg'),
+  rpg: B('item_rpg', { item_ap_steel: 4, item_ap_polymer: 2, item_ap_optics: 1 }, 60, 'rpg'),
+  guided: B('item_missile_guided', { item_ap_motor: 1, item_ap_explosive: 1, item_ap_guidance: 1, item_ap_optics: 1, item_ap_electronics: 1, item_ap_airframe: 1 }, 90, 'guided'),
+  cruise: B('item_missile_cruise', { item_ap_motor: 2, item_ap_explosive: 2, item_ap_guidance: 2, item_ap_optics: 2, item_ap_electronics: 2, item_ap_airframe: 2 }, 150, 'cruise'),
+  drone_attack: B('item_drone_attack', { item_ap_airframe: 1, item_ap_electronics: 2, item_ap_battery: 2, item_ap_explosive: 1 }, 80, 'drone_attack'),
+  drone_strike: B('item_drone_strike', { item_ap_airframe: 2, item_ap_electronics: 4, item_ap_battery: 2, item_ap_explosive: 2, item_ap_guidance: 1 }, 120, 'drone_strike'),
+  // ammunition: a box (the shop's bundle size) per run
+  ammo_9mm: B('item_ammo_9mm', { item_ap_steel: 1, item_ap_propellant: 1 }, 15, null, 20),
+  ammo_shells: B('item_ammo_shells', { item_ap_steel: 1, item_ap_propellant: 1, item_ap_polymer: 1 }, 15, 'shotgun', 8),
+  ammo_rifle: B('item_ammo_rifle', { item_ap_steel: 1, item_ap_propellant: 2 }, 20, 'assault', 10),
+  rpg_rocket: B('item_rpg_rocket', { item_ap_explosive: 1, item_ap_propellant: 2, item_ap_steel: 1 }, 30, 'rpg', 1),
+};
+
+// ------------------------------------------------------------ crates (v0.19.0)
+// Owner's answers: stations make whole crates (no more hundreds of single
+// guns to track); every crate is one standard lot; countries order 5–50
+// crates; single weapons and their ammo for yourself are hand-made at the
+// armourer's workbench in each works.
+/** A crate is one standard lot: CRATE.units weapons' worth of parts and value, made in CRATE.minutes × one weapon's time. */
+export const CRATE = { units: 5, minutes: 3, minOrder: 5, maxOrder: 50 };
+/** recipe id → [weapon item, plural name, single value, family] */
+const CRATED = {
+  pistol: ['item_pistol', '9mm Pistols', 140, 'small'],
+  smg: ['item_smg', 'Submachine Guns', 260, 'small'],
+  shotgun: ['item_shotgun', 'Pump Shotguns', 220, 'small'],
+  assault: ['item_assault_rifle', 'Assault Rifles', 480, 'small'],
+  sniper: ['item_sniper_rifle', 'Sniper Rifles', 650, 'small'],
+  lmg: ['item_lmg', 'Light Machine Guns', 800, 'small'],
+  rpg: ['item_rpg', 'RPG Launchers', 900, 'heavy'],
+  rpg_rocket: ['item_rpg_rocket', 'RPG Rockets', 220, 'heavy'],
+  guided: ['item_missile_guided', 'Skylance Missiles', 2600, 'missile'],
+  cruise: ['item_missile_cruise', 'Longbow Cruise Missiles', 9000, 'missile'],
+  drone_attack: ['item_drone_attack', 'Hornet Drones', 1600, 'drone'],
+  drone_strike: ['item_drone_strike', 'Kestrel Drones', 5200, 'drone'],
+};
+export const CRATE_ITEMS = Object.fromEntries(Object.entries(CRATED).map(([rid, [weapon, plural, value, family]]) => [`item_crate_${rid}`, {
+  name: `Crate of ${plural}`, category: 'arms_crate', price: 0, tags: ['arms', 'crate'], icon: 'crate',
+  arms: { value: value * CRATE.units, family, crate: true, contains: weapon },
+  description: `A stencilled export crate: one standard lot of ${plural.toLowerCase()}. Sold to countries by the crate (orders of ${CRATE.minOrder}–${CRATE.maxOrder}).`,
+}]));
+
+// v0.19.0: the weapon recipes make whole crates (same ids, so stations already set to them carry on)
+for (const rid of Object.keys(CRATED)) {
+  const r = ARMS_RECIPES[rid];
+  ARMS_RECIPES[rid] = { ...r, in: Object.fromEntries(Object.entries(r.in).map(([id, n]) => [id, n * CRATE.units])), out: `item_crate_${rid}`, minutes: r.minutes * CRATE.minutes, single: r.out };
+}
+
 /** The research tree. cost in research points; requires: other nodes; unlocks recipes or gives bonuses. */
 export const ARMS_RESEARCH = {
   // Manufacturing
@@ -142,7 +201,7 @@ export const ARMS_WAREHOUSES = {
 
 export const ARMS_LICENCE_PRICE = 500;
 /** What Lucas pays: a share of value, and a daily budget. */
-export const WHOLESALE = { share: 0.5, dailyBudget: 2500 };
+export const WHOLESALE = { share: 0.5, dailyBudget: 15000 };
 
 /** Employee generation. */
 export const STAFF_NAMES = {
@@ -169,14 +228,14 @@ export const STAFF_QUIRKS = {
  * aggression: daily chance factor of starting a war with a rival.
  */
 export const COUNTRIES = {
-  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, budget: 40000, income: 3000, wants: { small: 1.2, heavy: 1.0, missile: 0.8, drone: 0.8 }, aggression: 0.6, rivals: ['caldera', 'ostmark'], blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
-  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, budget: 80000, income: 6000, wants: { small: 0.9, heavy: 1.0, missile: 1.3, drone: 1.2 }, aggression: 0.3, rivals: ['varn', 'sund'], blurb: 'Seven provinces, one parliament, eight opinions.' },
-  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, budget: 30000, income: 2500, wants: { small: 1.3, heavy: 1.2, missile: 0.9, drone: 0.7 }, aggression: 0.5, rivals: ['varn', 'pallas'], blurb: 'Built on a volcano. Politically, also built on a volcano.' },
-  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, budget: 25000, income: 2000, wants: { small: 1.0, heavy: 0.8, missile: 1.0, drone: 1.1 }, aggression: 0.2, rivals: ['ostmark'], blurb: 'A fishing monarchy whose king is eleven and very serious.' },
-  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, budget: 20000, income: 1800, wants: { small: 1.4, heavy: 1.3, missile: 0.6, drone: 0.6 }, aggression: 0.7, rivals: ['caldera', 'lirre'], blurb: 'Free, according to the name. A state, according to some. Under international embargo.' },
-  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 120000, income: 8000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
-  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 35000, income: 3000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
-  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 60000, income: 4000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
+  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, budget: 240000, income: 18000, wants: { small: 1.2, heavy: 1.0, missile: 0.8, drone: 0.8 }, aggression: 0.6, rivals: ['caldera', 'ostmark'], blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
+  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, budget: 480000, income: 36000, wants: { small: 0.9, heavy: 1.0, missile: 1.3, drone: 1.2 }, aggression: 0.3, rivals: ['varn', 'sund'], blurb: 'Seven provinces, one parliament, eight opinions.' },
+  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, budget: 180000, income: 15000, wants: { small: 1.3, heavy: 1.2, missile: 0.9, drone: 0.7 }, aggression: 0.5, rivals: ['varn', 'pallas'], blurb: 'Built on a volcano. Politically, also built on a volcano.' },
+  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, budget: 150000, income: 12000, wants: { small: 1.0, heavy: 0.8, missile: 1.0, drone: 1.1 }, aggression: 0.2, rivals: ['ostmark'], blurb: 'A fishing monarchy whose king is eleven and very serious.' },
+  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, budget: 120000, income: 10800, wants: { small: 1.4, heavy: 1.3, missile: 0.6, drone: 0.6 }, aggression: 0.7, rivals: ['caldera', 'lirre'], blurb: 'Free, according to the name. A state, according to some. Under international embargo.' },
+  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 720000, income: 48000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
+  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 210000, income: 18000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
+  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 360000, income: 24000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
 };
 /** Where your shipments leave from on the globe. */
 export const HQ = { name: 'Halvermouth', lat: 49, lon: -30 };
@@ -194,7 +253,7 @@ export const MARKET = {
   /** Price boost per family while a country is at war. */
   warMult: { small: 1.5, heavy: 2, missile: 2.5, drone: 2.2 },
   /** Each unit sold to a country lowers what it pays for that family (recovers 30% a day). */
-  saturationPerUnit: 0.02, saturationMax: 0.6, saturationDecay: 0.3,
+  saturationPerUnit: 0.012, // per crate (v0.19.0) saturationMax: 0.6, saturationDecay: 0.3,
   insuranceRate: 0.08, insurancePayout: 0.6,
   /** A country this hostile won't buy from you; hostility fades 5 a day. */
   refuseHostility: 60,

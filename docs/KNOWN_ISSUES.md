@@ -1,7 +1,8 @@
-# Known Issues and Limitations — v0.18.0
+# Known Issues and Limitations — v0.19.0
 
 ## Not yet implemented (planned)
 
+- **Crates (v0.19.0):** an order must be filled whole, from one works' cage, in one shipment; orders can't be negotiated. Loose single weapons in a cage from older saves can only go to Lucas.
 - **Police chases (v0.18.0):** cruisers don't shoot, set roadblocks or use spike strips; they pass through traffic rather than waiting behind it; they don't follow you through region gates (by design — it's a way out). A car-sized path can't always be found through cluttered plazas, so a cruiser may stop a few tiles short and send an officer on foot.
 - **Transit (v0.17.0):** one bus route; buses and traffic never crash, and people never step aside for them (they wait). The bus stops 8 minutes at every stop whether or not anyone is waiting. Traffic isn't saved (it's regenerated each session) and only runs in Halvermouth and on the coast road — not yet in the Yards. Named NPCs don't drive their own cars. Between regions (the road outside the maps) a bus you're riding is out of sight for a second or two.
 - **Cars (v0.16.0):** no fuel or damage (not chosen). Cars can't enter buildings or water; they're drawn top-down in a 3/4 world. People walk through parked cars (only you are blocked by them). You can't fight from the driver's seat.

@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.19.0',
+    date: '2026-10-14',
+    channel: 'development',
+    title: 'By the Crate',
+    notes: [
+      'The arms trade now runs on crates. Stations set to a weapon make whole crates — one standard lot each — so there are no more hundreds of single guns to make and count.',
+      'Countries post orders: 5 to 50 crates of one weapon at a fixed price per crate, good for a few days. Fill an order from your export cage in the terminal\'s Market tab (pick a shipper, insure it if you like). Countries at war order more. Click a country on the globe to see its orders.',
+      'Want a gun for yourself? The armourer\'s workbench by the loading dock hand-makes ONE weapon — or a box of its ammunition — straight from dock parts, in your own time. "Order missing" sends for whatever you\'re short.',
+      'Lucas still buys at Pipecreek: crates and single weapons, at half value, with a much bigger daily budget.',
+    ],
+  },
+  {
     version: '0.18.0',
     date: '2026-10-13',
     channel: 'development',

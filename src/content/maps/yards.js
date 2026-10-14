@@ -76,8 +76,9 @@ export const yards = {
 const armsWorks = (id, name, w, h, bunks, o = {}) => {
   const props = [
     { id: `${id}_dock`, type: 'loadingbay', x: 1, y: 1, w: 4, h: 2, interact: { kind: 'container', container: `ct_${id}_dock`, name: 'loading dock' }, examine: 'The loading dock. Parts you order on the terminal are dropped here.' },
-    { id: `${id}_cage`, type: 'outbin', x: w - 4, y: 1, w: 3, h: 2, interact: { kind: 'container', container: `ct_${id}_cage`, name: 'export cage' }, examine: 'The export cage. Finished weapons go here to be shipped — or carried to Lucas.' },
+    { id: `${id}_cage`, type: 'outbin', x: w - 4, y: 1, w: 3, h: 2, interact: { kind: 'container', container: `ct_${id}_cage`, name: 'export cage' }, examine: 'The export cage. Finished crates go here to fill countries\' orders — or to be carried to Lucas.' },
     { id: `${id}_terminal`, type: 'terminal', x: Math.floor(w / 2) - 1, y: 1, w: 2, h: 1, interact: { kind: 'arms', action: 'terminal', warehouse: id, name: 'terminal' }, examine: 'A terminal with a slowly turning globe. Trade routes glow across it like veins.' },
+    { id: `${id}_bench`, type: 'workbench', x: 6, y: 1, w: 2, h: 1, color: '#5a4a3a', interact: { kind: 'arms', action: 'bench', warehouse: id, name: 'armourer\'s workbench' }, examine: 'The armourer\'s workbench: a vice, files, a reloading press. Hand-make one weapon — or its ammunition — for yourself, from parts on the loading dock.' },
     { id: `${id}_board`, type: 'noticeboard', x: Math.floor(w / 2) + 2, y: 0, examine: o.board || 'A whiteboard: "SAFETY FIRST. SECOND. THIRD. — L.E." Somebody has added "DAYS WITHOUT INCIDENT: 0".' },
   ];
   const spots = { entry: { x: Math.floor(w / 2), y: h - 2, facing: 'up' } };

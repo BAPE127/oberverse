@@ -3,7 +3,9 @@
 // shipping companies that don't always deliver; insurance; heat.
 //
 //   daily (06:00): budgets grow · saturation and hostility fade · wars end or start
-//   ship(): cargo from a works' export cage → a country, by a shipper
+//   orders (v0.19.0): each country posts purchase orders of 5–50 crates of one
+//     weapon at a locked price per crate; they expire after a few days
+//   ship(): fill an order — its crates from a works' export cage → the country, by a shipper
 //     fee + optional insurance paid up front; the country reserves the price
 //     on arrival: delivered (paid) — or lost: sunk, hijacked, seized
 //     seized + embargoed  → customs trace it to you (police heat)
@@ -19,7 +21,7 @@ export function freshMarket(content) {
   const countries = {};
   for (const [id, def] of Object.entries(c.countries)) countries[id] = { budget: def.budget, sat: {}, hostility: 0, embargo: c.market.initialEmbargoes.includes(id), embargoReason: c.market.initialEmbargoes.includes(id) ? 'international sanctions' : null };
   const wars = c.market.initialWars.map(([a, b]) => ({ a, b, since: 0 }));
-  return { countries, wars, news: [{ day: 1, text: 'Varnistan and the Republic of Caldera remain at war over the Kestrel Pass.' }, { day: 1, text: 'The Free State of Pallas is under international embargo.' }], shipments: [], nextShip: 1, lastDay: 1, earned: 0 };
+  return { orders: [], nextOrder: 1, lastOrderDay: 0, countries, wars, news: [{ day: 1, text: 'Varnistan and the Republic of Caldera remain at war over the Kestrel Pass.' }, { day: 1, text: 'The Free State of Pallas is under international embargo.' }], shipments: [], nextShip: 1, lastDay: 1, earned: 0 };
 }
 
 export class Market {
@@ -31,10 +33,67 @@ export class Market {
     return this.game.content.arms;
   }
 
+  /** The crate rules (v0.19.0). */
+  get crate() {
+    return this.cfg.crate;
+  }
+
   get state() {
     const g = this.game;
     if (!g.world.market) g.world.market = freshMarket(g.content);
-    return g.world.market;
+    const s = g.world.market;
+    if (!s.orders) Object.assign(s, { orders: [], nextOrder: 1, lastOrderDay: 0 }); // saves from before v0.19
+    if (s.lastOrderDay < g.clock.day && !this.posting) {
+      this.posting = true;
+      s.lastOrderDay = g.clock.day;
+      this.postOrders();
+      this.posting = false;
+    }
+    return s;
+  }
+
+  // ------------------------------------------------------------- orders
+  /** Crate types the player's works can make right now (research permitting). */
+  makeable() {
+    const A = this.game.arms;
+    return Object.entries(this.game.content.arms.recipes).filter(([rid, r]) => r.single && A.recipeUnlocked(rid)).map(([, r]) => r.out);
+  }
+
+  /** Open orders, oldest first. */
+  openOrders(countryId = null) {
+    return this.state.orders.filter((o) => o.status === 'open' && (!countryId || o.country === countryId));
+  }
+
+  /** New purchase orders: 5–50 crates each, within the country's budget. At war, they want more. */
+  postOrders() {
+    const g = this.game;
+    const s = g.world.market;
+    const C = this.cfg.crate;
+    const R = g.rng;
+    const crates = Object.entries(g.content.items).filter(([, it]) => it.arms?.crate).map(([id]) => id);
+    const mine = new Set(this.makeable());
+    for (const [id, def] of Object.entries(this.cfg.countries)) {
+      const c = s.countries[id];
+      if (c.hostility >= this.cfg.market.refuseHostility) continue;
+      const open = s.orders.filter((o) => o.status === 'open' && o.country === id);
+      const want = this.warOf(id) ? 3 : 1 + (R.next() < 0.5 ? 1 : 0);
+      let committed = open.reduce((a, o) => a + o.qty * o.price, 0);
+      for (let k = open.length; k < want; k++) {
+        // what they want: by family appetite, leaning towards what you can actually make
+        const weights = crates.map((cid) => (def.wants[g.content.items[cid].arms.family] ?? 1) * (mine.has(cid) ? 4 : 1));
+        let r = R.next() * weights.reduce((a, b) => a + b, 0);
+        let pick = crates[0];
+        for (let i = 0; i < crates.length; i++) { r -= weights[i]; if (r <= 0) { pick = crates[i]; break; } }
+        const unit = this.price(id, pick);
+        if (!unit) continue;
+        const price = Math.round(unit * (1 + R.next() * 0.15));
+        const afford = Math.floor((c.budget - committed) / price);
+        if (afford < C.minOrder) continue;
+        const qty = Math.min(C.maxOrder, afford, C.minOrder + Math.floor(R.next() * (C.maxOrder - C.minOrder + 1)));
+        committed += qty * price;
+        s.orders.push({ id: s.nextOrder++, country: id, item: pick, qty, price, posted: g.clock.day, expires: g.clock.day + 3 + Math.floor(R.next() * 5), status: 'open' });
+      }
+    }
   }
 
   country(id) {
@@ -83,38 +142,41 @@ export class Market {
     return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
   }
 
-  /** Book a shipment from a works' export cage. items: {itemId: qty}. */
-  ship({ wh, country, shipper, insured = false, items }) {
+  /** Fill an order: its crates leave a works' export cage with a shipper. */
+  ship({ wh, order: orderId, shipper, insured = false }) {
     const g = this.game;
+    const order = this.state.orders.find((o) => o.id === orderId && o.status === 'open');
+    if (!order) return { ok: false, text: 'That order is no longer open.' };
+    const country = order.country;
     const c = this.country(country);
     const def = this.cfg.countries[country];
     const sh = this.cfg.shippers[shipper];
-    if (!c || !sh) return { ok: false, text: 'Pick a country and a shipper.' };
+    if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
     const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
     if (!cage) return { ok: false, text: 'No export cage.' };
-    const list = Object.entries(items || {}).filter(([, n]) => n > 0);
-    if (!list.length) return { ok: false, text: 'Choose what to ship.' };
-    for (const [id, n] of list) if ((cage[id] || 0) < n) return { ok: false, text: `Only ${cage[id] || 0}× ${g.content.items[id]?.name} in the export cage.` };
+    const list = [[order.item, order.qty]];
+    if ((cage[order.item] || 0) < order.qty) return { ok: false, text: `This order is for ${order.qty} crates; the export cage has ${cage[order.item] || 0}.` };
+    if (c.hostility >= this.cfg.market.refuseHostility) return { ok: false, text: `${def.name} won't deal with you any more.` };
     if (c.embargo && !sh.embargo) return { ok: false, text: `${sh.name} won't touch embargoed cargo for ${def.name}.` };
-    const value = this.quote(country, Object.fromEntries(list));
-    if (value <= 0) return { ok: false, text: `${def.name} won't buy from you right now.` };
-    if (value > c.budget) return { ok: false, text: `${def.name} can only afford ${c.budget} obols of weapons right now; this lot is worth ${value}.` };
+    const value = order.qty * order.price;
+    if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const fee = this.fee(shipper, value, insured);
     if (g.player.money < fee) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
     g.player.money -= fee;
     g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
     for (const [id, n] of list) cage[id] -= n;
     c.budget -= value;
+    order.status = 'shipped';
     const s = this.state;
     const now = g.clock.total;
-    const shp = { id: s.nextShip++, wh, country, shipper, insured, items: Object.fromEntries(list), value, fee, embargo: c.embargo, departs: now, arrives: now + sh.days * 1440 };
+    const shp = { id: s.nextShip++, wh, order: order.id, country, shipper, insured, items: Object.fromEntries(list), value, fee, embargo: c.embargo, departs: now, arrives: now + sh.days * 1440 };
     s.shipments.push(shp);
     // selling to one side of a war annoys the other
     const enemy = this.enemyOf(country);
     if (enemy) this.country(enemy).hostility = clamp(this.country(enemy).hostility + 5, 0, 100);
     g.bus.emit('market:shipped', { shipment: shp });
-    return { ok: true, shipment: shp, text: `${sh.name} will deliver to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: worth ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
+    return { ok: true, shipment: shp, text: `${sh.name} will deliver ${order.qty} crates to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
   }
 
   /** Roll a shipment's fate on arrival. */
@@ -133,12 +195,16 @@ export class Market {
         const fam = g.content.items[id].arms.family;
         c.sat[fam] = clamp((c.sat[fam] || 0) + n * this.cfg.market.saturationPerUnit, 0, this.cfg.market.saturationMax);
       }
+      const order = this.state.orders.find((o) => o.id === shp.order);
+      if (order) order.status = 'delivered';
       g.tablet.post('market', `Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
       g.bus.emit('market:delivered', { shipment: shp });
       return 'delivered';
     }
     // lost
     c.budget += shp.value; // they never paid
+    const lostOrder = this.state.orders.find((o) => o.id === shp.order);
+    if (lostOrder) lostOrder.status = 'lost';
     const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
     const fate = kinds[Math.floor(R.next() * kinds.length)];
     const lines = {
@@ -172,11 +238,13 @@ export class Market {
     return fate;
   }
 
-  /** The world turns: budgets, saturation, hostility, wars, embargoes. */
+  /** The world turns: budgets, saturation, hostility, wars, embargoes, orders. */
   dailyTick() {
     const g = this.game;
     const m = this.cfg.market;
     const s = this.state;
+    // old orders lapse; finished ones are forgotten after a week
+    s.orders = s.orders.filter((o) => (o.status === 'open' ? o.expires >= g.clock.day : g.clock.day - o.posted < 7));
     for (const [id, c] of Object.entries(s.countries)) {
       const def = this.cfg.countries[id];
       c.budget = Math.min(def.budget * 3, c.budget + def.income * (this.warOf(id) ? 1.5 : 1));

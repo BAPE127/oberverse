@@ -43,6 +43,7 @@ const HELP = [
   ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
   ['arrive', 'every shipment in transit arrives now'],
   ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
+  ['crates [type] [n]', 'n crates (default 10) of a weapon (default pistol) in your first arms works\' export cage'],
   ['bus [stop]', 'list the bus stops and the next bus at each; with a stop id, wait there until a bus arrives'],
   ['car [model]', 'a car of your own beside you (pipit, dray, mule, aurelia, tempest, corsair, regent, cruiser)'],
 ];
@@ -350,6 +351,17 @@ export function runCommand(game, line) {
       game.inventory.add('item_inserter', 8, { silent: true });
       game.inventory.add('item_generator', 1, { silent: true });
       return out('One of every workstation, 30 belts, 8 arms, a generator.');
+    }
+    case 'crates': {
+      const type = args.find((a) => !/^\d+$/.test(a)) || 'pistol';
+      const n = Number(args.find((a) => /^\d+$/.test(a)) || 10);
+      const id = `item_crate_${type}`;
+      if (!game.content.items[id]) return out(`Unknown crate. Try: ${Object.keys(game.content.items).filter((k) => k.startsWith('item_crate_')).map((k) => k.slice(11)).join(', ')}`, false);
+      const wh = game.arms.ownedIds()[0];
+      if (!wh) return out('You don\'t own an arms works (try: works aw1).', false);
+      const cage = game.world.containers[game.arms.def(wh).outCrate].items;
+      cage[id] = (cage[id] || 0) + n;
+      return out(`${n}× ${game.content.items[id].name} in ${game.arms.def(wh).name}'s export cage.`);
     }
     case 'bus': {
       const T = game.transit;

@@ -12,10 +12,12 @@ import { PANELS, h } from './panels.js';
 import { terminalPanel } from './terminal.js';
 import { tabletPanel } from './tablet.js';
 import { dealerPanel } from './dealer.js';
+import { armsBenchPanel } from './armsbench.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
 PANELS.dealer = dealerPanel;
+PANELS.armsbench = armsBenchPanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -466,6 +468,7 @@ export class UI {
       case 'contracts': this.openPanel('contracts', {}); break;
       case 'shop': this.openPanel('shop', { shopId: act.shopId }); break;
       case 'terminal': this.openPanel('terminal', { warehouse: act.warehouse }); break;
+      case 'armsbench': this.openPanel('armsbench', { warehouse: act.warehouse }); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;

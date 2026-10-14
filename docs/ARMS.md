@@ -35,10 +35,14 @@ Parts: steel, polymer, springs, optics, electronics, Li-ion pack, propellant, hi
 | Lathe | barrel, receiver, stock & grip |
 | Explosives Bay | warhead |
 | Electronics Bay | seeker head (Inertial Guidance), flight controller (Avionics) |
-| Assembly Bench | pistol; SMG, shotgun, assault rifle, sniper rifle, LMG, RPG launcher (each behind research) |
-| Rocket Bay | RPG rocket, Skylance guided missile, Longbow cruise missile |
-| Drone Bay | Hornet attack drone, Kestrel strike drone |
+| Assembly Bench | crates of pistols; of SMGs, shotguns, assault rifles, sniper rifles, LMGs, RPG launchers (each behind research) |
+| Rocket Bay | crates of RPG rockets, Skylance guided missiles, Longbow cruise missiles |
+| Drone Bay | crates of Hornet attack drones, Kestrel strike drones |
 | Research Lab | research points (0.05 × rate per minute) |
+
+### Crates (v0.19.0)
+
+Since v0.19.0 every weapon recipe makes a **crate**: one standard lot, worth `CRATE.units` (5) weapons, made from 5× a weapon's inputs in 3× its time. You only count crates. Single weapons for yourself come from the **armourer's workbench** by the loading dock: one weapon, or a box of its ammunition (9mm ×20, shells ×8, rifle ×10, an RPG rocket), straight from raw parts on the dock, taking 15–150 minutes of your time; research locks apply, and "Order missing" sends for what you're short.
 
 ## Research
 
@@ -65,7 +69,7 @@ Procedurally generated: name, look, four skills (one speciality 3–5), an optio
 
 ## Selling (v0.13)
 
-Lucas buys any arms item at **half its value**, raised by research, up to **2,500 obols a day**. The global market, shipping companies, insurance and heat arrive in v0.14.
+Lucas buys any arms item — crates or single weapons — at **half its value**, raised by research, up to **15,000 obols a day** (2,500 before v0.19).
 
 # The global market and heavy weapons (v0.14.0)
 
@@ -94,7 +98,7 @@ The game starts with Varnistan and Caldera at war, and Pallas under sanctions.
 
 ## Shipping
 
-On the terminal's Market tab, pick a country, a shipper, insurance and quantities from the works' export cage.
+**Orders (v0.19.0).** Every day each country posts purchase orders — 1–2 at peace, 3 at war — of **5–50 crates** of one weapon at a locked price per crate (today's price plus up to 15%), within its budget, weighted by what it wants and what you can make. They expire after 3–7 days. On the terminal's Market tab, FILL an order: pick a shipper and insurance and ship the whole order from the works' export cage. Click a country on the globe to see only its orders.
 - The fee (and insurance) is paid up front.
 - The buyer reserves the price from its budget.
 - Selling to one side of a war raises the other side's hostility by 5.

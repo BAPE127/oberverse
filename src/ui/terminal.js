@@ -488,7 +488,7 @@ export function terminalScreen(ui, body, opts, go) {
       `STATUS    ${enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE'}${st.embargo ? ' · EMBARGOED' : ''}`,
       `BUDGET    ${Math.round(st.budget)} OB`,
       `WANTS     ${fams}`,
-      `PAYS      PISTOL ${M.price(id, 'item_pistol')} · RIFLE ${M.price(id, 'item_assault_rifle')} · MISSILE ${M.price(id, 'item_missile_guided')}`,
+      ...(() => { const os = M.openOrders(id); return os.length ? [`ORDERS    ${os.length} OPEN`, ...os.slice(0, 3).map((o) => `  ${o.qty}× ${items[o.item].name.replace('Crate of ', '').toUpperCase()} @ ${o.price} OB`)] : ['ORDERS    NONE OPEN']; })(),
       `STANCE    ${st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : 'NEUTRAL'}`,
       'YOUR INBOUND CARGO:', ...inbound.map((t) => `  ${t}`),
       c.blurb,
@@ -525,7 +525,7 @@ export function terminalScreen(ui, body, opts, go) {
     const pt = local(e);
     if (was && Math.hypot(pt.x - was.x, pt.y - was.y) < 3 && VIEW.hover?.startsWith('c:')) {
       const id = VIEW.hover.slice(2);
-      go('Market', { form: { ...(opts.form || { shipper: 'morrow', insured: false, qty: {} }), country: id }, msg: `TARGET SET: ${cfg.countries[id].name.toUpperCase()}` });
+      go('Market', { country: id, msg: `TARGET SET: ${cfg.countries[id].name.toUpperCase()}` });
     }
   });
   canvas.addEventListener('pointermove', hover);
@@ -535,7 +535,7 @@ export function terminalScreen(ui, body, opts, go) {
   // ------------------------------------------------- the command tabs
   const sect = h('div', { class: 'os-body' });
   screen.append(sect);
-  const row = (icon, name, desc, ...buttons) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, name), desc ? h('div', { class: 'desc' }, desc) : null), ...buttons);
+  const row = (icon, name, desc, ...buttons) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, name), desc ? h('div', { class: 'desc' }, desc) : null), ...buttons.filter(Boolean));
   const btn = (label, fn, cls = 'small') => h('button', { class: cls, onclick: fn }, label);
   const H3 = (t) => h('h3', {}, `■ ${t.toUpperCase()}`);
 
@@ -555,8 +555,9 @@ export function terminalScreen(ui, body, opts, go) {
         '02  COLLECT EQUIPMENT FROM DOCK. [B] TO PLACE STATIONS. [E] ON A STATION SETS ITS RECIPE.',
         '03  HIRE + ASSIGN STAFF (F4). STATIONS RUN ONLY WHILE STAFFED ON SHIFT.',
         '04  BELTS + INSERTER ARMS MOVE PARTS BETWEEN STATIONS.',
-        '05  FINISHED UNITS → EXPORT CAGE. SHIP ABROAD (F6) OR SELL TO PIPECREEK ARMORY AT 50%.',
-        '06  CLICK A COUNTRY ON THE GLOBE TO TARGET IT AS A BUYER.',
+        '05  STATIONS MAKE WHOLE CRATES → EXPORT CAGE. FILL COUNTRIES\' ORDERS OF 5–50 CRATES (F6) OR SELL TO PIPECREEK AT 50%.',
+        '06  ONE GUN (OR AMMO) FOR YOURSELF? THE ARMOURER\'S WORKBENCH, BY THE DOCK.',
+        '07  CLICK A COUNTRY ON THE GLOBE TO SEE ITS ORDERS.',
       ].join('\n')),
     );
   } else if (tab === 'Parts' || tab === 'Equipment') {
@@ -606,45 +607,60 @@ export function terminalScreen(ui, body, opts, go) {
     }
     sect.append(grid);
   } else if (tab === 'Market') {
+    // v0.19.0: countries post orders of 5–50 crates; you fill them from the export cage
     const cage = g.world.containers[def.outCrate].items;
-    const cargo = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms);
-    // buyers
+    const C = cfg.crate;
+    const ship = opts.ship || {};
+    const focus = opts.country || null;
+    const orders = M.openOrders().filter((o) => !focus || o.country === focus).sort((a, b) => a.expires - b.expires);
+    sect.append(H3(focus ? `Orders from ${cfg.countries[focus].name}` : 'Open orders'));
+    sect.append(h('p', { class: 'os-dim' }, `COUNTRIES ORDER ${C.minOrder}–${C.maxOrder} CRATES OF ONE WEAPON AT A FIXED PRICE PER CRATE. FILL AN ORDER FROM THIS WORKS' EXPORT CAGE; PAYMENT ON ARRIVAL. ${focus ? '' : 'CLICK A COUNTRY ON THE GLOBE TO SEE ONLY ITS ORDERS.'}`),
+      ...(focus ? [h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('ALL ORDERS', () => go('Market', {})))] : []));
+    if (!orders.length) sect.append(h('p', { class: 'os-dim' }, 'NO OPEN ORDERS. NEW ORDERS COME IN EVERY DAY — MORE FROM COUNTRIES AT WAR.'));
+    for (const o of orders) {
+      const c = cfg.countries[o.country];
+      const st = ms.countries[o.country];
+      const it = items[o.item];
+      const have = cage[o.item] || 0;
+      const enemy = M.enemyOf(o.country);
+      const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : null, st.embargo ? '⚠ EMBARGOED' : null, `EXPIRES DAY ${o.expires}`].filter(Boolean).join(' · ');
+      const open = ship.order === o.id;
+      const rowEl = row(st.embargo ? '⛔' : enemy ? '⚔️' : '📦', `#${o.id} ${c.name} — ${o.qty}× ${it.name}`, `${o.price.toLocaleString()} OB/CRATE · ${(o.qty * o.price).toLocaleString()} OB TOTAL · ${tags} · CAGE ${have}/${o.qty}`,
+        btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
+      sect.append(rowEl);
+      if (open) {
+        const sh = cfg.shippers[ship.shipper];
+        const value = o.qty * o.price;
+        const fee = M.fee(ship.shipper, value, ship.insured);
+        const upd = (patch) => go('Market', { country: focus, ship: { ...ship, ...patch } });
+        const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
+          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
+            h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === ship.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
+            h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
+          h('div', { class: 'os-dim' }, sh.blurb),
+          h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
+          h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
+            have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
+              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured });
+              ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
+              go('Market', { msg: res.text, country: focus });
+            }, 'small primary')));
+        sect.append(form);
+      }
+    }
+    // the cage
+    const crates = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms?.crate);
+    sect.append(H3('Export cage'));
+    sect.append(h('p', { class: 'os-dim' }, crates.length ? crates.map(([id, n]) => `${n}× ${items[id].name}`).join(' · ') : 'EMPTY. STAFFED STATIONS SET TO A WEAPON RECIPE MAKE WHOLE CRATES; BELT THEM (OR CARRY THEM) INTO THE CAGE.'));
+    // buyers at a glance
     sect.append(H3('Buyers'));
     for (const [id, c] of Object.entries(cfg.countries)) {
       const st = ms.countries[id];
       const enemy = M.enemyOf(id);
+      const n = M.openOrders(id).length;
       const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : null].filter(Boolean).join(' · ');
-      const prices = (cargo.length ? cargo.map(([iid]) => iid) : ['item_pistol', 'item_assault_rifle', 'item_missile_guided', 'item_drone_attack']).map((iid) => `${items[iid].name} ${M.price(id, iid)}`).join(' · ');
-      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. PAYS: ${prices}`));
+      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget).toLocaleString()}`, `${tags} · ${n} OPEN ORDER${n === 1 ? '' : 'S'}`, n ? btn('ORDERS', () => go('Market', { country: id })) : null));
     }
-    // a new shipment
-    const form = opts.form || { country: Object.keys(cfg.countries)[0], shipper: 'morrow', insured: false, qty: {} };
-    form.qty ||= {};
-    const qty = Object.fromEntries(cargo.map(([id, n]) => [id, Math.min(n, form.qty[id] ?? 0)]));
-    const value = M.quote(form.country, qty);
-    const fee = M.fee(form.shipper, value, form.insured);
-    const sh = cfg.shippers[form.shipper];
-    const upd = (patch) => go('Market', { form: { ...form, ...patch, qty: { ...qty, ...(patch.qty || {}) } } });
-    sect.append(H3('Book a shipment from this works\' export cage'));
-    if (!cargo.length) sect.append(h('p', { class: 'os-dim' }, 'EXPORT CAGE EMPTY. FINISHED WEAPONS GO IN THE CAGE (BY BELT, OR BY HAND: E ON THE CAGE → STORE).'));
-    else {
-      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
-        h('select', { onchange: (e) => upd({ country: e.target.value }) }, ...Object.entries(cfg.countries).map(([id, c]) => h('option', { value: id, selected: id === form.country }, `${c.name}${ms.countries[id].embargo ? ' (EMBARGO)' : ''}`))),
-        h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === form.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
-        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)));
-      sect.append(h('p', { class: 'os-dim' }, sh.blurb));
-      for (const [id, n] of cargo) {
-        sect.append(row(itemIcon(items[id]), `${items[id].name} — ${M.price(form.country, id)} each`, `${n} in the cage`,
-          h('input', { type: 'number', min: 0, max: n, value: qty[id] || 0, style: 'width:64px', onchange: (e) => upd({ qty: { [id]: Math.max(0, Math.min(n, Number(e.target.value) || 0)) } }) }),
-          btn('All', () => upd({ qty: { [id]: n } }))));
-      }
-      sect.append(h('p', {}, h('b', {}, `VALUE ON ARRIVAL: ${value} OB · SHIPPING NOW: ${fee} OB`), ms.countries[form.country].embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''));
-      sect.append(h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('SHIP IT', () => {
-        const res = M.ship({ wh, country: form.country, shipper: form.shipper, insured: form.insured, items: qty });
-        ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
-        go('Market', { msg: res.text, form: res.ok ? { ...form, qty: {} } : form });
-      }, 'small primary')));
-    }
-    sect.append(h('p', { class: 'os-dim' }, `EXPORTS TO DATE: ${ms.earned} OB. PIPECREEK ARMORY STILL BUYS WHOLESALE AT 50% (UP TO LUCAS'S DAILY BUDGET).`));
+    sect.append(h('p', { class: 'os-dim' }, `EXPORTS TO DATE: ${ms.earned.toLocaleString()} OB. PIPECREEK ARMORY STILL BUYS CRATES (AND SINGLE WEAPONS) WHOLESALE AT 50%, UP TO LUCAS'S DAILY BUDGET.`));
   }
 }

@@ -1889,8 +1889,9 @@ const yards = {
 const armsWorks = (id, name, w, h, bunks, o = {}) => {
   const props = [
     { id: `${id}_dock`, type: 'loadingbay', x: 1, y: 1, w: 4, h: 2, interact: { kind: 'container', container: `ct_${id}_dock`, name: 'loading dock' }, examine: 'The loading dock. Parts you order on the terminal are dropped here.' },
-    { id: `${id}_cage`, type: 'outbin', x: w - 4, y: 1, w: 3, h: 2, interact: { kind: 'container', container: `ct_${id}_cage`, name: 'export cage' }, examine: 'The export cage. Finished weapons go here to be shipped — or carried to Lucas.' },
+    { id: `${id}_cage`, type: 'outbin', x: w - 4, y: 1, w: 3, h: 2, interact: { kind: 'container', container: `ct_${id}_cage`, name: 'export cage' }, examine: 'The export cage. Finished crates go here to fill countries\' orders — or to be carried to Lucas.' },
     { id: `${id}_terminal`, type: 'terminal', x: Math.floor(w / 2) - 1, y: 1, w: 2, h: 1, interact: { kind: 'arms', action: 'terminal', warehouse: id, name: 'terminal' }, examine: 'A terminal with a slowly turning globe. Trade routes glow across it like veins.' },
+    { id: `${id}_bench`, type: 'workbench', x: 6, y: 1, w: 2, h: 1, color: '#5a4a3a', interact: { kind: 'arms', action: 'bench', warehouse: id, name: 'armourer\'s workbench' }, examine: 'The armourer\'s workbench: a vice, files, a reloading press. Hand-make one weapon — or its ammunition — for yourself, from parts on the loading dock.' },
     { id: `${id}_board`, type: 'noticeboard', x: Math.floor(w / 2) + 2, y: 0, examine: o.board || 'A whiteboard: "SAFETY FIRST. SECOND. THIRD. — L.E." Somebody has added "DAYS WITHOUT INCIDENT: 0".' },
   ];
   const spots = { entry: { x: Math.floor(w / 2), y: h - 2, facing: 'up' } };
@@ -2026,6 +2027,65 @@ const ARMS_RECIPES = {
   drone_strike: R('drone', { item_ap_airframe: 2, item_ai_flightctl: 2, item_ai_seeker: 1, item_ai_warhead: 2 }, 'item_drone_strike', 36, 'drone_strike'),
 };
 
+/**
+ * The armourer's workbench (v0.19.0): hand-make ONE weapon, or a box of its
+ * ammunition, for yourself — straight from parts on the loading dock, no staff.
+ * minutes: game time it takes. requires: a research node (as at the stations).
+ */
+const B = (out, inputs, minutes, requires = null, count = 1) => ({ out, in: inputs, minutes, requires, count });
+const BENCH_RECIPES = {
+  pistol: B('item_pistol', { item_ap_steel: 3, item_ap_springs: 1, item_ap_polymer: 2 }, 30),
+  smg: B('item_smg', { item_ap_steel: 4, item_ap_springs: 3, item_ap_polymer: 2 }, 40, 'smg'),
+  shotgun: B('item_shotgun', { item_ap_steel: 5, item_ap_springs: 1, item_ap_polymer: 2 }, 40, 'shotgun'),
+  assault: B('item_assault_rifle', { item_ap_steel: 4, item_ap_springs: 2, item_ap_polymer: 3, item_ap_optics: 1 }, 60, 'assault'),
+  sniper: B('item_sniper_rifle', { item_ap_steel: 5, item_ap_springs: 1, item_ap_polymer: 2, item_ap_optics: 2 }, 70, 'precision'),
+  lmg: B('item_lmg', { item_ap_steel: 7, item_ap_springs: 4, item_ap_polymer: 2 }, 80, 'lmg'),
+  rpg: B('item_rpg', { item_ap_steel: 4, item_ap_polymer: 2, item_ap_optics: 1 }, 60, 'rpg'),
+  guided: B('item_missile_guided', { item_ap_motor: 1, item_ap_explosive: 1, item_ap_guidance: 1, item_ap_optics: 1, item_ap_electronics: 1, item_ap_airframe: 1 }, 90, 'guided'),
+  cruise: B('item_missile_cruise', { item_ap_motor: 2, item_ap_explosive: 2, item_ap_guidance: 2, item_ap_optics: 2, item_ap_electronics: 2, item_ap_airframe: 2 }, 150, 'cruise'),
+  drone_attack: B('item_drone_attack', { item_ap_airframe: 1, item_ap_electronics: 2, item_ap_battery: 2, item_ap_explosive: 1 }, 80, 'drone_attack'),
+  drone_strike: B('item_drone_strike', { item_ap_airframe: 2, item_ap_electronics: 4, item_ap_battery: 2, item_ap_explosive: 2, item_ap_guidance: 1 }, 120, 'drone_strike'),
+  // ammunition: a box (the shop's bundle size) per run
+  ammo_9mm: B('item_ammo_9mm', { item_ap_steel: 1, item_ap_propellant: 1 }, 15, null, 20),
+  ammo_shells: B('item_ammo_shells', { item_ap_steel: 1, item_ap_propellant: 1, item_ap_polymer: 1 }, 15, 'shotgun', 8),
+  ammo_rifle: B('item_ammo_rifle', { item_ap_steel: 1, item_ap_propellant: 2 }, 20, 'assault', 10),
+  rpg_rocket: B('item_rpg_rocket', { item_ap_explosive: 1, item_ap_propellant: 2, item_ap_steel: 1 }, 30, 'rpg', 1),
+};
+
+// ------------------------------------------------------------ crates (v0.19.0)
+// Owner's answers: stations make whole crates (no more hundreds of single
+// guns to track); every crate is one standard lot; countries order 5–50
+// crates; single weapons and their ammo for yourself are hand-made at the
+// armourer's workbench in each works.
+/** A crate is one standard lot: CRATE.units weapons' worth of parts and value, made in CRATE.minutes × one weapon's time. */
+const CRATE = { units: 5, minutes: 3, minOrder: 5, maxOrder: 50 };
+/** recipe id → [weapon item, plural name, single value, family] */
+const CRATED = {
+  pistol: ['item_pistol', '9mm Pistols', 140, 'small'],
+  smg: ['item_smg', 'Submachine Guns', 260, 'small'],
+  shotgun: ['item_shotgun', 'Pump Shotguns', 220, 'small'],
+  assault: ['item_assault_rifle', 'Assault Rifles', 480, 'small'],
+  sniper: ['item_sniper_rifle', 'Sniper Rifles', 650, 'small'],
+  lmg: ['item_lmg', 'Light Machine Guns', 800, 'small'],
+  rpg: ['item_rpg', 'RPG Launchers', 900, 'heavy'],
+  rpg_rocket: ['item_rpg_rocket', 'RPG Rockets', 220, 'heavy'],
+  guided: ['item_missile_guided', 'Skylance Missiles', 2600, 'missile'],
+  cruise: ['item_missile_cruise', 'Longbow Cruise Missiles', 9000, 'missile'],
+  drone_attack: ['item_drone_attack', 'Hornet Drones', 1600, 'drone'],
+  drone_strike: ['item_drone_strike', 'Kestrel Drones', 5200, 'drone'],
+};
+const CRATE_ITEMS = Object.fromEntries(Object.entries(CRATED).map(([rid, [weapon, plural, value, family]]) => [`item_crate_${rid}`, {
+  name: `Crate of ${plural}`, category: 'arms_crate', price: 0, tags: ['arms', 'crate'], icon: 'crate',
+  arms: { value: value * CRATE.units, family, crate: true, contains: weapon },
+  description: `A stencilled export crate: one standard lot of ${plural.toLowerCase()}. Sold to countries by the crate (orders of ${CRATE.minOrder}–${CRATE.maxOrder}).`,
+}]));
+
+// v0.19.0: the weapon recipes make whole crates (same ids, so stations already set to them carry on)
+for (const rid of Object.keys(CRATED)) {
+  const r = ARMS_RECIPES[rid];
+  ARMS_RECIPES[rid] = { ...r, in: Object.fromEntries(Object.entries(r.in).map(([id, n]) => [id, n * CRATE.units])), out: `item_crate_${rid}`, minutes: r.minutes * CRATE.minutes, single: r.out };
+}
+
 /** The research tree. cost in research points; requires: other nodes; unlocks recipes or gives bonuses. */
 const ARMS_RESEARCH = {
   // Manufacturing
@@ -2066,7 +2126,7 @@ const ARMS_WAREHOUSES = {
 
 const ARMS_LICENCE_PRICE = 500;
 /** What Lucas pays: a share of value, and a daily budget. */
-const WHOLESALE = { share: 0.5, dailyBudget: 2500 };
+const WHOLESALE = { share: 0.5, dailyBudget: 15000 };
 
 /** Employee generation. */
 const STAFF_NAMES = {
@@ -2093,14 +2153,14 @@ const STAFF_QUIRKS = {
  * aggression: daily chance factor of starting a war with a rival.
  */
 const COUNTRIES = {
-  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, budget: 40000, income: 3000, wants: { small: 1.2, heavy: 1.0, missile: 0.8, drone: 0.8 }, aggression: 0.6, rivals: ['caldera', 'ostmark'], blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
-  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, budget: 80000, income: 6000, wants: { small: 0.9, heavy: 1.0, missile: 1.3, drone: 1.2 }, aggression: 0.3, rivals: ['varn', 'sund'], blurb: 'Seven provinces, one parliament, eight opinions.' },
-  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, budget: 30000, income: 2500, wants: { small: 1.3, heavy: 1.2, missile: 0.9, drone: 0.7 }, aggression: 0.5, rivals: ['varn', 'pallas'], blurb: 'Built on a volcano. Politically, also built on a volcano.' },
-  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, budget: 25000, income: 2000, wants: { small: 1.0, heavy: 0.8, missile: 1.0, drone: 1.1 }, aggression: 0.2, rivals: ['ostmark'], blurb: 'A fishing monarchy whose king is eleven and very serious.' },
-  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, budget: 20000, income: 1800, wants: { small: 1.4, heavy: 1.3, missile: 0.6, drone: 0.6 }, aggression: 0.7, rivals: ['caldera', 'lirre'], blurb: 'Free, according to the name. A state, according to some. Under international embargo.' },
-  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 120000, income: 8000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
-  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 35000, income: 3000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
-  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 60000, income: 4000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
+  varn: { name: 'Varnistan', color: '#e8a24a', lat: 38, lon: 52, budget: 240000, income: 18000, wants: { small: 1.2, heavy: 1.0, missile: 0.8, drone: 0.8 }, aggression: 0.6, rivals: ['caldera', 'ostmark'], blurb: 'A mountain republic that has been "about to have elections" for nineteen years.' },
+  ostmark: { name: 'The Ostmark Union', color: '#7aa8e8', lat: 54, lon: 18, budget: 480000, income: 36000, wants: { small: 0.9, heavy: 1.0, missile: 1.3, drone: 1.2 }, aggression: 0.3, rivals: ['varn', 'sund'], blurb: 'Seven provinces, one parliament, eight opinions.' },
+  caldera: { name: 'Republic of Caldera', color: '#e86a5a', lat: -8, lon: 34, budget: 180000, income: 15000, wants: { small: 1.3, heavy: 1.2, missile: 0.9, drone: 0.7 }, aggression: 0.5, rivals: ['varn', 'pallas'], blurb: 'Built on a volcano. Politically, also built on a volcano.' },
+  sund: { name: 'Kingdom of Sund', color: '#9ae87a', lat: 61, lon: -14, budget: 150000, income: 12000, wants: { small: 1.0, heavy: 0.8, missile: 1.0, drone: 1.1 }, aggression: 0.2, rivals: ['ostmark'], blurb: 'A fishing monarchy whose king is eleven and very serious.' },
+  pallas: { name: 'Free State of Pallas', color: '#d87ae8', lat: 12, lon: -38, budget: 120000, income: 10800, wants: { small: 1.4, heavy: 1.3, missile: 0.6, drone: 0.6 }, aggression: 0.7, rivals: ['caldera', 'lirre'], blurb: 'Free, according to the name. A state, according to some. Under international embargo.' },
+  teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 720000, income: 48000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
+  morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 210000, income: 18000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
+  lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 360000, income: 24000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
 };
 /** Where your shipments leave from on the globe. */
 const HQ = { name: 'Halvermouth', lat: 49, lon: -30 };
@@ -2118,7 +2178,7 @@ const MARKET = {
   /** Price boost per family while a country is at war. */
   warMult: { small: 1.5, heavy: 2, missile: 2.5, drone: 2.2 },
   /** Each unit sold to a country lowers what it pays for that family (recovers 30% a day). */
-  saturationPerUnit: 0.02, saturationMax: 0.6, saturationDecay: 0.3,
+  saturationPerUnit: 0.012, // per crate (v0.19.0) saturationMax: 0.6, saturationDecay: 0.3,
   insuranceRate: 0.08, insurancePayout: 0.6,
   /** A country this hostile won't buy from you; hostility fades 5 a day. */
   refuseHostility: 60,
@@ -2127,7 +2187,7 @@ const MARKET = {
   initialEmbargoes: ['pallas'],
 };
 
-return { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET };
+return { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, BENCH_RECIPES, CRATE, CRATE_ITEMS, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET };
 })();
 
 // ---- src/content/props.js
@@ -8037,7 +8097,7 @@ const oberMaps = __m["src/content/maps/oberFields.js"].default;
 const westbrookMaps = __m["src/content/maps/westbrook.js"].default;
 const halvermouthMaps = __m["src/content/maps/halvermouth.js"].default;
 const yardsMaps = __m["src/content/maps/yards.js"].default;
-const { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } = __m["src/content/arms.js"];
+const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } = __m["src/content/arms.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
 const { ITEMS } = __m["src/content/items.js"];
 const { FACTS } = __m["src/content/facts.js"];
@@ -8095,7 +8155,7 @@ const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
-  items: { ...ITEMS, ...ARMS_ITEMS },
+  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS },
   facts: FACTS,
   docs: DOCS,
   containers: CONTAINERS,
@@ -8115,7 +8175,7 @@ const BASE_CONTENT = {
   recipes: RECIPES,
   deliveries: DELIVERIES,
   unlocks: UNLOCKS,
-  arms: { stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
+  arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: { bus: BUS, traffic: TRAFFIC },
   vehicles: { models: CAR_MODELS, dealers: DEALERS, parked: [...PARKED_CARS, ...STREET_CARS], driving: DRIVING },
@@ -8137,7 +8197,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.18.0';
+const GAME_VERSION = '0.19.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -15048,7 +15108,43 @@ class Arms extends Factory {
       return { type: 'terminal', warehouse: act.warehouse };
     }
     if (act.action === 'entity') return this.entityPrompt(prop);
+    if (act.action === 'bench') {
+      if (!this.owns(act.warehouse)) return { type: 'message', text: 'Not your workbench.' };
+      return { type: 'armsbench', warehouse: act.warehouse };
+    }
     return { type: 'none' };
+  }
+
+  // ---------------------------------------------- the armourer's workbench
+  benchUnlocked(rid) {
+    const r = this.cfg.bench[rid];
+    return Boolean(r) && (!r.requires || this.done(r.requires));
+  }
+
+  /** How many of each part the dock is short for a bench recipe ({} = none). */
+  benchShort(whId, rid) {
+    const r = this.cfg.bench[rid];
+    const dock = this.game.world.containers[this.def(whId).inBay]?.items || {};
+    const short = {};
+    for (const [id, n] of Object.entries(r.in)) if ((dock[id] || 0) < n) short[id] = n - (dock[id] || 0);
+    return short;
+  }
+
+  /** Hand-make one weapon (or a box of ammo) for yourself: parts off the dock, time passes, it's in your pocket. */
+  benchCraft(whId, rid) {
+    const g = this.game;
+    const r = this.cfg.bench[rid];
+    if (!r || !this.owns(whId)) return { ok: false, text: '' };
+    if (!this.benchUnlocked(rid)) return { ok: false, text: `Research ${this.cfg.research[r.requires].name} first.` };
+    const short = this.benchShort(whId, rid);
+    if (Object.keys(short).length) return { ok: false, text: `Not enough on the loading dock: need ${Object.entries(short).map(([id, n]) => `${n} more ${g.content.items[id].name}`).join(', ')}.` };
+    const dock = g.world.containers[this.def(whId).inBay].items;
+    for (const [id, n] of Object.entries(r.in)) dock[id] -= n;
+    g.skipTime(r.minutes);
+    g.inventory.add(r.out, r.count, { silent: true });
+    g.bus.emit('arms:bench', { warehouse: whId, item: r.out, count: r.count });
+    const it = g.content.items[r.out];
+    return { ok: true, text: `${r.minutes} minutes of filing, fitting and swearing later: ${r.count > 1 ? `${r.count}× ` : ''}${it.name}${r.count > 1 ? '' : ', made by your own hands'}. (In your pack.)` };
   }
 }
 
@@ -15064,7 +15160,9 @@ __m["src/systems/market.js"] = (function () {
 // shipping companies that don't always deliver; insurance; heat.
 //
 //   daily (06:00): budgets grow · saturation and hostility fade · wars end or start
-//   ship(): cargo from a works' export cage → a country, by a shipper
+//   orders (v0.19.0): each country posts purchase orders of 5–50 crates of one
+//     weapon at a locked price per crate; they expire after a few days
+//   ship(): fill an order — its crates from a works' export cage → the country, by a shipper
 //     fee + optional insurance paid up front; the country reserves the price
 //     on arrival: delivered (paid) — or lost: sunk, hijacked, seized
 //     seized + embargoed  → customs trace it to you (police heat)
@@ -15080,7 +15178,7 @@ function freshMarket(content) {
   const countries = {};
   for (const [id, def] of Object.entries(c.countries)) countries[id] = { budget: def.budget, sat: {}, hostility: 0, embargo: c.market.initialEmbargoes.includes(id), embargoReason: c.market.initialEmbargoes.includes(id) ? 'international sanctions' : null };
   const wars = c.market.initialWars.map(([a, b]) => ({ a, b, since: 0 }));
-  return { countries, wars, news: [{ day: 1, text: 'Varnistan and the Republic of Caldera remain at war over the Kestrel Pass.' }, { day: 1, text: 'The Free State of Pallas is under international embargo.' }], shipments: [], nextShip: 1, lastDay: 1, earned: 0 };
+  return { orders: [], nextOrder: 1, lastOrderDay: 0, countries, wars, news: [{ day: 1, text: 'Varnistan and the Republic of Caldera remain at war over the Kestrel Pass.' }, { day: 1, text: 'The Free State of Pallas is under international embargo.' }], shipments: [], nextShip: 1, lastDay: 1, earned: 0 };
 }
 
 class Market {
@@ -15092,10 +15190,67 @@ class Market {
     return this.game.content.arms;
   }
 
+  /** The crate rules (v0.19.0). */
+  get crate() {
+    return this.cfg.crate;
+  }
+
   get state() {
     const g = this.game;
     if (!g.world.market) g.world.market = freshMarket(g.content);
-    return g.world.market;
+    const s = g.world.market;
+    if (!s.orders) Object.assign(s, { orders: [], nextOrder: 1, lastOrderDay: 0 }); // saves from before v0.19
+    if (s.lastOrderDay < g.clock.day && !this.posting) {
+      this.posting = true;
+      s.lastOrderDay = g.clock.day;
+      this.postOrders();
+      this.posting = false;
+    }
+    return s;
+  }
+
+  // ------------------------------------------------------------- orders
+  /** Crate types the player's works can make right now (research permitting). */
+  makeable() {
+    const A = this.game.arms;
+    return Object.entries(this.game.content.arms.recipes).filter(([rid, r]) => r.single && A.recipeUnlocked(rid)).map(([, r]) => r.out);
+  }
+
+  /** Open orders, oldest first. */
+  openOrders(countryId = null) {
+    return this.state.orders.filter((o) => o.status === 'open' && (!countryId || o.country === countryId));
+  }
+
+  /** New purchase orders: 5–50 crates each, within the country's budget. At war, they want more. */
+  postOrders() {
+    const g = this.game;
+    const s = g.world.market;
+    const C = this.cfg.crate;
+    const R = g.rng;
+    const crates = Object.entries(g.content.items).filter(([, it]) => it.arms?.crate).map(([id]) => id);
+    const mine = new Set(this.makeable());
+    for (const [id, def] of Object.entries(this.cfg.countries)) {
+      const c = s.countries[id];
+      if (c.hostility >= this.cfg.market.refuseHostility) continue;
+      const open = s.orders.filter((o) => o.status === 'open' && o.country === id);
+      const want = this.warOf(id) ? 3 : 1 + (R.next() < 0.5 ? 1 : 0);
+      let committed = open.reduce((a, o) => a + o.qty * o.price, 0);
+      for (let k = open.length; k < want; k++) {
+        // what they want: by family appetite, leaning towards what you can actually make
+        const weights = crates.map((cid) => (def.wants[g.content.items[cid].arms.family] ?? 1) * (mine.has(cid) ? 4 : 1));
+        let r = R.next() * weights.reduce((a, b) => a + b, 0);
+        let pick = crates[0];
+        for (let i = 0; i < crates.length; i++) { r -= weights[i]; if (r <= 0) { pick = crates[i]; break; } }
+        const unit = this.price(id, pick);
+        if (!unit) continue;
+        const price = Math.round(unit * (1 + R.next() * 0.15));
+        const afford = Math.floor((c.budget - committed) / price);
+        if (afford < C.minOrder) continue;
+        const qty = Math.min(C.maxOrder, afford, C.minOrder + Math.floor(R.next() * (C.maxOrder - C.minOrder + 1)));
+        committed += qty * price;
+        s.orders.push({ id: s.nextOrder++, country: id, item: pick, qty, price, posted: g.clock.day, expires: g.clock.day + 3 + Math.floor(R.next() * 5), status: 'open' });
+      }
+    }
   }
 
   country(id) {
@@ -15144,38 +15299,41 @@ class Market {
     return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
   }
 
-  /** Book a shipment from a works' export cage. items: {itemId: qty}. */
-  ship({ wh, country, shipper, insured = false, items }) {
+  /** Fill an order: its crates leave a works' export cage with a shipper. */
+  ship({ wh, order: orderId, shipper, insured = false }) {
     const g = this.game;
+    const order = this.state.orders.find((o) => o.id === orderId && o.status === 'open');
+    if (!order) return { ok: false, text: 'That order is no longer open.' };
+    const country = order.country;
     const c = this.country(country);
     const def = this.cfg.countries[country];
     const sh = this.cfg.shippers[shipper];
-    if (!c || !sh) return { ok: false, text: 'Pick a country and a shipper.' };
+    if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
     const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
     if (!cage) return { ok: false, text: 'No export cage.' };
-    const list = Object.entries(items || {}).filter(([, n]) => n > 0);
-    if (!list.length) return { ok: false, text: 'Choose what to ship.' };
-    for (const [id, n] of list) if ((cage[id] || 0) < n) return { ok: false, text: `Only ${cage[id] || 0}× ${g.content.items[id]?.name} in the export cage.` };
+    const list = [[order.item, order.qty]];
+    if ((cage[order.item] || 0) < order.qty) return { ok: false, text: `This order is for ${order.qty} crates; the export cage has ${cage[order.item] || 0}.` };
+    if (c.hostility >= this.cfg.market.refuseHostility) return { ok: false, text: `${def.name} won't deal with you any more.` };
     if (c.embargo && !sh.embargo) return { ok: false, text: `${sh.name} won't touch embargoed cargo for ${def.name}.` };
-    const value = this.quote(country, Object.fromEntries(list));
-    if (value <= 0) return { ok: false, text: `${def.name} won't buy from you right now.` };
-    if (value > c.budget) return { ok: false, text: `${def.name} can only afford ${c.budget} obols of weapons right now; this lot is worth ${value}.` };
+    const value = order.qty * order.price;
+    if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const fee = this.fee(shipper, value, insured);
     if (g.player.money < fee) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
     g.player.money -= fee;
     g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
     for (const [id, n] of list) cage[id] -= n;
     c.budget -= value;
+    order.status = 'shipped';
     const s = this.state;
     const now = g.clock.total;
-    const shp = { id: s.nextShip++, wh, country, shipper, insured, items: Object.fromEntries(list), value, fee, embargo: c.embargo, departs: now, arrives: now + sh.days * 1440 };
+    const shp = { id: s.nextShip++, wh, order: order.id, country, shipper, insured, items: Object.fromEntries(list), value, fee, embargo: c.embargo, departs: now, arrives: now + sh.days * 1440 };
     s.shipments.push(shp);
     // selling to one side of a war annoys the other
     const enemy = this.enemyOf(country);
     if (enemy) this.country(enemy).hostility = clamp(this.country(enemy).hostility + 5, 0, 100);
     g.bus.emit('market:shipped', { shipment: shp });
-    return { ok: true, shipment: shp, text: `${sh.name} will deliver to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: worth ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
+    return { ok: true, shipment: shp, text: `${sh.name} will deliver ${order.qty} crates to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
   }
 
   /** Roll a shipment's fate on arrival. */
@@ -15194,12 +15352,16 @@ class Market {
         const fam = g.content.items[id].arms.family;
         c.sat[fam] = clamp((c.sat[fam] || 0) + n * this.cfg.market.saturationPerUnit, 0, this.cfg.market.saturationMax);
       }
+      const order = this.state.orders.find((o) => o.id === shp.order);
+      if (order) order.status = 'delivered';
       g.tablet.post('market', `Delivered to ${def.name}: ${shp.value} obols received.`, 'good');
       g.bus.emit('market:delivered', { shipment: shp });
       return 'delivered';
     }
     // lost
     c.budget += shp.value; // they never paid
+    const lostOrder = this.state.orders.find((o) => o.id === shp.order);
+    if (lostOrder) lostOrder.status = 'lost';
     const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
     const fate = kinds[Math.floor(R.next() * kinds.length)];
     const lines = {
@@ -15233,11 +15395,13 @@ class Market {
     return fate;
   }
 
-  /** The world turns: budgets, saturation, hostility, wars, embargoes. */
+  /** The world turns: budgets, saturation, hostility, wars, embargoes, orders. */
   dailyTick() {
     const g = this.game;
     const m = this.cfg.market;
     const s = this.state;
+    // old orders lapse; finished ones are forgotten after a week
+    s.orders = s.orders.filter((o) => (o.status === 'open' ? o.expires >= g.clock.day : g.clock.day - o.posted < 7));
     for (const [id, c] of Object.entries(s.countries)) {
       const def = this.cfg.countries[id];
       c.budget = Math.min(def.budget * 3, c.budget + def.income * (this.warOf(id) ? 1.5 : 1));
@@ -18184,7 +18348,7 @@ class Game {
       case 'forage': return 'Pick wildflowers';
       case 'workstation': return `Work the ${name.toLowerCase()}`;
       case 'shop': return `Browse the ${name.toLowerCase()}`;
-      case 'arms': return { buy: this.arms.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', terminal: 'Use the terminal', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
+      case 'arms': return { buy: this.arms.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', terminal: 'Use the terminal', bench: 'Use the armourer\'s workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'factory': return { buy: this.factory.owns(prop.interact.warehouse) ? 'Read the SOLD sign' : 'Read the FOR SALE sign', workbench: 'Use the workbench', entity: `Check the ${name.toLowerCase()}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
@@ -18725,6 +18889,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.19.0',
+    date: '2026-10-14',
+    channel: 'development',
+    title: 'By the Crate',
+    notes: [
+      'The arms trade now runs on crates. Stations set to a weapon make whole crates — one standard lot each — so there are no more hundreds of single guns to make and count.',
+      'Countries post orders: 5 to 50 crates of one weapon at a fixed price per crate, good for a few days. Fill an order from your export cage in the terminal\'s Market tab (pick a shipper, insure it if you like). Countries at war order more. Click a country on the globe to see its orders.',
+      'Want a gun for yourself? The armourer\'s workbench by the loading dock hand-makes ONE weapon — or a box of its ammunition — straight from dock parts, in your own time. "Order missing" sends for whatever you\'re short.',
+      'Lucas still buys at Pipecreek: crates and single weapons, at half value, with a much bigger daily budget.',
+    ],
+  },
   {
     version: '0.18.0',
     date: '2026-10-13',
@@ -25123,6 +25299,7 @@ const HELP = [
   ['war <a> <b> · peace', 'start a war between two countries, or end every war'],
   ['arrive', 'every shipment in transit arrives now'],
   ['nextday', 'run the world\'s daily tick (wars, budgets, embargoes)'],
+  ['crates [type] [n]', 'n crates (default 10) of a weapon (default pistol) in your first arms works\' export cage'],
   ['bus [stop]', 'list the bus stops and the next bus at each; with a stop id, wait there until a bus arrives'],
   ['car [model]', 'a car of your own beside you (pipit, dray, mule, aurelia, tempest, corsair, regent, cruiser)'],
 ];
@@ -25431,6 +25608,17 @@ function runCommand(game, line) {
       game.inventory.add('item_generator', 1, { silent: true });
       return out('One of every workstation, 30 belts, 8 arms, a generator.');
     }
+    case 'crates': {
+      const type = args.find((a) => !/^\d+$/.test(a)) || 'pistol';
+      const n = Number(args.find((a) => /^\d+$/.test(a)) || 10);
+      const id = `item_crate_${type}`;
+      if (!game.content.items[id]) return out(`Unknown crate. Try: ${Object.keys(game.content.items).filter((k) => k.startsWith('item_crate_')).map((k) => k.slice(11)).join(', ')}`, false);
+      const wh = game.arms.ownedIds()[0];
+      if (!wh) return out('You don\'t own an arms works (try: works aw1).', false);
+      const cage = game.world.containers[game.arms.def(wh).outCrate].items;
+      cage[id] = (cage[id] || 0) + n;
+      return out(`${n}× ${game.content.items[id].name} in ${game.arms.def(wh).name}'s export cage.`);
+    }
     case 'bus': {
       const T = game.transit;
       T.setup();
@@ -25548,7 +25736,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -26775,7 +26963,7 @@ function terminalScreen(ui, body, opts, go) {
       `STATUS    ${enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE'}${st.embargo ? ' · EMBARGOED' : ''}`,
       `BUDGET    ${Math.round(st.budget)} OB`,
       `WANTS     ${fams}`,
-      `PAYS      PISTOL ${M.price(id, 'item_pistol')} · RIFLE ${M.price(id, 'item_assault_rifle')} · MISSILE ${M.price(id, 'item_missile_guided')}`,
+      ...(() => { const os = M.openOrders(id); return os.length ? [`ORDERS    ${os.length} OPEN`, ...os.slice(0, 3).map((o) => `  ${o.qty}× ${items[o.item].name.replace('Crate of ', '').toUpperCase()} @ ${o.price} OB`)] : ['ORDERS    NONE OPEN']; })(),
       `STANCE    ${st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : 'NEUTRAL'}`,
       'YOUR INBOUND CARGO:', ...inbound.map((t) => `  ${t}`),
       c.blurb,
@@ -26812,7 +27000,7 @@ function terminalScreen(ui, body, opts, go) {
     const pt = local(e);
     if (was && Math.hypot(pt.x - was.x, pt.y - was.y) < 3 && VIEW.hover?.startsWith('c:')) {
       const id = VIEW.hover.slice(2);
-      go('Market', { form: { ...(opts.form || { shipper: 'morrow', insured: false, qty: {} }), country: id }, msg: `TARGET SET: ${cfg.countries[id].name.toUpperCase()}` });
+      go('Market', { country: id, msg: `TARGET SET: ${cfg.countries[id].name.toUpperCase()}` });
     }
   });
   canvas.addEventListener('pointermove', hover);
@@ -26822,7 +27010,7 @@ function terminalScreen(ui, body, opts, go) {
   // ------------------------------------------------- the command tabs
   const sect = h('div', { class: 'os-body' });
   screen.append(sect);
-  const row = (icon, name, desc, ...buttons) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, name), desc ? h('div', { class: 'desc' }, desc) : null), ...buttons);
+  const row = (icon, name, desc, ...buttons) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, name), desc ? h('div', { class: 'desc' }, desc) : null), ...buttons.filter(Boolean));
   const btn = (label, fn, cls = 'small') => h('button', { class: cls, onclick: fn }, label);
   const H3 = (t) => h('h3', {}, `■ ${t.toUpperCase()}`);
 
@@ -26842,8 +27030,9 @@ function terminalScreen(ui, body, opts, go) {
         '02  COLLECT EQUIPMENT FROM DOCK. [B] TO PLACE STATIONS. [E] ON A STATION SETS ITS RECIPE.',
         '03  HIRE + ASSIGN STAFF (F4). STATIONS RUN ONLY WHILE STAFFED ON SHIFT.',
         '04  BELTS + INSERTER ARMS MOVE PARTS BETWEEN STATIONS.',
-        '05  FINISHED UNITS → EXPORT CAGE. SHIP ABROAD (F6) OR SELL TO PIPECREEK ARMORY AT 50%.',
-        '06  CLICK A COUNTRY ON THE GLOBE TO TARGET IT AS A BUYER.',
+        '05  STATIONS MAKE WHOLE CRATES → EXPORT CAGE. FILL COUNTRIES\' ORDERS OF 5–50 CRATES (F6) OR SELL TO PIPECREEK AT 50%.',
+        '06  ONE GUN (OR AMMO) FOR YOURSELF? THE ARMOURER\'S WORKBENCH, BY THE DOCK.',
+        '07  CLICK A COUNTRY ON THE GLOBE TO SEE ITS ORDERS.',
       ].join('\n')),
     );
   } else if (tab === 'Parts' || tab === 'Equipment') {
@@ -26893,46 +27082,61 @@ function terminalScreen(ui, body, opts, go) {
     }
     sect.append(grid);
   } else if (tab === 'Market') {
+    // v0.19.0: countries post orders of 5–50 crates; you fill them from the export cage
     const cage = g.world.containers[def.outCrate].items;
-    const cargo = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms);
-    // buyers
+    const C = cfg.crate;
+    const ship = opts.ship || {};
+    const focus = opts.country || null;
+    const orders = M.openOrders().filter((o) => !focus || o.country === focus).sort((a, b) => a.expires - b.expires);
+    sect.append(H3(focus ? `Orders from ${cfg.countries[focus].name}` : 'Open orders'));
+    sect.append(h('p', { class: 'os-dim' }, `COUNTRIES ORDER ${C.minOrder}–${C.maxOrder} CRATES OF ONE WEAPON AT A FIXED PRICE PER CRATE. FILL AN ORDER FROM THIS WORKS' EXPORT CAGE; PAYMENT ON ARRIVAL. ${focus ? '' : 'CLICK A COUNTRY ON THE GLOBE TO SEE ONLY ITS ORDERS.'}`),
+      ...(focus ? [h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('ALL ORDERS', () => go('Market', {})))] : []));
+    if (!orders.length) sect.append(h('p', { class: 'os-dim' }, 'NO OPEN ORDERS. NEW ORDERS COME IN EVERY DAY — MORE FROM COUNTRIES AT WAR.'));
+    for (const o of orders) {
+      const c = cfg.countries[o.country];
+      const st = ms.countries[o.country];
+      const it = items[o.item];
+      const have = cage[o.item] || 0;
+      const enemy = M.enemyOf(o.country);
+      const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : null, st.embargo ? '⚠ EMBARGOED' : null, `EXPIRES DAY ${o.expires}`].filter(Boolean).join(' · ');
+      const open = ship.order === o.id;
+      const rowEl = row(st.embargo ? '⛔' : enemy ? '⚔️' : '📦', `#${o.id} ${c.name} — ${o.qty}× ${it.name}`, `${o.price.toLocaleString()} OB/CRATE · ${(o.qty * o.price).toLocaleString()} OB TOTAL · ${tags} · CAGE ${have}/${o.qty}`,
+        btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
+      sect.append(rowEl);
+      if (open) {
+        const sh = cfg.shippers[ship.shipper];
+        const value = o.qty * o.price;
+        const fee = M.fee(ship.shipper, value, ship.insured);
+        const upd = (patch) => go('Market', { country: focus, ship: { ...ship, ...patch } });
+        const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
+          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
+            h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === ship.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
+            h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
+          h('div', { class: 'os-dim' }, sh.blurb),
+          h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
+          h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
+            have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
+              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured });
+              ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
+              go('Market', { msg: res.text, country: focus });
+            }, 'small primary')));
+        sect.append(form);
+      }
+    }
+    // the cage
+    const crates = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms?.crate);
+    sect.append(H3('Export cage'));
+    sect.append(h('p', { class: 'os-dim' }, crates.length ? crates.map(([id, n]) => `${n}× ${items[id].name}`).join(' · ') : 'EMPTY. STAFFED STATIONS SET TO A WEAPON RECIPE MAKE WHOLE CRATES; BELT THEM (OR CARRY THEM) INTO THE CAGE.'));
+    // buyers at a glance
     sect.append(H3('Buyers'));
     for (const [id, c] of Object.entries(cfg.countries)) {
       const st = ms.countries[id];
       const enemy = M.enemyOf(id);
+      const n = M.openOrders(id).length;
       const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : 'AT PEACE', st.embargo ? 'EMBARGOED' : null, st.hostility >= cfg.market.refuseHostility ? 'REFUSES YOU' : st.hostility > 0 ? `HOSTILITY ${st.hostility}` : null].filter(Boolean).join(' · ');
-      const prices = (cargo.length ? cargo.map(([iid]) => iid) : ['item_pistol', 'item_assault_rifle', 'item_missile_guided', 'item_drone_attack']).map((iid) => `${items[iid].name} ${M.price(id, iid)}`).join(' · ');
-      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget)}`, `${tags}. PAYS: ${prices}`));
+      sect.append(row(st.embargo ? '⛔' : enemy ? '⚔️' : '🌐', `${c.name} — budget ${Math.round(st.budget).toLocaleString()}`, `${tags} · ${n} OPEN ORDER${n === 1 ? '' : 'S'}`, n ? btn('ORDERS', () => go('Market', { country: id })) : null));
     }
-    // a new shipment
-    const form = opts.form || { country: Object.keys(cfg.countries)[0], shipper: 'morrow', insured: false, qty: {} };
-    form.qty ||= {};
-    const qty = Object.fromEntries(cargo.map(([id, n]) => [id, Math.min(n, form.qty[id] ?? 0)]));
-    const value = M.quote(form.country, qty);
-    const fee = M.fee(form.shipper, value, form.insured);
-    const sh = cfg.shippers[form.shipper];
-    const upd = (patch) => go('Market', { form: { ...form, ...patch, qty: { ...qty, ...(patch.qty || {}) } } });
-    sect.append(H3('Book a shipment from this works\' export cage'));
-    if (!cargo.length) sect.append(h('p', { class: 'os-dim' }, 'EXPORT CAGE EMPTY. FINISHED WEAPONS GO IN THE CAGE (BY BELT, OR BY HAND: E ON THE CAGE → STORE).'));
-    else {
-      sect.append(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
-        h('select', { onchange: (e) => upd({ country: e.target.value }) }, ...Object.entries(cfg.countries).map(([id, c]) => h('option', { value: id, selected: id === form.country }, `${c.name}${ms.countries[id].embargo ? ' (EMBARGO)' : ''}`))),
-        h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === form.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
-        h('label', {}, h('input', { type: 'checkbox', checked: form.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)));
-      sect.append(h('p', { class: 'os-dim' }, sh.blurb));
-      for (const [id, n] of cargo) {
-        sect.append(row(itemIcon(items[id]), `${items[id].name} — ${M.price(form.country, id)} each`, `${n} in the cage`,
-          h('input', { type: 'number', min: 0, max: n, value: qty[id] || 0, style: 'width:64px', onchange: (e) => upd({ qty: { [id]: Math.max(0, Math.min(n, Number(e.target.value) || 0)) } }) }),
-          btn('All', () => upd({ qty: { [id]: n } }))));
-      }
-      sect.append(h('p', {}, h('b', {}, `VALUE ON ARRIVAL: ${value} OB · SHIPPING NOW: ${fee} OB`), ms.countries[form.country].embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''));
-      sect.append(h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('SHIP IT', () => {
-        const res = M.ship({ wh, country: form.country, shipper: form.shipper, insured: form.insured, items: qty });
-        ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
-        go('Market', { msg: res.text, form: res.ok ? { ...form, qty: {} } : form });
-      }, 'small primary')));
-    }
-    sect.append(h('p', { class: 'os-dim' }, `EXPORTS TO DATE: ${ms.earned} OB. PIPECREEK ARMORY STILL BUYS WHOLESALE AT 50% (UP TO LUCAS'S DAILY BUDGET).`));
+    sect.append(h('p', { class: 'os-dim' }, `EXPORTS TO DATE: ${ms.earned.toLocaleString()} OB. PIPECREEK ARMORY STILL BUYS CRATES (AND SINGLE WEAPONS) WHOLESALE AT 50%, UP TO LUCAS'S DAILY BUDGET.`));
   }
 }
 
@@ -27036,7 +27240,7 @@ function businessApp(ui, body, opts, open) {
     body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
       ...works.map((id) => h('button', { class: `small${id === wh ? ' primary' : ''}`, onclick: () => open('Business', { warehouse: id, sub }) }, g.arms.def(id).name))));
   }
-  terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, form: opts.form, remote: true }, go);
+  terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, country: opts.country, ship: opts.ship, remote: true }, go);
 }
 
 /** The brokerage banner: a line of Ober's Oil's recent closing prices. */
@@ -27154,6 +27358,60 @@ function dealerPanel(ui, body, opts) {
 return { dealerPanel };
 })();
 
+// ---- src/ui/armsbench.js
+__m["src/ui/armsbench.js"] = (function () {
+// The armourer's workbench (v0.19.0): hand-make one weapon, or a box of its
+// ammunition, for yourself, from parts on the loading dock. See
+// BENCH_RECIPES in src/content/arms.js and Arms.benchCraft.
+const { h, itemIcon } = __m["src/ui/panels.js"];
+
+function armsBenchPanel(ui, body, opts) {
+  const g = ui.game;
+  const A = g.arms;
+  const wh = opts.warehouse;
+  const items = g.content.items;
+  const dock = g.world.containers[A.def(wh).inBay]?.items || {};
+  const go = (msg) => ui.openPanel('armsbench', { warehouse: wh, msg });
+  body.append(h('p', { class: 'muted' }, 'Make ONE weapon or a box of ammo for yourself, straight from parts on the loading dock — no staff needed, but it takes your time. For export, staffed stations make whole crates.'));
+  if (opts.msg) body.append(h('p', {}, h('b', {}, opts.msg)));
+  const section = (title, ids) => {
+    body.append(h('h3', { style: 'margin:12px 0 6px' }, title));
+    const list = h('div', { class: 'list' });
+    for (const rid of ids) {
+      const r = A.cfg.bench[rid];
+      const it = items[r.out];
+      const locked = !A.benchUnlocked(rid);
+      const short = locked ? {} : A.benchShort(wh, rid);
+      const parts = Object.entries(r.in).map(([id, n]) => {
+        const have = dock[id] || 0;
+        return h('span', { class: `tag${have < n ? ' bad' : ''}` }, `${items[id].name} ${Math.min(have, n)}/${n}`);
+      });
+      const buttons = locked
+        ? [h('span', { class: 'tag' }, `🔒 ${A.cfg.research[r.requires].name}`)]
+        : [
+          h('button', { class: 'small primary', disabled: Object.keys(short).length > 0, onclick: () => { const res = A.benchCraft(wh, rid); ui.audio.sfx(res.ok ? 'sfx_pickup' : 'sfx_fail'); go(res.text); } }, `Make (${r.minutes} min)`),
+          Object.keys(short).length ? h('button', { class: 'small', onclick: () => {
+            let cost = 0;
+            for (const [id, n] of Object.entries(short)) { const res = A.order(wh, id, n); if (!res.ok) { go(res.text); return; } cost += A.partPrice(id) * n; }
+            ui.audio.sfx('sfx_coin');
+            go(`Ordered the missing parts (${cost} obols). They'll be on the dock within the hour.`);
+          } }, 'Order missing') : null,
+        ];
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(it)),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.count > 1 ? `${r.count}× ` : ''}${it.name}`), h('div', { class: 'desc' }, ...parts)),
+        ...buttons.filter(Boolean)));
+    }
+    body.append(list);
+  };
+  const all = Object.keys(A.cfg.bench);
+  section('Weapons', all.filter((rid) => items[A.cfg.bench[rid].out].category !== 'ammo'));
+  section('Ammunition', all.filter((rid) => items[A.cfg.bench[rid].out].category === 'ammo'));
+  return { title: 'Armourer\'s Workbench' };
+}
+
+return { armsBenchPanel };
+})();
+
 // ---- src/ui/ui.js
 __m["src/ui/ui.js"] = (function () {
 // UI controller: title/new-game screens, HUD, modal panels, dialogue, and the
@@ -27170,10 +27428,12 @@ const { PANELS, h } = __m["src/ui/panels.js"];
 const { terminalPanel } = __m["src/ui/terminal.js"];
 const { tabletPanel } = __m["src/ui/tablet.js"];
 const { dealerPanel } = __m["src/ui/dealer.js"];
+const { armsBenchPanel } = __m["src/ui/armsbench.js"];
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
 PANELS.dealer = dealerPanel;
+PANELS.armsbench = armsBenchPanel;
 const { saveSettings } = __m["src/save/saveManager.js"];
 
 const LOOKS = [
@@ -27624,6 +27884,7 @@ class UI {
       case 'contracts': this.openPanel('contracts', {}); break;
       case 'shop': this.openPanel('shop', { shopId: act.shopId }); break;
       case 'terminal': this.openPanel('terminal', { warehouse: act.warehouse }); break;
+      case 'armsbench': this.openPanel('armsbench', { warehouse: act.warehouse }); break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;

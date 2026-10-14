@@ -179,7 +179,7 @@ test('research: a scientist in a lab earns points; nodes unlock recipes and rais
   assert.equal(g.arms.partPrice('item_ap_optics'), Math.round(30 * 0.85));
 });
 
-test('a staffed assembly bench turns components into pistols; they go in the export cage by belt', () => {
+test('a staffed assembly bench turns components into whole crates of pistols; they go in the export cage by belt', () => {
   const g = works(8, '07:30');
   runCommand(g, 'stations');
   const A = g.arms.place('aw1', 'item_st_assembly', 10, 5).entity;
@@ -190,12 +190,13 @@ test('a staffed assembly bench turns components into pistols; they go in the exp
   g.inventory.add('item_belt', 2);
   assert.ok(g.arms.place('aw1', 'item_belt', 26, 4, 3).ok);
   assert.ok(g.arms.place('aw1', 'item_belt', 26, 3, 3).ok);
-  A.in = { item_ai_receiver: 3, item_ai_barrel: 3, item_ai_furniture: 3 };
+  A.in = { item_ai_receiver: 10, item_ai_barrel: 10, item_ai_furniture: 10 }; // two crates' worth (5 of each per crate)
   runCommand(g, 'hire aw1');
   g.arms.autoAssign('aw1');
-  run(g, 90, 0.5);
-  assert.equal(g.world.containers.ct_aw1_cage.items.item_pistol, 3);
-  assert.equal(g.arms.state.produced.item_pistol, 3);
+  run(g, 120, 0.5);
+  assert.equal(g.world.containers.ct_aw1_cage.items.item_crate_pistol, 2);
+  assert.equal(g.arms.state.produced.item_crate_pistol, 2);
+  assert.ok(!g.world.containers.ct_aw1_cage.items.item_pistol, 'no loose pistols to count');
 });
 
 test('payroll at 19:00: wages paid, or morale crashes; unpaid twice and they quit', () => {
@@ -219,7 +220,7 @@ test('payroll at 19:00: wages paid, or morale crashes; unpaid twice and they qui
 
 test('Lucas buys arms wholesale — half value, with research — up to his daily budget; licence required', () => {
   const g = fresh(10, '11:00');
-  g.inventory.add('item_assault_rifle', 20);
+  g.inventory.add('item_assault_rifle', 100);
   assert.equal(g.priceFor('shop_rook', 'item_assault_rifle', true), 0, 'no licence, no deal');
   runCommand(g, 'licence');
   const price = g.priceFor('shop_rook', 'item_assault_rifle', true);
@@ -280,4 +281,31 @@ test('new guns work: assault rifle, sniper rifle and LMG fire rifle rounds', () 
   }
   for (const [id, n] of Object.entries(CONTENT.arms.research)) for (const q of n.requires) assert.ok(CONTENT.arms.research[q], `${id} needs ${q}`);
   void TILE;
+});
+
+test('the armourer\'s workbench: one weapon, or a box of its ammo, for yourself — from dock parts, in your own time', () => {
+  const g = works(12, '10:00');
+  const A = g.arms;
+  const dock = g.world.containers[A.def('aw1').inBay].items;
+  // a bench in every works
+  for (const id of ['aw1', 'aw2', 'aw3']) assert.ok(g.maps.get(id).props.some((p) => p.interact?.action === 'bench'), id);
+  assert.match(A.benchCraft('aw1', 'pistol').text, /Not enough/);
+  Object.assign(dock, { item_ap_steel: 10, item_ap_springs: 2, item_ap_polymer: 4, item_ap_propellant: 2 });
+  const t0 = g.clock.total;
+  const r = A.benchCraft('aw1', 'pistol');
+  assert.ok(r.ok, r.text);
+  assert.equal(g.inventory.count('item_pistol'), 1, 'one pistol, in your pack');
+  assert.equal(g.clock.total - t0, CONTENT.arms.bench.pistol.minutes, 'it takes your time');
+  assert.equal(dock.item_ap_steel, 7);
+  assert.ok(A.benchCraft('aw1', 'ammo_9mm').ok);
+  assert.equal(g.inventory.count('item_ammo_9mm'), 20, 'a box of 9mm');
+  assert.match(A.benchCraft('aw1', 'sniper').text, /Research/, 'research still applies');
+  // the workbench, not the stations, makes singles
+  for (const r2 of Object.values(CONTENT.arms.recipes)) assert.ok(!CONTENT.items[r2.out]?.weapon, `${r2.out} from a station is not a single weapon`);
+});
+
+test('debug: crates in the cage', () => {
+  const g = works(13, '10:00');
+  assert.ok(runCommand(g, 'crates assault 12').ok);
+  assert.equal(g.world.containers.ct_aw1_cage.items.item_crate_assault, 12);
 });

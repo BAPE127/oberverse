@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.19.0] — 2026-10-14 — "By the Crate" (development build)
+
+Owner's request: production for export in crates rather than hundreds of single weapons; orders of 5–50 crates; single weapons and ammo for the player. Owner's answers: stations make whole crates; every crate is one standard lot; countries post orders of 5–50 crates; singles and ammo at a workbench you use yourself.
+
+### Changed
+- **Crates** (`CRATE`, `CRATE_ITEMS` in `src/content/arms.js`): twelve crate items (`item_crate_<recipe>`), one standard lot each — `CRATE.units` (5) weapons' worth of value. The weapon recipes (same ids, so placed stations carry on) now make crates from 5× the inputs in 3× the time. The production report, belts, the cage and Lucas all handle crates.
+- **Orders** (`src/systems/market.js`): every day each country posts purchase orders (1–2 at peace, 3 at war) of **5–50 crates** of one weapon — weighted by its wants and towards what your works can make — at a locked price per crate (today's price + up to 15%), within its budget; they expire in 3–7 days. `Market.ship({ wh, order, shipper, insured })` fills an order whole from the export cage; delivery marks it delivered, losses mark it lost. Country budgets and income ×6 for crate-sized orders; saturation 0.012 per crate.
+- **Terminal Market tab**: open orders (country, crates, price per crate, total, expiry, war/embargo, cage count) with FILL → shipper, insurance, fee and SHIP; the export cage; buyers with their order counts. The globe's country tooltip lists open orders; clicking a country shows only its orders.
+- Lucas's wholesale budget 2,500 → 15,000 a day.
+
+### Added
+- **The armourer's workbench** (a prop in every arms works; `BENCH_RECIPES`, `Arms.benchCraft`, panel `armsbench`): hand-make one weapon (pistol to Kestrel drone) or a box of ammunition (9mm ×20, shells ×8, rifle ×10, an RPG rocket) from raw parts on the loading dock; game time passes (15–150 minutes); research locks as at the stations; "Order missing" orders what you're short.
+- Debug command `crates [type] [n]`.
+- Tests: crate content and order limits, filling orders, the workbench, `crates` (market and arms tests rewritten for crates).
+
 ## [0.18.0] — 2026-10-13 — "Hot Pursuit" (development build)
 
 Owner's request: "Can you also add police chases too?"

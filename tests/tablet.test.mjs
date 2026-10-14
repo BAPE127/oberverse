@@ -88,8 +88,11 @@ test('a staffed station that runs out of parts raises one alert, not one an hour
 test('shipments, world news and Ober\'s Oil post to their own apps', () => {
   const g = works('08:00');
   g.player.money = 20000;
-  g.world.containers[g.arms.def('aw1').outCrate].items.item_pistol = 4;
-  assert.ok(g.market.ship({ wh: 'aw1', country: 'teshvar', shipper: 'morrow', items: { item_pistol: 4 } }).ok);
+  g.world.containers[g.arms.def('aw1').outCrate].items.item_crate_pistol = 5;
+  const s = g.market.state;
+  const o = { id: s.nextOrder++, country: 'teshvar', item: 'item_crate_pistol', qty: 5, price: g.market.price('teshvar', 'item_crate_pistol'), posted: 1, expires: 9, status: 'open' };
+  s.orders.push(o);
+  assert.ok(g.market.ship({ wh: 'aw1', order: o.id, shipper: 'morrow' }).ok);
   runCommand(g, 'arrive');
   assert.ok(feed(g, 'market').length >= 1);
   g.market.news('Something happened abroad.');

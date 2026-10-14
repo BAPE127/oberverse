@@ -13,13 +13,21 @@ const fresh = (seed = 1, hhmm = '10:00') => {
   noImpulses(g);
   return g;
 };
-/** Licensed, owns Yard 1, with cargo in the export cage. */
-const exporter = (seed = 1, cargo = { item_pistol: 10, item_assault_rifle: 4 }) => {
+/** Licensed, owns Yard 1, with crates in the export cage. */
+const exporter = (seed = 1, cargo = { item_crate_pistol: 60, item_crate_assault: 20 }) => {
   const g = fresh(seed);
   runCommand(g, 'works aw1');
   Object.assign(g.world.containers.ct_aw1_cage.items, cargo);
-  g.player.money = 5000;
+  g.player.money = 50000;
+  g.market.state.orders = []; // tests post their own
   return g;
+};
+/** A purchase order, at today's price unless given. */
+const order = (g, country, item, qty, price = null) => {
+  const s = g.market.state;
+  const o = { id: s.nextOrder++, country, item, qty, price: price ?? g.market.price(country, item), posted: g.clock.day, expires: g.clock.day + 5, status: 'open' };
+  s.orders.push(o);
+  return o;
 };
 const minutes = (g, n) => { for (let i = 0; i < n; i++) { g.clock.total += 1; g.minuteTick(); } };
 /** Put an NPC at a spot on the player's map, standing still. */
@@ -56,30 +64,59 @@ test('prices: value × the country\'s wants × a war boost, falling as you flood
   assert.equal(g.market.price('lirre', 'item_coffee'), 0, 'only arms');
 });
 
-test('shipping: fee up front, cargo out of the cage, the buyer reserves the price; the shipper\'s rules apply', () => {
+test('crates: one standard lot each, made by the stations; orders are 5–50 crates', () => {
+  const C = CONTENT.arms.crate;
+  assert.equal(C.minOrder, 5);
+  assert.equal(C.maxOrder, 50);
+  const crate = CONTENT.items.item_crate_pistol;
+  assert.ok(crate.arms.crate);
+  assert.equal(crate.arms.value, CONTENT.items.item_pistol.arms.value * C.units);
+  assert.equal(CONTENT.arms.recipes.pistol.out, 'item_crate_pistol', 'the assembly bench makes crates');
+  for (const r of Object.values(CONTENT.arms.recipes)) if (r.single) assert.ok(CONTENT.items[r.out].arms.crate, `${r.out} is a crate`);
+  // countries post orders within the limits and their budgets
+  const g = fresh(12);
+  for (let d = 0; d < 5; d++) { g.clock.total += 1440; g.market.minuteTick(); }
+  const os = g.market.state.orders;
+  assert.ok(os.length > 0, 'orders come in');
+  for (const o of os) {
+    assert.ok(o.qty >= 5 && o.qty <= 50, `order of ${o.qty}`);
+    assert.ok(CONTENT.items[o.item].arms.crate);
+    assert.ok(o.price > 0);
+  }
+  // countries at war order more
+  const atWar = os.filter((o) => g.market.warOf(o.country) && o.status === 'open').length;
+  assert.ok(atWar >= 1);
+});
+
+test('filling an order: fee up front, the crates leave the cage, the buyer reserves the price; the shipper\'s rules apply', () => {
   const g = exporter(3);
   const budget = g.market.country('varn').budget;
-  const value = g.market.quote('varn', { item_pistol: 5 });
-  const r = g.market.ship({ wh: 'aw1', country: 'varn', shipper: 'morrow', insured: true, items: { item_pistol: 5 } });
+  const o = order(g, 'varn', 'item_crate_pistol', 10);
+  const value = o.qty * o.price;
+  const r = g.market.ship({ wh: 'aw1', order: o.id, shipper: 'morrow', insured: true });
   assert.ok(r.ok, r.text);
-  assert.equal(g.player.money, 5000 - Math.round(value * 0.1) - Math.round(value * 0.08));
-  assert.equal(g.world.containers.ct_aw1_cage.items.item_pistol, 5);
+  assert.equal(g.player.money, 50000 - Math.round(value * 0.1) - Math.round(value * 0.08));
+  assert.equal(g.world.containers.ct_aw1_cage.items.item_crate_pistol, 50);
   assert.equal(g.market.country('varn').budget, budget - value);
+  assert.equal(o.status, 'shipped');
+  assert.match(g.market.ship({ wh: 'aw1', order: o.id, shipper: 'morrow' }).text, /no longer open/, 'an order is filled once');
   assert.equal(g.market.country('caldera').hostility, 5, 'arming one side annoys the other');
-  assert.match(g.market.ship({ wh: 'aw1', country: 'pallas', shipper: 'morrow', items: { item_pistol: 1 } }).text, /embargoed/);
-  assert.ok(g.market.ship({ wh: 'aw1', country: 'pallas', shipper: 'ghost', items: { item_pistol: 1 } }).ok, 'the Ghost Fleet will run it');
-  assert.match(g.market.ship({ wh: 'aw1', country: 'lirre', shipper: 'morrow', items: { item_pistol: 99 } }).text, /Only/);
-  g.market.country('sund').budget = 100;
-  assert.match(g.market.ship({ wh: 'aw1', country: 'sund', shipper: 'morrow', items: { item_assault_rifle: 4 } }).text, /afford/);
+  const emb = order(g, 'pallas', 'item_crate_pistol', 5);
+  assert.match(g.market.ship({ wh: 'aw1', order: emb.id, shipper: 'morrow' }).text, /embargoed/);
+  assert.ok(g.market.ship({ wh: 'aw1', order: emb.id, shipper: 'ghost' }).ok, 'the Ghost Fleet will run it');
+  const big = order(g, 'lirre', 'item_crate_assault', 30);
+  assert.match(g.market.ship({ wh: 'aw1', order: big.id, shipper: 'morrow' }).text, /export cage has 20/);
   const g2 = fresh(4);
-  Object.assign(g2.world.containers.ct_aw1_cage.items, { item_pistol: 2 });
+  Object.assign(g2.world.containers.ct_aw1_cage.items, { item_crate_pistol: 10 });
   g2.player.money = 999;
-  assert.match(g2.market.ship({ wh: 'aw1', country: 'lirre', shipper: 'morrow', items: { item_pistol: 1 } }).text, /licence/);
+  const o2 = order(g2, 'lirre', 'item_crate_pistol', 5);
+  assert.match(g2.market.ship({ wh: 'aw1', order: o2.id, shipper: 'morrow' }).text, /licence/);
 });
 
 test('arrival: delivered and paid after the shipper\'s days; buyers saturate', () => {
   const g = exporter(5);
-  const r = g.market.ship({ wh: 'aw1', country: 'lirre', shipper: 'stork', items: { item_pistol: 10 } });
+  const o = order(g, 'lirre', 'item_crate_pistol', 10);
+  const r = g.market.ship({ wh: 'aw1', order: o.id, shipper: 'stork' });
   g.rng.next = () => 0; // it gets there
   const money = g.player.money;
   minutes(g, 1439);
@@ -87,12 +124,13 @@ test('arrival: delivered and paid after the shipper\'s days; buyers saturate', (
   minutes(g, 2);
   assert.equal(g.market.state.shipments.length, 0);
   assert.equal(g.player.money, money + r.shipment.value);
+  assert.equal(o.status, 'delivered');
   assert.ok(g.market.country('lirre').sat.small > 0);
 });
 
 test('losses: insurance pays part of it back; seized embargo runs are traced to you; seizure by an enemy makes them hostile', () => {
   const g = exporter(6);
-  g.market.ship({ wh: 'aw1', country: 'lirre', shipper: 'halver', insured: true, items: { item_pistol: 4 } });
+  g.market.ship({ wh: 'aw1', order: order(g, 'lirre', 'item_crate_pistol', 5).id, shipper: 'halver', insured: true });
   const shp = g.market.state.shipments[0];
   g.rng.next = () => 0.999; // lost
   const money = g.player.money;
@@ -101,7 +139,7 @@ test('losses: insurance pays part of it back; seized embargo runs are traced to 
   assert.equal(g.player.money, money + Math.round(shp.value * 0.6), 'insurance');
   // an embargo run, seized
   const g2 = exporter(7);
-  g2.market.ship({ wh: 'aw1', country: 'pallas', shipper: 'pipecreek', insured: true, items: { item_pistol: 2 } });
+  g2.market.ship({ wh: 'aw1', order: order(g2, 'pallas', 'item_crate_pistol', 5).id, shipper: 'pipecreek', insured: true });
   const s2 = g2.market.state.shipments[0];
   let k = 0;
   g2.rng.next = () => (k++ === 0 ? 0.999 : 0); // lost, and the fate roll picks "seized"
@@ -112,7 +150,7 @@ test('losses: insurance pays part of it back; seized embargo runs are traced to 
   assert.ok(g2.world.police.record >= 8);
   // seized by the buyer's enemy
   const g3 = exporter(8);
-  g3.market.ship({ wh: 'aw1', country: 'varn', shipper: 'halver', items: { item_pistol: 2 } });
+  g3.market.ship({ wh: 'aw1', order: order(g3, 'varn', 'item_crate_pistol', 5).id, shipper: 'halver' });
   const s3 = g3.market.state.shipments[0];
   k = 0;
   g3.rng.next = () => (k++ === 0 ? 0.999 : 0.9); // lost; the third fate: seized
@@ -133,6 +171,7 @@ test('the world turns: wars end after a while, rivals start new ones, aggressors
   assert.ok(g.market.country('varn').budget > 0);
   assert.ok(g.market.state.news[0].text.length > 0);
   g.clock.total += 10 * 1440;
+  void g.market.state; // the day's new orders are posted first (they roll dice too)
   let k = 0;
   g.rng.next = () => (k++ === 0 ? 0 : 0.999); // the war ends; nothing new starts
   g.market.dailyTick();
@@ -142,7 +181,7 @@ test('the world turns: wars end after a while, rivals start new ones, aggressors
 
 test('market state survives save/load', () => {
   const g = exporter(10);
-  g.market.ship({ wh: 'aw1', country: 'lirre', shipper: 'morrow', items: { item_pistol: 3 } });
+  g.market.ship({ wh: 'aw1', order: order(g, 'lirre', 'item_crate_pistol', 5).id, shipper: 'morrow' });
   const state = JSON.parse(JSON.stringify(g.serialize()));
   const g2 = new Game(CONTENT, { seed: 1 });
   g2.loadState(state);

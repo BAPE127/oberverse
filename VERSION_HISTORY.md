@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.19.0 | 2026-10-14 | development | 1 | By the Crate — crates, country orders, the armourer's workbench |
 | 0.18.0 | 2026-10-13 | development | 1 | Hot Pursuit — police chases |
 | 0.17.0 | 2026-10-13 | development | 1 | Route 1 — the bus and NPC traffic |
 | 0.16.0 | 2026-10-13 | development | 1 | On the Road — cars, two dealerships, driving, theft |
@@ -24,6 +25,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.19.0 — By the Crate
+
+The arms trade runs on crates and country orders; single weapons and ammo come from the armourer's workbench. Saves: `world.market.orders` is added on load (orders post the same day); stations keep their recipes (now crates); loose weapons already in a cage can still go to Lucas. No migration needed.
 
 ## 0.18.0 — Hot Pursuit
 
