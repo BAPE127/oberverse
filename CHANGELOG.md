@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.25.0] — 2026-10-15 — "Fleet Command" (development build)
+
+Release 1 of 3 from the owner's terminal and shipbuilder brief ("feels too much like a spreadsheet … should control the entire screen … easier to use"). See docs/FLEET_COMMAND.md.
+
+### Added
+- **Fleet Command** (`src/ui/fleetCommand.js`): a full-screen, map-centred ops room replacing the tabbed logistics terminal. A live chart (drag, zoom, wrap; land sampled every half degree with glowing coasts; pulsing danger zones; animated routes; ships drawn as ships along their course; port work badges; tooltips); a top bar with ⏩ 1 h / 6 h / ⏭ next event that runs the real clock visibly; a left rail (Map, Fleet, Buy, Shipyard, Ledger); a drawer for the selection; a log ticker.
+- One-click orders: contract cards with the best ship pre-chosen and protection folded away; mission cards with the best team pre-chosen; "Send to…" then click a port, with a live route/time/cost preview. Yards berth choice on each of your ports.
+- Simulation helpers: `Logistics.bestShipFor`, `suggestEscort`, `idle`, `opportunities`, `nextEvent`; `Missions.bestTeam`.
+- Tests: `tests/fleetcommand.test.mjs` (5).
+
+### Changed
+- `PANELS.logistics` (and the new `PANELS.fleet`) open Fleet Command; the tablet's Ships app launches it; the v0.24 designer and parts store are shown inside its Shipyard sheet for now.
+
 ## [0.24.0] — 2026-10-15 — "Build Your Own" (development build)
 
 Stage 4 of the shipping expansion (the master brief's stages G and H). The expansion's planned features are complete; playable naval combat remains a future goal (see docs/LOGISTICS.md).

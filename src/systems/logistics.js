@@ -1006,6 +1006,65 @@ export class Logistics {
     return { type: 'message', text: prop.examine || '' };
   }
 
+  // ------------------------------------------------------------- choosing for you (v0.25.0)
+  /**
+   * The best ship for a contract right now: on time first, then the most
+   * profit after the expected cost of trouble (chance × pay). Returns
+   * { vessel, quote } or null when no ship can take it. opts as for quote().
+   */
+  bestShipFor(cid, opts = {}) {
+    const c = this.contract(cid);
+    if (!c) return null;
+    let best = null;
+    for (const v of this.vessels()) {
+      if (v.status !== 'docked' || (opts.escorts || []).includes(v.id)) continue;
+      const q = this.quote(cid, v.id, opts);
+      if (!q.ok) continue;
+      const score = (q.onTime ? 1e9 : 0) + q.profit - q.risk.chance * c.pay * (c.insured || opts.insure ? 0.4 : 1);
+      if (!best || score > best.score) best = { vessel: v, quote: q, score };
+    }
+    return best;
+  }
+
+  /** A free warship at the contract's port that would escort it (the strongest), or null. */
+  suggestEscort(cid, exclude = []) {
+    const c = this.contract(cid);
+    if (!c) return null;
+    const ws = this.vessels().filter((w) => w.kind === 'warship' && w.status === 'docked' && w.port === c.from && !exclude.includes(w.id) && this.stats(w).tags.includes('escort'));
+    ws.sort((a, b) => { const A = this.stats(a).combat; const B = this.stats(b).combat; return (B.attack + B.defense) - (A.attack + A.defense); });
+    return ws[0] || null;
+  }
+
+  /** Ships with nothing to do (docked, no cargo). */
+  idle() {
+    return this.vessels().filter((v) => v.status === 'docked' && !v.contract && !v.cargo);
+  }
+
+  /** Contracts you could send right now, best first: [{ contract, vessel, quote }]. */
+  opportunities(limit = 5) {
+    const out = [];
+    for (const c of this.contracts(['available', 'accepted'])) {
+      const b = this.bestShipFor(c.id);
+      if (b) out.push({ contract: c, vessel: b.vessel, quote: b.quote });
+    }
+    return out.sort((a, b) => b.quote.profit - a.quote.profit).slice(0, limit);
+  }
+
+  /** When the next thing happens in the fleet (an arrival, a departure, a mission's end, a launch), or null. */
+  nextEvent() {
+    const now = this.game.clock.total;
+    const times = [];
+    for (const v of this.vessels()) {
+      if (v.status === 'underway') times.push(v.voyage.arrive);
+      if (v.status === 'loading' && v.loadUntil !== undefined) times.push(v.loadUntil);
+    }
+    for (const m of this.missions.list('active')) times.push(m.end);
+    for (const b of this.shipyard.state.builds) if (b.status === 'building') times.push(b.end);
+    for (const id of this.ownedPorts()) { const y = this.shipyard.yard(id); if (y?.status === 'building') times.push(y.end); }
+    const next = times.filter((t) => t > now).sort((a, b) => a - b)[0];
+    return next ?? null;
+  }
+
   /** What's on the home shipyard's slip (for the Yards slipway drawing). */
   slip() {
     if (!this.owned) return null;

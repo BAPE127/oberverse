@@ -6,7 +6,6 @@
 import { h, journalTab, JOURNAL_TABS, stocksScreen } from './panels.js';
 import { terminalScreen, TERMINAL_TABS } from './terminal.js';
 import { TABLET_APPS } from '../systems/tablet.js';
-import { logisticsScreen } from './logistics.js';
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
@@ -24,7 +23,7 @@ export function tabletPanel(ui, body, opts) {
   else body.append(bar());
   if (tab === 'Home') homeApp(ui, body, open);
   else if (tab === 'Business') businessApp(ui, body, opts, open);
-  else if (tab === 'Ships') logisticsScreen(ui, body, { tab: opts.sub, sel: opts.sel, msg: opts.msg, msgOk: opts.msgOk, filter: opts.filter, cls: opts.cls, dest: opts.dest }, (o) => open('Ships', { sub: o.tab, sel: o.sel, msg: o.msg, msgOk: o.msgOk, filter: o.filter, cls: o.cls, dest: o.dest }));
+  else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
@@ -59,7 +58,7 @@ function homeApp(ui, body, open) {
   if (g.logistics.owned) {
     const Lg = g.logistics;
     const vs = Lg.vessels();
-    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Ships') },
+    cards.append(h('button', { class: 'tablet-card', onclick: () => ui.openPanel('logistics') },
       h('b', {}, '⚓ Ober & Sons Maritime'),
       h('span', {}, `${vs.length} ship${vs.length === 1 ? '' : 's'} (${vs.filter((v) => v.status === 'underway').length} at sea) · ${Lg.ownedPorts().length} ports`),
       h('span', {}, `${Lg.contracts(['accepted', 'loading', 'transit']).length} contracts running · ${Lg.contracts('available').length} on offer`)));
@@ -132,4 +131,15 @@ function stocksHeader(g) {
   const ch = last - first;
   wrap.append(svg, h('div', { class: 'desc' }, `Day ${hist[0].day}: ${first} → Day ${hist[hist.length - 1].day}: ${last} (${ch >= 0 ? '+' : '−'}${Math.abs(ch)}). Hover a point for that day.`));
   return wrap;
+}
+
+/** Ships: Fleet Command takes the whole screen, so the tablet just launches it (closing it comes back here). */
+function shipsApp(ui, body) {
+  const Lg = ui.game.logistics;
+  const vs = Lg.vessels().filter((v) => v.status !== 'lost');
+  const sea = vs.filter((v) => v.status === 'underway').length;
+  body.append(h('div', { class: 'tablet-card fc-launch' },
+    h('h3', {}, '⚓ Ober & Sons — Fleet Command'),
+    h('p', {}, `${vs.length} ships (${sea} at sea) · ${Lg.ownedPorts().length} ports · ${Lg.idle().length} waiting for orders`),
+    h('button', { class: 'primary', onclick: () => ui.openPanel('logistics') }, 'Open Fleet Command')));
 }

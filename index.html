@@ -400,6 +400,137 @@ div.tablet-card { border: 2px dashed var(--line); }
 .logi-swatch { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 0 0 1px #b8c8d6; padding: 0; }
 .logi-swatch.on { box-shadow: 0 0 0 2px #1e2a3a; }
 @media (max-width: 760px) { .logi-designer { grid-template-columns: 1fr; } }
+
+/* ---------- Fleet Command (v0.25.0): the full-screen ops room ---------- */
+#modal-panel.fleetcmd { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #020812; color: #d6ecff; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.fleetcmd .panel-head, #modal-panel.fleetcmd #modal-tabs { display: none; }
+#modal-panel.fleetcmd #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; }
+.fc { --fc-glass: rgba(6,20,36,.86); --fc-line: rgba(90,190,255,.22); --fc-cyan: #3ad6ff; --fc-gold: #f2c14e; height: 100%; user-select: none; }
+.fc button { font: inherit; color: inherit; cursor: pointer; text-shadow: none; }
+.fc button:disabled { opacity: .45; cursor: not-allowed; }
+.fc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+.fc-top { position: absolute; top: 0; left: 0; right: 0; height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 16px; background: linear-gradient(#04101ef2, #04101ec0); border-bottom: 1px solid var(--fc-line); backdrop-filter: blur(6px); z-index: 3; }
+.fc-brand { display: flex; flex-direction: column; line-height: 1.1; }
+.fc-brand b { letter-spacing: 3px; color: var(--fc-cyan); font-size: 15px; }
+.fc-brand span { letter-spacing: 5px; font-size: 10px; opacity: .65; }
+.fc-time { flex: 1; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.fc-clock { font-variant-numeric: tabular-nums; font-size: 14px; opacity: .9; }
+.fc-ff { display: flex; gap: 6px; }
+.fc-money { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.fc-money b { font-size: 18px; color: #fff; }
+.fc-money span { font-size: 11px; }
+.fc .pos { color: #4ade9a; } .fc .neg { color: #ff7a7a; }
+.fc-close { border: 1px solid var(--fc-line); background: transparent; border-radius: 10px; width: 38px; height: 38px; font-size: 18px; }
+.fc-close:hover { background: rgba(255,80,80,.2); }
+.fc-btn { border: 1px solid var(--fc-line); background: rgba(20,60,95,.55); border-radius: 9px; padding: 6px 12px; font-size: 13px; }
+.fc-btn:hover:not(:disabled) { background: rgba(40,110,160,.6); }
+.fc-btn.primary { background: linear-gradient(#1f9fd0, #1478a6); border-color: #5fd6ff; color: #fff; }
+.fc-btn.on { background: var(--fc-gold); color: #1a1205; border-color: var(--fc-gold); }
+.fc-rail { position: absolute; top: 70px; left: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
+.fc-rail-btn { width: 66px; height: 62px; border-radius: 14px; border: 1px solid var(--fc-line); background: var(--fc-glass); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; backdrop-filter: blur(6px); }
+.fc-rail-btn .ic { font-size: 22px; }
+.fc-rail-btn.on { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(58,214,255,.45); color: #fff; }
+.fc-rail-btn:hover:not(:disabled) { border-color: #7fe3ff; }
+.fc-drawer { position: absolute; top: 70px; right: 12px; bottom: 52px; width: min(400px, calc(100vw - 110px)); overflow-y: auto; padding: 16px; border-radius: 16px; border: 1px solid var(--fc-line); background: var(--fc-glass); backdrop-filter: blur(8px); z-index: 3; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+.fc-hero h2 { font-family: inherit; font-size: 22px; margin: 2px 0 4px; color: #fff; }
+.fc-hero p { margin: 0 0 6px; opacity: .8; font-size: 13px; }
+.fc-hero.ship .fc-pic { display: block; margin: 0 auto 6px; }
+.fc-kicker { font-size: 10px; letter-spacing: 3px; color: var(--fc-cyan); }
+.fc-sec { display: flex; flex-direction: column; gap: 8px; }
+.fc-sec h4 { margin: 8px 0 0; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: .6; }
+.fc-muted { opacity: .62; font-size: 12px; margin: 0; }
+.fc-card { border: 1px solid var(--fc-line); border-radius: 12px; padding: 10px 12px; background: rgba(12,36,60,.6); display: flex; flex-direction: column; gap: 7px; }
+.fc-card:hover { border-color: rgba(242,193,78,.55); }
+.fc-card.mission { background: rgba(50,16,46,.5); border-color: rgba(255,120,220,.25); }
+.fc-card-head { display: flex; gap: 10px; align-items: center; }
+.fc-card-head .grow { flex: 1; display: flex; flex-direction: column; }
+.fc-card-head small, .fc-card-route small { opacity: .65; }
+.fc-ic { font-size: 22px; width: 34px; height: 34px; display: grid; place-items: center; background: rgba(58,214,255,.12); border-radius: 9px; }
+.fc-pay { font-weight: 700; color: var(--fc-gold); font-size: 16px; }
+.fc-card-route { font-size: 13px; }
+.fc-card-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.fc-card-why { font-size: 12px; color: #ffb0a0; }
+.fc-pill { border: 1px solid; border-radius: 999px; padding: 1px 8px; font-size: 11px; white-space: nowrap; }
+.fc-go { border: none; border-radius: 10px; padding: 9px 12px; background: linear-gradient(90deg, #19a7d8, #2ad1c0); color: #022 !important; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; }
+.fc-go small { font-weight: 500; opacity: .8; flex-shrink: 0; text-align: right; }
+.fc-go:hover:not(:disabled) { filter: brightness(1.12); box-shadow: 0 0 16px rgba(42,209,192,.5); }
+.fc-go.big { padding: 14px; font-size: 16px; justify-content: center; }
+.fc-fold, .fc-link { border: none; background: none; padding: 0; color: #8fd8ff !important; font-size: 12px; text-align: left; }
+.fc-opts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.fc-chip { border: 1px solid var(--fc-line); background: rgba(20,60,95,.45); border-radius: 999px; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.fc-chip.on { border-color: var(--fc-gold); background: rgba(242,193,78,.18); color: #ffe7a8; }
+.fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-alert { border: 1px solid rgba(242,193,78,.45); background: rgba(242,193,78,.1); border-radius: 10px; padding: 8px 10px; font-size: 13px; text-align: left; display: flex; gap: 8px; align-items: center; justify-content: space-between; color: #ffe7a8 !important; }
+.fc-alert.bad { border-color: rgba(255,90,90,.55); background: rgba(255,60,60,.12); color: #ffc0c0 !important; }
+.fc-row { border: 1px solid transparent; background: rgba(12,36,60,.5); border-radius: 10px; padding: 6px 8px; display: flex; gap: 8px; align-items: center; text-align: left; }
+.fc-row:hover { border-color: var(--fc-line); }
+.fc-row .grow { flex: 1; }
+.fc-row-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fc-bar { display: grid; grid-template-columns: 62px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+.fc-bar span { opacity: .65; }
+.fc-bar-track { height: 7px; background: rgba(255,255,255,.08); border-radius: 4px; overflow: hidden; }
+.fc-bar-track i { display: block; height: 100%; border-radius: 4px; box-shadow: 0 0 8px currentColor; }
+.fc-bar em { font-style: normal; font-variant-numeric: tabular-nums; }
+.fc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.fc-stats div { background: rgba(12,36,60,.6); border-radius: 8px; padding: 6px; text-align: center; display: flex; flex-direction: column; }
+.fc-stats small { font-size: 10px; opacity: .6; text-transform: uppercase; letter-spacing: 1px; }
+.fc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.fc-actions .fc-go { flex: 1; }
+.fc-input { background: rgba(0,0,0,.35); border: 1px solid var(--fc-line); color: #e6f4ff; border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
+.fc-check { font-size: 13px; display: flex; align-items: center; gap: 4px; }
+.fc-log { font-size: 12px; opacity: .8; display: flex; flex-direction: column; gap: 3px; }
+.fc-log.tall { max-height: 340px; overflow-y: auto; }
+.fc-log i { opacity: .55; font-style: normal; }
+.fc-list { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.7; }
+.fc-feed { position: absolute; left: 90px; right: 424px; bottom: 10px; height: 34px; display: flex; align-items: center; gap: 16px; padding: 0 14px; overflow: hidden; white-space: nowrap; font-size: 12px; border-radius: 10px; background: var(--fc-glass); border: 1px solid var(--fc-line); z-index: 3; }
+.fc-feed-label { letter-spacing: 3px; color: var(--fc-cyan); font-size: 10px; }
+.fc-feed-item { overflow: hidden; text-overflow: ellipsis; opacity: .85; max-width: 40%; }
+.fc-feed-item i { opacity: .55; font-style: normal; }
+.fc-feed .fc-link { margin-left: auto; }
+.fc-toast { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); max-width: min(560px, 70vw); padding: 10px 16px; border-radius: 12px; font-size: 14px; z-index: 5; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.fc-toast.good { background: #0d3b34; border: 1px solid #2ad1c0; }
+.fc-toast.bad { background: #431818; border: 1px solid #ff6a6a; }
+.fc-tip { position: absolute; pointer-events: none; background: rgba(4,14,26,.95); border: 1px solid var(--fc-line); border-radius: 8px; padding: 6px 9px; font-size: 12px; z-index: 6; line-height: 1.45; }
+.fc-tip b { color: #fff; }
+.fc-sheet { position: absolute; top: 70px; left: 90px; right: 12px; bottom: 12px; overflow-y: auto; padding: 18px 22px; border-radius: 16px; border: 1px solid var(--fc-line); background: rgba(4,16,30,.95); z-index: 4; }
+.fc-sheet.light { background: var(--paper); color: var(--ink); }
+.fc-sheet.light .fc-sheet-head h2 { color: var(--ink); }
+.fc-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.fc-sheet-head h2 { font-family: inherit; margin: 0; color: #fff; letter-spacing: 1px; }
+.fc-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.fc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.fc-tile { border: 1px solid var(--fc-line); border-radius: 14px; padding: 12px; background: rgba(12,36,60,.55); display: flex; flex-direction: column; gap: 6px; text-align: left; }
+button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(58,214,255,.25); }
+.fc-tile.lost { opacity: .5; }
+.fc-tile .fc-pic { align-self: center; background: radial-gradient(ellipse at center, rgba(58,214,255,.14), transparent 70%); border-radius: 10px; }
+.fc-tile small { opacity: .75; }
+.fc-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+.fc-kpi { background: rgba(12,36,60,.6); border: 1px solid var(--fc-line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
+.fc-kpi small { opacity: .6; text-transform: uppercase; font-size: 10px; letter-spacing: 2px; }
+.fc-kpi b { font-size: 24px; }
+.fc-chart { width: 100%; height: auto; background: rgba(0,0,0,.25); border-radius: 10px; }
+.fc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fc-launch .primary { margin-top: 8px; }
+@media (max-width: 760px) {
+  .fc-drawer { top: auto; left: 8px; right: 8px; width: auto; height: 46vh; bottom: 8px; }
+  .fc-feed { display: none; }
+  .fc-rail { flex-direction: row; top: 64px; }
+  .fc-rail-btn { width: 52px; height: 48px; }
+  .fc-sheet { left: 8px; right: 8px; top: 120px; }
+  .fc-time .fc-clock { display: none; }
+  .fc-kpis, .fc-two { grid-template-columns: 1fr 1fr; }
+}
+/* keep the paper theme's white button hover out of the ops room */
+.fc button:hover:not(:disabled) { transform: none; }
+.fc button.fc-rail-btn:hover:not(:disabled), .fc button.fc-close:hover:not(:disabled) { background: rgba(20,60,95,.75); }
+.fc button.fc-btn:hover:not(:disabled), .fc button.fc-chip:hover:not(:disabled) { background: rgba(40,110,160,.6); }
+.fc button.fc-btn.primary:hover:not(:disabled) { background: linear-gradient(#2bb4e6, #1888ba); }
+.fc button.fc-btn.on:hover:not(:disabled) { background: #ffd56e; }
+.fc button.fc-chip.on:hover:not(:disabled) { background: rgba(242,193,78,.28); }
+.fc button.fc-go:hover:not(:disabled) { background: linear-gradient(90deg, #19a7d8, #2ad1c0); }
+.fc button.fc-fold:hover:not(:disabled), .fc button.fc-link:hover:not(:disabled) { background: none; text-decoration: underline; }
+.fc button.fc-alert:hover:not(:disabled) { background: rgba(242,193,78,.2); }
+.fc button.fc-row:hover:not(:disabled), .fc button.fc-tile:hover:not(:disabled) { background: rgba(20,56,90,.7); }
 </style>
 </head>
 <body>
@@ -9099,7 +9230,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.24.0';
+const GAME_VERSION = '0.25.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -18795,6 +18926,29 @@ class Missions {
     return { ok: reasons.length === 0, reasons, cost, score: Math.round(score), chance: p, category };
   }
 
+  /** The team (up to the limit) that gives the best chance, from the ships free at the mission's port — greedily. */
+  bestTeam(mid) {
+    const m = this.get(mid);
+    if (!m) return null;
+    const free = this.L.vessels().filter((v) => v.status === 'docked' && v.port === m.port && !v.contract && !v.cargo);
+    let team = [];
+    let best = null;
+    for (let k = 0; k < this.L.L.missionShips; k++) {
+      let pick = null;
+      for (const v of free) {
+        if (team.includes(v.id)) continue;
+        const q = this.quote(mid, [...team, v.id]);
+        if (!q.ok) continue;
+        // a ship has to earn its place: +3 points of chance for its running costs
+        if (!pick || q.chance > pick.q.chance) pick = { id: v.id, q };
+      }
+      if (!pick || (best && pick.q.chance < best.chance + 0.03)) break;
+      team = [...team, pick.id];
+      best = pick.q;
+    }
+    return best ? { ships: team, quote: best } : null;
+  }
+
   /** Send the ships. Costs paid now; the outcome is rolled now and kept. */
   start(mid, vids) {
     const g = this.game;
@@ -20328,6 +20482,65 @@ class Logistics {
       return { type: 'message', text: `BERTH ${act.slot + 1} — ${b.name}. ${ships.length ? `In port: ${ships.join(', ')}.` : 'No ships in port.'} (Which port each berth shows is set on the terminal's Ports page.)` };
     }
     return { type: 'message', text: prop.examine || '' };
+  }
+
+  // ------------------------------------------------------------- choosing for you (v0.25.0)
+  /**
+   * The best ship for a contract right now: on time first, then the most
+   * profit after the expected cost of trouble (chance × pay). Returns
+   * { vessel, quote } or null when no ship can take it. opts as for quote().
+   */
+  bestShipFor(cid, opts = {}) {
+    const c = this.contract(cid);
+    if (!c) return null;
+    let best = null;
+    for (const v of this.vessels()) {
+      if (v.status !== 'docked' || (opts.escorts || []).includes(v.id)) continue;
+      const q = this.quote(cid, v.id, opts);
+      if (!q.ok) continue;
+      const score = (q.onTime ? 1e9 : 0) + q.profit - q.risk.chance * c.pay * (c.insured || opts.insure ? 0.4 : 1);
+      if (!best || score > best.score) best = { vessel: v, quote: q, score };
+    }
+    return best;
+  }
+
+  /** A free warship at the contract's port that would escort it (the strongest), or null. */
+  suggestEscort(cid, exclude = []) {
+    const c = this.contract(cid);
+    if (!c) return null;
+    const ws = this.vessels().filter((w) => w.kind === 'warship' && w.status === 'docked' && w.port === c.from && !exclude.includes(w.id) && this.stats(w).tags.includes('escort'));
+    ws.sort((a, b) => { const A = this.stats(a).combat; const B = this.stats(b).combat; return (B.attack + B.defense) - (A.attack + A.defense); });
+    return ws[0] || null;
+  }
+
+  /** Ships with nothing to do (docked, no cargo). */
+  idle() {
+    return this.vessels().filter((v) => v.status === 'docked' && !v.contract && !v.cargo);
+  }
+
+  /** Contracts you could send right now, best first: [{ contract, vessel, quote }]. */
+  opportunities(limit = 5) {
+    const out = [];
+    for (const c of this.contracts(['available', 'accepted'])) {
+      const b = this.bestShipFor(c.id);
+      if (b) out.push({ contract: c, vessel: b.vessel, quote: b.quote });
+    }
+    return out.sort((a, b) => b.quote.profit - a.quote.profit).slice(0, limit);
+  }
+
+  /** When the next thing happens in the fleet (an arrival, a departure, a mission's end, a launch), or null. */
+  nextEvent() {
+    const now = this.game.clock.total;
+    const times = [];
+    for (const v of this.vessels()) {
+      if (v.status === 'underway') times.push(v.voyage.arrive);
+      if (v.status === 'loading' && v.loadUntil !== undefined) times.push(v.loadUntil);
+    }
+    for (const m of this.missions.list('active')) times.push(m.end);
+    for (const b of this.shipyard.state.builds) if (b.status === 'building') times.push(b.end);
+    for (const id of this.ownedPorts()) { const y = this.shipyard.yard(id); if (y?.status === 'building') times.push(y.end); }
+    const next = times.filter((t) => t > now).sort((a, b) => a - b)[0];
+    return next ?? null;
   }
 
   /** What's on the home shipyard's slip (for the Yards slipway drawing). */
@@ -22036,6 +22249,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.25.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Fleet Command',
+    notes: [
+      'The Ober & Sons terminal is now Fleet Command: a full-screen ops room with a glowing sea chart you drag and zoom, your ships sailing on it, and danger zones pulsing where the pirates are.',
+      'Everything happens from the map. Click a port for its contracts and missions — each has one Send button with the best ship (or mission team) already picked. Protection and other ships are there if you want them, folded away if you don\'t.',
+      'Click a ship, press "Send to…", then click any port: the route, time and cost show as you hover.',
+      'Let time pass from the top bar — an hour, six hours, or straight to the next arrival — and watch your fleet sail.',
+      'Fleet, Buy, Shipyard and Ledger sit on the left rail. The tablet\'s Ships app and Captain Ober open the same screen.',
+    ],
+  },
   {
     version: '0.24.0',
     date: '2026-10-15',
@@ -31007,6 +31233,295 @@ function terminalScreen(ui, body, opts, go) {
 return { drawGlobe, TERMINAL_TABS, terminalPanel, terminalScreen };
 })();
 
+// ---- src/ui/tablet.js
+__m["src/ui/tablet.js"] = (function () {
+// The tablet (v0.15.0) — the journal's replacement. Apps along the top:
+//   Home       — business notifications (src/systems/tablet.js) and a summary
+//   Quests · People · Customers · Notes · Standing — the old journal pages
+//   Business   — a remote link to each arms works' terminal (once you own one)
+//   Stocks     — the Ober's Oil share register, as at Sir Moneybucks's desk
+const { h, journalTab, JOURNAL_TABS, stocksScreen } = __m["src/ui/panels.js"];
+const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
+const { TABLET_APPS } = __m["src/systems/tablet.js"];
+
+function tabletPanel(ui, body, opts) {
+  const g = ui.game;
+  const T = g.tablet;
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), 'Stocks'];
+  const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
+  const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
+  const unread = T.unread;
+
+  const bar = () => h('div', { class: 'tablet-bar' },
+    h('span', {}, `Day ${g.clock.day} · ${g.clock.weekday} · ${g.clock.timeString}`),
+    h('span', {}, `${g.player.money} obols · 📶 ▮▮▮ 🔋`));
+
+  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, bar(), stocksHeader(g)) });
+  else body.append(bar());
+  if (tab === 'Home') homeApp(ui, body, open);
+  else if (tab === 'Business') businessApp(ui, body, opts, open);
+  else if (tab === 'Ships') shipsApp(ui, body);
+  else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
+  if (tab === 'Home') T.markRead();
+
+  const label = (t) => (t === 'Home' && unread && tab !== 'Home' ? `Home (${unread})` : t);
+  return { title: '📱 OberPad', className: 'tablet', tabs: apps.map((t) => ({ label: label(t), active: t === tab, onclick: () => open(t) })) };
+}
+
+function homeApp(ui, body, open) {
+  const g = ui.game;
+  const T = g.tablet;
+  const cards = h('div', { class: 'grid2 tablet-cards' });
+  if (T.hasBusiness()) {
+    const A = g.arms;
+    const works = A.ownedIds();
+    const staff = A.state.staff.length;
+    const ms = g.market.state;
+    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Business') },
+      h('b', {}, '🏭 Arms business'),
+      h('span', {}, `${works.length} works · ${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea`),
+      h('span', {}, `Research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'} · Exports earned ${ms.earned}`)));
+  } else {
+    cards.append(h('div', { class: 'tablet-card muted' }, h('b', {}, '🏭 Business'), h('span', {}, 'You don\'t own a business yet. Buy an arms works and it will show up here.')));
+  }
+  const cars = g.vehicles.ownedCars();
+  if (cars.length) {
+    const models = g.content.vehicles.models;
+    cards.append(h('div', { class: 'tablet-card' },
+      h('b', {}, `🚗 Your cars (${cars.length})`),
+      ...cars.slice(0, 4).map((c) => h('span', {}, `${models[c.model].name}${c.stolen ? ' (stolen)' : ''} — ${c.id === g.player.driving ? 'you\'re driving it' : g.maps.get(c.map).name}`)),
+      cars.length > 4 ? h('span', {}, `…and ${cars.length - 4} more (all on the map).`) : null));
+  }
+  if (g.logistics.owned) {
+    const Lg = g.logistics;
+    const vs = Lg.vessels();
+    cards.append(h('button', { class: 'tablet-card', onclick: () => ui.openPanel('logistics') },
+      h('b', {}, '⚓ Ober & Sons Maritime'),
+      h('span', {}, `${vs.length} ship${vs.length === 1 ? '' : 's'} (${vs.filter((v) => v.status === 'underway').length} at sea) · ${Lg.ownedPorts().length} ports`),
+      h('span', {}, `${Lg.contracts(['accepted', 'loading', 'transit']).length} contracts running · ${Lg.contracts('available').length} on offer`)));
+  }
+  const oil = g.oil.state;
+  cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
+    h('b', {}, '📈 Ober\'s Oil'),
+    h('span', {}, `${oil.sharePrice} obols a share · you own ${oil.sharesOwned}`),
+    h('span', {}, oil.sharesOwned ? `Worth ${oil.sharesOwned * oil.sharePrice} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
+  body.append(cards);
+
+  const s = T.state;
+  const filter = h('div', { class: 'row', style: 'justify-content:space-between;margin:12px 0 6px' },
+    h('h3', { style: 'margin:0' }, 'Notifications'),
+    s.feed.length ? h('button', { class: 'small', onclick: () => { s.feed = []; s.unread = 0; open('Home'); } }, 'Clear') : null);
+  body.append(filter);
+  if (!s.feed.length) {
+    body.append(h('p', { class: 'muted' }, 'Nothing yet. Deliveries, shipments, payroll, stalled stations, world news and share moves will show up here.'));
+    return;
+  }
+  const list = h('div', { class: 'list tablet-feed' });
+  s.feed.forEach((n, i) => {
+    const app = TABLET_APPS[n.app] || { icon: '•', name: '' };
+    const day = Math.floor(n.at / 1440) + 1;
+    const mins = Math.floor(n.at % 1440);
+    const when = `Day ${day} ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+    list.append(h('div', { class: `item-row feed-${n.kind}${i < T.unread ? ' unread' : ''}` },
+      h('div', { class: 'icon' }, app.icon),
+      h('div', { class: 'grow' }, h('div', {}, n.text), h('div', { class: 'desc' }, `${app.name} · ${when}`))));
+  });
+  body.append(list);
+}
+
+function businessApp(ui, body, opts, open) {
+  const g = ui.game;
+  const works = g.arms.ownedIds();
+  const wh = works.includes(opts.warehouse) ? opts.warehouse : works[0];
+  const sub = TERMINAL_TABS.includes(opts.sub) ? opts.sub : 'Overview';
+  const go = (t, extra = {}) => open('Business', { warehouse: wh, sub: t, ...extra });
+  if (works.length > 1) {
+    body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
+      ...works.map((id) => h('button', { class: `small${id === wh ? ' primary' : ''}`, onclick: () => open('Business', { warehouse: id, sub }) }, g.arms.def(id).name))));
+  }
+  terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, country: opts.country, ship: opts.ship, remote: true }, go);
+}
+
+/** The brokerage banner: a line of Ober's Oil's recent closing prices. */
+function stocksHeader(g) {
+  const hist = g.oil.state.history;
+  const wrap = h('div', { class: 'tablet-ticker' }, h('b', {}, 'OBER — Ober\'s Oil, closing price'));
+  if (hist.length < 2) {
+    wrap.append(h('div', { class: 'muted' }, 'The price chart fills in after a couple of trading days (the market closes at 18:00).'));
+    return wrap;
+  }
+  const W = 420;
+  const H = 80;
+  const P = 8;
+  const prices = hist.map((d) => d.price);
+  const lo = Math.min(...prices) - 2;
+  const hi = Math.max(...prices) + 2;
+  const x = (i) => P + (i * (W - 2 * P)) / (hist.length - 1);
+  const y = (v) => H - P - ((v - lo) * (H - 2 * P)) / (hi - lo);
+  // built as markup: an inline <svg> in an HTML document needs no namespace
+  const dots = hist.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.price)}" r="7" class="ticker-hit"><title>Day ${d.day}: ${d.price} obols · ${d.output} barrels · dividend ${d.dividend ?? 0}</title></circle><circle cx="${x(i)}" cy="${y(d.price)}" r="${i === hist.length - 1 ? 4 : 2.5}" class="ticker-dot"></circle>`).join('');
+  const holder = h('div');
+  holder.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="ticker-chart" role="img" aria-label="Share price over the last ${hist.length} days, from ${prices[0]} to ${prices[prices.length - 1]} obols"><line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" class="ticker-axis"></line><polyline points="${hist.map((d, i) => `${x(i)},${y(d.price)}`).join(' ')}" class="ticker-line"></polyline>${dots}</svg>`;
+  const svg = holder.firstChild;
+  const first = prices[0];
+  const last = prices[prices.length - 1];
+  const ch = last - first;
+  wrap.append(svg, h('div', { class: 'desc' }, `Day ${hist[0].day}: ${first} → Day ${hist[hist.length - 1].day}: ${last} (${ch >= 0 ? '+' : '−'}${Math.abs(ch)}). Hover a point for that day.`));
+  return wrap;
+}
+
+/** Ships: Fleet Command takes the whole screen, so the tablet just launches it (closing it comes back here). */
+function shipsApp(ui, body) {
+  const Lg = ui.game.logistics;
+  const vs = Lg.vessels().filter((v) => v.status !== 'lost');
+  const sea = vs.filter((v) => v.status === 'underway').length;
+  body.append(h('div', { class: 'tablet-card fc-launch' },
+    h('h3', {}, '⚓ Ober & Sons — Fleet Command'),
+    h('p', {}, `${vs.length} ships (${sea} at sea) · ${Lg.ownedPorts().length} ports · ${Lg.idle().length} waiting for orders`),
+    h('button', { class: 'primary', onclick: () => ui.openPanel('logistics') }, 'Open Fleet Command')));
+}
+
+return { tabletPanel };
+})();
+
+// ---- src/ui/dealer.js
+__m["src/ui/dealer.js"] = (function () {
+// The dealership panel (v0.16.0): opened by talking to Marty Fender or Julian
+// Beaumont. Buy a car (choose a colour), sell one you've parked on the lot,
+// and at Fender's, buy "fresh plates" for a stolen car. See src/systems/vehicles.js.
+const { h } = __m["src/ui/panels.js"];
+const { drawCar } = __m["src/engine/drawVehicles.js"];
+
+const STYLE = {
+  fender: { cls: 'dealer-fender', tag: 'EVERY CAR A BARGAIN!*', fine: '*Not a guarantee. Sold as seen. No refunds.' },
+  beaumont: { cls: 'dealer-beaumont', tag: 'Est. in the age of carriages', fine: 'All vehicles delivered to the forecourt, keys in the ignition.' },
+};
+
+function preview(model, color) {
+  const c = h('canvas', { width: 220, height: 120, class: 'dealer-car' });
+  const ctx = c.getContext('2d');
+  const s = Math.min(1.9, 170 / model.len);
+  ctx.save();
+  ctx.translate(110, 64);
+  ctx.scale(s, s);
+  drawCar(ctx, model, 0, 0, -0.35, { color, id: model.name });
+  ctx.restore();
+  return c;
+}
+
+function bar(label, v) {
+  return h('div', { class: 'dealer-stat' }, h('span', {}, label), h('div', { class: 'meter' }, h('i', { class: 'pos', style: `width:${Math.round(Math.max(0.05, Math.min(1, v)) * 100)}%` })));
+}
+
+function dealerPanel(ui, body, opts) {
+  const g = ui.game;
+  const V = g.vehicles;
+  const did = opts.dealer;
+  const d = V.dealer(did);
+  const st = STYLE[did] || STYLE.fender;
+  const tab = opts.tab || 'Buy';
+  const go = (extra) => ui.openPanel('dealer', { ...opts, msg: null, ...extra });
+  body.classList.add(st.cls);
+  body.append(h('div', { class: 'dealer-head' }, h('b', {}, d.name), h('span', {}, st.tag)));
+  if (opts.msg) body.append(h('p', { class: 'dealer-msg' }, opts.msg));
+  if (tab === 'Buy') {
+    for (const id of d.models) {
+      const m = V.cfg.models[id];
+      const color = opts.colors?.[id] || m.colors[0];
+      const swatches = h('div', { class: 'dealer-swatches' }, ...m.colors.map((c) => h('button', { class: `swatch${c === color ? ' on' : ''}`, style: `background:${c}`, title: 'Choose this colour', onclick: () => go({ colors: { ...(opts.colors || {}), [id]: c } }) })));
+      const can = g.player.money >= m.price;
+      body.append(h('div', { class: 'dealer-row' },
+        preview(m, color),
+        h('div', { class: 'grow' },
+          h('div', { class: 'dealer-name' }, m.name, h('span', { class: 'dealer-price' }, `${m.price.toLocaleString()} obols`)),
+          h('div', { class: 'desc' }, m.blurb),
+          h('div', { class: 'dealer-pitch' }, `“${m.pitch}”`),
+          h('div', { class: 'dealer-stats' }, bar('Top speed', m.top / 500), bar('Acceleration', m.accel / 520), bar('Handling', m.grip / 3.9)),
+          h('div', { class: 'row', style: 'justify-content:space-between;margin-top:6px' }, swatches,
+            h('button', { class: 'small primary', disabled: !can, onclick: () => { const r = V.buy(did, id, color); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, can ? 'Buy' : `Need ${m.price - g.player.money} more`)))));
+    }
+  } else {
+    const lot = V.onLot(did);
+    body.append(h('p', { class: 'muted' }, did === 'fender'
+      ? `Park a car on the lot and Marty will make an offer: ${Math.round(d.tradeIn * 100)}% of list, or ${Math.round(d.buysStolen * 100)}% if its past is "complicated". Fresh plates: ${d.plates} obols — a stolen car becomes yours on paper.`
+      : `Park a car on the forecourt to have it appraised: ${Math.round(d.tradeIn * 100)}% of list. The Gallery does not handle vehicles of uncertain provenance.`));
+    if (!lot.length) body.append(h('p', {}, h('b', {}, 'None of your cars is parked on the lot.')));
+    for (const car of lot) {
+      const m = V.model(car);
+      const offer = V.offer(did, car);
+      body.append(h('div', { class: 'dealer-row' }, preview(m, car.color),
+        h('div', { class: 'grow' },
+          h('div', { class: 'dealer-name' }, m.name, car.stolen ? h('span', { class: 'tag bad' }, 'stolen') : null),
+          h('div', { class: 'desc' }, `Plate ${car.plate}. List price ${m.price}.`),
+          h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
+            h('button', { class: 'small primary', disabled: !offer, onclick: () => { const r = V.sell(did, car.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, offer ? `Sell for ${offer}` : 'Won\'t buy it'),
+            car.stolen && d.plates ? h('button', { class: 'small', disabled: g.player.money < d.plates, onclick: () => { const r = V.replate(did, car.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, `Fresh plates (${d.plates})`) : null))));
+    }
+  }
+  body.append(h('p', { class: 'muted dealer-fine' }, `${st.fine} · You have ${g.player.money} obols.`));
+  return {
+    title: d.name, className: `dealer ${st.cls}`, onClose: opts.onClose,
+    tabs: ['Buy', 'Sell'].map((t) => ({ label: t === 'Sell' ? (did === 'fender' ? 'Sell / plates' : 'Part-exchange') : 'Buy', active: t === tab, onclick: () => ui.openPanel('dealer', { ...opts, tab: t, msg: null }) })),
+  };
+}
+
+return { dealerPanel };
+})();
+
+// ---- src/ui/armsbench.js
+__m["src/ui/armsbench.js"] = (function () {
+// The armourer's workbench (v0.19.0): hand-make one weapon, or a box of its
+// ammunition, for yourself, from parts on the loading dock. See
+// BENCH_RECIPES in src/content/arms.js and Arms.benchCraft.
+const { h, itemIcon } = __m["src/ui/panels.js"];
+
+function armsBenchPanel(ui, body, opts) {
+  const g = ui.game;
+  const A = g.arms;
+  const wh = opts.warehouse;
+  const items = g.content.items;
+  const dock = g.world.containers[A.def(wh).inBay]?.items || {};
+  const go = (msg) => ui.openPanel('armsbench', { warehouse: wh, msg });
+  body.append(h('p', { class: 'muted' }, 'Make ONE weapon or a box of ammo for yourself, straight from parts on the loading dock — no staff needed, but it takes your time. For export, staffed stations make whole crates.'));
+  if (opts.msg) body.append(h('p', {}, h('b', {}, opts.msg)));
+  const section = (title, ids) => {
+    body.append(h('h3', { style: 'margin:12px 0 6px' }, title));
+    const list = h('div', { class: 'list' });
+    for (const rid of ids) {
+      const r = A.cfg.bench[rid];
+      const it = items[r.out];
+      const locked = !A.benchUnlocked(rid);
+      const short = locked ? {} : A.benchShort(wh, rid);
+      const parts = Object.entries(r.in).map(([id, n]) => {
+        const have = dock[id] || 0;
+        return h('span', { class: `tag${have < n ? ' bad' : ''}` }, `${items[id].name} ${Math.min(have, n)}/${n}`);
+      });
+      const buttons = locked
+        ? [h('span', { class: 'tag' }, `🔒 ${A.cfg.research[r.requires].name}`)]
+        : [
+          h('button', { class: 'small primary', disabled: Object.keys(short).length > 0, onclick: () => { const res = A.benchCraft(wh, rid); ui.audio.sfx(res.ok ? 'sfx_pickup' : 'sfx_fail'); go(res.text); } }, `Make (${r.minutes} min)`),
+          Object.keys(short).length ? h('button', { class: 'small', onclick: () => {
+            let cost = 0;
+            for (const [id, n] of Object.entries(short)) { const res = A.order(wh, id, n); if (!res.ok) { go(res.text); return; } cost += A.partPrice(id) * n; }
+            ui.audio.sfx('sfx_coin');
+            go(`Ordered the missing parts (${cost} obols). They'll be on the dock within the hour.`);
+          } }, 'Order missing') : null,
+        ];
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(it)),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.count > 1 ? `${r.count}× ` : ''}${it.name}`), h('div', { class: 'desc' }, ...parts)),
+        ...buttons.filter(Boolean)));
+    }
+    body.append(list);
+  };
+  const all = Object.keys(A.cfg.bench);
+  section('Weapons', all.filter((rid) => items[A.cfg.bench[rid].out].category !== 'ammo'));
+  section('Ammunition', all.filter((rid) => items[A.cfg.bench[rid].out].category === 'ammo'));
+  return { title: 'Armourer\'s Workbench' };
+}
+
+return { armsBenchPanel };
+})();
+
 // ---- src/ui/logistics.js
 __m["src/ui/logistics.js"] = (function () {
 // The logistics terminal (v0.21.0): Ober & Sons Maritime's fleet-management
@@ -31668,286 +32183,699 @@ function partsStore(ui, body, opts, go, act) {
   body.append(store);
 }
 
-return { LOGI_TABS, logisticsPanel, logisticsScreen };
+// Fleet Command (v0.25.0) shows these two inside its Shipyard sheet until the side-profile builder replaces them.
+const shipyardScreen = shipyard;
+const partsScreen = partsStore;
+
+return { LOGI_TABS, logisticsPanel, logisticsScreen, shipyardScreen, partsScreen };
 })();
 
-// ---- src/ui/tablet.js
-__m["src/ui/tablet.js"] = (function () {
-// The tablet (v0.15.0) — the journal's replacement. Apps along the top:
-//   Home       — business notifications (src/systems/tablet.js) and a summary
-//   Quests · People · Customers · Notes · Standing — the old journal pages
-//   Business   — a remote link to each arms works' terminal (once you own one)
-//   Stocks     — the Ober's Oil share register, as at Sir Moneybucks's desk
-const { h, journalTab, JOURNAL_TABS, stocksScreen } = __m["src/ui/panels.js"];
-const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
-const { TABLET_APPS } = __m["src/systems/tablet.js"];
-const { logisticsScreen } = __m["src/ui/logistics.js"];
-
-function tabletPanel(ui, body, opts) {
-  const g = ui.game;
-  const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), 'Stocks'];
-  const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
-  const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
-  const unread = T.unread;
-
-  const bar = () => h('div', { class: 'tablet-bar' },
-    h('span', {}, `Day ${g.clock.day} · ${g.clock.weekday} · ${g.clock.timeString}`),
-    h('span', {}, `${g.player.money} obols · 📶 ▮▮▮ 🔋`));
-
-  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, bar(), stocksHeader(g)) });
-  else body.append(bar());
-  if (tab === 'Home') homeApp(ui, body, open);
-  else if (tab === 'Business') businessApp(ui, body, opts, open);
-  else if (tab === 'Ships') logisticsScreen(ui, body, { tab: opts.sub, sel: opts.sel, msg: opts.msg, msgOk: opts.msgOk, filter: opts.filter, cls: opts.cls, dest: opts.dest }, (o) => open('Ships', { sub: o.tab, sel: o.sel, msg: o.msg, msgOk: o.msgOk, filter: o.filter, cls: o.cls, dest: o.dest }));
-  else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
-  if (tab === 'Home') T.markRead();
-
-  const label = (t) => (t === 'Home' && unread && tab !== 'Home' ? `Home (${unread})` : t);
-  return { title: '📱 OberPad', className: 'tablet', tabs: apps.map((t) => ({ label: label(t), active: t === tab, onclick: () => open(t) })) };
-}
-
-function homeApp(ui, body, open) {
-  const g = ui.game;
-  const T = g.tablet;
-  const cards = h('div', { class: 'grid2 tablet-cards' });
-  if (T.hasBusiness()) {
-    const A = g.arms;
-    const works = A.ownedIds();
-    const staff = A.state.staff.length;
-    const ms = g.market.state;
-    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Business') },
-      h('b', {}, '🏭 Arms business'),
-      h('span', {}, `${works.length} works · ${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea`),
-      h('span', {}, `Research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'} · Exports earned ${ms.earned}`)));
-  } else {
-    cards.append(h('div', { class: 'tablet-card muted' }, h('b', {}, '🏭 Business'), h('span', {}, 'You don\'t own a business yet. Buy an arms works and it will show up here.')));
-  }
-  const cars = g.vehicles.ownedCars();
-  if (cars.length) {
-    const models = g.content.vehicles.models;
-    cards.append(h('div', { class: 'tablet-card' },
-      h('b', {}, `🚗 Your cars (${cars.length})`),
-      ...cars.slice(0, 4).map((c) => h('span', {}, `${models[c.model].name}${c.stolen ? ' (stolen)' : ''} — ${c.id === g.player.driving ? 'you\'re driving it' : g.maps.get(c.map).name}`)),
-      cars.length > 4 ? h('span', {}, `…and ${cars.length - 4} more (all on the map).`) : null));
-  }
-  if (g.logistics.owned) {
-    const Lg = g.logistics;
-    const vs = Lg.vessels();
-    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Ships') },
-      h('b', {}, '⚓ Ober & Sons Maritime'),
-      h('span', {}, `${vs.length} ship${vs.length === 1 ? '' : 's'} (${vs.filter((v) => v.status === 'underway').length} at sea) · ${Lg.ownedPorts().length} ports`),
-      h('span', {}, `${Lg.contracts(['accepted', 'loading', 'transit']).length} contracts running · ${Lg.contracts('available').length} on offer`)));
-  }
-  const oil = g.oil.state;
-  cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
-    h('b', {}, '📈 Ober\'s Oil'),
-    h('span', {}, `${oil.sharePrice} obols a share · you own ${oil.sharesOwned}`),
-    h('span', {}, oil.sharesOwned ? `Worth ${oil.sharesOwned * oil.sharePrice} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
-  body.append(cards);
-
-  const s = T.state;
-  const filter = h('div', { class: 'row', style: 'justify-content:space-between;margin:12px 0 6px' },
-    h('h3', { style: 'margin:0' }, 'Notifications'),
-    s.feed.length ? h('button', { class: 'small', onclick: () => { s.feed = []; s.unread = 0; open('Home'); } }, 'Clear') : null);
-  body.append(filter);
-  if (!s.feed.length) {
-    body.append(h('p', { class: 'muted' }, 'Nothing yet. Deliveries, shipments, payroll, stalled stations, world news and share moves will show up here.'));
-    return;
-  }
-  const list = h('div', { class: 'list tablet-feed' });
-  s.feed.forEach((n, i) => {
-    const app = TABLET_APPS[n.app] || { icon: '•', name: '' };
-    const day = Math.floor(n.at / 1440) + 1;
-    const mins = Math.floor(n.at % 1440);
-    const when = `Day ${day} ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-    list.append(h('div', { class: `item-row feed-${n.kind}${i < T.unread ? ' unread' : ''}` },
-      h('div', { class: 'icon' }, app.icon),
-      h('div', { class: 'grow' }, h('div', {}, n.text), h('div', { class: 'desc' }, `${app.name} · ${when}`))));
-  });
-  body.append(list);
-}
-
-function businessApp(ui, body, opts, open) {
-  const g = ui.game;
-  const works = g.arms.ownedIds();
-  const wh = works.includes(opts.warehouse) ? opts.warehouse : works[0];
-  const sub = TERMINAL_TABS.includes(opts.sub) ? opts.sub : 'Overview';
-  const go = (t, extra = {}) => open('Business', { warehouse: wh, sub: t, ...extra });
-  if (works.length > 1) {
-    body.append(h('div', { class: 'row tablet-sub', style: 'justify-content:flex-start' },
-      ...works.map((id) => h('button', { class: `small${id === wh ? ' primary' : ''}`, onclick: () => open('Business', { warehouse: id, sub }) }, g.arms.def(id).name))));
-  }
-  terminalScreen(ui, body, { warehouse: wh, tab: sub, msg: opts.msg, country: opts.country, ship: opts.ship, remote: true }, go);
-}
-
-/** The brokerage banner: a line of Ober's Oil's recent closing prices. */
-function stocksHeader(g) {
-  const hist = g.oil.state.history;
-  const wrap = h('div', { class: 'tablet-ticker' }, h('b', {}, 'OBER — Ober\'s Oil, closing price'));
-  if (hist.length < 2) {
-    wrap.append(h('div', { class: 'muted' }, 'The price chart fills in after a couple of trading days (the market closes at 18:00).'));
-    return wrap;
-  }
-  const W = 420;
-  const H = 80;
-  const P = 8;
-  const prices = hist.map((d) => d.price);
-  const lo = Math.min(...prices) - 2;
-  const hi = Math.max(...prices) + 2;
-  const x = (i) => P + (i * (W - 2 * P)) / (hist.length - 1);
-  const y = (v) => H - P - ((v - lo) * (H - 2 * P)) / (hi - lo);
-  // built as markup: an inline <svg> in an HTML document needs no namespace
-  const dots = hist.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.price)}" r="7" class="ticker-hit"><title>Day ${d.day}: ${d.price} obols · ${d.output} barrels · dividend ${d.dividend ?? 0}</title></circle><circle cx="${x(i)}" cy="${y(d.price)}" r="${i === hist.length - 1 ? 4 : 2.5}" class="ticker-dot"></circle>`).join('');
-  const holder = h('div');
-  holder.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="ticker-chart" role="img" aria-label="Share price over the last ${hist.length} days, from ${prices[0]} to ${prices[prices.length - 1]} obols"><line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" class="ticker-axis"></line><polyline points="${hist.map((d, i) => `${x(i)},${y(d.price)}`).join(' ')}" class="ticker-line"></polyline>${dots}</svg>`;
-  const svg = holder.firstChild;
-  const first = prices[0];
-  const last = prices[prices.length - 1];
-  const ch = last - first;
-  wrap.append(svg, h('div', { class: 'desc' }, `Day ${hist[0].day}: ${first} → Day ${hist[hist.length - 1].day}: ${last} (${ch >= 0 ? '+' : '−'}${Math.abs(ch)}). Hover a point for that day.`));
-  return wrap;
-}
-
-return { tabletPanel };
-})();
-
-// ---- src/ui/dealer.js
-__m["src/ui/dealer.js"] = (function () {
-// The dealership panel (v0.16.0): opened by talking to Marty Fender or Julian
-// Beaumont. Buy a car (choose a colour), sell one you've parked on the lot,
-// and at Fender's, buy "fresh plates" for a stolen car. See src/systems/vehicles.js.
+// ---- src/ui/fleetCommand.js
+__m["src/ui/fleetCommand.js"] = (function () {
+// Fleet Command (v0.25.0): Ober & Sons Maritime's operations room. It takes
+// the whole screen: a live, glowing sea chart you drag and zoom, with your
+// ships sailing on it. Everything happens from the map —
+//
+//   click a port   → its contracts and missions, each with one Send button
+//                    (the best ship or team is already picked: Logistics.bestShipFor,
+//                    Missions.bestTeam); protection is optional, folded away
+//   click a ship   → its card; "Send to…" then click any port
+//   ⏩ / ⏭          → let time pass and watch the fleet sail (it's the real clock)
+//
+// The left rail holds the rest: Fleet (every ship), Buy (ships and ports),
+// Shipyard, Ledger. All state and every action is game.logistics — this file
+// only draws and calls it. Opened by the harbour-office terminal, the
+// tablet's Ships app, Captain Ober and Mason (PANELS.logistics / PANELS.fleet).
 const { h } = __m["src/ui/panels.js"];
-const { drawCar } = __m["src/engine/drawVehicles.js"];
+const { landValue, wrapLon } = __m["src/world/globe.js"];
+const { pointAlong } = __m["src/world/seaRoutes.js"];
+const { drawShip } = __m["src/engine/drawShips.js"];
+const { shipyardScreen, partsScreen } = __m["src/ui/logistics.js"];
 
-const STYLE = {
-  fender: { cls: 'dealer-fender', tag: 'EVERY CAR A BARGAIN!*', fine: '*Not a guarantee. Sold as seen. No refunds.' },
-  beaumont: { cls: 'dealer-beaumont', tag: 'Est. in the age of carriages', fine: 'All vehicles delivered to the forecourt, keys in the ignition.' },
-};
+const MODES = [
+  ['map', '🗺', 'Map'],
+  ['fleet', '⛴', 'Fleet'],
+  ['buy', '🏷', 'Buy'],
+  ['shipyard', '🛠', 'Shipyard'],
+  ['ledger', '📒', 'Ledger'],
+];
+const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', mission: 'On a mission', lost: 'Lost' };
+const RISK_COLOUR = { low: '#4ade9a', moderate: '#f2c14e', high: '#ff8a4a', extreme: '#ff4a5a' };
+const OUTCOME = { repelled: 'nothing worse than a scare', delay: 'a delay', ransom: 'a ransom', cargo: 'losing the cargo', captured: 'losing the ship' };
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+/** append, skipping the nulls left by optional bits (h() skips them; DOM append would print "null") */
+const put = (el, ...kids) => el.append(...kids.filter((k) => k !== null && k !== undefined && k !== false));
+const num = (n) => Math.round(n).toLocaleString();
+const hrs = (m) => { const x = m / 60; return x >= 36 ? `${(x / 24).toFixed(1)} days` : `${Math.max(1, Math.round(x))} h`; };
 
-function preview(model, color) {
-  const c = h('canvas', { width: 220, height: 120, class: 'dealer-car' });
-  const ctx = c.getContext('2d');
-  const s = Math.min(1.9, 170 / model.len);
-  ctx.save();
-  ctx.translate(110, 64);
-  ctx.scale(s, s);
-  drawCar(ctx, model, 0, 0, -0.35, { color, id: model.name });
-  ctx.restore();
-  return c;
-}
+/** Fleet Command's own state survives re-opening (the camera, what's selected, folded-out cards). */
+const FC = { mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, open: {}, protect: {}, sending: null, buyTab: 'cargo', yard: { sub: 'design' }, ff: null, msg: null };
 
-function bar(label, v) {
-  return h('div', { class: 'dealer-stat' }, h('span', {}, label), h('div', { class: 'meter' }, h('i', { class: 'pos', style: `width:${Math.round(Math.max(0.05, Math.min(1, v)) * 100)}%` })));
-}
+let LAND_IMG = null;
 
-function dealerPanel(ui, body, opts) {
-  const g = ui.game;
-  const V = g.vehicles;
-  const did = opts.dealer;
-  const d = V.dealer(did);
-  const st = STYLE[did] || STYLE.fender;
-  const tab = opts.tab || 'Buy';
-  const go = (extra) => ui.openPanel('dealer', { ...opts, msg: null, ...extra });
-  body.classList.add(st.cls);
-  body.append(h('div', { class: 'dealer-head' }, h('b', {}, d.name), h('span', {}, st.tag)));
-  if (opts.msg) body.append(h('p', { class: 'dealer-msg' }, opts.msg));
-  if (tab === 'Buy') {
-    for (const id of d.models) {
-      const m = V.cfg.models[id];
-      const color = opts.colors?.[id] || m.colors[0];
-      const swatches = h('div', { class: 'dealer-swatches' }, ...m.colors.map((c) => h('button', { class: `swatch${c === color ? ' on' : ''}`, style: `background:${c}`, title: 'Choose this colour', onclick: () => go({ colors: { ...(opts.colors || {}), [id]: c } }) })));
-      const can = g.player.money >= m.price;
-      body.append(h('div', { class: 'dealer-row' },
-        preview(m, color),
-        h('div', { class: 'grow' },
-          h('div', { class: 'dealer-name' }, m.name, h('span', { class: 'dealer-price' }, `${m.price.toLocaleString()} obols`)),
-          h('div', { class: 'desc' }, m.blurb),
-          h('div', { class: 'dealer-pitch' }, `“${m.pitch}”`),
-          h('div', { class: 'dealer-stats' }, bar('Top speed', m.top / 500), bar('Acceleration', m.accel / 520), bar('Handling', m.grip / 3.9)),
-          h('div', { class: 'row', style: 'justify-content:space-between;margin-top:6px' }, swatches,
-            h('button', { class: 'small primary', disabled: !can, onclick: () => { const r = V.buy(did, id, color); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, can ? 'Buy' : `Need ${m.price - g.player.money} more`)))));
-    }
-  } else {
-    const lot = V.onLot(did);
-    body.append(h('p', { class: 'muted' }, did === 'fender'
-      ? `Park a car on the lot and Marty will make an offer: ${Math.round(d.tradeIn * 100)}% of list, or ${Math.round(d.buysStolen * 100)}% if its past is "complicated". Fresh plates: ${d.plates} obols — a stolen car becomes yours on paper.`
-      : `Park a car on the forecourt to have it appraised: ${Math.round(d.tradeIn * 100)}% of list. The Gallery does not handle vehicles of uncertain provenance.`));
-    if (!lot.length) body.append(h('p', {}, h('b', {}, 'None of your cars is parked on the lot.')));
-    for (const car of lot) {
-      const m = V.model(car);
-      const offer = V.offer(did, car);
-      body.append(h('div', { class: 'dealer-row' }, preview(m, car.color),
-        h('div', { class: 'grow' },
-          h('div', { class: 'dealer-name' }, m.name, car.stolen ? h('span', { class: 'tag bad' }, 'stolen') : null),
-          h('div', { class: 'desc' }, `Plate ${car.plate}. List price ${m.price}.`),
-          h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
-            h('button', { class: 'small primary', disabled: !offer, onclick: () => { const r = V.sell(did, car.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, offer ? `Sell for ${offer}` : 'Won\'t buy it'),
-            car.stolen && d.plates ? h('button', { class: 'small', disabled: g.player.money < d.plates, onclick: () => { const r = V.replate(did, car.id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); go({ msg: r.text }); } }, `Fresh plates (${d.plates})`) : null))));
+/** The world's land, once, sampled every half degree: dark ground shaded by height, a glowing coast. */
+function landImage(countries) {
+  if (LAND_IMG) return LAND_IMG;
+  const W = 720;
+  const H = 360;
+  const n = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) n[y * W + x] = landValue(90 - y / 2, x / 2 - 180, countries);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x2 = c.getContext('2d');
+  const img = x2.createImageData(W, H);
+  const d = img.data;
+  const LAND = 0.12;
+  const land = (x, y) => n[Math.min(H - 1, Math.max(0, y)) * W + ((x + W) % W)] >= LAND;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!land(x, y)) continue;
+      const i = (y * W + x) * 4;
+      const coast = !land(x + 1, y) || !land(x - 1, y) || !land(x, y + 1) || !land(x, y - 1);
+      const k = Math.min(1, (n[y * W + x] - LAND) * 2.2);
+      if (coast) { d[i] = 70; d[i + 1] = 220; d[i + 2] = 255; d[i + 3] = 235; } else { d[i] = 16 + k * 22; d[i + 1] = 44 + k * 36; d[i + 2] = 62 + k * 30; d[i + 3] = 255; }
     }
   }
-  body.append(h('p', { class: 'muted dealer-fine' }, `${st.fine} · You have ${g.player.money} obols.`));
-  return {
-    title: d.name, className: `dealer ${st.cls}`, onClose: opts.onClose,
-    tabs: ['Buy', 'Sell'].map((t) => ({ label: t === 'Sell' ? (did === 'fender' ? 'Sell / plates' : 'Part-exchange') : 'Buy', active: t === tab, onclick: () => ui.openPanel('dealer', { ...opts, tab: t, msg: null }) })),
-  };
+  x2.putImageData(img, 0, 0);
+  // scaled up 4× through a blur: smooth coastlines with a soft glow instead of stair-steps
+  const big = document.createElement('canvas');
+  big.width = W * 4; big.height = H * 4;
+  const b = big.getContext('2d');
+  b.imageSmoothingEnabled = true;
+  b.filter = 'blur(7px)';
+  b.globalAlpha = 0.7;
+  b.drawImage(c, 0, 0, big.width, big.height);
+  b.filter = 'blur(1.6px)';
+  b.globalAlpha = 1;
+  b.drawImage(c, 0, 0, big.width, big.height);
+  LAND_IMG = big;
+  return big;
 }
 
-return { dealerPanel };
-})();
-
-// ---- src/ui/armsbench.js
-__m["src/ui/armsbench.js"] = (function () {
-// The armourer's workbench (v0.19.0): hand-make one weapon, or a box of its
-// ammunition, for yourself, from parts on the loading dock. See
-// BENCH_RECIPES in src/content/arms.js and Arms.benchCraft.
-const { h, itemIcon } = __m["src/ui/panels.js"];
-
-function armsBenchPanel(ui, body, opts) {
+// ====================================================================== the panel
+function fleetPanel(ui, body, opts = {}) {
   const g = ui.game;
-  const A = g.arms;
-  const wh = opts.warehouse;
-  const items = g.content.items;
-  const dock = g.world.containers[A.def(wh).inBay]?.items || {};
-  const go = (msg) => ui.openPanel('armsbench', { warehouse: wh, msg });
-  body.append(h('p', { class: 'muted' }, 'Make ONE weapon or a box of ammo for yourself, straight from parts on the loading dock — no staff needed, but it takes your time. For export, staffed stations make whole crates.'));
-  if (opts.msg) body.append(h('p', {}, h('b', {}, opts.msg)));
-  const section = (title, ids) => {
-    body.append(h('h3', { style: 'margin:12px 0 6px' }, title));
-    const list = h('div', { class: 'list' });
-    for (const rid of ids) {
-      const r = A.cfg.bench[rid];
-      const it = items[r.out];
-      const locked = !A.benchUnlocked(rid);
-      const short = locked ? {} : A.benchShort(wh, rid);
-      const parts = Object.entries(r.in).map(([id, n]) => {
-        const have = dock[id] || 0;
-        return h('span', { class: `tag${have < n ? ' bad' : ''}` }, `${items[id].name} ${Math.min(have, n)}/${n}`);
-      });
-      const buttons = locked
-        ? [h('span', { class: 'tag' }, `🔒 ${A.cfg.research[r.requires].name}`)]
-        : [
-          h('button', { class: 'small primary', disabled: Object.keys(short).length > 0, onclick: () => { const res = A.benchCraft(wh, rid); ui.audio.sfx(res.ok ? 'sfx_pickup' : 'sfx_fail'); go(res.text); } }, `Make (${r.minutes} min)`),
-          Object.keys(short).length ? h('button', { class: 'small', onclick: () => {
-            let cost = 0;
-            for (const [id, n] of Object.entries(short)) { const res = A.order(wh, id, n); if (!res.ok) { go(res.text); return; } cost += A.partPrice(id) * n; }
-            ui.audio.sfx('sfx_coin');
-            go(`Ordered the missing parts (${cost} obols). They'll be on the dock within the hour.`);
-          } }, 'Order missing') : null,
-        ];
-      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, itemIcon(it)),
-        h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.count > 1 ? `${r.count}× ` : ''}${it.name}`), h('div', { class: 'desc' }, ...parts)),
-        ...buttons.filter(Boolean)));
-    }
-    body.append(list);
+  const Lg = g.logistics;
+  if (opts.tab === 'Shipyard') FC.mode = 'shipyard';
+  if (opts.mode) FC.mode = opts.mode;
+  if (opts.port || opts.ship) { FC.mode = 'map'; FC.sel = opts.port ? { kind: 'port', id: opts.port } : { kind: 'ship', id: opts.ship }; }
+  body.classList.add('fc');
+  const canvas = h('canvas', { class: 'fc-canvas' });
+  const top = h('div', { class: 'fc-top' });
+  const rail = h('div', { class: 'fc-rail' });
+  const drawer = h('div', { class: 'fc-drawer' });
+  const sheet = h('div', { class: 'fc-sheet hidden' });
+  const feed = h('div', { class: 'fc-feed' });
+  const toast = h('div', { class: 'fc-toast hidden' });
+  const tip = h('div', { class: 'fc-tip hidden' });
+  body.append(canvas, top, rail, drawer, sheet, feed, toast, tip);
+
+  const say = (r) => {
+    if (!r?.text) return;
+    ui.audio.sfx(r.ok === false ? 'sfx_fail' : 'sfx_coin');
+    toast.textContent = r.text;
+    toast.className = `fc-toast ${r.ok === false ? 'bad' : 'good'}`;
+    clearTimeout(say.t);
+    say.t = setTimeout(() => toast.classList.add('hidden'), 4200);
   };
-  const all = Object.keys(A.cfg.bench);
-  section('Weapons', all.filter((rid) => items[A.cfg.bench[rid].out].category !== 'ammo'));
-  section('Ammunition', all.filter((rid) => items[A.cfg.bench[rid].out].category === 'ammo'));
-  return { title: 'Armourer\'s Workbench' };
+  const ctx = canvas.getContext('2d');
+  const view = FC.view;
+  let hits = [];
+  let hover = null;
+  let preview = null; // a route to show: { from, to, colour }
+
+  // ---------------------------------------------------------------- projection
+  const size = () => ({ W: canvas.width, H: canvas.height, ppd: (canvas.width / 360) * view.zoom });
+  const toScreen = (lat, lon) => { const { W, H, ppd } = size(); return { x: W / 2 + wrapLon(lon - view.lon) * ppd, y: H / 2 - (lat - view.lat) * ppd }; };
+  const centreOn = (lat, lon, zoom) => { view.lat = lat; view.lon = lon; if (zoom) view.zoom = Math.max(view.zoom, zoom); };
+
+  // ---------------------------------------------------------------- drawing
+  const drawMap = (t) => {
+    const dpr = window.devicePixelRatio || 1;
+    const bw = Math.round(canvas.clientWidth * dpr);
+    const bh = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
+    const { W, H, ppd } = size();
+    view.lat = Math.max(-60, Math.min(70, view.lat));
+    // the sea
+    const sea = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
+    sea.addColorStop(0, '#08223a');
+    sea.addColorStop(1, '#020812');
+    ctx.fillStyle = sea;
+    ctx.fillRect(0, 0, W, H);
+    // the grid
+    ctx.strokeStyle = 'rgba(80,180,255,0.07)';
+    ctx.lineWidth = 1;
+    for (let lon = -180; lon < 180; lon += 15) { const p = toScreen(0, lon); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke(); }
+    for (let lat = -75; lat <= 75; lat += 15) { const p = toScreen(lat, 0); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke(); }
+    // the land (three copies for the wrap)
+    const land = landImage(g.content.arms.countries);
+    const x0 = W / 2 + (-180 - view.lon) * ppd;
+    const y0 = H / 2 - (90 - view.lat) * ppd;
+    ctx.imageSmoothingEnabled = true;
+    for (const k of [-1, 0, 1]) ctx.drawImage(land, x0 + k * 360 * ppd, y0, 360 * ppd, 180 * ppd);
+    // danger
+    for (const z of Lg.zones()) {
+      const p = toScreen(z.lat, z.lon);
+      const r = (z.radius / 111) * ppd;
+      const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + z.lat);
+      const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      const col = z.war ? '255,90,60' : z.embargo ? '200,90,255' : '255,50,70';
+      gr.addColorStop(0, `rgba(${col},${0.05 + z.danger * 0.22 * pulse})`);
+      gr.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = `rgba(${col},${Lg.state.suppressed?.[z.id] > g.clock.total ? 0.25 : 0.5})`;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.98, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      if (view.zoom > 1.6) label(z.name[0].toUpperCase() + z.name.slice(1), p.x, p.y - r * 0.5, `rgba(${col},0.85)`, 11);
+      hits.push({ kind: 'zone', id: z.id, x: p.x, y: p.y, r: Math.max(10, r * 0.4), z });
+    }
+    // routes
+    const route = (from, to, colour, dash, width = 2) => {
+      const r = Lg.route(from, to);
+      if (!r) return;
+      ctx.save();
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = width;
+      ctx.shadowColor = colour;
+      ctx.shadowBlur = 8;
+      if (dash) { ctx.setLineDash(dash); ctx.lineDashOffset = -t * 30; }
+      ctx.beginPath();
+      let last = null;
+      for (let i = 0; i <= 60; i++) {
+        const [la, lo] = pointAlong(r, i / 60);
+        const q = toScreen(la, lo);
+        if (!last || Math.abs(q.x - last.x) > ppd * 120) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+        last = q;
+      }
+      ctx.stroke();
+      ctx.restore();
+    };
+    for (const v of Lg.vessels()) {
+      if (v.status !== 'underway') continue;
+      const mine = FC.sel?.kind === 'ship' && FC.sel.id === v.id;
+      route(v.voyage.from, v.voyage.to, v.kind === 'warship' ? 'rgba(255,120,220,0.55)' : v.voyage.contract || v.voyage.shipment ? 'rgba(80,220,255,0.6)' : 'rgba(160,180,200,0.4)', [6, 8], mine ? 3 : 1.5);
+    }
+    if (preview) route(preview.from, preview.to, preview.colour || 'rgba(255,214,90,0.95)', [10, 6], 3);
+    // ports
+    for (const [id, p] of Object.entries(Lg.cfg.ports)) {
+      const q = toScreen(p.lat, p.lon);
+      if (q.x < -40 || q.x > W + 40 || q.y < -40 || q.y > H + 40) continue;
+      const own = Lg.ownsPort(id);
+      const work = own ? Lg.contracts('available').filter((c) => c.from === id).length + Lg.missions.list('available').filter((m) => m.port === id).length : 0;
+      const sel = FC.sel?.kind === 'port' && FC.sel.id === id;
+      const target = FC.sending && (hover?.kind === 'port' && hover.id === id);
+      ctx.save();
+      ctx.translate(q.x, q.y);
+      if (own) {
+        ctx.shadowColor = '#3ad6ff'; ctx.shadowBlur = 12;
+        ctx.fillStyle = sel ? '#ffffff' : '#3ad6ff';
+        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(8, 0); ctx.lineTo(0, 8); ctx.lineTo(-8, 0); ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#04101c';
+        ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+        if (work) {
+          ctx.fillStyle = '#f2c14e';
+          ctx.beginPath(); ctx.arc(9, -9, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#04101c'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(work), 9, -8.5);
+        }
+      } else {
+        ctx.fillStyle = sel ? '#fff' : 'rgba(170,200,230,0.7)';
+        ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, Math.PI * 2); ctx.fill();
+      }
+      if (target || sel) {
+        ctx.strokeStyle = FC.sending ? '#f2c14e' : '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 14 + Math.sin(t * 5) * 2, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+      if (own || view.zoom > 2.2 || sel || target) label(p.name.replace(/, Halvermouth$/, ''), q.x, q.y + 18, own ? '#bfefff' : 'rgba(190,210,230,0.75)', own ? 12 : 10);
+      hits.push({ kind: 'port', id, x: q.x, y: q.y, r: own ? 13 : 9 });
+    }
+    // ships
+    const docked = {};
+    for (const v of Lg.vessels()) {
+      if (v.status === 'lost') continue;
+      const pos = Lg.position(v);
+      if (!pos) continue;
+      let q = toScreen(pos.lat, pos.lon);
+      let ang = -Math.PI / 4;
+      if (v.status === 'underway') {
+        const ahead = Lg.position({ ...v, voyage: { ...v.voyage, depart: v.voyage.depart - 90 } });
+        const qa = ahead && toScreen(ahead.lat, ahead.lon);
+        if (qa) ang = Math.atan2(qa.y - q.y, qa.x - q.x);
+      } else {
+        const k = (docked[v.port] = (docked[v.port] || 0) + 1) - 1;
+        q = { x: q.x + 16 + (k % 3) * 13, y: q.y - 14 + Math.floor(k / 3) * 13 };
+      }
+      const len = Math.max(18, Math.min(64, (v.status === 'underway' ? 30 : 18) * Math.sqrt(view.zoom)));
+      const sel = FC.sel?.kind === 'ship' && FC.sel.id === v.id;
+      ctx.save();
+      if (sel) {
+        ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(q.x, q.y, len * 0.75, t * 2, t * 2 + Math.PI * 1.5); ctx.stroke();
+      }
+      ctx.shadowColor = v.kind === 'warship' ? '#ff78dc' : '#3ad6ff';
+      ctx.shadowBlur = 10;
+      const look = Lg.model(v.model)?.look || v.appearance;
+      const sc = len / ((look.len || 3) * 32);
+      ctx.translate(q.x, q.y);
+      ctx.scale(sc, sc);
+      drawShip(ctx, look, 0, 0, ang, { time: t });
+      ctx.restore();
+      if (sel || (hover?.kind === 'ship' && hover.id === v.id) || (v.status === 'underway' && view.zoom > 1.8)) label(v.name, q.x, q.y - len * 0.6 - 6, '#ffe7a8', 11);
+      hits.push({ kind: 'ship', id: v.id, x: q.x, y: q.y, r: Math.max(10, len * 0.5) });
+    }
+    // a hint while choosing where to send a ship
+    if (FC.sending) {
+      ctx.fillStyle = 'rgba(242,193,78,0.9)';
+      ctx.font = '600 14px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Click a port to send the ${Lg.vessel(FC.sending)?.name} there  ·  Esc to cancel`, W / 2, 80 * (window.devicePixelRatio || 1));
+    }
+  };
+  const label = (text, x, y, colour, px) => {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.font = `600 ${px * dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(2,8,18,0.85)';
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = colour;
+    ctx.fillText(text, x, y);
+  };
+
+  // ---------------------------------------------------------------- the live loop (and fast-forward)
+  let lastUi = 0;
+  const loop = (ms) => {
+    if (!canvas.isConnected) { FC.ff = null; return; }
+    const t = ms / 1000;
+    if (FC.ff) {
+      const left = FC.ff.until - g.clock.total;
+      if (left <= 0) { FC.ff = null; refresh(); } else g.skipTime(Math.min(left, Math.max(4, Math.ceil(left / 45))));
+    }
+    hits = [];
+    drawMap(t);
+    if (FC.ff && ms - lastUi > 400) { lastUi = ms; renderTop(); renderFeed(); if (FC.mode === 'map') renderDrawer(); }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+
+  // ---------------------------------------------------------------- input
+  const dpr = () => window.devicePixelRatio || 1;
+  const local = (e) => { const b = canvas.getBoundingClientRect(); return { x: (e.clientX - b.left) * dpr(), y: (e.clientY - b.top) * dpr() }; };
+  const hitAt = (p) => hits.filter((k) => Math.hypot(k.x - p.x, k.y - p.y) < k.r * dpr() + 4).sort((a, b) => ({ ship: 0, port: 1, zone: 2 }[a.kind] - { ship: 0, port: 1, zone: 2 }[b.kind]))[0] || null;
+  let drag = null;
+  canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY, lon: view.lon, lat: view.lat, moved: false }; });
+  window.addEventListener('mouseup', function up(e) {
+    if (!canvas.isConnected) { window.removeEventListener('mouseup', up); return; }
+    if (drag && !drag.moved && e.target === canvas) click(hitAt(local(e)));
+    drag = null;
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    if (drag) {
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+      const ppd = (canvas.clientWidth / 360) * view.zoom;
+      view.lon = wrapLon(drag.lon - dx / ppd);
+      view.lat = drag.lat + dy / ppd;
+      return;
+    }
+    hover = hitAt(local(e));
+    canvas.style.cursor = hover ? 'pointer' : 'grab';
+    if (hover?.kind === 'port' && FC.sending) preview = { from: Lg.vessel(FC.sending)?.port, to: hover.id };
+    else if (FC.sending) preview = null;
+    showTip(hover, e);
+  });
+  canvas.addEventListener('mouseleave', () => { hover = null; tip.classList.add('hidden'); });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const p = local(e);
+    const { W, H, ppd } = size();
+    const lon = view.lon + (p.x - W / 2) / ppd;
+    const lat = view.lat - (p.y - H / 2) / ppd;
+    view.zoom = Math.max(1, Math.min(9, view.zoom * (e.deltaY < 0 ? 1.18 : 1 / 1.18)));
+    const ppd2 = (canvas.width / 360) * view.zoom;
+    view.lon = wrapLon(lon - (p.x - W / 2) / ppd2);
+    view.lat = lat + (p.y - H / 2) / ppd2;
+  }, { passive: false });
+  const keys = (e) => {
+    if (!canvas.isConnected) { window.removeEventListener('keydown', keys, true); return; }
+    if (e.key === 'Escape' && (FC.sending || FC.mode !== 'map')) {
+      e.stopImmediatePropagation();
+      if (FC.sending) { FC.sending = null; preview = null; } else FC.mode = 'map';
+      refresh();
+    }
+  };
+  window.addEventListener('keydown', keys, true);
+
+  const showTip = (k, e) => {
+    if (!k) { tip.classList.add('hidden'); return; }
+    let lines = [];
+    if (k.kind === 'ship') {
+      const v = Lg.vessel(k.id);
+      lines = [v.name, `${STATUS[v.status]}${v.status === 'underway' ? ` → ${Lg.port(v.voyage.to).name}` : v.port ? ` · ${Lg.port(v.port).name}` : ''}`];
+    } else if (k.kind === 'port') {
+      const p = Lg.port(k.id);
+      lines = [p.name, Lg.ownsPort(k.id) ? 'Your port' : `${Lg.portType(k.id).name} · ${num(Lg.portType(k.id).price)} obols`];
+      if (FC.sending) {
+        const v = Lg.vessel(FC.sending);
+        const pl = Lg.plan(v, k.id);
+        lines.push(pl.ok ? `${hrs(pl.hours * 60)} · costs ${num(pl.cost)}` : `✖ ${pl.reasons[0]}`);
+      }
+    } else if (k.kind === 'zone') {
+      lines = [`⚠ ${k.z.name}`, `Danger ${Math.round(k.z.danger * 100)}%`];
+    }
+    tip.replaceChildren(...lines.map((l, i) => (i ? h('div', {}, l) : h('b', {}, l))));
+    tip.classList.remove('hidden');
+    const b = body.getBoundingClientRect();
+    tip.style.left = `${e.clientX - b.left + 14}px`;
+    tip.style.top = `${e.clientY - b.top + 14}px`;
+  };
+
+  const click = (k) => {
+    if (FC.sending) {
+      if (k?.kind === 'port') { sendShipTo(FC.sending, k.id); return; }
+      FC.sending = null; preview = null; refresh(); return;
+    }
+    FC.sel = k && k.kind !== 'zone' ? { kind: k.kind, id: k.id } : null;
+    FC.mode = 'map';
+    ui.audio.sfx('sfx_ui_click');
+    refresh();
+  };
+
+  const sendShipTo = (vid, pid) => {
+    const r = Lg.sail(vid, pid);
+    say(r);
+    if (r.ok) { FC.sending = null; preview = null; FC.sel = { kind: 'ship', id: vid }; }
+    refresh();
+  };
+
+  // ---------------------------------------------------------------- chrome
+  const renderTop = () => {
+    const next = Lg.owned ? Lg.nextEvent() : null;
+    const S = Lg.state;
+    const today = S.ledger?.days?.[0]?.day === g.clock.day ? S.ledger.days[0] : { revenue: 0, expenses: 0 };
+    const ff = (mins) => { FC.ff = { until: g.clock.total + mins }; refresh(); };
+    top.replaceChildren(
+      h('div', { class: 'fc-brand' }, h('b', {}, '⚓ OBER & SONS'), h('span', {}, 'FLEET COMMAND')),
+      h('div', { class: 'fc-time' },
+        h('div', { class: 'fc-clock' }, `${g.clock.weekday} · Day ${g.clock.day} · ${g.clock.timeString}`),
+        Lg.owned ? h('div', { class: 'fc-ff' },
+          FC.ff ? h('button', { class: 'fc-btn on', onclick: () => { FC.ff = null; refresh(); } }, '⏸ Stop') : null,
+          !FC.ff ? h('button', { class: 'fc-btn', title: 'Let an hour pass', onclick: () => ff(60) }, '⏩ 1 h') : null,
+          !FC.ff ? h('button', { class: 'fc-btn', title: 'Let six hours pass', onclick: () => ff(360) }, '⏩ 6 h') : null,
+          !FC.ff && next ? h('button', { class: 'fc-btn primary', title: 'Let time pass until the next arrival, departure, launch or mission end', onclick: () => ff(Math.min(next - g.clock.total + 1, 4 * 1440)) }, `⏭ Next event (${hrs(next - g.clock.total)})`) : null) : null),
+      h('div', { class: 'fc-money' }, h('b', {}, `${num(g.player.money)} ◎`), Lg.owned ? h('span', { class: today.revenue - today.expenses < 0 ? 'neg' : 'pos' }, `today ${today.revenue - today.expenses >= 0 ? '+' : ''}${num(today.revenue - today.expenses)}`) : null),
+      h('button', { class: 'fc-close', title: 'Close (Esc)', onclick: () => ui.closePanel() }, '✕'));
+  };
+
+  const renderRail = () => {
+    rail.replaceChildren(...MODES.map(([id, icon, name]) => h('button', { class: `fc-rail-btn${FC.mode === id ? ' on' : ''}`, disabled: !Lg.owned && id !== 'map', onclick: () => { FC.mode = id; FC.sending = null; refresh(); } }, h('span', { class: 'ic' }, icon), h('span', {}, name))));
+  };
+
+  const renderFeed = () => {
+    const r = Lg.state.reports?.slice(0, 3) || [];
+    feed.replaceChildren(h('span', { class: 'fc-feed-label' }, 'LOG'), ...r.map((x) => h('span', { class: 'fc-feed-item' }, h('i', {}, Lg.when(x.at).replace('Day ', 'D')), ' ', x.text)), h('button', { class: 'fc-link', onclick: () => { FC.mode = 'ledger'; refresh(); } }, 'All reports ›'));
+  };
+
+  // ---------------------------------------------------------------- shared bits
+  const shipPic = (look, w, hgt, angle = 0) => {
+    const c = h('canvas', { width: w * 2, height: hgt * 2, class: 'fc-pic', style: `width:${w}px;height:${hgt}px` });
+    const x = c.getContext('2d');
+    const len = (look.len || 3) * 32;
+    const sc = Math.min(6, (w * 2 * 0.86) / len, (hgt * 2 * 0.9) / (len * 0.36));
+    x.translate(w, hgt);
+    x.scale(sc, sc);
+    drawShip(x, look, 0, 0, angle, { time: 0 });
+    return c;
+  };
+  const bar = (label, f, colour, text) => h('div', { class: 'fc-bar' }, h('span', {}, label), h('div', { class: 'fc-bar-track' }, h('i', { style: `width:${Math.round(Math.max(0, Math.min(1, f)) * 100)}%;background:${colour}` })), h('em', {}, text));
+  const pill = (text, colour) => h('span', { class: 'fc-pill', style: `border-color:${colour};color:${colour}` }, text);
+  const riskPill = (r) => pill(`${r.category === 'low' ? 'Safe waters' : `${r.category[0].toUpperCase()}${r.category.slice(1)} risk`} · ${(r.chance * 100).toFixed(r.chance < 0.1 ? 1 : 0)}%`, RISK_COLOUR[r.category]);
+  const shipChip = (v) => h('button', { class: 'fc-chip', onclick: () => { FC.sel = { kind: 'ship', id: v.id }; refresh(); } }, shipPic(Lg.model(v.model).look, 46, 18), v.name);
+  const section = (title, ...kids) => h('div', { class: 'fc-sec' }, h('h4', {}, title), ...kids);
+
+  /** A contract, with one button. The ship is chosen for you; protection folds out. */
+  const contractCard = (c) => {
+    const T = Lg.cfg.contractTypes[c.type];
+    const P = (FC.protect[c.id] ||= { guards: false, insure: false, escorts: [], ship: null });
+    const opts = { guards: P.guards, insure: P.insure, escorts: P.escorts };
+    const pick = P.ship ? { vessel: Lg.vessel(P.ship), quote: Lg.quote(c.id, P.ship, opts) } : Lg.bestShipFor(c.id, opts);
+    const open = FC.open[c.id];
+    const icon = { general: '📦', bulk: '⛰', machinery: '⚙', reefer: '❄', urgent: '⚡', highvalue: '💎', special: '🧪' }[c.type] || '📦';
+    const card = h('div', { class: 'fc-card', onmouseenter: () => { preview = { from: c.from, to: c.to }; }, onmouseleave: () => { preview = null; } },
+      h('div', { class: 'fc-card-head' }, h('span', { class: 'fc-ic' }, icon), h('div', { class: 'grow' }, h('b', {}, T.name), h('small', {}, `${c.units} units · ${Lg.cfg.clients[c.client].name}`)), h('div', { class: 'fc-pay' }, `${num(c.pay)} ◎`)),
+      h('div', { class: 'fc-card-route' }, `${Lg.port(c.from).name.replace(/, Halvermouth$/, '')} → ${Lg.port(c.to).name}`, h('small', {}, ` · by ${Lg.when(c.deadline)}`)));
+    if (pick?.quote?.ok) {
+      const q = pick.quote;
+      put(card, h('div', { class: 'fc-card-meta' }, riskPill(q.risk), q.onTime ? pill('On time', '#4ade9a') : pill('Late', '#ff8a4a'), h('small', {}, `profit ${num(q.profit)}`)));
+      put(card, h('button', { class: 'fc-go', onclick: () => {
+        if (c.status === 'available') Lg.accept(c.id);
+        const r = Lg.assign(c.id, pick.vessel.id, opts);
+        say(r);
+        if (r.ok) { delete FC.protect[c.id]; preview = null; FC.sel = { kind: 'ship', id: pick.vessel.id }; }
+        refresh();
+      } }, `Send the ${pick.vessel.name} ▸`, h('small', {}, `arrives ${Lg.when(q.arrive)}`)));
+    } else {
+      const here = Lg.idle().filter((v) => v.port === c.from && Lg.stats(v).capacity);
+      const why = pick?.quote?.reasons?.[0] || (here.length ? `${here[0].name}: ${Lg.quote(c.id, here[0].id, opts).reasons[0]}` : `no free cargo ship at ${Lg.port(c.from).name.replace(/, Halvermouth$/, '')} — send one here`);
+      put(card, h('div', { class: 'fc-card-why' }, `✖ ${why}`));
+    }
+    put(card, h('button', { class: 'fc-fold', onclick: () => { FC.open[c.id] = !open; refresh(); } }, open ? 'Fewer options ▴' : 'Protect it · choose another ship ▾'));
+    if (open) {
+      const esc = Lg.suggestEscort(c.id, P.escorts);
+      const R = Lg.cfg.risk;
+      const toggle = (k) => () => { P[k] = !P[k]; refresh(); };
+      put(card, h('div', { class: 'fc-opts' },
+        h('button', { class: `fc-chip${P.guards ? ' on' : ''}`, onclick: toggle('guards') }, `🛡 Guards ${num(Math.max(R.guards.min, c.pay * R.guards.costShare))}`),
+        h('button', { class: `fc-chip${P.insure ? ' on' : ''}`, onclick: toggle('insure') }, `📜 Insure ${num(c.pay * R.insurance.rate)}`),
+        ...P.escorts.map((id) => h('button', { class: 'fc-chip on', onclick: () => { P.escorts = P.escorts.filter((x) => x !== id); refresh(); } }, `⚔ ${Lg.vessel(id).name} ✕`)),
+        esc ? h('button', { class: 'fc-chip', onclick: () => { P.escorts = [...P.escorts, esc.id]; refresh(); } }, `⚔ + escort: ${esc.name}`) : null),
+      h('div', { class: 'fc-opts' }, h('small', {}, 'Ship: '),
+        h('button', { class: `fc-chip${!P.ship ? ' on' : ''}`, onclick: () => { P.ship = null; refresh(); } }, 'Best'),
+        ...Lg.vessels().filter((v) => v.status === 'docked' && v.port === c.from && !P.escorts.includes(v.id) && Lg.stats(v).capacity).map((v) => h('button', { class: `fc-chip${P.ship === v.id ? ' on' : ''}`, title: Lg.quote(c.id, v.id, opts).reasons.join('; '), onclick: () => { P.ship = v.id; refresh(); } }, v.name))),
+      pick?.quote?.risk ? h('small', { class: 'fc-muted' }, `Worst case on this route: ${OUTCOME[pick.quote.risk.worst]}${pick.quote.risk.exposure.names.length ? ` · through ${pick.quote.risk.exposure.names.join(', ')}` : ''}.`) : null);
+    }
+    return card;
+  };
+
+  /** A mission, with the best team already picked. */
+  const missionCard = (m) => {
+    const T = Lg.cfg.missionTypes[m.type];
+    const best = Lg.missions.bestTeam(m.id);
+    const card = h('div', { class: 'fc-card mission' },
+      h('div', { class: 'fc-card-head' }, h('span', { class: 'fc-ic' }, '⚔'), h('div', { class: 'grow' }, h('b', {}, T.name), h('small', {}, `${T.client} · ${m.hours} h`)), h('div', { class: 'fc-pay' }, `${num(m.reward)} ◎`)),
+      h('div', { class: 'fc-card-route' }, T.text));
+    if (best) {
+      const q = best.quote;
+      put(card, bar('Chance', q.chance, q.chance >= 0.6 ? '#4ade9a' : q.chance >= 0.4 ? '#f2c14e' : '#ff8a4a', `${Math.round(q.chance * 100)}%`),
+        h('button', { class: 'fc-go', onclick: () => { const r = Lg.missions.start(m.id, best.ships); say(r); refresh(); } }, `Send ${best.ships.map((id) => Lg.vessel(id).name).join(' + ')} ▸`, h('small', {}, `costs ${num(q.cost)}`)));
+    } else put(card, h('div', { class: 'fc-card-why' }, `✖ needs ${Object.entries(T.needs || {}).map(([k, v]) => (k === 'tag' ? `a ${v} ship` : k === 'minSpeed' ? `${v}+ knots` : `${v}+ units aboard`)).join(', ') || 'a ship'} in port here`));
+    return card;
+  };
+
+  // ---------------------------------------------------------------- the drawer (map mode)
+  const renderDrawer = () => {
+    drawer.classList.toggle('hidden', FC.mode !== 'map');
+    if (FC.mode !== 'map') return;
+    const kids = [];
+    if (!Lg.owned) kids.push(...acquireView());
+    else if (FC.sel?.kind === 'ship' && Lg.vessel(FC.sel.id)) kids.push(...shipView(Lg.vessel(FC.sel.id)));
+    else if (FC.sel?.kind === 'port') kids.push(...portView(FC.sel.id));
+    else kids.push(...homeView());
+    drawer.replaceChildren(...kids.filter(Boolean));
+  };
+
+  const acquireView = () => {
+    const o = Lg.offer();
+    const can = g.player.money >= o.price;
+    return [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, 'FOR SALE'), h('h2', {}, o.company), h('p', {}, 'Captain Ober is retiring. His ports, his paperwork, and a ship he swears is "basically new".')),
+      shipPic(Lg.model(Lg.L.starterShip.model).look, 330, 90),
+      section('You get', h('ul', { class: 'fc-list' }, ...o.ports.map((p) => h('li', {}, `⚓ ${p}`)), h('li', {}, `⛴ ${o.ship}`), h('li', {}, '🗺 Fleet Command, contracts, the brokers'))),
+      h('button', { class: 'fc-go big', disabled: !can, onclick: () => { say(Lg.buyCompany()); FC.view.zoom = 1.6; centreOn(48, -30); refresh(); } }, can ? `Buy for ${num(o.price)} ◎` : `You need ${num(o.price - g.player.money)} more`)];
+  };
+
+  const homeView = () => {
+    const S = Lg.state;
+    const idle = Lg.idle();
+    const sea = Lg.vessels().filter((v) => v.status === 'underway');
+    const alerts = [];
+    if (S.arrears) alerts.push(h('div', { class: 'fc-alert bad' }, `⚠ ${num(S.arrears)} upkeep owed — ships are held in port.`, h('button', { class: 'fc-btn', onclick: () => { say(Lg.payArrears()); refresh(); } }, 'Pay')));
+    if (idle.length) alerts.push(h('button', { class: 'fc-alert', onclick: () => { FC.sel = { kind: 'ship', id: idle[0].id }; const p = Lg.port(idle[0].port); centreOn(p.lat, p.lon); refresh(); } }, `⛴ ${idle.length} ship${idle.length === 1 ? ' is' : 's are'} waiting for orders ›`));
+    const worn = Lg.vessels().filter((v) => v.status !== 'lost' && v.condition < 50);
+    if (worn.length) alerts.push(h('button', { class: 'fc-alert', onclick: () => { FC.sel = { kind: 'ship', id: worn[0].id }; refresh(); } }, `🔧 ${worn.map((v) => v.name).join(', ')} need${worn.length === 1 ? 's' : ''} repairs ›`));
+    const ops = Lg.opportunities(4);
+    return [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, 'GOOD MORNING, OWNER'), h('h2', {}, `${plural(Lg.vessels().filter((v) => v.status !== 'lost').length, 'ship')} · ${plural(Lg.ownedPorts().length, 'port')}`), h('p', {}, 'Click a port for its work, or a ship to give it orders.')),
+      ...alerts,
+      section('Best jobs right now', ...(ops.length ? ops.map((o) => contractCard(o.contract)) : [h('p', { class: 'fc-muted' }, 'Nothing your ships can take right now. New contracts arrive every morning at your ports.')])),
+      section(`At sea (${sea.length})`, ...(sea.length ? sea.map((v) => { const p = Lg.position(v); return h('button', { class: 'fc-row', onclick: () => { FC.sel = { kind: 'ship', id: v.id }; centreOn(p.lat, p.lon); refresh(); } }, shipPic(Lg.model(v.model).look, 54, 20), h('div', { class: 'grow' }, h('b', {}, v.name), bar('', p.f, '#3ad6ff', Lg.port(v.voyage.to).name))); }) : [h('p', { class: 'fc-muted' }, 'Nobody at sea.')]))];
+  };
+
+  const portView = (id) => {
+    const p = Lg.port(id);
+    const pt = Lg.portType(id);
+    const own = Lg.ownsPort(id);
+    const country = p.country ? g.content.arms.countries[p.country].name : 'Free port';
+    const here = Lg.vessels().filter((v) => v.port === id && v.status !== 'lost');
+    const contracts = Lg.contracts(['available', 'accepted']).filter((c) => c.from === id);
+    const missions = Lg.missions.list('available').filter((m) => m.port === id);
+    const out = [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, `${pt.name.toUpperCase()} · ${country.toUpperCase()}`), h('h2', {}, p.name), h('p', {}, p.blurb || ''),
+      own ? pill('Your port', '#3ad6ff') : h('button', { class: 'fc-go', disabled: g.player.money < pt.price || Lg.ownedPorts().length >= Lg.L.maxPorts, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy this port · ${num(pt.price)} ◎`, h('small', {}, `${pt.berths} berths · ${pt.upkeep}/day · brings daily contracts`)))];
+    if (here.length) out.push(section('In port', h('div', { class: 'fc-chips' }, ...here.map(shipChip))));
+    if (own) {
+      out.push(section(`Contracts (${contracts.length})`, ...(contracts.length ? contracts.map(contractCard) : [h('p', { class: 'fc-muted' }, 'None today. New ones arrive at 06:00.')])));
+      out.push(section(`Missions (${missions.length})`, ...(missions.length ? missions.map(missionCard) : [h('p', { class: 'fc-muted' }, 'None today.')])));
+      const berths = Lg.state.display.berths;
+      out.push(section('Shown at the Mill Road Yards', h('div', { class: 'fc-opts' }, h('small', {}, 'Berth: '),
+        ...Array.from({ length: Lg.L.physicalBerths }, (_, i) => h('button', { class: `fc-chip${berths[i] === id ? ' on' : ''}`, title: berths[i] && berths[i] !== id ? `now showing ${Lg.port(berths[i]).name}` : '', onclick: () => { Lg.setBerth(i, berths[i] === id ? null : id); refresh(); } }, `${i + 1}${berths[i] && berths[i] !== id ? ' ·' : ''}`)),
+        h('small', { class: 'fc-muted' }, ' its ships in port moor there for you to see'))));
+      const y = Lg.shipyard.yard(id);
+      const yq = Lg.shipyard.yardQuote(id);
+      out.push(section('Shipyard', y ? h('div', {}, y.status === 'ready' ? '✅ Working · ' : `🏗 Mason's Os are building it — ready ${Lg.when(y.end)} · `, h('button', { class: 'fc-link', onclick: () => { FC.mode = 'shipyard'; refresh(); } }, 'Open shipyard ›'))
+        : yq.ok ? h('button', { class: 'fc-go', disabled: g.player.money < yq.cost, onclick: () => { say(Lg.shipyard.commissionYard(id)); refresh(); } }, `Commission Mason's Os · ${num(yq.cost)} ◎`, h('small', {}, `${yq.days} days`)) : h('p', { class: 'fc-muted' }, yq.reasons[0])));
+    } else out.push(h('p', { class: 'fc-muted' }, 'Contracts start at your own ports. Your ships can still sail here — select one, then "Send to…".'));
+    return out;
+  };
+
+  const shipView = (v) => {
+    const m = Lg.model(v.model);
+    const st = Lg.stats(v);
+    const out = [h('div', { class: 'fc-hero ship' }, shipPic(m.look, 340, 110), h('div', { class: 'fc-kicker' }, `${m.name.toUpperCase()} · ${Lg.className(m).toUpperCase()}`), h('h2', {}, v.name), pill(STATUS[v.status] || v.status, v.status === 'underway' ? '#3ad6ff' : v.status === 'lost' ? '#ff4a5a' : '#cfe8ff'))];
+    if (v.status === 'underway') {
+      const p = Lg.position(v);
+      out.push(bar('Voyage', p.f, '#3ad6ff', `${Math.round(p.f * 100)}%`), h('p', {}, `${Lg.port(v.voyage.from).name} → ${Lg.port(v.voyage.to).name} · arrives ${Lg.when(v.voyage.arrive)}`));
+      if (v.cargo) out.push(h('p', { class: 'fc-muted' }, v.cargo.type === 'arms' ? `Carrying ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}` : `Carrying ${v.cargo.units} units`));
+      for (const i of v.voyage.incidents || []) out.push(h('div', { class: 'fc-alert bad' }, i.text));
+    } else if (v.port) out.push(h('p', {}, `${v.status === 'mission' ? 'On station off' : 'At'} ${Lg.port(v.port).name}`));
+    out.push(bar('Hull', v.condition / 100, v.condition > 60 ? '#4ade9a' : v.condition > 30 ? '#f2c14e' : '#ff4a5a', `${Math.round(v.condition)}%`));
+    if (st.capacity) out.push(bar('Hold', (v.cargo?.units || 0) / st.capacity, '#3ad6ff', `${v.cargo?.units || 0}/${st.capacity}`));
+    out.push(h('div', { class: 'fc-stats' }, ...[['Speed', `${st.speed} kn`], ['Range', `${num(st.range)} km`], ['Defence', st.combat.defense], st.combat.attack ? ['Attack', st.combat.attack] : ['Reliable', `${Math.round(st.reliability * 100)}%`]].map(([k, val]) => h('div', {}, h('small', {}, k), h('b', {}, String(val))))));
+    if (v.status === 'docked') {
+      const work = Lg.contracts(['available', 'accepted']).filter((c) => c.from === v.port && Lg.quote(c.id, v.id).ok);
+      out.push(h('div', { class: 'fc-actions' },
+        h('button', { class: 'fc-go', onclick: () => { FC.sending = v.id; refresh(); } }, '⛵ Send to… ', h('small', {}, 'then click a port')),
+        v.condition < 100 && Lg.portType(v.port).services.includes('repairs') ? h('button', { class: 'fc-btn', onclick: () => { say(Lg.repair(v.id)); refresh(); } }, `🔧 Repair · ${num(Lg.repairQuote(v))}`) : null));
+      if (work.length) out.push(section(`Work for the ${v.name} here`, ...work.slice(0, 3).map((c) => { FC.protect[c.id] = { ...(FC.protect[c.id] || {}), ship: v.id, escorts: FC.protect[c.id]?.escorts || [] }; return contractCard(c); })));
+    }
+    const name = h('input', { class: 'fc-input', value: v.name, maxlength: 28 });
+    out.push(section('Details',
+      h('div', { class: 'fc-row-inline' }, name, h('button', { class: 'fc-btn', onclick: () => { say(Lg.rename(v.id, name.value)); refresh(); } }, 'Rename')),
+      h('label', { class: 'fc-check' }, h('input', { type: 'checkbox', checked: v.visible, onchange: (e) => { Lg.setVisible(v.id, e.target.checked); } }), ' Show at the Mill Road Yards berths'),
+      v.log.length ? h('div', { class: 'fc-log' }, ...v.log.slice(0, 5).map((l) => h('div', {}, l.mission ? `⚔ ${Lg.cfg.missionTypes[l.mission].name} — ${l.result}` : `${Lg.port(l.from).name} → ${Lg.port(l.to).name}${l.cargo ? ` · ${l.cargo}` : ''}${(l.incidents || []).length ? ' · 🏴' : ''}`))) : null));
+    return out;
+  };
+
+  // ---------------------------------------------------------------- full-screen sheets (fleet, buy, shipyard, ledger)
+  const renderSheet = () => {
+    const on = FC.mode !== 'map' && Lg.owned;
+    sheet.classList.toggle('hidden', !on);
+    sheet.classList.toggle('light', FC.mode === 'shipyard');
+    if (!on) return;
+    const content = { fleet: fleetSheet, buy: buySheet, shipyard: yardSheet, ledger: ledgerSheet }[FC.mode]();
+    sheet.replaceChildren(h('div', { class: 'fc-sheet-head' }, h('h2', {}, MODES.find((x) => x[0] === FC.mode)[2]), h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; refresh(); } }, '◂ Back to the map')), content);
+  };
+
+  const fleetSheet = () => {
+    const grid = h('div', { class: 'fc-grid' });
+    for (const v of Lg.vessels()) {
+      const m = Lg.model(v.model);
+      const where = v.status === 'underway' ? `→ ${Lg.port(v.voyage.to).name}` : v.port ? Lg.port(v.port).name : '—';
+      grid.append(h('button', { class: `fc-tile${v.status === 'lost' ? ' lost' : ''}`, onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'ship', id: v.id }; const p = Lg.position(v); if (p) centreOn(p.lat, p.lon, 1.8); refresh(); } },
+        shipPic(m.look, 250, 74), h('b', {}, v.name), h('small', {}, `${m.name} · ${Lg.className(m)}`), pill(STATUS[v.status] || v.status, v.status === 'underway' ? '#3ad6ff' : '#cfe8ff'), h('small', {}, where), bar('Hull', v.condition / 100, v.condition > 60 ? '#4ade9a' : '#f2c14e', `${Math.round(v.condition)}%`)));
+    }
+    return grid;
+  };
+
+  const buySheet = () => {
+    const tabs = h('div', { class: 'fc-tabs' }, ...[['cargo', 'Cargo ships'], ['warships', 'Warships'], ['ports', 'Ports']].map(([k, label]) => h('button', { class: `fc-btn${FC.buyTab === k ? ' primary' : ''}`, onclick: () => { FC.buyTab = k; refresh(); } }, label)));
+    const wrap = h('div', {}, tabs);
+    if (FC.buyTab === 'ports') {
+      const grid = h('div', { class: 'fc-grid ports' });
+      const full = Lg.ownedPorts().length >= Lg.L.maxPorts;
+      for (const [id, p] of Object.entries(Lg.cfg.ports).filter(([pid]) => !Lg.ownsPort(pid)).sort((a, b) => Lg.cfg.portTypes[a[1].type].price - Lg.cfg.portTypes[b[1].type].price)) {
+        const pt = Lg.cfg.portTypes[p.type];
+        grid.append(h('div', { class: 'fc-tile' }, h('b', {}, p.name), h('small', {}, `${pt.name} · ${p.country ? g.content.arms.countries[p.country].name : 'Free port'}`), h('small', { class: 'fc-muted' }, p.blurb),
+          h('small', {}, `${pt.berths} berths · ships up to size ${pt.maxSize} · ${pt.upkeep}/day`),
+          h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'port', id }; centreOn(p.lat, p.lon, 2); refresh(); } }, 'Show'), h('button', { class: 'fc-btn primary', disabled: full || g.player.money < pt.price, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy · ${num(pt.price)}`))));
+      }
+      wrap.append(h('p', { class: 'fc-muted' }, `You own ${Lg.ownedPorts().length} of at most ${Lg.L.maxPorts} ports. Each port you own offers contracts and missions every day.`), grid);
+      return wrap;
+    }
+    const list = FC.buyTab === 'cargo' ? Lg.cfg.dealership : Lg.cfg.warshipDealership;
+    const grid = h('div', { class: 'fc-grid' });
+    for (const id of list) {
+      const m = Lg.cfg.ships[id];
+      const probe = { model: id, status: 'docked' };
+      const st = Lg.stats(probe);
+      const ports = Lg.ownedPorts().filter((pid) => !Lg.berthCheck(probe, pid));
+      const sel = h('select', { class: 'fc-input' }, ...ports.map((pid) => h('option', { value: pid }, Lg.port(pid).name)));
+      const stats = m.kind === 'warship'
+        ? [bar('Attack', st.combat.attack / 100, '#ff78dc', st.combat.attack), bar('Defence', st.combat.defense / 100, '#3ad6ff', st.combat.defense), bar('Speed', m.speed / 40, '#4ade9a', `${m.speed} kn`)]
+        : [bar('Hold', m.capacity / 420, '#3ad6ff', `${m.capacity}`), bar('Speed', m.speed / 35, '#4ade9a', `${m.speed} kn`), bar('Range', m.range / 80000, '#f2c14e', `${num(m.range / 1000)}k km`)];
+      grid.append(h('div', { class: 'fc-tile' }, shipPic(m.look, 250, 74), h('b', {}, m.name), h('small', {}, `${Lg.className(m)} · size ${st.size}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`), ...stats, h('small', { class: 'fc-muted' }, m.blurb),
+        h('div', { class: 'fc-row-inline' }, ports.length ? sel : h('small', { class: 'fc-muted' }, 'None of your ports can berth it'), h('button', { class: 'fc-btn primary', disabled: !ports.length || g.player.money < m.price, onclick: () => { say(Lg.buyShip(id, sel.value)); refresh(); } }, `Buy · ${num(m.price)}`))));
+    }
+    wrap.append(grid);
+    return wrap;
+  };
+
+  const yardSheet = () => {
+    const box = h('div', { class: 'logi' });
+    const tabs = h('div', { class: 'fc-tabs' }, ...[['design', 'Design & build'], ['parts', 'Parts store']].map(([k, label]) => h('button', { class: `fc-btn${FC.yard.sub === k ? ' primary' : ''}`, onclick: () => { FC.yard.sub = k; refresh(); } }, label)));
+    const go = (o = {}) => { FC.yard = { ...FC.yard, ...o, tab: undefined }; refresh(); };
+    const act = (r, extra = {}) => { say(r); go(extra); };
+    if (FC.yard.sub === 'parts') partsScreen(ui, box, FC.yard, go, act);
+    else shipyardScreen(ui, box, FC.yard, go, act);
+    return h('div', {}, tabs, box);
+  };
+
+  const ledgerSheet = () => {
+    const L = Lg.state.ledger;
+    const days = [...L.days].reverse().slice(-14);
+    const c = h('canvas', { width: 1200, height: 260, class: 'fc-chart' });
+    const x = c.getContext('2d');
+    const max = Math.max(1, ...days.map((d) => Math.max(d.revenue, d.expenses)));
+    const bw = 1200 / 14;
+    days.forEach((d, i) => {
+      x.fillStyle = 'rgba(74,222,154,0.85)';
+      x.fillRect(i * bw + bw * 0.12, 230 - (d.revenue / max) * 200, bw * 0.36, (d.revenue / max) * 200);
+      x.fillStyle = 'rgba(255,120,120,0.8)';
+      x.fillRect(i * bw + bw * 0.52, 230 - (d.expenses / max) * 200, bw * 0.36, (d.expenses / max) * 200);
+      x.fillStyle = '#8fb3cf'; x.font = '20px system-ui'; x.textAlign = 'center';
+      x.fillText(`D${d.day}`, i * bw + bw / 2, 255);
+    });
+    const tile = (k, val, cls = '') => h('div', { class: `fc-kpi ${cls}` }, h('small', {}, k), h('b', {}, val));
+    const fin = Lg.contracts(['delivered', 'failed', 'lost']).slice(-6).reverse();
+    return h('div', {},
+      h('div', { class: 'fc-kpis' }, tile('Earned', num(L.revenue), 'pos'), tile('Spent', num(L.expenses), 'neg'), tile('Net', num(L.revenue - L.expenses), L.revenue - L.expenses >= 0 ? 'pos' : 'neg'), tile('Upkeep / day', num(Lg.dailyUpkeep()))),
+      h('div', { class: 'fc-sec' }, h('h4', {}, 'Last two weeks — in (green) and out (red)'), c),
+      h('div', { class: 'fc-two' },
+        h('div', { class: 'fc-sec' }, h('h4', {}, 'Reports'), h('div', { class: 'fc-log tall' }, ...Lg.state.reports.slice(0, 40).map((r) => h('div', {}, h('i', {}, Lg.when(r.at)), ' ', r.text)))),
+        h('div', { class: 'fc-sec' }, h('h4', {}, 'Recent contracts'), ...fin.map((cc) => h('div', { class: 'fc-log' }, `${cc.status === 'delivered' ? '✅' : '✖'} ${Lg.cfg.contractTypes[cc.type].name} → ${Lg.port(cc.to).name}${cc.result?.paid ? ` · ${num(cc.result.paid)}` : ''}`)))));
+  };
+
+  // ---------------------------------------------------------------- refresh
+  const refresh = () => {
+    renderTop();
+    renderRail();
+    renderDrawer();
+    renderSheet();
+    renderFeed();
+  };
+  // first open: look at your fleet
+  if (!FC.opened && Lg.owned) { FC.opened = true; const home = Lg.port(Lg.L.homePort); centreOn(home.lat - 10, home.lon + 10, 1.4); }
+  if (FC.sel?.kind === 'port' && (opts.port || opts.ship)) { const p = Lg.port(FC.sel.id); centreOn(p.lat, p.lon, 2); }
+  refresh();
+  return { title: '', className: 'fleetcmd', onClose: () => { FC.ff = null; FC.sending = null; opts.onClose?.(); } };
 }
 
-return { armsBenchPanel };
+return { fleetPanel };
 })();
 
 // ---- src/ui/ui.js
@@ -31967,13 +32895,14 @@ const { terminalPanel } = __m["src/ui/terminal.js"];
 const { tabletPanel } = __m["src/ui/tablet.js"];
 const { dealerPanel } = __m["src/ui/dealer.js"];
 const { armsBenchPanel } = __m["src/ui/armsbench.js"];
-const { logisticsPanel } = __m["src/ui/logistics.js"];
+const { fleetPanel } = __m["src/ui/fleetCommand.js"];
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
 PANELS.dealer = dealerPanel;
 PANELS.armsbench = armsBenchPanel;
-PANELS.logistics = logisticsPanel;
+PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
+PANELS.fleet = fleetPanel;
 const { saveSettings } = __m["src/save/saveManager.js"];
 
 const LOOKS = [

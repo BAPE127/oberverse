@@ -656,3 +656,7 @@ function partsStore(ui, body, opts, go, act) {
   }
   body.append(store);
 }
+
+// Fleet Command (v0.25.0) shows these two inside its Shipyard sheet until the side-profile builder replaces them.
+export const shipyardScreen = shipyard;
+export const partsScreen = partsStore;

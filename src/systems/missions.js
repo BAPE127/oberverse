@@ -123,6 +123,29 @@ export class Missions {
     return { ok: reasons.length === 0, reasons, cost, score: Math.round(score), chance: p, category };
   }
 
+  /** The team (up to the limit) that gives the best chance, from the ships free at the mission's port — greedily. */
+  bestTeam(mid) {
+    const m = this.get(mid);
+    if (!m) return null;
+    const free = this.L.vessels().filter((v) => v.status === 'docked' && v.port === m.port && !v.contract && !v.cargo);
+    let team = [];
+    let best = null;
+    for (let k = 0; k < this.L.L.missionShips; k++) {
+      let pick = null;
+      for (const v of free) {
+        if (team.includes(v.id)) continue;
+        const q = this.quote(mid, [...team, v.id]);
+        if (!q.ok) continue;
+        // a ship has to earn its place: +3 points of chance for its running costs
+        if (!pick || q.chance > pick.q.chance) pick = { id: v.id, q };
+      }
+      if (!pick || (best && pick.q.chance < best.chance + 0.03)) break;
+      team = [...team, pick.id];
+      best = pick.q;
+    }
+    return best ? { ships: team, quote: best } : null;
+  }
+
   /** Send the ships. Costs paid now; the outcome is rolled now and kept. */
   start(mid, vids) {
     const g = this.game;

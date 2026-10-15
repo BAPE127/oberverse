@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.25.0 (2026-10-15)
+
+- `npm run check` — **296/296 tests passed** (5 new in `fleetcommand.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, 1440×900, real mouse): bought the company from the full-screen sale view; the home drawer's "Best jobs" sent the Gullwing Lass with one click; ⏭ Next event ran the clock to its departure; wheel zoom; opened on Mill Road Docks — contracts with the protection fold-out (guards, insurance, suggested escort, other ships), a mission sent with its pre-picked three-ship team; Fleet, Buy (cargo, warships, ports), Shipyard and Ledger sheets; Esc leaves a sheet, then closes; the tablet's Ships app opens it and closing returns to the tablet; "Send to…" then hovering Sund Harbour showed the dashed route and "7 h · costs 29", clicking sent the ship. Fixed from the runs: blocky land (now sampled at 0.5° and smoothed), the paper theme's white hover on dark buttons, "null" printed by an optional line, a misleading "no ship can take it" (now the real reason). No page errors.
+
 ## Verification record — v0.24.0 (2026-10-15)
 
 - `npm run check` — **291/291 tests passed** (8 new in `shipyard.test.mjs`); validator 0 errors (now proving every hull can be fitted out).

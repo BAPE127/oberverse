@@ -13,13 +13,14 @@ import { terminalPanel } from './terminal.js';
 import { tabletPanel } from './tablet.js';
 import { dealerPanel } from './dealer.js';
 import { armsBenchPanel } from './armsbench.js';
-import { logisticsPanel } from './logistics.js';
+import { fleetPanel } from './fleetCommand.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
 PANELS.dealer = dealerPanel;
 PANELS.armsbench = armsBenchPanel;
-PANELS.logistics = logisticsPanel;
+PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
+PANELS.fleet = fleetPanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [

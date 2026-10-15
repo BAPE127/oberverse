@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.25.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Fleet Command',
+    notes: [
+      'The Ober & Sons terminal is now Fleet Command: a full-screen ops room with a glowing sea chart you drag and zoom, your ships sailing on it, and danger zones pulsing where the pirates are.',
+      'Everything happens from the map. Click a port for its contracts and missions — each has one Send button with the best ship (or mission team) already picked. Protection and other ships are there if you want them, folded away if you don\'t.',
+      'Click a ship, press "Send to…", then click any port: the route, time and cost show as you hover.',
+      'Let time pass from the top bar — an hour, six hours, or straight to the next arrival — and watch your fleet sail.',
+      'Fleet, Buy, Shipyard and Ledger sit on the left rail. The tablet\'s Ships app and Captain Ober open the same screen.',
+    ],
+  },
+  {
     version: '0.24.0',
     date: '2026-10-15',
     channel: 'development',
