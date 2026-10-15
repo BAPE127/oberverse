@@ -86,6 +86,15 @@ export const dlgMason = {
       effects: [{ action: 'contracts' }],
     },
     {
+      id: 't_mason_shipyard', label: '"Could your crew build me a shipyard?"', tag: 'quest', keywords: ['shipyard', 'ship', 'ships', 'dock', 'docks', 'slipway', 'boat', 'ober'],
+      if: { flag: 'owns_shipping' },
+      say: [
+        'A SHIPYARD? Buddy, you\'ve made my week. Slipways, gantry cranes, a dry dock — it\'s just a building that lets go of things at the end. We can do it at any of your ports with a bit of room: a commercial port or bigger.',
+        'The Captain says a ship is "more than a building that floats". I say a shipyard is a building that makes buildings that float. We\'ve agreed to disagree. Loudly. Over tea. Let\'s look at your ports.',
+      ],
+      effects: [{ panel: { name: 'logistics', tab: 'Shipyard' } }],
+    },
+    {
       id: 't_mason_permits', label: '"How do building permits work?"', keywords: ['permit', 'form', '22-b', 'osric'],
       say: ['Every build needs a Form 22-B from the Civic Office. Osric\'s the man. Ten obols and a lot of signing. You sign the contract with me, then you pop over to Osric for the permit, and then we break ground. And then we fix the ground. That\'s the job!'],
     },

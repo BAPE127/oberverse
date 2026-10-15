@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.24.0.** The shipyard (Mason's Os) and the custom shipbuilder (`src/systems/shipyard.js`, `docs/SHIPBUILDING.md`). The shipping expansion's planned stages are done; playable naval combat is the documented future path (`docs/LOGISTICS.md#towards-playable-naval-combat-future`).
 - **2026-10-15 — v0.23.0.** Piracy (`src/systems/piracy.js`), warships, convoys, guards, insurance, missions (`src/systems/missions.js`), fleet bonuses. **Next:** v0.24 Mason's Os shipyard and the custom shipbuilder.
 - **2026-10-15 — v0.22.0.** Own-fleet arms exports (`Market.shipOwn`/`settleOwn` ↔ `Logistics.armsQuote`/`carryArms`), the fleet on the arms globe, richer voyage logs. **Next:** v0.23 piracy, warships, missions.
 - **2026-10-15 — v0.21.0.** Stage 1 of the shipping expansion (owner's master brief): Captain Ober (imported; interview in `docs/characters/npc_ober.md`), the Yards docks, `src/systems/logistics.js` (company, ports, cargo ships, contracts, voyages on sea routes), the logistics terminal and the tablet's Ships app. **Next (owner chose several releases):** v0.22 own-fleet arms exports + the fleet on the arms globe; v0.23 piracy, warships and missions; v0.24 Mason's Os shipyard and the custom shipbuilder. See `docs/prompt-bank/18-shipping-extension.md`.

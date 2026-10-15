@@ -40,6 +40,13 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.24.0 (2026-10-15)
+
+- `npm run check` — **291/291 tests passed** (8 new in `shipyard.test.mjs`); validator 0 errors (now proving every hull can be fitted out).
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Saves tested across the expansion (logistics, naval and shipyard tests): a ship docked, under way, loading and on a contract; a convoy at sea; a stored pirate encounter pending; a warship on a mission; the shipyard under construction; a ship on the slip — each reloaded and resolved exactly once.
+- Browser (headless Chromium, real mouse): commissioned the Mill Road shipyard — scaffolding on the quay and daily progress reports; when ready, the slipway; the Shipyard page's designer (freighter hull, six parts, maroon and gold paint; incompatible parts greyed with reasons; "✔ Seaworthy"); "Buy missing parts" then "Lay the keel" → "The Freighter No. 1 is on the slip — 4.5 days"; the hull drawn on the slipway at 22%; launched to berth 1 with its parts on deck. Fixed from the runs: a bollard and lamp stood on the slipway. No page errors.
+
 ## Verification record — v0.23.0 (2026-10-15)
 
 - `npm run check` — **283/283 tests passed** (10 new in `naval.test.mjs`); validator 0 errors (now including the logistics registries).

@@ -60,6 +60,10 @@ Warships come from **Kestrel Naval Surplus** (the Warships page; see [SHIPS.md](
 
 Not in these updates. What's in place for it: one fleet (vessel records are the only ship state), one set of combat numbers per ship (`stats(v).combat`: attack, defence, detection, stealth, weapon mounts; plus condition), and encounters that are already discrete, stored voyage events (`{ kind: 'pirates', at, outcome, … }`) resolved at a known time. A future encounter screen would: offer the player the encounter when such an event comes due; build the scene from the participating vessels' saved stats and condition (and the convoy's escorts); return an outcome in the same vocabulary (`repelled | delay | ransom | cargo | captured`) plus damage; and hand it to the same handler (`Logistics.pirates`) that settles cargo, contracts and arms shipments exactly once. Declining, or a setting that turns encounters off, keeps today's abstract resolution. No separate combat database; no stats duplicated.
 
+## The shipyard (v0.24.0)
+
+Mason's Os build a shipyard at a port of yours; there you design and build your own cargo ships and warships from hulls and parts. See [SHIPBUILDING.md](SHIPBUILDING.md).
+
 ## Money, exactly once
 
 Every obol moves inside `Logistics` through `spend()`/`earn()`, which also keep the ledger (all-time totals and the last 30 days) shown on the Finances page. A contract pays only on the `transit → delivered` transition; a contract that isn't `transit` when its ship arrives pays nothing.
@@ -74,5 +78,4 @@ Quay Road runs along the south of Mill Road Yards with the **Ober & Sons Maritim
 
 ## Planned (later updates)
 
-- **v0.24** — the shipyard (built by Mason's Os) and the custom shipbuilder.
 - Later still: playable naval encounters. Ship stats, components and condition live in the shared vessel record so an encounter can read and write them without a separate fleet database.

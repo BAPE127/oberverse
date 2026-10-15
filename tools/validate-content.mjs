@@ -419,6 +419,37 @@ function validateLogistics(content, err, warn) {
     if (!(m.difficulty[0] >= 0 && m.difficulty[1] <= 1 && m.difficulty[1] >= m.difficulty[0])) err(`${where}: mission ${id} has bad difficulty`);
     for (const k of Object.keys(m.weights)) if (!['attack', 'defense', 'detection', 'stealth', 'speed'].includes(k)) err(`${where}: mission ${id} weighs unknown stat ${k}`);
   }
+  // the shipyard (v0.24.0)
+  const FAM = ['propulsion', 'power', 'cargo', 'navigation', 'defense', 'weapons', 'sensors', 'support'];
+  const FITS = { sail: ['sail', 'any'], modern: ['modern', 'any'], advanced: ['modern', 'advanced', 'any'] };
+  for (const [id, c] of Object.entries(L.components || {})) {
+    if (!FAM.includes(c.family)) err(`${where}: component ${id} has unknown family ${c.family}`);
+    if (!['sail', 'modern', 'advanced', 'any'].includes(c.tech)) err(`${where}: component ${id} has unknown tech ${c.tech}`);
+    num(c.price, `component ${id} price`, { min: 1 });
+    num(c.weight, `component ${id} weight`);
+    if (c.needs && !L.components[c.needs]) err(`${where}: component ${id} needs unknown ${c.needs}`);
+    for (const b of c.bonuses) if (!L.bonuses[b]) err(`${where}: component ${id} has unknown bonus ${b}`);
+  }
+  for (const [id, H] of Object.entries(L.hulls || {})) {
+    if (!FITS[H.tech]) err(`${where}: hull ${id} has unknown tech ${H.tech}`);
+    if (!(L.classes[H.cls] || L.warshipClasses[H.cls])) err(`${where}: hull ${id} has unknown class ${H.cls}`);
+    for (const [fam, min, tech] of H.requires) {
+      if (!FAM.includes(fam)) { err(`${where}: hull ${id} requires unknown family ${fam}`); continue; }
+      const options = Object.values(L.components).filter((c) => c.family === fam && c.kinds.includes(H.kind) && FITS[H.tech]?.includes(c.tech) && (!tech || c.tech === tech) && (!c.minSize || H.size >= c.minSize));
+      const most = options.reduce((a, c) => a + c.max, 0);
+      if (most < min) err(`${where}: hull ${id} needs ${min}× ${fam}${tech ? ` (${tech})` : ''} but only ${most} can be fitted`);
+    }
+    // a minimal seaworthy fit exists: the lightest parts that meet the requirements fit the slots, weight and power
+    let slots = 0, weight = 0, power = H.power;
+    for (const [fam, min, tech] of H.requires) {
+      const c = Object.values(L.components).filter((x) => x.family === fam && x.kinds.includes(H.kind) && FITS[H.tech]?.includes(x.tech) && (!tech || x.tech === tech)).sort((a, b) => a.weight - b.weight)[0];
+      if (!c) continue;
+      slots += min; weight += c.weight * min; power += c.power * min;
+    }
+    if (slots > H.slots || weight > H.maxWeight) err(`${where}: hull ${id} can't fit its own required parts (${slots} slots, ${weight} t)`);
+    if (power < 0 && !Object.values(L.components).some((x) => x.family === 'power' && FITS[H.tech]?.includes(x.tech))) err(`${where}: hull ${id} can never be powered`);
+  }
+  for (const t of Object.keys(L.shipyard?.cost || {})) if (!L.portTypes[t]) err(`${where}: shipyard cost for unknown port type ${t}`);
   void warn;
 }
 

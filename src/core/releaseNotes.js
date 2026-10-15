@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.24.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Build Your Own',
+    notes: [
+      'Mason\'s Os will build you a shipyard: ask Mason, or commission it on the terminal\'s new Shipyard page. It takes a few days (fewer if the crew like you), and at Mill Road Docks you can watch the scaffolding go up on the quay — then the Ober & Sons slipway.',
+      'Design your own ships: choose a cargo or warship hull (twelve of them, from a sailing trader to a stealth hull), fit it out from 35 parts — engines, sails, generators, holds, reefers, cranes, radar, armour, cannon, missiles, railguns — and paint it. Every class has rules: slots, weight, power, weapon mounts and the parts a seaworthy ship must have.',
+      'Parts come from the new Parts page and wait in your store until a build uses them. Lay the keel, wait a few days, and your ship slides down the slipway into your fleet. Cancel a build and the parts come back.',
+      'Futuristic hulls — hydrofoils and stealth warships — need the Meridian Advanced Marine Licence and a shipyard at an advanced port. They\'re the dearest ships you can build, and the fastest.',
+      'The order you fit the parts in is where they sit on deck, so no two designs need look alike.',
+    ],
+  },
+  {
     version: '0.23.0',
     date: '2026-10-15',
     channel: 'development',

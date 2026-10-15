@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.24.0] — 2026-10-15 — "Build Your Own" (development build)
+
+Stage 4 of the shipping expansion (the master brief's stages G and H). The expansion's planned features are complete; playable naval combat remains a future goal (see docs/LOGISTICS.md).
+
+### Added
+- **The shipyard** (`src/systems/shipyard.js`): Mason's Os build one at a commercial-or-bigger port (`SHIPYARD`): quoted with the crew's goodwill discount and speed-up, paid once, built over days with daily progress reports, persisted; Mason's topic "Could your crew build me a shipyard?"; at Mill Road Docks, scaffolding then a slipway (`slipway` prop) showing the ship on the slip.
+- **The custom shipbuilder**: 12 hulls (`HULLS`) and 35 parts (`COMPONENTS`) with technology, kind, slots, weight, power, mounts, maximums, prerequisites and per-class requirements, all validated by `Shipyard.validate`; stats computed from parts (`compute`); a parts store (`buyComponent`, `buyMissing`); the advanced licence (`TECH`); `commission` reserves and consumes parts once and charges hull + labour once; `cancel` returns parts and refunds half; launch creates exactly one vessel (waiting for a berth if needed). Saved designs are inputs only; `Logistics.model()` recomputes custom ships from content.
+- Custom ships drawn with their parts on deck in slot order, in your colours (`drawShips.js`).
+- Terminal: Shipyard page (yards, builds on the slips, the designer with a live preview, slot order, paint, stats, problems and the bill) and Parts page (licences and the store). Tabs wrap.
+- Validator: hulls and parts (families, tech, prerequisites, bonuses, and that every hull can be fitted out with its required parts).
+- Tests: `tests/shipyard.test.mjs` (8).
+
 ## [0.23.0] — 2026-10-15 — "Here Be Pirates" (development build)
 
 Stage 3 of the shipping expansion (the master brief's stage F).

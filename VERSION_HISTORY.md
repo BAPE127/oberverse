@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.24.0 | 2026-10-15 | development | 1 | Build Your Own — Mason's Os shipyard and the custom shipbuilder |
 | 0.23.0 | 2026-10-15 | development | 1 | Here Be Pirates — piracy, warships, escorts, missions |
 | 0.22.0 | 2026-10-15 | development | 1 | Own Bottoms — your ships carry your arms exports; the fleet on the arms globe |
 | 0.21.0 | 2026-10-15 | development | 1 | Ober & Sons — Captain Ober, the Yards docks, a shipping company, ports, cargo ships, contracts |
@@ -29,6 +30,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.24.0 — Build Your Own
+
+The shipyard and custom ships; the shipping expansion's planned features are complete. Saves: `world.logistics` gains `stock`, `tech`, `designs`, `nextDesign`, `builds`, `nextBuild`; ports' `shipyard` records are filled in; custom vessels' `model` is a design id. Older saves load unchanged. No migration needed.
 
 ## 0.23.0 — Here Be Pirates
 

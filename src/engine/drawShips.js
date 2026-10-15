@@ -90,7 +90,9 @@ export function drawShip(ctx, look, x, y, angle, opts = {}) {
     ctx.fillStyle = trim;
     ctx.fillRect(bx + 1, -2, w * 0.4, 4); // funnel
   };
-  if (hull === 'container') {
+  if (look.parts) {
+    drawParts(ctx, look, hull, L, B, color, trim, t);
+  } else if (hull === 'container') {
     const cols = ['#c0402a', '#2a6ab0', '#e8c35a', '#3a8a5a', '#8a4ab0', '#e8e2d4'];
     const n = Math.floor(L / 13);
     for (let i = 0; i < n - 2; i++) for (let j = 0; j < 3; j++) {
@@ -208,6 +210,90 @@ export function drawShip(ctx, look, x, y, angle, opts = {}) {
     ctx.beginPath(); ctx.arc(L * 0.25, B / 2, 2, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
+}
+
+/**
+ * A custom ship (v0.24.0): its parts laid out along the deck, stern to bow, in
+ * the order you installed them — so two designs on the same hull look different.
+ */
+function drawParts(ctx, look, hull, L, B, color, trim, t) {
+  const sail = ['schooner', 'brig', 'galleon', 'manowar'].includes(hull);
+  const parts = look.parts;
+  const x0 = sail ? -L * 0.36 : -L * 0.26;
+  const x1 = L * 0.3;
+  if (!sail) {
+    // the bridge at the stern
+    ctx.fillStyle = '#f2f0ea';
+    ctx.fillRect(-L * 0.46, -B * 0.32, L * 0.14, B * 0.64);
+    ctx.fillStyle = '#2a3440';
+    ctx.fillRect(-L * 0.33, -B * 0.26, 2.5, B * 0.52);
+  }
+  parts.forEach((p, i) => {
+    const x = parts.length === 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * i) / (parts.length - 1);
+    const w = Math.min(L * 0.12, (x1 - x0) / Math.max(1, parts.length) * 0.85);
+    switch (p) {
+      case 'mast': {
+        const sway = Math.sin(t * 1.1 + i) * 1.2;
+        ctx.fillStyle = '#efe6d0';
+        ctx.beginPath(); ctx.ellipse(x, sway, Math.max(3, w * 0.4), B * 0.72, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#6a4a2a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, -B * 0.75 + sway); ctx.lineTo(x, B * 0.75 + sway); ctx.stroke();
+        break;
+      }
+      case 'funnel':
+        ctx.fillStyle = trim; ctx.beginPath(); ctx.ellipse(x, 0, w * 0.35, B * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1a1e'; ctx.beginPath(); ctx.ellipse(x, 0, w * 0.18, B * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'hatch':
+        ctx.fillStyle = shade(color, -22); ctx.fillRect(x - w / 2, -B * 0.3, w, B * 0.6);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x - w / 2, -1, w, 2);
+        break;
+      case 'containers': {
+        const cols = ['#c0402a', '#2a6ab0', '#e8c35a', '#3a8a5a', '#8a4ab0'];
+        for (let j = 0; j < 3; j++) { ctx.fillStyle = cols[(i + j * 2) % cols.length]; ctx.fillRect(x - w / 2, -B * 0.36 + j * B * 0.25, w, B * 0.22); }
+        break;
+      }
+      case 'reefer':
+        ctx.fillStyle = '#e8eef4'; ctx.fillRect(x - w / 2, -B * 0.3, w, B * 0.6);
+        ctx.fillStyle = '#4ad8e8'; ctx.fillRect(x - w / 2, -B * 0.05, w, B * 0.1);
+        break;
+      case 'crane':
+        ctx.fillStyle = '#e8c35a'; ctx.fillRect(x - 2, -B * 0.42, 4, B * 0.84);
+        ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + w, -B * 0.15); ctx.stroke();
+        break;
+      case 'cabins':
+        ctx.fillStyle = '#f2f0ea'; ctx.fillRect(x - w / 2, -B * 0.3, w, B * 0.6);
+        ctx.fillStyle = '#7aa3b8'; for (let k = -1; k <= 1; k++) ctx.fillRect(x - w / 2 + 2, k * B * 0.18 - 1.5, w - 4, 3);
+        break;
+      case 'dome':
+        ctx.fillStyle = 'rgba(160,240,255,0.85)'; ctx.beginPath(); ctx.arc(x, 0, Math.min(B * 0.28, w * 0.5), 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.stroke();
+        break;
+      case 'radar':
+        ctx.fillStyle = trim; ctx.beginPath(); ctx.arc(x, 0, B * 0.16, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + Math.cos(t * 2) * B * 0.2, Math.sin(t * 2) * B * 0.2); ctx.lineTo(x - Math.cos(t * 2) * B * 0.2, -Math.sin(t * 2) * B * 0.2); ctx.stroke();
+        break;
+      case 'antenna':
+        ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, -B * 0.3); ctx.lineTo(x, B * 0.3); ctx.moveTo(x - 3, -B * 0.15); ctx.lineTo(x + 3, -B * 0.15); ctx.stroke();
+        break;
+      case 'decoy':
+        ctx.fillStyle = '#5a5e64'; for (const k of [-1, 1]) ctx.fillRect(x - 2, k * B * 0.25 - 2, 4, 4);
+        break;
+      case 'guns':
+        ctx.fillStyle = '#1a1a1e'; for (let k = 0; k < 3; k++) { ctx.fillRect(x - w / 2 + k * (w / 3), -B / 2 - 2, 3, 3); ctx.fillRect(x - w / 2 + k * (w / 3), B / 2 - 1, 3, 3); }
+        break;
+      case 'turret':
+        ctx.fillStyle = shade(color, -25); ctx.beginPath(); ctx.arc(x, 0, Math.min(B * 0.3, 6), 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2a2a2e'; ctx.fillRect(x, -1.5, Math.min(B * 0.5, 10), 3);
+        break;
+      case 'missile':
+        ctx.fillStyle = '#3a3e44'; ctx.fillRect(x - w / 2, -B * 0.25, w, B * 0.5);
+        ctx.fillStyle = '#c0402a'; for (let k = -1; k <= 1; k += 2) ctx.fillRect(x - w / 2 + 2, k * B * 0.1 - 1, w - 4, 2);
+        break;
+      default:
+        break;
+    }
+  });
 }
 
 /** A ship's name painted on a small board (screen-aligned), for berths. */

@@ -61,11 +61,14 @@ P('noticeboard', 46, 13, { examine: 'YARD NOTICES: "Arms works for sale — lice
 
 // the docks: lamps, bollards, cranes, the berths (drawn with your ships) and the Salty Ober
 for (const x of [8, 20, 33, 46]) P('streetlamp', x, 39);
-for (const x of [4, 16, 24, 36, 44, 54, 62]) P('streetlamp', x, 47);
-for (const x of [3, 7, 15, 19, 26, 34, 39, 43, 53, 56, 61]) P('bollard', x, 47);
+for (const x of [8, 16, 24, 36, 44, 54, 62]) P('streetlamp', x, 47);
+for (const x of [7, 15, 19, 26, 34, 39, 43, 53, 56, 61]) P('bollard', x, 47);
 P('crane', 21, 45, { w: 3, h: 2, examine: 'A dockside crane, OBER & SONS painted on the jib in letters that have been repainted so many times they\'re three-dimensional.' });
 P('crane', 39, 45, { w: 3, h: 2, examine: 'A newer crane. Captain Ober calls it "the young one" and doesn\'t trust it.' });
-for (const [x, y] of [[2, 45], [3, 46], [56, 45], [57, 45]]) P('crate', x, y, { w: 1 });
+for (const [x, y] of [[56, 45], [57, 45]]) P('crate', x, y, { w: 1 });
+// v0.24.0: Ober & Sons' shipyard slipway at the west end of the quay — scaffolding while Mason's Os build it, then the slip
+props.push({ id: 'yd_slipway_works', type: 'scaffold', x: 1, y: 45, w: 4, h: 3, hiddenUnless: { flag: 'shipyard_home_building' }, examine: 'Mason\'s Os are building a shipyard here. A sign: "SLIPWAY UNDER CONSTRUCTION. Mind the pun-filled gap."' });
+props.push({ id: 'yd_slipway', type: 'slipway', x: 1, y: 47, w: 4, h: 12, hiddenUnless: { flag: 'shipyard_home_ready' }, examine: 'The Ober & Sons shipyard slipway: greased rails running down into the harbour, a gantry overhead. Ships you build at Mill Road are launched from here.' });
 BERTH_PIERS.forEach((x, i) => {
   props.push({ id: `yd_berth${i + 1}`, type: 'shipberth', x: x - 5, y: 48, w: 12, h: 11, slot: i, examine: `Berth ${i + 1}.` });
   props.push({ id: `yd_berth${i + 1}_sign`, type: 'sign', x: x + 2, y: 47, interact: { kind: 'logistics', action: 'berth', slot: i, name: `Berth ${i + 1} board` }, examine: `BERTH ${i + 1}.` });

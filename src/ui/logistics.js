@@ -9,7 +9,7 @@ import { h } from './panels.js';
 import { buildLand, wrapLon } from '../world/globe.js';
 import { drawShip } from '../engine/drawShips.js';
 
-export const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Missions', 'Brokerage', 'Warships', 'Finances', 'Reports'];
+export const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Missions', 'Brokerage', 'Warships', 'Shipyard', 'Parts', 'Finances', 'Reports'];
 const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', mission: 'On a mission', lost: 'Lost', retired: 'Retired' };
 const OUTCOME = { repelled: 'pirates driven off', delay: 'a chase and a delay', ransom: 'a ransom', cargo: 'the cargo seized', captured: 'the ship captured' };
 const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
@@ -185,7 +185,7 @@ export function logisticsPanel(ui, body, opts) {
   const tab = LOGI_TABS.includes(opts.tab) ? opts.tab : 'Overview';
   const S = Lg.state;
   if (S.arrears) body.append(h('div', { class: 'logi-msg bad' }, `⚠ ${num(S.arrears)} obols of upkeep in arrears — your ships are held in port. `, h('button', { class: 'small', onclick: () => act(Lg.payArrears()) }, 'Pay now')));
-  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Missions: missions, Brokerage: brokerage, Warships: warships, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
+  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Missions: missions, Brokerage: brokerage, Warships: warships, Shipyard: shipyard, Parts: partsStore, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
   return {
     title: 'Ober & Sons Maritime — Fleet Operations', className: 'logistics', onClose: opts.onClose,
     tabs: LOGI_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go({ tab: t, sel: null }) })),
@@ -531,4 +531,128 @@ function reports(ui, body) {
   for (const r of Lg.state.reports) card.append(h('div', { class: 'logi-line' }, h('span', { class: 'muted' }, Lg.when(r.at)), ' ', r.text));
   if (!Lg.state.reports.length) card.append(h('p', { class: 'muted' }, 'Nothing yet.'));
   body.append(card);
+}
+
+// ------------------------------------------------------------------ the shipyard (v0.24.0)
+function shipyard(ui, body, opts, go, act) {
+  const g = ui.game;
+  const Lg = g.logistics;
+  const Y = Lg.shipyard;
+  const C = Lg.cfg;
+  // 1. Mason's Os and the yards
+  const yards = h('div', { class: 'logi-card' }, h('h3', {}, 'Shipyards'));
+  const rows = Lg.ownedPorts().map((id) => {
+    const y = Y.yard(id);
+    const q = Y.yardQuote(id);
+    const status = y ? (y.status === 'ready' ? '✅ working' : `🏗 Mason's Os building — ready ${Lg.when(y.end)}`) : q.ok ? `can be built: ${num(q.cost)} obols, ${q.days} days${q.discount ? ` (crew goodwill −${Math.round(q.discount * 100)}%)` : ''}` : q.reasons[0];
+    return h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, h('b', {}, Lg.port(id).name), ` — ${status}`),
+      !y && q.ok ? h('button', { class: 'small primary', disabled: g.player.money < q.cost, onclick: () => act(Y.commissionYard(id), { tab: 'Shipyard' }) }, 'Commission Mason\'s Os') : null);
+  });
+  yards.append(h('p', { class: 'muted' }, 'Mason\'s Os build the yard (a commercial port or bigger). A futuristic hull needs a yard at an advanced port (warships: advanced port or naval base) and the advanced licence.'), ...rows);
+  body.append(yards);
+  const ready = Y.yards();
+  // 2. builds on the slips
+  const builds = Y.state.builds.filter((b) => ['building', 'waiting'].includes(b.status));
+  if (builds.length) {
+    const bc = h('div', { class: 'logi-card' }, h('h3', {}, 'On the slips'));
+    for (const b of builds) {
+      const f = Math.min(1, (g.clock.total - b.start) / Math.max(1, b.end - b.start));
+      bc.append(h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, h('b', {}, b.design.name), ` — ${C.hulls[b.design.hull].name} at ${Lg.port(b.port).name} · ${b.status === 'waiting' ? 'finished, waiting for a free berth' : `${Math.round(f * 100)}% · launches ${Lg.when(b.end)}`}`),
+        h('button', { class: 'small', onclick: () => act(Y.cancel(b.id), { tab: 'Shipyard' }) }, 'Cancel (parts back, 50% refund)')));
+    }
+    body.append(bc);
+  }
+  if (!ready.length) {
+    body.append(h('p', { class: 'muted' }, 'Once a yard is ready, design and build your own ships here.'));
+    return;
+  }
+  // 3. the designer
+  const d = { kind: 'cargo', hull: null, components: [], name: '', appearance: { color: C.colours[0], trim: '#e8e2d4' }, port: ready[0], ...(opts.design || {}) };
+  if (!ready.includes(d.port)) d.port = ready[0];
+  const hulls = Object.entries(C.hulls).filter(([, H]) => H.kind === d.kind);
+  if (!d.hull || C.hulls[d.hull]?.kind !== d.kind) d.hull = hulls[0][0];
+  const H = C.hulls[d.hull];
+  const set = (patch) => go({ tab: 'Shipyard', design: { ...d, ...patch } });
+  const v = Y.validate(d, d.port);
+  const designer = h('div', { class: 'logi-card' }, h('h3', {}, 'Design a ship'));
+  designer.append(h('div', { class: 'row logi-filters' },
+    h('b', {}, 'Yard:'), h('select', { class: 'logi-input', onchange: (e) => set({ port: e.target.value }) }, ...ready.map((id) => h('option', { value: id, selected: id === d.port }, Lg.port(id).name))),
+    h('b', {}, 'Type:'), ...['cargo', 'warship'].map((k) => h('button', { class: `small${d.kind === k ? ' primary' : ''}`, onclick: () => set({ kind: k, hull: null, components: [] }) }, k === 'cargo' ? 'Cargo ship' : 'Warship'))));
+  // hulls
+  designer.append(h('div', { class: 'row logi-filters' }, h('b', {}, 'Hull:'), ...hulls.map(([id, X]) => h('button', { class: `small${id === d.hull ? ' primary' : ''}`, title: X.text, onclick: () => set({ hull: id, components: [] }) }, `${X.name} (${num(X.price)})`))));
+  designer.append(h('div', { class: 'muted' }, `${H.text} · ${Lg.className({ cls: H.cls })} · size ${H.size} · ${H.slots} slots · ${H.maxWeight} t · ${H.power} power built in${H.mounts ? ` · ${H.mounts} weapon mounts` : ''} · needs: ${H.requires.map(([f, n, t]) => `${n > 1 ? `${n}× ` : ''}${t ? `${t} ` : ''}${f}`).join(', ')}`));
+  const grid = h('div', { class: 'logi-designer' });
+  // left: parts by family
+  const pick = h('div', { class: 'logi-parts' });
+  for (const fam of ['propulsion', 'power', 'cargo', 'navigation', 'defense', 'weapons', 'sensors', 'support']) {
+    const list = Object.entries(C.components).filter(([, c]) => c.family === fam);
+    if (!list.length) continue;
+    pick.append(h('h4', {}, fam[0].toUpperCase() + fam.slice(1)));
+    for (const [id, c] of list) {
+      const why = Y.fits(d.hull, id);
+      const n = d.components.filter((x) => x === id).length;
+      const stock = Y.state.stock[id] || 0;
+      pick.append(h('div', { class: `logi-line${why ? ' off' : ''}`, title: why || c.text },
+        h('span', { class: 'grow' }, `${c.name} · ${num(c.price)} · ${c.weight} t${c.power ? ` · ${c.power > 0 ? '+' : ''}${c.power} power` : ''}${c.mounts ? ` · ${c.mounts} mounts` : ''}${stock ? ` · ${stock} in store` : ''}`, why ? h('span', { class: 'logi-bad' }, ` — ${why}`) : h('span', { class: 'muted' }, ` — ${c.text}`)),
+        h('button', { class: 'small', disabled: Boolean(why) || d.components.length >= H.slots || n >= c.max, onclick: () => set({ components: [...d.components, id] }) }, '+')));
+    }
+  }
+  // right: preview, installed parts (in slot order), paint, stats, problems, the bill
+  const right = h('div');
+  const canvas = h('canvas', { width: 520, height: 150, class: 'logi-preview' });
+  const ctx = canvas.getContext('2d');
+  const look = v.stats.look;
+  const len = (look.len || 3) * 32;
+  const sc = Math.min(1.6, 480 / len);
+  ctx.save(); ctx.translate(260, 75); ctx.scale(sc, sc); drawShip(ctx, look, 0, 0, 0, {}); ctx.restore();
+  right.append(canvas);
+  const slots = h('div', { class: 'logi-card' }, h('b', {}, `Slots (${d.components.length}/${H.slots}) — stern to bow`));
+  d.components.forEach((id, i) => {
+    const c = C.components[id];
+    const move = (dir) => { const arr = [...d.components]; const j = i + dir; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; set({ components: arr }); };
+    slots.append(h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, `${i + 1}. ${c?.name || id}`),
+      h('button', { class: 'small', disabled: i === 0, onclick: () => move(-1) }, '▲'), h('button', { class: 'small', disabled: i === d.components.length - 1, onclick: () => move(1) }, '▼'),
+      h('button', { class: 'small', onclick: () => set({ components: d.components.filter((_, k) => k !== i) }) }, '✖')));
+  });
+  if (!d.components.length) slots.append(h('div', { class: 'muted' }, 'Add parts from the list. Their order is where they sit on deck.'));
+  right.append(slots);
+  const swatches = (key) => h('div', { class: 'row logi-filters' }, h('b', {}, key === 'color' ? 'Hull:' : 'Trim:'), ...C.colours.map((col) => h('button', { class: `logi-swatch${d.appearance[key] === col ? ' on' : ''}`, style: `background:${col}`, title: col, onclick: () => set({ appearance: { ...d.appearance, [key]: col } }) })));
+  const name = h('input', { class: 'logi-input', value: d.name, maxlength: 28, placeholder: 'Name her (optional)' });
+  name.addEventListener('input', () => { d.name = name.value; });
+  right.append(swatches('color'), swatches('trim'), h('div', { class: 'row' }, h('b', {}, 'Name:'), name));
+  const st = v.stats;
+  right.append(h('table', { class: 'logi-table' },
+    h('tr', {}, h('th', {}, 'Cargo · speed · range'), h('td', {}, `${st.capacity} units · ${st.speed} kn · ${num(st.range)} km`)),
+    h('tr', {}, h('th', {}, 'Reliability · costs'), h('td', {}, `${Math.round(st.reliability * 100)}% · ${st.opex}/day at sea · ${st.upkeep}/day in port`)),
+    h('tr', {}, h('th', {}, 'Weight · power · mounts'), h('td', {}, `${v.weight}/${H.maxWeight} t · ${v.powerUsed}/${v.powerMade} · ${v.mounts}/${H.mounts}`)),
+    h('tr', {}, h('th', {}, 'Combat'), h('td', {}, `attack ${st.combat.attack} · defence ${st.combat.defense} · detection ${st.combat.detection} · stealth ${st.combat.stealth}`)),
+    h('tr', {}, h('th', {}, 'Abilities'), h('td', {}, [...st.tags, ...st.bonuses.map((b) => `★ ${C.bonuses[b].name}`)].join(', ') || '—'))));
+  right.append(v.reasons.length ? h('div', {}, ...v.reasons.map((r) => h('div', { class: 'logi-bad' }, `✖ ${r}`))) : h('div', { class: 'logi-good' }, '✔ Seaworthy: meets every requirement for its class.'));
+  right.append(h('div', { class: 'logi-specs' }, `Hull ${num(v.cost.hull)} + labour ${num(v.cost.labour)} = ${num(v.cost.now)} now · parts worth ${num(v.cost.parts)}${v.missing.length ? ` (still to buy: ${num(v.missingCost)})` : ' (all in the store)'} · ${v.days} days on the slip`));
+  right.append(h('div', { class: 'row' },
+    v.missing.length ? h('button', { class: 'small', disabled: g.player.money < v.missingCost, onclick: () => act(Y.buyMissing(d), { tab: 'Shipyard', design: d }) }, `Buy missing parts (${num(v.missingCost)})`) : null,
+    h('button', { class: 'small primary', disabled: !v.ok || v.missing.length > 0 || g.player.money < v.cost.now, onclick: () => act(Y.commission(d), { tab: 'Shipyard', design: { ...d, components: [], name: '' } }) }, 'Lay the keel')));
+  grid.append(pick, right);
+  designer.append(grid);
+  body.append(designer);
+}
+
+function partsStore(ui, body, opts, go, act) {
+  const g = ui.game;
+  const Lg = g.logistics;
+  const Y = Lg.shipyard;
+  const C = Lg.cfg;
+  const lic = h('div', { class: 'logi-card' }, h('h3', {}, 'Licences'));
+  for (const [id, t] of Object.entries(C.tech)) {
+    lic.append(h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, h('b', {}, t.name), ` — ${t.text}`), Y.state.tech[id] ? h('span', { class: 'logi-good' }, 'held') : h('button', { class: 'small primary', disabled: g.player.money < t.price, onclick: () => act(Y.buyTech(id), { tab: 'Parts' }) }, `Buy (${num(t.price)})`)));
+  }
+  body.append(lic);
+  const store = h('div', { class: 'logi-card logi-parts' }, h('h3', {}, 'Parts store'), h('p', { class: 'muted' }, `Parts you buy wait here until a build uses them (at most ${Y.rules.maxStock} of each). A build reserves its parts when the keel is laid; cancelling returns them.`));
+  for (const [id, c] of Object.entries(C.components)) {
+    const have = Y.state.stock[id] || 0;
+    const locked = c.tech === 'advanced' && !Y.state.tech.advanced;
+    store.append(h('div', { class: `logi-line${locked ? ' off' : ''}` }, h('span', { class: 'grow' }, h('b', {}, c.name), ` · ${c.family} · ${c.tech} · ${num(c.price)} — ${c.text}`, have ? h('b', {}, ` · ${have} in store`) : null),
+      h('button', { class: 'small', disabled: locked || g.player.money < c.price, onclick: () => act(Y.buyComponent(id, 1), { tab: 'Parts' }) }, 'Buy 1')));
+  }
+  body.append(store);
 }

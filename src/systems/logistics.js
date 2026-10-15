@@ -22,6 +22,7 @@
 import { clamp } from '../core/util.js';
 import { seaRoute, pointAlong } from '../world/seaRoutes.js';
 import { Missions } from './missions.js';
+import { Shipyard } from './shipyard.js';
 import { zones as pirateZones, exposure as routeExposure, assess as assessRisk, roll as rollPirates } from './piracy.js';
 
 const REPORTS_MAX = 80;
@@ -57,6 +58,7 @@ export class Logistics {
   constructor(game) {
     this.game = game;
     this.missions = new Missions(this);
+    this.shipyard = new Shipyard(this);
   }
 
   // ------------------------------------------------------------- content
@@ -86,8 +88,14 @@ export class Logistics {
     return this.cfg.portTypes[this.port(id)?.type] || null;
   }
 
+  /** A ship model: from the catalogues, or a custom design from your own yard (v0.24.0). */
   model(id) {
-    return this.cfg.ships[id] || null;
+    return this.cfg.ships[id] || this.shipyard.spec(id) || null;
+  }
+
+  /** A vessel's model (or a not-yet-launched design's spec, for checks). */
+  specOf(v) {
+    return v._spec || this.model(v.model);
   }
 
   cls(model) {
@@ -264,7 +272,7 @@ export class Logistics {
    * encounter would read: one set of numbers per ship, nowhere else.
    */
   stats(v) {
-    const m = this.model(v.model);
+    const m = this.specOf(v);
     const k = this.cls(m);
     return {
       capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags || [],
@@ -292,7 +300,7 @@ export class Logistics {
     const p = this.port(portId);
     const pt = this.portType(portId);
     const st = this.stats(v);
-    const m = this.model(v.model);
+    const m = this.specOf(v);
     const need = [].concat(st.needsPortType || []);
     if (!p) return 'no such port';
     if (need.length && !need.includes(p.type)) return `the ${m.name} only berths at ${need.map((t) => this.cfg.portTypes[t].name.toLowerCase()).join(' or ')}s`;
@@ -776,6 +784,7 @@ export class Logistics {
       this.daily();
     }
     this.missions.tick();
+    this.shipyard.tick();
     for (const v of this.vessels()) {
       if (v.status === 'loading' && v.loadUntil !== undefined && now >= v.loadUntil) this.depart(v);
       if (v.status !== 'underway') continue;
@@ -959,6 +968,7 @@ export class Logistics {
       this.postContracts();
     }
     this.missions.daily();
+    this.shipyard.daily();
   }
 
   /** Pay off arrears now (if you can). */
@@ -994,6 +1004,15 @@ export class Logistics {
       return { type: 'message', text: `BERTH ${act.slot + 1} — ${b.name}. ${ships.length ? `In port: ${ships.join(', ')}.` : 'No ships in port.'} (Which port each berth shows is set on the terminal's Ports page.)` };
     }
     return { type: 'message', text: prop.examine || '' };
+  }
+
+  /** What's on the home shipyard's slip (for the Yards slipway drawing). */
+  slip() {
+    if (!this.owned) return null;
+    const b = this.shipyard.buildsAt(this.L.homePort)[0];
+    if (!b) return null;
+    const spec = this.shipyard.compute(b.design);
+    return { name: b.design.name, look: spec.look, progress: Math.min(1, (this.game.clock.total - b.start) / Math.max(1, b.end - b.start)) };
   }
 
   /** Ships to draw at a Yards berth (slot 0–2): the port it represents, and its docked ships you've left visible. */

@@ -391,6 +391,15 @@ div.tablet-card { border: 2px dashed var(--line); }
 .logi-sale table th { width: 90px; }
 .logi-subtabs { flex-wrap: wrap; gap: 4px; justify-content: flex-start; }
 @media (max-width: 720px) { .logi-split { grid-template-columns: 1fr; } .logi-broker { flex-direction: column; } }
+#modal-panel.logistics .tabs { flex-wrap: wrap; padding: 6px 12px 0; }
+.logi-designer { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr); gap: 10px; }
+.logi-preview { width: 100%; height: auto; background: linear-gradient(#bcd6e6, #9fc2d8); border-radius: 6px; }
+.logi-bad { color: #a02a1e; font-size: 12px; }
+.logi-good { color: #2a7a4a; font-size: 12px; }
+.logi-parts .logi-line.off { opacity: 0.45; }
+.logi-swatch { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 0 0 1px #b8c8d6; padding: 0; }
+.logi-swatch.on { box-shadow: 0 0 0 2px #1e2a3a; }
+@media (max-width: 760px) { .logi-designer { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -1964,11 +1973,14 @@ P('noticeboard', 46, 13, { examine: 'YARD NOTICES: "Arms works for sale — lice
 
 // the docks: lamps, bollards, cranes, the berths (drawn with your ships) and the Salty Ober
 for (const x of [8, 20, 33, 46]) P('streetlamp', x, 39);
-for (const x of [4, 16, 24, 36, 44, 54, 62]) P('streetlamp', x, 47);
-for (const x of [3, 7, 15, 19, 26, 34, 39, 43, 53, 56, 61]) P('bollard', x, 47);
+for (const x of [8, 16, 24, 36, 44, 54, 62]) P('streetlamp', x, 47);
+for (const x of [7, 15, 19, 26, 34, 39, 43, 53, 56, 61]) P('bollard', x, 47);
 P('crane', 21, 45, { w: 3, h: 2, examine: 'A dockside crane, OBER & SONS painted on the jib in letters that have been repainted so many times they\'re three-dimensional.' });
 P('crane', 39, 45, { w: 3, h: 2, examine: 'A newer crane. Captain Ober calls it "the young one" and doesn\'t trust it.' });
-for (const [x, y] of [[2, 45], [3, 46], [56, 45], [57, 45]]) P('crate', x, y, { w: 1 });
+for (const [x, y] of [[56, 45], [57, 45]]) P('crate', x, y, { w: 1 });
+// v0.24.0: Ober & Sons' shipyard slipway at the west end of the quay — scaffolding while Mason's Os build it, then the slip
+props.push({ id: 'yd_slipway_works', type: 'scaffold', x: 1, y: 45, w: 4, h: 3, hiddenUnless: { flag: 'shipyard_home_building' }, examine: 'Mason\'s Os are building a shipyard here. A sign: "SLIPWAY UNDER CONSTRUCTION. Mind the pun-filled gap."' });
+props.push({ id: 'yd_slipway', type: 'slipway', x: 1, y: 47, w: 4, h: 12, hiddenUnless: { flag: 'shipyard_home_ready' }, examine: 'The Ober & Sons shipyard slipway: greased rails running down into the harbour, a gantry overhead. Ships you build at Mill Road are launched from here.' });
 BERTH_PIERS.forEach((x, i) => {
   props.push({ id: `yd_berth${i + 1}`, type: 'shipberth', x: x - 5, y: 48, w: 12, h: 11, slot: i, examine: `Berth ${i + 1}.` });
   props.push({ id: `yd_berth${i + 1}_sign`, type: 'sign', x: x + 2, y: 47, interact: { kind: 'logistics', action: 'berth', slot: i, name: `Berth ${i + 1} board` }, examine: `BERTH ${i + 1}.` });
@@ -2371,6 +2383,7 @@ const PROP_TYPES = {
   crane: { solid: true, label: 'Dock crane', defaults: { w: 3, h: 2 } },
   shipberth: { solid: false, label: 'Berth', defaults: { w: 12, h: 11 } },
   moored_ship: { solid: true, label: 'Ship', defaults: { w: 4, h: 9 } },
+  slipway: { solid: false, label: 'Slipway', defaults: { w: 4, h: 12 } },
   hatch: { solid: true, label: 'Maintenance hatch', defaults: {} },
   fence: { solid: true, label: 'Fence', defaults: {} },
   mailbox: { solid: true, label: 'Post box', defaults: {} },
@@ -3742,7 +3755,110 @@ const MISSION_TYPES = {
   transport: { name: 'Special transport', weights: { defense: 0.5, speed: 0.5 }, difficulty: [0.2, 0.5], hours: [24, 48], reward: [6000, 14000], needs: { capacity: 8 }, client: 'A delegation that prefers not to fly', text: 'Carry a small, important party safely. Needs room aboard (8+ units).' },
 };
 
-return { LOGISTICS, PORT_TYPES, PORTS, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES };
+// ======================================================================
+// v0.24.0 — the shipyard (built by Mason's Os) and the custom shipbuilder
+// ======================================================================
+
+/** The shipyard upgrade Mason's Os builds at one of your ports. */
+const SHIPYARD = {
+  builder: 'npc_mason', // Mason's Os (the crew's goodwill gives a discount and shaves days, as for properties)
+  eligible: ['commercial', 'heavy', 'naval', 'advanced'],
+  cost: { commercial: 60000, heavy: 85000, naval: 80000, advanced: 140000 },
+  days: 5,
+  /** Ship construction: labour as a share of hull + parts; days = base + per size + per component (futuristic ×1.5). */
+  labourShare: 0.12, daysBase: 1, daysPerSize: 1, daysPerComponent: 0.25, futuristicDays: 1.5,
+  /** Cancelling a build returns its parts to the store and refunds this share of the hull and labour. */
+  cancelRefund: 0.5,
+  /** Buying a part: you can store at most this many of each. */
+  maxStock: 20,
+};
+
+/** One-off licences that unlock technology for the shipbuilder. */
+const TECH = {
+  advanced: { name: 'Meridian Advanced Marine Licence', price: 150000, text: 'Fusion drives, hydrofoil hulls, railguns and quantum sensors. Meridian Applied Sciences sells the licence, not the questions.' },
+};
+
+/**
+ * Hulls: the base of every custom ship. tech: what kind of parts fit
+ * (sail | modern | advanced); slots, maxWeight, mounts and power are its
+ * limits; requires: what a seaworthy ship of this class must have (checked by
+ * the simulation, not just the screen); base: its own numbers before parts.
+ */
+const hull = (name, kind, o) => ({ name, kind, ...o });
+const HULLS = {
+  h_coaster: hull('Coaster hull', 'cargo', { tech: 'modern', cls: 'low', price: 3000, size: 1, slots: 5, maxWeight: 40, mounts: 0, power: 2, base: { capacity: 0, range: 7000, reliability: 0.88, opex: 40, upkeep: 10, defense: 5, detection: 10, stealth: 15 }, requires: [['propulsion', 1], ['navigation', 1], ['cargo', 1]], look: { hull: 'coaster', len: 3 }, text: 'A small, honest hull for coastal work.' }),
+  h_sail_trader: hull('Sailing trader hull', 'cargo', { tech: 'sail', cls: 'low', price: 2500, size: 1, slots: 4, maxWeight: 35, mounts: 0, power: 0, base: { capacity: 0, range: 9000, reliability: 0.86, opex: 20, upkeep: 8, defense: 5, detection: 10, stealth: 20 }, requires: [['propulsion', 1, 'sail'], ['cargo', 1]], look: { hull: 'brig', len: 3.4 }, text: 'Wind is free. So is the time it takes.' }),
+  h_freighter: hull('Freighter hull', 'cargo', { tech: 'modern', cls: 'medium', price: 12000, size: 2, slots: 7, maxWeight: 90, mounts: 0, power: 4, base: { capacity: 0, range: 12000, reliability: 0.9, opex: 110, upkeep: 30, defense: 10, detection: 15, stealth: 10 }, requires: [['propulsion', 1], ['navigation', 1], ['cargo', 1]], look: { hull: 'freighter', len: 4.5 }, text: 'The general-purpose medium hull.' }),
+  h_carrier: hull('Carrier hull', 'cargo', { tech: 'modern', cls: 'high', price: 30000, size: 3, slots: 9, maxWeight: 150, mounts: 0, power: 6, base: { capacity: 0, range: 18000, reliability: 0.91, opex: 230, upkeep: 60, defense: 15, detection: 20, stealth: 5 }, requires: [['propulsion', 1], ['navigation', 1], ['cargo', 2]], look: { hull: 'heavylift', len: 6 }, text: 'A big hull for heavy lifts and long hauls.' }),
+  h_mega: hull('Megaship hull', 'cargo', { tech: 'modern', cls: 'superhigh', price: 80000, size: 4, slots: 12, maxWeight: 260, mounts: 0, power: 8, base: { capacity: 0, range: 26000, reliability: 0.92, opex: 520, upkeep: 130, defense: 20, detection: 25, stealth: 0 }, requires: [['propulsion', 2], ['navigation', 1], ['cargo', 3], ['power', 1]], look: { hull: 'container', len: 8 }, text: 'Very large. Needs very large engines.' }),
+  h_hydrofoil: hull('Hydrofoil hull', 'cargo', { tech: 'advanced', cls: 'futuristic', price: 140000, size: 3, slots: 10, maxWeight: 120, mounts: 0, power: 4, needsTech: 'advanced', base: { capacity: 0, range: 50000, reliability: 0.95, opex: 160, upkeep: 60, defense: 30, detection: 60, stealth: 40 }, requires: [['propulsion', 1, 'advanced'], ['power', 1, 'advanced'], ['navigation', 1], ['cargo', 1]], look: { hull: 'starwake', len: 6 }, text: 'Rides on foils above the waves. Futuristic: needs the advanced licence and an advanced port\'s shipyard.' }),
+  // warships
+  h_cutter: hull('Revenue cutter hull', 'warship', { tech: 'sail', cls: 'sail', price: 6000, size: 1, slots: 5, maxWeight: 40, mounts: 4, power: 0, base: { capacity: 0, range: 8000, reliability: 0.88, opex: 40, upkeep: 10, attack: 0, defense: 10, detection: 20, stealth: 25 }, requires: [['propulsion', 1, 'sail'], ['weapons', 1]], look: { hull: 'schooner', len: 3.2 }, text: 'A quick sailing warship for coastal patrols.' }),
+  h_ship_of_line: hull('Ship-of-the-line hull', 'warship', { tech: 'sail', cls: 'sail', price: 40000, size: 3, slots: 9, maxWeight: 160, mounts: 40, power: 0, base: { capacity: 10, range: 18000, reliability: 0.88, opex: 200, upkeep: 60, attack: 0, defense: 35, detection: 20, stealth: 5 }, requires: [['propulsion', 1, 'sail'], ['weapons', 2]], look: { hull: 'manowar', len: 6 }, text: 'Three decks of oak. Fill them with cannon.' }),
+  h_patrol: hull('Patrol hull', 'warship', { tech: 'modern', cls: 'modern', price: 15000, size: 2, slots: 7, maxWeight: 80, mounts: 4, power: 4, base: { capacity: 0, range: 9000, reliability: 0.9, opex: 100, upkeep: 25, attack: 0, defense: 15, detection: 20, stealth: 20 }, requires: [['propulsion', 1], ['navigation', 1], ['weapons', 1]], look: { hull: 'warship', len: 3.8 }, text: 'Corvette-sized: patrols, escorts, sensible money.' }),
+  h_destroyer: hull('Destroyer hull', 'warship', { tech: 'modern', cls: 'modern', price: 50000, size: 3, slots: 10, maxWeight: 140, mounts: 8, power: 8, base: { capacity: 0, range: 14000, reliability: 0.91, opex: 300, upkeep: 70, attack: 0, defense: 30, detection: 30, stealth: 15 }, requires: [['propulsion', 1], ['navigation', 1], ['weapons', 2], ['sensors', 1]], look: { hull: 'warship', len: 5.2 }, text: 'Long, lean and fast. Needs guns and eyes.' }),
+  h_capital: hull('Capital hull', 'warship', { tech: 'modern', cls: 'historic', price: 110000, size: 4, slots: 12, maxWeight: 280, mounts: 14, power: 10, base: { capacity: 0, range: 15000, reliability: 0.88, opex: 700, upkeep: 180, attack: 0, defense: 50, detection: 20, stealth: 0 }, requires: [['propulsion', 2], ['navigation', 1], ['weapons', 3], ['defense', 1]], look: { hull: 'battleship', len: 7.5 }, text: 'A battleship\'s armoured hull. Thirsty, slow, magnificent.' }),
+  h_stealth: hull('Stealth hull', 'warship', { tech: 'advanced', cls: 'futuristic', price: 220000, size: 3, slots: 10, maxWeight: 120, mounts: 6, power: 6, needsTech: 'advanced', base: { capacity: 0, range: 50000, reliability: 0.96, opex: 250, upkeep: 80, attack: 0, defense: 40, detection: 40, stealth: 50 }, requires: [['propulsion', 1, 'advanced'], ['power', 1, 'advanced'], ['navigation', 1], ['weapons', 1], ['sensors', 1]], look: { hull: 'starwake', len: 5.2 }, text: 'Angles, coatings and silence. Futuristic: needs the licence and an advanced port\'s shipyard.' }),
+};
+
+/**
+ * Components. family: what it is; tech: which hulls take it (sail hulls take
+ * sail and 'any'; modern hulls modern and 'any'; advanced hulls everything but
+ * sail); kinds: cargo, warship or both; weight and power (+ makes, − uses);
+ * mounts used (weapons); max per ship; mods add to the ship's numbers;
+ * tags and bonuses are what it lets the ship do; part is how it looks on deck.
+ */
+const part = (name, family, o) => ({ name, family, tech: 'any', kinds: ['cargo', 'warship'], weight: 1, power: 0, mounts: 0, max: 1, mods: {}, tags: [], bonuses: [], ...o });
+const COMPONENTS = {
+  // propulsion
+  c_sails: part('Sails and rigging', 'propulsion', { tech: 'sail', price: 1500, weight: 5, mods: { speed: 11 }, part: 'mast', max: 1, text: 'Free wind, slow passage.' }),
+  c_topsails: part('Extra topsails', 'propulsion', { tech: 'sail', price: 1200, weight: 2, mods: { speed: 3, opex: 5 }, part: 'mast', max: 2, needs: 'c_sails', text: 'More canvas: a little faster.' }),
+  c_diesel: part('Diesel engine', 'propulsion', { tech: 'modern', price: 4000, weight: 10, mods: { speed: 14, opex: 40 }, part: 'funnel', max: 2, text: 'The honest workhorse.' }),
+  c_eco_engine: part('Eco engine', 'propulsion', { tech: 'modern', price: 7000, weight: 9, power: -1, mods: { speed: 12, opex: -10, reliability: 0.03 }, part: 'funnel', max: 2, text: 'Slower, cheaper to run, never breaks.' }),
+  c_gas_turbine: part('Gas turbine', 'propulsion', { tech: 'modern', price: 12000, weight: 12, power: -1, mods: { speed: 22, opex: 110 }, part: 'funnel', max: 2, text: 'Fast and thirsty.' }),
+  c_fusion_drive: part('Fusion drive', 'propulsion', { tech: 'advanced', price: 60000, weight: 14, power: -4, mods: { speed: 32, opex: 40, range: 20000 }, part: 'dome', max: 1, text: 'A sun in a box. Very fast; very far.' }),
+  // power
+  c_generator: part('Generator', 'power', { tech: 'modern', price: 2500, weight: 5, power: 4, mods: { opex: 10 }, max: 3, text: '+4 power.' }),
+  c_big_generator: part('Turbo-generator', 'power', { tech: 'modern', price: 6000, weight: 9, power: 8, mods: { opex: 25 }, max: 2, text: '+8 power.' }),
+  c_fusion_core: part('Fusion core', 'power', { tech: 'advanced', price: 45000, weight: 8, power: 14, mods: { opex: 15 }, part: 'dome', max: 1, text: '+14 power, almost silently.' }),
+  // cargo
+  c_hold_small: part('Cargo hold', 'cargo', { price: 2000, weight: 6, mods: { capacity: 20 }, part: 'hatch', max: 6, text: '+20 units.' }),
+  c_hold_large: part('Large hold', 'cargo', { price: 5000, weight: 15, mods: { capacity: 60 }, part: 'hatch', max: 6, text: '+60 units.' }),
+  c_container_bay: part('Container bay', 'cargo', { tech: 'modern', kinds: ['cargo'], price: 8000, weight: 18, mods: { capacity: 80 }, tags: ['container'], part: 'containers', max: 6, text: '+80 units; container work.' }),
+  c_bulk_hold: part('Bulk hold', 'cargo', { kinds: ['cargo'], price: 9000, weight: 22, mods: { capacity: 120 }, tags: ['bulk'], part: 'hatch', max: 4, text: '+120 units; bulk work.' }),
+  c_reefer: part('Refrigerated hold', 'cargo', { tech: 'modern', kinds: ['cargo'], price: 9000, weight: 10, power: -3, mods: { capacity: 30 }, tags: ['reefer'], part: 'reefer', max: 3, text: '+30 units; refrigerated goods.' }),
+  c_heavy_crane: part('Heavy-lift crane', 'cargo', { kinds: ['cargo'], price: 7000, weight: 8, power: -1, tags: ['heavy'], part: 'crane', max: 2, text: 'Machinery contracts.' }),
+  c_cabins: part('Passenger cabins', 'cargo', { price: 4000, weight: 5, mods: { capacity: 8 }, tags: ['transport'], part: 'cabins', max: 2, text: '+8 units; special transport missions.' }),
+  c_specialist_bay: part('Specialist cargo bay', 'cargo', { tech: 'advanced', kinds: ['cargo'], price: 30000, weight: 8, power: -2, mods: { capacity: 30 }, tags: ['advanced', 'express'], part: 'dome', max: 2, text: 'Specialised cargo contracts.' }),
+  // navigation and comms
+  c_nav_basic: part('Navigation suite', 'navigation', { price: 1500, weight: 1, mods: { reliability: 0.02 }, max: 1, text: 'Charts, compass, a reliable radio.' }),
+  c_nav_advanced: part('Integrated bridge', 'navigation', { tech: 'modern', price: 9000, weight: 2, power: -1, mods: { reliability: 0.06, detection: 10 }, part: 'radar', max: 1, text: 'Fewer delays; sees trouble coming.' }),
+  c_fleet_comms: part('Fleet communications', 'navigation', { tech: 'modern', kinds: ['warship'], price: 15000, weight: 2, power: -1, bonuses: ['fleet_comms'], part: 'antenna', max: 1, text: 'Fleet bonus: +15% escort strength.' }),
+  // defence
+  c_reinforced: part('Reinforced hull', 'defense', { price: 6000, weight: 8, mods: { defense: 10, reliability: 0.02 }, max: 1, text: '+10 defence; tougher in a blow.' }),
+  c_armor: part('Armour belt', 'defense', { tech: 'modern', price: 14000, weight: 18, mods: { defense: 22, speed: -2 }, max: 2, text: '+22 defence, a little slower.' }),
+  c_countermeasures: part('Countermeasures', 'defense', { tech: 'modern', price: 9000, weight: 3, power: -2, mods: { defense: 12 }, part: 'decoy', max: 1, text: '+12 defence: flares, chaff, loud noises.' }),
+  c_stealth_coating: part('Stealth coating', 'defense', { tech: 'advanced', price: 40000, weight: 2, power: -1, mods: { stealth: 35 }, max: 1, text: '+35 stealth: pirates don\'t see you.' }),
+  // weapons (warships)
+  c_cannon: part('Cannon battery', 'weapons', { tech: 'sail', kinds: ['warship'], price: 3000, weight: 10, mounts: 6, mods: { attack: 15 }, part: 'guns', max: 4, text: '+15 attack (6 mounts).' }),
+  c_deck_gun: part('Deck gun', 'weapons', { tech: 'modern', kinds: ['warship'], price: 6000, weight: 6, power: -1, mounts: 1, mods: { attack: 16 }, part: 'turret', max: 4, text: '+16 attack (1 mount).' }),
+  c_missiles: part('Missile launcher', 'weapons', { tech: 'modern', kinds: ['warship'], price: 16000, weight: 8, power: -2, mounts: 2, mods: { attack: 28 }, part: 'missile', max: 3, text: '+28 attack (2 mounts).' }),
+  c_railgun: part('Railgun', 'weapons', { tech: 'advanced', kinds: ['warship'], price: 55000, weight: 10, power: -5, mounts: 1, mods: { attack: 40 }, part: 'turret', max: 2, text: '+40 attack (1 mount).' }),
+  c_guard_post: part('Deck guard post', 'weapons', { tech: 'any', kinds: ['cargo'], price: 3500, weight: 3, mods: { defense: 8 }, max: 2, text: 'Cargo ships only: +8 defence (a sandbagged nest for hired guards).' }),
+  // sensors
+  c_radar: part('Search radar', 'sensors', { tech: 'modern', price: 7000, weight: 2, power: -2, mods: { detection: 25 }, part: 'radar', max: 1, text: '+25 detection.' }),
+  c_sonar: part('Sonar', 'sensors', { tech: 'modern', price: 5000, weight: 2, power: -1, mods: { detection: 15 }, max: 1, text: '+15 detection.' }),
+  c_lookout: part('Crow\'s nest and telescopes', 'sensors', { tech: 'sail', price: 800, weight: 1, mods: { detection: 10 }, max: 1, text: '+10 detection, the old way.' }),
+  c_quantum_sensors: part('Quantum sensors', 'sensors', { tech: 'advanced', price: 50000, weight: 3, power: -3, mods: { detection: 40 }, bonuses: ['hazard_sensors'], part: 'dome', max: 1, text: '+40 detection; the convoy it escorts gets +15 defence.' }),
+  // fleet support
+  c_command: part('Command centre', 'support', { tech: 'modern', kinds: ['warship'], price: 30000, weight: 6, power: -3, bonuses: ['fleet_support'], part: 'antenna', max: 1, minSize: 3, text: 'Fleet bonus at its port: −15% trouble for voyages leaving.' }),
+  c_aegis_net: part('Aegis network node', 'support', { tech: 'advanced', kinds: ['warship'], price: 120000, weight: 6, power: -6, bonuses: ['fleet_shield'], part: 'dome', max: 1, minSize: 3, text: 'Fleet bonus everywhere: −10% trouble.' }),
+};
+
+/** Paint for custom ships (the builder's swatches). */
+const SHIP_COLOURS = ['#3a6a8a', '#2f6b4f', '#8a3a32', '#1e2a3a', '#e8e2d4', '#4a4a52', '#c0402a', '#2a4a8a', '#6a3a1e', '#1a1e24', '#d8dee6', '#c9a24a', '#5a3a6a', '#3a4a3a'];
+
+return { LOGISTICS, PORT_TYPES, PORTS, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES, SHIPYARD, TECH, HULLS, COMPONENTS, SHIP_COLOURS };
 })();
 
 // ---- src/world/tiles.js
@@ -6424,6 +6540,15 @@ const dlgMason = {
       effects: [{ action: 'contracts' }],
     },
     {
+      id: 't_mason_shipyard', label: '"Could your crew build me a shipyard?"', tag: 'quest', keywords: ['shipyard', 'ship', 'ships', 'dock', 'docks', 'slipway', 'boat', 'ober'],
+      if: { flag: 'owns_shipping' },
+      say: [
+        'A SHIPYARD? Buddy, you\'ve made my week. Slipways, gantry cranes, a dry dock — it\'s just a building that lets go of things at the end. We can do it at any of your ports with a bit of room: a commercial port or bigger.',
+        'The Captain says a ship is "more than a building that floats". I say a shipyard is a building that makes buildings that float. We\'ve agreed to disagree. Loudly. Over tea. Let\'s look at your ports.',
+      ],
+      effects: [{ panel: { name: 'logistics', tab: 'Shipyard' } }],
+    },
+    {
       id: 't_mason_permits', label: '"How do building permits work?"', keywords: ['permit', 'form', '22-b', 'osric'],
       say: ['Every build needs a Form 22-B from the Civic Office. Osric\'s the man. Ten obols and a lot of signing. You sign the contract with me, then you pop over to Osric for the permit, and then we break ground. And then we fix the ground. That\'s the job!'],
     },
@@ -8868,7 +8993,7 @@ const { EVENTS } = __m["src/content/events.js"];
 const { MOODS } = __m["src/content/moods.js"];
 const { NOTICES } = __m["src/content/notices.js"];
 const { REGIONS } = __m["src/content/world.js"];
-const { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES } = __m["src/content/logistics.js"];
+const { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES, SHIPYARD, TECH, HULLS, COMPONENTS, SHIP_COLOURS } = __m["src/content/logistics.js"];
 const { addSeams } = __m["src/world/regions.js"];
 const { SONGS, MOTIFS, AUDIO_REGISTRY } = __m["src/content/audio.js"];
 const mags = __m["src/content/characters/mags.js"].default;
@@ -8953,7 +9078,7 @@ const BASE_CONTENT = {
   arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: TRANSIT,
-  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES },
+  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES, shipyard: SHIPYARD, tech: TECH, hulls: HULLS, components: COMPONENTS, colours: SHIP_COLOURS },
   roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
@@ -8974,7 +9099,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.23.0';
+const GAME_VERSION = '0.24.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -18753,6 +18878,345 @@ class Missions {
 return { Missions };
 })();
 
+// ---- src/systems/shipyard.js
+__m["src/systems/shipyard.js"] = (function () {
+// The shipyard and the custom shipbuilder (v0.24.0).
+//
+// 1. Mason's Os builds a SHIPYARD at one of your ports (commercial or
+//    bigger): you pay once (less the crew's goodwill discount), they work
+//    for a few days (fewer with goodwill), it's ready.
+// 2. In the shipyard you DESIGN a ship: a hull, parts (components) in its
+//    slots, paint and a name. Every rule — slots, weight, power, weapon
+//    mounts, required parts for the class, technology, the port it needs —
+//    is checked here, in the simulation, not just on screen.
+// 3. Parts are bought into your parts store; a build RESERVES and consumes
+//    them (once). You pay the hull and the labour when you commission; the
+//    yard works for a few days; the ship launches into your fleet. Cancel a
+//    build and its parts go back to the store, with half the hull and labour.
+//
+// A custom ship's vessel record points at a saved DESIGN (its inputs only);
+// its numbers and its look are always computed from content by spec(), so a
+// loaded ship is identical to the one you launched.
+//
+// State (in world.logistics): stock {componentId: n}, tech {id: day},
+// designs {d1: design}, nextDesign, builds [], nextBuild; each owned port's
+// `shipyard` field holds the yard's own construction record.
+const { clamp } = __m["src/core/util.js"];
+
+const FAMILIES = ['propulsion', 'power', 'cargo', 'navigation', 'defense', 'weapons', 'sensors', 'support'];
+/** Which part technologies a hull of each technology takes. */
+const FITS = { sail: ['sail', 'any'], modern: ['modern', 'any'], advanced: ['modern', 'advanced', 'any'] };
+
+class Shipyard {
+  constructor(logistics) {
+    this.L = logistics;
+    this.specCache = new Map();
+  }
+
+  get game() {
+    return this.L.game;
+  }
+
+  get cfg() {
+    return this.L.cfg;
+  }
+
+  get rules() {
+    return this.cfg.shipyard;
+  }
+
+  get state() {
+    const s = this.L.state;
+    if (!s.builds) Object.assign(s, { stock: {}, tech: {}, designs: {}, nextDesign: 1, builds: [], nextBuild: 1 });
+    return s;
+  }
+
+  // ------------------------------------------------------------- the yard (Mason's Os)
+  yard(portId) {
+    return this.L.state.ports[portId]?.shipyard || null;
+  }
+
+  /** Ports with a working shipyard. */
+  yards() {
+    return this.L.ownedPorts().filter((id) => this.yard(id)?.status === 'ready');
+  }
+
+  yardQuote(portId) {
+    const g = this.game;
+    const p = this.L.port(portId);
+    const reasons = [];
+    if (!this.L.ownsPort(portId)) reasons.push('you don\'t own that port');
+    if (p && !this.rules.eligible.includes(p.type)) reasons.push(`a ${this.cfg.portTypes[p.type].name.toLowerCase()} is too small for a shipyard`);
+    if (this.yard(portId)) reasons.push(this.yard(portId).status === 'ready' ? 'it already has a shipyard' : 'Mason\'s Os is already building one there');
+    const base = this.rules.cost[p?.type] || 0;
+    const discount = g.construction.discount();
+    const cost = Math.round(base * (1 - discount));
+    const days = Math.max(2, this.rules.days - g.construction.speedup());
+    return { ok: reasons.length === 0, reasons, cost, discount, days };
+  }
+
+  /** Commission Mason's Os to build a shipyard at a port. Paid once. */
+  commissionYard(portId) {
+    const g = this.game;
+    const q = this.yardQuote(portId);
+    if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
+    if (g.player.money < q.cost) return { ok: false, text: `Mason's Os quote ${q.cost} obols for a shipyard. You're a little short, pal.` };
+    this.L.spend(q.cost, 'shipyard');
+    this.L.state.ports[portId].shipyard = { status: 'building', commissioned: g.clock.total, days: q.days, start: g.clock.total, end: g.clock.total + q.days * 1440, paid: q.cost, lastNote: g.clock.day };
+    this.flags(portId);
+    this.L.report('shipyard', `🏗 Mason's Os have signed on to build a shipyard at ${this.L.port(portId).name}: ${q.cost} obols, ${q.days} days. "We'll have it ship-shape — and that's the only boat pun we know. That's a lie."`, 'good');
+    return { ok: true, text: `Mason's Os are on it: ${q.days} days.` };
+  }
+
+  /** Flags that show the slipway at the Yards (Mill Road Docks only). */
+  flags(portId) {
+    const y = this.yard(portId);
+    if (portId !== this.L.L.homePort) return;
+    this.game.setFlag('shipyard_home_building', y?.status === 'building');
+    this.game.setFlag('shipyard_home_ready', y?.status === 'ready');
+  }
+
+  // ------------------------------------------------------------- parts and licences
+  buyComponent(id, n = 1) {
+    const g = this.game;
+    const c = this.cfg.components[id];
+    if (!c) return { ok: false, text: 'No such part.' };
+    if (!this.L.owned) return { ok: false, text: 'You need a shipping company first.' };
+    if (c.tech === 'advanced' && !this.state.tech.advanced) return { ok: false, text: `Advanced parts need the ${this.cfg.tech.advanced.name}.` };
+    const have = this.state.stock[id] || 0;
+    if (have + n > this.rules.maxStock) return { ok: false, text: `The store holds at most ${this.rules.maxStock} of each part.` };
+    const cost = c.price * n;
+    if (g.player.money < cost) return { ok: false, text: `${n}× ${c.name} costs ${cost} obols.` };
+    this.L.spend(cost, 'parts');
+    this.state.stock[id] = have + n;
+    return { ok: true, text: `Bought ${n}× ${c.name}.` };
+  }
+
+  buyTech(id) {
+    const g = this.game;
+    const t = this.cfg.tech[id];
+    if (!t) return { ok: false, text: 'No such licence.' };
+    if (this.state.tech[id]) return { ok: false, text: 'You already hold it.' };
+    if (g.player.money < t.price) return { ok: false, text: `The ${t.name} costs ${t.price} obols.` };
+    this.L.spend(t.price, 'licence');
+    this.state.tech[id] = g.clock.day;
+    this.L.report('shipyard', `📜 You hold the ${t.name}.`, 'good');
+    return { ok: true, text: `You hold the ${t.name}.` };
+  }
+
+  // ------------------------------------------------------------- designs
+  /** Can this part go on this hull at all? (null = yes; else why not) */
+  fits(hullId, compId) {
+    const H = this.cfg.hulls[hullId];
+    const c = this.cfg.components[compId];
+    if (!H || !c) return 'unknown';
+    if (!c.kinds.includes(H.kind)) return `${H.kind === 'cargo' ? 'cargo ships' : 'warships'} can't take it`;
+    if (!FITS[H.tech].includes(c.tech)) return `a ${H.tech} hull can't take ${c.tech} technology`;
+    if (c.minSize && H.size < c.minSize) return `needs a size-${c.minSize} hull`;
+    return null;
+  }
+
+  /** The numbers and look of a design (pure; cached per saved design). */
+  compute(design) {
+    const H = this.cfg.hulls[design.hull];
+    const parts = (design.components || []).map((id) => this.cfg.components[id]).filter(Boolean);
+    const b = H.base;
+    const sum = (k) => parts.reduce((a, c) => a + (c.mods[k] || 0), 0);
+    const weight = parts.reduce((a, c) => a + c.weight, 0);
+    const load = clamp(weight / H.maxWeight, 0, 2);
+    const cap = (v) => clamp(Math.round(v), 0, 100);
+    const price = H.price + parts.reduce((a, c) => a + c.price, 0);
+    const opex = Math.max(10, b.opex + sum('opex'));
+    return {
+      name: design.name || H.name, kind: H.kind, cls: H.cls, custom: true, hull: design.hull,
+      price,
+      capacity: Math.max(0, (b.capacity || 0) + sum('capacity')),
+      speed: Math.max(4, Math.round((sum('speed')) * (1 - 0.35 * load))),
+      range: b.range + sum('range'),
+      reliability: clamp(b.reliability + sum('reliability'), 0.5, 0.995),
+      opex, upkeep: Math.round(b.upkeep + weight * 0.5),
+      size: H.size,
+      needsPortType: H.tech === 'advanced' ? (H.kind === 'warship' ? ['advanced', 'naval'] : ['advanced']) : null,
+      combat: { attack: cap((b.attack || 0) + sum('attack')), defense: cap((b.defense || 0) + sum('defense')), detection: cap((b.detection || 0) + sum('detection')), stealth: cap((b.stealth || 0) + sum('stealth')), mounts: parts.reduce((a, c) => a + c.mounts, 0) },
+      tags: [...new Set([...parts.flatMap((c) => c.tags), ...(H.kind === 'warship' && parts.some((c) => c.family === 'weapons') ? ['escort', 'patrol'] : []), ...(H.kind === 'warship' && parts.some((c) => c.family === 'sensors') ? ['recon'] : [])])],
+      bonuses: [...new Set(parts.flatMap((c) => c.bonuses))],
+      look: { ...H.look, color: design.appearance?.color || '#4a4a52', trim: design.appearance?.trim || '#e8e2d4', parts: parts.filter((c) => c.part).map((c) => c.part) },
+      blurb: `A custom ${H.name.toLowerCase().replace(' hull', '')} from your own yard.`,
+      weight, maxWeight: H.maxWeight,
+    };
+  }
+
+  /** A saved design's spec, for Logistics.model(). */
+  spec(designId) {
+    const d = this.state.designs?.[designId];
+    if (!d) return null;
+    if (!this.specCache.has(designId)) this.specCache.set(designId, this.compute(d));
+    return this.specCache.get(designId);
+  }
+
+  /** Everything about a design: is it seaworthy, what will it cost, how long. Nothing changes. */
+  validate(design, portId = design.port) {
+    const reasons = [];
+    const H = this.cfg.hulls[design.hull];
+    if (!H) return { ok: false, reasons: ['choose a hull'] };
+    const comps = design.components || [];
+    const parts = comps.map((id) => this.cfg.components[id]);
+    if (parts.some((c) => !c)) reasons.push('an unknown part');
+    if (comps.length > H.slots) reasons.push(`${comps.length} parts but only ${H.slots} slots`);
+    const valid = parts.filter(Boolean);
+    for (const id of new Set(comps)) {
+      const c = this.cfg.components[id];
+      if (!c) continue;
+      const why = this.fits(design.hull, id);
+      if (why) reasons.push(`${c.name}: ${why}`);
+      const n = comps.filter((x) => x === id).length;
+      if (n > c.max) reasons.push(`${c.name}: at most ${c.max}`);
+      if (c.needs && !comps.includes(c.needs)) reasons.push(`${c.name} needs ${this.cfg.components[c.needs].name}`);
+    }
+    // the class's requirements
+    for (const [family, min, tech] of H.requires) {
+      const have = valid.filter((c) => c.family === family && (!tech || c.tech === tech)).length;
+      if (have < min) reasons.push(`needs ${min > 1 ? `${min}× ` : ''}${tech ? `${tech} ` : ''}${family}`);
+    }
+    const weight = valid.reduce((a, c) => a + c.weight, 0);
+    if (weight > H.maxWeight) reasons.push(`${weight} t of parts on a hull rated for ${H.maxWeight}`);
+    const powerMade = H.power + valid.filter((c) => c.power > 0).reduce((a, c) => a + c.power, 0);
+    const powerUsed = -valid.filter((c) => c.power < 0).reduce((a, c) => a + c.power, 0);
+    if (powerUsed > powerMade) reasons.push(`needs ${powerUsed} power; makes ${powerMade}`);
+    const mounts = valid.reduce((a, c) => a + c.mounts, 0);
+    if (mounts > H.mounts) reasons.push(`${mounts} weapon mounts on a hull with ${H.mounts}`);
+    // technology and the yard
+    const advanced = H.tech === 'advanced' || valid.some((c) => c.tech === 'advanced');
+    if (advanced && !this.state.tech.advanced) reasons.push(`needs the ${this.cfg.tech.advanced.name}`);
+    if (portId) {
+      if (this.yard(portId)?.status !== 'ready') reasons.push(`${this.L.port(portId)?.name || 'that port'} has no working shipyard`);
+      if (this.slipBusy(portId)) reasons.push('its slip is busy with another build');
+      const spec = this.compute(design);
+      const need = [].concat(spec.needsPortType || []);
+      if (need.length && !need.includes(this.L.port(portId).type)) reasons.push(`a futuristic hull is built at ${need.map((t) => this.cfg.portTypes[t].name.toLowerCase()).join(' or ')} shipyards`);
+      if (spec.size > this.L.portType(portId).maxSize) reasons.push(`too big to launch at ${this.L.port(portId).name}`);
+    } else reasons.push('choose a shipyard');
+    // the bill
+    const need = {};
+    for (const id of comps) need[id] = (need[id] || 0) + 1;
+    const missing = Object.entries(need).map(([id, n]) => ({ id, n: Math.max(0, n - (this.state.stock[id] || 0)) })).filter((x) => x.n > 0);
+    const missingCost = missing.reduce((a, m) => a + (this.cfg.components[m.id]?.price || 0) * m.n, 0);
+    const partsValue = valid.reduce((a, c) => a + c.price, 0);
+    const labour = Math.round((H.price + partsValue) * this.rules.labourShare);
+    const days = Math.round((this.rules.daysBase + H.size * this.rules.daysPerSize + comps.length * this.rules.daysPerComponent) * (advanced ? this.rules.futuristicDays : 1) * 10) / 10;
+    const stats = this.compute(design);
+    return { ok: reasons.length === 0, reasons, stats, weight, powerMade, powerUsed, mounts, missing, missingCost, cost: { hull: H.price, labour, parts: partsValue, now: H.price + labour }, days };
+  }
+
+  slipBusy(portId) {
+    return this.state.builds.some((b) => b.port === portId && (b.status === 'building' || b.status === 'waiting'));
+  }
+
+  /** Buy whatever parts a design still needs. */
+  buyMissing(design) {
+    const v = this.validate(design, null);
+    for (const m of v.missing) {
+      const r = this.buyComponent(m.id, m.n);
+      if (!r.ok) return r;
+    }
+    return { ok: true, text: v.missing.length ? 'Bought the missing parts.' : 'You have every part.' };
+  }
+
+  /** Lay down the keel: parts leave the store, the hull and labour are paid. */
+  commission(design) {
+    const g = this.game;
+    const v = this.validate(design, design.port);
+    if (!v.ok) return { ok: false, text: `Can't: ${v.reasons[0]}.` };
+    if (v.missing.length) return { ok: false, text: `Missing parts: ${v.missing.map((m) => `${m.n}× ${this.cfg.components[m.id].name}`).join(', ')}.` };
+    if (g.player.money < v.cost.now) return { ok: false, text: `The hull and labour come to ${v.cost.now} obols.` };
+    this.L.spend(v.cost.now, 'shipbuilding');
+    for (const id of design.components) this.state.stock[id] -= 1;
+    const s = this.state;
+    const b = {
+      id: `b${s.nextBuild++}`, port: design.port, status: 'building', start: g.clock.total, end: g.clock.total + Math.round(v.days * 1440),
+      paid: v.cost.now, design: { kind: design.kind, hull: design.hull, components: [...design.components], name: String(design.name || '').trim().slice(0, 28) || `${this.cfg.hulls[design.hull].name.replace(/ hull$/i, '')} No. ${s.nextBuild - 1}`, appearance: { ...design.appearance } },
+    };
+    s.builds.push(b);
+    this.L.report('shipyard', `🔨 Keel laid at ${this.L.port(b.port).name}: the ${b.design.name} (${this.cfg.hulls[b.design.hull].name.toLowerCase()}), launching ${this.L.when(b.end)}.`, 'info');
+    return { ok: true, build: b, text: `The ${b.design.name} is on the slip — ${v.days} days.` };
+  }
+
+  /** Stop a build: the parts go back to the store; half the hull and labour come back. */
+  cancel(buildId) {
+    const b = this.state.builds.find((x) => x.id === buildId);
+    if (!b || !['building', 'waiting'].includes(b.status)) return { ok: false, text: 'Nothing to cancel.' };
+    for (const id of b.design.components) this.state.stock[id] = (this.state.stock[id] || 0) + 1;
+    const refund = Math.round(b.paid * this.rules.cancelRefund);
+    this.L.earn(refund, 'refund');
+    b.status = 'cancelled';
+    this.L.report('shipyard', `✖ Build cancelled: the ${b.design.name}. Parts back in the store; ${refund} obols refunded.`, 'warn');
+    return { ok: true, text: `Cancelled. ${refund} obols back; the parts are in the store.` };
+  }
+
+  /** Each minute: yards finishing, ships launching. Daily notes come from daily(). */
+  tick() {
+    const g = this.game;
+    const now = g.clock.total;
+    for (const id of this.L.ownedPorts()) {
+      const y = this.yard(id);
+      if (y?.status === 'building' && now >= y.end) {
+        y.status = 'ready';
+        y.ready = now;
+        this.flags(id);
+        this.L.report('shipyard', `⚓ Mason's Os have finished the shipyard at ${this.L.port(id).name}! "Ready to launch. Get it? LAUNCH. Okay, Dee's already groaning."`, 'good');
+        g.bus.emit('shipyard:ready', { port: id });
+      }
+    }
+    for (const b of this.state.builds) {
+      if (!['building', 'waiting'].includes(b.status) || now < b.end) continue;
+      this.launch(b);
+    }
+  }
+
+  launch(b) {
+    const s = this.state;
+    const spec = this.compute(b.design);
+    const probe = { model: null, status: 'docked', _spec: spec };
+    if (this.L.berthCheck(probe, b.port)) {
+      if (b.status !== 'waiting') this.L.report('shipyard', `⏸ The ${b.design.name} is finished but ${this.L.port(b.port).name} has no free berth. She'll launch when one frees up.`, 'warn');
+      b.status = 'waiting';
+      return;
+    }
+    const did = `d${s.nextDesign++}`;
+    s.designs[did] = b.design;
+    this.specCache.delete(did);
+    const v = this.L.addVessel(did, b.port, b.design.name);
+    b.status = 'done';
+    b.vessel = v.id;
+    b.designId = did;
+    this.L.report('shipyard', `🍾 Launched at ${this.L.port(b.port).name}: the ${v.name}! Champagne on the bow; Mason's crew cheer from the quay.`, 'good');
+    this.game.bus.emit('shipyard:launched', { vessel: v.id });
+  }
+
+  /** 06:00: Mason's crew report on the yard. */
+  daily() {
+    const g = this.game;
+    for (const id of this.L.ownedPorts()) {
+      const y = this.yard(id);
+      if (y?.status !== 'building' || y.lastNote === g.clock.day) continue;
+      y.lastNote = g.clock.day;
+      const done = Math.min(99, Math.round(((g.clock.total - y.start) / (y.end - y.start)) * 100));
+      const notes = ['slipway rails down', 'the gantry crane is up', 'the dry dock is pumping', 'paint shop roofed', 'Dee has inspected everything twice'];
+      this.L.report('shipyard', `🏗 Shipyard at ${this.L.port(id).name}: ${done}% — ${notes[Math.min(notes.length - 1, Math.floor(done / 20))]}.`, 'info');
+    }
+  }
+
+  /** Builds shown at a port (for the berth drawings). */
+  buildsAt(portId) {
+    return this.state.builds.filter((b) => b.port === portId && ['building', 'waiting'].includes(b.status));
+  }
+}
+
+
+
+return { Shipyard, FAMILIES };
+})();
+
 // ---- src/systems/piracy.js
 __m["src/systems/piracy.js"] = (function () {
 // Piracy and dangerous routes (v0.23.0). Pure functions — no game state is
@@ -18882,6 +19346,7 @@ __m["src/systems/logistics.js"] = (function () {
 const { clamp } = __m["src/core/util.js"];
 const { seaRoute, pointAlong } = __m["src/world/seaRoutes.js"];
 const { Missions } = __m["src/systems/missions.js"];
+const { Shipyard } = __m["src/systems/shipyard.js"];
 const { zones: pirateZones, exposure: routeExposure, assess: assessRisk, roll: rollPirates } = __m["src/systems/piracy.js"];
 
 const REPORTS_MAX = 80;
@@ -18917,6 +19382,7 @@ class Logistics {
   constructor(game) {
     this.game = game;
     this.missions = new Missions(this);
+    this.shipyard = new Shipyard(this);
   }
 
   // ------------------------------------------------------------- content
@@ -18946,8 +19412,14 @@ class Logistics {
     return this.cfg.portTypes[this.port(id)?.type] || null;
   }
 
+  /** A ship model: from the catalogues, or a custom design from your own yard (v0.24.0). */
   model(id) {
-    return this.cfg.ships[id] || null;
+    return this.cfg.ships[id] || this.shipyard.spec(id) || null;
+  }
+
+  /** A vessel's model (or a not-yet-launched design's spec, for checks). */
+  specOf(v) {
+    return v._spec || this.model(v.model);
   }
 
   cls(model) {
@@ -19124,7 +19596,7 @@ class Logistics {
    * encounter would read: one set of numbers per ship, nowhere else.
    */
   stats(v) {
-    const m = this.model(v.model);
+    const m = this.specOf(v);
     const k = this.cls(m);
     return {
       capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags || [],
@@ -19152,7 +19624,7 @@ class Logistics {
     const p = this.port(portId);
     const pt = this.portType(portId);
     const st = this.stats(v);
-    const m = this.model(v.model);
+    const m = this.specOf(v);
     const need = [].concat(st.needsPortType || []);
     if (!p) return 'no such port';
     if (need.length && !need.includes(p.type)) return `the ${m.name} only berths at ${need.map((t) => this.cfg.portTypes[t].name.toLowerCase()).join(' or ')}s`;
@@ -19636,6 +20108,7 @@ class Logistics {
       this.daily();
     }
     this.missions.tick();
+    this.shipyard.tick();
     for (const v of this.vessels()) {
       if (v.status === 'loading' && v.loadUntil !== undefined && now >= v.loadUntil) this.depart(v);
       if (v.status !== 'underway') continue;
@@ -19819,6 +20292,7 @@ class Logistics {
       this.postContracts();
     }
     this.missions.daily();
+    this.shipyard.daily();
   }
 
   /** Pay off arrears now (if you can). */
@@ -19854,6 +20328,15 @@ class Logistics {
       return { type: 'message', text: `BERTH ${act.slot + 1} — ${b.name}. ${ships.length ? `In port: ${ships.join(', ')}.` : 'No ships in port.'} (Which port each berth shows is set on the terminal's Ports page.)` };
     }
     return { type: 'message', text: prop.examine || '' };
+  }
+
+  /** What's on the home shipyard's slip (for the Yards slipway drawing). */
+  slip() {
+    if (!this.owned) return null;
+    const b = this.shipyard.buildsAt(this.L.homePort)[0];
+    if (!b) return null;
+    const spec = this.shipyard.compute(b.design);
+    return { name: b.design.name, look: spec.look, progress: Math.min(1, (this.game.clock.total - b.start) / Math.max(1, b.end - b.start)) };
   }
 
   /** Ships to draw at a Yards berth (slot 0–2): the port it represents, and its docked ships you've left visible. */
@@ -21554,6 +22037,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.24.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Build Your Own',
+    notes: [
+      'Mason\'s Os will build you a shipyard: ask Mason, or commission it on the terminal\'s new Shipyard page. It takes a few days (fewer if the crew like you), and at Mill Road Docks you can watch the scaffolding go up on the quay — then the Ober & Sons slipway.',
+      'Design your own ships: choose a cargo or warship hull (twelve of them, from a sailing trader to a stealth hull), fit it out from 35 parts — engines, sails, generators, holds, reefers, cranes, radar, armour, cannon, missiles, railguns — and paint it. Every class has rules: slots, weight, power, weapon mounts and the parts a seaworthy ship must have.',
+      'Parts come from the new Parts page and wait in your store until a build uses them. Lay the keel, wait a few days, and your ship slides down the slipway into your fleet. Cancel a build and the parts come back.',
+      'Futuristic hulls — hydrofoils and stealth warships — need the Meridian Advanced Marine Licence and a shipyard at an advanced port. They\'re the dearest ships you can build, and the fastest.',
+      'The order you fit the parts in is where they sit on deck, so no two designs need look alike.',
+    ],
+  },
+  {
     version: '0.23.0',
     date: '2026-10-15',
     channel: 'development',
@@ -22969,7 +23465,9 @@ function drawShip(ctx, look, x, y, angle, opts = {}) {
     ctx.fillStyle = trim;
     ctx.fillRect(bx + 1, -2, w * 0.4, 4); // funnel
   };
-  if (hull === 'container') {
+  if (look.parts) {
+    drawParts(ctx, look, hull, L, B, color, trim, t);
+  } else if (hull === 'container') {
     const cols = ['#c0402a', '#2a6ab0', '#e8c35a', '#3a8a5a', '#8a4ab0', '#e8e2d4'];
     const n = Math.floor(L / 13);
     for (let i = 0; i < n - 2; i++) for (let j = 0; j < 3; j++) {
@@ -23087,6 +23585,90 @@ function drawShip(ctx, look, x, y, angle, opts = {}) {
     ctx.beginPath(); ctx.arc(L * 0.25, B / 2, 2, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
+}
+
+/**
+ * A custom ship (v0.24.0): its parts laid out along the deck, stern to bow, in
+ * the order you installed them — so two designs on the same hull look different.
+ */
+function drawParts(ctx, look, hull, L, B, color, trim, t) {
+  const sail = ['schooner', 'brig', 'galleon', 'manowar'].includes(hull);
+  const parts = look.parts;
+  const x0 = sail ? -L * 0.36 : -L * 0.26;
+  const x1 = L * 0.3;
+  if (!sail) {
+    // the bridge at the stern
+    ctx.fillStyle = '#f2f0ea';
+    ctx.fillRect(-L * 0.46, -B * 0.32, L * 0.14, B * 0.64);
+    ctx.fillStyle = '#2a3440';
+    ctx.fillRect(-L * 0.33, -B * 0.26, 2.5, B * 0.52);
+  }
+  parts.forEach((p, i) => {
+    const x = parts.length === 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * i) / (parts.length - 1);
+    const w = Math.min(L * 0.12, (x1 - x0) / Math.max(1, parts.length) * 0.85);
+    switch (p) {
+      case 'mast': {
+        const sway = Math.sin(t * 1.1 + i) * 1.2;
+        ctx.fillStyle = '#efe6d0';
+        ctx.beginPath(); ctx.ellipse(x, sway, Math.max(3, w * 0.4), B * 0.72, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#6a4a2a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, -B * 0.75 + sway); ctx.lineTo(x, B * 0.75 + sway); ctx.stroke();
+        break;
+      }
+      case 'funnel':
+        ctx.fillStyle = trim; ctx.beginPath(); ctx.ellipse(x, 0, w * 0.35, B * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1a1e'; ctx.beginPath(); ctx.ellipse(x, 0, w * 0.18, B * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'hatch':
+        ctx.fillStyle = shade(color, -22); ctx.fillRect(x - w / 2, -B * 0.3, w, B * 0.6);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x - w / 2, -1, w, 2);
+        break;
+      case 'containers': {
+        const cols = ['#c0402a', '#2a6ab0', '#e8c35a', '#3a8a5a', '#8a4ab0'];
+        for (let j = 0; j < 3; j++) { ctx.fillStyle = cols[(i + j * 2) % cols.length]; ctx.fillRect(x - w / 2, -B * 0.36 + j * B * 0.25, w, B * 0.22); }
+        break;
+      }
+      case 'reefer':
+        ctx.fillStyle = '#e8eef4'; ctx.fillRect(x - w / 2, -B * 0.3, w, B * 0.6);
+        ctx.fillStyle = '#4ad8e8'; ctx.fillRect(x - w / 2, -B * 0.05, w, B * 0.1);
+        break;
+      case 'crane':
+        ctx.fillStyle = '#e8c35a'; ctx.fillRect(x - 2, -B * 0.42, 4, B * 0.84);
+        ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + w, -B * 0.15); ctx.stroke();
+        break;
+      case 'cabins':
+        ctx.fillStyle = '#f2f0ea'; ctx.fillRect(x - w / 2, -B * 0.3, w, B * 0.6);
+        ctx.fillStyle = '#7aa3b8'; for (let k = -1; k <= 1; k++) ctx.fillRect(x - w / 2 + 2, k * B * 0.18 - 1.5, w - 4, 3);
+        break;
+      case 'dome':
+        ctx.fillStyle = 'rgba(160,240,255,0.85)'; ctx.beginPath(); ctx.arc(x, 0, Math.min(B * 0.28, w * 0.5), 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.stroke();
+        break;
+      case 'radar':
+        ctx.fillStyle = trim; ctx.beginPath(); ctx.arc(x, 0, B * 0.16, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + Math.cos(t * 2) * B * 0.2, Math.sin(t * 2) * B * 0.2); ctx.lineTo(x - Math.cos(t * 2) * B * 0.2, -Math.sin(t * 2) * B * 0.2); ctx.stroke();
+        break;
+      case 'antenna':
+        ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, -B * 0.3); ctx.lineTo(x, B * 0.3); ctx.moveTo(x - 3, -B * 0.15); ctx.lineTo(x + 3, -B * 0.15); ctx.stroke();
+        break;
+      case 'decoy':
+        ctx.fillStyle = '#5a5e64'; for (const k of [-1, 1]) ctx.fillRect(x - 2, k * B * 0.25 - 2, 4, 4);
+        break;
+      case 'guns':
+        ctx.fillStyle = '#1a1a1e'; for (let k = 0; k < 3; k++) { ctx.fillRect(x - w / 2 + k * (w / 3), -B / 2 - 2, 3, 3); ctx.fillRect(x - w / 2 + k * (w / 3), B / 2 - 1, 3, 3); }
+        break;
+      case 'turret':
+        ctx.fillStyle = shade(color, -25); ctx.beginPath(); ctx.arc(x, 0, Math.min(B * 0.3, 6), 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2a2a2e'; ctx.fillRect(x, -1.5, Math.min(B * 0.5, 10), 3);
+        break;
+      case 'missile':
+        ctx.fillStyle = '#3a3e44'; ctx.fillRect(x - w / 2, -B * 0.25, w, B * 0.5);
+        ctx.fillStyle = '#c0402a'; for (let k = -1; k <= 1; k += 2) ctx.fillRect(x - w / 2 + 2, k * B * 0.1 - 1, w - 4, 2);
+        break;
+      default:
+        break;
+    }
+  });
 }
 
 /** A ship's name painted on a small board (screen-aligned), for berths. */
@@ -23741,7 +24323,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-const FLAT_PROPS = new Set(['shipberth', 'moored_ship', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+const FLAT_PROPS = new Set(['shipberth', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -23959,6 +24541,30 @@ function drawProp(ctx, p, opts) {
         });
         drawNameBoard(ctx, B.name + (B.ships.length > 2 ? ` · +${B.ships.length - 2} more` : B.ships.length ? '' : ' · no ships in'), cx, y + h - 8);
       } else drawNameBoard(ctx, 'BERTH — TO LET', cx, y + 40);
+      break;
+    }
+    case 'slipway': {
+      // rails down into the water, a gantry, and whatever is on the slip (src/systems/shipyard.js)
+      ctx.fillStyle = 'rgba(90,70,50,0.75)';
+      ctx.fillRect(x + 10, y, w - 20, h);
+      ctx.fillStyle = '#5a5e64';
+      for (const rx of [x + 16, x + w - 20]) ctx.fillRect(rx, y, 4, h);
+      ctx.fillStyle = '#7a5a3a';
+      for (let ry = y + 6; ry < y + h; ry += 14) ctx.fillRect(x + 12, ry, w - 24, 3);
+      const B = opts.slip;
+      if (B?.look) {
+        const len = (B.look.len || 3) * T;
+        ctx.save();
+        ctx.globalAlpha = 0.45 + 0.55 * B.progress; // the hull fills in as it's built
+        drawShip(ctx, B.look, x + w / 2, y + 16 + len / 2, Math.PI / 2, { time: 0 });
+        ctx.restore();
+        drawNameBoard(ctx, `${B.name} · ${Math.round(B.progress * 100)}%`, x + w / 2, y + 24 + len);
+      }
+      ctx.fillStyle = '#c9a24a';
+      ctx.fillRect(x + 2, y + 4, 5, 60);
+      ctx.fillRect(x + w - 7, y + 4, 5, 60);
+      ctx.fillRect(x + 2, y + 4, w - 4, 6);
+      drawNameBoard(ctx, 'OBER & SONS SHIPYARD', x + w / 2, y - 6);
       break;
     }
     case 'moored_ship': {
@@ -26689,7 +27295,7 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.berth(p.slot) : null });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.berth(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
@@ -30414,7 +31020,7 @@ const { h } = __m["src/ui/panels.js"];
 const { buildLand, wrapLon } = __m["src/world/globe.js"];
 const { drawShip } = __m["src/engine/drawShips.js"];
 
-const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Missions', 'Brokerage', 'Warships', 'Finances', 'Reports'];
+const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Missions', 'Brokerage', 'Warships', 'Shipyard', 'Parts', 'Finances', 'Reports'];
 const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', mission: 'On a mission', lost: 'Lost', retired: 'Retired' };
 const OUTCOME = { repelled: 'pirates driven off', delay: 'a chase and a delay', ransom: 'a ransom', cargo: 'the cargo seized', captured: 'the ship captured' };
 const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
@@ -30590,7 +31196,7 @@ function logisticsPanel(ui, body, opts) {
   const tab = LOGI_TABS.includes(opts.tab) ? opts.tab : 'Overview';
   const S = Lg.state;
   if (S.arrears) body.append(h('div', { class: 'logi-msg bad' }, `⚠ ${num(S.arrears)} obols of upkeep in arrears — your ships are held in port. `, h('button', { class: 'small', onclick: () => act(Lg.payArrears()) }, 'Pay now')));
-  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Missions: missions, Brokerage: brokerage, Warships: warships, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
+  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Missions: missions, Brokerage: brokerage, Warships: warships, Shipyard: shipyard, Parts: partsStore, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
   return {
     title: 'Ober & Sons Maritime — Fleet Operations', className: 'logistics', onClose: opts.onClose,
     tabs: LOGI_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go({ tab: t, sel: null }) })),
@@ -30936,6 +31542,130 @@ function reports(ui, body) {
   for (const r of Lg.state.reports) card.append(h('div', { class: 'logi-line' }, h('span', { class: 'muted' }, Lg.when(r.at)), ' ', r.text));
   if (!Lg.state.reports.length) card.append(h('p', { class: 'muted' }, 'Nothing yet.'));
   body.append(card);
+}
+
+// ------------------------------------------------------------------ the shipyard (v0.24.0)
+function shipyard(ui, body, opts, go, act) {
+  const g = ui.game;
+  const Lg = g.logistics;
+  const Y = Lg.shipyard;
+  const C = Lg.cfg;
+  // 1. Mason's Os and the yards
+  const yards = h('div', { class: 'logi-card' }, h('h3', {}, 'Shipyards'));
+  const rows = Lg.ownedPorts().map((id) => {
+    const y = Y.yard(id);
+    const q = Y.yardQuote(id);
+    const status = y ? (y.status === 'ready' ? '✅ working' : `🏗 Mason's Os building — ready ${Lg.when(y.end)}`) : q.ok ? `can be built: ${num(q.cost)} obols, ${q.days} days${q.discount ? ` (crew goodwill −${Math.round(q.discount * 100)}%)` : ''}` : q.reasons[0];
+    return h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, h('b', {}, Lg.port(id).name), ` — ${status}`),
+      !y && q.ok ? h('button', { class: 'small primary', disabled: g.player.money < q.cost, onclick: () => act(Y.commissionYard(id), { tab: 'Shipyard' }) }, 'Commission Mason\'s Os') : null);
+  });
+  yards.append(h('p', { class: 'muted' }, 'Mason\'s Os build the yard (a commercial port or bigger). A futuristic hull needs a yard at an advanced port (warships: advanced port or naval base) and the advanced licence.'), ...rows);
+  body.append(yards);
+  const ready = Y.yards();
+  // 2. builds on the slips
+  const builds = Y.state.builds.filter((b) => ['building', 'waiting'].includes(b.status));
+  if (builds.length) {
+    const bc = h('div', { class: 'logi-card' }, h('h3', {}, 'On the slips'));
+    for (const b of builds) {
+      const f = Math.min(1, (g.clock.total - b.start) / Math.max(1, b.end - b.start));
+      bc.append(h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, h('b', {}, b.design.name), ` — ${C.hulls[b.design.hull].name} at ${Lg.port(b.port).name} · ${b.status === 'waiting' ? 'finished, waiting for a free berth' : `${Math.round(f * 100)}% · launches ${Lg.when(b.end)}`}`),
+        h('button', { class: 'small', onclick: () => act(Y.cancel(b.id), { tab: 'Shipyard' }) }, 'Cancel (parts back, 50% refund)')));
+    }
+    body.append(bc);
+  }
+  if (!ready.length) {
+    body.append(h('p', { class: 'muted' }, 'Once a yard is ready, design and build your own ships here.'));
+    return;
+  }
+  // 3. the designer
+  const d = { kind: 'cargo', hull: null, components: [], name: '', appearance: { color: C.colours[0], trim: '#e8e2d4' }, port: ready[0], ...(opts.design || {}) };
+  if (!ready.includes(d.port)) d.port = ready[0];
+  const hulls = Object.entries(C.hulls).filter(([, H]) => H.kind === d.kind);
+  if (!d.hull || C.hulls[d.hull]?.kind !== d.kind) d.hull = hulls[0][0];
+  const H = C.hulls[d.hull];
+  const set = (patch) => go({ tab: 'Shipyard', design: { ...d, ...patch } });
+  const v = Y.validate(d, d.port);
+  const designer = h('div', { class: 'logi-card' }, h('h3', {}, 'Design a ship'));
+  designer.append(h('div', { class: 'row logi-filters' },
+    h('b', {}, 'Yard:'), h('select', { class: 'logi-input', onchange: (e) => set({ port: e.target.value }) }, ...ready.map((id) => h('option', { value: id, selected: id === d.port }, Lg.port(id).name))),
+    h('b', {}, 'Type:'), ...['cargo', 'warship'].map((k) => h('button', { class: `small${d.kind === k ? ' primary' : ''}`, onclick: () => set({ kind: k, hull: null, components: [] }) }, k === 'cargo' ? 'Cargo ship' : 'Warship'))));
+  // hulls
+  designer.append(h('div', { class: 'row logi-filters' }, h('b', {}, 'Hull:'), ...hulls.map(([id, X]) => h('button', { class: `small${id === d.hull ? ' primary' : ''}`, title: X.text, onclick: () => set({ hull: id, components: [] }) }, `${X.name} (${num(X.price)})`))));
+  designer.append(h('div', { class: 'muted' }, `${H.text} · ${Lg.className({ cls: H.cls })} · size ${H.size} · ${H.slots} slots · ${H.maxWeight} t · ${H.power} power built in${H.mounts ? ` · ${H.mounts} weapon mounts` : ''} · needs: ${H.requires.map(([f, n, t]) => `${n > 1 ? `${n}× ` : ''}${t ? `${t} ` : ''}${f}`).join(', ')}`));
+  const grid = h('div', { class: 'logi-designer' });
+  // left: parts by family
+  const pick = h('div', { class: 'logi-parts' });
+  for (const fam of ['propulsion', 'power', 'cargo', 'navigation', 'defense', 'weapons', 'sensors', 'support']) {
+    const list = Object.entries(C.components).filter(([, c]) => c.family === fam);
+    if (!list.length) continue;
+    pick.append(h('h4', {}, fam[0].toUpperCase() + fam.slice(1)));
+    for (const [id, c] of list) {
+      const why = Y.fits(d.hull, id);
+      const n = d.components.filter((x) => x === id).length;
+      const stock = Y.state.stock[id] || 0;
+      pick.append(h('div', { class: `logi-line${why ? ' off' : ''}`, title: why || c.text },
+        h('span', { class: 'grow' }, `${c.name} · ${num(c.price)} · ${c.weight} t${c.power ? ` · ${c.power > 0 ? '+' : ''}${c.power} power` : ''}${c.mounts ? ` · ${c.mounts} mounts` : ''}${stock ? ` · ${stock} in store` : ''}`, why ? h('span', { class: 'logi-bad' }, ` — ${why}`) : h('span', { class: 'muted' }, ` — ${c.text}`)),
+        h('button', { class: 'small', disabled: Boolean(why) || d.components.length >= H.slots || n >= c.max, onclick: () => set({ components: [...d.components, id] }) }, '+')));
+    }
+  }
+  // right: preview, installed parts (in slot order), paint, stats, problems, the bill
+  const right = h('div');
+  const canvas = h('canvas', { width: 520, height: 150, class: 'logi-preview' });
+  const ctx = canvas.getContext('2d');
+  const look = v.stats.look;
+  const len = (look.len || 3) * 32;
+  const sc = Math.min(1.6, 480 / len);
+  ctx.save(); ctx.translate(260, 75); ctx.scale(sc, sc); drawShip(ctx, look, 0, 0, 0, {}); ctx.restore();
+  right.append(canvas);
+  const slots = h('div', { class: 'logi-card' }, h('b', {}, `Slots (${d.components.length}/${H.slots}) — stern to bow`));
+  d.components.forEach((id, i) => {
+    const c = C.components[id];
+    const move = (dir) => { const arr = [...d.components]; const j = i + dir; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; set({ components: arr }); };
+    slots.append(h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, `${i + 1}. ${c?.name || id}`),
+      h('button', { class: 'small', disabled: i === 0, onclick: () => move(-1) }, '▲'), h('button', { class: 'small', disabled: i === d.components.length - 1, onclick: () => move(1) }, '▼'),
+      h('button', { class: 'small', onclick: () => set({ components: d.components.filter((_, k) => k !== i) }) }, '✖')));
+  });
+  if (!d.components.length) slots.append(h('div', { class: 'muted' }, 'Add parts from the list. Their order is where they sit on deck.'));
+  right.append(slots);
+  const swatches = (key) => h('div', { class: 'row logi-filters' }, h('b', {}, key === 'color' ? 'Hull:' : 'Trim:'), ...C.colours.map((col) => h('button', { class: `logi-swatch${d.appearance[key] === col ? ' on' : ''}`, style: `background:${col}`, title: col, onclick: () => set({ appearance: { ...d.appearance, [key]: col } }) })));
+  const name = h('input', { class: 'logi-input', value: d.name, maxlength: 28, placeholder: 'Name her (optional)' });
+  name.addEventListener('input', () => { d.name = name.value; });
+  right.append(swatches('color'), swatches('trim'), h('div', { class: 'row' }, h('b', {}, 'Name:'), name));
+  const st = v.stats;
+  right.append(h('table', { class: 'logi-table' },
+    h('tr', {}, h('th', {}, 'Cargo · speed · range'), h('td', {}, `${st.capacity} units · ${st.speed} kn · ${num(st.range)} km`)),
+    h('tr', {}, h('th', {}, 'Reliability · costs'), h('td', {}, `${Math.round(st.reliability * 100)}% · ${st.opex}/day at sea · ${st.upkeep}/day in port`)),
+    h('tr', {}, h('th', {}, 'Weight · power · mounts'), h('td', {}, `${v.weight}/${H.maxWeight} t · ${v.powerUsed}/${v.powerMade} · ${v.mounts}/${H.mounts}`)),
+    h('tr', {}, h('th', {}, 'Combat'), h('td', {}, `attack ${st.combat.attack} · defence ${st.combat.defense} · detection ${st.combat.detection} · stealth ${st.combat.stealth}`)),
+    h('tr', {}, h('th', {}, 'Abilities'), h('td', {}, [...st.tags, ...st.bonuses.map((b) => `★ ${C.bonuses[b].name}`)].join(', ') || '—'))));
+  right.append(v.reasons.length ? h('div', {}, ...v.reasons.map((r) => h('div', { class: 'logi-bad' }, `✖ ${r}`))) : h('div', { class: 'logi-good' }, '✔ Seaworthy: meets every requirement for its class.'));
+  right.append(h('div', { class: 'logi-specs' }, `Hull ${num(v.cost.hull)} + labour ${num(v.cost.labour)} = ${num(v.cost.now)} now · parts worth ${num(v.cost.parts)}${v.missing.length ? ` (still to buy: ${num(v.missingCost)})` : ' (all in the store)'} · ${v.days} days on the slip`));
+  right.append(h('div', { class: 'row' },
+    v.missing.length ? h('button', { class: 'small', disabled: g.player.money < v.missingCost, onclick: () => act(Y.buyMissing(d), { tab: 'Shipyard', design: d }) }, `Buy missing parts (${num(v.missingCost)})`) : null,
+    h('button', { class: 'small primary', disabled: !v.ok || v.missing.length > 0 || g.player.money < v.cost.now, onclick: () => act(Y.commission(d), { tab: 'Shipyard', design: { ...d, components: [], name: '' } }) }, 'Lay the keel')));
+  grid.append(pick, right);
+  designer.append(grid);
+  body.append(designer);
+}
+
+function partsStore(ui, body, opts, go, act) {
+  const g = ui.game;
+  const Lg = g.logistics;
+  const Y = Lg.shipyard;
+  const C = Lg.cfg;
+  const lic = h('div', { class: 'logi-card' }, h('h3', {}, 'Licences'));
+  for (const [id, t] of Object.entries(C.tech)) {
+    lic.append(h('div', { class: 'logi-line' }, h('span', { class: 'grow' }, h('b', {}, t.name), ` — ${t.text}`), Y.state.tech[id] ? h('span', { class: 'logi-good' }, 'held') : h('button', { class: 'small primary', disabled: g.player.money < t.price, onclick: () => act(Y.buyTech(id), { tab: 'Parts' }) }, `Buy (${num(t.price)})`)));
+  }
+  body.append(lic);
+  const store = h('div', { class: 'logi-card logi-parts' }, h('h3', {}, 'Parts store'), h('p', { class: 'muted' }, `Parts you buy wait here until a build uses them (at most ${Y.rules.maxStock} of each). A build reserves its parts when the keel is laid; cancelling returns them.`));
+  for (const [id, c] of Object.entries(C.components)) {
+    const have = Y.state.stock[id] || 0;
+    const locked = c.tech === 'advanced' && !Y.state.tech.advanced;
+    store.append(h('div', { class: `logi-line${locked ? ' off' : ''}` }, h('span', { class: 'grow' }, h('b', {}, c.name), ` · ${c.family} · ${c.tech} · ${num(c.price)} — ${c.text}`, have ? h('b', {}, ` · ${have} in store`) : null),
+      h('button', { class: 'small', disabled: locked || g.player.money < c.price, onclick: () => act(Y.buyComponent(id, 1), { tab: 'Parts' }) }, 'Buy 1')));
+  }
+  body.append(store);
 }
 
 return { LOGI_TABS, logisticsPanel, logisticsScreen };

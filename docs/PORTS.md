@@ -13,6 +13,6 @@
 - **Berths** count ships in port *and* ships on their way there; a full port refuses new arrivals (foreign ports never fill).
 - **Contracts** start at your ports, so each port you buy brings two more offers a day from there.
 - **The Yards berths** — the Mill Road Yards quay has three berths that show the ships in port at three of your ports (Ports page; default: your first three). This is display only.
-- Ports have `upgrades` and `shipyard` fields reserved for the shipyard update (v0.24).
+- **Shipyards** (v0.24.0): Mason's Os build one at a commercial port or bigger; see [SHIPBUILDING.md](SHIPBUILDING.md). A port's `shipyard` field holds it; `upgrades` is reserved.
 
 Home waters: Mill Road Docks (commercial, yours), Lanternside Quay and Gullwing Point (harbours). Abroad, every country of the arms market has two or three ports, and a dozen free ports fill the rest of the world.

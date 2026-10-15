@@ -20,6 +20,7 @@ export const PROP_TYPES = {
   crane: { solid: true, label: 'Dock crane', defaults: { w: 3, h: 2 } },
   shipberth: { solid: false, label: 'Berth', defaults: { w: 12, h: 11 } },
   moored_ship: { solid: true, label: 'Ship', defaults: { w: 4, h: 9 } },
+  slipway: { solid: false, label: 'Slipway', defaults: { w: 4, h: 12 } },
   hatch: { solid: true, label: 'Maintenance hatch', defaults: {} },
   fence: { solid: true, label: 'Fence', defaults: {} },
   mailbox: { solid: true, label: 'Post box', defaults: {} },

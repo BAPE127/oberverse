@@ -249,3 +249,106 @@ export const MISSION_TYPES = {
   recon: { name: 'Reconnaissance', weights: { detection: 0.5, stealth: 0.3, speed: 0.2 }, difficulty: [0.3, 0.65], hours: [18, 40], reward: [4000, 9000], needs: { tag: 'recon' }, client: 'An insurer who doesn\'t give their name', text: 'Find out what\'s really happening in the nearest dangerous water, unseen.' },
   transport: { name: 'Special transport', weights: { defense: 0.5, speed: 0.5 }, difficulty: [0.2, 0.5], hours: [24, 48], reward: [6000, 14000], needs: { capacity: 8 }, client: 'A delegation that prefers not to fly', text: 'Carry a small, important party safely. Needs room aboard (8+ units).' },
 };
+
+// ======================================================================
+// v0.24.0 — the shipyard (built by Mason's Os) and the custom shipbuilder
+// ======================================================================
+
+/** The shipyard upgrade Mason's Os builds at one of your ports. */
+export const SHIPYARD = {
+  builder: 'npc_mason', // Mason's Os (the crew's goodwill gives a discount and shaves days, as for properties)
+  eligible: ['commercial', 'heavy', 'naval', 'advanced'],
+  cost: { commercial: 60000, heavy: 85000, naval: 80000, advanced: 140000 },
+  days: 5,
+  /** Ship construction: labour as a share of hull + parts; days = base + per size + per component (futuristic ×1.5). */
+  labourShare: 0.12, daysBase: 1, daysPerSize: 1, daysPerComponent: 0.25, futuristicDays: 1.5,
+  /** Cancelling a build returns its parts to the store and refunds this share of the hull and labour. */
+  cancelRefund: 0.5,
+  /** Buying a part: you can store at most this many of each. */
+  maxStock: 20,
+};
+
+/** One-off licences that unlock technology for the shipbuilder. */
+export const TECH = {
+  advanced: { name: 'Meridian Advanced Marine Licence', price: 150000, text: 'Fusion drives, hydrofoil hulls, railguns and quantum sensors. Meridian Applied Sciences sells the licence, not the questions.' },
+};
+
+/**
+ * Hulls: the base of every custom ship. tech: what kind of parts fit
+ * (sail | modern | advanced); slots, maxWeight, mounts and power are its
+ * limits; requires: what a seaworthy ship of this class must have (checked by
+ * the simulation, not just the screen); base: its own numbers before parts.
+ */
+const hull = (name, kind, o) => ({ name, kind, ...o });
+export const HULLS = {
+  h_coaster: hull('Coaster hull', 'cargo', { tech: 'modern', cls: 'low', price: 3000, size: 1, slots: 5, maxWeight: 40, mounts: 0, power: 2, base: { capacity: 0, range: 7000, reliability: 0.88, opex: 40, upkeep: 10, defense: 5, detection: 10, stealth: 15 }, requires: [['propulsion', 1], ['navigation', 1], ['cargo', 1]], look: { hull: 'coaster', len: 3 }, text: 'A small, honest hull for coastal work.' }),
+  h_sail_trader: hull('Sailing trader hull', 'cargo', { tech: 'sail', cls: 'low', price: 2500, size: 1, slots: 4, maxWeight: 35, mounts: 0, power: 0, base: { capacity: 0, range: 9000, reliability: 0.86, opex: 20, upkeep: 8, defense: 5, detection: 10, stealth: 20 }, requires: [['propulsion', 1, 'sail'], ['cargo', 1]], look: { hull: 'brig', len: 3.4 }, text: 'Wind is free. So is the time it takes.' }),
+  h_freighter: hull('Freighter hull', 'cargo', { tech: 'modern', cls: 'medium', price: 12000, size: 2, slots: 7, maxWeight: 90, mounts: 0, power: 4, base: { capacity: 0, range: 12000, reliability: 0.9, opex: 110, upkeep: 30, defense: 10, detection: 15, stealth: 10 }, requires: [['propulsion', 1], ['navigation', 1], ['cargo', 1]], look: { hull: 'freighter', len: 4.5 }, text: 'The general-purpose medium hull.' }),
+  h_carrier: hull('Carrier hull', 'cargo', { tech: 'modern', cls: 'high', price: 30000, size: 3, slots: 9, maxWeight: 150, mounts: 0, power: 6, base: { capacity: 0, range: 18000, reliability: 0.91, opex: 230, upkeep: 60, defense: 15, detection: 20, stealth: 5 }, requires: [['propulsion', 1], ['navigation', 1], ['cargo', 2]], look: { hull: 'heavylift', len: 6 }, text: 'A big hull for heavy lifts and long hauls.' }),
+  h_mega: hull('Megaship hull', 'cargo', { tech: 'modern', cls: 'superhigh', price: 80000, size: 4, slots: 12, maxWeight: 260, mounts: 0, power: 8, base: { capacity: 0, range: 26000, reliability: 0.92, opex: 520, upkeep: 130, defense: 20, detection: 25, stealth: 0 }, requires: [['propulsion', 2], ['navigation', 1], ['cargo', 3], ['power', 1]], look: { hull: 'container', len: 8 }, text: 'Very large. Needs very large engines.' }),
+  h_hydrofoil: hull('Hydrofoil hull', 'cargo', { tech: 'advanced', cls: 'futuristic', price: 140000, size: 3, slots: 10, maxWeight: 120, mounts: 0, power: 4, needsTech: 'advanced', base: { capacity: 0, range: 50000, reliability: 0.95, opex: 160, upkeep: 60, defense: 30, detection: 60, stealth: 40 }, requires: [['propulsion', 1, 'advanced'], ['power', 1, 'advanced'], ['navigation', 1], ['cargo', 1]], look: { hull: 'starwake', len: 6 }, text: 'Rides on foils above the waves. Futuristic: needs the advanced licence and an advanced port\'s shipyard.' }),
+  // warships
+  h_cutter: hull('Revenue cutter hull', 'warship', { tech: 'sail', cls: 'sail', price: 6000, size: 1, slots: 5, maxWeight: 40, mounts: 4, power: 0, base: { capacity: 0, range: 8000, reliability: 0.88, opex: 40, upkeep: 10, attack: 0, defense: 10, detection: 20, stealth: 25 }, requires: [['propulsion', 1, 'sail'], ['weapons', 1]], look: { hull: 'schooner', len: 3.2 }, text: 'A quick sailing warship for coastal patrols.' }),
+  h_ship_of_line: hull('Ship-of-the-line hull', 'warship', { tech: 'sail', cls: 'sail', price: 40000, size: 3, slots: 9, maxWeight: 160, mounts: 40, power: 0, base: { capacity: 10, range: 18000, reliability: 0.88, opex: 200, upkeep: 60, attack: 0, defense: 35, detection: 20, stealth: 5 }, requires: [['propulsion', 1, 'sail'], ['weapons', 2]], look: { hull: 'manowar', len: 6 }, text: 'Three decks of oak. Fill them with cannon.' }),
+  h_patrol: hull('Patrol hull', 'warship', { tech: 'modern', cls: 'modern', price: 15000, size: 2, slots: 7, maxWeight: 80, mounts: 4, power: 4, base: { capacity: 0, range: 9000, reliability: 0.9, opex: 100, upkeep: 25, attack: 0, defense: 15, detection: 20, stealth: 20 }, requires: [['propulsion', 1], ['navigation', 1], ['weapons', 1]], look: { hull: 'warship', len: 3.8 }, text: 'Corvette-sized: patrols, escorts, sensible money.' }),
+  h_destroyer: hull('Destroyer hull', 'warship', { tech: 'modern', cls: 'modern', price: 50000, size: 3, slots: 10, maxWeight: 140, mounts: 8, power: 8, base: { capacity: 0, range: 14000, reliability: 0.91, opex: 300, upkeep: 70, attack: 0, defense: 30, detection: 30, stealth: 15 }, requires: [['propulsion', 1], ['navigation', 1], ['weapons', 2], ['sensors', 1]], look: { hull: 'warship', len: 5.2 }, text: 'Long, lean and fast. Needs guns and eyes.' }),
+  h_capital: hull('Capital hull', 'warship', { tech: 'modern', cls: 'historic', price: 110000, size: 4, slots: 12, maxWeight: 280, mounts: 14, power: 10, base: { capacity: 0, range: 15000, reliability: 0.88, opex: 700, upkeep: 180, attack: 0, defense: 50, detection: 20, stealth: 0 }, requires: [['propulsion', 2], ['navigation', 1], ['weapons', 3], ['defense', 1]], look: { hull: 'battleship', len: 7.5 }, text: 'A battleship\'s armoured hull. Thirsty, slow, magnificent.' }),
+  h_stealth: hull('Stealth hull', 'warship', { tech: 'advanced', cls: 'futuristic', price: 220000, size: 3, slots: 10, maxWeight: 120, mounts: 6, power: 6, needsTech: 'advanced', base: { capacity: 0, range: 50000, reliability: 0.96, opex: 250, upkeep: 80, attack: 0, defense: 40, detection: 40, stealth: 50 }, requires: [['propulsion', 1, 'advanced'], ['power', 1, 'advanced'], ['navigation', 1], ['weapons', 1], ['sensors', 1]], look: { hull: 'starwake', len: 5.2 }, text: 'Angles, coatings and silence. Futuristic: needs the licence and an advanced port\'s shipyard.' }),
+};
+
+/**
+ * Components. family: what it is; tech: which hulls take it (sail hulls take
+ * sail and 'any'; modern hulls modern and 'any'; advanced hulls everything but
+ * sail); kinds: cargo, warship or both; weight and power (+ makes, − uses);
+ * mounts used (weapons); max per ship; mods add to the ship's numbers;
+ * tags and bonuses are what it lets the ship do; part is how it looks on deck.
+ */
+const part = (name, family, o) => ({ name, family, tech: 'any', kinds: ['cargo', 'warship'], weight: 1, power: 0, mounts: 0, max: 1, mods: {}, tags: [], bonuses: [], ...o });
+export const COMPONENTS = {
+  // propulsion
+  c_sails: part('Sails and rigging', 'propulsion', { tech: 'sail', price: 1500, weight: 5, mods: { speed: 11 }, part: 'mast', max: 1, text: 'Free wind, slow passage.' }),
+  c_topsails: part('Extra topsails', 'propulsion', { tech: 'sail', price: 1200, weight: 2, mods: { speed: 3, opex: 5 }, part: 'mast', max: 2, needs: 'c_sails', text: 'More canvas: a little faster.' }),
+  c_diesel: part('Diesel engine', 'propulsion', { tech: 'modern', price: 4000, weight: 10, mods: { speed: 14, opex: 40 }, part: 'funnel', max: 2, text: 'The honest workhorse.' }),
+  c_eco_engine: part('Eco engine', 'propulsion', { tech: 'modern', price: 7000, weight: 9, power: -1, mods: { speed: 12, opex: -10, reliability: 0.03 }, part: 'funnel', max: 2, text: 'Slower, cheaper to run, never breaks.' }),
+  c_gas_turbine: part('Gas turbine', 'propulsion', { tech: 'modern', price: 12000, weight: 12, power: -1, mods: { speed: 22, opex: 110 }, part: 'funnel', max: 2, text: 'Fast and thirsty.' }),
+  c_fusion_drive: part('Fusion drive', 'propulsion', { tech: 'advanced', price: 60000, weight: 14, power: -4, mods: { speed: 32, opex: 40, range: 20000 }, part: 'dome', max: 1, text: 'A sun in a box. Very fast; very far.' }),
+  // power
+  c_generator: part('Generator', 'power', { tech: 'modern', price: 2500, weight: 5, power: 4, mods: { opex: 10 }, max: 3, text: '+4 power.' }),
+  c_big_generator: part('Turbo-generator', 'power', { tech: 'modern', price: 6000, weight: 9, power: 8, mods: { opex: 25 }, max: 2, text: '+8 power.' }),
+  c_fusion_core: part('Fusion core', 'power', { tech: 'advanced', price: 45000, weight: 8, power: 14, mods: { opex: 15 }, part: 'dome', max: 1, text: '+14 power, almost silently.' }),
+  // cargo
+  c_hold_small: part('Cargo hold', 'cargo', { price: 2000, weight: 6, mods: { capacity: 20 }, part: 'hatch', max: 6, text: '+20 units.' }),
+  c_hold_large: part('Large hold', 'cargo', { price: 5000, weight: 15, mods: { capacity: 60 }, part: 'hatch', max: 6, text: '+60 units.' }),
+  c_container_bay: part('Container bay', 'cargo', { tech: 'modern', kinds: ['cargo'], price: 8000, weight: 18, mods: { capacity: 80 }, tags: ['container'], part: 'containers', max: 6, text: '+80 units; container work.' }),
+  c_bulk_hold: part('Bulk hold', 'cargo', { kinds: ['cargo'], price: 9000, weight: 22, mods: { capacity: 120 }, tags: ['bulk'], part: 'hatch', max: 4, text: '+120 units; bulk work.' }),
+  c_reefer: part('Refrigerated hold', 'cargo', { tech: 'modern', kinds: ['cargo'], price: 9000, weight: 10, power: -3, mods: { capacity: 30 }, tags: ['reefer'], part: 'reefer', max: 3, text: '+30 units; refrigerated goods.' }),
+  c_heavy_crane: part('Heavy-lift crane', 'cargo', { kinds: ['cargo'], price: 7000, weight: 8, power: -1, tags: ['heavy'], part: 'crane', max: 2, text: 'Machinery contracts.' }),
+  c_cabins: part('Passenger cabins', 'cargo', { price: 4000, weight: 5, mods: { capacity: 8 }, tags: ['transport'], part: 'cabins', max: 2, text: '+8 units; special transport missions.' }),
+  c_specialist_bay: part('Specialist cargo bay', 'cargo', { tech: 'advanced', kinds: ['cargo'], price: 30000, weight: 8, power: -2, mods: { capacity: 30 }, tags: ['advanced', 'express'], part: 'dome', max: 2, text: 'Specialised cargo contracts.' }),
+  // navigation and comms
+  c_nav_basic: part('Navigation suite', 'navigation', { price: 1500, weight: 1, mods: { reliability: 0.02 }, max: 1, text: 'Charts, compass, a reliable radio.' }),
+  c_nav_advanced: part('Integrated bridge', 'navigation', { tech: 'modern', price: 9000, weight: 2, power: -1, mods: { reliability: 0.06, detection: 10 }, part: 'radar', max: 1, text: 'Fewer delays; sees trouble coming.' }),
+  c_fleet_comms: part('Fleet communications', 'navigation', { tech: 'modern', kinds: ['warship'], price: 15000, weight: 2, power: -1, bonuses: ['fleet_comms'], part: 'antenna', max: 1, text: 'Fleet bonus: +15% escort strength.' }),
+  // defence
+  c_reinforced: part('Reinforced hull', 'defense', { price: 6000, weight: 8, mods: { defense: 10, reliability: 0.02 }, max: 1, text: '+10 defence; tougher in a blow.' }),
+  c_armor: part('Armour belt', 'defense', { tech: 'modern', price: 14000, weight: 18, mods: { defense: 22, speed: -2 }, max: 2, text: '+22 defence, a little slower.' }),
+  c_countermeasures: part('Countermeasures', 'defense', { tech: 'modern', price: 9000, weight: 3, power: -2, mods: { defense: 12 }, part: 'decoy', max: 1, text: '+12 defence: flares, chaff, loud noises.' }),
+  c_stealth_coating: part('Stealth coating', 'defense', { tech: 'advanced', price: 40000, weight: 2, power: -1, mods: { stealth: 35 }, max: 1, text: '+35 stealth: pirates don\'t see you.' }),
+  // weapons (warships)
+  c_cannon: part('Cannon battery', 'weapons', { tech: 'sail', kinds: ['warship'], price: 3000, weight: 10, mounts: 6, mods: { attack: 15 }, part: 'guns', max: 4, text: '+15 attack (6 mounts).' }),
+  c_deck_gun: part('Deck gun', 'weapons', { tech: 'modern', kinds: ['warship'], price: 6000, weight: 6, power: -1, mounts: 1, mods: { attack: 16 }, part: 'turret', max: 4, text: '+16 attack (1 mount).' }),
+  c_missiles: part('Missile launcher', 'weapons', { tech: 'modern', kinds: ['warship'], price: 16000, weight: 8, power: -2, mounts: 2, mods: { attack: 28 }, part: 'missile', max: 3, text: '+28 attack (2 mounts).' }),
+  c_railgun: part('Railgun', 'weapons', { tech: 'advanced', kinds: ['warship'], price: 55000, weight: 10, power: -5, mounts: 1, mods: { attack: 40 }, part: 'turret', max: 2, text: '+40 attack (1 mount).' }),
+  c_guard_post: part('Deck guard post', 'weapons', { tech: 'any', kinds: ['cargo'], price: 3500, weight: 3, mods: { defense: 8 }, max: 2, text: 'Cargo ships only: +8 defence (a sandbagged nest for hired guards).' }),
+  // sensors
+  c_radar: part('Search radar', 'sensors', { tech: 'modern', price: 7000, weight: 2, power: -2, mods: { detection: 25 }, part: 'radar', max: 1, text: '+25 detection.' }),
+  c_sonar: part('Sonar', 'sensors', { tech: 'modern', price: 5000, weight: 2, power: -1, mods: { detection: 15 }, max: 1, text: '+15 detection.' }),
+  c_lookout: part('Crow\'s nest and telescopes', 'sensors', { tech: 'sail', price: 800, weight: 1, mods: { detection: 10 }, max: 1, text: '+10 detection, the old way.' }),
+  c_quantum_sensors: part('Quantum sensors', 'sensors', { tech: 'advanced', price: 50000, weight: 3, power: -3, mods: { detection: 40 }, bonuses: ['hazard_sensors'], part: 'dome', max: 1, text: '+40 detection; the convoy it escorts gets +15 defence.' }),
+  // fleet support
+  c_command: part('Command centre', 'support', { tech: 'modern', kinds: ['warship'], price: 30000, weight: 6, power: -3, bonuses: ['fleet_support'], part: 'antenna', max: 1, minSize: 3, text: 'Fleet bonus at its port: −15% trouble for voyages leaving.' }),
+  c_aegis_net: part('Aegis network node', 'support', { tech: 'advanced', kinds: ['warship'], price: 120000, weight: 6, power: -6, bonuses: ['fleet_shield'], part: 'dome', max: 1, minSize: 3, text: 'Fleet bonus everywhere: −10% trouble.' }),
+};
+
+/** Paint for custom ships (the builder's swatches). */
+export const SHIP_COLOURS = ['#3a6a8a', '#2f6b4f', '#8a3a32', '#1e2a3a', '#e8e2d4', '#4a4a52', '#c0402a', '#2a4a8a', '#6a3a1e', '#1a1e24', '#d8dee6', '#c9a24a', '#5a3a6a', '#3a4a3a'];

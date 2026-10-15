@@ -381,3 +381,12 @@ div.tablet-card { border: 2px dashed var(--line); }
 .logi-sale table th { width: 90px; }
 .logi-subtabs { flex-wrap: wrap; gap: 4px; justify-content: flex-start; }
 @media (max-width: 720px) { .logi-split { grid-template-columns: 1fr; } .logi-broker { flex-direction: column; } }
+#modal-panel.logistics .tabs { flex-wrap: wrap; padding: 6px 12px 0; }
+.logi-designer { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr); gap: 10px; }
+.logi-preview { width: 100%; height: auto; background: linear-gradient(#bcd6e6, #9fc2d8); border-radius: 6px; }
+.logi-bad { color: #a02a1e; font-size: 12px; }
+.logi-good { color: #2a7a4a; font-size: 12px; }
+.logi-parts .logi-line.off { opacity: 0.45; }
+.logi-swatch { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 0 0 1px #b8c8d6; padding: 0; }
+.logi-swatch.on { box-shadow: 0 0 0 2px #1e2a3a; }
+@media (max-width: 760px) { .logi-designer { grid-template-columns: 1fr; } }

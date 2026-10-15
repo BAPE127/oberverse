@@ -631,7 +631,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['shipberth', 'moored_ship', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['shipberth', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -849,6 +849,30 @@ export function drawProp(ctx, p, opts) {
         });
         drawNameBoard(ctx, B.name + (B.ships.length > 2 ? ` · +${B.ships.length - 2} more` : B.ships.length ? '' : ' · no ships in'), cx, y + h - 8);
       } else drawNameBoard(ctx, 'BERTH — TO LET', cx, y + 40);
+      break;
+    }
+    case 'slipway': {
+      // rails down into the water, a gantry, and whatever is on the slip (src/systems/shipyard.js)
+      ctx.fillStyle = 'rgba(90,70,50,0.75)';
+      ctx.fillRect(x + 10, y, w - 20, h);
+      ctx.fillStyle = '#5a5e64';
+      for (const rx of [x + 16, x + w - 20]) ctx.fillRect(rx, y, 4, h);
+      ctx.fillStyle = '#7a5a3a';
+      for (let ry = y + 6; ry < y + h; ry += 14) ctx.fillRect(x + 12, ry, w - 24, 3);
+      const B = opts.slip;
+      if (B?.look) {
+        const len = (B.look.len || 3) * T;
+        ctx.save();
+        ctx.globalAlpha = 0.45 + 0.55 * B.progress; // the hull fills in as it's built
+        drawShip(ctx, B.look, x + w / 2, y + 16 + len / 2, Math.PI / 2, { time: 0 });
+        ctx.restore();
+        drawNameBoard(ctx, `${B.name} · ${Math.round(B.progress * 100)}%`, x + w / 2, y + 24 + len);
+      }
+      ctx.fillStyle = '#c9a24a';
+      ctx.fillRect(x + 2, y + 4, 5, 60);
+      ctx.fillRect(x + w - 7, y + 4, 5, 60);
+      ctx.fillRect(x + 2, y + 4, w - 4, 6);
+      drawNameBoard(ctx, 'OBER & SONS SHIPYARD', x + w / 2, y - 6);
       break;
     }
     case 'moored_ship': {
