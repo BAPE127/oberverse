@@ -28,6 +28,8 @@ export class GameMap {
     this.carBlock = new Set(); // v0.20.0: pavement props people walk through but cars don't
     this.crossTiles = new Set(); // crosswalk tiles (cheap for pedestrians to cross the road)
     this.propIndex = new Map();
+    this.walkOver = new Map(); // v0.27.0: named sets of tiles made walkable at runtime (a moored ship's deck over the water)
+    this.walkable = new Set();
 
     for (const b of this.buildings) {
       for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) this.grid[y][x] = 'B';
@@ -97,6 +99,19 @@ export class GameMap {
     if (b.door) this.addDoor({ id: `door_${b.id}`, building: b.id, label: b.name, ...b.door });
   }
 
+  /** Make tiles walkable (whatever their tile), as a named group; null clears the group. */
+  setWalkable(key, cells) {
+    if (cells) this.walkOver.set(key, new Set(cells)); else this.walkOver.delete(key);
+    this.walkable = new Set([...this.walkOver.values()].flatMap((x) => [...x]));
+  }
+
+  removeDoor(id) {
+    const door = this.doors.find((d) => d.id === id);
+    if (!door) return;
+    this.doors = this.doors.filter((d) => d !== door);
+    this.doorIndex.delete(door.y * this.width + door.x);
+  }
+
   addDoor(d) {
     const door = { ...d };
     if (!door.keepTile) this.grid[door.y][door.x] = 'D';
@@ -127,7 +142,7 @@ export class GameMap {
     if (!this.inBounds(tx, ty)) return true;
     const door = this.doorAt(tx, ty);
     if (door) return actor?.canPass ? !actor.canPass(door) : false;
-    if (TILE_TYPES[this.grid[ty][tx]]?.solid) return true;
+    if (TILE_TYPES[this.grid[ty][tx]]?.solid && !this.walkable.has(ty * this.width + tx)) return true;
     if (actor?.kind === 'vehicle' && this.carBlock.has(ty * this.width + tx)) return true;
     return this.propBlock.has(ty * this.width + tx);
   }

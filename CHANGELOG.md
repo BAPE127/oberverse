@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.27.0] — 2026-10-15 — "All Aboard" (development build)
+
+Release 3 of 3 from the owner's terminal and shipbuilder brief ("It would also be cool to be able to actually walk on the ship if possible"). Chosen in interview: board docked ships at the Yards berths — a walkable deck generated from the design, cabins below, a wheel and logbook. See docs/BOARDING.md.
+
+### Added
+- **Life-size ships at the berths** (`src/systems/docks.js`, `src/engine/drawDeck.js`): each berth's first two ships moored either side of a long pier, drawn full size in 3/4 view (hull, steel or planked deck, sheer stripe, rail, windlass, bollards, mooring lines, gangway, name board), kept in step with the fleet every minute and on map rebuilds.
+- **Walkable decks** generated from the design (`src/world/shipDeck.js` `deckPlan`): the hull's outline and beam; every part where it was placed, as a solid fitting drawn in detail; a port-side walkway so the way below and every fitting are reachable; the bridge with its door, or (sailing ships, the skiff) the wheel on deck and a companionway.
+- **Below decks** (`belowDecks`): a generated interior with the wheelhouse (wheel, logbook, chart table, radio or sea chest), cabins, mess and galley, the engine room (her engines and generators) and the hold (her cargo).
+- **The logbook** panel (`src/ui/logbook.js`) and the wheel (status, speed, range, last voyage).
+- `GameMap.setWalkable` / `removeDoor` for runtime decks; `shade()` accepts its own `rgb()` output (fixes warship bridges drawn black in side profiles).
+- Tests: `tests/boarding.test.mjs` (4).
+
+### Changed
+- The Yards harbour is deeper (84 rows) and the three piers are longer and moved to x = 12, 30, 48.
+
 ## [0.26.0] — 2026-10-15 — "Drydock" (development build)
 
 Release 2 of 3 from the owner's terminal and shipbuilder brief ("the ship builder should feel like the ship builder in No Man's Sky or Starfield … parts should be detailed and ships should be detailed and not be small pixels"). Chosen in interview: a big side profile, parts snapping onto glowing attachment points from a tray. See docs/SHIPBUILDING.md.

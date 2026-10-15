@@ -21,6 +21,13 @@ export const PROP_TYPES = {
   shipberth: { solid: false, label: 'Berth', defaults: { w: 12, h: 11 } },
   moored_ship: { solid: true, label: 'Ship', defaults: { w: 4, h: 9 } },
   slipway: { solid: false, label: 'Slipway', defaults: { w: 4, h: 12 } },
+  // life-size ships at the berths (v0.27.0; placed by src/systems/docks.js)
+  deckpart: { solid: true, label: 'Ship\'s fitting', defaults: {} },
+  deckhouse: { solid: true, label: 'Bridge', defaults: {} },
+  gangway: { solid: false, label: 'Gangway', defaults: {} },
+  companionway: { solid: false, label: 'Companionway', defaults: {} },
+  shipwheel: { solid: true, label: 'Ship\'s wheel', defaults: {} },
+  logbook: { solid: true, label: 'Logbook', defaults: {} },
   hatch: { solid: true, label: 'Maintenance hatch', defaults: {} },
   fence: { solid: true, label: 'Fence', defaults: {} },
   mailbox: { solid: true, label: 'Post box', defaults: {} },

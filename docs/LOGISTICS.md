@@ -70,7 +70,7 @@ Every obol moves inside `Logistics` through `spend()`/`earn()`, which also keep 
 
 ## The Yards docks
 
-Quay Road runs along the south of Mill Road Yards with the **Ober & Sons Maritime** harbour office (terminal inside), cranes, bollards, the **Salty Ober** (Captain Ober's tug and home) and **three berths**. Each berth shows one of your ports' ships in port (pick which on the port's card in Fleet Command; it only changes what you see). Hide an individual ship from the berths on its ship card. Ships are drawn top-down from their `look` (`src/engine/drawShips.js`).
+Quay Road runs along the south of Mill Road Yards with the **Ober & Sons Maritime** harbour office (terminal inside), cranes, bollards, the **Salty Ober** (Captain Ober's tug and home) and **three berths**. Each berth shows one of your ports' ships in port (pick which on the port's card in Fleet Command; it only changes what you see). Hide an individual ship from the berths on its ship card. Since v0.27.0 the ships are life-size and you can walk aboard — see [BOARDING.md](BOARDING.md).
 
 ## State
 

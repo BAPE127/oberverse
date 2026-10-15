@@ -730,7 +730,7 @@ export class Game {
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'busstop': return 'Check the bus times';
-      case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
+      case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}`, wheel: 'Take the wheel', logbook: 'Read the logbook' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;

@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.27.0 (2026-10-15)
+
+- `npm run check` — **304/304 tests passed** (4 new in `boarding.test.mjs`: on every stock ship and every hull fully fitted, from either side's gangway the way below and every fitting are reachable; below decks every interactive fitting is reachable and the way up exists; mooring, the gangway, the wheel and logbook, casting off with you aboard; aboard through a save, and hiding a ship you're on); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, 1440×900, real keyboard): five ships moored across three berths (the Gullwing Lass and the Bluecap container ship at Mill Road, the Brig at Sund, the Destroyer and the Starwake at Meridian), each life-size with its fittings; walked west off the pier, up the gangway and onto the Gullwing Lass's deck; walked north into the bridge door and arrived below decks; took the wheel ("You take the Gullwing Lass's wheel. She's alongside at Mill Road Docks…") and read the logbook. Fixed from the runs: decks split by the bridge or by fittings on narrow hulls (now a port-side walkway on every deck), a part's footprint spilling across the gap around the bridge, the skiff's gangway blocked (an open deck now), warship bridges drawn black (`shade()` on an already-shaded colour). No page errors.
+
 ## Verification record — v0.26.0 (2026-10-15)
 
 - `npm run check` — **300/300 tests passed** (4 new in `shipbuilder.test.mjs`: layouts never change numbers and survive keel, launch and reload; broken layouts fall back; attachment points per hull; every part drawn and every stock ship's fit drawn without errors); validator 0 errors.

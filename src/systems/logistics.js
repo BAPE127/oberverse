@@ -23,6 +23,7 @@ import { clamp } from '../core/util.js';
 import { seaRoute, pointAlong } from '../world/seaRoutes.js';
 import { Missions } from './missions.js';
 import { Shipyard } from './shipyard.js';
+import { Docks } from './docks.js';
 import { zones as pirateZones, exposure as routeExposure, assess as assessRisk, roll as rollPirates } from './piracy.js';
 
 const REPORTS_MAX = 80;
@@ -59,6 +60,7 @@ export class Logistics {
     this.game = game;
     this.missions = new Missions(this);
     this.shipyard = new Shipyard(this);
+    this.docks = new Docks(this);
   }
 
   // ------------------------------------------------------------- content
@@ -241,6 +243,7 @@ export class Logistics {
     for (let i = 0; i < b.length; i++) if (b[i] === portId) b[i] = null;
     b[slot] = portId || null;
     s.display.berths = b;
+    this.docks.sync();
     return { ok: true };
   }
 
@@ -317,6 +320,7 @@ export class Logistics {
     const n = String(name || '').trim().slice(0, 28);
     if (!v || !n) return { ok: false, text: 'Give it a name.' };
     v.name = n;
+    this.docks.sync();
     return { ok: true };
   }
 
@@ -324,6 +328,7 @@ export class Logistics {
     const v = this.vessel(id);
     if (!v) return { ok: false };
     v.visible = Boolean(visible);
+    this.docks.sync();
     return { ok: true };
   }
 
@@ -785,6 +790,7 @@ export class Logistics {
     }
     this.missions.tick();
     this.shipyard.tick();
+    this.docks.sync();
     for (const v of this.vessels()) {
       if (v.status === 'loading' && v.loadUntil !== undefined && now >= v.loadUntil) this.depart(v);
       if (v.status !== 'underway') continue;
@@ -1002,6 +1008,21 @@ export class Logistics {
       if (!b) return { type: 'message', text: `Berth ${act.slot + 1} is empty. Choose which of your ports it shows on the terminal's Ports page.` };
       const ships = b.ships.map((v) => v.name);
       return { type: 'message', text: `BERTH ${act.slot + 1} — ${b.name}. ${ships.length ? `In port: ${ships.join(', ')}.` : 'No ships in port.'} (Which port each berth shows is set on the terminal's Ports page.)` };
+    }
+    if (act.action === 'wheel' || act.action === 'logbook') {
+      const v = this.vessel(act.vessel);
+      if (!v) return { type: 'message', text: prop.examine || '' };
+      if (act.action === 'logbook') return { type: 'panel', panel: 'logbook', opts: { vessel: v.id } };
+      const m = this.model(v.model);
+      const where = v.status === 'loading' ? `loading at ${this.port(v.port).name}` : `alongside at ${this.port(v.port).name}`;
+      const st = this.stats(v);
+      const lines = [
+        `You take the ${v.name}'s wheel. She's ${where}, hull at ${Math.round(v.condition)}%${v.cargo ? `, ${v.cargo.units} units in the hold` : ''}.`,
+        `${m.name}: ${st.speed} knots flat out, ${Math.round(st.range / 1000)}k km between fuel stops.`,
+        v.log.length ? `Last voyage: ${this.port(v.log[0].from || v.port)?.name || '—'} → ${this.port(v.log[0].to || v.port)?.name || '—'}.` : 'She hasn\'t sailed for you yet.',
+        'Orders are given from Fleet Command — but it does feel good to hold her.',
+      ];
+      return { type: 'message', text: lines.join(' ') };
     }
     return { type: 'message', text: prop.examine || '' };
   }

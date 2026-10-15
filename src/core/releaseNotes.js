@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.27.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'All Aboard',
+    notes: [
+      'Your ships at the Mill Road Yards berths are now life-size: moored either side of three long piers, mooring lines out, a gangway across.',
+      'Walk up the gangway and onto the deck. It\'s built from the ship\'s own design — every part where you put it in the shipbuilder: hatches and container stacks, smoking funnels, cranes, masts with their sails set, turrets, radar that turns.',
+      'Through the bridge door (or down the companionway on a sailing ship) are the rooms below: the wheelhouse with the ship\'s wheel and her logbook, the crew\'s cabins, the mess, the engine room with her engines, and the hold with whatever she\'s carrying.',
+      'Take the wheel for her status; read the logbook for every voyage she\'s made for you. If she sails while you\'re aboard, you\'ll hop back onto the pier.',
+    ],
+  },
+  {
     version: '0.26.0',
     date: '2026-10-15',
     channel: 'development',

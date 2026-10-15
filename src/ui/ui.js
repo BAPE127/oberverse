@@ -14,6 +14,7 @@ import { tabletPanel } from './tablet.js';
 import { dealerPanel } from './dealer.js';
 import { armsBenchPanel } from './armsbench.js';
 import { fleetPanel } from './fleetCommand.js';
+import { logbookPanel } from './logbook.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -21,6 +22,7 @@ PANELS.dealer = dealerPanel;
 PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;
+PANELS.logbook = logbookPanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [

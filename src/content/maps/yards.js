@@ -5,7 +5,7 @@
 import { MapBuilder, roomTiles } from '../../world/mapBuilder.js';
 
 const W = 64;
-const H = 62;
+const H = 84; // v0.27.0: a deeper harbour for life-size ships
 const m = new MapBuilder(W, H, 'g');
 m.rect(0, 0, W, 1, 'x').rect(0, 0, 1, 48, 'x'); // beyond the fence
 m.rect(1, 18, W - 1, 4, '='); // the yard road, from the east gate
@@ -18,8 +18,9 @@ m.rect(6, 41, 52, 4, '='); // Quay Road
 m.rect(40, 39, 2, 2, '='); // where the cross road meets it
 m.rect(1, 40, 5, 6, 'm').rect(58, 40, 5, 6, 'm'); // turning circles at both ends
 m.rect(0, 48, W, H - 48, '~'); // the harbour
-export const BERTH_PIERS = [10, 29, 48]; // three berths, each a pier with a ship either side (authored x)
-for (const x of BERTH_PIERS) m.rect(x, 48, 2, 10, 'p');
+export const BERTH_PIERS = [12, 30, 48]; // three berths, each a pier with a ship either side (authored x)
+export const BERTH_ROW = 49; // where a moored ship's stern lies (src/systems/docks.js)
+for (const x of BERTH_PIERS) m.rect(x, 48, 2, 26, 'p');
 m.rect(58, 48, 1, 7, 'p'); // the Salty Ober's mooring
 
 const works = (id, name, x, y, w, h, o = {}) => ({
@@ -70,7 +71,8 @@ for (const [x, y] of [[56, 45], [57, 45]]) P('crate', x, y, { w: 1 });
 props.push({ id: 'yd_slipway_works', type: 'scaffold', x: 1, y: 45, w: 4, h: 3, hiddenUnless: { flag: 'shipyard_home_building' }, examine: 'Mason\'s Os are building a shipyard here. A sign: "SLIPWAY UNDER CONSTRUCTION. Mind the pun-filled gap."' });
 props.push({ id: 'yd_slipway', type: 'slipway', x: 1, y: 47, w: 4, h: 12, hiddenUnless: { flag: 'shipyard_home_ready' }, examine: 'The Ober & Sons shipyard slipway: greased rails running down into the harbour, a gantry overhead. Ships you build at Mill Road are launched from here.' });
 BERTH_PIERS.forEach((x, i) => {
-  props.push({ id: `yd_berth${i + 1}`, type: 'shipberth', x: x - 5, y: 48, w: 12, h: 11, slot: i, examine: `Berth ${i + 1}.` });
+  // the berth draws its moored ships life-size; their decks, fittings and gangways are added by src/systems/docks.js
+  props.push({ id: `yd_berth${i + 1}`, type: 'shipberth', x: x - 8, y: 47, w: 18, h: 35, slot: i, pier: x, examine: `Berth ${i + 1}.` });
   props.push({ id: `yd_berth${i + 1}_sign`, type: 'sign', x: x + 2, y: 47, interact: { kind: 'logistics', action: 'berth', slot: i, name: `Berth ${i + 1} board` }, examine: `BERTH ${i + 1}.` });
 });
 props.push({ id: 'yd_salty_ober', type: 'moored_ship', x: 59, y: 48, w: 4, h: 9, look: { hull: 'tug', color: '#7a2a24', trim: '#e8e2d4', len: 3.2 }, name: 'Salty Ober', examine: 'The Salty Ober: an old harbour tug turned houseboat, red as a pillar box, with geraniums in the lifebelts. Captain Ober lives aboard.' });
@@ -84,6 +86,7 @@ export const yards = {
   ambience: 'amb_city',
   tiles: m.rows(),
   areas: [{ id: 'area_yards', name: 'Mill Road Yards', x: 0, y: 0, w: W, h: H }],
+  berths: { piers: BERTH_PIERS, row: BERTH_ROW },
   buildings,
   doors: [
     { id: 'door_yd_gate_n', x: 63, y: 18, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },

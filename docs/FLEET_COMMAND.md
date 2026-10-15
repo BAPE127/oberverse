@@ -45,4 +45,4 @@ Tests: `tests/fleetcommand.test.mjs`.
 
 ## Next
 
-- **v0.27** — life-size ships at the Yards berths that you can walk aboard (deck generated from the design, cabins below, the wheel and the logbook).
+- **v0.27** — life-size ships at the Yards berths that you can walk aboard: see [BOARDING.md](BOARDING.md).

@@ -521,3 +521,16 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
   .sb { grid-template-columns: 1fr; grid-template-rows: auto 260px auto auto; overflow-y: auto; }
   .sb-side { grid-column: 1; grid-row: auto; }
 }
+
+/* ---------- a ship's logbook (v0.27.0) ---------- */
+#modal-panel.logbook-panel { width: min(620px, calc(100vw - 32px)); background: #f3ead2; }
+.logbook { font-family: Georgia, "Times New Roman", serif; color: #2a2016; background: repeating-linear-gradient(#f3ead2 0 27px, #d9cfb4 27px 28px); }
+.logbook-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.logbook-head b { font-size: 22px; letter-spacing: 1px; }
+.logbook-head span { font-style: italic; opacity: .75; }
+.logbook-table { border-collapse: collapse; margin-bottom: 10px; }
+.logbook-table th { text-align: left; font-weight: normal; font-style: italic; padding: 2px 14px 2px 0; opacity: .75; }
+.logbook-table td { padding: 2px 0; }
+.logbook h3 { margin: 10px 0 4px; font-family: inherit; border-bottom: 1px solid #8a7a5a; }
+.logbook-line { margin: 0 0 6px; line-height: 1.5; font-family: "Segoe Script", "Bradley Hand", cursive, Georgia, serif; }
+.logbook-line i { font-style: normal; opacity: .6; font-family: Georgia, serif; }

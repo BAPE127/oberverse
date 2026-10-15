@@ -1,5 +1,6 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
+import { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } from './drawDeck.js';
 import { lightState, walkSignal } from '../world/lights.js';
 import { TILE } from '../core/util.js';
 import { drawFactoryProp } from './drawFactory.js';
@@ -631,7 +632,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['shipberth', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -836,21 +837,22 @@ export function drawProp(ctx, p, opts) {
       break;
     }
     case 'shipberth': {
-      // your ships at this berth (src/systems/logistics.js berth()); empty berths just show the board
+      // v0.27.0: your ships at this berth, life-size (src/systems/docks.js); their fittings are props of their own
       const B = opts.berth;
-      const cx = x + w / 2;
+      const px = (p.pier ?? p.x + 8) * T;
       if (B) {
-        const ships = B.ships.slice(0, 2);
-        ships.forEach((v, i) => {
-          const sx = i === 0 ? cx - T * 2.4 : cx + T * 2.6;
-          const len = (v.appearance.len || 3) * T;
-          drawShip(ctx, v.appearance, sx, y + 10 + len / 2, Math.PI / 2, { time, lit: opts.night });
-          drawNameBoard(ctx, v.name, sx, y + 18 + len);
-        });
-        drawNameBoard(ctx, B.name + (B.ships.length > 2 ? ` · +${B.ships.length - 2} more` : B.ships.length ? '' : ' · no ships in'), cx, y + h - 8);
-      } else drawNameBoard(ctx, 'BERTH — TO LET', cx, y + 40);
+        for (const m of B.ships) drawMooredHull(ctx, m, { time, night: opts.night });
+        drawNameBoard(ctx, B.name + (B.more ? ` · +${B.more} more in port` : B.empty ? ' · no ships in' : ''), px + T, y + 6);
+        for (const m of B.ships) drawNameBoard(ctx, m.name, (m.x0 + m.plan.Bt / 2) * T, (m.y0 + m.plan.Lt) * T + 26);
+      } else drawNameBoard(ctx, 'BERTH — TO LET', px + T, y + 40);
       break;
     }
+    case 'deckpart': drawDeckPart(ctx, p, opts); break;
+    case 'deckhouse': drawDeckhouse(ctx, p, opts); break;
+    case 'shipwheel': drawShipWheel(ctx, p, opts); break;
+    case 'logbook': drawLogbook(ctx, p, opts); break;
+    case 'gangway': drawGangway(ctx, p, opts); break;
+    case 'companionway': drawCompanionway(ctx, p, opts); break;
     case 'slipway': {
       // rails down into the water, a gantry, and whatever is on the slip (src/systems/shipyard.js)
       ctx.fillStyle = 'rgba(90,70,50,0.75)';

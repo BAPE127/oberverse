@@ -6,7 +6,9 @@
 const BUILD_WIDTH = { round: 21, average: 18, thin: 15, wiry: 16, broad: 22 };
 
 function shade(hex, amt) {
-  const n = parseInt(hex.slice(1), 16);
+  // '#rrggbb', or an 'rgb(r,g,b)' this returned earlier (so shades can be shaded again)
+  const m = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(hex);
+  const n = m ? (+m[1] << 16) | (+m[2] << 8) | +m[3] : parseInt(hex.slice(1), 16);
   const r = Math.max(0, Math.min(255, ((n >> 16) & 255) + amt));
   const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amt));
   const b = Math.max(0, Math.min(255, (n & 255) + amt));
