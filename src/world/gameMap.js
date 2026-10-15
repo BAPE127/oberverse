@@ -142,7 +142,8 @@ export class GameMap {
     if (!this.inBounds(tx, ty)) return true;
     const door = this.doorAt(tx, ty);
     if (door) return actor?.canPass ? !actor.canPass(door) : false;
-    if (TILE_TYPES[this.grid[ty][tx]]?.solid && !this.walkable.has(ty * this.width + tx)) return true;
+    const tt = TILE_TYPES[this.grid[ty][tx]];
+    if (tt?.solid && !(tt.water && actor?.amphibious) && !this.walkable.has(ty * this.width + tx)) return true; // v0.34.0: the Landlubber floats
     if (actor?.kind === 'vehicle' && this.carBlock.has(ty * this.width + tx)) return true;
     return this.propBlock.has(ty * this.width + tx);
   }

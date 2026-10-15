@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.34.0] — 2026-10-15 — Signature Cars (development build)
+
+Owner's brief: give each imported character their own unique car, true to their personality and position — "as insane and absurd as you want".
+
+### Added
+- **Seven signature cars** (`src/content/signatureCars.js`, drawn by `src/engine/drawSignatureCars.js`), each parked by where its owner works, clear of every bus and traffic lane:
+  - **Moneybucks Bullion** (Sir Moneybucks, Moneybucks Estate): a six-wheeled solid-gold limousine with a twinkling chandelier, a champagne fountain and a bubbling hot tub; cash-register horn; sheds gold coins.
+  - **Plumb Bob** (Mason Nails, Westbrook): a cement-mixer hot rod — the drum turns, a tower crane's brass plumb bob swings with the motion; reversing-beeper horn; kicks up dust; nearly full speed off-road.
+  - **Gavel** (Chief Lawrence Order, by the station): an armoured interceptor with three light bars, a scales-of-justice bull bar and a doughnut spare; the horn slams the giant gavel down (ORDER!). Officers who see it salute instead of chasing it.
+  - **Hypotenuse** (Arthur Anderson, by the Abacus): a right-angled triangle on three wheels in chalkboard black, a roof calculator reading out your speed, a protractor spoiler; the horn plays the digits of pi; leaves sums behind it.
+  - **Paranoia** (Lucas Eastrise): a tinfoil half-track with scanning satellite dishes, an antenna forest and a periscope turret; theremin horn; the police never notice it, stolen or not.
+  - **Landlubber** (Captain Ober, the Yards): a wooden launch on tractor wheels with a figurehead, a sail that fills with speed and a crow's nest; foghorn; **drives on water**, 30% faster at sea.
+  - **Big Cheese** (Farmer Chuckie, by the cheese plant): a cheddar wedge on monster wheels with longhorns and a milk-churn exhaust; moo horn (people nearby wonder); full speed across fields; leaves crumbs.
+- Each has its own plate, a lore note when you look at it, and a line its owner shouts when they see you in it. Stealing one hits their opinion of you harder; no dealer will buy one.
+- Validator: signature cars must belong to an imported character, be parked once on a real map and have a known horn.
+- Tests: `tests/signatureCars.test.mjs` (5).
+
+### Saves
+- Older saves gain the seven cars once (a car you've since lost isn't put back).
+
 ## [0.33.0] — 2026-10-15 — "Living World" stage 2 (development build)
 
 The second stage of the world-simulation overhaul: public transport. See docs/WORLD_SIMULATION.md.

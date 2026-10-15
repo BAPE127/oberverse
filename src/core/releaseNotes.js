@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.34.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Signature Cars',
+    notes: [
+      'Seven one-of-a-kind cars, parked by where their owners work: Sir Moneybucks\' solid-gold Bullion (chandelier, champagne fountain, hot tub, a cash-register horn, sheds gold); Mason\'s Plumb Bob (a cement-mixer hot rod with a tower crane); Chief Order\'s Gavel (three light bars, a gavel that slams when you honk, a doughnut for a spare); Arthur\'s Hypotenuse (a right-angled triangle on three wheels — its horn plays pi); Lucas\'s Paranoia (a tinfoil half-track: NOT A SURVEILLANCE VAN); Captain Ober\'s Landlubber (a boat on wheels — it drives into the sea, faster); Chuckie\'s Big Cheese (a wedge of cheddar with longhorns; it moos).',
+      'Hotwire one if you dare. No dealer will touch it, and its owner will know it when they see it go by. The police salute the Gavel, and never seem to notice the Paranoia.',
+    ],
+  },
+  {
     version: '0.33.0',
     date: '2026-10-15',
     channel: 'development',

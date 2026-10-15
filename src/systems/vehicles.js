@@ -21,7 +21,7 @@ const PLATE_LETTERS = 'ABCDEFGHJKLMNPRSTVWXYZ';
 export function freshVehicles(content) {
   const v = content.vehicles;
   const cars = {};
-  for (const p of v.parked) cars[p.id] = { id: p.id, model: p.model, color: p.color, map: p.map, x: (p.x + 0.5) * TILE, y: (p.y + 0.5) * TILE, angle: (p.angle * Math.PI) / 180, owner: p.owner, stolen: false, plate: plateFor(p.id) };
+  for (const p of v.parked) cars[p.id] = parkedCar(p);
   for (const [did, d] of Object.entries(v.dealers)) {
     d.display.forEach((s, i) => {
       const id = `car_${did}_${i}`;
@@ -29,6 +29,10 @@ export function freshVehicles(content) {
     });
   }
   return { cars, nextId: 1, restock: {} };
+}
+
+function parkedCar(p) {
+  return { id: p.id, model: p.model, color: p.color, map: p.map, x: (p.x + 0.5) * TILE, y: (p.y + 0.5) * TILE, angle: (p.angle * Math.PI) / 180, owner: p.owner, stolen: false, plate: p.plate || plateFor(p.id) };
 }
 
 function plateFor(seed) {
@@ -52,7 +56,14 @@ export class Vehicles {
   get state() {
     const g = this.game;
     if (!g.world.vehicles) g.world.vehicles = freshVehicles(g.content);
-    return g.world.vehicles;
+    const s = g.world.vehicles;
+    // v0.34.0: older saves gain the signature cars (once each — a stolen one stays stolen)
+    if (!s.sigAdded) {
+      s.sigAdded = [];
+      for (const p of this.cfg.parked) if (this.cfg.models[p.model]?.sig && !s.cars[p.id]) s.cars[p.id] = parkedCar(p);
+      for (const p of this.cfg.parked) if (this.cfg.models[p.model]?.sig) s.sigAdded.push(p.id);
+    }
+    return s;
   }
 
   model(car) {
@@ -77,14 +88,14 @@ export class Vehicles {
   }
 
   /** Actor used for car collisions: building doors block, seams and region gates don't. */
-  actor() {
-    return { kind: 'vehicle', canPass: (door) => Boolean(door.seamless || door.gateway) };
+  actor(amphibious = false) {
+    return { kind: 'vehicle', amphibious, canPass: (door) => Boolean(door.seamless || door.gateway) };
   }
 
   /** The car's body as three boxes along its length. */
   blocked(map, x, y, angle, len, wid, ignore) {
     const g = this.game;
-    const a = this.actor();
+    const a = this.actor(Boolean(ignore?.model && this.model(ignore)?.amphibious));
     const half = len / 2 - wid / 2;
     const box = Math.max(16, wid - 8);
     for (const k of [-half, 0, half]) {
@@ -161,12 +172,13 @@ export class Vehicles {
     if (!car) return { type: 'none' };
     if (car.owner === 'player') return this.enter(id);
     const m = this.model(car);
+    const lore = m.sig ? ` ${m.lore} Plate: ${car.plate}.` : '';
     const whose = car.owner?.startsWith('dealer:') ? `On sale at ${this.cfg.dealers[car.owner.slice(7)].name} for ${m.price} obols. Talk to the salesman to buy one.`
       : car.owner === 'police' ? 'It belongs to the Halvermouth Police. Stealing it would be very bold and very stupid.'
         : car.owner ? `It belongs to ${this.game.npcs.get(car.owner)?.profile.name || 'someone'}.` : 'Nobody you know. The doors are locked.';
     return {
       type: 'choices', title: m.name,
-      text: `${m.blurb} ${whose}`,
+      text: `${m.blurb}${lore} ${whose}`,
       options: [
         { label: 'Hotwire it (car theft — a crime)', call: ['vehicles', 'startHotwire', id] },
         { label: 'Leave it', call: ['vehicles', 'noop'] },
@@ -265,6 +277,10 @@ export class Vehicles {
     const owner = prev?.startsWith('dealer:') ? g.npcs.get(this.cfg.dealers[prev.slice(7)].npc) : prev ? g.npcs.get(prev) : null;
     if (owner && prev.startsWith('dealer:') && owner.map === car.map) g.bark(owner, owner.id === 'npc_marty' ? 'OI! That\'s STOCK! …Fair play, though.' : 'I beg your PARDON!');
     if (owner) g.relationships.adjust(owner, 'player', { trust: -20, affection: -15, suspicion: 30 }, 'stole my car');
+    if (owner && this.model(car).sig) {
+      g.relationships.adjust(owner, 'player', { trust: -10, affection: -10 }, `stole the ${this.model(car).name}`);
+      if (owner.map === car.map && dist(owner.x, owner.y, car.x, car.y) < 400) g.bark(owner, this.model(car).stolenLine);
+    }
     g.reportCrime({ fact: 'fact_player_car_theft', map: car.map, x: car.x, y: car.y });
     g.bus.emit('sfx', { id: 'sfx_car_start' });
     g.bus.emit('vehicle:stolen', { car: car.id, from: prev });
@@ -299,6 +315,33 @@ export class Vehicles {
       g.updateDiscovery();
     }
     this.watchForPolice(car);
+    if (m.sig) this.signature(car, m, dt);
+  }
+
+  /** v0.34.0: a signature car leaves its trail, and its owner knows it when they see it go by. */
+  signature(car, m, dt) {
+    const g = this.game;
+    const sp = Math.abs(car.moved || 0);
+    if (m.trail && sp > 25) {
+      this.trailAcc = (this.trailAcc || 0) + dt * Math.min(1, sp / 250) * 9;
+      const list = (this.trail ||= []);
+      while (this.trailAcc >= 1) {
+        this.trailAcc -= 1;
+        const back = -m.len / 2 - 4;
+        const side = (Math.random() - 0.5) * m.wid * 0.8; // looks only: keep the shared rng out of it
+        const c = Math.cos(car.angle);
+        const s = Math.sin(car.angle);
+        list.push({ kind: m.trail, map: car.map, x: car.x + c * back - s * side, y: car.y + s * back + c * side, t: g.realTime, r: Math.random() });
+      }
+      while (list.length > 160 || (list.length && g.realTime - list[0].t > 4)) list.shift();
+    }
+    if (!car.stolen) return;
+    const owner = g.npcs.get(m.owner);
+    if (!owner || owner.map !== car.map || owner.riding != null || dist(owner.x, owner.y, car.x, car.y) > 300) return;
+    if ((car.spottedAt || -1e9) > g.realTime - 120) return;
+    car.spottedAt = g.realTime;
+    g.bark(owner, m.stolenLine);
+    g.relationships.adjust(owner, 'player', { affection: -3 }, `saw you in the ${m.name}`);
   }
 
   /**
@@ -315,7 +358,7 @@ export class Vehicles {
     const steer = input.x || 0;
     car.speed ||= 0;
     const tile = map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
-    const top = m.top * (ROAD.has(tile) ? 1 : m.offRoad ?? D.offRoad); // v0.30.0: tractors don't mind fields
+    const top = m.top * (ROAD.has(tile) ? 1 : tile === '~' && m.amphibious ? m.seaSpeed || 1 : m.offRoad ?? D.offRoad); // v0.30.0: tractors don't mind fields; v0.34.0: the Landlubber is faster at sea
     car.braking = false;
     if (throttle > 0.1) car.speed += (car.speed < 0 ? D.brake : m.accel) * throttle * dt;
     else if (throttle < -0.1) {
@@ -326,7 +369,7 @@ export class Vehicles {
     }
     if (input.sprint) { car.speed *= Math.max(0, 1 - 3 * dt); car.braking = true; }
     if (car.speed > top) car.speed = Math.max(top, car.speed - D.brake * dt);
-    car.speed = clamp(car.speed, -m.top * D.reverseShare, m.top);
+    car.speed = clamp(car.speed, -m.top * D.reverseShare, Math.max(m.top, top));
     // steering bites harder at speed (up to a point); reversing turns the other way
     const bite = clamp(car.speed / 140, -1, 1);
     const wedged = this.blocked(map, car.x, car.y, car.angle, m.len, m.wid, car); // already overlapping something
@@ -362,6 +405,7 @@ export class Vehicles {
       break;
     }
     car.moved = dt > 0 ? Math.hypot(car.x - x0, car.y - y0) / dt : 0; // actual speed over the ground
+    if (m.sig) car.odo = ((car.odo || 0) + car.moved * dt) % 1e6; // v0.34.0: the Paranoia's tracks turn
     return crashed;
   }
 
@@ -490,12 +534,19 @@ export class Vehicles {
   watchForPolice(car) {
     const g = this.game;
     if (!car.stolen || car.reported || !g.police) return;
+    const sus = this.model(car).unsuspected;
+    if (sus === 'unseen') return; // v0.34.0: the Paranoia's tinfoil — the police look straight through it
     if ((this.nextLook || 0) > g.realTime) return;
     this.nextLook = g.realTime + 0.5;
     const map = g.maps.get(car.map);
     for (const o of g.police.activeOfficers()) {
       if (o.map !== car.map || isDown(o, g.clock.total) || o.activity === 'sleep') continue;
       if (!g.canSee(o, car.x, car.y, map, 9)) continue;
+      if (sus === 'salute') {
+        // v0.34.0: nobody would steal the Chief's car, so it must be the Chief
+        if ((o.saluted || -1e9) < g.realTime - 90) { o.saluted = g.realTime; g.bark(o, g.rng.pick(['*salutes* Chief!', 'Morning, Chief! Out of the station? Blimey.', '*snaps to attention*'])); }
+        continue;
+      }
       car.reported = true;
       g.bark(o, 'That\'s a stolen car! Pull over!');
       g.police.raiseWanted(3, `${o.profile.shortName} recognised the stolen ${this.model(car).name}.`);
@@ -558,6 +609,7 @@ export class Vehicles {
   }
 
   offer(dealerId, car) {
+    if (this.model(car).sig) return 0; // everyone in the Oberverse knows whose that is
     const d = this.dealer(dealerId);
     const m = this.model(car);
     if (car.stolen) return d.buysStolen ? Math.round(m.price * d.buysStolen) : 0;
@@ -569,7 +621,7 @@ export class Vehicles {
     const car = this.car(carId);
     if (!car || !this.onLot(dealerId).includes(car)) return { ok: false, text: 'Park it on the lot first.' };
     const price = this.offer(dealerId, car);
-    if (!price) return { ok: false, text: 'We do not handle vehicles of… uncertain provenance.' };
+    if (!price) return { ok: false, text: this.model(car).sig ? `Sell you the ${this.model(car).name}? I'd sooner sell my own mother. Everybody knows whose that is.` : 'We do not handle vehicles of… uncertain provenance.' };
     delete this.state.cars[carId];
     g.player.money += price;
     g.bus.emit('money:changed', { delta: price, total: g.player.money });

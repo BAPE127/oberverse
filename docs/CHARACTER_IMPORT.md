@@ -60,11 +60,12 @@ Ask the player to correct misunderstandings. Then implement — the goal is the 
 7. Relationships both ways (edit existing characters' `relationships`/`opinions` too), initial knowledge, gift prefs, reactions, notices.
 8. Audio: add `motif_<name>` to `MOTIFS` + `AUDIO_REGISTRY` + `docs/AUDIO_GUIDE.md`; set `voice`.
 9. Optional quest/events in `quests.js`/`events.js`.
-10. Register in `src/content/index.js`. Update `oberverse-manifest.json` `importedCharacters`.
-11. `npm run check`; add a test file `tests/character_<name>.test.mjs` covering greeting, a mechanic, schedule placement and save/load.
-12. `npm run build`, play it in the browser (open `index.html`), `npm run smoke`.
-13. Write `docs/characters/<id>.md` (interview summary, design decisions, what was invented vs. supplied).
-14. MINOR version bump; changelog.
+10. (v0.34.0) Give them a **signature car** in `src/content/signatureCars.js`: a model with `sig`, `owner`, `plate`, `horn`, `trail`, `blurb`, `lore`, `stolenLine` (plus any gimmick), a drawing in `src/engine/drawSignatureCars.js`, and a parking spot near where they work, clear of the bus and traffic lanes (`tests/signatureCars.test.mjs` checks).
+11. Register in `src/content/index.js`. Update `oberverse-manifest.json` `importedCharacters`.
+12. `npm run check`; add a test file `tests/character_<name>.test.mjs` covering greeting, a mechanic, schedule placement and save/load.
+13. `npm run build`, play it in the browser (open `index.html`), `npm run smoke`.
+14. Write `docs/characters/<id>.md` (interview summary, design decisions, what was invented vs. supplied).
+15. MINOR version bump; changelog.
 
 ### Protection rule (v0.7.0)
 

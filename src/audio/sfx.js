@@ -221,6 +221,19 @@ export const SFX = {
   },
   sfx_horn: (ctx, d, o) => {
     const t = ctx.currentTime;
+    // v0.34.0: the signature cars' horns
+    const k = o?.kind;
+    if (k === 'kaching') { // a cash register
+      noise(ctx, d, { t, dur: 0.06, vol: 0.3, type: 'bandpass', freq: 2500, q: 2 });
+      for (const [f, dt] of [[2093, 0.08], [2637, 0.08], [3136, 0.14]]) tone(ctx, d, { type: 'triangle', f0: f, t: t + dt, dur: 0.5, vol: 0.12, attack: 0.002 });
+      return;
+    }
+    if (k === 'reverse') { for (let i = 0; i < 3; i++) tone(ctx, d, { type: 'square', f0: 1050, t: t + i * 0.32, dur: 0.18, vol: 0.09 }); return; } // a reversing beeper
+    if (k === 'gavel') { for (const dt of [0, 0.28]) { tone(ctx, d, { type: 'sine', f0: 180, f1: 60, t: t + dt, dur: 0.16, vol: 0.5, attack: 0.001 }); noise(ctx, d, { t: t + dt, dur: 0.05, vol: 0.4, type: 'lowpass', freq: 1400 }); } return; } // ORDER! ORDER!
+    if (k === 'pi') { [3, 1, 4, 1, 5, 9, 2, 6].forEach((n, i) => tone(ctx, d, { type: 'square', f0: hz(60 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16][n]), t: t + i * 0.09, dur: 0.08, vol: 0.07 })); return; } // the digits of pi
+    if (k === 'theremin') { tone(ctx, d, { type: 'sine', f0: 520, f1: 980, t, dur: 0.35, vol: 0.12 }); tone(ctx, d, { type: 'sine', f0: 980, f1: 470, t: t + 0.35, dur: 0.5, vol: 0.12 }); return; }
+    if (k === 'foghorn') { tone(ctx, d, { type: 'sawtooth', f0: 98, t, dur: 1.2, vol: 0.18, attack: 0.08 }); tone(ctx, d, { type: 'sine', f0: 196, t, dur: 1.2, vol: 0.12, attack: 0.08 }); return; }
+    if (k === 'moo') { tone(ctx, d, { type: 'sawtooth', f0: 150, f1: 110, t, dur: 0.9, vol: 0.14, attack: 0.1 }); tone(ctx, d, { type: 'sine', f0: 300, f1: 210, t, dur: 0.9, vol: 0.06, attack: 0.1 }); return; }
     // another driver's horn (o.quiet): softer and shorter than yours
     for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: o?.quiet ? 0.25 : 0.45, vol: o?.quiet ? 0.05 : 0.12, attack: 0.01 });
   },

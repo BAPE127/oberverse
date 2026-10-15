@@ -3,6 +3,7 @@
 import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus } from './drawVehicles.js';
+import { drawTrail } from './drawSignatureCars.js';
 import { drawCharacter, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
@@ -191,6 +192,7 @@ export class Renderer {
           drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
+        if (g.vehicles?.trail?.length) drawTrail(ctx, g.vehicles.trail, lm.id, g.realTime); // v0.34.0: coins, sums, cheese…
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
@@ -226,7 +228,7 @@ export class Renderer {
           const m = models[car.model];
           if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
           const driven = car.id === g.player.driving;
-          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel })) });
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel, ...(m.sig && this.sigOpts(car, lm, driven)) })) });
         }
       }
       // the bus and the traffic (src/systems/transit.js)
@@ -280,6 +282,11 @@ export class Renderer {
   }
 
   /** Oily rainbow sheen on the Lantern Canal (rows 22–23) after the pipeline leaks. */
+  /** v0.34.0: the extra things a signature car's drawing animates with. */
+  sigOpts(car, map, driven) {
+    return { driven, moving: driven ? car.moved || 0 : 0, hornAge: car.hornAt == null ? 99 : this.game.realTime - car.hornAt, spin: this.time * 2, odo: car.odo || 0, onWater: map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE)) === '~' };
+  }
+
   /** Tyre marks, fading over a dozen seconds. */
   drawSkids(ctx, mapId) {
     const now = this.game.realTime;

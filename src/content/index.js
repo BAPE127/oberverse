@@ -50,6 +50,7 @@ import dlgCaptainOber from './dialogue/ober.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 import { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } from './vehicles.js';
+import { SIGNATURE_PARKED } from './signatureCars.js';
 import { buildTransit, addStreetFurniture } from './transit.js';
 import { widenAll, shiftPoint } from '../world/widen.js';
 import dealerChars from './characters/dealers.js';
@@ -127,7 +128,7 @@ export const BASE_CONTENT = {
   transit: TRANSIT,
   logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES, shipyard: SHIPYARD, tech: TECH, hulls: HULLS, components: COMPONENTS, colours: SHIP_COLOURS },
   roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
-  vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
+  vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
   life: { occupations: OCCUPATIONS, residences: RESIDENCES, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES },

@@ -8,6 +8,8 @@
 // accel (px/s²); grip (steering, rad/s at speed); len × wid (px, drawn and
 // collided); body (drawing style); colors (choices at the dealer, first is
 // the default).
+import { SIGNATURE_MODELS } from './signatureCars.js';
+
 export const CAR_MODELS = {
   // ---- Fender's Pre-Loved Motors (Westbrook Row): boring, basic, used ----
   pipit: {
@@ -78,6 +80,8 @@ export const CAR_MODELS = {
     blurb: 'A stretched limousine with a privacy screen, a drinks cabinet, and a horn that plays the first four notes of something stately.',
     pitch: 'The Regent. Sir Moneybucks owns two. He bought the second so the first would have company.',
   },
+  // v0.34.0: one-of-a-kind cars for the imported characters (src/content/signatureCars.js)
+  ...SIGNATURE_MODELS,
 };
 
 /** The dealerships. Display cars sit at `display` (tile x, y, angle in degrees; 0 = east, 90 = south). */

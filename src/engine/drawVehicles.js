@@ -3,6 +3,7 @@
 // cabin a few pixels "up" the screen. Body styles: hatch, estate, pickup,
 // saloon, gt, coupe, limo, police.
 import { shade, rrect } from './drawCharacter.js';
+import { drawSignatureCar } from './drawSignatureCars.js';
 
 const CABIN = {
   // [rear edge, front edge] of the cabin along the car, as a share of length (front is +)
@@ -23,6 +24,7 @@ function seed(s) {
  */
 export function drawCar(ctx, model, x, y, angle, opts = {}) {
   if (model.body === 'tractor') return drawTractor(ctx, model, x, y, angle, opts);
+  if (model.sig && drawSignatureCar(ctx, model, x, y, angle, opts)) return; // v0.34.0
   const L = model.len;
   const W = model.wid;
   const color = opts.color || model.colors[0];

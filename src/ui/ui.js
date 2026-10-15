@@ -415,7 +415,11 @@ export class UI {
       case 'horn': {
         const g = this.game;
         if (!g.player.driving) break;
-        this.audio.sfx('sfx_horn');
+        const car = g.vehicles.driving();
+        const hm = car && g.vehicles.model(car);
+        if (car) car.hornAt = g.realTime; // v0.34.0: the Gavel's gavel comes down
+        this.audio.sfx('sfx_horn', { kind: hm?.horn });
+        if (hm?.horn === 'moo') for (const n of g.npcs.values()) if (n.map === g.player.map && Math.hypot(n.x - g.player.x, n.y - g.player.y) < 160 && g.rng.chance(0.3)) g.bark(n, g.rng.pick(['Did that car just MOO?', 'Was that a cow?', '…moo?']));
         // people nearby jump out of their skin
         for (const n of g.npcs.values()) if (n.map === g.player.map && Math.hypot(n.x - g.player.x, n.y - g.player.y) < 160 && g.rng.chance(0.4)) g.bark(n, g.rng.pick(['Oi!', 'Alright, alright!', 'I heard you the first time!', '*jumps*']));
         break;

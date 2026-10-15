@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.34.0 | 2026-10-15 | development | 1 | Signature cars — a one-of-a-kind car for each imported character |
 | 0.33.0 | 2026-10-15 | development | 1 | Living World, stage 2 — a bus network (the No. 2 to Lariat), townsfolk who ride it, routes on the map |
 | 0.32.0 | 2026-10-15 | development | 1 | Living World, stage 1 — a home for every resident, real apartment units, walking police beats, the rules the world runs by |
 | 0.31.0 | 2026-10-15 | development | 1 | Home on the Range — livestock at Hoof & Horn, market demand, the tablet's Farm app |

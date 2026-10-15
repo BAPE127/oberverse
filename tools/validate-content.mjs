@@ -413,6 +413,18 @@ export function validateContent(content = CONTENT) {
     for (const c of Object.values(content.characters)) for (const b of c.schedule || []) if (b.patrol && !L.patrolRoutes[b.patrol]) err(`character ${c.id}: unknown patrol ${b.patrol}`);
     for (const [id, life] of Object.entries(L.homes)) if (life.transport && !['walk', 'transit', 'drive', 'patrol'].includes(life.transport)) err(`character ${id}: unknown transport ${life.transport}`);
   }
+  // v0.34.0: signature cars — each belongs to an imported character, is parked exactly once on a real map, and has a horn
+  const HORNS = ['kaching', 'reverse', 'gavel', 'pi', 'theremin', 'foghorn', 'moo'];
+  for (const [mid, m] of Object.entries(content.vehicles?.models || {})) {
+    if (!m.sig) continue;
+    const who = content.characters[m.owner];
+    if (!who) err(`signature car ${mid}: unknown owner ${m.owner}`);
+    else if (who.origin !== 'imported') err(`signature car ${mid}: ${m.owner} isn't an imported character`);
+    if (!HORNS.includes(m.horn)) err(`signature car ${mid}: unknown horn ${m.horn}`);
+    const parked = content.vehicles.parked.filter((p) => p.model === mid);
+    if (parked.length !== 1) err(`signature car ${mid}: parked ${parked.length} times (want once)`);
+    for (const p of parked) if (!content.maps[p.map]) err(`signature car ${mid}: parked on unknown map ${p.map}`);
+  }
   // v0.33.0: bus lines — stops exist on real maps with somewhere to wait, ids unique per line, fares and hours valid
   const lineIds = new Set();
   for (const line of content.transit?.lines || []) {

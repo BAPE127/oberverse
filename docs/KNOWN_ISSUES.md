@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.33.0
+# Known Issues and Limitations — v0.34.0
+
+- **Signature cars (v0.34.0):** their owners don't drive them yet — they stay parked (NPC driving is planned). You can't get out of the Landlubber on open water; drive it ashore first. Collisions use each car's rectangle, so the Hypotenuse and the Big Cheese bump like boxes.
 
 - **Living World (v0.33.0):** NPCs take the bus only between regions (inside a region they walk); two residents commute this way so far. A loop line can't be taken backwards: passengers wait for a bus going the quicker way. Buses stop for anyone standing in the road, including you. Officers live in Precinct 1's duty quarters (staff quarters), the Sumps residents in the camp, and several shopkeepers in rooms at their shops; that's their housing, by type. The patrol cruiser is traffic, not a particular officer, and doesn't respond to calls. Occupations' transport preferences are recorded and validated but only walking is simulated for now.
 

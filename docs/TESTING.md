@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.34.0 (2026-10-15)
+
+- `npm run check` — **347/347 tests passed** (5 new in `signatureCars.test.mjs`: one car per imported character, each parked on clear ground out of every lane, unique plates; older saves gain them once; dealers refuse them and the owner minds; the Gavel saluted and the Paranoia unseen by an officer with a clear view; the Landlubber sails 30% faster than its road top speed while a Pipit can't enter the water); validator 0 errors with the new rule.
+- `npm run smoke` — 24/24.
+- Browser: all seven cars rendered together (checked by eye), and the Landlubber driven across the Yards harbour leaving spray. No page errors. Found and fixed: "Look at the The Landlubber" (names dropped their "The"); the Landlubber's sea speed was capped at its road speed; the Hypotenuse's fourth wheel floated outside its triangle (now a three-wheeler).
+
 ## Verification record — v0.33.0 (2026-10-15)
 
 - `npm run check` — **342/342 tests passed** (6 new in `worldsim.test.mjs`: two lines, every stop on its route with a place to wait, the No. 2's hours; an older save's buses kept and the new line's added; Wade's round trip on the No. 2 phase by phase; a passenger through a save (once, hidden, gets off); Quinn always the quick way on the No. 1; the player riding the No. 2 to Lariat and paying 3 obols); validator 0 errors with the new transit rules.
