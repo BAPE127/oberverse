@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.34.0
+# Known Issues and Limitations — v0.35.0
+
+- **Living World (v0.35.0):** NPCs don't drive yet — characters whose occupation says `drive` walk (and take no bus); the patrol cruiser has no named officer; bus trips don't transfer between lines. Two people can share a spot (a bench, a booth) and overlap on screen. Errands only go to outdoor places and the café/diner (no shop-browsing spots yet).
 
 - **Signature cars (v0.34.0):** their owners don't drive them yet — they stay parked (NPC driving is planned). You can't get out of the Landlubber on open water; drive it ashore first. Collisions use each car's rectangle, so the Hypotenuse and the Big Cheese bump like boxes.
 

@@ -14,7 +14,7 @@ const MAX_WAIT = 120; // game minutes before giving up on the bus
 const NO_BUS_AFTER_GIVING_UP = 240;
 
 /** The outdoor map and tile a spot is at, or leads out to (interiors: their exit door's far side). */
-function outdoorPoint(g, ref) {
+export function outdoorPoint(g, ref) {
   let { map, spot } = parseSpotRef(ref);
   let m = g.maps.get(map);
   let s = m?.spot(spot);
@@ -28,7 +28,7 @@ function outdoorPoint(g, ref) {
   return m && s ? { map, x: s.x, y: s.y } : null;
 }
 
-function regionOf(g, mapId) {
+export function regionOf(g, mapId) {
   for (const [id, r] of Object.entries(g.content.regions || {})) if (r.maps[mapId]) return id;
   return null;
 }

@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.35.0.** Living World stage 3: errands and meet-ups (`src/sim/errands.js`), police incidents (`world.police.incidents`), incident markers on the map. The world-simulation brief is complete except NPC driving (see docs/WORLD_SIMULATION.md §8).
 - **2026-10-15 — v0.34.0.** Signature cars for the imported characters (`src/content/signatureCars.js`, `src/engine/drawSignatureCars.js`). Owner's rule: a new imported character gets a one-of-a-kind car of their own.
 - **2026-10-15 — v0.33.0.** Bus lines (`content.transit.lines`, the No. 2 to Lariat), NPC bus trips (`src/sim/npcTransit.js`), routes on the world map.
 - **2026-10-15 — v0.32.0.** World simulation rules (`src/content/life.js`, validator), Plumb Line flats, police beats (`src/world/patrols.js`, npcSystem patrol steps), the patrol cruiser. **New content must follow docs/WORLD_SIMULATION.md.**

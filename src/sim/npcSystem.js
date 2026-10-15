@@ -5,6 +5,7 @@
 //    estimates and door-to-door hops. They still chat and spread information
 //    with others on the same map.
 // Both tiers share the same decision logic (npcBrain.js) and clock.
+import { errandFor } from './errands.js';
 import { TILE, parseSpotRef, dist } from '../core/util.js';
 import { findPath, routeBetweenMaps } from '../world/pathfinding.js';
 import { decide, scheduleLead } from './npcBrain.js';
@@ -56,6 +57,7 @@ export class NpcSystem {
     }
     const intent = decide(npc, g);
     this.patrolSpot(npc, intent);
+    this.errandSpot(npc, intent);
     intent.fromBlock = blockAt(npc.profile.schedule, g.clock.minuteOfDay + scheduleLead(npc.profile))?.index;
     if (intent.impulse) {
       npc.impulseCooldowns = npc.impulseCooldowns || {};
@@ -69,6 +71,16 @@ export class NpcSystem {
       npc.arrived = false;
       this.plan(npc);
     }
+  }
+
+  /** v0.35.0: on an errand day a free-time block goes somewhere else of its kind (or to meet a friend). */
+  errandSpot(npc, intent) {
+    if (intent.source !== 'schedule') return;
+    const e = errandFor(this.game, npc, intent.block);
+    if (!e) return;
+    intent.spot = e.spot;
+    intent.label = e.label;
+    intent.errand = true;
   }
 
   // ---------------------------------------------------------------- patrols

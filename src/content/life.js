@@ -135,6 +135,36 @@ export const LIFE = {
 };
 
 /** Characters who don't need a home, and why. Exceptions must be justified; ordinary residents never go here. */
+/**
+ * v0.35.0: errand places. A schedule block with `errand: '<kind>'` (and
+ * optionally `errandChance`, `meet`) goes to one of these on some days
+ * instead of its usual spot — only to places in the same region as that spot,
+ * open (`hours`) when the block starts. See src/sim/errands.js.
+ */
+export const ERRANDS = {
+  // free time on the coast and in the city: tea, the pier, the parks
+  outing: [
+    { spot: 'cafe:table_corner', label: 'a pot of tea at the Kettle & Crumb', hours: { from: '07:00', to: '18:00' } },
+    { spot: 'cafe:table_center', label: 'a slice of cake at the Kettle & Crumb', hours: { from: '07:00', to: '18:00' } },
+    { spot: 'lanternside:park_pond', label: 'feeding the ducks in Gullwing Park' },
+    { spot: 'lanternside:pier_end', label: 'a walk to the end of the pier' },
+    { spot: 'lanternside:canal_footbridge', label: 'watching the boats from the footbridge' },
+    { spot: 'lanternside:square_bench', label: 'people-watching in the square' },
+    { spot: 'lanternside:quay_edge', label: 'sitting on the quay' },
+    { spot: 'westbrook:birdwatch', label: 'watching the gulls on the canal basin' },
+    { spot: 'halvermouth:plaza_center', label: 'an evening in Civic Plaza' },
+    { spot: 'halvermouth:park_center', label: 'a turn round the park' },
+  ],
+  // an evening out in Lariat
+  lariat_evening: [
+    { spot: 'diner:booth', label: 'supper at the Mesquite Diner', hours: { from: '06:00', to: '21:00' } },
+    { spot: 'diner:stool', label: 'pie at the diner counter', hours: { from: '06:00', to: '21:00' } },
+    { spot: 'lariat:town_square', label: 'a stroll round Lariat Square' },
+    { spot: 'lariat:main_bench', label: 'a bench on Main Street' },
+    { spot: 'lariat:diner_bench', label: 'sitting out by the diner' },
+  ],
+};
+
 export const LIFE_EXCEPTIONS = {
   npc_petty: { occupation: 'inmate', reason: 'Held in the Precinct 1 cells (story: "permanently in the cell next to yours").' },
   ...Object.fromEntries(['bessie', 'clementine', 'duchess', 'patsy', 'daisy'].map((k) => [`cow_${k}`, { occupation: 'livestock', reason: 'Livestock: lives in the lead cows\' paddock at Chuckie\'s Cheese.' }])),

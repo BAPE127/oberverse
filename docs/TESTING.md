@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.35.0 (2026-10-15)
+
+- `npm run check` — **351/351 tests passed** (4 new in `livingworld3.test.mjs`: errands vary over 40 days within the region and are deterministic; Rosa and Lorna choose the same place on a meet day and both walk there; a call goes reported → responding → investigating → closed, through a save mid-investigation, the witness telling the officer, the officers back on their beats; the checker catches a one-sided meet-up and an unknown errand); validator 0 errors.
+- `npm run smoke` — 24/24.
+- Browser: a call placed in Halvermouth, officers responding, the incident marked on the world map. No page errors. Found and fixed during testing: incidents never closed when the officers' own routine ended the dispatch first (closing is now by "nobody attending").
+
 ## Verification record — v0.34.0 (2026-10-15)
 
 - `npm run check` — **347/347 tests passed** (5 new in `signatureCars.test.mjs`: one car per imported character, each parked on clear ground out of every lane, unique plates; older saves gain them once; dealers refuse them and the owner minds; the Gavel saluted and the Paranoia unseen by an officer with a clear view; the Landlubber sails 30% faster than its road top speed while a Pipit can't enter the water); validator 0 errors with the new rule.

@@ -413,6 +413,24 @@ export function validateContent(content = CONTENT) {
     for (const c of Object.values(content.characters)) for (const b of c.schedule || []) if (b.patrol && !L.patrolRoutes[b.patrol]) err(`character ${c.id}: unknown patrol ${b.patrol}`);
     for (const [id, life] of Object.entries(L.homes)) if (life.transport && !['walk', 'transit', 'drive', 'patrol'].includes(life.transport)) err(`character ${id}: unknown transport ${life.transport}`);
   }
+  // v0.35.0: errands and meet-ups — kinds exist, places are real spots, a meet-up is arranged on both sides and overlaps
+  const errands = content.life?.errands || {};
+  for (const [kind, places] of Object.entries(errands)) for (const pl of places) {
+    spotOk(pl.spot, `errand ${kind}`);
+    if (!pl.label) err(`errand ${kind}: ${pl.spot} has no label`);
+  }
+  for (const c of Object.values(content.characters)) for (const [i, b] of (c.schedule || []).entries()) {
+    if (!b.errand && !b.meet) continue;
+    const where = `character ${c.id} block ${i}`;
+    if (!errands[b.errand]) { err(`${where}: unknown errand ${b.errand}`); continue; }
+    if (!b.meet) continue;
+    const f = content.characters[b.meet];
+    const back = f?.schedule?.find((x) => x.meet === c.id);
+    if (!back) { err(`${where}: meets ${b.meet}, who has no block meeting them back`); continue; }
+    if (back.errand !== b.errand || (back.errandChance ?? 0.5) !== (b.errandChance ?? 0.5)) err(`${where}: the meet-up with ${b.meet} must use the same errand kind and chance on both sides`);
+    const mins = (t) => +t.slice(0, 2) * 60 + +t.slice(3);
+    if (Math.min(mins(b.to), mins(back.to)) <= Math.max(mins(b.from), mins(back.from))) err(`${where}: the meet-up with ${b.meet} doesn't overlap in time`);
+  }
   // v0.34.0: signature cars — each belongs to an imported character, is parked exactly once on a real map, and has a horn
   const HORNS = ['kaching', 'reverse', 'gavel', 'pi', 'theremin', 'foghorn', 'moo'];
   for (const [mid, m] of Object.entries(content.vehicles?.models || {})) {

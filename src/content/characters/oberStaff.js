@@ -46,7 +46,7 @@ export const agnes = staff({
   schedule: [
     { from: '07:00', to: '08:30', activity: 'eat', spot: 'manor:dining_b' },
     { from: '08:30', to: '17:30', activity: 'work', spot: 'manor:agnes_desk' },
-    { from: '17:30', to: '19:00', activity: 'leisure', spot: 'lanternside:park_bench', label: 'an evening walk in Gullwing Park' },
+    { from: '17:30', to: '19:00', activity: 'leisure', spot: 'lanternside:park_bench', label: 'an evening walk in Gullwing Park', errand: 'outing' },
     { from: '19:00', to: '22:00', activity: 'leisure', spot: 'manor:hall_center' },
     { from: '22:00', to: '07:00', activity: 'sleep', spot: 'manor:staff_bed4' },
   ],
@@ -179,7 +179,7 @@ export const delphine = staff({
   speech: { rumorPrefix: 'Unverified, but', factPrefix: 'Empirically,', refuse: 'I do not speculate aloud.' },
   schedule: [
     { from: '08:00', to: '20:00', activity: 'work', spot: 'refinery:lab' },
-    { from: '20:00', to: '21:00', activity: 'leisure', spot: 'lanternside:fountain_side', label: 'watching the dry fountain' },
+    { from: '20:00', to: '21:00', activity: 'leisure', spot: 'lanternside:fountain_side', label: 'watching the dry fountain', errand: 'outing', errandChance: 0.3 },
     { from: '21:00', to: '08:00', activity: 'sleep', spot: 'refinery:lab_cot' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 0 }, npc_moneybucks: { trust: 5, affection: -5, respect: 20, suspicion: 5 }, npc_ruby: { trust: 20, affection: 10, respect: 35, suspicion: 0 } },

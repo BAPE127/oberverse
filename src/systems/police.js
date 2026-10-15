@@ -7,8 +7,9 @@
 //     ├─ an officer saw it ──────────────▶ Wanted (unless bribed / too petty for a lax chief)
 //     └─ civilians saw it ──▶ a call ──(delay; ignored or hours late if bribed)──▶ Wanted + dispatch
 //   Wanted ──▶ officers who see you pursue and cuff you (or shoot, at 3 stars)
+//   v0.35.0: a call is an incident: reported ──▶ responding ──▶ investigating (witnesses questioned) ──▶ closed
 //   arrested or killed ──▶ jail: serve the sentence, or break out (dig · keys · bribe the guard · the vent)
-import { TILE, clamp, dist } from '../core/util.js';
+import { TILE, clamp, dist, parseSpotRef } from '../core/util.js';
 import { remember } from '../sim/memory.js';
 import { isDown } from './combat.js';
 
@@ -26,7 +27,7 @@ const PURSUE_SPEED = 84;
 const LOSE_SIGHT_SECONDS = 10;
 
 export function freshPolice() {
-  return { record: 0, wanted: 0, lastSeen: 0, bribedUntilDay: 0, calls: [], jail: null, arrests: 0, escapes: 0, lastCrimeDay: 0, officersKilled: 0, lastDecayDay: 1 };
+  return { record: 0, wanted: 0, lastSeen: 0, bribedUntilDay: 0, calls: [], jail: null, arrests: 0, escapes: 0, lastCrimeDay: 0, officersKilled: 0, lastDecayDay: 1, incidents: [], nextIncident: 1 };
 }
 
 const STOP = ['Stop! Police!', 'Hold it right there!', 'Halvermouth Police — freeze!', 'You! Hands where I can see them!'];
@@ -40,7 +41,9 @@ export class Police {
 
   get state() {
     if (!this.game.world.police) this.game.world.police = freshPolice();
-    return this.game.world.police;
+    const s = this.game.world.police;
+    if (!s.incidents) { s.incidents = []; s.nextIncident = 1; } // v0.35.0: older saves
+    return s;
   }
 
   isOfficer(npc) {
@@ -114,11 +117,11 @@ export class Police {
       return;
     }
     // the Sumps doesn't snitch: gang members and their customers never call the police
-    if (people.some((n) => !this.isOfficer(n) && !n.profile.noSnitch)) this.placeCall(sev, pos);
+    if (people.some((n) => !this.isOfficer(n) && !n.profile.noSnitch)) this.placeCall(sev, pos, { fact: e.fact, witnesses: people.filter((n) => !this.isOfficer(n)).map((n) => n.id) });
   }
 
   /** A civilian phones it in. */
-  placeCall(sev, pos) {
+  placeCall(sev, pos, about = {}) {
     const g = this.game;
     const s = this.state;
     if (this.bribed() && sev < 10) {
@@ -131,9 +134,18 @@ export class Police {
     }
     // several witnesses to the same scene make one call (the worst crime they saw)
     const open = s.calls.find((c) => c.map === pos.map && Math.hypot(c.x - pos.x, c.y - pos.y) < 20 * 32 && c.at > g.clock.total);
-    if (open) { open.sev = Math.max(open.sev, sev); return; }
+    if (open) {
+      open.sev = Math.max(open.sev, sev);
+      const inc = this.incident(open.incident);
+      if (inc) { inc.sev = open.sev; inc.witnesses = [...new Set([...inc.witnesses, ...(about.witnesses || [])])]; }
+      return;
+    }
     const delay = this.bribed() ? 240 : 8 + g.rng.int(0, 10);
-    s.calls.push({ at: g.clock.total + delay, sev, ...pos });
+    // v0.35.0: every call is an incident, kept (and saved) from the report to the all-clear
+    const inc = { id: `inc${s.nextIncident++}`, reported: g.clock.total, sev, ...pos, fact: about.fact || null, witnesses: about.witnesses || [], status: 'reported', officers: [], closed: null };
+    s.incidents.push(inc);
+    while (s.incidents.length > 15) { const k = s.incidents.findIndex((x) => x.status === 'closed'); if (k < 0) break; s.incidents.splice(k, 1); }
+    s.calls.push({ at: g.clock.total + delay, sev, ...pos, incident: inc.id });
     g.notify(this.bribed() ? 'Someone called the police about a killing. Even Chief Order can\'t sit on that for long…' : 'Someone is calling the police!', 'warn');
   }
 
@@ -157,10 +169,68 @@ export class Police {
     const officers = this.activeOfficers().filter((o) => o.activity !== 'sleep' || call.sev >= 10);
     const score = (o) => (o.map === call.map ? dist(o.x, o.y, call.x, call.y) / TILE : 400);
     officers.sort((a, b) => score(a) - score(b));
-    for (const o of officers.slice(0, call.sev >= 10 ? 3 : call.sev >= 3 ? 2 : 1)) this.dispatch(o, call.map, call.x, call.y);
+    const sent = officers.slice(0, call.sev >= 10 ? 3 : call.sev >= 3 ? 2 : 1);
+    for (const o of sent) this.dispatch(o, call.map, call.x, call.y, call.incident);
+    const inc = this.incident(call.incident);
+    if (inc) {
+      inc.status = sent.length ? 'responding' : 'closed';
+      inc.officers = sent.map((o) => o.id);
+      if (!sent.length) { inc.closed = g.clock.total; inc.outcome = 'nobody free to respond'; }
+    }
   }
 
-  dispatch(npc, mapId, x, y) {
+  // ------------------------------------------------------- incidents (v0.35.0)
+  incident(id) {
+    return id ? this.state.incidents.find((x) => x.id === id) : null;
+  }
+
+  /** Open incidents (reported, officers on the way, or being investigated). */
+  openIncidents() {
+    return this.state.incidents.filter((x) => x.status !== 'closed');
+  }
+
+  /**
+   * A dispatched officer who has reached the scene looks around and asks the
+   * witnesses who are still there what they saw (they tell what they know —
+   * no more); then, after a while, calls the all-clear and goes back to their
+   * beat. If someone describes you and you're standing right there, that's that.
+   */
+  investigate(npc) {
+    const g = this.game;
+    const it = npc.intent;
+    const inc = this.incident(it.incident);
+    it.investigating = true;
+    it.until = g.clock.total + 20;
+    npc.activity = 'investigate';
+    g.bark(npc, g.rng.pick(['Right. What happened here?', 'Police. Anyone see anything?', 'Nobody touch anything.']));
+    if (!inc) return;
+    inc.status = 'investigating';
+    const map = g.maps.get(npc.map);
+    let named = false;
+    for (const id of inc.witnesses) {
+      const w = g.npcs.get(id);
+      if (!w || w.map !== npc.map || isDown(w, g.clock.total) || Math.hypot(w.x - npc.x, w.y - npc.y) > 12 * TILE) continue;
+      const knows = inc.fact && g.knowledge.knows?.(w, inc.fact);
+      g.bark(w, knows ? g.rng.pick(['It was that newcomer! I saw it!', 'They went that way!', 'I saw the whole thing, officer.']) : 'I didn\'t see much, officer.');
+      if (knows) { g.knowledge.learn(npc, inc.fact, { kind: 'fact', source: 'told', at: g.clock.total }); named = true; }
+    }
+    inc.named = named;
+    if (named && g.player.map === npc.map && !g.player.driving && g.canSee(npc, g.player.x, g.player.y, map, 9) && !this.jailed()) {
+      this.raiseWanted(inc.sev, `${npc.profile.shortName} has your description.`);
+      this.startPursuit(npc);
+    }
+  }
+
+  /** The officers have all gone back to their beats: close the incident. */
+  closeIncident(inc, outcome) {
+    if (!inc || inc.status === 'closed') return;
+    inc.status = 'closed';
+    inc.closed = this.game.clock.total;
+    inc.outcome = outcome;
+    this.game.bus.emit('police:incident', { id: inc.id, status: 'closed' });
+  }
+
+  dispatch(npc, mapId, x, y, incident = null) {
     const g = this.game;
     const map = g.maps.get(mapId);
     if (!map) return;
@@ -171,7 +241,7 @@ export class Police {
       if (d < bestD) { bestD = d; best = name; }
     }
     if (!best) return;
-    npc.intent = { source: 'dispatch', activity: 'respond', spot: `${mapId}:${best}`, until: g.clock.total + 150 };
+    npc.intent = { source: 'dispatch', activity: 'respond', spot: `${mapId}:${best}`, until: g.clock.total + 150, incident };
     npc.activity = 'respond';
     npc.arrived = false;
     g.npcSystem.plan(npc);
@@ -261,8 +331,21 @@ export class Police {
       s.calls = s.calls.filter((c) => c.at > now);
       if (!this.jailed()) for (const c of due) this.respond(c);
     }
-    // dispatched officers give up after a while
-    for (const npc of g.npcs.values()) if (npc.intent?.source === 'dispatch' && now >= npc.intent.until) { npc.intent = null; g.npcSystem.think(npc, true); }
+    // dispatched officers investigate when they get there, then go back to their beat (or give up after a while)
+    for (const npc of g.npcs.values()) {
+      const it = npc.intent;
+      if (it?.source !== 'dispatch' || npc.pursuit) continue;
+      if (now >= it.until) {
+        npc.intent = null;
+        g.npcSystem.think(npc, true);
+      } else if (npc.arrived && !it.investigating && npc.map === parseSpotRef(it.spot).map) this.investigate(npc);
+    }
+    // an incident nobody is attending any more (the officers have gone back to their beats, however that came about) is closed
+    for (const inc of this.openIncidents()) {
+      if (inc.status === 'reported') continue;
+      if ([...g.npcs.values()].some((o) => o.intent?.source === 'dispatch' && o.intent.incident === inc.id)) continue;
+      this.closeIncident(inc, inc.status === 'investigating' ? (inc.named ? 'a suspect named' : 'nothing more to go on') : 'never reached the scene');
+    }
     // Wanted lapses when nobody has seen you for a while
     if (s.wanted > 0 && !this.jailed() && now - s.lastSeen > WANTED_LAPSE[s.wanted] && !this.activeOfficers().some((o) => o.pursuit)) {
       s.wanted = 0;

@@ -407,6 +407,20 @@ export class MapRenderer {
         hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.transit.lineOf(f).cfg.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
       }
     }
+    // v0.35.0: open police incidents — where a call came in, and how it's going
+    const STATUS = { reported: 'Reported — officers not yet sent', responding: 'Officers on the way', investigating: 'Officers questioning witnesses' };
+    for (const inc of g.police?.openIncidents() || []) {
+      const o = L.pos[inc.map];
+      if (!o) continue;
+      const ix = X(o.x + inc.x / TILE);
+      const iy = Y(o.y + inc.y / TILE);
+      ctx.fillStyle = 'rgba(200,40,40,0.25)';
+      ctx.beginPath(); ctx.arc(ix, iy, iconPx * (0.9 + 0.15 * Math.sin(Date.now() / 250)), 0, Math.PI * 2); ctx.fill();
+      ctx.font = `${iconPx * 0.8}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.fillText('🚨', ix, iy + 1);
+      const who = inc.officers.map((id) => g.npcs.get(id)?.profile.shortName).filter(Boolean).join(', ');
+      hits.push({ key: `inc:${inc.id}`, x: ix - iconPx * 0.6, y: iy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚨', name: 'Police incident', kind: STATUS[inc.status] || inc.status, place: `${g.maps.get(inc.map).name}${who ? ` · ${who}` : ''}` } });
+    }
     // district names (zoomed in) or region names (zoomed out)
     if (z >= 3.5) {
       for (const [id, o] of Object.entries(L.pos)) {

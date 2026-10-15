@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.35.0] — 2026-10-15 — "Living World" stage 3 (development build)
+
+The final stage of the world-simulation overhaul (owner: "finish out the entire update"). See docs/WORLD_SIMULATION.md.
+
+### Added
+- **Errands** (`src/sim/errands.js`, `ERRANDS` in `src/content/life.js`): a schedule block with `errand: '<kind>'` sends the character to another place of that kind on some days (`errandChance`) — in the same region, open at that hour — deterministically per person, block and day, so it never changes with re-decisions, distance or saves. Kinds `outing` (10 places on the coast and in the city) and `lariat_evening` (5). Quinn, Barnaby, Agnes, Delphine and Opal now vary their evenings.
+- **Meet-ups:** `meet: 'npc_x'` on two friends' blocks — on a meet day they choose the same place ("…, with Lorna"). Rosa & Lorna and Dale & Wes.
+- **Police incidents** (`src/systems/police.js`): each witness call is a saved incident — reported → responding → investigating → closed. Arriving officers investigate for 20 minutes, question witnesses still at the scene (who tell only what they saw; the officer learns it), may recognise you if you're in plain sight, then close the incident and resume their beats. Incidents close cleanly however the officers' dispatch ends. Open incidents are marked on the world map with status and officers.
+- **Validation:** errand places are real spots with labels; blocks name known kinds; meet-ups are two-sided, same kind and chance, and overlap in time.
+- Tests: `tests/livingworld3.test.mjs` (4).
+
+### Saves
+- Older saves gain an empty incident log.
+
 ## [0.34.0] — 2026-10-15 — Signature Cars (development build)
 
 Owner's brief: give each imported character their own unique car, true to their personality and position — "as insane and absurd as you want".

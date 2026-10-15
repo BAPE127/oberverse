@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.35.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Living World (part 3)',
+    notes: [
+      'Free time has variety now: some evenings Quinn takes tea at the Kettle & Crumb instead of sitting in the square, Barnaby walks to the end of the pier, Agnes feeds the ducks. Friends keep standing arrangements — Rosa and Lorna, Dale and Wes — and turn up at the same place on the same nights.',
+      'Police calls play out properly: officers are sent, look round the scene, ask the witnesses who are still there what they saw (and only what they saw), give the all-clear and go back to their beats. If a witness points you out while you\'re standing there… run.',
+      'The world map marks open police incidents and who\'s attending.',
+    ],
+  },
+  {
     version: '0.34.0',
     date: '2026-10-15',
     channel: 'development',
