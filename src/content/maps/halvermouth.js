@@ -43,6 +43,7 @@ m.rect(108, 36, 4, 2, '='); // East Gate
 // only leave through the East Gate (to the coast) and Mill Road (to the Yards).
 m.rect(0, 0, W, 1, 'r'); // the ridge
 m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
+m.rect(38, 0, 2, 1, '='); // v0.29.0: the North Gate — FM 38 up to Lariat
 m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
 m.rect(111, 0, 1, 36, 'r').rect(111, 38, 1, 36, 'r'); // the eastern cliffs (the East Gate at rows 36–37)
 m.rect(1, 12, 1, 2, ',').rect(1, 36, 1, 2, ','); // Crown St and Grand Ave end at the car park
@@ -252,10 +253,13 @@ export const halvermouth = {
   doors: [
     { id: 'door_hv_east_gate_a', x: 111, y: 36, keepTile: true, gateway: 'Westbrook & the Coast', label: 'The Coast Road east', to: { map: 'westbrook', spot: 'west_gate' } },
     { id: 'door_hv_east_gate_b', x: 111, y: 37, keepTile: true, gateway: 'Westbrook & the Coast', label: 'The Coast Road east', to: { map: 'westbrook', spot: 'west_gate' } },
+    { id: 'door_hv_north_a', x: 38, y: 0, keepTile: true, gateway: 'Lariat', label: 'FM 38 north, to Lariat', to: { map: 'lariat', spot: 'south_gate' } },
+    { id: 'door_hv_north_b', x: 39, y: 0, keepTile: true, gateway: 'Lariat', label: 'FM 38 north, to Lariat', to: { map: 'lariat', spot: 'south_gate' } },
     { id: 'door_hv_yards_a', x: 0, y: 60, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
     { id: 'door_hv_yards_b', x: 0, y: 61, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
   ],
   spots: {
+    north_gate: { x: 38, y: 2, facing: 'down' }, // v0.29.0: just inside the North Gate
     east_gate: { x: 109, y: 36, facing: 'left' },
     plaza_center: { x: 51, y: 31, facing: 'up' },
     hall_door_out: { x: 50, y: 24, facing: 'down' },

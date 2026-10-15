@@ -39,4 +39,16 @@ export const SHOPS = {
     stock: { item_crowbar: 1, item_bolts: 3, item_fire_axe: 1 },
     buys: { item_brass_cog: 3, item_bolts: 1, item_rubber_stamp: 1, item_gull_feather: 1 },
   },
+  // Lariat (v0.29.0). The Mercantile always keeps a lasso on the peg (see minStock and DairySystem).
+  shop_mercantile: {
+    name: 'Lariat Mercantile', owner: 'npc_opal', restockAt: '07:00',
+    stock: { item_lasso: 2, item_jerky: 8, item_sweet_tea: 8, item_cowboy_hat: 2, item_bandage: 3 },
+    minStock: { item_lasso: 1 },
+    buys: { item_cheese_wheel: 35 },
+  },
+  shop_diner: {
+    name: 'Mesquite Diner', owner: 'npc_lupe', restockAt: '06:00',
+    stock: { item_pecan_pie: 6, item_chicken_fried_steak: 5, item_sweet_tea: 10, item_coffee: 10 },
+    buys: {},
+  },
 };

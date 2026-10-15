@@ -22,7 +22,9 @@
 // (Lucas Eastrise: a showroom spotlight, orbiting guns, bullets and price
 // tags, crates of guns bursting, a missile strike, a drone swarm, a SOLD tag),
 // kraken (Captain Ober: seawater floods the cobbles, tentacles burst up and
-// slam down, a whirlpool, the kraken's eye opens in it, a great tentacle drags you under).
+// slam down, a whirlpool, the kraken's eye opens in it, a great tentacle drags you under),
+// stampede (Farmer Chuckie: dust and a spinning lasso, a stampede thunders
+// through you from both sides, and a giant wheel of cheddar rolls you flat).
 import { clamp, lerp } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
@@ -1630,7 +1632,168 @@ const KRAKEN = {
   },
 };
 
-export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS, kraken: KRAKEN };
+// ============================================================== STAMPEDE
+// Farmer Chuckie: the dust rises, his lasso spins, the herd stampedes through
+// the attacker from both sides — and a giant wheel of cheddar rolls them flat.
+const CHEDDAR = '#e8b83a';
+
+/** A charging cow in silhouette, facing dir (1 = right), legs galloping with phase ph. */
+function chargingCow(ctx, x, y, dir, ph, scale = 1, coat = '#f0e8da', patch = '#2a2420') {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(dir * scale, scale);
+  ctx.fillStyle = '#3a2a20';
+  for (let k = 0; k < 4; k++) {
+    const lx = -14 + k * 9;
+    const sw = Math.sin(ph * 12 + k * 1.7) * 5;
+    ctx.fillRect(lx + sw * 0.5, -6, 4, 12 + Math.abs(sw) * 0.3);
+  }
+  ctx.fillStyle = coat;
+  ctx.beginPath(); ctx.ellipse(0, -14, 22, 11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = patch;
+  ctx.beginPath(); ctx.ellipse(-6, -17, 7, 5, 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(9, -11, 5, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = coat;
+  ctx.beginPath(); ctx.ellipse(24, -20, 9, 7, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e8a8a0';
+  ctx.beginPath(); ctx.ellipse(30, -17, 5, 4, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#d8d0b8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(20, -26); ctx.lineTo(17, -32); ctx.moveTo(26, -26); ctx.lineTo(28, -32); ctx.stroke();
+  ctx.strokeStyle = coat; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-22, -16); ctx.quadraticCurveTo(-30, -14 + Math.sin(ph * 9) * 4, -32, -6); ctx.stroke();
+  ctx.restore();
+}
+
+function hoofDust(ctx, x, y, age, seed, scale = 1, alpha = 1) {
+  const R = rng(seed);
+  for (let i = 0; i < 14; i++) {
+    const a = R() * Math.PI * 2;
+    const r = (10 + R() * 30 + age * 40) * scale;
+    const life = Math.max(0, 1 - age / (1.2 + R()));
+    ctx.fillStyle = `rgba(${160 + Math.floor(R() * 30)},${120 + Math.floor(R() * 20)},80,${0.35 * life * alpha})`;
+    ctx.beginPath(); ctx.arc(x + Math.cos(a) * r, y - Math.abs(Math.sin(a)) * r * 0.5, (8 + R() * 10) * scale * (1 + age * 0.6), 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/** A wheel of cheddar: rind, wax band and a CHZ stamp; rot in radians. */
+function cheeseWheel(ctx, x, y, r, rot, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle = '#b8862a';
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = CHEDDAR;
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#a82a20'; ctx.lineWidth = r * 0.08;
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.96, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#c89a2e';
+  for (let k = 0; k < 7; k++) { const a = k * 2.1; const d = r * (0.3 + (k % 3) * 0.2); ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, r * 0.07, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = '#7a2a18';
+  ctx.font = `bold ${Math.round(r * 0.32)}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('CHZ', 0, 0);
+  ctx.restore();
+}
+
+const STAMPEDE = {
+  banner: 'THE HERD COMES HOME',
+  sky: [70, 46, 22, 26, 14, 8],
+  flash: '255,230,170',
+  ground(I) {
+    const { ctx, e, vx, vfeet, p } = I;
+    const r = 140 * ease((e - 0.2) / 1.0) * (1 - ease((e - WRATH.fade) / 0.7));
+    if (r > 2) {
+      onGround(ctx, vx, vfeet, () => {
+        const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        gr.addColorStop(0, 'rgba(150,104,60,0.6)');
+        gr.addColorStop(1, 'rgba(150,104,60,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+    // hoofprints churn up the ground under the player
+    const w = ease((e - WRATH.converge) / 0.5) * (1 - ease((e - WRATH.end + 0.4) / 0.5));
+    if (w > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.fillStyle = `rgba(90,60,30,${0.6 * w})`;
+        ctx.beginPath(); ctx.arc(0, 0, 64 * w, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(40,26,14,${0.7 * w})`;
+        for (let k = 0; k < 16; k++) { const a = k * 2.4; const d = 52 * w * ((k * 37) % 10) / 10; ctx.beginPath(); ctx.ellipse(Math.cos(a) * d, Math.sin(a) * d, 4, 6, a, 0, Math.PI * 2); ctx.fill(); }
+      }, 0.45);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const fade = 1 - ease((e - WRATH.ascend) / 0.3);
+    // a lasso loop spins over Chuckie's head…
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = '#d8b878'; ctx.lineWidth = 3;
+    const ly = centre.y - 52 * unfold;
+    ctx.beginPath(); ctx.ellipse(centre.x, ly, 34 * unfold, 10 * unfold, Math.sin(e * 9) * 0.25, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(centre.x + 6, centre.y - 10); ctx.lineTo(centre.x + 30 * unfold * Math.cos(e * 9), ly); ctx.stroke();
+    ctx.restore();
+    // …and wedges of cheese orbit him, closing in on the player as the aura converges
+    for (let i = 0; i < 6; i++) {
+      const a = e * 2.2 + (i / 6) * Math.PI * 2;
+      const rad = 70 * unfold * (1 - conv * 0.5);
+      const x = lerp(centre.x + Math.cos(a) * rad, I.p.x + Math.cos(a) * 30, conv);
+      const y = lerp(centre.y + Math.sin(a) * rad * 0.5, I.p.y - 20 + Math.sin(a) * 12, conv);
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(x, y); ctx.rotate(a);
+      ctx.fillStyle = CHEDDAR;
+      ctx.beginPath(); ctx.moveTo(-8, 6); ctx.lineTo(8, 6); ctx.lineTo(0, -8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#c89a2e'; ctx.beginPath(); ctx.arc(1, 2, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    hoofDust(ctx, centre.x, centre.y + 30, e * 0.3, I.w.seed + 3, 1, fade * unfold);
+  },
+  strike(I, i, age) {
+    const { ctx, p, w } = I;
+    if (age < 0 || I.e > WRATH.ascend + 0.4) return;
+    // a cow thunders straight through the player — alternating sides
+    const dir = i % 2 ? -1 : 1;
+    const t = age / 0.7;
+    if (t > 1.2) return;
+    const x = p.x - dir * 260 + dir * 520 * t;
+    const y = p.y + 6 + ((i * 7) % 3 - 1) * 8;
+    const coats = [['#f0e8da', '#2a2420'], ['#8a5a3a', '#f2ece0'], ['#2a2420', '#f0e8da'], ['#c88a4a', '#f2ece0'], ['#f0e8da', '#6a4a3a']];
+    chargingCow(ctx, x, y, dir, age + i, 1.1 + (i === 4 ? 0.4 : 0), coats[i][0], coats[i][1]);
+    hoofDust(ctx, x - dir * 26, y, age * 0.8, w.seed + i * 9, 0.9);
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    const age = e - WRATH.ascend;
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    // a giant cheddar wheel rolls in from the left, bounces once, and flattens the player
+    const R = 70;
+    const roll = ease(age / 1.0);
+    const x = lerp(p.x - 420, p.x, roll);
+    const bounce = Math.abs(Math.sin(roll * Math.PI * 2)) * 40 * (1 - roll);
+    const y = p.y - R + 10 - bounce;
+    if (age > 0.9) hoofDust(ctx, p.x, p.y + 6, age - 0.9, w.seed + 77, 1.6, out);
+    cheeseWheel(ctx, x, y, R, (x - p.x) / R, out);
+    if (age > 1.0) {
+      // it settles where you were, and one last wedge drops on top
+      const drop = ease((age - 1.3) / 0.4);
+      if (drop > 0) {
+        ctx.save();
+        ctx.globalAlpha = out;
+        ctx.fillStyle = CHEDDAR;
+        const wy = lerp(p.y - 260, p.y - 2 * R + 8, drop);
+        ctx.beginPath(); ctx.moveTo(p.x - 22, wy + 14); ctx.lineTo(p.x + 22, wy + 14); ctx.lineTo(p.x, wy - 18); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+  },
+};
+
+export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS, kraken: KRAKEN, stampede: STAMPEDE };
 
 // -------------------------------------------------------------- draw
 export function drawWrath(renderer, g, w) {

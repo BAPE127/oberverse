@@ -33,13 +33,23 @@ export function worldLayout(g) {
       if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
       const T = g.maps.get(d.to.map);
       const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
-      const west = d.x === 0;
-      const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
-      const ty = pos[id].y + d.y - back.y;
+      // v0.29.0: gates on the top or bottom edge (Lariat, north of Halvermouth) stack regions vertically
+      const north = d.y === 0 && d.x > 0 && d.x < M.width - 1;
+      const south = d.y === M.height - 1 && d.x > 0 && d.x < M.width - 1;
       const before = new Set(Object.keys(pos));
       const rr = regionOf(T.id);
-      if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
-      roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
+      if (north || south) {
+        const tx = pos[id].x + d.x - back.x;
+        const ty = north ? pos[id].y - T.height - ROAD_GAP : pos[id].y + M.height + ROAD_GAP;
+        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+        roads.push({ x1: pos[id].x + d.x + 1, y1: pos[id].y + d.y + (north ? 0 : 1), x2: tx + back.x + 1, y2: ty + back.y + (north ? 1 : 0) });
+      } else {
+        const west = d.x === 0;
+        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+        const ty = pos[id].y + d.y - back.y;
+        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
+      }
       for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
     }
   }

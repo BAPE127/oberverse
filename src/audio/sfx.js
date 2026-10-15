@@ -398,6 +398,15 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     for (let i = 0; i < 5; i++) noise(ctx, bus, { t: t0 + 3.4 + i * 0.3, dur: 0.9, vol: 0.22, type: 'lowpass', freq: 1400, f1: 200 });
     for (let i = 0; i < 18; i++) tone(ctx, bus, { type: 'sine', f0: 180 + Math.random() * 260, f1: 90, t: t0 + 5.8 + Math.random() * 1.2, dur: 0.12, vol: 0.06 });
     noise(ctx, bus, { t: t0 + 5.6, dur: 2.2, vol: 0.28, type: 'lowpass', freq: 500, f1: 80 });
+  } else if (theme === 'stampede') {
+    // a yeehaw whistle on the banner, Chuckie's hoedown on a fiddle-ish reed, thundering hooves through the strikes, the cheese wheel's rumble and thud
+    tone(ctx, bus, { type: 'sine', f0: 1400, f1: 2600, t: t0 + 0.9, dur: 0.3, vol: 0.08 });
+    tone(ctx, bus, { type: 'sine', f0: 2600, f1: 1200, t: t0 + 1.2, dur: 0.4, vol: 0.08 });
+    [[67, 0], [71, 0.14], [74, 0.28], [71, 0.42], [67, 0.56], [69, 0.7], [71, 0.84], [72, 1.12], [71, 1.26], [69, 1.4], [67, 1.54]].forEach(([m, dt]) => tone(ctx, bus, { type: 'sawtooth', f0: hz(m), t: t0 + 1.5 + dt, dur: 0.13, vol: 0.03, attack: 0.02 }));
+    for (let i = 0; i < 48; i++) noise(ctx, bus, { t: t0 + 3.2 + i * 0.045 + Math.random() * 0.02, dur: 0.05, vol: 0.16, type: 'lowpass', freq: 260 + Math.random() * 120 });
+    tone(ctx, bus, { type: 'sine', f0: 60, f1: 45, t: t0 + 5.0, dur: 1.1, vol: 0.18 });
+    timp(ctx, bus, t0 + 6.1, 0.6, 33);
+    noise(ctx, bus, { t: t0 + 6.1, dur: 0.8, vol: 0.25, type: 'lowpass', freq: 400, f1: 100 });
   } else if (theme === 'maths') {
     // furious keypad clatter through the roll, Arthur's motif as calculator beeps, an ERROR buzz, a glitchy finale
     for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 0.3 + i * 0.07 + Math.random() * 0.03, dur: 0.015, vol: 0.1, freq: 3000 + Math.random() * 1500, q: 8 });

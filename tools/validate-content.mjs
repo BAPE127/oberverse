@@ -3,7 +3,7 @@
 // CLI: npm run validate    Library: import { validateContent } from this file.
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { CONTENT } from '../src/content/index.js';
+import { CONTENT, DUPLICATE_IDS } from '../src/content/index.js';
 import { GameMap } from '../src/world/gameMap.js';
 import { findPath, routeBetweenMaps } from '../src/world/pathfinding.js';
 import { CONDITION_KEYS } from '../src/sim/conditions.js';
@@ -18,7 +18,7 @@ import { SITE_STATIONS } from '../src/systems/construction.js';
 import { THEMES as WRATH_THEMES } from '../src/engine/wrath.js';
 
 const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
-const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop', 'jail', 'factory', 'arms', 'busstop', 'logistics'];
+const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop', 'jail', 'factory', 'arms', 'busstop', 'logistics', 'dairy'];
 const COMPANY_STATIONS = { oil: STATIONS, construction: SITE_STATIONS };
 
 export function validateContent(content = CONTENT) {
@@ -26,6 +26,7 @@ export function validateContent(content = CONTENT) {
   const warnings = [];
   const err = (m) => errors.push(m);
   const warn = (m) => warnings.push(m);
+  if (content === CONTENT) for (const id of DUPLICATE_IDS) err(`${id} is registered twice (the second replaces the first)`);
   const maps = new Map(Object.values(content.maps).map((d) => [d.id, new GameMap(d, content.propTypes)]));
   const charIds = new Set(Object.keys(content.characters));
   const factionIds = new Set(Object.keys(content.factions));
@@ -163,7 +164,7 @@ export function validateContent(content = CONTENT) {
     if (c.faction && !factionIds.has(c.faction)) err(`${w}: unknown faction ${c.faction}`);
     if (c.motif && !content.motifs[c.motif]) err(`${w}: unknown motif ${c.motif}`);
     if (c.tier === 'major' && !c.motif) err(`${w}: major characters need a motif`);
-    if (!c.appearance?.skin || !c.appearance?.outfit) err(`${w}: appearance needs at least skin and outfit colours`);
+    if (c.appearance?.species !== 'cow' && (!c.appearance?.skin || !c.appearance?.outfit)) err(`${w}: appearance needs at least skin and outfit colours`);
     const gaps = coverageGaps(c.schedule || []);
     if (gaps) err(`${w}: schedule leaves ${gaps} minutes of the day uncovered`);
     const actor = { canPass: (door) => Boolean(door.to) && (!door.lock || (door.lock.owners || []).includes(c.id) || Boolean(door.lock.hours)) };

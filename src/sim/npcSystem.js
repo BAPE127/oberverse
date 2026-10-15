@@ -19,7 +19,7 @@ const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
 
 /** Intents set by other systems (police dispatch, deal meetings, gang hunts) that the schedule must not override. */
-const HELD_INTENTS = ['dispatch', 'deal', 'hunt', 'staff'];
+const HELD_INTENTS = ['dispatch', 'deal', 'hunt', 'staff', 'dairy']; // dairy: a lead cow loose or on your rope (v0.29.0)
 
 export class NpcSystem {
   constructor(game) {
@@ -152,7 +152,7 @@ export class NpcSystem {
     const dy = wp.y - npc.y;
     const d = Math.hypot(dx, dy);
     if (this.waitForSignal(npc, wp)) return;
-    const speed = WALK_SPEED * (npc.profile.walkSpeed ?? 1) * (g.clock.rate || 1) ** 0.5;
+    const speed = WALK_SPEED * (npc.profile.walkSpeed ?? 1) * (npc.speedMul ?? 1) * (g.clock.rate || 1) ** 0.5; // speedMul: a roped cow trotting to catch up (v0.29.0)
     const step = speed * dt;
     if (d <= step) {
       npc.x = wp.x;
@@ -327,7 +327,7 @@ export class NpcSystem {
   canChat(npc, now) {
     if (npc.chat || npc.activity === 'sleep' || npc.travel || npc.hostile || incapacitated(npc, now)) return false;
     if (npc.path && npc.path.length) return false;
-    if (npc.inDialogue) return false;
+    if (npc.inDialogue || npc.intent?.source === 'dairy') return false;
     return now >= (npc.chatCooldownUntil || 0);
   }
 

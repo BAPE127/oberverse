@@ -2,6 +2,29 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.29.0] — 2026-10-15 — "Lariat" (development build)
+
+The owner supplied a photo of Farmer Chuckie and a master prompt for a northern agricultural region, a farming simulation and Chuckie's Cheese. Interviewed first: store the photo; Chuckie is **cheerful and folksy** (he/him), a friend of Captain Ober; Wrath mixes **a stampede and a giant cheese wheel**; **five** talking cows; the town is **Lariat** (the owner let us pick); the work ships in **several releases** — this one is the town, Chuckie, Chuckie's Cheese, the cow quest and the stock. Farms, crops and equipment follow in 0.30.0; livestock, markets and farm management in 0.31.0. See docs/LARIAT.md and docs/characters/npc_chuckie.md.
+
+### Added
+- **Lariat** (`src/content/maps/lariat.js`): a north-Texas-style farm town through Halvermouth's new **North Gate** (FM 38). Main Street (Lariat Mercantile, the Land Office, Lone Star Feed & Seed, Calloway Ag Repair), Cotton Street (Hoof & Horn livestock supply, the Mesquite Diner, the Bluebonnet Boarding House, Red Dirt Tractor & Implement), the Co-op grain elevator, houses, the Hollister cotton farm across Caddo Creek, the old barn and windmill, and **Chuckie's Cheese**: two freestall barns, the milking parlour, the cheese plant, silos, pasture with grazing cows, the lead cows' paddock and Chuckie's ranch house. Seven interiors. The farm businesses not open yet say so on their doors (they open in 0.30–0.31); the east fields carry FOR SALE signs.
+- **Farmer Chuckie** (`npc_chuckie`, imported, protected): portrait from the supplied photo; flannel, overalls, cap, beard and glasses; a daily round (the parlour at 05:30, the plant office, lunch at the diner, the lookout over the paddock, the porch at sunset); dialogue that follows the quest (the problem, the lasso, where the cows still loose were seen, progress, and afterwards — the intro never repeats); motif "Cheddar Two-Step"; **Wrath `stampede`**: dust and a spinning lasso, cheese wedges circling, the herd thundering through you from both sides, and a giant wheel of cheddar rolling you flat.
+- Townsfolk: Opal Haskins (the Mercantile), Lupe (the diner), Wade (dairy hand), Rosa (cheesemaker), Earl Hollister (cotton) — with homes, schedules and shops.
+- **The lead cows** (`cow_bessie`, `cow_clementine`, `cow_duchess`, `cow_patsy`, `cow_daisy`): five talking cows, each with her own voice, looks and dialogue; drawn by the new `src/engine/drawCow.js`. Ordinary cows are props and don't talk.
+- **The Lost Herd** (`q_lost_herd`): buy a lasso (always one in stock at the Mercantile), find each cow (markers on the map; Chuckie, Lupe and Earl say where), rope her in conversation, and walk her back to the paddock — she follows on foot, trots to keep up, waits outside interiors, stays put if you drive off or get far ahead, and comes through a gate or over a map edge with you only when she's right behind you. Each cow home restores 9% of the dairy's capacity; all five completes the quest once (2,500 obols, two wheels of cheddar, Lariat reputation).
+- **Chuckie's Cheese** (`src/systems/dairy.js`, `src/content/dairy.js`): daily milk, cheese, revenue, costs and profit from the herd and the lead cows; dividends at 18:00; the share price moves toward a fair value (book value plus a multiple of earnings) with a milk-price index and market mood. **CHZ** on the Halvermouth exchange: company tabs on the share register (tablet Stocks app, Sir Moneybucks's desk) and a company board in the cheese plant.
+- Items (lasso, jerky, sweet tea, pecan pie, chicken-fried steak, cheddar wheel, cowboy hat), two shops, a Lariat faction, facts, map icons, farm props (`src/engine/drawFarm.js`: water tower, signs, silos, windmill, hay bales, tractors, troughs, crop rows, ranch fence, grazing cows, milk tank, milking stalls, cheese vats, press and racks).
+- Captain Ober knows Chuckie (ask him).
+- World map: regions can now join north–south (`src/world/layout.js`).
+- Validator: duplicate ids across content files are an error (one was found: a Sumps customer was already called Dot Pruitt — the shopkeeper became Opal Haskins).
+- Tests: `tests/lariat.test.mjs` (13).
+
+### Anti-exploit
+- The market prices most of the herd's recovery in already (90%), so knowing the quest is worth under 10% on CHZ; trades pay a 1% broker's fee each way; one investor may hold at most 1,500 shares (1%) — Chuckie keeps control. The quest reward is paid once (guarded in the save). Cows can't be roped twice or roped back out of the paddock.
+
+### Saves
+- Older saves gain the dairy on first use: every lead cow loose at her hideout, no shares, nothing paid.
+
 ## [0.28.0] — 2026-10-15 — "New World" (development build)
 
 The owner asked for the world map in the terminals to "look more like a globe with true continents and islands instead of circular blobs". Chosen in interview: fictional but realistic geography; Fleet Command's chart stays flat. See docs/GEOGRAPHY.md.

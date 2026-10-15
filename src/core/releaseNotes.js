@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.29.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Lariat',
+    notes: [
+      'North out of Halvermouth through the new North Gate lies Lariat: a farm town on FM 38 with a Mercantile, the Mesquite Diner, a boarding house, a grain co-op, cotton fields, barns, silos and a windmill.',
+      'Meet Farmer Chuckie, owner of Chuckie\'s Cheese and old friend of Captain Ober — and his dairy, his cheese plant and his herd.',
+      'Five of his cows talk. They\'ve also run off, and the dairy is down to half its milk. Buy a lasso from Opal at the Mercantile, find the girls, rope them and walk them home to the paddock.',
+      'Chuckie\'s Cheese trades on the Halvermouth exchange as CHZ: buy shares from the cheese plant\'s company board or your tablet\'s Stocks app, and collect a dividend at 18:00. Its price follows the herd.',
+      'Coming next: farms for sale, crops and tractors (0.30), then livestock and the farm market (0.31). Lariat\'s closed shops are waiting for them.',
+    ],
+  },
+  {
     version: '0.28.0',
     date: '2026-10-15',
     channel: 'development',

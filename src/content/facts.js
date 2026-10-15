@@ -133,4 +133,7 @@ export const FACTS = {
     text: 'The newcomer has been running the Kettle & Crumb\'s deliveries.', importance: 3, aboutPlayer: true,
     relImpact: { trust: 2, respect: 1 }, reputation: { fac_merchants: 3 }, keywords: ['delivery', 'courier'],
   },
+  // Lariat (v0.29.0)
+  fact_lead_cows_escaped: { text: 'Farmer Chuckie\'s five talking lead cows got out of the paddock. Without them his herd gives barely half its milk.', importance: 4, keywords: ['cows', 'cow', 'chuckie', 'herd', 'escaped', 'lariat'] },
+  fact_chuckie_friend_ober: { text: 'Farmer Chuckie and Captain Ober have been friends for forty years; the Captain shipped Chuckie\'s first wheel of cheese.', importance: 2, keywords: ['chuckie', 'ober', 'cheese'] },
 };

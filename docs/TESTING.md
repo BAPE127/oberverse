@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.29.0 (2026-10-15)
+
+- `npm run check` — **321/321 tests passed** (13 new in `lariat.test.mjs`: Chuckie imported and protected with the stampede Wrath; Lariat reachable through the North Gate with every door, hideout and the paddock reachable on foot; a new game's cows loose at their hideouts; Chuckie's quest states and no repeated intro; the lasso always in stock and buying it advancing the quest; no rope without a lasso, roping first starting the quest; a roped cow following at walking pace and coming home in the paddock (capacity 55% → 64%); waiting outside interiors, not chasing you across the county, and staying roped through a save; the reward paid once, also after a load; production, dividends once a day and the price toward fair value; the anti-exploit limits; an older save gaining the dairy; the company board and markers; a cow crossing the North Gate with you); validator 0 errors (it now also rejects duplicate ids).
+- `npm run smoke` — 24/24.
+- Browser (headless Chromium, 1280×800): Main Street, the dairy yard and paddock, Bessie at her hideout and in conversation (cow portrait), Chuckie in conversation (photo portrait), five interiors, the exchange on CHZ and the tablet's Stocks app, the world map with Lariat north of Halvermouth, and Chuckie's Wrath frame by frame. Fixed from the runs: Bessie's hideout was in the middle of Dairy Road (moved behind the diner); the dividend per share read 0.000 (now per 100 shares); a roped cow fell behind a walking player (she now trots to catch up, never faster than your sprint). No page errors.
+
 ## Verification record — v0.28.0 (2026-10-15)
 
 - `npm run check` — **308/308 tests passed** (4 new in `geography.test.mjs`: capitals on land; every port on land, on the coast, near its capital and reachable by sea; 22–45% land, coastlines far longer than a disc's, over 60 landmasses, the Morrow archipelago; deterministic); validator 0 errors. The existing sea-route tests pass on the new coasts.

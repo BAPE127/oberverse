@@ -226,4 +226,38 @@ export const QUESTS = {
       },
     },
   },
+  // Lariat (v0.29.0). Stages are driven by the dairy system (src/systems/dairy.js):
+  // it starts the quest if you rope a cow before Chuckie asks, and completes it
+  // once all five lead cows are in the paddock. Markers come from the dairy too.
+  q_lost_herd: {
+    title: 'The Lost Herd',
+    giver: 'npc_chuckie',
+    summary: 'Farmer Chuckie\'s five talking lead cows have run off around Lariat. Without them his dairy gives barely half its milk.',
+    start: 'lasso',
+    stages: {
+      lasso: {
+        journal: 'Chuckie needs his five lead cows back. First: a lasso from Opal at Lariat Mercantile on Main Street.',
+        objectives: [{ id: 'o_lasso', text: 'Buy a lasso at Lariat Mercantile.' }],
+        marker: 'lariat:mercantile_door_out',
+        hints: [{ if: {}, text: 'Opal always keeps a lasso on the peg. Forty-five obols.' }],
+      },
+      roundup: {
+        journal: 'Lasso in hand. Find each lead cow, rope her, and walk her back to the lead cows\' paddock by Chuckie\'s barns.',
+        objectives: [{ id: 'o_roundup', text: 'Rope the five lead cows and lead them into the paddock by the barns.' }],
+        hints: [
+          { if: {}, text: 'Ask Chuckie where the girls were last seen. Each cow still loose is marked on your map.' },
+          { if: {}, text: 'A roped cow follows you on foot. She waits outside if you go indoors, and stays put if you drive off — go back for her.' },
+        ],
+      },
+    },
+    triggers: [
+      { event: 'item:acquired', where: { id: 'item_lasso' }, stage: 'lasso', advance: 'roundup' },
+    ],
+    outcomes: {
+      home: {
+        journal: 'All five lead cows are home. The herd walked into the parlour in a line, the milk tank filled, and Chuckie hugged a cow. And you.',
+        effects: [{ money: 2500 }, { give: { id: 'item_cheese_wheel', count: 2 } }, { rep: { lariat: 10 } }, { notify: 'Quest complete: The Lost Herd (+2,500 obols, 2 wheels of cheddar)' }],
+      },
+    },
+  },
 };

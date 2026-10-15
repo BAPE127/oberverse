@@ -34,6 +34,9 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_tony` | Tony Tangent | Generated for the Arthur import | Minor | Lookout at the Sumps gate | — | Implemented & tested |
 | `npc_max` | Max Imum | Generated for the Arthur import | Minor | Reckless; machete | — | Implemented & tested |
 | 12 customers | Ray, Mo, Dot, Bill, Lena, Gus, Fern, Nico, Hattie, Bram, Pearl, Sol | Generated for the Arthur import | Minor | Sumps residents who buy calculators (`profile.customer`) | — | Implemented & tested |
+| `npc_chuckie` | Farmer Chuckie | **Imported** (2026-10-15) | Major | Owner of Chuckie's Cheese in Lariat; cheerful, folksy born salesman; friend of Captain Ober; gives The Lost Herd; protected (stampede Wrath) | `motif_chuckie` | Implemented & tested |
+| `npc_opal`, `npc_lupe`, `npc_wade`, `npc_rosa`, `npc_earl` | Opal Haskins, Lupe, Wade, Rosa, Earl Hollister | Generated for the Chuckie import | Minor | Lariat: the Mercantile, the diner, the dairy hand, the cheesemaker, the cotton farmer | — | Implemented & tested |
+| `cow_bessie` … `cow_daisy` | Bessie Mae, Dr. Clementine, Duchess, Patsy, Little Daisy | Generated for the Chuckie import | Minor | Chuckie's five talking lead cows (`livestock: true`, never fight) | — | Implemented & tested |
 | `npc_ober` | Captain Ober | **Imported** (2026-10-15) | Major | Founder of Ober & Sons Maritime at the Yards docks; jolly old salt, retiring; sells you the shipping company; old smuggler; protected (kraken Wrath) | `motif_ober` | Implemented & tested |
 | `npc_lucas` | Lucas Eastrise | **Imported** (2026-10-13) | Major | Owner of Pipecreek Armory; sleazy, creepy, conspiratorial; sets you up in the arms trade; protected (arms Wrath) | `motif_lucas` | Implemented & tested |
 | `npc_marty` | Marty Fender | Original (transportation update) | Minor | Fender's Pre-Loved Motors, Westbrook Row: sleazy used cars, buys anything, "fresh plates" | `characters/dealers.js`, `dialogue/dealers.js` | Implemented & tested |
@@ -44,7 +47,7 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_barnaby` | Barnaby Cole | 〃 | Minor | Labourer; birdwatcher; gull defender | — | Implemented & tested |
 | `npc_quinn` | Quinn Abernathy | 〃 | Minor | Apprentice surveyor and draftsperson | — | Implemented & tested |
 
-Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`) **Arthur Anderson** (see `docs/characters/npc_arthur.md`) **Lucas Eastrise** (see `docs/characters/npc_lucas.md`) and **Captain Ober** (see `docs/characters/npc_ober.md`). Their employees were generated at the player's request; minor characters have no individual motif.
+Imported characters: **Sir Moneybucks** (see `docs/characters/npc_moneybucks.md`), **Mason Nails** (see `docs/characters/npc_mason.md`) **Chief Lawrence Order** (see `docs/characters/npc_lawrence.md`) **Arthur Anderson** (see `docs/characters/npc_arthur.md`) **Lucas Eastrise** (see `docs/characters/npc_lucas.md`) **Captain Ober** (see `docs/characters/npc_ober.md`) and **Farmer Chuckie** (see `docs/characters/npc_chuckie.md`). Their employees were generated at the player's request; minor characters have no individual motif.
 
 ## Combat temperaments (`profile.combat`)
 

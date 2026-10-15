@@ -215,4 +215,38 @@ export const ITEMS = {
     name: 'Gull Feather', category: 'junk', price: 0, tags: ['junk', 'gift'], icon: 'feather',
     description: 'A long grey gull feather. A trophy, or a warning.',
   },
+  // Lariat (v0.29.0)
+  item_lasso: {
+    name: 'Lasso', category: 'tool', price: 45, tags: ['tool', 'rope'], icon: 'lasso',
+    description: 'Thirty feet of braided rope with a honda knot, from Lariat Mercantile. For roping cattle — politely.',
+  },
+  item_jerky: {
+    name: 'Beef Jerky', category: 'food', price: 6, tags: ['food', 'gift'], icon: 'jerky',
+    description: 'Opal\'s own peppered jerky. Chewy enough to last the drive to Halvermouth.',
+    use: { energy: 18, text: 'You chew the jerky. And chew. And chew. (+18 energy)' },
+  },
+  item_sweet_tea: {
+    name: 'Sweet Tea', category: 'food', price: 3, tags: ['food', 'drink', 'gift', 'sweet'], icon: 'tea',
+    description: 'A tall cup of iced tea with enough sugar to stand a spoon in.',
+    use: { energy: 16, text: 'You drink the sweet tea. Your teeth hum. (+16 energy)' },
+  },
+  item_pecan_pie: {
+    name: 'Pecan Pie Slice', category: 'food', price: 7, tags: ['food', 'sweet', 'gift'], icon: 'pie',
+    description: 'A thick slice of Lupe\'s pecan pie. The reason the Mesquite Diner has a parking lot.',
+    use: { energy: 28, text: 'You eat the pecan pie. For a moment, all is right in the world. (+28 energy)' },
+  },
+  item_chicken_fried_steak: {
+    name: 'Chicken-Fried Steak', category: 'food', price: 12, tags: ['food'], icon: 'steak',
+    description: 'A steak, battered and fried like chicken, under a blanket of cream gravy. The Mesquite Diner special.',
+    use: { energy: 45, text: 'You eat the chicken-fried steak. You may need a nap. (+45 energy)' },
+  },
+  item_cheese_wheel: {
+    name: 'Chuckie\'s Aged Cheddar', category: 'gift', price: 60, tags: ['food', 'gift', 'cheese'], icon: 'cheese',
+    description: 'A whole twelve-month wheel of Chuckie\'s Cheese sharp cheddar, wax-sealed and stamped CHZ.',
+    use: { energy: 60, text: 'You eat a frankly irresponsible amount of cheddar. (+60 energy)' },
+  },
+  item_cowboy_hat: {
+    name: 'Cowboy Hat', category: 'gift', price: 30, tags: ['gift', 'clothing'], icon: 'hat',
+    description: 'A straw cattleman with a sweat-stained band. Keeps the Texas sun off.',
+  },
 };

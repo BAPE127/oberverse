@@ -1,5 +1,6 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
+import { drawFarmProp } from './drawFarm.js';
 import { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } from './drawDeck.js';
 import { lightState, walkSignal } from '../world/lights.js';
 import { TILE } from '../core/util.js';
@@ -632,7 +633,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -1635,6 +1636,7 @@ export function drawProp(ctx, p, opts) {
       break;
     }
     default: {
+      if (drawFarmProp(ctx, p, x, y, w, h, opts)) break; // v0.29.0: Lariat's farm and dairy props
       ctx.fillStyle = '#8a7a6a';
       ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
     }

@@ -23,7 +23,7 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦', lasso: '🪢', jerky: '🥓', tea: '🧋', pie: '🥧', steak: '🍖', cheese: '🧀', hat: '🤠' };
 export const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -612,9 +612,15 @@ export function investPanel(ui, body, opts) {
 /** The share register: Sir Moneybucks's desk, and the tablet's Stocks app. */
 export function stocksScreen(ui, body, opts = {}) {
   const g = ui.game;
+  let company = opts.company === 'chz' ? 'chz' : 'obro';
+  // v0.29.0: the Halvermouth exchange lists two companies
+  const tabs = (render) => h('div', { class: 'row', style: 'justify-content:flex-start;margin-bottom:10px' },
+    ...[['obro', 'OBRO · Ober\'s Oil'], ['chz', 'CHZ · Chuckie\'s Cheese']].map(([id, label]) => h('button', { class: `small${company === id ? ' primary' : ''}`, onclick: () => { company = id; render(); } }, label)));
   const render = (msg) => {
     body.innerHTML = '';
     if (opts.header) body.append(opts.header());
+    body.append(tabs(render));
+    if (company === 'chz') return chzScreen(g, body, msg, render);
     const s = g.oil.state;
     const out = g.oil.computeOutput();
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
@@ -645,6 +651,40 @@ export function stocksScreen(ui, body, opts = {}) {
     if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price}`).join(' · ')}`));
   };
   render();
+}
+
+/** CHZ: Chuckie's Cheese Co. on the exchange (src/systems/dairy.js). */
+function chzScreen(g, body, msg, render) {
+  const D = g.dairy;
+  const s = D.state;
+  const c = D.cfg;
+  const n = D.numbers();
+  if (msg) body.append(h('p', {}, h('b', {}, msg)));
+  const room = c.maxPlayerShares - s.sharesOwned;
+  const buy = (k) => { const q = D.quote(k); return h('button', { class: 'small primary', disabled: k > room || g.player.money < q.gross + q.fee, onclick: () => render(D.buyShares(k).text) }, `Buy ${k} (${q.gross + q.fee})`); };
+  const sell = (k) => h('button', { class: 'small', disabled: s.sharesOwned < k, onclick: () => render(D.sellShares(k).text) }, `Sell ${k}`);
+  body.append(
+    h('p', { class: 'muted' }, `${c.company} — a dairy and cheese plant in Lariat, run by Farmer Chuckie, who keeps control of the company. ${c.shares.toLocaleString()} shares; one investor may hold at most ${c.maxPlayerShares.toLocaleString()}. Broker\'s fee ${Math.round(c.fee * 100)}% each way.`),
+    h('div', { class: 'grid2', style: 'margin-bottom:12px' },
+      h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, String(g.player.money))),
+      h('div', { class: 'stat' }, h('span', {}, 'Your shares'), h('b', {}, `${s.sharesOwned} / ${c.maxPlayerShares}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${s.sharePrice} obols`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Lead cows home'), h('b', {}, `${D.count('home')} / 5`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Parlour capacity'), h('b', {}, `${Math.round(n.capacity * 100)}%`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Milk / cheese a day'), h('b', {}, `${n.litres.toLocaleString()} L · ${n.cheese} kg`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Milk-price index'), h('b', {}, s.index.toFixed(2))),
+      h('div', { class: 'stat' }, h('span', {}, 'Dividend per 100 shares'), h('b', {}, `≈${(D.dividendPerShare(n) * 100).toFixed(1)} at 18:00`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Dividends received'), h('b', {}, `${s.dividendsPaid} obols`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Profit today'), h('b', {}, `${n.profit.toLocaleString()} obols`)),
+    ),
+    h('div', { class: 'row', style: 'justify-content:flex-start' }, buy(1), buy(10), buy(100), sell(1), sell(10), sell(100)),
+  );
+  if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.cheese} kg @ ${d.price}`).join(' · ')}`));
+}
+
+export function exchangePanel(ui, body, opts) {
+  stocksScreen(ui, body, opts);
+  return { title: 'Halvermouth Exchange', onClose: opts.onClose };
 }
 
 // --------------------------------------------------------------- contracts
@@ -737,6 +777,7 @@ export function ledgerPanel(ui, body) {
 export const PANELS = {
   choices: choicesPanel,
   invest: investPanel,
+  exchange: exchangePanel,
   ledger: ledgerPanel,
   contracts: contractsPanel,
   pause: pausePanel,

@@ -6,6 +6,7 @@ import oberMaps from './maps/oberFields.js';
 import westbrookMaps from './maps/westbrook.js';
 import halvermouthMaps from './maps/halvermouth.js';
 import yardsMaps from './maps/yards.js';
+import lariatMaps from './maps/lariat.js';
 import { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } from './arms.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
@@ -53,12 +54,24 @@ import { buildTransit, addStreetFurniture } from './transit.js';
 import { widenAll, shiftPoint } from '../world/widen.js';
 import dealerChars from './characters/dealers.js';
 import dlgDealers from './dialogue/dealers.js';
+import lariatChars from './characters/lariat.js';
+import dlgLariat from './dialogue/lariat.js';
+import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
 
-const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
+/** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
+export const DUPLICATE_IDS = [];
+const byId = (list) => {
+  const out = {};
+  for (const x of list) {
+    if (out[x.id]) DUPLICATE_IDS.push(x.id);
+    out[x.id] = x;
+  }
+  return out;
+};
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -94,8 +107,8 @@ export const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -108,6 +121,7 @@ export const BASE_CONTENT = {
   roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
+  dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
   plots: {},
   startingMap: 'player_flat',
   startingSpot: 'entry',

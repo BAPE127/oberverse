@@ -32,6 +32,7 @@ import { Vehicles } from '../systems/vehicles.js';
 import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
 import { Logistics } from '../systems/logistics.js';
+import { Dairy } from '../systems/dairy.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -72,6 +73,7 @@ export class Game {
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
+    this.dairy = new Dairy(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -186,6 +188,7 @@ export class Game {
 
   afterLoad() {
     for (const npc of this.npcs.values()) this.npcSystem.think(npc, true);
+    this.dairy.afterLoad();
     this.updateDiscovery();
   }
 
@@ -308,6 +311,7 @@ export class Game {
       this.npcSystem.updatePhysical(npc, dt);
       this.ambientBarks(npc);
     }
+    this.dairy.update(dt);
     for (let i = 0; i < Math.min(minutes, 30); i++) this.minuteTick();
   }
 
@@ -321,6 +325,7 @@ export class Game {
     this.market.minuteTick();
     this.transit.minuteTick();
     this.logistics.minuteTick();
+    this.dairy.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -733,6 +738,7 @@ export class Game {
       case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}`, wheel: 'Take the wheel', logbook: 'Read the logbook' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
+      case 'dairy': return 'Read the company board';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
   }
@@ -827,6 +833,8 @@ export class Game {
         return this.transit.stopInfo(act.stop);
       case 'logistics':
         return this.logistics.interact(prop);
+      case 'dairy':
+        return this.dairy.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -1192,6 +1200,7 @@ export class Game {
       }
     }
     this.arms.spawnStaff();
+    this.dairy.afterLoad();
     this.updateDiscovery();
     return this;
   }
@@ -1255,6 +1264,7 @@ export class Game {
       const s = this.maps.get(map)?.spot(spot);
       if (s) out.push({ questId: id, map, x: s.x + 0.5, y: s.y + 0.5 });
     }
+    out.push(...this.dairy.markers());
     return out;
   }
 

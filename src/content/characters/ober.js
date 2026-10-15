@@ -69,6 +69,7 @@ export const ober = {
     npc_lucas: { trust: 30, affection: 25, respect: 10, suspicion: 15 },
     npc_mason: { trust: 30, affection: 30, respect: 30, suspicion: 0 },
     npc_moneybucks: { trust: 10, affection: 10, respect: 15, suspicion: 10 },
+    npc_chuckie: { trust: 80, affection: 75, respect: 55, suspicion: 0 }, // v0.29.0: forty years of friendship (and one crate of Gouda)
   },
   knowledge: [],
   giftPrefs: { item_coffee: 6, item_cigar: 8, tags: { food: 4 } },

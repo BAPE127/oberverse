@@ -2,6 +2,7 @@
 // object (see docs/CONTENT_FORMAT.md#appearance). If an appearance supplies a
 // `sprite` image that has loaded, the renderer uses it instead (see
 // assets.js) — this keeps art replaceable without touching the simulation.
+import { drawCow, drawCowPortrait } from './drawCow.js';
 
 const BUILD_WIDTH = { round: 21, average: 18, thin: 15, wiry: 16, broad: 22 };
 
@@ -31,6 +32,7 @@ function rrect(ctx, x, y, w, h, r) {
  * @param {object} s state: {facing, moving, animTime, activity, sleeping, scale}
  */
 export function drawCharacter(ctx, a, s) {
+  if (a.species === 'cow') return drawCow(ctx, a, s); // v0.29.0: Chuckie's talking cows
   const facing = s.facing || 'down';
   const scale = (s.scale || 1) * (a.height || 1);
   const t = s.animTime || 0;
@@ -54,7 +56,7 @@ export function drawCharacter(ctx, a, s) {
   const dir = facing === 'left' ? -1 : 1;
 
   // legs
-  const legColor = a.legs || shade(a.outfit, -45);
+  const legColor = a.overalls || a.legs || shade(a.outfit, -45);
   ctx.fillStyle = legColor;
   const legSwing = walk * 3;
   if (side) {
@@ -110,6 +112,21 @@ export function drawCharacter(ctx, a, s) {
     ctx.lineWidth = 0.8;
     for (let px = -tw / 2 + 2; px < tw / 2 - 1; px += 3.4) { ctx.beginPath(); ctx.moveTo(px, -26); ctx.lineTo(px, -11); ctx.stroke(); }
     for (let py = -25; py < -11; py += 3.4) { ctx.beginPath(); ctx.moveTo(-tw / 2 + 1, py); ctx.lineTo(tw / 2 - 1, py); ctx.stroke(); }
+  }
+  if (a.overalls) {
+    // denim bib-and-brace overalls (Farmer Chuckie): the bib, the straps, two brass buttons
+    ctx.fillStyle = a.overalls;
+    if (facing === 'up') ctx.fillRect(-tw / 2 + 1, -18, tw - 2, 8);
+    else { rrect(ctx, -tw / 2 + 3.5, -22, tw - 7, 12, 2); ctx.fill(); }
+    ctx.fillRect(-tw / 2 + 1, -14, tw - 2, 4);
+    ctx.fillRect(-tw / 2 + 3, -27, 2.4, 6);
+    ctx.fillRect(tw / 2 - 5.4, -27, 2.4, 6);
+    if (facing !== 'up') {
+      ctx.fillStyle = '#c9a24a';
+      ctx.beginPath(); ctx.arc(-tw / 2 + 4.2, -21, 1, 0, Math.PI * 2); ctx.arc(tw / 2 - 4.2, -21, 1, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(-3, -19, 6, 4);
+    }
   }
   if (acc.has('chain') && facing === 'down') {
     ctx.strokeStyle = '#e8c04a';
@@ -467,6 +484,7 @@ function drawFaceAccessory(ctx, a, facing, eyeY, dir) {
 
 /** Head-and-shoulders portrait into a square canvas context of `size` px. */
 export function drawPortrait(ctx, a, size, opts = {}) {
+  if (a.species === 'cow') return drawCowPortrait(ctx, a, size, opts);
   ctx.clearRect(0, 0, size, size);
   const g = ctx.createLinearGradient(0, 0, 0, size);
   g.addColorStop(0, opts.bgTop || '#f7ecd8');

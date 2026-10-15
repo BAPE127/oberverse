@@ -8,7 +8,7 @@ import { parseSpotRef, TILE, interpolate } from '../core/util.js';
 export const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
   'memory', 'rep', 'mood', 'npcMood', 'openShop', 'panel', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
-  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory', 'arms', 'dealer',
+  'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory', 'arms', 'dealer', 'dairy',
 ];
 
 /**
@@ -175,6 +175,9 @@ function applyOne(game, eff, npc, result) {
       case 'site':
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
+        break;
+      case 'dairy':
+        game.dairy?.effect(val, npc);
         break;
       case 'panel':
         // { panel: { name: 'logistics', tab: 'Acquire' } } opens a panel after the line is said

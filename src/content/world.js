@@ -14,6 +14,11 @@ export const REGIONS = {
     name: 'Mill Road Yards',
     maps: { yards: { x: 0, y: 0, fallbackSpot: 'east_gate' } },
   },
+  // Lariat (v0.29.0): up FM 38 from Halvermouth's North Gate.
+  lariat: {
+    name: 'Lariat',
+    maps: { lariat: { x: 0, y: 0, fallbackSpot: 'south_gate' } },
+  },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {
