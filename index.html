@@ -2345,7 +2345,7 @@ const buildings = [
   B('b_elevator', 'Lariat Co-op Elevator', 114, 28, 6, 8, { roof: '#9aa0a8', wall: '#c8ccd2', trim: '#6a7078', sign: 'LARIAT CO-OP', flatRoof: true, door: { x: 116, y: 35, lock: closed('The Co-op elevator\'s office. "Harvest hours only. Grain in, cheques out."') } }),
   // Cotton Street, north side (doors open south onto Cotton Street)
   B('b_barber', 'Rusty\'s Barber Shop', 26, 50, 8, 6, { roof: '#2a3a5a', wall: '#f2ead8', sign: 'RUSTY\'S BARBER', awning: '#c8402a', door: { x: 29, y: 55, lock: closed('RUSTY\'S BARBER SHOP. "Gone fishin\'. Haircuts $8, opinions free." The pole still turns.') } }),
-  B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, lock: closed('HOOF & HORN LIVESTOCK SUPPLY. "Gone to the sale barn in Halvermouth. Back with stock." A cat sleeps on the step, unbothered.') } }),
+  B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, to: { map: 'hoof_horn', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_wes'], hours: { from: '07:00', to: '18:00' } } } }),
   B('b_diner', 'Mesquite Diner', 51, 49, 11, 7, { roof: '#c8402a', wall: '#f2ead8', sign: 'MESQUITE DINER', awning: '#e8c04a', door: { x: 56, y: 55, to: { map: 'diner', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lupe'], hours: { from: '06:00', to: '21:00' } } } }),
   B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa', 'npc_dale', 'npc_lorna'], hours: { from: '06:00', to: '23:00' } } } }),
   B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "SALES ON THE LOT — ask for Dale." The showroom is mostly a very shiny floor and a coffee machine.') } }),
@@ -2553,6 +2553,7 @@ const lariat = {
     // the five lead cows' hideouts (src/content/dairy.js) and their places in the paddock
     reddirt_lot: { x: 101, y: 54, facing: 'up' },
     land_office_door_out: { x: 61, y: 38, facing: 'down' },
+    hoof_horn_door_out: { x: 43, y: 56, facing: 'down' },
     feed_seed_door_out: { x: 86, y: 38, facing: 'down' },
     hide_bessie: { x: 57, y: 47, facing: 'down' },
     hide_clementine: { x: 15, y: 8, facing: 'right' },
@@ -2675,9 +2676,21 @@ const feedSeed = room('feed_seed', 'Lone Star Feed & Seed', 14, 9, 'feed_seed_do
   ],
 });
 
-const __default = [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed];
+// v0.31.0: Hoof & Horn Livestock Supply — the sale barn's front office
+const hoofHorn = room('hoof_horn', 'Hoof & Horn Livestock Supply', 14, 9, 'hoof_horn_door_out', {
+  spots: { counter: { x: 7, y: 2, facing: 'down' }, bed: { x: 12, y: 2, facing: 'down' } },
+  props: [
+    { id: 'hh_counter', type: 'counter', x: 5, y: 3, w: 5, h: 1, interact: { kind: 'farm', action: 'livestock', name: 'sale ledger' }, examine: 'The Hoof & Horn counter: the sale ledger, a brass bell, and a jar of horehound candy that has been there since the Depression.' },
+    { id: 'hh_board', type: 'noticeboard', x: 1, y: 0, examine: 'STOCK FOR SALE: laying hens, dairy goats, beef calves — delivered to your pasture. "WE BUY: grown cattle, goats, hens. Auction prices, paid same day."' },
+    { id: 'hh_saddle', type: 'display', x: 11, y: 1, w: 1, examine: 'A saddle on a stand, and a sign: "NOT FOR SALE. ASK ANYWAY."' },
+    { id: 'hh_bed', type: 'cot', x: 12, y: 5, w: 1, h: 2, examine: 'Wes\'s cot in the back. He says he lives in town. He lives here.' },
+    { id: 'hh_sacks', type: 'crate', x: 1, y: 6, w: 3, examine: 'Salt licks, mineral blocks, and a box of ear tags numbered up to 999.' },
+  ],
+});
 
-return { lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed, default: __default };
+const __default = [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed, hoofHorn];
+
+return { lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed, hoofHorn, default: __default };
 })();
 
 // ---- src/content/arms.js
@@ -2976,6 +2989,8 @@ const PROP_TYPES = {
   slipway: { solid: false, label: 'Slipway', defaults: { w: 4, h: 12 } },
   // Lariat (v0.29.0): the farm town and Chuckie's Cheese (src/engine/drawFarm.js)
   watertower: { solid: true, label: 'Water tower', defaults: { w: 4, h: 5 } },
+  chicken: { solid: false, label: 'Hen', defaults: {} },
+  goat: { solid: false, label: 'Goat', defaults: {} },
   ranchgate: { solid: false, label: 'Ranch gate', defaults: { w: 6, h: 2 } },
   ranchpost: { solid: true, label: 'Gatepost', defaults: {} },
   roadsign: { solid: true, label: 'Road sign', defaults: { w: 4, h: 2 } },
@@ -3347,6 +3362,10 @@ const ITEMS = {
   item_crop_sorghum: { name: 'Sorghum (load)', category: 'farm', price: 36, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of grain sorghum. The Co-op elevator buys it.' },
   item_crop_corn: { name: 'Corn (load)', category: 'farm', price: 40, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of shelled corn. The Co-op elevator buys it.' },
   item_crop_cotton: { name: 'Cotton (bale)', category: 'farm', price: 58, tags: ['farm', 'crop'], icon: 'bale', description: 'A module of seed cotton, wrapped. The Co-op elevator buys it for the gin.' },
+  // Livestock (v0.31.0)
+  item_feed: { name: 'Livestock Feed (bag)', category: 'farm', price: 9, tags: ['farm'], icon: 'sack', description: 'A 50 lb bag of mixed ration. Hens eat a little, goats more, and calves a lot.' },
+  item_eggs: { name: 'Eggs (dozen)', category: 'farm', price: 3, tags: ['farm', 'food'], icon: 'egg', description: 'A dozen brown eggs from your own hens. The Co-op buys them; so does Lupe, if you ask nicely.', use: { energy: 10, text: 'You eat a couple of eggs, raw, like a boxer. (+10 energy)' } },
+  item_goat_milk: { name: 'Goat Milk (gallon)', category: 'farm', price: 9, tags: ['farm', 'drink'], icon: 'cup', description: 'A gallon of fresh goat milk. The Co-op buys it; Rosa at Chuckie\'s says it makes a fine cheese.', use: { energy: 14, text: 'You drink some goat milk. Rich and faintly goaty. (+14 energy)' } },
 };
 
 return { ITEMS };
@@ -3666,7 +3685,7 @@ const SHOPS = {
   // Farming (v0.30.0)
   shop_feedseed: {
     name: 'Lone Star Feed & Seed', owner: 'npc_lorna', restockAt: '07:00',
-    stock: { item_seed_wheat: 20, item_seed_sorghum: 20, item_seed_corn: 20, item_seed_cotton: 16, item_fertilizer: 24 },
+    stock: { item_seed_wheat: 20, item_seed_sorghum: 20, item_seed_corn: 20, item_seed_cotton: 16, item_fertilizer: 24, item_feed: 60 },
     buys: {},
   },
 };
@@ -10056,9 +10075,33 @@ const lorna = local({
   opinions: { npc_opal: { warm: 'Opal knows everything in this county a day before it happens.', cool: 'Opal told the whole town my maiden name before I\'d unpacked.' } },
 });
 
-const __default = [chuckie, opal, dale, lorna, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];
 
-return { chuckie, opal, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy, dale, lorna, default: __default };
+// v0.31.0: Hoof & Horn's livestock man
+const wes = local({
+  id: 'npc_wes', name: 'Wes Tolliver', shortName: 'Wes',
+  combat: { never: true, maxHealth: 90 },
+  role: 'Runs Hoof & Horn Livestock Supply and the Saturday sale barn. Can guess a steer\'s weight to the pound.',
+  dialogue: 'dlg_wes',
+  voice: { wave: 'sawtooth', pitch: 120, variance: 15, rate: 0.9 },
+  appearance: { skin: '#d8a880', hair: '#c8c4bc', hairStyle: 'short', hat: '#d8c8a0', beard: true, outfit: '#7a5a3a', legs: '#3a4a6a', build: 'broad', height: 1, accent: '#c8402a' },
+  personality: { traits: ['laconic', 'fair', 'animal whisperer'], sociability: 0.5, conscientiousness: 0.8, impulsiveness: 0.2, discretion: 0.7, honesty: 0.9, empathy: 0.8, humor: 0.5 },
+  speech: { rumorPrefix: 'Heard at the sale barn:', factPrefix: 'Fact is,', refuse: 'Can\'t say.' },
+  schedule: [
+    { from: '05:30', to: '06:30', activity: 'eat', spot: 'diner:stool', label: 'coffee at the diner' },
+    { from: '06:30', to: '12:00', activity: 'work', spot: 'hoof_horn:counter', label: 'behind the Hoof & Horn counter' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
+    { from: '13:00', to: '18:00', activity: 'work', spot: 'hoof_horn:counter', label: 'behind the Hoof & Horn counter' },
+    { from: '18:00', to: '21:00', activity: 'leisure', spot: 'lariat:paddock_gate', label: 'leaning on Chuckie\'s fence, talking cows' },
+    { from: '21:00', to: '05:30', activity: 'sleep', spot: 'hoof_horn:bed' },
+  ],
+  relationships: { player: { trust: 5, affection: 5, respect: 5, suspicion: 0 }, npc_chuckie: { trust: 50, affection: 40, respect: 50, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_jerky: 6, tags: { food: 2 } },
+  opinions: { npc_chuckie: { warm: 'Chuckie\'s the best stockman in the county. Talks to his cows. They talk back, which helps.', cool: 'Chuckie lets his gates swing. Bad habit.' } },
+});
+
+const __default = [chuckie, opal, dale, lorna, wes, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];
+
+return { chuckie, opal, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy, dale, lorna, wes, default: __default };
 })();
 
 // ---- src/content/dialogue/lariat.js
@@ -10454,9 +10497,29 @@ const dlgLorna = {
   barks: { greet: ['Morning.'], work: ['*weighs a sack*', '*stamps a deed*'], leisure: ['*turns a page*'], eat: ['*eats*'], sleep: ['*snore*'], chat: ['Hm.', 'On the record, yes.'], argue: ['Not in my store.'] },
 };
 
-const __default = [dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];
+// v0.31.0: Wes at Hoof & Horn
+const dlgWes = {
+  id: 'dlg_wes',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Wes Tolliver. Hoof & Horn. I sell stock and I buy it back, and I\'ll tell you straight which end of either is the business end.'] },
+    { if: { activity: 'sleep' }, say: ['*asleep on the cot* …two-ninety… sold… *snore*'] },
+    { if: {}, variants: [['Morning.'], ['What\'re we buying?'], ['Stock\'s good this week.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Keep \'em fed.'], ['Mind the gate.']] }],
+  topics: [
+    { id: 't_wes_stock', label: '"I want to buy (or sell) livestock."', keywords: ['livestock', 'buy', 'sell', 'cattle', 'goats', 'hens', 'chickens', 'calves', 'auction'], say: ['Hens for eggs, goats for milk, calves to grow on and sell back to me. They go on a pasture of yours — fence a plot first, at its sign. One kind to a pasture.'], effects: [{ panel: { name: 'livestock' } }] },
+    { id: 't_wes_care', label: '"How do I look after them?"', keywords: ['feed', 'care', 'look after', 'hungry', 'how'], say: ['Feed. Every morning they eat out of the feeder — a hen a little, a goat a fair bit, a calf a lot. Lorna sells the bags. Fill the feeder at the pasture sign and pick up your eggs or milk while you\'re there.', 'Let the feeder run dry three days and you\'ll lose some. I won\'t sell to you twice if you do that twice.'] },
+    { id: 't_wes_market', label: '"How are prices?"', keywords: ['price', 'market', 'demand', 'sell', 'flood'], say: ['Depends how much you bring. Bring one steer and you\'ll get top dollar. Bring twenty on the same day and the buyers get choosy. The market forgets by and by — spread your selling out.'] },
+  ],
+  askAbout: [{ keywords: ['chuckie', 'cows', 'talking'], say: ['Chuckie\'s girls? Wouldn\'t buy \'em, wouldn\'t sell \'em. Wouldn\'t argue with \'em either.'] }],
+  unknown: [['Can\'t say.']],
+  gift: basicGift('Well. Thank you.', 'Obliged.', 'Thanks.', 'Hm.'),
+  barks: { greet: ['Morning.'], work: ['*writes in the sale ledger*', '*sorts ear tags*'], leisure: ['*leans on the fence*'], eat: ['*coffee*'], sleep: ['*snore*'], chat: ['Yep.', 'That so.'], argue: ['No sir.'] },
+};
 
-return { dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy, COW_DIALOGUES, dlgDale, dlgLorna, default: __default };
+const __default = [dlgWes, dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];
+
+return { dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy, COW_DIALOGUES, dlgDale, dlgLorna, dlgWes, default: __default };
 })();
 
 // ---- src/content/dairy.js
@@ -10548,7 +10611,33 @@ const FARM = {
   priceDrift: 0.04, // ± daily wobble of the Co-op's price index (0.85–1.15)
 };
 
-return { FARM_PLOTS, FARM_CROPS, FARM };
+/**
+ * Livestock (v0.31.0): kept on a plot you've fenced as pasture, one kind per
+ * plot. per: pasture tiles each head needs; feed: bags of feed a head eats a
+ * day (from the plot's feeder); product: what each head gives a day (collected
+ * at the plot's sign); value: what Hoof & Horn pays for a grown animal; cattle
+ * put on value as they grow (grow: obols a day, up to maxDays).
+ */
+const LIVESTOCK = {
+  chickens: { name: 'Laying hens', one: 'hen', price: 12, per: 2, feed: 0.05, product: { item: 'item_eggs', perDay: 0.8 }, value: 8, prop: 'chicken' },
+  goats: { name: 'Dairy goats', one: 'goat', price: 140, per: 8, feed: 0.25, product: { item: 'item_goat_milk', perDay: 1 }, value: 110, prop: 'goat' },
+  cattle: { name: 'Beef calves', one: 'calf', price: 450, per: 20, feed: 0.6, value: 450, grow: 30, maxDays: 25, prop: 'cow' },
+};
+
+/** Market demand (v0.31.0): selling floods the buyer; each unit sold today lowers the next price, and demand recovers overnight. */
+const FARM_MARKET = {
+  floor: 0.55, // prices never fall below this share of the day's price
+  recover: 0.4, // share of today's sales the market forgets by the next morning
+  demand: { // units a day before the price has fallen by half the way to the floor
+    item_crop_wheat: 90, item_crop_sorghum: 80, item_crop_corn: 80, item_crop_cotton: 60,
+    item_eggs: 240, item_goat_milk: 120, chickens: 120, goats: 16, cattle: 8,
+  },
+  products: { item_eggs: 3, item_goat_milk: 9 }, // base prices the Co-op pays for eggs and goat milk
+};
+
+const PASTURE = { fencing: 400 }; // obols to fence a fallow plot as pasture (and back again is free)
+
+return { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE };
 })();
 
 // ---- src/content/index.js
@@ -10612,7 +10701,7 @@ const dlgDealers = __m["src/content/dialogue/dealers.js"].default;
 const lariatChars = __m["src/content/characters/lariat.js"].default;
 const dlgLariat = __m["src/content/dialogue/lariat.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
-const { FARM_PLOTS, FARM_CROPS, FARM } = __m["src/content/farming.js"];
+const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 const DUPLICATE_IDS = [];
@@ -10678,7 +10767,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM },
+  farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
   startingMap: 'player_flat',
   startingSpot: 'entry',
@@ -10696,7 +10785,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.30.0';
+const GAME_VERSION = '0.31.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -24778,7 +24867,7 @@ const MINUTES_PER_DAY = 1440;
 function freshFarm(content) {
   const plots = {};
   for (const id of Object.keys(content.farming?.plots || {})) plots[id] = { owned: false, state: 'fallow' };
-  return { plots, priceIndex: 1, lastDay: 0 };
+  return { plots, priceIndex: 1, lastDay: 0, market: {}, ledger: [] };
 }
 
 class Farm {
@@ -24794,6 +24883,8 @@ class Farm {
     if (!g.world.farm) g.world.farm = freshFarm(g.content);
     const s = g.world.farm;
     for (const id of Object.keys(this.def.plots)) if (!s.plots[id]) s.plots[id] = { owned: false, state: 'fallow' };
+    s.market ||= {}; // v0.31.0: today's sales (demand), and the farm's income
+    s.ledger ||= [];
     return s;
   }
 
@@ -24868,7 +24959,12 @@ class Farm {
     const out = [];
     if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: g.player.money >= d.price, why: 'Not enough obols.' }];
     const C = this.def.crops;
-    if (st.state === 'fallow') out.push({ action: 'till', label: 'Till the field', ok: true });
+    if (st.state === 'fallow') {
+      out.push({ action: 'till', label: 'Till the field', ok: true });
+      const fee = this.def.pasture.fencing;
+      out.push({ action: 'pasture', label: `Fence it as pasture for livestock (${fee} obols)`, ok: g.player.money >= fee, why: `Fencing costs ${fee} obols.` });
+    }
+    if (st.state === 'pasture') return this.pastureActions(id);
     if (st.state === 'tilled') {
       for (const [cid, c] of Object.entries(C)) {
         const bags = this.seedBags(id, cid);
@@ -24909,6 +25005,7 @@ class Farm {
     const d = this.plotDef(id);
     if (!d) return { ok: false, text: 'No such plot.' };
     if (action === 'buy') return this.buy(id);
+    if (['feed', 'collect', 'unfence'].includes(action)) return this.pastureWork(id, action);
     const st = this.plot(id);
     if (!st.owned) return { ok: false, text: 'That land isn\'t yours (yet). The Land Office on Main Street has the deeds.' };
     const a = this.actions(id).find((x) => x.action === action && (action !== 'plant' || x.crop === crop));
@@ -24920,6 +25017,13 @@ class Farm {
     if (action === 'till') {
       st.state = 'tilled';
       text = `You till ${d.name}`;
+    } else if (action === 'pasture') {
+      const fee = this.def.pasture.fencing;
+      g.player.money -= fee;
+      g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+      Object.assign(st, { state: 'pasture', herd: null, feed: 0, produce: 0, hunger: 0 });
+      this.record('Fencing', -fee);
+      text = `You fence ${d.name} as pasture, with a feeder and a water trough`;
     } else if (action === 'plant') {
       const c = this.def.crops[crop];
       g.inventory.remove(c.seed, this.seedBags(id, crop));
@@ -24962,6 +25066,12 @@ class Farm {
       }
       st.stage = stage;
     }
+    this.livestockDay();
+    const rec = this.def.market.recover;
+    for (const key of Object.keys(s.market)) {
+      s.market[key] = Math.round(s.market[key] * (1 - rec) * 100) / 100;
+      if (s.market[key] < 0.5) delete s.market[key];
+    }
     const k = this.def.config.priceDrift;
     // the day's news, from the day itself (not the game's shared dice, which other systems' outcomes depend on)
     s.priceIndex = Math.round(Math.min(1.15, Math.max(0.85, s.priceIndex + (hash2(g.clock.day, 8117) * 2 - 1) * k)) * 1000) / 1000;
@@ -24987,8 +25097,9 @@ class Farm {
     const byMap = {};
     for (const [id, p] of Object.entries(this.def.plots)) {
       const st = this.plot(id);
-      (byMap[p.map] ||= {})[id] = st.state === 'planted' ? { crop: this.withered(id) ? 'fallow' : st.crop, stage: st.stage } : { crop: 'fallow', stage: 0, tilled: st.state === 'tilled' };
+      (byMap[p.map] ||= {})[id] = st.state === 'planted' ? { crop: this.withered(id) ? 'fallow' : st.crop, stage: st.stage } : st.state === 'pasture' ? { crop: 'pasture', stage: 0 } : { crop: 'fallow', stage: 0, tilled: st.state === 'tilled' };
     }
+    this.syncAnimals();
     for (const [mapId, fs] of Object.entries(byMap)) {
       const map = this.game.maps.get(mapId);
       if (!map) continue;
@@ -25001,28 +25112,208 @@ class Farm {
   }
 
   // ------------------------------------------------------------------ Co-op
-  coopPrice(itemId) {
+  /** The base price of something the Co-op buys (crops, eggs, goat milk), before demand. */
+  coopBase(itemId) {
     const c = Object.values(this.def.crops).find((x) => x.crop === itemId);
-    return c ? Math.max(1, Math.round(c.price * this.state.priceIndex)) : 0;
+    return c ? c.price : this.def.market.products[itemId] || 0;
+  }
+
+  /** v0.31.0: what the next unit fetches — the day's index, less what's already been sold today. */
+  unitPrice(key, base) {
+    const M = this.def.market;
+    const D = M.demand[key] || 100;
+    const sold = this.state.market[key] || 0;
+    const f = M.floor + ((1 - M.floor) * D) / (D + sold);
+    return Math.max(1, Math.round(base * this.state.priceIndex * f));
+  }
+
+  /** Sell n units into the market, one at a time (each sale lowers the next price). */
+  sellUnits(key, base, n) {
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+      total += this.unitPrice(key, base);
+      this.state.market[key] = (this.state.market[key] || 0) + 1;
+    }
+    return total;
+  }
+
+  coopPrice(itemId) {
+    const base = this.coopBase(itemId);
+    return base ? this.unitPrice(itemId, base) : 0;
   }
 
   sellAtCoop(itemId, count = 1) {
     const g = this.game;
-    const price = this.coopPrice(itemId);
+    const base = this.coopBase(itemId);
     const have = g.inventory.count(itemId);
-    if (!price) return { ok: false, text: 'The Co-op only buys grain and cotton.' };
+    if (!base) return { ok: false, text: 'The Co-op only buys grain, cotton, eggs and goat milk.' };
     const n = Math.min(count, have);
     if (n <= 0) return { ok: false, text: 'You have none of that to sell.' };
     g.inventory.remove(itemId, n);
-    g.player.money += price * n;
-    g.bus.emit('money:changed', { delta: price * n, total: g.player.money });
-    return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${(price * n).toLocaleString()} obols.` };
+    const total = this.sellUnits(itemId, base, n);
+    g.player.money += total;
+    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    this.record(g.content.items[itemId].name, total);
+    return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${total.toLocaleString()} obols${n > 1 ? ` (the price softens as the bins fill — ${this.coopPrice(itemId)} for the next)` : ''}.` };
+  }
+
+  /** The farm's books: income and spending by day (the last two weeks). */
+  record(what, amount) {
+    const s = this.state;
+    s.ledger.push({ day: this.game.clock.day, what, amount });
+    while (s.ledger.length && s.ledger[0].day < this.game.clock.day - 14) s.ledger.shift();
+  }
+
+  // -------------------------------------------------------------- livestock
+  capacity(id, kind) {
+    return Math.floor(this.plotDef(id).tiles / this.def.livestock[kind].per);
+  }
+
+  pastureActions(id) {
+    const g = this.game;
+    const st = this.plot(id);
+    const out = [];
+    const bags = g.inventory.count('item_feed');
+    out.push({ action: 'feed', label: `Fill the feeder (${bags} bags of feed with you; ${Math.floor(st.feed || 0)} in it)`, ok: bags > 0, why: 'You have no feed with you (Lone Star Feed & Seed).' });
+    if ((st.produce || 0) >= 1) {
+      const L = this.def.livestock[st.herd.kind];
+      out.push({ action: 'collect', label: `Collect ${Math.floor(st.produce)} × ${g.content.items[L.product.item].name}`, ok: true });
+    }
+    if (!st.herd?.count) out.push({ action: 'unfence', label: 'Take the fences down (back to a field)', ok: true });
+    return out;
+  }
+
+  pastureWork(id, action) {
+    const g = this.game;
+    const d = this.plotDef(id);
+    const st = this.plot(id);
+    if (!st.owned || st.state !== 'pasture') return { ok: false, text: 'That isn\'t one of your pastures.' };
+    const a = this.pastureActions(id).find((x) => x.action === action);
+    if (!a) return { ok: false, text: 'That can\'t be done here right now.' };
+    if (!a.ok) return { ok: false, text: a.why };
+    if (action === 'feed') {
+      const n = g.inventory.count('item_feed');
+      g.inventory.remove('item_feed', n);
+      st.feed = (st.feed || 0) + n;
+      return { ok: true, text: `You tip ${n} bags of feed into the feeder at ${d.name}.` };
+    }
+    if (action === 'collect') {
+      const L = this.def.livestock[st.herd.kind];
+      const n = Math.floor(st.produce);
+      g.inventory.add(L.product.item, n);
+      st.produce -= n;
+      return { ok: true, text: `You collect ${n} × ${g.content.items[L.product.item].name}.` };
+    }
+    // unfence
+    Object.assign(st, { state: 'fallow', herd: null, feed: 0, produce: 0, hunger: 0 });
+    this.sync();
+    return { ok: true, text: `${d.name} is a field again.` };
+  }
+
+  /** Buy animals at Hoof & Horn for one of your pastures. */
+  buyAnimals(id, kind, n) {
+    const g = this.game;
+    const L = this.def.livestock[kind];
+    const d = this.plotDef(id);
+    const st = this.plot(id);
+    if (!L || !d) return { ok: false, text: 'No such animal or plot.' };
+    if (!st.owned || st.state !== 'pasture') return { ok: false, text: `${d.name} isn\'t a pasture of yours. Fence a plot first, at its sign.` };
+    if (st.herd && st.herd.count && st.herd.kind !== kind) return { ok: false, text: `${d.name} already has ${this.def.livestock[st.herd.kind].name.toLowerCase()}; one kind to a pasture.` };
+    const have = st.herd?.count || 0;
+    const room = this.capacity(id, kind) - have;
+    if (n <= 0 || n > room) return { ok: false, text: room > 0 ? `${d.name} has room for ${room} more.` : `${d.name} is full.` };
+    const cost = L.price * n;
+    if (g.player.money < cost) return { ok: false, text: `That\'s ${cost.toLocaleString()} obols.` };
+    g.player.money -= cost;
+    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    // cattle: the herd's average purchase day, weighted by head
+    const day = have ? Math.round((st.herd.day * have + g.clock.day * n) / (have + n)) : g.clock.day;
+    st.herd = { kind, count: have + n, day };
+    this.record(`${L.name} bought`, -cost);
+    this.syncAnimals();
+    return { ok: true, text: `${n} ${n > 1 ? L.name.toLowerCase() : L.one} delivered to ${d.name} for ${cost.toLocaleString()} obols. Keep the feeder full.` };
+  }
+
+  /** What one animal from this pasture fetches before demand (cattle put on value as they grow). */
+  animalValue(id) {
+    const st = this.plot(id);
+    const L = this.def.livestock[st.herd.kind];
+    if (!L.grow) return L.value;
+    const age = Math.min(L.maxDays, this.game.clock.day - st.herd.day);
+    return L.value + L.grow * Math.max(0, age);
+  }
+
+  /** Sell animals at the Hoof & Horn auction. */
+  sellAnimals(id, n) {
+    const g = this.game;
+    const st = this.plot(id);
+    if (!st?.herd?.count) return { ok: false, text: 'No animals there to sell.' };
+    n = Math.min(n, st.herd.count);
+    const L = this.def.livestock[st.herd.kind];
+    const total = this.sellUnits(st.herd.kind, this.animalValue(id), n);
+    st.herd.count -= n;
+    if (!st.herd.count) st.herd = null;
+    g.player.money += total;
+    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    this.record(`${L.name} sold`, total);
+    this.syncAnimals();
+    return { ok: true, text: `Sold at auction: ${n} ${n > 1 ? L.name.toLowerCase() : L.one} for ${total.toLocaleString()} obols.` };
+  }
+
+  /** 06:00: the animals eat from the feeder and give their eggs and milk; hungry herds lose head. */
+  livestockDay() {
+    const g = this.game;
+    for (const [id, st] of Object.entries(this.state.plots)) {
+      if (st.state !== 'pasture' || !st.herd?.count) continue;
+      const L = this.def.livestock[st.herd.kind];
+      const need = st.herd.count * L.feed;
+      if ((st.feed || 0) >= need) {
+        st.feed = Math.round((st.feed - need) * 100) / 100;
+        st.hunger = 0;
+        if (L.product) st.produce = (st.produce || 0) + st.herd.count * L.product.perDay;
+      } else {
+        st.feed = 0;
+        st.hunger = (st.hunger || 0) + 1;
+        g.notify(`${this.def.plots[id].name}: the feeder is empty and the ${L.name.toLowerCase()} are hungry.`, 'warn');
+        if (st.hunger >= 3) {
+          const lost = Math.max(1, Math.ceil(st.herd.count * 0.2));
+          st.herd.count -= lost;
+          g.notify(`${this.def.plots[id].name}: ${lost} ${lost > 1 ? L.name.toLowerCase() : L.one} lost to hunger.`, 'warn');
+          if (st.herd.count <= 0) st.herd = null;
+        }
+      }
+    }
+    this.syncAnimals();
+  }
+
+  /** Show each pasture's animals on the map (up to a dozen each; they wander about their spot). */
+  syncAnimals() {
+    if (!this.def) return;
+    for (const [id, p] of Object.entries(this.def.plots)) {
+      const map = this.game.maps.get(p.map);
+      const d = this.plotDef(id);
+      if (!map || !d) continue;
+      const st = this.plot(id);
+      const herd = st.state === 'pasture' && st.herd?.count ? st.herd : null;
+      const show = herd ? Math.min(12, herd.count) : 0;
+      const L = herd ? this.def.livestock[herd.kind] : null;
+      for (let i = 0; i < 12; i++) {
+        const pid = `farm_${id}_${i}`;
+        if (i >= show) { if (map.prop(pid)) map.removeProp(pid); continue; }
+        if (map.prop(pid)?.type === L.prop) continue;
+        const f = d.field;
+        const x = f.x + 1 + ((i * 7 + 3) % Math.max(1, f.w - 2));
+        const y = f.y + 1 + ((i * 5 + 2) % Math.max(1, f.h - 2));
+        map.addProp({ id: pid, type: L.prop, x, y, w: 1, h: 1, solid: false, seed: 41 + i * 7, coat: i % 3 ? '#8a4a2a' : '#2a2420', patches: '#f2ece0', examine: `One of your ${L.name.toLowerCase()} at ${this.def.plots[id].name}.` });
+      }
+    }
   }
 
   interact(prop) {
     const act = prop.interact;
     if (act.action === 'office') return { type: 'panel', panel: 'farmland', opts: {} };
     if (act.action === 'coop') return { type: 'panel', panel: 'coop', opts: {} };
+    if (act.action === 'livestock') return { type: 'panel', panel: 'livestock', opts: {} };
     if (act.action === 'plot') return { type: 'panel', panel: 'farmplot', opts: { plot: act.plot } };
     return { type: 'message', text: prop.examine || 'Farmland.' };
   }
@@ -25031,6 +25322,7 @@ class Farm {
     const act = prop.interact;
     if (act.action === 'office') return 'Look at the land listings';
     if (act.action === 'coop') return 'Weigh in a harvest at the Co-op';
+    if (act.action === 'livestock') return 'Look at the sale ledger';
     if (act.action === 'plot') return this.plot(act.plot)?.owned ? 'Work your field' : 'Read the FOR SALE sign';
     return 'Examine';
   }
@@ -26747,6 +27039,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.31.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Home on the Range',
+    notes: [
+      'Hoof & Horn is open. Fence one of your plots as pasture, then buy laying hens, dairy goats or beef calves from Wes Tolliver — they graze on your land for all to see.',
+      'Keep the feeder full (feed from Lone Star Feed & Seed): fed hens lay eggs and goats give milk every morning, and calves put on value as they grow. Let the feeder run dry and they go hungry; three hungry days and you lose some.',
+      'Markets have demand now: every load you sell at the Co-op, and every animal at the Hoof & Horn auction, fetches a little less than the last — the buyers recover overnight, so spread your selling out.',
+      'The tablet has a Farm app: your plots and herds, how many days of feed are left, today\'s prices, and the last week\'s books.',
+    ],
+  },
+  {
     version: '0.30.0',
     date: '2026-10-15',
     channel: 'development',
@@ -27194,7 +27498,7 @@ function boardText(ctx, text, x, y, w, size, colour) {
   ctx.fillText(text, x + w / 2, y, w - 6);
 }
 
-const FARM_PROPS = new Set(['ranchgate', 'ranchpost', 'roadsign', 'watertower', 'bigsign', 'silo', 'windmill', 'haybale', 'tractor', 'trough', 'crops', 'ranchfence', 'cow', 'milktank', 'milkstall', 'cheesevat', 'cheesepress', 'cheeserack']);
+const FARM_PROPS = new Set(['chicken', 'goat', 'ranchgate', 'ranchpost', 'roadsign', 'watertower', 'bigsign', 'silo', 'windmill', 'haybale', 'tractor', 'trough', 'crops', 'ranchfence', 'cow', 'milktank', 'milkstall', 'cheesevat', 'cheesepress', 'cheeserack']);
 
 // ------------------------------------------------------------------ fields
 // v0.29.1: fields are drawn into the map's static ground layer once (map.fields:
@@ -27215,6 +27519,7 @@ function drawField(ctx, f) {
   const y0 = f.y * T;
   const w = f.w * T;
   const h = f.h * T;
+  if (f.crop === 'pasture') return drawPasture(ctx, f, x0, y0, w, h);
   const fallow = f.crop === 'fallow' || !CROPS[f.crop] || (f.stage ?? 3) <= 0;
   // tilled soil: a darker bed with furrows, one every half tile
   ctx.fillStyle = fallow ? '#a07c50' : '#8a6a44';
@@ -27270,9 +27575,63 @@ function drawField(ctx, f) {
   }
 }
 
+/** v0.31.0: a fenced pasture — grazed grass, a worn track to the feeder and trough, and the fence round it. */
+function drawPasture(ctx, f, x0, y0, w, h) {
+  ctx.fillStyle = '#7aa85a';
+  ctx.fillRect(x0, y0, w, h);
+  for (let i = 0; i < f.w * f.h; i++) {
+    const px = x0 + hash2(f.x * 13 + i, f.y) * w;
+    const py = y0 + hash2(f.y * 7, f.x + i * 5) * h;
+    ctx.fillStyle = i % 4 ? 'rgba(60,100,40,0.35)' : 'rgba(200,190,120,0.4)';
+    ctx.fillRect(px, py, 3, 2);
+  }
+  // the worn track and the feeder and trough by the gate
+  ctx.fillStyle = 'rgba(150,115,70,0.55)';
+  ctx.fillRect(x0 + T, y0 + T * 0.5, T * 4, T * 1.2);
+  ctx.fillStyle = '#6a4a2a'; ctx.fillRect(x0 + T * 1.2, y0 + T * 0.6, T * 1.4, T * 0.8);
+  ctx.fillStyle = '#d8b84a'; ctx.fillRect(x0 + T * 1.3, y0 + T * 0.7, T * 1.2, T * 0.4);
+  ctx.fillStyle = '#7a7e84'; ctx.fillRect(x0 + T * 3, y0 + T * 0.6, T * 1.6, T * 0.8);
+  ctx.fillStyle = '#4a8ab0'; ctx.fillRect(x0 + T * 3.1, y0 + T * 0.7, T * 1.4, T * 0.5);
+  // fence posts and rails all round
+  ctx.strokeStyle = '#7a5a3a'; ctx.lineWidth = 3;
+  ctx.strokeRect(x0 + 3, y0 + 3, w - 6, h - 6);
+  ctx.fillStyle = '#6a4a2a';
+  for (let x = x0 + 3; x < x0 + w; x += 24) { ctx.fillRect(x - 2, y0, 5, 8); ctx.fillRect(x - 2, y0 + h - 8, 5, 8); }
+  for (let y = y0 + 3; y < y0 + h; y += 24) { ctx.fillRect(x0, y - 2, 8, 5); ctx.fillRect(x0 + w - 8, y - 2, 8, 5); }
+}
+
 function drawFarmProp(ctx, p, x, y, w, h, opts = {}) {
   const t = opts.time || 0;
   switch (p.type) {
+    case 'chicken': {
+      // a hen, pecking about her spot
+      const ph = (opts.time || 0) * 0.5 + hash2(p.seed || 1, 3) * 10;
+      const cx = x + 16 + Math.sin(ph) * 8;
+      const cy = y + 22 + Math.cos(ph * 0.8) * 4;
+      const peck = Math.sin(ph * 6) > 0.6 ? 3 : 0;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(cx, cy + 5, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = (p.seed || 0) % 3 ? '#b8743a' : '#f2ece0';
+      ctx.beginPath(); ctx.ellipse(cx, cy, 6, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 5, cy - 3 + peck, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c8302a'; ctx.fillRect(cx + 4, cy - 7 + peck, 2, 2);
+      ctx.fillStyle = '#e8a83a'; ctx.fillRect(cx + 8, cy - 3 + peck, 2, 1.5);
+      return true;
+    }
+    case 'goat': {
+      const ph = (opts.time || 0) * 0.2 + hash2(p.seed || 1, 5) * 10;
+      const cx = x + 16 + Math.sin(ph) * 9;
+      const cy = y + 22 + Math.cos(ph * 0.7) * 4;
+      const dir = Math.cos(ph) > 0 ? 1 : -1;
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(cx, cy + 7, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a3028';
+      for (const lx of [-6, -3, 3, 6]) ctx.fillRect(cx + lx, cy + 1, 2, 7);
+      ctx.fillStyle = (p.seed || 0) % 2 ? '#e8e2d4' : '#9a7a5a';
+      ctx.beginPath(); ctx.ellipse(cx, cy - 1, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + dir * 10, cy - 6, 4, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6a5a4a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx + dir * 9, cy - 9); ctx.lineTo(cx + dir * 6, cy - 13); ctx.stroke();
+      return true;
+    }
     case 'ranchpost': {
       // a timber gatepost, braced
       ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x + 8, y + 24, 18, 7);
@@ -35072,7 +35431,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦', lasso: '🪢', jerky: '🥓', tea: '🧋', pie: '🥧', steak: '🍖', cheese: '🧀', hat: '🤠', seed: '🌱', sack: '🛍️', grain: '🌾', bale: '🧺' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦', lasso: '🪢', jerky: '🥓', tea: '🧋', pie: '🥧', steak: '🍖', cheese: '🧀', hat: '🤠', seed: '🌱', sack: '🛍️', grain: '🌾', bale: '🧺', egg: '🥚' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -36700,6 +37059,170 @@ function terminalScreen(ui, body, opts, go) {
 return { drawGlobe, TERMINAL_TABS, terminalPanel, terminalScreen };
 })();
 
+// ---- src/ui/farm.js
+__m["src/ui/farm.js"] = (function () {
+// Farming panels (v0.30.0): the Land Office's listings (buy a plot), a plot's
+// sign (till, plant, fertilise, harvest — with your tractor if it's parked
+// by the field), and the Co-op scale (sell the harvest). See src/systems/farm.js.
+const { h } = __m["src/ui/panels.js"];
+
+const STAGES = ['just planted', 'sprouting', 'growing', 'ready to harvest'];
+
+function plotStatus(F, id) {
+  const st = F.plot(id);
+  if (!st.owned) return 'for sale';
+  if (st.state === 'pasture') {
+    if (!st.herd?.count) return `pasture, empty (${Math.floor(st.feed || 0)} bags in the feeder) — buy stock at Hoof & Horn`;
+    const L = F.def.livestock[st.herd.kind];
+    const need = st.herd.count * L.feed;
+    const days = need ? Math.floor((st.feed || 0) / need) : 0;
+    return `${st.herd.count} ${L.name.toLowerCase()} · feed for ${days} day${days === 1 ? '' : 's'}${st.hunger ? ' · HUNGRY' : ''}${st.produce >= 1 ? ` · ${Math.floor(st.produce)} to collect` : ''}`;
+  }
+  if (st.state === 'fallow') return 'fallow — till it to plant, or fence it as pasture';
+  if (st.state === 'tilled') return 'tilled, ready to plant';
+  const c = F.def.crops[st.crop];
+  return `${c.name}: ${F.withered(id) ? 'spoiling in the field — harvest it!' : STAGES[st.stage]}${st.fertilized ? ' · fertilised' : ''}`;
+}
+
+function farmlandPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const render = (msg) => {
+    body.innerHTML = '';
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('p', { class: 'muted' }, 'Lariat County Land Office. Deeds to the surveyed plots east of FM 38. Clean title; no cows included. Work a plot at its sign: till, plant, fertilise and harvest — by hand, or fast with your own tractor parked by the field (Red Dirt Tractor & Implement, Cotton Street).'));
+    const list = h('div', { class: 'list' });
+    for (const id of Object.keys(F.def.plots)) {
+      const d = F.plotDef(id);
+      const st = F.plot(id);
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, st.owned ? '🌾' : '📜'),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`), st.owned ? h('span', { class: 'tag good' }, 'yours') : null), h('div', { class: 'desc' }, plotStatus(F, id))),
+        st.owned ? null : h('button', { class: 'small primary', disabled: g.player.money < d.price, onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
+    }
+    body.append(list);
+  };
+  render();
+  return { title: 'Land Office — Farmland', onClose: opts.onClose };
+}
+
+function farmplotPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const id = opts.plot;
+  const render = (msg) => {
+    body.innerHTML = '';
+    const d = F.plotDef(id);
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('p', {}, h('b', {}, d.name), ` — ${d.tiles} tiles · ${plotStatus(F, id)}`));
+    if (F.plot(id).owned) {
+      const plan = F.workPlan(id);
+      body.append(h('p', { class: 'muted' }, plan.byHand
+        ? `No tractor of yours is parked by this field, so each job is done by hand: about ${Math.round(plan.minutes / 60)} hours, and it tires you out.`
+        : `Your ${plan.tractor.model.name} is parked by the field: each job takes about ${plan.minutes < 90 ? `${plan.minutes} minutes` : `${Math.round(plan.minutes / 60)} hours`}.`));
+    } else body.append(h('p', { class: 'muted' }, 'LAND FOR SALE — the deed is at the Land Office on Main Street (or buy it here and file the paperwork later; Lorna won\'t mind).'));
+    const list = h('div', { class: 'list' });
+    for (const a of F.actions(id)) {
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, a.label), a.ok ? null : h('div', { class: 'desc' }, a.why)),
+        h('button', { class: 'small primary', disabled: !a.ok, onclick: () => { const r = F.work(id, a.action, a.crop); ui.audio.sfx(r.ok ? 'sfx_quest' : 'sfx_fail'); render(r.text); } }, 'Do it')));
+    }
+    if (!F.actions(id).length) list.append(h('p', { class: 'muted' }, 'Nothing to do here today. Crops grow each morning at six.'));
+    body.append(list);
+  };
+  render();
+  return { title: 'Your Field', onClose: opts.onClose };
+}
+
+function coopPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const render = (msg) => {
+    body.innerHTML = '';
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('p', { class: 'muted' }, `Lariat Co-op — today's bids (price index ${F.state.priceIndex.toFixed(2)}; chalked up at 06:00). Each load you sell today lowers the next bid a little; the market recovers overnight.`));
+    const list = h('div', { class: 'list' });
+    for (const c of [...Object.values(F.def.crops), ...Object.keys(F.def.market.products).map((crop) => ({ crop }))]) {
+      const have = g.inventory.count(c.crop);
+      const price = F.coopPrice(c.crop);
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, c.crop === 'item_crop_cotton' ? '🧺' : c.crop === 'item_eggs' ? '🥚' : c.crop === 'item_goat_milk' ? '🥛' : '🌾'),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, g.content.items[c.crop].name, h('span', { class: 'tag' }, `${price} obols`)), h('div', { class: 'desc' }, `You have ${have}.`)),
+        h('button', { class: 'small', disabled: !have, onclick: () => render(F.sellAtCoop(c.crop, 1).text) }, 'Sell 1'),
+        h('button', { class: 'small primary', disabled: !have, onclick: () => { const r = F.sellAtCoop(c.crop, have); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, 'Sell all')));
+    }
+    body.append(list);
+  };
+  render();
+  return { title: 'Lariat Co-op — Scale House', onClose: opts.onClose };
+}
+
+/** v0.31.0: Hoof & Horn — buy stock for your pastures, sell it back at auction. */
+function livestockPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const render = (msg) => {
+    body.innerHTML = '';
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    const pastures = F.owned().filter((id) => F.plot(id).state === 'pasture');
+    body.append(h('p', { class: 'muted' }, 'Hoof & Horn Livestock Supply. Stock is delivered to a pasture of yours (fence a plot at its sign); one kind to a pasture. Prices at auction soften the more you sell in a day.'));
+    if (!pastures.length) body.append(h('p', {}, h('b', {}, 'You have no pasture yet. Fence one of your plots first.')));
+    for (const id of pastures) {
+      const st = F.plot(id);
+      const d = F.plotDef(id);
+      body.append(h('h3', { style: 'margin:12px 0 6px' }, d.name), h('p', { class: 'muted' }, plotStatus(F, id)));
+      const list = h('div', { class: 'list' });
+      for (const [kind, L] of Object.entries(F.def.livestock)) {
+        if (st.herd?.count && st.herd.kind !== kind) continue;
+        const room = F.capacity(id, kind) - (st.herd?.count || 0);
+        const buy = (n) => h('button', { class: 'small primary', disabled: n > room || g.player.money < L.price * n, onclick: () => { const r = F.buyAnimals(id, kind, n); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy ${n} (${(L.price * n).toLocaleString()})`);
+        list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, L.name, h('span', { class: 'tag' }, `${L.price} each`), h('span', { class: 'tag' }, `room for ${room}`)),
+          h('div', { class: 'desc' }, `${L.feed} bags of feed a head a day${L.product ? ` · gives ${g.content.items[L.product.item].name.toLowerCase()}` : ` · grows ${L.grow} obols of value a day for ${L.maxDays} days`}`)),
+          buy(1), buy(5), buy(Math.max(1, Math.min(room, 20)))));
+      }
+      if (st.herd?.count) {
+        const v = F.unitPrice(st.herd.kind, F.animalValue(id));
+        list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Sell at auction`, h('span', { class: 'tag' }, `${v} for the next one`))),
+          h('button', { class: 'small', onclick: () => render(F.sellAnimals(id, 1).text) }, 'Sell 1'),
+          h('button', { class: 'small', onclick: () => { const r = F.sellAnimals(id, st.herd.count); ui.audio.sfx('sfx_coin'); render(r.text); } }, 'Sell all')));
+      }
+      body.append(list);
+    }
+  };
+  render();
+  return { title: 'Hoof & Horn — Sale Ledger', onClose: opts.onClose };
+}
+
+/** v0.31.0: the tablet's Farm app — your land, herds and crops, the day's prices, and the books. */
+function farmApp(ui, body) {
+  const g = ui.game;
+  const F = g.farm;
+  body.append(h('h3', { style: 'margin:8px 0' }, 'Your land'));
+  const list = h('div', { class: 'list' });
+  for (const id of F.owned()) {
+    const d = F.plotDef(id);
+    list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, F.plot(id).state === 'pasture' ? '🐄' : '🌾'),
+      h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`)), h('div', { class: 'desc' }, plotStatus(F, id)))));
+  }
+  body.append(list);
+  const prices = [...Object.values(F.def.crops).map((c) => c.crop), ...Object.keys(F.def.market.products)];
+  body.append(h('h3', { style: 'margin:12px 0 6px' }, `The Co-op today (index ${F.state.priceIndex.toFixed(2)})`),
+    h('p', {}, prices.map((it) => `${g.content.items[it].name}: ${F.coopPrice(it)}`).join(' · ')),
+    h('p', { class: 'muted' }, Object.entries(F.def.livestock).map(([k, L]) => `${L.name}: buy ${L.price}, auction ${F.unitPrice(k, L.grow ? L.value + L.grow * L.maxDays : L.value)}${L.grow ? ' (grown)' : ''}`).join(' · ')));
+  const days = {};
+  for (const e of F.state.ledger) (days[e.day] ||= []).push(e);
+  const recent = Object.keys(days).map(Number).sort((a, b) => b - a).slice(0, 7);
+  body.append(h('h3', { style: 'margin:12px 0 6px' }, 'The books (last 7 days)'));
+  if (!recent.length) body.append(h('p', { class: 'muted' }, 'Nothing bought or sold yet.'));
+  let net = 0;
+  for (const day of recent) {
+    const sum = days[day].reduce((a, e) => a + e.amount, 0);
+    net += sum;
+    body.append(h('p', { style: 'margin:2px 0' }, h('b', {}, `Day ${day}: ${sum >= 0 ? '+' : ''}${sum.toLocaleString()} obols`), ` — ${days[day].map((e) => `${e.what} ${e.amount >= 0 ? '+' : ''}${e.amount.toLocaleString()}`).join(', ')}`));
+  }
+  if (recent.length) body.append(h('p', {}, h('b', {}, `Net, last 7 days: ${net >= 0 ? '+' : ''}${net.toLocaleString()} obols`)));
+}
+
+return { farmlandPanel, farmplotPanel, coopPanel, livestockPanel, farmApp };
+})();
+
 // ---- src/ui/tablet.js
 __m["src/ui/tablet.js"] = (function () {
 // The tablet (v0.15.0) — the journal's replacement. Apps along the top:
@@ -36710,11 +37233,12 @@ __m["src/ui/tablet.js"] = (function () {
 const { h, journalTab, JOURNAL_TABS, stocksScreen } = __m["src/ui/panels.js"];
 const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
 const { TABLET_APPS } = __m["src/systems/tablet.js"];
+const { farmApp } = __m["src/ui/farm.js"];
 
 function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -36728,6 +37252,7 @@ function tabletPanel(ui, body, opts) {
   if (tab === 'Home') homeApp(ui, body, open);
   else if (tab === 'Business') businessApp(ui, body, opts, open);
   else if (tab === 'Ships') shipsApp(ui, body);
+  else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
@@ -36934,97 +37459,6 @@ function dealerPanel(ui, body, opts) {
 }
 
 return { dealerPanel };
-})();
-
-// ---- src/ui/farm.js
-__m["src/ui/farm.js"] = (function () {
-// Farming panels (v0.30.0): the Land Office's listings (buy a plot), a plot's
-// sign (till, plant, fertilise, harvest — with your tractor if it's parked
-// by the field), and the Co-op scale (sell the harvest). See src/systems/farm.js.
-const { h } = __m["src/ui/panels.js"];
-
-const STAGES = ['just planted', 'sprouting', 'growing', 'ready to harvest'];
-
-function plotStatus(F, id) {
-  const st = F.plot(id);
-  if (!st.owned) return 'for sale';
-  if (st.state === 'fallow') return 'fallow — till it to plant';
-  if (st.state === 'tilled') return 'tilled, ready to plant';
-  const c = F.def.crops[st.crop];
-  return `${c.name}: ${F.withered(id) ? 'spoiling in the field — harvest it!' : STAGES[st.stage]}${st.fertilized ? ' · fertilised' : ''}`;
-}
-
-function farmlandPanel(ui, body, opts) {
-  const g = ui.game;
-  const F = g.farm;
-  const render = (msg) => {
-    body.innerHTML = '';
-    if (msg) body.append(h('p', {}, h('b', {}, msg)));
-    body.append(h('p', { class: 'muted' }, 'Lariat County Land Office. Deeds to the surveyed plots east of FM 38. Clean title; no cows included. Work a plot at its sign: till, plant, fertilise and harvest — by hand, or fast with your own tractor parked by the field (Red Dirt Tractor & Implement, Cotton Street).'));
-    const list = h('div', { class: 'list' });
-    for (const id of Object.keys(F.def.plots)) {
-      const d = F.plotDef(id);
-      const st = F.plot(id);
-      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, st.owned ? '🌾' : '📜'),
-        h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`), st.owned ? h('span', { class: 'tag good' }, 'yours') : null), h('div', { class: 'desc' }, plotStatus(F, id))),
-        st.owned ? null : h('button', { class: 'small primary', disabled: g.player.money < d.price, onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
-    }
-    body.append(list);
-  };
-  render();
-  return { title: 'Land Office — Farmland', onClose: opts.onClose };
-}
-
-function farmplotPanel(ui, body, opts) {
-  const g = ui.game;
-  const F = g.farm;
-  const id = opts.plot;
-  const render = (msg) => {
-    body.innerHTML = '';
-    const d = F.plotDef(id);
-    if (msg) body.append(h('p', {}, h('b', {}, msg)));
-    body.append(h('p', {}, h('b', {}, d.name), ` — ${d.tiles} tiles · ${plotStatus(F, id)}`));
-    if (F.plot(id).owned) {
-      const plan = F.workPlan(id);
-      body.append(h('p', { class: 'muted' }, plan.byHand
-        ? `No tractor of yours is parked by this field, so each job is done by hand: about ${Math.round(plan.minutes / 60)} hours, and it tires you out.`
-        : `Your ${plan.tractor.model.name} is parked by the field: each job takes about ${plan.minutes < 90 ? `${plan.minutes} minutes` : `${Math.round(plan.minutes / 60)} hours`}.`));
-    } else body.append(h('p', { class: 'muted' }, 'LAND FOR SALE — the deed is at the Land Office on Main Street (or buy it here and file the paperwork later; Lorna won\'t mind).'));
-    const list = h('div', { class: 'list' });
-    for (const a of F.actions(id)) {
-      list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, a.label), a.ok ? null : h('div', { class: 'desc' }, a.why)),
-        h('button', { class: 'small primary', disabled: !a.ok, onclick: () => { const r = F.work(id, a.action, a.crop); ui.audio.sfx(r.ok ? 'sfx_quest' : 'sfx_fail'); render(r.text); } }, 'Do it')));
-    }
-    if (!F.actions(id).length) list.append(h('p', { class: 'muted' }, 'Nothing to do here today. Crops grow each morning at six.'));
-    body.append(list);
-  };
-  render();
-  return { title: 'Your Field', onClose: opts.onClose };
-}
-
-function coopPanel(ui, body, opts) {
-  const g = ui.game;
-  const F = g.farm;
-  const render = (msg) => {
-    body.innerHTML = '';
-    if (msg) body.append(h('p', {}, h('b', {}, msg)));
-    body.append(h('p', { class: 'muted' }, `Lariat Co-op — today's bids (price index ${F.state.priceIndex.toFixed(2)}; chalked up at 06:00).`));
-    const list = h('div', { class: 'list' });
-    for (const c of Object.values(F.def.crops)) {
-      const have = g.inventory.count(c.crop);
-      const price = F.coopPrice(c.crop);
-      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, c.crop === 'item_crop_cotton' ? '🧺' : '🌾'),
-        h('div', { class: 'grow' }, h('div', { class: 'name' }, g.content.items[c.crop].name, h('span', { class: 'tag' }, `${price} obols`)), h('div', { class: 'desc' }, `You have ${have}.`)),
-        h('button', { class: 'small', disabled: !have, onclick: () => render(F.sellAtCoop(c.crop, 1).text) }, 'Sell 1'),
-        h('button', { class: 'small primary', disabled: !have, onclick: () => { const r = F.sellAtCoop(c.crop, have); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, 'Sell all')));
-    }
-    body.append(list);
-  };
-  render();
-  return { title: 'Lariat Co-op — Scale House', onClose: opts.onClose };
-}
-
-return { farmlandPanel, farmplotPanel, coopPanel };
 })();
 
 // ---- src/ui/armsbench.js
@@ -38189,7 +38623,7 @@ const { PANELS, h } = __m["src/ui/panels.js"];
 const { terminalPanel } = __m["src/ui/terminal.js"];
 const { tabletPanel } = __m["src/ui/tablet.js"];
 const { dealerPanel } = __m["src/ui/dealer.js"];
-const { farmlandPanel, farmplotPanel, coopPanel } = __m["src/ui/farm.js"];
+const { farmlandPanel, farmplotPanel, coopPanel, livestockPanel } = __m["src/ui/farm.js"];
 const { armsBenchPanel } = __m["src/ui/armsbench.js"];
 const { fleetPanel } = __m["src/ui/fleetCommand.js"];
 const { logbookPanel } = __m["src/ui/logbook.js"];
@@ -38200,6 +38634,7 @@ PANELS.dealer = dealerPanel;
 PANELS.farmland = farmlandPanel;
 PANELS.farmplot = farmplotPanel;
 PANELS.coop = coopPanel;
+PANELS.livestock = livestockPanel;
 PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;

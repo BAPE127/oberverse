@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.31.0 | 2026-10-15 | development | 1 | Home on the Range — livestock at Hoof & Horn, market demand, the tablet's Farm app |
 | 0.30.0 | 2026-10-15 | development | 1 | Sowing Season — buy farmland at Lariat, tractors from Red Dirt, seed from Feed & Seed, crops on the clock, the Co-op |
 | 0.29.1 | 2026-10-15 | development | 1 | Lariat's streets rebuilt to the city's standard; fields drawn once, clear of the creek; the North Gate marked |
 | 0.29.0 | 2026-10-15 | development | 1 | Lariat — a northern farm town, Farmer Chuckie, Chuckie's Cheese (CHZ) and the talking-cow round-up |

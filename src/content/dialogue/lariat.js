@@ -389,4 +389,24 @@ export const dlgLorna = {
   barks: { greet: ['Morning.'], work: ['*weighs a sack*', '*stamps a deed*'], leisure: ['*turns a page*'], eat: ['*eats*'], sleep: ['*snore*'], chat: ['Hm.', 'On the record, yes.'], argue: ['Not in my store.'] },
 };
 
-export default [dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];
+// v0.31.0: Wes at Hoof & Horn
+export const dlgWes = {
+  id: 'dlg_wes',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Wes Tolliver. Hoof & Horn. I sell stock and I buy it back, and I\'ll tell you straight which end of either is the business end.'] },
+    { if: { activity: 'sleep' }, say: ['*asleep on the cot* …two-ninety… sold… *snore*'] },
+    { if: {}, variants: [['Morning.'], ['What\'re we buying?'], ['Stock\'s good this week.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Keep \'em fed.'], ['Mind the gate.']] }],
+  topics: [
+    { id: 't_wes_stock', label: '"I want to buy (or sell) livestock."', keywords: ['livestock', 'buy', 'sell', 'cattle', 'goats', 'hens', 'chickens', 'calves', 'auction'], say: ['Hens for eggs, goats for milk, calves to grow on and sell back to me. They go on a pasture of yours — fence a plot first, at its sign. One kind to a pasture.'], effects: [{ panel: { name: 'livestock' } }] },
+    { id: 't_wes_care', label: '"How do I look after them?"', keywords: ['feed', 'care', 'look after', 'hungry', 'how'], say: ['Feed. Every morning they eat out of the feeder — a hen a little, a goat a fair bit, a calf a lot. Lorna sells the bags. Fill the feeder at the pasture sign and pick up your eggs or milk while you\'re there.', 'Let the feeder run dry three days and you\'ll lose some. I won\'t sell to you twice if you do that twice.'] },
+    { id: 't_wes_market', label: '"How are prices?"', keywords: ['price', 'market', 'demand', 'sell', 'flood'], say: ['Depends how much you bring. Bring one steer and you\'ll get top dollar. Bring twenty on the same day and the buyers get choosy. The market forgets by and by — spread your selling out.'] },
+  ],
+  askAbout: [{ keywords: ['chuckie', 'cows', 'talking'], say: ['Chuckie\'s girls? Wouldn\'t buy \'em, wouldn\'t sell \'em. Wouldn\'t argue with \'em either.'] }],
+  unknown: [['Can\'t say.']],
+  gift: basicGift('Well. Thank you.', 'Obliged.', 'Thanks.', 'Hm.'),
+  barks: { greet: ['Morning.'], work: ['*writes in the sale ledger*', '*sorts ear tags*'], leisure: ['*leans on the fence*'], eat: ['*coffee*'], sleep: ['*snore*'], chat: ['Yep.', 'That so.'], argue: ['No sir.'] },
+};
+
+export default [dlgWes, dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];

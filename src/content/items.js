@@ -259,4 +259,8 @@ export const ITEMS = {
   item_crop_sorghum: { name: 'Sorghum (load)', category: 'farm', price: 36, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of grain sorghum. The Co-op elevator buys it.' },
   item_crop_corn: { name: 'Corn (load)', category: 'farm', price: 40, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of shelled corn. The Co-op elevator buys it.' },
   item_crop_cotton: { name: 'Cotton (bale)', category: 'farm', price: 58, tags: ['farm', 'crop'], icon: 'bale', description: 'A module of seed cotton, wrapped. The Co-op elevator buys it for the gin.' },
+  // Livestock (v0.31.0)
+  item_feed: { name: 'Livestock Feed (bag)', category: 'farm', price: 9, tags: ['farm'], icon: 'sack', description: 'A 50 lb bag of mixed ration. Hens eat a little, goats more, and calves a lot.' },
+  item_eggs: { name: 'Eggs (dozen)', category: 'farm', price: 3, tags: ['farm', 'food'], icon: 'egg', description: 'A dozen brown eggs from your own hens. The Co-op buys them; so does Lupe, if you ask nicely.', use: { energy: 10, text: 'You eat a couple of eggs, raw, like a boxer. (+10 energy)' } },
+  item_goat_milk: { name: 'Goat Milk (gallon)', category: 'farm', price: 9, tags: ['farm', 'drink'], icon: 'cup', description: 'A gallon of fresh goat milk. The Co-op buys it; Rosa at Chuckie\'s says it makes a fine cheese.', use: { energy: 14, text: 'You drink some goat milk. Rich and faintly goaty. (+14 energy)' } },
 };

@@ -97,7 +97,7 @@ const buildings = [
   B('b_elevator', 'Lariat Co-op Elevator', 114, 28, 6, 8, { roof: '#9aa0a8', wall: '#c8ccd2', trim: '#6a7078', sign: 'LARIAT CO-OP', flatRoof: true, door: { x: 116, y: 35, lock: closed('The Co-op elevator\'s office. "Harvest hours only. Grain in, cheques out."') } }),
   // Cotton Street, north side (doors open south onto Cotton Street)
   B('b_barber', 'Rusty\'s Barber Shop', 26, 50, 8, 6, { roof: '#2a3a5a', wall: '#f2ead8', sign: 'RUSTY\'S BARBER', awning: '#c8402a', door: { x: 29, y: 55, lock: closed('RUSTY\'S BARBER SHOP. "Gone fishin\'. Haircuts $8, opinions free." The pole still turns.') } }),
-  B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, lock: closed('HOOF & HORN LIVESTOCK SUPPLY. "Gone to the sale barn in Halvermouth. Back with stock." A cat sleeps on the step, unbothered.') } }),
+  B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, to: { map: 'hoof_horn', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_wes'], hours: { from: '07:00', to: '18:00' } } } }),
   B('b_diner', 'Mesquite Diner', 51, 49, 11, 7, { roof: '#c8402a', wall: '#f2ead8', sign: 'MESQUITE DINER', awning: '#e8c04a', door: { x: 56, y: 55, to: { map: 'diner', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lupe'], hours: { from: '06:00', to: '21:00' } } } }),
   B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa', 'npc_dale', 'npc_lorna'], hours: { from: '06:00', to: '23:00' } } } }),
   B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "SALES ON THE LOT — ask for Dale." The showroom is mostly a very shiny floor and a coffee machine.') } }),
@@ -305,6 +305,7 @@ export const lariat = {
     // the five lead cows' hideouts (src/content/dairy.js) and their places in the paddock
     reddirt_lot: { x: 101, y: 54, facing: 'up' },
     land_office_door_out: { x: 61, y: 38, facing: 'down' },
+    hoof_horn_door_out: { x: 43, y: 56, facing: 'down' },
     feed_seed_door_out: { x: 86, y: 38, facing: 'down' },
     hide_bessie: { x: 57, y: 47, facing: 'down' },
     hide_clementine: { x: 15, y: 8, facing: 'right' },
@@ -427,4 +428,16 @@ export const feedSeed = room('feed_seed', 'Lone Star Feed & Seed', 14, 9, 'feed_
   ],
 });
 
-export default [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed];
+// v0.31.0: Hoof & Horn Livestock Supply — the sale barn's front office
+export const hoofHorn = room('hoof_horn', 'Hoof & Horn Livestock Supply', 14, 9, 'hoof_horn_door_out', {
+  spots: { counter: { x: 7, y: 2, facing: 'down' }, bed: { x: 12, y: 2, facing: 'down' } },
+  props: [
+    { id: 'hh_counter', type: 'counter', x: 5, y: 3, w: 5, h: 1, interact: { kind: 'farm', action: 'livestock', name: 'sale ledger' }, examine: 'The Hoof & Horn counter: the sale ledger, a brass bell, and a jar of horehound candy that has been there since the Depression.' },
+    { id: 'hh_board', type: 'noticeboard', x: 1, y: 0, examine: 'STOCK FOR SALE: laying hens, dairy goats, beef calves — delivered to your pasture. "WE BUY: grown cattle, goats, hens. Auction prices, paid same day."' },
+    { id: 'hh_saddle', type: 'display', x: 11, y: 1, w: 1, examine: 'A saddle on a stand, and a sign: "NOT FOR SALE. ASK ANYWAY."' },
+    { id: 'hh_bed', type: 'cot', x: 12, y: 5, w: 1, h: 2, examine: 'Wes\'s cot in the back. He says he lives in town. He lives here.' },
+    { id: 'hh_sacks', type: 'crate', x: 1, y: 6, w: 3, examine: 'Salt licks, mineral blocks, and a box of ear tags numbered up to 999.' },
+  ],
+});
+
+export default [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed, hoofHorn];

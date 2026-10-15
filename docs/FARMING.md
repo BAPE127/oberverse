@@ -1,4 +1,4 @@
-# Farming (v0.30.0 "Sowing Season")
+# Farming (v0.30.0 "Sowing Season", v0.31.0 "Home on the Range")
 
 The second agricultural release at Lariat (see docs/LARIAT.md). Simulation: `src/systems/farm.js`; numbers: `src/content/farming.js`; panels: `src/ui/farm.js`.
 
@@ -26,3 +26,20 @@ Tractors are vehicles (`src/content/vehicles.js`, dealer `reddirt`, `body: 'trac
 
 ## State and saves
 `world.farm` (created on first use): each plot's ownership, state (`fallow`/`tilled`/`planted`), crop, planting day, stage, fertiliser and ready day; the Co-op's index; the last morning tick. Older saves start with no land.
+
+## Livestock (v0.31.0)
+Fence a fallow plot as pasture at its sign (400 obols; take the fences down again when it's empty). Buy stock at Hoof & Horn (Wes Tolliver), one kind to a pasture:
+
+| Stock | Price | Room (Plot 1) | Feed / head / day | Gives | Sells for |
+|---|---|---|---|---|---|
+| Laying hens | 12 | 162 | 0.05 bag | 0.8 dozen eggs (Co-op 3) | 8 |
+| Dairy goats | 140 | 40 | 0.25 bag | 1 gallon milk (Co-op 9) | 110 |
+| Beef calves | 450 | 16 | 0.6 bag | — | 450 + 30/day for 25 days (1,200 grown) |
+
+Feed is 9 obols a bag at Feed & Seed; fill the feeder at the pasture sign and collect the eggs or milk there. Each morning the herd eats; if the feeder can't cover the day they go hungry, and after three hungry days a fifth of them are lost. A full plot earns roughly 250–350 obols a day, in line with crops, before demand.
+
+## The market (v0.31.0)
+Every unit sold today lowers the next unit's price: price = day's price × (floor + (1 − floor) × D / (D + sold today)), with floor 0.55 and D the day's demand (wheat 90, sorghum and corn 80, cotton 60, eggs 240, goat milk 120; hens 120, goats 16, cattle 8). Each morning 40% of the day's sales are forgotten. Spread big harvests and herds over several days.
+
+## Farm management (v0.31.0)
+The tablet's **Farm** app (once you own land): each plot's state, herds and days of feed, produce waiting, today's Co-op and auction prices, and the books — every fencing, purchase and sale for the last 7 days with daily and weekly totals.

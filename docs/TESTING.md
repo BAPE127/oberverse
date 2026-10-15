@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.31.0 (2026-10-15)
+
+- `npm run check` — **331/331 tests passed** (4 new in `farming.test.mjs`: pastures, stock by area and kind, animals drawn; feeding, produce, hunger and losses; cattle growth, auction demand and overnight recovery; the books, the herd through a save and back on the map, Wes and the feed; the Co-op test now expects demand); validator 0 errors.
+- `npm run smoke` — 24/24.
+- Browser: a pasture with a dozen calves grazing, the Hoof & Horn sale ledger, the tablet's Farm app with plots, feed, prices and the books. No page errors.
+
 ## Verification record — v0.30.0 (2026-10-15)
 
 - `npm run check` — **327/327 tests passed** (5 new in `farming.test.mjs`: plots, buying once; by hand vs. with a tractor parked by the field; growth, harvest once, the Co-op, spoiling; the field redrawn as the crop grows and the price band; saves, older saves, the three tractor tiers, shops and people); validator 0 errors. `logistics.test.mjs`'s export test made robust to en-route delays.

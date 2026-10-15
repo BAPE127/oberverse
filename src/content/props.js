@@ -23,6 +23,8 @@ export const PROP_TYPES = {
   slipway: { solid: false, label: 'Slipway', defaults: { w: 4, h: 12 } },
   // Lariat (v0.29.0): the farm town and Chuckie's Cheese (src/engine/drawFarm.js)
   watertower: { solid: true, label: 'Water tower', defaults: { w: 4, h: 5 } },
+  chicken: { solid: false, label: 'Hen', defaults: {} },
+  goat: { solid: false, label: 'Goat', defaults: {} },
   ranchgate: { solid: false, label: 'Ranch gate', defaults: { w: 6, h: 2 } },
   ranchpost: { solid: true, label: 'Gatepost', defaults: {} },
   roadsign: { solid: true, label: 'Road sign', defaults: { w: 4, h: 2 } },

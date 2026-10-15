@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.31.0] — 2026-10-15 — "Home on the Range" (development build)
+
+The third of the three agricultural releases chosen in interview: livestock, the agricultural market and farm management. See docs/FARMING.md.
+
+### Added
+- **Pastures and livestock** (`src/systems/farm.js`, `LIVESTOCK` in `src/content/farming.js`): fence a fallow plot as pasture (400 obols, at its sign); buy laying hens (12), dairy goats (140) or beef calves (450) at **Hoof & Horn** (now open, run by **Wes Tolliver**) — room by area, one kind to a pasture. The animals are drawn on the pasture (new `chicken` and `goat` props; cattle use the cow), up to a dozen per plot.
+- **Feeding and produce:** at the pasture sign, fill the feeder with feed (new `item_feed`, Feed & Seed). Each morning the herd eats from it; fed hens lay (`item_eggs`), fed goats give milk (`item_goat_milk`) — collected at the sign. An empty feeder makes them hungry; after three hungry days a fifth of the herd is lost. Cattle gain 30 obols of value a day for 25 days; sell them back at the Hoof & Horn auction.
+- **Market demand** (`FARM_MARKET`): every unit sold at the Co-op (crops, eggs, goat milk) or the auction lowers the next price, towards a floor of 55% of the day's price; 40% of the day's sales are forgotten each morning.
+- **Farm management:** the tablet's **Farm** app (once you own land) — each plot's state, herds, days of feed left, produce waiting, the Co-op's and auction's prices, and the farm's books for the last 7 days (fencing, stock bought and sold, sales).
+- Tests: 4 more in `tests/farming.test.mjs`.
+
+### Changed
+- The Co-op also buys eggs and goat milk; its sale message shows the next bid as the bins fill.
+
 ## [0.30.0] — 2026-10-15 — "Sowing Season" (development build)
 
 The second of the three agricultural releases chosen in interview: farm purchase, crops and equipment. Livestock, the agricultural market and farm management follow in 0.31.0. See docs/FARMING.md.

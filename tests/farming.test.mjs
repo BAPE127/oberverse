@@ -76,7 +76,9 @@ test('crops grow each morning, are harvested once, and sell at the Co-op; a read
   const m0 = g.player.money;
   const price = F.coopPrice('item_crop_wheat');
   assert.ok(F.sellAtCoop('item_crop_wheat', expect).ok);
-  assert.equal(g.player.money - m0, price * expect);
+  const got = g.player.money - m0;
+  assert.ok(got < price * expect && got > price * expect * CONTENT.farming.market.floor, `demand softens the price (${got} for ${expect})`);
+  assert.ok(F.coopPrice('item_crop_wheat') < price, 'the next load fetches less today');
   assert.equal(g.inventory.count('item_crop_wheat'), 0);
   assert.equal(F.sellAtCoop('item_crop_wheat', 1).ok, false);
   // spoiling
@@ -125,4 +127,79 @@ test('farms survive a save; an older save starts with no land; Red Dirt sells th
   assert.ok(CONTENT.shops.shop_feedseed.stock.item_seed_cotton > 0);
   assert.ok(CONTENT.characters.npc_dale && CONTENT.characters.npc_lorna);
   assert.ok(CONTENT.maps.land_office && CONTENT.maps.feed_seed);
+});
+
+// ------------------------------------------------------------ v0.31.0
+const pasture = (g, id = P) => { g.player.money = 50000; g.farm.buy(id); g.player.energy = 100; assert.ok(g.farm.work(id, 'pasture').ok); };
+
+test('livestock: fence a pasture, buy stock at Hoof & Horn (room by area, one kind to a pasture), and it shows on the map', () => {
+  const g = newGame();
+  const F = g.farm;
+  assert.equal(F.buyAnimals(P, 'goats', 2).ok, false, 'no pasture yet');
+  pasture(g);
+  assert.equal(F.plot(P).state, 'pasture');
+  const room = F.capacity(P, 'goats');
+  assert.equal(room, Math.floor(324 / 8));
+  assert.ok(F.buyAnimals(P, 'goats', 10).ok);
+  assert.equal(F.buyAnimals(P, 'chickens', 1).ok, false, 'one kind to a pasture');
+  assert.equal(F.buyAnimals(P, 'goats', room).ok, false, 'no more room than the area allows');
+  const map = g.maps.get('lariat');
+  assert.equal(map.props.filter((q) => q.id.startsWith(`farm_${P}_`) && q.type === 'goat').length, 10);
+  assert.equal(map.fieldState[P].crop, 'pasture');
+});
+
+test('fed animals give produce each morning; an empty feeder makes them hungry, and three hungry days cost head', () => {
+  const g = newGame();
+  const F = g.farm;
+  pasture(g);
+  F.buyAnimals(P, 'chickens', 100);
+  g.inventory.add('item_feed', 10);
+  assert.ok(F.work(P, 'feed').ok);
+  assert.equal(F.plot(P).feed, 10);
+  morning(g, 3);
+  assert.equal(F.plot(P).feed, 5, '100 hens eat 5 bags a day');
+  assert.equal(Math.floor(F.plot(P).produce), 80);
+  assert.ok(F.work(P, 'collect').ok);
+  assert.equal(g.inventory.count('item_eggs'), 80);
+  morning(g, 4);
+  morning(g, 5);
+  assert.equal(F.plot(P).hunger, 1);
+  morning(g, 6);
+  morning(g, 7);
+  assert.equal(F.plot(P).herd.count, 80, 'a fifth lost after three hungry days');
+});
+
+test('cattle put on value as they grow; the auction pays less for each one sold the same day, and recovers', () => {
+  const g = newGame();
+  const F = g.farm;
+  pasture(g);
+  F.buyAnimals(P, 'cattle', 10);
+  const v0 = F.animalValue(P);
+  g.clock.total += 10 * 1440;
+  assert.equal(F.animalValue(P) - v0, 300, '30 a day for ten days');
+  g.clock.total += 40 * 1440;
+  assert.equal(F.animalValue(P), 450 + 30 * 25, 'up to 25 days of growth');
+  const first = F.unitPrice('cattle', F.animalValue(P));
+  const m0 = g.player.money;
+  assert.ok(F.sellAnimals(P, 5).ok);
+  assert.ok(g.player.money - m0 < first * 5, 'later head fetch less');
+  const after = F.unitPrice('cattle', F.animalValue(P));
+  assert.ok(after < first);
+  morning(g, g.clock.day + 1);
+  morning(g, g.clock.day + 1);
+  assert.ok(F.unitPrice('cattle', F.animalValue(P)) > after, 'demand recovers overnight');
+  assert.equal(F.plot(P).herd.count, 5);
+});
+
+test('the books and the tablet\'s Farm app; livestock saves; Wes runs Hoof & Horn', () => {
+  const g = newGame();
+  const F = g.farm;
+  pasture(g);
+  F.buyAnimals(P, 'goats', 4);
+  assert.ok(F.state.ledger.some((e) => e.amount < 0 && /Dairy goats/.test(e.what)));
+  const g2 = reload(g);
+  assert.equal(g2.farm.plot(P).herd.count, 4);
+  assert.equal(g2.maps.get('lariat').props.filter((q) => q.id.startsWith(`farm_${P}_`)).length, 4, 'the herd is back on the map after a load');
+  assert.ok(CONTENT.characters.npc_wes && CONTENT.maps.hoof_horn);
+  assert.ok(CONTENT.shops.shop_feedseed.stock.item_feed > 0);
 });

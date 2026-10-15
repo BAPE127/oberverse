@@ -8,7 +8,14 @@ const STAGES = ['just planted', 'sprouting', 'growing', 'ready to harvest'];
 function plotStatus(F, id) {
   const st = F.plot(id);
   if (!st.owned) return 'for sale';
-  if (st.state === 'fallow') return 'fallow — till it to plant';
+  if (st.state === 'pasture') {
+    if (!st.herd?.count) return `pasture, empty (${Math.floor(st.feed || 0)} bags in the feeder) — buy stock at Hoof & Horn`;
+    const L = F.def.livestock[st.herd.kind];
+    const need = st.herd.count * L.feed;
+    const days = need ? Math.floor((st.feed || 0) / need) : 0;
+    return `${st.herd.count} ${L.name.toLowerCase()} · feed for ${days} day${days === 1 ? '' : 's'}${st.hunger ? ' · HUNGRY' : ''}${st.produce >= 1 ? ` · ${Math.floor(st.produce)} to collect` : ''}`;
+  }
+  if (st.state === 'fallow') return 'fallow — till it to plant, or fence it as pasture';
   if (st.state === 'tilled') return 'tilled, ready to plant';
   const c = F.def.crops[st.crop];
   return `${c.name}: ${F.withered(id) ? 'spoiling in the field — harvest it!' : STAGES[st.stage]}${st.fertilized ? ' · fertilised' : ''}`;
@@ -68,12 +75,12 @@ export function coopPanel(ui, body, opts) {
   const render = (msg) => {
     body.innerHTML = '';
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
-    body.append(h('p', { class: 'muted' }, `Lariat Co-op — today's bids (price index ${F.state.priceIndex.toFixed(2)}; chalked up at 06:00).`));
+    body.append(h('p', { class: 'muted' }, `Lariat Co-op — today's bids (price index ${F.state.priceIndex.toFixed(2)}; chalked up at 06:00). Each load you sell today lowers the next bid a little; the market recovers overnight.`));
     const list = h('div', { class: 'list' });
-    for (const c of Object.values(F.def.crops)) {
+    for (const c of [...Object.values(F.def.crops), ...Object.keys(F.def.market.products).map((crop) => ({ crop }))]) {
       const have = g.inventory.count(c.crop);
       const price = F.coopPrice(c.crop);
-      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, c.crop === 'item_crop_cotton' ? '🧺' : '🌾'),
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, c.crop === 'item_crop_cotton' ? '🧺' : c.crop === 'item_eggs' ? '🥚' : c.crop === 'item_goat_milk' ? '🥛' : '🌾'),
         h('div', { class: 'grow' }, h('div', { class: 'name' }, g.content.items[c.crop].name, h('span', { class: 'tag' }, `${price} obols`)), h('div', { class: 'desc' }, `You have ${have}.`)),
         h('button', { class: 'small', disabled: !have, onclick: () => render(F.sellAtCoop(c.crop, 1).text) }, 'Sell 1'),
         h('button', { class: 'small primary', disabled: !have, onclick: () => { const r = F.sellAtCoop(c.crop, have); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, 'Sell all')));
@@ -82,4 +89,70 @@ export function coopPanel(ui, body, opts) {
   };
   render();
   return { title: 'Lariat Co-op — Scale House', onClose: opts.onClose };
+}
+
+/** v0.31.0: Hoof & Horn — buy stock for your pastures, sell it back at auction. */
+export function livestockPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const render = (msg) => {
+    body.innerHTML = '';
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    const pastures = F.owned().filter((id) => F.plot(id).state === 'pasture');
+    body.append(h('p', { class: 'muted' }, 'Hoof & Horn Livestock Supply. Stock is delivered to a pasture of yours (fence a plot at its sign); one kind to a pasture. Prices at auction soften the more you sell in a day.'));
+    if (!pastures.length) body.append(h('p', {}, h('b', {}, 'You have no pasture yet. Fence one of your plots first.')));
+    for (const id of pastures) {
+      const st = F.plot(id);
+      const d = F.plotDef(id);
+      body.append(h('h3', { style: 'margin:12px 0 6px' }, d.name), h('p', { class: 'muted' }, plotStatus(F, id)));
+      const list = h('div', { class: 'list' });
+      for (const [kind, L] of Object.entries(F.def.livestock)) {
+        if (st.herd?.count && st.herd.kind !== kind) continue;
+        const room = F.capacity(id, kind) - (st.herd?.count || 0);
+        const buy = (n) => h('button', { class: 'small primary', disabled: n > room || g.player.money < L.price * n, onclick: () => { const r = F.buyAnimals(id, kind, n); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy ${n} (${(L.price * n).toLocaleString()})`);
+        list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, L.name, h('span', { class: 'tag' }, `${L.price} each`), h('span', { class: 'tag' }, `room for ${room}`)),
+          h('div', { class: 'desc' }, `${L.feed} bags of feed a head a day${L.product ? ` · gives ${g.content.items[L.product.item].name.toLowerCase()}` : ` · grows ${L.grow} obols of value a day for ${L.maxDays} days`}`)),
+          buy(1), buy(5), buy(Math.max(1, Math.min(room, 20)))));
+      }
+      if (st.herd?.count) {
+        const v = F.unitPrice(st.herd.kind, F.animalValue(id));
+        list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Sell at auction`, h('span', { class: 'tag' }, `${v} for the next one`))),
+          h('button', { class: 'small', onclick: () => render(F.sellAnimals(id, 1).text) }, 'Sell 1'),
+          h('button', { class: 'small', onclick: () => { const r = F.sellAnimals(id, st.herd.count); ui.audio.sfx('sfx_coin'); render(r.text); } }, 'Sell all')));
+      }
+      body.append(list);
+    }
+  };
+  render();
+  return { title: 'Hoof & Horn — Sale Ledger', onClose: opts.onClose };
+}
+
+/** v0.31.0: the tablet's Farm app — your land, herds and crops, the day's prices, and the books. */
+export function farmApp(ui, body) {
+  const g = ui.game;
+  const F = g.farm;
+  body.append(h('h3', { style: 'margin:8px 0' }, 'Your land'));
+  const list = h('div', { class: 'list' });
+  for (const id of F.owned()) {
+    const d = F.plotDef(id);
+    list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, F.plot(id).state === 'pasture' ? '🐄' : '🌾'),
+      h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`)), h('div', { class: 'desc' }, plotStatus(F, id)))));
+  }
+  body.append(list);
+  const prices = [...Object.values(F.def.crops).map((c) => c.crop), ...Object.keys(F.def.market.products)];
+  body.append(h('h3', { style: 'margin:12px 0 6px' }, `The Co-op today (index ${F.state.priceIndex.toFixed(2)})`),
+    h('p', {}, prices.map((it) => `${g.content.items[it].name}: ${F.coopPrice(it)}`).join(' · ')),
+    h('p', { class: 'muted' }, Object.entries(F.def.livestock).map(([k, L]) => `${L.name}: buy ${L.price}, auction ${F.unitPrice(k, L.grow ? L.value + L.grow * L.maxDays : L.value)}${L.grow ? ' (grown)' : ''}`).join(' · ')));
+  const days = {};
+  for (const e of F.state.ledger) (days[e.day] ||= []).push(e);
+  const recent = Object.keys(days).map(Number).sort((a, b) => b - a).slice(0, 7);
+  body.append(h('h3', { style: 'margin:12px 0 6px' }, 'The books (last 7 days)'));
+  if (!recent.length) body.append(h('p', { class: 'muted' }, 'Nothing bought or sold yet.'));
+  let net = 0;
+  for (const day of recent) {
+    const sum = days[day].reduce((a, e) => a + e.amount, 0);
+    net += sum;
+    body.append(h('p', { style: 'margin:2px 0' }, h('b', {}, `Day ${day}: ${sum >= 0 ? '+' : ''}${sum.toLocaleString()} obols`), ` — ${days[day].map((e) => `${e.what} ${e.amount >= 0 ? '+' : ''}${e.amount.toLocaleString()}`).join(', ')}`));
+  }
+  if (recent.length) body.append(h('p', {}, h('b', {}, `Net, last 7 days: ${net >= 0 ? '+' : ''}${net.toLocaleString()} obols`)));
 }

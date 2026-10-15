@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.31.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Home on the Range',
+    notes: [
+      'Hoof & Horn is open. Fence one of your plots as pasture, then buy laying hens, dairy goats or beef calves from Wes Tolliver — they graze on your land for all to see.',
+      'Keep the feeder full (feed from Lone Star Feed & Seed): fed hens lay eggs and goats give milk every morning, and calves put on value as they grow. Let the feeder run dry and they go hungry; three hungry days and you lose some.',
+      'Markets have demand now: every load you sell at the Co-op, and every animal at the Hoof & Horn auction, fetches a little less than the last — the buyers recover overnight, so spread your selling out.',
+      'The tablet has a Farm app: your plots and herds, how many days of feed are left, today\'s prices, and the last week\'s books.',
+    ],
+  },
+  {
     version: '0.30.0',
     date: '2026-10-15',
     channel: 'development',

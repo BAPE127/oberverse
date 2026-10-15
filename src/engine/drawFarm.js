@@ -23,7 +23,7 @@ function boardText(ctx, text, x, y, w, size, colour) {
   ctx.fillText(text, x + w / 2, y, w - 6);
 }
 
-export const FARM_PROPS = new Set(['ranchgate', 'ranchpost', 'roadsign', 'watertower', 'bigsign', 'silo', 'windmill', 'haybale', 'tractor', 'trough', 'crops', 'ranchfence', 'cow', 'milktank', 'milkstall', 'cheesevat', 'cheesepress', 'cheeserack']);
+export const FARM_PROPS = new Set(['chicken', 'goat', 'ranchgate', 'ranchpost', 'roadsign', 'watertower', 'bigsign', 'silo', 'windmill', 'haybale', 'tractor', 'trough', 'crops', 'ranchfence', 'cow', 'milktank', 'milkstall', 'cheesevat', 'cheesepress', 'cheeserack']);
 
 // ------------------------------------------------------------------ fields
 // v0.29.1: fields are drawn into the map's static ground layer once (map.fields:
@@ -44,6 +44,7 @@ function drawField(ctx, f) {
   const y0 = f.y * T;
   const w = f.w * T;
   const h = f.h * T;
+  if (f.crop === 'pasture') return drawPasture(ctx, f, x0, y0, w, h);
   const fallow = f.crop === 'fallow' || !CROPS[f.crop] || (f.stage ?? 3) <= 0;
   // tilled soil: a darker bed with furrows, one every half tile
   ctx.fillStyle = fallow ? '#a07c50' : '#8a6a44';
@@ -99,9 +100,63 @@ function drawField(ctx, f) {
   }
 }
 
+/** v0.31.0: a fenced pasture — grazed grass, a worn track to the feeder and trough, and the fence round it. */
+function drawPasture(ctx, f, x0, y0, w, h) {
+  ctx.fillStyle = '#7aa85a';
+  ctx.fillRect(x0, y0, w, h);
+  for (let i = 0; i < f.w * f.h; i++) {
+    const px = x0 + hash2(f.x * 13 + i, f.y) * w;
+    const py = y0 + hash2(f.y * 7, f.x + i * 5) * h;
+    ctx.fillStyle = i % 4 ? 'rgba(60,100,40,0.35)' : 'rgba(200,190,120,0.4)';
+    ctx.fillRect(px, py, 3, 2);
+  }
+  // the worn track and the feeder and trough by the gate
+  ctx.fillStyle = 'rgba(150,115,70,0.55)';
+  ctx.fillRect(x0 + T, y0 + T * 0.5, T * 4, T * 1.2);
+  ctx.fillStyle = '#6a4a2a'; ctx.fillRect(x0 + T * 1.2, y0 + T * 0.6, T * 1.4, T * 0.8);
+  ctx.fillStyle = '#d8b84a'; ctx.fillRect(x0 + T * 1.3, y0 + T * 0.7, T * 1.2, T * 0.4);
+  ctx.fillStyle = '#7a7e84'; ctx.fillRect(x0 + T * 3, y0 + T * 0.6, T * 1.6, T * 0.8);
+  ctx.fillStyle = '#4a8ab0'; ctx.fillRect(x0 + T * 3.1, y0 + T * 0.7, T * 1.4, T * 0.5);
+  // fence posts and rails all round
+  ctx.strokeStyle = '#7a5a3a'; ctx.lineWidth = 3;
+  ctx.strokeRect(x0 + 3, y0 + 3, w - 6, h - 6);
+  ctx.fillStyle = '#6a4a2a';
+  for (let x = x0 + 3; x < x0 + w; x += 24) { ctx.fillRect(x - 2, y0, 5, 8); ctx.fillRect(x - 2, y0 + h - 8, 5, 8); }
+  for (let y = y0 + 3; y < y0 + h; y += 24) { ctx.fillRect(x0, y - 2, 8, 5); ctx.fillRect(x0 + w - 8, y - 2, 8, 5); }
+}
+
 export function drawFarmProp(ctx, p, x, y, w, h, opts = {}) {
   const t = opts.time || 0;
   switch (p.type) {
+    case 'chicken': {
+      // a hen, pecking about her spot
+      const ph = (opts.time || 0) * 0.5 + hash2(p.seed || 1, 3) * 10;
+      const cx = x + 16 + Math.sin(ph) * 8;
+      const cy = y + 22 + Math.cos(ph * 0.8) * 4;
+      const peck = Math.sin(ph * 6) > 0.6 ? 3 : 0;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(cx, cy + 5, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = (p.seed || 0) % 3 ? '#b8743a' : '#f2ece0';
+      ctx.beginPath(); ctx.ellipse(cx, cy, 6, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 5, cy - 3 + peck, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c8302a'; ctx.fillRect(cx + 4, cy - 7 + peck, 2, 2);
+      ctx.fillStyle = '#e8a83a'; ctx.fillRect(cx + 8, cy - 3 + peck, 2, 1.5);
+      return true;
+    }
+    case 'goat': {
+      const ph = (opts.time || 0) * 0.2 + hash2(p.seed || 1, 5) * 10;
+      const cx = x + 16 + Math.sin(ph) * 9;
+      const cy = y + 22 + Math.cos(ph * 0.7) * 4;
+      const dir = Math.cos(ph) > 0 ? 1 : -1;
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(cx, cy + 7, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a3028';
+      for (const lx of [-6, -3, 3, 6]) ctx.fillRect(cx + lx, cy + 1, 2, 7);
+      ctx.fillStyle = (p.seed || 0) % 2 ? '#e8e2d4' : '#9a7a5a';
+      ctx.beginPath(); ctx.ellipse(cx, cy - 1, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + dir * 10, cy - 6, 4, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6a5a4a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx + dir * 9, cy - 9); ctx.lineTo(cx + dir * 6, cy - 13); ctx.stroke();
+      return true;
+    }
     case 'ranchpost': {
       // a timber gatepost, braced
       ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x + 8, y + 24, 18, 7);

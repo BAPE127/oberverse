@@ -322,4 +322,28 @@ export const lorna = local({
   opinions: { npc_opal: { warm: 'Opal knows everything in this county a day before it happens.', cool: 'Opal told the whole town my maiden name before I\'d unpacked.' } },
 });
 
-export default [chuckie, opal, dale, lorna, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];
+
+// v0.31.0: Hoof & Horn's livestock man
+export const wes = local({
+  id: 'npc_wes', name: 'Wes Tolliver', shortName: 'Wes',
+  combat: { never: true, maxHealth: 90 },
+  role: 'Runs Hoof & Horn Livestock Supply and the Saturday sale barn. Can guess a steer\'s weight to the pound.',
+  dialogue: 'dlg_wes',
+  voice: { wave: 'sawtooth', pitch: 120, variance: 15, rate: 0.9 },
+  appearance: { skin: '#d8a880', hair: '#c8c4bc', hairStyle: 'short', hat: '#d8c8a0', beard: true, outfit: '#7a5a3a', legs: '#3a4a6a', build: 'broad', height: 1, accent: '#c8402a' },
+  personality: { traits: ['laconic', 'fair', 'animal whisperer'], sociability: 0.5, conscientiousness: 0.8, impulsiveness: 0.2, discretion: 0.7, honesty: 0.9, empathy: 0.8, humor: 0.5 },
+  speech: { rumorPrefix: 'Heard at the sale barn:', factPrefix: 'Fact is,', refuse: 'Can\'t say.' },
+  schedule: [
+    { from: '05:30', to: '06:30', activity: 'eat', spot: 'diner:stool', label: 'coffee at the diner' },
+    { from: '06:30', to: '12:00', activity: 'work', spot: 'hoof_horn:counter', label: 'behind the Hoof & Horn counter' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
+    { from: '13:00', to: '18:00', activity: 'work', spot: 'hoof_horn:counter', label: 'behind the Hoof & Horn counter' },
+    { from: '18:00', to: '21:00', activity: 'leisure', spot: 'lariat:paddock_gate', label: 'leaning on Chuckie\'s fence, talking cows' },
+    { from: '21:00', to: '05:30', activity: 'sleep', spot: 'hoof_horn:bed' },
+  ],
+  relationships: { player: { trust: 5, affection: 5, respect: 5, suspicion: 0 }, npc_chuckie: { trust: 50, affection: 40, respect: 50, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_jerky: 6, tags: { food: 2 } },
+  opinions: { npc_chuckie: { warm: 'Chuckie\'s the best stockman in the county. Talks to his cows. They talk back, which helps.', cool: 'Chuckie lets his gates swing. Bad habit.' } },
+});
+
+export default [chuckie, opal, dale, lorna, wes, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];

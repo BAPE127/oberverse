@@ -20,7 +20,7 @@ const MINUTES_PER_DAY = 1440;
 export function freshFarm(content) {
   const plots = {};
   for (const id of Object.keys(content.farming?.plots || {})) plots[id] = { owned: false, state: 'fallow' };
-  return { plots, priceIndex: 1, lastDay: 0 };
+  return { plots, priceIndex: 1, lastDay: 0, market: {}, ledger: [] };
 }
 
 export class Farm {
@@ -36,6 +36,8 @@ export class Farm {
     if (!g.world.farm) g.world.farm = freshFarm(g.content);
     const s = g.world.farm;
     for (const id of Object.keys(this.def.plots)) if (!s.plots[id]) s.plots[id] = { owned: false, state: 'fallow' };
+    s.market ||= {}; // v0.31.0: today's sales (demand), and the farm's income
+    s.ledger ||= [];
     return s;
   }
 
@@ -110,7 +112,12 @@ export class Farm {
     const out = [];
     if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: g.player.money >= d.price, why: 'Not enough obols.' }];
     const C = this.def.crops;
-    if (st.state === 'fallow') out.push({ action: 'till', label: 'Till the field', ok: true });
+    if (st.state === 'fallow') {
+      out.push({ action: 'till', label: 'Till the field', ok: true });
+      const fee = this.def.pasture.fencing;
+      out.push({ action: 'pasture', label: `Fence it as pasture for livestock (${fee} obols)`, ok: g.player.money >= fee, why: `Fencing costs ${fee} obols.` });
+    }
+    if (st.state === 'pasture') return this.pastureActions(id);
     if (st.state === 'tilled') {
       for (const [cid, c] of Object.entries(C)) {
         const bags = this.seedBags(id, cid);
@@ -151,6 +158,7 @@ export class Farm {
     const d = this.plotDef(id);
     if (!d) return { ok: false, text: 'No such plot.' };
     if (action === 'buy') return this.buy(id);
+    if (['feed', 'collect', 'unfence'].includes(action)) return this.pastureWork(id, action);
     const st = this.plot(id);
     if (!st.owned) return { ok: false, text: 'That land isn\'t yours (yet). The Land Office on Main Street has the deeds.' };
     const a = this.actions(id).find((x) => x.action === action && (action !== 'plant' || x.crop === crop));
@@ -162,6 +170,13 @@ export class Farm {
     if (action === 'till') {
       st.state = 'tilled';
       text = `You till ${d.name}`;
+    } else if (action === 'pasture') {
+      const fee = this.def.pasture.fencing;
+      g.player.money -= fee;
+      g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+      Object.assign(st, { state: 'pasture', herd: null, feed: 0, produce: 0, hunger: 0 });
+      this.record('Fencing', -fee);
+      text = `You fence ${d.name} as pasture, with a feeder and a water trough`;
     } else if (action === 'plant') {
       const c = this.def.crops[crop];
       g.inventory.remove(c.seed, this.seedBags(id, crop));
@@ -204,6 +219,12 @@ export class Farm {
       }
       st.stage = stage;
     }
+    this.livestockDay();
+    const rec = this.def.market.recover;
+    for (const key of Object.keys(s.market)) {
+      s.market[key] = Math.round(s.market[key] * (1 - rec) * 100) / 100;
+      if (s.market[key] < 0.5) delete s.market[key];
+    }
     const k = this.def.config.priceDrift;
     // the day's news, from the day itself (not the game's shared dice, which other systems' outcomes depend on)
     s.priceIndex = Math.round(Math.min(1.15, Math.max(0.85, s.priceIndex + (hash2(g.clock.day, 8117) * 2 - 1) * k)) * 1000) / 1000;
@@ -229,8 +250,9 @@ export class Farm {
     const byMap = {};
     for (const [id, p] of Object.entries(this.def.plots)) {
       const st = this.plot(id);
-      (byMap[p.map] ||= {})[id] = st.state === 'planted' ? { crop: this.withered(id) ? 'fallow' : st.crop, stage: st.stage } : { crop: 'fallow', stage: 0, tilled: st.state === 'tilled' };
+      (byMap[p.map] ||= {})[id] = st.state === 'planted' ? { crop: this.withered(id) ? 'fallow' : st.crop, stage: st.stage } : st.state === 'pasture' ? { crop: 'pasture', stage: 0 } : { crop: 'fallow', stage: 0, tilled: st.state === 'tilled' };
     }
+    this.syncAnimals();
     for (const [mapId, fs] of Object.entries(byMap)) {
       const map = this.game.maps.get(mapId);
       if (!map) continue;
@@ -243,28 +265,208 @@ export class Farm {
   }
 
   // ------------------------------------------------------------------ Co-op
-  coopPrice(itemId) {
+  /** The base price of something the Co-op buys (crops, eggs, goat milk), before demand. */
+  coopBase(itemId) {
     const c = Object.values(this.def.crops).find((x) => x.crop === itemId);
-    return c ? Math.max(1, Math.round(c.price * this.state.priceIndex)) : 0;
+    return c ? c.price : this.def.market.products[itemId] || 0;
+  }
+
+  /** v0.31.0: what the next unit fetches — the day's index, less what's already been sold today. */
+  unitPrice(key, base) {
+    const M = this.def.market;
+    const D = M.demand[key] || 100;
+    const sold = this.state.market[key] || 0;
+    const f = M.floor + ((1 - M.floor) * D) / (D + sold);
+    return Math.max(1, Math.round(base * this.state.priceIndex * f));
+  }
+
+  /** Sell n units into the market, one at a time (each sale lowers the next price). */
+  sellUnits(key, base, n) {
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+      total += this.unitPrice(key, base);
+      this.state.market[key] = (this.state.market[key] || 0) + 1;
+    }
+    return total;
+  }
+
+  coopPrice(itemId) {
+    const base = this.coopBase(itemId);
+    return base ? this.unitPrice(itemId, base) : 0;
   }
 
   sellAtCoop(itemId, count = 1) {
     const g = this.game;
-    const price = this.coopPrice(itemId);
+    const base = this.coopBase(itemId);
     const have = g.inventory.count(itemId);
-    if (!price) return { ok: false, text: 'The Co-op only buys grain and cotton.' };
+    if (!base) return { ok: false, text: 'The Co-op only buys grain, cotton, eggs and goat milk.' };
     const n = Math.min(count, have);
     if (n <= 0) return { ok: false, text: 'You have none of that to sell.' };
     g.inventory.remove(itemId, n);
-    g.player.money += price * n;
-    g.bus.emit('money:changed', { delta: price * n, total: g.player.money });
-    return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${(price * n).toLocaleString()} obols.` };
+    const total = this.sellUnits(itemId, base, n);
+    g.player.money += total;
+    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    this.record(g.content.items[itemId].name, total);
+    return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${total.toLocaleString()} obols${n > 1 ? ` (the price softens as the bins fill — ${this.coopPrice(itemId)} for the next)` : ''}.` };
+  }
+
+  /** The farm's books: income and spending by day (the last two weeks). */
+  record(what, amount) {
+    const s = this.state;
+    s.ledger.push({ day: this.game.clock.day, what, amount });
+    while (s.ledger.length && s.ledger[0].day < this.game.clock.day - 14) s.ledger.shift();
+  }
+
+  // -------------------------------------------------------------- livestock
+  capacity(id, kind) {
+    return Math.floor(this.plotDef(id).tiles / this.def.livestock[kind].per);
+  }
+
+  pastureActions(id) {
+    const g = this.game;
+    const st = this.plot(id);
+    const out = [];
+    const bags = g.inventory.count('item_feed');
+    out.push({ action: 'feed', label: `Fill the feeder (${bags} bags of feed with you; ${Math.floor(st.feed || 0)} in it)`, ok: bags > 0, why: 'You have no feed with you (Lone Star Feed & Seed).' });
+    if ((st.produce || 0) >= 1) {
+      const L = this.def.livestock[st.herd.kind];
+      out.push({ action: 'collect', label: `Collect ${Math.floor(st.produce)} × ${g.content.items[L.product.item].name}`, ok: true });
+    }
+    if (!st.herd?.count) out.push({ action: 'unfence', label: 'Take the fences down (back to a field)', ok: true });
+    return out;
+  }
+
+  pastureWork(id, action) {
+    const g = this.game;
+    const d = this.plotDef(id);
+    const st = this.plot(id);
+    if (!st.owned || st.state !== 'pasture') return { ok: false, text: 'That isn\'t one of your pastures.' };
+    const a = this.pastureActions(id).find((x) => x.action === action);
+    if (!a) return { ok: false, text: 'That can\'t be done here right now.' };
+    if (!a.ok) return { ok: false, text: a.why };
+    if (action === 'feed') {
+      const n = g.inventory.count('item_feed');
+      g.inventory.remove('item_feed', n);
+      st.feed = (st.feed || 0) + n;
+      return { ok: true, text: `You tip ${n} bags of feed into the feeder at ${d.name}.` };
+    }
+    if (action === 'collect') {
+      const L = this.def.livestock[st.herd.kind];
+      const n = Math.floor(st.produce);
+      g.inventory.add(L.product.item, n);
+      st.produce -= n;
+      return { ok: true, text: `You collect ${n} × ${g.content.items[L.product.item].name}.` };
+    }
+    // unfence
+    Object.assign(st, { state: 'fallow', herd: null, feed: 0, produce: 0, hunger: 0 });
+    this.sync();
+    return { ok: true, text: `${d.name} is a field again.` };
+  }
+
+  /** Buy animals at Hoof & Horn for one of your pastures. */
+  buyAnimals(id, kind, n) {
+    const g = this.game;
+    const L = this.def.livestock[kind];
+    const d = this.plotDef(id);
+    const st = this.plot(id);
+    if (!L || !d) return { ok: false, text: 'No such animal or plot.' };
+    if (!st.owned || st.state !== 'pasture') return { ok: false, text: `${d.name} isn\'t a pasture of yours. Fence a plot first, at its sign.` };
+    if (st.herd && st.herd.count && st.herd.kind !== kind) return { ok: false, text: `${d.name} already has ${this.def.livestock[st.herd.kind].name.toLowerCase()}; one kind to a pasture.` };
+    const have = st.herd?.count || 0;
+    const room = this.capacity(id, kind) - have;
+    if (n <= 0 || n > room) return { ok: false, text: room > 0 ? `${d.name} has room for ${room} more.` : `${d.name} is full.` };
+    const cost = L.price * n;
+    if (g.player.money < cost) return { ok: false, text: `That\'s ${cost.toLocaleString()} obols.` };
+    g.player.money -= cost;
+    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    // cattle: the herd's average purchase day, weighted by head
+    const day = have ? Math.round((st.herd.day * have + g.clock.day * n) / (have + n)) : g.clock.day;
+    st.herd = { kind, count: have + n, day };
+    this.record(`${L.name} bought`, -cost);
+    this.syncAnimals();
+    return { ok: true, text: `${n} ${n > 1 ? L.name.toLowerCase() : L.one} delivered to ${d.name} for ${cost.toLocaleString()} obols. Keep the feeder full.` };
+  }
+
+  /** What one animal from this pasture fetches before demand (cattle put on value as they grow). */
+  animalValue(id) {
+    const st = this.plot(id);
+    const L = this.def.livestock[st.herd.kind];
+    if (!L.grow) return L.value;
+    const age = Math.min(L.maxDays, this.game.clock.day - st.herd.day);
+    return L.value + L.grow * Math.max(0, age);
+  }
+
+  /** Sell animals at the Hoof & Horn auction. */
+  sellAnimals(id, n) {
+    const g = this.game;
+    const st = this.plot(id);
+    if (!st?.herd?.count) return { ok: false, text: 'No animals there to sell.' };
+    n = Math.min(n, st.herd.count);
+    const L = this.def.livestock[st.herd.kind];
+    const total = this.sellUnits(st.herd.kind, this.animalValue(id), n);
+    st.herd.count -= n;
+    if (!st.herd.count) st.herd = null;
+    g.player.money += total;
+    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    this.record(`${L.name} sold`, total);
+    this.syncAnimals();
+    return { ok: true, text: `Sold at auction: ${n} ${n > 1 ? L.name.toLowerCase() : L.one} for ${total.toLocaleString()} obols.` };
+  }
+
+  /** 06:00: the animals eat from the feeder and give their eggs and milk; hungry herds lose head. */
+  livestockDay() {
+    const g = this.game;
+    for (const [id, st] of Object.entries(this.state.plots)) {
+      if (st.state !== 'pasture' || !st.herd?.count) continue;
+      const L = this.def.livestock[st.herd.kind];
+      const need = st.herd.count * L.feed;
+      if ((st.feed || 0) >= need) {
+        st.feed = Math.round((st.feed - need) * 100) / 100;
+        st.hunger = 0;
+        if (L.product) st.produce = (st.produce || 0) + st.herd.count * L.product.perDay;
+      } else {
+        st.feed = 0;
+        st.hunger = (st.hunger || 0) + 1;
+        g.notify(`${this.def.plots[id].name}: the feeder is empty and the ${L.name.toLowerCase()} are hungry.`, 'warn');
+        if (st.hunger >= 3) {
+          const lost = Math.max(1, Math.ceil(st.herd.count * 0.2));
+          st.herd.count -= lost;
+          g.notify(`${this.def.plots[id].name}: ${lost} ${lost > 1 ? L.name.toLowerCase() : L.one} lost to hunger.`, 'warn');
+          if (st.herd.count <= 0) st.herd = null;
+        }
+      }
+    }
+    this.syncAnimals();
+  }
+
+  /** Show each pasture's animals on the map (up to a dozen each; they wander about their spot). */
+  syncAnimals() {
+    if (!this.def) return;
+    for (const [id, p] of Object.entries(this.def.plots)) {
+      const map = this.game.maps.get(p.map);
+      const d = this.plotDef(id);
+      if (!map || !d) continue;
+      const st = this.plot(id);
+      const herd = st.state === 'pasture' && st.herd?.count ? st.herd : null;
+      const show = herd ? Math.min(12, herd.count) : 0;
+      const L = herd ? this.def.livestock[herd.kind] : null;
+      for (let i = 0; i < 12; i++) {
+        const pid = `farm_${id}_${i}`;
+        if (i >= show) { if (map.prop(pid)) map.removeProp(pid); continue; }
+        if (map.prop(pid)?.type === L.prop) continue;
+        const f = d.field;
+        const x = f.x + 1 + ((i * 7 + 3) % Math.max(1, f.w - 2));
+        const y = f.y + 1 + ((i * 5 + 2) % Math.max(1, f.h - 2));
+        map.addProp({ id: pid, type: L.prop, x, y, w: 1, h: 1, solid: false, seed: 41 + i * 7, coat: i % 3 ? '#8a4a2a' : '#2a2420', patches: '#f2ece0', examine: `One of your ${L.name.toLowerCase()} at ${this.def.plots[id].name}.` });
+      }
+    }
   }
 
   interact(prop) {
     const act = prop.interact;
     if (act.action === 'office') return { type: 'panel', panel: 'farmland', opts: {} };
     if (act.action === 'coop') return { type: 'panel', panel: 'coop', opts: {} };
+    if (act.action === 'livestock') return { type: 'panel', panel: 'livestock', opts: {} };
     if (act.action === 'plot') return { type: 'panel', panel: 'farmplot', opts: { plot: act.plot } };
     return { type: 'message', text: prop.examine || 'Farmland.' };
   }
@@ -273,6 +475,7 @@ export class Farm {
     const act = prop.interact;
     if (act.action === 'office') return 'Look at the land listings';
     if (act.action === 'coop') return 'Weigh in a harvest at the Co-op';
+    if (act.action === 'livestock') return 'Look at the sale ledger';
     if (act.action === 'plot') return this.plot(act.plot)?.owned ? 'Work your field' : 'Read the FOR SALE sign';
     return 'Examine';
   }
