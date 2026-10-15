@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.20.0 (2026-10-15)
+
+- `npm run check` — **251/251 tests passed** (11 new in `streets.test.mjs`; transit, world, Halvermouth and quest tests updated for the widened coordinates); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real keyboard): at Bank Row × Precinct Row the four-tile roads, crossings and four traffic lights cycled; a westbound car waited at red and moved off on green; a pedestrian crossed on the green man. Driving east and steering hard, the wheel turned in, the handbrake let the tail out (slip 0.26 rad at 268 px/s) and laid tyre marks. Wellhead Circle, Lamplighter Circle, the Yards gate on Mill Road, the East Gate and the city's turning circles render as places, not dead ends. Over ~20 s among traffic the only sounds were the engine and a door — no horn. Fixed from the runs: the city ambience's synthetic horn beeps (removed) and the siren on cruisers driving away (off); new statues all read "FOUNDER" (now labelled). No page errors.
+
 ## Verification record — v0.19.0 (2026-10-14)
 
 - `npm run check` — **240/240 tests passed** (market and arms tests rewritten for crates; new: crate content and order limits, the workbench, `crates`); validator 0 errors.

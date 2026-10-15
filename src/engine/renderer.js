@@ -184,8 +184,9 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime });
         }
+        if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
@@ -200,7 +201,7 @@ export class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -221,7 +222,7 @@ export class Renderer {
           const m = models[car.model];
           if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
           const driven = car.id === g.player.driving;
-          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase) })) });
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel })) });
         }
       }
       // the bus and the traffic (src/systems/transit.js)
@@ -275,6 +276,20 @@ export class Renderer {
   }
 
   /** Oily rainbow sheen on the Lantern Canal (rows 22–23) after the pipeline leaks. */
+  /** Tyre marks, fading over a dozen seconds. */
+  drawSkids(ctx, mapId) {
+    const now = this.game.realTime;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 5;
+    for (const k of this.game.vehicles.skids) {
+      if (k.map !== mapId) continue;
+      ctx.strokeStyle = `rgba(20,20,24,${(0.32 * (1 - (now - k.t) / 14)).toFixed(3)})`;
+      ctx.beginPath(); ctx.moveTo(k.x0, k.y0); ctx.lineTo(k.x1, k.y1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   drawCanalSlick(ctx, map, v) {
     const x0 = Math.max(0, Math.floor(v.x / TILE));
     const x1 = Math.min(map.width - 1, Math.ceil((v.x + v.w) / TILE));

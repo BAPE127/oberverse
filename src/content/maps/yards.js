@@ -57,8 +57,10 @@ export const yards = {
   areas: [{ id: 'area_yards', name: 'Mill Road Yards', x: 0, y: 0, w: W, h: H }],
   buildings,
   doors: [
+    { id: 'door_yd_gate_n', x: 63, y: 18, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_a', x: 63, y: 19, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_b', x: 63, y: 20, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
+    { id: 'door_yd_gate_s', x: 63, y: 21, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
   ],
   spots: {
     east_gate: { x: 61, y: 20, facing: 'left' },

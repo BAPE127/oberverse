@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.20.0.** Streets: four-tile roads (widened at load from 2-tile authored maps by `src/world/widen.js` — author in the OLD coordinates and list new roads in `ROADS`), a closed road network, traffic lights (`src/world/lights.js`), pavement-keeping pedestrians, through traffic, car handling, the beeping fixed. Owner's answers recorded in the CHANGELOG.
 - **2026-10-14 — v0.19.0.** The arms trade by the crate: crate recipes, country orders of 5–50 crates, the armourer's workbench for singles and ammo. Owner's answers recorded in the CHANGELOG.
 - **2026-10-13 — v0.18.0.** Police chases (`src/systems/pursuit.js`) on the shared car physics. Decisions (owner asked only for "police chases"): one cruiser per star, ramming at ★★★, pulled over when stopped, line-of-sight escape, no pursuit through region gates, police never hurt pedestrians.
 - **2026-10-13 — v0.17.0.** Transportation, part 2: the No. 1 bus and NPC traffic (`src/systems/transit.js`), moving in world space (`src/world/layout.js`). The Transportation update is complete. New routes and loops are data in `src/content/transit.js` (world tiles; keep to the left).

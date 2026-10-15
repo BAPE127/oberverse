@@ -84,7 +84,8 @@ test('Approach 3 — the maintenance hatch with a crowbar (noisy, may be witness
   setTime(g, 1, '14:00');
   g.inventory.add('item_crowbar');
   g.changeMap('lanternside', 'lighthouse_gate');
-  g.player.x = 13.5 * TILE; g.player.y = 38.6 * TILE; g.player.facing = 'left';
+  const hatch = g.maps.get('lanternside').prop('lighthouse_hatch');
+  g.player.x = (hatch.x + 1.5) * TILE; g.player.y = (hatch.y + 0.6) * TILE; g.player.facing = 'left';
   const target = g.interactables().find((t) => t.id === 'lighthouse_hatch');
   assert.ok(target, 'hatch is interactable');
   const res = g.interact(target);

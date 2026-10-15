@@ -25,6 +25,8 @@ export class GameMap {
     this.doorIndex = new Map();
     this.props = [];
     this.propBlock = new Set();
+    this.carBlock = new Set(); // v0.20.0: pavement props people walk through but cars don't
+    this.crossTiles = new Set(); // crosswalk tiles (cheap for pedestrians to cross the road)
     this.propIndex = new Map();
 
     for (const b of this.buildings) {
@@ -40,12 +42,29 @@ export class GameMap {
       const prop = { w: 1, h: 1, ...type.defaults, ...p, solid: p.solid ?? type.solid ?? false };
       this.props.push(prop);
       this.propIndex.set(prop.id, prop);
+      if (prop.type === 'crosswalk') for (let y = prop.y; y < prop.y + prop.h; y++) for (let x = prop.x; x < prop.x + prop.w; x++) this.crossTiles.add(y * this.width + x);
+      // v0.20.0: on the pavement, solid props (lamps, hydrants, signs, benches, trees…) are
+      // walked through — but cars still hit them
+      if (prop.solid && this.kind !== 'interior' && (prop.walkThrough || this.onPavement(prop))) prop.walkThrough = true;
       // Props that only appear under conditions (e.g. future derricks) never block movement.
       if (prop.solid && !prop.hiddenUnless) {
+        const set = prop.walkThrough ? this.carBlock : this.propBlock;
         for (let y = prop.y; y < prop.y + prop.h; y++)
-          for (let x = prop.x; x < prop.x + prop.w; x++) this.propBlock.add(y * this.width + x);
+          for (let x = prop.x; x < prop.x + prop.w; x++) set.add(y * this.width + x);
       }
     }
+  }
+
+  /** Does a prop stand entirely on pavement? */
+  onPavement(p) {
+    for (let y = p.y; y < p.y + (p.h || 1); y++) for (let x = p.x; x < p.x + (p.w || 1); x++) if (this.grid[y]?.[x] !== ',') return false;
+    return true;
+  }
+
+  /** Pathfinding cost of stepping onto a tile: pedestrians keep to the pavement and cross at crosswalks. */
+  walkCost(x, y) {
+    if (this.kind === 'interior' || this.grid[y]?.[x] !== '=') return 1;
+    return this.crossTiles.has(y * this.width + x) ? 1.1 : 6;
   }
 
   /** Add a prop at runtime (factory machinery). The object is kept by reference. */
@@ -109,6 +128,7 @@ export class GameMap {
     const door = this.doorAt(tx, ty);
     if (door) return actor?.canPass ? !actor.canPass(door) : false;
     if (TILE_TYPES[this.grid[ty][tx]]?.solid) return true;
+    if (actor?.kind === 'vehicle' && this.carBlock.has(ty * this.width + tx)) return true;
     return this.propBlock.has(ty * this.width + tx);
   }
 

@@ -1,5 +1,6 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
+import { lightState, walkSignal } from '../world/lights.js';
 import { TILE } from '../core/util.js';
 import { drawFactoryProp } from './drawFactory.js';
 import { hash2 } from '../core/rng.js';
@@ -631,6 +632,43 @@ function drawLighthouse(ctx, b, opts) {
 /** Props drawn flat on the ground before y-sorted objects. */
 export const FLAT_PROPS = new Set(['belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
+const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
+
+/** A traffic light on its pole: a head for the road it faces, and a walk / wait box for the crossing. */
+function drawTrafficLight(ctx, p, x, y, t) {
+  const s = lightState(p, t);
+  // nw / se heads face the east–west road; ne / sw face north–south
+  const axis = p.corner === 'nw' || p.corner === 'se' ? 'ew' : 'ns';
+  const state = s[axis];
+  const cx = x + 16;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(cx + 4, y + 26, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3a3e44';
+  ctx.fillRect(cx - 2, y - 22, 4, 48);
+  // head
+  ctx.fillStyle = '#1c1f24';
+  ctx.fillRect(cx - 7, y - 40, 14, 34);
+  ctx.fillStyle = '#e8c35a';
+  ctx.fillRect(cx - 7, y - 40, 14, 2);
+  ['red', 'amber', 'green'].forEach((c, i) => {
+    const on = state === c;
+    ctx.fillStyle = LAMP[c][on ? 0 : 1];
+    ctx.beginPath(); ctx.arc(cx, y - 33 + i * 10, 3.6, 0, Math.PI * 2); ctx.fill();
+    if (on) {
+      ctx.fillStyle = LAMP[c][0] + '40';
+      ctx.beginPath(); ctx.arc(cx, y - 33 + i * 10, 7, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+  // the crossing beside this corner runs along the other axis
+  const w = walkSignal(p, axis, t);
+  const lit = w === 'walk' || (w === 'flash' && Math.floor(t * 3) % 2 === 0);
+  ctx.fillStyle = '#1c1f24';
+  ctx.fillRect(cx + 3, y - 4, 10, 10);
+  ctx.fillStyle = w === 'wait' ? '#ff6a3a' : lit ? '#f2f2e8' : '#2a2c30';
+  if (w === 'wait') ctx.fillRect(cx + 5, y - 2, 6, 6);
+  else { ctx.beginPath(); ctx.arc(cx + 8, y - 1.5, 1.5, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(cx + 7, y, 2, 4); }
+}
+
 export function drawProp(ctx, p, opts) {
   const x = p.x * T;
   const y = p.y * T;
@@ -1033,6 +1071,9 @@ export function drawProp(ctx, p, opts) {
     }
     case 'busstop':
       drawBusStop(ctx, x, y);
+      break;
+    case 'trafficlight':
+      drawTrafficLight(ctx, p, x, y, opts.realTime ?? time);
       break;
     case 'car_display': {
       const model = CAR_MODELS[p.model];

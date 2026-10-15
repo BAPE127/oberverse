@@ -10,7 +10,8 @@ const m = new MapBuilder(W, H, '.');
 // Gullwing Road (east–west) with pavements
 m.rect(0, 11, W, 1, ',').rect(0, 12, W, 2, '=').rect(0, 14, W, 1, ',');
 // Lamplighter Lane (north–south) with pavements, north of the canal
-m.rect(29, 0, 1, 22, ',').rect(30, 0, 2, 22, '=').rect(32, 0, 1, 22, ',');
+m.rect(29, 3, 1, 19, ',').rect(30, 3, 2, 19, '=').rect(32, 3, 1, 19, ',');
+m.rect(27, 0, 8, 4, 'm'); // v0.20.0: Lamplighter Circle, where the lane ends (it used to run off the map)
 // Canal towpaths and the Lantern Canal itself
 m.rect(0, 21, W, 1, ',').rect(0, 22, W, 2, '~').rect(0, 24, W, 1, ',');
 // Bridges: road bridge and the old footbridge
@@ -19,6 +20,7 @@ m.rect(29, 22, 4, 2, 'b').rect(15, 22, 2, 2, 'b');
 m.rect(29, 25, 1, 13, ',').rect(30, 25, 2, 13, '=').rect(32, 25, 1, 13, ',');
 // Quay frontage
 m.rect(29, 38, 23, 2, ',');
+m.rect(27, 36, 8, 4, 'm'); // v0.20.0: the Quay turning circle, where the lane meets the harbour
 // Harbour basin to the east and the open sea to the south
 m.rect(52, 30, 12, 18, '~').rect(51, 30, 1, 14, ',');
 m.rect(52, 36, 10, 2, 'p'); // pier
@@ -121,6 +123,8 @@ export default {
     west_road: { x: 1, y: 13, facing: 'right' },
   },
   props: [
+    { id: 'lamplighter_statue', type: 'statue', x: 30, y: 0, label: 'LAMPLIGHTER', examine: 'The Lamplighter: a bronze figure with a long pole, lighting a lamp that was never connected. Lamplighter Lane ends at his circle.' },
+    { id: 'quay_bollards', type: 'fountain', x: 30, y: 38, examine: 'The Quay drinking fountain. The lane turns round here, at the water\'s edge.' },
     { id: 'sign_west', type: 'sign', x: 1, y: 10, examine: '"← WEST: Westbrook Lots. Mason\'s Os Construction — That\'s O plural! Build your future here."' },
     { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights

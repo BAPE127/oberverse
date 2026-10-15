@@ -1,4 +1,4 @@
-# Cars, transport and police chases (v0.16.0–v0.18.0)
+# Cars, transport, streets and police chases (v0.16.0–v0.20.0)
 
 Owner's answers (transportation interview): drive cars yourself; ride the bus for real (v0.17.0); new original dealer NPCs; extras: hitting people, car theft, NPC traffic (v0.17.0). Not chosen: fuel and repairs. Bus fare: 2 obols.
 
@@ -15,6 +15,8 @@ Owner's answers (transportation interview): drive cars yourself; ride the bus fo
 | E | Get out (beside the car, wherever there's room) |
 
 Cars keep their position, angle, owner and plate in `world.vehicles.cars`. They collide with walls, solid props, building doors and each other (oriented boxes), cross seamless map seams and drive through region gates (arriving facing away from the gate). Off-road (grass, sand, mud, dirt) caps speed at 60%.
+
+**Handling (v0.20.0).** The wheel (`car.wheel`) turns in over ~0.15 s rather than snapping. The car travels along `car.travel`, which the tyres pull towards the heading quickly at low speed and less quickly at high speed; on the handbrake they barely hold, so the tail swings out. While sliding (`car.slip`) the car scrubs off speed and, above ~110 px/s, lays tyre marks (`Vehicles.skids`, runtime only, fading in 14 s). The front wheels are drawn steered.
 
 ## Models (`src/content/vehicles.js`)
 
@@ -52,9 +54,16 @@ Three buses on one loop (`src/content/transit.js`, world tiles): Mill Road Yards
 - E near a waiting bus: board (pay the fare). You ride it for real — the bus drives, the camera and HUD follow, and you change map with it.
 - E while it waits at a stop: get off beside that stop's sign.
 
-## Traffic (v0.17.0)
+## Traffic (v0.17.0; reworked in v0.20.0)
 
-Eleven cars on four one-way loops (left-hand traffic): round Halvermouth's Financial District, Market Street and Iron Row blocks, and back and forth along the coast road. Near you they stop for anything in their lane (they honk at you); elsewhere they keep moving once a minute. Your car collides with them. E beside a stopped one carjacks it (car theft); it rejoins the traffic two hours later.
+Seven cars, left-hand traffic, on rounded routes: two round Halvermouth's northern blocks, one round Market Street (closed rings that never leave the city), one each way through the city between the East Gate and Mill Road, and two on the coast road from the Halvermouth gate round Wellhead Circle and back. A car on an open route drives off the map at its far end and another drives in after the route's `gap` (game minutes) — nobody U-turns at an edge. Near you they stop for anything in their lane and for red lights; they honk only after 3 s stuck behind *you* (at most once per car per 15 s, once every 9 s overall). Your car collides with them. E beside a stopped one carjacks it (car theft); it rejoins the traffic two hours later.
+
+## Streets (v0.20.0)
+
+- **Four-tile roads.** Maps are authored with 2-tile roads; `src/world/widen.js` widens the roads listed in `ROADS` at load (duplicating each road's first line twice and moving everything beyond it). Author map content in the old coordinates; content that refers to map tiles from elsewhere (transit, parked cars, dealers) is shifted with `CONTENT.roadShifts`. Lanes: on a road whose authored first line is r, the north/west lane centre is `fy(r) + 1`, the south/east `fy(r) + 3`.
+- **The network.** Every road joins up and only meets a map edge at a gate or seam (a test checks this); dead ends are turning circles ('m') with a statue, fountain or bollards.
+- **Traffic lights** (`src/world/lights.js`). Junctions are listed in `src/content/transit.js` (`LIGHTS`). One 22 s program, offset per junction: east–west green 0–9, amber 9–11; north–south green 11–20, amber 20–22. Traffic and buses stop at red and at amber unless already within 26 px of the line. People on the kerb wait for WALK (the green half of the phase that runs with their direction, minus the last 3 s) — unless they're on a call, fighting or fleeing. Running a red is not a crime. Police cruisers ignore lights.
+- **Pavements.** Solid props standing wholly on pavement (',') are walk-through for people and still solid for cars (`GameMap.carBlock`). Pathfinding charges ×6 for carriageway and ×1.1 for crossings (`GameMap.walkCost`).
 
 ## Police chases (v0.18.0)
 

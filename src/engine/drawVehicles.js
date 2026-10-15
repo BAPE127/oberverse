@@ -38,7 +38,15 @@ export function drawCar(ctx, model, x, y, angle, opts = {}) {
   ctx.fillStyle = '#18181c';
   const ww = 13 * k;
   const wh = 7 * k;
-  for (const sx of [-0.31, 0.3]) for (const sy of [-1, 1]) ctx.fillRect(sx * L - ww / 2, sy * (W / 2) - wh / 2, ww, wh);
+  for (const sx of [-0.31, 0.3]) for (const sy of [-1, 1]) {
+    // front wheels turn with the steering
+    const a = sx > 0 ? (opts.wheel || 0) * 0.5 : 0;
+    ctx.save();
+    ctx.translate(sx * L, sy * (W / 2));
+    ctx.rotate(a);
+    ctx.fillRect(-ww / 2, -wh / 2, ww, wh);
+    ctx.restore();
+  }
   if (body === 'limo') for (const sy of [-1, 1]) ctx.fillRect(-0.05 * L - ww / 2, sy * (W / 2) - wh / 2, ww, wh);
   ctx.fillStyle = color;
   ctx.strokeStyle = shade(color, -45);

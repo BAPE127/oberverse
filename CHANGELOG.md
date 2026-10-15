@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.20.0] — 2026-10-15 — "Streets" (development build)
+
+Owner's request: a general world update — NPCs should prefer pavements and crossings; pavement props should not be solid for the player; cars should feel like they turn; streets felt too small for cars; no U-turns at map edges; stop lights to make junctions feel alive (not illegal to run them); a weird beeping noise; fewer cars; roads that lead nowhere ruin the immersion — make the map feel more real. Owner's answers: roads 4 tiles wide (one wide lane each way); rework the existing maps (every road joins a network, roads only leave a map through gates, map edges are real boundaries; no new districts); traffic drives off at the edges and others drive in; cars and the bus obey the lights, people use the walk signal, running a red is not a crime.
+
+### Changed
+- **Four-tile roads** (`src/world/widen.js`): maps are still authored with 2-tile roads; at load `widenAll` duplicates the first line of every road listed in `ROADS` twice, so each is 4 wide, and shifts everything after it (`fx`/`fy`; buildings, areas, spots, props, doors — gates on a road are copied across it; crosswalks stretch). Content authored in old coordinates (transit, parked cars, dealers) goes through `shiftPoint` / the shifts. Halvermouth is now 120×90.
+- **The road network** (maps): Halvermouth gains a ridge cliff and Ridge Road along the top, the sea wall to the west and cliffs to the east (gaps only at the gates), Quay Road along the bottom, turning circles with statues/fountain at the old dead ends, and Crown St / Grand Ave ending at the car-park entrances; Lanternside's Lamplighter Lane ends at Lamplighter Circle and the quay at a turning circle with bollards; the Ober Fields' county road ends at Wellhead Circle under the escarpment; the Yards' gate lines up with Mill Road.
+- **Transit** (`src/content/transit.js`, `src/systems/transit.js`): built from authored lanes after widening (`buildTransit`); routes have rounded corners (`Route`, quadratic curves); traffic is 7 cars — two block rings, two through-the-city routes and the coast road — and open routes despawn at the far gate and respawn after their `gap`; no U-turns.
+- **Honking**: only after 3 s blocked by you, at most once per car per 15 s and once every 9 s overall, and quieter (`sfx_horn` `{quiet}`).
+- **Car handling** (`Vehicles.physics`): steering ramps in (`car.wheel`), travel direction lags the heading (`car.travel`, `car.slip`; looser on the handbrake) and a slide scrubs speed; front wheels drawn steered; skid marks (`Vehicles.skids`, drawn by the renderer, fade in 14 s).
+- **Audio**: `amb_city` no longer plays synthetic horn beeps; the siren follows only cruisers that are chasing or searching.
+
+### Added
+- **Traffic lights** (`src/world/lights.js`: `lightState`, `walkSignal`; 22 s cycle, per-junction offset): 12 Halvermouth junctions and Lamplighter Lane × Gullwing Road, four `trafficlight` props each (heads, walk/wait boxes). Traffic and buses stop for red and late amber (`Transit.redAhead`); NPCs wait at the kerb for WALK (`NpcSystem.waitForSignal`; not when on a call, fighting or fleeing). No crime for running a red.
+- **Pavements**: solid props standing entirely on pavement are walk-through for people (`GameMap.carBlock` — cars still collide); pathfinding cost ×6 on carriageway and ×1.1 on crossings (`GameMap.walkCost`), so people keep to pavements and cross at crossings.
+- **Old saves**: `Game.widenSave` shifts the player, NPCs and cars on widened maps for saves older than 0.20.0 (`olderThan` in `src/core/version.js`) and resets the buses; `CONTENT.roadShifts`.
+- Tests: `tests/streets.test.mjs` (11 tests: widening, four-tile roads, roads end at gates, walk-through props, pavement routing, lights, stopping at red, through traffic, waiting for the green man, car handling, old saves); transit, world and quest tests updated for the new coordinates.
+
 ## [0.19.0] — 2026-10-14 — "By the Crate" (development build)
 
 Owner's request: production for export in crates rather than hundreds of single weapons; orders of 5–50 crates; single weapons and ammo for the player. Owner's answers: stations make whole crates; every crate is one standard lot; countries post orders of 5–50 crates; singles and ammo at a workbench you use yourself.

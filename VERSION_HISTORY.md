@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.20.0 | 2026-10-15 | development | 1 | Streets — four-tile roads, a joined-up road network, traffic lights, pavements |
 | 0.19.0 | 2026-10-14 | development | 1 | By the Crate — crates, country orders, the armourer's workbench |
 | 0.18.0 | 2026-10-13 | development | 1 | Hot Pursuit — police chases |
 | 0.17.0 | 2026-10-13 | development | 1 | Route 1 — the bus and NPC traffic |
@@ -25,6 +26,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.20.0 — Streets
+
+Roads are four tiles wide and every one leads somewhere; traffic lights, pavement-keeping pedestrians, lighter through traffic and heavier car handling. Saves: everything outdoors moved, so saves from before 0.20.0 are shifted on load (the player, residents and cars on widened maps) and the buses restart on the new route. No schema change.
 
 ## 0.19.0 — By the Crate
 

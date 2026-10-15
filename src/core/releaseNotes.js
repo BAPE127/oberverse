@@ -2,6 +2,22 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.20.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Streets',
+    notes: [
+      'Wider streets: every road in Halvermouth, Lanternside, Westbrook, the Ober Fields and the Yards is now four tiles across — one proper lane each way — with the buildings, pavements and crossings moved to fit.',
+      'The roads go somewhere now. Every road joins the network and only leaves a map through a gate: the coast road ends at Wellhead Circle under the escarpment, Lamplighter Lane at Lamplighter Circle, the old dead ends at turning circles with a statue or fountain. Cliffs, the sea wall and the ridge mark the edges, and new Ridge Road and Quay Road close the city grid.',
+      'Traffic lights at twelve Halvermouth junctions and on Lamplighter Lane. Cars and the bus stop at red; people wait at the kerb for the little green man. Running a red isn\'t a crime — just rude.',
+      'People keep to the pavement and cross at the crossings. Lamps, benches, signs, trees and bins on the pavement no longer get in your way on foot (cars still hit them).',
+      'Less traffic (7 cars, down from 11), and it rounds corners on a curve. Cars passing through drive off the edge of the map and new ones drive in — no more U-turns at the edges.',
+      'Cars feel heavier through a turn: the wheel turns in rather than snapping, the car drifts a little off its nose (a lot on the handbrake), the front wheels turn, and a slide leaves tyre marks.',
+      'The beeping is gone: the city ambience no longer plays fake car horns, traffic only honks (quietly, rarely) when you\'ve been standing in its way, and a cruiser driving off after a chase turns its siren off.',
+      'Older saves load with you, everyone and every parked car moved along with the streets; the buses start afresh on the new route.',
+    ],
+  },
+  {
     version: '0.19.0',
     date: '2026-10-14',
     channel: 'development',

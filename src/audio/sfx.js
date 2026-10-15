@@ -219,9 +219,10 @@ export const SFX = {
     tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.18, vol: 0.18 });
     for (let i = 0; i < 5; i++) noise(ctx, d, { t: t + 0.05 + Math.random() * 0.3, dur: 0.03, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass and bits
   },
-  sfx_horn: (ctx, d) => {
+  sfx_horn: (ctx, d, o) => {
     const t = ctx.currentTime;
-    for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: 0.45, vol: 0.12, attack: 0.01 });
+    // another driver's horn (o.quiet): softer and shorter than yours
+    for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: o?.quiet ? 0.25 : 0.45, vol: o?.quiet ? 0.05 : 0.12, attack: 0.01 });
   },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;

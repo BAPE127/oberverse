@@ -15,6 +15,14 @@ const fresh = (hhmm = '10:00') => {
   g.transit.setup();
   return g;
 };
+/** The first distance along a route where pred(point, mapPoint) holds. */
+const findOn = (route, pred, g) => {
+  for (let d = 0; d < route.length; d += 8) {
+    const p = route.at(d);
+    if (pred(p, worldToMap(g, p.x / TILE, p.y / TILE))) return d;
+  }
+  throw new Error('not on this route');
+};
 const frames = (g, seconds, input = {}) => { for (let t = 0; t < seconds; t += 0.05) g.update(0.05, { x: 0, y: 0, ...input }); };
 /** Stand by a stop's sign. */
 const atStop = (g, id) => {
@@ -89,8 +97,8 @@ test('the bus waits for someone standing in the road, and honks at you', () => {
   const g = fresh();
   const T = g.transit;
   const bus = T.bus(0);
-  // a stretch of the coast road in Lanternside, heading east
-  bus.dist = T.busRoute.crossings(180, 36)[0];
+  // a stretch of the coast road in Lanternside, heading east (west of the lights at Lamplighter Lane)
+  bus.dist = findOn(T.busRoute, (p, m) => m?.map === 'lanternside' && m.x / TILE > 4 && m.x / TILE < 8 && Math.cos(p.angle) > 0.99, g);
   bus.state.dwellUntil = 0;
   bus.state.lastStop = null;
   T.place(bus);
@@ -100,9 +108,9 @@ test('the bus waits for someone standing in the road, and honks at you', () => {
   let honked = false;
   g.bus.on('transit:honk', () => { honked = true; });
   const d0 = bus.dist;
-  frames(g, 4);
+  frames(g, 7);
   assert.ok(bus.dist - d0 < 220, 'it stopped short of you');
-  assert.ok(honked, 'and honked');
+  assert.ok(honked, 'and (after a while) honked — once');
   g.player.y += 3 * TILE; // step onto the pavement
   frames(g, 3);
   assert.ok(bus.dist - d0 > 300, 'then carried on');
@@ -112,12 +120,12 @@ test('traffic circles the city and the coast road, and stops for people', () => 
   const g = fresh();
   const T = g.transit;
   const cars = T.followers.filter((f) => f.kind === 'traffic');
-  assert.ok(cars.length >= 10);
+  assert.ok(cars.length >= 5 && cars.length <= 8, `${cars.length} cars: fewer than before`);
   assert.ok(cars.some((f) => f.map === 'halvermouth') && cars.some((f) => ['westbrook', 'lanternside', 'ober_fields'].includes(f.map)));
   g.changeMap('halvermouth', 'east_gate');
   const before = cars.map((f) => f.dist);
   frames(g, 3);
-  assert.ok(cars.filter((f, i) => f.dist !== before[i]).length >= cars.length - 2, 'they drive');
+  assert.ok(cars.filter((f, i) => f.dist !== before[i]).length >= cars.length - 3, 'they drive (some may be at a red light)');
   // carjack one that has stopped
   const f = cars.find((c) => c.map === 'halvermouth');
   f.speed = 0;

@@ -323,7 +323,7 @@ export class UI {
       if (kind === 'warn' || kind === 'event') return;
       this.audio.sfx('sfx_notify');
     });
-    bus.on('sfx', ({ id }) => this.audio.sfx(id));
+    bus.on('sfx', ({ id, opts }) => this.audio.sfx(id, opts));
     bus.on('combat:playerHit', () => this.audio.sfx('sfx_hurt'));
     // The Wrath: an imported character was attacked (src/systems/combat.js, src/engine/wrath.js)
     bus.on('combat:wrath', ({ theme }) => {
@@ -617,7 +617,7 @@ export class UI {
       this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
       // sirens: louder the closer the nearest cruiser (src/systems/pursuit.js)
       let siren = null;
-      if (!g.paused && !busy) for (const c of g.pursuit.cars()) {
+      if (!g.paused && !busy) for (const c of g.pursuit.active()) { // a cruiser heading home has its siren off
         const at = g.pursuit.playerIn(c.map);
         if (!at) continue;
         const k = 1 - Math.min(1, Math.hypot(c.x - at.x, c.y - at.y) / (30 * TILE));

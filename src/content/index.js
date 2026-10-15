@@ -46,7 +46,8 @@ import dlgLucas from './dialogue/lucas.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 import { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } from './vehicles.js';
-import { BUS, TRAFFIC, addBusStops } from './transit.js';
+import { buildTransit, addStreetFurniture } from './transit.js';
+import { widenAll, shiftPoint } from '../world/widen.js';
 import dealerChars from './characters/dealers.js';
 import dlgDealers from './dialogue/dealers.js';
 
@@ -55,9 +56,22 @@ const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
 const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
+// v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
+const SHIFTS = widenAll(MAPS);
+REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
+REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
+const TRANSIT = buildTransit(SHIFTS);
+addStreetFurniture(MAPS, TRANSIT);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 const STREET_CARS = carPropsToVehicles(MAPS);
-addBusStops(MAPS);
+const PARKED = PARKED_CARS.map((c) => shiftPoint(SHIFTS, c));
+const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
+  const sp = (o) => shiftPoint(SHIFTS, { map: d.map, ...o });
+  const lot = sp(d.lot);
+  const lotEnd = sp({ x: d.lot.x + d.lot.w - 1, y: d.lot.y + d.lot.h - 1 });
+  const strip = ({ map, ...o }) => o;
+  return [id, { ...d, delivery: strip(sp(d.delivery)), lot: { x: lot.x, y: lot.y, w: lotEnd.x - lot.x + 1, h: lotEnd.y - lot.y + 1 }, display: d.display.map((s) => strip(sp(s))) }];
+}));
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
 export const BASE_CONTENT = {
@@ -86,8 +100,9 @@ export const BASE_CONTENT = {
   unlocks: UNLOCKS,
   arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
-  transit: { bus: BUS, traffic: TRAFFIC },
-  vehicles: { models: CAR_MODELS, dealers: DEALERS, parked: [...PARKED_CARS, ...STREET_CARS], driving: DRIVING },
+  transit: TRANSIT,
+  roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
+  vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   plots: {},
   startingMap: 'player_flat',

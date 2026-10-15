@@ -330,17 +330,28 @@ export class Vehicles {
     // steering bites harder at speed (up to a point); reversing turns the other way
     const bite = clamp(car.speed / 140, -1, 1);
     const wedged = this.blocked(map, car.x, car.y, car.angle, m.len, m.wid, car); // already overlapping something
-    const turned = car.angle + steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    // v0.20.0: the wheel turns in over a moment rather than snapping, and the car's
+    // travel lags its nose a little (more on the handbrake), so turns carry weight
+    car.wheel = (car.wheel || 0) + (steer - (car.wheel || 0)) * Math.min(1, dt * 7);
+    const turned = car.angle + car.wheel * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
     // turning swings the car's ends: don't rotate into a wall
     if (wedged || !this.blocked(map, car.x, car.y, turned, m.len, m.wid, car)) car.angle = turned;
+    if (car.travel === undefined || Math.abs(car.speed) < 30) car.travel = car.angle;
+    const slip = Math.atan2(Math.sin(car.angle - car.travel), Math.cos(car.angle - car.travel));
+    const hold = input.sprint ? 2.2 : 9 + 6 * (1 - Math.min(1, Math.abs(car.speed) / 400)); // how quickly the tyres pull the car into line
+    car.travel += slip * Math.min(1, dt * hold);
+    car.slip = Math.abs(slip);
+    if (car.slip > 0.08) car.speed *= 1 - Math.min(0.5, car.slip * dt * 0.9); // scrubbing off speed in the slide
+    car.skidding = car.slip > 0.22 && Math.abs(car.speed) > 110;
+    if (car.skidding) this.skidMark(car, m);
     // move in small steps so nothing tunnels through a wall
     const x0 = car.x;
     const y0 = car.y;
     const total = car.speed * dt;
     const steps = Math.max(1, Math.ceil(Math.abs(total) / 6));
     for (let i = 0; i < steps; i++) {
-      const nx = car.x + (Math.cos(car.angle) * total) / steps;
-      const ny = car.y + (Math.sin(car.angle) * total) / steps;
+      const nx = car.x + (Math.cos(car.travel) * total) / steps;
+      const ny = car.y + (Math.sin(car.travel) * total) / steps;
       // free to move — or wedged, in which case any move is allowed so it can work itself loose
       if (wedged || !this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
       // slide along the obstacle if we can
@@ -352,6 +363,26 @@ export class Vehicles {
     }
     car.moved = dt > 0 ? Math.hypot(car.x - x0, car.y - y0) / dt : 0; // actual speed over the ground
     return crashed;
+  }
+
+  /** Rear-tyre marks on the road (runtime only; they fade). */
+  skidMark(car, m) {
+    const g = this.game;
+    const list = (this.skids ||= []);
+    const c = Math.cos(car.angle);
+    const s = Math.sin(car.angle);
+    const bx = car.x - c * m.len * 0.31;
+    const by = car.y - s * m.len * 0.31;
+    const at = g.realTime;
+    for (const side of [-1, 1]) {
+      const x = bx - s * side * m.wid / 2;
+      const y = by + c * side * m.wid / 2;
+      const key = `${car.id}${side}`;
+      const prev = list.findLast?.((k) => k.key === key);
+      if (prev && at - prev.t < 0.12) list.push({ key, map: car.map, x0: prev.x1, y0: prev.y1, x1: x, y1: y, t: at });
+      else list.push({ key, map: car.map, x0: x, y0: y, x1: x, y1: y, t: at });
+    }
+    while (list.length > 600 || (list.length && at - list[0].t > 14)) list.shift();
   }
 
   /** Seams (by the car's centre) and region gates (by its nose, which reaches the edge first). Police drivers don't take gates. */
@@ -448,6 +479,7 @@ export class Vehicles {
     car.x = x;
     car.y = y;
     car.angle = east ? 0 : Math.PI;
+    car.travel = car.angle;
     car.speed = Math.min(Math.abs(car.speed), 160);
     g.bus.emit('sfx', { id: 'sfx_door' });
     g.changeMap(dest.id, null, { x, y });

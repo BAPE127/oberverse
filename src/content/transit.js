@@ -1,16 +1,14 @@
-// Transit (v0.17.0 "Route 1"): the bus and the traffic. All paths are in
-// WORLD tiles (src/world/layout.js: Halvermouth at 0,0; the coast road runs
-// along world rows 36–37 from Halvermouth to the Ober Fields; Mill Road along
-// rows 60–61 to the Yards). Traffic keeps to the LEFT: eastbound on the
-// northern lane (row + 0.5), westbound on the southern lane (row + 1.5);
-// southbound on a street's eastern lane, northbound on its western lane.
-// Owner's answers: ride the bus for real; the fare was my call (2 obols);
-// NPC traffic on the roads.
+// Transit (v0.17.0 "Route 1"; reworked for the wide streets in v0.20.0): the
+// No. 1 bus, the traffic, and the junctions with traffic lights.
+//
+// Everything is authored in each map's ORIGINAL (2-tile road) coordinates and
+// built after the roads are widened (src/world/widen.js) by buildTransit(),
+// which turns lanes into map-local points; src/systems/transit.js turns those
+// into world space. Traffic keeps to the LEFT: on a 4-tile road the
+// eastbound/northbound... lane is the northern/western pair of tiles.
+//   lane centre on a road whose first (authored) line is r:  north/west lane r'+1, south/east lane r'+3
 
-/** A rectangular one-way loop around city blocks: streets x1, x2 and avenues y1, y2 (the left column/row of each 2-wide road). */
-const ring = (x1, x2, y1, y2) => [[x1 + 0.5, y1 + 0.5], [x2 + 1.5, y1 + 0.5], [x2 + 1.5, y2 + 1.5], [x1 + 0.5, y2 + 1.5]];
-
-export const BUS = {
+export const BUS_INFO = {
   name: 'No. 1',
   fare: 2,
   buses: 3, // spaced evenly round the loop
@@ -19,37 +17,94 @@ export const BUS = {
   len: 150,
   wid: 46,
   color: '#2f6b4f',
-  // one closed loop: the Yards → Mill Road → up Station Street (street 38) → east along the
-  // coast road through Westbrook and Lanternside to the Ober Fields, and back
-  route: [[-70, 60.5], [38.5, 60.5], [38.5, 36.5], [277, 36.5], [278.4, 37], [277, 37.5], [39.5, 37.5], [39.5, 61.5], [-70, 61.5], [-71.4, 61]],
-  // stops: a sign on the pavement (map + tile); the bus stops beside it in both directions.
-  // road: which road it's on (world row of its northern lane's tile).
-  stops: [
-    { id: 'stop_yards', name: 'Mill Road Yards', road: 60, x: -64, sign: { map: 'yards', x: 10, y: 17 } },
-    { id: 'stop_sumps', name: 'Mill Road (the Sumps)', road: 60, x: 24, sign: { map: 'halvermouth', x: 24, y: 59 } },
-    { id: 'stop_civic', name: 'Civic Plaza', road: 36, x: 52, sign: { map: 'halvermouth', x: 52, y: 35 } },
-    { id: 'stop_eastend', name: 'The East End', road: 36, x: 96, sign: { map: 'halvermouth', x: 96, y: 35 } },
-    { id: 'stop_westbrook', name: 'Westbrook Row', road: 36, x: 148, sign: { map: 'westbrook', x: 26, y: 11 } },
-    { id: 'stop_lanternside', name: 'Gullwing Road', road: 36, x: 201, sign: { map: 'lanternside', x: 36, y: 11 } },
-    { id: 'stop_ober', name: 'Ober\'s Oil Refinery', road: 36, x: 268, sign: { map: 'ober_fields', x: 40, y: 11 } },
-  ],
 };
 
-/** Put a bus-stop sign on each stop's map (props, at load). Mutates `maps`. */
-export function addBusStops(maps) {
-  for (const s of BUS.stops) {
-    const m = maps[s.sign.map];
-    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${BUS.name}.` }];
-  }
+/** Bus stops: a sign on the pavement (authored coordinates); the bus stops beside it in both directions. */
+export const BUS_STOPS = [
+  { id: 'stop_yards', name: 'Mill Road Yards', sign: { map: 'yards', x: 10, y: 17 } },
+  { id: 'stop_sumps', name: 'Mill Road (the Sumps)', sign: { map: 'halvermouth', x: 24, y: 59 } },
+  { id: 'stop_civic', name: 'Civic Plaza', sign: { map: 'halvermouth', x: 52, y: 35 } },
+  { id: 'stop_eastend', name: 'The East End', sign: { map: 'halvermouth', x: 96, y: 35 } },
+  { id: 'stop_westbrook', name: 'Westbrook Row', sign: { map: 'westbrook', x: 26, y: 11 } },
+  { id: 'stop_lanternside', name: 'Gullwing Road', sign: { map: 'lanternside', x: 36, y: 11 } },
+  { id: 'stop_ober', name: 'Ober\'s Oil Refinery', sign: { map: 'ober_fields', x: 40, y: 11 } },
+];
+
+/** Junctions with traffic lights: [map, street column, avenue row] (authored first lines). */
+const LIGHTS = [
+  ...[14, 38, 62, 86].flatMap((c) => [12, 36, 60].map((r) => ['halvermouth', c, r])),
+  ['lanternside', 30, 12],
+];
+
+/**
+ * Build the bus route, traffic and junctions in widened map coordinates.
+ * S: { [mapId]: { fx, fy } } from widenAll (identity for maps not widened).
+ */
+export function buildTransit(S) {
+  const id = (v) => v;
+  const fx = (m) => S[m]?.fx || id;
+  const fy = (m) => S[m]?.fy || id;
+  // lanes on a widened road (authored first line r): north/west lane, south/east lane
+  const N = (m, r) => fy(m)(r) + 1;
+  const So = (m, r) => fy(m)(r) + 3;
+  const Wl = (m, c) => fx(m)(c) + 1;
+  const E = (m, c) => fx(m)(c) + 3;
+  const X = (m, x) => fx(m)(x);
+  const Y = (m, y) => fy(m)(y);
+  const p = (map, x, y) => ({ map, x, y });
+  const H = 'halvermouth';
+  const hvW = X(H, 111) + 1; // the city's width after widening
+  const ober = 'ober_fields';
+  // the yards road is already four tiles wide (rows 18–21): lanes at 19 and 21
+  const route = [
+    // out from the Yards: east along the yard road and Mill Road
+    p('yards', 5, 19), p('yards', 63.9, 19),
+    p(H, 0, N(H, 60)), p(H, Wl(H, 38), N(H, 60)),
+    // up Justice Way to Grand Avenue, east to the East Gate
+    p(H, Wl(H, 38), N(H, 36)), p(H, hvW - 0.1, N(H, 36)),
+    // the coast road east: Westbrook, Lanternside, the Ober Fields
+    p('westbrook', 0, N('westbrook', 12)), p(ober, 44, N(ober, 12)),
+    // round Wellhead Circle
+    p(ober, 49.5, N(ober, 12)), p(ober, 50, So(ober, 12) + 1.4), p(ober, 44.5, So(ober, 12) + 1.8), p(ober, 43, So(ober, 12)),
+    // and all the way back
+    p('westbrook', 0.1, So('westbrook', 12)),
+    p(H, hvW - 0.1, So(H, 36)), p(H, E(H, 38), So(H, 36)),
+    p(H, E(H, 38), So(H, 60)), p(H, 0, So(H, 60)),
+    p('yards', 63.9, 21), p('yards', 5, 21),
+    // turn round at the end of the yard road
+    p('yards', 2.6, 20),
+  ];
+  // traffic: one-way rings round city blocks (never leave the map), and through traffic
+  // that comes in through a gate and leaves through another (or the same) — no U-turns
+  const ring = (c1, c2, r1, r2) => [p(H, Wl(H, c1), N(H, r1)), p(H, E(H, c2), N(H, r1)), p(H, E(H, c2), So(H, r2)), p(H, Wl(H, c1), So(H, r2))];
+  const traffic = {
+    models: ['pipit', 'dray', 'mule', 'pipit', 'aurelia', 'dray', 'tempest'],
+    colors: ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a', '#6f7f94', '#a35a48'],
+    loops: [
+      { id: 'city_ring', cars: 2, speed: [170, 210], path: ring(14, 86, 12, 36) }, // round the Financial District, Bank Row and Precinct Row
+      { id: 'market_ring', cars: 1, speed: [150, 190], path: ring(38, 62, 36, 60) }, // round Market Street
+      // through the city: in at the East Gate, out at Mill Road (and the other way)
+      { id: 'west_through', cars: 1, open: true, gap: 50, speed: [180, 220], path: [p(H, hvW - 0.1, So(H, 36)), p(H, E(H, 62), So(H, 36)), p(H, E(H, 62), So(H, 60)), p(H, 0, So(H, 60))] },
+      { id: 'east_through', cars: 1, open: true, gap: 60, speed: [180, 220], path: [p(H, 0, N(H, 60)), p(H, Wl(H, 62), N(H, 60)), p(H, Wl(H, 62), N(H, 36)), p(H, hvW - 0.1, N(H, 36))] },
+      // the coast road: in from the Halvermouth gate, round Wellhead Circle, and back out
+      { id: 'coast_road', cars: 2, open: true, gap: 45, speed: [190, 230], path: [p('westbrook', 0, N('westbrook', 12)), p(ober, 44, N(ober, 12)), p(ober, 49.5, N(ober, 12)), p(ober, 50, So(ober, 12) + 1.4), p(ober, 44.5, So(ober, 12) + 1.8), p(ober, 43, So(ober, 12)), p('westbrook', 0, So('westbrook', 12))] },
+    ],
+  };
+  const junctions = LIGHTS.map(([map, c, r], i) => ({ id: `j${i}`, map, x: X(map, c), y: Y(map, r), w: 4, h: 4, offset: (i * 7) % 22 }));
+  const stops = BUS_STOPS.map((s) => ({ ...s, sign: { map: s.sign.map, x: X(s.sign.map, s.sign.x), y: Y(s.sign.map, s.sign.y) } }));
+  return { bus: { ...BUS_INFO, route, stops }, traffic, junctions };
 }
 
-export const TRAFFIC = {
-  models: ['pipit', 'dray', 'mule', 'pipit', 'aurelia', 'dray', 'tempest'],
-  colors: ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a', '#6f7f94', '#a35a48'],
-  loops: [
-    { id: 'city_ring', cars: 4, speed: [170, 220], path: ring(14, 86, 12, 36) }, // round the Financial District, Bank Row and Precinct Row
-    { id: 'market_ring', cars: 2, speed: [150, 190], path: ring(38, 62, 36, 60) }, // round Market Street
-    { id: 'iron_ring', cars: 2, speed: [150, 200], path: ring(62, 86, 36, 60) }, // round Iron Row
-    { id: 'coast_road', cars: 3, speed: [190, 240], path: [[124, 36.5], [277, 36.5], [278.4, 37], [277, 37.5], [124, 37.5], [122.6, 37]] },
-  ],
-};
+/** Put a bus-stop sign on each stop's map, and a traffic light at each corner of each junction (props, at load). Mutates `maps`. */
+export function addStreetFurniture(maps, transit) {
+  for (const s of transit.bus.stops) {
+    const m = maps[s.sign.map];
+    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${transit.bus.name}.` }];
+  }
+  for (const j of transit.junctions) {
+    const m = maps[j.map];
+    // on the pavement just off each corner: heads face the traffic arriving on that side
+    const corners = [[j.x - 1, j.y - 1, 'nw'], [j.x + j.w, j.y - 1, 'ne'], [j.x - 1, j.y + j.h, 'sw'], [j.x + j.w, j.y + j.h, 'se']];
+    for (const [x, y, c] of corners) m.props.push({ id: `tl_${j.id}_${c}`, type: 'trafficlight', x, y, junction: j.id, offset: j.offset, corner: c, walkThrough: true, examine: 'A traffic light. Red, amber, green — and a little walking man for the crossing. (Running a red isn\'t a crime here. Just rude.)' });
+  }
+}

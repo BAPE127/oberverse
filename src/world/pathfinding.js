@@ -45,7 +45,7 @@ const DIRS = [
 /**
  * @returns {Array<{x:number,y:number}>|null} tile path excluding the start tile, or null.
  */
-export function findPath(map, sx, sy, gx, gy, actor, maxNodes = 6000) {
+export function findPath(map, sx, sy, gx, gy, actor, maxNodes = 14000) {
   if (sx === gx && sy === gy) return [];
   const goalBlocked = map.blockedTile(gx, gy, actor);
   const W = map.width;
@@ -80,7 +80,7 @@ export function findPath(map, sx, sy, gx, gy, actor, maxNodes = 6000) {
       if (map.blockedTile(nx, ny, actor) && !(isGoal && goalBlocked)) continue;
       if (dx && dy && (map.blockedTile(cur.x + dx, cur.y, actor) || map.blockedTile(cur.x, cur.y + dy, actor))) continue;
       const nk = key(nx, ny);
-      const ng = g.get(ck) + cost;
+      const ng = g.get(ck) + cost * (map.walkCost ? map.walkCost(nx, ny) : 1);
       if (ng < (g.get(nk) ?? Infinity)) {
         g.set(nk, ng);
         came.set(nk, ck);

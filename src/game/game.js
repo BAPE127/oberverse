@@ -34,7 +34,7 @@ import { Pursuit } from '../systems/pursuit.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
-import { GAME_VERSION } from '../core/version.js';
+import { GAME_VERSION, olderThan } from '../core/version.js';
 
 export const PLAYER_SPEED = 128;
 export const PLAYER_SPRINT = 196;
@@ -1152,6 +1152,10 @@ export class Game {
     this.world.arms.warehouses = { ...fresh.arms.warehouses, ...(this.world.arms.warehouses || {}) };
     this.world.arms.research = { ...fresh.arms.research, ...(this.world.arms.research || {}) };
     this.world.market = this.world.market ? { ...fresh.market, ...this.world.market, countries: { ...fresh.market.countries, ...this.world.market.countries } } : fresh.market;
+    if (olderThan(state.gameVersion, '0.20.0')) {
+      state = { ...state, npcs: deepClone(state.npcs || {}) };
+      this.widenSave(state);
+    }
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -1184,6 +1188,26 @@ export class Game {
     this.arms.spawnStaff();
     this.updateDiscovery();
     return this;
+  }
+
+  /**
+   * v0.20.0 widened the roads, so everything outdoors moved along: shift what a
+   * save from before then put on those maps (you, the residents, the cars), and
+   * start the buses afresh on the new route.
+   */
+  widenSave(state) {
+    const S = this.content.roadShifts || {};
+    const move = (o) => {
+      const s = o && S[o.map];
+      if (!s || typeof o.x !== 'number') return;
+      o.x = s.fx(o.x / TILE) * TILE;
+      o.y = s.fy(o.y / TILE) * TILE;
+    };
+    move(this.player);
+    for (const n of Object.values(state.npcs || {})) move(n);
+    for (const c of Object.values(this.world.vehicles?.cars || {})) move(c);
+    delete this.world.transit;
+    this.player.riding = null;
   }
 
   /**

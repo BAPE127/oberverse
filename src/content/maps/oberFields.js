@@ -6,7 +6,9 @@ import { MapBuilder, roomTiles } from '../../world/mapBuilder.js';
 const W = 52;
 const H = 40;
 const m = new MapBuilder(W, H, '.');
-m.rect(0, 12, W, 2, '=').rect(0, 11, 20, 1, ':').rect(0, 14, 20, 1, ':'); // the county road
+m.rect(0, 12, W - 7, 2, '=').rect(0, 11, 20, 1, ':').rect(0, 14, 20, 1, ':'); // the county road
+m.rect(44, 9, 7, 7, 'm'); // v0.20.0: Wellhead Circle — the county road ends round Ober's first well
+m.rect(51, 0, 1, H, 'r'); // the escarpment: the estate ends here
 m.rect(33, 10, 1, 2, 'g'); // manor drive
 m.rect(22, 15, 27, 11, 'g'); // refinery apron
 m.rect(22, 26, 29, 13, ':'); // oil fields
@@ -88,6 +90,7 @@ export const oberFields = {
   },
   props: [
     ...fence,
+    { id: 'wellhead_monument', type: 'statue', x: 46, y: 9, label: 'FIRST WELL', examine: '"OBER\'S FIRST WELL — struck by Sir R. E. Moneybucks\'s grandfather, who was standing on it at the time." The county road turns round here; beyond is the escarpment.' },
     { id: 'gate_booth', type: 'booth', x: 21, y: 9, examine: 'A green gatehouse booth. A clipboard on the counter lists approved visitors. Your name is not on it.' },
     { id: 'sign_private', type: 'sign', x: 18, y: 9, examine: '"OBER\'S OIL — PRIVATE PROPERTY. Trespassers will be invoiced." Underneath, smaller: "Sir R. E. Moneybucks, Esq., Founder, Owner, Benefactor."' },
     { id: 'sign_bunk', type: 'sign', x: 14, y: 22, examine: 'A hand-painted sign: "BUNKHOUSE — wipe your boots, Gideon means it."' },

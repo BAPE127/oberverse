@@ -30,7 +30,7 @@ test('the road west from Westbrook loads the city; the East Gate leads back', ()
   const g = newGame();
   g.changeMap('westbrook', 'west_gate');
   assert.ok(walk(g, { x: -1, y: 0 }, 6, () => g.player.map === 'halvermouth'), 'walked into Halvermouth');
-  assert.deepEqual(tile(g.player), [109, 36]);
+  assert.deepEqual(tile(g.player), [CONTENT.maps.halvermouth.spots.east_gate.x, CONTENT.maps.halvermouth.spots.east_gate.y]);
   assert.ok(walk(g, { x: 1, y: 0 }, 6, () => g.player.map === 'westbrook'), 'walked back out to Westbrook');
   assert.equal(tile(g.player)[0], 1);
 });

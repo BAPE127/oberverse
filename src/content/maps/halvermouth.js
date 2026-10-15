@@ -18,7 +18,7 @@ const m = new MapBuilder(W, H, ',');
 const AVENUES = [12, 36, 60];
 const STREETS = [14, 38, 62, 86];
 for (const y of AVENUES) m.rect(0, y, W, 2, '=');
-for (const x of STREETS) m.rect(x, 0, 2, 71, '=');
+for (const x of STREETS) m.rect(x, 1, 2, 70, '=');
 // --- blocks
 m.rect(41, 15, 20, 20, 'm'); // Civic Plaza
 m.rect(0, 15, 13, 20, 'g'); // Harbourline car park
@@ -38,6 +38,20 @@ m.rect(0, 74, W, 6, '~');
 m.rect(0, 72, 38, 2, 's');
 m.rect(70, 74, 3, 5, 'p').rect(96, 74, 3, 5, 'p').rect(20, 74, 2, 3, 'p');
 m.rect(108, 36, 4, 2, '='); // East Gate
+// --- v0.20.0: a road network that goes somewhere. The city sits between a ridge
+// (north), the sea wall (west), the eastern cliffs and the harbour (south); roads
+// only leave through the East Gate (to the coast) and Mill Road (to the Yards).
+m.rect(0, 0, W, 1, 'r'); // the ridge
+m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
+m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
+m.rect(111, 0, 1, 36, 'r').rect(111, 38, 1, 36, 'r'); // the eastern cliffs (the East Gate at rows 36–37)
+m.rect(1, 12, 1, 2, ',').rect(1, 36, 1, 2, ','); // Crown St and Grand Ave end at the car park
+m.rect(5, 14, 4, 1, 'g').rect(5, 35, 4, 1, 'g'); // the Harbourline car park's two entrances
+m.rect(104, 10, 7, 6, 'm'); // Crown Street's turning circle
+m.rect(104, 58, 7, 6, 'm'); // Mill Road's turning circle, at the park gates
+m.rect(38, 71, 73, 2, '='); // Quay Road, along the docks
+m.rect(104, 69, 7, 4, 'm'); // the quay's turning circle
+
 
 // ---------------------------------------------------------------- buildings
 const tower = (id, name, x, y, w, h, storeys, o = {}) => ({
@@ -199,6 +213,21 @@ for (const x of [47, 60, 83, 107]) P('barrel', x, 72);
 P('boat', 74, 75, { w: 3, h: 2 }); P('boat', 100, 75, { w: 3, h: 2 });
 for (const [id, wh, x] of [['hv_wh7_sale', 'wh7', 48], ['hv_wh9_sale', 'wh9', 58], ['hv_wh12_sale', 'wh12', 108]]) props.push({ id, type: 'sign', x, y: 69, interact: { kind: 'factory', action: 'buy', warehouse: wh, name: 'FOR SALE sign' }, examine: 'FOR SALE.' });
 P('sign', 64, 70, { examine: '"PORT OF HALVERMOUTH. Authorised personnel only beyond this point. Unauthorised personnel: please be discreet."' });
+// v0.20.0: the turning circles' monuments, and signs that say where roads go
+P('statue', 106, 12, { label: 'A. HALVER', examine: 'A bronze of the city\'s founder, pointing sternly at the cliffs. Crown Street ends here; the ridge stairs climb to nowhere you can go.' });
+P('fountain', 106, 60, { examine: 'The Mill Road fountain, at the gates of Founders Park. Turn round here.' });
+P('statue', 106, 70, { label: 'FISHERMAN', examine: 'A fisherman in bronze, staring out to sea. The Quay Road turns round at his feet.' });
+P('sign', 2, 11, { examine: '"HARBOURLINE CAR PARK — entrance on the left. Crown Street ends at the sea wall."' });
+P('sign', 13, 3, { examine: '"RIDGE ROAD — joins Tanner St, Justice Way, Court St and Harbor St along the foot of the ridge."' });
+P('sign', 110, 35, { examine: '"EAST GATE → Westbrook, Lanternside, the Ober Fields."' });
+P('sign', 1, 59, { examine: '"MILL ROAD → Mill Road Yards."' });
+// keep the carriageways and turning circles clear (lamps, crates and barrels moved to the pavement)
+const ROADS = (x, y) => { const ch = m.rows()[y]?.[x]; return ch === '=' || (ch === 'm' && x >= 104 && (y <= 15 || (y >= 58 && y <= 63) || y >= 69)); };
+for (let i = props.length - 1; i >= 0; i--) {
+  const p = props[i];
+  if (['crosswalk', 'statue', 'fountain'].includes(p.type) || p.interact) continue;
+  if (ROADS(p.x, p.y)) props.splice(i, 1);
+}
 
 export const halvermouth = {
   id: 'halvermouth',

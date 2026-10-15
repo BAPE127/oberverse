@@ -488,7 +488,8 @@ const m = new MapBuilder(W, H, '.');
 // Gullwing Road (east–west) with pavements
 m.rect(0, 11, W, 1, ',').rect(0, 12, W, 2, '=').rect(0, 14, W, 1, ',');
 // Lamplighter Lane (north–south) with pavements, north of the canal
-m.rect(29, 0, 1, 22, ',').rect(30, 0, 2, 22, '=').rect(32, 0, 1, 22, ',');
+m.rect(29, 3, 1, 19, ',').rect(30, 3, 2, 19, '=').rect(32, 3, 1, 19, ',');
+m.rect(27, 0, 8, 4, 'm'); // v0.20.0: Lamplighter Circle, where the lane ends (it used to run off the map)
 // Canal towpaths and the Lantern Canal itself
 m.rect(0, 21, W, 1, ',').rect(0, 22, W, 2, '~').rect(0, 24, W, 1, ',');
 // Bridges: road bridge and the old footbridge
@@ -497,6 +498,7 @@ m.rect(29, 22, 4, 2, 'b').rect(15, 22, 2, 2, 'b');
 m.rect(29, 25, 1, 13, ',').rect(30, 25, 2, 13, '=').rect(32, 25, 1, 13, ',');
 // Quay frontage
 m.rect(29, 38, 23, 2, ',');
+m.rect(27, 36, 8, 4, 'm'); // v0.20.0: the Quay turning circle, where the lane meets the harbour
 // Harbour basin to the east and the open sea to the south
 m.rect(52, 30, 12, 18, '~').rect(51, 30, 1, 14, ',');
 m.rect(52, 36, 10, 2, 'p'); // pier
@@ -599,6 +601,8 @@ const __default = {
     west_road: { x: 1, y: 13, facing: 'right' },
   },
   props: [
+    { id: 'lamplighter_statue', type: 'statue', x: 30, y: 0, label: 'LAMPLIGHTER', examine: 'The Lamplighter: a bronze figure with a long pole, lighting a lamp that was never connected. Lamplighter Lane ends at his circle.' },
+    { id: 'quay_bollards', type: 'fountain', x: 30, y: 38, examine: 'The Quay drinking fountain. The lane turns round here, at the water\'s edge.' },
     { id: 'sign_west', type: 'sign', x: 1, y: 10, examine: '"← WEST: Westbrook Lots. Mason\'s Os Construction — That\'s O plural! Build your future here."' },
     { id: 'sign_east', type: 'sign', x: 62, y: 10, examine: '"EAST → The Ober Fields. Ober\'s Oil — Fuelling Tomorrow, Owning Today."' },
     // Brindle Heights
@@ -849,7 +853,9 @@ const { MapBuilder, roomTiles } = __m["src/world/mapBuilder.js"];
 const W = 52;
 const H = 40;
 const m = new MapBuilder(W, H, '.');
-m.rect(0, 12, W, 2, '=').rect(0, 11, 20, 1, ':').rect(0, 14, 20, 1, ':'); // the county road
+m.rect(0, 12, W - 7, 2, '=').rect(0, 11, 20, 1, ':').rect(0, 14, 20, 1, ':'); // the county road
+m.rect(44, 9, 7, 7, 'm'); // v0.20.0: Wellhead Circle — the county road ends round Ober's first well
+m.rect(51, 0, 1, H, 'r'); // the escarpment: the estate ends here
 m.rect(33, 10, 1, 2, 'g'); // manor drive
 m.rect(22, 15, 27, 11, 'g'); // refinery apron
 m.rect(22, 26, 29, 13, ':'); // oil fields
@@ -931,6 +937,7 @@ const oberFields = {
   },
   props: [
     ...fence,
+    { id: 'wellhead_monument', type: 'statue', x: 46, y: 9, label: 'FIRST WELL', examine: '"OBER\'S FIRST WELL — struck by Sir R. E. Moneybucks\'s grandfather, who was standing on it at the time." The county road turns round here; beyond is the escarpment.' },
     { id: 'gate_booth', type: 'booth', x: 21, y: 9, examine: 'A green gatehouse booth. A clipboard on the counter lists approved visitors. Your name is not on it.' },
     { id: 'sign_private', type: 'sign', x: 18, y: 9, examine: '"OBER\'S OIL — PRIVATE PROPERTY. Trespassers will be invoiced." Underneath, smaller: "Sir R. E. Moneybucks, Esq., Founder, Owner, Benefactor."' },
     { id: 'sign_bunk', type: 'sign', x: 14, y: 22, examine: 'A hand-painted sign: "BUNKHOUSE — wipe your boots, Gideon means it."' },
@@ -1281,7 +1288,7 @@ const m = new MapBuilder(W, H, ',');
 const AVENUES = [12, 36, 60];
 const STREETS = [14, 38, 62, 86];
 for (const y of AVENUES) m.rect(0, y, W, 2, '=');
-for (const x of STREETS) m.rect(x, 0, 2, 71, '=');
+for (const x of STREETS) m.rect(x, 1, 2, 70, '=');
 // --- blocks
 m.rect(41, 15, 20, 20, 'm'); // Civic Plaza
 m.rect(0, 15, 13, 20, 'g'); // Harbourline car park
@@ -1301,6 +1308,20 @@ m.rect(0, 74, W, 6, '~');
 m.rect(0, 72, 38, 2, 's');
 m.rect(70, 74, 3, 5, 'p').rect(96, 74, 3, 5, 'p').rect(20, 74, 2, 3, 'p');
 m.rect(108, 36, 4, 2, '='); // East Gate
+// --- v0.20.0: a road network that goes somewhere. The city sits between a ridge
+// (north), the sea wall (west), the eastern cliffs and the harbour (south); roads
+// only leave through the East Gate (to the coast) and Mill Road (to the Yards).
+m.rect(0, 0, W, 1, 'r'); // the ridge
+m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
+m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
+m.rect(111, 0, 1, 36, 'r').rect(111, 38, 1, 36, 'r'); // the eastern cliffs (the East Gate at rows 36–37)
+m.rect(1, 12, 1, 2, ',').rect(1, 36, 1, 2, ','); // Crown St and Grand Ave end at the car park
+m.rect(5, 14, 4, 1, 'g').rect(5, 35, 4, 1, 'g'); // the Harbourline car park's two entrances
+m.rect(104, 10, 7, 6, 'm'); // Crown Street's turning circle
+m.rect(104, 58, 7, 6, 'm'); // Mill Road's turning circle, at the park gates
+m.rect(38, 71, 73, 2, '='); // Quay Road, along the docks
+m.rect(104, 69, 7, 4, 'm'); // the quay's turning circle
+
 
 // ---------------------------------------------------------------- buildings
 const tower = (id, name, x, y, w, h, storeys, o = {}) => ({
@@ -1462,6 +1483,21 @@ for (const x of [47, 60, 83, 107]) P('barrel', x, 72);
 P('boat', 74, 75, { w: 3, h: 2 }); P('boat', 100, 75, { w: 3, h: 2 });
 for (const [id, wh, x] of [['hv_wh7_sale', 'wh7', 48], ['hv_wh9_sale', 'wh9', 58], ['hv_wh12_sale', 'wh12', 108]]) props.push({ id, type: 'sign', x, y: 69, interact: { kind: 'factory', action: 'buy', warehouse: wh, name: 'FOR SALE sign' }, examine: 'FOR SALE.' });
 P('sign', 64, 70, { examine: '"PORT OF HALVERMOUTH. Authorised personnel only beyond this point. Unauthorised personnel: please be discreet."' });
+// v0.20.0: the turning circles' monuments, and signs that say where roads go
+P('statue', 106, 12, { label: 'A. HALVER', examine: 'A bronze of the city\'s founder, pointing sternly at the cliffs. Crown Street ends here; the ridge stairs climb to nowhere you can go.' });
+P('fountain', 106, 60, { examine: 'The Mill Road fountain, at the gates of Founders Park. Turn round here.' });
+P('statue', 106, 70, { label: 'FISHERMAN', examine: 'A fisherman in bronze, staring out to sea. The Quay Road turns round at his feet.' });
+P('sign', 2, 11, { examine: '"HARBOURLINE CAR PARK — entrance on the left. Crown Street ends at the sea wall."' });
+P('sign', 13, 3, { examine: '"RIDGE ROAD — joins Tanner St, Justice Way, Court St and Harbor St along the foot of the ridge."' });
+P('sign', 110, 35, { examine: '"EAST GATE → Westbrook, Lanternside, the Ober Fields."' });
+P('sign', 1, 59, { examine: '"MILL ROAD → Mill Road Yards."' });
+// keep the carriageways and turning circles clear (lamps, crates and barrels moved to the pavement)
+const ROADS = (x, y) => { const ch = m.rows()[y]?.[x]; return ch === '=' || (ch === 'm' && x >= 104 && (y <= 15 || (y >= 58 && y <= 63) || y >= 69)); };
+for (let i = props.length - 1; i >= 0; i--) {
+  const p = props[i];
+  if (['crosswalk', 'statue', 'fountain'].includes(p.type) || p.interact) continue;
+  if (ROADS(p.x, p.y)) props.splice(i, 1);
+}
 
 const halvermouth = {
   id: 'halvermouth',
@@ -1870,8 +1906,10 @@ const yards = {
   areas: [{ id: 'area_yards', name: 'Mill Road Yards', x: 0, y: 0, w: W, h: H }],
   buildings,
   doors: [
+    { id: 'door_yd_gate_n', x: 63, y: 18, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_a', x: 63, y: 19, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_b', x: 63, y: 20, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
+    { id: 'door_yd_gate_s', x: 63, y: 21, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
   ],
   spots: {
     east_gate: { x: 61, y: 20, facing: 'left' },
@@ -2254,6 +2292,7 @@ const PROP_TYPES = {
   flagpole: { solid: true, label: 'Flagpole', defaults: {} },
   car_display: { solid: true, label: 'Display car', defaults: { w: 3, h: 2 } },
   busstop: { solid: true, label: 'Bus stop', defaults: {} },
+  trafficlight: { solid: true, label: 'Traffic light', defaults: {} },
   statue: { solid: true, label: 'Statue', defaults: { w: 2, h: 2 } },
   trash: { solid: false, label: 'Rubbish', defaults: { examine: 'Bin bags, newspapers and something that used to be a sofa.' } },
   barrelfire: { solid: true, label: 'Burning barrel', defaults: { examine: 'An oil drum with a fire in it. People gather here on cold nights. The drum says OBER\'S OIL.' } },
@@ -7855,19 +7894,17 @@ return { CAR_MODELS, DEALERS, PARKED_CARS, carPropsToVehicles, DRIVING };
 
 // ---- src/content/transit.js
 __m["src/content/transit.js"] = (function () {
-// Transit (v0.17.0 "Route 1"): the bus and the traffic. All paths are in
-// WORLD tiles (src/world/layout.js: Halvermouth at 0,0; the coast road runs
-// along world rows 36–37 from Halvermouth to the Ober Fields; Mill Road along
-// rows 60–61 to the Yards). Traffic keeps to the LEFT: eastbound on the
-// northern lane (row + 0.5), westbound on the southern lane (row + 1.5);
-// southbound on a street's eastern lane, northbound on its western lane.
-// Owner's answers: ride the bus for real; the fare was my call (2 obols);
-// NPC traffic on the roads.
+// Transit (v0.17.0 "Route 1"; reworked for the wide streets in v0.20.0): the
+// No. 1 bus, the traffic, and the junctions with traffic lights.
+//
+// Everything is authored in each map's ORIGINAL (2-tile road) coordinates and
+// built after the roads are widened (src/world/widen.js) by buildTransit(),
+// which turns lanes into map-local points; src/systems/transit.js turns those
+// into world space. Traffic keeps to the LEFT: on a 4-tile road the
+// eastbound/northbound... lane is the northern/western pair of tiles.
+//   lane centre on a road whose first (authored) line is r:  north/west lane r'+1, south/east lane r'+3
 
-/** A rectangular one-way loop around city blocks: streets x1, x2 and avenues y1, y2 (the left column/row of each 2-wide road). */
-const ring = (x1, x2, y1, y2) => [[x1 + 0.5, y1 + 0.5], [x2 + 1.5, y1 + 0.5], [x2 + 1.5, y2 + 1.5], [x1 + 0.5, y2 + 1.5]];
-
-const BUS = {
+const BUS_INFO = {
   name: 'No. 1',
   fare: 2,
   buses: 3, // spaced evenly round the loop
@@ -7876,42 +7913,210 @@ const BUS = {
   len: 150,
   wid: 46,
   color: '#2f6b4f',
-  // one closed loop: the Yards → Mill Road → up Station Street (street 38) → east along the
-  // coast road through Westbrook and Lanternside to the Ober Fields, and back
-  route: [[-70, 60.5], [38.5, 60.5], [38.5, 36.5], [277, 36.5], [278.4, 37], [277, 37.5], [39.5, 37.5], [39.5, 61.5], [-70, 61.5], [-71.4, 61]],
-  // stops: a sign on the pavement (map + tile); the bus stops beside it in both directions.
-  // road: which road it's on (world row of its northern lane's tile).
-  stops: [
-    { id: 'stop_yards', name: 'Mill Road Yards', road: 60, x: -64, sign: { map: 'yards', x: 10, y: 17 } },
-    { id: 'stop_sumps', name: 'Mill Road (the Sumps)', road: 60, x: 24, sign: { map: 'halvermouth', x: 24, y: 59 } },
-    { id: 'stop_civic', name: 'Civic Plaza', road: 36, x: 52, sign: { map: 'halvermouth', x: 52, y: 35 } },
-    { id: 'stop_eastend', name: 'The East End', road: 36, x: 96, sign: { map: 'halvermouth', x: 96, y: 35 } },
-    { id: 'stop_westbrook', name: 'Westbrook Row', road: 36, x: 148, sign: { map: 'westbrook', x: 26, y: 11 } },
-    { id: 'stop_lanternside', name: 'Gullwing Road', road: 36, x: 201, sign: { map: 'lanternside', x: 36, y: 11 } },
-    { id: 'stop_ober', name: 'Ober\'s Oil Refinery', road: 36, x: 268, sign: { map: 'ober_fields', x: 40, y: 11 } },
-  ],
 };
 
-/** Put a bus-stop sign on each stop's map (props, at load). Mutates `maps`. */
-function addBusStops(maps) {
-  for (const s of BUS.stops) {
+/** Bus stops: a sign on the pavement (authored coordinates); the bus stops beside it in both directions. */
+const BUS_STOPS = [
+  { id: 'stop_yards', name: 'Mill Road Yards', sign: { map: 'yards', x: 10, y: 17 } },
+  { id: 'stop_sumps', name: 'Mill Road (the Sumps)', sign: { map: 'halvermouth', x: 24, y: 59 } },
+  { id: 'stop_civic', name: 'Civic Plaza', sign: { map: 'halvermouth', x: 52, y: 35 } },
+  { id: 'stop_eastend', name: 'The East End', sign: { map: 'halvermouth', x: 96, y: 35 } },
+  { id: 'stop_westbrook', name: 'Westbrook Row', sign: { map: 'westbrook', x: 26, y: 11 } },
+  { id: 'stop_lanternside', name: 'Gullwing Road', sign: { map: 'lanternside', x: 36, y: 11 } },
+  { id: 'stop_ober', name: 'Ober\'s Oil Refinery', sign: { map: 'ober_fields', x: 40, y: 11 } },
+];
+
+/** Junctions with traffic lights: [map, street column, avenue row] (authored first lines). */
+const LIGHTS = [
+  ...[14, 38, 62, 86].flatMap((c) => [12, 36, 60].map((r) => ['halvermouth', c, r])),
+  ['lanternside', 30, 12],
+];
+
+/**
+ * Build the bus route, traffic and junctions in widened map coordinates.
+ * S: { [mapId]: { fx, fy } } from widenAll (identity for maps not widened).
+ */
+function buildTransit(S) {
+  const id = (v) => v;
+  const fx = (m) => S[m]?.fx || id;
+  const fy = (m) => S[m]?.fy || id;
+  // lanes on a widened road (authored first line r): north/west lane, south/east lane
+  const N = (m, r) => fy(m)(r) + 1;
+  const So = (m, r) => fy(m)(r) + 3;
+  const Wl = (m, c) => fx(m)(c) + 1;
+  const E = (m, c) => fx(m)(c) + 3;
+  const X = (m, x) => fx(m)(x);
+  const Y = (m, y) => fy(m)(y);
+  const p = (map, x, y) => ({ map, x, y });
+  const H = 'halvermouth';
+  const hvW = X(H, 111) + 1; // the city's width after widening
+  const ober = 'ober_fields';
+  // the yards road is already four tiles wide (rows 18–21): lanes at 19 and 21
+  const route = [
+    // out from the Yards: east along the yard road and Mill Road
+    p('yards', 5, 19), p('yards', 63.9, 19),
+    p(H, 0, N(H, 60)), p(H, Wl(H, 38), N(H, 60)),
+    // up Justice Way to Grand Avenue, east to the East Gate
+    p(H, Wl(H, 38), N(H, 36)), p(H, hvW - 0.1, N(H, 36)),
+    // the coast road east: Westbrook, Lanternside, the Ober Fields
+    p('westbrook', 0, N('westbrook', 12)), p(ober, 44, N(ober, 12)),
+    // round Wellhead Circle
+    p(ober, 49.5, N(ober, 12)), p(ober, 50, So(ober, 12) + 1.4), p(ober, 44.5, So(ober, 12) + 1.8), p(ober, 43, So(ober, 12)),
+    // and all the way back
+    p('westbrook', 0.1, So('westbrook', 12)),
+    p(H, hvW - 0.1, So(H, 36)), p(H, E(H, 38), So(H, 36)),
+    p(H, E(H, 38), So(H, 60)), p(H, 0, So(H, 60)),
+    p('yards', 63.9, 21), p('yards', 5, 21),
+    // turn round at the end of the yard road
+    p('yards', 2.6, 20),
+  ];
+  // traffic: one-way rings round city blocks (never leave the map), and through traffic
+  // that comes in through a gate and leaves through another (or the same) — no U-turns
+  const ring = (c1, c2, r1, r2) => [p(H, Wl(H, c1), N(H, r1)), p(H, E(H, c2), N(H, r1)), p(H, E(H, c2), So(H, r2)), p(H, Wl(H, c1), So(H, r2))];
+  const traffic = {
+    models: ['pipit', 'dray', 'mule', 'pipit', 'aurelia', 'dray', 'tempest'],
+    colors: ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a', '#6f7f94', '#a35a48'],
+    loops: [
+      { id: 'city_ring', cars: 2, speed: [170, 210], path: ring(14, 86, 12, 36) }, // round the Financial District, Bank Row and Precinct Row
+      { id: 'market_ring', cars: 1, speed: [150, 190], path: ring(38, 62, 36, 60) }, // round Market Street
+      // through the city: in at the East Gate, out at Mill Road (and the other way)
+      { id: 'west_through', cars: 1, open: true, gap: 50, speed: [180, 220], path: [p(H, hvW - 0.1, So(H, 36)), p(H, E(H, 62), So(H, 36)), p(H, E(H, 62), So(H, 60)), p(H, 0, So(H, 60))] },
+      { id: 'east_through', cars: 1, open: true, gap: 60, speed: [180, 220], path: [p(H, 0, N(H, 60)), p(H, Wl(H, 62), N(H, 60)), p(H, Wl(H, 62), N(H, 36)), p(H, hvW - 0.1, N(H, 36))] },
+      // the coast road: in from the Halvermouth gate, round Wellhead Circle, and back out
+      { id: 'coast_road', cars: 2, open: true, gap: 45, speed: [190, 230], path: [p('westbrook', 0, N('westbrook', 12)), p(ober, 44, N(ober, 12)), p(ober, 49.5, N(ober, 12)), p(ober, 50, So(ober, 12) + 1.4), p(ober, 44.5, So(ober, 12) + 1.8), p(ober, 43, So(ober, 12)), p('westbrook', 0, So('westbrook', 12))] },
+    ],
+  };
+  const junctions = LIGHTS.map(([map, c, r], i) => ({ id: `j${i}`, map, x: X(map, c), y: Y(map, r), w: 4, h: 4, offset: (i * 7) % 22 }));
+  const stops = BUS_STOPS.map((s) => ({ ...s, sign: { map: s.sign.map, x: X(s.sign.map, s.sign.x), y: Y(s.sign.map, s.sign.y) } }));
+  return { bus: { ...BUS_INFO, route, stops }, traffic, junctions };
+}
+
+/** Put a bus-stop sign on each stop's map, and a traffic light at each corner of each junction (props, at load). Mutates `maps`. */
+function addStreetFurniture(maps, transit) {
+  for (const s of transit.bus.stops) {
     const m = maps[s.sign.map];
-    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${BUS.name}.` }];
+    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${transit.bus.name}.` }];
+  }
+  for (const j of transit.junctions) {
+    const m = maps[j.map];
+    // on the pavement just off each corner: heads face the traffic arriving on that side
+    const corners = [[j.x - 1, j.y - 1, 'nw'], [j.x + j.w, j.y - 1, 'ne'], [j.x - 1, j.y + j.h, 'sw'], [j.x + j.w, j.y + j.h, 'se']];
+    for (const [x, y, c] of corners) m.props.push({ id: `tl_${j.id}_${c}`, type: 'trafficlight', x, y, junction: j.id, offset: j.offset, corner: c, walkThrough: true, examine: 'A traffic light. Red, amber, green — and a little walking man for the crossing. (Running a red isn\'t a crime here. Just rude.)' });
   }
 }
 
-const TRAFFIC = {
-  models: ['pipit', 'dray', 'mule', 'pipit', 'aurelia', 'dray', 'tempest'],
-  colors: ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a', '#6f7f94', '#a35a48'],
-  loops: [
-    { id: 'city_ring', cars: 4, speed: [170, 220], path: ring(14, 86, 12, 36) }, // round the Financial District, Bank Row and Precinct Row
-    { id: 'market_ring', cars: 2, speed: [150, 190], path: ring(38, 62, 36, 60) }, // round Market Street
-    { id: 'iron_ring', cars: 2, speed: [150, 200], path: ring(62, 86, 36, 60) }, // round Iron Row
-    { id: 'coast_road', cars: 3, speed: [190, 240], path: [[124, 36.5], [277, 36.5], [278.4, 37], [277, 37.5], [124, 37.5], [122.6, 37]] },
-  ],
+return { BUS_INFO, BUS_STOPS, buildTransit, addStreetFurniture };
+})();
+
+// ---- src/world/widen.js
+__m["src/world/widen.js"] = (function () {
+// Wider roads (v0.20.0). Maps are authored with 2-tile roads; at load every
+// listed road row/column is doubled to 4 tiles (one full lane each way) by
+// duplicating it, and everything after it moves along. Buildings keep their
+// place in their blocks; areas and crosswalks stretch to span the new width.
+//
+//   widenMap(def, { rows, cols, by }) → { def, fx, fy }
+//     rows / cols: the FIRST row/column of each 2-tile road (as authored)
+//     fx / fy: authored coordinate → widened coordinate (fractions allowed)
+
+/** Prop types that span a road and so stretch with it. */
+const STRETCH = new Set(['crosswalk']);
+
+function shiftFn(starts, by) {
+  const at = [...starts].sort((a, b) => a - b).map((s) => s + 1); // inserted just after the road's first line
+  return (v) => {
+    let n = 0;
+    for (const p of at) if (v >= p) n++;
+    return v + n * by;
+  };
+}
+
+/** A rectangle [x, x+w) mapped: it grows by `by` for each insertion strictly inside it. */
+function spanFn(f) {
+  return (x, w) => {
+    const nx = f(x);
+    return { x: nx, w: f(x + w - 1) + 1 - nx };
+  };
+}
+
+function widenMap(def, { rows = [], cols = [], by = 2 }) {
+  const fx = shiftFn(cols, by);
+  const fy = shiftFn(rows, by);
+  const sx = spanFn(fx);
+  const sy = spanFn(fy);
+  const colSet = new Set(cols);
+  const rowSet = new Set(rows);
+  // tiles
+  const out = [];
+  for (let y = 0; y < def.tiles.length; y++) {
+    const src = def.tiles[y];
+    let line = '';
+    for (let x = 0; x < src.length; x++) line += colSet.has(x) ? src[x].repeat(by + 1) : src[x];
+    out.push(line);
+    if (rowSet.has(y)) for (let k = 0; k < by; k++) out.push(line);
+  }
+  const pt = (o) => ({ ...o, x: fx(o.x), y: fy(o.y) });
+  const rect = (o) => {
+    const a = sx(o.x, o.w ?? 1);
+    const b = sy(o.y, o.h ?? 1);
+    return { ...o, x: a.x, y: b.x, ...(o.w !== undefined ? { w: a.w } : {}), ...(o.h !== undefined ? { h: b.w } : {}) };
+  };
+  // doors: a door on a widened road line (a gate) is copied across the new lines
+  const doors = [];
+  for (const d of def.doors || []) {
+    const base = pt(d);
+    doors.push(base);
+    if (colSet.has(d.x)) for (let k = 1; k <= by; k++) doors.push({ ...base, id: `${d.id}_w${k}`, x: base.x + k });
+    if (rowSet.has(d.y)) for (let k = 1; k <= by; k++) doors.push({ ...base, id: `${d.id}_w${k}`, y: base.y + k });
+  }
+  const widened = {
+    ...def,
+    tiles: out,
+    doors,
+    buildings: (def.buildings || []).map((b) => ({ ...rect({ ...b, w: b.w, h: b.h }), door: b.door ? pt(b.door) : b.door })),
+    spots: Object.fromEntries(Object.entries(def.spots || {}).map(([k, s]) => [k, pt(s)])),
+    areas: (def.areas || []).map(rect),
+    props: (def.props || []).map((p) => {
+      const q = STRETCH.has(p.type) ? rect(p) : pt(p);
+      if (p.sortRow !== undefined) q.sortRow = fy(p.sortRow);
+      return q;
+    }),
+    keepClear: (def.keepClear || []).map(([x, y]) => [fx(x), fy(y)]),
+  };
+  return { def: widened, fx, fy };
+}
+
+/** Which roads each outdoor map widens (the first line of each 2-tile road, as authored). */
+const ROADS = {
+  halvermouth: { rows: [1, 12, 36, 60, 71], cols: [14, 38, 62, 86] },
+  lanternside: { rows: [12], cols: [30] },
+  westbrook: { rows: [12] },
+  ober_fields: { rows: [12] },
+  yards: { cols: [40] },
 };
 
-return { BUS, addBusStops, TRAFFIC };
+/**
+ * Widen every listed map in place (MAPS by id). Returns per-map coordinate
+ * shifts { [mapId]: { fx, fy } } for content authored in the old coordinates.
+ */
+function widenAll(maps, roads = ROADS) {
+  const shifts = {};
+  for (const [id, r] of Object.entries(roads)) {
+    if (!maps[id]) continue;
+    const { def, fx, fy } = widenMap(maps[id], r);
+    maps[id] = def;
+    shifts[id] = { fx, fy };
+  }
+  return shifts;
+}
+
+/** Shift a content point { map, x, y } authored in old coordinates. */
+function shiftPoint(shifts, p) {
+  const s = shifts[p.map];
+  return s ? { ...p, x: s.fx(p.x), y: s.fy(p.y) } : p;
+}
+
+return { shiftFn, widenMap, ROADS, widenAll, shiftPoint };
 })();
 
 // ---- src/content/characters/dealers.js
@@ -8137,7 +8342,8 @@ const dlgLucas = __m["src/content/dialogue/lucas.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
 const { withPlots } = __m["src/world/plots.js"];
 const { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } = __m["src/content/vehicles.js"];
-const { BUS, TRAFFIC, addBusStops } = __m["src/content/transit.js"];
+const { buildTransit, addStreetFurniture } = __m["src/content/transit.js"];
+const { widenAll, shiftPoint } = __m["src/world/widen.js"];
 const dealerChars = __m["src/content/characters/dealers.js"].default;
 const dlgDealers = __m["src/content/dialogue/dealers.js"].default;
 
@@ -8146,9 +8352,22 @@ const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
 const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps]);
+// v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
+const SHIFTS = widenAll(MAPS);
+REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
+REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
+const TRANSIT = buildTransit(SHIFTS);
+addStreetFurniture(MAPS, TRANSIT);
 addSeams(MAPS, REGIONS, PROP_TYPES);
 const STREET_CARS = carPropsToVehicles(MAPS);
-addBusStops(MAPS);
+const PARKED = PARKED_CARS.map((c) => shiftPoint(SHIFTS, c));
+const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
+  const sp = (o) => shiftPoint(SHIFTS, { map: d.map, ...o });
+  const lot = sp(d.lot);
+  const lotEnd = sp({ x: d.lot.x + d.lot.w - 1, y: d.lot.y + d.lot.h - 1 });
+  const strip = ({ map, ...o }) => o;
+  return [id, { ...d, delivery: strip(sp(d.delivery)), lot: { x: lot.x, y: lot.y, w: lotEnd.x - lot.x + 1, h: lotEnd.y - lot.y + 1 }, display: d.display.map((s) => strip(sp(s))) }];
+}));
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
 const BASE_CONTENT = {
@@ -8177,8 +8396,9 @@ const BASE_CONTENT = {
   unlocks: UNLOCKS,
   arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
-  transit: { bus: BUS, traffic: TRAFFIC },
-  vehicles: { models: CAR_MODELS, dealers: DEALERS, parked: [...PARKED_CARS, ...STREET_CARS], driving: DRIVING },
+  transit: TRANSIT,
+  roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
+  vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   plots: {},
   startingMap: 'player_flat',
@@ -8197,7 +8417,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.19.0';
+const GAME_VERSION = '0.20.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -8207,7 +8427,16 @@ function versionLabel() {
   return BUILD_CHANNEL === 'stable' ? `v${GAME_VERSION}` : `v${GAME_VERSION} (dev build)`;
 }
 
-return { GAME_VERSION, BUILD_CHANNEL, SAVE_SCHEMA_VERSION, CONTENT_SCHEMA_VERSION, versionLabel };
+/** Is version `a` older than `b`? (MAJOR.MINOR.PATCH; a missing version counts as oldest.) */
+function olderThan(a, b) {
+  if (!a) return true;
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+  return false;
+}
+
+return { GAME_VERSION, BUILD_CHANNEL, SAVE_SCHEMA_VERSION, CONTENT_SCHEMA_VERSION, versionLabel, olderThan };
 })();
 
 // ---- src/save/saveSchema.js
@@ -9152,9 +9381,10 @@ const SFX = {
     tone(ctx, d, { type: 'square', f0: 140, f1: 60, t, dur: 0.18, vol: 0.18 });
     for (let i = 0; i < 5; i++) noise(ctx, d, { t: t + 0.05 + Math.random() * 0.3, dur: 0.03, vol: 0.12, freq: 3000 + Math.random() * 3000, q: 6 }); // glass and bits
   },
-  sfx_horn: (ctx, d) => {
+  sfx_horn: (ctx, d, o) => {
     const t = ctx.currentTime;
-    for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: 0.45, vol: 0.12, attack: 0.01 });
+    // another driver's horn (o.quiet): softer and shorter than yours
+    for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: o?.quiet ? 0.25 : 0.45, vol: o?.quiet ? 0.05 : 0.12, attack: 0.01 });
   },
   sfx_thunder: (ctx, d) => {
     const t = ctx.currentTime;
@@ -9482,29 +9712,10 @@ const BEDS = {
     }),
   ],
   amb_city: (ctx, d) => [
-    // distant traffic roar, a low city hum, the odd car horn
+    // distant traffic roar and a low city hum (v0.20.0: the synthetic horn beeps are gone —
+    // the real traffic honks, rarely, when you're in its way)
     noiseBed(ctx, d, { type: 'lowpass', freq: 520, vol: 0.09, lfoRate: 0.05, lfoDepth: 0.04 }),
     hum(ctx, d, 55, 0.012),
-    every(6, 16, () => {
-      const t = ctx.currentTime;
-      const f = 330 + Math.random() * 120;
-      for (const [k, mul] of [[0, 1], [1, 1.26]]) {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = 'square';
-        o.frequency.value = f * mul;
-        g.gain.setValueAtTime(0.0001, t + k * 0.02);
-        g.gain.linearRampToValueAtTime(0.012, t + 0.03);
-        g.gain.setValueAtTime(0.012, t + 0.28);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
-        const lp = ctx.createBiquadFilter();
-        lp.type = 'lowpass';
-        lp.frequency.value = 1400;
-        o.connect(lp).connect(g).connect(d);
-        o.start(t);
-        o.stop(t + 0.4);
-      }
-    }),
   ],
   amb_site: (ctx, d) => [
     noiseBed(ctx, d, { type: 'bandpass', freq: 420, q: 1, vol: 0.05, lfoRate: 0.11, lfoDepth: 0.03 }),
@@ -10138,6 +10349,8 @@ class GameMap {
     this.doorIndex = new Map();
     this.props = [];
     this.propBlock = new Set();
+    this.carBlock = new Set(); // v0.20.0: pavement props people walk through but cars don't
+    this.crossTiles = new Set(); // crosswalk tiles (cheap for pedestrians to cross the road)
     this.propIndex = new Map();
 
     for (const b of this.buildings) {
@@ -10153,12 +10366,29 @@ class GameMap {
       const prop = { w: 1, h: 1, ...type.defaults, ...p, solid: p.solid ?? type.solid ?? false };
       this.props.push(prop);
       this.propIndex.set(prop.id, prop);
+      if (prop.type === 'crosswalk') for (let y = prop.y; y < prop.y + prop.h; y++) for (let x = prop.x; x < prop.x + prop.w; x++) this.crossTiles.add(y * this.width + x);
+      // v0.20.0: on the pavement, solid props (lamps, hydrants, signs, benches, trees…) are
+      // walked through — but cars still hit them
+      if (prop.solid && this.kind !== 'interior' && (prop.walkThrough || this.onPavement(prop))) prop.walkThrough = true;
       // Props that only appear under conditions (e.g. future derricks) never block movement.
       if (prop.solid && !prop.hiddenUnless) {
+        const set = prop.walkThrough ? this.carBlock : this.propBlock;
         for (let y = prop.y; y < prop.y + prop.h; y++)
-          for (let x = prop.x; x < prop.x + prop.w; x++) this.propBlock.add(y * this.width + x);
+          for (let x = prop.x; x < prop.x + prop.w; x++) set.add(y * this.width + x);
       }
     }
+  }
+
+  /** Does a prop stand entirely on pavement? */
+  onPavement(p) {
+    for (let y = p.y; y < p.y + (p.h || 1); y++) for (let x = p.x; x < p.x + (p.w || 1); x++) if (this.grid[y]?.[x] !== ',') return false;
+    return true;
+  }
+
+  /** Pathfinding cost of stepping onto a tile: pedestrians keep to the pavement and cross at crosswalks. */
+  walkCost(x, y) {
+    if (this.kind === 'interior' || this.grid[y]?.[x] !== '=') return 1;
+    return this.crossTiles.has(y * this.width + x) ? 1.1 : 6;
   }
 
   /** Add a prop at runtime (factory machinery). The object is kept by reference. */
@@ -10222,6 +10452,7 @@ class GameMap {
     const door = this.doorAt(tx, ty);
     if (door) return actor?.canPass ? !actor.canPass(door) : false;
     if (TILE_TYPES[this.grid[ty][tx]]?.solid) return true;
+    if (actor?.kind === 'vehicle' && this.carBlock.has(ty * this.width + tx)) return true;
     return this.propBlock.has(ty * this.width + tx);
   }
 
@@ -10496,7 +10727,7 @@ const DIRS = [
 /**
  * @returns {Array<{x:number,y:number}>|null} tile path excluding the start tile, or null.
  */
-function findPath(map, sx, sy, gx, gy, actor, maxNodes = 6000) {
+function findPath(map, sx, sy, gx, gy, actor, maxNodes = 14000) {
   if (sx === gx && sy === gy) return [];
   const goalBlocked = map.blockedTile(gx, gy, actor);
   const W = map.width;
@@ -10531,7 +10762,7 @@ function findPath(map, sx, sy, gx, gy, actor, maxNodes = 6000) {
       if (map.blockedTile(nx, ny, actor) && !(isGoal && goalBlocked)) continue;
       if (dx && dy && (map.blockedTile(cur.x + dx, cur.y, actor) || map.blockedTile(cur.x, cur.y + dy, actor))) continue;
       const nk = key(nx, ny);
-      const ng = g.get(ck) + cost;
+      const ng = g.get(ck) + cost * (map.walkCost ? map.walkCost(nx, ny) : 1);
       if (ng < (g.get(nk) ?? Infinity)) {
         g.set(nk, ng);
         came.set(nk, ck);
@@ -10881,6 +11112,39 @@ function decide(npc, game) {
 return { scheduleLead, decide };
 })();
 
+// ---- src/world/lights.js
+__m["src/world/lights.js"] = (function () {
+// Traffic lights (v0.20.0): every junction cycles the same 22-second program,
+// offset per junction. East–west traffic has green, then amber, then it's
+// north–south's turn. Pedestrians get WALK on the crossing that runs with the
+// green traffic (crossing the road whose traffic is held at red).
+//   0–9 EW green · 9–11 EW amber · 11–20 NS green · 20–22 NS amber
+const CYCLE = 22;
+
+/** State of a junction at time t (seconds): { ew, ns } each 'green' | 'amber' | 'red'. */
+function lightState(junction, t) {
+  const k = (((t + (junction.offset || 0)) % CYCLE) + CYCLE) % CYCLE;
+  if (k < 9) return { ew: 'green', ns: 'red', k };
+  if (k < 11) return { ew: 'amber', ns: 'red', k };
+  if (k < 20) return { ew: 'red', ns: 'green', k };
+  return { ew: 'red', ns: 'amber', k };
+}
+
+/**
+ * May a pedestrian step onto this junction's crossing, walking along `axis`
+ * ('ns' = walking north–south, across the east–west road)? They walk while the
+ * traffic they cross is held at red, and not in the last 3 seconds of it.
+ */
+function walkSignal(junction, axis, t) {
+  const s = lightState(junction, t);
+  // walking north–south crosses the east–west road: allowed while EW is red and NS is green
+  if (axis === 'ns') return s.ns === 'green' && s.k < 17 ? 'walk' : s.ns === 'green' ? 'flash' : 'wait';
+  return s.ew === 'green' && s.k < 6 ? 'walk' : s.ew === 'green' ? 'flash' : 'wait';
+}
+
+return { CYCLE, lightState, walkSignal };
+})();
+
 // ---- src/sim/npcSystem.js
 __m["src/sim/npcSystem.js"] = (function () {
 // NPC simulation with two tiers:
@@ -10895,6 +11159,7 @@ const { findPath, routeBetweenMaps } = __m["src/world/pathfinding.js"];
 const { decide, scheduleLead } = __m["src/sim/npcBrain.js"];
 const { blockAt, blockInstanceKey } = __m["src/sim/schedule.js"];
 const { remember } = __m["src/sim/memory.js"];
+const { walkSignal } = __m["src/world/lights.js"];
 
 const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
 
@@ -11035,6 +11300,7 @@ class NpcSystem {
     const dx = wp.x - npc.x;
     const dy = wp.y - npc.y;
     const d = Math.hypot(dx, dy);
+    if (this.waitForSignal(npc, wp)) return;
     const speed = WALK_SPEED * (npc.profile.walkSpeed ?? 1) * (g.clock.rate || 1) ** 0.5;
     const step = speed * dt;
     if (d <= step) {
@@ -11049,6 +11315,27 @@ class NpcSystem {
       npc.moving = true;
       npc.animTime = (npc.animTime || 0) + dt;
     }
+  }
+
+  /**
+   * v0.20.0: at a junction, people on the kerb wait for the little walking man
+   * before stepping onto the crossing (unless they're in a hurry).
+   */
+  waitForSignal(npc, wp) {
+    const g = this.game;
+    const map = g.maps.get(npc.map);
+    if (!map?.crossTiles?.size) return false;
+    const tx = Math.floor(wp.x / TILE);
+    const ty = Math.floor(wp.y / TILE);
+    if (!map.crossTiles.has(ty * map.width + tx)) return false;
+    if (map.grid[Math.floor(npc.y / TILE)]?.[Math.floor(npc.x / TILE)] === '=') return false; // already on the road: keep going
+    if (HELD_INTENTS.includes(npc.intent?.source) || npc.pursuit || npc.hostile) return false;
+    const j = (g.content.transit?.junctions || []).find((k) => k.map === npc.map && tx >= k.x - 1 && tx <= k.x + k.w && ty >= k.y - 1 && ty <= k.y + k.h);
+    if (!j) return false;
+    const axis = Math.abs(wp.y - npc.y) > Math.abs(wp.x - npc.x) ? 'ns' : 'ew';
+    if (walkSignal(j, axis, g.realTime) === 'walk') return false;
+    npc.facing = axis === 'ns' ? (wp.y > npc.y ? 'down' : 'up') : wp.x > npc.x ? 'right' : 'left';
+    return true;
   }
 
   onPathEnd(npc) {
@@ -16067,17 +16354,28 @@ class Vehicles {
     // steering bites harder at speed (up to a point); reversing turns the other way
     const bite = clamp(car.speed / 140, -1, 1);
     const wedged = this.blocked(map, car.x, car.y, car.angle, m.len, m.wid, car); // already overlapping something
-    const turned = car.angle + steer * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
+    // v0.20.0: the wheel turns in over a moment rather than snapping, and the car's
+    // travel lags its nose a little (more on the handbrake), so turns carry weight
+    car.wheel = (car.wheel || 0) + (steer - (car.wheel || 0)) * Math.min(1, dt * 7);
+    const turned = car.angle + car.wheel * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
     // turning swings the car's ends: don't rotate into a wall
     if (wedged || !this.blocked(map, car.x, car.y, turned, m.len, m.wid, car)) car.angle = turned;
+    if (car.travel === undefined || Math.abs(car.speed) < 30) car.travel = car.angle;
+    const slip = Math.atan2(Math.sin(car.angle - car.travel), Math.cos(car.angle - car.travel));
+    const hold = input.sprint ? 2.2 : 9 + 6 * (1 - Math.min(1, Math.abs(car.speed) / 400)); // how quickly the tyres pull the car into line
+    car.travel += slip * Math.min(1, dt * hold);
+    car.slip = Math.abs(slip);
+    if (car.slip > 0.08) car.speed *= 1 - Math.min(0.5, car.slip * dt * 0.9); // scrubbing off speed in the slide
+    car.skidding = car.slip > 0.22 && Math.abs(car.speed) > 110;
+    if (car.skidding) this.skidMark(car, m);
     // move in small steps so nothing tunnels through a wall
     const x0 = car.x;
     const y0 = car.y;
     const total = car.speed * dt;
     const steps = Math.max(1, Math.ceil(Math.abs(total) / 6));
     for (let i = 0; i < steps; i++) {
-      const nx = car.x + (Math.cos(car.angle) * total) / steps;
-      const ny = car.y + (Math.sin(car.angle) * total) / steps;
+      const nx = car.x + (Math.cos(car.travel) * total) / steps;
+      const ny = car.y + (Math.sin(car.travel) * total) / steps;
       // free to move — or wedged, in which case any move is allowed so it can work itself loose
       if (wedged || !this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
       // slide along the obstacle if we can
@@ -16089,6 +16387,26 @@ class Vehicles {
     }
     car.moved = dt > 0 ? Math.hypot(car.x - x0, car.y - y0) / dt : 0; // actual speed over the ground
     return crashed;
+  }
+
+  /** Rear-tyre marks on the road (runtime only; they fade). */
+  skidMark(car, m) {
+    const g = this.game;
+    const list = (this.skids ||= []);
+    const c = Math.cos(car.angle);
+    const s = Math.sin(car.angle);
+    const bx = car.x - c * m.len * 0.31;
+    const by = car.y - s * m.len * 0.31;
+    const at = g.realTime;
+    for (const side of [-1, 1]) {
+      const x = bx - s * side * m.wid / 2;
+      const y = by + c * side * m.wid / 2;
+      const key = `${car.id}${side}`;
+      const prev = list.findLast?.((k) => k.key === key);
+      if (prev && at - prev.t < 0.12) list.push({ key, map: car.map, x0: prev.x1, y0: prev.y1, x1: x, y1: y, t: at });
+      else list.push({ key, map: car.map, x0: x, y0: y, x1: x, y1: y, t: at });
+    }
+    while (list.length > 600 || (list.length && at - list[0].t > 14)) list.shift();
   }
 
   /** Seams (by the car's centre) and region gates (by its nose, which reaches the edge first). Police drivers don't take gates. */
@@ -16185,6 +16503,7 @@ class Vehicles {
     car.x = x;
     car.y = y;
     car.angle = east ? 0 : Math.PI;
+    car.travel = car.angle;
     car.speed = Math.min(Math.abs(car.speed), 160);
     g.bus.emit('sfx', { id: 'sfx_door' });
     g.changeMap(dest.id, null, { x, y });
@@ -16406,48 +16725,97 @@ return { ROAD_GAP, worldLayout, worldToMap, mapToWorld };
 
 // ---- src/systems/transit.js
 __m["src/systems/transit.js"] = (function () {
-// Transit (v0.17.0 "Route 1"): the No. 1 bus and the traffic.
+// Transit (v0.17.0 "Route 1"; v0.20.0 "Streets"): the No. 1 bus and the traffic.
 //
-// Everything here drives along fixed lanes in WORLD space (src/world/layout.js),
-// so a bus can run from the Yards through Halvermouth and along the coast road
-// to the Ober Fields, crossing maps and region gates without caring which map
-// it's on. Near you (same region), vehicles move every frame and stop for
-// whatever is in front of them — you, people, other vehicles, parked cars;
-// elsewhere (or while time skips) they move once a game minute and never stop.
+// Vehicles drive fixed lanes in WORLD space (src/world/layout.js), so a bus can
+// run from the Yards through Halvermouth and along the coast road to the Ober
+// Fields, crossing maps and region gates. Routes are authored per map
+// (src/content/transit.js) and rounded at every corner, so vehicles swing
+// through turns instead of pivoting on the spot.
 //
-// The bus: three buses on one loop, 2 obols a ride, a stop in every district.
-// Board one that's waiting at a stop (E), ride it for real while it drives,
-// and get off (E) at any stop. Bus-stop signs show the next buses and let you
-// wait for one. Traffic: cars circling Halvermouth's blocks and running the
-// coast road; carjack one that's stopped (a crime).
+// Near you (same region) vehicles move every frame and stop for whatever is in
+// front of them — you, people, other vehicles, parked cars — and for red
+// lights at the junctions (src/world/lights.js); elsewhere, or while time
+// skips, they move once a game minute and never stop.
 //
-// State: game.world.transit = { buses: [{ dist, dwellUntil }] } — traffic is
-// regenerated each session. Runtime: this.followers (buses + traffic).
+// The bus: three buses on one loop, 2 obols a ride. Traffic: rings round city
+// blocks, plus through traffic that drives in through one gate and out through
+// another (it leaves the map and new cars come in — no U-turns at the edges).
+//
+// State: game.world.transit = { buses: [{ dist, dwellUntil, lastStop }] } —
+// traffic is regenerated each session. Runtime: this.followers.
 const { TILE, clamp, dist } = __m["src/core/util.js"];
-const { worldLayout, worldToMap, mapToWorld } = __m["src/world/layout.js"];
+const { worldToMap, mapToWorld } = __m["src/world/layout.js"];
+const { lightState } = __m["src/world/lights.js"];
 const { isDown } = __m["src/systems/combat.js"];
 
-/** A closed polyline in world pixels with arc-length lookup. */
+const CORNER = 1.6 * TILE; // radius of the curve at each corner
+const HONK_GAP = 9; // seconds between any two honks you hear
+const BOX_PAD = 2; // px
+
+/** A polyline in world pixels (closed, or open from a start to an end), rounded at the corners, with arc-length lookup. */
 class Route {
-  constructor(points) {
-    this.pts = points.map(([x, y]) => ({ x: x * TILE, y: y * TILE }));
+  constructor(pts, { closed = true } = {}) {
+    this.closed = closed;
+    this.pts = closed ? Route.round(pts, true) : Route.round(pts, false);
+    const n = this.pts.length;
     this.cum = [0];
-    for (let i = 0; i < this.pts.length; i++) {
+    const segs = closed ? n : n - 1;
+    for (let i = 0; i < segs; i++) {
       const a = this.pts[i];
-      const b = this.pts[(i + 1) % this.pts.length];
+      const b = this.pts[(i + 1) % n];
       this.cum.push(this.cum[i] + Math.hypot(b.x - a.x, b.y - a.y));
     }
-    this.length = this.cum[this.pts.length];
+    this.length = this.cum[segs];
+  }
+
+  /** Replace each sharp corner with a short curve (quadratic, sampled). */
+  static round(pts, closed) {
+    const out = [];
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      const prev = pts[(i - 1 + n) % n];
+      const next = pts[(i + 1) % n];
+      if (!closed && (i === 0 || i === n - 1)) { out.push(p); continue; }
+      const a1 = Math.atan2(p.y - prev.y, p.x - prev.x);
+      const a2 = Math.atan2(next.y - p.y, next.x - p.x);
+      const turn = Math.abs(((a2 - a1 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      const l1 = Math.hypot(p.x - prev.x, p.y - prev.y);
+      const l2 = Math.hypot(next.x - p.x, next.y - p.y);
+      const r = Math.min(CORNER, l1 / 2.2, l2 / 2.2);
+      if (turn < 0.15 || r < 4) { out.push(p); continue; }
+      const s = { x: p.x - Math.cos(a1) * r, y: p.y - Math.sin(a1) * r };
+      const e = { x: p.x + Math.cos(a2) * r, y: p.y + Math.sin(a2) * r };
+      const steps = Math.max(3, Math.round(turn * 5));
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps;
+        out.push({ x: (1 - t) ** 2 * s.x + 2 * (1 - t) * t * p.x + t * t * e.x, y: (1 - t) ** 2 * s.y + 2 * (1 - t) * t * p.y + t * t * e.y });
+      }
+    }
+    return out;
   }
 
   wrap(d) {
+    if (!this.closed) return clamp(d, 0, this.length);
     return ((d % this.length) + this.length) % this.length;
+  }
+
+  /** Forward distance from a to b along the route (Infinity if behind, on an open route). */
+  ahead(a, b) {
+    if (this.closed) return this.wrap(b - a);
+    return b >= a ? b - a : Infinity;
   }
 
   at(d) {
     d = this.wrap(d);
-    let i = 0;
-    while (i < this.pts.length - 1 && this.cum[i + 1] <= d) i++;
+    let lo = 0;
+    let hi = this.cum.length - 2;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (this.cum[mid] <= d) lo = mid; else hi = mid - 1;
+    }
+    const i = lo;
     const a = this.pts[i];
     const b = this.pts[(i + 1) % this.pts.length];
     const seg = this.cum[i + 1] - this.cum[i] || 1;
@@ -16455,27 +16823,25 @@ class Route {
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, angle: Math.atan2(b.y - a.y, b.x - a.x), seg: i };
   }
 
-  /** Distances along the route where a horizontal segment on `road` (a tile row; lanes road+0.5 and road+1.5) passes world tile x. */
-  crossings(x, road) {
+  /** Distances along the route where it passes within `r` px of a point (one per pass). */
+  near(px, py, r) {
     const out = [];
-    const px = x * TILE;
-    for (let i = 0; i < this.pts.length; i++) {
-      const a = this.pts[i];
-      const b = this.pts[(i + 1) % this.pts.length];
-      if (Math.abs(a.y - b.y) > 1) continue;
-      const row = a.y / TILE;
-      if (row < road || row > road + 2) continue;
-      if (px < Math.min(a.x, b.x) || px > Math.max(a.x, b.x)) continue;
-      out.push(this.cum[i] + Math.abs(px - a.x));
+    let run = null;
+    for (let d = 0; d <= this.length; d += 8) {
+      const p = this.at(d);
+      const dd = Math.hypot(p.x - px, p.y - py);
+      if (dd < r) {
+        if (!run || dd < run.best) run = { ...(run || {}), best: dd, dist: d };
+      } else if (run) { out.push(run.dist); run = null; }
     }
+    if (run) out.push(run.dist);
     return out;
   }
 }
 
 function freshTransit(content) {
   const B = content.transit.bus;
-  const r = new Route(B.route);
-  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: (r.length * i) / B.buses, dwellUntil: 0 })) };
+  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: null, slot: i, dwellUntil: 0 })) };
 }
 
 class Transit {
@@ -16484,6 +16850,8 @@ class Transit {
     this.followers = [];
     this.ready = false;
     this.nextId = 1;
+    this.respawn = [];
+    this.honkAt = -100;
   }
 
   get cfg() {
@@ -16496,33 +16864,81 @@ class Transit {
     return g.world.transit;
   }
 
-  /** Build routes, stops, buses and traffic (lazily: the maps must exist). */
+  /** Map-local points → world pixels. */
+  worldPts(points) {
+    return points.map((p) => {
+      const w = mapToWorld(this.game, p.map, p.x * TILE, p.y * TILE);
+      return { x: w.x * TILE, y: w.y * TILE };
+    });
+  }
+
+  /** Build routes, stops, junctions, buses and traffic (lazily: the maps must exist). */
   setup() {
     if (this.ready) return;
     const g = this.game;
     const B = this.cfg.bus;
-    this.busRoute = new Route(B.route);
+    this.busRoute = new Route(this.worldPts(B.route));
+    // junction boxes in world pixels, and where each route enters them (and along which axis)
+    this.junctions = (this.cfg.junctions || []).map((j) => {
+      const w = mapToWorld(g, j.map, j.x * TILE, j.y * TILE);
+      return { ...j, wx: w.x * TILE, wy: w.y * TILE, ww: j.w * TILE, wh: j.h * TILE };
+    });
     // each stop, at its distance along the loop in each direction
     this.stops = [];
-    for (const s of B.stops) for (const d of this.busRoute.crossings(s.x, s.road)) this.stops.push({ ...s, dist: d });
+    for (const s of B.stops) {
+      const w = mapToWorld(g, s.sign.map, (s.sign.x + 0.5) * TILE, (s.sign.y + 0.5) * TILE);
+      for (const d of this.busRoute.near(w.x * TILE, w.y * TILE, 5.5 * TILE)) this.stops.push({ ...s, dist: d });
+    }
     this.stops.sort((a, b) => a.dist - b.dist);
-    this.turn = this.busRoute.cum[B.route.findIndex(([x]) => x >= 270)]; // the far end of the line
-    this.followers = this.state.buses.map((b, i) => ({ id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b }));
-    // traffic, spread round each loop
+    // the far end of the line: the route's easternmost point
+    let far = 0;
+    let fx = -Infinity;
+    for (let d = 0; d < this.busRoute.length; d += 32) { const p = this.busRoute.at(d); if (p.x > fx) { fx = p.x; far = d; } }
+    this.turn = far;
+    this.entries(this.busRoute);
+    const st = this.state;
+    this.followers = st.buses.map((b, i) => {
+      if (b.dist === null || b.dist === undefined || b.dist > this.busRoute.length) b.dist = (this.busRoute.length * i) / st.buses.length;
+      return { id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b };
+    });
+    // traffic
     const T = this.cfg.traffic;
     let n = 0;
+    this.loops = {};
     for (const loop of T.loops) {
-      const route = new Route(loop.path);
+      const route = new Route(this.worldPts(loop.path), { closed: !loop.open });
+      this.entries(route);
+      this.loops[loop.id] = { ...loop, route };
       for (let i = 0; i < loop.cars; i++) {
-        const model = T.models[(n * 3 + i) % T.models.length];
-        const m = g.content.vehicles.models[model];
-        const max = loop.speed[0] + ((n * 37 + i * 53) % 100) / 100 * (loop.speed[1] - loop.speed[0]);
-        this.followers.push({ id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: (route.length * (i + 0.3 * ((n % 3) / 3))) / loop.cars, speed: max, max, len: m.len, wid: m.wid, model, color: T.colors[(n * 5 + i * 2) % T.colors.length] });
-        n++;
+        const f = this.makeCar(loop, route, n++);
+        f.dist = loop.open ? (route.length * (i + 0.5)) / (loop.cars + 0.5) : (route.length * (i + 0.3)) / loop.cars;
+        this.followers.push(f);
       }
     }
     this.ready = true;
     for (const f of this.followers) this.place(f);
+  }
+
+  makeCar(loop, route, n) {
+    const g = this.game;
+    const T = this.cfg.traffic;
+    const model = T.models[(n * 3 + this.nextId) % T.models.length];
+    const m = g.content.vehicles.models[model];
+    const max = loop.speed[0] + (((n * 37 + this.nextId * 53) % 100) / 100) * (loop.speed[1] - loop.speed[0]);
+    return { id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: 0, speed: max * 0.6, max, len: m.len, wid: m.wid, model, color: T.colors[(n * 5 + this.nextId) % T.colors.length] };
+  }
+
+  /** Where a route enters each junction, and on which axis (for the lights). */
+  entries(route) {
+    const inside = (p) => this.junctions.find((j) => p.x >= j.wx - BOX_PAD && p.x < j.wx + j.ww + BOX_PAD && p.y >= j.wy - BOX_PAD && p.y < j.wy + j.wh + BOX_PAD) || null;
+    route.lights = [];
+    let prev = inside(route.at(0));
+    for (let d = 8; d <= route.length; d += 8) {
+      const p = route.at(d);
+      const j = inside(p);
+      if (j && j !== prev) route.lights.push({ dist: d, j, axis: Math.abs(Math.cos(p.angle)) > Math.abs(Math.sin(p.angle)) ? 'ew' : 'ns' });
+      prev = j;
+    }
   }
 
   /** Recompute a follower's world position, heading and map. */
@@ -16581,41 +16997,51 @@ class Transit {
     return this.regionOf(f.map) === this.regionOf(pm.id);
   }
 
+  riding() {
+    const r = this.game.player.riding;
+    return r !== null && r !== undefined;
+  }
+
   // ------------------------------------------------------------- driving
   /** Per frame: everything near you moves carefully; the bus you're on carries you. */
   update(dt) {
     this.setup();
-    for (const f of this.followers) {
+    for (const f of [...this.followers]) {
       if (!this.near(f) && !(f.kind === 'bus' && this.game.player.riding === f.idx)) continue;
       this.step(f, dt, true);
     }
-    if (this.game.player.riding !== null && this.game.player.riding !== undefined) this.carryRider();
+    if (this.riding()) this.carryRider();
   }
 
   /** Per game minute: everything else moves, without looking. */
   minuteTick() {
     this.setup();
     const g = this.game;
-    for (const f of this.followers) {
+    for (const f of [...this.followers]) {
       if (this.near(f) && !g.skipping) continue;
       if (f.kind === 'bus' && g.player.riding === f.idx && !g.skipping) continue;
       this.step(f, 1, false);
     }
-    if (g.skipping && g.player.riding !== null && g.player.riding !== undefined) this.carryRider();
-    // carjacked cars come back to the roads after a while
-    if (this.respawn?.length) {
+    if (g.skipping && this.riding()) this.carryRider();
+    // cars come back to the roads: a carjacked one later, a through car that left by the next
+    if (this.respawn.length) {
       const due = this.respawn.filter((r) => r.at <= g.clock.total);
       this.respawn = this.respawn.filter((r) => r.at > g.clock.total);
-      for (const r of due) { r.f.dist = r.f.route.wrap(r.f.dist + r.f.route.length / 2); r.f.speed = 0; this.followers.push(r.f); this.place(r.f); }
+      for (const r of due) {
+        const f = r.f;
+        f.dist = f.route.closed ? f.route.wrap(f.dist + f.route.length / 2) : 0;
+        f.speed = f.max * 0.6;
+        f.waitT = 0;
+        this.followers.push(f);
+        this.place(f);
+      }
     }
   }
 
   step(f, dt, careful) {
     const g = this.game;
     const B = this.cfg.bus;
-    if (f.kind === 'bus') {
-      if (g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
-    }
+    if (f.kind === 'bus' && g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
     let target = f.max;
     // ease into the next stop
     let toStop = Infinity;
@@ -16625,21 +17051,19 @@ class Transit {
       if (stop) toStop = f.route.wrap(stop.dist - f.dist);
       if (careful) target = Math.min(target, 30 + toStop * 1.6);
     }
-    // slow for corners
-    const ahead = f.route.at(f.dist + f.len);
+    // slow for the bends
+    const ahead = f.route.at(f.dist + f.len * 0.8);
     const turn = Math.abs(((ahead.angle - f.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-    if (turn > 0.3) target = Math.min(target, careful ? 110 : target);
+    if (careful && turn > 0.25) target = Math.min(target, 150 - turn * 40);
     if (careful) {
       let ob = this.obstacleAhead(f);
+      const light = ob ? null : this.redAhead(f);
+      if (light) target = Math.min(target, Math.max(0, (light - 6) * 2.2));
       if (ob) { f.holdUntil = g.realTime + 0.6; f.holdFor = ob; } else if ((f.holdUntil || 0) > g.realTime) ob = f.holdFor; // don't creep and lurch
       if (ob) {
         target = 0;
         f.waitT = (f.waitT || 0) + dt;
-        if (ob === 'player' && f.waitT > 1.5 && (f.honkAt || 0) < g.realTime) {
-          f.honkAt = g.realTime + 4;
-          g.bus.emit('sfx', { id: 'sfx_horn' });
-          g.bus.emit('transit:honk', { id: f.id });
-        }
+        if (ob === 'player') this.honk(f);
         if (ob !== 'player' && f.waitT > 8) f.ghostUntil = g.realTime + 2; // never jam forever
       } else f.waitT = 0;
       f.speed += clamp(target - f.speed, -700 * dt, 260 * dt);
@@ -16657,9 +17081,44 @@ class Transit {
       if (g.player.riding === f.idx) g.bus.emit('transit:stop', { stop: stop.id, name: stop.name });
       return;
     }
+    // through traffic leaves at the end of its road; another car comes in later
+    if (!f.route.closed && f.dist + move >= f.route.length) {
+      this.followers = this.followers.filter((x) => x !== f);
+      const loop = this.loops[f.loop];
+      this.respawn.push({ f, at: g.clock.total + (loop?.gap ?? 40) });
+      return;
+    }
     f.dist = f.route.wrap(f.dist + move);
     if (f.kind === 'bus') f.state.dist = f.dist;
     this.place(f);
+  }
+
+  /** Distance (px) from the vehicle's nose to a red (or late amber) light ahead, or null. */
+  redAhead(f) {
+    const lights = f.route.lights || [];
+    if (!lights.length) return null;
+    const nose = f.dist + f.len / 2;
+    const look = f.len / 2 + 40 + Math.max(0, f.speed) ** 2 / 1000;
+    const t = this.game.realTime;
+    for (const L of lights) {
+      const gap = f.route.ahead(nose, L.dist);
+      if (gap > look) continue;
+      const s = lightState(L.j, t)[L.axis];
+      if (s === 'green') return null;
+      if (s === 'amber' && gap < 26) return null; // too late to stop: go
+      return gap;
+    }
+    return null;
+  }
+
+  /** At most one honk every few seconds, only when you're actually in the way, nearby. */
+  honk(f) {
+    const g = this.game;
+    if (f.waitT < 3 || (f.honkAt || 0) > g.realTime || g.realTime - this.honkAt < HONK_GAP) return;
+    f.honkAt = g.realTime + 15;
+    this.honkAt = g.realTime;
+    g.bus.emit('sfx', { id: 'sfx_horn', opts: { quiet: true } });
+    g.bus.emit('transit:honk', { id: f.id });
   }
 
   /** What's in front of a follower: 'player', 'npc', 'car' or null. */
@@ -16668,17 +17127,16 @@ class Transit {
     if (!f.map || (f.ghostUntil || 0) > g.realTime) return null;
     const cs = Math.cos(f.angle);
     const sn = Math.sin(f.angle);
-    const reach = f.len / 2 + 44 + (Math.max(0, f.speed) ** 2) / 1100; // a steady gap plus braking distance
+    const reach = f.len / 2 + 44 + Math.max(0, f.speed) ** 2 / 1100; // a steady gap plus braking distance
     const test = (wx, wy, r) => {
       const rx = wx - f.wx;
       const ry = wy - f.wy;
       const along = rx * cs + ry * sn;
       const lat = Math.abs(-rx * sn + ry * cs);
-      return along > 0 && along < reach + r && lat < 12 + r;
+      return along > 0 && along < reach + r && lat < 14 + r;
     };
     const p = g.player;
-    const riding = p.riding !== null && p.riding !== undefined;
-    if (!riding) {
+    if (!this.riding()) {
       const pw = mapToWorld(g, p.map, p.x, p.y);
       if (pw && test(pw.x * TILE, pw.y * TILE, p.driving ? 18 : 8)) return 'player';
     }
@@ -16715,8 +17173,8 @@ class Transit {
   boardable() {
     const g = this.game;
     const p = g.player;
-    if (p.driving || (p.riding !== null && p.riding !== undefined)) return null;
-    return this.on(p.map).find((f) => this.dwelling(f) && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 70) || null;
+    if (p.driving || this.riding()) return null;
+    return this.on(p.map).find((f) => this.dwelling(f) && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 90) || null;
   }
 
   board(idx) {
@@ -16844,7 +17302,7 @@ class Transit {
   carjackable() {
     const g = this.game;
     const p = g.player;
-    if (p.driving || (p.riding !== null && p.riding !== undefined)) return null;
+    if (p.driving || this.riding()) return null;
     return this.on(p.map).find((f) => f.kind === 'traffic' && f.speed < 40 && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 28) || null;
   }
 
@@ -16853,7 +17311,7 @@ class Transit {
     const f = this.followers.find((x) => x.id === id);
     if (!f || f.kind !== 'traffic' || !f.map) return { ok: false, text: '' };
     this.followers = this.followers.filter((x) => x !== f);
-    (this.respawn ||= []).push({ f, at: g.clock.total + 120 });
+    this.respawn.push({ f, at: g.clock.total + 120 });
     const V = g.vehicles;
     const cid = `car_jack${V.state.nextId++}`;
     V.state.cars[cid] = { id: cid, model: f.model, color: f.color, map: f.map, x: f.x, y: f.y, angle: f.angle, owner: 'player', stolen: true, from: 'traffic', plate: 'JACKED' };
@@ -16865,7 +17323,7 @@ class Transit {
   }
 }
 
-return { freshTransit, Transit };
+return { Route, freshTransit, Transit };
 })();
 
 // ---- src/systems/pursuit.js
@@ -17660,7 +18118,7 @@ const { Pursuit } = __m["src/systems/pursuit.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
-const { GAME_VERSION } = __m["src/core/version.js"];
+const { GAME_VERSION, olderThan } = __m["src/core/version.js"];
 
 const PLAYER_SPEED = 128;
 const PLAYER_SPRINT = 196;
@@ -18778,6 +19236,10 @@ class Game {
     this.world.arms.warehouses = { ...fresh.arms.warehouses, ...(this.world.arms.warehouses || {}) };
     this.world.arms.research = { ...fresh.arms.research, ...(this.world.arms.research || {}) };
     this.world.market = this.world.market ? { ...fresh.market, ...this.world.market, countries: { ...fresh.market.countries, ...this.world.market.countries } } : fresh.market;
+    if (olderThan(state.gameVersion, '0.20.0')) {
+      state = { ...state, npcs: deepClone(state.npcs || {}) };
+      this.widenSave(state);
+    }
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -18810,6 +19272,26 @@ class Game {
     this.arms.spawnStaff();
     this.updateDiscovery();
     return this;
+  }
+
+  /**
+   * v0.20.0 widened the roads, so everything outdoors moved along: shift what a
+   * save from before then put on those maps (you, the residents, the cars), and
+   * start the buses afresh on the new route.
+   */
+  widenSave(state) {
+    const S = this.content.roadShifts || {};
+    const move = (o) => {
+      const s = o && S[o.map];
+      if (!s || typeof o.x !== 'number') return;
+      o.x = s.fx(o.x / TILE) * TILE;
+      o.y = s.fy(o.y / TILE) * TILE;
+    };
+    move(this.player);
+    for (const n of Object.values(state.npcs || {})) move(n);
+    for (const c of Object.values(this.world.vehicles?.cars || {})) move(c);
+    delete this.world.transit;
+    this.player.riding = null;
   }
 
   /**
@@ -18889,6 +19371,22 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.20.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Streets',
+    notes: [
+      'Wider streets: every road in Halvermouth, Lanternside, Westbrook, the Ober Fields and the Yards is now four tiles across — one proper lane each way — with the buildings, pavements and crossings moved to fit.',
+      'The roads go somewhere now. Every road joins the network and only leaves a map through a gate: the coast road ends at Wellhead Circle under the escarpment, Lamplighter Lane at Lamplighter Circle, the old dead ends at turning circles with a statue or fountain. Cliffs, the sea wall and the ridge mark the edges, and new Ridge Road and Quay Road close the city grid.',
+      'Traffic lights at twelve Halvermouth junctions and on Lamplighter Lane. Cars and the bus stop at red; people wait at the kerb for the little green man. Running a red isn\'t a crime — just rude.',
+      'People keep to the pavement and cross at the crossings. Lamps, benches, signs, trees and bins on the pavement no longer get in your way on foot (cars still hit them).',
+      'Less traffic (7 cars, down from 11), and it rounds corners on a curve. Cars passing through drive off the edge of the map and new ones drive in — no more U-turns at the edges.',
+      'Cars feel heavier through a turn: the wheel turns in rather than snapping, the car drifts a little off its nose (a lot on the handbrake), the front wheels turn, and a slide leaves tyre marks.',
+      'The beeping is gone: the city ambience no longer plays fake car horns, traffic only honks (quietly, rarely) when you\'ve been standing in its way, and a cruiser driving off after a chase turns its siren off.',
+      'Older saves load with you, everyone and every parked car moved along with the streets; the buses start afresh on the new route.',
+    ],
+  },
   {
     version: '0.19.0',
     date: '2026-10-14',
@@ -19928,7 +20426,15 @@ function drawCar(ctx, model, x, y, angle, opts = {}) {
   ctx.fillStyle = '#18181c';
   const ww = 13 * k;
   const wh = 7 * k;
-  for (const sx of [-0.31, 0.3]) for (const sy of [-1, 1]) ctx.fillRect(sx * L - ww / 2, sy * (W / 2) - wh / 2, ww, wh);
+  for (const sx of [-0.31, 0.3]) for (const sy of [-1, 1]) {
+    // front wheels turn with the steering
+    const a = sx > 0 ? (opts.wheel || 0) * 0.5 : 0;
+    ctx.save();
+    ctx.translate(sx * L, sy * (W / 2));
+    ctx.rotate(a);
+    ctx.fillRect(-ww / 2, -wh / 2, ww, wh);
+    ctx.restore();
+  }
   if (body === 'limo') for (const sy of [-1, 1]) ctx.fillRect(-0.05 * L - ww / 2, sy * (W / 2) - wh / 2, ww, wh);
   ctx.fillStyle = color;
   ctx.strokeStyle = shade(color, -45);
@@ -20136,6 +20642,7 @@ return { drawCar, drawDisplayCar, drawBus, drawBusStop };
 __m["src/engine/drawWorld.js"] = (function () {
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
+const { lightState, walkSignal } = __m["src/world/lights.js"];
 const { TILE } = __m["src/core/util.js"];
 const { drawFactoryProp } = __m["src/engine/drawFactory.js"];
 const { hash2 } = __m["src/core/rng.js"];
@@ -20767,6 +21274,43 @@ function drawLighthouse(ctx, b, opts) {
 /** Props drawn flat on the ground before y-sorted objects. */
 const FLAT_PROPS = new Set(['belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
+const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
+
+/** A traffic light on its pole: a head for the road it faces, and a walk / wait box for the crossing. */
+function drawTrafficLight(ctx, p, x, y, t) {
+  const s = lightState(p, t);
+  // nw / se heads face the east–west road; ne / sw face north–south
+  const axis = p.corner === 'nw' || p.corner === 'se' ? 'ew' : 'ns';
+  const state = s[axis];
+  const cx = x + 16;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(cx + 4, y + 26, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3a3e44';
+  ctx.fillRect(cx - 2, y - 22, 4, 48);
+  // head
+  ctx.fillStyle = '#1c1f24';
+  ctx.fillRect(cx - 7, y - 40, 14, 34);
+  ctx.fillStyle = '#e8c35a';
+  ctx.fillRect(cx - 7, y - 40, 14, 2);
+  ['red', 'amber', 'green'].forEach((c, i) => {
+    const on = state === c;
+    ctx.fillStyle = LAMP[c][on ? 0 : 1];
+    ctx.beginPath(); ctx.arc(cx, y - 33 + i * 10, 3.6, 0, Math.PI * 2); ctx.fill();
+    if (on) {
+      ctx.fillStyle = LAMP[c][0] + '40';
+      ctx.beginPath(); ctx.arc(cx, y - 33 + i * 10, 7, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+  // the crossing beside this corner runs along the other axis
+  const w = walkSignal(p, axis, t);
+  const lit = w === 'walk' || (w === 'flash' && Math.floor(t * 3) % 2 === 0);
+  ctx.fillStyle = '#1c1f24';
+  ctx.fillRect(cx + 3, y - 4, 10, 10);
+  ctx.fillStyle = w === 'wait' ? '#ff6a3a' : lit ? '#f2f2e8' : '#2a2c30';
+  if (w === 'wait') ctx.fillRect(cx + 5, y - 2, 6, 6);
+  else { ctx.beginPath(); ctx.arc(cx + 8, y - 1.5, 1.5, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(cx + 7, y, 2, 4); }
+}
+
 function drawProp(ctx, p, opts) {
   const x = p.x * T;
   const y = p.y * T;
@@ -21169,6 +21713,9 @@ function drawProp(ctx, p, opts) {
     }
     case 'busstop':
       drawBusStop(ctx, x, y);
+      break;
+    case 'trafficlight':
+      drawTrafficLight(ctx, p, x, y, opts.realTime ?? time);
       break;
     case 'car_display': {
       const model = CAR_MODELS[p.model];
@@ -23468,8 +24015,9 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime });
         }
+        if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
@@ -23484,7 +24032,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id) continue;
@@ -23505,7 +24053,7 @@ class Renderer {
           const m = models[car.model];
           if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len)) continue;
           const driven = car.id === g.player.driving;
-          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase) })) });
+          items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel })) });
         }
       }
       // the bus and the traffic (src/systems/transit.js)
@@ -23559,6 +24107,20 @@ class Renderer {
   }
 
   /** Oily rainbow sheen on the Lantern Canal (rows 22–23) after the pipeline leaks. */
+  /** Tyre marks, fading over a dozen seconds. */
+  drawSkids(ctx, mapId) {
+    const now = this.game.realTime;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 5;
+    for (const k of this.game.vehicles.skids) {
+      if (k.map !== mapId) continue;
+      ctx.strokeStyle = `rgba(20,20,24,${(0.32 * (1 - (now - k.t) / 14)).toFixed(3)})`;
+      ctx.beginPath(); ctx.moveTo(k.x0, k.y0); ctx.lineTo(k.x1, k.y1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   drawCanalSlick(ctx, map, v) {
     const x0 = Math.max(0, Math.floor(v.x / TILE));
     const x1 = Math.min(map.width - 1, Math.ceil((v.x + v.w) / TILE));
@@ -27739,7 +28301,7 @@ class UI {
       if (kind === 'warn' || kind === 'event') return;
       this.audio.sfx('sfx_notify');
     });
-    bus.on('sfx', ({ id }) => this.audio.sfx(id));
+    bus.on('sfx', ({ id, opts }) => this.audio.sfx(id, opts));
     bus.on('combat:playerHit', () => this.audio.sfx('sfx_hurt'));
     // The Wrath: an imported character was attacked (src/systems/combat.js, src/engine/wrath.js)
     bus.on('combat:wrath', ({ theme }) => {
@@ -28033,7 +28595,7 @@ class UI {
       this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
       // sirens: louder the closer the nearest cruiser (src/systems/pursuit.js)
       let siren = null;
-      if (!g.paused && !busy) for (const c of g.pursuit.cars()) {
+      if (!g.paused && !busy) for (const c of g.pursuit.active()) { // a cruiser heading home has its siren off
         const at = g.pursuit.playerIn(c.map);
         if (!at) continue;
         const k = 1 - Math.min(1, Math.hypot(c.x - at.x, c.y - at.y) / (30 * TILE));

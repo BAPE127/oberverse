@@ -60,10 +60,10 @@ test('interactables prefer what the player faces', () => {
 test('Lanternside and the Ober Fields are one continuous space: walk straight across', () => {
   const g = newGame();
   g.changeMap('lanternside', 'east_road');
-  g.player.y = 12.6 * TILE;
+  g.player.y = 13.6 * TILE; // the north lane of the (four-tile) road
   const seen = [];
   const off = g.mapOffset('lanternside', 'ober_fields');
-  assert.equal(off.x, 63 * TILE);
+  assert.equal(off.x, (g.maps.get('lanternside').width - 1) * TILE);
   const worldX = () => g.player.x + (g.player.map === 'ober_fields' ? off.x : 0);
   let maxStep = 0;
   for (let i = 0; i < 600 && g.player.map === 'lanternside'; i++) {
@@ -79,15 +79,15 @@ test('Lanternside and the Ober Fields are one continuous space: walk straight ac
   for (let i = 0; i < 400 && g.player.map === 'ober_fields'; i++) g.update(1 / 60, { x: -1, y: 0 });
   assert.equal(g.player.map, 'lanternside', 'and back again');
   // seams are walked, never offered as "Enter …" prompts
-  g.player.x = 62.5 * TILE;
+  g.player.x = (g.maps.get('lanternside').width - 1.5) * TILE;
   assert.ok(!g.interactables().some((t) => t.kind === 'door'));
 });
 
 test('the seam follows walkable ground only (no crossing on water)', () => {
   const g = newGame();
   const seams = g.maps.get('lanternside').doors.filter((d) => d.seamless).map((d) => d.y);
-  assert.ok(seams.includes(12) && seams.includes(13), 'the road crosses');
-  assert.ok(!seams.includes(22) && !seams.includes(35), 'canal and harbour do not');
+  assert.ok([12, 13, 14, 15].every((y) => seams.includes(y)), 'the (four-tile) road crosses');
+  assert.ok(!seams.includes(24) && !seams.includes(37), 'canal and harbour do not');
   assert.deepEqual(g.neighbors('lanternside').map((n) => n.map.id).sort(), ['ober_fields', 'westbrook']);
   assert.equal(g.neighbors('cafe').length, 0);
 });

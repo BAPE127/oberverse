@@ -1,45 +1,94 @@
-// Transit (v0.17.0 "Route 1"): the No. 1 bus and the traffic.
+// Transit (v0.17.0 "Route 1"; v0.20.0 "Streets"): the No. 1 bus and the traffic.
 //
-// Everything here drives along fixed lanes in WORLD space (src/world/layout.js),
-// so a bus can run from the Yards through Halvermouth and along the coast road
-// to the Ober Fields, crossing maps and region gates without caring which map
-// it's on. Near you (same region), vehicles move every frame and stop for
-// whatever is in front of them — you, people, other vehicles, parked cars;
-// elsewhere (or while time skips) they move once a game minute and never stop.
+// Vehicles drive fixed lanes in WORLD space (src/world/layout.js), so a bus can
+// run from the Yards through Halvermouth and along the coast road to the Ober
+// Fields, crossing maps and region gates. Routes are authored per map
+// (src/content/transit.js) and rounded at every corner, so vehicles swing
+// through turns instead of pivoting on the spot.
 //
-// The bus: three buses on one loop, 2 obols a ride, a stop in every district.
-// Board one that's waiting at a stop (E), ride it for real while it drives,
-// and get off (E) at any stop. Bus-stop signs show the next buses and let you
-// wait for one. Traffic: cars circling Halvermouth's blocks and running the
-// coast road; carjack one that's stopped (a crime).
+// Near you (same region) vehicles move every frame and stop for whatever is in
+// front of them — you, people, other vehicles, parked cars — and for red
+// lights at the junctions (src/world/lights.js); elsewhere, or while time
+// skips, they move once a game minute and never stop.
 //
-// State: game.world.transit = { buses: [{ dist, dwellUntil }] } — traffic is
-// regenerated each session. Runtime: this.followers (buses + traffic).
+// The bus: three buses on one loop, 2 obols a ride. Traffic: rings round city
+// blocks, plus through traffic that drives in through one gate and out through
+// another (it leaves the map and new cars come in — no U-turns at the edges).
+//
+// State: game.world.transit = { buses: [{ dist, dwellUntil, lastStop }] } —
+// traffic is regenerated each session. Runtime: this.followers.
 import { TILE, clamp, dist } from '../core/util.js';
-import { worldLayout, worldToMap, mapToWorld } from '../world/layout.js';
+import { worldToMap, mapToWorld } from '../world/layout.js';
+import { lightState } from '../world/lights.js';
 import { isDown } from './combat.js';
 
-/** A closed polyline in world pixels with arc-length lookup. */
-class Route {
-  constructor(points) {
-    this.pts = points.map(([x, y]) => ({ x: x * TILE, y: y * TILE }));
+const CORNER = 1.6 * TILE; // radius of the curve at each corner
+const HONK_GAP = 9; // seconds between any two honks you hear
+const BOX_PAD = 2; // px
+
+/** A polyline in world pixels (closed, or open from a start to an end), rounded at the corners, with arc-length lookup. */
+export class Route {
+  constructor(pts, { closed = true } = {}) {
+    this.closed = closed;
+    this.pts = closed ? Route.round(pts, true) : Route.round(pts, false);
+    const n = this.pts.length;
     this.cum = [0];
-    for (let i = 0; i < this.pts.length; i++) {
+    const segs = closed ? n : n - 1;
+    for (let i = 0; i < segs; i++) {
       const a = this.pts[i];
-      const b = this.pts[(i + 1) % this.pts.length];
+      const b = this.pts[(i + 1) % n];
       this.cum.push(this.cum[i] + Math.hypot(b.x - a.x, b.y - a.y));
     }
-    this.length = this.cum[this.pts.length];
+    this.length = this.cum[segs];
+  }
+
+  /** Replace each sharp corner with a short curve (quadratic, sampled). */
+  static round(pts, closed) {
+    const out = [];
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      const prev = pts[(i - 1 + n) % n];
+      const next = pts[(i + 1) % n];
+      if (!closed && (i === 0 || i === n - 1)) { out.push(p); continue; }
+      const a1 = Math.atan2(p.y - prev.y, p.x - prev.x);
+      const a2 = Math.atan2(next.y - p.y, next.x - p.x);
+      const turn = Math.abs(((a2 - a1 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      const l1 = Math.hypot(p.x - prev.x, p.y - prev.y);
+      const l2 = Math.hypot(next.x - p.x, next.y - p.y);
+      const r = Math.min(CORNER, l1 / 2.2, l2 / 2.2);
+      if (turn < 0.15 || r < 4) { out.push(p); continue; }
+      const s = { x: p.x - Math.cos(a1) * r, y: p.y - Math.sin(a1) * r };
+      const e = { x: p.x + Math.cos(a2) * r, y: p.y + Math.sin(a2) * r };
+      const steps = Math.max(3, Math.round(turn * 5));
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps;
+        out.push({ x: (1 - t) ** 2 * s.x + 2 * (1 - t) * t * p.x + t * t * e.x, y: (1 - t) ** 2 * s.y + 2 * (1 - t) * t * p.y + t * t * e.y });
+      }
+    }
+    return out;
   }
 
   wrap(d) {
+    if (!this.closed) return clamp(d, 0, this.length);
     return ((d % this.length) + this.length) % this.length;
+  }
+
+  /** Forward distance from a to b along the route (Infinity if behind, on an open route). */
+  ahead(a, b) {
+    if (this.closed) return this.wrap(b - a);
+    return b >= a ? b - a : Infinity;
   }
 
   at(d) {
     d = this.wrap(d);
-    let i = 0;
-    while (i < this.pts.length - 1 && this.cum[i + 1] <= d) i++;
+    let lo = 0;
+    let hi = this.cum.length - 2;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (this.cum[mid] <= d) lo = mid; else hi = mid - 1;
+    }
+    const i = lo;
     const a = this.pts[i];
     const b = this.pts[(i + 1) % this.pts.length];
     const seg = this.cum[i + 1] - this.cum[i] || 1;
@@ -47,27 +96,25 @@ class Route {
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, angle: Math.atan2(b.y - a.y, b.x - a.x), seg: i };
   }
 
-  /** Distances along the route where a horizontal segment on `road` (a tile row; lanes road+0.5 and road+1.5) passes world tile x. */
-  crossings(x, road) {
+  /** Distances along the route where it passes within `r` px of a point (one per pass). */
+  near(px, py, r) {
     const out = [];
-    const px = x * TILE;
-    for (let i = 0; i < this.pts.length; i++) {
-      const a = this.pts[i];
-      const b = this.pts[(i + 1) % this.pts.length];
-      if (Math.abs(a.y - b.y) > 1) continue;
-      const row = a.y / TILE;
-      if (row < road || row > road + 2) continue;
-      if (px < Math.min(a.x, b.x) || px > Math.max(a.x, b.x)) continue;
-      out.push(this.cum[i] + Math.abs(px - a.x));
+    let run = null;
+    for (let d = 0; d <= this.length; d += 8) {
+      const p = this.at(d);
+      const dd = Math.hypot(p.x - px, p.y - py);
+      if (dd < r) {
+        if (!run || dd < run.best) run = { ...(run || {}), best: dd, dist: d };
+      } else if (run) { out.push(run.dist); run = null; }
     }
+    if (run) out.push(run.dist);
     return out;
   }
 }
 
 export function freshTransit(content) {
   const B = content.transit.bus;
-  const r = new Route(B.route);
-  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: (r.length * i) / B.buses, dwellUntil: 0 })) };
+  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: null, slot: i, dwellUntil: 0 })) };
 }
 
 export class Transit {
@@ -76,6 +123,8 @@ export class Transit {
     this.followers = [];
     this.ready = false;
     this.nextId = 1;
+    this.respawn = [];
+    this.honkAt = -100;
   }
 
   get cfg() {
@@ -88,33 +137,81 @@ export class Transit {
     return g.world.transit;
   }
 
-  /** Build routes, stops, buses and traffic (lazily: the maps must exist). */
+  /** Map-local points → world pixels. */
+  worldPts(points) {
+    return points.map((p) => {
+      const w = mapToWorld(this.game, p.map, p.x * TILE, p.y * TILE);
+      return { x: w.x * TILE, y: w.y * TILE };
+    });
+  }
+
+  /** Build routes, stops, junctions, buses and traffic (lazily: the maps must exist). */
   setup() {
     if (this.ready) return;
     const g = this.game;
     const B = this.cfg.bus;
-    this.busRoute = new Route(B.route);
+    this.busRoute = new Route(this.worldPts(B.route));
+    // junction boxes in world pixels, and where each route enters them (and along which axis)
+    this.junctions = (this.cfg.junctions || []).map((j) => {
+      const w = mapToWorld(g, j.map, j.x * TILE, j.y * TILE);
+      return { ...j, wx: w.x * TILE, wy: w.y * TILE, ww: j.w * TILE, wh: j.h * TILE };
+    });
     // each stop, at its distance along the loop in each direction
     this.stops = [];
-    for (const s of B.stops) for (const d of this.busRoute.crossings(s.x, s.road)) this.stops.push({ ...s, dist: d });
+    for (const s of B.stops) {
+      const w = mapToWorld(g, s.sign.map, (s.sign.x + 0.5) * TILE, (s.sign.y + 0.5) * TILE);
+      for (const d of this.busRoute.near(w.x * TILE, w.y * TILE, 5.5 * TILE)) this.stops.push({ ...s, dist: d });
+    }
     this.stops.sort((a, b) => a.dist - b.dist);
-    this.turn = this.busRoute.cum[B.route.findIndex(([x]) => x >= 270)]; // the far end of the line
-    this.followers = this.state.buses.map((b, i) => ({ id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b }));
-    // traffic, spread round each loop
+    // the far end of the line: the route's easternmost point
+    let far = 0;
+    let fx = -Infinity;
+    for (let d = 0; d < this.busRoute.length; d += 32) { const p = this.busRoute.at(d); if (p.x > fx) { fx = p.x; far = d; } }
+    this.turn = far;
+    this.entries(this.busRoute);
+    const st = this.state;
+    this.followers = st.buses.map((b, i) => {
+      if (b.dist === null || b.dist === undefined || b.dist > this.busRoute.length) b.dist = (this.busRoute.length * i) / st.buses.length;
+      return { id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b };
+    });
+    // traffic
     const T = this.cfg.traffic;
     let n = 0;
+    this.loops = {};
     for (const loop of T.loops) {
-      const route = new Route(loop.path);
+      const route = new Route(this.worldPts(loop.path), { closed: !loop.open });
+      this.entries(route);
+      this.loops[loop.id] = { ...loop, route };
       for (let i = 0; i < loop.cars; i++) {
-        const model = T.models[(n * 3 + i) % T.models.length];
-        const m = g.content.vehicles.models[model];
-        const max = loop.speed[0] + ((n * 37 + i * 53) % 100) / 100 * (loop.speed[1] - loop.speed[0]);
-        this.followers.push({ id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: (route.length * (i + 0.3 * ((n % 3) / 3))) / loop.cars, speed: max, max, len: m.len, wid: m.wid, model, color: T.colors[(n * 5 + i * 2) % T.colors.length] });
-        n++;
+        const f = this.makeCar(loop, route, n++);
+        f.dist = loop.open ? (route.length * (i + 0.5)) / (loop.cars + 0.5) : (route.length * (i + 0.3)) / loop.cars;
+        this.followers.push(f);
       }
     }
     this.ready = true;
     for (const f of this.followers) this.place(f);
+  }
+
+  makeCar(loop, route, n) {
+    const g = this.game;
+    const T = this.cfg.traffic;
+    const model = T.models[(n * 3 + this.nextId) % T.models.length];
+    const m = g.content.vehicles.models[model];
+    const max = loop.speed[0] + (((n * 37 + this.nextId * 53) % 100) / 100) * (loop.speed[1] - loop.speed[0]);
+    return { id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: 0, speed: max * 0.6, max, len: m.len, wid: m.wid, model, color: T.colors[(n * 5 + this.nextId) % T.colors.length] };
+  }
+
+  /** Where a route enters each junction, and on which axis (for the lights). */
+  entries(route) {
+    const inside = (p) => this.junctions.find((j) => p.x >= j.wx - BOX_PAD && p.x < j.wx + j.ww + BOX_PAD && p.y >= j.wy - BOX_PAD && p.y < j.wy + j.wh + BOX_PAD) || null;
+    route.lights = [];
+    let prev = inside(route.at(0));
+    for (let d = 8; d <= route.length; d += 8) {
+      const p = route.at(d);
+      const j = inside(p);
+      if (j && j !== prev) route.lights.push({ dist: d, j, axis: Math.abs(Math.cos(p.angle)) > Math.abs(Math.sin(p.angle)) ? 'ew' : 'ns' });
+      prev = j;
+    }
   }
 
   /** Recompute a follower's world position, heading and map. */
@@ -173,41 +270,51 @@ export class Transit {
     return this.regionOf(f.map) === this.regionOf(pm.id);
   }
 
+  riding() {
+    const r = this.game.player.riding;
+    return r !== null && r !== undefined;
+  }
+
   // ------------------------------------------------------------- driving
   /** Per frame: everything near you moves carefully; the bus you're on carries you. */
   update(dt) {
     this.setup();
-    for (const f of this.followers) {
+    for (const f of [...this.followers]) {
       if (!this.near(f) && !(f.kind === 'bus' && this.game.player.riding === f.idx)) continue;
       this.step(f, dt, true);
     }
-    if (this.game.player.riding !== null && this.game.player.riding !== undefined) this.carryRider();
+    if (this.riding()) this.carryRider();
   }
 
   /** Per game minute: everything else moves, without looking. */
   minuteTick() {
     this.setup();
     const g = this.game;
-    for (const f of this.followers) {
+    for (const f of [...this.followers]) {
       if (this.near(f) && !g.skipping) continue;
       if (f.kind === 'bus' && g.player.riding === f.idx && !g.skipping) continue;
       this.step(f, 1, false);
     }
-    if (g.skipping && g.player.riding !== null && g.player.riding !== undefined) this.carryRider();
-    // carjacked cars come back to the roads after a while
-    if (this.respawn?.length) {
+    if (g.skipping && this.riding()) this.carryRider();
+    // cars come back to the roads: a carjacked one later, a through car that left by the next
+    if (this.respawn.length) {
       const due = this.respawn.filter((r) => r.at <= g.clock.total);
       this.respawn = this.respawn.filter((r) => r.at > g.clock.total);
-      for (const r of due) { r.f.dist = r.f.route.wrap(r.f.dist + r.f.route.length / 2); r.f.speed = 0; this.followers.push(r.f); this.place(r.f); }
+      for (const r of due) {
+        const f = r.f;
+        f.dist = f.route.closed ? f.route.wrap(f.dist + f.route.length / 2) : 0;
+        f.speed = f.max * 0.6;
+        f.waitT = 0;
+        this.followers.push(f);
+        this.place(f);
+      }
     }
   }
 
   step(f, dt, careful) {
     const g = this.game;
     const B = this.cfg.bus;
-    if (f.kind === 'bus') {
-      if (g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
-    }
+    if (f.kind === 'bus' && g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
     let target = f.max;
     // ease into the next stop
     let toStop = Infinity;
@@ -217,21 +324,19 @@ export class Transit {
       if (stop) toStop = f.route.wrap(stop.dist - f.dist);
       if (careful) target = Math.min(target, 30 + toStop * 1.6);
     }
-    // slow for corners
-    const ahead = f.route.at(f.dist + f.len);
+    // slow for the bends
+    const ahead = f.route.at(f.dist + f.len * 0.8);
     const turn = Math.abs(((ahead.angle - f.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-    if (turn > 0.3) target = Math.min(target, careful ? 110 : target);
+    if (careful && turn > 0.25) target = Math.min(target, 150 - turn * 40);
     if (careful) {
       let ob = this.obstacleAhead(f);
+      const light = ob ? null : this.redAhead(f);
+      if (light) target = Math.min(target, Math.max(0, (light - 6) * 2.2));
       if (ob) { f.holdUntil = g.realTime + 0.6; f.holdFor = ob; } else if ((f.holdUntil || 0) > g.realTime) ob = f.holdFor; // don't creep and lurch
       if (ob) {
         target = 0;
         f.waitT = (f.waitT || 0) + dt;
-        if (ob === 'player' && f.waitT > 1.5 && (f.honkAt || 0) < g.realTime) {
-          f.honkAt = g.realTime + 4;
-          g.bus.emit('sfx', { id: 'sfx_horn' });
-          g.bus.emit('transit:honk', { id: f.id });
-        }
+        if (ob === 'player') this.honk(f);
         if (ob !== 'player' && f.waitT > 8) f.ghostUntil = g.realTime + 2; // never jam forever
       } else f.waitT = 0;
       f.speed += clamp(target - f.speed, -700 * dt, 260 * dt);
@@ -249,9 +354,44 @@ export class Transit {
       if (g.player.riding === f.idx) g.bus.emit('transit:stop', { stop: stop.id, name: stop.name });
       return;
     }
+    // through traffic leaves at the end of its road; another car comes in later
+    if (!f.route.closed && f.dist + move >= f.route.length) {
+      this.followers = this.followers.filter((x) => x !== f);
+      const loop = this.loops[f.loop];
+      this.respawn.push({ f, at: g.clock.total + (loop?.gap ?? 40) });
+      return;
+    }
     f.dist = f.route.wrap(f.dist + move);
     if (f.kind === 'bus') f.state.dist = f.dist;
     this.place(f);
+  }
+
+  /** Distance (px) from the vehicle's nose to a red (or late amber) light ahead, or null. */
+  redAhead(f) {
+    const lights = f.route.lights || [];
+    if (!lights.length) return null;
+    const nose = f.dist + f.len / 2;
+    const look = f.len / 2 + 40 + Math.max(0, f.speed) ** 2 / 1000;
+    const t = this.game.realTime;
+    for (const L of lights) {
+      const gap = f.route.ahead(nose, L.dist);
+      if (gap > look) continue;
+      const s = lightState(L.j, t)[L.axis];
+      if (s === 'green') return null;
+      if (s === 'amber' && gap < 26) return null; // too late to stop: go
+      return gap;
+    }
+    return null;
+  }
+
+  /** At most one honk every few seconds, only when you're actually in the way, nearby. */
+  honk(f) {
+    const g = this.game;
+    if (f.waitT < 3 || (f.honkAt || 0) > g.realTime || g.realTime - this.honkAt < HONK_GAP) return;
+    f.honkAt = g.realTime + 15;
+    this.honkAt = g.realTime;
+    g.bus.emit('sfx', { id: 'sfx_horn', opts: { quiet: true } });
+    g.bus.emit('transit:honk', { id: f.id });
   }
 
   /** What's in front of a follower: 'player', 'npc', 'car' or null. */
@@ -260,17 +400,16 @@ export class Transit {
     if (!f.map || (f.ghostUntil || 0) > g.realTime) return null;
     const cs = Math.cos(f.angle);
     const sn = Math.sin(f.angle);
-    const reach = f.len / 2 + 44 + (Math.max(0, f.speed) ** 2) / 1100; // a steady gap plus braking distance
+    const reach = f.len / 2 + 44 + Math.max(0, f.speed) ** 2 / 1100; // a steady gap plus braking distance
     const test = (wx, wy, r) => {
       const rx = wx - f.wx;
       const ry = wy - f.wy;
       const along = rx * cs + ry * sn;
       const lat = Math.abs(-rx * sn + ry * cs);
-      return along > 0 && along < reach + r && lat < 12 + r;
+      return along > 0 && along < reach + r && lat < 14 + r;
     };
     const p = g.player;
-    const riding = p.riding !== null && p.riding !== undefined;
-    if (!riding) {
+    if (!this.riding()) {
       const pw = mapToWorld(g, p.map, p.x, p.y);
       if (pw && test(pw.x * TILE, pw.y * TILE, p.driving ? 18 : 8)) return 'player';
     }
@@ -307,8 +446,8 @@ export class Transit {
   boardable() {
     const g = this.game;
     const p = g.player;
-    if (p.driving || (p.riding !== null && p.riding !== undefined)) return null;
-    return this.on(p.map).find((f) => this.dwelling(f) && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 70) || null;
+    if (p.driving || this.riding()) return null;
+    return this.on(p.map).find((f) => this.dwelling(f) && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 90) || null;
   }
 
   board(idx) {
@@ -436,7 +575,7 @@ export class Transit {
   carjackable() {
     const g = this.game;
     const p = g.player;
-    if (p.driving || (p.riding !== null && p.riding !== undefined)) return null;
+    if (p.driving || this.riding()) return null;
     return this.on(p.map).find((f) => f.kind === 'traffic' && f.speed < 40 && dist(f.x, f.y, p.x, p.y) < f.len / 2 + 28) || null;
   }
 
@@ -445,7 +584,7 @@ export class Transit {
     const f = this.followers.find((x) => x.id === id);
     if (!f || f.kind !== 'traffic' || !f.map) return { ok: false, text: '' };
     this.followers = this.followers.filter((x) => x !== f);
-    (this.respawn ||= []).push({ f, at: g.clock.total + 120 });
+    this.respawn.push({ f, at: g.clock.total + 120 });
     const V = g.vehicles;
     const cid = `car_jack${V.state.nextId++}`;
     V.state.cars[cid] = { id: cid, model: f.model, color: f.color, map: f.map, x: f.x, y: f.y, angle: f.angle, owner: 'player', stolen: true, from: 'traffic', plate: 'JACKED' };

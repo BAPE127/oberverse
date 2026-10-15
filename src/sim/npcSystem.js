@@ -10,6 +10,7 @@ import { findPath, routeBetweenMaps } from '../world/pathfinding.js';
 import { decide, scheduleLead } from './npcBrain.js';
 import { blockAt, blockInstanceKey } from './schedule.js';
 import { remember } from './memory.js';
+import { walkSignal } from '../world/lights.js';
 
 const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
 
@@ -150,6 +151,7 @@ export class NpcSystem {
     const dx = wp.x - npc.x;
     const dy = wp.y - npc.y;
     const d = Math.hypot(dx, dy);
+    if (this.waitForSignal(npc, wp)) return;
     const speed = WALK_SPEED * (npc.profile.walkSpeed ?? 1) * (g.clock.rate || 1) ** 0.5;
     const step = speed * dt;
     if (d <= step) {
@@ -164,6 +166,27 @@ export class NpcSystem {
       npc.moving = true;
       npc.animTime = (npc.animTime || 0) + dt;
     }
+  }
+
+  /**
+   * v0.20.0: at a junction, people on the kerb wait for the little walking man
+   * before stepping onto the crossing (unless they're in a hurry).
+   */
+  waitForSignal(npc, wp) {
+    const g = this.game;
+    const map = g.maps.get(npc.map);
+    if (!map?.crossTiles?.size) return false;
+    const tx = Math.floor(wp.x / TILE);
+    const ty = Math.floor(wp.y / TILE);
+    if (!map.crossTiles.has(ty * map.width + tx)) return false;
+    if (map.grid[Math.floor(npc.y / TILE)]?.[Math.floor(npc.x / TILE)] === '=') return false; // already on the road: keep going
+    if (HELD_INTENTS.includes(npc.intent?.source) || npc.pursuit || npc.hostile) return false;
+    const j = (g.content.transit?.junctions || []).find((k) => k.map === npc.map && tx >= k.x - 1 && tx <= k.x + k.w && ty >= k.y - 1 && ty <= k.y + k.h);
+    if (!j) return false;
+    const axis = Math.abs(wp.y - npc.y) > Math.abs(wp.x - npc.x) ? 'ns' : 'ew';
+    if (walkSignal(j, axis, g.realTime) === 'walk') return false;
+    npc.facing = axis === 'ns' ? (wp.y > npc.y ? 'down' : 'up') : wp.x > npc.x ? 'right' : 'left';
+    return true;
   }
 
   onPathEnd(npc) {
