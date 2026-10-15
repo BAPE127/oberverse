@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.29.1 (2026-10-15)
+
+- `npm run check` — **322/322 tests passed** (1 new: Lariat's grid reachable from the gate, fields all on field tiles and none on the creek, no per-frame crop props, no street furniture on roads/buildings/water/fields, two junctions with lights and crossings, the arch and the North Gate's gateposts and sign, no sea-wall border); validator 0 errors.
+- `npm run smoke` — 24/24.
+- Browser (headless Chromium): the whole of Lariat rendered in one image before and after; close-ups of the arch, Main & FM 38, Cotton & FM 38, the cotton field and Halvermouth's North Gate; the world map. 60 fps over the cotton field (the per-frame stalks are gone). Fixed from the runs: the arch's beam floating above its posts, an overflowing sign on the one-tile ridge, a lamp and a tree in the road, a front walk that ran to the map edge. No page errors.
+
 ## Verification record — v0.29.0 (2026-10-15)
 
 - `npm run check` — **321/321 tests passed** (13 new in `lariat.test.mjs`: Chuckie imported and protected with the stampede Wrath; Lariat reachable through the North Gate with every door, hideout and the paddock reachable on foot; a new game's cows loose at their hideouts; Chuckie's quest states and no repeated intro; the lasso always in stock and buying it advancing the quest; no rope without a lasso, roping first starting the quest; a roped cow following at walking pace and coming home in the paddock (capacity 55% → 64%); waiting outside interiors, not chasing you across the county, and staying roped through a save; the reward paid once, also after a load; production, dividends once a day and the price toward fair value; the anti-exploit limits; an older save gaining the dairy; the company board and markers; a cow crossing the North Gate with you); validator 0 errors (it now also rejects duplicate ids).

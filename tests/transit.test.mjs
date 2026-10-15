@@ -119,8 +119,9 @@ test('the bus waits for someone standing in the road, and honks at you', () => {
 test('traffic circles the city and the coast road, and stops for people', () => {
   const g = fresh();
   const T = g.transit;
-  const cars = T.followers.filter((f) => f.kind === 'traffic');
+  const cars = T.followers.filter((f) => f.kind === 'traffic' && !f.loop.startsWith('lariat'));
   assert.ok(cars.length >= 5 && cars.length <= 8, `${cars.length} cars: fewer than before`);
+  assert.equal(T.followers.filter((f) => f.kind === 'traffic' && f.loop.startsWith('lariat')).length, 3, 'and three round Lariat\'s blocks (v0.29.1)');
   assert.ok(cars.some((f) => f.map === 'halvermouth') && cars.some((f) => ['westbrook', 'lanternside', 'ober_fields'].includes(f.map)));
   g.changeMap('halvermouth', 'east_gate');
   const before = cars.map((f) => f.dist);

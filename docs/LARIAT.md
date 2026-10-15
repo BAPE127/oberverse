@@ -8,13 +8,24 @@ Lariat is a farm town in the north-Texas style, north of Halvermouth through the
 | 0.30.0 | Farms for sale (Land Office, through the property system), fields and crops on the world clock, equipment and the Red Dirt tractor dealership (through the vehicle system), Feed & Seed, Ag Repair | Planned |
 | 0.31.0 | Livestock (Hoof & Horn), the agricultural market and the Co-op, farm management | Planned |
 
-## The town (`src/content/maps/lariat.js`)
+## The town (`src/content/maps/lariat.js`, rebuilt in v0.29.1)
 
-150 × 110 tiles. FM 38 runs north from the gate to Main Street; Cotton Street and Dairy Road cross it; dirt tracks lead to the windmill, the Hollister farm (over a plank bridge across Caddo Creek), the Co-op elevator and the east fields.
+150 × 110 tiles, laid out like Halvermouth: four-lane streets with pavements, all connected, traffic lights and zebra crossings at FM 38 & Main and FM 38 & Cotton, and three cars driving round the blocks.
+
+| Street | Tiles | What's on it |
+|---|---|---|
+| FM 38 | x 72–75, y 4–109 | from the ranch arch at the south edge (the gate to Halvermouth) up through town to the Hollister and windmill lanes |
+| Pecan Street | y 24–27 | five houses with yards |
+| Main Street | y 40–43 | the church, post office, bank, Mercantile, Land Office · Feed & Seed, Ag Repair, the water tower, the Co-op |
+| Cotton Street | y 57–60 | Rusty's Barber, Hoof & Horn, the Mesquite Diner, the Bluebonnet · Red Dirt and its lot, Lariat Square |
+| Dairy Road / Mesquite Lane | y 74–77 | the school and the way into Chuckie's Cheese · five houses |
+| Church Street / East Street | x 20–23 / x 128–131 | close the blocks (Church Street runs on into the dairy yard) |
 
 - **Open:** Lariat Mercantile (Opal; `shop_mercantile` — the lasso, always at least one on the peg), the Mesquite Diner (Lupe; `shop_diner`), the Bluebonnet Boarding House, the milking parlour, the Chuckie's Cheese plant (with the company board), Chuckie's ranch house, the Hollister farmhouse.
-- **Closed until 0.30–0.31** (the doors say why): the Land Office, Lone Star Feed & Seed, Calloway Ag Repair, Hoof & Horn, Red Dirt Tractor & Implement, the Co-op elevator office.
-- Chuckie's Cheese occupies the south-west: two freestall barns, the parlour, the plant, silos, a milk tank, pasture with 22 grazing cows (props) and the **lead cows' paddock** (`paddock` on the map: x 25–34, y 82–90).
+- **Closed** (the doors say why): the Land Office, Feed & Seed, Ag Repair, Hoof & Horn, Red Dirt (until 0.30–0.31), the Co-op office, the church, post office, bank, barber, school and the houses.
+- **Around the town:** Chuckie's Cheese (south-west: barns, parlour, plant, silos, pasture with 22 grazing cows, the lead cows' paddock, x 25–34, y 82–90), the rodeo grounds and the church (west), the old windmill (north-west), the Hollister cotton and sorghum (north-east), Caddo Creek down the east side, Chuckie's silage corn, and the three plots for sale (south-east).
+- **Fields** are listed in the map's `fields` and drawn once into the ground layer (`drawFields`), on `k` tiles — no per-frame cost.
+- **The way in:** the LARIAT arch over FM 38 at the south edge; at Halvermouth's North Gate, stone gateposts and an FM 38 NORTH sign.
 
 ## The lead cows and *The Lost Herd* (`q_lost_herd`)
 

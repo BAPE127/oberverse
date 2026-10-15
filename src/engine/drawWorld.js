@@ -1,6 +1,6 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
-import { drawFarmProp } from './drawFarm.js';
+import { drawFarmProp, drawFields } from './drawFarm.js';
 import { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } from './drawDeck.js';
 import { lightState, walkSignal } from '../world/lights.js';
 import { TILE } from '../core/util.js';
@@ -27,6 +27,8 @@ export function buildStaticLayer(map, makeCanvas) {
     for (let x = 0; x < map.width; x++) drawTileEdges(ctx, map, x, y);
   }
   if (map.kind === 'interior') drawInteriorWalls(ctx, map);
+  // v0.29.1: fields and their crops are part of the ground (drawn once, not every frame)
+  if (map.def?.fields) drawFields(ctx, map.def.fields);
   return cv;
 }
 
@@ -96,6 +98,22 @@ function drawTile(ctx, map, x, y) {
         else { ctx.moveTo(px + i * 8 + 0.5, py); ctx.lineTo(px + i * 8 + 0.5, py + T); }
         ctx.stroke();
       }
+      break;
+    }
+    case 'R': {
+      // a grassy bank with stones: the land rises out of the map
+      ctx.fillStyle = 'rgba(40,55,30,0.18)';
+      ctx.fillRect(px, py + T - 6, T, 6);
+      for (let i = 0; i < 3; i++) {
+        const sx = px + 4 + hash2(x * 3 + i, y) * 22;
+        const sy = py + 4 + hash2(x, y * 5 + i) * 18;
+        ctx.fillStyle = '#8d8f84';
+        ctx.beginPath(); ctx.ellipse(sx, sy, 4 + r * 3, 3 + r * 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#a9aa9e';
+        ctx.beginPath(); ctx.ellipse(sx - 1, sy - 1, 2 + r, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(120,160,80,0.5)';
+      for (let i = 0; i < 4; i++) ctx.fillRect(px + hash2(x + i * 7, y + 2) * T, py + hash2(x + 3, y + i * 3) * T, 2, 4);
       break;
     }
     case 'r': {

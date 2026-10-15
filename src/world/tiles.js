@@ -19,6 +19,8 @@ export const TILE_TYPES = {
   g: { name: 'concrete', solid: false, color: '#a7a9a6', alt: '#9fa19e' },
   m: { name: 'plaza stone', solid: false, color: '#d8d2c4', alt: '#d0c9ba' },
   u: { name: 'mud', solid: false, color: '#7d6e5a', alt: '#756652' },
+  k: { name: 'field', solid: false, color: '#9c7a4e', alt: '#94724a' }, // v0.29.1: a worked field (its crop is drawn from map.fields)
+  R: { name: 'ridge', solid: true, color: '#6f7d4f', alt: '#68764a' }, // v0.29.1: a grassy, rocky bank at a map's edge
   x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
 };
 

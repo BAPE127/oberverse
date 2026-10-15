@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.29.1',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Main Street',
+    notes: [
+      'Lariat has been rebuilt as a proper town: a grid of four-lane streets with pavements, traffic lights and zebra crossings at FM 38, cars driving round the blocks, and every street joined up — no more roads ending in the grass.',
+      'New in town: the First Baptist church, the post office, the State Bank, Rusty\'s Barber Shop, the school, Lariat Square with its longhorn fountain, the rodeo grounds, and two streets of houses with yards and mailboxes.',
+      'Caddo Creek now runs down the east side of the county, clear of the farms; the cotton and sorghum, Chuckie\'s silage corn and the plots for sale are proper fields — and they no longer slow the game down.',
+      'The way in is clear: gateposts and an FM 38 sign at Halvermouth\'s North Gate, and a ranch arch over the road as you reach Lariat. The town no longer sits in a moat, and the city\'s northern edge is a grassy ridge, not sea.',
+    ],
+  },
+  {
     version: '0.29.0',
     date: '2026-10-15',
     channel: 'development',

@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.29.1.** Lariat rebuilt on a street grid with lights, crossings and traffic; fields baked into the ground layer (`map.fields`, `k` tile); the North Gate and Lariat's arch; `R` ridge tile.
 - **2026-10-15 — v0.29.0.** Lariat (`src/content/maps/lariat.js`), Farmer Chuckie and the townsfolk, the five talking lead cows and `q_lost_herd`, Chuckie's Cheese and CHZ (`src/systems/dairy.js`), the stampede Wrath; first of three agricultural releases (`docs/LARIAT.md`).
 - **2026-10-15 — v0.28.0.** Realistic fictional geography (`src/world/geography.js`, `src/engine/drawGlobeSurface.js`, `docs/GEOGRAPHY.md`); ports moved to the new coasts; the arms globe rendered as a lit sphere.
 - **2026-10-15 — v0.27.0.** Life-size ships at the Yards berths you can walk aboard (`src/systems/docks.js`, `src/world/shipDeck.js`, `src/engine/drawDeck.js`, `docs/BOARDING.md`). The owner's three-release terminal and shipbuilder plan is complete.

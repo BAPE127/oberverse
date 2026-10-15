@@ -23,11 +23,130 @@ function boardText(ctx, text, x, y, w, size, colour) {
   ctx.fillText(text, x + w / 2, y, w - 6);
 }
 
-export const FARM_PROPS = new Set(['watertower', 'bigsign', 'silo', 'windmill', 'haybale', 'tractor', 'trough', 'crops', 'ranchfence', 'cow', 'milktank', 'milkstall', 'cheesevat', 'cheesepress', 'cheeserack']);
+export const FARM_PROPS = new Set(['ranchgate', 'ranchpost', 'roadsign', 'watertower', 'bigsign', 'silo', 'windmill', 'haybale', 'tractor', 'trough', 'crops', 'ranchfence', 'cow', 'milktank', 'milkstall', 'cheesevat', 'cheesepress', 'cheeserack']);
+
+// ------------------------------------------------------------------ fields
+// v0.29.1: fields are drawn into the map's static ground layer once (map.fields:
+// [{ x, y, w, h, crop, stage }] in tiles), not as props every frame.
+const CROPS = {
+  cotton: { leaf: '#4f8a3a', dark: '#3a6a2c', head: '#f8f6f0', tall: 12 },
+  sorghum: { leaf: '#5a8a3a', dark: '#44702c', head: '#a8482a', tall: 18 },
+  corn: { leaf: '#4f9a3e', dark: '#3a7a2e', head: '#e8d06a', tall: 24 },
+  wheat: { leaf: '#b8a050', dark: '#9a8440', head: '#e0c060', tall: 14 },
+};
+
+export function drawFields(ctx, fields) {
+  for (const f of fields) drawField(ctx, f);
+}
+
+function drawField(ctx, f) {
+  const x0 = f.x * T;
+  const y0 = f.y * T;
+  const w = f.w * T;
+  const h = f.h * T;
+  const fallow = f.crop === 'fallow' || !CROPS[f.crop] || (f.stage ?? 3) <= 0;
+  // tilled soil: a darker bed with furrows, one every half tile
+  ctx.fillStyle = fallow ? '#a07c50' : '#8a6a44';
+  ctx.fillRect(x0, y0, w, h);
+  for (let yy = y0 + 8; yy < y0 + h; yy += 16) {
+    ctx.fillStyle = 'rgba(60,38,20,0.28)';
+    ctx.fillRect(x0 + 2, yy, w - 4, 4);
+    ctx.fillStyle = 'rgba(255,230,190,0.12)';
+    ctx.fillRect(x0 + 2, yy - 3, w - 4, 2);
+  }
+  // a tidy headland round the edge
+  ctx.strokeStyle = 'rgba(70,45,25,0.35)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x0 + 1, y0 + 1, w - 2, h - 2);
+  if (fallow) {
+    // stubble and a few weeds
+    for (let i = 0; i < f.w * f.h * 0.6; i++) {
+      const px = x0 + hash2(f.x * 31 + i, f.y) * w;
+      const py = y0 + hash2(f.y * 17, f.x + i * 3) * h;
+      ctx.fillStyle = i % 3 ? 'rgba(200,170,110,0.55)' : 'rgba(110,140,70,0.6)';
+      ctx.fillRect(px, py, 2, 3);
+    }
+    return;
+  }
+  const c = CROPS[f.crop];
+  const stage = f.stage ?? 3;
+  const tall = c.tall * [0, 0.35, 0.7, 1][Math.min(3, stage)];
+  for (let yy = y0 + 14; yy < y0 + h - 2; yy += 16) {
+    for (let xx = x0 + 5; xx < x0 + w - 3; xx += 7) {
+      const j = hash2(xx, yy);
+      const ht = tall * (0.85 + j * 0.3);
+      const px = xx + (j - 0.5) * 2;
+      // stalk and leaves
+      ctx.strokeStyle = c.dark;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(px, yy); ctx.lineTo(px, yy - ht); ctx.stroke();
+      ctx.fillStyle = c.leaf;
+      ctx.beginPath(); ctx.ellipse(px - 3, yy - ht * 0.45, 4, 1.8, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(px + 3, yy - ht * 0.65, 4, 1.8, 0.5, 0, Math.PI * 2); ctx.fill();
+      if (stage < 3) continue;
+      if (f.crop === 'cotton') {
+        ctx.fillStyle = c.head;
+        ctx.beginPath(); ctx.arc(px, yy - ht, 2.6, 0, Math.PI * 2); ctx.arc(px + 2.5, yy - ht + 3, 2, 0, Math.PI * 2); ctx.arc(px - 2.5, yy - ht + 4, 1.8, 0, Math.PI * 2); ctx.fill();
+      } else if (f.crop === 'corn') {
+        ctx.fillStyle = c.head; ctx.fillRect(px - 1, yy - ht - 4, 2, 5);
+        ctx.fillStyle = '#d8b84a'; ctx.fillRect(px + 1, yy - ht * 0.55, 3, 6);
+      } else if (f.crop === 'sorghum') {
+        ctx.fillStyle = c.head; ctx.beginPath(); ctx.ellipse(px, yy - ht - 2, 2.4, 4, 0, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillStyle = c.head; ctx.fillRect(px - 1, yy - ht - 5, 3, 6);
+      }
+    }
+  }
+}
 
 export function drawFarmProp(ctx, p, x, y, w, h, opts = {}) {
   const t = opts.time || 0;
   switch (p.type) {
+    case 'ranchpost': {
+      // a timber gatepost, braced
+      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x + 8, y + 24, 18, 7);
+      ctx.fillStyle = '#6a4a2e'; ctx.fillRect(x + 10, y - 40, 12, 70);
+      ctx.fillStyle = '#7e5a38'; ctx.fillRect(x + 10, y - 40, 5, 70);
+      ctx.fillStyle = '#4a3420'; ctx.fillRect(x + 8, y - 44, 16, 6);
+      return true;
+    }
+    case 'ranchgate': {
+      // the town's ranch arch: a beam over the road resting on the two ranchposts (drawn by them, one tile below),
+      // the name hanging from it in iron letters, and a cattle guard across the road under it
+      const top = y - 12;
+      ctx.fillStyle = 'rgba(30,30,34,0.55)';
+      for (let k = 0; k < 6; k++) ctx.fillRect(x + T, y + h - 22 + k * 4, w - 2 * T, 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x + 14, y + h + 2, w - 28, 6); // the beam's shadow on the road
+      ctx.fillStyle = '#5a3e26'; ctx.fillRect(x + 6, top, w - 12, 12);
+      ctx.fillStyle = '#6e4e30'; ctx.fillRect(x + 6, top, w - 12, 4);
+      ctx.fillStyle = '#4a3420'; ctx.fillRect(x + 6, top + 10, w - 12, 2);
+      // the name on chains
+      ctx.strokeStyle = '#2a2420'; ctx.lineWidth = 2;
+      const cx = x + w / 2;
+      ctx.beginPath(); ctx.moveTo(cx - 54, top + 12); ctx.lineTo(cx - 54, top + 18); ctx.moveTo(cx + 54, top + 12); ctx.lineTo(cx + 54, top + 18); ctx.stroke();
+      ctx.font = 'bold 26px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(240,230,210,0.55)'; ctx.strokeText(p.text || 'LARIAT', cx, top + 17);
+      ctx.fillStyle = '#2a2420'; ctx.fillText(p.text || 'LARIAT', cx, top + 17);
+      // a horseshoe and a lasso loop hung off the beam
+      ctx.strokeStyle = '#2a2420'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x + 40, top + 24, 7, Math.PI * 0.1, Math.PI * 0.9, true); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(x + w - 40, top + 24, 8, 6, 0, 0, Math.PI * 2); ctx.stroke();
+      return true;
+    }
+    case 'roadsign': {
+      // a green highway sign on two legs (fits a one-tile or two-tile footprint)
+      const bh = 40;
+      const bottom = y + h - 12;
+      ctx.fillStyle = '#7a7e84';
+      ctx.fillRect(x + 10, bottom - 10, 4, y + h - bottom + 10); ctx.fillRect(x + w - 14, bottom - 10, 4, y + h - bottom + 10);
+      ctx.fillStyle = '#e8ece8'; ctx.fillRect(x + 2, bottom - bh, w - 4, bh);
+      ctx.fillStyle = p.color || '#2f6b4f'; ctx.fillRect(x + 4, bottom - bh + 2, w - 8, bh - 4);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px "Trebuchet MS", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(p.text || '', x + w / 2, bottom - bh + 13, w - 14);
+      if (p.sub) { ctx.font = 'bold 9px "Trebuchet MS", sans-serif'; ctx.fillText(p.sub, x + w / 2, bottom - bh + 29, w - 14); }
+      return true;
+    }
     case 'watertower': {
       const cx = x + w / 2;
       ctx.strokeStyle = '#6a7078'; ctx.lineWidth = 3;
@@ -148,8 +267,9 @@ export function drawFarmProp(ctx, p, x, y, w, h, opts = {}) {
     case 'ranchfence': {
       ctx.fillStyle = '#7a5a3a';
       if (p.vertical) {
-        ctx.fillRect(x + 14, y, 3, h);
-        ctx.fillRect(x + 12, y + 2, 7, 6);
+        ctx.fillRect(x + 13, y - 6, 3, h + 4);
+        ctx.fillRect(x + 18, y - 6, 3, h + 4);
+        for (let i = 0; i < h; i += 16) ctx.fillRect(x + 11, y + i - 10, 12, 6);
       } else {
         ctx.fillRect(x, y + 12, w, 3); ctx.fillRect(x, y + 20, w, 3);
         for (let i = 2; i < w; i += 16) ctx.fillRect(x + i, y + 6, 4, 22);

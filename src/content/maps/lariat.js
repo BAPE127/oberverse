@@ -1,9 +1,18 @@
-// Lariat (v0.29.0) — a small Texas farming town north of Halvermouth, up
-// Farm-to-Market Road 38 from the city's North Gate. Main Street and Cotton
-// Street are the town; around them, the countryside: Chuckie's Cheese (the
-// big dairy and cheese plant, south-west), the Hollister cotton farm (north-
-// east), Caddo Creek, the old windmill, the Co-op grain elevator, and open
-// land for the farms that are coming up for sale.
+// Lariat (v0.29.0; streets rebuilt in v0.29.1) — a small Texas farming town
+// north of Halvermouth, up Farm-to-Market Road 38 from the city's North Gate.
+//
+// The town is a grid of four-lane streets with pavements, like the city's:
+//   FM 38 (x 72–75) runs north–south through the middle, from the ranch-gate
+//   arch at the south edge up to the Hollister and windmill lanes;
+//   Pecan Street (y 24–27, houses), Main Street (y 40–43, shops), Cotton
+//   Street (y 57–60, the diner, Red Dirt, the square) and Dairy Road /
+//   Mesquite Lane (y 74–77, the school, Chuckie's Cheese, more houses) cross it;
+//   Church Street (x 20–23) and East Street (x 128–131) close the blocks.
+// Traffic lights at FM 38 & Main and FM 38 & Cotton (src/content/transit.js).
+// Around the town: Chuckie's Cheese (south-west), the rodeo grounds and the
+// church (west), the old windmill (north-west), the Hollister farm (north-
+// east), the Co-op, Caddo Creek down the east side, and the land for sale
+// (south-east). Fields are drawn into the ground layer from `fields`.
 // Coordinates are in tiles (authored at full width: roads are already 4 wide).
 // Preview with `npm run map -- lariat`.
 import { MapBuilder, roomTiles } from '../../world/mapBuilder.js';
@@ -12,73 +21,93 @@ const W = 150;
 const H = 110;
 const m = new MapBuilder(W, H, '.');
 
-// ---------------------------------------------------------------- ground
-m.rect(0, 0, W, 1, 'r').rect(0, 0, 1, H, 'r').rect(W - 1, 0, 1, H, 'r'); // the mesa rim and the county line
-m.rect(0, H - 1, W, 1, 'r');
-// fields and pastures (dirt ':' = worked fields, grass '.' = pasture)
-m.rect(88, 4, 50, 22, ':'); // Hollister cotton
-m.rect(84, 70, 28, 18, ':').rect(116, 70, 30, 18, ':').rect(84, 92, 62, 14, ':'); // fallow land for sale (east)
-m.rect(4, 82, 20, 24, '.'); // dairy pasture
-// Caddo Creek: down from the north-east, under the county road, out at the east line
-const creek = [[112, 1], [114, 6], [118, 10], [122, 14], [126, 18], [130, 24], [133, 30], [136, 36], [140, 42], [144, 48], [148, 52]];
-for (let i = 0; i + 1 < creek.length; i++) {
-  const [x0, y0] = creek[i];
-  const [x1, y1] = creek[i + 1];
-  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-  for (let k = 0; k <= n; k++) {
-    const x = Math.round(x0 + ((x1 - x0) * k) / n);
-    const y = Math.round(y0 + ((y1 - y0) * k) / n);
-    m.rect(x - 1, y, 3, 1, '~');
-  }
-}
-m.rect(126, 16, 4, 3, 's').rect(129, 22, 3, 2, 's'); // sandbars
+// ---------------------------------------------------------------- pavements (roads are laid over them)
+m.rect(19, 23, 53, 1, ',').rect(19, 28, 53, 1, ','); // Pecan Street
+m.rect(19, 23, 1, 40, ',').rect(24, 23, 1, 40, ','); // Church Street
+m.rect(71, 23, 1, 56, ',').rect(76, 23, 1, 56, ','); // FM 38 through town
+m.rect(2, 38, 131, 2, ',').rect(19, 44, 114, 2, ','); // Main Street (north side runs on past the church)
+m.rect(19, 56, 114, 1, ',').rect(19, 61, 114, 2, ','); // Cotton Street
+m.rect(127, 38, 1, 41, ',').rect(132, 38, 1, 41, ','); // East Street
+m.rect(49, 73, 84, 1, ',').rect(49, 78, 84, 1, ','); // Dairy Road and Mesquite Lane
 // ---------------------------------------------------------------- roads
-m.rect(72, 30, 4, H - 30, '='); // FM 38, south to Halvermouth
-m.rect(72, 1, 4, 29, ':'); // ...and north as a county road to the Hollister place and the windmill
+m.rect(72, 4, 4, H - 4, '='); // FM 38
+m.rect(20, 24, 52, 4, '='); // Pecan Street
+m.rect(20, 24, 4, 37, '='); // Church Street
 m.rect(20, 40, 112, 4, '='); // Main Street
-m.rect(36, 57, 76, 4, '='); // Cotton Street
-m.rect(6, 62, 66, 4, '='); // Dairy Road
-m.rect(76, 66, 70, 2, ':').rect(110, 66, 2, 40, ':'); // the farm track east, and down between the plots
+m.rect(20, 57, 112, 4, '='); // Cotton Street
+m.rect(128, 40, 4, 38, '='); // East Street
+m.rect(49, 74, 83, 4, '='); // Dairy Road (west of FM 38) and Mesquite Lane (east)
+// ---------------------------------------------------------------- lots, yards and lanes
 m.rect(10, 8, 62, 2, ':'); // Windmill Lane
-m.rect(76, 26, 56, 2, ':'); // the Hollister track
-m.rect(130, 26, 3, 2, 'b'); // a plank bridge over Caddo Creek
-m.rect(131, 28, 2, 12, ':').rect(116, 38, 17, 2, ':'); // down to the elevator
-// pavements in town
-m.rect(36, 38, 76, 2, ',').rect(36, 44, 76, 2, ','); // Main Street
-m.rect(36, 56, 76, 1, ',').rect(36, 61, 76, 1, ','); // Cotton Street
-m.rect(70, 46, 2, 10, ',').rect(76, 46, 2, 10, ','); // the highway's verges through town
+m.rect(76, 8, 60, 2, ':'); // the Hollister lane
+m.rect(77, 10, 12, 14, 'g'); // the Hollister farmyard
+m.rect(113, 10, 3, 14, ':'); // the track between the Hollister fields
+m.rect(77, 26, 34, 4, 'g'); // the loading lot behind Feed & Seed and Ag Repair
+m.rect(112, 28, 15, 10, 'g'); // the Co-op yard
 m.rect(96, 46, 15, 10, 'g'); // Red Dirt's equipment lot
-m.rect(112, 28, 10, 10, 'g'); // the Co-op yard
-// Chuckie's Cheese: yards and pads
-m.rect(4, 66, 44, 15, 'g'); // the dairy's working yard
+m.rect(112, 46, 15, 1, 'm').rect(112, 54, 15, 1, 'm').rect(112, 46, 1, 9, 'm').rect(126, 46, 1, 9, 'm'); // Lariat Square: the walk round it
+m.rect(118, 47, 3, 7, 'm').rect(113, 49, 13, 3, 'm'); // ...and across it
+m.rect(4, 47, 13, 12, ':').rect(17, 52, 2, 2, ':'); // the rodeo arena, and its way in from Church Street
+m.rect(4, 63, 45, 18, 'g'); // Chuckie's Cheese: the working yard
 m.rect(24, 81, 12, 10, ':'); // the lead cows' paddock (dirt)
-m.rect(36, 81, 12, 3, 'g');
+m.rect(42, 81, 2, 5, ':'); // the path down to Chuckie's house
+m.rect(58, 79, 2, 3, ':'); // the gate into the silage corn
+m.rect(76, 93, 59, 3, ':').rect(105, 81, 3, 12, ':'); // the farm tracks between the plots for sale
+// path from each door to the pavement is added with the buildings below
+// ---------------------------------------------------------------- fields (drawn from `fields`, see below)
+const fields = [
+  { id: 'hollister_cotton', x: 90, y: 12, w: 22, h: 12, crop: 'cotton', stage: 3 },
+  { id: 'hollister_sorghum', x: 116, y: 12, w: 19, h: 12, crop: 'sorghum', stage: 3 },
+  { id: 'chuckie_corn', x: 50, y: 82, w: 19, h: 22, crop: 'corn', stage: 3 },
+  { id: 'plot_east_1', x: 78, y: 81, w: 27, h: 12, crop: 'fallow' },
+  { id: 'plot_east_2', x: 108, y: 81, w: 27, h: 12, crop: 'fallow' },
+  { id: 'plot_east_3', x: 78, y: 96, w: 57, h: 11, crop: 'fallow' },
+];
+for (const f of fields) m.rect(f.x, f.y, f.w, f.h, 'k');
+// ---------------------------------------------------------------- Caddo Creek, down the east side
+const creekX = (y) => 140 + Math.round(2 * Math.sin(y / 9) + Math.sin(y / 4));
+for (let y = 0; y < H; y++) m.rect(creekX(y) - 1, y, 3, 1, '~');
+const BAR = 17; // a sandbar off the west bank (Duchess keeps watch from it)
+for (let y = BAR - 1; y <= BAR + 1; y++) m.rect(creekX(y) - 1, y, 2, 1, 's');
 
 // ---------------------------------------------------------------- buildings
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
-  roof: o.roof || '#8a4a32', wall: o.wall || '#e8d8b8', trim: o.trim || '#5a3a2a', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof, awning: o.awning, shabby: o.shabby,
+  roof: o.roof || '#8a4a32', wall: o.wall || '#e8d8b8', trim: o.trim || '#5a3a2a', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof, awning: o.awning, shabby: o.shabby, columns: o.columns,
   door: o.door,
 });
 const closed = (msg) => ({ message: msg });
+const house = (id, x, y, roof, wall, who) => B(id, 'House', x, y, 7, 5, { roof, wall, label: '', door: { x: x + 3, y: y + 4, lock: closed(who) } });
 const buildings = [
+  // Pecan Street: houses on the north side, front walks down to the pavement
+  house('b_house_1', 25, 17, '#6a4a3a', '#f0e6d2', 'The Pruett house. A wreath of dried cotton on the door, and a note: "At the diner."'),
+  house('b_house_2', 34, 17, '#3a4a6a', '#e6dcc8', 'A neat blue house. Nobody answers; a dog inside barks once, for form\'s sake.'),
+  house('b_house_3', 43, 17, '#5a6a3a', '#f2e8d8', 'The Calloways\'. Three spanners on the porch rail and a sign: "BACK AT THE SHOP."'),
+  house('b_house_4', 52, 17, '#7a3a2a', '#e8dcc4', 'A brick-red house with a porch swing. The swing creaks. The door doesn\'t open.'),
+  house('b_house_5', 61, 17, '#4a5a5a', '#efe6d6', 'The pastor\'s house. "Sunday 10am. All welcome. Cows by arrangement."'),
   // Main Street, north side (doors open onto the pavement)
+  B('b_church', 'First Baptist Church of Lariat', 5, 28, 11, 10, { roof: '#5a5a62', wall: '#f4efe4', trim: '#3a3a42', sign: 'FIRST BAPTIST', columns: true, door: { x: 10, y: 37, lock: closed('FIRST BAPTIST CHURCH OF LARIAT. "Services Sunday 10am. Potluck after. Bring a dish — Chuckie is bringing cheese again."') } }),
+  B('b_post_office', 'Lariat Post Office', 26, 31, 8, 7, { roof: '#3a4a6a', wall: '#e8dcc8', sign: 'U.S. MAIL · LARIAT', flatRoof: true, door: { x: 29, y: 37, lock: closed('LARIAT POST OFFICE. "Window closed. Parcels for Chuckie\'s Cheese: leave on the bench. Parcels FROM Chuckie\'s Cheese: open a window."') } }),
+  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, lock: closed('LARIAT STATE BANK. Est. 1911. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates when the Land Office opens."') } }),
   B('b_mercantile', 'Lariat Mercantile', 44, 30, 12, 8, { roof: '#7a2a24', wall: '#e8d8b8', sign: 'LARIAT MERCANTILE', awning: '#c8402a', door: { x: 49, y: 37, to: { map: 'mercantile', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal'], hours: { from: '07:00', to: '20:00' } } } }),
   B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, lock: closed('LARIAT LAND OFFICE. A hand-lettered card in the window: "Farm listings being surveyed — back soon. Ask Opal at the Mercantile about land."') } }),
   B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, lock: closed('LONE STAR FEED & SEED. "CLOSED FOR INVENTORY — new seed coming in on the next truck." Through the window: feed sacks to the ceiling.') } }),
   B('b_repair', 'Calloway Ag Repair', 96, 31, 9, 7, { roof: '#5a5a5e', wall: '#c8c4bc', sign: 'CALLOWAY AG REPAIR', flatRoof: true, door: { x: 100, y: 37, lock: closed('CALLOWAY AG REPAIR. A note on the door: "Out on a breakdown. If it\'s an emergency, it can wait. — R.C."') } }),
-  // houses up Pecan Street (north-west of town)
-  B('b_house_1', 'House', 24, 28, 6, 5, { roof: '#6a4a3a', wall: '#f0e6d2', label: '' }),
-  B('b_house_2', 'House', 33, 28, 6, 5, { roof: '#3a4a6a', wall: '#e6dcc8', label: '' }),
-  B('b_house_3', 'House', 24, 18, 6, 5, { roof: '#5a6a3a', wall: '#f2e8d8', label: '' }),
-  B('b_house_4', 'House', 33, 18, 6, 5, { roof: '#7a3a2a', wall: '#e8dcc4', label: '' }),
-  // Cotton Street (between Main and Cotton; doors open south onto Cotton Street)
+  // the Co-op elevator (a landmark: you can't go in, but the cow who's hiding there can't either)
+  B('b_elevator', 'Lariat Co-op Elevator', 114, 28, 6, 8, { roof: '#9aa0a8', wall: '#c8ccd2', trim: '#6a7078', sign: 'LARIAT CO-OP', flatRoof: true, door: { x: 116, y: 35, lock: closed('The Co-op elevator\'s office. "Harvest hours only. Grain in, cheques out."') } }),
+  // Cotton Street, north side (doors open south onto Cotton Street)
+  B('b_barber', 'Rusty\'s Barber Shop', 26, 50, 8, 6, { roof: '#2a3a5a', wall: '#f2ead8', sign: 'RUSTY\'S BARBER', awning: '#c8402a', door: { x: 29, y: 55, lock: closed('RUSTY\'S BARBER SHOP. "Gone fishin\'. Haircuts $8, opinions free." The pole still turns.') } }),
   B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, lock: closed('HOOF & HORN LIVESTOCK SUPPLY. "Gone to the sale barn in Halvermouth. Back with stock." A cat sleeps on the step, unbothered.') } }),
   B('b_diner', 'Mesquite Diner', 51, 49, 11, 7, { roof: '#c8402a', wall: '#f2ead8', sign: 'MESQUITE DINER', awning: '#e8c04a', door: { x: 56, y: 55, to: { map: 'diner', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lupe'], hours: { from: '06:00', to: '21:00' } } } }),
   B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa'], hours: { from: '06:00', to: '23:00' } } } }),
   B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "GRAND OPENING — NEW STOCK ARRIVING." The showroom is empty except for a very shiny floor.') } }),
-  // the Co-op elevator (a landmark: you can't go in, but the cow who's hiding there can't either)
-  B('b_elevator', 'Lariat Co-op Elevator', 114, 28, 6, 8, { roof: '#9aa0a8', wall: '#c8ccd2', trim: '#6a7078', sign: 'LARIAT CO-OP', flatRoof: true, door: { x: 116, y: 35, lock: closed('The Co-op elevator\'s office. "Harvest hours only. Grain in, cheques out."') } }),
+  // Dairy Road and Mesquite Lane, north side
+  B('b_school', 'Lariat School', 52, 64, 14, 8, { roof: '#7a2a24', wall: '#e8d0b0', trim: '#4a2a1e', sign: 'LARIAT SCHOOL · GO LONGHORNS', door: { x: 58, y: 71, lock: closed('LARIAT SCHOOL. Summer recess. A banner on the fence: "CONGRATULATIONS CLASS OF THIS YEAR (ALL NINE OF YOU)".') } }),
+  house('b_house_6', 79, 66, '#5a3a2a', '#f0e6d2', 'Wade\'s mother\'s house. "WADE: CLOSE THE GATE" is painted on the mailbox.'),
+  house('b_house_7', 88, 66, '#3a5a4a', '#e8e0cc', 'A green-roofed house with a vegetable patch and a scarecrow that looks a lot like Earl.'),
+  house('b_house_8', 97, 66, '#6a5a3a', '#f2e8d8', 'Nobody home. A wind chime made of old horseshoes rings politely.'),
+  house('b_house_9', 106, 66, '#7a2a24', '#ece4d4', 'The Haskins place. Opal\'s mother\'s bluebonnet painting hangs by the door — a copy; the original is at the boarding house.'),
+  house('b_house_10', 115, 66, '#4a4a5a', '#efe6d6', 'A tidy house with a FOR RENT sign in the window. "Ask at the Land Office (when it opens)."'),
   // Chuckie's Cheese
   B('b_barn_1', 'Freestall Barn No. 1', 6, 67, 16, 5, { roof: '#9aa0a8', wall: '#ece6da', trim: '#7a2a24', sign: 'CHUCKIE\'S CHEESE · BARN 1', label: 'Barn 1' }),
   B('b_barn_2', 'Freestall Barn No. 2', 6, 74, 16, 5, { roof: '#9aa0a8', wall: '#ece6da', trim: '#7a2a24', label: 'Barn 2' }),
@@ -91,50 +120,110 @@ const buildings = [
   // the old windmill farm (abandoned)
   B('b_old_barn', 'The Old Barn', 6, 12, 8, 6, { roof: '#5a4a3a', wall: '#8a6a4a', label: 'Old barn', shabby: true }),
 ];
+// a paved walk from every door that faces a street down to the pavement
+for (const b of buildings) {
+  const d = b.door;
+  if (!d) continue;
+  let y = d.y + 1;
+  while (y < H && m.rows()[y][d.x] === '.') y++;
+  if (y - d.y - 1 <= 4 && y < H && [',', '='].includes(m.rows()[y][d.x])) m.rect(d.x, d.y + 1, 1, y - d.y - 1, ',');
+}
 
 // ---------------------------------------------------------------- props
 const props = [];
 let n = 0;
 const P = (type, x, y, o = {}) => props.push({ id: `la_${type}_${n++}`, type, x, y, ...o });
-// town
-for (const x of [38, 52, 66, 80, 94, 108]) { P('streetlamp', x, 38); P('streetlamp', x + 6, 45); }
-for (const x of [40, 60, 90, 104]) P('streetlamp', x, 56);
-P('watertower', 64, 22, { w: 4, h: 5, examine: 'The Lariat water tower: LARIAT · HOME OF CHUCKIE\'S CHEESE painted round the tank, and below it, smaller, someone\'s initials in a heart.' });
-P('bigsign', 66, 100, { w: 4, h: 2, text: 'LARIAT', sub: 'POP. 412 · HOME OF CHUCKIE\'S CHEESE', examine: 'WELCOME TO LARIAT. Pop. 412. Home of Chuckie\'s Cheese. Drive friendly.' });
-P('sign', 76, 98, { examine: 'FM 38 — LARIAT 1 · HALVERMOUTH 6. Somebody has added a cow sticker.' });
-P('noticeboard', 57, 38, { examine: 'LARIAT NOTICES: "LOST: five cows. Answer to their names. Will tell you so. — C." · "Church supper Friday." · "Tractor pull postponed (tractor pulled itself)." · "Land coming up for sale east of FM 38 — see the Land Office."' });
-P('bench', 47, 45); P('bench', 64, 45); P('bench', 100, 45);
-P('mailbox', 56, 38);
-P('car', 101, 48, { w: 2, h: 1, color: '#c8402a', examine: 'A dusty pickup. CALLOWAY on the door and three spanners on the dash.' });
-P('tractor', 97, 50, { w: 3, h: 2, color: '#c8402a', examine: 'A red tractor on the Red Dirt lot, with a SOLD SOON sign it has had for a while.' });
-P('tractor', 103, 50, { w: 3, h: 2, color: '#3a7a3a', examine: 'A green tractor on the lot. The price is on a card face-down. That tells you everything.' });
-P('haybale', 107, 47, { w: 1, h: 1 }); P('haybale', 108, 48, { w: 1, h: 1 });
+const fenceH = (x0, x1, y, gaps = []) => { for (let x = x0; x <= x1; x++) if (!gaps.includes(x)) P('ranchfence', x, y, { w: 1, h: 1 }); };
+const fenceV = (x, y0, y1, gaps = []) => { for (let y = y0; y <= y1; y++) if (!gaps.includes(y)) P('ranchfence', x, y, { w: 1, h: 1, vertical: true }); };
+
+// --- the way in: the ranch-gate arch over FM 38, the welcome sign, and the road signs
+P('ranchgate', 71, 102, { w: 6, h: 2, text: 'LARIAT', examine: 'The Lariat arch, est. 1887: LARIAT in iron letters on a mesquite beam, a horseshoe at one end and a lasso loop at the other. A cattle guard rattles under the road.' });
+P('ranchpost', 71, 103, { examine: 'A mesquite gatepost, braced with iron. Somebody has carved "C + O 1984" into it.' });
+P('ranchpost', 76, 103, { examine: 'A mesquite gatepost. Someone has nailed a horseshoe to it, points up, so the luck doesn\'t run out.' });
+P('bigsign', 66, 105, { w: 4, h: 2, text: 'WELCOME TO LARIAT', sub: 'POP. 412 · HOME OF CHUCKIE\'S CHEESE', examine: 'WELCOME TO LARIAT. Pop. 412. Home of Chuckie\'s Cheese. Drive friendly.' });
+P('roadsign', 77, 107, { w: 4, h: 2, text: 'HALVERMOUTH ↓', sub: 'FM 38 · CITY 6 MI', examine: 'FM 38 SOUTH — HALVERMOUTH 6. The road runs down to the city\'s North Gate.' });
+P('roadsign', 64, 79, { w: 4, h: 2, text: 'LARIAT ↑', sub: 'MAIN ST · 1 MI', examine: 'FM 38 NORTH — LARIAT 1. Somebody has added a cow sticker.' });
+P('sign', 77, 99, { examine: 'SPEED LIMIT 30. Underneath, smaller: "COWS HAVE RIGHT OF WAY. ALWAYS."' });
+// --- zebra crossings on every side of the two junctions with lights (FM 38 at Main and at Cotton)
+for (const y of [40, 57]) {
+  P('crosswalk', 71, y, { w: 1, h: 4 }); P('crosswalk', 76, y, { w: 1, h: 4 });
+  P('crosswalk', 72, y - 1, { w: 4, h: 1, vertical: true }); P('crosswalk', 72, y + 4, { w: 4, h: 1, vertical: true });
+}
+// --- Main Street and Cotton Street: lamps, benches, hydrants, bins, planters
+const skip = (x) => (x >= 19 && x <= 24) || (x >= 71 && x <= 76) || (x >= 127 && x <= 132);
+for (let x = 22; x <= 130; x += 8) { if (!skip(x)) P('streetlamp', x, 38); if (x + 4 <= 126 && !skip(x + 4)) P('streetlamp', x + 4, 45); }
+for (let x = 26; x <= 126; x += 10) if (!skip(x) && ![29, 43, 56, 66, 87].includes(x)) P('streetlamp', x, 56);
+for (let x = 30; x <= 126; x += 10) if (!skip(x)) P('streetlamp', x, 62);
+for (const x of [6, 14]) P('streetlamp', x, 38);
+for (const [x, y] of [[71, 30], [76, 30], [71, 50], [76, 50], [71, 67], [76, 67], [19, 32], [24, 50], [127, 50], [132, 66], [127, 70]]) P('streetlamp', x, y);
+for (const x of [28, 40, 52, 64]) { P('streetlamp', x, 23); }
+for (const x of [60, 84, 100, 118]) P('streetlamp', x, 73);
+P('bench', 47, 45); P('bench', 64, 45); P('bench', 100, 45); P('bench', 34, 45); P('bench', 90, 62); P('bench', 60, 62);
+for (const [x, y] of [[44, 39], [80, 39], [110, 44], [70, 61], [24, 61], [36, 56], [100, 61]]) P('hydrant', x, y);
+for (const [x, y] of [[53, 39], [92, 39], [60, 45], [78, 61], [48, 61]]) P('trash', x, y);
+for (const [x, y] of [[57, 38], [42, 38], [94, 38], [104, 38]]) P('flowerbed', x, y);
+P('noticeboard', 66, 39, { examine: 'LARIAT NOTICES: "LOST: five cows. Answer to their names. Will tell you so. — C." · "Church supper Friday." · "Tractor pull postponed (tractor pulled itself)." · "Land coming up for sale east of FM 38 — see the Land Office."' });
+P('mailbox', 56, 39); P('mailbox', 31, 38);
+P('flagpole', 34, 36); P('flagpole', 68, 36); P('flagpole', 62, 72);
+// --- Pecan Street: yards, fences, mailboxes and shade trees
+for (const x of [25, 34, 43, 52, 61]) {
+  P('fence', x - 1, 15, { w: 9, h: 1 });
+  P('mailbox', x + 5, 22);
+  P('tree', x + 7, 19);
+  P('flowerbed', x, 22);
+}
+for (const [x, y] of [[22, 16], [69, 16], [30, 29], [46, 29], [62, 29], [69, 30], [20, 20], [30, 12], [48, 12], [62, 12]]) P('tree', x, y);
+// --- the church and the rodeo grounds (west)
+P('tree', 3, 30); P('tree', 17, 29); P('tree', 3, 35); P('tree', 17, 34); P('bench', 13, 39);
+P('statue', 16, 36, { examine: 'A bronze of a cowboy roping a steer. The plaque says "THE FOUNDERS". The steer\'s expression suggests he disagreed.' });
+fenceH(3, 17, 46, [17]); fenceH(3, 17, 59); fenceV(3, 47, 58); fenceV(17, 47, 58, [52, 53]);
+P('bigsign', 6, 43, { w: 4, h: 2, text: 'RODEO GROUNDS', sub: 'LARIAT STAMPEDE · EVERY JULY', color: '#e8c04a', examine: 'LARIAT RODEO GROUNDS. "Home of the Lariat Stampede, every July. No cows from Chuckie\'s may enter the calf scramble (they win)."' });
+for (const x of [6, 9, 12]) P('bench', x, 60);
+P('haybale', 5, 48, { w: 1, h: 1 }); P('haybale', 15, 57, { w: 1, h: 1 }); P('trough', 9, 57, { w: 2, h: 1 });
+// --- Lariat Square: a little park with the fountain, benches and old pecans
+P('fountain', 118, 49, { w: 3, h: 3, examine: 'The square\'s fountain, with a cast-iron longhorn spouting water from both nostrils. Kids throw obols in for luck.' });
+for (const [x, y] of [[113, 47], [125, 47], [113, 53], [125, 53]]) P('tree', x, y);
+for (const [x, y] of [[115, 47], [123, 53], [115, 53], [123, 47]]) P('bench', x, y);
+for (const [x, y] of [[114, 50], [124, 50]]) P('flowerbed', x, y);
+P('sign', 112, 45, { examine: 'LARIAT SQUARE. "No grazing." (This sign was put up after an incident.)' });
+// --- the shops' lots
+P('watertower', 106, 30, { w: 4, h: 5, examine: 'The Lariat water tower: LARIAT · HOME OF CHUCKIE\'S CHEESE painted round the tank, and below it, smaller, someone\'s initials in a heart.' });
+P('car', 98, 52, { w: 2, h: 1, color: '#c8402a', examine: 'A dusty pickup. CALLOWAY on the door and three spanners on the dash.' });
+P('tractor', 97, 47, { w: 3, h: 2, color: '#c8402a', examine: 'A red tractor on the Red Dirt lot, with a SOLD SOON sign it has had for a while.' });
+P('tractor', 103, 47, { w: 3, h: 2, color: '#3a7a3a', examine: 'A green tractor on the lot. The price is on a card face-down. That tells you everything.' });
+P('flagpole', 109, 47);
+P('haybale', 108, 53, { w: 1, h: 1 }); P('haybale', 109, 54, { w: 1, h: 1 });
+for (const [x, y] of [[78, 27], [82, 27], [86, 27]]) P('haybale', x, y, { w: 1, h: 1 });
+P('crate', 92, 27); P('barrel', 94, 27); P('car', 100, 27, { w: 3, h: 1, color: '#2a5a3a', examine: 'A Lone Star Feed & Seed delivery truck, loaded with sacks of feed for Chuckie\'s Cheese.' });
 P('silo', 121, 28, { w: 2, h: 3 }); P('silo', 121, 32, { w: 2, h: 3 }); P('silo', 124, 28, { w: 2, h: 3 });
-for (const [x, y] of [[26, 34], [37, 34], [30, 24], [41, 24], [20, 26], [44, 16]]) P('tree', x, y);
-for (const [x, y] of [[23, 35], [32, 35]]) P('mailbox', x, y);
-// trees on the creek and the county
-for (const [x, y] of [[110, 4], [116, 9], [124, 20], [128, 26], [137, 33], [142, 40], [146, 47], [104, 30], [60, 26], [8, 30], [14, 46], [50, 100], [60, 92], [140, 62], [146, 66], [80, 100], [12, 56], [54, 64]]) P('tree', x, y);
-// the windmill and the old barn
-P('windmill', 16, 4, { w: 3, h: 4, examine: 'An old steel windmill, still turning, pumping nothing into a trough nobody uses. It creaks a tune.' });
-P('trough', 15, 9, { w: 2, h: 1 });
-for (const [x, y] of [[4, 14], [5, 16], [15, 15]]) P('haybale', x, y, { w: 1, h: 1 });
-// the Hollister cotton
-for (let y = 5; y < 25; y += 2) P('crops', 88, y, { w: 50, h: 1, crop: 'cotton', stage: 3 });
-P('tractor', 86, 22, { w: 3, h: 2, color: '#3a7a3a', examine: 'Earl Hollister\'s tractor. Older than Earl. Runs better.' });
+P('car', 119, 36, { w: 2, h: 1, color: '#8a8a7a', examine: 'A grain truck with CO-OP stencilled on the tailgate.' });
+// --- the school and Mesquite Lane
+fenceH(50, 69, 63);
+for (const x of [79, 88, 97, 106, 115]) { P('fence', x - 1, 64, { w: 9, h: 1 }); P('mailbox', x + 5, 72); P('tree', x + 7, 67); }
+P('tree', 123, 66); P('tree', 125, 70); P('tree', 50, 66); P('tree', 68, 66);
+// --- the Hollister farm (north-east)
+P('tractor', 86, 20, { w: 3, h: 2, color: '#3a7a3a', examine: 'Earl Hollister\'s tractor. Older than Earl. Runs better.' });
 P('silo', 87, 12, { w: 2, h: 3 });
-// fallow land coming up for sale
-for (const [x, y] of [[84, 69], [116, 69], [84, 91]]) P('sign', x, y, { examine: 'LAND FOR SALE — inquire at the Lariat Land Office, Main Street.' });
-for (let x = 84; x < 146; x += 2) { if (x === 110 || x === 111) continue; P('ranchfence', x, 68, { w: 2, h: 1 }); }
-// ---------------------------------------------------------------- Chuckie's Cheese
-P('bigsign', 46, 60, { w: 4, h: 2, text: 'CHUCKIE\'S CHEESE', sub: 'DAIRY · CHEESE · TEXAS PROUD', color: '#e8c04a', examine: 'CHUCKIE\'S CHEESE — FAMILY OWNED, PUBLICLY TRADED, UDDERLY DELICIOUS.' });
+P('car', 90, 6, { w: 2, h: 1, color: '#6a4a3a', examine: 'Earl\'s pickup. The bed is full of cotton modules, string, and one boot.' });
+for (const [x, y] of [[92, 4], [96, 5], [104, 3], [112, 5], [120, 4], [128, 3]]) P('haybale', x, y, { w: 1, h: 1 });
+fenceH(89, 135, 10, [113, 114, 115]); fenceH(89, 135, 24, [113, 114, 115]);
+P('sign', 89, 9, { examine: 'HOLLISTER COTTON — 4TH GENERATION. "Please don\'t pick the cotton. It isn\'t ready, and neither are we."' });
+// --- the old windmill (north-west)
+P('windmill', 16, 4, { w: 3, h: 4, examine: 'An old steel windmill, still turning, pumping nothing into a trough nobody uses. It creaks a tune.' });
+P('trough', 12, 10, { w: 2, h: 1 });
+for (const [x, y] of [[4, 14], [5, 16], [15, 15]]) P('haybale', x, y, { w: 1, h: 1 });
+// --- Chuckie's Cheese
+P('bigsign', 44, 63, { w: 4, h: 2, text: 'CHUCKIE\'S CHEESE', sub: 'DAIRY · CHEESE · TEXAS PROUD', color: '#e8c04a', examine: 'CHUCKIE\'S CHEESE — FAMILY OWNED, PUBLICLY TRADED, UDDERLY DELICIOUS.' });
+fenceH(4, 43, 63, [20, 21, 22, 23]); // the yard's front fence along Cotton Street, open at Church Street
+P('gatepost', 48, 72); P('gatepost', 48, 79);
 for (const [x, y] of [[23, 75], [25, 75], [27, 75]]) P('silo', x, y, { w: 2, h: 3, color: '#d8dee6', examine: 'A feed silo: corn silage for the herd. It hums when the auger runs.' });
-P('milktank', 34, 74, { w: 2, h: 2, examine: 'The bulk milk tank, chilled. A gauge shows how full it is — today, not very.' });
+P('milktank', 34, 76, { w: 2, h: 2, examine: 'The bulk milk tank, chilled. A gauge shows how full it is — today, not very.' });
 P('car', 44, 77, { w: 3, h: 1, color: '#f2ead8', examine: 'A refrigerated delivery truck: CHUCKIE\'S CHEESE on the side, a cartoon cow winking on the back door.' });
 P('car', 44, 79, { w: 3, h: 1, color: '#e8c04a', examine: 'A cheese truck loading at the dock. A crate marked "AGED 12 MONTHS — DO NOT RUSH".' });
+P('car', 39, 83, { w: 2, h: 1, color: '#7a2a24', examine: 'Chuckie\'s pickup. A bumper sticker: "I BRAKE FOR COWS (AND THEY KNOW IT)".' });
 for (let k = 0; k < 6; k++) P('haybale', 4 + k, 80, { w: 1, h: 1 });
 // pasture fence round the herd's field (gate on the north side by the barns)
-for (let x = 3; x <= 24; x += 1) { if (x === 12 || x === 13) continue; P('ranchfence', x, 81, { w: 1, h: 1 }); P('ranchfence', x, 106, { w: 1, h: 1 }); }
-for (let y = 82; y < 106; y++) { P('ranchfence', 3, y, { w: 1, h: 1, vertical: true }); P('ranchfence', 24, y, { w: 1, h: 1, vertical: true }); }
+fenceH(3, 24, 81, [12, 13]); fenceH(3, 24, 106); fenceV(3, 82, 105); fenceV(24, 82, 105);
 // the herd (ordinary cows: they graze and moo, they don't talk)
 const coats = [['#2a2420', '#f2ece0'], ['#f2ece0', '#2a2420'], ['#8a5a3a', '#f2ece0'], ['#f2ece0', '#8a5a3a'], ['#3a2a24', '#f2ece0']];
 for (let k = 0; k < 22; k++) {
@@ -144,10 +233,22 @@ for (let k = 0; k < 22; k++) {
   P('cow', x, y, { coat, patches, seed: 11 + k * 3, examine: ['A Holstein, chewing. She looks at you the way cows look at everything: patiently, and without much hope.', 'A dairy cow. "Moo," she says. Just "moo". Not one of the special ones, then.', 'A cow with a tag in her ear: No. 117. She moos once, for the record.'][k % 3] });
 }
 // the lead cows' paddock (where the five special cows live when they're home)
-for (let x = 24; x <= 35; x++) { if (x >= 28 && x <= 31) continue; P('ranchfence', x, 81, { w: 1, h: 1 }); P('ranchfence', x, 91, { w: 1, h: 1 }); }
-for (let y = 82; y < 91; y++) P('ranchfence', 35, y, { w: 1, h: 1, vertical: true });
+fenceH(25, 35, 81, [28, 29, 30, 31]); fenceH(25, 35, 91); fenceV(35, 82, 90);
 P('trough', 30, 89, { w: 2, h: 1, examine: 'The lead cows\' trough, with five names painted along it: BESSIE MAE · CLEMENTINE · DUCHESS · PATSY · DAISY.' });
 P('sign', 27, 80, { examine: 'THE LEAD COWS\' PADDOCK. "Please do not discuss politics with the cows."' });
+P('tree', 46, 84); P('tree', 37, 93); P('bench', 45, 92);
+// Chuckie's silage corn
+fenceH(49, 69, 81, [58, 59]); fenceH(49, 69, 104); fenceV(49, 82, 103); fenceV(69, 82, 103);
+P('sign', 56, 80, { examine: 'CHUCKIE\'S SILAGE CORN. "Cows\' dinner. Not yours."' });
+// --- land coming up for sale (south-east): three plots, fenced, with signs
+fenceH(77, 135, 80, [105, 106, 107]);
+for (const [x, y] of [[80, 79], [110, 79], [80, 95]]) P('sign', x, y, { examine: 'LAND FOR SALE — inquire at the Lariat Land Office, Main Street.' });
+// --- trees: along the creek, round the edges of the county, and a few in the fields' corners
+for (let y = 1; y < H - 1; y += 3) { P('tree', Math.max(135, creekX(y) - 4), y, {}); if (y % 2) P('tree', creekX(y) + 4, y + 1); }
+for (let x = 2; x < 136; x += 5) if (!(x >= 9 && x <= 20) && !(x >= 70 && x <= 78)) P(x % 3 ? 'tree' : 'bush', x, 0);
+for (let y = 22; y < 106; y += 4) if (!(y >= 37 && y <= 46) && !(y >= 62 && y <= 81)) P('tree', 0, y);
+for (let x = 2; x < 136; x += 4) if (!(x >= 70 && x <= 81) && !(x >= 3 && x <= 25)) P(x % 3 ? 'tree' : 'bush', x, H - 1);
+for (const [x, y] of [[48, 99], [70, 90], [136, 60], [134, 76], [134, 107], [104, 107], [26, 108], [69, 105]]) P('tree', x, y);
 
 export const lariat = {
   id: 'lariat',
@@ -156,18 +257,25 @@ export const lariat = {
   music: { day: 'mus_fields', night: 'mus_fields' },
   ambience: 'amb_fields',
   tiles: m.rows(),
+  fields,
   areas: [
-    { id: 'area_lariat_main', name: 'Main Street, Lariat', x: 20, y: 28, w: 112, h: 18 },
-    { id: 'area_lariat_cotton', name: 'Cotton Street, Lariat', x: 36, y: 46, w: 76, h: 16 },
-    { id: 'area_pecan_street', name: 'Pecan Street', x: 18, y: 14, w: 26, h: 14 },
-    { id: 'area_chuckies', name: 'Chuckie\'s Cheese', x: 2, y: 62, w: 48, h: 46 },
+    { id: 'area_lariat_main', name: 'Main Street, Lariat', x: 19, y: 29, w: 114, h: 17 },
+    { id: 'area_lariat_cotton', name: 'Cotton Street, Lariat', x: 19, y: 46, w: 92, h: 17 },
+    { id: 'area_lariat_square', name: 'Lariat Square', x: 111, y: 45, w: 16, h: 11 },
+    { id: 'area_pecan_street', name: 'Pecan Street', x: 19, y: 12, w: 52, h: 17 },
+    { id: 'area_church', name: 'First Baptist Church', x: 2, y: 26, w: 17, h: 14 },
+    { id: 'area_rodeo', name: 'Lariat Rodeo Grounds', x: 2, y: 42, w: 17, h: 20 },
+    { id: 'area_mesquite_lane', name: 'Mesquite Lane', x: 76, y: 63, w: 57, h: 16 },
+    { id: 'area_dairy_road', name: 'Dairy Road', x: 49, y: 63, w: 23, h: 16 },
+    { id: 'area_chuckies', name: 'Chuckie\'s Cheese', x: 2, y: 63, w: 47, h: 45 },
     { id: 'area_lead_paddock', name: 'The Lead Cows\' Paddock', x: 25, y: 82, w: 10, h: 9 },
-    { id: 'area_hollister', name: 'Hollister Cotton Farm', x: 76, y: 2, w: 64, h: 26 },
-    { id: 'area_caddo_creek', name: 'Caddo Creek', x: 110, y: 0, w: 40, h: 60 },
-    { id: 'area_windmill', name: 'The Old Windmill', x: 2, y: 2, w: 22, h: 18 },
-    { id: 'area_coop', name: 'Lariat Co-op', x: 112, y: 28, w: 14, h: 12 },
-    { id: 'area_east_land', name: 'East Fields (for sale)', x: 80, y: 68, w: 68, h: 40 },
-    { id: 'area_fm38', name: 'FM 38', x: 66, y: 62, w: 14, h: 48 },
+    { id: 'area_silage', name: 'Chuckie\'s Silage Corn', x: 49, y: 79, w: 21, h: 26 },
+    { id: 'area_hollister', name: 'Hollister Cotton Farm', x: 76, y: 2, w: 60, h: 23 },
+    { id: 'area_caddo_creek', name: 'Caddo Creek', x: 135, y: 0, w: 15, h: H },
+    { id: 'area_windmill', name: 'The Old Windmill', x: 2, y: 2, w: 22, h: 20 },
+    { id: 'area_coop', name: 'Lariat Co-op', x: 105, y: 26, w: 22, h: 12 },
+    { id: 'area_east_land', name: 'East Fields (for sale)', x: 77, y: 79, w: 58, h: 30 },
+    { id: 'area_fm38', name: 'FM 38', x: 70, y: 79, w: 8, h: 31 },
   ],
   buildings,
   doors: [
@@ -176,7 +284,7 @@ export const lariat = {
   ],
   spots: {
     south_gate: { x: 73, y: H - 3, facing: 'up' },
-    town_square: { x: 66, y: 41, facing: 'down' },
+    town_square: { x: 119, y: 53, facing: 'up' },
     mercantile_door_out: { x: 49, y: 38, facing: 'down' },
     diner_door_out: { x: 56, y: 56, facing: 'down' },
     boarding_door_out: { x: 66, y: 56, facing: 'down' },
@@ -190,17 +298,17 @@ export const lariat = {
     paddock_gate: { x: 29, y: 80, facing: 'down' },
     paddock_centre: { x: 30, y: 86, facing: 'down' },
     chuckie_porch: { x: 44, y: 93, facing: 'left' },
-    chuckie_lookout: { x: 33, y: 78, facing: 'down' },
+    chuckie_lookout: { x: 33, y: 79, facing: 'down' },
     cotton_field: { x: 100, y: 20, facing: 'up' },
     hollister_porch: { x: 84, y: 16, facing: 'down' },
     diner_bench: { x: 64, y: 46, facing: 'down' },
     main_bench: { x: 47, y: 46, facing: 'down' },
     // the five lead cows' hideouts (src/content/dairy.js) and their places in the paddock
-    hide_bessie: { x: 57, y: 48, facing: 'down' },
+    hide_bessie: { x: 57, y: 47, facing: 'down' },
     hide_clementine: { x: 15, y: 8, facing: 'right' },
-    hide_duchess: { x: 128, y: 17, facing: 'left' },
+    hide_duchess: { x: creekX(BAR) - 1, y: BAR, facing: 'right' },
     hide_patsy: { x: 124, y: 36, facing: 'left' },
-    hide_daisy: { x: 128, y: 98, facing: 'up' },
+    hide_daisy: { x: 128, y: 100, facing: 'up' },
     pen_bessie: { x: 26, y: 84, facing: 'down' },
     pen_clementine: { x: 29, y: 83, facing: 'down' },
     pen_duchess: { x: 32, y: 85, facing: 'left' },

@@ -288,3 +288,34 @@ test('a roped cow right behind you comes through the North Gate with you (on foo
   assert.equal(bessie.map, 'halvermouth', 'she came too');
   assert.equal(g.dairy.status('cow_bessie'), 'roped');
 });
+
+test('v0.29.1 streets: a connected grid with lights and crossings; fields clear of the creek, drawn once; the gates are marked', () => {
+  const g = newGame();
+  const map = g.maps.get('lariat');
+  const def = map.def;
+  // the town's main places are all reachable from the gate along streets and pavements
+  const gate = map.spot('south_gate');
+  for (const s of ['town_square', 'mercantile_door_out', 'diner_door_out', 'cheese_plant_door_out', 'hollister_door_out', 'chuckie_house_door_out']) {
+    const t = map.spot(s);
+    assert.ok(findPath(map, gate.x, gate.y, t.x, t.y, g.playerActor()), `${s} is reachable`);
+  }
+  // fields: none on the creek, none under a building; drawn into the ground, not as props
+  assert.ok(def.fields.length >= 5);
+  for (const f of def.fields) for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) assert.equal(def.tiles[y][x], 'k', `${f.id} ${x},${y} is field`);
+  assert.ok(!def.props.some((p) => p.type === 'crops'), 'no per-frame crop props');
+  // street furniture never stands in the road, a building, the creek or a field
+  for (const p of def.props) {
+    if (!['streetlamp', 'bench', 'hydrant', 'trash', 'tree', 'mailbox', 'sign', 'flagpole', 'bush'].includes(p.type)) continue;
+    assert.ok(!['=', 'B', '~', 'k'].includes(def.tiles[p.y][p.x]), `${p.type} at ${p.x},${p.y}`);
+  }
+  // two junctions with traffic lights and crossings on FM 38, and traffic round the blocks
+  assert.equal(CONTENT.transit.junctions.filter((j) => j.map === 'lariat').length, 2);
+  assert.ok(def.props.filter((p) => p.type === 'trafficlight').length >= 8);
+  assert.ok(def.props.filter((p) => p.type === 'crosswalk').length >= 8);
+  // the way in: the arch over FM 38 in Lariat, gateposts and a road sign at the city's North Gate
+  assert.ok(def.props.some((p) => p.type === 'ranchgate'));
+  const hv = CONTENT.maps.halvermouth;
+  assert.equal(hv.props.filter((p) => p.id.startsWith('hv_north_gatepost')).length, 2);
+  assert.ok(hv.props.some((p) => p.id === 'hv_north_roadsign'));
+  assert.ok(!def.tiles.some((row) => row.includes('r')), 'no sea-wall border round an inland town');
+});

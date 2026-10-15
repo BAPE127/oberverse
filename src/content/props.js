@@ -23,6 +23,9 @@ export const PROP_TYPES = {
   slipway: { solid: false, label: 'Slipway', defaults: { w: 4, h: 12 } },
   // Lariat (v0.29.0): the farm town and Chuckie's Cheese (src/engine/drawFarm.js)
   watertower: { solid: true, label: 'Water tower', defaults: { w: 4, h: 5 } },
+  ranchgate: { solid: false, label: 'Ranch gate', defaults: { w: 6, h: 2 } },
+  ranchpost: { solid: true, label: 'Gatepost', defaults: {} },
+  roadsign: { solid: true, label: 'Road sign', defaults: { w: 4, h: 2 } },
   bigsign: { solid: true, label: 'Sign', defaults: { w: 4, h: 2 } },
   silo: { solid: true, label: 'Silo', defaults: { w: 2, h: 3, examine: 'A grain silo, ribbed steel, warm in the sun. It smells of corn and dust.' } },
   windmill: { solid: true, label: 'Windmill', defaults: { w: 3, h: 4 } },

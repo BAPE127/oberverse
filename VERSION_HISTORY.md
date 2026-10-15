@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.29.1 | 2026-10-15 | development | 1 | Lariat's streets rebuilt to the city's standard; fields drawn once, clear of the creek; the North Gate marked |
 | 0.29.0 | 2026-10-15 | development | 1 | Lariat — a northern farm town, Farmer Chuckie, Chuckie's Cheese (CHZ) and the talking-cow round-up |
 | 0.28.0 | 2026-10-15 | development | 1 | New World — realistic continents and islands on every world map |
 | 0.27.0 | 2026-10-15 | development | 1 | All Aboard — life-size ships at the Yards berths you can walk aboard |

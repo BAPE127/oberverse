@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.29.1] — 2026-10-15 — "Main Street" (development build)
+
+The owner said Lariat's map "feels very cheap and poorly done", asked for it to match the other areas' quality and street design, said the transition to the area wasn't clear, and that the crops at the top of the map were "super laggy" and sat on the river. See docs/LARIAT.md.
+
+### Changed
+- **Lariat rebuilt** (`src/content/maps/lariat.js`) on a street grid like Halvermouth's: four-lane FM 38, Pecan Street, Main Street, Cotton Street, Dairy Road / Mesquite Lane, Church Street and East Street, with pavements both sides, every street connected (no dead ends into grass), front walks from doors to the pavement, and street furniture (lamps, benches, hydrants, bins, planters, flags, mailboxes). Every existing building, door, spot and quest place kept its id; the paddock and hideouts work as before.
+- **Traffic lights and zebra crossings** at FM 38 & Main and FM 38 & Cotton, and three cars driving round Lariat's blocks (`src/content/transit.js`).
+- New buildings and places: the First Baptist church, the post office, the State Bank, Rusty's Barber Shop, Lariat School, Lariat Square (fountain, benches, trees), the rodeo grounds, ten houses on Pecan Street and Mesquite Lane with yards and fences, a loading lot behind Feed & Seed. The new doors say why they're closed.
+- **Caddo Creek** now runs down the east side of the county, clear of every field; Duchess's sandbar is in it.
+- **Fields** (`map.fields`) are drawn once into the cached ground layer (new `k` field tile; `drawFields` in `src/engine/drawFarm.js`): the Hollister cotton and sorghum, Chuckie's silage corn, and the three fallow plots for sale. The old animated per-frame `crops` props (hundreds of stalks redrawn every frame) are gone from the map.
+- **The way in:** a ranch arch with LARIAT in iron letters and a cattle guard over FM 38, a welcome sign and road signs on the Lariat side; gateposts and a green FM 38 NORTH sign at Halvermouth's North Gate. Lariat's sea-wall border (water and boulders round an inland town) is gone, replaced by a tree line; Halvermouth's northern edge is drawn as a grassy ridge (new `R` tile) instead of sea. World-map gate labels can point ▲/▼.
+
+### Added
+- Props: `ranchgate`, `ranchpost`, `roadsign`. Map icons for the new buildings.
+- Test: Lariat's street grid, fields, furniture placement, lights, crossings and gates (`tests/lariat.test.mjs`); the transit test counts Lariat's traffic separately.
+
 ## [0.29.0] — 2026-10-15 — "Lariat" (development build)
 
 The owner supplied a photo of Farmer Chuckie and a master prompt for a northern agricultural region, a farming simulation and Chuckie's Cheese. Interviewed first: store the photo; Chuckie is **cheerful and folksy** (he/him), a friend of Captain Ober; Wrath mixes **a stampede and a giant cheese wheel**; **five** talking cows; the town is **Lariat** (the owner let us pick); the work ships in **several releases** — this one is the town, Chuckie, Chuckie's Cheese, the cow quest and the stock. Farms, crops and equipment follow in 0.30.0; livestock, markets and farm management in 0.31.0. See docs/LARIAT.md and docs/characters/npc_chuckie.md.

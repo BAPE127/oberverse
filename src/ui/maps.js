@@ -221,12 +221,15 @@ export class MapRenderer {
         if (!d.gateway || seen.has(d.gateway)) continue;
         seen.add(d.gateway);
         const west = d.x === 0;
+        // v0.29.1: gates on the top or bottom edge point up or down
+        const north = d.y === 0 && !west;
+        const south = d.y === L.map.height - 1 && !west && d.x !== L.map.width - 1;
         const gx = (d.x + 0.5) * scale;
-        const gy = (d.y + 1) * scale;
+        const gy = north ? 2.2 * scale : south ? (d.y - 1.2) * scale : (d.y + 1) * scale;
         ctx.font = `bold ${Math.max(11, scale * 1.3)}px "Trebuchet MS", sans-serif`;
-        const label = west ? `◀ ${d.gateway}` : `${d.gateway} ▶`;
+        const label = north ? `▲ ${d.gateway}` : south ? `▼ ${d.gateway}` : west ? `◀ ${d.gateway}` : `${d.gateway} ▶`;
         const tw = ctx.measureText(label).width + 10;
-        const lx = west ? gx + 4 : gx - tw - 4;
+        const lx = north || south ? gx - tw / 2 : west ? gx + 4 : gx - tw - 4;
         ctx.fillStyle = 'rgba(232,182,76,0.95)';
         ctx.fillRect(lx, gy - scale * 0.9, tw, scale * 1.8);
         ctx.fillStyle = '#2d2433';

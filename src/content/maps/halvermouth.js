@@ -41,7 +41,7 @@ m.rect(108, 36, 4, 2, '='); // East Gate
 // --- v0.20.0: a road network that goes somewhere. The city sits between a ridge
 // (north), the sea wall (west), the eastern cliffs and the harbour (south); roads
 // only leave through the East Gate (to the coast) and Mill Road (to the Yards).
-m.rect(0, 0, W, 1, 'r'); // the ridge
+m.rect(0, 0, W, 1, 'R'); // the ridge (v0.29.1: drawn as a grassy bank, not sea wall)
 m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
 m.rect(38, 0, 2, 1, '='); // v0.29.0: the North Gate — FM 38 up to Lariat
 m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
@@ -181,6 +181,9 @@ P('flagpole', 66, 24, { color: '#2a4a8a' });
 P('sign', 76, 34, { examine: '"HALVERMOUTH POLICE DEPARTMENT — PRECINCT 1. Open day and night. To report a crime, step inside. To commit one, please don\'t."' });
 // East End and the East Gate
 P('gatepost', 108, 35); P('gatepost', 108, 38);
+// v0.29.1: the North Gate — FM 38 up to Lariat — marked like the city's other gates (explicit ids: P() numbering stays put)
+props.push({ id: 'hv_north_gatepost_w', type: 'gatepost', x: 37, y: 0 }, { id: 'hv_north_gatepost_e', type: 'gatepost', x: 40, y: 0 });
+props.push({ id: 'hv_north_roadsign', type: 'roadsign', x: 31, y: 0, w: 4, h: 1, text: 'FM 38 NORTH ↑', sub: 'LARIAT · CHUCKIE\'S CHEESE · 6 MI', examine: 'A green road sign on the ridge: FM 38 NORTH — LARIAT 6. Through the gate the road climbs out of the city into farm country.' });
 P('sign', 106, 35, { examine: '"WELCOME TO HALVERMOUTH — City of a Thousand Windows. East: Westbrook, Lanternside & the Coast Road."' });
 for (const [x, y] of [[103, 27], [107, 27], [103, 32]]) P('tree', x, y, { color: '#4f8a4a' });
 P('bench', 105, 29);

@@ -34,6 +34,8 @@ export const BUS_STOPS = [
 const LIGHTS = [
   ...[14, 38, 62, 86].flatMap((c) => [12, 36, 60].map((r) => ['halvermouth', c, r])),
   ['lanternside', 30, 12],
+  // v0.29.1: Lariat's two lights, on FM 38 at Main Street and at Cotton Street
+  ['lariat', 72, 40], ['lariat', 72, 57],
 ];
 
 /**
@@ -87,6 +89,9 @@ export function buildTransit(S) {
       { id: 'west_through', cars: 1, open: true, gap: 50, speed: [180, 220], path: [p(H, hvW - 0.1, So(H, 36)), p(H, E(H, 62), So(H, 36)), p(H, E(H, 62), So(H, 60)), p(H, 0, So(H, 60))] },
       { id: 'east_through', cars: 1, open: true, gap: 60, speed: [180, 220], path: [p(H, 0, N(H, 60)), p(H, Wl(H, 62), N(H, 60)), p(H, Wl(H, 62), N(H, 36)), p(H, hvW - 0.1, N(H, 36))] },
       // the coast road: in from the Halvermouth gate, round Wellhead Circle, and back out
+      // v0.29.1: Lariat — round the downtown blocks (Main, East, Cotton, Church), and round the Mesquite Lane block
+      { id: 'lariat_ring', cars: 2, speed: [140, 170], path: [p('lariat', 21, 41), p('lariat', 131, 41), p('lariat', 131, 60), p('lariat', 21, 60)] },
+      { id: 'lariat_mesquite', cars: 1, speed: [120, 150], path: [p('lariat', 73, 58), p('lariat', 131, 58), p('lariat', 131, 77), p('lariat', 73, 77)] },
       { id: 'coast_road', cars: 2, open: true, gap: 45, speed: [190, 230], path: [p('westbrook', 0, N('westbrook', 12)), p(ober, 44, N(ober, 12)), p(ober, 49.5, N(ober, 12)), p(ober, 50, So(ober, 12) + 1.4), p(ober, 44.5, So(ober, 12) + 1.8), p(ober, 43, So(ober, 12)), p('westbrook', 0, So('westbrook', 12))] },
     ],
   };
