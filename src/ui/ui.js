@@ -12,6 +12,7 @@ import { PANELS, h } from './panels.js';
 import { terminalPanel } from './terminal.js';
 import { tabletPanel } from './tablet.js';
 import { dealerPanel } from './dealer.js';
+import { farmlandPanel, farmplotPanel, coopPanel } from './farm.js';
 import { armsBenchPanel } from './armsbench.js';
 import { fleetPanel } from './fleetCommand.js';
 import { logbookPanel } from './logbook.js';
@@ -19,6 +20,9 @@ import { logbookPanel } from './logbook.js';
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
 PANELS.dealer = dealerPanel;
+PANELS.farmland = farmlandPanel;
+PANELS.farmplot = farmplotPanel;
+PANELS.coop = coopPanel;
 PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;

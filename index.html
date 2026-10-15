@@ -2338,8 +2338,8 @@ const buildings = [
   B('b_post_office', 'Lariat Post Office', 26, 31, 8, 7, { roof: '#3a4a6a', wall: '#e8dcc8', sign: 'U.S. MAIL · LARIAT', flatRoof: true, door: { x: 29, y: 37, lock: closed('LARIAT POST OFFICE. "Window closed. Parcels for Chuckie\'s Cheese: leave on the bench. Parcels FROM Chuckie\'s Cheese: open a window."') } }),
   B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, lock: closed('LARIAT STATE BANK. Est. 1911. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates when the Land Office opens."') } }),
   B('b_mercantile', 'Lariat Mercantile', 44, 30, 12, 8, { roof: '#7a2a24', wall: '#e8d8b8', sign: 'LARIAT MERCANTILE', awning: '#c8402a', door: { x: 49, y: 37, to: { map: 'mercantile', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal'], hours: { from: '07:00', to: '20:00' } } } }),
-  B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, lock: closed('LARIAT LAND OFFICE. A hand-lettered card in the window: "Farm listings being surveyed — back soon. Ask Opal at the Mercantile about land."') } }),
-  B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, lock: closed('LONE STAR FEED & SEED. "CLOSED FOR INVENTORY — new seed coming in on the next truck." Through the window: feed sacks to the ceiling.') } }),
+  B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, to: { map: 'land_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '08:00', to: '18:00' } } } }),
+  B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, to: { map: 'feed_seed', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '07:00', to: '19:00' } } } }),
   B('b_repair', 'Calloway Ag Repair', 96, 31, 9, 7, { roof: '#5a5a5e', wall: '#c8c4bc', sign: 'CALLOWAY AG REPAIR', flatRoof: true, door: { x: 100, y: 37, lock: closed('CALLOWAY AG REPAIR. A note on the door: "Out on a breakdown. If it\'s an emergency, it can wait. — R.C."') } }),
   // the Co-op elevator (a landmark: you can't go in, but the cow who's hiding there can't either)
   B('b_elevator', 'Lariat Co-op Elevator', 114, 28, 6, 8, { roof: '#9aa0a8', wall: '#c8ccd2', trim: '#6a7078', sign: 'LARIAT CO-OP', flatRoof: true, door: { x: 116, y: 35, lock: closed('The Co-op elevator\'s office. "Harvest hours only. Grain in, cheques out."') } }),
@@ -2347,8 +2347,8 @@ const buildings = [
   B('b_barber', 'Rusty\'s Barber Shop', 26, 50, 8, 6, { roof: '#2a3a5a', wall: '#f2ead8', sign: 'RUSTY\'S BARBER', awning: '#c8402a', door: { x: 29, y: 55, lock: closed('RUSTY\'S BARBER SHOP. "Gone fishin\'. Haircuts $8, opinions free." The pole still turns.') } }),
   B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, lock: closed('HOOF & HORN LIVESTOCK SUPPLY. "Gone to the sale barn in Halvermouth. Back with stock." A cat sleeps on the step, unbothered.') } }),
   B('b_diner', 'Mesquite Diner', 51, 49, 11, 7, { roof: '#c8402a', wall: '#f2ead8', sign: 'MESQUITE DINER', awning: '#e8c04a', door: { x: 56, y: 55, to: { map: 'diner', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lupe'], hours: { from: '06:00', to: '21:00' } } } }),
-  B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa'], hours: { from: '06:00', to: '23:00' } } } }),
-  B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "GRAND OPENING — NEW STOCK ARRIVING." The showroom is empty except for a very shiny floor.') } }),
+  B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa', 'npc_dale', 'npc_lorna'], hours: { from: '06:00', to: '23:00' } } } }),
+  B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "SALES ON THE LOT — ask for Dale." The showroom is mostly a very shiny floor and a coffee machine.') } }),
   // Dairy Road and Mesquite Lane, north side
   B('b_school', 'Lariat School', 52, 64, 14, 8, { roof: '#7a2a24', wall: '#e8d0b0', trim: '#4a2a1e', sign: 'LARIAT SCHOOL · GO LONGHORNS', door: { x: 58, y: 71, lock: closed('LARIAT SCHOOL. Summer recess. A banner on the fence: "CONGRATULATIONS CLASS OF THIS YEAR (ALL NINE OF YOU)".') } }),
   house('b_house_6', 79, 66, '#5a3a2a', '#f0e6d2', 'Wade\'s mother\'s house. "WADE: CLOSE THE GATE" is painted on the mailbox.'),
@@ -2436,10 +2436,7 @@ for (const [x, y] of [[114, 50], [124, 50]]) P('flowerbed', x, y);
 P('sign', 112, 45, { examine: 'LARIAT SQUARE. "No grazing." (This sign was put up after an incident.)' });
 // --- the shops' lots
 P('watertower', 106, 30, { w: 4, h: 5, examine: 'The Lariat water tower: LARIAT · HOME OF CHUCKIE\'S CHEESE painted round the tank, and below it, smaller, someone\'s initials in a heart.' });
-P('car', 98, 52, { w: 2, h: 1, color: '#c8402a', examine: 'A dusty pickup. CALLOWAY on the door and three spanners on the dash.' });
-P('tractor', 97, 47, { w: 3, h: 2, color: '#c8402a', examine: 'A red tractor on the Red Dirt lot, with a SOLD SOON sign it has had for a while.' });
-P('tractor', 103, 47, { w: 3, h: 2, color: '#3a7a3a', examine: 'A green tractor on the lot. The price is on a card face-down. That tells you everything.' });
-P('flagpole', 109, 47);
+P('car', 102, 30, { w: 2, h: 1, color: '#c8402a', examine: 'A dusty pickup. CALLOWAY on the door and three spanners on the dash.' }); // (Red Dirt's lot is for tractors, v0.30.0)
 P('haybale', 108, 53, { w: 1, h: 1 }); P('haybale', 109, 54, { w: 1, h: 1 });
 for (const [x, y] of [[78, 27], [82, 27], [86, 27]]) P('haybale', x, y, { w: 1, h: 1 });
 P('crate', 92, 27); P('barrel', 94, 27); P('car', 100, 27, { w: 3, h: 1, color: '#2a5a3a', examine: 'A Lone Star Feed & Seed delivery truck, loaded with sacks of feed for Chuckie\'s Cheese.' });
@@ -2490,7 +2487,9 @@ fenceH(49, 69, 81, [58, 59]); fenceH(49, 69, 104); fenceV(49, 82, 103); fenceV(6
 P('sign', 56, 80, { examine: 'CHUCKIE\'S SILAGE CORN. "Cows\' dinner. Not yours."' });
 // --- land coming up for sale (south-east): three plots, fenced, with signs
 fenceH(77, 135, 80, [105, 106, 107]);
-for (const [x, y] of [[80, 79], [110, 79], [80, 95]]) P('sign', x, y, { examine: 'LAND FOR SALE — inquire at the Lariat Land Office, Main Street.' });
+// each plot's sign is where you work it (src/systems/farm.js); explicit ids
+for (const [id, x, y] of [['plot_east_1', 80, 79], ['plot_east_2', 110, 79], ['plot_east_3', 80, 95]]) props.push({ id: `la_sign_${id}`, type: 'sign', x, y, interact: { kind: 'farm', action: 'plot', plot: id, name: 'field sign' }, examine: 'LAND FOR SALE — inquire at the Lariat Land Office, Main Street.' });
+props.push({ id: 'la_coop_scale', type: 'noticeboard', x: 113, y: 36, interact: { kind: 'farm', action: 'coop', name: 'Co-op scale' }, examine: 'The Co-op\'s truck scale and price board: today\'s bids for wheat, sorghum, corn and cotton, chalked up every morning.' });
 // --- trees: along the creek, round the edges of the county, and a few in the fields' corners
 for (let y = 1; y < H - 1; y += 3) { P('tree', Math.max(135, creekX(y) - 4), y, {}); if (y % 2) P('tree', creekX(y) + 4, y + 1); }
 for (let x = 2; x < 136; x += 5) if (!(x >= 9 && x <= 20) && !(x >= 70 && x <= 78)) P(x % 3 ? 'tree' : 'bush', x, 0);
@@ -2552,6 +2551,9 @@ const lariat = {
     diner_bench: { x: 64, y: 46, facing: 'down' },
     main_bench: { x: 47, y: 46, facing: 'down' },
     // the five lead cows' hideouts (src/content/dairy.js) and their places in the paddock
+    reddirt_lot: { x: 101, y: 54, facing: 'up' },
+    land_office_door_out: { x: 61, y: 38, facing: 'down' },
+    feed_seed_door_out: { x: 86, y: 38, facing: 'down' },
     hide_bessie: { x: 57, y: 47, facing: 'down' },
     hide_clementine: { x: 15, y: 8, facing: 'right' },
     hide_duchess: { x: creekX(BAR) - 1, y: BAR, facing: 'right' },
@@ -2602,11 +2604,11 @@ const diner = room('diner', 'Mesquite Diner', 14, 9, 'diner_door_out', {
 });
 const boardingHouse = room('boarding_house', 'Bluebonnet Boarding House', 14, 10, 'boarding_door_out', {
   floor: 'c',
-  spots: Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])),
+  spots: { ...Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])), bed_dale: { x: 2, y: 7, facing: 'up' }, bed_lorna: { x: 11, y: 7, facing: 'up' } },
   props: [
     ...[1, 4, 9, 12].map((x, i) => ({ id: `bh_bed_${i}`, type: 'bed', x, y: 1, w: 1, h: 2 })),
+    { id: 'bh_bed_4', type: 'bed', x: 1, y: 6, w: 1, h: 2 }, { id: 'bh_bed_5', type: 'bed', x: 12, y: 5, w: 1, h: 2 }, // v0.30.0
     { id: 'bh_table', type: 'table', x: 6, y: 5, w: 2, examine: 'The boarding-house table, set for breakfast forever: grits, eggs, and a pot of coffee that bites.' },
-    { id: 'bh_plant', type: 'plant', x: 12, y: 7 },
     { id: 'bh_painting', type: 'painting', x: 6, y: 0, examine: 'A painting of bluebonnets, by Mrs. Haskins, aged nine. Framed like it\'s in a museum. It deserves it.' },
   ],
 });
@@ -2652,9 +2654,30 @@ const hollisterHouse = room('hollister_house', 'Hollister Farmhouse', 12, 9, 'ho
   ],
 });
 
-const __default = [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse];
+// v0.30.0: the Land Office (the deeds desk) and Lone Star Feed & Seed open
+const landOffice = room('land_office', 'Lariat Land Office', 12, 8, 'land_office_door_out', {
+  spots: { desk: { x: 6, y: 2, facing: 'down' } },
+  props: [
+    { id: 'lo_desk', type: 'desk', x: 4, y: 3, w: 4, h: 1, interact: { kind: 'farm', action: 'office', name: 'deeds desk' }, examine: 'The county land agent\'s desk: a plat map under glass, a rubber stamp shaped like Texas, and the deeds to three plots east of FM 38.' },
+    { id: 'lo_map', type: 'painting', x: 1, y: 0, w: 3, examine: 'A survey map of the county. The east plots are outlined in red pencil: FOR SALE.' },
+    { id: 'lo_cabinet', type: 'cabinet', x: 10, y: 1 },
+    { id: 'lo_plant', type: 'plant', x: 1, y: 5 },
+  ],
+});
+const feedSeed = room('feed_seed', 'Lone Star Feed & Seed', 14, 9, 'feed_seed_door_out', {
+  spots: { counter: { x: 7, y: 2, facing: 'down' } },
+  props: [
+    { id: 'fs_counter', type: 'counter', x: 5, y: 3, w: 5, h: 1, interact: { kind: 'shop', shop: 'shop_feedseed', name: 'counter' }, examine: 'The Feed & Seed counter: a scale, a calendar from a fertiliser company, and a bell that sounds like a cow.' },
+    { id: 'fs_sacks_1', type: 'crate', x: 1, y: 1, w: 3, examine: 'Seed sacks stacked to the rafters: wheat, sorghum, corn, cotton.' },
+    { id: 'fs_sacks_2', type: 'crate', x: 10, y: 1, w: 3, examine: 'Fertiliser, 10-10-10, in fifty-pound bags. It smells like a very serious garden.' },
+    { id: 'fs_shelf', type: 'shelf', x: 1, y: 6, w: 3, examine: 'Fence pliers, baling twine, salt licks and a hat that says FEED ME.' },
+    { id: 'fs_barrel', type: 'barrel', x: 12, y: 6 },
+  ],
+});
 
-return { lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, default: __default };
+const __default = [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed];
+
+return { lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed, default: __default };
 })();
 
 // ---- src/content/arms.js
@@ -3314,6 +3337,16 @@ const ITEMS = {
     name: 'Cowboy Hat', category: 'gift', price: 30, tags: ['gift', 'clothing'], icon: 'hat',
     description: 'A straw cattleman with a sweat-stained band. Keeps the Texas sun off.',
   },
+  // Farming (v0.30.0)
+  item_seed_wheat: { name: 'Wheat Seed (bag)', category: 'farm', price: 18, tags: ['farm', 'seed'], icon: 'seed', description: 'A 50 lb sack of hard red winter wheat seed. Plants about 60 tiles of field.' },
+  item_seed_sorghum: { name: 'Sorghum Seed (bag)', category: 'farm', price: 22, tags: ['farm', 'seed'], icon: 'seed', description: 'Grain sorghum seed: drought-tough, red-headed. Plants about 60 tiles of field.' },
+  item_seed_corn: { name: 'Corn Seed (bag)', category: 'farm', price: 30, tags: ['farm', 'seed'], icon: 'seed', description: 'Yellow dent corn seed. Plants about 50 tiles of field.' },
+  item_seed_cotton: { name: 'Cotton Seed (bag)', category: 'farm', price: 40, tags: ['farm', 'seed'], icon: 'seed', description: 'Upland cotton seed, delinted. Plants about 50 tiles of field.' },
+  item_fertilizer: { name: 'Fertiliser (bag)', category: 'farm', price: 24, tags: ['farm'], icon: 'sack', description: 'A bag of 10-10-10. Covers about 80 tiles of field; a fertilised crop yields a quarter more.' },
+  item_crop_wheat: { name: 'Wheat (load)', category: 'farm', price: 30, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of threshed wheat. The Co-op elevator buys it.' },
+  item_crop_sorghum: { name: 'Sorghum (load)', category: 'farm', price: 36, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of grain sorghum. The Co-op elevator buys it.' },
+  item_crop_corn: { name: 'Corn (load)', category: 'farm', price: 40, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of shelled corn. The Co-op elevator buys it.' },
+  item_crop_cotton: { name: 'Cotton (bale)', category: 'farm', price: 58, tags: ['farm', 'crop'], icon: 'bale', description: 'A module of seed cotton, wrapped. The Co-op elevator buys it for the gin.' },
 };
 
 return { ITEMS };
@@ -3628,6 +3661,12 @@ const SHOPS = {
   shop_diner: {
     name: 'Mesquite Diner', owner: 'npc_lupe', restockAt: '06:00',
     stock: { item_pecan_pie: 6, item_chicken_fried_steak: 5, item_sweet_tea: 10, item_coffee: 10 },
+    buys: {},
+  },
+  // Farming (v0.30.0)
+  shop_feedseed: {
+    name: 'Lone Star Feed & Seed', owner: 'npc_lorna', restockAt: '07:00',
+    stock: { item_seed_wheat: 20, item_seed_sorghum: 20, item_seed_corn: 20, item_seed_cotton: 16, item_fertilizer: 24 },
     buys: {},
   },
 };
@@ -9177,6 +9216,25 @@ const CAR_MODELS = {
     blurb: 'A low, loud two-seat coupé that sounds like an argument. Go-faster stripes as standard; going faster is optional, but not really.',
     pitch: 'The Corsair. I would not normally sell one to a first-time client. But you have, how shall I put it, an appetite.',
   },
+  // ---- Red Dirt Tractor & Implement (Lariat, v0.30.0): farm equipment. farm.rate = field tiles worked a game hour ----
+  shortrow: {
+    name: 'Red Dirt Shortrow 25', dealer: 'reddirt', price: 1800, top: 150, accel: 120, grip: 2.2, len: 64, wid: 40, body: 'tractor', offRoad: 1, used: true,
+    farm: { tier: 1, rate: 110 }, colors: ['#c8402a', '#3a7a3a', '#e8a83a'],
+    blurb: 'A compact used tractor with a two-row planter and a tiller. Slow, honest, and older than some of the farmers who drive it.',
+    pitch: 'The Shortrow! She\'ll till a plot by lunchtime if you start at breakfast. Runs on diesel and stubbornness.',
+  },
+  workhorse: {
+    name: 'Red Dirt Workhorse 75', dealer: 'reddirt', price: 4200, top: 180, accel: 140, grip: 2.3, len: 76, wid: 44, body: 'tractor', offRoad: 1,
+    farm: { tier: 2, rate: 260 }, colors: ['#c8402a', '#3a7a3a', '#2a4a7a'],
+    blurb: 'A utility tractor with a cab, a four-row planter and a front loader. The workhorse of every farm in the county.',
+    pitch: 'Seventy-five horsepower, a cab with a fan, and a cup holder. Earl Hollister has had one for thirty years and he\'s only complained about it twice.',
+  },
+  longhorn: {
+    name: 'Red Dirt Longhorn 180', dealer: 'reddirt', price: 8500, top: 200, accel: 150, grip: 2.4, len: 92, wid: 50, body: 'tractor', offRoad: 1,
+    farm: { tier: 3, rate: 600 }, colors: ['#c8402a', '#3a7a3a', '#1e1e22'],
+    blurb: 'A big row-crop tractor: GPS steering, an eight-row planter, a combine head for harvest, air conditioning and a radio that gets the farm report.',
+    pitch: 'The Longhorn! The biggest thing on Main Street that isn\'t Chuckie\'s cheese wheel. Plant the south forty before your coffee gets cold.',
+  },
   cruiser: {
     name: 'Halvermouth Police Cruiser', dealer: null, price: 4000, top: 430, accel: 380, grip: 3.3, len: 86, wid: 40, body: 'police',
     colors: ['#e8e2d4', '#1e2a3a'],
@@ -9206,6 +9264,14 @@ const DEALERS = {
     models: ['aurelia', 'tempest', 'corsair', 'regent'],
     display: [{ model: 'corsair', x: 99, y: 22, angle: 0 }],
     tradeIn: 0.55, buysStolen: 0, plates: 0,
+  },
+  // v0.30.0: Lariat's tractor dealership (Dale sells from the lot)
+  reddirt: {
+    name: 'Red Dirt Tractor & Implement', npc: 'npc_dale', map: 'lariat', delivery: { x: 100, y: 51, angle: 0 },
+    lot: { x: 96, y: 46, w: 15, h: 10 },
+    models: ['shortrow', 'workhorse', 'longhorn'],
+    display: [{ model: 'shortrow', x: 98, y: 48, angle: 90 }, { model: 'workhorse', x: 103, y: 48, angle: 90 }, { model: 'longhorn', x: 108, y: 48, angle: 90 }],
+    tradeIn: 0.5, buysStolen: 0, plates: 0,
   },
 };
 
@@ -9943,9 +10009,56 @@ const daisy = cow({
   speech: { rumorPrefix: 'Guess what!', factPrefix: 'Did you know', refuse: 'I dunno! Isn\'t that EXCITING?' },
 });
 
-const __default = [chuckie, opal, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];
 
-return { chuckie, opal, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy, default: __default };
+// v0.30.0: the tractor dealer and the Feed & Seed / land agent
+const dale = local({
+  id: 'npc_dale', name: 'Dale Pruett', shortName: 'Dale',
+  combat: { never: true, maxHealth: 90 },
+  role: 'Sells tractors on the Red Dirt Tractor & Implement lot. Talks horsepower like other men talk weather.',
+  dialogue: 'dlg_dale',
+  voice: { wave: 'sawtooth', pitch: 140, variance: 20, rate: 1.05 },
+  appearance: { skin: '#e0b088', hair: '#5a4030', hairStyle: 'short', hat: '#c8402a', outfit: '#e8e2d4', legs: '#3a4a6a', build: 'broad', height: 1.05, accent: '#c8402a' },
+  personality: { traits: ['salesman', 'easygoing', 'tractor-mad'], sociability: 0.85, conscientiousness: 0.6, impulsiveness: 0.4, discretion: 0.4, honesty: 0.7, empathy: 0.6, humor: 0.75 },
+  speech: { rumorPrefix: 'Word on the lot is', factPrefix: 'Fact:', refuse: 'Couldn\'t tell you, friend. Ask me about tractors.' },
+  schedule: [
+    { from: '06:30', to: '07:00', activity: 'eat', spot: 'diner:stool', label: 'coffee at the diner' },
+    { from: '07:00', to: '12:00', activity: 'work', spot: 'lariat:reddirt_lot', label: 'on the Red Dirt lot' },
+    { from: '12:00', to: '12:45', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
+    { from: '12:45', to: '19:00', activity: 'work', spot: 'lariat:reddirt_lot', label: 'on the Red Dirt lot' },
+    { from: '19:00', to: '22:00', activity: 'leisure', spot: 'lariat:main_bench', label: 'watching the traffic lights change' },
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'boarding_house:bed_dale' },
+  ],
+  relationships: { player: { trust: 10, affection: 10, respect: 0, suspicion: 0 }, npc_earl: { trust: 30, affection: 20, respect: 40, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_jerky: 5, tags: { food: 2 } },
+  opinions: { npc_earl: { warm: 'Earl\'s had the same Workhorse thirty years. Best advert I\'ve got.', cool: 'Earl won\'t trade up. Thirty years! The man\'s a menace to commerce.' } },
+});
+
+const lorna = local({
+  id: 'npc_lorna', name: 'Lorna Calloway', shortName: 'Lorna',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Runs Lone Star Feed & Seed, and in the afternoons sits at the Land Office as the county\'s land agent.',
+  dialogue: 'dlg_lorna', shop: 'shop_feedseed',
+  voice: { wave: 'triangle', pitch: 300, variance: 25, rate: 1 },
+  appearance: { skin: '#c89070', hair: '#2a2420', hairStyle: 'ponytail', outfit: '#3a7a4a', apron: '#d8c8a0', legs: '#3a3a4a', build: 'average', height: 1, accent: '#e8c04a' },
+  personality: { traits: ['practical', 'precise', 'quietly funny'], sociability: 0.6, conscientiousness: 0.9, impulsiveness: 0.2, discretion: 0.7, honesty: 0.9, empathy: 0.6, humor: 0.6 },
+  speech: { rumorPrefix: 'For what it\'s worth,', factPrefix: 'On the record:', refuse: 'That\'s not in my ledger.' },
+  schedule: [
+    { from: '06:00', to: '07:00', activity: 'eat', spot: 'boarding_house:bed_lorna', label: 'breakfast' },
+    { from: '07:00', to: '12:00', activity: 'work', spot: 'feed_seed:counter', label: 'behind the Feed & Seed counter', onArrive: [{ restock: 'shop_feedseed' }] },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
+    { from: '13:00', to: '15:30', activity: 'work', spot: 'land_office:desk', label: 'at the Land Office desk' },
+    { from: '15:30', to: '19:00', activity: 'work', spot: 'feed_seed:counter', label: 'behind the Feed & Seed counter' },
+    { from: '19:00', to: '21:30', activity: 'leisure', spot: 'lariat:town_square', label: 'reading in Lariat Square' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'boarding_house:bed_lorna' },
+  ],
+  relationships: { player: { trust: 5, affection: 5, respect: 5, suspicion: 0 }, npc_opal: { trust: 40, affection: 35, respect: 30, suspicion: 0 } },
+  giftPrefs: { item_sweet_tea: 6, item_wildflowers: 7, tags: { sweet: 3 } },
+  opinions: { npc_opal: { warm: 'Opal knows everything in this county a day before it happens.', cool: 'Opal told the whole town my maiden name before I\'d unpacked.' } },
+});
+
+const __default = [chuckie, opal, dale, lorna, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];
+
+return { chuckie, opal, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy, dale, lorna, default: __default };
 })();
 
 // ---- src/content/dialogue/lariat.js
@@ -10303,9 +10416,47 @@ const dlgDaisy = cowDialogue('dlg_daisy', {
 
 const COW_DIALOGUES = [dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy];
 
-const __default = [dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];
+// v0.30.0: Dale sells tractors from the Red Dirt lot; Lorna runs Feed & Seed and the Land Office
+const dlgDale = {
+  id: 'dlg_dale',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Dale Pruett, Red Dirt Tractor & Implement! You look like a person who\'s about to need a tractor. Everybody does, eventually. Usually right after they buy land.'] },
+    { if: { activity: 'sleep' }, say: ['*asleep* …four-wheel drive… *snore*'] },
+    { if: {}, variants: [['Morning, friend! Come to kick some tyres?'], ['She\'s a beauty, ain\'t she? Whichever one you\'re looking at.'], ['Back again! The Longhorn missed you.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Drive safe! Slowly! Tractors only go slow.'], ['Come back when you\'ve got dirt to turn.']] }],
+  topics: [
+    { id: 't_dale_buy', label: '"Show me the tractors."', keywords: ['tractor', 'buy', 'equipment', 'shop', 'machine'], say: ['Three on the lot, one for every size of ambition: the Shortrow for a starter plot, the Workhorse for real farming, and the Longhorn if you want to finish before lunch. Park your tractor by your field and it\'ll do the work — tilling, planting, harvest.'], effects: [{ dealer: 'reddirt' }] },
+    { id: 't_dale_how', label: '"How does farming work, anyway?"', keywords: ['farm', 'how', 'crop', 'field', 'work'], say: ['Buy land at the Land Office — Lorna\'s there afternoons. Seed and fertiliser at Feed & Seed, also Lorna, mornings. She gets around.', 'Till it, plant it, wait, harvest it, haul it to the Co-op scale by the elevator. By hand, a plot\'ll take you all day and most of your spine. With a tractor parked by the field, you\'re done by coffee. That\'s my sales pitch. It\'s also true.'] },
+  ],
+  askAbout: [{ keywords: ['earl', 'hollister'], say: ['Earl\'s had the same Workhorse thirty years. If you can get him to say one nice thing about it, I\'ll give you a discount. Nobody\'s managed yet.'] }],
+  unknown: [['Don\'t know, friend. Do know tractors.']],
+  gift: basicGift('Well, now! Ain\'t you kind.', 'Thank you kindly.', 'Thanks.', 'Huh. Well.'),
+  barks: { greet: ['Morning!'], work: ['*polishes a fender*', '*kicks a tyre approvingly*', 'Eighty horsepower of pure love.'], leisure: ['*watches the lights change*'], eat: ['*coffee*'], sleep: ['*snore*'], chat: ['You don\'t say!', 'Now that\'s a deal.'], argue: ['Now hold on!'] },
+};
 
-return { dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy, COW_DIALOGUES, default: __default };
+const dlgLorna = {
+  id: 'dlg_lorna',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Lorna Calloway. Feed & Seed in the mornings, county land agent in the afternoons, and my husband fixes your tractor when Dale\'s sold you one. We\'re a full-service family.'] },
+    { if: { activity: 'sleep' }, say: ['*asleep*'] },
+    { if: {}, variants: [['What\'ll it be?'], ['Morning. Or afternoon. Depends which hat I\'m wearing.'], ['Seed, feed, or land?']] },
+  ],
+  farewells: [{ if: {}, variants: [['Mind the weather.'], ['Good growing.']] }],
+  topics: [
+    { id: 't_lorna_shop', label: '"I need seed and fertiliser."', keywords: ['seed', 'feed', 'fertiliser', 'fertilizer', 'buy', 'shop'], say: ['Wheat\'s quick, cotton pays best, corn and sorghum are in between. A bag plants fifty or sixty tiles; fertiliser covers eighty and gets you a quarter more at harvest.'], effects: [{ openShop: 'shop_feedseed' }] },
+    { id: 't_lorna_land', label: '"Tell me about the land for sale."', keywords: ['land', 'plot', 'farm', 'buy land', 'deed', 'property'], say: ['Three plots east of FM 38, surveyed and recorded. Plot 1 on Mesquite Lane and Plot 2 by the creek, three hundred-some tiles each, six thousand. The south forty, Plot 3, nearly twice the size, eleven thousand. Good black dirt. Clean title. No cows included.'], effects: [{ panel: { name: 'farmland' } }] },
+    { id: 't_lorna_coop', label: '"Where do I sell what I grow?"', keywords: ['sell', 'coop', 'co-op', 'elevator', 'price', 'market'], say: ['The Co-op scale by the elevator on Main. Prices are chalked up every morning at six; they wander a bit with the weather and the news from the city. Cotton\'s worth the most and takes the longest. That\'s farming for you.'] },
+  ],
+  askAbout: [{ keywords: ['calloway', 'repair', 'husband'], say: ['Rusty — no, that\'s the barber — Ray Calloway. Ag Repair. If he\'s out, he\'s under something.'] }],
+  unknown: [['That\'s not in my ledger.']],
+  gift: basicGift('Oh — thank you. Really.', 'That\'s kind.', 'Thanks.', 'Hm.'),
+  barks: { greet: ['Morning.'], work: ['*weighs a sack*', '*stamps a deed*'], leisure: ['*turns a page*'], eat: ['*eats*'], sleep: ['*snore*'], chat: ['Hm.', 'On the record, yes.'], argue: ['Not in my store.'] },
+};
+
+const __default = [dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];
+
+return { dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy, COW_DIALOGUES, dlgDale, dlgLorna, default: __default };
 })();
 
 // ---- src/content/dairy.js
@@ -10357,6 +10508,47 @@ const LASSO = 'item_lasso';
 const HERD_REWARD = { money: 2500, cheese: 2 };
 
 return { DAIRY, LEAD_COWS, LASSO, HERD_REWARD };
+})();
+
+// ---- src/content/farming.js
+__m["src/content/farming.js"] = (function () {
+// Farming (v0.30.0 "Sowing Season"): the land for sale at Lariat, the crops,
+// and what the equipment does. The simulation is src/systems/farm.js; the
+// tractors are vehicles (src/content/vehicles.js, dealer 'reddirt').
+//
+// Work on a plot is measured in field tiles: by hand you manage HAND_RATE
+// tiles a game hour; a tractor of tier t manages its model's farm.rate.
+// Growth runs on the world clock (06:00 each day). Prices are mid-game:
+// a plot pays for itself in a month or so of steady farming.
+
+/** The plots for sale: each is one of the Lariat map's `fields` (same id). */
+const FARM_PLOTS = {
+  plot_east_1: { name: 'East Plot 1 (Mesquite Lane)', map: 'lariat', price: 6000, sign: { x: 80, y: 79 } },
+  plot_east_2: { name: 'East Plot 2 (by Caddo Creek)', map: 'lariat', price: 6000, sign: { x: 110, y: 79 } },
+  plot_east_3: { name: 'East Plot 3 (the south forty)', map: 'lariat', price: 11000, sign: { x: 80, y: 95 } },
+};
+
+/**
+ * Crops. days: from planting to ready; yieldPer: tiles per unit harvested
+ * (a bale, a wagon-load…); seedPer: field tiles one bag of seed plants;
+ * price: what the Co-op pays per unit (before the day's price index).
+ */
+const FARM_CROPS = {
+  wheat: { name: 'Wheat', seed: 'item_seed_wheat', crop: 'item_crop_wheat', days: 4, yieldPer: 9, seedPer: 60, price: 30 },
+  sorghum: { name: 'Sorghum', seed: 'item_seed_sorghum', crop: 'item_crop_sorghum', days: 5, yieldPer: 9, seedPer: 60, price: 36 },
+  corn: { name: 'Corn', seed: 'item_seed_corn', crop: 'item_crop_corn', days: 6, yieldPer: 8, seedPer: 50, price: 40 },
+  cotton: { name: 'Cotton', seed: 'item_seed_cotton', crop: 'item_crop_cotton', days: 8, yieldPer: 8, seedPer: 50, price: 58 },
+};
+
+const FARM = {
+  handRate: 24, // field tiles worked by hand per game hour (a 324-tile plot: half a day and more)
+  tractorRange: 10, // tiles: your tractor must be parked this close to the plot's sign to work it
+  fertilizer: { item: 'item_fertilizer', per: 80, bonus: 0.25 }, // a bag covers 80 tiles; +25% yield
+  witherDays: 3, // days a ready crop waits before it starts to spoil (yield halves)
+  priceDrift: 0.04, // ± daily wobble of the Co-op's price index (0.85–1.15)
+};
+
+return { FARM_PLOTS, FARM_CROPS, FARM };
 })();
 
 // ---- src/content/index.js
@@ -10420,6 +10612,7 @@ const dlgDealers = __m["src/content/dialogue/dealers.js"].default;
 const lariatChars = __m["src/content/characters/lariat.js"].default;
 const dlgLariat = __m["src/content/dialogue/lariat.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
+const { FARM_PLOTS, FARM_CROPS, FARM } = __m["src/content/farming.js"];
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 const DUPLICATE_IDS = [];
@@ -10485,6 +10678,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
+  farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM },
   plots: {},
   startingMap: 'player_flat',
   startingSpot: 'entry',
@@ -10502,7 +10696,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.29.1';
+const GAME_VERSION = '0.30.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -18518,7 +18712,7 @@ class Vehicles {
     const steer = input.x || 0;
     car.speed ||= 0;
     const tile = map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
-    const top = m.top * (ROAD.has(tile) ? 1 : D.offRoad);
+    const top = m.top * (ROAD.has(tile) ? 1 : m.offRoad ?? D.offRoad); // v0.30.0: tractors don't mind fields
     car.braking = false;
     if (throttle > 0.1) car.speed += (car.speed < 0 ? D.brake : m.accel) * throttle * dt;
     else if (throttle < -0.1) {
@@ -24560,6 +24754,291 @@ function compareCount(n, v) {
 return { freshDairy, Dairy };
 })();
 
+// ---- src/systems/farm.js
+__m["src/systems/farm.js"] = (function () {
+// Farming (v0.30.0 "Sowing Season"): the plots for sale at Lariat, the work
+// on them, the crops growing on the world clock, and the Co-op that buys the
+// harvest. Content: src/content/farming.js. Tractors are ordinary vehicles
+// (dealer 'reddirt'); one of yours parked by a plot does the work fast.
+//
+// State: game.world.farm (created on first use, so older saves start with no
+// land, no crops and nothing owed):
+//   plots       { id: { owned, state: 'fallow' | 'tilled' | 'planted', crop, plantedDay, stage, fertilized, readyDay } }
+//   priceIndex  the Co-op's price index (0.85–1.15), moved each morning
+//   lastDay     the last day the 06:00 tick ran
+//
+// The fields are drawn into the map's ground layer: sync() writes each plot's
+// crop and stage to map.fieldState and bumps map.fieldsVersion, and the
+// renderer redraws the ground when the version changes.
+const { TILE } = __m["src/core/util.js"];
+const { hash2 } = __m["src/core/rng.js"];
+
+const MINUTES_PER_DAY = 1440;
+
+function freshFarm(content) {
+  const plots = {};
+  for (const id of Object.keys(content.farming?.plots || {})) plots[id] = { owned: false, state: 'fallow' };
+  return { plots, priceIndex: 1, lastDay: 0 };
+}
+
+class Farm {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get def() {
+    return this.game.content.farming;
+  }
+  get state() {
+    const g = this.game;
+    if (!g.world.farm) g.world.farm = freshFarm(g.content);
+    const s = g.world.farm;
+    for (const id of Object.keys(this.def.plots)) if (!s.plots[id]) s.plots[id] = { owned: false, state: 'fallow' };
+    return s;
+  }
+
+  plot(id) {
+    return this.state.plots[id];
+  }
+
+  /** The plot's content and its field rectangle on the map. */
+  plotDef(id) {
+    const p = this.def.plots[id];
+    if (!p) return null;
+    const field = this.game.maps.get(p.map)?.def.fields?.find((f) => f.id === id);
+    return field ? { ...p, id, field, tiles: field.w * field.h } : null;
+  }
+
+  owned() {
+    return Object.keys(this.def.plots).filter((id) => this.plot(id).owned);
+  }
+
+  // ------------------------------------------------------------------ land
+  buy(id) {
+    const g = this.game;
+    const d = this.plotDef(id);
+    if (!d) return { ok: false, text: 'No such plot.' };
+    const st = this.plot(id);
+    if (st.owned) return { ok: false, text: `${d.name} is already yours.` };
+    if (g.player.money < d.price) return { ok: false, text: `You need ${d.price.toLocaleString()} obols for ${d.name}.` };
+    g.player.money -= d.price;
+    g.bus.emit('money:changed', { delta: -d.price, total: g.player.money });
+    st.owned = true;
+    g.setFlag('farm_owner', true);
+    g.bus.emit('farm:bought', { plot: id });
+    this.sync();
+    return { ok: true, text: `The deed to ${d.name} is yours: ${d.tiles} tiles of good black dirt, for ${d.price.toLocaleString()} obols.` };
+  }
+
+  // ------------------------------------------------------------------ work
+  /** The best tractor of yours parked near the plot (on the same map), or null. */
+  tractorFor(id) {
+    const g = this.game;
+    const d = this.plotDef(id);
+    if (!d) return null;
+    const f = d.field;
+    const R = this.def.config.tractorRange;
+    let best = null;
+    for (const car of g.vehicles.ownedCars()) {
+      const m = g.vehicles.model(car);
+      if (!m.farm || car.map !== d.map) continue;
+      const tx = car.x / TILE;
+      const ty = car.y / TILE;
+      const dx = Math.max(f.x - tx, 0, tx - (f.x + f.w));
+      const dy = Math.max(f.y - ty, 0, ty - (f.y + f.h));
+      if (Math.hypot(dx, dy) > R) continue;
+      if (!best || m.farm.rate > best.model.farm.rate) best = { car, model: m };
+    }
+    return best;
+  }
+
+  /** How long a job on this plot takes (game minutes), and with what. */
+  workPlan(id) {
+    const d = this.plotDef(id);
+    const t = this.tractorFor(id);
+    const rate = t ? t.model.farm.rate : this.def.config.handRate;
+    return { minutes: Math.ceil((d.tiles / rate) * 60), tractor: t, byHand: !t };
+  }
+
+  /** What can be done on a plot right now: [{ action, label, ok, why }]. */
+  actions(id) {
+    const g = this.game;
+    const d = this.plotDef(id);
+    const st = this.plot(id);
+    const out = [];
+    if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: g.player.money >= d.price, why: 'Not enough obols.' }];
+    const C = this.def.crops;
+    if (st.state === 'fallow') out.push({ action: 'till', label: 'Till the field', ok: true });
+    if (st.state === 'tilled') {
+      for (const [cid, c] of Object.entries(C)) {
+        const bags = this.seedBags(id, cid);
+        out.push({ action: 'plant', crop: cid, label: `Plant ${c.name.toLowerCase()} (${bags} bags of seed, ready in ${c.days} days)`, ok: g.inventory.count(c.seed) >= bags, why: `You need ${bags} bags of ${c.name.toLowerCase()} seed (Lone Star Feed & Seed).` });
+      }
+    }
+    if ((st.state === 'tilled' || (st.state === 'planted' && st.stage < 3)) && !st.fertilized) {
+      const bags = this.fertBags(id);
+      out.push({ action: 'fertilize', label: `Fertilise (${bags} bags, +${Math.round(this.def.config.fertilizer.bonus * 100)}% yield)`, ok: g.inventory.count(this.def.config.fertilizer.item) >= bags, why: `You need ${bags} bags of fertiliser (Lone Star Feed & Seed).` });
+    }
+    if (st.state === 'planted' && st.stage >= 3) out.push({ action: 'harvest', label: `Harvest — about ${this.expectedYield(id)} ${C[st.crop].name.toLowerCase()}`, ok: true });
+    return out;
+  }
+
+  seedBags(id, cid) {
+    return Math.ceil(this.plotDef(id).tiles / this.def.crops[cid].seedPer);
+  }
+  fertBags(id) {
+    return Math.ceil(this.plotDef(id).tiles / this.def.config.fertilizer.per);
+  }
+  withered(id) {
+    const st = this.plot(id);
+    return st.state === 'planted' && st.readyDay && this.game.clock.day - st.readyDay > this.def.config.witherDays;
+  }
+  expectedYield(id) {
+    const st = this.plot(id);
+    if (st.state !== 'planted') return 0;
+    const c = this.def.crops[st.crop];
+    let n = this.plotDef(id).tiles / c.yieldPer;
+    if (st.fertilized) n *= 1 + this.def.config.fertilizer.bonus;
+    if (this.withered(id)) n *= 0.5;
+    return Math.floor(n);
+  }
+
+  /** Do a job on a plot. By hand it takes most of a day and tires you; a tractor parked by the field does it fast. */
+  work(id, action, crop) {
+    const g = this.game;
+    const d = this.plotDef(id);
+    if (!d) return { ok: false, text: 'No such plot.' };
+    if (action === 'buy') return this.buy(id);
+    const st = this.plot(id);
+    if (!st.owned) return { ok: false, text: 'That land isn\'t yours (yet). The Land Office on Main Street has the deeds.' };
+    const a = this.actions(id).find((x) => x.action === action && (action !== 'plant' || x.crop === crop));
+    if (!a) return { ok: false, text: 'That can\'t be done on this field right now.' };
+    if (!a.ok) return { ok: false, text: a.why };
+    const plan = this.workPlan(id);
+    if (plan.byHand && g.player.energy < 30) return { ok: false, text: 'You\'re too tired to work a field by hand. Sleep, eat, or bring a tractor.' };
+    let text;
+    if (action === 'till') {
+      st.state = 'tilled';
+      text = `You till ${d.name}`;
+    } else if (action === 'plant') {
+      const c = this.def.crops[crop];
+      g.inventory.remove(c.seed, this.seedBags(id, crop));
+      Object.assign(st, { state: 'planted', crop, plantedDay: g.clock.day, stage: 0, readyDay: null });
+      text = `You plant ${d.name} with ${c.name.toLowerCase()}`;
+    } else if (action === 'fertilize') {
+      g.inventory.remove(this.def.config.fertilizer.item, this.fertBags(id));
+      st.fertilized = true;
+      text = `You spread fertiliser on ${d.name}`;
+    } else if (action === 'harvest') {
+      const c = this.def.crops[st.crop];
+      const n = this.expectedYield(id);
+      g.inventory.add(c.crop, n);
+      Object.assign(st, { state: 'fallow', crop: null, plantedDay: null, stage: 0, fertilized: false, readyDay: null });
+      st.harvests = (st.harvests || 0) + 1;
+      g.bus.emit('farm:harvest', { plot: id, crop: c.crop, count: n });
+      text = `You harvest ${d.name}: ${n} × ${g.content.items[c.crop].name}`;
+    }
+    g.skipTime(plan.minutes);
+    this.sync();
+    const how = plan.byHand ? `by hand (${Math.round(plan.minutes / 60)} hours, and your back knows it)` : `with your ${plan.tractor.model.name} (${plan.minutes < 90 ? `${plan.minutes} minutes` : `${Math.round(plan.minutes / 60)} hours`})`;
+    return { ok: true, text: `${text} ${how}.` };
+  }
+
+  // ---------------------------------------------------------------- growth
+  /** 06:00 each day: crops grow a stage, ready crops start to wait, and the Co-op sets its prices. */
+  dailyTick() {
+    const g = this.game;
+    const s = this.state;
+    if (s.lastDay === g.clock.day) return;
+    s.lastDay = g.clock.day;
+    for (const [id, st] of Object.entries(s.plots)) {
+      if (st.state !== 'planted') continue;
+      const c = this.def.crops[st.crop];
+      const days = g.clock.day - st.plantedDay;
+      const stage = days >= c.days ? 3 : Math.min(2, Math.floor((days / c.days) * 3));
+      if (stage === 3 && !st.readyDay) {
+        st.readyDay = g.clock.day;
+        g.notify(`${this.def.plots[id].name}: the ${c.name.toLowerCase()} is ready to harvest.`, 'good');
+      }
+      st.stage = stage;
+    }
+    const k = this.def.config.priceDrift;
+    // the day's news, from the day itself (not the game's shared dice, which other systems' outcomes depend on)
+    s.priceIndex = Math.round(Math.min(1.15, Math.max(0.85, s.priceIndex + (hash2(g.clock.day, 8117) * 2 - 1) * k)) * 1000) / 1000;
+    this.sync();
+  }
+
+  minuteTick() {
+    if (!this.def) return;
+    const g = this.game;
+    if (Math.floor(g.clock.total) % MINUTES_PER_DAY === 6 * 60) this.dailyTick();
+  }
+
+  /** Catch up after skipping time (sleeping, long jobs): growth is by day, so one tick per missed morning is enough. */
+  catchUp() {
+    const s = this.state;
+    const g = this.game;
+    if (s.lastDay < g.clock.day && g.clock.minuteOfDay >= 6 * 60) this.dailyTick();
+  }
+
+  /** Write the plots onto the map's fields (crop and stage) for drawing. */
+  sync() {
+    if (!this.def) return;
+    const byMap = {};
+    for (const [id, p] of Object.entries(this.def.plots)) {
+      const st = this.plot(id);
+      (byMap[p.map] ||= {})[id] = st.state === 'planted' ? { crop: this.withered(id) ? 'fallow' : st.crop, stage: st.stage } : { crop: 'fallow', stage: 0, tilled: st.state === 'tilled' };
+    }
+    for (const [mapId, fs] of Object.entries(byMap)) {
+      const map = this.game.maps.get(mapId);
+      if (!map) continue;
+      const key = JSON.stringify(fs);
+      if (map.fieldStateKey === key) continue;
+      map.fieldState = fs;
+      map.fieldStateKey = key;
+      map.fieldsVersion = (map.fieldsVersion || 0) + 1;
+    }
+  }
+
+  // ------------------------------------------------------------------ Co-op
+  coopPrice(itemId) {
+    const c = Object.values(this.def.crops).find((x) => x.crop === itemId);
+    return c ? Math.max(1, Math.round(c.price * this.state.priceIndex)) : 0;
+  }
+
+  sellAtCoop(itemId, count = 1) {
+    const g = this.game;
+    const price = this.coopPrice(itemId);
+    const have = g.inventory.count(itemId);
+    if (!price) return { ok: false, text: 'The Co-op only buys grain and cotton.' };
+    const n = Math.min(count, have);
+    if (n <= 0) return { ok: false, text: 'You have none of that to sell.' };
+    g.inventory.remove(itemId, n);
+    g.player.money += price * n;
+    g.bus.emit('money:changed', { delta: price * n, total: g.player.money });
+    return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${(price * n).toLocaleString()} obols.` };
+  }
+
+  interact(prop) {
+    const act = prop.interact;
+    if (act.action === 'office') return { type: 'panel', panel: 'farmland', opts: {} };
+    if (act.action === 'coop') return { type: 'panel', panel: 'coop', opts: {} };
+    if (act.action === 'plot') return { type: 'panel', panel: 'farmplot', opts: { plot: act.plot } };
+    return { type: 'message', text: prop.examine || 'Farmland.' };
+  }
+
+  label(prop) {
+    const act = prop.interact;
+    if (act.action === 'office') return 'Look at the land listings';
+    if (act.action === 'coop') return 'Weigh in a harvest at the Co-op';
+    if (act.action === 'plot') return this.plot(act.plot)?.owned ? 'Work your field' : 'Read the FOR SALE sign';
+    return 'Examine';
+  }
+}
+
+return { freshFarm, Farm };
+})();
+
 // ---- src/systems/ledgerGame.js
 __m["src/systems/ledgerGame.js"] = (function () {
 // "The Ledger" — Sir Moneybucks's gentlemen's wager. Pure, deterministic
@@ -24989,6 +25468,7 @@ const { Transit } = __m["src/systems/transit.js"];
 const { Pursuit } = __m["src/systems/pursuit.js"];
 const { Logistics } = __m["src/systems/logistics.js"];
 const { Dairy } = __m["src/systems/dairy.js"];
+const { Farm } = __m["src/systems/farm.js"];
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -25030,6 +25510,7 @@ class Game {
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
     this.dairy = new Dairy(this);
+    this.farm = new Farm(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -25145,6 +25626,7 @@ class Game {
   afterLoad() {
     for (const npc of this.npcs.values()) this.npcSystem.think(npc, true);
     this.dairy.afterLoad();
+    this.farm.sync();
     this.updateDiscovery();
   }
 
@@ -25282,6 +25764,7 @@ class Game {
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
+    this.farm.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -25695,6 +26178,7 @@ class Game {
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
+      case 'farm': return this.farm.label(prop);
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
   }
@@ -25791,6 +26275,8 @@ class Game {
         return this.logistics.interact(prop);
       case 'dairy':
         return this.dairy.interact(prop);
+      case 'farm':
+        return this.farm.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -26157,6 +26643,7 @@ class Game {
     }
     this.arms.spawnStaff();
     this.dairy.afterLoad();
+    this.farm.sync();
     this.updateDiscovery();
     return this;
   }
@@ -26259,6 +26746,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.30.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Sowing Season',
+    notes: [
+      'You can farm in Lariat. The Land Office is open: Lorna Calloway sells the three plots east of FM 38.',
+      'Lone Star Feed & Seed is open too: seed for wheat, sorghum, corn and cotton, and fertiliser for a bigger harvest.',
+      'Red Dirt Tractor & Implement sells three tractors from its lot — ask for Dale. Park yours by your field and tilling, planting and harvest take minutes instead of a long, tiring day by hand.',
+      'Crops grow each morning on the world clock and show in the field as they grow. Harvest them on time, or they start to spoil.',
+      'Sell the harvest at the Co-op scale by the elevator; its prices move a little every morning.',
+    ],
+  },
   {
     version: '0.29.1',
     date: '2026-10-15',
@@ -27834,6 +28334,7 @@ function seed(s) {
  * opts: color, braking, lit (headlights on), time, id (for wear), siren.
  */
 function drawCar(ctx, model, x, y, angle, opts = {}) {
+  if (model.body === 'tractor') return drawTractor(ctx, model, x, y, angle, opts);
   const L = model.len;
   const W = model.wid;
   const color = opts.color || model.colors[0];
@@ -28057,6 +28558,67 @@ function drawBusStop(ctx, x, y) {
   ctx.fillRect(x + 19, y + 2, 9, 12); // the timetable
   ctx.fillStyle = '#7a8a8a';
   for (let i = 0; i < 4; i++) ctx.fillRect(x + 20.5, y + 4 + i * 2.5, 6, 1);
+}
+
+/** v0.30.0: a farm tractor from above — big rear wheels, small front ones, a long hood and a cab (or a seat and a roll bar). */
+function drawTractor(ctx, model, x, y, angle, opts = {}) {
+  const L = model.len;
+  const W = model.wid;
+  const color = opts.color || model.colors[0];
+  const tier = model.farm?.tier || 1;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.fillStyle = 'rgba(10,10,20,0.28)';
+  rrect(ctx, -L / 2 + 2, -W / 2 + 3, L, W, 6);
+  ctx.fill();
+  // wheels: big lugged rear tyres, small fronts that steer
+  ctx.fillStyle = '#18181c';
+  const rw = L * 0.32;
+  const rh = W * 0.24;
+  for (const sy of [-1, 1]) {
+    ctx.fillRect(-L / 2, sy * (W / 2) - (sy > 0 ? rh : 0), rw, rh);
+    ctx.fillStyle = '#2e2e34';
+    for (let i = 0; i < rw; i += 5) ctx.fillRect(-L / 2 + i, sy * (W / 2) - (sy > 0 ? rh : 0), 2, rh);
+    ctx.fillStyle = '#18181c';
+    ctx.save();
+    ctx.translate(L * 0.3, sy * (W / 2 - rh * 0.35));
+    ctx.rotate((opts.wheel || 0) * 0.5);
+    ctx.fillRect(-L * 0.08, -rh * 0.35, L * 0.16, rh * 0.7);
+    ctx.restore();
+  }
+  // the hood, running forward
+  ctx.fillStyle = color;
+  ctx.strokeStyle = shade(color, -45);
+  ctx.lineWidth = 1.2;
+  rrect(ctx, -L * 0.08, -W * 0.18, L * 0.56, W * 0.36, 4);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let i = 0; i < 4; i++) ctx.fillRect(L * 0.32 + i * 3, -W * 0.12, 1.5, W * 0.24);
+  ctx.fillStyle = '#3a3a40';
+  ctx.fillRect(L * 0.02, -W * 0.22, 3, 6); // the exhaust stack
+  // fenders over the rear wheels
+  ctx.fillStyle = color;
+  for (const sy of [-1, 1]) { rrect(ctx, -L / 2 + 1, sy > 0 ? W / 2 - rh - 2 : -W / 2 + 2, rw - 2, rh, 3); ctx.fill(); }
+  // the cab (tier 2+) or a seat under a roll bar
+  if (tier >= 2) {
+    ctx.fillStyle = shade(color, -25);
+    rrect(ctx, -L * 0.42, -W * 0.3, L * 0.34, W * 0.6, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(180,215,235,0.75)';
+    ctx.fillRect(-L * 0.38, -W * 0.24, L * 0.26, W * 0.48);
+    ctx.fillStyle = '#e8e2d4';
+    ctx.fillRect(-L * 0.42, -W * 0.3, L * 0.34, 3);
+  } else {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-L * 0.3, -W * 0.12, L * 0.14, W * 0.24);
+    ctx.strokeStyle = '#d8d8d8'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-L * 0.36, -W * 0.3); ctx.lineTo(-L * 0.36, W * 0.3); ctx.stroke();
+  }
+  if (opts.lit) {
+    ctx.fillStyle = 'rgba(255,240,190,0.9)';
+    for (const sy of [-1, 1]) ctx.fillRect(L / 2 - 3, sy * W * 0.12 - 2, 3, 4);
+  }
+  ctx.restore();
 }
 
 return { drawCar, drawDisplayCar, drawBus, drawBusStop };
@@ -28411,7 +28973,7 @@ function buildStaticLayer(map, makeCanvas) {
   }
   if (map.kind === 'interior') drawInteriorWalls(ctx, map);
   // v0.29.1: fields and their crops are part of the ground (drawn once, not every frame)
-  if (map.def?.fields) drawFields(ctx, map.def.fields);
+  if (map.def?.fields) drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) })));
   return cv;
 }
 
@@ -32029,13 +32591,17 @@ class Renderer {
   }
 
   staticLayer(map) {
-    if (!this.staticLayers.has(map)) {
-      this.staticLayers.set(map, buildStaticLayer(map, (w, h) => {
+    // v0.30.0: a map whose fields changed (crops planted, grown, harvested) gets its ground redrawn
+    const v = map.fieldsVersion || 0;
+    if (!this.staticLayers.has(map) || this.staticLayers.get(map).fieldsVersion !== v) {
+      const cv = buildStaticLayer(map, (w, h) => {
         const c = document.createElement('canvas');
         c.width = w;
         c.height = h;
         return c;
-      }));
+      });
+      cv.fieldsVersion = v;
+      this.staticLayers.set(map, cv);
     }
     return this.staticLayers.get(map);
   }
@@ -34506,7 +35072,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦', lasso: '🪢', jerky: '🥓', tea: '🧋', pie: '🥧', steak: '🍖', cheese: '🧀', hat: '🤠' };
+const ICONS = { knuckles: '👊', baton: '🏏', bat: '🏏', blade: '🔪', axe: '🪓', gun: '🔫', longgun: '🔫', ammo: '🧰', bun: '🍯', scone: '🧀', cup: '☕', flower: '🌸', bandage: '🩹', crowbar: '⚒️', spanner: '🔧', key: '🗝️', cog: '⚙️', bolts: '🔩', stamp: '✅', shard: '🔷', feather: '🪶', cigar: '🚬', spoon: '🥄', calc: '🧮', casing: '📟', keypad: '🔢', screen: '📺', chip: '💾', battery: '🔋', machine: '🏭', belt: '➡️', arm: '🦾', crate: '📦', lasso: '🪢', jerky: '🥓', tea: '🧋', pie: '🥧', steak: '🍖', cheese: '🧀', hat: '🤠', seed: '🌱', sack: '🛍️', grain: '🌾', bale: '🧺' };
 const itemIcon = (def) => ICONS[def?.icon] || '📦';
 
 // -------------------------------------------------------------------- pause
@@ -36295,6 +36861,7 @@ const { drawCar } = __m["src/engine/drawVehicles.js"];
 
 const STYLE = {
   fender: { cls: 'dealer-fender', tag: 'EVERY CAR A BARGAIN!*', fine: '*Not a guarantee. Sold as seen. No refunds.' },
+  reddirt: { cls: 'dealer-fender', tag: 'FARM TOUGH · TEXAS BUILT', fine: 'Delivered to the lot, fuelled and ready. Park it by your field and it does the work.' },
   beaumont: { cls: 'dealer-beaumont', tag: 'Est. in the age of carriages', fine: 'All vehicles delivered to the forecourt, keys in the ignition.' },
 };
 
@@ -36367,6 +36934,97 @@ function dealerPanel(ui, body, opts) {
 }
 
 return { dealerPanel };
+})();
+
+// ---- src/ui/farm.js
+__m["src/ui/farm.js"] = (function () {
+// Farming panels (v0.30.0): the Land Office's listings (buy a plot), a plot's
+// sign (till, plant, fertilise, harvest — with your tractor if it's parked
+// by the field), and the Co-op scale (sell the harvest). See src/systems/farm.js.
+const { h } = __m["src/ui/panels.js"];
+
+const STAGES = ['just planted', 'sprouting', 'growing', 'ready to harvest'];
+
+function plotStatus(F, id) {
+  const st = F.plot(id);
+  if (!st.owned) return 'for sale';
+  if (st.state === 'fallow') return 'fallow — till it to plant';
+  if (st.state === 'tilled') return 'tilled, ready to plant';
+  const c = F.def.crops[st.crop];
+  return `${c.name}: ${F.withered(id) ? 'spoiling in the field — harvest it!' : STAGES[st.stage]}${st.fertilized ? ' · fertilised' : ''}`;
+}
+
+function farmlandPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const render = (msg) => {
+    body.innerHTML = '';
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('p', { class: 'muted' }, 'Lariat County Land Office. Deeds to the surveyed plots east of FM 38. Clean title; no cows included. Work a plot at its sign: till, plant, fertilise and harvest — by hand, or fast with your own tractor parked by the field (Red Dirt Tractor & Implement, Cotton Street).'));
+    const list = h('div', { class: 'list' });
+    for (const id of Object.keys(F.def.plots)) {
+      const d = F.plotDef(id);
+      const st = F.plot(id);
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, st.owned ? '🌾' : '📜'),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`), st.owned ? h('span', { class: 'tag good' }, 'yours') : null), h('div', { class: 'desc' }, plotStatus(F, id))),
+        st.owned ? null : h('button', { class: 'small primary', disabled: g.player.money < d.price, onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
+    }
+    body.append(list);
+  };
+  render();
+  return { title: 'Land Office — Farmland', onClose: opts.onClose };
+}
+
+function farmplotPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const id = opts.plot;
+  const render = (msg) => {
+    body.innerHTML = '';
+    const d = F.plotDef(id);
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('p', {}, h('b', {}, d.name), ` — ${d.tiles} tiles · ${plotStatus(F, id)}`));
+    if (F.plot(id).owned) {
+      const plan = F.workPlan(id);
+      body.append(h('p', { class: 'muted' }, plan.byHand
+        ? `No tractor of yours is parked by this field, so each job is done by hand: about ${Math.round(plan.minutes / 60)} hours, and it tires you out.`
+        : `Your ${plan.tractor.model.name} is parked by the field: each job takes about ${plan.minutes < 90 ? `${plan.minutes} minutes` : `${Math.round(plan.minutes / 60)} hours`}.`));
+    } else body.append(h('p', { class: 'muted' }, 'LAND FOR SALE — the deed is at the Land Office on Main Street (or buy it here and file the paperwork later; Lorna won\'t mind).'));
+    const list = h('div', { class: 'list' });
+    for (const a of F.actions(id)) {
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, a.label), a.ok ? null : h('div', { class: 'desc' }, a.why)),
+        h('button', { class: 'small primary', disabled: !a.ok, onclick: () => { const r = F.work(id, a.action, a.crop); ui.audio.sfx(r.ok ? 'sfx_quest' : 'sfx_fail'); render(r.text); } }, 'Do it')));
+    }
+    if (!F.actions(id).length) list.append(h('p', { class: 'muted' }, 'Nothing to do here today. Crops grow each morning at six.'));
+    body.append(list);
+  };
+  render();
+  return { title: 'Your Field', onClose: opts.onClose };
+}
+
+function coopPanel(ui, body, opts) {
+  const g = ui.game;
+  const F = g.farm;
+  const render = (msg) => {
+    body.innerHTML = '';
+    if (msg) body.append(h('p', {}, h('b', {}, msg)));
+    body.append(h('p', { class: 'muted' }, `Lariat Co-op — today's bids (price index ${F.state.priceIndex.toFixed(2)}; chalked up at 06:00).`));
+    const list = h('div', { class: 'list' });
+    for (const c of Object.values(F.def.crops)) {
+      const have = g.inventory.count(c.crop);
+      const price = F.coopPrice(c.crop);
+      list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, c.crop === 'item_crop_cotton' ? '🧺' : '🌾'),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, g.content.items[c.crop].name, h('span', { class: 'tag' }, `${price} obols`)), h('div', { class: 'desc' }, `You have ${have}.`)),
+        h('button', { class: 'small', disabled: !have, onclick: () => render(F.sellAtCoop(c.crop, 1).text) }, 'Sell 1'),
+        h('button', { class: 'small primary', disabled: !have, onclick: () => { const r = F.sellAtCoop(c.crop, have); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, 'Sell all')));
+    }
+    body.append(list);
+  };
+  render();
+  return { title: 'Lariat Co-op — Scale House', onClose: opts.onClose };
+}
+
+return { farmlandPanel, farmplotPanel, coopPanel };
 })();
 
 // ---- src/ui/armsbench.js
@@ -37531,6 +38189,7 @@ const { PANELS, h } = __m["src/ui/panels.js"];
 const { terminalPanel } = __m["src/ui/terminal.js"];
 const { tabletPanel } = __m["src/ui/tablet.js"];
 const { dealerPanel } = __m["src/ui/dealer.js"];
+const { farmlandPanel, farmplotPanel, coopPanel } = __m["src/ui/farm.js"];
 const { armsBenchPanel } = __m["src/ui/armsbench.js"];
 const { fleetPanel } = __m["src/ui/fleetCommand.js"];
 const { logbookPanel } = __m["src/ui/logbook.js"];
@@ -37538,6 +38197,9 @@ const { logbookPanel } = __m["src/ui/logbook.js"];
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
 PANELS.dealer = dealerPanel;
+PANELS.farmland = farmlandPanel;
+PANELS.farmplot = farmplotPanel;
+PANELS.coop = coopPanel;
 PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;

@@ -315,7 +315,7 @@ export class Vehicles {
     const steer = input.x || 0;
     car.speed ||= 0;
     const tile = map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
-    const top = m.top * (ROAD.has(tile) ? 1 : D.offRoad);
+    const top = m.top * (ROAD.has(tile) ? 1 : m.offRoad ?? D.offRoad); // v0.30.0: tractors don't mind fields
     car.braking = false;
     if (throttle > 0.1) car.speed += (car.speed < 0 ? D.brake : m.accel) * throttle * dt;
     else if (throttle < -0.1) {

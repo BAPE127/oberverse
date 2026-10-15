@@ -249,4 +249,14 @@ export const ITEMS = {
     name: 'Cowboy Hat', category: 'gift', price: 30, tags: ['gift', 'clothing'], icon: 'hat',
     description: 'A straw cattleman with a sweat-stained band. Keeps the Texas sun off.',
   },
+  // Farming (v0.30.0)
+  item_seed_wheat: { name: 'Wheat Seed (bag)', category: 'farm', price: 18, tags: ['farm', 'seed'], icon: 'seed', description: 'A 50 lb sack of hard red winter wheat seed. Plants about 60 tiles of field.' },
+  item_seed_sorghum: { name: 'Sorghum Seed (bag)', category: 'farm', price: 22, tags: ['farm', 'seed'], icon: 'seed', description: 'Grain sorghum seed: drought-tough, red-headed. Plants about 60 tiles of field.' },
+  item_seed_corn: { name: 'Corn Seed (bag)', category: 'farm', price: 30, tags: ['farm', 'seed'], icon: 'seed', description: 'Yellow dent corn seed. Plants about 50 tiles of field.' },
+  item_seed_cotton: { name: 'Cotton Seed (bag)', category: 'farm', price: 40, tags: ['farm', 'seed'], icon: 'seed', description: 'Upland cotton seed, delinted. Plants about 50 tiles of field.' },
+  item_fertilizer: { name: 'Fertiliser (bag)', category: 'farm', price: 24, tags: ['farm'], icon: 'sack', description: 'A bag of 10-10-10. Covers about 80 tiles of field; a fertilised crop yields a quarter more.' },
+  item_crop_wheat: { name: 'Wheat (load)', category: 'farm', price: 30, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of threshed wheat. The Co-op elevator buys it.' },
+  item_crop_sorghum: { name: 'Sorghum (load)', category: 'farm', price: 36, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of grain sorghum. The Co-op elevator buys it.' },
+  item_crop_corn: { name: 'Corn (load)', category: 'farm', price: 40, tags: ['farm', 'crop'], icon: 'grain', description: 'A load of shelled corn. The Co-op elevator buys it.' },
+  item_crop_cotton: { name: 'Cotton (bale)', category: 'farm', price: 58, tags: ['farm', 'crop'], icon: 'bale', description: 'A module of seed cotton, wrapped. The Co-op elevator buys it for the gin.' },
 };

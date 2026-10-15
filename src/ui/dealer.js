@@ -6,6 +6,7 @@ import { drawCar } from '../engine/drawVehicles.js';
 
 const STYLE = {
   fender: { cls: 'dealer-fender', tag: 'EVERY CAR A BARGAIN!*', fine: '*Not a guarantee. Sold as seen. No refunds.' },
+  reddirt: { cls: 'dealer-fender', tag: 'FARM TOUGH · TEXAS BUILT', fine: 'Delivered to the lot, fuelled and ready. Park it by your field and it does the work.' },
   beaumont: { cls: 'dealer-beaumont', tag: 'Est. in the age of carriages', fine: 'All vehicles delivered to the forecourt, keys in the ignition.' },
 };
 

@@ -90,8 +90,8 @@ const buildings = [
   B('b_post_office', 'Lariat Post Office', 26, 31, 8, 7, { roof: '#3a4a6a', wall: '#e8dcc8', sign: 'U.S. MAIL · LARIAT', flatRoof: true, door: { x: 29, y: 37, lock: closed('LARIAT POST OFFICE. "Window closed. Parcels for Chuckie\'s Cheese: leave on the bench. Parcels FROM Chuckie\'s Cheese: open a window."') } }),
   B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, lock: closed('LARIAT STATE BANK. Est. 1911. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates when the Land Office opens."') } }),
   B('b_mercantile', 'Lariat Mercantile', 44, 30, 12, 8, { roof: '#7a2a24', wall: '#e8d8b8', sign: 'LARIAT MERCANTILE', awning: '#c8402a', door: { x: 49, y: 37, to: { map: 'mercantile', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal'], hours: { from: '07:00', to: '20:00' } } } }),
-  B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, lock: closed('LARIAT LAND OFFICE. A hand-lettered card in the window: "Farm listings being surveyed — back soon. Ask Opal at the Mercantile about land."') } }),
-  B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, lock: closed('LONE STAR FEED & SEED. "CLOSED FOR INVENTORY — new seed coming in on the next truck." Through the window: feed sacks to the ceiling.') } }),
+  B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, to: { map: 'land_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '08:00', to: '18:00' } } } }),
+  B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, to: { map: 'feed_seed', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '07:00', to: '19:00' } } } }),
   B('b_repair', 'Calloway Ag Repair', 96, 31, 9, 7, { roof: '#5a5a5e', wall: '#c8c4bc', sign: 'CALLOWAY AG REPAIR', flatRoof: true, door: { x: 100, y: 37, lock: closed('CALLOWAY AG REPAIR. A note on the door: "Out on a breakdown. If it\'s an emergency, it can wait. — R.C."') } }),
   // the Co-op elevator (a landmark: you can't go in, but the cow who's hiding there can't either)
   B('b_elevator', 'Lariat Co-op Elevator', 114, 28, 6, 8, { roof: '#9aa0a8', wall: '#c8ccd2', trim: '#6a7078', sign: 'LARIAT CO-OP', flatRoof: true, door: { x: 116, y: 35, lock: closed('The Co-op elevator\'s office. "Harvest hours only. Grain in, cheques out."') } }),
@@ -99,8 +99,8 @@ const buildings = [
   B('b_barber', 'Rusty\'s Barber Shop', 26, 50, 8, 6, { roof: '#2a3a5a', wall: '#f2ead8', sign: 'RUSTY\'S BARBER', awning: '#c8402a', door: { x: 29, y: 55, lock: closed('RUSTY\'S BARBER SHOP. "Gone fishin\'. Haircuts $8, opinions free." The pole still turns.') } }),
   B('b_livestock', 'Hoof & Horn Livestock Supply', 38, 48, 10, 8, { roof: '#6a3a1e', wall: '#e2cfa8', sign: 'HOOF & HORN', door: { x: 43, y: 55, lock: closed('HOOF & HORN LIVESTOCK SUPPLY. "Gone to the sale barn in Halvermouth. Back with stock." A cat sleeps on the step, unbothered.') } }),
   B('b_diner', 'Mesquite Diner', 51, 49, 11, 7, { roof: '#c8402a', wall: '#f2ead8', sign: 'MESQUITE DINER', awning: '#e8c04a', door: { x: 56, y: 55, to: { map: 'diner', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lupe'], hours: { from: '06:00', to: '21:00' } } } }),
-  B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa'], hours: { from: '06:00', to: '23:00' } } } }),
-  B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "GRAND OPENING — NEW STOCK ARRIVING." The showroom is empty except for a very shiny floor.') } }),
+  B('b_boarding', 'Bluebonnet Boarding House', 63, 48, 7, 8, { roof: '#3a4a7a', wall: '#ece4d4', sign: 'BLUEBONNET', door: { x: 66, y: 55, to: { map: 'boarding_house', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal', 'npc_lupe', 'npc_wade', 'npc_rosa', 'npc_dale', 'npc_lorna'], hours: { from: '06:00', to: '23:00' } } } }),
+  B('b_tractor', 'Red Dirt Tractor & Implement', 80, 47, 14, 9, { roof: '#b8402a', wall: '#ece4d4', sign: 'RED DIRT TRACTOR & IMPLEMENT', flatRoof: true, door: { x: 87, y: 55, lock: closed('RED DIRT TRACTOR & IMPLEMENT. "SALES ON THE LOT — ask for Dale." The showroom is mostly a very shiny floor and a coffee machine.') } }),
   // Dairy Road and Mesquite Lane, north side
   B('b_school', 'Lariat School', 52, 64, 14, 8, { roof: '#7a2a24', wall: '#e8d0b0', trim: '#4a2a1e', sign: 'LARIAT SCHOOL · GO LONGHORNS', door: { x: 58, y: 71, lock: closed('LARIAT SCHOOL. Summer recess. A banner on the fence: "CONGRATULATIONS CLASS OF THIS YEAR (ALL NINE OF YOU)".') } }),
   house('b_house_6', 79, 66, '#5a3a2a', '#f0e6d2', 'Wade\'s mother\'s house. "WADE: CLOSE THE GATE" is painted on the mailbox.'),
@@ -188,10 +188,7 @@ for (const [x, y] of [[114, 50], [124, 50]]) P('flowerbed', x, y);
 P('sign', 112, 45, { examine: 'LARIAT SQUARE. "No grazing." (This sign was put up after an incident.)' });
 // --- the shops' lots
 P('watertower', 106, 30, { w: 4, h: 5, examine: 'The Lariat water tower: LARIAT · HOME OF CHUCKIE\'S CHEESE painted round the tank, and below it, smaller, someone\'s initials in a heart.' });
-P('car', 98, 52, { w: 2, h: 1, color: '#c8402a', examine: 'A dusty pickup. CALLOWAY on the door and three spanners on the dash.' });
-P('tractor', 97, 47, { w: 3, h: 2, color: '#c8402a', examine: 'A red tractor on the Red Dirt lot, with a SOLD SOON sign it has had for a while.' });
-P('tractor', 103, 47, { w: 3, h: 2, color: '#3a7a3a', examine: 'A green tractor on the lot. The price is on a card face-down. That tells you everything.' });
-P('flagpole', 109, 47);
+P('car', 102, 30, { w: 2, h: 1, color: '#c8402a', examine: 'A dusty pickup. CALLOWAY on the door and three spanners on the dash.' }); // (Red Dirt's lot is for tractors, v0.30.0)
 P('haybale', 108, 53, { w: 1, h: 1 }); P('haybale', 109, 54, { w: 1, h: 1 });
 for (const [x, y] of [[78, 27], [82, 27], [86, 27]]) P('haybale', x, y, { w: 1, h: 1 });
 P('crate', 92, 27); P('barrel', 94, 27); P('car', 100, 27, { w: 3, h: 1, color: '#2a5a3a', examine: 'A Lone Star Feed & Seed delivery truck, loaded with sacks of feed for Chuckie\'s Cheese.' });
@@ -242,7 +239,9 @@ fenceH(49, 69, 81, [58, 59]); fenceH(49, 69, 104); fenceV(49, 82, 103); fenceV(6
 P('sign', 56, 80, { examine: 'CHUCKIE\'S SILAGE CORN. "Cows\' dinner. Not yours."' });
 // --- land coming up for sale (south-east): three plots, fenced, with signs
 fenceH(77, 135, 80, [105, 106, 107]);
-for (const [x, y] of [[80, 79], [110, 79], [80, 95]]) P('sign', x, y, { examine: 'LAND FOR SALE — inquire at the Lariat Land Office, Main Street.' });
+// each plot's sign is where you work it (src/systems/farm.js); explicit ids
+for (const [id, x, y] of [['plot_east_1', 80, 79], ['plot_east_2', 110, 79], ['plot_east_3', 80, 95]]) props.push({ id: `la_sign_${id}`, type: 'sign', x, y, interact: { kind: 'farm', action: 'plot', plot: id, name: 'field sign' }, examine: 'LAND FOR SALE — inquire at the Lariat Land Office, Main Street.' });
+props.push({ id: 'la_coop_scale', type: 'noticeboard', x: 113, y: 36, interact: { kind: 'farm', action: 'coop', name: 'Co-op scale' }, examine: 'The Co-op\'s truck scale and price board: today\'s bids for wheat, sorghum, corn and cotton, chalked up every morning.' });
 // --- trees: along the creek, round the edges of the county, and a few in the fields' corners
 for (let y = 1; y < H - 1; y += 3) { P('tree', Math.max(135, creekX(y) - 4), y, {}); if (y % 2) P('tree', creekX(y) + 4, y + 1); }
 for (let x = 2; x < 136; x += 5) if (!(x >= 9 && x <= 20) && !(x >= 70 && x <= 78)) P(x % 3 ? 'tree' : 'bush', x, 0);
@@ -304,6 +303,9 @@ export const lariat = {
     diner_bench: { x: 64, y: 46, facing: 'down' },
     main_bench: { x: 47, y: 46, facing: 'down' },
     // the five lead cows' hideouts (src/content/dairy.js) and their places in the paddock
+    reddirt_lot: { x: 101, y: 54, facing: 'up' },
+    land_office_door_out: { x: 61, y: 38, facing: 'down' },
+    feed_seed_door_out: { x: 86, y: 38, facing: 'down' },
     hide_bessie: { x: 57, y: 47, facing: 'down' },
     hide_clementine: { x: 15, y: 8, facing: 'right' },
     hide_duchess: { x: creekX(BAR) - 1, y: BAR, facing: 'right' },
@@ -354,11 +356,11 @@ export const diner = room('diner', 'Mesquite Diner', 14, 9, 'diner_door_out', {
 });
 export const boardingHouse = room('boarding_house', 'Bluebonnet Boarding House', 14, 10, 'boarding_door_out', {
   floor: 'c',
-  spots: Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])),
+  spots: { ...Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])), bed_dale: { x: 2, y: 7, facing: 'up' }, bed_lorna: { x: 11, y: 7, facing: 'up' } },
   props: [
     ...[1, 4, 9, 12].map((x, i) => ({ id: `bh_bed_${i}`, type: 'bed', x, y: 1, w: 1, h: 2 })),
+    { id: 'bh_bed_4', type: 'bed', x: 1, y: 6, w: 1, h: 2 }, { id: 'bh_bed_5', type: 'bed', x: 12, y: 5, w: 1, h: 2 }, // v0.30.0
     { id: 'bh_table', type: 'table', x: 6, y: 5, w: 2, examine: 'The boarding-house table, set for breakfast forever: grits, eggs, and a pot of coffee that bites.' },
-    { id: 'bh_plant', type: 'plant', x: 12, y: 7 },
     { id: 'bh_painting', type: 'painting', x: 6, y: 0, examine: 'A painting of bluebonnets, by Mrs. Haskins, aged nine. Framed like it\'s in a museum. It deserves it.' },
   ],
 });
@@ -404,4 +406,25 @@ export const hollisterHouse = room('hollister_house', 'Hollister Farmhouse', 12,
   ],
 });
 
-export default [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse];
+// v0.30.0: the Land Office (the deeds desk) and Lone Star Feed & Seed open
+export const landOffice = room('land_office', 'Lariat Land Office', 12, 8, 'land_office_door_out', {
+  spots: { desk: { x: 6, y: 2, facing: 'down' } },
+  props: [
+    { id: 'lo_desk', type: 'desk', x: 4, y: 3, w: 4, h: 1, interact: { kind: 'farm', action: 'office', name: 'deeds desk' }, examine: 'The county land agent\'s desk: a plat map under glass, a rubber stamp shaped like Texas, and the deeds to three plots east of FM 38.' },
+    { id: 'lo_map', type: 'painting', x: 1, y: 0, w: 3, examine: 'A survey map of the county. The east plots are outlined in red pencil: FOR SALE.' },
+    { id: 'lo_cabinet', type: 'cabinet', x: 10, y: 1 },
+    { id: 'lo_plant', type: 'plant', x: 1, y: 5 },
+  ],
+});
+export const feedSeed = room('feed_seed', 'Lone Star Feed & Seed', 14, 9, 'feed_seed_door_out', {
+  spots: { counter: { x: 7, y: 2, facing: 'down' } },
+  props: [
+    { id: 'fs_counter', type: 'counter', x: 5, y: 3, w: 5, h: 1, interact: { kind: 'shop', shop: 'shop_feedseed', name: 'counter' }, examine: 'The Feed & Seed counter: a scale, a calendar from a fertiliser company, and a bell that sounds like a cow.' },
+    { id: 'fs_sacks_1', type: 'crate', x: 1, y: 1, w: 3, examine: 'Seed sacks stacked to the rafters: wheat, sorghum, corn, cotton.' },
+    { id: 'fs_sacks_2', type: 'crate', x: 10, y: 1, w: 3, examine: 'Fertiliser, 10-10-10, in fifty-pound bags. It smells like a very serious garden.' },
+    { id: 'fs_shelf', type: 'shelf', x: 1, y: 6, w: 3, examine: 'Fence pliers, baling twine, salt licks and a hat that says FEED ME.' },
+    { id: 'fs_barrel', type: 'barrel', x: 12, y: 6 },
+  ],
+});
+
+export default [lariat, mercantile, diner, boardingHouse, milkingParlour, cheesePlant, chuckieHouse, hollisterHouse, landOffice, feedSeed];

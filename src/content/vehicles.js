@@ -47,6 +47,25 @@ export const CAR_MODELS = {
     blurb: 'A low, loud two-seat coupé that sounds like an argument. Go-faster stripes as standard; going faster is optional, but not really.',
     pitch: 'The Corsair. I would not normally sell one to a first-time client. But you have, how shall I put it, an appetite.',
   },
+  // ---- Red Dirt Tractor & Implement (Lariat, v0.30.0): farm equipment. farm.rate = field tiles worked a game hour ----
+  shortrow: {
+    name: 'Red Dirt Shortrow 25', dealer: 'reddirt', price: 1800, top: 150, accel: 120, grip: 2.2, len: 64, wid: 40, body: 'tractor', offRoad: 1, used: true,
+    farm: { tier: 1, rate: 110 }, colors: ['#c8402a', '#3a7a3a', '#e8a83a'],
+    blurb: 'A compact used tractor with a two-row planter and a tiller. Slow, honest, and older than some of the farmers who drive it.',
+    pitch: 'The Shortrow! She\'ll till a plot by lunchtime if you start at breakfast. Runs on diesel and stubbornness.',
+  },
+  workhorse: {
+    name: 'Red Dirt Workhorse 75', dealer: 'reddirt', price: 4200, top: 180, accel: 140, grip: 2.3, len: 76, wid: 44, body: 'tractor', offRoad: 1,
+    farm: { tier: 2, rate: 260 }, colors: ['#c8402a', '#3a7a3a', '#2a4a7a'],
+    blurb: 'A utility tractor with a cab, a four-row planter and a front loader. The workhorse of every farm in the county.',
+    pitch: 'Seventy-five horsepower, a cab with a fan, and a cup holder. Earl Hollister has had one for thirty years and he\'s only complained about it twice.',
+  },
+  longhorn: {
+    name: 'Red Dirt Longhorn 180', dealer: 'reddirt', price: 8500, top: 200, accel: 150, grip: 2.4, len: 92, wid: 50, body: 'tractor', offRoad: 1,
+    farm: { tier: 3, rate: 600 }, colors: ['#c8402a', '#3a7a3a', '#1e1e22'],
+    blurb: 'A big row-crop tractor: GPS steering, an eight-row planter, a combine head for harvest, air conditioning and a radio that gets the farm report.',
+    pitch: 'The Longhorn! The biggest thing on Main Street that isn\'t Chuckie\'s cheese wheel. Plant the south forty before your coffee gets cold.',
+  },
   cruiser: {
     name: 'Halvermouth Police Cruiser', dealer: null, price: 4000, top: 430, accel: 380, grip: 3.3, len: 86, wid: 40, body: 'police',
     colors: ['#e8e2d4', '#1e2a3a'],
@@ -76,6 +95,14 @@ export const DEALERS = {
     models: ['aurelia', 'tempest', 'corsair', 'regent'],
     display: [{ model: 'corsair', x: 99, y: 22, angle: 0 }],
     tradeIn: 0.55, buysStolen: 0, plates: 0,
+  },
+  // v0.30.0: Lariat's tractor dealership (Dale sells from the lot)
+  reddirt: {
+    name: 'Red Dirt Tractor & Implement', npc: 'npc_dale', map: 'lariat', delivery: { x: 100, y: 51, angle: 0 },
+    lot: { x: 96, y: 46, w: 15, h: 10 },
+    models: ['shortrow', 'workhorse', 'longhorn'],
+    display: [{ model: 'shortrow', x: 98, y: 48, angle: 90 }, { model: 'workhorse', x: 103, y: 48, angle: 90 }, { model: 'longhorn', x: 108, y: 48, angle: 90 }],
+    tradeIn: 0.5, buysStolen: 0, plates: 0,
   },
 };
 

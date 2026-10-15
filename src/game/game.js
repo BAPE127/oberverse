@@ -33,6 +33,7 @@ import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
 import { Logistics } from '../systems/logistics.js';
 import { Dairy } from '../systems/dairy.js';
+import { Farm } from '../systems/farm.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -74,6 +75,7 @@ export class Game {
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
     this.dairy = new Dairy(this);
+    this.farm = new Farm(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -189,6 +191,7 @@ export class Game {
   afterLoad() {
     for (const npc of this.npcs.values()) this.npcSystem.think(npc, true);
     this.dairy.afterLoad();
+    this.farm.sync();
     this.updateDiscovery();
   }
 
@@ -326,6 +329,7 @@ export class Game {
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
+    this.farm.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -739,6 +743,7 @@ export class Game {
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
+      case 'farm': return this.farm.label(prop);
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
   }
@@ -835,6 +840,8 @@ export class Game {
         return this.logistics.interact(prop);
       case 'dairy':
         return this.dairy.interact(prop);
+      case 'farm':
+        return this.farm.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':
@@ -1201,6 +1208,7 @@ export class Game {
     }
     this.arms.spawnStaff();
     this.dairy.afterLoad();
+    this.farm.sync();
     this.updateDiscovery();
     return this;
   }

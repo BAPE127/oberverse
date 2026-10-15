@@ -51,4 +51,10 @@ export const SHOPS = {
     stock: { item_pecan_pie: 6, item_chicken_fried_steak: 5, item_sweet_tea: 10, item_coffee: 10 },
     buys: {},
   },
+  // Farming (v0.30.0)
+  shop_feedseed: {
+    name: 'Lone Star Feed & Seed', owner: 'npc_lorna', restockAt: '07:00',
+    stock: { item_seed_wheat: 20, item_seed_sorghum: 20, item_seed_corn: 20, item_seed_cotton: 16, item_fertilizer: 24 },
+    buys: {},
+  },
 };

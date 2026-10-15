@@ -2,6 +2,25 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.30.0] — 2026-10-15 — "Sowing Season" (development build)
+
+The second of the three agricultural releases chosen in interview: farm purchase, crops and equipment. Livestock, the agricultural market and farm management follow in 0.31.0. See docs/FARMING.md.
+
+### Added
+- **Farmland** (`src/systems/farm.js`, `src/content/farming.js`): the three plots east of FM 38 (each one of the map's `fields`) are for sale at the Land Office (now open: a deeds desk) or at the plot's sign — 6,000, 6,000 and 11,000 obols.
+- **Work on a plot**, at its sign: till, plant (wheat, sorghum, corn or cotton; seed bags by area), fertilise (+25% yield) and harvest. By hand a job takes most of a day and tires you out; with **your own tractor parked by the field** it takes minutes to an hour, by the tractor's tier.
+- **Growth on the world clock:** each morning at 06:00 a planted crop advances (wheat 4 days, sorghum 5, corn 6, cotton 8); a ready crop left more than 3 days spoils to half. The field is redrawn in the ground layer as it grows.
+- **The Co-op scale** by the elevator buys the harvest; its price index (0.85–1.15) moves each morning.
+- **Red Dirt Tractor & Implement** is a dealership in the existing vehicle system: the Shortrow 25 (1,800), Workhorse 75 (4,200) and Longhorn 180 (8,500), drawn as tractors, at full speed off-road; part-exchange as at the other lots. Sold by **Dale Pruett** on the lot.
+- **Lone Star Feed & Seed** is open (interior and `shop_feedseed`), run by **Lorna Calloway**, who is also the county land agent in the afternoons.
+- Items: four seeds, fertiliser, four crops. Tests: `tests/farming.test.mjs` (5).
+
+### Changed
+- `tests/logistics.test.mjs`: the own-fleet export test now sails until the ship actually arrives (a random delay en route could push the ETA past its single fixed wait when the dice fell differently).
+
+### Anti-exploit
+- Each plot is bought once; seed and fertiliser are used up; a crop is harvested once per planting; yields follow area, crop and fertiliser only; the Co-op's daily price comes from the day, not from reloading. Older saves start with no land.
+
 ## [0.29.1] — 2026-10-15 — "Main Street" (development build)
 
 The owner said Lariat's map "feels very cheap and poorly done", asked for it to match the other areas' quality and street design, said the transition to the area wasn't clear, and that the crops at the top of the map were "super laggy" and sat on the river. See docs/LARIAT.md.

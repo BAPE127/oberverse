@@ -351,4 +351,42 @@ export const dlgDaisy = cowDialogue('dlg_daisy', {
 
 export const COW_DIALOGUES = [dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy];
 
-export default [dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];
+// v0.30.0: Dale sells tractors from the Red Dirt lot; Lorna runs Feed & Seed and the Land Office
+export const dlgDale = {
+  id: 'dlg_dale',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Dale Pruett, Red Dirt Tractor & Implement! You look like a person who\'s about to need a tractor. Everybody does, eventually. Usually right after they buy land.'] },
+    { if: { activity: 'sleep' }, say: ['*asleep* …four-wheel drive… *snore*'] },
+    { if: {}, variants: [['Morning, friend! Come to kick some tyres?'], ['She\'s a beauty, ain\'t she? Whichever one you\'re looking at.'], ['Back again! The Longhorn missed you.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Drive safe! Slowly! Tractors only go slow.'], ['Come back when you\'ve got dirt to turn.']] }],
+  topics: [
+    { id: 't_dale_buy', label: '"Show me the tractors."', keywords: ['tractor', 'buy', 'equipment', 'shop', 'machine'], say: ['Three on the lot, one for every size of ambition: the Shortrow for a starter plot, the Workhorse for real farming, and the Longhorn if you want to finish before lunch. Park your tractor by your field and it\'ll do the work — tilling, planting, harvest.'], effects: [{ dealer: 'reddirt' }] },
+    { id: 't_dale_how', label: '"How does farming work, anyway?"', keywords: ['farm', 'how', 'crop', 'field', 'work'], say: ['Buy land at the Land Office — Lorna\'s there afternoons. Seed and fertiliser at Feed & Seed, also Lorna, mornings. She gets around.', 'Till it, plant it, wait, harvest it, haul it to the Co-op scale by the elevator. By hand, a plot\'ll take you all day and most of your spine. With a tractor parked by the field, you\'re done by coffee. That\'s my sales pitch. It\'s also true.'] },
+  ],
+  askAbout: [{ keywords: ['earl', 'hollister'], say: ['Earl\'s had the same Workhorse thirty years. If you can get him to say one nice thing about it, I\'ll give you a discount. Nobody\'s managed yet.'] }],
+  unknown: [['Don\'t know, friend. Do know tractors.']],
+  gift: basicGift('Well, now! Ain\'t you kind.', 'Thank you kindly.', 'Thanks.', 'Huh. Well.'),
+  barks: { greet: ['Morning!'], work: ['*polishes a fender*', '*kicks a tyre approvingly*', 'Eighty horsepower of pure love.'], leisure: ['*watches the lights change*'], eat: ['*coffee*'], sleep: ['*snore*'], chat: ['You don\'t say!', 'Now that\'s a deal.'], argue: ['Now hold on!'] },
+};
+
+export const dlgLorna = {
+  id: 'dlg_lorna',
+  greetings: [
+    { if: { firstMeeting: true }, say: ['Lorna Calloway. Feed & Seed in the mornings, county land agent in the afternoons, and my husband fixes your tractor when Dale\'s sold you one. We\'re a full-service family.'] },
+    { if: { activity: 'sleep' }, say: ['*asleep*'] },
+    { if: {}, variants: [['What\'ll it be?'], ['Morning. Or afternoon. Depends which hat I\'m wearing.'], ['Seed, feed, or land?']] },
+  ],
+  farewells: [{ if: {}, variants: [['Mind the weather.'], ['Good growing.']] }],
+  topics: [
+    { id: 't_lorna_shop', label: '"I need seed and fertiliser."', keywords: ['seed', 'feed', 'fertiliser', 'fertilizer', 'buy', 'shop'], say: ['Wheat\'s quick, cotton pays best, corn and sorghum are in between. A bag plants fifty or sixty tiles; fertiliser covers eighty and gets you a quarter more at harvest.'], effects: [{ openShop: 'shop_feedseed' }] },
+    { id: 't_lorna_land', label: '"Tell me about the land for sale."', keywords: ['land', 'plot', 'farm', 'buy land', 'deed', 'property'], say: ['Three plots east of FM 38, surveyed and recorded. Plot 1 on Mesquite Lane and Plot 2 by the creek, three hundred-some tiles each, six thousand. The south forty, Plot 3, nearly twice the size, eleven thousand. Good black dirt. Clean title. No cows included.'], effects: [{ panel: { name: 'farmland' } }] },
+    { id: 't_lorna_coop', label: '"Where do I sell what I grow?"', keywords: ['sell', 'coop', 'co-op', 'elevator', 'price', 'market'], say: ['The Co-op scale by the elevator on Main. Prices are chalked up every morning at six; they wander a bit with the weather and the news from the city. Cotton\'s worth the most and takes the longest. That\'s farming for you.'] },
+  ],
+  askAbout: [{ keywords: ['calloway', 'repair', 'husband'], say: ['Rusty — no, that\'s the barber — Ray Calloway. Ag Repair. If he\'s out, he\'s under something.'] }],
+  unknown: [['That\'s not in my ledger.']],
+  gift: basicGift('Oh — thank you. Really.', 'That\'s kind.', 'Thanks.', 'Hm.'),
+  barks: { greet: ['Morning.'], work: ['*weighs a sack*', '*stamps a deed*'], leisure: ['*turns a page*'], eat: ['*eats*'], sleep: ['*snore*'], chat: ['Hm.', 'On the record, yes.'], argue: ['Not in my store.'] },
+};
+
+export default [dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, ...COW_DIALOGUES];

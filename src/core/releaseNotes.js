@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.30.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Sowing Season',
+    notes: [
+      'You can farm in Lariat. The Land Office is open: Lorna Calloway sells the three plots east of FM 38.',
+      'Lone Star Feed & Seed is open too: seed for wheat, sorghum, corn and cotton, and fertiliser for a bigger harvest.',
+      'Red Dirt Tractor & Implement sells three tractors from its lot — ask for Dale. Park yours by your field and tilling, planting and harvest take minutes instead of a long, tiring day by hand.',
+      'Crops grow each morning on the world clock and show in the field as they grow. Harvest them on time, or they start to spoil.',
+      'Sell the harvest at the Co-op scale by the elevator; its prices move a little every morning.',
+    ],
+  },
+  {
     version: '0.29.1',
     date: '2026-10-15',
     channel: 'development',

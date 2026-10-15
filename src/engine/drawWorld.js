@@ -28,7 +28,7 @@ export function buildStaticLayer(map, makeCanvas) {
   }
   if (map.kind === 'interior') drawInteriorWalls(ctx, map);
   // v0.29.1: fields and their crops are part of the ground (drawn once, not every frame)
-  if (map.def?.fields) drawFields(ctx, map.def.fields);
+  if (map.def?.fields) drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) })));
   return cv;
 }
 

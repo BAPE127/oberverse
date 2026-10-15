@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.30.0 (2026-10-15)
+
+- `npm run check` — **327/327 tests passed** (5 new in `farming.test.mjs`: plots, buying once; by hand vs. with a tractor parked by the field; growth, harvest once, the Co-op, spoiling; the field redrawn as the crop grows and the price band; saves, older saves, the three tractor tiers, shops and people); validator 0 errors. `logistics.test.mjs`'s export test made robust to en-route delays.
+- `npm run smoke` — 24/24.
+- Browser: Red Dirt's lot and dealership panel (tractor previews), buying a plot and a Longhorn, tilling and planting corn with it (33 minutes each), the corn growing in the field, the plot panel. No page errors.
+
 ## Verification record — v0.29.1 (2026-10-15)
 
 - `npm run check` — **322/322 tests passed** (1 new: Lariat's grid reachable from the gate, fields all on field tiles and none on the creek, no per-frame crop props, no street furniture on roads/buildings/water/fields, two junctions with lights and crossings, the arch and the North Gate's gateposts and sign, no sea-wall border); validator 0 errors.

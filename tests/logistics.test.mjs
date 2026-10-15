@@ -307,7 +307,8 @@ test('own-fleet exports: no freight fee, running costs instead, crates leave the
   g.skipTime(v.loadUntil - g.clock.total + 30);
   assert.equal(v.status, 'underway');
   assert.equal(shp.arrives, v.voyage.arrive, 'the market sees the real ETA');
-  g.skipTime(v.voyage.arrive - g.clock.total + 30);
+  // sail until she arrives (an event en route can push the ETA back while she's at sea)
+  for (let k = 0; k < 5 && v.status === 'underway'; k++) g.skipTime(Math.max(1, v.voyage.arrive - g.clock.total + 30));
   assert.equal(v.status, 'docked');
   assert.equal(M.state.earned - earned0, 10000, 'paid once, by the country');
   assert.equal(M.state.orders.find((o) => o.id === 900).status, 'delivered');

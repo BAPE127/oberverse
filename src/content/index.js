@@ -57,6 +57,7 @@ import dlgDealers from './dialogue/dealers.js';
 import lariatChars from './characters/lariat.js';
 import dlgLariat from './dialogue/lariat.js';
 import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
+import { FARM_PLOTS, FARM_CROPS, FARM } from './farming.js';
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 export const DUPLICATE_IDS = [];
@@ -122,6 +123,7 @@ export const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
+  farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM },
   plots: {},
   startingMap: 'player_flat',
   startingSpot: 'entry',

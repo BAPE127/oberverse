@@ -275,4 +275,51 @@ export const daisy = cow({
   speech: { rumorPrefix: 'Guess what!', factPrefix: 'Did you know', refuse: 'I dunno! Isn\'t that EXCITING?' },
 });
 
-export default [chuckie, opal, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];
+
+// v0.30.0: the tractor dealer and the Feed & Seed / land agent
+export const dale = local({
+  id: 'npc_dale', name: 'Dale Pruett', shortName: 'Dale',
+  combat: { never: true, maxHealth: 90 },
+  role: 'Sells tractors on the Red Dirt Tractor & Implement lot. Talks horsepower like other men talk weather.',
+  dialogue: 'dlg_dale',
+  voice: { wave: 'sawtooth', pitch: 140, variance: 20, rate: 1.05 },
+  appearance: { skin: '#e0b088', hair: '#5a4030', hairStyle: 'short', hat: '#c8402a', outfit: '#e8e2d4', legs: '#3a4a6a', build: 'broad', height: 1.05, accent: '#c8402a' },
+  personality: { traits: ['salesman', 'easygoing', 'tractor-mad'], sociability: 0.85, conscientiousness: 0.6, impulsiveness: 0.4, discretion: 0.4, honesty: 0.7, empathy: 0.6, humor: 0.75 },
+  speech: { rumorPrefix: 'Word on the lot is', factPrefix: 'Fact:', refuse: 'Couldn\'t tell you, friend. Ask me about tractors.' },
+  schedule: [
+    { from: '06:30', to: '07:00', activity: 'eat', spot: 'diner:stool', label: 'coffee at the diner' },
+    { from: '07:00', to: '12:00', activity: 'work', spot: 'lariat:reddirt_lot', label: 'on the Red Dirt lot' },
+    { from: '12:00', to: '12:45', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
+    { from: '12:45', to: '19:00', activity: 'work', spot: 'lariat:reddirt_lot', label: 'on the Red Dirt lot' },
+    { from: '19:00', to: '22:00', activity: 'leisure', spot: 'lariat:main_bench', label: 'watching the traffic lights change' },
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'boarding_house:bed_dale' },
+  ],
+  relationships: { player: { trust: 10, affection: 10, respect: 0, suspicion: 0 }, npc_earl: { trust: 30, affection: 20, respect: 40, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_jerky: 5, tags: { food: 2 } },
+  opinions: { npc_earl: { warm: 'Earl\'s had the same Workhorse thirty years. Best advert I\'ve got.', cool: 'Earl won\'t trade up. Thirty years! The man\'s a menace to commerce.' } },
+});
+
+export const lorna = local({
+  id: 'npc_lorna', name: 'Lorna Calloway', shortName: 'Lorna',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Runs Lone Star Feed & Seed, and in the afternoons sits at the Land Office as the county\'s land agent.',
+  dialogue: 'dlg_lorna', shop: 'shop_feedseed',
+  voice: { wave: 'triangle', pitch: 300, variance: 25, rate: 1 },
+  appearance: { skin: '#c89070', hair: '#2a2420', hairStyle: 'ponytail', outfit: '#3a7a4a', apron: '#d8c8a0', legs: '#3a3a4a', build: 'average', height: 1, accent: '#e8c04a' },
+  personality: { traits: ['practical', 'precise', 'quietly funny'], sociability: 0.6, conscientiousness: 0.9, impulsiveness: 0.2, discretion: 0.7, honesty: 0.9, empathy: 0.6, humor: 0.6 },
+  speech: { rumorPrefix: 'For what it\'s worth,', factPrefix: 'On the record:', refuse: 'That\'s not in my ledger.' },
+  schedule: [
+    { from: '06:00', to: '07:00', activity: 'eat', spot: 'boarding_house:bed_lorna', label: 'breakfast' },
+    { from: '07:00', to: '12:00', activity: 'work', spot: 'feed_seed:counter', label: 'behind the Feed & Seed counter', onArrive: [{ restock: 'shop_feedseed' }] },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
+    { from: '13:00', to: '15:30', activity: 'work', spot: 'land_office:desk', label: 'at the Land Office desk' },
+    { from: '15:30', to: '19:00', activity: 'work', spot: 'feed_seed:counter', label: 'behind the Feed & Seed counter' },
+    { from: '19:00', to: '21:30', activity: 'leisure', spot: 'lariat:town_square', label: 'reading in Lariat Square' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'boarding_house:bed_lorna' },
+  ],
+  relationships: { player: { trust: 5, affection: 5, respect: 5, suspicion: 0 }, npc_opal: { trust: 40, affection: 35, respect: 30, suspicion: 0 } },
+  giftPrefs: { item_sweet_tea: 6, item_wildflowers: 7, tags: { sweet: 3 } },
+  opinions: { npc_opal: { warm: 'Opal knows everything in this county a day before it happens.', cool: 'Opal told the whole town my maiden name before I\'d unpacked.' } },
+});
+
+export default [chuckie, opal, dale, lorna, lupe, wade, rosa, earl, bessie, clementine, duchess, patsy, daisy];

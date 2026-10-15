@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.30.0.** Farming (`src/systems/farm.js`, `src/content/farming.js`, `src/ui/farm.js`): land, work, growth, the Co-op; Red Dirt tractors as vehicles; Feed & Seed and the Land Office open; Dale and Lorna.
 - **2026-10-15 — v0.29.1.** Lariat rebuilt on a street grid with lights, crossings and traffic; fields baked into the ground layer (`map.fields`, `k` tile); the North Gate and Lariat's arch; `R` ridge tile.
 - **2026-10-15 — v0.29.0.** Lariat (`src/content/maps/lariat.js`), Farmer Chuckie and the townsfolk, the five talking lead cows and `q_lost_herd`, Chuckie's Cheese and CHZ (`src/systems/dairy.js`), the stampede Wrath; first of three agricultural releases (`docs/LARIAT.md`).
 - **2026-10-15 — v0.28.0.** Realistic fictional geography (`src/world/geography.js`, `src/engine/drawGlobeSurface.js`, `docs/GEOGRAPHY.md`); ports moved to the new coasts; the arms globe rendered as a lit sphere.

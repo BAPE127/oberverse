@@ -42,13 +42,17 @@ export class Renderer {
   }
 
   staticLayer(map) {
-    if (!this.staticLayers.has(map)) {
-      this.staticLayers.set(map, buildStaticLayer(map, (w, h) => {
+    // v0.30.0: a map whose fields changed (crops planted, grown, harvested) gets its ground redrawn
+    const v = map.fieldsVersion || 0;
+    if (!this.staticLayers.has(map) || this.staticLayers.get(map).fieldsVersion !== v) {
+      const cv = buildStaticLayer(map, (w, h) => {
         const c = document.createElement('canvas');
         c.width = w;
         c.height = h;
         return c;
-      }));
+      });
+      cv.fieldsVersion = v;
+      this.staticLayers.set(map, cv);
     }
     return this.staticLayers.get(map);
   }
