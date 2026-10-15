@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.26.0] — 2026-10-15 — "Drydock" (development build)
+
+Release 2 of 3 from the owner's terminal and shipbuilder brief ("the ship builder should feel like the ship builder in No Man's Sky or Starfield … parts should be detailed and ships should be detailed and not be small pixels"). Chosen in interview: a big side profile, parts snapping onto glowing attachment points from a tray. See docs/SHIPBUILDING.md.
+
+### Added
+- **Detailed side profiles** (`src/engine/drawShipProfile.js`): every hull family (cargo with bulb bow, small craft, inflatable skiff, warship, sail with castles, gun-ports and bowsprit, futuristic hydrofoil with foils and glowing trim) with plating or planking, antifouling, boot-top, sheer stripe, propeller, rudder, bridge tiers with glass, lifeboat and lit mast; and a drawing for each of the 35 parts (`PROFILE_PART`), animated (smoke, fans, radar, sails, glow). Stock ships get a standard fit (`fitFor`) so they're drawn as fully as custom ones.
+- **The shipbuilder** (`src/ui/shipBuilder.js`) in Fleet Command's Shipyard: hull cards; the profile on a blueprint stage with numbered glowing attachment points; a tray of part cards by family (fit reasons, limits, store counts); drag-and-drop onto points (snap), between points (swap), off the ship (remove), click to fit, double-click or Delete to remove; a side panel with points/weight/power/mounts meters, the class's requirements, performance bars, abilities, paint, name, yard, the bill, Buy missing parts and Lay the keel. Slips & yards page with the build drawn taking shape; a parts store with every part drawn.
+- **Layouts**: a design's `layout` (the slot of each part; gaps allowed) is saved with builds and launched designs (`Shipyard.layoutOf`, `fitOf`, `look.fit`). It changes only the look — a broken or missing layout means "in order".
+- Tests: `tests/shipbuilder.test.mjs` (4).
+
+### Changed
+- Fleet Command's ship pictures (fleet, buy, ship card, at sea, in port) are the detailed side profiles.
+
+### Removed
+- The old tabbed logistics terminal (`src/ui/logistics.js`) and its styles; Fleet Command replaced it in v0.25.0.
+
 ## [0.25.0] — 2026-10-15 — "Fleet Command" (development build)
 
 Release 1 of 3 from the owner's terminal and shipbuilder brief ("feels too much like a spreadsheet … should control the entire screen … easier to use"). See docs/FLEET_COMMAND.md.

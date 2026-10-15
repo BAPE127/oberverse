@@ -1,6 +1,6 @@
 # Ships (v0.21.0)
 
-Cargo ships sold by **Halver Marine Brokers** (the terminal's Brokerage page). Every stat lives in `CARGO_SHIPS` / `CARGO_CLASSES` in `src/content/logistics.js`; a vessel's effective stats come from `Logistics.stats(vessel)` (the shipyard's components will modify them later).
+Cargo ships sold by **Halver Marine Brokers** (Fleet Command → Buy → Cargo ships). Every stat lives in `CARGO_SHIPS` / `CARGO_CLASSES` in `src/content/logistics.js`; a vessel's effective stats come from `Logistics.stats(vessel)` (the shipyard's components will modify them later).
 
 | Class | Size | Wear | Upgrade slots | Notes |
 | --- | --- | --- | --- | --- |
@@ -33,7 +33,7 @@ Time at sea: hours = km ÷ (knots × 1.852) ÷ 6 (`LOGISTICS.seaTime` compresses
 
 ## Warships (v0.23.0)
 
-Sold by **Kestrel Naval Surplus & Sons** (the Warships page). `WARSHIPS` in `src/content/logistics.js`. Combat numbers (0–100) feed piracy defence, escort strength and mission fitness — and are what a future playable encounter would use.
+Sold by **Kestrel Naval Surplus & Sons** (Fleet Command → Buy → Warships). `WARSHIPS` in `src/content/logistics.js`. Combat numbers (0–100) feed piracy defence, escort strength and mission fitness — and are what a future playable encounter would use.
 
 | Ship | Family | Price | Hold | Knots | Range km | At sea /day | Size | Attack | Defence | Detection | Stealth | Mounts | Roles / bonus |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |

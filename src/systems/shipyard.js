@@ -134,6 +134,19 @@ export class Shipyard {
     return null;
   }
 
+  /**
+   * Where each part sits (v0.26.0): design.layout[i] is the slot of
+   * design.components[i] — the side-profile builder lets you leave gaps. It
+   * only changes the look; a missing or broken layout means "in order".
+   */
+  layoutOf(design) {
+    const H = this.cfg.hulls[design.hull];
+    const n = (design.components || []).length;
+    const l = design.layout;
+    const ok = Array.isArray(l) && l.length === n && new Set(l).size === n && l.every((i) => Number.isInteger(i) && i >= 0 && i < (H?.slots || 0));
+    return ok ? [...l] : Array.from({ length: n }, (_, i) => i);
+  }
+
   /** The numbers and look of a design (pure; cached per saved design). */
   compute(design) {
     const H = this.cfg.hulls[design.hull];
@@ -158,10 +171,19 @@ export class Shipyard {
       combat: { attack: cap((b.attack || 0) + sum('attack')), defense: cap((b.defense || 0) + sum('defense')), detection: cap((b.detection || 0) + sum('detection')), stealth: cap((b.stealth || 0) + sum('stealth')), mounts: parts.reduce((a, c) => a + c.mounts, 0) },
       tags: [...new Set([...parts.flatMap((c) => c.tags), ...(H.kind === 'warship' && parts.some((c) => c.family === 'weapons') ? ['escort', 'patrol'] : []), ...(H.kind === 'warship' && parts.some((c) => c.family === 'sensors') ? ['recon'] : [])])],
       bonuses: [...new Set(parts.flatMap((c) => c.bonuses))],
-      look: { ...H.look, color: design.appearance?.color || '#4a4a52', trim: design.appearance?.trim || '#e8e2d4', parts: parts.filter((c) => c.part).map((c) => c.part) },
+      look: { ...H.look, color: design.appearance?.color || '#4a4a52', trim: design.appearance?.trim || '#e8e2d4', parts: parts.filter((c) => c.part).map((c) => c.part), slots: H.slots, fit: this.fitOf(design) },
       blurb: `A custom ${H.name.toLowerCase().replace(' hull', '')} from your own yard.`,
       weight, maxWeight: H.maxWeight,
     };
+  }
+
+  /** The design's parts by slot (null where empty), for the side-profile drawings. */
+  fitOf(design) {
+    const H = this.cfg.hulls[design.hull];
+    const fit = Array(Math.max(H?.slots || 0, (design.components || []).length)).fill(null);
+    const lay = this.layoutOf(design);
+    (design.components || []).forEach((id, i) => { if (this.cfg.components[id]) fit[lay[i]] = id; });
+    return fit;
   }
 
   /** A saved design's spec, for Logistics.model(). */
@@ -252,7 +274,7 @@ export class Shipyard {
     const s = this.state;
     const b = {
       id: `b${s.nextBuild++}`, port: design.port, status: 'building', start: g.clock.total, end: g.clock.total + Math.round(v.days * 1440),
-      paid: v.cost.now, design: { kind: design.kind, hull: design.hull, components: [...design.components], name: String(design.name || '').trim().slice(0, 28) || `${this.cfg.hulls[design.hull].name.replace(/ hull$/i, '')} No. ${s.nextBuild - 1}`, appearance: { ...design.appearance } },
+      paid: v.cost.now, design: { kind: design.kind, hull: design.hull, components: [...design.components], layout: this.layoutOf(design), name: String(design.name || '').trim().slice(0, 28) || `${this.cfg.hulls[design.hull].name.replace(/ hull$/i, '')} No. ${s.nextBuild - 1}`, appearance: { ...design.appearance } },
     };
     s.builds.push(b);
     this.L.report('shipyard', `🔨 Keel laid at ${this.L.port(b.port).name}: the ${b.design.name} (${this.cfg.hulls[b.design.hull].name.toLowerCase()}), launching ${this.L.when(b.end)}.`, 'info');

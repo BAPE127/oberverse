@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.26.0.** The side-profile shipbuilder (`src/ui/shipBuilder.js`) and detailed ship profiles (`src/engine/drawShipProfile.js`); design layouts. **Next:** v0.27 life-size ships at the Yards berths you can walk aboard (deck from the design, cabins below, the wheel and the logbook).
 - **2026-10-15 — v0.25.0.** Fleet Command (`src/ui/fleetCommand.js`, `docs/FLEET_COMMAND.md`) replaces the tabbed logistics terminal with a full-screen ops-room chart and one-click orders. Owner chose three releases: **next** v0.26 the side-profile shipbuilder (parts snap to glowing attachment points; detailed parts), then v0.27 life-size ships at the Yards berths you can walk aboard.
 - **2026-10-15 — v0.24.0.** The shipyard (Mason's Os) and the custom shipbuilder (`src/systems/shipyard.js`, `docs/SHIPBUILDING.md`). The shipping expansion's planned stages are done; playable naval combat is the documented future path (`docs/LOGISTICS.md#towards-playable-naval-combat-future`).
 - **2026-10-15 — v0.23.0.** Piracy (`src/systems/piracy.js`), warships, convoys, guards, insurance, missions (`src/systems/missions.js`), fleet bonuses. **Next:** v0.24 Mason's Os shipyard and the custom shipbuilder.

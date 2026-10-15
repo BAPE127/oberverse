@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.26.0 (2026-10-15)
+
+- `npm run check` — **300/300 tests passed** (4 new in `shipbuilder.test.mjs`: layouts never change numbers and survive keel, launch and reload; broken layouts fall back; attachment points per hull; every part drawn and every stock ship's fit drawn without errors); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, 1440×900, real mouse): a contact sheet of all 23 stock ships and all 35 parts; in Fleet Command → Shipyard, chose the freighter hull, dragged a diesel engine from the tray onto a point and the integrated bridge onto another, clicked container bays, a crane, a reefer and a generator into free points; the meters, requirements, performance and bill updated; Buy 7 missing parts, Lay the keel → "The Freighter No. 1 is on the slip — 4.8 days"; Slips & yards showed the build; after 8 days it launched with its layout and is drawn side-on in Fleet. Fitted a destroyer (turbine, turbo-generator, guns, missiles, radar, sonar, bridge, comms, armour — 10/10 points, 4/8 mounts) and a sailing trader (sails, topsails, hold, crow's nest). Fixed from the runs: parts too small against long hulls (proportions stylised), the sea spilling outside the frame, oversized bridges on small craft, the hull number over the point labels. No page errors.
+
 ## Verification record — v0.25.0 (2026-10-15)
 
 - `npm run check` — **296/296 tests passed** (5 new in `fleetcommand.test.mjs`); validator 0 errors.

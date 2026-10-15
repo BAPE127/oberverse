@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.26.0 | 2026-10-15 | development | 1 | Drydock — the side-profile shipbuilder and detailed ships |
 | 0.25.0 | 2026-10-15 | development | 1 | Fleet Command — the full-screen, map-first fleet terminal |
 | 0.24.0 | 2026-10-15 | development | 1 | Build Your Own — Mason's Os shipyard and the custom shipbuilder |
 | 0.23.0 | 2026-10-15 | development | 1 | Here Be Pirates — piracy, warships, escorts, missions |

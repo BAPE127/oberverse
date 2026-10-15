@@ -23,7 +23,7 @@ The owner's brief: *"It should feel like a proper program, control the entire sc
 - **Click a ship:** a large picture, status, voyage progress, hull and hold bars, speed/range/defence, incidents, **⛵ Send to…** (then click any port — the route, hours and cost preview as you hover; Esc cancels), Repair, work for that ship at its port, rename, show at the Yards berths, its voyage log.
 - **Fleet:** every ship as a tile; click one to find it on the chart.
 - **Buy:** cargo ships, warships (stats as bars, pick the port to deliver to) and ports (with Show on the chart).
-- **Shipyard:** the v0.24 designer and parts store, shown inside Fleet Command until the side-profile builder (v0.26) replaces them.
+- **Shipyard:** the side-profile shipbuilder (v0.26.0; see [SHIPBUILDING.md](SHIPBUILDING.md#the-builder-v0260)), Slips & yards, and the parts store.
 - **Ledger:** earned / spent / net / upkeep, a two-week chart, all reports, recent contracts.
 
 ## Simulation helpers (v0.25.0)
@@ -45,5 +45,4 @@ Tests: `tests/fleetcommand.test.mjs`.
 
 ## Next
 
-- **v0.26** — the side-profile shipbuilder: a large detailed side view; parts snap onto glowing attachment points from a tray.
 - **v0.27** — life-size ships at the Yards berths that you can walk aboard (deck generated from the design, cabins below, the wheel and the logbook).

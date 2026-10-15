@@ -16,7 +16,8 @@ import { h } from './panels.js';
 import { landValue, wrapLon } from '../world/globe.js';
 import { pointAlong } from '../world/seaRoutes.js';
 import { drawShip } from '../engine/drawShips.js';
-import { shipyardScreen, partsScreen } from './logistics.js';
+import { shipyardSheet } from './shipBuilder.js';
+import { drawProfileFitted, detailedLook } from '../engine/drawShipProfile.js';
 
 const MODES = [
   ['map', '🗺', 'Map'],
@@ -35,7 +36,7 @@ const num = (n) => Math.round(n).toLocaleString();
 const hrs = (m) => { const x = m / 60; return x >= 36 ? `${(x / 24).toFixed(1)} days` : `${Math.max(1, Math.round(x))} h`; };
 
 /** Fleet Command's own state survives re-opening (the camera, what's selected, folded-out cards). */
-const FC = { mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, open: {}, protect: {}, sending: null, buyTab: 'cargo', yard: { sub: 'design' }, ff: null, msg: null };
+const FC = { mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, open: {}, protect: {}, sending: null, buyTab: 'cargo', yard: {}, ff: null, msg: null };
 
 let LAND_IMG = null;
 
@@ -411,20 +412,16 @@ export function fleetPanel(ui, body, opts = {}) {
   };
 
   // ---------------------------------------------------------------- shared bits
-  const shipPic = (look, w, hgt, angle = 0) => {
+  /** A ship side-on, in detail (v0.26.0): stock ships get their standard fit, custom ships their own. */
+  const shipPic = (model, w, hgt) => {
     const c = h('canvas', { width: w * 2, height: hgt * 2, class: 'fc-pic', style: `width:${w}px;height:${hgt}px` });
-    const x = c.getContext('2d');
-    const len = (look.len || 3) * 32;
-    const sc = Math.min(6, (w * 2 * 0.86) / len, (hgt * 2 * 0.9) / (len * 0.36));
-    x.translate(w, hgt);
-    x.scale(sc, sc);
-    drawShip(x, look, 0, 0, angle, { time: 0 });
+    drawProfileFitted(c.getContext('2d'), detailedLook(model), w, hgt, w * 1.94, hgt * 1.9, { time: 1 });
     return c;
   };
   const bar = (label, f, colour, text) => h('div', { class: 'fc-bar' }, h('span', {}, label), h('div', { class: 'fc-bar-track' }, h('i', { style: `width:${Math.round(Math.max(0, Math.min(1, f)) * 100)}%;background:${colour}` })), h('em', {}, text));
   const pill = (text, colour) => h('span', { class: 'fc-pill', style: `border-color:${colour};color:${colour}` }, text);
   const riskPill = (r) => pill(`${r.category === 'low' ? 'Safe waters' : `${r.category[0].toUpperCase()}${r.category.slice(1)} risk`} · ${(r.chance * 100).toFixed(r.chance < 0.1 ? 1 : 0)}%`, RISK_COLOUR[r.category]);
-  const shipChip = (v) => h('button', { class: 'fc-chip', onclick: () => { FC.sel = { kind: 'ship', id: v.id }; refresh(); } }, shipPic(Lg.model(v.model).look, 46, 18), v.name);
+  const shipChip = (v) => h('button', { class: 'fc-chip', onclick: () => { FC.sel = { kind: 'ship', id: v.id }; refresh(); } }, shipPic(Lg.model(v.model), 46, 18), v.name);
   const section = (title, ...kids) => h('div', { class: 'fc-sec' }, h('h4', {}, title), ...kids);
 
   /** A contract, with one button. The ship is chosen for you; protection folds out. */
@@ -502,7 +499,7 @@ export function fleetPanel(ui, body, opts = {}) {
     const o = Lg.offer();
     const can = g.player.money >= o.price;
     return [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, 'FOR SALE'), h('h2', {}, o.company), h('p', {}, 'Captain Ober is retiring. His ports, his paperwork, and a ship he swears is "basically new".')),
-      shipPic(Lg.model(Lg.L.starterShip.model).look, 330, 90),
+      shipPic(Lg.model(Lg.L.starterShip.model), 330, 90),
       section('You get', h('ul', { class: 'fc-list' }, ...o.ports.map((p) => h('li', {}, `⚓ ${p}`)), h('li', {}, `⛴ ${o.ship}`), h('li', {}, '🗺 Fleet Command, contracts, the brokers'))),
       h('button', { class: 'fc-go big', disabled: !can, onclick: () => { say(Lg.buyCompany()); FC.view.zoom = 1.6; centreOn(48, -30); refresh(); } }, can ? `Buy for ${num(o.price)} ◎` : `You need ${num(o.price - g.player.money)} more`)];
   };
@@ -520,7 +517,7 @@ export function fleetPanel(ui, body, opts = {}) {
     return [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, 'GOOD MORNING, OWNER'), h('h2', {}, `${plural(Lg.vessels().filter((v) => v.status !== 'lost').length, 'ship')} · ${plural(Lg.ownedPorts().length, 'port')}`), h('p', {}, 'Click a port for its work, or a ship to give it orders.')),
       ...alerts,
       section('Best jobs right now', ...(ops.length ? ops.map((o) => contractCard(o.contract)) : [h('p', { class: 'fc-muted' }, 'Nothing your ships can take right now. New contracts arrive every morning at your ports.')])),
-      section(`At sea (${sea.length})`, ...(sea.length ? sea.map((v) => { const p = Lg.position(v); return h('button', { class: 'fc-row', onclick: () => { FC.sel = { kind: 'ship', id: v.id }; centreOn(p.lat, p.lon); refresh(); } }, shipPic(Lg.model(v.model).look, 54, 20), h('div', { class: 'grow' }, h('b', {}, v.name), bar('', p.f, '#3ad6ff', Lg.port(v.voyage.to).name))); }) : [h('p', { class: 'fc-muted' }, 'Nobody at sea.')]))];
+      section(`At sea (${sea.length})`, ...(sea.length ? sea.map((v) => { const p = Lg.position(v); return h('button', { class: 'fc-row', onclick: () => { FC.sel = { kind: 'ship', id: v.id }; centreOn(p.lat, p.lon); refresh(); } }, shipPic(Lg.model(v.model), 54, 20), h('div', { class: 'grow' }, h('b', {}, v.name), bar('', p.f, '#3ad6ff', Lg.port(v.voyage.to).name))); }) : [h('p', { class: 'fc-muted' }, 'Nobody at sea.')]))];
   };
 
   const portView = (id) => {
@@ -552,7 +549,7 @@ export function fleetPanel(ui, body, opts = {}) {
   const shipView = (v) => {
     const m = Lg.model(v.model);
     const st = Lg.stats(v);
-    const out = [h('div', { class: 'fc-hero ship' }, shipPic(m.look, 340, 110), h('div', { class: 'fc-kicker' }, `${m.name.toUpperCase()} · ${Lg.className(m).toUpperCase()}`), h('h2', {}, v.name), pill(STATUS[v.status] || v.status, v.status === 'underway' ? '#3ad6ff' : v.status === 'lost' ? '#ff4a5a' : '#cfe8ff'))];
+    const out = [h('div', { class: 'fc-hero ship' }, shipPic(m, 340, 110), h('div', { class: 'fc-kicker' }, `${m.name.toUpperCase()} · ${Lg.className(m).toUpperCase()}`), h('h2', {}, v.name), pill(STATUS[v.status] || v.status, v.status === 'underway' ? '#3ad6ff' : v.status === 'lost' ? '#ff4a5a' : '#cfe8ff'))];
     if (v.status === 'underway') {
       const p = Lg.position(v);
       out.push(bar('Voyage', p.f, '#3ad6ff', `${Math.round(p.f * 100)}%`), h('p', {}, `${Lg.port(v.voyage.from).name} → ${Lg.port(v.voyage.to).name} · arrives ${Lg.when(v.voyage.arrive)}`));
@@ -581,9 +578,9 @@ export function fleetPanel(ui, body, opts = {}) {
   const renderSheet = () => {
     const on = FC.mode !== 'map' && Lg.owned;
     sheet.classList.toggle('hidden', !on);
-    sheet.classList.toggle('light', FC.mode === 'shipyard');
     if (!on) return;
     const content = { fleet: fleetSheet, buy: buySheet, shipyard: yardSheet, ledger: ledgerSheet }[FC.mode]();
+    sheet.classList.toggle('builder', FC.mode === 'shipyard' && FC.yard.sub === 'design' && Lg.shipyard.yards().length > 0);
     sheet.replaceChildren(h('div', { class: 'fc-sheet-head' }, h('h2', {}, MODES.find((x) => x[0] === FC.mode)[2]), h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; refresh(); } }, '◂ Back to the map')), content);
   };
 
@@ -593,7 +590,7 @@ export function fleetPanel(ui, body, opts = {}) {
       const m = Lg.model(v.model);
       const where = v.status === 'underway' ? `→ ${Lg.port(v.voyage.to).name}` : v.port ? Lg.port(v.port).name : '—';
       grid.append(h('button', { class: `fc-tile${v.status === 'lost' ? ' lost' : ''}`, onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'ship', id: v.id }; const p = Lg.position(v); if (p) centreOn(p.lat, p.lon, 1.8); refresh(); } },
-        shipPic(m.look, 250, 74), h('b', {}, v.name), h('small', {}, `${m.name} · ${Lg.className(m)}`), pill(STATUS[v.status] || v.status, v.status === 'underway' ? '#3ad6ff' : '#cfe8ff'), h('small', {}, where), bar('Hull', v.condition / 100, v.condition > 60 ? '#4ade9a' : '#f2c14e', `${Math.round(v.condition)}%`)));
+        shipPic(m, 250, 74), h('b', {}, v.name), h('small', {}, `${m.name} · ${Lg.className(m)}`), pill(STATUS[v.status] || v.status, v.status === 'underway' ? '#3ad6ff' : '#cfe8ff'), h('small', {}, where), bar('Hull', v.condition / 100, v.condition > 60 ? '#4ade9a' : '#f2c14e', `${Math.round(v.condition)}%`)));
     }
     return grid;
   };
@@ -624,22 +621,14 @@ export function fleetPanel(ui, body, opts = {}) {
       const stats = m.kind === 'warship'
         ? [bar('Attack', st.combat.attack / 100, '#ff78dc', st.combat.attack), bar('Defence', st.combat.defense / 100, '#3ad6ff', st.combat.defense), bar('Speed', m.speed / 40, '#4ade9a', `${m.speed} kn`)]
         : [bar('Hold', m.capacity / 420, '#3ad6ff', `${m.capacity}`), bar('Speed', m.speed / 35, '#4ade9a', `${m.speed} kn`), bar('Range', m.range / 80000, '#f2c14e', `${num(m.range / 1000)}k km`)];
-      grid.append(h('div', { class: 'fc-tile' }, shipPic(m.look, 250, 74), h('b', {}, m.name), h('small', {}, `${Lg.className(m)} · size ${st.size}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`), ...stats, h('small', { class: 'fc-muted' }, m.blurb),
+      grid.append(h('div', { class: 'fc-tile' }, shipPic(m, 250, 74), h('b', {}, m.name), h('small', {}, `${Lg.className(m)} · size ${st.size}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`), ...stats, h('small', { class: 'fc-muted' }, m.blurb),
         h('div', { class: 'fc-row-inline' }, ports.length ? sel : h('small', { class: 'fc-muted' }, 'None of your ports can berth it'), h('button', { class: 'fc-btn primary', disabled: !ports.length || g.player.money < m.price, onclick: () => { say(Lg.buyShip(id, sel.value)); refresh(); } }, `Buy · ${num(m.price)}`))));
     }
     wrap.append(grid);
     return wrap;
   };
 
-  const yardSheet = () => {
-    const box = h('div', { class: 'logi' });
-    const tabs = h('div', { class: 'fc-tabs' }, ...[['design', 'Design & build'], ['parts', 'Parts store']].map(([k, label]) => h('button', { class: `fc-btn${FC.yard.sub === k ? ' primary' : ''}`, onclick: () => { FC.yard.sub = k; refresh(); } }, label)));
-    const go = (o = {}) => { FC.yard = { ...FC.yard, ...o, tab: undefined }; refresh(); };
-    const act = (r, extra = {}) => { say(r); go(extra); };
-    if (FC.yard.sub === 'parts') partsScreen(ui, box, FC.yard, go, act);
-    else shipyardScreen(ui, box, FC.yard, go, act);
-    return h('div', {}, tabs, box);
-  };
+  const yardSheet = () => shipyardSheet(ui, FC.yard, say, refresh);
 
   const ledgerSheet = () => {
     const L = Lg.state.ledger;

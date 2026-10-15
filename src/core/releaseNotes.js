@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.26.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Drydock',
+    notes: [
+      'A new shipbuilder in Fleet Command\'s Shipyard: your hull, big and side-on, with glowing attachment points along the deck. Drag parts from the tray onto them — or just click a part to fit it in the next free spot. Drag parts between points to rearrange them, or off the ship to take them off.',
+      'Every part is drawn in detail: smoking funnels, twin gas turbines, a glowing fusion drive, hatch covers, stacked containers, reefers with spinning fans, a working crane, radar that turns, missile launchers, turrets, railguns, sails that billow, a crow\'s nest, sonar under the keel and armour along the hull.',
+      'The right-hand panel shows everything at a glance: points, weight, power and mounts filling up, what a seaworthy ship of that class still needs, and the performance you\'re getting — then the bill and one button to lay the keel.',
+      'Ships in Fleet Command are now drawn side-on in the same detail, bought or built. The Slips page shows your ship taking shape on the slip.',
+    ],
+  },
+  {
     version: '0.25.0',
     date: '2026-10-15',
     channel: 'development',
