@@ -3520,6 +3520,8 @@ const LOGISTICS = {
   upkeepHour: 6,
   /** v0.22.0 — arms exports in your own ships: they load from the cages at Mill Road Docks; an embargo run is seized by customs with this chance (rolled at departure). */
   armsPort: 'port_millroad', armsLoadHoursPerCrate: 0.25, ownEmbargoSeizure: 0.22,
+  /** v0.23.0 — missions: offers per owned port a day, how many on offer at once, up to how many ships per mission. */
+  missionsPerPort: 1, maxMissions: 6, missionShips: 3, missionOfferDays: 3,
 };
 
 /** Port types: what they berth, cost and charge. maxSize is the largest ship size (1–4) that fits; foreign ships pay `fee` per call. */
@@ -3527,7 +3529,7 @@ const PORT_TYPES = {
   harbor: { name: 'Basic harbour', berths: 3, maxSize: 2, price: 9000, upkeep: 40, fee: 120, services: ['berths'] },
   commercial: { name: 'Commercial port', berths: 5, maxSize: 3, price: 26000, upkeep: 110, fee: 320, services: ['berths', 'repairs', 'reefer power'] },
   heavy: { name: 'Heavy cargo terminal', berths: 6, maxSize: 4, price: 60000, upkeep: 260, fee: 700, services: ['berths', 'repairs', 'reefer power', 'heavy cranes'] },
-  naval: { name: 'Naval base', berths: 5, maxSize: 3, price: 52000, upkeep: 230, fee: 600, services: ['berths', 'repairs', 'armoury'] },
+  naval: { name: 'Naval base', berths: 5, maxSize: 4, price: 52000, upkeep: 230, fee: 600, services: ['berths', 'repairs', 'armoury'] },
   advanced: { name: 'Advanced port', berths: 8, maxSize: 4, price: 150000, upkeep: 520, fee: 1200, services: ['berths', 'repairs', 'reefer power', 'heavy cranes', 'advanced dock'] },
 };
 
@@ -3589,11 +3591,11 @@ const PORTS = {
  * wear; slots are upgrade potential (used by the shipyard in a later update).
  */
 const CARGO_CLASSES = {
-  low: { name: 'Low End', size: 1, wear: 1.2, slots: 1 },
-  medium: { name: 'Medium End', size: 2, wear: 1.0, slots: 2 },
-  high: { name: 'High End', size: 3, wear: 0.8, slots: 3 },
-  superhigh: { name: 'Super High End', size: 4, wear: 0.7, slots: 4 },
-  futuristic: { name: 'Futuristic', size: 3, wear: 0.4, slots: 5, needsPortType: 'advanced' },
+  low: { name: 'Low End', size: 1, wear: 1.2, slots: 1, combat: { attack: 0, defense: 5, detection: 10, stealth: 15, mounts: 0 } },
+  medium: { name: 'Medium End', size: 2, wear: 1.0, slots: 2, combat: { attack: 0, defense: 10, detection: 15, stealth: 10, mounts: 0 } },
+  high: { name: 'High End', size: 3, wear: 0.8, slots: 3, combat: { attack: 0, defense: 15, detection: 20, stealth: 5, mounts: 0 } },
+  superhigh: { name: 'Super High End', size: 4, wear: 0.7, slots: 4, combat: { attack: 0, defense: 20, detection: 25, stealth: 0, mounts: 0 } },
+  futuristic: { name: 'Futuristic', size: 3, wear: 0.4, slots: 5, needsPortType: 'advanced', combat: { attack: 0, defense: 30, detection: 60, stealth: 40, mounts: 0 } },
 };
 
 /**
@@ -3635,19 +3637,112 @@ const CLIENTS = {
 /**
  * Contract templates. rate: obols per unit per 1,000 km; base: flat fee (a busy Gullwing Cutter clears ~1,500 obols a day);
  * slack: deadline = time at 14 knots × slack (urgent is tight, bonus for early);
- * needs: a tag the ship must have; risk: 'low' | 'medium' | 'high' (piracy comes in a later update).
+ * needs: a tag the ship must have. Risk isn't a label here: it comes from the route's water and the
+ * cargo's value (RISK.cargoValue) — see src/systems/piracy.js.
  */
 const CONTRACT_TYPES = {
-  general: { name: 'General merchandise', units: [8, 80], rate: 22, base: 600, slack: 1.7, needs: null, risk: 'low', clients: ['cl_halver_mills', 'cl_lirre_neutral', 'cl_dunmere_post', 'cl_sund_royal'] },
-  bulk: { name: 'Bulk materials', units: [60, 400], rate: 10, base: 1000, slack: 2.0, needs: null, minUnits: 60, risk: 'low', clients: ['cl_halver_mills', 'cl_caldera_mining'] },
-  machinery: { name: 'Machinery', units: [20, 160], rate: 32, base: 1400, slack: 1.7, needs: 'heavy', risk: 'medium', clients: ['cl_ostmark_turbine', 'cl_oberoil'] },
-  reefer: { name: 'Refrigerated goods', units: [10, 60], rate: 36, base: 800, slack: 1.4, needs: 'reefer', risk: 'low', clients: ['cl_lantern_fish', 'cl_morrow_fruit'] },
-  urgent: { name: 'Urgent delivery', units: [4, 14], rate: 64, base: 1200, slack: 1.15, needs: null, earlyBonus: 0.2, risk: 'medium', clients: ['cl_dunmere_post', 'cl_oberoil', 'cl_meridian_tech'] },
-  highvalue: { name: 'High-value freight', units: [6, 30], rate: 56, base: 1800, slack: 1.6, needs: null, risk: 'high', clients: ['cl_teshvar_luxe', 'cl_lirre_neutral'] },
-  special: { name: 'Specialised cargo', units: [10, 60], rate: 75, base: 3000, slack: 1.5, needs: 'advanced', risk: 'medium', clients: ['cl_meridian_tech'] },
+  general: { name: 'General merchandise', units: [8, 80], rate: 22, base: 600, slack: 1.7, needs: null, clients: ['cl_halver_mills', 'cl_lirre_neutral', 'cl_dunmere_post', 'cl_sund_royal'] },
+  bulk: { name: 'Bulk materials', units: [60, 400], rate: 10, base: 1000, slack: 2.0, needs: null, minUnits: 60, clients: ['cl_halver_mills', 'cl_caldera_mining'] },
+  machinery: { name: 'Machinery', units: [20, 160], rate: 32, base: 1400, slack: 1.7, needs: 'heavy', clients: ['cl_ostmark_turbine', 'cl_oberoil'] },
+  reefer: { name: 'Refrigerated goods', units: [10, 60], rate: 36, base: 800, slack: 1.4, needs: 'reefer', clients: ['cl_lantern_fish', 'cl_morrow_fruit'] },
+  urgent: { name: 'Urgent delivery', units: [4, 14], rate: 64, base: 1200, slack: 1.15, needs: null, earlyBonus: 0.2, clients: ['cl_dunmere_post', 'cl_oberoil', 'cl_meridian_tech'] },
+  highvalue: { name: 'High-value freight', units: [6, 30], rate: 56, base: 1800, slack: 1.6, needs: null, clients: ['cl_teshvar_luxe', 'cl_lirre_neutral'] },
+  special: { name: 'Specialised cargo', units: [10, 60], rate: 75, base: 3000, slack: 1.5, needs: 'advanced', clients: ['cl_meridian_tech'] },
 };
 
-return { LOGISTICS, PORT_TYPES, PORTS, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES };
+// ======================================================================
+// v0.23.0 — piracy, warships, escorts and naval missions
+// ======================================================================
+
+/**
+ * Dangerous waters (lat/lon centre, radius km, danger 0–1). The arms market's
+ * wars and embargoes add their own zones at the belligerents' main ports
+ * (RISK.warZone / RISK.embargoZone) — the world's politics, not a second system.
+ */
+const PIRATE_WATERS = {
+  pz_pallas: { name: 'the Pallas Reach', lat: 8, lon: -36, radius: 1700, danger: 0.55, blurb: 'Free-State "coastguards" who charge tolls at gunpoint.' },
+  pz_kestrel: { name: 'the Kestrel Narrows', lat: 12, lon: 46, radius: 1800, danger: 0.5, blurb: 'Deserters from both sides of the Kestrel war, with boats.' },
+  pz_marrow: { name: 'Marrow Strait', lat: -20, lon: -132, radius: 1000, danger: 0.6, blurb: 'A narrow strait, a lighthouse, and the Marrow Brothers.' },
+  pz_morrow: { name: 'the Morrow Shoals', lat: -28, lon: 150, radius: 1400, danger: 0.45, blurb: 'Two hundred islands, two hundred navies, several hundred pirates.' },
+  pz_sunmouth: { name: 'the Sunmouth Approaches', lat: 6, lon: -122, radius: 1500, danger: 0.35, blurb: 'Busy, hot, and full of people who "fell off" cargo ships.' },
+  pz_meridian: { name: 'the Meridian Gap', lat: -16, lon: 62, radius: 1300, danger: 0.3, blurb: 'Smugglers\' water. Mostly they just want to be left alone.' },
+};
+
+/** How voyage risk is worked out (see docs/LOGISTICS.md#piracy). */
+const RISK = {
+  warZone: { radius: 1600, danger: 0.6 }, // round each warring country's main port
+  embargoZone: { radius: 1200, danger: 0.4 }, // round an embargoed country's main port
+  base: 0.008, // any voyage: a petty thief at a quay
+  perDangerKkm: 0.09, // + this × (danger-weighted km ÷ 1,000)
+  maxChance: 0.85,
+  cargoValue: { highvalue: 1.4, arms: 1.3, special: 1.2 },
+  /** Worst outcome allowed by the most dangerous water on the route: safe water never costs you a ship or a cargo. */
+  severity: [[0.2, 'delay'], [0.5, 'cargo'], [1.01, 'captured']],
+  guards: { defense: 25, costShare: 0.03, min: 200 },
+  insurance: { rate: 0.06, payout: 0.6 },
+  ransom: { share: 0.05, min: 1500 },
+  outcomes: ['repelled', 'delay', 'ransom', 'cargo', 'captured'],
+};
+
+/**
+ * Fleet bonuses (abilities): scope says where they apply; each applies once
+ * however many ships carry it.
+ *   fleet — every voyage   · port — voyages leaving the port where the ship is docked
+ *   group — the convoy the ship escorts
+ */
+const BONUSES = {
+  fleet_comms: { name: 'Fleet communications', scope: 'fleet', escortStrength: 0.15, text: 'Escorts anywhere in your fleet coordinate: +15% escort strength.' },
+  fleet_support: { name: 'Fleet support', scope: 'port', chance: -0.15, text: 'Voyages leaving the port where this ship is docked: −15% chance of trouble.' },
+  fleet_shield: { name: 'Aegis network', scope: 'fleet', chance: -0.1, text: 'Every voyage you send: −10% chance of trouble.' },
+  hazard_sensors: { name: 'Hazard sensors', scope: 'group', defense: 15, text: 'The convoy it escorts: +15 defence.' },
+};
+
+/** Warship classes (for the dealership's filters). */
+const WARSHIP_CLASSES = {
+  sail: { name: 'Sail', blurb: 'Wind-driven: cheap to run, slow, romantic.' },
+  modern: { name: 'Modern', blurb: 'Diesel, gas turbines and radar.' },
+  historic: { name: 'Historic', blurb: 'Armour plate and enormous guns.' },
+  futuristic: { name: 'Futuristic', blurb: 'Rare, specialised and eye-wateringly expensive.' },
+};
+
+/**
+ * The warship catalogue (kind 'warship'). combat: attack, defense, detection,
+ * stealth (0–100) and weapon mounts — the same numbers a future playable
+ * encounter would read. capacity is 0 unless the hull really carries cargo.
+ * size gates ports like cargo ships; needsPortType restricts berthing.
+ */
+const war = (name, family, o) => ({ name, kind: 'warship', cls: family, ...o });
+const WARSHIPS = {
+  schooner: war('Schooner', 'sail', { price: 12000, capacity: 0, speed: 14, range: 8000, reliability: 0.9, opex: 60, upkeep: 15, size: 1, combat: { attack: 15, defense: 15, detection: 25, stealth: 30, mounts: 2 }, tags: ['coastal', 'escort'], bonuses: [], blurb: 'Light, cheap and handy along a coast. Two swivel guns and a lot of sail.', look: { hull: 'schooner', color: '#e8e2d4', trim: '#7a4a2a', len: 3.2 } }),
+  brig: war('Brig', 'sail', { price: 30000, capacity: 8, speed: 12, range: 14000, reliability: 0.92, opex: 110, upkeep: 30, size: 2, combat: { attack: 25, defense: 30, detection: 25, stealth: 15, mounts: 6 }, tags: ['escort', 'patrol'], bonuses: [], blurb: 'Two masts, a dozen guns, good legs. Holds a little cargo below.', look: { hull: 'brig', color: '#2a2a2e', trim: '#c9a24a', len: 3.8 } }),
+  galleon: war('Galleon', 'sail', { price: 90000, capacity: 40, speed: 9, range: 20000, reliability: 0.88, opex: 260, upkeep: 70, size: 3, combat: { attack: 30, defense: 40, detection: 20, stealth: 5, mounts: 16 }, tags: ['escort', 'patrol', 'transport'], bonuses: [], blurb: 'A floating castle with a real hold. Slow, imposing, and surprisingly useful.', look: { hull: 'galleon', color: '#6a3a1e', trim: '#e0b84a', len: 5.2 } }),
+  manowar: war('Man-o\'-war', 'sail', { price: 180000, capacity: 15, speed: 10, range: 20000, reliability: 0.9, opex: 480, upkeep: 120, size: 3, combat: { attack: 55, defense: 60, detection: 30, stealth: 5, mounts: 40 }, tags: ['escort', 'patrol'], bonuses: [], blurb: 'Three gun decks of polished brass and bad temper. Pirates simply leave.', look: { hull: 'manowar', color: '#1e1a16', trim: '#e8c35a', len: 6 } }),
+  skiff: war('Patrol Skiff', 'modern', { price: 7000, capacity: 0, speed: 30, range: 3000, reliability: 0.88, opex: 50, upkeep: 12, size: 1, combat: { attack: 10, defense: 8, detection: 20, stealth: 40, mounts: 1 }, tags: ['coastal', 'recon'], bonuses: [], blurb: 'A fast inflatable with a machine gun and no patience. Short legs.', look: { hull: 'skiff', color: '#3a4a3a', trim: '#e8e2d4', len: 1.8 } }),
+  corvette: war('Corvette', 'modern', { price: 38000, capacity: 0, speed: 26, range: 9000, reliability: 0.92, opex: 160, upkeep: 40, size: 2, combat: { attack: 35, defense: 30, detection: 45, stealth: 30, mounts: 3 }, tags: ['escort', 'patrol', 'recon'], bonuses: [], blurb: 'The small, sensible warship. Patrols and escorts at a sensible price.', look: { hull: 'warship', color: '#6f7f8f', trim: '#2a3440', len: 3.6 } }),
+  frigate: war('Frigate', 'modern', { price: 72000, capacity: 0, speed: 25, range: 16000, reliability: 0.94, opex: 260, upkeep: 65, size: 2, combat: { attack: 45, defense: 45, detection: 55, stealth: 20, mounts: 4 }, tags: ['escort', 'patrol'], bonuses: ['fleet_comms'], blurb: 'The all-rounder: escorts well, patrols well, and its radio room links the fleet.', look: { hull: 'warship', color: '#5a6a7a', trim: '#e8e2d4', len: 4.4 } }),
+  destroyer: war('Destroyer', 'modern', { price: 150000, capacity: 0, speed: 32, range: 14000, reliability: 0.93, opex: 520, upkeep: 120, size: 3, combat: { attack: 70, defense: 60, detection: 60, stealth: 20, mounts: 6 }, tags: ['escort', 'patrol'], bonuses: [], blurb: 'Fast and hard-hitting. Expensive to run; very persuasive.', look: { hull: 'warship', color: '#4a5560', trim: '#c0402a', len: 5.2 } }),
+  cruiser: war('Cruiser', 'modern', { price: 230000, capacity: 0, speed: 26, range: 30000, reliability: 0.95, opex: 700, upkeep: 170, size: 3, combat: { attack: 70, defense: 70, detection: 75, stealth: 10, mounts: 8 }, tags: ['escort', 'patrol', 'recon'], bonuses: ['fleet_support'], blurb: 'Long range and a command centre: the ships that leave its port sail safer.', look: { hull: 'warship', color: '#3e4a56', trim: '#e0b84a', len: 6 } }),
+  battleship: war('Battleship', 'historic', { price: 320000, capacity: 0, speed: 18, range: 15000, reliability: 0.9, opex: 1200, upkeep: 300, size: 4, combat: { attack: 95, defense: 90, detection: 40, stealth: 0, mounts: 12 }, tags: ['escort'], bonuses: [], blurb: 'Nine big guns and a hull like a cliff. Slow, thirsty, blind as a bat — and terrifying.', look: { hull: 'battleship', color: '#5a5e64', trim: '#2a2a2e', len: 7.5 } }),
+  sentinel: war('Starwatch Sentinel', 'futuristic', { price: 450000, capacity: 0, speed: 40, range: 60000, reliability: 0.99, opex: 600, upkeep: 160, size: 3, needsPortType: ['advanced', 'naval'], combat: { attack: 70, defense: 75, detection: 90, stealth: 85, mounts: 4 }, tags: ['escort', 'recon', 'patrol'], bonuses: ['hazard_sensors'], blurb: 'A low, black, angular escort that is mostly invisible and entirely awake.', look: { hull: 'starwake', color: '#1a1e24', trim: '#c83a4a', len: 5 } }),
+  aegis: war('Aegis Bastion', 'futuristic', { price: 600000, capacity: 0, speed: 30, range: 60000, reliability: 0.99, opex: 800, upkeep: 220, size: 4, needsPortType: ['advanced', 'naval'], combat: { attack: 60, defense: 95, detection: 95, stealth: 30, mounts: 6 }, tags: ['escort', 'patrol'], bonuses: ['fleet_shield'], blurb: 'A fleet-defence platform whose sensor net protects every voyage you send.', look: { hull: 'starwake', color: '#d8dee6', trim: '#4a8ae8', len: 6.2 } }),
+};
+
+/**
+ * Naval missions (offered at your ports). score weights say which combat
+ * stats matter (normalised 0–100); difficulty is 0–1; hours on station;
+ * reward in obols; needs: requirements; effect: what success does to the world.
+ */
+const MISSION_TYPES = {
+  patrol: { name: 'Coastal patrol', weights: { detection: 0.4, speed: 0.3, defense: 0.3 }, difficulty: [0.15, 0.45], hours: [24, 60], reward: [3000, 8000], needs: { tag: 'patrol' }, client: 'Port authority', text: 'Show the flag along the coast and report anything odd.' },
+  deterrence: { name: 'Piracy deterrence', weights: { attack: 0.5, defense: 0.3, detection: 0.2 }, difficulty: [0.35, 0.75], hours: [36, 72], reward: [7000, 16000], needs: { tag: 'escort' }, effect: { suppress: 5 }, client: 'Shipping underwriters', text: 'Sweep the nearest pirate waters. Success halves their danger for five days.' },
+  escort_hire: { name: 'Convoy escort (for hire)', weights: { defense: 0.5, attack: 0.3, speed: 0.2 }, difficulty: [0.25, 0.6], hours: [24, 48], reward: [4000, 11000], needs: { tag: 'escort' }, client: 'A merchant line', text: 'Shepherd someone else\'s freighters through bad water.' },
+  distress: { name: 'Distress response', weights: { speed: 0.6, detection: 0.4 }, difficulty: [0.2, 0.55], hours: [12, 30], reward: [5000, 12000], needs: { minSpeed: 18 }, client: 'Maritime rescue', text: 'A ship is in trouble. Get there first.' },
+  protection: { name: 'Port protection', weights: { defense: 0.6, attack: 0.4 }, difficulty: [0.1, 0.35], hours: [48, 96], reward: [3000, 7000], needs: { tag: 'escort' }, effect: { protect: 4 }, client: 'Your own harbourmaster', text: 'Guard the approaches. Success: voyages leaving this port face 30% less trouble for four days.' },
+  recon: { name: 'Reconnaissance', weights: { detection: 0.5, stealth: 0.3, speed: 0.2 }, difficulty: [0.3, 0.65], hours: [18, 40], reward: [4000, 9000], needs: { tag: 'recon' }, client: 'An insurer who doesn\'t give their name', text: 'Find out what\'s really happening in the nearest dangerous water, unseen.' },
+  transport: { name: 'Special transport', weights: { defense: 0.5, speed: 0.5 }, difficulty: [0.2, 0.5], hours: [24, 48], reward: [6000, 14000], needs: { capacity: 8 }, client: 'A delegation that prefers not to fly', text: 'Carry a small, important party safely. Needs room aboard (8+ units).' },
+};
+
+return { LOGISTICS, PORT_TYPES, PORTS, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES };
 })();
 
 // ---- src/world/tiles.js
@@ -8773,7 +8868,7 @@ const { EVENTS } = __m["src/content/events.js"];
 const { MOODS } = __m["src/content/moods.js"];
 const { NOTICES } = __m["src/content/notices.js"];
 const { REGIONS } = __m["src/content/world.js"];
-const { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES } = __m["src/content/logistics.js"];
+const { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES } = __m["src/content/logistics.js"];
 const { addSeams } = __m["src/world/regions.js"];
 const { SONGS, MOTIFS, AUDIO_REGISTRY } = __m["src/content/audio.js"];
 const mags = __m["src/content/characters/mags.js"].default;
@@ -8858,7 +8953,7 @@ const BASE_CONTENT = {
   arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: TRANSIT,
-  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: CARGO_SHIPS, dealership: Object.keys(CARGO_SHIPS), clients: CLIENTS, contractTypes: CONTRACT_TYPES },
+  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES },
   roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
@@ -8879,7 +8974,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.22.0';
+const GAME_VERSION = '0.23.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -16065,14 +16160,14 @@ class Market {
    * insurance; src/systems/logistics.js sails it and reports back through
    * settleOwn()).
    */
-  ship({ wh, order: orderId, shipper, insured = false, vessel = null }) {
+  ship({ wh, order: orderId, shipper, insured = false, vessel = null, escorts = [], guards = false }) {
     const g = this.game;
     const order = this.state.orders.find((o) => o.id === orderId && o.status === 'open');
     if (!order) return { ok: false, text: 'That order is no longer open.' };
     const country = order.country;
     const c = this.country(country);
     const def = this.cfg.countries[country];
-    if (vessel) return this.shipOwn({ wh, order, vessel });
+    if (vessel) return this.shipOwn({ wh, order, vessel, escorts, guards });
     const sh = this.cfg.shippers[shipper];
     if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
@@ -16103,7 +16198,7 @@ class Market {
   }
 
   /** Fill an order with your own ship (validated by logistics before anything changes). */
-  shipOwn({ wh, order, vessel }) {
+  shipOwn({ wh, order, vessel, escorts = [], guards = false }) {
     const g = this.game;
     const L = g.logistics;
     const country = order.country;
@@ -16116,9 +16211,9 @@ class Market {
     if (c.hostility >= this.cfg.market.refuseHostility) return { ok: false, text: `${def.name} won't deal with you any more.` };
     const value = order.qty * order.price;
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
-    const q = L.armsQuote(vessel, country, order.qty);
+    const q = L.armsQuote(vessel, country, order.qty, { escorts, guards, value });
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs and port fees).` };
+    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, port fees${escorts.length ? ', escorts' : ''}${guards ? ', guards' : ''}).` };
     // everything checked: commit
     cage[order.item] -= order.qty;
     c.budget -= value;
@@ -18448,6 +18543,319 @@ function pointAlong(route, f) {
 return { nearestSea, seaRoute, pointAlong };
 })();
 
+// ---- src/systems/missions.js
+__m["src/systems/missions.js"] = (function () {
+// Naval missions (v0.23.0): work for your warships, offered at your ports —
+// patrols, piracy deterrence, escorts for hire, distress calls, port
+// protection, reconnaissance and special transport. Templates live in
+// content (MISSION_TYPES); state lives in world.logistics.missions.
+//
+// A mission is staged at one of your ports: its ships must be docked there,
+// go "on station" (vessel status 'mission') for the mission's hours, and come
+// back to the same berth. Its outcome is rolled when it starts and stored —
+// shown beforehand only as an estimate — so a reload can't change it.
+// Success pays and may change the world: deterrence halves a pirate water's
+// danger for a while; protection makes voyages leaving that port safer.
+//
+// Which stats matter depends on the mission (weights), so the biggest,
+// dearest warship is not the best at everything: a battleship is a poor
+// scout; a skiff is a poor bodyguard.
+const { clamp } = __m["src/core/util.js"];
+const { gcKm } = __m["src/world/globe.js"];
+
+class Missions {
+  constructor(logistics) {
+    this.L = logistics;
+  }
+
+  get game() {
+    return this.L.game;
+  }
+
+  get types() {
+    return this.L.cfg.missionTypes;
+  }
+
+  get state() {
+    const s = this.L.state;
+    if (!s.missions) Object.assign(s, { missions: [], nextMission: 1, lastMissionDay: 0, suppressed: {}, protected: {} });
+    return s;
+  }
+
+  list(status = null) {
+    return this.state.missions.filter((m) => !status || (Array.isArray(status) ? status.includes(m.status) : m.status === status));
+  }
+
+  get(id) {
+    return this.state.missions.find((m) => m.id === id) || null;
+  }
+
+  /** The pirate water nearest a port (what a patrol or sweep would target). */
+  nearestZone(portId) {
+    const p = this.L.port(portId);
+    let best = null;
+    let bd = Infinity;
+    for (const [id, z] of Object.entries(this.L.cfg.pirateWaters)) {
+      const d = gcKm([p.lat, p.lon], [z.lat, z.lon]);
+      if (d < bd) { bd = d; best = id; }
+    }
+    return best;
+  }
+
+  /** New offers: one a day per owned port, up to a cap. */
+  post() {
+    const g = this.game;
+    const s = this.state;
+    const R = g.rng;
+    const rules = this.L.L;
+    const types = Object.keys(this.types);
+    for (const port of this.L.ownedPorts()) {
+      for (let k = 0; k < rules.missionsPerPort; k++) {
+        if (this.list('available').length >= rules.maxMissions) return;
+        const type = types[Math.floor(R.next() * types.length)];
+        const T = this.types[type];
+        const d = T.difficulty[0] + R.next() * (T.difficulty[1] - T.difficulty[0]);
+        const hours = Math.round(T.hours[0] + R.next() * (T.hours[1] - T.hours[0]));
+        const reward = Math.round((T.reward[0] + (T.reward[1] - T.reward[0]) * ((d - T.difficulty[0]) / Math.max(0.01, T.difficulty[1] - T.difficulty[0]))) / 50) * 50;
+        s.missions.push({ id: `m${s.nextMission++}`, type, port, zone: this.nearestZone(port), difficulty: Math.round(d * 100) / 100, hours, reward, status: 'available', offered: g.clock.day, expiresDay: g.clock.day + rules.missionOfferDays, vessels: [], start: null, end: null, outcome: null });
+      }
+    }
+  }
+
+  /** How well a group of ships suits a mission: 0–100 on its weighted stats (speed is scaled to 0–100 by 40 knots). */
+  score(type, vids) {
+    const W = this.types[type].weights;
+    let best = 0;
+    let sum = 0;
+    for (const id of vids) {
+      const st = this.L.stats(this.L.vessel(id));
+      const c = { ...st.combat, speed: Math.min(100, (st.speed / 40) * 100) };
+      const v = Object.entries(W).reduce((a, [k, w]) => a + (c[k] || 0) * w, 0) * (0.5 + this.L.vessel(id).condition / 200);
+      best = Math.max(best, v);
+      sum += v;
+    }
+    // the best ship counts in full; each extra ship adds a third of itself (diminishing returns)
+    return Math.min(100, best + (sum - best) / 3);
+  }
+
+  /** Everything about sending ships on a mission, without doing it. */
+  quote(mid, vids) {
+    const m = this.get(mid);
+    const reasons = [];
+    if (!m || m.status !== 'available') return { ok: false, reasons: ['that mission isn\'t on offer'] };
+    const T = this.types[m.type];
+    if (!vids.length) reasons.push('pick at least one ship');
+    if (vids.length > this.L.L.missionShips) reasons.push(`at most ${this.L.L.missionShips} ships`);
+    if (new Set(vids).size !== vids.length) reasons.push('a ship is listed twice');
+    let cost = 0;
+    for (const id of vids) {
+      const v = this.L.vessel(id);
+      if (!v) { reasons.push('no such ship'); continue; }
+      const st = this.L.stats(v);
+      if (v.status !== 'docked' || v.contract || v.cargo) reasons.push(`the ${v.name} isn't free`);
+      if (v.port !== m.port) reasons.push(`the ${v.name} is at ${this.L.port(v.port)?.name || 'sea'}, not ${this.L.port(m.port).name}`);
+      if (v.condition < this.L.L.minSailCondition) reasons.push(`the ${v.name} needs repairs first`);
+      cost += Math.ceil((m.hours / 24) * st.opex);
+    }
+    // requirements: at least one ship in the group must meet them
+    const N = T.needs || {};
+    const ships = vids.map((id) => this.L.vessel(id)).filter(Boolean);
+    if (N.tag && !ships.some((v) => this.L.stats(v).tags.includes(N.tag))) reasons.push(`needs a ship rated for ${N.tag}`);
+    if (N.minSpeed && !ships.some((v) => this.L.stats(v).speed >= N.minSpeed)) reasons.push(`needs a ship of ${N.minSpeed}+ knots`);
+    if (N.capacity && !ships.some((v) => this.L.stats(v).capacity >= N.capacity)) reasons.push(`needs room aboard for ${N.capacity}+ units`);
+    if (this.L.state.arrears > 0) reasons.push('your upkeep is in arrears');
+    const score = ships.length ? this.score(m.type, vids) : 0;
+    const p = clamp(0.5 + (score - m.difficulty * 100) / 70, 0.05, 0.95);
+    const category = p >= 0.8 ? 'very likely' : p >= 0.6 ? 'likely' : p >= 0.4 ? 'even odds' : p >= 0.2 ? 'risky' : 'very risky';
+    return { ok: reasons.length === 0, reasons, cost, score: Math.round(score), chance: p, category };
+  }
+
+  /** Send the ships. Costs paid now; the outcome is rolled now and kept. */
+  start(mid, vids) {
+    const g = this.game;
+    const m = this.get(mid);
+    const q = this.quote(mid, vids);
+    if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
+    if (g.player.money < q.cost) return { ok: false, text: `The mission costs ${q.cost} obols in running costs.` };
+    this.L.spend(q.cost, 'mission');
+    const r = g.rng.next();
+    const outcome = r < q.chance ? 'success' : r < q.chance + 0.15 ? 'partial' : 'failure';
+    const damage = vids.map(() => (outcome === 'failure' ? 10 + Math.round(g.rng.next() * 25) : outcome === 'partial' ? Math.round(g.rng.next() * 12) : Math.round(g.rng.next() * 5)));
+    m.status = 'active';
+    m.vessels = [...vids];
+    m.start = g.clock.total;
+    m.end = g.clock.total + m.hours * 60;
+    m.outcome = { result: outcome, damage, chance: q.chance };
+    for (const id of vids) {
+      const v = this.L.vessel(id);
+      this.L.setStatus(v, 'mission');
+      v.mission = m.id;
+    }
+    this.L.report('mission', `⚔ ${vids.map((id) => `The ${this.L.vessel(id).name}`).join(' and ')} put${vids.length === 1 ? 's' : ''} to sea from ${this.L.port(m.port).name}: ${this.types[m.type].name.toLowerCase()} (${q.category}).`, 'info');
+    return { ok: true, text: `Under way — back ${this.L.when(m.end)}.` };
+  }
+
+  /** Each minute: missions that have run their time come home and settle. */
+  tick() {
+    const g = this.game;
+    for (const m of this.list('active')) {
+      if (g.clock.total < m.end) continue;
+      this.finish(m);
+    }
+  }
+
+  finish(m) {
+    const g = this.game;
+    const T = this.types[m.type];
+    const s = this.state;
+    const res = m.outcome.result;
+    m.vessels.forEach((id, i) => {
+      const v = this.L.vessel(id);
+      if (!v || v.status !== 'mission') return;
+      this.L.setStatus(v, 'docked');
+      delete v.mission;
+      v.condition = Math.max(0, Math.round((v.condition - m.outcome.damage[i]) * 10) / 10);
+      v.log.unshift({ from: m.port, to: m.port, km: 0, departed: m.start, arrived: g.clock.total, mission: m.type, result: res });
+      v.log.length = Math.min(v.log.length, 10);
+    });
+    m.status = res === 'failure' ? 'failed' : res;
+    const pay = res === 'success' ? m.reward : res === 'partial' ? Math.round(m.reward / 2) : 0;
+    if (pay) this.L.earn(pay, 'mission');
+    m.paid = pay;
+    let effect = '';
+    if (res === 'success' && T.effect?.suppress && m.zone) {
+      s.suppressed[m.zone] = g.clock.total + T.effect.suppress * 1440;
+      effect = ` ${this.L.cfg.pirateWaters[m.zone].name} is half as dangerous for ${T.effect.suppress} days.`;
+    }
+    if (res === 'success' && T.effect?.protect) {
+      s.protected[m.port] = g.clock.total + T.effect.protect * 1440;
+      effect = ` Voyages leaving ${this.L.port(m.port).name} face 30% less trouble for ${T.effect.protect} days.`;
+    }
+    const text = res === 'success' ? `✅ ${T.name} from ${this.L.port(m.port).name}: success — ${pay} obols.${effect}`
+      : res === 'partial' ? `◐ ${T.name} from ${this.L.port(m.port).name}: a partial success — ${pay} obols.`
+        : `✖ ${T.name} from ${this.L.port(m.port).name} failed. The ships came home battered.`;
+    this.L.report('mission', text, res === 'failure' ? 'warn' : 'good');
+  }
+
+  /** Daily: offers lapse, new ones come in. */
+  daily() {
+    const g = this.game;
+    const s = this.state;
+    for (const m of s.missions) if (m.status === 'available' && m.expiresDay < g.clock.day) m.status = 'expired';
+    s.missions = s.missions.filter((m) => ['available', 'active'].includes(m.status) || g.clock.day - m.offered < 7);
+    if (s.lastMissionDay < g.clock.day) {
+      s.lastMissionDay = g.clock.day;
+      this.post();
+    }
+  }
+}
+
+return { Missions };
+})();
+
+// ---- src/systems/piracy.js
+__m["src/systems/piracy.js"] = (function () {
+// Piracy and dangerous routes (v0.23.0). Pure functions — no game state is
+// changed here. Danger comes from the world as it is: named pirate waters
+// (content), plus zones round the main ports of countries at war and under
+// embargo (the arms market's own politics). A voyage's risk is decided once,
+// at departure, and stored with the voyage (src/systems/logistics.js), so a
+// reload never re-rolls it.
+//
+//   zones(content, market)           → [{ id, name, lat, lon, radius, danger }]
+//   exposure(route, zones)           → { dangerKm, maxDanger, names }
+//   assess(ctx)                      → { chance, category, worst, exposure }
+//   roll(rng, risk, defence)         → null | { outcome, … }   (an encounter)
+const { gcKm } = __m["src/world/globe.js"];
+const { pointAlong } = __m["src/world/seaRoutes.js"];
+
+function zones(content, market, { suppressed = {}, now = 0 } = {}) {
+  const L = content.logistics;
+  const out = Object.entries(L.pirateWaters).map(([id, z]) => ({ id, ...z, danger: z.danger * (suppressed[id] > now ? 0.5 : 1) }));
+  const mainPort = (cid) => Object.values(L.ports).find((p) => p.country === cid);
+  for (const w of market?.wars || []) {
+    for (const cid of [w.a, w.b]) {
+      const p = mainPort(cid);
+      if (p) out.push({ id: `war_${cid}`, name: `the ${content.arms.countries[cid].name} war zone`, lat: p.lat, lon: p.lon, radius: L.risk.warZone.radius, danger: L.risk.warZone.danger, war: true });
+    }
+  }
+  for (const [cid, c] of Object.entries(market?.countries || {})) {
+    if (!c.embargo) continue;
+    const p = mainPort(cid);
+    if (p) out.push({ id: `emb_${cid}`, name: `the ${content.arms.countries[cid].name} blockade`, lat: p.lat, lon: p.lon, radius: L.risk.embargoZone.radius, danger: L.risk.embargoZone.danger, embargo: true });
+  }
+  return out;
+}
+
+/** How much dangerous water a route crosses (sampled every ~100 km). */
+function exposure(route, zs) {
+  if (!route || !zs.length) return { dangerKm: 0, maxDanger: 0, names: [] };
+  const n = Math.max(2, Math.ceil(route.km / 100));
+  const step = route.km / n;
+  let dangerKm = 0;
+  let maxDanger = 0;
+  const names = new Set();
+  for (let i = 0; i <= n; i++) {
+    const p = pointAlong(route, i / n);
+    let d = 0;
+    for (const z of zs) {
+      if (gcKm(p, [z.lat, z.lon]) > z.radius) continue;
+      if (z.danger > d) d = z.danger;
+      names.add(z.name);
+    }
+    dangerKm += d * step;
+    if (d > maxDanger) maxDanger = d;
+  }
+  return { dangerKm, maxDanger, names: [...names] };
+}
+
+/**
+ * A voyage's risk. ctx: { R (content risk rules), route, zones, cargo ('arms' |
+ * contract type | null), speed, stealth, escortStrength (0–1), chanceMod (sum
+ * of bonuses, e.g. −0.25) }.
+ */
+function assess({ R, route, zones: zs, cargo = null, speed = 14, stealth = 10, escortStrength = 0, chanceMod = 0 }) {
+  const ex = exposure(route, zs);
+  let chance = R.base + R.perDangerKkm * (ex.dangerKm / 1000);
+  chance *= R.cargoValue[cargo] || (cargo ? 1 : 0.6); // empty ships are dull prey
+  chance *= Math.sqrt(15 / Math.max(5, speed));
+  chance *= 1 - Math.min(0.9, stealth / 200);
+  chance *= 1 - Math.min(0.75, escortStrength);
+  chance *= Math.max(0.1, 1 + chanceMod);
+  chance = Math.min(R.maxChance, Math.max(0, chance));
+  const worst = R.severity.find(([d]) => ex.maxDanger < d)?.[1] || 'captured';
+  const category = chance < 0.03 ? 'low' : chance < 0.1 ? 'moderate' : chance < 0.25 ? 'high' : 'extreme';
+  return { chance, category, worst, exposure: ex };
+}
+
+const ORDER = ['repelled', 'delay', 'ransom', 'cargo', 'captured'];
+
+/**
+ * Roll whether pirates strike, and how it goes. defence: { defense (ship +
+ * escorts + guards), escorted (bool), cargo (bool), value (cargo value for the ransom) }.
+ * Returns null (no encounter) or { outcome, at (fraction of the voyage), hours, cost, damage, pirates }.
+ */
+function roll(rng, risk, R, defence) {
+  if (rng.next() >= risk.chance) return null;
+  const danger = Math.max(0.15, risk.exposure.maxDanger);
+  const pirates = 30 + danger * 80 + rng.next() * 30;
+  const margin = defence.defense - pirates;
+  let outcome = margin > 20 ? 'repelled' : margin > 0 ? 'delay' : margin > -20 ? 'ransom' : margin > -40 ? 'cargo' : 'captured';
+  // what the water allows: safe water never costs you a cargo or a ship; escorts never let a ship be taken
+  let cap = ORDER.indexOf(risk.worst);
+  if (defence.escorted) cap = Math.min(cap, ORDER.indexOf('cargo'));
+  if (ORDER.indexOf(outcome) > cap) outcome = ORDER[cap];
+  if (outcome === 'cargo' && !defence.cargo) outcome = 'ransom';
+  const at = 0.2 + rng.next() * 0.6;
+  const hours = outcome === 'repelled' ? 0 : Math.round(6 + rng.next() * 18);
+  const damage = { repelled: 0, delay: 6, ransom: 4, cargo: 15, captured: 0 }[outcome] + Math.round(rng.next() * 8);
+  const cost = outcome === 'ransom' ? Math.max(R.ransom.min, Math.round((defence.value || 0) * R.ransom.share)) : 0;
+  return { outcome, at, hours, cost, damage, pirates: Math.round(pirates) };
+}
+
+return { zones, exposure, assess, roll };
+})();
+
 // ---- src/systems/logistics.js
 __m["src/systems/logistics.js"] = (function () {
 // Ober & Sons Maritime (v0.21.0): the shipping company you buy from Captain
@@ -18473,16 +18881,19 @@ __m["src/systems/logistics.js"] = (function () {
 // v0.21.0 get it fresh and unowned).
 const { clamp } = __m["src/core/util.js"];
 const { seaRoute, pointAlong } = __m["src/world/seaRoutes.js"];
+const { Missions } = __m["src/systems/missions.js"];
+const { zones: pirateZones, exposure: routeExposure, assess: assessRisk, roll: rollPirates } = __m["src/systems/piracy.js"];
 
 const REPORTS_MAX = 80;
 const LEDGER_DAYS = 30;
 
-const VESSEL_STATES = ['docked', 'loading', 'underway', 'lost', 'retired'];
+const VESSEL_STATES = ['docked', 'loading', 'underway', 'mission', 'lost', 'retired'];
 /** Allowed status changes (a vessel is in exactly one place at a time). */
 const TRANSITIONS = {
-  docked: ['loading', 'underway', 'retired', 'lost'],
+  docked: ['loading', 'underway', 'mission', 'retired', 'lost'],
   loading: ['underway', 'docked', 'lost'],
   underway: ['docked', 'lost'],
+  mission: ['docked', 'lost'],
   lost: [],
   retired: [],
 };
@@ -18495,6 +18906,8 @@ function freshLogistics() {
     ledger: { revenue: 0, expenses: 0, days: [] },
     reports: [], nextReport: 1,
     display: { berths: [] },
+    // v0.23.0
+    missions: [], nextMission: 1, lastMissionDay: 0, suppressed: {}, protected: {},
   };
 }
 
@@ -18503,6 +18916,7 @@ const fmtHours = (h) => (h >= 48 ? `${(h / 24).toFixed(1)} days` : `${Math.round
 class Logistics {
   constructor(game) {
     this.game = game;
+    this.missions = new Missions(this);
   }
 
   // ------------------------------------------------------------- content
@@ -18537,7 +18951,11 @@ class Logistics {
   }
 
   cls(model) {
-    return this.cfg.classes[model.cls];
+    return this.cfg.classes[model.cls] || this.cfg.warshipClasses?.[model.cls] || {};
+  }
+
+  className(model) {
+    return this.cls(model).name || model.cls;
   }
 
   /** The sea route between two ports (cached), or null. */
@@ -18630,6 +19048,8 @@ class Logistics {
     this.addVessel(L.starterShip.model, L.starterShip.port, L.starterShip.name);
     s.lastContractDay = g.clock.day;
     this.postContracts();
+    this.missions.state.lastMissionDay = g.clock.day;
+    this.missions.post();
     g.setFlag('owns_shipping', true);
     this.report('company', `⚓ ${L.company} is yours: ${L.starterPorts.length} ports and the ${L.starterShip.name}. The logistics terminal is in the harbour office.`, 'good');
     g.bus.emit('logistics:bought', {});
@@ -18698,10 +19118,19 @@ class Logistics {
     return v;
   }
 
-  /** Effective stats (components will modify these in the shipyard update). */
+  /**
+   * Effective stats (the shipyard's components will modify these). combat is
+   * what piracy, escorts and missions read now — and what a future playable
+   * encounter would read: one set of numbers per ship, nowhere else.
+   */
   stats(v) {
     const m = this.model(v.model);
-    return { capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags, size: this.cls(m).size, wear: this.cls(m).wear };
+    const k = this.cls(m);
+    return {
+      capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags || [],
+      size: m.size ?? k.size, wear: m.wear ?? k.wear ?? 1, needsPortType: m.needsPortType ?? k.needsPortType ?? null,
+      combat: { attack: 0, defense: 5, detection: 10, stealth: 10, mounts: 0, ...(k.combat || {}), ...(m.combat || {}) }, bonuses: m.bonuses || [],
+    };
   }
 
   setStatus(v, to) {
@@ -18711,7 +19140,7 @@ class Logistics {
 
   /** Ships at (or loading in) a port, and ships on their way there. */
   atPort(portId) {
-    return this.vessels().filter((v) => (v.status === 'docked' || v.status === 'loading') && v.port === portId);
+    return this.vessels().filter((v) => (v.status === 'docked' || v.status === 'loading' || v.status === 'mission') && v.port === portId);
   }
 
   inbound(portId) {
@@ -18724,9 +19153,9 @@ class Logistics {
     const pt = this.portType(portId);
     const st = this.stats(v);
     const m = this.model(v.model);
-    const need = this.cls(m).needsPortType;
+    const need = [].concat(st.needsPortType || []);
     if (!p) return 'no such port';
-    if (need && p.type !== need) return `the ${m.name} only berths at ${this.cfg.portTypes[need].name.toLowerCase()}s`;
+    if (need.length && !need.includes(p.type)) return `the ${m.name} only berths at ${need.map((t) => this.cfg.portTypes[t].name.toLowerCase()).join(' or ')}s`;
     if (st.size > pt.maxSize) return `${p.name} (${pt.name.toLowerCase()}) can't take a ship that size`;
     if (arriving && this.ownsPort(portId)) {
       const used = this.atPort(portId).filter((x) => x !== v).length + this.inbound(portId).filter((x) => x !== v).length;
@@ -18756,7 +19185,7 @@ class Logistics {
     const s = this.state;
     const m = this.model(modelId);
     if (!s.owned) return { ok: false, text: 'You need a shipping company first.' };
-    if (!m || !this.cfg.dealership.includes(modelId)) return { ok: false, text: 'That ship isn\'t for sale here.' };
+    if (!m || !(this.cfg.dealership.includes(modelId) || this.cfg.warshipDealership?.includes(modelId))) return { ok: false, text: 'That ship isn\'t for sale here.' };
     if (!this.ownsPort(portId)) return { ok: false, text: 'Deliver it to a port you own.' };
     const probe = { model: modelId, status: 'docked' };
     const why = this.berthCheck(probe, portId);
@@ -18813,6 +19242,86 @@ class Logistics {
     return { ok: reasons.length === 0, reasons, km, hours, load, opex, fees, cost: opex + fees, route: r };
   }
 
+  // ------------------------------------------------------------- risk (v0.23.0)
+  /** Dangerous water right now: pirate waters (some suppressed by your missions), war zones, blockades. */
+  zones() {
+    const s = this.state;
+    return pirateZones(this.game.content, this.game.market.state, { suppressed: s.suppressed || {}, now: this.game.clock.total });
+  }
+
+  /** Fleet bonuses in force for a voyage leaving `from` with these escorts — each bonus once, however many ships have it. */
+  activeBonuses(from, escorts = []) {
+    const B = this.cfg.bonuses || {};
+    const on = new Set();
+    for (const v of this.vessels()) {
+      if (v.status === 'lost') continue;
+      for (const id of this.stats(v).bonuses) {
+        const b = B[id];
+        if (!b) continue;
+        if (b.scope === 'fleet') on.add(id);
+        if (b.scope === 'port' && (v.status === 'docked' || v.status === 'mission') && v.port === from) on.add(id);
+        if (b.scope === 'group' && escorts.includes(v.id)) on.add(id);
+      }
+    }
+    return [...on].map((id) => ({ id, ...B[id] }));
+  }
+
+  /** Escorts' combined strength (0–0.75: how much they cut the chance of trouble) and fighting weight. */
+  escortPower(escorts, bonuses) {
+    let strength = 0;
+    let defense = 0;
+    for (const id of escorts) {
+      const c = this.stats(this.vessel(id)).combat;
+      strength += (c.attack + c.detection) / 400;
+      defense += c.attack * 0.6 + c.defense * 0.4;
+    }
+    const boost = bonuses.reduce((a, b) => a + (b.escortStrength || 0), 0);
+    return { strength: Math.min(0.75, strength * (1 + boost)), defense: defense * (1 + boost) };
+  }
+
+  /**
+   * The risk of a voyage, shown before departure. opts: { cargo: 'arms' | contract type | null,
+   * escorts: [vessel ids], guards: bool, value: cargo value (for ransoms) }.
+   */
+  voyageRisk(v, from, to, { cargo = null, escorts = [], guards = false, value = 0 } = {}) {
+    const st = this.stats(v);
+    const route = this.route(from, to);
+    const bonuses = this.activeBonuses(from, escorts);
+    const ep = this.escortPower(escorts, bonuses);
+    const speeds = [st.speed, ...escorts.map((id) => this.stats(this.vessel(id)).speed)];
+    const chanceMod = bonuses.reduce((a, b) => a + (b.chance || 0), 0) + (this.state.protected?.[from] > this.game.clock.total ? -0.3 : 0);
+    const risk = assessRisk({ R: this.cfg.risk, route, zones: this.zones(), cargo, speed: Math.min(...speeds), stealth: st.combat.stealth, escortStrength: ep.strength, chanceMod });
+    const defense = st.combat.defense + ep.defense + (guards ? this.cfg.risk.guards.defense : 0) + bonuses.reduce((a, b) => a + (b.defense || 0), 0);
+    const worst = escorts.length && risk.worst === 'captured' ? 'cargo' : !cargo && risk.worst === 'cargo' ? 'ransom' : risk.worst;
+    return { ...risk, worst, defense: Math.round(defense), escorted: escorts.length > 0, bonuses: bonuses.map((b) => b.name), value };
+  }
+
+  /** Check escorts for a convoy from `from` to `to`; returns { reasons, cost, speed }. */
+  escortCheck(escorts, from, to) {
+    const reasons = [];
+    let cost = 0;
+    let speed = Infinity;
+    for (const id of escorts) {
+      const e = this.vessel(id);
+      if (!e) { reasons.push('no such escort'); continue; }
+      if (e.kind !== 'warship' || !this.stats(e).tags.includes('escort')) reasons.push(`the ${e.name} can't escort`);
+      if (e.contract || e.cargo || e.status !== 'docked') reasons.push(`the ${e.name} isn't free`);
+      if (e.port !== from) reasons.push(`the ${e.name} is at ${this.port(e.port)?.name || 'sea'}, not ${this.port(from).name}`);
+      const pl = this.plan(e, to, 0, from);
+      for (const r of pl.reasons) if (!r.startsWith('it\'s already') && !r.includes('isn\'t free')) reasons.push(`escort: ${r}`);
+      cost += pl.cost;
+      speed = Math.min(speed, this.stats(e).speed);
+    }
+    if (new Set(escorts).size !== escorts.length) reasons.push('an escort is listed twice');
+    return { reasons, cost, speed };
+  }
+
+  /** Optional per-voyage services on a cargo's value: guards (+defence) and insurance (pays out on a lost cargo). */
+  servicesCost(value, { guards = false, insure = false } = {}) {
+    const R = this.cfg.risk;
+    return (guards ? Math.max(R.guards.min, Math.round(value * R.guards.costShare)) : 0) + (insure ? Math.round(value * R.insurance.rate) : 0);
+  }
+
   /** Pre-roll a voyage's delays (stored, so a reload can't change them). */
   rollEvents(v, km, base, depart) {
     const st = this.stats(v);
@@ -18827,11 +19336,22 @@ class Logistics {
     return events;
   }
 
-  startVoyage(v, to, { purpose, contract = null, depart }) {
+  /**
+   * Put a ship to sea. Everything random about the voyage — delays, and since
+   * v0.23.0 whether pirates strike and how it goes — is rolled here and stored.
+   * opts.speed: a convoy sails at its slowest ship; opts.risk: { cargo, escorts, guards, value }.
+   */
+  startVoyage(v, to, { purpose, contract = null, depart, speed = null, risk = null, events = null }) {
     const pl = this.plan(v, to);
-    const base = Math.max(30, Math.round(pl.hours * 60));
-    const events = this.rollEvents(v, pl.km, base, depart);
-    v.voyage = { from: v.port, to, km: pl.km, depart, base, arrive: depart + base, purpose, contract, events };
+    const hours = speed ? this.sailHours(pl.km, speed) : pl.hours;
+    const base = Math.max(30, Math.round(hours * 60));
+    const ev = events ? events.map((e) => ({ ...e })) : this.rollEvents(v, pl.km, base, depart);
+    if (!events && risk) {
+      const rk = this.voyageRisk(v, v.port, to, risk);
+      const hit = rollPirates(this.game.rng, rk, this.cfg.risk, { defense: rk.defense, escorted: rk.escorted, cargo: Boolean(risk.cargo), value: risk.value });
+      if (hit) ev.push({ kind: 'pirates', at: Math.round(depart + base * hit.at), hours: hit.hours, done: false, outcome: hit.outcome, cost: hit.cost, damage: hit.damage, pirates: hit.pirates, where: rk.exposure.names[0] || 'open water' });
+    }
+    v.voyage = { from: v.port, to, km: pl.km, depart, base, arrive: depart + base, purpose, contract, events: ev };
     this.setStatus(v, 'underway');
     v.port = null;
     return v.voyage;
@@ -18848,13 +19368,20 @@ class Logistics {
     if (g.player.money < pl.cost) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
     const from = v.port;
     this.spend(pl.cost, 'voyage');
-    this.startVoyage(v, to, { purpose: 'reposition', depart: g.clock.total });
+    this.startVoyage(v, to, { purpose: 'reposition', depart: g.clock.total, risk: { cargo: null } });
     this.report('voyage', `⛴ The ${v.name} sails from ${this.port(from).name} for ${this.port(to).name} — ${pl.km} km, about ${fmtHours(pl.hours)}.`, null);
     return { ok: true, text: `The ${v.name} is under way.` };
   }
 
   /** Where a ship is now: { lat, lon, f (voyage fraction), port? }. Derived from the clock. */
   position(v) {
+    if (v.status === 'lost') return null;
+    if (v.status === 'mission') {
+      // on station: a slow circle off the port
+      const p = this.port(v.port);
+      const a = (this.game.clock.total / 180) % (Math.PI * 2);
+      return p ? { lat: p.lat + Math.sin(a) * 1.5, lon: p.lon + Math.cos(a) * 2, f: 0, port: v.port, onStation: true } : null;
+    }
     if (v.status !== 'underway' || !v.voyage) {
       const p = this.port(v.port);
       return p ? { lat: p.lat, lon: p.lon, f: 0, port: v.port } : null;
@@ -18906,6 +19433,8 @@ class Logistics {
           if (cand === from) continue;
           const rr = this.route(from, cand);
           if (!rr || rr.km < 300 || rr.km > (easy ? 9000 : 26000)) continue;
+          // the guaranteed offer keeps to safe water (early players can't be ruined by bad luck)
+          if (easy && routeExposure(rr, this.zones()).maxDanger >= 0.2) continue;
           to = cand;
           route = rr;
         }
@@ -18944,8 +19473,11 @@ class Logistics {
     return { ok: true, text: `Cancelled (penalty ${fee} obols).` };
   }
 
-  /** Everything about putting a ship on a contract, without doing it. */
-  quote(cid, vid) {
+  /**
+   * Everything about putting a ship on a contract, without doing it.
+   * opts (v0.23.0): { escorts: [warship ids], guards, insure }.
+   */
+  quote(cid, vid, { escorts = [], guards = false, insure = false } = {}) {
     const c = this.contract(cid);
     const v = this.vessel(vid);
     if (!c || !v) return { ok: false, reasons: ['nothing to quote'] };
@@ -18960,11 +19492,18 @@ class Logistics {
     if (T.needs && !st.tags.includes(T.needs)) reasons.push(`it needs ${/^[aeiou]/.test(T.needs) ? 'an' : 'a'} ${T.needs} ship`);
     const pl = this.plan(v, c.to, c.units, c.from);
     for (const r of pl.reasons) if (!reasons.includes(r) && !r.startsWith('it\'s already')) reasons.push(r);
+    const esc = this.escortCheck(escorts, c.from, c.to);
+    reasons.push(...esc.reasons);
     const now = this.game.clock.total;
-    const arrive = now + Math.round((pl.load + pl.hours) * 60);
+    const speed = Math.min(st.speed, esc.speed);
+    const hours = pl.load + this.sailHours(pl.km, speed);
+    const arrive = now + Math.round(hours * 60);
     const onTime = arrive <= c.deadline;
     const pay = this.payFor(c, arrive);
-    return { ok: reasons.length === 0, reasons, arrive, onTime, pay, cost: pl.cost, opex: pl.opex, fees: pl.fees, profit: pay - pl.cost, hours: pl.load + pl.hours };
+    const services = this.servicesCost(c.pay, { guards, insure });
+    const cost = pl.cost + esc.cost + services;
+    const risk = this.voyageRisk(v, c.from, c.to, { cargo: c.type, escorts, guards, value: c.pay });
+    return { ok: reasons.length === 0, reasons, arrive, onTime, pay, cost, opex: pl.opex, fees: pl.fees, escortCost: esc.cost, services, profit: pay - cost, hours, risk };
   }
 
   /** What the client pays for a delivery at a given time. */
@@ -18977,21 +19516,24 @@ class Logistics {
     return Math.round(c.pay * (1 + early));
   }
 
-  /** Put a ship on a contract: it loads, then sails. Running costs and port fees are paid now. */
-  assign(cid, vid) {
+  /** Put a ship on a contract: it loads, then sails (with any escorts). Running costs, fees and services are paid now. */
+  assign(cid, vid, opts = {}) {
     const g = this.game;
     const c = this.contract(cid);
     const v = this.vessel(vid);
-    const q = this.quote(cid, vid);
+    const q = this.quote(cid, vid, opts);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs and port fees).` };
+    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
     this.spend(q.cost, 'voyage');
     c.status = 'loading';
     c.vessel = v.id;
+    c.insured = Boolean(opts.insure);
+    c.guards = Boolean(opts.guards);
     v.contract = c.id;
     v.cargo = { type: c.type, units: c.units, contract: c.id };
     this.setStatus(v, 'loading');
     v.loadUntil = g.clock.total + Math.round(this.L.loadHoursBase * 60 + c.units * this.L.loadHoursPerUnit * 60);
+    this.formConvoy(v, opts.escorts || [], { cargo: c.type, guards: c.guards, value: c.pay });
     this.report('contract', `📦 The ${v.name} is loading ${c.units} units for ${this.cfg.clients[c.client].name} at ${this.port(c.from).name}.`, null);
     return { ok: true, text: `The ${v.name} is loading. It should reach ${this.port(c.to).name} ${this.when(q.arrive)}${q.onTime ? '' : ' — late'}.` };
   }
@@ -19002,8 +19544,8 @@ class Logistics {
     return Object.keys(this.cfg.ports).find((id) => this.cfg.ports[id].country === countryId) || null;
   }
 
-  /** Can this ship carry `crates` of an order to that country? Nothing changes. */
-  armsQuote(vid, countryId, crates) {
+  /** Can this ship carry `crates` of an order to that country? Nothing changes. opts: { escorts, guards, value }. */
+  armsQuote(vid, countryId, crates, { escorts = [], guards = false, value = 0 } = {}) {
     const v = this.vessel(vid);
     const to = this.portFor(countryId);
     if (!v) return { ok: false, reasons: ['no such ship'] };
@@ -19015,8 +19557,13 @@ class Logistics {
     if (st.capacity < crates) reasons.push(`it holds ${st.capacity} units; the order is ${crates} crates`);
     const pl = this.plan(v, to, 0, this.L.armsPort);
     for (const r of pl.reasons) if (!reasons.includes(r) && !r.startsWith('it\'s already')) reasons.push(r);
+    const esc = this.escortCheck(escorts, this.L.armsPort, to);
+    reasons.push(...esc.reasons);
     const load = this.L.loadHoursBase + crates * this.L.armsLoadHoursPerCrate;
-    return { ok: reasons.length === 0, reasons, to, km: pl.km, hours: load + pl.hours, load, cost: pl.cost, opex: pl.opex, fees: pl.fees };
+    const hours = load + this.sailHours(pl.km, Math.min(st.speed, esc.speed));
+    const services = this.servicesCost(value, { guards });
+    const risk = this.voyageRisk(v, this.L.armsPort, to, { cargo: 'arms', escorts, guards, value });
+    return { ok: reasons.length === 0, reasons, to, km: pl.km, hours, load, cost: pl.cost + esc.cost + services, opex: pl.opex, fees: pl.fees, escortCost: esc.cost, services, risk, escorts, guards };
   }
 
   /** Called by Market.shipOwn once the order is committed: pay, load and sail. */
@@ -19030,7 +19577,38 @@ class Logistics {
     this.setStatus(v, 'loading');
     v.loadUntil = g.clock.total + Math.round(q.load * 60);
     v.pending = { to: q.to, purpose: 'arms', shipment: shp.id, fate };
+    this.formConvoy(v, q.escorts || [], { cargo: 'arms', guards: q.guards, value: shp.value });
     this.report('arms', `📦 The ${v.name} is loading ${v.cargo.units} crates for ${g.content.arms.countries[shp.country].name} at ${this.port(v.port).name}.`, null);
+  }
+
+  /** Escorts wait in port with the loading ship and sail with it (status 'loading', convoyOf). */
+  formConvoy(v, escorts, risk) {
+    v.convoy = [...escorts];
+    v.riskOpts = { ...risk, escorts: [...escorts] };
+    for (const id of escorts) {
+      const e = this.vessel(id);
+      this.setStatus(e, 'loading');
+      e.convoyOf = v.id;
+    }
+    if (escorts.length) this.report('convoy', `🛡 ${escorts.map((id) => `the ${this.vessel(id).name}`).join(' and ')} will escort the ${v.name}.`, null);
+  }
+
+  /** The convoy sails together at its slowest ship's speed, sharing one set of events. */
+  sailConvoy(v, to, opts) {
+    const esc = (v.convoy || []).map((id) => this.vessel(id)).filter(Boolean);
+    const speed = Math.min(this.stats(v).speed, ...esc.map((e) => this.stats(e).speed));
+    const vo = this.startVoyage(v, to, { ...opts, speed, risk: v.riskOpts || { cargo: opts.purpose === 'arms' ? 'arms' : null } });
+    for (const e of esc) {
+      delete e.convoyOf;
+      const ev = this.startVoyage(e, to, { purpose: 'escort', depart: vo.depart, speed, events: vo.events });
+      ev.escortOf = v.id;
+      ev.base = vo.base;
+      ev.arrive = vo.arrive;
+    }
+    delete v.riskOpts;
+    vo.convoy = esc.map((e) => e.id);
+    delete v.convoy;
+    return vo;
   }
 
   /** Keep the market's shipment in step with the voyage (its ETA moves with delays). */
@@ -19057,18 +19635,97 @@ class Logistics {
       s.lastUpkeepDay = g.clock.day;
       this.daily();
     }
+    this.missions.tick();
     for (const v of this.vessels()) {
-      if (v.status === 'loading' && now >= v.loadUntil) this.depart(v);
+      if (v.status === 'loading' && v.loadUntil !== undefined && now >= v.loadUntil) this.depart(v);
       if (v.status !== 'underway') continue;
       for (const e of v.voyage.events) {
         if (e.done || e.at > now) continue;
         e.done = true;
+        if (e.kind === 'pirates') { this.pirates(v, e); if (v.status !== 'underway') break; continue; }
         v.voyage.arrive += e.hours * 60;
         this.syncShipment(v);
-        this.report('delay', `⏳ The ${v.name} is delayed ${e.hours} h by ${e.why}. New arrival ${this.when(v.voyage.arrive)}.`, 'warn');
+        if (v.voyage.purpose !== 'escort') this.report('delay', `⏳ The ${v.name} is delayed ${e.hours} h by ${e.why}. New arrival ${this.when(v.voyage.arrive)}.`, 'warn');
       }
-      if (now >= v.voyage.arrive) this.arrive(v);
+      if (v.status === 'underway' && now >= v.voyage.arrive) this.arrive(v);
     }
+  }
+
+  /** A pirate encounter (rolled at departure) happens now. */
+  pirates(v, e) {
+    const g = this.game;
+    const V = v.voyage;
+    const escort = V.purpose === 'escort';
+    const where = e.where;
+    const hurt = (ship, n) => { ship.condition = Math.max(0, Math.round((ship.condition - n) * 10) / 10); };
+    if (escort) {
+      // the escort shares the fight: some damage, the same delay
+      hurt(v, Math.round(e.damage * 0.6));
+      if (['delay', 'ransom', 'cargo'].includes(e.outcome)) V.arrive += e.hours * 60;
+      return;
+    }
+    const escorted = (V.convoy || []).length > 0;
+    const log = (text, kind = 'warn') => { (V.incidents ||= []).push({ at: g.clock.total, outcome: e.outcome, text }); this.report('piracy', text, kind); };
+    if (e.outcome === 'repelled') {
+      log(`🏴 Pirates in ${where} went for the ${v.name} — ${escorted ? 'her escort drove them off' : 'she showed them her stern and outran them'}.`, 'info');
+      return;
+    }
+    if (e.outcome === 'delay') {
+      hurt(v, e.damage);
+      V.arrive += e.hours * 60;
+      this.syncShipment(v);
+      log(`🏴 Pirates in ${where} chased the ${v.name} off course: ${e.hours} h lost, some damage (${Math.round(v.condition)}%).`);
+      return;
+    }
+    if (e.outcome === 'ransom') {
+      hurt(v, e.damage);
+      V.arrive += e.hours * 60;
+      this.syncShipment(v);
+      const paid = Math.min(e.cost, Math.max(0, g.player.money));
+      this.spend(paid, 'ransom');
+      this.state.arrears += e.cost - paid;
+      log(`🏴 Pirates in ${where} boarded the ${v.name} and took ${e.cost} obols to let her go${paid < e.cost ? ` (${e.cost - paid} owed — added to arrears)` : ''}.`);
+      return;
+    }
+    // cargo or ship lost: the business that owns the cargo settles it now, once
+    this.loseCargo(v, e.outcome === 'captured' ? 'captured' : 'hijacked');
+    if (e.outcome === 'cargo') {
+      hurt(v, e.damage);
+      log(`🏴 Pirates in ${where} seized the ${v.name}'s cargo. The ship limps on (${Math.round(v.condition)}%).`);
+      return;
+    }
+    // captured: the ship is gone
+    this.setStatus(v, 'lost');
+    v.lostAt = g.clock.total;
+    v.voyage = { ...V, lost: true };
+    log(`☠ Pirates in ${where} captured the ${v.name}. She is lost, with her cargo.`);
+  }
+
+  /** The cargo aboard is lost: contracts fail (insurance pays if bought), arms exports are hijacked. */
+  loseCargo(v, how) {
+    const g = this.game;
+    const V = v.voyage;
+    if (V.shipment) {
+      g.market.settleOwn(V.shipment, 'hijacked');
+      V.shipment = null;
+    }
+    const c = V.contract && this.contract(V.contract);
+    if (c && c.status === 'transit') {
+      c.status = 'lost';
+      if (c.insured) {
+        const payout = Math.round(c.pay * this.cfg.risk.insurance.payout);
+        c.result = { paid: 0, insurance: payout, note: how };
+        this.earn(payout, 'insurance');
+        this.report('contract', `🛟 Cargo insurance paid ${payout} obols for ${this.cfg.clients[c.client].name}'s lost cargo.`, 'info');
+      } else {
+        const fee = Math.round(c.pay * this.L.failPenalty);
+        c.result = { paid: 0, penalty: fee, note: how };
+        this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+      }
+    }
+    V.contract = null;
+    v.contract = null;
+    v.cargo = null;
   }
 
   depart(v) {
@@ -19076,7 +19733,7 @@ class Logistics {
     if (v.pending) {
       const P = v.pending;
       delete v.pending;
-      const vo = this.startVoyage(v, P.to, { purpose: P.purpose, depart: this.game.clock.total });
+      const vo = this.sailConvoy(v, P.to, { purpose: P.purpose, depart: this.game.clock.total });
       vo.shipment = P.shipment;
       vo.fate = P.fate;
       this.syncShipment(v);
@@ -19084,7 +19741,7 @@ class Logistics {
       return;
     }
     const c = this.contract(v.contract);
-    const vo = this.startVoyage(v, c.to, { purpose: 'contract', contract: c.id, depart: this.game.clock.total });
+    const vo = this.sailConvoy(v, c.to, { purpose: 'contract', contract: c.id, depart: this.game.clock.total });
     c.status = 'transit';
     c.depart = vo.depart;
     c.arrive = vo.arrive;
@@ -19100,7 +19757,7 @@ class Logistics {
     v.voyage = null;
     v.sailedKm += V.km;
     v.condition = Math.max(0, Math.round((v.condition - (V.km / 1000) * this.L.wearPerKkm * st.wear) * 10) / 10);
-    v.log.unshift({ from: V.from, to: V.to, km: V.km, departed: V.depart, arrived: g.clock.total, contract: V.contract, shipment: V.shipment || null, cargo: v.cargo ? `${v.cargo.units} ${v.cargo.type === 'arms' ? 'crates' : 'units'}` : null, delays: V.events.filter((e) => e.done).length });
+    v.log.unshift({ from: V.from, to: V.to, km: V.km, departed: V.depart, arrived: g.clock.total, contract: V.contract, shipment: V.shipment || null, cargo: v.cargo ? `${v.cargo.units} ${v.cargo.type === 'arms' ? 'crates' : 'units'}` : V.purpose === 'escort' ? 'escort duty' : null, delays: V.events.filter((e) => e.done && e.kind === 'delay').length, incidents: (V.incidents || []).map((i) => i.outcome) });
     v.log.length = Math.min(v.log.length, 10);
     if (V.shipment) {
       // the market owns the order: it pays (or doesn't) exactly once
@@ -19109,8 +19766,9 @@ class Logistics {
       if (fate) this.report('arms', fate === 'delivered' ? `✅ The ${v.name} delivered its crates at ${this.port(V.to).name}.` : `⚓ Customs at ${this.port(V.to).name} seized the ${v.name}'s cargo. The ship was released.`, fate === 'delivered' ? null : 'warn');
       return;
     }
+    if (V.purpose === 'escort') return; // the escorted ship reports the arrival
     if (!V.contract) {
-      this.report('voyage', `⚓ The ${v.name} reached ${this.port(V.to).name}.`, 'info');
+      this.report('voyage', `⚓ The ${v.name} reached ${this.port(V.to).name}${(V.convoy || []).length ? ' with her escort' : ''}.`, 'info');
       return;
     }
     const c = this.contract(V.contract);
@@ -19155,11 +19813,12 @@ class Logistics {
         this.report('contract', `✖ You never shipped ${this.cfg.clients[c.client].name}'s cargo. Penalty ${fee} obols.`, 'warn');
       }
     }
-    s.contracts = s.contracts.filter((c) => !['expired', 'delivered', 'failed'].includes(c.status) || g.clock.day - c.offered < 10);
+    s.contracts = s.contracts.filter((c) => !['expired', 'delivered', 'failed', 'lost'].includes(c.status) || g.clock.day - c.offered < 10);
     if (s.lastContractDay < g.clock.day) {
       s.lastContractDay = g.clock.day;
       this.postContracts();
     }
+    this.missions.daily();
   }
 
   /** Pay off arrears now (if you can). */
@@ -19176,7 +19835,7 @@ class Logistics {
   dailyUpkeep() {
     let n = 0;
     for (const id of this.ownedPorts()) n += this.portType(id).upkeep;
-    for (const v of this.vessels()) n += this.stats(v).upkeep;
+    for (const v of this.vessels()) if (v.status !== 'lost') n += this.stats(v).upkeep;
     return n;
   }
 
@@ -19201,7 +19860,7 @@ class Logistics {
   berth(slot) {
     const id = this.game.world.logistics?.display?.berths?.[slot];
     if (!id || !this.owned) return null;
-    return { port: id, name: this.port(id).name, ships: this.atPort(id).filter((v) => v.visible) };
+    return { port: id, name: this.port(id).name, ships: this.atPort(id).filter((v) => v.visible && v.status !== 'mission') };
   }
 }
 
@@ -20895,6 +21554,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.23.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Here Be Pirates',
+    notes: [
+      'The sea has teeth now. Pirate waters, the arms market\'s war zones and its blockades make some routes dangerous: before every voyage you see the chance of trouble, the worst that could happen and the waters you\'d cross. Home waters stay safe — nothing worse than a delay — and the first contract each port offers always is.',
+      'Pirates might be driven off, chase you (a delay and some damage), demand a ransom, seize the cargo, or — in the worst water, alone — take the ship. Protect a voyage with hired guards, cargo insurance, or warship escorts that sail beside it.',
+      'Kestrel Naval Surplus sells twelve warships: schooner, brig, galleon and man-o\'-war under sail; patrol skiff, corvette, frigate, destroyer and cruiser; the battleship; and two futuristic ships, the Starwatch Sentinel and the Aegis Bastion. Some lend the whole fleet a bonus.',
+      'Naval missions: patrols, piracy deterrence, escorts for hire, distress calls, port protection, reconnaissance and special transport, offered at your ports. The right ship for the job matters more than the biggest. A successful sweep makes its waters safer for everyone.',
+      'The chart shows the dangerous waters; your warships and convoys show up on it too.',
+    ],
+  },
+  {
     version: '0.22.0',
     date: '2026-10-15',
     channel: 'development',
@@ -22216,7 +22888,22 @@ const T = 32;
 /** The hull outline, bow to the right (+x), centred on the origin. */
 function hullPath(ctx, hull, L, B) {
   ctx.beginPath();
-  if (hull === 'runner' || hull === 'starwake') {
+  if (hull === 'warship' || hull === 'battleship') {
+    // a long, sharp bow and a square transom
+    ctx.moveTo(L / 2, 0);
+    ctx.quadraticCurveTo(L * 0.2, -B / 2, -L * 0.1, -B / 2);
+    ctx.lineTo(-L / 2, -B * 0.42);
+    ctx.lineTo(-L / 2, B * 0.42);
+    ctx.lineTo(-L * 0.1, B / 2);
+    ctx.quadraticCurveTo(L * 0.2, B / 2, L / 2, 0);
+  } else if (hull === 'schooner' || hull === 'brig' || hull === 'galleon' || hull === 'manowar') {
+    // a sailing hull: a pointed bow, a broad rounded stern
+    ctx.moveTo(L / 2, 0);
+    ctx.quadraticCurveTo(L * 0.3, -B / 2, 0, -B / 2);
+    ctx.quadraticCurveTo(-L / 2, -B / 2, -L / 2, 0);
+    ctx.quadraticCurveTo(-L / 2, B / 2, 0, B / 2);
+    ctx.quadraticCurveTo(L * 0.3, B / 2, L / 2, 0);
+  } else if (hull === 'runner' || hull === 'starwake' || hull === 'skiff') {
     ctx.moveTo(L / 2, 0);
     ctx.quadraticCurveTo(L * 0.2, -B / 2, -L / 2, -B * 0.42);
     ctx.lineTo(-L / 2, B * 0.42);
@@ -22248,7 +22935,7 @@ function hullPath(ctx, hull, L, B) {
 function drawShip(ctx, look, x, y, angle, opts = {}) {
   const L = (look.len || 3) * T;
   const hull = look.hull || 'freighter';
-  const B = L * (hull === 'runner' || hull === 'starwake' ? 0.24 : hull === 'tug' ? 0.4 : hull === 'coaster' ? 0.32 : 0.22);
+  const B = L * ({ runner: 0.24, starwake: 0.24, tug: 0.4, coaster: 0.32, skiff: 0.36, schooner: 0.24, brig: 0.26, galleon: 0.3, manowar: 0.28, warship: 0.16, battleship: 0.2 }[hull] ?? 0.22);
   const color = look.color || '#4a4a52';
   const trim = look.trim || '#e8e2d4';
   const t = opts.time || 0;
@@ -22323,6 +23010,51 @@ function drawShip(ctx, look, x, y, angle, opts = {}) {
     ctx.beginPath(); ctx.ellipse(L * 0.12, 0, L * 0.12, B * 0.28, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(160,240,255,0.6)';
     ctx.beginPath(); ctx.ellipse(L * 0.15, -B * 0.06, L * 0.06, B * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (hull === 'schooner' || hull === 'brig' || hull === 'galleon' || hull === 'manowar') {
+    // masts with their sails (seen from above: yards and canvas), guns along the sides
+    const masts = { schooner: 2, brig: 2, galleon: 3, manowar: 3 }[hull];
+    const guns = { schooner: 1, brig: 4, galleon: 6, manowar: 10 }[hull];
+    ctx.fillStyle = '#1a1a1e';
+    for (let i = 0; i < guns; i++) { const x = -L * 0.35 + (i * L * 0.7) / Math.max(1, guns - 1); ctx.fillRect(x - 1.5, -B / 2 - 2, 3, 3); ctx.fillRect(x - 1.5, B / 2 - 1, 3, 3); }
+    for (let i = 0; i < masts; i++) {
+      const x = L * 0.25 - (i * L * 0.5) / Math.max(1, masts - 1);
+      const sway = Math.sin(t * 1.1 + i) * 1.2;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.ellipse(x + 3, sway + 4, L * 0.06, B * 0.75, 0, 0, Math.PI * 2); ctx.fill(); // sail shadow
+      ctx.fillStyle = hull === 'manowar' ? '#f2ecdc' : '#efe6d0';
+      ctx.beginPath(); ctx.ellipse(x, sway, L * 0.06, B * 0.72, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6a4a2a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, -B * 0.75 + sway); ctx.lineTo(x, B * 0.75 + sway); ctx.stroke(); // the yard
+      ctx.fillStyle = '#4a3220';
+      ctx.beginPath(); ctx.arc(x, 0, 2, 0, Math.PI * 2); ctx.fill(); // the mast
+    }
+    if (hull === 'galleon' || hull === 'manowar') { ctx.fillStyle = trim; ctx.fillRect(-L / 2 + 3, -B * 0.3, L * 0.1, B * 0.6); } // the stern castle
+  } else if (hull === 'warship' || hull === 'battleship') {
+    // turrets fore and aft, a superstructure, a mast
+    const turret = (x, r) => {
+      ctx.fillStyle = shade(color, -25);
+      ctx.beginPath(); ctx.arc(x, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(x, -1.5 * (r / 5), r * 1.8, 3 * (r / 5));
+    };
+    const big = hull === 'battleship';
+    turret(L * 0.28, big ? 8 : 5);
+    if (big) turret(L * 0.14, 8);
+    turret(-L * 0.3, big ? 8 : 4);
+    ctx.fillStyle = shade(color, 18);
+    ctx.fillRect(-L * 0.18, -B * 0.32, L * 0.26, B * 0.64);
+    ctx.fillStyle = '#2a3440';
+    ctx.fillRect(L * 0.04, -B * 0.24, 2.5, B * 0.48);
+    ctx.fillStyle = trim;
+    ctx.beginPath(); ctx.arc(-L * 0.04, 0, B * 0.14, 0, Math.PI * 2); ctx.fill(); // radar
+  } else if (hull === 'skiff') {
+    ctx.fillStyle = '#1a1a1e';
+    ctx.fillRect(-L * 0.25, -B * 0.25, L * 0.2, B * 0.5); // the outboard
+    ctx.fillStyle = '#f2f0ea';
+    ctx.fillRect(-L * 0.02, -B * 0.2, L * 0.16, B * 0.4);
+    ctx.fillStyle = '#3a3a40';
+    ctx.fillRect(L * 0.2, -1, L * 0.18, 2); // the gun
   } else if (hull === 'runner') {
     ctx.fillStyle = '#f2f0ea';
     ctx.fillRect(-L * 0.05, -B * 0.24, L * 0.22, B * 0.48);
@@ -29620,7 +30352,9 @@ function terminalScreen(ui, body, opts, go) {
         const Lg = g.logistics;
         const fleet = Lg.owned ? Lg.vessels().filter((v) => v.kind === 'cargo') : [];
         const own = ship.vessel ? Lg.vessel(ship.vessel) : null;
-        const q = own ? Lg.armsQuote(own.id, o.country, o.qty) : null;
+        const escorts = (ship.escorts || []).filter((id) => Lg.vessel(id));
+        const q = own ? Lg.armsQuote(own.id, o.country, o.qty, { escorts, guards: Boolean(ship.guards), value }) : null;
+        const free = own ? Lg.vessels().filter((w) => w.kind === 'warship' && w.status === 'docked' && w.port === Lg.L.armsPort && Lg.stats(w).tags.includes('escort')) : [];
         const sh = own ? null : cfg.shippers[ship.shipper];
         const fee = own ? q.cost : M.fee(ship.shipper, value, ship.insured);
         const pick = h('select', { onchange: (e) => (e.target.value.startsWith('v:') ? upd({ vessel: e.target.value.slice(2), shipper: null, insured: false }) : upd({ shipper: e.target.value, vessel: null })) },
@@ -29631,12 +30365,16 @@ function terminalScreen(ui, body, opts, go) {
           }))] : []));
         const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
           h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' }, pick,
-            own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
-          h('div', { class: 'os-dim' }, own ? `YOUR ${Lg.model(own.model).name.toUpperCase()} TO ${Lg.port(q.to)?.name.toUpperCase() || '—'} · ${q.km.toLocaleString()} KM · RUNNING COSTS ${q.opex} + PORT FEES ${q.fees}. ${q.ok ? '' : `CAN'T: ${q.reasons.join('; ').toUpperCase()}.`}` : sh.blurb),
+            own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : null,
+            own ? h('label', {}, h('input', { type: 'checkbox', checked: Boolean(ship.guards), onchange: (e) => upd({ guards: e.target.checked }) }), ' HIRE GUARDS') : null,
+            ...free.map((w) => h('label', {}, h('input', { type: 'checkbox', checked: escorts.includes(w.id), onchange: (e) => upd({ escorts: e.target.checked ? [...escorts, w.id] : escorts.filter((x) => x !== w.id) }) }), ` ESCORT: ${w.name.toUpperCase()}`)),
+            own ? null : h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
+          h('div', { class: 'os-dim' }, own ? `YOUR ${Lg.model(own.model).name.toUpperCase()} TO ${Lg.port(q.to)?.name.toUpperCase() || '—'} · ${q.km.toLocaleString()} KM · RUNNING COSTS ${q.opex} + PORT FEES ${q.fees}${q.escortCost ? ` + ESCORTS ${q.escortCost}` : ''}${q.services ? ` + GUARDS ${q.services}` : ''}. ${q.ok ? '' : `CAN'T: ${q.reasons.join('; ').toUpperCase()}.`}` : sh.blurb),
+          own && q.risk ? h('div', { class: q.risk.category === 'low' ? 'os-dim' : 'os-msg' }, `PIRACY RISK ${q.risk.category.toUpperCase()} (${(q.risk.chance * 100).toFixed(1)}%) · WORST CASE: ${({ repelled: 'NONE', delay: 'A DELAY', ransom: 'A RANSOM', cargo: 'CARGO SEIZED', captured: 'SHIP CAPTURED' })[q.risk.worst]}${q.risk.exposure.names.length ? ` · VIA ${q.risk.exposure.names.join(', ').toUpperCase()}` : ''}`) : null,
           h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
           h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
             have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
-              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null });
+              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null, escorts, guards: Boolean(ship.guards) });
               ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
               go('Market', { msg: res.text, country: focus });
             }, own && !q.ok ? 'small' : 'small primary')));
@@ -29676,9 +30414,13 @@ const { h } = __m["src/ui/panels.js"];
 const { buildLand, wrapLon } = __m["src/world/globe.js"];
 const { drawShip } = __m["src/engine/drawShips.js"];
 
-const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Brokerage', 'Finances', 'Reports'];
-const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', lost: 'Lost', retired: 'Retired' };
-const CSTATUS = { available: 'Offered', accepted: 'Accepted', loading: 'Loading', transit: 'In transit', delivered: 'Delivered', failed: 'Failed', expired: 'Expired', lost: 'Lost' };
+const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Missions', 'Brokerage', 'Warships', 'Finances', 'Reports'];
+const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', mission: 'On a mission', lost: 'Lost', retired: 'Retired' };
+const OUTCOME = { repelled: 'pirates driven off', delay: 'a chase and a delay', ransom: 'a ransom', cargo: 'the cargo seized', captured: 'the ship captured' };
+const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
+/** A one-line risk summary for a quote. */
+const riskLine = (r) => (r ? `risk ${r.category} (${pct(r.chance)}) · worst case: ${OUTCOME[r.worst]}${r.exposure.names.length ? ` · through ${r.exposure.names.join(', ')}` : ''}` : '');
+const CSTATUS = { available: 'Offered', accepted: 'Accepted', loading: 'Loading', transit: 'In transit', delivered: 'Delivered', failed: 'Failed', expired: 'Expired', lost: 'Lost to pirates' };
 const num = (n) => Math.round(n).toLocaleString();
 const hrs = (h0) => (h0 >= 36 ? `${(h0 / 24).toFixed(1)} d` : `${Math.round(h0)} h`);
 let LAND = null;
@@ -29718,6 +30460,17 @@ function drawChart(ctx, g, view) {
   for (const p of LAND) {
     ctx.fillStyle = p.country && cs[p.country] ? `${cs[p.country].color}66` : '#d6cfbc';
     ctx.fillRect(X(p.lon) - 3.2, Y(p.lat) - 3.2, 6.6, 6.6);
+  }
+  // dangerous water: pirate waters, war zones, blockades (dashed when your missions have it suppressed)
+  for (const z of Lg.zones()) {
+    const r = (z.radius / 111) * (CW / 360);
+    ctx.fillStyle = z.war ? 'rgba(200,60,40,0.12)' : z.embargo ? 'rgba(160,60,160,0.1)' : `rgba(200,40,40,${0.06 + z.danger * 0.14})`;
+    ctx.strokeStyle = z.war ? 'rgba(200,60,40,0.55)' : z.embargo ? 'rgba(160,60,160,0.5)' : 'rgba(180,30,30,0.6)';
+    ctx.setLineDash(Lg.state.suppressed?.[z.id] > g.clock.total ? [4, 4] : []);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(X(z.lon), Y(z.lat), r / Math.max(0.35, Math.cos(z.lat * Math.PI / 180)), r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    view.hits.push({ x: X(z.lon), y: Y(z.lat), r: 9, kind: 'zone', id: z.id, zone: z });
   }
   // routes of ships at sea
   const poly = (pts, color, dash) => {
@@ -29767,7 +30520,7 @@ function drawChart(ctx, g, view) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(ang);
-    ctx.fillStyle = v.voyage?.events?.some((e) => e.done && g.clock.total - e.at < e.hours * 60) ? '#c0402a' : '#1e5aa0';
+    ctx.fillStyle = v.kind === 'warship' ? '#2a3440' : v.voyage?.events?.some((e) => e.done && g.clock.total - e.at < e.hours * 60) ? '#c0402a' : '#1e5aa0';
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-5, -4.5); ctx.lineTo(-3, 0); ctx.lineTo(-5, 4.5); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -29785,6 +30538,11 @@ function drawChart(ctx, g, view) {
 
 function chartTip(g, hit) {
   const Lg = g.logistics;
+  if (hit.kind === 'zone') {
+    const z = hit.zone;
+    const sup = Lg.state.suppressed?.[z.id] > g.clock.total;
+    return [`⚠ ${z.name[0].toUpperCase()}${z.name.slice(1)}`, `danger ${Math.round(z.danger * 100)}%${sup ? ' (suppressed by your patrols)' : ''}`, z.war ? 'A war zone (the arms market\'s wars).' : z.embargo ? 'A blockade round an embargoed country.' : (Lg.cfg.pirateWaters[z.id]?.blurb || '')];
+  }
   if (hit.kind === 'port') {
     const p = Lg.cfg.ports[hit.id];
     const pt = Lg.cfg.portTypes[p.type];
@@ -29794,7 +30552,9 @@ function chartTip(g, hit) {
   }
   const v = Lg.vessel(hit.id);
   const m = Lg.model(v.model);
-  const out = [`${v.name} — ${m.name}`, `${STATUS[v.status]}${v.port ? ` at ${Lg.port(v.port).name}` : ''} · condition ${Math.round(v.condition)}%`];
+  const out = [`${v.name} — ${m.name}`, `${STATUS[v.status]}${v.port ? ` ${v.status === 'mission' ? 'off' : 'at'} ${Lg.port(v.port).name}` : ''} · condition ${Math.round(v.condition)}%`];
+  if (v.status === 'mission') { const ms = Lg.missions.get(v.mission); if (ms) out.push(`${Lg.cfg.missionTypes[ms.type].name} — back ${Lg.when(ms.end)}`); }
+  if (v.voyage?.escortOf) out.push(`Escorting the ${Lg.vessel(v.voyage.escortOf)?.name}`);
   if (v.status === 'underway') {
     const V = v.voyage;
     const pos = Lg.position(v);
@@ -29804,6 +30564,7 @@ function chartTip(g, hit) {
     if (v.cargo?.type === 'arms') out.push(`Cargo: ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}`);
     const late = c && V.arrive > c.deadline;
     if (late) out.push('⚠ Running late for the deadline');
+    for (const i of V.incidents || []) out.push(`🏴 ${i.text.replace(/^🏴\s*/, '')}`);
   }
   return out;
 }
@@ -29829,7 +30590,7 @@ function logisticsPanel(ui, body, opts) {
   const tab = LOGI_TABS.includes(opts.tab) ? opts.tab : 'Overview';
   const S = Lg.state;
   if (S.arrears) body.append(h('div', { class: 'logi-msg bad' }, `⚠ ${num(S.arrears)} obols of upkeep in arrears — your ships are held in port. `, h('button', { class: 'small', onclick: () => act(Lg.payArrears()) }, 'Pay now')));
-  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Brokerage: brokerage, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
+  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Missions: missions, Brokerage: brokerage, Warships: warships, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
   return {
     title: 'Ober & Sons Maritime — Fleet Operations', className: 'logistics', onClose: opts.onClose,
     tabs: LOGI_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go({ tab: t, sel: null }) })),
@@ -29952,7 +30713,9 @@ function vesselDetail(ui, v, opts, go, act) {
       h('tr', {}, h('th', {}, 'Reliability'), h('td', {}, `${Math.round(st.reliability * 100)}%`)),
       h('tr', {}, h('th', {}, 'Costs'), h('td', {}, `${st.opex}/day at sea · ${st.upkeep}/day in port`)),
       h('tr', {}, h('th', {}, 'Condition'), h('td', {}, `${Math.round(v.condition)}% · ${num(v.sailedKm)} km sailed`)),
-      h('tr', {}, h('th', {}, 'Abilities'), h('td', {}, st.tags.length ? st.tags.join(', ') : '—'))));
+      h('tr', {}, h('th', {}, 'Abilities'), h('td', {}, st.tags.length ? st.tags.join(', ') : '—')),
+      h('tr', {}, h('th', {}, 'Combat'), h('td', {}, `attack ${st.combat.attack} · defence ${st.combat.defense} · detection ${st.combat.detection} · stealth ${st.combat.stealth}${st.combat.mounts ? ` · ${st.combat.mounts} mounts` : ''}`)),
+      st.bonuses.length ? h('tr', {}, h('th', {}, 'Fleet bonus'), h('td', {}, st.bonuses.map((b) => `${Lg.cfg.bonuses[b].name}: ${Lg.cfg.bonuses[b].text}`).join(' '))) : null));
   const vis = h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: v.visible, onchange: (e) => act(Lg.setVisible(v.id, e.target.checked), { sel: v.id }) }), ' Show at the Yards berths (when its port is on a berth)');
   card.append(vis);
   if (v.status === 'docked') {
@@ -30023,62 +30786,134 @@ function contracts(ui, body, opts, go, act) {
         h('div', { class: 'grow' },
           h('b', {}, `${T.name} — ${c.units} units`), h('span', { class: 'muted' }, ` for ${C.clients[c.client].name}`), h('br'),
           `${Lg.port(c.from).name} → ${Lg.port(c.to).name} · ${num(c.km)} km · pays ${num(c.pay)}${T.earlyBonus ? ` (+${Math.round(T.earlyBonus * 100)}% if early)` : ''} · deliver by ${Lg.when(c.deadline)}`,
-          T.needs ? h('span', { class: 'logi-tag' }, `needs ${T.needs}`) : null, h('span', { class: `logi-tag risk-${T.risk}` }, `risk ${T.risk}`),
-          c.result ? h('div', { class: 'muted' }, c.result.paid ? `Paid ${num(c.result.paid)}${c.result.late ? ' (late)' : ''}` : `Penalty ${num(c.result.penalty || 0)} — ${c.result.note}`) : null,
+          T.needs ? h('span', { class: 'logi-tag' }, `needs ${T.needs}`) : null, routeRiskTag(Lg, c),
+          c.result ? h('div', { class: 'muted' }, c.result.paid ? `Paid ${num(c.result.paid)}${c.result.late ? ' (late)' : ''}` : c.result.insurance ? `Lost (${c.result.note}) — insurance paid ${num(c.result.insurance)}` : `Penalty ${num(c.result.penalty || 0)} — ${c.result.note}`) : null,
           c.vessel ? h('div', { class: 'muted' }, `Ship: ${Lg.vessel(c.vessel)?.name}${c.arrive ? ` · ETA ${Lg.when(Lg.vessel(c.vessel)?.voyage?.arrive || c.arrive)}` : ''}`) : null),
         h('div', { class: 'logi-actions' }, ...actions(c)));
       card.append(row);
-      if (c.id === opts.sel && ['available', 'accepted'].includes(c.status)) card.append(assignBox(ui, c, act));
+      if (c.id === opts.sel && ['available', 'accepted'].includes(c.status)) card.append(assignBox(ui, c, act, opts, go));
     }
     body.append(card);
   };
   show('On offer', Lg.contracts('available'), (c) => [h('button', { class: 'small primary', onclick: () => go({ tab: 'Contracts', sel: c.id }) }, 'Choose a ship…'), h('button', { class: 'small', onclick: () => act(Lg.accept(c.id), { tab: 'Contracts' }) }, 'Accept')]);
   show('Accepted — awaiting a ship', Lg.contracts('accepted'), (c) => [h('button', { class: 'small primary', onclick: () => go({ tab: 'Contracts', sel: c.id }) }, 'Assign a ship…'), h('button', { class: 'small', onclick: () => act(Lg.abandon(c.id), { tab: 'Contracts' }) }, 'Cancel')]);
   show('Under way', Lg.contracts(['loading', 'transit']), () => []);
-  show('Finished', Lg.contracts(['delivered', 'failed']).slice(-8).reverse(), () => []);
+  show('Finished', Lg.contracts(['delivered', 'failed', 'lost']).slice(-8).reverse(), () => []);
 }
 
-function assignBox(ui, c, act) {
+/** The route's piracy risk for an ordinary unescorted cargo ship (the actual ship's risk is in the assign box). */
+function routeRiskTag(Lg, c) {
+  const probe = { model: Lg.L.starterShip.model, status: 'docked', condition: 100 };
+  const r = Lg.voyageRisk(probe, c.from, c.to, { cargo: c.type, value: c.pay });
+  const cls = r.category === 'low' ? 'risk-low' : r.category === 'moderate' ? 'risk-medium' : 'risk-high';
+  return h('span', { class: `logi-tag ${cls}`, title: r.exposure.names.length ? `Through ${r.exposure.names.join(', ')}` : 'Safe water' }, `route risk ${r.category} (${pct(r.chance)})`);
+}
+
+function assignBox(ui, c, act, opts, go) {
   const g = ui.game;
   const Lg = g.logistics;
-  const box = h('div', { class: 'logi-assign' }, h('b', {}, 'Ships'));
+  const esc = (opts.esc || []).filter((id) => Lg.vessel(id));
+  const svc = { escorts: esc, guards: Boolean(opts.guards), insure: Boolean(opts.insure) };
+  const R = Lg.cfg.risk;
+  const set = (patch) => go({ tab: 'Contracts', sel: c.id, esc, guards: svc.guards, insure: svc.insure, ...patch });
+  const warships = Lg.vessels().filter((v) => v.kind === 'warship' && v.status === 'docked' && v.port === c.from && Lg.stats(v).tags.includes('escort'));
+  const box = h('div', { class: 'logi-assign' },
+    h('div', { class: 'row logi-filters' },
+      h('b', {}, 'Protection:'),
+      h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: svc.guards, onchange: (e) => set({ guards: e.target.checked }) }), ` Hire guards (+${R.guards.defense} defence, ${num(Math.max(R.guards.min, c.pay * R.guards.costShare))})`),
+      h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: svc.insure, onchange: (e) => set({ insure: e.target.checked }) }), ` Insure the cargo (${num(c.pay * R.insurance.rate)}; pays ${Math.round(R.insurance.payout * 100)}% if it's lost)`)),
+    warships.length ? h('div', { class: 'row logi-filters' }, h('b', {}, 'Escorts:'), ...warships.map((w) => h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: esc.includes(w.id), onchange: (e) => set({ esc: e.target.checked ? [...esc, w.id] : esc.filter((x) => x !== w.id) }) }), ` ${w.name} (${Lg.model(w.model).name})`))) : h('div', { class: 'muted' }, 'No warships free at this port to escort.'),
+    h('b', {}, 'Ships'));
   for (const v of Lg.vessels()) {
-    const q = Lg.quote(c.id, v.id);
+    if (v.kind === 'warship' && !Lg.stats(v).capacity) continue;
+    if (esc.includes(v.id)) continue;
+    const q = Lg.quote(c.id, v.id, svc);
     box.append(h('div', { class: 'logi-line' },
-      h('span', { class: 'grow' }, h('b', {}, v.name), ` — `, q.ok ? `arrives ${Lg.when(q.arrive)} ${q.onTime ? '✓ on time' : '⚠ late'} · costs ${num(q.cost)} · profit ${num(q.profit)}` : h('span', { class: 'muted' }, q.reasons.join('; '))),
-      h('button', { class: 'small primary', disabled: !q.ok, onclick: () => { if (c.status === 'available') Lg.accept(c.id); act(Lg.assign(c.id, v.id), { tab: 'Contracts' }); } }, 'Assign')));
+      h('span', { class: 'grow' }, h('b', {}, v.name), ' — ', q.ok ? `arrives ${Lg.when(q.arrive)} ${q.onTime ? '✓ on time' : '⚠ late'} · costs ${num(q.cost)} · profit ${num(q.profit)} · ${riskLine(q.risk)}` : h('span', { class: 'muted' }, q.reasons.join('; '))),
+      h('button', { class: 'small primary', disabled: !q.ok, onclick: () => { if (c.status === 'available') Lg.accept(c.id); act(Lg.assign(c.id, v.id, svc), { tab: 'Contracts', esc: [], guards: false, insure: false }); } }, 'Assign')));
   }
   return box;
 }
 
 function brokerage(ui, body, opts, go, act) {
+  const C = ui.game.logistics.cfg;
+  catalogue(ui, body, opts, go, act, { tab: 'Brokerage', title: 'Halver Marine Brokers — cargo ships', list: C.dealership, classes: C.classes });
+}
+
+function warships(ui, body, opts, go, act) {
+  const C = ui.game.logistics.cfg;
+  body.append(h('p', { class: 'muted' }, 'Kestrel Naval Surplus & Sons — "Previously owned by navies that no longer need them, or no longer exist." Warships escort your convoys, run missions and make your fleet safer. Most carry no cargo.'));
+  catalogue(ui, body, opts, go, act, { tab: 'Warships', title: 'Kestrel Naval Surplus — warships', list: C.warshipDealership, classes: C.warshipClasses });
+}
+
+function catalogue(ui, body, opts, go, act, { tab, title, list, classes }) {
   const g = ui.game;
   const Lg = g.logistics;
   const C = Lg.cfg;
-  const cls = opts.cls || 'all';
-  body.append(h('div', { class: 'row logi-filters' }, h('b', {}, 'Halver Marine Brokers — '), ...[['all', 'All'], ...Object.entries(C.classes).map(([k, c]) => [k, c.name])].map(([k, label]) => h('button', { class: `small${cls === k ? ' primary' : ''}`, onclick: () => go({ tab: 'Brokerage', cls: k }) }, label))));
-  const portSel = (mid) => {
-    const ok = Lg.ownedPorts().filter((id) => !Lg.berthCheck({ model: mid, status: 'docked' }, id));
-    return ok;
-  };
-  for (const id of C.dealership) {
+  const cls = opts.cls && classes[opts.cls] ? opts.cls : 'all';
+  body.append(h('div', { class: 'row logi-filters' }, h('b', {}, `${title} — `), ...[['all', 'All'], ...Object.entries(classes).map(([k, c]) => [k, c.name])].map(([k, label]) => h('button', { class: `small${cls === k ? ' primary' : ''}`, onclick: () => go({ tab, cls: k }) }, label))));
+  for (const id of list) {
     const m = C.ships[id];
     if (cls !== 'all' && m.cls !== cls) continue;
-    const k = C.classes[m.cls];
-    const ok = portSel(id);
+    const probe = { model: id, status: 'docked' };
+    const st = Lg.stats(probe);
+    const ok = Lg.ownedPorts().filter((pid) => !Lg.berthCheck(probe, pid));
     const where = h('select', { class: 'logi-input' }, ...ok.map((pid) => h('option', { value: pid }, Lg.port(pid).name)));
     const name = h('input', { class: 'logi-input', placeholder: 'Name her', maxlength: 28 });
     const can = g.player.money >= m.price && ok.length;
+    const needs = [].concat(st.needsPortType || []);
     body.append(h('div', { class: 'logi-card logi-broker' },
       shipCanvas(m.look, 220, 70),
       h('div', { class: 'grow' },
-        h('div', { class: 'row', style: 'justify-content:space-between' }, h('b', {}, `${m.name}`), h('span', { class: 'logi-price' }, `${num(m.price)} obols`)),
-        h('div', { class: 'muted' }, `${k.name} · size ${k.size}${k.needsPortType ? ` · berths only at ${C.portTypes[k.needsPortType].name.toLowerCase()}s` : ''}`),
+        h('div', { class: 'row', style: 'justify-content:space-between' }, h('b', {}, m.name), h('span', { class: 'logi-price' }, `${num(m.price)} obols`)),
+        h('div', { class: 'muted' }, `${Lg.className(m)} · size ${st.size}${needs.length ? ` · berths only at ${needs.map((t) => C.portTypes[t].name.toLowerCase()).join(' or ')}s` : ''}`),
         h('p', {}, m.blurb),
-        h('div', { class: 'logi-specs' }, `${m.capacity} units · ${m.speed} kn · ${num(m.range)} km · reliability ${Math.round(m.reliability * 100)}% · ${m.opex}/day at sea · ${m.upkeep}/day in port · ${k.slots} upgrade slot${k.slots === 1 ? '' : 's'}${m.tags.length ? ` · ${m.tags.join(', ')}` : ''}`),
+        h('div', { class: 'logi-specs' }, `${st.capacity ? `${st.capacity} units · ` : 'no cargo · '}${m.speed} kn · ${num(m.range)} km · reliability ${Math.round(m.reliability * 100)}% · ${m.opex}/day at sea · ${m.upkeep}/day in port${C.classes[m.cls]?.slots ? ` · ${C.classes[m.cls].slots} upgrade slot${C.classes[m.cls].slots === 1 ? '' : 's'}` : ''}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`),
+        m.kind === 'warship' ? h('div', { class: 'logi-specs' }, `⚔ attack ${st.combat.attack} · defence ${st.combat.defense} · detection ${st.combat.detection} · stealth ${st.combat.stealth} · ${st.combat.mounts} mounts${st.bonuses.length ? ` · ★ ${st.bonuses.map((b) => C.bonuses[b].name).join(', ')}` : ''}`) : null,
         h('div', { class: 'row' }, name, ok.length ? where : h('span', { class: 'muted' }, 'None of your ports can berth it.'),
-          h('button', { class: 'small primary', disabled: !can, onclick: () => act(Lg.buyShip(id, where.value, name.value), { tab: 'Brokerage', cls }) }, 'Buy')))));
+          h('button', { class: 'small primary', disabled: !can, onclick: () => act(Lg.buyShip(id, where.value, name.value), { tab, cls }) }, 'Buy')))));
   }
+}
+
+function missions(ui, body, opts, go, act) {
+  const g = ui.game;
+  const Lg = g.logistics;
+  const M = Lg.missions;
+  const T = Lg.cfg.missionTypes;
+  const sel = (opts.ships || []).filter((id) => Lg.vessel(id));
+  const card = (title) => { const c = h('div', { class: 'logi-card' }, h('h3', {}, title)); body.append(c); return c; };
+  const offered = card('On offer');
+  if (!M.list('available').length) offered.append(h('p', { class: 'muted' }, 'None today. Each of your ports offers a mission a day.'));
+  for (const m of M.list('available')) {
+    const t = T[m.type];
+    const need = t.needs || {};
+    const z = m.zone ? Lg.cfg.pirateWaters[m.zone] : null;
+    const open = opts.sel === m.id;
+    const row = h('div', { class: `logi-contract${open ? ' sel' : ''}` },
+      h('div', { class: 'grow' },
+        h('b', {}, `${t.name}`), h('span', { class: 'muted' }, ` for ${t.client} · from ${Lg.port(m.port).name}`), h('br'),
+        `${t.text} ${m.type === 'deterrence' && z ? `Target: ${z.name}.` : ''}`, h('br'),
+        `${m.hours} h on station · reward ${num(m.reward)} · difficulty ${Math.round(m.difficulty * 100)}`,
+        h('span', { class: 'logi-tag' }, `uses ${Object.keys(t.weights).join(' + ')}`),
+        need.tag ? h('span', { class: 'logi-tag' }, `needs ${need.tag}`) : null, need.minSpeed ? h('span', { class: 'logi-tag' }, `needs ${need.minSpeed}+ kn`) : null, need.capacity ? h('span', { class: 'logi-tag' }, `needs ${need.capacity}+ units aboard`) : null),
+      h('div', { class: 'logi-actions' }, h('button', { class: 'small primary', onclick: () => go({ tab: 'Missions', sel: open ? null : m.id, ships: [] }) }, open ? 'Close' : 'Choose ships…')));
+    offered.append(row);
+    if (open) {
+      const here = Lg.vessels().filter((v) => v.status === 'docked' && v.port === m.port);
+      const q = M.quote(m.id, sel);
+      offered.append(h('div', { class: 'logi-assign' },
+        here.length ? h('div', { class: 'row logi-filters' }, ...here.map((v) => h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: sel.includes(v.id), onchange: (e) => go({ tab: 'Missions', sel: m.id, ships: e.target.checked ? [...sel, v.id] : sel.filter((x) => x !== v.id) }) }), ` ${v.name} (${Lg.model(v.model).name}, ${Math.round(v.condition)}%)`))) : h('p', { class: 'muted' }, `None of your ships is in port at ${Lg.port(m.port).name}.`),
+        sel.length ? h('div', {}, q.ok ? `Estimate: ${q.category} (about ${Math.round(q.chance * 100)}%) · fitness ${q.score}/100 · running costs ${num(q.cost)}` : h('span', { class: 'muted' }, q.reasons.join('; '))) : null,
+        h('button', { class: 'small primary', disabled: !q.ok, onclick: () => act(M.start(m.id, sel), { tab: 'Missions', sel: null, ships: [] }) }, 'Send them')));
+    }
+  }
+  const active = card('Under way');
+  if (!M.list('active').length) active.append(h('p', { class: 'muted' }, 'None.'));
+  for (const m of M.list('active')) active.append(h('div', { class: 'logi-line' }, `${T[m.type].name} from ${Lg.port(m.port).name} — ${m.vessels.map((id) => Lg.vessel(id)?.name).join(', ')} · back ${Lg.when(m.end)}`));
+  const done = card('Finished');
+  const fin = M.list(['success', 'partial', 'failed']).slice(-8).reverse();
+  if (!fin.length) done.append(h('p', { class: 'muted' }, 'None yet.'));
+  for (const m of fin) done.append(h('div', { class: 'logi-line' }, `${T[m.type].name} from ${Lg.port(m.port).name} — ${m.status}${m.paid ? ` · ${num(m.paid)} obols` : ''}`));
 }
 
 function finances(ui, body) {

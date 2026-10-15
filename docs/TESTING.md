@@ -40,6 +40,13 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.23.0 (2026-10-15)
+
+- `npm run check` — **283/283 tests passed** (10 new in `naval.test.mjs`); validator 0 errors (now including the logistics registries).
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Simulated (node): unescorted risk from Mill Road — Sund and Lirre 0.8% (worst: a delay), Coup Cove 18% through the Pallas blockade and Reach (worst: captured), Varn 10% through its war zone; a frigate escort cut Coup Cove to 13% (worst: cargo) and added Fleet communications; mission estimates spread by ship type (a distress call ~95% for a frigate; a deterrence sweep ~20% for a frigate, ~70% for a battleship).
+- Browser (headless Chromium): the Warships page with sail ships drawn under canvas; a contract's assign box with guards, insurance and escort choices and the risk line ("risk high (13%) · worst case: the cargo seized · through the Free State of Pallas blockade, the Pallas Reach"); the chart with pirate waters, war zones and the convoy; the Missions page with an estimate ("even odds (about 41%) · fitness 27/100"); the schooner and galleon at their Yards berth. Fixed from the runs: contract rows showed a fixed "risk low" label regardless of route (now the route's actual risk). No page errors.
+
 ## Verification record — v0.22.0 (2026-10-15)
 
 - `npm run check` — **273/273 tests passed** (4 new own-fleet export tests in `logistics.test.mjs`); validator 0 errors.

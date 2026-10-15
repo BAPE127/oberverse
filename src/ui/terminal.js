@@ -625,7 +625,9 @@ export function terminalScreen(ui, body, opts, go) {
         const Lg = g.logistics;
         const fleet = Lg.owned ? Lg.vessels().filter((v) => v.kind === 'cargo') : [];
         const own = ship.vessel ? Lg.vessel(ship.vessel) : null;
-        const q = own ? Lg.armsQuote(own.id, o.country, o.qty) : null;
+        const escorts = (ship.escorts || []).filter((id) => Lg.vessel(id));
+        const q = own ? Lg.armsQuote(own.id, o.country, o.qty, { escorts, guards: Boolean(ship.guards), value }) : null;
+        const free = own ? Lg.vessels().filter((w) => w.kind === 'warship' && w.status === 'docked' && w.port === Lg.L.armsPort && Lg.stats(w).tags.includes('escort')) : [];
         const sh = own ? null : cfg.shippers[ship.shipper];
         const fee = own ? q.cost : M.fee(ship.shipper, value, ship.insured);
         const pick = h('select', { onchange: (e) => (e.target.value.startsWith('v:') ? upd({ vessel: e.target.value.slice(2), shipper: null, insured: false }) : upd({ shipper: e.target.value, vessel: null })) },
@@ -636,12 +638,16 @@ export function terminalScreen(ui, body, opts, go) {
           }))] : []));
         const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
           h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' }, pick,
-            own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
-          h('div', { class: 'os-dim' }, own ? `YOUR ${Lg.model(own.model).name.toUpperCase()} TO ${Lg.port(q.to)?.name.toUpperCase() || '—'} · ${q.km.toLocaleString()} KM · RUNNING COSTS ${q.opex} + PORT FEES ${q.fees}. ${q.ok ? '' : `CAN'T: ${q.reasons.join('; ').toUpperCase()}.`}` : sh.blurb),
+            own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : null,
+            own ? h('label', {}, h('input', { type: 'checkbox', checked: Boolean(ship.guards), onchange: (e) => upd({ guards: e.target.checked }) }), ' HIRE GUARDS') : null,
+            ...free.map((w) => h('label', {}, h('input', { type: 'checkbox', checked: escorts.includes(w.id), onchange: (e) => upd({ escorts: e.target.checked ? [...escorts, w.id] : escorts.filter((x) => x !== w.id) }) }), ` ESCORT: ${w.name.toUpperCase()}`)),
+            own ? null : h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
+          h('div', { class: 'os-dim' }, own ? `YOUR ${Lg.model(own.model).name.toUpperCase()} TO ${Lg.port(q.to)?.name.toUpperCase() || '—'} · ${q.km.toLocaleString()} KM · RUNNING COSTS ${q.opex} + PORT FEES ${q.fees}${q.escortCost ? ` + ESCORTS ${q.escortCost}` : ''}${q.services ? ` + GUARDS ${q.services}` : ''}. ${q.ok ? '' : `CAN'T: ${q.reasons.join('; ').toUpperCase()}.`}` : sh.blurb),
+          own && q.risk ? h('div', { class: q.risk.category === 'low' ? 'os-dim' : 'os-msg' }, `PIRACY RISK ${q.risk.category.toUpperCase()} (${(q.risk.chance * 100).toFixed(1)}%) · WORST CASE: ${({ repelled: 'NONE', delay: 'A DELAY', ransom: 'A RANSOM', cargo: 'CARGO SEIZED', captured: 'SHIP CAPTURED' })[q.risk.worst]}${q.risk.exposure.names.length ? ` · VIA ${q.risk.exposure.names.join(', ').toUpperCase()}` : ''}`) : null,
           h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
           h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
             have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
-              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null });
+              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null, escorts, guards: Boolean(ship.guards) });
               ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
               go('Market', { msg: res.text, country: focus });
             }, own && !q.ok ? 'small' : 'small primary')));

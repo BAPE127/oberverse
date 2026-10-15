@@ -35,6 +35,31 @@ On an arms works terminal's Market tab, FILL an order and pick **⚓ one of your
 
 The arms terminal shows your ships too: the contact list (⚓ name, ETA), the shipment on the globe along its real sea lane, and your other Ober & Sons voyages in cyan.
 
+## Piracy and dangerous routes (v0.23.0)
+
+`src/systems/piracy.js` (pure) + `Logistics.voyageRisk`. Danger comes from the world as it is, not a second geopolitics:
+
+- **Pirate waters** (`PIRATE_WATERS`): the Pallas Reach, the Kestrel Narrows, Marrow Strait, the Morrow Shoals, the Sunmouth Approaches, the Meridian Gap — each with a radius and a danger 0–1;
+- **war zones** round the main port of every country at war in the arms market (danger 0.6), and **blockades** round embargoed countries (0.4) — so a new war makes its waters dangerous, and a ceasefire makes them safe again.
+
+**Chance of trouble** on a voyage = 0.8% + 9% per 1,000 danger-weighted km, × cargo (arms ×1.3, high-value ×1.4, specialised ×1.2, an empty hull ×0.6), × √(15 ÷ speed), × (1 − stealth/200), × (1 − escort strength), × bonuses (fleet support −15%, Aegis −10%, a protected port −30%) — capped at 85%. Categories: low (<3%), moderate (<10%), high (<25%), extreme. The quote shows the chance, the category, the worst case and the waters crossed.
+
+**The worst case is limited by the most dangerous water on the route**: below danger 0.2 (all home and most commercial water) nothing worse than a delay can happen; below 0.5, nothing worse than losing the cargo; only in the worst water can a ship be **captured**, and **never** while escorted. The first offer at each port each day always keeps to safe water.
+
+**If pirates strike** (rolled once, at departure, stored as a voyage event): pirate strength 30 + danger × 80 + up to 30, against your defence (the ship's, + escorts' attack × 0.6 + defence × 0.4, + guards 25, + bonuses). Margin > 20: **repelled**; > 0: **chased** (6–24 h delay, light damage); > −20: **ransom** (5% of the cargo's value, at least 1,500; unpaid ransom becomes arrears); > −40: **cargo seized** (the ship sails on); worse: **captured** (the ship is lost). A lost contract cargo fails (penalty) unless you **insured** it (6% of the pay; pays 60%); a lost arms cargo settles as *hijacked* through the market, once.
+
+**Protection you can buy per voyage**: **guards** (+25 defence; 3% of the cargo value, at least 200), **cargo insurance** (contracts only), and **escorts** — warships docked at the same port that sail with the convoy at its slowest ship's speed, share its delays and fight beside it (their running costs are part of the quote).
+
+## Warships, missions and fleet bonuses (v0.23.0)
+
+Warships come from **Kestrel Naval Surplus** (the Warships page; see [SHIPS.md](SHIPS.md)). They escort convoys and take **missions** (`src/systems/missions.js`), offered one a day at each of your ports: coastal patrol, piracy deterrence, convoy escort for hire, distress response, port protection, reconnaissance, special transport. Pick up to three ships docked at that port; the terminal shows an **estimate** (very likely … very risky) from a fitness score on the mission's own weighted stats (a battleship is a poor scout, a skiff a poor bodyguard) against its difficulty. Running costs are paid on departure; the outcome is rolled then and stored; the ships go **on station** (status `mission`) for the mission's hours and come back to the same port: success pays the reward, a partial success half, failure nothing and heavier damage. A successful **deterrence** sweep halves its pirate water's danger for 5 days (`suppressed`); **port protection** cuts trouble for voyages leaving that port by 30% for 4 days (`protected`).
+
+**Fleet bonuses** (`BONUSES`) come from ships' abilities, each applied once however many ships carry it: *Fleet communications* (frigate; fleet-wide: +15% escort strength), *Fleet support* (cruiser; voyages leaving the port where it's docked: −15% trouble), *Aegis network* (Aegis Bastion; fleet-wide: −10%), *Hazard sensors* (Starwatch Sentinel; the convoy it escorts: +15 defence).
+
+## Towards playable naval combat (future)
+
+Not in these updates. What's in place for it: one fleet (vessel records are the only ship state), one set of combat numbers per ship (`stats(v).combat`: attack, defence, detection, stealth, weapon mounts; plus condition), and encounters that are already discrete, stored voyage events (`{ kind: 'pirates', at, outcome, … }`) resolved at a known time. A future encounter screen would: offer the player the encounter when such an event comes due; build the scene from the participating vessels' saved stats and condition (and the convoy's escorts); return an outcome in the same vocabulary (`repelled | delay | ransom | cargo | captured`) plus damage; and hand it to the same handler (`Logistics.pirates`) that settles cargo, contracts and arms shipments exactly once. Declining, or a setting that turns encounters off, keeps today's abstract resolution. No separate combat database; no stats duplicated.
+
 ## Money, exactly once
 
 Every obol moves inside `Logistics` through `spend()`/`earn()`, which also keep the ledger (all-time totals and the last 30 days) shown on the Finances page. A contract pays only on the `transit → delivered` transition; a contract that isn't `transit` when its ship arrives pays nothing.
@@ -49,6 +74,5 @@ Quay Road runs along the south of Mill Road Yards with the **Ober & Sons Maritim
 
 ## Planned (later updates)
 
-- **v0.23** — piracy and route risk from the arms market's wars and embargoes; the warship dealership; escorts and naval missions.
 - **v0.24** — the shipyard (built by Mason's Os) and the custom shipbuilder.
 - Later still: playable naval encounters. Ship stats, components and condition live in the shared vessel record so an encounter can read and write them without a separate fleet database.

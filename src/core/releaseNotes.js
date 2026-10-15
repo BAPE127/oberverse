@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.23.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Here Be Pirates',
+    notes: [
+      'The sea has teeth now. Pirate waters, the arms market\'s war zones and its blockades make some routes dangerous: before every voyage you see the chance of trouble, the worst that could happen and the waters you\'d cross. Home waters stay safe — nothing worse than a delay — and the first contract each port offers always is.',
+      'Pirates might be driven off, chase you (a delay and some damage), demand a ransom, seize the cargo, or — in the worst water, alone — take the ship. Protect a voyage with hired guards, cargo insurance, or warship escorts that sail beside it.',
+      'Kestrel Naval Surplus sells twelve warships: schooner, brig, galleon and man-o\'-war under sail; patrol skiff, corvette, frigate, destroyer and cruiser; the battleship; and two futuristic ships, the Starwatch Sentinel and the Aegis Bastion. Some lend the whole fleet a bonus.',
+      'Naval missions: patrols, piracy deterrence, escorts for hire, distress calls, port protection, reconnaissance and special transport, offered at your ports. The right ship for the job matters more than the biggest. A successful sweep makes its waters safer for everyone.',
+      'The chart shows the dangerous waters; your warships and convoys show up on it too.',
+    ],
+  },
+  {
     version: '0.22.0',
     date: '2026-10-15',
     channel: 'development',

@@ -32,9 +32,11 @@ const doable = (g) => {
 test('content: required cargo classes, a valid catalogue, ports with real sea routes', () => {
   for (const k of ['low', 'medium', 'high', 'superhigh', 'futuristic']) assert.ok(C.classes[k], k);
   assert.ok(Object.keys(C.ships).length >= 10);
-  const prices = (cls) => Object.values(C.ships).filter((m) => m.cls === cls).map((m) => m.price);
+  const cargo = C.dealership.map((id) => C.ships[id]);
+  assert.ok(cargo.every((m) => m.kind === 'cargo'));
+  const prices = (cls) => cargo.filter((m) => m.cls === cls).map((m) => m.price);
   assert.ok(Math.min(...prices('futuristic')) > Math.max(...prices('superhigh')), 'futuristic is the most expensive');
-  for (const m of Object.values(C.ships)) for (const f of ['price', 'capacity', 'speed', 'range', 'reliability', 'opex', 'upkeep']) assert.ok(m[f] > 0, `${m.name} ${f}`);
+  for (const m of cargo) for (const f of ['price', 'capacity', 'speed', 'range', 'reliability', 'opex', 'upkeep']) assert.ok(m[f] > 0, `${m.name} ${f}`);
   assert.ok(Object.keys(C.ports).length > C.rules.maxPorts, 'more ports than the cap, so the cap matters');
   const cs = CONTENT.arms.countries;
   for (const [id, p] of Object.entries(C.ports)) {

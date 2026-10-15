@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.23.0 | 2026-10-15 | development | 1 | Here Be Pirates — piracy, warships, escorts, missions |
 | 0.22.0 | 2026-10-15 | development | 1 | Own Bottoms — your ships carry your arms exports; the fleet on the arms globe |
 | 0.21.0 | 2026-10-15 | development | 1 | Ober & Sons — Captain Ober, the Yards docks, a shipping company, ports, cargo ships, contracts |
 | 0.20.0 | 2026-10-15 | development | 1 | Streets — four-tile roads, a joined-up road network, traffic lights, pavements |
@@ -28,6 +29,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.23.0 — Here Be Pirates
+
+Piracy, warships, convoys and missions. Saves: `world.logistics` gains `missions`, `nextMission`, `lastMissionDay`, `suppressed`, `protected` (created on first use); vessels may be `mission`/`lost`; voyages may carry `pirates` events, `convoy`, `escortOf`, `incidents`. Older saves load unchanged. No migration needed.
 
 ## 0.22.0 — Own Bottoms
 

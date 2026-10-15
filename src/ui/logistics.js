@@ -9,9 +9,13 @@ import { h } from './panels.js';
 import { buildLand, wrapLon } from '../world/globe.js';
 import { drawShip } from '../engine/drawShips.js';
 
-export const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Brokerage', 'Finances', 'Reports'];
-const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', lost: 'Lost', retired: 'Retired' };
-const CSTATUS = { available: 'Offered', accepted: 'Accepted', loading: 'Loading', transit: 'In transit', delivered: 'Delivered', failed: 'Failed', expired: 'Expired', lost: 'Lost' };
+export const LOGI_TABS = ['Overview', 'Chart', 'Fleet', 'Ports', 'Contracts', 'Missions', 'Brokerage', 'Warships', 'Finances', 'Reports'];
+const STATUS = { docked: 'In port', loading: 'Loading', underway: 'At sea', mission: 'On a mission', lost: 'Lost', retired: 'Retired' };
+const OUTCOME = { repelled: 'pirates driven off', delay: 'a chase and a delay', ransom: 'a ransom', cargo: 'the cargo seized', captured: 'the ship captured' };
+const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
+/** A one-line risk summary for a quote. */
+const riskLine = (r) => (r ? `risk ${r.category} (${pct(r.chance)}) · worst case: ${OUTCOME[r.worst]}${r.exposure.names.length ? ` · through ${r.exposure.names.join(', ')}` : ''}` : '');
+const CSTATUS = { available: 'Offered', accepted: 'Accepted', loading: 'Loading', transit: 'In transit', delivered: 'Delivered', failed: 'Failed', expired: 'Expired', lost: 'Lost to pirates' };
 const num = (n) => Math.round(n).toLocaleString();
 const hrs = (h0) => (h0 >= 36 ? `${(h0 / 24).toFixed(1)} d` : `${Math.round(h0)} h`);
 let LAND = null;
@@ -51,6 +55,17 @@ function drawChart(ctx, g, view) {
   for (const p of LAND) {
     ctx.fillStyle = p.country && cs[p.country] ? `${cs[p.country].color}66` : '#d6cfbc';
     ctx.fillRect(X(p.lon) - 3.2, Y(p.lat) - 3.2, 6.6, 6.6);
+  }
+  // dangerous water: pirate waters, war zones, blockades (dashed when your missions have it suppressed)
+  for (const z of Lg.zones()) {
+    const r = (z.radius / 111) * (CW / 360);
+    ctx.fillStyle = z.war ? 'rgba(200,60,40,0.12)' : z.embargo ? 'rgba(160,60,160,0.1)' : `rgba(200,40,40,${0.06 + z.danger * 0.14})`;
+    ctx.strokeStyle = z.war ? 'rgba(200,60,40,0.55)' : z.embargo ? 'rgba(160,60,160,0.5)' : 'rgba(180,30,30,0.6)';
+    ctx.setLineDash(Lg.state.suppressed?.[z.id] > g.clock.total ? [4, 4] : []);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(X(z.lon), Y(z.lat), r / Math.max(0.35, Math.cos(z.lat * Math.PI / 180)), r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    view.hits.push({ x: X(z.lon), y: Y(z.lat), r: 9, kind: 'zone', id: z.id, zone: z });
   }
   // routes of ships at sea
   const poly = (pts, color, dash) => {
@@ -100,7 +115,7 @@ function drawChart(ctx, g, view) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(ang);
-    ctx.fillStyle = v.voyage?.events?.some((e) => e.done && g.clock.total - e.at < e.hours * 60) ? '#c0402a' : '#1e5aa0';
+    ctx.fillStyle = v.kind === 'warship' ? '#2a3440' : v.voyage?.events?.some((e) => e.done && g.clock.total - e.at < e.hours * 60) ? '#c0402a' : '#1e5aa0';
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-5, -4.5); ctx.lineTo(-3, 0); ctx.lineTo(-5, 4.5); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -118,6 +133,11 @@ function drawChart(ctx, g, view) {
 
 function chartTip(g, hit) {
   const Lg = g.logistics;
+  if (hit.kind === 'zone') {
+    const z = hit.zone;
+    const sup = Lg.state.suppressed?.[z.id] > g.clock.total;
+    return [`⚠ ${z.name[0].toUpperCase()}${z.name.slice(1)}`, `danger ${Math.round(z.danger * 100)}%${sup ? ' (suppressed by your patrols)' : ''}`, z.war ? 'A war zone (the arms market\'s wars).' : z.embargo ? 'A blockade round an embargoed country.' : (Lg.cfg.pirateWaters[z.id]?.blurb || '')];
+  }
   if (hit.kind === 'port') {
     const p = Lg.cfg.ports[hit.id];
     const pt = Lg.cfg.portTypes[p.type];
@@ -127,7 +147,9 @@ function chartTip(g, hit) {
   }
   const v = Lg.vessel(hit.id);
   const m = Lg.model(v.model);
-  const out = [`${v.name} — ${m.name}`, `${STATUS[v.status]}${v.port ? ` at ${Lg.port(v.port).name}` : ''} · condition ${Math.round(v.condition)}%`];
+  const out = [`${v.name} — ${m.name}`, `${STATUS[v.status]}${v.port ? ` ${v.status === 'mission' ? 'off' : 'at'} ${Lg.port(v.port).name}` : ''} · condition ${Math.round(v.condition)}%`];
+  if (v.status === 'mission') { const ms = Lg.missions.get(v.mission); if (ms) out.push(`${Lg.cfg.missionTypes[ms.type].name} — back ${Lg.when(ms.end)}`); }
+  if (v.voyage?.escortOf) out.push(`Escorting the ${Lg.vessel(v.voyage.escortOf)?.name}`);
   if (v.status === 'underway') {
     const V = v.voyage;
     const pos = Lg.position(v);
@@ -137,6 +159,7 @@ function chartTip(g, hit) {
     if (v.cargo?.type === 'arms') out.push(`Cargo: ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}`);
     const late = c && V.arrive > c.deadline;
     if (late) out.push('⚠ Running late for the deadline');
+    for (const i of V.incidents || []) out.push(`🏴 ${i.text.replace(/^🏴\s*/, '')}`);
   }
   return out;
 }
@@ -162,7 +185,7 @@ export function logisticsPanel(ui, body, opts) {
   const tab = LOGI_TABS.includes(opts.tab) ? opts.tab : 'Overview';
   const S = Lg.state;
   if (S.arrears) body.append(h('div', { class: 'logi-msg bad' }, `⚠ ${num(S.arrears)} obols of upkeep in arrears — your ships are held in port. `, h('button', { class: 'small', onclick: () => act(Lg.payArrears()) }, 'Pay now')));
-  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Brokerage: brokerage, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
+  ({ Overview: overview, Chart: chart, Fleet: fleet, Ports: ports, Contracts: contracts, Missions: missions, Brokerage: brokerage, Warships: warships, Finances: finances, Reports: reports })[tab](ui, body, opts, go, act);
   return {
     title: 'Ober & Sons Maritime — Fleet Operations', className: 'logistics', onClose: opts.onClose,
     tabs: LOGI_TABS.map((t) => ({ label: t, active: t === tab, onclick: () => go({ tab: t, sel: null }) })),
@@ -285,7 +308,9 @@ function vesselDetail(ui, v, opts, go, act) {
       h('tr', {}, h('th', {}, 'Reliability'), h('td', {}, `${Math.round(st.reliability * 100)}%`)),
       h('tr', {}, h('th', {}, 'Costs'), h('td', {}, `${st.opex}/day at sea · ${st.upkeep}/day in port`)),
       h('tr', {}, h('th', {}, 'Condition'), h('td', {}, `${Math.round(v.condition)}% · ${num(v.sailedKm)} km sailed`)),
-      h('tr', {}, h('th', {}, 'Abilities'), h('td', {}, st.tags.length ? st.tags.join(', ') : '—'))));
+      h('tr', {}, h('th', {}, 'Abilities'), h('td', {}, st.tags.length ? st.tags.join(', ') : '—')),
+      h('tr', {}, h('th', {}, 'Combat'), h('td', {}, `attack ${st.combat.attack} · defence ${st.combat.defense} · detection ${st.combat.detection} · stealth ${st.combat.stealth}${st.combat.mounts ? ` · ${st.combat.mounts} mounts` : ''}`)),
+      st.bonuses.length ? h('tr', {}, h('th', {}, 'Fleet bonus'), h('td', {}, st.bonuses.map((b) => `${Lg.cfg.bonuses[b].name}: ${Lg.cfg.bonuses[b].text}`).join(' '))) : null));
   const vis = h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: v.visible, onchange: (e) => act(Lg.setVisible(v.id, e.target.checked), { sel: v.id }) }), ' Show at the Yards berths (when its port is on a berth)');
   card.append(vis);
   if (v.status === 'docked') {
@@ -356,62 +381,134 @@ function contracts(ui, body, opts, go, act) {
         h('div', { class: 'grow' },
           h('b', {}, `${T.name} — ${c.units} units`), h('span', { class: 'muted' }, ` for ${C.clients[c.client].name}`), h('br'),
           `${Lg.port(c.from).name} → ${Lg.port(c.to).name} · ${num(c.km)} km · pays ${num(c.pay)}${T.earlyBonus ? ` (+${Math.round(T.earlyBonus * 100)}% if early)` : ''} · deliver by ${Lg.when(c.deadline)}`,
-          T.needs ? h('span', { class: 'logi-tag' }, `needs ${T.needs}`) : null, h('span', { class: `logi-tag risk-${T.risk}` }, `risk ${T.risk}`),
-          c.result ? h('div', { class: 'muted' }, c.result.paid ? `Paid ${num(c.result.paid)}${c.result.late ? ' (late)' : ''}` : `Penalty ${num(c.result.penalty || 0)} — ${c.result.note}`) : null,
+          T.needs ? h('span', { class: 'logi-tag' }, `needs ${T.needs}`) : null, routeRiskTag(Lg, c),
+          c.result ? h('div', { class: 'muted' }, c.result.paid ? `Paid ${num(c.result.paid)}${c.result.late ? ' (late)' : ''}` : c.result.insurance ? `Lost (${c.result.note}) — insurance paid ${num(c.result.insurance)}` : `Penalty ${num(c.result.penalty || 0)} — ${c.result.note}`) : null,
           c.vessel ? h('div', { class: 'muted' }, `Ship: ${Lg.vessel(c.vessel)?.name}${c.arrive ? ` · ETA ${Lg.when(Lg.vessel(c.vessel)?.voyage?.arrive || c.arrive)}` : ''}`) : null),
         h('div', { class: 'logi-actions' }, ...actions(c)));
       card.append(row);
-      if (c.id === opts.sel && ['available', 'accepted'].includes(c.status)) card.append(assignBox(ui, c, act));
+      if (c.id === opts.sel && ['available', 'accepted'].includes(c.status)) card.append(assignBox(ui, c, act, opts, go));
     }
     body.append(card);
   };
   show('On offer', Lg.contracts('available'), (c) => [h('button', { class: 'small primary', onclick: () => go({ tab: 'Contracts', sel: c.id }) }, 'Choose a ship…'), h('button', { class: 'small', onclick: () => act(Lg.accept(c.id), { tab: 'Contracts' }) }, 'Accept')]);
   show('Accepted — awaiting a ship', Lg.contracts('accepted'), (c) => [h('button', { class: 'small primary', onclick: () => go({ tab: 'Contracts', sel: c.id }) }, 'Assign a ship…'), h('button', { class: 'small', onclick: () => act(Lg.abandon(c.id), { tab: 'Contracts' }) }, 'Cancel')]);
   show('Under way', Lg.contracts(['loading', 'transit']), () => []);
-  show('Finished', Lg.contracts(['delivered', 'failed']).slice(-8).reverse(), () => []);
+  show('Finished', Lg.contracts(['delivered', 'failed', 'lost']).slice(-8).reverse(), () => []);
 }
 
-function assignBox(ui, c, act) {
+/** The route's piracy risk for an ordinary unescorted cargo ship (the actual ship's risk is in the assign box). */
+function routeRiskTag(Lg, c) {
+  const probe = { model: Lg.L.starterShip.model, status: 'docked', condition: 100 };
+  const r = Lg.voyageRisk(probe, c.from, c.to, { cargo: c.type, value: c.pay });
+  const cls = r.category === 'low' ? 'risk-low' : r.category === 'moderate' ? 'risk-medium' : 'risk-high';
+  return h('span', { class: `logi-tag ${cls}`, title: r.exposure.names.length ? `Through ${r.exposure.names.join(', ')}` : 'Safe water' }, `route risk ${r.category} (${pct(r.chance)})`);
+}
+
+function assignBox(ui, c, act, opts, go) {
   const g = ui.game;
   const Lg = g.logistics;
-  const box = h('div', { class: 'logi-assign' }, h('b', {}, 'Ships'));
+  const esc = (opts.esc || []).filter((id) => Lg.vessel(id));
+  const svc = { escorts: esc, guards: Boolean(opts.guards), insure: Boolean(opts.insure) };
+  const R = Lg.cfg.risk;
+  const set = (patch) => go({ tab: 'Contracts', sel: c.id, esc, guards: svc.guards, insure: svc.insure, ...patch });
+  const warships = Lg.vessels().filter((v) => v.kind === 'warship' && v.status === 'docked' && v.port === c.from && Lg.stats(v).tags.includes('escort'));
+  const box = h('div', { class: 'logi-assign' },
+    h('div', { class: 'row logi-filters' },
+      h('b', {}, 'Protection:'),
+      h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: svc.guards, onchange: (e) => set({ guards: e.target.checked }) }), ` Hire guards (+${R.guards.defense} defence, ${num(Math.max(R.guards.min, c.pay * R.guards.costShare))})`),
+      h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: svc.insure, onchange: (e) => set({ insure: e.target.checked }) }), ` Insure the cargo (${num(c.pay * R.insurance.rate)}; pays ${Math.round(R.insurance.payout * 100)}% if it's lost)`)),
+    warships.length ? h('div', { class: 'row logi-filters' }, h('b', {}, 'Escorts:'), ...warships.map((w) => h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: esc.includes(w.id), onchange: (e) => set({ esc: e.target.checked ? [...esc, w.id] : esc.filter((x) => x !== w.id) }) }), ` ${w.name} (${Lg.model(w.model).name})`))) : h('div', { class: 'muted' }, 'No warships free at this port to escort.'),
+    h('b', {}, 'Ships'));
   for (const v of Lg.vessels()) {
-    const q = Lg.quote(c.id, v.id);
+    if (v.kind === 'warship' && !Lg.stats(v).capacity) continue;
+    if (esc.includes(v.id)) continue;
+    const q = Lg.quote(c.id, v.id, svc);
     box.append(h('div', { class: 'logi-line' },
-      h('span', { class: 'grow' }, h('b', {}, v.name), ` — `, q.ok ? `arrives ${Lg.when(q.arrive)} ${q.onTime ? '✓ on time' : '⚠ late'} · costs ${num(q.cost)} · profit ${num(q.profit)}` : h('span', { class: 'muted' }, q.reasons.join('; '))),
-      h('button', { class: 'small primary', disabled: !q.ok, onclick: () => { if (c.status === 'available') Lg.accept(c.id); act(Lg.assign(c.id, v.id), { tab: 'Contracts' }); } }, 'Assign')));
+      h('span', { class: 'grow' }, h('b', {}, v.name), ' — ', q.ok ? `arrives ${Lg.when(q.arrive)} ${q.onTime ? '✓ on time' : '⚠ late'} · costs ${num(q.cost)} · profit ${num(q.profit)} · ${riskLine(q.risk)}` : h('span', { class: 'muted' }, q.reasons.join('; '))),
+      h('button', { class: 'small primary', disabled: !q.ok, onclick: () => { if (c.status === 'available') Lg.accept(c.id); act(Lg.assign(c.id, v.id, svc), { tab: 'Contracts', esc: [], guards: false, insure: false }); } }, 'Assign')));
   }
   return box;
 }
 
 function brokerage(ui, body, opts, go, act) {
+  const C = ui.game.logistics.cfg;
+  catalogue(ui, body, opts, go, act, { tab: 'Brokerage', title: 'Halver Marine Brokers — cargo ships', list: C.dealership, classes: C.classes });
+}
+
+function warships(ui, body, opts, go, act) {
+  const C = ui.game.logistics.cfg;
+  body.append(h('p', { class: 'muted' }, 'Kestrel Naval Surplus & Sons — "Previously owned by navies that no longer need them, or no longer exist." Warships escort your convoys, run missions and make your fleet safer. Most carry no cargo.'));
+  catalogue(ui, body, opts, go, act, { tab: 'Warships', title: 'Kestrel Naval Surplus — warships', list: C.warshipDealership, classes: C.warshipClasses });
+}
+
+function catalogue(ui, body, opts, go, act, { tab, title, list, classes }) {
   const g = ui.game;
   const Lg = g.logistics;
   const C = Lg.cfg;
-  const cls = opts.cls || 'all';
-  body.append(h('div', { class: 'row logi-filters' }, h('b', {}, 'Halver Marine Brokers — '), ...[['all', 'All'], ...Object.entries(C.classes).map(([k, c]) => [k, c.name])].map(([k, label]) => h('button', { class: `small${cls === k ? ' primary' : ''}`, onclick: () => go({ tab: 'Brokerage', cls: k }) }, label))));
-  const portSel = (mid) => {
-    const ok = Lg.ownedPorts().filter((id) => !Lg.berthCheck({ model: mid, status: 'docked' }, id));
-    return ok;
-  };
-  for (const id of C.dealership) {
+  const cls = opts.cls && classes[opts.cls] ? opts.cls : 'all';
+  body.append(h('div', { class: 'row logi-filters' }, h('b', {}, `${title} — `), ...[['all', 'All'], ...Object.entries(classes).map(([k, c]) => [k, c.name])].map(([k, label]) => h('button', { class: `small${cls === k ? ' primary' : ''}`, onclick: () => go({ tab, cls: k }) }, label))));
+  for (const id of list) {
     const m = C.ships[id];
     if (cls !== 'all' && m.cls !== cls) continue;
-    const k = C.classes[m.cls];
-    const ok = portSel(id);
+    const probe = { model: id, status: 'docked' };
+    const st = Lg.stats(probe);
+    const ok = Lg.ownedPorts().filter((pid) => !Lg.berthCheck(probe, pid));
     const where = h('select', { class: 'logi-input' }, ...ok.map((pid) => h('option', { value: pid }, Lg.port(pid).name)));
     const name = h('input', { class: 'logi-input', placeholder: 'Name her', maxlength: 28 });
     const can = g.player.money >= m.price && ok.length;
+    const needs = [].concat(st.needsPortType || []);
     body.append(h('div', { class: 'logi-card logi-broker' },
       shipCanvas(m.look, 220, 70),
       h('div', { class: 'grow' },
-        h('div', { class: 'row', style: 'justify-content:space-between' }, h('b', {}, `${m.name}`), h('span', { class: 'logi-price' }, `${num(m.price)} obols`)),
-        h('div', { class: 'muted' }, `${k.name} · size ${k.size}${k.needsPortType ? ` · berths only at ${C.portTypes[k.needsPortType].name.toLowerCase()}s` : ''}`),
+        h('div', { class: 'row', style: 'justify-content:space-between' }, h('b', {}, m.name), h('span', { class: 'logi-price' }, `${num(m.price)} obols`)),
+        h('div', { class: 'muted' }, `${Lg.className(m)} · size ${st.size}${needs.length ? ` · berths only at ${needs.map((t) => C.portTypes[t].name.toLowerCase()).join(' or ')}s` : ''}`),
         h('p', {}, m.blurb),
-        h('div', { class: 'logi-specs' }, `${m.capacity} units · ${m.speed} kn · ${num(m.range)} km · reliability ${Math.round(m.reliability * 100)}% · ${m.opex}/day at sea · ${m.upkeep}/day in port · ${k.slots} upgrade slot${k.slots === 1 ? '' : 's'}${m.tags.length ? ` · ${m.tags.join(', ')}` : ''}`),
+        h('div', { class: 'logi-specs' }, `${st.capacity ? `${st.capacity} units · ` : 'no cargo · '}${m.speed} kn · ${num(m.range)} km · reliability ${Math.round(m.reliability * 100)}% · ${m.opex}/day at sea · ${m.upkeep}/day in port${C.classes[m.cls]?.slots ? ` · ${C.classes[m.cls].slots} upgrade slot${C.classes[m.cls].slots === 1 ? '' : 's'}` : ''}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`),
+        m.kind === 'warship' ? h('div', { class: 'logi-specs' }, `⚔ attack ${st.combat.attack} · defence ${st.combat.defense} · detection ${st.combat.detection} · stealth ${st.combat.stealth} · ${st.combat.mounts} mounts${st.bonuses.length ? ` · ★ ${st.bonuses.map((b) => C.bonuses[b].name).join(', ')}` : ''}`) : null,
         h('div', { class: 'row' }, name, ok.length ? where : h('span', { class: 'muted' }, 'None of your ports can berth it.'),
-          h('button', { class: 'small primary', disabled: !can, onclick: () => act(Lg.buyShip(id, where.value, name.value), { tab: 'Brokerage', cls }) }, 'Buy')))));
+          h('button', { class: 'small primary', disabled: !can, onclick: () => act(Lg.buyShip(id, where.value, name.value), { tab, cls }) }, 'Buy')))));
   }
+}
+
+function missions(ui, body, opts, go, act) {
+  const g = ui.game;
+  const Lg = g.logistics;
+  const M = Lg.missions;
+  const T = Lg.cfg.missionTypes;
+  const sel = (opts.ships || []).filter((id) => Lg.vessel(id));
+  const card = (title) => { const c = h('div', { class: 'logi-card' }, h('h3', {}, title)); body.append(c); return c; };
+  const offered = card('On offer');
+  if (!M.list('available').length) offered.append(h('p', { class: 'muted' }, 'None today. Each of your ports offers a mission a day.'));
+  for (const m of M.list('available')) {
+    const t = T[m.type];
+    const need = t.needs || {};
+    const z = m.zone ? Lg.cfg.pirateWaters[m.zone] : null;
+    const open = opts.sel === m.id;
+    const row = h('div', { class: `logi-contract${open ? ' sel' : ''}` },
+      h('div', { class: 'grow' },
+        h('b', {}, `${t.name}`), h('span', { class: 'muted' }, ` for ${t.client} · from ${Lg.port(m.port).name}`), h('br'),
+        `${t.text} ${m.type === 'deterrence' && z ? `Target: ${z.name}.` : ''}`, h('br'),
+        `${m.hours} h on station · reward ${num(m.reward)} · difficulty ${Math.round(m.difficulty * 100)}`,
+        h('span', { class: 'logi-tag' }, `uses ${Object.keys(t.weights).join(' + ')}`),
+        need.tag ? h('span', { class: 'logi-tag' }, `needs ${need.tag}`) : null, need.minSpeed ? h('span', { class: 'logi-tag' }, `needs ${need.minSpeed}+ kn`) : null, need.capacity ? h('span', { class: 'logi-tag' }, `needs ${need.capacity}+ units aboard`) : null),
+      h('div', { class: 'logi-actions' }, h('button', { class: 'small primary', onclick: () => go({ tab: 'Missions', sel: open ? null : m.id, ships: [] }) }, open ? 'Close' : 'Choose ships…')));
+    offered.append(row);
+    if (open) {
+      const here = Lg.vessels().filter((v) => v.status === 'docked' && v.port === m.port);
+      const q = M.quote(m.id, sel);
+      offered.append(h('div', { class: 'logi-assign' },
+        here.length ? h('div', { class: 'row logi-filters' }, ...here.map((v) => h('label', { class: 'logi-check' }, h('input', { type: 'checkbox', checked: sel.includes(v.id), onchange: (e) => go({ tab: 'Missions', sel: m.id, ships: e.target.checked ? [...sel, v.id] : sel.filter((x) => x !== v.id) }) }), ` ${v.name} (${Lg.model(v.model).name}, ${Math.round(v.condition)}%)`))) : h('p', { class: 'muted' }, `None of your ships is in port at ${Lg.port(m.port).name}.`),
+        sel.length ? h('div', {}, q.ok ? `Estimate: ${q.category} (about ${Math.round(q.chance * 100)}%) · fitness ${q.score}/100 · running costs ${num(q.cost)}` : h('span', { class: 'muted' }, q.reasons.join('; '))) : null,
+        h('button', { class: 'small primary', disabled: !q.ok, onclick: () => act(M.start(m.id, sel), { tab: 'Missions', sel: null, ships: [] }) }, 'Send them')));
+    }
+  }
+  const active = card('Under way');
+  if (!M.list('active').length) active.append(h('p', { class: 'muted' }, 'None.'));
+  for (const m of M.list('active')) active.append(h('div', { class: 'logi-line' }, `${T[m.type].name} from ${Lg.port(m.port).name} — ${m.vessels.map((id) => Lg.vessel(id)?.name).join(', ')} · back ${Lg.when(m.end)}`));
+  const done = card('Finished');
+  const fin = M.list(['success', 'partial', 'failed']).slice(-8).reverse();
+  if (!fin.length) done.append(h('p', { class: 'muted' }, 'None yet.'));
+  for (const m of fin) done.append(h('div', { class: 'logi-line' }, `${T[m.type].name} from ${Lg.port(m.port).name} — ${m.status}${m.paid ? ` · ${num(m.paid)} obols` : ''}`));
 }
 
 function finances(ui, body) {

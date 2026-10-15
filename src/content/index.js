@@ -19,7 +19,7 @@ import { EVENTS } from './events.js';
 import { MOODS } from './moods.js';
 import { NOTICES } from './notices.js';
 import { REGIONS } from './world.js';
-import { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES } from './logistics.js';
+import { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES, PIRATE_WATERS, RISK, BONUSES, WARSHIP_CLASSES, WARSHIPS, MISSION_TYPES } from './logistics.js';
 import { addSeams } from '../world/regions.js';
 import { SONGS, MOTIFS, AUDIO_REGISTRY } from './audio.js';
 import mags from './characters/mags.js';
@@ -104,7 +104,7 @@ export const BASE_CONTENT = {
   arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: TRANSIT,
-  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: CARGO_SHIPS, dealership: Object.keys(CARGO_SHIPS), clients: CLIENTS, contractTypes: CONTRACT_TYPES },
+  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES },
   roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,

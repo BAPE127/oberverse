@@ -29,4 +29,25 @@ Time at sea: hours = km ÷ (knots × 1.852) ÷ 6 (`LOGISTICS.seaTime` compresses
 
 **Delays**: each ~1,000 km leg has a (1 − reliability) × 35% chance of a 6–18 hour delay (×1.6 below 50% condition).
 
-**Balance intent**: a busy Gullwing Cutter clears about 1,500 obols a day on general cargo, against about 275 a day of upkeep for the starting company. Bigger ships earn more per trip but cost more idle; the Starwake is fast, reliable and cheap to run but needs an advanced port (150,000) at both ends of its work. Warships come in v0.23.
+**Balance intent**: a busy Gullwing Cutter clears about 1,500 obols a day on general cargo, against about 275 a day of upkeep for the starting company. Bigger ships earn more per trip but cost more idle; the Starwake is fast, reliable and cheap to run but needs an advanced port (150,000) at both ends of its work. Warships: see below.
+
+## Warships (v0.23.0)
+
+Sold by **Kestrel Naval Surplus & Sons** (the Warships page). `WARSHIPS` in `src/content/logistics.js`. Combat numbers (0–100) feed piracy defence, escort strength and mission fitness — and are what a future playable encounter would use.
+
+| Ship | Family | Price | Hold | Knots | Range km | At sea /day | Size | Attack | Defence | Detection | Stealth | Mounts | Roles / bonus |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Schooner | Sail | 12,000 | — | 14 | 8,000 | 60 | 1 | 15 | 15 | 25 | 30 | 2 | coastal, escort |
+| Brig | Sail | 30,000 | 8 | 12 | 14,000 | 110 | 2 | 25 | 30 | 25 | 15 | 6 | escort, patrol |
+| Galleon | Sail | 90,000 | 40 | 9 | 20,000 | 260 | 3 | 30 | 40 | 20 | 5 | 16 | escort, patrol, transport |
+| Man-o'-war | Sail | 180,000 | 15 | 10 | 20,000 | 480 | 3 | 55 | 60 | 30 | 5 | 40 | escort, patrol |
+| Patrol Skiff | Modern | 7,000 | — | 30 | 3,000 | 50 | 1 | 10 | 8 | 20 | 40 | 1 | coastal, recon |
+| Corvette | Modern | 38,000 | — | 26 | 9,000 | 160 | 2 | 35 | 30 | 45 | 30 | 3 | escort, patrol, recon |
+| Frigate | Modern | 72,000 | — | 25 | 16,000 | 260 | 2 | 45 | 45 | 55 | 20 | 4 | escort, patrol · ★ Fleet communications |
+| Destroyer | Modern | 150,000 | — | 32 | 14,000 | 520 | 3 | 70 | 60 | 60 | 20 | 6 | escort, patrol |
+| Cruiser | Modern | 230,000 | — | 26 | 30,000 | 700 | 3 | 70 | 70 | 75 | 10 | 8 | escort, patrol, recon · ★ Fleet support |
+| Battleship | Historic | 320,000 | — | 18 | 15,000 | 1,200 | 4 | 95 | 90 | 40 | 0 | 12 | escort |
+| Starwatch Sentinel | Futuristic | 450,000 | — | 40 | 60,000 | 600 | 3 | 70 | 75 | 90 | 85 | 4 | escort, recon, patrol · ★ Hazard sensors · advanced port or naval base |
+| Aegis Bastion | Futuristic | 600,000 | — | 30 | 60,000 | 800 | 4 | 60 | 95 | 95 | 30 | 6 | escort, patrol · ★ Aegis network · advanced port or naval base |
+
+A warship with a hold (brig, galleon, man-o'-war) can carry contract cargo up to its hold; the rest carry none. Cargo ships have modest defensive numbers by class (low 5 … futuristic 30 defence; the Starwake's stealth 40).

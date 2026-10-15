@@ -364,7 +364,62 @@ export function validateContent(content = CONTENT) {
   // start
   if (!maps.get(content.startingMap)?.spot(content.startingSpot)) err('startingMap/startingSpot invalid');
 
+  validateLogistics(content, err, warn);
   return { errors, warnings };
+}
+
+/** Ober & Sons Maritime (v0.21.0+): ports, ships, contracts, piracy, missions. */
+function validateLogistics(content, err, warn) {
+  const L = content.logistics;
+  if (!L) return;
+  const where = 'logistics';
+  const countries = content.arms?.countries || {};
+  const num = (v, label, { min = 0, max = Infinity } = {}) => { if (typeof v !== 'number' || !(v >= min) || v > max) err(`${where}: ${label} is ${v} (expected ${min}–${max})`); };
+  // ports
+  for (const [id, p] of Object.entries(L.ports)) {
+    if (!L.portTypes[p.type]) err(`${where}: port ${id} has unknown type ${p.type}`);
+    if (p.country && !countries[p.country]) err(`${where}: port ${id} has unknown country ${p.country}`);
+    num(p.lat, `port ${id} lat`, { min: -78, max: 80 });
+    num(p.lon, `port ${id} lon`, { min: -180, max: 180 });
+  }
+  for (const [id, t] of Object.entries(L.portTypes)) for (const f of ['berths', 'maxSize', 'price', 'upkeep', 'fee']) num(t[f], `port type ${id} ${f}`, { min: f === 'berths' || f === 'maxSize' ? 1 : 0 });
+  for (const id of L.rules.starterPorts) if (!L.ports[id]) err(`${where}: starter port ${id} doesn't exist`);
+  if (L.rules.starterPorts.length > L.rules.maxPorts) err(`${where}: more starter ports than the port cap`);
+  if (!L.ships[L.rules.starterShip.model]) err(`${where}: starter ship model ${L.rules.starterShip.model} doesn't exist`);
+  if (!L.ports[L.rules.armsPort]) err(`${where}: arms port ${L.rules.armsPort} doesn't exist`);
+  // ships
+  const tags = new Set();
+  for (const [id, m] of Object.entries(L.ships)) {
+    const k = L.classes[m.cls] || L.warshipClasses?.[m.cls];
+    if (!k) err(`${where}: ship ${id} has unknown class ${m.cls}`);
+    for (const f of ['price', 'speed', 'range', 'opex', 'upkeep']) num(m[f], `ship ${id} ${f}`, { min: 1 });
+    num(m.capacity, `ship ${id} capacity`);
+    num(m.reliability, `ship ${id} reliability`, { min: 0, max: 1 });
+    if (m.kind === 'cargo' && !(m.capacity > 0)) err(`${where}: cargo ship ${id} carries nothing`);
+    if (!m.look?.hull) err(`${where}: ship ${id} has no look`);
+    for (const b of m.bonuses || []) if (!L.bonuses?.[b]) err(`${where}: ship ${id} has unknown bonus ${b}`);
+    for (const t of [].concat(m.needsPortType || k?.needsPortType || [])) if (!L.portTypes[t]) err(`${where}: ship ${id} needs unknown port type ${t}`);
+    const size = m.size ?? k?.size;
+    if (!Object.values(L.portTypes).some((t) => t.maxSize >= size)) err(`${where}: ship ${id} (size ${size}) fits no port`);
+    for (const t of m.tags || []) tags.add(t);
+  }
+  for (const id of [...L.dealership, ...(L.warshipDealership || [])]) if (!L.ships[id]) err(`${where}: dealership lists unknown ship ${id}`);
+  // contracts
+  for (const [id, t] of Object.entries(L.contractTypes)) {
+    if (t.needs && !tags.has(t.needs)) err(`${where}: contract type ${id} needs "${t.needs}" but no ship has it`);
+    for (const c of t.clients) if (!L.clients[c]) err(`${where}: contract type ${id} has unknown client ${c}`);
+    if (!(t.units[0] > 0 && t.units[1] >= t.units[0])) err(`${where}: contract type ${id} has bad units`);
+    if (!Object.values(L.ships).some((m) => m.capacity >= t.units[0] && (!t.needs || (m.tags || []).includes(t.needs)))) err(`${where}: no ship can carry the smallest ${id} contract`);
+  }
+  // piracy and missions
+  for (const [id, z] of Object.entries(L.pirateWaters || {})) { num(z.danger, `pirate water ${id} danger`, { max: 1 }); num(z.radius, `pirate water ${id} radius`, { min: 1 }); }
+  for (const [id, m] of Object.entries(L.missionTypes || {})) {
+    const N = m.needs || {};
+    if (N.tag && !tags.has(N.tag)) err(`${where}: mission ${id} needs "${N.tag}" but no ship has it`);
+    if (!(m.difficulty[0] >= 0 && m.difficulty[1] <= 1 && m.difficulty[1] >= m.difficulty[0])) err(`${where}: mission ${id} has bad difficulty`);
+    for (const k of Object.keys(m.weights)) if (!['attack', 'defense', 'detection', 'stealth', 'speed'].includes(k)) err(`${where}: mission ${id} weighs unknown stat ${k}`);
+  }
+  void warn;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

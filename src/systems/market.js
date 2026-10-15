@@ -151,14 +151,14 @@ export class Market {
    * insurance; src/systems/logistics.js sails it and reports back through
    * settleOwn()).
    */
-  ship({ wh, order: orderId, shipper, insured = false, vessel = null }) {
+  ship({ wh, order: orderId, shipper, insured = false, vessel = null, escorts = [], guards = false }) {
     const g = this.game;
     const order = this.state.orders.find((o) => o.id === orderId && o.status === 'open');
     if (!order) return { ok: false, text: 'That order is no longer open.' };
     const country = order.country;
     const c = this.country(country);
     const def = this.cfg.countries[country];
-    if (vessel) return this.shipOwn({ wh, order, vessel });
+    if (vessel) return this.shipOwn({ wh, order, vessel, escorts, guards });
     const sh = this.cfg.shippers[shipper];
     if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
@@ -189,7 +189,7 @@ export class Market {
   }
 
   /** Fill an order with your own ship (validated by logistics before anything changes). */
-  shipOwn({ wh, order, vessel }) {
+  shipOwn({ wh, order, vessel, escorts = [], guards = false }) {
     const g = this.game;
     const L = g.logistics;
     const country = order.country;
@@ -202,9 +202,9 @@ export class Market {
     if (c.hostility >= this.cfg.market.refuseHostility) return { ok: false, text: `${def.name} won't deal with you any more.` };
     const value = order.qty * order.price;
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
-    const q = L.armsQuote(vessel, country, order.qty);
+    const q = L.armsQuote(vessel, country, order.qty, { escorts, guards, value });
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs and port fees).` };
+    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, port fees${escorts.length ? ', escorts' : ''}${guards ? ', guards' : ''}).` };
     // everything checked: commit
     cage[order.item] -= order.qty;
     c.budget -= value;

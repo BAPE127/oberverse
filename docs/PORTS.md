@@ -7,7 +7,7 @@
 | Basic harbour | 3 | size 2 | 9,000 | 40 | 120 | berths |
 | Commercial port | 5 | size 3 | 26,000 | 110 | 320 | + repairs, reefer power |
 | Heavy cargo terminal | 6 | size 4 | 60,000 | 260 | 700 | + heavy cranes |
-| Naval base | 5 | size 3 | 52,000 | 230 | 600 | repairs, armoury (warships, v0.23) |
+| Naval base | 5 | size 4 | 52,000 | 230 | 600 | repairs, armoury — berths battleships and the futuristic warships |
 | Advanced port | 8 | size 4 | 150,000 | 520 | 1,200 | everything + advanced dock |
 
 - **Berths** count ships in port *and* ships on their way there; a full port refuses new arrivals (foreign ports never fill).

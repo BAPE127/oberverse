@@ -9,7 +9,22 @@ const T = 32;
 /** The hull outline, bow to the right (+x), centred on the origin. */
 function hullPath(ctx, hull, L, B) {
   ctx.beginPath();
-  if (hull === 'runner' || hull === 'starwake') {
+  if (hull === 'warship' || hull === 'battleship') {
+    // a long, sharp bow and a square transom
+    ctx.moveTo(L / 2, 0);
+    ctx.quadraticCurveTo(L * 0.2, -B / 2, -L * 0.1, -B / 2);
+    ctx.lineTo(-L / 2, -B * 0.42);
+    ctx.lineTo(-L / 2, B * 0.42);
+    ctx.lineTo(-L * 0.1, B / 2);
+    ctx.quadraticCurveTo(L * 0.2, B / 2, L / 2, 0);
+  } else if (hull === 'schooner' || hull === 'brig' || hull === 'galleon' || hull === 'manowar') {
+    // a sailing hull: a pointed bow, a broad rounded stern
+    ctx.moveTo(L / 2, 0);
+    ctx.quadraticCurveTo(L * 0.3, -B / 2, 0, -B / 2);
+    ctx.quadraticCurveTo(-L / 2, -B / 2, -L / 2, 0);
+    ctx.quadraticCurveTo(-L / 2, B / 2, 0, B / 2);
+    ctx.quadraticCurveTo(L * 0.3, B / 2, L / 2, 0);
+  } else if (hull === 'runner' || hull === 'starwake' || hull === 'skiff') {
     ctx.moveTo(L / 2, 0);
     ctx.quadraticCurveTo(L * 0.2, -B / 2, -L / 2, -B * 0.42);
     ctx.lineTo(-L / 2, B * 0.42);
@@ -41,7 +56,7 @@ function hullPath(ctx, hull, L, B) {
 export function drawShip(ctx, look, x, y, angle, opts = {}) {
   const L = (look.len || 3) * T;
   const hull = look.hull || 'freighter';
-  const B = L * (hull === 'runner' || hull === 'starwake' ? 0.24 : hull === 'tug' ? 0.4 : hull === 'coaster' ? 0.32 : 0.22);
+  const B = L * ({ runner: 0.24, starwake: 0.24, tug: 0.4, coaster: 0.32, skiff: 0.36, schooner: 0.24, brig: 0.26, galleon: 0.3, manowar: 0.28, warship: 0.16, battleship: 0.2 }[hull] ?? 0.22);
   const color = look.color || '#4a4a52';
   const trim = look.trim || '#e8e2d4';
   const t = opts.time || 0;
@@ -116,6 +131,51 @@ export function drawShip(ctx, look, x, y, angle, opts = {}) {
     ctx.beginPath(); ctx.ellipse(L * 0.12, 0, L * 0.12, B * 0.28, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(160,240,255,0.6)';
     ctx.beginPath(); ctx.ellipse(L * 0.15, -B * 0.06, L * 0.06, B * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (hull === 'schooner' || hull === 'brig' || hull === 'galleon' || hull === 'manowar') {
+    // masts with their sails (seen from above: yards and canvas), guns along the sides
+    const masts = { schooner: 2, brig: 2, galleon: 3, manowar: 3 }[hull];
+    const guns = { schooner: 1, brig: 4, galleon: 6, manowar: 10 }[hull];
+    ctx.fillStyle = '#1a1a1e';
+    for (let i = 0; i < guns; i++) { const x = -L * 0.35 + (i * L * 0.7) / Math.max(1, guns - 1); ctx.fillRect(x - 1.5, -B / 2 - 2, 3, 3); ctx.fillRect(x - 1.5, B / 2 - 1, 3, 3); }
+    for (let i = 0; i < masts; i++) {
+      const x = L * 0.25 - (i * L * 0.5) / Math.max(1, masts - 1);
+      const sway = Math.sin(t * 1.1 + i) * 1.2;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.ellipse(x + 3, sway + 4, L * 0.06, B * 0.75, 0, 0, Math.PI * 2); ctx.fill(); // sail shadow
+      ctx.fillStyle = hull === 'manowar' ? '#f2ecdc' : '#efe6d0';
+      ctx.beginPath(); ctx.ellipse(x, sway, L * 0.06, B * 0.72, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6a4a2a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, -B * 0.75 + sway); ctx.lineTo(x, B * 0.75 + sway); ctx.stroke(); // the yard
+      ctx.fillStyle = '#4a3220';
+      ctx.beginPath(); ctx.arc(x, 0, 2, 0, Math.PI * 2); ctx.fill(); // the mast
+    }
+    if (hull === 'galleon' || hull === 'manowar') { ctx.fillStyle = trim; ctx.fillRect(-L / 2 + 3, -B * 0.3, L * 0.1, B * 0.6); } // the stern castle
+  } else if (hull === 'warship' || hull === 'battleship') {
+    // turrets fore and aft, a superstructure, a mast
+    const turret = (x, r) => {
+      ctx.fillStyle = shade(color, -25);
+      ctx.beginPath(); ctx.arc(x, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(x, -1.5 * (r / 5), r * 1.8, 3 * (r / 5));
+    };
+    const big = hull === 'battleship';
+    turret(L * 0.28, big ? 8 : 5);
+    if (big) turret(L * 0.14, 8);
+    turret(-L * 0.3, big ? 8 : 4);
+    ctx.fillStyle = shade(color, 18);
+    ctx.fillRect(-L * 0.18, -B * 0.32, L * 0.26, B * 0.64);
+    ctx.fillStyle = '#2a3440';
+    ctx.fillRect(L * 0.04, -B * 0.24, 2.5, B * 0.48);
+    ctx.fillStyle = trim;
+    ctx.beginPath(); ctx.arc(-L * 0.04, 0, B * 0.14, 0, Math.PI * 2); ctx.fill(); // radar
+  } else if (hull === 'skiff') {
+    ctx.fillStyle = '#1a1a1e';
+    ctx.fillRect(-L * 0.25, -B * 0.25, L * 0.2, B * 0.5); // the outboard
+    ctx.fillStyle = '#f2f0ea';
+    ctx.fillRect(-L * 0.02, -B * 0.2, L * 0.16, B * 0.4);
+    ctx.fillStyle = '#3a3a40';
+    ctx.fillRect(L * 0.2, -1, L * 0.18, 2); // the gun
   } else if (hull === 'runner') {
     ctx.fillStyle = '#f2f0ea';
     ctx.fillRect(-L * 0.05, -B * 0.24, L * 0.22, B * 0.48);

@@ -21,16 +21,19 @@
 // v0.21.0 get it fresh and unowned).
 import { clamp } from '../core/util.js';
 import { seaRoute, pointAlong } from '../world/seaRoutes.js';
+import { Missions } from './missions.js';
+import { zones as pirateZones, exposure as routeExposure, assess as assessRisk, roll as rollPirates } from './piracy.js';
 
 const REPORTS_MAX = 80;
 const LEDGER_DAYS = 30;
 
-export const VESSEL_STATES = ['docked', 'loading', 'underway', 'lost', 'retired'];
+export const VESSEL_STATES = ['docked', 'loading', 'underway', 'mission', 'lost', 'retired'];
 /** Allowed status changes (a vessel is in exactly one place at a time). */
 const TRANSITIONS = {
-  docked: ['loading', 'underway', 'retired', 'lost'],
+  docked: ['loading', 'underway', 'mission', 'retired', 'lost'],
   loading: ['underway', 'docked', 'lost'],
   underway: ['docked', 'lost'],
+  mission: ['docked', 'lost'],
   lost: [],
   retired: [],
 };
@@ -43,6 +46,8 @@ export function freshLogistics() {
     ledger: { revenue: 0, expenses: 0, days: [] },
     reports: [], nextReport: 1,
     display: { berths: [] },
+    // v0.23.0
+    missions: [], nextMission: 1, lastMissionDay: 0, suppressed: {}, protected: {},
   };
 }
 
@@ -51,6 +56,7 @@ const fmtHours = (h) => (h >= 48 ? `${(h / 24).toFixed(1)} days` : `${Math.round
 export class Logistics {
   constructor(game) {
     this.game = game;
+    this.missions = new Missions(this);
   }
 
   // ------------------------------------------------------------- content
@@ -85,7 +91,11 @@ export class Logistics {
   }
 
   cls(model) {
-    return this.cfg.classes[model.cls];
+    return this.cfg.classes[model.cls] || this.cfg.warshipClasses?.[model.cls] || {};
+  }
+
+  className(model) {
+    return this.cls(model).name || model.cls;
   }
 
   /** The sea route between two ports (cached), or null. */
@@ -178,6 +188,8 @@ export class Logistics {
     this.addVessel(L.starterShip.model, L.starterShip.port, L.starterShip.name);
     s.lastContractDay = g.clock.day;
     this.postContracts();
+    this.missions.state.lastMissionDay = g.clock.day;
+    this.missions.post();
     g.setFlag('owns_shipping', true);
     this.report('company', `⚓ ${L.company} is yours: ${L.starterPorts.length} ports and the ${L.starterShip.name}. The logistics terminal is in the harbour office.`, 'good');
     g.bus.emit('logistics:bought', {});
@@ -246,10 +258,19 @@ export class Logistics {
     return v;
   }
 
-  /** Effective stats (components will modify these in the shipyard update). */
+  /**
+   * Effective stats (the shipyard's components will modify these). combat is
+   * what piracy, escorts and missions read now — and what a future playable
+   * encounter would read: one set of numbers per ship, nowhere else.
+   */
   stats(v) {
     const m = this.model(v.model);
-    return { capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags, size: this.cls(m).size, wear: this.cls(m).wear };
+    const k = this.cls(m);
+    return {
+      capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags || [],
+      size: m.size ?? k.size, wear: m.wear ?? k.wear ?? 1, needsPortType: m.needsPortType ?? k.needsPortType ?? null,
+      combat: { attack: 0, defense: 5, detection: 10, stealth: 10, mounts: 0, ...(k.combat || {}), ...(m.combat || {}) }, bonuses: m.bonuses || [],
+    };
   }
 
   setStatus(v, to) {
@@ -259,7 +280,7 @@ export class Logistics {
 
   /** Ships at (or loading in) a port, and ships on their way there. */
   atPort(portId) {
-    return this.vessels().filter((v) => (v.status === 'docked' || v.status === 'loading') && v.port === portId);
+    return this.vessels().filter((v) => (v.status === 'docked' || v.status === 'loading' || v.status === 'mission') && v.port === portId);
   }
 
   inbound(portId) {
@@ -272,9 +293,9 @@ export class Logistics {
     const pt = this.portType(portId);
     const st = this.stats(v);
     const m = this.model(v.model);
-    const need = this.cls(m).needsPortType;
+    const need = [].concat(st.needsPortType || []);
     if (!p) return 'no such port';
-    if (need && p.type !== need) return `the ${m.name} only berths at ${this.cfg.portTypes[need].name.toLowerCase()}s`;
+    if (need.length && !need.includes(p.type)) return `the ${m.name} only berths at ${need.map((t) => this.cfg.portTypes[t].name.toLowerCase()).join(' or ')}s`;
     if (st.size > pt.maxSize) return `${p.name} (${pt.name.toLowerCase()}) can't take a ship that size`;
     if (arriving && this.ownsPort(portId)) {
       const used = this.atPort(portId).filter((x) => x !== v).length + this.inbound(portId).filter((x) => x !== v).length;
@@ -304,7 +325,7 @@ export class Logistics {
     const s = this.state;
     const m = this.model(modelId);
     if (!s.owned) return { ok: false, text: 'You need a shipping company first.' };
-    if (!m || !this.cfg.dealership.includes(modelId)) return { ok: false, text: 'That ship isn\'t for sale here.' };
+    if (!m || !(this.cfg.dealership.includes(modelId) || this.cfg.warshipDealership?.includes(modelId))) return { ok: false, text: 'That ship isn\'t for sale here.' };
     if (!this.ownsPort(portId)) return { ok: false, text: 'Deliver it to a port you own.' };
     const probe = { model: modelId, status: 'docked' };
     const why = this.berthCheck(probe, portId);
@@ -361,6 +382,86 @@ export class Logistics {
     return { ok: reasons.length === 0, reasons, km, hours, load, opex, fees, cost: opex + fees, route: r };
   }
 
+  // ------------------------------------------------------------- risk (v0.23.0)
+  /** Dangerous water right now: pirate waters (some suppressed by your missions), war zones, blockades. */
+  zones() {
+    const s = this.state;
+    return pirateZones(this.game.content, this.game.market.state, { suppressed: s.suppressed || {}, now: this.game.clock.total });
+  }
+
+  /** Fleet bonuses in force for a voyage leaving `from` with these escorts — each bonus once, however many ships have it. */
+  activeBonuses(from, escorts = []) {
+    const B = this.cfg.bonuses || {};
+    const on = new Set();
+    for (const v of this.vessels()) {
+      if (v.status === 'lost') continue;
+      for (const id of this.stats(v).bonuses) {
+        const b = B[id];
+        if (!b) continue;
+        if (b.scope === 'fleet') on.add(id);
+        if (b.scope === 'port' && (v.status === 'docked' || v.status === 'mission') && v.port === from) on.add(id);
+        if (b.scope === 'group' && escorts.includes(v.id)) on.add(id);
+      }
+    }
+    return [...on].map((id) => ({ id, ...B[id] }));
+  }
+
+  /** Escorts' combined strength (0–0.75: how much they cut the chance of trouble) and fighting weight. */
+  escortPower(escorts, bonuses) {
+    let strength = 0;
+    let defense = 0;
+    for (const id of escorts) {
+      const c = this.stats(this.vessel(id)).combat;
+      strength += (c.attack + c.detection) / 400;
+      defense += c.attack * 0.6 + c.defense * 0.4;
+    }
+    const boost = bonuses.reduce((a, b) => a + (b.escortStrength || 0), 0);
+    return { strength: Math.min(0.75, strength * (1 + boost)), defense: defense * (1 + boost) };
+  }
+
+  /**
+   * The risk of a voyage, shown before departure. opts: { cargo: 'arms' | contract type | null,
+   * escorts: [vessel ids], guards: bool, value: cargo value (for ransoms) }.
+   */
+  voyageRisk(v, from, to, { cargo = null, escorts = [], guards = false, value = 0 } = {}) {
+    const st = this.stats(v);
+    const route = this.route(from, to);
+    const bonuses = this.activeBonuses(from, escorts);
+    const ep = this.escortPower(escorts, bonuses);
+    const speeds = [st.speed, ...escorts.map((id) => this.stats(this.vessel(id)).speed)];
+    const chanceMod = bonuses.reduce((a, b) => a + (b.chance || 0), 0) + (this.state.protected?.[from] > this.game.clock.total ? -0.3 : 0);
+    const risk = assessRisk({ R: this.cfg.risk, route, zones: this.zones(), cargo, speed: Math.min(...speeds), stealth: st.combat.stealth, escortStrength: ep.strength, chanceMod });
+    const defense = st.combat.defense + ep.defense + (guards ? this.cfg.risk.guards.defense : 0) + bonuses.reduce((a, b) => a + (b.defense || 0), 0);
+    const worst = escorts.length && risk.worst === 'captured' ? 'cargo' : !cargo && risk.worst === 'cargo' ? 'ransom' : risk.worst;
+    return { ...risk, worst, defense: Math.round(defense), escorted: escorts.length > 0, bonuses: bonuses.map((b) => b.name), value };
+  }
+
+  /** Check escorts for a convoy from `from` to `to`; returns { reasons, cost, speed }. */
+  escortCheck(escorts, from, to) {
+    const reasons = [];
+    let cost = 0;
+    let speed = Infinity;
+    for (const id of escorts) {
+      const e = this.vessel(id);
+      if (!e) { reasons.push('no such escort'); continue; }
+      if (e.kind !== 'warship' || !this.stats(e).tags.includes('escort')) reasons.push(`the ${e.name} can't escort`);
+      if (e.contract || e.cargo || e.status !== 'docked') reasons.push(`the ${e.name} isn't free`);
+      if (e.port !== from) reasons.push(`the ${e.name} is at ${this.port(e.port)?.name || 'sea'}, not ${this.port(from).name}`);
+      const pl = this.plan(e, to, 0, from);
+      for (const r of pl.reasons) if (!r.startsWith('it\'s already') && !r.includes('isn\'t free')) reasons.push(`escort: ${r}`);
+      cost += pl.cost;
+      speed = Math.min(speed, this.stats(e).speed);
+    }
+    if (new Set(escorts).size !== escorts.length) reasons.push('an escort is listed twice');
+    return { reasons, cost, speed };
+  }
+
+  /** Optional per-voyage services on a cargo's value: guards (+defence) and insurance (pays out on a lost cargo). */
+  servicesCost(value, { guards = false, insure = false } = {}) {
+    const R = this.cfg.risk;
+    return (guards ? Math.max(R.guards.min, Math.round(value * R.guards.costShare)) : 0) + (insure ? Math.round(value * R.insurance.rate) : 0);
+  }
+
   /** Pre-roll a voyage's delays (stored, so a reload can't change them). */
   rollEvents(v, km, base, depart) {
     const st = this.stats(v);
@@ -375,11 +476,22 @@ export class Logistics {
     return events;
   }
 
-  startVoyage(v, to, { purpose, contract = null, depart }) {
+  /**
+   * Put a ship to sea. Everything random about the voyage — delays, and since
+   * v0.23.0 whether pirates strike and how it goes — is rolled here and stored.
+   * opts.speed: a convoy sails at its slowest ship; opts.risk: { cargo, escorts, guards, value }.
+   */
+  startVoyage(v, to, { purpose, contract = null, depart, speed = null, risk = null, events = null }) {
     const pl = this.plan(v, to);
-    const base = Math.max(30, Math.round(pl.hours * 60));
-    const events = this.rollEvents(v, pl.km, base, depart);
-    v.voyage = { from: v.port, to, km: pl.km, depart, base, arrive: depart + base, purpose, contract, events };
+    const hours = speed ? this.sailHours(pl.km, speed) : pl.hours;
+    const base = Math.max(30, Math.round(hours * 60));
+    const ev = events ? events.map((e) => ({ ...e })) : this.rollEvents(v, pl.km, base, depart);
+    if (!events && risk) {
+      const rk = this.voyageRisk(v, v.port, to, risk);
+      const hit = rollPirates(this.game.rng, rk, this.cfg.risk, { defense: rk.defense, escorted: rk.escorted, cargo: Boolean(risk.cargo), value: risk.value });
+      if (hit) ev.push({ kind: 'pirates', at: Math.round(depart + base * hit.at), hours: hit.hours, done: false, outcome: hit.outcome, cost: hit.cost, damage: hit.damage, pirates: hit.pirates, where: rk.exposure.names[0] || 'open water' });
+    }
+    v.voyage = { from: v.port, to, km: pl.km, depart, base, arrive: depart + base, purpose, contract, events: ev };
     this.setStatus(v, 'underway');
     v.port = null;
     return v.voyage;
@@ -396,13 +508,20 @@ export class Logistics {
     if (g.player.money < pl.cost) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
     const from = v.port;
     this.spend(pl.cost, 'voyage');
-    this.startVoyage(v, to, { purpose: 'reposition', depart: g.clock.total });
+    this.startVoyage(v, to, { purpose: 'reposition', depart: g.clock.total, risk: { cargo: null } });
     this.report('voyage', `⛴ The ${v.name} sails from ${this.port(from).name} for ${this.port(to).name} — ${pl.km} km, about ${fmtHours(pl.hours)}.`, null);
     return { ok: true, text: `The ${v.name} is under way.` };
   }
 
   /** Where a ship is now: { lat, lon, f (voyage fraction), port? }. Derived from the clock. */
   position(v) {
+    if (v.status === 'lost') return null;
+    if (v.status === 'mission') {
+      // on station: a slow circle off the port
+      const p = this.port(v.port);
+      const a = (this.game.clock.total / 180) % (Math.PI * 2);
+      return p ? { lat: p.lat + Math.sin(a) * 1.5, lon: p.lon + Math.cos(a) * 2, f: 0, port: v.port, onStation: true } : null;
+    }
     if (v.status !== 'underway' || !v.voyage) {
       const p = this.port(v.port);
       return p ? { lat: p.lat, lon: p.lon, f: 0, port: v.port } : null;
@@ -454,6 +573,8 @@ export class Logistics {
           if (cand === from) continue;
           const rr = this.route(from, cand);
           if (!rr || rr.km < 300 || rr.km > (easy ? 9000 : 26000)) continue;
+          // the guaranteed offer keeps to safe water (early players can't be ruined by bad luck)
+          if (easy && routeExposure(rr, this.zones()).maxDanger >= 0.2) continue;
           to = cand;
           route = rr;
         }
@@ -492,8 +613,11 @@ export class Logistics {
     return { ok: true, text: `Cancelled (penalty ${fee} obols).` };
   }
 
-  /** Everything about putting a ship on a contract, without doing it. */
-  quote(cid, vid) {
+  /**
+   * Everything about putting a ship on a contract, without doing it.
+   * opts (v0.23.0): { escorts: [warship ids], guards, insure }.
+   */
+  quote(cid, vid, { escorts = [], guards = false, insure = false } = {}) {
     const c = this.contract(cid);
     const v = this.vessel(vid);
     if (!c || !v) return { ok: false, reasons: ['nothing to quote'] };
@@ -508,11 +632,18 @@ export class Logistics {
     if (T.needs && !st.tags.includes(T.needs)) reasons.push(`it needs ${/^[aeiou]/.test(T.needs) ? 'an' : 'a'} ${T.needs} ship`);
     const pl = this.plan(v, c.to, c.units, c.from);
     for (const r of pl.reasons) if (!reasons.includes(r) && !r.startsWith('it\'s already')) reasons.push(r);
+    const esc = this.escortCheck(escorts, c.from, c.to);
+    reasons.push(...esc.reasons);
     const now = this.game.clock.total;
-    const arrive = now + Math.round((pl.load + pl.hours) * 60);
+    const speed = Math.min(st.speed, esc.speed);
+    const hours = pl.load + this.sailHours(pl.km, speed);
+    const arrive = now + Math.round(hours * 60);
     const onTime = arrive <= c.deadline;
     const pay = this.payFor(c, arrive);
-    return { ok: reasons.length === 0, reasons, arrive, onTime, pay, cost: pl.cost, opex: pl.opex, fees: pl.fees, profit: pay - pl.cost, hours: pl.load + pl.hours };
+    const services = this.servicesCost(c.pay, { guards, insure });
+    const cost = pl.cost + esc.cost + services;
+    const risk = this.voyageRisk(v, c.from, c.to, { cargo: c.type, escorts, guards, value: c.pay });
+    return { ok: reasons.length === 0, reasons, arrive, onTime, pay, cost, opex: pl.opex, fees: pl.fees, escortCost: esc.cost, services, profit: pay - cost, hours, risk };
   }
 
   /** What the client pays for a delivery at a given time. */
@@ -525,21 +656,24 @@ export class Logistics {
     return Math.round(c.pay * (1 + early));
   }
 
-  /** Put a ship on a contract: it loads, then sails. Running costs and port fees are paid now. */
-  assign(cid, vid) {
+  /** Put a ship on a contract: it loads, then sails (with any escorts). Running costs, fees and services are paid now. */
+  assign(cid, vid, opts = {}) {
     const g = this.game;
     const c = this.contract(cid);
     const v = this.vessel(vid);
-    const q = this.quote(cid, vid);
+    const q = this.quote(cid, vid, opts);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs and port fees).` };
+    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
     this.spend(q.cost, 'voyage');
     c.status = 'loading';
     c.vessel = v.id;
+    c.insured = Boolean(opts.insure);
+    c.guards = Boolean(opts.guards);
     v.contract = c.id;
     v.cargo = { type: c.type, units: c.units, contract: c.id };
     this.setStatus(v, 'loading');
     v.loadUntil = g.clock.total + Math.round(this.L.loadHoursBase * 60 + c.units * this.L.loadHoursPerUnit * 60);
+    this.formConvoy(v, opts.escorts || [], { cargo: c.type, guards: c.guards, value: c.pay });
     this.report('contract', `📦 The ${v.name} is loading ${c.units} units for ${this.cfg.clients[c.client].name} at ${this.port(c.from).name}.`, null);
     return { ok: true, text: `The ${v.name} is loading. It should reach ${this.port(c.to).name} ${this.when(q.arrive)}${q.onTime ? '' : ' — late'}.` };
   }
@@ -550,8 +684,8 @@ export class Logistics {
     return Object.keys(this.cfg.ports).find((id) => this.cfg.ports[id].country === countryId) || null;
   }
 
-  /** Can this ship carry `crates` of an order to that country? Nothing changes. */
-  armsQuote(vid, countryId, crates) {
+  /** Can this ship carry `crates` of an order to that country? Nothing changes. opts: { escorts, guards, value }. */
+  armsQuote(vid, countryId, crates, { escorts = [], guards = false, value = 0 } = {}) {
     const v = this.vessel(vid);
     const to = this.portFor(countryId);
     if (!v) return { ok: false, reasons: ['no such ship'] };
@@ -563,8 +697,13 @@ export class Logistics {
     if (st.capacity < crates) reasons.push(`it holds ${st.capacity} units; the order is ${crates} crates`);
     const pl = this.plan(v, to, 0, this.L.armsPort);
     for (const r of pl.reasons) if (!reasons.includes(r) && !r.startsWith('it\'s already')) reasons.push(r);
+    const esc = this.escortCheck(escorts, this.L.armsPort, to);
+    reasons.push(...esc.reasons);
     const load = this.L.loadHoursBase + crates * this.L.armsLoadHoursPerCrate;
-    return { ok: reasons.length === 0, reasons, to, km: pl.km, hours: load + pl.hours, load, cost: pl.cost, opex: pl.opex, fees: pl.fees };
+    const hours = load + this.sailHours(pl.km, Math.min(st.speed, esc.speed));
+    const services = this.servicesCost(value, { guards });
+    const risk = this.voyageRisk(v, this.L.armsPort, to, { cargo: 'arms', escorts, guards, value });
+    return { ok: reasons.length === 0, reasons, to, km: pl.km, hours, load, cost: pl.cost + esc.cost + services, opex: pl.opex, fees: pl.fees, escortCost: esc.cost, services, risk, escorts, guards };
   }
 
   /** Called by Market.shipOwn once the order is committed: pay, load and sail. */
@@ -578,7 +717,38 @@ export class Logistics {
     this.setStatus(v, 'loading');
     v.loadUntil = g.clock.total + Math.round(q.load * 60);
     v.pending = { to: q.to, purpose: 'arms', shipment: shp.id, fate };
+    this.formConvoy(v, q.escorts || [], { cargo: 'arms', guards: q.guards, value: shp.value });
     this.report('arms', `📦 The ${v.name} is loading ${v.cargo.units} crates for ${g.content.arms.countries[shp.country].name} at ${this.port(v.port).name}.`, null);
+  }
+
+  /** Escorts wait in port with the loading ship and sail with it (status 'loading', convoyOf). */
+  formConvoy(v, escorts, risk) {
+    v.convoy = [...escorts];
+    v.riskOpts = { ...risk, escorts: [...escorts] };
+    for (const id of escorts) {
+      const e = this.vessel(id);
+      this.setStatus(e, 'loading');
+      e.convoyOf = v.id;
+    }
+    if (escorts.length) this.report('convoy', `🛡 ${escorts.map((id) => `the ${this.vessel(id).name}`).join(' and ')} will escort the ${v.name}.`, null);
+  }
+
+  /** The convoy sails together at its slowest ship's speed, sharing one set of events. */
+  sailConvoy(v, to, opts) {
+    const esc = (v.convoy || []).map((id) => this.vessel(id)).filter(Boolean);
+    const speed = Math.min(this.stats(v).speed, ...esc.map((e) => this.stats(e).speed));
+    const vo = this.startVoyage(v, to, { ...opts, speed, risk: v.riskOpts || { cargo: opts.purpose === 'arms' ? 'arms' : null } });
+    for (const e of esc) {
+      delete e.convoyOf;
+      const ev = this.startVoyage(e, to, { purpose: 'escort', depart: vo.depart, speed, events: vo.events });
+      ev.escortOf = v.id;
+      ev.base = vo.base;
+      ev.arrive = vo.arrive;
+    }
+    delete v.riskOpts;
+    vo.convoy = esc.map((e) => e.id);
+    delete v.convoy;
+    return vo;
   }
 
   /** Keep the market's shipment in step with the voyage (its ETA moves with delays). */
@@ -605,18 +775,97 @@ export class Logistics {
       s.lastUpkeepDay = g.clock.day;
       this.daily();
     }
+    this.missions.tick();
     for (const v of this.vessels()) {
-      if (v.status === 'loading' && now >= v.loadUntil) this.depart(v);
+      if (v.status === 'loading' && v.loadUntil !== undefined && now >= v.loadUntil) this.depart(v);
       if (v.status !== 'underway') continue;
       for (const e of v.voyage.events) {
         if (e.done || e.at > now) continue;
         e.done = true;
+        if (e.kind === 'pirates') { this.pirates(v, e); if (v.status !== 'underway') break; continue; }
         v.voyage.arrive += e.hours * 60;
         this.syncShipment(v);
-        this.report('delay', `⏳ The ${v.name} is delayed ${e.hours} h by ${e.why}. New arrival ${this.when(v.voyage.arrive)}.`, 'warn');
+        if (v.voyage.purpose !== 'escort') this.report('delay', `⏳ The ${v.name} is delayed ${e.hours} h by ${e.why}. New arrival ${this.when(v.voyage.arrive)}.`, 'warn');
       }
-      if (now >= v.voyage.arrive) this.arrive(v);
+      if (v.status === 'underway' && now >= v.voyage.arrive) this.arrive(v);
     }
+  }
+
+  /** A pirate encounter (rolled at departure) happens now. */
+  pirates(v, e) {
+    const g = this.game;
+    const V = v.voyage;
+    const escort = V.purpose === 'escort';
+    const where = e.where;
+    const hurt = (ship, n) => { ship.condition = Math.max(0, Math.round((ship.condition - n) * 10) / 10); };
+    if (escort) {
+      // the escort shares the fight: some damage, the same delay
+      hurt(v, Math.round(e.damage * 0.6));
+      if (['delay', 'ransom', 'cargo'].includes(e.outcome)) V.arrive += e.hours * 60;
+      return;
+    }
+    const escorted = (V.convoy || []).length > 0;
+    const log = (text, kind = 'warn') => { (V.incidents ||= []).push({ at: g.clock.total, outcome: e.outcome, text }); this.report('piracy', text, kind); };
+    if (e.outcome === 'repelled') {
+      log(`🏴 Pirates in ${where} went for the ${v.name} — ${escorted ? 'her escort drove them off' : 'she showed them her stern and outran them'}.`, 'info');
+      return;
+    }
+    if (e.outcome === 'delay') {
+      hurt(v, e.damage);
+      V.arrive += e.hours * 60;
+      this.syncShipment(v);
+      log(`🏴 Pirates in ${where} chased the ${v.name} off course: ${e.hours} h lost, some damage (${Math.round(v.condition)}%).`);
+      return;
+    }
+    if (e.outcome === 'ransom') {
+      hurt(v, e.damage);
+      V.arrive += e.hours * 60;
+      this.syncShipment(v);
+      const paid = Math.min(e.cost, Math.max(0, g.player.money));
+      this.spend(paid, 'ransom');
+      this.state.arrears += e.cost - paid;
+      log(`🏴 Pirates in ${where} boarded the ${v.name} and took ${e.cost} obols to let her go${paid < e.cost ? ` (${e.cost - paid} owed — added to arrears)` : ''}.`);
+      return;
+    }
+    // cargo or ship lost: the business that owns the cargo settles it now, once
+    this.loseCargo(v, e.outcome === 'captured' ? 'captured' : 'hijacked');
+    if (e.outcome === 'cargo') {
+      hurt(v, e.damage);
+      log(`🏴 Pirates in ${where} seized the ${v.name}'s cargo. The ship limps on (${Math.round(v.condition)}%).`);
+      return;
+    }
+    // captured: the ship is gone
+    this.setStatus(v, 'lost');
+    v.lostAt = g.clock.total;
+    v.voyage = { ...V, lost: true };
+    log(`☠ Pirates in ${where} captured the ${v.name}. She is lost, with her cargo.`);
+  }
+
+  /** The cargo aboard is lost: contracts fail (insurance pays if bought), arms exports are hijacked. */
+  loseCargo(v, how) {
+    const g = this.game;
+    const V = v.voyage;
+    if (V.shipment) {
+      g.market.settleOwn(V.shipment, 'hijacked');
+      V.shipment = null;
+    }
+    const c = V.contract && this.contract(V.contract);
+    if (c && c.status === 'transit') {
+      c.status = 'lost';
+      if (c.insured) {
+        const payout = Math.round(c.pay * this.cfg.risk.insurance.payout);
+        c.result = { paid: 0, insurance: payout, note: how };
+        this.earn(payout, 'insurance');
+        this.report('contract', `🛟 Cargo insurance paid ${payout} obols for ${this.cfg.clients[c.client].name}'s lost cargo.`, 'info');
+      } else {
+        const fee = Math.round(c.pay * this.L.failPenalty);
+        c.result = { paid: 0, penalty: fee, note: how };
+        this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+      }
+    }
+    V.contract = null;
+    v.contract = null;
+    v.cargo = null;
   }
 
   depart(v) {
@@ -624,7 +873,7 @@ export class Logistics {
     if (v.pending) {
       const P = v.pending;
       delete v.pending;
-      const vo = this.startVoyage(v, P.to, { purpose: P.purpose, depart: this.game.clock.total });
+      const vo = this.sailConvoy(v, P.to, { purpose: P.purpose, depart: this.game.clock.total });
       vo.shipment = P.shipment;
       vo.fate = P.fate;
       this.syncShipment(v);
@@ -632,7 +881,7 @@ export class Logistics {
       return;
     }
     const c = this.contract(v.contract);
-    const vo = this.startVoyage(v, c.to, { purpose: 'contract', contract: c.id, depart: this.game.clock.total });
+    const vo = this.sailConvoy(v, c.to, { purpose: 'contract', contract: c.id, depart: this.game.clock.total });
     c.status = 'transit';
     c.depart = vo.depart;
     c.arrive = vo.arrive;
@@ -648,7 +897,7 @@ export class Logistics {
     v.voyage = null;
     v.sailedKm += V.km;
     v.condition = Math.max(0, Math.round((v.condition - (V.km / 1000) * this.L.wearPerKkm * st.wear) * 10) / 10);
-    v.log.unshift({ from: V.from, to: V.to, km: V.km, departed: V.depart, arrived: g.clock.total, contract: V.contract, shipment: V.shipment || null, cargo: v.cargo ? `${v.cargo.units} ${v.cargo.type === 'arms' ? 'crates' : 'units'}` : null, delays: V.events.filter((e) => e.done).length });
+    v.log.unshift({ from: V.from, to: V.to, km: V.km, departed: V.depart, arrived: g.clock.total, contract: V.contract, shipment: V.shipment || null, cargo: v.cargo ? `${v.cargo.units} ${v.cargo.type === 'arms' ? 'crates' : 'units'}` : V.purpose === 'escort' ? 'escort duty' : null, delays: V.events.filter((e) => e.done && e.kind === 'delay').length, incidents: (V.incidents || []).map((i) => i.outcome) });
     v.log.length = Math.min(v.log.length, 10);
     if (V.shipment) {
       // the market owns the order: it pays (or doesn't) exactly once
@@ -657,8 +906,9 @@ export class Logistics {
       if (fate) this.report('arms', fate === 'delivered' ? `✅ The ${v.name} delivered its crates at ${this.port(V.to).name}.` : `⚓ Customs at ${this.port(V.to).name} seized the ${v.name}'s cargo. The ship was released.`, fate === 'delivered' ? null : 'warn');
       return;
     }
+    if (V.purpose === 'escort') return; // the escorted ship reports the arrival
     if (!V.contract) {
-      this.report('voyage', `⚓ The ${v.name} reached ${this.port(V.to).name}.`, 'info');
+      this.report('voyage', `⚓ The ${v.name} reached ${this.port(V.to).name}${(V.convoy || []).length ? ' with her escort' : ''}.`, 'info');
       return;
     }
     const c = this.contract(V.contract);
@@ -703,11 +953,12 @@ export class Logistics {
         this.report('contract', `✖ You never shipped ${this.cfg.clients[c.client].name}'s cargo. Penalty ${fee} obols.`, 'warn');
       }
     }
-    s.contracts = s.contracts.filter((c) => !['expired', 'delivered', 'failed'].includes(c.status) || g.clock.day - c.offered < 10);
+    s.contracts = s.contracts.filter((c) => !['expired', 'delivered', 'failed', 'lost'].includes(c.status) || g.clock.day - c.offered < 10);
     if (s.lastContractDay < g.clock.day) {
       s.lastContractDay = g.clock.day;
       this.postContracts();
     }
+    this.missions.daily();
   }
 
   /** Pay off arrears now (if you can). */
@@ -724,7 +975,7 @@ export class Logistics {
   dailyUpkeep() {
     let n = 0;
     for (const id of this.ownedPorts()) n += this.portType(id).upkeep;
-    for (const v of this.vessels()) n += this.stats(v).upkeep;
+    for (const v of this.vessels()) if (v.status !== 'lost') n += this.stats(v).upkeep;
     return n;
   }
 
@@ -749,6 +1000,6 @@ export class Logistics {
   berth(slot) {
     const id = this.game.world.logistics?.display?.berths?.[slot];
     if (!id || !this.owned) return null;
-    return { port: id, name: this.port(id).name, ships: this.atPort(id).filter((v) => v.visible) };
+    return { port: id, name: this.port(id).name, ships: this.atPort(id).filter((v) => v.visible && v.status !== 'mission') };
   }
 }

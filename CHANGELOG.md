@@ -2,6 +2,23 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.23.0] — 2026-10-15 — "Here Be Pirates" (development build)
+
+Stage 3 of the shipping expansion (the master brief's stage F).
+
+### Added
+- **Piracy** (`src/systems/piracy.js`, `Logistics.voyageRisk`): pirate waters (`PIRATE_WATERS`), war zones and blockades from the arms market; risk by danger-weighted distance, cargo value, speed, stealth, escorts, guards and fleet bonuses; worst case capped by the route's most dangerous water (safe water: delays only; escorted: never captured). Encounters rolled at departure and stored as voyage events; outcomes repelled / chased / ransom / cargo seized / captured, settled once (`Logistics.pirates`, `loseCargo`) — contracts fail or pay insurance, arms shipments settle as hijacked through the market.
+- **Convoys and services**: escorts (`quote`/`assign`/`armsQuote`/`Market.ship` take `escorts`), guards and cargo insurance; escorts wait while the cargo loads, sail at the convoy's speed, share its events and take a share of any fight.
+- **Warships** (`WARSHIPS`, Kestrel Naval Surplus): twelve ships in four families with combat numbers, holds only where real, port restrictions and fleet bonuses (`BONUSES`, scoped fleet/port/group, never stacking).
+- **Missions** (`src/systems/missions.js`, `MISSION_TYPES`): seven types offered daily at your ports; fitness from weighted stats; an estimate shown, the outcome rolled at the start and stored; vessels `mission` status; rewards once; deterrence suppresses a pirate water, port protection safeguards a port.
+- Logistics terminal: Missions and Warships pages; protection and escort choices with risk on every quote; route risk on every contract; danger zones on the chart; combat stats and bonuses on Fleet. Arms terminal: guards and escorts for own-ship exports, with the risk.
+- Ships drawn for every warship hull (sails and yards, turrets, a skiff).
+- `tools/validate-content.mjs` checks the logistics registries (ports, ships, classes, bonuses, contract and mission requirements).
+- Tests: `tests/naval.test.mjs` (10).
+
+### Changed
+- Naval bases berth size-4 ships. Contract types no longer carry a fixed risk label; the route decides.
+
 ## [0.22.0] — 2026-10-15 — "Own Bottoms" (development build)
 
 Stage 2 of the shipping expansion (the master brief's stage D and the rest of E).
