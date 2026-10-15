@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.28.0 (2026-10-15)
+
+- `npm run check` — **308/308 tests passed** (4 new in `geography.test.mjs`: capitals on land; every port on land, on the coast, near its capital and reachable by sea; 22–45% land, coastlines far longer than a disc's, over 60 landmasses, the Morrow archipelago; deterministic); validator 0 errors. The existing sea-route tests pass on the new coasts.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, 1440×900): an equirectangular preview of the whole world with every port and capital marked; the arms terminal's globe (Market tab) with true coasts, borders and the hovered country lit, opening in under 0.1 s and running at ~48 fps; Fleet Command's chart at default and zoomed in, dragged; sending a ship along the new coasts. Fixed from the runs: a wrap-around bug that smeared land in strips across the ocean, too many single-pixel islands, a stale reference left over from the dot matrix. No page errors.
+
 ## Verification record — v0.27.0 (2026-10-15)
 
 - `npm run check` — **304/304 tests passed** (4 new in `boarding.test.mjs`: on every stock ship and every hull fully fitted, from either side's gangway the way below and every fitting are reachable; below decks every interactive fitting is reachable and the way up exists; mooring, the gangway, the wheel and logbook, casting off with you aboard; aboard through a save, and hiding a ship you're on); validator 0 errors.

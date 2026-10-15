@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.28.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'New World',
+    notes: [
+      'The world has real geography now: continents with ragged coasts, bays, capes and peninsulas, inland seas and straits, and island chains — the Morrow Isles are finally two hundred islands, give or take.',
+      'The arms terminal\'s globe is a proper lit globe: the coastlines drawn true at any angle and zoom, country borders traced on the land, and the whole country lighting up when you hover it.',
+      'Fleet Command\'s chart shows the same world, sharp enough to zoom in on a harbour.',
+      'Every port now sits on the new coast, and ships plot their courses round the new land.',
+    ],
+  },
+  {
     version: '0.27.0',
     date: '2026-10-15',
     channel: 'development',

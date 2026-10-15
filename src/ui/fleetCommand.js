@@ -13,7 +13,8 @@
 // only draws and calls it. Opened by the harbour-office terminal, the
 // tablet's Ships app, Captain Ober and Mason (PANELS.logistics / PANELS.fleet).
 import { h } from './panels.js';
-import { landValue, wrapLon } from '../world/globe.js';
+import { wrapLon } from '../world/globe.js';
+import { surfaceTexture, flatCanvas } from '../engine/drawGlobeSurface.js';
 import { pointAlong } from '../world/seaRoutes.js';
 import { drawShip } from '../engine/drawShips.js';
 import { shipyardSheet } from './shipBuilder.js';
@@ -40,43 +41,12 @@ const FC = { mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, op
 
 let LAND_IMG = null;
 
-/** The world's land, once, sampled every half degree: dark ground shaded by height, a glowing coast. */
+/** The world, once: the shared surface texture in the ops-room palette, at a quarter degree, smoothed. */
 function landImage(countries) {
   if (LAND_IMG) return LAND_IMG;
-  const W = 720;
-  const H = 360;
-  const n = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) n[y * W + x] = landValue(90 - y / 2, x / 2 - 180, countries);
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const x2 = c.getContext('2d');
-  const img = x2.createImageData(W, H);
-  const d = img.data;
-  const LAND = 0.12;
-  const land = (x, y) => n[Math.min(H - 1, Math.max(0, y)) * W + ((x + W) % W)] >= LAND;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (!land(x, y)) continue;
-      const i = (y * W + x) * 4;
-      const coast = !land(x + 1, y) || !land(x - 1, y) || !land(x, y + 1) || !land(x, y - 1);
-      const k = Math.min(1, (n[y * W + x] - LAND) * 2.2);
-      if (coast) { d[i] = 70; d[i + 1] = 220; d[i + 2] = 255; d[i + 3] = 235; } else { d[i] = 16 + k * 22; d[i + 1] = 44 + k * 36; d[i + 2] = 62 + k * 30; d[i + 3] = 255; }
-    }
-  }
-  x2.putImageData(img, 0, 0);
-  // scaled up 4× through a blur: smooth coastlines with a soft glow instead of stair-steps
-  const big = document.createElement('canvas');
-  big.width = W * 4; big.height = H * 4;
-  const b = big.getContext('2d');
-  b.imageSmoothingEnabled = true;
-  b.filter = 'blur(7px)';
-  b.globalAlpha = 0.7;
-  b.drawImage(c, 0, 0, big.width, big.height);
-  b.filter = 'blur(1.6px)';
-  b.globalAlpha = 1;
-  b.drawImage(c, 0, 0, big.width, big.height);
-  LAND_IMG = big;
-  return big;
+  const tex = surfaceTexture('fleet', { deep: [3, 12, 24], shelf: [10, 46, 72], low: [18, 50, 66], high: [52, 92, 104], coast: [80, 225, 255], border: [34, 84, 104], ice: [130, 176, 196] }, countries, 2);
+  LAND_IMG = flatCanvas(tex, 2);
+  return LAND_IMG;
 }
 
 // ====================================================================== the panel
@@ -133,14 +103,16 @@ export function fleetPanel(ui, body, opts = {}) {
     // the grid
     ctx.strokeStyle = 'rgba(80,180,255,0.07)';
     ctx.lineWidth = 1;
-    for (let lon = -180; lon < 180; lon += 15) { const p = toScreen(0, lon); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke(); }
-    for (let lat = -75; lat <= 75; lat += 15) { const p = toScreen(lat, 0); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke(); }
     // the land (three copies for the wrap)
     const land = landImage(g.content.arms.countries);
     const x0 = W / 2 + (-180 - view.lon) * ppd;
     const y0 = H / 2 - (90 - view.lat) * ppd;
     ctx.imageSmoothingEnabled = true;
     for (const k of [-1, 0, 1]) ctx.drawImage(land, x0 + k * 360 * ppd, y0, 360 * ppd, 180 * ppd);
+    ctx.strokeStyle = 'rgba(80,180,255,0.08)';
+    ctx.lineWidth = 1;
+    for (let lon = -180; lon < 180; lon += 15) { const p = toScreen(0, lon); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke(); }
+    for (let lat = -75; lat <= 75; lat += 15) { const p = toScreen(lat, 0); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke(); }
     // danger
     for (const z of Lg.zones()) {
       const p = toScreen(z.lat, z.lon);

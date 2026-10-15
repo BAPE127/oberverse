@@ -3701,56 +3701,56 @@ const PORT_TYPES = {
 };
 
 /**
- * The world's ports (lat/lon on the globe; the coast is found automatically).
+ * The world's ports (lat/lon on the globe — on the coast of the v0.28.0 geography; ships find the open sea from there).
  * country: one of the arms market's countries, or null for a free port.
  * local: on Halvermouth's own coast.
  */
 const port = (name, lat, lon, country, type, o = {}) => ({ name, lat, lon, country, type, ...o });
 const PORTS = {
   // home waters
-  port_millroad: port('Mill Road Docks, Halvermouth', 51, -25, null, 'commercial', { local: true, blurb: 'Ober & Sons\' home berth on the south quay of Mill Road Yards. Rust, gulls, and the best fish-and-chip van on the coast.' }),
-  port_lanternside: port('Lanternside Quay', 49, -24, null, 'harbor', { local: true, blurb: 'A stone quay under the lighthouse. Small boats, big opinions.' }),
+  port_millroad: port('Mill Road Docks, Halvermouth', 49, -26.5, null, 'commercial', { local: true, blurb: 'Ober & Sons\' home berth on the south quay of Mill Road Yards. Rust, gulls, and the best fish-and-chip van on the coast.' }),
+  port_lanternside: port('Lanternside Quay', 48, -24.5, null, 'harbor', { local: true, blurb: 'A stone quay under the lighthouse. Small boats, big opinions.' }),
   port_gullwing: port('Gullwing Point', 47, -22, null, 'harbor', { local: true, blurb: 'A breakwater, a crane and a café that has been "opening soon" since the crane arrived.' }),
   // Kingdom of Sund
-  port_sund: port('Sund Harbour', 52, -4, 'sund', 'harbor', { blurb: 'Fishing boats, a royal yacht with stabilisers, and herring everywhere.' }),
-  port_kingsfjord: port('Kingsfjord', 72, -6, 'sund', 'commercial', { blurb: 'A deep fjord where the young king reviews the fishing fleet every Monday.' }),
+  port_sund: port('Sund Harbour', 54, -4, 'sund', 'harbor', { blurb: 'Fishing boats, a royal yacht with stabilisers, and herring everywhere.' }),
+  port_kingsfjord: port('Kingsfjord', 72.5, -4.5, 'sund', 'commercial', { blurb: 'A deep fjord where the young king reviews the fishing fleet every Monday.' }),
   // Grand Duchy of Lirre
-  port_lirre: port('Port Lirre', 36, -78, 'lirre', 'commercial', { blurb: 'Neutral waters, neutral harbourmaster, neutral coffee.' }),
-  port_lirre_north: port('Duchess Bay', 57, -66, 'lirre', 'harbor', { blurb: 'A pretty harbour with a customs house that is also a museum about customs.' }),
+  port_lirre: port('Port Lirre', 34, -76.5, 'lirre', 'commercial', { blurb: 'Neutral waters, neutral harbourmaster, neutral coffee.' }),
+  port_lirre_north: port('Duchess Bay', 57, -65.5, 'lirre', 'harbor', { blurb: 'A pretty harbour with a customs house that is also a museum about customs.' }),
   // The Ostmark Union
-  port_ostmark: port('Ostmark Gate', 51, 1, 'ostmark', 'heavy', { blurb: 'Seven provinces\' worth of cranes. They are all slightly different colours.' }),
-  port_ostmark_naval: port('Seventh Province Naval Yard', 63, 32, 'ostmark', 'naval', { blurb: 'Grey ships, grey sheds, grey paperwork in triplicate.' }),
-  port_ostmark_east: port('Halden Roads', 49, 32, 'ostmark', 'commercial', { blurb: 'A busy roadstead where everybody queues politely.' }),
+  port_ostmark: port('Ostmark Gate', 51.5, 1.5, 'ostmark', 'heavy', { blurb: 'Seven provinces\' worth of cranes. They are all slightly different colours.' }),
+  port_ostmark_naval: port('Seventh Province Naval Yard', 63, 37, 'ostmark', 'naval', { blurb: 'Grey ships, grey sheds, grey paperwork in triplicate.' }),
+  port_ostmark_east: port('Halden Roads', 50, 32, 'ostmark', 'commercial', { blurb: 'A busy roadstead where everybody queues politely.' }),
   // Varnistan
-  port_varn: port('Port Varn', 45, 40, 'varn', 'commercial', { blurb: 'The republic\'s only real port. The election posters are nineteen years old.' }),
-  port_varn_south: port('Kestrel Landing', 33, 64, 'varn', 'harbor', { blurb: 'A small military-ish harbour below the Kestrel Pass.' }),
+  port_varn: port('Port Varn', 44, 42.5, 'varn', 'commercial', { blurb: 'The republic\'s only real port. The election posters are nineteen years old.' }),
+  port_varn_south: port('Kestrel Landing', 34, 64, 'varn', 'harbor', { blurb: 'A small military-ish harbour below the Kestrel Pass.' }),
   // Republic of Caldera
   port_caldera: port('Caldera Bay', -3, 44, 'caldera', 'commercial', { blurb: 'A harbour in a flooded crater. The water is warm. Suspiciously warm.' }),
-  port_caldera_west: port('Ashport', -16, 27, 'caldera', 'harbor', { blurb: 'Everything is grey, including the tea.' }),
+  port_caldera_west: port('Ashport', -17.5, 25, 'caldera', 'harbor', { blurb: 'Everything is grey, including the tea.' }),
   // Free State of Pallas
   port_pallas: port('Pallas Free Harbour', 15, -27, 'pallas', 'harbor', { blurb: '"Free" harbour. Several flags, one crane, many questions.' }),
   port_pallas_south: port('Coup Cove', 1, -39, 'pallas', 'harbor', { blurb: 'Named after the last government. And the one before.' }),
   // Teshvar
-  port_teshvar: port('Teshvar Oil Terminal', 33, 84, 'teshvar', 'heavy', { blurb: 'Tankers the size of towns, and the sheikh\'s yacht-shaped yacht.' }),
-  port_teshvar_gold: port('Golden Quay', 18, 102, 'teshvar', 'advanced', { blurb: 'Gold-leaf bollards and dockers in sunglasses. The price list is in gold leaf too.' }),
+  port_teshvar: port('Teshvar Oil Terminal', 28, 82, 'teshvar', 'heavy', { blurb: 'Tankers the size of towns, and the sheikh\'s yacht-shaped yacht.' }),
+  port_teshvar_gold: port('Golden Quay', 17, 103, 'teshvar', 'advanced', { blurb: 'Gold-leaf bollards and dockers in sunglasses. The price list is in gold leaf too.' }),
   // Morrow Isles
-  port_morrow: port('Morrow Main Harbour', -30, 136, 'morrow', 'commercial', { blurb: 'Two hundred islands share one harbour master. He is very tired.' }),
-  port_morrow_naval: port('Isle of Navies', -39, 159, 'morrow', 'naval', { blurb: 'Every island\'s navy moors here. Every navy has an admiral. There are no sailors left.' }),
-  port_morrow_reef: port('Reef Town', -24, 156, 'morrow', 'harbor', { blurb: 'Turquoise water, coral, and a smuggling museum run by retired smugglers.' }),
+  port_morrow: port('Morrow Main Harbour', -31, 137, 'morrow', 'commercial', { blurb: 'Two hundred islands share one harbour master. He is very tired.' }),
+  port_morrow_naval: port('Isle of Navies', -39, 159.5, 'morrow', 'naval', { blurb: 'Every island\'s navy moors here. Every navy has an admiral. There are no sailors left.' }),
+  port_morrow_reef: port('Reef Town', -24.5, 156.5, 'morrow', 'harbor', { blurb: 'Turquoise water, coral, and a smuggling museum run by retired smugglers.' }),
   // free ports and the rest of the world
-  port_westreach: port('Westreach', 33, -150, null, 'commercial', { blurb: 'A free port on the far western coast. Everything costs more and arrives later.' }),
-  port_coldwater: port('Coldwater', 42, -168, null, 'harbor', { blurb: 'Icebergs in summer. The harbour cat has a coat.' }),
-  port_sunmouth: port('Sunmouth', 12, -126, null, 'heavy', { blurb: 'An equatorial megaport where the cranes never stop and the sun never sets (it does; they just don\'t notice).' }),
-  port_marrow: port('Marrow Strait', -21, -132, null, 'harbor', { blurb: 'A narrow strait with a lighthouse keeper who charges by the look.' }),
-  port_capelow: port('Cape Low', -36, -93, null, 'commercial', { blurb: 'The bottom of the western continent: storms, ropes and stories.' }),
-  port_greyhook: port('Greyhook', -48, -72, null, 'naval', { blurb: 'A cold, quiet naval anchorage. Nobody admits who it belongs to.' }),
-  port_southwind: port('Southwind Isle', -54, -6, null, 'harbor', { blurb: 'A rock, a hut, a pier. The pier is new.' }),
-  port_meridian: port('Meridian Free Port', -20, 64, null, 'advanced', { blurb: 'A gleaming free port on the meridian line. Its dock robots have union representation.' }),
-  port_coral: port('Coral Sound', -36, 116, null, 'harbor', { blurb: 'A sound full of coral and a harbour full of sound.' }),
-  port_eastwatch: port('Eastwatch', 60, 130, null, 'commercial', { blurb: 'The northern route\'s last stop before the ice.' }),
-  port_frostbay: port('Frostbay', 75, -100, null, 'harbor', { blurb: 'Open three months a year. The other nine, it is a skating rink.' }),
-  port_oldmoor: port('Oldmoor', 63, -62, null, 'harbor', { blurb: 'A fog-bound fishing town where every boat is called Mary.' }),
-  port_dunmere: port('Dunmere', 21, -6, null, 'commercial', { blurb: 'A crossroads harbour between the continents. Everybody passes through; nobody admits to staying.' }),
+  port_westreach: port('Westreach', 33, -147.5, null, 'commercial', { blurb: 'A free port on the far western coast. Everything costs more and arrives later.' }),
+  port_coldwater: port('Coldwater', 40, -165, null, 'harbor', { blurb: 'Icebergs in summer. The harbour cat has a coat.' }),
+  port_sunmouth: port('Sunmouth', 12, -124, null, 'heavy', { blurb: 'An equatorial megaport where the cranes never stop and the sun never sets (it does; they just don\'t notice).' }),
+  port_marrow: port('Marrow Strait', -21, -132.5, null, 'harbor', { blurb: 'A narrow strait with a lighthouse keeper who charges by the look.' }),
+  port_capelow: port('Cape Low', -36.5, -96, null, 'commercial', { blurb: 'The bottom of the western continent: storms, ropes and stories.' }),
+  port_greyhook: port('Greyhook', -48, -71.5, null, 'naval', { blurb: 'A cold, quiet naval anchorage. Nobody admits who it belongs to.' }),
+  port_southwind: port('Southwind Isle', -52, -5, null, 'harbor', { blurb: 'A rock, a hut, a pier. The pier is new.' }),
+  port_meridian: port('Meridian Free Port', -19, 63, null, 'advanced', { blurb: 'A gleaming free port on the meridian line. Its dock robots have union representation.' }),
+  port_coral: port('Coral Sound', -36, 116.5, null, 'harbor', { blurb: 'A sound full of coral and a harbour full of sound.' }),
+  port_eastwatch: port('Eastwatch', 60.5, 131.5, null, 'commercial', { blurb: 'The northern route\'s last stop before the ice.' }),
+  port_frostbay: port('Frostbay', 76, -104, null, 'harbor', { blurb: 'Open three months a year. The other nine, it is a skating rink.' }),
+  port_oldmoor: port('Oldmoor', 63.5, -62, null, 'harbor', { blurb: 'A fog-bound fishing town where every boat is called Mary.' }),
+  port_dunmere: port('Dunmere', 20.5, -6.5, null, 'commercial', { blurb: 'A crossroads harbour between the continents. Everybody passes through; nobody admits to staying.' }),
 };
 
 /**
@@ -9253,7 +9253,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.27.0';
+const GAME_VERSION = '0.28.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -18614,64 +18614,285 @@ class Pursuit {
 return { Pursuit };
 })();
 
-// ---- src/world/globe.js
-__m["src/world/globe.js"] = (function () {
-// The world globe's geography (v0.15.1; shared since v0.21.0). The fictional
-// countries sit on smooth procedural continents; every capital is guaranteed
-// to be on land. Used by the arms terminal's globe, the logistics chart and
-// the sea routes ships follow (src/world/seaRoutes.js). Pure functions.
+// ---- src/world/geography.js
+__m["src/world/geography.js"] = (function () {
+// The world's geography (v0.28.0): fictional continents and islands with
+// real-looking coastlines. Each landmass is a skeleton — chains of
+// [lat, lon, radius°] nodes — "inflated" around its lines, then pushed about
+// by domain-warping noise and roughened by fractal noise, so the coasts get
+// bays, capes, peninsulas and offshore islands instead of round blobs. Inland
+// seas and straits are carved the same way. Archipelagos and scattered ocean
+// islands come from high-frequency noise in their own regions. Pure and
+// deterministic: the same point always gives the same answer.
+//
+// elevation(lat, lon) → a signed height: > 0 is land (higher inland and in
+// the mountains), < 0 is sea (deeper offshore).
+
 const D2R = Math.PI / 180;
 const wrapLon = (d) => ((d + 540) % 360) - 180;
 
-/** Smooth deterministic "continents" on the sphere. */
+// ------------------------------------------------------------------ noise
+const PERM = new Uint8Array(512);
+{
+  let s = 1337;
+  const p = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) { s = (s * 1103515245 + 12345) & 0x7fffffff; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+}
+const hash = (x, y, z) => PERM[(PERM[(PERM[x & 255] + y) & 255] + z) & 255] / 255;
+const fade = (t) => t * t * (3 - 2 * t);
+/** Smooth 3D value noise in [0, 1]. */
+function vnoise(x, y, z) {
+  const xi = Math.floor(x); const yi = Math.floor(y); const zi = Math.floor(z);
+  const xf = fade(x - xi); const yf = fade(y - yi); const zf = fade(z - zi);
+  const l = (a, b, t) => a + (b - a) * t;
+  return l(
+    l(l(hash(xi, yi, zi), hash(xi + 1, yi, zi), xf), l(hash(xi, yi + 1, zi), hash(xi + 1, yi + 1, zi), xf), yf),
+    l(l(hash(xi, yi, zi + 1), hash(xi + 1, yi, zi + 1), xf), l(hash(xi, yi + 1, zi + 1), hash(xi + 1, yi + 1, zi + 1), xf), yf),
+    zf,
+  );
+}
+/** Fractal noise in about [−1, 1] at a point on the unit sphere. */
+function fbm(x, y, z, freq, octaves, seed = 0) {
+  let sum = 0;
+  let amp = 1;
+  let norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    sum += (vnoise(x * freq + seed * 17.1, y * freq + seed * 3.7, z * freq + seed * 9.3) * 2 - 1) * amp;
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2.03;
+  }
+  return sum / norm;
+}
+
+// ------------------------------------------------------------------ the landmasses
+// [lat, lon, radius in degrees of the coast from the line]; chains are joined node to node.
+const LAND = [
+  // the western continent (Westreach to Lirre, down the isthmus to Cape Low and Greyhook)
+  [[64, -162, 7], [58, -150, 9], [50, -138, 9], [44, -122, 11], [46, -104, 12], [52, -88, 10], [58, -72, 7], [62, -60, 4]],
+  [[44, -158, 5], [50, -150, 6]],
+  [[46, -104, 12], [38, -92, 9], [38, -80, 6], [44, -72, 5], [48, -64, 3]],
+  [[34, -144, 4], [38, -134, 7], [44, -122, 11]],
+  [[38, -112, 9], [28, -114, 7], [18, -120, 5], [12, -118, 4], [6, -110, 2.6], [0, -102, 3.5], [-8, -100, 7], [-18, -96, 9], [-28, -96, 8], [-36, -90, 5], [-42, -80, 3.5], [-47, -73, 2]],
+  [[-8, -100, 7], [-14, -114, 5], [-18, -124, 3]],
+  // the home island (Halvermouth) and its neighbour
+  [[52, -27, 3.4], [49, -25, 3], [46, -23, 2.2]],
+  [[55, -34, 1.6], [56, -31, 1.2]],
+  // Sund: a long northern island of fjords
+  [[53, -6, 2.2], [57, -9, 3], [62, -12, 4], [67, -10, 3.5], [71, -7, 2.4]],
+  // Pallas
+  [[16, -31, 3.5], [11, -35, 4], [5, -38, 2.6], [1, -40, 1.4]],
+  // the eastern continent (Ostmark, the northern plains, Varn, Teshvar)
+  [[50, 4, 4.5], [55, 14, 7], [58, 24, 7], [66, 36, 9], [64, 54, 11], [60, 76, 13], [56, 100, 12], [50, 118, 9], [44, 128, 6], [38, 132, 3]],
+  [[55, 14, 7], [50, 22, 6], [50, 34, 5], [46, 46, 6], [42, 56, 7], [40, 70, 8], [44, 90, 10], [56, 100, 12]],
+  [[42, 56, 7], [36, 52, 5], [32, 58, 3.6]],
+  [[40, 70, 8], [34, 82, 6], [28, 92, 7], [22, 98, 5], [17, 102, 3]],
+  [[44, 90, 10], [36, 108, 7], [28, 112, 4]],
+  [[72, 70, 4], [74, 90, 5], [72, 110, 4]],
+  // the southern continent (Caldera)
+  [[12, 22, 6], [10, 34, 8], [3, 38, 9], [-6, 34, 10], [-14, 30, 8], [-24, 28, 7], [-32, 24, 5], [-36, 20, 2.5]],
+  [[10, 34, 8], [10, 44, 4], [9, 50, 2]],
+  [[3, 38, 9], [-4, 42, 4]],
+  [[-14, 30, 8], [-16, 22, 3.5]],
+  // Meridian: a long island
+  [[-14, 63, 2], [-19, 64, 2.6], [-24, 62, 1.8]],
+  // the south-eastern continent (Coral Sound)
+  [[-18, 120, 5], [-24, 126, 7], [-30, 124, 6.5], [-34, 116, 4], [-33, 132, 4], [-28, 134, 3.5]],
+  // Southwind Isle, Dunmere's island, Coldwater's cape, Frostbay's arctic island, odd rocks
+  [[-54, -6, 1.1]],
+  [[22, -5, 2.2], [19, -8, 1.6]],
+  [[44, -158, 5], [41, -165, 2.6]],
+  [[73, -112, 3.5], [75, -98, 4], [73, -86, 2.5]],
+  [[76, -40, 4], [78, -20, 3]],
+  [[-74, -120, 6], [-74, -60, 7], [-74, 0, 7], [-74, 60, 7], [-74, 120, 7], [-74, 180, 6]],
+];
+// inland seas, gulfs and straits carved out of the land
+const SEAS = [
+  [[63, 30, 3.5], [60, 34, 2.4], [62, 22, 1.6], [66, 18, 1.3], [70, 16, 1.4]], // the Ostmark Sea, out to the north
+  [[47, 32, 2.6], [46, 40, 2.8], [42, 38, 2], [38, 34, 1.6], [34, 32, 2]], // the Halden Gulf and Port Varn's sea, to the south
+  [[30, 70, 2.4], [32, 64, 2], [28, 76, 2]], // the Kestrel Gulf
+  [[-6, 108, 0.1]],
+  [[-21, -132, 1.4], [-22, -128, 1]], // Marrow Strait
+];
+// archipelagos: [lat0, lat1, lon0, lon1, density]
+const ARCHIPELAGOS = [
+  [-44, -18, 134, 168, 0.62], // the Morrow Isles
+  [-12, 8, 96, 140, 0.68], // the Spice Isles
+  [14, 30, -78, -56, 0.7], // the Lantern Keys
+  [-30, -8, -150, -118, 0.74], // the Marrow reefs
+  [56, 70, -60, -36, 0.74], // the Ice Teeth
+];
+// islands that must exist (the Morrow capital and harbours)
+const ISLANDS = [[-32, 148, 2.2], [-29.5, 137, 1.6], [-39, 158, 1.8], [-24, 155.5, 1.6], [-27, 142, 1.3], [-35, 153, 1.4], [-30, 160, 1.2], [-41, 150, 1.2]];
+
+const segs = (chains) => {
+  const out = [];
+  const add = (a, b) => {
+    const pad = Math.max(a[2], b[2]) * 2 + 1;
+    const s = [a, b];
+    s.lat0 = Math.min(a[0], b[0]) - pad; s.lat1 = Math.max(a[0], b[0]) + pad;
+    out.push(s);
+  };
+  for (const c of chains) {
+    if (c.length === 1) add(c[0], c[0]);
+    for (let i = 0; i + 1 < c.length; i++) add(c[i], c[i + 1]);
+  }
+  return out;
+};
+const LAND_SEGS = segs(LAND);
+const SEA_SEGS = segs(SEAS);
+const ISLE_SEGS = segs(ISLANDS.map((n) => [n]));
+
+/** 1 at a skeleton line, 0 at twice its coast radius, below 0 beyond. */
+function skeletonField(lat, lon, list) {
+  const cl = Math.cos(lat * D2R);
+  let best = -1;
+  for (const s of list) {
+    if (lat < s.lat0 || lat > s.lat1) continue;
+    const [a, b] = s;
+    // in local degrees (longitude shrunk by latitude)
+    const ax = wrapLon(a[1] - lon) * cl; const ay = a[0] - lat;
+    const bx = ax + wrapLon(b[1] - a[1]) * cl; const by = b[0] - lat;
+    const dx = bx - ax; const dy = by - ay;
+    const L2 = dx * dx + dy * dy;
+    const t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+    const px = ax + dx * t; const py = ay + dy * t;
+    const d = Math.sqrt(px * px + py * py);
+    const R = (a[2] + (b[2] - a[2]) * t) * 2;
+    const f = 1 - d / R;
+    if (f > best) best = f;
+  }
+  return best;
+}
+
+/** The height of the world at a point: > 0 is land, < 0 is sea. */
+function elevation(lat, lon) {
+  const la = lat * D2R;
+  const lo = lon * D2R;
+  const x = Math.cos(la) * Math.cos(lo);
+  const y = Math.cos(la) * Math.sin(lo);
+  const z = Math.sin(la);
+  // push the shapes about so no coast follows a circle
+  const wl = lat + fbm(x, y, z, 3.1, 4, 1) * 6;
+  const wo = lon + (fbm(x, y, z, 3.1, 4, 2) * 6) / Math.max(0.25, Math.cos(la));
+  let f = skeletonField(wl, wo, LAND_SEGS);
+  f = Math.max(f, skeletonField(lat, lon, ISLE_SEGS) - 0.05);
+  // roughen the coast: big bays and capes, then the fine fractal edge
+  const rough = fbm(x, y, z, 6, 6, 3) * 0.42 + fbm(x, y, z, 22, 3, 4) * 0.12;
+  let h = (f - 0.5) + rough;
+  // inland seas and straits
+  const sea = skeletonField(wl * 0.3 + lat * 0.7, wo * 0.3 + lon * 0.7, SEA_SEGS);
+  if (sea > 0) h = Math.min(h, (0.5 - sea) * 1.6 + rough * 0.25);
+  // archipelagos: many small islands where the noise peaks
+  for (const [a0, a1, o0, o1, dens] of ARCHIPELAGOS) {
+    if (lat < a0 || lat > a1) continue;
+    const dl = wrapLon(lon - o0);
+    if (dl < 0 || dl > wrapLon(o1 - o0)) continue;
+    const edge = Math.min(lat - a0, a1 - lat, dl, wrapLon(o1 - o0) - dl) / 4;
+    const n = fbm(x, y, z, 26, 4, 5) * 0.8 + fbm(x, y, z, 9, 2, 6) * 0.4;
+    const isle = n - dens + 0.12 - Math.max(0, 1 - edge) * 0.5;
+    if (isle > 0) h = Math.max(h, isle * 1.4);
+  }
+  // a scatter of lone islands in the open ocean
+  if (h < -0.15) {
+    const n = fbm(x, y, z, 31, 3, 7);
+    if (n > 0.64) h = Math.max(h, (n - 0.64) * 2.6);
+  }
+  // the poles: ice
+  if (lat < -70) h = Math.max(h, (-70 - lat) / 6 + rough * 0.6);
+  return h;
+}
+
+/** Mountain height (0–1) for shading: ridged noise, strongest deep inland. */
+function relief(lat, lon, h = elevation(lat, lon)) {
+  if (h <= 0) return 0;
+  const la = lat * D2R;
+  const lo = lon * D2R;
+  const x = Math.cos(la) * Math.cos(lo);
+  const y = Math.cos(la) * Math.sin(lo);
+  const z = Math.sin(la);
+  const ridge = 1 - Math.abs(fbm(x, y, z, 7, 5, 8));
+  return Math.max(0, Math.min(1, (ridge - 0.55) * 2.6 * Math.min(1, h * 2.5)));
+}
+
+/** Climate for colouring: 'ice' | 'desert' | 'forest' | 'grass' | 'tundra'. */
+function biome(lat, lon, h = elevation(lat, lon)) {
+  const a = Math.abs(lat);
+  if (a > 70) return 'ice';
+  if (a > 60) return 'tundra';
+  const la = lat * D2R;
+  const lo = lon * D2R;
+  const wet = fbm(Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la), 4, 3, 9) + (a < 12 ? 0.35 : 0) - (a > 16 && a < 34 ? 0.3 : 0) - Math.min(0.3, h * 0.15);
+  if (wet < -0.18) return 'desert';
+  if (wet > 0.12) return 'forest';
+  return 'grass';
+}
+
+return { elevation, relief, biome };
+})();
+
+// ---- src/world/globe.js
+__m["src/world/globe.js"] = (function () {
+// The world globe's geography (v0.15.1; shared since v0.21.0; real-looking
+// continents since v0.28.0 — src/world/geography.js). Used by the arms
+// terminal's globe, Fleet Command's chart (src/engine/drawGlobeSurface.js) and
+// the sea routes ships follow (src/world/seaRoutes.js). Pure functions.
+const { elevation } = __m["src/world/geography.js"];
+
+const D2R = Math.PI / 180;
+const wrapLon = (d) => ((d + 540) % 360) - 180;
+
+/**
+ * v0.28.0: the world's land comes from src/world/geography.js — fictional
+ * continents and islands with real coastlines — sampled once onto a
+ * half-degree grid (720 × 361) that everything reads: the terminals' globe
+ * and chart, sea routes, ports. `countries` is kept in the signatures for
+ * compatibility; capitals are on land by design (tested).
+ */
+const GRID_RES = 2; // samples per degree
+const GW = 360 * GRID_RES;
+const GH = 180 * GRID_RES + 1;
+let GRID = null;
+
+/** The elevation grid: rows from 90°N (row 0) to 90°S, columns from 180°W. */
+function landGrid() {
+  if (!GRID) {
+    GRID = new Float32Array(GW * GH);
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) GRID[j * GW + i] = elevation(90 - j / GRID_RES, i / GRID_RES - 180);
+  }
+  return { data: GRID, w: GW, h: GH, res: GRID_RES };
+}
+
+/** Elevation at any point, smoothly between grid samples (> 0 is land). */
+function elevationAt(lat, lon) {
+  const g = landGrid().data;
+  const fy = Math.max(0, Math.min(GH - 1.001, (90 - lat) * GRID_RES));
+  const fx = (wrapLon(lon) + 180) * GRID_RES;
+  const j = Math.floor(fy);
+  const i = Math.floor(fx);
+  const ty = fy - j;
+  const tx = fx - i;
+  const i0 = ((i % GW) + GW) % GW;
+  const i1 = (i0 + 1) % GW;
+  const a = g[j * GW + i0] + (g[j * GW + i1] - g[j * GW + i0]) * tx;
+  const b = g[(j + 1) * GW + i0] + (g[(j + 1) * GW + i1] - g[(j + 1) * GW + i0]) * tx;
+  return a + (b - a) * ty;
+}
+
+/** Old name, same idea: land strength at a point (land from LAND_AT up). */
 function landNoise(lat, lon) {
-  const a = lat * D2R;
-  const b = lon * D2R;
-  return Math.sin(b * 2 + 0.6) * Math.cos(a * 3 - 0.4) * 0.55 + Math.sin(b * 5 + a * 4 + 1.3) * 0.25 + Math.cos(b * 3 - a * 6) * 0.18 + Math.sin(b * 9 + a * 2) * 0.08 - Math.abs(lat) / 260;
+  return elevationAt(lat, lon) + LAND_AT;
 }
 
 const LAND_AT = 0.12;
 
-/** Land strength at a point, with every capital pulled up onto land. */
-function landValue(lat, lon, countries) {
-  let n = landNoise(lat, lon);
-  for (const c of Object.values(countries)) {
-    const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
-    if (d < 14) n = Math.max(n, 0.3 - d / 60);
-  }
-  return n;
+/** Land strength at a point (land from LAND_AT up). */
+function landValue(lat, lon) {
+  return elevationAt(lat, lon) + LAND_AT;
 }
 
 const isLand = (lat, lon, countries) => landValue(lat, lon, countries) >= LAND_AT;
-
-/** The globe's land as 3° dots, each tagged with its nearest country (and whether it's on a border). */
-function buildLand(countries) {
-  const pts = [];
-  const step = 3;
-  const caps = Object.entries(countries);
-  for (let lat = -78; lat <= 80; lat += step) {
-    for (let lon = -180; lon < 180; lon += step) {
-      const n = landValue(lat, lon, countries);
-      if (n < LAND_AT) continue;
-      let best = null;
-      let bd = 30;
-      for (const [id, c] of caps) {
-        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
-        if (d < bd) { bd = d; best = id; }
-      }
-      pts.push({ lat, lon, country: best, n });
-    }
-  }
-  // border points: a neighbour belongs to another country (or is sea)
-  const key = (lat, lon) => `${lat},${wrapLon(lon)}`;
-  const map = new Map(pts.map((p) => [key(p.lat, p.lon), p]));
-  for (const p of pts) {
-    const e = map.get(key(p.lat, p.lon + step));
-    const nn = map.get(key(p.lat + step, p.lon));
-    p.border = (e && e.country !== p.country) || (nn && nn.country !== p.country) || !e || !nn;
-  }
-  return pts;
-}
 
 /** Great-circle distance in km between [lat, lon] points (globe radius 6371 km). */
 function gcKm(a, b) {
@@ -18683,7 +18904,7 @@ function gcKm(a, b) {
   return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-return { D2R, wrapLon, landNoise, landValue, isLand, buildLand, gcKm };
+return { D2R, wrapLon, GRID_RES, landGrid, elevationAt, landNoise, landValue, isLand, gcKm };
 })();
 
 // ---- src/world/seaRoutes.js
@@ -24123,6 +24344,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.28.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'New World',
+    notes: [
+      'The world has real geography now: continents with ragged coasts, bays, capes and peninsulas, inland seas and straits, and island chains — the Morrow Isles are finally two hundred islands, give or take.',
+      'The arms terminal\'s globe is a proper lit globe: the coastlines drawn true at any angle and zoom, country borders traced on the land, and the whole country lighting up when you hover it.',
+      'Fleet Command\'s chart shows the same world, sharp enough to zoom in on a harbour.',
+      'Every port now sits on the new coast, and ships plot their courses round the new land.',
+    ],
+  },
   {
     version: '0.27.0',
     date: '2026-10-15',
@@ -32502,6 +32735,183 @@ const PANELS = {
 return { h, itemIcon, pausePanel, inventoryPanel, JOURNAL_TABS, journalTab, mapPanel, containerPanel, shopPanel, readPanel, messagePanel, debugPanel, struckDownPanel, settingsPanel, savesPanel, aboutPanel, choicesPanel, investPanel, stocksScreen, contractsPanel, ledgerPanel, PANELS, SLOTS };
 })();
 
+// ---- src/engine/drawGlobeSurface.js
+__m["src/engine/drawGlobeSurface.js"] = (function () {
+// The world's surface, drawn (v0.28.0): the half-degree land grid
+// (src/world/globe.js) baked into a coloured texture — sea shading off the
+// coasts, hill-shaded land, a bright coastline, country borders — then shown
+// either on a lit sphere (the arms terminal's globe; rendered per pixel, so
+// coasts are true shapes, not dots) or flat (Fleet Command's chart).
+const { landGrid, D2R, wrapLon } = __m["src/world/globe.js"];
+
+const TEX = new Map(); // palette key → texture
+
+/**
+ * Which country each land sample belongs to: the nearest capital on the same
+ * stretch of land (within 32°), else none. Returns Int8Array of indexes into
+ * `ids`, −1 for none / sea.
+ */
+function countryMap(countries) {
+  const { data, w, h, res } = landGrid();
+  const ids = Object.keys(countries || {});
+  const out = new Int8Array(w * h).fill(-1);
+  const caps = ids.map((id) => countries[id]);
+  for (let j = 0; j < h; j++) {
+    const lat = 90 - j / res;
+    const cl = Math.cos(lat * D2R);
+    for (let i = 0; i < w; i++) {
+      if (data[j * w + i] <= 0) continue;
+      const lon = i / res - 180;
+      let best = -1;
+      let bd = 32;
+      caps.forEach((c, k) => {
+        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * cl);
+        if (d < bd) { bd = d; best = k; }
+      });
+      out[j * w + i] = best;
+    }
+  }
+  return { ids, map: out };
+}
+
+/**
+ * The surface texture for a palette:
+ *   { deep, shelf, low, high, coast, border, ice } — [r, g, b] each.
+ * Returns { w, h, rgba: Uint8ClampedArray, country: Int8Array, ids }.
+ */
+function surfaceTexture(key, pal, countries, sub = 1) {
+  if (TEX.has(key)) return TEX.get(key);
+  const G = landGrid();
+  const base = countries ? countryMap(countries) : { ids: [], map: new Int8Array(G.w * G.h).fill(-1) };
+  // `sub` samples per grid cell, bilinear between them (smoother coasts for a zoomable chart)
+  const w = G.w * sub;
+  const h = (G.h - 1) * sub + 1;
+  const data = new Float32Array(w * h);
+  const cmap = new Int8Array(w * h);
+  for (let j = 0; j < h; j++) {
+    const fy = j / sub;
+    const j0 = Math.min(G.h - 2, Math.floor(fy));
+    const ty = fy - j0;
+    for (let i = 0; i < w; i++) {
+      const fx = i / sub;
+      const i0 = Math.floor(fx) % G.w;
+      const i1 = (i0 + 1) % G.w;
+      const tx = fx - Math.floor(fx);
+      const g = G.data;
+      const a = g[j0 * G.w + i0] + (g[j0 * G.w + i1] - g[j0 * G.w + i0]) * tx;
+      const b = g[(j0 + 1) * G.w + i0] + (g[(j0 + 1) * G.w + i1] - g[(j0 + 1) * G.w + i0]) * tx;
+      data[j * w + i] = a + (b - a) * ty;
+      cmap[j * w + i] = base.map[Math.round(fy) * G.w + (Math.round(fx) % G.w)];
+    }
+  }
+  const rgba = new Uint8ClampedArray(w * h * 4);
+  const C = { ids: base.ids, map: cmap };
+  const e = (j, i) => data[Math.max(0, Math.min(h - 1, j)) * w + ((i % w) + w) % w];
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  for (let j = 0; j < h; j++) {
+    const lat = 90 - j / (2 * sub);
+    for (let i = 0; i < w; i++) {
+      const v = e(j, i);
+      const k = (j * w + i) * 4;
+      let c;
+      if (v <= 0) {
+        // sea: lighter over the shelf near coasts
+        c = mix(pal.shelf, pal.deep, Math.min(1, -v * 3.2));
+      } else {
+        const coast = e(j - 1, i) <= 0 || e(j + 1, i) <= 0 || e(j, i - 1) <= 0 || e(j, i + 1) <= 0;
+        // hill shading: light from the north-west
+        const shadeV = (e(j - 2 * sub, i - 2 * sub) - e(j + 2 * sub, i + 2 * sub)) * 0.9;
+        const height = Math.min(1, Math.max(0, v - 0.05) * 1.3);
+        c = mix(pal.low, pal.high, height);
+        c = c.map((x) => x * (1 + Math.max(-0.22, Math.min(0.28, shadeV))));
+        if (Math.abs(lat) > 66 && pal.ice) c = mix(c, pal.ice, Math.min(1, (Math.abs(lat) - 66) / 6));
+        const me = C.map[j * w + i];
+        const border = me >= 0 && pal.border && [[0, 1], [1, 0]].some(([dj, di]) => { const o = C.map[Math.min(h - 1, j + dj) * w + ((i + di) % w)]; return o >= 0 && o !== me; });
+        if (border) c = pal.border;
+        if (coast) c = pal.coast;
+      }
+      rgba[k] = c[0]; rgba[k + 1] = c[1]; rgba[k + 2] = c[2]; rgba[k + 3] = 255;
+    }
+  }
+  const t = { w, h, rgba, country: C.map, ids: C.ids, perDeg: 2 * sub };
+  TEX.set(key, t);
+  return t;
+}
+
+/**
+ * Draw the textured globe in a circle of radius r at (cx, cy), seen from
+ * longitude −rot, tilted by `tilt` degrees (the same projection as the arms
+ * terminal's markers). opts: { scale (pixels per sample, default 2),
+ * hover (country index to light), light (0–1) }.
+ */
+function drawSphere(ctx, tex, cx, cy, r, rot, tilt, opts = {}) {
+  const s = opts.scale || 2;
+  const n = Math.max(8, Math.ceil((r * 2) / s));
+  let cache = drawSphere.cache;
+  if (!cache || cache.n !== n) {
+    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(n, n) : Object.assign(document.createElement('canvas'), { width: n, height: n });
+    cache = drawSphere.cache = { n, canvas: c, ctx: c.getContext('2d'), img: c.getContext('2d').createImageData(n, n) };
+  }
+  const d = cache.img.data;
+  const t = tilt * D2R;
+  const ct = Math.cos(t);
+  const st = Math.sin(t);
+  const hover = opts.hover ?? -2;
+  const { w, h, rgba, country } = tex;
+  for (let py = 0; py < n; py++) {
+    const y = 1 - ((py + 0.5) / n) * 2;
+    for (let px = 0; px < n; px++) {
+      const x = ((px + 0.5) / n) * 2 - 1;
+      const k = (py * n + px) * 4;
+      const rr = x * x + y * y;
+      if (rr > 1) { d[k + 3] = 0; continue; }
+      const z = Math.sqrt(1 - rr);
+      const y0 = y * ct + z * st;
+      const z0 = -y * st + z * ct;
+      const lat = Math.asin(Math.max(-1, Math.min(1, y0))) / D2R;
+      const lon = Math.atan2(x, z0) / D2R - rot;
+      const j = Math.max(0, Math.min(h - 1, Math.round((90 - lat) * tex.perDeg)));
+      const i = ((Math.round((lon + 180) * tex.perDeg) % w) + w) % w;
+      const q = (j * w + i) * 4;
+      // lit from the upper left; dimmer towards the limb
+      const lightK = 0.45 + 0.55 * Math.max(0, z * 0.75 + (-x * 0.3 + y * 0.35));
+      const lit = country[j * w + i] === hover ? 1.55 : 1;
+      d[k] = rgba[q] * lightK * lit;
+      d[k + 1] = rgba[q + 1] * lightK * lit;
+      d[k + 2] = rgba[q + 2] * lightK * lit;
+      d[k + 3] = rr > 0.985 ? 255 * (1 - (rr - 0.985) / 0.015) : 255;
+    }
+  }
+  cache.ctx.putImageData(cache.img, 0, 0);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(cache.canvas, cx - r, cy - r, r * 2, r * 2);
+  ctx.restore();
+}
+
+/** The texture as a flat (equirectangular) canvas, upscaled `up` times with smooth coasts. */
+function flatCanvas(tex, up = 2) {
+  const c = document.createElement('canvas');
+  c.width = tex.w;
+  c.height = tex.h;
+  const x = c.getContext('2d');
+  const img = x.createImageData(tex.w, tex.h);
+  img.data.set(tex.rgba);
+  x.putImageData(img, 0, 0);
+  if (up <= 1) return c;
+  const big = document.createElement('canvas');
+  big.width = tex.w * up;
+  big.height = tex.h * up;
+  const b = big.getContext('2d');
+  b.imageSmoothingEnabled = true;
+  b.imageSmoothingQuality = 'high';
+  b.drawImage(c, 0, 0, big.width, big.height);
+  return big;
+}
+
+return { surfaceTexture, drawSphere, flatCanvas };
+})();
+
 // ---- src/ui/terminal.js
 __m["src/ui/terminal.js"] = (function () {
 // The arms-works terminal (v0.13.0; OSINT console since v0.15.1). A trade-
@@ -32512,11 +32922,11 @@ __m["src/ui/terminal.js"] = (function () {
 // it, command tabs for parts, equipment, staff, research and the market.
 // See src/systems/arms.js and src/systems/market.js.
 const { h, itemIcon } = __m["src/ui/panels.js"];
-const { D2R, wrapLon, buildLand } = __m["src/world/globe.js"];
+const { D2R, wrapLon } = __m["src/world/globe.js"];
+const { surfaceTexture, drawSphere } = __m["src/engine/drawGlobeSurface.js"];
 const { pointAlong } = __m["src/world/seaRoutes.js"];
 
 // --------------------------------------------------------------- the globe
-let LAND = null;
 
 function project(lat, lon, rot, tilt) {
   const a = lat * D2R;
@@ -32601,7 +33011,8 @@ function reticle(ctx, x, y, r, color) {
  * opts: rot, tilt, zoom, wars [[a,b]], hq, shipments [{id, country, progress, air, data}], hover (key).
  */
 function drawGlobe(ctx, size, time, countries, opts = {}) {
-  if (!LAND) LAND = buildLand(countries);
+  // v0.28.0: the real coastlines, on a lit sphere (src/engine/drawGlobeSurface.js), in the terminal's green
+  const tex = surfaceTexture('terminal', { deep: [2, 14, 11], shelf: [9, 52, 40], low: [34, 136, 88], high: [104, 206, 136], coast: [140, 255, 196], border: [62, 196, 136], ice: [150, 214, 190] }, countries);
   const hits = [];
   const zoom = opts.zoom || 1;
   const r = size * 0.42 * zoom;
@@ -32622,14 +33033,16 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size, i); ctx.stroke();
   }
-  // ocean
-  const og = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-  og.addColorStop(0, '#08261f');
-  og.addColorStop(1, '#020c0a');
-  ctx.fillStyle = og;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  // the sea and the land, with an atmosphere's glow round the edge
+  const hoverC = opts.hover?.startsWith('c:') ? tex.ids.indexOf(opts.hover.slice(2)) : -2;
+  const glow = ctx.createRadialGradient(cx, cy, r * 0.96, cx, cy, r * 1.12);
+  glow.addColorStop(0, 'rgba(80,255,170,0.28)');
+  glow.addColorStop(1, 'rgba(80,255,170,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.12, 0, Math.PI * 2); ctx.fill();
+  drawSphere(ctx, tex, cx, cy, r, rot, tilt, { scale: Math.max(1.5, r / 150), hover: hoverC });
   // graticule
-  ctx.strokeStyle = 'rgba(80,255,170,0.13)';
+  ctx.strokeStyle = 'rgba(80,255,170,0.09)';
   ctx.lineWidth = 0.8;
   const line = (pts) => {
     ctx.beginPath();
@@ -32644,17 +33057,6 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
   };
   for (let la = -60; la <= 60; la += 30) line(Array.from({ length: 73 }, (_, i) => [la, -180 + i * 5]));
   for (let lo = -180; lo < 180; lo += 30) line(Array.from({ length: 37 }, (_, i) => [-90 + i * 5, lo]));
-  // land as a dot matrix, tinted by country; the hovered country lights up
-  const hoverCountry = opts.hover?.startsWith('c:') ? opts.hover.slice(2) : null;
-  const dot = Math.max(1.3, r * 3 * D2R * 0.62);
-  for (const p of LAND) {
-    const q = P(p.lat, p.lon);
-    if (q.z <= 0) continue;
-    const lit = p.country === hoverCountry;
-    const a = (0.25 + 0.6 * q.z) * (lit ? 1.6 : 1);
-    ctx.fillStyle = lit ? `rgba(180,255,220,${Math.min(1, a)})` : p.border ? `rgba(110,255,180,${a})` : `rgba(40,170,110,${a * 0.75})`;
-    ctx.fillRect(q.x - dot / 2, q.y - dot / 2, dot, dot);
-  }
   // shipping lanes and traffic
   const at = (pts, t) => {
     const f = Math.max(0, Math.min(1, t)) * (pts.length - 1);
@@ -32733,7 +33135,7 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
       ctx.fillText(c.name.toUpperCase(), q.x + 8, q.y - 6);
     }
     hits.push({ key: `c:${id}`, kind: 'country', x: q.x, y: q.y, r: 11, data: { id } });
-    if (hoverCountry === id) reticle(ctx, q.x, q.y, 12, '#c8ffe4');
+    if (opts.hover === `c:${id}`) reticle(ctx, q.x, q.y, 12, '#c8ffe4');
   }
   // home port
   if (opts.hq) {
@@ -32801,18 +33203,23 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
 }
 
 /** Which country's land is under a screen point (for hovering the land, not only the capital). */
-function countryAtPoint(x, y, size, view) {
-  if (!LAND) return null;
+function countryAtPoint(x, y, size, view, countries) {
+  const tex = surfaceTexture('terminal', null, countries);
   const r = size * 0.42 * view.zoom;
-  let best = null;
-  let bd = Math.max(5, r * 3 * D2R);
-  for (const p of LAND) {
-    const q = project(p.lat, p.lon, view.rot, view.tilt);
-    if (q.z <= 0) continue;
-    const d = Math.hypot(size / 2 + q.x * r - x, size / 2 - q.y * r - y);
-    if (d < bd) { bd = d; best = p.country; }
-  }
-  return best;
+  const nx = (x - size / 2) / r;
+  const ny = (size / 2 - y) / r;
+  const rr = nx * nx + ny * ny;
+  if (rr > 1) return null;
+  const z = Math.sqrt(1 - rr);
+  const t = view.tilt * D2R;
+  const y0 = ny * Math.cos(t) + z * Math.sin(t);
+  const z0 = -ny * Math.sin(t) + z * Math.cos(t);
+  const lat = Math.asin(y0) / D2R;
+  const lon = wrapLon(Math.atan2(nx, z0) / D2R - view.rot);
+  const j = Math.max(0, Math.min(tex.h - 1, Math.round((90 - lat) * tex.perDeg)));
+  const i = ((Math.round((lon + 180) * tex.perDeg) % tex.w) + tex.w) % tex.w;
+  const k = tex.country[j * tex.w + i];
+  return k >= 0 ? tex.ids[k] : null;
 }
 
 // ---------------------------------------------------------- the terminal
@@ -33001,7 +33408,7 @@ function terminalScreen(ui, body, opts, go) {
     // craft first (they sit on top), then capitals, then any land
     const order = { ship: 0, traffic: 1, hq: 2, country: 3 };
     const hit = hits.filter((x) => Math.hypot(x.x - pt.x, x.y - pt.y) <= x.r).sort((a, b) => order[a.kind] - order[b.kind])[0]
-      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
+      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW, cfg.countries); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
     VIEW.hover = hit?.key || null;
     if (!hit) { tip.classList.add('hidden'); return; }
     tip.replaceChildren(...describe(hit).map((t, i) => h('div', { class: i ? '' : 'os-tip-title' }, t)));
@@ -33886,7 +34293,8 @@ __m["src/ui/fleetCommand.js"] = (function () {
 // only draws and calls it. Opened by the harbour-office terminal, the
 // tablet's Ships app, Captain Ober and Mason (PANELS.logistics / PANELS.fleet).
 const { h } = __m["src/ui/panels.js"];
-const { landValue, wrapLon } = __m["src/world/globe.js"];
+const { wrapLon } = __m["src/world/globe.js"];
+const { surfaceTexture, flatCanvas } = __m["src/engine/drawGlobeSurface.js"];
 const { pointAlong } = __m["src/world/seaRoutes.js"];
 const { drawShip } = __m["src/engine/drawShips.js"];
 const { shipyardSheet } = __m["src/ui/shipBuilder.js"];
@@ -33913,43 +34321,12 @@ const FC = { mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, op
 
 let LAND_IMG = null;
 
-/** The world's land, once, sampled every half degree: dark ground shaded by height, a glowing coast. */
+/** The world, once: the shared surface texture in the ops-room palette, at a quarter degree, smoothed. */
 function landImage(countries) {
   if (LAND_IMG) return LAND_IMG;
-  const W = 720;
-  const H = 360;
-  const n = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) n[y * W + x] = landValue(90 - y / 2, x / 2 - 180, countries);
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const x2 = c.getContext('2d');
-  const img = x2.createImageData(W, H);
-  const d = img.data;
-  const LAND = 0.12;
-  const land = (x, y) => n[Math.min(H - 1, Math.max(0, y)) * W + ((x + W) % W)] >= LAND;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (!land(x, y)) continue;
-      const i = (y * W + x) * 4;
-      const coast = !land(x + 1, y) || !land(x - 1, y) || !land(x, y + 1) || !land(x, y - 1);
-      const k = Math.min(1, (n[y * W + x] - LAND) * 2.2);
-      if (coast) { d[i] = 70; d[i + 1] = 220; d[i + 2] = 255; d[i + 3] = 235; } else { d[i] = 16 + k * 22; d[i + 1] = 44 + k * 36; d[i + 2] = 62 + k * 30; d[i + 3] = 255; }
-    }
-  }
-  x2.putImageData(img, 0, 0);
-  // scaled up 4× through a blur: smooth coastlines with a soft glow instead of stair-steps
-  const big = document.createElement('canvas');
-  big.width = W * 4; big.height = H * 4;
-  const b = big.getContext('2d');
-  b.imageSmoothingEnabled = true;
-  b.filter = 'blur(7px)';
-  b.globalAlpha = 0.7;
-  b.drawImage(c, 0, 0, big.width, big.height);
-  b.filter = 'blur(1.6px)';
-  b.globalAlpha = 1;
-  b.drawImage(c, 0, 0, big.width, big.height);
-  LAND_IMG = big;
-  return big;
+  const tex = surfaceTexture('fleet', { deep: [3, 12, 24], shelf: [10, 46, 72], low: [18, 50, 66], high: [52, 92, 104], coast: [80, 225, 255], border: [34, 84, 104], ice: [130, 176, 196] }, countries, 2);
+  LAND_IMG = flatCanvas(tex, 2);
+  return LAND_IMG;
 }
 
 // ====================================================================== the panel
@@ -34006,14 +34383,16 @@ function fleetPanel(ui, body, opts = {}) {
     // the grid
     ctx.strokeStyle = 'rgba(80,180,255,0.07)';
     ctx.lineWidth = 1;
-    for (let lon = -180; lon < 180; lon += 15) { const p = toScreen(0, lon); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke(); }
-    for (let lat = -75; lat <= 75; lat += 15) { const p = toScreen(lat, 0); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke(); }
     // the land (three copies for the wrap)
     const land = landImage(g.content.arms.countries);
     const x0 = W / 2 + (-180 - view.lon) * ppd;
     const y0 = H / 2 - (90 - view.lat) * ppd;
     ctx.imageSmoothingEnabled = true;
     for (const k of [-1, 0, 1]) ctx.drawImage(land, x0 + k * 360 * ppd, y0, 360 * ppd, 180 * ppd);
+    ctx.strokeStyle = 'rgba(80,180,255,0.08)';
+    ctx.lineWidth = 1;
+    for (let lon = -180; lon < 180; lon += 15) { const p = toScreen(0, lon); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke(); }
+    for (let lat = -75; lat <= 75; lat += 15) { const p = toScreen(lat, 0); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke(); }
     // danger
     for (const z of Lg.zones()) {
       const p = toScreen(z.lat, z.lon);

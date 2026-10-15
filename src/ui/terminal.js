@@ -6,11 +6,11 @@
 // it, command tabs for parts, equipment, staff, research and the market.
 // See src/systems/arms.js and src/systems/market.js.
 import { h, itemIcon } from './panels.js';
-import { D2R, wrapLon, buildLand } from '../world/globe.js';
+import { D2R, wrapLon } from '../world/globe.js';
+import { surfaceTexture, drawSphere } from '../engine/drawGlobeSurface.js';
 import { pointAlong } from '../world/seaRoutes.js';
 
 // --------------------------------------------------------------- the globe
-let LAND = null;
 
 function project(lat, lon, rot, tilt) {
   const a = lat * D2R;
@@ -95,7 +95,8 @@ function reticle(ctx, x, y, r, color) {
  * opts: rot, tilt, zoom, wars [[a,b]], hq, shipments [{id, country, progress, air, data}], hover (key).
  */
 export function drawGlobe(ctx, size, time, countries, opts = {}) {
-  if (!LAND) LAND = buildLand(countries);
+  // v0.28.0: the real coastlines, on a lit sphere (src/engine/drawGlobeSurface.js), in the terminal's green
+  const tex = surfaceTexture('terminal', { deep: [2, 14, 11], shelf: [9, 52, 40], low: [34, 136, 88], high: [104, 206, 136], coast: [140, 255, 196], border: [62, 196, 136], ice: [150, 214, 190] }, countries);
   const hits = [];
   const zoom = opts.zoom || 1;
   const r = size * 0.42 * zoom;
@@ -116,14 +117,16 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size, i); ctx.stroke();
   }
-  // ocean
-  const og = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-  og.addColorStop(0, '#08261f');
-  og.addColorStop(1, '#020c0a');
-  ctx.fillStyle = og;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  // the sea and the land, with an atmosphere's glow round the edge
+  const hoverC = opts.hover?.startsWith('c:') ? tex.ids.indexOf(opts.hover.slice(2)) : -2;
+  const glow = ctx.createRadialGradient(cx, cy, r * 0.96, cx, cy, r * 1.12);
+  glow.addColorStop(0, 'rgba(80,255,170,0.28)');
+  glow.addColorStop(1, 'rgba(80,255,170,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.12, 0, Math.PI * 2); ctx.fill();
+  drawSphere(ctx, tex, cx, cy, r, rot, tilt, { scale: Math.max(1.5, r / 150), hover: hoverC });
   // graticule
-  ctx.strokeStyle = 'rgba(80,255,170,0.13)';
+  ctx.strokeStyle = 'rgba(80,255,170,0.09)';
   ctx.lineWidth = 0.8;
   const line = (pts) => {
     ctx.beginPath();
@@ -138,17 +141,6 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
   };
   for (let la = -60; la <= 60; la += 30) line(Array.from({ length: 73 }, (_, i) => [la, -180 + i * 5]));
   for (let lo = -180; lo < 180; lo += 30) line(Array.from({ length: 37 }, (_, i) => [-90 + i * 5, lo]));
-  // land as a dot matrix, tinted by country; the hovered country lights up
-  const hoverCountry = opts.hover?.startsWith('c:') ? opts.hover.slice(2) : null;
-  const dot = Math.max(1.3, r * 3 * D2R * 0.62);
-  for (const p of LAND) {
-    const q = P(p.lat, p.lon);
-    if (q.z <= 0) continue;
-    const lit = p.country === hoverCountry;
-    const a = (0.25 + 0.6 * q.z) * (lit ? 1.6 : 1);
-    ctx.fillStyle = lit ? `rgba(180,255,220,${Math.min(1, a)})` : p.border ? `rgba(110,255,180,${a})` : `rgba(40,170,110,${a * 0.75})`;
-    ctx.fillRect(q.x - dot / 2, q.y - dot / 2, dot, dot);
-  }
   // shipping lanes and traffic
   const at = (pts, t) => {
     const f = Math.max(0, Math.min(1, t)) * (pts.length - 1);
@@ -227,7 +219,7 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
       ctx.fillText(c.name.toUpperCase(), q.x + 8, q.y - 6);
     }
     hits.push({ key: `c:${id}`, kind: 'country', x: q.x, y: q.y, r: 11, data: { id } });
-    if (hoverCountry === id) reticle(ctx, q.x, q.y, 12, '#c8ffe4');
+    if (opts.hover === `c:${id}`) reticle(ctx, q.x, q.y, 12, '#c8ffe4');
   }
   // home port
   if (opts.hq) {
@@ -295,18 +287,23 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
 }
 
 /** Which country's land is under a screen point (for hovering the land, not only the capital). */
-function countryAtPoint(x, y, size, view) {
-  if (!LAND) return null;
+function countryAtPoint(x, y, size, view, countries) {
+  const tex = surfaceTexture('terminal', null, countries);
   const r = size * 0.42 * view.zoom;
-  let best = null;
-  let bd = Math.max(5, r * 3 * D2R);
-  for (const p of LAND) {
-    const q = project(p.lat, p.lon, view.rot, view.tilt);
-    if (q.z <= 0) continue;
-    const d = Math.hypot(size / 2 + q.x * r - x, size / 2 - q.y * r - y);
-    if (d < bd) { bd = d; best = p.country; }
-  }
-  return best;
+  const nx = (x - size / 2) / r;
+  const ny = (size / 2 - y) / r;
+  const rr = nx * nx + ny * ny;
+  if (rr > 1) return null;
+  const z = Math.sqrt(1 - rr);
+  const t = view.tilt * D2R;
+  const y0 = ny * Math.cos(t) + z * Math.sin(t);
+  const z0 = -ny * Math.sin(t) + z * Math.cos(t);
+  const lat = Math.asin(y0) / D2R;
+  const lon = wrapLon(Math.atan2(nx, z0) / D2R - view.rot);
+  const j = Math.max(0, Math.min(tex.h - 1, Math.round((90 - lat) * tex.perDeg)));
+  const i = ((Math.round((lon + 180) * tex.perDeg) % tex.w) + tex.w) % tex.w;
+  const k = tex.country[j * tex.w + i];
+  return k >= 0 ? tex.ids[k] : null;
 }
 
 // ---------------------------------------------------------- the terminal
@@ -495,7 +492,7 @@ export function terminalScreen(ui, body, opts, go) {
     // craft first (they sit on top), then capitals, then any land
     const order = { ship: 0, traffic: 1, hq: 2, country: 3 };
     const hit = hits.filter((x) => Math.hypot(x.x - pt.x, x.y - pt.y) <= x.r).sort((a, b) => order[a.kind] - order[b.kind])[0]
-      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
+      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW, cfg.countries); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
     VIEW.hover = hit?.key || null;
     if (!hit) { tip.classList.add('hidden'); return; }
     tip.replaceChildren(...describe(hit).map((t, i) => h('div', { class: i ? '' : 'os-tip-title' }, t)));

@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.28.0] — 2026-10-15 — "New World" (development build)
+
+The owner asked for the world map in the terminals to "look more like a globe with true continents and islands instead of circular blobs". Chosen in interview: fictional but realistic geography; Fleet Command's chart stays flat. See docs/GEOGRAPHY.md.
+
+### Added
+- **Geography** (`src/world/geography.js`): continents from hand-laid skeletons around the countries and ports, domain-warped and roughened by fractal noise into real coasts; carved inland seas and straits; archipelagos (the Morrow Isles, the Spice Isles, the Lantern Keys, the Marrow reefs, the Ice Teeth) and lone ocean islands; polar ice. Sampled once onto a half-degree grid (`landGrid`, `elevationAt` in `src/world/globe.js`).
+- **Surface drawing** (`src/engine/drawGlobeSurface.js`): a baked texture per palette (shelf-shaded sea, hill-shaded land, coastline, country borders); a per-pixel lit sphere for the arms terminal's globe (atmosphere glow, hovered country lit); a smoothed flat chart for Fleet Command.
+- Tests: `tests/geography.test.mjs` (4).
+
+### Changed
+- The arms terminal's globe draws the land as true shapes instead of a 3° dot matrix; hovering any land picks its country from the texture.
+- Every port moved onto the nearest coast of the new geography.
+
+### Removed
+- `buildLand` (the dot matrix) and the capitals' round "pull" onto land.
+
 ## [0.27.0] — 2026-10-15 — "All Aboard" (development build)
 
 Release 3 of 3 from the owner's terminal and shipbuilder brief ("It would also be cool to be able to actually walk on the ship if possible"). Chosen in interview: board docked ships at the Yards berths — a walkable deck generated from the design, cabins below, a wheel and logbook. See docs/BOARDING.md.

@@ -1,59 +1,62 @@
-// The world globe's geography (v0.15.1; shared since v0.21.0). The fictional
-// countries sit on smooth procedural continents; every capital is guaranteed
-// to be on land. Used by the arms terminal's globe, the logistics chart and
+// The world globe's geography (v0.15.1; shared since v0.21.0; real-looking
+// continents since v0.28.0 — src/world/geography.js). Used by the arms
+// terminal's globe, Fleet Command's chart (src/engine/drawGlobeSurface.js) and
 // the sea routes ships follow (src/world/seaRoutes.js). Pure functions.
+import { elevation } from './geography.js';
+
 export const D2R = Math.PI / 180;
 export const wrapLon = (d) => ((d + 540) % 360) - 180;
 
-/** Smooth deterministic "continents" on the sphere. */
+/**
+ * v0.28.0: the world's land comes from src/world/geography.js — fictional
+ * continents and islands with real coastlines — sampled once onto a
+ * half-degree grid (720 × 361) that everything reads: the terminals' globe
+ * and chart, sea routes, ports. `countries` is kept in the signatures for
+ * compatibility; capitals are on land by design (tested).
+ */
+export const GRID_RES = 2; // samples per degree
+const GW = 360 * GRID_RES;
+const GH = 180 * GRID_RES + 1;
+let GRID = null;
+
+/** The elevation grid: rows from 90°N (row 0) to 90°S, columns from 180°W. */
+export function landGrid() {
+  if (!GRID) {
+    GRID = new Float32Array(GW * GH);
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) GRID[j * GW + i] = elevation(90 - j / GRID_RES, i / GRID_RES - 180);
+  }
+  return { data: GRID, w: GW, h: GH, res: GRID_RES };
+}
+
+/** Elevation at any point, smoothly between grid samples (> 0 is land). */
+export function elevationAt(lat, lon) {
+  const g = landGrid().data;
+  const fy = Math.max(0, Math.min(GH - 1.001, (90 - lat) * GRID_RES));
+  const fx = (wrapLon(lon) + 180) * GRID_RES;
+  const j = Math.floor(fy);
+  const i = Math.floor(fx);
+  const ty = fy - j;
+  const tx = fx - i;
+  const i0 = ((i % GW) + GW) % GW;
+  const i1 = (i0 + 1) % GW;
+  const a = g[j * GW + i0] + (g[j * GW + i1] - g[j * GW + i0]) * tx;
+  const b = g[(j + 1) * GW + i0] + (g[(j + 1) * GW + i1] - g[(j + 1) * GW + i0]) * tx;
+  return a + (b - a) * ty;
+}
+
+/** Old name, same idea: land strength at a point (land from LAND_AT up). */
 export function landNoise(lat, lon) {
-  const a = lat * D2R;
-  const b = lon * D2R;
-  return Math.sin(b * 2 + 0.6) * Math.cos(a * 3 - 0.4) * 0.55 + Math.sin(b * 5 + a * 4 + 1.3) * 0.25 + Math.cos(b * 3 - a * 6) * 0.18 + Math.sin(b * 9 + a * 2) * 0.08 - Math.abs(lat) / 260;
+  return elevationAt(lat, lon) + LAND_AT;
 }
 
 const LAND_AT = 0.12;
 
-/** Land strength at a point, with every capital pulled up onto land. */
-export function landValue(lat, lon, countries) {
-  let n = landNoise(lat, lon);
-  for (const c of Object.values(countries)) {
-    const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
-    if (d < 14) n = Math.max(n, 0.3 - d / 60);
-  }
-  return n;
+/** Land strength at a point (land from LAND_AT up). */
+export function landValue(lat, lon) {
+  return elevationAt(lat, lon) + LAND_AT;
 }
 
 export const isLand = (lat, lon, countries) => landValue(lat, lon, countries) >= LAND_AT;
-
-/** The globe's land as 3° dots, each tagged with its nearest country (and whether it's on a border). */
-export function buildLand(countries) {
-  const pts = [];
-  const step = 3;
-  const caps = Object.entries(countries);
-  for (let lat = -78; lat <= 80; lat += step) {
-    for (let lon = -180; lon < 180; lon += step) {
-      const n = landValue(lat, lon, countries);
-      if (n < LAND_AT) continue;
-      let best = null;
-      let bd = 30;
-      for (const [id, c] of caps) {
-        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
-        if (d < bd) { bd = d; best = id; }
-      }
-      pts.push({ lat, lon, country: best, n });
-    }
-  }
-  // border points: a neighbour belongs to another country (or is sea)
-  const key = (lat, lon) => `${lat},${wrapLon(lon)}`;
-  const map = new Map(pts.map((p) => [key(p.lat, p.lon), p]));
-  for (const p of pts) {
-    const e = map.get(key(p.lat, p.lon + step));
-    const nn = map.get(key(p.lat + step, p.lon));
-    p.border = (e && e.country !== p.country) || (nn && nn.country !== p.country) || !e || !nn;
-  }
-  return pts;
-}
 
 /** Great-circle distance in km between [lat, lon] points (globe radius 6371 km). */
 export function gcKm(a, b) {

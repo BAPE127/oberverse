@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.28.0.** Realistic fictional geography (`src/world/geography.js`, `src/engine/drawGlobeSurface.js`, `docs/GEOGRAPHY.md`); ports moved to the new coasts; the arms globe rendered as a lit sphere.
 - **2026-10-15 — v0.27.0.** Life-size ships at the Yards berths you can walk aboard (`src/systems/docks.js`, `src/world/shipDeck.js`, `src/engine/drawDeck.js`, `docs/BOARDING.md`). The owner's three-release terminal and shipbuilder plan is complete.
 - **2026-10-15 — v0.26.0.** The side-profile shipbuilder (`src/ui/shipBuilder.js`) and detailed ship profiles (`src/engine/drawShipProfile.js`); design layouts. **Next:** v0.27 life-size ships at the Yards berths you can walk aboard (deck from the design, cabins below, the wheel and the logbook).
 - **2026-10-15 — v0.25.0.** Fleet Command (`src/ui/fleetCommand.js`, `docs/FLEET_COMMAND.md`) replaces the tabbed logistics terminal with a full-screen ops-room chart and one-click orders. Owner chose three releases: **next** v0.26 the side-profile shipbuilder (parts snap to glowing attachment points; detailed parts), then v0.27 life-size ships at the Yards berths you can walk aboard.

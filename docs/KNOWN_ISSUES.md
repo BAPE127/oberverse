@@ -1,7 +1,8 @@
-# Known Issues and Limitations — v0.27.0
+# Known Issues and Limitations — v0.28.0
 
 ## Not yet implemented (planned)
 
+- **Geography (v0.28.0):** the land grid is computed on first use (about 0.8 s); ships route on 3° sea cells, so very narrow straits drawn on the chart may be too narrow to sail; a ship at sea in a save from before 0.28.0 follows the new route from where its voyage started (its position may jump); country borders are nearest-capital lines on the land, not authored.
 - **Walking aboard (v0.27.0):** only at the Mill Road Yards berths, two ships per berth (the rest are listed on the name board); the rooms below follow one layout scaled to the ship; there are no crew aboard (NPCs never board); a ship's hull and fittings are drawn as one moored picture, so a deck you can't reach (one-tile pockets between fittings) is simply not walkable.
 - **Shipbuilder (v0.26.0):** attachment points take any part (the slot count is the rule; where a part sits is looks only), so an engine can sit at the bow; parts are drawn at their point and can overlap a neighbour's (a crane's boom, sails); ships already launched can't be refitted.
 - **Fleet Command (v0.25.0):** ships on the chart are drawn top-down from their `look`; the chart is mouse-only (no touch pinch-zoom); skipping time from Fleet Command runs the whole world's clock, as sleeping does.

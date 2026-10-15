@@ -42,56 +42,56 @@ export const PORT_TYPES = {
 };
 
 /**
- * The world's ports (lat/lon on the globe; the coast is found automatically).
+ * The world's ports (lat/lon on the globe — on the coast of the v0.28.0 geography; ships find the open sea from there).
  * country: one of the arms market's countries, or null for a free port.
  * local: on Halvermouth's own coast.
  */
 const port = (name, lat, lon, country, type, o = {}) => ({ name, lat, lon, country, type, ...o });
 export const PORTS = {
   // home waters
-  port_millroad: port('Mill Road Docks, Halvermouth', 51, -25, null, 'commercial', { local: true, blurb: 'Ober & Sons\' home berth on the south quay of Mill Road Yards. Rust, gulls, and the best fish-and-chip van on the coast.' }),
-  port_lanternside: port('Lanternside Quay', 49, -24, null, 'harbor', { local: true, blurb: 'A stone quay under the lighthouse. Small boats, big opinions.' }),
+  port_millroad: port('Mill Road Docks, Halvermouth', 49, -26.5, null, 'commercial', { local: true, blurb: 'Ober & Sons\' home berth on the south quay of Mill Road Yards. Rust, gulls, and the best fish-and-chip van on the coast.' }),
+  port_lanternside: port('Lanternside Quay', 48, -24.5, null, 'harbor', { local: true, blurb: 'A stone quay under the lighthouse. Small boats, big opinions.' }),
   port_gullwing: port('Gullwing Point', 47, -22, null, 'harbor', { local: true, blurb: 'A breakwater, a crane and a café that has been "opening soon" since the crane arrived.' }),
   // Kingdom of Sund
-  port_sund: port('Sund Harbour', 52, -4, 'sund', 'harbor', { blurb: 'Fishing boats, a royal yacht with stabilisers, and herring everywhere.' }),
-  port_kingsfjord: port('Kingsfjord', 72, -6, 'sund', 'commercial', { blurb: 'A deep fjord where the young king reviews the fishing fleet every Monday.' }),
+  port_sund: port('Sund Harbour', 54, -4, 'sund', 'harbor', { blurb: 'Fishing boats, a royal yacht with stabilisers, and herring everywhere.' }),
+  port_kingsfjord: port('Kingsfjord', 72.5, -4.5, 'sund', 'commercial', { blurb: 'A deep fjord where the young king reviews the fishing fleet every Monday.' }),
   // Grand Duchy of Lirre
-  port_lirre: port('Port Lirre', 36, -78, 'lirre', 'commercial', { blurb: 'Neutral waters, neutral harbourmaster, neutral coffee.' }),
-  port_lirre_north: port('Duchess Bay', 57, -66, 'lirre', 'harbor', { blurb: 'A pretty harbour with a customs house that is also a museum about customs.' }),
+  port_lirre: port('Port Lirre', 34, -76.5, 'lirre', 'commercial', { blurb: 'Neutral waters, neutral harbourmaster, neutral coffee.' }),
+  port_lirre_north: port('Duchess Bay', 57, -65.5, 'lirre', 'harbor', { blurb: 'A pretty harbour with a customs house that is also a museum about customs.' }),
   // The Ostmark Union
-  port_ostmark: port('Ostmark Gate', 51, 1, 'ostmark', 'heavy', { blurb: 'Seven provinces\' worth of cranes. They are all slightly different colours.' }),
-  port_ostmark_naval: port('Seventh Province Naval Yard', 63, 32, 'ostmark', 'naval', { blurb: 'Grey ships, grey sheds, grey paperwork in triplicate.' }),
-  port_ostmark_east: port('Halden Roads', 49, 32, 'ostmark', 'commercial', { blurb: 'A busy roadstead where everybody queues politely.' }),
+  port_ostmark: port('Ostmark Gate', 51.5, 1.5, 'ostmark', 'heavy', { blurb: 'Seven provinces\' worth of cranes. They are all slightly different colours.' }),
+  port_ostmark_naval: port('Seventh Province Naval Yard', 63, 37, 'ostmark', 'naval', { blurb: 'Grey ships, grey sheds, grey paperwork in triplicate.' }),
+  port_ostmark_east: port('Halden Roads', 50, 32, 'ostmark', 'commercial', { blurb: 'A busy roadstead where everybody queues politely.' }),
   // Varnistan
-  port_varn: port('Port Varn', 45, 40, 'varn', 'commercial', { blurb: 'The republic\'s only real port. The election posters are nineteen years old.' }),
-  port_varn_south: port('Kestrel Landing', 33, 64, 'varn', 'harbor', { blurb: 'A small military-ish harbour below the Kestrel Pass.' }),
+  port_varn: port('Port Varn', 44, 42.5, 'varn', 'commercial', { blurb: 'The republic\'s only real port. The election posters are nineteen years old.' }),
+  port_varn_south: port('Kestrel Landing', 34, 64, 'varn', 'harbor', { blurb: 'A small military-ish harbour below the Kestrel Pass.' }),
   // Republic of Caldera
   port_caldera: port('Caldera Bay', -3, 44, 'caldera', 'commercial', { blurb: 'A harbour in a flooded crater. The water is warm. Suspiciously warm.' }),
-  port_caldera_west: port('Ashport', -16, 27, 'caldera', 'harbor', { blurb: 'Everything is grey, including the tea.' }),
+  port_caldera_west: port('Ashport', -17.5, 25, 'caldera', 'harbor', { blurb: 'Everything is grey, including the tea.' }),
   // Free State of Pallas
   port_pallas: port('Pallas Free Harbour', 15, -27, 'pallas', 'harbor', { blurb: '"Free" harbour. Several flags, one crane, many questions.' }),
   port_pallas_south: port('Coup Cove', 1, -39, 'pallas', 'harbor', { blurb: 'Named after the last government. And the one before.' }),
   // Teshvar
-  port_teshvar: port('Teshvar Oil Terminal', 33, 84, 'teshvar', 'heavy', { blurb: 'Tankers the size of towns, and the sheikh\'s yacht-shaped yacht.' }),
-  port_teshvar_gold: port('Golden Quay', 18, 102, 'teshvar', 'advanced', { blurb: 'Gold-leaf bollards and dockers in sunglasses. The price list is in gold leaf too.' }),
+  port_teshvar: port('Teshvar Oil Terminal', 28, 82, 'teshvar', 'heavy', { blurb: 'Tankers the size of towns, and the sheikh\'s yacht-shaped yacht.' }),
+  port_teshvar_gold: port('Golden Quay', 17, 103, 'teshvar', 'advanced', { blurb: 'Gold-leaf bollards and dockers in sunglasses. The price list is in gold leaf too.' }),
   // Morrow Isles
-  port_morrow: port('Morrow Main Harbour', -30, 136, 'morrow', 'commercial', { blurb: 'Two hundred islands share one harbour master. He is very tired.' }),
-  port_morrow_naval: port('Isle of Navies', -39, 159, 'morrow', 'naval', { blurb: 'Every island\'s navy moors here. Every navy has an admiral. There are no sailors left.' }),
-  port_morrow_reef: port('Reef Town', -24, 156, 'morrow', 'harbor', { blurb: 'Turquoise water, coral, and a smuggling museum run by retired smugglers.' }),
+  port_morrow: port('Morrow Main Harbour', -31, 137, 'morrow', 'commercial', { blurb: 'Two hundred islands share one harbour master. He is very tired.' }),
+  port_morrow_naval: port('Isle of Navies', -39, 159.5, 'morrow', 'naval', { blurb: 'Every island\'s navy moors here. Every navy has an admiral. There are no sailors left.' }),
+  port_morrow_reef: port('Reef Town', -24.5, 156.5, 'morrow', 'harbor', { blurb: 'Turquoise water, coral, and a smuggling museum run by retired smugglers.' }),
   // free ports and the rest of the world
-  port_westreach: port('Westreach', 33, -150, null, 'commercial', { blurb: 'A free port on the far western coast. Everything costs more and arrives later.' }),
-  port_coldwater: port('Coldwater', 42, -168, null, 'harbor', { blurb: 'Icebergs in summer. The harbour cat has a coat.' }),
-  port_sunmouth: port('Sunmouth', 12, -126, null, 'heavy', { blurb: 'An equatorial megaport where the cranes never stop and the sun never sets (it does; they just don\'t notice).' }),
-  port_marrow: port('Marrow Strait', -21, -132, null, 'harbor', { blurb: 'A narrow strait with a lighthouse keeper who charges by the look.' }),
-  port_capelow: port('Cape Low', -36, -93, null, 'commercial', { blurb: 'The bottom of the western continent: storms, ropes and stories.' }),
-  port_greyhook: port('Greyhook', -48, -72, null, 'naval', { blurb: 'A cold, quiet naval anchorage. Nobody admits who it belongs to.' }),
-  port_southwind: port('Southwind Isle', -54, -6, null, 'harbor', { blurb: 'A rock, a hut, a pier. The pier is new.' }),
-  port_meridian: port('Meridian Free Port', -20, 64, null, 'advanced', { blurb: 'A gleaming free port on the meridian line. Its dock robots have union representation.' }),
-  port_coral: port('Coral Sound', -36, 116, null, 'harbor', { blurb: 'A sound full of coral and a harbour full of sound.' }),
-  port_eastwatch: port('Eastwatch', 60, 130, null, 'commercial', { blurb: 'The northern route\'s last stop before the ice.' }),
-  port_frostbay: port('Frostbay', 75, -100, null, 'harbor', { blurb: 'Open three months a year. The other nine, it is a skating rink.' }),
-  port_oldmoor: port('Oldmoor', 63, -62, null, 'harbor', { blurb: 'A fog-bound fishing town where every boat is called Mary.' }),
-  port_dunmere: port('Dunmere', 21, -6, null, 'commercial', { blurb: 'A crossroads harbour between the continents. Everybody passes through; nobody admits to staying.' }),
+  port_westreach: port('Westreach', 33, -147.5, null, 'commercial', { blurb: 'A free port on the far western coast. Everything costs more and arrives later.' }),
+  port_coldwater: port('Coldwater', 40, -165, null, 'harbor', { blurb: 'Icebergs in summer. The harbour cat has a coat.' }),
+  port_sunmouth: port('Sunmouth', 12, -124, null, 'heavy', { blurb: 'An equatorial megaport where the cranes never stop and the sun never sets (it does; they just don\'t notice).' }),
+  port_marrow: port('Marrow Strait', -21, -132.5, null, 'harbor', { blurb: 'A narrow strait with a lighthouse keeper who charges by the look.' }),
+  port_capelow: port('Cape Low', -36.5, -96, null, 'commercial', { blurb: 'The bottom of the western continent: storms, ropes and stories.' }),
+  port_greyhook: port('Greyhook', -48, -71.5, null, 'naval', { blurb: 'A cold, quiet naval anchorage. Nobody admits who it belongs to.' }),
+  port_southwind: port('Southwind Isle', -52, -5, null, 'harbor', { blurb: 'A rock, a hut, a pier. The pier is new.' }),
+  port_meridian: port('Meridian Free Port', -19, 63, null, 'advanced', { blurb: 'A gleaming free port on the meridian line. Its dock robots have union representation.' }),
+  port_coral: port('Coral Sound', -36, 116.5, null, 'harbor', { blurb: 'A sound full of coral and a harbour full of sound.' }),
+  port_eastwatch: port('Eastwatch', 60.5, 131.5, null, 'commercial', { blurb: 'The northern route\'s last stop before the ice.' }),
+  port_frostbay: port('Frostbay', 76, -104, null, 'harbor', { blurb: 'Open three months a year. The other nine, it is a skating rink.' }),
+  port_oldmoor: port('Oldmoor', 63.5, -62, null, 'harbor', { blurb: 'A fog-bound fishing town where every boat is called Mary.' }),
+  port_dunmere: port('Dunmere', 20.5, -6.5, null, 'commercial', { blurb: 'A crossroads harbour between the continents. Everybody passes through; nobody admits to staying.' }),
 };
 
 /**
