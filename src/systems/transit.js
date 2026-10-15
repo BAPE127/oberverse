@@ -195,10 +195,10 @@ export class Transit {
   makeCar(loop, route, n) {
     const g = this.game;
     const T = this.cfg.traffic;
-    const model = T.models[(n * 3 + this.nextId) % T.models.length];
+    const model = loop.model || T.models[(n * 3 + this.nextId) % T.models.length]; // v0.32.0: a loop may name its vehicle (the patrol cruiser)
     const m = g.content.vehicles.models[model];
     const max = loop.speed[0] + (((n * 37 + this.nextId * 53) % 100) / 100) * (loop.speed[1] - loop.speed[0]);
-    return { id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: 0, speed: max * 0.6, max, len: m.len, wid: m.wid, model, color: T.colors[(n * 5 + this.nextId) % T.colors.length] };
+    return { id: `tr${this.nextId++}`, kind: 'traffic', loop: loop.id, route, dist: 0, speed: max * 0.6, max, len: m.len, wid: m.wid, model, color: loop.color || T.colors[(n * 5 + this.nextId) % T.colors.length], police: Boolean(loop.police) };
   }
 
   /** Where a route enters each junction, and on which axis (for the lights). */

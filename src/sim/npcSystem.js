@@ -46,6 +46,7 @@ export class NpcSystem {
     if (npc.hostile || npc.pursuit || incapacitated(npc, now)) return; // combat / police own them
     if (HELD_INTENTS.includes(npc.intent?.source) && now < npc.intent.until) return; // answering a call, meeting you for a deal, hunting you
     if (npc.chat && now < npc.chat.until) return;
+    if (!force && this.patrolStep(npc)) return;
     if (!force && npc.intent && now < npc.intent.until) {
       // Committed — unless the schedule moved on to a new block.
       const block = blockAt(npc.profile.schedule, g.clock.minuteOfDay + scheduleLead(npc.profile));
@@ -53,6 +54,7 @@ export class NpcSystem {
       if (!block || block.index === committedIndex) return;
     }
     const intent = decide(npc, g);
+    this.patrolSpot(npc, intent);
     intent.fromBlock = blockAt(npc.profile.schedule, g.clock.minuteOfDay + scheduleLead(npc.profile))?.index;
     if (intent.impulse) {
       npc.impulseCooldowns = npc.impulseCooldowns || {};
@@ -66,6 +68,40 @@ export class NpcSystem {
       npc.arrived = false;
       this.plan(npc);
     }
+  }
+
+  // ---------------------------------------------------------------- patrols
+  /** v0.32.0: a schedule block on a patrol beat goes to the beat's current waypoint (kept across re-decisions and saves). */
+  patrolSpot(npc, intent) {
+    const beat = intent.block?.patrol;
+    if (!beat) return;
+    const route = this.game.content.life?.patrolRoutes?.[beat];
+    if (!route?.length) return;
+    const key = `${beat}@${intent.block.index}`;
+    if (npc.patrolBlock !== key) {
+      npc.patrolBlock = key;
+      npc.patrolIdx = 0;
+      npc.patrolNextAt = 0;
+    }
+    intent.spot = route[(npc.patrolIdx || 0) % route.length];
+  }
+
+  /** v0.32.0: an officer who has reached a waypoint and waited there walks on to the next. */
+  patrolStep(npc) {
+    const g = this.game;
+    const intent = npc.intent;
+    const beat = intent?.block?.patrol;
+    if (!beat || intent.source !== 'schedule' || !npc.arrived) return false;
+    const block = blockAt(npc.profile.schedule, g.clock.minuteOfDay + scheduleLead(npc.profile));
+    if (!block || block.index !== intent.block.index) return false; // the beat is over: re-decide
+    if (g.clock.total < (npc.patrolNextAt || 0)) return true;
+    const route = g.content.life.patrolRoutes[beat];
+    npc.patrolIdx = ((npc.patrolIdx || 0) + 1) % route.length;
+    intent.spot = route[npc.patrolIdx];
+    intent.until = g.clock.total + 15;
+    npc.arrived = false;
+    this.plan(npc);
+    return true;
   }
 
   plan(npc) {
@@ -231,6 +267,7 @@ export class NpcSystem {
     npc.arrived = true;
     npc.stuck = 0;
     const block = npc.intent?.block;
+    if (block?.patrol) npc.patrolNextAt = g.clock.total + (g.content.life?.patrols?.[block.patrol]?.dwell ?? 5); // stop a while at each waypoint
     if (block?.onArrive) {
       const key = blockInstanceKey(block, g.clock.total);
       npc.hooksRun = npc.hooksRun || {};

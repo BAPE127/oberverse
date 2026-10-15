@@ -155,7 +155,8 @@ test('a contract: accept, assign, load, sail, deliver — paid exactly once; shi
   assert.equal(c.status, 'transit');
   assert.equal(v.port, null, 'not in two places');
   const rev0 = Lg.state.ledger.revenue;
-  g.skipTime(v.voyage.arrive - g.clock.total + 60);
+  // sail until she arrives (an event en route can push the ETA back while she's at sea)
+  for (let k = 0; k < 5 && v.status === 'underway'; k++) g.skipTime(Math.max(1, v.voyage.arrive - g.clock.total + 60));
   assert.equal(v.status, 'docked');
   assert.equal(v.port, c.to);
   assert.equal(c.status, 'delivered');

@@ -366,6 +366,52 @@ export function validateContent(content = CONTENT) {
   if (!maps.get(content.startingMap)?.spot(content.startingSpot)) err('startingMap/startingSpot invalid');
 
   validateLogistics(content, err, warn);
+  // ---------------------------------------------------------- v0.32.0: world simulation rules
+  const L = content.life;
+  if (L) {
+    const occupancy = {};
+    for (const c of Object.values(content.characters)) {
+      const w = `character ${c.id}`;
+      const life = L.homes[c.id];
+      const ex = L.exceptions[c.id];
+      if (!life && !ex) { err(`${w}: no home — every persistent character needs a home in src/content/life.js (LIFE), or a justified exception (LIFE_EXCEPTIONS)`); continue; }
+      if (life && ex) err(`${w}: has both a home and an exception`);
+      const occ = (life || ex).occupation;
+      if (!L.occupations[occ]) err(`${w}: unknown occupation ${occ}`);
+      if (ex && !ex.reason) err(`${w}: exception without a reason`);
+      if (!life) continue;
+      const [rid, uid] = life.home.split('/');
+      const unit = L.residences[rid]?.units?.[uid];
+      if (!unit) { err(`${w}: home ${life.home} does not exist`); continue; }
+      if (!maps.get(unit.map)) { err(`${w}: home ${life.home} is on unknown map ${unit.map}`); continue; }
+      for (const b of unit.beds) if (!maps.get(unit.map).spot(b)) err(`residence ${rid}/${uid}: bed ${b} is not a spot on ${unit.map}`);
+      const sleep = (c.schedule || []).find((b) => b.activity === 'sleep');
+      if (!sleep) err(`${w}: no sleep block (a resident sleeps at home)`);
+      else if (!unit.beds.some((b) => `${unit.map}:${b}` === sleep.spot)) err(`${w}: sleeps at ${sleep.spot}, not in their home ${life.home}`);
+      (occupancy[life.home] ||= []).push(c.id);
+    }
+    for (const [home, who] of Object.entries(occupancy)) {
+      const [rid, uid] = home.split('/');
+      const unit = L.residences[rid].units[uid];
+      if (who.length > unit.capacity) err(`residence ${home}: ${who.length} residents for ${unit.capacity} places`);
+      if (!unit.shared && who.length > 1) err(`residence ${home}: a private unit shared by ${who.join(', ')}`);
+    }
+    // patrol beats: every waypoint exists, and an officer can walk the whole loop
+    const walker = { kind: 'npc', canPass: (d) => !d.lock };
+    for (const [id, route] of Object.entries(L.patrolRoutes)) {
+      for (let i = 0; i < route.length; i++) {
+        const a = parseSpotRef(route[i]);
+        const b = parseSpotRef(route[(i + 1) % route.length]);
+        const sa = maps.get(a.map)?.spot(a.spot);
+        if (!sa) { err(`patrol ${id}: waypoint ${route[i]} does not exist`); continue; }
+        if (a.map === b.map) {
+          const sb = maps.get(b.map)?.spot(b.spot);
+          if (sb && findPath(maps.get(a.map), sa.x, sa.y, sb.x, sb.y, walker) === null) err(`patrol ${id}: can't walk from ${route[i]} to ${route[(i + 1) % route.length]}`);
+        } else if (!routeBetweenMaps(maps, a.map, b.map, walker)) err(`patrol ${id}: no way from ${a.map} to ${b.map}`);
+      }
+    }
+    for (const c of Object.values(content.characters)) for (const b of c.schedule || []) if (b.patrol && !L.patrolRoutes[b.patrol]) err(`character ${c.id}: unknown patrol ${b.patrol}`);
+  }
   return { errors, warnings };
 }
 

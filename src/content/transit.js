@@ -84,6 +84,8 @@ export function buildTransit(S) {
     colors: ['#3a5a8a', '#8a3a32', '#2a2a2e', '#e8e2d4', '#4a7a5a', '#c9a24a', '#5a4a6a', '#6f7f94', '#a35a48'],
     loops: [
       { id: 'city_ring', cars: 2, speed: [170, 210], path: ring(14, 86, 12, 36) }, // round the Financial District, Bank Row and Precinct Row
+      // v0.32.0: a Precinct 1 cruiser on patrol — round the Financial District and Grand Avenue, Market Street and the Mill Road blocks
+      { id: 'police_cruiser', cars: 1, model: 'cruiser', color: '#e8e2d4', police: true, speed: [140, 170], path: ring(38, 86, 12, 60) },
       { id: 'market_ring', cars: 1, speed: [150, 190], path: ring(38, 62, 36, 60) }, // round Market Street
       // through the city: in at the East Gate, out at Mill Road (and the other way)
       { id: 'west_through', cars: 1, open: true, gap: 50, speed: [180, 220], path: [p(H, hvW - 0.1, So(H, 36)), p(H, E(H, 62), So(H, 36)), p(H, E(H, 62), So(H, 60)), p(H, 0, So(H, 60))] },

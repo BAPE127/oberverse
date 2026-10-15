@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.32.0 (2026-10-15)
+
+- `npm run check` — **336/336 tests passed** (5 new in `worldsim.test.mjs`: every character has a home or exception and the checker catches a homeless or doubled-up resident; the four flats, tenants asleep in their own, private doors; an officer walking a beat on screen (≥3 waypoints, >20 distinct tiles) and off; a conversation pausing and resuming a beat, and a save keeping the place on it; every officer's beat and the cruiser). Two tests updated (the crew's flats; a voyage test's robust wait). Validator 0 errors with the new rules.
+- `npm run smoke` — 24/24.
+
 ## Verification record — v0.31.0 (2026-10-15)
 
 - `npm run check` — **331/331 tests passed** (4 new in `farming.test.mjs`: pastures, stock by area and kind, animals drawn; feeding, produce, hunger and losses; cattle growth, auction demand and overnight recovery; the books, the herd through a save and back on the map, Wes and the feed; the Co-op test now expects demand); validator 0 errors.

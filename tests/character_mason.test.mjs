@@ -42,9 +42,9 @@ test('Mason is imported with his portrait, motif, company and crew', () => {
   for (const id of ['npc_dee', 'npc_barnaby', 'npc_quinn']) {
     const c = CONTENT.characters[id];
     assert.equal(c.faction, 'fac_builders');
-    assert.ok(c.schedule.some((b) => b.activity === 'sleep' && b.spot.startsWith('apartments:')), `${id} lives at the Plumb Line`);
+    assert.ok(c.schedule.some((b) => b.activity === 'sleep' && b.spot.startsWith('plumb_unit_')), `${id} lives at the Plumb Line (v0.32.0: in a flat of their own)`);
   }
-  assert.ok(m.schedule.some((b) => b.activity === 'sleep' && b.spot.startsWith('apartments:')));
+  assert.ok(m.schedule.some((b) => b.activity === 'sleep' && b.spot.startsWith('plumb_unit_')));
 });
 
 test('his signature line and his puns', () => {
@@ -109,7 +109,7 @@ test('Mason and the crew keep their schedules', () => {
   assert.equal(at('11:00'), 'westbrook/excavate');
   assert.equal(at('14:00'), 'mason_office/work');
   assert.equal(at('16:00'), 'civic_office/business');
-  assert.equal(at('23:00'), 'apartments/sleep');
+  assert.equal(at('23:00'), 'plumb_unit_1/sleep');
   setTime(g, 2, '09:00');
   assert.equal(g.npcs.get('npc_dee').map, 'westbrook');
   assert.equal(g.npcs.get('npc_barnaby').map, 'westbrook');

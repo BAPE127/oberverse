@@ -1131,6 +1131,7 @@ export class Game {
         activity: n.activity, mood: n.mood, met: n.met, relationships: n.relationships, knowledge: n.knowledge,
         memory: n.memory, topicsUsed: n.topicsUsed, recentLines: n.recentLines, gifts: n.gifts,
         chatCooldownUntil: n.chatCooldownUntil, hooksRun: n.hooksRun, impulseCooldowns: n.impulseCooldowns || {},
+        patrolBlock: n.patrolBlock, patrolIdx: n.patrolIdx, // v0.32.0: where on their beat
         health: n.health, dead: n.dead || undefined, downUntil: n.downUntil || undefined, diedAt: n.diedAt,
         intent: n.intent && n.intent.source === 'errand' ? { activity: n.intent.activity, spot: n.intent.spot, source: 'errand', until: n.intent.until, fromBlock: n.intent.fromBlock } : null,
       };

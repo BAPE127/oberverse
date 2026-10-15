@@ -58,6 +58,8 @@ import lariatChars from './characters/lariat.js';
 import dlgLariat from './dialogue/lariat.js';
 import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
 import { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } from './farming.js';
+import { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS } from './life.js';
+import { buildPatrols } from '../world/patrols.js';
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 export const DUPLICATE_IDS = [];
@@ -79,6 +81,7 @@ REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
 REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 const TRANSIT = buildTransit(SHIFTS);
 addStreetFurniture(MAPS, TRANSIT);
+const PATROL_ROUTES = buildPatrols(MAPS, PATROLS); // v0.32.0: police beats, as spots on the pavement
 addSeams(MAPS, REGIONS, PROP_TYPES);
 const STREET_CARS = carPropsToVehicles(MAPS);
 const PARKED = PARKED_CARS.map((c) => shiftPoint(SHIFTS, c));
@@ -89,6 +92,10 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
   const strip = ({ map, ...o }) => o;
   return [id, { ...d, delivery: strip(sp(d.delivery)), lot: { x: lot.x, y: lot.y, w: lotEnd.x - lot.x + 1, h: lotEnd.y - lot.y + 1 }, display: d.display.map((s) => strip(sp(s))) }];
 }));
+
+// v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars]);
+for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
 export const BASE_CONTENT = {
@@ -108,7 +115,7 @@ export const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars]),
+  characters: ALL_CHARACTERS,
   dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat]),
   puns: PUNS,
   warehouses: WAREHOUSES,
@@ -123,6 +130,7 @@ export const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
+  life: { occupations: OCCUPATIONS, residences: RESIDENCES, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
   startingMap: 'player_flat',

@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.31.0
+# Known Issues and Limitations — v0.32.0
+
+- **Living World (v0.32.0, stage 1 of 2):** NPCs don't ride buses yet and the No. 1 is still the only route (Lariat isn't served) — that's stage 2. Officers live in Precinct 1's duty quarters (staff quarters), the Sumps residents in the camp, and several shopkeepers in rooms at their shops; that's their housing, by type. The patrol cruiser is traffic, not a particular officer, and doesn't respond to calls. Occupations' transport preferences are recorded and validated but only walking is simulated for now.
 
 ## Not yet implemented (planned)
 

@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.32.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Living World (part 1)',
+    notes: [
+      'Everyone lives somewhere now, on the record: every resident of the Oberverse has a home — a house, a flat, a room at the boarding house, a bunk in the station or the bunkhouse, a tent in the Sumps camp — and goes home to sleep in it.',
+      'The Plumb Line Apartments are four real flats off a shared hall, each furnished for whoever lives there. Knock all you like; they\'re private.',
+      'The police walk their beats: Civic Plaza and Bank Row, the East End, Founders Park, the Sumps, the Docks, Lanternside, Westbrook and the oil fields — waypoint to waypoint, stopping a while at each, whether or not you\'re there to see it. A Precinct 1 cruiser patrols the city streets.',
+      'Coming in part 2: a bus network that reaches Lariat, and townsfolk who ride it.',
+    ],
+  },
+  {
     version: '0.31.0',
     date: '2026-10-15',
     channel: 'development',

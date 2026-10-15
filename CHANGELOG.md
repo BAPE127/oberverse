@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.32.0] — 2026-10-15 — "Living World" stage 1 (development build)
+
+The owner's master prompt for a world-simulation overhaul (persistent NPC lives, housing, public transport, police patrols), staged to keep usage in check. Stage 1: the rules, housing and patrols. Stage 2 (planned): the bus network and NPC transit use. See docs/WORLD_SIMULATION.md.
+
+### Audit (what the world already had, and reuses)
+Data-driven schedules; two simulation tiers (physical paths on the player's map, abstract timed travel elsewhere) sharing one decision model and the world clock; held intents and conversation pauses that resume; witnessed crimes, calls, dispatch, Wanted and pursuits; the No. 1 bus with player boarding; traffic with junction lights. Missing: any record or rule of where people live; police "patrols" that were hours standing at one spot; NPCs who never ride the bus; a single bus route that doesn't reach Lariat.
+
+### Added
+- **The world simulation rules** (`src/content/life.js`): every persistent character has a life configuration — a home (residence and unit), an occupation (transport, interruption and persistence profile), and their schedule — or a documented exception (`LIFE_EXCEPTIONS`: Petty in the cells; the five lead cows in their paddock). 16 occupations, 19 residences, 57 homes.
+- **Validation** (`tools/validate-content.mjs`): a character with no home or exception, a home that doesn't exist, a sleep block outside the home, a bed that isn't a spot, an over-full unit, a private unit shared by two households, an unknown occupation or patrol, or a patrol beat that can't be walked end to end are all errors.
+- **The Plumb Line Apartments** are a shared hall with four private flats (`plumb_unit_1`–`4`), each furnished for its tenant; Mason's crew sleep in their own.
+- **Police beats** (`PATROLS`, `src/world/patrols.js`): nine beats; waypoints snapped to the pavement at load. Officers walk from waypoint to waypoint and stop a while at each, on and off screen (the abstract tier walks them too); a conversation or dispatch pauses the beat and it resumes; the position on the beat is saved. 15 schedule blocks converted from standing at one spot.
+- **A patrol cruiser** on the city streets, as a loop in the existing traffic system (`loop.model`, `loop.police`).
+- Tests: `tests/worldsim.test.mjs` (5).
+
+### Changed
+- `tests/character_mason.test.mjs`: the crew sleep in their flats. `tests/logistics.test.mjs`: the contract test sails until the ship docks (en-route delays).
+
 ## [0.31.0] — 2026-10-15 — "Home on the Range" (development build)
 
 The third of the three agricultural releases chosen in interview: livestock, the agricultural market and farm management. See docs/FARMING.md.

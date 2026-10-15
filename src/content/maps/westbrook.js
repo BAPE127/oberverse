@@ -145,34 +145,65 @@ export const fenderOffice = {
 };
 
 export const apartments = {
+  // v0.32.0: the Plumb Line is four flats off a shared hall (the common room: table, stove, mailboxes)
   id: 'apartments',
-  name: 'Plumb Line Apartments',
+  name: 'Plumb Line Apartments — hall',
   kind: 'interior',
   music: 'mus_home',
   ambience: 'amb_indoor',
-  tiles: roomTiles(16, 9, 'f', 8),
-  doors: [{ id: 'door_apartments_exit', x: 8, y: 8, to: { map: 'westbrook', spot: 'apartments_door_out' } }],
+  tiles: roomTiles(16, 9, 'f', 8, [[2, 0, 1, 1, 'D'], [5, 0, 1, 1, 'D'], [10, 0, 1, 1, 'D'], [13, 0, 1, 1, 'D']]),
+  doors: [
+    { id: 'door_apartments_exit', x: 8, y: 8, to: { map: 'westbrook', spot: 'apartments_door_out' } },
+    ...[[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => ({ id: `door_plumb_${n}`, x, y: 0, label: `Flat ${n}`, to: { map: `plumb_unit_${n}`, spot: 'entry' }, lock: { key: 'item_none', owners: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], message: `Flat ${n} — ${['M. NAILS', 'D. RIVERA', 'B. COLE', 'Q. ABERNATHY'][n - 1]}. A private flat; the door is locked.` } })),
+  ],
   spots: {
     entry: { x: 8, y: 7, facing: 'up' },
-    bed_mason: { x: 2, y: 2, facing: 'left' },
-    bed_dee: { x: 4, y: 2, facing: 'left' },
-    bed_barnaby: { x: 11, y: 2, facing: 'right' },
-    bed_quinn: { x: 13, y: 2, facing: 'right' },
+    ...Object.fromEntries([[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => [`unit_${n}_door`, { x, y: 1, facing: 'down' }])),
     common: { x: 6, y: 4, facing: 'right' },
     common_b: { x: 9, y: 4, facing: 'left' },
     armchair: { x: 3, y: 6, facing: 'right' },
     window_seat: { x: 12, y: 5, facing: 'up' },
   },
   props: [
-    { id: 'apt_bed1', type: 'bed', x: 1, y: 1, color: '#9a5a3a' }, { id: 'apt_bed2', type: 'bed', x: 3, y: 1, color: '#5a7a9a' },
-    { id: 'apt_bed3', type: 'bed', x: 12, y: 1, color: '#6a8a5a' }, { id: 'apt_bed4', type: 'bed', x: 14, y: 1, color: '#8a6a9a' },
     { id: 'apt_table', type: 'table', x: 7, y: 4, w: 2, examine: 'The common-room table. A sign: "PUN JAR — 1 obol per groan". The jar is full. It is always full.' },
     { id: 'apt_stove', type: 'stove', x: 14, y: 6 },
     { id: 'apt_rug', type: 'rug', x: 6, y: 5, w: 4, h: 2, color: '#a0703a' },
     { id: 'apt_plant', type: 'plant', x: 1, y: 6 },
-    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: M. NAILS (landlord, handyman, pun enthusiast), D. RIVERA, B. COLE, Q. ABERNATHY.' },
-    { id: 'apt_win', type: 'window', x: 5, y: 0 }, { id: 'apt_win2', type: 'window', x: 10, y: 0 },
+    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: 1 M. NAILS (landlord, handyman, pun enthusiast), 2 D. RIVERA, 3 B. COLE, 4 Q. ABERNATHY.' },
+    { id: 'apt_armchair', type: 'chair', x: 3, y: 6 },
   ],
 };
 
-export default [westbrook, masonOffice, apartments, fenderOffice];
+/** v0.32.0: the four flats — each its own little home, furnished for whoever lives there. */
+const flat = (n, name, extra) => ({
+  id: `plumb_unit_${n}`, name: `Plumb Line Apartments — Flat ${n} (${name})`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
+  tiles: roomTiles(9, 7, 'f', 4),
+  doors: [{ id: `door_plumb_unit_${n}_exit`, x: 4, y: 6, to: { map: 'apartments', spot: `unit_${n}_door` } }],
+  spots: { entry: { x: 4, y: 5, facing: 'up' }, bed: { x: 2, y: 2, facing: 'down' }, chair: { x: 6, y: 3, facing: 'left' } },
+  keepClear: [[4, 5]],
+  props: [
+    { id: `pu${n}_bed`, type: 'bed', x: 1, y: 1, color: extra.bed },
+    { id: `pu${n}_table`, type: 'table', x: 6, y: 2 },
+    { id: `pu${n}_stove`, type: 'stove', x: 7, y: 1 },
+    { id: `pu${n}_rug`, type: 'rug', x: 3, y: 3, w: 2, h: 2, color: extra.rug },
+    ...extra.props.map((p, i) => ({ id: `pu${n}_x${i}`, ...p })),
+  ],
+});
+export const plumbUnit1 = flat(1, 'Mason Nails', { bed: '#9a5a3a', rug: '#c8a03a', props: [
+  { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed blueprint of the Plumb Line itself, signed "M.N., builder, landlord, genius". A sticky note adds: "and modest".' },
+  { type: 'shelf', x: 1, y: 4, examine: 'Spirit levels, a pun calendar, and a hard hat signed by the whole crew.' },
+] });
+export const plumbUnit2 = flat(2, 'Dee Rivera', { bed: '#5a7a9a', rug: '#6a7a8a', props: [
+  { type: 'desk', x: 1, y: 4, w: 2, examine: 'Site rotas, timesheets, and a mug that says WORLD\'S OKAYEST FOREMAN. Dee bought it herself.' },
+  { type: 'plant', x: 7, y: 4 },
+] });
+export const plumbUnit3 = flat(3, 'Barnaby Cole', { bed: '#6a8a5a', rug: '#8a6a4a', props: [
+  { type: 'plant', x: 1, y: 4 }, { type: 'plant', x: 2, y: 4 },
+  { type: 'painting', x: 3, y: 0, w: 2, examine: 'A watercolour of a sunflower. Barnaby painted it. He\'s prouder of it than of any wall he\'s built.' },
+] });
+export const plumbUnit4 = flat(4, 'Quinn Abernathy', { bed: '#8a6a9a', rug: '#5a5a7a', props: [
+  { type: 'desk', x: 1, y: 4, w: 2, examine: 'A drafting board with a half-finished survey, three sharpened pencils, and a list titled "THINGS TO STOP APOLOGISING FOR".' },
+  { type: 'shelf', x: 7, y: 4, examine: 'Survey manuals in alphabetical order. And one romance novel, hidden behind them.' },
+] });
+
+export default [westbrook, masonOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, fenderOffice];
