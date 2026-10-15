@@ -133,3 +133,7 @@ Blast damage falls off to 40% at the edge and also hurts you if you're inside. B
 - Any explosion is a major crime: record +10; witnesses call it in.
 
 Projectiles, drones and scorch marks are runtime-only and dropped when you change map.
+
+### Your own ships (v0.22.0)
+
+Once you own Ober & Sons Maritime, the FILL form lists your cargo ships beside the shipping companies. A ship docked at Mill Road Docks carries the crates to the buyer's main port: no freight fee, no insurance, running costs and port fees only. Embargo runs risk seizure by customs (22%, decided at departure). See `docs/LOGISTICS.md`.

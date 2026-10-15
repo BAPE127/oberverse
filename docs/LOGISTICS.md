@@ -23,6 +23,18 @@ The sale is a system, not a dialogue: it works whether or not Captain Ober is ar
 
 Sending a ship somewhere empty (Fleet → Send to another port) costs running costs and fees too. Repairs (at ports with a repair yard; foreign yards charge 50% more) restore condition; each 1,000 km sailed wears 1.6% × the class's wear.
 
+## Arms exports in your own ships (v0.22.0)
+
+On an arms works terminal's Market tab, FILL an order and pick **⚓ one of your ships** instead of a shipping company:
+
+- the ship must be **docked at Mill Road Docks** (the export cages are at the Yards), free, big enough (**one crate = one unit**), with the range to the buyer's main port (`Logistics.portFor(country)`), and able to berth there;
+- **no freight fee** and **no insurance** (insurance is something shipping companies sell): you pay the voyage's running costs and any port fee, like any other voyage;
+- loading takes 2 h + 15 min per crate; the voyage follows the sea lanes with the usual delays; your ship is slower than air freight but never "lost in a storm" (piracy arrives in v0.23);
+- an **embargo run** is allowed (it's your ship) but customs seize the cargo with a 22% chance (`ownEmbargoSeizure`), decided at departure and kept with the voyage — they trace it to you exactly as with a smuggler's ship; your ship is released;
+- **who owns what**: the market keeps the order, the country's budget, the payment, saturation, war hostility and every consequence; logistics only sails the ship. `Market.shipOwn()` validates everything (cage, licence, hostility, budget, then `Logistics.armsQuote`) before changing anything, then commits and calls `Logistics.carryArms`; on arrival logistics calls `Market.settleOwn(shipmentId, fate)` once — the shipment is removed as it settles, so it can't pay twice. The market's shipment record carries `vessel` and its `arrives` is kept in step with delays.
+
+The arms terminal shows your ships too: the contact list (⚓ name, ETA), the shipment on the globe along its real sea lane, and your other Ober & Sons voyages in cyan.
+
 ## Money, exactly once
 
 Every obol moves inside `Logistics` through `spend()`/`earn()`, which also keep the ledger (all-time totals and the last 30 days) shown on the Finances page. A contract pays only on the `transit → delivered` transition; a contract that isn't `transit` when its ship arrives pays nothing.
@@ -37,7 +49,6 @@ Quay Road runs along the south of Mill Road Yards with the **Ober & Sons Maritim
 
 ## Planned (later updates)
 
-- **v0.22** — your own ships carrying arms-export orders (no freight fee; running costs still apply); the globe on the arms terminal showing your fleet; richer voyage history.
 - **v0.23** — piracy and route risk from the arms market's wars and embargoes; the warship dealership; escorts and naval missions.
 - **v0.24** — the shipyard (built by Mason's Os) and the custom shipbuilder.
 - Later still: playable naval encounters. Ship stats, components and condition live in the shared vessel record so an encounter can read and write them without a separate fleet database.

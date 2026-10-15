@@ -11,6 +11,9 @@
 //     seized + embargoed  → customs trace it to you (police heat)
 //     seized by a country → that country turns hostile
 //     insured and not smuggling → part of the value back
+//   v0.22.0: or fill it with your own ship (shipOwn): no freight fee, no insurance;
+//     logistics sails it and calls settleOwn() on arrival — the market still
+//     owns the order, the budget, the payment and every consequence
 //
 // State: game.world.market. Prices: arms value (with research) × the
 // country's want × war boost × (1 − saturation) × (1 − hostility/200).
@@ -142,14 +145,20 @@ export class Market {
     return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
   }
 
-  /** Fill an order: its crates leave a works' export cage with a shipper. */
-  ship({ wh, order: orderId, shipper, insured = false }) {
+  /**
+   * Fill an order: its crates leave a works' export cage with a shipper — or,
+   * since v0.22.0, aboard one of your own ships (`vessel`: no freight fee, no
+   * insurance; src/systems/logistics.js sails it and reports back through
+   * settleOwn()).
+   */
+  ship({ wh, order: orderId, shipper, insured = false, vessel = null }) {
     const g = this.game;
     const order = this.state.orders.find((o) => o.id === orderId && o.status === 'open');
     if (!order) return { ok: false, text: 'That order is no longer open.' };
     const country = order.country;
     const c = this.country(country);
     const def = this.cfg.countries[country];
+    if (vessel) return this.shipOwn({ wh, order, vessel });
     const sh = this.cfg.shippers[shipper];
     if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
@@ -179,15 +188,66 @@ export class Market {
     return { ok: true, shipment: shp, text: `${sh.name} will deliver ${order.qty} crates to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
   }
 
-  /** Roll a shipment's fate on arrival. */
+  /** Fill an order with your own ship (validated by logistics before anything changes). */
+  shipOwn({ wh, order, vessel }) {
+    const g = this.game;
+    const L = g.logistics;
+    const country = order.country;
+    const c = this.country(country);
+    const def = this.cfg.countries[country];
+    if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
+    if (!cage) return { ok: false, text: 'No export cage.' };
+    if ((cage[order.item] || 0) < order.qty) return { ok: false, text: `This order is for ${order.qty} crates; the export cage has ${cage[order.item] || 0}.` };
+    if (c.hostility >= this.cfg.market.refuseHostility) return { ok: false, text: `${def.name} won't deal with you any more.` };
+    const value = order.qty * order.price;
+    if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
+    const q = L.armsQuote(vessel, country, order.qty);
+    if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
+    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs and port fees).` };
+    // everything checked: commit
+    cage[order.item] -= order.qty;
+    c.budget -= value;
+    order.status = 'shipped';
+    const s = this.state;
+    const now = g.clock.total;
+    const shp = { id: s.nextShip++, wh, order: order.id, country, shipper: null, vessel, insured: false, items: { [order.item]: order.qty }, value, fee: 0, embargo: c.embargo, departs: now, arrives: now + Math.round(q.hours * 60) };
+    s.shipments.push(shp);
+    L.carryArms(vessel, shp, q);
+    const enemy = this.enemyOf(country);
+    if (enemy) this.country(enemy).hostility = clamp(this.country(enemy).hostility + 5, 0, 100);
+    g.bus.emit('market:shipped', { shipment: shp });
+    const v = L.vessel(vessel);
+    return { ok: true, shipment: shp, text: `The ${v.name} sails ${order.qty} crates to ${L.port(q.to).name} for ${def.name} — about ${Math.round(q.hours / 24 * 10) / 10} days: ${value} obols on arrival. (Running costs and fees ${q.cost}; no freight fee.)${c.embargo ? ' ⚠ An embargo run: customs may seize it.' : ''}` };
+  }
+
+  /** Your ship has arrived (called once by logistics): settle the shipment. */
+  settleOwn(shpId, fate) {
+    const s = this.state;
+    const shp = s.shipments.find((x) => x.id === shpId && x.vessel);
+    if (!shp) return null; // already settled
+    s.shipments = s.shipments.filter((x) => x !== shp);
+    return this.settle(shp, fate);
+  }
+
+  /** Roll a shipment's fate on arrival (external shippers). */
   resolve(shp) {
     const g = this.game;
     const sh = this.cfg.shippers[shp.shipper];
-    const def = this.cfg.countries[shp.country];
-    const c = this.country(shp.country);
     const R = g.rng;
     const pOk = sh.reliability - (shp.embargo ? sh.embargoRisk || 0 : 0);
-    if (R.next() < pOk) {
+    if (R.next() < pOk) return this.settle(shp, 'delivered');
+    const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
+    return this.settle(shp, kinds[Math.floor(R.next() * kinds.length)]);
+  }
+
+  /** A shipment's outcome: 'delivered' (paid) or lost — 'sunk' | 'hijacked' | 'seized'. */
+  settle(shp, fate) {
+    const g = this.game;
+    const sh = shp.shipper ? this.cfg.shippers[shp.shipper] : { name: g.logistics.vessel(shp.vessel)?.name ? `the ${g.logistics.vessel(shp.vessel).name}` : 'your ship' };
+    const def = this.cfg.countries[shp.country];
+    const c = this.country(shp.country);
+    if (fate === 'delivered') {
       g.player.money += shp.value;
       g.bus.emit('money:changed', { delta: shp.value, total: g.player.money });
       this.state.earned += shp.value;
@@ -205,12 +265,10 @@ export class Market {
     c.budget += shp.value; // they never paid
     const lostOrder = this.state.orders.find((o) => o.id === shp.order);
     if (lostOrder) lostOrder.status = 'lost';
-    const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
-    const fate = kinds[Math.floor(R.next() * kinds.length)];
     const lines = {
-      sunk: `🌊 ${sh.name}'s ship went down in a storm with your cargo for ${def.name}.`,
+      sunk: `🌊 ${shp.vessel ? `${sh.name} went down` : `${sh.name}'s ship went down`} in a storm with your cargo for ${def.name}.`,
       hijacked: `🏴 Pirates hijacked your cargo for ${def.name} off the coast.`,
-      seized: `⚓ Your cargo for ${def.name} was seized and impounded.`,
+      seized: `⚓ Your cargo for ${def.name} was seized and impounded${shp.vessel ? ` from ${sh.name}` : ''}.`,
     };
     let text = lines[fate];
     if (shp.insured && !(fate === 'seized' && shp.embargo)) {
@@ -292,9 +350,10 @@ export class Market {
     }
     if (s.shipments.length) {
       const now = g.clock.total;
-      const due = s.shipments.filter((x) => x.arrives <= now);
+      // your own ships settle when logistics says they've arrived (settleOwn)
+      const due = s.shipments.filter((x) => !x.vessel && x.arrives <= now);
       if (due.length) {
-        s.shipments = s.shipments.filter((x) => x.arrives > now);
+        s.shipments = s.shipments.filter((x) => !due.includes(x));
         for (const shp of due) this.resolve(shp);
       }
     }

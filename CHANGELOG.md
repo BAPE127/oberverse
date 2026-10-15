@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.22.0] — 2026-10-15 — "Own Bottoms" (development build)
+
+Stage 2 of the shipping expansion (the master brief's stage D and the rest of E).
+
+### Added
+- **Arms exports in your own ships**: `Market.ship({ …, vessel })` → `Market.shipOwn` validates the order, cage, licence, hostility, budget and `Logistics.armsQuote` (docked at Mill Road Docks, free, capacity, range, berth, arrears, money) before changing anything; then removes the crates, reserves the budget, records the shipment (`vessel`, no fee, uninsured) and calls `Logistics.carryArms` (pays running costs and fees, loads, rolls customs for embargo runs). On arrival `Market.settleOwn` settles once through the same `Market.settle` path the shippers use. The market no longer settles own-ship shipments on its own clock; their ETA follows the voyage's delays.
+- Arms terminal: your ships in the FILL form (with quotes and reasons), in the contact list, and on the globe (export voyages on real sea lanes; other Ober & Sons voyages in cyan, hoverable).
+- Richer voyage log (departure, duration, cargo, delays) on the logistics terminal's Fleet page; arms cargo shown on Fleet and Chart.
+- Tests: 4 more in `tests/logistics.test.mjs` (own-fleet exports pay once and skip the freight fee; validation changes nothing; external shippers unchanged; an embargo run's customs fate survives a reload).
+
+### Changed
+- `Market.resolve` split into `resolve` (rolls an external shipper's fate, same RNG use as before) and `settle(shipment, fate)`.
+
 ## [0.21.0] — 2026-10-15 — "Ober & Sons" (development build)
 
 Owner's request: a player-owned logistics and shipbuilding business bought from Captain Ober (a master brief in eight stages), with Captain Ober's photo ("a very stereotypical sailor"). Owner's answers: import Captain Ober now (store the photo); old-salt voice; no relation to Ober's Oil; retiring; based at new docks at the Yards; he/him; kraken Wrath; jolly from the start; an old smuggler about your arms business; company **Ober & Sons Maritime**, his ship the **Salty Ober**; ship the brief as several releases. This release is the brief's stages A–C plus the core of E (the terminal and tracking); stages D (own-fleet arms exports), F (piracy, warships, missions) and G (the shipyard) follow.

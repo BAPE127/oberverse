@@ -26,6 +26,8 @@ export const LOGISTICS = {
   contractsPerPort: 2, maxAvailable: 14, offerDays: 2, lateGraceDays: 2, latePenaltyPerDay: 0.15, failPenalty: 0.1, cancelPenalty: 0.1,
   /** A ship's own daily upkeep is charged at 06:00 with the ports'; unpaid upkeep becomes arrears and holds sailings. */
   upkeepHour: 6,
+  /** v0.22.0 — arms exports in your own ships: they load from the cages at Mill Road Docks; an embargo run is seized by customs with this chance (rolled at departure). */
+  armsPort: 'port_millroad', armsLoadHoursPerCrate: 0.25, ownEmbargoSeizure: 0.22,
 };
 
 /** Port types: what they berth, cost and charge. maxSize is the largest ship size (1–4) that fits; foreign ships pay `fee` per call. */

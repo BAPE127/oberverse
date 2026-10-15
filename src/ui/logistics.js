@@ -134,6 +134,7 @@ function chartTip(g, hit) {
     out.push(`${Lg.port(V.from).name} → ${Lg.port(V.to).name}`, `${Math.round(pos.f * 100)}% of ${num(V.km)} km · ETA ${Lg.when(V.arrive)}`);
     const c = V.contract && Lg.contract(V.contract);
     if (c) out.push(`Cargo: ${c.units} units for ${Lg.cfg.clients[c.client].name}`);
+    if (v.cargo?.type === 'arms') out.push(`Cargo: ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}`);
     const late = c && V.arrive > c.deadline;
     if (late) out.push('⚠ Running late for the deadline');
   }
@@ -279,7 +280,7 @@ function vesselDetail(ui, v, opts, go, act) {
     h('table', { class: 'logi-table' },
       h('tr', {}, h('th', {}, 'Class'), h('td', {}, `${m.name} · ${Lg.cls(m).name}`)),
       h('tr', {}, h('th', {}, 'Status'), h('td', {}, `${STATUS[v.status]}${v.port ? ` — ${Lg.port(v.port).name}` : ''}`)),
-      h('tr', {}, h('th', {}, 'Capacity'), h('td', {}, `${st.capacity} units${v.cargo ? ` (carrying ${v.cargo.units})` : ''}`)),
+      h('tr', {}, h('th', {}, 'Capacity'), h('td', {}, `${st.capacity} units${v.cargo ? ` (carrying ${v.cargo.units}${v.cargo.type === 'arms' ? ` crates for ${g.content.arms.countries[v.cargo.country].name}` : ''})` : ''}`)),
       h('tr', {}, h('th', {}, 'Speed · range'), h('td', {}, `${st.speed} knots · ${num(st.range)} km`)),
       h('tr', {}, h('th', {}, 'Reliability'), h('td', {}, `${Math.round(st.reliability * 100)}%`)),
       h('tr', {}, h('th', {}, 'Costs'), h('td', {}, `${st.opex}/day at sea · ${st.upkeep}/day in port`)),
@@ -299,7 +300,10 @@ function vesselDetail(ui, v, opts, go, act) {
   }
   if (v.log.length) {
     card.append(h('h4', {}, 'Voyage log'));
-    for (const l of v.log.slice(0, 5)) card.append(h('div', { class: 'logi-line' }, `${Lg.when(l.arrived)} · ${Lg.port(l.from).name} → ${Lg.port(l.to).name} (${num(l.km)} km)${l.contract ? ' · cargo' : ''}`));
+    for (const l of v.log.slice(0, 8)) {
+      const what = l.shipment ? `arms export (${l.cargo})` : l.contract ? `contract (${l.cargo || 'cargo'})` : 'sailing empty';
+      card.append(h('div', { class: 'logi-line' }, `${Lg.when(l.arrived)} · ${Lg.port(l.from).name} → ${Lg.port(l.to).name} · ${num(l.km)} km${l.departed ? ` in ${hrs((l.arrived - l.departed) / 60)}` : ''} · ${what}${l.delays ? ` · ${l.delays} delay${l.delays === 1 ? '' : 's'}` : ''}`));
+    }
   }
   return card;
 }

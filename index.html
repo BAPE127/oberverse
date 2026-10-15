@@ -3518,6 +3518,8 @@ const LOGISTICS = {
   contractsPerPort: 2, maxAvailable: 14, offerDays: 2, lateGraceDays: 2, latePenaltyPerDay: 0.15, failPenalty: 0.1, cancelPenalty: 0.1,
   /** A ship's own daily upkeep is charged at 06:00 with the ports'; unpaid upkeep becomes arrears and holds sailings. */
   upkeepHour: 6,
+  /** v0.22.0 — arms exports in your own ships: they load from the cages at Mill Road Docks; an embargo run is seized by customs with this chance (rolled at departure). */
+  armsPort: 'port_millroad', armsLoadHoursPerCrate: 0.25, ownEmbargoSeizure: 0.22,
 };
 
 /** Port types: what they berth, cost and charge. maxSize is the largest ship size (1–4) that fits; foreign ships pay `fee` per call. */
@@ -8877,7 +8879,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.21.0';
+const GAME_VERSION = '0.22.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -15923,6 +15925,9 @@ __m["src/systems/market.js"] = (function () {
 //     seized + embargoed  → customs trace it to you (police heat)
 //     seized by a country → that country turns hostile
 //     insured and not smuggling → part of the value back
+//   v0.22.0: or fill it with your own ship (shipOwn): no freight fee, no insurance;
+//     logistics sails it and calls settleOwn() on arrival — the market still
+//     owns the order, the budget, the payment and every consequence
 //
 // State: game.world.market. Prices: arms value (with research) × the
 // country's want × war boost × (1 − saturation) × (1 − hostility/200).
@@ -16054,14 +16059,20 @@ class Market {
     return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
   }
 
-  /** Fill an order: its crates leave a works' export cage with a shipper. */
-  ship({ wh, order: orderId, shipper, insured = false }) {
+  /**
+   * Fill an order: its crates leave a works' export cage with a shipper — or,
+   * since v0.22.0, aboard one of your own ships (`vessel`: no freight fee, no
+   * insurance; src/systems/logistics.js sails it and reports back through
+   * settleOwn()).
+   */
+  ship({ wh, order: orderId, shipper, insured = false, vessel = null }) {
     const g = this.game;
     const order = this.state.orders.find((o) => o.id === orderId && o.status === 'open');
     if (!order) return { ok: false, text: 'That order is no longer open.' };
     const country = order.country;
     const c = this.country(country);
     const def = this.cfg.countries[country];
+    if (vessel) return this.shipOwn({ wh, order, vessel });
     const sh = this.cfg.shippers[shipper];
     if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
@@ -16091,15 +16102,66 @@ class Market {
     return { ok: true, shipment: shp, text: `${sh.name} will deliver ${order.qty} crates to ${def.name} in ${sh.days} day${sh.days === 1 ? '' : 's'}: ${value} obols on arrival. (Paid ${fee} for shipping${insured ? ' and insurance' : ''}.)` };
   }
 
-  /** Roll a shipment's fate on arrival. */
+  /** Fill an order with your own ship (validated by logistics before anything changes). */
+  shipOwn({ wh, order, vessel }) {
+    const g = this.game;
+    const L = g.logistics;
+    const country = order.country;
+    const c = this.country(country);
+    const def = this.cfg.countries[country];
+    if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
+    if (!cage) return { ok: false, text: 'No export cage.' };
+    if ((cage[order.item] || 0) < order.qty) return { ok: false, text: `This order is for ${order.qty} crates; the export cage has ${cage[order.item] || 0}.` };
+    if (c.hostility >= this.cfg.market.refuseHostility) return { ok: false, text: `${def.name} won't deal with you any more.` };
+    const value = order.qty * order.price;
+    if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
+    const q = L.armsQuote(vessel, country, order.qty);
+    if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
+    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs and port fees).` };
+    // everything checked: commit
+    cage[order.item] -= order.qty;
+    c.budget -= value;
+    order.status = 'shipped';
+    const s = this.state;
+    const now = g.clock.total;
+    const shp = { id: s.nextShip++, wh, order: order.id, country, shipper: null, vessel, insured: false, items: { [order.item]: order.qty }, value, fee: 0, embargo: c.embargo, departs: now, arrives: now + Math.round(q.hours * 60) };
+    s.shipments.push(shp);
+    L.carryArms(vessel, shp, q);
+    const enemy = this.enemyOf(country);
+    if (enemy) this.country(enemy).hostility = clamp(this.country(enemy).hostility + 5, 0, 100);
+    g.bus.emit('market:shipped', { shipment: shp });
+    const v = L.vessel(vessel);
+    return { ok: true, shipment: shp, text: `The ${v.name} sails ${order.qty} crates to ${L.port(q.to).name} for ${def.name} — about ${Math.round(q.hours / 24 * 10) / 10} days: ${value} obols on arrival. (Running costs and fees ${q.cost}; no freight fee.)${c.embargo ? ' ⚠ An embargo run: customs may seize it.' : ''}` };
+  }
+
+  /** Your ship has arrived (called once by logistics): settle the shipment. */
+  settleOwn(shpId, fate) {
+    const s = this.state;
+    const shp = s.shipments.find((x) => x.id === shpId && x.vessel);
+    if (!shp) return null; // already settled
+    s.shipments = s.shipments.filter((x) => x !== shp);
+    return this.settle(shp, fate);
+  }
+
+  /** Roll a shipment's fate on arrival (external shippers). */
   resolve(shp) {
     const g = this.game;
     const sh = this.cfg.shippers[shp.shipper];
-    const def = this.cfg.countries[shp.country];
-    const c = this.country(shp.country);
     const R = g.rng;
     const pOk = sh.reliability - (shp.embargo ? sh.embargoRisk || 0 : 0);
-    if (R.next() < pOk) {
+    if (R.next() < pOk) return this.settle(shp, 'delivered');
+    const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
+    return this.settle(shp, kinds[Math.floor(R.next() * kinds.length)]);
+  }
+
+  /** A shipment's outcome: 'delivered' (paid) or lost — 'sunk' | 'hijacked' | 'seized'. */
+  settle(shp, fate) {
+    const g = this.game;
+    const sh = shp.shipper ? this.cfg.shippers[shp.shipper] : { name: g.logistics.vessel(shp.vessel)?.name ? `the ${g.logistics.vessel(shp.vessel).name}` : 'your ship' };
+    const def = this.cfg.countries[shp.country];
+    const c = this.country(shp.country);
+    if (fate === 'delivered') {
       g.player.money += shp.value;
       g.bus.emit('money:changed', { delta: shp.value, total: g.player.money });
       this.state.earned += shp.value;
@@ -16117,12 +16179,10 @@ class Market {
     c.budget += shp.value; // they never paid
     const lostOrder = this.state.orders.find((o) => o.id === shp.order);
     if (lostOrder) lostOrder.status = 'lost';
-    const kinds = shp.embargo ? ['seized', 'seized', 'seized', 'hijacked'] : ['sunk', 'hijacked', 'seized'];
-    const fate = kinds[Math.floor(R.next() * kinds.length)];
     const lines = {
-      sunk: `🌊 ${sh.name}'s ship went down in a storm with your cargo for ${def.name}.`,
+      sunk: `🌊 ${shp.vessel ? `${sh.name} went down` : `${sh.name}'s ship went down`} in a storm with your cargo for ${def.name}.`,
       hijacked: `🏴 Pirates hijacked your cargo for ${def.name} off the coast.`,
-      seized: `⚓ Your cargo for ${def.name} was seized and impounded.`,
+      seized: `⚓ Your cargo for ${def.name} was seized and impounded${shp.vessel ? ` from ${sh.name}` : ''}.`,
     };
     let text = lines[fate];
     if (shp.insured && !(fate === 'seized' && shp.embargo)) {
@@ -16204,9 +16264,10 @@ class Market {
     }
     if (s.shipments.length) {
       const now = g.clock.total;
-      const due = s.shipments.filter((x) => x.arrives <= now);
+      // your own ships settle when logistics says they've arrived (settleOwn)
+      const due = s.shipments.filter((x) => !x.vessel && x.arrives <= now);
       if (due.length) {
-        s.shipments = s.shipments.filter((x) => x.arrives > now);
+        s.shipments = s.shipments.filter((x) => !due.includes(x));
         for (const shp of due) this.resolve(shp);
       }
     }
@@ -18935,6 +18996,51 @@ class Logistics {
     return { ok: true, text: `The ${v.name} is loading. It should reach ${this.port(c.to).name} ${this.when(q.arrive)}${q.onTime ? '' : ' — late'}.` };
   }
 
+  // ------------------------------------------------------------- arms exports (v0.22.0)
+  /** Where a country takes delivery: its first-listed (main) port. */
+  portFor(countryId) {
+    return Object.keys(this.cfg.ports).find((id) => this.cfg.ports[id].country === countryId) || null;
+  }
+
+  /** Can this ship carry `crates` of an order to that country? Nothing changes. */
+  armsQuote(vid, countryId, crates) {
+    const v = this.vessel(vid);
+    const to = this.portFor(countryId);
+    if (!v) return { ok: false, reasons: ['no such ship'] };
+    if (!to) return { ok: false, reasons: ['that country has no port'] };
+    const st = this.stats(v);
+    const reasons = [];
+    if (v.contract || v.cargo) reasons.push(`the ${v.name} already has cargo`);
+    if (v.port !== this.L.armsPort) reasons.push(`the ${v.name} must be at ${this.port(this.L.armsPort).name}, where the export cages are`);
+    if (st.capacity < crates) reasons.push(`it holds ${st.capacity} units; the order is ${crates} crates`);
+    const pl = this.plan(v, to, 0, this.L.armsPort);
+    for (const r of pl.reasons) if (!reasons.includes(r) && !r.startsWith('it\'s already')) reasons.push(r);
+    const load = this.L.loadHoursBase + crates * this.L.armsLoadHoursPerCrate;
+    return { ok: reasons.length === 0, reasons, to, km: pl.km, hours: load + pl.hours, load, cost: pl.cost, opex: pl.opex, fees: pl.fees };
+  }
+
+  /** Called by Market.shipOwn once the order is committed: pay, load and sail. */
+  carryArms(vid, shp, q) {
+    const g = this.game;
+    const v = this.vessel(vid);
+    this.spend(q.cost, 'voyage');
+    v.cargo = { type: 'arms', units: Object.values(shp.items).reduce((a, b) => a + b, 0), shipment: shp.id, country: shp.country };
+    // customs: an embargo run is decided now and kept with the voyage (a reload can't change it)
+    const fate = shp.embargo && g.rng.next() < this.L.ownEmbargoSeizure ? 'seized' : 'delivered';
+    this.setStatus(v, 'loading');
+    v.loadUntil = g.clock.total + Math.round(q.load * 60);
+    v.pending = { to: q.to, purpose: 'arms', shipment: shp.id, fate };
+    this.report('arms', `📦 The ${v.name} is loading ${v.cargo.units} crates for ${g.content.arms.countries[shp.country].name} at ${this.port(v.port).name}.`, null);
+  }
+
+  /** Keep the market's shipment in step with the voyage (its ETA moves with delays). */
+  syncShipment(v) {
+    const id = v.voyage?.shipment;
+    if (!id) return;
+    const shp = this.game.market.state.shipments.find((x) => x.id === id);
+    if (shp) { shp.arrives = v.voyage.arrive; shp.departs = v.voyage.depart; }
+  }
+
   when(t) {
     const d = Math.floor(t / 1440) + 1;
     const m = Math.floor(t % 1440);
@@ -18958,6 +19064,7 @@ class Logistics {
         if (e.done || e.at > now) continue;
         e.done = true;
         v.voyage.arrive += e.hours * 60;
+        this.syncShipment(v);
         this.report('delay', `⏳ The ${v.name} is delayed ${e.hours} h by ${e.why}. New arrival ${this.when(v.voyage.arrive)}.`, 'warn');
       }
       if (now >= v.voyage.arrive) this.arrive(v);
@@ -18965,8 +19072,18 @@ class Logistics {
   }
 
   depart(v) {
-    const c = this.contract(v.contract);
     delete v.loadUntil;
+    if (v.pending) {
+      const P = v.pending;
+      delete v.pending;
+      const vo = this.startVoyage(v, P.to, { purpose: P.purpose, depart: this.game.clock.total });
+      vo.shipment = P.shipment;
+      vo.fate = P.fate;
+      this.syncShipment(v);
+      this.report('voyage', `⛴ The ${v.name} sails from ${this.port(vo.from).name} for ${this.port(vo.to).name} with ${v.cargo.units} crates — due ${this.when(vo.arrive)}.`, 'info');
+      return;
+    }
+    const c = this.contract(v.contract);
     const vo = this.startVoyage(v, c.to, { purpose: 'contract', contract: c.id, depart: this.game.clock.total });
     c.status = 'transit';
     c.depart = vo.depart;
@@ -18983,8 +19100,15 @@ class Logistics {
     v.voyage = null;
     v.sailedKm += V.km;
     v.condition = Math.max(0, Math.round((v.condition - (V.km / 1000) * this.L.wearPerKkm * st.wear) * 10) / 10);
-    v.log.unshift({ from: V.from, to: V.to, km: V.km, arrived: g.clock.total, contract: V.contract });
+    v.log.unshift({ from: V.from, to: V.to, km: V.km, departed: V.depart, arrived: g.clock.total, contract: V.contract, shipment: V.shipment || null, cargo: v.cargo ? `${v.cargo.units} ${v.cargo.type === 'arms' ? 'crates' : 'units'}` : null, delays: V.events.filter((e) => e.done).length });
     v.log.length = Math.min(v.log.length, 10);
+    if (V.shipment) {
+      // the market owns the order: it pays (or doesn't) exactly once
+      v.cargo = null;
+      const fate = g.market.settleOwn(V.shipment, V.fate || 'delivered');
+      if (fate) this.report('arms', fate === 'delivered' ? `✅ The ${v.name} delivered its crates at ${this.port(V.to).name}.` : `⚓ Customs at ${this.port(V.to).name} seized the ${v.name}'s cargo. The ship was released.`, fate === 'delivered' ? null : 'warn');
+      return;
+    }
     if (!V.contract) {
       this.report('voyage', `⚓ The ${v.name} reached ${this.port(V.to).name}.`, 'info');
       return;
@@ -20770,6 +20894,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.22.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Own Bottoms',
+    notes: [
+      'Your Ober & Sons ships can now carry your arms exports. On the arms terminal\'s Market tab, FILL an order and pick one of your ships docked at Mill Road Docks: no freight fee — just its running costs and any port fee.',
+      'Your own ships can\'t be insured, and they\'re slower than air freight, but they don\'t lose cargo in storms. They\'ll run an embargo if you ask — and customs may still seize the crates and trace them to you.',
+      'The arms terminal\'s globe now shows your fleet: your export voyages along their real sea lanes, and your other Ober & Sons ships in cyan. Hover one for its route and ETA.',
+      'Each ship\'s voyage log now records what it carried, how long it took and any delays.',
+    ],
+  },
   {
     version: '0.21.0',
     date: '2026-10-15',
@@ -28866,6 +29002,7 @@ __m["src/ui/terminal.js"] = (function () {
 // See src/systems/arms.js and src/systems/market.js.
 const { h, itemIcon } = __m["src/ui/panels.js"];
 const { D2R, wrapLon, buildLand } = __m["src/world/globe.js"];
+const { pointAlong } = __m["src/world/seaRoutes.js"];
 
 // --------------------------------------------------------------- the globe
 let LAND = null;
@@ -29102,7 +29239,7 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
     for (const sh of opts.shipments || []) {
       const B = countries[sh.country];
       if (!B) continue;
-      const pts = arc(opts.hq, B, 36, sh.air ? 0.16 : 0.03);
+      const pts = sh.pts || arc(opts.hq, B, 36, sh.air ? 0.16 : 0.03);
       ctx.lineWidth = 1.6;
       ctx.strokeStyle = 'rgba(255,216,96,0.9)';
       path(pts, 0, sh.progress); // wake: where it has been
@@ -29124,6 +29261,23 @@ function drawGlobe(ctx, size, time, countries, opts = {}) {
       hits.push({ key, kind: 'ship', x: q.x, y: q.y, r: 12, data: sh.data });
       if (opts.hover === key) reticle(ctx, q.x, q.y, 12, '#fff2b0');
     }
+  }
+  // your other Ober & Sons ships (commercial work, repositioning): cyan, along their sea lanes
+  for (const f of opts.fleet || []) {
+    if (!f.pts) continue;
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(120,230,255,0.75)';
+    path(f.pts, 0, f.progress);
+    ctx.strokeStyle = 'rgba(120,230,255,0.3)';
+    ctx.setLineDash([3, 5]);
+    path(f.pts, f.progress, 1);
+    ctx.setLineDash([]);
+    const q = at(f.pts, Math.min(0.999, Math.max(0.001, f.progress)));
+    if (q.z <= 0) continue;
+    drawCraft(ctx, q.x, q.y, q.ang, 1.0 * Math.min(1.6, zoom), '#78e6ff', false);
+    const key = `f:${f.id}`;
+    hits.push({ key, kind: 'fleet', x: q.x, y: q.y, r: 10, data: f.data });
+    if (opts.hover === key) reticle(ctx, q.x, q.y, 10, '#c8f6ff');
   }
   // rim glow
   const ag = ctx.createRadialGradient(cx, cy, r * 0.94, cx, cy, r * 1.1);
@@ -29223,8 +29377,9 @@ function terminalScreen(ui, body, opts, go) {
     h('div', {}, `PIPECREEK BUY  ${A.lucasBudgetLeft()} OB LEFT TODAY`));
 
   // contacts: your shipments, live
+  const opName = (x) => (x.vessel ? `⚓ ${g.logistics.vessel(x.vessel)?.name || 'YOUR SHIP'}` : cfg.shippers[x.shipper].name);
   const contactRows = ms.shipments.map((x) => {
-    const sh = cfg.shippers[x.shipper];
+    const sh = { name: opName(x) };
     const prog = Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs));
     const hrs = Math.max(0, Math.ceil((x.arrives - now) / 60));
     const row = h('div', { class: 'os-contact', onmouseenter: () => { VIEW.hover = `s:${x.id}`; VIEW.pin = true; }, onmouseleave: () => { VIEW.pin = false; VIEW.hover = null; } },
@@ -29250,15 +29405,26 @@ function terminalScreen(ui, body, opts, go) {
   let last = performance.now();
   const t0 = last;
   const shipInfo = (x) => {
-    const sh = cfg.shippers[x.shipper];
     return {
-      id: x.id, shipper: sh.name, air: x.shipper === 'stork', dest: cfg.countries[x.country].name,
+      id: x.id, shipper: opName(x), air: x.shipper === 'stork', dest: cfg.countries[x.country].name,
       cargo: Object.entries(x.items).map(([id, n]) => `${n}× ${items[id]?.name}`),
       value: x.value, insured: x.insured, embargo: x.embargo,
       eta: Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60)),
       progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)),
     };
   };
+  // your Ober & Sons ships on the globe (v0.22.0): real sea lanes, positions from the clock
+  const Lg = g.logistics;
+  const fleetPts = (vid) => {
+    const v = Lg.vessel(vid);
+    const r = v?.voyage && Lg.route(v.voyage.from, v.voyage.to);
+    return r ? Array.from({ length: 41 }, (_, i) => { const [lat, lon] = pointAlong(r, i / 40); return { lat, lon, lift: 1 }; }) : null;
+  };
+  const fleetProgress = (vid) => { const v = Lg.vessel(vid); return v?.status === 'underway' ? Lg.position(v).f : 0; };
+  const fleetTracks = () => (Lg.owned ? Lg.vessels().filter((v) => v.status === 'underway' && !v.voyage.shipment).map((v) => ({
+    id: v.id, pts: fleetPts(v.id), progress: Lg.position(v).f,
+    data: [`⚓ ${v.name.toUpperCase()} — OBER & SONS`, `${Lg.port(v.voyage.from).name.toUpperCase()} → ${Lg.port(v.voyage.to).name.toUpperCase()}`, v.cargo ? `CARGO     ${v.cargo.units} UNITS (COMMERCIAL)` : 'SAILING EMPTY', `ETA ${Math.max(0, Math.ceil((v.voyage.arrive - g.clock.total) / 60))}H`],
+  })) : []);
   const loop = (ts) => {
     if (!canvas.isConnected) return;
     const dt = Math.min(0.1, (ts - last) / 1000);
@@ -29270,7 +29436,8 @@ function terminalScreen(ui, body, opts, go) {
       rot: VIEW.rot, tilt: VIEW.tilt, zoom: VIEW.zoom, hover: VIEW.hover,
       wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
       embargoed: Object.entries(m.countries).filter(([, c]) => c.embargo).map(([id]) => id),
-      shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), data: shipInfo(x) })),
+      shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: x.vessel ? fleetProgress(x.vessel) : Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), pts: x.vessel ? fleetPts(x.vessel) : null, data: shipInfo(x) })),
+      fleet: fleetTracks(),
     });
     // scan line sweeping the scope
     const sy = ((ts - t0) / 1000 * 60) % SIZE;
@@ -29287,6 +29454,7 @@ function terminalScreen(ui, body, opts, go) {
       const d = hit.data;
       return [`${d.air ? '✈ AIRFRAME' : '⛴ VESSEL'} #${String(d.id).padStart(3, '0')} — YOUR CARGO`, `OPERATOR  ${d.shipper.toUpperCase()}`, `DEST      ${d.dest.toUpperCase()}`, `CARGO     ${d.cargo.join(', ')}`, `VALUE     ${d.value} OB ON ARRIVAL`, `PROGRESS  ${Math.round(d.progress * 100)}% · ETA ${d.eta}H`, d.insured ? 'INSURED' : 'UNINSURED', d.embargo ? '⚠ EMBARGO RUN — CUSTOMS RISK' : null].filter(Boolean);
     }
+    if (hit.kind === 'fleet') return [...hit.data, 'ONE OF YOURS'];
     if (hit.kind === 'traffic') {
       const d = hit.data;
       if (d.dark) return ['◌ UNIDENTIFIED VESSEL', 'AIS TRANSPONDER: OFF', `HEADING   TOWARD ${d.to.toUpperCase()}`, 'CARGO     UNKNOWN', 'NOT ONE OF YOURS'];
@@ -29446,22 +29614,32 @@ function terminalScreen(ui, body, opts, go) {
         btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
       sect.append(rowEl);
       if (open) {
-        const sh = cfg.shippers[ship.shipper];
         const value = o.qty * o.price;
-        const fee = M.fee(ship.shipper, value, ship.insured);
         const upd = (patch) => go('Market', { country: focus, ship: { ...ship, ...patch } });
+        // v0.22.0: your own ships (Ober & Sons) sit beside the shipping companies
+        const Lg = g.logistics;
+        const fleet = Lg.owned ? Lg.vessels().filter((v) => v.kind === 'cargo') : [];
+        const own = ship.vessel ? Lg.vessel(ship.vessel) : null;
+        const q = own ? Lg.armsQuote(own.id, o.country, o.qty) : null;
+        const sh = own ? null : cfg.shippers[ship.shipper];
+        const fee = own ? q.cost : M.fee(ship.shipper, value, ship.insured);
+        const pick = h('select', { onchange: (e) => (e.target.value.startsWith('v:') ? upd({ vessel: e.target.value.slice(2), shipper: null, insured: false }) : upd({ shipper: e.target.value, vessel: null })) },
+          ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: !own && id === ship.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`)),
+          ...(fleet.length ? [h('optgroup', { label: 'YOUR FLEET — OBER & SONS (no freight fee)' }, ...fleet.map((v) => {
+            const vq = Lg.armsQuote(v.id, o.country, o.qty);
+            return h('option', { value: `v:${v.id}`, selected: own?.id === v.id }, `⚓ ${v.name} (${Lg.model(v.model).name}) — ${vq.ok ? `${(vq.hours / 24).toFixed(1)}d · costs ${vq.cost}` : vq.reasons[0]}`);
+          }))] : []));
         const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
-          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
-            h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === ship.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
-            h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
-          h('div', { class: 'os-dim' }, sh.blurb),
+          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' }, pick,
+            own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
+          h('div', { class: 'os-dim' }, own ? `YOUR ${Lg.model(own.model).name.toUpperCase()} TO ${Lg.port(q.to)?.name.toUpperCase() || '—'} · ${q.km.toLocaleString()} KM · RUNNING COSTS ${q.opex} + PORT FEES ${q.fees}. ${q.ok ? '' : `CAN'T: ${q.reasons.join('; ').toUpperCase()}.`}` : sh.blurb),
           h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
           h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
             have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
-              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured });
+              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null });
               ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
               go('Market', { msg: res.text, country: focus });
-            }, 'small primary')));
+            }, own && !q.ok ? 'small' : 'small primary')));
         sect.append(form);
       }
     }
@@ -29623,6 +29801,7 @@ function chartTip(g, hit) {
     out.push(`${Lg.port(V.from).name} → ${Lg.port(V.to).name}`, `${Math.round(pos.f * 100)}% of ${num(V.km)} km · ETA ${Lg.when(V.arrive)}`);
     const c = V.contract && Lg.contract(V.contract);
     if (c) out.push(`Cargo: ${c.units} units for ${Lg.cfg.clients[c.client].name}`);
+    if (v.cargo?.type === 'arms') out.push(`Cargo: ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}`);
     const late = c && V.arrive > c.deadline;
     if (late) out.push('⚠ Running late for the deadline');
   }
@@ -29768,7 +29947,7 @@ function vesselDetail(ui, v, opts, go, act) {
     h('table', { class: 'logi-table' },
       h('tr', {}, h('th', {}, 'Class'), h('td', {}, `${m.name} · ${Lg.cls(m).name}`)),
       h('tr', {}, h('th', {}, 'Status'), h('td', {}, `${STATUS[v.status]}${v.port ? ` — ${Lg.port(v.port).name}` : ''}`)),
-      h('tr', {}, h('th', {}, 'Capacity'), h('td', {}, `${st.capacity} units${v.cargo ? ` (carrying ${v.cargo.units})` : ''}`)),
+      h('tr', {}, h('th', {}, 'Capacity'), h('td', {}, `${st.capacity} units${v.cargo ? ` (carrying ${v.cargo.units}${v.cargo.type === 'arms' ? ` crates for ${g.content.arms.countries[v.cargo.country].name}` : ''})` : ''}`)),
       h('tr', {}, h('th', {}, 'Speed · range'), h('td', {}, `${st.speed} knots · ${num(st.range)} km`)),
       h('tr', {}, h('th', {}, 'Reliability'), h('td', {}, `${Math.round(st.reliability * 100)}%`)),
       h('tr', {}, h('th', {}, 'Costs'), h('td', {}, `${st.opex}/day at sea · ${st.upkeep}/day in port`)),
@@ -29788,7 +29967,10 @@ function vesselDetail(ui, v, opts, go, act) {
   }
   if (v.log.length) {
     card.append(h('h4', {}, 'Voyage log'));
-    for (const l of v.log.slice(0, 5)) card.append(h('div', { class: 'logi-line' }, `${Lg.when(l.arrived)} · ${Lg.port(l.from).name} → ${Lg.port(l.to).name} (${num(l.km)} km)${l.contract ? ' · cargo' : ''}`));
+    for (const l of v.log.slice(0, 8)) {
+      const what = l.shipment ? `arms export (${l.cargo})` : l.contract ? `contract (${l.cargo || 'cargo'})` : 'sailing empty';
+      card.append(h('div', { class: 'logi-line' }, `${Lg.when(l.arrived)} · ${Lg.port(l.from).name} → ${Lg.port(l.to).name} · ${num(l.km)} km${l.departed ? ` in ${hrs((l.arrived - l.departed) / 60)}` : ''} · ${what}${l.delays ? ` · ${l.delays} delay${l.delays === 1 ? '' : 's'}` : ''}`));
+    }
   }
   return card;
 }

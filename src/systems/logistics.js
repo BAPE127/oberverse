@@ -544,6 +544,51 @@ export class Logistics {
     return { ok: true, text: `The ${v.name} is loading. It should reach ${this.port(c.to).name} ${this.when(q.arrive)}${q.onTime ? '' : ' — late'}.` };
   }
 
+  // ------------------------------------------------------------- arms exports (v0.22.0)
+  /** Where a country takes delivery: its first-listed (main) port. */
+  portFor(countryId) {
+    return Object.keys(this.cfg.ports).find((id) => this.cfg.ports[id].country === countryId) || null;
+  }
+
+  /** Can this ship carry `crates` of an order to that country? Nothing changes. */
+  armsQuote(vid, countryId, crates) {
+    const v = this.vessel(vid);
+    const to = this.portFor(countryId);
+    if (!v) return { ok: false, reasons: ['no such ship'] };
+    if (!to) return { ok: false, reasons: ['that country has no port'] };
+    const st = this.stats(v);
+    const reasons = [];
+    if (v.contract || v.cargo) reasons.push(`the ${v.name} already has cargo`);
+    if (v.port !== this.L.armsPort) reasons.push(`the ${v.name} must be at ${this.port(this.L.armsPort).name}, where the export cages are`);
+    if (st.capacity < crates) reasons.push(`it holds ${st.capacity} units; the order is ${crates} crates`);
+    const pl = this.plan(v, to, 0, this.L.armsPort);
+    for (const r of pl.reasons) if (!reasons.includes(r) && !r.startsWith('it\'s already')) reasons.push(r);
+    const load = this.L.loadHoursBase + crates * this.L.armsLoadHoursPerCrate;
+    return { ok: reasons.length === 0, reasons, to, km: pl.km, hours: load + pl.hours, load, cost: pl.cost, opex: pl.opex, fees: pl.fees };
+  }
+
+  /** Called by Market.shipOwn once the order is committed: pay, load and sail. */
+  carryArms(vid, shp, q) {
+    const g = this.game;
+    const v = this.vessel(vid);
+    this.spend(q.cost, 'voyage');
+    v.cargo = { type: 'arms', units: Object.values(shp.items).reduce((a, b) => a + b, 0), shipment: shp.id, country: shp.country };
+    // customs: an embargo run is decided now and kept with the voyage (a reload can't change it)
+    const fate = shp.embargo && g.rng.next() < this.L.ownEmbargoSeizure ? 'seized' : 'delivered';
+    this.setStatus(v, 'loading');
+    v.loadUntil = g.clock.total + Math.round(q.load * 60);
+    v.pending = { to: q.to, purpose: 'arms', shipment: shp.id, fate };
+    this.report('arms', `📦 The ${v.name} is loading ${v.cargo.units} crates for ${g.content.arms.countries[shp.country].name} at ${this.port(v.port).name}.`, null);
+  }
+
+  /** Keep the market's shipment in step with the voyage (its ETA moves with delays). */
+  syncShipment(v) {
+    const id = v.voyage?.shipment;
+    if (!id) return;
+    const shp = this.game.market.state.shipments.find((x) => x.id === id);
+    if (shp) { shp.arrives = v.voyage.arrive; shp.departs = v.voyage.depart; }
+  }
+
   when(t) {
     const d = Math.floor(t / 1440) + 1;
     const m = Math.floor(t % 1440);
@@ -567,6 +612,7 @@ export class Logistics {
         if (e.done || e.at > now) continue;
         e.done = true;
         v.voyage.arrive += e.hours * 60;
+        this.syncShipment(v);
         this.report('delay', `⏳ The ${v.name} is delayed ${e.hours} h by ${e.why}. New arrival ${this.when(v.voyage.arrive)}.`, 'warn');
       }
       if (now >= v.voyage.arrive) this.arrive(v);
@@ -574,8 +620,18 @@ export class Logistics {
   }
 
   depart(v) {
-    const c = this.contract(v.contract);
     delete v.loadUntil;
+    if (v.pending) {
+      const P = v.pending;
+      delete v.pending;
+      const vo = this.startVoyage(v, P.to, { purpose: P.purpose, depart: this.game.clock.total });
+      vo.shipment = P.shipment;
+      vo.fate = P.fate;
+      this.syncShipment(v);
+      this.report('voyage', `⛴ The ${v.name} sails from ${this.port(vo.from).name} for ${this.port(vo.to).name} with ${v.cargo.units} crates — due ${this.when(vo.arrive)}.`, 'info');
+      return;
+    }
+    const c = this.contract(v.contract);
     const vo = this.startVoyage(v, c.to, { purpose: 'contract', contract: c.id, depart: this.game.clock.total });
     c.status = 'transit';
     c.depart = vo.depart;
@@ -592,8 +648,15 @@ export class Logistics {
     v.voyage = null;
     v.sailedKm += V.km;
     v.condition = Math.max(0, Math.round((v.condition - (V.km / 1000) * this.L.wearPerKkm * st.wear) * 10) / 10);
-    v.log.unshift({ from: V.from, to: V.to, km: V.km, arrived: g.clock.total, contract: V.contract });
+    v.log.unshift({ from: V.from, to: V.to, km: V.km, departed: V.depart, arrived: g.clock.total, contract: V.contract, shipment: V.shipment || null, cargo: v.cargo ? `${v.cargo.units} ${v.cargo.type === 'arms' ? 'crates' : 'units'}` : null, delays: V.events.filter((e) => e.done).length });
     v.log.length = Math.min(v.log.length, 10);
+    if (V.shipment) {
+      // the market owns the order: it pays (or doesn't) exactly once
+      v.cargo = null;
+      const fate = g.market.settleOwn(V.shipment, V.fate || 'delivered');
+      if (fate) this.report('arms', fate === 'delivered' ? `✅ The ${v.name} delivered its crates at ${this.port(V.to).name}.` : `⚓ Customs at ${this.port(V.to).name} seized the ${v.name}'s cargo. The ship was released.`, fate === 'delivered' ? null : 'warn');
+      return;
+    }
     if (!V.contract) {
       this.report('voyage', `⚓ The ${v.name} reached ${this.port(V.to).name}.`, 'info');
       return;

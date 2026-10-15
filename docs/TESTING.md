@@ -40,6 +40,18 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.22.0 (2026-10-15)
+
+- `npm run check` — **273/273 tests passed** (4 new own-fleet export tests in `logistics.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium): with a licence, Yard 1 Works and Ober & Sons, an order of 12 crates for Lirre showed "⚓ Gullwing Lass — 2.2d · costs 143" in the FILL form (Morrow Blue Line would have charged ~1,320); SHIP 12 CRATES loaded and sailed it; the contact list read "⚓ GULLWING LASS · ETA 44H" and the globe drew the voyage along its sea lane. No page errors.
+
+## Verification record — v0.21.0 (2026-10-15)
+
+- `npm run check` — **269/269 tests passed** (13 in `logistics.test.mjs`, 5 in `character_ober.test.mjs`); validator 0 errors.
+- `npm run smoke` and `npm run smoke -- --dev` — 24/24 each.
+- Browser (headless Chromium, real keyboard and mouse): the Yards docks (Quay Road, cranes, bollards, three berths, the Salty Ober); Captain Ober on the quay in his peaked cap with his portrait in dialogue; "I hear the company's for sale" → the sale sheet (price, ports, ship, access) → Buy (120,000 → 80,000) → the Overview; Chart, Fleet, Contracts, Brokerage and Ports pages; after buying a Bluecap, both ships drawn at berth 1 with name boards; the tablet's Ships app with a contract under way, hovering the ship on the chart showed its route, progress, ETA and cargo; attacking Captain Ober played the kraken Wrath to his last line. Fixed from the runs: the dialogue box covered the sale sheet (now hidden while a panel it opened is up, and its topics are rebuilt after); the kraken's eye covered the banner (it now opens in the whirlpool); the chart's land looked tiled. No page errors.
+
 ## Verification record — v0.20.0 (2026-10-15)
 
 - `npm run check` — **251/251 tests passed** (11 new in `streets.test.mjs`; transit, world, Halvermouth and quest tests updated for the widened coordinates); validator 0 errors.

@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.22.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Own Bottoms',
+    notes: [
+      'Your Ober & Sons ships can now carry your arms exports. On the arms terminal\'s Market tab, FILL an order and pick one of your ships docked at Mill Road Docks: no freight fee — just its running costs and any port fee.',
+      'Your own ships can\'t be insured, and they\'re slower than air freight, but they don\'t lose cargo in storms. They\'ll run an embargo if you ask — and customs may still seize the crates and trace them to you.',
+      'The arms terminal\'s globe now shows your fleet: your export voyages along their real sea lanes, and your other Ober & Sons ships in cyan. Hover one for its route and ETA.',
+      'Each ship\'s voyage log now records what it carried, how long it took and any delays.',
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-10-15',
     channel: 'development',

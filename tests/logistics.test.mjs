@@ -265,3 +265,113 @@ test('the Yards docks: three berths that show your ports\' ships, the harbour of
     assert.ok(findPath(yards, a.x, a.y, b.x, b.y)?.length, spot);
   }
 });
+
+// ------------------------------------------------------------------ v0.22.0: arms exports by your own ships
+const armsReady = (money = 200000) => {
+  const g = owned(money);
+  g.arms.buyLicence?.();
+  g.setFlag('arms_licence', true);
+  g.setFlag('owns_aw1', true);
+  if (!g.arms.licensed()) g.world.arms.licence = true;
+  // a fresh order we can fill, and its crates in the cage
+  const M = g.market;
+  M.state.orders = [];
+  const country = Object.keys(CONTENT.arms.countries).find((id) => !M.country(id).embargo && !M.warOf(id) && g.logistics.portFor(id) && g.logistics.armsQuote(g.logistics.vessels()[0].id, id, 10).ok);
+  const item = Object.keys(CONTENT.items).find((id) => CONTENT.items[id].arms?.crate);
+  M.state.orders.push({ id: 900, country, item, qty: 10, price: 1000, posted: g.clock.day, expires: g.clock.day + 5, status: 'open' });
+  g.world.containers[g.arms.def('aw1').outCrate].items[item] = 12;
+  return { g, M, country, item };
+};
+
+test('own-fleet exports: no freight fee, running costs instead, crates leave the cage once, paid exactly once on arrival', () => {
+  const { g, M, country, item } = armsReady();
+  const Lg = g.logistics;
+  const v = Lg.vessels()[0];
+  const q = Lg.armsQuote(v.id, country, 10);
+  assert.ok(q.ok, q.reasons.join());
+  const m0 = g.player.money;
+  const r = M.ship({ wh: 'aw1', order: 900, vessel: v.id });
+  assert.ok(r.ok, r.text);
+  assert.equal(m0 - g.player.money, q.cost, 'only running costs and port fees — no freight fee');
+  assert.ok(q.cost < M.fee('halver', 10000, false) * 3, 'cheap next to a shipper');
+  const cage = g.world.containers[g.arms.def('aw1').outCrate].items;
+  assert.equal(cage[item], 2);
+  const shp = M.state.shipments.find((x) => x.vessel === v.id);
+  assert.ok(shp && shp.fee === 0 && !shp.insured);
+  assert.equal(v.status, 'loading');
+  assert.equal(M.ship({ wh: 'aw1', order: 900, vessel: v.id }).ok, false, 'the order is shipped');
+  // the market doesn't settle it on its own clock
+  const earned0 = M.state.earned;
+  g.skipTime(v.loadUntil - g.clock.total + 30);
+  assert.equal(v.status, 'underway');
+  assert.equal(shp.arrives, v.voyage.arrive, 'the market sees the real ETA');
+  g.skipTime(v.voyage.arrive - g.clock.total + 30);
+  assert.equal(v.status, 'docked');
+  assert.equal(M.state.earned - earned0, 10000, 'paid once, by the country');
+  assert.equal(M.state.orders.find((o) => o.id === 900).status, 'delivered');
+  assert.ok(!M.state.shipments.some((x) => x.id === shp.id));
+  assert.equal(M.settleOwn(shp.id, 'delivered'), null, 'and never again');
+  assert.equal(M.state.earned - earned0, 10000);
+  assert.equal(v.cargo, null);
+});
+
+test('own-fleet exports are validated before anything changes', () => {
+  const { g, M, country } = armsReady();
+  const Lg = g.logistics;
+  const v = Lg.vessels()[0];
+  // not at Mill Road
+  Lg.sail(v.id, 'port_sund');
+  const cage = { ...g.world.containers[g.arms.def('aw1').outCrate].items };
+  const m0 = g.player.money;
+  const r = M.ship({ wh: 'aw1', order: 900, vessel: v.id });
+  assert.equal(r.ok, false);
+  assert.deepEqual(g.world.containers[g.arms.def('aw1').outCrate].items, cage);
+  assert.equal(g.player.money, m0);
+  assert.equal(M.state.orders.find((o) => o.id === 900).status, 'open');
+  // too small
+  const g2 = armsReady();
+  g2.M.state.orders[0].qty = 40;
+  g2.g.world.containers[g2.g.arms.def('aw1').outCrate].items[g2.item] = 40;
+  assert.match(g2.M.ship({ wh: 'aw1', order: 900, vessel: g2.g.logistics.vessels()[0].id }).text, /holds 20/);
+  void country;
+});
+
+test('external shippers still work exactly as before alongside your fleet', () => {
+  const { g, M, item } = armsReady();
+  const m0 = g.player.money;
+  const r = M.ship({ wh: 'aw1', order: 900, shipper: 'morrow', insured: true });
+  assert.ok(r.ok, r.text);
+  assert.equal(m0 - g.player.money, M.fee('morrow', 10000, true));
+  const shp = M.state.shipments.at(-1);
+  assert.equal(shp.shipper, 'morrow');
+  g.skipTime(CONTENT.arms.shippers.morrow.days * 1440 + 10);
+  assert.ok(!M.state.shipments.includes(shp), 'settled by the market on arrival');
+  void item;
+});
+
+test('an embargo run in your own ship: customs decide at departure, a reload can\'t change it, and they trace it to you', () => {
+  let found = null;
+  for (let seed = 1; seed < 60 && !found; seed++) {
+    const { g, M, item } = armsReady();
+    g.rng = new (g.rng.constructor)(seed);
+    const pal = 'pallas';
+    M.country(pal).embargo = true;
+    M.country(pal).budget = 1e6;
+    M.state.orders[0].country = pal;
+    const v = g.logistics.vessels()[0];
+    if (!g.logistics.armsQuote(v.id, pal, 10).ok) continue;
+    const r = M.ship({ wh: 'aw1', order: 900, vessel: v.id });
+    assert.ok(r.ok, r.text);
+    if (v.pending.fate === 'seized') found = { g, M, v };
+    void item;
+  }
+  assert.ok(found, 'some seed seizes it');
+  const { g, v } = found;
+  const g2 = reload(g);
+  const v2 = g2.logistics.vessel(v.id);
+  assert.equal(v2.pending.fate, 'seized', 'saved with the voyage');
+  g2.skipTime(6 * 1440);
+  assert.equal(v2.status, 'docked', 'the ship is released');
+  assert.ok(g2.tablet.state.feed.some((n) => /Customs traced the paperwork/.test(n.text)), 'customs traced it to you');
+  assert.equal(g2.market.state.orders.find((o) => o.id === 900).status, 'lost');
+});

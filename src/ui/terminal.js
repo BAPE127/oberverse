@@ -7,6 +7,7 @@
 // See src/systems/arms.js and src/systems/market.js.
 import { h, itemIcon } from './panels.js';
 import { D2R, wrapLon, buildLand } from '../world/globe.js';
+import { pointAlong } from '../world/seaRoutes.js';
 
 // --------------------------------------------------------------- the globe
 let LAND = null;
@@ -243,7 +244,7 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
     for (const sh of opts.shipments || []) {
       const B = countries[sh.country];
       if (!B) continue;
-      const pts = arc(opts.hq, B, 36, sh.air ? 0.16 : 0.03);
+      const pts = sh.pts || arc(opts.hq, B, 36, sh.air ? 0.16 : 0.03);
       ctx.lineWidth = 1.6;
       ctx.strokeStyle = 'rgba(255,216,96,0.9)';
       path(pts, 0, sh.progress); // wake: where it has been
@@ -265,6 +266,23 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
       hits.push({ key, kind: 'ship', x: q.x, y: q.y, r: 12, data: sh.data });
       if (opts.hover === key) reticle(ctx, q.x, q.y, 12, '#fff2b0');
     }
+  }
+  // your other Ober & Sons ships (commercial work, repositioning): cyan, along their sea lanes
+  for (const f of opts.fleet || []) {
+    if (!f.pts) continue;
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(120,230,255,0.75)';
+    path(f.pts, 0, f.progress);
+    ctx.strokeStyle = 'rgba(120,230,255,0.3)';
+    ctx.setLineDash([3, 5]);
+    path(f.pts, f.progress, 1);
+    ctx.setLineDash([]);
+    const q = at(f.pts, Math.min(0.999, Math.max(0.001, f.progress)));
+    if (q.z <= 0) continue;
+    drawCraft(ctx, q.x, q.y, q.ang, 1.0 * Math.min(1.6, zoom), '#78e6ff', false);
+    const key = `f:${f.id}`;
+    hits.push({ key, kind: 'fleet', x: q.x, y: q.y, r: 10, data: f.data });
+    if (opts.hover === key) reticle(ctx, q.x, q.y, 10, '#c8f6ff');
   }
   // rim glow
   const ag = ctx.createRadialGradient(cx, cy, r * 0.94, cx, cy, r * 1.1);
@@ -364,8 +382,9 @@ export function terminalScreen(ui, body, opts, go) {
     h('div', {}, `PIPECREEK BUY  ${A.lucasBudgetLeft()} OB LEFT TODAY`));
 
   // contacts: your shipments, live
+  const opName = (x) => (x.vessel ? `⚓ ${g.logistics.vessel(x.vessel)?.name || 'YOUR SHIP'}` : cfg.shippers[x.shipper].name);
   const contactRows = ms.shipments.map((x) => {
-    const sh = cfg.shippers[x.shipper];
+    const sh = { name: opName(x) };
     const prog = Math.min(1, (now - x.departs) / Math.max(1, x.arrives - x.departs));
     const hrs = Math.max(0, Math.ceil((x.arrives - now) / 60));
     const row = h('div', { class: 'os-contact', onmouseenter: () => { VIEW.hover = `s:${x.id}`; VIEW.pin = true; }, onmouseleave: () => { VIEW.pin = false; VIEW.hover = null; } },
@@ -391,15 +410,26 @@ export function terminalScreen(ui, body, opts, go) {
   let last = performance.now();
   const t0 = last;
   const shipInfo = (x) => {
-    const sh = cfg.shippers[x.shipper];
     return {
-      id: x.id, shipper: sh.name, air: x.shipper === 'stork', dest: cfg.countries[x.country].name,
+      id: x.id, shipper: opName(x), air: x.shipper === 'stork', dest: cfg.countries[x.country].name,
       cargo: Object.entries(x.items).map(([id, n]) => `${n}× ${items[id]?.name}`),
       value: x.value, insured: x.insured, embargo: x.embargo,
       eta: Math.max(0, Math.ceil((x.arrives - g.clock.total) / 60)),
       progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)),
     };
   };
+  // your Ober & Sons ships on the globe (v0.22.0): real sea lanes, positions from the clock
+  const Lg = g.logistics;
+  const fleetPts = (vid) => {
+    const v = Lg.vessel(vid);
+    const r = v?.voyage && Lg.route(v.voyage.from, v.voyage.to);
+    return r ? Array.from({ length: 41 }, (_, i) => { const [lat, lon] = pointAlong(r, i / 40); return { lat, lon, lift: 1 }; }) : null;
+  };
+  const fleetProgress = (vid) => { const v = Lg.vessel(vid); return v?.status === 'underway' ? Lg.position(v).f : 0; };
+  const fleetTracks = () => (Lg.owned ? Lg.vessels().filter((v) => v.status === 'underway' && !v.voyage.shipment).map((v) => ({
+    id: v.id, pts: fleetPts(v.id), progress: Lg.position(v).f,
+    data: [`⚓ ${v.name.toUpperCase()} — OBER & SONS`, `${Lg.port(v.voyage.from).name.toUpperCase()} → ${Lg.port(v.voyage.to).name.toUpperCase()}`, v.cargo ? `CARGO     ${v.cargo.units} UNITS (COMMERCIAL)` : 'SAILING EMPTY', `ETA ${Math.max(0, Math.ceil((v.voyage.arrive - g.clock.total) / 60))}H`],
+  })) : []);
   const loop = (ts) => {
     if (!canvas.isConnected) return;
     const dt = Math.min(0.1, (ts - last) / 1000);
@@ -411,7 +441,8 @@ export function terminalScreen(ui, body, opts, go) {
       rot: VIEW.rot, tilt: VIEW.tilt, zoom: VIEW.zoom, hover: VIEW.hover,
       wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
       embargoed: Object.entries(m.countries).filter(([, c]) => c.embargo).map(([id]) => id),
-      shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), data: shipInfo(x) })),
+      shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: x.vessel ? fleetProgress(x.vessel) : Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), pts: x.vessel ? fleetPts(x.vessel) : null, data: shipInfo(x) })),
+      fleet: fleetTracks(),
     });
     // scan line sweeping the scope
     const sy = ((ts - t0) / 1000 * 60) % SIZE;
@@ -428,6 +459,7 @@ export function terminalScreen(ui, body, opts, go) {
       const d = hit.data;
       return [`${d.air ? '✈ AIRFRAME' : '⛴ VESSEL'} #${String(d.id).padStart(3, '0')} — YOUR CARGO`, `OPERATOR  ${d.shipper.toUpperCase()}`, `DEST      ${d.dest.toUpperCase()}`, `CARGO     ${d.cargo.join(', ')}`, `VALUE     ${d.value} OB ON ARRIVAL`, `PROGRESS  ${Math.round(d.progress * 100)}% · ETA ${d.eta}H`, d.insured ? 'INSURED' : 'UNINSURED', d.embargo ? '⚠ EMBARGO RUN — CUSTOMS RISK' : null].filter(Boolean);
     }
+    if (hit.kind === 'fleet') return [...hit.data, 'ONE OF YOURS'];
     if (hit.kind === 'traffic') {
       const d = hit.data;
       if (d.dark) return ['◌ UNIDENTIFIED VESSEL', 'AIS TRANSPONDER: OFF', `HEADING   TOWARD ${d.to.toUpperCase()}`, 'CARGO     UNKNOWN', 'NOT ONE OF YOURS'];
@@ -587,22 +619,32 @@ export function terminalScreen(ui, body, opts, go) {
         btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
       sect.append(rowEl);
       if (open) {
-        const sh = cfg.shippers[ship.shipper];
         const value = o.qty * o.price;
-        const fee = M.fee(ship.shipper, value, ship.insured);
         const upd = (patch) => go('Market', { country: focus, ship: { ...ship, ...patch } });
+        // v0.22.0: your own ships (Ober & Sons) sit beside the shipping companies
+        const Lg = g.logistics;
+        const fleet = Lg.owned ? Lg.vessels().filter((v) => v.kind === 'cargo') : [];
+        const own = ship.vessel ? Lg.vessel(ship.vessel) : null;
+        const q = own ? Lg.armsQuote(own.id, o.country, o.qty) : null;
+        const sh = own ? null : cfg.shippers[ship.shipper];
+        const fee = own ? q.cost : M.fee(ship.shipper, value, ship.insured);
+        const pick = h('select', { onchange: (e) => (e.target.value.startsWith('v:') ? upd({ vessel: e.target.value.slice(2), shipper: null, insured: false }) : upd({ shipper: e.target.value, vessel: null })) },
+          ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: !own && id === ship.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`)),
+          ...(fleet.length ? [h('optgroup', { label: 'YOUR FLEET — OBER & SONS (no freight fee)' }, ...fleet.map((v) => {
+            const vq = Lg.armsQuote(v.id, o.country, o.qty);
+            return h('option', { value: `v:${v.id}`, selected: own?.id === v.id }, `⚓ ${v.name} (${Lg.model(v.model).name}) — ${vq.ok ? `${(vq.hours / 24).toFixed(1)}d · costs ${vq.cost}` : vq.reasons[0]}`);
+          }))] : []));
         const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
-          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' },
-            h('select', { onchange: (e) => upd({ shipper: e.target.value }) }, ...Object.entries(cfg.shippers).map(([id, x]) => h('option', { value: id, selected: id === ship.shipper }, `${x.name} — ${Math.round(x.fee * 100)}% · ${Math.round(x.reliability * 100)}% reliable · ${x.days}d${x.embargo ? ' · runs embargoes' : ''}`))),
-            h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
-          h('div', { class: 'os-dim' }, sh.blurb),
+          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' }, pick,
+            own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : h('label', {}, h('input', { type: 'checkbox', checked: ship.insured, onchange: (e) => upd({ insured: e.target.checked }) }), ` INSURE (+${Math.round(cfg.market.insuranceRate * 100)}%, PAYS ${Math.round(cfg.market.insurancePayout * 100)}% IF LOST)`)),
+          h('div', { class: 'os-dim' }, own ? `YOUR ${Lg.model(own.model).name.toUpperCase()} TO ${Lg.port(q.to)?.name.toUpperCase() || '—'} · ${q.km.toLocaleString()} KM · RUNNING COSTS ${q.opex} + PORT FEES ${q.fees}. ${q.ok ? '' : `CAN'T: ${q.reasons.join('; ').toUpperCase()}.`}` : sh.blurb),
           h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
           h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
             have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
-              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured });
+              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null });
               ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
               go('Market', { msg: res.text, country: focus });
-            }, 'small primary')));
+            }, own && !q.ok ? 'small' : 'small primary')));
         sect.append(form);
       }
     }
