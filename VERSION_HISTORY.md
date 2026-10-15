@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.33.0 | 2026-10-15 | development | 1 | Living World, stage 2 — a bus network (the No. 2 to Lariat), townsfolk who ride it, routes on the map |
 | 0.32.0 | 2026-10-15 | development | 1 | Living World, stage 1 — a home for every resident, real apartment units, walking police beats, the rules the world runs by |
 | 0.31.0 | 2026-10-15 | development | 1 | Home on the Range — livestock at Hoof & Horn, market demand, the tablet's Farm app |
 | 0.30.0 | 2026-10-15 | development | 1 | Sowing Season — buy farmland at Lariat, tractors from Red Dirt, seed from Feed & Seed, crops on the clock, the Co-op |

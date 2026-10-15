@@ -367,12 +367,12 @@ export function runCommand(game, line) {
       const T = game.transit;
       T.setup();
       if (args[0]) {
-        const s = game.content.transit.bus.stops.find((x) => x.id === args[0] || x.id === `stop_${args[0]}`);
+        const s = game.content.transit.lines.flatMap((l) => l.stops).find((x) => x.id === args[0] || x.id === `stop_${args[0]}`);
         if (!s) return out('Unknown stop.', false);
         game.changeMap(s.sign.map, null, { x: (s.sign.x + 1.5) * TILE, y: (s.sign.y + 0.5) * TILE });
         return out(T.waitFor(s.id).text);
       }
-      return out(game.content.transit.bus.stops.map((s) => `${s.id.replace('stop_', '')}: ${s.name} — next bus ${T.eta(s.id)?.minutes ?? '?'} min`).join('\n'));
+      return out([...new Map(game.content.transit.lines.flatMap((l) => l.stops).map((s) => [s.id, s])).values()].map((s) => `${s.id.replace('stop_', '')}: ${s.name} — next bus ${T.eta(s.id)?.minutes ?? '?'} min`).join('\n'));
     }
     case 'car': {
       const id = args[0] || 'pipit';

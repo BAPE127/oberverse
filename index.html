@@ -7204,7 +7204,8 @@ const quinn = crew({
     { from: '07:00', to: '07:45', activity: 'eat', spot: 'cafe:table_corner', label: 'a nervous coffee' },
     { from: '07:45', to: '12:00', activity: 'work', spot: 'mason_office:drafting', label: 'drafting plans' },
     { from: '12:00', to: '12:45', activity: 'eat', spot: 'apartments:common_b' },
-    { from: '12:45', to: '16:00', activity: 'work', spot: 'westbrook:survey', label: 'surveying the lots' },
+    { from: '12:45', to: '15:30', activity: 'work', spot: 'halvermouth:hall_door_out', label: 'filing survey papers at the Hall of Justice (on the No. 1)' },
+    { from: '15:30', to: '16:00', activity: 'work', spot: 'westbrook:survey', label: 'surveying the lots' },
     { from: '16:00', to: '18:00', activity: 'work', spot: 'mason_office:drafting', label: 'drafting plans' },
     { from: '18:00', to: '20:00', activity: 'leisure', spot: 'lanternside:square_bench' },
     { from: '20:00', to: '22:30', activity: 'leisure', spot: 'apartments:window_seat' },
@@ -9388,7 +9389,10 @@ __m["src/content/transit.js"] = (function () {
 //   lane centre on a road whose first (authored) line is r:  north/west lane r'+1, south/east lane r'+3
 
 const BUS_INFO = {
+  id: 'r1',
   name: 'No. 1',
+  ends: ['the Ober Fields', 'Mill Road Yards'],
+  hours: null, // round the clock
   fare: 2,
   buses: 3, // spaced evenly round the loop
   speed: 230, // px per second (= per game minute)
@@ -9407,6 +9411,33 @@ const BUS_STOPS = [
   { id: 'stop_westbrook', name: 'Westbrook Row', sign: { map: 'westbrook', x: 26, y: 11 } },
   { id: 'stop_lanternside', name: 'Gullwing Road', sign: { map: 'lanternside', x: 36, y: 11 } },
   { id: 'stop_ober', name: 'Ober\'s Oil Refinery', sign: { map: 'ober_fields', x: 40, y: 11 } },
+];
+
+/**
+ * v0.33.0: the No. 2 "Lariat Line" — from Justice Way in Halvermouth out
+ * through the North Gate, up FM 38, round Lariat's downtown block (Main,
+ * Church, Cotton) and back; turning round in the city by Grand Avenue,
+ * Tanner Street and Crown Street. 06:00–23:00.
+ */
+const LINE_2 = {
+  id: 'r2',
+  name: 'No. 2 Lariat Line',
+  ends: ['Lariat', 'Halvermouth'],
+  fare: 3,
+  buses: 2,
+  speed: 230,
+  dwell: 6,
+  len: 150,
+  wid: 46,
+  color: '#a8482a',
+  hours: { from: '06:00', to: '23:00' },
+};
+const LINE_2_STOPS = [
+  { id: 'stop_justice', name: 'Justice Way (Hall of Justice)', sign: { map: 'halvermouth', x: 37, y: 22 } },
+  { id: 'stop_lariat_main', name: 'Main Street, Lariat (the Mercantile)', sign: { map: 'lariat', x: 52, y: 44 } },
+  { id: 'stop_lariat_church', name: 'Church Street, Lariat (the Rodeo Grounds)', sign: { map: 'lariat', x: 24, y: 47 } },
+  { id: 'stop_lariat_cotton', name: 'Cotton Street, Lariat (the Diner)', sign: { map: 'lariat', x: 61, y: 56 } },
+  { id: 'stop_lariat_fm38', name: 'FM 38 at Mesquite Lane (Chuckie\'s Cheese)', sign: { map: 'lariat', x: 71, y: 70 } },
 ];
 
 /** Junctions with traffic lights: [map, street column, avenue row] (authored first lines). */
@@ -9477,15 +9508,35 @@ function buildTransit(S) {
     ],
   };
   const junctions = LIGHTS.map(([map, c, r], i) => ({ id: `j${i}`, map, x: X(map, c), y: Y(map, r), w: 4, h: 4, offset: (i * 7) % 22 }));
-  const stops = BUS_STOPS.map((s) => ({ ...s, sign: { map: s.sign.map, x: X(s.sign.map, s.sign.x), y: Y(s.sign.map, s.sign.y) } }));
-  return { bus: { ...BUS_INFO, route, stops }, traffic, junctions };
+  const stopsOf = (list) => list.map((s) => ({ ...s, sign: { map: s.sign.map, x: X(s.sign.map, s.sign.x), y: Y(s.sign.map, s.sign.y) } }));
+  const stops = stopsOf(BUS_STOPS);
+  const L = 'lariat';
+  const line2 = {
+    ...LINE_2,
+    route: [
+      p(H, Wl(H, 38), N(H, 12)), p(H, Wl(H, 38), 0), // up Justice Way and out of the North Gate
+      p(L, 73, 109.9), p(L, 73, 43), // up FM 38 into Lariat
+      p(L, 23, 43), p(L, 23, 58), p(L, 75, 58), // round the downtown block: Main, Church, Cotton
+      p(L, 75, 109.9), p(H, E(H, 38), 0), // back down FM 38 to the city
+      p(H, E(H, 38), So(H, 36)), p(H, Wl(H, 14), So(H, 36)), p(H, Wl(H, 14), N(H, 12)), // and round by Grand Avenue, Tanner Street and Crown Street
+    ],
+    stops: stopsOf(LINE_2_STOPS),
+  };
+  const line1 = { ...BUS_INFO, route, stops };
+  return { bus: line1, lines: [line1, line2], traffic, junctions };
 }
 
 /** Put a bus-stop sign on each stop's map, and a traffic light at each corner of each junction (props, at load). Mutates `maps`. */
 function addStreetFurniture(maps, transit) {
-  for (const s of transit.bus.stops) {
+  const seen = new Set();
+  for (const line of transit.lines) for (const s of line.stops) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    const served = transit.lines.filter((l) => l.stops.some((x) => x.id === s.id)).map((l) => l.name).join(' and ');
     const m = maps[s.sign.map];
-    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${transit.bus.name}.` }];
+    m.props = [...(m.props || []), { id: s.id, type: 'busstop', lines: transit.lines.filter((l) => l.stops.some((x) => x.id === s.id)).map((l) => l.id.replace('r', '')).join('·'), x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". ${served}.` }];
+    // v0.33.0: where people wait for the bus (a spot beside the sign)
+    m.spots = { ...m.spots, [`wait_${s.id}`]: waitSpot(m, s.sign.x, s.sign.y) };
   }
   for (const j of transit.junctions) {
     const m = maps[j.map];
@@ -9495,7 +9546,16 @@ function addStreetFurniture(maps, transit) {
   }
 }
 
-return { BUS_INFO, BUS_STOPS, buildTransit, addStreetFurniture };
+/** A pavement tile beside a bus-stop sign to wait on. */
+function waitSpot(def, x, y) {
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [1, 1], [-1, 1]]) {
+    const t = def.tiles[y + dy]?.[x + dx];
+    if ([',', 'm', 'g', ':', '.'].includes(t) && !(def.props || []).some((p) => p.solid !== false && x + dx >= p.x && x + dx < p.x + (p.w || 1) && y + dy >= p.y && y + dy < p.y + (p.h || 1) && p.type !== 'crosswalk')) return { x: x + dx, y: y + dy, facing: 'down' };
+  }
+  return { x: x + 1, y, facing: 'down' };
+}
+
+return { BUS_INFO, BUS_STOPS, LINE_2, LINE_2_STOPS, buildTransit, addStreetFurniture };
 })();
 
 // ---- src/world/widen.js
@@ -9942,8 +10002,9 @@ const wade = local({
     { from: '10:00', to: '12:00', activity: 'work', spot: 'lariat:dairy_yard', label: 'feeding out' },
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:stool', label: 'lunch at the diner' },
     { from: '13:00', to: '17:00', activity: 'work', spot: 'lariat:dairy_gate', label: 'fixing fence' },
-    { from: '17:00', to: '19:30', activity: 'work', spot: 'milking_parlour:station_2', label: 'the evening milking' },
-    { from: '19:30', to: '22:00', activity: 'leisure', spot: 'lariat:paddock_gate', label: 'leaning on the paddock gate' },
+    { from: '17:00', to: '19:00', activity: 'work', spot: 'milking_parlour:station_2', label: 'the evening milking' },
+    { from: '19:00', to: '21:15', activity: 'leisure', spot: 'halvermouth:plaza_center', label: 'an evening in the city (on the No. 2)' },
+    { from: '21:15', to: '22:00', activity: 'leisure', spot: 'lariat:paddock_gate', label: 'leaning on the paddock gate' },
     { from: '22:00', to: '04:30', activity: 'sleep', spot: 'boarding_house:bed_wade' },
   ],
   relationships: { player: { trust: 0, affection: 5, respect: 0, suspicion: 5 }, npc_chuckie: { trust: 25, affection: 25, respect: 30, suspicion: 0 }, npc_rosa: { trust: 25, affection: 20, respect: 30, suspicion: 0 } },
@@ -10807,7 +10868,7 @@ const LIFE = {
   npc_earl: { home: 'res_hollister/house', occupation: 'farmer' },
   npc_wes: { home: 'res_hoof_horn/back_room', occupation: 'shopkeeper' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
-  npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer' },
+  npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
 };
 
@@ -11029,7 +11090,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.32.0';
+const GAME_VERSION = '0.33.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -13791,6 +13852,247 @@ function walkSignal(junction, axis, t) {
 return { CYCLE, lightState, walkSignal };
 })();
 
+// ---- src/world/layout.js
+__m["src/world/layout.js"] = (function () {
+// The world layout (v0.15.1; shared since v0.17.0): every outdoor map placed
+// in one world space, in tiles. Seamless regions keep their offsets; regions
+// joined by gateways sit side by side with ROAD_GAP tiles of open road between
+// the gates. Used by the world map and by everything that travels between
+// regions (the bus and traffic, src/systems/transit.js). Cached on the game.
+const { TILE } = __m["src/core/util.js"];
+
+const ROAD_GAP = 10;
+
+/**
+ * Every outdoor map placed in one world space (tiles). Seamless regions keep
+ * their offsets; regions joined by gateways are set side by side with a road
+ * between the gates. Cached: the layout never changes in a session.
+ */
+function worldLayout(g) {
+  if (g.layoutCache) return g.layoutCache;
+  const regions = Object.entries(g.content.regions || {});
+  const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
+  const pos = {};
+  const roads = [];
+  const placeRegion = (rid, anchorMap, ax, ay) => {
+    const r = g.content.regions[rid];
+    const o = r.maps[anchorMap];
+    for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
+  };
+  const start = regionOf(g.content.startingMap) || regions[0];
+  placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
+  const queue = Object.keys(pos);
+  while (queue.length) {
+    const id = queue.shift();
+    const M = g.maps.get(id);
+    for (const d of M.doors) {
+      if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
+      const T = g.maps.get(d.to.map);
+      const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
+      // v0.29.0: gates on the top or bottom edge (Lariat, north of Halvermouth) stack regions vertically
+      const north = d.y === 0 && d.x > 0 && d.x < M.width - 1;
+      const south = d.y === M.height - 1 && d.x > 0 && d.x < M.width - 1;
+      const before = new Set(Object.keys(pos));
+      const rr = regionOf(T.id);
+      if (north || south) {
+        const tx = pos[id].x + d.x - back.x;
+        const ty = north ? pos[id].y - T.height - ROAD_GAP : pos[id].y + M.height + ROAD_GAP;
+        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+        roads.push({ x1: pos[id].x + d.x + 1, y1: pos[id].y + d.y + (north ? 0 : 1), x2: tx + back.x + 1, y2: ty + back.y + (north ? 1 : 0) });
+      } else {
+        const west = d.x === 0;
+        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+        const ty = pos[id].y + d.y - back.y;
+        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
+        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
+      }
+      for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
+    }
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [id, p] of Object.entries(pos)) {
+    const m = g.maps.get(id);
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
+  }
+  const regionBoxes = regions.map(([rid, r]) => {
+    const ids = Object.keys(r.maps).filter((id) => pos[id]);
+    if (!ids.length) return null;
+    const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
+    const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
+    return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }).filter(Boolean);
+  g.layoutCache = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
+  return g.layoutCache;
+}
+
+/** World tiles → { map, x, y } in that map's pixels (null between regions). */
+function worldToMap(g, wx, wy) {
+  const L = worldLayout(g);
+  for (const [id, o] of Object.entries(L.pos)) {
+    const m = g.maps.get(id);
+    if (wx >= o.x && wx < o.x + m.width && wy >= o.y && wy < o.y + m.height) return { map: id, x: (wx - o.x) * TILE, y: (wy - o.y) * TILE };
+  }
+  return null;
+}
+
+/** A map's pixels → world tiles. */
+function mapToWorld(g, mapId, x, y) {
+  const o = worldLayout(g).pos[mapId];
+  return o ? { x: o.x + x / TILE, y: o.y + y / TILE } : null;
+}
+
+return { ROAD_GAP, worldLayout, worldToMap, mapToWorld };
+})();
+
+// ---- src/sim/npcTransit.js
+__m["src/sim/npcTransit.js"] = (function () {
+// NPCs on the buses (v0.33.0). A character whose occupation (or LIFE entry)
+// prefers transit and who is going to another region plans a bus trip: walk
+// to the best stop, wait, board a bus of the chosen line when it stands at
+// the stop, ride it (aboard, hidden, moving with the bus — on screen or off),
+// get off at the stop nearest the destination, and walk the rest. A missed
+// connection is given up after MAX_WAIT minutes and they walk instead.
+//
+// npc.trip = { line, from, to, target, waitRef, phase: 'to_stop' | 'waiting' | 'riding' | 'to_dest', since }
+// npc.riding = the bus's index while aboard. Both are saved.
+const { parseSpotRef, TILE } = __m["src/core/util.js"];
+const { mapToWorld } = __m["src/world/layout.js"];
+
+const MAX_WAIT = 120; // game minutes before giving up on the bus
+const NO_BUS_AFTER_GIVING_UP = 240;
+
+/** The outdoor map and tile a spot is at, or leads out to (interiors: their exit door's far side). */
+function outdoorPoint(g, ref) {
+  let { map, spot } = parseSpotRef(ref);
+  let m = g.maps.get(map);
+  let s = m?.spot(spot);
+  for (let i = 0; i < 4 && m && m.kind === 'interior'; i++) {
+    const exit = m.doors.find((d) => d.to && !d.to.map.startsWith('__'));
+    if (!exit) return null;
+    map = exit.to.map;
+    m = g.maps.get(map);
+    s = m?.spot(exit.to.spot);
+  }
+  return m && s ? { map, x: s.x, y: s.y } : null;
+}
+
+function regionOf(g, mapId) {
+  for (const [id, r] of Object.entries(g.content.regions || {})) if (r.maps[mapId]) return id;
+  return null;
+}
+
+function worldTiles(g, pt) {
+  const w = mapToWorld(g, pt.map, pt.x * TILE, pt.y * TILE);
+  return w ? { x: w.x, y: w.y } : null;
+}
+
+/** How this character gets about: their LIFE override, else their occupation's. */
+function transportOf(g, npc) {
+  const life = g.content.life?.homes?.[npc.id] || g.content.life?.exceptions?.[npc.id];
+  if (!life) return 'walk';
+  return life.transport || g.content.life.occupations[life.occupation]?.transport || 'walk';
+}
+
+/** Plan a bus trip to a spot in another region, or null (walk). */
+function planTrip(g, npc, targetRef) {
+  if (transportOf(g, npc) !== 'transit') return null;
+  if ((npc.noTransitUntil || 0) > g.clock.total) return null;
+  const here = g.maps.get(npc.map)?.kind === 'interior' ? outdoorPoint(g, `${npc.map}:${Object.keys(g.maps.get(npc.map).def.spots)[0]}`) : { map: npc.map, x: npc.x / TILE, y: npc.y / TILE };
+  const there = outdoorPoint(g, targetRef);
+  if (!here || !there) return null;
+  const rFrom = regionOf(g, here.map);
+  const rTo = regionOf(g, there.map);
+  if (!rFrom || !rTo || rFrom === rTo) return null;
+  const wHere = worldTiles(g, here);
+  const wThere = worldTiles(g, there);
+  if (!wHere || !wThere) return null;
+  let best = null;
+  for (const L of Object.values(g.transit.lines || (g.transit.setup(), g.transit.lines))) {
+    const stops = L.cfg.stops;
+    const near = (w, region) => {
+      let b = null;
+      for (const s of stops) {
+        if (regionOf(g, s.sign.map) !== region) continue;
+        const ws = worldTiles(g, { map: s.sign.map, x: s.sign.x, y: s.sign.y });
+        const d = Math.hypot(ws.x - w.x, ws.y - w.y);
+        if (!b || d < b.d) b = { s, d };
+      }
+      return b;
+    };
+    const a = near(wHere, rFrom);
+    const b = near(wThere, rTo);
+    if (!a || !b) continue;
+    const walk = a.d + b.d;
+    if (!best || walk < best.walk) best = { line: L.cfg.id, from: a.s, to: b.s, walk };
+  }
+  if (!best) return null;
+  return { line: best.line, from: best.from.id, to: best.to.id, target: targetRef, waitRef: `${best.from.sign.map}:wait_${best.from.id}`, phase: 'to_stop', since: g.clock.total };
+}
+
+/** Each game minute: waiting passengers board, riding passengers get off at their stop, the impatient give up. */
+function transitTick(g, sys) {
+  const T = g.transit;
+  T.setup();
+  for (const npc of g.npcs.values()) {
+    const trip = npc.trip;
+    if (!trip) continue;
+    if (trip.phase === 'waiting') {
+      const bus = T.followers.find((f) => f.kind === 'bus' && f.line === trip.line && T.dwelling(f) && T.stopFor(f).id === trip.from && rightWay(T, f, trip));
+      if (bus) {
+        trip.phase = 'riding';
+        npc.riding = bus.idx;
+        npc.path = null;
+        npc.travel = null;
+        g.bus.emit('npc:boarded', { npcId: npc.id, bus: bus.idx, stop: trip.from });
+      } else if (g.clock.total - trip.since > MAX_WAIT) {
+        npc.trip = null;
+        npc.noTransitUntil = g.clock.total + NO_BUS_AFTER_GIVING_UP;
+        npc.arrived = false;
+        sys.plan(npc);
+      }
+    } else if (trip.phase === 'riding') {
+      const bus = T.bus(npc.riding);
+      if (!bus) { npc.riding = null; npc.trip = null; npc.arrived = false; sys.plan(npc); continue; }
+      carry(npc, bus);
+      if (T.dwelling(bus) && T.stopFor(bus).id === trip.to) alight(g, sys, npc, trip);
+    }
+  }
+}
+
+/** Keep a passenger with their bus (called every frame for the visible ones, and each minute). */
+function carry(npc, bus) {
+  if (!bus.map) return; // on the road between regions
+  npc.map = bus.map;
+  npc.x = bus.x;
+  npc.y = bus.y;
+}
+
+function alight(g, sys, npc, trip) {
+  const stop = g.transit.lines[trip.line].cfg.stops.find((s) => s.id === trip.to);
+  const m = g.maps.get(stop.sign.map);
+  const w = m.spotPx(`wait_${stop.id}`) || { x: (stop.sign.x + 1.5) * TILE, y: (stop.sign.y + 0.5) * TILE };
+  npc.riding = null;
+  npc.map = m.id;
+  npc.x = w.x;
+  npc.y = w.y;
+  trip.phase = 'to_dest';
+  npc.arrived = false;
+  g.bus.emit('npc:alighted', { npcId: npc.id, stop: stop.id });
+  sys.plan(npc);
+}
+
+/** Is this bus going the quicker way round to the passenger's stop? (A loop calls at most stops in both directions.) */
+function rightWay(T, bus, trip) {
+  const L = T.lines[trip.line];
+  const fwd = (d) => Math.min(...L.stops.filter((s) => s.id === trip.to).map((s) => L.route.wrap(s.dist - d)));
+  const best = Math.min(...L.stops.filter((s) => s.id === trip.from).map((s) => fwd(s.dist)));
+  return fwd(bus.dist) <= best + 64;
+}
+
+return { transportOf, planTrip, transitTick, carry };
+})();
+
 // ---- src/sim/npcSystem.js
 __m["src/sim/npcSystem.js"] = (function () {
 // NPC simulation with two tiers:
@@ -13806,6 +14108,7 @@ const { decide, scheduleLead } = __m["src/sim/npcBrain.js"];
 const { blockAt, blockInstanceKey } = __m["src/sim/schedule.js"];
 const { remember } = __m["src/sim/memory.js"];
 const { walkSignal } = __m["src/world/lights.js"];
+const { planTrip, transitTick, carry } = __m["src/sim/npcTransit.js"];
 
 const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
 
@@ -13899,6 +14202,19 @@ class NpcSystem {
     return true;
   }
 
+  /** v0.33.0: the bus trip this NPC is on (or should start) for their current destination. */
+  tripFor(npc) {
+    const trip = npc.trip;
+    if (trip && trip.target !== npc.intent.spot && trip.phase !== 'riding') npc.trip = null; // plans changed: off the bus plan (unless aboard)
+    if (!npc.trip) npc.trip = planTrip(this.game, npc, npc.intent.spot);
+    return npc.trip;
+  }
+
+  /** Each game minute: passengers board, ride and get off (src/sim/npcTransit.js). */
+  transitTick() {
+    transitTick(this.game, this);
+  }
+
   plan(npc) {
     const g = this.game;
     npc.path = null;
@@ -13907,7 +14223,9 @@ class NpcSystem {
       npc.arrived = true;
       return;
     }
-    const target = parseSpotRef(npc.intent.spot);
+    const trip = npc.riding != null && npc.trip ? npc.trip : this.tripFor(npc);
+    if (trip && (trip.phase === 'waiting' || trip.phase === 'riding')) return; // at the stop, or aboard
+    const target = parseSpotRef(trip?.phase === 'to_stop' ? trip.waitRef : npc.intent.spot);
     const actor = this.actorFor(npc);
     const route = routeBetweenMaps(g.maps, npc.map, target.map, actor);
     if (!route) {
@@ -13976,6 +14294,7 @@ class NpcSystem {
   updatePhysical(npc, dt) {
     const g = this.game;
     npc.moving = false;
+    if (npc.riding != null) { const bus = g.transit.bus(npc.riding); if (bus) carry(npc, bus); return; }
     if (npc.chat && g.clock.total < npc.chat.until) return;
     if (!npc.path || !npc.path.length) return;
     const wp = npc.path[0];
@@ -14050,6 +14369,17 @@ class NpcSystem {
     const g = this.game;
     npc.path = null;
     npc.pendingRoute = null;
+    // v0.33.0: at the bus stop — wait there for the bus
+    if (npc.trip?.phase === 'to_stop') {
+      const w = parseSpotRef(npc.trip.waitRef);
+      const s = g.maps.get(w.map)?.spotPx(w.spot);
+      if (s && npc.map === w.map) { npc.x = s.x; npc.y = s.y; }
+      npc.trip.phase = 'waiting';
+      npc.trip.since = g.clock.total;
+      npc.arrived = true;
+      return;
+    }
+    if (npc.trip?.phase === 'to_dest') npc.trip = null; // journey's end
     const target = npc.intent?.spot ? parseSpotRef(npc.intent.spot) : null;
     if (target && target.map === npc.map) {
       const s = g.maps.get(npc.map).spotPx(target.spot);
@@ -14108,6 +14438,8 @@ class NpcSystem {
     const target = parseSpotRef(ref);
     const pos = g.maps.get(target.map)?.spotPx(target.spot);
     if (!pos) return;
+    npc.riding = null; // (debug settling: off any bus, journey forgotten)
+    npc.trip = null;
     npc.map = target.map;
     npc.x = pos.x;
     npc.y = pos.y;
@@ -14159,7 +14491,7 @@ class NpcSystem {
   canChat(npc, now) {
     if (npc.chat || npc.activity === 'sleep' || npc.travel || npc.hostile || incapacitated(npc, now)) return false;
     if (npc.path && npc.path.length) return false;
-    if (npc.inDialogue || npc.intent?.source === 'dairy') return false;
+    if (npc.inDialogue || npc.riding != null || npc.intent?.source === 'dairy') return false;
     return now >= (npc.chatCooldownUntil || 0);
   }
 
@@ -19383,99 +19715,6 @@ class Vehicles {
 return { freshVehicles, Vehicles };
 })();
 
-// ---- src/world/layout.js
-__m["src/world/layout.js"] = (function () {
-// The world layout (v0.15.1; shared since v0.17.0): every outdoor map placed
-// in one world space, in tiles. Seamless regions keep their offsets; regions
-// joined by gateways sit side by side with ROAD_GAP tiles of open road between
-// the gates. Used by the world map and by everything that travels between
-// regions (the bus and traffic, src/systems/transit.js). Cached on the game.
-const { TILE } = __m["src/core/util.js"];
-
-const ROAD_GAP = 10;
-
-/**
- * Every outdoor map placed in one world space (tiles). Seamless regions keep
- * their offsets; regions joined by gateways are set side by side with a road
- * between the gates. Cached: the layout never changes in a session.
- */
-function worldLayout(g) {
-  if (g.layoutCache) return g.layoutCache;
-  const regions = Object.entries(g.content.regions || {});
-  const regionOf = (id) => regions.find(([, r]) => r.maps[id]);
-  const pos = {};
-  const roads = [];
-  const placeRegion = (rid, anchorMap, ax, ay) => {
-    const r = g.content.regions[rid];
-    const o = r.maps[anchorMap];
-    for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
-  };
-  const start = regionOf(g.content.startingMap) || regions[0];
-  placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
-  const queue = Object.keys(pos);
-  while (queue.length) {
-    const id = queue.shift();
-    const M = g.maps.get(id);
-    for (const d of M.doors) {
-      if (!d.gateway || !d.to?.map || pos[d.to.map] || !g.maps.has(d.to.map)) continue;
-      const T = g.maps.get(d.to.map);
-      const back = T.doors.find((e) => e.gateway && e.to?.map && regionOf(e.to.map)?.[0] === regionOf(id)?.[0]) || { x: d.x === 0 ? T.width - 1 : 0, y: d.y };
-      // v0.29.0: gates on the top or bottom edge (Lariat, north of Halvermouth) stack regions vertically
-      const north = d.y === 0 && d.x > 0 && d.x < M.width - 1;
-      const south = d.y === M.height - 1 && d.x > 0 && d.x < M.width - 1;
-      const before = new Set(Object.keys(pos));
-      const rr = regionOf(T.id);
-      if (north || south) {
-        const tx = pos[id].x + d.x - back.x;
-        const ty = north ? pos[id].y - T.height - ROAD_GAP : pos[id].y + M.height + ROAD_GAP;
-        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
-        roads.push({ x1: pos[id].x + d.x + 1, y1: pos[id].y + d.y + (north ? 0 : 1), x2: tx + back.x + 1, y2: ty + back.y + (north ? 1 : 0) });
-      } else {
-        const west = d.x === 0;
-        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
-        const ty = pos[id].y + d.y - back.y;
-        if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
-        roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
-      }
-      for (const k of Object.keys(pos)) if (!before.has(k)) queue.push(k);
-    }
-  }
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const [id, p] of Object.entries(pos)) {
-    const m = g.maps.get(id);
-    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x + m.width); maxY = Math.max(maxY, p.y + m.height);
-  }
-  const regionBoxes = regions.map(([rid, r]) => {
-    const ids = Object.keys(r.maps).filter((id) => pos[id]);
-    if (!ids.length) return null;
-    const xs = ids.map((id) => [pos[id].x, pos[id].x + g.maps.get(id).width]).flat();
-    const ys = ids.map((id) => [pos[id].y, pos[id].y + g.maps.get(id).height]).flat();
-    return { id: rid, name: r.name, maps: ids, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-  }).filter(Boolean);
-  g.layoutCache = { pos, roads, regions: regionBoxes, bounds: { x: minX - 6, y: minY - 6, w: maxX - minX + 12, h: maxY - minY + 12 } };
-  return g.layoutCache;
-}
-
-/** World tiles → { map, x, y } in that map's pixels (null between regions). */
-function worldToMap(g, wx, wy) {
-  const L = worldLayout(g);
-  for (const [id, o] of Object.entries(L.pos)) {
-    const m = g.maps.get(id);
-    if (wx >= o.x && wx < o.x + m.width && wy >= o.y && wy < o.y + m.height) return { map: id, x: (wx - o.x) * TILE, y: (wy - o.y) * TILE };
-  }
-  return null;
-}
-
-/** A map's pixels → world tiles. */
-function mapToWorld(g, mapId, x, y) {
-  const o = worldLayout(g).pos[mapId];
-  return o ? { x: o.x + x / TILE, y: o.y + y / TILE } : null;
-}
-
-return { ROAD_GAP, worldLayout, worldToMap, mapToWorld };
-})();
-
 // ---- src/systems/transit.js
 __m["src/systems/transit.js"] = (function () {
 // Transit (v0.17.0 "Route 1"; v0.20.0 "Streets"): the No. 1 bus and the traffic.
@@ -19491,7 +19730,8 @@ __m["src/systems/transit.js"] = (function () {
 // lights at the junctions (src/world/lights.js); elsewhere, or while time
 // skips, they move once a game minute and never stop.
 //
-// The bus: three buses on one loop, 2 obols a ride. Traffic: rings round city
+// The buses (v0.33.0: several lines — content.transit.lines; the No. 1 is
+// lines[0]): each line a loop with its stops, fare, hours and buses, 2–3 obols a ride. Traffic: rings round city
 // blocks, plus through traffic that drives in through one gate and out through
 // another (it leaves the map and new cars come in — no U-turns at the edges).
 //
@@ -19593,8 +19833,19 @@ class Route {
 }
 
 function freshTransit(content) {
-  const B = content.transit.bus;
-  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: null, slot: i, dwellUntil: 0 })) };
+  const buses = [];
+  for (const line of content.transit.lines || [content.transit.bus]) for (let i = 0; i < line.buses; i++) buses.push({ dist: null, slot: i, line: line.id, dwellUntil: 0 });
+  return { buses };
+}
+
+/** Is a line running at this minute of the day? */
+function lineRunning(line, minuteOfDay) {
+  if (!line.hours) return true;
+  const [fh, fm] = line.hours.from.split(':').map(Number);
+  const [th, tm] = line.hours.to.split(':').map(Number);
+  const a = fh * 60 + fm;
+  const b = th * 60 + tm;
+  return a <= b ? minuteOfDay >= a && minuteOfDay < b : minuteOfDay >= a || minuteOfDay < b;
 }
 
 class Transit {
@@ -19614,7 +19865,26 @@ class Transit {
   get state() {
     const g = this.game;
     if (!g.world.transit) g.world.transit = freshTransit(g.content);
-    return g.world.transit;
+    const s = g.world.transit;
+    // v0.33.0: older saves have one line's buses: they're the No. 1's; add the other lines' buses
+    if (!s.linesChecked) {
+      for (const b of s.buses) b.line ||= this.cfg.bus.id || 'r1';
+      for (const line of this.cfg.lines || []) {
+        const have = s.buses.filter((b) => b.line === line.id).length;
+        for (let i = have; i < line.buses; i++) s.buses.push({ dist: null, slot: i, line: line.id, dwellUntil: 0 });
+      }
+      s.linesChecked = true;
+    }
+    return s;
+  }
+
+  /** v0.33.0: a line's runtime: { cfg, route, stops, turn }. */
+  line(id) {
+    this.setup();
+    return this.lines[id];
+  }
+  lineOf(f) {
+    return this.lines[f.line];
   }
 
   /** Map-local points → world pixels. */
@@ -19629,30 +19899,40 @@ class Transit {
   setup() {
     if (this.ready) return;
     const g = this.game;
-    const B = this.cfg.bus;
-    this.busRoute = new Route(this.worldPts(B.route));
     // junction boxes in world pixels, and where each route enters them (and along which axis)
     this.junctions = (this.cfg.junctions || []).map((j) => {
       const w = mapToWorld(g, j.map, j.x * TILE, j.y * TILE);
       return { ...j, wx: w.x * TILE, wy: w.y * TILE, ww: j.w * TILE, wh: j.h * TILE };
     });
-    // each stop, at its distance along the loop in each direction
-    this.stops = [];
-    for (const s of B.stops) {
-      const w = mapToWorld(g, s.sign.map, (s.sign.x + 0.5) * TILE, (s.sign.y + 0.5) * TILE);
-      for (const d of this.busRoute.near(w.x * TILE, w.y * TILE, 5.5 * TILE)) this.stops.push({ ...s, dist: d });
+    // each line: its loop, its stops at their distances along it (both directions), and its far end
+    this.lines = {};
+    for (const cfg of this.cfg.lines || [this.cfg.bus]) {
+      const route = new Route(this.worldPts(cfg.route));
+      const stops = [];
+      for (const s of cfg.stops) {
+        const w = mapToWorld(g, s.sign.map, (s.sign.x + 0.5) * TILE, (s.sign.y + 0.5) * TILE);
+        for (const d of route.near(w.x * TILE, w.y * TILE, 5.5 * TILE)) stops.push({ ...s, dist: d });
+      }
+      stops.sort((a, b) => a.dist - b.dist);
+      // the far end: the point of the loop furthest from where it starts
+      const p0 = route.at(0);
+      let turn = 0;
+      let far = -1;
+      for (let d = 0; d < route.length; d += 32) { const q = route.at(d); const dd = Math.hypot(q.x - p0.x, q.y - p0.y); if (dd > far) { far = dd; turn = d; } }
+      this.entries(route);
+      this.lines[cfg.id] = { cfg, route, stops, turn };
     }
-    this.stops.sort((a, b) => a.dist - b.dist);
-    // the far end of the line: the route's easternmost point
-    let far = 0;
-    let fx = -Infinity;
-    for (let d = 0; d < this.busRoute.length; d += 32) { const p = this.busRoute.at(d); if (p.x > fx) { fx = p.x; far = d; } }
-    this.turn = far;
-    this.entries(this.busRoute);
+    // compatibility: the No. 1's route and stops
+    const one = this.lines[this.cfg.bus.id || 'r1'] || Object.values(this.lines)[0];
+    this.busRoute = one.route;
+    this.stops = one.stops;
+    this.turn = one.turn;
     const st = this.state;
     this.followers = st.buses.map((b, i) => {
-      if (b.dist === null || b.dist === undefined || b.dist > this.busRoute.length) b.dist = (this.busRoute.length * i) / st.buses.length;
-      return { id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b };
+      const L = this.lines[b.line] || one;
+      const n = st.buses.filter((x) => x.line === b.line).length;
+      if (b.dist === null || b.dist === undefined || b.dist > L.route.length) b.dist = (L.route.length * b.slot) / Math.max(1, n);
+      return { id: `bus${i + 1}`, kind: 'bus', idx: i, line: L.cfg.id, route: L.route, dist: b.dist, speed: 0, max: L.cfg.speed, len: L.cfg.len, wid: L.cfg.wid, color: L.cfg.color, state: b };
     });
     // traffic
     const T = this.cfg.traffic;
@@ -19723,17 +20003,24 @@ class Transit {
 
   /** The stop a bus is at (while dwelling), or the next one ahead. */
   stopFor(f, ahead = false) {
+    const stops = this.lineOf(f).stops;
     const d = f.dist;
     if (!ahead) {
-      const here = this.stops.find((s) => Math.abs(s.dist - d) < 2);
+      const here = stops.find((s) => Math.abs(s.dist - d) < 2);
       if (here) return here;
     }
-    return this.stops.find((s) => s.dist > d + 2) || this.stops[0];
+    return stops.find((s) => s.dist > d + 2) || stops[0];
   }
 
   /** "towards the Ober Fields" or "towards the Yards". */
   heading(f) {
-    return f.dist < this.turn ? 'towards the Ober Fields' : 'towards Mill Road Yards';
+    return this.headingAt(this.lineOf(f), f.dist);
+  }
+
+  /** "towards Lariat" — the end of the line a bus at this distance is heading for. */
+  headingAt(L, d) {
+    const ends = L.cfg.ends || ['the far end', 'the start of the line'];
+    return d < L.turn ? `towards ${ends[0]}` : `towards ${ends[1]}`;
   }
 
   regionOf(mapId) {
@@ -19793,14 +20080,15 @@ class Transit {
 
   step(f, dt, careful) {
     const g = this.game;
-    const B = this.cfg.bus;
+    const LN = f.kind === 'bus' ? this.lineOf(f) : null;
+    const B = LN?.cfg;
     if (f.kind === 'bus' && g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
     let target = f.max;
-    // ease into the next stop
+    // ease into the next stop (out of hours, a bus runs back to the depot without stopping)
     let toStop = Infinity;
     let stop = null;
-    if (f.kind === 'bus') {
-      stop = this.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || this.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
+    if (f.kind === 'bus' && lineRunning(B, g.clock.minuteOfDay)) {
+      stop = LN.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || LN.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
       if (stop) toStop = f.route.wrap(stop.dist - f.dist);
       if (careful) target = Math.min(target, 30 + toStop * 1.6);
     }
@@ -19832,6 +20120,7 @@ class Transit {
       f.state.dist = f.dist;
       this.place(f);
       if (g.player.riding === f.idx) g.bus.emit('transit:stop', { stop: stop.id, name: stop.name });
+      g.bus.emit('transit:dwell', { bus: f.idx, line: f.line, stop: stop.id });
       return;
     }
     // through traffic leaves at the end of its road; another car comes in later
@@ -19894,7 +20183,7 @@ class Transit {
       if (pw && test(pw.x * TILE, pw.y * TILE, p.driving ? 18 : 8)) return 'player';
     }
     for (const n of g.npcs.values()) {
-      if (n.map !== f.map || n.dead || isDown(n, g.clock.total)) continue;
+      if (n.map !== f.map || n.dead || n.riding != null || isDown(n, g.clock.total)) continue;
       const w = mapToWorld(g, n.map, n.x, n.y);
       if (w && test(w.x * TILE, w.y * TILE, 8)) return 'npc';
     }
@@ -19933,8 +20222,8 @@ class Transit {
   board(idx) {
     const g = this.game;
     const f = this.bus(idx);
-    const fare = this.cfg.bus.fare;
     if (!f || !this.dwelling(f)) return { ok: false, text: 'The bus has gone.' };
+    const fare = this.lineOf(f).cfg.fare;
     if (g.player.money < fare) return { ok: false, text: `The driver taps the sign: FARE ${fare} OBOLS. You can't afford it.` };
     g.player.money -= fare;
     g.bus.emit('money:changed', { delta: -fare, total: g.player.money });
@@ -19945,7 +20234,7 @@ class Transit {
     this.carryRider();
     g.bus.emit('sfx', { id: 'sfx_door' });
     g.bus.emit('transit:boarded', { bus: f.id });
-    return { ok: true, text: `You pay ${fare} obols and find a seat on the ${this.cfg.bus.name}, ${this.heading(f)}. Next stop: ${this.stopFor(f, true).name}. (E to get off when it stops.)` };
+    return { ok: true, text: `You pay ${fare} obols and find a seat on the ${this.lineOf(f).cfg.name}, ${this.heading(f)}. Next stop: ${this.stopFor(f, true).name}. (E to get off when it stops.)` };
   }
 
   /** Keep the rider on the bus, changing map as it does. */
@@ -19990,39 +20279,49 @@ class Transit {
     return { ok: true, text: `${stop.name}.` };
   }
 
-  /** Minutes until a bus next stops at this stop (either direction), and which bus. */
-  eta(stopId) {
+  /** The lines that call at a stop. */
+  linesAt(stopId) {
     this.setup();
-    const B = this.cfg.bus;
+    return Object.values(this.lines).filter((L) => L.cfg.stops.some((s) => s.id === stopId));
+  }
+
+  /** Minutes until a bus next stops at this stop (either direction), and which bus; optionally on one line. */
+  eta(stopId, lineId = null) {
+    this.setup();
     let best = null;
-    for (const f of this.followers.filter((x) => x.kind === 'bus')) {
-      let t = Math.max(0, f.state.dwellUntil - this.game.clock.total);
+    const now = this.game.clock.total;
+    for (const f of this.followers.filter((x) => x.kind === 'bus' && (!lineId || x.line === lineId))) {
+      const L = this.lineOf(f);
+      if (!L.cfg.stops.some((s) => s.id === stopId)) continue;
+      let t = Math.max(0, f.state.dwellUntil - now);
       let d = f.dist;
-      for (let k = 0; k < this.stops.length + 1; k++) {
-        const next = this.stops.find((s) => s.dist > d + 0.5) || this.stops[0];
+      for (let k = 0; k < L.stops.length + 1; k++) {
+        const next = L.stops.find((s) => s.dist > d + 0.5) || L.stops[0];
         const gap = f.route.wrap(next.dist - d) || f.route.length;
-        t += gap / B.speed;
-        if (next.id === stopId) {
-          if (!best || t < best.minutes) best = { minutes: Math.ceil(t), bus: f.idx, dist: next.dist, heading: next.dist < this.turn ? 'towards the Ober Fields' : 'towards Mill Road Yards' };
+        t += gap / L.cfg.speed;
+        if (next.id === stopId && lineRunning(L.cfg, Math.floor(now + t) % 1440)) {
+          if (!best || t < best.minutes) best = { minutes: Math.ceil(t), bus: f.idx, line: L.cfg.id, dist: next.dist, heading: this.headingAt(L, next.dist) };
           break;
         }
-        t += B.dwell;
+        t += L.cfg.dwell;
         d = next.dist;
       }
     }
     return best;
   }
 
-  /** E on a bus-stop sign. */
+  /** E on a bus-stop sign: the lines that call here, where they go, the hours, and the next bus. */
   stopInfo(stopId) {
-    const s = this.cfg.bus.stops.find((x) => x.id === stopId);
+    const lines = this.linesAt(stopId);
+    const s = lines[0]?.cfg.stops.find((x) => x.id === stopId);
     const e = this.eta(stopId);
-    const at = this.on(this.game.player.map).find((f) => this.dwelling(f) && this.stopFor(f).id === stopId);
+    const at = this.on(this.game.player.map).find((f) => f.kind === 'bus' && this.dwelling(f) && this.stopFor(f).id === stopId);
+    const about = lines.map((L) => `${L.cfg.name} — ${L.cfg.stops.map((x) => x.name).join(' · ')}. Fare ${L.cfg.fare} obols${L.cfg.hours ? `, ${L.cfg.hours.from}–${L.cfg.hours.to}` : ', all day and night'}.`).join(' ');
     return {
       type: 'choices', title: `🚏 ${s.name}`,
-      text: `${this.cfg.bus.name} bus — Mill Road Yards · Mill Road (the Sumps) · Civic Plaza · The East End · Westbrook Row · Gullwing Road · Ober's Oil Refinery. Fare ${this.cfg.bus.fare} obols. ${at ? 'A bus is waiting here now.' : e ? `Next bus: about ${e.minutes} min (${e.heading}).` : ''}`,
-      options: at ? [{ label: 'OK', call: ['transit', 'noop'] }] : [
-        { label: `Wait for the bus (about ${e?.minutes ?? '?'} min)`, call: ['transit', 'waitFor', stopId] },
+      text: `${about} ${at ? 'A bus is waiting here now.' : e ? `Next bus: about ${e.minutes} min (${this.lines[e.line].cfg.name}, ${e.heading}).` : 'No more buses today.'}`,
+      options: at || !e ? [{ label: 'OK', call: ['transit', 'noop'] }] : [
+        { label: `Wait for the bus (about ${e.minutes} min)`, call: ['transit', 'waitFor', stopId] },
         { label: 'Leave it', call: ['transit', 'noop'] },
       ],
     };
@@ -20040,14 +20339,15 @@ class Transit {
     g.skipTime(Math.max(0, e.minutes - 1));
     // make sure it's here and waiting, whatever happened on the way
     const f = this.bus(e.bus);
+    const L = this.lineOf(f);
     f.dist = e.dist;
     f.state.dist = e.dist;
     f.speed = 0;
-    f.state.dwellUntil = g.clock.total + this.cfg.bus.dwell;
-    const stop = this.stops.find((s) => Math.abs(s.dist - e.dist) < 1);
+    f.state.dwellUntil = g.clock.total + L.cfg.dwell;
+    const stop = L.stops.find((x) => Math.abs(x.dist - e.dist) < 1);
     f.state.lastStop = `${stop.id}@${Math.round(stop.dist)}`;
     this.place(f);
-    return { ok: true, text: `After about ${e.minutes} minutes the ${this.cfg.bus.name} pulls in, ${e.heading}.` };
+    return { ok: true, text: `After about ${e.minutes} minutes the ${L.cfg.name} pulls in, ${e.heading}.` };
   }
 
   // ------------------------------------------------------------ traffic
@@ -20076,7 +20376,7 @@ class Transit {
   }
 }
 
-return { Route, freshTransit, Transit };
+return { Route, freshTransit, lineRunning, Transit };
 })();
 
 // ---- src/systems/pursuit.js
@@ -26342,6 +26642,7 @@ class Game {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
     }
+    this.npcSystem.transitTick(); // v0.33.0: passengers board and get off
     this.npcSystem.socialTick();
     this.observe();
     this.quests.tick();
@@ -26685,7 +26986,7 @@ class Game {
       return bus && this.transit.dwelling(bus) ? [{ kind: 'bus_off', id: p.riding, label: `Get off at ${this.transit.stopFor(bus).name}`, score: -999 }] : [];
     }
     const bus = this.transit.boardable();
-    if (bus) out.push({ kind: 'bus_on', id: bus.idx, label: `Board the ${this.content.transit.bus.name} bus ${this.transit.heading(bus)} (${this.content.transit.bus.fare} obols)`, score: -30 });
+    if (bus) out.push({ kind: 'bus_on', id: bus.idx, label: `Board the ${this.transit.lineOf(bus).cfg.name} bus ${this.transit.heading(bus)} (${this.transit.lineOf(bus).cfg.fare} obols)`, score: -30 });
     const jack = this.transit.carjackable();
     if (jack) out.push({ kind: 'carjack', id: jack.id, label: `Carjack the ${this.content.vehicles.models[jack.model].name}`, score: dist(p.x, p.y, jack.x, jack.y) - 10 });
     const car = this.vehicles.nearest();
@@ -26699,7 +27000,7 @@ class Game {
     };
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
-      if (npc.map !== p.map) continue;
+      if (npc.map !== p.map || npc.riding != null) continue;
       const d = dist(p.x, p.y, npc.x, npc.y);
       if (d > INTERACT_RANGE) continue;
       const name = npc.profile.shortName;
@@ -27140,6 +27441,7 @@ class Game {
         memory: n.memory, topicsUsed: n.topicsUsed, recentLines: n.recentLines, gifts: n.gifts,
         chatCooldownUntil: n.chatCooldownUntil, hooksRun: n.hooksRun, impulseCooldowns: n.impulseCooldowns || {},
         patrolBlock: n.patrolBlock, patrolIdx: n.patrolIdx, // v0.32.0: where on their beat
+        trip: n.trip || undefined, riding: n.riding ?? undefined, // v0.33.0: a bus journey under way
         health: n.health, dead: n.dead || undefined, downUntil: n.downUntil || undefined, diedAt: n.diedAt,
         intent: n.intent && n.intent.source === 'errand' ? { activity: n.intent.activity, spot: n.intent.spot, source: 'errand', until: n.intent.until, fromBlock: n.intent.fromBlock } : null,
       };
@@ -27320,6 +27622,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.33.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Living World (part 2)',
+    notes: [
+      'The No. 2 Lariat Line runs from Justice Way in Halvermouth out through the North Gate and round Lariat — Main Street, Church Street, Cotton Street and FM 38 at Chuckie\'s — from six in the morning to eleven at night. Fare 3 obols.',
+      'People ride the buses now. Quinn takes the No. 1 into the city to file survey papers at the Hall of Justice; Wade takes the No. 2 in for an evening on the town. They walk to the stop, wait, ride, get off and walk on — whether you\'re watching or not.',
+      'The world map draws every bus route, and each stop shows which lines call there, their hours and the next bus.',
+    ],
+  },
   {
     version: '0.32.0',
     date: '2026-10-15',
@@ -29192,7 +29505,7 @@ function drawBus(ctx, x, y, angle, opts = {}) {
 }
 
 /** A bus-stop sign with a little shelter roof (prop 'busstop'). */
-function drawBusStop(ctx, x, y) {
+function drawBusStop(ctx, x, y, number = '1') {
   ctx.fillStyle = 'rgba(20,20,30,0.25)';
   ctx.fillRect(x + 4, y + 26, 26, 5);
   ctx.fillStyle = '#4a4a52';
@@ -29206,7 +29519,7 @@ function drawBusStop(ctx, x, y) {
   ctx.font = 'bold 11px "Trebuchet MS", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('1', x + 16.5, y - 15.5);
+  ctx.fillText(number, x + 16.5, y - 15.5);
   ctx.fillStyle = '#f2efe6';
   ctx.fillRect(x + 19, y + 2, 9, 12); // the timetable
   ctx.fillStyle = '#7a8a8a';
@@ -30760,7 +31073,7 @@ function drawProp(ctx, p, opts) {
       break;
     }
     case 'busstop':
-      drawBusStop(ctx, x, y);
+      drawBusStop(ctx, x, y, p.lines || '1');
       break;
     case 'trafficlight':
       drawTrafficLight(ctx, p, x, y, opts.realTime ?? time);
@@ -33410,7 +33723,7 @@ class Renderer {
         items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime })) });
       }
       for (const npc of g.npcs.values()) {
-        if (npc.map !== lm.id) continue;
+        if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus
         if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
         if (isDown(npc, g.clock.total)) {
           items.push({ y: npc.y + L.y - 20, draw: at(() => this.drawLying(npc)) });
@@ -33438,7 +33751,7 @@ class Renderer {
           if (!inView(f.x - f.len / 2, f.y - f.len / 2, f.len, f.len)) continue;
           const sortY = f.y + L.y + Math.abs(Math.sin(f.angle)) * f.len * 0.4 + 4;
           const braking = f.speed < f.max * 0.3;
-          if (f.kind === 'bus') items.push({ y: sortY, draw: at(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking })) });
+          if (f.kind === 'bus') items.push({ y: sortY, draw: at(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking, number: f.line === 'r1' ? '1' : f.line.replace('r', '') })) });
           else items.push({ y: sortY, draw: at(() => drawCar(ctx, models[f.model], f.x, f.y, f.angle, { color: f.color, id: f.id, lit: night, braking })) });
         }
       }
@@ -33880,7 +34193,7 @@ class Renderer {
     const layerOf = new Map(this.layers.map((l) => [l.map.id, l]));
     for (const npc of g.npcs.values()) {
       const L = layerOf.get(npc.map);
-      if (!L) continue;
+      if (!L || npc.riding != null) continue;
       const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
       const lying = isDown(npc, g.clock.total);
       const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : 52 * (npc.profile.appearance.height || 1)));
@@ -34850,7 +35163,7 @@ class MapRenderer {
     const g = this.game;
     const out = [];
     for (const npc of g.npcs.values()) {
-      if (npc.map !== map.id) continue;
+      if (npc.map !== map.id || npc.riding != null) continue;
       out.push({ x: npc.x / TILE, y: npc.y / TILE, color: npc.met ? npc.profile.appearance.accent || '#c0614a' : '#9a9a9a', label: npc.met ? npc.profile.shortName[0] : '?', kind: 'npc' });
     }
     for (const m of g.questMarkers()) if (m.map === map.id) out.push({ x: m.x, y: m.y, color: '#e8b64c', kind: 'quest' });
@@ -35166,9 +35479,25 @@ class MapRenderer {
       const m = g.content.vehicles.models[c.model];
       hits.push({ key: `car:${c.id}`, x: cx - iconPx * 0.6, y: cy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚗', name: `Your ${m.name}`, kind: c.stolen ? 'Stolen — parked here' : 'Parked here', place: g.maps.get(c.map).name, yours: false } });
     }
-    // the No. 1 bus: its stops and where each bus is now (v0.17.0)
+    // the buses: each line's route (v0.33.0), its stops, and where each bus is now (v0.17.0)
     if (g.transit) {
-      for (const s of g.content.transit.bus.stops) {
+      g.transit.setup();
+      for (const Ln of Object.values(g.transit.lines)) {
+        ctx.save();
+        ctx.strokeStyle = Ln.cfg.color;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = Math.max(2, iconPx * 0.18);
+        ctx.setLineDash([iconPx * 0.5, iconPx * 0.3]);
+        ctx.beginPath();
+        Ln.route.pts.forEach((q, i) => (i ? ctx.lineTo(X(q.x / TILE), Y(q.y / TILE)) : ctx.moveTo(X(q.x / TILE), Y(q.y / TILE))));
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+      const seenStops = new Set();
+      for (const s of g.content.transit.lines.flatMap((l) => l.stops)) {
+        if (seenStops.has(s.id)) continue;
+        seenStops.add(s.id);
         const o = L.pos[s.sign.map];
         if (!o) continue;
         const sx = X(o.x + s.sign.x + 0.5);
@@ -35181,14 +35510,14 @@ class MapRenderer {
         ctx.fillStyle = '#fff';
         ctx.fillText('🚏', sx, sy + 1);
         const e = g.transit.eta(s.id);
-        hits.push({ key: `stop:${s.id}`, x: sx - iconPx * 0.5, y: sy - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚏', name: `${s.name} (bus stop)`, kind: e ? `Next bus in about ${e.minutes} min` : 'Bus stop', place: g.content.transit.bus.name } });
+        hits.push({ key: `stop:${s.id}`, x: sx - iconPx * 0.5, y: sy - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚏', name: `${s.name} (bus stop)`, kind: e ? `Next bus in about ${e.minutes} min` : 'No more buses today', place: g.transit.linesAt(s.id).map((Ln) => `${Ln.cfg.name}${Ln.cfg.hours ? ` (${Ln.cfg.hours.from}–${Ln.cfg.hours.to})` : ''}`).join(' · ') } });
       }
       for (const f of g.transit.followers.filter((x) => x.kind === 'bus')) {
         const bx = X(f.wx / TILE);
         const by = Y(f.wy / TILE);
         ctx.font = `${iconPx * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
         ctx.fillText('🚌', bx, by);
-        hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.content.transit.bus.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
+        hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.transit.lineOf(f).cfg.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
       }
     }
     // district names (zoomed in) or region names (zoomed out)
@@ -35612,12 +35941,12 @@ function runCommand(game, line) {
       const T = game.transit;
       T.setup();
       if (args[0]) {
-        const s = game.content.transit.bus.stops.find((x) => x.id === args[0] || x.id === `stop_${args[0]}`);
+        const s = game.content.transit.lines.flatMap((l) => l.stops).find((x) => x.id === args[0] || x.id === `stop_${args[0]}`);
         if (!s) return out('Unknown stop.', false);
         game.changeMap(s.sign.map, null, { x: (s.sign.x + 1.5) * TILE, y: (s.sign.y + 0.5) * TILE });
         return out(T.waitFor(s.id).text);
       }
-      return out(game.content.transit.bus.stops.map((s) => `${s.id.replace('stop_', '')}: ${s.name} — next bus ${T.eta(s.id)?.minutes ?? '?'} min`).join('\n'));
+      return out([...new Map(game.content.transit.lines.flatMap((l) => l.stops).map((s) => [s.id, s])).values()].map((s) => `${s.id.replace('stop_', '')}: ${s.name} — next bus ${T.eta(s.id)?.minutes ?? '?'} min`).join('\n'));
     }
     case 'car': {
       const id = args[0] || 'pipit';
@@ -39587,7 +39916,7 @@ class UI {
     const car = g.vehicles.driving();
     const riding = p.riding !== null && p.riding !== undefined ? g.transit.bus(p.riding) : null;
     const whtml = riding
-      ? `<span>🚌 ${escapeHtml(g.content.transit.bus.name)} ${escapeHtml(g.transit.heading(riding))}</span><span class="ammo">${g.transit.dwelling(riding) ? `at ${escapeHtml(g.transit.stopFor(riding).name)}` : `next: ${escapeHtml(g.transit.stopFor(riding, true).name)}`}</span>`
+      ? `<span>🚌 ${escapeHtml(g.transit.lineOf(riding).cfg.name)} ${escapeHtml(g.transit.heading(riding))}</span><span class="ammo">${g.transit.dwelling(riding) ? `at ${escapeHtml(g.transit.stopFor(riding).name)}` : `next: ${escapeHtml(g.transit.stopFor(riding, true).name)}`}</span>`
       : car
       ? `<span>🚗 ${escapeHtml(g.vehicles.model(car).name)}${car.stolen ? ' <span class="tag bad">stolen</span>' : ''}</span><span class="ammo">${Math.round(Math.abs(car.speed || 0) * 0.105)} mph</span>`
       : `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;

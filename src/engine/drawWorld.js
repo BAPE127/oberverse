@@ -1162,7 +1162,7 @@ export function drawProp(ctx, p, opts) {
       break;
     }
     case 'busstop':
-      drawBusStop(ctx, x, y);
+      drawBusStop(ctx, x, y, p.lines || '1');
       break;
     case 'trafficlight':
       drawTrafficLight(ctx, p, x, y, opts.realTime ?? time);

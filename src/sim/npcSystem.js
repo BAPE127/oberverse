@@ -11,6 +11,7 @@ import { decide, scheduleLead } from './npcBrain.js';
 import { blockAt, blockInstanceKey } from './schedule.js';
 import { remember } from './memory.js';
 import { walkSignal } from '../world/lights.js';
+import { planTrip, transitTick, carry } from './npcTransit.js';
 
 const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
 
@@ -104,6 +105,19 @@ export class NpcSystem {
     return true;
   }
 
+  /** v0.33.0: the bus trip this NPC is on (or should start) for their current destination. */
+  tripFor(npc) {
+    const trip = npc.trip;
+    if (trip && trip.target !== npc.intent.spot && trip.phase !== 'riding') npc.trip = null; // plans changed: off the bus plan (unless aboard)
+    if (!npc.trip) npc.trip = planTrip(this.game, npc, npc.intent.spot);
+    return npc.trip;
+  }
+
+  /** Each game minute: passengers board, ride and get off (src/sim/npcTransit.js). */
+  transitTick() {
+    transitTick(this.game, this);
+  }
+
   plan(npc) {
     const g = this.game;
     npc.path = null;
@@ -112,7 +126,9 @@ export class NpcSystem {
       npc.arrived = true;
       return;
     }
-    const target = parseSpotRef(npc.intent.spot);
+    const trip = npc.riding != null && npc.trip ? npc.trip : this.tripFor(npc);
+    if (trip && (trip.phase === 'waiting' || trip.phase === 'riding')) return; // at the stop, or aboard
+    const target = parseSpotRef(trip?.phase === 'to_stop' ? trip.waitRef : npc.intent.spot);
     const actor = this.actorFor(npc);
     const route = routeBetweenMaps(g.maps, npc.map, target.map, actor);
     if (!route) {
@@ -181,6 +197,7 @@ export class NpcSystem {
   updatePhysical(npc, dt) {
     const g = this.game;
     npc.moving = false;
+    if (npc.riding != null) { const bus = g.transit.bus(npc.riding); if (bus) carry(npc, bus); return; }
     if (npc.chat && g.clock.total < npc.chat.until) return;
     if (!npc.path || !npc.path.length) return;
     const wp = npc.path[0];
@@ -255,6 +272,17 @@ export class NpcSystem {
     const g = this.game;
     npc.path = null;
     npc.pendingRoute = null;
+    // v0.33.0: at the bus stop — wait there for the bus
+    if (npc.trip?.phase === 'to_stop') {
+      const w = parseSpotRef(npc.trip.waitRef);
+      const s = g.maps.get(w.map)?.spotPx(w.spot);
+      if (s && npc.map === w.map) { npc.x = s.x; npc.y = s.y; }
+      npc.trip.phase = 'waiting';
+      npc.trip.since = g.clock.total;
+      npc.arrived = true;
+      return;
+    }
+    if (npc.trip?.phase === 'to_dest') npc.trip = null; // journey's end
     const target = npc.intent?.spot ? parseSpotRef(npc.intent.spot) : null;
     if (target && target.map === npc.map) {
       const s = g.maps.get(npc.map).spotPx(target.spot);
@@ -313,6 +341,8 @@ export class NpcSystem {
     const target = parseSpotRef(ref);
     const pos = g.maps.get(target.map)?.spotPx(target.spot);
     if (!pos) return;
+    npc.riding = null; // (debug settling: off any bus, journey forgotten)
+    npc.trip = null;
     npc.map = target.map;
     npc.x = pos.x;
     npc.y = pos.y;
@@ -364,7 +394,7 @@ export class NpcSystem {
   canChat(npc, now) {
     if (npc.chat || npc.activity === 'sleep' || npc.travel || npc.hostile || incapacitated(npc, now)) return false;
     if (npc.path && npc.path.length) return false;
-    if (npc.inDialogue || npc.intent?.source === 'dairy') return false;
+    if (npc.inDialogue || npc.riding != null || npc.intent?.source === 'dairy') return false;
     return now >= (npc.chatCooldownUntil || 0);
   }
 

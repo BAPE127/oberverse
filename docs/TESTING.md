@@ -40,6 +40,13 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.33.0 (2026-10-15)
+
+- `npm run check` — **342/342 tests passed** (6 new in `worldsim.test.mjs`: two lines, every stop on its route with a place to wait, the No. 2's hours; an older save's buses kept and the new line's added; Wade's round trip on the No. 2 phase by phase; a passenger through a save (once, hidden, gets off); Quinn always the quick way on the No. 1; the player riding the No. 2 to Lariat and paying 3 obols); validator 0 errors with the new transit rules.
+- `npm run smoke` — 24/24.
+- Traced by script: Wade walks from the parlour to Church Street (18:55), boards at 19:16, reaches Justice Way at 19:52, walks to the plaza by 20:09; rides home 21:29–21:51. Quinn rides Westbrook Row → Civic Plaza 13:07–13:48 and back the same way. Found and fixed: passengers boarding a No. 1 going the long way round (via the Yards); buses and stops all painted "1". (A bus waiting forever turned out to be waiting for the test's player, standing in FM 38.)
+- Browser: the world map with both routes drawn, a No. 2 at the Cotton Street stop. No page errors.
+
 ## Verification record — v0.32.0 (2026-10-15)
 
 - `npm run check` — **336/336 tests passed** (5 new in `worldsim.test.mjs`: every character has a home or exception and the checker catches a homeless or doubled-up resident; the four flats, tenants asleep in their own, private doors; an officer walking a beat on screen (≥3 waypoints, >20 distinct tiles) and off; a conversation pausing and resuming a beat, and a save keeping the place on it; every officer's beat and the cruiser). Two tests updated (the crew's flats; a voyage test's robust wait). Validator 0 errors with the new rules.

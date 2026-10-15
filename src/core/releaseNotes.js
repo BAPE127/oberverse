@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.33.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Living World (part 2)',
+    notes: [
+      'The No. 2 Lariat Line runs from Justice Way in Halvermouth out through the North Gate and round Lariat — Main Street, Church Street, Cotton Street and FM 38 at Chuckie\'s — from six in the morning to eleven at night. Fare 3 obols.',
+      'People ride the buses now. Quinn takes the No. 1 into the city to file survey papers at the Hall of Justice; Wade takes the No. 2 in for an evening on the town. They walk to the stop, wait, ride, get off and walk on — whether you\'re watching or not.',
+      'The world map draws every bus route, and each stop shows which lines call there, their hours and the next bus.',
+    ],
+  },
+  {
     version: '0.32.0',
     date: '2026-10-15',
     channel: 'development',

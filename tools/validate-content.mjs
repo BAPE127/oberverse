@@ -411,6 +411,25 @@ export function validateContent(content = CONTENT) {
       }
     }
     for (const c of Object.values(content.characters)) for (const b of c.schedule || []) if (b.patrol && !L.patrolRoutes[b.patrol]) err(`character ${c.id}: unknown patrol ${b.patrol}`);
+    for (const [id, life] of Object.entries(L.homes)) if (life.transport && !['walk', 'transit', 'drive', 'patrol'].includes(life.transport)) err(`character ${id}: unknown transport ${life.transport}`);
+  }
+  // v0.33.0: bus lines — stops exist on real maps with somewhere to wait, ids unique per line, fares and hours valid
+  const lineIds = new Set();
+  for (const line of content.transit?.lines || []) {
+    if (lineIds.has(line.id)) err(`bus line ${line.id}: duplicate id`);
+    lineIds.add(line.id);
+    if (!(line.fare >= 0) || !(line.buses > 0) || !(line.speed > 0)) err(`bus line ${line.id}: needs a fare, buses and a speed`);
+    if (line.hours && !(/^\d\d:\d\d$/.test(line.hours.from) && /^\d\d:\d\d$/.test(line.hours.to))) err(`bus line ${line.id}: bad hours`);
+    if (line.stops.length < 2) err(`bus line ${line.id}: fewer than two stops`);
+    const seen = new Set();
+    for (const s of line.stops) {
+      if (seen.has(s.id)) err(`bus line ${line.id}: stop ${s.id} listed twice`);
+      seen.add(s.id);
+      const m = maps.get(s.sign.map);
+      if (!m) { err(`stop ${s.id}: unknown map ${s.sign.map}`); continue; }
+      if (!m.spot(`wait_${s.id}`)) err(`stop ${s.id}: nowhere to wait`);
+      else { const w = m.spot(`wait_${s.id}`); if (m.blockedTile(w.x, w.y, { kind: 'npc', canPass: () => true })) err(`stop ${s.id}: the waiting place is blocked`); }
+    }
   }
   return { errors, warnings };
 }

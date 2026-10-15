@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.33.0.** Bus lines (`content.transit.lines`, the No. 2 to Lariat), NPC bus trips (`src/sim/npcTransit.js`), routes on the world map.
 - **2026-10-15 — v0.32.0.** World simulation rules (`src/content/life.js`, validator), Plumb Line flats, police beats (`src/world/patrols.js`, npcSystem patrol steps), the patrol cruiser. **New content must follow docs/WORLD_SIMULATION.md.**
 - **2026-10-15 — v0.31.0.** Livestock, pastures, feeding and produce; market demand; Hoof & Horn (Wes); the tablet's Farm app.
 - **2026-10-15 — v0.30.0.** Farming (`src/systems/farm.js`, `src/content/farming.js`, `src/ui/farm.js`): land, work, growth, the Co-op; Red Dirt tractors as vehicles; Feed & Seed and the Land Office open; Dale and Lorna.

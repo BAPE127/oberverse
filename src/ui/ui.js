@@ -682,7 +682,7 @@ export class UI {
     const car = g.vehicles.driving();
     const riding = p.riding !== null && p.riding !== undefined ? g.transit.bus(p.riding) : null;
     const whtml = riding
-      ? `<span>🚌 ${escapeHtml(g.content.transit.bus.name)} ${escapeHtml(g.transit.heading(riding))}</span><span class="ammo">${g.transit.dwelling(riding) ? `at ${escapeHtml(g.transit.stopFor(riding).name)}` : `next: ${escapeHtml(g.transit.stopFor(riding, true).name)}`}</span>`
+      ? `<span>🚌 ${escapeHtml(g.transit.lineOf(riding).cfg.name)} ${escapeHtml(g.transit.heading(riding))}</span><span class="ammo">${g.transit.dwelling(riding) ? `at ${escapeHtml(g.transit.stopFor(riding).name)}` : `next: ${escapeHtml(g.transit.stopFor(riding, true).name)}`}</span>`
       : car
       ? `<span>🚗 ${escapeHtml(g.vehicles.model(car).name)}${car.stolen ? ' <span class="tag bad">stolen</span>' : ''}</span><span class="ammo">${Math.round(Math.abs(car.speed || 0) * 0.105)} mph</span>`
       : `<span>${w.id ? '⚔' : '✊'} ${escapeHtml(w.name)}</span>${ammoHtml}`;

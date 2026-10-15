@@ -130,7 +130,7 @@ export const LIFE = {
   npc_earl: { home: 'res_hollister/house', occupation: 'farmer' },
   npc_wes: { home: 'res_hoof_horn/back_room', occupation: 'shopkeeper' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
-  npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer' },
+  npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
 };
 

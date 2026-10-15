@@ -50,7 +50,7 @@ export class MapRenderer {
     const g = this.game;
     const out = [];
     for (const npc of g.npcs.values()) {
-      if (npc.map !== map.id) continue;
+      if (npc.map !== map.id || npc.riding != null) continue;
       out.push({ x: npc.x / TILE, y: npc.y / TILE, color: npc.met ? npc.profile.appearance.accent || '#c0614a' : '#9a9a9a', label: npc.met ? npc.profile.shortName[0] : '?', kind: 'npc' });
     }
     for (const m of g.questMarkers()) if (m.map === map.id) out.push({ x: m.x, y: m.y, color: '#e8b64c', kind: 'quest' });
@@ -366,9 +366,25 @@ export class MapRenderer {
       const m = g.content.vehicles.models[c.model];
       hits.push({ key: `car:${c.id}`, x: cx - iconPx * 0.6, y: cy - iconPx * 0.6, w: iconPx * 1.2, h: iconPx * 1.2, info: { icon: '🚗', name: `Your ${m.name}`, kind: c.stolen ? 'Stolen — parked here' : 'Parked here', place: g.maps.get(c.map).name, yours: false } });
     }
-    // the No. 1 bus: its stops and where each bus is now (v0.17.0)
+    // the buses: each line's route (v0.33.0), its stops, and where each bus is now (v0.17.0)
     if (g.transit) {
-      for (const s of g.content.transit.bus.stops) {
+      g.transit.setup();
+      for (const Ln of Object.values(g.transit.lines)) {
+        ctx.save();
+        ctx.strokeStyle = Ln.cfg.color;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = Math.max(2, iconPx * 0.18);
+        ctx.setLineDash([iconPx * 0.5, iconPx * 0.3]);
+        ctx.beginPath();
+        Ln.route.pts.forEach((q, i) => (i ? ctx.lineTo(X(q.x / TILE), Y(q.y / TILE)) : ctx.moveTo(X(q.x / TILE), Y(q.y / TILE))));
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+      const seenStops = new Set();
+      for (const s of g.content.transit.lines.flatMap((l) => l.stops)) {
+        if (seenStops.has(s.id)) continue;
+        seenStops.add(s.id);
         const o = L.pos[s.sign.map];
         if (!o) continue;
         const sx = X(o.x + s.sign.x + 0.5);
@@ -381,14 +397,14 @@ export class MapRenderer {
         ctx.fillStyle = '#fff';
         ctx.fillText('🚏', sx, sy + 1);
         const e = g.transit.eta(s.id);
-        hits.push({ key: `stop:${s.id}`, x: sx - iconPx * 0.5, y: sy - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚏', name: `${s.name} (bus stop)`, kind: e ? `Next bus in about ${e.minutes} min` : 'Bus stop', place: g.content.transit.bus.name } });
+        hits.push({ key: `stop:${s.id}`, x: sx - iconPx * 0.5, y: sy - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚏', name: `${s.name} (bus stop)`, kind: e ? `Next bus in about ${e.minutes} min` : 'No more buses today', place: g.transit.linesAt(s.id).map((Ln) => `${Ln.cfg.name}${Ln.cfg.hours ? ` (${Ln.cfg.hours.from}–${Ln.cfg.hours.to})` : ''}`).join(' · ') } });
       }
       for (const f of g.transit.followers.filter((x) => x.kind === 'bus')) {
         const bx = X(f.wx / TILE);
         const by = Y(f.wy / TILE);
         ctx.font = `${iconPx * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
         ctx.fillText('🚌', bx, by);
-        hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.content.transit.bus.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
+        hits.push({ key: `bus:${f.id}`, x: bx - iconPx * 0.5, y: by - iconPx * 0.5, w: iconPx, h: iconPx, info: { icon: '🚌', name: `${g.transit.lineOf(f).cfg.name} bus`, kind: g.transit.heading(f), place: g.transit.dwelling(f) ? `At ${g.transit.stopFor(f).name}` : `Next stop: ${g.transit.stopFor(f, true).name}` } });
       }
     }
     // district names (zoomed in) or region names (zoomed out)

@@ -1,4 +1,4 @@
-# The World Simulation Rules (v0.32.0)
+# The World Simulation Rules (v0.32.0–v0.33.0)
 
 Every persistent character in the Oberverse belongs to the world simulation. These rules apply to all current and **future** content; `npm run check` enforces them.
 
@@ -20,12 +20,15 @@ Schedules are data (`profile.schedule`: time blocks with an activity and a spot,
 
 Beats: `beat_civic`, `beat_eastend`, `beat_park`, `beat_sumps`, `beat_docks` (Halvermouth), `beat_lanternside`, `beat_westbrook`, `beat_oilfields`. A patrol cruiser drives the city as a traffic loop (`police_cruiser` in `src/content/transit.js`).
 
+## 4. Buses
+Lines live in `src/content/transit.js` (`BUS_INFO` is the No. 1, `LINE_2` the No. 2; `buildTransit` returns `lines`). A line: `id`, `name`, `ends` (for "towards …"), `fare`, `buses`, `speed`, `dwell`, `hours` (or null), a closed `route` of lane points, and `stops` (a sign on a map; a `wait_<stop>` spot beside it is made at load). The transit system (`src/systems/transit.js`) runs every line's buses in world space, stopping at each stop (in both directions where the loop passes twice), only within hours.
+
+**Riding:** the player boards a bus standing at a stop (E), pays the line's fare and gets off at any stop. **NPCs:** a character with `transport: 'transit'` (occupation, or a per-character override in `LIFE`) going to another region plans a trip in `src/sim/npcTransit.js` — `npc.trip` (`to_stop` → `waiting` → `riding` → `to_dest`) and `npc.riding` — boarding only a bus going the quicker way, giving up after two hours. Saved with the NPC.
+
 ## 4. Adding content
 - **A character:** profile + dialogue as before, *and* a `LIFE` entry (home + occupation) and a sleep block in that home. If there's no room, add a residence or unit — never leave them homeless.
 - **A building people live in:** a `RESIDENCES` entry with units and beds (spots on its interior).
 - **An apartment block:** a hall interior with a door per flat, one interior per flat (see the Plumb Line in `src/content/maps/westbrook.js`), one unit each.
 - **A job:** an `OCCUPATIONS` entry; schedules use it.
 - **A police beat or officer:** a `PATROLS` entry; schedule blocks with `patrol`.
-
-## 5. Planned (stage 2)
-A multi-route bus network that reaches Lariat, NPCs who walk to a stop, wait, ride and alight (occupations with `transport: 'transit'`), and transit information on the map.
+- **A bus line:** an entry in `lines` with its route (lane points, closed) and stops; the checker requires real maps, a place to wait at each stop, valid hours. Characters who should ride it get `transport: 'transit'`.

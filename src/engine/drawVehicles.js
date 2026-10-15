@@ -227,7 +227,7 @@ export function drawBus(ctx, x, y, angle, opts = {}) {
 }
 
 /** A bus-stop sign with a little shelter roof (prop 'busstop'). */
-export function drawBusStop(ctx, x, y) {
+export function drawBusStop(ctx, x, y, number = '1') {
   ctx.fillStyle = 'rgba(20,20,30,0.25)';
   ctx.fillRect(x + 4, y + 26, 26, 5);
   ctx.fillStyle = '#4a4a52';
@@ -241,7 +241,7 @@ export function drawBusStop(ctx, x, y) {
   ctx.font = 'bold 11px "Trebuchet MS", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('1', x + 16.5, y - 15.5);
+  ctx.fillText(number, x + 16.5, y - 15.5);
   ctx.fillStyle = '#f2efe6';
   ctx.fillRect(x + 19, y + 2, 9, 12); // the timetable
   ctx.fillStyle = '#7a8a8a';

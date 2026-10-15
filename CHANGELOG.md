@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.33.0] — 2026-10-15 — "Living World" stage 2 (development build)
+
+The second stage of the world-simulation overhaul: public transport. See docs/WORLD_SIMULATION.md.
+
+### Added
+- **Bus lines** (`content.transit.lines`): the transit system now runs any number of lines, each with its route, stops, fare, buses, dwell and **operating hours** (out of hours a bus runs on without stopping and the stop says when the next one is). The No. 1 is unchanged.
+- **The No. 2 Lariat Line** (`LINE_2` in `src/content/transit.js`): Justice Way (Halvermouth) → the North Gate → FM 38 → Main Street, Church Street, Cotton Street, FM 38 at Mesquite Lane → back, turning in the city by Grand Avenue, Tanner Street and Crown Street. Two buses, 3 obols, 06:00–23:00; five new stops. Through the same junction lights and traffic rules as everything else.
+- **NPCs ride buses** (`src/sim/npcTransit.js`): a character whose occupation (or LIFE entry) prefers transit and who is going to another region plans a trip — the line and stops that save the most walking — walks to the stop, waits, boards only a bus going the quicker way round, rides aboard (hidden; moving with the bus on or off screen), gets off at their stop and walks on. No bus within two hours: they walk instead. The trip and the seat are saved; a passenger is never duplicated and can't be talked to through the bus wall. Quinn (No. 1, to the Hall of Justice in the afternoons) and Wade (No. 2, an evening in the city) commute this way.
+- **Transit on the map:** every line's route is drawn on the world map in its colour; each stop lists its lines, hours and next bus; buses and stops show their line number.
+- **Validation:** bus lines need unique ids, a fare, buses, a speed, valid hours and at least two stops; every stop must be on a real map with an unblocked place to wait; transport overrides must be known modes.
+- Tests: 6 more in `tests/worldsim.test.mjs`.
+
+### Saves
+- Older saves' buses become the No. 1's (keeping their places); the No. 2's buses are added.
+
 ## [0.32.0] — 2026-10-15 — "Living World" stage 1 (development build)
 
 The owner's master prompt for a world-simulation overhaul (persistent NPC lives, housing, public transport, police patrols), staged to keep usage in check. Stage 1: the rules, housing and patrols. Stage 2 (planned): the bus network and NPC transit use. See docs/WORLD_SIMULATION.md.

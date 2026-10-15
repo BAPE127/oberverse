@@ -208,7 +208,7 @@ export class Renderer {
         items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime })) });
       }
       for (const npc of g.npcs.values()) {
-        if (npc.map !== lm.id) continue;
+        if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus
         if (!inView(npc.x - 20, npc.y - 50, 40, 60)) continue;
         if (isDown(npc, g.clock.total)) {
           items.push({ y: npc.y + L.y - 20, draw: at(() => this.drawLying(npc)) });
@@ -236,7 +236,7 @@ export class Renderer {
           if (!inView(f.x - f.len / 2, f.y - f.len / 2, f.len, f.len)) continue;
           const sortY = f.y + L.y + Math.abs(Math.sin(f.angle)) * f.len * 0.4 + 4;
           const braking = f.speed < f.max * 0.3;
-          if (f.kind === 'bus') items.push({ y: sortY, draw: at(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking })) });
+          if (f.kind === 'bus') items.push({ y: sortY, draw: at(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking, number: f.line === 'r1' ? '1' : f.line.replace('r', '') })) });
           else items.push({ y: sortY, draw: at(() => drawCar(ctx, models[f.model], f.x, f.y, f.angle, { color: f.color, id: f.id, lit: night, braking })) });
         }
       }
@@ -678,7 +678,7 @@ export class Renderer {
     const layerOf = new Map(this.layers.map((l) => [l.map.id, l]));
     for (const npc of g.npcs.values()) {
       const L = layerOf.get(npc.map);
-      if (!L) continue;
+      if (!L || npc.riding != null) continue;
       const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
       const lying = isDown(npc, g.clock.total);
       const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : 52 * (npc.profile.appearance.height || 1)));

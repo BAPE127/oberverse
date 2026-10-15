@@ -11,7 +11,8 @@
 // lights at the junctions (src/world/lights.js); elsewhere, or while time
 // skips, they move once a game minute and never stop.
 //
-// The bus: three buses on one loop, 2 obols a ride. Traffic: rings round city
+// The buses (v0.33.0: several lines — content.transit.lines; the No. 1 is
+// lines[0]): each line a loop with its stops, fare, hours and buses, 2–3 obols a ride. Traffic: rings round city
 // blocks, plus through traffic that drives in through one gate and out through
 // another (it leaves the map and new cars come in — no U-turns at the edges).
 //
@@ -113,8 +114,19 @@ export class Route {
 }
 
 export function freshTransit(content) {
-  const B = content.transit.bus;
-  return { buses: Array.from({ length: B.buses }, (_, i) => ({ dist: null, slot: i, dwellUntil: 0 })) };
+  const buses = [];
+  for (const line of content.transit.lines || [content.transit.bus]) for (let i = 0; i < line.buses; i++) buses.push({ dist: null, slot: i, line: line.id, dwellUntil: 0 });
+  return { buses };
+}
+
+/** Is a line running at this minute of the day? */
+export function lineRunning(line, minuteOfDay) {
+  if (!line.hours) return true;
+  const [fh, fm] = line.hours.from.split(':').map(Number);
+  const [th, tm] = line.hours.to.split(':').map(Number);
+  const a = fh * 60 + fm;
+  const b = th * 60 + tm;
+  return a <= b ? minuteOfDay >= a && minuteOfDay < b : minuteOfDay >= a || minuteOfDay < b;
 }
 
 export class Transit {
@@ -134,7 +146,26 @@ export class Transit {
   get state() {
     const g = this.game;
     if (!g.world.transit) g.world.transit = freshTransit(g.content);
-    return g.world.transit;
+    const s = g.world.transit;
+    // v0.33.0: older saves have one line's buses: they're the No. 1's; add the other lines' buses
+    if (!s.linesChecked) {
+      for (const b of s.buses) b.line ||= this.cfg.bus.id || 'r1';
+      for (const line of this.cfg.lines || []) {
+        const have = s.buses.filter((b) => b.line === line.id).length;
+        for (let i = have; i < line.buses; i++) s.buses.push({ dist: null, slot: i, line: line.id, dwellUntil: 0 });
+      }
+      s.linesChecked = true;
+    }
+    return s;
+  }
+
+  /** v0.33.0: a line's runtime: { cfg, route, stops, turn }. */
+  line(id) {
+    this.setup();
+    return this.lines[id];
+  }
+  lineOf(f) {
+    return this.lines[f.line];
   }
 
   /** Map-local points → world pixels. */
@@ -149,30 +180,40 @@ export class Transit {
   setup() {
     if (this.ready) return;
     const g = this.game;
-    const B = this.cfg.bus;
-    this.busRoute = new Route(this.worldPts(B.route));
     // junction boxes in world pixels, and where each route enters them (and along which axis)
     this.junctions = (this.cfg.junctions || []).map((j) => {
       const w = mapToWorld(g, j.map, j.x * TILE, j.y * TILE);
       return { ...j, wx: w.x * TILE, wy: w.y * TILE, ww: j.w * TILE, wh: j.h * TILE };
     });
-    // each stop, at its distance along the loop in each direction
-    this.stops = [];
-    for (const s of B.stops) {
-      const w = mapToWorld(g, s.sign.map, (s.sign.x + 0.5) * TILE, (s.sign.y + 0.5) * TILE);
-      for (const d of this.busRoute.near(w.x * TILE, w.y * TILE, 5.5 * TILE)) this.stops.push({ ...s, dist: d });
+    // each line: its loop, its stops at their distances along it (both directions), and its far end
+    this.lines = {};
+    for (const cfg of this.cfg.lines || [this.cfg.bus]) {
+      const route = new Route(this.worldPts(cfg.route));
+      const stops = [];
+      for (const s of cfg.stops) {
+        const w = mapToWorld(g, s.sign.map, (s.sign.x + 0.5) * TILE, (s.sign.y + 0.5) * TILE);
+        for (const d of route.near(w.x * TILE, w.y * TILE, 5.5 * TILE)) stops.push({ ...s, dist: d });
+      }
+      stops.sort((a, b) => a.dist - b.dist);
+      // the far end: the point of the loop furthest from where it starts
+      const p0 = route.at(0);
+      let turn = 0;
+      let far = -1;
+      for (let d = 0; d < route.length; d += 32) { const q = route.at(d); const dd = Math.hypot(q.x - p0.x, q.y - p0.y); if (dd > far) { far = dd; turn = d; } }
+      this.entries(route);
+      this.lines[cfg.id] = { cfg, route, stops, turn };
     }
-    this.stops.sort((a, b) => a.dist - b.dist);
-    // the far end of the line: the route's easternmost point
-    let far = 0;
-    let fx = -Infinity;
-    for (let d = 0; d < this.busRoute.length; d += 32) { const p = this.busRoute.at(d); if (p.x > fx) { fx = p.x; far = d; } }
-    this.turn = far;
-    this.entries(this.busRoute);
+    // compatibility: the No. 1's route and stops
+    const one = this.lines[this.cfg.bus.id || 'r1'] || Object.values(this.lines)[0];
+    this.busRoute = one.route;
+    this.stops = one.stops;
+    this.turn = one.turn;
     const st = this.state;
     this.followers = st.buses.map((b, i) => {
-      if (b.dist === null || b.dist === undefined || b.dist > this.busRoute.length) b.dist = (this.busRoute.length * i) / st.buses.length;
-      return { id: `bus${i + 1}`, kind: 'bus', idx: i, route: this.busRoute, dist: b.dist, speed: 0, max: B.speed, len: B.len, wid: B.wid, color: B.color, state: b };
+      const L = this.lines[b.line] || one;
+      const n = st.buses.filter((x) => x.line === b.line).length;
+      if (b.dist === null || b.dist === undefined || b.dist > L.route.length) b.dist = (L.route.length * b.slot) / Math.max(1, n);
+      return { id: `bus${i + 1}`, kind: 'bus', idx: i, line: L.cfg.id, route: L.route, dist: b.dist, speed: 0, max: L.cfg.speed, len: L.cfg.len, wid: L.cfg.wid, color: L.cfg.color, state: b };
     });
     // traffic
     const T = this.cfg.traffic;
@@ -243,17 +284,24 @@ export class Transit {
 
   /** The stop a bus is at (while dwelling), or the next one ahead. */
   stopFor(f, ahead = false) {
+    const stops = this.lineOf(f).stops;
     const d = f.dist;
     if (!ahead) {
-      const here = this.stops.find((s) => Math.abs(s.dist - d) < 2);
+      const here = stops.find((s) => Math.abs(s.dist - d) < 2);
       if (here) return here;
     }
-    return this.stops.find((s) => s.dist > d + 2) || this.stops[0];
+    return stops.find((s) => s.dist > d + 2) || stops[0];
   }
 
   /** "towards the Ober Fields" or "towards the Yards". */
   heading(f) {
-    return f.dist < this.turn ? 'towards the Ober Fields' : 'towards Mill Road Yards';
+    return this.headingAt(this.lineOf(f), f.dist);
+  }
+
+  /** "towards Lariat" — the end of the line a bus at this distance is heading for. */
+  headingAt(L, d) {
+    const ends = L.cfg.ends || ['the far end', 'the start of the line'];
+    return d < L.turn ? `towards ${ends[0]}` : `towards ${ends[1]}`;
   }
 
   regionOf(mapId) {
@@ -313,14 +361,15 @@ export class Transit {
 
   step(f, dt, careful) {
     const g = this.game;
-    const B = this.cfg.bus;
+    const LN = f.kind === 'bus' ? this.lineOf(f) : null;
+    const B = LN?.cfg;
     if (f.kind === 'bus' && g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
     let target = f.max;
-    // ease into the next stop
+    // ease into the next stop (out of hours, a bus runs back to the depot without stopping)
     let toStop = Infinity;
     let stop = null;
-    if (f.kind === 'bus') {
-      stop = this.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || this.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
+    if (f.kind === 'bus' && lineRunning(B, g.clock.minuteOfDay)) {
+      stop = LN.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || LN.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
       if (stop) toStop = f.route.wrap(stop.dist - f.dist);
       if (careful) target = Math.min(target, 30 + toStop * 1.6);
     }
@@ -352,6 +401,7 @@ export class Transit {
       f.state.dist = f.dist;
       this.place(f);
       if (g.player.riding === f.idx) g.bus.emit('transit:stop', { stop: stop.id, name: stop.name });
+      g.bus.emit('transit:dwell', { bus: f.idx, line: f.line, stop: stop.id });
       return;
     }
     // through traffic leaves at the end of its road; another car comes in later
@@ -414,7 +464,7 @@ export class Transit {
       if (pw && test(pw.x * TILE, pw.y * TILE, p.driving ? 18 : 8)) return 'player';
     }
     for (const n of g.npcs.values()) {
-      if (n.map !== f.map || n.dead || isDown(n, g.clock.total)) continue;
+      if (n.map !== f.map || n.dead || n.riding != null || isDown(n, g.clock.total)) continue;
       const w = mapToWorld(g, n.map, n.x, n.y);
       if (w && test(w.x * TILE, w.y * TILE, 8)) return 'npc';
     }
@@ -453,8 +503,8 @@ export class Transit {
   board(idx) {
     const g = this.game;
     const f = this.bus(idx);
-    const fare = this.cfg.bus.fare;
     if (!f || !this.dwelling(f)) return { ok: false, text: 'The bus has gone.' };
+    const fare = this.lineOf(f).cfg.fare;
     if (g.player.money < fare) return { ok: false, text: `The driver taps the sign: FARE ${fare} OBOLS. You can't afford it.` };
     g.player.money -= fare;
     g.bus.emit('money:changed', { delta: -fare, total: g.player.money });
@@ -465,7 +515,7 @@ export class Transit {
     this.carryRider();
     g.bus.emit('sfx', { id: 'sfx_door' });
     g.bus.emit('transit:boarded', { bus: f.id });
-    return { ok: true, text: `You pay ${fare} obols and find a seat on the ${this.cfg.bus.name}, ${this.heading(f)}. Next stop: ${this.stopFor(f, true).name}. (E to get off when it stops.)` };
+    return { ok: true, text: `You pay ${fare} obols and find a seat on the ${this.lineOf(f).cfg.name}, ${this.heading(f)}. Next stop: ${this.stopFor(f, true).name}. (E to get off when it stops.)` };
   }
 
   /** Keep the rider on the bus, changing map as it does. */
@@ -510,39 +560,49 @@ export class Transit {
     return { ok: true, text: `${stop.name}.` };
   }
 
-  /** Minutes until a bus next stops at this stop (either direction), and which bus. */
-  eta(stopId) {
+  /** The lines that call at a stop. */
+  linesAt(stopId) {
     this.setup();
-    const B = this.cfg.bus;
+    return Object.values(this.lines).filter((L) => L.cfg.stops.some((s) => s.id === stopId));
+  }
+
+  /** Minutes until a bus next stops at this stop (either direction), and which bus; optionally on one line. */
+  eta(stopId, lineId = null) {
+    this.setup();
     let best = null;
-    for (const f of this.followers.filter((x) => x.kind === 'bus')) {
-      let t = Math.max(0, f.state.dwellUntil - this.game.clock.total);
+    const now = this.game.clock.total;
+    for (const f of this.followers.filter((x) => x.kind === 'bus' && (!lineId || x.line === lineId))) {
+      const L = this.lineOf(f);
+      if (!L.cfg.stops.some((s) => s.id === stopId)) continue;
+      let t = Math.max(0, f.state.dwellUntil - now);
       let d = f.dist;
-      for (let k = 0; k < this.stops.length + 1; k++) {
-        const next = this.stops.find((s) => s.dist > d + 0.5) || this.stops[0];
+      for (let k = 0; k < L.stops.length + 1; k++) {
+        const next = L.stops.find((s) => s.dist > d + 0.5) || L.stops[0];
         const gap = f.route.wrap(next.dist - d) || f.route.length;
-        t += gap / B.speed;
-        if (next.id === stopId) {
-          if (!best || t < best.minutes) best = { minutes: Math.ceil(t), bus: f.idx, dist: next.dist, heading: next.dist < this.turn ? 'towards the Ober Fields' : 'towards Mill Road Yards' };
+        t += gap / L.cfg.speed;
+        if (next.id === stopId && lineRunning(L.cfg, Math.floor(now + t) % 1440)) {
+          if (!best || t < best.minutes) best = { minutes: Math.ceil(t), bus: f.idx, line: L.cfg.id, dist: next.dist, heading: this.headingAt(L, next.dist) };
           break;
         }
-        t += B.dwell;
+        t += L.cfg.dwell;
         d = next.dist;
       }
     }
     return best;
   }
 
-  /** E on a bus-stop sign. */
+  /** E on a bus-stop sign: the lines that call here, where they go, the hours, and the next bus. */
   stopInfo(stopId) {
-    const s = this.cfg.bus.stops.find((x) => x.id === stopId);
+    const lines = this.linesAt(stopId);
+    const s = lines[0]?.cfg.stops.find((x) => x.id === stopId);
     const e = this.eta(stopId);
-    const at = this.on(this.game.player.map).find((f) => this.dwelling(f) && this.stopFor(f).id === stopId);
+    const at = this.on(this.game.player.map).find((f) => f.kind === 'bus' && this.dwelling(f) && this.stopFor(f).id === stopId);
+    const about = lines.map((L) => `${L.cfg.name} — ${L.cfg.stops.map((x) => x.name).join(' · ')}. Fare ${L.cfg.fare} obols${L.cfg.hours ? `, ${L.cfg.hours.from}–${L.cfg.hours.to}` : ', all day and night'}.`).join(' ');
     return {
       type: 'choices', title: `🚏 ${s.name}`,
-      text: `${this.cfg.bus.name} bus — Mill Road Yards · Mill Road (the Sumps) · Civic Plaza · The East End · Westbrook Row · Gullwing Road · Ober's Oil Refinery. Fare ${this.cfg.bus.fare} obols. ${at ? 'A bus is waiting here now.' : e ? `Next bus: about ${e.minutes} min (${e.heading}).` : ''}`,
-      options: at ? [{ label: 'OK', call: ['transit', 'noop'] }] : [
-        { label: `Wait for the bus (about ${e?.minutes ?? '?'} min)`, call: ['transit', 'waitFor', stopId] },
+      text: `${about} ${at ? 'A bus is waiting here now.' : e ? `Next bus: about ${e.minutes} min (${this.lines[e.line].cfg.name}, ${e.heading}).` : 'No more buses today.'}`,
+      options: at || !e ? [{ label: 'OK', call: ['transit', 'noop'] }] : [
+        { label: `Wait for the bus (about ${e.minutes} min)`, call: ['transit', 'waitFor', stopId] },
         { label: 'Leave it', call: ['transit', 'noop'] },
       ],
     };
@@ -560,14 +620,15 @@ export class Transit {
     g.skipTime(Math.max(0, e.minutes - 1));
     // make sure it's here and waiting, whatever happened on the way
     const f = this.bus(e.bus);
+    const L = this.lineOf(f);
     f.dist = e.dist;
     f.state.dist = e.dist;
     f.speed = 0;
-    f.state.dwellUntil = g.clock.total + this.cfg.bus.dwell;
-    const stop = this.stops.find((s) => Math.abs(s.dist - e.dist) < 1);
+    f.state.dwellUntil = g.clock.total + L.cfg.dwell;
+    const stop = L.stops.find((x) => Math.abs(x.dist - e.dist) < 1);
     f.state.lastStop = `${stop.id}@${Math.round(stop.dist)}`;
     this.place(f);
-    return { ok: true, text: `After about ${e.minutes} minutes the ${this.cfg.bus.name} pulls in, ${e.heading}.` };
+    return { ok: true, text: `After about ${e.minutes} minutes the ${L.cfg.name} pulls in, ${e.heading}.` };
   }
 
   // ------------------------------------------------------------ traffic

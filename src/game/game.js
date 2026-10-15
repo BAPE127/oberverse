@@ -334,6 +334,7 @@ export class Game {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
     }
+    this.npcSystem.transitTick(); // v0.33.0: passengers board and get off
     this.npcSystem.socialTick();
     this.observe();
     this.quests.tick();
@@ -677,7 +678,7 @@ export class Game {
       return bus && this.transit.dwelling(bus) ? [{ kind: 'bus_off', id: p.riding, label: `Get off at ${this.transit.stopFor(bus).name}`, score: -999 }] : [];
     }
     const bus = this.transit.boardable();
-    if (bus) out.push({ kind: 'bus_on', id: bus.idx, label: `Board the ${this.content.transit.bus.name} bus ${this.transit.heading(bus)} (${this.content.transit.bus.fare} obols)`, score: -30 });
+    if (bus) out.push({ kind: 'bus_on', id: bus.idx, label: `Board the ${this.transit.lineOf(bus).cfg.name} bus ${this.transit.heading(bus)} (${this.transit.lineOf(bus).cfg.fare} obols)`, score: -30 });
     const jack = this.transit.carjackable();
     if (jack) out.push({ kind: 'carjack', id: jack.id, label: `Carjack the ${this.content.vehicles.models[jack.model].name}`, score: dist(p.x, p.y, jack.x, jack.y) - 10 });
     const car = this.vehicles.nearest();
@@ -691,7 +692,7 @@ export class Game {
     };
     const now = this.clock.total;
     for (const npc of this.npcs.values()) {
-      if (npc.map !== p.map) continue;
+      if (npc.map !== p.map || npc.riding != null) continue;
       const d = dist(p.x, p.y, npc.x, npc.y);
       if (d > INTERACT_RANGE) continue;
       const name = npc.profile.shortName;
@@ -1132,6 +1133,7 @@ export class Game {
         memory: n.memory, topicsUsed: n.topicsUsed, recentLines: n.recentLines, gifts: n.gifts,
         chatCooldownUntil: n.chatCooldownUntil, hooksRun: n.hooksRun, impulseCooldowns: n.impulseCooldowns || {},
         patrolBlock: n.patrolBlock, patrolIdx: n.patrolIdx, // v0.32.0: where on their beat
+        trip: n.trip || undefined, riding: n.riding ?? undefined, // v0.33.0: a bus journey under way
         health: n.health, dead: n.dead || undefined, downUntil: n.downUntil || undefined, diedAt: n.diedAt,
         intent: n.intent && n.intent.source === 'errand' ? { activity: n.intent.activity, spot: n.intent.spot, source: 'errand', until: n.intent.until, fromBlock: n.intent.fromBlock } : null,
       };

@@ -9,7 +9,10 @@
 //   lane centre on a road whose first (authored) line is r:  north/west lane r'+1, south/east lane r'+3
 
 export const BUS_INFO = {
+  id: 'r1',
   name: 'No. 1',
+  ends: ['the Ober Fields', 'Mill Road Yards'],
+  hours: null, // round the clock
   fare: 2,
   buses: 3, // spaced evenly round the loop
   speed: 230, // px per second (= per game minute)
@@ -28,6 +31,33 @@ export const BUS_STOPS = [
   { id: 'stop_westbrook', name: 'Westbrook Row', sign: { map: 'westbrook', x: 26, y: 11 } },
   { id: 'stop_lanternside', name: 'Gullwing Road', sign: { map: 'lanternside', x: 36, y: 11 } },
   { id: 'stop_ober', name: 'Ober\'s Oil Refinery', sign: { map: 'ober_fields', x: 40, y: 11 } },
+];
+
+/**
+ * v0.33.0: the No. 2 "Lariat Line" — from Justice Way in Halvermouth out
+ * through the North Gate, up FM 38, round Lariat's downtown block (Main,
+ * Church, Cotton) and back; turning round in the city by Grand Avenue,
+ * Tanner Street and Crown Street. 06:00–23:00.
+ */
+export const LINE_2 = {
+  id: 'r2',
+  name: 'No. 2 Lariat Line',
+  ends: ['Lariat', 'Halvermouth'],
+  fare: 3,
+  buses: 2,
+  speed: 230,
+  dwell: 6,
+  len: 150,
+  wid: 46,
+  color: '#a8482a',
+  hours: { from: '06:00', to: '23:00' },
+};
+export const LINE_2_STOPS = [
+  { id: 'stop_justice', name: 'Justice Way (Hall of Justice)', sign: { map: 'halvermouth', x: 37, y: 22 } },
+  { id: 'stop_lariat_main', name: 'Main Street, Lariat (the Mercantile)', sign: { map: 'lariat', x: 52, y: 44 } },
+  { id: 'stop_lariat_church', name: 'Church Street, Lariat (the Rodeo Grounds)', sign: { map: 'lariat', x: 24, y: 47 } },
+  { id: 'stop_lariat_cotton', name: 'Cotton Street, Lariat (the Diner)', sign: { map: 'lariat', x: 61, y: 56 } },
+  { id: 'stop_lariat_fm38', name: 'FM 38 at Mesquite Lane (Chuckie\'s Cheese)', sign: { map: 'lariat', x: 71, y: 70 } },
 ];
 
 /** Junctions with traffic lights: [map, street column, avenue row] (authored first lines). */
@@ -98,15 +128,35 @@ export function buildTransit(S) {
     ],
   };
   const junctions = LIGHTS.map(([map, c, r], i) => ({ id: `j${i}`, map, x: X(map, c), y: Y(map, r), w: 4, h: 4, offset: (i * 7) % 22 }));
-  const stops = BUS_STOPS.map((s) => ({ ...s, sign: { map: s.sign.map, x: X(s.sign.map, s.sign.x), y: Y(s.sign.map, s.sign.y) } }));
-  return { bus: { ...BUS_INFO, route, stops }, traffic, junctions };
+  const stopsOf = (list) => list.map((s) => ({ ...s, sign: { map: s.sign.map, x: X(s.sign.map, s.sign.x), y: Y(s.sign.map, s.sign.y) } }));
+  const stops = stopsOf(BUS_STOPS);
+  const L = 'lariat';
+  const line2 = {
+    ...LINE_2,
+    route: [
+      p(H, Wl(H, 38), N(H, 12)), p(H, Wl(H, 38), 0), // up Justice Way and out of the North Gate
+      p(L, 73, 109.9), p(L, 73, 43), // up FM 38 into Lariat
+      p(L, 23, 43), p(L, 23, 58), p(L, 75, 58), // round the downtown block: Main, Church, Cotton
+      p(L, 75, 109.9), p(H, E(H, 38), 0), // back down FM 38 to the city
+      p(H, E(H, 38), So(H, 36)), p(H, Wl(H, 14), So(H, 36)), p(H, Wl(H, 14), N(H, 12)), // and round by Grand Avenue, Tanner Street and Crown Street
+    ],
+    stops: stopsOf(LINE_2_STOPS),
+  };
+  const line1 = { ...BUS_INFO, route, stops };
+  return { bus: line1, lines: [line1, line2], traffic, junctions };
 }
 
 /** Put a bus-stop sign on each stop's map, and a traffic light at each corner of each junction (props, at load). Mutates `maps`. */
 export function addStreetFurniture(maps, transit) {
-  for (const s of transit.bus.stops) {
+  const seen = new Set();
+  for (const line of transit.lines) for (const s of line.stops) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    const served = transit.lines.filter((l) => l.stops.some((x) => x.id === s.id)).map((l) => l.name).join(' and ');
     const m = maps[s.sign.map];
-    m.props = [...(m.props || []), { id: s.id, type: 'busstop', x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". Route ${transit.bus.name}.` }];
+    m.props = [...(m.props || []), { id: s.id, type: 'busstop', lines: transit.lines.filter((l) => l.stops.some((x) => x.id === s.id)).map((l) => l.id.replace('r', '')).join('·'), x: s.sign.x, y: s.sign.y, interact: { kind: 'busstop', stop: s.id, name: 'bus stop' }, examine: `A bus stop: "${s.name}". ${served}.` }];
+    // v0.33.0: where people wait for the bus (a spot beside the sign)
+    m.spots = { ...m.spots, [`wait_${s.id}`]: waitSpot(m, s.sign.x, s.sign.y) };
   }
   for (const j of transit.junctions) {
     const m = maps[j.map];
@@ -114,4 +164,13 @@ export function addStreetFurniture(maps, transit) {
     const corners = [[j.x - 1, j.y - 1, 'nw'], [j.x + j.w, j.y - 1, 'ne'], [j.x - 1, j.y + j.h, 'sw'], [j.x + j.w, j.y + j.h, 'se']];
     for (const [x, y, c] of corners) m.props.push({ id: `tl_${j.id}_${c}`, type: 'trafficlight', x, y, junction: j.id, offset: j.offset, corner: c, walkThrough: true, examine: 'A traffic light. Red, amber, green — and a little walking man for the crossing. (Running a red isn\'t a crime here. Just rude.)' });
   }
+}
+
+/** A pavement tile beside a bus-stop sign to wait on. */
+function waitSpot(def, x, y) {
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [1, 1], [-1, 1]]) {
+    const t = def.tiles[y + dy]?.[x + dx];
+    if ([',', 'm', 'g', ':', '.'].includes(t) && !(def.props || []).some((p) => p.solid !== false && x + dx >= p.x && x + dx < p.x + (p.w || 1) && y + dy >= p.y && y + dy < p.y + (p.h || 1) && p.type !== 'crosswalk')) return { x: x + dx, y: y + dy, facing: 'down' };
+  }
+  return { x: x + 1, y, facing: 'down' };
 }
