@@ -390,6 +390,14 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     buzz.connect(bg).connect(bus);
     buzz.start(t0 + 5.0); buzz.stop(t0 + 6.7);
     tone(ctx, bus, { type: 'sine', f0: 110, f1: 50, t: t0 + 5.9, dur: 0.6, vol: 0.3 });
+  } else if (theme === 'kraken') {
+    // a foghorn on the banner, Captain Ober's shanty on a squeezebox reed, waves crashing through the strikes, a deep gurgle as you go under
+    tone(ctx, bus, { type: 'sawtooth', f0: 92, t: t0 + 0.9, dur: 1.6, vol: 0.08, attack: 0.15 });
+    tone(ctx, bus, { type: 'sawtooth', f0: 69, t: t0 + 0.9, dur: 1.6, vol: 0.06, attack: 0.15 });
+    [[62, 0], [66, 0.18], [69, 0.36], [69, 0.72], [71, 0.9], [69, 1.08], [66, 1.26], [62, 1.44]].forEach(([m, dt]) => tone(ctx, bus, { type: 'square', f0: hz(m), t: t0 + 1.6 + dt, dur: 0.16, vol: 0.035, attack: 0.03 }));
+    for (let i = 0; i < 5; i++) noise(ctx, bus, { t: t0 + 3.4 + i * 0.3, dur: 0.9, vol: 0.22, type: 'lowpass', freq: 1400, f1: 200 });
+    for (let i = 0; i < 18; i++) tone(ctx, bus, { type: 'sine', f0: 180 + Math.random() * 260, f1: 90, t: t0 + 5.8 + Math.random() * 1.2, dur: 0.12, vol: 0.06 });
+    noise(ctx, bus, { t: t0 + 5.6, dur: 2.2, vol: 0.28, type: 'lowpass', freq: 500, f1: 80 });
   } else if (theme === 'maths') {
     // furious keypad clatter through the roll, Arthur's motif as calculator beeps, an ERROR buzz, a glitchy finale
     for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 0.3 + i * 0.07 + Math.random() * 0.03, dur: 0.015, vol: 0.1, freq: 3000 + Math.random() * 1500, q: 8 });

@@ -5,12 +5,22 @@
 import { MapBuilder, roomTiles } from '../../world/mapBuilder.js';
 
 const W = 64;
-const H = 40;
+const H = 62;
 const m = new MapBuilder(W, H, 'g');
-m.rect(0, 0, W, 1, 'x').rect(0, H - 1, W, 1, 'x').rect(0, 0, 1, H, 'x'); // beyond the fence
+m.rect(0, 0, W, 1, 'x').rect(0, 0, 1, 48, 'x'); // beyond the fence
 m.rect(1, 18, W - 1, 4, '='); // the yard road, from the east gate
-m.rect(40, 1, 2, 17, '=').rect(40, 22, 2, 17, '='); // the cross road
+m.rect(40, 1, 2, 17, '=').rect(40, 22, 2, 19, '='); // the cross road, down to the docks
 m.rect(2, 35, 37, 3, ','); // loading apron
+// v0.21.0: the docks — Ober & Sons Maritime's quay along the south of the Yards
+m.rect(1, 39, W - 2, 2, ','); // pavement along the quay road
+m.rect(1, 45, W - 2, 3, ','); // the quay apron
+m.rect(6, 41, 52, 4, '='); // Quay Road
+m.rect(40, 39, 2, 2, '='); // where the cross road meets it
+m.rect(1, 40, 5, 6, 'm').rect(58, 40, 5, 6, 'm'); // turning circles at both ends
+m.rect(0, 48, W, H - 48, '~'); // the harbour
+export const BERTH_PIERS = [10, 29, 48]; // three berths, each a pier with a ship either side (authored x)
+for (const x of BERTH_PIERS) m.rect(x, 48, 2, 10, 'p');
+m.rect(58, 48, 1, 7, 'p'); // the Salty Ober's mooring
 
 const works = (id, name, x, y, w, h, o = {}) => ({
   id: `b_${id}`, name, mapLabel: name, x, y, w, h,
@@ -24,6 +34,8 @@ const buildings = [
   works('aw3', 'Foundry Hall', 4, 23, 24, 11, { roof: '#5a3a2e', wall: '#9a7a62', trim: '#3a2a1e', sign: 'FOUNDRY HALL' }),
   { id: 'b_gatehouse', name: 'Gatehouse', mapLabel: 'Gatehouse', x: 50, y: 12, w: 6, h: 5, roof: '#3a3a40', wall: '#b8b4aa', trim: '#2a2a2e', flatRoof: true, sign: 'SECURITY',
     door: { x: 53, y: 16, lock: { message: 'The gatehouse is locked. Through the window: a portable TV playing a show about guards.' } } },
+  { id: 'b_ober_office', name: 'Ober & Sons Maritime', mapLabel: 'Ober & Sons Maritime', x: 47, y: 35, w: 10, h: 4, roof: '#2a3a5a', wall: '#e8e2d4', trim: '#1e2a3a', flatRoof: true, sign: 'OBER & SONS MARITIME', signColor: '#e0b84a',
+    door: { x: 52, y: 38, to: { map: 'ober_office', spot: 'entry' } } },
   { id: 'b_scrapco', name: 'Halver Scrap Co.', mapLabel: 'Halver Scrap Co.', x: 44, y: 24, w: 12, h: 8, roof: '#6a4a3a', wall: '#a8988a', trim: '#3a2e2a', flatRoof: true, shabby: true, sign: 'SCRAP CO.',
     door: { x: 50, y: 31, lock: { message: 'Halver Scrap Co.: "CLOSED FOR STOCKTAKE". The sign is rusted in place.' } } },
 ];
@@ -47,6 +59,20 @@ P('car', 30, 35, { w: 2, h: 1, color: '#4a5a6a', examine: 'A flatbed truck. The 
 for (const [x, y] of [[58, 26], [59, 29], [57, 33]]) P('trash', x, y);
 P('noticeboard', 46, 13, { examine: 'YARD NOTICES: "Arms works for sale — licence holders only." "Lost: one (1) crate marked FRAGILE — DO NOT DROP. If found, do not drop." "Smoking strictly prohibited. Seriously. Look at what we make."' });
 
+// the docks: lamps, bollards, cranes, the berths (drawn with your ships) and the Salty Ober
+for (const x of [8, 20, 33, 46]) P('streetlamp', x, 39);
+for (const x of [4, 16, 24, 36, 44, 54, 62]) P('streetlamp', x, 47);
+for (const x of [3, 7, 15, 19, 26, 34, 39, 43, 53, 56, 61]) P('bollard', x, 47);
+P('crane', 21, 45, { w: 3, h: 2, examine: 'A dockside crane, OBER & SONS painted on the jib in letters that have been repainted so many times they\'re three-dimensional.' });
+P('crane', 39, 45, { w: 3, h: 2, examine: 'A newer crane. Captain Ober calls it "the young one" and doesn\'t trust it.' });
+for (const [x, y] of [[2, 45], [3, 46], [56, 45], [57, 45]]) P('crate', x, y, { w: 1 });
+BERTH_PIERS.forEach((x, i) => {
+  props.push({ id: `yd_berth${i + 1}`, type: 'shipberth', x: x - 5, y: 48, w: 12, h: 11, slot: i, examine: `Berth ${i + 1}.` });
+  props.push({ id: `yd_berth${i + 1}_sign`, type: 'sign', x: x + 2, y: 47, interact: { kind: 'logistics', action: 'berth', slot: i, name: `Berth ${i + 1} board` }, examine: `BERTH ${i + 1}.` });
+});
+props.push({ id: 'yd_salty_ober', type: 'moored_ship', x: 59, y: 48, w: 4, h: 9, look: { hull: 'tug', color: '#7a2a24', trim: '#e8e2d4', len: 3.2 }, name: 'Salty Ober', examine: 'The Salty Ober: an old harbour tug turned houseboat, red as a pillar box, with geraniums in the lifebelts. Captain Ober lives aboard.' });
+P('sign', 52, 39, { examine: '"OBER & SONS MARITIME — Shipping since before the sea was wet. Ask for the Captain." Under it, smaller: "The Sons all became accountants."' });
+
 export const yards = {
   id: 'yards',
   name: 'Mill Road Yards',
@@ -61,11 +87,16 @@ export const yards = {
     { id: 'door_yd_gate_a', x: 63, y: 19, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_b', x: 63, y: 20, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_s', x: 63, y: 21, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
+    { id: 'door_salty_ober', x: 59, y: 51, keepTile: true, label: 'the Salty Ober', to: { map: 'salty_ober', spot: 'entry' } },
   ],
   spots: {
     east_gate: { x: 61, y: 20, facing: 'left' },
     aw1_door_out: { x: 11, y: 14, facing: 'down' }, aw2_door_out: { x: 30, y: 14, facing: 'down' }, aw3_door_out: { x: 16, y: 35, facing: 'down' },
     yard_center: { x: 30, y: 20, facing: 'down' },
+    ober_office_out: { x: 52, y: 39, facing: 'down' },
+    quay: { x: 30, y: 46, facing: 'down' },
+    ober_bollards: { x: 57, y: 46, facing: 'down' },
+    salty_gangway: { x: 58, y: 51, facing: 'right' },
   },
   props,
 };
@@ -105,4 +136,38 @@ export const aw1 = armsWorks('aw1', 'Yard 1 Works', 30, 18, 4);
 export const aw2 = armsWorks('aw2', 'Yard 2 Works', 36, 20, 6, { board: 'Previous tenant\'s whiteboard: "WIDGETS — Q3 TARGET: MORE". Underlined.' });
 export const aw3 = armsWorks('aw3', 'Foundry Hall', 44, 24, 10, { board: 'An old foundry roll of honour, every name ending in "-smith". Someone has added "Eastrise (honorary)".' });
 
-export default [yards, aw1, aw2, aw3];
+// ------------------------------------------------------------ the harbour office and the Salty Ober (v0.21.0)
+const officeProps = [
+  { id: 'oo_terminal', type: 'terminal', x: 2, y: 1, w: 2, h: 1, interact: { kind: 'logistics', action: 'terminal', name: 'logistics terminal' }, examine: 'The logistics terminal: a chart of the world\'s sea lanes, glowing in harbour-office green.' },
+  { id: 'oo_desk', type: 'desk', x: 7, y: 3, w: 3, h: 1, examine: 'The Captain\'s desk: tide tables, a brass barometer, a mug that says WORLD\'S OKAYEST SAILOR.' },
+  { id: 'oo_chair', type: 'chair', x: 8, y: 4 },
+  { id: 'oo_chart', type: 'painting', x: 5, y: 0, w: 2, h: 1, examine: 'A framed sea chart of the coast with "HERE BE ACCOUNTANTS" written over Halvermouth.' },
+  { id: 'oo_bottle', type: 'display', x: 11, y: 1, examine: 'A ship in a bottle. Look closely: there\'s a tiny Captain Ober on deck, waving.' },
+  { id: 'oo_board', type: 'noticeboard', x: 9, y: 0, examine: 'TIDES · WEATHER · "NO WHISTLING IN THE OFFICE (IT CALLS UP THE WIND)".' },
+  { id: 'oo_plant', type: 'plant', x: 12, y: 5 },
+];
+export const oberOffice = {
+  id: 'ober_office', name: 'Ober & Sons Maritime', kind: 'interior',
+  music: 'mus_workshop', ambience: 'amb_indoor',
+  tiles: roomTiles(14, 8, 'f', 7),
+  doors: [{ id: 'door_ober_office_exit', x: 7, y: 7, to: { map: 'yards', spot: 'ober_office_out' } }],
+  spots: { entry: { x: 7, y: 6, facing: 'up' }, desk: { x: 8, y: 2, facing: 'down' }, terminal: { x: 3, y: 2, facing: 'up' } },
+  keepClear: [[7, 6]],
+  props: officeProps,
+};
+export const saltyOber = {
+  id: 'salty_ober', name: 'The Salty Ober', kind: 'interior',
+  music: 'mus_workshop', ambience: 'amb_indoor',
+  tiles: roomTiles(10, 6, 'f', 5),
+  doors: [{ id: 'door_salty_exit', x: 5, y: 5, to: { map: 'yards', spot: 'salty_gangway' } }],
+  spots: { entry: { x: 5, y: 4, facing: 'up' }, bunk: { x: 2, y: 2, facing: 'right' }, wheel: { x: 7, y: 2, facing: 'up' } },
+  keepClear: [[5, 4]],
+  props: [
+    { id: 'so_bunk', type: 'bed', x: 1, y: 1, w: 1, h: 2, examine: 'The Captain\'s bunk, made with hospital corners. Naval habits die hard.' },
+    { id: 'so_wheel', type: 'display', x: 7, y: 1, examine: 'The ship\'s wheel, polished smooth by forty years of hands. The tug hasn\'t left the quay in nine.' },
+    { id: 'so_stove', type: 'stove', x: 4, y: 1, examine: 'A little iron stove. The kettle is always on "nearly".' },
+    { id: 'so_chest', type: 'chest', x: 8, y: 3, examine: 'A sea chest. Locked. It smells faintly of rum and nostalgia.' },
+  ],
+};
+
+export default [yards, aw1, aw2, aw3, oberOffice, saltyOber];

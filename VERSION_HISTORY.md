@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.21.0 | 2026-10-15 | development | 1 | Ober & Sons — Captain Ober, the Yards docks, a shipping company, ports, cargo ships, contracts |
 | 0.20.0 | 2026-10-15 | development | 1 | Streets — four-tile roads, a joined-up road network, traffic lights, pavements |
 | 0.19.0 | 2026-10-14 | development | 1 | By the Crate — crates, country orders, the armourer's workbench |
 | 0.18.0 | 2026-10-13 | development | 1 | Hot Pursuit — police chases |
@@ -26,6 +27,10 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 | 0.2.0 | 2026-10-13 | development | 1 | Ober's Oil — first imported character, second district |
 | 0.1.1 | 2026-10-13 | development | 1 | Just Open It — single-file game, no server needed |
 | 0.1.0 | 2026-10-13 | development | 1 | Foundations of Lanternside — first playable build |
+
+## 0.21.0 — Ober & Sons
+
+The first stage of the shipping expansion: Captain Ober and his company, the Yards docks, ports, cargo ships and contracts. Saves: `world.logistics` is created on first use, unowned; older saves load with the company for sale (never granted for free). The Yards map grew south; nothing existing moved. No migration needed.
 
 ## 0.20.0 — Streets
 

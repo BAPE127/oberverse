@@ -315,6 +315,22 @@ function drawHat(ctx, a, facing, hy) {
     ctx.fillRect(-12.5, hy - 5, 25, 2.5);
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.fillRect(-1, hy - 14, 2, 9);
+  } else if (style === 'captain') {
+    // a peaked officer's cap: flat crown, black band with gold braid, a badge, a shiny peak
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.ellipse(0, hy - 12, 11.5, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(-9.5, hy - 12, 19, 6);
+    ctx.fillStyle = a.hatBand || '#121418';
+    ctx.fillRect(-9.5, hy - 7.5, 19, 3);
+    ctx.fillStyle = '#e0b84a';
+    if (facing !== 'up') {
+      ctx.fillRect(-7.5, hy - 6.6, 15, 1.2); // braid
+      ctx.beginPath(); ctx.arc(facing === 'left' ? -3 : facing === 'right' ? 3 : 0, hy - 10.5, 2.3, 0, Math.PI * 2); ctx.fill(); // badge
+      ctx.fillStyle = '#0c0d10';
+      ctx.beginPath(); ctx.ellipse(facing === 'left' ? -5 : facing === 'right' ? 5 : 0, hy - 4.2, 9, 2.6, 0, 0, Math.PI); ctx.fill(); // the peak
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect((facing === 'left' ? -5 : facing === 'right' ? 5 : 0) - 4, hy - 4, 5, 0.9);
+    }
   } else if (style === 'cap') {
     ctx.fillStyle = c;
     ctx.beginPath(); ctx.ellipse(0, hy - 6, 10.5, 5.5, 0, Math.PI, 0); ctx.fill();

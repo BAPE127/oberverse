@@ -19,6 +19,7 @@ import { EVENTS } from './events.js';
 import { MOODS } from './moods.js';
 import { NOTICES } from './notices.js';
 import { REGIONS } from './world.js';
+import { LOGISTICS, PORTS, PORT_TYPES, CARGO_CLASSES, CARGO_SHIPS, CLIENTS, CONTRACT_TYPES } from './logistics.js';
 import { addSeams } from '../world/regions.js';
 import { SONGS, MOTIFS, AUDIO_REGISTRY } from './audio.js';
 import mags from './characters/mags.js';
@@ -43,6 +44,8 @@ import dlgSal from './dialogue/sal.js';
 import { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } from './warehouses.js';
 import lucasChars from './characters/lucas.js';
 import dlgLucas from './dialogue/lucas.js';
+import captainOber from './characters/ober.js';
+import dlgCaptainOber from './dialogue/ober.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 import { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } from './vehicles.js';
@@ -91,8 +94,8 @@ export const BASE_CONTENT = {
   songs: SONGS,
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
-  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars]),
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers]),
+  characters: byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -101,6 +104,7 @@ export const BASE_CONTENT = {
   arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: TRANSIT,
+  logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: CARGO_SHIPS, dealership: Object.keys(CARGO_SHIPS), clients: CLIENTS, contractTypes: CONTRACT_TYPES },
   roadShifts: SHIFTS, // v0.20.0: authored → widened tile coordinates, per map (for older saves)
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,

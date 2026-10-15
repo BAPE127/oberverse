@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-15 — v0.21.0.** Stage 1 of the shipping expansion (owner's master brief): Captain Ober (imported; interview in `docs/characters/npc_ober.md`), the Yards docks, `src/systems/logistics.js` (company, ports, cargo ships, contracts, voyages on sea routes), the logistics terminal and the tablet's Ships app. **Next (owner chose several releases):** v0.22 own-fleet arms exports + the fleet on the arms globe; v0.23 piracy, warships and missions; v0.24 Mason's Os shipyard and the custom shipbuilder. See `docs/prompt-bank/18-shipping-extension.md`.
 - **2026-10-15 — v0.20.0.** Streets: four-tile roads (widened at load from 2-tile authored maps by `src/world/widen.js` — author in the OLD coordinates and list new roads in `ROADS`), a closed road network, traffic lights (`src/world/lights.js`), pavement-keeping pedestrians, through traffic, car handling, the beeping fixed. Owner's answers recorded in the CHANGELOG.
 - **2026-10-14 — v0.19.0.** The arms trade by the crate: crate recipes, country orders of 5–50 crates, the armourer's workbench for singles and ammo. Owner's answers recorded in the CHANGELOG.
 - **2026-10-13 — v0.18.0.** Police chases (`src/systems/pursuit.js`) on the shared car physics. Decisions (owner asked only for "police chases"): one cruiser per star, ramming at ★★★, pulled over when stopped, line-of-sight escape, no pursuit through region gates, police never hurt pedestrians.

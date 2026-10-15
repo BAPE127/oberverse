@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -175,6 +175,12 @@
       "doc": "docs/characters/npc_mason.md",
       "image": "assets/portraits/reference/npc_mason_reference.jpg",
       "interviewDate": "2026-10-13"
+    },
+    {
+      "id": "npc_ober",
+      "doc": "docs/characters/npc_ober.md",
+      "image": "assets/portraits/reference/npc_ober_reference.jpg",
+      "interviewDate": "2026-10-15"
     }
   ],
   "tooling": {

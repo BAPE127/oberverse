@@ -52,6 +52,10 @@ The big city, west of Westbrook along the old coast road: "the City of a Thousan
 
 Story seeds planted in the map (not yet used): unsolved warehouse fires on Mill Road; the deferred Mill District regeneration file in the Mayor's cabinet; the empty frame where the current Mayor's portrait should hang; Ober's Oil Tower looming over Bank Row.
 
+## Mill Road Yards docks (v0.21.0)
+
+The south edge of Mill Road Yards is a working quay: Quay Road (with turning circles at both ends), cranes, bollards, three ship berths and the **Ober & Sons Maritime** harbour office — founded by **Captain Ober** (no relation to Ober's Oil, whatever anyone says), whose three sons all became accountants, which is why the company is for sale. He lives aboard the **Salty Ober**, a red harbour tug that hasn't left the quay in nine years. The world beyond the harbour: the arms market's countries each have two or three ports, and a dozen free ports (Westreach, Sunmouth, Meridian Free Port, Dunmere…) fill the oceans. Clients include Halver Mills & Grain, the Lanternside Fish Co-op, Ostmark Turbine Works, Teshvar Luxe Imports and Meridian Applied Sciences (crates marked DO NOT TILT, DO NOT FREEZE, DO NOT ASK).
+
 ## The Ober Fields (map `ober_fields`, 52×40 tiles)
 
 Directly east of Lanternside: Gullwing Road simply becomes the county road (the two maps are one continuous stretch of coast; the Fields' west edge is Lanternside's east edge). The Lantern Canal ends in a culvert pool just past the boundary, and the harbour's eastern shore runs along the Fields' south-west corner. Sir Moneybucks bought a cabbage farm here twenty years ago and struck oil.

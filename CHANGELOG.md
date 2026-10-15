@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.21.0] — 2026-10-15 — "Ober & Sons" (development build)
+
+Owner's request: a player-owned logistics and shipbuilding business bought from Captain Ober (a master brief in eight stages), with Captain Ober's photo ("a very stereotypical sailor"). Owner's answers: import Captain Ober now (store the photo); old-salt voice; no relation to Ober's Oil; retiring; based at new docks at the Yards; he/him; kraken Wrath; jolly from the start; an old smuggler about your arms business; company **Ober & Sons Maritime**, his ship the **Salty Ober**; ship the brief as several releases. This release is the brief's stages A–C plus the core of E (the terminal and tracking); stages D (own-fleet arms exports), F (piracy, warships, missions) and G (the shipyard) follow.
+
+### Added
+- **Captain Ober** (`npc_ober`, imported, protected): portrait, a new `captain` peaked-cap hair style, old-salt dialogue (selling the company, his sons, his smuggling past, superstitions, advice, the kraken), relationships with Lucas and Mason, motif "Hoist Away" (`motif_ober`), and a **kraken** Wrath theme (flooding cobbles, tentacles, a whirlpool, the kraken's eye; foghorn, shanty, waves). Routine: harbour office, the quay, a pipe by the bollards, asleep aboard the Salty Ober.
+- **The Yards docks**: Mill Road Yards extended south (64×62 authored): Quay Road with turning circles, the quay apron, cranes, bollards, lamps, three berths (`shipberth` props that draw your ships), the Ober & Sons Maritime harbour office (interior with the logistics terminal) and the Salty Ober (moored tug with a cabin interior).
+- **Logistics** (`src/systems/logistics.js`, content `src/content/logistics.js`): buying the company (all-or-nothing, once); 34 ports in five types, up to 30 owned; ten cargo ships in five classes from a brokerage; vessel records with a validated status machine; contracts (seven types, eleven clients) posted daily per owned port, with quotes (arrival, on time, costs, profit), loading, voyages, late pay and penalties; delays rolled at departure and stored; condition and repairs; daily upkeep with arrears that hold sailings; a ledger and reports; tablet notifications (`ships` app).
+- **Sea routes** (`src/world/seaRoutes.js`): A* over the globe's 3° sea cells, smoothed and cached; ports sit on coasts; every port reachable.
+- **The logistics terminal** (`src/ui/logistics.js`): Overview, Chart (a sea chart with ports, routes and ship positions from the clock; hover and click), Fleet (details, rename, show at berths, repair, send), Ports (berth display, owned ports, ports for sale), Contracts (offers, assign with quotes, cancel), Brokerage (by class, with previews), Finances, Reports — in the harbour office and as the tablet's **Ships** app.
+- Ships drawn top-down from their look (`src/engine/drawShips.js`: coaster, runner, freighter, container, heavy-lift, bulk, starwake, tug).
+- Generic `panel` effect/interaction result (`{ panel: { name, … } }`) for dialogue that opens a panel.
+- Tests: `tests/logistics.test.mjs` (13), `tests/character_ober.test.mjs` (5).
+
+### Changed
+- Globe geography moved to `src/world/globe.js` (shared by the arms terminal, the logistics chart and sea routes).
+- A dialogue that opens a panel hides itself while the panel is open and rebuilds its topic menu afterwards.
+
 ## [0.20.0] — 2026-10-15 — "Streets" (development build)
 
 Owner's request: a general world update — NPCs should prefer pavements and crossings; pavement props should not be solid for the player; cars should feel like they turn; streets felt too small for cars; no U-turns at map edges; stop lights to make junctions feel alive (not illegal to run them); a weird beeping noise; fewer cars; roads that lead nowhere ruin the immersion — make the map feel more real. Owner's answers: roads 4 tiles wide (one wide lane each way); rework the existing maps (every road joins a network, roads only leave a map through gates, map edges are real boundaries; no new districts); traffic drives off at the edges and others drive in; cars and the bus obey the lights, people use the walk signal, running a red is not a crime.

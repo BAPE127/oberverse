@@ -81,6 +81,7 @@ export const mason = {
   relationships: {
     player: { trust: 15, affection: 20, respect: 10, suspicion: 0 },
     npc_dee: { trust: 60, affection: 45, respect: 55, suspicion: 0 },
+    npc_ober: { trust: 35, affection: 35, respect: 30, suspicion: 0 },
     npc_barnaby: { trust: 55, affection: 50, respect: 35, suspicion: 0 },
     npc_quinn: { trust: 45, affection: 45, respect: 35, suspicion: 0 },
     npc_mags: { trust: 40, affection: 40, respect: 30, suspicion: 0 },
@@ -96,6 +97,7 @@ export const mason = {
   },
   notices: [{ map: 'mason_office', tag: 'saw_player_office', text: 'The newcomer dropped by the office.', importance: 1 }],
   opinions: {
+    npc_ober: { warm: 'Captain Ober! We built his harbour office. He wanted portholes. In an office. We compromised: round windows. He still calls them portholes. Lovely fella — a real WATERED-DOWN version of trouble.', cool: 'The Captain says a building is just a ship that gave up. I say a ship is just a building that\'s lost its foundations.' },
     npc_mags: { warm: 'Mags! Best breakfast on the coast. I tell her a pun, she tells me to pay. It\'s a fair trade.', cool: 'Mags has her moods. Then I bring a pun and she has… worse moods.' },
     npc_osric: { warm: 'Osric\'s a stand-up guy. Stands up very straight. Files very straight. I respect a man who knows his forms.', cool: 'Osric says I\'m exhausting. I said, "Have you tried a nap? You\'ll be well-rested — I\'ll be well-REST-ored!"' },
     npc_tibbs: { warm: 'Tibbs fixes engines, I fix foundations. We\'re basically colleagues. He doesn\'t agree. He doesn\'t a-gear!', cool: 'Tibbs and Barnaby are at it about the gulls again.' },

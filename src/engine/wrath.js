@@ -20,7 +20,9 @@
 // (Arthur Anderson: graph paper, orbiting calculator keys and bad sums, steam,
 // falling digits, a giant calculator reading ERROR, division by zero), arms
 // (Lucas Eastrise: a showroom spotlight, orbiting guns, bullets and price
-// tags, crates of guns bursting, a missile strike, a drone swarm, a SOLD tag).
+// tags, crates of guns bursting, a missile strike, a drone swarm, a SOLD tag),
+// kraken (Captain Ober: seawater floods the cobbles, tentacles burst up and
+// slam down, a whirlpool, the kraken's eye opens in it, a great tentacle drags you under).
 import { clamp, lerp } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
@@ -1471,7 +1473,164 @@ const ARMS = {
   },
 };
 
-export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS };
+
+// ================================================================= KRAKEN
+// Captain Ober: the cobbles flood, tentacles burst up round the attacker, a
+// whirlpool opens, the kraken's eye rises — and drags them under.
+const SEA = '#1e5a6a';
+
+/** A tapered tentacle along a quadratic curve from its root (bx, by) to its tip; suckers on the inside. */
+function tentacle(ctx, bx, by, cx, cy, tx, ty, thick, alpha = 1) {
+  const n = 22;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (let i = n; i >= 0; i--) {
+    const t = i / n;
+    const x = (1 - t) * (1 - t) * bx + 2 * (1 - t) * t * cx + t * t * tx;
+    const y = (1 - t) * (1 - t) * by + 2 * (1 - t) * t * cy + t * t * ty;
+    const r = thick * (1 - t * 0.85);
+    ctx.fillStyle = i % 2 ? '#7a2a4a' : '#8a3456';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    if (i % 3 === 0 && t < 0.9) {
+      ctx.fillStyle = '#e8b8c8';
+      ctx.beginPath(); ctx.arc(x + r * 0.45, y + r * 0.2, r * 0.32, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function splash(ctx, x, y, age, seed, scale = 1) {
+  const R = rng(seed);
+  const life = 1 - ease(age / 0.9);
+  if (life <= 0) return;
+  for (let i = 0; i < 18; i++) {
+    const a = -Math.PI * (0.1 + R() * 0.8);
+    const sp = (60 + R() * 120) * scale;
+    const px = x + Math.cos(a) * sp * age;
+    const py = y + Math.sin(a) * sp * age + 220 * age * age;
+    ctx.fillStyle = `rgba(${170 + Math.floor(R() * 60)},230,245,${0.8 * life})`;
+    ctx.beginPath(); ctx.arc(px, py, (2 + R() * 3) * scale, 0, Math.PI * 2); ctx.fill();
+  }
+  onGround(ctx, x, y, () => {
+    ctx.strokeStyle = `rgba(220,245,255,${0.7 * life})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 10 + age * 70 * scale, 0, Math.PI * 2); ctx.stroke();
+  });
+}
+
+const KRAKEN = {
+  banner: 'THE DEEP REMEMBERS',
+  sky: [8, 40, 52, 2, 14, 22],
+  flash: '200,240,255',
+  ground(I) {
+    const { ctx, e, conv, vx, vfeet, p } = I;
+    // seawater wells up through the cobbles around the Captain
+    const r = 130 * ease((e - 0.2) / 1.0) * (1 - ease((e - WRATH.fade) / 0.7));
+    if (r > 2) {
+      onGround(ctx, vx, vfeet, () => {
+        const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        gr.addColorStop(0, 'rgba(30,90,106,0.75)');
+        gr.addColorStop(0.8, 'rgba(30,90,106,0.45)');
+        gr.addColorStop(1, 'rgba(30,90,106,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(200,240,255,0.5)';
+        ctx.lineWidth = 2;
+        for (let k = 0; k < 3; k++) { const rr = ((e * 40 + k * 40) % r); ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); }
+      });
+    }
+    // under the player: a whirlpool
+    const w = ease((e - WRATH.converge) / 0.5) * (1 - ease((e - WRATH.end + 0.4) / 0.5));
+    if (w > 0) {
+      onGround(ctx, p.x, p.y, () => {
+        ctx.fillStyle = `rgba(10,40,52,${0.8 * w})`;
+        ctx.beginPath(); ctx.arc(0, 0, 70 * w, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = `rgba(180,235,250,${0.6 * w})`;
+        ctx.lineWidth = 2.5;
+        for (let arm = 0; arm < 3; arm++) {
+          ctx.beginPath();
+          for (let k = 0; k <= 40; k++) {
+            const t = k / 40;
+            const a = arm * (Math.PI * 2 / 3) + t * 5 + e * 4;
+            const rr = 70 * w * (1 - t);
+            if (k === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+          }
+          ctx.stroke();
+        }
+      }, 0.45);
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const fade = 1 - ease((e - WRATH.ascend) / 0.3);
+    // three small tentacles curl up around the Captain, and bubbles rise
+    const R = rng(I.w.seed + 11);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + e * 0.6;
+      const bx = centre.x + Math.cos(a) * 46 * (1 - conv * 0.4);
+      const by = centre.y + 30 + Math.sin(a) * 16;
+      const sway = Math.sin(e * 3 + i * 2) * 14;
+      tentacle(ctx, bx, by, bx + sway, by - 40 * unfold, bx + sway * 1.8, by - 70 * unfold, 6, fade);
+    }
+    for (let i = 0; i < 24; i++) {
+      const ph = (e * 0.8 + R()) % 1;
+      ctx.fillStyle = `rgba(200,240,255,${0.6 * (1 - ph) * fade})`;
+      ctx.beginPath(); ctx.arc(centre.x + (R() - 0.5) * 120, centre.y + 30 - ph * 110, 1.5 + R() * 3, 0, Math.PI * 2); ctx.fill();
+    }
+  },
+  strike(I, i, age) {
+    const { ctx, p, w } = I;
+    if (age < 0 || I.e > WRATH.ascend + 0.4) return;
+    // tentacles burst up through the cobbles round the player and slam down
+    const side = i % 2 ? 1 : -1;
+    const off = (40 + hash2(w.seed, i) * 30) * side;
+    const bx = p.x + off;
+    const by = p.y + 8 + (i % 3) * 4;
+    const rise = ease(age / 0.25);
+    const slam = ease((age - 0.25) / 0.2);
+    const tx = lerp(bx + off * 0.3, p.x + side * 6, slam);
+    const ty = lerp(by - 120 * rise, p.y - 16, slam);
+    const out = 1 - ease((age - 0.7) / 0.4);
+    if (out <= 0) return;
+    tentacle(ctx, bx, by, bx + off * 0.5, by - 90 * rise, tx, ty, 11 + (i === 4 ? 6 : 0), out);
+    if (age < 0.4) splash(ctx, bx, by, age, w.seed + i * 13, 0.9);
+    if (age > 0.25 && age < 1.0) splash(ctx, p.x, p.y, age - 0.25, w.seed + i * 17, 0.7);
+  },
+  after() {},
+  finale(I) {
+    const { ctx, e, p, w } = I;
+    if (e < WRATH.ascend - 0.1 || e > WRATH.end) return;
+    const age = e - WRATH.ascend;
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    // the eye opens in the whirlpool beneath the player…
+    const eye = ease(age / 0.8) * out;
+    if (eye > 0) {
+      ctx.save();
+      ctx.globalAlpha = eye;
+      ctx.fillStyle = '#5a1e3a';
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + 6, 62, 24 * eye, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e8d84a';
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + 6, 44, 16 * eye, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0c0c10';
+      ctx.beginPath(); ctx.ellipse(p.x + Math.sin(age * 2) * 6, p.y + 6, 6, 15 * eye, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    // …and the great tentacle wraps the player and pulls them under
+    const wrap = ease((age - 0.5) / 0.6);
+    if (wrap > 0) {
+      const sink = ease((age - 1.1) / 0.6);
+      tentacle(ctx, p.x - 90, p.y + 20, p.x - 120, p.y - 90 * wrap, p.x + 8, p.y - 24 + sink * 30, 18, out);
+      if (sink > 0) {
+        ctx.fillStyle = `rgba(10,40,52,${0.9 * sink * out})`;
+        ctx.fillRect(p.x - 40, p.y - 50 + (1 - sink) * 50, 80, 60 * sink);
+        splash(ctx, p.x, p.y, (age - 1.1) * 0.8, w.seed + 99, 1.5);
+      }
+    }
+  },
+};
+
+export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS, kraken: KRAKEN };
 
 // -------------------------------------------------------------- draw
 export function drawWrath(renderer, g, w) {

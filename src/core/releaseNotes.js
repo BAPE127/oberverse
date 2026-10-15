@@ -2,6 +2,20 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.21.0',
+    date: '2026-10-15',
+    channel: 'development',
+    title: 'Ober & Sons',
+    notes: [
+      'Meet Captain Ober — a jolly old salt with a captain\'s cap, a beard and a sea story for everything — at the new docks along the south of Mill Road Yards. He\'s retiring, and his shipping company is for sale.',
+      'Buy Ober & Sons Maritime (40,000 obols) and you get three ports (Mill Road Docks, Sund Harbour, Port Lirre), the Gullwing Lass, and the logistics terminal in the harbour office — also on your tablet as the Ships app.',
+      'Commercial contracts: each of your ports offers new cargo every morning. Pick a ship that fits, see the arrival time and profit, and send it. Ships sail real sea lanes round the continents on the game clock, get delayed by gales and fog, and get paid on delivery (less if late).',
+      'Halver Marine Brokers sells ten cargo ships, from the 6,000-obol Gullwing Cutter to the 340,000-obol Starwake Advanced Freighter. Buy ports around the world — up to 30 — from basic harbours to advanced ports.',
+      'Your ships tie up at the Yards berths (choose which of your ports each berth shows), and the terminal\'s chart tracks every voyage. Mind the upkeep: it\'s charged every morning, and unpaid upkeep holds your ships in port.',
+      'Coming next: carrying your own arms exports, piracy and warships, and a shipyard built by Mason\'s Os.',
+    ],
+  },
+  {
     version: '0.20.0',
     date: '2026-10-15',
     channel: 'development',

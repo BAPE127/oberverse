@@ -142,6 +142,21 @@ export class DialogueUI {
       this.ui.openPanel('dealer', { dealer, onClose: () => this.renderOptions() });
       return;
     }
+    if (node.action?.type === 'panel') {
+      const { panel, opts } = node.action;
+      node.action = null;
+      // the panel takes the screen; afterwards the menu is rebuilt (what you did may have changed the topics)
+      this.el.classList.add('hidden');
+      this.ui.openPanel(panel, {
+        ...opts,
+        onClose: () => {
+          this.el.classList.remove('hidden');
+          if (this.session && !this.session.ended) this.node.options = this.session.menuOptions();
+          this.renderOptions();
+        },
+      });
+      return;
+    }
     if (node.action?.type === 'invest') {
       node.action = null;
       this.ui.openPanel('invest', { onClose: () => this.renderOptions() });

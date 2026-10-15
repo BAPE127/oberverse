@@ -8,6 +8,7 @@ import { TILE_TYPES } from '../world/tiles.js';
 import { shade, rrect } from './drawCharacter.js';
 import { drawDisplayCar, drawBusStop } from './drawVehicles.js';
 import { CAR_MODELS } from '../content/vehicles.js';
+import { drawShip, drawNameBoard } from './drawShips.js';
 
 const T = TILE;
 
@@ -630,7 +631,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['shipberth', 'moored_ship', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -808,6 +809,52 @@ export function drawProp(ctx, p, opts) {
       ctx.beginPath(); ctx.ellipse(x + 16, y + 20, 14, 10, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#a5a7ab';
       ctx.beginPath(); ctx.ellipse(x + 13, y + 16, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case 'bollard':
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath(); ctx.ellipse(x + 17, y + 26, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a2e34';
+      rrect(ctx, x + 10, y + 12, 12, 14, 4); ctx.fill();
+      ctx.fillStyle = '#3e444c';
+      ctx.beginPath(); ctx.ellipse(x + 16, y + 12, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'crane': {
+      // a dockside crane: legs on the quay, a jib reaching out over the water
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 4, y + h - 6, w - 8, 6);
+      ctx.fillStyle = '#c9a24a';
+      for (const lx of [x + 6, x + w - 12]) ctx.fillRect(lx, y - 30, 6, h + 24);
+      ctx.fillRect(x + 4, y - 36, w - 8, 10);
+      ctx.fillStyle = '#3a3a40';
+      ctx.fillRect(x + w / 2 - 10, y - 46, 20, 14);
+      ctx.fillStyle = '#e8c35a';
+      ctx.fillRect(x + w / 2 - 3, y - 40, 6, 60 + Math.sin(time * 0.7) * 6); // the jib, reaching south
+      ctx.strokeStyle = '#2a2a2e';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + w / 2, y + 20 + Math.sin(time * 0.7) * 6); ctx.lineTo(x + w / 2, y + 34 + Math.sin(time * 0.7) * 6); ctx.stroke();
+      break;
+    }
+    case 'shipberth': {
+      // your ships at this berth (src/systems/logistics.js berth()); empty berths just show the board
+      const B = opts.berth;
+      const cx = x + w / 2;
+      if (B) {
+        const ships = B.ships.slice(0, 2);
+        ships.forEach((v, i) => {
+          const sx = i === 0 ? cx - T * 2.4 : cx + T * 2.6;
+          const len = (v.appearance.len || 3) * T;
+          drawShip(ctx, v.appearance, sx, y + 10 + len / 2, Math.PI / 2, { time, lit: opts.night });
+          drawNameBoard(ctx, v.name, sx, y + 18 + len);
+        });
+        drawNameBoard(ctx, B.name + (B.ships.length > 2 ? ` · +${B.ships.length - 2} more` : B.ships.length ? '' : ' · no ships in'), cx, y + h - 8);
+      } else drawNameBoard(ctx, 'BERTH — TO LET', cx, y + 40);
+      break;
+    }
+    case 'moored_ship': {
+      const len = (p.look?.len || 3) * T;
+      drawShip(ctx, p.look || {}, x + w / 2, y + 6 + len / 2, Math.PI / 2, { time, lit: opts.night });
+      if (p.name) drawNameBoard(ctx, p.name, x + w / 2, y + len + 14);
       break;
     }
     case 'boat': {

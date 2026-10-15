@@ -12,6 +12,7 @@ export const TABLET_APPS = {
   market: { icon: '🚢', name: 'Shipping' },
   news: { icon: '📰', name: 'World news' },
   stocks: { icon: '📈', name: 'Stocks' },
+  ships: { icon: '⚓', name: 'Ober & Sons' },
 };
 const FEED_MAX = 60;
 

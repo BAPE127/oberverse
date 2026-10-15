@@ -60,6 +60,7 @@ export const BUILDING_ICONS = {
   b_aw3: { icon: '🏭', kind: 'Arms works' },
   b_gatehouse: { icon: '🚧', kind: 'Gatehouse' },
   b_scrapco: { icon: '♻️', kind: 'Scrapyard' },
+  b_ober_office: { icon: '⚓', kind: 'Shipping company' },
   // v0.16.0
   b_fender_office: { icon: '🚙', kind: 'Used-car dealership' },
   b_beaumont: { icon: '🏎️', kind: 'Luxury car dealership' },

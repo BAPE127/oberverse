@@ -15,6 +15,11 @@ export const PROP_TYPES = {
   barrel: { solid: true, label: 'Barrel', defaults: {} },
   rock: { solid: true, label: 'Rock', defaults: {} },
   boat: { solid: true, label: 'Rowing boat', defaults: { w: 2 } },
+  // the docks (v0.21.0)
+  bollard: { solid: true, label: 'Bollard', defaults: {} },
+  crane: { solid: true, label: 'Dock crane', defaults: { w: 3, h: 2 } },
+  shipberth: { solid: false, label: 'Berth', defaults: { w: 12, h: 11 } },
+  moored_ship: { solid: true, label: 'Ship', defaults: { w: 4, h: 9 } },
   hatch: { solid: true, label: 'Maintenance hatch', defaults: {} },
   fence: { solid: true, label: 'Fence', defaults: {} },
   mailbox: { solid: true, label: 'Post box', defaults: {} },

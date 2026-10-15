@@ -31,6 +31,7 @@ import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
 import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
+import { Logistics } from '../systems/logistics.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -70,6 +71,7 @@ export class Game {
     this.vehicles = new Vehicles(this);
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
+    this.logistics = new Logistics(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
     this.paused = false;
@@ -318,6 +320,7 @@ export class Game {
     this.arms.minuteTick();
     this.market.minuteTick();
     this.transit.minuteTick();
+    this.logistics.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
@@ -727,6 +730,7 @@ export class Game {
       case 'jail': return { serve: 'Lie on the cot', tray: 'Check the meal tray', dig: this.getFlag('jail_tunnel_open') ? 'Crawl into the tunnel' : 'Work at the loose brick', vent: 'Try the air vent', whisper: 'Whisper through the crack', bars: 'Grip the bars' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'contracts': return 'Look at the contracts board';
       case 'busstop': return 'Check the bus times';
+      case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}` }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'stockcheck': return 'Look at the display case';
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
@@ -821,6 +825,8 @@ export class Game {
         return this.arms.interact(prop);
       case 'busstop':
         return this.transit.stopInfo(act.stop);
+      case 'logistics':
+        return this.logistics.interact(prop);
       case 'workstation':
         return act.company === 'construction' ? this.construction.stationPrompt(prop) : this.oil.stationPrompt(prop);
       case 'contracts':

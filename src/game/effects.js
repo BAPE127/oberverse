@@ -7,7 +7,7 @@ import { parseSpotRef, TILE, interpolate } from '../core/util.js';
 
 export const EFFECT_KEYS = [
   'if', 'then', 'else', 'chance', 'give', 'take', 'money', 'rel', 'relNpc', 'flag', 'quest', 'learn', 'npcLearn', 'tell',
-  'memory', 'rep', 'mood', 'npcMood', 'openShop', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
+  'memory', 'rep', 'mood', 'npcMood', 'openShop', 'panel', 'sfx', 'notify', 'bark', 'npcBark', 'consume', 'restock', 'noise',
   'errand', 'takeTag', 'containerPut', 'containerTake', 'endDialogue', 'clearStolen', 'npcMemory', 'oil', 'action', 'payWages', 'schedule', 'site', 'permit', 'police', 'gang', 'factory', 'arms', 'dealer',
 ];
 
@@ -175,6 +175,10 @@ function applyOne(game, eff, npc, result) {
       case 'site':
         // { site: { goodwill: 2 } } — Mason's Os crew goodwill
         if (val.goodwill) game.construction.addGoodwill(val.goodwill);
+        break;
+      case 'panel':
+        // { panel: { name: 'logistics', tab: 'Acquire' } } opens a panel after the line is said
+        result.actions.push({ type: 'panel', panel: val.name, opts: { ...val, name: undefined } });
         break;
       case 'dealer':
         // { dealer: 'fender' } opens that dealership's sales panel

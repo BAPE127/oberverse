@@ -32,6 +32,7 @@ Then run `npm run check` before changing anything.
 | 15 | [Independent Technical Audit](15-technical-audit.md) | Reviewing quality, accuracy and consistency. |
 | 16 | [Prompt Bank Maintenance](16-prompt-bank-maintenance.md) | Procedures changed; prompts must follow. |
 | 17 | [Add a Property Plot](17-property-plot.md) | The project owner asks for a building plot (home, rental or shop) somewhere on the map. |
+| 18 | [Extend the Shipping Business](18-shipping-extension.md) | Ships, ports, contracts, or the later shipping stages (own-fleet exports, piracy, warships, missions, the shipyard). |
 
 ## Universal rules (apply to every prompt)
 

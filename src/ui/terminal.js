@@ -6,52 +6,10 @@
 // it, command tabs for parts, equipment, staff, research and the market.
 // See src/systems/arms.js and src/systems/market.js.
 import { h, itemIcon } from './panels.js';
+import { D2R, wrapLon, buildLand } from '../world/globe.js';
 
 // --------------------------------------------------------------- the globe
-const D2R = Math.PI / 180;
 let LAND = null;
-
-/** Smooth deterministic "continents" on the sphere. */
-function landNoise(lat, lon) {
-  const a = lat * D2R;
-  const b = lon * D2R;
-  return Math.sin(b * 2 + 0.6) * Math.cos(a * 3 - 0.4) * 0.55 + Math.sin(b * 5 + a * 4 + 1.3) * 0.25 + Math.cos(b * 3 - a * 6) * 0.18 + Math.sin(b * 9 + a * 2) * 0.08 - Math.abs(lat) / 260;
-}
-
-const wrapLon = (d) => ((d + 540) % 360) - 180;
-
-function buildLand(countries) {
-  const pts = [];
-  const step = 3;
-  const caps = Object.entries(countries);
-  for (let lat = -78; lat <= 80; lat += step) {
-    for (let lon = -180; lon < 180; lon += step) {
-      let n = landNoise(lat, lon);
-      // make sure every capital sits on land
-      for (const [, c] of caps) {
-        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
-        if (d < 14) n = Math.max(n, 0.3 - d / 60);
-      }
-      if (n < 0.12) continue;
-      let best = null;
-      let bd = 30;
-      for (const [id, c] of caps) {
-        const d = Math.hypot(lat - c.lat, wrapLon(lon - c.lon) * Math.cos(lat * D2R));
-        if (d < bd) { bd = d; best = id; }
-      }
-      pts.push({ lat, lon, country: best, n });
-    }
-  }
-  // border points: a neighbour belongs to another country (or is sea)
-  const key = (lat, lon) => `${lat},${wrapLon(lon)}`;
-  const map = new Map(pts.map((p) => [key(p.lat, p.lon), p]));
-  for (const p of pts) {
-    const e = map.get(key(p.lat, p.lon + step));
-    const nn = map.get(key(p.lat + step, p.lon));
-    p.border = (e && e.country !== p.country) || (nn && nn.country !== p.country) || !e || !nn;
-  }
-  return pts;
-}
 
 function project(lat, lon, rot, tilt) {
   const a = lat * D2R;

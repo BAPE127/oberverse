@@ -90,7 +90,7 @@ See `docs/templates/character.template.js` for a complete annotated example. Key
 
 ### Appearance
 
-`skin`, `hair`, `hairStyle` (`short|bun|parted|messy|long|ponytail|curly|hat|tophat|hardhat|cap`), `outfit`, optional `apron`, `undershirt`, `tie`, `legs`, `shoes`, `sleeves`, `accent`, `hatColor`, `hatBand`, `beard` (colour), `moustache` (`plain|handlebar`), `pattern` (`pinstripe`), `holding` (`cigar|clipboard|wrench`), `vestColor`, `accessory` and/or `accessories: []` (`apron|glasses|goggles|scarf|monocle|watchchain|vest`), `build` (`round|average|thin|wiry|broad`), `height` (≈0.9–1.1). Optional `sprite` and `portrait` images (paths, or data URIs from `src/content/portraits.js` so they work in the single-file build) replace the procedural drawing when they load. Add portraits with `node tools/embed-portraits.mjs`.
+`skin`, `hair`, `hairStyle` (`short|bun|parted|messy|long|ponytail|curly|hat|tophat|hardhat|cap|captain`), `outfit`, optional `apron`, `undershirt`, `tie`, `legs`, `shoes`, `sleeves`, `accent`, `hatColor`, `hatBand`, `beard` (colour), `moustache` (`plain|handlebar`), `pattern` (`pinstripe`), `holding` (`cigar|clipboard|wrench`), `vestColor`, `accessory` and/or `accessories: []` (`apron|glasses|goggles|scarf|monocle|watchchain|vest`), `build` (`round|average|thin|wiry|broad`), `height` (≈0.9–1.1). Optional `sprite` and `portrait` images (paths, or data URIs from `src/content/portraits.js` so they work in the single-file build) replace the procedural drawing when they load. Add portraits with `node tools/embed-portraits.mjs`.
 
 ## Dialogue (`src/content/dialogue/*.js`)
 

@@ -66,6 +66,7 @@ export const lucas = {
     npc_lawrence: { trust: 20, affection: 10, respect: -10, suspicion: 10 },
     npc_moneybucks: { trust: 10, affection: 5, respect: 40, suspicion: 30 },
     npc_arthur: { trust: 0, affection: -5, respect: 20, suspicion: 20 },
+    npc_ober: { trust: 35, affection: 30, respect: 25, suspicion: 5 },
   },
   knowledge: [],
   giftPrefs: { item_cigar: 10, item_coffee: 5, tags: { luxury: 6 } },
@@ -76,6 +77,7 @@ export const lucas = {
   opinions: {
     npc_lawrence: { warm: 'Chief Order? Great guy. Doesn\'t read the paperwork. My favourite kind of regulator.', cool: 'Order\'s a puppet. Whose? Exactly. Exactly.' },
     npc_moneybucks: { warm: 'Moneybucks gets it. Oil, guns — it\'s all the same pipe, different creek.', cool: 'Moneybucks owns the weather. I can\'t prove it. Yet.' },
+    npc_ober: { warm: 'The Captain? We moved "tractor parts" together, back in the day. Very pointy tractors. Best smuggler I ever met — he can lie to a customs officer with his whole face.', cool: 'Ober says I owe him for a crate that went over the side in \'ninety-one. I say the sea owes HIM. Follow the tides, man.' },
     npc_arthur: { warm: 'Arthur Anderson? Small-time. Calculators. Cute.', cool: 'Arthur called me "a rounding error with a tie". I have a folder on him now.' },
   },
 };

@@ -6,11 +6,12 @@
 import { h, journalTab, JOURNAL_TABS, stocksScreen } from './panels.js';
 import { terminalScreen, TERMINAL_TABS } from './terminal.js';
 import { TABLET_APPS } from '../systems/tablet.js';
+import { logisticsScreen } from './logistics.js';
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -23,6 +24,7 @@ export function tabletPanel(ui, body, opts) {
   else body.append(bar());
   if (tab === 'Home') homeApp(ui, body, open);
   else if (tab === 'Business') businessApp(ui, body, opts, open);
+  else if (tab === 'Ships') logisticsScreen(ui, body, { tab: opts.sub, sel: opts.sel, msg: opts.msg, msgOk: opts.msgOk, filter: opts.filter, cls: opts.cls, dest: opts.dest }, (o) => open('Ships', { sub: o.tab, sel: o.sel, msg: o.msg, msgOk: o.msgOk, filter: o.filter, cls: o.cls, dest: o.dest }));
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
@@ -53,6 +55,14 @@ function homeApp(ui, body, open) {
       h('b', {}, `🚗 Your cars (${cars.length})`),
       ...cars.slice(0, 4).map((c) => h('span', {}, `${models[c.model].name}${c.stolen ? ' (stolen)' : ''} — ${c.id === g.player.driving ? 'you\'re driving it' : g.maps.get(c.map).name}`)),
       cars.length > 4 ? h('span', {}, `…and ${cars.length - 4} more (all on the map).`) : null));
+  }
+  if (g.logistics.owned) {
+    const Lg = g.logistics;
+    const vs = Lg.vessels();
+    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Ships') },
+      h('b', {}, '⚓ Ober & Sons Maritime'),
+      h('span', {}, `${vs.length} ship${vs.length === 1 ? '' : 's'} (${vs.filter((v) => v.status === 'underway').length} at sea) · ${Lg.ownedPorts().length} ports`),
+      h('span', {}, `${Lg.contracts(['accepted', 'loading', 'transit']).length} contracts running · ${Lg.contracts('available').length} on offer`)));
   }
   const oil = g.oil.state;
   cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },

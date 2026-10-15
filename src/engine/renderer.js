@@ -184,7 +184,7 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime });
+          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.berth(p.slot) : null });
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));

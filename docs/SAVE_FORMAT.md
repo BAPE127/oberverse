@@ -57,6 +57,10 @@
 
 Combat fields (v0.6.0, optional): `player.equipped` (weapon item id, absent = fists), `player.mags` (rounds loaded per gun); per NPC `health` (absent = full), `dead`/`diedAt`, `downUntil` (game minute an unconscious NPC wakes). In-fight state (`hostile`, cooldowns, effects) is not saved: loading ends any fight.
 
+Business state (all optional, created on first use, so older saves simply lack them): `world.market`, `world.arms`, `world.factory`, `world.vehicles`, `world.transit`, `world.tablet`, and since **v0.21.0 `world.logistics`** — Ober & Sons Maritime: ownership, ports, vessels (with their voyages and pre-rolled voyage events), contracts, upkeep arrears, the ledger, reports and which ports the Yards berths show. See `docs/LOGISTICS.md#state`. A save from before 0.21.0 loads with the company unowned (it is never granted for free).
+
+Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).
+
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.
 
 ## Loading pipeline
