@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.35.2 (2026-10-16)
+
+- `npm run check` — all tests pass (1 new: a car nosed into the Kettle & Crumb's wall and floored never centres inside the building, ends clear and lets you out; overlapping another car you can still back away). The test fails on v0.35.1.
+- Reproduced first: a Pipit overlapping the café wall, accelerator held, spent 19 frames centred inside buildings. After the fix: 0, headless and in the browser (holding W for 3 s; E got out). Exit sweeps (Lanternside, every map edge) still 0 failures.
+
 ## Verification record — v0.35.1 (2026-10-16)
 
 - `npm run check` — all tests pass (3 new regression tests; both bus tests fail on the old code).

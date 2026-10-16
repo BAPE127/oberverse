@@ -94,16 +94,44 @@ export class Vehicles {
 
   /** The car's body as three boxes along its length. */
   blocked(map, x, y, angle, len, wid, ignore) {
-    const g = this.game;
+    return this.inWalls(map, x, y, angle, len, wid, ignore) > 0 || this.carAt(map, x, y, angle, len, wid, ignore);
+  }
+
+  /** How many of the body's three boxes are in a wall, a building or a solid prop (0–3). */
+  inWalls(map, x, y, angle, len, wid, ignore) {
     const a = this.actor(Boolean(ignore?.model && this.model(ignore)?.amphibious));
     const half = len / 2 - wid / 2;
     const box = Math.max(16, wid - 8);
+    let n = 0;
     for (const k of [-half, 0, half]) {
       const cx = x + Math.cos(angle) * k;
       const cy = y + Math.sin(angle) * k;
-      if (map.rectBlocked(cx - box / 2, cy - box / 2, box, box, a)) return true;
+      if (map.rectBlocked(cx - box / 2, cy - box / 2, box, box, a)) n++;
     }
-    return this.carAt(map, x, y, angle, len, wid, ignore);
+    return n;
+  }
+
+  /**
+   * v0.35.2: a car that has ended up partly in a wall (shoved by a car passing through it,
+   * say) is eased out to the nearest clear spot; it used to be let move anywhere "to work
+   * itself loose" — straight through buildings, and on across the map.
+   */
+  unstick(map, car, m) {
+    if (!this.inWalls(map, car.x, car.y, car.angle, m.len, m.wid, car)) return true;
+    for (let r = 4; r <= 8 * TILE; r += r < 64 ? 4 : 8) {
+      for (let k = 0; k < 16; k++) {
+        const a = (k * Math.PI) / 8;
+        const x = car.x + Math.cos(a) * r;
+        const y = car.y + Math.sin(a) * r;
+        if (!this.inWalls(map, x, y, car.angle, m.len, m.wid, car) && !this.carAt(map, x, y, car.angle, m.len, m.wid, car)) {
+          car.x = x;
+          car.y = y;
+          car.speed = 0;
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** Does a box (centre, angle, size) overlap a car on this map? */
@@ -385,13 +413,22 @@ export class Vehicles {
     car.speed = clamp(car.speed, -m.top * D.reverseShare, Math.max(m.top, top));
     // steering bites harder at speed (up to a point); reversing turns the other way
     const bite = clamp(car.speed / 140, -1, 1);
-    const wedged = this.blocked(map, car.x, car.y, car.angle, m.len, m.wid, car); // already overlapping something
+    // already in a wall? ease out first. Already overlapping a car? then other cars don't stop you
+    // moving (so you can pull apart) — but walls always do
+    this.unstick(map, car, m);
+    const walls0 = this.inWalls(map, car.x, car.y, car.angle, m.len, m.wid, car);
+    const wedged = this.carAt(map, car.x, car.y, car.angle, m.len, m.wid, car);
+    const stopsAt = (x, y, ang) => {
+      const w = this.inWalls(map, x, y, ang, m.len, m.wid, car);
+      if (w > walls0 || (w && !walls0)) return true; // deeper into a wall (or into one at all)
+      return !wedged && this.carAt(map, x, y, ang, m.len, m.wid, car);
+    };
     // v0.20.0: the wheel turns in over a moment rather than snapping, and the car's
     // travel lags its nose a little (more on the handbrake), so turns carry weight
     car.wheel = (car.wheel || 0) + (steer - (car.wheel || 0)) * Math.min(1, dt * 7);
     const turned = car.angle + car.wheel * m.grip * bite * dt * (input.sprint ? 1.5 : 1);
     // turning swings the car's ends: don't rotate into a wall
-    if (wedged || !this.blocked(map, car.x, car.y, turned, m.len, m.wid, car)) car.angle = turned;
+    if (!stopsAt(car.x, car.y, turned)) car.angle = turned;
     if (car.travel === undefined || Math.abs(car.speed) < 30) car.travel = car.angle;
     const slip = Math.atan2(Math.sin(car.angle - car.travel), Math.cos(car.angle - car.travel));
     const hold = input.sprint ? 2.2 : 9 + 6 * (1 - Math.min(1, Math.abs(car.speed) / 400)); // how quickly the tyres pull the car into line
@@ -408,11 +445,10 @@ export class Vehicles {
     for (let i = 0; i < steps; i++) {
       const nx = car.x + (Math.cos(car.travel) * total) / steps;
       const ny = car.y + (Math.sin(car.travel) * total) / steps;
-      // free to move — or wedged, in which case any move is allowed so it can work itself loose
-      if (wedged || !this.blocked(map, nx, ny, car.angle, m.len, m.wid, car)) { car.x = nx; car.y = ny; continue; }
+      if (!stopsAt(nx, ny, car.angle)) { car.x = nx; car.y = ny; continue; }
       // slide along the obstacle if we can
-      if (!this.blocked(map, nx, car.y, car.angle, m.len, m.wid, car)) { car.x = nx; car.speed *= 0.92; continue; }
-      if (!this.blocked(map, car.x, ny, car.angle, m.len, m.wid, car)) { car.y = ny; car.speed *= 0.92; continue; }
+      if (!stopsAt(nx, car.y, car.angle)) { car.x = nx; car.speed *= 0.92; continue; }
+      if (!stopsAt(car.x, ny, car.angle)) { car.y = ny; car.speed *= 0.92; continue; }
       crashed = true;
       this.crash(car);
       break;

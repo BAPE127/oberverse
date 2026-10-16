@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { newGame, setTime, noImpulses, CONTENT, Game, TILE } from './helpers.mjs';
 import { isProtected } from '../src/systems/combat.js';
 import { runCommand } from '../src/game/debugCommands.js';
+const TILE_SOLID = new Set(['B', 'W', 'r', 'x', 'R']);
 
 const fresh = (hhmm = '10:00') => {
   const g = newGame(7);
@@ -219,4 +220,27 @@ test('v0.35.1: you can always get out — beside traffic queued on both sides, o
   assert.ok(g.vehicles.exit().ok);
   assert.equal(g.player.driving, null);
   assert.equal(g.maps.get('yards').doorAt(Math.floor(g.player.x / TILE), Math.floor(g.player.y / TILE)), null, 'not in a doorway');
+});
+
+test('v0.35.2: a car shoved partly into a wall is eased out — it can never drive through buildings', () => {
+  const g = fresh();
+  const m = g.maps.get('lanternside');
+  // nosed into the Kettle & Crumb's front wall, and floored
+  const car = inCar(g, 'lanternside', 8, 21, 0);
+  car.y = 21.6 * TILE;
+  assert.ok(g.vehicles.inWalls(m, car.x, car.y, car.angle, 73, 38, car) > 0, 'starts in the wall');
+  let inside = 0;
+  for (let t = 0; t < 8; t += 0.05) {
+    g.update(0.05, { x: 0, y: -1, sprint: false });
+    if (TILE_SOLID.has(m.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE)))) inside++;
+  }
+  assert.equal(inside, 0, 'never inside the building');
+  assert.equal(g.vehicles.inWalls(m, car.x, car.y, car.angle, 73, 38, car), 0, 'clear of it');
+  assert.ok(g.vehicles.exit().ok);
+  // overlapping another car you can still pull apart — but not into a wall
+  const c2 = inCar(g, 'lanternside', 20, 23, 0);
+  const other = { id: 'car_x', model: 'pipit', color: '#888', map: 'lanternside', x: c2.x + 20, y: c2.y, angle: 0, owner: null, stolen: false, plate: 'X' };
+  g.vehicles.state.cars.car_x = other;
+  drive(g, 1.5, { y: 1 }); // reverse away from it
+  assert.ok(c2.x < other.x - 60, 'backed out of the other car');
 });

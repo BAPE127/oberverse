@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.35.2',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'Fix: no more driving through buildings',
+    notes: [
+      'A car nudged partly into a wall — by a car passing through it, say — could then be driven straight through buildings (from the Kettle & Crumb right across to Ober Fields) and you couldn\'t get out inside one. A car in a wall is now eased out to the nearest clear spot, and walls always stop you.',
+    ],
+  },
+  {
     version: '0.35.1',
     date: '2026-10-16',
     channel: 'development',
