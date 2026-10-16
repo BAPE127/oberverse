@@ -121,10 +121,11 @@ const armsWorks = (id, name, w, h, bunks, o = {}) => {
     { id: `${id}_board`, type: 'noticeboard', x: Math.floor(w / 2) + 2, y: 0, examine: o.board || 'A whiteboard: "SAFETY FIRST. SECOND. THIRD. — L.E." Somebody has added "DAYS WITHOUT INCIDENT: 0".' },
   ];
   const spots = { entry: { x: Math.floor(w / 2), y: h - 2, facing: 'up' } };
-  // staff quarters along the bottom-left wall: a cot per bunk, with a spot beside it and an idle post
+  // staff lockers along the bottom-left wall, with a spot beside each and an idle post
+  // (v0.36.0: the hands sleep at the Yards Lodging House now, not on the factory floor)
   for (let i = 0; i < bunks; i++) {
     const x = 1 + i * 2;
-    props.push({ id: `${id}_cot${i + 1}`, type: 'cot', x, y: h - 3 });
+    props.push({ id: `${id}_locker${i + 1}`, type: 'cabinet', x, y: h - 3, examine: 'A worker\'s locker: overalls, a flask, a photo of somebody\'s dog. They sleep at the Lodging House now.' });
     spots[`bunk_${i + 1}`] = { x: x + 1, y: h - 2, facing: 'left' };
     spots[`post_${i + 1}`] = { x: x + 1, y: h - 4, facing: 'up' };
   }

@@ -197,7 +197,7 @@ export const refinery = {
     { id: 'ref_column', type: 'column', x: 12, y: 2, w: 2, h: 3, examine: 'The distillation column, ticking and gurgling. A chalk tally on its base counts "days since last incident". It says 3. It has been rubbed out a lot.' },
     { id: 'ref_desk', type: 'desk', x: 15, y: 2, examine: 'The foreman\'s desk: timesheets, a stopwatch, and a sign reading "BREAKS ARE A STATE OF MIND".' },
     { id: 'ref_lab', type: 'workbench', x: 1, y: 7, w: 2, examine: 'Delphine\'s lab bench. Flasks, a spectroscope, and a jar labelled "DO NOT".' },
-    { id: 'ref_cot', type: 'cot', x: 16, y: 7 },
+    
     { id: 'ref_win', type: 'window', x: 5, y: 0 }, { id: 'ref_win2', type: 'window', x: 14, y: 0 },
   ],
 };

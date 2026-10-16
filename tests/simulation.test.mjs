@@ -23,8 +23,8 @@ test('NPCs follow their schedules across a simulated day (abstract tier)', () =>
   assert.equal(at['10:00'].npc_mags, 'cafe/work');
   assert.equal(at['12:40'].npc_osric, 'cafe/eat');
   assert.match(at['23:30'].npc_osric, /osric_house\/sleep/);
-  assert.match(at['23:30'].npc_mags, /cafe\/sleep/);
-  assert.match(at['03:00'].npc_tibbs, /workshop\/sleep/);
+  assert.match(at['23:30'].npc_mags, /gullwing11_1\/sleep/, 'Mags sleeps at home, not over the café (v0.36.0)');
+  assert.match(at['03:00'].npc_tibbs, /gullwing11_2\/sleep/);
 });
 
 test('NPCs walk physically when on the player\'s map', () => {

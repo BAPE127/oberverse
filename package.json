@@ -1,6 +1,6 @@
 {
   "name": "oberverse",
-  "version": "0.35.2",
+  "version": "0.36.0",
   "description": "The Oberverse — a persistent, character-driven, systemic sandbox RPG for the browser.",
   "private": true,
   "type": "module",

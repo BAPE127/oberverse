@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.36.0 (2026-10-16)
+
+- `npm run check` — **361/361 tests passed** (6 new in `homes.test.mjs`); validator 0 errors with the new rules (and the bed rule was proved live: a test plants a cot in the café and the checker catches it — on the first run it didn't, because a comment had swallowed the error call; fixed).
+- Browser: at 11 Gullwing Row's door the prompt offers a break-in; with a crowbar, forced it — Mabel saw, a call went in; inside Mags's flat (bed, stove, dresser, cookbooks). Fixed during testing: the choices panel didn't know the homes system ("target[method] is not a function"); hired hands couldn't get back into the works after a night at the Lodging House (the works door now admits its own staff).
+
 ## Verification record — v0.35.2 (2026-10-16)
 
 - `npm run check` — **354/354 tests passed** (1 new: a car nosed into the Kettle & Crumb's wall and floored never centres inside the building, ends clear and lets you out; overlapping another car you can still back away). The test fails on v0.35.1. Two older tests (`streets`, `pursuit`) relied on the bug — a car started off the map, and a pull-over staged among the plaza's lamp posts — and were moved onto real roads. (The first push of this fix went out with those two failing; corrected in the next commit.)

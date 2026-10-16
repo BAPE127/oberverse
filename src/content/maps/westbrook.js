@@ -49,7 +49,7 @@ export const westbrook = {
     {
       id: 'b_plumb_line', mapLabel: 'Plumb Line Apts', name: 'Plumb Line Apartments', x: 4, y: 15, w: 12, h: 6,
       roof: '#7a8a9a', wall: '#e2d4bd', trim: '#4a5a6a', sign: 'PLUMB LINE APTS',
-      door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '22:00' } } },
+      door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn', 'npc_marty'], home: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn', 'npc_marty'], hours: { from: '07:00', to: '22:00' } } },
     },
   ],
   doors: [
@@ -137,7 +137,7 @@ export const fenderOffice = {
   spots: { entry: { x: 3, y: 4, facing: 'up' }, desk: { x: 5, y: 2, facing: 'up' }, cot: { x: 2, y: 2, facing: 'left' } },
   props: [
     { id: 'fo_desk', type: 'desk', x: 4, y: 1, color: '#6a4a2a', examine: 'A desk buried in carbon-copy sales forms. Every form has the same signature on the "previous owner" line. It is Marty\'s.' },
-    { id: 'fo_cot', type: 'cot', x: 1, y: 1, examine: 'A camp bed. Marty "doesn\'t live here". Marty lives here.' },
+    
     { id: 'fo_keys', type: 'cabinet', x: 6, y: 1, examine: 'A board of car keys on hooks. Several are labelled "???".' },
     { id: 'fo_poster', type: 'painting', x: 2, y: 0, examine: 'A poster of Marty, younger, giving a thumbs-up beside a car that is on fire. Caption: "HOT DEALS".' },
     { id: 'fo_plates', type: 'crate', x: 6, y: 4, examine: 'A crate of blank number plates. A sticky note: "FOR DISPLAY PURPOSES".' },
@@ -151,14 +151,17 @@ export const apartments = {
   kind: 'interior',
   music: 'mus_home',
   ambience: 'amb_indoor',
-  tiles: roomTiles(16, 9, 'f', 8, [[2, 0, 1, 1, 'D'], [5, 0, 1, 1, 'D'], [10, 0, 1, 1, 'D'], [13, 0, 1, 1, 'D']]),
+  tiles: roomTiles(16, 9, 'f', 8, [[2, 0, 1, 1, 'D'], [5, 0, 1, 1, 'D'], [10, 0, 1, 1, 'D'], [13, 0, 1, 1, 'D'], [15, 3, 1, 1, 'D']]),
   doors: [
     { id: 'door_apartments_exit', x: 8, y: 8, to: { map: 'westbrook', spot: 'apartments_door_out' } },
-    ...[[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => ({ id: `door_plumb_${n}`, x, y: 0, label: `Flat ${n}`, to: { map: `plumb_unit_${n}`, spot: 'entry' }, lock: { key: 'item_none', owners: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], message: `Flat ${n} — ${['M. NAILS', 'D. RIVERA', 'B. COLE', 'Q. ABERNATHY'][n - 1]}. A private flat; the door is locked.` } })),
+    ...[[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => ({ id: `door_plumb_${n}`, x, y: 0, label: `Flat ${n}`, to: { map: `plumb_unit_${n}`, spot: 'entry' }, lock: { key: 'item_none', owners: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], home: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], message: `Flat ${n} — ${['M. NAILS', 'D. RIVERA', 'B. COLE', 'Q. ABERNATHY'][n - 1]}. A private flat; the door is locked.` } })),
+    // v0.36.0: Flat 5 (Marty Fender), off the side of the hall
+    { id: 'door_plumb_5', x: 15, y: 3, label: 'Flat 5', to: { map: 'plumb_unit_5', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_marty'], home: ['npc_marty'], message: 'Flat 5 — M. FENDER ("NO SALESMEN" — signed, a salesman). A private flat; the door is locked.' } },
   ],
   spots: {
     entry: { x: 8, y: 7, facing: 'up' },
     ...Object.fromEntries([[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => [`unit_${n}_door`, { x, y: 1, facing: 'down' }])),
+    unit_5_door: { x: 14, y: 3, facing: 'left' },
     common: { x: 6, y: 4, facing: 'right' },
     common_b: { x: 9, y: 4, facing: 'left' },
     armchair: { x: 3, y: 6, facing: 'right' },
@@ -169,7 +172,7 @@ export const apartments = {
     { id: 'apt_stove', type: 'stove', x: 14, y: 6 },
     { id: 'apt_rug', type: 'rug', x: 6, y: 5, w: 4, h: 2, color: '#a0703a' },
     { id: 'apt_plant', type: 'plant', x: 1, y: 6 },
-    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: 1 M. NAILS (landlord, handyman, pun enthusiast), 2 D. RIVERA, 3 B. COLE, 4 Q. ABERNATHY.' },
+    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: 1 M. NAILS (landlord, handyman, pun enthusiast), 2 D. RIVERA, 3 B. COLE, 4 Q. ABERNATHY, 5 M. FENDER (rent "in the post").' },
     { id: 'apt_armchair', type: 'chair', x: 3, y: 6 },
   ],
 };
@@ -206,4 +209,12 @@ export const plumbUnit4 = flat(4, 'Quinn Abernathy', { bed: '#8a6a9a', rug: '#5a
   { type: 'shelf', x: 7, y: 4, examine: 'Survey manuals in alphabetical order. And one romance novel, hidden behind them.' },
 ] });
 
-export default [westbrook, masonOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, fenderOffice];
+// v0.36.0: Flat 5 — Marty Fender moved out of his office (no beds at work)
+export const plumbUnit5 = { ...flat(5, 'Marty Fender', { bed: '#c8402a', rug: '#e8c04a', props: [
+  { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed first obol, and under it a framed second obol. "THE START OF SOMETHING", the plaque says.' },
+  { type: 'crate', x: 1, y: 4, examine: 'Brochures for cars Marty doesn\'t sell, cars he can\'t get, and one car that doesn\'t exist. He sold two.' },
+  { type: 'cabinet', x: 7, y: 4, interact: { kind: 'container', container: 'ct_plumb_unit_5_dresser' }, examine: 'A dresser. The kind of drawer people keep the good things in.' },
+] }), home: ['npc_marty'] };
+plumbUnit5.doors = [{ id: 'door_plumb_unit_5_exit', x: 4, y: 6, to: { map: 'apartments', spot: 'unit_5_door' } }];
+
+export default [westbrook, masonOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, plumbUnit5, fenderOffice];

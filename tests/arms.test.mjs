@@ -144,14 +144,23 @@ test('staff: generated applicants, hired into bunks, walk to their station on sh
   assert.match(g.arms.hire(0, 'aw1').text, /bunks for 4/);
 });
 
-test('employees never leave their works', () => {
+test('employees work their shifts in the works and lodge at the Yards Lodging House (v0.36.0: no beds at work)', () => {
   const g = works(6, '00:00');
   runCommand(g, 'hire 2 aw1');
   g.changeMap('yards', 'east_gate');
+  const seen = {};
   for (let i = 0; i < 24 * 6; i++) {
     run(g, 10, 1);
-    for (const st of g.arms.state.staff) assert.equal(g.npcs.get(st.id).map, 'aw1');
+    for (const st of g.arms.state.staff) {
+      const n = g.npcs.get(st.id);
+      assert.ok(['aw1', 'lodging', 'yards'].includes(n.map), `${st.id} is at ${n.map}`);
+      if (n.activity === 'sleep' && n.arrived) (seen.sleep ||= new Set()).add(n.map);
+      const h = Math.floor(g.clock.minuteOfDay / 60);
+      if (h >= 9 && h < 18 && !g.arms.quirk(st).night) (seen.work ||= new Set()).add(n.map);
+    }
   }
+  assert.deepEqual([...seen.sleep], ['lodging'], 'they sleep at the Lodging House');
+  if (seen.work) assert.deepEqual([...seen.work], ['aw1'], 'and are in the works all day shift');
 });
 
 test('research: a scientist in a lab earns points; nodes unlock recipes and raise prices', () => {

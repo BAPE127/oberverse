@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.36.0] — 2026-10-16 — Home Sweet Home (development build)
+
+Owner's brief: no beds in stores or shops — every NPC has a home they go to when not working; the player can break into homes and steal (for a later pawnshop); trusted NPCs invite the player in. Owner's decisions: Chief Order gets a house too (changing "never leaves the station" from his interview); the Sumps camp stays a camp.
+
+### Added
+- **Homes** (`src/content/homes.js`): a generator for apartment blocks (a stairwell hall with a door per flat) and single homes, applied after the roads are widened, reusing buildings that were facades or doorless: **11 Gullwing Row** (Mags, Tibbs, Delphine), **Harbourline Apartments** (Chief Order and five officers), **The Atlas Rooms** (Lucas, Julian, Sal), four **Sumps shacks** by the Abacus (Arthur; Al & Percy; Minnie & Dee; Tony & Max), **the Tolliver place** in Lariat (Wes), and **Flat 5 at the Plumb Line** (Marty). Each flat: bed, chair, stove, a dresser of valuables, and personal touches (Lucas's red-string wall moved home with him). 22 people moved; their evenings at work (Lucas's red string, Julian's sherry, Marty's takings, the Chief's crossword) moved home too.
+- **The Yards Lodging House** (Halver Scrap Co.): 20 beds for your arms works' hired hands, who used to sleep on the factory floor; they now walk to their shifts (existing saves too — their schedules are rebuilt on load).
+- **Break-ins** (`src/systems/homes.js`): at a locked home door, E → pick the lock (Lockpick Set, new, 35 obols at Sal's Surplus; ~4 s standing still; quiet — only someone who sees you; 22% chance the pick snaps; open for an hour) or force it with a crowbar (instant, heard 14 tiles away; broken for a day). A resident who comes home to a forced door calls the police (an incident). A resident who catches you inside — awake, or woken — shouts, and it's **burglary** (new crime, severity 3). Dressers belong to their residents: what you take is marked stolen from them (for a pawnshop). Works on every private home, old and new (30 doors).
+- **Valuables:** Pocket Watch, Gold Ring, Gold Wristwatch, Silver Spoons (tagged `valuable`, `pawn`).
+- **Invitations:** a new "Could I visit you at home some time?" option for anyone with a home: yes at trust ≥ 25 (or affection ≥ 30) — their doors open to you 08:00–22:00 (theirs only, not their neighbours'); saved. Optional per-character lines (`homeInvite: { yes, no }` in a dialogue).
+- **Validation:** no bed or cot outside a home (the player's flat, the jail, the Lodging House and properties you build excepted); nobody works in someone's home (estates and farms excepted).
+- Tests: `tests/homes.test.mjs` (6); four older tests updated to the new rules (workers commute; the Chief goes home; Mags and Tibbs sleep at home).
+
+### Changed
+- Workplace beds removed: the café, Hollow Fixings, the refinery lab, the police station bunks, the Abacus bunks, the gun shop, Sal's, Fender's office, the Hoof & Horn, and the arms works (cots became lockers). The Chief's office couch and Julian's chaise are benches now.
+- Works doors let their own staff in for their shifts.
+
+### Saves
+- Older saves: everyone re-plans to their new home; new containers and the Lodging House appear; nothing is handed to you.
+
 ## [0.35.2] — 2026-10-16 — Fix (development build)
 
 Owner's report: you can drive through buildings from the café to Ober Fields, and can't get out of the car.

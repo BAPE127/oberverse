@@ -43,9 +43,9 @@ test('the cast: Chief Order is imported and protected; five armed, killable offi
   assert.ok(!g.police.activeOfficers().some((o) => o.id === 'npc_lawrence'), 'the Chief does not chase anyone');
 });
 
-test('Chief Order never leaves the precinct; his officers walk all four areas between them', () => {
+test('Chief Order works only in the precinct (and goes home at night — owner, v0.36.0); his officers walk all four areas between them', () => {
   const mapsOf = (id) => CONTENT.characters[id].schedule.map((b) => parseSpotRef(b.spot).map);
-  assert.deepEqual([...new Set(mapsOf('npc_lawrence'))], ['police_station']);
+  assert.deepEqual([...new Set(mapsOf('npc_lawrence'))].sort(), ['harbourline_1', 'police_station']);
   const regionOf = (mapId) => (['lanternside', 'westbrook', 'ober_fields'].includes(mapId) ? mapId : mapId === 'halvermouth' ? 'halvermouth' : null);
   const areas = new Set(OFFICERS.flatMap(mapsOf).map(regionOf).filter(Boolean));
   assert.deepEqual([...areas].sort(), ['halvermouth', 'lanternside', 'ober_fields', 'westbrook']);

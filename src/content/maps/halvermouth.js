@@ -383,12 +383,12 @@ export const policeStation = {
     // Chief Order's office
     { id: 'pd_chief_desk', type: 'desk', x: 17, y: 4, w: 3, color: '#5a3a24', examine: 'Chief Order\'s desk. An in-tray stacked to the ceiling, an out-tray with one sandwich in it, and a nameplate: LAWRENCE ORDER — CHIEF OF POLICE — "IF IT\'S URGENT, IT\'LL KEEP".' },
     { id: 'pd_donuts', type: 'table', x: 15, y: 1, examine: 'A box of a dozen doughnuts. There are two left. There are always two left.' },
-    { id: 'pd_couch', type: 'bed', x: 21, y: 1, color: '#6a4a3a', examine: 'A sagging office couch with a Lawrence-shaped dent in it. A cushion is embroidered "NAP TIME IS POLICE TIME".' },
+    { id: 'pd_couch', type: 'bench', x: 21, y: 1, color: '#6a4a3a', examine: 'A sagging office couch with a Lawrence-shaped dent in it. A cushion is embroidered "NAP TIME IS POLICE TIME".' },
     { id: 'pd_chief_cab', type: 'cabinet', x: 22, y: 5, examine: 'Reports, unread, filed under "LATER". There is no "NOW".' },
     { id: 'pd_chief_flag', type: 'flagpole', x: 15, y: 6, color: '#2a4a8a' },
     { id: 'pd_rug', type: 'rug', x: 16, y: 5, w: 4, h: 1, color: '#2a4a6a' },
     // bunks
-    { id: 'pd_cot1', type: 'cot', x: 15, y: 8 }, { id: 'pd_cot2', type: 'cot', x: 17, y: 8 }, { id: 'pd_cot3', type: 'cot', x: 19, y: 8 }, { id: 'pd_cot4', type: 'cot', x: 21, y: 8 }, { id: 'pd_cot5', type: 'cot', x: 15, y: 11 },
+    
     { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 19, y: 0 },
   ],
 };
@@ -455,7 +455,7 @@ export const beaumontShowroom = {
     { id: 'bg_desk', type: 'desk', x: 13, y: 1, w: 3, color: '#2a1e18', examine: 'Julian\'s desk: a fountain pen, a leather order book and a single orchid. No computer. "Computers," he says, "are for people who forget things."' },
     { id: 'bg_plant1', type: 'plant', x: 16, y: 1 }, { id: 'bg_plant2', type: 'plant', x: 1, y: 8 },
     { id: 'bg_sofa', type: 'bench', x: 4, y: 8, w: 2, examine: 'A leather chesterfield for clients "considering their options".' },
-    { id: 'bg_chaise', type: 'bed', x: 16, y: 7, color: '#6a1f2a', examine: 'A velvet chaise longue in the back corner. Julian insists he never sleeps here.' },
+    { id: 'bg_chaise', type: 'bench', x: 16, y: 7, color: '#6a1f2a', examine: 'A velvet chaise longue in the back corner. Julian insists he never sleeps here.' },
     { id: 'bg_bar', type: 'counter', x: 13, y: 5, w: 3, examine: 'A little bar: sherry, champagne, and sparkling water "for the drivers".' },
     { id: 'bg_rug', type: 'rug', x: 7, y: 7, w: 4, h: 2, color: '#1e2a3f' },
     { id: 'bg_portrait', type: 'painting', x: 11, y: 0, examine: 'Three generations of Beaumonts, each beside a vehicle: a carriage, a motor car, and the Corsair. All three are wearing the same expression.' },
@@ -482,7 +482,7 @@ export const gunShop = {
     { id: 'gs_cabinet', type: 'cabinet', x: 9, y: 6, examine: 'Licence forms, and under them a stack of pamphlets: "THE MOON IS A FRANCHISE — wake up."' },
     { id: 'gs_rug', type: 'rug', x: 4, y: 6, w: 4, h: 1, color: '#5a3a2a' },
     // the back room
-    { id: 'gs_cot', type: 'cot', x: 12, y: 1, examine: 'A camp bed under a poster of a missile captioned "HANG IN THERE".' },
+    
     { id: 'gs_crates', type: 'crate', x: 11, y: 8, w: 2, examine: 'Crates stencilled NOT GUNS. They are guns.' },
     { id: 'gs_corkboard', type: 'noticeboard', x: 12, y: 0, examine: 'A corkboard of newspaper clippings joined with red string. The string spells "INVEST". Pinned in the middle: a photo of you, from across the street. Recent.' },
   ],
@@ -519,12 +519,12 @@ export const abacus = {
     { id: 'ab_couch', type: 'bench', x: 7, y: 5, w: 2, color: '#6a3a2a' }, // Max sleeps beside it
     { id: 'ab_board', type: 'noticeboard', x: 9, y: 0, examine: 'A chalkboard: this week\'s takings by corner, to the penny. Underlined twice: "THE SUMPS LOOKS AFTER ITS OWN." Underlined three times: "NO COPS."' },
     // the crew's bunks
-    { id: 'ab_cot1', type: 'cot', x: 1, y: 1 }, { id: 'ab_cot2', type: 'cot', x: 3, y: 1 }, { id: 'ab_cot3', type: 'cot', x: 5, y: 1 },
-    { id: 'ab_cot4', type: 'cot', x: 2, y: 4 }, { id: 'ab_cot5', type: 'cot', x: 4, y: 4 },
+    
+    
     // Arthur's office
     { id: 'ab_desk', type: 'desk', x: 13, y: 3, w: 3, color: '#3a1a14', examine: 'Arthur\'s desk: a ledger of grudges, a ledger of takings, and a third ledger that just says "LEDGERS". A desk calculator with the = key worn through.' },
     { id: 'ab_safe', type: 'cabinet', x: 16, y: 1, color: '#3a3a3e', examine: 'A safe. Painted on the door in red: "TOUCH THIS AND I WILL DO THE MATHS ON YOUR TEETH."' },
-    { id: 'ab_bed', type: 'cot', x: 16, y: 4 },
+    
     { id: 'ab_portrait', type: 'painting', x: 13, y: 0, examine: 'A framed photo of a very young Arthur at a school maths fair, holding a trophy. He is scowling.' },
   ],
 };
@@ -572,7 +572,7 @@ export const surplus = {
     { id: 'sp_shelf1', type: 'shelf', x: 1, y: 1, w: 3, h: 1, examine: 'Shelves of LCD screens, each one reading 8.8.8.8.8.8.8.8.' },
     { id: 'sp_shelf2', type: 'shelf', x: 5, y: 1, w: 2, h: 1, examine: 'Boxes labelled CASINGS (PINK), CASINGS (GREY), CASINGS (??).' },
     { id: 'sp_machines', type: 'crate', x: 1, y: 6, w: 2, examine: 'Crated machinery: a soldering station, a case press, coils of conveyor belt. "ASK SAL," says a sticker.' },
-    { id: 'sp_cot', type: 'cot', x: 10, y: 1 },
+    
     { id: 'sp_sign', type: 'sign', x: 9, y: 6, examine: '"SAL\'S SURPLUS — If it beeps, I\'ve got it. If it doesn\'t beep, I\'ve probably got it. No questions asked; no answers given."' },
   ],
 };

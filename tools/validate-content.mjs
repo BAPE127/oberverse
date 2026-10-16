@@ -413,6 +413,20 @@ export function validateContent(content = CONTENT) {
     for (const c of Object.values(content.characters)) for (const b of c.schedule || []) if (b.patrol && !L.patrolRoutes[b.patrol]) err(`character ${c.id}: unknown patrol ${b.patrol}`);
     for (const [id, life] of Object.entries(L.homes)) if (life.transport && !['walk', 'transit', 'drive', 'patrol'].includes(life.transport)) err(`character ${id}: unknown transport ${life.transport}`);
   }
+  // v0.36.0: no beds at work. Beds and cots only in homes (residence units), the player's flat, the jail and the
+  // Lodging House; and nobody's home is a place anyone works (live-in staff on an estate or a farm excepted)
+  {
+    const homeMaps = new Set(['player_flat', 'jail', 'lodging']);
+    const unitMaps = new Map();
+    for (const [rid, r] of Object.entries(content.life?.residences || {})) for (const u of Object.values(r.units)) { homeMaps.add(u.map); unitMaps.set(u.map, r.type); }
+    for (const m of maps.values()) for (const p of m.props) if ((p.type === 'bed' || p.type === 'cot') && !homeMaps.has(m.id) && !/_inside$/.test(m.id) /* a property you build is your home */) err(`map ${m.id}: a ${p.type} (${p.id}) outside a home — no beds in shops or workplaces`);
+    for (const c of Object.values(content.characters)) for (const b of c.schedule || []) {
+      if (b.activity !== 'work' || !b.spot) continue;
+      const wm = parseSpotRef(b.spot).map;
+      const t = unitMaps.get(wm);
+      if (t && !['estate', 'farmhouse', 'camp', 'houseboat', 'dormitory'].includes(t)) err(`character ${c.id}: works at ${b.spot}, which is somebody's home`);
+    }
+  }
   // v0.35.0: errands and meet-ups — kinds exist, places are real spots, a meet-up is arranged on both sides and overlaps
   const errands = content.life?.errands || {};
   for (const [kind, places] of Object.entries(errands)) for (const pl of places) {

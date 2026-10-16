@@ -130,6 +130,8 @@ export class DialogueSession {
     const opts = this.availableTopics().map((t) => ({ id: `topic:${t.id}`, label: interpolate(t.label, this.vars()), tag: t.tag || null, fresh: !(this.npc.topicsUsed || {})[t.id] }));
     if (this.profile.mechanics?.gossipBroker) opts.push({ id: 'gossip', label: '"Heard anything interesting?"', tag: 'gossip' });
     if (this.giftables().length) opts.push({ id: 'gift', label: 'Give a gift…', tag: 'gift' });
+    // v0.36.0: anyone with a home can be asked round; they say yes if they trust you
+    if (this.game.homes?.homeOf(this.npc.id) && !this.game.homes.invited(this.npc.id) && !this.npc.hostile) opts.push({ id: 'home', label: '"Could I visit you at home some time?"', tag: 'home' });
     opts.push({ id: 'ask', label: 'Ask about…', tag: 'ask' });
     opts.push({ id: 'bye', label: 'Goodbye.', tag: 'bye' });
     return opts;
@@ -148,6 +150,12 @@ export class DialogueSession {
       return out;
     }
     if (optionId === 'gossip') return this.gossipMenu(out);
+    if (optionId === 'home') {
+      const r = this.game.homes.askInvite(this.npc);
+      out.pages.push(r.text);
+      if (r.invited) this.game.notify(`${this.profile.shortName} invited you round. Their door is open to you, 08:00–22:00.`, 'good');
+      return this.finish(out);
+    }
     if (optionId.startsWith('gift:')) return this.giveGift(optionId.slice(5), out);
     if (optionId.startsWith('tell:')) return this.tellFact(optionId.slice(5), out);
     if (optionId.startsWith('topic:')) return this.runTopic(optionId.slice(6), out);

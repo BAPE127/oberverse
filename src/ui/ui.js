@@ -696,10 +696,10 @@ export class UI {
       if (!this.walkKeys) this.walkKeys = this.el.keys.textContent;
       set(this.el.keys, riding ? 'Riding the bus · E get off when it stops · J tablet · M map' : car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
     }
-    const hw = g.vehicles.hotwire;
+    const hw = g.vehicles.hotwire || g.homes.picking;
     if (hw) {
       const k = Math.min(1, hw.t / hw.need);
-      const html = `🔧 Hotwiring… <span class="hotwire"><i style="width:${Math.round(k * 100)}%"></i></span> (stand still)`;
+      const html = `${g.homes.picking ? '🔓 Picking the lock…' : '🔧 Hotwiring…'} <span class="hotwire"><i style="width:${Math.round(k * 100)}%"></i></span> (stand still)`;
       if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
       this.el.prompt.classList.remove('hidden');
     } else if (target) {

@@ -40,8 +40,8 @@ export default {
     { from: '07:00', to: '15:00', activity: 'work', spot: 'cafe:counter' },
     { from: '15:00', to: '16:30', activity: 'socialize', spot: 'lanternside:square_bench' },
     { from: '16:30', to: '21:00', activity: 'work', spot: 'cafe:counter' },
-    { from: '21:00', to: '22:00', activity: 'leisure', spot: 'cafe:table_window' },
-    { from: '22:00', to: '05:30', activity: 'sleep', spot: 'cafe:mags_bed' },
+    { from: '21:00', to: '22:00', activity: 'leisure', spot: 'gullwing11_1:chair', label: 'feet up at home' },
+    { from: '22:00', to: '05:30', activity: 'sleep', spot: 'gullwing11_1:bed' },
   ],
   impulses: [
     {

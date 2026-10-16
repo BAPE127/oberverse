@@ -13,7 +13,7 @@ export const sal = {
   walkSpeed: 0.95, punctuality: 10, impulses: [], notices: [], knowledge: [],
   schedule: [
     { from: '07:45', to: '20:00', activity: 'work', spot: 'surplus:counter_back', label: 'behind the counter' },
-    { from: '20:00', to: '07:45', activity: 'sleep', spot: 'surplus:back_cot' },
+    { from: '20:00', to: '07:45', activity: 'sleep', spot: 'atlas_3:bed' },
   ],
   relationships: { player: { trust: 5, affection: 5, respect: 0, suspicion: 5 }, npc_arthur: { trust: 10, affection: 0, respect: 20, suspicion: 20 } },
   giftPrefs: { item_coffee: 6, item_cigar: 8, tags: {} },

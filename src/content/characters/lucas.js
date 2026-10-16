@@ -57,8 +57,8 @@ export const lucas = {
     { from: '09:00', to: '13:00', activity: 'work', spot: 'gun_shop:counter_back', label: 'behind the counter' },
     { from: '13:00', to: '13:45', activity: 'eat', spot: 'gun_shop:lucas_desk', label: 'lunch at his desk' },
     { from: '13:45', to: '19:00', activity: 'work', spot: 'gun_shop:counter_back', label: 'behind the counter' },
-    { from: '19:00', to: '23:30', activity: 'leisure', spot: 'gun_shop:lucas_desk', label: 'connecting red string' },
-    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'gun_shop:lucas_bed' },
+    { from: '19:00', to: '23:30', activity: 'leisure', spot: 'atlas_1:desk', label: 'connecting red string (at home)' },
+    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'atlas_1:bed' },
   ],
   impulses: [],
   relationships: {

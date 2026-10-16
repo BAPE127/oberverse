@@ -26,7 +26,7 @@ export const SHOPS = {
   },
   shop_surplus: {
     name: 'Sal\'s Surplus — parts', owner: 'npc_sal', restockAt: '08:00',
-    stock: { item_part_casing: 40, item_part_keypad: 40, item_part_screen: 40, item_part_board: 40, item_part_battery: 60 },
+    stock: { item_part_casing: 40, item_part_keypad: 40, item_part_screen: 40, item_part_board: 40, item_part_battery: 60, item_lockpick: 3 }, // v0.36.0: lockpicks, no questions asked
     buys: { item_calc_charm: 7, item_calc_wits: 7, item_calc_grit: 7, item_calc_finesse: 7, item_calc_health: 7, item_calc_energy: 7, item_calc_blank: 3 },
   },
   shop_machines: {

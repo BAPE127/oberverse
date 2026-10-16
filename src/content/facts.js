@@ -113,6 +113,11 @@ export const FACTS = {
     text: 'The newcomer was seen sneaking into the old lighthouse.', importance: 6, aboutPlayer: true,
     relImpact: { trust: -8, respect: -2 }, reputation: { fac_civic: -6, lanternside: -2 }, keywords: ['trespass'],
   },
+  // v0.36.0: breaking into a home (picking or forcing the door, or helping yourself to what's inside)
+  fact_player_burglary: {
+    text: 'The newcomer was seen breaking into somebody\'s home.', importance: 8, aboutPlayer: true,
+    relImpact: { trust: -15, affection: -6, suspicion: 20 }, reputation: { fac_civic: -6 }, keywords: ['burglary', 'break-in', 'theft', 'stole'],
+  },
   fact_player_stole_from_osric: {
     text: 'The newcomer was seen taking something from Osric\'s desk.', importance: 7, aboutPlayer: true,
     relImpact: { trust: -12, suspicion: 15 }, reputation: { fac_civic: -8, lanternside: -4 }, keywords: ['theft', 'stole'],

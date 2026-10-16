@@ -180,7 +180,7 @@ export const delphine = staff({
   schedule: [
     { from: '08:00', to: '20:00', activity: 'work', spot: 'refinery:lab' },
     { from: '20:00', to: '21:00', activity: 'leisure', spot: 'lanternside:fountain_side', label: 'watching the dry fountain', errand: 'outing', errandChance: 0.3 },
-    { from: '21:00', to: '08:00', activity: 'sleep', spot: 'refinery:lab_cot' },
+    { from: '21:00', to: '08:00', activity: 'sleep', spot: 'gullwing11_3:bed' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 0 }, npc_moneybucks: { trust: 5, affection: -5, respect: 20, suspicion: 5 }, npc_ruby: { trust: 20, affection: 10, respect: 35, suspicion: 0 } },
   knowledge: ['fact_moneybucks_owns_oil'],

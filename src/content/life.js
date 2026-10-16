@@ -41,11 +41,12 @@ export const OCCUPATIONS = {
  * Each unit: the interior (or outdoor) map, its beds (spot names on that
  * map), capacity, and whether unrelated people may share it.
  */
+// v0.36.0: everyone who used to sleep at work (the café, the station bunks, the Abacus, the
+// gun shop…) lives in a real home now — generated in src/content/homes.js and merged in by
+// src/content/index.js. No beds in shops or workplaces (the checker enforces it).
 export const RESIDENCES = {
   // Lanternside & the coast
-  res_kettle_flat: { name: 'The flat over the Kettle & Crumb', type: 'flat', units: { flat: { map: 'cafe', beds: ['mags_bed'], capacity: 1 } } },
   res_osric_house: { name: 'Osric Vane\'s house', type: 'house', units: { house: { map: 'osric_house', beds: ['bed'], capacity: 1 } } },
-  res_hollow_fixings: { name: 'The back room at Hollow Fixings', type: 'quarters', units: { back_room: { map: 'workshop', beds: ['cot'], capacity: 1 } } },
   res_manor: {
     name: 'Moneybucks Manor', type: 'estate',
     units: {
@@ -54,7 +55,6 @@ export const RESIDENCES = {
     },
   },
   res_bunkhouse: { name: 'The Ober\'s Oil bunkhouse', type: 'dormitory', units: { dorm: { map: 'bunkhouse', beds: ['bunk1', 'bunk2', 'bunk3', 'bunk4', 'bunk5'], capacity: 5, shared: true } } },
-  res_refinery_lab: { name: 'The cot in the refinery lab', type: 'quarters', units: { lab: { map: 'refinery', beds: ['lab_cot'], capacity: 1 } } },
   // Westbrook: the Plumb Line Apartments — four flats off a shared hall (v0.32.0)
   res_plumb_line: {
     name: 'Plumb Line Apartments', type: 'apartment',
@@ -63,11 +63,10 @@ export const RESIDENCES = {
       apt_2: { map: 'plumb_unit_2', beds: ['bed'], capacity: 1 },
       apt_3: { map: 'plumb_unit_3', beds: ['bed'], capacity: 1 },
       apt_4: { map: 'plumb_unit_4', beds: ['bed'], capacity: 1 },
+      apt_5: { map: 'plumb_unit_5', beds: ['bed'], capacity: 1 }, // v0.36.0: Marty
     },
   },
   // Halvermouth
-  res_station_quarters: { name: 'Precinct 1 duty quarters', type: 'staff_quarters', units: { chief: { map: 'police_station', beds: ['chief_couch'], capacity: 1 }, bunks: { map: 'police_station', beds: ['bunk_1', 'bunk_2', 'bunk_3', 'bunk_4', 'bunk_5'], capacity: 5, shared: true } } },
-  res_abacus: { name: 'The Abacus (the gang\'s den)', type: 'staff_quarters', units: { boss: { map: 'abacus', beds: ['arthur_bed'], capacity: 1 }, bunks: { map: 'abacus', beds: ['bunk_1', 'bunk_2', 'bunk_3', 'bunk_4', 'bunk_5', 'hall_couch'], capacity: 6, shared: true } } },
   res_sumps_camp: {
     name: 'The Sumps camp', type: 'camp',
     units: {
@@ -77,16 +76,11 @@ export const RESIDENCES = {
       shore: { map: 'halvermouth', beds: ['sumps_shore'], capacity: 1 },
     },
   },
-  res_surplus: { name: 'The back room at Sal\'s Surplus', type: 'quarters', units: { back_room: { map: 'surplus', beds: ['back_cot'], capacity: 1 } } },
-  res_armory_flat: { name: 'The flat behind Pipecreek Armory', type: 'flat', units: { flat: { map: 'gun_shop', beds: ['lucas_bed'], capacity: 1 } } },
-  res_fender_office: { name: 'The office at Fender\'s', type: 'quarters', units: { office: { map: 'fender_office', beds: ['cot'], capacity: 1 } } },
-  res_beaumont: { name: 'The apartment over the Beaumont Motor Gallery', type: 'flat', units: { flat: { map: 'beaumont_showroom', beds: ['chaise'], capacity: 1 } } },
   // the Yards
   res_salty_ober: { name: 'The Salty Ober (houseboat)', type: 'houseboat', units: { cabin: { map: 'salty_ober', beds: ['bunk'], capacity: 1 } } },
   // Lariat
   res_chuckie_ranch: { name: 'Chuckie\'s ranch house', type: 'farmhouse', units: { house: { map: 'chuckie_house', beds: ['bed'], capacity: 1 } } },
   res_hollister: { name: 'The Hollister farmhouse', type: 'farmhouse', units: { house: { map: 'hollister_house', beds: ['bed'], capacity: 1 } } },
-  res_hoof_horn: { name: 'The back room at Hoof & Horn', type: 'quarters', units: { back_room: { map: 'hoof_horn', beds: ['bed'], capacity: 1 } } },
   res_bluebonnet: {
     name: 'Bluebonnet Boarding House', type: 'rooming_house',
     units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
@@ -95,9 +89,9 @@ export const RESIDENCES = {
 
 /** Who lives where, and what they do. `home` is 'residence/unit'. */
 export const LIFE = {
-  npc_mags: { home: 'res_kettle_flat/flat', occupation: 'shopkeeper' },
+  npc_mags: { home: 'res_gullwing11/flat_1', occupation: 'shopkeeper' },
   npc_osric: { home: 'res_osric_house/house', occupation: 'clerk' },
-  npc_tibbs: { home: 'res_hollow_fixings/back_room', occupation: 'tradesperson' },
+  npc_tibbs: { home: 'res_gullwing11/flat_2', occupation: 'tradesperson' },
   npc_moneybucks: { home: 'res_manor/master_suite', occupation: 'executive' },
   npc_crisp: { home: 'res_manor/staff_quarters', occupation: 'household_staff' },
   npc_agnes: { home: 'res_manor/staff_quarters', occupation: 'clerk' },
@@ -108,27 +102,27 @@ export const LIFE = {
   npc_hank: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
   npc_pip: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
   npc_otto: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
-  npc_delphine: { home: 'res_refinery_lab/lab', occupation: 'scientist' },
+  npc_delphine: { home: 'res_gullwing11/flat_3', occupation: 'scientist' },
   npc_mason: { home: 'res_plumb_line/apt_1', occupation: 'tradesperson' },
   npc_dee: { home: 'res_plumb_line/apt_2', occupation: 'tradesperson' },
   npc_barnaby: { home: 'res_plumb_line/apt_3', occupation: 'labourer' },
   npc_quinn: { home: 'res_plumb_line/apt_4', occupation: 'clerk' },
-  npc_lawrence: { home: 'res_station_quarters/chief', occupation: 'police' },
-  ...Object.fromEntries(['justin', 'warren', 'bailey', 'miranda', 'hugh'].map((k) => [`npc_${k}`, { home: 'res_station_quarters/bunks', occupation: 'police' }])),
-  npc_arthur: { home: 'res_abacus/boss', occupation: 'gang' },
-  ...Object.fromEntries(['al', 'percy', 'minnie', 'dee_nom', 'tony', 'max'].map((k) => [`npc_${k}`, { home: 'res_abacus/bunks', occupation: 'gang' }])),
+  npc_lawrence: { home: 'res_harbourline/flat_1', occupation: 'police' },
+  ...Object.fromEntries(['justin', 'warren', 'bailey', 'miranda', 'hugh'].map((k, i) => [`npc_${k}`, { home: `res_harbourline/flat_${i + 2}`, occupation: 'police' }])),
+  npc_arthur: { home: 'res_shack_arthur/home', occupation: 'gang' },
+  ...Object.fromEntries(['al', 'percy', 'minnie', 'dee_nom', 'tony', 'max'].map((k, i) => [`npc_${k}`, { home: `res_shack_crew_${'abc'[Math.floor(i / 2)]}/home`, occupation: 'gang' }])),
   ...Object.fromEntries(['ray', 'dot', 'fern', 'sol'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/tents_north', occupation: 'casual' }])),
   ...Object.fromEntries(['mo', 'lena', 'hattie', 'pearl'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/tents_west', occupation: 'casual' }])),
   ...Object.fromEntries(['bill', 'nico', 'bram'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/south_shacks', occupation: 'casual' }])),
   npc_gus: { home: 'res_sumps_camp/shore', occupation: 'casual' },
-  npc_sal: { home: 'res_surplus/back_room', occupation: 'shopkeeper' },
-  npc_lucas: { home: 'res_armory_flat/flat', occupation: 'shopkeeper' },
-  npc_marty: { home: 'res_fender_office/office', occupation: 'dealer' },
-  npc_julian: { home: 'res_beaumont/flat', occupation: 'dealer' },
+  npc_sal: { home: 'res_atlas/flat_3', occupation: 'shopkeeper' },
+  npc_lucas: { home: 'res_atlas/flat_1', occupation: 'shopkeeper' },
+  npc_marty: { home: 'res_plumb_line/apt_5', occupation: 'dealer' },
+  npc_julian: { home: 'res_atlas/flat_2', occupation: 'dealer' },
   npc_ober: { home: 'res_salty_ober/cabin', occupation: 'mariner' },
   npc_chuckie: { home: 'res_chuckie_ranch/house', occupation: 'farmer' },
   npc_earl: { home: 'res_hollister/house', occupation: 'farmer' },
-  npc_wes: { home: 'res_hoof_horn/back_room', occupation: 'shopkeeper' },
+  npc_wes: { home: 'res_lariat_tolliver/home', occupation: 'shopkeeper' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },

@@ -18,8 +18,8 @@ export const marty = {
   noSnitch: true,
   schedule: [
     { from: '08:30', to: '19:00', activity: 'work', spot: 'westbrook:fender_pitch', label: 'working the lot' },
-    { from: '19:00', to: '23:30', activity: 'relax', spot: 'fender_office:desk', label: 'counting the day\'s takings' },
-    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'fender_office:cot' },
+    { from: '19:00', to: '23:30', activity: 'relax', spot: 'plumb_unit_5:chair', label: 'counting the day\'s takings at home' },
+    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'plumb_unit_5:bed' },
   ],
   relationships: { player: { trust: 0, affection: 10, respect: 0, suspicion: 0 }, npc_julian: { trust: -10, affection: -20, respect: 15, suspicion: 20 }, npc_mason: { trust: 10, affection: 20, respect: 10, suspicion: 0 } },
   giftPrefs: { item_coffee: 4, item_cigar: 9, tags: { money: 8 } },
@@ -44,8 +44,8 @@ export const julian = {
   walkSpeed: 0.9, punctuality: 2, impulses: [], notices: [], knowledge: [],
   schedule: [
     { from: '09:30', to: '18:30', activity: 'work', spot: 'beaumont_showroom:desk', label: 'at the showroom desk' },
-    { from: '18:30', to: '23:00', activity: 'relax', spot: 'beaumont_showroom:lounge', label: 'with a small sherry' },
-    { from: '23:00', to: '09:30', activity: 'sleep', spot: 'beaumont_showroom:chaise' },
+    { from: '18:30', to: '23:00', activity: 'relax', spot: 'atlas_2:chair', label: 'a small sherry at home' },
+    { from: '23:00', to: '09:30', activity: 'sleep', spot: 'atlas_2:bed' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: -5, suspicion: 5 }, npc_marty: { trust: -30, affection: -10, respect: -30, suspicion: 40 }, npc_moneybucks: { trust: 30, affection: 20, respect: 40, suspicion: 0 } },
   giftPrefs: { item_coffee: 2, item_cigar: 6, tags: { luxury: 10 } },

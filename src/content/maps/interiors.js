@@ -49,7 +49,7 @@ export const cafe = {
     { id: 'cafe_shelf', type: 'shelf', x: 2, y: 1, w: 2, examine: 'Jars of flour, honey, and something labelled "EMERGENCY CINNAMON".' },
     { id: 'cafe_counter', type: 'counter', x: 2, y: 3, w: 5, examine: 'The counter of the Kettle & Crumb. Talk to whoever is behind it to order.' },
     { id: 'cafe_display', type: 'display', x: 8, y: 1, w: 2, interact: { kind: 'stockcheck', shop: 'shop_kettle' } },
-    { id: 'cafe_bed', type: 'bed', x: 12, y: 1, color: '#c98b6b', examine: 'A narrow bed tucked behind a folding screen. Mags lives where she works.' },
+    
     { id: 'cafe_t1', type: 'table', x: 4, y: 6 }, { id: 'cafe_c1', type: 'chair', x: 5, y: 6 },
     { id: 'cafe_t2', type: 'table', x: 10, y: 4 }, { id: 'cafe_c2', type: 'chair', x: 9, y: 4 },
     { id: 'cafe_t3', type: 'table', x: 10, y: 7 }, { id: 'cafe_c3', type: 'chair', x: 11, y: 7 },
@@ -109,7 +109,7 @@ export const workshop = {
     { id: 'ws_bench', type: 'workbench', x: 2, y: 2, examine: 'Half a toaster, a radio with legs, and a sketch titled "TOASTER (BUT FASTER)".' },
     { id: 'ws_rack', type: 'toolrack', x: 4, y: 1, examine: 'A wall of tools. A crowbar hangs in pride of place with a price tag on it.' },
     { id: 'ws_engine', type: 'engine', x: 8, y: 2, examine: 'A boat engine Tibbs calls "Duchess". It is held together with optimism.' },
-    { id: 'ws_cot', type: 'cot', x: 11, y: 1 },
+    
     { id: 'ws_scrap', type: 'scrap', x: 1, y: 6 },
     { id: 'ws_barrel', type: 'barrel', x: 11, y: 6 },
     { id: 'ws_crate', type: 'crate', x: 11, y: 5, interact: { kind: 'container', container: 'ct_workshop_crate' } },

@@ -45,7 +45,7 @@ export default {
     { from: '14:00', to: '18:00', activity: 'work', spot: 'workshop:bench' },
     { from: '18:00', to: '21:00', activity: 'fish', spot: 'lanternside:pier_end' },
     { from: '21:00', to: '01:00', activity: 'tinker', spot: 'workshop:engine' },
-    { from: '01:00', to: '07:30', activity: 'sleep', spot: 'workshop:cot' },
+    { from: '01:00', to: '07:30', activity: 'sleep', spot: 'gullwing11_2:bed' },
   ],
   impulses: [
     {

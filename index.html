@@ -925,7 +925,7 @@ const cafe = {
     { id: 'cafe_shelf', type: 'shelf', x: 2, y: 1, w: 2, examine: 'Jars of flour, honey, and something labelled "EMERGENCY CINNAMON".' },
     { id: 'cafe_counter', type: 'counter', x: 2, y: 3, w: 5, examine: 'The counter of the Kettle & Crumb. Talk to whoever is behind it to order.' },
     { id: 'cafe_display', type: 'display', x: 8, y: 1, w: 2, interact: { kind: 'stockcheck', shop: 'shop_kettle' } },
-    { id: 'cafe_bed', type: 'bed', x: 12, y: 1, color: '#c98b6b', examine: 'A narrow bed tucked behind a folding screen. Mags lives where she works.' },
+    
     { id: 'cafe_t1', type: 'table', x: 4, y: 6 }, { id: 'cafe_c1', type: 'chair', x: 5, y: 6 },
     { id: 'cafe_t2', type: 'table', x: 10, y: 4 }, { id: 'cafe_c2', type: 'chair', x: 9, y: 4 },
     { id: 'cafe_t3', type: 'table', x: 10, y: 7 }, { id: 'cafe_c3', type: 'chair', x: 11, y: 7 },
@@ -985,7 +985,7 @@ const workshop = {
     { id: 'ws_bench', type: 'workbench', x: 2, y: 2, examine: 'Half a toaster, a radio with legs, and a sketch titled "TOASTER (BUT FASTER)".' },
     { id: 'ws_rack', type: 'toolrack', x: 4, y: 1, examine: 'A wall of tools. A crowbar hangs in pride of place with a price tag on it.' },
     { id: 'ws_engine', type: 'engine', x: 8, y: 2, examine: 'A boat engine Tibbs calls "Duchess". It is held together with optimism.' },
-    { id: 'ws_cot', type: 'cot', x: 11, y: 1 },
+    
     { id: 'ws_scrap', type: 'scrap', x: 1, y: 6 },
     { id: 'ws_barrel', type: 'barrel', x: 11, y: 6 },
     { id: 'ws_crate', type: 'crate', x: 11, y: 5, interact: { kind: 'container', container: 'ct_workshop_crate' } },
@@ -1251,7 +1251,7 @@ const refinery = {
     { id: 'ref_column', type: 'column', x: 12, y: 2, w: 2, h: 3, examine: 'The distillation column, ticking and gurgling. A chalk tally on its base counts "days since last incident". It says 3. It has been rubbed out a lot.' },
     { id: 'ref_desk', type: 'desk', x: 15, y: 2, examine: 'The foreman\'s desk: timesheets, a stopwatch, and a sign reading "BREAKS ARE A STATE OF MIND".' },
     { id: 'ref_lab', type: 'workbench', x: 1, y: 7, w: 2, examine: 'Delphine\'s lab bench. Flasks, a spectroscope, and a jar labelled "DO NOT".' },
-    { id: 'ref_cot', type: 'cot', x: 16, y: 7 },
+    
     { id: 'ref_win', type: 'window', x: 5, y: 0 }, { id: 'ref_win2', type: 'window', x: 14, y: 0 },
   ],
 };
@@ -1342,7 +1342,7 @@ const westbrook = {
     {
       id: 'b_plumb_line', mapLabel: 'Plumb Line Apts', name: 'Plumb Line Apartments', x: 4, y: 15, w: 12, h: 6,
       roof: '#7a8a9a', wall: '#e2d4bd', trim: '#4a5a6a', sign: 'PLUMB LINE APTS',
-      door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'], hours: { from: '07:00', to: '22:00' } } },
+      door: { x: 9, y: 20, to: { map: 'apartments', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn', 'npc_marty'], home: ['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn', 'npc_marty'], hours: { from: '07:00', to: '22:00' } } },
     },
   ],
   doors: [
@@ -1430,7 +1430,7 @@ const fenderOffice = {
   spots: { entry: { x: 3, y: 4, facing: 'up' }, desk: { x: 5, y: 2, facing: 'up' }, cot: { x: 2, y: 2, facing: 'left' } },
   props: [
     { id: 'fo_desk', type: 'desk', x: 4, y: 1, color: '#6a4a2a', examine: 'A desk buried in carbon-copy sales forms. Every form has the same signature on the "previous owner" line. It is Marty\'s.' },
-    { id: 'fo_cot', type: 'cot', x: 1, y: 1, examine: 'A camp bed. Marty "doesn\'t live here". Marty lives here.' },
+    
     { id: 'fo_keys', type: 'cabinet', x: 6, y: 1, examine: 'A board of car keys on hooks. Several are labelled "???".' },
     { id: 'fo_poster', type: 'painting', x: 2, y: 0, examine: 'A poster of Marty, younger, giving a thumbs-up beside a car that is on fire. Caption: "HOT DEALS".' },
     { id: 'fo_plates', type: 'crate', x: 6, y: 4, examine: 'A crate of blank number plates. A sticky note: "FOR DISPLAY PURPOSES".' },
@@ -1444,14 +1444,17 @@ const apartments = {
   kind: 'interior',
   music: 'mus_home',
   ambience: 'amb_indoor',
-  tiles: roomTiles(16, 9, 'f', 8, [[2, 0, 1, 1, 'D'], [5, 0, 1, 1, 'D'], [10, 0, 1, 1, 'D'], [13, 0, 1, 1, 'D']]),
+  tiles: roomTiles(16, 9, 'f', 8, [[2, 0, 1, 1, 'D'], [5, 0, 1, 1, 'D'], [10, 0, 1, 1, 'D'], [13, 0, 1, 1, 'D'], [15, 3, 1, 1, 'D']]),
   doors: [
     { id: 'door_apartments_exit', x: 8, y: 8, to: { map: 'westbrook', spot: 'apartments_door_out' } },
-    ...[[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => ({ id: `door_plumb_${n}`, x, y: 0, label: `Flat ${n}`, to: { map: `plumb_unit_${n}`, spot: 'entry' }, lock: { key: 'item_none', owners: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], message: `Flat ${n} — ${['M. NAILS', 'D. RIVERA', 'B. COLE', 'Q. ABERNATHY'][n - 1]}. A private flat; the door is locked.` } })),
+    ...[[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => ({ id: `door_plumb_${n}`, x, y: 0, label: `Flat ${n}`, to: { map: `plumb_unit_${n}`, spot: 'entry' }, lock: { key: 'item_none', owners: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], home: [['npc_mason', 'npc_dee', 'npc_barnaby', 'npc_quinn'][n - 1]], message: `Flat ${n} — ${['M. NAILS', 'D. RIVERA', 'B. COLE', 'Q. ABERNATHY'][n - 1]}. A private flat; the door is locked.` } })),
+    // v0.36.0: Flat 5 (Marty Fender), off the side of the hall
+    { id: 'door_plumb_5', x: 15, y: 3, label: 'Flat 5', to: { map: 'plumb_unit_5', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_marty'], home: ['npc_marty'], message: 'Flat 5 — M. FENDER ("NO SALESMEN" — signed, a salesman). A private flat; the door is locked.' } },
   ],
   spots: {
     entry: { x: 8, y: 7, facing: 'up' },
     ...Object.fromEntries([[2, 1], [5, 2], [10, 3], [13, 4]].map(([x, n]) => [`unit_${n}_door`, { x, y: 1, facing: 'down' }])),
+    unit_5_door: { x: 14, y: 3, facing: 'left' },
     common: { x: 6, y: 4, facing: 'right' },
     common_b: { x: 9, y: 4, facing: 'left' },
     armchair: { x: 3, y: 6, facing: 'right' },
@@ -1462,7 +1465,7 @@ const apartments = {
     { id: 'apt_stove', type: 'stove', x: 14, y: 6 },
     { id: 'apt_rug', type: 'rug', x: 6, y: 5, w: 4, h: 2, color: '#a0703a' },
     { id: 'apt_plant', type: 'plant', x: 1, y: 6 },
-    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: 1 M. NAILS (landlord, handyman, pun enthusiast), 2 D. RIVERA, 3 B. COLE, 4 Q. ABERNATHY.' },
+    { id: 'apt_mail', type: 'cabinet', x: 10, y: 6, examine: 'Mailboxes: 1 M. NAILS (landlord, handyman, pun enthusiast), 2 D. RIVERA, 3 B. COLE, 4 Q. ABERNATHY, 5 M. FENDER (rent "in the post").' },
     { id: 'apt_armchair', type: 'chair', x: 3, y: 6 },
   ],
 };
@@ -1499,9 +1502,17 @@ const plumbUnit4 = flat(4, 'Quinn Abernathy', { bed: '#8a6a9a', rug: '#5a5a7a', 
   { type: 'shelf', x: 7, y: 4, examine: 'Survey manuals in alphabetical order. And one romance novel, hidden behind them.' },
 ] });
 
-const __default = [westbrook, masonOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, fenderOffice];
+// v0.36.0: Flat 5 — Marty Fender moved out of his office (no beds at work)
+const plumbUnit5 = { ...flat(5, 'Marty Fender', { bed: '#c8402a', rug: '#e8c04a', props: [
+  { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed first obol, and under it a framed second obol. "THE START OF SOMETHING", the plaque says.' },
+  { type: 'crate', x: 1, y: 4, examine: 'Brochures for cars Marty doesn\'t sell, cars he can\'t get, and one car that doesn\'t exist. He sold two.' },
+  { type: 'cabinet', x: 7, y: 4, interact: { kind: 'container', container: 'ct_plumb_unit_5_dresser' }, examine: 'A dresser. The kind of drawer people keep the good things in.' },
+] }), home: ['npc_marty'] };
+plumbUnit5.doors = [{ id: 'door_plumb_unit_5_exit', x: 4, y: 6, to: { map: 'apartments', spot: 'unit_5_door' } }];
 
-return { westbrook, masonOffice, fenderOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, default: __default };
+const __default = [westbrook, masonOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, plumbUnit5, fenderOffice];
+
+return { westbrook, masonOffice, fenderOffice, apartments, plumbUnit1, plumbUnit2, plumbUnit3, plumbUnit4, plumbUnit5, default: __default };
 })();
 
 // ---- src/content/maps/halvermouth.js
@@ -1891,12 +1902,12 @@ const policeStation = {
     // Chief Order's office
     { id: 'pd_chief_desk', type: 'desk', x: 17, y: 4, w: 3, color: '#5a3a24', examine: 'Chief Order\'s desk. An in-tray stacked to the ceiling, an out-tray with one sandwich in it, and a nameplate: LAWRENCE ORDER — CHIEF OF POLICE — "IF IT\'S URGENT, IT\'LL KEEP".' },
     { id: 'pd_donuts', type: 'table', x: 15, y: 1, examine: 'A box of a dozen doughnuts. There are two left. There are always two left.' },
-    { id: 'pd_couch', type: 'bed', x: 21, y: 1, color: '#6a4a3a', examine: 'A sagging office couch with a Lawrence-shaped dent in it. A cushion is embroidered "NAP TIME IS POLICE TIME".' },
+    { id: 'pd_couch', type: 'bench', x: 21, y: 1, color: '#6a4a3a', examine: 'A sagging office couch with a Lawrence-shaped dent in it. A cushion is embroidered "NAP TIME IS POLICE TIME".' },
     { id: 'pd_chief_cab', type: 'cabinet', x: 22, y: 5, examine: 'Reports, unread, filed under "LATER". There is no "NOW".' },
     { id: 'pd_chief_flag', type: 'flagpole', x: 15, y: 6, color: '#2a4a8a' },
     { id: 'pd_rug', type: 'rug', x: 16, y: 5, w: 4, h: 1, color: '#2a4a6a' },
     // bunks
-    { id: 'pd_cot1', type: 'cot', x: 15, y: 8 }, { id: 'pd_cot2', type: 'cot', x: 17, y: 8 }, { id: 'pd_cot3', type: 'cot', x: 19, y: 8 }, { id: 'pd_cot4', type: 'cot', x: 21, y: 8 }, { id: 'pd_cot5', type: 'cot', x: 15, y: 11 },
+    
     { id: 'pd_win', type: 'window', x: 3, y: 0 }, { id: 'pd_win2', type: 'window', x: 19, y: 0 },
   ],
 };
@@ -1963,7 +1974,7 @@ const beaumontShowroom = {
     { id: 'bg_desk', type: 'desk', x: 13, y: 1, w: 3, color: '#2a1e18', examine: 'Julian\'s desk: a fountain pen, a leather order book and a single orchid. No computer. "Computers," he says, "are for people who forget things."' },
     { id: 'bg_plant1', type: 'plant', x: 16, y: 1 }, { id: 'bg_plant2', type: 'plant', x: 1, y: 8 },
     { id: 'bg_sofa', type: 'bench', x: 4, y: 8, w: 2, examine: 'A leather chesterfield for clients "considering their options".' },
-    { id: 'bg_chaise', type: 'bed', x: 16, y: 7, color: '#6a1f2a', examine: 'A velvet chaise longue in the back corner. Julian insists he never sleeps here.' },
+    { id: 'bg_chaise', type: 'bench', x: 16, y: 7, color: '#6a1f2a', examine: 'A velvet chaise longue in the back corner. Julian insists he never sleeps here.' },
     { id: 'bg_bar', type: 'counter', x: 13, y: 5, w: 3, examine: 'A little bar: sherry, champagne, and sparkling water "for the drivers".' },
     { id: 'bg_rug', type: 'rug', x: 7, y: 7, w: 4, h: 2, color: '#1e2a3f' },
     { id: 'bg_portrait', type: 'painting', x: 11, y: 0, examine: 'Three generations of Beaumonts, each beside a vehicle: a carriage, a motor car, and the Corsair. All three are wearing the same expression.' },
@@ -1990,7 +2001,7 @@ const gunShop = {
     { id: 'gs_cabinet', type: 'cabinet', x: 9, y: 6, examine: 'Licence forms, and under them a stack of pamphlets: "THE MOON IS A FRANCHISE — wake up."' },
     { id: 'gs_rug', type: 'rug', x: 4, y: 6, w: 4, h: 1, color: '#5a3a2a' },
     // the back room
-    { id: 'gs_cot', type: 'cot', x: 12, y: 1, examine: 'A camp bed under a poster of a missile captioned "HANG IN THERE".' },
+    
     { id: 'gs_crates', type: 'crate', x: 11, y: 8, w: 2, examine: 'Crates stencilled NOT GUNS. They are guns.' },
     { id: 'gs_corkboard', type: 'noticeboard', x: 12, y: 0, examine: 'A corkboard of newspaper clippings joined with red string. The string spells "INVEST". Pinned in the middle: a photo of you, from across the street. Recent.' },
   ],
@@ -2027,12 +2038,12 @@ const abacus = {
     { id: 'ab_couch', type: 'bench', x: 7, y: 5, w: 2, color: '#6a3a2a' }, // Max sleeps beside it
     { id: 'ab_board', type: 'noticeboard', x: 9, y: 0, examine: 'A chalkboard: this week\'s takings by corner, to the penny. Underlined twice: "THE SUMPS LOOKS AFTER ITS OWN." Underlined three times: "NO COPS."' },
     // the crew's bunks
-    { id: 'ab_cot1', type: 'cot', x: 1, y: 1 }, { id: 'ab_cot2', type: 'cot', x: 3, y: 1 }, { id: 'ab_cot3', type: 'cot', x: 5, y: 1 },
-    { id: 'ab_cot4', type: 'cot', x: 2, y: 4 }, { id: 'ab_cot5', type: 'cot', x: 4, y: 4 },
+    
+    
     // Arthur's office
     { id: 'ab_desk', type: 'desk', x: 13, y: 3, w: 3, color: '#3a1a14', examine: 'Arthur\'s desk: a ledger of grudges, a ledger of takings, and a third ledger that just says "LEDGERS". A desk calculator with the = key worn through.' },
     { id: 'ab_safe', type: 'cabinet', x: 16, y: 1, color: '#3a3a3e', examine: 'A safe. Painted on the door in red: "TOUCH THIS AND I WILL DO THE MATHS ON YOUR TEETH."' },
-    { id: 'ab_bed', type: 'cot', x: 16, y: 4 },
+    
     { id: 'ab_portrait', type: 'painting', x: 13, y: 0, examine: 'A framed photo of a very young Arthur at a school maths fair, holding a trophy. He is scowling.' },
   ],
 };
@@ -2080,7 +2091,7 @@ const surplus = {
     { id: 'sp_shelf1', type: 'shelf', x: 1, y: 1, w: 3, h: 1, examine: 'Shelves of LCD screens, each one reading 8.8.8.8.8.8.8.8.' },
     { id: 'sp_shelf2', type: 'shelf', x: 5, y: 1, w: 2, h: 1, examine: 'Boxes labelled CASINGS (PINK), CASINGS (GREY), CASINGS (??).' },
     { id: 'sp_machines', type: 'crate', x: 1, y: 6, w: 2, examine: 'Crated machinery: a soldering station, a case press, coils of conveyor belt. "ASK SAL," says a sticker.' },
-    { id: 'sp_cot', type: 'cot', x: 10, y: 1 },
+    
     { id: 'sp_sign', type: 'sign', x: 9, y: 6, examine: '"SAL\'S SURPLUS — If it beeps, I\'ve got it. If it doesn\'t beep, I\'ve probably got it. No questions asked; no answers given."' },
   ],
 };
@@ -2215,10 +2226,11 @@ const armsWorks = (id, name, w, h, bunks, o = {}) => {
     { id: `${id}_board`, type: 'noticeboard', x: Math.floor(w / 2) + 2, y: 0, examine: o.board || 'A whiteboard: "SAFETY FIRST. SECOND. THIRD. — L.E." Somebody has added "DAYS WITHOUT INCIDENT: 0".' },
   ];
   const spots = { entry: { x: Math.floor(w / 2), y: h - 2, facing: 'up' } };
-  // staff quarters along the bottom-left wall: a cot per bunk, with a spot beside it and an idle post
+  // staff lockers along the bottom-left wall, with a spot beside each and an idle post
+  // (v0.36.0: the hands sleep at the Yards Lodging House now, not on the factory floor)
   for (let i = 0; i < bunks; i++) {
     const x = 1 + i * 2;
-    props.push({ id: `${id}_cot${i + 1}`, type: 'cot', x, y: h - 3 });
+    props.push({ id: `${id}_locker${i + 1}`, type: 'cabinet', x, y: h - 3, examine: 'A worker\'s locker: overalls, a flask, a photo of somebody\'s dog. They sleep at the Lodging House now.' });
     spots[`bunk_${i + 1}`] = { x: x + 1, y: h - 2, facing: 'left' };
     spots[`post_${i + 1}`] = { x: x + 1, y: h - 4, facing: 'up' };
   }
@@ -2714,7 +2726,7 @@ const hoofHorn = room('hoof_horn', 'Hoof & Horn Livestock Supply', 14, 9, 'hoof_
     { id: 'hh_counter', type: 'counter', x: 5, y: 3, w: 5, h: 1, interact: { kind: 'farm', action: 'livestock', name: 'sale ledger' }, examine: 'The Hoof & Horn counter: the sale ledger, a brass bell, and a jar of horehound candy that has been there since the Depression.' },
     { id: 'hh_board', type: 'noticeboard', x: 1, y: 0, examine: 'STOCK FOR SALE: laying hens, dairy goats, beef calves — delivered to your pasture. "WE BUY: grown cattle, goats, hens. Auction prices, paid same day."' },
     { id: 'hh_saddle', type: 'display', x: 11, y: 1, w: 1, examine: 'A saddle on a stand, and a sign: "NOT FOR SALE. ASK ANYWAY."' },
-    { id: 'hh_bed', type: 'cot', x: 12, y: 5, w: 1, h: 2, examine: 'Wes\'s cot in the back. He says he lives in town. He lives here.' },
+    
     { id: 'hh_sacks', type: 'crate', x: 1, y: 6, w: 3, examine: 'Salt licks, mineral blocks, and a box of ear tags numbered up to 999.' },
   ],
 });
@@ -3181,6 +3193,27 @@ const ITEMS = {
     name: 'Flat Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
     description: 'The key to Number 9, Gullwing Row. Home, for now.',
   },
+  // v0.36.0: break-ins — a lockpick, and the valuables people keep at home (tagged for a pawnshop)
+  item_lockpick: {
+    name: 'Lockpick Set', category: 'tool', price: 35, tags: ['tool', 'pick'], icon: 'key',
+    description: 'A tension wrench and five picks in a leather roll. Quiet, slow, and occasionally snaps at the worst moment.',
+  },
+  item_pocket_watch: {
+    name: 'Pocket Watch', category: 'valuable', price: 40, tags: ['valuable', 'pawn'], icon: 'cog',
+    description: 'A silver pocket watch, engraved on the back. The engraving is someone else\'s name.',
+  },
+  item_gold_ring: {
+    name: 'Gold Ring', category: 'valuable', price: 55, tags: ['valuable', 'pawn'], icon: 'key',
+    description: 'A plain gold band. It meant something to somebody.',
+  },
+  item_gold_watch: {
+    name: 'Gold Wristwatch', category: 'valuable', price: 90, tags: ['valuable', 'pawn'], icon: 'cog',
+    description: 'Heavy, gold and loud about it. It keeps excellent time for someone who has never been on time.',
+  },
+  item_silver_spoons: {
+    name: 'Silver Spoons', category: 'valuable', price: 25, tags: ['valuable', 'pawn'], icon: 'cog',
+    description: 'A set of six silver spoons in a velvet case. Good for nothing but stirring and selling.',
+  },
   item_brass_cog: {
     name: 'Brass Cog', category: 'junk', price: 3, tags: ['junk', 'mechanical'], icon: 'cog',
     description: 'A small brass cog. Tibbs would probably pay for it.',
@@ -3519,6 +3552,11 @@ const FACTS = {
     text: 'The newcomer was seen sneaking into the old lighthouse.', importance: 6, aboutPlayer: true,
     relImpact: { trust: -8, respect: -2 }, reputation: { fac_civic: -6, lanternside: -2 }, keywords: ['trespass'],
   },
+  // v0.36.0: breaking into a home (picking or forcing the door, or helping yourself to what's inside)
+  fact_player_burglary: {
+    text: 'The newcomer was seen breaking into somebody\'s home.', importance: 8, aboutPlayer: true,
+    relImpact: { trust: -15, affection: -6, suspicion: 20 }, reputation: { fac_civic: -6 }, keywords: ['burglary', 'break-in', 'theft', 'stole'],
+  },
   fact_player_stole_from_osric: {
     text: 'The newcomer was seen taking something from Osric\'s desk.', importance: 7, aboutPlayer: true,
     relImpact: { trust: -12, suspicion: 15 }, reputation: { fac_civic: -8, lanternside: -4 }, keywords: ['theft', 'stole'],
@@ -3688,7 +3726,7 @@ const SHOPS = {
   },
   shop_surplus: {
     name: 'Sal\'s Surplus — parts', owner: 'npc_sal', restockAt: '08:00',
-    stock: { item_part_casing: 40, item_part_keypad: 40, item_part_screen: 40, item_part_board: 40, item_part_battery: 60 },
+    stock: { item_part_casing: 40, item_part_keypad: 40, item_part_screen: 40, item_part_board: 40, item_part_battery: 60, item_lockpick: 3 }, // v0.36.0: lockpicks, no questions asked
     buys: { item_calc_charm: 7, item_calc_wits: 7, item_calc_grit: 7, item_calc_finesse: 7, item_calc_health: 7, item_calc_energy: 7, item_calc_blank: 3 },
   },
   shop_machines: {
@@ -4968,8 +5006,8 @@ const __default = {
     { from: '07:00', to: '15:00', activity: 'work', spot: 'cafe:counter' },
     { from: '15:00', to: '16:30', activity: 'socialize', spot: 'lanternside:square_bench' },
     { from: '16:30', to: '21:00', activity: 'work', spot: 'cafe:counter' },
-    { from: '21:00', to: '22:00', activity: 'leisure', spot: 'cafe:table_window' },
-    { from: '22:00', to: '05:30', activity: 'sleep', spot: 'cafe:mags_bed' },
+    { from: '21:00', to: '22:00', activity: 'leisure', spot: 'gullwing11_1:chair', label: 'feet up at home' },
+    { from: '22:00', to: '05:30', activity: 'sleep', spot: 'gullwing11_1:bed' },
   ],
   impulses: [
     {
@@ -5186,7 +5224,7 @@ const __default = {
     { from: '14:00', to: '18:00', activity: 'work', spot: 'workshop:bench' },
     { from: '18:00', to: '21:00', activity: 'fish', spot: 'lanternside:pier_end' },
     { from: '21:00', to: '01:00', activity: 'tinker', spot: 'workshop:engine' },
-    { from: '01:00', to: '07:30', activity: 'sleep', spot: 'workshop:cot' },
+    { from: '01:00', to: '07:30', activity: 'sleep', spot: 'gullwing11_2:bed' },
   ],
   impulses: [
     {
@@ -5571,7 +5609,7 @@ const delphine = staff({
   schedule: [
     { from: '08:00', to: '20:00', activity: 'work', spot: 'refinery:lab' },
     { from: '20:00', to: '21:00', activity: 'leisure', spot: 'lanternside:fountain_side', label: 'watching the dry fountain', errand: 'outing', errandChance: 0.3 },
-    { from: '21:00', to: '08:00', activity: 'sleep', spot: 'refinery:lab_cot' },
+    { from: '21:00', to: '08:00', activity: 'sleep', spot: 'gullwing11_3:bed' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 0 }, npc_moneybucks: { trust: 5, affection: -5, respect: 20, suspicion: 5 }, npc_ruby: { trust: 20, affection: 10, respect: 35, suspicion: 0 } },
   knowledge: ['fact_moneybucks_owns_oil'],
@@ -7559,11 +7597,11 @@ const lawrence = {
     { from: '08:15', to: '12:00', activity: 'work', spot: 'police_station:chief_desk', label: '"working"' },
     { from: '12:00', to: '13:30', activity: 'eat', spot: 'police_station:chief_visitor', label: 'a long lunch, delivered' },
     { from: '13:30', to: '15:00', activity: 'work', spot: 'police_station:chief_desk', label: '"working"' },
-    { from: '15:00', to: '16:00', activity: 'sleep', spot: 'police_station:chief_couch', label: 'a "strategic review" (a nap)' },
+    { from: '15:00', to: '16:00', activity: 'relax', spot: 'police_station:chief_couch', label: 'a "strategic review" (a nap)' },
     { from: '16:00', to: '18:30', activity: 'work', spot: 'police_station:chief_desk', label: '"working"' },
     { from: '18:30', to: '20:30', activity: 'leisure', spot: 'police_station:lobby_wait', label: 'a lap of the lobby he logs as a patrol' },
-    { from: '20:30', to: '22:30', activity: 'leisure', spot: 'police_station:chief_desk', label: 'the crossword' },
-    { from: '22:30', to: '07:30', activity: 'sleep', spot: 'police_station:chief_couch' },
+    { from: '20:30', to: '22:30', activity: 'leisure', spot: 'harbourline_1:chair', label: 'the crossword, at home' },
+    { from: '22:30', to: '07:30', activity: 'sleep', spot: 'harbourline_1:bed' },
   ],
   impulses: [],
   relationships: {
@@ -7615,7 +7653,7 @@ const justin = officer({
     { from: '13:00', to: '16:00', activity: 'patrol', patrol: 'beat_eastend', label: 'watching the East Gate' },
     { from: '16:00', to: '19:00', activity: 'patrol', patrol: 'beat_park', label: 'patrolling Founders Park' },
     { from: '19:00', to: '21:30', activity: 'work', spot: 'police_station:front_desk', label: 'on the front desk' },
-    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'police_station:bunk_1' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'harbourline_2:bed' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_lawrence: { trust: 25, affection: 15, respect: 10, suspicion: 5 }, npc_miranda: { trust: 30, affection: 25, respect: 15, suspicion: 0 } },
   knowledge: [],
@@ -7640,7 +7678,7 @@ const warren = officer({
     { from: '14:00', to: '18:00', activity: 'patrol', patrol: 'beat_docks', label: 'patrolling the Docks' },
     { from: '18:00', to: '21:00', activity: 'patrol', patrol: 'beat_sumps', label: 'patrolling the Sumps' },
     { from: '21:00', to: '22:00', activity: 'work', spot: 'police_station:lobby_wait', label: 'filing reports' },
-    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'police_station:bunk_2' },
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'harbourline_3:bed' },
   ],
   relationships: { player: { trust: -5, affection: 0, respect: 0, suspicion: 15 }, npc_lawrence: { trust: 0, affection: -10, respect: 0, suspicion: 25 }, npc_bailey: { trust: -10, affection: -5, respect: 5, suspicion: 30 } },
   knowledge: [],
@@ -7665,7 +7703,7 @@ const bailey = officer({
     { from: '15:00', to: '18:00', activity: 'patrol', patrol: 'beat_lanternside', label: 'patrolling Civic Square' },
     { from: '18:00', to: '20:00', activity: 'patrol', spot: 'westbrook:lots_sign', label: 'heading back through Westbrook' },
     { from: '20:00', to: '21:00', activity: 'eat', spot: 'police_station:desk_b' },
-    { from: '21:00', to: '06:00', activity: 'sleep', spot: 'police_station:bunk_3' },
+    { from: '21:00', to: '06:00', activity: 'sleep', spot: 'harbourline_4:bed' },
   ],
   relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 5 }, npc_lawrence: { trust: 40, affection: 25, respect: 15, suspicion: 0 }, npc_mags: { trust: 20, affection: 25, respect: 10, suspicion: 0 } },
   knowledge: [],
@@ -7690,8 +7728,8 @@ const miranda = officer({
     { from: '13:00', to: '16:00', activity: 'patrol', patrol: 'beat_lanternside', label: 'patrolling Canal Row' },
     { from: '16:00', to: '19:00', activity: 'patrol', patrol: 'beat_westbrook', label: 'patrolling Westbrook' },
     { from: '19:00', to: '20:00', activity: 'patrol', spot: 'halvermouth:east_gate', label: 'heading back to the precinct' },
-    { from: '20:00', to: '21:30', activity: 'leisure', spot: 'police_station:lobby_wait', label: 'studying procedure' },
-    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'police_station:bunk_4' },
+    { from: '20:00', to: '21:30', activity: 'leisure', spot: 'harbourline_5:chair', label: 'studying procedure at home' },
+    { from: '21:30', to: '06:00', activity: 'sleep', spot: 'harbourline_5:bed' },
   ],
   relationships: { player: { trust: 5, affection: 5, respect: 0, suspicion: 5 }, npc_justin: { trust: 30, affection: 25, respect: 35, suspicion: 0 }, npc_lawrence: { trust: 20, affection: 10, respect: 15, suspicion: 10 } },
   knowledge: [],
@@ -7710,7 +7748,7 @@ const hugh = officer({
   speech: { rumorPrefix: 'Thirty years I\'ve heard things like', factPrefix: 'Fact:', refuse: 'No.' },
   punctuality: 0,
   schedule: [
-    { from: '07:00', to: '14:00', activity: 'sleep', spot: 'police_station:bunk_5' },
+    { from: '07:00', to: '14:00', activity: 'sleep', spot: 'harbourline_6:bed' },
     { from: '14:00', to: '14:30', activity: 'eat', spot: 'police_station:desk_a' },
     { from: '14:30', to: '17:00', activity: 'patrol', spot: 'ober_fields:field_entrance', label: 'riding out to the Ober Fields' },
     { from: '17:00', to: '19:30', activity: 'patrol', spot: 'ober_fields:gate_post', label: 'watching the oil gate' },
@@ -8076,7 +8114,7 @@ const arthur = {
     { from: '16:00', to: '18:00', activity: 'patrol', spot: 'halvermouth:sumps_corner', label: 'walking his Sumps' },
     { from: '18:00', to: '19:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_n', label: 'checking on the fire barrels' },
     { from: '19:00', to: '23:30', activity: 'leisure', spot: 'abacus:table_b', label: 'glaring at the bar' },
-    { from: '23:30', to: '08:00', activity: 'sleep', spot: 'abacus:arthur_bed' },
+    { from: '23:30', to: '08:00', activity: 'sleep', spot: 'shack_arthur:bed' },
   ],
   impulses: [],
   relationships: {
@@ -8125,7 +8163,7 @@ const al = crew({
     { from: '14:00', to: '18:00', activity: 'patrol', spot: 'halvermouth:sumps_wreck', label: 'watching the corners' },
     { from: '18:00', to: '23:00', activity: 'patrol', spot: 'halvermouth:sumps_mill_road', label: 'walking Mill Road' },
     { from: '23:00', to: '01:00', activity: 'leisure', spot: 'abacus:pool' },
-    { from: '01:00', to: '09:00', activity: 'sleep', spot: 'abacus:bunk_1' },
+    { from: '01:00', to: '09:00', activity: 'sleep', spot: 'shack_crew_a:bed' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 20 }, npc_arthur: { trust: 70, affection: 40, respect: 60, suspicion: 0 } },
   giftPrefs: { item_cigar: 6, tags: {} },
@@ -8146,7 +8184,7 @@ const percy = crew({
     { from: '12:00', to: '14:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_e', label: 'collecting from the corners' },
     { from: '14:00', to: '21:00', activity: 'work', spot: 'abacus:table_a', label: 'balancing the books' },
     { from: '21:00', to: '22:00', activity: 'eat', spot: 'abacus:table_b' },
-    { from: '22:00', to: '08:00', activity: 'sleep', spot: 'abacus:bunk_2' },
+    { from: '22:00', to: '08:00', activity: 'sleep', spot: 'shack_crew_a:bed_b' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 15 }, npc_arthur: { trust: 60, affection: 20, respect: 60, suspicion: 0 } },
   giftPrefs: { item_coffee: 6, tags: {} },
@@ -8166,7 +8204,7 @@ const minnie = crew({
     { from: '11:00', to: '15:00', activity: 'work', spot: 'abacus:bar_back', label: 'behind the counter' },
     { from: '15:00', to: '16:00', activity: 'eat', spot: 'abacus:table_b' },
     { from: '16:00', to: '02:00', activity: 'work', spot: 'abacus:bar_back', label: 'behind the counter' },
-    { from: '02:00', to: '11:00', activity: 'sleep', spot: 'abacus:bunk_3' },
+    { from: '02:00', to: '11:00', activity: 'sleep', spot: 'shack_crew_b:bed' },
   ],
   relationships: { player: { trust: 0, affection: 5, respect: 0, suspicion: 10 }, npc_arthur: { trust: 50, affection: 40, respect: 40, suspicion: 0 } },
   giftPrefs: { item_honey_bun: 8, tags: { sweet: 4 } },
@@ -8187,7 +8225,7 @@ const deeNom = crew({
     { from: '13:00', to: '19:00', activity: 'work', spot: 'halvermouth:abacus_bouncer', label: 'on the door' },
     { from: '19:00', to: '20:00', activity: 'eat', spot: 'abacus:table_b' },
     { from: '20:00', to: '03:00', activity: 'work', spot: 'halvermouth:abacus_bouncer', label: 'on the door' },
-    { from: '03:00', to: '12:00', activity: 'sleep', spot: 'abacus:bunk_4' },
+    { from: '03:00', to: '12:00', activity: 'sleep', spot: 'shack_crew_b:bed_b' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_arthur: { trust: 50, affection: 30, respect: 50, suspicion: 0 } },
   giftPrefs: { item_scone: 6, tags: { food: 4 } },
@@ -8208,7 +8246,7 @@ const tony = crew({
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:sumps_tents' },
     { from: '13:00', to: '20:00', activity: 'patrol', spot: 'halvermouth:sumps_gate', label: 'watching for cops' },
     { from: '20:00', to: '23:00', activity: 'leisure', spot: 'abacus:pool' },
-    { from: '23:00', to: '08:00', activity: 'sleep', spot: 'abacus:bunk_5' },
+    { from: '23:00', to: '08:00', activity: 'sleep', spot: 'shack_crew_c:bed' },
   ],
   relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 5 }, npc_arthur: { trust: 40, affection: 40, respect: 30, suspicion: 0 } },
   giftPrefs: { item_honey_bun: 6, tags: { food: 3 } },
@@ -8229,7 +8267,7 @@ const max = crew({
     { from: '13:00', to: '14:00', activity: 'eat', spot: 'halvermouth:sumps_fire_s' },
     { from: '14:00', to: '19:00', activity: 'patrol', spot: 'halvermouth:sumps_fire_mill', label: 'starting arguments at the fires' },
     { from: '19:00', to: '02:00', activity: 'leisure', spot: 'halvermouth:sumps_fire_n', label: 'drinking by the fire' },
-    { from: '02:00', to: '10:00', activity: 'sleep', spot: 'abacus:hall_couch' },
+    { from: '02:00', to: '10:00', activity: 'sleep', spot: 'shack_crew_c:bed_b' },
   ],
   relationships: { player: { trust: -5, affection: 0, respect: 0, suspicion: 20 }, npc_arthur: { trust: 40, affection: 50, respect: 30, suspicion: 0 } },
   giftPrefs: { item_cigar: 10, tags: {} },
@@ -8583,7 +8621,7 @@ const sal = {
   walkSpeed: 0.95, punctuality: 10, impulses: [], notices: [], knowledge: [],
   schedule: [
     { from: '07:45', to: '20:00', activity: 'work', spot: 'surplus:counter_back', label: 'behind the counter' },
-    { from: '20:00', to: '07:45', activity: 'sleep', spot: 'surplus:back_cot' },
+    { from: '20:00', to: '07:45', activity: 'sleep', spot: 'atlas_3:bed' },
   ],
   relationships: { player: { trust: 5, affection: 5, respect: 0, suspicion: 5 }, npc_arthur: { trust: 10, affection: 0, respect: 20, suspicion: 20 } },
   giftPrefs: { item_coffee: 6, item_cigar: 8, tags: {} },
@@ -8758,8 +8796,8 @@ const lucas = {
     { from: '09:00', to: '13:00', activity: 'work', spot: 'gun_shop:counter_back', label: 'behind the counter' },
     { from: '13:00', to: '13:45', activity: 'eat', spot: 'gun_shop:lucas_desk', label: 'lunch at his desk' },
     { from: '13:45', to: '19:00', activity: 'work', spot: 'gun_shop:counter_back', label: 'behind the counter' },
-    { from: '19:00', to: '23:30', activity: 'leisure', spot: 'gun_shop:lucas_desk', label: 'connecting red string' },
-    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'gun_shop:lucas_bed' },
+    { from: '19:00', to: '23:30', activity: 'leisure', spot: 'atlas_1:desk', label: 'connecting red string (at home)' },
+    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'atlas_1:bed' },
   ],
   impulses: [],
   relationships: {
@@ -9778,8 +9816,8 @@ const marty = {
   noSnitch: true,
   schedule: [
     { from: '08:30', to: '19:00', activity: 'work', spot: 'westbrook:fender_pitch', label: 'working the lot' },
-    { from: '19:00', to: '23:30', activity: 'relax', spot: 'fender_office:desk', label: 'counting the day\'s takings' },
-    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'fender_office:cot' },
+    { from: '19:00', to: '23:30', activity: 'relax', spot: 'plumb_unit_5:chair', label: 'counting the day\'s takings at home' },
+    { from: '23:30', to: '08:30', activity: 'sleep', spot: 'plumb_unit_5:bed' },
   ],
   relationships: { player: { trust: 0, affection: 10, respect: 0, suspicion: 0 }, npc_julian: { trust: -10, affection: -20, respect: 15, suspicion: 20 }, npc_mason: { trust: 10, affection: 20, respect: 10, suspicion: 0 } },
   giftPrefs: { item_coffee: 4, item_cigar: 9, tags: { money: 8 } },
@@ -9804,8 +9842,8 @@ const julian = {
   walkSpeed: 0.9, punctuality: 2, impulses: [], notices: [], knowledge: [],
   schedule: [
     { from: '09:30', to: '18:30', activity: 'work', spot: 'beaumont_showroom:desk', label: 'at the showroom desk' },
-    { from: '18:30', to: '23:00', activity: 'relax', spot: 'beaumont_showroom:lounge', label: 'with a small sherry' },
-    { from: '23:00', to: '09:30', activity: 'sleep', spot: 'beaumont_showroom:chaise' },
+    { from: '18:30', to: '23:00', activity: 'relax', spot: 'atlas_2:chair', label: 'a small sherry at home' },
+    { from: '23:00', to: '09:30', activity: 'sleep', spot: 'atlas_2:bed' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: -5, suspicion: 5 }, npc_marty: { trust: -30, affection: -10, respect: -30, suspicion: 40 }, npc_moneybucks: { trust: 30, affection: 20, respect: 40, suspicion: 0 } },
   giftPrefs: { item_coffee: 2, item_cigar: 6, tags: { luxury: 10 } },
@@ -10273,7 +10311,7 @@ const wes = local({
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
     { from: '13:00', to: '18:00', activity: 'work', spot: 'hoof_horn:counter', label: 'behind the Hoof & Horn counter' },
     { from: '18:00', to: '21:00', activity: 'leisure', spot: 'lariat:paddock_gate', label: 'leaning on Chuckie\'s fence, talking cows', errand: 'lariat_evening', meet: 'npc_dale', errandChance: 0.4 },
-    { from: '21:00', to: '05:30', activity: 'sleep', spot: 'hoof_horn:bed' },
+    { from: '21:00', to: '05:30', activity: 'sleep', spot: 'lariat_tolliver:bed' },
   ],
   relationships: { player: { trust: 5, affection: 5, respect: 5, suspicion: 0 }, npc_chuckie: { trust: 50, affection: 40, respect: 50, suspicion: 0 } },
   giftPrefs: { item_coffee: 6, item_jerky: 6, tags: { food: 2 } },
@@ -10866,11 +10904,12 @@ const OCCUPATIONS = {
  * Each unit: the interior (or outdoor) map, its beds (spot names on that
  * map), capacity, and whether unrelated people may share it.
  */
+// v0.36.0: everyone who used to sleep at work (the café, the station bunks, the Abacus, the
+// gun shop…) lives in a real home now — generated in src/content/homes.js and merged in by
+// src/content/index.js. No beds in shops or workplaces (the checker enforces it).
 const RESIDENCES = {
   // Lanternside & the coast
-  res_kettle_flat: { name: 'The flat over the Kettle & Crumb', type: 'flat', units: { flat: { map: 'cafe', beds: ['mags_bed'], capacity: 1 } } },
   res_osric_house: { name: 'Osric Vane\'s house', type: 'house', units: { house: { map: 'osric_house', beds: ['bed'], capacity: 1 } } },
-  res_hollow_fixings: { name: 'The back room at Hollow Fixings', type: 'quarters', units: { back_room: { map: 'workshop', beds: ['cot'], capacity: 1 } } },
   res_manor: {
     name: 'Moneybucks Manor', type: 'estate',
     units: {
@@ -10879,7 +10918,6 @@ const RESIDENCES = {
     },
   },
   res_bunkhouse: { name: 'The Ober\'s Oil bunkhouse', type: 'dormitory', units: { dorm: { map: 'bunkhouse', beds: ['bunk1', 'bunk2', 'bunk3', 'bunk4', 'bunk5'], capacity: 5, shared: true } } },
-  res_refinery_lab: { name: 'The cot in the refinery lab', type: 'quarters', units: { lab: { map: 'refinery', beds: ['lab_cot'], capacity: 1 } } },
   // Westbrook: the Plumb Line Apartments — four flats off a shared hall (v0.32.0)
   res_plumb_line: {
     name: 'Plumb Line Apartments', type: 'apartment',
@@ -10888,11 +10926,10 @@ const RESIDENCES = {
       apt_2: { map: 'plumb_unit_2', beds: ['bed'], capacity: 1 },
       apt_3: { map: 'plumb_unit_3', beds: ['bed'], capacity: 1 },
       apt_4: { map: 'plumb_unit_4', beds: ['bed'], capacity: 1 },
+      apt_5: { map: 'plumb_unit_5', beds: ['bed'], capacity: 1 }, // v0.36.0: Marty
     },
   },
   // Halvermouth
-  res_station_quarters: { name: 'Precinct 1 duty quarters', type: 'staff_quarters', units: { chief: { map: 'police_station', beds: ['chief_couch'], capacity: 1 }, bunks: { map: 'police_station', beds: ['bunk_1', 'bunk_2', 'bunk_3', 'bunk_4', 'bunk_5'], capacity: 5, shared: true } } },
-  res_abacus: { name: 'The Abacus (the gang\'s den)', type: 'staff_quarters', units: { boss: { map: 'abacus', beds: ['arthur_bed'], capacity: 1 }, bunks: { map: 'abacus', beds: ['bunk_1', 'bunk_2', 'bunk_3', 'bunk_4', 'bunk_5', 'hall_couch'], capacity: 6, shared: true } } },
   res_sumps_camp: {
     name: 'The Sumps camp', type: 'camp',
     units: {
@@ -10902,16 +10939,11 @@ const RESIDENCES = {
       shore: { map: 'halvermouth', beds: ['sumps_shore'], capacity: 1 },
     },
   },
-  res_surplus: { name: 'The back room at Sal\'s Surplus', type: 'quarters', units: { back_room: { map: 'surplus', beds: ['back_cot'], capacity: 1 } } },
-  res_armory_flat: { name: 'The flat behind Pipecreek Armory', type: 'flat', units: { flat: { map: 'gun_shop', beds: ['lucas_bed'], capacity: 1 } } },
-  res_fender_office: { name: 'The office at Fender\'s', type: 'quarters', units: { office: { map: 'fender_office', beds: ['cot'], capacity: 1 } } },
-  res_beaumont: { name: 'The apartment over the Beaumont Motor Gallery', type: 'flat', units: { flat: { map: 'beaumont_showroom', beds: ['chaise'], capacity: 1 } } },
   // the Yards
   res_salty_ober: { name: 'The Salty Ober (houseboat)', type: 'houseboat', units: { cabin: { map: 'salty_ober', beds: ['bunk'], capacity: 1 } } },
   // Lariat
   res_chuckie_ranch: { name: 'Chuckie\'s ranch house', type: 'farmhouse', units: { house: { map: 'chuckie_house', beds: ['bed'], capacity: 1 } } },
   res_hollister: { name: 'The Hollister farmhouse', type: 'farmhouse', units: { house: { map: 'hollister_house', beds: ['bed'], capacity: 1 } } },
-  res_hoof_horn: { name: 'The back room at Hoof & Horn', type: 'quarters', units: { back_room: { map: 'hoof_horn', beds: ['bed'], capacity: 1 } } },
   res_bluebonnet: {
     name: 'Bluebonnet Boarding House', type: 'rooming_house',
     units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
@@ -10920,9 +10952,9 @@ const RESIDENCES = {
 
 /** Who lives where, and what they do. `home` is 'residence/unit'. */
 const LIFE = {
-  npc_mags: { home: 'res_kettle_flat/flat', occupation: 'shopkeeper' },
+  npc_mags: { home: 'res_gullwing11/flat_1', occupation: 'shopkeeper' },
   npc_osric: { home: 'res_osric_house/house', occupation: 'clerk' },
-  npc_tibbs: { home: 'res_hollow_fixings/back_room', occupation: 'tradesperson' },
+  npc_tibbs: { home: 'res_gullwing11/flat_2', occupation: 'tradesperson' },
   npc_moneybucks: { home: 'res_manor/master_suite', occupation: 'executive' },
   npc_crisp: { home: 'res_manor/staff_quarters', occupation: 'household_staff' },
   npc_agnes: { home: 'res_manor/staff_quarters', occupation: 'clerk' },
@@ -10933,27 +10965,27 @@ const LIFE = {
   npc_hank: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
   npc_pip: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
   npc_otto: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
-  npc_delphine: { home: 'res_refinery_lab/lab', occupation: 'scientist' },
+  npc_delphine: { home: 'res_gullwing11/flat_3', occupation: 'scientist' },
   npc_mason: { home: 'res_plumb_line/apt_1', occupation: 'tradesperson' },
   npc_dee: { home: 'res_plumb_line/apt_2', occupation: 'tradesperson' },
   npc_barnaby: { home: 'res_plumb_line/apt_3', occupation: 'labourer' },
   npc_quinn: { home: 'res_plumb_line/apt_4', occupation: 'clerk' },
-  npc_lawrence: { home: 'res_station_quarters/chief', occupation: 'police' },
-  ...Object.fromEntries(['justin', 'warren', 'bailey', 'miranda', 'hugh'].map((k) => [`npc_${k}`, { home: 'res_station_quarters/bunks', occupation: 'police' }])),
-  npc_arthur: { home: 'res_abacus/boss', occupation: 'gang' },
-  ...Object.fromEntries(['al', 'percy', 'minnie', 'dee_nom', 'tony', 'max'].map((k) => [`npc_${k}`, { home: 'res_abacus/bunks', occupation: 'gang' }])),
+  npc_lawrence: { home: 'res_harbourline/flat_1', occupation: 'police' },
+  ...Object.fromEntries(['justin', 'warren', 'bailey', 'miranda', 'hugh'].map((k, i) => [`npc_${k}`, { home: `res_harbourline/flat_${i + 2}`, occupation: 'police' }])),
+  npc_arthur: { home: 'res_shack_arthur/home', occupation: 'gang' },
+  ...Object.fromEntries(['al', 'percy', 'minnie', 'dee_nom', 'tony', 'max'].map((k, i) => [`npc_${k}`, { home: `res_shack_crew_${'abc'[Math.floor(i / 2)]}/home`, occupation: 'gang' }])),
   ...Object.fromEntries(['ray', 'dot', 'fern', 'sol'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/tents_north', occupation: 'casual' }])),
   ...Object.fromEntries(['mo', 'lena', 'hattie', 'pearl'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/tents_west', occupation: 'casual' }])),
   ...Object.fromEntries(['bill', 'nico', 'bram'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/south_shacks', occupation: 'casual' }])),
   npc_gus: { home: 'res_sumps_camp/shore', occupation: 'casual' },
-  npc_sal: { home: 'res_surplus/back_room', occupation: 'shopkeeper' },
-  npc_lucas: { home: 'res_armory_flat/flat', occupation: 'shopkeeper' },
-  npc_marty: { home: 'res_fender_office/office', occupation: 'dealer' },
-  npc_julian: { home: 'res_beaumont/flat', occupation: 'dealer' },
+  npc_sal: { home: 'res_atlas/flat_3', occupation: 'shopkeeper' },
+  npc_lucas: { home: 'res_atlas/flat_1', occupation: 'shopkeeper' },
+  npc_marty: { home: 'res_plumb_line/apt_5', occupation: 'dealer' },
+  npc_julian: { home: 'res_atlas/flat_2', occupation: 'dealer' },
   npc_ober: { home: 'res_salty_ober/cabin', occupation: 'mariner' },
   npc_chuckie: { home: 'res_chuckie_ranch/house', occupation: 'farmer' },
   npc_earl: { home: 'res_hollister/house', occupation: 'farmer' },
-  npc_wes: { home: 'res_hoof_horn/back_room', occupation: 'shopkeeper' },
+  npc_wes: { home: 'res_lariat_tolliver/home', occupation: 'shopkeeper' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -11013,6 +11045,272 @@ const PATROLS = {
 };
 
 return { OCCUPATIONS, RESIDENCES, LIFE, ERRANDS, LIFE_EXCEPTIONS, PATROLS };
+})();
+
+// ---- src/content/homes.js
+__m["src/content/homes.js"] = (function () {
+// Homes (v0.36.0). Owner's rule: no beds in stores or shops — every character
+// has a home they go to when they aren't working. Twenty-two people who used
+// to sleep at work (in the café, the gun shop, the station bunks, the Abacus…)
+// now live in real homes, and the arms works' hired hands lodge at the Yards
+// Lodging House instead of on the factory floor.
+//
+// Homes reuse buildings that were facades (a door that wouldn't open) or had
+// no door at all: 11 Gullwing Row (To Let), the Harbourline Apartments, the
+// Atlas Rooms, four Sumps shacks, a house in Lariat, Halver Scrap Co. — plus a
+// fifth flat at the Plumb Line. Each home is generated: a stairwell hall with
+// a door per flat (or a single home), a flat with a bed, a chair, a stove and
+// a dresser of valuables (owned — taking from it is theft; see homes.js in
+// systems for breaking in, and invitations).
+//
+// Applied after the roads are widened, in final tile coordinates.
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+
+/**
+ * A home: `building` on `map` (an existing building id) becomes its front
+ * door. `flats`: one per household — `who` (the residents; the first is the
+ * named tenant), the dresser's `loot`, and a couple of personal `props`.
+ */
+const HOMES = [
+  {
+    id: 'gullwing11', map: 'lanternside', building: 'b_to_let', name: '11 Gullwing Row', mapLabel: 'No. 11', sign: null, type: 'apartment',
+    flats: [
+      { who: ['npc_mags'], name: 'Mags Pell', bed: '#c8806a', rug: '#e0b080', loot: { items: { item_silver_spoons: 1, item_honey_bun: 2 }, money: 18 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Cookbooks, every one annotated in the margins: "MORE BUTTER", "less butter (no)", "MORE BUTTER".' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A watercolour of the Kettle & Crumb on its opening day. Mags is in the doorway, much younger, covered in flour.' },
+      ] },
+      { who: ['npc_tibbs'], name: 'Tibbs Hollow', bed: '#7a6a4a', rug: '#6a5a3a', loot: { items: { item_pocket_watch: 1, item_bolts: 3 }, money: 9 }, props: [
+        { type: 'crate', x: 1, y: 4, examine: 'Junk. Lovely, lovely junk. Sorted by a system only Tibbs understands ("SHINY", "BENDY", "MAYBE").' },
+        { type: 'shelf', x: 7, y: 4, examine: 'Half a carburettor, a stuffed gull, and a photograph of a boat Tibbs swears he will finish one day.' },
+      ] },
+      { who: ['npc_delphine'], name: 'Delphine Moreau', bed: '#5a6a8a', rug: '#7a8a9a', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 30 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Chromatography printouts and a list headed "THINGS SIR M. MUST NOT KNOW", which is long.' },
+        { type: 'plant', x: 7, y: 4 },
+      ] },
+    ],
+  },
+  {
+    id: 'harbourline', map: 'halvermouth', building: 't_harbourline', name: 'Harbourline Apartments', mapLabel: 'Harbourline Apts', type: 'apartment',
+    flats: [
+      { who: ['npc_lawrence'], name: 'Chief Lawrence Order', bed: '#2a3a6a', rug: '#c8a040', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 75 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Eleven "World\'s Best Chief" mugs. All bought by Lawrence Order. A twelfth on order.' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A portrait of Lawrence Order shaking hands with Lawrence Order. Nobody knows how.' },
+      ] },
+      { who: ['npc_justin'], name: 'Sgt. Justin Case', bed: '#3a4a5a', rug: '#5a6a7a', loot: { items: { item_pocket_watch: 1, item_bandage: 2 }, money: 14 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Two of everything. Two torches, two whistles, two spare spare batteries. Just in case.' },
+      ] },
+      { who: ['npc_warren'], name: 'Officer Warren Tee', bed: '#4a5a4a', rug: '#6a7a5a', loot: { items: { item_silver_spoons: 1 }, money: 11 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'A half-written appeal against a parking ticket. Warren\'s own parking ticket. Issued by Warren.' },
+      ] },
+      { who: ['npc_bailey'], name: 'Officer Bailey Bond', bed: '#6a4a3a', rug: '#8a6a4a', loot: { items: { item_gold_ring: 1 }, money: 16 }, props: [
+        { type: 'plant', x: 1, y: 4 }, { type: 'plant', x: 7, y: 4 },
+      ] },
+      { who: ['npc_miranda'], name: 'Officer Miranda Wright', bed: '#5a3a5a', rug: '#7a5a7a', loot: { items: { item_pocket_watch: 1 }, money: 12 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Police procedure manuals, colour-tabbed. Every tab is labelled "IMPORTANT".' },
+      ] },
+      { who: ['npc_hugh'], name: 'Officer Hugh Jury', bed: '#3a3a3a', rug: '#4a4a4a', loot: { items: { item_cigar: 1 }, money: 8 }, props: [
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'Blackout curtains, a sleep mask and a sign: "NIGHT SHIFT — DO NOT KNOCK. DO NOT EVEN THINK ABOUT KNOCKING."' },
+      ] },
+    ],
+  },
+  {
+    id: 'atlas', map: 'halvermouth', building: 't_atlas', name: 'The Atlas Rooms', mapLabel: 'Atlas Rooms', type: 'apartment',
+    flats: [
+      { who: ['npc_lucas'], name: 'Lucas Eastrise', bed: '#3a3a2a', rug: '#5a4a2a', spots: { desk: { x: 3, y: 4, facing: 'left' } }, loot: { items: { item_ammo_9mm: 2, item_gold_watch: 1 }, money: 60 }, props: [
+        { type: 'painting', x: 1, y: 0, w: 4, examine: 'A cork wall of red string: the moon landing, the Ober Oil board, the lighthouse, a recipe for scones. It all connects. Apparently.' },
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three radios, all tuned to static, and a notebook titled "THEY KNOW (vol. 9)".' },
+      ] },
+      { who: ['npc_julian'], name: 'Julian Beaumont', bed: '#6a1f2a', rug: '#c8b080', loot: { items: { item_gold_ring: 1, item_silver_spoons: 1, item_cigar: 2 }, money: 90 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Driving gloves in eleven shades of tan, arranged by mood.' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'An oil painting of the Vantaggio Corsair. Signed by Julian. He commissioned himself.' },
+      ] },
+      { who: ['npc_sal'], name: 'Sal Vage', bed: '#5a5a4a', rug: '#7a7a6a', loot: { items: { item_part_board: 3, item_pocket_watch: 1 }, money: 25 }, props: [
+        { type: 'crate', x: 1, y: 4, examine: 'Circuit boards. In the bath, too. Sal hasn\'t had a bath since 1987; the bath is storage.' },
+      ] },
+    ],
+  },
+  // The Sums of Anarchy live in four of the Sumps shacks, a stone's throw from the Abacus
+  { id: 'shack_arthur', map: 'halvermouth', building: 'sh_9', name: 'Arthur\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_arthur'], name: 'Arthur Anderson', bed: '#4a2a2a', rug: '#6a3a2a', loot: { items: { item_calc_wits: 2 }, money: 120 }, props: [
+      { type: 'painting', x: 1, y: 0, w: 4, examine: 'A blackboard covered in sums, every one of them furious. Bottom corner, small: "π is a liar."' },
+      { type: 'shelf', x: 1, y: 4, examine: 'Ledgers going back thirty years. Every debt owed to Arthur, to the obol. Several are underlined until the paper tore.' },
+    ] }] },
+  { id: 'shack_crew_a', map: 'halvermouth', building: 'sh_7', name: 'Crew shack (Al & Percy)', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_al', 'npc_percy'], name: 'Al Gebra & Percy Ntage', bed: '#5a4a3a', rug: '#4a3a2a', loot: { items: { item_calc_grit: 1 }, money: 15 }, props: [
+      { type: 'table', x: 1, y: 4, examine: 'A pool cue snapped in half and a scorecard: AL 7, PERCY 93%. Nobody knows what the units are.' },
+    ] }] },
+  { id: 'shack_crew_b', map: 'halvermouth', building: 'sh_8', name: 'Crew shack (Minnie & Dee)', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_minnie', 'npc_dee_nom'], name: 'Minnie Mus & Dee Nominator', bed: '#6a3a5a', rug: '#4a2a4a', loot: { items: { item_calc_charm: 1, item_gold_ring: 1 }, money: 22 }, props: [
+      { type: 'shelf', x: 1, y: 4, examine: 'Calculators, wrapped as presents. For whom? "For the right person." Minnie won\'t elaborate.' },
+    ] }] },
+  { id: 'shack_crew_c', map: 'halvermouth', building: 'sh_10', name: 'Crew shack (Tony & Max)', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_tony', 'npc_max'], name: 'Tony Tangent & Max Imum', bed: '#3a4a3a', rug: '#2a3a2a', loot: { items: { item_calc_energy: 2 }, money: 10 }, props: [
+      { type: 'crate', x: 1, y: 4, examine: 'Empty bottles, labelled with the date each was emptied. Max is very organised about some things.' },
+    ] }] },
+  { id: 'lariat_tolliver', map: 'lariat', building: 'b_house_3', name: 'The Tolliver place', mapLabel: 'Tolliver', type: 'house',
+    flats: [{ who: ['npc_wes'], name: 'Wes Tolliver', bed: '#8a5a3a', rug: '#a07a4a', loot: { items: { item_silver_spoons: 1 }, money: 28 }, props: [
+      { type: 'painting', x: 3, y: 0, w: 2, examine: 'A rodeo poster, 1974: "WES TOLLIVER — THIRD PLACE". Third place has been framed in gold.' },
+      { type: 'shelf', x: 1, y: 4, examine: 'Saddle soap, hoof picks, and a well-thumbed book: "Cows And What They\'re Thinking".' },
+    ] }] },
+];
+
+/** Marty takes a fifth flat at the Plumb Line (Mason is his landlord). Built in maps/westbrook.js. */
+const PLUMB_FIVE = { who: ['npc_marty'], map: 'plumb_unit_5' };
+
+/** The Yards Lodging House: beds for the arms works' hired hands (aw1 4, aw2 6, aw3 10). */
+const LODGING = { id: 'lodging', map: 'yards', building: 'b_scrapco', name: 'The Yards Lodging House', mapLabel: 'Lodgings', beds: 20, firstBed: { aw1: 1, aw2: 5, aw3: 11 } };
+
+const flatId = (h, i) => (h.flats.length > 1 ? `${h.id}_${i + 1}` : h.id);
+const hallId = (h) => `${h.id}_hall`;
+const homeDoorOut = (h) => `${h.id}_door_out`;
+
+/** Locks: residents (and their invited guests, and anyone who breaks in) only. */
+const lockFor = (who, label) => ({ key: 'item_none', owners: who, home: who, message: `${label}. A private home; the door is locked.` });
+
+function flatMap(h, i) {
+  const f = h.flats[i];
+  const id = flatId(h, i);
+  const exit = h.flats.length > 1 ? { map: hallId(h), spot: `unit_${i + 1}_door` } : { map: h.map, spot: homeDoorOut(h) };
+  return {
+    id, name: `${h.name}${h.flats.length > 1 ? ` — Flat ${i + 1}` : ''} (${f.name})`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor', home: f.who,
+    tiles: roomTiles(9, 7, 'f', 4),
+    doors: [{ id: `door_${id}_exit`, x: 4, y: 6, to: exit }],
+    spots: { entry: { x: 4, y: 5, facing: 'up' }, bed: { x: 2, y: 2, facing: 'down' }, bed_b: { x: 4, y: 2, facing: 'down' }, chair: { x: 6, y: 3, facing: 'left' }, ...(f.spots || {}) },
+    keepClear: [[4, 5]],
+    props: [
+      { id: `${id}_bed`, type: 'bed', x: 1, y: 1, color: f.bed },
+      ...(f.who.length > 1 ? [{ id: `${id}_bed2`, type: 'bed', x: 3, y: 1, color: f.rug }] : []),
+      { id: `${id}_table`, type: 'table', x: 6, y: 2 },
+      { id: `${id}_stove`, type: 'stove', x: 7, y: 1 },
+      { id: `${id}_rug`, type: 'rug', x: 3, y: 3, w: 2, h: 2, color: f.rug },
+      { id: `${id}_dresser`, type: 'cabinet', x: 7, y: 4, interact: { kind: 'container', container: `ct_${id}_dresser` }, examine: 'A dresser. The kind of drawer people keep the good things in.' },
+      ...f.props.map((p, k) => ({ id: `${id}_x${k}`, ...p })),
+    ],
+  };
+}
+
+function hallMap(h) {
+  const n = h.flats.length;
+  const w = Math.max(9, n * 3 + 3);
+  const door = Math.floor(w / 2);
+  const xs = h.flats.map((_, i) => 2 + i * 3);
+  return {
+    id: hallId(h), name: `${h.name} — stairwell`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
+    tiles: roomTiles(w, 7, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
+    doors: [
+      { id: `door_${hallId(h)}_exit`, x: door, y: 6, to: { map: h.map, spot: homeDoorOut(h) } },
+      ...xs.map((x, i) => ({ id: `door_${flatId(h, i)}`, x, y: 0, label: `Flat ${i + 1} — ${h.flats[i].name}`, to: { map: flatId(h, i), spot: 'entry' }, lock: lockFor(h.flats[i].who, `Flat ${i + 1} — ${h.flats[i].name.toUpperCase()}`) })),
+    ],
+    spots: { entry: { x: door, y: 5, facing: 'up' }, ...Object.fromEntries(xs.map((x, i) => [`unit_${i + 1}_door`, { x, y: 1, facing: 'down' }])) },
+    keepClear: [[door, 5]],
+    props: [
+      { id: `${hallId(h)}_mail`, type: 'cabinet', x: w - 2, y: 4, examine: `Mailboxes: ${h.flats.map((f, i) => `${i + 1} ${f.name.toUpperCase()}`).join(', ')}.` },
+      { id: `${hallId(h)}_plant`, type: 'plant', x: 1, y: 5 },
+    ],
+  };
+}
+
+function lodgingMap() {
+  const props = [];
+  const spots = { entry: { x: 10, y: 9, facing: 'up' }, common_a: { x: 9, y: 7, facing: 'right' }, common_b: { x: 12, y: 7, facing: 'left' } };
+  for (let k = 0; k < LODGING.beds; k++) {
+    const x = 1 + (k % 10) * 2;
+    const y = k < 10 ? 1 : 4;
+    props.push({ id: `lodge_bed_${k + 1}`, type: 'cot', x, y });
+    spots[`bed_${k + 1}`] = { x: x + 1, y: y + 1, facing: 'left' }; // beside the cot (a cot is 1×2)
+  }
+  props.push({ id: 'lodge_table', type: 'table', x: 10, y: 7, w: 2, examine: 'A long table, a kettle and a rota: "WHOSE TURN TO BUY MILK". Every name is crossed out.' });
+  props.push({ id: 'lodge_stove', type: 'stove', x: 19, y: 7 });
+  return {
+    id: 'lodging', name: 'The Yards Lodging House', kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
+    tiles: roomTiles(22, 11, 'f', 10), doors: [{ id: 'door_lodging_exit', x: 10, y: 10, to: { map: LODGING.map, spot: 'lodging_door_out' } }],
+    spots, keepClear: [[10, 9]], props,
+  };
+}
+
+/** Every home interior (halls and flats) plus the lodging house. */
+function homeMaps() {
+  const out = [];
+  for (const h of HOMES) {
+    if (h.flats.length > 1) out.push(hallMap(h));
+    h.flats.forEach((_, i) => out.push(flatMap(h, i)));
+  }
+  out.push(lodgingMap());
+  return out;
+}
+
+/** Each flat's dresser: owned by its first resident; taking from it is burglary. */
+function homeContainers() {
+  const out = {};
+  for (const h of HOMES) h.flats.forEach((f, i) => {
+    out[`ct_${flatId(h, i)}_dresser`] = { name: `${f.name.split(' & ')[0]}'s dresser`, owner: f.who[0], theftFact: 'fact_player_burglary', items: { ...f.loot.items }, money: f.loot.money };
+  });
+  out.ct_plumb_unit_5_dresser = { name: 'Marty\'s dresser', owner: 'npc_marty', theftFact: 'fact_player_burglary', items: { item_gold_watch: 1, item_cigar: 1 }, money: 45 };
+  return out;
+}
+
+/** RESIDENCES entries and each resident's LIFE home. */
+function homeResidences() {
+  const residences = {};
+  const homes = {};
+  for (const h of HOMES) {
+    const units = {};
+    h.flats.forEach((f, i) => {
+      const unit = h.flats.length > 1 ? `flat_${i + 1}` : 'home';
+      units[unit] = { map: flatId(h, i), beds: f.who.length > 1 ? ['bed', 'bed_b'] : ['bed'], capacity: f.who.length, ...(f.who.length > 1 ? { shared: true } : {}) };
+      for (const who of f.who) homes[who] = `res_${h.id}/${unit}`;
+    });
+    residences[`res_${h.id}`] = { name: h.name, type: h.type, units };
+  }
+  return { residences, homes };
+}
+
+/**
+ * Mark every private home — generated here or older (Osric's house, the Plumb Line flats, the farmhouses,
+ * the boarding house…): its map knows its residents (`def.home`), and every locked door into it gets
+ * `lock.home` — invitations open it, and it can be picked or forced. Unlocked doors stay unlocked; camps,
+ * dormitories and estates (the manor has its own invitation) are left alone. Mutates `maps`.
+ */
+function markHomes(maps, residences, life) {
+  const residents = {};
+  for (const [id, l] of Object.entries(life)) {
+    const [rid, unit] = l.home.split('/');
+    const r = residences[rid];
+    if (!r || ['camp', 'dormitory', 'estate'].includes(r.type)) continue;
+    const m = r.units[unit]?.map;
+    if (m && maps[m]?.kind === 'interior') (residents[m] ||= []).push(id);
+  }
+  for (const [mapId, who] of Object.entries(residents)) {
+    maps[mapId].home = [...new Set([...(maps[mapId].home || []), ...who])];
+    for (const m of Object.values(maps)) {
+      const doors = [...(m.doors || []), ...(m.buildings || []).map((b) => b.door).filter(Boolean)];
+      for (const d of doors) {
+        if (d.to?.map !== mapId || !d.lock || d.lock.flag) continue;
+        d.lock.home = [...new Set([...(d.lock.home || []), ...who])];
+      }
+    }
+  }
+}
+
+/** Put the front doors on the buildings (after widening; mutates `maps`). */
+function addHomes(maps) {
+  for (const h of [...HOMES, LODGING]) {
+    const m = maps[h.map];
+    const b = m.buildings.find((x) => x.id === h.building);
+    if (!b) throw new Error(`homes: no building ${h.building} on ${h.map}`);
+    const d = b.door || { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
+    const residents = h.flats ? h.flats.flatMap((f) => f.who) : null;
+    const to = h.flats ? (h.flats.length > 1 ? { map: hallId(h), spot: 'entry' } : { map: flatId(h, 0), spot: 'entry' }) : { map: 'lodging', spot: 'entry' };
+    b.name = h.name;
+    b.mapLabel = h.mapLabel;
+    if (h.sign !== undefined) b.sign = h.sign;
+    if (h === LODGING) b.sign = 'LODGINGS';
+    b.door = { x: d.x, y: d.y, to, lock: h.flats ? lockFor(residents, h.name) : { key: 'item_none', staff: true, hours: { from: '06:00', to: '23:00' }, message: 'The Yards Lodging House: workers\' lodgings. Open 06:00–23:00.' } };
+    m.spots[h === LODGING ? 'lodging_door_out' : homeDoorOut(h)] = { x: d.x, y: d.y + 1, facing: 'down' };
+  }
+}
+
+return { HOMES, PLUMB_FIVE, LODGING, homeDoorOut, homeMaps, homeContainers, homeResidences, markHomes, addHomes };
 })();
 
 // ---- src/world/patrols.js
@@ -11118,6 +11416,7 @@ const dlgLariat = __m["src/content/dialogue/lariat.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
+const { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } = __m["src/content/homes.js"];
 const { buildPatrols } = __m["src/world/patrols.js"];
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
@@ -11133,13 +11432,16 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
 REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 const TRANSIT = buildTransit(SHIFTS);
 addStreetFurniture(MAPS, TRANSIT);
+addHomes(MAPS); // v0.36.0: front doors for the new homes (final coordinates)
+const HOMES_LIFE = homeResidences();
+markHomes(MAPS, { ...RESIDENCES, ...HOMES_LIFE.residences }, LIFE);
 const PATROL_ROUTES = buildPatrols(MAPS, PATROLS); // v0.32.0: police beats, as spots on the pavement
 addSeams(MAPS, REGIONS, PROP_TYPES);
 const STREET_CARS = carPropsToVehicles(MAPS);
@@ -11164,7 +11466,8 @@ const BASE_CONTENT = {
   items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS },
   facts: FACTS,
   docs: DOCS,
-  containers: CONTAINERS,
+  containers: { ...CONTAINERS, ...homeContainers() },
+  lodging: LODGING, // v0.36.0: where the arms works' hired hands sleep
   shops: SHOPS,
   factions: FACTIONS,
   quests: QUESTS,
@@ -11189,7 +11492,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  life: { occupations: OCCUPATIONS, residences: RESIDENCES, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
+  life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
   startingMap: 'player_flat',
@@ -11208,7 +11511,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.35.2';
+const GAME_VERSION = '0.36.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -16358,6 +16661,7 @@ class Police {
       case e.fact === 'fact_player_embargo': return 8;
       case e.fact === 'fact_player_explosion': return 10;
       case e.fact === 'fact_player_car_theft': return 3;
+      case e.fact === 'fact_player_burglary': return 3; // v0.36.0: breaking into someone's home
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -18509,15 +18813,18 @@ class Arms extends Factory {
     return { ok: true, text: `${st.shortName} pockets the bonus. Morale ${Math.round(st.morale)}.` };
   }
 
-  /** A generated employee's character profile. They live and work in their works. */
+  /** A generated employee's character profile. They work in their works and lodge at the Yards Lodging House (v0.36.0). */
   profileOf(st) {
     const map = this.def(st.warehouse).map;
     const night = this.quirk(st).night;
+    const L = this.game.content.lodging;
+    const bed = L ? `lodging:bed_${(L.firstBed[st.warehouse] || 1) + st.bunk - 1}` : `${map}:bunk_${st.bunk}`;
+    const common = L ? `lodging:common_${st.bunk % 2 ? 'a' : 'b'}` : `${map}:post_${st.bunk}`;
     const schedule = night
-      ? [{ from: '19:00', to: '07:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '07:00', to: '11:00', activity: 'leisure', spot: `${map}:post_${st.bunk}` }, { from: '11:00', to: '19:00', activity: 'sleep', spot: `${map}:bunk_${st.bunk}` }]
-      : [{ from: '07:00', to: '19:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '19:00', to: '23:00', activity: 'leisure', spot: `${map}:post_${st.bunk}` }, { from: '23:00', to: '07:00', activity: 'sleep', spot: `${map}:bunk_${st.bunk}` }];
+      ? [{ from: '19:00', to: '07:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '07:00', to: '11:00', activity: 'leisure', spot: common }, { from: '11:00', to: '19:00', activity: 'sleep', spot: bed }]
+      : [{ from: '07:00', to: '19:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '19:00', to: '23:00', activity: 'leisure', spot: common }, { from: '23:00', to: '07:00', activity: 'sleep', spot: bed }];
     return {
-      id: st.id, name: st.name, shortName: st.shortName, tier: 'minor', origin: 'generated', faction: null, staff: true, noSnitch: true,
+      id: st.id, name: st.name, shortName: st.shortName, tier: 'minor', origin: 'generated', faction: null, staff: true, noSnitch: true, worksMap: map,
       role: `Employee at ${this.def(st.warehouse).name}: ${st.main}${st.quirk ? `, ${this.cfg.quirks[st.quirk].name.toLowerCase()}` : ''}.`,
       dialogue: 'dlg_staff', voice: st.voice, appearance: st.appearance,
       personality: { traits: [st.main, ...(st.quirk ? [this.cfg.quirks[st.quirk].name.toLowerCase()] : [])], sociability: 0.5, conscientiousness: 0.6, impulsiveness: 0.3, discretion: 0.8, honesty: 0.6, empathy: 0.5 },
@@ -20094,6 +20401,220 @@ class Vehicles {
 }
 
 return { freshVehicles, Vehicles };
+})();
+
+// ---- src/systems/homes.js
+__m["src/systems/homes.js"] = (function () {
+// Homes (v0.36.0): breaking in, and being invited in.
+//
+// Every home's doors carry `lock.home` (its residents). The player can:
+//  - be INVITED: a resident who trusts you enough (talk to them: "Could I visit
+//    you at home some time?") opens their doors to you, 08:00–22:00;
+//  - PICK the lock (a Lockpick Set from Sal's Surplus): a few seconds standing
+//    still at the door, quiet — only someone who can see you notices — and the
+//    pick may snap; the door then stays open for an hour;
+//  - FORCE the door (a crowbar): instant and loud (heard down the street); the
+//    door is broken until it's mended next day, and when a resident comes home
+//    to it they call the police (an incident, with nobody to name you — unless
+//    somebody saw);
+// and inside, a resident who catches you in their home (not invited) shouts and
+// it's burglary. The dresser in each flat is theirs: what you take is marked as
+// stolen from them (for a pawnshop, later).
+//
+// State (saved): game.world.homes = { open: { doorId: { until, forced, noticed } }, invited: { npcId: true } }.
+const { TILE, dist } = __m["src/core/util.js"];
+const { inWindow } = __m["src/world/clock.js"];
+const { remember } = __m["src/sim/memory.js"];
+
+const PICK_SECONDS = 4.5;
+const PICK_SNAP = 0.22; // chance a pick snaps (and the attempt fails)
+const PICKED_MINUTES = 60;
+const FORCED_MINUTES = 24 * 60;
+const INVITE_TRUST = 25; // or affection
+const INVITE_AFFECTION = 30;
+const VISITING = { from: '08:00', to: '22:00' };
+
+class Homes {
+  constructor(game) {
+    this.game = game;
+    this.picking = null;
+    this.caughtOn = null; // the visit (map + entry time) a resident already caught you on
+    game.bus.on('map:entered', ({ map }) => { this.enteredAt = game.clock.total; this.enteredMap = map; });
+  }
+
+  get state() {
+    const w = this.game.world;
+    if (!w.homes) w.homes = { open: {}, invited: {} };
+    return w.homes;
+  }
+
+  /** Residents whose home this door is (null if it isn't a home's door). */
+  residents(door) {
+    return door?.lock?.home || null;
+  }
+
+  invited(npcId) {
+    return Boolean(this.state.invited[npcId]);
+  }
+
+  /** Called from Game.doorLockReason: is this home door open to the player right now? */
+  opensFor(door) {
+    const who = this.residents(door);
+    if (!who) return false;
+    const o = this.state.open[door.id];
+    if (o && o.until > this.game.clock.total) return true;
+    return who.some((id) => this.invited(id)) && inWindow(this.game.clock.minuteOfDay, VISITING.from, VISITING.to);
+  }
+
+  /** Where a character lives: their home's front-door residence id, or null. */
+  homeOf(npcId) {
+    return this.game.content.life?.homes?.[npcId]?.home || null;
+  }
+
+  // ------------------------------------------------------------- break in
+  /** E at a locked home door: what you can do about it. */
+  inspect(doorId) {
+    const g = this.game;
+    const door = g.currentMap().doors.find((d) => d.id === doorId);
+    if (!door) return { type: 'none' };
+    const names = this.residents(door).map((id) => g.npcs.get(id)?.profile.shortName).filter(Boolean).join(' & ');
+    const options = [];
+    if (g.inventory.count('item_lockpick')) options.push({ label: 'Pick the lock (quiet, takes a moment — burglary)', call: ['homes', 'startPick', doorId] });
+    if (g.inventory.count('item_crowbar')) options.push({ label: 'Force the door with the crowbar (loud — burglary)', call: ['homes', 'force', doorId] });
+    options.push({ label: 'Leave it', call: ['vehicles', 'noop'] });
+    const how = options.length > 1 ? '' : ' You\'d need a lockpick (Sal\'s Surplus sells them, no questions asked) or a crowbar.';
+    return { type: 'choices', title: door.label || 'A locked door', text: `${names ? `${names} live${names.includes('&') ? '' : 's'} here. ` : ''}The door is locked.${how}`, options };
+  }
+
+  startPick(doorId) {
+    if (!this.game.inventory.count('item_lockpick')) return { ok: false, text: 'You need a lockpick.' };
+    this.picking = { doorId, t: 0, need: PICK_SECONDS * (1.3 - 0.1 * this.game.stat('finesse')) };
+    this.game.bus.emit('sfx', { id: 'sfx_locked' });
+    return { ok: true, text: 'You kneel at the lock and go to work with the picks…' };
+  }
+
+  /** Runs while picking: stand still at the door or it's abandoned. */
+  updatePick(dt, input) {
+    const g = this.game;
+    const p = this.picking;
+    const door = g.currentMap().doors.find((d) => d.id === p.doorId);
+    if (!door || Math.hypot(input.x || 0, input.y || 0) > 0.2 || dist((door.x + 0.5) * TILE, (door.y + 0.5) * TILE, g.player.x, g.player.y) > 2.2 * TILE) {
+      this.picking = null;
+      g.notify('You leave the lock alone.', 'info');
+      return;
+    }
+    p.t += dt;
+    if (p.t < p.need) return;
+    this.picking = null;
+    if (g.rng.chance(PICK_SNAP)) {
+      g.inventory.remove('item_lockpick', 1);
+      g.bus.emit('sfx', { id: 'sfx_fail' });
+      g.notify('Snap. The pick breaks off in the lock. (Lockpick Set lost.)', 'warn');
+      return;
+    }
+    this.state.open[door.id] = { until: g.clock.total + PICKED_MINUTES, forced: false };
+    g.bus.emit('sfx', { id: 'sfx_door' });
+    g.reportCrime({ fact: 'fact_player_burglary', map: g.player.map, x: g.player.x, y: g.player.y, radius: 5 });
+    g.bus.emit('home:broken', { door: door.id, how: 'picked' });
+    g.notify('Click. The lock gives. (It\'ll stay unlocked for about an hour.)', 'warn');
+  }
+
+  force(doorId) {
+    const g = this.game;
+    const door = g.currentMap().doors.find((d) => d.id === doorId);
+    if (!door || !g.inventory.count('item_crowbar')) return { ok: false, text: 'You need a crowbar.' };
+    this.state.open[door.id] = { until: g.clock.total + FORCED_MINUTES, forced: true, noticed: false, map: g.player.map, x: g.player.x, y: g.player.y };
+    g.bus.emit('sfx', { id: 'sfx_pry' });
+    g.reportCrime({ fact: 'fact_player_burglary', map: g.player.map, x: g.player.x, y: g.player.y, radius: 14 });
+    g.bus.emit('home:broken', { door: door.id, how: 'forced' });
+    return { ok: true, text: 'CRACK. The frame splinters and the door swings in. Everyone on the street heard that.' };
+  }
+
+  // ------------------------------------------------------------- invitations
+  /** Talking to someone: "Could I visit you at home some time?" Returns what they say (and invites you, if they trust you). */
+  askInvite(npc) {
+    const g = this.game;
+    if (!this.homeOf(npc.id)) return { ok: false, text: 'I\'d rather keep that to myself.' };
+    if (this.invited(npc.id)) return { ok: true, text: 'You know where I live. Door\'s open — daytime, mind.' };
+    const rel = g.relationships.get(npc, 'player');
+    const lines = g.content.dialogues[npc.profile.dialogue]?.homeInvite;
+    if (rel.trust >= INVITE_TRUST || rel.affection >= INVITE_AFFECTION) {
+      this.state.invited[npc.id] = true;
+      remember(npc, { text: 'Told the newcomer they could come round to mine.', tag: 'invited_home', about: 'player', importance: 4 }, g.clock.total);
+      g.bus.emit('home:invited', { npcId: npc.id });
+      return { ok: true, invited: true, text: lines?.yes || 'Why not? Come round some time — eight till ten. Wipe your feet.' };
+    }
+    return { ok: false, text: lines?.no || 'My home? We\'re not there yet, friend.' };
+  }
+
+  // ------------------------------------------------------------- each minute
+  minuteTick() {
+    const g = this.game;
+    const now = g.clock.total;
+    const s = this.state;
+    for (const [id, o] of Object.entries(s.open)) {
+      if (o.until <= now) { delete s.open[id]; continue; }
+      // a resident comes home to a forced door: they call the police
+      if (o.forced && !o.noticed) {
+        const door = this.findDoor(id);
+        if (!door) continue;
+        const home = door.lock.home.map((r) => g.npcs.get(r)).find((n) => n && (n.map === door.to.map || (n.map === o.map && dist(n.x, n.y, o.x, o.y) < 3 * TILE)));
+        if (home) {
+          o.noticed = true;
+          g.bark(home, 'Someone\'s broken into my home!');
+          remember(home, { text: 'Came home to find my door forced.', tag: 'burgled', importance: 8 }, now);
+          g.police?.placeCall(3, { map: o.map, x: o.x, y: o.y }, { fact: 'fact_player_burglary', witnesses: [] });
+        }
+      }
+    }
+    this.catchIntruder();
+  }
+
+  /** You're in a home that isn't yours, uninvited, and a resident is there: "GET OUT!" */
+  catchIntruder() {
+    const g = this.game;
+    const map = g.currentMap();
+    const who = map.def.home;
+    if (!who || who.some((id) => this.invited(id))) return;
+    const visit = `${map.id}@${this.enteredAt}`;
+    if (this.caughtOn === visit) return;
+    const r = who.map((id) => g.npcs.get(id)).find((n) => n && n.map === map.id && n.activity !== 'sleep' && g.canSee(n, g.player.x, g.player.y, map, 12));
+    const sleeper = who.map((id) => g.npcs.get(id)).find((n) => n && n.map === map.id && n.activity === 'sleep');
+    // a sleeper wakes if you're close (or unlucky)
+    const woken = !r && sleeper && dist(sleeper.x, sleeper.y, g.player.x, g.player.y) < 2.5 * TILE && g.rng.chance(0.25) ? sleeper : null;
+    const n = r || woken;
+    if (!n) return;
+    this.caughtOn = visit;
+    g.bark(n, woken ? 'Wha— WHO\'S THERE?! GET OUT!' : 'What are you doing in my home?! GET OUT!');
+    g.relationships.adjust(n, 'player', { trust: -20, affection: -15, suspicion: 30 }, 'caught_burgling');
+    remember(n, { text: 'Caught the newcomer inside my home.', tag: 'caught_burgling', about: 'player', importance: 9 }, g.clock.total);
+    g.reportCrime({ fact: 'fact_player_burglary', map: map.id, x: g.player.x, y: g.player.y, radius: 12 });
+  }
+
+  findDoor(id) {
+    for (const m of this.game.maps.values()) {
+      const d = m.doors.find((x) => x.id === id);
+      if (d) return d;
+    }
+    return null;
+  }
+
+  /** The locked home door you're standing at, facing (for the E prompt), or null. */
+  doorAhead() {
+    const g = this.game;
+    const p = g.player;
+    const map = g.currentMap();
+    const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
+    const fy = p.facing === 'up' ? -1 : p.facing === 'down' ? 1 : 0;
+    for (const k of [0.6, 1]) {
+      const d = map.doorAt(Math.floor((p.x + fx * k * TILE) / TILE), Math.floor((p.y + fy * k * TILE) / TILE));
+      if (d?.lock?.home && !g.playerCanPass(d)) return d;
+    }
+    return null;
+  }
+}
+
+return { Homes };
 })();
 
 // ---- src/systems/transit.js
@@ -26728,6 +27249,7 @@ const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
+const { Homes } = __m["src/systems/homes.js"];
 const { Transit } = __m["src/systems/transit.js"];
 const { Pursuit } = __m["src/systems/pursuit.js"];
 const { Logistics } = __m["src/systems/logistics.js"];
@@ -26770,6 +27292,7 @@ class Game {
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
+    this.homes = new Homes(this); // v0.36.0: break-ins and invitations
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
@@ -26953,6 +27476,7 @@ class Game {
     const lock = door.lock;
     if (!lock) return null;
     if (holder(lock.key)) return null;
+    if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
     if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
     if (lock.hours && inWindow(this.clock.minuteOfDay, lock.hours.from, lock.hours.to)) return null;
     if (lock.flag && !lock.hours) return null;
@@ -26968,6 +27492,8 @@ class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
+    if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
+    if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts
     // Non-owners use public opening hours only (invitations are for the player).
     return Boolean(door.lock.hours && !door.lock.flag && inWindow(this.clock.minuteOfDay, door.lock.hours.from, door.lock.hours.to));
   }
@@ -26995,6 +27521,7 @@ class Game {
     if (riding) { /* the bus carries you (Transit.update) */ } else if (this.player.driving) this.vehicles.update(dt, input);
     else {
       if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
+      if (this.homes.picking) this.homes.updatePick(dt, input);
       this.updatePlayer(dt, input);
     }
     this.combat.update(dt);
@@ -27019,6 +27546,7 @@ class Game {
 
   minuteTick() {
     this.combat.minuteTick();
+    this.homes.minuteTick();
     this.police.minuteTick();
     this.calculators.minuteTick();
     this.gang.minuteTick();
@@ -27382,6 +27910,8 @@ class Game {
     if (jack) out.push({ kind: 'carjack', id: jack.id, label: `Carjack the ${this.content.vehicles.models[jack.model].name}`, score: dist(p.x, p.y, jack.x, jack.y) - 10 });
     const car = this.vehicles.nearest();
     if (car) out.push({ kind: 'car', id: car.id, label: this.vehicles.label(car), score: dist(p.x, p.y, car.x, car.y) - 20 });
+    const homeDoor = this.homes.doorAhead(); // v0.36.0
+    if (homeDoor) out.push({ kind: 'home_door', id: homeDoor.id, label: `${homeDoor.label || 'A locked door'}: break in…`, score: -5 });
     const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
     const fy = p.facing === 'up' ? -1 : p.facing === 'down' ? 1 : 0;
     const score = (x, y) => {
@@ -27458,6 +27988,7 @@ class Game {
     if (target.kind === 'bus_on') { const r = this.transit.board(target.id); return { type: 'message', text: r.text }; }
     if (target.kind === 'bus_off') { const r = this.transit.alight(); return r.ok ? { type: 'none' } : { type: 'message', text: r.text }; }
     if (target.kind === 'carjack') { this.transit.carjack(target.id); return { type: 'none' }; }
+    if (target.kind === 'home_door') return this.homes.inspect(target.id);
     if (target.kind === 'car_exit') {
       const r = this.vehicles.exit();
       return r.ok ? { type: 'none' } : { type: 'message', text: r.text || 'You can\'t get out here.' };
@@ -28013,6 +28544,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.36.0',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'Home Sweet Home',
+    notes: [
+      'Nobody sleeps at work any more. Mags, Tibbs and Delphine have flats at 11 Gullwing Row; Chief Order and his officers live in the Harbourline Apartments; Lucas, Julian and Sal in the Atlas Rooms; the Sums of Anarchy in four shacks by the Abacus; Marty in Flat 5 at the Plumb Line (Mason is his landlord); Wes in the Tolliver place in Lariat. Your arms works\' hands lodge at the Yards Lodging House.',
+      'Break in, if you must: pick a lock with a Lockpick Set (Sal\'s Surplus, no questions asked) — quiet, but the pick can snap — or force the door with a crowbar, which the whole street will hear. Each home has a dresser of valuables. Get caught inside and it\'s burglary; a resident who comes home to a forced door calls the police.',
+      'Make friends: ask someone "Could I visit you at home some time?" — if they trust you, their door is open to you from eight in the morning till ten at night.',
+    ],
+  },
   {
     version: '0.35.2',
     date: '2026-10-16',
@@ -35494,6 +36036,8 @@ class DialogueSession {
     const opts = this.availableTopics().map((t) => ({ id: `topic:${t.id}`, label: interpolate(t.label, this.vars()), tag: t.tag || null, fresh: !(this.npc.topicsUsed || {})[t.id] }));
     if (this.profile.mechanics?.gossipBroker) opts.push({ id: 'gossip', label: '"Heard anything interesting?"', tag: 'gossip' });
     if (this.giftables().length) opts.push({ id: 'gift', label: 'Give a gift…', tag: 'gift' });
+    // v0.36.0: anyone with a home can be asked round; they say yes if they trust you
+    if (this.game.homes?.homeOf(this.npc.id) && !this.game.homes.invited(this.npc.id) && !this.npc.hostile) opts.push({ id: 'home', label: '"Could I visit you at home some time?"', tag: 'home' });
     opts.push({ id: 'ask', label: 'Ask about…', tag: 'ask' });
     opts.push({ id: 'bye', label: 'Goodbye.', tag: 'bye' });
     return opts;
@@ -35512,6 +36056,12 @@ class DialogueSession {
       return out;
     }
     if (optionId === 'gossip') return this.gossipMenu(out);
+    if (optionId === 'home') {
+      const r = this.game.homes.askInvite(this.npc);
+      out.pages.push(r.text);
+      if (r.invited) this.game.notify(`${this.profile.shortName} invited you round. Their door is open to you, 08:00–22:00.`, 'good');
+      return this.finish(out);
+    }
     if (optionId.startsWith('gift:')) return this.giveGift(optionId.slice(5), out);
     if (optionId.startsWith('tell:')) return this.tellFact(optionId.slice(5), out);
     if (optionId.startsWith('topic:')) return this.runTopic(optionId.slice(6), out);
@@ -36016,7 +36566,7 @@ const BUILDING_ICONS = {
   // Lanternside
   b_number9: { icon: '🏠', kind: 'Your home' },
   b_vane_house: { icon: '🏡', kind: 'Residence' },
-  b_to_let: { icon: '🔑', kind: 'House to let' },
+  b_to_let: { icon: '🏢', kind: 'Flats (Mags, Tibbs, Delphine)' },
   b_cafe: { icon: '☕', kind: 'Café' },
   b_civic: { icon: '🏛️', kind: 'Civic office' },
   b_workshop: { icon: '🔧', kind: 'Workshop' },
@@ -36036,10 +36586,15 @@ const BUILDING_ICONS = {
   t_meridian: { icon: '💼', kind: 'Trust company' },
   t_herald: { icon: '📰', kind: 'Newspaper' },
   t_exchange: { icon: '📈', kind: 'Stock exchange' },
-  t_atlas: { icon: '🍸', kind: 'Private club' },
+  t_atlas: { icon: '🏢', kind: 'Apartments (Lucas, Julian, Sal)' },
   t_vantage: { icon: '🏢', kind: 'Office tower' },
   t_telephone: { icon: '☎️', kind: 'Telephone company' },
-  t_harbourline: { icon: '🏢', kind: 'Apartments' },
+  t_harbourline: { icon: '🏢', kind: 'Apartments (Chief Order and his officers)' },
+  // v0.36.0: the Sums of Anarchy's shacks
+  sh_9: { icon: '🏚️', kind: 'Arthur Anderson\'s shack' },
+  sh_7: { icon: '🏚️', kind: 'Home (Al & Percy)' },
+  sh_8: { icon: '🏚️', kind: 'Home (Minnie & Dee)' },
+  sh_10: { icon: '🏚️', kind: 'Home (Tony & Max)' },
   t_ober: { icon: '🛢️', kind: 'Ober\'s Oil headquarters' },
   t_ironclad: { icon: '🛡️', kind: 'Security firm' },
   t_grand_hotel: { icon: '🏨', kind: 'Hotel' },
@@ -36070,7 +36625,7 @@ const BUILDING_ICONS = {
   b_aw2: { icon: '🏭', kind: 'Arms works' },
   b_aw3: { icon: '🏭', kind: 'Arms works' },
   b_gatehouse: { icon: '🚧', kind: 'Gatehouse' },
-  b_scrapco: { icon: '♻️', kind: 'Scrapyard' },
+  b_scrapco: { icon: '🛏️', kind: 'Lodging house (your workers)' },
   b_ober_office: { icon: '⚓', kind: 'Shipping company' },
   // v0.16.0
   b_fender_office: { icon: '🚙', kind: 'Used-car dealership' },
@@ -36082,7 +36637,7 @@ const BUILDING_ICONS = {
   b_repair: { icon: '🔧', kind: 'Farm equipment repair' },
   b_house_1: { icon: '🏠', kind: 'House' },
   b_house_2: { icon: '🏠', kind: 'House' },
-  b_house_3: { icon: '🏠', kind: 'House' },
+  b_house_3: { icon: '🏠', kind: 'Wes Tolliver\'s house' },
   b_house_4: { icon: '🏠', kind: 'House' },
   b_house_5: { icon: '🏠', kind: 'House' },
   b_house_6: { icon: '🏠', kind: 'House' },
@@ -37642,7 +38197,7 @@ function choicesPanel(ui, body, opts) {
     wrap.append(h('button', { style: 'text-align:left', onclick: () => {
       ui.audio.sfx('sfx_ui_click');
       const [sys, method, ...args] = o.call;
-      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles, transit: ui.game.transit }[sys] || ui.game;
+      const target = { oil: ui.game.oil, construction: ui.game.construction, police: ui.game.police, gang: ui.game.gang, factory: ui.game.factory, arms: ui.game.arms, vehicles: ui.game.vehicles, transit: ui.game.transit, homes: ui.game.homes }[sys] || ui.game;
       const r = target[method](...args);
       ui.closePanel();
       if (r?.text) ui.showCaption(r.text, 5);
@@ -40948,10 +41503,10 @@ class UI {
       if (!this.walkKeys) this.walkKeys = this.el.keys.textContent;
       set(this.el.keys, riding ? 'Riding the bus · E get off when it stops · J tablet · M map' : car ? 'W / ↑ accelerate · S / ↓ brake & reverse · A D steer · Shift handbrake · H horn · E get out · M map' : this.walkKeys);
     }
-    const hw = g.vehicles.hotwire;
+    const hw = g.vehicles.hotwire || g.homes.picking;
     if (hw) {
       const k = Math.min(1, hw.t / hw.need);
-      const html = `🔧 Hotwiring… <span class="hotwire"><i style="width:${Math.round(k * 100)}%"></i></span> (stand still)`;
+      const html = `${g.homes.picking ? '🔓 Picking the lock…' : '🔧 Hotwiring…'} <span class="hotwire"><i style="width:${Math.round(k * 100)}%"></i></span> (stand still)`;
       if (this.el.prompt.innerHTML !== html) this.el.prompt.innerHTML = html;
       this.el.prompt.classList.remove('hidden');
     } else if (target) {

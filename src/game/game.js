@@ -29,6 +29,7 @@ import { Market, freshMarket } from '../systems/market.js';
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
+import { Homes } from '../systems/homes.js';
 import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
 import { Logistics } from '../systems/logistics.js';
@@ -71,6 +72,7 @@ export class Game {
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
+    this.homes = new Homes(this); // v0.36.0: break-ins and invitations
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
@@ -254,6 +256,7 @@ export class Game {
     const lock = door.lock;
     if (!lock) return null;
     if (holder(lock.key)) return null;
+    if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
     if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
     if (lock.hours && inWindow(this.clock.minuteOfDay, lock.hours.from, lock.hours.to)) return null;
     if (lock.flag && !lock.hours) return null;
@@ -269,6 +272,8 @@ export class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
+    if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
+    if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts
     // Non-owners use public opening hours only (invitations are for the player).
     return Boolean(door.lock.hours && !door.lock.flag && inWindow(this.clock.minuteOfDay, door.lock.hours.from, door.lock.hours.to));
   }
@@ -296,6 +301,7 @@ export class Game {
     if (riding) { /* the bus carries you (Transit.update) */ } else if (this.player.driving) this.vehicles.update(dt, input);
     else {
       if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
+      if (this.homes.picking) this.homes.updatePick(dt, input);
       this.updatePlayer(dt, input);
     }
     this.combat.update(dt);
@@ -320,6 +326,7 @@ export class Game {
 
   minuteTick() {
     this.combat.minuteTick();
+    this.homes.minuteTick();
     this.police.minuteTick();
     this.calculators.minuteTick();
     this.gang.minuteTick();
@@ -683,6 +690,8 @@ export class Game {
     if (jack) out.push({ kind: 'carjack', id: jack.id, label: `Carjack the ${this.content.vehicles.models[jack.model].name}`, score: dist(p.x, p.y, jack.x, jack.y) - 10 });
     const car = this.vehicles.nearest();
     if (car) out.push({ kind: 'car', id: car.id, label: this.vehicles.label(car), score: dist(p.x, p.y, car.x, car.y) - 20 });
+    const homeDoor = this.homes.doorAhead(); // v0.36.0
+    if (homeDoor) out.push({ kind: 'home_door', id: homeDoor.id, label: `${homeDoor.label || 'A locked door'}: break in…`, score: -5 });
     const fx = p.facing === 'left' ? -1 : p.facing === 'right' ? 1 : 0;
     const fy = p.facing === 'up' ? -1 : p.facing === 'down' ? 1 : 0;
     const score = (x, y) => {
@@ -759,6 +768,7 @@ export class Game {
     if (target.kind === 'bus_on') { const r = this.transit.board(target.id); return { type: 'message', text: r.text }; }
     if (target.kind === 'bus_off') { const r = this.transit.alight(); return r.ok ? { type: 'none' } : { type: 'message', text: r.text }; }
     if (target.kind === 'carjack') { this.transit.carjack(target.id); return { type: 'none' }; }
+    if (target.kind === 'home_door') return this.homes.inspect(target.id);
     if (target.kind === 'car_exit') {
       const r = this.vehicles.exit();
       return r.ok ? { type: 'none' } : { type: 'message', text: r.text || 'You can\'t get out here.' };

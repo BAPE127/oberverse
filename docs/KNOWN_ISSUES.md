@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.35.2
+# Known Issues and Limitations — v0.36.0
+
+- **Homes (v0.36.0):** a block's front door and each flat's door are separate locks (break both). The Sumps camp stays a camp (owner). There is no pawnshop yet — stolen valuables are marked for one. Interiors are bigger than the shacks outside them.
 
 - **Getting out of a car by the Kettle & Crumb (reported 2026-10-16):** explained by v0.35.2 — the car had been driven into the buildings (see the changelog). Fixed.
 

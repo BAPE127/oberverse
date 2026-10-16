@@ -340,7 +340,7 @@ export const wes = local({
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:booth', label: 'lunch at the diner' },
     { from: '13:00', to: '18:00', activity: 'work', spot: 'hoof_horn:counter', label: 'behind the Hoof & Horn counter' },
     { from: '18:00', to: '21:00', activity: 'leisure', spot: 'lariat:paddock_gate', label: 'leaning on Chuckie\'s fence, talking cows', errand: 'lariat_evening', meet: 'npc_dale', errandChance: 0.4 },
-    { from: '21:00', to: '05:30', activity: 'sleep', spot: 'hoof_horn:bed' },
+    { from: '21:00', to: '05:30', activity: 'sleep', spot: 'lariat_tolliver:bed' },
   ],
   relationships: { player: { trust: 5, affection: 5, respect: 5, suspicion: 0 }, npc_chuckie: { trust: 50, affection: 40, respect: 50, suspicion: 0 } },
   giftPrefs: { item_coffee: 6, item_jerky: 6, tags: { food: 2 } },

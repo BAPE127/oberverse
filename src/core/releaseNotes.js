@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.36.0',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'Home Sweet Home',
+    notes: [
+      'Nobody sleeps at work any more. Mags, Tibbs and Delphine have flats at 11 Gullwing Row; Chief Order and his officers live in the Harbourline Apartments; Lucas, Julian and Sal in the Atlas Rooms; the Sums of Anarchy in four shacks by the Abacus; Marty in Flat 5 at the Plumb Line (Mason is his landlord); Wes in the Tolliver place in Lariat. Your arms works\' hands lodge at the Yards Lodging House.',
+      'Break in, if you must: pick a lock with a Lockpick Set (Sal\'s Surplus, no questions asked) — quiet, but the pick can snap — or force the door with a crowbar, which the whole street will hear. Each home has a dresser of valuables. Get caught inside and it\'s burglary; a resident who comes home to a forced door calls the police.',
+      'Make friends: ask someone "Could I visit you at home some time?" — if they trust you, their door is open to you from eight in the morning till ten at night.',
+    ],
+  },
+  {
     version: '0.35.2',
     date: '2026-10-16',
     channel: 'development',

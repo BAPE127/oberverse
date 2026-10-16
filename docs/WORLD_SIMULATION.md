@@ -1,4 +1,4 @@
-# The World Simulation Rules (v0.32.0–v0.35.0)
+# The World Simulation Rules (v0.32.0–v0.36.0)
 
 Every persistent character in the Oberverse belongs to the world simulation. These rules apply to all current and **future** content; `npm run check` enforces them.
 
@@ -9,6 +9,8 @@ In `src/content/life.js`:
 - **`RESIDENCES`** — real places: each unit names its map (an interior, or an outdoor map for a camp), its beds (spots), its capacity, and whether unrelated people may share it. Types: house, farmhouse, flat, apartment, rooming_house, dormitory, estate, staff_quarters, quarters (living where they work), houseboat, camp.
 - **`LIFE_EXCEPTIONS[id]`** — only for characters who genuinely don't have a home (an inmate, livestock), with a reason. Ordinary residents never go here.
 - The character's **schedule** (in its profile) must have a sleep block on one of its home's beds.
+
+**No beds at work (v0.36.0).** A bed or cot may only be in a home (a residence unit), the player's flat, the jail, the Lodging House or a property the player builds; nobody works in someone's home (estates and farms excepted). New homes are generated in `src/content/homes.js` (`HOMES`: a building, and a flat per household); every private home's locked doors carry `lock.home` (its residents) and its map `def.home` — invitations and break-ins work on them automatically (`src/systems/homes.js`).
 
 The checker rejects: no home and no exception; a home or bed that doesn't exist; sleeping outside the home; more residents than places; a private unit shared by two households; an unknown occupation.
 

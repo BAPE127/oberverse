@@ -435,7 +435,7 @@ export const hoofHorn = room('hoof_horn', 'Hoof & Horn Livestock Supply', 14, 9,
     { id: 'hh_counter', type: 'counter', x: 5, y: 3, w: 5, h: 1, interact: { kind: 'farm', action: 'livestock', name: 'sale ledger' }, examine: 'The Hoof & Horn counter: the sale ledger, a brass bell, and a jar of horehound candy that has been there since the Depression.' },
     { id: 'hh_board', type: 'noticeboard', x: 1, y: 0, examine: 'STOCK FOR SALE: laying hens, dairy goats, beef calves — delivered to your pasture. "WE BUY: grown cattle, goats, hens. Auction prices, paid same day."' },
     { id: 'hh_saddle', type: 'display', x: 11, y: 1, w: 1, examine: 'A saddle on a stand, and a sign: "NOT FOR SALE. ASK ANYWAY."' },
-    { id: 'hh_bed', type: 'cot', x: 12, y: 5, w: 1, h: 2, examine: 'Wes\'s cot in the back. He says he lives in town. He lives here.' },
+    
     { id: 'hh_sacks', type: 'crate', x: 1, y: 6, w: 3, examine: 'Salt licks, mineral blocks, and a box of ear tags numbered up to 999.' },
   ],
 });

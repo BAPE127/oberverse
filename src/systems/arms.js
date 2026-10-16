@@ -408,15 +408,18 @@ export class Arms extends Factory {
     return { ok: true, text: `${st.shortName} pockets the bonus. Morale ${Math.round(st.morale)}.` };
   }
 
-  /** A generated employee's character profile. They live and work in their works. */
+  /** A generated employee's character profile. They work in their works and lodge at the Yards Lodging House (v0.36.0). */
   profileOf(st) {
     const map = this.def(st.warehouse).map;
     const night = this.quirk(st).night;
+    const L = this.game.content.lodging;
+    const bed = L ? `lodging:bed_${(L.firstBed[st.warehouse] || 1) + st.bunk - 1}` : `${map}:bunk_${st.bunk}`;
+    const common = L ? `lodging:common_${st.bunk % 2 ? 'a' : 'b'}` : `${map}:post_${st.bunk}`;
     const schedule = night
-      ? [{ from: '19:00', to: '07:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '07:00', to: '11:00', activity: 'leisure', spot: `${map}:post_${st.bunk}` }, { from: '11:00', to: '19:00', activity: 'sleep', spot: `${map}:bunk_${st.bunk}` }]
-      : [{ from: '07:00', to: '19:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '19:00', to: '23:00', activity: 'leisure', spot: `${map}:post_${st.bunk}` }, { from: '23:00', to: '07:00', activity: 'sleep', spot: `${map}:bunk_${st.bunk}` }];
+      ? [{ from: '19:00', to: '07:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '07:00', to: '11:00', activity: 'leisure', spot: common }, { from: '11:00', to: '19:00', activity: 'sleep', spot: bed }]
+      : [{ from: '07:00', to: '19:00', activity: 'work', spot: `${map}:post_${st.bunk}` }, { from: '19:00', to: '23:00', activity: 'leisure', spot: common }, { from: '23:00', to: '07:00', activity: 'sleep', spot: bed }];
     return {
-      id: st.id, name: st.name, shortName: st.shortName, tier: 'minor', origin: 'generated', faction: null, staff: true, noSnitch: true,
+      id: st.id, name: st.name, shortName: st.shortName, tier: 'minor', origin: 'generated', faction: null, staff: true, noSnitch: true, worksMap: map,
       role: `Employee at ${this.def(st.warehouse).name}: ${st.main}${st.quirk ? `, ${this.cfg.quirks[st.quirk].name.toLowerCase()}` : ''}.`,
       dialogue: 'dlg_staff', voice: st.voice, appearance: st.appearance,
       personality: { traits: [st.main, ...(st.quirk ? [this.cfg.quirks[st.quirk].name.toLowerCase()] : [])], sociability: 0.5, conscientiousness: 0.6, impulsiveness: 0.3, discretion: 0.8, honesty: 0.6, empathy: 0.5 },

@@ -47,6 +47,27 @@ export const ITEMS = {
     name: 'Flat Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
     description: 'The key to Number 9, Gullwing Row. Home, for now.',
   },
+  // v0.36.0: break-ins — a lockpick, and the valuables people keep at home (tagged for a pawnshop)
+  item_lockpick: {
+    name: 'Lockpick Set', category: 'tool', price: 35, tags: ['tool', 'pick'], icon: 'key',
+    description: 'A tension wrench and five picks in a leather roll. Quiet, slow, and occasionally snaps at the worst moment.',
+  },
+  item_pocket_watch: {
+    name: 'Pocket Watch', category: 'valuable', price: 40, tags: ['valuable', 'pawn'], icon: 'cog',
+    description: 'A silver pocket watch, engraved on the back. The engraving is someone else\'s name.',
+  },
+  item_gold_ring: {
+    name: 'Gold Ring', category: 'valuable', price: 55, tags: ['valuable', 'pawn'], icon: 'key',
+    description: 'A plain gold band. It meant something to somebody.',
+  },
+  item_gold_watch: {
+    name: 'Gold Wristwatch', category: 'valuable', price: 90, tags: ['valuable', 'pawn'], icon: 'cog',
+    description: 'Heavy, gold and loud about it. It keeps excellent time for someone who has never been on time.',
+  },
+  item_silver_spoons: {
+    name: 'Silver Spoons', category: 'valuable', price: 25, tags: ['valuable', 'pawn'], icon: 'cog',
+    description: 'A set of six silver spoons in a velvet case. Good for nothing but stirring and selling.',
+  },
   item_brass_cog: {
     name: 'Brass Cog', category: 'junk', price: 3, tags: ['junk', 'mechanical'], icon: 'cog',
     description: 'A small brass cog. Tibbs would probably pay for it.',
