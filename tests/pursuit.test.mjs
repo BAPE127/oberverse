@@ -13,7 +13,8 @@ const fresh = () => {
   return g;
 };
 const frames = (g, seconds, input = {}) => { for (let t = 0; t < seconds; t += 0.05) g.update(0.05, { x: 0, y: 0, ...input }); };
-const inCar = (g, model = 'pipit', x = 50, y = 37) => {
+// v0.35.2: on Grand Avenue (it used to be parked among Civic Plaza's lamp posts, which a car could only reach through the walls bug)
+const inCar = (g, model = 'pipit', x = 50, y = 41.5) => {
   const id = `car_t${g.vehicles.state.nextId++}`;
   g.vehicles.state.cars[id] = { id, model, color: '#888', map: g.player.map, x: x * TILE, y: y * TILE, angle: 0, owner: 'player', stolen: false, plate: 'T' };
   g.vehicles.enter(id);

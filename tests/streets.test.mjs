@@ -177,7 +177,9 @@ test('your car carries its weight through a turn: the wheel turns in, the tail s
   const V = g.vehicles;
   const car = Object.values(V.state.cars).find((c) => c.map === 'halvermouth');
   const j = CONTENT.transit.junctions[1];
-  Object.assign(car, { x: (j.x - 20) * TILE, y: (j.y + 1) * TILE, angle: 0, speed: 300, travel: 0, wheel: 0 });
+  // on the avenue just east of the junction, heading east (v0.35.2: it used to start off the map, inside the void)
+  Object.assign(car, { map: j.map, x: (j.x + j.w + 3) * TILE, y: (j.y + 1) * TILE, angle: 0, speed: 300, travel: 0, wheel: 0 });
+  assert.equal(V.inWalls(g.maps.get(j.map), car.x, car.y, 0, V.model(car).len, V.model(car).wid, car), 0, 'starts clear');
   V.physics(car, { x: 1, y: -1 }, 0.02);
   assert.ok(car.wheel > 0 && car.wheel < 0.5, 'the wheel turns in over a moment');
   for (let i = 0; i < 10; i++) V.physics(car, { x: 1, y: -1 }, 0.02);

@@ -42,7 +42,7 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 ## Verification record — v0.35.2 (2026-10-16)
 
-- `npm run check` — all tests pass (1 new: a car nosed into the Kettle & Crumb's wall and floored never centres inside the building, ends clear and lets you out; overlapping another car you can still back away). The test fails on v0.35.1.
+- `npm run check` — **354/354 tests passed** (1 new: a car nosed into the Kettle & Crumb's wall and floored never centres inside the building, ends clear and lets you out; overlapping another car you can still back away). The test fails on v0.35.1. Two older tests (`streets`, `pursuit`) relied on the bug — a car started off the map, and a pull-over staged among the plaza's lamp posts — and were moved onto real roads. (The first push of this fix went out with those two failing; corrected in the next commit.)
 - Reproduced first: a Pipit overlapping the café wall, accelerator held, spent 19 frames centred inside buildings. After the fix: 0, headless and in the browser (holding W for 3 s; E got out). Exit sweeps (Lanternside, every map edge) still 0 failures.
 
 ## Verification record — v0.35.1 (2026-10-16)

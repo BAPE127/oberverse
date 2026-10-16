@@ -8,7 +8,7 @@ Owner's report: you can drive through buildings from the café to Ober Fields, a
 
 ### Fixed
 - **Driving through buildings:** a car already overlapping anything was allowed to move freely "to work itself loose" — and once inside a building it stayed overlapping, so it could drive straight through every building in its way (and getting out inside one failed). The likely way in by the Kettle & Crumb: traffic on the coast road may ghost through a parked car after waiting 8 seconds, or side-swipe at a junction, leaving the cars overlapping. Now (`src/systems/vehicles.js`): a car in a wall is eased out to the nearest clear spot (`unstick`); overlapping another car only lets you move apart from cars — walls always stop you; and if a car can't be eased out, it may only move in ways that take it further out of the wall. This also covers the police cars that use the same physics.
-- Tests: 1 regression test (fails on the old code).
+- Tests: 1 regression test (fails on the old code). Two older tests had only been passing because of the bug — one started a car off the edge of the map, one parked you among Civic Plaza's lamp posts where a police car could only reach you through them; both now start on real roads.
 
 ## [0.35.1] — 2026-10-16 — Fixes (development build)
 
