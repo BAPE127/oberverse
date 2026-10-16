@@ -651,7 +651,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -1312,7 +1312,7 @@ export function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
-    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator': case 'terminal':
+    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator': case 'terminal': case 'sorter': case 'storage':
       drawFactoryProp(ctx, p, x, y, w, h, opts);
       break;
     case 'loosebrick': {

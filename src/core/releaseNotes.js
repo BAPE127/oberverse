@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.37.0',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'The Factory Must Grow',
+    notes: [
+      'Inserters, sorters and belts no longer block the floor — you and your workers walk straight over them. Step on a belt and it carries you.',
+      'Placeable storage: Wooden Chests (100 items) and Iron Chests (300). Inserters and belts fill and empty them; open one yourself with E. Pick a chest up and what\'s in it comes with it.',
+      'Sorting: a Filter Inserter moves only the item you set; a Belt Sorter sends its item off to the right and lets everything else carry on — or, with no filter, splits a line in two. All on sale at Sal\'s Surplus (machinery).',
+    ],
+  },
+  {
     version: '0.36.0',
     date: '2026-10-16',
     channel: 'development',

@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.37.0] — 2026-10-16 — The Factory Must Grow (development build)
+
+Owner's brief: improve the gunrunning automation — the player and workers walk through inserters; placeable storage for parts; sorters; "think as much like Factorio as you can". Applies to both kinds of works (arms and calculators), which share `src/systems/factory.js`.
+
+### Added
+- **Walk-through logistics:** inserters, sorters and belts don't block movement — for you and for the workers' pathfinding (older saves' inserters are made walkable on load). **Belts carry you** along them (56 px/s), as in Factorio.
+- **Storage chests** (`build.type: 'storage'`): **Wooden Chest** (100 items, 12 obols) and **Iron Chest** (300, 40). Inserters and belts put into and take out of them like the fixed dock and cage (respecting their size); E opens one (your container); picking one up returns its contents. Each has a fill gauge.
+- **Filter Inserter** (30): an inserter that moves only the item you set with E (choices: every placed machine's inputs and outputs, and whatever the chests and crates hold); with no filter it waits.
+- **Belt Sorter** (25): sits in a belt line; an item matching its filter leaves to its right, everything else carries straight on; with no filter it alternates (a splitter). Drawn with a fork and its filter's colour.
+- On sale at Sal's Surplus (machinery), which also buys them back.
+- Tests: `tests/factorio.test.mjs` (5).
+
+### Changed
+- `Game.containerDef(id)`: containers can be content-defined or a chest placed in a works.
+
 ## [0.36.0] — 2026-10-16 — Home Sweet Home (development build)
 
 Owner's brief: no beds in stores or shops — every NPC has a home they go to when not working; the player can break into homes and steal (for a later pawnshop); trusted NPCs invite the player in. Owner's decisions: Chief Order gets a house too (changing "never leaves the station" from his interview); the Sumps camp stays a camp.

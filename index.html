@@ -3123,7 +3123,9 @@ const PROP_TYPES = {
   workbench: { solid: true, label: 'Workbench', defaults: { w: 3 } },
   belt: { solid: false, label: 'Conveyor belt', defaults: {} },
   terminal: { solid: true, label: 'Terminal', defaults: { w: 2 } },
-  inserter: { solid: true, label: 'Inserter arm', defaults: {} },
+  inserter: { solid: false, label: 'Inserter arm', defaults: {} }, // v0.37.0: walked through, like Factorio
+  sorter: { solid: false, label: 'Belt sorter', defaults: {} },
+  storage: { solid: true, label: 'Storage chest', defaults: {} },
   machine: { solid: true, label: 'Machine', defaults: { w: 2, h: 2 } },
   generator: { solid: true, label: 'Generator', defaults: { w: 2, h: 2 } },
   vent: { solid: false, label: 'Air vent', defaults: {} },
@@ -3291,6 +3293,11 @@ const ITEMS = {
   item_machine_tuner: { name: 'Tuning Bench', category: 'machine', price: 180, tags: ['machine'], icon: 'machine', build: { type: 'machine', kind: 'tuner', w: 2, h: 2 }, description: 'Place in your warehouse, then set what it makes (E). Blank → a finished calculator, every 3 minutes. Needs power.' },
   item_belt: { name: 'Conveyor Belt', category: 'machine', price: 3, tags: ['machine'], icon: 'belt', build: { type: 'belt', w: 1, h: 1 }, description: 'Place in your warehouse; R rotates. Carries one item a minute to the next belt — and straight into a machine or crate at its end.' },
   item_inserter: { name: 'Inserter Arm', category: 'machine', price: 15, tags: ['machine'], icon: 'arm', build: { type: 'inserter', w: 1, h: 1 }, description: 'Place in your warehouse; R rotates. Grabs one item a minute from behind it (crate, belt, machine output) and drops it in front, if what\'s in front wants it.' },
+  // v0.37.0: storage and sorting (both kinds of works)
+  item_chest_wood: { name: 'Wooden Chest', category: 'machine', price: 12, tags: ['machine'], icon: 'machine', build: { type: 'storage', w: 1, h: 1, cap: 100 }, description: 'Place in your works (B). Holds 100 items. Inserters and belts fill and empty it; E to open it yourself.' },
+  item_chest_iron: { name: 'Iron Chest', category: 'machine', price: 40, tags: ['machine'], icon: 'machine', build: { type: 'storage', w: 1, h: 1, cap: 300 }, description: 'Place in your works. Holds 300 items — a proper buffer between lines.' },
+  item_filter_inserter: { name: 'Filter Inserter', category: 'machine', price: 30, tags: ['machine'], icon: 'arm', build: { type: 'inserter', w: 1, h: 1, filter: true }, description: 'An inserter that moves only the item you set (E). R rotates. Pick one part off a mixed belt, or one product out of a chest.' },
+  item_sorter: { name: 'Belt Sorter', category: 'machine', price: 25, tags: ['machine'], icon: 'belt', build: { type: 'sorter', w: 1, h: 1 }, description: 'Goes in a belt line; R rotates. Items matching its filter (E) turn off to its right; the rest carry straight on. With no filter it splits a line in two.' },
   item_generator: { name: 'Generator', category: 'machine', price: 250, tags: ['machine'], icon: 'machine', build: { type: 'generator', w: 2, h: 2 }, description: 'Place in your warehouse. Powers four more machines. (Every warehouse\'s wall socket powers the first two.)' },
   item_vault_key: {
     name: 'Vault Key', category: 'key', price: 0, tags: ['key'], icon: 'key',
@@ -3731,8 +3738,8 @@ const SHOPS = {
   },
   shop_machines: {
     name: 'Sal\'s Surplus — machinery', owner: 'npc_sal', restockAt: '08:00',
-    stock: { item_machine_solderer: 3, item_machine_press: 3, item_machine_assembler: 3, item_machine_tuner: 6, item_generator: 3, item_belt: 200, item_inserter: 30 },
-    buys: { item_machine_solderer: 60, item_machine_press: 75, item_machine_assembler: 110, item_machine_tuner: 90, item_generator: 125, item_belt: 1, item_inserter: 7 },
+    stock: { item_machine_solderer: 3, item_machine_press: 3, item_machine_assembler: 3, item_machine_tuner: 6, item_generator: 3, item_belt: 200, item_inserter: 30, item_chest_wood: 20, item_chest_iron: 10, item_filter_inserter: 15, item_sorter: 15 },
+    buys: { item_machine_solderer: 60, item_machine_press: 75, item_machine_assembler: 110, item_machine_tuner: 90, item_generator: 125, item_belt: 1, item_inserter: 7, item_chest_wood: 5, item_chest_iron: 18, item_filter_inserter: 14, item_sorter: 11 },
   },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',
@@ -11511,7 +11518,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.36.0';
+const GAME_VERSION = '0.37.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -17825,6 +17832,15 @@ __m["src/systems/factory.js"] = (function () {
 //          (crate, belt, machine output) to the tile in front, if that wants it
 //     generator (2×2): powers four more machines (the wall socket powers the
 //          first `basePower`)
+//   v0.37.0, more Factorio:
+//     inserters and sorters are walk-through (for you and the workers); belts
+//          carry whoever stands on them
+//     storage chest (1×1, wooden 100 / iron 300 items): placeable storage — inserters
+//          and belts fill and empty it like the fixed crates; E opens it
+//     filter inserter: an inserter set (E) to move only one item
+//     sorter (1×1, facing, belt-like): an item matching its filter turns off to
+//          its right; everything else carries straight on. Unfiltered, it
+//          splits — alternating right and straight.
 //
 // Factory entities are runtime props on the warehouse maps (GameMap.addProp),
 // so they draw, block and take E like any prop. State: game.world.factory.
@@ -17838,6 +17854,8 @@ const DY = [0, 1, 0, -1];
 const MACHINE_BUFFER = 4; // ×recipe need, per input
 const OUTPUT_CAP = 10;
 const DELIVERY_MINUTE = 7 * 60;
+const WALKABLE = new Set(['belt', 'inserter', 'sorter']);
+const BELT_PUSH = 56; // px/s: a belt carries whoever stands on it
 const CALC_ITEM = (t) => `item_calc_${t}`;
 
 function freshFactory(content) {
@@ -17925,7 +17943,10 @@ class Factory {
     for (const [id, wh] of Object.entries(this.state.warehouses)) {
       const map = g.maps.get(this.def(id)?.map);
       if (!map) continue;
-      for (const e of wh.entities) map.addProp(e);
+      for (const e of wh.entities) {
+        if (WALKABLE.has(e.type)) e.solid = false; // v0.37.0: older saves' inserters
+        map.addProp(e);
+      }
     }
   }
 
@@ -17964,6 +17985,7 @@ class Factory {
       cells,
       belts: [...belts].sort((a, b) => dist.get(a) - dist.get(b)),
       inserters: ents.filter((e) => e.type === 'inserter'),
+      sorters: ents.filter((e) => e.type === 'sorter'),
       machines: ents.filter((e) => e.type === 'machine'),
       generators: ents.filter((e) => e.type === 'generator'),
     };
@@ -18002,7 +18024,7 @@ class Factory {
     if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
     if (!this.owns(whId)) return { ok: false, text: 'This isn\'t your warehouse.' };
     if (!g.inventory.count(itemId)) return { ok: false, text: `You don't have a ${item.name}.` };
-    const { type, kind, w = 1, h = 1 } = item.build;
+    const { type, kind, w = 1, h = 1, cap, filter } = item.build;
     const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
     if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
     const why = this.blockReason(whId, x, y, w, h);
@@ -18010,9 +18032,15 @@ class Factory {
     const wh = this.state.warehouses[whId];
     const e = {
       id: `fx_${whId}_${wh.nextId++}`, fx: true, type, x, y, w, h, dir: ((dir % 4) + 4) % 4, item: itemId,
-      solid: type !== 'belt',
+      solid: !WALKABLE.has(type), // v0.37.0: belts, inserters and sorters are walked through
       label: item.name,
     };
+    if (type === 'storage') {
+      Object.assign(e, { chest: true, container: `ct_${e.id}`, cap, interact: { kind: 'container', container: `ct_${e.id}` } });
+      g.world.containers[e.container] = { items: {}, money: 0 };
+    }
+    if (filter || type === 'sorter') Object.assign(e, { filter: null, filterable: true, interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
+    if (type === 'sorter') e.carry = null;
     if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: this.initialSetting(kind), interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
     if (type === 'generator') e.interact = { kind: this.kind, action: 'entity', warehouse: whId, name: 'generator' };
     if (type === 'belt') e.carry = null;
@@ -18040,6 +18068,7 @@ class Factory {
     g.inventory.add(e.item, 1, { silent: true });
     const back = [];
     if (e.carry) back.push([e.carry, 1]);
+    if (e.chest) { for (const [id, n] of Object.entries(g.world.containers[e.container]?.items || {})) if (n > 0) back.push([id, n]); delete g.world.containers[e.container]; }
     for (const buf of [e.in, e.out]) for (const [id, n] of Object.entries(buf || {})) if (n > 0) back.push([id, n]);
     for (const [id, n] of back) g.inventory.add(id, n, { silent: true });
     return { ok: true, text: `Picked up the ${g.content.items[e.item].name}${back.length ? ' and what was in it' : ''}.` };
@@ -18048,7 +18077,7 @@ class Factory {
   /** Rotate a belt or inserter in place. */
   rotate(whId, x, y) {
     const e = this.at(whId, x, y);
-    if (!e?.fx || (e.type !== 'belt' && e.type !== 'inserter')) return { ok: false, text: 'Only belts and arms rotate.' };
+    if (!e?.fx || !WALKABLE.has(e.type)) return { ok: false, text: 'Only belts, arms and sorters rotate.' };
     e.dir = (e.dir + 1) % 4;
     return { ok: true, text: '' };
   }
@@ -18094,8 +18123,12 @@ class Factory {
   /** Does this cell want this item right now? */
   accepts(target, itemId) {
     if (!target) return false;
-    if (target.chest) return true;
-    if (target.type === 'belt') return !target.carry;
+    if (target.chest) {
+      if (!target.cap) return true;
+      const items = this.game.world.containers[target.container]?.items || {};
+      return Object.values(items).reduce((a, b) => a + b, 0) < target.cap;
+    }
+    if (target.type === 'belt' || target.type === 'sorter') return !target.carry;
     if (target.type === 'machine') {
       const r = this.recipeOf(target);
       const need = r?.in[itemId];
@@ -18109,7 +18142,7 @@ class Factory {
     if (target.chest) {
       const st = g.world.containers[target.container];
       st.items[itemId] = (st.items[itemId] || 0) + 1;
-    } else if (target.type === 'belt') { target.carry = itemId; target.arrived = g.clock.total; }
+    } else if (target.type === 'belt' || target.type === 'sorter') { target.carry = itemId; target.arrived = g.clock.total; }
     else if (target.type === 'machine') target.in[itemId] = (target.in[itemId] || 0) + 1;
   }
 
@@ -18118,7 +18151,7 @@ class Factory {
     const g = this.game;
     if (!src) return [];
     if (src.chest) return Object.entries(g.world.containers[src.container]?.items || {}).filter(([, n]) => n > 0).map(([id]) => id);
-    if (src.type === 'belt') return src.carry ? [src.carry] : [];
+    if (src.type === 'belt' || src.type === 'sorter') return src.carry ? [src.carry] : [];
     if (src.type === 'machine') return Object.entries(src.out).filter(([, n]) => n > 0).map(([id]) => id);
     return [];
   }
@@ -18126,7 +18159,7 @@ class Factory {
   take(src, itemId) {
     const g = this.game;
     if (src.chest) g.world.containers[src.container].items[itemId] -= 1;
-    else if (src.type === 'belt') src.carry = null;
+    else if (src.type === 'belt' || src.type === 'sorter') src.carry = null;
     else if (src.type === 'machine') src.out[itemId] -= 1;
   }
 
@@ -18142,18 +18175,40 @@ class Factory {
       if (!next || next === b || moved.has(next)) continue;
       if (next.type === 'belt' ? !next.carry : this.accepts(next, b.carry)) {
         this.give(next, b.carry);
-        if (next.type === 'belt') moved.add(next);
+        if (next.type === 'belt' || next.type === 'sorter') moved.add(next);
         b.carry = null;
         moved.add(b);
       }
     }
-    // inserters: one item a minute, behind → in front
+    // sorters: what matches the filter turns right; the rest goes straight on (unfiltered: alternate)
+    for (const s of c.sorters) {
+      if (!s.carry || moved.has(s)) continue;
+      const right = (s.dir + 1) % 4;
+      const straight = this.at(whId, s.x + DX[s.dir], s.y + DY[s.dir]);
+      const side = this.at(whId, s.x + DX[right], s.y + DY[right]);
+      const ok = (t) => t && t !== s && !moved.has(t) && this.accepts(t, s.carry);
+      let out = null;
+      if (s.filter) out = s.carry === s.filter ? side : straight;
+      else {
+        const first = s.flip ? side : straight;
+        const other = s.flip ? straight : side;
+        out = ok(first) ? first : other;
+      }
+      if (!ok(out)) continue;
+      this.give(out, s.carry);
+      if (out.type === 'belt' || out.type === 'sorter') moved.add(out);
+      s.carry = null;
+      s.flip = !s.flip;
+      moved.add(s);
+    }
+    // inserters: one item a minute, behind → in front (a filter inserter: only its item)
     for (const ins of c.inserters) {
       const src = this.at(whId, ins.x - DX[ins.dir], ins.y - DY[ins.dir]);
       const dst = this.at(whId, ins.x + DX[ins.dir], ins.y + DY[ins.dir]);
       ins.busy = false;
       if (!src || !dst || src === dst) continue;
-      const item = this.offers(src).find((id) => this.accepts(dst, id));
+      if (ins.filterable && !ins.filter) continue; // a filter inserter with no filter set waits
+      const item = this.offers(src).find((id) => (!ins.filter || id === ins.filter) && this.accepts(dst, id));
       if (!item) continue;
       this.take(src, item);
       this.give(dst, item);
@@ -18338,6 +18393,7 @@ class Factory {
     const g = this.game;
     const e = prop;
     const whId = prop.interact.warehouse;
+    if (e.filterable) return this.filterPrompt(whId, e);
     if (e.type === 'generator') {
       const p = this.power(whId);
       return { type: 'message', text: `Generator, humming. Power: ${p.machines} of ${p.capacity} machines.` };
@@ -18353,6 +18409,53 @@ class Factory {
     if (loadable.length) options.push({ label: 'Load inputs from your pockets', call: [this.kind, 'load', e.id] });
     options.push({ label: 'Done', call: [this.kind, 'noop'] });
     return { type: 'choices', title: g.content.items[e.item].name, text: `${status} Inputs: ${fmt(e.in)}. Output: ${fmt(e.out)}.`, options };
+  }
+
+  /** v0.37.0: set a filter inserter's or a sorter's item — from what this warehouse uses and holds. */
+  filterPrompt(whId, e) {
+    const g = this.game;
+    const name = (id) => g.content.items[id]?.name || id;
+    const options = this.filterCandidates(whId).map((id) => ({ label: `${name(id)}${e.filter === id ? ' (current)' : ''}`, call: [this.kind, 'setFilter', e.id, id] }));
+    options.push({ label: e.type === 'sorter' ? 'No filter (split evenly)' : 'No filter (stop)', call: [this.kind, 'setFilter', e.id, null] });
+    const what = e.type === 'sorter' ? 'Items matching the filter turn off to the right; everything else carries straight on.' : 'Moves only the filtered item.';
+    return { type: 'choices', title: g.content.items[e.item].name, text: `${what} Filter: ${e.filter ? name(e.filter) : 'none'}.`, options };
+  }
+
+  /** Items worth filtering on here: every placed machine's inputs and outputs, and whatever the chests and crates hold. */
+  filterCandidates(whId) {
+    const g = this.game;
+    const set = new Set();
+    for (const m of this.cells(whId).machines) {
+      const r = this.recipeOf(m);
+      for (const id of Object.keys(r?.in || {})) set.add(id);
+      const out = this.recipeOut(m);
+      if (out) set.add(out);
+    }
+    const def = this.def(whId);
+    const chests = [def.inBay, def.outCrate, ...this.state.warehouses[whId].entities.filter((x) => x.chest).map((x) => x.container)];
+    for (const c of chests) for (const [id, n] of Object.entries(g.world.containers[c]?.items || {})) if (n > 0) set.add(id);
+    return [...set].filter((id) => g.content.items[id]).sort();
+  }
+
+  setFilter(entityId, itemId) {
+    const e = this.findEntity(entityId);
+    if (!e?.filterable) return { ok: false, text: '' };
+    e.filter = itemId || null;
+    return { ok: true, text: itemId ? `Filter: ${this.game.content.items[itemId].name}.` : 'Filter cleared.' };
+  }
+
+  /** v0.37.0: a belt carries whoever stands on it (call each frame; the player only, on foot). */
+  carryPlayer(dt) {
+    const g = this.game;
+    const p = g.player;
+    const whId = this.warehouseForMap(p.map);
+    if (!whId || p.driving) return;
+    const e = this.at(whId, Math.floor(p.x / TILE), Math.floor((p.y - 2) / TILE));
+    if (!e || (e.type !== 'belt' && e.type !== 'sorter')) return;
+    const map = g.maps.get(p.map);
+    const nx = p.x + DX[e.dir] * BELT_PUSH * dt;
+    const ny = p.y + DY[e.dir] * BELT_PUSH * dt;
+    if (!map.rectBlocked(nx - 8, ny - 6, 16, 8, g.playerActor())) { p.x = nx; p.y = ny; }
   }
 
   /** Recipe choices shown in a machine's panel. */
@@ -27523,6 +27626,8 @@ class Game {
       if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
       if (this.homes.picking) this.homes.updatePick(dt, input);
       this.updatePlayer(dt, input);
+      this.factory.carryPlayer(dt); // v0.37.0: belts carry you
+      this.arms.carryPlayer(dt);
     }
     this.combat.update(dt);
     this.police.update(dt);
@@ -27955,7 +28060,7 @@ class Game {
     const type = this.content.propTypes[prop.type];
     const name = prop.interact?.name || prop.name || type?.label || 'Object';
     switch (prop.interact?.kind) {
-      case 'container': return `Search ${this.content.containers[prop.interact.container]?.name || name}`;
+      case 'container': return `Search ${this.containerDef(prop.interact.container)?.name || name}`;
       case 'read': return `Read ${this.content.docs[prop.interact.doc]?.title || name}`;
       case 'sleep': return 'Sleep';
       case 'sit': return 'Sit and rest';
@@ -28038,7 +28143,7 @@ class Game {
     }
     switch (act.kind) {
       case 'container': {
-        const cdef = this.content.containers[act.container];
+        const cdef = this.containerDef(act.container);
         if (cdef?.lockedBy && !this.inventory.count(cdef.lockedBy)) {
           this.bus.emit('sfx', { id: 'sfx_locked' });
           return { type: 'message', text: cdef.lockedText || 'It is locked.' };
@@ -28161,8 +28266,20 @@ class Game {
   }
 
   // ------------------------------------------------------------ containers
-  containerView(id) {
+  /** A container's definition: from content, or a chest you placed in a works (v0.37.0). */
+  containerDef(id) {
     const def = this.content.containers[id];
+    if (def) return def;
+    if (!/^ct_fx_/.test(id) || !this.world.containers[id]) return null;
+    for (const sys of [this.factory, this.arms]) {
+      const e = sys?.findEntity(id.slice(3));
+      if (e) return { name: `${this.content.items[e.item].name} (${e.cap} items)`, owner: 'player', items: {}, money: 0 };
+    }
+    return null;
+  }
+
+  containerView(id) {
+    const def = this.containerDef(id);
     const st = this.world.containers[id];
     return {
       id,
@@ -28180,7 +28297,7 @@ class Game {
    * @returns {{ok:boolean, text:string, stolen?:boolean}}
    */
   takeFromContainer(id, itemId, count = 1) {
-    const def = this.content.containers[id];
+    const def = this.containerDef(id);
     const st = this.world.containers[id];
     if (!def || !st) return { ok: false, text: 'Nothing there.' };
     const isMoney = itemId === 'money';
@@ -28215,7 +28332,7 @@ class Game {
   }
 
   putInContainer(id, itemId, count = 1) {
-    const def = this.content.containers[id];
+    const def = this.containerDef(id);
     const st = this.world.containers[id];
     if (!def || !st || !this.inventory.count(itemId)) return { ok: false, text: 'You can\'t put that there.' };
     if (def.owner !== 'player' && !this.player.stolen[itemId]) return { ok: false, text: 'That isn\'t your storage.' };
@@ -28544,6 +28661,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.37.0',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'The Factory Must Grow',
+    notes: [
+      'Inserters, sorters and belts no longer block the floor — you and your workers walk straight over them. Step on a belt and it carries you.',
+      'Placeable storage: Wooden Chests (100 items) and Iron Chests (300). Inserters and belts fill and empty them; open one yourself with E. Pick a chest up and what\'s in it comes with it.',
+      'Sorting: a Filter Inserter moves only the item you set; a Belt Sorter sends its item off to the right and lets everything else carry on — or, with no filter, splits a line in two. All on sale at Sal\'s Surplus (machinery).',
+    ],
+  },
   {
     version: '0.36.0',
     date: '2026-10-16',
@@ -30141,13 +30269,15 @@ function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       const cy = y + h / 2;
       ctx.fillStyle = '#4a4a50';
       ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f2c14e';
+      // v0.37.0: a filter inserter is purple, with its item's colour in the hub (grey: no filter set)
+      if (p.filterable) { ctx.fillStyle = p.filter ? itemColor(p.filter) : '#8a8a90'; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = p.filterable ? '#a86ad8' : '#f2c14e';
       ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
       // the arm swings from behind to in front once a minute while busy
       const swing = p.busy ? Math.cos(((opts.clock || 0) % 1) * Math.PI) : 1;
       const ax = cx + DX[dir] * 13 * swing;
       const ay = cy + DY[dir] * 13 * swing;
-      ctx.strokeStyle = '#f2c14e';
+      ctx.strokeStyle = p.filterable ? '#a86ad8' : '#f2c14e';
       ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay); ctx.stroke();
       ctx.fillStyle = '#2a2a2e';
@@ -30159,6 +30289,49 @@ function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       ctx.lineTo(cx + DX[dir] * 14 - DY[dir] * 3, cy + DY[dir] * 14 + DX[dir] * 3);
       ctx.lineTo(cx + DX[dir] * 18, cy + DY[dir] * 18);
       ctx.fill();
+      break;
+    }
+    case 'sorter': {
+      // v0.37.0: a belt tile with a fork — straight on, and off to the right
+      const dir = p.dir || 0;
+      const right = (dir + 1) % 4;
+      ctx.fillStyle = '#34343a';
+      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.strokeStyle = '#f2a03a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const arrow = (dx, dy, col) => {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + dx * 12, cy + dy * 12); ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(cx + dx * 15, cy + dy * 15); ctx.lineTo(cx + dx * 9 - dy * 5, cy + dy * 9 + dx * 5); ctx.lineTo(cx + dx * 9 + dy * 5, cy + dy * 9 - dx * 5); ctx.fill();
+      };
+      arrow(DX[dir], DY[dir], '#8a8a92');
+      arrow(DX[right], DY[right], p.filter ? itemColor(p.filter) : '#f2a03a');
+      ctx.fillStyle = p.filter ? itemColor(p.filter) : '#5a5a62';
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+      if (p.carry) drawItem(ctx, p.carry, cx, cy + 2);
+      break;
+    }
+    case 'storage': {
+      // v0.37.0: placeable storage — wooden (100) or iron (300), with a fill gauge
+      const iron = p.cap > 100;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 3, y + h - 5, w - 6, 4);
+      ctx.fillStyle = iron ? '#6a6e78' : '#8a5a32';
+      rrect(ctx, x + 3, y + 4, w - 6, h - 8, 3); ctx.fill();
+      ctx.fillStyle = iron ? '#4a4e58' : '#6a4222';
+      ctx.fillRect(x + 3, y + 11, w - 6, 3);
+      ctx.fillStyle = iron ? '#9aa0aa' : '#c8a060';
+      ctx.fillRect(x + w / 2 - 3, y + 9, 6, 6);
+      const n = Object.values(opts.containerItems?.(p.container) || {}).reduce((a, b) => a + b, 0);
+      ctx.fillStyle = '#1e1e22';
+      ctx.fillRect(x + 5, y + h - 9, w - 10, 3);
+      ctx.fillStyle = n >= p.cap ? '#d8604a' : '#7ac86a';
+      ctx.fillRect(x + 5, y + h - 9, Math.round((w - 10) * Math.min(1, n / (p.cap || 1))), 3);
       break;
     }
     case 'machine': {
@@ -32101,7 +32274,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -32762,7 +32935,7 @@ function drawProp(ctx, p, opts) {
       for (let i = 2; i < w; i += 6) ctx.fillRect(x + i, y + 2, 2, h - 4);
       break;
     }
-    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator': case 'terminal':
+    case 'loadingbay': case 'outbin': case 'workbench': case 'belt': case 'inserter': case 'machine': case 'generator': case 'terminal': case 'sorter': case 'storage':
       drawFactoryProp(ctx, p, x, y, w, h, opts);
       break;
     case 'loosebrick': {
@@ -35261,7 +35434,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus
@@ -37940,7 +38113,7 @@ function containerPanel(ui, body, opts) {
     }
   };
   render();
-  return { title: g.content.containers[opts.containerId].name };
+  return { title: g.containerDef(opts.containerId).name };
 }
 
 // --------------------------------------------------------------------- shop
@@ -41390,7 +41563,7 @@ class UI {
     const w = def?.w || 1;
     const hh = def?.h || 1;
     const valid = def ? !b.sys.blockReason(b.wh, tx, ty, w, hh) : Boolean(b.sys.at(b.wh, tx, ty)?.fx);
-    this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter'), remove: !def };
+    this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter' || def.type === 'sorter'), remove: !def };
     // the toolbar
     const tools = this.buildTools();
     const p = b.sys.power(b.wh);

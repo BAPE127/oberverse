@@ -583,7 +583,7 @@ export class UI {
     const w = def?.w || 1;
     const hh = def?.h || 1;
     const valid = def ? !b.sys.blockReason(b.wh, tx, ty, w, hh) : Boolean(b.sys.at(b.wh, tx, ty)?.fx);
-    this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter'), remove: !def };
+    this.renderer.buildCursor = { x: tx, y: ty, w, h: hh, valid, dir: b.dir, arrow: def && (def.type === 'belt' || def.type === 'inserter' || def.type === 'sorter'), remove: !def };
     // the toolbar
     const tools = this.buildTools();
     const p = b.sys.power(b.wh);

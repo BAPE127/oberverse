@@ -152,13 +152,15 @@ export function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       const cy = y + h / 2;
       ctx.fillStyle = '#4a4a50';
       ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f2c14e';
+      // v0.37.0: a filter inserter is purple, with its item's colour in the hub (grey: no filter set)
+      if (p.filterable) { ctx.fillStyle = p.filter ? itemColor(p.filter) : '#8a8a90'; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = p.filterable ? '#a86ad8' : '#f2c14e';
       ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
       // the arm swings from behind to in front once a minute while busy
       const swing = p.busy ? Math.cos(((opts.clock || 0) % 1) * Math.PI) : 1;
       const ax = cx + DX[dir] * 13 * swing;
       const ay = cy + DY[dir] * 13 * swing;
-      ctx.strokeStyle = '#f2c14e';
+      ctx.strokeStyle = p.filterable ? '#a86ad8' : '#f2c14e';
       ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay); ctx.stroke();
       ctx.fillStyle = '#2a2a2e';
@@ -170,6 +172,49 @@ export function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       ctx.lineTo(cx + DX[dir] * 14 - DY[dir] * 3, cy + DY[dir] * 14 + DX[dir] * 3);
       ctx.lineTo(cx + DX[dir] * 18, cy + DY[dir] * 18);
       ctx.fill();
+      break;
+    }
+    case 'sorter': {
+      // v0.37.0: a belt tile with a fork — straight on, and off to the right
+      const dir = p.dir || 0;
+      const right = (dir + 1) % 4;
+      ctx.fillStyle = '#34343a';
+      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.strokeStyle = '#f2a03a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const arrow = (dx, dy, col) => {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + dx * 12, cy + dy * 12); ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(cx + dx * 15, cy + dy * 15); ctx.lineTo(cx + dx * 9 - dy * 5, cy + dy * 9 + dx * 5); ctx.lineTo(cx + dx * 9 + dy * 5, cy + dy * 9 - dx * 5); ctx.fill();
+      };
+      arrow(DX[dir], DY[dir], '#8a8a92');
+      arrow(DX[right], DY[right], p.filter ? itemColor(p.filter) : '#f2a03a');
+      ctx.fillStyle = p.filter ? itemColor(p.filter) : '#5a5a62';
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+      if (p.carry) drawItem(ctx, p.carry, cx, cy + 2);
+      break;
+    }
+    case 'storage': {
+      // v0.37.0: placeable storage — wooden (100) or iron (300), with a fill gauge
+      const iron = p.cap > 100;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + 3, y + h - 5, w - 6, 4);
+      ctx.fillStyle = iron ? '#6a6e78' : '#8a5a32';
+      rrect(ctx, x + 3, y + 4, w - 6, h - 8, 3); ctx.fill();
+      ctx.fillStyle = iron ? '#4a4e58' : '#6a4222';
+      ctx.fillRect(x + 3, y + 11, w - 6, 3);
+      ctx.fillStyle = iron ? '#9aa0aa' : '#c8a060';
+      ctx.fillRect(x + w / 2 - 3, y + 9, 6, 6);
+      const n = Object.values(opts.containerItems?.(p.container) || {}).reduce((a, b) => a + b, 0);
+      ctx.fillStyle = '#1e1e22';
+      ctx.fillRect(x + 5, y + h - 9, w - 10, 3);
+      ctx.fillStyle = n >= p.cap ? '#d8604a' : '#7ac86a';
+      ctx.fillRect(x + 5, y + h - 9, Math.round((w - 10) * Math.min(1, n / (p.cap || 1))), 3);
       break;
     }
     case 'machine': {

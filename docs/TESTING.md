@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.37.0 (2026-10-16)
+
+- `npm run check` — **366/366 tests passed** (5 new in `factorio.test.mjs`: inserters/sorters walkable and on a worker's path, an older save's solid inserter fixed on load; a wooden chest fills to exactly 100 from an iron one, opens as your container, and returns its contents when picked up; a filter inserter idles unset, offers what the chests hold, then moves only its item; a sorter routes springs right and steel straight, then splits 10 → 5/5 unfiltered; a belt carries you > 50 px in 1.5 s; filters and chest contents survive a save).
+- Browser: built chest → inserter → belts → sorter (springs off down a belt into a chest, steel straight on into another) plus a filter inserter in Yard 1 Works; all drawn and running, no page errors.
+
 ## Verification record — v0.36.0 (2026-10-16)
 
 - `npm run check` — **361/361 tests passed** (6 new in `homes.test.mjs`); validator 0 errors with the new rules (and the bed rule was proved live: a test plants a cot in the café and the checker catches it — on the first run it didn't, because a comment had swallowed the error call; fixed).

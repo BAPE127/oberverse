@@ -114,7 +114,9 @@ export const PROP_TYPES = {
   workbench: { solid: true, label: 'Workbench', defaults: { w: 3 } },
   belt: { solid: false, label: 'Conveyor belt', defaults: {} },
   terminal: { solid: true, label: 'Terminal', defaults: { w: 2 } },
-  inserter: { solid: true, label: 'Inserter arm', defaults: {} },
+  inserter: { solid: false, label: 'Inserter arm', defaults: {} }, // v0.37.0: walked through, like Factorio
+  sorter: { solid: false, label: 'Belt sorter', defaults: {} },
+  storage: { solid: true, label: 'Storage chest', defaults: {} },
   machine: { solid: true, label: 'Machine', defaults: { w: 2, h: 2 } },
   generator: { solid: true, label: 'Generator', defaults: { w: 2, h: 2 } },
   vent: { solid: false, label: 'Air vent', defaults: {} },

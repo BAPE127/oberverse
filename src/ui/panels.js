@@ -336,7 +336,7 @@ export function containerPanel(ui, body, opts) {
     }
   };
   render();
-  return { title: g.content.containers[opts.containerId].name };
+  return { title: g.containerDef(opts.containerId).name };
 }
 
 // --------------------------------------------------------------------- shop

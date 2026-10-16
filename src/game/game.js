@@ -303,6 +303,8 @@ export class Game {
       if (this.vehicles.hotwire) this.vehicles.updateHotwire(dt, input);
       if (this.homes.picking) this.homes.updatePick(dt, input);
       this.updatePlayer(dt, input);
+      this.factory.carryPlayer(dt); // v0.37.0: belts carry you
+      this.arms.carryPlayer(dt);
     }
     this.combat.update(dt);
     this.police.update(dt);
@@ -735,7 +737,7 @@ export class Game {
     const type = this.content.propTypes[prop.type];
     const name = prop.interact?.name || prop.name || type?.label || 'Object';
     switch (prop.interact?.kind) {
-      case 'container': return `Search ${this.content.containers[prop.interact.container]?.name || name}`;
+      case 'container': return `Search ${this.containerDef(prop.interact.container)?.name || name}`;
       case 'read': return `Read ${this.content.docs[prop.interact.doc]?.title || name}`;
       case 'sleep': return 'Sleep';
       case 'sit': return 'Sit and rest';
@@ -818,7 +820,7 @@ export class Game {
     }
     switch (act.kind) {
       case 'container': {
-        const cdef = this.content.containers[act.container];
+        const cdef = this.containerDef(act.container);
         if (cdef?.lockedBy && !this.inventory.count(cdef.lockedBy)) {
           this.bus.emit('sfx', { id: 'sfx_locked' });
           return { type: 'message', text: cdef.lockedText || 'It is locked.' };
@@ -941,8 +943,20 @@ export class Game {
   }
 
   // ------------------------------------------------------------ containers
-  containerView(id) {
+  /** A container's definition: from content, or a chest you placed in a works (v0.37.0). */
+  containerDef(id) {
     const def = this.content.containers[id];
+    if (def) return def;
+    if (!/^ct_fx_/.test(id) || !this.world.containers[id]) return null;
+    for (const sys of [this.factory, this.arms]) {
+      const e = sys?.findEntity(id.slice(3));
+      if (e) return { name: `${this.content.items[e.item].name} (${e.cap} items)`, owner: 'player', items: {}, money: 0 };
+    }
+    return null;
+  }
+
+  containerView(id) {
+    const def = this.containerDef(id);
     const st = this.world.containers[id];
     return {
       id,
@@ -960,7 +974,7 @@ export class Game {
    * @returns {{ok:boolean, text:string, stolen?:boolean}}
    */
   takeFromContainer(id, itemId, count = 1) {
-    const def = this.content.containers[id];
+    const def = this.containerDef(id);
     const st = this.world.containers[id];
     if (!def || !st) return { ok: false, text: 'Nothing there.' };
     const isMoney = itemId === 'money';
@@ -995,7 +1009,7 @@ export class Game {
   }
 
   putInContainer(id, itemId, count = 1) {
-    const def = this.content.containers[id];
+    const def = this.containerDef(id);
     const st = this.world.containers[id];
     if (!def || !st || !this.inventory.count(itemId)) return { ok: false, text: 'You can\'t put that there.' };
     if (def.owner !== 'player' && !this.player.stolen[itemId]) return { ok: false, text: 'That isn\'t your storage.' };

@@ -22,7 +22,7 @@ Source: `src/systems/arms.js` (extends the factory engine in `src/systems/factor
   - **Staff**: hire, assign, bonus, fire. Applicants are refreshed daily.
   - **Research.**
   - **Market**: values, Lucas's prices, the countries.
-- **Workstations** (placed with B, 2×2, one recipe each, chosen with E): CNC Lathe, Assembly Bench, Electronics Bay, Explosives Bay, Rocket Bay, Drone Bay, Research Lab. Belts, inserter arms and generators work exactly as in the calculator factory.
+- **Workstations** (placed with B, 2×2, one recipe each, chosen with E): CNC Lathe, Assembly Bench, Electronics Bay, Explosives Bay, Rocket Bay, Drone Bay, Research Lab. Belts, inserter arms and generators work exactly as in the calculator factory. v0.37.0, more Factorio: inserters, sorters and belts are walked over (belts carry you); **storage chests** (Wooden 100 / Iron 300 items) buffer parts and products between lines; a **Filter Inserter** moves only its item; a **Belt Sorter** sends its item off to the right and the rest straight on (unfiltered: a splitter). Set filters with E.
 - **A station only works while an employee is assigned to it and standing at it on shift.** Speed = (0.4 + 0.2 × skill) × (0.5 + morale/100) × quirk × research.
 - **Export cage**: put finished weapons here by belt or by hand.
 

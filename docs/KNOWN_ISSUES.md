@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.36.0
+# Known Issues and Limitations — v0.37.0
+
+- **The works (v0.37.0):** one-lane belts (no lanes, undergrounds or long-handed inserters yet); a sorter always sends its item to its right (rotate it to choose); chests have no slot limit ("bar"); belts carry the player but not the workers.
 
 - **Homes (v0.36.0):** a block's front door and each flat's door are separate locks (break both). The Sumps camp stays a camp (owner). There is no pawnshop yet — stolen valuables are marked for one. Interiors are bigger than the shacks outside them.
 

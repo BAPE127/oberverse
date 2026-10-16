@@ -31,8 +31,8 @@ export const SHOPS = {
   },
   shop_machines: {
     name: 'Sal\'s Surplus — machinery', owner: 'npc_sal', restockAt: '08:00',
-    stock: { item_machine_solderer: 3, item_machine_press: 3, item_machine_assembler: 3, item_machine_tuner: 6, item_generator: 3, item_belt: 200, item_inserter: 30 },
-    buys: { item_machine_solderer: 60, item_machine_press: 75, item_machine_assembler: 110, item_machine_tuner: 90, item_generator: 125, item_belt: 1, item_inserter: 7 },
+    stock: { item_machine_solderer: 3, item_machine_press: 3, item_machine_assembler: 3, item_machine_tuner: 6, item_generator: 3, item_belt: 200, item_inserter: 30, item_chest_wood: 20, item_chest_iron: 10, item_filter_inserter: 15, item_sorter: 15 },
+    buys: { item_machine_solderer: 60, item_machine_press: 75, item_machine_assembler: 110, item_machine_tuner: 90, item_generator: 125, item_belt: 1, item_inserter: 7, item_chest_wood: 5, item_chest_iron: 18, item_filter_inserter: 14, item_sorter: 11 },
   },
   shop_hollow: {
     name: 'Hollow Fixings', owner: 'npc_tibbs',

@@ -13,6 +13,15 @@
 //          (crate, belt, machine output) to the tile in front, if that wants it
 //     generator (2×2): powers four more machines (the wall socket powers the
 //          first `basePower`)
+//   v0.37.0, more Factorio:
+//     inserters and sorters are walk-through (for you and the workers); belts
+//          carry whoever stands on them
+//     storage chest (1×1, wooden 100 / iron 300 items): placeable storage — inserters
+//          and belts fill and empty it like the fixed crates; E opens it
+//     filter inserter: an inserter set (E) to move only one item
+//     sorter (1×1, facing, belt-like): an item matching its filter turns off to
+//          its right; everything else carries straight on. Unfiltered, it
+//          splits — alternating right and straight.
 //
 // Factory entities are runtime props on the warehouse maps (GameMap.addProp),
 // so they draw, block and take E like any prop. State: game.world.factory.
@@ -26,6 +35,8 @@ export const DY = [0, 1, 0, -1];
 const MACHINE_BUFFER = 4; // ×recipe need, per input
 export const OUTPUT_CAP = 10;
 const DELIVERY_MINUTE = 7 * 60;
+const WALKABLE = new Set(['belt', 'inserter', 'sorter']);
+const BELT_PUSH = 56; // px/s: a belt carries whoever stands on it
 export const CALC_ITEM = (t) => `item_calc_${t}`;
 
 export function freshFactory(content) {
@@ -113,7 +124,10 @@ export class Factory {
     for (const [id, wh] of Object.entries(this.state.warehouses)) {
       const map = g.maps.get(this.def(id)?.map);
       if (!map) continue;
-      for (const e of wh.entities) map.addProp(e);
+      for (const e of wh.entities) {
+        if (WALKABLE.has(e.type)) e.solid = false; // v0.37.0: older saves' inserters
+        map.addProp(e);
+      }
     }
   }
 
@@ -152,6 +166,7 @@ export class Factory {
       cells,
       belts: [...belts].sort((a, b) => dist.get(a) - dist.get(b)),
       inserters: ents.filter((e) => e.type === 'inserter'),
+      sorters: ents.filter((e) => e.type === 'sorter'),
       machines: ents.filter((e) => e.type === 'machine'),
       generators: ents.filter((e) => e.type === 'generator'),
     };
@@ -190,7 +205,7 @@ export class Factory {
     if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
     if (!this.owns(whId)) return { ok: false, text: 'This isn\'t your warehouse.' };
     if (!g.inventory.count(itemId)) return { ok: false, text: `You don't have a ${item.name}.` };
-    const { type, kind, w = 1, h = 1 } = item.build;
+    const { type, kind, w = 1, h = 1, cap, filter } = item.build;
     const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
     if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
     const why = this.blockReason(whId, x, y, w, h);
@@ -198,9 +213,15 @@ export class Factory {
     const wh = this.state.warehouses[whId];
     const e = {
       id: `fx_${whId}_${wh.nextId++}`, fx: true, type, x, y, w, h, dir: ((dir % 4) + 4) % 4, item: itemId,
-      solid: type !== 'belt',
+      solid: !WALKABLE.has(type), // v0.37.0: belts, inserters and sorters are walked through
       label: item.name,
     };
+    if (type === 'storage') {
+      Object.assign(e, { chest: true, container: `ct_${e.id}`, cap, interact: { kind: 'container', container: `ct_${e.id}` } });
+      g.world.containers[e.container] = { items: {}, money: 0 };
+    }
+    if (filter || type === 'sorter') Object.assign(e, { filter: null, filterable: true, interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
+    if (type === 'sorter') e.carry = null;
     if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: this.initialSetting(kind), interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
     if (type === 'generator') e.interact = { kind: this.kind, action: 'entity', warehouse: whId, name: 'generator' };
     if (type === 'belt') e.carry = null;
@@ -228,6 +249,7 @@ export class Factory {
     g.inventory.add(e.item, 1, { silent: true });
     const back = [];
     if (e.carry) back.push([e.carry, 1]);
+    if (e.chest) { for (const [id, n] of Object.entries(g.world.containers[e.container]?.items || {})) if (n > 0) back.push([id, n]); delete g.world.containers[e.container]; }
     for (const buf of [e.in, e.out]) for (const [id, n] of Object.entries(buf || {})) if (n > 0) back.push([id, n]);
     for (const [id, n] of back) g.inventory.add(id, n, { silent: true });
     return { ok: true, text: `Picked up the ${g.content.items[e.item].name}${back.length ? ' and what was in it' : ''}.` };
@@ -236,7 +258,7 @@ export class Factory {
   /** Rotate a belt or inserter in place. */
   rotate(whId, x, y) {
     const e = this.at(whId, x, y);
-    if (!e?.fx || (e.type !== 'belt' && e.type !== 'inserter')) return { ok: false, text: 'Only belts and arms rotate.' };
+    if (!e?.fx || !WALKABLE.has(e.type)) return { ok: false, text: 'Only belts, arms and sorters rotate.' };
     e.dir = (e.dir + 1) % 4;
     return { ok: true, text: '' };
   }
@@ -282,8 +304,12 @@ export class Factory {
   /** Does this cell want this item right now? */
   accepts(target, itemId) {
     if (!target) return false;
-    if (target.chest) return true;
-    if (target.type === 'belt') return !target.carry;
+    if (target.chest) {
+      if (!target.cap) return true;
+      const items = this.game.world.containers[target.container]?.items || {};
+      return Object.values(items).reduce((a, b) => a + b, 0) < target.cap;
+    }
+    if (target.type === 'belt' || target.type === 'sorter') return !target.carry;
     if (target.type === 'machine') {
       const r = this.recipeOf(target);
       const need = r?.in[itemId];
@@ -297,7 +323,7 @@ export class Factory {
     if (target.chest) {
       const st = g.world.containers[target.container];
       st.items[itemId] = (st.items[itemId] || 0) + 1;
-    } else if (target.type === 'belt') { target.carry = itemId; target.arrived = g.clock.total; }
+    } else if (target.type === 'belt' || target.type === 'sorter') { target.carry = itemId; target.arrived = g.clock.total; }
     else if (target.type === 'machine') target.in[itemId] = (target.in[itemId] || 0) + 1;
   }
 
@@ -306,7 +332,7 @@ export class Factory {
     const g = this.game;
     if (!src) return [];
     if (src.chest) return Object.entries(g.world.containers[src.container]?.items || {}).filter(([, n]) => n > 0).map(([id]) => id);
-    if (src.type === 'belt') return src.carry ? [src.carry] : [];
+    if (src.type === 'belt' || src.type === 'sorter') return src.carry ? [src.carry] : [];
     if (src.type === 'machine') return Object.entries(src.out).filter(([, n]) => n > 0).map(([id]) => id);
     return [];
   }
@@ -314,7 +340,7 @@ export class Factory {
   take(src, itemId) {
     const g = this.game;
     if (src.chest) g.world.containers[src.container].items[itemId] -= 1;
-    else if (src.type === 'belt') src.carry = null;
+    else if (src.type === 'belt' || src.type === 'sorter') src.carry = null;
     else if (src.type === 'machine') src.out[itemId] -= 1;
   }
 
@@ -330,18 +356,40 @@ export class Factory {
       if (!next || next === b || moved.has(next)) continue;
       if (next.type === 'belt' ? !next.carry : this.accepts(next, b.carry)) {
         this.give(next, b.carry);
-        if (next.type === 'belt') moved.add(next);
+        if (next.type === 'belt' || next.type === 'sorter') moved.add(next);
         b.carry = null;
         moved.add(b);
       }
     }
-    // inserters: one item a minute, behind → in front
+    // sorters: what matches the filter turns right; the rest goes straight on (unfiltered: alternate)
+    for (const s of c.sorters) {
+      if (!s.carry || moved.has(s)) continue;
+      const right = (s.dir + 1) % 4;
+      const straight = this.at(whId, s.x + DX[s.dir], s.y + DY[s.dir]);
+      const side = this.at(whId, s.x + DX[right], s.y + DY[right]);
+      const ok = (t) => t && t !== s && !moved.has(t) && this.accepts(t, s.carry);
+      let out = null;
+      if (s.filter) out = s.carry === s.filter ? side : straight;
+      else {
+        const first = s.flip ? side : straight;
+        const other = s.flip ? straight : side;
+        out = ok(first) ? first : other;
+      }
+      if (!ok(out)) continue;
+      this.give(out, s.carry);
+      if (out.type === 'belt' || out.type === 'sorter') moved.add(out);
+      s.carry = null;
+      s.flip = !s.flip;
+      moved.add(s);
+    }
+    // inserters: one item a minute, behind → in front (a filter inserter: only its item)
     for (const ins of c.inserters) {
       const src = this.at(whId, ins.x - DX[ins.dir], ins.y - DY[ins.dir]);
       const dst = this.at(whId, ins.x + DX[ins.dir], ins.y + DY[ins.dir]);
       ins.busy = false;
       if (!src || !dst || src === dst) continue;
-      const item = this.offers(src).find((id) => this.accepts(dst, id));
+      if (ins.filterable && !ins.filter) continue; // a filter inserter with no filter set waits
+      const item = this.offers(src).find((id) => (!ins.filter || id === ins.filter) && this.accepts(dst, id));
       if (!item) continue;
       this.take(src, item);
       this.give(dst, item);
@@ -526,6 +574,7 @@ export class Factory {
     const g = this.game;
     const e = prop;
     const whId = prop.interact.warehouse;
+    if (e.filterable) return this.filterPrompt(whId, e);
     if (e.type === 'generator') {
       const p = this.power(whId);
       return { type: 'message', text: `Generator, humming. Power: ${p.machines} of ${p.capacity} machines.` };
@@ -541,6 +590,53 @@ export class Factory {
     if (loadable.length) options.push({ label: 'Load inputs from your pockets', call: [this.kind, 'load', e.id] });
     options.push({ label: 'Done', call: [this.kind, 'noop'] });
     return { type: 'choices', title: g.content.items[e.item].name, text: `${status} Inputs: ${fmt(e.in)}. Output: ${fmt(e.out)}.`, options };
+  }
+
+  /** v0.37.0: set a filter inserter's or a sorter's item — from what this warehouse uses and holds. */
+  filterPrompt(whId, e) {
+    const g = this.game;
+    const name = (id) => g.content.items[id]?.name || id;
+    const options = this.filterCandidates(whId).map((id) => ({ label: `${name(id)}${e.filter === id ? ' (current)' : ''}`, call: [this.kind, 'setFilter', e.id, id] }));
+    options.push({ label: e.type === 'sorter' ? 'No filter (split evenly)' : 'No filter (stop)', call: [this.kind, 'setFilter', e.id, null] });
+    const what = e.type === 'sorter' ? 'Items matching the filter turn off to the right; everything else carries straight on.' : 'Moves only the filtered item.';
+    return { type: 'choices', title: g.content.items[e.item].name, text: `${what} Filter: ${e.filter ? name(e.filter) : 'none'}.`, options };
+  }
+
+  /** Items worth filtering on here: every placed machine's inputs and outputs, and whatever the chests and crates hold. */
+  filterCandidates(whId) {
+    const g = this.game;
+    const set = new Set();
+    for (const m of this.cells(whId).machines) {
+      const r = this.recipeOf(m);
+      for (const id of Object.keys(r?.in || {})) set.add(id);
+      const out = this.recipeOut(m);
+      if (out) set.add(out);
+    }
+    const def = this.def(whId);
+    const chests = [def.inBay, def.outCrate, ...this.state.warehouses[whId].entities.filter((x) => x.chest).map((x) => x.container)];
+    for (const c of chests) for (const [id, n] of Object.entries(g.world.containers[c]?.items || {})) if (n > 0) set.add(id);
+    return [...set].filter((id) => g.content.items[id]).sort();
+  }
+
+  setFilter(entityId, itemId) {
+    const e = this.findEntity(entityId);
+    if (!e?.filterable) return { ok: false, text: '' };
+    e.filter = itemId || null;
+    return { ok: true, text: itemId ? `Filter: ${this.game.content.items[itemId].name}.` : 'Filter cleared.' };
+  }
+
+  /** v0.37.0: a belt carries whoever stands on it (call each frame; the player only, on foot). */
+  carryPlayer(dt) {
+    const g = this.game;
+    const p = g.player;
+    const whId = this.warehouseForMap(p.map);
+    if (!whId || p.driving) return;
+    const e = this.at(whId, Math.floor(p.x / TILE), Math.floor((p.y - 2) / TILE));
+    if (!e || (e.type !== 'belt' && e.type !== 'sorter')) return;
+    const map = g.maps.get(p.map);
+    const nx = p.x + DX[e.dir] * BELT_PUSH * dt;
+    const ny = p.y + DY[e.dir] * BELT_PUSH * dt;
+    if (!map.rectBlocked(nx - 8, ny - 6, 16, 8, g.playerActor())) { p.x = nx; p.y = ny; }
   }
 
   /** Recipe choices shown in a machine's panel. */
