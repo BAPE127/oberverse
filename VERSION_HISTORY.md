@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.35.1 | 2026-10-16 | development | 1 | Fixes: buses skipping stops (stuck aboard), getting out of cars |
 | 0.35.0 | 2026-10-15 | development | 1 | Living World, stage 3 — errands and meet-ups, police incidents from call to all-clear |
 | 0.34.0 | 2026-10-15 | development | 1 | Signature cars — a one-of-a-kind car for each imported character |
 | 0.33.0 | 2026-10-15 | development | 1 | Living World, stage 2 — a bus network (the No. 2 to Lariat), townsfolk who ride it, routes on the map |

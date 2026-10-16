@@ -204,3 +204,19 @@ test('the debug car command parks one beside you', () => {
   assert.ok(runCommand(g, 'car corsair').ok);
   assert.ok(g.vehicles.ownedCars().some((c) => c.model === 'corsair'));
 });
+
+test('v0.35.1: you can always get out — beside traffic queued on both sides, or hemmed in at the edge of the map', () => {
+  const g = fresh();
+  const car = inCar(g, 'lanternside', 10, 23, 0);
+  // traffic stopped right alongside on both sides doesn't shut the doors
+  const T = g.transit;
+  const real = T.boxesOn.bind(T);
+  T.boxesOn = (id) => (id === 'lanternside' ? [{ x: car.x, y: car.y - 44, angle: 0, len: 80, wid: 40 }, { x: car.x, y: car.y + 44, angle: 0, len: 80, wid: 40 }] : real(id));
+  assert.ok(g.vehicles.exit().ok);
+  T.boxesOn = real;
+  // a spot that used to trap you: the Yards' western edge
+  inCar(g, 'yards', 1, 20, Math.PI / 2);
+  assert.ok(g.vehicles.exit().ok);
+  assert.equal(g.player.driving, null);
+  assert.equal(g.maps.get('yards').doorAt(Math.floor(g.player.x / TILE), Math.floor(g.player.y / TILE)), null, 'not in a doorway');
+});

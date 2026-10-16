@@ -2,6 +2,16 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.35.1] — 2026-10-16 — Fixes (development build)
+
+Owner's report: can't get out of cars around the Kettle & Crumb; can't get off the bus.
+
+### Fixed
+- **Stuck on the bus:** a bus easing into a stop could creep to within half a pixel of it without "arriving"; the stop then fell off its next-stop list and the bus drove on without stopping, so there was never a chance to get off. Mill Road (the Sumps) and Civic Plaza were skipped on most laps of the No. 1. A bus now arrives once within a pixel (`src/systems/transit.js`). Found by riding the No. 1 in the browser for 129 game minutes without a single stop.
+- **Carried round all night:** out of hours a bus ran past every stop even with you (or a passenger) aboard; it now stops while anyone is on it.
+- **Stuck in the car:** getting out now also searches all the way round the car, further out, if the usual door spots are blocked; moving traffic beside you no longer counts as a wall (it stops for you); you never step out into a doorway; afloat in the Landlubber, it tells you to make for the bank. A sweep of every drivable spot found real traps at the edges of Halvermouth and the Yards (now fixed). I couldn't reproduce a trap at the Kettle & Crumb itself — see Known Issues.
+- Tests: 3 regression tests (both bus fixes fail without them).
+
 ## [0.35.0] — 2026-10-15 — "Living World" stage 3 (development build)
 
 The final stage of the world-simulation overhaul (owner: "finish out the entire update"). See docs/WORLD_SIMULATION.md.

@@ -359,16 +359,24 @@ export class Transit {
     }
   }
 
+  /** Is anyone on this bus — you, or a passenger? */
+  aboard(f) {
+    if (this.game.player.riding === f.idx) return true;
+    for (const n of this.game.npcs.values()) if (n.riding === f.idx) return true;
+    return false;
+  }
+
   step(f, dt, careful) {
     const g = this.game;
     const LN = f.kind === 'bus' ? this.lineOf(f) : null;
     const B = LN?.cfg;
     if (f.kind === 'bus' && g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
     let target = f.max;
-    // ease into the next stop (out of hours, a bus runs back to the depot without stopping)
+    // ease into the next stop (out of hours, an empty bus runs back to the depot without stopping —
+    // one with anyone aboard still stops, so nobody is carried round all night)
     let toStop = Infinity;
     let stop = null;
-    if (f.kind === 'bus' && lineRunning(B, g.clock.minuteOfDay)) {
+    if (f.kind === 'bus' && (lineRunning(B, g.clock.minuteOfDay) || this.aboard(f))) {
       stop = LN.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || LN.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
       if (stop) toStop = f.route.wrap(stop.dist - f.dist);
       if (careful) target = Math.min(target, 30 + toStop * 1.6);
@@ -391,7 +399,9 @@ export class Transit {
       f.speed += clamp(target - f.speed, -700 * dt, 260 * dt);
     } else f.speed = target;
     let move = Math.max(0, f.speed) * dt;
-    if (f.kind === 'bus' && stop && move >= toStop) {
+    // v0.35.1: arrive once within a pixel — easing in, a bus used to creep to within half a
+    // pixel without "reaching" the stop, drop it from its next-stop list and drive straight on
+    if (f.kind === 'bus' && stop && move >= toStop - 1) {
       // arrive: stop exactly at the sign and wait
       move = toStop;
       f.dist = f.route.wrap(f.dist + move);

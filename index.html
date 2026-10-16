@@ -11208,7 +11208,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.35.0';
+const GAME_VERSION = '0.35.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -19596,6 +19596,9 @@ class Vehicles {
     const cs = Math.cos(car.angle);
     const sn = Math.sin(car.angle);
     const tries = [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.6, -1], [0.6, 1]];
+    // somewhere to stand: not in a wall or a parked car, not in a doorway (v0.35.1: moving
+    // traffic doesn't count — it stops for you — so a queue beside you can't shut you in)
+    const free = (x, y) => !map.rectBlocked(x - 8, y - 6, 16, 8, actor) && !map.doorAt(Math.floor(x / TILE), Math.floor(y / TILE)) && !this.carsOn(map.id).some((c) => c !== car && dist(c.x, c.y, x, y) < (this.model(c).len + 20) / 2 && this.overlapCars({ x, y, angle: 0, len: 12, wid: 12 }, { ...c, len: this.model(c).len, wid: this.model(c).wid }));
     let spot = null;
     for (const [u, v] of tries) {
       for (const extra of [10, 22, 36]) {
@@ -19603,11 +19606,21 @@ class Vehicles {
         const oy = v * (m.wid / 2 + extra);
         const x = car.x + cs * ox - sn * oy;
         const y = car.y + sn * ox + cs * oy;
-        if (!map.rectBlocked(x - 8, y - 6, 16, 8, actor) && !this.blocked(map, x, y, 0, 8, 8)) { spot = { x, y }; break; }
+        if (free(x, y)) { spot = { x, y }; break; }
       }
       if (spot) break;
     }
-    if (!spot) return { ok: false, text: 'There\'s no room to open the door.' };
+    // v0.35.1: still nowhere? look all the way round the car, a little further out each time
+    for (let extra = 12; !spot && extra <= 110; extra += 14) {
+      for (let k = 0; k < 24 && !spot; k++) {
+        const t = (k * Math.PI) / 12; // relative to the car's nose
+        const edge = Math.min(m.len / 2 / Math.max(1e-6, Math.abs(Math.cos(t))), m.wid / 2 / Math.max(1e-6, Math.abs(Math.sin(t))));
+        const x = car.x + Math.cos(car.angle + t) * (edge + extra);
+        const y = car.y + Math.sin(car.angle + t) * (edge + extra);
+        if (free(x, y) && map.lineOfSight(Math.floor(car.x / TILE), Math.floor(car.y / TILE), Math.floor(x / TILE), Math.floor(y / TILE))) spot = { x, y };
+      }
+    }
+    if (!spot) return { ok: false, text: map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE)) === '~' ? 'You\'re afloat — steer for the bank or a jetty to get out.' : 'There\'s no room to open the door.' };
     car.speed = 0;
     g.player.driving = null;
     g.player.x = spot.x;
@@ -20410,16 +20423,24 @@ class Transit {
     }
   }
 
+  /** Is anyone on this bus — you, or a passenger? */
+  aboard(f) {
+    if (this.game.player.riding === f.idx) return true;
+    for (const n of this.game.npcs.values()) if (n.riding === f.idx) return true;
+    return false;
+  }
+
   step(f, dt, careful) {
     const g = this.game;
     const LN = f.kind === 'bus' ? this.lineOf(f) : null;
     const B = LN?.cfg;
     if (f.kind === 'bus' && g.clock.total < f.state.dwellUntil) { f.speed = 0; return; }
     let target = f.max;
-    // ease into the next stop (out of hours, a bus runs back to the depot without stopping)
+    // ease into the next stop (out of hours, an empty bus runs back to the depot without stopping —
+    // one with anyone aboard still stops, so nobody is carried round all night)
     let toStop = Infinity;
     let stop = null;
-    if (f.kind === 'bus' && lineRunning(B, g.clock.minuteOfDay)) {
+    if (f.kind === 'bus' && (lineRunning(B, g.clock.minuteOfDay) || this.aboard(f))) {
       stop = LN.stops.find((s) => s.dist > f.dist + 0.5 && f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`) || LN.stops.find((s) => f.state.lastStop !== `${s.id}@${Math.round(s.dist)}`);
       if (stop) toStop = f.route.wrap(stop.dist - f.dist);
       if (careful) target = Math.min(target, 30 + toStop * 1.6);
@@ -20442,7 +20463,9 @@ class Transit {
       f.speed += clamp(target - f.speed, -700 * dt, 260 * dt);
     } else f.speed = target;
     let move = Math.max(0, f.speed) * dt;
-    if (f.kind === 'bus' && stop && move >= toStop) {
+    // v0.35.1: arrive once within a pixel — easing in, a bus used to creep to within half a
+    // pixel without "reaching" the stop, drop it from its next-stop list and drive straight on
+    if (f.kind === 'bus' && stop && move >= toStop - 1) {
       // arrive: stop exactly at the sign and wait
       move = toStop;
       f.dist = f.route.wrap(f.dist + move);
@@ -27954,6 +27977,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.35.1',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'Fixes: off the bus, out of the car',
+    notes: [
+      'Buses no longer sail past stops: easing in, a bus could stop a hair short of the sign, decide it had missed it and drive on — so you couldn\'t get off (Mill Road and Civic Plaza were the usual victims). Every stop is served now.',
+      'A bus with anyone aboard stops at its stops even after the line closes for the night, so the last No. 2 can\'t carry you round until morning.',
+      'Getting out of a car: if the doors are blocked you climb out wherever there\'s room round the car; traffic queued beside you no longer shuts you in, and you never land in a doorway.',
+    ],
+  },
   {
     version: '0.35.0',
     date: '2026-10-15',

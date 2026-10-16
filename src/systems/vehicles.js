@@ -217,6 +217,9 @@ export class Vehicles {
     const cs = Math.cos(car.angle);
     const sn = Math.sin(car.angle);
     const tries = [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.6, -1], [0.6, 1]];
+    // somewhere to stand: not in a wall or a parked car, not in a doorway (v0.35.1: moving
+    // traffic doesn't count — it stops for you — so a queue beside you can't shut you in)
+    const free = (x, y) => !map.rectBlocked(x - 8, y - 6, 16, 8, actor) && !map.doorAt(Math.floor(x / TILE), Math.floor(y / TILE)) && !this.carsOn(map.id).some((c) => c !== car && dist(c.x, c.y, x, y) < (this.model(c).len + 20) / 2 && this.overlapCars({ x, y, angle: 0, len: 12, wid: 12 }, { ...c, len: this.model(c).len, wid: this.model(c).wid }));
     let spot = null;
     for (const [u, v] of tries) {
       for (const extra of [10, 22, 36]) {
@@ -224,11 +227,21 @@ export class Vehicles {
         const oy = v * (m.wid / 2 + extra);
         const x = car.x + cs * ox - sn * oy;
         const y = car.y + sn * ox + cs * oy;
-        if (!map.rectBlocked(x - 8, y - 6, 16, 8, actor) && !this.blocked(map, x, y, 0, 8, 8)) { spot = { x, y }; break; }
+        if (free(x, y)) { spot = { x, y }; break; }
       }
       if (spot) break;
     }
-    if (!spot) return { ok: false, text: 'There\'s no room to open the door.' };
+    // v0.35.1: still nowhere? look all the way round the car, a little further out each time
+    for (let extra = 12; !spot && extra <= 110; extra += 14) {
+      for (let k = 0; k < 24 && !spot; k++) {
+        const t = (k * Math.PI) / 12; // relative to the car's nose
+        const edge = Math.min(m.len / 2 / Math.max(1e-6, Math.abs(Math.cos(t))), m.wid / 2 / Math.max(1e-6, Math.abs(Math.sin(t))));
+        const x = car.x + Math.cos(car.angle + t) * (edge + extra);
+        const y = car.y + Math.sin(car.angle + t) * (edge + extra);
+        if (free(x, y) && map.lineOfSight(Math.floor(car.x / TILE), Math.floor(car.y / TILE), Math.floor(x / TILE), Math.floor(y / TILE))) spot = { x, y };
+      }
+    }
+    if (!spot) return { ok: false, text: map.tileAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE)) === '~' ? 'You\'re afloat — steer for the bank or a jetty to get out.' : 'There\'s no room to open the door.' };
     car.speed = 0;
     g.player.driving = null;
     g.player.x = spot.x;

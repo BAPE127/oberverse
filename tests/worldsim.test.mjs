@@ -189,3 +189,37 @@ test('the player can ride the No. 2 to Lariat: board at Justice Way, pay the far
   assert.ok(T.alight().ok);
   assert.equal(g.player.riding, null);
 });
+
+test('v0.35.1: a bus with you aboard calls at every stop on its line in order — none skipped while easing in', () => {
+  const g = newGame();
+  setTime(g, 1, '12:00');
+  const T = g.transit;
+  T.setup();
+  const f = T.followers.find((b) => b.kind === 'bus' && b.line === 'r1');
+  g.player.riding = f.idx;
+  g.changeMap('yards', null, { x: 100, y: 600 });
+  const seen = [];
+  g.bus.on('transit:dwell', (e) => { if (e.bus === f.idx && seen.at(-1) !== e.stop) seen.push(e.stop); });
+  for (let i = 0; i < 20 * 160 && seen.length < 8; i++) g.update(0.05, { x: 0, y: 0 });
+  const order = T.lines.r1.stops.map((s) => s.id);
+  const k = order.indexOf(seen[0]);
+  assert.deepEqual(seen.slice(0, 7), [...order, ...order].slice(k, k + 7), `called at ${seen.join(', ')}`);
+});
+
+test('v0.35.1: after hours an empty No. 2 runs past its stops, but one with you aboard still lets you off', () => {
+  const g = newGame();
+  setTime(g, 1, '23:30');
+  const T = g.transit;
+  T.setup();
+  const f = T.followers.find((b) => b.kind === 'bus' && b.line === 'r2');
+  let calls = 0;
+  g.bus.on('transit:dwell', (e) => { if (e.bus === f.idx) calls++; });
+  g.changeMap('lanternside', 'start');
+  run(g, 60);
+  assert.equal(calls, 0, 'out of hours, nobody aboard: no calls');
+  g.player.riding = f.idx;
+  for (let i = 0; i < 20 * 120 && !calls; i++) g.update(0.05, { x: 0, y: 0 });
+  assert.ok(calls > 0, 'it stopped for you');
+  assert.ok(T.alight().ok);
+  assert.equal(g.player.riding, null);
+});

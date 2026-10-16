@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.35.0
+# Known Issues and Limitations — v0.35.1
+
+- **Getting out of a car by the Kettle & Crumb (reported 2026-10-16):** not reproduced — every spot and angle near the café, with and without traffic, lets you out, in tests and in the browser. Getting out was made more forgiving anyway (v0.35.1). If it still happens, a save or a screenshot of where the car is would pin it down.
 
 - **Living World (v0.35.0):** NPCs don't drive yet — characters whose occupation says `drive` walk (and take no bus); the patrol cruiser has no named officer; bus trips don't transfer between lines. Two people can share a spot (a bench, a booth) and overlap on screen. Errands only go to outdoor places and the café/diner (no shop-browsing spots yet).
 

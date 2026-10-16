@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.35.1',
+    date: '2026-10-16',
+    channel: 'development',
+    title: 'Fixes: off the bus, out of the car',
+    notes: [
+      'Buses no longer sail past stops: easing in, a bus could stop a hair short of the sign, decide it had missed it and drive on — so you couldn\'t get off (Mill Road and Civic Plaza were the usual victims). Every stop is served now.',
+      'A bus with anyone aboard stops at its stops even after the line closes for the night, so the last No. 2 can\'t carry you round until morning.',
+      'Getting out of a car: if the doors are blocked you climb out wherever there\'s room round the car; traffic queued beside you no longer shuts you in, and you never land in a doorway.',
+    ],
+  },
+  {
     version: '0.35.0',
     date: '2026-10-15',
     channel: 'development',

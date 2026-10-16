@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.35.1 (2026-10-16)
+
+- `npm run check` — all tests pass (3 new regression tests; both bus tests fail on the old code).
+- Browser: boarded the No. 1 at the Yards and got off at the next stop (Mill Road), the No. 2 in Lariat at noon, and the No. 2 at 22:45 riding past closing time to Justice Way — all with the E key. Got out of cars (Pipit, Bullion, Tempest) by the Kettle & Crumb.
+- Sweeps: getting out at every drivable spot (5 models × 12 angles) on Lanternside, and along every outdoor map's edges — 0 failures (6 before the fix, in Halvermouth and the Yards).
+
 ## Verification record — v0.35.0 (2026-10-15)
 
 - `npm run check` — **351/351 tests passed** (4 new in `livingworld3.test.mjs`: errands vary over 40 days within the region and are deterministic; Rosa and Lorna choose the same place on a meet day and both walk there; a call goes reported → responding → investigating → closed, through a save mid-investigation, the witness telling the officer, the officers back on their beats; the checker catches a one-sided meet-up and an unknown errand); validator 0 errors.
