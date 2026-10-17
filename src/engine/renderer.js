@@ -22,6 +22,23 @@ export class Renderer {
     this.cam = { x: 0, y: 0, zoom: 2 };
     this.staticLayers = new WeakMap(); // keyed by GameMap object: rebuilt maps get fresh layers
     this.light = document.createElement('canvas');
+    // v0.38.0: the pixel pipeline — the world is drawn into a small canvas (one art pixel = 2 world
+    // pixels) and scaled up with no smoothing; text, lighting and overlays go on top at full resolution
+    this.pixel = true;
+    this.px = 4; // device pixels per art pixel
+    this.low = document.createElement('canvas');
+    this.lowCtx = this.low.getContext('2d');
+    // text drawn by the world (shop signs, plates, labels) mustn't pixelate: the low canvas records it
+    // with its transform and style, and it's replayed on the full-resolution canvas after the upscale
+    this.worldText = [];
+    const lc = this.lowCtx;
+    for (const op of ['fillText', 'strokeText']) {
+      const orig = lc[op].bind(lc);
+      lc[op] = (t, x, y, maxW) => {
+        if (!this.capturingText) return orig(t, x, y, maxW);
+        this.worldText.push({ op, t, x, y, maxW, m: lc.getTransform(), font: lc.font, fill: lc.fillStyle, stroke: lc.strokeStyle, lw: lc.lineWidth, join: lc.lineJoin, align: lc.textAlign, base: lc.textBaseline, alpha: lc.globalAlpha });
+      };
+    }
     this.layers = [];
     this.time = 0;
     this.highlight = null;
@@ -88,7 +105,12 @@ export class Renderer {
   updateCamera(dt) {
     const g = this.game;
     const map = g.currentMap();
-    const zoom = this.baseZoom * (map.kind === 'interior' ? 1.15 : 1);
+    let zoom = this.baseZoom * (map.kind === 'interior' ? 1.15 : 1);
+    if (this.pixel) {
+      // whole device pixels per art pixel, so every pixel is the same size
+      this.px = Math.max(2, Math.round(zoom * 2));
+      zoom = this.px / 2;
+    }
     this.cam.zoom = zoom;
     const vw = this.canvas.width / zoom;
     const vh = this.canvas.height / zoom;
@@ -147,21 +169,36 @@ export class Renderer {
   render(dt) {
     this.time += dt;
     const g = this.game;
-    const ctx = this.ctx;
+    const main = this.ctx;
     const map = g.currentMap();
     this.layers = [{ map, x: 0, y: 0 }, ...(map.kind === 'interior' ? [] : g.neighbors(map.id))];
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
+    // v0.38.0: the world pass goes into the low-resolution canvas (the Wrath keeps full resolution)
+    const pixel = this.pixel && !g.combat.wrath;
+    if (pixel) {
+      const lw = Math.ceil(this.canvas.width / this.px) + 1;
+      const lh = Math.ceil(this.canvas.height / this.px) + 1;
+      if (this.low.width !== lw || this.low.height !== lh) { this.low.width = lw; this.low.height = lh; }
+      this.ctx = this.lowCtx;
+      this.worldText.length = 0;
+      this.capturingText = true;
+    }
+    const ctx = this.ctx;
+    const s = pixel ? zoom / this.px : zoom; // world → canvas scale
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     // explosions shake the camera
     const shake = g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0;
     const shx = shake ? (Math.random() - 0.5) * shake : 0;
     const shy = shake ? (Math.random() - 0.5) * shake : 0;
-    ctx.setTransform(zoom, 0, 0, zoom, (-this.cam.x + shx) * zoom, (-this.cam.y + shy) * zoom);
+    // snapped to whole art pixels, so the picture doesn't shimmer as the camera glides
+    const ox = (-this.cam.x + shx) * s;
+    const oy = (-this.cam.y + shy) * s;
+    ctx.setTransform(s, 0, 0, s, pixel ? Math.round(ox) : ox, pixel ? Math.round(oy) : oy);
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
@@ -265,8 +302,35 @@ export class Renderer {
       return;
     }
     this.drawHighlight(ctx);
+    if (pixel) {
+      // scale the art up, crisp; everything after this is full resolution
+      this.ctx = main;
+      main.setTransform(1, 0, 0, 1, 0, 0);
+      main.imageSmoothingEnabled = false;
+      main.drawImage(this.low, 0, 0, this.low.width * this.px, this.low.height * this.px);
+      main.imageSmoothingEnabled = true;
+      this.capturingText = false;
+      this.replayWorldText(main);
+    }
     this.drawLighting(map);
     this.drawOverlays(map);
+  }
+
+  /** v0.38.0: draw the world's text (recorded during the pixel pass) crisply at full resolution. */
+  replayWorldText(main) {
+    const px = this.px;
+    main.save();
+    for (const t of this.worldText) {
+      const m = t.m;
+      main.setTransform(m.a * px, m.b * px, m.c * px, m.d * px, m.e * px, m.f * px);
+      main.font = t.font;
+      main.textAlign = t.align;
+      main.textBaseline = t.base;
+      main.globalAlpha = t.alpha;
+      if (t.op === 'fillText') { main.fillStyle = t.fill; main.fillText(t.t, t.x, t.y, t.maxW); } else { main.strokeStyle = t.stroke; main.lineWidth = t.lw; main.lineJoin = t.join; main.strokeText(t.t, t.x, t.y, t.maxW); }
+    }
+    main.restore();
+    this.worldText.length = 0;
   }
 
   /** True when a building drawn in front of the player covers them. */

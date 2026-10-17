@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.38.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 1)',
+    notes: [
+      'The Oberverse is turning into pixel art. The world is now drawn at a low resolution and scaled up crisp, every pixel the same size; text — names, speech, shop signs, the HUD — stays sharp and readable on top.',
+      'New cars: proper windscreens and glass, roofs, mirrors, lamps, lit and shaded flanks, wheels that turn — hatchbacks, estates, pickups, saloons, sports cars with stripes, limousines, police cruisers with light bars, and a new bus.',
+      'The HUD has a new look: health and energy top left, the time, place and obols in a small chip by the minimap.',
+      'Prefer the old look? Settings → Pixel-art look.',
+    ],
+  },
+  {
     version: '0.37.0',
     date: '2026-10-16',
     channel: 'development',

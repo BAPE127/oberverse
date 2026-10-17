@@ -534,3 +534,31 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
 .logbook h3 { margin: 10px 0 4px; font-family: inherit; border-bottom: 1px solid #8a7a5a; }
 .logbook-line { margin: 0 0 6px; line-height: 1.5; font-family: "Segoe Script", "Bradley Hand", cursive, Georgia, serif; }
 .logbook-line i { font-style: normal; opacity: .6; font-family: Georgia, serif; }
+
+/* ------------------------------------------------------------------ v0.38.0: the HUD, restyled
+   for the pixel-art look (Streets of Rogue–style): dark navy panels in a chunky blue frame, square
+   corners; the health and energy bars top left; time, place and obols a small chip by the minimap.
+   Text stays a clean, legible face. */
+.hud-card { background: rgba(22, 22, 48, 0.9); color: #eef0f8; border: 3px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 2px #14143a, 0 4px 12px rgba(0,0,0,.35); }
+#hud-bl { left: 14px; top: 14px; bottom: auto; width: 290px; padding: 6px 8px; }
+#hud-bl .bar { margin: 2px 0; font-weight: bold; font-size: 12px; }
+#hud-bl .bar span { width: 52px; color: #c8ccec; }
+#hud-bl .bar-track { height: 14px; background: #4a1414; border: 2px solid #14143a; border-radius: 2px; }
+#hud-bl .bar:nth-child(2) .bar-track { height: 8px; background: #1a2a1a; }
+#hud-bl .bar-fill { border-radius: 0; }
+.bar-fill.health { background: linear-gradient(180deg, #ff9a7a 0 22%, #e83a3a 22% 78%, #b02020 78%); }
+.bar-fill.energy { background: linear-gradient(180deg, #9af08a 0 30%, #4ac83a 30%); }
+#hud-weapon { color: #e8e8f8; border-top: 2px solid #2a2a5a; padding-top: 4px; }
+#hud-weapon .ammo { color: #f2d050; }
+#hud-tl { left: auto; right: 200px; top: 14px; min-width: 0; padding: 4px 10px 5px; text-align: right; }
+#hud-clock { font-size: 13px; color: #fff; }
+#hud-location { font-size: 11px; color: #a8acd8; margin-top: 1px; }
+#hud-money { font-size: 12px; color: #f2c14e; font-weight: bold; margin-top: 2px; }
+.minimap-card { padding: 4px; }
+#minimap { border-radius: 0; image-rendering: pixelated; }
+#hud-tracker { border-left: 4px solid #5ad84a; }
+#hud-tracker .q-title { color: #5ad84a; }
+#hud-tracker .q-obj { color: #e8e8f0; }
+#hud-tablet { color: #eef0f8; }
+#hud-prompt { background: rgba(22, 22, 48, 0.92); border: 2px solid #4a4aa8; border-radius: 3px; color: #f4f4fc; }
+#hud-prompt kbd { background: #f2c14e; color: #14143a; border-radius: 2px; }

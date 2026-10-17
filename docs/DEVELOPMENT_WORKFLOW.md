@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-17 — v0.38.0.** Art revamp stage 1: the pixel pipeline (renderer low-res world pass + full-res text/lighting), pixel cars (`src/engine/drawPixelCars.js`), the HUD restyle. Rule for new drawing code: draw on the art-pixel grid (2 world px), let text be text (it's replayed crisp). Next: stage 2 — ground, streets, props, walls.
 - **2026-10-16 — v0.37.0.** The works, more Factorio (`src/systems/factory.js`): walk-through inserters and sorters, belts that carry you, storage chests, filter inserters, belt sorters. Ideas for later: belt lanes, underground belts, long-handed inserters, chest limits.
 - **2026-10-16 — v0.36.0.** Homes for everyone (`src/content/homes.js`), break-ins and invitations (`src/systems/homes.js`). Owner's rules: no beds in stores or shops; every NPC has a house to go to when not working; Chief Order gets a house; the Sumps camp stays. (v0.35.1–2: bus and car fixes.) **Next: v0.37.0 — the gunrunning factory, Factorio-style (walk-through inserters, placeable storage, sorters).**
 - **2026-10-15 — v0.35.0.** Living World stage 3: errands and meet-ups (`src/sim/errands.js`), police incidents (`world.police.incidents`), incident markers on the map. The world-simulation brief is complete except NPC driving (see docs/WORLD_SIMULATION.md §8).

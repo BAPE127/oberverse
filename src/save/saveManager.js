@@ -139,7 +139,7 @@ export class SaveManager {
 }
 
 const SETTINGS_KEY = 'oberverse.settings';
-export const DEFAULT_SETTINGS = { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.5, voice: 0.6, muted: false, textSpeed: 'normal', showFps: false, timeScale: 1 };
+export const DEFAULT_SETTINGS = { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.5, voice: 0.6, muted: false, textSpeed: 'normal', showFps: false, timeScale: 1, pixelArt: true };
 
 export function loadSettings(storage = defaultStorage()) {
   try {

@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.38.0 (2026-10-17)
+
+- `npm run check` — 366/366 (no logic changed); `npm run smoke` — 24/24.
+- Browser: Civic Plaza, Market Street, the Kettle & Crumb and a row of every car model — the world pixelated at even pixel sizes, 60 fps; shop signs ("RIALTO · PICTURES", "MARKET HALL", "BANK") crisp after the text fix (they were illegible on the first try); the new HUD. Screenshots: `docs/mockups/stage1-*.png`.
+
 ## Verification record — v0.37.0 (2026-10-16)
 
 - `npm run check` — **366/366 tests passed** (5 new in `factorio.test.mjs`: inserters/sorters walkable and on a worker's path, an older save's solid inserter fixed on load; a wooden chest fills to exactly 100 from an iron one, opens as your container, and returns its contents when picked up; a filter inserter idles unset, offers what the chests hold, then moves only its item; a sorter routes springs right and steel straight, then splits 10 → 5/5 unfiltered; a belt carries you > 50 px in 1.5 s; filters and chest contents survive a save).

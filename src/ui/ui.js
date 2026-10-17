@@ -189,6 +189,7 @@ export class UI {
     this.demo = demo;
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
+    this.renderer.pixel = this.settings.pixelArt !== false;
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -320,6 +321,7 @@ export class UI {
   applySettings() {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
+    if (this.renderer) this.renderer.pixel = this.settings.pixelArt !== false; // v0.38.0
   }
 
   saveSettings() {

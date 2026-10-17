@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.38.0] — 2026-10-17 — Pixels: art revamp, stage 1 (development build)
+
+Owner: "Let's revamp it" — the Streets of Rogue 2–style look from the mock-up (`docs/mockups/`), in stages. Stage 1 of 5.
+
+### Added
+- **The pixel pipeline** (`src/engine/renderer.js`): the world pass draws into a low-resolution canvas (one art pixel = 2 world pixels) and is scaled up with no smoothing; the zoom snaps to whole device pixels per art pixel so every pixel is the same size, and the camera to whole art pixels so the picture doesn't shimmer. Lighting, names, speech bubbles, health bars and the Wrath stay full resolution on top.
+- **Legible world text:** text the world draws (shop signs, labels, the bus's route number) is recorded during the pixel pass and replayed crisply at full resolution with the same transform and style.
+- **New cars** (`src/engine/drawPixelCars.js`): pixel-art cars with chamfered bodies, outlines, lit and shaded flanks, bumpers, head- and tail-lamps (brighter when braking or at night), raked windscreens with a glint, roofs, side and rear glass with pillars, mirrors, door seams and front wheels that turn; styles per model (hatch, estate, pickup with an open bed, saloon, GT, coupé with stripes, limousine, police cruiser with a light bar that flashes on a chase) and a new bus. The signature cars and tractors keep their own art.
+- **Settings → Pixel-art look** (on by default).
+
+### Changed
+- **The HUD** (`styles.css`): dark navy panels with a chunky blue frame; health and energy (thicker, banded bars) top left with the equipped weapon; the time, place and obols in a small chip by the minimap; the objective tracker and prompts restyled.
+
+### Next
+- Stage 2: the ground, streets, sidewalks, props and building walls redrawn as pixel art. Stage 3: roofless buildings. Stage 4: tower floors. Stage 5: lighting and the menus (the ships' and gun-running terminals stay as they are).
+
 ## [0.37.0] — 2026-10-16 — The Factory Must Grow (development build)
 
 Owner's brief: improve the gunrunning automation — the player and workers walk through inserters; placeable storage for parts; sorters; "think as much like Factorio as you can". Applies to both kinds of works (arms and calculators), which share `src/systems/factory.js`.

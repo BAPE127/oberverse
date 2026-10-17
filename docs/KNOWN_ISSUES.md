@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.37.0
+# Known Issues and Limitations — v0.38.0
+
+- **Art revamp (v0.38.0, stage 1 of 5):** only the cars and the HUD are new art so far — the ground, buildings, props and people are the old drawings run through the pixel filter (softer than the finished style will be); buildings still have roofs; captions, notifications and menus are the old style. World text is drawn on top of everything (a sign can show through a character standing in front of it).
 
 - **The works (v0.37.0):** one-lane belts (no lanes, undergrounds or long-handed inserters yet); a sorter always sends its item to its right (rotate it to choose); chests have no slot limit ("bar"); belts carry the player but not the workers.
 
