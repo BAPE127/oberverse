@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.44.0 | 2026-10-17 | development | 1 | Gun play like Streets of Rogue: visible and dodgeable bullets, kick, hit-stop, blood and brass, aimed guns, a crosshair |
 | 0.43.0 | 2026-10-17 | development | 1 | Art revamp, stage 5 (last): banded pixel lighting; navy pixel menus, panels and dialogue |
 | 0.42.0 | 2026-10-17 | development | 1 | Closer to the mock-up: pixel-art people, people seen inside buildings, the hotbar, a wider camera, the mock-up's HUD |
 | 0.41.0 | 2026-10-17 | development | 1 | Art revamp, stage 4: roofless tower lobbies, lifts, floors over the city; Vantage Point opens |

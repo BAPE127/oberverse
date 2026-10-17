@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.44.0 (2026-10-17)
+
+- `npm run check` — **376/376 tests passed** (3 new in `gunplay.test.mjs`: a revolver shot puts a bullet in flight, kicks the camera, ejects a case and draws blood, and both end up on the ground; an NPC's bullet takes time to arrive, hits a player standing still and misses one who sidesteps; you step into a swing and the dead leave a pool). The older combat, police and gang tests pass unchanged with NPC shots now flying.
+- Browser: three revolver shots across Civic Plaza — the gun held out toward the crosshair, the bullet streak, cases by your feet, no page errors. Fixed while testing: cases landed two tiles away (they now start from the ground and fly slower). Screenshot: `docs/mockups/v044-gunplay.png`.
+
 ## Verification record — v0.43.0 (2026-10-17)
 
 - `npm run check` — 373/373 (no game logic changed); `npm run smoke` — 24/24.

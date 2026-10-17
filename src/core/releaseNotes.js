@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.44.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Lead in the Air',
+    notes: [
+      'Gunfights feel like it now: you can see every bullet, the camera kicks with each shot, blows land with a jolt, and blood and spent brass end up on the pavement.',
+      'Their bullets fly too — keep moving and you can dodge them. Stand still in the open at your peril.',
+      'Your gun points where you aim, at a chunky crosshair that opens up as you fire.',
+    ],
+  },
+  {
     version: '0.43.0',
     date: '2026-10-17',
     channel: 'development',

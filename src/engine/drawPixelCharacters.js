@@ -31,7 +31,8 @@ export function drawPixelCharacter(ctx, a, s, drawHeld) {
   ctx.save();
   ctx.translate(Math.round(s.x / 2) * 2, Math.round(s.y / 2) * 2);
   ctx.scale(scale, scale);
-  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+  // v0.44.0: hit, and for a blink the whole figure goes white
+  const R = (x, y, w, h, c) => { ctx.fillStyle = s.flash && c[0] === '#' ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
 
   // shadow
   R(-5, -1, 10, 2, 'rgba(20,20,35,0.3)'); R(-4, 0, 8, 1, 'rgba(20,20,35,0.2)');
@@ -73,7 +74,18 @@ export function drawPixelCharacter(ctx, a, s, drawHeld) {
   else { arm(-half - 1, step, false); arm(half, -step, false); }
   if (side) arm(dir * 1, step, false);
 
-  if (a.holding && drawHeld) {
+  const gun = a.holding === 'pistol' || a.holding === 'longgun';
+  if (gun && s.aim != null) {
+    // v0.44.0: the gun points where it's aimed, held out from the chest (flipped so the grip hangs down)
+    ctx.save();
+    ctx.translate(0, -20);
+    ctx.rotate(s.aim);
+    if (Math.cos(s.aim) < 0) ctx.scale(1, -1);
+    const G = (x, y, w, h, c) => { ctx.fillStyle = s.flash ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+    if (a.holding === 'pistol') { G(3, -2, 9, 3, INK); G(4, -1, 7, 1, '#3a3a44'); G(4, 0, 3, 3, INK); G(5, 0, 1, 2, '#6a4a2e'); G(3, -1, 2, 2, a.skin || '#e8b896'); }
+    else { G(0, -2, 17, 3, INK); G(1, -1, 15, 1, '#3a3a44'); G(0, -1, 5, 3, INK); G(1, 0, 3, 1, '#6a4a2e'); G(7, 0, 3, 2, INK); G(4, -1, 2, 2, a.skin || '#e8b896'); G(10, -1, 2, 2, a.skin || '#e8b896'); }
+    ctx.restore();
+  } else if (a.holding && drawHeld) {
     ctx.save(); ctx.scale(0.8, 0.8);
     drawHeld(ctx, a.holding, (side ? dir * 2 : half * 2 + 2) / 0.8, (-14 + (side ? step : -step) * 2) / 0.8, side ? dir : 1, s.idleTime || 0);
     ctx.restore();

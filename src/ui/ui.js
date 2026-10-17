@@ -192,6 +192,7 @@ export class UI {
     this.demo = demo;
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
+    this.renderer.mouse = this.mouse; // v0.44.0: the crosshair
     this.renderer.pixel = this.settings.pixelArt !== false;
     this.renderer.resize();
     document.body.classList.toggle('pixel-ui', this.renderer.pixel);
@@ -634,7 +635,9 @@ export class UI {
       // automatic weapons fire while the button is held
       if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
       if (this.build) this.updateBuild();
-      g.update(dt, move);
+      // v0.44.0: hit-stop — the world holds its breath for a blink when a blow lands
+      if (g.combat.hitAt && g.combat.hitAt !== this.seenHit) { this.seenHit = g.combat.hitAt; this.freezeUntil = this.time + 0.05; }
+      if (this.time >= (this.freezeUntil || 0)) g.update(dt, move);
       // the engine note follows your speed (src/audio/audioEngine.js)
       const car = g.vehicles.driving();
       this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);

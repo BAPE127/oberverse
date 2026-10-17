@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.44.0] — 2026-10-17 — Gun play, Streets of Rogue style (development build)
+
+Owner: "Can you improve the gun play and combat to also feel like streets of rogue 2".
+
+### Added
+- **Bullets you can see** (`combat.bullets`): every shot is a hot slug with a short streak that flies from the muzzle to whatever it hits. Your hits still land at once (aiming is unchanged); the bullet is the picture of it.
+- **NPCs' bullets really fly** (620 px/s) and hit whatever they meet: a wall stops them in a spray of sparks, and if you keep moving you can dodge them. Stand still in the open and they'll find you. (This replaces the old coin-toss hit chance.)
+- **Feel:** the camera kicks with every shot (harder for shotguns and rifles), with every solid blow and when you're hurt; you rock back when you fire and step into a swing; a blow that lands freezes the world for a blink (hit-stop).
+- **Blood and brass:** droplets fly from whoever is hit and spatter the ground; the dead leave a spreading pool; spent cases flick out of the gun, bounce and lie where they fall. All of it fades after a few minutes.
+- **Guns point where you aim:** in the pixel look a pistol or long gun is held out from the chest toward the crosshair (or, for an NPC, toward you).
+- **A chunky pixel crosshair** replaces the mouse pointer while you hold a gun; it opens up as you fire and turns gold while you reload. The old dashed aiming line is gone in the pixel look.
+- **Hit flashes:** anyone hit goes white for a blink. Muzzle flashes are blocky four-point stars and light up the street at night; melee swings are a fat white smear.
+
 ## [0.43.0] — 2026-10-17 — Pixels: art revamp, stage 5 — light and menus (development build)
 
 Owner: "Stage 5 please". The last stage of the revamp: lighting and the menus.

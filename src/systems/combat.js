@@ -60,6 +60,11 @@ export class Combat {
     this.cooldown = 0; // seconds until the player can attack again
     this.reloading = null; // { item, until }
     this.fx = []; // short-lived visual effects for the renderer (not saved)
+    // v0.44.0, Streets of Rogue–style feel (none of it saved):
+    this.bullets = []; // in flight: the player's are for show (hits resolve at once); NPCs' are real and can be dodged
+    this.particles = []; // blood droplets and spent cases, flying
+    this.decals = []; // ...and where they landed
+    this.shake = { until: 0, mag: 0 };
     this.lastHostileAt = -1e9; // realTime of the last fight on this map
   }
 
@@ -218,7 +223,10 @@ export class Combat {
     }
     this.fx.push({ type: 'swing', x: p.x, y: p.y - BODY_Y, dir, range: wp.range * TILE, arc: half, until: g.realTime + 0.18, start: g.realTime });
     for (const npc of hits) this.hitNpc(npc, wp.damage, { weapon: w, dir, lethal: wp.lethal });
-    if (hits.length) g.bus.emit('sfx', { id: wp.sound || 'sfx_punch' });
+    if (hits.length) { g.bus.emit('sfx', { id: wp.sound || 'sfx_punch' }); this.kick(3, 0.12); }
+    // v0.44.0: you step into the swing
+    const map = g.currentMap();
+    if (!map.rectBlocked(p.x + dir.x * 4 - 7, p.y + dir.y * 4 - 6, 14, 6, g.playerActor?.())) { p.x += dir.x * 4; p.y += dir.y * 4; }
     return { ok: true, kind: 'melee', hits: hits.map((n) => n.id) };
   }
 
@@ -261,6 +269,7 @@ export class Combat {
         return { ok: true, kind: 'gun', hits: [sacred.id], wrath: true };
       }
       this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
+      this.spawnBullet(ox, oy, d, r.t);
       if (r.npc) {
         hits.push(r.npc);
         // falloff beyond half range
@@ -268,7 +277,14 @@ export class Combat {
         this.hitNpc(r.npc, wp.damage * fall, { weapon: w, dir: d, lethal: wp.lethal !== false });
       } else if (r.wall) this.fx.push({ type: 'spark', x: ox + d.x * r.t, y: oy + d.y * r.t, until: g.realTime + 0.25, start: g.realTime });
     }
-    this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, until: g.realTime + 0.06, start: g.realTime });
+    this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, dir, until: g.realTime + 0.06, start: g.realTime });
+    // v0.44.0: kick — the camera jolts, the shooter rocks back, a case flies
+    const heavyGun = (wp.damage || 0) * pellets >= 60;
+    this.kick(heavyGun ? 5 : wp.auto ? 1.6 : 2.6, heavyGun ? 0.2 : 0.1);
+    this.ejectCase(p.x, p.y - BODY_Y, dir);
+    const map = g.currentMap();
+    const back = heavyGun ? 5 : 2;
+    if (!map.rectBlocked(p.x - dir.x * back - 7, p.y - dir.y * back - 6, 14, 6, g.playerActor?.())) { p.x -= dir.x * back; p.y -= dir.y * back; }
     this.gunfireNoise(wp.noise ?? 16);
     if ((p.mags[w.id] ?? 0) <= 0 && g.inventory.count(wp.ammo)) this.reload();
     return { ok: true, kind: 'gun', hits: [...new Set(hits.map((n) => n.id))] };
@@ -344,7 +360,9 @@ export class Combat {
     npc.health = Math.max(0, npc.health - dmg);
     npc.healthBarUntil = g.realTime + HEALTH_BAR_SECONDS;
     npc.hurtAt = g.realTime;
+    this.hitAt = g.realTime;
     this.fx.push({ type: 'damage', npcId: npc.id, amount: dmg, x: npc.x, y: npc.y - 46, until: g.realTime + 0.9, start: g.realTime });
+    this.bleed(npc.x, npc.y - BODY_Y, dir, weapon.weapon.kind === 'gun' || weapon.weapon.lethal ? 7 : 3);
     this.lastHostileAt = g.realTime;
     // knockback
     const kb = weapon.weapon.knockback ?? (weapon.weapon.kind === 'gun' ? 6 : 18);
@@ -427,6 +445,8 @@ export class Combat {
   kill(npc, weapon) {
     const g = this.game;
     const now = g.clock.total;
+    this.decals.push({ kind: 'pool', map: npc.map, x: npc.x, y: npc.y - 4, size: 1, at: g.realTime });
+    this.kick(4, 0.18);
     npc.health = 0;
     npc.dead = true;
     npc.diedAt = now;
@@ -490,6 +510,7 @@ export class Combat {
     p.health = Math.max(0, p.health - dmg);
     p.hurtAt = g.realTime;
     this.lastHostileAt = g.realTime;
+    this.kick(4, 0.2);
     this.fx.push({ type: 'damage', player: true, amount: dmg, x: p.x, y: p.y - 46, until: g.realTime + 0.9, start: g.realTime });
     g.bus.emit('combat:playerHit', { damage: dmg, by: attacker?.id, health: p.health });
     if (p.health <= 0) this.playerKnockedOut(attacker);
@@ -586,9 +607,87 @@ export class Combat {
 
   // ---------------------------------------------------------------- update
   /** Per-frame update (real seconds). */
+  // ------------------------------------------------------- game feel (v0.44.0)
+  /** Shake the camera: `mag` px, for `secs`. */
+  kick(mag, secs = 0.15) {
+    const t = this.game.realTime;
+    if (t + secs > this.shake.until || mag > this.shake.mag) this.shake = { until: t + secs, mag: Math.max(mag, t < this.shake.until ? this.shake.mag : 0) };
+  }
+
+  /** A bullet you can see, from (x, y) along d for `len` px. `hurts`: an NPC's shot that can hit the player. */
+  spawnBullet(x, y, d, len, opts = {}) {
+    this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || 1700, hurts: opts.hurts || null, born: this.game.realTime });
+    if (this.bullets.length > 80) this.bullets.shift();
+  }
+
+  /** Blood: `n` droplets thrown along `dir` from someone's body. */
+  bleed(x, y, dir, n = 6) {
+    const g = this.game;
+    for (let i = 0; i < n; i++) {
+      const a = Math.atan2(dir.y, dir.x) + (g.rng.next() - 0.5) * 1.2;
+      const v = 40 + g.rng.next() * 80;
+      this.particles.push({ kind: 'blood', map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y - 4 + g.rng.next() * 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 40 + g.rng.next() * 60, size: g.rng.next() < 0.3 ? 2 : 1 });
+    }
+  }
+
+  /** A spent case flicked out of the gun, to the right of where it's pointing. */
+  ejectCase(x, y, dir) {
+    const g = this.game;
+    const side = { x: -dir.y, y: dir.x };
+    const v = 25 + g.rng.next() * 25;
+    this.particles.push({ kind: 'case', map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y - 4, vx: side.x * v - dir.x * 12, vy: side.y * v - dir.y * 12, vz: 50 + g.rng.next() * 25, size: 1 });
+  }
+
+  /** Move bullets and particles; an NPC's bullet that reaches the player hurts them. */
+  updateFeel(dt) {
+    const g = this.game;
+    const p = g.player;
+    const map = g.currentMap();
+    for (const b of this.bullets) {
+      const step = Math.min(b.left, b.speed * dt);
+      const sub = Math.max(1, Math.ceil(step / 8));
+      for (let k = 0; k < sub && b.left > 0; k++) {
+        const st = step / sub;
+        b.x += b.dx * st;
+        b.y += b.dy * st;
+        b.left -= st;
+        if (!b.hurts) continue;
+        if (b.map !== p.map) { b.left = 0; break; }
+        if (WALL.has(map.tileAt(Math.floor(b.x / TILE), Math.floor((b.y + BODY_Y) / TILE)))) {
+          b.left = 0;
+          this.fx.push({ type: 'spark', x: b.x, y: b.y, until: g.realTime + 0.25, start: g.realTime });
+          break;
+        }
+        if (!p.driving && Math.hypot(b.x - p.x, b.y - (p.y - BODY_Y)) <= HIT_RADIUS) {
+          b.left = 0;
+          const shooter = g.npcs.get(b.hurts.by);
+          this.bleed(p.x, p.y - BODY_Y, { x: b.dx, y: b.dy }, 5);
+          this.damagePlayer(b.hurts.damage, shooter);
+        }
+      }
+    }
+    if (this.bullets.length) this.bullets = this.bullets.filter((b) => b.left > 0.5);
+    if (this.particles.length) {
+      for (const q of this.particles) {
+        q.x += q.vx * dt;
+        q.y += q.vy * dt;
+        q.vz -= 260 * dt;
+        q.z += q.vz * dt;
+        if (q.z <= 0) {
+          if (q.kind === 'case' && q.vz < -40) { q.z = 0.1; q.vz = -q.vz * 0.35; q.vx *= 0.5; q.vy *= 0.5; continue; } // a little bounce
+          q.done = true;
+          this.decals.push({ kind: q.kind, map: q.map, x: q.x, y: q.y, size: q.size, at: g.realTime });
+        }
+      }
+      this.particles = this.particles.filter((q) => !q.done);
+      if (this.decals.length > 260) this.decals.splice(0, this.decals.length - 260);
+    }
+  }
+
   update(dt) {
     const g = this.game;
     if (this.wrath) return this.updateWrath();
+    this.updateFeel(dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.reloading && g.realTime >= this.reloading.until) this.finishReload();
     if (this.fx.length) this.fx = this.fx.filter((f) => f.until > g.realTime);
@@ -658,12 +757,11 @@ export class Combat {
           g.bus.emit('sfx', { id: wp.sound || 'sfx_gunshot' });
           const ox = npc.x;
           const oy = npc.y - BODY_Y;
-          const hit = g.rng.chance(0.55);
-          const miss = hit ? 0 : (g.rng.next() - 0.5) * 0.5;
-          const ang = Math.atan2(dy, dx) + miss;
-          this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + Math.cos(ang) * d, y2: oy + Math.sin(ang) * d, until: g.realTime + 0.09, start: g.realTime });
-          this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, until: g.realTime + 0.06, start: g.realTime });
-          if (hit) this.damagePlayer(wp.damage * 0.8, npc);
+          // v0.44.0: a real bullet, aimed with a shooter's wobble — keep moving and it can miss you
+          const ang = Math.atan2(p.y - BODY_Y - oy, p.x - ox) + (g.rng.next() - 0.5) * 0.22;
+          const bd = { x: Math.cos(ang), y: Math.sin(ang) };
+          this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 } });
+          this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, dir: bd, until: g.realTime + 0.06, start: g.realTime });
         } else {
           g.bus.emit('sfx', { id: 'sfx_punch' });
           this.fx.push({ type: 'swing', x: npc.x, y: npc.y - BODY_Y, dir: { x: dx / d, y: dy / d }, range: wp.range * TILE, arc: 0.6, until: g.realTime + 0.18, start: g.realTime });

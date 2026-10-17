@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.43.0
+# Known Issues and Limitations — v0.44.0
+
+- **Gun play (v0.44.0):** your own bullets are for show — the hit is decided the instant you fire, so a target can't step out of the way of your shot (theirs can be dodged). NPC bullets don't hit other NPCs or cars. Blood, cases and bullets aren't saved.
 
 - **Menus (v0.43.0):** a few panels set colours in their own code (rather than the stylesheet) and may still show a cream card or two inside the navy frame.
 

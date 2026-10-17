@@ -228,7 +228,9 @@ export class Renderer {
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     // explosions shake the camera
-    const shake = g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0;
+    // v0.44.0: and so do gunshots, hard hits and getting hurt (combat.kick)
+    const cs = g.combat.shake;
+    const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0);
     const shx = shake ? (Math.random() - 0.5) * shake : 0;
     const shy = shake ? (Math.random() - 0.5) * shake : 0;
     // snapped to whole art pixels, so the picture doesn't shimmer as the camera glides
@@ -278,6 +280,7 @@ export class Renderer {
           drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
+        if (g.combat.decals.length) this.drawCombatGround(ctx, lm.id); // v0.44.0: blood and spent cases
         if (g.vehicles?.trail?.length) drawTrail(ctx, g.vehicles.trail, lm.id, g.realTime); // v0.34.0: coins, sums, cheese…
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
@@ -363,6 +366,28 @@ export class Renderer {
     }
     this.drawLighting(map);
     this.drawOverlays(map);
+    this.drawCrosshair();
+  }
+
+  /** v0.44.0: a chunky pixel crosshair where the mouse is, while you hold a gun (the cursor is hidden). */
+  drawCrosshair() {
+    const g = this.game;
+    const m = this.mouse;
+    const on = this.pixel && m && g.player.aim && g.combat.equipped().weapon.kind === 'gun' && !g.player.driving && !g.paused;
+    this.canvas.style.cursor = on ? 'none' : '';
+    if (!on) return;
+    const c = this.ctx;
+    const u = Math.max(2, this.px / 2);
+    const x = Math.round(m.x / u) * u;
+    const y = Math.round(m.y / u) * u;
+    const spread = g.combat.cooldown > 0 ? 3 : 2; // it opens up as you fire
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    for (const [col, o] of [['#14143a', 1], ['#ffffff', 0]]) {
+      c.fillStyle = col;
+      for (const [dx, dy, w, h] of [[-(spread + 3), -0.5, 3, 1], [spread, -0.5, 3, 1], [-0.5, -(spread + 3), 1, 3], [-0.5, spread, 1, 3]]) c.fillRect(x + (dx - o * 0.5) * u, y + (dy - o * 0.5) * u, (w + o) * u, (h + o) * u);
+    }
+    c.fillStyle = g.combat.reloading ? '#f2c14e' : '#e8503a';
+    c.fillRect(x - u / 2, y - u / 2, u, u);
   }
 
   /** v0.38.0: draw the world's text (recorded during the pixel pass) crisply at full resolution. */
@@ -454,8 +479,50 @@ export class Renderer {
   drawCombatFx(ctx) {
     const g = this.game;
     const t = g.realTime;
+    const px = this.pixel;
+    // v0.44.0: bullets you can see — a hot slug and a short streak behind it
+    for (const b of g.combat.bullets) {
+      if (b.map !== g.player.map) continue;
+      const len = b.hurts ? 10 : 16;
+      ctx.strokeStyle = b.hurts ? 'rgba(255,140,90,0.55)' : 'rgba(255,230,150,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(b.x - b.dx * len, b.y - b.dy * len); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.fillStyle = b.hurts ? '#ffb070' : '#fff6c8';
+      ctx.fillRect(Math.round(b.x) - 2, Math.round(b.y) - 2, 4, 4);
+    }
+    for (const q of g.combat.particles) {
+      if (q.map !== g.player.map) continue;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2);
+      ctx.fillStyle = q.kind === 'case' ? '#e8b83a' : '#b0181e';
+      ctx.fillRect(Math.round(q.x), Math.round(q.y - q.z), q.kind === 'case' ? 4 : 2 * q.size, 2);
+    }
     for (const f of g.combat.fx) {
       const k = 1 - (t - f.start) / Math.max(0.001, f.until - f.start);
+      if (px && f.type === 'tracer') continue; // the bullets say it
+      if (px && f.type === 'flash') {
+        // a blocky four-point muzzle star
+        const x = Math.round(f.x / 2) * 2;
+        const y = Math.round(f.y / 2) * 2;
+        const r = k > 0.5 ? 10 : 6;
+        ctx.fillStyle = '#ffd060';
+        ctx.fillRect(x - r, y - 2, r * 2, 4); ctx.fillRect(x - 2, y - r, 4, r * 2);
+        ctx.fillStyle = '#fff8e0';
+        ctx.fillRect(x - 4, y - 4, 8, 8);
+        continue;
+      }
+      if (px && f.type === 'swing') {
+        // a fat white smear along the arc, thickest in the middle
+        const a = Math.atan2(f.dir.y, f.dir.x);
+        const R = f.range * 0.85;
+        for (let i = -6; i <= 6; i++) {
+          const th = a + (i / 6) * f.arc;
+          const w = (7 - Math.abs(i)) * 1.2 * k + 2;
+          ctx.fillStyle = `rgba(255,255,255,${0.75 * k})`;
+          ctx.fillRect(Math.round((f.x + Math.cos(th) * R) / 2) * 2 - w / 2, Math.round((f.y + Math.sin(th) * R) / 2) * 2 - w / 2, w, w);
+        }
+        continue;
+      }
       if (f.type === 'tracer') {
         ctx.strokeStyle = `rgba(255,236,170,${0.85 * k})`;
         ctx.lineWidth = 1.6;
@@ -491,13 +558,33 @@ export class Renderer {
     // aiming line for guns
     const w = g.combat.equipped();
     const p = g.player;
-    if (w.weapon.kind === 'gun' && !g.paused) {
+    if (w.weapon.kind === 'gun' && !g.paused && !px) {
       const d = g.combat.aimVector(w);
       ctx.strokeStyle = 'rgba(255,90,70,0.45)';
       ctx.setLineDash([3, 5]);
       ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(p.x + d.x * 16, p.y - 18 + d.y * 16); ctx.lineTo(p.x + d.x * 70, p.y - 18 + d.y * 70); ctx.stroke();
       ctx.setLineDash([]);
+    }
+  }
+
+  /** v0.44.0: blood spatter, pools under the fallen, spent cases — on the ground, fading after a few minutes. */
+  drawCombatGround(ctx, mapId) {
+    const t = this.game.realTime;
+    for (const d of this.game.combat.decals) {
+      if (d.map !== mapId) continue;
+      const age = t - d.at;
+      const a = Math.max(0, Math.min(1, (240 - age) / 60));
+      if (a <= 0) continue;
+      const x = Math.round(d.x / 2) * 2;
+      const y = Math.round(d.y / 2) * 2;
+      if (d.kind === 'blood') { ctx.fillStyle = `rgba(150,20,24,${0.85 * a})`; ctx.fillRect(x, y, d.size * 2 + 2, 2); if (d.size > 1) ctx.fillRect(x + 2, y + 2, 2, 2); }
+      else if (d.kind === 'case') { ctx.fillStyle = `rgba(232,184,58,${a})`; ctx.fillRect(x, y, 4, 2); ctx.fillStyle = `rgba(140,100,30,${a})`; ctx.fillRect(x + 2, y, 2, 2); }
+      else if (d.kind === 'pool') {
+        const r = Math.min(1, age / 3) * 9; // spreads for a few seconds
+        ctx.fillStyle = `rgba(120,14,20,${0.8 * a})`;
+        for (let k = -r; k <= r; k += 2) { const w = Math.round(Math.sqrt(Math.max(0, r * r - k * k)) * 1.7 / 2) * 2; ctx.fillRect(x - w, y + Math.round(k * 0.6 / 2) * 2, w * 2, 2); }
+      }
     }
   }
 
@@ -614,7 +701,13 @@ export class Renderer {
     }
     // flinch when hit
     const shake = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.2 ? Math.sin(this.game.realTime * 90) * 2 : 0;
+    // v0.44.0: a white flash when hit; a gun points where it's aimed
+    const flash = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.09;
+    const ad = actor === this.game.player ? (appearance.holding && ['pistol', 'longgun'].includes(appearance.holding) ? this.game.combat.aimVector(this.game.combat.equipped()) : null)
+      : actor.hostile?.mode === 'fight' && ['pistol', 'longgun'].includes(appearance.holding) ? { x: this.game.player.x - actor.x, y: this.game.player.y - actor.y } : null;
     drawCharacter(this.ctx, appearance, {
+      flash,
+      aim: ad ? Math.atan2(ad.y, ad.x) : null,
       x: actor.x + shake,
       y: actor.y,
       facing: actor.facing,
@@ -735,6 +828,7 @@ export class Renderer {
         }
       }
       if (!this.hidePlayer && !g.player.driving && (g.player.riding === null || g.player.riding === undefined)) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      for (const f of g.combat.fx) if (f.type === 'flash') { hole(f.x, f.y, 90, 0.9); warm.push([f.x, f.y, 40]); } // v0.44.0: gunfire lights the street
       // police cruisers: flashing red and blue
       for (const c of g.vehicles?.carsOn(map.id) || []) {
         if (!c.chase) continue;

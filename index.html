@@ -11740,7 +11740,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.43.0';
+const GAME_VERSION = '0.44.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -16207,6 +16207,11 @@ class Combat {
     this.cooldown = 0; // seconds until the player can attack again
     this.reloading = null; // { item, until }
     this.fx = []; // short-lived visual effects for the renderer (not saved)
+    // v0.44.0, Streets of Rogue–style feel (none of it saved):
+    this.bullets = []; // in flight: the player's are for show (hits resolve at once); NPCs' are real and can be dodged
+    this.particles = []; // blood droplets and spent cases, flying
+    this.decals = []; // ...and where they landed
+    this.shake = { until: 0, mag: 0 };
     this.lastHostileAt = -1e9; // realTime of the last fight on this map
   }
 
@@ -16365,7 +16370,10 @@ class Combat {
     }
     this.fx.push({ type: 'swing', x: p.x, y: p.y - BODY_Y, dir, range: wp.range * TILE, arc: half, until: g.realTime + 0.18, start: g.realTime });
     for (const npc of hits) this.hitNpc(npc, wp.damage, { weapon: w, dir, lethal: wp.lethal });
-    if (hits.length) g.bus.emit('sfx', { id: wp.sound || 'sfx_punch' });
+    if (hits.length) { g.bus.emit('sfx', { id: wp.sound || 'sfx_punch' }); this.kick(3, 0.12); }
+    // v0.44.0: you step into the swing
+    const map = g.currentMap();
+    if (!map.rectBlocked(p.x + dir.x * 4 - 7, p.y + dir.y * 4 - 6, 14, 6, g.playerActor?.())) { p.x += dir.x * 4; p.y += dir.y * 4; }
     return { ok: true, kind: 'melee', hits: hits.map((n) => n.id) };
   }
 
@@ -16408,6 +16416,7 @@ class Combat {
         return { ok: true, kind: 'gun', hits: [sacred.id], wrath: true };
       }
       this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
+      this.spawnBullet(ox, oy, d, r.t);
       if (r.npc) {
         hits.push(r.npc);
         // falloff beyond half range
@@ -16415,7 +16424,14 @@ class Combat {
         this.hitNpc(r.npc, wp.damage * fall, { weapon: w, dir: d, lethal: wp.lethal !== false });
       } else if (r.wall) this.fx.push({ type: 'spark', x: ox + d.x * r.t, y: oy + d.y * r.t, until: g.realTime + 0.25, start: g.realTime });
     }
-    this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, until: g.realTime + 0.06, start: g.realTime });
+    this.fx.push({ type: 'flash', x: ox + dir.x * 8, y: oy + dir.y * 8, dir, until: g.realTime + 0.06, start: g.realTime });
+    // v0.44.0: kick — the camera jolts, the shooter rocks back, a case flies
+    const heavyGun = (wp.damage || 0) * pellets >= 60;
+    this.kick(heavyGun ? 5 : wp.auto ? 1.6 : 2.6, heavyGun ? 0.2 : 0.1);
+    this.ejectCase(p.x, p.y - BODY_Y, dir);
+    const map = g.currentMap();
+    const back = heavyGun ? 5 : 2;
+    if (!map.rectBlocked(p.x - dir.x * back - 7, p.y - dir.y * back - 6, 14, 6, g.playerActor?.())) { p.x -= dir.x * back; p.y -= dir.y * back; }
     this.gunfireNoise(wp.noise ?? 16);
     if ((p.mags[w.id] ?? 0) <= 0 && g.inventory.count(wp.ammo)) this.reload();
     return { ok: true, kind: 'gun', hits: [...new Set(hits.map((n) => n.id))] };
@@ -16491,7 +16507,9 @@ class Combat {
     npc.health = Math.max(0, npc.health - dmg);
     npc.healthBarUntil = g.realTime + HEALTH_BAR_SECONDS;
     npc.hurtAt = g.realTime;
+    this.hitAt = g.realTime;
     this.fx.push({ type: 'damage', npcId: npc.id, amount: dmg, x: npc.x, y: npc.y - 46, until: g.realTime + 0.9, start: g.realTime });
+    this.bleed(npc.x, npc.y - BODY_Y, dir, weapon.weapon.kind === 'gun' || weapon.weapon.lethal ? 7 : 3);
     this.lastHostileAt = g.realTime;
     // knockback
     const kb = weapon.weapon.knockback ?? (weapon.weapon.kind === 'gun' ? 6 : 18);
@@ -16574,6 +16592,8 @@ class Combat {
   kill(npc, weapon) {
     const g = this.game;
     const now = g.clock.total;
+    this.decals.push({ kind: 'pool', map: npc.map, x: npc.x, y: npc.y - 4, size: 1, at: g.realTime });
+    this.kick(4, 0.18);
     npc.health = 0;
     npc.dead = true;
     npc.diedAt = now;
@@ -16637,6 +16657,7 @@ class Combat {
     p.health = Math.max(0, p.health - dmg);
     p.hurtAt = g.realTime;
     this.lastHostileAt = g.realTime;
+    this.kick(4, 0.2);
     this.fx.push({ type: 'damage', player: true, amount: dmg, x: p.x, y: p.y - 46, until: g.realTime + 0.9, start: g.realTime });
     g.bus.emit('combat:playerHit', { damage: dmg, by: attacker?.id, health: p.health });
     if (p.health <= 0) this.playerKnockedOut(attacker);
@@ -16733,9 +16754,87 @@ class Combat {
 
   // ---------------------------------------------------------------- update
   /** Per-frame update (real seconds). */
+  // ------------------------------------------------------- game feel (v0.44.0)
+  /** Shake the camera: `mag` px, for `secs`. */
+  kick(mag, secs = 0.15) {
+    const t = this.game.realTime;
+    if (t + secs > this.shake.until || mag > this.shake.mag) this.shake = { until: t + secs, mag: Math.max(mag, t < this.shake.until ? this.shake.mag : 0) };
+  }
+
+  /** A bullet you can see, from (x, y) along d for `len` px. `hurts`: an NPC's shot that can hit the player. */
+  spawnBullet(x, y, d, len, opts = {}) {
+    this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || 1700, hurts: opts.hurts || null, born: this.game.realTime });
+    if (this.bullets.length > 80) this.bullets.shift();
+  }
+
+  /** Blood: `n` droplets thrown along `dir` from someone's body. */
+  bleed(x, y, dir, n = 6) {
+    const g = this.game;
+    for (let i = 0; i < n; i++) {
+      const a = Math.atan2(dir.y, dir.x) + (g.rng.next() - 0.5) * 1.2;
+      const v = 40 + g.rng.next() * 80;
+      this.particles.push({ kind: 'blood', map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y - 4 + g.rng.next() * 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 40 + g.rng.next() * 60, size: g.rng.next() < 0.3 ? 2 : 1 });
+    }
+  }
+
+  /** A spent case flicked out of the gun, to the right of where it's pointing. */
+  ejectCase(x, y, dir) {
+    const g = this.game;
+    const side = { x: -dir.y, y: dir.x };
+    const v = 25 + g.rng.next() * 25;
+    this.particles.push({ kind: 'case', map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y - 4, vx: side.x * v - dir.x * 12, vy: side.y * v - dir.y * 12, vz: 50 + g.rng.next() * 25, size: 1 });
+  }
+
+  /** Move bullets and particles; an NPC's bullet that reaches the player hurts them. */
+  updateFeel(dt) {
+    const g = this.game;
+    const p = g.player;
+    const map = g.currentMap();
+    for (const b of this.bullets) {
+      const step = Math.min(b.left, b.speed * dt);
+      const sub = Math.max(1, Math.ceil(step / 8));
+      for (let k = 0; k < sub && b.left > 0; k++) {
+        const st = step / sub;
+        b.x += b.dx * st;
+        b.y += b.dy * st;
+        b.left -= st;
+        if (!b.hurts) continue;
+        if (b.map !== p.map) { b.left = 0; break; }
+        if (WALL.has(map.tileAt(Math.floor(b.x / TILE), Math.floor((b.y + BODY_Y) / TILE)))) {
+          b.left = 0;
+          this.fx.push({ type: 'spark', x: b.x, y: b.y, until: g.realTime + 0.25, start: g.realTime });
+          break;
+        }
+        if (!p.driving && Math.hypot(b.x - p.x, b.y - (p.y - BODY_Y)) <= HIT_RADIUS) {
+          b.left = 0;
+          const shooter = g.npcs.get(b.hurts.by);
+          this.bleed(p.x, p.y - BODY_Y, { x: b.dx, y: b.dy }, 5);
+          this.damagePlayer(b.hurts.damage, shooter);
+        }
+      }
+    }
+    if (this.bullets.length) this.bullets = this.bullets.filter((b) => b.left > 0.5);
+    if (this.particles.length) {
+      for (const q of this.particles) {
+        q.x += q.vx * dt;
+        q.y += q.vy * dt;
+        q.vz -= 260 * dt;
+        q.z += q.vz * dt;
+        if (q.z <= 0) {
+          if (q.kind === 'case' && q.vz < -40) { q.z = 0.1; q.vz = -q.vz * 0.35; q.vx *= 0.5; q.vy *= 0.5; continue; } // a little bounce
+          q.done = true;
+          this.decals.push({ kind: q.kind, map: q.map, x: q.x, y: q.y, size: q.size, at: g.realTime });
+        }
+      }
+      this.particles = this.particles.filter((q) => !q.done);
+      if (this.decals.length > 260) this.decals.splice(0, this.decals.length - 260);
+    }
+  }
+
   update(dt) {
     const g = this.game;
     if (this.wrath) return this.updateWrath();
+    this.updateFeel(dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.reloading && g.realTime >= this.reloading.until) this.finishReload();
     if (this.fx.length) this.fx = this.fx.filter((f) => f.until > g.realTime);
@@ -16805,12 +16904,11 @@ class Combat {
           g.bus.emit('sfx', { id: wp.sound || 'sfx_gunshot' });
           const ox = npc.x;
           const oy = npc.y - BODY_Y;
-          const hit = g.rng.chance(0.55);
-          const miss = hit ? 0 : (g.rng.next() - 0.5) * 0.5;
-          const ang = Math.atan2(dy, dx) + miss;
-          this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + Math.cos(ang) * d, y2: oy + Math.sin(ang) * d, until: g.realTime + 0.09, start: g.realTime });
-          this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, until: g.realTime + 0.06, start: g.realTime });
-          if (hit) this.damagePlayer(wp.damage * 0.8, npc);
+          // v0.44.0: a real bullet, aimed with a shooter's wobble — keep moving and it can miss you
+          const ang = Math.atan2(p.y - BODY_Y - oy, p.x - ox) + (g.rng.next() - 0.5) * 0.22;
+          const bd = { x: Math.cos(ang), y: Math.sin(ang) };
+          this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 } });
+          this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, dir: bd, until: g.realTime + 0.06, start: g.realTime });
         } else {
           g.bus.emit('sfx', { id: 'sfx_punch' });
           this.fx.push({ type: 'swing', x: npc.x, y: npc.y - BODY_Y, dir: { x: dx / d, y: dy / d }, range: wp.range * TILE, arc: 0.6, until: g.realTime + 0.18, start: g.realTime });
@@ -23333,7 +23431,8 @@ function drawPixelCharacter(ctx, a, s, drawHeld) {
   ctx.save();
   ctx.translate(Math.round(s.x / 2) * 2, Math.round(s.y / 2) * 2);
   ctx.scale(scale, scale);
-  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+  // v0.44.0: hit, and for a blink the whole figure goes white
+  const R = (x, y, w, h, c) => { ctx.fillStyle = s.flash && c[0] === '#' ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
 
   // shadow
   R(-5, -1, 10, 2, 'rgba(20,20,35,0.3)'); R(-4, 0, 8, 1, 'rgba(20,20,35,0.2)');
@@ -23375,7 +23474,18 @@ function drawPixelCharacter(ctx, a, s, drawHeld) {
   else { arm(-half - 1, step, false); arm(half, -step, false); }
   if (side) arm(dir * 1, step, false);
 
-  if (a.holding && drawHeld) {
+  const gun = a.holding === 'pistol' || a.holding === 'longgun';
+  if (gun && s.aim != null) {
+    // v0.44.0: the gun points where it's aimed, held out from the chest (flipped so the grip hangs down)
+    ctx.save();
+    ctx.translate(0, -20);
+    ctx.rotate(s.aim);
+    if (Math.cos(s.aim) < 0) ctx.scale(1, -1);
+    const G = (x, y, w, h, c) => { ctx.fillStyle = s.flash ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+    if (a.holding === 'pistol') { G(3, -2, 9, 3, INK); G(4, -1, 7, 1, '#3a3a44'); G(4, 0, 3, 3, INK); G(5, 0, 1, 2, '#6a4a2e'); G(3, -1, 2, 2, a.skin || '#e8b896'); }
+    else { G(0, -2, 17, 3, INK); G(1, -1, 15, 1, '#3a3a44'); G(0, -1, 5, 3, INK); G(1, 0, 3, 1, '#6a4a2e'); G(7, 0, 3, 2, INK); G(4, -1, 2, 2, a.skin || '#e8b896'); G(10, -1, 2, 2, a.skin || '#e8b896'); }
+    ctx.restore();
+  } else if (a.holding && drawHeld) {
     ctx.save(); ctx.scale(0.8, 0.8);
     drawHeld(ctx, a.holding, (side ? dir * 2 : half * 2 + 2) / 0.8, (-14 + (side ? step : -step) * 2) / 0.8, side ? dir : 1, s.idleTime || 0);
     ctx.restore();
@@ -29135,6 +29245,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.44.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Lead in the Air',
+    notes: [
+      'Gunfights feel like it now: you can see every bullet, the camera kicks with each shot, blows land with a jolt, and blood and spent brass end up on the pavement.',
+      'Their bullets fly too — keep moving and you can dodge them. Stand still in the open at your peril.',
+      'Your gun points where you aim, at a chunky crosshair that opens up as you fire.',
+    ],
+  },
   {
     version: '0.43.0',
     date: '2026-10-17',
@@ -36727,7 +36848,9 @@ class Renderer {
     ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     // explosions shake the camera
-    const shake = g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0;
+    // v0.44.0: and so do gunshots, hard hits and getting hurt (combat.kick)
+    const cs = g.combat.shake;
+    const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0);
     const shx = shake ? (Math.random() - 0.5) * shake : 0;
     const shy = shake ? (Math.random() - 0.5) * shake : 0;
     // snapped to whole art pixels, so the picture doesn't shimmer as the camera glides
@@ -36777,6 +36900,7 @@ class Renderer {
           drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
+        if (g.combat.decals.length) this.drawCombatGround(ctx, lm.id); // v0.44.0: blood and spent cases
         if (g.vehicles?.trail?.length) drawTrail(ctx, g.vehicles.trail, lm.id, g.realTime); // v0.34.0: coins, sums, cheese…
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
@@ -36862,6 +36986,28 @@ class Renderer {
     }
     this.drawLighting(map);
     this.drawOverlays(map);
+    this.drawCrosshair();
+  }
+
+  /** v0.44.0: a chunky pixel crosshair where the mouse is, while you hold a gun (the cursor is hidden). */
+  drawCrosshair() {
+    const g = this.game;
+    const m = this.mouse;
+    const on = this.pixel && m && g.player.aim && g.combat.equipped().weapon.kind === 'gun' && !g.player.driving && !g.paused;
+    this.canvas.style.cursor = on ? 'none' : '';
+    if (!on) return;
+    const c = this.ctx;
+    const u = Math.max(2, this.px / 2);
+    const x = Math.round(m.x / u) * u;
+    const y = Math.round(m.y / u) * u;
+    const spread = g.combat.cooldown > 0 ? 3 : 2; // it opens up as you fire
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    for (const [col, o] of [['#14143a', 1], ['#ffffff', 0]]) {
+      c.fillStyle = col;
+      for (const [dx, dy, w, h] of [[-(spread + 3), -0.5, 3, 1], [spread, -0.5, 3, 1], [-0.5, -(spread + 3), 1, 3], [-0.5, spread, 1, 3]]) c.fillRect(x + (dx - o * 0.5) * u, y + (dy - o * 0.5) * u, (w + o) * u, (h + o) * u);
+    }
+    c.fillStyle = g.combat.reloading ? '#f2c14e' : '#e8503a';
+    c.fillRect(x - u / 2, y - u / 2, u, u);
   }
 
   /** v0.38.0: draw the world's text (recorded during the pixel pass) crisply at full resolution. */
@@ -36953,8 +37099,50 @@ class Renderer {
   drawCombatFx(ctx) {
     const g = this.game;
     const t = g.realTime;
+    const px = this.pixel;
+    // v0.44.0: bullets you can see — a hot slug and a short streak behind it
+    for (const b of g.combat.bullets) {
+      if (b.map !== g.player.map) continue;
+      const len = b.hurts ? 10 : 16;
+      ctx.strokeStyle = b.hurts ? 'rgba(255,140,90,0.55)' : 'rgba(255,230,150,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(b.x - b.dx * len, b.y - b.dy * len); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.fillStyle = b.hurts ? '#ffb070' : '#fff6c8';
+      ctx.fillRect(Math.round(b.x) - 2, Math.round(b.y) - 2, 4, 4);
+    }
+    for (const q of g.combat.particles) {
+      if (q.map !== g.player.map) continue;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2);
+      ctx.fillStyle = q.kind === 'case' ? '#e8b83a' : '#b0181e';
+      ctx.fillRect(Math.round(q.x), Math.round(q.y - q.z), q.kind === 'case' ? 4 : 2 * q.size, 2);
+    }
     for (const f of g.combat.fx) {
       const k = 1 - (t - f.start) / Math.max(0.001, f.until - f.start);
+      if (px && f.type === 'tracer') continue; // the bullets say it
+      if (px && f.type === 'flash') {
+        // a blocky four-point muzzle star
+        const x = Math.round(f.x / 2) * 2;
+        const y = Math.round(f.y / 2) * 2;
+        const r = k > 0.5 ? 10 : 6;
+        ctx.fillStyle = '#ffd060';
+        ctx.fillRect(x - r, y - 2, r * 2, 4); ctx.fillRect(x - 2, y - r, 4, r * 2);
+        ctx.fillStyle = '#fff8e0';
+        ctx.fillRect(x - 4, y - 4, 8, 8);
+        continue;
+      }
+      if (px && f.type === 'swing') {
+        // a fat white smear along the arc, thickest in the middle
+        const a = Math.atan2(f.dir.y, f.dir.x);
+        const R = f.range * 0.85;
+        for (let i = -6; i <= 6; i++) {
+          const th = a + (i / 6) * f.arc;
+          const w = (7 - Math.abs(i)) * 1.2 * k + 2;
+          ctx.fillStyle = `rgba(255,255,255,${0.75 * k})`;
+          ctx.fillRect(Math.round((f.x + Math.cos(th) * R) / 2) * 2 - w / 2, Math.round((f.y + Math.sin(th) * R) / 2) * 2 - w / 2, w, w);
+        }
+        continue;
+      }
       if (f.type === 'tracer') {
         ctx.strokeStyle = `rgba(255,236,170,${0.85 * k})`;
         ctx.lineWidth = 1.6;
@@ -36990,13 +37178,33 @@ class Renderer {
     // aiming line for guns
     const w = g.combat.equipped();
     const p = g.player;
-    if (w.weapon.kind === 'gun' && !g.paused) {
+    if (w.weapon.kind === 'gun' && !g.paused && !px) {
       const d = g.combat.aimVector(w);
       ctx.strokeStyle = 'rgba(255,90,70,0.45)';
       ctx.setLineDash([3, 5]);
       ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(p.x + d.x * 16, p.y - 18 + d.y * 16); ctx.lineTo(p.x + d.x * 70, p.y - 18 + d.y * 70); ctx.stroke();
       ctx.setLineDash([]);
+    }
+  }
+
+  /** v0.44.0: blood spatter, pools under the fallen, spent cases — on the ground, fading after a few minutes. */
+  drawCombatGround(ctx, mapId) {
+    const t = this.game.realTime;
+    for (const d of this.game.combat.decals) {
+      if (d.map !== mapId) continue;
+      const age = t - d.at;
+      const a = Math.max(0, Math.min(1, (240 - age) / 60));
+      if (a <= 0) continue;
+      const x = Math.round(d.x / 2) * 2;
+      const y = Math.round(d.y / 2) * 2;
+      if (d.kind === 'blood') { ctx.fillStyle = `rgba(150,20,24,${0.85 * a})`; ctx.fillRect(x, y, d.size * 2 + 2, 2); if (d.size > 1) ctx.fillRect(x + 2, y + 2, 2, 2); }
+      else if (d.kind === 'case') { ctx.fillStyle = `rgba(232,184,58,${a})`; ctx.fillRect(x, y, 4, 2); ctx.fillStyle = `rgba(140,100,30,${a})`; ctx.fillRect(x + 2, y, 2, 2); }
+      else if (d.kind === 'pool') {
+        const r = Math.min(1, age / 3) * 9; // spreads for a few seconds
+        ctx.fillStyle = `rgba(120,14,20,${0.8 * a})`;
+        for (let k = -r; k <= r; k += 2) { const w = Math.round(Math.sqrt(Math.max(0, r * r - k * k)) * 1.7 / 2) * 2; ctx.fillRect(x - w, y + Math.round(k * 0.6 / 2) * 2, w * 2, 2); }
+      }
     }
   }
 
@@ -37113,7 +37321,13 @@ class Renderer {
     }
     // flinch when hit
     const shake = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.2 ? Math.sin(this.game.realTime * 90) * 2 : 0;
+    // v0.44.0: a white flash when hit; a gun points where it's aimed
+    const flash = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.09;
+    const ad = actor === this.game.player ? (appearance.holding && ['pistol', 'longgun'].includes(appearance.holding) ? this.game.combat.aimVector(this.game.combat.equipped()) : null)
+      : actor.hostile?.mode === 'fight' && ['pistol', 'longgun'].includes(appearance.holding) ? { x: this.game.player.x - actor.x, y: this.game.player.y - actor.y } : null;
     drawCharacter(this.ctx, appearance, {
+      flash,
+      aim: ad ? Math.atan2(ad.y, ad.x) : null,
       x: actor.x + shake,
       y: actor.y,
       facing: actor.facing,
@@ -37234,6 +37448,7 @@ class Renderer {
         }
       }
       if (!this.hidePlayer && !g.player.driving && (g.player.riding === null || g.player.riding === undefined)) hole(g.player.x, g.player.y - 14, 70, 0.55);
+      for (const f of g.combat.fx) if (f.type === 'flash') { hole(f.x, f.y, 90, 0.9); warm.push([f.x, f.y, 40]); } // v0.44.0: gunfire lights the street
       // police cruisers: flashing red and blue
       for (const c of g.vehicles?.carsOn(map.id) || []) {
         if (!c.chase) continue;
@@ -42580,6 +42795,7 @@ class UI {
     this.demo = demo;
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
+    this.renderer.mouse = this.mouse; // v0.44.0: the crosshair
     this.renderer.pixel = this.settings.pixelArt !== false;
     this.renderer.resize();
     document.body.classList.toggle('pixel-ui', this.renderer.pixel);
@@ -43022,7 +43238,9 @@ class UI {
       // automatic weapons fire while the button is held
       if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();
       if (this.build) this.updateBuild();
-      g.update(dt, move);
+      // v0.44.0: hit-stop — the world holds its breath for a blink when a blow lands
+      if (g.combat.hitAt && g.combat.hitAt !== this.seenHit) { this.seenHit = g.combat.hitAt; this.freezeUntil = this.time + 0.05; }
+      if (this.time >= (this.freezeUntil || 0)) g.update(dt, move);
       // the engine note follows your speed (src/audio/audioEngine.js)
       const car = g.vehicles.driving();
       this.audio.setEngine(car && !g.paused && !busy ? Math.min(1, Math.abs(car.speed || 0) / g.vehicles.model(car).top) : null);
