@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oberverse Art Mock-up</title>
+<style>
+  html, body { margin: 0; background: #111018; color: #ddd; font: 14px system-ui, sans-serif; }
+  #wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; }
+  canvas { image-rendering: pixelated; width: min(100vw - 16px, 1920px); aspect-ratio: 16 / 9; background: #000; }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  nav button { background: #2a2836; color: #eee; border: 1px solid #555; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+  nav button.on { background: #e8b83a; color: #111; }
+  p { max-width: 900px; color: #aaa; margin: 0; text-align: center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <nav id="nav"></nav>
+  <canvas id="screen" width="1920" height="1080"></canvas>
+  <p id="cap"></p>
+</div>
+<script>
+// A mock-up of a pixel-art, Streets of Rogue 2–style look for the Oberverse (not the game).
+// Everything is drawn procedurally at 480×270 and scaled ×4 with no smoothing, so every
+// shape lands on a crisp pixel. Scenes: the street, a bar at night, and Ober's Oil Tower —
+// the lobby, an upper floor with the city far below, and the roof.
+const W = 480, H = 270, T = 16;
+const low = document.createElement('canvas'); low.width = W; low.height = H;
+let c = low.getContext('2d'); // reassigned to draw a scene into an offscreen canvas
+const screen = document.getElementById('screen'); const sc = screen.getContext('2d');
+sc.imageSmoothingEnabled = false;
+let time = 0;
+
+// ------------------------------------------------------------ palette & primitives
+const P = {
+  ink: '#1b1a24', asphalt: '#3e3c48', asphalt2: '#45434f', line: '#e8b83a', walk: '#8d8b95', walk2: '#82808a', seam: '#74727c',
+  curbTop: '#cfc8c0', curbFace: '#6d6976', grass: '#4f7a3e', grass2: '#5a8a46',
+  brick: '#b8664a', brickTop: '#e8a888', brickDark: '#8a4632', stone: '#8c95a8', stoneTop: '#c8d0dc', stoneDark: '#5e6678',
+  wood: '#8a6440', wood2: '#7c5a38', woodSeam: '#5c4028', tileA: '#d8d2c4', tileB: '#2c2c36', carpet: '#6a2a3a',
+  glass: '#8cc8e0', glassDark: '#4c8aa8', skin: ['#f2c8a0', '#d89a6a', '#a86a40', '#6a4028'],
+};
+const R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+/** A rectangle with a 1px dark outline. */
+const box = (x, y, w, h, col, ink = P.ink) => { R(x - 1, y - 1, w + 2, h + 2, ink); R(x, y, w, h, col); };
+const shade = (hex, k) => {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v) => Math.max(0, Math.min(255, Math.round(v + k)));
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, '0')).join('')}`;
+};
+const disc = (cx, cy, r, col) => { for (let y = -r; y <= r; y++) { const w = Math.round(Math.sqrt(r * r - y * y)); R(cx - w, cy + y, w * 2 + 1, 1, col); } };
+const shadow = (cx, cy, rx, ry, a = 0.3) => { c.fillStyle = `rgba(10,8,20,${a})`; for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))); c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2 + 1, 1); } };
+// deterministic noise
+const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
+
+// pixel text: system font rendered small, then thresholded to hard pixels
+const tcan = document.createElement('canvas'); tcan.width = 400; tcan.height = 20; const tc = tcan.getContext('2d', { willReadFrequently: true });
+function text(str, x, y, col = '#fff', { size = 8, align = 'left', outline = P.ink } = {}) {
+  tc.clearRect(0, 0, 400, 20);
+  tc.font = `bold ${size}px "Courier New", monospace`;
+  tc.textBaseline = 'top';
+  const w = Math.ceil(tc.measureText(str).width) + 2;
+  tc.fillStyle = '#fff'; tc.fillText(str, 1, 1);
+  const img = tc.getImageData(0, 0, w, size + 4);
+  const ox = align === 'center' ? Math.round(x - w / 2) : align === 'right' ? x - w : x;
+  const on = (i) => img.data[i * 4 + 3] > 110;
+  if (outline) for (let i = 0; i < w * (size + 4); i++) if (on(i)) { const px = i % w, py = (i / w) | 0; R(ox + px - 1, y + py, 3, 1, outline); R(ox + px, y + py - 1, 1, 3, outline); }
+  for (let i = 0; i < w * (size + 4); i++) if (on(i)) R(ox + (i % w), y + ((i / w) | 0), 1, 1, col);
+  return w;
+}
+
+// ------------------------------------------------------------ ground
+function asphalt(x, y, w, h) {
+  R(x, y, w, h, P.asphalt);
+  for (let yy = y; yy < y + h; yy += 2) for (let xx = x; xx < x + w; xx += 2) if (hash(xx, yy) > 0.86) R(xx, yy, 1, 1, P.asphalt2);
+  for (let k = 0; k < (w * h) / 900; k++) { const sx = x + hash(k, x) * w, sy = y + hash(y, k) * h; R(sx, sy, 3 + hash(k, k) * 6, 1, '#36343f'); } // cracks / oil
+}
+function sidewalk(x, y, w, h) {
+  R(x, y, w, h, P.walk);
+  for (let yy = y; yy < y + h; yy += 8) for (let xx = x; xx < x + w; xx += 8) {
+    R(xx, yy, 8, 1, P.seam); R(xx, yy, 1, 8, P.seam);
+    if (hash(xx, yy) > 0.7) R(xx + 1, yy + 1, 7, 7, P.walk2);
+    if (hash(yy, xx) > 0.93) R(xx + 3, yy + 4, 2, 1, '#6c6a74'); // gum
+  }
+}
+/** A kerb along an edge: a light top lip and a dark face toward the road. side: 'n'|'s'|'e'|'w' = which side the road is on. */
+function curb(x, y, len, side) {
+  if (side === 's') { R(x, y, len, 2, P.curbTop); R(x, y + 2, len, 2, P.curbFace); }
+  if (side === 'n') { R(x, y - 2, len, 2, P.curbFace); R(x, y - 4, len, 2, P.curbTop); }
+  if (side === 'e') { R(x, y, 2, len, P.curbTop); R(x + 2, y, 2, len, P.curbFace); }
+  if (side === 'w') { R(x - 4, y, 2, len, P.curbTop); R(x - 2, y, 2, len, P.curbFace); }
+}
+const dashH = (x0, x1, y) => { for (let x = x0; x < x1; x += 14) R(x, y, 7, 2, P.line); };
+const dashV = (y0, y1, x) => { for (let y = y0; y < y1; y += 14) R(x, y, 2, 7, P.line); };
+function crosswalk(x, y, w, h, vertical) {
+  if (vertical) for (let yy = y; yy < y + h; yy += 5) R(x, yy, w, 3, '#d8d4cc');
+  else for (let xx = x; xx < x + w; xx += 5) R(xx, y, 3, h, '#d8d4cc');
+}
+function grassPatch(x, y, w, h) { R(x, y, w, h, P.grass); for (let k = 0; k < (w * h) / 10; k++) R(x + hash(k, 3) * w, y + hash(9, k) * h, 1, 2, P.grass2); }
+
+// ------------------------------------------------------------ interiors
+function woodFloor(x, y, w, h) {
+  R(x, y, w, h, P.wood);
+  for (let yy = y; yy < y + h; yy += 4) { R(x, yy, w, 1, P.woodSeam); for (let xx = x + ((yy / 4) % 2) * 9; xx < x + w; xx += 18) R(xx, yy, 1, 4, P.woodSeam); if (hash(yy, x) > 0.5) R(x, yy + 1, w, 1, P.wood2); }
+}
+function checkerFloor(x, y, w, h, a = P.tileA, b = P.tileB, s = 8) { for (let yy = 0; yy < h; yy += s) for (let xx = 0; xx < w; xx += s) R(x + xx, y + yy, Math.min(s, w - xx), Math.min(s, h - yy), ((xx + yy) / s) % 2 ? a : b); }
+function marble(x, y, w, h) { R(x, y, w, h, '#e4e0d8'); for (let yy = y; yy < y + h; yy += 16) for (let xx = x; xx < x + w; xx += 16) { R(xx, yy, 16, 1, '#c8c2b8'); R(xx, yy, 1, 16, '#c8c2b8'); if (hash(xx, yy) > 0.5) R(xx + 3, yy + 6, 8, 1, '#d4cec4'); } }
+function carpet(x, y, w, h, col) { R(x, y, w, h, col); for (let yy = y; yy < y + h; yy += 3) for (let xx = x + (yy % 2); xx < x + w; xx += 4) R(xx, yy, 1, 1, shade(col, -14)); }
+
+/** Walls, Streets-of-Rogue style: thin, roofless, a light top edge and a short front face. */
+const WALL = {
+  brick: { top: P.brickTop, face: P.brick, dark: P.brickDark },
+  stone: { top: P.stoneTop, face: P.stone, dark: P.stoneDark },
+  blue: { top: '#7ac8e8', face: '#3a7aa8', dark: '#24506e' },
+  glass: { top: '#c8ecf8', face: '#6ab0d0', dark: '#3a7898' },
+  plaster: { top: '#f2ece0', face: '#d8ccb8', dark: '#a89a84' },
+};
+function wallH(x0, x1, y, kind = 'brick', { gaps = [], windows = [] } = {}) {
+  const k = WALL[kind];
+  for (let x = x0; x < x1; x++) {
+    if (gaps.some(([a, b]) => x >= a && x < b)) continue;
+    R(x, y - 4, 1, 1, P.ink); R(x, y - 3, 1, 3, k.top); R(x, y, 1, 6, k.face); R(x, y + 6, 1, 1, P.ink);
+    if (kind === 'brick' && ((x + (y % 2) * 2) % 4 === 0)) { R(x, y + 2, 1, 1, k.dark); }
+    if (kind === 'brick' && ((x + 2) % 4 === 0)) R(x, y + 4, 1, 1, k.dark);
+  }
+  for (const a of [x0, x1 - 1]) R(a, y - 4, 1, 11, P.ink);
+  for (const [a, b] of gaps) { R(a - 1, y - 4, 1, 11, P.ink); R(b, y - 4, 1, 11, P.ink); }
+  for (const wx of windows) { box(wx, y + 1, 10, 4, P.glass); R(wx + 1, y + 1, 3, 1, '#e8f8ff'); }
+  R(x0, y + 7, x1 - x0, 2, 'rgba(10,8,20,0.25)'); // shadow at its foot
+}
+function wallV(x, y0, y1, kind = 'brick', { gaps = [] } = {}) {
+  const k = WALL[kind];
+  for (let y = y0 - 4; y < y1 + 3; y++) {
+    if (gaps.some(([a, b]) => y >= a && y < b)) continue;
+    R(x - 1, y, 6, 1, P.ink); R(x, y, 4, 1, k.top);
+  }
+  R(x, y1 + 3, 4, 3, k.face); R(x - 1, y1 + 6, 6, 1, P.ink);
+  R(x + 5, y0, 2, y1 - y0 + 6, 'rgba(10,8,20,0.22)');
+}
+function door(x, y, open = false) { box(x, y - 3, 12, 8, open ? '#3a2a20' : '#8a5a30'); if (!open) { R(x + 2, y - 2, 8, 1, '#a87040'); R(x + 9, y + 1, 1, 1, '#f2d060'); } }
+
+// ------------------------------------------------------------ props
+function lamp(x, y, night = false) {
+  // a long shadow up and to the right, the post, the head
+  c.fillStyle = 'rgba(10,8,20,0.28)'; for (let k = 0; k < 26; k++) c.fillRect(x + 1 + k, y - 1 - Math.round(k * 0.55), 2, 1);
+  box(x - 1, y - 1, 4, 3, '#3a3a44');
+  R(x, y - 26, 2, 25, P.ink); R(x + 1, y - 26, 1, 25, '#5a5a66');
+  box(x - 2, y - 30, 6, 4, '#4a4a56'); R(x - 1, y - 27, 4, 1, night ? '#fff2b0' : '#d8d4c0');
+}
+function hydrant(x, y) { shadow(x + 2, y + 5, 4, 2); box(x, y, 5, 5, '#c83a2a'); R(x + 1, y + 1, 3, 1, '#e8665a'); R(x - 1, y + 2, 7, 1, P.ink); }
+function bin(x, y) { shadow(x + 3, y + 7, 5, 2); box(x, y, 7, 7, '#4a5a4a'); R(x + 1, y + 1, 5, 1, '#6a7a6a'); R(x + 2, y + 3, 3, 1, '#2a3a2a'); }
+function bench(x, y, w = 18) { shadow(x + w / 2, y + 7, w / 2 + 1, 2); box(x, y, w, 3, '#8a5a30'); box(x, y + 4, w, 2, '#7a4a28'); R(x + 1, y + 6, 1, 2, P.ink); R(x + w - 2, y + 6, 1, 2, P.ink); }
+function tree(x, y) { shadow(x + 4, y + 4, 10, 4); R(x - 1, y - 6, 3, 8, '#5a3a22'); disc(x, y - 12, 9, P.ink); disc(x, y - 12, 8, '#3e6e2e'); disc(x - 2, y - 14, 5, '#4f8a3a'); disc(x - 3, y - 15, 2, '#6aa84a'); }
+function planter(x, y, w) { box(x, y, w, 6, '#7a6a5a'); for (let k = 0; k < w; k += 3) R(x + k, y + 1, 2, 2, ['#e85a7a', '#f2d050', '#e8e8f8', '#a86ad8'][(k / 3) % 4]); R(x, y + 3, w, 2, '#3e6e2e'); }
+function drain(x, y) { R(x, y, 8, 3, '#2a2832'); for (let k = 1; k < 8; k += 2) R(x + k, y, 1, 3, '#55535f'); }
+function plant(x, y) { box(x, y + 2, 6, 4, '#9a5a3a'); disc(x + 3, y, 4, '#3e6e2e'); R(x + 2, y - 3, 1, 2, '#6aa84a'); R(x + 4, y - 2, 1, 2, '#6aa84a'); }
+function roundTable(x, y, r = 6) { shadow(x + 1, y + r, r, 2); disc(x, y, r + 1, P.ink); disc(x, y, r, '#9a6a40'); disc(x - 2, y - 2, 2, '#b88a5a'); }
+function chair(x, y, col = '#2a5aa8') { box(x, y, 5, 5, col); R(x, y, 5, 1, shade(col, 40)); }
+function sofa(x, y, w = 22, col = '#3a3a44') { shadow(x + w / 2, y + 9, w / 2 + 2, 2); box(x, y, w, 8, col); R(x + 1, y + 1, w - 2, 2, shade(col, 25)); R(x + 3, y + 4, w - 6, 3, shade(col, 12)); }
+function counter(x, y, w, h = 6, col = '#6a4428', top = '#c8a070') { box(x, y, w, h, col); R(x, y, w, 2, top); }
+function stool(x, y) { disc(x + 2, y + 2, 2, P.ink); disc(x + 2, y + 2, 1, '#c83a3a'); }
+function desk(x, y, monitor = true) { shadow(x + 9, y + 9, 10, 2); box(x, y, 18, 8, '#7a6448'); R(x, y, 18, 1, '#9a845e'); if (monitor) { box(x + 5, y - 3, 8, 5, '#2a2a34'); R(x + 6, y - 2, 6, 3, '#5ab8e8'); } R(x + 1, y + 3, 4, 3, '#e8e2d4'); }
+function cabinet(x, y) { box(x, y, 8, 10, '#8a92a0'); for (let k = 1; k < 10; k += 3) { R(x, y + k + 2, 8, 1, '#6a7280'); R(x + 3, y + k, 2, 1, '#c8ccd4'); } }
+function poolTable(x, y) { shadow(x + 15, y + 12, 17, 3); box(x, y, 30, 18, '#5a3a22'); R(x + 2, y + 2, 26, 14, '#2a7a4a'); for (const [a, b] of [[2, 2], [27, 2], [2, 15], [27, 15], [14, 2], [14, 15]]) R(x + a, y + b, 1, 1, P.ink); R(x + 8, y + 8, 1, 1, '#f8f8f8'); R(x + 20, y + 7, 1, 1, '#e83a3a'); R(x + 21, y + 9, 1, 1, '#f2d050'); }
+function elevator(x, y, open = false) { box(x, y, 20, 8, '#9aa0aa'); R(x + 1, y + 1, 18, 1, '#c8ccd4'); if (open) R(x + 3, y + 2, 14, 6, '#1a1a22'); else { R(x + 3, y + 2, 7, 6, '#b8bcc4'); R(x + 10, y + 2, 7, 6, '#a8acb4'); R(x + 10, y + 2, 1, 6, P.ink); } R(x + 22, y + 2, 2, 3, '#f2c14e'); }
+function stairs(x, y, up = true) { box(x, y, 14, 18, '#7a7480'); for (let k = 0; k < 6; k++) R(x + 1, y + 1 + k * 3, 12, 1, up ? shade('#7a7480', 30 - k * 6) : shade('#7a7480', -k * 6)); text(up ? '▲' : '▼', x + 7, y + 5, '#f2c14e', { size: 7, align: 'center' }); }
+function sign(x, y, str, col = '#2a2a34', fg = '#f2c14e') { const w = str.length * 5 + 6; box(x - w / 2, y, w, 9, col); text(str, x, y + 1, fg, { size: 7, align: 'center', outline: null }); }
+
+// ------------------------------------------------------------ cars (top-down)
+function car(x, y, dir, col, kind = 'sedan') {
+  // dir: 'v' (vertical, nose down) or 'h' (horizontal, nose right)
+  const L = kind === 'van' ? 36 : kind === 'cruiser' ? 34 : kind === 'bus' ? 70 : 32;
+  const Wd = kind === 'bus' ? 20 : 17;
+  c.save();
+  c.translate(Math.round(x), Math.round(y));
+  if (dir === 'h') { c.rotate(-Math.PI / 2); }
+  shadow(3, 3, Wd / 2 + 2, L / 2 + 1, 0.3);
+  // wheels
+  for (const sy of [-L / 2 + 4, L / 2 - 8]) { R(-Wd / 2 - 1, sy, 2, 5, P.ink); R(Wd / 2 - 1, sy, 2, 5, P.ink); }
+  box(-Wd / 2, -L / 2, Wd, L, col);
+  R(-Wd / 2, -L / 2, 2, L, shade(col, 30)); R(Wd / 2 - 2, -L / 2, 2, L, shade(col, -30));
+  if (kind === 'bus') {
+    R(-Wd / 2 + 2, -L / 2 + 2, Wd - 4, L - 4, '#e8e0cc');
+    for (let k = 0; k < 7; k++) R(-Wd / 2 + 1, -L / 2 + 6 + k * 8, 1, 5, '#4c8aa8'), R(Wd / 2 - 2, -L / 2 + 6 + k * 8, 1, 5, '#4c8aa8');
+    R(-4, L / 2 - 6, 8, 3, '#4c8aa8');
+    text('1', 0, -4, '#2f6b4f', { size: 7, align: 'center', outline: null });
+  } else {
+    const glassY = kind === 'van' ? L / 2 - 9 : L / 2 - 10;
+    R(-Wd / 2 + 2, glassY, Wd - 4, 4, '#2a4a6a'); R(-Wd / 2 + 3, glassY, 3, 1, '#8cc8e0'); // windscreen (nose down)
+    R(-Wd / 2 + 2, -L / 2 + 3, Wd - 4, 3, '#2a4a6a'); // rear window
+    R(-Wd / 2 + 2, -L / 2 + 7, Wd - 4, glassY - (-L / 2 + 7), shade(col, 18)); // roof
+    if (kind === 'cruiser') { R(-Wd / 2 + 2, -2, Wd - 4, 2, '#2a2a34'); R(-Wd / 2 + 2, -2, (Wd - 4) / 2, 2, Math.sin(time * 10) > 0 ? '#ff3a3a' : '#5a1a1a'); R(0, -2, (Wd - 4) / 2, 2, Math.sin(time * 10) > 0 ? '#2a3a8a' : '#4a7aff'); R(-Wd / 2, -L / 2 + 10, Wd, 2, '#2a3a8a'); }
+    R(-Wd / 2 + 1, L / 2 - 1, 3, 1, '#fff6c0'); R(Wd / 2 - 4, L / 2 - 1, 3, 1, '#fff6c0');
+    R(-Wd / 2 + 1, -L / 2, 3, 1, '#c83a2a'); R(Wd / 2 - 4, -L / 2, 3, 1, '#c83a2a');
+  }
+  c.restore();
+}
+
+// ------------------------------------------------------------ people (chibi)
+const OUT = {
+  player: { skin: 1, hair: '#2a1a12', top: '#2a7a8a', legs: '#2a3448', hat: null, scarf: '#e8b83a' },
+  cop: { skin: 2, hair: '#1a1a22', top: '#3a6ac8', legs: '#1e2a48', hat: '#1e2a48', badge: true },
+  mags: { skin: 0, hair: '#c8c8d0', top: '#c84a6a', legs: '#5a3a5a', apron: '#f2ece0' },
+  gang: { skin: 3, hair: '#1a1a1a', top: '#2a2a2a', legs: '#3a3a3a', hat: '#8a2a2a' },
+  exec: { skin: 0, hair: '#5a3a1a', top: '#2a2a3a', legs: '#2a2a3a', tie: '#c83a2a' },
+  worker: { skin: 2, hair: '#3a2a1a', top: '#e8a02a', legs: '#3a4a6a', hat: '#f2d050' },
+  lady: { skin: 1, hair: '#8a3a1a', top: '#6a9a4a', legs: '#4a3a2a' },
+  kid: { skin: 0, hair: '#e8c060', top: '#e85a5a', legs: '#2a5aa8' },
+  arthur: { skin: 1, hair: '#6a6a6a', top: '#5a3a2a', legs: '#2a2a2a', tie: '#2a5a2a' },
+};
+function person(x, y, o, { face = 'down', step = 0, gun = false } = {}) {
+  x = Math.round(x); y = Math.round(y);
+  const s = P.skin[o.skin];
+  shadow(x, y, 5, 2, 0.35);
+  // legs
+  const a = Math.round(Math.sin(step) * 1.5);
+  box(x - 3, y - 4 + Math.max(0, a), 2, 3 - Math.max(0, a), o.legs); box(x + 1, y - 4 + Math.max(0, -a), 2, 3 - Math.max(0, -a), o.legs);
+  // body
+  box(x - 4, y - 10, 8, 6, o.top);
+  R(x - 4, y - 10, 8, 1, shade(o.top, 30));
+  if (o.apron) R(x - 2, y - 8, 4, 4, o.apron);
+  if (o.tie) R(x, y - 9, 1, 4, o.tie);
+  if (o.badge) R(x + 1, y - 8, 2, 2, '#f2d050');
+  if (o.scarf) R(x - 3, y - 10, 6, 1, o.scarf);
+  // arms
+  box(x - 6, y - 9, 2, 4, o.top); box(x + 4, y - 9, 2, 4, o.top); R(x - 6, y - 5, 2, 1, s); R(x + 4, y - 5, 2, 1, s);
+  if (gun) { box(x + 5, y - 6, 6, 2, '#2a2a30'); }
+  // big head
+  box(x - 5, y - 19, 10, 9, s);
+  R(x - 5, y - 19, 10, 3, o.hair); R(x - 5, y - 16, 2, 2, o.hair); R(x + 3, y - 16, 2, 2, o.hair);
+  if (face === 'down') { R(x - 2, y - 14, 1, 2, P.ink); R(x + 2, y - 14, 1, 2, P.ink); R(x - 3, y - 12, 1, 1, '#e8a0a0'); R(x + 3, y - 12, 1, 1, '#e8a0a0'); }
+  else if (face === 'up') R(x - 5, y - 19, 10, 7, o.hair);
+  else if (face === 'right') { R(x + 2, y - 14, 1, 2, P.ink); R(x - 5, y - 19, 4, 7, o.hair); }
+  else if (face === 'left') { R(x - 3, y - 14, 1, 2, P.ink); R(x + 1, y - 19, 4, 7, o.hair); }
+  if (o.hat) { box(x - 6, y - 20, 12, 2, o.hat); box(x - 4, y - 22, 8, 3, o.hat); R(x - 4, y - 22, 8, 1, shade(o.hat, 30)); }
+}
+function bubble(x, y, str) { const w = str.length * 5 + 8; box(x - w / 2, y - 12, w, 10, '#f8f4ec'); R(x - 1, y - 2, 3, 2, '#f8f4ec'); R(x - 1, y, 1, 1, P.ink); text(str, x, y - 11, P.ink, { size: 7, align: 'center', outline: null }); }
+function marker(x, y, letter, col = '#4ad84a') { box(x - 6, y - 12, 12, 11, '#f8f4ec'); text(letter, x, y - 12, col, { size: 9, align: 'center' }); R(x - 1, y - 1, 3, 2, '#f8f4ec'); }
+
+// ------------------------------------------------------------ the HUD (the Oberverse's own, in the new style)
+function hud({ place, clock = '12:56', money = 61, health = 0.62, quest, floor }) {
+  // health and energy
+  box(6, 6, 104, 12, '#2a2a6a', '#14143a'); R(8, 8, 100, 8, '#5a1a1a'); R(8, 8, 100 * health, 8, '#e83a3a'); R(8, 8, 100 * health, 2, '#ff8a6a');
+  R(8, 8, Math.min(100 * health, 28), 8, '#f2c14e');
+  text(`HEALTH ${Math.round(80 * health)}/80`, 12, 8, '#fff', { size: 7 });
+  box(6, 21, 70, 5, '#2a2a6a', '#14143a'); R(7, 22, 48, 3, '#5ad84a');
+  // clock & money
+  const night = +clock.slice(0, 2) >= 20 || +clock.slice(0, 2) < 6;
+  if (night) { disc(328, 14, 6, '#e8e8f8'); disc(331, 12, 5, '#14143a'); }
+  else { disc(328, 14, 5, '#f2c14e'); for (let k = 0; k < 8; k++) R(328 + Math.round(Math.cos(k) * 8), 14 + Math.round(Math.sin(k) * 8), 1, 1, '#f2c14e'); }
+  text(clock, 338, 8, '#fff', { size: 10 });
+  text(`${money} OBOLS`, 338, 21, '#f2c14e', { size: 7 });
+  // minimap
+  box(398, 4, 76, 52, '#20203a', '#4a4aa8'); R(400, 6, 72, 48, '#5e5c66');
+  for (let k = 0; k < 14; k++) R(402 + (k % 5) * 14, 10 + Math.floor(k / 5) * 14, 10, 8, '#8a8890');
+  R(400, 28, 72, 3, '#3e3c48'); R(430, 6, 3, 48, '#3e3c48'); R(431, 29, 2, 2, '#f2c14e');
+  text(place, 472, 7, '#fff', { size: 7, align: 'right' });
+  // hotbar
+  box(6, 240, 106, 24, '#20203a', '#4a4aa8');
+  const items = [['#8a6a4a', '#c8c8d0'], ['#2a2a30', '#5a5a66'], ['#e8a02a', '#f2d050'], ['#8a5a30', '#c8a060'], ['#3a7a4a', '#e8f2e0']];
+  items.forEach(([a, b], i) => { box(9 + i * 21, 243, 18, 18, '#2c2c48', '#14143a'); R(13 + i * 21, 247, 10, 4, a); R(15 + i * 21, 251, 6, 6, b); text(String(i + 1), 10 + i * 21, 252, '#f2d050', { size: 7 }); });
+  if (quest) { R(330, 242, 146, 22, 'rgba(10,10,30,0.72)'); text(`▼ ${quest[0]}`, 334, 244, '#5ad84a', { size: 7 }); text(quest[1], 334, 254, '#e8e8f0', { size: 7 }); }
+  if (floor) { box(180, 6, 120, 14, '#20203a', '#4a4aa8'); text(floor, 240, 9, '#f2c14e', { size: 7, align: 'center' }); }
+}
+
+// ------------------------------------------------------------ scene: the street
+function streetGround(ox = 0, oy = 0, people = true) {
+  c.save(); c.translate(ox, oy);
+  // roads: a 4-lane avenue E–W, and a cross street N–S
+  const RX0 = 176, RX1 = 240, RY0 = 120, RY1 = 176;
+  sidewalk(0, 0, W, H);
+  asphalt(RX0, -40, RX1 - RX0, H + 80); asphalt(-40, RY0, W + 80, RY1 - RY0);
+  // kerbs (rounded corners skipped: a chunky step instead)
+  curb(-40, RY0 - 4, RX0 + 40, 's'); curb(RX1, RY0 - 4, W, 's');
+  curb(-40, RY1 + 4, RX0 + 40, 'n'); curb(RX1, RY1 + 4, W, 'n');
+  curb(RX0 - 4, -40, RY0 + 36, 'e'); curb(RX0 - 4, RY1 + 4, H, 'e');
+  curb(RX1 + 4, -40, RY0 + 36, 'w'); curb(RX1 + 4, RY1 + 4, H, 'w');
+  // markings
+  dashH(-40, RX0 - 14, (RY0 + RY1) / 2 - 1); dashH(RX1 + 14, W + 40, (RY0 + RY1) / 2 - 1);
+  dashV(-40, RY0 - 14, (RX0 + RX1) / 2 - 1); dashV(RY1 + 14, H + 40, (RX0 + RX1) / 2 - 1);
+  for (const [x, y] of [[RX0, RY0 - 10], [RX0, RY1 + 4]]) R(x, y, RX1 - RX0, 2, '#d8d4cc');
+  crosswalk(RX0 - 14, RY0 + 2, 10, RY1 - RY0 - 4, false); crosswalk(RX1 + 4, RY0 + 2, 10, RY1 - RY0 - 4, false);
+  crosswalk(RX0 + 2, RY0 - 12, RX1 - RX0 - 4, 8, true); crosswalk(RX0 + 2, RY1 + 4, RX1 - RX0 - 4, 8, true);
+  drain(RX0 - 12, RY0 - 2); drain(RX1 + 4, RY1 + 1); drain(60, RY1 + 1); drain(330, RY0 - 2);
+  // ---- NW: the Kettle & Crumb, roofless, open to the street
+  woodFloor(8, 6, 150, 92);
+  wallH(6, 160, 6, 'brick', { windows: [] });
+  wallV(4, 6, 98, 'brick'); wallV(158, 6, 98, 'brick');
+  wallH(6, 160, 98, 'brick', { gaps: [[64, 78]], windows: [20, 36, 100, 120, 136] });
+  door(65, 98, true);
+  counter(96, 30, 56, 7); for (let k = 0; k < 5; k++) R(100 + k * 10, 31, 6, 3, ['#e8c890', '#c87a4a', '#f2e8d0', '#e8a0b0', '#c8a060'][k]);
+  box(126, 12, 22, 6, '#5a5a66'); R(128, 13, 4, 3, '#e86a2a'); // the oven
+  roundTable(60, 46); chair(50, 43); chair(66, 43); roundTable(132, 60); chair(121, 57); chair(139, 57);
+  roundTable(96, 72); chair(86, 69); chair(102, 69); plant(150, 82); plant(10, 82);
+  carpet(20, 60, 34, 22, '#8a3a4a');
+  sign(112, 104, 'THE KETTLE & CRUMB', '#6a2a3a', '#f2d8a0');
+  // ---- NE: a parking lot and Pipecreek Armory
+  R(254, 8, 92, 96, '#5e5c66'); for (let k = 0; k < 5; k++) R(262 + k * 18, 60, 1, 34, '#d8d4cc');
+  carpet(354, 8, 120, 60, '#3a3a40'); checkerFloor(356, 10, 116, 56, '#4a4a52', '#3a3a42', 8);
+  wallH(352, 476, 8, 'stone'); wallV(350, 8, 68, 'stone'); wallH(352, 476, 68, 'stone', { gaps: [[404, 418]], windows: [362, 380, 432, 452] });
+  door(405, 68, true);
+  counter(366, 20, 70, 7, '#3a3a40', '#6a6a72'); for (let k = 0; k < 6; k++) box(370 + k * 11, 21, 7, 2, '#2a2a30');
+  box(440, 16, 26, 4, '#5a3a22'); for (let k = 0; k < 4; k++) R(442 + k * 6, 13, 2, 7, '#2a2a30');
+  sign(412, 72, 'PIPECREEK ARMORY', '#2a2a30', '#e8665a');
+  // ---- SW: Precinct 1 (stone), offices visible inside
+  checkerFloor(8, 196, 152, 74, '#cfd6e0', '#b8c0cc', 8);
+  wallH(6, 160, 196, 'stone', { gaps: [[70, 84]], windows: [18, 34, 100, 120, 140] }); door(71, 196, true);
+  wallV(4, 196, 270, 'stone'); wallV(158, 196, 270, 'stone');
+  desk(20, 214); desk(52, 214); cabinet(130, 210); cabinet(140, 210); desk(96, 236); desk(124, 236);
+  sign(80, 184, 'PRECINCT 1', '#1e2a48', '#e8e8f8');
+  // ---- SE: the foot of Ober's Oil Tower — a glass lobby (the rest is upstairs)
+  marble(258, 194, 216, 76);
+  wallH(256, 476, 194, 'glass', { gaps: [[352, 372]] }); wallV(254, 194, 270, 'glass');
+  elevator(410, 202); elevator(440, 202, true); counter(280, 214, 50, 7, '#2a2a34', '#c8a040');
+  plant(264, 204); plant(340, 204); sofa(300, 244, 30, '#7a2a2a');
+  sign(362, 182, "OBER'S OIL TOWER", '#2a2a34', '#f2c14e');
+  // ---- street furniture
+  for (const [x, y] of [[40, 112], [140, 112], [270, 112], [400, 112], [40, 190], [140, 190], [300, 190], [430, 190]]) lamp(x, y);
+  hydrant(166, 108); hydrant(246, 184); bin(100, 104); bin(440, 182); bench(320, 104, 18);
+  tree(452, 108); planter(286, 108, 24); planter(30, 186, 24);
+  c.restore();
+}
+function sceneStreet() {
+  streetGround();
+  // traffic: a bus, a cruiser with its lights going, cars in both directions; one wreck
+  car(196, 40, 'v', '#e8e8f0', 'van'); car(220, 236, 'v', '#2a8aa8'); car(196, 228, 'v', '#c8402a');
+  car(70, 134, 'h', '#3a6ac8', 'cruiser'); car(110, 134, 'h', '#e8c040'); car(330, 160, 'h', '#5a5a66'); car(290, 160, 'h', '#e83a3a');
+  car(420, 134, 'h', '#2f6b4f', 'bus');
+  car(276, 40, 'v', '#4ab0c8'); car(312, 40, 'v', '#e8a040');
+  // people
+  person(208, 146, OUT.player, { face: 'right', gun: true });
+  person(226, 140, OUT.gang, { face: 'left' });
+  person(150, 146, OUT.cop, { face: 'right', step: time * 8 });
+  person(124, 46, OUT.mags, { face: 'down' }); bubble(124, 24, 'MORE TEA?');
+  person(60, 64, OUT.lady, { face: 'up' }); person(130, 82, OUT.kid, { face: 'up' });
+  person(62, 116, OUT.worker, { step: time * 8, face: 'right' }); person(380, 118, OUT.lady, { face: 'left', step: time * 7 });
+  person(300, 228, OUT.exec, { face: 'down' }); person(40, 236, OUT.cop, { face: 'down' }); person(410, 40, OUT.gang, { face: 'down' });
+  // a scuffle's aftermath
+  for (let k = 0; k < 14; k++) R(214 + hash(k, 1) * 14, 156 + hash(2, k) * 6, 2, 1, '#8a1a1a');
+  hud({ place: 'HALVERMOUTH', quest: ['ROUGH UP ARTHUR\'S DEBTOR', 'RETURN TO THE ABACUS'] });
+}
+
+// ------------------------------------------------------------ scene: the Abacus at night (lighting)
+function sceneBar() {
+  sidewalk(0, 0, W, H);
+  asphalt(0, 200, W, 70); curb(0, 196, W, 's'); dashH(0, W, 234);
+  checkerFloor(40, 18, 380, 168, '#2a3a2a', '#22302a', 12);
+  wallH(38, 422, 18, 'blue'); wallV(36, 18, 186, 'blue'); wallV(420, 18, 186, 'blue');
+  wallH(38, 422, 186, 'blue', { gaps: [[220, 236]], windows: [60, 90, 300, 340, 380] }); door(221, 186, true);
+  wallV(300, 18, 110, 'blue', { gaps: [[60, 80]] });
+  counter(60, 40, 120, 8, '#3a2a20', '#8a6a40'); for (let k = 0; k < 9; k++) stool(66 + k * 13, 52);
+  for (let k = 0; k < 10; k++) box(64 + k * 11, 30, 4, 6, ['#3a8a4a', '#8a3a2a', '#c8a040', '#4a6ac8'][k % 4]);
+  poolTable(120, 100); roundTable(230, 60); chair(220, 57); chair(236, 57); roundTable(250, 130); chair(240, 127); chair(256, 127);
+  sofa(320, 40, 40, '#5a2a5a'); desk(340, 80); cabinet(400, 30); box(360, 120, 40, 30, '#2a2a34'); text('Σ', 380, 128, '#5ad84a', { size: 12, align: 'center', outline: null });
+  person(110, 36, OUT.gang, { face: 'down' }); person(250, 80, OUT.gang, { face: 'left' }); person(275, 150, OUT.gang, { face: 'up' });
+  person(350, 72, OUT.arthur, { face: 'down' }); bubble(350, 50, 'DO THE MATHS!');
+  person(228, 196, OUT.player, { face: 'up' }); person(150, 128, OUT.worker, { face: 'right' });
+  lamp(120, 194, true); lamp(330, 194, true);
+  car(380, 222, 'h', '#2a8a4a');
+  // night: darkness with pools of light (lamps, the bar, the neon sign)
+  const dark = document.createElement('canvas'); dark.width = W; dark.height = H; const d = dark.getContext('2d');
+  d.fillStyle = 'rgba(12,10,40,0.78)'; d.fillRect(0, 0, W, H);
+  d.globalCompositeOperation = 'destination-out';
+  const light = (x, y, r, a = 1) => { const gr = d.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(0.55, `rgba(0,0,0,${a * 0.7})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); d.fillStyle = gr; d.fillRect(x - r, y - r, r * 2, r * 2); };
+  light(120, 168, 50); light(330, 168, 50); light(120, 70, 70); light(250, 100, 60, 0.8); light(360, 80, 55); light(228, 190, 30, 0.7);
+  c.drawImage(dark, 0, 0);
+  // warm and neon glows on top
+  c.globalCompositeOperation = 'lighter';
+  const glow = (x, y, r, rgb, a) => { const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); };
+  glow(120, 166, 34, '255,220,140', 0.25); glow(330, 166, 34, '255,220,140', 0.25); glow(380, 135, 26, '90,255,120', 0.3); glow(120, 60, 50, '255,160,90', 0.18);
+  c.globalCompositeOperation = 'source-over';
+  sign(230, 192 - 14, 'THE ABACUS', '#14142a', '#5ad84a');
+  hud({ place: 'THE SUMPS', clock: '23:40', money: 61, health: 0.38, quest: ['SETTLE THE TAB', 'TALK TO ARTHUR'] });
+}
+
+// ------------------------------------------------------------ scene: Ober's Oil Tower (multi-level)
+/** The city far below, seen from up the tower: the street scene, shrunk, hazed, drifting with parallax. */
+function cityBelow(scale, haze, drift) {
+  const g = document.createElement('canvas'); g.width = W; g.height = H;
+  // render the street (no HUD) into the offscreen by temporarily swapping the drawing context
+  swapCtx(g.getContext('2d'), () => { streetGround(); car(196, 40, 'v', '#e8e8f0', 'van'); car(110, 134, 'h', '#e8c040'); car(330, 160, 'h', '#5a5a66'); car(420, 134, 'h', '#2f6b4f', 'bus'); });
+  c.imageSmoothingEnabled = false;
+  for (let ty = -1; ty < 3; ty++) for (let tx = -1; tx < 3; tx++) c.drawImage(g, Math.round(tx * W * scale + drift), Math.round(ty * H * scale - drift * 0.4), Math.round(W * scale), Math.round(H * scale));
+  R(0, 0, W, H, `rgba(150,180,220,${haze})`);
+  // clouds, and their shadows on the city
+  for (let k = 0; k < 5; k++) {
+    const cx = ((k * 131 + time * 6) % (W + 120)) - 60, cy = 30 + ((k * 71) % (H - 60));
+    c.fillStyle = 'rgba(20,30,60,0.12)'; for (let j = 0; j < 4; j++) { c.beginPath(); c.arc(cx + 18 + j * 9, cy + 26, 10, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = 'rgba(255,255,255,0.55)'; for (let j = 0; j < 4; j++) { c.beginPath(); c.arc(cx + j * 9, cy + (j % 2) * 3, 10, 0, Math.PI * 2); c.fill(); }
+  }
+}
+function swapCtx(next, fn) { const prev = c; c = next; try { fn(); } finally { c = prev; } }
+
+/** A floor plate floating over the void: deep shadow, the facade falling away below its south edge. */
+function floorPlate(x, y, w, h) {
+  R(x + 10, y + 12, w, h, 'rgba(10,15,40,0.45)'); // the drop shadow far below
+  for (let k = 0; k < 14; k++) R(x, y + h + k, w, 1, shade('#3a4258', -k * 3)); // facade receding
+  for (let k = 0; k < w; k += 10) R(x + k, y + h, 4, 14, 'rgba(140,200,230,0.25)');
+}
+function sceneTower(floor) {
+  const roof = floor === 'roof';
+  cityBelow(roof ? 0.42 : 0.55, roof ? 0.42 : 0.34, time * 2);
+  const X = 60, Y = 34, Wd = 360, Ht = 196;
+  floorPlate(X, Y, Wd, Ht);
+  if (roof) {
+    R(X, Y, Wd, Ht, '#6a6e78'); for (let yy = Y; yy < Y + Ht; yy += 4) for (let xx = X; xx < X + Wd; xx += 4) if (hash(xx, yy) > 0.8) R(xx, yy, 2, 2, '#7a7e88');
+    // helipad
+    disc(170, 130, 46, P.ink); disc(170, 130, 45, '#3e3c48'); disc(170, 130, 40, '#e8b83a'); disc(170, 130, 37, '#3e3c48');
+    R(156, 112, 6, 36, '#e8e8f0'); R(178, 112, 6, 36, '#e8e8f0'); R(156, 127, 28, 6, '#e8e8f0');
+    // plant: AC units, a water tank, the antenna, the stair hut
+    for (let k = 0; k < 3; k++) { box(270 + k * 26, 50, 20, 18, '#9aa0aa'); disc(280 + k * 26, 59, 6, '#5a5e66'); R(276 + k * 26, 58, 9, 1, '#2a2a30'); }
+    box(360, 50, 40, 40, '#7a5a3a'); disc(380, 70, 16, '#8a6a4a'); disc(380, 70, 12, '#9a7a5a');
+    R(330, 120, 2, 60, '#c83a2a'); for (let k = 0; k < 6; k++) R(326, 124 + k * 10, 10, 1, '#c83a2a'); R(329, 116, 4, 4, Math.sin(time * 4) > 0 ? '#ff3a3a' : '#5a1a1a');
+    box(250, 170, 40, 30, '#8a8e98'); stairs(260, 176, false);
+    // railings
+    for (let k = X; k < X + Wd; k += 4) { R(k, Y, 2, 3, '#c8ccd4'); R(k, Y + Ht - 3, 2, 3, '#c8ccd4'); }
+    for (let k = Y; k < Y + Ht; k += 4) { R(X, k, 3, 2, '#c8ccd4'); R(X + Wd - 3, k, 3, 2, '#c8ccd4'); }
+    // a helicopter coming in, its shadow on the pad
+    shadow(196, 150, 22, 8, 0.35);
+    const hx = 150 + Math.sin(time) * 4, hy = 92;
+    box(hx, hy, 34, 14, '#2a2a34'); R(hx + 2, hy + 2, 12, 10, '#8cc8e0'); box(hx + 34, hy + 5, 20, 4, '#2a2a34');
+    c.fillStyle = 'rgba(200,200,210,0.5)'; c.save(); c.translate(hx + 17, hy + 7); c.rotate(time * 18); c.fillRect(-30, -1, 60, 2); c.restore();
+    person(120, 180, OUT.player, { face: 'up' }); person(220, 186, OUT.exec, { face: 'left' }); bubble(220, 162, 'YOUR RIDE, SIR.');
+    hud({ place: 'OBER OIL TOWER', floor: 'ROOF  ·  FLOOR R / 20', quest: ['MEET SIR MONEYBUCKS', 'ON THE HELIPAD'] });
+    return;
+  }
+  // an office floor: carpet, glass walls round the edge, cores (lifts, stairs), offices, an open plan
+  carpet(X, Y, Wd, Ht, '#4a5a6e');
+  marble(X + 140, Y, 80, Ht);
+  wallH(X, X + Wd, Y, 'glass'); wallH(X, X + Wd, Y + Ht - 6, 'glass');
+  wallV(X - 2, Y, Y + Ht - 6, 'glass'); wallV(X + Wd - 2, Y, Y + Ht - 6, 'glass');
+  // the core
+  elevator(X + 148, Y + 12, floor === 14); elevator(X + 178, Y + 12); stairs(X + 196, Y + 150, true); stairs(X + 150, Y + 150, false);
+  sign(X + 180, Y + 36, `FLOOR ${floor}`, '#2a2a34', '#f2c14e');
+  // offices on the west side, open plan on the east
+  wallH(X, X + 140, Y + 90, 'plaster', { gaps: [[X + 40, X + 54], [X + 100, X + 114]] }); wallV(X + 70, Y, Y + 90, 'plaster');
+  wallV(X + 138, Y, Y + Ht - 6, 'plaster', { gaps: [[Y + 120, Y + 140]] });
+  desk(X + 20, Y + 30); cabinet(X + 50, Y + 14); plant(X + 8, Y + 70); desk(X + 90, Y + 30); sofa(X + 90, Y + 62, 30, '#7a2a2a');
+  carpet(X + 10, Y + 106, 120, 80, '#6a3a3a'); box(X + 30, Y + 130, 80, 24, '#7a5a3a'); for (let k = 0; k < 6; k++) { chair(X + 34 + k * 13, Y + 122); chair(X + 34 + k * 13, Y + 157); }
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) desk(X + 232 + k * 30, Y + 30 + r * 50);
+  plant(X + 340, Y + 172); cabinet(X + 228, Y + 168); cabinet(X + 238, Y + 168);
+  person(X + 180, Y + 70, OUT.player, { face: 'down' });
+  person(X + 241, Y + 46, OUT.exec, { face: 'up' }); person(X + 301, Y + 96, OUT.exec, { face: 'up' }); person(X + 271, Y + 146, OUT.lady, { face: 'right' });
+  person(X + 70, Y + 150, OUT.exec, { face: 'down' }); bubble(X + 70, Y + 126, 'Q3 IS... UNWELL.');
+  hud({ place: 'OBER OIL TOWER', floor: `FLOOR ${floor} / 20  ·  OBER'S OIL HQ`, quest: ['STEAL THE LEDGER', 'BOARDROOM, FLOOR 14'] });
+}
+
+function sceneLobby() {
+  sidewalk(0, 0, W, H);
+  asphalt(0, 226, W, 44); curb(0, 222, W, 's'); dashH(0, W, 248);
+  marble(20, 14, 440, 196);
+  wallH(18, 462, 14, 'glass'); wallV(16, 14, 210, 'glass'); wallV(460, 14, 210, 'glass');
+  wallH(18, 462, 210, 'glass', { gaps: [[220, 260]] });
+  // revolving doors
+  disc(240, 214, 10, '#c8ecf8'); R(230, 213, 20, 2, '#3a7898'); R(239, 204, 2, 20, '#3a7898');
+  // the core: four lifts, stairs both ways, the directory board
+  for (let k = 0; k < 4; k++) elevator(150 + k * 44, 26, k === 1);
+  stairs(110, 26, true); stairs(340, 26, false);
+  box(390, 24, 50, 30, '#2a2a34'); text('FLOORS', 415, 26, '#f2c14e', { size: 7, align: 'center', outline: null });
+  ['20 ROOF', '14 BOARD', '9  LABS', '2  SECURITY', 'G  LOBBY'].forEach((t, i) => text(t, 394, 34 + i * 4, '#e8e8f0', { size: 4, outline: null }));
+  // reception and security
+  counter(200, 110, 80, 10, '#2a2a34', '#c8a040'); box(232, 104, 16, 5, '#5ab8e8');
+  box(60, 120, 30, 12, '#3a3a44'); R(62, 122, 26, 3, '#5ab8e8'); box(96, 112, 6, 24, '#9aa0aa'); box(120, 112, 6, 24, '#9aa0aa'); // a scanner gate
+  // a lounge, plants, the oil-company logo on the floor
+  carpet(320, 120, 110, 70, '#7a2a2a'); sofa(330, 130, 36, '#3a3a44'); sofa(380, 166, 36, '#3a3a44'); roundTable(400, 145);
+  for (const [x, y] of [[30, 30], [30, 190], [446, 190], [300, 190]]) plant(x, y);
+  disc(150, 170, 22, '#c8a040'); disc(150, 170, 18, '#2a2a34'); text('OO', 150, 165, '#c8a040', { size: 9, align: 'center', outline: null });
+  person(240, 120, OUT.lady, { face: 'down' }); bubble(240, 98, 'FLOOR 14 IS STAFF ONLY.');
+  person(110, 140, OUT.cop, { face: 'right' }); person(200, 60, OUT.player, { face: 'up' }); person(260, 50, OUT.exec, { face: 'up' }); person(350, 152, OUT.exec, { face: 'left' });
+  for (const [x, y] of [[80, 220], [400, 220]]) lamp(x, y);
+  car(120, 248, 'h', '#141418'); car(320, 248, 'h', '#e8c040');
+  hud({ place: 'OBER OIL TOWER', floor: 'FLOOR G / 20  ·  THE LOBBY', quest: ['STEAL THE LEDGER', 'BOARDROOM, FLOOR 14'] });
+}
+
+// ------------------------------------------------------------ scenes, drawing loop
+const SCENES = {
+  street: { name: 'The street', cap: 'Halvermouth at the crossroads by day: roofless buildings you see straight into, kerbs with a lip, dashed lines, long lamp shadows, a cruiser with its lights on, chibi people.', draw: sceneStreet },
+  bar: { name: 'Night: the Abacus', cap: 'Lighting: the night is a dark wash with pools of lamp and neon light cut out of it — the same trick for every interior and street lamp.', draw: sceneBar },
+  lobby: { name: 'Tower: ground floor', cap: 'Inside Ober\'s Oil Tower at street level: its lobby is just another roofless room. The lifts and stairs lead up — each floor is its own level, drawn over the city below.', draw: sceneLobby },
+  floor14: { name: 'Tower: floor 14', cap: 'Upstairs, the floor plate floats over the city: the street far below (the same art, shrunk and hazed, drifting as you move), the facade falling away under the south edge, clouds passing between.', draw: () => sceneTower(14) },
+  roof: { name: 'Tower: the roof', cap: 'The roof: helipad, plant, the antenna — and the city even further down.', draw: () => sceneTower('roof') },
+};
+let scene = new URLSearchParams(location.search).get('scene') || 'street';
+const nav = document.getElementById('nav');
+for (const [id, s] of Object.entries(SCENES)) { const b = document.createElement('button'); b.textContent = s.name; b.onclick = () => { scene = id; render(); }; b.dataset.id = id; nav.append(b); }
+function render() {
+  // route every primitive through the current context
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  R(0, 0, W, H, '#000');
+  SCENES[scene].draw();
+  sc.imageSmoothingEnabled = false;
+  sc.drawImage(low, 0, 0, 1920, 1080);
+  document.getElementById('cap').textContent = SCENES[scene].cap;
+  for (const b of nav.children) b.className = b.dataset.id === scene ? 'on' : '';
+}
+function loop(t) { time = t / 1000; render(); requestAnimationFrame(loop); }
+if (new URLSearchParams(location.search).get('still')) { time = 1.3; render(); window.__ready = true; } else requestAnimationFrame(loop);
+</script>
+</body>
+</html>
