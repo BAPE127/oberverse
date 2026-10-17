@@ -572,6 +572,26 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
 #hud-tablet { color: #eef0f8; }
 #hud-prompt { background: rgba(22, 22, 48, 0.92); border: 2px solid #4a4aa8; border-radius: 3px; color: #f4f4fc; }
 #hud-prompt kbd { background: #f2c14e; color: #14143a; border-radius: 2px; }
+
+/* v0.41.1 — the mock-up's HUD: a big health bar with numbers, the hotbar, dark captions and toasts */
+#hud-bl .bar:first-child span { display: none; }
+#hud-bl .bar:first-child .bar-track { height: 26px; position: relative; border-width: 3px; }
+#bar-health-text { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 13px; text-shadow: 1px 1px 0 #14143a, -1px 0 0 #14143a, 0 -1px 0 #14143a; }
+#hud-bl .bar:nth-child(2) span { display: none; }
+#hud-bl .bar:nth-child(2) .bar-track { height: 12px; border-width: 3px; }
+#hotbar { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 6px; padding: 6px; }
+#hotbar:empty { display: none; }
+.hb-slot { position: relative; width: 62px; height: 62px; padding: 0; background: #1e1e42; border: 3px solid #3a3a7a; border-radius: 2px; cursor: pointer; }
+.hb-slot.on { border-color: #f2c14e; box-shadow: inset 0 0 0 2px #14143a; }
+.hb-slot canvas { width: 48px; height: 48px; image-rendering: pixelated; margin-top: 4px; }
+.hb-key { position: absolute; left: 4px; top: 1px; font-size: 11px; font-weight: bold; color: #e8e8f8; }
+.hb-count { position: absolute; right: 4px; bottom: 1px; font-size: 11px; font-weight: bold; color: #f2d050; text-shadow: 1px 1px 0 #14143a; }
+.toast { background: rgba(22,22,48,.94); color: #f4f4fc; border: 2px solid #3a3a7a; border-left: 5px solid #5ad84a; border-radius: 2px; }
+.toast.warn { border-left-color: #e8503a; }
+.toast.quest { border-left-color: #f2c14e; }
+.toast.discover { border-left-color: #8a6bff; }
+#toasts { bottom: auto; top: 260px; }
+#hud-keys { opacity: .55; }
 </style>
 </head>
 <body>
@@ -591,10 +611,11 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
       <button id="hud-tablet" class="hud-card hidden" title="Open your tablet (J)"></button>
     </div>
     <div id="hud-bl" class="hud-card">
-      <div class="bar"><span>Health</span><div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div></div>
+      <div class="bar"><span>Health</span><div class="bar-track"><div id="bar-health" class="bar-fill health"></div><b id="bar-health-text"></b></div></div>
       <div class="bar"><span>Energy</span><div class="bar-track"><div id="bar-energy" class="bar-fill energy"></div></div></div>
       <div id="hud-weapon"></div>
     </div>
+    <div id="hotbar" class="hud-card"></div>
     <div id="hud-prompt" class="hidden"></div>
     <div id="build-bar" class="hud-card hidden"></div>
     <div id="hud-keys">E interact · F / click attack · R reload · X weapon · G surrender · Shift sprint · I inventory · J tablet · M map · Esc menu</div>
@@ -11674,7 +11695,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.41.0';
+const GAME_VERSION = '0.42.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -13385,6 +13406,89 @@ class Input {
 }
 
 return { Input };
+})();
+
+// ---- src/ui/hotbar.js
+__m["src/ui/hotbar.js"] = (function () {
+// The hotbar (v0.41.1, art revamp): bottom left, like the mock-up — fists and every weapon you own,
+// one slot each (keys 1–9 already quick-select them), a pixel-art icon, the ammo you have for a
+// gun, the one in your hand outlined in gold. Click a slot to ready it.
+const INK = '#14141e';
+
+/** A 16×16 pixel-art icon for a weapon (by its `held` look and id), drawn onto `cv`. */
+function drawWeaponIcon(cv, def) {
+  const ctx = cv.getContext('2d');
+  const u = cv.width / 16;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * u, y * u, w * u, h * u); };
+  const held = def?.weapon?.held || 'fists';
+  const id = def?.id || '';
+  const steel = '#c9ced4';
+  const dark = '#2e2e36';
+  const wood = '#8a5a34';
+  if (held === 'fists' || !def?.weapon) {
+    R(4, 5, 8, 7, INK); R(5, 6, 6, 5, '#e8b896'); R(5, 6, 6, 1, '#f4d0b0'); R(7, 6, 1, 3, '#c8946e'); R(9, 6, 1, 3, '#c8946e'); R(4, 9, 2, 3, INK); R(5, 10, 1, 1, '#e8b896');
+  } else if (held === 'knuckles') {
+    R(3, 6, 10, 5, INK); for (let k = 0; k < 4; k++) { R(4 + k * 2, 7, 2, 2, steel); R(4 + k * 2, 7, 1, 1, '#ffffff'); } R(4, 9, 8, 1, '#8a9098');
+  } else if (held === 'club') {
+    for (let k = 0; k < 10; k++) { R(3 + k, 12 - k, 3, 2, INK); R(4 + k, 12 - k, 1 + (k > 5 ? 1 : 0), 1, k > 6 ? '#a07048' : wood); }
+    R(2, 12, 3, 2, '#3a2a1e');
+  } else if (held === 'blade') {
+    for (let k = 0; k < 8; k++) { R(6 + k, 9 - k, 2, 2, INK); R(6 + k, 9 - k, 1, 1, steel); } R(3, 10, 4, 2, INK); R(4, 10, 2, 1, '#3a2a1e'); R(5, 9, 1, 3, '#c9a24a');
+  } else if (held === 'axe') {
+    for (let k = 0; k < 10; k++) R(4 + k, 13 - k, 2, 1, wood); R(10, 1, 5, 6, INK); R(11, 2, 3, 4, '#c0414a'); R(11, 2, 1, 4, steel);
+  } else if (held === 'pistol') {
+    const big = /revolver|38/.test(id);
+    R(2, 5, 12, 4, INK); R(3, 6, 10, 2, dark); R(3, 6, 10, 1, '#5a5a66');
+    if (big) { R(6, 5, 4, 4, INK); R(7, 6, 2, 2, '#6a6a76'); }
+    R(9, 8, 4, 6, INK); R(10, 9, 2, 4, wood); R(7, 9, 2, 2, INK);
+  } else {
+    // long guns: a shotgun (pump), a rifle (scope) or a submachine gun (magazine)
+    const smg = /smg|sub|tommy/.test(id);
+    const rifle = /rifle|hunting/.test(id);
+    R(0, 6, 16, 3, INK); R(1, 7, 9, 1, dark); R(10, 6, 5, 4, INK); R(10, 7, 5, 2, wood); R(1, 6, 8, 1, '#5a5a66');
+    if (rifle) { R(4, 3, 5, 3, INK); R(5, 4, 3, 1, '#5a6a7a'); }
+    if (smg) { R(6, 9, 3, 5, INK); R(7, 9, 1, 4, dark); }
+    if (!rifle && !smg) { R(3, 9, 4, 2, INK); R(4, 9, 2, 1, wood); }
+  }
+}
+
+function renderHotbar(ui) {
+  const g = ui.game;
+  const el = ui.el.hotbar;
+  if (!el) return;
+  const list = [null, ...g.combat.owned()].slice(0, 9);
+  const eq = g.player.equipped ?? null;
+  const key = `${list.join(',')}|${eq}|${list.map((id) => (id ? g.inventory.count(g.content.items[id]?.weapon?.ammo || id) : 0)).join(',')}`;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  el.textContent = '';
+  list.forEach((id, i) => {
+    const def = id ? { id, ...g.content.items[id] } : null;
+    const slot = document.createElement('button');
+    slot.className = `hb-slot${id === eq ? ' on' : ''}`;
+    slot.title = def ? def.name : 'Fists';
+    const n = document.createElement('span');
+    n.className = 'hb-key';
+    n.textContent = String(i + 1);
+    const cv = document.createElement('canvas');
+    cv.width = 48;
+    cv.height = 48;
+    drawWeaponIcon(cv, def);
+    slot.append(n, cv);
+    const ammo = def?.weapon?.ammo;
+    if (ammo) {
+      const c = document.createElement('span');
+      c.className = 'hb-count';
+      c.textContent = String(g.inventory.count(ammo));
+      slot.append(c);
+    }
+    slot.onclick = () => { const r = g.combat.select(i + 1); if (r.text) ui.toast(r.text, 'info', 2); };
+    el.append(slot);
+  });
+}
+
+return { drawWeaponIcon, renderHotbar };
 })();
 
 // ---- src/core/eventBus.js
@@ -23149,6 +23253,149 @@ function drawCowPortrait(ctx, a, size, opts = {}) {
 return { drawCow, drawCowPortrait };
 })();
 
+// ---- src/engine/drawPixelCharacters.js
+__m["src/engine/drawPixelCharacters.js"] = (function () {
+// Pixel-art people (v0.41.1): chibi figures on the art-pixel grid (one art pixel = 2 world pixels)
+// like the mock-up — a big head, a dark outline, a small body — built from the same appearance data
+// as the old drawing (skin, hair and style, hat, outfit, legs, shoes, tie, scarf, vest, apron,
+// overalls, beard, shades, build, height). Held items reuse the old drawing.
+
+const INK = '#1b1a24';
+const BUILD = { round: 12, average: 10, thin: 8, wiry: 9, broad: 12 };
+
+function shade(hex, amt) {
+  if (!hex || hex[0] !== '#' || hex.length !== 7) return hex || '#888888';
+  const n = parseInt(hex.slice(1), 16);
+  const c = (v) => Math.max(0, Math.min(255, v + amt));
+  return `#${((c(n >> 16) << 16) | (c((n >> 8) & 255) << 8) | c(n & 255)).toString(16).padStart(6, '0')}`;
+}
+
+/** `drawHeld` is the old held-item drawing, passed in by drawCharacter (no import cycle). */
+function drawPixelCharacter(ctx, a, s, drawHeld) {
+  const facing = s.facing || 'down';
+  const side = facing === 'left' || facing === 'right';
+  const dir = facing === 'left' ? -1 : 1;
+  const up = facing === 'up';
+  const t = s.animTime || 0;
+  const step = s.moving ? (Math.sin(t * 11) > 0 ? 1 : -1) : 0;
+  const bob = s.moving && Math.abs(Math.sin(t * 11)) > 0.7 ? 1 : 0;
+  const scale = (s.scale || 1) * (a.height || 1);
+  const bw = BUILD[a.build] || 10;
+  const tw = side ? bw - 2 : bw;
+  const style = a.hairStyle || 'short';
+  const acc = new Set([a.accessory, ...(a.accessories || [])].filter(Boolean));
+
+  ctx.save();
+  ctx.translate(Math.round(s.x / 2) * 2, Math.round(s.y / 2) * 2);
+  ctx.scale(scale, scale);
+  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+
+  // shadow
+  R(-5, -1, 10, 2, 'rgba(20,20,35,0.3)'); R(-4, 0, 8, 1, 'rgba(20,20,35,0.2)');
+
+  // legs and shoes
+  const legC = a.overalls || a.legs || shade(a.outfit, -45);
+  const shoe = a.shoes || '#2b2430';
+  if (side) {
+    R(-2 + step, -6, 3, 6, INK); R(-1 - step, -6, 3, 6, INK);
+    R(-1 + step, -6, 2, 4, legC); R(-1 + step, -2, 2 + (dir > 0 ? 1 : 0), 1, shoe);
+    R(-1 - step, -6, 2, 4, shade(legC, -15)); R(-1 - step, -2, 2, 1, shoe);
+  } else {
+    const ly = step > 0 ? -1 : 0;
+    const ry = step < 0 ? -1 : 0;
+    R(-4, -6 + ly, 4, 6, INK); R(0, -6 + ry, 4, 6, INK);
+    R(-3, -6 + ly, 2, 4, legC); R(-3, -2 + ly, 2, 1, shoe);
+    R(1, -6 + ry, 2, 4, legC); R(1, -2 + ry, 2, 1, shoe);
+  }
+
+  ctx.translate(0, -bob * 2);
+
+  // torso (outlined), arms, hands
+  const outfit = a.outfit || '#5a6a8a';
+  const sleeve = a.sleeves || outfit;
+  const half = Math.floor(tw / 2);
+  R(-half - 1, -14, tw + 2, 9, INK);
+  R(-half, -13, tw, 7, outfit);
+  R(-half, -13, tw, 1, shade(outfit, 25));
+  R(-half, -7, tw, 1, shade(outfit, -30)); // belt line
+  if (a.pattern === 'pinstripe') for (let k = -half + 1; k < half; k += 2) R(k, -12, 1, 5, shade(outfit, 30));
+  if (a.pattern === 'check') for (let k = -half; k < half; k += 2) for (let j = -13; j < -7; j += 2) R(k, j, 1, 1, a.patternColor || '#e8d070');
+  if (a.overalls) { R(-half + 1, -10, tw - 2, 3, a.overalls); if (!up) { R(-half + 1, -13, 1, 3, a.overalls); R(half - 2, -13, 1, 3, a.overalls); R(-half + 1, -10, 1, 1, '#c9a24a'); R(half - 2, -10, 1, 1, '#c9a24a'); } }
+  if (a.apron && !up) { R(-half + 1, -11, tw - 2, 5, a.apron === true ? '#f2efe6' : a.apron); R(-half + 1, -11, tw - 2, 1, shade(a.apron === true ? '#f2efe6' : a.apron, -30)); }
+  if (acc.has('vest') && !up) { R(-half, -13, 2, 6, a.vestColor || '#f2a33a'); R(half - 2, -13, 2, 6, a.vestColor || '#f2a33a'); R(-half, -10, tw, 1, '#f2efe6'); }
+  if (a.tie && facing === 'down') { R(-1, -13, 2, 1, a.undershirt || '#f2efe6'); R(0, -13, 1, 5, a.tie); }
+  if (acc.has('scarf') && !up) { R(-half, -14, tw, 2, a.accent || '#f2c14e'); if (facing === 'down') R(1, -12, 2, 3, a.accent || '#f2c14e'); }
+  const arm = (x, sw, back) => { R(x - 1, -14 + sw, 3, 7, INK); R(x, -13 + sw, 1, 5, back ? shade(sleeve, -20) : sleeve); R(x, -8 + sw, 1, 1, a.skin || '#e8b896'); };
+  if (side) arm(-dir * 1, -step, true);
+  else { arm(-half - 1, step, false); arm(half, -step, false); }
+  if (side) arm(dir * 1, step, false);
+
+  if (a.holding && drawHeld) {
+    ctx.save(); ctx.scale(0.8, 0.8);
+    drawHeld(ctx, a.holding, (side ? dir * 2 : half * 2 + 2) / 0.8, (-14 + (side ? step : -step) * 2) / 0.8, side ? dir : 1, s.idleTime || 0);
+    ctx.restore();
+  }
+
+  // the head: big, outlined, rounded corners
+  const skin = a.skin || '#e8b896';
+  const hy = -25; // top of the head
+  R(-6, hy, 12, 12, INK); R(-7, hy + 1, 14, 10, INK);
+  R(-5, hy + 1, 10, 10, skin); R(-6, hy + 2, 12, 8, skin);
+  R(-6, hy + 9, 12, 1, shade(skin, -18)); // under the chin
+  const hair = a.hair || '#333333';
+  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat'].includes(style);
+  if (up) {
+    R(-5, hy + 1, 10, 9, hair); R(-6, hy + 2, 12, 7, hair); R(-4, hy + 2, 3, 1, shade(hair, 25));
+  } else {
+    // a cap of hair; fringe and sides by style
+    R(-5, hy + 1, 10, 3, hair); R(-6, hy + 2, 12, 2, hair); R(-4, hy + 1, 3, 1, shade(hair, 25));
+    if (side) R(-dir * 6, hy + 2, 4, 5, hair);
+    else { R(-6, hy + 3, 1, 3, hair); R(5, hy + 3, 1, 3, hair); }
+    if (style === 'messy' || style === 'curly') { R(-5, hy, 2, 1, INK); R(-4, hy, 1, 1, hair); R(1, hy, 2, 1, INK); R(2, hy, 1, 1, hair); R(-3, hy + 4, 2, 1, hair); R(2, hy + 4, 1, 1, hair); }
+    if (style === 'parted') R(1, hy + 1, 1, 2, shade(hair, -30));
+    if (style === 'long' || style === 'ponytail') { if (!side) { R(-7, hy + 3, 2, 8, INK); R(5, hy + 3, 2, 8, INK); R(-6, hy + 3, 1, 7, hair); R(5, hy + 3, 1, 7, hair); } else R(-dir * 6, hy + 2, 3, 9, hair); }
+    if (style === 'bun') { R(-2, hy - 3, 4, 4, INK); R(-1, hy - 2, 2, 2, hair); }
+  }
+  if (style === 'ponytail' && side) { R(-dir * 8, hy + 3, 3, 6, INK); R(-dir * 7 - (dir < 0 ? 0 : 0), hy + 4, 1, 4, hair); }
+  // face
+  if (!up) {
+    const ey = hy + 5;
+    const eyes = side ? [dir * 3] : [-3, 2];
+    for (const ex of eyes) {
+      if (s.sleeping) R(ex, ey + 1, 2, 1, INK);
+      else { R(ex, ey, 1, 2, INK); R(ex, ey, 1, 1, '#4a4a5a'); }
+    }
+    if (!side && !s.sleeping) { R(-5, ey + 2, 1, 1, 'rgba(230,110,110,0.45)'); R(4, ey + 2, 1, 1, 'rgba(230,110,110,0.45)'); }
+    if (acc.has('shades')) { if (side) R(dir * 3 - 1, ey, 3, 2, '#141218'); else { R(-4, ey, 3, 2, '#141218'); R(1, ey, 3, 2, '#141218'); R(-1, ey, 2, 1, '#141218'); } }
+    if (acc.has('monocle') && !side) { R(2, ey - 1, 3, 1, '#d9b24a'); R(2, ey + 2, 3, 1, '#d9b24a'); R(1, ey, 1, 2, '#d9b24a'); R(4, ey, 1, 2, '#d9b24a'); }
+    if (acc.has('goggles')) { R(-6, ey - 2, 12, 1, '#5b4a3a'); if (!side) { R(-4, ey - 3, 3, 3, a.accent || '#5b7f9a'); R(1, ey - 3, 3, 3, a.accent || '#5b7f9a'); } }
+    if (a.beard) { if (side) R(dir * 1, ey + 2, 4 * dir > 0 ? 4 : 4, 4, a.beard); else { R(-5, ey + 2, 10, 2, a.beard); R(-4, ey + 4, 8, 2, a.beard); R(-1, ey + 3, 2, 1, shade(skin, -40)); } }
+    else if (!side && !s.sleeping) R(-1, ey + 3, 2, 1, a.angry ? '#7a2a24' : shade(skin, -45));
+    if (a.angry && !s.sleeping) { R(-5, hy + 2, 10, 8, 'rgba(210,40,30,0.25)'); R(-4, ey - 2, 2, 1, INK); R(-3, ey - 1, 1, 1, INK); R(2, ey - 2, 2, 1, INK); R(2, ey - 1, 1, 1, INK); }
+  }
+  // hats
+  const hatC = a.hatColor || a.accent || '#444444';
+  if (style === 'hat') { R(-8, hy + 1, 16, 2, INK); R(-7, hy + 1, 14, 1, hatC); R(-5, hy - 4, 10, 6, INK); R(-4, hy - 3, 8, 4, hatC); R(-4, hy, 8, 1, shade(hatC, -35)); }
+  if (style === 'tophat') { R(-7, hy + 1, 14, 2, INK); R(-6, hy + 1, 12, 1, hatC); R(-4, hy - 7, 8, 9, INK); R(-3, hy - 6, 6, 7, hatC); R(-3, hy - 1, 6, 1, '#8a2a2a'); }
+  if (style === 'cap' || style === 'captain') {
+    const c = style === 'captain' ? '#f2efe6' : hatC;
+    R(-6, hy - 1, 12, 4, INK); R(-5, hy, 10, 3, c); R(-4, hy, 3, 1, shade(c, 25));
+    if (!up) { if (side) R(dir * 4, hy + 2, 4, 1, INK); else R(-5, hy + 3, 10, 1, style === 'captain' ? '#1e2a3a' : shade(c, -40)); }
+    if (style === 'captain' && !up) R(-1, hy + 1, 2, 1, '#c9a24a');
+  }
+  if (style === 'hardhat') { R(-7, hy - 1, 14, 5, INK); R(-6, hy, 12, 3, '#f2c14e'); R(-7, hy + 3, 14, 1, '#d8a83a'); R(-4, hy, 3, 1, '#f8dc80'); }
+  if (hatStyle && up) R(-5, hy + 3, 10, 6, hair);
+  // steam when angry
+  if (a.angry && !s.sleeping) {
+    const tt = s.idleTime || t;
+    for (let k = 0; k < 3; k++) { const ph = (tt * 0.9 + k / 3) % 1; R((k - 1) * 3, Math.round(hy - 3 - ph * 7), 2, 2, `rgba(240,235,235,${(0.55 * (1 - ph)).toFixed(2)})`); }
+  }
+  ctx.restore();
+}
+
+return { drawPixelCharacter };
+})();
+
 // ---- src/engine/drawCharacter.js
 __m["src/engine/drawCharacter.js"] = (function () {
 // Procedural character rendering. Characters are described by an `appearance`
@@ -23156,6 +23403,7 @@ __m["src/engine/drawCharacter.js"] = (function () {
 // `sprite` image that has loaded, the renderer uses it instead (see
 // assets.js) — this keeps art replaceable without touching the simulation.
 const { drawCow, drawCowPortrait } = __m["src/engine/drawCow.js"];
+const { drawPixelCharacter } = __m["src/engine/drawPixelCharacters.js"];
 
 const BUILD_WIDTH = { round: 21, average: 18, thin: 15, wiry: 16, broad: 22 };
 
@@ -23184,8 +23432,13 @@ function rrect(ctx, x, y, w, h, r) {
  * @param {object} a appearance
  * @param {object} s state: {facing, moving, animTime, activity, sleeping, scale}
  */
+let pixelPeople = false;
+/** v0.41.1: the renderer turns the pixel-art people on with the "Pixel-art look" setting. */
+function setPixelPeople(on) { pixelPeople = !!on; }
+
 function drawCharacter(ctx, a, s) {
   if (a.species === 'cow') return drawCow(ctx, a, s); // v0.29.0: Chuckie's talking cows
+  if (pixelPeople && !s.portrait) return drawPixelCharacter(ctx, a, s, drawHeld);
   const facing = s.facing || 'down';
   const scale = (s.scale || 1) * (a.height || 1);
   const t = s.animTime || 0;
@@ -23645,12 +23898,12 @@ function drawPortrait(ctx, a, size, opts = {}) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   const scale = size / 34;
-  drawCharacter(ctx, { ...a, height: 1 }, { x: size / 2, y: size * 1.55, facing: 'down', scale, idleTime: opts.time || 0, sleeping: opts.sleeping });
+  drawCharacter(ctx, { ...a, height: 1 }, { x: size / 2, y: size * 1.55, facing: 'down', scale, idleTime: opts.time || 0, sleeping: opts.sleeping, portrait: true });
 }
 
 
 
-return { drawCharacter, drawPortrait, shade, rrect };
+return { setPixelPeople, drawCharacter, drawPortrait, shade, rrect };
 })();
 
 // ---- src/engine/drawShipProfile.js
@@ -28838,6 +29091,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.42.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels: closer to the mock-up',
+    notes: [
+      'Everyone is pixel art now — big heads, small bodies, every hat and hairdo — and you can see people inside the buildings from the street: Mags behind her counter, customers at their tables.',
+      'A hotbar, bottom left: your fists and weapons with their ammo. Press 1–9 or click to switch.',
+      'The camera pulls back to show more of the street, the health bar is bigger, and messages are dark panels to match.',
+    ],
+  },
+  {
     version: '0.41.0',
     date: '2026-10-17',
     channel: 'development',
@@ -29630,12 +29894,14 @@ function paintFloor(R, ch, px, py, x, y) {
 }
 
 function floorWood(R, px, py, x, y) {
+  // long planks, four to a tile, each a slightly different shade; an end joint now and then
   R(px, py, A, A, PAL.wood[0]);
   for (let k = 0; k < A; k += 4) {
-    R(px, py + k, A, 1, PAL.wood[2]);
-    const seam = ((y * 4 + k / 4) % 2) * 8 + (Math.floor(hash2(x, y * 4 + k) * 3) * 2);
-    R(px + (seam % A), py + k, 1, 4, PAL.wood[2]);
-    if (hash2(x * 3, y * 7 + k) > 0.6) R(px, py + k + 1, A, 1, PAL.wood[1]);
+    const r = hash2(x * 3 + 1, y * 4 + k);
+    if (r > 0.66) R(px, py + k, A, 4, PAL.wood[1]);
+    else if (r < 0.2) R(px, py + k, A, 4, '#b8885f');
+    R(px, py + k + 3, A, 1, '#8e6040');
+    if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 4 + Math.floor(r * 8), py + k, 1, 3, '#8e6040');
   }
 }
 
@@ -30198,6 +30464,8 @@ function drawPixelProp(ctx, p, opts) {
       return true;
     }
     case 'streetlamp': {
+      // the mock-up's long shadow, cast down and to the right
+      if (!opts.night) for (let k = 0; k < 14; k++) R(9 + k, 13 - Math.floor(k * 0.55), 2, 1, 'rgba(10,10,20,0.16)');
       R(5, 13, 6, 2, SHADOW);
       R(5, 12, 6, 2, INK); R(6, 12, 4, 1, '#3a404c');
       R(7, -10, 2, 23, INK);
@@ -30502,6 +30770,17 @@ function drawPixelBuilding(ctx, b, opts) {
   if (b.tower) for (const lx of [Math.floor(W / 2) - 13, Math.floor(W / 2) + 3]) { R(lx, TOPW + 1, 10, BACK - 1, INK); R(lx + 1, TOPW + 2, 8, BACK - 2, '#b8bec8'); R(lx + 4, TOPW + 2, 1, BACK - 2, '#6a6e78'); R(lx + 3, TOPW + 1, 4, 1, '#c9a24a'); }
   // side walls
   for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 1, 1, TOPW - 2, frontY - 1, top); }
+
+  // v0.41.1: the people in there, where they stand in the real room (in front of the back wall)
+  if (opts.people?.length && opts.inside && opts.drawPerson) {
+    const iw = Math.max(1, opts.inside.width - 2) * 32;
+    const ih = Math.max(1, opts.inside.height - 2) * 32;
+    for (const npc of [...opts.people].sort((a, c) => a.y - c.y)) {
+      const px = x0 + fx * 2 + ((npc.x - 32) / iw) * fw * 2;
+      const py = y0 + fy * 2 + ((npc.y - 32) / ih) * fh * 2 + 8;
+      opts.drawPerson(npc, Math.max(x0 + fx * 2 + 10, Math.min(x0 + (fx + fw) * 2 - 10, px)), Math.min(y0 + (fy + fh) * 2, py));
+    }
+  }
 
   // the front: a top edge and a short face with windows, a door, an awning, pilasters
   R(0, frontY - 1, W, TOPW + 1, INK);
@@ -36170,7 +36449,7 @@ const { drawFields } = __m["src/engine/drawFarm.js"];
 const { buildStaticLayer, setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
 const { drawCar, drawBus } = __m["src/engine/drawVehicles.js"];
 const { drawTrail } = __m["src/engine/drawSignatureCars.js"];
-const { drawCharacter, rrect } = __m["src/engine/drawCharacter.js"];
+const { drawCharacter, setPixelPeople, rrect } = __m["src/engine/drawCharacter.js"];
 const { check } = __m["src/sim/conditions.js"];
 const { isDown } = __m["src/systems/combat.js"];
 const { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } = __m["src/engine/wrath.js"];
@@ -36221,7 +36500,7 @@ class Renderer {
     this.canvas.style.height = `${window.innerHeight}px`;
     this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
     this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
-    const fit = Math.min(window.innerWidth / (22 * TILE), window.innerHeight / (13.5 * TILE));
+    const fit = this.pixel ? Math.min(window.innerWidth / (26 * TILE), window.innerHeight / (15.5 * TILE)) : Math.min(window.innerWidth / (22 * TILE), window.innerHeight / (13.5 * TILE)); // v0.41.1: the pixel look shows more of the street, like the mock-up
     this.baseZoom = clamp(fit, 1.1, 2.4) * dpr;
   }
 
@@ -36376,6 +36655,7 @@ class Renderer {
     // v0.38.0: the world pass goes into the low-resolution canvas (the Wrath keeps full resolution)
     const pixel = this.pixel && !g.combat.wrath;
     setPixelProps(this.pixel);
+    setPixelPeople(this.pixel);
     if (pixel) {
       const lw = Math.ceil(this.canvas.width / this.px) + 1;
       const lh = Math.ceil(this.canvas.height / this.px) + 1;
@@ -36448,7 +36728,7 @@ class Renderer {
         const above = b.tower && !this.pixel ? towerHeight(b) / TILE : 4;
         if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
-        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null })) });
+        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null, people: door?.to?.map && this.pixel ? this.peopleIn(door.to.map) : null, drawPerson: (npc, x, y) => this.drawActor(npc.profile.appearance, { ...npc, x, y }, npc.activity === 'sleep') })) });
       }
       for (const p of lm.props) {
         if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
@@ -36747,6 +37027,13 @@ class Renderer {
       ctx.fillRect(-1, -1, 2, 2);
       ctx.restore();
     }
+  }
+
+  /** v0.41.1: who's inside a building (seen through its open top), awake and on their feet. */
+  peopleIn(mapId) {
+    const out = [];
+    for (const npc of this.game.npcs.values()) if (npc.map === mapId && npc.riding == null && !npc.dead && !isDown(npc, this.game.clock.total)) out.push(npc);
+    return out;
   }
 
   drawActor(appearance, actor, sleeping) {
@@ -42030,6 +42317,7 @@ return { logbookPanel };
 __m["src/ui/ui.js"] = (function () {
 // UI controller: title/new-game screens, HUD, modal panels, dialogue, and the
 // glue between game events and feedback (toasts, sound). Owns the current Game.
+const { renderHotbar } = __m["src/ui/hotbar.js"];
 const { Game } = __m["src/game/game.js"];
 const { TILE } = __m["src/core/util.js"];
 const { versionLabel, GAME_VERSION } = __m["src/core/version.js"];
@@ -42119,6 +42407,8 @@ class UI {
       energy: document.getElementById('bar-energy'),
       weapon: document.getElementById('hud-weapon'),
       hudBl: document.getElementById('hud-bl'),
+      hotbar: document.getElementById('hotbar'),
+      healthText: document.getElementById('bar-health-text'),
       toasts: document.getElementById('toasts'),
       minimap: document.getElementById('minimap'),
       debug: document.getElementById('debug'),
@@ -42134,7 +42424,7 @@ class UI {
       modalTabs: document.getElementById('modal-tabs'),
       fade: document.getElementById('fade'),
     };
-    this.caption = h('div', { id: 'caption', class: 'hidden', style: 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);max-width:min(640px,90vw);background:rgba(251,244,230,.96);border:2px solid #2d2433;border-radius:12px;padding:10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none' });
+    this.caption = h('div', { id: 'caption', class: 'hidden', style: 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);max-width:min(640px,90vw);background:rgba(22,22,48,.94);color:#f4f4fc;border:3px solid #4a4aa8;border-radius:3px;padding:10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none' });
     document.body.appendChild(this.caption);
     document.getElementById('modal-close').addEventListener('click', () => this.closePanel());
     this.el.tabletBadge?.addEventListener('click', () => { if (this.state === 'playing' && !this.panelOpen && !this.dialogue.open) this.openPanel('tablet'); });
@@ -42220,6 +42510,7 @@ class UI {
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
     this.renderer.pixel = this.settings.pixelArt !== false;
+    this.renderer.resize();
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -42351,7 +42642,7 @@ class UI {
   applySettings() {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
-    if (this.renderer) this.renderer.pixel = this.settings.pixelArt !== false; // v0.38.0
+    if (this.renderer) { this.renderer.pixel = this.settings.pixelArt !== false; this.renderer.resize(); } // v0.38.0 (v0.41.1: the pixel look has its own zoom)
   }
 
   saveSettings() {
@@ -42695,6 +42986,8 @@ class UI {
     set(this.el.location, p.areaName || g.currentMap().name);
     set(this.el.money, `🪙 ${p.money} obols`);
     this.el.health.style.width = `${p.health}%`;
+    if (this.el.healthText) set(this.el.healthText, `Health ${Math.max(0, Math.ceil(p.health))} / 100`);
+    renderHotbar(this);
     // the law: Wanted stars, a bribe running, time left inside
     const pol = g.world.police;
     let whtmlWanted = '';

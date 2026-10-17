@@ -562,3 +562,23 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
 #hud-tablet { color: #eef0f8; }
 #hud-prompt { background: rgba(22, 22, 48, 0.92); border: 2px solid #4a4aa8; border-radius: 3px; color: #f4f4fc; }
 #hud-prompt kbd { background: #f2c14e; color: #14143a; border-radius: 2px; }
+
+/* v0.41.1 — the mock-up's HUD: a big health bar with numbers, the hotbar, dark captions and toasts */
+#hud-bl .bar:first-child span { display: none; }
+#hud-bl .bar:first-child .bar-track { height: 26px; position: relative; border-width: 3px; }
+#bar-health-text { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 13px; text-shadow: 1px 1px 0 #14143a, -1px 0 0 #14143a, 0 -1px 0 #14143a; }
+#hud-bl .bar:nth-child(2) span { display: none; }
+#hud-bl .bar:nth-child(2) .bar-track { height: 12px; border-width: 3px; }
+#hotbar { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 6px; padding: 6px; }
+#hotbar:empty { display: none; }
+.hb-slot { position: relative; width: 62px; height: 62px; padding: 0; background: #1e1e42; border: 3px solid #3a3a7a; border-radius: 2px; cursor: pointer; }
+.hb-slot.on { border-color: #f2c14e; box-shadow: inset 0 0 0 2px #14143a; }
+.hb-slot canvas { width: 48px; height: 48px; image-rendering: pixelated; margin-top: 4px; }
+.hb-key { position: absolute; left: 4px; top: 1px; font-size: 11px; font-weight: bold; color: #e8e8f8; }
+.hb-count { position: absolute; right: 4px; bottom: 1px; font-size: 11px; font-weight: bold; color: #f2d050; text-shadow: 1px 1px 0 #14143a; }
+.toast { background: rgba(22,22,48,.94); color: #f4f4fc; border: 2px solid #3a3a7a; border-left: 5px solid #5ad84a; border-radius: 2px; }
+.toast.warn { border-left-color: #e8503a; }
+.toast.quest { border-left-color: #f2c14e; }
+.toast.discover { border-left-color: #8a6bff; }
+#toasts { bottom: auto; top: 260px; }
+#hud-keys { opacity: .55; }

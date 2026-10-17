@@ -226,12 +226,14 @@ export function paintFloor(R, ch, px, py, x, y) {
 }
 
 function floorWood(R, px, py, x, y) {
+  // long planks, four to a tile, each a slightly different shade; an end joint now and then
   R(px, py, A, A, PAL.wood[0]);
   for (let k = 0; k < A; k += 4) {
-    R(px, py + k, A, 1, PAL.wood[2]);
-    const seam = ((y * 4 + k / 4) % 2) * 8 + (Math.floor(hash2(x, y * 4 + k) * 3) * 2);
-    R(px + (seam % A), py + k, 1, 4, PAL.wood[2]);
-    if (hash2(x * 3, y * 7 + k) > 0.6) R(px, py + k + 1, A, 1, PAL.wood[1]);
+    const r = hash2(x * 3 + 1, y * 4 + k);
+    if (r > 0.66) R(px, py + k, A, 4, PAL.wood[1]);
+    else if (r < 0.2) R(px, py + k, A, 4, '#b8885f');
+    R(px, py + k + 3, A, 1, '#8e6040');
+    if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 4 + Math.floor(r * 8), py + k, 1, 3, '#8e6040');
   }
 }
 

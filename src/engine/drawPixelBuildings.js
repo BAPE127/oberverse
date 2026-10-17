@@ -134,6 +134,17 @@ export function drawPixelBuilding(ctx, b, opts) {
   // side walls
   for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 1, 1, TOPW - 2, frontY - 1, top); }
 
+  // v0.41.1: the people in there, where they stand in the real room (in front of the back wall)
+  if (opts.people?.length && opts.inside && opts.drawPerson) {
+    const iw = Math.max(1, opts.inside.width - 2) * 32;
+    const ih = Math.max(1, opts.inside.height - 2) * 32;
+    for (const npc of [...opts.people].sort((a, c) => a.y - c.y)) {
+      const px = x0 + fx * 2 + ((npc.x - 32) / iw) * fw * 2;
+      const py = y0 + fy * 2 + ((npc.y - 32) / ih) * fh * 2 + 8;
+      opts.drawPerson(npc, Math.max(x0 + fx * 2 + 10, Math.min(x0 + (fx + fw) * 2 - 10, px)), Math.min(y0 + (fy + fh) * 2, py));
+    }
+  }
+
   // the front: a top edge and a short face with windows, a door, an awning, pilasters
   R(0, frontY - 1, W, TOPW + 1, INK);
   R(1, frontY, W - 2, TOPW - 1, top);

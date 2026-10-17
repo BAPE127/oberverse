@@ -3,6 +3,7 @@
 // `sprite` image that has loaded, the renderer uses it instead (see
 // assets.js) — this keeps art replaceable without touching the simulation.
 import { drawCow, drawCowPortrait } from './drawCow.js';
+import { drawPixelCharacter } from './drawPixelCharacters.js';
 
 const BUILD_WIDTH = { round: 21, average: 18, thin: 15, wiry: 16, broad: 22 };
 
@@ -31,8 +32,13 @@ function rrect(ctx, x, y, w, h, r) {
  * @param {object} a appearance
  * @param {object} s state: {facing, moving, animTime, activity, sleeping, scale}
  */
+let pixelPeople = false;
+/** v0.41.1: the renderer turns the pixel-art people on with the "Pixel-art look" setting. */
+export function setPixelPeople(on) { pixelPeople = !!on; }
+
 export function drawCharacter(ctx, a, s) {
   if (a.species === 'cow') return drawCow(ctx, a, s); // v0.29.0: Chuckie's talking cows
+  if (pixelPeople && !s.portrait) return drawPixelCharacter(ctx, a, s, drawHeld);
   const facing = s.facing || 'down';
   const scale = (s.scale || 1) * (a.height || 1);
   const t = s.animTime || 0;
@@ -492,7 +498,7 @@ export function drawPortrait(ctx, a, size, opts = {}) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   const scale = size / 34;
-  drawCharacter(ctx, { ...a, height: 1 }, { x: size / 2, y: size * 1.55, facing: 'down', scale, idleTime: opts.time || 0, sleeping: opts.sleeping });
+  drawCharacter(ctx, { ...a, height: 1 }, { x: size / 2, y: size * 1.55, facing: 'down', scale, idleTime: opts.time || 0, sleeping: opts.sleeping, portrait: true });
 }
 
 export { shade, rrect };

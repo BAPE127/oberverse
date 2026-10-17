@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.42.0] — 2026-10-17 — Pixels: closer to the mock-up (development build)
+
+Owner: "It still doesn't really look like the screen shots you provided." Compared side by side with `docs/mockups/mock-street.png`, the biggest gaps were the people, the camera, the HUD and empty buildings. This release closes them.
+
+### Added
+- **Pixel-art people** (`src/engine/drawPixelCharacters.js`): chibi figures like the mock-up — a big outlined head, a small body — built from each character's existing appearance (skin, every hair style, hats from caps to top hats and hard hats, outfit, pinstripes and checks, ties, scarves, vests, aprons, overalls, beards, shades, monocles, goggles, the angry flush and steam), walking, side-on and from behind, asleep. Held weapons still show. Portraits keep their painted look.
+- **People inside the roofless buildings:** whoever is in a building's interior is drawn in the cutaway where they stand in the real room — Mags behind the Kettle & Crumb's counter, customers at the tables.
+- **The hotbar** (`src/ui/hotbar.js`), bottom left: fists and every weapon you own, each with a pixel-art icon (fists, knuckles, clubs, blades, axes, revolvers and pistols, shotguns, rifles, submachine guns), the ammo you carry for a gun, the one in your hand outlined in gold. Keys 1–9 (as before) or a click ready a slot.
+
+### Changed
+- **The camera** shows more of the street in the pixel look (about 26 tiles across, as in the mock-up); the old look keeps its zoom.
+- **The HUD:** a big health bar reading "Health 100 / 100" with a thin energy bar under it; captions and notifications are dark navy panels with a coloured edge instead of cream cards.
+- **Wooden floors** are long planks in slightly varied shades (they read as brick before).
+- **Street lamps** cast the mock-up's long diagonal shadow by day.
+
 ## [0.41.0] — 2026-10-17 — Pixels: art revamp, stage 4 — towers (development build)
 
 Owner: "stage 4 this baby". Stage 4 of 5: tower floors and lifts.

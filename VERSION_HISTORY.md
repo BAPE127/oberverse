@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.42.0 | 2026-10-17 | development | 1 | Closer to the mock-up: pixel-art people, people seen inside buildings, the hotbar, a wider camera, the mock-up's HUD |
 | 0.41.0 | 2026-10-17 | development | 1 | Art revamp, stage 4: roofless tower lobbies, lifts, floors over the city; Vantage Point opens |
 | 0.40.0 | 2026-10-17 | development | 1 | Art revamp, stage 3: roofless buildings with a cutaway of each interior |
 | 0.39.0 | 2026-10-17 | development | 1 | Art revamp, stage 2: pixel ground (kerbs, road markings, floors, walls) and pixel props |

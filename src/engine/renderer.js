@@ -6,7 +6,7 @@ import { drawFields } from './drawFarm.js';
 import { buildStaticLayer, setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus } from './drawVehicles.js';
 import { drawTrail } from './drawSignatureCars.js';
-import { drawCharacter, rrect } from './drawCharacter.js';
+import { drawCharacter, setPixelPeople, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
 import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js';
@@ -57,7 +57,7 @@ export class Renderer {
     this.canvas.style.height = `${window.innerHeight}px`;
     this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
     this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
-    const fit = Math.min(window.innerWidth / (22 * TILE), window.innerHeight / (13.5 * TILE));
+    const fit = this.pixel ? Math.min(window.innerWidth / (26 * TILE), window.innerHeight / (15.5 * TILE)) : Math.min(window.innerWidth / (22 * TILE), window.innerHeight / (13.5 * TILE)); // v0.41.1: the pixel look shows more of the street, like the mock-up
     this.baseZoom = clamp(fit, 1.1, 2.4) * dpr;
   }
 
@@ -212,6 +212,7 @@ export class Renderer {
     // v0.38.0: the world pass goes into the low-resolution canvas (the Wrath keeps full resolution)
     const pixel = this.pixel && !g.combat.wrath;
     setPixelProps(this.pixel);
+    setPixelPeople(this.pixel);
     if (pixel) {
       const lw = Math.ceil(this.canvas.width / this.px) + 1;
       const lh = Math.ceil(this.canvas.height / this.px) + 1;
@@ -284,7 +285,7 @@ export class Renderer {
         const above = b.tower && !this.pixel ? towerHeight(b) / TILE : 4;
         if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
-        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null })) });
+        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null, people: door?.to?.map && this.pixel ? this.peopleIn(door.to.map) : null, drawPerson: (npc, x, y) => this.drawActor(npc.profile.appearance, { ...npc, x, y }, npc.activity === 'sleep') })) });
       }
       for (const p of lm.props) {
         if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
@@ -583,6 +584,13 @@ export class Renderer {
       ctx.fillRect(-1, -1, 2, 2);
       ctx.restore();
     }
+  }
+
+  /** v0.41.1: who's inside a building (seen through its open top), awake and on their feet. */
+  peopleIn(mapId) {
+    const out = [];
+    for (const npc of this.game.npcs.values()) if (npc.map === mapId && npc.riding == null && !npc.dead && !isDown(npc, this.game.clock.total)) out.push(npc);
+    return out;
   }
 
   drawActor(appearance, actor, sleeping) {

@@ -68,3 +68,30 @@ test('roofless buildings: every building draws without a roof; the café shows i
   const cafe = lm.buildings.find((b) => b.id === 'b_cafe');
   assert.ok(layout(cafe, g.maps.get('cafe'), cafe.w * 16 - 6, cafe.h * 16 - 25).some((p) => p.type === 'counter'));
 });
+
+test('pixel people: every character draws (every hair style, hat, outfit) facing every way, walking and asleep', async () => {
+  const { drawPixelCharacter } = await import('../src/engine/drawPixelCharacters.js');
+  const g = newGame(1);
+  let n = 0;
+  for (const npc of g.npcs.values()) {
+    for (const facing of ['down', 'up', 'left', 'right']) {
+      const { ctx } = fakeCanvas(1, 1);
+      drawPixelCharacter(ctx, npc.profile.appearance, { x: 10, y: 10, facing, moving: true, animTime: 0.3, idleTime: 1, sleeping: facing === 'up' }, () => {});
+      assert.ok(ctx.rects.length > 20, `${npc.id} ${facing}`);
+      for (const [x, y, w, h] of ctx.rects) assert.ok(Number.isFinite(x + y + w + h), npc.id);
+    }
+    n++;
+  }
+  assert.ok(n > 15);
+});
+
+test('the hotbar: an icon for fists and every weapon in the game', async () => {
+  const { drawWeaponIcon } = await import('../src/ui/hotbar.js');
+  const g = newGame(1);
+  const ids = [null, ...Object.keys(g.content.items).filter((id) => g.content.items[id].weapon)];
+  for (const id of ids) {
+    const cv = fakeCanvas(48, 48);
+    drawWeaponIcon(cv, id ? { id, ...g.content.items[id] } : null);
+    assert.ok(cv.ctx.rects.length >= 4, `${id} has an icon`);
+  }
+});

@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.42.0 (2026-10-17)
+
+- `npm run check` — **373/373 tests passed** (2 new in `pixelart.test.mjs`: every character draws in pixel art facing every way, walking and asleep, with finite coordinates; the hotbar has an icon for fists and every weapon in the game).
+- Browser, side by side with `docs/mockups/mock-street.png`: Civic Plaza with a revolver, bat and shotgun in the hotbar, Canal Row (Mags seen behind the Kettle & Crumb's counter), Market Street — 60 fps, no page errors. Fixed while testing: a building's back wall cut off the heads of the people inside (they now stand in front of it); the first build failed on an import cycle (held weapons are now passed in). Screenshots: `docs/mockups/v042-*.png`.
+
 ## Verification record — v0.41.0 (2026-10-17)
 
 - `npm run check` — **371/371 tests passed** (2 new in `towers.test.mjs`: Vantage Point's lobby opens at noon and shuts at night; its lift offers floors 12, 23 and the roof, rides there and back, floors are aloft over Halvermouth and the roof has its helipad; the Atlas Rooms' and Harbourline's stairwell lifts reach their roofs; every tower floor has a lift; the Oil Tower is still appointments only). Validator: 0 errors (it learned the `lift` interaction).

@@ -1,5 +1,6 @@
 // UI controller: title/new-game screens, HUD, modal panels, dialogue, and the
 // glue between game events and feedback (toasts, sound). Owns the current Game.
+import { renderHotbar } from './hotbar.js';
 import { Game } from '../game/game.js';
 import { TILE } from '../core/util.js';
 import { versionLabel, GAME_VERSION } from '../core/version.js';
@@ -89,6 +90,8 @@ export class UI {
       energy: document.getElementById('bar-energy'),
       weapon: document.getElementById('hud-weapon'),
       hudBl: document.getElementById('hud-bl'),
+      hotbar: document.getElementById('hotbar'),
+      healthText: document.getElementById('bar-health-text'),
       toasts: document.getElementById('toasts'),
       minimap: document.getElementById('minimap'),
       debug: document.getElementById('debug'),
@@ -104,7 +107,7 @@ export class UI {
       modalTabs: document.getElementById('modal-tabs'),
       fade: document.getElementById('fade'),
     };
-    this.caption = h('div', { id: 'caption', class: 'hidden', style: 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);max-width:min(640px,90vw);background:rgba(251,244,230,.96);border:2px solid #2d2433;border-radius:12px;padding:10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none' });
+    this.caption = h('div', { id: 'caption', class: 'hidden', style: 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);max-width:min(640px,90vw);background:rgba(22,22,48,.94);color:#f4f4fc;border:3px solid #4a4aa8;border-radius:3px;padding:10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none' });
     document.body.appendChild(this.caption);
     document.getElementById('modal-close').addEventListener('click', () => this.closePanel());
     this.el.tabletBadge?.addEventListener('click', () => { if (this.state === 'playing' && !this.panelOpen && !this.dialogue.open) this.openPanel('tablet'); });
@@ -190,6 +193,7 @@ export class UI {
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
     this.renderer.pixel = this.settings.pixelArt !== false;
+    this.renderer.resize();
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -321,7 +325,7 @@ export class UI {
   applySettings() {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
-    if (this.renderer) this.renderer.pixel = this.settings.pixelArt !== false; // v0.38.0
+    if (this.renderer) { this.renderer.pixel = this.settings.pixelArt !== false; this.renderer.resize(); } // v0.38.0 (v0.41.1: the pixel look has its own zoom)
   }
 
   saveSettings() {
@@ -665,6 +669,8 @@ export class UI {
     set(this.el.location, p.areaName || g.currentMap().name);
     set(this.el.money, `🪙 ${p.money} obols`);
     this.el.health.style.width = `${p.health}%`;
+    if (this.el.healthText) set(this.el.healthText, `Health ${Math.max(0, Math.ceil(p.health))} / 100`);
+    renderHotbar(this);
     // the law: Wanted stars, a bribe running, time left inside
     const pol = g.world.police;
     let whtmlWanted = '';

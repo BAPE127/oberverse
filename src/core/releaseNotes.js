@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.42.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels: closer to the mock-up',
+    notes: [
+      'Everyone is pixel art now — big heads, small bodies, every hat and hairdo — and you can see people inside the buildings from the street: Mags behind her counter, customers at their tables.',
+      'A hotbar, bottom left: your fists and weapons with their ammo. Press 1–9 or click to switch.',
+      'The camera pulls back to show more of the street, the health bar is bigger, and messages are dark panels to match.',
+    ],
+  },
+  {
     version: '0.41.0',
     date: '2026-10-17',
     channel: 'development',

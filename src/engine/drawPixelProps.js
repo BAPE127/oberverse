@@ -75,6 +75,8 @@ export function drawPixelProp(ctx, p, opts) {
       return true;
     }
     case 'streetlamp': {
+      // the mock-up's long shadow, cast down and to the right
+      if (!opts.night) for (let k = 0; k < 14; k++) R(9 + k, 13 - Math.floor(k * 0.55), 2, 1, 'rgba(10,10,20,0.16)');
       R(5, 13, 6, 2, SHADOW);
       R(5, 12, 6, 2, INK); R(6, 12, 4, 1, '#3a404c');
       R(7, -10, 2, 23, INK);
