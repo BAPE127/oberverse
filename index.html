@@ -592,6 +592,51 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
 .toast.discover { border-left-color: #8a6bff; }
 #toasts { bottom: auto; top: 260px; }
 #hud-keys { opacity: .55; }
+
+/* v0.43.0 — art revamp stage 5: the menus, panels and dialogue in the mock-up's navy-and-blue
+   pixel style (with the Pixel-art look on). The terminals (.monitor, .fleetcmd) keep their own. */
+body.pixel-ui {
+  --ink: #eef0fa; --ink-soft: #a8acd8; --paper: #1e1e42; --paper-2: #262660; --line: #3a3a7a;
+  --accent: #e05a48; --accent-2: #5ab8c8; --gold: #f2c14e; --good: #5ad84a; --warn: #e8503a;
+  --shadow: 6px 6px 0 rgba(8, 8, 24, 0.55);
+}
+body.pixel-ui #modal-panel.monitor, body.pixel-ui #modal-panel.fleetcmd {
+  --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5;
+  --accent: #c0614a; --accent-2: #4f8a8b; --gold: #e8b64c; --good: #4f8a4a; --warn: #c0614a;
+}
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *) { border-radius: 2px; border: 3px solid #4a4aa8; background: #262660; color: #eef0fa; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):hover:not(:disabled) { background: #34347e; transform: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *).primary { background: #c0414a; border-color: #ff8a7a; color: #fff; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *).primary:hover:not(:disabled) { background: #d8505a; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *).ghost { background: transparent; }
+body.pixel-ui .panel { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
+body.pixel-ui .panel-head { border-bottom: 3px solid #3a3a7a; }
+body.pixel-ui .panel h2, body.pixel-ui #dlg-name { font-family: var(--font); font-weight: 900; letter-spacing: .5px; color: #f2c14e; text-shadow: 2px 2px 0 #0e0e26; }
+body.pixel-ui .tabs button { border-radius: 2px 2px 0 0; background: #1a1a40; border-bottom: none; }
+body.pixel-ui .tabs button.active { background: #262660; color: #f2c14e; }
+body.pixel-ui #modal { background: rgba(8, 8, 24, .55); }
+body.pixel-ui .dlg-box { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
+body.pixel-ui #dlg-portrait { border-radius: 2px; border: 3px solid #4a4aa8; image-rendering: pixelated; background: #14143a; }
+body.pixel-ui #dlg-options button.quest { background: #3a3220; border-color: #f2c14e; }
+body.pixel-ui #dlg-ask input, body.pixel-ui input:not(.monitor *):not(.fleetcmd *), body.pixel-ui select:not(.monitor *):not(.fleetcmd *), body.pixel-ui textarea:not(.monitor *):not(.fleetcmd *) { background: #14143a; color: #eef0fa; border: 3px solid #4a4aa8; border-radius: 2px; }
+body.pixel-ui .title-card .logo { font-family: var(--font); font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 4px 4px 0 #14143a, -2px -2px 0 #14143a, 2px -2px 0 #14143a, -2px 2px 0 #14143a; }
+body.pixel-ui .title-card .logo span { color: #f2c14e; font-style: normal; }
+body.pixel-ui .title-card .tagline { text-shadow: 2px 2px 0 #14143a; }
+body.pixel-ui .menu button { min-width: 260px; font-weight: bold; }
+body.pixel-ui .item-row, body.pixel-ui .stat, body.pixel-ui .quest { background: #262660; border: 3px solid #3a3a7a; border-radius: 2px; }
+body.pixel-ui .tag { background: #3a3a7a; color: #eef0fa; border-radius: 2px; }
+body.pixel-ui .tag.bad { background: #7a2a2a; }
+body.pixel-ui .icon { background: #14143a; border-radius: 2px; }
+body.pixel-ui .field input { background: #14143a; }
+body.pixel-ui .research .node.avail { background: #3a3220; }
+body.pixel-ui .debug-select, body.pixel-ui .debug-input, body.pixel-ui .debug-qty { background: #14143a; color: #eef0fa; }
+body.pixel-ui .wmap-tip { border-radius: 2px; border-color: #4a4aa8; }
+/* paper things stay paper: letters and documents, and the car showrooms' own looks */
+body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .dealer-fender {
+  --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5; color: #2d2433;
+}
+#hud-tl { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -11695,7 +11740,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.42.0';
+const GAME_VERSION = '0.43.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -29091,6 +29136,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.43.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 5): lights and menus',
+    notes: [
+      'Night falls in pixels: lamp light, fires, windows and headlights spill in hard, stepped pools.',
+      'The menus, shops, inventory, phone and conversations are dressed to match — navy panels, chunky blue frames, gold headings.',
+      'The gun-running terminals and Fleet Command keep their own screens. Prefer the old look? Settings → Pixel-art look.',
+    ],
+  },
+  {
     version: '0.42.0',
     date: '2026-10-17',
     channel: 'development',
@@ -37113,6 +37169,22 @@ class Renderer {
     const outdoor = map.kind !== 'interior';
     const dark = outdoor ? g.clock.darkness * 0.72 : 0.12 + g.clock.darkness * 0.2;
     if (dark < 0.02) return;
+    // v0.43.0: in the pixel look the light map is drawn at art resolution with hard, banded pools
+    const pix = this.pixel && !g.combat.wrath;
+    const LS = pix ? 1 / this.px : LIGHT_SCALE;
+    if (pix) {
+      const lw = Math.ceil(this.canvas.width / this.px);
+      const lh = Math.ceil(this.canvas.height / this.px);
+      if (this.light.width !== lw || this.light.height !== lh) { this.light.width = lw; this.light.height = lh; }
+    } else if (Math.abs(this.light.width - Math.ceil(this.canvas.width * LIGHT_SCALE)) > 1) {
+      this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
+      this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
+    }
+    const ramp = (grad, a, rgb = '0,0,0') => {
+      if (!pix) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
+      // three hard steps, the SoR way
+      for (const [t0, t1, k] of [[0, 0.42, 1], [0.42, 0.7, 0.62], [0.7, 0.92, 0.28], [0.92, 1, 0]]) { grad.addColorStop(t0, `rgba(${rgb},${a * k})`); grad.addColorStop(Math.max(t0, t1 - 0.001), `rgba(${rgb},${a * k})`); }
+    };
     const lc = this.light.getContext('2d');
     const W = this.light.width;
     const H = this.light.height;
@@ -37124,12 +37196,11 @@ class Renderer {
     const z = this.cam.zoom;
     const hole = (wx, wy, r, strength = 1) => {
       const sc = this.toScreen(wx, wy);
-      const s = { x: sc.x * LIGHT_SCALE, y: sc.y * LIGHT_SCALE };
-      const rad = r * z * LIGHT_SCALE;
+      const s = { x: Math.round(sc.x * LS), y: Math.round(sc.y * LS) };
+      const rad = r * z * LS;
       if (s.x < -rad || s.y < -rad || s.x > W + rad || s.y > H + rad) return;
       const grad = lc.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad);
-      grad.addColorStop(0, `rgba(0,0,0,${strength})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ramp(grad, strength);
       lc.fillStyle = grad;
       lc.beginPath();
       lc.arc(s.x, s.y, rad, 0, Math.PI * 2);
@@ -37190,8 +37261,9 @@ class Renderer {
       hole(g.player.x, g.player.y - 14, 110, 0.7);
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.imageSmoothingEnabled = !pix;
+    this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
     this.ctx.imageSmoothingEnabled = true;
-    this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, this.canvas.width, this.canvas.height);
     // warm glow on top
     this.ctx.globalCompositeOperation = 'lighter';
     for (const [wx, wy, r0, tint] of warm) {
@@ -37199,8 +37271,7 @@ class Renderer {
       const r = tint ? 110 : r0;
       const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
       const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * z);
-      grad.addColorStop(0, `rgba(${rgb},${(tint ? 0.5 : 0.28) * g.clock.darkness})`);
-      grad.addColorStop(1, `rgba(${rgb},0)`);
+      ramp(grad, (tint ? 0.5 : 0.28) * g.clock.darkness, rgb);
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
@@ -42511,6 +42582,7 @@ class UI {
     this.renderer = new Renderer(this.canvas, game, this.assets);
     this.renderer.pixel = this.settings.pixelArt !== false;
     this.renderer.resize();
+    document.body.classList.toggle('pixel-ui', this.renderer.pixel);
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -42643,6 +42715,7 @@ class UI {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
     if (this.renderer) { this.renderer.pixel = this.settings.pixelArt !== false; this.renderer.resize(); } // v0.38.0 (v0.41.1: the pixel look has its own zoom)
+    document.body.classList.toggle('pixel-ui', this.settings.pixelArt !== false); // v0.43.0: menus and panels too
   }
 
   saveSettings() {

@@ -582,3 +582,48 @@ button.fc-tile:hover { border-color: var(--fc-cyan); box-shadow: 0 0 14px rgba(5
 .toast.discover { border-left-color: #8a6bff; }
 #toasts { bottom: auto; top: 260px; }
 #hud-keys { opacity: .55; }
+
+/* v0.43.0 — art revamp stage 5: the menus, panels and dialogue in the mock-up's navy-and-blue
+   pixel style (with the Pixel-art look on). The terminals (.monitor, .fleetcmd) keep their own. */
+body.pixel-ui {
+  --ink: #eef0fa; --ink-soft: #a8acd8; --paper: #1e1e42; --paper-2: #262660; --line: #3a3a7a;
+  --accent: #e05a48; --accent-2: #5ab8c8; --gold: #f2c14e; --good: #5ad84a; --warn: #e8503a;
+  --shadow: 6px 6px 0 rgba(8, 8, 24, 0.55);
+}
+body.pixel-ui #modal-panel.monitor, body.pixel-ui #modal-panel.fleetcmd {
+  --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5;
+  --accent: #c0614a; --accent-2: #4f8a8b; --gold: #e8b64c; --good: #4f8a4a; --warn: #c0614a;
+}
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *) { border-radius: 2px; border: 3px solid #4a4aa8; background: #262660; color: #eef0fa; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):hover:not(:disabled) { background: #34347e; transform: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *).primary { background: #c0414a; border-color: #ff8a7a; color: #fff; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *).primary:hover:not(:disabled) { background: #d8505a; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *).ghost { background: transparent; }
+body.pixel-ui .panel { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
+body.pixel-ui .panel-head { border-bottom: 3px solid #3a3a7a; }
+body.pixel-ui .panel h2, body.pixel-ui #dlg-name { font-family: var(--font); font-weight: 900; letter-spacing: .5px; color: #f2c14e; text-shadow: 2px 2px 0 #0e0e26; }
+body.pixel-ui .tabs button { border-radius: 2px 2px 0 0; background: #1a1a40; border-bottom: none; }
+body.pixel-ui .tabs button.active { background: #262660; color: #f2c14e; }
+body.pixel-ui #modal { background: rgba(8, 8, 24, .55); }
+body.pixel-ui .dlg-box { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
+body.pixel-ui #dlg-portrait { border-radius: 2px; border: 3px solid #4a4aa8; image-rendering: pixelated; background: #14143a; }
+body.pixel-ui #dlg-options button.quest { background: #3a3220; border-color: #f2c14e; }
+body.pixel-ui #dlg-ask input, body.pixel-ui input:not(.monitor *):not(.fleetcmd *), body.pixel-ui select:not(.monitor *):not(.fleetcmd *), body.pixel-ui textarea:not(.monitor *):not(.fleetcmd *) { background: #14143a; color: #eef0fa; border: 3px solid #4a4aa8; border-radius: 2px; }
+body.pixel-ui .title-card .logo { font-family: var(--font); font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 4px 4px 0 #14143a, -2px -2px 0 #14143a, 2px -2px 0 #14143a, -2px 2px 0 #14143a; }
+body.pixel-ui .title-card .logo span { color: #f2c14e; font-style: normal; }
+body.pixel-ui .title-card .tagline { text-shadow: 2px 2px 0 #14143a; }
+body.pixel-ui .menu button { min-width: 260px; font-weight: bold; }
+body.pixel-ui .item-row, body.pixel-ui .stat, body.pixel-ui .quest { background: #262660; border: 3px solid #3a3a7a; border-radius: 2px; }
+body.pixel-ui .tag { background: #3a3a7a; color: #eef0fa; border-radius: 2px; }
+body.pixel-ui .tag.bad { background: #7a2a2a; }
+body.pixel-ui .icon { background: #14143a; border-radius: 2px; }
+body.pixel-ui .field input { background: #14143a; }
+body.pixel-ui .research .node.avail { background: #3a3220; }
+body.pixel-ui .debug-select, body.pixel-ui .debug-input, body.pixel-ui .debug-qty { background: #14143a; color: #eef0fa; }
+body.pixel-ui .wmap-tip { border-radius: 2px; border-color: #4a4aa8; }
+/* paper things stay paper: letters and documents, and the car showrooms' own looks */
+body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .dealer-fender {
+  --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5; color: #2d2433;
+}
+#hud-tl { white-space: nowrap; }

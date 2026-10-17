@@ -1,6 +1,8 @@
-# Known Issues and Limitations — v0.42.0
+# Known Issues and Limitations — v0.43.0
 
-- **Look (v0.42.0):** people seen inside a roofless building are placed by scaling their spot in the real (bigger) room, so someone can appear to stand in a piece of furniture. Sprite-based characters (imported art) and Chuckie's cows keep their own drawings. The hotbar holds weapons only (no food or tools yet). The lighting, menus and panels are still the old style (stage 5).
+- **Menus (v0.43.0):** a few panels set colours in their own code (rather than the stylesheet) and may still show a cream card or two inside the navy frame.
+
+- **Look (v0.42.0):** people seen inside a roofless building are placed by scaling their spot in the real (bigger) room, so someone can appear to stand in a piece of furniture. Sprite-based characters (imported art) and Chuckie's cows keep their own drawings. The hotbar holds weapons only (no food or tools yet).
 
 - **Towers (v0.41.0):** only Vantage Point is open to the public; the other office towers and Ober's Oil Tower are still locked. Nobody works or drinks in the Sky Lounge yet (NPCs don't use lifts). The city seen below a floor is the street's ground only (no buildings or traffic), and above the northern towers it is mostly sky.
 

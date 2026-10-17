@@ -670,6 +670,22 @@ export class Renderer {
     const outdoor = map.kind !== 'interior';
     const dark = outdoor ? g.clock.darkness * 0.72 : 0.12 + g.clock.darkness * 0.2;
     if (dark < 0.02) return;
+    // v0.43.0: in the pixel look the light map is drawn at art resolution with hard, banded pools
+    const pix = this.pixel && !g.combat.wrath;
+    const LS = pix ? 1 / this.px : LIGHT_SCALE;
+    if (pix) {
+      const lw = Math.ceil(this.canvas.width / this.px);
+      const lh = Math.ceil(this.canvas.height / this.px);
+      if (this.light.width !== lw || this.light.height !== lh) { this.light.width = lw; this.light.height = lh; }
+    } else if (Math.abs(this.light.width - Math.ceil(this.canvas.width * LIGHT_SCALE)) > 1) {
+      this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
+      this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
+    }
+    const ramp = (grad, a, rgb = '0,0,0') => {
+      if (!pix) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
+      // three hard steps, the SoR way
+      for (const [t0, t1, k] of [[0, 0.42, 1], [0.42, 0.7, 0.62], [0.7, 0.92, 0.28], [0.92, 1, 0]]) { grad.addColorStop(t0, `rgba(${rgb},${a * k})`); grad.addColorStop(Math.max(t0, t1 - 0.001), `rgba(${rgb},${a * k})`); }
+    };
     const lc = this.light.getContext('2d');
     const W = this.light.width;
     const H = this.light.height;
@@ -681,12 +697,11 @@ export class Renderer {
     const z = this.cam.zoom;
     const hole = (wx, wy, r, strength = 1) => {
       const sc = this.toScreen(wx, wy);
-      const s = { x: sc.x * LIGHT_SCALE, y: sc.y * LIGHT_SCALE };
-      const rad = r * z * LIGHT_SCALE;
+      const s = { x: Math.round(sc.x * LS), y: Math.round(sc.y * LS) };
+      const rad = r * z * LS;
       if (s.x < -rad || s.y < -rad || s.x > W + rad || s.y > H + rad) return;
       const grad = lc.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad);
-      grad.addColorStop(0, `rgba(0,0,0,${strength})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ramp(grad, strength);
       lc.fillStyle = grad;
       lc.beginPath();
       lc.arc(s.x, s.y, rad, 0, Math.PI * 2);
@@ -747,8 +762,9 @@ export class Renderer {
       hole(g.player.x, g.player.y - 14, 110, 0.7);
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.imageSmoothingEnabled = !pix;
+    this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
     this.ctx.imageSmoothingEnabled = true;
-    this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, this.canvas.width, this.canvas.height);
     // warm glow on top
     this.ctx.globalCompositeOperation = 'lighter';
     for (const [wx, wy, r0, tint] of warm) {
@@ -756,8 +772,7 @@ export class Renderer {
       const r = tint ? 110 : r0;
       const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
       const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * z);
-      grad.addColorStop(0, `rgba(${rgb},${(tint ? 0.5 : 0.28) * g.clock.darkness})`);
-      grad.addColorStop(1, `rgba(${rgb},0)`);
+      ramp(grad, (tint ? 0.5 : 0.28) * g.clock.darkness, rgb);
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
       this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);

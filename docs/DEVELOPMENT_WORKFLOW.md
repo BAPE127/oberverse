@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-17 — v0.43.0.** Art revamp stage 5 (the last): banded pixel lighting (`drawLighting`, `ramp`) and the navy menus (`body.pixel-ui` rules at the end of `styles.css`; the terminals, documents and showrooms opt out by resetting the colour variables). New UI should use the CSS variables, not hard-coded colours, so both looks work.
 - **2026-10-17 — v0.42.0.** Closer to the mock-up after the owner's feedback: pixel people (`drawPixelCharacters.js`, switched on by `setPixelPeople`), people in the cutaways (`renderer.peopleIn` → `drawPixelBuilding` opts.people), the hotbar (`src/ui/hotbar.js`), a wider pixel camera (`renderer.resize`), HUD CSS at the end of `styles.css`. Next: stage 5 (lighting and the menus/panels).
 - **2026-10-17 — v0.41.0.** Art revamp stage 4: towers (`src/content/towers.js` — `TOWERS` lists each tower's floors; a floor map is `aloft` and drawn over its street by `renderer.drawCityBelow`; lifts are `lift` props with `interact.kind: 'lift'`). To open another tower: add it to `TOWERS` with floor maps and give its door a lock with `hours`. Next: stage 5 (lighting and menus).
 - **2026-10-17 — v0.40.0.** Art revamp stage 3: roofless buildings (`src/engine/drawPixelBuildings.js`, called from `drawBuilding` in pixel mode; the renderer passes the door's interior map as `opts.inside`). The cutaway layout is cached per building. Next: stage 4 (tower floors), stage 5 (lighting and menus).

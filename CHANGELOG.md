@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.43.0] — 2026-10-17 — Pixels: art revamp, stage 5 — light and menus (development build)
+
+Owner: "Stage 5 please". The last stage of the revamp: lighting and the menus.
+
+### Changed
+- **Night lighting in pixel art** (`renderer.drawLighting`): the light map is drawn at art resolution and scaled up crisp, and every pool of light — street lamps, barrel fires, lit windows, headlights, the lighthouse, police lights — falls off in three hard bands instead of a smooth blur, the Streets of Rogue way. The warm glows are banded to match.
+- **Menus, panels and dialogue** (`styles.css`, `body.pixel-ui`): the mock-up's navy panels with a chunky blue frame and a hard drop shadow, gold headings, square buttons with a pressed edge (red for the main action), dark item rows, stats, quest cards, tags and fields; the dialogue box and its portrait frame; the title screen's logo in heavy white and gold with a dark outline. Everything readable, nothing pixelated.
+- Letters and documents stay on paper; the gun-running terminals, Fleet Command and the car showrooms keep their own looks, as the owner asked.
+- The time-and-obols chip widens for a big fortune instead of cutting it off.
+- Settings → Pixel-art look off restores the old lighting and the cream menus too.
+
 ## [0.42.0] — 2026-10-17 — Pixels: closer to the mock-up (development build)
 
 Owner: "It still doesn't really look like the screen shots you provided." Compared side by side with `docs/mockups/mock-street.png`, the biggest gaps were the people, the camera, the HUD and empty buildings. This release closes them.

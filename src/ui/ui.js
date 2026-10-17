@@ -194,6 +194,7 @@ export class UI {
     this.renderer = new Renderer(this.canvas, game, this.assets);
     this.renderer.pixel = this.settings.pixelArt !== false;
     this.renderer.resize();
+    document.body.classList.toggle('pixel-ui', this.renderer.pixel);
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -326,6 +327,7 @@ export class UI {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
     if (this.renderer) { this.renderer.pixel = this.settings.pixelArt !== false; this.renderer.resize(); } // v0.38.0 (v0.41.1: the pixel look has its own zoom)
+    document.body.classList.toggle('pixel-ui', this.settings.pixelArt !== false); // v0.43.0: menus and panels too
   }
 
   saveSettings() {

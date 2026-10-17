@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.43.0 (2026-10-17)
+
+- `npm run check` — 373/373 (no game logic changed); `npm run smoke` — 24/24.
+- Browser: the title screen; Civic Plaza at 22:00 (banded lamp pools); the inventory, the OberPad, the Kettle & Crumb's shop and a conversation with Mags in the navy style; Yard 1's terminal unchanged — no page errors. Fixed while testing: the inventory's stat and item cards kept their cream backgrounds under light text (unreadable) — now dark; a first try reset the terminals' buttons to the browser's defaults (they are now simply left out of the restyle). Screenshots: `docs/mockups/stage5-*.png`.
+
 ## Verification record — v0.42.0 (2026-10-17)
 
 - `npm run check` — **373/373 tests passed** (2 new in `pixelart.test.mjs`: every character draws in pixel art facing every way, walking and asleep, with finite coordinates; the hotbar has an icon for fists and every weapon in the game).

@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.43.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 5): lights and menus',
+    notes: [
+      'Night falls in pixels: lamp light, fires, windows and headlights spill in hard, stepped pools.',
+      'The menus, shops, inventory, phone and conversations are dressed to match — navy panels, chunky blue frames, gold headings.',
+      'The gun-running terminals and Fleet Command keep their own screens. Prefer the old look? Settings → Pixel-art look.',
+    ],
+  },
+  {
     version: '0.42.0',
     date: '2026-10-17',
     channel: 'development',
