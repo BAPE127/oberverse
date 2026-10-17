@@ -193,9 +193,9 @@ export class UI {
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
     this.renderer.mouse = this.mouse; // v0.44.0: the crosshair
-    this.renderer.pixel = this.settings.pixelArt !== false;
+    this.renderer.pixel = true; // v0.47.0: one art style (the old look is gone)
     this.renderer.resize();
-    document.body.classList.toggle('pixel-ui', this.renderer.pixel);
+    document.body.classList.add('pixel-ui');
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -327,8 +327,6 @@ export class UI {
   applySettings() {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
-    if (this.renderer) { this.renderer.pixel = this.settings.pixelArt !== false; this.renderer.resize(); } // v0.38.0 (v0.41.1: the pixel look has its own zoom)
-    document.body.classList.toggle('pixel-ui', this.settings.pixelArt !== false); // v0.43.0: menus and panels too
   }
 
   saveSettings() {

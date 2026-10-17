@@ -526,7 +526,6 @@ export function settingsPanel(ui, body) {
   grid.append(h('label', { for: 'set-mute' }, 'Mute all'), h('input', { id: 'set-mute', type: 'checkbox', checked: s.muted, onchange: (e) => { s.muted = e.target.checked; ui.applySettings(); } }), h('span'));
   const speed = h('select', { id: 'set-speed', onchange: (e) => { s.textSpeed = e.target.value; ui.applySettings(); } }, ...['slow', 'normal', 'fast', 'instant'].map((v) => h('option', { value: v, selected: s.textSpeed === v }, v)));
   grid.append(h('label', { for: 'set-speed' }, 'Text speed'), speed, h('span'));
-  grid.append(h('label', { for: 'set-pixel' }, 'Pixel-art look'), h('input', { id: 'set-pixel', type: 'checkbox', checked: s.pixelArt !== false, onchange: (e) => { s.pixelArt = e.target.checked; ui.applySettings(); } }), h('span'));
   grid.append(h('label', { for: 'set-fps' }, 'Show debug info'), h('input', { id: 'set-fps', type: 'checkbox', checked: s.showFps, onchange: (e) => { s.showFps = e.target.checked; ui.applySettings(); } }), h('span'));
   body.append(grid);
   if (ui.audio.failures.length) body.append(h('p', { class: 'muted' }, `Audio notes: ${ui.audio.failures.slice(-3).join('; ')}`));

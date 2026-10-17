@@ -12140,7 +12140,7 @@ class SaveManager {
 }
 
 const SETTINGS_KEY = 'oberverse.settings';
-const DEFAULT_SETTINGS = { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.5, voice: 0.6, muted: false, textSpeed: 'normal', showFps: false, timeScale: 1, pixelArt: true };
+const DEFAULT_SETTINGS = { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.5, voice: 0.6, muted: false, textSpeed: 'normal', showFps: false, timeScale: 1 };
 
 function loadSettings(storage = defaultStorage()) {
   try {
@@ -37009,8 +37009,9 @@ class Renderer {
     this.canvas.style.height = `${window.innerHeight}px`;
     this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
     this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
-    const fit = this.pixel ? Math.min(window.innerWidth / (26 * TILE), window.innerHeight / (15.5 * TILE)) : Math.min(window.innerWidth / (22 * TILE), window.innerHeight / (13.5 * TILE)); // v0.41.1: the pixel look shows more of the street, like the mock-up
-    this.baseZoom = clamp(fit, 1.1, 2.4) * dpr;
+    // v0.47.0: about 24 tiles across (the owner's "medium"), at a whole number of device pixels per world pixel
+    const fit = Math.min(window.innerWidth / (24 * TILE), window.innerHeight / (14 * TILE));
+    this.baseZoom = clamp(fit, 1, 4) * dpr;
   }
 
   staticLayer(map) {
@@ -37091,7 +37092,7 @@ class Renderer {
   updateCamera(dt) {
     const g = this.game;
     const map = g.currentMap();
-    let zoom = this.baseZoom * (map.kind === 'interior' ? 1.15 : 1);
+    let zoom = this.baseZoom; // v0.47.0: one zoom indoors and out (buildings are walked into, not loaded)
     if (this.pixel) {
       // v0.46.0: fine pixels — one low-res pixel per world pixel (half the old art pixel), and a
       // whole number of device pixels to each, so every pixel is the same size
@@ -40300,7 +40301,6 @@ function settingsPanel(ui, body) {
   grid.append(h('label', { for: 'set-mute' }, 'Mute all'), h('input', { id: 'set-mute', type: 'checkbox', checked: s.muted, onchange: (e) => { s.muted = e.target.checked; ui.applySettings(); } }), h('span'));
   const speed = h('select', { id: 'set-speed', onchange: (e) => { s.textSpeed = e.target.value; ui.applySettings(); } }, ...['slow', 'normal', 'fast', 'instant'].map((v) => h('option', { value: v, selected: s.textSpeed === v }, v)));
   grid.append(h('label', { for: 'set-speed' }, 'Text speed'), speed, h('span'));
-  grid.append(h('label', { for: 'set-pixel' }, 'Pixel-art look'), h('input', { id: 'set-pixel', type: 'checkbox', checked: s.pixelArt !== false, onchange: (e) => { s.pixelArt = e.target.checked; ui.applySettings(); } }), h('span'));
   grid.append(h('label', { for: 'set-fps' }, 'Show debug info'), h('input', { id: 'set-fps', type: 'checkbox', checked: s.showFps, onchange: (e) => { s.showFps = e.target.checked; ui.applySettings(); } }), h('span'));
   body.append(grid);
   if (ui.audio.failures.length) body.append(h('p', { class: 'muted' }, `Audio notes: ${ui.audio.failures.slice(-3).join('; ')}`));
@@ -43171,9 +43171,9 @@ class UI {
     this.maps = new MapRenderer(game);
     this.renderer = new Renderer(this.canvas, game, this.assets);
     this.renderer.mouse = this.mouse; // v0.44.0: the crosshair
-    this.renderer.pixel = this.settings.pixelArt !== false;
+    this.renderer.pixel = true; // v0.47.0: one art style (the old look is gone)
     this.renderer.resize();
-    document.body.classList.toggle('pixel-ui', this.renderer.pixel);
+    document.body.classList.add('pixel-ui');
     this.renderer.hidePlayer = demo;
     this.renderer.snapCamera();
     if (!demo) this.bindGame(game);
@@ -43305,8 +43305,6 @@ class UI {
   applySettings() {
     this.audio.applySettings(this.settings);
     this.el.debug.classList.toggle('hidden', !this.settings.showFps);
-    if (this.renderer) { this.renderer.pixel = this.settings.pixelArt !== false; this.renderer.resize(); } // v0.38.0 (v0.41.1: the pixel look has its own zoom)
-    document.body.classList.toggle('pixel-ui', this.settings.pixelArt !== false); // v0.43.0: menus and panels too
   }
 
   saveSettings() {

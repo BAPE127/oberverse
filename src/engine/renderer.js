@@ -60,8 +60,9 @@ export class Renderer {
     this.canvas.style.height = `${window.innerHeight}px`;
     this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
     this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
-    const fit = this.pixel ? Math.min(window.innerWidth / (26 * TILE), window.innerHeight / (15.5 * TILE)) : Math.min(window.innerWidth / (22 * TILE), window.innerHeight / (13.5 * TILE)); // v0.41.1: the pixel look shows more of the street, like the mock-up
-    this.baseZoom = clamp(fit, 1.1, 2.4) * dpr;
+    // v0.47.0: about 24 tiles across (the owner's "medium"), at a whole number of device pixels per world pixel
+    const fit = Math.min(window.innerWidth / (24 * TILE), window.innerHeight / (14 * TILE));
+    this.baseZoom = clamp(fit, 1, 4) * dpr;
   }
 
   staticLayer(map) {
@@ -142,7 +143,7 @@ export class Renderer {
   updateCamera(dt) {
     const g = this.game;
     const map = g.currentMap();
-    let zoom = this.baseZoom * (map.kind === 'interior' ? 1.15 : 1);
+    let zoom = this.baseZoom; // v0.47.0: one zoom indoors and out (buildings are walked into, not loaded)
     if (this.pixel) {
       // v0.46.0: fine pixels — one low-res pixel per world pixel (half the old art pixel), and a
       // whole number of device pixels to each, so every pixel is the same size
