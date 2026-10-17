@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.39.0 (2026-10-17)
+
+- `npm run check` — **368/368 tests passed** (2 new in `pixelart.test.mjs`: every map's pixel ground builds at 16 art pixels a tile with whole-pixel rects and Lanternside gets its centre line; every prop on every map draws in pixel style or falls back without throwing).
+- Browser: Halvermouth, Lanternside (Canal Row) and the Kettle & Crumb at 60 fps, no page errors — kerbs, centre lines on 4-lane roads, the tiled café floor, back wall with wainscot, the new counter, tables, chairs, shelf, oven, display case, plant, trees, lamps, flowerbed, hydrant. The first tree was a rounded square; redrawn as three clumps. Screenshots: `docs/mockups/stage2-*.png`.
+
 ## Verification record — v0.38.0 (2026-10-17)
 
 - `npm run check` — 366/366 (no logic changed); `npm run smoke` — 24/24.

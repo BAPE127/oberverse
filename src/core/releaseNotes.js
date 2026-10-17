@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.39.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 2)',
+    notes: [
+      'The streets are pixel art now: slab pavements with kerbs, asphalt with cracks and a dashed yellow line down the middle of every road, grass, plazas, piers, water with a stone edge.',
+      'Indoors: planked, tiled and carpeted floors, papered back walls with a dado rail, panelled doors.',
+      'Trees, lamps, benches, hydrants, bins, crates and barrels — and beds, shelves, counters, tables, chairs, stoves and plants — redrawn in the new style.',
+    ],
+  },
+  {
     version: '0.38.0',
     date: '2026-10-17',
     channel: 'development',

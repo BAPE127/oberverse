@@ -1,6 +1,7 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 import { drawFarmProp, drawFields } from './drawFarm.js';
+import { drawPixelProp } from './drawPixelProps.js';
 import { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } from './drawDeck.js';
 import { lightState, walkSignal } from '../world/lights.js';
 import { TILE } from '../core/util.js';
@@ -690,7 +691,12 @@ function drawTrafficLight(ctx, p, x, y, t) {
   else { ctx.beginPath(); ctx.arc(cx + 8, y - 1.5, 1.5, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(cx + 7, y, 2, 4); }
 }
 
+let pixelProps = false;
+/** v0.39.0: the renderer turns the pixel-art props on and off with the "Pixel-art look" setting. */
+export function setPixelProps(on) { pixelProps = !!on; }
+
 export function drawProp(ctx, p, opts) {
+  if (pixelProps && drawPixelProp(ctx, p, opts)) return;
   const x = p.x * T;
   const y = p.y * T;
   const w = p.w * T;

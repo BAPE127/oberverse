@@ -1,7 +1,9 @@
 // Canvas renderer: camera, y-sorted world drawing, speech bubbles, interaction
 // highlight and day/night lighting. Reads game state; never mutates it.
 import { TILE, clamp, lerp, dist } from '../core/util.js';
-import { buildStaticLayer, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
+import { buildPixelGround } from './drawPixelGround.js';
+import { drawFields } from './drawFarm.js';
+import { buildStaticLayer, setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus } from './drawVehicles.js';
 import { drawTrail } from './drawSignatureCars.js';
 import { drawCharacter, rrect } from './drawCharacter.js';
@@ -62,14 +64,21 @@ export class Renderer {
   staticLayer(map) {
     // v0.30.0: a map whose fields changed (crops planted, grown, harvested) gets its ground redrawn
     const v = map.fieldsVersion || 0;
-    if (!this.staticLayers.has(map) || this.staticLayers.get(map).fieldsVersion !== v) {
-      const cv = buildStaticLayer(map, (w, h) => {
+    const kind = this.pixel ? 'pixel' : 'smooth';
+    const cur = this.staticLayers.get(map);
+    if (!cur || cur.fieldsVersion !== v || cur.kind !== kind) {
+      const make = (w, h) => {
         const c = document.createElement('canvas');
         c.width = w;
         c.height = h;
         return c;
-      });
+      };
+      // v0.39.0: in the pixel look the ground is drawn at art resolution (half world scale)
+      const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
+      const cv = this.pixel ? buildPixelGround(map, make, fields) : buildStaticLayer(map, make);
       cv.fieldsVersion = v;
+      cv.kind = kind;
+      cv.scale = this.pixel ? 0.5 : 1;
       this.staticLayers.set(map, cv);
     }
     return this.staticLayers.get(map);
@@ -177,6 +186,7 @@ export class Renderer {
     const v = this.view;
     // v0.38.0: the world pass goes into the low-resolution canvas (the Wrath keeps full resolution)
     const pixel = this.pixel && !g.combat.wrath;
+    setPixelProps(this.pixel);
     if (pixel) {
       const lw = Math.ceil(this.canvas.width / this.px) + 1;
       const lh = Math.ceil(this.canvas.height / this.px) + 1;
@@ -217,9 +227,21 @@ export class Renderer {
       const layer = this.staticLayer(lm);
       const sx = Math.max(0, Math.floor(lv.x));
       const sy = Math.max(0, Math.floor(lv.y));
-      const sw = Math.min(layer.width - sx, Math.ceil(lv.w) + 2);
-      const sh = Math.min(layer.height - sy, Math.ceil(lv.h) + 2);
-      if (sw > 0 && sh > 0) ctx.drawImage(layer, sx, sy, sw, sh, sx + L.x, sy + L.y, sw, sh);
+      const sw = Math.min(layer.width / layer.scale - sx, Math.ceil(lv.w) + 2);
+      const sh = Math.min(layer.height / layer.scale - sy, Math.ceil(lv.h) + 2);
+      if (sw > 0 && sh > 0) {
+        const k = layer.scale;
+        if (k !== 1) {
+          // even-aligned so art pixels land on art pixels
+          const ex = sx & ~1;
+          const ey = sy & ~1;
+          const ew = Math.min(layer.width / k - ex, sw + 2) & ~1;
+          const eh = Math.min(layer.height / k - ey, sh + 2) & ~1;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(layer, ex * k, ey * k, ew * k, eh * k, ex + L.x, ey + L.y, ew, eh);
+          ctx.imageSmoothingEnabled = true;
+        } else ctx.drawImage(layer, sx, sy, sw, sh, sx + L.x, sy + L.y, sw, sh);
+      }
       at(() => {
         if (lm.kind !== 'interior') drawWaterShimmer(ctx, lm, lv, this.time);
         if (lm.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, lm, lv);

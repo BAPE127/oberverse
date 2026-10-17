@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.39.0] — 2026-10-17 — Pixels: art revamp, stage 2 (development build)
+
+Owner: "go with stage 2". Stage 2 of 5: the ground, streets, sidewalks, props and interior walls.
+
+### Added
+- **Pixel ground** (`src/engine/drawPixelGround.js`): each map's ground is drawn once at art resolution (16 art pixels a tile) and copied 1:1 into the low-resolution pass, so it is perfectly crisp. Grass with blades and the odd flower; grey slab pavements with seams and **kerbs** (a light lip and a dark face) where they meet the road; asphalt with grit, cracks and oil; a yellow dashed **centre line measured down the true middle of every road** (none in the junction boxes); plaza slabs, concrete, dirt, sand, mud with puddles, ploughed fields; planked bridges and piers; water with a stone lip; planked wood, chequered tile and carpet floors; interior back walls with a dado rail and wainscot, side walls seen from above, panelled doors.
+- **Pixel props** (`src/engine/drawPixelProps.js`): trees, pines, bushes, flowerbeds, benches, street lamps, rocks, crates, barrels, hydrants, rubbish, dumpsters, beds, cots, wardrobes, shelves, cabinets, tool racks, display cases, desks, tables, counters, workbenches, lecterns, chairs, stoves and ovens, plants, rugs and windows — outlined, with a light top edge and a hard shadow. Everything else keeps its old drawing for now (the gun cabinet, the terminals, the ships and works as the owner asked).
+- Both follow Settings → Pixel-art look (off: the old ground and props).
+
+### Next
+- Stage 3: roofless buildings. Stage 4: tower floors. Stage 5: lighting and the menus.
+
 ## [0.38.0] — 2026-10-17 — Pixels: art revamp, stage 1 (development build)
 
 Owner: "Let's revamp it" — the Streets of Rogue 2–style look from the mock-up (`docs/mockups/`), in stages. Stage 1 of 5.

@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.39.0 | 2026-10-17 | development | 1 | Art revamp, stage 2: pixel ground (kerbs, road markings, floors, walls) and pixel props |
 | 0.38.0 | 2026-10-17 | development | 1 | Art revamp, stage 1: the pixel-art pipeline, new cars, the HUD restyled |
 | 0.37.0 | 2026-10-16 | development | 1 | The works, more Factorio: walk-through inserters, storage chests, filter inserters, belt sorters, belts that carry you |
 | 0.36.0 | 2026-10-16 | development | 1 | Homes for everyone (no beds at work), break-ins, invitations |
