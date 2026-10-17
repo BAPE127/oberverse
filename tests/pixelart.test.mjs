@@ -43,3 +43,28 @@ test('pixel props: every prop on every map draws (or cleanly falls back) without
   }
   for (const t of ['tree', 'streetlamp', 'bench', 'counter', 'chair', 'shelf', 'bed']) assert.ok(handled.has(t), t);
 });
+
+test('roofless buildings: every building draws without a roof; the café shows its counter, all furniture inside the walls', async () => {
+  const { drawPixelBuilding, layout } = await import('../src/engine/drawPixelBuildings.js');
+  const g = newGame(1);
+  let n = 0;
+  for (const m of g.maps.values()) {
+    for (const b of m.buildings) {
+      if (b.tower || b.round) continue;
+      const door = m.doors.find((d) => d.building === b.id);
+      const inside = door?.to?.map ? g.maps.get(door.to.map) : null;
+      const cv = fakeCanvas(1, 1);
+      cv.ctx.measureText = (t) => ({ width: t.length * 5 });
+      drawPixelBuilding(cv.ctx, b, { inside, time: 0, night: false });
+      for (const [x, y, w, h] of cv.ctx.rects) assert.ok(y >= b.y * 32 - 40 && y + h <= (b.y + b.h) * 32 + 8, `${m.id}/${b.id}: nothing above the walls (no roof)`);
+      const W = b.w * 16 - 6;
+      const H = b.h * 16 - 25;
+      for (const p of layout(b, inside, W, H)) assert.ok(p.ax >= 0 && p.ay >= 0 && p.ax + p.w * 16 <= W && p.ay + p.h * 16 <= H, `${b.id}: ${p.type} inside`);
+      n++;
+    }
+  }
+  assert.ok(n > 50);
+  const lm = g.maps.get('lanternside');
+  const cafe = lm.buildings.find((b) => b.id === 'b_cafe');
+  assert.ok(layout(cafe, g.maps.get('cafe'), cafe.w * 16 - 6, cafe.h * 16 - 25).some((p) => p.type === 'counter'));
+});

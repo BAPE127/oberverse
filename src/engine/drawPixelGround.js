@@ -143,7 +143,7 @@ function tile(R, map, x, y, at, run) {
     case 'u': {
       R(px, py, A, A, PAL.mud[0]);
       speckle(R, px, py, x, y, [PAL.mud[1], PAL.mud[2]], 9);
-      if (r > 0.72) { R(px + 3, py + 6, 9, 3, '#4e5a66'); R(px + 4, py + 5, 7, 1, '#4e5a66'); R(px + 5, py + 6, 3, 1, '#6e7a86'); } // a puddle
+      if (r > 0.9) { R(px + 3, py + 6, 9, 3, '#4e5a66'); R(px + 4, py + 5, 7, 1, '#4e5a66'); R(px + 5, py + 6, 3, 1, '#6e7a86'); } // a puddle
       if (r < 0.06) R(px + 6, py + 7, 3, 2, '#d8d0c0'); // litter
       break;
     }
@@ -215,6 +215,14 @@ function tile(R, map, x, y, at, run) {
       R(px, py, A, A, r < 0.5 ? tt.color : tt.alt || tt.color);
     }
   }
+}
+
+/** One 16×16 tile of an indoor floor (wood, tile, carpet or concrete) at art (px, py). Used by the roofless buildings too. */
+export function paintFloor(R, ch, px, py, x, y) {
+  if (ch === 't') { R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]); R(px, py, A, 1, PAL.tile[2]); R(px, py, 1, A, PAL.tile[2]); return; }
+  if (ch === 'c') { R(px, py, A, A, PAL.carpet[0]); for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]); return; }
+  if (ch === 'g') { R(px, py, A, A, (x + y) % 2 ? PAL.concrete[0] : PAL.concrete[1]); R(px, py, A, 1, PAL.concrete[2]); R(px, py, 1, A, PAL.concrete[2]); return; }
+  floorWood(R, px, py, x, y);
 }
 
 function floorWood(R, px, py, x, y) {

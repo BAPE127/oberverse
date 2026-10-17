@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.40.0] — 2026-10-17 — Pixels: art revamp, stage 3 (development build)
+
+Owner: "go ahead with further stages". Stage 3 of 5: roofless buildings.
+
+### Added
+- **Roofless buildings** (`src/engine/drawPixelBuildings.js`): in the pixel look every ordinary building is drawn the Streets of Rogue way — no roof, thin walls with a top edge, a short front face with its windows, door, awning, pilasters and sign — and you see straight in.
+- **A cutaway of the real interior:** the floor the interior map is laid with (wood, tile, carpet or concrete) and its furniture, placed in proportion inside the walls (biggest pieces first; nothing overlaps or pokes through a wall). The interiors are larger than the footprints, so this is a scaled plan of the room, not the room itself; you still go in through the door as before.
+- Buildings with no interior get a room that fits what they are: diners and bars (counter, tables and chairs), shops (shelves, a display, the counter), offices, banks, churches and schools (cabinets, desks), warehouses and garages (crates, barrels, a workbench), houses (bed, wardrobe, stove, table) and the Sumps' shacks.
+- At night an empty room is dark and an occupied one glows. Standing behind a building no longer hides you behind a roof — only its front face covers you.
+
+### Changed
+- Fewer puddles on the Sumps' mud.
+
+### Not changed
+- Towers and the lighthouse keep their look until stage 4 (tower floors). Settings → Pixel-art look off brings the roofs back.
+
 ## [0.39.0] — 2026-10-17 — Pixels: art revamp, stage 2 (development build)
 
 Owner: "go with stage 2". Stage 2 of 5: the ground, streets, sidewalks, props and interior walls.

@@ -2,6 +2,7 @@
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 import { drawFarmProp, drawFields } from './drawFarm.js';
 import { drawPixelProp } from './drawPixelProps.js';
+import { drawPixelBuilding } from './drawPixelBuildings.js';
 import { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } from './drawDeck.js';
 import { lightState, walkSignal } from '../world/lights.js';
 import { TILE } from '../core/util.js';
@@ -449,6 +450,7 @@ function drawTower(ctx, b, opts) {
 export function drawBuilding(ctx, b, opts) {
   if (b.round) return drawLighthouse(ctx, b, opts);
   if (b.tower) return drawTower(ctx, b, opts);
+  if (pixelProps) return drawPixelBuilding(ctx, b, opts); // v0.40.0: roofless
   const left = b.x * T;
   const right = (b.x + b.w) * T;
   const top = b.y * T;

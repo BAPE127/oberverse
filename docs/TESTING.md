@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.40.0 (2026-10-17)
+
+- `npm run check` — **369/369 tests passed** (1 new in `pixelart.test.mjs`: every ordinary building on every map draws with nothing above its walls; every cutaway piece of furniture sits inside the walls; the Kettle & Crumb's cutaway has its counter).
+- Browser: the Kettle & Crumb from Canal Row (its counter, tables and tiled floor), Market Street (Dinah's counter and tables, the pawnshop's shelves, display and counter), Pecan Street in Lariat (houses) and the Sumps' shacks — 60 fps, no page errors. Fixed while testing: wall tops were near-white on pale buildings (now a shade of the wall); Lariat's houses got shop shelves (now a bed, wardrobe and stove). Screenshots: `docs/mockups/stage3-*.png`.
+
 ## Verification record — v0.39.0 (2026-10-17)
 
 - `npm run check` — **368/368 tests passed** (2 new in `pixelart.test.mjs`: every map's pixel ground builds at 16 art pixels a tile with whole-pixel rects and Lanternside gets its centre line; every prop on every map draws in pixel style or falls back without throwing).

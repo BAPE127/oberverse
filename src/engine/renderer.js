@@ -258,7 +258,7 @@ export class Renderer {
         const above = b.tower ? towerHeight(b) / TILE : 4;
         if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
-        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door) })) });
+        items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null })) });
       }
       for (const p of lm.props) {
         if (FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
@@ -361,7 +361,7 @@ export class Renderer {
     for (const b of map.buildings) {
       const bottom = (b.y + b.h) * TILE;
       if (p.y >= bottom) continue;
-      const top = b.tower ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : b.y * TILE - TILE * 0.6;
+      const top = b.tower ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : this.pixel ? bottom - TILE * 0.9 : b.y * TILE - TILE * 0.6; // roofless: only the front face covers you
       if (p.x > b.x * TILE - 8 && p.x < (b.x + b.w) * TILE + 8 && p.y > top && p.y - 40 < bottom) return true;
     }
     return false;

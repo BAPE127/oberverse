@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.40.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 3)',
+    notes: [
+      'The roofs are off. Buildings are thin walls with a front face — windows, door, awning, sign — and you can see inside from the street: the café\'s counter and tables, the pawnshop\'s shelves, a bed in a farmhouse.',
+      'What you see is a cut-away plan of the real room; walk in through the door as before.',
+    ],
+  },
+  {
     version: '0.39.0',
     date: '2026-10-17',
     channel: 'development',

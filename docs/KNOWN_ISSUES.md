@@ -1,6 +1,6 @@
-# Known Issues and Limitations — v0.39.0
+# Known Issues and Limitations — v0.40.0
 
-- **Art revamp (v0.39.0, stage 2 of 5):** the ground, the cars and the common props are pixel art; buildings (still with roofs), people and the rarer props (ships, the works, farm kit, building sites, oil field) are the old drawings run through the pixel filter, so they look softer. Fields and crops are the old drawing inside the pixel ground. Captions, notifications and menus are the old style. World text is drawn on top of everything (a sign can show through a character standing in front of it).
+- **Art revamp (v0.40.0, stage 3 of 5):** buildings are roofless, but what you see inside is a scaled cutaway of the interior map (its furniture in proportion), not the room itself — the people inside aren't shown, and you still enter through the door (a scene change). Towers and the lighthouse still have their old look (stage 4). People and the rarer props (ships, the works, farm kit, building sites, the oil field) are the old drawings through the pixel filter; fields and crops are the old drawing. Captions, notifications and menus are the old style (stage 5). World text is drawn on top of everything.
 
 - **The works (v0.37.0):** one-lane belts (no lanes, undergrounds or long-handed inserters yet); a sorter always sends its item to its right (rotate it to choose); chests have no slot limit ("bar"); belts carry the player but not the workers.
 

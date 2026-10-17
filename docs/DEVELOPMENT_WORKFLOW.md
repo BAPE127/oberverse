@@ -61,6 +61,7 @@ If a session ends mid-task, append a dated entry to the "Current state" section 
 
 ## Current state
 
+- **2026-10-17 — v0.40.0.** Art revamp stage 3: roofless buildings (`src/engine/drawPixelBuildings.js`, called from `drawBuilding` in pixel mode; the renderer passes the door's interior map as `opts.inside`). The cutaway layout is cached per building. Next: stage 4 (tower floors), stage 5 (lighting and menus).
 - **2026-10-17 — v0.39.0.** Art revamp stage 2: pixel ground (`src/engine/drawPixelGround.js`, built at half world scale and drawn even-aligned by `renderer.staticLayer`) and pixel props (`src/engine/drawPixelProps.js`, hooked at the top of `drawProp` via `setPixelProps`). To give another prop a pixel version, add a case there; return false to fall back. Next: stage 3 (roofless buildings) when the owner asks.
 - **2026-10-17 — v0.38.0.** Art revamp stage 1: the pixel pipeline (renderer low-res world pass + full-res text/lighting), pixel cars (`src/engine/drawPixelCars.js`), the HUD restyle. Rule for new drawing code: draw on the art-pixel grid (2 world px), let text be text (it's replayed crisp). Next: stage 2 — ground, streets, props, walls.
 - **2026-10-16 — v0.37.0.** The works, more Factorio (`src/systems/factory.js`): walk-through inserters and sorters, belts that carry you, storage chests, filter inserters, belt sorters. Ideas for later: belt lanes, underground belts, long-handed inserters, chest limits.
