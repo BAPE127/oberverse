@@ -4,7 +4,8 @@ import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildPixelGround } from './drawPixelGround.js';
 import { drawFields } from './drawFarm.js';
 import { buildStaticLayer, setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
-import { drawCar, drawBus } from './drawVehicles.js';
+import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
+import { lookOf, isGunLook } from './drawPixelWeapons.js';
 import { drawTrail } from './drawSignatureCars.js';
 import { drawCharacter, setPixelPeople, rrect } from './drawCharacter.js';
 import { check } from '../sim/conditions.js';
@@ -13,6 +14,7 @@ import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js'
 import { inWindow } from '../world/clock.js';
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
+const CONFETTI = ['#ff5a8a', '#f2e05a', '#5ad0f2', '#8aff6a', '#c08aff'];
 const LIGHT_SCALE = 0.25; // the light map is soft, so it is rendered at quarter resolution and upscaled
 
 export class Renderer {
@@ -213,6 +215,7 @@ export class Renderer {
     const pixel = this.pixel && !g.combat.wrath;
     setPixelProps(this.pixel);
     setPixelPeople(this.pixel);
+    setPixelCars(this.pixel);
     if (pixel) {
       const lw = Math.ceil(this.canvas.width / this.px) + 1;
       const lh = Math.ceil(this.canvas.height / this.px) + 1;
@@ -305,7 +308,8 @@ export class Renderer {
           items.push({ y: npc.y + L.y - 20, draw: at(() => this.drawLying(npc)) });
           continue;
         }
-        const nw = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon]?.weapon?.held : null;
+        const nwi = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon] : null;
+        const nw = nwi ? (this.pixel ? lookOf(nwi) : nwi.weapon?.held) : null;
         const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
         const lift = g.combat.wrath?.npcId === npc.id ? wrathLift(g, g.combat.wrath) : 0;
         items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, lift ? { ...npc, y: npc.y - lift, moving: false } : npc, npc.activity === 'sleep')) });
@@ -332,7 +336,7 @@ export class Renderer {
         }
       }
     }
-    const held = g.combat.equipped().weapon.held;
+    const held = this.pixel ? lookOf(g.combat.equipped()) : g.combat.equipped().weapon.held; // v0.45.0: each weapon its own sprite
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
     const aboard = g.player.driving || (g.player.riding !== null && g.player.riding !== undefined);
@@ -483,6 +487,7 @@ export class Renderer {
     // v0.44.0: bullets you can see — a hot slug and a short streak behind it
     for (const b of g.combat.bullets) {
       if (b.map !== g.player.map) continue;
+      if (b.kind && this.drawOddBullet(ctx, b, t)) continue; // v0.45.0: pigeons, fish, cheese…
       const len = b.hurts ? 10 : 16;
       ctx.strokeStyle = b.hurts ? 'rgba(255,140,90,0.55)' : 'rgba(255,230,150,0.6)';
       ctx.lineWidth = 2;
@@ -494,7 +499,7 @@ export class Renderer {
       if (q.map !== g.player.map) continue;
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2);
-      ctx.fillStyle = q.kind === 'case' ? '#e8b83a' : '#b0181e';
+      ctx.fillStyle = q.kind === 'coin' ? '#f2c84a' : q.kind === 'confetti' ? CONFETTI[q.hue || 0] : q.kind === 'case' ? '#e8b83a' : '#b0181e';
       ctx.fillRect(Math.round(q.x), Math.round(q.y - q.z), q.kind === 'case' ? 4 : 2 * q.size, 2);
     }
     for (const f of g.combat.fx) {
@@ -568,6 +573,28 @@ export class Renderer {
     }
   }
 
+  /** v0.45.0: the special weapons' ammunition, in flight. */
+  drawOddBullet(ctx, b, t) {
+    const a = Math.atan2(b.dy, b.dx);
+    ctx.save();
+    ctx.translate(Math.round(b.x), Math.round(b.y));
+    const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+    switch (b.kind) {
+      case 'pigeon': { const flap = Math.floor(t * 16) % 2; if (b.dx < 0) ctx.scale(-1, 1); R(-3, -1, 6, 3, '#8a8a96'); R(2, -2, 2, 2, '#b0b0ba'); R(4, -1, 1, 1, '#e8a040'); R(-2, flap ? -3 : 1, 3, 2, '#6a6a76'); R(-4, 0, 1, 1, '#5a5a66'); break; }
+      case 'fish': ctx.rotate(a); R(-4, -1, 7, 3, '#8ab0c8'); R(-4, -1, 7, 1, '#d0e8f0'); R(-6, -2, 2, 1, '#4a7aa8'); R(-6, 1, 2, 1, '#4a7aa8'); R(2, -1, 1, 1, '#14141e'); break;
+      case 'cheese': { ctx.rotate(t * 12); R(-3, -3, 6, 6, '#f2c14e'); R(-3, -3, 6, 1, '#ffe08a'); R(-1, -1, 1, 1, '#c8902a'); R(1, 1, 1, 1, '#c8902a'); break; }
+      case 'coin': R(-1, -1, 3, 3, Math.floor(t * 20) % 2 ? '#f2c84a' : '#fff0a0'); break;
+      case 'nail': ctx.rotate(a); R(-3, 0, 5, 1, '#c9ced4'); R(2, -1, 1, 3, '#8a9098'); break;
+      case 'chalk': ctx.rotate(a); R(-6, 0, 4, 1, 'rgba(240,240,232,0.5)'); R(-2, -1, 3, 2, '#f0f0e8'); break;
+      case 'ray': ctx.rotate(a); R(-24, -1, 26, 2, 'rgba(90,255,138,0.45)'); R(-10, -1, 12, 2, '#5aff8a'); R(0, -1, 2, 2, '#e0ffe8'); break;
+      case 'harpoon': ctx.rotate(a); R(-30, 0, 24, 1, '#8a6a3a'); R(-6, -1, 10, 2, '#c9ced4'); R(4, -2, 2, 4, '#c9ced4'); R(6, -1, 1, 2, '#c9ced4'); break;
+      case 'confetti': for (let k = 0; k < 4; k++) R(Math.round(Math.cos(k * 1.7 + t * 9) * 3), Math.round(Math.sin(k * 2.3 + t * 9) * 3), 1, 1, CONFETTI[k]); break;
+      default: ctx.restore(); return false;
+    }
+    ctx.restore();
+    return true;
+  }
+
   /** v0.44.0: blood spatter, pools under the fallen, spent cases — on the ground, fading after a few minutes. */
   drawCombatGround(ctx, mapId) {
     const t = this.game.realTime;
@@ -578,6 +605,7 @@ export class Renderer {
       if (a <= 0) continue;
       const x = Math.round(d.x / 2) * 2;
       const y = Math.round(d.y / 2) * 2;
+      if (d.kind === 'coin' || d.kind === 'confetti') { ctx.fillStyle = d.kind === 'coin' ? `rgba(242,200,74,${a})` : CONFETTI[d.hue || 0]; ctx.globalAlpha = a; ctx.fillRect(x, y, d.kind === 'coin' ? 4 : 2, 2); ctx.globalAlpha = 1; continue; }
       if (d.kind === 'blood') { ctx.fillStyle = `rgba(150,20,24,${0.85 * a})`; ctx.fillRect(x, y, d.size * 2 + 2, 2); if (d.size > 1) ctx.fillRect(x + 2, y + 2, 2, 2); }
       else if (d.kind === 'case') { ctx.fillStyle = `rgba(232,184,58,${a})`; ctx.fillRect(x, y, 4, 2); ctx.fillStyle = `rgba(140,100,30,${a})`; ctx.fillRect(x + 2, y, 2, 2); }
       else if (d.kind === 'pool') {
@@ -703,8 +731,16 @@ export class Renderer {
     const shake = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.2 ? Math.sin(this.game.realTime * 90) * 2 : 0;
     // v0.44.0: a white flash when hit; a gun points where it's aimed
     const flash = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.09;
-    const ad = actor === this.game.player ? (appearance.holding && ['pistol', 'longgun'].includes(appearance.holding) ? this.game.combat.aimVector(this.game.combat.equipped()) : null)
-      : actor.hostile?.mode === 'fight' && ['pistol', 'longgun'].includes(appearance.holding) ? { x: this.game.player.x - actor.x, y: this.game.player.y - actor.y } : null;
+    const ad = actor === this.game.player ? (appearance.holding && isGunLook(appearance.holding) ? this.game.combat.aimVector(this.game.combat.equipped()) : null)
+      : actor.hostile?.mode === 'fight' && isGunLook(appearance.holding) ? { x: this.game.player.x - actor.x, y: this.game.player.y - actor.y } : null;
+    if (actor.stunUntil > this.game.realTime) {
+      // v0.45.0: stunned — little stars going round
+      for (let k = 0; k < 3; k++) {
+        const th = this.time * 6 + (k * Math.PI * 2) / 3;
+        this.ctx.fillStyle = k % 2 ? '#fff6a0' : '#f2c14e';
+        this.ctx.fillRect(Math.round(actor.x + Math.cos(th) * 10) - 2, Math.round(actor.y - 56 + Math.sin(th) * 3) - 2, 4, 4);
+      }
+    }
     drawCharacter(this.ctx, appearance, {
       flash,
       aim: ad ? Math.atan2(ad.y, ad.x) : null,

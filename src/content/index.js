@@ -61,6 +61,7 @@ import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
 import { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } from './farming.js';
 import { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } from './life.js';
 import { towerMaps, addTowers, TOWERS } from './towers.js';
+import { SPECIAL_ITEMS, addSpecialWeapons } from './specialWeapons.js';
 import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } from './homes.js';
 import { buildPatrols } from '../world/patrols.js';
 
@@ -86,6 +87,8 @@ const TRANSIT = buildTransit(SHIFTS);
 addStreetFurniture(MAPS, TRANSIT);
 addHomes(MAPS); // v0.36.0: front doors for the new homes (final coordinates)
 addTowers(MAPS); // v0.41.0: tower lobbies, lifts and floors
+const ALL_CONTAINERS = { ...CONTAINERS, ...homeContainers() };
+addSpecialWeapons(MAPS, ALL_CONTAINERS); // v0.45.0: one-of-a-kind weapons, kept in people's homes
 const HOMES_LIFE = homeResidences();
 markHomes(MAPS, { ...RESIDENCES, ...HOMES_LIFE.residences }, LIFE);
 const PATROL_ROUTES = buildPatrols(MAPS, PATROLS); // v0.32.0: police beats, as spots on the pavement
@@ -109,10 +112,10 @@ export const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
-  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS },
+  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS, ...SPECIAL_ITEMS },
   facts: FACTS,
   docs: DOCS,
-  containers: { ...CONTAINERS, ...homeContainers() },
+  containers: ALL_CONTAINERS,
   towers: TOWERS,
   lodging: LODGING, // v0.36.0: where the arms works' hired hands sleep
   shops: SHOPS,

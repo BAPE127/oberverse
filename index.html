@@ -637,6 +637,7 @@ body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .d
   --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5; color: #2d2433;
 }
 #hud-tl { white-space: nowrap; }
+.hb-slot canvas { object-fit: contain; }
 </style>
 </head>
 <body>
@@ -2868,16 +2869,16 @@ const ARMS_ITEMS = Object.fromEntries([
   // --- weapons made only in the arms works (pistol, SMG and shotgun reuse the shop's items)
   ['item_assault_rifle', { name: 'Assault Rifle', category: 'weapon', price: 520, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 480, family: 'small' },
     description: 'A select-fire assault rifle stamped PIPECREEK. Rifle rounds.',
-    weapon: { kind: 'gun', damage: 24, range: 14, cooldown: 0.12, auto: true, lethal: true, ammo: 'item_ammo_rifle', mag: 30, reload: 2.2, spread: 4, noise: 24, sound: 'sfx_gunshot_smg', held: 'longgun' } }],
+    weapon: { look: 'ar', kind: 'gun', damage: 24, range: 14, cooldown: 0.12, auto: true, lethal: true, ammo: 'item_ammo_rifle', mag: 30, reload: 2.2, spread: 4, noise: 24, sound: 'sfx_gunshot_smg', held: 'longgun' } }],
   ['item_sniper_rifle', { name: 'Sniper Rifle', category: 'weapon', price: 700, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 650, family: 'small' },
     description: 'A bolt-action precision rifle with a long scope. Rifle rounds.',
-    weapon: { kind: 'gun', damage: 120, range: 26, cooldown: 1.6, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 3.0, spread: 0.2, noise: 28, sound: 'sfx_gunshot_heavy', held: 'longgun' } }],
+    weapon: { look: 'sniper', kind: 'gun', damage: 120, range: 26, cooldown: 1.6, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 3.0, spread: 0.2, noise: 28, sound: 'sfx_gunshot_heavy', held: 'longgun' } }],
   ['item_lmg', { name: 'Light Machine Gun', category: 'weapon', price: 900, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 800, family: 'small' },
     description: 'A belt-fed light machine gun. Heavy, loud, persuasive. Rifle rounds.',
-    weapon: { kind: 'gun', damage: 20, range: 13, cooldown: 0.08, auto: true, lethal: true, ammo: 'item_ammo_rifle', mag: 100, reload: 4.5, spread: 8, noise: 28, sound: 'sfx_gunshot_smg', held: 'longgun' } }],
+    weapon: { look: 'lmg', kind: 'gun', damage: 20, range: 13, cooldown: 0.08, auto: true, lethal: true, ammo: 'item_ammo_rifle', mag: 100, reload: 4.5, spread: 8, noise: 28, sound: 'sfx_gunshot_smg', held: 'longgun' } }],
   ['item_rpg', { name: 'RPG Launcher', category: 'weapon', price: 1000, tags: ['weapon', 'gun', 'heavy'], icon: 'longgun', arms: { value: 900, family: 'heavy' },
     description: 'A reusable shoulder-fired launcher. Fires RPG rockets that explode on impact (2.5-tile blast). Using it is a major crime.',
-    weapon: { kind: 'gun', projectile: 'rocket', damage: 110, blast: 2.5, range: 16, cooldown: 1.0, lethal: true, ammo: 'item_rpg_rocket', mag: 1, reload: 2.5, spread: 1, noise: 30, sound: 'sfx_rocket', held: 'longgun' } }],
+    weapon: { look: 'rpg', kind: 'gun', projectile: 'rocket', damage: 110, blast: 2.5, range: 16, cooldown: 1.0, lethal: true, ammo: 'item_rpg_rocket', mag: 1, reload: 2.5, spread: 1, noise: 30, sound: 'sfx_rocket', held: 'longgun' } }],
   ['item_rpg_rocket', { name: 'RPG Rocket', category: 'ammo', price: 240, bundle: 1, tags: ['heavy', 'ammo'], icon: 'ammo', arms: { value: 220, family: 'heavy' },
     description: 'A rocket-propelled grenade for the RPG launcher.' }],
   ['item_missile_guided', { name: 'Skylance Guided Missile', category: 'heavy', price: 2800, tags: ['heavy'], icon: 'machine', arms: { value: 2600, family: 'missile' },
@@ -3277,7 +3278,7 @@ const ITEMS = {
   item_crowbar: {
     name: 'Crowbar', category: 'tool', price: 18, tags: ['tool', 'pry', 'weapon'], icon: 'crowbar',
     description: 'Heavy, honest, and very good at opening things that would rather stay shut. Or heads.',
-    weapon: { kind: 'melee', damage: 24, range: 1.3, arc: 95, cooldown: 0.85, lethal: true, knockback: 24, sound: 'sfx_whack', held: 'club' },
+    weapon: { look: 'crowbar', kind: 'melee', damage: 24, range: 1.3, arc: 95, cooldown: 0.85, lethal: true, knockback: 24, sound: 'sfx_whack', held: 'club' },
   },
   item_lucky_spanner: {
     name: 'Lucky Spanner', category: 'quest', price: 0, tags: ['quest', 'tool'], icon: 'spanner',
@@ -3418,52 +3419,52 @@ const ITEMS = {
   item_knuckles: {
     name: 'Brass Knuckles', category: 'weapon', price: 25, tags: ['weapon', 'melee'], icon: 'knuckles',
     description: 'Four brass rings and a bad attitude. Hits harder than a bare fist, and puts people down without killing them.',
-    weapon: { kind: 'melee', damage: 14, range: 1.0, arc: 80, cooldown: 0.45, lethal: false, knockback: 16, sound: 'sfx_punch', held: 'knuckles' },
+    weapon: { look: 'knuckles', kind: 'melee', damage: 14, range: 1.0, arc: 80, cooldown: 0.45, lethal: false, knockback: 16, sound: 'sfx_punch', held: 'knuckles' },
   },
   item_baton: {
     name: 'Police Baton', category: 'weapon', price: 35, tags: ['weapon', 'melee'], icon: 'baton',
     description: 'A black hardwood nightstick, Halvermouth Police issue. Designed to subdue, not to kill.',
-    weapon: { kind: 'melee', damage: 18, range: 1.25, arc: 90, cooldown: 0.6, lethal: false, knockback: 20, sound: 'sfx_whack', held: 'club' },
+    weapon: { look: 'baton', kind: 'melee', damage: 18, range: 1.25, arc: 90, cooldown: 0.6, lethal: false, knockback: 20, sound: 'sfx_whack', held: 'club' },
   },
   item_bat: {
     name: 'Baseball Bat', category: 'weapon', price: 30, tags: ['weapon', 'melee'], icon: 'bat',
     description: 'Ash wood, taped grip, a dent that tells a story. Nobody in the Sumps plays baseball.',
-    weapon: { kind: 'melee', damage: 22, range: 1.35, arc: 100, cooldown: 0.8, lethal: true, knockback: 26, sound: 'sfx_whack', held: 'club' },
+    weapon: { look: 'bat', kind: 'melee', damage: 22, range: 1.35, arc: 100, cooldown: 0.8, lethal: true, knockback: 26, sound: 'sfx_whack', held: 'club' },
   },
   item_machete: {
     name: 'Machete', category: 'weapon', price: 45, tags: ['weapon', 'melee'], icon: 'blade',
     description: 'A long, broad blade for clearing brush. Or anything else.',
-    weapon: { kind: 'melee', damage: 30, range: 1.3, arc: 110, cooldown: 0.7, lethal: true, knockback: 12, sound: 'sfx_slash', held: 'blade' },
+    weapon: { look: 'machete', kind: 'melee', damage: 30, range: 1.3, arc: 110, cooldown: 0.7, lethal: true, knockback: 12, sound: 'sfx_slash', held: 'blade' },
   },
   item_fire_axe: {
     name: 'Fire Axe', category: 'weapon', price: 55, tags: ['weapon', 'melee'], icon: 'axe',
     description: 'Red head, long haft, "IN CASE OF EMERGENCY". Slow, heavy and devastating.',
-    weapon: { kind: 'melee', damage: 42, range: 1.45, arc: 120, cooldown: 1.2, lethal: true, knockback: 30, sound: 'sfx_slash', held: 'axe' },
+    weapon: { look: 'fireaxe', kind: 'melee', damage: 42, range: 1.45, arc: 120, cooldown: 1.2, lethal: true, knockback: 30, sound: 'sfx_slash', held: 'axe' },
   },
   item_revolver: {
     name: '.38 Revolver', category: 'weapon', price: 90, tags: ['weapon', 'gun'], icon: 'gun',
     description: 'A six-shot revolver: simple, reliable and loud. Takes .38 rounds.',
-    weapon: { kind: 'gun', damage: 34, range: 10, cooldown: 0.55, lethal: true, ammo: 'item_ammo_38', mag: 6, reload: 2.0, spread: 3, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
+    weapon: { look: 'revolver', kind: 'gun', damage: 34, range: 10, cooldown: 0.55, lethal: true, ammo: 'item_ammo_38', mag: 6, reload: 2.0, spread: 3, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
   },
   item_pistol: {
     name: '9mm Pistol', category: 'weapon', price: 120, tags: ['weapon', 'gun'], icon: 'gun', arms: { value: 140, family: 'small' },
     description: 'A semi-automatic pistol with a twelve-round magazine. Takes 9mm rounds.',
-    weapon: { kind: 'gun', damage: 26, range: 11, cooldown: 0.3, lethal: true, ammo: 'item_ammo_9mm', mag: 12, reload: 1.4, spread: 4, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
+    weapon: { look: 'pistol', kind: 'gun', damage: 26, range: 11, cooldown: 0.3, lethal: true, ammo: 'item_ammo_9mm', mag: 12, reload: 1.4, spread: 4, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
   },
   item_shotgun: {
     name: 'Pump Shotgun', category: 'weapon', price: 180, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 220, family: 'small' },
     description: 'Seven pellets in a wide cone. Devastating up close, useless at range. Takes shotgun shells.',
-    weapon: { kind: 'gun', damage: 15, pellets: 7, range: 6, cooldown: 0.95, lethal: true, ammo: 'item_ammo_shells', mag: 5, reload: 2.6, spread: 14, noise: 22, sound: 'sfx_gunshot_heavy', held: 'longgun' },
+    weapon: { look: 'shotgun', kind: 'gun', damage: 15, pellets: 7, range: 6, cooldown: 0.95, lethal: true, ammo: 'item_ammo_shells', mag: 5, reload: 2.6, spread: 14, noise: 22, sound: 'sfx_gunshot_heavy', held: 'longgun' },
   },
   item_rifle: {
     name: 'Hunting Rifle', category: 'weapon', price: 220, tags: ['weapon', 'gun'], icon: 'longgun',
     description: 'Bolt-action, scoped, accurate across a city block. Takes rifle rounds.',
-    weapon: { kind: 'gun', damage: 75, range: 18, cooldown: 1.3, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 2.8, spread: 0.6, noise: 26, sound: 'sfx_gunshot_heavy', held: 'longgun' },
+    weapon: { look: 'rifle', kind: 'gun', damage: 75, range: 18, cooldown: 1.3, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 2.8, spread: 0.6, noise: 26, sound: 'sfx_gunshot_heavy', held: 'longgun' },
   },
   item_smg: {
     name: 'Submachine Gun', category: 'weapon', price: 320, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 260, family: 'small' },
     description: 'Fully automatic: hold the trigger and it keeps going until it doesn\'t. Takes 9mm rounds.',
-    weapon: { kind: 'gun', damage: 15, range: 9, cooldown: 0.09, auto: true, lethal: true, ammo: 'item_ammo_9mm', mag: 30, reload: 1.9, spread: 7, noise: 20, sound: 'sfx_gunshot_smg', held: 'longgun' },
+    weapon: { look: 'smg', kind: 'gun', damage: 15, range: 9, cooldown: 0.09, auto: true, lethal: true, ammo: 'item_ammo_9mm', mag: 30, reload: 1.9, spread: 7, noise: 20, sound: 'sfx_gunshot_smg', held: 'longgun' },
   },
   item_ammo_38: {
     name: '.38 Rounds', category: 'ammo', price: 8, bundle: 12, tags: ['ammo'], icon: 'ammo',
@@ -11273,6 +11274,113 @@ function addTowers(maps) {
 return { TOWERS, towerMaps, addTowers };
 })();
 
+// ---- src/content/specialWeapons.js
+__m["src/content/specialWeapons.js"] = (function () {
+// Special weapons (v0.45.0). Owner: "add special unique weapons (as absurd and wild as you want)
+// in some of the homes to be stolen … add a special weapon for each imported character."
+// Each is one of a kind, sold nowhere, and kept in somebody's home — taking it is burglary.
+// The imported characters' are their signatures, like their cars.
+//
+// Extra weapon fields (src/systems/combat.js): look (its sprite), bullet (what flies: confetti,
+// pigeon, fish, coin, nail, chalk, ray, harpoon, cheese), effect ('stun' for `stun` seconds,
+// 'flee' sends them running, 'coins' pays you per hit, 'confetti'), fan (fixed spread angles,
+// degrees), pierce (passes through everyone in a line), knockback < 0 pulls them to you.
+const ammo = (id, name, bundle, description) => [id, { name, category: 'ammo', price: 0, bundle, tags: ['ammo'], icon: 'ammo', description }];
+const weapon = (id, name, description, w, value = 0) => [id, { name, category: 'weapon', price: value, tags: ['weapon', w.kind === 'gun' ? 'gun' : 'melee', 'unique'], icon: w.look, unique: true, description, weapon: w }];
+
+const SPECIAL_ITEMS = Object.fromEntries([
+  // ---- in the residents' homes
+  weapon('item_rolling_pin', 'Grandma Pell\'s Rolling Pin', 'Three generations of Pells have flattened pastry and burglars with this. It sends people flying. It has never once been used on pastry.',
+    { kind: 'melee', look: 'rollingpin', damage: 16, range: 1.3, arc: 110, cooldown: 0.75, lethal: false, knockback: 110, sound: 'sfx_whack' }, 40),
+  weapon('item_pigeon_launcher', 'Pigeon Launcher', 'A drainpipe, a bicycle pump and a sack of extremely indignant pigeons. Whoever it hits forgets all about you and runs for their life.',
+    { kind: 'gun', look: 'pigeon', bullet: 'pigeon', effect: 'flee', damage: 10, range: 9, cooldown: 0.8, lethal: false, ammo: 'item_ammo_pigeons', mag: 4, reload: 2.4, spread: 6, noise: 10, knockback: 14, sound: 'sfx_whack' }, 60),
+  weapon('item_confetti_cannon', 'The Confetti Cannon', 'Delphine\'s party piece. It fires a fist-sized wad of confetti at a speed that knocks grown men over, and then they are covered in confetti, which is worse.',
+    { kind: 'gun', look: 'confetti', bullet: 'confetti', effect: 'confetti', damage: 5, pellets: 8, range: 6, cooldown: 1.0, lethal: false, ammo: 'item_ammo_confetti', mag: 3, reload: 2.2, spread: 18, noise: 12, knockback: 10, sound: 'sfx_gunshot_heavy' }, 50),
+  weapon('item_golden_plunger', 'The Golden Plunger', 'Presented to Sgt. Justin Case for "services to the drains of Halvermouth". It grabs whoever it touches and hauls them in, stunned and embarrassed.',
+    { kind: 'melee', look: 'plunger', effect: 'stun', stun: 1.5, damage: 12, range: 1.8, arc: 70, cooldown: 0.7, lethal: false, knockback: -40, sound: 'sfx_whack' }, 70),
+  weapon('item_mackerel_gun', 'The Mackerel Mk II', 'Julian Beaumont\'s "conversation piece": a pneumatic cannon that fires frozen mackerel. The fish are faster than they have any right to be.',
+    { kind: 'gun', look: 'mackerel', bullet: 'fish', damage: 26, range: 10, cooldown: 0.6, lethal: true, ammo: 'item_ammo_mackerel', mag: 5, reload: 2.0, spread: 3, noise: 14, knockback: 40, sound: 'sfx_gunshot_heavy' }, 80),
+  weapon('item_tuning_fork', 'The Resonator', 'A tuning fork the length of your arm, pitched to the exact frequency of a human skull. One tap and they stand there humming for a while.',
+    { kind: 'melee', look: 'tuningfork', effect: 'stun', stun: 3, damage: 6, range: 1.2, arc: 80, cooldown: 0.9, lethal: false, knockback: 4, sound: 'sfx_punch' }, 65),
+  // ---- the imported characters' signatures
+  weapon('item_golden_handshake', 'The Golden Handshake', 'Sir Moneybucks\'s revolver: solid gold, mother-of-pearl grip, and a little golden hand on the muzzle. It fires gold sovereigns. Everyone it hits is somehow poorer, and you are somehow richer.',
+    { kind: 'gun', look: 'goldenhandshake', bullet: 'coin', effect: 'coins', damage: 30, range: 10, cooldown: 0.5, lethal: true, ammo: 'item_ammo_sovereigns', mag: 6, reload: 1.8, spread: 2, noise: 16, knockback: 10, sound: 'sfx_gunshot' }, 5000),
+  weapon('item_nail_gun', 'The Plumb Line', 'Mason\'s nail gun, modified to fire forty nails a second, every one of them perfectly level. Anyone it hits is pinned in place for a moment, perfectly level.',
+    { kind: 'gun', look: 'nailgun', bullet: 'nail', effect: 'stun', stun: 1.2, auto: true, damage: 8, range: 8, cooldown: 0.1, lethal: true, ammo: 'item_ammo_nails', mag: 40, reload: 2.4, spread: 3, noise: 8, knockback: 3, sound: 'sfx_gunshot_smg' }, 900),
+  weapon('item_gavel', 'The Gavel of Final Judgement', 'Chief Order\'s ceremonial gavel, four feet long and weighted with the lead seal of the old Harbour Court. ORDER. Everyone in the swing is knocked flat and stunned. Nobody is killed: the Chief hates paperwork.',
+    { kind: 'melee', look: 'gavel', effect: 'stun', stun: 3, damage: 26, range: 1.6, arc: 170, cooldown: 1.3, lethal: false, knockback: 60, sound: 'sfx_whack' }, 1200),
+  weapon('item_pythagorean', 'The Pythagorean', 'Arthur\'s right-angled gun: three barrels on the corners of a 3-4-5 triangle, firing chalk-tipped rounds at 0° and ±36.87°. "It is not a spread. It is a proof."',
+    { kind: 'gun', look: 'pythagorean', bullet: 'chalk', fan: [-36.87, 0, 36.87], damage: 22, range: 10, cooldown: 0.7, lethal: true, ammo: 'item_ammo_chalk', mag: 5, reload: 2.0, spread: 0, noise: 16, knockback: 12, sound: 'sfx_gunshot' }, 3141),
+  weapon('item_tinfoil_ray', 'The Tinfoil Ray', 'Lucas built it to "jam their satellites". It fires a green beam that goes straight through everyone in a line and out the other side. He has never said who "they" are.',
+    { kind: 'gun', look: 'tinfoil', bullet: 'ray', pierce: true, damage: 26, range: 14, cooldown: 0.65, lethal: true, ammo: 'item_ammo_foil', mag: 8, reload: 2.2, spread: 0.5, noise: 6, knockback: 6, sound: 'sfx_gunshot_smg' }, 1500),
+  weapon('item_harpoon_cannon', 'The Old Harpoon', 'Captain Ober\'s whaling gun, brass and oak, older than the Yards. It fires a harpoon on a line and reels in whatever it catches — stunned, like a landed fish.',
+    { kind: 'gun', look: 'harpoon', bullet: 'harpoon', effect: 'stun', stun: 1.5, damage: 34, range: 12, cooldown: 1.2, lethal: true, ammo: 'item_ammo_harpoons', mag: 1, reload: 1.6, spread: 0.5, noise: 18, knockback: -90, sound: 'sfx_gunshot_heavy' }, 2500),
+  weapon('item_cheddar_blaster', 'The Cheddar Blaster', 'Farmer Chuckie\'s cheese-wheel launcher, a drum magazine of mature cheddar. Each wheel hits like a bowling ball and smells like a victory.',
+    { kind: 'gun', look: 'cheddar', bullet: 'cheese', damage: 24, range: 9, cooldown: 0.75, lethal: true, ammo: 'item_ammo_cheese', mag: 6, reload: 2.6, spread: 4, noise: 12, knockback: 55, sound: 'sfx_gunshot_heavy' }, 1800),
+  // ---- their ammunition (no shop sells it; there's a supply with each)
+  ammo('item_ammo_pigeons', 'Indignant Pigeons', 4, 'Pigeons, each in a small paper bag, each furious.'),
+  ammo('item_ammo_confetti', 'Confetti Wads', 6, 'Tightly packed. Very tightly packed.'),
+  ammo('item_ammo_mackerel', 'Frozen Mackerel', 10, 'Rock hard. Keep frozen. Keep away from the cat.'),
+  ammo('item_ammo_sovereigns', 'Gold Sovereigns', 12, 'Real gold coins, milled for a gun. Firing money: the most Moneybucks thing imaginable.'),
+  ammo('item_ammo_nails', 'Nail Strips', 40, 'Galvanised, 3-inch, perfectly straight.'),
+  ammo('item_ammo_chalk', 'Chalk Rounds', 15, 'A lead core in a chalk jacket. They leave little white marks: Q.E.D.'),
+  ammo('item_ammo_foil', 'Tinfoil Cells', 16, 'Batteries wrapped in tinfoil. "So they can\'t track them."'),
+  ammo('item_ammo_harpoons', 'Harpoons', 4, 'Barbed, on a coil of tarred line.'),
+  ammo('item_ammo_cheese', 'Cheese Wheels', 12, 'Mature cheddar, aged until it could stop a door.'),
+]);
+
+/** Where each one is kept: added to an existing container, or a new locked case placed in a home. */
+const STASHES = [
+  { container: 'ct_gullwing11_1_dresser', items: { item_rolling_pin: 1 } },
+  { container: 'ct_gullwing11_2_dresser', items: { item_pigeon_launcher: 1, item_ammo_pigeons: 12 } },
+  { container: 'ct_gullwing11_3_dresser', items: { item_confetti_cannon: 1, item_ammo_confetti: 18 } },
+  { container: 'ct_harbourline_2_dresser', items: { item_golden_plunger: 1 } },
+  { container: 'ct_atlas_2_dresser', items: { item_mackerel_gun: 1, item_ammo_mackerel: 30 } },
+  { container: 'ct_atlas_3_dresser', items: { item_tuning_fork: 1 } },
+  { container: 'ct_manor_vault', items: { item_golden_handshake: 1, item_ammo_sovereigns: 36 } },
+  { container: 'ct_harbourline_1_dresser', items: { item_gavel: 1 } },
+  { container: 'ct_shack_arthur_dresser', items: { item_pythagorean: 1, item_ammo_chalk: 30 } },
+  { container: 'ct_atlas_1_dresser', items: { item_tinfoil_ray: 1, item_ammo_foil: 32 } },
+  { container: 'ct_mason_toolbox', new: { map: 'plumb_unit_1', name: 'Mason\'s toolbox', owner: 'npc_mason', prop: 'chest', examine: 'A steel toolbox, every tool in it laid out perfectly level.' }, items: { item_nail_gun: 1, item_ammo_nails: 120 } },
+  { container: 'ct_ober_sea_chest', new: { map: 'salty_ober', name: 'Captain Ober\'s sea chest', owner: 'npc_ober', prop: 'chest', examine: 'An iron-bound sea chest stencilled S.S. OBER. It smells of tar and rum.' }, items: { item_harpoon_cannon: 1, item_ammo_harpoons: 8 } },
+  { container: 'ct_chuckie_cheese_safe', new: { map: 'chuckie_house', name: 'Chuckie\'s cheese safe', owner: 'npc_chuckie', prop: 'chest', examine: 'A safe painted like a wedge of cheese. It is, in fact, full of cheese — and something else.' }, items: { item_cheddar_blaster: 1, item_ammo_cheese: 36 } },
+];
+
+/** Put each stash in its container (making the new ones, with a chest on a free floor tile). */
+function addSpecialWeapons(maps, containers) {
+  for (const s of STASHES) {
+    if (s.new) {
+      const m = maps[s.new.map];
+      if (!m) throw new Error(`special weapons: no map ${s.new.map}`);
+      containers[s.container] = { name: s.new.name, owner: s.new.owner, theftFact: 'fact_player_burglary', items: {}, money: 0 };
+      const at = freeTile(m);
+      m.props.push({ id: `${s.container}_prop`, type: s.new.prop, x: at.x, y: at.y, interact: { kind: 'container', container: s.container }, examine: s.new.examine });
+    }
+    const c = containers[s.container];
+    if (!c) throw new Error(`special weapons: no container ${s.container}`);
+    c.items = { ...c.items };
+    for (const [id, n] of Object.entries(s.items)) c.items[id] = (c.items[id] || 0) + n;
+  }
+}
+
+/** A floor tile against the back wall (row 1) that nothing stands on, away from the doors and spots. */
+function freeTile(m) {
+  const rows = m.tiles;
+  const taken = (x, y) => m.props.some((p) => x >= p.x && x < p.x + (p.w || 1) && y >= p.y && y < p.y + (p.h || 1))
+    || Object.values(m.spots || {}).some((s) => Math.abs(s.x - x) + Math.abs(s.y - y) < 1)
+    || (m.doors || []).some((d) => Math.abs(d.x - x) + Math.abs(d.y - y) <= 2)
+    || (m.keepClear || []).some(([kx, ky]) => kx === x && ky === y);
+  for (let y = 1; y < rows.length - 1; y++) {
+    for (let x = rows[0].length - 2; x >= 1; x--) {
+      if ('ftcg'.includes(rows[y][x]) && !taken(x, y)) return { x, y };
+    }
+  }
+  throw new Error(`special weapons: no room in ${m.id}`);
+}
+
+return { SPECIAL_ITEMS, STASHES, addSpecialWeapons };
+})();
+
 // ---- src/content/homes.js
 __m["src/content/homes.js"] = (function () {
 // Homes (v0.36.0). Owner's rule: no beds in stores or shops — every character
@@ -11643,6 +11751,7 @@ const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
 const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
+const { SPECIAL_ITEMS, addSpecialWeapons } = __m["src/content/specialWeapons.js"];
 const { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } = __m["src/content/homes.js"];
 const { buildPatrols } = __m["src/world/patrols.js"];
 
@@ -11668,6 +11777,8 @@ const TRANSIT = buildTransit(SHIFTS);
 addStreetFurniture(MAPS, TRANSIT);
 addHomes(MAPS); // v0.36.0: front doors for the new homes (final coordinates)
 addTowers(MAPS); // v0.41.0: tower lobbies, lifts and floors
+const ALL_CONTAINERS = { ...CONTAINERS, ...homeContainers() };
+addSpecialWeapons(MAPS, ALL_CONTAINERS); // v0.45.0: one-of-a-kind weapons, kept in people's homes
 const HOMES_LIFE = homeResidences();
 markHomes(MAPS, { ...RESIDENCES, ...HOMES_LIFE.residences }, LIFE);
 const PATROL_ROUTES = buildPatrols(MAPS, PATROLS); // v0.32.0: police beats, as spots on the pavement
@@ -11691,10 +11802,10 @@ const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
-  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS },
+  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS, ...SPECIAL_ITEMS },
   facts: FACTS,
   docs: DOCS,
-  containers: { ...CONTAINERS, ...homeContainers() },
+  containers: ALL_CONTAINERS,
   towers: TOWERS,
   lodging: LODGING, // v0.36.0: where the arms works' hired hands sleep
   shops: SHOPS,
@@ -11740,7 +11851,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.44.0';
+const GAME_VERSION = '0.45.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -13453,49 +13564,116 @@ class Input {
 return { Input };
 })();
 
+// ---- src/engine/drawPixelWeapons.js
+__m["src/engine/drawPixelWeapons.js"] = (function () {
+// Pixel-art weapons (v0.45.0): one sprite per weapon `look`, drawn on the art-pixel grid with a
+// dark outline — used in the hand (rotated toward the aim) and, scaled up, as the hotbar icon.
+// A sprite is a list of rects [x, y, w, h, colour] in art pixels; the grip (where the hand holds
+// it) is at (0, 0) and the barrel or business end points along +x.
+const INK = '#14141e';
+const STEEL = '#4a4a56';
+const DARK = '#2a2a32';
+const HI = '#8a8a98';
+const WOOD = '#7a4a2a';
+const WOOD_HI = '#a87448';
+const GOLD = '#e8b830';
+const GOLD_HI = '#fff0a0';
+
+const S = {
+  // ---- guns
+  revolver: [[2, -3, 9, 2, STEEL], [2, -3, 9, 1, HI], [0, -5, 5, 4, '#6a6a78'], [0, -5, 5, 1, '#a0a0ae'], [1, -3, 3, 1, DARK], [-1, -2, 3, 2, DARK], [-1, 0, 3, 4, WOOD], [-1, 0, 1, 4, WOOD_HI], [-2, -5, 2, 1, DARK], [10, -4, 1, 1, DARK], [2, 0, 2, 1, DARK]],
+  pistol: [[-1, -4, 12, 3, '#3a3a44'], [-1, -4, 12, 1, '#7a7a88'], [8, -3, 1, 1, '#1a1a22'], [0, -1, 7, 1, DARK], [0, 0, 3, 4, DARK], [1, 1, 1, 2, STEEL], [3, 0, 3, 1, DARK], [9, -5, 1, 1, DARK]],
+  shotgun: [[-7, -2, 7, 3, WOOD], [-7, -2, 7, 1, WOOD_HI], [-7, 0, 2, 2, WOOD], [0, -3, 5, 3, '#3a3a44'], [5, -3, 13, 2, STEEL], [5, -3, 13, 1, HI], [5, -1, 11, 1, DARK], [7, -1, 6, 2, WOOD], [7, -1, 6, 1, WOOD_HI], [1, 0, 2, 2, DARK]],
+  rifle: [[-7, -2, 7, 3, WOOD], [-7, -2, 7, 1, WOOD_HI], [0, -3, 8, 3, WOOD], [0, -3, 8, 1, WOOD_HI], [8, -3, 12, 1, STEEL], [1, -6, 9, 2, DARK], [1, -6, 9, 1, '#4a4a56'], [9, -6, 1, 2, '#7ab8d8'], [3, -4, 1, 1, DARK], [4, -1, 1, 1, '#c9ced4'], [1, 0, 2, 2, DARK]],
+  smg: [[-5, -3, 5, 1, STEEL], [-5, -3, 1, 3, STEEL], [0, -4, 9, 3, '#3a3a44'], [0, -4, 9, 1, '#7a7a88'], [9, -3, 4, 1, DARK], [4, -1, 2, 6, DARK], [4, -1, 1, 6, STEEL], [0, -1, 2, 3, DARK], [7, -5, 1, 1, DARK]],
+  ar: [[-6, -3, 6, 3, DARK], [-6, -3, 6, 1, STEEL], [0, -4, 9, 3, '#3a3a44'], [0, -4, 9, 1, '#7a7a88'], [9, -4, 6, 3, '#4a4a3a'], [9, -4, 6, 1, '#6a6a52'], [15, -3, 4, 1, DARK], [2, -6, 6, 1, DARK], [2, -6, 1, 2, DARK], [5, -1, 2, 3, DARK], [6, 2, 2, 2, DARK], [0, -1, 2, 3, DARK]],
+  sniper: [[-8, -2, 8, 3, '#3a4a3a'], [-8, -2, 8, 1, '#5a6a52'], [0, -3, 8, 3, '#3a4a3a'], [8, -3, 16, 1, STEEL], [22, -4, 2, 3, DARK], [0, -7, 11, 3, DARK], [0, -7, 11, 1, STEEL], [10, -7, 1, 3, '#7ab8d8'], [-1, -6, 1, 1, '#7ab8d8'], [14, -2, 1, 4, DARK], [17, -2, 1, 4, DARK], [1, 0, 2, 2, DARK]],
+  lmg: [[-7, -3, 7, 3, DARK], [0, -4, 10, 4, '#3a3a44'], [0, -4, 10, 1, '#7a7a88'], [10, -4, 8, 3, '#4a4a56'], [10, -4, 8, 1, DARK], [11, -3, 1, 1, '#1a1a22'], [13, -3, 1, 1, '#1a1a22'], [15, -3, 1, 1, '#1a1a22'], [18, -3, 4, 1, DARK], [2, 0, 6, 5, '#5a5a3a'], [2, 0, 6, 1, '#7a7a52'], [16, -1, 1, 4, DARK], [19, -1, 1, 4, DARK], [2, -6, 5, 2, DARK]],
+  rpg: [[-6, -4, 22, 4, '#5a6a3a'], [-6, -4, 22, 1, '#7a8a52'], [-7, -5, 2, 6, DARK], [16, -5, 2, 6, '#6a7a4a'], [18, -4, 3, 4, '#c0302a'], [21, -3, 2, 2, '#c0302a'], [4, -7, 3, 3, DARK], [2, 0, 2, 3, DARK], [6, 0, 2, 3, DARK]],
+  // ---- melee (handle at the grip, head along +x)
+  crowbar: [[-2, -1, 14, 2, '#c03030'], [-2, -1, 14, 1, '#e86060'], [12, -3, 2, 3, '#c03030'], [11, -4, 2, 1, '#c03030'], [-3, 0, 2, 1, '#c03030']],
+  knuckles: [[0, -3, 6, 5, '#c9a24a'], [0, -3, 6, 1, '#f0d070'], [1, -1, 1, 2, INK], [3, -1, 1, 2, INK], [5, -1, 1, 1, INK]],
+  baton: [[-3, -1, 16, 2, '#1e1e26'], [-3, -1, 16, 1, '#4a4a56'], [2, -3, 1, 2, '#1e1e26']],
+  bat: [[-3, -1, 5, 2, '#d0d0d8'], [2, -1, 4, 2, WOOD_HI], [6, -2, 8, 3, WOOD_HI], [6, -2, 8, 1, '#d8a878'], [10, -1, 2, 1, '#8a5a34']],
+  machete: [[-3, -1, 4, 2, '#3a2a1e'], [1, -2, 1, 3, '#c9a24a'], [2, -2, 12, 2, '#c9ced4'], [2, -2, 12, 1, '#ffffff'], [12, -1, 3, 2, '#c9ced4'], [3, 0, 9, 1, '#8a9098']],
+  fireaxe: [[-3, -1, 14, 2, WOOD_HI], [-3, -1, 14, 1, '#d8a878'], [9, -5, 4, 9, '#c0302a'], [9, -5, 4, 1, '#e86060'], [13, -4, 1, 7, '#c9ced4'], [8, -3, 1, 4, '#c0302a']],
+  // ---- the special weapons (v0.45.0)
+  confetti: [[-5, -2, 6, 3, '#e86ab0'], [-5, -2, 6, 1, '#ff9ad0'], [1, -3, 9, 3, '#6ad0e8'], [1, -3, 9, 1, '#aaf0ff'], [3, -3, 1, 3, '#f2e05a'], [6, -3, 1, 3, '#f2e05a'], [10, -5, 3, 7, '#f2a33a'], [10, -5, 3, 1, '#ffd080'], [0, 0, 2, 3, '#7a3a9a']],
+  rollingpin: [[-4, -1, 3, 2, WOOD], [-1, -2, 12, 4, '#e8c898'], [-1, -2, 12, 1, '#fff0d0'], [11, -1, 3, 2, WOOD], [3, -1, 1, 2, '#d8b888']],
+  pigeon: [[-4, -2, 5, 3, '#5a5a66'], [1, -4, 12, 4, '#8a8a96'], [1, -4, 12, 1, '#b0b0ba'], [13, -5, 3, 4, '#9a9aa6'], [14, -6, 3, 3, '#c0c0ca'], [16, -5, 1, 1, '#2a2a32'], [17, -4, 2, 1, '#e8a040'], [15, -4, 2, 1, '#6ab08a'], [0, 0, 2, 3, DARK]],
+  plunger: [[-3, -1, 13, 2, GOLD], [-3, -1, 13, 1, GOLD_HI], [10, -4, 3, 8, '#c03030'], [13, -3, 1, 6, '#c03030'], [10, -4, 1, 8, '#e86060']],
+  mackerel: [[-6, -3, 3, 1, '#4a7aa8'], [-6, 1, 3, 1, '#4a7aa8'], [-4, -2, 2, 3, '#4a7aa8'], [-2, -3, 14, 4, '#8ab0c8'], [-2, -3, 14, 1, '#d0e8f0'], [0, -2, 2, 1, '#4a7aa8'], [4, -2, 2, 1, '#4a7aa8'], [8, -2, 2, 1, '#4a7aa8'], [12, -2, 2, 3, '#8ab0c8'], [12, -2, 1, 1, INK], [0, 1, 2, 3, DARK]],
+  tuningfork: [[-3, -1, 6, 2, '#c9ced4'], [3, -3, 2, 6, '#c9ced4'], [5, -3, 10, 1, '#e8eef4'], [5, 2, 10, 1, '#e8eef4'], [14, -3, 1, 1, '#ffffff'], [14, 2, 1, 1, '#ffffff']],
+  goldenhandshake: [[2, -3, 10, 2, GOLD], [2, -3, 10, 1, GOLD_HI], [0, -5, 5, 4, GOLD], [0, -5, 5, 1, GOLD_HI], [1, -3, 2, 1, '#b08820'], [-1, 0, 3, 4, '#f2efe6'], [-1, 0, 1, 4, '#ffffff'], [12, -4, 3, 4, GOLD], [12, -4, 3, 1, GOLD_HI], [15, -3, 1, 2, GOLD], [2, -6, 1, 1, '#ff4a8a']],
+  nailgun: [[-2, -4, 10, 4, '#f2c14e'], [-2, -4, 10, 1, '#ffe08a'], [8, -3, 4, 2, DARK], [12, -3, 2, 1, '#c9ced4'], [0, 0, 3, 4, DARK], [4, 0, 2, 4, '#c9ced4'], [4, 1, 2, 1, '#8a9098'], [4, 3, 2, 1, '#8a9098']],
+  gavel: [[-3, -1, 12, 2, WOOD], [-3, -1, 12, 1, WOOD_HI], [9, -6, 7, 12, '#5a3420'], [9, -6, 7, 1, '#8a5a34'], [9, -3, 7, 1, GOLD], [9, 2, 7, 1, GOLD]],
+  pythagorean: [[-2, -2, 4, 3, '#2a3028'], [2, -8, 2, 9, '#2a3028'], [2, -8, 14, 2, '#2a3028'], [4, -6, 9, 1, '#e8e8e0'], [4, -5, 7, 1, '#e8e8e0'], [4, -4, 5, 1, '#e8e8e0'], [4, -3, 3, 1, '#e8e8e0'], [16, -8, 2, 2, DARK], [4, -1, 14, 1, DARK], [18, -1, 2, 1, DARK], [0, 1, 2, 3, WOOD]],
+  tinfoil: [[-2, -3, 9, 4, '#c9ced4'], [-2, -3, 9, 1, '#ffffff'], [0, -2, 1, 1, '#9aa0a8'], [3, -1, 1, 1, '#9aa0a8'], [7, -4, 3, 6, '#9aa0a8'], [10, -2, 4, 2, '#c9ced4'], [14, -3, 2, 4, '#5aff8a'], [2, -7, 1, 4, '#c9ced4'], [1, -8, 3, 2, '#ff5a5a'], [0, 1, 2, 3, '#9aa0a8']],
+  harpoon: [[-5, -3, 6, 5, '#8a5a34'], [-5, -3, 6, 1, '#a87448'], [1, -4, 10, 6, '#c9a24a'], [1, -4, 10, 1, '#f0d070'], [11, -3, 2, 4, '#c9a24a'], [13, -2, 8, 2, '#c9ced4'], [21, -3, 2, 4, '#c9ced4'], [23, -2, 1, 2, '#c9ced4'], [4, 2, 2, 2, DARK]],
+  cheddar: [[-4, -2, 5, 3, WOOD], [1, -6, 9, 9, '#f2c14e'], [1, -6, 9, 1, '#ffe08a'], [3, -4, 2, 2, '#c8902a'], [6, -2, 2, 2, '#c8902a'], [3, 0, 1, 1, '#c8902a'], [10, -3, 6, 3, STEEL], [10, -3, 6, 1, HI], [2, 3, 2, 2, DARK]],
+};
+// the old `held` names still work
+const ALIAS = { pistol: 'pistol', longgun: 'rifle', club: 'bat', blade: 'machete', axe: 'fireaxe', knuckles: 'knuckles' };
+const GUNS = new Set(['revolver', 'pistol', 'shotgun', 'rifle', 'smg', 'ar', 'sniper', 'lmg', 'rpg', 'confetti', 'pigeon', 'mackerel', 'goldenhandshake', 'nailgun', 'pythagorean', 'tinfoil', 'harpoon', 'cheddar', 'longgun']);
+
+const weaponLooks = () => Object.keys(S);
+const isGunLook = (look) => GUNS.has(look);
+const lookOf = (w) => w?.weapon?.look || ALIAS[w?.weapon?.held] || w?.weapon?.held || null;
+
+/** Draw a weapon sprite at the current transform, `u` px per art pixel. `hand` is the holder's skin (or null). */
+function drawWeaponSprite(ctx, look, u = 2, { flash = false, hand = null } = {}) {
+  const rects = S[look] || S[ALIAS[look]];
+  if (!rects) return false;
+  const col = (c) => (flash ? '#ffffff' : c);
+  ctx.fillStyle = col(INK);
+  for (const [x, y, w, h] of rects) ctx.fillRect((x - 1) * u, (y - 1) * u, (w + 2) * u, (h + 2) * u);
+  for (const [x, y, w, h, c] of rects) { ctx.fillStyle = col(c); ctx.fillRect(x * u, y * u, w * u, h * u); }
+  if (hand) { ctx.fillStyle = col(INK); ctx.fillRect(-1 * u, -2 * u, 4 * u, 4 * u); ctx.fillStyle = col(hand); ctx.fillRect(0, -1 * u, 2 * u, 2 * u); }
+  return true;
+}
+
+/** The sprite's extent in art pixels (for fitting it into an icon). */
+function weaponBounds(look) {
+  const rects = S[look] || S[ALIAS[look]];
+  if (!rects) return null;
+  let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+  for (const [x, y, w, h] of rects) { x0 = Math.min(x0, x - 1); y0 = Math.min(y0, y - 1); x1 = Math.max(x1, x + w + 1); y1 = Math.max(y1, y + h + 1); }
+  return { x0, y0, w: x1 - x0, h: y1 - y0 };
+}
+
+return { weaponLooks, isGunLook, lookOf, drawWeaponSprite, weaponBounds };
+})();
+
 // ---- src/ui/hotbar.js
 __m["src/ui/hotbar.js"] = (function () {
 // The hotbar (v0.41.1, art revamp): bottom left, like the mock-up — fists and every weapon you own,
 // one slot each (keys 1–9 already quick-select them), a pixel-art icon, the ammo you have for a
 // gun, the one in your hand outlined in gold. Click a slot to ready it.
+const { drawWeaponSprite, weaponBounds, lookOf } = __m["src/engine/drawPixelWeapons.js"];
+
 const INK = '#14141e';
 
-/** A 16×16 pixel-art icon for a weapon (by its `held` look and id), drawn onto `cv`. */
+/** The weapon's pixel-art sprite (src/engine/drawPixelWeapons.js), fitted to the icon; fists are drawn here. */
 function drawWeaponIcon(cv, def) {
   const ctx = cv.getContext('2d');
-  const u = cv.width / 16;
   ctx.clearRect(0, 0, cv.width, cv.height);
-  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * u, y * u, w * u, h * u); };
-  const held = def?.weapon?.held || 'fists';
-  const id = def?.id || '';
-  const steel = '#c9ced4';
-  const dark = '#2e2e36';
-  const wood = '#8a5a34';
-  if (held === 'fists' || !def?.weapon) {
+  const look = lookOf(def);
+  const b = look && weaponBounds(look);
+  if (!b) {
+    const u = cv.width / 16;
+    const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * u, y * u, w * u, h * u); };
     R(4, 5, 8, 7, INK); R(5, 6, 6, 5, '#e8b896'); R(5, 6, 6, 1, '#f4d0b0'); R(7, 6, 1, 3, '#c8946e'); R(9, 6, 1, 3, '#c8946e'); R(4, 9, 2, 3, INK); R(5, 10, 1, 1, '#e8b896');
-  } else if (held === 'knuckles') {
-    R(3, 6, 10, 5, INK); for (let k = 0; k < 4; k++) { R(4 + k * 2, 7, 2, 2, steel); R(4 + k * 2, 7, 1, 1, '#ffffff'); } R(4, 9, 8, 1, '#8a9098');
-  } else if (held === 'club') {
-    for (let k = 0; k < 10; k++) { R(3 + k, 12 - k, 3, 2, INK); R(4 + k, 12 - k, 1 + (k > 5 ? 1 : 0), 1, k > 6 ? '#a07048' : wood); }
-    R(2, 12, 3, 2, '#3a2a1e');
-  } else if (held === 'blade') {
-    for (let k = 0; k < 8; k++) { R(6 + k, 9 - k, 2, 2, INK); R(6 + k, 9 - k, 1, 1, steel); } R(3, 10, 4, 2, INK); R(4, 10, 2, 1, '#3a2a1e'); R(5, 9, 1, 3, '#c9a24a');
-  } else if (held === 'axe') {
-    for (let k = 0; k < 10; k++) R(4 + k, 13 - k, 2, 1, wood); R(10, 1, 5, 6, INK); R(11, 2, 3, 4, '#c0414a'); R(11, 2, 1, 4, steel);
-  } else if (held === 'pistol') {
-    const big = /revolver|38/.test(id);
-    R(2, 5, 12, 4, INK); R(3, 6, 10, 2, dark); R(3, 6, 10, 1, '#5a5a66');
-    if (big) { R(6, 5, 4, 4, INK); R(7, 6, 2, 2, '#6a6a76'); }
-    R(9, 8, 4, 6, INK); R(10, 9, 2, 4, wood); R(7, 9, 2, 2, INK);
-  } else {
-    // long guns: a shotgun (pump), a rifle (scope) or a submachine gun (magazine)
-    const smg = /smg|sub|tommy/.test(id);
-    const rifle = /rifle|hunting/.test(id);
-    R(0, 6, 16, 3, INK); R(1, 7, 9, 1, dark); R(10, 6, 5, 4, INK); R(10, 7, 5, 2, wood); R(1, 6, 8, 1, '#5a5a66');
-    if (rifle) { R(4, 3, 5, 3, INK); R(5, 4, 3, 1, '#5a6a7a'); }
-    if (smg) { R(6, 9, 3, 5, INK); R(7, 9, 1, 4, dark); }
-    if (!rifle && !smg) { R(3, 9, 4, 2, INK); R(4, 9, 2, 1, wood); }
+    return;
   }
+  // drawn at one pixel per art pixel on a canvas just big enough, and scaled up crisp by the page
+  const side = Math.max(b.w, b.h) + 2;
+  if (cv.width !== side) { cv.width = side; cv.height = side; }
+  const c2 = cv.getContext('2d');
+  c2.clearRect(0, 0, side, side);
+  c2.save();
+  c2.translate(Math.round((side - b.w) / 2 - b.x0), Math.round((side - b.h) / 2 - b.y0));
+  drawWeaponSprite(c2, look, 1);
+  c2.restore();
 }
 
 function renderHotbar(ui) {
@@ -16401,9 +16579,10 @@ class Combat {
       return { ok: true, kind: 'gun', projectile: true, hits: [] };
     }
     const hits = [];
-    const pellets = wp.pellets || 1;
+    const pellets = wp.fan ? wp.fan.length : wp.pellets || 1;
     for (let i = 0; i < pellets; i++) {
-      const spread = (((g.rng.next() - 0.5) * 2 * (wp.spread || 0)) * Math.PI) / 180;
+      // v0.45.0: a fan fires at fixed angles (the Pythagorean); everything else scatters
+      const spread = ((wp.fan ? wp.fan[i] : (g.rng.next() - 0.5) * 2 * (wp.spread || 0)) * Math.PI) / 180;
       const c = Math.cos(spread);
       const s = Math.sin(spread);
       const d = { x: dir.x * c - dir.y * s, y: dir.x * s + dir.y * c };
@@ -16416,8 +16595,13 @@ class Combat {
         return { ok: true, kind: 'gun', hits: [sacred.id], wrath: true };
       }
       this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
-      this.spawnBullet(ox, oy, d, r.t);
-      if (r.npc) {
+      this.spawnBullet(ox, oy, d, r.t, { kind: wp.bullet });
+      if (r.npc && wp.pierce) {
+        // v0.45.0: straight through everyone in a line, to the wall
+        const line = this.raycastAll(ox, oy, d, wp.range * TILE);
+        this.bullets[this.bullets.length - 1].left = line.t;
+        for (const npc of line.npcs) { hits.push(npc); this.hitNpc(npc, wp.damage, { weapon: w, dir: d, lethal: wp.lethal !== false }); }
+      } else if (r.npc) {
         hits.push(r.npc);
         // falloff beyond half range
         const fall = r.t > (wp.range * TILE) / 2 ? 0.7 : 1;
@@ -16428,7 +16612,7 @@ class Combat {
     // v0.44.0: kick — the camera jolts, the shooter rocks back, a case flies
     const heavyGun = (wp.damage || 0) * pellets >= 60;
     this.kick(heavyGun ? 5 : wp.auto ? 1.6 : 2.6, heavyGun ? 0.2 : 0.1);
-    this.ejectCase(p.x, p.y - BODY_Y, dir);
+    if (!wp.bullet || wp.bullet === 'coin' || wp.bullet === 'nail' || wp.bullet === 'chalk') this.ejectCase(p.x, p.y - BODY_Y, dir);
     const map = g.currentMap();
     const back = heavyGun ? 5 : 2;
     if (!map.rectBlocked(p.x - dir.x * back - 7, p.y - dir.y * back - 6, 14, 6, g.playerActor?.())) { p.x -= dir.x * back; p.y -= dir.y * back; }
@@ -16490,6 +16674,23 @@ class Combat {
     return { npc: best, t: bestT, wall: !best && wallT < maxDist };
   }
 
+  /** Everyone along a ray up to the first wall (for weapons that pierce). */
+  raycastAll(ox, oy, d, maxDist) {
+    const map = this.game.currentMap();
+    let wallT = maxDist;
+    for (let t = 0; t < maxDist; t += 6) {
+      if (WALL.has(map.tileAt(Math.floor((ox + d.x * t) / TILE), Math.floor((oy + d.y * t + BODY_Y) / TILE)))) { wallT = t; break; }
+    }
+    const npcs = [];
+    for (const npc of this.targets()) {
+      const cx = npc.x - ox;
+      const cy = npc.y - BODY_Y - oy;
+      const t = cx * d.x + cy * d.y;
+      if (t > 0 && t < wallT && Math.abs(cx * d.y - cy * d.x) <= HIT_RADIUS) npcs.push(npc);
+    }
+    return { npcs, t: wallT };
+  }
+
   // --------------------------------------------------------------- damage
   hitNpc(npc, amount, { weapon, dir, lethal = true }) {
     const g = this.game;
@@ -16514,9 +16715,23 @@ class Combat {
     // knockback
     const kb = weapon.weapon.knockback ?? (weapon.weapon.kind === 'gun' ? 6 : 18);
     const map = g.currentMap();
-    const nx = npc.x + dir.x * kb;
-    const ny = npc.y + dir.y * kb;
-    if (!map.rectBlocked(nx - 7, ny - 6, 14, 6, g.npcSystem.actorFor(npc))) { npc.x = nx; npc.y = ny; }
+    // v0.45.0: in small steps, stopping at a wall (big knockbacks send people flying; negative ones pull them in)
+    const actor = g.npcSystem.actorFor(npc);
+    const sgn = Math.sign(kb);
+    let reach = Math.abs(kb);
+    if (sgn < 0) reach = Math.max(0, Math.min(reach, Math.hypot(npc.x - g.player.x, npc.y - g.player.y) - 22));
+    for (let moved = 0; moved < reach; moved += 6) {
+      const st = Math.min(6, reach - moved) * sgn;
+      const nx = npc.x + dir.x * st;
+      const ny = npc.y + dir.y * st;
+      if (map.rectBlocked(nx - 7, ny - 6, 14, 6, actor)) break;
+      npc.x = nx;
+      npc.y = ny;
+    }
+    const fx = weapon.weapon.effect;
+    if (fx === 'stun') npc.stunUntil = g.realTime + (weapon.weapon.stun || 2);
+    if (fx === 'coins') { g.player.money += 2; g.bus.emit('money:changed', { delta: 2, total: g.player.money }); this.burst(npc.x, npc.y - BODY_Y, 'coin', 6); }
+    if (fx === 'confetti') this.burst(npc.x, npc.y - BODY_Y, 'confetti', 10);
     npc.path = null;
     npc.chat = null;
     g.bus.emit('combat:hit', { npcId: npc.id, damage: dmg, health: npc.health, weapon: weapon.id });
@@ -16540,6 +16755,7 @@ class Combat {
     }
     // fight or flight
     this.react(npc, null, true);
+    if (weapon.weapon.effect === 'flee') { npc.hostile = { mode: 'flee', until: now + 30 }; npc.activity = 'flee'; } // the pigeons win
     if (g.rng.chance(0.6)) g.bark(npc, g.rng.pick(npc.hostile?.mode === 'fight' ? FIGHT : HURT));
   }
 
@@ -16763,7 +16979,8 @@ class Combat {
 
   /** A bullet you can see, from (x, y) along d for `len` px. `hurts`: an NPC's shot that can hit the player. */
   spawnBullet(x, y, d, len, opts = {}) {
-    this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || 1700, hurts: opts.hurts || null, born: this.game.realTime });
+    const slow = { pigeon: 700, fish: 900, cheese: 650, harpoon: 1100, confetti: 900, coin: 1300 }[opts.kind];
+    this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || slow || 1700, kind: opts.kind || null, hurts: opts.hurts || null, born: this.game.realTime });
     if (this.bullets.length > 80) this.bullets.shift();
   }
 
@@ -16774,6 +16991,16 @@ class Combat {
       const a = Math.atan2(dir.y, dir.x) + (g.rng.next() - 0.5) * 1.2;
       const v = 40 + g.rng.next() * 80;
       this.particles.push({ kind: 'blood', map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y - 4 + g.rng.next() * 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 40 + g.rng.next() * 60, size: g.rng.next() < 0.3 ? 2 : 1 });
+    }
+  }
+
+  /** A puff of coins or confetti from someone who's been hit. */
+  burst(x, y, kind, n) {
+    const g = this.game;
+    for (let i = 0; i < n; i++) {
+      const a = g.rng.next() * Math.PI * 2;
+      const v = 30 + g.rng.next() * 70;
+      this.particles.push({ kind, map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, vz: 60 + g.rng.next() * 60, size: 1, hue: Math.floor(g.rng.next() * 5) });
     }
   }
 
@@ -16823,7 +17050,7 @@ class Combat {
         if (q.z <= 0) {
           if (q.kind === 'case' && q.vz < -40) { q.z = 0.1; q.vz = -q.vz * 0.35; q.vx *= 0.5; q.vy *= 0.5; continue; } // a little bounce
           q.done = true;
-          this.decals.push({ kind: q.kind, map: q.map, x: q.x, y: q.y, size: q.size, at: g.realTime });
+          this.decals.push({ kind: q.kind, map: q.map, x: q.x, y: q.y, size: q.size, hue: q.hue, at: g.realTime });
         }
       }
       this.particles = this.particles.filter((q) => !q.done);
@@ -16840,6 +17067,7 @@ class Combat {
     if (this.fx.length) this.fx = this.fx.filter((f) => f.until > g.realTime);
     for (const npc of g.npcs.values()) {
       if (!npc.hostile || npc.map !== g.player.map || npc.inDialogue) continue;
+      if (npc.stunUntil > g.realTime) { npc.moving = false; continue; } // v0.45.0: stunned, pinned or reeled in
       if (npc.hostile.mode === 'fight') this.fightStep(npc, dt);
       else this.fleeStep(npc, dt);
     }
@@ -23403,6 +23631,8 @@ __m["src/engine/drawPixelCharacters.js"] = (function () {
 // as the old drawing (skin, hair and style, hat, outfit, legs, shoes, tie, scarf, vest, apron,
 // overalls, beard, shades, build, height). Held items reuse the old drawing.
 
+const { drawWeaponSprite, isGunLook } = __m["src/engine/drawPixelWeapons.js"];
+
 const INK = '#1b1a24';
 const BUILD = { round: 12, average: 10, thin: 8, wiry: 9, broad: 12 };
 
@@ -23474,22 +23704,18 @@ function drawPixelCharacter(ctx, a, s, drawHeld) {
   else { arm(-half - 1, step, false); arm(half, -step, false); }
   if (side) arm(dir * 1, step, false);
 
-  const gun = a.holding === 'pistol' || a.holding === 'longgun';
-  if (gun && s.aim != null) {
-    // v0.44.0: the gun points where it's aimed, held out from the chest (flipped so the grip hangs down)
+  if (a.holding) {
+    // v0.45.0: every weapon has its own sprite; a gun points where it's aimed, anything else is held up and ready
+    const aimed = isGunLook(a.holding) && s.aim != null;
+    const ang = aimed ? s.aim : side ? (dir > 0 ? -0.9 : Math.PI + 0.9) : facing === 'up' ? -1.9 : -0.9;
     ctx.save();
-    ctx.translate(0, -20);
-    ctx.rotate(s.aim);
-    if (Math.cos(s.aim) < 0) ctx.scale(1, -1);
-    const G = (x, y, w, h, c) => { ctx.fillStyle = s.flash ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
-    if (a.holding === 'pistol') { G(3, -2, 9, 3, INK); G(4, -1, 7, 1, '#3a3a44'); G(4, 0, 3, 3, INK); G(5, 0, 1, 2, '#6a4a2e'); G(3, -1, 2, 2, a.skin || '#e8b896'); }
-    else { G(0, -2, 17, 3, INK); G(1, -1, 15, 1, '#3a3a44'); G(0, -1, 5, 3, INK); G(1, 0, 3, 1, '#6a4a2e'); G(7, 0, 3, 2, INK); G(4, -1, 2, 2, a.skin || '#e8b896'); G(10, -1, 2, 2, a.skin || '#e8b896'); }
-    ctx.restore();
-  } else if (a.holding && drawHeld) {
-    ctx.save(); ctx.scale(0.8, 0.8);
-    drawHeld(ctx, a.holding, (side ? dir * 2 : half * 2 + 2) / 0.8, (-14 + (side ? step : -step) * 2) / 0.8, side ? dir : 1, s.idleTime || 0);
+    ctx.translate(aimed ? 0 : side ? dir * 4 : half * 2 + 2, aimed ? -20 : -14);
+    ctx.rotate(ang);
+    if (Math.cos(ang) < 0) ctx.scale(1, -1);
+    if (!drawWeaponSprite(ctx, a.holding, 2, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
     ctx.restore();
   }
+
 
   // the head: big, outlined, rounded corners
   const skin = a.skin || '#e8b896';
@@ -29246,6 +29472,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.45.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Arsenal of the Absurd',
+    notes: [
+      'Every gun and blade has a proper pixel-art model now — in your hand, pointed where you aim, and on the hotbar.',
+      'Thirteen one-of-a-kind weapons are hidden in people\'s homes, for anyone with a lockpick and no shame: a pigeon launcher, a confetti cannon, a frozen-mackerel gun, a skull-humming tuning fork… and a signature piece for each of the town\'s big names — Moneybucks\'s coin-firing gold revolver, Chief Order\'s Gavel of Final Judgement, Arthur\'s right-angled Pythagorean, Lucas\'s Tinfoil Ray, Captain Ober\'s harpoon, Mason\'s nail gun and Chuckie\'s Cheddar Blaster.',
+      'Their famous cars have been redone in the pixel style too.',
+    ],
+  },
+  {
     version: '0.44.0',
     date: '2026-10-17',
     channel: 'development',
@@ -32577,8 +32814,13 @@ const { drawPixelCar, drawPixelBus } = __m["src/engine/drawPixelCars.js"];
  * Draw a car centred on (x, y) pointing along `angle` (0 = east).
  * opts: color, braking, lit (headlights on), time, id (for wear), siren.
  */
+let pixelSig = false;
+/** v0.45.0: the renderer switches the signature cars to pixel art with the "Pixel-art look" setting. */
+function setPixelCars(on) { pixelSig = !!on; }
+
 function drawCar(ctx, model, x, y, angle, opts = {}) {
   if (model.body === 'tractor') return drawTractor(ctx, model, x, y, angle, opts);
+  if (model.sig && pixelSig && typeof document !== 'undefined' && drawSignaturePixel(ctx, model, x, y, angle, opts)) return; // v0.45.0
   if (model.sig && drawSignatureCar(ctx, model, x, y, angle, opts)) return; // v0.34.0
   drawPixelCar(ctx, model, x, y, angle, opts); // v0.38.0: the pixel-art revamp
 }
@@ -32683,7 +32925,55 @@ function drawTractor(ctx, model, x, y, angle, opts = {}) {
   ctx.restore();
 }
 
-return { drawCar, drawDisplayCar, drawBus, drawBusStop };
+// v0.45.0: a signature car in the pixel look. Its own drawing (with everything it animates) is
+// made at art resolution, then given hard edges, a short palette and a dark one-pixel outline,
+// and laid down crisp with a hard shadow — the same style as the pixel cars.
+let sigCv = null;
+function drawSignaturePixel(ctx, model, x, y, angle, opts) {
+  const R = Math.ceil(Math.hypot(model.len, model.wid) / 2) + 40; // world px around the centre
+  const n = R; // art px across (2R world px / 2)
+  sigCv = sigCv || document.createElement('canvas');
+  if (sigCv.width !== n || sigCv.height !== n) { sigCv.width = n; sigCv.height = n; }
+  const c = sigCv.getContext('2d', { willReadFrequently: true });
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, n, n);
+  c.setTransform(0.5, 0, 0, 0.5, 0, 0);
+  if (!drawSignatureCar(c, model, R, R, angle, opts)) return false;
+  const img = c.getImageData(0, 0, n, n);
+  const d = img.data;
+  const solid = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    const a = d[i * 4 + 3];
+    if (a < 110) { d[i * 4 + 3] = 0; continue; }
+    solid[i] = 1;
+    const k = 255 / a; // un-premultiply the anti-aliased edge, then snap to a short palette
+    for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = Math.min(255, Math.round((d[i * 4 + ch] * k) / 20) * 20);
+    d[i * 4 + 3] = 255;
+  }
+  for (let yy = 0; yy < n; yy++) for (let xx = 0; xx < n; xx++) {
+    const i = yy * n + xx;
+    if (solid[i]) continue;
+    if ((xx > 0 && solid[i - 1]) || (xx < n - 1 && solid[i + 1]) || (yy > 0 && solid[i - n]) || (yy < n - 1 && solid[i + n])) {
+      d[i * 4] = 27; d[i * 4 + 1] = 26; d[i * 4 + 2] = 36; d[i * 4 + 3] = 255;
+    }
+  }
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.putImageData(img, 0, 0);
+  const ox = Math.round((x - R) / 2) * 2;
+  const oy = Math.round((y - R) / 2) * 2;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = 0.28;
+  ctx.filter = 'brightness(0)';
+  ctx.drawImage(sigCv, ox + 4, oy + 6, n * 2, n * 2);
+  ctx.globalAlpha = 1;
+  ctx.filter = 'none';
+  ctx.drawImage(sigCv, ox, oy, n * 2, n * 2);
+  ctx.restore();
+  return true;
+}
+
+return { setPixelCars, drawCar, drawDisplayCar, drawBus, drawBusStop };
 })();
 
 // ---- src/engine/drawShips.js
@@ -36624,7 +36914,8 @@ const { TILE, clamp, lerp, dist } = __m["src/core/util.js"];
 const { buildPixelGround } = __m["src/engine/drawPixelGround.js"];
 const { drawFields } = __m["src/engine/drawFarm.js"];
 const { buildStaticLayer, setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
-const { drawCar, drawBus } = __m["src/engine/drawVehicles.js"];
+const { drawCar, drawBus, setPixelCars } = __m["src/engine/drawVehicles.js"];
+const { lookOf, isGunLook } = __m["src/engine/drawPixelWeapons.js"];
 const { drawTrail } = __m["src/engine/drawSignatureCars.js"];
 const { drawCharacter, setPixelPeople, rrect } = __m["src/engine/drawCharacter.js"];
 const { check } = __m["src/sim/conditions.js"];
@@ -36633,6 +36924,7 @@ const { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } = __m["src/engine/
 const { inWindow } = __m["src/world/clock.js"];
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
+const CONFETTI = ['#ff5a8a', '#f2e05a', '#5ad0f2', '#8aff6a', '#c08aff'];
 const LIGHT_SCALE = 0.25; // the light map is soft, so it is rendered at quarter resolution and upscaled
 
 class Renderer {
@@ -36833,6 +37125,7 @@ class Renderer {
     const pixel = this.pixel && !g.combat.wrath;
     setPixelProps(this.pixel);
     setPixelPeople(this.pixel);
+    setPixelCars(this.pixel);
     if (pixel) {
       const lw = Math.ceil(this.canvas.width / this.px) + 1;
       const lh = Math.ceil(this.canvas.height / this.px) + 1;
@@ -36925,7 +37218,8 @@ class Renderer {
           items.push({ y: npc.y + L.y - 20, draw: at(() => this.drawLying(npc)) });
           continue;
         }
-        const nw = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon]?.weapon?.held : null;
+        const nwi = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon] : null;
+        const nw = nwi ? (this.pixel ? lookOf(nwi) : nwi.weapon?.held) : null;
         const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
         const lift = g.combat.wrath?.npcId === npc.id ? wrathLift(g, g.combat.wrath) : 0;
         items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, lift ? { ...npc, y: npc.y - lift, moving: false } : npc, npc.activity === 'sleep')) });
@@ -36952,7 +37246,7 @@ class Renderer {
         }
       }
     }
-    const held = g.combat.equipped().weapon.held;
+    const held = this.pixel ? lookOf(g.combat.equipped()) : g.combat.equipped().weapon.held; // v0.45.0: each weapon its own sprite
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
     const aboard = g.player.driving || (g.player.riding !== null && g.player.riding !== undefined);
@@ -37103,6 +37397,7 @@ class Renderer {
     // v0.44.0: bullets you can see — a hot slug and a short streak behind it
     for (const b of g.combat.bullets) {
       if (b.map !== g.player.map) continue;
+      if (b.kind && this.drawOddBullet(ctx, b, t)) continue; // v0.45.0: pigeons, fish, cheese…
       const len = b.hurts ? 10 : 16;
       ctx.strokeStyle = b.hurts ? 'rgba(255,140,90,0.55)' : 'rgba(255,230,150,0.6)';
       ctx.lineWidth = 2;
@@ -37114,7 +37409,7 @@ class Renderer {
       if (q.map !== g.player.map) continue;
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2);
-      ctx.fillStyle = q.kind === 'case' ? '#e8b83a' : '#b0181e';
+      ctx.fillStyle = q.kind === 'coin' ? '#f2c84a' : q.kind === 'confetti' ? CONFETTI[q.hue || 0] : q.kind === 'case' ? '#e8b83a' : '#b0181e';
       ctx.fillRect(Math.round(q.x), Math.round(q.y - q.z), q.kind === 'case' ? 4 : 2 * q.size, 2);
     }
     for (const f of g.combat.fx) {
@@ -37188,6 +37483,28 @@ class Renderer {
     }
   }
 
+  /** v0.45.0: the special weapons' ammunition, in flight. */
+  drawOddBullet(ctx, b, t) {
+    const a = Math.atan2(b.dy, b.dx);
+    ctx.save();
+    ctx.translate(Math.round(b.x), Math.round(b.y));
+    const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+    switch (b.kind) {
+      case 'pigeon': { const flap = Math.floor(t * 16) % 2; if (b.dx < 0) ctx.scale(-1, 1); R(-3, -1, 6, 3, '#8a8a96'); R(2, -2, 2, 2, '#b0b0ba'); R(4, -1, 1, 1, '#e8a040'); R(-2, flap ? -3 : 1, 3, 2, '#6a6a76'); R(-4, 0, 1, 1, '#5a5a66'); break; }
+      case 'fish': ctx.rotate(a); R(-4, -1, 7, 3, '#8ab0c8'); R(-4, -1, 7, 1, '#d0e8f0'); R(-6, -2, 2, 1, '#4a7aa8'); R(-6, 1, 2, 1, '#4a7aa8'); R(2, -1, 1, 1, '#14141e'); break;
+      case 'cheese': { ctx.rotate(t * 12); R(-3, -3, 6, 6, '#f2c14e'); R(-3, -3, 6, 1, '#ffe08a'); R(-1, -1, 1, 1, '#c8902a'); R(1, 1, 1, 1, '#c8902a'); break; }
+      case 'coin': R(-1, -1, 3, 3, Math.floor(t * 20) % 2 ? '#f2c84a' : '#fff0a0'); break;
+      case 'nail': ctx.rotate(a); R(-3, 0, 5, 1, '#c9ced4'); R(2, -1, 1, 3, '#8a9098'); break;
+      case 'chalk': ctx.rotate(a); R(-6, 0, 4, 1, 'rgba(240,240,232,0.5)'); R(-2, -1, 3, 2, '#f0f0e8'); break;
+      case 'ray': ctx.rotate(a); R(-24, -1, 26, 2, 'rgba(90,255,138,0.45)'); R(-10, -1, 12, 2, '#5aff8a'); R(0, -1, 2, 2, '#e0ffe8'); break;
+      case 'harpoon': ctx.rotate(a); R(-30, 0, 24, 1, '#8a6a3a'); R(-6, -1, 10, 2, '#c9ced4'); R(4, -2, 2, 4, '#c9ced4'); R(6, -1, 1, 2, '#c9ced4'); break;
+      case 'confetti': for (let k = 0; k < 4; k++) R(Math.round(Math.cos(k * 1.7 + t * 9) * 3), Math.round(Math.sin(k * 2.3 + t * 9) * 3), 1, 1, CONFETTI[k]); break;
+      default: ctx.restore(); return false;
+    }
+    ctx.restore();
+    return true;
+  }
+
   /** v0.44.0: blood spatter, pools under the fallen, spent cases — on the ground, fading after a few minutes. */
   drawCombatGround(ctx, mapId) {
     const t = this.game.realTime;
@@ -37198,6 +37515,7 @@ class Renderer {
       if (a <= 0) continue;
       const x = Math.round(d.x / 2) * 2;
       const y = Math.round(d.y / 2) * 2;
+      if (d.kind === 'coin' || d.kind === 'confetti') { ctx.fillStyle = d.kind === 'coin' ? `rgba(242,200,74,${a})` : CONFETTI[d.hue || 0]; ctx.globalAlpha = a; ctx.fillRect(x, y, d.kind === 'coin' ? 4 : 2, 2); ctx.globalAlpha = 1; continue; }
       if (d.kind === 'blood') { ctx.fillStyle = `rgba(150,20,24,${0.85 * a})`; ctx.fillRect(x, y, d.size * 2 + 2, 2); if (d.size > 1) ctx.fillRect(x + 2, y + 2, 2, 2); }
       else if (d.kind === 'case') { ctx.fillStyle = `rgba(232,184,58,${a})`; ctx.fillRect(x, y, 4, 2); ctx.fillStyle = `rgba(140,100,30,${a})`; ctx.fillRect(x + 2, y, 2, 2); }
       else if (d.kind === 'pool') {
@@ -37323,8 +37641,16 @@ class Renderer {
     const shake = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.2 ? Math.sin(this.game.realTime * 90) * 2 : 0;
     // v0.44.0: a white flash when hit; a gun points where it's aimed
     const flash = actor.hurtAt && this.game.realTime - actor.hurtAt < 0.09;
-    const ad = actor === this.game.player ? (appearance.holding && ['pistol', 'longgun'].includes(appearance.holding) ? this.game.combat.aimVector(this.game.combat.equipped()) : null)
-      : actor.hostile?.mode === 'fight' && ['pistol', 'longgun'].includes(appearance.holding) ? { x: this.game.player.x - actor.x, y: this.game.player.y - actor.y } : null;
+    const ad = actor === this.game.player ? (appearance.holding && isGunLook(appearance.holding) ? this.game.combat.aimVector(this.game.combat.equipped()) : null)
+      : actor.hostile?.mode === 'fight' && isGunLook(appearance.holding) ? { x: this.game.player.x - actor.x, y: this.game.player.y - actor.y } : null;
+    if (actor.stunUntil > this.game.realTime) {
+      // v0.45.0: stunned — little stars going round
+      for (let k = 0; k < 3; k++) {
+        const th = this.time * 6 + (k * Math.PI * 2) / 3;
+        this.ctx.fillStyle = k % 2 ? '#fff6a0' : '#f2c14e';
+        this.ctx.fillRect(Math.round(actor.x + Math.cos(th) * 10) - 2, Math.round(actor.y - 56 + Math.sin(th) * 3) - 2, 4, 4);
+      }
+    }
     drawCharacter(this.ctx, appearance, {
       flash,
       aim: ad ? Math.atan2(ad.y, ad.x) : null,

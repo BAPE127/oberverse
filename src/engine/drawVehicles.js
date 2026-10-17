@@ -10,8 +10,13 @@ import { drawPixelCar, drawPixelBus } from './drawPixelCars.js';
  * Draw a car centred on (x, y) pointing along `angle` (0 = east).
  * opts: color, braking, lit (headlights on), time, id (for wear), siren.
  */
+let pixelSig = false;
+/** v0.45.0: the renderer switches the signature cars to pixel art with the "Pixel-art look" setting. */
+export function setPixelCars(on) { pixelSig = !!on; }
+
 export function drawCar(ctx, model, x, y, angle, opts = {}) {
   if (model.body === 'tractor') return drawTractor(ctx, model, x, y, angle, opts);
+  if (model.sig && pixelSig && typeof document !== 'undefined' && drawSignaturePixel(ctx, model, x, y, angle, opts)) return; // v0.45.0
   if (model.sig && drawSignatureCar(ctx, model, x, y, angle, opts)) return; // v0.34.0
   drawPixelCar(ctx, model, x, y, angle, opts); // v0.38.0: the pixel-art revamp
 }
@@ -114,4 +119,52 @@ function drawTractor(ctx, model, x, y, angle, opts = {}) {
     for (const sy of [-1, 1]) ctx.fillRect(L / 2 - 3, sy * W * 0.12 - 2, 3, 4);
   }
   ctx.restore();
+}
+
+// v0.45.0: a signature car in the pixel look. Its own drawing (with everything it animates) is
+// made at art resolution, then given hard edges, a short palette and a dark one-pixel outline,
+// and laid down crisp with a hard shadow — the same style as the pixel cars.
+let sigCv = null;
+function drawSignaturePixel(ctx, model, x, y, angle, opts) {
+  const R = Math.ceil(Math.hypot(model.len, model.wid) / 2) + 40; // world px around the centre
+  const n = R; // art px across (2R world px / 2)
+  sigCv = sigCv || document.createElement('canvas');
+  if (sigCv.width !== n || sigCv.height !== n) { sigCv.width = n; sigCv.height = n; }
+  const c = sigCv.getContext('2d', { willReadFrequently: true });
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, n, n);
+  c.setTransform(0.5, 0, 0, 0.5, 0, 0);
+  if (!drawSignatureCar(c, model, R, R, angle, opts)) return false;
+  const img = c.getImageData(0, 0, n, n);
+  const d = img.data;
+  const solid = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    const a = d[i * 4 + 3];
+    if (a < 110) { d[i * 4 + 3] = 0; continue; }
+    solid[i] = 1;
+    const k = 255 / a; // un-premultiply the anti-aliased edge, then snap to a short palette
+    for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = Math.min(255, Math.round((d[i * 4 + ch] * k) / 20) * 20);
+    d[i * 4 + 3] = 255;
+  }
+  for (let yy = 0; yy < n; yy++) for (let xx = 0; xx < n; xx++) {
+    const i = yy * n + xx;
+    if (solid[i]) continue;
+    if ((xx > 0 && solid[i - 1]) || (xx < n - 1 && solid[i + 1]) || (yy > 0 && solid[i - n]) || (yy < n - 1 && solid[i + n])) {
+      d[i * 4] = 27; d[i * 4 + 1] = 26; d[i * 4 + 2] = 36; d[i * 4 + 3] = 255;
+    }
+  }
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.putImageData(img, 0, 0);
+  const ox = Math.round((x - R) / 2) * 2;
+  const oy = Math.round((y - R) / 2) * 2;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = 0.28;
+  ctx.filter = 'brightness(0)';
+  ctx.drawImage(sigCv, ox + 4, oy + 6, n * 2, n * 2);
+  ctx.globalAlpha = 1;
+  ctx.filter = 'none';
+  ctx.drawImage(sigCv, ox, oy, n * 2, n * 2);
+  ctx.restore();
+  return true;
 }

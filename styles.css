@@ -627,3 +627,4 @@ body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .d
   --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5; color: #2d2433;
 }
 #hud-tl { white-space: nowrap; }
+.hb-slot canvas { object-fit: contain; }

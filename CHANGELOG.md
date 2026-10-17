@@ -2,6 +2,30 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.45.0] — 2026-10-17 — Arsenal of the Absurd (development build)
+
+Owner: "improve the models for guns and also add special unique weapons (as absurd and wild as you want) in some of the homes to be stolen … add a special weapon for each imported character and make sure their cars are also in this new format."
+
+### Added
+- **A pixel-art model for every weapon** (`src/engine/drawPixelWeapons.js`): revolver (cylinder, wooden grip), pistol (slide), pump shotgun, scoped hunting rifle, SMG, assault rifle (carry handle, curved magazine), sniper rifle (bipod), LMG (box magazine), RPG, crowbar, knuckles, baton, bat, machete, fire axe — outlined, shaded, held in a hand and pointed at the aim; anything else is held up, ready. The hotbar shows the same sprites, scaled up crisp. Items carry a `weapon.look`.
+- **Thirteen one-of-a-kind weapons** (`src/content/specialWeapons.js`), each kept in somebody's home (take it and it's burglary), with a supply of their own ammunition (no shop sells it):
+  - Grandma Pell's **Rolling Pin** (Mags) — sends people flying, kills nobody.
+  - The **Pigeon Launcher** (Tibbs) — fires furious pigeons; whoever's hit forgets you and runs.
+  - The **Confetti Cannon** (Delphine) — eight wads of confetti that knock people down.
+  - The **Golden Plunger** (Sgt. Case) — grabs them, pulls them in, stuns them.
+  - The **Mackerel Mk II** (Julian Beaumont) — frozen fish at alarming speed.
+  - **The Resonator** (Sal) — a giant tuning fork; one tap and they stand humming for three seconds.
+- **A signature weapon for every imported character**, kept at home:
+  - **The Golden Handshake** (Sir Moneybucks, in his vault) — a gold revolver that fires sovereigns; every hit puts 2 obols in your pocket.
+  - **The Plumb Line** (Mason, his toolbox) — an automatic nail gun; every nail pins them, level.
+  - **The Gavel of Final Judgement** (Chief Order) — a 170° swing that stuns everyone in it; nobody dies (the Chief hates paperwork).
+  - **The Pythagorean** (Arthur) — three barrels firing at 0° and ±36.87°. "It is not a spread. It is a proof."
+  - **The Tinfoil Ray** (Lucas) — a green beam straight through everyone in a line.
+  - **The Old Harpoon** (Captain Ober, his sea chest) — harpoons them and reels them in, stunned.
+  - **The Cheddar Blaster** (Farmer Chuckie, his cheese safe) — cheese wheels that hit like bowling balls.
+- **New weapon mechanics** (`src/systems/combat.js`): fixed-angle fans, piercing beams, stuns (stars circle their heads), pulling (negative knockback), sending them running, paying out per hit; bigger knockbacks travel step by step and stop at walls. Each one's ammunition flies as itself — pigeons flapping, fish, spinning cheese, coins, nails, chalk, a green ray, a harpoon on its line, confetti — and coins and confetti scatter on the ground.
+- **The signature cars in pixel art:** each is drawn at art resolution with everything it animates (fountains, mixer drums, light bars, chalk), then given hard edges, a short palette, a one-pixel outline and a hard shadow, like the other cars.
+
 ## [0.44.0] — 2026-10-17 — Gun play, Streets of Rogue style (development build)
 
 Owner: "Can you improve the gun play and combat to also feel like streets of rogue 2".

@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.44.0
+# Known Issues and Limitations — v0.45.0
+
+- **Special weapons (v0.45.0):** their ammunition isn't sold anywhere — when a stash runs out, the weapon is a trophy. Their owners don't yet notice they're missing (beyond the burglary itself) or carry them. The Golden Handshake sits in Moneybucks's vault, which needs the vault key.
 
 - **Gun play (v0.44.0):** your own bullets are for show — the hit is decided the instant you fire, so a target can't step out of the way of your shot (theirs can be dodged). NPC bullets don't hit other NPCs or cars. Blood, cases and bullets aren't saved.
 

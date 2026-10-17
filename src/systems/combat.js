@@ -254,9 +254,10 @@ export class Combat {
       return { ok: true, kind: 'gun', projectile: true, hits: [] };
     }
     const hits = [];
-    const pellets = wp.pellets || 1;
+    const pellets = wp.fan ? wp.fan.length : wp.pellets || 1;
     for (let i = 0; i < pellets; i++) {
-      const spread = (((g.rng.next() - 0.5) * 2 * (wp.spread || 0)) * Math.PI) / 180;
+      // v0.45.0: a fan fires at fixed angles (the Pythagorean); everything else scatters
+      const spread = ((wp.fan ? wp.fan[i] : (g.rng.next() - 0.5) * 2 * (wp.spread || 0)) * Math.PI) / 180;
       const c = Math.cos(spread);
       const s = Math.sin(spread);
       const d = { x: dir.x * c - dir.y * s, y: dir.x * s + dir.y * c };
@@ -269,8 +270,13 @@ export class Combat {
         return { ok: true, kind: 'gun', hits: [sacred.id], wrath: true };
       }
       this.fx.push({ type: 'tracer', x1: ox, y1: oy, x2: ox + d.x * r.t, y2: oy + d.y * r.t, until: g.realTime + 0.09, start: g.realTime });
-      this.spawnBullet(ox, oy, d, r.t);
-      if (r.npc) {
+      this.spawnBullet(ox, oy, d, r.t, { kind: wp.bullet });
+      if (r.npc && wp.pierce) {
+        // v0.45.0: straight through everyone in a line, to the wall
+        const line = this.raycastAll(ox, oy, d, wp.range * TILE);
+        this.bullets[this.bullets.length - 1].left = line.t;
+        for (const npc of line.npcs) { hits.push(npc); this.hitNpc(npc, wp.damage, { weapon: w, dir: d, lethal: wp.lethal !== false }); }
+      } else if (r.npc) {
         hits.push(r.npc);
         // falloff beyond half range
         const fall = r.t > (wp.range * TILE) / 2 ? 0.7 : 1;
@@ -281,7 +287,7 @@ export class Combat {
     // v0.44.0: kick — the camera jolts, the shooter rocks back, a case flies
     const heavyGun = (wp.damage || 0) * pellets >= 60;
     this.kick(heavyGun ? 5 : wp.auto ? 1.6 : 2.6, heavyGun ? 0.2 : 0.1);
-    this.ejectCase(p.x, p.y - BODY_Y, dir);
+    if (!wp.bullet || wp.bullet === 'coin' || wp.bullet === 'nail' || wp.bullet === 'chalk') this.ejectCase(p.x, p.y - BODY_Y, dir);
     const map = g.currentMap();
     const back = heavyGun ? 5 : 2;
     if (!map.rectBlocked(p.x - dir.x * back - 7, p.y - dir.y * back - 6, 14, 6, g.playerActor?.())) { p.x -= dir.x * back; p.y -= dir.y * back; }
@@ -343,6 +349,23 @@ export class Combat {
     return { npc: best, t: bestT, wall: !best && wallT < maxDist };
   }
 
+  /** Everyone along a ray up to the first wall (for weapons that pierce). */
+  raycastAll(ox, oy, d, maxDist) {
+    const map = this.game.currentMap();
+    let wallT = maxDist;
+    for (let t = 0; t < maxDist; t += 6) {
+      if (WALL.has(map.tileAt(Math.floor((ox + d.x * t) / TILE), Math.floor((oy + d.y * t + BODY_Y) / TILE)))) { wallT = t; break; }
+    }
+    const npcs = [];
+    for (const npc of this.targets()) {
+      const cx = npc.x - ox;
+      const cy = npc.y - BODY_Y - oy;
+      const t = cx * d.x + cy * d.y;
+      if (t > 0 && t < wallT && Math.abs(cx * d.y - cy * d.x) <= HIT_RADIUS) npcs.push(npc);
+    }
+    return { npcs, t: wallT };
+  }
+
   // --------------------------------------------------------------- damage
   hitNpc(npc, amount, { weapon, dir, lethal = true }) {
     const g = this.game;
@@ -367,9 +390,23 @@ export class Combat {
     // knockback
     const kb = weapon.weapon.knockback ?? (weapon.weapon.kind === 'gun' ? 6 : 18);
     const map = g.currentMap();
-    const nx = npc.x + dir.x * kb;
-    const ny = npc.y + dir.y * kb;
-    if (!map.rectBlocked(nx - 7, ny - 6, 14, 6, g.npcSystem.actorFor(npc))) { npc.x = nx; npc.y = ny; }
+    // v0.45.0: in small steps, stopping at a wall (big knockbacks send people flying; negative ones pull them in)
+    const actor = g.npcSystem.actorFor(npc);
+    const sgn = Math.sign(kb);
+    let reach = Math.abs(kb);
+    if (sgn < 0) reach = Math.max(0, Math.min(reach, Math.hypot(npc.x - g.player.x, npc.y - g.player.y) - 22));
+    for (let moved = 0; moved < reach; moved += 6) {
+      const st = Math.min(6, reach - moved) * sgn;
+      const nx = npc.x + dir.x * st;
+      const ny = npc.y + dir.y * st;
+      if (map.rectBlocked(nx - 7, ny - 6, 14, 6, actor)) break;
+      npc.x = nx;
+      npc.y = ny;
+    }
+    const fx = weapon.weapon.effect;
+    if (fx === 'stun') npc.stunUntil = g.realTime + (weapon.weapon.stun || 2);
+    if (fx === 'coins') { g.player.money += 2; g.bus.emit('money:changed', { delta: 2, total: g.player.money }); this.burst(npc.x, npc.y - BODY_Y, 'coin', 6); }
+    if (fx === 'confetti') this.burst(npc.x, npc.y - BODY_Y, 'confetti', 10);
     npc.path = null;
     npc.chat = null;
     g.bus.emit('combat:hit', { npcId: npc.id, damage: dmg, health: npc.health, weapon: weapon.id });
@@ -393,6 +430,7 @@ export class Combat {
     }
     // fight or flight
     this.react(npc, null, true);
+    if (weapon.weapon.effect === 'flee') { npc.hostile = { mode: 'flee', until: now + 30 }; npc.activity = 'flee'; } // the pigeons win
     if (g.rng.chance(0.6)) g.bark(npc, g.rng.pick(npc.hostile?.mode === 'fight' ? FIGHT : HURT));
   }
 
@@ -616,7 +654,8 @@ export class Combat {
 
   /** A bullet you can see, from (x, y) along d for `len` px. `hurts`: an NPC's shot that can hit the player. */
   spawnBullet(x, y, d, len, opts = {}) {
-    this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || 1700, hurts: opts.hurts || null, born: this.game.realTime });
+    const slow = { pigeon: 700, fish: 900, cheese: 650, harpoon: 1100, confetti: 900, coin: 1300 }[opts.kind];
+    this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || slow || 1700, kind: opts.kind || null, hurts: opts.hurts || null, born: this.game.realTime });
     if (this.bullets.length > 80) this.bullets.shift();
   }
 
@@ -627,6 +666,16 @@ export class Combat {
       const a = Math.atan2(dir.y, dir.x) + (g.rng.next() - 0.5) * 1.2;
       const v = 40 + g.rng.next() * 80;
       this.particles.push({ kind: 'blood', map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y - 4 + g.rng.next() * 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 40 + g.rng.next() * 60, size: g.rng.next() < 0.3 ? 2 : 1 });
+    }
+  }
+
+  /** A puff of coins or confetti from someone who's been hit. */
+  burst(x, y, kind, n) {
+    const g = this.game;
+    for (let i = 0; i < n; i++) {
+      const a = g.rng.next() * Math.PI * 2;
+      const v = 30 + g.rng.next() * 70;
+      this.particles.push({ kind, map: g.player.map, x, y: y + BODY_Y - 2, z: BODY_Y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, vz: 60 + g.rng.next() * 60, size: 1, hue: Math.floor(g.rng.next() * 5) });
     }
   }
 
@@ -676,7 +725,7 @@ export class Combat {
         if (q.z <= 0) {
           if (q.kind === 'case' && q.vz < -40) { q.z = 0.1; q.vz = -q.vz * 0.35; q.vx *= 0.5; q.vy *= 0.5; continue; } // a little bounce
           q.done = true;
-          this.decals.push({ kind: q.kind, map: q.map, x: q.x, y: q.y, size: q.size, at: g.realTime });
+          this.decals.push({ kind: q.kind, map: q.map, x: q.x, y: q.y, size: q.size, hue: q.hue, at: g.realTime });
         }
       }
       this.particles = this.particles.filter((q) => !q.done);
@@ -693,6 +742,7 @@ export class Combat {
     if (this.fx.length) this.fx = this.fx.filter((f) => f.until > g.realTime);
     for (const npc of g.npcs.values()) {
       if (!npc.hostile || npc.map !== g.player.map || npc.inDialogue) continue;
+      if (npc.stunUntil > g.realTime) { npc.moving = false; continue; } // v0.45.0: stunned, pinned or reeled in
       if (npc.hostile.mode === 'fight') this.fightStep(npc, dt);
       else this.fleeStep(npc, dt);
     }

@@ -33,7 +33,7 @@ export const ITEMS = {
   item_crowbar: {
     name: 'Crowbar', category: 'tool', price: 18, tags: ['tool', 'pry', 'weapon'], icon: 'crowbar',
     description: 'Heavy, honest, and very good at opening things that would rather stay shut. Or heads.',
-    weapon: { kind: 'melee', damage: 24, range: 1.3, arc: 95, cooldown: 0.85, lethal: true, knockback: 24, sound: 'sfx_whack', held: 'club' },
+    weapon: { look: 'crowbar', kind: 'melee', damage: 24, range: 1.3, arc: 95, cooldown: 0.85, lethal: true, knockback: 24, sound: 'sfx_whack', held: 'club' },
   },
   item_lucky_spanner: {
     name: 'Lucky Spanner', category: 'quest', price: 0, tags: ['quest', 'tool'], icon: 'spanner',
@@ -174,52 +174,52 @@ export const ITEMS = {
   item_knuckles: {
     name: 'Brass Knuckles', category: 'weapon', price: 25, tags: ['weapon', 'melee'], icon: 'knuckles',
     description: 'Four brass rings and a bad attitude. Hits harder than a bare fist, and puts people down without killing them.',
-    weapon: { kind: 'melee', damage: 14, range: 1.0, arc: 80, cooldown: 0.45, lethal: false, knockback: 16, sound: 'sfx_punch', held: 'knuckles' },
+    weapon: { look: 'knuckles', kind: 'melee', damage: 14, range: 1.0, arc: 80, cooldown: 0.45, lethal: false, knockback: 16, sound: 'sfx_punch', held: 'knuckles' },
   },
   item_baton: {
     name: 'Police Baton', category: 'weapon', price: 35, tags: ['weapon', 'melee'], icon: 'baton',
     description: 'A black hardwood nightstick, Halvermouth Police issue. Designed to subdue, not to kill.',
-    weapon: { kind: 'melee', damage: 18, range: 1.25, arc: 90, cooldown: 0.6, lethal: false, knockback: 20, sound: 'sfx_whack', held: 'club' },
+    weapon: { look: 'baton', kind: 'melee', damage: 18, range: 1.25, arc: 90, cooldown: 0.6, lethal: false, knockback: 20, sound: 'sfx_whack', held: 'club' },
   },
   item_bat: {
     name: 'Baseball Bat', category: 'weapon', price: 30, tags: ['weapon', 'melee'], icon: 'bat',
     description: 'Ash wood, taped grip, a dent that tells a story. Nobody in the Sumps plays baseball.',
-    weapon: { kind: 'melee', damage: 22, range: 1.35, arc: 100, cooldown: 0.8, lethal: true, knockback: 26, sound: 'sfx_whack', held: 'club' },
+    weapon: { look: 'bat', kind: 'melee', damage: 22, range: 1.35, arc: 100, cooldown: 0.8, lethal: true, knockback: 26, sound: 'sfx_whack', held: 'club' },
   },
   item_machete: {
     name: 'Machete', category: 'weapon', price: 45, tags: ['weapon', 'melee'], icon: 'blade',
     description: 'A long, broad blade for clearing brush. Or anything else.',
-    weapon: { kind: 'melee', damage: 30, range: 1.3, arc: 110, cooldown: 0.7, lethal: true, knockback: 12, sound: 'sfx_slash', held: 'blade' },
+    weapon: { look: 'machete', kind: 'melee', damage: 30, range: 1.3, arc: 110, cooldown: 0.7, lethal: true, knockback: 12, sound: 'sfx_slash', held: 'blade' },
   },
   item_fire_axe: {
     name: 'Fire Axe', category: 'weapon', price: 55, tags: ['weapon', 'melee'], icon: 'axe',
     description: 'Red head, long haft, "IN CASE OF EMERGENCY". Slow, heavy and devastating.',
-    weapon: { kind: 'melee', damage: 42, range: 1.45, arc: 120, cooldown: 1.2, lethal: true, knockback: 30, sound: 'sfx_slash', held: 'axe' },
+    weapon: { look: 'fireaxe', kind: 'melee', damage: 42, range: 1.45, arc: 120, cooldown: 1.2, lethal: true, knockback: 30, sound: 'sfx_slash', held: 'axe' },
   },
   item_revolver: {
     name: '.38 Revolver', category: 'weapon', price: 90, tags: ['weapon', 'gun'], icon: 'gun',
     description: 'A six-shot revolver: simple, reliable and loud. Takes .38 rounds.',
-    weapon: { kind: 'gun', damage: 34, range: 10, cooldown: 0.55, lethal: true, ammo: 'item_ammo_38', mag: 6, reload: 2.0, spread: 3, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
+    weapon: { look: 'revolver', kind: 'gun', damage: 34, range: 10, cooldown: 0.55, lethal: true, ammo: 'item_ammo_38', mag: 6, reload: 2.0, spread: 3, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
   },
   item_pistol: {
     name: '9mm Pistol', category: 'weapon', price: 120, tags: ['weapon', 'gun'], icon: 'gun', arms: { value: 140, family: 'small' },
     description: 'A semi-automatic pistol with a twelve-round magazine. Takes 9mm rounds.',
-    weapon: { kind: 'gun', damage: 26, range: 11, cooldown: 0.3, lethal: true, ammo: 'item_ammo_9mm', mag: 12, reload: 1.4, spread: 4, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
+    weapon: { look: 'pistol', kind: 'gun', damage: 26, range: 11, cooldown: 0.3, lethal: true, ammo: 'item_ammo_9mm', mag: 12, reload: 1.4, spread: 4, noise: 18, sound: 'sfx_gunshot', held: 'pistol' },
   },
   item_shotgun: {
     name: 'Pump Shotgun', category: 'weapon', price: 180, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 220, family: 'small' },
     description: 'Seven pellets in a wide cone. Devastating up close, useless at range. Takes shotgun shells.',
-    weapon: { kind: 'gun', damage: 15, pellets: 7, range: 6, cooldown: 0.95, lethal: true, ammo: 'item_ammo_shells', mag: 5, reload: 2.6, spread: 14, noise: 22, sound: 'sfx_gunshot_heavy', held: 'longgun' },
+    weapon: { look: 'shotgun', kind: 'gun', damage: 15, pellets: 7, range: 6, cooldown: 0.95, lethal: true, ammo: 'item_ammo_shells', mag: 5, reload: 2.6, spread: 14, noise: 22, sound: 'sfx_gunshot_heavy', held: 'longgun' },
   },
   item_rifle: {
     name: 'Hunting Rifle', category: 'weapon', price: 220, tags: ['weapon', 'gun'], icon: 'longgun',
     description: 'Bolt-action, scoped, accurate across a city block. Takes rifle rounds.',
-    weapon: { kind: 'gun', damage: 75, range: 18, cooldown: 1.3, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 2.8, spread: 0.6, noise: 26, sound: 'sfx_gunshot_heavy', held: 'longgun' },
+    weapon: { look: 'rifle', kind: 'gun', damage: 75, range: 18, cooldown: 1.3, lethal: true, ammo: 'item_ammo_rifle', mag: 5, reload: 2.8, spread: 0.6, noise: 26, sound: 'sfx_gunshot_heavy', held: 'longgun' },
   },
   item_smg: {
     name: 'Submachine Gun', category: 'weapon', price: 320, tags: ['weapon', 'gun'], icon: 'longgun', arms: { value: 260, family: 'small' },
     description: 'Fully automatic: hold the trigger and it keeps going until it doesn\'t. Takes 9mm rounds.',
-    weapon: { kind: 'gun', damage: 15, range: 9, cooldown: 0.09, auto: true, lethal: true, ammo: 'item_ammo_9mm', mag: 30, reload: 1.9, spread: 7, noise: 20, sound: 'sfx_gunshot_smg', held: 'longgun' },
+    weapon: { look: 'smg', kind: 'gun', damage: 15, range: 9, cooldown: 0.09, auto: true, lethal: true, ammo: 'item_ammo_9mm', mag: 30, reload: 1.9, spread: 7, noise: 20, sound: 'sfx_gunshot_smg', held: 'longgun' },
   },
   item_ammo_38: {
     name: '.38 Rounds', category: 'ammo', price: 8, bundle: 12, tags: ['ammo'], icon: 'ammo',

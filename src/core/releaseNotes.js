@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.45.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Arsenal of the Absurd',
+    notes: [
+      'Every gun and blade has a proper pixel-art model now — in your hand, pointed where you aim, and on the hotbar.',
+      'Thirteen one-of-a-kind weapons are hidden in people\'s homes, for anyone with a lockpick and no shame: a pigeon launcher, a confetti cannon, a frozen-mackerel gun, a skull-humming tuning fork… and a signature piece for each of the town\'s big names — Moneybucks\'s coin-firing gold revolver, Chief Order\'s Gavel of Final Judgement, Arthur\'s right-angled Pythagorean, Lucas\'s Tinfoil Ray, Captain Ober\'s harpoon, Mason\'s nail gun and Chuckie\'s Cheddar Blaster.',
+      'Their famous cars have been redone in the pixel style too.',
+    ],
+  },
+  {
     version: '0.44.0',
     date: '2026-10-17',
     channel: 'development',

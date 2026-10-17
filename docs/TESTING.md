@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.45.0 (2026-10-17)
+
+- `npm run check` — **380/380 tests passed** (4 new in `specials.test.mjs`: every special weapon is stashed in an owned home container with its ammo and has a sprite, and the new cases stand in their homes; every imported character (signature-car owner) has a signature weapon, and every weapon in the game has a sprite; the Pythagorean's three rounds fly at exactly −36.87°, 0° and 36.87° and the Tinfoil Ray hits two people in a line; the Gavel stuns, the Old Harpoon reels a target in, the Pigeon Launcher sends one running, the Golden Handshake pays 2 obols).
+- Browser: the seven signature cars together at the Moneybucks Estate in pixel art; a hotbar of the Gavel, Pigeon Launcher, Plumb Line, Tinfoil Ray, Cheddar Blaster, Old Harpoon, Pythagorean and Golden Handshake; the Pythagorean fired — no page errors. Fixed while testing: long guns came out tiny in the hotbar (icons are now drawn at one pixel per art pixel and scaled up by the page). Screenshots: `docs/mockups/v045-*.png`.
+
 ## Verification record — v0.44.0 (2026-10-17)
 
 - `npm run check` — **376/376 tests passed** (3 new in `gunplay.test.mjs`: a revolver shot puts a bullet in flight, kicks the camera, ejects a case and draws blood, and both end up on the ground; an NPC's bullet takes time to arrive, hits a player standing still and misses one who sidesteps; you step into a swing and the dead leave a pool). The older combat, police and gang tests pass unchanged with NPC shots now flying.
