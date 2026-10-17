@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.46.0 (2026-10-17)
+
+- `npm run check` — **381/381 tests passed** (1 new in `vehicles.test.mjs`: from Canal Row by the Kettle & Crumb, driving west for 5 s takes you into Westbrook — it failed before the fix, stuck at x = 1.1; the pixel-ground test now expects world resolution and half-unit detail).
+- Reproduced first in a script: westward on Canal Row's southern lane the car stopped at tile 1.1 against Lanternside's edge; after the fix it crossed into Westbrook. (On the next lane up it stopped behind traffic waiting at x 20.7 — not a wall.)
+- Browser: Canal Row, Market Street, the Kettle & Crumb and the seven signature cars — 60 fps, no page errors; people about a tile tall; the ground's fine detail; the cars' details legible. Screenshots: `docs/mockups/v046-*.png`.
+
 ## Verification record — v0.45.0 (2026-10-17)
 
 - `npm run check` — **380/380 tests passed** (4 new in `specials.test.mjs`: every special weapon is stashed in an owned home container with its ammo and has a sprite, and the new cases stand in their homes; every imported character (signature-car owner) has a signature weapon, and every weapon in the game has a sprite; the Pythagorean's three rounds fly at exactly −36.87°, 0° and 36.87° and the Tinfoil Ray hits two people in a line; the Gavel stuns, the Old Harpoon reels a target in, the Pigeon Launcher sends one running, the Golden Handshake pays 2 obols).

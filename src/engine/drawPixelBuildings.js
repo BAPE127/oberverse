@@ -123,8 +123,9 @@ export function drawPixelBuilding(ctx, b, opts) {
   }
 
   // the back wall: a top, then its face (papered above a dado rail)
-  R(0, 0, W, TOPW + 1, INK);
-  R(1, 1, W - 2, TOPW - 1, top);
+  R(0, 0, W, TOPW + 0.5, INK);
+  R(0.5, 0.5, W - 1, TOPW - 0.5, top);
+  R(0.5, 0.5, W - 1, 0.5, shade(top, 30));
   R(TOPW, TOPW, W - TOPW * 2, BACK, shade(wall, -8));
   R(TOPW, TOPW + BACK - 4, W - TOPW * 2, 1, shade(trim, 10));
   R(TOPW, TOPW + BACK - 3, W - TOPW * 2, 3, shade(wall, -26));
@@ -132,7 +133,7 @@ export function drawPixelBuilding(ctx, b, opts) {
   // a tower's lobby: lift doors in the back wall (the floors above are reached from inside)
   if (b.tower) for (const lx of [Math.floor(W / 2) - 13, Math.floor(W / 2) + 3]) { R(lx, TOPW + 1, 10, BACK - 1, INK); R(lx + 1, TOPW + 2, 8, BACK - 2, '#b8bec8'); R(lx + 4, TOPW + 2, 1, BACK - 2, '#6a6e78'); R(lx + 3, TOPW + 1, 4, 1, '#c9a24a'); }
   // side walls
-  for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 1, 1, TOPW - 2, frontY - 1, top); }
+  for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 0.5, 0.5, TOPW - 1, frontY - 0.5, top); R(sx + 0.5, 0.5, 0.5, frontY - 0.5, shade(top, 30)); }
 
   // v0.41.1: the people in there, where they stand in the real room (in front of the back wall)
   if (opts.people?.length && opts.inside && opts.drawPerson) {
@@ -146,12 +147,13 @@ export function drawPixelBuilding(ctx, b, opts) {
   }
 
   // the front: a top edge and a short face with windows, a door, an awning, pilasters
-  R(0, frontY - 1, W, TOPW + 1, INK);
-  R(1, frontY, W - 2, TOPW - 1, top);
+  R(0, frontY - 0.5, W, TOPW + 0.5, INK);
+  R(0.5, frontY, W - 1, TOPW - 0.5, top);
+  R(0.5, frontY, W - 1, 0.5, shade(top, 30));
   const faceY = frontY + TOPW - 1;
   const faceH = H - faceY;
   R(0, faceY, W, faceH, INK);
-  R(1, faceY, W - 2, faceH - 1, wall);
+  R(0.5, faceY, W - 1, faceH - 0.5, wall);
   R(1, H - 3, W - 2, 2, shade(wall, -30));
   const doorAx = b.door ? (b.door.x - b.x) * 16 : -999;
   for (let wx = 5; wx + 9 <= W - 4; wx += 16) {

@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.46.0] — 2026-10-17 — Fine pixels (development build)
+
+Owner: "the movement feels a little laggy and the lighting seems to be flashing subtly … it just feels very shaky. the characters and player cars feel too grainy. also there a weird wall that does not let the player drive past kettles and crumbs … Characters feel too big compared to the size of buildings. pixelation is fine but it needs to be fine pixelation with crisp clean details. Apply that logic to the map."
+
+### Fixed
+- **The invisible wall by the Kettle & Crumb:** driving west along Canal Row you hit Lanternside's edge and stopped — the car's nose poked past the seam before its centre reached it, and off the map counted as a wall. Off the map past a seam is now open road, and you drive on into Westbrook (`vehicles.inWalls`). The same applied at every seam.
+- **Shaky movement:** the world was drawn on a grid of big art pixels and the camera jumped a whole one at a time. Now the low-resolution picture has one pixel per world pixel (half the old size), and the finished picture is slid by the camera's leftover fraction, so scrolling is smooth while every pixel stays crisp. The camera also follows a little tighter.
+- **Flickering light:** the night light map is drawn on the same pixel grid as the world and slid with it, so its pools no longer swim against the ground; the hard light bands only appear once it's properly dark (in daylight indoors they showed as faint rings that moved).
+
+### Changed
+- **Finer pixels everywhere:** people are drawn at one world pixel per art pixel — about a tile tall, in proportion with doors and buildings (they were 1.6 tiles); held weapons to match; name tags and bubbles sit lower. The ground is built at world resolution with fine one-pixel detail — grass blades, grit, hairline slab seams with a bevel, cracks, grout, plank lines, carpet weave. Props and buildings get one-pixel outlines and hairline highlights. The signature cars are pixelised at world resolution, so their details (chalk proofs, gauges) read clearly.
+
 ## [0.45.0] — 2026-10-17 — Arsenal of the Absurd (development build)
 
 Owner: "improve the models for guns and also add special unique weapons (as absurd and wild as you want) in some of the homes to be stolen … add a special weapon for each imported character and make sure their cars are also in this new format."

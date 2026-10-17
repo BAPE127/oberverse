@@ -6,6 +6,8 @@
 import { drawWeaponSprite, isGunLook } from './drawPixelWeapons.js';
 
 const INK = '#1b1a24';
+// v0.46.0: one art pixel = one world pixel (it was two) — people are about a tile tall, in fine pixels
+const U = 1;
 const BUILD = { round: 12, average: 10, thin: 8, wiry: 9, broad: 12 };
 
 function shade(hex, amt) {
@@ -31,10 +33,10 @@ export function drawPixelCharacter(ctx, a, s, drawHeld) {
   const acc = new Set([a.accessory, ...(a.accessories || [])].filter(Boolean));
 
   ctx.save();
-  ctx.translate(Math.round(s.x / 2) * 2, Math.round(s.y / 2) * 2);
+  ctx.translate(Math.round(s.x), Math.round(s.y));
   ctx.scale(scale, scale);
   // v0.44.0: hit, and for a blink the whole figure goes white
-  const R = (x, y, w, h, c) => { ctx.fillStyle = s.flash && c[0] === '#' ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+  const R = (x, y, w, h, c) => { ctx.fillStyle = s.flash && c[0] === '#' ? '#ffffff' : c; ctx.fillRect(x * U, y * U, w * U, h * U); };
 
   // shadow
   R(-5, -1, 10, 2, 'rgba(20,20,35,0.3)'); R(-4, 0, 8, 1, 'rgba(20,20,35,0.2)');
@@ -54,7 +56,7 @@ export function drawPixelCharacter(ctx, a, s, drawHeld) {
     R(1, -6 + ry, 2, 4, legC); R(1, -2 + ry, 2, 1, shoe);
   }
 
-  ctx.translate(0, -bob * 2);
+  ctx.translate(0, -bob * U);
 
   // torso (outlined), arms, hands
   const outfit = a.outfit || '#5a6a8a';
@@ -81,10 +83,10 @@ export function drawPixelCharacter(ctx, a, s, drawHeld) {
     const aimed = isGunLook(a.holding) && s.aim != null;
     const ang = aimed ? s.aim : side ? (dir > 0 ? -0.9 : Math.PI + 0.9) : facing === 'up' ? -1.9 : -0.9;
     ctx.save();
-    ctx.translate(aimed ? 0 : side ? dir * 4 : half * 2 + 2, aimed ? -20 : -14);
+    ctx.translate((aimed ? 0 : side ? dir * 2 : half + 1) * U, (aimed ? -10 : -7) * U);
     ctx.rotate(ang);
     if (Math.cos(ang) < 0) ctx.scale(1, -1);
-    if (!drawWeaponSprite(ctx, a.holding, 2, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
+    if (!drawWeaponSprite(ctx, a.holding, U, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); ctx.scale(0.5, 0.5); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
     ctx.restore();
   }
 

@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.46.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Fine Pixels',
+    notes: [
+      'Smoother: the camera glides instead of stepping, and the night lighting no longer flickers.',
+      'Finer: people are smaller — in proportion with the buildings — and drawn in fine, crisp pixels; the streets, floors and famous cars have finer detail too.',
+      'Fixed: an invisible wall stopped cars driving west past the Kettle & Crumb into Westbrook.',
+    ],
+  },
+  {
     version: '0.45.0',
     date: '2026-10-17',
     channel: 'development',

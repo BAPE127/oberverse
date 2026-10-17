@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.45.0
+# Known Issues and Limitations — v0.46.0
+
+- **Fine pixels (v0.46.0):** props, buildings and the ordinary cars are still built from two-pixel blocks (with one-pixel outlines now); only the people, the ground and the signature cars are fully fine. The player can wobble by a pixel against the smooth-scrolling world while walking.
 
 - **Special weapons (v0.45.0):** their ammunition isn't sold anywhere — when a stash runs out, the weapon is a trophy. Their owners don't yet notice they're missing (beyond the burglary itself) or carry them. The Golden Handshake sits in Moneybucks's vault, which needs the vault key.
 

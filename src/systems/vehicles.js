@@ -103,9 +103,24 @@ export class Vehicles {
     const half = len / 2 - wid / 2;
     const box = Math.max(16, wid - 8);
     let n = 0;
+    const W = map.width * TILE;
+    const H = map.height * TILE;
     for (const k of [-half, 0, half]) {
       const cx = x + Math.cos(angle) * k;
       const cy = y + Math.sin(angle) * k;
+      // v0.46.0: the nose may poke out past a seam before the car's centre reaches it (and
+      // the car crosses); off the map there is nothing to hit there — it used to be a wall
+      const out = cx - box / 2 < 0 || cy - box / 2 < 0 || cx + box / 2 > W || cy + box / 2 > H;
+      if (out) {
+        const ex = clamp(Math.floor(cx / TILE), 0, map.width - 1);
+        const ey = clamp(Math.floor(cy / TILE), 0, map.height - 1);
+        if (map.doorAt(ex, ey)?.seamless) {
+          const ix = clamp(cx, box / 2, W - box / 2);
+          const iy = clamp(cy, box / 2, H - box / 2);
+          if (map.rectBlocked(ix - box / 2, iy - box / 2, box, box, a)) n++;
+          continue;
+        }
+      }
       if (map.rectBlocked(cx - box / 2, cy - box / 2, box, box, a)) n++;
     }
     return n;

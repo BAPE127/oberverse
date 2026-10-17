@@ -127,13 +127,13 @@ function drawTractor(ctx, model, x, y, angle, opts = {}) {
 let sigCv = null;
 function drawSignaturePixel(ctx, model, x, y, angle, opts) {
   const R = Math.ceil(Math.hypot(model.len, model.wid) / 2) + 40; // world px around the centre
-  const n = R; // art px across (2R world px / 2)
+  const n = R * 2; // v0.46.0: at world resolution — fine pixels, like everything else
   sigCv = sigCv || document.createElement('canvas');
   if (sigCv.width !== n || sigCv.height !== n) { sigCv.width = n; sigCv.height = n; }
   const c = sigCv.getContext('2d', { willReadFrequently: true });
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, n, n);
-  c.setTransform(0.5, 0, 0, 0.5, 0, 0);
+  c.setTransform(1, 0, 0, 1, 0, 0);
   if (!drawSignatureCar(c, model, R, R, angle, opts)) return false;
   const img = c.getImageData(0, 0, n, n);
   const d = img.data;
@@ -155,16 +155,16 @@ function drawSignaturePixel(ctx, model, x, y, angle, opts) {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.putImageData(img, 0, 0);
-  const ox = Math.round((x - R) / 2) * 2;
-  const oy = Math.round((y - R) / 2) * 2;
+  const ox = Math.round(x - R);
+  const oy = Math.round(y - R);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.globalAlpha = 0.28;
   ctx.filter = 'brightness(0)';
-  ctx.drawImage(sigCv, ox + 4, oy + 6, n * 2, n * 2);
+  ctx.drawImage(sigCv, ox + 4, oy + 6, n, n);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
-  ctx.drawImage(sigCv, ox, oy, n * 2, n * 2);
+  ctx.drawImage(sigCv, ox, oy, n, n);
   ctx.restore();
   return true;
 }

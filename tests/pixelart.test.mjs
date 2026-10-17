@@ -18,15 +18,15 @@ function fakeCanvas(w, h) {
   return { width: w, height: h, getContext: () => ctx, ctx };
 }
 
-test('the pixel ground: every map builds at 16 art pixels a tile, on whole pixels; roads get a centre line', () => {
+test('the pixel ground: every map builds at world resolution (32 px a tile), on whole pixels (half art units); roads get a centre line', () => {
   const g = newGame(1);
   let lines = 0;
   for (const m of g.maps.values()) {
     const cv = buildPixelGround(m, fakeCanvas);
-    assert.equal(cv.width, m.width * 16, m.id);
-    assert.equal(cv.height, m.height * 16, m.id);
+    assert.equal(cv.width, m.width * 32, m.id);
+    assert.equal(cv.height, m.height * 32, m.id);
     // fields are drawn with the old (smooth) code at half scale; everything else is whole pixels
-    if (!m.def?.fields) for (const [x, y, w, h] of cv.ctx.rects) assert.ok(Number.isInteger(x) && Number.isInteger(y) && Number.isInteger(w) && Number.isInteger(h), `${m.id}: ${x},${y} ${w}×${h}`);
+    if (!m.def?.fields) for (const [x, y, w, h] of cv.ctx.rects) assert.ok([x, y, w, h].every((v) => Number.isInteger(v * 2)), `${m.id}: ${x},${y} ${w}×${h}`);
     if (m.id === 'lanternside') lines = cv.ctx.rects.filter((r) => r[4] === '#e8b83a').length;
   }
   assert.ok(lines > 0);

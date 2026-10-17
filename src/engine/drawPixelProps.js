@@ -20,7 +20,8 @@ export function drawPixelProp(ctx, p, opts) {
   const H = Math.round(p.h * 16);
   const R = (ax, ay, aw, ah, c) => { ctx.fillStyle = c; ctx.fillRect(x + ax * 2, y + ay * 2, aw * 2, ah * 2); };
   /** an outlined block: ink border, body, light top lip */
-  const box = (ax, ay, aw, ah, c, lip = 1) => { R(ax, ay, aw, ah, INK); R(ax + 1, ay + 1, aw - 2, ah - 2, c); if (lip) R(ax + 1, ay + 1, aw - 2, lip, shade(c, 28)); };
+  // v0.46.0: a one-pixel outline (half an art unit) and a hairline highlight — finer, cleaner edges
+  const box = (ax, ay, aw, ah, c, lip = 1) => { R(ax, ay, aw, ah, INK); R(ax + 0.5, ay + 0.5, aw - 1, ah - 1, c); if (lip) { R(ax + 0.5, ay + 0.5, aw - 1, lip, shade(c, 28)); R(ax + 0.5, ay + 0.5, aw - 1, 0.5, shade(c, 48)); } };
   const time = opts.time || 0;
   switch (p.type) {
     case 'tree': {
@@ -30,7 +31,7 @@ export function drawPixelProp(ctx, p, opts) {
       R(6, 6, 4, 9, INK); R(7, 6, 2, 9, '#6b4a32');
       const blob = (bx, by, bw, bh, col) => { R(bx + 2, by, bw - 4, bh, col); R(bx + 1, by + 1, bw - 2, bh - 2, col); R(bx, by + 2, bw, bh - 4, col); };
       const clumps = [[-3, -8, 12, 12], [6, -9, 12, 12], [1, -14, 14, 11]];
-      for (const [bx, by, bw, bh] of clumps) blob(bx - 1 + sway, by - 1, bw + 2, bh + 2, INK);
+      for (const [bx, by, bw, bh] of clumps) blob(bx - 0.5 + sway, by - 0.5, bw + 1, bh + 1, INK);
       for (const [bx, by, bw, bh] of clumps) blob(bx + sway, by, bw, bh, shade(c, -18));
       blob(-2 + sway, -9, 9, 8, c); blob(7 + sway, -10, 9, 8, c); blob(2 + sway, -14, 11, 8, c);
       blob(4 + sway, -13, 6, 4, shade(c, 24));

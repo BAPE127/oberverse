@@ -21,6 +21,7 @@ export class Renderer {
   constructor(canvas, game, assets) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.blit = { x: 0, y: 0 }; // v0.46.0: the sub-pixel slide of the finished picture
     this.game = game;
     this.assets = assets;
     this.cam = { x: 0, y: 0, zoom: 2 };
@@ -80,7 +81,7 @@ export class Renderer {
       const cv = this.pixel ? buildPixelGround(map, make, fields) : buildStaticLayer(map, make);
       cv.fieldsVersion = v;
       cv.kind = kind;
-      cv.scale = this.pixel ? 0.5 : 1;
+      cv.scale = 1; // v0.46.0: the pixel ground is built at world resolution (fine pixels) too
       this.staticLayers.set(map, cv);
     }
     return this.staticLayers.get(map);
@@ -143,9 +144,10 @@ export class Renderer {
     const map = g.currentMap();
     let zoom = this.baseZoom * (map.kind === 'interior' ? 1.15 : 1);
     if (this.pixel) {
-      // whole device pixels per art pixel, so every pixel is the same size
-      this.px = Math.max(2, Math.round(zoom * 2));
-      zoom = this.px / 2;
+      // v0.46.0: fine pixels — one low-res pixel per world pixel (half the old art pixel), and a
+      // whole number of device pixels to each, so every pixel is the same size
+      this.px = Math.max(1, Math.round(zoom));
+      zoom = this.px;
     }
     this.cam.zoom = zoom;
     const vw = this.canvas.width / zoom;
@@ -182,7 +184,7 @@ export class Renderer {
       this.cam.snap = false;
       this.cam.mapId = map.id;
     } else {
-      const k = 1 - Math.exp(-dt * 8);
+      const k = 1 - Math.exp(-dt * 12); // v0.46.0: a tighter follow (it trailed the player)
       this.cam.x = lerp(this.cam.x, tx, k);
       this.cam.y = lerp(this.cam.y, ty, k);
     }
@@ -217,8 +219,8 @@ export class Renderer {
     setPixelPeople(this.pixel);
     setPixelCars(this.pixel);
     if (pixel) {
-      const lw = Math.ceil(this.canvas.width / this.px) + 1;
-      const lh = Math.ceil(this.canvas.height / this.px) + 1;
+      const lw = Math.ceil(this.canvas.width / this.px) + 2;
+      const lh = Math.ceil(this.canvas.height / this.px) + 2;
       if (this.low.width !== lw || this.low.height !== lh) { this.low.width = lw; this.low.height = lh; }
       this.ctx = this.lowCtx;
       this.worldText.length = 0;
@@ -236,10 +238,14 @@ export class Renderer {
     const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0);
     const shx = shake ? (Math.random() - 0.5) * shake : 0;
     const shy = shake ? (Math.random() - 0.5) * shake : 0;
-    // snapped to whole art pixels, so the picture doesn't shimmer as the camera glides
+    // v0.46.0: the world is drawn on whole pixels (so it doesn't shimmer) and the finished picture
+    // slid by the leftover fraction — the camera glides smoothly instead of stepping a pixel at a time
     const ox = (-this.cam.x + shx) * s;
     const oy = (-this.cam.y + shy) * s;
-    ctx.setTransform(s, 0, 0, s, pixel ? Math.round(ox) : ox, pixel ? Math.round(oy) : oy);
+    const ix = Math.floor(ox) + 1;
+    const iy = Math.floor(oy) + 1;
+    this.blit = pixel ? { x: (ox - ix) * this.px, y: (oy - iy) * this.px } : { x: 0, y: 0 };
+    ctx.setTransform(s, 0, 0, s, pixel ? ix : ox, pixel ? iy : oy);
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
@@ -363,7 +369,7 @@ export class Renderer {
       this.ctx = main;
       main.setTransform(1, 0, 0, 1, 0, 0);
       main.imageSmoothingEnabled = false;
-      main.drawImage(this.low, 0, 0, this.low.width * this.px, this.low.height * this.px);
+      main.drawImage(this.low, Math.round(this.blit.x), Math.round(this.blit.y), this.low.width * this.px, this.low.height * this.px);
       main.imageSmoothingEnabled = true;
       this.capturingText = false;
       this.replayWorldText(main);
@@ -400,7 +406,7 @@ export class Renderer {
     main.save();
     for (const t of this.worldText) {
       const m = t.m;
-      main.setTransform(m.a * px, m.b * px, m.c * px, m.d * px, m.e * px, m.f * px);
+      main.setTransform(m.a * px, m.b * px, m.c * px, m.d * px, m.e * px + Math.round(this.blit.x), m.f * px + Math.round(this.blit.y));
       main.font = t.font;
       main.textAlign = t.align;
       main.textBaseline = t.base;
@@ -738,7 +744,7 @@ export class Renderer {
       for (let k = 0; k < 3; k++) {
         const th = this.time * 6 + (k * Math.PI * 2) / 3;
         this.ctx.fillStyle = k % 2 ? '#fff6a0' : '#f2c14e';
-        this.ctx.fillRect(Math.round(actor.x + Math.cos(th) * 10) - 2, Math.round(actor.y - 56 + Math.sin(th) * 3) - 2, 4, 4);
+        this.ctx.fillRect(Math.round(actor.x + Math.cos(th) * 10) - 2, Math.round(actor.y - (this.pixel ? 32 : 56) + Math.sin(th) * 3) - 2, 4, 4);
       }
     }
     drawCharacter(this.ctx, appearance, {
@@ -803,15 +809,17 @@ export class Renderer {
     const pix = this.pixel && !g.combat.wrath;
     const LS = pix ? 1 / this.px : LIGHT_SCALE;
     if (pix) {
-      const lw = Math.ceil(this.canvas.width / this.px);
-      const lh = Math.ceil(this.canvas.height / this.px);
+      const lw = this.low.width;
+      const lh = this.low.height;
       if (this.light.width !== lw || this.light.height !== lh) { this.light.width = lw; this.light.height = lh; }
     } else if (Math.abs(this.light.width - Math.ceil(this.canvas.width * LIGHT_SCALE)) > 1) {
       this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
       this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
     }
+    // the hard bands only once it's properly dark — in daylight indoors they drew faint rings that swam about
+    const banded = pix && dark > 0.3;
     const ramp = (grad, a, rgb = '0,0,0') => {
-      if (!pix) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
+      if (!banded) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
       // three hard steps, the SoR way
       for (const [t0, t1, k] of [[0, 0.42, 1], [0.42, 0.7, 0.62], [0.7, 0.92, 0.28], [0.92, 1, 0]]) { grad.addColorStop(t0, `rgba(${rgb},${a * k})`); grad.addColorStop(Math.max(t0, t1 - 0.001), `rgba(${rgb},${a * k})`); }
     };
@@ -826,7 +834,9 @@ export class Renderer {
     const z = this.cam.zoom;
     const hole = (wx, wy, r, strength = 1) => {
       const sc = this.toScreen(wx, wy);
-      const s = { x: Math.round(sc.x * LS), y: Math.round(sc.y * LS) };
+      // v0.46.0: on the world's own pixel grid (the same one the picture was drawn on), so the
+      // pools of light don't shimmer against the ground as the camera moves
+      const s = pix ? { x: Math.round((sc.x - Math.round(this.blit.x)) * LS), y: Math.round((sc.y - Math.round(this.blit.y)) * LS) } : { x: sc.x * LS, y: sc.y * LS };
       const rad = r * z * LS;
       if (s.x < -rad || s.y < -rad || s.x > W + rad || s.y > H + rad) return;
       const grad = lc.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad);
@@ -893,7 +903,7 @@ export class Renderer {
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.imageSmoothingEnabled = !pix;
-    this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
+    this.ctx.drawImage(this.light, 0, 0, W, H, pix ? Math.round(this.blit.x) : 0, pix ? Math.round(this.blit.y) : 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
     this.ctx.imageSmoothingEnabled = true;
     // warm glow on top
     this.ctx.globalCompositeOperation = 'lighter';
@@ -953,7 +963,7 @@ export class Renderer {
       if (!L || npc.riding != null) continue;
       const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
       const lying = isDown(npc, g.clock.total);
-      const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : 52 * (npc.profile.appearance.height || 1)));
+      const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : (this.pixel ? 30 : 52) * (npc.profile.appearance.height || 1))); // v0.46.0: the pixel people are smaller
       if (near || npc.bubble) {
         const mood = g.moodOf(npc);
         const icon = g.content.moods[mood]?.icon || '';
@@ -971,7 +981,7 @@ export class Renderer {
       if (npc.activity === 'sleep') {
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         ctx.font = `bold ${(10 + Math.sin(this.time * 2) * 2) * dpr}px ${FONT}`;
-        const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - 46 - ((this.time * 8) % 10));
+        const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - (this.pixel ? 28 : 46) - ((this.time * 8) % 10));
         ctx.fillText('z', zs.x, zs.y);
       }
       const bar = g.combat.healthBar(npc);
@@ -1024,7 +1034,7 @@ export class Renderer {
     }
     // interaction prompt marker above the player
     if (this.highlight) {
-      const s = this.toScreen(g.player.x, g.player.y - 54);
+      const s = this.toScreen(g.player.x, g.player.y - (this.pixel ? 32 : 54));
       const bounce = Math.sin(this.time * 5) * 2 * dpr;
       ctx.fillStyle = '#ffe9a6';
       ctx.beginPath();

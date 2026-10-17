@@ -244,3 +244,10 @@ test('v0.35.2: a car shoved partly into a wall is eased out — it can never dri
   drive(g, 1.5, { y: 1 }); // reverse away from it
   assert.ok(c2.x < other.x - 60, 'backed out of the other car');
 });
+
+test('v0.46.0: driving west past the Kettle & Crumb you cross into Westbrook (the nose past the seam used to hit an invisible wall)', () => {
+  const g = fresh();
+  const car = inCar(g, 'lanternside', 20, 14, Math.PI);
+  drive(g, 5, { y: -1 });
+  assert.equal(car.map, 'westbrook', `stopped at ${car.map} ${(car.x / TILE).toFixed(1)}`);
+});

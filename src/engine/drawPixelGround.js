@@ -39,9 +39,12 @@ const PAL = {
 
 /** Build the ground canvas for a map at art resolution. `extra(ctx)` draws anything else into it (at world scale ½). */
 export function buildPixelGround(map, makeCanvas, extra) {
-  const cv = makeCanvas(map.width * A, map.height * A);
+  // v0.46.0: built at world resolution — two canvas pixels to each art unit — so details can be
+  // drawn in fine single pixels (half units: grass blades, grit, grout, seams, highlights)
+  const cv = makeCanvas(map.width * A * 2, map.height * A * 2);
   const ctx = cv.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  ctx.scale(2, 2);
   const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
   const at = (x, y) => map.tileAt(x, y);
   const roadRun = roadRuns(map);
@@ -87,7 +90,8 @@ function speckle(R, px, py, x, y, cols, n, seed = 1) {
   for (let i = 0; i < n; i++) {
     const a = hash2(x * 31 + i * 7 + seed, y * 17 + i * 3);
     const b = hash2(y * 13 + i * 5 + seed, x * 29 + i);
-    R(px + Math.floor(a * A), py + Math.floor(b * A), 1, 1, cols[i % cols.length]);
+    R(px + Math.floor(a * A * 2) / 2, py + Math.floor(b * A * 2) / 2, 0.5, 0.5, cols[i % cols.length]);
+    R(px + Math.floor(b * A * 2) / 2, py + Math.floor(a * A * 2) / 2, 0.5, 0.5, cols[(i + 1) % cols.length]);
   }
 }
 
@@ -99,10 +103,11 @@ function tile(R, map, x, y, at, run) {
   switch (ch) {
     case '.': {
       R(px, py, A, A, r < 0.5 ? PAL.grass[0] : PAL.grass[1]);
-      for (let i = 0; i < 6; i++) {
-        const gx = px + Math.floor(hash2(x * 7 + i, y * 3) * 15);
-        const gy = py + Math.floor(hash2(x * 5, y * 11 + i) * 14);
-        R(gx, gy, 1, 2, PAL.grass[2]);
+      for (let i = 0; i < 12; i++) {
+        const gx = px + Math.floor(hash2(x * 7 + i, y * 3) * 31) / 2;
+        const gy = py + Math.floor(hash2(x * 5, y * 11 + i) * 28) / 2;
+        R(gx, gy, 0.5, 1.5, i % 3 ? PAL.grass[2] : '#3f6a33');
+        if (i % 4 === 0) R(gx, gy, 0.5, 0.5, PAL.grass[3]);
       }
       if (r > 0.9) { const c = ['#f6e27a', '#f2a7c3', '#ffffff'][Math.floor(r * 100) % 3]; R(px + 5 + Math.floor(r * 6), py + 6, 2, 2, c); R(px + 5 + Math.floor(r * 6), py + 8, 1, 1, PAL.grass[3]); }
       break;
@@ -113,8 +118,10 @@ function tile(R, map, x, y, at, run) {
       R(px, py, A, A, PAL.walk[0]);
       for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
         if (hash2(x * 2 + sx, y * 2 + sy) > 0.66) R(px + sx * 8 + 1, py + sy * 8 + 1, 7, 7, PAL.walk[1]);
-        R(px + sx * 8, py + sy * 8, 8, 1, PAL.walk[2]);
-        R(px + sx * 8, py + sy * 8, 1, 8, PAL.walk[2]);
+        R(px + sx * 8, py + sy * 8, 8, 0.5, PAL.walk[2]);
+        R(px + sx * 8, py + sy * 8, 0.5, 8, PAL.walk[2]);
+        R(px + sx * 8 + 0.5, py + sy * 8 + 0.5, 7.5, 0.5, '#9c9aa4');
+        R(px + sx * 8 + 0.5, py + sy * 8 + 0.5, 0.5, 7.5, '#9c9aa4');
       }
       if (r > 0.92) R(px + 4 + Math.floor(r * 7), py + 11, 2, 1, '#6c6a74');
       break;
@@ -122,7 +129,7 @@ function tile(R, map, x, y, at, run) {
     case '=': {
       R(px, py, A, A, PAL.road[0]);
       speckle(R, px, py, x, y, [PAL.road[1], PAL.road[2]], 10);
-      if (r > 0.85) R(px + 3, py + 6 + Math.floor(r * 6), 6, 1, PAL.road[2]); // a crack
+      if (r > 0.85) { const cy = py + 6 + Math.floor(r * 6); R(px + 3, cy, 3, 0.5, PAL.road[2]); R(px + 5.5, cy + 0.5, 3, 0.5, PAL.road[2]); R(px + 8, cy + 1, 2, 0.5, PAL.road[2]); } // a crack
       if (r < 0.04) { R(px + 6, py + 7, 4, 2, '#302e38'); R(px + 7, py + 6, 2, 1, '#302e38'); } // oil
       // the centre line: down the middle of a road, never inside a junction
       const i = y * run.W + x;
@@ -154,15 +161,15 @@ function tile(R, map, x, y, at, run) {
     }
     case 'g': {
       R(px, py, A, A, r < 0.5 ? PAL.concrete[0] : PAL.concrete[1]);
-      R(px, py, A, 1, PAL.concrete[2]); R(px, py, 1, A, PAL.concrete[2]);
+      R(px, py, A, 0.5, PAL.concrete[2]); R(px, py, 0.5, A, PAL.concrete[2]);
       if (r > 0.8) { R(px + 4, py + 5, 5, 3, 'rgba(40,40,50,0.18)'); }
       speckle(R, px, py, x, y, [PAL.concrete[1]], 4, 3);
       break;
     }
     case 'm': {
       R(px, py, A, A, r < 0.5 ? PAL.plaza[0] : PAL.plaza[1]);
-      if (x % 2 === 0) R(px, py, 1, A, PAL.plaza[2]);
-      if (y % 2 === 0) R(px, py, A, 1, PAL.plaza[2]);
+      if (x % 2 === 0) R(px, py, 0.5, A, PAL.plaza[2]);
+      if (y % 2 === 0) R(px, py, A, 0.5, PAL.plaza[2]);
       if (r > 0.6) R(px + 3, py + 7, 6, 1, PAL.plaza[1]);
       break;
     }
@@ -201,12 +208,12 @@ function tile(R, map, x, y, at, run) {
     case 'f': floorWood(R, px, py, x, y); break;
     case 't': {
       R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]);
-      R(px, py, A, 1, PAL.tile[2]); R(px, py, 1, A, PAL.tile[2]);
+      R(px, py, A, 0.5, PAL.tile[2]); R(px, py, 0.5, A, PAL.tile[2]); R(px + 0.5, py + 0.5, A - 0.5, 0.5, '#ece6dc');
       break;
     }
     case 'c': {
       R(px, py, A, A, PAL.carpet[0]);
-      for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]);
+      for (let k = 0; k < A; k += 1) for (let j = (k % 2) / 2; j < A; j += 2) R(px + j, py + k, 0.5, 0.5, PAL.carpet[1]);
       break;
     }
     case 'W': if (!(map.def?.aloft && map.def.roof)) R(px, py, A, A, PAL.wallTop); break; // a roof's edge is open to the drop
@@ -219,9 +226,9 @@ function tile(R, map, x, y, at, run) {
 
 /** One 16×16 tile of an indoor floor (wood, tile, carpet or concrete) at art (px, py). Used by the roofless buildings too. */
 export function paintFloor(R, ch, px, py, x, y) {
-  if (ch === 't') { R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]); R(px, py, A, 1, PAL.tile[2]); R(px, py, 1, A, PAL.tile[2]); return; }
-  if (ch === 'c') { R(px, py, A, A, PAL.carpet[0]); for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]); return; }
-  if (ch === 'g') { R(px, py, A, A, (x + y) % 2 ? PAL.concrete[0] : PAL.concrete[1]); R(px, py, A, 1, PAL.concrete[2]); R(px, py, 1, A, PAL.concrete[2]); return; }
+  if (ch === 't') { R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]); R(px, py, A, 0.5, PAL.tile[2]); R(px, py, 0.5, A, PAL.tile[2]); R(px + 0.5, py + 0.5, A - 0.5, 0.5, '#ece6dc'); return; }
+  if (ch === 'c') { R(px, py, A, A, PAL.carpet[0]); for (let k = 0; k < A; k += 1) for (let j = (k % 2) / 2; j < A; j += 2) R(px + j, py + k, 0.5, 0.5, PAL.carpet[1]); return; }
+  if (ch === 'g') { R(px, py, A, A, (x + y) % 2 ? PAL.concrete[0] : PAL.concrete[1]); R(px, py, A, 0.5, PAL.concrete[2]); R(px, py, 0.5, A, PAL.concrete[2]); return; }
   floorWood(R, px, py, x, y);
 }
 
@@ -232,8 +239,9 @@ function floorWood(R, px, py, x, y) {
     const r = hash2(x * 3 + 1, y * 4 + k);
     if (r > 0.66) R(px, py + k, A, 4, PAL.wood[1]);
     else if (r < 0.2) R(px, py + k, A, 4, '#b8885f');
-    R(px, py + k + 3, A, 1, '#8e6040');
-    if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 4 + Math.floor(r * 8), py + k, 1, 3, '#8e6040');
+    R(px, py + k + 3.5, A, 0.5, '#8e6040');
+    R(px, py + k, A, 0.5, '#c4946a');
+    if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 4 + Math.floor(r * 8), py + k, 0.5, 3.5, '#8e6040');
   }
 }
 

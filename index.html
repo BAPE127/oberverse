@@ -11851,7 +11851,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.45.0';
+const GAME_VERSION = '0.46.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -20523,9 +20523,24 @@ class Vehicles {
     const half = len / 2 - wid / 2;
     const box = Math.max(16, wid - 8);
     let n = 0;
+    const W = map.width * TILE;
+    const H = map.height * TILE;
     for (const k of [-half, 0, half]) {
       const cx = x + Math.cos(angle) * k;
       const cy = y + Math.sin(angle) * k;
+      // v0.46.0: the nose may poke out past a seam before the car's centre reaches it (and
+      // the car crosses); off the map there is nothing to hit there — it used to be a wall
+      const out = cx - box / 2 < 0 || cy - box / 2 < 0 || cx + box / 2 > W || cy + box / 2 > H;
+      if (out) {
+        const ex = clamp(Math.floor(cx / TILE), 0, map.width - 1);
+        const ey = clamp(Math.floor(cy / TILE), 0, map.height - 1);
+        if (map.doorAt(ex, ey)?.seamless) {
+          const ix = clamp(cx, box / 2, W - box / 2);
+          const iy = clamp(cy, box / 2, H - box / 2);
+          if (map.rectBlocked(ix - box / 2, iy - box / 2, box, box, a)) n++;
+          continue;
+        }
+      }
       if (map.rectBlocked(cx - box / 2, cy - box / 2, box, box, a)) n++;
     }
     return n;
@@ -23634,6 +23649,8 @@ __m["src/engine/drawPixelCharacters.js"] = (function () {
 const { drawWeaponSprite, isGunLook } = __m["src/engine/drawPixelWeapons.js"];
 
 const INK = '#1b1a24';
+// v0.46.0: one art pixel = one world pixel (it was two) — people are about a tile tall, in fine pixels
+const U = 1;
 const BUILD = { round: 12, average: 10, thin: 8, wiry: 9, broad: 12 };
 
 function shade(hex, amt) {
@@ -23659,10 +23676,10 @@ function drawPixelCharacter(ctx, a, s, drawHeld) {
   const acc = new Set([a.accessory, ...(a.accessories || [])].filter(Boolean));
 
   ctx.save();
-  ctx.translate(Math.round(s.x / 2) * 2, Math.round(s.y / 2) * 2);
+  ctx.translate(Math.round(s.x), Math.round(s.y));
   ctx.scale(scale, scale);
   // v0.44.0: hit, and for a blink the whole figure goes white
-  const R = (x, y, w, h, c) => { ctx.fillStyle = s.flash && c[0] === '#' ? '#ffffff' : c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
+  const R = (x, y, w, h, c) => { ctx.fillStyle = s.flash && c[0] === '#' ? '#ffffff' : c; ctx.fillRect(x * U, y * U, w * U, h * U); };
 
   // shadow
   R(-5, -1, 10, 2, 'rgba(20,20,35,0.3)'); R(-4, 0, 8, 1, 'rgba(20,20,35,0.2)');
@@ -23682,7 +23699,7 @@ function drawPixelCharacter(ctx, a, s, drawHeld) {
     R(1, -6 + ry, 2, 4, legC); R(1, -2 + ry, 2, 1, shoe);
   }
 
-  ctx.translate(0, -bob * 2);
+  ctx.translate(0, -bob * U);
 
   // torso (outlined), arms, hands
   const outfit = a.outfit || '#5a6a8a';
@@ -23709,10 +23726,10 @@ function drawPixelCharacter(ctx, a, s, drawHeld) {
     const aimed = isGunLook(a.holding) && s.aim != null;
     const ang = aimed ? s.aim : side ? (dir > 0 ? -0.9 : Math.PI + 0.9) : facing === 'up' ? -1.9 : -0.9;
     ctx.save();
-    ctx.translate(aimed ? 0 : side ? dir * 4 : half * 2 + 2, aimed ? -20 : -14);
+    ctx.translate((aimed ? 0 : side ? dir * 2 : half + 1) * U, (aimed ? -10 : -7) * U);
     ctx.rotate(ang);
     if (Math.cos(ang) < 0) ctx.scale(1, -1);
-    if (!drawWeaponSprite(ctx, a.holding, 2, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
+    if (!drawWeaponSprite(ctx, a.holding, U, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); ctx.scale(0.5, 0.5); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
     ctx.restore();
   }
 
@@ -29472,6 +29489,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.46.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Fine Pixels',
+    notes: [
+      'Smoother: the camera glides instead of stepping, and the night lighting no longer flickers.',
+      'Finer: people are smaller — in proportion with the buildings — and drawn in fine, crisp pixels; the streets, floors and famous cars have finer detail too.',
+      'Fixed: an invisible wall stopped cars driving west past the Kettle & Crumb into Westbrook.',
+    ],
+  },
+  {
     version: '0.45.0',
     date: '2026-10-17',
     channel: 'development',
@@ -30121,9 +30149,12 @@ const PAL = {
 
 /** Build the ground canvas for a map at art resolution. `extra(ctx)` draws anything else into it (at world scale ½). */
 function buildPixelGround(map, makeCanvas, extra) {
-  const cv = makeCanvas(map.width * A, map.height * A);
+  // v0.46.0: built at world resolution — two canvas pixels to each art unit — so details can be
+  // drawn in fine single pixels (half units: grass blades, grit, grout, seams, highlights)
+  const cv = makeCanvas(map.width * A * 2, map.height * A * 2);
   const ctx = cv.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  ctx.scale(2, 2);
   const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
   const at = (x, y) => map.tileAt(x, y);
   const roadRun = roadRuns(map);
@@ -30169,7 +30200,8 @@ function speckle(R, px, py, x, y, cols, n, seed = 1) {
   for (let i = 0; i < n; i++) {
     const a = hash2(x * 31 + i * 7 + seed, y * 17 + i * 3);
     const b = hash2(y * 13 + i * 5 + seed, x * 29 + i);
-    R(px + Math.floor(a * A), py + Math.floor(b * A), 1, 1, cols[i % cols.length]);
+    R(px + Math.floor(a * A * 2) / 2, py + Math.floor(b * A * 2) / 2, 0.5, 0.5, cols[i % cols.length]);
+    R(px + Math.floor(b * A * 2) / 2, py + Math.floor(a * A * 2) / 2, 0.5, 0.5, cols[(i + 1) % cols.length]);
   }
 }
 
@@ -30181,10 +30213,11 @@ function tile(R, map, x, y, at, run) {
   switch (ch) {
     case '.': {
       R(px, py, A, A, r < 0.5 ? PAL.grass[0] : PAL.grass[1]);
-      for (let i = 0; i < 6; i++) {
-        const gx = px + Math.floor(hash2(x * 7 + i, y * 3) * 15);
-        const gy = py + Math.floor(hash2(x * 5, y * 11 + i) * 14);
-        R(gx, gy, 1, 2, PAL.grass[2]);
+      for (let i = 0; i < 12; i++) {
+        const gx = px + Math.floor(hash2(x * 7 + i, y * 3) * 31) / 2;
+        const gy = py + Math.floor(hash2(x * 5, y * 11 + i) * 28) / 2;
+        R(gx, gy, 0.5, 1.5, i % 3 ? PAL.grass[2] : '#3f6a33');
+        if (i % 4 === 0) R(gx, gy, 0.5, 0.5, PAL.grass[3]);
       }
       if (r > 0.9) { const c = ['#f6e27a', '#f2a7c3', '#ffffff'][Math.floor(r * 100) % 3]; R(px + 5 + Math.floor(r * 6), py + 6, 2, 2, c); R(px + 5 + Math.floor(r * 6), py + 8, 1, 1, PAL.grass[3]); }
       break;
@@ -30195,8 +30228,10 @@ function tile(R, map, x, y, at, run) {
       R(px, py, A, A, PAL.walk[0]);
       for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
         if (hash2(x * 2 + sx, y * 2 + sy) > 0.66) R(px + sx * 8 + 1, py + sy * 8 + 1, 7, 7, PAL.walk[1]);
-        R(px + sx * 8, py + sy * 8, 8, 1, PAL.walk[2]);
-        R(px + sx * 8, py + sy * 8, 1, 8, PAL.walk[2]);
+        R(px + sx * 8, py + sy * 8, 8, 0.5, PAL.walk[2]);
+        R(px + sx * 8, py + sy * 8, 0.5, 8, PAL.walk[2]);
+        R(px + sx * 8 + 0.5, py + sy * 8 + 0.5, 7.5, 0.5, '#9c9aa4');
+        R(px + sx * 8 + 0.5, py + sy * 8 + 0.5, 0.5, 7.5, '#9c9aa4');
       }
       if (r > 0.92) R(px + 4 + Math.floor(r * 7), py + 11, 2, 1, '#6c6a74');
       break;
@@ -30204,7 +30239,7 @@ function tile(R, map, x, y, at, run) {
     case '=': {
       R(px, py, A, A, PAL.road[0]);
       speckle(R, px, py, x, y, [PAL.road[1], PAL.road[2]], 10);
-      if (r > 0.85) R(px + 3, py + 6 + Math.floor(r * 6), 6, 1, PAL.road[2]); // a crack
+      if (r > 0.85) { const cy = py + 6 + Math.floor(r * 6); R(px + 3, cy, 3, 0.5, PAL.road[2]); R(px + 5.5, cy + 0.5, 3, 0.5, PAL.road[2]); R(px + 8, cy + 1, 2, 0.5, PAL.road[2]); } // a crack
       if (r < 0.04) { R(px + 6, py + 7, 4, 2, '#302e38'); R(px + 7, py + 6, 2, 1, '#302e38'); } // oil
       // the centre line: down the middle of a road, never inside a junction
       const i = y * run.W + x;
@@ -30236,15 +30271,15 @@ function tile(R, map, x, y, at, run) {
     }
     case 'g': {
       R(px, py, A, A, r < 0.5 ? PAL.concrete[0] : PAL.concrete[1]);
-      R(px, py, A, 1, PAL.concrete[2]); R(px, py, 1, A, PAL.concrete[2]);
+      R(px, py, A, 0.5, PAL.concrete[2]); R(px, py, 0.5, A, PAL.concrete[2]);
       if (r > 0.8) { R(px + 4, py + 5, 5, 3, 'rgba(40,40,50,0.18)'); }
       speckle(R, px, py, x, y, [PAL.concrete[1]], 4, 3);
       break;
     }
     case 'm': {
       R(px, py, A, A, r < 0.5 ? PAL.plaza[0] : PAL.plaza[1]);
-      if (x % 2 === 0) R(px, py, 1, A, PAL.plaza[2]);
-      if (y % 2 === 0) R(px, py, A, 1, PAL.plaza[2]);
+      if (x % 2 === 0) R(px, py, 0.5, A, PAL.plaza[2]);
+      if (y % 2 === 0) R(px, py, A, 0.5, PAL.plaza[2]);
       if (r > 0.6) R(px + 3, py + 7, 6, 1, PAL.plaza[1]);
       break;
     }
@@ -30283,12 +30318,12 @@ function tile(R, map, x, y, at, run) {
     case 'f': floorWood(R, px, py, x, y); break;
     case 't': {
       R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]);
-      R(px, py, A, 1, PAL.tile[2]); R(px, py, 1, A, PAL.tile[2]);
+      R(px, py, A, 0.5, PAL.tile[2]); R(px, py, 0.5, A, PAL.tile[2]); R(px + 0.5, py + 0.5, A - 0.5, 0.5, '#ece6dc');
       break;
     }
     case 'c': {
       R(px, py, A, A, PAL.carpet[0]);
-      for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]);
+      for (let k = 0; k < A; k += 1) for (let j = (k % 2) / 2; j < A; j += 2) R(px + j, py + k, 0.5, 0.5, PAL.carpet[1]);
       break;
     }
     case 'W': if (!(map.def?.aloft && map.def.roof)) R(px, py, A, A, PAL.wallTop); break; // a roof's edge is open to the drop
@@ -30301,9 +30336,9 @@ function tile(R, map, x, y, at, run) {
 
 /** One 16×16 tile of an indoor floor (wood, tile, carpet or concrete) at art (px, py). Used by the roofless buildings too. */
 function paintFloor(R, ch, px, py, x, y) {
-  if (ch === 't') { R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]); R(px, py, A, 1, PAL.tile[2]); R(px, py, 1, A, PAL.tile[2]); return; }
-  if (ch === 'c') { R(px, py, A, A, PAL.carpet[0]); for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]); return; }
-  if (ch === 'g') { R(px, py, A, A, (x + y) % 2 ? PAL.concrete[0] : PAL.concrete[1]); R(px, py, A, 1, PAL.concrete[2]); R(px, py, 1, A, PAL.concrete[2]); return; }
+  if (ch === 't') { R(px, py, A, A, (x + y) % 2 ? PAL.tile[0] : PAL.tile[1]); R(px, py, A, 0.5, PAL.tile[2]); R(px, py, 0.5, A, PAL.tile[2]); R(px + 0.5, py + 0.5, A - 0.5, 0.5, '#ece6dc'); return; }
+  if (ch === 'c') { R(px, py, A, A, PAL.carpet[0]); for (let k = 0; k < A; k += 1) for (let j = (k % 2) / 2; j < A; j += 2) R(px + j, py + k, 0.5, 0.5, PAL.carpet[1]); return; }
+  if (ch === 'g') { R(px, py, A, A, (x + y) % 2 ? PAL.concrete[0] : PAL.concrete[1]); R(px, py, A, 0.5, PAL.concrete[2]); R(px, py, 0.5, A, PAL.concrete[2]); return; }
   floorWood(R, px, py, x, y);
 }
 
@@ -30314,8 +30349,9 @@ function floorWood(R, px, py, x, y) {
     const r = hash2(x * 3 + 1, y * 4 + k);
     if (r > 0.66) R(px, py + k, A, 4, PAL.wood[1]);
     else if (r < 0.2) R(px, py + k, A, 4, '#b8885f');
-    R(px, py + k + 3, A, 1, '#8e6040');
-    if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 4 + Math.floor(r * 8), py + k, 1, 3, '#8e6040');
+    R(px, py + k + 3.5, A, 0.5, '#8e6040');
+    R(px, py + k, A, 0.5, '#c4946a');
+    if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 4 + Math.floor(r * 8), py + k, 0.5, 3.5, '#8e6040');
   }
 }
 
@@ -30823,7 +30859,8 @@ function drawPixelProp(ctx, p, opts) {
   const H = Math.round(p.h * 16);
   const R = (ax, ay, aw, ah, c) => { ctx.fillStyle = c; ctx.fillRect(x + ax * 2, y + ay * 2, aw * 2, ah * 2); };
   /** an outlined block: ink border, body, light top lip */
-  const box = (ax, ay, aw, ah, c, lip = 1) => { R(ax, ay, aw, ah, INK); R(ax + 1, ay + 1, aw - 2, ah - 2, c); if (lip) R(ax + 1, ay + 1, aw - 2, lip, shade(c, 28)); };
+  // v0.46.0: a one-pixel outline (half an art unit) and a hairline highlight — finer, cleaner edges
+  const box = (ax, ay, aw, ah, c, lip = 1) => { R(ax, ay, aw, ah, INK); R(ax + 0.5, ay + 0.5, aw - 1, ah - 1, c); if (lip) { R(ax + 0.5, ay + 0.5, aw - 1, lip, shade(c, 28)); R(ax + 0.5, ay + 0.5, aw - 1, 0.5, shade(c, 48)); } };
   const time = opts.time || 0;
   switch (p.type) {
     case 'tree': {
@@ -30833,7 +30870,7 @@ function drawPixelProp(ctx, p, opts) {
       R(6, 6, 4, 9, INK); R(7, 6, 2, 9, '#6b4a32');
       const blob = (bx, by, bw, bh, col) => { R(bx + 2, by, bw - 4, bh, col); R(bx + 1, by + 1, bw - 2, bh - 2, col); R(bx, by + 2, bw, bh - 4, col); };
       const clumps = [[-3, -8, 12, 12], [6, -9, 12, 12], [1, -14, 14, 11]];
-      for (const [bx, by, bw, bh] of clumps) blob(bx - 1 + sway, by - 1, bw + 2, bh + 2, INK);
+      for (const [bx, by, bw, bh] of clumps) blob(bx - 0.5 + sway, by - 0.5, bw + 1, bh + 1, INK);
       for (const [bx, by, bw, bh] of clumps) blob(bx + sway, by, bw, bh, shade(c, -18));
       blob(-2 + sway, -9, 9, 8, c); blob(7 + sway, -10, 9, 8, c); blob(2 + sway, -14, 11, 8, c);
       blob(4 + sway, -13, 6, 4, shade(c, 24));
@@ -31174,8 +31211,9 @@ function drawPixelBuilding(ctx, b, opts) {
   }
 
   // the back wall: a top, then its face (papered above a dado rail)
-  R(0, 0, W, TOPW + 1, INK);
-  R(1, 1, W - 2, TOPW - 1, top);
+  R(0, 0, W, TOPW + 0.5, INK);
+  R(0.5, 0.5, W - 1, TOPW - 0.5, top);
+  R(0.5, 0.5, W - 1, 0.5, shade(top, 30));
   R(TOPW, TOPW, W - TOPW * 2, BACK, shade(wall, -8));
   R(TOPW, TOPW + BACK - 4, W - TOPW * 2, 1, shade(trim, 10));
   R(TOPW, TOPW + BACK - 3, W - TOPW * 2, 3, shade(wall, -26));
@@ -31183,7 +31221,7 @@ function drawPixelBuilding(ctx, b, opts) {
   // a tower's lobby: lift doors in the back wall (the floors above are reached from inside)
   if (b.tower) for (const lx of [Math.floor(W / 2) - 13, Math.floor(W / 2) + 3]) { R(lx, TOPW + 1, 10, BACK - 1, INK); R(lx + 1, TOPW + 2, 8, BACK - 2, '#b8bec8'); R(lx + 4, TOPW + 2, 1, BACK - 2, '#6a6e78'); R(lx + 3, TOPW + 1, 4, 1, '#c9a24a'); }
   // side walls
-  for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 1, 1, TOPW - 2, frontY - 1, top); }
+  for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 0.5, 0.5, TOPW - 1, frontY - 0.5, top); R(sx + 0.5, 0.5, 0.5, frontY - 0.5, shade(top, 30)); }
 
   // v0.41.1: the people in there, where they stand in the real room (in front of the back wall)
   if (opts.people?.length && opts.inside && opts.drawPerson) {
@@ -31197,12 +31235,13 @@ function drawPixelBuilding(ctx, b, opts) {
   }
 
   // the front: a top edge and a short face with windows, a door, an awning, pilasters
-  R(0, frontY - 1, W, TOPW + 1, INK);
-  R(1, frontY, W - 2, TOPW - 1, top);
+  R(0, frontY - 0.5, W, TOPW + 0.5, INK);
+  R(0.5, frontY, W - 1, TOPW - 0.5, top);
+  R(0.5, frontY, W - 1, 0.5, shade(top, 30));
   const faceY = frontY + TOPW - 1;
   const faceH = H - faceY;
   R(0, faceY, W, faceH, INK);
-  R(1, faceY, W - 2, faceH - 1, wall);
+  R(0.5, faceY, W - 1, faceH - 0.5, wall);
   R(1, H - 3, W - 2, 2, shade(wall, -30));
   const doorAx = b.door ? (b.door.x - b.x) * 16 : -999;
   for (let wx = 5; wx + 9 <= W - 4; wx += 16) {
@@ -32931,13 +32970,13 @@ function drawTractor(ctx, model, x, y, angle, opts = {}) {
 let sigCv = null;
 function drawSignaturePixel(ctx, model, x, y, angle, opts) {
   const R = Math.ceil(Math.hypot(model.len, model.wid) / 2) + 40; // world px around the centre
-  const n = R; // art px across (2R world px / 2)
+  const n = R * 2; // v0.46.0: at world resolution — fine pixels, like everything else
   sigCv = sigCv || document.createElement('canvas');
   if (sigCv.width !== n || sigCv.height !== n) { sigCv.width = n; sigCv.height = n; }
   const c = sigCv.getContext('2d', { willReadFrequently: true });
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, n, n);
-  c.setTransform(0.5, 0, 0, 0.5, 0, 0);
+  c.setTransform(1, 0, 0, 1, 0, 0);
   if (!drawSignatureCar(c, model, R, R, angle, opts)) return false;
   const img = c.getImageData(0, 0, n, n);
   const d = img.data;
@@ -32959,16 +32998,16 @@ function drawSignaturePixel(ctx, model, x, y, angle, opts) {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.putImageData(img, 0, 0);
-  const ox = Math.round((x - R) / 2) * 2;
-  const oy = Math.round((y - R) / 2) * 2;
+  const ox = Math.round(x - R);
+  const oy = Math.round(y - R);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.globalAlpha = 0.28;
   ctx.filter = 'brightness(0)';
-  ctx.drawImage(sigCv, ox + 4, oy + 6, n * 2, n * 2);
+  ctx.drawImage(sigCv, ox + 4, oy + 6, n, n);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
-  ctx.drawImage(sigCv, ox, oy, n * 2, n * 2);
+  ctx.drawImage(sigCv, ox, oy, n, n);
   ctx.restore();
   return true;
 }
@@ -36931,6 +36970,7 @@ class Renderer {
   constructor(canvas, game, assets) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.blit = { x: 0, y: 0 }; // v0.46.0: the sub-pixel slide of the finished picture
     this.game = game;
     this.assets = assets;
     this.cam = { x: 0, y: 0, zoom: 2 };
@@ -36990,7 +37030,7 @@ class Renderer {
       const cv = this.pixel ? buildPixelGround(map, make, fields) : buildStaticLayer(map, make);
       cv.fieldsVersion = v;
       cv.kind = kind;
-      cv.scale = this.pixel ? 0.5 : 1;
+      cv.scale = 1; // v0.46.0: the pixel ground is built at world resolution (fine pixels) too
       this.staticLayers.set(map, cv);
     }
     return this.staticLayers.get(map);
@@ -37053,9 +37093,10 @@ class Renderer {
     const map = g.currentMap();
     let zoom = this.baseZoom * (map.kind === 'interior' ? 1.15 : 1);
     if (this.pixel) {
-      // whole device pixels per art pixel, so every pixel is the same size
-      this.px = Math.max(2, Math.round(zoom * 2));
-      zoom = this.px / 2;
+      // v0.46.0: fine pixels — one low-res pixel per world pixel (half the old art pixel), and a
+      // whole number of device pixels to each, so every pixel is the same size
+      this.px = Math.max(1, Math.round(zoom));
+      zoom = this.px;
     }
     this.cam.zoom = zoom;
     const vw = this.canvas.width / zoom;
@@ -37092,7 +37133,7 @@ class Renderer {
       this.cam.snap = false;
       this.cam.mapId = map.id;
     } else {
-      const k = 1 - Math.exp(-dt * 8);
+      const k = 1 - Math.exp(-dt * 12); // v0.46.0: a tighter follow (it trailed the player)
       this.cam.x = lerp(this.cam.x, tx, k);
       this.cam.y = lerp(this.cam.y, ty, k);
     }
@@ -37127,8 +37168,8 @@ class Renderer {
     setPixelPeople(this.pixel);
     setPixelCars(this.pixel);
     if (pixel) {
-      const lw = Math.ceil(this.canvas.width / this.px) + 1;
-      const lh = Math.ceil(this.canvas.height / this.px) + 1;
+      const lw = Math.ceil(this.canvas.width / this.px) + 2;
+      const lh = Math.ceil(this.canvas.height / this.px) + 2;
       if (this.low.width !== lw || this.low.height !== lh) { this.low.width = lw; this.low.height = lh; }
       this.ctx = this.lowCtx;
       this.worldText.length = 0;
@@ -37146,10 +37187,14 @@ class Renderer {
     const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0);
     const shx = shake ? (Math.random() - 0.5) * shake : 0;
     const shy = shake ? (Math.random() - 0.5) * shake : 0;
-    // snapped to whole art pixels, so the picture doesn't shimmer as the camera glides
+    // v0.46.0: the world is drawn on whole pixels (so it doesn't shimmer) and the finished picture
+    // slid by the leftover fraction — the camera glides smoothly instead of stepping a pixel at a time
     const ox = (-this.cam.x + shx) * s;
     const oy = (-this.cam.y + shy) * s;
-    ctx.setTransform(s, 0, 0, s, pixel ? Math.round(ox) : ox, pixel ? Math.round(oy) : oy);
+    const ix = Math.floor(ox) + 1;
+    const iy = Math.floor(oy) + 1;
+    this.blit = pixel ? { x: (ox - ix) * this.px, y: (oy - iy) * this.px } : { x: 0, y: 0 };
+    ctx.setTransform(s, 0, 0, s, pixel ? ix : ox, pixel ? iy : oy);
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
@@ -37273,7 +37318,7 @@ class Renderer {
       this.ctx = main;
       main.setTransform(1, 0, 0, 1, 0, 0);
       main.imageSmoothingEnabled = false;
-      main.drawImage(this.low, 0, 0, this.low.width * this.px, this.low.height * this.px);
+      main.drawImage(this.low, Math.round(this.blit.x), Math.round(this.blit.y), this.low.width * this.px, this.low.height * this.px);
       main.imageSmoothingEnabled = true;
       this.capturingText = false;
       this.replayWorldText(main);
@@ -37310,7 +37355,7 @@ class Renderer {
     main.save();
     for (const t of this.worldText) {
       const m = t.m;
-      main.setTransform(m.a * px, m.b * px, m.c * px, m.d * px, m.e * px, m.f * px);
+      main.setTransform(m.a * px, m.b * px, m.c * px, m.d * px, m.e * px + Math.round(this.blit.x), m.f * px + Math.round(this.blit.y));
       main.font = t.font;
       main.textAlign = t.align;
       main.textBaseline = t.base;
@@ -37648,7 +37693,7 @@ class Renderer {
       for (let k = 0; k < 3; k++) {
         const th = this.time * 6 + (k * Math.PI * 2) / 3;
         this.ctx.fillStyle = k % 2 ? '#fff6a0' : '#f2c14e';
-        this.ctx.fillRect(Math.round(actor.x + Math.cos(th) * 10) - 2, Math.round(actor.y - 56 + Math.sin(th) * 3) - 2, 4, 4);
+        this.ctx.fillRect(Math.round(actor.x + Math.cos(th) * 10) - 2, Math.round(actor.y - (this.pixel ? 32 : 56) + Math.sin(th) * 3) - 2, 4, 4);
       }
     }
     drawCharacter(this.ctx, appearance, {
@@ -37713,15 +37758,17 @@ class Renderer {
     const pix = this.pixel && !g.combat.wrath;
     const LS = pix ? 1 / this.px : LIGHT_SCALE;
     if (pix) {
-      const lw = Math.ceil(this.canvas.width / this.px);
-      const lh = Math.ceil(this.canvas.height / this.px);
+      const lw = this.low.width;
+      const lh = this.low.height;
       if (this.light.width !== lw || this.light.height !== lh) { this.light.width = lw; this.light.height = lh; }
     } else if (Math.abs(this.light.width - Math.ceil(this.canvas.width * LIGHT_SCALE)) > 1) {
       this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
       this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
     }
+    // the hard bands only once it's properly dark — in daylight indoors they drew faint rings that swam about
+    const banded = pix && dark > 0.3;
     const ramp = (grad, a, rgb = '0,0,0') => {
-      if (!pix) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
+      if (!banded) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
       // three hard steps, the SoR way
       for (const [t0, t1, k] of [[0, 0.42, 1], [0.42, 0.7, 0.62], [0.7, 0.92, 0.28], [0.92, 1, 0]]) { grad.addColorStop(t0, `rgba(${rgb},${a * k})`); grad.addColorStop(Math.max(t0, t1 - 0.001), `rgba(${rgb},${a * k})`); }
     };
@@ -37736,7 +37783,9 @@ class Renderer {
     const z = this.cam.zoom;
     const hole = (wx, wy, r, strength = 1) => {
       const sc = this.toScreen(wx, wy);
-      const s = { x: Math.round(sc.x * LS), y: Math.round(sc.y * LS) };
+      // v0.46.0: on the world's own pixel grid (the same one the picture was drawn on), so the
+      // pools of light don't shimmer against the ground as the camera moves
+      const s = pix ? { x: Math.round((sc.x - Math.round(this.blit.x)) * LS), y: Math.round((sc.y - Math.round(this.blit.y)) * LS) } : { x: sc.x * LS, y: sc.y * LS };
       const rad = r * z * LS;
       if (s.x < -rad || s.y < -rad || s.x > W + rad || s.y > H + rad) return;
       const grad = lc.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad);
@@ -37803,7 +37852,7 @@ class Renderer {
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.imageSmoothingEnabled = !pix;
-    this.ctx.drawImage(this.light, 0, 0, W, H, 0, 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
+    this.ctx.drawImage(this.light, 0, 0, W, H, pix ? Math.round(this.blit.x) : 0, pix ? Math.round(this.blit.y) : 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
     this.ctx.imageSmoothingEnabled = true;
     // warm glow on top
     this.ctx.globalCompositeOperation = 'lighter';
@@ -37863,7 +37912,7 @@ class Renderer {
       if (!L || npc.riding != null) continue;
       const near = dist(npc.x + L.x, npc.y + L.y, g.player.x, g.player.y) < TILE * 4.5;
       const lying = isDown(npc, g.clock.total);
-      const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : 52 * (npc.profile.appearance.height || 1)));
+      const s = this.toScreen(npc.x + L.x, npc.y + L.y - (lying ? 26 : (this.pixel ? 30 : 52) * (npc.profile.appearance.height || 1))); // v0.46.0: the pixel people are smaller
       if (near || npc.bubble) {
         const mood = g.moodOf(npc);
         const icon = g.content.moods[mood]?.icon || '';
@@ -37881,7 +37930,7 @@ class Renderer {
       if (npc.activity === 'sleep') {
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         ctx.font = `bold ${(10 + Math.sin(this.time * 2) * 2) * dpr}px ${FONT}`;
-        const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - 46 - ((this.time * 8) % 10));
+        const zs = this.toScreen(npc.x + L.x + 10, npc.y + L.y - (this.pixel ? 28 : 46) - ((this.time * 8) % 10));
         ctx.fillText('z', zs.x, zs.y);
       }
       const bar = g.combat.healthBar(npc);
@@ -37934,7 +37983,7 @@ class Renderer {
     }
     // interaction prompt marker above the player
     if (this.highlight) {
-      const s = this.toScreen(g.player.x, g.player.y - 54);
+      const s = this.toScreen(g.player.x, g.player.y - (this.pixel ? 32 : 54));
       const bounce = Math.sin(this.time * 5) * 2 * dpr;
       ctx.fillStyle = '#ffe9a6';
       ctx.beginPath();
