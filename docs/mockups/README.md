@@ -17,6 +17,9 @@ Owner's request: try making the Oberverse look like *Streets of Rogue 2*, and ex
 - **Real pixel art.** The world is drawn at a low resolution (480×270 here) and scaled up 4× with no smoothing, so every edge lands on a crisp pixel; 1-px dark outlines on everything; a palette with lit tops and shaded faces.
 - **Roofless buildings.** You always see into buildings from the street — walls are thin, with a light top edge and a short front face, like SoR. (Today interiors are separate maps you walk into.)
 - **Streets with depth:** kerbs with a lip and a face, dashed lines, crossings, drains, lamps with long diagonal shadows, cars with roofs and windscreens, drop shadows under everything.
+- **Text stays legible (owner, round 2):** the world is pixel art, but every word — HUD, signs, speech, quests — is drawn afterwards at full screen resolution in a clean bold face with a dark outline, never pixelated.
+- **A compact HUD (round 2):** the time and obols share one small chip by the minimap; a six-slot hotbar with detailed item icons (crowbar with its wear bar, revolver, lockpick roll, coffee, bandage, calculator) and counts.
+- **Better cars (round 2):** chamfered bodies, lit and shaded sides, bumpers, head- and tail-lamps, a raked windscreen with a glint, roof, side and rear glass, mirrors, door seams — and distinct kinds: sedan, hatchback, sports car (stripes), taxi (roof sign), police cruiser (black-and-white, light bar), pickup (open bed with a crate), van, and the No. 1 bus (route number, roof units).
 - **Chibi people:** big heads, small bodies, hats and badges that read at a glance.
 - **Lighting:** night is a dark wash with smooth pools of light cut out for lamps, windows and neon.
 - **HUD in the same style:** a chunky health bar, clock and money, a framed minimap, a hotbar, the current objective, and a floor indicator.

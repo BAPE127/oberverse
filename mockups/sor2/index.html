@@ -28,6 +28,7 @@
 const W = 480, H = 270, T = 16;
 const low = document.createElement('canvas'); low.width = W; low.height = H;
 let c = low.getContext('2d'); // reassigned to draw a scene into an offscreen canvas
+const LOWCTX = c;
 const screen = document.getElementById('screen'); const sc = screen.getContext('2d');
 sc.imageSmoothingEnabled = false;
 let time = 0;
@@ -53,20 +54,25 @@ const shadow = (cx, cy, rx, ry, a = 0.3) => { c.fillStyle = `rgba(10,8,20,${a})`
 // deterministic noise
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 
-// pixel text: system font rendered small, then thresholded to hard pixels
-const tcan = document.createElement('canvas'); tcan.width = 400; tcan.height = 20; const tc = tcan.getContext('2d', { willReadFrequently: true });
-function text(str, x, y, col = '#fff', { size = 8, align = 'left', outline = P.ink } = {}) {
-  tc.clearRect(0, 0, 400, 20);
-  tc.font = `bold ${size}px "Courier New", monospace`;
-  tc.textBaseline = 'top';
-  const w = Math.ceil(tc.measureText(str).width) + 2;
-  tc.fillStyle = '#fff'; tc.fillText(str, 1, 1);
-  const img = tc.getImageData(0, 0, w, size + 4);
-  const ox = align === 'center' ? Math.round(x - w / 2) : align === 'right' ? x - w : x;
-  const on = (i) => img.data[i * 4 + 3] > 110;
-  if (outline) for (let i = 0; i < w * (size + 4); i++) if (on(i)) { const px = i % w, py = (i / w) | 0; R(ox + px - 1, y + py, 3, 1, outline); R(ox + px, y + py - 1, 1, 3, outline); }
-  for (let i = 0; i < w * (size + 4); i++) if (on(i)) R(ox + (i % w), y + ((i / w) | 0), 1, 1, col);
-  return w;
+// Text stays legible: it isn't pixelated. Calls are queued while the scene draws, then drawn at full
+// resolution (×4) over the scaled-up pixel art, in a clean bold face with a dark outline.
+const SCALE = 4;
+let textQueue = [];
+function text(str, x, y, col = '#fff', { size = 6, align = 'left', outline = P.ink, weight = 700 } = {}) {
+  if (c !== LOWCTX) return 0; // nothing legible on the city far below
+  textQueue.push({ str, x, y, col, size, align, outline, weight });
+  return str.length * size * 0.62;
+}
+function flushText() {
+  for (const t of textQueue) {
+    const px = Math.round(t.size * 3);
+    sc.font = `${t.weight} ${px}px "Trebuchet MS", "Segoe UI", system-ui, sans-serif`;
+    sc.textAlign = t.align; sc.textBaseline = 'top';
+    const x = t.x * SCALE, y = t.y * SCALE;
+    if (t.outline) { sc.lineJoin = 'round'; sc.lineWidth = Math.max(3, px / 4.5); sc.strokeStyle = t.outline; sc.strokeText(t.str, x, y); }
+    sc.fillStyle = t.col; sc.fillText(t.str, x, y);
+  }
+  textQueue = [];
 }
 
 // ------------------------------------------------------------ ground
@@ -163,35 +169,78 @@ function desk(x, y, monitor = true) { shadow(x + 9, y + 9, 10, 2); box(x, y, 18,
 function cabinet(x, y) { box(x, y, 8, 10, '#8a92a0'); for (let k = 1; k < 10; k += 3) { R(x, y + k + 2, 8, 1, '#6a7280'); R(x + 3, y + k, 2, 1, '#c8ccd4'); } }
 function poolTable(x, y) { shadow(x + 15, y + 12, 17, 3); box(x, y, 30, 18, '#5a3a22'); R(x + 2, y + 2, 26, 14, '#2a7a4a'); for (const [a, b] of [[2, 2], [27, 2], [2, 15], [27, 15], [14, 2], [14, 15]]) R(x + a, y + b, 1, 1, P.ink); R(x + 8, y + 8, 1, 1, '#f8f8f8'); R(x + 20, y + 7, 1, 1, '#e83a3a'); R(x + 21, y + 9, 1, 1, '#f2d050'); }
 function elevator(x, y, open = false) { box(x, y, 20, 8, '#9aa0aa'); R(x + 1, y + 1, 18, 1, '#c8ccd4'); if (open) R(x + 3, y + 2, 14, 6, '#1a1a22'); else { R(x + 3, y + 2, 7, 6, '#b8bcc4'); R(x + 10, y + 2, 7, 6, '#a8acb4'); R(x + 10, y + 2, 1, 6, P.ink); } R(x + 22, y + 2, 2, 3, '#f2c14e'); }
-function stairs(x, y, up = true) { box(x, y, 14, 18, '#7a7480'); for (let k = 0; k < 6; k++) R(x + 1, y + 1 + k * 3, 12, 1, up ? shade('#7a7480', 30 - k * 6) : shade('#7a7480', -k * 6)); text(up ? '▲' : '▼', x + 7, y + 5, '#f2c14e', { size: 7, align: 'center' }); }
-function sign(x, y, str, col = '#2a2a34', fg = '#f2c14e') { const w = str.length * 5 + 6; box(x - w / 2, y, w, 9, col); text(str, x, y + 1, fg, { size: 7, align: 'center', outline: null }); }
+function stairs(x, y, up = true) { box(x, y, 14, 18, '#7a7480'); for (let k = 0; k < 6; k++) R(x + 1, y + 1 + k * 3, 12, 1, up ? shade('#7a7480', 30 - k * 6) : shade('#7a7480', -k * 6)); text(up ? 'UP' : 'DOWN', x + 7, y + 6, '#f2c14e', { size: 4.2, align: 'center' }); }
+function sign(x, y, str, col = '#2a2a34', fg = '#f2c14e') { const w = Math.round(str.length * 3.7 + 10); box(x - w / 2, y, w, 9, col); text(str, x, y + 1.6, fg, { size: 5.2, align: 'center', outline: null }); }
 
 // ------------------------------------------------------------ cars (top-down)
+const GLASS = '#26384e', GLINT = '#9ad0e8';
+/**
+ * A car, top-down, nose along `dir` ('v' down, 'u' up, 'h' right, 'l' left). Kinds: sedan, hatch,
+ * sports, taxi, cruiser, pickup, van, bus. Chamfered body, lit and shaded sides, bumpers, lamps,
+ * a raked windscreen with a glint, roof, side and rear glass, mirrors and door seams.
+ */
 function car(x, y, dir, col, kind = 'sedan') {
-  // dir: 'v' (vertical, nose down) or 'h' (horizontal, nose right)
-  const L = kind === 'van' ? 36 : kind === 'cruiser' ? 34 : kind === 'bus' ? 70 : 32;
-  const Wd = kind === 'bus' ? 20 : 17;
+  const [L, Wd] = { sedan: [32, 17], hatch: [27, 16], sports: [31, 17], taxi: [32, 17], cruiser: [34, 18], pickup: [36, 18], van: [36, 18], bus: [72, 22] }[kind];
+  const hl = L / 2, hw = Wd / 2;
   c.save();
   c.translate(Math.round(x), Math.round(y));
-  if (dir === 'h') { c.rotate(-Math.PI / 2); }
-  shadow(3, 3, Wd / 2 + 2, L / 2 + 1, 0.3);
-  // wheels
-  for (const sy of [-L / 2 + 4, L / 2 - 8]) { R(-Wd / 2 - 1, sy, 2, 5, P.ink); R(Wd / 2 - 1, sy, 2, 5, P.ink); }
-  box(-Wd / 2, -L / 2, Wd, L, col);
-  R(-Wd / 2, -L / 2, 2, L, shade(col, 30)); R(Wd / 2 - 2, -L / 2, 2, L, shade(col, -30));
+  c.rotate({ v: 0, u: Math.PI, h: -Math.PI / 2, l: Math.PI / 2 }[dir] || 0);
+  shadow(2, 3, hw + 2, hl + 1, 0.32);
+  // tyres, peeking out under the arches
+  for (const ty of [-hl + 5, hl - 11]) { R(-hw - 1, ty, 3, 7, P.ink); R(hw - 2, ty, 3, 7, P.ink); R(-hw - 1, ty + 1, 1, 5, '#3a3a44'); R(hw + 1, ty + 1, 1, 5, '#3a3a44'); }
+  const body = (x0, y0, w, h, colr, k = 2) => { R(x0 + k, y0, w - 2 * k, h, colr); R(x0 + 1, y0 + 1, w - 2, h - 2, colr); R(x0, y0 + k, w, h - 2 * k, colr); };
+  body(-hw - 1, -hl - 1, Wd + 2, L + 2, P.ink, 3);
+  body(-hw, -hl, Wd, L, col);
+  // sides: lit on the left, shaded on the right; a crease down each flank
+  R(-hw + 1, -hl + 2, 1, L - 4, shade(col, 45)); R(hw - 2, -hl + 2, 1, L - 4, shade(col, -35)); R(hw - 1, -hl + 3, 1, L - 6, shade(col, -60));
+  // bumpers and lamps
+  R(-hw + 3, hl - 1, Wd - 6, 1, shade(col, -70)); R(-hw + 3, -hl, Wd - 6, 1, shade(col, -70));
+  R(-hw + 1, hl - 3, 3, 2, '#fff4c0'); R(hw - 4, hl - 3, 3, 2, '#fff4c0'); R(-hw + 2, hl - 3, 1, 1, '#ffffff');
+  R(-hw + 1, -hl + 1, 3, 2, '#d8302a'); R(hw - 4, -hl + 1, 3, 2, '#d8302a');
   if (kind === 'bus') {
-    R(-Wd / 2 + 2, -L / 2 + 2, Wd - 4, L - 4, '#e8e0cc');
-    for (let k = 0; k < 7; k++) R(-Wd / 2 + 1, -L / 2 + 6 + k * 8, 1, 5, '#4c8aa8'), R(Wd / 2 - 2, -L / 2 + 6 + k * 8, 1, 5, '#4c8aa8');
-    R(-4, L / 2 - 6, 8, 3, '#4c8aa8');
-    text('1', 0, -4, '#2f6b4f', { size: 7, align: 'center', outline: null });
+    body(-hw + 1, -hl + 1, Wd - 2, L - 2, '#ece4d0');
+    R(-hw, -hl + 6, 1, L - 10, '#2f6b4f'); R(hw - 1, -hl + 6, 1, L - 10, '#2f6b4f');
+    for (let k = 0; k < 8; k++) { R(-hw + 1, -hl + 8 + k * 7, 2, 5, GLASS); R(hw - 3, -hl + 8 + k * 7, 2, 5, GLASS); R(-hw + 1, -hl + 8 + k * 7, 1, 1, GLINT); }
+    R(-hw + 3, hl - 6, Wd - 6, 4, GLASS); R(-hw + 4, hl - 6, 4, 1, GLINT); // the big windscreen
+    box(-4, hl - 11, 8, 3, '#2f6b4f'); R(-1, hl - 11, 2, 3, '#f8f8f0'); // the route number
+    for (const ay of [-hl + 12, -hl + 30]) { box(-4, ay, 8, 7, '#b8b4a8'); R(-3, ay + 1, 6, 1, '#d8d4c8'); for (let k = 0; k < 3; k++) R(-3, ay + 3 + k * 1.5, 6, 1, '#8a8678'); } // roof units
+    c.restore();
+    return;
+  }
+  const front = { sedan: 9, hatch: 7, sports: 12, taxi: 9, cruiser: 9, pickup: 8, van: 5 }[kind];
+  const ws = hl - front; // where the windscreen meets the bonnet
+  const roofTop = { sedan: -hl + 9, hatch: -hl + 5, sports: -hl + 9, taxi: -hl + 9, cruiser: -hl + 9, pickup: ws - 13, van: -hl + 3 }[kind];
+  if (kind === 'sports') { R(-3, -hl + 1, 2, L - 2, '#f8f8f0'); R(1, -hl + 1, 2, L - 2, '#f8f8f0'); R(-hw + 2, -hl + 2, Wd - 4, 1, P.ink); } // stripes (under the glass) and a spoiler
+  // bonnet crease and boot line
+  R(0, ws + 2, 1, front - 5, shade(col, -18)); R(-hw + 3, ws + 1, Wd - 6, 1, shade(col, -25));
+  if (kind !== 'van' && kind !== 'pickup') R(-hw + 3, roofTop - 4, Wd - 6, 1, shade(col, -25));
+  // windscreen: raked, wider at the bottom, with a glint
+  for (let r = 0; r < 4; r++) { const w = Wd - 8 + (r >= 2 ? 2 : 0); R(-w / 2, ws - 4 + r, w, 1, GLASS); }
+  R(-hw + 4, ws - 4, 3, 1, GLINT); R(-hw + 5, ws - 3, 2, 1, GLINT);
+  // roof, side windows, mirrors, door seams
+  R(-hw + 3, roofTop, Wd - 6, ws - 4 - roofTop, shade(col, 16)); R(-hw + 3, roofTop, Wd - 6, 1, shade(col, 38));
+  R(-hw + 2, roofTop + 1, 1, ws - 5 - roofTop, GLASS); R(hw - 3, roofTop + 1, 1, ws - 5 - roofTop, GLASS);
+  R(-hw - 1, ws - 3, 1, 2, shade(col, -40)); R(hw, ws - 3, 1, 2, shade(col, -40));
+  R(-hw, Math.round((ws + roofTop) / 2), 2, 1, shade(col, -50)); R(hw - 2, Math.round((ws + roofTop) / 2), 2, 1, shade(col, -60));
+  if (kind === 'pickup') {
+    // a short cab, then the open bed with its ribs and tailgate
+    R(-hw + 3, roofTop - 3, Wd - 6, 2, GLASS);
+    R(-hw + 2, -hl + 2, Wd - 4, roofTop - 4 - (-hl + 2), shade(col, -45));
+    for (let k = -hl + 4; k < roofTop - 5; k += 3) R(-hw + 3, k, Wd - 6, 1, shade(col, -60));
+    box(-hw + 4, -hl + 6, 5, 4, '#8a6a40'); // a crate in the back
+  } else if (kind !== 'van') {
+    for (let r = 0; r < 3; r++) R(-(Wd - 8 + (r === 0 ? 0 : 0)) / 2, roofTop - 3 + r, Wd - 8, 1, GLASS); // rear window
   } else {
-    const glassY = kind === 'van' ? L / 2 - 9 : L / 2 - 10;
-    R(-Wd / 2 + 2, glassY, Wd - 4, 4, '#2a4a6a'); R(-Wd / 2 + 3, glassY, 3, 1, '#8cc8e0'); // windscreen (nose down)
-    R(-Wd / 2 + 2, -L / 2 + 3, Wd - 4, 3, '#2a4a6a'); // rear window
-    R(-Wd / 2 + 2, -L / 2 + 7, Wd - 4, glassY - (-L / 2 + 7), shade(col, 18)); // roof
-    if (kind === 'cruiser') { R(-Wd / 2 + 2, -2, Wd - 4, 2, '#2a2a34'); R(-Wd / 2 + 2, -2, (Wd - 4) / 2, 2, Math.sin(time * 10) > 0 ? '#ff3a3a' : '#5a1a1a'); R(0, -2, (Wd - 4) / 2, 2, Math.sin(time * 10) > 0 ? '#2a3a8a' : '#4a7aff'); R(-Wd / 2, -L / 2 + 10, Wd, 2, '#2a3a8a'); }
-    R(-Wd / 2 + 1, L / 2 - 1, 3, 1, '#fff6c0'); R(Wd / 2 - 4, L / 2 - 1, 3, 1, '#fff6c0');
-    R(-Wd / 2 + 1, -L / 2, 3, 1, '#c83a2a'); R(Wd / 2 - 4, -L / 2, 3, 1, '#c83a2a');
+    R(0, -hl + 1, 1, 2, shade(col, -40)); // rear doors
+    R(-hw + 3, roofTop + 4, Wd - 6, 1, shade(col, 0)); R(-hw + 3, roofTop + 12, Wd - 6, 1, shade(col, 0)); // roof ribs
+  }
+  if (kind === 'taxi') { box(-4, Math.round((roofTop + ws) / 2) - 2, 8, 3, '#2a2a30'); R(-3, Math.round((roofTop + ws) / 2) - 2, 6, 1, '#f2d050'); for (let k = -hw + 1; k < hw - 1; k += 2) R(k, 0, 1, 1, P.ink); }
+  if (kind === 'cruiser') {
+    R(-hw + 1, ws + 1, Wd - 2, front - 2, '#1e2a3a'); R(-hw + 1, -hl + 1, Wd - 2, roofTop - 4 + hl, '#1e2a3a'); // black bonnet and boot
+    const on = Math.sin(time * 10) > 0;
+    const mid = Math.round((roofTop + ws) / 2);
+    box(-hw + 3, mid - 1, Wd - 6, 2, '#2a2a34'); R(-hw + 3, mid - 1, (Wd - 6) / 2, 2, on ? '#ff3a3a' : '#6a1a1a'); R(0, mid - 1, (Wd - 6) / 2, 2, on ? '#3a6aff' : '#1a2a6a');
+    R(-hw, mid + 3, 1, 4, '#1e3a8a'); R(hw - 1, mid + 3, 1, 4, '#1e3a8a');
   }
   c.restore();
 }
@@ -234,33 +283,52 @@ function person(x, y, o, { face = 'down', step = 0, gun = false } = {}) {
   else if (face === 'left') { R(x - 3, y - 14, 1, 2, P.ink); R(x + 1, y - 19, 4, 7, o.hair); }
   if (o.hat) { box(x - 6, y - 20, 12, 2, o.hat); box(x - 4, y - 22, 8, 3, o.hat); R(x - 4, y - 22, 8, 1, shade(o.hat, 30)); }
 }
-function bubble(x, y, str) { const w = str.length * 5 + 8; box(x - w / 2, y - 12, w, 10, '#f8f4ec'); R(x - 1, y - 2, 3, 2, '#f8f4ec'); R(x - 1, y, 1, 1, P.ink); text(str, x, y - 11, P.ink, { size: 7, align: 'center', outline: null }); }
-function marker(x, y, letter, col = '#4ad84a') { box(x - 6, y - 12, 12, 11, '#f8f4ec'); text(letter, x, y - 12, col, { size: 9, align: 'center' }); R(x - 1, y - 1, 3, 2, '#f8f4ec'); }
+function bubble(x, y, str) { const w = Math.round(str.length * 3.3 + 12); box(x - w / 2, y - 12, w, 10, '#f8f4ec'); R(x - 1, y - 2, 3, 2, '#f8f4ec'); R(x - 1, y, 1, 1, P.ink); text(str, x, y - 10.4, P.ink, { size: 5.2, align: 'center', outline: null }); }
+function marker(x, y, letter, col = '#4ad84a') { box(x - 6, y - 12, 12, 11, '#f8f4ec'); text(letter, x, y - 11.5, col, { size: 6.5, align: 'center' }); R(x - 1, y - 1, 3, 2, '#f8f4ec'); }
 
 // ------------------------------------------------------------ the HUD (the Oberverse's own, in the new style)
+// detailed hotbar icons (16×16 pixel art)
+const ICONS = {
+  crowbar(x, y) { for (let k = 0; k < 11; k++) { R(x + 2 + k, y + 13 - k, 2, 2, P.ink); } for (let k = 0; k < 11; k++) R(x + 3 + k, y + 13 - k, 1, 1, '#c8ccd4'); for (let k = 0; k < 4; k++) R(x + 4 + k, y + 11 - k, 1, 1, '#c83a2a'); R(x + 13, y + 1, 2, 1, '#c8ccd4'); R(x + 14, y + 2, 1, 2, '#c8ccd4'); R(x + 12, y + 3, 1, 1, P.ink); R(x + 1, y + 14, 2, 1, '#9aa0aa'); },
+  revolver(x, y) { box(x + 2, y + 9, 4, 6, '#7a4a28'); R(x + 3, y + 10, 1, 4, '#9a6a3a'); box(x + 3, y + 5, 11, 3, '#4a4e58'); R(x + 3, y + 5, 11, 1, '#8a909c'); disc(x + 7, y + 8, 3, P.ink); disc(x + 7, y + 8, 2, '#6a707c'); R(x + 6, y + 7, 1, 1, '#c8ccd4'); R(x + 13, y + 4, 1, 1, '#8a909c'); R(x + 5, y + 11, 2, 1, P.ink); },
+  lockpick(x, y) { box(x + 1, y + 8, 14, 6, '#7a4a28'); R(x + 1, y + 8, 14, 1, '#9a6a3a'); R(x + 1, y + 11, 14, 1, '#5a3418'); for (let k = 0; k < 4; k++) { R(x + 3 + k * 3, y + 2 + (k % 2), 1, 6, '#c8ccd4'); R(x + 3 + k * 3 + (k % 2 ? 1 : -1), y + 2 + (k % 2), 1, 1, '#c8ccd4'); } },
+  coffee(x, y) { box(x + 3, y + 6, 8, 8, '#f2ece0'); R(x + 3, y + 6, 8, 2, '#6a3a1a'); R(x + 11, y + 8, 2, 4, P.ink); R(x + 12, y + 9, 1, 2, '#f2ece0'); R(x + 3, y + 10, 8, 1, '#c83a3a'); for (let k = 0; k < 3; k++) R(x + 5 + k * 2, y + 2 + (k % 2), 1, 3, 'rgba(255,255,255,0.7)'); },
+  bandage(x, y) { disc(x + 8, y + 8, 6, P.ink); disc(x + 8, y + 8, 5, '#f2ece0'); disc(x + 8, y + 8, 2, '#d8d0c0'); R(x + 13, y + 8, 3, 3, '#f2ece0'); R(x + 3, y + 7, 3, 1, '#e83a3a'); R(x + 4, y + 6, 1, 3, '#e83a3a'); },
+  calculator(x, y) { box(x + 3, y + 1, 10, 14, '#2a2a34'); R(x + 4, y + 2, 8, 4, '#9ec88a'); R(x + 5, y + 3, 5, 1, '#3a5a2a'); for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) R(x + 4 + k * 3, y + 7 + r * 3, 2, 2, k === 2 && r === 2 ? '#e8a02a' : '#c8ccd4'); },
+};
 function hud({ place, clock = '12:56', money = 61, health = 0.62, quest, floor }) {
   // health and energy
   box(6, 6, 104, 12, '#2a2a6a', '#14143a'); R(8, 8, 100, 8, '#5a1a1a'); R(8, 8, 100 * health, 8, '#e83a3a'); R(8, 8, 100 * health, 2, '#ff8a6a');
   R(8, 8, Math.min(100 * health, 28), 8, '#f2c14e');
-  text(`HEALTH ${Math.round(80 * health)}/80`, 12, 8, '#fff', { size: 7 });
+  text(`Health ${Math.round(80 * health)} / 80`, 11, 9.4, '#fff', { size: 5 });
   box(6, 21, 70, 5, '#2a2a6a', '#14143a'); R(7, 22, 48, 3, '#5ad84a');
-  // clock & money
+  // clock and money: one compact chip by the minimap
   const night = +clock.slice(0, 2) >= 20 || +clock.slice(0, 2) < 6;
-  if (night) { disc(328, 14, 6, '#e8e8f8'); disc(331, 12, 5, '#14143a'); }
-  else { disc(328, 14, 5, '#f2c14e'); for (let k = 0; k < 8; k++) R(328 + Math.round(Math.cos(k) * 8), 14 + Math.round(Math.sin(k) * 8), 1, 1, '#f2c14e'); }
-  text(clock, 338, 8, '#fff', { size: 10 });
-  text(`${money} OBOLS`, 338, 21, '#f2c14e', { size: 7 });
+  box(350, 6, 44, 20, '#20203a', '#4a4aa8');
+  if (night) { disc(356, 12, 3, '#e8e8f8'); disc(358, 11, 2, '#20203a'); }
+  else { disc(356, 12, 2, '#f2c14e'); for (let k = 0; k < 8; k++) R(356 + Math.round(Math.cos(k * 0.785) * 4), 12 + Math.round(Math.sin(k * 0.785) * 4), 1, 1, '#f2c14e'); }
+  text(clock, 362, 7.6, '#fff', { size: 4.6 });
+  disc(356, 21, 2, '#e8b83a'); R(355, 20, 1, 1, '#fff2b0');
+  text(`${money} obols`, 362, 17.6, '#f2c14e', { size: 4.2 });
   // minimap
   box(398, 4, 76, 52, '#20203a', '#4a4aa8'); R(400, 6, 72, 48, '#5e5c66');
   for (let k = 0; k < 14; k++) R(402 + (k % 5) * 14, 10 + Math.floor(k / 5) * 14, 10, 8, '#8a8890');
   R(400, 28, 72, 3, '#3e3c48'); R(430, 6, 3, 48, '#3e3c48'); R(431, 29, 2, 2, '#f2c14e');
-  text(place, 472, 7, '#fff', { size: 7, align: 'right' });
-  // hotbar
-  box(6, 240, 106, 24, '#20203a', '#4a4aa8');
-  const items = [['#8a6a4a', '#c8c8d0'], ['#2a2a30', '#5a5a66'], ['#e8a02a', '#f2d050'], ['#8a5a30', '#c8a060'], ['#3a7a4a', '#e8f2e0']];
-  items.forEach(([a, b], i) => { box(9 + i * 21, 243, 18, 18, '#2c2c48', '#14143a'); R(13 + i * 21, 247, 10, 4, a); R(15 + i * 21, 251, 6, 6, b); text(String(i + 1), 10 + i * 21, 252, '#f2d050', { size: 7 }); });
-  if (quest) { R(330, 242, 146, 22, 'rgba(10,10,30,0.72)'); text(`▼ ${quest[0]}`, 334, 244, '#5ad84a', { size: 7 }); text(quest[1], 334, 254, '#e8e8f0', { size: 7 }); }
-  if (floor) { box(180, 6, 120, 14, '#20203a', '#4a4aa8'); text(floor, 240, 9, '#f2c14e', { size: 7, align: 'center' }); }
+  R(400, 6, 72, 9, 'rgba(20,20,40,0.7)');
+  text(place, 470, 7, '#fff', { size: 4.4, align: 'right' });
+  // hotbar: six slots, the first selected (with its wear), counts in the corner
+  const slots = [['crowbar', null, 0.63], ['revolver', '6'], ['lockpick', '×3'], ['coffee', '×2'], ['bandage', '×2'], ['calculator', null]];
+  box(5, 239, 134, 26, '#20203a', '#4a4aa8');
+  slots.forEach(([icon, count, wear], i) => {
+    const x = 8 + i * 22, y = 242;
+    box(x, y, 19, 19, i === 0 ? '#3a3a68' : '#2c2c48', i === 0 ? '#f2c14e' : '#14143a');
+    ICONS[icon](x + 2, y + 1);
+    if (wear !== undefined) { R(x + 2, y + 17, 15, 1, '#14143a'); R(x + 2, y + 17, Math.round(15 * wear), 1, '#f2c14e'); }
+    text(String(i + 1), x + 1, y + 0.4, '#e8e8f0', { size: 3.6 });
+    if (count) text(count, x + 18, y + 12, '#f2d050', { size: 3.8, align: 'right' });
+  });
+  if (quest) { R(352, 246, 124, 17, 'rgba(10,10,30,0.75)'); R(352, 246, 2, 17, '#5ad84a'); text(quest[0], 357, 247.5, '#5ad84a', { size: 4.6 }); text(quest[1], 357, 255.3, '#e8e8f0', { size: 4.2 }); }
+  if (floor) { box(170, 6, 140, 12, '#20203a', '#4a4aa8'); text(floor, 240, 7.6, '#f2c14e', { size: 4.6, align: 'center' }); }
 }
 
 // ------------------------------------------------------------ scene: the street
@@ -288,7 +356,7 @@ function streetGround(ox = 0, oy = 0, people = true) {
   wallV(4, 6, 98, 'brick'); wallV(158, 6, 98, 'brick');
   wallH(6, 160, 98, 'brick', { gaps: [[64, 78]], windows: [20, 36, 100, 120, 136] });
   door(65, 98, true);
-  counter(96, 30, 56, 7); for (let k = 0; k < 5; k++) R(100 + k * 10, 31, 6, 3, ['#e8c890', '#c87a4a', '#f2e8d0', '#e8a0b0', '#c8a060'][k]);
+  counter(100, 30, 54, 7); for (let k = 0; k < 5; k++) R(100 + k * 10, 31, 6, 3, ['#e8c890', '#c87a4a', '#f2e8d0', '#e8a0b0', '#c8a060'][k]);
   box(126, 12, 22, 6, '#5a5a66'); R(128, 13, 4, 3, '#e86a2a'); // the oven
   roundTable(60, 46); chair(50, 43); chair(66, 43); roundTable(132, 60); chair(121, 57); chair(139, 57);
   roundTable(96, 72); chair(86, 69); chair(102, 69); plant(150, 82); plant(10, 82);
@@ -323,21 +391,21 @@ function streetGround(ox = 0, oy = 0, people = true) {
 function sceneStreet() {
   streetGround();
   // traffic: a bus, a cruiser with its lights going, cars in both directions; one wreck
-  car(196, 40, 'v', '#e8e8f0', 'van'); car(220, 236, 'v', '#2a8aa8'); car(196, 228, 'v', '#c8402a');
-  car(70, 134, 'h', '#3a6ac8', 'cruiser'); car(110, 134, 'h', '#e8c040'); car(330, 160, 'h', '#5a5a66'); car(290, 160, 'h', '#e83a3a');
+  car(196, 40, 'v', '#e8e8f0', 'van'); car(220, 236, 'u', '#2a8aa8', 'hatch'); car(196, 228, 'v', '#c8402a', 'pickup');
+  car(66, 134, 'h', '#f2f2f0', 'cruiser'); car(112, 134, 'h', '#e8c040', 'taxi'); car(330, 162, 'l', '#5a5a66'); car(286, 162, 'l', '#e83a3a', 'sports');
   car(420, 134, 'h', '#2f6b4f', 'bus');
-  car(276, 40, 'v', '#4ab0c8'); car(312, 40, 'v', '#e8a040');
+  car(276, 40, 'u', '#4ab0c8', 'hatch'); car(312, 40, 'u', '#e8a040'); car(348, 84, 'u', '#3a8a4a', 'sports');
   // people
   person(208, 146, OUT.player, { face: 'right', gun: true });
   person(226, 140, OUT.gang, { face: 'left' });
   person(150, 146, OUT.cop, { face: 'right', step: time * 8 });
-  person(124, 46, OUT.mags, { face: 'down' }); bubble(124, 24, 'MORE TEA?');
+  person(138, 46, OUT.mags, { face: 'down' }); bubble(138, 24, 'More tea, love?');
   person(60, 64, OUT.lady, { face: 'up' }); person(130, 82, OUT.kid, { face: 'up' });
   person(62, 116, OUT.worker, { step: time * 8, face: 'right' }); person(380, 118, OUT.lady, { face: 'left', step: time * 7 });
   person(300, 228, OUT.exec, { face: 'down' }); person(40, 236, OUT.cop, { face: 'down' }); person(410, 40, OUT.gang, { face: 'down' });
   // a scuffle's aftermath
   for (let k = 0; k < 14; k++) R(214 + hash(k, 1) * 14, 156 + hash(2, k) * 6, 2, 1, '#8a1a1a');
-  hud({ place: 'HALVERMOUTH', quest: ['ROUGH UP ARTHUR\'S DEBTOR', 'RETURN TO THE ABACUS'] });
+  hud({ place: 'Halvermouth', quest: ['Rough up Arthur\'s debtor', 'Return to the Abacus'] });
 }
 
 // ------------------------------------------------------------ scene: the Abacus at night (lighting)
@@ -351,9 +419,9 @@ function sceneBar() {
   counter(60, 40, 120, 8, '#3a2a20', '#8a6a40'); for (let k = 0; k < 9; k++) stool(66 + k * 13, 52);
   for (let k = 0; k < 10; k++) box(64 + k * 11, 30, 4, 6, ['#3a8a4a', '#8a3a2a', '#c8a040', '#4a6ac8'][k % 4]);
   poolTable(120, 100); roundTable(230, 60); chair(220, 57); chair(236, 57); roundTable(250, 130); chair(240, 127); chair(256, 127);
-  sofa(320, 40, 40, '#5a2a5a'); desk(340, 80); cabinet(400, 30); box(360, 120, 40, 30, '#2a2a34'); text('Σ', 380, 128, '#5ad84a', { size: 12, align: 'center', outline: null });
+  sofa(320, 40, 40, '#5a2a5a'); desk(340, 80); cabinet(400, 30); box(360, 120, 40, 30, '#2a2a34'); text('Σ', 380, 126, '#5ad84a', { size: 10, align: 'center', outline: null });
   person(110, 36, OUT.gang, { face: 'down' }); person(250, 80, OUT.gang, { face: 'left' }); person(275, 150, OUT.gang, { face: 'up' });
-  person(350, 72, OUT.arthur, { face: 'down' }); bubble(350, 50, 'DO THE MATHS!');
+  person(350, 72, OUT.arthur, { face: 'down' }); bubble(350, 50, 'Do the maths!');
   person(228, 196, OUT.player, { face: 'up' }); person(150, 128, OUT.worker, { face: 'right' });
   lamp(120, 194, true); lamp(330, 194, true);
   car(380, 222, 'h', '#2a8a4a');
@@ -370,7 +438,7 @@ function sceneBar() {
   glow(120, 166, 34, '255,220,140', 0.25); glow(330, 166, 34, '255,220,140', 0.25); glow(380, 135, 26, '90,255,120', 0.3); glow(120, 60, 50, '255,160,90', 0.18);
   c.globalCompositeOperation = 'source-over';
   sign(230, 192 - 14, 'THE ABACUS', '#14142a', '#5ad84a');
-  hud({ place: 'THE SUMPS', clock: '23:40', money: 61, health: 0.38, quest: ['SETTLE THE TAB', 'TALK TO ARTHUR'] });
+  hud({ place: 'The Sumps', clock: '23:40', money: 61, health: 0.38, quest: ['Settle the tab', 'Talk to Arthur'] });
 }
 
 // ------------------------------------------------------------ scene: Ober's Oil Tower (multi-level)
@@ -420,8 +488,8 @@ function sceneTower(floor) {
     const hx = 150 + Math.sin(time) * 4, hy = 92;
     box(hx, hy, 34, 14, '#2a2a34'); R(hx + 2, hy + 2, 12, 10, '#8cc8e0'); box(hx + 34, hy + 5, 20, 4, '#2a2a34');
     c.fillStyle = 'rgba(200,200,210,0.5)'; c.save(); c.translate(hx + 17, hy + 7); c.rotate(time * 18); c.fillRect(-30, -1, 60, 2); c.restore();
-    person(120, 180, OUT.player, { face: 'up' }); person(220, 186, OUT.exec, { face: 'left' }); bubble(220, 162, 'YOUR RIDE, SIR.');
-    hud({ place: 'OBER OIL TOWER', floor: 'ROOF  ·  FLOOR R / 20', quest: ['MEET SIR MONEYBUCKS', 'ON THE HELIPAD'] });
+    person(120, 180, OUT.player, { face: 'up' }); person(220, 186, OUT.exec, { face: 'left' }); bubble(220, 162, 'Your ride, sir.');
+    hud({ place: 'Ober\'s Oil Tower', floor: 'The roof  ·  floor R of 20', quest: ['Meet Sir Moneybucks', 'On the helipad'] });
     return;
   }
   // an office floor: carpet, glass walls round the edge, cores (lifts, stairs), offices, an open plan
@@ -441,8 +509,8 @@ function sceneTower(floor) {
   plant(X + 340, Y + 172); cabinet(X + 228, Y + 168); cabinet(X + 238, Y + 168);
   person(X + 180, Y + 70, OUT.player, { face: 'down' });
   person(X + 241, Y + 46, OUT.exec, { face: 'up' }); person(X + 301, Y + 96, OUT.exec, { face: 'up' }); person(X + 271, Y + 146, OUT.lady, { face: 'right' });
-  person(X + 70, Y + 150, OUT.exec, { face: 'down' }); bubble(X + 70, Y + 126, 'Q3 IS... UNWELL.');
-  hud({ place: 'OBER OIL TOWER', floor: `FLOOR ${floor} / 20  ·  OBER'S OIL HQ`, quest: ['STEAL THE LEDGER', 'BOARDROOM, FLOOR 14'] });
+  person(X + 70, Y + 150, OUT.exec, { face: 'down' }); bubble(X + 70, Y + 126, 'Q3 is... unwell.');
+  hud({ place: 'Ober\'s Oil Tower', floor: `Floor ${floor} of 20  ·  Ober's Oil HQ`, quest: ['Steal the ledger', 'The boardroom, floor 14'] });
 }
 
 function sceneLobby() {
@@ -456,20 +524,20 @@ function sceneLobby() {
   // the core: four lifts, stairs both ways, the directory board
   for (let k = 0; k < 4; k++) elevator(150 + k * 44, 26, k === 1);
   stairs(110, 26, true); stairs(340, 26, false);
-  box(390, 24, 50, 30, '#2a2a34'); text('FLOORS', 415, 26, '#f2c14e', { size: 7, align: 'center', outline: null });
-  ['20 ROOF', '14 BOARD', '9  LABS', '2  SECURITY', 'G  LOBBY'].forEach((t, i) => text(t, 394, 34 + i * 4, '#e8e8f0', { size: 4, outline: null }));
+  box(388, 22, 56, 36, '#2a2a34'); text('DIRECTORY', 416, 24, '#f2c14e', { size: 4.2, align: 'center', outline: null });
+  ['R   Roof', '14  Boardroom', '9   Labs', '2   Security', 'G   Lobby'].forEach((t, i) => text(t, 392, 31 + i * 5, '#e8e8f0', { size: 3.8, outline: null }));
   // reception and security
   counter(200, 110, 80, 10, '#2a2a34', '#c8a040'); box(232, 104, 16, 5, '#5ab8e8');
   box(60, 120, 30, 12, '#3a3a44'); R(62, 122, 26, 3, '#5ab8e8'); box(96, 112, 6, 24, '#9aa0aa'); box(120, 112, 6, 24, '#9aa0aa'); // a scanner gate
   // a lounge, plants, the oil-company logo on the floor
   carpet(320, 120, 110, 70, '#7a2a2a'); sofa(330, 130, 36, '#3a3a44'); sofa(380, 166, 36, '#3a3a44'); roundTable(400, 145);
   for (const [x, y] of [[30, 30], [30, 190], [446, 190], [300, 190]]) plant(x, y);
-  disc(150, 170, 22, '#c8a040'); disc(150, 170, 18, '#2a2a34'); text('OO', 150, 165, '#c8a040', { size: 9, align: 'center', outline: null });
-  person(240, 120, OUT.lady, { face: 'down' }); bubble(240, 98, 'FLOOR 14 IS STAFF ONLY.');
+  disc(150, 170, 22, '#c8a040'); disc(150, 170, 18, '#2a2a34'); text('OO', 150, 164, '#c8a040', { size: 8, align: 'center', outline: null });
+  person(240, 120, OUT.lady, { face: 'down' }); bubble(240, 98, 'Floor 14 is staff only.');
   person(110, 140, OUT.cop, { face: 'right' }); person(200, 60, OUT.player, { face: 'up' }); person(260, 50, OUT.exec, { face: 'up' }); person(350, 152, OUT.exec, { face: 'left' });
   for (const [x, y] of [[80, 220], [400, 220]]) lamp(x, y);
   car(120, 248, 'h', '#141418'); car(320, 248, 'h', '#e8c040');
-  hud({ place: 'OBER OIL TOWER', floor: 'FLOOR G / 20  ·  THE LOBBY', quest: ['STEAL THE LEDGER', 'BOARDROOM, FLOOR 14'] });
+  hud({ place: 'Ober\'s Oil Tower', floor: 'Ground floor  ·  the lobby', quest: ['Steal the ledger', 'The boardroom, floor 14'] });
 }
 
 // ------------------------------------------------------------ scenes, drawing loop
@@ -486,10 +554,12 @@ for (const [id, s] of Object.entries(SCENES)) { const b = document.createElement
 function render() {
   // route every primitive through the current context
   c.setTransform(1, 0, 0, 1, 0, 0);
+  textQueue = [];
   R(0, 0, W, H, '#000');
   SCENES[scene].draw();
   sc.imageSmoothingEnabled = false;
   sc.drawImage(low, 0, 0, 1920, 1080);
+  flushText();
   document.getElementById('cap').textContent = SCENES[scene].cap;
   for (const b of nav.children) b.className = b.dataset.id === scene ? 'on' : '';
 }
