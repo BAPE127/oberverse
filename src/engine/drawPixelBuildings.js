@@ -64,7 +64,7 @@ export function layout(b, inside, W, H) {
     } else if (/diner|cafe|bar\b|star|saloon|grill|lucky/i.test(name)) {
       P('counter', Math.min(4, Math.floor((W - 8) / 16)), 1, 4, 1); P('shelf', 1, 1, W - 20, 0, {});
       rowOf((tx) => { P('table', 1, 1, tx, H - 20); P('chair', 1, 1, tx + 16, H - 20); });
-    } else if (/bank|bail|office|exchange|trust|insurance|school|church|mission|hall|post|land/i.test(name)) {
+    } else if (/bank|bail|office|exchange|trust|insurance|school|church|mission|hall|post|land|mutual|ledger|herald|telephone|ironclad|securities|tower|hotel/i.test(name)) {
       P('cabinet', 1, 1, 2, 0); P('cabinet', 1, 1, 20, 0);
       rowOf((tx) => { P('desk', 1, 1, tx, H - 22); P('chair', 1, 1, tx + 16, H - 22); });
     } else if (/storage|cold|port|wh\d|depot|elevator|garage|repair|tractor|warehouse|gate/i.test(name)) {
@@ -129,6 +129,8 @@ export function drawPixelBuilding(ctx, b, opts) {
   R(TOPW, TOPW + BACK - 4, W - TOPW * 2, 1, shade(trim, 10));
   R(TOPW, TOPW + BACK - 3, W - TOPW * 2, 3, shade(wall, -26));
   R(TOPW, TOPW, W - TOPW * 2, 1, INK);
+  // a tower's lobby: lift doors in the back wall (the floors above are reached from inside)
+  if (b.tower) for (const lx of [Math.floor(W / 2) - 13, Math.floor(W / 2) + 3]) { R(lx, TOPW + 1, 10, BACK - 1, INK); R(lx + 1, TOPW + 2, 8, BACK - 2, '#b8bec8'); R(lx + 4, TOPW + 2, 1, BACK - 2, '#6a6e78'); R(lx + 3, TOPW + 1, 4, 1, '#c9a24a'); }
   // side walls
   for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 1, 1, TOPW - 2, frontY - 1, top); }
 

@@ -1,6 +1,8 @@
-# Known Issues and Limitations — v0.40.0
+# Known Issues and Limitations — v0.41.0
 
-- **Art revamp (v0.40.0, stage 3 of 5):** buildings are roofless, but what you see inside is a scaled cutaway of the interior map (its furniture in proportion), not the room itself — the people inside aren't shown, and you still enter through the door (a scene change). Towers and the lighthouse still have their old look (stage 4). People and the rarer props (ships, the works, farm kit, building sites, the oil field) are the old drawings through the pixel filter; fields and crops are the old drawing. Captions, notifications and menus are the old style (stage 5). World text is drawn on top of everything.
+- **Towers (v0.41.0):** only Vantage Point is open to the public; the other office towers and Ober's Oil Tower are still locked. Nobody works or drinks in the Sky Lounge yet (NPCs don't use lifts). The city seen below a floor is the street's ground only (no buildings or traffic), and above the northern towers it is mostly sky.
+
+- **Art revamp (v0.41.0, stage 4 of 5):** buildings are roofless, but what you see inside is a scaled cutaway of the interior map (its furniture in proportion), not the room itself — the people inside aren't shown, and you still enter through the door (a scene change). The lighthouse keeps its old look. People and the rarer props (ships, the works, farm kit, building sites, the oil field) are the old drawings through the pixel filter; fields and crops are the old drawing. Captions, notifications and menus are the old style (stage 5). World text is drawn on top of everything.
 
 - **The works (v0.37.0):** one-lane belts (no lanes, undergrounds or long-handed inserters yet); a sorter always sends its item to its right (rotate it to choose); chests have no slot limit ("bar"); belts carry the player but not the workers.
 

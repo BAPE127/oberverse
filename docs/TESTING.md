@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.41.0 (2026-10-17)
+
+- `npm run check` — **371/371 tests passed** (2 new in `towers.test.mjs`: Vantage Point's lobby opens at noon and shuts at night; its lift offers floors 12, 23 and the roof, rides there and back, floors are aloft over Halvermouth and the roof has its helipad; the Atlas Rooms' and Harbourline's stairwell lifts reach their roofs; every tower floor has a lift; the Oil Tower is still appointments only). Validator: 0 errors (it learned the `lift` interaction).
+- Browser: Vantage Point from the street (a roofless lobby), the lobby (two lifts, reception), the Sky Lounge (glass walls, the city below), the helipad roof, the Atlas Rooms' roof — 60 fps, no page errors. Fixed while testing: you arrived standing on top of the lift doors (now a tile in front); the roofs had the Ober Oil tank on them (now water butts); the city below was too small to read (now larger, less haze). Screenshots: `docs/mockups/stage4-*.png`.
+
 ## Verification record — v0.40.0 (2026-10-17)
 
 - `npm run check` — **369/369 tests passed** (1 new in `pixelart.test.mjs`: every ordinary building on every map draws with nothing above its walls; every cutaway piece of furniture sits inside the walls; the Kettle & Crumb's cutaway has its counter).

@@ -449,8 +449,8 @@ function drawTower(ctx, b, opts) {
 
 export function drawBuilding(ctx, b, opts) {
   if (b.round) return drawLighthouse(ctx, b, opts);
+  if (pixelProps) return drawPixelBuilding(ctx, b, opts); // v0.40.0: roofless (v0.41.0: towers too — their lobbies)
   if (b.tower) return drawTower(ctx, b, opts);
-  if (pixelProps) return drawPixelBuilding(ctx, b, opts); // v0.40.0: roofless
   const left = b.x * T;
   const right = (b.x + b.w) * T;
   const top = b.y * T;
@@ -654,7 +654,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+export const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -1058,6 +1058,7 @@ export function drawProp(ctx, p, opts) {
       rrect(ctx, x + 6, y + 6, w - 12, h - 12, 3); ctx.stroke();
       break;
     }
+    case 'lift': case 'helipad': drawPixelProp(ctx, p, opts); break; // v0.41.0: pixel art in both looks
     case 'window': {
       ctx.fillStyle = opts.night ? '#2c3a5a' : '#a8cfe0';
       ctx.fillRect(x + 4, y + 4, w - 8, h * 0.5);

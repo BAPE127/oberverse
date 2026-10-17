@@ -18,7 +18,7 @@ import { SITE_STATIONS } from '../src/systems/construction.js';
 import { THEMES as WRATH_THEMES } from '../src/engine/wrath.js';
 
 const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
-const INTERACT_KINDS = ['container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop', 'jail', 'factory', 'arms', 'busstop', 'logistics', 'dairy', 'farm'];
+const INTERACT_KINDS = ['lift', 'container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop', 'jail', 'factory', 'arms', 'busstop', 'logistics', 'dairy', 'farm'];
 const COMPANY_STATIONS = { oil: STATIONS, construction: SITE_STATIONS };
 
 export function validateContent(content = CONTENT) {

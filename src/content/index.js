@@ -60,6 +60,7 @@ import dlgLariat from './dialogue/lariat.js';
 import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
 import { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } from './farming.js';
 import { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } from './life.js';
+import { towerMaps, addTowers, TOWERS } from './towers.js';
 import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } from './homes.js';
 import { buildPatrols } from '../world/patrols.js';
 
@@ -76,7 +77,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps(), ...towerMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -84,6 +85,7 @@ REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 const TRANSIT = buildTransit(SHIFTS);
 addStreetFurniture(MAPS, TRANSIT);
 addHomes(MAPS); // v0.36.0: front doors for the new homes (final coordinates)
+addTowers(MAPS); // v0.41.0: tower lobbies, lifts and floors
 const HOMES_LIFE = homeResidences();
 markHomes(MAPS, { ...RESIDENCES, ...HOMES_LIFE.residences }, LIFE);
 const PATROL_ROUTES = buildPatrols(MAPS, PATROLS); // v0.32.0: police beats, as spots on the pavement
@@ -111,6 +113,7 @@ export const BASE_CONTENT = {
   facts: FACTS,
   docs: DOCS,
   containers: { ...CONTAINERS, ...homeContainers() },
+  towers: TOWERS,
   lodging: LODGING, // v0.36.0: where the arms works' hired hands sleep
   shops: SHOPS,
   factions: FACTIONS,

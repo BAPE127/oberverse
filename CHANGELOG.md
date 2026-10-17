@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.41.0] — 2026-10-17 — Pixels: art revamp, stage 4 — towers (development build)
+
+Owner: "stage 4 this baby". Stage 4 of 5: tower floors and lifts.
+
+### Added
+- **Towers are roofless too:** on the street a skyscraper is its lobby — a room you see into, with lift doors in the back wall (`src/engine/drawPixelBuildings.js`). The tall painted towers return with Settings → Pixel-art look off.
+- **Lifts** (`src/content/towers.js`, `Game.liftPanel` / `rideLift`): a new `lift` prop — brushed-steel doors, a brass dial — that offers every other floor of its tower. Each floor is its own map.
+- **Floors high up** (`aloft`): drawn over the city far below — the street's own ground, small and hazy, sliding with the camera — with glass walls, or on a roof a low parapet and the drop beyond it. Darker below at night.
+- **Vantage Point is open to the public** (08:00–20:00): a marble-tiled lobby with reception and two lifts; **floor 12** (offices to let); **floor 23, the Sky Lounge** (bar, tables, a coin telescope); **the roof** with its helipad.
+- **The Atlas Rooms and the Harbourline Apartments** get a lift from their stairwells to the roof (a washing line and a deckchair; a bench facing the bay) — for residents and their guests.
+- The content checker knows the `lift` interaction.
+
+### Not changed
+- Ober's Oil Tower and the other office towers are still closed ("Appointments only").
+
 ## [0.40.0] — 2026-10-17 — Pixels: art revamp, stage 3 (development build)
 
 Owner: "go ahead with further stages". Stage 3 of 5: roofless buildings.

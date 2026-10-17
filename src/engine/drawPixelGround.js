@@ -209,7 +209,7 @@ function tile(R, map, x, y, at, run) {
       for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]);
       break;
     }
-    case 'W': R(px, py, A, A, PAL.wallTop); break;
+    case 'W': if (!(map.def?.aloft && map.def.roof)) R(px, py, A, A, PAL.wallTop); break; // a roof's edge is open to the drop
     default: {
       const tt = TILE_TYPES[ch] || TILE_TYPES.x;
       R(px, py, A, A, r < 0.5 ? tt.color : tt.alt || tt.color);
@@ -265,10 +265,31 @@ function edges(R, map, x, y, at) {
 }
 
 function interiorWalls(R, map, at) {
+  const aloft = map.def?.aloft;
   for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
     const ch = at(x, y);
     const px = x * A;
     const py = y * A;
+    if (ch === 'W' && aloft && map.def.roof) {
+      // v0.41.0: a roof's parapet — a low concrete lip, the drop beyond it
+      const n = y === 0 ? [0, A - 5, A, 5] : y === map.height - 1 ? [0, 0, A, 5] : x === 0 ? [A - 5, 0, 5, A] : [0, 0, 5, A];
+      R(px + n[0], py + n[1], n[2], n[3], INK);
+      R(px + n[0] + (n[2] > 5 ? 0 : 1), py + n[1] + (n[3] > 5 ? 0 : 1), n[2] - (n[2] > 5 ? 0 : 2), n[3] - (n[3] > 5 ? 0 : 2), '#b8b6ae');
+      continue;
+    }
+    if (ch === 'W' && aloft) {
+      // v0.41.0: a floor high up has glass walls — sky beyond the mullions
+      if (y === 0) {
+        R(px, py, A, 3, '#3a3e48'); R(px, py + 3, A, 1, INK);
+        R(px, py + 4, A, 11, '#9cc8e0'); R(px + 2, py + 5, 3, 8, '#c8e4f0'); R(px + A - 1, py + 4, 1, 11, '#3a3e48');
+        R(px, py + 15, A, 1, '#3a3e48');
+      } else {
+        R(px, py, A, A, '#3a3e48');
+        R(px + 1, py + 1, A - 2, A - 2, '#8fb8d0');
+        R(px + 2, py + 2, 2, A - 4, '#c8e4f0');
+      }
+      continue;
+    }
     if (ch === 'W') {
       if (y === 0) {
         // the back wall: a dark top, then a tall face with a dado rail and wainscot

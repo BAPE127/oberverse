@@ -84,6 +84,31 @@ export class Renderer {
     return this.staticLayers.get(map);
   }
 
+  /** v0.41.0: a floor high up is drawn over the city far below (its ground, small and hazy, sliding with the camera). */
+  drawCityBelow(ctx, lm, lv) {
+    const a = lm.def.aloft;
+    const city = this.game.maps.get(a.over);
+    if (!city) return;
+    const ground = this.staticLayer(city);
+    const k = 0.45; // how small the street looks from up here
+    const unit = (ground.width / city.width) / TILE; // the ground canvas's pixels per world pixel
+    const cx = (lm.width * TILE) / 2;
+    const cy = (lm.height * TILE) / 2;
+    const camX = lv.x + lv.w / 2;
+    const camY = lv.y + lv.h / 2;
+    // the tower's own spot in the city sits under the middle of the floor, and drifts with the camera (parallax)
+    const ox = cx - (camX - cx) * 0.35 - a.x * TILE * k;
+    const oy = cy - (camY - cy) * 0.35 - a.y * TILE * k + TILE * 6;
+    ctx.fillStyle = '#6f8aa6';
+    ctx.fillRect(lv.x - 64, lv.y - 64, lv.w + 128, lv.h + 128);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(ground, 0, 0, ground.width, ground.height, ox, oy, (ground.width / unit) * k, (ground.height / unit) * k);
+    ctx.restore();
+    ctx.fillStyle = this.game.clock.minuteOfDay > 20 * 60 || this.game.clock.minuteOfDay < 6 * 60 ? 'rgba(15,20,45,0.5)' : 'rgba(170,200,230,0.3)';
+    ctx.fillRect(lv.x - 64, lv.y - 64, lv.w + 128, lv.h + 128);
+  }
+
   /** Factory build mode: the placement ghost (green = fits, red = blocked). */
   drawBuildCursor(ctx, c) {
     const x = c.x * TILE;
@@ -224,6 +249,7 @@ export class Renderer {
         fn();
         ctx.restore();
       };
+      if (lm.def?.aloft?.over) this.drawCityBelow(ctx, lm, lv);
       const layer = this.staticLayer(lm);
       const sx = Math.max(0, Math.floor(lv.x));
       const sy = Math.max(0, Math.floor(lv.y));
@@ -255,7 +281,7 @@ export class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
-        const above = b.tower ? towerHeight(b) / TILE : 4;
+        const above = b.tower && !this.pixel ? towerHeight(b) / TILE : 4;
         if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
         items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null })) });
@@ -361,7 +387,7 @@ export class Renderer {
     for (const b of map.buildings) {
       const bottom = (b.y + b.h) * TILE;
       if (p.y >= bottom) continue;
-      const top = b.tower ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : this.pixel ? bottom - TILE * 0.9 : b.y * TILE - TILE * 0.6; // roofless: only the front face covers you
+      const top = b.tower && !this.pixel ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : this.pixel ? bottom - TILE * 0.9 : b.y * TILE - TILE * 0.6; // roofless: only the front face covers you
       if (p.x > b.x * TILE - 8 && p.x < (b.x + b.w) * TILE + 8 && p.y > top && p.y - 40 < bottom) return true;
     }
     return false;
@@ -673,7 +699,7 @@ export class Renderer {
           warm.push([p.x * TILE + 16 + L.x, p.y * TILE + 2 + L.y, 30]);
         }
         for (const b of L.map.buildings) {
-          if (b.tower) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
+          if (b.tower && !this.pixel) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
           if (!this.buildingLit(b)) continue;
           hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
         }

@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.41.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 4): going up',
+    notes: [
+      'Skyscrapers are roofless lobbies now, with lifts. Each floor is its own level, high above the city — you can see the streets far below through the glass.',
+      'Vantage Point is open to the public, 08:00–20:00: the lobby, an office floor to let, the Sky Lounge on 23 (mind the prices) and the helipad on the roof.',
+      'Live in the Atlas Rooms or the Harbourline — or know someone who does? Take the lift to the roof.',
+    ],
+  },
+  {
     version: '0.40.0',
     date: '2026-10-17',
     channel: 'development',

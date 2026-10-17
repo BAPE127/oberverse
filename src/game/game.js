@@ -539,6 +539,24 @@ export class Game {
     return out;
   }
 
+  /** v0.41.0: a tower's lift — every floor but this one. */
+  liftPanel(towerId) {
+    const t = this.content.towers[towerId];
+    const here = this.player.map;
+    const options = t.floors.filter((f) => f.map !== here).map((f) => ({ label: `${f.n} — ${f.name}`, call: ['game', 'rideLift', towerId, f.map] }));
+    options.push({ label: 'Stay here', call: ['vehicles', 'noop'] });
+    const cur = t.floors.find((f) => f.map === here);
+    return { type: 'choices', title: `${t.name} — lift`, text: `The doors slide open. ${cur ? `You're on ${cur.n === 'G' ? 'the ground floor' : cur.n === 'R' ? 'the roof' : `floor ${cur.n}`}. ` : ''}Which floor?`, options };
+  }
+
+  rideLift(towerId, mapId) {
+    const f = this.content.towers[towerId]?.floors.find((x) => x.map === mapId);
+    if (!f) return { ok: false };
+    this.bus.emit('sfx', { id: 'sfx_door' });
+    this.changeMap(f.map, 'lift');
+    return { ok: true, text: `Ding. ${f.n === 'G' ? 'Ground floor' : f.n === 'R' ? 'The roof' : `Floor ${f.n}`} — ${f.name}.` };
+  }
+
   useDoor(door) {
     if (!this.playerCanPass(door)) return false;
     const lock = door.lock;
@@ -753,6 +771,7 @@ export class Game {
       case 'busstop': return 'Check the bus times';
       case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}`, wheel: 'Take the wheel', logbook: 'Read the logbook' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
+      case 'lift': return 'Call the lift';
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
       case 'farm': return this.farm.label(prop);
@@ -819,6 +838,7 @@ export class Game {
       return { type: 'message', text: prop.examine };
     }
     switch (act.kind) {
+      case 'lift': return this.liftPanel(act.tower);
       case 'container': {
         const cdef = this.containerDef(act.container);
         if (cdef?.lockedBy && !this.inventory.count(cdef.lockedBy)) {

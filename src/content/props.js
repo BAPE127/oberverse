@@ -72,6 +72,8 @@ export const PROP_TYPES = {
   cot: { solid: true, label: 'Camp cot', defaults: { w: 1, h: 2 } },
   chest: { solid: true, label: 'Chest', defaults: {} },
   lamp_mechanism: { solid: true, label: 'Lamp mechanism', defaults: { w: 2, h: 2 } },
+  lift: { solid: true, label: 'Lift', defaults: {} }, // v0.41.0
+  helipad: { solid: false, label: 'Helipad', defaults: { w: 4, h: 4 } },
   stairs: { solid: true, label: 'Spiral stair', defaults: {} },
   lectern: { solid: true, label: 'Lectern', defaults: {} },
   display: { solid: true, label: 'Display case', defaults: { w: 2 } },

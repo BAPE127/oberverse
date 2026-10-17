@@ -208,6 +208,33 @@ export function drawPixelProp(ctx, p, opts) {
       R(W / 2 - 1, 2, 1, hh, '#5a3f2c');
       return true;
     }
+    case 'lift': {
+      // brushed-steel doors in the back wall, a brass dial over them, a call button
+      R(1, 0, 14, 16, INK);
+      R(2, 1, 12, 15, '#5a5e68');
+      R(3, 4, 10, 12, '#b8bec8'); R(3, 4, 1, 12, '#d8dee6'); R(8, 4, 1, 12, '#6a6e78'); R(12, 4, 1, 12, '#8a909a');
+      R(5, 1, 6, 2, '#c9a24a'); R(7 + Math.round(Math.sin((opts.time || 0) * 0.7 + p.x) * 2), 1, 1, 1, INK);
+      R(14, 8, 1, 2, '#e8b83a');
+      return true;
+    }
+    case 'helipad': {
+      R(0, 0, W, H, '#5a5c62');
+      const r = W / 2 - 3;
+      for (let yy = 0; yy < H; yy++) {
+        const dy = yy - H / 2 + 0.5;
+        const half = Math.sqrt(Math.max(0, r * r - dy * dy));
+        if (half <= 0) continue;
+        const x0 = Math.round(W / 2 - half);
+        R(x0, yy, Math.round(half * 2), 1, '#e8b83a');
+        const inner = Math.sqrt(Math.max(0, (r - 2) ** 2 - dy * dy));
+        if (inner > 0) R(Math.round(W / 2 - inner), yy, Math.round(inner * 2), 1, '#4a4c52');
+      }
+      const hx = W / 2 - 8;
+      const hy = H / 2 - 10;
+      R(hx, hy, 4, 20, '#f2efe6'); R(hx + 12, hy, 4, 20, '#f2efe6'); R(hx + 4, hy + 8, 8, 4, '#f2efe6');
+      for (let k = 2; k < W - 2; k += 6) { R(k, 1, 3, 1, '#f2efe6'); R(k, H - 2, 3, 1, '#f2efe6'); }
+      return true;
+    }
     default: return false;
   }
 }

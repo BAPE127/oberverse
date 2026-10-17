@@ -3109,6 +3109,8 @@ const PROP_TYPES = {
   cot: { solid: true, label: 'Camp cot', defaults: { w: 1, h: 2 } },
   chest: { solid: true, label: 'Chest', defaults: {} },
   lamp_mechanism: { solid: true, label: 'Lamp mechanism', defaults: { w: 2, h: 2 } },
+  lift: { solid: true, label: 'Lift', defaults: {} }, // v0.41.0
+  helipad: { solid: false, label: 'Helipad', defaults: { w: 4, h: 4 } },
   stairs: { solid: true, label: 'Spiral stair', defaults: {} },
   lectern: { solid: true, label: 'Lectern', defaults: {} },
   display: { solid: true, label: 'Display case', defaults: { w: 2 } },
@@ -11082,6 +11084,129 @@ const PATROLS = {
 return { OCCUPATIONS, RESIDENCES, LIFE, ERRANDS, LIFE_EXCEPTIONS, PATROLS };
 })();
 
+// ---- src/content/towers.js
+__m["src/content/towers.js"] = (function () {
+// Tower floors and lifts (v0.41.0, art revamp stage 4). A tower's ground floor is a room on the
+// street (roofless, like everything else); a lift goes up, and each floor is its own little map
+// drawn high over the city below (`aloft`). Vantage Point opens to the public (08:00–20:00):
+// a lobby, an office floor to let, the Sky Lounge on 23 and the helipad roof. The Atlas Rooms and
+// the Harbourline Apartments get a lift from their stairwells to the roof (residents and guests).
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+
+const TOWERS = {
+  vantage: {
+    name: 'Vantage Point', map: 'halvermouth', building: 't_vantage', hours: { from: '08:00', to: '20:00' },
+    floors: [
+      { n: 'G', name: 'Lobby', map: 'vantage_lobby' },
+      { n: '12', name: 'Offices to let', map: 'vantage_12' },
+      { n: '23', name: 'The Sky Lounge', map: 'vantage_23' },
+      { n: 'R', name: 'The roof — helipad', map: 'vantage_roof' },
+    ],
+  },
+  atlas: { name: 'The Atlas Rooms', map: 'halvermouth', building: 't_atlas', floors: [{ n: 'G', name: 'Stairwell', map: 'atlas_hall' }, { n: 'R', name: 'The roof', map: 'atlas_roof' }] },
+  harbourline: { name: 'Harbourline Apartments', map: 'halvermouth', building: 't_harbourline', floors: [{ n: 'G', name: 'Stairwell', map: 'harbourline_hall' }, { n: 'R', name: 'The roof', map: 'harbourline_roof' }] },
+};
+
+const lift = (tower, x, id) => ({ id, type: 'lift', x, y: 0, interact: { kind: 'lift', tower }, examine: 'A lift. Brushed steel, a brass dial over the doors.' });
+
+/** A floor high up: no doors out, only the lift (at x) — spots `entry` and `lift` in front of it. */
+function floor(id, name, tower, w, h, ground, liftX, props, extra = {}) {
+  return {
+    id, name, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor', aloft: { tower }, ...extra,
+    tiles: roomTiles(w, h, ground, liftX).map((row, y) => (y === h - 1 ? 'W'.repeat(w) : row)),
+    doors: [],
+    spots: { entry: { x: liftX, y: 2, facing: 'down' }, lift: { x: liftX, y: 2, facing: 'down' }, ...(extra.spots || {}) },
+    keepClear: [[liftX, 1], [liftX, 2]],
+    props: [lift(tower, liftX, `${id}_lift`), ...props],
+  };
+}
+
+function roof(id, name, tower, w, h, props, extra = {}) {
+  return floor(id, name, tower, w, h, 'g', 2, [
+    { id: `${id}_tank`, type: 'barrel', x: w - 3, y: 1, name: 'Water butt', examine: 'The rainwater butt. Someone has painted a face on it. It looks worried.' },
+    { id: `${id}_tank_b`, type: 'barrel', x: w - 2, y: 1 },
+    { id: `${id}_vent_a`, type: 'vent', x: 6, y: 1 },
+    { id: `${id}_vent_b`, type: 'vent', x: 7, y: 1 },
+    ...props,
+  ], { roof: true, ...extra });
+}
+
+function towerMaps() {
+  const V = 'vantage';
+  return [
+    {
+      id: 'vantage_lobby', name: 'Vantage Point — Lobby', kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
+      tiles: roomTiles(14, 9, 't', 7),
+      doors: [{ id: 'door_vantage_lobby_exit', x: 7, y: 8, to: { map: 'halvermouth', spot: 'vantage_door_out' } }],
+      spots: { entry: { x: 7, y: 7, facing: 'up' }, lift: { x: 5, y: 2, facing: 'down' }, desk: { x: 10, y: 3, facing: 'down' } },
+      keepClear: [[7, 7], [5, 1], [8, 1], [5, 2]],
+      props: [
+        lift(V, 5, 'vantage_lift_a'), lift(V, 8, 'vantage_lift_b'),
+        { id: 'vantage_desk', type: 'counter', x: 9, y: 4, w: 3, examine: 'Reception. A brass bell, a visitors\' book and a sign: "THE SKY LOUNGE — FLOOR 23 — OPEN TO ALL".' },
+        { id: 'vantage_plant_a', type: 'plant', x: 1, y: 1 }, { id: 'vantage_plant_b', type: 'plant', x: 12, y: 1 },
+        { id: 'vantage_sofa_a', type: 'chair', x: 2, y: 5 }, { id: 'vantage_sofa_b', type: 'chair', x: 3, y: 5 },
+        { id: 'vantage_table', type: 'table', x: 2, y: 6 },
+        { id: 'vantage_rug', type: 'rug', x: 5, y: 3, w: 4, h: 3, color: '#2e3a4e' },
+        { id: 'vantage_board', type: 'cabinet', x: 12, y: 6, examine: 'The directory: 12 — OFFICES TO LET. 23 — THE SKY LOUNGE. R — HELIPAD (no unauthorised landings).' },
+      ],
+    },
+    floor('vantage_12', 'Vantage Point — Floor 12 (offices to let)', V, 16, 10, 'c', 2, [
+      ...[3, 7, 11].flatMap((x, i) => [
+        { id: `v12_desk_${i}`, type: 'desk', x, y: 3 }, { id: `v12_chair_${i}`, type: 'chair', x, y: 4 },
+        { id: `v12_desk_${i}b`, type: 'desk', x, y: 6 }, { id: `v12_chair_${i}b`, type: 'chair', x, y: 7 },
+      ]),
+      { id: 'v12_cabinet_a', type: 'cabinet', x: 14, y: 1 }, { id: 'v12_cabinet_b', type: 'cabinet', x: 13, y: 1 },
+      { id: 'v12_plant', type: 'plant', x: 14, y: 8 },
+      { id: 'v12_sign', type: 'sign', x: 5, y: 1, examine: '"TO LET — 4,000 sq ft of prime Halvermouth office space. Enquiries: Ironclad Securities." The carpet still has the dents of someone else\'s desks.' },
+    ]),
+    floor('vantage_23', 'Vantage Point — The Sky Lounge (floor 23)', V, 16, 10, 'f', 2, [
+      { id: 'v23_bar', type: 'counter', x: 9, y: 1, w: 5, examine: 'The bar. Everything costs twice what it should; the view is free.' },
+      ...[[3, 4], [7, 5], [11, 6], [4, 7], [12, 3]].flatMap(([x, y], i) => [
+        { id: `v23_table_${i}`, type: 'table', x, y, color: '#2e2a36' }, { id: `v23_chair_${i}`, type: 'chair', x: x + 1, y },
+      ]),
+      { id: 'v23_rug', type: 'rug', x: 6, y: 3, w: 3, h: 2, color: '#6a3a4a' },
+      { id: 'v23_plant_a', type: 'plant', x: 1, y: 8 }, { id: 'v23_plant_b', type: 'plant', x: 14, y: 8 },
+      { id: 'v23_scope', type: 'plant', x: 14, y: 1, name: 'Telescope', examine: 'A coin telescope (1 obol). Through it: the Lantern Canal, the Yards\' cranes, and someone in the Ledgerline Building picking their nose.' },
+    ], { spots: { bar_a: { x: 10, y: 2, facing: 'up' }, bar_b: { x: 12, y: 2, facing: 'up' } } }),
+    roof('vantage_roof', 'Vantage Point — The roof', V, 16, 12, [
+      { id: 'vroof_helipad', type: 'helipad', x: 6, y: 4, w: 4, h: 4, examine: 'The helipad. Painted on it, in letters a pilot could read from a mile up: NO UNAUTHORISED LANDINGS.' },
+      { id: 'vroof_crate', type: 'crate', x: 13, y: 9 },
+    ]),
+    roof('atlas_roof', 'The Atlas Rooms — the roof', 'atlas', 11, 9, [
+      { id: 'aroof_line', type: 'laundry', x: 3, y: 5, w: 3 },
+      { id: 'aroof_chair', type: 'chair', x: 8, y: 6, examine: 'A deckchair, weighed down with a brick. Someone comes up here to smoke and think.' },
+      { id: 'aroof_plant', type: 'plant', x: 1, y: 7 },
+    ]),
+    roof('harbourline_roof', 'Harbourline Apartments — the roof', 'harbourline', 13, 9, [
+      { id: 'hroof_bench', type: 'bench', x: 4, y: 6, w: 2, examine: 'A bench facing the bay. "IN MEMORY OF THE NIGHT SHIFT."' },
+      { id: 'hroof_plant_a', type: 'plant', x: 1, y: 7 }, { id: 'hroof_plant_b', type: 'plant', x: 11, y: 7 },
+    ]),
+  ];
+}
+
+/** Final coordinates: Vantage Point's door opens on its lobby; the stairwells get their lifts; floors learn where they stand. */
+function addTowers(maps) {
+  for (const [id, t] of Object.entries(TOWERS)) {
+    const street = maps[t.map];
+    const b = street.buildings.find((x) => x.id === t.building);
+    if (!b) throw new Error(`towers: no building ${t.building}`);
+    for (const f of t.floors) if (maps[f.map].aloft) maps[f.map].aloft = { tower: id, over: t.map, x: b.x + b.w / 2, y: b.y + b.h / 2 };
+    const ground = maps[t.floors[0].map];
+    if (id === 'vantage') {
+      b.door = { x: b.door.x, y: b.door.y, to: { map: 'vantage_lobby', spot: 'entry' }, lock: { hours: t.hours, message: 'Vantage Point: the lobby is open 08:00–20:00.' } };
+      street.spots.vantage_door_out = { x: b.door.x, y: b.door.y + 1, facing: 'down' };
+    } else if (!ground.props.some((p) => p.type === 'lift')) {
+      const x = ground.tiles[0].length - 2;
+      ground.props.push(lift(id, x, `${ground.id}_lift`));
+      ground.spots.lift = { x, y: 1, facing: 'down' };
+      ground.keepClear = [...(ground.keepClear || []), [x, 1]];
+    }
+  }
+}
+
+return { TOWERS, towerMaps, addTowers };
+})();
+
 // ---- src/content/homes.js
 __m["src/content/homes.js"] = (function () {
 // Homes (v0.36.0). Owner's rule: no beds in stores or shops — every character
@@ -11451,6 +11576,7 @@ const dlgLariat = __m["src/content/dialogue/lariat.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
+const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
 const { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } = __m["src/content/homes.js"];
 const { buildPatrols } = __m["src/world/patrols.js"];
 
@@ -11467,7 +11593,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps(), ...towerMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -11475,6 +11601,7 @@ REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 const TRANSIT = buildTransit(SHIFTS);
 addStreetFurniture(MAPS, TRANSIT);
 addHomes(MAPS); // v0.36.0: front doors for the new homes (final coordinates)
+addTowers(MAPS); // v0.41.0: tower lobbies, lifts and floors
 const HOMES_LIFE = homeResidences();
 markHomes(MAPS, { ...RESIDENCES, ...HOMES_LIFE.residences }, LIFE);
 const PATROL_ROUTES = buildPatrols(MAPS, PATROLS); // v0.32.0: police beats, as spots on the pavement
@@ -11502,6 +11629,7 @@ const BASE_CONTENT = {
   facts: FACTS,
   docs: DOCS,
   containers: { ...CONTAINERS, ...homeContainers() },
+  towers: TOWERS,
   lodging: LODGING, // v0.36.0: where the arms works' hired hands sleep
   shops: SHOPS,
   factions: FACTIONS,
@@ -11546,7 +11674,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.40.0';
+const GAME_VERSION = '0.41.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -27890,6 +28018,24 @@ class Game {
     return out;
   }
 
+  /** v0.41.0: a tower's lift — every floor but this one. */
+  liftPanel(towerId) {
+    const t = this.content.towers[towerId];
+    const here = this.player.map;
+    const options = t.floors.filter((f) => f.map !== here).map((f) => ({ label: `${f.n} — ${f.name}`, call: ['game', 'rideLift', towerId, f.map] }));
+    options.push({ label: 'Stay here', call: ['vehicles', 'noop'] });
+    const cur = t.floors.find((f) => f.map === here);
+    return { type: 'choices', title: `${t.name} — lift`, text: `The doors slide open. ${cur ? `You're on ${cur.n === 'G' ? 'the ground floor' : cur.n === 'R' ? 'the roof' : `floor ${cur.n}`}. ` : ''}Which floor?`, options };
+  }
+
+  rideLift(towerId, mapId) {
+    const f = this.content.towers[towerId]?.floors.find((x) => x.map === mapId);
+    if (!f) return { ok: false };
+    this.bus.emit('sfx', { id: 'sfx_door' });
+    this.changeMap(f.map, 'lift');
+    return { ok: true, text: `Ding. ${f.n === 'G' ? 'Ground floor' : f.n === 'R' ? 'The roof' : `Floor ${f.n}`} — ${f.name}.` };
+  }
+
   useDoor(door) {
     if (!this.playerCanPass(door)) return false;
     const lock = door.lock;
@@ -28104,6 +28250,7 @@ class Game {
       case 'busstop': return 'Check the bus times';
       case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}`, wheel: 'Take the wheel', logbook: 'Read the logbook' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
+      case 'lift': return 'Call the lift';
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
       case 'farm': return this.farm.label(prop);
@@ -28170,6 +28317,7 @@ class Game {
       return { type: 'message', text: prop.examine };
     }
     switch (act.kind) {
+      case 'lift': return this.liftPanel(act.tower);
       case 'container': {
         const cdef = this.containerDef(act.container);
         if (cdef?.lockedBy && !this.inventory.count(cdef.lockedBy)) {
@@ -28689,6 +28837,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.41.0',
+    date: '2026-10-17',
+    channel: 'development',
+    title: 'Pixels (art revamp, part 4): going up',
+    notes: [
+      'Skyscrapers are roofless lobbies now, with lifts. Each floor is its own level, high above the city — you can see the streets far below through the glass.',
+      'Vantage Point is open to the public, 08:00–20:00: the lobby, an office floor to let, the Sky Lounge on 23 (mind the prices) and the helipad on the roof.',
+      'Live in the Atlas Rooms or the Harbourline — or know someone who does? Take the lift to the roof.',
+    ],
+  },
   {
     version: '0.40.0',
     date: '2026-10-17',
@@ -29454,7 +29613,7 @@ function tile(R, map, x, y, at, run) {
       for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 4) R(px + j, py + k, 1, 1, PAL.carpet[1]);
       break;
     }
-    case 'W': R(px, py, A, A, PAL.wallTop); break;
+    case 'W': if (!(map.def?.aloft && map.def.roof)) R(px, py, A, A, PAL.wallTop); break; // a roof's edge is open to the drop
     default: {
       const tt = TILE_TYPES[ch] || TILE_TYPES.x;
       R(px, py, A, A, r < 0.5 ? tt.color : tt.alt || tt.color);
@@ -29510,10 +29669,31 @@ function edges(R, map, x, y, at) {
 }
 
 function interiorWalls(R, map, at) {
+  const aloft = map.def?.aloft;
   for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
     const ch = at(x, y);
     const px = x * A;
     const py = y * A;
+    if (ch === 'W' && aloft && map.def.roof) {
+      // v0.41.0: a roof's parapet — a low concrete lip, the drop beyond it
+      const n = y === 0 ? [0, A - 5, A, 5] : y === map.height - 1 ? [0, 0, A, 5] : x === 0 ? [A - 5, 0, 5, A] : [0, 0, 5, A];
+      R(px + n[0], py + n[1], n[2], n[3], INK);
+      R(px + n[0] + (n[2] > 5 ? 0 : 1), py + n[1] + (n[3] > 5 ? 0 : 1), n[2] - (n[2] > 5 ? 0 : 2), n[3] - (n[3] > 5 ? 0 : 2), '#b8b6ae');
+      continue;
+    }
+    if (ch === 'W' && aloft) {
+      // v0.41.0: a floor high up has glass walls — sky beyond the mullions
+      if (y === 0) {
+        R(px, py, A, 3, '#3a3e48'); R(px, py + 3, A, 1, INK);
+        R(px, py + 4, A, 11, '#9cc8e0'); R(px + 2, py + 5, 3, 8, '#c8e4f0'); R(px + A - 1, py + 4, 1, 11, '#3a3e48');
+        R(px, py + 15, A, 1, '#3a3e48');
+      } else {
+        R(px, py, A, A, '#3a3e48');
+        R(px + 1, py + 1, A - 2, A - 2, '#8fb8d0');
+        R(px + 2, py + 2, 2, A - 4, '#c8e4f0');
+      }
+      continue;
+    }
     if (ch === 'W') {
       if (y === 0) {
         // the back wall: a dark top, then a tall face with a dado rail and wainscot
@@ -30151,6 +30331,33 @@ function drawPixelProp(ctx, p, opts) {
       R(W / 2 - 1, 2, 1, hh, '#5a3f2c');
       return true;
     }
+    case 'lift': {
+      // brushed-steel doors in the back wall, a brass dial over them, a call button
+      R(1, 0, 14, 16, INK);
+      R(2, 1, 12, 15, '#5a5e68');
+      R(3, 4, 10, 12, '#b8bec8'); R(3, 4, 1, 12, '#d8dee6'); R(8, 4, 1, 12, '#6a6e78'); R(12, 4, 1, 12, '#8a909a');
+      R(5, 1, 6, 2, '#c9a24a'); R(7 + Math.round(Math.sin((opts.time || 0) * 0.7 + p.x) * 2), 1, 1, 1, INK);
+      R(14, 8, 1, 2, '#e8b83a');
+      return true;
+    }
+    case 'helipad': {
+      R(0, 0, W, H, '#5a5c62');
+      const r = W / 2 - 3;
+      for (let yy = 0; yy < H; yy++) {
+        const dy = yy - H / 2 + 0.5;
+        const half = Math.sqrt(Math.max(0, r * r - dy * dy));
+        if (half <= 0) continue;
+        const x0 = Math.round(W / 2 - half);
+        R(x0, yy, Math.round(half * 2), 1, '#e8b83a');
+        const inner = Math.sqrt(Math.max(0, (r - 2) ** 2 - dy * dy));
+        if (inner > 0) R(Math.round(W / 2 - inner), yy, Math.round(inner * 2), 1, '#4a4c52');
+      }
+      const hx = W / 2 - 8;
+      const hy = H / 2 - 10;
+      R(hx, hy, 4, 20, '#f2efe6'); R(hx + 12, hy, 4, 20, '#f2efe6'); R(hx + 4, hy + 8, 8, 4, '#f2efe6');
+      for (let k = 2; k < W - 2; k += 6) { R(k, 1, 3, 1, '#f2efe6'); R(k, H - 2, 3, 1, '#f2efe6'); }
+      return true;
+    }
     default: return false;
   }
 }
@@ -30226,7 +30433,7 @@ function layout(b, inside, W, H) {
     } else if (/diner|cafe|bar\b|star|saloon|grill|lucky/i.test(name)) {
       P('counter', Math.min(4, Math.floor((W - 8) / 16)), 1, 4, 1); P('shelf', 1, 1, W - 20, 0, {});
       rowOf((tx) => { P('table', 1, 1, tx, H - 20); P('chair', 1, 1, tx + 16, H - 20); });
-    } else if (/bank|bail|office|exchange|trust|insurance|school|church|mission|hall|post|land/i.test(name)) {
+    } else if (/bank|bail|office|exchange|trust|insurance|school|church|mission|hall|post|land|mutual|ledger|herald|telephone|ironclad|securities|tower|hotel/i.test(name)) {
       P('cabinet', 1, 1, 2, 0); P('cabinet', 1, 1, 20, 0);
       rowOf((tx) => { P('desk', 1, 1, tx, H - 22); P('chair', 1, 1, tx + 16, H - 22); });
     } else if (/storage|cold|port|wh\d|depot|elevator|garage|repair|tractor|warehouse|gate/i.test(name)) {
@@ -30291,6 +30498,8 @@ function drawPixelBuilding(ctx, b, opts) {
   R(TOPW, TOPW + BACK - 4, W - TOPW * 2, 1, shade(trim, 10));
   R(TOPW, TOPW + BACK - 3, W - TOPW * 2, 3, shade(wall, -26));
   R(TOPW, TOPW, W - TOPW * 2, 1, INK);
+  // a tower's lobby: lift doors in the back wall (the floors above are reached from inside)
+  if (b.tower) for (const lx of [Math.floor(W / 2) - 13, Math.floor(W / 2) + 3]) { R(lx, TOPW + 1, 10, BACK - 1, INK); R(lx + 1, TOPW + 2, 8, BACK - 2, '#b8bec8'); R(lx + 4, TOPW + 2, 1, BACK - 2, '#6a6e78'); R(lx + 3, TOPW + 1, 4, 1, '#c9a24a'); }
   // side walls
   for (const sx of [0, W - TOPW]) { R(sx, 0, TOPW, frontY, INK); R(sx + 1, 1, TOPW - 2, frontY - 1, top); }
 
@@ -32791,8 +33000,8 @@ function drawTower(ctx, b, opts) {
 
 function drawBuilding(ctx, b, opts) {
   if (b.round) return drawLighthouse(ctx, b, opts);
+  if (pixelProps) return drawPixelBuilding(ctx, b, opts); // v0.40.0: roofless (v0.41.0: towers too — their lobbies)
   if (b.tower) return drawTower(ctx, b, opts);
-  if (pixelProps) return drawPixelBuilding(ctx, b, opts); // v0.40.0: roofless
   const left = b.x * T;
   const right = (b.x + b.w) * T;
   const top = b.y * T;
@@ -32996,7 +33205,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash']);
+const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -33400,6 +33609,7 @@ function drawProp(ctx, p, opts) {
       rrect(ctx, x + 6, y + 6, w - 12, h - 12, 3); ctx.stroke();
       break;
     }
+    case 'lift': case 'helipad': drawPixelProp(ctx, p, opts); break; // v0.41.0: pixel art in both looks
     case 'window': {
       ctx.fillStyle = opts.night ? '#2c3a5a' : '#a8cfe0';
       ctx.fillRect(x + 4, y + 4, w - 8, h * 0.5);
@@ -36038,6 +36248,31 @@ class Renderer {
     return this.staticLayers.get(map);
   }
 
+  /** v0.41.0: a floor high up is drawn over the city far below (its ground, small and hazy, sliding with the camera). */
+  drawCityBelow(ctx, lm, lv) {
+    const a = lm.def.aloft;
+    const city = this.game.maps.get(a.over);
+    if (!city) return;
+    const ground = this.staticLayer(city);
+    const k = 0.45; // how small the street looks from up here
+    const unit = (ground.width / city.width) / TILE; // the ground canvas's pixels per world pixel
+    const cx = (lm.width * TILE) / 2;
+    const cy = (lm.height * TILE) / 2;
+    const camX = lv.x + lv.w / 2;
+    const camY = lv.y + lv.h / 2;
+    // the tower's own spot in the city sits under the middle of the floor, and drifts with the camera (parallax)
+    const ox = cx - (camX - cx) * 0.35 - a.x * TILE * k;
+    const oy = cy - (camY - cy) * 0.35 - a.y * TILE * k + TILE * 6;
+    ctx.fillStyle = '#6f8aa6';
+    ctx.fillRect(lv.x - 64, lv.y - 64, lv.w + 128, lv.h + 128);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(ground, 0, 0, ground.width, ground.height, ox, oy, (ground.width / unit) * k, (ground.height / unit) * k);
+    ctx.restore();
+    ctx.fillStyle = this.game.clock.minuteOfDay > 20 * 60 || this.game.clock.minuteOfDay < 6 * 60 ? 'rgba(15,20,45,0.5)' : 'rgba(170,200,230,0.3)';
+    ctx.fillRect(lv.x - 64, lv.y - 64, lv.w + 128, lv.h + 128);
+  }
+
   /** Factory build mode: the placement ghost (green = fits, red = blocked). */
   drawBuildCursor(ctx, c) {
     const x = c.x * TILE;
@@ -36178,6 +36413,7 @@ class Renderer {
         fn();
         ctx.restore();
       };
+      if (lm.def?.aloft?.over) this.drawCityBelow(ctx, lm, lv);
       const layer = this.staticLayer(lm);
       const sx = Math.max(0, Math.floor(lv.x));
       const sy = Math.max(0, Math.floor(lv.y));
@@ -36209,7 +36445,7 @@ class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
-        const above = b.tower ? towerHeight(b) / TILE : 4;
+        const above = b.tower && !this.pixel ? towerHeight(b) / TILE : 4;
         if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
         items.push({ y: (b.y + b.h) * TILE + L.y, draw: at(() => drawBuilding(ctx, b, { lit: this.buildingLit(b), night, time: this.time, lampLit: Boolean(g.getFlag('lighthouse_relit')), doorLocked: door && !g.playerCanPass(door), inside: door?.to?.map ? g.maps.get(door.to.map) : null })) });
@@ -36315,7 +36551,7 @@ class Renderer {
     for (const b of map.buildings) {
       const bottom = (b.y + b.h) * TILE;
       if (p.y >= bottom) continue;
-      const top = b.tower ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : this.pixel ? bottom - TILE * 0.9 : b.y * TILE - TILE * 0.6; // roofless: only the front face covers you
+      const top = b.tower && !this.pixel ? bottom - towerHeight(b) : b.round ? b.y * TILE - TILE * 4.5 : this.pixel ? bottom - TILE * 0.9 : b.y * TILE - TILE * 0.6; // roofless: only the front face covers you
       if (p.x > b.x * TILE - 8 && p.x < (b.x + b.w) * TILE + 8 && p.y > top && p.y - 40 < bottom) return true;
     }
     return false;
@@ -36627,7 +36863,7 @@ class Renderer {
           warm.push([p.x * TILE + 16 + L.x, p.y * TILE + 2 + L.y, 30]);
         }
         for (const b of L.map.buildings) {
-          if (b.tower) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
+          if (b.tower && !this.pixel) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
           if (!this.buildingLit(b)) continue;
           hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
         }
