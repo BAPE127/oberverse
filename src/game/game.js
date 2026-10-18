@@ -313,8 +313,9 @@ export class Game {
     this.transit.update(dt);
     this.pursuit.update(dt);
     const now = this.clock.total;
+    const live = this.physicalMaps();
     for (const npc of this.npcs.values()) {
-      if (npc.map !== this.player.map) continue;
+      if (!live.has(npc.map)) continue;
       if (npc.inDialogue || npc.hostile || npc.pursuit || isDown(npc, now)) {
         if (!npc.hostile && !npc.pursuit) npc.moving = false;
         continue;
@@ -341,7 +342,7 @@ export class Game {
     this.farm.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
-      if (this.skipping || npc.map !== this.player.map) this.npcSystem.updateAbstract(npc);
+      if (this.skipping || !this.physicalMaps().has(npc.map)) this.npcSystem.updateAbstract(npc);
     }
     this.npcSystem.transitTick(); // v0.33.0: passengers board and get off
     this.npcSystem.socialTick();
@@ -486,14 +487,37 @@ export class Game {
     const p = this.player;
     const off = this.mapOffset(p.map, door.to.map);
     if (!off) return false;
-    const heading = Math.sign(off.x) * p.vx + Math.sign(off.y) * p.vy;
+    // v0.47.0: a building's front door (a portal) is crossed walking through it — in on the
+    // street side, out on the room side; a map edge is crossed walking towards the neighbour
+    const way = door.portal ? this.portalWay(door) : { x: Math.sign(off.x), y: Math.sign(off.y) };
+    const heading = way.x * p.vx + way.y * p.vy;
     if (heading <= 0) return false;
     const nx = p.x - off.x;
     const ny = p.y - off.y;
     const dest = this.maps.get(door.to.map);
-    if (dest.rectBlocked(...box(nx, ny), this.playerActor())) return false;
+    // leaving a building you're already inside is always allowed (the lock is on the street side)
+    const actor = door.portal && this.currentMap().kind === 'interior' ? { kind: 'player', canPass: (d) => d.portal || this.playerCanPass(d) } : this.playerActor();
+    if (dest.rectBlocked(...box(nx, ny), actor)) return false;
     this.changeMap(door.to.map, null, { x: nx, y: ny, keepVelocity: true, seamless: true });
     return true;
+  }
+
+  /** Which way through a portal door leads: into the building from the street, out of it from inside. */
+  portalWay(door) {
+    if (door.way) return door.way;
+    const map = this.currentMap();
+    const inside = map.kind === 'interior';
+    // a door on the bottom wall: in is up, out is down (and so on for the other walls)
+    const edge = inside ? { x: door.x === 0 ? -1 : door.x === map.width - 1 ? 1 : 0, y: door.y === 0 ? -1 : door.y === map.height - 1 ? 1 : 0 } : null;
+    if (inside) door.way = edge.x || edge.y ? edge : { x: 0, y: 1 };
+    else {
+      const I = this.maps.get(door.to.map);
+      const off = this.mapOffset(map.id, I.id);
+      const cx = off.x + (I.width * TILE) / 2 - (door.x + 0.5) * TILE;
+      const cy = off.y + (I.height * TILE) / 2 - (door.y + 0.5) * TILE;
+      door.way = Math.abs(cy) >= Math.abs(cx) ? { x: 0, y: Math.sign(cy) || -1 } : { x: Math.sign(cx), y: 0 };
+    }
+    return door.way;
   }
 
   /** Small sideways nudge that lets the player slide around corners and into doorways. */
@@ -519,6 +543,18 @@ export class Game {
       this.bus.emit('sfx', { id: 'sfx_locked' });
       this.notify(`${door.label ? door.label + ': ' : ''}${reason}`, 'warn');
     }
+  }
+
+  /**
+   * v0.47.0: the maps whose people walk step by step — where you are and everything joined to it
+   * seamlessly (the streets either side, every building on them), since you can see into them all.
+   */
+  physicalMaps() {
+    if (this._physKey !== this.player.map) {
+      this._physKey = this.player.map;
+      this._phys = new Set([this.player.map, ...this.neighbors(this.player.map).map((n) => n.map.id)]);
+    }
+    return this._phys;
   }
 
   /** Pixel offset of another map in the same region (null if not connected seamlessly). */
@@ -741,7 +777,7 @@ export class Game {
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
     for (const door of map.doors) {
-      if (door.seamless) continue; // map edges are walked across, not "entered"
+      if (door.seamless && !(door.portal && !this.playerCanPass(door))) continue; // map edges and open front doors are walked through, not "entered" (a locked front door still says why)
       if (Math.abs(door.x - tx) + Math.abs(door.y - ty) !== 1) continue;
       const cx = (door.x + 0.5) * TILE;
       const cy = (door.y + 0.5) * TILE;
@@ -1224,6 +1260,10 @@ export class Game {
       state = { ...state, npcs: deepClone(state.npcs || {}) };
       this.widenSave(state);
     }
+    if (olderThan(state.gameVersion, '0.47.0')) {
+      state = { ...state, npcs: deepClone(state.npcs || {}) };
+      this.growSave(state);
+    }
     this.rebuildMaps();
     this.questState = deepClone(state.quests || {});
     this.npcs = new Map();
@@ -1276,6 +1316,27 @@ export class Game {
     move(this.player);
     for (const n of Object.values(state.npcs || {})) move(n);
     for (const c of Object.values(this.world.vehicles?.cars || {})) move(c);
+    delete this.world.transit;
+    this.player.riding = null;
+  }
+
+  /**
+   * v0.47.0 grew the towns so every building holds its room: move what a save from before then
+   * put on the streets (you, the residents, the cars, a forced door) to the same place in the
+   * grown street, and start the buses afresh.
+   */
+  growSave(state) {
+    const S = this.content.growShifts || {};
+    const move = (o) => {
+      const s = o && S[o.map];
+      if (!s || typeof o.x !== 'number') return;
+      o.x = s.fx(o.x / TILE) * TILE;
+      o.y = s.fy(o.y / TILE) * TILE;
+    };
+    move(this.player);
+    for (const n of Object.values(state.npcs || {})) move(n);
+    for (const c of Object.values(this.world.vehicles?.cars || {})) move(c);
+    for (const o of Object.values(this.world.homes?.open || {})) move(o);
     delete this.world.transit;
     this.player.riding = null;
   }

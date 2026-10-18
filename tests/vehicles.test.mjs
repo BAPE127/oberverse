@@ -3,7 +3,7 @@
 // region gates, selling and fresh plates, saves.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, setTime, noImpulses, CONTENT, Game, TILE } from './helpers.mjs';
+import { newGame, setTime, noImpulses, CONTENT, Game, TILE, grown } from './helpers.mjs';
 import { isProtected } from '../src/systems/combat.js';
 import { runCommand } from '../src/game/debugCommands.js';
 const TILE_SOLID = new Set(['B', 'W', 'r', 'x', 'R']);
@@ -66,7 +66,7 @@ test('buying a car: paid for, delivered to the forecourt, yours', () => {
 
 test('driving: accelerate, steer, brake; walls stop you; get out beside the car', () => {
   const g = fresh();
-  const car = inCar(g, 'yards', 20, 20, 0);
+  const car = inCar(g, 'yards', ...grown('yards', 20, 20), 0);
   const x0 = car.x;
   drive(g, 1.5, { y: -1 });
   assert.ok(car.x - x0 > 100, `moved ${car.x - x0}px`);
@@ -78,7 +78,7 @@ test('driving: accelerate, steer, brake; walls stop you; get out beside the car'
   drive(g, 1.5, { y: 1 });
   assert.ok(car.speed <= 0, 'braked (and started to reverse)');
   // into a wall: the map edge
-  const c2 = inCar(g, 'yards', 3, 20, Math.PI);
+  const c2 = inCar(g, 'yards', ...grown('yards', 3, 20), Math.PI);
   drive(g, 3, { y: -1 });
   assert.ok(c2.x > 40, 'stopped at the edge, not through it');
   g.vehicles.state.cars[c2.id].speed = 0;
@@ -90,7 +90,7 @@ test('driving: accelerate, steer, brake; walls stop you; get out beside the car'
 
 test('running people over hurts them and is a crime; the protected are never harmed', () => {
   const g = fresh();
-  const car = inCar(g, 'yards', 10, 20, 0, 'tempest');
+  const car = inCar(g, 'yards', ...grown('yards', 10, 20), 0, 'tempest');
   const al = g.npcs.get('npc_al');
   al.map = 'yards'; al.x = car.x + 260; al.y = car.y; al.path = null;
   const crimes = [];
@@ -99,7 +99,7 @@ test('running people over hurts them and is a crime; the protected are never har
   assert.ok(al.health < 100 || al.dead, `Al was hit (health ${al.health})`);
   assert.ok(crimes.includes('fact_player_assault'));
   // Mason Nails is protected: the car just stops
-  const c2 = inCar(g, 'yards', 10, 28, 0, 'tempest');
+  const c2 = inCar(g, 'yards', ...grown('yards', 10, 28), 0, 'tempest');
   const mason = g.npcs.get('npc_mason');
   assert.ok(isProtected(mason));
   mason.map = 'yards'; mason.x = c2.x + 260; mason.y = c2.y; mason.path = null;
@@ -140,7 +140,7 @@ test('hotwiring a car makes it yours (stolen) and is a crime; an officer who see
 
 test('driving through the gate to Halvermouth takes the car with you', () => {
   const g = fresh();
-  const car = inCar(g, 'westbrook', 3, 12.4, Math.PI);
+  const car = inCar(g, 'westbrook', ...grown('westbrook', 3, 12.4), Math.PI);
   drive(g, 3, { y: -1 });
   assert.equal(g.player.map, 'halvermouth');
   assert.equal(car.map, 'halvermouth');
@@ -188,7 +188,7 @@ test('talking to Marty opens the dealership', () => {
 
 test('cars and the driver\'s seat survive save/load', () => {
   const g = fresh();
-  const car = inCar(g, 'yards', 20, 20, 1);
+  const car = inCar(g, 'yards', ...grown('yards', 20, 20), 1);
   drive(g, 1, { y: -1 });
   const data = JSON.parse(JSON.stringify(g.serialize()));
   const g2 = new Game(CONTENT, { seed: 1 });
@@ -208,7 +208,7 @@ test('the debug car command parks one beside you', () => {
 
 test('v0.35.1: you can always get out — beside traffic queued on both sides, or hemmed in at the edge of the map', () => {
   const g = fresh();
-  const car = inCar(g, 'lanternside', 10, 23, 0);
+  const car = inCar(g, 'lanternside', ...grown('lanternside', 10, 23), 0);
   // traffic stopped right alongside on both sides doesn't shut the doors
   const T = g.transit;
   const real = T.boxesOn.bind(T);
@@ -216,7 +216,7 @@ test('v0.35.1: you can always get out — beside traffic queued on both sides, o
   assert.ok(g.vehicles.exit().ok);
   T.boxesOn = real;
   // a spot that used to trap you: the Yards' western edge
-  inCar(g, 'yards', 1, 20, Math.PI / 2);
+  inCar(g, 'yards', ...grown('yards', 1, 20), Math.PI / 2);
   assert.ok(g.vehicles.exit().ok);
   assert.equal(g.player.driving, null);
   assert.equal(g.maps.get('yards').doorAt(Math.floor(g.player.x / TILE), Math.floor(g.player.y / TILE)), null, 'not in a doorway');
@@ -226,8 +226,8 @@ test('v0.35.2: a car shoved partly into a wall is eased out — it can never dri
   const g = fresh();
   const m = g.maps.get('lanternside');
   // nosed into the Kettle & Crumb's front wall, and floored
-  const car = inCar(g, 'lanternside', 8, 21, 0);
-  car.y = 21.6 * TILE;
+  const car = inCar(g, 'lanternside', ...grown('lanternside', 8, 21), 0);
+  car.y = (grown('lanternside', 8, 21)[1] + 0.6) * TILE;
   assert.ok(g.vehicles.inWalls(m, car.x, car.y, car.angle, 73, 38, car) > 0, 'starts in the wall');
   let inside = 0;
   for (let t = 0; t < 8; t += 0.05) {
@@ -238,7 +238,7 @@ test('v0.35.2: a car shoved partly into a wall is eased out — it can never dri
   assert.equal(g.vehicles.inWalls(m, car.x, car.y, car.angle, 73, 38, car), 0, 'clear of it');
   assert.ok(g.vehicles.exit().ok);
   // overlapping another car you can still pull apart — but not into a wall
-  const c2 = inCar(g, 'lanternside', 20, 23, 0);
+  const c2 = inCar(g, 'lanternside', ...grown('lanternside', 20, 23), 0);
   const other = { id: 'car_x', model: 'pipit', color: '#888', map: 'lanternside', x: c2.x + 20, y: c2.y, angle: 0, owner: null, stolen: false, plate: 'X' };
   g.vehicles.state.cars.car_x = other;
   drive(g, 1.5, { y: 1 }); // reverse away from it
@@ -247,7 +247,7 @@ test('v0.35.2: a car shoved partly into a wall is eased out — it can never dri
 
 test('v0.46.0: driving west past the Kettle & Crumb you cross into Westbrook (the nose past the seam used to hit an invisible wall)', () => {
   const g = fresh();
-  const car = inCar(g, 'lanternside', 20, 14, Math.PI);
+  const car = inCar(g, 'lanternside', ...grown('lanternside', 20, 14), Math.PI);
   drive(g, 5, { y: -1 });
   assert.equal(car.map, 'westbrook', `stopped at ${car.map} ${(car.x / TILE).toFixed(1)}`);
 });

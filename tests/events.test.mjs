@@ -21,6 +21,7 @@ test('event chain: a workshop bang leads to a citation only if Osric hears of it
   g.events.fire(g.content.events.ev_workshop_bang, tibbs);
   g.knowledge.learn(osric, 'fact_workshop_bang', { kind: 'rumor', source: 'told:npc_mags', at: g.clock.total });
   setTime(g, 3, '09:58');
+  g.world.events.lastFired.ev_workshop_bang = g.clock.total; // no second (random) bang to muddy the mood
   run(g, 4);
   assert.ok(g.knowledge.knows(osric, 'fact_osric_citation'));
   assert.ok(g.knowledge.knows(tibbs, 'fact_osric_citation'));

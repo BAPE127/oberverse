@@ -21,9 +21,10 @@ test('Halvermouth is its own big region, not stitched to the coast', () => {
   const city = g.maps.get('halvermouth');
   assert.ok(city.width >= 100 && city.height >= 70, 'a sprawling map');
   assert.equal(CONTENT.regions.city.name, 'Halvermouth');
-  assert.equal(g.neighbors('halvermouth').length, 0);
+  // (v0.47.0: its buildings' rooms are laid over it — but no other street is stitched to it)
+  assert.equal(g.neighbors('halvermouth').filter((n) => n.map.kind !== 'interior').length, 0);
   assert.ok(!g.neighbors('westbrook').some((n) => n.map.id === 'halvermouth'));
-  assert.ok(!city.doors.some((d) => d.seamless));
+  assert.ok(!city.doors.some((d) => d.seamless && !d.portal));
 });
 
 test('the road west from Westbrook loads the city; the East Gate leads back', () => {
@@ -49,7 +50,7 @@ test('it has skyscrapers, the requested civic buildings and the slums', () => {
   for (const name of ['The Sumps', 'Civic Plaza', 'The Financial District', 'Precinct Row', 'Iron Row']) assert.ok(areas.includes(name), name);
   // the Hall of Justice sits in the middle of the city
   const hall = byId.b_hall_of_justice;
-  assert.ok(Math.abs(hall.x + hall.w / 2 - city.tiles[0].length / 2) < 12);
+  assert.ok(Math.abs(hall.x + hall.w / 2 - city.tiles[0].length / 2) < city.tiles[0].length * 0.15);
   // the Sumps really are run-down: mud ground, shacks, fires, tents
   const sumps = city.areas.find((a) => a.name === 'The Sumps');
   const inSumps = (o) => o.x >= sumps.x && o.x < sumps.x + sumps.w && o.y >= sumps.y && o.y < sumps.y + sumps.h;

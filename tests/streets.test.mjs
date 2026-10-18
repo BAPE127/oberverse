@@ -201,8 +201,9 @@ test('a save from before the wide roads loads with everyone moved along with the
   const g2 = new (g.constructor)(CONTENT, { seed: 1 });
   g2.loadState(data);
   const { fx, fy } = CONTENT.roadShifts.halvermouth;
-  assert.equal(g2.player.x, fx(50.5) * TILE);
-  assert.equal(g2.player.y, fy(38.5) * TILE);
+  const grow = CONTENT.growShifts.halvermouth; // …and v0.47.0 grew the town to fit its buildings
+  assert.equal(g2.player.x, grow.fx(fx(50.5)) * TILE);
+  assert.equal(g2.player.y, grow.fy(fy(38.5)) * TILE);
   assert.equal(g2.maps.get('halvermouth').tileAt(Math.floor(g2.player.x / TILE), Math.floor(g2.player.y / TILE)), ',', 'still on the kerb');
   // a current save is left alone
   const now = JSON.parse(JSON.stringify(g2.serialize()));

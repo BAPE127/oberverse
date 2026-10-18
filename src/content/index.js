@@ -64,6 +64,8 @@ import { towerMaps, addTowers, TOWERS } from './towers.js';
 import { SPECIAL_ITEMS, addSpecialWeapons } from './specialWeapons.js';
 import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } from './homes.js';
 import { buildPatrols } from '../world/patrols.js';
+import { growStreets, shiftContent } from '../world/grow.js';
+import { placeInteriors, realInterior } from '../world/interiors.js';
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 export const DUPLICATE_IDS = [];
@@ -148,6 +150,27 @@ export const BASE_CONTENT = {
   startingMap: 'player_flat',
   startingSpot: 'entry',
 };
+
+// v0.47.0: seamless buildings. The towns grow so every building holds its interior; every
+// street coordinate in the content moves with them (once — everything above is in the widened
+// coordinates); then each interior is laid over its building and the seams are re-stitched.
+const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat'];
+const GROWTH = growStreets(MAPS, REGIONS, (id, b) => {
+  const I = realInterior(MAPS, MAPS[id], b);
+  return I ? { W: I.def.tiles[0].length, H: I.def.tiles.length, ex: I.exit.x } : null;
+}, STREETS);
+{
+  const { maps: _m, regions: _r, roadShifts: _s, propTypes: _p, items: _i, ...rest } = BASE_CONTENT;
+  shiftContent(rest, GROWTH);
+  shiftContent(PLOTS, GROWTH);
+  const by = MAPS.yards.berths;
+  if (by) MAPS.yards.berths = { ...by, piers: by.piers.map((x) => GROWTH.yards.fx(x)), row: GROWTH.yards.fy(by.row) };
+}
+REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
+REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
+placeInteriors(MAPS, REGIONS, STREETS);
+addSeams(MAPS, REGIONS, PROP_TYPES);
+BASE_CONTENT.growShifts = GROWTH; // widened → grown tile coordinates (for saves from before v0.47.0)
 
 export const CONTENT = withPlots(BASE_CONTENT, PLOTS);
 

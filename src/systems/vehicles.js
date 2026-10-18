@@ -89,7 +89,7 @@ export class Vehicles {
 
   /** Actor used for car collisions: building doors block, seams and region gates don't. */
   actor(amphibious = false) {
-    return { kind: 'vehicle', amphibious, canPass: (door) => Boolean(door.seamless || door.gateway) };
+    return { kind: 'vehicle', amphibious, canPass: (door) => Boolean((door.seamless && !door.portal) || door.gateway) }; // v0.47.0: not through a building's front door
   }
 
   /** The car's body as three boxes along its length. */
@@ -114,7 +114,7 @@ export class Vehicles {
       if (out) {
         const ex = clamp(Math.floor(cx / TILE), 0, map.width - 1);
         const ey = clamp(Math.floor(cy / TILE), 0, map.height - 1);
-        if (map.doorAt(ex, ey)?.seamless) {
+        if (map.doorAt(ex, ey)?.seamless && !map.doorAt(ex, ey).portal) {
           const ix = clamp(cx, box / 2, W - box / 2);
           const iy = clamp(cy, box / 2, H - box / 2);
           if (map.rectBlocked(ix - box / 2, iy - box / 2, box, box, a)) n++;
@@ -500,7 +500,7 @@ export class Vehicles {
     const door = map.doorAt(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
     const dirn = Math.sign(car.speed) || 1;
     const nose = map.doorAt(clamp(Math.floor((car.x + Math.cos(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.width - 1), clamp(Math.floor((car.y + Math.sin(car.angle) * dirn * (m.len / 2 + 4)) / TILE), 0, map.height - 1));
-    if (door?.seamless) this.crossSeam(car, door, isPlayer);
+    if (door?.seamless && !door.portal) this.crossSeam(car, door, isPlayer);
     else if (isPlayer && (nose || door)?.gateway && Math.abs(car.speed) > 5) this.crossGate(car, (nose || door));
   }
 

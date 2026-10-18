@@ -49,9 +49,9 @@ test('a police officer walks a beat — waypoint to waypoint, stopping a while a
   assert.ok(route.every((r) => r.startsWith('halvermouth:patrol_beat_civic_')));
   // off screen: the beat still goes on
   g.changeMap('lariat', 'south_gate');
-  const before = sgt.patrolIdx;
-  run(g, 90);
-  assert.notEqual(sgt.patrolIdx, before, 'the beat continues while you are away');
+  const visited = new Set([sgt.patrolIdx]);
+  for (let i = 0; i < 18; i++) { run(g, 5); visited.add(sgt.patrolIdx); } // (a whole loop can take about this long)
+  assert.ok(visited.size >= 2, 'the beat continues while you are away');
 });
 
 test('a conversation pauses a patrol, which resumes from the same waypoint; a save keeps the officer on the beat', () => {

@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.47.0] — 2026-10-18 — Open Doors (development build)
+
+Owner, with five mock-ups drawn in the style of Streets of Rogue: "I want the game to fundamentally look like these mock up images I drew. The game should feel smooth and highly detailed with pixels … Do not sacrifice the game's details for quick delivery." Asked how buildings should work: "Seamless, like SoR"; the old look: "drop it"; zoom: "medium" (about 24 tiles across); mood: "bright by day, moody at night". This release is the groundwork — the art passes follow.
+
+### Added
+- **Seamless buildings:** every building's interior is laid over its footprint in the world (`src/world/interiors.js`). The room stays its own map (shops, homes, the works, quests and schedules all keep working) but joins its street's region at the building's position, and the front door is a walk-through crossing: you walk in and out with no scene change, and from the street you see straight in — furniture, people and all. Locked doors still stop you from the street (and say so); from inside you can always leave. Cars stop at the door.
+- **A room for every building:** buildings that never had an interior get one, the size of the building and furnished for what the place is — shop, office, diner, hotel, school, chapel, cinema, barn, storage, house or shack (`generatedInterior`). Houses and shacks may hold beds; the rest don't.
+
+### Changed
+- **The towns grew to fit their buildings** (`src/world/grow.js`): whole columns and rows are copied inside buildings — never through a road or a door — until each building is exactly the size of its room. Everything placed on the streets (spots, props, doors, quests, plots, fields, berths, schedules) moves with them; a farm field keeps its size. Lanternside is now 87×62, Westbrook 53×62, Ober Fields 62×54, Halvermouth 200×127, the Yards 112×111 and Lariat 179×125. A lamp or sign that ended up on a doorstep moves a step aside.
+- **One look, one zoom:** the pixel style is the only style (the settings toggle is gone), at one medium zoom indoors and out.
+- **People walk a little brisker** (66 → 88 px/s) to cover the bigger towns, and everyone you can see — on your map or in a building or street next to it — walks on screen rather than jumping between places. A long frame no longer slows them down (a step carries on round corners), and nobody walks frame by frame while you sleep.
+
+### Saves
+- Saves from before 0.47.0 load with you, the residents, the cars and any forced door moved to the same place in the grown streets; the buses start afresh.
+
 ## [0.46.0] — 2026-10-17 — Fine pixels (development build)
 
 Owner: "the movement feels a little laggy and the lighting seems to be flashing subtly … it just feels very shaky. the characters and player cars feel too grainy. also there a weird wall that does not let the player drive past kettles and crumbs … Characters feel too big compared to the size of buildings. pixelation is fine but it needs to be fine pixelation with crisp clean details. Apply that logic to the map."

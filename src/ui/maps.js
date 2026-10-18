@@ -62,7 +62,7 @@ export class MapRenderer {
   /** The current map plus its seamless neighbours, with tile offsets. */
   layers(map) {
     const g = this.game;
-    return [{ map, x: 0, y: 0 }, ...(map.kind === 'interior' ? [] : g.neighbors(map.id).map((n) => ({ map: n.map, x: n.x / TILE, y: n.y / TILE })))];
+    return [{ map, x: 0, y: 0 }, ...g.neighbors(map.id).map((n) => ({ map: n.map, x: n.x / TILE, y: n.y / TILE }))].sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.47.0: buildings in place
   }
 
   drawMinimap(canvas) {
@@ -254,7 +254,12 @@ export class MapRenderer {
     const g = this.game;
     const L = this.worldLayout();
     const p = g.player;
-    if (L.pos[p.map]) return { x: L.pos[p.map].x + p.x / TILE, y: L.pos[p.map].y + p.y / TILE, inside: null };
+    if (L.pos[p.map]) return { x: L.pos[p.map].x + p.x / TILE, y: L.pos[p.map].y + p.y / TILE, inside: g.currentMap().kind === 'interior' ? g.currentMap().name : null };
+    // v0.47.0: a building laid over its street — exactly where you are in it
+    for (const [id, o] of Object.entries(L.pos)) {
+      const off = g.maps.get(id)?.kind !== 'interior' ? g.mapOffset(id, p.map) : null;
+      if (off) return { x: o.x + (off.x + p.x) / TILE, y: o.y + (off.y + p.y) / TILE, inside: g.currentMap().name };
+    }
     for (const [id, o] of Object.entries(L.pos)) {
       const m = g.maps.get(id);
       const d = m.doors.find((x) => x.to?.map === p.map);

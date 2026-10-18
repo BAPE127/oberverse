@@ -1,7 +1,7 @@
 // Farming (v0.30.0): land, work by hand and by tractor, growth on the clock, the Co-op, saves.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, CONTENT, Game, TILE } from './helpers.mjs';
+import { newGame, CONTENT, Game, TILE, grown } from './helpers.mjs';
 
 const P = 'plot_east_1';
 const morning = (g, day) => { g.clock.total = (day - 1) * 1440 + 6 * 60; g.farm.dailyTick(); };
@@ -37,7 +37,8 @@ test('by hand: a job takes most of a day and tires you; a tractor of yours parke
   const car = g.vehicles.ownedCars().find((c) => c.model === 'workhorse');
   assert.equal(car.map, 'lariat');
   assert.equal(F.workPlan(P).byHand, true, 'still on the lot: too far away');
-  Object.assign(car, { x: 90 * TILE, y: 79 * TILE });
+  const [fx, fy] = grown('lariat', 90, 79);
+  Object.assign(car, { x: fx * TILE, y: fy * TILE });
   const plan = F.workPlan(P);
   assert.equal(plan.byHand, false);
   assert.ok(plan.minutes < 120, `${plan.minutes} minutes with the Workhorse`);
@@ -139,7 +140,8 @@ test('livestock: fence a pasture, buy stock at Hoof & Horn (room by area, one ki
   pasture(g);
   assert.equal(F.plot(P).state, 'pasture');
   const room = F.capacity(P, 'goats');
-  assert.equal(room, Math.floor(324 / 8));
+  const fd = g.maps.get('lariat').def.fields.find((f) => f.id === P);
+  assert.equal(room, Math.floor((fd.w * fd.h) / 8));
   assert.ok(F.buyAnimals(P, 'goats', 10).ok);
   assert.equal(F.buyAnimals(P, 'chickens', 1).ok, false, 'one kind to a pasture');
   assert.equal(F.buyAnimals(P, 'goats', room).ok, false, 'no more room than the area allows');

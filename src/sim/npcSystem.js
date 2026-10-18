@@ -16,7 +16,7 @@ import { planTrip, transitTick, carry } from './npcTransit.js';
 
 const incapacitated = (npc, now) => npc.dead || (npc.downUntil && now < npc.downUntil);
 
-export const WALK_SPEED = 66; // px per real second
+export const WALK_SPEED = 88; // px per real second (v0.47.0: 66 → 88, as the towns grew a third to fit their buildings)
 const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
 
@@ -37,7 +37,8 @@ export class NpcSystem {
   }
 
   isPhysical(npc) {
-    return npc.map === this.game.player.map;
+    if (this.game.skipping) return false; // asleep or waiting: nobody walks frame by frame
+    return npc.map === this.game.player.map || this.game.physicalMaps().has(npc.map);
   }
 
   // ---------------------------------------------------------------- planning
@@ -212,25 +213,32 @@ export class NpcSystem {
     if (npc.riding != null) { const bus = g.transit.bus(npc.riding); if (bus) carry(npc, bus); return; }
     if (npc.chat && g.clock.total < npc.chat.until) return;
     if (!npc.path || !npc.path.length) return;
-    const wp = npc.path[0];
-    const dx = wp.x - npc.x;
-    const dy = wp.y - npc.y;
-    const d = Math.hypot(dx, dy);
-    if (this.waitForSignal(npc, wp)) return;
     const speed = WALK_SPEED * (npc.profile.walkSpeed ?? 1) * (npc.speedMul ?? 1) * (g.clock.rate || 1) ** 0.5; // speedMul: a roped cow trotting to catch up (v0.29.0)
-    const step = speed * dt;
-    if (d <= step) {
-      npc.x = wp.x;
-      npc.y = wp.y;
-      npc.path.shift();
-      if (!npc.path.length) this.onPathEnd(npc);
-    } else {
-      npc.x += (dx / d) * step;
-      npc.y += (dy / d) * step;
-      npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
-      npc.moving = true;
-      npc.animTime = (npc.animTime || 0) + dt;
+    // the whole step is walked, round corners too (v0.47.0): a long frame no longer stops at each waypoint
+    let step = speed * dt;
+    for (let guard = 0; step > 0 && npc.path?.length && guard < 32; guard++) {
+      const wp = npc.path[0];
+      if (this.waitForSignal(npc, wp)) return;
+      const dx = wp.x - npc.x;
+      const dy = wp.y - npc.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 0) {
+        npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+        npc.moving = true;
+      }
+      if (d <= step) {
+        npc.x = wp.x;
+        npc.y = wp.y;
+        npc.path.shift();
+        step -= d;
+        if (!npc.path.length) { npc.moving = false; this.onPathEnd(npc); break; }
+      } else {
+        npc.x += (dx / d) * step;
+        npc.y += (dy / d) * step;
+        step = 0;
+      }
     }
+    if (npc.moving) npc.animTime = (npc.animTime || 0) + dt;
   }
 
   /**

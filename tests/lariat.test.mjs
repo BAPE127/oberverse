@@ -2,7 +2,7 @@
 // CHZ on the exchange), and the five talking lead cows of q_lost_herd.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, setTime, CONTENT, Game, TILE } from './helpers.mjs';
+import { newGame, setTime, CONTENT, Game, TILE, grown } from './helpers.mjs';
 import { DialogueSession } from '../src/dialogue/dialogueEngine.js';
 import { isProtected } from '../src/systems/combat.js';
 import { THEMES } from '../src/engine/wrath.js';
@@ -139,12 +139,12 @@ test('a roped cow walks after you — no teleport — and is home once she\'s in
   const bessie = standBy(g, 'cow_bessie');
   assert.ok(g.dairy.rope('cow_bessie').ok);
   const start = tileOf(bessie);
-  walkTo(g, 45, 64); // along Dairy Road, westward
+  walkTo(g, ...grown('lariat', 45, 64)); // along Dairy Road, westward
   const mid = tileOf(bessie);
   assert.ok(mid.x < start.x - 4, `she followed (${start.x} → ${mid.x})`);
   assert.ok(Math.hypot(bessie.x - g.player.x, bessie.y - g.player.y) < 6 * TILE, 'and kept close');
-  walkTo(g, 29, 80); // the paddock gate
-  walkTo(g, 30, 87);
+  walkTo(g, ...grown('lariat', 29, 80)); // the paddock gate
+  walkTo(g, ...grown('lariat', 30, 87));
   wait(g, 6);
   assert.equal(g.dairy.status('cow_bessie'), 'home');
   assert.ok(Math.abs(g.dairy.capacity() - 0.64) < 1e-9);
@@ -278,8 +278,8 @@ test('a roped cow right behind you comes through the North Gate with you (on foo
   g.inventory.add('item_lasso', 1);
   const bessie = standBy(g, 'cow_bessie');
   g.dairy.rope('cow_bessie');
-  walkTo(g, 73, 100); // down FM 38 toward the gate
-  walkTo(g, 73, 107);
+  walkTo(g, ...grown('lariat', 73, 100)); // down FM 38 toward the gate
+  walkTo(g, ...grown('lariat', 73, 107));
   wait(g, 2);
   assert.ok(Math.hypot(bessie.x - g.player.x, bessie.y - g.player.y) < 7 * TILE, 'she kept up');
   const gate = g.currentMap().doors.find((d) => d.to?.map === 'halvermouth');

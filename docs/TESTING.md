@@ -40,6 +40,12 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.47.0 (2026-10-18)
+
+- `npm run check` — **387/387 tests passed** (6 new in `seamless.test.mjs`: every building on the six streets has its room laid over it, exactly its size, in its region, with a walk-through door; walking into the Kettle & Crumb and out again crosses seamlessly and keeps walking; a locked door stops you from the street and you can still leave from inside; cars stop at the door; Mags walks out of the café onto the square without a jump; a 0.46 save loads with you on the same spot of the grown street). Tests that named street coordinates now go through `grown()` (`tests/helpers.mjs`); the Osric citation test pins the hourly bang's cooldown so a second random bang can't change Tibbs' mood.
+- Fixed while testing: NPCs walked half as fast with a 1-second step (they stopped at every waypoint) — Osric reached lunch late; NPCs next door froze mid-walk while you slept (they counted as on screen).
+- `npm run smoke` — 24/24. Browser: the Kettle & Crumb from Canal Row (Mags at the counter), the Herald in Halvermouth, a Lariat house and the chapel — no page errors. Screenshots: `docs/mockups/v047-*.png`.
+
 ## Verification record — v0.46.0 (2026-10-17)
 
 - `npm run check` — **381/381 tests passed** (1 new in `vehicles.test.mjs`: from Canal Row by the Kettle & Crumb, driving west for 5 s takes you into Westbrook — it failed before the fix, stuck at x = 1.1; the pixel-ground test now expects world resolution and half-unit detail).

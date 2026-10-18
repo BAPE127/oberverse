@@ -52,4 +52,13 @@ export function noImpulses(g, ids = [...g.npcs.keys()]) {
   }
 }
 
+/**
+ * v0.47.0: the towns grew to fit their buildings. A street tile authored for the old (widened)
+ * layout → where it is now: grown('lanternside', 20, 14) → [x, y].
+ */
+export function grown(map, x, y) {
+  const s = CONTENT.growShifts?.[map];
+  return s ? [s.fx(x), s.fy(y)] : [x, y];
+}
+
 export { CONTENT, Game, TILE };

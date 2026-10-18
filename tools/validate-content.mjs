@@ -419,7 +419,7 @@ export function validateContent(content = CONTENT) {
     const homeMaps = new Set(['player_flat', 'jail', 'lodging']);
     const unitMaps = new Map();
     for (const [rid, r] of Object.entries(content.life?.residences || {})) for (const u of Object.values(r.units)) { homeMaps.add(u.map); unitMaps.set(u.map, r.type); }
-    for (const m of maps.values()) for (const p of m.props) if ((p.type === 'bed' || p.type === 'cot') && !homeMaps.has(m.id) && !/_inside$/.test(m.id) /* a property you build is your home */) err(`map ${m.id}: a ${p.type} (${p.id}) outside a home — no beds in shops or workplaces`);
+    for (const m of maps.values()) for (const p of m.props) if ((p.type === 'bed' || p.type === 'cot') && !homeMaps.has(m.id) && !/_inside$/.test(m.id) /* a property you build is your home */ && !m.def?.dwelling /* v0.47.0: an empty house or shack on the street */) err(`map ${m.id}: a ${p.type} (${p.id}) outside a home — no beds in shops or workplaces`);
     for (const c of Object.values(content.characters)) for (const b of c.schedule || []) {
       if (b.activity !== 'work' || !b.spot) continue;
       const wm = parseSpotRef(b.spot).map;

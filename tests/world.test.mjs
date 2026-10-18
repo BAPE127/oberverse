@@ -85,11 +85,14 @@ test('Lanternside and the Ober Fields are one continuous space: walk straight ac
 
 test('the seam follows walkable ground only (no crossing on water)', () => {
   const g = newGame();
-  const seams = g.maps.get('lanternside').doors.filter((d) => d.seamless).map((d) => d.y);
-  assert.ok([12, 13, 14, 15].every((y) => seams.includes(y)), 'the (four-tile) road crosses');
-  assert.ok(!seams.includes(24) && !seams.includes(37), 'canal and harbour do not');
-  assert.deepEqual(g.neighbors('lanternside').map((n) => n.map.id).sort(), ['ober_fields', 'westbrook']);
-  assert.equal(g.neighbors('cafe').length, 0);
+  const L = g.maps.get('lanternside');
+  const seams = L.doors.filter((d) => d.seamless && !d.portal && d.x === 0).map((d) => d.y);
+  const rows = (ch) => [...Array(L.height).keys()].filter((y) => L.tileAt(0, y) === ch);
+  assert.equal(rows('=').length, 4, 'a four-tile road at the west edge');
+  assert.ok(rows('=').every((y) => seams.includes(y)), 'the (four-tile) road crosses');
+  assert.ok(rows('~').length && !rows('~').some((y) => seams.includes(y)), 'canal and harbour do not');
+  assert.deepEqual(g.neighbors('lanternside').filter((n) => n.map.kind !== 'interior').map((n) => n.map.id).sort(), ['ober_fields', 'westbrook']);
+  assert.ok(g.neighbors('cafe').some((n) => n.map.id === 'lanternside'), 'v0.47.0: the café sits on Canal Row, seen around you');
 });
 
 test('NPCs walk across the seam physically when the player is watching', () => {

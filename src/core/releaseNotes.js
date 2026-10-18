@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.47.0',
+    date: '2026-10-18',
+    channel: 'development',
+    title: 'Open Doors',
+    notes: [
+      'Walk straight into every building — no loading, no scene change. From the street you see right inside: the furniture, the people, the lights.',
+      'Every building is now exactly the size of the room inside it, so the towns have grown to fit: Lanternside, Westbrook, Ober Fields, Halvermouth, the Yards and Lariat are all roomier.',
+      'Buildings that never had an inside now do — furnished for what they are: shops, offices, diners, barns, chapels, houses.',
+      'One medium zoom, indoors and out; the old look is gone for good.',
+      'People walk a little brisker to cover the bigger towns, and the people you can see are always walking on screen, even next door.',
+    ],
+  },
+  {
     version: '0.46.0',
     date: '2026-10-17',
     channel: 'development',

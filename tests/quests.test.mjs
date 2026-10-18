@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, run, setTime, TILE, noImpulses } from './helpers.mjs';
+import { newGame, run, setTime, TILE, noImpulses, grown } from './helpers.mjs';
 import { DialogueSession } from '../src/dialogue/dialogueEngine.js';
 
 const say = (g, npc, ...choices) => {
@@ -105,7 +105,8 @@ test('Approach 3b — prying the hatch in front of Osric on patrol is witnessed'
   run(g, 25, 0.25);
   assert.equal(osric.map, 'lanternside');
   g.inventory.add('item_crowbar');
-  g.player.x = 13.5 * TILE; g.player.y = 38.6 * TILE;
+  const [hx, hy] = grown('lanternside', 13.5, 38.6);
+  g.player.x = hx * TILE; g.player.y = hy * TILE;
   const before = g.player.reputation.fac_civic;
   g.interact({ kind: 'prop', id: 'lighthouse_hatch' });
   assert.ok(g.knowledge.knows(osric, 'fact_player_trespassed_lighthouse'));

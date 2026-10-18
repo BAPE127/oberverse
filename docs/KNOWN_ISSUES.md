@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.46.0
+# Known Issues and Limitations — v0.47.0
+
+- **Open doors (v0.47.0):** the art is still the 0.46 look — the Streets of Rogue detail (textured ground, thick brick walls with windows, drop shadows, detailed furniture, people and cars) comes in the next releases. Buildings bought and built on a plot still have a separate interior behind a door. The lighthouse keeps its door. A shop's sign and awning aren't drawn over its room yet. The bigger towns make walks longer.
 
 - **Fine pixels (v0.46.0):** props, buildings and the ordinary cars are still built from two-pixel blocks (with one-pixel outlines now); only the people, the ground and the signature cars are fully fine. The player can wobble by a pixel against the smooth-scrolling world while walking.
 

@@ -2,7 +2,7 @@
 // property-system groundwork (using a test-only plot: there are no real plots yet).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, run, setTime, noImpulses, CONTENT, Game, TILE } from './helpers.mjs';
+import { newGame, run, setTime, noImpulses, CONTENT, Game, TILE, grown } from './helpers.mjs';
 import { BASE_CONTENT } from '../src/content/index.js';
 import { withPlots, plotInteriorId } from '../src/world/plots.js';
 import { DialogueSession } from '../src/dialogue/dialogueEngine.js';
@@ -20,10 +20,12 @@ const talk = (g, id, ...choices) => {
 const text = (node) => node.pages.join(' ');
 const ids = (node) => node.options.map((o) => o.id);
 
+// (v0.47.0: authored for the old Westbrook; grown() moves it to the same lot in the grown town)
+const [PX, PY] = grown('westbrook', 6, 28);
 const TEST_PLOTS = {
   plot_test: {
-    name: 'Test Lot', map: 'westbrook', x: 6, y: 28, w: 6, h: 5,
-    door: { x: 8, y: 32 }, outside: { x: 8, y: 33, facing: 'up' }, landPrice: 40, allowed: ['home', 'rental', 'business'],
+    name: 'Test Lot', map: 'westbrook', x: PX, y: PY, w: 6, h: 5,
+    door: { x: PX + 2, y: PY + 4 }, outside: { x: PX + 2, y: PY + 5, facing: 'up' }, landPrice: 40, allowed: ['home', 'rental', 'business'],
   },
 };
 const plotContent = () => withPlots(BASE_CONTENT, TEST_PLOTS);
