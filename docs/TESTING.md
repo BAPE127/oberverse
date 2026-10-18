@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.49.0 (2026-10-18)
+
+- `npm run check` — **389/389 tests passed** (1 new in `pixelart.test.mjs`: every prop on every map that has a sprite paints, by day and by night and with every fence connection, inside its sprite's box — it caught a razor wire, a statue plaque, the water tower's roof and the silo's dome spilling out of theirs).
+- Browser: Civic Square, the Quay, the junction by the square (the lights changing), the flat, the café, the Sumps, the rodeo grounds and the windmill at Lariat — no page errors; sprinting across Halvermouth and Lanternside, no frame over 16.8 ms. Screenshots: `docs/mockups/v049-*.png`.
+
 ## Verification record — v0.48.0 (2026-10-18)
 
 - `npm run check` — **388/388 tests passed** (1 new in `pixelart.test.mjs`: Westbrook (a beach and a river) and the Kettle & Crumb built chunk by chunk are pixel for pixel the same as built whole — no seams).

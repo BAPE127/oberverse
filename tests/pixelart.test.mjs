@@ -127,3 +127,23 @@ test('the ground in chunks (v0.48.0): built chunk by chunk it is pixel for pixel
     assert.equal(checked, W * m.height * 32);
   }
 });
+
+test('prop sprites (v0.49.0): every prop with a sprite paints, day and night, inside its sprite box', async () => {
+  const { paintPropForTest, SPRITE_PROPS } = await import('../src/engine/propSprites.js');
+  const g = newGame(1);
+  const seen = new Set();
+  for (const m of g.maps.values()) for (const p of m.props) {
+    if (!SPRITE_PROPS.has(p.type)) continue;
+    for (const night of [false, true]) for (const links of [0, 5, 10, 15]) {
+      const r = paintPropForTest(p, { night, links });
+      const [x0, y0, x1, y1] = r.box;
+      assert.ok(r.rects.length > 0, `${m.id}/${p.id}: painted`);
+      for (const [x, y, w, h] of r.rects) {
+        if (w <= 0 || h <= 0) continue;
+        assert.ok(x >= x0 && y >= y0 && x + w <= x1 + 1 && y + h <= y1 + 1, `${m.id}/${p.id} (${p.type}): ${x},${y} ${w}×${h} outside ${r.box}`);
+      }
+    }
+    seen.add(p.type);
+  }
+  for (const t of ['tree', 'chair', 'table', 'streetlamp', 'ranchfence', 'trafficlight', 'bed', 'shelf']) assert.ok(seen.has(t), t);
+});

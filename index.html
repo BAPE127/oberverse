@@ -12300,7 +12300,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.48.0';
+const GAME_VERSION = '0.49.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -30007,6 +30007,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.49.0',
+    date: '2026-10-18',
+    channel: 'development',
+    title: 'Things in Their Places',
+    notes: [
+      'The things in the world, redrawn like the mock-ups: trees in leafy clumps (green, fresh and golden birches), pines, bushes, boulders; green iron lamp posts, benches, hydrants, pillar boxes, bins and bags, dumpsters, bollards, traffic lights whose lamps really change; fences that turn corners, chain-link, ranch rails.',
+      'Indoors: chairs, tables with a cup or a plate on them, desks with papers and a lamp, counters with a till, workbenches with their tools, filing cabinets, wardrobes, bookshelves full of books, beds, rugs, stoves, potted plants, paintings and windows with curtains.',
+      'Everything casts a shadow down and to the right, like the buildings, and the shadows fade at night. Lariat\'s water tower, silo and turning windmill, the Sumps\' tents and washing lines too.',
+    ],
+  },
+  {
     version: '0.48.0',
     date: '2026-10-18',
     channel: 'development',
@@ -31206,7 +31217,13 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       break;
     }
     case 'u': {
-      if (r > 0.9) { R(px + 5, py + 11, 20, 7, '#3e4a56'); R(px + 8, py + 9, 14, 2, '#3e4a56'); R(px + 9, py + 12, 7, 1, '#6e7a86'); R(px + 8, py + 18, 15, 1, '#463a2e'); } // a puddle
+      if (r > 0.95) {
+        // a puddle: rounded, the sky in it, a dark wet rim
+        const rows = [10, 16, 20, 22, 20, 16, 10];
+        const cx = px + 8 + Math.floor(h(1) * 14);
+        rows.forEach((w, i) => { R(cx - w / 2 - 1, py + 10 + i, w + 2, 1, '#463a2e'); R(cx - w / 2, py + 10 + i, w, 1, i < 2 ? '#56687a' : '#465668'); });
+        R(cx - 6, py + 12, 7, 1, '#8aa0b4'); R(cx + 2, py + 14, 3, 1, '#7a90a4');
+      }
       if (r < 0.06) { R(px + 12, py + 14, 5, 3, '#d8d0c0'); R(px + 12, py + 14, 5, 1, '#f0ece4'); } // litter
       break;
     }
@@ -31258,10 +31275,26 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       break;
     }
     case 'r': {
-      // a boulder in the water: outline, three tones, a wet shine, a ring of foam
-      R(px + 3, py + 6, 26, 22, 'rgba(255,255,255,0.35)');
-      R(px + 4, py + 5, 24, 21, INK);
-      R(px + 5, py + 6, 22, 19, '#7e8086'); R(px + 6, py + 6, 14, 8, '#a2a4aa'); R(px + 8, py + 7, 6, 2, '#c8cace'); R(px + 16, py + 17, 10, 7, '#5e6066');
+      // a boulder in the water: round, lit from the top left, wet and dark below, a ring of foam
+      const cx = px + 15 + Math.floor((h(1) - 0.5) * 4);
+      const cy = py + 16;
+      const rx = 11 + Math.floor(h(2) * 3);
+      const ry = 9 + Math.floor(h(3) * 3);
+      const pal = ['#3e4046', '#5e6066', '#7e8086', '#a2a4aa', '#c8cace'];
+      for (let yy = -ry - 2; yy <= ry + 2; yy++) {
+        const half = Math.round((rx + 2) * Math.sqrt(Math.max(0, 1 - (yy / (ry + 2)) ** 2)));
+        if (half > 0) R(cx - half, cy + yy, half * 2, 1, 'rgba(255,255,255,0.35)');
+      }
+      for (let yy = -ry; yy <= ry; yy++) {
+        const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - (yy / ry) ** 2)));
+        if (half <= 0) continue;
+        R(cx - half - 1, cy + yy, half * 2 + 2, 1, INK);
+        for (let xx = -half; xx < half; xx++) {
+          const l = 0.55 - 0.4 * (xx / rx) - 0.55 * (yy / ry);
+          R(cx + xx, cy + yy, 1, 1, pal[Math.max(0, Math.min(4, Math.floor(l * 4.2)))]);
+        }
+      }
+      R(cx - 4, cy - ry + 3, 5, 1, '#e0e2e6');
       break;
     }
     case 'W': if (map.kind !== 'interior') R(px, py, T, T, '#5b4a45'); break;
@@ -31538,6 +31571,1212 @@ function paintFloor(R, ch, px, py, x, y) {
 }
 
 return { CHUNK, buildGroundChunk, buildPixelGround, buildGroundOverview, paintFloor };
+})();
+
+// ---- src/engine/propSprites.js
+__m["src/engine/propSprites.js"] = (function () {
+// Prop sprites (v0.49.0, the art overhaul's phase 4): the props redrawn to the owner's mock-ups —
+// one world pixel to a pixel, shaded as solid things lit from the top left, outlined, and casting a
+// shadow down and to the right like everything else in the world.
+//
+// Each prop is painted once into a small offscreen canvas (a sprite) and copied from then on, so
+// the detail costs nothing per frame. A sprite is made per look: type, size, colour, a variant
+// (picked by where the prop stands, so a row of trees isn't a row of clones), day or night, and —
+// for fences — which way its neighbours run. The outline is traced round the finished silhouette,
+// and the shadow is the same silhouette moved down and to the right; the renderer draws the
+// shadows first, on the ground, under everybody.
+const { hash2 } = __m["src/core/rng.js"];
+const { lightState, walkSignal } = __m["src/world/lights.js"];
+
+const INK = '#1b1a24';
+const SHADOW_RGB = '16,14,36';
+const T = 32;
+
+// ------------------------------------------------------------------ colour
+const hexRgb = (h) => {
+  const n = parseInt(h.slice(1, 7), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const toHex = ([r, g, b]) => `#${[r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+const mix = (a, b, t) => {
+  const x = hexRgb(a);
+  const y = hexRgb(b);
+  return toHex(x.map((v, i) => v + (y[i] - v) * t));
+};
+/** Five shades of a colour, dark to light: shadows lean to ink-purple, lights to warm white. */
+function ramp(hex) {
+  return [mix(hex, INK, 0.5), mix(hex, INK, 0.25), hex, mix(hex, '#fff6e0', 0.2), mix(hex, '#fffaf0', 0.42)];
+}
+
+// ------------------------------------------------------------------ the kit
+function kit(ctx) {
+  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+  const P = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, 1, 1); };
+  /** A shaded ball (or egg): lit from the top left, a darker rim below. `rough` frays the edge. */
+  const ball = (cx, cy, rx, ry, pal, rough = 0, seed = 0) => {
+    for (let y = Math.floor(cy - ry - 2); y <= Math.ceil(cy + ry + 2); y++) {
+      for (let x = Math.floor(cx - rx - 2); x <= Math.ceil(cx + rx + 2); x++) {
+        const nx = (x + 0.5 - cx) / rx;
+        const ny = (y + 0.5 - cy) / ry;
+        const d = nx * nx + ny * ny;
+        const edge = 1 + (rough ? (hash2(x * 3 + seed, y * 5 - seed) - 0.5) * rough : 0);
+        if (d > edge) continue;
+        let l = 0.52 - 0.34 * nx - 0.5 * ny + (1 - d) * 0.18 + (hash2(x + seed, y) - 0.5) * 0.1;
+        if (d > 0.72 && ny > 0.15) l -= 0.18;
+        P(x, y, pal[Math.max(0, Math.min(4, Math.floor(l * 5)))]);
+      }
+    }
+  };
+  /** A box seen from above and in front: a lit top `top` px deep, then a darker front. */
+  const block = (x, y, w, h, top, pal, opts = {}) => {
+    R(x, y, w, top, pal[3]);
+    R(x, y, w, 1, pal[4]);
+    R(x, y + top, w, h - top, pal[1]);
+    R(x, y + top, w, 1, pal[0]);
+    if (opts.edge !== false) { R(x, y, 1, h, pal[opts.leftLit ? 3 : 2]); R(x + w - 1, y, 1, h, pal[0]); }
+  };
+  /** A vertical cylinder: shaded across, a lit band left of centre. */
+  const cyl = (x, y, w, h, pal) => {
+    for (let i = 0; i < w; i++) {
+      const t = (i + 0.5) / w;
+      const l = t < 0.18 ? 2 : t < 0.42 ? 4 : t < 0.6 ? 3 : t < 0.82 ? 2 : 1;
+      R(x + i, y, 1, h, pal[l]);
+    }
+  };
+  /** A horizontal ellipse filled flat (lids, tops). */
+  const ell = (cx, cy, rx, ry, c) => {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+      const dy = (y + 0.5 - cy) / ry;
+      if (Math.abs(dy) > 1) continue;
+      const half = rx * Math.sqrt(1 - dy * dy);
+      R(Math.round(cx - half), y, Math.max(1, Math.round(half * 2)), 1, c);
+    }
+  };
+  const h = (a, b) => hash2(a, b);
+  return { ctx, R, P, ball, block, cyl, ell, h };
+}
+
+// ------------------------------------------------------------------ painters
+// Each: box(p) → [x0, y0, x1, y1] (the sprite's extent round the prop's top-left corner, in world
+// px); shadow: [dx, dy] (0 for none); variants; night (looks different at night); paint(k, p, v, o).
+const W = (p) => Math.round((p.w || 1) * T);
+const H = (p) => Math.round((p.h || 1) * T);
+
+const LEAVES = [
+  ['#2f6b34', '#3f8a3e', '#55a24a', '#78c05a'], // deep green
+  ['#3a7a32', '#4f9a3a', '#6ab446', '#94d05e'], // fresh
+  ['#5a6a2a', '#7a8a32', '#a4a83e', '#d0c058'], // olive and gold, like the mock-up's woods
+];
+
+const PAINTERS = {
+  tree: {
+    box: () => [-16, -46, 50, 34], shadow: [16, 10], variants: 6,
+    paint(k, p, v) {
+      const { R, P, ball, h } = k;
+      const kind = v % 3;
+      const pal = p.color ? ramp(p.color) : (() => { const l = LEAVES[kind]; return [mix(l[0], INK, 0.35), l[0], l[1], l[2], l[3]]; })();
+      const birch = kind === 2;
+      // the trunk, flaring at the roots
+      const bark = birch ? ['#5a5650', '#bdb8ac', '#e4e0d6', '#f4f2ea'] : ['#3e2a1c', '#5e4030', '#7a5640', '#94704e'];
+      for (let y = -4; y < 30; y++) {
+        const flare = y > 24 ? Math.floor((y - 24) / 2) : 0;
+        const x0 = 13 - flare;
+        const w = 6 + flare * 2;
+        R(x0, y, w, 1, bark[1]);
+        R(x0 + 1, y, 2, 1, bark[2]);
+        R(x0 + 1, y, 1, 1, bark[3]);
+        R(x0 + w - 2, y, 2, 1, bark[0]);
+        if (birch && h(y, 7) > 0.78) R(x0 + 1 + Math.floor(h(y, 3) * 3), y, 2, 1, '#2a2622');
+        if (!birch && h(y, 9) > 0.86) P(x0 + 3, y, bark[0]);
+      }
+      // the canopy: clumps of leaves, the far ones darker, each lit from the top left
+      const jit = (i) => (h(v * 13 + i, 5) - 0.5) * 4;
+      const clumps = [[-11, -10, 10], [12, -11, 10], [0, -21, 11], [-8, -22, 8], [9, -23, 8], [-10, 0, 9], [11, 0, 9], [0, -6, 12], [0, 3, 9]];
+      const cx = 16;
+      const cy = -12;
+      for (let i = 0; i < clumps.length; i++) {
+        const [dx, dy, r] = clumps[i];
+        const far = i < 5 ? 1 : 0;
+        const cp = far ? [pal[0], pal[0], pal[1], pal[2], pal[3]] : pal;
+        ball(cx + dx + jit(i), cy + dy + jit(i + 9), r + 1, r, cp, 0.5, v * 31 + i);
+      }
+      // leaf flecks: a lit leaf here and there on the upper sides, dark gaps below
+      for (let i = 0; i < 34; i++) {
+        const x = Math.floor(cx - 18 + h(i, v + 3) * 36);
+        const y = Math.floor(cy - 24 + h(v + 5, i) * 32);
+        const up = y < cy - 4;
+        R(x, y, 2, 1, up ? pal[4] : pal[1]);
+        if (!up) P(x, y + 1, pal[0]);
+      }
+    },
+  },
+  pine: {
+    box: () => [-10, -52, 44, 34], shadow: [14, 8], variants: 3,
+    paint(k, p, v) {
+      const { R, h } = k;
+      const pal = ['#173a2c', '#22503a', '#2f6648', '#3f7e58', '#5e9a6a'];
+      R(14, 14, 5, 16, '#4e3424'); R(15, 14, 2, 16, '#6e4a32'); R(18, 14, 1, 16, '#2e1e14');
+      const tiers = [[16, 12, 17], [3, 10, 14], [-10, 9, 11], [-22, 8, 7], [-32, 7, 4]];
+      for (const [ty, th, half] of tiers) {
+        for (let r = 0; r < th; r++) {
+          const w = Math.max(1, Math.round(half * (r + 1) / th));
+          for (let x = -w; x <= w; x++) {
+            const jag = r === th - 1 && h(x + v, ty) > 0.5 ? 1 : 0;
+            const t = (x + w) / (2 * w + 1);
+            const l = t < 0.3 ? 3 : t < 0.55 ? 2 : t < 0.8 ? 1 : 0;
+            R(16 + x, ty + r + jag, 1, 1, pal[Math.min(4, l + (r < 2 ? 1 : 0))]);
+          }
+        }
+        R(16 - half, ty + th - 1, half * 2 + 1, 1, pal[0]);
+      }
+    },
+  },
+  bush: {
+    box: (p) => [-4, -10, W(p) + 6, H(p) + 4], shadow: [5, 4], variants: 3,
+    paint(k, p, v) {
+      const { ball, P, h } = k;
+      const pal = [...ramp('#3f7f3c')];
+      const n = Math.max(2, Math.round((p.w || 1) * 2.5));
+      for (let i = 0; i < n; i++) {
+        const x = 4 + (i + 0.5) * ((W(p) - 8) / n) + (h(i, v) - 0.5) * 4;
+        ball(x, H(p) - 14 + (h(v, i) - 0.5) * 6, 9, 8, pal, 0.5, i * 7 + v);
+      }
+      if (v === 2) for (let i = 0; i < n * 3; i++) P(Math.floor(4 + h(i, 3) * (W(p) - 8)), Math.floor(H(p) - 22 + h(3, i) * 12), i % 2 ? '#f2f2ea' : '#f2b6cf');
+    },
+  },
+  rock: {
+    box: (p) => [-2, -6, W(p) + 2, H(p) + 2], shadow: [4, 3], variants: 3,
+    paint(k, p, v) {
+      const { ball, R, h } = k;
+      const pal = ramp('#8a8c92');
+      ball(W(p) / 2, H(p) - 12, W(p) / 2 - 3, 11, pal, 0.35, v * 17);
+      ball(W(p) / 2 - 6, H(p) - 16, 7, 6, pal, 0.3, v * 3);
+      for (let i = 0; i < 3; i++) R(Math.floor(8 + h(i, v) * (W(p) - 16)), Math.floor(H(p) - 18 + h(v, i) * 10), 4, 1, pal[0]); // cracks
+      if (v === 1) for (let i = 0; i < 6; i++) R(Math.floor(6 + h(i + 9, v) * (W(p) - 12)), Math.floor(H(p) - 22 + h(v, i + 9) * 6), 2, 1, '#5a8a3a'); // moss
+    },
+  },
+  bench: {
+    box: (p) => [-1, -4, W(p) + 1, H(p) + 2], shadow: [3, 4],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const wood = ['#5a3a24', '#7a5034', '#9a6a44', '#b88456', '#d0a070'];
+      const iron = '#2a2e34';
+      // iron ends
+      for (const x of [3, w - 6]) { R(x, 2, 3, 24, iron); R(x, 2, 1, 24, '#4a505a'); }
+      // the back: two slats
+      for (const y of [2, 7]) { R(1, y, w - 2, 4, wood[2]); R(1, y, w - 2, 1, wood[4]); R(1, y + 3, w - 2, 1, wood[0]); }
+      // the seat: three slats, lit
+      for (const y of [14, 18, 22]) { R(1, y, w - 2, 3, wood[3]); R(1, y, w - 2, 1, wood[4]); R(1, y + 2, w - 2, 1, wood[1]); }
+      R(1, 25, w - 2, 1, wood[0]);
+    },
+  },
+  streetlamp: {
+    box: () => [-2, -52, 34, 34], shadow: [9, 3], night: true,
+    paint(k, p, v, o) {
+      const { R } = k;
+      const pole = ['#1e2622', '#2c3832', '#3e4c44', '#56665c'];
+      // plinth
+      R(10, 24, 12, 6, pole[1]); R(10, 24, 12, 1, pole[3]); R(11, 22, 10, 3, pole[2]); R(11, 22, 10, 1, pole[3]);
+      // the post, a collar, the arm and the lantern
+      R(14, -30, 4, 53, pole[1]); R(14, -30, 1, 53, pole[3]); R(17, -30, 1, 53, pole[0]);
+      R(13, 4, 6, 3, pole[2]); R(13, 4, 6, 1, pole[3]);
+      R(12, -34, 8, 4, pole[2]); R(12, -34, 8, 1, pole[3]);
+      // the lantern head
+      R(9, -46, 14, 3, pole[1]); R(10, -47, 12, 1, pole[3]); R(14, -49, 4, 2, pole[2]);
+      R(10, -43, 12, 9, pole[0]);
+      const glass = o.night ? ['#fff4c8', '#ffe08a', '#f2c060'] : ['#d8e4ea', '#b4c6d0', '#8ea4b0'];
+      R(11, -42, 10, 7, glass[1]); R(11, -42, 4, 7, glass[0]); R(18, -42, 3, 7, glass[2]);
+      R(15, -42, 1, 7, pole[0]);
+    },
+  },
+  hydrant: {
+    box: () => [4, 0, 28, 32], shadow: [4, 2],
+    paint(k) {
+      const { R, cyl, ell } = k;
+      const red = ramp('#c23a3a');
+      R(9, 26, 14, 3, '#4a4a52'); R(9, 26, 14, 1, '#6a6a74');
+      cyl(11, 10, 10, 16, red);
+      R(7, 14, 4, 5, red[1]); R(7, 14, 4, 1, red[3]); R(21, 14, 4, 5, red[0]); R(21, 14, 4, 1, red[2]); // side outlets
+      ell(16, 10, 6, 3, red[3]); ell(16, 9, 4, 2, red[4]);
+      R(15, 4, 2, 4, red[2]); R(14, 6, 4, 2, '#d8d0c0');
+      R(11, 19, 10, 1, red[0]);
+    },
+  },
+  mailbox: {
+    box: () => [4, -6, 28, 32], shadow: [4, 3],
+    paint(k) {
+      const { R, cyl, ell } = k;
+      const red = ramp('#c8352a');
+      cyl(9, 2, 14, 24, red);
+      ell(16, 2, 7, 4, red[3]); ell(15, 1, 4, 2, red[4]);
+      R(11, 9, 10, 2, INK); R(11, 11, 10, 1, red[0]);
+      R(13, 15, 6, 4, '#f2e6c8'); R(13, 15, 6, 1, '#fff8e8');
+      R(9, 25, 14, 3, red[0]); R(8, 27, 16, 2, '#3a3a42');
+    },
+  },
+  trash: {
+    box: () => [0, -2, 32, 32], shadow: [3, 3], variants: 2,
+    paint(k, p, v) {
+      const { R, cyl, ell, ball } = k;
+      const bin = ramp('#5a6068');
+      // a bin with a lid, and black bags piled against it
+      cyl(4, 8, 12, 18, bin);
+      for (let y = 10; y < 26; y += 4) R(4, y, 12, 1, bin[1]);
+      ell(10, 8, 7, 3, bin[3]); R(8, 5, 4, 2, bin[2]);
+      ball(22, 22, 7, 6, ['#121218', '#1e1e26', '#2c2c36', '#44445a', '#5a5a74'], 0.3, v);
+      if (v) ball(15, 25, 5, 4, ['#121218', '#1e1e26', '#2c2c36', '#44445a', '#5a5a74'], 0.3, 3);
+      R(20, 15, 4, 2, '#e8e0cc'); R(6, 26, 5, 2, '#d8d0bc'); // litter
+    },
+  },
+  dumpster: {
+    box: (p) => [-1, -6, W(p) + 2, H(p) + 2], shadow: [4, 4],
+    paint(k, p) {
+      const { R, block } = k;
+      const c = ramp(p.color || '#3f6a4a');
+      const w = W(p);
+      const hh = H(p);
+      block(1, 6, w - 2, hh - 8, Math.round(hh * 0.45), c);
+      // the two lids, a ridge between, rust streaks, wheels
+      R(1, 3, w / 2 - 1, 4, c[2]); R(w / 2 + 1, 3, w / 2 - 2, 4, c[2]); R(1, 3, w - 2, 1, c[4]); R(w / 2, 3, 1, 4, c[0]);
+      for (let i = 0; i < 3; i++) R(8 + i * Math.floor((w - 16) / 2), 14, 2, hh - 20, mix(c[1], '#8a4a2a', 0.4));
+      R(6, hh - 3, 5, 3, '#1e1e24'); R(w - 11, hh - 3, 5, 3, '#1e1e24');
+      R(4, Math.round(hh * 0.45) + 9, w - 8, 1, c[0]);
+    },
+  },
+  bollard: {
+    box: () => [8, 0, 26, 32], shadow: [3, 2],
+    paint(k) {
+      const { R, cyl, ell } = k;
+      const g = ramp('#30363e');
+      cyl(11, 12, 10, 15, g);
+      ell(16, 12, 5, 2, g[3]);
+      R(11, 16, 10, 2, '#d8b040');
+      R(10, 26, 12, 2, g[0]);
+    },
+  },
+  crate: {
+    box: (p) => [-1, -4, W(p) + 1, H(p) + 1], shadow: [3, 3], variants: 2,
+    paint(k, p, v) {
+      const { R } = k;
+      const w = W(p) - 4;
+      const hh = H(p) - 4;
+      const x = 2;
+      const y = 0;
+      const wood = v ? ['#5e4228', '#80603e', '#a07c52', '#bc9668', '#d4b282'] : ['#5a3c22', '#7e5634', '#9e7048', '#b88a5c', '#d0a676'];
+      const top = Math.round(hh * 0.4);
+      // the lid: planks, nails
+      R(x, y, w, top, wood[3]);
+      for (let i = 0; i < w; i += 6) { R(x + i, y, 1, top, wood[1]); R(x + i + 1, y, 1, top, wood[4]); }
+      R(x, y, w, 1, wood[4]);
+      // the front: a frame and a brace
+      R(x, y + top, w, hh - top, wood[2]);
+      R(x, y + top, w, 2, wood[0]); R(x, y + hh - 3, w, 3, wood[1]); R(x, y + top, 3, hh - top, wood[1]); R(x + w - 3, y + top, 3, hh - top, wood[0]);
+      const fh = hh - top - 5;
+      for (let i = 0; i < w - 6; i++) R(x + 3 + i, y + top + 2 + Math.floor(i * fh / Math.max(1, w - 6)), 2, 2, wood[1]);
+      R(x + 4, y + top + 3, 1, 1, '#2a2a30'); R(x + w - 5, y + top + 3, 1, 1, '#2a2a30');
+    },
+  },
+  barrel: {
+    box: (p) => [2, -4, W(p) - 2, H(p) + 1], shadow: [3, 3], variants: 2,
+    paint(k, p, v) {
+      const { R, cyl, ell } = k;
+      const w = W(p) - 12;
+      const x = 6;
+      const top = 3;
+      const c = p.color ? ramp(p.color) : v ? ramp('#3a6a8a') : ramp('#8a5a34');
+      cyl(x, top, w, H(p) - 6, c);
+      // staves and hoops
+      for (let i = 3; i < w; i += 4) R(x + i, top + 2, 1, H(p) - 9, c[1]);
+      const hoop = v ? '#c9ced4' : '#3e3e46';
+      for (const y of [top + 4, H(p) - 10]) { R(x, y, w, 2, hoop); R(x, y, w, 1, mix(hoop, '#ffffff', 0.3)); }
+      ell(x + w / 2, top, w / 2, 3, c[3]); ell(x + w / 2, top, w / 2 - 2, 2, c[1]);
+    },
+  },
+  bed: {
+    box: (p) => [-1, -2, W(p) + 1, H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp(p.color || '#6f8fb5');
+      const wood = ['#3e2a1c', '#5e4030', '#7a5640', '#94704e'];
+      R(1, 0, w - 2, 6, wood[2]); R(1, 0, w - 2, 1, wood[3]); R(1, 5, w - 2, 1, wood[0]); // headboard
+      R(2, 6, w - 4, hh - 7, '#ece6da'); // sheet
+      R(4, 7, w - 8, 8, '#fbf8f2'); R(4, 14, w - 8, 1, '#c8c0b0'); R(w / 2 - 1, 7, 1, 8, '#ded6c8'); // pillows
+      R(2, 17, w - 4, hh - 19, c[2]); R(2, 17, w - 4, 2, c[3]); R(2, 17, w - 4, 1, c[4]); // the blanket, turned down
+      for (let y = 22; y < hh - 3; y += 5) R(3, y, w - 6, 1, c[1]);
+      R(2, hh - 3, w - 4, 2, c[0]);
+      R(1, hh - 2, w - 2, 2, wood[1]);
+    },
+  },
+  cot: {
+    box: (p) => [0, 0, W(p), H(p)], shadow: [2, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      R(3, 2, w - 6, hh - 4, '#4a5a3a'); R(4, 3, w - 8, hh - 6, '#62724a'); R(4, 3, w - 8, 1, '#7a8a5a');
+      R(6, 4, w - 12, 7, '#d8d0b8'); R(6, 10, w - 12, 1, '#a8a088');
+      R(4, 18, w - 8, hh - 22, '#7a6a4a'); R(4, 18, w - 8, 1, '#9a8a62');
+      R(2, 2, 2, hh - 4, '#3a3a40'); R(w - 4, 2, 2, hh - 4, '#3a3a40');
+    },
+  },
+  chair: {
+    box: () => [4, -4, 28, 32], shadow: [2, 3], variants: 3,
+    paint(k, p, v) {
+      const { R } = k;
+      const wood = [['#3e2a1c', '#5e3e28', '#7a5236', '#96694a', '#b08460'], ['#1e3a2e', '#2e5440', '#3e6e54', '#548a6a', '#70a684'], ['#4a2a20', '#6e3e2c', '#8e5238', '#ac6a4a', '#c88a64']][v];
+      // the back (a top rail and two posts), the seat (lit), the front legs
+      R(8, 2, 16, 4, wood[2]); R(8, 2, 16, 1, wood[4]); R(8, 5, 16, 1, wood[0]);
+      R(8, 6, 3, 8, wood[1]); R(21, 6, 3, 8, wood[0]);
+      R(7, 13, 18, 10, wood[3]); R(7, 13, 18, 1, wood[4]); R(7, 22, 18, 2, wood[1]);
+      for (let x = 10; x < 24; x += 4) R(x, 15, 1, 6, wood[2]);
+      R(8, 24, 3, 5, wood[0]); R(21, 24, 3, 5, wood[0]);
+    },
+  },
+  table: {
+    box: (p) => [-1, -2, W(p) + 1, H(p) + 2], shadow: [3, 4], variants: 3,
+    paint(k, p, v) {
+      const { R, ell, P } = k;
+      const w = W(p);
+      const hh = H(p);
+      const wood = p.color ? ramp(p.color) : ['#5a3a24', '#7a5034', '#9a6a44', '#b88456', '#d0a070'];
+      const top = hh - 9;
+      R(2, 1, w - 4, top, wood[3]); R(2, 1, w - 4, 1, wood[4]);
+      for (let y = 4; y < top; y += 5) R(3, y, w - 6, 1, wood[2]); // grain
+      R(2, top + 1, w - 4, 3, wood[1]); R(2, top + 1, w - 4, 1, wood[0]); // the edge
+      R(4, top + 4, 3, hh - top - 5, wood[0]); R(w - 7, top + 4, 3, hh - top - 5, wood[0]);
+      // on it: a cup and saucer, a plate, or a candle
+      if (v === 0) { ell(w / 2, top / 2 + 1, 5, 3, '#f4f0e6'); ell(w / 2, top / 2 + 1, 2, 1, '#6a3a24'); }
+      else if (v === 1) { ell(w / 2 - 2, top / 2 + 1, 6, 4, '#e8e4dc'); ell(w / 2 - 2, top / 2 + 1, 4, 2, '#c8b080'); }
+      else { R(w / 2 - 1, top / 2 - 3, 3, 6, '#f2ecd8'); P(w / 2, top / 2 - 4, '#ffd24a'); }
+    },
+  },
+  desk: {
+    box: (p) => [-1, -4, W(p) + 1, H(p) + 2], shadow: [3, 4], variants: 2,
+    paint(k, p, v) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const wood = p.color ? ramp(p.color) : ['#3a2418', '#54362a', '#6e4a34', '#8a5e40', '#a47454'];
+      const top = hh - 12;
+      R(1, 0, w - 2, top, wood[3]); R(1, 0, w - 2, 1, wood[4]); R(1, top - 1, w - 2, 1, wood[2]);
+      R(1, top, w - 2, hh - top - 1, wood[1]); R(1, top, w - 2, 1, wood[0]);
+      R(w - 14, top + 2, 11, hh - top - 5, wood[2]); R(w - 14, top + 2, 11, 1, wood[3]); R(w - 10, top + 5, 3, 1, '#c8a050'); // drawers
+      // papers, a green-shaded lamp or a phone
+      R(5, 3, 10, 7, '#f4f0e6'); R(6, 5, 7, 1, '#a8a29a'); R(6, 7, 5, 1, '#a8a29a'); R(8, 2, 9, 7, '#e8e2d4');
+      if (v === 0) { R(w - 12, 2, 6, 3, '#2a7a4a'); R(w - 12, 2, 6, 1, '#4aa06a'); R(w - 10, 5, 2, 4, '#c9a24a'); }
+      else { R(w - 13, 3, 8, 5, '#2a2a32'); R(w - 12, 4, 6, 1, '#4a4a56'); R(w - 7, 2, 2, 3, '#2a2a32'); }
+    },
+  },
+  counter: {
+    box: (p) => [-1, -2, W(p) + 1, H(p) + 2], shadow: [3, 4],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = p.color ? ramp(p.color) : ['#5a3a24', '#7e5234', '#a06e48', '#c08a5e', '#dcaa7c'];
+      const top = Math.round(hh * 0.45);
+      R(0, 1, w, top, c[3]); R(0, 1, w, 1, c[4]); R(0, top, w, 1, c[2]);
+      R(0, top + 1, w, hh - top - 2, c[1]); R(0, top + 1, w, 1, c[0]);
+      for (let x = 6; x < w - 4; x += 16) { R(x, top + 4, 12, hh - top - 8, c[2]); R(x, top + 4, 12, 1, c[3]); }
+      // a till, a jar of something, a bell
+      R(w - 18, 2, 12, 8, '#3a3a44'); R(w - 17, 3, 10, 3, '#6a9a7a'); R(w - 18, 9, 12, 1, '#2a2a32');
+      R(8, 3, 6, 6, '#d8ecf2'); R(9, 5, 4, 3, '#e8a04a');
+      if (w > 64) { R(w / 2, 4, 4, 3, '#d8b040'); R(w / 2 + 1, 3, 2, 1, '#f2d870'); }
+    },
+  },
+  workbench: {
+    box: (p) => [-1, -2, W(p) + 1, H(p) + 2], shadow: [3, 4],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ['#3e3024', '#5e4a36', '#7d6a55', '#9a8670', '#b4a088'];
+      const top = hh - 10;
+      R(0, 1, w, top, c[3]); R(0, 1, w, 1, c[4]);
+      for (let i = 0; i < 6; i++) R(Math.floor(hash2(i, p.x) * (w - 6)), Math.floor(2 + hash2(p.y, i) * (top - 4)), 4, 1, c[1]); // gouges
+      R(0, top + 1, w, hh - top - 2, c[1]); R(0, top + 1, w, 1, c[0]);
+      R(3, top + 3, 3, hh - top - 4, c[0]); R(w - 6, top + 3, 3, hh - top - 4, c[0]);
+      // a vice, a hammer, a spanner, a can of oil
+      R(4, 2, 8, 6, '#5a6068'); R(4, 2, 8, 1, '#8a9098'); R(6, 8, 4, 2, '#3a3e44');
+      R(16, 5, 10, 2, '#7a5034'); R(24, 3, 4, 6, '#9aa0a8');
+      R(w - 14, 3, 9, 2, '#b8bec6'); R(w - 6, 2, 3, 4, '#b8bec6');
+      R(w / 2, 3, 5, 6, '#c0614a'); R(w / 2, 3, 5, 1, '#e0816a');
+    },
+  },
+  lectern: {
+    box: (p) => [-1, -4, W(p) + 1, H(p) + 2], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const c = ['#3e2418', '#5a3424', '#74462e', '#905a3a', '#aa7050'];
+      R(4, 0, w - 8, 14, c[3]); R(4, 0, w - 8, 1, c[4]);
+      R(8, 2, w - 16, 10, '#ece2c8'); R(w / 2, 2, 1, 10, '#8a3b2b'); R(10, 4, w / 2 - 12, 1, '#a89a80'); R(w / 2 + 3, 4, w / 2 - 12, 1, '#a89a80');
+      R(6, 14, w - 12, 16, c[1]); R(6, 14, w - 12, 1, c[0]); R(w / 2 - 3, 18, 6, 8, c[2]);
+    },
+  },
+  cabinet: {
+    box: (p) => [-1, -14, W(p) + 1, H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p) - 2;
+      const c = ramp('#7a8692');
+      R(1, -12, w, 6, c[3]); R(1, -12, w, 1, c[4]); // the top
+      R(1, -6, w, H(p) + 5, c[2]); R(w, -6, 1, H(p) + 5, c[0]);
+      for (let i = 0; i < 3; i++) {
+        const y = -4 + i * 11;
+        R(3, y, w - 4, 9, c[3]); R(3, y + 8, w - 4, 1, c[1]); R(3, y, w - 4, 1, c[4]);
+        R(w / 2 - 2, y + 3, 6, 2, c[0]); R(w / 2 - 1, y + 3, 4, 1, '#d8dce0');
+      }
+    },
+  },
+  wardrobe: {
+    box: (p) => [-1, -18, W(p) + 1, H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p) - 2;
+      const c = ['#3a2418', '#5a3a26', '#7a5236', '#96694a', '#b08460'];
+      R(1, -16, w, 6, c[3]); R(1, -16, w, 1, c[4]);
+      R(1, -10, w, H(p) + 9, c[2]); R(w, -10, 1, H(p) + 9, c[0]);
+      R(3, -8, w / 2 - 3, H(p) + 4, c[3]); R(w / 2 + 2, -8, w / 2 - 3, H(p) + 4, c[1]); R(w / 2 + 1, -8, 1, H(p) + 4, c[0]);
+      R(w / 2 - 2, 2, 1, 5, '#d8b060'); R(w / 2 + 3, 2, 1, 5, '#d8b060');
+      R(1, H(p) - 2, w, 2, c[0]);
+    },
+  },
+  shelf: {
+    box: (p) => [-1, -14, W(p) + 1, H(p) + 1], shadow: [3, 3], variants: 3,
+    paint(k, p, v) {
+      const { R, h } = k;
+      const w = W(p) - 2;
+      const c = ['#3e2a1c', '#5e4030', '#7a5640', '#94704e', '#ae8a62'];
+      R(1, -12, w, 4, c[3]); R(1, -12, w, 1, c[4]);
+      R(1, -8, w, H(p) + 7, c[0]);
+      const goods = ['#e7d7b0', '#c86b4a', '#6a8f6b', '#f2c14e', '#6a7fae', '#a05a8a', '#e8e4dc'];
+      for (let r = 0; r < 3; r++) {
+        const y = -7 + r * 12;
+        R(1, y + 10, w, 2, c[2]); R(1, y + 10, w, 1, c[3]);
+        for (let x = 3; x < w - 2;) {
+          const bw = 2 + Math.floor(h(x + v * 7, r) * 4);
+          const bh = 6 + Math.floor(h(r, x + v) * 4);
+          const col = goods[Math.floor(h(x, r * 3 + v) * goods.length)];
+          R(x, y + 10 - bh, bw, bh, col); R(x, y + 10 - bh, 1, bh, mix(col, '#ffffff', 0.3)); R(x + bw - 1, y + 10 - bh, 1, bh, mix(col, INK, 0.3));
+          x += bw + (h(x, 9) > 0.8 ? 2 : 0);
+        }
+      }
+      R(1, -8, 2, H(p) + 7, c[2]); R(w - 1, -8, 2, H(p) + 7, c[1]);
+    },
+  },
+  display: {
+    box: (p) => [-1, -6, W(p) + 1, H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p) - 2;
+      const hh = H(p);
+      const c = ['#4a3020', '#6a4630', '#8a6044', '#a87a58', '#c49470'];
+      R(1, -4, w, hh + 2, c[1]); R(1, -4, w, 1, c[3]);
+      R(3, -2, w - 4, hh - 8, '#a8d4e2'); R(3, -2, w - 4, 1, '#e4f6fc');
+      for (let i = 0; i < 5; i++) R(5 + i * 4, -1 + i, 2, 1, '#e4f6fc'); // a glint
+      for (let i = 0; i < Math.floor((w - 8) / 8); i++) { R(6 + i * 8, hh - 16, 5, 5, '#d99a4e'); R(6 + i * 8, hh - 16, 5, 1, '#f2c48a'); }
+      R(1, hh - 6, w, 4, c[0]);
+    },
+  },
+  stove: {
+    box: (p) => [-1, -8, W(p) + 1, H(p) + 1], shadow: [3, 3], night: true,
+    paint(k, p, v, o) {
+      const { R, ell } = k;
+      const w = W(p) - 2;
+      const c = ramp('#4a4a54');
+      R(1, -6, w, 14, c[3]); R(1, -6, w, 1, c[4]);
+      for (const x of [w / 4 + 1, (w * 3) / 4 + 1]) { ell(x, -1, 5, 3, '#1e1e26'); ell(x, -1, 3, 2, '#3a3a44'); }
+      R(1, 8, w, H(p) - 9, c[1]); R(1, 8, w, 1, c[0]);
+      R(5, 11, w - 8, 12, INK); R(6, 12, w - 10, 10, o.night ? '#c0602a' : '#3a3a44'); R(6, 12, w - 10, 1, o.night ? '#f0a050' : '#5a5a66');
+      R(5, 9, w - 8, 1, '#c9ced4');
+    },
+  },
+  oven: { alias: 'stove' },
+  plant: {
+    box: () => [2, -14, 30, 32], shadow: [3, 3], variants: 3,
+    paint(k, p, v) {
+      const { R, ball, cyl } = k;
+      const pot = ramp(['#b5683f', '#5a7a9a', '#d8d0c0'][v]);
+      cyl(10, 18, 12, 10, pot); R(9, 17, 14, 3, pot[3]); R(9, 17, 14, 1, pot[4]); R(11, 20, 10, 1, '#3a2a1c');
+      const leaf = ramp('#3f8a3e');
+      const n = [5, 7, 4][v];
+      for (let i = 0; i < n; i++) {
+        const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.5;
+        const L = 9 + (i % 2) * 4;
+        for (let s = 0; s < L; s++) {
+          const x = 16 + Math.cos(a) * s * 1.1;
+          const y = 16 + Math.sin(a) * s;
+          R(Math.round(x), Math.round(y), 2, 2, s > L - 3 ? leaf[3] : leaf[2]);
+        }
+        ball(16 + Math.cos(a) * L, 16 + Math.sin(a) * L, 3, 2, leaf, 0, i);
+      }
+    },
+  },
+  flowerbed: {
+    box: (p) => [-1, -2, W(p) + 1, H(p) + 1], shadow: [2, 2], variants: 3,
+    paint(k, p, v) {
+      const { R, P, h } = k;
+      const w = W(p);
+      const hh = H(p);
+      const box = ['#4a2e1c', '#6a4430', '#8a5c40', '#a87454'];
+      R(1, 4, w - 2, hh - 7, box[1]); R(1, 4, w - 2, 1, box[3]); R(1, hh - 4, w - 2, 2, box[0]);
+      R(3, 6, w - 6, hh - 11, '#4a3424');
+      const leaf = ['#2f6b34', '#3f8a3e', '#55a24a'];
+      for (let i = 0; i < w * 0.6; i++) R(Math.floor(3 + h(i, v) * (w - 8)), Math.floor(6 + h(v, i) * (hh - 14)), 3, 2, leaf[i % 3]);
+      const cols = [['#f2a7c3', '#ffffff', '#f6dc6a'], ['#d84a4a', '#f6dc6a', '#ffffff'], ['#a87ae0', '#f2a7c3', '#ffffff']][v];
+      for (let i = 0; i < w * 0.35; i++) {
+        const x = Math.floor(4 + h(i + 50, v) * (w - 10));
+        const y = Math.floor(7 + h(v + 50, i) * (hh - 15));
+        const c = cols[i % 3];
+        P(x, y - 1, c); P(x - 1, y, c); P(x + 1, y, c); P(x, y + 1, c); P(x, y, '#f2c832');
+      }
+    },
+  },
+  rug: {
+    box: (p) => [0, 0, W(p), H(p)], shadow: [0, 0],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp(p.color || '#8e5a6e');
+      R(2, 2, w - 4, hh - 4, c[1]);
+      R(4, 4, w - 8, hh - 8, c[2]);
+      R(7, 7, w - 14, hh - 14, c[1]);
+      R(9, 9, w - 18, hh - 18, c[2]);
+      for (let y = 10; y < hh - 10; y += 4) for (let x = 10 + ((y >> 2) & 1) * 2; x < w - 10; x += 4) R(x, y, 2, 2, c[3]);
+      const fringe = '#e8d8b8';
+      R(5, 5, w - 10, 1, fringe); R(5, hh - 6, w - 10, 1, fringe); R(5, 5, 1, hh - 10, fringe); R(w - 6, 5, 1, hh - 10, fringe);
+      for (let x = 3; x < w - 3; x += 2) { R(x, 0, 1, 2, fringe); R(x, hh - 2, 1, 2, fringe); }
+    },
+  },
+  window: {
+    box: (p) => [0, 0, W(p), H(p)], shadow: [0, 0], night: true,
+    paint(k, p, v, o) {
+      const { R } = k;
+      const w = W(p);
+      const hh = Math.round(H(p) * 0.62);
+      const frame = ['#3a2a1e', '#5a4030', '#7a5840'];
+      R(2, 1, w - 4, hh + 2, frame[1]); R(2, 1, w - 4, 1, frame[2]);
+      R(4, 3, w - 8, hh - 2, o.night ? '#22304e' : '#9fd0e4');
+      if (!o.night) { for (let i = 0; i < 6; i++) R(6 + i, hh - 2 - i, 1, 1, '#e4f6fc'); R(5, 4, w - 10, 1, '#d8f0fa'); }
+      else R(6, 5, 3, 2, '#e8e0a0');
+      R(w / 2 - 1, 3, 2, hh - 2, frame[1]); R(4, Math.round(hh / 2) + 1, w - 8, 1, frame[1]);
+      R(1, hh + 2, w - 2, 2, frame[2]); // the sill
+      R(3, 3, 3, hh - 1, '#c86b6b'); R(w - 6, 3, 3, hh - 1, '#c86b6b'); // curtains
+    },
+  },
+  painting: {
+    box: (p) => [0, 0, W(p), H(p)], shadow: [0, 0], variants: 3,
+    paint(k, p, v) {
+      const { R } = k;
+      const w = W(p);
+      const hh = Math.round(H(p) * 0.6);
+      R(3, 3, w - 6, hh, '#8a6420'); R(3, 3, w - 6, 1, '#e0b84a'); R(4, 4, w - 8, hh - 2, '#b8892e');
+      const x = 6;
+      const y = 6;
+      const iw = w - 12;
+      const ih = hh - 6;
+      if (v === 0) { R(x, y, iw, ih, '#8ab4d0'); R(x, y + ih * 0.6, iw, ih * 0.4, '#5a8a4a'); R(x + iw * 0.6, y + 2, 3, 3, '#f2e080'); } // a landscape
+      else if (v === 1) { R(x, y, iw, ih, '#5a4a6a'); R(x + iw / 2 - 3, y + 3, 6, 6, '#e0b896'); R(x + iw / 2 - 5, y + 9, 10, ih - 9, '#3a2a4a'); } // a portrait
+      else { R(x, y, iw, ih, '#2a4a6a'); R(x + 3, y + ih - 6, iw - 6, 3, '#e8e4dc'); R(x + iw / 2, y + 3, 1, ih - 8, '#e8e4dc'); } // a ship
+    },
+  },
+  noticeboard: {
+    box: (p) => [-1, -10, W(p) + 1, H(p) + 1], shadow: [4, 3],
+    paint(k, p) {
+      const { R, h } = k;
+      const w = W(p);
+      const post = ['#3e2a1c', '#5e4030', '#7a5640'];
+      R(4, 10, 3, 20, post[1]); R(w - 7, 10, 3, 20, post[1]); R(4, 10, 1, 20, post[2]);
+      R(0, -8, w, 20, '#6a4a30'); R(0, -8, w, 1, '#8a6442'); R(2, -6, w - 4, 16, '#b88a5a'); // cork
+      const papers = ['#f4ecd8', '#f2d4c8', '#e4ecf4', '#f4f0a8'];
+      for (let i = 0; i < Math.max(3, w / 9); i++) {
+        const x = 3 + Math.floor(h(i, p.x) * (w - 12));
+        const y = -5 + Math.floor(h(p.y, i) * 6);
+        R(x, y, 8, 9, papers[i % 4]); R(x + 1, y + 2, 6, 1, '#a8a090'); R(x + 1, y + 4, 4, 1, '#a8a090'); R(x + 3, y, 2, 1, '#d84a4a');
+      }
+    },
+  },
+  sign: {
+    box: () => [0, -2, 32, 32], shadow: [4, 3],
+    paint(k) {
+      const { R } = k;
+      R(14, 10, 4, 20, '#5a3d2a'); R(14, 10, 1, 20, '#7a5a40');
+      R(2, 0, 28, 14, '#5a3d2a'); R(3, 1, 26, 12, '#ece2c8'); R(3, 1, 26, 1, '#fffaf0');
+      R(6, 4, 20, 2, '#9a3530'); R(6, 8, 14, 2, '#9a3530');
+    },
+  },
+  fence: {
+    box: () => [-2, -6, 34, 34], shadow: [3, 2], connect: true,
+    paint(k, p, v, o) {
+      // a white picket fence; it runs the way its neighbours do
+      const { R } = k;
+      const c = ['#8a8478', '#b8b2a4', '#e4dccb', '#f6f0e2'];
+      const m = o.links;
+      const ew = (m & 2) || (m & 8) || !(m & 5);
+      const ns = (m & 1) || (m & 4);
+      if (ew) {
+        const x0 = m & 8 ? 0 : 12;
+        const x1 = m & 2 ? 32 : 20;
+        R(x0, 10, x1 - x0, 3, c[2]); R(x0, 10, x1 - x0, 1, c[3]); R(x0, 18, x1 - x0, 3, c[2]); R(x0, 18, x1 - x0, 1, c[3]);
+        for (let x = x0 + 2; x < x1; x += 6) { R(x, 4, 4, 22, c[2]); R(x, 4, 1, 22, c[3]); R(x + 3, 4, 1, 22, c[1]); R(x + 1, 3, 2, 1, c[3]); }
+      }
+      if (ns) {
+        const y0 = m & 1 ? -2 : 8;
+        const y1 = m & 4 ? 30 : 24;
+        R(13, y0, 3, y1 - y0, c[2]); R(17, y0, 3, y1 - y0, c[1]);
+        for (let y = y0; y < y1; y += 6) { R(11, y, 10, 4, c[2]); R(11, y, 10, 1, c[3]); R(11, y + 3, 10, 1, c[1]); }
+      }
+    },
+  },
+  ranchfence: {
+    box: () => [-2, -8, 34, 34], shadow: [3, 2], connect: true,
+    paint(k, p, v, o) {
+      // split rails on posts, weathered
+      const { R } = k;
+      const c = ['#3e2a1a', '#5e4228', '#7a5a3a', '#987452', '#b08c66'];
+      const m = o.links;
+      const ew = (m & 2) || (m & 8) || (!(m & 5) && !p.vertical);
+      const ns = (m & 1) || (m & 4) || (p.vertical && !(m & 10));
+      if (ew) {
+        const x0 = m & 8 ? 0 : 10;
+        const x1 = m & 2 ? 32 : 22;
+        for (const y of [9, 17]) { R(x0, y, x1 - x0, 4, c[2]); R(x0, y, x1 - x0, 1, c[4]); R(x0, y + 3, x1 - x0, 1, c[0]); R(x0 + 5, y + 1, 6, 1, c[1]); }
+        R(13, 3, 6, 25, c[1]); R(13, 3, 2, 25, c[3]); R(18, 3, 1, 25, c[0]); R(13, 2, 6, 2, c[4]);
+      }
+      if (ns) {
+        const y0 = m & 1 ? -4 : 6;
+        const y1 = m & 4 ? 30 : 24;
+        for (const x of [11, 19]) { R(x, y0, 3, y1 - y0, c[2]); R(x, y0, 1, y1 - y0, c[4]); R(x + 2, y0, 1, y1 - y0, c[0]); }
+        R(12, 6, 8, 18, c[1]); R(12, 6, 8, 2, c[3]);
+      }
+    },
+  },
+  chainfence: {
+    box: (p) => [-2, -6, W(p) + 2, H(p) + 4], shadow: [3, 2], connect: true,
+    paint(k, p, v, o) {
+      // chain link on steel posts (razor wire along the top of a prison's); it runs the way its neighbours do
+      const { R, P } = k;
+      const steel = ['#4a4e56', '#6e747e', '#9aa0aa', '#c4c8d0'];
+      const m = o.links;
+      const ns = ((m & 1) || (m & 4)) && !((m & 2) || (m & 8));
+      const mesh = (x0, y0, w, h) => { for (let x = x0; x < x0 + w; x++) for (let y = y0; y < y0 + h; y++) if ((x + y) % 5 === 0 || (x - y + 100) % 5 === 0) P(x, y, (x + y) % 2 ? steel[1] : steel[2]); };
+      if (!ns) {
+        const w = W(p);
+        R(0, 3, w, 2, steel[2]); R(0, 3, w, 1, steel[3]);
+        mesh(0, 6, w, 20);
+        const posts = (m & 8) ? [w - 3] : [0, w - 3];
+        for (const px of posts) { R(px, 0, 3, 28, steel[1]); R(px, 0, 1, 28, steel[3]); }
+        if (p.razor) for (let x = 0; x + 6 <= w; x += 6) { R(x + 1, -4, 4, 1, steel[3]); R(x, -3, 1, 2, steel[3]); R(x + 5, -3, 1, 2, steel[3]); R(x + 1, -1, 4, 1, steel[2]); }
+      } else {
+        const hh = H(p);
+        const y0 = m & 1 ? -2 : 4;
+        mesh(13, y0, 6, hh - y0 + (m & 4 ? 2 : -4));
+        R(12, y0, 1, hh - y0, steel[2]); R(19, y0, 1, hh - y0, steel[1]);
+        R(13, 4, 6, 3, steel[1]); R(13, 4, 6, 1, steel[3]);
+        if (p.razor) for (let y = y0; y < hh; y += 6) { R(10, y + 1, 1, 4, steel[3]); R(21, y + 1, 1, 4, steel[3]); }
+      }
+    },
+  },
+  trafficlight: {
+    box: () => [4, -46, 30, 34], shadow: [8, 3],
+    paint(k) {
+      // the pole and the heads; the lamps themselves are lit live
+      const { R } = k;
+      const pole = ['#22262c', '#33383f', '#4a5058', '#646c76'];
+      R(11, 22, 10, 6, pole[1]); R(11, 22, 10, 1, pole[3]);
+      R(14, -24, 4, 47, pole[1]); R(14, -24, 1, 47, pole[3]); R(17, -24, 1, 47, pole[0]);
+      R(9, -42, 14, 36, '#16181c'); R(9, -42, 14, 2, '#e8c35a'); R(10, -40, 12, 1, '#2a2e34');
+      for (let i = 0; i < 3; i++) { R(11, -38 + i * 10, 10, 9, '#0e0f12'); R(10, -39 + i * 10, 12, 2, '#2a2e34'); }
+      R(19, -4, 11, 11, '#16181c'); R(19, -4, 11, 1, '#3a3e46');
+    },
+  },
+  busstop: {
+    box: () => [4, -30, 32, 34], shadow: [7, 3],
+    paint(k) {
+      const { R, ell } = k;
+      R(13, 24, 8, 4, '#3a3a42'); R(13, 24, 8, 1, '#5a5a64');
+      R(15, -12, 3, 37, '#4a4a52'); R(15, -12, 1, 37, '#7a7a84');
+      ell(16.5, -16, 10, 10, '#efe6cc'); ell(16.5, -16, 8, 8, '#2f6b4f'); ell(15, -18, 4, 3, '#3f8a62');
+      R(19, 2, 10, 13, '#5a5a62'); R(20, 3, 8, 11, '#f2efe6');
+      for (let i = 0; i < 4; i++) R(21, 5 + i * 2, 6, 1, '#7a8a8a');
+    },
+  },
+  pipe: {
+    box: (p) => [-1, -1, W(p) + 1, H(p) + 1], shadow: [2, 3],
+    paint(k, p) {
+      const { R } = k;
+      const c = ramp('#6a7078');
+      const w = W(p);
+      const hh = H(p);
+      if (w >= hh) {
+        const y = Math.round(hh / 2) - 5;
+        const rows = [2, 3, 4, 3, 3, 2, 2, 1, 1, 0];
+        rows.forEach((l, i) => R(0, y + i, w, 1, c[l]));
+        for (let x = 30; x < w; x += 32) { R(x - 2, y - 2, 5, 14, c[1]); R(x - 2, y - 2, 5, 1, c[3]); R(x - 1, y + 2, 1, 1, c[4]); }
+      } else {
+        const x = 11;
+        const cols = [1, 2, 4, 3, 3, 2, 2, 1, 1, 0];
+        cols.forEach((l, i) => R(x + i, 0, 1, hh, c[l]));
+        for (let y = 30; y < hh; y += 32) { R(x - 2, y - 2, 14, 5, c[1]); R(x - 2, y - 2, 14, 1, c[3]); }
+      }
+    },
+  },
+  haybale: {
+    box: (p) => [-1, -4, W(p) + 1, H(p) + 1], shadow: [4, 3], variants: 2,
+    paint(k, p, v) {
+      const { ball, P, h } = k;
+      const straw = ['#8a6a24', '#b08a34', '#d2aa48', '#e6c464', '#f4dc8c'];
+      const cx = W(p) / 2;
+      const cy = H(p) / 2 - 2;
+      const r = Math.min(W(p), H(p)) / 2 - 3;
+      ball(cx, cy, r, r * 0.92, straw, 0.25, v * 9);
+      for (let a = 0; a < 26; a += 0.15) { // the roll's spiral
+        const rr = (a / 26) * r * 0.9;
+        P(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr * 0.92), straw[1]);
+      }
+      for (let i = 0; i < 20; i++) P(Math.floor(cx - r + h(i, v) * r * 2), Math.floor(cy - r + h(v, i) * r * 2), straw[4]);
+    },
+  },
+  gatepost: {
+    box: () => [2, -40, 32, 34], shadow: [10, 4],
+    paint(k) {
+      const { R } = k;
+      const st = ramp('#9a948a');
+      R(6, -30, 20, 58, st[2]); R(6, -30, 3, 58, st[3]); R(23, -30, 3, 58, st[1]);
+      for (let y = -24; y < 28; y += 8) R(6, y, 20, 1, st[1]);
+      R(3, -36, 26, 7, st[3]); R(3, -36, 26, 1, st[4]); R(3, -30, 26, 1, st[0]);
+      R(9, -22, 14, 30, '#22405e'); R(9, -22, 14, 1, '#3a5a7a'); R(10, -21, 12, 28, '#2a4a6a');
+      R(4, 26, 24, 3, st[0]);
+    },
+  },
+  statue: {
+    box: (p) => [-1, -46, W(p) + 1, H(p) + 1], shadow: [12, 6],
+    paint(k, p) {
+      const { R, ball } = k;
+      const w = W(p);
+      const hh = H(p);
+      const st = ramp('#c9c3b4');
+      const br = ramp('#5f7a6a');
+      const top = plinthTop(p);
+      R(4, hh - 10, w - 8, 8, st[2]); R(4, hh - 10, w - 8, 1, st[4]); R(4, hh - 3, w - 8, 1, st[0]);
+      R(8, top, w - 16, hh - 10 - top, st[2]); R(8, top, 2, hh - 10 - top, st[3]); R(w - 10, top, 2, hh - 10 - top, st[1]); R(8, top, w - 16, 1, st[4]);
+      R(11, plaqueY(p) - 4, w - 22, 8, '#3a2c25'); // the plaque
+      const cx = w / 2;
+      const b = top; // the figure stands on the plinth
+      R(cx - 7, b - 32, 14, 32, br[2]); R(cx - 7, b - 32, 3, 32, br[3]); R(cx + 4, b - 32, 3, 32, br[1]); // coat
+      R(cx - 6, b - 4, 5, 4, br[1]); R(cx + 1, b - 4, 5, 4, br[1]);
+      ball(cx, b - 38, 6, 6, br, 0, 2); // head
+      R(cx + 6, b - 50 > -46 ? b - 50 : -45, 4, 22, br[2]); R(cx + 6, b - 50 > -46 ? b - 50 : -45, 1, 22, br[3]); // the raised arm
+    },
+  },
+  tent: {
+    box: (p) => [-1, -6, W(p) + 1, H(p) + 1], shadow: [6, 4],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp(p.color || '#5a7a6a');
+      for (let y = 0; y < hh; y++) {
+        const half = Math.round((y / hh) * (w / 2 - 2));
+        R(w / 2 - half, y, half, 1, c[3]);
+        R(w / 2, y, half, 1, c[1]);
+        if (y % 5 === 0) { R(w / 2 - half, y, half, 1, c[2]); R(w / 2, y, half, 1, c[0]); }
+      }
+      R(w / 2, 0, 1, hh, c[4]);
+      for (let y = 10; y < hh; y++) { const half = Math.round(((y - 10) / (hh - 10)) * 6); R(w / 2 - half, y, half * 2, 1, '#1a1612'); }
+      R(Math.round(w * 0.66), Math.round(hh * 0.45), 7, 6, mix(c[2], '#a09670', 0.6)); // a patch
+      R(2, hh - 2, 2, 3, '#5a4a3a'); R(w - 4, hh - 2, 2, 3, '#5a4a3a');
+    },
+  },
+  vent: {
+    box: () => [0, 0, 32, 22], shadow: [2, 2],
+    paint(k) {
+      const { R } = k;
+      const c = ramp('#5a5e66');
+      R(4, 2, 24, 16, c[1]); R(4, 2, 24, 1, c[3]);
+      for (let i = 0; i < 4; i++) { R(6, 4 + i * 4, 20, 2, c[0]); R(6, 4 + i * 4, 20, 1, c[3]); }
+      for (const [dx, dy] of [[5, 3], [25, 3], [5, 15], [25, 15]]) R(dx, dy, 2, 2, '#b8b4aa');
+    },
+  },
+  chest: {
+    box: (p) => [0, 2, W(p), H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ['#3e2416', '#5e3a22', '#7a5236', '#96694a', '#b08460'];
+      R(3, 6, w - 6, 10, c[3]); R(3, 6, w - 6, 1, c[4]); // the lid
+      R(3, 16, w - 6, hh - 19, c[1]); R(3, 16, w - 6, 1, c[0]);
+      for (const x of [6, w - 9]) { R(x, 6, 3, hh - 9, '#c9a24a'); R(x, 6, 1, hh - 9, '#f2d27a'); }
+      R(w / 2 - 3, 13, 6, 7, '#c9a24a'); R(w / 2 - 1, 16, 2, 2, '#2a1a10');
+    },
+  },
+  cellbars: {
+    box: (p) => [0, -2, W(p), H(p) + 1], shadow: [2, 2],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp('#5a5e66');
+      R(0, 2, w, 3, c[2]); R(0, 2, w, 1, c[4]); R(0, hh - 4, w, 3, c[1]);
+      for (let x = 2; x < w; x += 6) { R(x, 2, 2, hh - 4, c[2]); R(x, 2, 1, hh - 4, c[4]); }
+    },
+  },
+  fountain: {
+    box: (p) => [-2, -50, W(p) + 2, H(p) + 2], shadow: [8, 6],
+    paint(k, p) {
+      const { R, ell, ball } = k;
+      const w = W(p);
+      const hh = H(p);
+      const st = ramp('#b9b3a6');
+      ell(w / 2, hh / 2 + 2, w / 2 - 1, hh / 2.6, st[1]);
+      ell(w / 2, hh / 2, w / 2 - 1, hh / 2.6, st[3]);
+      ell(w / 2, hh / 2, w / 2 - 6, hh / 2.6 - 5, '#2a7a9a');
+      ell(w / 2, hh / 2 + 1, w / 2 - 8, hh / 2.6 - 7, '#3a8ab0');
+      // the bronze lamplighter in the middle, his pole and lantern
+      const br = ramp('#7a6235');
+      R(w / 2 - 6, hh / 2 - 6, 12, 6, st[2]); R(w / 2 - 6, hh / 2 - 6, 12, 1, st[4]);
+      R(w / 2 - 4, hh / 2 - 28, 8, 22, br[2]); R(w / 2 - 4, hh / 2 - 28, 2, 22, br[3]);
+      ball(w / 2, hh / 2 - 32, 5, 5, br, 0, 1);
+      R(w / 2 + 4, hh / 2 - 46, 2, 26, br[1]); R(w / 2 + 2, hh / 2 - 50, 6, 5, br[3]);
+    },
+  },
+  barrelfire: {
+    box: () => [4, 0, 28, 32], shadow: [3, 2],
+    paint(k) {
+      const { R, cyl, ell } = k;
+      const c = ramp('#4a4e54');
+      cyl(8, 8, 16, 20, c);
+      R(8, 12, 16, 3, '#8a3b2b'); R(8, 21, 16, 3, '#8a3b2b'); R(8, 12, 16, 1, '#aa5b3b');
+      ell(16, 8, 8, 3, '#2a1a14'); ell(16, 8, 6, 2, '#ff8a2a');
+    },
+  },
+  flagpole: {
+    box: () => [8, -58, 26, 32], shadow: [12, 3],
+    paint(k) {
+      const { R } = k;
+      R(12, 24, 9, 5, '#8a8a84'); R(12, 24, 9, 1, '#b4b4ac');
+      R(15, -52, 3, 77, '#c9c6bd'); R(15, -52, 1, 77, '#f2f0e8'); R(17, -52, 1, 77, '#8a887e');
+      R(14, -56, 5, 4, '#e8c35a'); R(15, -57, 3, 1, '#f6e08a');
+    },
+  },
+  silo: {
+    box: (p) => [-2, -54 - Math.round(W(p) / 2), W(p) + 2, H(p) + 2], shadow: [18, 8],
+    paint(k, p) {
+      const { R, cyl, ell } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp(p.color || '#b8bec6');
+      const r = w / 2 - 3;
+      const cx = w / 2;
+      const top = -50;
+      cyl(cx - r, top, r * 2, hh - 4 - top, c);
+      for (let y = top + 8; y < hh - 6; y += 9) R(cx - r, y, r * 2, 1, c[1]); // the rings
+      ell(cx, hh - 4, r, 4, c[1]);
+      for (let y = top; y > top - r; y--) { const half = Math.round(r * Math.sqrt(1 - ((top - y) / r) ** 2)); R(cx - half, y, half, 1, c[3]); R(cx, y, half, 1, c[2]); } // the dome
+      ell(cx - 3, top - r + 4, 3, 2, c[4]);
+      for (let y = top + 2; y < hh - 6; y += 3) R(cx + r - 6, y, 4, 1, '#4a4e56'); // a ladder
+      R(cx + r - 6, top + 2, 1, hh - 8 - top, '#4a4e56'); R(cx + r - 3, top + 2, 1, hh - 8 - top, '#4a4e56');
+    },
+  },
+  watertower: {
+    box: (p) => [-2, -84, W(p) + 2, H(p) + 2], shadow: [22, 8],
+    paint(k, p) {
+      const { R, cyl, ell } = k;
+      const w = W(p);
+      const hh = H(p);
+      const steel = ['#3e444c', '#5a6068', '#7a8088', '#9aa0a8'];
+      const cx = w / 2;
+      for (const dx of [-0.34, 0.34]) for (let y = -20; y < hh - 2; y++) { const x = Math.round(cx + dx * w * (0.6 + 0.4 * (y + 20) / (hh + 18))); R(x - 1, y, 3, 1, steel[1]); R(x - 1, y, 1, 1, steel[3]); }
+      for (let i = 0; i < 4; i++) { const y = -12 + i * 14; for (let t = 0; t < 1; t += 0.02) { R(Math.round(cx - w * 0.28 + t * w * 0.56), Math.round(y + t * 12), 1, 1, steel[2]); R(Math.round(cx + w * 0.28 - t * w * 0.56), Math.round(y + t * 12), 1, 1, steel[0]); } }
+      const c = ramp('#c8ccd2');
+      cyl(cx - w * 0.46, -66, w * 0.92, 44, c);
+      ell(cx, -22, w * 0.46, 5, c[1]);
+      for (let y = -66; y > -82; y--) { const half = Math.round(w * 0.48 * ((y + 82) / 16)); R(cx - half, y, half, 1, '#a8aeb6'); R(cx, y, half, 1, '#8a9098'); }
+      R(cx - w * 0.46, -52, w * 0.92, 18, c[2]); R(cx - w * 0.46, -52, w * 0.92, 1, c[4]); R(cx - w * 0.46, -35, w * 0.92, 1, c[0]); // the band for the name
+    },
+  },
+  windmill: {
+    box: (p) => [-4, -40, W(p) + 4, H(p) + 2], shadow: [14, 6],
+    paint(k, p) {
+      // the lattice tower; the wheel turns live
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const cx = w / 2;
+      const steel = ['#4a4e56', '#6a6e76', '#8a8e96', '#aab0b8'];
+      for (let y = -30; y < hh; y++) {
+        const sp = (w * 0.35) * ((y + 30) / (hh + 30));
+        R(Math.round(cx - sp) - 1, y, 2, 1, steel[2]); R(Math.round(cx + sp) - 1, y, 2, 1, steel[1]);
+        if ((y + 30) % 20 < 1) R(Math.round(cx - sp), y, Math.round(sp * 2), 1, steel[1]);
+      }
+      R(cx - 3, -34, 6, 6, steel[1]); R(cx - 3, -34, 6, 1, steel[3]);
+      R(cx - 28, -34, 24, 3, steel[2]); R(cx - 30, -38, 4, 10, steel[1]); // the tail vane
+    },
+  },
+  trough: {
+    box: (p) => [-1, 4, W(p) + 1, H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp('#7a7e86');
+      R(2, 8, w - 4, hh - 10, c[1]); R(2, 8, w - 4, 2, c[3]); R(2, 8, w - 4, 1, c[4]);
+      R(5, 11, w - 10, 7, '#2a6a8a'); R(5, 11, w - 10, 1, '#4a8ab0'); R(8, 13, 8, 1, '#8ac0d8');
+      R(2, hh - 3, w - 4, 1, c[0]); R(4, hh - 2, 3, 2, c[0]); R(w - 7, hh - 2, 3, 2, c[0]);
+    },
+  },
+  laundry: {
+    box: (p) => [-1, -18, W(p) + 1, H(p) + 1], shadow: [6, 4],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      const post = ['#3a2a1e', '#5a4a3a', '#7a6a58'];
+      for (const x of [2, w - 5]) { R(x, -14, 3, 40, post[1]); R(x, -14, 1, 40, post[2]); }
+      for (let x = 4; x < w - 4; x++) R(x, Math.round(-12 + Math.sin(((x - 4) / (w - 8)) * Math.PI) * 6), 1, 1, '#d8d0c0'); // the line
+    },
+  },
+};
+
+/** Where a statue's plinth starts, and its plaque's middle (prop coordinates). */
+const plinthTop = (p) => Math.max(10, H(p) - 30);
+const plaqueY = (p) => Math.round((plinthTop(p) + H(p) - 10) / 2);
+
+/** Which way a fence's neighbours run: 1 north, 2 east, 4 south, 8 west. */
+const linkCache = new WeakMap();
+function links(map, p) {
+  if (!map) return 0;
+  let byTile = linkCache.get(map);
+  if (!byTile) {
+    byTile = new Map();
+    for (const q of map.props) if (PAINTERS[q.type]?.connect) for (let y = q.y; y < q.y + (q.h || 1); y++) for (let x = q.x; x < q.x + (q.w || 1); x++) byTile.set(`${x},${y}`, q.type);
+    linkCache.set(map, byTile);
+  }
+  const at = (x, y) => byTile.get(`${x},${y}`) === p.type;
+  return (at(p.x, p.y - 1) ? 1 : 0) | (at(p.x + 1, p.y) ? 2 : 0) | (at(p.x, p.y + 1) ? 4 : 0) | (at(p.x - 1, p.y) ? 8 : 0);
+}
+
+// ------------------------------------------------------------------ making and drawing sprites
+const sprites = new Map();
+const canMake = () => typeof document !== 'undefined';
+const painterOf = (type) => {
+  const P = PAINTERS[type];
+  return P?.alias ? PAINTERS[P.alias] : P;
+};
+
+function make(P, p, v, o) {
+  const [x0, y0, x1, y1] = P.box(p);
+  const w = x1 - x0 + 2;
+  const h = y1 - y0 + 2;
+  const body = document.createElement('canvas');
+  body.width = w;
+  body.height = h;
+  const ctx = body.getContext('2d');
+  ctx.translate(1 - x0, 1 - y0);
+  P.paint(kit(ctx), p, v, o);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // the outline: the silhouette in ink, one pixel out every way, under the body
+  const out = document.createElement('canvas');
+  out.width = w;
+  out.height = h;
+  const oc = out.getContext('2d');
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) oc.drawImage(body, dx, dy);
+  oc.globalCompositeOperation = 'source-in';
+  oc.fillStyle = INK;
+  oc.fillRect(0, 0, w, h);
+  oc.globalCompositeOperation = 'source-over';
+  oc.drawImage(body, 0, 0);
+  // the shadow: the silhouette, flat dark
+  let shadow = null;
+  if (P.shadow && (P.shadow[0] || P.shadow[1])) {
+    shadow = document.createElement('canvas');
+    shadow.width = w;
+    shadow.height = h;
+    const sc = shadow.getContext('2d');
+    sc.drawImage(out, 0, 0);
+    sc.globalCompositeOperation = 'source-in';
+    sc.fillStyle = `rgb(${SHADOW_RGB})`;
+    sc.fillRect(0, 0, w, h);
+  }
+  return { cv: out, shadow, x: x0 - 1, y: y0 - 1, sx: P.shadow?.[0] || 0, sy: P.shadow?.[1] || 0 };
+}
+
+function spriteFor(p, opts) {
+  const P = painterOf(p.type);
+  if (!P || !canMake()) return null;
+  const v = P.variants ? Math.floor(hash2(Math.round(p.x * 7) + 3, Math.round(p.y * 13) + 1) * P.variants) : 0;
+  const night = P.night ? Boolean(opts.night) : false;
+  const ln = P.connect ? links(opts.map, p) : 0;
+  const key = `${p.type}|${p.w}|${p.h}|${p.color || ''}|${v}|${night ? 1 : 0}|${ln}|${p.razor ? 1 : 0}|${p.vertical ? 1 : 0}`;
+  let s = sprites.get(key);
+  if (!s) {
+    s = make(P, p, v, { night, links: ln });
+    sprites.set(key, s);
+  }
+  return s;
+}
+
+/** Draw `p` from its sprite; false when it has none (the caller draws it the old way). */
+function drawPropSprite(ctx, p, opts = {}) {
+  if (p.type === 'display' && p.variant === 'guns') return false;
+  const s = spriteFor(p, opts);
+  if (!s) return false;
+  ctx.drawImage(s.cv, Math.round(p.x * T) + s.x, Math.round(p.y * T) + s.y);
+  if (p.type === 'barrelfire') flames(ctx, p, opts.time || 0);
+  if (p.type === 'flagpole') flag(ctx, p, opts.time || 0);
+  if (p.type === 'trafficlight') lamps(ctx, p, opts.realTime ?? opts.time ?? 0);
+  if (p.type === 'fountain') ripple(ctx, p, opts.time || 0);
+  if (p.type === 'busstop' || p.type === 'gatepost' || p.type === 'statue' || p.type === 'watertower') label(ctx, p);
+  if (p.type === 'windmill') wheel(ctx, p, opts.time || 0);
+  if (p.type === 'laundry') washing(ctx, p, opts.time || 0);
+  return true;
+}
+
+/** Draw `p`'s shadow on the ground (before anything stands on it). */
+function drawPropShadow(ctx, p, opts = {}, alpha = 0.3) {
+  if (p.type === 'display' && p.variant === 'guns') return false;
+  const s = spriteFor(p, opts);
+  if (!s?.shadow) return false;
+  const a = ctx.globalAlpha;
+  ctx.globalAlpha = a * alpha;
+  ctx.drawImage(s.shadow, Math.round(p.x * T) + s.x + s.sx, Math.round(p.y * T) + s.y + s.sy);
+  ctx.globalAlpha = a;
+  return true;
+}
+
+const SPRITE_PROPS = new Set(Object.keys(PAINTERS));
+
+// ------------------------------------------------------------------ the live bits
+function flames(ctx, p, t) {
+  const x = Math.round(p.x * T);
+  const y = Math.round(p.y * T);
+  for (let i = 0; i < 4; i++) {
+    const f = Math.sin(t * 9 + i * 2.1);
+    const hgt = 8 + Math.round(Math.abs(f) * 6) + (i === 1 || i === 2 ? 4 : 0);
+    const fx = x + 10 + i * 3;
+    ctx.fillStyle = '#ff7a2a';
+    ctx.fillRect(fx, y + 7 - hgt, 3, hgt);
+    ctx.fillStyle = '#ffd24a';
+    ctx.fillRect(fx + 1, y + 7 - Math.round(hgt * 0.6), 1, Math.round(hgt * 0.6));
+  }
+}
+
+function flag(ctx, p, t) {
+  const x = Math.round(p.x * T);
+  const y = Math.round(p.y * T);
+  const c = ramp(p.color || '#2a4a8a');
+  for (let i = 0; i < 22; i++) {
+    const wave = Math.round(Math.sin(t * 2.4 + p.x + i * 0.35) * 2);
+    ctx.fillStyle = INK;
+    ctx.fillRect(x + 18 + i, y - 51 + wave, 1, 15);
+    ctx.fillStyle = i % 6 < 3 ? c[2] : c[3];
+    ctx.fillRect(x + 18 + i, y - 50 + wave, 1, 13);
+  }
+}
+
+const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
+/** The traffic light's lamps and its walk / wait box, as they are right now. */
+function lamps(ctx, p, t) {
+  const x = Math.round(p.x * T);
+  const y = Math.round(p.y * T);
+  const s = lightState(p, t);
+  const axis = p.corner === 'nw' || p.corner === 'se' ? 'ew' : 'ns';
+  ['red', 'amber', 'green'].forEach((c, i) => {
+    const on = s[axis] === c;
+    const cy = y - 37 + i * 10;
+    ctx.fillStyle = LAMP[c][on ? 0 : 1];
+    ctx.fillRect(x + 13, cy, 6, 6); ctx.fillRect(x + 12, cy + 1, 8, 4);
+    if (on) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 14, cy + 1, 2, 2); ctx.fillStyle = `${LAMP[c][0]}44`; ctx.fillRect(x + 9, cy - 2, 14, 10); }
+  });
+  const w = walkSignal(p, axis, t);
+  const lit = w === 'walk' || (w === 'flash' && Math.floor(t * 3) % 2 === 0);
+  ctx.fillStyle = w === 'wait' ? '#ff6a3a' : lit ? '#f2f2e8' : '#2a2c30';
+  if (w === 'wait') ctx.fillRect(x + 22, y - 2, 5, 6);
+  else { ctx.fillRect(x + 24, y - 2, 2, 2); ctx.fillRect(x + 23, y, 4, 2); ctx.fillRect(x + 24, y + 2, 1, 3); ctx.fillRect(x + 26, y + 2, 1, 3); }
+}
+
+function ripple(ctx, p, t) {
+  const x = Math.round(p.x * T);
+  const y = Math.round(p.y * T);
+  const w = Math.round((p.w || 1) * T);
+  const h = Math.round((p.h || 1) * T);
+  for (let i = 0; i < 6; i++) {
+    const a = t * 0.8 + i * 1.05;
+    const rx = (w / 2 - 12) * (0.4 + 0.5 * ((Math.sin(a) + 1) / 2));
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillRect(Math.round(x + w / 2 + Math.cos(i * 1.05) * rx), Math.round(y + h / 2 + Math.sin(i * 1.05) * rx * 0.45), 3, 1);
+  }
+}
+
+/** Words on a prop are drawn live (and crisp, over the pixels). */
+function label(ctx, p) {
+  const x = Math.round(p.x * T);
+  const y = Math.round(p.y * T);
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (p.type === 'busstop') { ctx.fillStyle = '#efe6cc'; ctx.font = 'bold 11px "Trebuchet MS", sans-serif'; ctx.fillText(p.lines || '1', x + 16.5, y - 15.5); }
+  else if (p.type === 'watertower') { ctx.fillStyle = '#7a2a24'; ctx.font = 'bold 14px Georgia, serif'; ctx.fillText('LARIAT', x + Math.round((p.w || 1) * T) / 2, y - 43); }
+  else if (p.type === 'gatepost') { ctx.fillStyle = '#e8c35a'; ctx.font = 'bold 9px "Trebuchet MS", sans-serif'; ctx.fillText('H', x + 16, y - 7); }
+  else { ctx.fillStyle = '#e8d8a8'; ctx.font = 'bold 6px "Trebuchet MS", sans-serif'; ctx.fillText(p.label || 'FOUNDER', x + Math.round((p.w || 1) * T) / 2, y + plaqueY(p), Math.round((p.w || 1) * T) - 24); }
+  ctx.restore();
+}
+
+/** The windmill's wheel of blades, turning. */
+function wheel(ctx, p, t) {
+  const cx = Math.round(p.x * T + ((p.w || 1) * T) / 2);
+  const cy = Math.round(p.y * T) - 31;
+  const a0 = t * 1.4;
+  for (let b = 0; b < 14; b++) {
+    const a = a0 + (b * Math.PI * 2) / 14;
+    for (let r = 4; r < 22; r++) {
+      const x = Math.round(cx + Math.cos(a) * r);
+      const y = Math.round(cy + Math.sin(a) * r);
+      ctx.fillStyle = r > 19 ? '#8a9098' : '#c8ccd2';
+      ctx.fillRect(x, y, r > 10 ? 2 : 1, r > 10 ? 2 : 1);
+    }
+  }
+  ctx.fillStyle = INK; ctx.fillRect(cx - 3, cy - 3, 6, 6);
+  ctx.fillStyle = '#5a5e66'; ctx.fillRect(cx - 2, cy - 2, 4, 4);
+}
+
+/** Washing on the line, stirring in the wind. */
+function washing(ctx, p, t) {
+  const x = Math.round(p.x * T);
+  const y = Math.round(p.y * T);
+  const w = Math.round((p.w || 1) * T);
+  const colors = ['#c0614a', '#e8e2d4', '#4a6a8a', '#d9a23a', '#6a8a5a'];
+  for (let i = 0; i < Math.floor((w - 16) / 13); i++) {
+    const sway = Math.round(Math.sin(t * 2 + i) * 1.5);
+    const c = ramp(colors[(i + Math.round(p.x)) % colors.length]);
+    const lx = x + 9 + i * 13 + sway;
+    const ly = y - 10 + Math.round(Math.sin(((lx - x - 4) / (w - 8)) * Math.PI) * 6);
+    const hh = 12 + (i % 3) * 3;
+    ctx.fillStyle = INK; ctx.fillRect(lx - 1, ly, 11, hh + 1);
+    ctx.fillStyle = c[2]; ctx.fillRect(lx, ly, 9, hh);
+    ctx.fillStyle = c[3]; ctx.fillRect(lx, ly, 3, hh);
+    ctx.fillStyle = c[1]; ctx.fillRect(lx + 7, ly, 2, hh);
+    ctx.fillStyle = '#e8e0c8'; ctx.fillRect(lx + 1, ly - 1, 2, 2); ctx.fillRect(lx + 6, ly - 1, 2, 2);
+  }
+}
+
+/** For the tests: paint `p` into a recorder; its box and every rectangle it filled (prop coordinates). */
+function paintPropForTest(p, opts = {}) {
+  const P = painterOf(p.type);
+  if (!P) return null;
+  const rects = [];
+  const ctx = { fillStyle: '', fillRect(x, y, w, h) { rects.push([x, y, w, h, this.fillStyle]); } };
+  const v = P.variants ? Math.floor(hash2(Math.round(p.x * 7) + 3, Math.round(p.y * 13) + 1) * P.variants) : 0;
+  P.paint(kit(ctx), p, v, { night: Boolean(opts.night), links: opts.links || 0 });
+  return { box: P.box(p), rects };
+}
+
+return { ramp, drawPropSprite, drawPropShadow, SPRITE_PROPS, paintPropForTest };
 })();
 
 // ---- src/engine/drawFarm.js
@@ -34445,6 +35684,7 @@ __m["src/engine/drawWorld.js"] = (function () {
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 const { drawFarmProp } = __m["src/engine/drawFarm.js"];
 const { drawPixelProp } = __m["src/engine/drawPixelProps.js"];
+const { drawPropSprite } = __m["src/engine/propSprites.js"];
 const { drawPixelBuilding } = __m["src/engine/drawPixelBuildings.js"];
 const { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } = __m["src/engine/drawDeck.js"];
 const { lightState, walkSignal } = __m["src/world/lights.js"];
@@ -34907,7 +36147,7 @@ let pixelProps = false;
 function setPixelProps(on) { pixelProps = !!on; }
 
 function drawProp(ctx, p, opts) {
-  if (pixelProps && drawPixelProp(ctx, p, opts)) return;
+  if (pixelProps && (drawPropSprite(ctx, p, opts) || drawPixelProp(ctx, p, opts))) return; // v0.49.0: sprites first
   const x = p.x * T;
   const y = p.y * T;
   const w = p.w * T;
@@ -37824,6 +39064,7 @@ __m["src/engine/renderer.js"] = (function () {
 // highlight and day/night lighting. Reads game state; never mutates it.
 const { TILE, clamp, lerp, dist } = __m["src/core/util.js"];
 const { buildGroundChunk, buildGroundOverview, CHUNK } = __m["src/engine/drawPixelGround.js"];
+const { drawPropShadow, SPRITE_PROPS } = __m["src/engine/propSprites.js"];
 const { drawFields } = __m["src/engine/drawFarm.js"];
 const { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
 const { drawCar, drawBus, setPixelCars } = __m["src/engine/drawVehicles.js"];
@@ -38177,7 +39418,14 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+          drawProp(ctx, p, { map: lm, time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+        }
+        // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
+        const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
+        for (const p of lm.props) {
+          if (!SPRITE_PROPS.has(p.type) || !this.propVisible(p)) continue;
+          if (!inView(p.x * TILE - 32, p.y * TILE - 64, p.w * TILE + 64, p.h * TILE + 96)) continue;
+          drawPropShadow(ctx, p, { map: lm, night }, shade);
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
         if (g.combat.decals.length) this.drawCombatGround(ctx, lm.id); // v0.44.0: blood and spent cases
@@ -38197,7 +39445,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { map: lm, time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus

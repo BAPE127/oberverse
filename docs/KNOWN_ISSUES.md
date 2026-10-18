@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.48.0
+# Known Issues and Limitations — v0.49.0
+
+- **Props (v0.49.0):** about 50 kinds of prop are sprites now; the rarer ones (ships and their berths, the works' machines, the oil field, the building site, Chuckie's cheese plant, the big road signs, cars on display, stairs) are still the old drawings. A tree's shadow falls on whoever stands in it only if they're drawn after it (the shadows are on the ground, under everyone). People, cars and cows are next (phase 5).
 
 - **Ground and walls (v0.48.0):** props, furniture, trees, people and cars are still the 0.46 drawings (phases 4 and 5 of the overhaul); the night light is the 0.43 banded light (phase 6). A river's colour can change slightly where it crosses into the next part of town if that part's shore is out of reach (more than two tiles past the seam). Walls are a whole tile thick. A building's door is drawn as an open doorway whatever its lock.
 

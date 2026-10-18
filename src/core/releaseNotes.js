@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.49.0',
+    date: '2026-10-18',
+    channel: 'development',
+    title: 'Things in Their Places',
+    notes: [
+      'The things in the world, redrawn like the mock-ups: trees in leafy clumps (green, fresh and golden birches), pines, bushes, boulders; green iron lamp posts, benches, hydrants, pillar boxes, bins and bags, dumpsters, bollards, traffic lights whose lamps really change; fences that turn corners, chain-link, ranch rails.',
+      'Indoors: chairs, tables with a cup or a plate on them, desks with papers and a lamp, counters with a till, workbenches with their tools, filing cabinets, wardrobes, bookshelves full of books, beds, rugs, stoves, potted plants, paintings and windows with curtains.',
+      'Everything casts a shadow down and to the right, like the buildings, and the shadows fade at night. Lariat\'s water tower, silo and turning windmill, the Sumps\' tents and washing lines too.',
+    ],
+  },
+  {
     version: '0.48.0',
     date: '2026-10-18',
     channel: 'development',

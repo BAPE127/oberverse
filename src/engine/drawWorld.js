@@ -2,6 +2,7 @@
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 import { drawFarmProp } from './drawFarm.js';
 import { drawPixelProp } from './drawPixelProps.js';
+import { drawPropSprite } from './propSprites.js';
 import { drawPixelBuilding } from './drawPixelBuildings.js';
 import { drawMooredHull, drawDeckPart, drawDeckhouse, drawShipWheel, drawLogbook, drawGangway, drawCompanionway } from './drawDeck.js';
 import { lightState, walkSignal } from '../world/lights.js';
@@ -464,7 +465,7 @@ let pixelProps = false;
 export function setPixelProps(on) { pixelProps = !!on; }
 
 export function drawProp(ctx, p, opts) {
-  if (pixelProps && drawPixelProp(ctx, p, opts)) return;
+  if (pixelProps && (drawPropSprite(ctx, p, opts) || drawPixelProp(ctx, p, opts))) return; // v0.49.0: sprites first
   const x = p.x * T;
   const y = p.y * T;
   const w = p.w * T;

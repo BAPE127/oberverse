@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.49.0] — 2026-10-18 — Things in Their Places (development build)
+
+The art overhaul, phase 4 of 6: the props.
+
+### Added
+- **Prop sprites** (`src/engine/propSprites.js`): 50 kinds of prop redrawn at one world pixel to a pixel, shaded as solid things lit from the top left (shaded balls, cylinders and boxes from a small kit), each painted once into a sprite and copied from then on. The outline is traced round the finished silhouette automatically, and the shadow is the same silhouette, flat and dark, moved down and to the right; the renderer draws the shadows on the ground before anyone stands on them, fading at night. Variants by where a prop stands (no rows of clones): three kinds of tree (deep green, fresh, and golden birches like the mock-up's woods), chairs in three woods, cups, plates or candles on the tables, a lamp or a phone on the desks, books of every colour.
+- Outdoors: trees, pines, bushes, boulders (mossy now and then), park benches, green iron lamp posts (lit at night), hydrants, pillar boxes, bins with bags, dumpsters, bollards, crates, barrels (wood or blue steel), traffic lights (pole and heads as a sprite; the lamps and the walk/wait box live), bus stops, noticeboards, signs, flagpoles (the flag waves live), barrel fires (live flames), tents, washing lines (the washing stirs live), the fountain (live ripples), the founder's statue, the gatehouse posts, pipes, vents, hay bales, troughs, Lariat's silo, water tower and windmill (the wheel turns live). Words on props (the bus number, LARIAT, a statue's plaque) are drawn live, so they stay crisp.
+- **Fences join up:** picket fences, chain-link (razor wire on the prison's) and ranch rails look at their neighbours and run along them, turning corners.
+- Indoors: chairs, tables, desks, counters (with a till), workbenches (with a vice and tools), lecterns, filing cabinets, wardrobes, bookshelves, shop displays, stoves and ovens (glowing at night), beds, camp beds, rugs, potted plants, flowerbeds, paintings (a landscape, a portrait or a ship), windows with curtains, chests, cell bars.
+
+### Changed
+- Puddles in the mud are rounded with the sky in them; boulders in the water are round, lit and ringed with foam.
+
 ## [0.48.0] — 2026-10-18 — Ground Truth (development build)
 
 The art overhaul, phase 3 of 6 (the owner's mock-ups: "the game should feel smooth and highly detailed with pixels … do not sacrifice the game's details for quick delivery"): the ground and the walls.

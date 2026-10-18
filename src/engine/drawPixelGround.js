@@ -554,7 +554,13 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       break;
     }
     case 'u': {
-      if (r > 0.9) { R(px + 5, py + 11, 20, 7, '#3e4a56'); R(px + 8, py + 9, 14, 2, '#3e4a56'); R(px + 9, py + 12, 7, 1, '#6e7a86'); R(px + 8, py + 18, 15, 1, '#463a2e'); } // a puddle
+      if (r > 0.95) {
+        // a puddle: rounded, the sky in it, a dark wet rim
+        const rows = [10, 16, 20, 22, 20, 16, 10];
+        const cx = px + 8 + Math.floor(h(1) * 14);
+        rows.forEach((w, i) => { R(cx - w / 2 - 1, py + 10 + i, w + 2, 1, '#463a2e'); R(cx - w / 2, py + 10 + i, w, 1, i < 2 ? '#56687a' : '#465668'); });
+        R(cx - 6, py + 12, 7, 1, '#8aa0b4'); R(cx + 2, py + 14, 3, 1, '#7a90a4');
+      }
       if (r < 0.06) { R(px + 12, py + 14, 5, 3, '#d8d0c0'); R(px + 12, py + 14, 5, 1, '#f0ece4'); } // litter
       break;
     }
@@ -606,10 +612,26 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       break;
     }
     case 'r': {
-      // a boulder in the water: outline, three tones, a wet shine, a ring of foam
-      R(px + 3, py + 6, 26, 22, 'rgba(255,255,255,0.35)');
-      R(px + 4, py + 5, 24, 21, INK);
-      R(px + 5, py + 6, 22, 19, '#7e8086'); R(px + 6, py + 6, 14, 8, '#a2a4aa'); R(px + 8, py + 7, 6, 2, '#c8cace'); R(px + 16, py + 17, 10, 7, '#5e6066');
+      // a boulder in the water: round, lit from the top left, wet and dark below, a ring of foam
+      const cx = px + 15 + Math.floor((h(1) - 0.5) * 4);
+      const cy = py + 16;
+      const rx = 11 + Math.floor(h(2) * 3);
+      const ry = 9 + Math.floor(h(3) * 3);
+      const pal = ['#3e4046', '#5e6066', '#7e8086', '#a2a4aa', '#c8cace'];
+      for (let yy = -ry - 2; yy <= ry + 2; yy++) {
+        const half = Math.round((rx + 2) * Math.sqrt(Math.max(0, 1 - (yy / (ry + 2)) ** 2)));
+        if (half > 0) R(cx - half, cy + yy, half * 2, 1, 'rgba(255,255,255,0.35)');
+      }
+      for (let yy = -ry; yy <= ry; yy++) {
+        const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - (yy / ry) ** 2)));
+        if (half <= 0) continue;
+        R(cx - half - 1, cy + yy, half * 2 + 2, 1, INK);
+        for (let xx = -half; xx < half; xx++) {
+          const l = 0.55 - 0.4 * (xx / rx) - 0.55 * (yy / ry);
+          R(cx + xx, cy + yy, 1, 1, pal[Math.max(0, Math.min(4, Math.floor(l * 4.2)))]);
+        }
+      }
+      R(cx - 4, cy - ry + 3, 5, 1, '#e0e2e6');
       break;
     }
     case 'W': if (map.kind !== 'interior') R(px, py, T, T, '#5b4a45'); break;
