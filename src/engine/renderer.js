@@ -3,6 +3,7 @@
 import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildGroundChunk, buildGroundOverview, CHUNK } from './drawPixelGround.js';
 import { drawPropShadow, SPRITE_PROPS } from './propSprites.js';
+import { drawShopFront } from './drawPixelBuildings.js';
 import { drawFields } from './drawFarm.js';
 import { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
@@ -17,6 +18,43 @@ import { inWindow } from '../world/clock.js';
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 const CONFETTI = ['#ff5a8a', '#f2e05a', '#5ad0f2', '#8aff6a', '#c08aff'];
 const LIGHT_SCALE = 0.25; // the light map is soft, so it is rendered at quarter resolution and upscaled
+
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+/**
+ * v0.51.0: a pool of light, made once per size: its opacity falls off from the middle and is stepped
+ * into a few levels with an ordered dither — pixel-art light, crisp, no smooth gradient and no hard
+ * rings — and, stamped where the light is, the dither travels with it instead of crawling.
+ */
+const lightSprites = new Map();
+function lightSprite(rad, strength, rgb = '0,0,0', levels = 7) {
+  const r = Math.max(2, Math.round(rad));
+  const k = Math.round(strength * 20);
+  const key = `${r}|${k}|${rgb}|${levels}`;
+  let cv = lightSprites.get(key);
+  if (cv) return cv;
+  const S = r * 2 + 1;
+  cv = document.createElement('canvas');
+  cv.width = S;
+  cv.height = S;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(S, S);
+  const d = img.data;
+  const [cr, cg, cb] = rgb.split(',').map(Number);
+  const st = k / 20;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const t = Math.hypot(x - r, y - r) / r;
+    if (t >= 1) continue;
+    const a = st * (t < 0.55 ? 1 - (t / 0.55) * 0.38 : 0.62 * (1 - (t - 0.55) / 0.45));
+    const q = Math.floor(a * levels + BAYER4[((y & 3) << 2) | (x & 3)]) / levels;
+    if (q <= 0) continue;
+    const i = (y * S + x) * 4;
+    d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; d[i + 3] = Math.min(255, Math.round(q * 255));
+  }
+  ctx.putImageData(img, 0, 0);
+  if (lightSprites.size > 400) lightSprites.clear();
+  lightSprites.set(key, cv);
+  return cv;
+}
 
 const MAX_CHUNKS = 160; // chunks of ground kept (8×8 tiles, a quarter of a megabyte each: about 40 MB)
 const makeCanvas = (w, h) => {
@@ -371,7 +409,11 @@ export class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
-        if (b.interior) continue; // v0.47.0: its room is drawn in its place
+        if (b.interior) {
+          // v0.47.0: its room is drawn in its place; v0.51.0: its sign and awning over the front
+          if ((b.sign || b.awning) && inView(b.x * TILE, (b.y + b.h - 2) * TILE, b.w * TILE, 3 * TILE)) items.push({ y: (b.y + b.h) * TILE + L.y + 1, draw: at(() => drawShopFront(ctx, b)) });
+          continue;
+        }
         const above = b.tower && !this.pixel ? towerHeight(b) / TILE : 4;
         if (!inView(b.x * TILE, (b.y - above) * TILE, b.w * TILE, (b.h + above) * TILE)) continue;
         const door = lm.doors.find((d) => d.building === b.id);
@@ -880,10 +922,10 @@ export class Renderer {
 
   drawLighting(map) {
     const g = this.game;
-    const outdoor = map.kind !== 'interior';
-    const dark = outdoor ? g.clock.darkness * 0.72 : 0.12 + g.clock.darkness * 0.2;
+    // v0.51.0: one night for the whole scene — a room you're standing in is part of the street around it
+    const outdoor = this.layers.some((L) => L.map.kind !== 'interior');
+    const dark = outdoor ? g.clock.darkness * 0.78 : 0.12 + g.clock.darkness * 0.2;
     if (dark < 0.02) return;
-    // v0.43.0: in the pixel look the light map is drawn at art resolution with hard, banded pools
     const pix = this.pixel && !g.combat.wrath;
     const LS = pix ? 1 / this.px : LIGHT_SCALE;
     if (pix) {
@@ -894,29 +936,27 @@ export class Renderer {
       this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
       this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
     }
-    // the hard bands only once it's properly dark — in daylight indoors they drew faint rings that swam about
-    const banded = pix && dark > 0.3;
-    const ramp = (grad, a, rgb = '0,0,0') => {
-      if (!banded) { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(1, `rgba(${rgb},0)`); return; }
-      // three hard steps, the SoR way
-      for (const [t0, t1, k] of [[0, 0.42, 1], [0.42, 0.7, 0.62], [0.7, 0.92, 0.28], [0.92, 1, 0]]) { grad.addColorStop(t0, `rgba(${rgb},${a * k})`); grad.addColorStop(Math.max(t0, t1 - 0.001), `rgba(${rgb},${a * k})`); }
-    };
+    // smooth pools of light (in the pixel look, dithered sprites: lightSprite)
+    const ramp = (grad, a, rgb = '0,0,0') => { grad.addColorStop(0, `rgba(${rgb},${a})`); grad.addColorStop(0.55, `rgba(${rgb},${a * 0.62})`); grad.addColorStop(1, `rgba(${rgb},0)`); };
     const lc = this.light.getContext('2d');
     const W = this.light.width;
     const H = this.light.height;
     lc.globalCompositeOperation = 'source-over';
     lc.clearRect(0, 0, W, H);
-    lc.fillStyle = outdoor ? `rgba(14,18,48,${dark})` : `rgba(30,20,10,${dark})`;
+    lc.fillStyle = outdoor ? `rgba(16,16,52,${dark})` : `rgba(30,20,10,${dark})`;
     lc.fillRect(0, 0, W, H);
     lc.globalCompositeOperation = 'destination-out';
     const z = this.cam.zoom;
-    const hole = (wx, wy, r, strength = 1) => {
+    const at = (wx, wy) => {
       const sc = this.toScreen(wx, wy);
-      // v0.46.0: on the world's own pixel grid (the same one the picture was drawn on), so the
-      // pools of light don't shimmer against the ground as the camera moves
-      const s = pix ? { x: Math.round((sc.x - Math.round(this.blit.x)) * LS), y: Math.round((sc.y - Math.round(this.blit.y)) * LS) } : { x: sc.x * LS, y: sc.y * LS };
+      // on the world's own pixel grid, so the pools don't shimmer against the ground as the camera moves
+      return pix ? { x: Math.round((sc.x - Math.round(this.blit.x)) * LS), y: Math.round((sc.y - Math.round(this.blit.y)) * LS) } : { x: sc.x * LS, y: sc.y * LS };
+    };
+    const hole = (wx, wy, r, strength = 1) => {
+      const s = at(wx, wy);
       const rad = r * z * LS;
       if (s.x < -rad || s.y < -rad || s.x > W + rad || s.y > H + rad) return;
+      if (pix) { const sp = lightSprite(rad, strength); lc.drawImage(sp, s.x - (sp.width >> 1), s.y - (sp.height >> 1)); return; }
       const grad = lc.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad);
       ramp(grad, strength);
       lc.fillStyle = grad;
@@ -924,10 +964,25 @@ export class Renderer {
       lc.arc(s.x, s.y, rad, 0, Math.PI * 2);
       lc.fill();
     };
+    /** A lit room: its whole floor, the light spilling a little past its walls. */
+    const room = (wx, wy, ww, wh, strength) => {
+      const a = at(wx, wy);
+      const k = z * LS;
+      const w = ww * k;
+      const h = wh * k;
+      if (a.x > W || a.y > H || a.x + w < 0 || a.y + h < 0) return;
+      for (let i = 0; i < 4; i++) {
+        const pad = (10 - i * 4) * k;
+        lc.fillStyle = `rgba(0,0,0,${strength * (i === 3 ? 1 : 0.22)})`;
+        lc.fillRect(a.x - pad, a.y - pad, w + pad * 2, h + pad * 2);
+      }
+    };
     const warm = [];
+    const fronts = [];
     if (outdoor) {
       this.beam = null;
       for (const L of this.layers) {
+        if (L.map.kind === 'interior') continue;
         for (const p of L.map.props) {
           if (p.type !== 'streetlamp') continue;
           hole(p.x * TILE + 16 + L.x, p.y * TILE - 10 + L.y, 120, 0.95);
@@ -941,7 +996,10 @@ export class Renderer {
         for (const b of L.map.buildings) {
           if (b.tower && !this.pixel) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
           if (!this.buildingLit(b)) continue;
-          hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
+          if (b.interior) {
+            room(b.x * TILE + L.x, b.y * TILE + L.y, b.w * TILE, b.h * TILE, 0.82);
+            fronts.push([b.x * TILE + L.x, (b.y + b.h) * TILE + L.y, b.w * TILE]);
+          } else hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE + L.y, 30 + b.w * 9, 0.75);
         }
         const lh = L.map.buildings.find((b) => b.round);
         if (lh && g.getFlag('lighthouse_relit')) {
@@ -983,18 +1041,51 @@ export class Renderer {
     this.ctx.imageSmoothingEnabled = !pix;
     this.ctx.drawImage(this.light, 0, 0, W, H, pix ? Math.round(this.blit.x) : 0, pix ? Math.round(this.blit.y) : 0, pix ? W * this.px : this.canvas.width, pix ? H * this.px : this.canvas.height);
     this.ctx.imageSmoothingEnabled = true;
-    // warm glow on top
-    this.ctx.globalCompositeOperation = 'lighter';
+    // warm glow on top (in the pixel look, stepped and dithered like the shadows)
+    const glow = pix ? (this.glow ||= document.createElement('canvas')) : null;
+    let gc = this.ctx;
+    let gk = z;
+    if (glow) {
+      if (glow.width !== W || glow.height !== H) { glow.width = W; glow.height = H; }
+      gc = glow.getContext('2d');
+      gc.globalCompositeOperation = 'source-over';
+      gc.clearRect(0, 0, W, H);
+      gk = z * LS;
+    }
+    const gpos = (wx, wy) => (glow ? at(wx, wy) : this.toScreen(wx, wy));
+    gc.globalCompositeOperation = 'lighter';
     for (const [wx, wy, r0, tint] of warm) {
-      const s = this.toScreen(wx, wy);
+      const s = gpos(wx, wy);
       const r = tint ? 110 : r0;
       const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
-      const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * z);
-      ramp(grad, (tint ? 0.5 : 0.28) * g.clock.darkness, rgb);
-      this.ctx.fillStyle = grad;
-      this.ctx.beginPath();
-      this.ctx.arc(s.x, s.y, r * z, 0, Math.PI * 2);
-      this.ctx.fill();
+      if (glow) {
+        const sp = lightSprite(r * gk, 1, rgb, 6);
+        gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * g.clock.darkness);
+        gc.drawImage(sp, s.x - (sp.width >> 1), s.y - (sp.height >> 1));
+        gc.globalAlpha = 1;
+        continue;
+      }
+      const grad = gc.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * gk);
+      ramp(grad, (tint ? 0.5 : 0.3) * g.clock.darkness, rgb);
+      gc.fillStyle = grad;
+      gc.beginPath();
+      gc.arc(s.x, s.y, r * gk, 0, Math.PI * 2);
+      gc.fill();
+    }
+    // v0.51.0: a lit building's light falls out of its front onto the pavement
+    for (const [wx, wy, ww] of fronts) {
+      const s = gpos(wx, wy);
+      const grad = gc.createLinearGradient(0, s.y, 0, s.y + 26 * gk);
+      grad.addColorStop(0, `rgba(255,200,120,${0.22 * g.clock.darkness})`);
+      grad.addColorStop(1, 'rgba(255,200,120,0)');
+      gc.fillStyle = grad;
+      gc.fillRect(s.x, s.y, ww * gk, 26 * gk);
+    }
+    if (glow) {
+      this.ctx.globalCompositeOperation = 'lighter';
+      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.drawImage(glow, 0, 0, W, H, Math.round(this.blit.x), Math.round(this.blit.y), W * this.px, H * this.px);
+      this.ctx.imageSmoothingEnabled = true;
     }
     if (this.headlights && outdoor) {
       const s = this.toScreen(this.headlights.x, this.headlights.y);

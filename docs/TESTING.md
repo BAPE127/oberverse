@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.51.0 (2026-10-18)
+
+- `npm run check` — **391/391 tests passed**; `npm run smoke` — 24/24.
+- Browser at night (22:00, 21:00, 23:00): Canal Row, inside the Kettle & Crumb, Halvermouth — no page errors; the darkness flat, the lamp pools dithered only at their edges, the café lit from inside with its light on the pavement. Frame timing at night: sprinting across Halvermouth and walking through Lanternside, at most one frame over 16.8 ms (on arriving). Measured `drawLighting` at about 1.3 ms a frame (it was 4.5 ms with the first version's per-frame dither pass, and that dither also screen-doored the whole darkness — both fixed before release). Shop fronts: the Kettle & Crumb, the gun shop, Lariat Mercantile. Screenshots: `docs/mockups/v051-*.png`.
+
 ## Verification record — v0.50.0 (2026-10-18)
 
 - `npm run check` — **391/391 tests passed** (2 new in `pixelart.test.mjs`: every resident paints in every facing and frame, asleep or angry, inside the person sprite's box; every ordinary car model and the bus has a body, glass, head- and tail-lamps and tyres (and a pickup its bed) and nothing outside its outline).

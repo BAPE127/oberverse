@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.50.0
+# Known Issues and Limitations — v0.51.0
+
+- **Light (v0.51.0):** a lit room is lit evenly (no lamps of its own inside it yet); the floors of towers and other rooms that aren't laid into a street still use the old indoor light. Light pools are round and don't stop at walls.
 
 - **People and cars (v0.50.0):** cars turn in 64 steps (about 6° each). The signature cars, the tractors and Chuckie's cows keep their earlier drawings; imported characters with their own picture still use it. A person's sprite cache is cleared after 3000 looks (only a wardrobe marathon gets there).
 

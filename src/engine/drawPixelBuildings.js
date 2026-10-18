@@ -190,3 +190,42 @@ export function drawPixelBuilding(ctx, b, opts) {
     ctx.fillText(b.sign, Math.round(sx) + 5, sy + 7);
   }
 }
+
+/**
+ * v0.51.0: a walk-in building's front, over its front wall: a striped awning (if it has one) and
+ * its sign above the door — so you can tell the shops apart from the street.
+ */
+export function drawShopFront(ctx, b) {
+  const x0 = b.x * 32;
+  const fy = (b.y + b.h) * 32; // the street side of the front wall
+  const w = b.w * 32;
+  const R = (x, y, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, ww, hh); };
+  if (b.awning) {
+    // canvas stripes from the wall out over the pavement, scalloped, lit along the top
+    const ay = fy - 14;
+    const cream = '#f3e5c6';
+    R(x0 - 1, ay - 1, w + 2, 15, INK);
+    for (let i = 0; i * 8 < w; i++) {
+      const c = i % 2 ? cream : b.awning;
+      R(x0 + i * 8, ay, Math.min(8, w - i * 8), 12, c);
+      R(x0 + i * 8, ay, Math.min(8, w - i * 8), 2, shade(c, 30));
+      R(x0 + i * 8, ay + 10, Math.min(8, w - i * 8), 2, shade(c, -40));
+      R(x0 + i * 8 + 2, ay + 12, Math.min(4, w - i * 8 - 2), 2, c); // the scallop
+      R(x0 + i * 8 + 2, ay + 14, Math.min(4, w - i * 8 - 2), 1, INK);
+    }
+    R(x0, ay + 15, w, 4, 'rgba(16,14,36,0.25)'); // its shadow on the pavement
+  }
+  if (b.sign) {
+    ctx.font = 'bold 9px "Trebuchet MS", "Segoe UI", sans-serif';
+    const tw = Math.ceil(ctx.measureText(b.sign).width + 10);
+    const sx = b.door ? Math.min(Math.max(b.door.x * 32 + 16 - tw / 2, x0 + 4), x0 + w - tw - 4) : x0 + (w - tw) / 2;
+    const sy = fy - 32 + (b.awning ? 0 : 1);
+    R(Math.round(sx) - 2, sy - 2, tw + 4, 17, INK);
+    R(Math.round(sx), sy, tw, 13, '#3a2c25');
+    R(Math.round(sx), sy, tw, 1, '#5a4438');
+    ctx.fillStyle = '#f6e7c1';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(b.sign, Math.round(sx) + 5, sy + 7);
+  }
+}

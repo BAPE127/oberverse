@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.51.0',
+    date: '2026-10-18',
+    channel: 'development',
+    title: 'Night Falls',
+    notes: [
+      'Bright by day, moody at night: the dark comes down a deep blue, the lamps throw soft pools of light with crisp pixel edges (no more hard rings), and a lit café or shop glows from the inside, its light spilling out of the front onto the pavement.',
+      'Standing in a room at night no longer lights up the whole street outside it.',
+      'Shops have their signs back over the door, and striped awnings where they had them.',
+    ],
+  },
+  {
     version: '0.50.0',
     date: '2026-10-18',
     channel: 'development',

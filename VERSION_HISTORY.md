@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.51.0 | 2026-10-18 | development | 1 | Night falls: dithered pixel-art light, one night for rooms and streets, lit rooms that glow, shop signs and awnings — the art overhaul complete |
 | 0.50.0 | 2026-10-18 | development | 1 | Faces in the crowd: people with faces, hair and a four-frame walk as outlined sprites; cars and the bus drawn per pixel at 64 headings, lit from the world's top left |
 | 0.49.0 | 2026-10-18 | development | 1 | Things in their places: 50 kinds of prop as shaded, outlined sprites with shadows on the ground; fences that join up |
 | 0.48.0 | 2026-10-18 | development | 1 | Ground truth: the ground painted pixel by pixel (ragged soft edges, surf and shallows, cracked asphalt), thick walls by material with windows, floors by place; ground built in chunks |

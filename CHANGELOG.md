@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.51.0] — 2026-10-18 — Night Falls (development build)
+
+The art overhaul, phase 6 of 6: light, and the finishing touches. (Owner: "bright by day, moody at night".)
+
+### Changed
+- **Pixel-art light:** each pool of light is a sprite made once per size, its opacity falling off from the middle and stepped into a few levels with an ordered dither — crisp at the edges, no smooth gradients and no hard rings — and stamped where the light is, so the dither travels with it instead of crawling as the camera moves (`lightSprite`). The warm glows (lamps, fires, gunfire, a cruiser's red and blue) are drawn the same way. The darkness itself is a flat deep blue, not dithered.
+- **One night for the whole scene:** with the rooms laid into the streets, a room you're standing in is lit and darkened as part of the street around it (the street outside no longer turns bright when you step indoors at night).
+- **Lit rooms glow:** an open or occupied building lights its whole floor, the light spilling a little past its walls, and a warm spill falls out of its front onto the pavement.
+
+### Added
+- **Shop fronts** for the walk-in buildings (`drawShopFront`): the sign on its plate above the door (in crisp text) and the striped, scalloped awning where a building has one, throwing a shadow on the pavement.
+
+### Performance
+- Light at night costs about 1.3 ms a frame (measured in a headless browser; it was 4.5 ms with a per-frame dither pass, which this replaced).
+
 ## [0.50.0] — 2026-10-18 — Faces in the Crowd (development build)
 
 The art overhaul, phase 5 of 6: people and cars.
