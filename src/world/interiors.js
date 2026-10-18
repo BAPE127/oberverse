@@ -122,7 +122,7 @@ function generatedInterior(S, b) {
   const tiles = roomTiles(W, H, FLOOR[kind], dx >= 0 ? dx : 0);
   if (dx < 0) tiles[H - 1] = 'W'.repeat(W);
   const def = {
-    id, name: b.name || b.mapLabel || 'A building', kind: 'interior', ambience: 'amb_indoor', generated: true, shell: b.id, dwelling: kind === 'house' || kind === 'shack',
+    id, name: b.name || b.mapLabel || 'A building', kind: 'interior', ambience: 'amb_indoor', generated: true, shell: b.id, trade: kind, dwelling: kind === 'house' || kind === 'shack',
     tiles,
     doors: dx >= 0 ? [{ id: `door_${id}_exit`, x: dx, y: H - 1, to: { map: S.id, spot: `${b.id}_out` } }] : [],
     spots: {},

@@ -40,6 +40,13 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.48.0 (2026-10-18)
+
+- `npm run check` — **388/388 tests passed** (1 new in `pixelart.test.mjs`: Westbrook (a beach and a river) and the Kettle & Crumb built chunk by chunk are pixel for pixel the same as built whole — no seams).
+- Chunk build time (Node): about 5–8 ms for a chunk of 8×8 tiles (the first one also makes the noise). Browser: sprinting east across Halvermouth and south through Lanternside — no frame over 16.8 ms, no page errors.
+- Fixed while testing: water near a map's edge went dark in a straight line (past the edge counted as land; now the neighbouring map is looked into); a turquoise/navy seam where a beach met a grassy bank (the shallows now go by the distance to the sand alone); the noise broke at the seam between two maps (now sampled in world coordinates); the floors were too grimy (grime is now per place).
+- `npm run smoke` — 24/24. Screenshots: `docs/mockups/v048-*.png` (Canal Row, Lighthouse Point, the Westbrook beach and river, the gun shop, a Lariat street, the Grand Hotel).
+
 ## Verification record — v0.47.0 (2026-10-18)
 
 - `npm run check` — **387/387 tests passed** (6 new in `seamless.test.mjs`: every building on the six streets has its room laid over it, exactly its size, in its region, with a walk-through door; walking into the Kettle & Crumb and out again crosses seamlessly and keeps walking; a locked door stops you from the street and you can still leave from inside; cars stop at the door; Mags walks out of the café onto the square without a jump; a 0.46 save loads with you on the same spot of the grown street). Tests that named street coordinates now go through `grown()` (`tests/helpers.mjs`); the Osric citation test pins the hourly bang's cooldown so a second random bang can't change Tibbs' mood.

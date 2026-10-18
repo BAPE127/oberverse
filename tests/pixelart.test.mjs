@@ -95,3 +95,35 @@ test('the hotbar: an icon for fists and every weapon in the game', async () => {
     assert.ok(cv.ctx.rects.length >= 4, `${id} has an icon`);
   }
 });
+
+test('the ground in chunks (v0.48.0): built chunk by chunk it is pixel for pixel the ground built whole — no seams', async () => {
+  const { buildGroundChunk, buildPixelGround, CHUNK } = await import('../src/engine/drawPixelGround.js');
+  const g = newGame(1);
+  // a canvas stand-in with real pixel data
+  const imgCanvas = (w, h) => {
+    const ctx = new Proxy({ img: null }, {
+      get: (t, k) => (k in t ? t[k] : k === 'createImageData' ? (a, b) => ({ width: a, height: b, data: new Uint8ClampedArray(a * b * 4) }) : k === 'putImageData' ? (im) => { t.img = im; } : () => {}),
+      set: (t, k, v) => { t[k] = v; return true; },
+    });
+    return { width: w, height: h, getContext: () => ctx, ctx };
+  };
+  for (const id of ['westbrook', 'cafe']) { // a beach and a river; a room with walls
+    const m = g.maps.get(id);
+    const whole = buildPixelGround(m, imgCanvas).ctx.img;
+    const W = m.width * 32;
+    assert.ok(whole.data.some((v, i) => i % 4 === 3 && v === 255), `${id}: pixels painted`);
+    let checked = 0;
+    for (let cy = 0; cy * CHUNK < m.height; cy++) for (let cx = 0; cx * CHUNK < m.width; cx++) {
+      const part = buildGroundChunk(m, cx, cy, imgCanvas).ctx.img;
+      const a = new Uint32Array(part.data.buffer);
+      const b = new Uint32Array(whole.data.buffer);
+      for (let y = 0; y < part.height; y++) for (let x = 0; x < part.width; x++) {
+        const wx = cx * CHUNK * 32 + x;
+        const wy = cy * CHUNK * 32 + y;
+        if (a[y * part.width + x] !== b[wy * W + wx]) assert.fail(`${id}: chunk ${cx},${cy} differs at ${wx},${wy}`);
+        checked++;
+      }
+    }
+    assert.equal(checked, W * m.height * 32);
+  }
+});

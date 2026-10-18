@@ -1,9 +1,9 @@
 // Canvas renderer: camera, y-sorted world drawing, speech bubbles, interaction
 // highlight and day/night lighting. Reads game state; never mutates it.
 import { TILE, clamp, lerp, dist } from '../core/util.js';
-import { buildPixelGround } from './drawPixelGround.js';
+import { buildGroundChunk, buildGroundOverview, CHUNK } from './drawPixelGround.js';
 import { drawFields } from './drawFarm.js';
-import { buildStaticLayer, setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
+import { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
 import { lookOf, isGunLook } from './drawPixelWeapons.js';
 import { drawTrail } from './drawSignatureCars.js';
@@ -17,6 +17,14 @@ const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 const CONFETTI = ['#ff5a8a', '#f2e05a', '#5ad0f2', '#8aff6a', '#c08aff'];
 const LIGHT_SCALE = 0.25; // the light map is soft, so it is rendered at quarter resolution and upscaled
 
+const MAX_CHUNKS = 160; // chunks of ground kept (8×8 tiles, a quarter of a megabyte each: about 40 MB)
+const makeCanvas = (w, h) => {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
+};
+
 export class Renderer {
   constructor(canvas, game, assets) {
     this.canvas = canvas;
@@ -26,6 +34,10 @@ export class Renderer {
     this.assets = assets;
     this.cam = { x: 0, y: 0, zoom: 2 };
     this.staticLayers = new WeakMap(); // keyed by GameMap object: rebuilt maps get fresh layers
+    // v0.48.0: the ground is built in chunks as you come to them (the grown towns are too big for one canvas each)
+    this.groundChunks = new WeakMap(); // GameMap → { v, chunks: Map(key → canvas) }
+    this.chunkLRU = new Map(); // canvas → true, oldest first
+    this.wantChunks = [];
     this.light = document.createElement('canvas');
     // v0.38.0: the pixel pipeline — the world is drawn into a small canvas (one art pixel = 2 world
     // pixels) and scaled up with no smoothing; text, lighting and overlays go on top at full resolution
@@ -65,27 +77,97 @@ export class Renderer {
     this.baseZoom = clamp(fit, 1, 4) * dpr;
   }
 
+  /** v0.48.0: a small picture of a whole map's ground (the city far below a tower floor). */
   staticLayer(map) {
-    // v0.30.0: a map whose fields changed (crops planted, grown, harvested) gets its ground redrawn
-    const v = map.fieldsVersion || 0;
-    const kind = this.pixel ? 'pixel' : 'smooth';
-    const cur = this.staticLayers.get(map);
-    if (!cur || cur.fieldsVersion !== v || cur.kind !== kind) {
-      const make = (w, h) => {
-        const c = document.createElement('canvas');
-        c.width = w;
-        c.height = h;
-        return c;
-      };
-      // v0.39.0: in the pixel look the ground is drawn at art resolution (half world scale)
-      const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
-      const cv = this.pixel ? buildPixelGround(map, make, fields) : buildStaticLayer(map, make);
-      cv.fieldsVersion = v;
-      cv.kind = kind;
-      cv.scale = 1; // v0.46.0: the pixel ground is built at world resolution (fine pixels) too
+    let cv = this.staticLayers.get(map);
+    if (!cv) {
+      cv = buildGroundOverview(map, makeCanvas);
       this.staticLayers.set(map, cv);
     }
-    return this.staticLayers.get(map);
+    return cv;
+  }
+
+  /** One chunk of a map's ground, built the first time it's wanted and kept while it's recently used. */
+  groundChunk(map, cx, cy) {
+    const v = map.fieldsVersion || 0; // v0.30.0: a map whose fields changed (crops planted, grown, harvested) gets its ground redrawn
+    let entry = this.groundChunks.get(map);
+    if (!entry || entry.v !== v) {
+      if (entry) for (const c of entry.chunks.values()) this.chunkLRU.delete(c);
+      entry = { v, chunks: new Map() };
+      this.groundChunks.set(map, entry);
+    }
+    const key = cy * 4096 + cx;
+    let c = entry.chunks.get(key);
+    if (!c) {
+      if (map.groundBeyond === undefined) {
+        map.groundBeyond = this.groundBeyond(map);
+        const region = Object.values(this.game.content.regions || {}).find((r) => r.maps[map.id]);
+        const at = region?.maps[map.id];
+        map.groundOrigin = at ? { x: (at.x || 0) * TILE, y: (at.y || 0) * TILE } : null;
+      }
+      const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
+      c = buildGroundChunk(map, cx, cy, makeCanvas, fields);
+      c.owner = entry;
+      c.key = key;
+      entry.chunks.set(key, c);
+    }
+    this.chunkLRU.delete(c);
+    this.chunkLRU.set(c, true);
+    while (this.chunkLRU.size > MAX_CHUNKS) {
+      const old = this.chunkLRU.keys().next().value;
+      this.chunkLRU.delete(old);
+      old.owner.chunks.delete(old.key);
+    }
+    return c;
+  }
+
+  /** What lies past a street map's edge: its outdoor neighbours' tiles (so a river or a beach runs on across the seam). */
+  groundBeyond(map) {
+    if (map.kind === 'interior') return null;
+    const near = this.game.neighbors(map.id).filter((n) => n.map.kind !== 'interior');
+    if (!near.length) return null;
+    return (tx, ty) => {
+      for (const n of near) {
+        const x = tx - Math.round(n.x / TILE);
+        const y = ty - Math.round(n.y / TILE);
+        if (x >= 0 && y >= 0 && x < n.map.width && y < n.map.height) return n.map.tileAt(x, y);
+      }
+      return null;
+    };
+  }
+
+  hasChunk(map, cx, cy) {
+    const entry = this.groundChunks.get(map);
+    return Boolean(entry && entry.v === (map.fieldsVersion || 0) && entry.chunks.has(cy * 4096 + cx));
+  }
+
+  /** Draw the ground of layer map `lm` under view `lv` (map coordinates), offset by (ox, oy). */
+  drawGround(ctx, lm, lv, ox, oy) {
+    const cs = CHUNK * TILE;
+    const cx0 = Math.max(0, Math.floor(lv.x / cs));
+    const cy0 = Math.max(0, Math.floor(lv.y / cs));
+    const cx1 = Math.min(Math.ceil(lm.width / CHUNK) - 1, Math.floor((lv.x + lv.w) / cs));
+    const cy1 = Math.min(Math.ceil(lm.height / CHUNK) - 1, Math.floor((lv.y + lv.h) / cs));
+    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) ctx.drawImage(this.groundChunk(lm, cx, cy), cx * cs + ox, cy * cs + oy);
+    // the ring just outside the view is built ahead, a chunk a frame
+    this.wantChunks.push({ map: lm, cx0: cx0 - 1, cy0: cy0 - 1, cx1: cx1 + 1, cy1: cy1 + 1 });
+  }
+
+  /** Build one chunk the view is about to need (called once a frame, after drawing). */
+  prefetchGround() {
+    const want = this.wantChunks;
+    this.wantChunks = [];
+    this.frameNo = (this.frameNo || 0) + 1;
+    if (this.frameNo % 2) return; // every other frame: a chunk takes a few milliseconds
+    for (const w of want) {
+      const mx = Math.ceil(w.map.width / CHUNK) - 1;
+      const my = Math.ceil(w.map.height / CHUNK) - 1;
+      for (let cy = Math.max(0, w.cy0); cy <= Math.min(my, w.cy1); cy++) for (let cx = Math.max(0, w.cx0); cx <= Math.min(mx, w.cx1); cx++) {
+        if (this.hasChunk(w.map, cx, cy)) continue;
+        this.groundChunk(w.map, cx, cy);
+        return;
+      }
+    }
   }
 
   /** v0.41.0: a floor high up is drawn over the city far below (its ground, small and hazy, sliding with the camera). */
@@ -207,6 +289,7 @@ export class Renderer {
 
   render(dt) {
     this.time += dt;
+    this.prefetchGround(); // (what last frame's view will want next)
     const g = this.game;
     const main = this.ctx;
     const map = g.currentMap();
@@ -265,24 +348,7 @@ export class Renderer {
         ctx.restore();
       };
       if (lm.def?.aloft?.over) this.drawCityBelow(ctx, lm, lv);
-      const layer = this.staticLayer(lm);
-      const sx = Math.max(0, Math.floor(lv.x));
-      const sy = Math.max(0, Math.floor(lv.y));
-      const sw = Math.min(layer.width / layer.scale - sx, Math.ceil(lv.w) + 2);
-      const sh = Math.min(layer.height / layer.scale - sy, Math.ceil(lv.h) + 2);
-      if (sw > 0 && sh > 0) {
-        const k = layer.scale;
-        if (k !== 1) {
-          // even-aligned so art pixels land on art pixels
-          const ex = sx & ~1;
-          const ey = sy & ~1;
-          const ew = Math.min(layer.width / k - ex, sw + 2) & ~1;
-          const eh = Math.min(layer.height / k - ey, sh + 2) & ~1;
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(layer, ex * k, ey * k, ew * k, eh * k, ex + L.x, ey + L.y, ew, eh);
-          ctx.imageSmoothingEnabled = true;
-        } else ctx.drawImage(layer, sx, sy, sw, sh, sx + L.x, sy + L.y, sw, sh);
-      }
+      this.drawGround(ctx, lm, lv, L.x, L.y);
       at(() => {
         if (lm.kind !== 'interior') drawWaterShimmer(ctx, lm, lv, this.time);
         if (lm.id === 'lanternside' && g.getFlag('canal_slick')) this.drawCanalSlick(ctx, lm, lv);

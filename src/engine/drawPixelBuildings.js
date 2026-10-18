@@ -110,7 +110,7 @@ export function drawPixelBuilding(ctx, b, opts) {
     ctx.beginPath();
     ctx.rect(x0 + fx * 2, y0 + fy * 2, fw * 2, fh * 2);
     ctx.clip();
-    for (let ty = 0; ty * 16 < fh; ty++) for (let tx = 0; tx * 16 < fw; tx++) paintFloor(R, ch, fx + tx * 16, fy + ty * 16, b.x + tx, b.y + ty);
+    for (let ty = 0; ty * 16 < fh; ty++) for (let tx = 0; tx * 16 < fw; tx++) paintFloor((x, y, w, h, c) => R(x / 2, y / 2, w / 2, h / 2, c), ch, (fx + tx * 16) * 2, (fy + ty * 16) * 2, b.x + tx, b.y + ty); // (paintFloor works in world pixels)
     if (b.shabby) for (let i = 0; i < 6; i++) R(fx + Math.floor(hash2(b.x + i, b.y) * (fw - 4)), fy + Math.floor(hash2(b.y, b.x + i) * (fh - 3)), 4, 2, 'rgba(60,45,30,0.35)');
     // the furniture
     let plan = plans.get(b);

@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.48.0',
+    date: '2026-10-18',
+    channel: 'development',
+    title: 'Ground Truth',
+    notes: [
+      'The ground, redrawn in the style of the mock-ups: grass in big soft patches with tufts and daisies, paths and beaches with ragged edges, wind ripples in the sand, white surf and turquoise shallows on the beaches, dark banks round the ponds, all of it running on unbroken from one part of town to the next.',
+      'Streets with character: cracked asphalt with weeds in the cracks, patched repairs, manholes and drains, white edge lines, brick pavements with proper kerbs.',
+      'Buildings with thick walls: brick, plank, plaster or stone by what the place is, a front face with windows, pillars at the corners and a shadow on the street. Floors to match — big tiles, planks, carpet, concrete — worn in the workshops, spotless in the café.',
+    ],
+  },
+  {
     version: '0.47.0',
     date: '2026-10-18',
     channel: 'development',

@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.48.0 | 2026-10-18 | development | 1 | Ground truth: the ground painted pixel by pixel (ragged soft edges, surf and shallows, cracked asphalt), thick walls by material with windows, floors by place; ground built in chunks |
 | 0.47.0 | 2026-10-18 | development | 1 | Open doors: walk straight into every building (rooms laid over their buildings), a room for every building, the towns grown to fit; one look, one zoom |
 | 0.46.0 | 2026-10-17 | development | 1 | Fine pixels: smooth camera, steady light, smaller finer people, fine ground detail; the Kettle & Crumb seam wall fixed |
 | 0.45.0 | 2026-10-17 | development | 1 | Arsenal of the Absurd: pixel weapon models, 13 unique weapons in homes (one per imported character), pixel signature cars |

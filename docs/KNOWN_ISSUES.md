@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.47.0
+# Known Issues and Limitations — v0.48.0
+
+- **Ground and walls (v0.48.0):** props, furniture, trees, people and cars are still the 0.46 drawings (phases 4 and 5 of the overhaul); the night light is the 0.43 banded light (phase 6). A river's colour can change slightly where it crosses into the next part of town if that part's shore is out of reach (more than two tiles past the seam). Walls are a whole tile thick. A building's door is drawn as an open doorway whatever its lock.
 
 - **Open doors (v0.47.0):** the art is still the 0.46 look — the Streets of Rogue detail (textured ground, thick brick walls with windows, drop shadows, detailed furniture, people and cars) comes in the next releases. Buildings bought and built on a plot still have a separate interior behind a door. The lighthouse keeps its door. A shop's sign and awning aren't drawn over its room yet. The bigger towns make walks longer.
 

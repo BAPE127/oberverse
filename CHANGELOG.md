@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.48.0] — 2026-10-18 — Ground Truth (development build)
+
+The art overhaul, phase 3 of 6 (the owner's mock-ups: "the game should feel smooth and highly detailed with pixels … do not sacrifice the game's details for quick delivery"): the ground and the walls.
+
+### Changed
+- **The ground is painted pixel by pixel** (`src/engine/drawPixelGround.js`, rewritten): every pixel is coloured from what lies under it through two tileable noise textures, in clean shades (no speckle): grass in big darker and lighter patches, dirt, sand rippled by the wind, mud, rocky banks, asphalt, grimy pavement. Where soft ground meets soft ground — grass and a path, sand and the sea, a bank and a pond — the edge is ragged, not the tile grid.
+- **Water by its shore:** a distance field from the shore gives a beach white surf and turquoise shallows that deepen to the sea's blue (by the distance to the sand alone, so they curve round a headland), a pond a dark bank, a quay a stone lip; sand is damp where the sea reaches it. A river or a beach runs on across the seam between two parts of town (each map looks into its neighbours, and the noise is sampled where the map sits in the world).
+- **Detail over it:** grass tufts, daisies and clover; pebbles, shells and litter; cracked asphalt with weeds in the cracks, repaired patches, oil, grit, manholes and storm drains, white edge lines and the yellow centre line; brick pavers in a running bond; kerbs with a lip, a face and a gutter's shadow; planked piers with grain and nails; boulders in the surf.
+- **Thick walls**, made of what the building is (`WALLS`): brick (the café, diners, the gun shop, workshops), plank (shacks, barns, warehouses), plaster in cream or plum (houses, the hotel, the cinema), stone (the civic buildings, the police), navy (offices) and grey with teal trim (shops). A wall is a cap seen from above, outlined and lit, with a groove along it and pillars at the corners and every few tiles; where the floor or the street lies below it you see its face — brick courses, planks, wallpaper or wainscot inside, the front of the building outside, with a window every third tile and narrow windows down the side walls. Buildings cast a shadow on the street.
+- **Floors:** big square tiles with grout and a bevel (cream, teal checker, olive, cool grey), planks with grain and staggered ends, woven carpet (plum, red, navy, green), concrete with joints and stains — each place its own, worn as it would be (filthy in a workshop or gun shop, spotless in the café). The walls shade the floor beside them.
+- **The ground is built in chunks** of 8×8 tiles as you come to them (a few milliseconds each, one every other frame for the ring just outside the view; up to 160 kept), instead of one canvas per map — the grown towns would have needed over 100 MB for Halvermouth alone.
+
+### Removed
+- The old smooth ground (`buildStaticLayer` and its tile, edge and wall drawing).
+
 ## [0.47.0] — 2026-10-18 — Open Doors (development build)
 
 Owner, with five mock-ups drawn in the style of Streets of Rogue: "I want the game to fundamentally look like these mock up images I drew. The game should feel smooth and highly detailed with pixels … Do not sacrifice the game's details for quick delivery." Asked how buildings should work: "Seamless, like SoR"; the old look: "drop it"; zoom: "medium" (about 24 tiles across); mood: "bright by day, moody at night". This release is the groundwork — the art passes follow.
