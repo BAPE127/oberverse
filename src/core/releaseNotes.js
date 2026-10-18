@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.50.0',
+    date: '2026-10-18',
+    channel: 'development',
+    title: 'Faces in the Crowd',
+    notes: [
+      'Everyone has a face now: eyes with a glint, brows (that knit when they\'re cross), ears, a nose and a mouth; hair with body and a shine; glasses, beards and moustaches; clothes that look like cloth, and a proper four-step walk. Tall people are taller by a pixel or two, not stretched.',
+      'Cars are drawn fresh at every angle instead of a picture being turned, so they stay sharp as they go round corners — lit from the same side as the rest of the world, with glinting glass, mirrors, tyres, a pickup\'s bed, a police car\'s light bar, and the bus with its windows.',
+    ],
+  },
+  {
     version: '0.49.0',
     date: '2026-10-18',
     channel: 'development',

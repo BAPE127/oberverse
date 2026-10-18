@@ -4,6 +4,7 @@
 // overalls, beard, shades, build, height). Held items reuse the old drawing.
 
 import { drawWeaponSprite, isGunLook } from './drawPixelWeapons.js';
+import { drawPerson } from './drawPeople.js';
 
 const INK = '#1b1a24';
 // v0.46.0: one art pixel = one world pixel (it was two) — people are about a tile tall, in fine pixels
@@ -17,8 +18,26 @@ function shade(hex, amt) {
   return `#${((c(n >> 16) << 16) | (c((n >> 8) & 255) << 8) | c(n & 255)).toString(16).padStart(6, '0')}`;
 }
 
+/** What a figure holds: every weapon has its own sprite; a gun points where it's aimed, anything else is held up and ready. */
+function holdItem(ctx, a, s, drawHeld) {
+  const facing = s.facing || 'down';
+  const side = facing === 'left' || facing === 'right';
+  const dir = facing === 'left' ? -1 : 1;
+  const half = Math.floor((side ? (BUILD[a.build] || 10) - 2 : BUILD[a.build] || 10) / 2);
+  const aimed = isGunLook(a.holding) && s.aim != null;
+  const ang = aimed ? s.aim : side ? (dir > 0 ? -0.9 : Math.PI + 0.9) : facing === 'up' ? -1.9 : -0.9;
+  ctx.save();
+  ctx.translate((aimed ? 0 : side ? dir * 2 : half + 1) * U, (aimed ? -10 : -7) * U);
+  ctx.rotate(ang);
+  if (Math.cos(ang) < 0) ctx.scale(1, -1);
+  if (!drawWeaponSprite(ctx, a.holding, U, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); ctx.scale(0.5, 0.5); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
+  ctx.restore();
+}
+
 /** `drawHeld` is the old held-item drawing, passed in by drawCharacter (no import cycle). */
 export function drawPixelCharacter(ctx, a, s, drawHeld) {
+  // v0.50.0: shaded, outlined sprites (drawPeople.js); the figure below is the fallback
+  if (drawPerson(ctx, a, s, a.holding ? (c) => holdItem(c, a, s, drawHeld) : null)) return;
   const facing = s.facing || 'down';
   const side = facing === 'left' || facing === 'right';
   const dir = facing === 'left' ? -1 : 1;
@@ -78,18 +97,7 @@ export function drawPixelCharacter(ctx, a, s, drawHeld) {
   else { arm(-half - 1, step, false); arm(half, -step, false); }
   if (side) arm(dir * 1, step, false);
 
-  if (a.holding) {
-    // v0.45.0: every weapon has its own sprite; a gun points where it's aimed, anything else is held up and ready
-    const aimed = isGunLook(a.holding) && s.aim != null;
-    const ang = aimed ? s.aim : side ? (dir > 0 ? -0.9 : Math.PI + 0.9) : facing === 'up' ? -1.9 : -0.9;
-    ctx.save();
-    ctx.translate((aimed ? 0 : side ? dir * 2 : half + 1) * U, (aimed ? -10 : -7) * U);
-    ctx.rotate(ang);
-    if (Math.cos(ang) < 0) ctx.scale(1, -1);
-    if (!drawWeaponSprite(ctx, a.holding, U, { flash: s.flash, hand: a.skin || '#e8b896' }) && drawHeld) { ctx.restore(); ctx.save(); ctx.scale(0.5, 0.5); drawHeld(ctx, a.holding, side ? dir * 2 : half * 2 + 2, -14, side ? dir : 1, s.idleTime || 0); }
-    ctx.restore();
-  }
-
+  if (a.holding) holdItem(ctx, a, s, drawHeld);
 
   // the head: big, outlined, rounded corners
   const skin = a.skin || '#e8b896';

@@ -4,6 +4,7 @@
 import { shade, rrect } from './drawCharacter.js';
 import { drawSignatureCar } from './drawSignatureCars.js';
 import { drawPixelCar, drawPixelBus } from './drawPixelCars.js';
+import { drawCarSprite } from './carSprites.js';
 
 
 /**
@@ -18,6 +19,7 @@ export function drawCar(ctx, model, x, y, angle, opts = {}) {
   if (model.body === 'tractor') return drawTractor(ctx, model, x, y, angle, opts);
   if (model.sig && pixelSig && typeof document !== 'undefined' && drawSignaturePixel(ctx, model, x, y, angle, opts)) return; // v0.45.0
   if (model.sig && drawSignatureCar(ctx, model, x, y, angle, opts)) return; // v0.34.0
+  if (drawCarSprite(ctx, model, x, y, angle, opts)) return; // v0.50.0: drawn pixel by pixel at its heading
   drawPixelCar(ctx, model, x, y, angle, opts); // v0.38.0: the pixel-art revamp
 }
 
@@ -35,6 +37,26 @@ export function drawDisplayCar(ctx, model, x, y, w, h, opts = {}) {
  * stripe, a row of windows down each side, roof vents, and the route number.
  */
 export function drawBus(ctx, x, y, angle, opts = {}) {
+  const len = opts.len || 150;
+  const wid = opts.wid || 46;
+  if (drawCarSprite(ctx, { body: 'bus', len, wid }, x, y, angle, { ...opts, color: opts.color || '#2f6b4f' })) {
+    // v0.50.0: the route number in its plate behind the windscreen
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.rotate(angle);
+    ctx.fillStyle = '#1b1a24';
+    ctx.fillRect(len / 2 - 22, -8, 12, 16);
+    ctx.fillStyle = opts.color || '#2f6b4f';
+    ctx.fillRect(len / 2 - 21, -7, 10, 14);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(opts.number || '1'), 0, -(len / 2 - 16));
+    ctx.restore();
+    return;
+  }
   drawPixelBus(ctx, x, y, angle, opts); // v0.38.0: the pixel-art revamp
 }
 

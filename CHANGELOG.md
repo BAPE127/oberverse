@@ -2,6 +2,14 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.50.0] — 2026-10-18 — Faces in the Crowd (development build)
+
+The art overhaul, phase 5 of 6: people and cars.
+
+### Changed
+- **People** (`src/engine/drawPeople.js`): figures like the mock-ups' — a big head with a face (eyes with a white and a glint, brows that knit when angry, ears, a nose, a mouth, a blush), hair with three tones and a shine (short, parted, messy, curly, long, ponytail, bun), shaded hats (bowler, top hat, cap, captain's cap, hard hat), clothes shaded as cloth (lit left, shadowed right, a placket, a buckle), shoes with a toe-cap; a standing pose and a four-frame walk (arms swing, the body rises as the legs pass). Glasses and moustaches (in the content all along) are drawn at last. Height is drawn as a pixel or two of leg instead of scaling the figure (scaling blurred it). Each look, facing and frame is painted once into a body and a head sprite with a traced outline (and a white one for the hit flash); what they hold is drawn between the two.
+- **Cars and the bus** (`src/engine/carSprites.js`): drawn pixel by pixel at their heading (64 headings) from a description in the car's own coordinates — a rounded, bevelled body, a raised cabin with the windscreen, rear and side glass and pillars, bumpers, head and tail lamps (lit at night, red when braking), mirrors, tyres, a pickup's ribbed bed, a coupé's stripes, a police car's dark doors and light bar (flashing in a chase), the bus's windows down both sides — and lit from the world's top left whichever way they point, with the glass glinting along the world's diagonal and a sheen across the paint. No more 2-pixel blocks turned at an angle (the "grainy" cars). The signature cars and the tractors keep their own art.
+
 ## [0.49.0] — 2026-10-18 — Things in Their Places (development build)
 
 The art overhaul, phase 4 of 6: the props.

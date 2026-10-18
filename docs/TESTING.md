@@ -40,6 +40,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.50.0 (2026-10-18)
+
+- `npm run check` — **391/391 tests passed** (2 new in `pixelart.test.mjs`: every resident paints in every facing and frame, asleep or angry, inside the person sprite's box; every ordinary car model and the bus has a body, glass, head- and tail-lamps and tyres (and a pickup its bed) and nothing outside its outline).
+- Browser: a sheet of 24 residents in four facings and a walk cycle, and every car model at five headings with the two buses (`docs/mockups/v050-people.png`, `v050-cars.png`), rendered from the source modules through the dev server; the café and the Civic Square junction in the game — no page errors; sprinting and walking across Halvermouth and Lanternside, no frame over 16.8 ms. Fixed while testing: the standing pose was mid-stride; height scaling blurred figures (now leg length); window glints made stripes.
+
 ## Verification record — v0.49.0 (2026-10-18)
 
 - `npm run check` — **389/389 tests passed** (1 new in `pixelart.test.mjs`: every prop on every map that has a sprite paints, by day and by night and with every fence connection, inside its sprite's box — it caught a razor wire, a statue plaque, the water tower's roof and the silo's dome spilling out of theirs).

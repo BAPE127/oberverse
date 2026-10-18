@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.49.0
+# Known Issues and Limitations — v0.50.0
+
+- **People and cars (v0.50.0):** cars turn in 64 steps (about 6° each). The signature cars, the tractors and Chuckie's cows keep their earlier drawings; imported characters with their own picture still use it. A person's sprite cache is cleared after 3000 looks (only a wardrobe marathon gets there).
 
 - **Props (v0.49.0):** about 50 kinds of prop are sprites now; the rarer ones (ships and their berths, the works' machines, the oil field, the building site, Chuckie's cheese plant, the big road signs, cars on display, stairs) are still the old drawings. A tree's shadow falls on whoever stands in it only if they're drawn after it (the shadows are on the ground, under everyone). People, cars and cows are next (phase 5).
 

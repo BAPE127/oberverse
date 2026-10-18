@@ -147,3 +147,38 @@ test('prop sprites (v0.49.0): every prop with a sprite paints, day and night, in
   }
   for (const t of ['tree', 'chair', 'table', 'streetlamp', 'ranchfence', 'trafficlight', 'bed', 'shelf']) assert.ok(seen.has(t), t);
 });
+
+test('people (v0.50.0): every resident paints in every facing and walk frame, asleep or angry, inside the sprite box', async () => {
+  const { paintPersonForTest, PERSON_BOX: B } = await import('../src/engine/drawPeople.js');
+  const { CONTENT } = await import('./helpers.mjs');
+  let n = 0;
+  for (const c of Object.values(CONTENT.characters)) {
+    const a = c.appearance;
+    if (!a || a.species) continue;
+    for (const f of ['down', 'up', 'left', 'right']) for (let fr = 0; fr < 5; fr++) for (const o of [{}, { sleeping: true }, { angry: true }]) for (const part of ['body', 'head']) {
+      for (const [x, y, w, h] of paintPersonForTest(a, f, fr, part, o)) {
+        if (w <= 0 || h <= 0) continue;
+        assert.ok(x >= B.x + 1 && y >= B.y + 1 && x + w <= B.x + B.w - 1 && y + h <= B.y + B.h - 1, `${c.id} ${f}/${fr}/${part}: ${x},${y} ${w}×${h}`);
+        n++;
+      }
+    }
+  }
+  assert.ok(n > 10000);
+});
+
+test('cars (v0.50.0): every ordinary model has a body, a cabin, lamps at both ends and tyres, and nothing outside it', async () => {
+  const { surfaceAt } = await import('../src/engine/carSprites.js');
+  const { CAR_MODELS } = await import('../src/content/vehicles.js');
+  const models = [...Object.values(CAR_MODELS).filter((m) => !m.sig && m.body !== 'tractor'), { body: 'bus', len: 150, wid: 46 }];
+  for (const m of models) {
+    const mats = new Set();
+    for (let u = -m.len / 2 - 4; u <= m.len / 2 + 4; u += 0.5) for (let v = -m.wid / 2 - 4; v <= m.wid / 2 + 4; v += 0.5) {
+      const s = surfaceAt(m, u, v);
+      if (!s) continue;
+      mats.add(s.mat);
+      assert.ok(Math.abs(u) <= m.len / 2 + 0.01 && Math.abs(v) <= m.wid / 2 + 2.6, `${m.body}: ${s.mat} at ${u},${v}`);
+    }
+    for (const want of ['body', 'glass', 'headlamp', 'taillamp', 'tyre']) assert.ok(mats.has(want), `${m.body} ${m.len}: ${want}`);
+    if (m.body === 'pickup') assert.ok(mats.has('bed'), 'a pickup has a bed');
+  }
+});
