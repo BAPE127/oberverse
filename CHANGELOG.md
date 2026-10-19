@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.53.1] — 2026-10-19 — Legible Again (development build)
+
+### Fixed
+- **Dark grey, unreadable text in menus** (owner's report). A panel that dresses itself in its own look — Fender's Pre-Loved Motors is printed on "paper", with dark ink — left that look on the menu window after it closed, so every panel opened afterwards (the cage, the logbook, anything with plain text) showed dark grey text on the navy background. The window is now cleared before each panel is drawn (`UI.renderPanel`). The full-screen scenes (Fleet Command, the casino tables) could leak their layout the same way; fixed by the same change.
+- The car showrooms' titles were gold on cream paper; now dark (Fender's brick red, Beaumont's navy). Fender's striped banner has an outline behind its white letters.
+- "unexplored" on the world map and in a town map was cream at half strength on the dark; now full strength with a dark outline.
+- The cage's gains and losses use the navy palette's green and red.
+
+### Tests
+- `npm run smoke` checks that a panel opened after Fender's lot has light text (it reads dark grey without the fix). A contrast scan of every panel and tablet app (WCAG ratio < 3.2 flagged) found nothing else.
+
 ## [0.53.0] — 2026-10-19 — The Spade's Gambit (development build)
 
 The casino expansion, part 2 of 4: Morganius's own table, a poker roguelike of his invention. (Owner: "Do the poker roguelike first" — it comes before Texas Hold'em.)

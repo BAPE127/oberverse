@@ -44,6 +44,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.53.1 (2026-10-19)
+
+- `npm run check` — all tests passed; `npm run smoke` — 25/25 (new: panel text stays light after a themed panel — it fails, reading rgb(45, 36, 51), with the fix taken out).
+- A contrast scan in headless Chromium: every panel (pause, inventory, map, settings, saves, about, debug, both car showrooms, the cage, the logbook, a shop, a container, a letter, a message, the lift's choices, contracts, invest, exchange, ledger, farmland, livestock, struck down) and every tablet app, each opened after the others, and the dialogue box; every visible text node's colour against the background it actually sits on. Before: the cage, the logbook and the showroom titles under 1.5:1. After: nothing under 3.2:1 except Fender's white-on-stripes banner, which now has an outline.
+
 ## Verification record — v0.53.0 (2026-10-19)
 
 - `npm run check` — **435/435 tests passed**; `npm run smoke` — 24/24.

@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.53.1 | 2026-10-19 | development | 1 | Legible again: menus no longer inherit a previous panel's dark ink; showroom titles and map labels readable |
 | 0.53.0 | 2026-10-19 | development | 1 | The Spade's Gambit: Morganius's poker roguelike — Pips × Gasps in a fixed order, Curios, Inks, Twists, the Cabinet; a run that keeps across saves, paid once |
 | 0.52.0 | 2026-10-19 | development | 1 | The Phonograph Grand: a casino resort where the Lucky Star stood; Morganius Spade and Octavius Thomas Phonograph; chips with a ledger and settle-once rounds; roulette and blackjack as first-person table scenes |
 | 0.51.0 | 2026-10-18 | development | 1 | Night falls: dithered pixel-art light, one night for rooms and streets, lit rooms that glow, shop signs and awnings — the art overhaul complete |

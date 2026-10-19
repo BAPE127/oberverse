@@ -185,9 +185,13 @@ export class MapRenderer {
         if (disc[a.id]) continue;
         ctx.fillStyle = 'rgba(30,26,40,0.78)';
         ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
-        ctx.fillStyle = 'rgba(255,246,224,0.5)';
         ctx.font = `italic ${scale * 1.4}px Georgia, serif`;
         ctx.textAlign = 'center';
+        // v0.53.1: legible on the dark — cream with a dark outline (it was half-transparent and faint)
+        ctx.strokeStyle = 'rgba(14,12,24,0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
+        ctx.fillStyle = 'rgba(255,246,224,0.9)';
         ctx.fillText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
       }
       ctx.textAlign = 'center';
@@ -317,7 +321,10 @@ export class MapRenderer {
       for (const a of g.maps.get(id).areas) {
         if (disc[a.id] || a.w * z < 60) continue;
         ctx.font = `italic ${Math.min(18, Math.max(10, z * 1.3))}px Georgia, serif`;
-        ctx.fillStyle = 'rgba(255,246,224,0.45)';
+        ctx.strokeStyle = 'rgba(14,12,24,0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('unexplored', X(o.x + a.x + a.w / 2), Y(o.y + a.y + a.h / 2));
+        ctx.fillStyle = 'rgba(255,246,224,0.9)';
         ctx.fillText('unexplored', X(o.x + a.x + a.w / 2), Y(o.y + a.y + a.h / 2));
       }
     }

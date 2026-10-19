@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.53.1',
+    date: '2026-10-19',
+    channel: 'development',
+    title: 'Legible Again',
+    notes: [
+      'Fixed dark grey, unreadable text in menus: after visiting Marty\'s car lot, later menus kept its dark "paper" ink on the navy background.',
+      'The car showrooms\' titles and the map\'s "unexplored" labels are easier to read.',
+    ],
+  },
+  {
     version: '0.53.0',
     date: '2026-10-19',
     channel: 'development',

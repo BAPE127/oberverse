@@ -274,6 +274,7 @@ export class UI {
     if (!top) return;
     const { modalBody, modalTitle, modalTabs, modal } = this.el;
     modalBody.innerHTML = '';
+    modalBody.className = ''; // v0.53.1: a panel's own classes (Marty's paper showroom, the full-screen scenes) leave with it
     modalTabs.innerHTML = '';
     const res = PANELS[top.name](this, modalBody, top.opts) || {};
     top.onClose = res.onClose;

@@ -734,6 +734,13 @@ body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .d
 .sg-card .card-btn { min-width: 34px; background: #f4ecd8; color: #1b1a24; border-color: #888; }
 .sg-card .card-btn.red { color: #c8242c; } .sg-card .card-btn.inked { box-shadow: 0 0 0 2px #b05af0; }
 @media (max-width: 700px) { .sg-curios { display: none; } .sg-stage b { font-size: 16px; } .sg-score b { font-size: 26px; } }
+
+/* v0.53.1 — legibility: Marty's paper showroom keeps a dark title, and his striped banner gets an outline */
+body.pixel-ui #modal-panel.dealer-fender .panel-head h2 { color: #7a2a1a; text-shadow: none; }
+body.pixel-ui #modal-panel.dealer-beaumont .panel-head h2 { color: #1e2a3f; text-shadow: none; }
+.dealer-fender .dealer-head { text-shadow: 0 2px 0 #7a2a1a, 1px 0 0 #7a2a1a, -1px 0 0 #7a2a1a, 0 -1px 0 #7a2a1a; }
+body.pixel-ui .cage .good { color: #7ad08a; } body.pixel-ui .cage .warn { color: #ff8a7a; }
+body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-color: #3a3a7a; }
 </style>
 </head>
 <body>
@@ -13267,7 +13274,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.53.0';
+const GAME_VERSION = '0.53.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -32701,6 +32708,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.53.1',
+    date: '2026-10-19',
+    channel: 'development',
+    title: 'Legible Again',
+    notes: [
+      'Fixed dark grey, unreadable text in menus: after visiting Marty\'s car lot, later menus kept its dark "paper" ink on the navy background.',
+      'The car showrooms\' titles and the map\'s "unexplored" labels are easier to read.',
+    ],
+  },
+  {
     version: '0.53.0',
     date: '2026-10-19',
     channel: 'development',
@@ -45438,9 +45455,13 @@ class MapRenderer {
         if (disc[a.id]) continue;
         ctx.fillStyle = 'rgba(30,26,40,0.78)';
         ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
-        ctx.fillStyle = 'rgba(255,246,224,0.5)';
         ctx.font = `italic ${scale * 1.4}px Georgia, serif`;
         ctx.textAlign = 'center';
+        // v0.53.1: legible on the dark — cream with a dark outline (it was half-transparent and faint)
+        ctx.strokeStyle = 'rgba(14,12,24,0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
+        ctx.fillStyle = 'rgba(255,246,224,0.9)';
         ctx.fillText('unexplored', (a.x + a.w / 2) * scale, (a.y + a.h / 2) * scale);
       }
       ctx.textAlign = 'center';
@@ -45570,7 +45591,10 @@ class MapRenderer {
       for (const a of g.maps.get(id).areas) {
         if (disc[a.id] || a.w * z < 60) continue;
         ctx.font = `italic ${Math.min(18, Math.max(10, z * 1.3))}px Georgia, serif`;
-        ctx.fillStyle = 'rgba(255,246,224,0.45)';
+        ctx.strokeStyle = 'rgba(14,12,24,0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('unexplored', X(o.x + a.x + a.w / 2), Y(o.y + a.y + a.h / 2));
+        ctx.fillStyle = 'rgba(255,246,224,0.9)';
         ctx.fillText('unexplored', X(o.x + a.x + a.w / 2), Y(o.y + a.y + a.h / 2));
       }
     }
@@ -51008,6 +51032,7 @@ class UI {
     if (!top) return;
     const { modalBody, modalTitle, modalTabs, modal } = this.el;
     modalBody.innerHTML = '';
+    modalBody.className = ''; // v0.53.1: a panel's own classes (Marty's paper showroom, the full-screen scenes) leave with it
     modalTabs.innerHTML = '';
     const res = PANELS[top.name](this, modalBody, top.opts) || {};
     top.onClose = res.onClose;

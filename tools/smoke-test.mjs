@@ -73,6 +73,22 @@ try {
   record('reading the letter opens a document', await page.isVisible('#modal:not(.hidden) .doc'), `prompt was "${prompt}"`);
   await shot('03-letter');
   await page.keyboard.press('Escape');
+  // v0.53.1: a themed panel's look (Marty's paper showroom) must not leak into the next panel —
+  // the cage's text read dark grey on navy after visiting the car lot
+  {
+    const ink = await page.evaluate(() => {
+      const ui = window.oberverse.ui;
+      ui.openPanel('dealer', { dealer: 'fender' });
+      ui.closeAllPanels();
+      ui.openPanel('logbook', {});
+      const p = document.querySelector('#modal-body p, #modal-body div');
+      const c = p ? getComputedStyle(p).color : 'none';
+      ui.closeAllPanels(); ui.afterModalClose();
+      return { c, cls: document.querySelector('#modal-body').className };
+    });
+    const m = /rgb\((\d+), (\d+), (\d+)/.exec(ink.c);
+    record('panel text stays light after a themed panel', Boolean(m) && (+m[1] + +m[2] + +m[3]) / 3 > 150 && !/dealer/.test(ink.cls), JSON.stringify(ink));
+  }
   await wait(200);
   record('escape closes the document', !(await page.isVisible('#modal:not(.hidden)')));
 

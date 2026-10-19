@@ -724,3 +724,10 @@ body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .d
 .sg-card .card-btn { min-width: 34px; background: #f4ecd8; color: #1b1a24; border-color: #888; }
 .sg-card .card-btn.red { color: #c8242c; } .sg-card .card-btn.inked { box-shadow: 0 0 0 2px #b05af0; }
 @media (max-width: 700px) { .sg-curios { display: none; } .sg-stage b { font-size: 16px; } .sg-score b { font-size: 26px; } }
+
+/* v0.53.1 — legibility: Marty's paper showroom keeps a dark title, and his striped banner gets an outline */
+body.pixel-ui #modal-panel.dealer-fender .panel-head h2 { color: #7a2a1a; text-shadow: none; }
+body.pixel-ui #modal-panel.dealer-beaumont .panel-head h2 { color: #1e2a3f; text-shadow: none; }
+.dealer-fender .dealer-head { text-shadow: 0 2px 0 #7a2a1a, 1px 0 0 #7a2a1a, -1px 0 0 #7a2a1a, 0 -1px 0 #7a2a1a; }
+body.pixel-ui .cage .good { color: #7ad08a; } body.pixel-ui .cage .warn { color: #ff8a7a; }
+body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-color: #3a3a7a; }

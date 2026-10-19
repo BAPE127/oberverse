@@ -1,4 +1,4 @@
-# Known Issues and Limitations — v0.53.0
+# Known Issues and Limitations — v0.53.1
 
 - **The Spade's Gambit (v0.53.0):** a deliberately small first set (17 Curios, 6 Inks, 5 Twists); there are no booster packs, card editions or consumables beyond the Cabinet's stock. You can't reorder your Curios (part with one and buy again to change the order). The Cabinet's "part with" asks with the browser's own confirm box. Loading an earlier save takes the Gambit back to how it was then (as with everything else in a save).
 
