@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.52.0] — 2026-10-19 — The Phonograph Grand (development build)
+
+The casino expansion, part 1 of 4: the resort, its people, chips, roulette and blackjack. (Owner's brief: "THE OBERVERSE — MAJOR CASINO EXPANSION"; the resort stands where the Lucky Star bar was, by the owner's choice.)
+
+### Added
+- **The Phonograph Grand** (`src/content/casino.js`): a 42-storey tower on Market Street, Halvermouth — a black-and-gold marquee canopy of chasing bulbs over the door, the name lit in gold, a marquee pylon and a valet stand, a private forecourt behind. Inside: the **Grand Lobby** (marble, a red carpet to the grand staircase, reception, the **Lucky Star Lounge** — the old bar, kept), the **Casino Floor** up the stairs (two roulette and three blackjack tables, two Hold'em tables being dressed, Morganius's stage, the cashier's cage, the Spade Bar, slot machines, a security office), **staff quarters** (3), **Morganius's rooms** (41) and **Octavius's penthouse** (42). The lift won't stop at a private floor without its owner's leave; residents use their own lift doors.
+- **Morganius Spade** (imported from the owner's photo): a floating wizard who hosts the tables — he glides and bobs a hand off the floor with cards circling his fingers, roams the floor between his favourite places, and when you sit at a table he flies to it along a curve (the full show the first time, shorter after; E skips). His **Wrath** is a storm of cards and a giant Ace of Spades; his car **The Last Trick** (a black glass coach that sheds cards); his weapon **The Dead Man's Hand**. Motif "Sleight of Hand".
+- **Octavius Thomas Phonograph** (imported; a clearly marked stand-in look until the owner's picture arrives): the owner, as rich as Sir Moneybucks (which is richer is never settled), always on his phone, a word or two at a time. He works the cage 16:00–20:00. **Wrath:** his security and his eleven lawyers; car **Long Distance** (a gold-trimmed limousine with a gramophone horn on the roof); weapon **Please Hold**. Motif "Please Hold".
+- **Vera Lusk** (the cage) and **Brock Hadley** (security), living in the staff quarters.
+- **Chips and the cage:** one obol buys one chip and one chip buys one obol, no fee (minimum 5). Every exchange, bet and payout is a ledger entry; a bet only takes chips you have; a round is paid exactly once; you can't cash out while seated; leaving a table returns an unspun layout and stands a hand in play.
+- **Roulette** (European single zero; straight 35:1, red/black, odd/even, high/low 1:1, dozens and columns 2:1) and **blackjack** (six decks, dealer stands on all 17s, 3:2, double, split once) as pure rules in `src/casino/`.
+- **The tables as a first-person scene** (`src/ui/casino.js`): you sit at the felt, the table runs away from you in perspective to Morganius floating on the far side, big and in pixels, his cards about him. Click the layout to bet (right-click to take it back), spin, and watch the ball run, slow and drop into the pocket the wheel drew; deal, hit, stand, double, split — the cards fly from his hand. He reacts to every result with a different trick and a line. Keyboard, mouse and touch.
+- **Card magic** (`src/engine/cardMagic.js`): one set of effects — orbit, fan, spiral, run along a path, scatter and reassemble, trail, a magic circle — used in the world, the scenes and the Wrath; the host's animation states are lists of them.
+- New art: roulette, blackjack, poker and spade tables, the cage, slot machines, velvet ropes, marble pillars, the stage's magic circle, floating cards, a crystal ball, candelabra, a grand piano, a phone dock, a monitor wall, a luggage cart; walls in black lacquer and burgundy damask ("grand") and in midnight and silver stars ("arcane"); a wizard's hat, a robe and an amulet for people.
+- Sounds: cards, chips, the wheel, magic, a win.
+
+### Changed
+- The Lucky Star building on Market Street is now the Phonograph Grand (its footprint extended north over the alley; the market stalls moved along). Older saves keep working (the town's growth is unchanged); the two new signature cars appear in older saves.
+- Sir Moneybucks has opinions about Octavius and Morganius.
+
 ## [0.51.0] — 2026-10-18 — Night Falls (development build)
 
 The art overhaul, phase 6 of 6: light, and the finishing touches. (Owner: "bright by day, moody at night".)

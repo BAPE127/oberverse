@@ -1,4 +1,7 @@
-# Known Issues and Limitations — v0.51.0
+# Known Issues and Limitations — v0.52.0
+
+- **The Phonograph Grand (v0.52.0):** Texas Hold'em (v0.53.0) and Morganius's own table (v0.54.0) aren't open yet — their tables say so. Octavius wears a stand-in look until the owner's picture arrives. Nobody else plays at the tables and there are no croupiers or visitors yet (nightlife is v0.55.0), so every seat is yours. The world pauses while you're at a table. The cage is shut 02:00–10:00. Blackjack pays 3:2 rounded down to whole chips (a 5-chip blackjack returns 12). Morganius is drawn at the table as his pixel figure scaled up (deliberately: the scene is in the game's own pixels), with the photo as his portrait beside what he says. Private floors open by flags that nothing in the game sets yet (invitations come later).
+
 
 - **Light (v0.51.0):** a lit room is lit evenly (no lamps of its own inside it yet); the floors of towers and other rooms that aren't laid into a street still use the old indoor light. Light pools are round and don't stop at walls.
 

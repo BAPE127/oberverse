@@ -178,7 +178,13 @@ MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
 placeInteriors(MAPS, REGIONS, STREETS);
 {
   const b = MAPS.halvermouth.buildings.find((x) => x.id === 'b_phonograph');
-  for (const id of ['phonograph_octavius', 'phonograph_spade']) MAPS[id].aloft = { tower: 'phonograph', over: 'halvermouth', x: b.x + b.w / 2, y: b.y + b.h / 2 };
+  // the forecourt: a marquee pylon and the valet's stand either side of the door
+  const d = b.door;
+  MAPS.halvermouth.props.push(
+    { id: 'pg_pylon', type: 'marquee_pylon', x: d.x - 4, y: d.y + 1, examine: 'A tall black pylon studded with bulbs: THE PHONOGRAPH GRAND · CASINO · LOUNGE · OPEN ALL HOURS.' },
+    { id: 'pg_valet', type: 'valet_stand', x: d.x + 3, y: d.y + 1 },
+  );
+  for (const id of ['phonograph_octavius', 'phonograph_spade', 'phonograph_staff']) MAPS[id].aloft = { tower: 'phonograph', over: 'halvermouth', x: b.x + b.w / 2, y: b.y + b.h / 2 };
 }
 addSeams(MAPS, REGIONS, PROP_TYPES);
 BASE_CONTENT.growShifts = GROWTH; // widened → grown tile coordinates (for saves from before v0.47.0)

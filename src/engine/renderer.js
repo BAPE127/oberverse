@@ -412,7 +412,7 @@ export class Renderer {
       for (const b of lm.buildings) {
         if (b.interior) {
           // v0.47.0: its room is drawn in its place; v0.51.0: its sign and awning over the front
-          if ((b.sign || b.awning) && inView(b.x * TILE, (b.y + b.h - 2) * TILE, b.w * TILE, 3 * TILE)) items.push({ y: (b.y + b.h) * TILE + L.y + 1, draw: at(() => drawShopFront(ctx, b)) });
+          if ((b.sign || b.awning) && inView(b.x * TILE, (b.y + b.h - 2) * TILE, b.w * TILE, 3 * TILE)) items.push({ y: (b.y + b.h) * TILE + L.y + 1, draw: at(() => drawShopFront(ctx, b, this.time, night)) });
           continue;
         }
         const above = b.tower && !this.pixel ? towerHeight(b) / TILE : 4;

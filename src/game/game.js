@@ -821,6 +821,8 @@ export class Game {
       case 'contracts': return 'Look at the contracts board';
       case 'busstop': return 'Check the bus times';
       case 'logistics': return { terminal: 'Use the logistics terminal', berth: `Read the ${name}`, wheel: 'Take the wheel', logbook: 'Read the logbook' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
+      case 'casino': { const t = this.content.casino.tables[prop.interact.table]; return `Sit down — ${t?.name || name} (${t?.min}–${t?.max})`; } // v0.52.0
+      case 'casino_cashier': return 'Change money at the cage';
       case 'useItem': return this.inventory.count(prop.interact.item) && !(prop.interact.doneFlag && this.getFlag(prop.interact.doneFlag)) ? prop.interact.verb || `Use ${name.toLowerCase()}` : `Examine ${name.toLowerCase()}`;
       case 'lift': return 'Call the lift';
       case 'stockcheck': return 'Look at the display case';

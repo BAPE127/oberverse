@@ -87,6 +87,8 @@ export default {
     npc_osric: { trust: -10, affection: -15, respect: -20, suspicion: 10 },
     npc_tibbs: { trust: 0, affection: 0, respect: 10, suspicion: 0 },
     npc_mason: { trust: 10, affection: -5, respect: 30, suspicion: 5 },
+    npc_octavius: { trust: -25, affection: -15, respect: 35, suspicion: 40 }, // v0.52.0: the only man in the city who might be richer. He isn't.
+    npc_morganius: { trust: -10, affection: 5, respect: 30, suspicion: 35 },
   },
   knowledge: ['fact_moneybucks_wants_mason', 'fact_lighthouse_dark', 'fact_moneybucks_owns_oil', 'fact_moneybucks_bought_seal', 'fact_lens_in_vault', 'fact_night_tankers', 'fact_harbourmaster_seal'],
   giftPrefs: { item_cigar: 14, item_honey_bun: -3, item_scone: -3, item_wildflowers: -4, item_gull_feather: -8, item_coffee: 1, tags: { luxury: 10, food: -2, junk: -6 } },
@@ -114,6 +116,8 @@ export default {
     npc_silas: { warm: 'Grimmer is loyal. I value loyalty. I have bought a great deal of it.', cool: 'Grimmer should smile less. He has been smiling.' },
     npc_mabel: { warm: 'Mrs. Quince makes the finest beef Wellington in the county. I own the county\'s finest of most things.', cool: 'Mrs. Quince feuds with the café woman. Excellent. Let them weaken each other.' },
     npc_mason: { warm: 'Nails builds the best walls on the coast. I intend to own every one of them — and him.', cool: 'Nails refused my exclusive contract. He made a joke about it. A JOKE, my good fellow. At Sir Moneybucks.' },
+    npc_octavius: { warm: 'Phonograph? New money. Telephones. One must admit he has rather a lot of it. Not more than Sir Moneybucks. Nobody has more than Sir Moneybucks.', cool: 'That man has never once looked up from his telephone in my presence. I have had him valued, my good fellow. The figure was… adequate. Merely adequate.' },
+    npc_morganius: { warm: 'Spade deals an honest game, which is more than can be said for his employer. I beat him at piquet once. He maintains I did not.', cool: 'Spade refused a perfectly reasonable commercial proposal regarding a hand of cards. He made a remark about his hat. I do not care for the hat.' },
     npc_otto: { warm: 'Brandt fits pipes adequately.', cool: 'Brandt has a blue thread on his cuff. I know what it means. I know everything that happens on my land.' },
   },
 };

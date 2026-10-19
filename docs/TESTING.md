@@ -34,11 +34,19 @@
 | `gang.test.mjs` | The Sums of Anarchy cast, calculators (highs, comedowns, tolerance, heal, energy crash), Grit, Minnie's shop and counter, samples and stealing, orders, deliveries, referrals, missed orders, dealing and the police, anger tiers, ambushes and hunts, truce, hurting the crew, Arthur's Wrath, gang-police insults, jail confiscation, saves, debug commands, the Abacus. |
 | `police.test.mjs` | The police cast (imported chief, armed killable officers, beats in all four areas), the lax chief, calls and dispatch, bribes and fines, pursuit and cuffing, surrender, death → jail, serving a sentence, all four breakouts, the LAW Wrath → jail, killing an officer, Wanted lapse and record decay, saves, debug commands, walkable precinct and cells. |
 | `debug.test.mjs` | Debug console: give/take by id or name, money/health/energy/heal/god, weapons and ammo, time/skip/teleport/stats/rep/flags, reviving the dead and knocked-out. |
+| `casino_rules.test.mjs` | The Phonograph Grand's games as pure rules: the deck and shuffle, every poker hand, kickers and ties, best of seven, short hands; roulette coverage and payouts (every bet's fair odds, the zero), multi-bet settlement, a fair wheel; blackjack aces, naturals, the peek, busts, pushes, soft 17, double, split, split aces, illegal actions, the shoe. |
+| `casino_system.test.mjs` | The resort's maps and lifts (private floors, NPC-only lift doors, who can get where), the staff's hours, the cage (rate, minimum, overdraft, no cashing out seated, the ledger), debit and settle-once, seats and limits, the host's arrival (and skipping it), Morganius roaming, roulette and blackjack chip accounting over many rounds, save/load mid-hand and with chips on the layout. |
+| `character_morganius.test.mjs`, `character_octavius.test.mjs` | The two imported casino characters: looks, protection and Wraths, floating and card-magic states, schedules, dialogue, the cage topic, signature cars and weapons, saves. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
 
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.52.0 (2026-10-19)
+
+- `npm run check` — **424/424 tests passed**; `npm run smoke` — 24/24.
+- Browser (headless Chromium, the built `index.html`): new game → the casino floor at 17:10 (Octavius at the cage, Brock on watch) → bought chips at the cage through the panel → sat at the Gilded Wheel with E (the "Sit down" prompt; the host's arrival caption) → the first-person scene: three bets placed by clicking the layout, a spin — the ball settled in the pocket the system drew (6, black) and the loss was settled and shown → left with Esc (seat and position restored) → sat at Blackjack Table One, dealt: a natural, paid 3:2 → the Grand Lobby and Market Street by day and at 21:30 (the marquee lit, the forecourt with the Long Distance and the Last Trick) → Morganius performing on the floor at night → both new Wraths (cards; security and lawyers). No page errors.
 
 ## Verification record — v0.51.0 (2026-10-18)
 

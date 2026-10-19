@@ -628,3 +628,45 @@ body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .d
 }
 #hud-tl { white-space: nowrap; }
 .hb-slot canvas { object-fit: contain; }
+
+/* v0.52.0 — the Phonograph Grand: the cage, and the first-person table scene */
+.cage-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.cage-input { width: 110px; padding: 6px 8px; font: inherit; }
+.cage .ledger { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cage .ledger th, .cage .ledger td { text-align: left; padding: 3px 6px; border-bottom: 1px solid rgba(0,0,0,.12); }
+.cage .good { color: #2a7a3a; } .cage .warn { color: #a83a2a; }
+#modal-panel.casino-table { position: fixed; inset: 0; width: 100vw; height: 100vh; max-height: none; border: none; border-radius: 0; background: #08060a; color: #f4ecd8; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.casino-table .panel-head, #modal-panel.casino-table #modal-tabs { display: none; }
+#modal-panel.casino-table #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; }
+.ct { height: 100%; user-select: none; }
+.ct-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; touch-action: none; }
+.ct-hud { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; gap: 16px; padding: 12px 16px; background: linear-gradient(rgba(8,6,10,.85), rgba(8,6,10,0)); pointer-events: none; }
+.ct-title { display: flex; flex-direction: column; flex: 1; }
+.ct-title b { font-family: Georgia, serif; font-size: 20px; letter-spacing: 1px; color: #e8c35a; }
+.ct-title span { font-size: 12px; opacity: .75; }
+.ct-chips { display: flex; flex-direction: column; align-items: flex-end; }
+.ct-chips span { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: .7; }
+.ct-chips b { font-size: 24px; color: #e8c35a; }
+.ct-hist { display: flex; gap: 3px; flex-wrap: wrap; max-width: 300px; }
+.ct-hist span { min-width: 22px; padding: 2px 4px; text-align: center; font-size: 12px; font-weight: bold; border-radius: 3px; }
+.ct-hist .red { background: #b8202a; } .ct-hist .black { background: #16141c; border: 1px solid #444; } .ct-hist .green { background: #1e8a3a; }
+.ct-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px 16px; background: linear-gradient(rgba(8,6,10,0), rgba(8,6,10,.9)); }
+.ct-bar button { font: inherit; padding: 9px 16px; border-radius: 8px; border: 1px solid #c9a24a; background: #24182a; color: #f4ecd8; cursor: pointer; }
+.ct-bar button.primary { background: #6a2a8a; border-color: #e8c35a; font-weight: bold; }
+.ct-bar button:disabled { opacity: .4; cursor: not-allowed; }
+.ct-bar .ct-leave { margin-left: 18px; background: transparent; }
+.ct-info { min-width: 180px; text-align: center; font-size: 14px; opacity: .9; }
+.ct-chipset { display: flex; gap: 5px; margin-right: 10px; }
+.ct-chipset .chip { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 3px dashed rgba(255,255,255,.8); font-weight: bold; font-size: 12px; color: #14121a; }
+.ct-chipset .chip.on { outline: 3px solid #fff0a0; transform: translateY(-4px); }
+.ct-chipset .c1 { background: #e8e2d0; } .ct-chipset .c5 { background: #d83a3a; } .ct-chipset .c25 { background: #3aa84a; }
+.ct-chipset .c100 { background: #1e1e24; color: #fff; } .ct-chipset .c500 { background: #a84ad8; } .ct-chipset .c1000 { background: #e8c35a; } .ct-chipset .c5000 { background: #3a6ad8; color: #fff; }
+.ct-speech { position: absolute; top: 76px; right: 18px; max-width: 360px; display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: rgba(20,10,30,.88); border: 1px solid #b05af0; border-radius: 12px; box-shadow: 0 0 24px rgba(176,90,240,.35); pointer-events: none; }
+.ct-speech img { width: 56px; height: 56px; border-radius: 50%; border: 2px solid #c9a24a; object-fit: cover; }
+.ct-speech b { display: block; color: #e2b8ff; font-family: Georgia, serif; font-size: 13px; }
+.ct-speech span { font-size: 14px; line-height: 1.35; }
+.ct-banner { position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%); padding: 12px 26px; font-family: Georgia, serif; font-size: 26px; font-weight: bold; background: rgba(10,6,14,.85); border: 2px solid #c9a24a; border-radius: 10px; pointer-events: none; text-align: center; }
+.ct-banner.good { color: #fff0a0; border-color: #e8c35a; box-shadow: 0 0 40px rgba(232,195,90,.5); }
+.ct-banner.bad { color: #f0b0b0; border-color: #a83a3a; font-size: 18px; }
+.ct-speech.hidden, .ct-banner.hidden { display: none; }
+@media (max-width: 700px) { .ct-title b { font-size: 15px; } .ct-speech { left: 10px; right: 10px; top: 64px; max-width: none; } .ct-bar button { padding: 8px 10px; } .ct-chipset .chip { width: 36px; height: 36px; } }

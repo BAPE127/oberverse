@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.51.0",
+  "version": "0.52.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -161,6 +161,30 @@
       "name": "Quinn Abernathy",
       "origin": "generated (Mason import)",
       "status": "implemented"
+    },
+    {
+      "id": "npc_morganius",
+      "name": "Morganius Spade",
+      "origin": "imported",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_octavius",
+      "name": "Octavius Thomas Phonograph",
+      "origin": "imported (temporary look)",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_vera",
+      "name": "Vera Lusk",
+      "origin": "generated (casino)",
+      "status": "implemented"
+    },
+    {
+      "id": "npc_brock",
+      "name": "Brock Hadley",
+      "origin": "generated (casino)",
+      "status": "implemented"
     }
   ],
   "importedCharacters": [
@@ -181,6 +205,19 @@
       "doc": "docs/characters/npc_ober.md",
       "image": "assets/portraits/reference/npc_ober_reference.jpg",
       "interviewDate": "2026-10-15"
+    },
+    {
+      "id": "npc_morganius",
+      "doc": "docs/characters/npc_morganius.md",
+      "image": "assets/portraits/reference/npc_morganius_reference.jpg",
+      "interviewDate": "2026-10-18"
+    },
+    {
+      "id": "npc_octavius",
+      "doc": "docs/characters/npc_octavius.md",
+      "image": null,
+      "interviewDate": "2026-10-18",
+      "note": "temporary look until the owner's picture"
     }
   ],
   "tooling": {

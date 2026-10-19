@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.52.0',
+    date: '2026-10-19',
+    channel: 'development',
+    title: 'The Phonograph Grand',
+    notes: [
+      'The Lucky Star on Market Street is now the Phonograph Grand, a 42-storey casino resort — the old bar lives on in the lobby. Up the grand staircase: roulette, blackjack, a stage, a bar, and the cage.',
+      'Meet Morganius Spade, who floats, does impossible things with cards, and flies to your table the moment you sit down; and Octavius Thomas Phonograph, who owns all of it and is on the phone.',
+      'Change obols for chips at the cage (one for one), then sit down: the tables are a first-person scene — bet on the layout and watch the wheel, or play blackjack against cards dealt from Morganius\'s hand.',
+    ],
+  },
+  {
     version: '0.51.0',
     date: '2026-10-18',
     channel: 'development',

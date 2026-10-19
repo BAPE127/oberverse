@@ -56,6 +56,19 @@ export const SFX = {
     tone(ctx, d, { f0: 1975, dur: 0.07, vol: 0.09 });
     tone(ctx, d, { f0: 2637, t: ctx.currentTime + 0.06, dur: 0.18, vol: 0.09 });
   },
+  // v0.52.0: the Phonograph Grand's tables
+  sfx_card: (ctx, d) => { const t = ctx.currentTime; noise(ctx, d, { t, dur: 0.05, vol: 0.22, freq: 3200, q: 2, f1: 1800 }); noise(ctx, d, { t: t + 0.05, dur: 0.02, vol: 0.12, freq: 1200, q: 3 }); },
+  sfx_chip: (ctx, d) => { const t = ctx.currentTime; for (const [dt, f] of [[0, 2600], [0.03, 3100], [0.055, 2400]]) tone(ctx, d, { type: 'triangle', f0: f, f1: f * 0.9, t: t + dt, dur: 0.05, vol: 0.09, attack: 0.001 }); },
+  sfx_wheel: (ctx, d) => {
+    // the ball running round the rim, slowing, rattling across the frets and dropping into a pocket
+    const t = ctx.currentTime;
+    noise(ctx, d, { t, dur: 4.2, vol: 0.06, type: 'bandpass', freq: 1800, f1: 600, q: 1.5 });
+    let at = 2.6;
+    for (let i = 0; i < 14; i++) { noise(ctx, d, { t: t + at, dur: 0.02, vol: 0.18, freq: 3500 + Math.random() * 1500, q: 5 }); at += 0.06 + i * 0.022; }
+    tone(ctx, d, { type: 'triangle', f0: 1400, f1: 900, t: t + at, dur: 0.12, vol: 0.12 });
+  },
+  sfx_magic: (ctx, d) => { const t = ctx.currentTime; [74, 78, 81, 86, 90].forEach((m, i) => tone(ctx, d, { type: 'sine', f0: hz(m), t: t + i * 0.05, dur: 0.6, vol: 0.05 })); noise(ctx, d, { t, dur: 0.6, vol: 0.06, type: 'highpass', freq: 6000 }); },
+  sfx_win: (ctx, d) => { const t = ctx.currentTime; [[72, 0], [76, 0.1], [79, 0.2], [84, 0.32]].forEach(([m, dt]) => tone(ctx, d, { type: 'triangle', f0: hz(m), t: t + dt, dur: 0.4, vol: 0.1 })); for (let i = 0; i < 8; i++) tone(ctx, d, { type: 'triangle', f0: 2400 + i * 120, t: t + 0.4 + i * 0.04, dur: 0.06, vol: 0.05 }); },
   sfx_ui_click: (ctx, d) => tone(ctx, d, { f0: 900, f1: 700, dur: 0.04, vol: 0.08 }),
   sfx_ui_open: (ctx, d) => tone(ctx, d, { type: 'triangle', f0: 400, f1: 700, dur: 0.1, vol: 0.09 }),
   sfx_ui_close: (ctx, d) => tone(ctx, d, { type: 'triangle', f0: 650, f1: 380, dur: 0.1, vol: 0.08 }),

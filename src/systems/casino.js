@@ -320,7 +320,7 @@ export class Casino {
 
   /** Skip the rest of the flight (the scene opens at once). */
   skipArrival() {
-    if (this.arrival) this.arrival.t0 = this.game.realTime - this.arrival.dur;
+    if (this.arrival) { this.arrival.t0 = this.game.realTime - this.arrival.dur; this.arrival.skipped = true; }
   }
 
   releaseHost() {

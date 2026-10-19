@@ -195,11 +195,47 @@ export function drawPixelBuilding(ctx, b, opts) {
  * v0.51.0: a walk-in building's front, over its front wall: a striped awning (if it has one) and
  * its sign above the door — so you can tell the shops apart from the street.
  */
-export function drawShopFront(ctx, b) {
+export function drawShopFront(ctx, b, time = 0, night = false) {
   const x0 = b.x * 32;
   const fy = (b.y + b.h) * 32; // the street side of the front wall
   const w = b.w * 32;
   const R = (x, y, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, ww, hh); };
+  if (b.marquee) {
+    // v0.52.0: the Phonograph Grand — a black-and-gold canopy over the door, its edge a row of chasing
+    // bulbs, the name in gold on black above it, ringed with more bulbs
+    const dx = b.door ? b.door.x * 32 + 16 : x0 + w / 2;
+    const cw = Math.min(w, 5 * 32);
+    const cx0 = Math.round(Math.max(x0, Math.min(x0 + w - cw, dx - cw / 2)));
+    const ay = fy - 16;
+    R(cx0 - 1, ay - 1, cw + 2, 22, INK);
+    R(cx0, ay, cw, 18, '#1a1620'); R(cx0, ay, cw, 2, '#3a3440'); R(cx0, ay + 16, cw, 2, '#c9a24a');
+    for (let k = 0; k < cw; k += 6) {
+      const on = Math.floor(time * 8 + k / 6) % 3 !== 0;
+      R(cx0 + k + 2, ay + 18, 2, 2, on ? '#fff0a0' : '#8a6a1a');
+    }
+    for (const px of [cx0 + 4, cx0 + cw - 7]) { R(px, ay + 20, 3, 12, '#c9a24a'); R(px, ay + 20, 1, 12, '#fff0a0'); }
+    R(cx0, ay + 22, cw, 6, 'rgba(16,14,36,0.3)');
+    if (night) {
+      const gr = ctx.createRadialGradient(dx, ay + 26, 2, dx, ay + 26, cw * 0.7);
+      gr.addColorStop(0, 'rgba(255,220,140,0.28)'); gr.addColorStop(1, 'rgba(255,220,140,0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(dx - cw, ay, cw * 2, cw);
+    }
+    if (b.sign) {
+      ctx.font = 'bold 10px Georgia, "Times New Roman", serif';
+      const tw = Math.ceil(ctx.measureText(b.sign).width + 16);
+      const sx = Math.round(Math.max(x0 + 2, Math.min(x0 + w - tw - 2, dx - tw / 2)));
+      const sy = fy - 38;
+      R(sx - 2, sy - 2, tw + 4, 20, INK);
+      R(sx, sy, tw, 16, '#141018'); R(sx, sy, tw, 1, '#c9a24a'); R(sx, sy + 15, tw, 1, '#c9a24a');
+      for (let k = 0; k < tw; k += 5) { const on = Math.floor(time * 6 + k / 5) % 4 !== 0; R(sx + k + 1, sy - 1, 2, 1, on ? '#fff0a0' : '#6a5a2a'); R(sx + k + 1, sy + 16, 2, 1, on ? '#fff0a0' : '#6a5a2a'); }
+      ctx.fillStyle = '#e8c35a';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(b.sign, sx + 8, sy + 8);
+    }
+    return;
+  }
   if (b.awning) {
     // canvas stripes from the wall out over the pavement, scalloped, lit along the top
     const ay = fy - 14;

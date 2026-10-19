@@ -17,6 +17,7 @@ import { farmlandPanel, farmplotPanel, coopPanel, livestockPanel } from './farm.
 import { armsBenchPanel } from './armsbench.js';
 import { fleetPanel } from './fleetCommand.js';
 import { logbookPanel } from './logbook.js';
+import { cashierPanel, casinoTablePanel } from './casino.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -29,6 +30,8 @@ PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;
 PANELS.logbook = logbookPanel;
+PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
+PANELS.casinoTable = casinoTablePanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -411,7 +414,15 @@ export class UI {
     this.audio.unlock();
     // Panels sit above the dialogue box (e.g. a shop opened mid-conversation), so they get input first.
     if (this.panelOpen) {
-      if (action === 'pause' || action === this.panelStack[this.panelStack.length - 1].name) this.closePanel();
+      const topName = this.panelStack[this.panelStack.length - 1].name;
+      // v0.52.0: you can't walk away from a hand of blackjack in the middle of it (the scene says so)
+      if (topName === 'casinoTable') { if (action === 'pause' && this.game?.casino.canLeave() && !casinoTablePanel.live?.spin) this.closePanel(); return; }
+      if (action === 'pause' || action === topName) this.closePanel();
+      return;
+    }
+    if (this.casinoWait) {
+      // Morganius is on his way: any key hurries him up
+      if (action === 'interact' || action === 'attack' || action === 'pause') this.game.casino.skipArrival();
       return;
     }
     if (this.dialogue.handleAction(action)) return;
@@ -491,6 +502,10 @@ export class UI {
       case 'terminal': this.openPanel('terminal', { warehouse: act.warehouse }); break;
       case 'armsbench': this.openPanel('armsbench', { warehouse: act.warehouse }); break;
       case 'panel': this.openPanel(act.panel, act.opts || {}); break;
+      case 'casino': // v0.52.0: you've sat down; the host is coming (src/systems/casino.js summonHost)
+        this.casinoWait = { table: act.table, readyAt: null };
+        this.showCaption('Morganius Spade is on his way to your table…  (E to hurry him)', 3);
+        break;
       case 'read': this.openPanel('read', { title: act.title, body: act.body }); break;
       case 'sleep': {
         const m = g.clock.minuteOfDay;
@@ -515,6 +530,23 @@ export class UI {
       }
       default: break;
     }
+  }
+
+  /** v0.52.0: once the host has landed and bowed, the table scene opens. */
+  updateCasinoWait() {
+    const g = this.game;
+    const w = this.casinoWait;
+    if (!g.casino.state.session) { this.casinoWait = null; return; }
+    if (!g.casino.hostReady) return;
+    if (w.readyAt === null) {
+      w.readyAt = this.time;
+      const m = g.npcs.get('npc_morganius');
+      if (m) m.anim = { state: 'flourish', t0: g.realTime };
+      this.audio.sfx('sfx_magic');
+    }
+    if (this.time - w.readyAt < (g.casino.state.visits <= 1 ? 0.9 : 0.35) && !g.casino.arrival?.skipped) return;
+    this.casinoWait = null;
+    this.openPanel('casinoTable', { table: w.table });
   }
 
   // ---------------------------------------------------- factory build mode
@@ -621,7 +653,7 @@ export class UI {
     const g = this.game;
     if (!g) return;
     if (this.state === 'playing') {
-      const move = this.panelOpen || this.dialogue.open ? { x: 0, y: 0, sprint: false } : this.input.movement();
+      const move = this.panelOpen || this.dialogue.open || this.casinoWait ? { x: 0, y: 0, sprint: false } : this.input.movement();
       const busy = this.panelOpen || this.dialogue.open || g.combat.wrath;
       // aim at the mouse while it is being used; otherwise facing + auto-aim
       if (!busy && this.time - this.mouse.movedAt < 4 && this.renderer.cam) {
@@ -649,6 +681,7 @@ export class UI {
       }
       this.audio.setSiren(siren);
       this.dialogue.update(dt);
+      if (this.casinoWait) this.updateCasinoWait();
       const target = !g.paused ? g.interactables()[0] : null;
       this.renderer.highlight = target || null;
       this.updateHud(target);
