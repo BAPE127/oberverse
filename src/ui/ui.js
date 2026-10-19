@@ -18,6 +18,7 @@ import { armsBenchPanel } from './armsbench.js';
 import { fleetPanel } from './fleetCommand.js';
 import { logbookPanel } from './logbook.js';
 import { cashierPanel, casinoTablePanel } from './casino.js';
+import { spadeTablePanel } from './spadeTable.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -32,6 +33,7 @@ PANELS.fleet = fleetPanel;
 PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;
+PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -416,6 +418,7 @@ export class UI {
     if (this.panelOpen) {
       const topName = this.panelStack[this.panelStack.length - 1].name;
       // v0.52.0: you can't walk away from a hand of blackjack in the middle of it (the scene says so)
+      if (topName === 'spadeTable') { if (action === 'pause' && !spadeTablePanel.live?.anim) this.closePanel(); return; }
       if (topName === 'casinoTable') { if (action === 'pause' && this.game?.casino.canLeave() && !casinoTablePanel.live?.spin) this.closePanel(); return; }
       if (action === 'pause' || action === topName) this.closePanel();
       return;
@@ -546,7 +549,7 @@ export class UI {
     }
     if (this.time - w.readyAt < (g.casino.state.visits <= 1 ? 0.9 : 0.35) && !g.casino.arrival?.skipped) return;
     this.casinoWait = null;
-    this.openPanel('casinoTable', { table: w.table });
+    this.openPanel(g.casino.table(w.table)?.game === 'spade' ? 'spadeTable' : 'casinoTable', { table: w.table });
   }
 
   // ---------------------------------------------------- factory build mode

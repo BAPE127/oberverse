@@ -1,4 +1,4 @@
-# The Phonograph Grand — design and architecture (v0.52.0)
+# The Phonograph Grand — design and architecture (v0.53.0)
 
 The casino resort on Market Street, Halvermouth, built where the Lucky Star bar stood (its bar is the lobby's lounge). Owner: Octavius Thomas Phonograph. Host: Morganius Spade.
 
@@ -24,7 +24,15 @@ A first-person scene: you sit at the felt; the table is projected with a pinhole
 ## The host
 `summonHost` takes Morganius from whatever he's doing (`intent.source = 'casino'`, a held intent) and flies him along a curve to the table's host place; `hostReady` tells the UI when to open the scene; any key skips. His world animation states (idle, perform, approach, arrive, flourish, leave) and scene states (roulette, blackjack, win, big_win, lose, push) are lists of card effects (`HOST_FX`, `EFFECTS` in `src/engine/cardMagic.js`).
 
+## Morganius's table: the Spade's Gambit (v0.53.0)
+Rules: `src/casino/rogue.js` (pure, the run is plain saved data with its own mulberry32 stream); books: `Casino.startRun`, `rogueAct`, `settleRun`; scene: `src/ui/spadeTable.js`.
+- **Structure:** 3 Acts × 3 Tricks (Opener ×1, Feature ×1.5, Finale ×2 of the Act's base: 480, 1800, 3300). 4 Plays, 3 Redraws, 8 cards in hand. Every Trick reshuffles your whole deck.
+- **Scoring order:** (1) the hand type's base Pips/Gasps + Rehearsal levels; (2) each scoring card in play order — pips (2–10, J/Q/K 10, A 11), its Ink, the card Curios in held order (Twin and Encore score a card again); (3) cards held in hand, in hand order (Steel); (4) hand Curios in held order; (5) the Twist (the Echo halves a repeated hand type); (6) floor(Pips × Gasps).
+- **Hands (base Pips × Gasps; per Rehearsal):** high card 4×1 (+8/+1), pair 12×2 (+12/+1), two pair 22×2 (+18/+1), trips 28×3 (+20/+2), straight 34×4 (+26/+2), flush 32×4 (+16/+2), full house 44×4 (+24/+2), quads 64×6 (+30/+3), straight flush 96×8 (+40/+4).
+- **Sparks:** start 4; a Trick won pays 3 + 1 per Play left (+2 for a Finale, +2 with the Disappearing Coin). Curios cost 4/6/8 by rarity; Inks 3 (Twin, Ember 5); Rehearsals 3; new stock 1, 2, 3…; one Vanishing a visit (2), never below 20 cards.
+- **Money:** buy-in 25 chips (debited once, ref = the Gambit's id); payout by Acts cleared 0/30/75/200 (credited once, same ref). A finished Gambit is settled at once (or on load). A Gambit in progress is never touched by leaving or loading.
+- **Balance:** see CHANGELOG 0.53.0 (greedy bot: ~23 back per 25 in); `tests/casino_rogue.test.mjs` keeps it in range.
+
 ## Roadmap
-- v0.53.0 Texas Hold'em (blinds, four betting rounds, side pots, AI opponents with distinct styles, Morganius dealing).
-- v0.54.0 Morganius's table: an original poker roguelike.
+- v0.54.0 Texas Hold'em (blinds, four betting rounds, side pots, AI opponents with distinct styles, Morganius dealing).
 - v0.55.0 Nightlife: visitors through the night, croupiers and cleaners, table occupancy, ambience.

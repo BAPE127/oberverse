@@ -1,6 +1,9 @@
-# Known Issues and Limitations — v0.52.0
+# Known Issues and Limitations — v0.53.0
 
-- **The Phonograph Grand (v0.52.0):** Texas Hold'em (v0.53.0) and Morganius's own table (v0.54.0) aren't open yet — their tables say so. Octavius wears a stand-in look until the owner's picture arrives. Nobody else plays at the tables and there are no croupiers or visitors yet (nightlife is v0.55.0), so every seat is yours. The world pauses while you're at a table. The cage is shut 02:00–10:00. Blackjack pays 3:2 rounded down to whole chips (a 5-chip blackjack returns 12). Morganius is drawn at the table as his pixel figure scaled up (deliberately: the scene is in the game's own pixels), with the photo as his portrait beside what he says. Private floors open by flags that nothing in the game sets yet (invitations come later).
+- **The Spade's Gambit (v0.53.0):** a deliberately small first set (17 Curios, 6 Inks, 5 Twists); there are no booster packs, card editions or consumables beyond the Cabinet's stock. You can't reorder your Curios (part with one and buy again to change the order). The Cabinet's "part with" asks with the browser's own confirm box. Loading an earlier save takes the Gambit back to how it was then (as with everything else in a save).
+
+
+- **The Phonograph Grand (v0.52.0):** Texas Hold'em isn't open yet (its tables say so). Octavius wears a stand-in look until the owner's picture arrives. Nobody else plays at the tables and there are no croupiers or visitors yet (nightlife is v0.55.0), so every seat is yours. The world pauses while you're at a table. The cage is shut 02:00–10:00. Blackjack pays 3:2 rounded down to whole chips (a 5-chip blackjack returns 12). Morganius is drawn at the table as his pixel figure scaled up (deliberately: the scene is in the game's own pixels), with the photo as his portrait beside what he says. Private floors open by flags that nothing in the game sets yet (invitations come later).
 
 
 - **Light (v0.51.0):** a lit room is lit evenly (no lamps of its own inside it yet); the floors of towers and other rooms that aren't laid into a street still use the old indoor light. Light pools are round and don't stop at walls.

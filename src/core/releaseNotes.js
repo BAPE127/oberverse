@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.53.0',
+    date: '2026-10-19',
+    channel: 'development',
+    title: 'The Spade\'s Gambit',
+    notes: [
+      'Morganius\'s own table is open: the Spade\'s Gambit, a poker roguelike. Play hands from your own deck — each scores Pips × Gasps — to reach the target of each Trick, three Tricks an Act, three Acts.',
+      'Between Tricks, spend Sparks in his Cabinet on Curios (lasting wonders — the order you hold them in matters), Inks for your cards, Rehearsals and Vanishings. Every Finale, he changes the rules.',
+      'Buy in for 25 chips; clear Acts to be paid back. A Gambit waits for you if you get up, even across saves.',
+    ],
+  },
+  {
     version: '0.52.0',
     date: '2026-10-19',
     channel: 'development',

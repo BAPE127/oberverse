@@ -680,6 +680,60 @@ body.pixel-ui .doc, body.pixel-ui #modal-panel.dealer-beaumont, body.pixel-ui .d
 .ct-banner.bad { color: #f0b0b0; border-color: #a83a3a; font-size: 18px; }
 .ct-speech.hidden, .ct-banner.hidden { display: none; }
 @media (max-width: 700px) { .ct-title b { font-size: 15px; } .ct-speech { left: 10px; right: 10px; top: 64px; max-width: none; } .ct-bar button { padding: 8px 10px; } .ct-chipset .chip { width: 36px; height: 36px; } }
+
+/* v0.53.0 — Morganius's table: the Spade's Gambit */
+.sg-hud { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 18px; align-items: flex-start; padding: 12px 16px; background: linear-gradient(rgba(8,6,10,.9), rgba(8,6,10,0)); pointer-events: none; }
+.sg-stage { display: flex; flex-direction: column; min-width: 190px; }
+.sg-stage i, .sg-score i { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: .7; font-style: normal; }
+.sg-stage b { font-family: Georgia, serif; font-size: 22px; color: #e8c35a; }
+.sg-stage .twist { margin-top: 4px; font-size: 12px; color: #e2b8ff; max-width: 280px; }
+.sg-score { display: flex; flex-direction: column; align-items: center; flex: 1; }
+.sg-score b { font-family: Georgia, serif; font-size: 34px; color: #fff0a0; line-height: 1; }
+.sg-score span { font-size: 13px; opacity: .8; }
+.sg-meter { width: min(320px, 60vw); height: 6px; margin-top: 4px; background: rgba(255,255,255,.12); border-radius: 3px; overflow: hidden; }
+.sg-meter div { height: 100%; background: linear-gradient(90deg, #b05af0, #e8c35a); transition: width .3s; }
+.sg-counts { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 14px; }
+.sg-counts .spark { color: #e8c35a; font-weight: bold; }
+.sg-curios { position: absolute; left: 12px; top: 120px; display: flex; flex-direction: column; gap: 6px; width: 190px; }
+.sg-curio { padding: 6px 8px; border-radius: 8px; background: rgba(30,16,44,.88); border: 1px solid #7a3aa8; font-size: 12px; line-height: 1.25; transition: transform .15s, box-shadow .15s; }
+.sg-curio b { display: block; color: #e8c35a; font-family: Georgia, serif; font-size: 13px; }
+.sg-curio span { opacity: .8; }
+.sg-curio.empty { opacity: .3; text-align: center; padding: 4px; }
+.sg-curio.flash { transform: scale(1.08); box-shadow: 0 0 18px #ff7ac8; border-color: #ff7ac8; }
+.sg-preview { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); font-size: 16px; text-align: center; pointer-events: none; text-shadow: 0 1px 3px #000; }
+.sg-preview b { font-family: Georgia, serif; color: #e8c35a; margin-right: 10px; }
+.sg-preview .pips { color: #5ac8ff; font-weight: bold; } .sg-preview .gasps { color: #ff7ac8; font-weight: bold; }
+.sg-hands { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; padding: 10px 14px; background: rgba(20,10,30,.94); border: 1px solid #7a3aa8; border-radius: 10px; font-size: 13px; white-space: nowrap; }
+.sg-hands b { font-family: Georgia, serif; color: #e8c35a; margin-right: 8px; }
+.sg-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,3,10,.6); z-index: 4; }
+.sg-overlay.hidden { display: none; }
+.sg-card { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 18px 22px; background: #1a1024; border: 2px solid #c9a24a; border-radius: 14px; box-shadow: 0 0 40px rgba(176,90,240,.35); }
+.sg-card.wide { width: min(940px, calc(100vw - 32px)); }
+.sg-card h2 { margin: 0 0 8px; font-family: Georgia, serif; color: #e8c35a; letter-spacing: 1px; }
+.sg-card p { line-height: 1.45; }
+.sg-card .muted { opacity: .75; font-size: 13px; }
+.sg-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.sg-card button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #c9a24a; background: #2a1a34; color: #f4ecd8; cursor: pointer; }
+.sg-card button.primary { background: #6a2a8a; border-color: #e8c35a; font-weight: bold; }
+.sg-card button:disabled { opacity: .4; cursor: not-allowed; }
+.sg-card button.small { padding: 4px 8px; font-size: 12px; }
+.sg-pay { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.sg-pay th, .sg-pay td { border: 1px solid rgba(201,162,74,.4); padding: 3px 9px; text-align: center; }
+.sg-result { display: flex; flex-direction: column; padding: 10px 12px; margin: 6px 0 10px; border-radius: 8px; }
+.sg-result b { font-family: Georgia, serif; font-size: 22px; }
+.sg-result.good { background: rgba(232,195,90,.14); color: #fff0a0; } .sg-result.bad { background: rgba(168,58,58,.18); color: #f0b0b0; }
+.sg-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 10px; }
+.sg-item { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 10px; background: #24163a; border: 1px solid #5a3a7a; min-height: 150px; }
+.sg-item i { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: .7; font-style: normal; }
+.sg-item b { font-family: Georgia, serif; color: #e8c35a; }
+.sg-item span { font-size: 12px; opacity: .85; flex: 1; }
+.sg-item.ink { border-color: #5ac8e8; } .sg-item.rehearsal { border-color: #ff7ac8; } .sg-item.sold { opacity: .45; }
+.sg-owned, .sg-vanish { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sg-owned i, .sg-vanish i { font-style: normal; opacity: .75; font-size: 12px; width: 100%; }
+.sg-vanish > div { display: flex; flex-wrap: wrap; gap: 3px; width: 100%; }
+.sg-card .card-btn { min-width: 34px; background: #f4ecd8; color: #1b1a24; border-color: #888; }
+.sg-card .card-btn.red { color: #c8242c; } .sg-card .card-btn.inked { box-shadow: 0 0 0 2px #b05af0; }
+@media (max-width: 700px) { .sg-curios { display: none; } .sg-stage b { font-size: 16px; } .sg-score b { font-size: 26px; } }
 </style>
 </head>
 <body>
@@ -11260,7 +11314,7 @@ const dlgMorganius = {
     },
     {
       id: 't_ms_table', label: '"What\'s the table on your stage?"', keywords: ['your table', 'stage', 'spade table', 'his table', 'special', 'roguelike'],
-      say: ['Ahh. My table. A game of my own, my friend: poker hands, played against the house, round after round, with cards that are… not quite ordinary. You\'ll find out how not-quite.', 'It isn\'t ready. Nearly. The cards are still learning the rules.'],
+      say: ['Ahh. My table. The Spade\'s Gambit, my friend — a game of my own. You play poker hands from your own deck, and each hand scores Pips times Gasps. Three Acts, three Tricks each; reach the target, or the curtain falls.', 'Between the Tricks you visit my Cabinet: Curios, Inks for your cards, Rehearsals, Vanishings. And every Finale, I change the rules a little. Twenty-five chips to sit. Clear an Act and you\'ll see them again; clear all three and you\'ll see a great many more.'],
     },
     {
       id: 't_ms_octavius', label: '"What\'s Octavius like?"', keywords: ['octavius', 'phonograph', 'owner', 'boss'],
@@ -11273,6 +11327,7 @@ const dlgMorganius = {
     { keywords: ['brock', 'security'], say: ['Brock is the Grand\'s security. Built like a vault door and twice as discreet. Don\'t make him chase you. He gets so sad about it.'] },
     { keywords: ['lucky star', 'bar', 'lounge'], say: ['The Lucky Star stood here for sixty years. When Octavius bought it he meant to tear it down. I talked him round. The bar lives on in the lobby, and the star over the door is the same star. I polished it myself.'] },
     { keywords: ['slots', 'slot machines', 'machines'], say: ['Disenchanted, every one. A slot machine is a game with no one at the other end of it, my friend. Where is the art in that?'] },
+    { keywords: ['gambit', 'curio', 'curios', 'pips', 'gasps', 'cabinet'], say: ['My Curios are the finest wonders I own, my friend, and I lend them only to people who are losing to me. Hold five at most. The order you hold them in is the order they work — remember that.'] },
     { keywords: ['zero', 'green'], say: ['The zero is green, single and entirely the house\'s. When the ball lands there, every outside bet loses. Only a bet on zero itself wins — thirty-five to one.'] },
   ],
   unknown: [['The cards are silent on that one, my friend.'], ['Ah. That card stays face down.']],
@@ -11954,7 +12009,7 @@ function casinoFloor() {
     { id: 'pg_holdem_1', type: 'poker_table', x: 22, y: 7, w: 4, h: 3, interact: { kind: 'casino', table: 'holdem_1' } },
     { id: 'pg_holdem_2', type: 'poker_table', x: 22, y: 14, w: 4, h: 3, color: '#1e3a5a', interact: { kind: 'casino', table: 'holdem_2' } },
     // Morganius's stage
-    { id: 'pg_stage', type: 'magic_circle', x: 14, y: 1, w: 8, h: 5, examine: 'A circle inlaid in the floor in silver: suits, runes, and the words NOTHING IS UP MY SLEEVE. EVERYTHING IS.' },
+    { id: 'pg_stage', type: 'magic_circle', x: 14, y: 1, w: 8, h: 5 }, // (walked over, not examined: it would hide the table on it)
     { id: 'pg_spade_table', type: 'spade_table', x: 16, y: 3, w: 4, h: 2, interact: { kind: 'casino', table: 'spade' } },
     { id: 'pg_pillar_a', type: 'pillar', x: 13, y: 1 }, { id: 'pg_pillar_b', type: 'pillar', x: 22, y: 1 },
     { id: 'pg_pillar_c', type: 'pillar', x: 13, y: 5 }, { id: 'pg_pillar_d', type: 'pillar', x: 22, y: 5 },
@@ -13212,7 +13267,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.52.0';
+const GAME_VERSION = '0.53.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -23175,6 +23230,407 @@ const totalBet = (round) => round.hands.reduce((s, h) => s + h.bet, 0);
 return { DECKS, RESHUFFLE_AT, RULES, handValue, isBlackjack, newShoe, deal, legalActions, act, standAll, totalBet };
 })();
 
+// ---- src/casino/rogue.js
+__m["src/casino/rogue.js"] = (function () {
+// Morganius's Table: "The Spade's Gambit" (v0.53.0) — a poker roguelike, as pure rules.
+//
+// You buy in, and Morganius deals you a hand from your own deck. Three Acts of three Tricks;
+// each Trick has a target. Play up to five cards as a poker hand (pairs, trips and quads count
+// with fewer cards; straights and flushes need five) — it scores Pips × Gasps — or put cards
+// back and Redraw. Reach the target before you run out of Plays. Between Tricks, spend Sparks
+// in Morganius's Cabinet: Curios (lasting wonders, five at most), Inks for your cards, Rehearsals
+// (a hand type scores more) and Vanishings (a card leaves your deck). Every Act ends in a Finale
+// with a Twist. Your chips back depend on how many Acts you clear.
+//
+// THE SCORING ORDER (fixed; the tests hold it to this):
+//   1. The hand: its type's base Pips and Gasps, plus its Rehearsal levels.
+//   2. Each scoring card, in the order you played them (a Twin card, and the first card under the
+//      Encore curio, score again): its pips (2–10 face value; J Q K 10; A 11), then its Ink, then
+//      the card Curios in the order you hold them.
+//   3. Each card left in your hand, in hand order: its Ink (Steel ×1.5 Gasps).
+//   4. The hand Curios, in the order you hold them (adds before multiplies, as each comes).
+//   5. The Twist (the Echo halves a hand of the same type as the last).
+//   6. Score = Pips × Gasps, rounded down.
+//
+// The run is plain data (saved as it stands). It draws from its own random stream (`rng`, a
+// mulberry32 state kept in the run), so a run plays out the same whatever else happens in the
+// world, and a card is never dealt twice.
+const { rank, suit, HAND, HAND_NAMES } = __m["src/casino/cards.js"];
+
+const ENTRY = 25; // chips to buy in
+const PAYOUT = [0, 30, 75, 200]; // chips back, by Acts cleared
+const ACTS = 3;
+const TRICKS = 3; // per Act: the Opener, the Feature, the Finale
+const TRICK_NAMES = ['The Opener', 'The Feature', 'The Finale'];
+const TARGETS = [480, 1800, 3300];
+const TRICK_MULT = [1, 1.5, 2];
+const HAND_SIZE = 8;
+const PLAYS = 4;
+const REDRAWS = 3;
+const MAX_CURIOS = 5;
+
+/** Each hand type's base score and what a Rehearsal adds. */
+const HANDS = {
+  [HAND.HIGH]: { pips: 4, gasps: 1, lp: 8, lg: 1 },
+  [HAND.PAIR]: { pips: 12, gasps: 2, lp: 12, lg: 1 },
+  [HAND.TWO_PAIR]: { pips: 22, gasps: 2, lp: 18, lg: 1 },
+  [HAND.TRIPS]: { pips: 28, gasps: 3, lp: 20, lg: 2 },
+  [HAND.STRAIGHT]: { pips: 34, gasps: 4, lp: 26, lg: 2 },
+  [HAND.FLUSH]: { pips: 32, gasps: 4, lp: 16, lg: 2 },
+  [HAND.FULL_HOUSE]: { pips: 44, gasps: 4, lp: 24, lg: 2 },
+  [HAND.QUADS]: { pips: 64, gasps: 6, lp: 30, lg: 3 },
+  [HAND.STRAIGHT_FLUSH]: { pips: 96, gasps: 8, lp: 40, lg: 4 },
+};
+
+/** Inks: what a card carries. */
+const INKS = {
+  gilt: { name: 'Gilt', text: '+30 Pips when it scores.', colour: '#e8c35a' },
+  violet: { name: 'Violet', text: '+4 Gasps when it scores.', colour: '#b05af0' },
+  twin: { name: 'Twin', text: 'Scores twice.', colour: '#5ac8e8' },
+  ghost: { name: 'Ghost', text: 'Counts as every suit.', colour: '#d8d8e8' },
+  steel: { name: 'Steel', text: '×1.5 Gasps while it stays in your hand.', colour: '#9aa0b0' },
+  ember: { name: 'Ember', text: '×2 Gasps when it scores — then it burns away.', colour: '#f07a3a' },
+};
+
+/** Curios: Morganius's wonders. `kind`: card (step 2), hand (step 4), passive. */
+const CURIOS = {
+  velvet_glove: { name: 'Velvet Glove', kind: 'hand', rarity: 1, text: '+3 Gasps on every hand.' },
+  marked_deck: { name: 'The Marked Deck', kind: 'card', rarity: 1, text: 'Each scoring J, Q or K: +15 Pips.' },
+  fortune_card: { name: 'Fortune-Teller\'s Card', kind: 'card', rarity: 1, text: 'Each scoring Ace: +20 Pips and +4 Gasps.' },
+  thirteenth_spade: { name: 'The Thirteenth Spade', kind: 'card', rarity: 1, text: 'Each scoring ♠: +3 Gasps.' },
+  stagehand_lantern: { name: 'Stagehand\'s Lantern', kind: 'hand', rarity: 1, text: '+8 Pips for each card left in your hand.' },
+  smoke_bomb: { name: 'Smoke Bomb', kind: 'passive', rarity: 1, text: '+1 Redraw each Trick.' },
+  black_cat: { name: 'Black Cat', kind: 'card', rarity: 2, text: 'Each scoring 7: ×1.3 Gasps.' },
+  dove: { name: 'Dove in the Sleeve', kind: 'hand', rarity: 2, text: '×1.5 Gasps if you play exactly three cards.' },
+  sawn_lady: { name: 'The Sawn Lady', kind: 'hand', rarity: 2, text: 'A Pair: ×2 Gasps (she comes in two halves).' },
+  applause_machine: { name: 'Applause Machine', kind: 'hand', rarity: 2, text: '+2 Gasps for each Play you have left after this one.' },
+  rabbit_hat: { name: 'Rabbit in the Hat', kind: 'passive', rarity: 2, text: '+1 card in your hand.' },
+  mirror_box: { name: 'Mirror Box', kind: 'passive', rarity: 2, text: '♥ and ♦ are one suit; ♠ and ♣ are one suit (for flushes).' },
+  disappearing_coin: { name: 'Disappearing Coin', kind: 'passive', rarity: 2, text: '+2 Sparks when you win a Trick.' },
+  encore: { name: 'Encore!', kind: 'card', rarity: 3, text: 'The first scoring card of each hand scores twice.' },
+  escape_chains: { name: 'Escapologist\'s Chains', kind: 'hand', rarity: 3, text: 'Your last Play of a Trick: ×2 Gasps.' },
+  top_hat: { name: 'The Bottomless Top Hat', kind: 'hand', rarity: 3, text: '×(1 + 0.2 per Curio you hold) Gasps.' },
+  crystal_ball: { name: 'Crystal Ball', kind: 'passive', rarity: 3, text: 'See the next three cards of your deck. +1 Redraw each Trick.' },
+};
+const CURIO_COST = { 1: 4, 2: 6, 3: 8 };
+
+/** Twists: Morganius's conditions on each Finale. */
+const TWISTS = {
+  mirror: { name: 'The Looking-Glass', text: '♥ cards score no Pips.' },
+  tight: { name: 'Tight Sleeves', text: 'One Play fewer.' },
+  fog: { name: 'The Fog', text: 'One card fewer in your hand.' },
+  echo: { name: 'The Echo', text: 'A hand of the same type as the one before scores half.' },
+  gilded_cage: { name: 'The Gilded Cage', text: 'Your Curios are silent for your first Play.' },
+};
+
+// ------------------------------------------------------------------ randomness (the run's own)
+function next(run) {
+  let t = (run.rng = (run.rng + 0x6d2b79f5) >>> 0);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+const int = (run, n) => Math.floor(next(run) * n);
+function shuffleIn(run, list) {
+  for (let i = list.length - 1; i > 0; i--) { const j = int(run, i + 1); [list[i], list[j]] = [list[j], list[i]]; }
+  return list;
+}
+
+// ------------------------------------------------------------------ helpers
+const cardPips = (c) => { const r = rank(c); return r === 14 ? 11 : r >= 10 ? 10 : r; };
+const has = (run, id) => run.curios.includes(id);
+const cardById = (run, id) => run.deck.find((d) => d.id === id);
+const handSize = (run) => HAND_SIZE + (has(run, 'rabbit_hat') ? 1 : 0) - (run.twist === 'fog' ? 1 : 0);
+const targetFor = (act, trick) => Math.round(TARGETS[act] * TRICK_MULT[trick]);
+const isFinale = (run) => run.trick === TRICKS - 1;
+
+/** The poker hand these cards make here (Ghost ink and the Mirror Box bend the suits). */
+function evaluateRun(run, cards) {
+  const rs = cards.map((d) => rank(d.c)).sort((a, b) => b - a);
+  const counts = new Map();
+  for (const r of rs) counts.set(r, (counts.get(r) || 0) + 1);
+  const groups = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  let flush = false;
+  let straight = false;
+  if (cards.length === 5) {
+    const suitsOf = (d) => {
+      if (d.ink === 'ghost') return [0, 1, 2, 3];
+      const s = suit(d.c);
+      return has(run, 'mirror_box') ? (s === 1 || s === 2 ? [1, 2] : [0, 3]) : [s];
+    };
+    flush = [0, 1, 2, 3].some((s) => cards.every((d) => suitsOf(d).includes(s)));
+    if (counts.size === 5) {
+      const set = new Set(rs);
+      if (set.has(14)) set.add(1);
+      for (let top = 14; top >= 5 && !straight; top--) { let ok = true; for (let k = 0; k < 5; k++) if (!set.has(top - k)) ok = false; straight = ok; }
+    }
+  }
+  const top = groups[0] || [0, 0];
+  let cat;
+  if (straight && flush) cat = HAND.STRAIGHT_FLUSH;
+  else if (top[1] === 4) cat = HAND.QUADS;
+  else if (top[1] === 3 && groups[1]?.[1] === 2) cat = HAND.FULL_HOUSE;
+  else if (flush) cat = HAND.FLUSH;
+  else if (straight) cat = HAND.STRAIGHT;
+  else if (top[1] === 3) cat = HAND.TRIPS;
+  else if (top[1] === 2 && groups[1]?.[1] === 2) cat = HAND.TWO_PAIR;
+  else if (top[1] === 2) cat = HAND.PAIR;
+  else cat = HAND.HIGH;
+  // the cards that score: all five for a straight, flush or full house; the sets otherwise; the top card alone for a high card
+  let scoring;
+  if ([HAND.STRAIGHT, HAND.FLUSH, HAND.FULL_HOUSE, HAND.STRAIGHT_FLUSH].includes(cat)) scoring = [...cards];
+  else if (cat === HAND.HIGH) { const hi = Math.max(...cards.map((d) => rank(d.c))); scoring = [cards.find((d) => rank(d.c) === hi)]; }
+  else scoring = cards.filter((d) => counts.get(rank(d.c)) >= 2);
+  return { cat, name: HAND_NAMES[cat], scoring };
+}
+
+/**
+ * Score a hand without playing it (the preview, and what `play` uses). `ids` in the order played.
+ * Returns { cat, name, scoring (ids), steps, pips, gasps, total } — `steps` are the scoring order,
+ * each with the running Pips and Gasps after it (the scene animates them one by one).
+ */
+function scoreHand(run, ids) {
+  const played = ids.map((id) => cardById(run, id));
+  const ev = evaluateRun(run, played);
+  const H = HANDS[ev.cat];
+  const lv = run.levels[ev.cat] || 0;
+  let pips = H.pips + lv * H.lp;
+  let gasps = H.gasps + lv * H.lg;
+  const steps = [];
+  const step = (kind, label, extra = {}) => steps.push({ kind, label, pips, gasps: Math.round(gasps * 100) / 100, ...extra });
+  step('hand', `${ev.name}${lv ? ` (Rehearsed ×${lv})` : ''}`);
+  const silent = run.twist === 'gilded_cage' && run.playsMade === 0;
+  const curios = silent ? [] : run.curios;
+  // 2. the scoring cards
+  ev.scoring.forEach((d, i) => {
+    const times = 1 + (d.ink === 'twin' ? 1 : 0) + (i === 0 && curios.includes('encore') ? 1 : 0);
+    for (let k = 0; k < times; k++) {
+      const p = run.twist === 'mirror' && suit(d.c) === 1 ? 0 : cardPips(d.c);
+      pips += p;
+      step('card', `+${p}`, { id: d.id });
+      if (d.ink === 'gilt') { pips += 30; step('ink', '+30 Pips', { id: d.id, ink: 'gilt' }); }
+      if (d.ink === 'violet') { gasps += 4; step('ink', '+4 Gasps', { id: d.id, ink: 'violet' }); }
+      if (d.ink === 'ember') { gasps *= 2; step('ink', '×2 Gasps', { id: d.id, ink: 'ember' }); }
+      for (const cu of curios) {
+        if (CURIOS[cu].kind !== 'card') continue;
+        const r = rank(d.c);
+        if (cu === 'marked_deck' && r >= 11 && r <= 13) { pips += 15; step('curio', '+15 Pips', { id: d.id, curio: cu }); }
+        if (cu === 'fortune_card' && r === 14) { pips += 20; gasps += 4; step('curio', '+20 Pips +4 Gasps', { id: d.id, curio: cu }); }
+        if (cu === 'thirteenth_spade' && suit(d.c) === 0) { gasps += 3; step('curio', '+3 Gasps', { id: d.id, curio: cu }); }
+        if (cu === 'black_cat' && r === 7) { gasps *= 1.3; step('curio', '×1.3 Gasps', { id: d.id, curio: cu }); }
+      }
+    }
+  });
+  // 3. the cards still in your hand
+  const held = run.hand.filter((id) => !ids.includes(id)).map((id) => cardById(run, id));
+  for (const d of held) if (d.ink === 'steel') { gasps *= 1.5; step('held', '×1.5 Gasps', { id: d.id, ink: 'steel' }); }
+  // 4. the hand curios
+  const playsAfter = run.plays - 1;
+  for (const cu of curios) {
+    if (CURIOS[cu].kind !== 'hand') continue;
+    if (cu === 'velvet_glove') { gasps += 3; step('curio', '+3 Gasps', { curio: cu }); }
+    if (cu === 'stagehand_lantern' && held.length) { pips += 8 * held.length; step('curio', `+${8 * held.length} Pips`, { curio: cu }); }
+    if (cu === 'dove' && ids.length === 3) { gasps *= 1.5; step('curio', '×1.5 Gasps', { curio: cu }); }
+    if (cu === 'sawn_lady' && ev.cat === HAND.PAIR) { gasps *= 2; step('curio', '×2 Gasps', { curio: cu }); }
+    if (cu === 'applause_machine' && playsAfter > 0) { gasps += 2 * playsAfter; step('curio', `+${2 * playsAfter} Gasps`, { curio: cu }); }
+    if (cu === 'escape_chains' && playsAfter === 0) { gasps *= 2; step('curio', '×2 Gasps', { curio: cu }); }
+    if (cu === 'top_hat') { const m = 1 + 0.2 * run.curios.length; gasps *= m; step('curio', `×${m.toFixed(1)} Gasps`, { curio: cu }); }
+  }
+  // 5. the twist
+  let total = Math.floor(pips * gasps);
+  if (run.twist === 'echo' && run.lastCat === ev.cat) { total = Math.floor(total / 2); step('twist', 'The Echo: half', { twist: 'echo' }); }
+  steps.push({ kind: 'total', label: `${pips} × ${Math.round(gasps * 100) / 100}`, pips, gasps: Math.round(gasps * 100) / 100, total });
+  return { cat: ev.cat, name: ev.name, scoring: ev.scoring.map((d) => d.id), steps, pips, gasps: Math.round(gasps * 100) / 100, total };
+}
+
+// ------------------------------------------------------------------ the run
+/** A new run: a standard deck of 52, four Sparks, Act 1's Opener dealt. `seed` is any integer. */
+function newRun(seed, id = 'run') {
+  const run = {
+    id, rng: seed >>> 0, act: 0, trick: 0, phase: 'play', target: 0, score: 0, plays: 0, redraws: 0, playsMade: 0,
+    deck: Array.from({ length: 52 }, (_, c) => ({ id: c, c, ink: null })), nextId: 52,
+    draw: [], hand: [], used: [], curios: [], levels: {}, sparks: 4, shop: null, twist: null, twists: [], lastCat: null,
+    actsCleared: 0, log: [], best: 0, settled: false,
+  };
+  // pick the three Finale twists now, all different
+  run.twists = shuffleIn(run, Object.keys(TWISTS)).slice(0, ACTS);
+  startTrick(run);
+  return run;
+}
+
+function startTrick(run) {
+  run.phase = 'play';
+  run.twist = isFinale(run) ? run.twists[run.act] : null;
+  run.target = targetFor(run.act, run.trick);
+  run.score = 0;
+  run.playsMade = 0;
+  run.lastCat = null;
+  run.plays = PLAYS - (run.twist === 'tight' ? 1 : 0);
+  run.redraws = REDRAWS + (has(run, 'smoke_bomb') ? 1 : 0) + (has(run, 'crystal_ball') ? 1 : 0);
+  run.draw = shuffleIn(run, run.deck.map((d) => d.id));
+  run.hand = [];
+  run.used = [];
+  fill(run);
+}
+
+function fill(run) {
+  while (run.hand.length < handSize(run) && run.draw.length) run.hand.push(run.draw.pop());
+}
+
+/** The next cards off the deck (for the Crystal Ball). */
+const peek = (run, n = 3) => run.draw.slice(-n).reverse();
+
+function checkIds(run, ids, max = 5) {
+  if (run.phase !== 'play') throw new Error('rogue: not in play');
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > max) throw new Error('rogue: play one to five cards');
+  if (new Set(ids).size !== ids.length || ids.some((id) => !run.hand.includes(id))) throw new Error('rogue: those cards are not in your hand');
+}
+
+/** Play cards. Returns the scoring (and the run moves on: a Trick won, lost, or carried on). */
+function play(run, ids) {
+  checkIds(run, ids);
+  if (run.plays <= 0) throw new Error('rogue: no plays left');
+  const res = scoreHand(run, ids);
+  run.score += res.total;
+  run.best = Math.max(run.best, res.total);
+  run.plays--;
+  run.playsMade++;
+  run.lastCat = res.cat;
+  run.hand = run.hand.filter((id) => !ids.includes(id));
+  // Ember cards burn away; the rest go to the used pile
+  const burnt = res.scoring.filter((id) => cardById(run, id)?.ink === 'ember');
+  run.deck = run.deck.filter((d) => !burnt.includes(d.id));
+  run.used.push(...ids.filter((id) => !burnt.includes(id)));
+  run.log.push({ act: run.act, trick: run.trick, hand: res.name, total: res.total });
+  if (run.log.length > 40) run.log.shift();
+  res.burnt = burnt;
+  if (run.score >= run.target) {
+    res.won = true;
+    winTrick(run, res);
+  } else if (run.plays <= 0 || (!run.hand.length && !run.draw.length)) {
+    res.lost = true;
+    run.phase = 'lost';
+  } else fill(run);
+  return res;
+}
+
+/** Put cards back and draw as many (a Redraw). */
+function redraw(run, ids) {
+  checkIds(run, ids);
+  if (run.redraws <= 0) throw new Error('rogue: no redraws left');
+  run.redraws--;
+  run.hand = run.hand.filter((id) => !ids.includes(id));
+  run.used.push(...ids);
+  fill(run);
+  return { drawn: ids.length };
+}
+
+function winTrick(run, res) {
+  const earned = 3 + run.plays + (isFinale(run) ? 2 : 0) + (has(run, 'disappearing_coin') ? 2 : 0);
+  run.sparks += earned;
+  res.sparks = earned;
+  if (isFinale(run)) run.actsCleared = run.act + 1;
+  if (isFinale(run) && run.act === ACTS - 1) { run.phase = 'won'; return; }
+  run.phase = 'shop';
+  run.shop = makeShop(run);
+}
+
+// ------------------------------------------------------------------ Morganius's Cabinet
+function makeShop(run) {
+  const owned = new Set(run.curios);
+  const pool = Object.keys(CURIOS).filter((k) => !owned.has(k));
+  const curios = [];
+  while (curios.length < 3 && pool.length) {
+    // rarer wonders turn up less often
+    const weights = pool.map((k) => [5, 3, 1.5][CURIOS[k].rarity - 1]);
+    let r = next(run) * weights.reduce((a, b) => a + b, 0);
+    let i = 0;
+    while ((r -= weights[i]) > 0) i++;
+    const k = pool.splice(Math.min(i, pool.length - 1), 1)[0];
+    curios.push({ kind: 'curio', id: k, cost: CURIO_COST[CURIOS[k].rarity] });
+  }
+  const inks = [];
+  const plain = run.deck.filter((d) => !d.ink);
+  const inkIds = Object.keys(INKS);
+  for (let n = 0; n < 2 && plain.length; n++) {
+    const d = plain.splice(int(run, plain.length), 1)[0];
+    const ink = inkIds[int(run, inkIds.length)];
+    inks.push({ kind: 'ink', card: d.id, ink, cost: ink === 'ember' || ink === 'twin' ? 5 : 3 });
+  }
+  const cats = [HAND.PAIR, HAND.TWO_PAIR, HAND.TRIPS, HAND.STRAIGHT, HAND.FLUSH, HAND.FULL_HOUSE, HAND.HIGH, HAND.QUADS];
+  const rehearsal = { kind: 'rehearsal', cat: cats[Math.min(cats.length - 1, Math.floor(next(run) ** 1.6 * cats.length))], cost: 3 };
+  return { items: [...curios, ...inks, rehearsal].map((x) => ({ ...x, sold: false })), rerolls: 0, vanishCost: 2, vanished: false };
+}
+
+/** Buy item `i` from the Cabinet (a Vanishing takes the card to remove: `card`). */
+function buy(run, i, opts = {}) {
+  if (run.phase !== 'shop') throw new Error('rogue: the Cabinet is closed');
+  const it = run.shop.items[i];
+  if (!it || it.sold) return { ok: false, text: 'Gone already.' };
+  if (it.cost > run.sparks) return { ok: false, text: `That costs ${it.cost} Sparks.` };
+  if (it.kind === 'curio' && run.curios.length >= MAX_CURIOS) return { ok: false, text: `You can hold ${MAX_CURIOS} Curios. Part with one first.` };
+  if (it.kind === 'ink' && !cardById(run, it.card)) return { ok: false, text: 'That card has gone.' };
+  run.sparks -= it.cost;
+  it.sold = true;
+  if (it.kind === 'curio') run.curios.push(it.id);
+  if (it.kind === 'ink') cardById(run, it.card).ink = it.ink;
+  if (it.kind === 'rehearsal') run.levels[it.cat] = (run.levels[it.cat] || 0) + 1;
+  void opts;
+  return { ok: true };
+}
+
+/** Vanish a card from your deck (once per visit). */
+function vanish(run, cardId) {
+  if (run.phase !== 'shop') throw new Error('rogue: the Cabinet is closed');
+  if (run.shop.vanished) return { ok: false, text: 'One vanishing per visit.' };
+  if (run.sparks < run.shop.vanishCost) return { ok: false, text: `A vanishing costs ${run.shop.vanishCost} Sparks.` };
+  if (run.deck.length <= 20) return { ok: false, text: 'Your deck is thin enough.' };
+  if (!cardById(run, cardId)) return { ok: false, text: 'No such card.' };
+  run.sparks -= run.shop.vanishCost;
+  run.shop.vanished = true;
+  run.deck = run.deck.filter((d) => d.id !== cardId);
+  return { ok: true };
+}
+
+/** Part with a Curio (for nothing: Morganius keeps it). */
+function release(run, curio) {
+  const i = run.curios.indexOf(curio);
+  if (i < 0) return { ok: false };
+  run.curios.splice(i, 1);
+  return { ok: true };
+}
+
+/** New stock: 1 Spark, then one more each time. */
+function reroll(run) {
+  if (run.phase !== 'shop') throw new Error('rogue: the Cabinet is closed');
+  const cost = 1 + run.shop.rerolls;
+  if (run.sparks < cost) return { ok: false, text: `A new look costs ${cost} Sparks.` };
+  run.sparks -= cost;
+  const keep = { rerolls: run.shop.rerolls + 1, vanished: run.shop.vanished };
+  run.shop = { ...makeShop(run), ...keep };
+  return { ok: true };
+}
+
+/** Leave the Cabinet: on to the next Trick. */
+function nextTrick(run) {
+  if (run.phase !== 'shop') throw new Error('rogue: the Cabinet is closed');
+  run.shop = null;
+  if (run.trick === TRICKS - 1) { run.act++; run.trick = 0; } else run.trick++;
+  startTrick(run);
+}
+
+/** Give up the run where it stands (it ends; Acts cleared still count). */
+function concede(run) {
+  if (run.phase === 'won' || run.phase === 'lost') return;
+  run.phase = 'lost';
+}
+
+const finished = (run) => run.phase === 'won' || run.phase === 'lost';
+const payout = (run) => PAYOUT[run.actsCleared] || 0;
+
+return { ENTRY, PAYOUT, ACTS, TRICKS, TRICK_NAMES, HAND_SIZE, PLAYS, REDRAWS, MAX_CURIOS, HANDS, INKS, CURIOS, TWISTS, cardPips, handSize, targetFor, isFinale, evaluateRun, scoreHand, newRun, peek, play, redraw, buy, vanish, release, reroll, nextTrick, concede, finished, payout };
+})();
+
 // ---- src/systems/casino.js
 __m["src/systems/casino.js"] = (function () {
 // The Phonograph Grand (v0.52.0): the casino's books, its tables and its host.
@@ -23193,13 +23649,14 @@ __m["src/systems/casino.js"] = (function () {
 const { spin: spinWheel, settle: settleWheel, validBet, colourOf } = __m["src/casino/roulette.js"];
 const { act: bjAct, deal: bjDeal, legalActions, standAll, totalBet } = __m["src/casino/blackjack.js"];
 const { TILE } = __m["src/core/util.js"];
+const { newRun, play: rPlay, redraw: rRedraw, buy: rBuy, vanish: rVanish, reroll: rReroll, nextTrick: rNext, release: rRelease, concede: rConcede, finished: rFinished, payout: rPayout, ENTRY: ROGUE_ENTRY } = __m["src/casino/rogue.js"];
 
 const HOST = 'npc_morganius';
 const FLOOR = 'phonograph_casino';
 /** Morganius's favourite places on the floor, and how much he likes each. */
 const ROAM = [['m_stage', 5], ['m_centre', 4], ['m_roulette', 2], ['m_blackjack', 2], ['m_poker', 2], ['m_lounge', 1.5], ['m_overlook', 2], ['m_slots', 1]];
 const LEDGER_KEEP = 60;
-const OPEN_GAMES = new Set(['roulette', 'blackjack']); // v0.52.0; Hold'em (v0.53.0) and Morganius's table (v0.54.0) follow
+const OPEN_GAMES = new Set(['roulette', 'blackjack', 'spade']); // v0.52.0; Morganius's table v0.53.0; Hold'em follows
 
 class Casino {
   constructor(game) {
@@ -23328,9 +23785,9 @@ class Casino {
     const t = this.table(tableId);
     if (!t) return { ok: false, text: 'There\'s no such table.' };
     if (s.session) return { ok: false, text: 'You\'re already at a table.' };
-    if (!OPEN_GAMES.has(t.game)) return { ok: false, text: t.game === 'holdem' ? 'The Hold\'em tables are being dressed: green baize, fresh decks, a sign — "OPENING SOON. — O.T.P."' : 'Morganius\'s table: an empty chair, a deck shuffling itself, and a card propped up — "NOT YET. SOON. — M."' };
+    if (!OPEN_GAMES.has(t.game)) return { ok: false, text: 'The Hold\'em tables are being dressed: green baize, fresh decks, a sign — "OPENING SOON. — O.T.P."' };
     if (g.player.map !== FLOOR) return { ok: false, text: 'The tables are on the casino floor.' };
-    if (s.chips < t.min) return { ok: false, text: `${t.name}: the minimum bet is ${t.min} chip${t.min === 1 ? '' : 's'}. You have ${s.chips}. Chips are at the cage.` };
+    if (t.game === 'spade' && this.rogue.run && !rFinished(this.rogue.run)) { /* a run in progress: sit and carry on, no stake needed */ } else if (s.chips < t.min) return { ok: false, text: `${t.name}: the minimum bet is ${t.min} chip${t.min === 1 ? '' : 's'}. You have ${s.chips}. Chips are at the cage.` };
     if (this.freeSeats(tableId) <= 0) return { ok: false, text: 'Every seat at that table is taken.' };
     s.session = { id: `s${++s.seq}`, table: tableId, game: t.game, at: g.clock.total, from: { map: g.player.map, x: g.player.x, y: g.player.y, facing: g.player.facing } };
     s.visits++;
@@ -23474,6 +23931,68 @@ class Casino {
     this.reaction = { kind: net > 0 ? (net >= staked * 5 ? 'big_win' : 'win') : net < 0 ? 'lose' : 'push', at: this.game.realTime };
   }
 
+  // ------------------------------------------------------------------ Morganius's table: the Spade's Gambit
+  /** The roguelike's saved state: the run in progress (or the last one, finished), and your record. */
+  get rogue() {
+    const s = this.state;
+    if (!s.rogue) s.rogue = { run: null, runs: 0, wins: 0, bestActs: 0, paid: 0, history: [] };
+    return s.rogue;
+  }
+
+  /** Buy in (ENTRY chips, once) and start a run. A run in progress has to be finished or given up first. */
+  startRun() {
+    const sess = this.state.session;
+    if (!sess || sess.game !== 'spade') return { ok: false, text: 'Sit at Morganius\'s table first.' };
+    const R = this.rogue;
+    if (R.run && !rFinished(R.run)) return { ok: false, text: 'You have a Gambit in progress.' };
+    const id = `spade#${++this.state.seq}`;
+    if (!this.debit(ROGUE_ENTRY, id)) return { ok: false, text: `The buy-in is ${ROGUE_ENTRY} chips.` };
+    R.run = newRun(Math.floor(this.game.rng.next() * 4294967296), id);
+    R.runs++;
+    return { ok: true, run: R.run };
+  }
+
+  /** Do something in the run: 'play' | 'redraw' (ids), 'buy' (i), 'vanish' (card), 'reroll', 'next', 'release' (curio), 'concede'. */
+  rogueAct(action, arg) {
+    const sess = this.state.session;
+    if (!sess || sess.game !== 'spade') return { ok: false, text: 'Sit at Morganius\'s table first.' };
+    const run = this.rogue.run;
+    if (!run || rFinished(run)) return { ok: false, text: 'No Gambit in progress.' };
+    let res;
+    try {
+      if (action === 'play') res = { ok: true, ...rPlay(run, arg) };
+      else if (action === 'redraw') res = { ok: true, ...rRedraw(run, arg) };
+      else if (action === 'buy') res = rBuy(run, arg);
+      else if (action === 'vanish') res = rVanish(run, arg);
+      else if (action === 'reroll') res = rReroll(run);
+      else if (action === 'next') { rNext(run); res = { ok: true }; }
+      else if (action === 'release') res = rRelease(run, arg);
+      else if (action === 'concede') { rConcede(run); res = { ok: true }; }
+      else return { ok: false, text: 'Morganius raises an eyebrow.' };
+    } catch (e) {
+      return { ok: false, text: e.message.replace(/^rogue: /, '') };
+    }
+    if (rFinished(run)) this.settleRun();
+    return res;
+  }
+
+  /** A finished run pays out — once (by the run's id). */
+  settleRun() {
+    const R = this.rogue;
+    const run = R.run;
+    if (!run || !rFinished(run) || run.settled) return 0;
+    const back = rPayout(run);
+    this.credit(back, run.id);
+    run.settled = true;
+    R.paid += back;
+    if (run.phase === 'won') R.wins++;
+    R.bestActs = Math.max(R.bestActs, run.actsCleared);
+    R.history.unshift({ acts: run.actsCleared, paid: back, best: run.best, day: this.game.clock.day });
+    if (R.history.length > 10) R.history.length = 10;
+    this.endRound(ROGUE_ENTRY, back);
+    return back;
+  }
+
   // ------------------------------------------------------------------ the host
   /** Morganius drops everything and flies to your table (or appears there in a burst of cards). */
   summonHost(tableId) {
@@ -23571,6 +24090,7 @@ class Casino {
     }
     s.session = null;
     this.arrival = null;
+    if (s.rogue?.run && rFinished(s.rogue.run) && !s.rogue.run.settled) this.settleRun(); // a Gambit runs on across saves; a finished one is paid
     const m = this.game.npcs.get(HOST);
     if (m?.intent?.source === 'casino') m.intent = null;
   }
@@ -32180,6 +32700,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.53.0',
+    date: '2026-10-19',
+    channel: 'development',
+    title: 'The Spade\'s Gambit',
+    notes: [
+      'Morganius\'s own table is open: the Spade\'s Gambit, a poker roguelike. Play hands from your own deck — each scores Pips × Gasps — to reach the target of each Trick, three Tricks an Act, three Acts.',
+      'Between Tricks, spend Sparks in his Cabinet on Curios (lasting wonders — the order you hold them in matters), Inks for your cards, Rehearsals and Vanishings. Every Finale, he changes the rules.',
+      'Buy in for 25 chips; clear Acts to be paid back. A Gambit waits for you if you get up, even across saves.',
+    ],
+  },
   {
     version: '0.52.0',
     date: '2026-10-19',
@@ -49010,6 +49541,86 @@ function drawChip(ctx, x, y, r, amount, squash = 0.55) {
   }
 }
 
+// ------------------------------------------------------------------ the room and the host (shared)
+/** The casino behind the table, out of focus (shared by every table scene). */
+function drawRoom(ctx, c, t) {
+  const { W, H } = c;
+  const bg = ctx.createLinearGradient(0, 0, 0, c.horizon + H * 0.1);
+  bg.addColorStop(0, '#0c0810'); bg.addColorStop(1, '#2a1420');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  // the casino behind him, out of focus: warm lights, a gold rail, the glow of other tables
+  for (let i = 0; i < 26; i++) {
+    const x = ((i * 137.5) % 1) * W + ((i * 977) % W);
+    const y = c.horizon * (0.15 + ((i * 53) % 70) / 100);
+    const r = 8 + ((i * 31) % 22);
+    const a = 0.08 + 0.06 * Math.sin(t * 0.7 + i);
+    const gr = ctx.createRadialGradient(x % W, y, 0, x % W, y, r * 2.4);
+    gr.addColorStop(0, `rgba(255,${180 + (i % 5) * 12},${110 + (i % 3) * 40},${a * 2})`);
+    gr.addColorStop(1, 'rgba(255,200,120,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect((x % W) - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
+  }
+  ctx.fillStyle = 'rgba(201,162,74,0.35)';
+  ctx.fillRect(0, c.horizon - H * 0.035, W, Math.max(2, H * 0.004));
+  // a chandelier
+  const cx = W * 0.78;
+  ctx.fillStyle = 'rgba(255,230,170,0.12)';
+  ctx.beginPath(); ctx.ellipse(cx, H * 0.05, W * 0.12, H * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 9; i++) { ctx.fillStyle = `rgba(255,240,200,${0.5 + 0.3 * Math.sin(t * 2 + i)})`; ctx.fillRect(cx - W * 0.08 + i * W * 0.02, H * 0.06 + Math.sin(i) * 4, 3, 3); }
+}
+
+/**
+ * Morganius, floating on the far side of the table, and his cards — which trick depends on `mood`
+ * (win, big_win, lose, roulette, shuffle; anything else: cards circling his fingers). `introDur`
+ * plays the arrival (a circle in the air, cards bursting out and snapping back). Returns where his
+ * hands are (cards are dealt from the right one).
+ */
+function drawHost(ctx, c, t, look, { introDur = 0, mood = 'idle', age = 0 } = {}) {
+  if (!look) return null;
+  const { W, H } = c;
+  const intro = Math.min(1, t / Math.max(0.01, introDur));
+  const scale = Math.max(3, Math.round(H / 150));
+  const bob = Math.sin(t * 2.1) * scale * 1.5;
+  const x = W * 0.5;
+  const y = c.horizon + H * 0.07 + bob;
+  const hs = age;
+  // the arrival: a circle in the air, cards bursting out and snapping into his hands
+  if (t < introDur + 0.4) {
+    magicCircle(ctx, x, y - 6 * scale, 26 * scale * Math.min(1, intro * 2), t * 1.5, { squash: 0.35, alpha: 1 - Math.max(0, (t - introDur) / 0.4) });
+    EFFECTS.scatter(ctx, { x, y: y - 16 * scale, n: 26, r: 60 * scale, h: 6 * scale, k: 0.5 + intro * 0.5, seed: 4, glow: true }, t);
+  }
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, intro * 1.6);
+  ctx.imageSmoothingEnabled = false;
+  drawPerson(ctx, look, { x, y, facing: 'down', scale, idleTime: t });
+  ctx.restore();
+  // his hands, and the cards about them — which trick depends on what just happened
+  const lh = { x: x - 8 * scale, y: y - 11 * scale };
+  const rh = { x: x + 8 * scale, y: y - 11 * scale };
+  const cardH = 5 * scale;
+  const st = mood;
+  if (st === 'win' || st === 'big_win') {
+    EFFECTS.fan(ctx, { x: rh.x, y: rh.y, n: st === 'big_win' ? 9 : 6, h: cardH * 1.4, spread: 2.2, open: Math.min(1, hs * 2), rot: -0.2, glow: true, cards: [12, 25, 38, 51, 11, 24, 37, 50, 10] }, t);
+    if (st === 'big_win') EFFECTS.spiral(ctx, { x, y: y + 2 * scale, height: 46 * scale, r: 22 * scale, n: 18, h: cardH, speed: 0.5, glow: true }, t);
+  } else if (st === 'lose') {
+    // the cards run up one arm, across his shoulders and down the other
+    EFFECTS.path(ctx, { pts: [lh, { x: x - 7 * scale, y: y - 15 * scale }, { x, y: y - 14 * scale }, { x: x + 7 * scale, y: y - 15 * scale }, rh], n: 7, h: cardH, speed: 0.5, gap: 0.7 }, t);
+  } else if ((st === 'roulette' || st === 'shuffle') && hs < 2) {
+    EFFECTS.spiral(ctx, { x: rh.x, y: rh.y + 6 * scale, height: 18 * scale, r: 6 * scale, n: 8, h: cardH * 0.8, speed: 1.4, glow: true }, t);
+  } else {
+    EFFECTS.orbit(ctx, { x: lh.x, y: lh.y, r: 4 * scale, n: 3, h: cardH, speed: 2.2 }, t);
+    EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 4 * scale, n: 3, h: cardH, speed: -1.9 }, t);
+  }
+  // the purple light of his magic on the felt below him
+  const gr = ctx.createRadialGradient(x, c.horizon + H * 0.06, 0, x, c.horizon + H * 0.06, W * 0.25);
+  gr.addColorStop(0, 'rgba(176,90,240,0.18)');
+  gr.addColorStop(1, 'rgba(176,90,240,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(x - W * 0.25, c.horizon, W * 0.5, H * 0.2);
+  return { lh, rh, scale };
+}
+
 // ------------------------------------------------------------------ the scene
 function casinoTablePanel(ui, body) {
   const g = ui.game;
@@ -49280,76 +49891,8 @@ function casinoTablePanel(ui, body) {
   };
 
   // ---------------------------------------------------------------- drawing
-  const drawRoom = (c, t) => {
-    const { W, H } = c;
-    const bg = ctx.createLinearGradient(0, 0, 0, c.horizon + H * 0.1);
-    bg.addColorStop(0, '#0c0810'); bg.addColorStop(1, '#2a1420');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-    // the casino behind him, out of focus: warm lights, a gold rail, the glow of other tables
-    for (let i = 0; i < 26; i++) {
-      const x = ((i * 137.5) % 1) * W + ((i * 977) % W);
-      const y = c.horizon * (0.15 + ((i * 53) % 70) / 100);
-      const r = 8 + ((i * 31) % 22);
-      const a = 0.08 + 0.06 * Math.sin(t * 0.7 + i);
-      const gr = ctx.createRadialGradient(x % W, y, 0, x % W, y, r * 2.4);
-      gr.addColorStop(0, `rgba(255,${180 + (i % 5) * 12},${110 + (i % 3) * 40},${a * 2})`);
-      gr.addColorStop(1, 'rgba(255,200,120,0)');
-      ctx.fillStyle = gr;
-      ctx.fillRect((x % W) - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
-    }
-    ctx.fillStyle = 'rgba(201,162,74,0.35)';
-    ctx.fillRect(0, c.horizon - H * 0.035, W, Math.max(2, H * 0.004));
-    // a chandelier
-    const cx = W * 0.78;
-    ctx.fillStyle = 'rgba(255,230,170,0.12)';
-    ctx.beginPath(); ctx.ellipse(cx, H * 0.05, W * 0.12, H * 0.05, 0, 0, Math.PI * 2); ctx.fill();
-    for (let i = 0; i < 9; i++) { ctx.fillStyle = `rgba(255,240,200,${0.5 + 0.3 * Math.sin(t * 2 + i)})`; ctx.fillRect(cx - W * 0.08 + i * W * 0.02, H * 0.06 + Math.sin(i) * 4, 3, 3); }
-  };
-  const drawHost = (c, t) => {
-    if (!look) return;
-    const { W, H } = c;
-    const intro = Math.min(1, t / Math.max(0.01, S.intro.dur));
-    const scale = Math.max(3, Math.round(H / 150));
-    const bob = Math.sin(t * 2.1) * scale * 1.5;
-    const x = W * 0.5;
-    const y = c.horizon + H * 0.07 + bob;
-    const hs = now() - S.host.at;
-    // the arrival: a circle in the air, cards bursting out and snapping into his hands
-    if (t < S.intro.dur + 0.4) {
-      magicCircle(ctx, x, y - 6 * scale, 26 * scale * Math.min(1, intro * 2), t * 1.5, { squash: 0.35, alpha: 1 - Math.max(0, (t - S.intro.dur) / 0.4) });
-      EFFECTS.scatter(ctx, { x, y: y - 16 * scale, n: 26, r: 60 * scale, h: 6 * scale, k: 0.5 + intro * 0.5, seed: 4, glow: true }, t);
-    }
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, intro * 1.6);
-    ctx.imageSmoothingEnabled = false;
-    drawPerson(ctx, look, { x, y, facing: 'down', scale, idleTime: t });
-    ctx.restore();
-    // his hands, and the cards about them — which trick depends on what just happened
-    const lh = { x: x - 8 * scale, y: y - 11 * scale };
-    const rh = { x: x + 8 * scale, y: y - 11 * scale };
-    const cardH = 5 * scale;
-    const st = S.host.state;
-    if (st === 'win' || st === 'big_win') {
-      EFFECTS.fan(ctx, { x: rh.x, y: rh.y, n: st === 'big_win' ? 9 : 6, h: cardH * 1.4, spread: 2.2, open: Math.min(1, hs * 2), rot: -0.2, glow: true, cards: [12, 25, 38, 51, 11, 24, 37, 50, 10] }, t);
-      if (st === 'big_win') EFFECTS.spiral(ctx, { x, y: y + 2 * scale, height: 46 * scale, r: 22 * scale, n: 18, h: cardH, speed: 0.5, glow: true }, t);
-    } else if (st === 'lose') {
-      // the cards run up one arm, across his shoulders and down the other
-      EFFECTS.path(ctx, { pts: [lh, { x: x - 7 * scale, y: y - 15 * scale }, { x, y: y - 14 * scale }, { x: x + 7 * scale, y: y - 15 * scale }, rh], n: 7, h: cardH, speed: 0.5, gap: 0.7 }, t);
-    } else if (st === 'roulette' && hs < 2) {
-      EFFECTS.spiral(ctx, { x: rh.x, y: rh.y + 6 * scale, height: 18 * scale, r: 6 * scale, n: 8, h: cardH * 0.8, speed: 1.4, glow: true }, t);
-    } else {
-      EFFECTS.orbit(ctx, { x: lh.x, y: lh.y, r: 4 * scale, n: 3, h: cardH, speed: 2.2 }, t);
-      EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 4 * scale, n: 3, h: cardH, speed: -1.9 }, t);
-    }
-    // the purple light of his magic on the felt below him
-    const gr = ctx.createRadialGradient(x, c.horizon + H * 0.06, 0, x, c.horizon + H * 0.06, W * 0.25);
-    gr.addColorStop(0, 'rgba(176,90,240,0.18)');
-    gr.addColorStop(1, 'rgba(176,90,240,0)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(x - W * 0.25, c.horizon, W * 0.5, H * 0.2);
-    S.hands = { lh, rh, scale };
-  };
+  const drawRoomHere = (c, t) => drawRoom(ctx, c, t);
+  const drawHostHere = (c, t) => { S.hands = drawHost(ctx, c, t, look, { introDur: S.intro.dur, mood: S.host.state, age: now() - S.host.at }); };
   const drawTable = (c, felt) => {
     // the rail all round, the felt inside it
     ctx.fillStyle = '#2a1410';
@@ -49612,8 +50155,8 @@ function casinoTablePanel(ui, body) {
     const c = camera(canvas.width, canvas.height);
     const t = now();
     stepDealing(t);
-    drawRoom(c, t);
-    drawHost(c, t);
+    drawRoomHere(c, t);
+    drawHostHere(c, t);
     drawTable(c, T.game === 'roulette' && T.max >= 2500 ? ['#163a5a', '#1e4a6e'] : T.max >= 2000 ? ['#4a1424', '#5e1a2e'] : ['#145a30', '#1e7a40']);
     if (T.game === 'roulette') { drawWheel(c, t); drawLayout(c, t); }
     else if (T.game === 'blackjack') drawBlackjack(c, t);
@@ -49647,7 +50190,544 @@ function casinoTablePanel(ui, body) {
   };
 }
 
-return { cashierPanel, casinoTablePanel };
+return { cashierPanel, pick, camera, proj, quad, drawChip, drawRoom, drawHost, casinoTablePanel };
+})();
+
+// ---- src/ui/spadeTable.js
+__m["src/ui/spadeTable.js"] = (function () {
+// Morganius's Table — the Spade's Gambit (v0.53.0): the scene. The rules are src/casino/rogue.js,
+// the money src/systems/casino.js (rogueAct, settleRun); this draws and animates what they decide.
+//
+// Every card on screen is a sprite that eases towards where it belongs — in your hand, raised
+// when chosen, on the felt when played, off to the used pile, or flying in from Morganius's hand
+// when dealt — so sorting, playing, redrawing and dealing all move by themselves. A play is then
+// told step by step in the rules' own scoring order: each card pops with its Pips, each Ink and
+// Curio flashes with what it adds, the running Pips × Gasps climbs, and the total bursts.
+const { h } = __m["src/ui/panels.js"];
+const { drawCard, EFFECTS, magicCircle } = __m["src/engine/cardMagic.js"];
+const { camera, quad, drawRoom, drawHost, pick } = __m["src/ui/casino.js"];
+const { rank, suit, label: cardLabel, HAND_NAMES } = __m["src/casino/cards.js"];
+const { scoreHand, peek, HANDS, INKS, CURIOS, TWISTS, TRICK_NAMES, ACTS, ENTRY, PAYOUT, MAX_CURIOS, isFinale } = __m["src/casino/rogue.js"];
+
+const LINES = {
+  welcome: ['Ahh. My table. Sit, my friend — this game I invented myself, and it has never once been fair to me.', 'The Spade\'s Gambit: your deck, my tricks, three acts. Shall we?'],
+  start: ['Your deck, freshly shuffled. Let us begin with something small.', 'Curtain up!'],
+  twist: ['The Finale — and a little twist, of course. I can\'t help myself.', 'Now, for the Finale, I change the rules. Slightly. Unfairly.'],
+  big: ['Ohh! Now THAT is a hand!', 'Magnificent! Do that again!', 'The audience gasps!'],
+  small: ['Modest. Elegant. Insufficient.', 'A start, my friend. A start.'],
+  won: ['Applause! The Trick is yours.', 'Bravo! Into my Cabinet — spend your Sparks wisely.'],
+  lost: ['And the curtain falls. Not tonight, my friend.', 'The house takes its bow. Come back with a better deck.'],
+  champion: ['ALL THREE ACTS! My friend — I have nothing left up my sleeve. Take a bow.'],
+};
+
+const SPARK = '#e8c35a';
+const PIPS_C = '#5ac8ff';
+const GASPS_C = '#ff7ac8';
+
+function spadeTablePanel(ui, body) {
+  const g = ui.game;
+  const C = g.casino;
+  const look = g.npcs.get('npc_morganius')?.profile.appearance;
+  body.classList.add('ct', 'sg');
+  const canvas = h('canvas', { class: 'ct-canvas' });
+  const hud = h('div', { class: 'sg-hud' });
+  const curiosEl = h('div', { class: 'sg-curios' });
+  const preview = h('div', { class: 'sg-preview' });
+  const bar = h('div', { class: 'ct-bar' });
+  const speech = h('div', { class: 'ct-speech hidden' });
+  const banner = h('div', { class: 'ct-banner hidden' });
+  const overlay = h('div', { class: 'sg-overlay hidden' });
+  body.append(canvas, hud, curiosEl, preview, speech, banner, bar, overlay);
+  const ctx = canvas.getContext('2d');
+  const t0 = performance.now() / 1000;
+  const now = () => performance.now() / 1000 - t0;
+  const S = {
+    alive: true, introDur: C.state.visits <= 1 ? 2.2 : 0.9,
+    sel: [], sort: 'rank', sprites: new Map(), anim: null, host: { state: 'idle', at: 0 },
+    pops: [], hands: null, overlayFor: null, vanishPick: false, showHands: false,
+  };
+  if (spadeTablePanel.live) spadeTablePanel.live.alive = false;
+  spadeTablePanel.live = S;
+  const run = () => C.rogue.run;
+  const say = (text, secs = 4) => {
+    if (!text) return;
+    speech.innerHTML = '';
+    if (look?.portrait) speech.append(h('img', { src: look.portrait, alt: '' }));
+    speech.append(h('div', {}, h('b', {}, 'Morganius Spade'), h('span', {}, text)));
+    speech.classList.remove('hidden');
+    clearTimeout(say.t);
+    say.t = setTimeout(() => speech.classList.add('hidden'), secs * 1000);
+  };
+  const flash = (text, kind, secs = 2.6) => {
+    banner.textContent = text;
+    banner.className = `ct-banner ${kind || ''}`;
+    clearTimeout(flash.t);
+    flash.t = setTimeout(() => banner.classList.add('hidden'), secs * 1000);
+  };
+  const react = (mood) => { S.host = { state: mood, at: now() }; };
+  const fail = (r) => { if (r && r.ok === false) { flash(r.text, 'bad'); ui.audio.sfx('sfx_fail'); return true; } return false; };
+
+  // ---------------------------------------------------------------- where things go
+  const geo = () => {
+    const W = canvas.width;
+    const H = canvas.height;
+    const cardH = Math.min(H * 0.21, W * 0.11);
+    return { W, H, cardH, handY: H - cardH * 0.62 - Math.max(96, H * 0.13), feltY: H * 0.53, usedX: W * 0.1, usedY: H * 0.5, deckX: W * 0.9, deckY: H * 0.5 };
+  };
+  const cardOf = (id) => run()?.deck.find((d) => d.id === id) || S.ghosts?.get(id);
+  const sortedHand = () => {
+    const r = run();
+    if (!r) return [];
+    const ids = [...r.hand];
+    const key = (id) => { const d = cardOf(id); return S.sort === 'rank' ? -(rank(d.c) * 4 + (3 - suit(d.c))) : suit(d.c) * 20 - rank(d.c); };
+    return ids.sort((a, b) => key(a) - key(b));
+  };
+  /** Where each card in hand wants to be: a gentle fan, the chosen ones raised. */
+  const handSlots = (ids) => {
+    const G = geo();
+    const n = ids.length;
+    const gap = Math.min(G.cardH * 0.78, (G.W * 0.8) / Math.max(1, n));
+    const out = new Map();
+    ids.forEach((id, i) => {
+      const k = n === 1 ? 0 : i / (n - 1) - 0.5;
+      const sel = S.sel.includes(id);
+      out.set(id, { x: G.W / 2 + (i - (n - 1) / 2) * gap, y: G.handY + Math.abs(k) * G.cardH * 0.12 - (sel ? G.cardH * 0.28 : 0), rot: k * 0.22, s: 1, a: 1 });
+    });
+    return out;
+  };
+  const spriteFor = (id, start) => {
+    let sp = S.sprites.get(id);
+    if (!sp) { sp = { x: start.x, y: start.y, rot: start.rot ?? 0, s: start.s ?? 0.5, a: start.a ?? 1, face: true }; S.sprites.set(id, sp); }
+    return sp;
+  };
+  const fromHost = () => {
+    const G = geo();
+    const rh = S.hands?.rh || { x: G.W / 2 + 40, y: G.H * 0.28 };
+    return { x: rh.x, y: rh.y, rot: -1.2, s: 0.3 };
+  };
+
+  // ---------------------------------------------------------------- actions
+  const busy = () => Boolean(S.anim);
+  const toggle = (id) => {
+    if (busy() || run()?.phase !== 'play') return;
+    const i = S.sel.indexOf(id);
+    if (i >= 0) S.sel.splice(i, 1);
+    else if (S.sel.length < 5) S.sel.push(id);
+    else { flash('Five cards at most, my friend.', 'bad', 1.4); return; }
+    ui.audio.sfx('sfx_card');
+    render();
+  };
+  const doPlay = () => {
+    const r = run();
+    if (busy() || r?.phase !== 'play' || !S.sel.length) return;
+    const ids = [...S.sel];
+    const before = { act: r.act, trick: r.trick, hand: [...r.hand] };
+    S.ghosts = new Map(ids.map((id) => [id, { ...cardOf(id) }])); // embers burn out of the deck: keep their faces for the show
+    const res = C.rogueAct('play', ids);
+    if (fail(res)) return;
+    S.sel = [];
+    const G = geo();
+    // the played cards go to the felt in a row, in the order played
+    ids.forEach((id, i) => { const sp = S.sprites.get(id); if (sp) sp.target = { x: G.W / 2 + (i - (ids.length - 1) / 2) * G.cardH * 0.8, y: G.feltY, rot: 0, s: 0.92, a: 1 }; });
+    const stepT = 0.32;
+    S.anim = { kind: 'play', t: now(), ids, res, step: -1, stepT, before, scoreFrom: (run().score - res.total), done: 0.6 + res.steps.length * stepT + 1.1 };
+    react('shuffle');
+    render();
+  };
+  const doRedraw = () => {
+    const r = run();
+    if (busy() || r?.phase !== 'play' || !S.sel.length) return;
+    const ids = [...S.sel];
+    const res = C.rogueAct('redraw', ids);
+    if (fail(res)) return;
+    S.sel = [];
+    const G = geo();
+    for (const id of ids) { const sp = S.sprites.get(id); if (sp) sp.target = { x: G.usedX, y: G.usedY, rot: -0.4, s: 0.45, a: 0 }; }
+    S.anim = { kind: 'redraw', t: now(), done: 0.55 };
+    ui.audio.sfx('sfx_card');
+    render();
+  };
+  const startGambit = () => {
+    const r = C.startRun();
+    if (fail(r)) return;
+    S.sprites.clear();
+    S.sel = [];
+    ui.audio.sfx('sfx_magic');
+    react('shuffle');
+    say(pick(LINES.start), 3);
+    overlay.classList.add('hidden');
+    S.overlayFor = null;
+    render();
+  };
+  const act = (a, arg) => {
+    const res = C.rogueAct(a, arg);
+    if (fail(res)) return res;
+    if (a === 'buy' || a === 'vanish' || a === 'reroll' || a === 'release') ui.audio.sfx(a === 'vanish' ? 'sfx_magic' : 'sfx_chip');
+    if (a === 'next') {
+      S.sprites.clear();
+      overlay.classList.add('hidden');
+      S.overlayFor = null;
+      const r = run();
+      if (isFinale(r)) { say(`${pick(LINES.twist)} ${TWISTS[r.twist].name}: ${TWISTS[r.twist].text}`, 6); flash(`${TRICK_NAMES[r.trick]} — ${TWISTS[r.twist].name}`, '', 3); }
+      else flash(`Act ${r.act + 1} · ${TRICK_NAMES[r.trick]}`, '', 2);
+      react('shuffle');
+      ui.audio.sfx('sfx_magic');
+    }
+    render();
+    return res;
+  };
+
+  // ---------------------------------------------------------------- the overlay: start, Cabinet, result
+  const rarityName = ['Common', 'Uncommon', 'Rare'];
+  const renderOverlay = () => {
+    const r = run();
+    if (S.anim) { overlay.classList.add('hidden'); return; } // the show first, then the Cabinet
+    const R = C.rogue;
+    overlay.innerHTML = '';
+    if (!r || r.settled || r.phase === 'won' || r.phase === 'lost') {
+      const last = r && (r.phase === 'won' || r.phase === 'lost') ? r : null;
+      overlay.append(h('div', { class: 'sg-card' },
+        h('h2', {}, 'The Spade\'s Gambit'),
+        last ? h('div', { class: `sg-result ${last.actsCleared ? 'good' : 'bad'}` },
+          h('b', {}, last.phase === 'won' ? 'ALL THREE ACTS!' : last.actsCleared ? `${last.actsCleared} Act${last.actsCleared > 1 ? 's' : ''} cleared` : 'The curtain falls'),
+          h('span', {}, `Chips back: ${PAYOUT[last.actsCleared]} · Best hand: ${last.best}`)) : null,
+        h('p', {}, 'Play poker hands from your own deck to reach each Trick\'s target. A hand scores Pips × Gasps. Three Acts of three Tricks; every Finale has a Twist. Between Tricks, spend Sparks in Morganius\'s Cabinet on Curios, Inks, Rehearsals and Vanishings.'),
+        h('table', { class: 'sg-pay' }, h('tr', {}, h('th', {}, 'Acts cleared'), ...PAYOUT.map((_, i) => h('th', {}, String(i)))), h('tr', {}, h('td', {}, 'Chips back'), ...PAYOUT.map((p) => h('td', {}, String(p))))),
+        h('p', { class: 'muted' }, `Buy-in ${ENTRY} chips. Your record: ${R.runs} Gambit${R.runs === 1 ? '' : 's'}, best ${R.bestActs} Act${R.bestActs === 1 ? '' : 's'}, ${R.wins} won outright.`),
+        h('div', { class: 'sg-row' },
+          h('button', { class: 'primary', disabled: C.chips < ENTRY, onclick: startGambit }, C.chips < ENTRY ? `You need ${ENTRY} chips` : `Buy in — ${ENTRY} chips`),
+          h('button', { onclick: () => ui.closePanel() }, 'Leave the table')),
+      ));
+      overlay.classList.remove('hidden');
+      return;
+    }
+    if (r.phase === 'shop') {
+      const sh = r.shop;
+      const item = (it, i) => {
+        let title; let text; let tag;
+        if (it.kind === 'curio') { title = CURIOS[it.id].name; text = CURIOS[it.id].text; tag = `Curio · ${rarityName[CURIOS[it.id].rarity - 1]}`; }
+        else if (it.kind === 'ink') { const d = r.deck.find((x) => x.id === it.card); title = `${INKS[it.ink].name} ${d ? cardLabel(d.c) : '—'}`; text = `Ink your ${d ? cardLabel(d.c) : 'card'}: ${INKS[it.ink].text}`; tag = 'Ink'; }
+        else { const lv = (r.levels[it.cat] || 0) + 1; title = `Rehearse: ${HAND_NAMES[it.cat]}`; text = `Level ${lv}: +${HANDS[it.cat].lp} Pips, +${HANDS[it.cat].lg} Gasps.`; tag = 'Rehearsal'; }
+        return h('div', { class: `sg-item ${it.kind}${it.sold ? ' sold' : ''}` },
+          h('i', {}, tag), h('b', {}, title), h('span', {}, text),
+          h('button', { disabled: it.sold || it.cost > r.sparks, onclick: () => act('buy', i) }, it.sold ? 'Sold' : `${it.cost} ✦`));
+      };
+      overlay.append(h('div', { class: 'sg-card wide' },
+        h('h2', {}, 'Morganius\'s Cabinet'),
+        h('p', { class: 'muted' }, `Sparks: ${r.sparks} ✦ · Curios ${r.curios.length}/${MAX_CURIOS} · Deck ${r.deck.length} cards · Next: Act ${r.trick === 2 ? r.act + 2 : r.act + 1}, ${TRICK_NAMES[(r.trick + 1) % 3]}${r.trick === 1 ? ` — Twist: ${TWISTS[r.twists[r.act]].name}` : ''}`),
+        h('div', { class: 'sg-items' }, ...sh.items.map(item)),
+        r.curios.length ? h('div', { class: 'sg-owned' }, h('i', {}, 'Your Curios (in order):'), ...r.curios.map((cu) => h('button', { class: 'small', title: CURIOS[cu].text, onclick: () => { if (confirm(`Part with ${CURIOS[cu].name}? Morganius keeps it.`)) act('release', cu); } }, `${CURIOS[cu].name} ✕`))) : null,
+        S.vanishPick ? h('div', { class: 'sg-vanish' }, h('i', {}, `Choose a card to vanish (${sh.vanishCost} ✦):`),
+          ...[0, 1, 2, 3].map((st) => h('div', {}, ...r.deck.filter((d) => suit(d.c) === st).sort((a, b) => rank(b.c) - rank(a.c)).map((d) => h('button', { class: `small card-btn ${st === 1 || st === 2 ? 'red' : ''}${d.ink ? ' inked' : ''}`, onclick: () => { S.vanishPick = false; act('vanish', d.id); } }, cardLabel(d.c))))),
+          h('button', { class: 'small', onclick: () => { S.vanishPick = false; renderOverlay(); } }, 'Never mind')) : null,
+        h('div', { class: 'sg-row' },
+          h('button', { disabled: r.sparks < 1 + sh.rerolls, onclick: () => act('reroll') }, `New stock (${1 + sh.rerolls} ✦)`),
+          h('button', { disabled: sh.vanished || r.sparks < sh.vanishCost, onclick: () => { S.vanishPick = true; renderOverlay(); } }, sh.vanished ? 'Vanished' : `Vanish a card (${sh.vanishCost} ✦)`),
+          h('button', { class: 'primary', onclick: () => act('next') }, 'On with the show →')),
+      ));
+      overlay.classList.remove('hidden');
+      return;
+    }
+    overlay.classList.add('hidden');
+  };
+
+  // ---------------------------------------------------------------- the HUD and the bar
+  const render = () => {
+    const r = run();
+    hud.innerHTML = '';
+    curiosEl.innerHTML = '';
+    preview.innerHTML = '';
+    bar.innerHTML = '';
+    const btn = (label, fn, opts = {}) => h('button', { class: opts.cls || '', disabled: opts.disabled || false, title: opts.title || '', onclick: () => { ui.audio.sfx('sfx_ui_click'); fn(); } }, label);
+    if (r && (r.phase === 'play' || S.anim)) {
+      const shownScore = S.anim?.kind === 'play' ? Math.round(S.anim.scoreShown ?? S.anim.scoreFrom) : r.score;
+      hud.append(
+        h('div', { class: 'sg-stage' }, h('i', {}, `Act ${r.act + 1} of ${ACTS}`), h('b', {}, TRICK_NAMES[r.trick]), r.twist ? h('span', { class: 'twist', title: TWISTS[r.twist].text }, `${TWISTS[r.twist].name}: ${TWISTS[r.twist].text}`) : null),
+        h('div', { class: 'sg-score' }, h('i', {}, 'Applause'), h('b', {}, `${shownScore}`), h('span', {}, `of ${r.target}`), h('div', { class: 'sg-meter' }, h('div', { style: `width:${Math.min(100, (shownScore / r.target) * 100)}%` }))),
+        h('div', { class: 'sg-counts' }, h('span', {}, `Plays ${r.plays}`), h('span', {}, `Redraws ${r.redraws}`), h('span', { class: 'spark' }, `${r.sparks} ✦`), h('span', {}, `Deck ${r.draw.length}/${r.deck.length}`)),
+      );
+    }
+    if (r && !r.settled) {
+      for (const cu of r.curios) {
+        const el = h('div', { class: `sg-curio${S.anim?.curioFlash === cu ? ' flash' : ''}`, title: CURIOS[cu].text }, h('b', {}, CURIOS[cu].name), h('span', {}, CURIOS[cu].text));
+        curiosEl.append(el);
+      }
+      for (let i = r.curios.length; i < MAX_CURIOS; i++) curiosEl.append(h('div', { class: 'sg-curio empty' }, '·'));
+    }
+    if (r?.phase === 'play' && !busy()) {
+      if (S.sel.length) {
+        const sc = scoreHand(r, S.sel);
+        preview.append(h('b', {}, sc.name), h('span', { class: 'pips' }, `${sc.steps[0].pips}`), h('span', {}, ' × '), h('span', { class: 'gasps' }, `${sc.steps[0].gasps}`), h('i', {}, ` → about ${sc.total}`));
+      } else preview.append(h('i', {}, 'Choose up to five cards (click, or keys 1–9)'));
+      bar.append(
+        btn('Play (Enter)', doPlay, { cls: 'primary', disabled: !S.sel.length || r.plays <= 0 }),
+        btn(`Redraw (R) · ${r.redraws}`, doRedraw, { disabled: !S.sel.length || r.redraws <= 0 }),
+        btn(`Sort: ${S.sort === 'rank' ? 'rank' : 'suit'} (S)`, () => { S.sort = S.sort === 'rank' ? 'suit' : 'rank'; render(); }),
+        btn('Hands', () => { S.showHands = !S.showHands; render(); }),
+        btn('Give up', () => { if (confirm('Give up this Gambit? Acts you\'ve cleared still pay.')) { act('concede'); finishShow(); } }),
+        btn('Leave (Esc)', () => ui.closePanel(), { cls: 'ct-leave', title: 'Your Gambit waits for you' }),
+      );
+      if (S.showHands) {
+        preview.append(h('div', { class: 'sg-hands' }, ...Object.keys(HANDS).reverse().map((k) => { const H = HANDS[k]; const lv = r.levels[k] || 0; return h('div', {}, h('b', {}, HAND_NAMES[k]), h('span', {}, `${H.pips + lv * H.lp} × ${H.gasps + lv * H.lg}${lv ? ` (Lv ${lv + 1})` : ''}`)); })));
+      }
+    }
+    if (S.overlayFor !== overlayKey()) { S.overlayFor = overlayKey(); renderOverlay(); }
+  };
+  const overlayKey = () => {
+    const r = run();
+    if (S.anim) return 'anim';
+    if (!r || r.settled || r.phase === 'won' || r.phase === 'lost') return `start:${r?.id}:${r?.phase}`;
+    if (r.phase === 'shop') return `shop:${JSON.stringify(r.shop)}:${r.sparks}:${r.curios.join()}:${S.vanishPick}`;
+    return 'play';
+  };
+  const finishShow = () => {
+    const r = run();
+    if (!r) return;
+    if (r.phase === 'won') { say(pick(LINES.champion), 6); flash(`ALL THREE ACTS! — ${PAYOUT[r.actsCleared]} chips`, 'good', 4); react('big_win'); ui.audio.sfx('sfx_win'); }
+    else if (r.phase === 'lost') { say(pick(LINES.lost), 5); flash(r.actsCleared ? `${r.actsCleared} Act${r.actsCleared > 1 ? 's' : ''} cleared — ${PAYOUT[r.actsCleared]} chips back` : 'The curtain falls', r.actsCleared ? 'good' : 'bad', 4); react('lose'); }
+    else if (r.phase === 'shop') { say(pick(LINES.won), 4); react('win'); ui.audio.sfx('sfx_win'); }
+    S.overlayFor = null;
+    render();
+  };
+
+  // ---------------------------------------------------------------- input
+  const toCanvas = (e) => { const b = canvas.getBoundingClientRect(); return { x: ((e.clientX - b.left) / b.width) * canvas.width, y: ((e.clientY - b.top) / b.height) * canvas.height }; };
+  canvas.addEventListener('pointerdown', (e) => {
+    if (now() < S.introDur) { S.introDur = now(); return; }
+    if (S.anim?.kind === 'play') { S.anim.fast = true; return; } // a click hurries the show
+    const p = toCanvas(e);
+    const G = geo();
+    // the topmost card under the pointer (the rightmost drawn last)
+    const ids = sortedHand();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      const sp = S.sprites.get(ids[i]);
+      if (!sp) continue;
+      const w = G.cardH * 0.7 * sp.s;
+      const hh = G.cardH * sp.s;
+      if (Math.abs(p.x - sp.x) < w / 2 && Math.abs(p.y - sp.y) < hh / 2) { toggle(ids[i]); return; }
+    }
+  });
+  const onKey = (e) => {
+    if (!S.alive || !overlay.classList.contains('hidden')) return;
+    if (now() < S.introDur && (e.key === ' ' || e.key === 'Enter')) { S.introDur = now(); e.preventDefault(); return; }
+    if (S.anim?.kind === 'play' && (e.key === ' ' || e.key === 'Enter')) { S.anim.fast = true; e.preventDefault(); return; }
+    const ids = sortedHand();
+    if (/^[1-9]$/.test(e.key) && ids[Number(e.key) - 1] !== undefined) { toggle(ids[Number(e.key) - 1]); return; }
+    const k = e.key.toLowerCase();
+    if (k === 'enter') { e.preventDefault(); doPlay(); }
+    else if (k === 'r') doRedraw();
+    else if (k === 's') { S.sort = S.sort === 'rank' ? 'suit' : 'rank'; render(); }
+  };
+  window.addEventListener('keydown', onKey);
+
+  // ---------------------------------------------------------------- drawing
+  const drawFelt = (c) => {
+    ctx.fillStyle = '#1a1018';
+    quad(ctx, c, -1.25, -0.2, 1.25, 1.06); ctx.fill();
+    ctx.fillStyle = '#2a1626';
+    quad(ctx, c, -1.18, -0.2, 1.18, 1.02); ctx.fill();
+    ctx.fillStyle = '#3a1858';
+    quad(ctx, c, -1.1, -0.2, 1.1, 0.98); ctx.fill();
+    ctx.strokeStyle = '#c9a24a';
+    ctx.lineWidth = 2;
+    quad(ctx, c, -1.1, -0.2, 1.1, 0.98); ctx.stroke();
+    // the gold spade inlaid in the middle
+    const G = geo();
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#e8c35a';
+    ctx.font = `${Math.round(G.H * 0.3)}px Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('♠', G.W / 2, G.feltY + G.H * 0.03);
+    ctx.restore();
+  };
+  const drawInk = (sp, d, G) => {
+    if (!d?.ink) return;
+    const w = G.cardH * 0.7 * sp.s;
+    const hh = G.cardH * sp.s;
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+    ctx.rotate(sp.rot);
+    ctx.strokeStyle = INKS[d.ink].colour;
+    ctx.lineWidth = Math.max(2, hh * 0.035);
+    ctx.shadowColor = INKS[d.ink].colour;
+    ctx.shadowBlur = 10;
+    ctx.strokeRect(-w / 2 + 2, -hh / 2 + 2, w - 4, hh - 4);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = INKS[d.ink].colour;
+    ctx.font = `bold ${Math.round(hh * 0.11)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(INKS[d.ink].name.toUpperCase(), 0, hh / 2 - hh * 0.06);
+    ctx.restore();
+  };
+  const ease = (sp, tg, k) => {
+    for (const key of ['x', 'y', 'rot', 's', 'a']) sp[key] += (tg[key] - sp[key]) * k;
+  };
+  let lastT = 0;
+  const frame = () => {
+    if (!S.alive) return;
+    const dpr = window.devicePixelRatio || 1;
+    const bw = Math.round(canvas.clientWidth * dpr);
+    const bh = Math.round(canvas.clientHeight * dpr);
+    if (bw && bh && (canvas.width !== bw || canvas.height !== bh)) { canvas.width = bw; canvas.height = bh; }
+    const c = camera(canvas.width, canvas.height);
+    const G = geo();
+    const t = now();
+    const dt = Math.min(0.05, t - lastT);
+    lastT = t;
+    const r = run();
+    drawRoom(ctx, c, t);
+    S.hands = drawHost(ctx, c, t, look, { introDur: S.introDur, mood: S.host.state, age: t - S.host.at });
+    drawFelt(c);
+    // the deck (with the Crystal Ball's peek) and the used pile
+    if (r && r.phase === 'play') {
+      for (let i = 0; i < Math.min(6, Math.ceil(r.draw.length / 8)); i++) drawCard(ctx, G.deckX - i * 1.5, G.deckY - i * 1.5, G.cardH * 0.55, 0.05, {});
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = `${Math.round(G.H * 0.02)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`${r.draw.length} left`, G.deckX, G.deckY + G.cardH * 0.4);
+      if (r.curios.includes('crystal_ball')) {
+        peek(r, 3).forEach((id, i) => { const d = cardOf(id); if (d) drawCard(ctx, G.deckX - G.cardH * 0.5 - i * G.cardH * 0.3, G.deckY - G.cardH * 0.55, G.cardH * 0.36, 0, { card: d.c, alpha: 0.85 }); });
+        ctx.fillText('the Crystal Ball sees…', G.deckX - G.cardH * 0.8, G.deckY - G.cardH * 0.8);
+      }
+      ctx.textAlign = 'left';
+    }
+    // where every card wants to be
+    const anim = S.anim;
+    const handIds = sortedHand();
+    const shown = new Set();
+    if (anim?.kind === 'play') {
+      const k = t - anim.t;
+      // the scoring, step by step
+      const stepT = anim.fast ? 0.08 : anim.stepT;
+      const si = Math.floor((k - 0.55) / stepT);
+      if (si !== anim.step && si >= 0 && si < anim.res.steps.length) {
+        anim.step = si;
+        const st = anim.res.steps[si];
+        anim.curioFlash = st.curio || null;
+        const at = st.id != null ? S.sprites.get(st.id) : null;
+        const x = at ? at.x : st.curio ? G.W * 0.12 : G.W / 2;
+        const y = at ? at.y - G.cardH * 0.6 : st.curio ? G.H * 0.3 : G.feltY - G.cardH * 0.9;
+        if (st.kind === 'card') { S.pops.push({ x, y, text: st.label, col: PIPS_C, t }); ui.audio.sfx('sfx_chip'); if (at) at.pop = t; }
+        else if (st.kind === 'ink' || st.kind === 'curio' || st.kind === 'held' || st.kind === 'twist') { S.pops.push({ x, y, text: st.label, col: /Gasps|×/.test(st.label) ? GASPS_C : PIPS_C, t }); ui.audio.sfx('sfx_card'); if (at) at.pop = t; }
+        else if (st.kind === 'total') {
+          S.pops.push({ x: G.W / 2, y: G.feltY - G.cardH * 1.1, text: `${anim.res.name} — ${st.label} = ${st.total}`, col: '#fff0a0', t, big: true });
+          ui.audio.sfx('sfx_magic');
+          react(st.total >= (r?.target || 1e9) * 0.3 ? 'big_win' : st.total > 150 ? 'win' : 'idle');
+          if (st.total >= 400) say(pick(LINES.big), 3);
+        }
+        anim.pips = st.pips;
+        anim.gasps = st.gasps;
+        render();
+      }
+      const totalAt = 0.55 + anim.res.steps.length * stepT;
+      if (k > totalAt) anim.scoreShown = Math.min(anim.scoreFrom + anim.res.total, anim.scoreFrom + anim.res.total * Math.min(1, (k - totalAt) / 0.5));
+      // after the show the played cards leave (Embers burn), and new ones are dealt
+      if (k > totalAt + 0.6) for (const id of anim.ids) { const sp = S.sprites.get(id); if (sp) sp.target = anim.res.burnt?.includes(id) ? { x: sp.x, y: sp.y - G.cardH, rot: sp.rot + 1, s: 0.6, a: 0 } : { x: G.usedX, y: G.usedY, rot: -0.4, s: 0.45, a: 0 }; }
+      if (k > totalAt + 0.6) render();
+      for (const id of anim.ids) shown.add(id);
+      if (k > (anim.fast ? totalAt + 0.7 : anim.done)) {
+        for (const id of anim.ids) S.sprites.delete(id);
+        S.anim = null;
+        S.ghosts = null;
+        finishShow();
+      }
+    } else if (anim?.kind === 'redraw' && t - anim.t > anim.done) {
+      for (const [id] of S.sprites) if (!run()?.hand.includes(id)) S.sprites.delete(id);
+      S.anim = null;
+      render();
+    }
+    // the hand (new cards come out of his hand, one after another)
+    const slots = handSlots(anim?.kind === 'play' && t - anim.t < 0.55 + anim.res.steps.length * (anim.fast ? 0.08 : anim.stepT) + 0.6 ? handIds.filter((id) => S.sprites.has(id)) : handIds);
+    let newcomers = 0;
+    for (const [id, tg] of slots) {
+      const fresh = !S.sprites.has(id);
+      const sp = spriteFor(id, fromHost());
+      if (fresh) { sp.delay = t + newcomers * 0.09; newcomers++; ui.audio.sfx('sfx_card'); }
+      if (!sp.delay || t >= sp.delay) sp.target = tg;
+      shown.add(id);
+    }
+    // move and draw: what's on the felt first, then the hand (left to right)
+    const drawList = [...S.sprites.entries()].sort((a, b) => (slots.has(a[0]) ? 1 : 0) - (slots.has(b[0]) ? 1 : 0) || (a[1].x - b[1].x));
+    for (const [id, sp] of drawList) {
+      if (sp.target) ease(sp, sp.target, 1 - Math.pow(0.0005, dt));
+      const d = cardOf(id);
+      if (!d || sp.a < 0.02) continue;
+      const pop = sp.pop && t - sp.pop < 0.3 ? 1 + 0.18 * Math.sin(((t - sp.pop) / 0.3) * Math.PI) : 1;
+      const burnt = anim?.res?.burnt?.includes(id) && t - anim.t > 0.55 + anim.res.steps.length * anim.stepT + 0.6;
+      ctx.save();
+      ctx.globalAlpha = sp.a;
+      drawCard(ctx, sp.x, sp.y, G.cardH * sp.s * pop, sp.rot, { card: d.c, glow: S.sel.includes(id) || pop > 1 });
+      ctx.restore();
+      drawInk({ ...sp, s: sp.s * pop }, d, G);
+      if (burnt) EFFECTS.spiral(ctx, { x: sp.x, y: sp.y + G.cardH * 0.4, height: G.cardH * 1.2, r: G.cardH * 0.25, n: 8, h: G.cardH * 0.12, speed: 1.6, glow: true }, t);
+    }
+    for (const [id] of S.sprites) if (!shown.has(id) && !anim) S.sprites.delete(id);
+    // the running count during a play
+    if (anim?.kind === 'play' && anim.step >= 0) {
+      const x = G.W / 2;
+      const y = G.feltY + G.cardH * 0.72;
+      ctx.font = `bold ${Math.round(G.H * 0.045)}px Georgia, serif`;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = PIPS_C;
+      ctx.fillText(String(anim.pips), x - G.W * 0.02, y);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f4ecd8';
+      ctx.fillText('×', x, y);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = GASPS_C;
+      ctx.fillText(String(anim.gasps), x + G.W * 0.02, y);
+    }
+    // the floating numbers
+    S.pops = S.pops.filter((p) => t - p.t < (p.big ? 2.4 : 1.1));
+    for (const p of S.pops) {
+      const k = (t - p.t) / (p.big ? 2.4 : 1.1);
+      ctx.globalAlpha = 1 - k * k;
+      ctx.font = `bold ${Math.round(G.H * (p.big ? 0.045 : 0.032))}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(10,6,14,0.85)';
+      ctx.strokeText(p.text, p.x, p.y - k * G.H * 0.06);
+      ctx.fillStyle = p.col;
+      ctx.fillText(p.text, p.x, p.y - k * G.H * 0.06);
+      if (p.big && k < 0.4) EFFECTS.scatter(ctx, { x: p.x, y: p.y, n: 18, r: G.H * 0.25, h: G.cardH * 0.18, k: 0.5 * (k / 0.4), seed: 21, glow: true }, t);
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = 'left';
+    // the Trick won: a storm of cards round him
+    if (S.host.state === 'big_win' && t - S.host.at < 2.5) magicCircle(ctx, G.W / 2, c.horizon + G.H * 0.06, G.W * 0.12, t, { squash: 0.3, alpha: 1 - (t - S.host.at) / 2.5 });
+    const vg = ctx.createRadialGradient(G.W / 2, G.H * 0.55, G.H * 0.3, G.W / 2, G.H * 0.55, G.W * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, G.W, G.H);
+    if (S.anim?.kind === 'play') render.tick = (render.tick || 0) + 1;
+    if (S.anim?.kind === 'play' && render.tick % 6 === 0) {
+      // keep the climbing score in the HUD
+      const b = hud.querySelector('.sg-score b');
+      if (b) b.textContent = String(Math.round(S.anim.scoreShown ?? S.anim.scoreFrom));
+    }
+    requestAnimationFrame(frame);
+  };
+  say(C.state.visits <= 1 || !C.rogue.runs ? pick(LINES.welcome) : run() && run().phase === 'play' ? 'Ah — your Gambit, just as you left it. Shall we?' : pick(LINES.welcome), 5);
+  ui.audio.sfx('sfx_magic');
+  render();
+  requestAnimationFrame(frame);
+  return {
+    title: '',
+    className: 'casino-table',
+    onClose: () => {
+      S.alive = false;
+      window.removeEventListener('keydown', onKey);
+      clearTimeout(say.t);
+      clearTimeout(flash.t);
+      C.leave();
+      ui.showCaption(run() && run().phase !== 'lost' && run().phase !== 'won' ? 'Morganius tucks your Gambit into his sleeve. "It\'ll keep."' : 'Go well. Come back luckier.', 3);
+    },
+  };
+}
+
+return { spadeTablePanel };
 })();
 
 // ---- src/ui/ui.js
@@ -49672,6 +50752,7 @@ const { armsBenchPanel } = __m["src/ui/armsbench.js"];
 const { fleetPanel } = __m["src/ui/fleetCommand.js"];
 const { logbookPanel } = __m["src/ui/logbook.js"];
 const { cashierPanel, casinoTablePanel } = __m["src/ui/casino.js"];
+const { spadeTablePanel } = __m["src/ui/spadeTable.js"];
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -49686,6 +50767,7 @@ PANELS.fleet = fleetPanel;
 PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;
+PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
 const { saveSettings } = __m["src/save/saveManager.js"];
 
 const LOOKS = [
@@ -50070,6 +51152,7 @@ class UI {
     if (this.panelOpen) {
       const topName = this.panelStack[this.panelStack.length - 1].name;
       // v0.52.0: you can't walk away from a hand of blackjack in the middle of it (the scene says so)
+      if (topName === 'spadeTable') { if (action === 'pause' && !spadeTablePanel.live?.anim) this.closePanel(); return; }
       if (topName === 'casinoTable') { if (action === 'pause' && this.game?.casino.canLeave() && !casinoTablePanel.live?.spin) this.closePanel(); return; }
       if (action === 'pause' || action === topName) this.closePanel();
       return;
@@ -50200,7 +51283,7 @@ class UI {
     }
     if (this.time - w.readyAt < (g.casino.state.visits <= 1 ? 0.9 : 0.35) && !g.casino.arrival?.skipped) return;
     this.casinoWait = null;
-    this.openPanel('casinoTable', { table: w.table });
+    this.openPanel(g.casino.table(w.table)?.game === 'spade' ? 'spadeTable' : 'casinoTable', { table: w.table });
   }
 
   // ---------------------------------------------------- factory build mode

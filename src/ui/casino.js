@@ -71,16 +71,16 @@ const LINES = {
   bust: ['Twenty-two. So close. So very far.', 'Over. The cards were greedy, not you.'],
   leave: ['Until next time, my friend.', 'Go well. Come back luckier.'],
 };
-const pick = (list) => list[Math.floor(Math.random() * list.length)];
+export const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
 // ------------------------------------------------------------------ the scene's geometry
 // The table's plane: u across (-1 left … 1 right), v away from you (0 the near edge … 1 the far
 // edge). A pinhole camera sitting just above the near edge.
 const DEPTH = 1.6; // how much farther the far edge is than the near one
-function camera(W, H) {
+export function camera(W, H) {
   return { W, H, cx: W / 2, horizon: H * 0.3, near: H * 0.86, half: W * 0.6 };
 }
-function proj(c, u, v) {
+export function proj(c, u, v) {
   const z = 1 + v * DEPTH;
   return { x: c.cx + (u * c.half) / z, y: c.horizon + (c.near - c.horizon) / z, s: 1 / z };
 }
@@ -89,7 +89,7 @@ function unproj(c, x, y) {
   const z = (c.near - c.horizon) / (y - c.horizon);
   return { u: ((x - c.cx) * z) / c.half, v: (z - 1) / DEPTH };
 }
-function quad(ctx, c, u0, v0, u1, v1) {
+export function quad(ctx, c, u0, v0, u1, v1) {
   const a = proj(c, u0, v0);
   const b = proj(c, u1, v0);
   const d = proj(c, u1, v1);
@@ -121,7 +121,7 @@ function layoutCells() {
 const sameBet = (a, b) => a.type === b.type && (a.value ?? null) === (b.value ?? null);
 const CHIP_COLOURS = { 1: '#e8e2d0', 5: '#d83a3a', 25: '#3aa84a', 100: '#1e1e24', 500: '#a84ad8', 1000: '#e8c35a', 5000: '#3a6ad8' };
 
-function drawChip(ctx, x, y, r, amount, squash = 0.55) {
+export function drawChip(ctx, x, y, r, amount, squash = 0.55) {
   const den = [5000, 1000, 500, 100, 25, 5, 1].find((d) => amount >= d) || 1;
   const col = CHIP_COLOURS[den];
   const stack = Math.min(6, 1 + Math.floor(Math.log2(Math.max(1, amount / den))));
@@ -146,6 +146,86 @@ function drawChip(ctx, x, y, r, amount, squash = 0.55) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   }
+}
+
+// ------------------------------------------------------------------ the room and the host (shared)
+/** The casino behind the table, out of focus (shared by every table scene). */
+export function drawRoom(ctx, c, t) {
+  const { W, H } = c;
+  const bg = ctx.createLinearGradient(0, 0, 0, c.horizon + H * 0.1);
+  bg.addColorStop(0, '#0c0810'); bg.addColorStop(1, '#2a1420');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  // the casino behind him, out of focus: warm lights, a gold rail, the glow of other tables
+  for (let i = 0; i < 26; i++) {
+    const x = ((i * 137.5) % 1) * W + ((i * 977) % W);
+    const y = c.horizon * (0.15 + ((i * 53) % 70) / 100);
+    const r = 8 + ((i * 31) % 22);
+    const a = 0.08 + 0.06 * Math.sin(t * 0.7 + i);
+    const gr = ctx.createRadialGradient(x % W, y, 0, x % W, y, r * 2.4);
+    gr.addColorStop(0, `rgba(255,${180 + (i % 5) * 12},${110 + (i % 3) * 40},${a * 2})`);
+    gr.addColorStop(1, 'rgba(255,200,120,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect((x % W) - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
+  }
+  ctx.fillStyle = 'rgba(201,162,74,0.35)';
+  ctx.fillRect(0, c.horizon - H * 0.035, W, Math.max(2, H * 0.004));
+  // a chandelier
+  const cx = W * 0.78;
+  ctx.fillStyle = 'rgba(255,230,170,0.12)';
+  ctx.beginPath(); ctx.ellipse(cx, H * 0.05, W * 0.12, H * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 9; i++) { ctx.fillStyle = `rgba(255,240,200,${0.5 + 0.3 * Math.sin(t * 2 + i)})`; ctx.fillRect(cx - W * 0.08 + i * W * 0.02, H * 0.06 + Math.sin(i) * 4, 3, 3); }
+}
+
+/**
+ * Morganius, floating on the far side of the table, and his cards — which trick depends on `mood`
+ * (win, big_win, lose, roulette, shuffle; anything else: cards circling his fingers). `introDur`
+ * plays the arrival (a circle in the air, cards bursting out and snapping back). Returns where his
+ * hands are (cards are dealt from the right one).
+ */
+export function drawHost(ctx, c, t, look, { introDur = 0, mood = 'idle', age = 0 } = {}) {
+  if (!look) return null;
+  const { W, H } = c;
+  const intro = Math.min(1, t / Math.max(0.01, introDur));
+  const scale = Math.max(3, Math.round(H / 150));
+  const bob = Math.sin(t * 2.1) * scale * 1.5;
+  const x = W * 0.5;
+  const y = c.horizon + H * 0.07 + bob;
+  const hs = age;
+  // the arrival: a circle in the air, cards bursting out and snapping into his hands
+  if (t < introDur + 0.4) {
+    magicCircle(ctx, x, y - 6 * scale, 26 * scale * Math.min(1, intro * 2), t * 1.5, { squash: 0.35, alpha: 1 - Math.max(0, (t - introDur) / 0.4) });
+    EFFECTS.scatter(ctx, { x, y: y - 16 * scale, n: 26, r: 60 * scale, h: 6 * scale, k: 0.5 + intro * 0.5, seed: 4, glow: true }, t);
+  }
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, intro * 1.6);
+  ctx.imageSmoothingEnabled = false;
+  drawPerson(ctx, look, { x, y, facing: 'down', scale, idleTime: t });
+  ctx.restore();
+  // his hands, and the cards about them — which trick depends on what just happened
+  const lh = { x: x - 8 * scale, y: y - 11 * scale };
+  const rh = { x: x + 8 * scale, y: y - 11 * scale };
+  const cardH = 5 * scale;
+  const st = mood;
+  if (st === 'win' || st === 'big_win') {
+    EFFECTS.fan(ctx, { x: rh.x, y: rh.y, n: st === 'big_win' ? 9 : 6, h: cardH * 1.4, spread: 2.2, open: Math.min(1, hs * 2), rot: -0.2, glow: true, cards: [12, 25, 38, 51, 11, 24, 37, 50, 10] }, t);
+    if (st === 'big_win') EFFECTS.spiral(ctx, { x, y: y + 2 * scale, height: 46 * scale, r: 22 * scale, n: 18, h: cardH, speed: 0.5, glow: true }, t);
+  } else if (st === 'lose') {
+    // the cards run up one arm, across his shoulders and down the other
+    EFFECTS.path(ctx, { pts: [lh, { x: x - 7 * scale, y: y - 15 * scale }, { x, y: y - 14 * scale }, { x: x + 7 * scale, y: y - 15 * scale }, rh], n: 7, h: cardH, speed: 0.5, gap: 0.7 }, t);
+  } else if ((st === 'roulette' || st === 'shuffle') && hs < 2) {
+    EFFECTS.spiral(ctx, { x: rh.x, y: rh.y + 6 * scale, height: 18 * scale, r: 6 * scale, n: 8, h: cardH * 0.8, speed: 1.4, glow: true }, t);
+  } else {
+    EFFECTS.orbit(ctx, { x: lh.x, y: lh.y, r: 4 * scale, n: 3, h: cardH, speed: 2.2 }, t);
+    EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 4 * scale, n: 3, h: cardH, speed: -1.9 }, t);
+  }
+  // the purple light of his magic on the felt below him
+  const gr = ctx.createRadialGradient(x, c.horizon + H * 0.06, 0, x, c.horizon + H * 0.06, W * 0.25);
+  gr.addColorStop(0, 'rgba(176,90,240,0.18)');
+  gr.addColorStop(1, 'rgba(176,90,240,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(x - W * 0.25, c.horizon, W * 0.5, H * 0.2);
+  return { lh, rh, scale };
 }
 
 // ------------------------------------------------------------------ the scene
@@ -418,76 +498,8 @@ export function casinoTablePanel(ui, body) {
   };
 
   // ---------------------------------------------------------------- drawing
-  const drawRoom = (c, t) => {
-    const { W, H } = c;
-    const bg = ctx.createLinearGradient(0, 0, 0, c.horizon + H * 0.1);
-    bg.addColorStop(0, '#0c0810'); bg.addColorStop(1, '#2a1420');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-    // the casino behind him, out of focus: warm lights, a gold rail, the glow of other tables
-    for (let i = 0; i < 26; i++) {
-      const x = ((i * 137.5) % 1) * W + ((i * 977) % W);
-      const y = c.horizon * (0.15 + ((i * 53) % 70) / 100);
-      const r = 8 + ((i * 31) % 22);
-      const a = 0.08 + 0.06 * Math.sin(t * 0.7 + i);
-      const gr = ctx.createRadialGradient(x % W, y, 0, x % W, y, r * 2.4);
-      gr.addColorStop(0, `rgba(255,${180 + (i % 5) * 12},${110 + (i % 3) * 40},${a * 2})`);
-      gr.addColorStop(1, 'rgba(255,200,120,0)');
-      ctx.fillStyle = gr;
-      ctx.fillRect((x % W) - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
-    }
-    ctx.fillStyle = 'rgba(201,162,74,0.35)';
-    ctx.fillRect(0, c.horizon - H * 0.035, W, Math.max(2, H * 0.004));
-    // a chandelier
-    const cx = W * 0.78;
-    ctx.fillStyle = 'rgba(255,230,170,0.12)';
-    ctx.beginPath(); ctx.ellipse(cx, H * 0.05, W * 0.12, H * 0.05, 0, 0, Math.PI * 2); ctx.fill();
-    for (let i = 0; i < 9; i++) { ctx.fillStyle = `rgba(255,240,200,${0.5 + 0.3 * Math.sin(t * 2 + i)})`; ctx.fillRect(cx - W * 0.08 + i * W * 0.02, H * 0.06 + Math.sin(i) * 4, 3, 3); }
-  };
-  const drawHost = (c, t) => {
-    if (!look) return;
-    const { W, H } = c;
-    const intro = Math.min(1, t / Math.max(0.01, S.intro.dur));
-    const scale = Math.max(3, Math.round(H / 150));
-    const bob = Math.sin(t * 2.1) * scale * 1.5;
-    const x = W * 0.5;
-    const y = c.horizon + H * 0.07 + bob;
-    const hs = now() - S.host.at;
-    // the arrival: a circle in the air, cards bursting out and snapping into his hands
-    if (t < S.intro.dur + 0.4) {
-      magicCircle(ctx, x, y - 6 * scale, 26 * scale * Math.min(1, intro * 2), t * 1.5, { squash: 0.35, alpha: 1 - Math.max(0, (t - S.intro.dur) / 0.4) });
-      EFFECTS.scatter(ctx, { x, y: y - 16 * scale, n: 26, r: 60 * scale, h: 6 * scale, k: 0.5 + intro * 0.5, seed: 4, glow: true }, t);
-    }
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, intro * 1.6);
-    ctx.imageSmoothingEnabled = false;
-    drawPerson(ctx, look, { x, y, facing: 'down', scale, idleTime: t });
-    ctx.restore();
-    // his hands, and the cards about them — which trick depends on what just happened
-    const lh = { x: x - 8 * scale, y: y - 11 * scale };
-    const rh = { x: x + 8 * scale, y: y - 11 * scale };
-    const cardH = 5 * scale;
-    const st = S.host.state;
-    if (st === 'win' || st === 'big_win') {
-      EFFECTS.fan(ctx, { x: rh.x, y: rh.y, n: st === 'big_win' ? 9 : 6, h: cardH * 1.4, spread: 2.2, open: Math.min(1, hs * 2), rot: -0.2, glow: true, cards: [12, 25, 38, 51, 11, 24, 37, 50, 10] }, t);
-      if (st === 'big_win') EFFECTS.spiral(ctx, { x, y: y + 2 * scale, height: 46 * scale, r: 22 * scale, n: 18, h: cardH, speed: 0.5, glow: true }, t);
-    } else if (st === 'lose') {
-      // the cards run up one arm, across his shoulders and down the other
-      EFFECTS.path(ctx, { pts: [lh, { x: x - 7 * scale, y: y - 15 * scale }, { x, y: y - 14 * scale }, { x: x + 7 * scale, y: y - 15 * scale }, rh], n: 7, h: cardH, speed: 0.5, gap: 0.7 }, t);
-    } else if (st === 'roulette' && hs < 2) {
-      EFFECTS.spiral(ctx, { x: rh.x, y: rh.y + 6 * scale, height: 18 * scale, r: 6 * scale, n: 8, h: cardH * 0.8, speed: 1.4, glow: true }, t);
-    } else {
-      EFFECTS.orbit(ctx, { x: lh.x, y: lh.y, r: 4 * scale, n: 3, h: cardH, speed: 2.2 }, t);
-      EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 4 * scale, n: 3, h: cardH, speed: -1.9 }, t);
-    }
-    // the purple light of his magic on the felt below him
-    const gr = ctx.createRadialGradient(x, c.horizon + H * 0.06, 0, x, c.horizon + H * 0.06, W * 0.25);
-    gr.addColorStop(0, 'rgba(176,90,240,0.18)');
-    gr.addColorStop(1, 'rgba(176,90,240,0)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(x - W * 0.25, c.horizon, W * 0.5, H * 0.2);
-    S.hands = { lh, rh, scale };
-  };
+  const drawRoomHere = (c, t) => drawRoom(ctx, c, t);
+  const drawHostHere = (c, t) => { S.hands = drawHost(ctx, c, t, look, { introDur: S.intro.dur, mood: S.host.state, age: now() - S.host.at }); };
   const drawTable = (c, felt) => {
     // the rail all round, the felt inside it
     ctx.fillStyle = '#2a1410';
@@ -750,8 +762,8 @@ export function casinoTablePanel(ui, body) {
     const c = camera(canvas.width, canvas.height);
     const t = now();
     stepDealing(t);
-    drawRoom(c, t);
-    drawHost(c, t);
+    drawRoomHere(c, t);
+    drawHostHere(c, t);
     drawTable(c, T.game === 'roulette' && T.max >= 2500 ? ['#163a5a', '#1e4a6e'] : T.max >= 2000 ? ['#4a1424', '#5e1a2e'] : ['#145a30', '#1e7a40']);
     if (T.game === 'roulette') { drawWheel(c, t); drawLayout(c, t); }
     else if (T.game === 'blackjack') drawBlackjack(c, t);

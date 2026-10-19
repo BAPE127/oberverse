@@ -14,13 +14,14 @@
 import { spin as spinWheel, settle as settleWheel, validBet, colourOf } from '../casino/roulette.js';
 import { act as bjAct, deal as bjDeal, legalActions, standAll, totalBet } from '../casino/blackjack.js';
 import { TILE } from '../core/util.js';
+import { newRun, play as rPlay, redraw as rRedraw, buy as rBuy, vanish as rVanish, reroll as rReroll, nextTrick as rNext, release as rRelease, concede as rConcede, finished as rFinished, payout as rPayout, ENTRY as ROGUE_ENTRY } from '../casino/rogue.js';
 
 const HOST = 'npc_morganius';
 const FLOOR = 'phonograph_casino';
 /** Morganius's favourite places on the floor, and how much he likes each. */
 const ROAM = [['m_stage', 5], ['m_centre', 4], ['m_roulette', 2], ['m_blackjack', 2], ['m_poker', 2], ['m_lounge', 1.5], ['m_overlook', 2], ['m_slots', 1]];
 const LEDGER_KEEP = 60;
-const OPEN_GAMES = new Set(['roulette', 'blackjack']); // v0.52.0; Hold'em (v0.53.0) and Morganius's table (v0.54.0) follow
+const OPEN_GAMES = new Set(['roulette', 'blackjack', 'spade']); // v0.52.0; Morganius's table v0.53.0; Hold'em follows
 
 export class Casino {
   constructor(game) {
@@ -149,9 +150,9 @@ export class Casino {
     const t = this.table(tableId);
     if (!t) return { ok: false, text: 'There\'s no such table.' };
     if (s.session) return { ok: false, text: 'You\'re already at a table.' };
-    if (!OPEN_GAMES.has(t.game)) return { ok: false, text: t.game === 'holdem' ? 'The Hold\'em tables are being dressed: green baize, fresh decks, a sign — "OPENING SOON. — O.T.P."' : 'Morganius\'s table: an empty chair, a deck shuffling itself, and a card propped up — "NOT YET. SOON. — M."' };
+    if (!OPEN_GAMES.has(t.game)) return { ok: false, text: 'The Hold\'em tables are being dressed: green baize, fresh decks, a sign — "OPENING SOON. — O.T.P."' };
     if (g.player.map !== FLOOR) return { ok: false, text: 'The tables are on the casino floor.' };
-    if (s.chips < t.min) return { ok: false, text: `${t.name}: the minimum bet is ${t.min} chip${t.min === 1 ? '' : 's'}. You have ${s.chips}. Chips are at the cage.` };
+    if (t.game === 'spade' && this.rogue.run && !rFinished(this.rogue.run)) { /* a run in progress: sit and carry on, no stake needed */ } else if (s.chips < t.min) return { ok: false, text: `${t.name}: the minimum bet is ${t.min} chip${t.min === 1 ? '' : 's'}. You have ${s.chips}. Chips are at the cage.` };
     if (this.freeSeats(tableId) <= 0) return { ok: false, text: 'Every seat at that table is taken.' };
     s.session = { id: `s${++s.seq}`, table: tableId, game: t.game, at: g.clock.total, from: { map: g.player.map, x: g.player.x, y: g.player.y, facing: g.player.facing } };
     s.visits++;
@@ -295,6 +296,68 @@ export class Casino {
     this.reaction = { kind: net > 0 ? (net >= staked * 5 ? 'big_win' : 'win') : net < 0 ? 'lose' : 'push', at: this.game.realTime };
   }
 
+  // ------------------------------------------------------------------ Morganius's table: the Spade's Gambit
+  /** The roguelike's saved state: the run in progress (or the last one, finished), and your record. */
+  get rogue() {
+    const s = this.state;
+    if (!s.rogue) s.rogue = { run: null, runs: 0, wins: 0, bestActs: 0, paid: 0, history: [] };
+    return s.rogue;
+  }
+
+  /** Buy in (ENTRY chips, once) and start a run. A run in progress has to be finished or given up first. */
+  startRun() {
+    const sess = this.state.session;
+    if (!sess || sess.game !== 'spade') return { ok: false, text: 'Sit at Morganius\'s table first.' };
+    const R = this.rogue;
+    if (R.run && !rFinished(R.run)) return { ok: false, text: 'You have a Gambit in progress.' };
+    const id = `spade#${++this.state.seq}`;
+    if (!this.debit(ROGUE_ENTRY, id)) return { ok: false, text: `The buy-in is ${ROGUE_ENTRY} chips.` };
+    R.run = newRun(Math.floor(this.game.rng.next() * 4294967296), id);
+    R.runs++;
+    return { ok: true, run: R.run };
+  }
+
+  /** Do something in the run: 'play' | 'redraw' (ids), 'buy' (i), 'vanish' (card), 'reroll', 'next', 'release' (curio), 'concede'. */
+  rogueAct(action, arg) {
+    const sess = this.state.session;
+    if (!sess || sess.game !== 'spade') return { ok: false, text: 'Sit at Morganius\'s table first.' };
+    const run = this.rogue.run;
+    if (!run || rFinished(run)) return { ok: false, text: 'No Gambit in progress.' };
+    let res;
+    try {
+      if (action === 'play') res = { ok: true, ...rPlay(run, arg) };
+      else if (action === 'redraw') res = { ok: true, ...rRedraw(run, arg) };
+      else if (action === 'buy') res = rBuy(run, arg);
+      else if (action === 'vanish') res = rVanish(run, arg);
+      else if (action === 'reroll') res = rReroll(run);
+      else if (action === 'next') { rNext(run); res = { ok: true }; }
+      else if (action === 'release') res = rRelease(run, arg);
+      else if (action === 'concede') { rConcede(run); res = { ok: true }; }
+      else return { ok: false, text: 'Morganius raises an eyebrow.' };
+    } catch (e) {
+      return { ok: false, text: e.message.replace(/^rogue: /, '') };
+    }
+    if (rFinished(run)) this.settleRun();
+    return res;
+  }
+
+  /** A finished run pays out — once (by the run's id). */
+  settleRun() {
+    const R = this.rogue;
+    const run = R.run;
+    if (!run || !rFinished(run) || run.settled) return 0;
+    const back = rPayout(run);
+    this.credit(back, run.id);
+    run.settled = true;
+    R.paid += back;
+    if (run.phase === 'won') R.wins++;
+    R.bestActs = Math.max(R.bestActs, run.actsCleared);
+    R.history.unshift({ acts: run.actsCleared, paid: back, best: run.best, day: this.game.clock.day });
+    if (R.history.length > 10) R.history.length = 10;
+    this.endRound(ROGUE_ENTRY, back);
+    return back;
+  }
+
   // ------------------------------------------------------------------ the host
   /** Morganius drops everything and flies to your table (or appears there in a burst of cards). */
   summonHost(tableId) {
@@ -392,6 +455,7 @@ export class Casino {
     }
     s.session = null;
     this.arrival = null;
+    if (s.rogue?.run && rFinished(s.rogue.run) && !s.rogue.run.settled) this.settleRun(); // a Gambit runs on across saves; a finished one is paid
     const m = this.game.npcs.get(HOST);
     if (m?.intent?.source === 'casino') m.intent = null;
   }

@@ -2,6 +2,27 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.53.0] — 2026-10-19 — The Spade's Gambit (development build)
+
+The casino expansion, part 2 of 4: Morganius's own table, a poker roguelike of his invention. (Owner: "Do the poker roguelike first" — it comes before Texas Hold'em.)
+
+### Added
+- **The Spade's Gambit** at Morganius's table on the casino floor (`src/casino/rogue.js`, pure rules): buy in for 25 chips and play poker hands from your own 52-card deck — pairs, trips and quads count with fewer than five cards; straights and flushes need five. A hand scores **Pips × Gasps**. Three Acts of three Tricks (the Opener, the Feature, the Finale), each with a target to reach in four Plays, with three Redraws to change cards. Clear Acts to be paid back: 30, 75, or 200 chips for all three.
+- **A fixed scoring order**, told step by step at the table: the hand's base (plus Rehearsals), then each scoring card in the order played (its pips, its Ink, the card Curios), then the cards still in your hand, then the hand Curios in the order you hold them, then the Twist.
+- **17 Curios** (five at most; their order matters): the Velvet Glove, the Marked Deck, the Fortune-Teller's Card, the Thirteenth Spade, the Stagehand's Lantern, the Smoke Bomb, the Black Cat, the Dove in the Sleeve, the Sawn Lady, the Applause Machine, the Rabbit in the Hat, the Mirror Box, the Disappearing Coin, Encore!, the Escapologist's Chains, the Bottomless Top Hat and the Crystal Ball.
+- **Six Inks** for cards: Gilt, Violet, Twin, Ghost, Steel and Ember (which burns away).
+- **Five Twists** for the Finales: the Looking-Glass, Tight Sleeves, the Fog, the Echo and the Gilded Cage.
+- **Morganius's Cabinet** between Tricks: three Curios, two Inks and a Rehearsal for Sparks; new stock (dearer each time); one Vanishing a visit; part with a Curio.
+- **The scene** (`src/ui/spadeTable.js`): your hand fanned in front of you, cards flying out of Morganius's hand as they're dealt and sliding to the felt when played, each scoring step popping with its Pips or Gasps, Curios lighting up as they work, the running Pips × Gasps, the total bursting in cards, Embers burning away, the Applause meter climbing. Keys: 1–9 choose, Enter play, R redraw, S sort, Space hurries the show.
+- **Books:** the buy-in is debited once and the payout credited once (by the Gambit's id). A Gambit runs on: leave the table, save, load, come back — it's just as you left it (no chips needed to sit down again). The run draws from its own seeded stream stored in the run.
+
+### Changed
+- Morganius's table is open ("NOT YET. SOON." is gone), and he'll explain it. The stage's floor circle no longer hides the table's prompt.
+- The first-person table scenes share their room and host drawing (`drawRoom`, `drawHost` in `src/ui/casino.js`).
+
+### Balance
+- Measured with a greedy bot that always plays the best hand available and redraws when it won't keep pace (400 runs): Act 1 cleared about half the time, Act 2 about 15%, all three about 1%; about 23 chips back for every 25 staked. Targets 480 / 1800 / 3300 (×1, ×1.5, ×2 through each Act).
+
 ## [0.52.0] — 2026-10-19 — The Phonograph Grand (development build)
 
 The casino expansion, part 1 of 4: the resort, its people, chips, roulette and blackjack. (Owner's brief: "THE OBERVERSE — MAJOR CASINO EXPANSION"; the resort stands where the Lucky Star bar was, by the owner's choice.)

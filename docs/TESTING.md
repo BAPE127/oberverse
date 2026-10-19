@@ -36,12 +36,18 @@
 | `debug.test.mjs` | Debug console: give/take by id or name, money/health/energy/heal/god, weapons and ammo, time/skip/teleport/stats/rep/flags, reviving the dead and knocked-out. |
 | `casino_rules.test.mjs` | The Phonograph Grand's games as pure rules: the deck and shuffle, every poker hand, kickers and ties, best of seven, short hands; roulette coverage and payouts (every bet's fair odds, the zero), multi-bet settlement, a fair wheel; blackjack aces, naturals, the peek, busts, pushes, soft 17, double, split, split aces, illegal actions, the shoe. |
 | `casino_system.test.mjs` | The resort's maps and lifts (private floors, NPC-only lift doors, who can get where), the staff's hours, the cage (rate, minimum, overdraft, no cashing out seated, the ledger), debit and settle-once, seats and limits, the host's arrival (and skipping it), Morganius roaming, roulette and blackjack chip accounting over many rounds, save/load mid-hand and with chips on the layout. |
+| `casino_rogue.test.mjs` | The Spade's Gambit: seeded runs, the scoring and its fixed order (hand Curios in held order, card Curios per card), every Ink, the Curios, the Twists, a run's flow (lost, won Tricks and Sparks, Finales clearing Acts, the outright win), every card in exactly one place, the Cabinet's prices and limits, the books (buy-in once, paid once, a run kept across leaving and save/load), a balance range for a greedy bot. |
 | `character_morganius.test.mjs`, `character_octavius.test.mjs` | The two imported casino characters: looks, protection and Wraths, floating and card-magic states, schedules, dialogue, the cage topic, signature cars and weapons, saves. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
 
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.53.0 (2026-10-19)
+
+- `npm run check` — **435/435 tests passed**; `npm run smoke` — 24/24.
+- Browser (headless Chromium, the built `index.html`): the casino floor at 21:00 → "Sit down — Morganius's Table" with E → the Gambit's start card (rules, payout table, record) → bought in (200 → 175 chips) → chose a pair with the number keys (the preview read "One pair 12 × 2 → about 32", matching the rules) → played: the cards slid to the felt and scored step by step (+2, +2, 16 × 2) → three plays → a Trick won → Morganius's Cabinet (three Curios, two Inks, a Rehearsal; Sparks 7) → bought, on to the Feature → left with Esc: the Gambit kept ("play"), chips unchanged. No page errors. Screenshots: `docs/mockups/v053-*.png`.
 
 ## Verification record — v0.52.0 (2026-10-19)
 

@@ -38,7 +38,7 @@ export const dlgMorganius = {
     },
     {
       id: 't_ms_table', label: '"What\'s the table on your stage?"', keywords: ['your table', 'stage', 'spade table', 'his table', 'special', 'roguelike'],
-      say: ['Ahh. My table. A game of my own, my friend: poker hands, played against the house, round after round, with cards that are… not quite ordinary. You\'ll find out how not-quite.', 'It isn\'t ready. Nearly. The cards are still learning the rules.'],
+      say: ['Ahh. My table. The Spade\'s Gambit, my friend — a game of my own. You play poker hands from your own deck, and each hand scores Pips times Gasps. Three Acts, three Tricks each; reach the target, or the curtain falls.', 'Between the Tricks you visit my Cabinet: Curios, Inks for your cards, Rehearsals, Vanishings. And every Finale, I change the rules a little. Twenty-five chips to sit. Clear an Act and you\'ll see them again; clear all three and you\'ll see a great many more.'],
     },
     {
       id: 't_ms_octavius', label: '"What\'s Octavius like?"', keywords: ['octavius', 'phonograph', 'owner', 'boss'],
@@ -51,6 +51,7 @@ export const dlgMorganius = {
     { keywords: ['brock', 'security'], say: ['Brock is the Grand\'s security. Built like a vault door and twice as discreet. Don\'t make him chase you. He gets so sad about it.'] },
     { keywords: ['lucky star', 'bar', 'lounge'], say: ['The Lucky Star stood here for sixty years. When Octavius bought it he meant to tear it down. I talked him round. The bar lives on in the lobby, and the star over the door is the same star. I polished it myself.'] },
     { keywords: ['slots', 'slot machines', 'machines'], say: ['Disenchanted, every one. A slot machine is a game with no one at the other end of it, my friend. Where is the art in that?'] },
+    { keywords: ['gambit', 'curio', 'curios', 'pips', 'gasps', 'cabinet'], say: ['My Curios are the finest wonders I own, my friend, and I lend them only to people who are losing to me. Hold five at most. The order you hold them in is the order they work — remember that.'] },
     { keywords: ['zero', 'green'], say: ['The zero is green, single and entirely the house\'s. When the ball lands there, every outside bet loses. Only a bet on zero itself wins — thirty-five to one.'] },
   ],
   unknown: [['The cards are silent on that one, my friend.'], ['Ah. That card stays face down.']],

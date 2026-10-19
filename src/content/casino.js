@@ -69,7 +69,7 @@ function casinoFloor() {
     { id: 'pg_holdem_1', type: 'poker_table', x: 22, y: 7, w: 4, h: 3, interact: { kind: 'casino', table: 'holdem_1' } },
     { id: 'pg_holdem_2', type: 'poker_table', x: 22, y: 14, w: 4, h: 3, color: '#1e3a5a', interact: { kind: 'casino', table: 'holdem_2' } },
     // Morganius's stage
-    { id: 'pg_stage', type: 'magic_circle', x: 14, y: 1, w: 8, h: 5, examine: 'A circle inlaid in the floor in silver: suits, runes, and the words NOTHING IS UP MY SLEEVE. EVERYTHING IS.' },
+    { id: 'pg_stage', type: 'magic_circle', x: 14, y: 1, w: 8, h: 5 }, // (walked over, not examined: it would hide the table on it)
     { id: 'pg_spade_table', type: 'spade_table', x: 16, y: 3, w: 4, h: 2, interact: { kind: 'casino', table: 'spade' } },
     { id: 'pg_pillar_a', type: 'pillar', x: 13, y: 1 }, { id: 'pg_pillar_b', type: 'pillar', x: 22, y: 1 },
     { id: 'pg_pillar_c', type: 'pillar', x: 13, y: 5 }, { id: 'pg_pillar_d', type: 'pillar', x: 22, y: 5 },
