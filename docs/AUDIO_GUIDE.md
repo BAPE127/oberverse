@@ -47,6 +47,8 @@ Status meanings: *planned* (not built), *placeholder* (temporary), *implemented*
 | motif_mags | motif | F4 A4 C5 F5 (clarinet) | npc_mags | dialogue opens | "Kettle's On" — warm, rising | Original | implemented |
 | motif_osric | motif | C4 · C4 · G4 · C5 (reed, staccato) | npc_osric | dialogue opens | "In Triplicate" — stiff march | Original | implemented |
 | motif_ober | motif | D4 F#4 A4 · A4 B4 A4 F#4 D4 · E4 F#4 G4 · F#4 E4 D4 (reed) | npc_ober | dialogue opens | "Hoist Away" — a rolling squeezebox shanty | Original | implemented |
+| motif_morganius | motif | D4 F4 A4 G#4 A4 · C5 B4 A#4 A4 F4 E4 C#4 D4 (clarinet) | npc_morganius | dialogue opens | "Sleight of Hand" — sly and chromatic, like a shuffle | Original | implemented |
+| motif_octavius | motif | E5 B4 E5 B4 G#5 F#5 E5 · E5 B4 E5 B4 C#6 B5 (bell) | npc_octavius | dialogue opens | "Please Hold" — a ringtone in a hurry | Original | implemented |
 | motif_tibbs | motif | E5 G5 E5 B5 A5 · F#5 (pluck) | npc_tibbs | dialogue opens | "Splonk" — bouncy, lopsided | Original | implemented |
 | voice_blips | voice | per-character `voice` {wave, pitch, variance, rate} | all characters | dialogue typing | speech texture | Original | implemented |
 | sfx_step | sfx | filtered noise, pitch by surface | player | walking | footsteps | Original | implemented |

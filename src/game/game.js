@@ -30,6 +30,7 @@ import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
 import { Homes } from '../systems/homes.js';
+import { Casino } from '../systems/casino.js';
 import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
 import { Logistics } from '../systems/logistics.js';
@@ -73,6 +74,7 @@ export class Game {
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
     this.homes = new Homes(this); // v0.36.0: break-ins and invitations
+    this.casino = new Casino(this); // v0.52.0: the Phonograph Grand
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
@@ -324,6 +326,7 @@ export class Game {
       this.ambientBarks(npc);
     }
     this.dairy.update(dt);
+    this.casino.update(); // v0.52.0: the host's flight to your table
     for (let i = 0; i < Math.min(minutes, 30); i++) this.minuteTick();
   }
 
@@ -340,6 +343,7 @@ export class Game {
     this.logistics.minuteTick();
     this.dairy.minuteTick();
     this.farm.minuteTick();
+    this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
       if (this.skipping || !this.physicalMaps().has(npc.map)) this.npcSystem.updateAbstract(npc);
@@ -579,7 +583,8 @@ export class Game {
   liftPanel(towerId) {
     const t = this.content.towers[towerId];
     const here = this.player.map;
-    const options = t.floors.filter((f) => f.map !== here).map((f) => ({ label: `${f.n} — ${f.name}`, call: ['game', 'rideLift', towerId, f.map] }));
+    // v0.52.0: a private floor's button won't light without its owner's leave (rideLift checks too)
+    const options = t.floors.filter((f) => f.map !== here).map((f) => ({ label: `${f.n} — ${f.name}${this.floorOpen(f) ? '' : ' 🔒'}`, call: ['game', 'rideLift', towerId, f.map] }));
     options.push({ label: 'Stay here', call: ['vehicles', 'noop'] });
     const cur = t.floors.find((f) => f.map === here);
     return { type: 'choices', title: `${t.name} — lift`, text: `The doors slide open. ${cur ? `You're on ${cur.n === 'G' ? 'the ground floor' : cur.n === 'R' ? 'the roof' : `floor ${cur.n}`}. ` : ''}Which floor?`, options };
@@ -588,13 +593,22 @@ export class Game {
   rideLift(towerId, mapId) {
     const f = this.content.towers[towerId]?.floors.find((x) => x.map === mapId);
     if (!f) return { ok: false };
+    if (!this.floorOpen(f)) {
+      this.bus.emit('sfx', { id: 'sfx_locked' });
+      return { ok: false, text: f.private.message || 'That floor is private.' };
+    }
     this.bus.emit('sfx', { id: 'sfx_door' });
     this.changeMap(f.map, 'lift');
     return { ok: true, text: `Ding. ${f.n === 'G' ? 'Ground floor' : f.n === 'R' ? 'The roof' : `Floor ${f.n}`} — ${f.name}.` };
   }
 
+  /** v0.52.0: may the player ride the lift to this floor? (a private floor needs its flag) */
+  floorOpen(f) {
+    return !f.private || Boolean(f.private.flag && this.getFlag(f.private.flag));
+  }
+
   useDoor(door) {
-    if (!this.playerCanPass(door)) return false;
+    if (door.npcOnly || !this.playerCanPass(door)) return false; // v0.52.0: lift shafts are for those who live upstairs
     const lock = door.lock;
     if (lock?.trespass && !this.getFlag(`${lock.trespass}_permission`)) {
       this.reportCrime({ fact: `fact_player_trespassed_${lock.trespass}`, map: this.player.map, x: this.player.x, y: this.player.y });
@@ -777,6 +791,7 @@ export class Game {
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
     for (const door of map.doors) {
+      if (door.npcOnly) continue; // v0.52.0: the residents' way through the lift shafts
       if (door.seamless && !(door.portal && !this.playerCanPass(door))) continue; // map edges and open front doors are walked through, not "entered" (a locked front door still says why)
       if (Math.abs(door.x - tx) + Math.abs(door.y - ty) !== 1) continue;
       const cx = (door.x + 0.5) * TILE;
@@ -850,7 +865,7 @@ export class Game {
     }
     if (target.kind === 'door') {
       const door = this.currentMap().doors.find((d) => d.id === target.id);
-      if (!door) return { type: 'none' };
+      if (!door || door.npcOnly) return { type: 'none' };
       if (!this.playerCanPass(door)) {
         this.lockMessageAt = -10;
         const reason = this.doorLockReason(door, (key) => this.inventory.count(key) > 0);
@@ -875,6 +890,11 @@ export class Game {
     }
     switch (act.kind) {
       case 'lift': return this.liftPanel(act.tower);
+      case 'casino': { // v0.52.0: sit at a table; the host flies over, then the table opens
+        const r = this.casino.sit(act.table);
+        return r.ok ? { type: 'casino', table: act.table } : { type: 'message', text: r.text };
+      }
+      case 'casino_cashier': return this.casino.cashier() ? { type: 'panel', panel: 'cashier' } : { type: 'message', text: 'The cage is shut: a brass bell, a sign — "BACK SHORTLY. — V." — and nobody behind the bars.' };
       case 'container': {
         const cdef = this.containerDef(act.container);
         if (cdef?.lockedBy && !this.inventory.count(cdef.lockedBy)) {
@@ -1296,6 +1316,7 @@ export class Game {
     this.arms.spawnStaff();
     this.dairy.afterLoad();
     this.farm.sync();
+    this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
     this.updateDiscovery();
     return this;
   }

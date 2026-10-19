@@ -50,17 +50,20 @@ import dlgCaptainOber from './dialogue/ober.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
 import { withPlots } from '../world/plots.js';
 import { CAR_MODELS, DEALERS, PARKED_CARS, DRIVING, carPropsToVehicles } from './vehicles.js';
-import { SIGNATURE_PARKED } from './signatureCars.js';
+import { SIGNATURE_PARKED, SIGNATURE_PARKED_GROWN } from './signatureCars.js';
 import { buildTransit, addStreetFurniture } from './transit.js';
 import { widenAll, shiftPoint } from '../world/widen.js';
 import dealerChars from './characters/dealers.js';
 import dlgDealers from './dialogue/dealers.js';
 import lariatChars from './characters/lariat.js';
 import dlgLariat from './dialogue/lariat.js';
+import casinoChars from './characters/casino.js';
+import dlgCasino from './dialogue/casino.js';
 import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
 import { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } from './farming.js';
 import { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } from './life.js';
 import { towerMaps, addTowers, TOWERS } from './towers.js';
+import { casinoMaps, phonographLobby, PHONOGRAPH_TOWER, CASINO } from './casino.js';
 import { SPECIAL_ITEMS, addSpecialWeapons } from './specialWeapons.js';
 import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } from './homes.js';
 import { buildPatrols } from '../world/patrols.js';
@@ -80,7 +83,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps(), ...towerMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -106,7 +109,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -118,7 +121,8 @@ export const BASE_CONTENT = {
   facts: FACTS,
   docs: DOCS,
   containers: ALL_CONTAINERS,
-  towers: TOWERS,
+  towers: { ...TOWERS, phonograph: PHONOGRAPH_TOWER }, // v0.52.0: the Phonograph Grand
+  casino: CASINO,
   lodging: LODGING, // v0.36.0: where the arms works' hired hands sleep
   shops: SHOPS,
   factions: FACTIONS,
@@ -130,7 +134,7 @@ export const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -163,12 +167,19 @@ const GROWTH = growStreets(MAPS, REGIONS, (id, b) => {
   const { maps: _m, regions: _r, roadShifts: _s, propTypes: _p, items: _i, ...rest } = BASE_CONTENT;
   shiftContent(rest, GROWTH);
   shiftContent(PLOTS, GROWTH);
+  BASE_CONTENT.vehicles.parked.push(...SIGNATURE_PARKED_GROWN); // v0.52.0: already in grown coordinates
   const by = MAPS.yards.berths;
   if (by) MAPS.yards.berths = { ...by, piers: by.piers.map((x) => GROWTH.yards.fx(x)), row: GROWTH.yards.fy(by.row) };
 }
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
 REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
+// v0.52.0: the Phonograph Grand's lobby is the size of its building on the grown street
+MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
 placeInteriors(MAPS, REGIONS, STREETS);
+{
+  const b = MAPS.halvermouth.buildings.find((x) => x.id === 'b_phonograph');
+  for (const id of ['phonograph_octavius', 'phonograph_spade']) MAPS[id].aloft = { tower: 'phonograph', over: 'halvermouth', x: b.x + b.w / 2, y: b.y + b.h / 2 };
+}
 addSeams(MAPS, REGIONS, PROP_TYPES);
 BASE_CONTENT.growShifts = GROWTH; // widened → grown tile coordinates (for saves from before v0.47.0)
 

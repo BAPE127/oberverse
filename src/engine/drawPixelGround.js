@@ -189,6 +189,9 @@ const WALLS = {
   cream: { cap: '#8a7262', capLight: '#b49a86', capDark: '#5e4a40', face: '#e4d4b4', faceLight: '#f0e4c8', mortar: '#b8a384', paint: '#e9dcc3', inside: 'wainscot', pillar: '#a88e7a' },
   wood: { cap: '#7a4e2e', capLight: '#a06a40', capDark: '#4e301c', face: '#8e5c36', faceLight: '#a87044', mortar: '#5a381e', paint: '#9a6a44', inside: 'planks', pillar: '#6a4024' },
   stone: { cap: '#6e6c70', capLight: '#a4a2a6', capDark: '#4a484e', face: '#a8a49c', faceLight: '#bcb8b0', mortar: '#7a766e', paint: '#cec8bc', inside: 'stone', pillar: '#c4c0b8' },
+  // v0.52.0: the Phonograph Grand (black lacquer, gold, burgundy damask) and Morganius's rooms (midnight and silver)
+  grand: { cap: '#241e28', capLight: '#c9a24a', capDark: '#120e16', face: '#1e1a24', faceLight: '#2e2834', mortar: '#0e0c12', paint: '#4a1a28', inside: 'damask', pillar: '#c9a24a' },
+  arcane: { cap: '#2a1e3a', capLight: '#7a5aa8', capDark: '#160e22', face: '#2e2242', faceLight: '#3e2e56', mortar: '#1a1228', paint: '#2a1e44', inside: 'stars', pillar: '#a8a0c0' },
   navy: { cap: '#323c56', capLight: '#5a6c94', capDark: '#1e2438', face: '#4a5672', faceLight: '#5e6a88', mortar: '#2e3850', paint: '#c8d0dc', inside: 'plain', pillar: '#8a96b0' },
 };
 const FLOORS = {
@@ -809,6 +812,20 @@ function wallTile(R, map, x, y, at, st) {
     if (look === 'brick' || look === 'stone') bricks(R, px, fy + 1, fh - 1, look === 'stone' ? { face: s.paint, faceLight: '#dcd6ca', mortar: '#a8a296' } : s, x, y);
     else if (look === 'planks') { R(px, fy + 1, T, fh - 1, s.paint); for (let k = 4; k < T; k += 6) R(px + k, fy + 1, 1, fh - 1, s.mortar); }
     else if (look === 'stripes') { R(px, fy + 1, T, fh - 1, s.paint); for (let k = 0; k < T; k += 8) R(px + k, fy + 1, 3, fh - 7, '#e8c0cc'); R(px, fy + fh - 6, T, 1, '#8e3e58'); R(px, fy + fh - 5, T, 5, '#b46a84'); }
+    else if (look === 'damask') {
+      // burgundy silk with a gold diamond pattern over a black lacquered dado and a gold rail
+      R(px, fy + 1, T, fh - 1, s.paint);
+      for (let k = 2; k < T; k += 8) for (let j = 3; j < fh - 10; j += 8) { R(px + k + 2, fy + j, 1, 1, '#a8823a'); R(px + k + 1, fy + j + 1, 3, 1, '#7a2a3a'); R(px + k + 2, fy + j + 2, 1, 1, '#a8823a'); }
+      R(px, fy + fh - 9, T, 1, '#e8c35a'); R(px, fy + fh - 8, T, 8, '#1a1620'); R(px, fy + fh - 8, T, 1, '#2e2834');
+      if (x % 2 === 0) R(px, fy + fh - 7, 1, 6, '#c9a24a');
+    }
+    else if (look === 'stars') {
+      // midnight blue-purple with silver stars and a moon here and there
+      R(px, fy + 1, T, fh - 1, s.paint);
+      for (let k = 0; k < 5; k++) { const sx = (x * 13 + k * 7 + y * 5) % T; const sy = 2 + ((x * 7 + k * 11) % Math.max(1, fh - 8)); R(px + sx, fy + sy, 1, 1, k % 2 ? '#d8d0f0' : '#a8a0c0'); }
+      if ((x + y) % 4 === 0) { R(px + 20, fy + 4, 3, 3, '#e8e0c8'); R(px + 21, fy + 4, 2, 2, s.paint); }
+      R(px, fy + fh - 4, T, 1, '#a8a0c0'); R(px, fy + fh - 3, T, 3, '#1a1228');
+    }
     else if (look === 'wainscot') { R(px, fy + 1, T, fh - 1, s.paint); R(px, fy + 9, T, 1, '#a89878'); R(px, fy + 10, T, fh - 10, '#d2c2a5'); if (x % 2 === 0) R(px, fy + 10, 1, fh - 10, '#a89878'); }
     else { R(px, fy + 1, T, fh - 1, s.paint); R(px, fy + fh - 3, T, 3, shadeHex(s.paint, 0.8)); }
   }
@@ -819,6 +836,14 @@ function wallTile(R, map, x, y, at, st) {
 function facade(R, px, fy, fh, s, x, map) {
   if (s === WALLS.wood) { R(px, fy, T, fh, s.face); for (let k = 0; k < fh; k += 4) R(px, fy + k, T, 1, s.mortar); }
   else if (s === WALLS.teal || s === WALLS.navy) { R(px, fy, T, fh, s.face); R(px, fy, T, 2, s.capLight); R(px, fy + fh - 3, T, 3, s.mortar); }
+  else if (s === WALLS.grand || s === WALLS.arcane) {
+    // v0.52.0: smoked glass between gold mullions
+    R(px, fy, T, fh, '#141820'); R(px, fy, T, 2, s.capLight);
+    for (let k = 0; k < T; k += 8) R(px + k, fy, 1, fh, s.capLight);
+    for (let k = 0; k < 5; k++) R(px + 3 + k, fy + fh - 4 - k, 1, 1, '#3a4a5a');
+    R(px, fy + fh - 2, T, 2, s.capDark);
+    return;
+  }
   else bricks(R, px, fy, fh, s, x, 0);
   const W = map.width;
   if (x > 0 && x < W - 1 && x % 3 === 1 && map.tileAt(x - 1, map.height - 1) !== 'D' && map.tileAt(x + 1, map.height - 1) !== 'D') {

@@ -95,6 +95,8 @@ export const MOTIFS = {
   motif_lucas: { title: 'Lucas — "Pipecreek Shuffle" (sleazy clarinet)', bpm: 96, notes: 'E4:1 G4:1 A#4:2 A4:1 G4:1 E4:2 -:1 D#4:1 E4:3', inst: 'clarinet', character: 'npc_lucas' },
   motif_chuckie: { title: 'Farmer Chuckie — "Cheddar Two-Step" (a fiddle hoedown)', bpm: 132, notes: 'G4:1 B4:1 D5:1 B4:1 G4:1 A4:1 B4:2 C5:1 B4:1 A4:1 G4:1 E4:1 D4:1 G4:3', inst: 'reed', character: 'npc_chuckie' },
   motif_ober: { title: 'Captain Ober — "Hoist Away" (a squeezebox shanty)', bpm: 118, notes: 'D4:1 F#4:1 A4:2 A4:1 B4:1 A4:1 F#4:1 D4:2 E4:1 F#4:1 G4:2 F#4:1 E4:1 D4:3', inst: 'reed', character: 'npc_ober' },
+  motif_morganius: { title: 'Morganius Spade — "Sleight of Hand" (a sly clarinet, chromatic as a shuffle)', bpm: 104, notes: 'D4:1 F4:1 A4:1 G#4:1 A4:2 -:1 C5:1 B4:1 A#4:1 A4:1 F4:1 E4:1 C#4:1 D4:3', inst: 'clarinet', character: 'npc_morganius' },
+  motif_octavius: { title: 'Octavius Thomas Phonograph — "Please Hold" (a ringtone in a hurry)', bpm: 150, notes: 'E5:1 B4:1 E5:1 B4:1 G#5:2 F#5:1 E5:1 -:1 E5:1 B4:1 E5:1 B4:1 C#6:2 B5:2', inst: 'bell', character: 'npc_octavius' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -124,6 +126,8 @@ export const AUDIO_REGISTRY = [
   { id: 'motif_arthur', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_arthur', trigger: 'conversation opens with Arthur Anderson', status: 'implemented', source: 'Original composition' },
   { id: 'motif_chuckie', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_chuckie', trigger: 'conversation opens with Farmer Chuckie', status: 'implemented', source: 'Original composition' },
   { id: 'motif_ober', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_ober', trigger: 'conversation opens with Captain Ober', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_morganius', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_morganius', trigger: 'conversation opens with Morganius Spade', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_octavius', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_octavius', trigger: 'conversation opens with Octavius Thomas Phonograph', status: 'implemented', source: 'Original composition' },
   { id: 'motif_lucas', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_lucas', trigger: 'conversation opens with Lucas Eastrise', status: 'implemented', source: 'Original composition' },
   { id: 'motif_tibbs', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_tibbs', trigger: 'conversation opens with Tibbs', status: 'implemented', source: 'Original composition' },
   { id: 'voice_blips', category: 'voice', method: 'procedural: per-character voice params (characters/*.voice)', trigger: 'dialogue text typing', status: 'implemented', source: 'Original synthesis' },

@@ -39,6 +39,11 @@ export const SPECIAL_ITEMS = Object.fromEntries([
     { kind: 'gun', look: 'harpoon', bullet: 'harpoon', effect: 'stun', stun: 1.5, damage: 34, range: 12, cooldown: 1.2, lethal: true, ammo: 'item_ammo_harpoons', mag: 1, reload: 1.6, spread: 0.5, noise: 18, knockback: -90, sound: 'sfx_gunshot_heavy' }, 2500),
   weapon('item_cheddar_blaster', 'The Cheddar Blaster', 'Farmer Chuckie\'s cheese-wheel launcher, a drum magazine of mature cheddar. Each wheel hits like a bowling ball and smells like a victory.',
     { kind: 'gun', look: 'cheddar', bullet: 'cheese', damage: 24, range: 9, cooldown: 0.75, lethal: true, ammo: 'item_ammo_cheese', mag: 6, reload: 2.6, spread: 4, noise: 12, knockback: 55, sound: 'sfx_gunshot_heavy' }, 1800),
+  // v0.52.0: the Phonograph Grand's two
+  weapon('item_dead_mans_hand', 'The Dead Man\'s Hand', 'Morganius Spade\'s throwing deck: a brass-bound card-shoe that flings a fan of five steel-edged cards at once — aces and eights, always aces and eights. They come back to the shoe on their own. Mostly.',
+    { kind: 'gun', look: 'deadmanshand', bullet: 'card', fan: [-16, -8, 0, 8, 16], damage: 9, range: 9, cooldown: 0.55, lethal: true, ammo: 'item_ammo_decks', mag: 10, reload: 1.6, spread: 1, noise: 4, knockback: 6, sound: 'sfx_whack' }, 6666),
+  weapon('item_please_hold', 'Please Hold', 'Octavius Thomas Phonograph\'s spare phone: solid gold, and it fires his hold music in rings. Whoever it hits is put on hold — they stand there, stunned, listening — and comes to with no memory of what they were about to do.',
+    { kind: 'gun', look: 'goldphone', bullet: 'ring', effect: 'stun', stun: 2.5, damage: 4, range: 8, cooldown: 0.9, lethal: false, ammo: 'item_ammo_batteries', mag: 6, reload: 1.4, spread: 4, noise: 6, knockback: 4, sound: 'sfx_horn' }, 9000),
   // ---- their ammunition (no shop sells it; there's a supply with each)
   ammo('item_ammo_pigeons', 'Indignant Pigeons', 4, 'Pigeons, each in a small paper bag, each furious.'),
   ammo('item_ammo_confetti', 'Confetti Wads', 6, 'Tightly packed. Very tightly packed.'),
@@ -49,6 +54,8 @@ export const SPECIAL_ITEMS = Object.fromEntries([
   ammo('item_ammo_foil', 'Tinfoil Cells', 16, 'Batteries wrapped in tinfoil. "So they can\'t track them."'),
   ammo('item_ammo_harpoons', 'Harpoons', 4, 'Barbed, on a coil of tarred line.'),
   ammo('item_ammo_cheese', 'Cheese Wheels', 12, 'Mature cheddar, aged until it could stop a door.'),
+  ammo('item_ammo_decks', 'Steel-Edged Decks', 20, 'Playing cards with a filed edge, banded in purple. Every one is the ace of spades or the eight of clubs.'),
+  ammo('item_ammo_batteries', 'Gold Phone Batteries', 12, 'Each holds one hour of hold music. Nobody has ever listened to a whole one.'),
 ]);
 
 /** Where each one is kept: added to an existing container, or a new locked case placed in a home. */
@@ -65,6 +72,8 @@ export const STASHES = [
   { container: 'ct_atlas_1_dresser', items: { item_tinfoil_ray: 1, item_ammo_foil: 32 } },
   { container: 'ct_mason_toolbox', new: { map: 'plumb_unit_1', name: 'Mason\'s toolbox', owner: 'npc_mason', prop: 'chest', examine: 'A steel toolbox, every tool in it laid out perfectly level.' }, items: { item_nail_gun: 1, item_ammo_nails: 120 } },
   { container: 'ct_ober_sea_chest', new: { map: 'salty_ober', name: 'Captain Ober\'s sea chest', owner: 'npc_ober', prop: 'chest', examine: 'An iron-bound sea chest stencilled S.S. OBER. It smells of tar and rum.' }, items: { item_harpoon_cannon: 1, item_ammo_harpoons: 8 } },
+  { container: 'ct_spade_trunk', new: { map: 'phonograph_spade', name: 'Morganius\'s trunk', owner: 'npc_morganius', prop: 'chest', examine: 'A trunk stencilled MORGANIUS SPADE — FRAGILE — DO NOT OPEN — I MEAN IT. The lock is a playing card, wedged.' }, items: { item_dead_mans_hand: 1, item_ammo_decks: 40 } },
+  { container: 'ct_octavius_safe', new: { map: 'phonograph_octavius', name: 'Octavius\'s wall safe', owner: 'npc_octavius', prop: 'vault', examine: 'A wall safe the size of a wardrobe. The dial has no numbers, only a glass eye.' }, items: { item_please_hold: 1, item_ammo_batteries: 24 } },
   { container: 'ct_chuckie_cheese_safe', new: { map: 'chuckie_house', name: 'Chuckie\'s cheese safe', owner: 'npc_chuckie', prop: 'chest', examine: 'A safe painted like a wedge of cheese. It is, in fact, full of cheese — and something else.' }, items: { item_cheddar_blaster: 1, item_ammo_cheese: 36 } },
 ];
 

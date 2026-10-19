@@ -18,7 +18,7 @@ import { SITE_STATIONS } from '../src/systems/construction.js';
 import { THEMES as WRATH_THEMES } from '../src/engine/wrath.js';
 
 const QUEST_EVENTS = ['map:entered', 'item:acquired', 'fact:learned', 'flag:set', 'npc:talked', 'prop:used', 'quest:completed'];
-const INTERACT_KINDS = ['lift', 'container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop', 'jail', 'factory', 'arms', 'busstop', 'logistics', 'dairy', 'farm'];
+const INTERACT_KINDS = ['casino', 'casino_cashier', 'lift', 'container', 'read', 'sleep', 'sit', 'noticeboard', 'obstacle', 'forage', 'stockcheck', 'workstation', 'useItem', 'contracts', 'shop', 'jail', 'factory', 'arms', 'busstop', 'logistics', 'dairy', 'farm'];
 const COMPANY_STATIONS = { oil: STATIONS, construction: SITE_STATIONS };
 
 export function validateContent(content = CONTENT) {
@@ -446,7 +446,7 @@ export function validateContent(content = CONTENT) {
     if (Math.min(mins(b.to), mins(back.to)) <= Math.max(mins(b.from), mins(back.from))) err(`${where}: the meet-up with ${b.meet} doesn't overlap in time`);
   }
   // v0.34.0: signature cars — each belongs to an imported character, is parked exactly once on a real map, and has a horn
-  const HORNS = ['kaching', 'reverse', 'gavel', 'pi', 'theremin', 'foghorn', 'moo'];
+  const HORNS = ['kaching', 'reverse', 'gavel', 'pi', 'theremin', 'foghorn', 'moo', 'ringtone', 'shuffle'];
   for (const [mid, m] of Object.entries(content.vehicles?.models || {})) {
     if (!m.sig) continue;
     const who = content.characters[m.owner];

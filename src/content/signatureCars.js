@@ -63,6 +63,21 @@ export const SIGNATURE_MODELS = {
     lore: 'Chuckie had it built for the county fair parade and never took it back. It crosses a ploughed field like a highway, and leaves a little trail of crumbs for the birds.',
     stolenLine: 'Well, I\'ll be! Somebody\'s run off with the Big Cheese! Bring her back, partner, and we\'ll say no more about it. Probably.',
   },
+  // v0.52.0: the Phonograph Grand's two
+  longdistance: {
+    name: 'Long Distance', sig: 'longdistance', owner: 'npc_octavius', dealer: null, price: 400000, plate: 'ON HOLD',
+    top: 360, accel: 220, grip: 2.4, len: 156, wid: 50, body: 'limo', colors: ['#141418'], horn: 'ringtone', trail: null,
+    blurb: 'A black stretch limousine trimmed in gold leaf, nine metres long, with a golden gramophone horn rising from the roof, a forest of aerials, a screen in every window and a hands-free phone in every seat. Including the driver\'s. Including the boot.',
+    lore: 'Octavius has never driven it. He has never looked out of it. He has taken eleven thousand calls in it, three of them while it was being built. The horn plays his ringtone, which is also his hold music, which is also the theme of the Phonograph Grand.',
+    stolenLine: 'Mm? …Is that my car? — No, hold. — Brock. BROCK. — Lawyers.',
+  },
+  lasttrick: {
+    name: 'The Last Trick', sig: 'lasttrick', owner: 'npc_morganius', dealer: null, price: 66666, plate: 'ACE UP',
+    top: 330, accel: 240, grip: 2.6, len: 124, wid: 50, body: 'estate', colors: ['#16121c'], horn: 'shuffle', trail: 'cards',
+    blurb: 'A black, glass-sided coach like a Victorian hearse, with purple lamps, silver suits worked into the panels, a spade for a bonnet mascot, a candelabra on the roof that never goes out — and no visible driver. It sheds playing cards as it goes. They are never the same cards twice.',
+    lore: 'Morganius says he won it in a game of cards from a man who had won it in a game of cards. Nobody has ever seen him get in or out of it; it is simply there when he arrives. The horn is a riffle shuffle and a "ta-da".',
+    stolenLine: 'My coach! Oh, my friend. Oh, my dear, dear friend. You have just drawn a VERY bad card.',
+  },
 };
 
 /** Where each one is parked (tile x, y; angle in degrees, 0 = east). */
@@ -74,4 +89,14 @@ export const SIGNATURE_PARKED = [
   { id: 'car_sig_paranoia', model: 'paranoia', map: 'halvermouth', x: 72, y: 56, angle: 0 },
   { id: 'car_sig_landlubber', model: 'landlubber', map: 'yards', x: 58, y: 40, angle: 0 },
   { id: 'car_sig_bigcheese', model: 'bigcheese', map: 'lariat', x: 41, y: 79, angle: 0 },
+].map((p) => ({ ...p, color: SIGNATURE_MODELS[p.model].colors[0], owner: SIGNATURE_MODELS[p.model].owner, plate: SIGNATURE_MODELS[p.model].plate }));
+
+/**
+ * v0.52.0: parked in the grown town (these coordinates are after the v0.47.0 growth, unlike the
+ * list above — the forecourt behind the Phonograph Grand only exists once the town has grown):
+ * the Grand's private forecourt, off the alley behind the tower. src/content/index.js adds them.
+ */
+export const SIGNATURE_PARKED_GROWN = [
+  { id: 'car_sig_longdistance', model: 'longdistance', map: 'halvermouth', x: 100, y: 72, angle: 0 },
+  { id: 'car_sig_lasttrick', model: 'lasttrick', map: 'halvermouth', x: 91, y: 72, angle: 180 },
 ].map((p) => ({ ...p, color: SIGNATURE_MODELS[p.model].colors[0], owner: SIGNATURE_MODELS[p.model].owner, plate: SIGNATURE_MODELS[p.model].plate }));

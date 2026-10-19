@@ -24,10 +24,17 @@
 // kraken (Captain Ober: seawater floods the cobbles, tentacles burst up and
 // slam down, a whirlpool, the kraken's eye opens in it, a great tentacle drags you under),
 // stampede (Farmer Chuckie: dust and a spinning lasso, a stampede thunders
-// through you from both sides, and a giant wheel of cheddar rolls you flat).
+// through you from both sides, and a giant wheel of cheddar rolls you flat),
+// cards (Morganius Spade: a runic circle, a storm of cards whirling round him, volleys of
+// cards flung like knives, and a giant Ace of Spades that turns over and slams down),
+// security (Octavius Thomas Phonograph: gold spotlights, his phones ringing in the air, his
+// security detail tackling you from every side, and his lawyers — eleven of them — closing in
+// behind a blizzard of writs, under a SETTLED stamp).
 import { clamp, lerp } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
+import { drawCard, magicCircle } from './cardMagic.js';
+import { drawPerson } from './drawPeople.js';
 
 const ease = (x) => { const t = clamp(x, 0, 1); return t * t * (3 - 2 * t); };
 const since = (g, w) => g.realTime - w.start;
@@ -1793,7 +1800,233 @@ const STAMPEDE = {
   },
 };
 
-export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS, kraken: KRAKEN, stampede: STAMPEDE };
+// ============================================================== CARDS
+// Morganius Spade: a runic circle opens under him, a storm of cards wheels round him and rolls
+// over to you, volleys of cards fly in like thrown knives and stick in the cobbles, and a giant
+// Ace of Spades comes down out of the dark, turns over, and lands on you.
+const CARDS = {
+  banner: 'THE HOUSE ALWAYS WINS',
+  sky: [40, 10, 60, 6, 2, 16],
+  flash: '230,200,255',
+  ground(I) {
+    const { ctx, e, conv, p, vx, vfeet } = I;
+    magicCircle(ctx, vx, vfeet, 54 * ease((e - 0.2) / 0.8), e, { alpha: 1 - conv * 0.8 });
+    magicCircle(ctx, p.x, p.y, 62 * ease((e - WRATH.converge) / 0.5), -e * 1.3, { alpha: 1 - ease((e - WRATH.fade) / 0.6) });
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv, w } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.4) return;
+    const fade = 1 - ease((e - WRATH.ascend) / 0.4);
+    // the storm: three rings of cards, faces flickering as they turn
+    const R = rng(w.seed + 21);
+    for (let i = 0; i < 54; i++) {
+      const ring = i % 3;
+      const rad = (50 + ring * 26 + R() * 10) * unfold * lerp(1, 0.6, conv);
+      const sp = (ring % 2 ? -1 : 1) * (1.2 + ring * 0.5);
+      const a = R() * Math.PI * 2 + e * sp + e * e * 0.2 * sp;
+      const x = centre.x + Math.cos(a) * rad;
+      const y = centre.y + Math.sin(a) * rad * 0.62 - 10;
+      drawCard(ctx, x, y, 9 + ring * 1.5, a * 2 + e, { card: Math.floor(R() * 52), flip: Math.cos(a * 2 + e * 3), alpha: fade, glow: ring === 1 });
+    }
+  },
+  strike(I, i, age) {
+    const { ctx, p, w } = I;
+    if (age < 0 || age > 1.6) return;
+    // a volley of five cards, thrown from the dark, sticking in the ground around you
+    for (let k = 0; k < 5; k++) {
+      const side = (k + i) % 2 ? 1 : -1;
+      const sx = p.x + side * (180 + hash2(i, k + w.seed) * 120);
+      const sy = p.y - 120 - hash2(k, i) * 80;
+      const tx = p.x + (hash2(w.seed + k, i) - 0.5) * 34;
+      const ty = p.y - 4 - hash2(i, k) * 18;
+      const fly = ease(age / 0.18);
+      const x = lerp(sx, tx, fly);
+      const y = lerp(sy, ty, fly);
+      const ang = Math.atan2(ty - sy, tx - sx);
+      const out = 1 - ease((age - 1.1) / 0.5);
+      drawCard(ctx, x, y, 11, ang + Math.PI / 2, { card: (i * 5 + k) % 52, alpha: out, glow: age < 0.2 });
+      if (age > 0.18 && age < 0.4) {
+        ctx.fillStyle = `rgba(230,200,255,${(1 - (age - 0.18) / 0.22) * 0.8})`;
+        ctx.beginPath(); ctx.arc(tx, ty, 6 + (age - 0.18) * 30, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  },
+  after(I) {
+    const { ctx, e, p } = I;
+    if (e <= WRATH.lightning) return;
+    ctx.fillStyle = `rgba(30,10,40,${0.45 * ease((e - WRATH.lightning) / 0.3) * (1 - ease((e - WRATH.fade) / 0.5))})`;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 34, 11, 0, 0, Math.PI * 2); ctx.fill();
+  },
+  finale(I) {
+    const { ctx, e, p, top, w } = I;
+    if (e < WRATH.ascend - 0.4 || e > WRATH.end) return;
+    const age = e - (WRATH.ascend - 0.4);
+    const out = 1 - ease((e - WRATH.fade - 0.4) / 0.6);
+    // the Ace of Spades comes down, turning over…
+    const fall = ease(age / 0.9);
+    const y = lerp(top - 80, p.y - 40, fall);
+    const flip = Math.cos((1 - fall) * Math.PI * 3);
+    const h = lerp(60, 92, fall);
+    drawCard(ctx, p.x, y, h, (1 - fall) * 0.6, { card: 12 /* A♠ */, flip, alpha: out, glow: true });
+    // …lands, and the deck bursts up out of the ground round it
+    const land = age - 0.9;
+    if (land > 0) {
+      const R = rng(w.seed + 77);
+      for (let i = 0; i < 40; i++) {
+        const a = R() * Math.PI * 2;
+        const sp = 60 + R() * 140;
+        const life = clamp(1 - land / 1.6, 0, 1);
+        drawCard(ctx, p.x + Math.cos(a) * sp * land, p.y - 20 + Math.sin(a) * sp * land * 0.5 - 80 * land + 60 * land * land, 9, a + land * 8, { card: Math.floor(R() * 52), flip: Math.cos(land * 9 + i), alpha: life * out });
+      }
+      if (land < 0.3) {
+        ctx.fillStyle = `rgba(230,200,255,${(1 - land / 0.3) * 0.7})`;
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, 70 * (0.5 + land * 2), 22 * (0.5 + land * 2), 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  },
+};
+
+// ============================================================== SECURITY
+// Octavius Thomas Phonograph: gold spotlights sweep in, his phones ring in the air around him,
+// his security detail comes from every side and puts you on the floor, and then the lawyers —
+// a row of grey suits with briefcases — close in behind a blizzard of writs and one last stamp.
+const GUARD = { skin: '#c48a62', hair: '#141210', hairStyle: 'bald', outfit: '#141418', undershirt: '#f4f2ee', tie: '#141418', legs: '#141418', shoes: '#0e0e12', accessories: ['shades'], build: 'broad', height: 1.08 };
+const LAWYER = { skin: '#e2b294', hair: '#8a8a8a', hairStyle: 'parted', outfit: '#5a5a62', pattern: 'pinstripe', undershirt: '#f4f2ee', tie: '#8a1a22', legs: '#4a4a52', shoes: '#141418', accessory: 'glasses', build: 'thin', holding: 'clipboard' };
+function phoneIcon(ctx, x, y, s, rot, ring, alpha) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot + Math.sin(ring * 40) * 0.12);
+  ctx.globalAlpha *= alpha;
+  ctx.shadowColor = '#e8c35a';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#16161e';
+  rrect(ctx, -s * 0.3, -s * 0.5, s * 0.6, s, s * 0.08); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#6ac8f0';
+  ctx.fillRect(-s * 0.24, -s * 0.42, s * 0.48, s * 0.74);
+  ctx.strokeStyle = 'rgba(232,195,90,0.8)';
+  ctx.lineWidth = 1.5;
+  for (let k = 1; k <= 2; k++) { ctx.beginPath(); ctx.arc(0, 0, s * (0.6 + k * 0.25 + (ring * 2 % 1) * 0.2), -0.6, 0.6); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, s * (0.6 + k * 0.25 + (ring * 2 % 1) * 0.2), Math.PI - 0.6, Math.PI + 0.6); ctx.stroke(); }
+  ctx.restore();
+}
+function writ(ctx, x, y, s, rot, alpha) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = '#f4f0e4';
+  ctx.fillRect(-s * 0.4, -s * 0.5, s * 0.8, s);
+  ctx.fillStyle = 'rgba(40,40,50,0.6)';
+  for (let k = 0; k < 4; k++) ctx.fillRect(-s * 0.3, -s * 0.32 + k * s * 0.16, s * 0.6, 1);
+  ctx.fillStyle = '#c9a24a';
+  ctx.fillRect(-s * 0.3, s * 0.3, s * 0.25, s * 0.1);
+  ctx.restore();
+}
+const SECURITY = {
+  banner: 'SEE YOU IN COURT',
+  sky: [40, 30, 8, 8, 6, 2],
+  flash: '255,240,200',
+  ground(I) {
+    const { ctx, e, conv, p, vx, vfeet } = I;
+    // a gold spotlight on Octavius, then two more cross onto you
+    const k = ease((e - 0.2) / 0.6) * (1 - conv * 0.7);
+    if (k > 0) onGround(ctx, vx, vfeet, () => { ctx.fillStyle = `rgba(255,220,120,${0.35 * k})`; ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.fill(); });
+    const c = ease((e - WRATH.converge + 0.4) / 0.5) * (1 - ease((e - WRATH.fade) / 0.6));
+    if (c > 0) {
+      onGround(ctx, p.x, p.y, () => { ctx.fillStyle = `rgba(255,230,150,${0.4 * c})`; ctx.beginPath(); ctx.arc(0, 0, 52, 0, Math.PI * 2); ctx.fill(); });
+      // red laser dots from the detail's sights
+      for (let i = 0; i < 6; i++) {
+        const a = e * (1 + i * 0.3) + i;
+        ctx.fillStyle = `rgba(255,40,40,${0.9 * c})`;
+        ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 6, p.y - 16 + Math.sin(a * 1.3) * 8, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  },
+  aura(I) {
+    const { ctx, e, centre, unfold, conv } = I;
+    if (unfold <= 0 || e > WRATH.ascend + 0.3) return;
+    const fade = 1 - ease((e - WRATH.ascend) / 0.3);
+    // nine phones, all ringing
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + e * 0.9;
+      const rad = 62 * unfold * lerp(1, 0.6, conv);
+      phoneIcon(ctx, centre.x + Math.cos(a) * rad, centre.y - 6 + Math.sin(a) * rad * 0.6, 13, Math.sin(a) * 0.3, e + i * 0.13, fade);
+    }
+  },
+  strike(I, i, age) {
+    const { ctx, p, g } = I;
+    if (age < 0 || age > 1.5 || I.e > WRATH.ascend + 0.6) return;
+    // a guard sprints in from off-screen and brings you down
+    const side = i % 2 ? 1 : -1;
+    const run = ease(age / 0.3);
+    const x = lerp(p.x + side * 260, p.x + side * 14, run);
+    const y = p.y + (i % 3 - 1) * 6;
+    const out = 1 - ease((age - 1.0) / 0.5);
+    ctx.save();
+    ctx.globalAlpha = out;
+    drawPerson(ctx, GUARD, { x, y, facing: side > 0 ? 'left' : 'right', moving: age < 0.3, animTime: g.realTime });
+    ctx.restore();
+    if (age > 0.28 && age < 0.5) {
+      ctx.fillStyle = `rgba(255,240,200,${(1 - (age - 0.28) / 0.22) * 0.8})`;
+      ctx.beginPath(); ctx.arc(p.x + side * 6, p.y - 14, 8 + (age - 0.28) * 50, 0, Math.PI * 2); ctx.fill();
+    }
+  },
+  after(I) {
+    const { ctx, e, p } = I;
+    if (e <= WRATH.lightning) return;
+    ctx.fillStyle = `rgba(20,16,6,${0.45 * ease((e - WRATH.lightning) / 0.3) * (1 - ease((e - WRATH.fade) / 0.5))})`;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 32, 10, 0, 0, Math.PI * 2); ctx.fill();
+  },
+  finale(I) {
+    const { ctx, e, p, top, w, g } = I;
+    if (e < WRATH.ascend - 0.2 || e > WRATH.end) return;
+    const age = e - (WRATH.ascend - 0.2);
+    const out = 1 - ease((e - WRATH.fade - 0.6) / 0.5);
+    // the lawyers walk in, in a line, and stop behind you
+    for (let i = 0; i < 11; i++) {
+      const k = ease((age - i * 0.06) / 0.8);
+      if (k <= 0) continue;
+      const slot = (i - 5) * 16;
+      ctx.save();
+      ctx.globalAlpha = out;
+      drawPerson(ctx, LAWYER, { x: p.x + slot, y: lerp(p.y - 140, p.y - 30 - Math.abs(i - 5) * 3, k), facing: 'down', moving: k < 1, animTime: g.realTime + i });
+      ctx.restore();
+    }
+    // the writs come down like snow
+    const R = rng(w.seed + 33);
+    for (let i = 0; i < 46; i++) {
+      const delay = R() * 1.0;
+      const t2 = age - 0.3 - delay;
+      if (t2 < 0) continue;
+      const x0 = p.x + (R() - 0.5) * 260;
+      const fallY = lerp(top, p.y + (R() - 0.5) * 30, ease(t2 / 1.2));
+      writ(ctx, x0 + Math.sin(t2 * 3 + i) * 12, fallY, 12, Math.sin(t2 * 2 + i) * 0.8, out);
+    }
+    // and one last stamp
+    const st = age - 1.4;
+    if (st > 0) {
+      const sc = lerp(3, 1, ease(st / 0.15));
+      ctx.save();
+      ctx.translate(p.x, p.y - 30);
+      ctx.rotate(-0.18);
+      ctx.scale(sc, sc);
+      ctx.globalAlpha = Math.min(1, st / 0.1) * out;
+      ctx.strokeStyle = '#c9a24a';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-46, -13, 92, 26);
+      ctx.fillStyle = '#c9a24a';
+      ctx.font = 'bold 18px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SETTLED', 0, 1);
+      ctx.restore();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    }
+  },
+};
+
+export const THEMES = { arcane: ARCANE, oil: OIL, construction: CONSTRUCTION, law: LAW, maths: MATHS, arms: ARMS, kraken: KRAKEN, stampede: STAMPEDE, cards: CARDS, security: SECURITY };
 
 // -------------------------------------------------------------- draw
 export function drawWrath(renderer, g, w) {

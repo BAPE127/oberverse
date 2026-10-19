@@ -45,7 +45,7 @@ export const BUILDING_ICONS = {
   b_market_hall: { icon: '🧺', kind: 'Market' },
   b_diner: { icon: '🍳', kind: 'Diner' },
   b_pawn: { icon: '💍', kind: 'Pawn shop' },
-  b_bar: { icon: '🍺', kind: 'Bar' },
+  b_phonograph: { icon: '🎰', kind: 'Casino resort' },
   b_garage: { icon: '🚗', kind: 'Garage' },
   b_gun_shop: { icon: '🔫', kind: 'Gun shop' },
   b_locksmith: { icon: '🔐', kind: 'Locksmith' },

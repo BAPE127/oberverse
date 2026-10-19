@@ -104,7 +104,14 @@ const buildings = [
   shop('b_market_hall', 'Market Hall', 53, 40, 8, 7, { roof: '#5a7a5a', wall: '#e8dcc0', trim: '#3a4a3a', sign: 'MARKET HALL', flat: false }),
   shop('b_diner', 'Dinah\'s Diner', 41, 52, 6, 7, { roof: '#c0414a', wall: '#f0e8d8', trim: '#8a2a32', sign: 'DINAH\'S', awning: '#c0414a' }),
   shop('b_pawn', 'Golden Hock Pawn & Loan', 48, 52, 6, 7, { roof: '#6a5a3a', wall: '#d8c89a', trim: '#4a3a1e', sign: 'PAWN & LOAN' }),
-  shop('b_bar', 'The Lucky Star', 55, 52, 6, 7, { roof: '#3a2a4a', wall: '#6a5a7a', trim: '#2a1a3a', sign: 'LUCKY STAR', label: 'The Lucky Star (bar)' }),
+  // v0.52.0: the Lucky Star bar's site, rebuilt as Octavius Thomas Phonograph's casino resort (the bar
+  // lives on as its lobby lounge): 42 storeys over the back alley; open all hours (src/content/casino.js)
+  {
+    id: 'b_phonograph', name: 'The Phonograph Grand', mapLabel: 'The Phonograph Grand (casino)', x: 55, y: 48, w: 6, h: 11,
+    tower: 42, resort: true, roof: '#1e1a24', wall: '#1e1a24', trim: '#c9a24a', glass: '#e8c86a', flatRoof: true,
+    sign: 'THE PHONOGRAPH GRAND', awning: '#8a1a22', marquee: true,
+    door: { x: 58, y: 58, to: { map: 'phonograph_lobby', spot: 'entry' } },
+  },
   // Iron Row
   shop('b_garage', 'Iron Row Garage', 66, 39, 10, 7, { roof: '#5a5e66', wall: '#9a9ea6', trim: '#3a3e46', sign: 'GARAGE' }),
   {
@@ -191,7 +198,7 @@ P('flagpole', 101, 15, { color: '#1e2a3f', examine: 'A navy pennant with a gold 
 P('sign', 110, 21, { examine: '"BEAUMONT MOTOR GALLERY — Est. in the age of carriages. By appointment, or by sufficient means."' });
 for (const x of [90, 94]) P('car', x, 18, { color: '#1e1e22', examine: 'A black limousine with a chauffeur asleep at the wheel. Grand Hotel guests only.' });
 // Market Street and Iron Row
-for (let x = 54; x < 61; x += 2) P('booth', x, 48, { examine: 'A market stall: fish, flowers, and "genuine" Ober\'s Oil shares at a discount.' });
+for (let x = 46; x < 53; x += 2) P('booth', x, 48, { examine: 'A market stall: fish, flowers, and "genuine" Ober\'s Oil shares at a discount.' });
 P('dumpster', 42, 49); P('dumpster', 66, 48, { color: '#5a5a4a' }); P('dumpster', 80, 49);
 P('crate', 70, 48); P('crate', 71, 48); P('barrel', 75, 48);
 P('sign', 72, 59, { examine: '"ROOK & RIFLE FIREARMS — Licensed dealer. Hunting · Sport · Self-defence. Licence required for all sales. Ammunition sold separately. Common sense not included."' });

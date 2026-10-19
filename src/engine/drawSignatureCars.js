@@ -493,6 +493,152 @@ const DRAW = {
       ctx.beginPath(); ctx.arc(L * 0.4, -3, 2, 0, Math.PI * 2); ctx.arc(L * 0.4, 3, 2, 0, Math.PI * 2); ctx.fill();
     }];
   },
+  // v0.52.0 — Octavius Thomas Phonograph: nine metres of black and gold, a gramophone horn on the roof,
+  // aerials, a screen in every window
+  longdistance(ctx, m, L, W, o) {
+    const t = o.time || 0;
+    return [() => {
+      shadow(ctx, L, W, 10);
+      wheels(ctx, L, W, [-0.36, -0.2, 0.34], o, 15, 8, '#101014');
+      // the body: gloss black, a gold pinstripe all the way round
+      const body = ctx.createLinearGradient(0, -W / 2, 0, W / 2);
+      body.addColorStop(0, '#3a3a44'); body.addColorStop(0.3, '#16161c'); body.addColorStop(1, '#08080a');
+      ctx.fillStyle = body;
+      rrect(ctx, -L / 2, -W / 2, L, W, 10); ctx.fill();
+      ctx.strokeStyle = '#d9b24a';
+      ctx.lineWidth = 1.5;
+      rrect(ctx, -L / 2 + 3, -W / 2 + 3, L - 6, W - 6, 8); ctx.stroke();
+      // gold bumpers and a grille
+      ctx.fillStyle = '#e8c35a';
+      ctx.fillRect(L / 2 - 4, -W / 2 + 6, 4, W - 12);
+      ctx.fillRect(-L / 2, -W / 2 + 8, 3, W - 16);
+      ctx.fillStyle = '#a8862a';
+      for (let k = -W / 2 + 9; k < W / 2 - 9; k += 3) ctx.fillRect(L / 2 - 3, k, 2, 1);
+      lights(ctx, L, W, o, 5);
+    }, () => {
+      // the long roof with a row of lit screens for windows
+      ctx.fillStyle = '#1e1e26';
+      rrect(ctx, -L * 0.36, -W / 2 + 6, L * 0.62, W - 12, 6); ctx.fill();
+      for (let k = 0; k < 6; k++) {
+        const x = -L * 0.33 + k * L * 0.095;
+        const glow = 0.55 + 0.45 * Math.sin(t * 2 + k);
+        ctx.fillStyle = `rgba(106,200,240,${glow.toFixed(2)})`;
+        ctx.fillRect(x, -W / 2 + 7, L * 0.07, 3);
+        ctx.fillRect(x, W / 2 - 10, L * 0.07, 3);
+      }
+      // the windscreen
+      ctx.fillStyle = '#4a6a80';
+      ctx.fillRect(L * 0.22, -W / 2 + 8, 6, W - 16);
+      // the gramophone horn: a golden bell on a stem, turning slowly
+      const hx = -L * 0.08;
+      ctx.fillStyle = '#8a6a1a';
+      ctx.fillRect(hx - 2, -2, 4, 4);
+      ctx.save();
+      ctx.translate(hx, 0);
+      ctx.rotate(Math.sin(t * 0.7) * 0.4);
+      const bell = ctx.createRadialGradient(10, 0, 2, 12, 0, 18);
+      bell.addColorStop(0, '#fff0a0'); bell.addColorStop(0.5, '#e8c35a'); bell.addColorStop(1, '#8a6a1a');
+      ctx.fillStyle = bell;
+      ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(14, -14); ctx.quadraticCurveTo(22, 0, 14, 14); ctx.lineTo(0, 2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#3a2a0a';
+      ctx.beginPath(); ctx.ellipse(16, 0, 3, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      // a forest of aerials, blinking
+      ctx.strokeStyle = '#c9c9d0';
+      ctx.lineWidth = 1;
+      for (const [ax, ay, hh] of [[-0.3, -0.3, 10], [-0.26, 0.28, 14], [0.12, -0.32, 8], [0.16, 0.3, 12], [-0.34, 0, 16]]) {
+        ctx.beginPath(); ctx.moveTo(ax * L, ay * W); ctx.lineTo(ax * L - hh * 0.3, ay * W - hh * 0.6); ctx.stroke();
+        if (Math.sin(t * 5 + ax * 20) > 0.6) { ctx.fillStyle = '#ff4a4a'; ctx.fillRect(ax * L - hh * 0.3 - 1, ay * W - hh * 0.6 - 1, 2, 2); }
+      }
+      // the ringtone, visible: when the horn sounds, rings of gold spread from the bell
+      if ((o.hornAge ?? 99) < 1) {
+        const k = o.hornAge;
+        ctx.strokeStyle = `rgba(232,195,90,${(1 - k).toFixed(2)})`;
+        ctx.lineWidth = 2;
+        for (let r = 0; r < 3; r++) { ctx.beginPath(); ctx.arc(hx + 18, 0, 8 + k * 40 + r * 8, -0.7, 0.7); ctx.stroke(); }
+      }
+    }];
+  },
+  // v0.52.0 — Morganius Spade: a black glass-sided coach, purple lamps, silver suits on the panels, a
+  // spade on the bonnet, a candelabra on the roof that never goes out, and nobody at the reins
+  lasttrick(ctx, m, L, W, o) {
+    const t = o.time || 0;
+    return [() => {
+      shadow(ctx, L, W, 6);
+      // big carriage wheels with silver spokes, turning
+      for (const sx of [-0.3, 0.3]) for (const sy of [-1, 1]) {
+        ctx.save();
+        ctx.translate(sx * L, sy * (W / 2 + 1));
+        ctx.rotate(sx > 0 ? (o.wheel || 0) * 0.5 : 0);
+        ctx.fillStyle = '#0c0a10';
+        rrect(ctx, -11, -4, 22, 8, 3); ctx.fill();
+        ctx.fillStyle = '#9a9aa8';
+        const spin = (o.odo || 0) * 0.08;
+        for (let k = 0; k < 4; k++) ctx.fillRect(-10 + ((k * 5 + spin * 3) % 20), -3, 1, 6);
+        ctx.restore();
+      }
+      ctx.fillStyle = '#16121c';
+      rrect(ctx, -L / 2, -W / 2 + 2, L, W - 4, 4); ctx.fill();
+      ctx.strokeStyle = '#8a8a98';
+      ctx.lineWidth = 1;
+      rrect(ctx, -L / 2 + 2, -W / 2 + 4, L - 4, W - 8, 3); ctx.stroke();
+      // the suits along the sides, in silver
+      ctx.fillStyle = '#b8b8c4';
+      ctx.font = '8px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ['♠', '♥', '♦', '♣'].forEach((ch, k) => { ctx.fillText(ch, -L * 0.3 + k * L * 0.18, -W / 2 + 6); ctx.fillText(ch, -L * 0.3 + k * L * 0.18, W / 2 - 6); });
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      // purple coach lamps
+      const lamp = 0.7 + 0.3 * Math.sin(t * 3);
+      ctx.fillStyle = `rgba(176,90,240,${lamp.toFixed(2)})`;
+      ctx.fillRect(L / 2 - 6, -W / 2 + 2, 4, 5); ctx.fillRect(L / 2 - 6, W / 2 - 7, 4, 5);
+      ctx.fillStyle = o.braking ? '#ff3a2a' : '#6a1a2a';
+      ctx.fillRect(-L / 2, -W / 2 + 6, 3, 5); ctx.fillRect(-L / 2, W / 2 - 11, 3, 5);
+    }, () => {
+      // the glass sides: a velvet-lined compartment with a single card floating in it
+      ctx.fillStyle = '#2a1e3a';
+      rrect(ctx, -L * 0.34, -W / 2 + 7, L * 0.56, W - 14, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(176,90,240,0.25)';
+      ctx.fillRect(-L * 0.32, -W / 2 + 8, L * 0.52, W - 16);
+      ctx.save();
+      ctx.translate(-L * 0.06, Math.sin(t * 2) * 2);
+      ctx.rotate(Math.sin(t) * 0.3);
+      ctx.fillStyle = '#f4f0e6';
+      ctx.fillRect(-3, -4, 6, 8);
+      ctx.fillStyle = '#1b1a24';
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
+      // the black canopy, its fringe, and the candelabra on top
+      ctx.strokeStyle = '#0a080e';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-L * 0.34, -W / 2 + 7, L * 0.56, W - 14);
+      ctx.fillStyle = '#c9c9d0';
+      ctx.fillRect(-L * 0.1 - 1, -6, 2, 12);
+      ctx.fillRect(-L * 0.1 - 5, -1, 10, 2);
+      for (const dy of [-6, 0, 6]) {
+        ctx.fillStyle = '#f0e8d0';
+        ctx.fillRect(-L * 0.1 - 1, dy - 3, 2, 3);
+        ctx.fillStyle = `rgba(255,${180 + Math.floor(Math.sin(t * 9 + dy) * 40)},90,0.95)`;
+        ctx.fillRect(-L * 0.1 - 1, dy - 5 + Math.sin(t * 11 + dy) * 0.6, 2, 2);
+      }
+      // the driver's box: empty, the reins hanging in the air
+      ctx.fillStyle = '#0c0a10';
+      ctx.fillRect(L * 0.24, -W / 2 + 9, 10, W - 18);
+      ctx.strokeStyle = '#6a5a3a';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(L * 0.3, -5); ctx.quadraticCurveTo(L * 0.4, -3 + Math.sin(t * 3) * 2, L * 0.46, -6); ctx.moveTo(L * 0.3, 5); ctx.quadraticCurveTo(L * 0.4, 3 + Math.sin(t * 3) * 2, L * 0.46, 6); ctx.stroke();
+      // the spade on the bonnet
+      ctx.fillStyle = '#d0d0dc';
+      ctx.font = '12px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('♠', L * 0.45, 0);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    }];
+  },
 };
 
 /** Draw a signature car centred on (x, y), nose along `angle`. */
@@ -547,6 +693,19 @@ export function drawTrail(ctx, list, mapId, now) {
         ctx.fillStyle = '#f2c440';
         ctx.beginPath(); ctx.moveTo(p.x, p.y - 3); ctx.lineTo(p.x + 3, p.y + 2); ctx.lineTo(p.x - 3, p.y + 2); ctx.closePath(); ctx.fill();
         break;
+      case 'cards': {
+        // v0.52.0: the Last Trick sheds playing cards, fluttering, face up and face down
+        ctx.save();
+        ctx.translate(p.x + Math.sin(age * 4 + p.r * 9) * 3, p.y - age * 3);
+        ctx.rotate(p.r * 6 + age * 3);
+        ctx.scale(Math.max(0.1, Math.abs(Math.cos(age * 7 + p.r * 5))), 1);
+        ctx.fillStyle = p.r > 0.5 ? '#f6f2e8' : '#4a1e6a';
+        ctx.fillRect(-2.5, -3.5, 5, 7);
+        ctx.fillStyle = p.r > 0.5 ? (p.r > 0.75 ? '#c8242c' : '#1b1a24') : '#d9b24a';
+        ctx.fillRect(-0.75, -1, 1.5, 2);
+        ctx.restore();
+        break;
+      }
       default:
         break;
     }

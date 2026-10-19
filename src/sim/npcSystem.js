@@ -21,7 +21,7 @@ const TILES_PER_GAME_MINUTE = WALK_SPEED / TILE; // at clock rate 1
 const CHAT_RANGE_TILES = 5;
 
 /** Intents set by other systems (police dispatch, deal meetings, gang hunts) that the schedule must not override. */
-const HELD_INTENTS = ['dispatch', 'deal', 'hunt', 'staff', 'dairy']; // dairy: a lead cow loose or on your rope (v0.29.0)
+const HELD_INTENTS = ['dispatch', 'deal', 'hunt', 'staff', 'dairy', 'casino']; // casino: Morganius at your table (v0.52.0) // dairy: a lead cow loose or on your rope (v0.29.0)
 
 export class NpcSystem {
   constructor(game) {

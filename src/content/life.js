@@ -31,6 +31,7 @@ export const OCCUPATIONS = {
   casual: { name: 'Casual worker / unemployed', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   scientist: { name: 'Scientist', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   livestock: { name: 'Livestock', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
+  entertainer: { name: 'Entertainer', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.52.0
   inmate: { name: 'Inmate', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
 };
 
@@ -81,6 +82,16 @@ export const RESIDENCES = {
   // Lariat
   res_chuckie_ranch: { name: 'Chuckie\'s ranch house', type: 'farmhouse', units: { house: { map: 'chuckie_house', beds: ['bed'], capacity: 1 } } },
   res_hollister: { name: 'The Hollister farmhouse', type: 'farmhouse', units: { house: { map: 'hollister_house', beds: ['bed'], capacity: 1 } } },
+  // v0.52.0: the Phonograph Grand — the owner's penthouse and the magician's rooms at the top of the
+  // tower (an estate: they live where they work), and the staff quarters on 3
+  res_phonograph: {
+    name: 'The Phonograph Grand (residences)', type: 'estate',
+    units: {
+      penthouse: { map: 'phonograph_octavius', beds: ['bed'], capacity: 1 },
+      spade_rooms: { map: 'phonograph_spade', beds: ['bed'], capacity: 1 },
+    },
+  },
+  res_phonograph_staff: { name: 'The Phonograph Grand — staff quarters', type: 'dormitory', units: { bunks: { map: 'phonograph_staff', beds: ['bed_1', 'bed_2', 'bed_3', 'bed_4', 'bed_5', 'bed_6'], capacity: 6, shared: true } } },
   res_bluebonnet: {
     name: 'Bluebonnet Boarding House', type: 'rooming_house',
     units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
@@ -126,6 +137,10 @@ export const LIFE = {
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
+  npc_octavius: { home: 'res_phonograph/penthouse', occupation: 'executive' },
+  npc_morganius: { home: 'res_phonograph/spade_rooms', occupation: 'entertainer' },
+  npc_vera: { home: 'res_phonograph_staff/bunks', occupation: 'clerk', transport: 'walk' },
+  npc_brock: { home: 'res_phonograph_staff/bunks', occupation: 'security' },
 };
 
 /** Characters who don't need a home, and why. Exceptions must be justified; ordinary residents never go here. */

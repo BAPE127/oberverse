@@ -14,6 +14,7 @@ import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
 import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js';
 import { inWindow } from '../world/clock.js';
+import { floatLift, drawFloatShadow, HOST_FX, hostState, runEffects, EFFECTS } from './cardMagic.js';
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 const CONFETTI = ['#ff5a8a', '#f2e05a', '#5ad0f2', '#8aff6a', '#c08aff'];
@@ -438,6 +439,11 @@ export class Renderer {
         const nw = nwi ? (this.pixel ? lookOf(nwi) : nwi.weapon?.held) : null;
         const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
         const lift = g.combat.wrath?.npcId === npc.id ? wrathLift(g, g.combat.wrath) : 0;
+        if (npc.profile.float && !lift) {
+          // v0.52.0: Morganius floats — a bob over a glow on the floor, a glide instead of a walk, his cards about him
+          items.push({ y: npc.y + L.y, draw: at(() => this.drawFloater(npc, app)) });
+          continue;
+        }
         items.push({ y: npc.y + L.y, draw: at(() => this.drawActor(app, lift ? { ...npc, y: npc.y - lift, moving: false } : npc, npc.activity === 'sleep')) });
       }
       // cars (src/systems/vehicles.js)
@@ -714,6 +720,8 @@ export class Renderer {
       case 'chalk': ctx.rotate(a); R(-6, 0, 4, 1, 'rgba(240,240,232,0.5)'); R(-2, -1, 3, 2, '#f0f0e8'); break;
       case 'ray': ctx.rotate(a); R(-24, -1, 26, 2, 'rgba(90,255,138,0.45)'); R(-10, -1, 12, 2, '#5aff8a'); R(0, -1, 2, 2, '#e0ffe8'); break;
       case 'harpoon': ctx.rotate(a); R(-30, 0, 24, 1, '#8a6a3a'); R(-6, -1, 10, 2, '#c9ced4'); R(4, -2, 2, 4, '#c9ced4'); R(6, -1, 1, 2, '#c9ced4'); break;
+      case 'card': ctx.rotate(t * 30); R(-2, -3, 4, 6, '#f6f2e8'); R(-2, -3, 4, 1, '#ffffff'); R(-1, -1, 2, 2, Math.floor(t * 7) % 2 ? '#c8242c' : '#1b1a24'); break; // v0.52.0
+      case 'ring': for (let k = 0; k < 3; k++) { ctx.strokeStyle = `rgba(232,195,90,${0.9 - k * 0.25})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-Math.cos(a) * k * 6, -Math.sin(a) * k * 6, 4 + k * 2, a - 1, a + 1); ctx.stroke(); } break; // v0.52.0: hold music
       case 'confetti': for (let k = 0; k < 4; k++) R(Math.round(Math.cos(k * 1.7 + t * 9) * 3), Math.round(Math.sin(k * 2.3 + t * 9) * 3), 1, 1, CONFETTI[k]); break;
       default: ctx.restore(); return false;
     }
@@ -832,6 +840,28 @@ export class Renderer {
     const out = [];
     for (const npc of this.game.npcs.values()) if (npc.map === mapId && npc.riding == null && !npc.dead && !isDown(npc, this.game.clock.total)) out.push(npc);
     return out;
+  }
+
+  /** A floating person (profile.float): the shadow on the floor, the figure in the air, the card magic. */
+  drawFloater(npc, app) {
+    const ctx = this.ctx;
+    const t = this.time;
+    const sleeping = npc.activity === 'sleep';
+    const h = sleeping ? 4 : floatLift(npc, t);
+    drawFloatShadow(ctx, npc.x, npc.y, h, t);
+    // a trail of cards while he glides (kept here: it's only for the eye)
+    const trails = (this.floatTrails ||= new Map());
+    let hist = trails.get(npc.id);
+    if (!hist) trails.set(npc.id, (hist = []));
+    const last = hist[hist.length - 1];
+    if (npc.moving && (!last || Math.hypot(last.x - npc.x, last.y - npc.y) > 7)) hist.push({ x: npc.x, y: npc.y - h - 8, t });
+    while (hist.length && t - hist[0].t > 1.2) hist.shift();
+    if (hist.length) EFFECTS.trail(ctx, { hist, now: t, h: 3.4 });
+    this.drawActor(app, { ...npc, y: npc.y - h, moving: false }, sleeping);
+    if (!sleeping && !isDown(npc, this.game.clock.total)) {
+      const st = hostState(npc, this.game.realTime);
+      runEffects(ctx, HOST_FX[st.state](npc.x, npc.y - h, st.s, t), t);
+    }
   }
 
   drawActor(appearance, actor, sleeping) {

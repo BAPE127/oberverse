@@ -234,6 +234,8 @@ export const SFX = {
     if (k === 'theremin') { tone(ctx, d, { type: 'sine', f0: 520, f1: 980, t, dur: 0.35, vol: 0.12 }); tone(ctx, d, { type: 'sine', f0: 980, f1: 470, t: t + 0.35, dur: 0.5, vol: 0.12 }); return; }
     if (k === 'foghorn') { tone(ctx, d, { type: 'sawtooth', f0: 98, t, dur: 1.2, vol: 0.18, attack: 0.08 }); tone(ctx, d, { type: 'sine', f0: 196, t, dur: 1.2, vol: 0.12, attack: 0.08 }); return; }
     if (k === 'moo') { tone(ctx, d, { type: 'sawtooth', f0: 150, f1: 110, t, dur: 0.9, vol: 0.14, attack: 0.1 }); tone(ctx, d, { type: 'sine', f0: 300, f1: 210, t, dur: 0.9, vol: 0.06, attack: 0.1 }); return; }
+    if (k === 'shuffle') { for (let i = 0; i < 14; i++) noise(ctx, d, { t: t + i * 0.022, dur: 0.012, vol: 0.18, freq: 4200, q: 6 }); [62, 65, 69, 74].forEach((m, i) => tone(ctx, d, { type: 'triangle', f0: hz(m), t: t + 0.34 + i * 0.05, dur: 0.5, vol: 0.07 })); return; } // a riffle shuffle and a ta-da (v0.52.0)
+    if (k === 'ringtone') { [76, 71, 76, 71, 80, 78].forEach((m, i) => tone(ctx, d, { type: 'sine', f0: hz(m), t: t + i * 0.1, dur: 0.09, vol: 0.1 })); return; } // "Please Hold" (v0.52.0)
     // another driver's horn (o.quiet): softer and shorter than yours
     for (const f of [392, 494]) tone(ctx, d, { type: 'square', f0: f, t, dur: o?.quiet ? 0.25 : 0.45, vol: o?.quiet ? 0.05 : 0.12, attack: 0.01 });
   },
@@ -420,6 +422,28 @@ function wrathTheme(ctx, dest, theme = 'arcane') {
     tone(ctx, bus, { type: 'sine', f0: 60, f1: 45, t: t0 + 5.0, dur: 1.1, vol: 0.18 });
     timp(ctx, bus, t0 + 6.1, 0.6, 33);
     noise(ctx, bus, { t: t0 + 6.1, dur: 0.8, vol: 0.25, type: 'lowpass', freq: 400, f1: 100 });
+  } else if (theme === 'cards') {
+    // a riffle shuffle under the banner, Morganius's "Sleight of Hand" on a clarinet, cards whistling in
+    // like knives through the strikes, and the Ace landing like a coffin lid
+    for (let i = 0; i < 26; i++) noise(ctx, bus, { t: t0 + 0.4 + i * 0.024, dur: 0.012, vol: 0.16, freq: 4200, q: 6 });
+    [[62, 0], [65, 0.14], [69, 0.28], [68, 0.42], [69, 0.56], [72, 0.84], [71, 0.98], [70, 1.12], [69, 1.26], [65, 1.4], [64, 1.54], [61, 1.68], [62, 1.82]].forEach(([m, dt]) => tone(ctx, bus, { type: 'triangle', f0: hz(m), t: t0 + 1.0 + dt, dur: 0.16, vol: 0.06, attack: 0.03 }));
+    for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) noise(ctx, bus, { t: t0 + 3.4 + [0, 0.22, 0.46, 0.85, 1.3][i] + k * 0.03, dur: 0.07, vol: 0.12, type: 'bandpass', freq: 2400 + k * 500, f1: 900, q: 3 });
+    tone(ctx, bus, { type: 'sine', f0: 80, f1: 40, t: t0 + 5.5, dur: 0.6, vol: 0.35 });
+    noise(ctx, bus, { t: t0 + 5.5, dur: 0.4, vol: 0.3, type: 'lowpass', freq: 700 });
+    for (let i = 0; i < 30; i++) noise(ctx, bus, { t: t0 + 5.6 + Math.random() * 1.2, dur: 0.012, vol: 0.08, freq: 3800, q: 6 });
+  } else if (theme === 'security') {
+    // nine phones ringing at once, earpiece static, running footsteps into the tackles, and a gavel-dry
+    // stamp for the settlement
+    for (let i = 0; i < 9; i++) [76, 71, 76, 71].forEach((m, j) => tone(ctx, bus, { type: 'sine', f0: hz(m + (i % 3)), t: t0 + 0.9 + i * 0.17 + j * 0.08, dur: 0.07, vol: 0.035 }));
+    noise(ctx, bus, { t: t0 + 2.6, dur: 0.4, vol: 0.12, type: 'bandpass', freq: 2000, q: 1 });
+    for (let i = 0; i < 5; i++) {
+      const s0 = t0 + [3.4, 3.62, 3.86, 4.25, 4.7][i];
+      for (let k = 0; k < 4; k++) noise(ctx, bus, { t: s0 - 0.3 + k * 0.07, dur: 0.04, vol: 0.12, type: 'lowpass', freq: 500 });
+      tone(ctx, bus, { type: 'sine', f0: 90, f1: 50, t: s0, dur: 0.25, vol: 0.3 });
+    }
+    for (let i = 0; i < 22; i++) noise(ctx, bus, { t: t0 + 5.3 + Math.random() * 1.0, dur: 0.05, vol: 0.06, type: 'highpass', freq: 3000 }); // paper
+    tone(ctx, bus, { type: 'sine', f0: 140, f1: 60, t: t0 + 6.4, dur: 0.2, vol: 0.4, attack: 0.001 });
+    noise(ctx, bus, { t: t0 + 6.4, dur: 0.06, vol: 0.4, type: 'lowpass', freq: 1500 });
   } else if (theme === 'maths') {
     // furious keypad clatter through the roll, Arthur's motif as calculator beeps, an ERROR buzz, a glitchy finale
     for (let i = 0; i < 40; i++) noise(ctx, bus, { t: t0 + 0.3 + i * 0.07 + Math.random() * 0.03, dur: 0.015, vol: 0.1, freq: 3000 + Math.random() * 1500, q: 8 });

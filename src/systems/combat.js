@@ -654,7 +654,7 @@ export class Combat {
 
   /** A bullet you can see, from (x, y) along d for `len` px. `hurts`: an NPC's shot that can hit the player. */
   spawnBullet(x, y, d, len, opts = {}) {
-    const slow = { pigeon: 700, fish: 900, cheese: 650, harpoon: 1100, confetti: 900, coin: 1300 }[opts.kind];
+    const slow = { pigeon: 700, fish: 900, cheese: 650, harpoon: 1100, confetti: 900, coin: 1300, card: 1200, ring: 800 }[opts.kind];
     this.bullets.push({ map: this.game.player.map, x, y, dx: d.x, dy: d.y, left: len, speed: opts.speed || slow || 1700, kind: opts.kind || null, hurts: opts.hurts || null, born: this.game.realTime });
     if (this.bullets.length > 80) this.bullets.shift();
   }

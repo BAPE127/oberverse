@@ -10,6 +10,7 @@
 // shadows first, on the ground, under everybody.
 import { hash2 } from '../core/rng.js';
 import { lightState, walkSignal } from '../world/lights.js';
+import { EFFECTS } from './cardMagic.js';
 
 const INK = '#1b1a24';
 const SHADOW_RGB = '16,14,36';
@@ -963,6 +964,291 @@ const PAINTERS = {
       for (const x of [2, w - 5]) { R(x, -14, 3, 40, post[1]); R(x, -14, 1, 40, post[2]); }
       for (let x = 4; x < w - 4; x++) R(x, Math.round(-12 + Math.sin(((x - 4) / (w - 8)) * Math.PI) * 6), 1, 1, '#d8d0c0'); // the line
     },
+  },  // ---------------------------------------------------------------- v0.52.0: the Phonograph Grand
+  roulette_table: {
+    box: (p) => [-2, -6, W(p) + 2, H(p) + 2], shadow: [4, 5],
+    paint(k, p) {
+      const { R, P, ell } = k;
+      const w = W(p);
+      const hh = H(p);
+      const felt = ramp(p.color || '#1e6a3a');
+      const wood = ramp('#5a2e1e');
+      // the table: a wood rim round green baize, legs below
+      R(0, 0, w, hh - 6, wood[2]); R(0, 0, w, 1, wood[4]); R(0, hh - 7, w, 1, wood[0]);
+      R(3, 3, w - 6, hh - 12, felt[2]); R(3, 3, w - 6, 1, felt[3]);
+      R(4, hh - 6, 3, 5, wood[0]); R(w - 7, hh - 6, 3, 5, wood[0]);
+      // the wheel, sunk into the left end: a wooden bowl, a ring of red and black pockets, a gold turret
+      const cx = 26;
+      const cy = (hh - 6) / 2;
+      ell(cx, cy, 23, 22, wood[1]); ell(cx, cy, 21, 20, wood[3]);
+      for (let a = 0; a < 37; a++) {
+        const t0 = (a / 37) * Math.PI * 2;
+        const col = a === 0 ? '#1e8a3a' : a % 2 ? '#b8202a' : '#16141c';
+        for (let r = 13; r < 18; r++) P(Math.round(cx + Math.cos(t0) * r), Math.round(cy + Math.sin(t0) * r * 0.95), col);
+      }
+      ell(cx, cy, 12, 11, '#6a3a22'); ell(cx, cy, 9, 8, '#8a5a32');
+      for (let a = 0; a < 4; a++) { const t0 = a * Math.PI / 2 + 0.4; R(Math.round(cx + Math.cos(t0) * 6), Math.round(cy + Math.sin(t0) * 6), 2, 2, '#e8c35a'); }
+      ell(cx, cy, 3, 3, '#e8c35a'); P(cx - 1, cy - 1, '#fff0a0');
+      P(cx + 15, cy - 4, '#f8f8f0'); // the ball
+      // the layout: zero, three rows of twelve, the outside bets beneath
+      const lx = 54;
+      const lw = w - lx - 8;
+      const cw = Math.max(2, Math.floor(lw / 13));
+      const top = 6;
+      const ch = Math.max(3, Math.floor((hh - 22) / 4));
+      R(lx, top, cw, ch * 3, '#1e8a3a');
+      const RED = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+      for (let c = 0; c < 12; c++) for (let r = 0; r < 3; r++) {
+        const n = c * 3 + (3 - r);
+        R(lx + cw * (c + 1), top + r * ch, cw - 1, ch - 1, RED.includes(n) ? '#b8202a' : '#16141c');
+      }
+      for (let c = 0; c < 3; c++) { R(lx + cw * (1 + c * 4), top + ch * 3 + 1, cw * 4 - 1, ch - 1, felt[1]); R(lx + cw * (1 + c * 4) + 2, top + ch * 3 + 2, cw * 4 - 5, 1, '#e8e2d0'); }
+      R(lx, top - 1, cw * 13, 1, '#e8e2d0'); R(lx, top + ch * 3, cw * 13, 1, '#e8e2d0');
+      // chips on the layout
+      for (const [x, y, c] of [[lx + cw * 4, top + 2, '#e8c35a'], [lx + cw * 8, top + ch + 2, '#3a6ad8'], [lx + cw * 2, top + ch * 3 + 2, '#d83a3a']]) { R(x, y, 4, 3, c); R(x, y, 4, 1, '#ffffff'); }
+    },
+  },
+  blackjack_table: {
+    box: (p) => [-2, -4, W(p) + 2, H(p) + 2], shadow: [4, 5],
+    paint(k, p) {
+      const { R, P, ell } = k;
+      const w = W(p);
+      const hh = H(p);
+      const felt = ramp(p.color || '#1e6a3a');
+      const wood = ramp('#4a2418');
+      // a half-moon: flat edge at the back (the dealer's side), the curve towards the players
+      const cx = w / 2;
+      for (let y = 0; y < hh - 6; y++) {
+        const t = y / (hh - 7);
+        const half = (w / 2) * Math.sqrt(Math.max(0, 1 - Math.max(0, t - 0.35) ** 2 / 0.4225));
+        R(Math.round(cx - half), y, Math.round(half * 2), 1, y < 3 ? wood[3] : wood[2]);
+        const inner = Math.max(0, half - 4);
+        if (y > 2 && y < hh - 10) R(Math.round(cx - inner), y, Math.round(inner * 2), 1, felt[2]);
+      }
+      R(cx - 18, 3, 36, 1, felt[3]);
+      // the printed arc and three betting circles
+      for (let a = 0; a <= 30; a++) { const t0 = Math.PI * (0.15 + 0.7 * (a / 30)); P(Math.round(cx + Math.cos(t0) * (w * 0.32)), Math.round(4 + Math.sin(t0) * (hh * 0.42)), '#e8c35a'); }
+      for (const dx of [-0.3, 0, 0.3]) { const bx = Math.round(cx + dx * w); const by = Math.round(hh * (dx === 0 ? 0.68 : 0.55)); for (let a = 0; a < 16; a++) P(Math.round(bx + Math.cos(a / 16 * Math.PI * 2) * 4), Math.round(by + Math.sin(a / 16 * Math.PI * 2) * 3), '#e8e2d0'); }
+      // the chip tray and the shoe on the dealer's side
+      R(cx - 16, 1, 32, 5, '#2a1a12'); for (let i = 0; i < 7; i++) R(cx - 15 + i * 4.5, 2, 3, 3, ['#e8c35a', '#d83a3a', '#3a6ad8', '#1e1e24', '#e8e2d0', '#3aa84a', '#a84ad8'][i]);
+      R(w - 20, 4, 9, 7, '#3a2a1e'); R(w - 20, 4, 9, 1, '#5a4a3a'); R(w - 18, 5, 5, 2, '#f6f2e8');
+      ell(cx, hh - 4, 3, 2, wood[0]); R(Math.round(cx - w * 0.3), hh - 6, 3, 5, wood[0]); R(Math.round(cx + w * 0.3) - 3, hh - 6, 3, 5, wood[0]);
+    },
+  },
+  poker_table: {
+    box: (p) => [-2, -4, W(p) + 2, H(p) + 2], shadow: [5, 6],
+    paint(k, p) {
+      const { R, ell } = k;
+      const w = W(p);
+      const hh = H(p);
+      const felt = ramp(p.color || '#1e6a3a');
+      const cx = w / 2;
+      const cy = (hh - 6) / 2;
+      // a stadium-shaped table: a padded black rail, a wood trim, the felt
+      ell(cx, cy, w / 2, (hh - 6) / 2, '#16141a');
+      ell(cx, cy - 1, w / 2 - 2, (hh - 6) / 2 - 2, '#2a2630');
+      ell(cx, cy, w / 2 - 6, (hh - 6) / 2 - 6, '#6a3a22');
+      ell(cx, cy, w / 2 - 8, (hh - 6) / 2 - 8, felt[2]);
+      ell(cx - 4, cy - 4, w / 2 - 20, (hh - 6) / 2 - 18, felt[3]);
+      // five card places down the middle, the pot, the dealer button
+      for (let i = 0; i < 5; i++) { R(cx - 26 + i * 11, cy - 6, 8, 11, felt[1]); R(cx - 26 + i * 11, cy - 6, 8, 1, felt[0]); }
+      for (const [x, y, c] of [[cx - 6, cy + 8, '#e8c35a'], [cx, cy + 9, '#d83a3a'], [cx + 5, cy + 8, '#3a6ad8']]) { R(x, y, 5, 4, c); R(x, y, 5, 1, '#ffffff'); }
+      R(cx + 22, cy + 10, 5, 4, '#f6f2e8'); R(cx + 23, cy + 11, 3, 1, '#1b1a24');
+      R(cx - w / 2 + 12, hh - 6, 3, 5, '#0e0c10'); R(cx + w / 2 - 15, hh - 6, 3, 5, '#0e0c10');
+    },
+  },
+  spade_table: {
+    box: (p) => [-2, -4, W(p) + 2, H(p) + 2], shadow: [4, 5],
+    paint(k, p) {
+      const { R, ell, P } = k;
+      const w = W(p);
+      const hh = H(p);
+      const felt = ramp('#4a1e6a');
+      const wood = ramp('#1e1620');
+      R(0, 0, w, hh - 6, wood[2]); R(0, 0, w, 1, '#c9a24a'); R(0, hh - 7, w, 1, '#c9a24a');
+      R(3, 3, w - 6, hh - 12, felt[2]); R(3, 3, w - 6, 1, felt[3]);
+      // the gold spade inlaid in the felt, and a deck that shuffles itself
+      const cx = w / 2;
+      const cy = (hh - 6) / 2;
+      ell(cx, cy - 2, 6, 5, '#c9a24a'); ell(cx - 4, cy + 1, 4, 3, '#c9a24a'); ell(cx + 4, cy + 1, 4, 3, '#c9a24a');
+      R(cx - 1, cy + 2, 2, 6, '#c9a24a'); R(cx - 3, cy + 7, 6, 1, '#c9a24a'); P(cx - 2, cy - 4, '#fff0a0');
+      R(w - 22, 6, 8, 11, '#f6f2e8'); R(w - 21, 5, 8, 11, '#4a1e6a'); R(w - 20, 6, 6, 9, '#7a3aa8'); R(w - 18, 9, 2, 3, '#c9a24a');
+      R(4, hh - 6, 3, 5, wood[0]); R(w - 7, hh - 6, 3, 5, wood[0]);
+    },
+  },
+  cashier_cage: {
+    box: (p) => [-1, -26, W(p) + 1, H(p) + 2], shadow: [3, 4], night: true,
+    paint(k, p, v, o) {
+      const { R } = k;
+      const w = W(p);
+      const hh = H(p);
+      const wood = ramp('#3a1e14');
+      // the counter
+      R(0, 6, w, hh - 7, wood[1]); R(0, 6, w, 1, wood[0]); R(0, 0, w, 7, wood[3]); R(0, 0, w, 1, wood[4]);
+      for (let x = 6; x + 14 <= w - 2; x += 18) { R(x, 10, 14, hh - 14, wood[2]); R(x, 10, 14, 1, wood[3]); }
+      // brass bars up to a cornice, a window every two tiles, green-shaded lamps
+      R(0, -26, w, 4, '#2a1a12'); R(0, -26, w, 1, '#c9a24a'); R(0, -23, w, 1, '#8a6a1a');
+      for (let x = 2; x < w; x += 4) R(x, -22, 1, 22, '#c9a24a');
+      for (let x = 16; x < w - 16; x += 64) {
+        R(x, -18, 32, 18, '#1a1612'); R(x + 1, -17, 30, 16, o.night ? '#d8b860' : '#c8a850'); R(x + 1, -17, 30, 3, '#f0d890');
+        R(x + 4, -2, 24, 3, '#f4f0e6'); // the slot under the window
+        R(x + 13, -24, 6, 3, '#2a7a4a'); R(x + 13, -24, 6, 1, '#4aa06a');
+      }
+      // chips stacked behind the glass
+      for (let i = 0; i < 8; i++) R(8 + i * Math.floor((w - 16) / 8), 2, 4, 3, ['#e8c35a', '#d83a3a', '#3a6ad8', '#1e1e24'][i % 4]);
+    },
+  },
+  slot_machine: {
+    box: () => [2, -24, 30, 33], shadow: [3, 4], night: true, variants: 3,
+    paint(k, p, v, o) {
+      const { R } = k;
+      const body = ramp(['#a81e2a', '#2a3a8a', '#7a2a8a'][v]);
+      R(5, -22, 22, 50, body[2]); R(5, -22, 3, 50, body[3]); R(24, -22, 3, 50, body[1]); R(5, -22, 22, 2, body[4]);
+      R(5, -22, 22, 6, '#c9a24a'); R(7, -21, 18, 4, o.night ? '#fff0a0' : '#e8c35a'); // the lit top
+      R(8, -12, 16, 12, '#141418'); for (let i = 0; i < 3; i++) { R(9 + i * 5, -11, 4, 10, '#f6f2e8'); R(10 + i * 5, -7, 2, 2, ['#d83a3a', '#e8c35a', '#3a6ad8'][(i + v) % 3]); }
+      R(8, 3, 16, 3, '#2a2630'); R(13, 4, 6, 1, '#c9a24a'); // the coin tray
+      R(27, -14, 2, 12, '#9a9aa8'); R(26, -17, 4, 4, '#d83a3a'); R(26, -17, 2, 2, '#ff8a8a'); // the lever
+      R(5, 24, 22, 3, body[0]);
+    },
+  },
+  velvet_rope: {
+    box: (p) => [-1, -14, W(p) + 1, H(p) + 1], shadow: [3, 3],
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      for (const x of [4, w - 8]) { R(x, -10, 4, 34, '#c9a24a'); R(x, -10, 1, 34, '#fff0a0'); R(x - 2, -12, 8, 3, '#e8c35a'); R(x - 3, 22, 10, 4, '#8a6a1a'); }
+      for (let x = 8; x < w - 8; x++) { const sag = Math.round(Math.sin(((x - 8) / (w - 16)) * Math.PI) * 8); R(x, -6 + sag, 1, 3, '#a81e2a'); R(x, -6 + sag, 1, 1, '#d8505a'); }
+    },
+  },
+  pillar: {
+    box: () => [-2, -44, 34, 33], shadow: [8, 5],
+    paint(k) {
+      const { R, cyl } = k;
+      const m = ramp('#e8e0d4');
+      R(0, 22, 32, 8, '#c9a24a'); R(0, 22, 32, 1, '#fff0a0'); R(0, 29, 32, 1, '#8a6a1a');
+      cyl(5, -36, 22, 58, m);
+      for (let x = 8; x < 26; x += 4) R(x, -34, 1, 54, m[1]); // the fluting
+      R(1, -42, 30, 7, '#c9a24a'); R(1, -42, 30, 1, '#fff0a0'); R(3, -36, 26, 1, '#8a6a1a');
+    },
+  },
+  magic_circle: {
+    box: (p) => [0, 0, W(p), H(p)],
+    paint(k, p) {
+      const { P } = k;
+      const w = W(p);
+      const hh = H(p);
+      const cx = w / 2;
+      const cy = hh / 2;
+      const ring = (rx, ry, c, n) => { for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; P(Math.round(cx + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), c); } };
+      ring(w / 2 - 4, hh / 2 - 4, '#c9c3d4', 600); ring(w / 2 - 5, hh / 2 - 5, '#8a6aa8', 600);
+      ring(w / 2 - 14, hh / 2 - 12, '#c9c3d4', 480);
+      // a five-pointed star and tick marks like letters round the rim
+      for (let i = 0; i < 5; i++) {
+        const a0 = -Math.PI / 2 + (i * 4 * Math.PI) / 5;
+        const a1 = -Math.PI / 2 + ((i + 1) * 4 * Math.PI) / 5;
+        for (let s = 0; s <= 60; s++) { const t = s / 60; P(Math.round(cx + (Math.cos(a0) * (1 - t) + Math.cos(a1) * t) * (w / 2 - 14)), Math.round(cy + (Math.sin(a0) * (1 - t) + Math.sin(a1) * t) * (hh / 2 - 12)), '#a88ac8'); }
+      }
+      for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; const x = Math.round(cx + Math.cos(a) * (w / 2 - 9)); const y = Math.round(cy + Math.sin(a) * (hh / 2 - 8)); P(x, y, '#e8c35a'); if (i % 3 === 0) P(x + 1, y, '#e8c35a'); }
+    },
+  },
+  floating_cards: {
+    box: () => [-6, -26, 38, 31], shadow: [0, 0],
+    paint(k) {
+      const { R } = k;
+      for (const [x, y, face] of [[4, -18, 1], [14, -22, 0], [22, -14, 1], [10, -8, 0]]) { R(x, y, 7, 10, face ? '#f6f2e8' : '#4a1e6a'); R(x + 2, y + 3, 3, 3, face ? '#c8242c' : '#c9a24a'); }
+    },
+  },
+  crystal_ball: {
+    box: () => [2, -16, 30, 31], shadow: [3, 3],
+    paint(k) {
+      const { R, ball } = k;
+      R(9, 14, 14, 12, '#3a2a1e'); R(7, 24, 18, 4, '#2a1e14'); R(9, 14, 14, 1, '#c9a24a');
+      for (const x of [8, 22]) R(x, 8, 2, 8, '#c9a24a');
+      ball(16, 2, 11, 11, ['#3a1e5a', '#5a3a8a', '#8a6ac0', '#c0a8e8', '#f0e8ff']);
+      R(11, -4, 3, 2, '#ffffff');
+    },
+  },
+  candelabra: {
+    box: () => [4, -24, 28, 31], shadow: [4, 4], night: true,
+    paint(k, p, v, o) {
+      const { R } = k;
+      R(14, -6, 4, 32, '#9a9aa8'); R(14, -6, 1, 32, '#d8d8e0'); R(10, 24, 12, 4, '#6a6a78');
+      R(6, -8, 20, 2, '#9a9aa8');
+      for (const x of [6, 14, 22]) { R(x, -16, 4, 8, '#f0e8d0'); R(x + 1, -21, 2, 4, o.night ? '#ffd24a' : '#ffb84a'); R(x + 1, -19, 2, 1, '#fff6c0'); }
+    },
+  },
+  piano: {
+    box: (p) => [-1, -10, W(p) + 1, H(p) + 2], shadow: [5, 6],
+    paint(k, p) {
+      const { R, ell } = k;
+      const w = W(p);
+      const hh = H(p);
+      const c = ramp(p.color || '#f2efe8');
+      // a grand from above: the curved body, the lid propped open, the keyboard along the front
+      ell(w * 0.55, hh * 0.42, w * 0.44, hh * 0.4, c[1]);
+      ell(w * 0.53, hh * 0.4, w * 0.42, hh * 0.38, c[3]);
+      R(4, hh * 0.45, w - 8, hh * 0.3, c[3]);
+      R(w * 0.2, -8, w * 0.6, hh * 0.45, c[4]); R(w * 0.2, -8, w * 0.6, 1, '#ffffff'); R(w * 0.48, -8, 2, hh * 0.45 + 8, c[1]); // the lid
+      R(4, hh - 18, w - 8, 9, '#141418');
+      for (let x = 6; x < w - 6; x += 3) R(x, hh - 17, 2, 7, '#f8f6f0');
+      for (let x = 7; x < w - 8; x += 7) R(x, hh - 17, 2, 4, '#141418');
+      R(8, hh - 8, 3, 7, c[0]); R(w - 11, hh - 8, 3, 7, c[0]);
+    },
+  },
+  phone_dock: {
+    box: () => [0, 2, 32, 31], shadow: [2, 3], night: true,
+    paint(k, p, v, o) {
+      const { R } = k;
+      R(2, 10, 28, 18, '#8a6a1a'); R(2, 10, 28, 2, '#e8c35a'); R(2, 26, 28, 2, '#5a4a12');
+      for (let i = 0; i < 9; i++) { const x = 4 + (i % 3) * 9; const y = 4 + Math.floor(i / 3) * 7; R(x, y, 6, 9, '#16161e'); R(x + 1, y + 1, 4, 6, i === 4 || o.night ? '#6ac8f0' : '#2a3a4a'); }
+    },
+  },
+  monitor_wall: {
+    box: (p) => [0, -20, W(p), H(p)], shadow: [0, 0], night: true,
+    paint(k, p) {
+      const { R } = k;
+      const w = W(p);
+      R(0, -18, w, 40, '#16161c');
+      for (let x = 2; x < w - 10; x += 16) for (let y = -16; y < 18; y += 12) {
+        R(x, y, 14, 10, '#0a0a10');
+        R(x + 1, y + 1, 12, 8, (x + y) % 3 ? '#2a5a4a' : '#3a4a6a');
+        R(x + 2, y + 6, 6, 1, '#6ac8a0'); R(x + 9, y + 2, 2, 2, '#e8c35a');
+        if ((x * 3 + y) % 7 === 0) { R(x + 1, y + 1, 12, 8, '#d8d8e0'); R(x + 3, y + 3, 7, 4, '#a0a0b0'); }
+      }
+    },
+  },
+  luggage_cart: {
+    box: () => [0, -22, 32, 32], shadow: [4, 4],
+    paint(k) {
+      const { R } = k;
+      for (const x of [3, 27]) R(x, -20, 2, 46, '#c9a24a');
+      R(3, -20, 26, 2, '#e8c35a'); R(3, 20, 26, 3, '#8a6a1a');
+      R(6, 4, 20, 16, '#4a2a1a'); R(6, 4, 20, 1, '#6a4a2a'); R(15, 3, 3, 2, '#c9a24a');
+      R(8, -8, 16, 12, '#2a4a3a'); R(8, -8, 16, 1, '#4a6a5a'); R(14, -9, 3, 2, '#c9a24a');
+      R(11, -18, 10, 9, '#d8d2c0'); for (let x = 12; x < 21; x += 2) R(x, -18, 1, 9, '#8a8a8a'); R(14, -15, 3, 3, '#4aa04a'); // the parrot in its cage
+      R(4, 26, 4, 4, '#1a1a1e'); R(24, 26, 4, 4, '#1a1a1e');
+    },
+  },
+  marquee_pylon: {
+    box: () => [-4, -70, 36, 33], shadow: [10, 6], night: true,
+    paint(k, p, v, o) {
+      const { R } = k;
+      R(10, -10, 12, 40, '#1e1a24'); R(10, -10, 2, 40, '#3a3440'); R(6, 26, 20, 5, '#c9a24a');
+      R(-2, -68, 36, 60, '#1e1a24'); R(-2, -68, 36, 2, '#c9a24a'); R(-2, -10, 36, 2, '#c9a24a');
+      for (let y = -64; y < -12; y += 4) for (let x = 0; x < 32; x += 4) if (y === -64 || y === -16 || x === 0 || x === 28) R(x + 1, y + 1, 2, 2, o.night ? '#fff0a0' : '#c9a24a');
+      R(6, -56, 20, 34, '#4a1a28'); R(9, -50, 14, 2, '#e8c35a'); R(9, -44, 14, 2, '#e8c35a'); R(11, -38, 10, 2, '#e8c35a'); R(13, -30, 6, 4, '#e8c35a');
+    },
+  },
+  valet_stand: {
+    box: () => [4, -16, 28, 31], shadow: [3, 3],
+    paint(k) {
+      const { R } = k;
+      R(8, -12, 16, 34, '#2a1a12'); R(8, -12, 16, 2, '#c9a24a'); R(8, -12, 2, 34, '#4a3020');
+      R(6, -14, 20, 4, '#3a2418'); R(6, -14, 20, 1, '#5a3a28');
+      R(11, -4, 10, 6, '#f4f0e6'); R(12, -2, 8, 1, '#4a1a28');
+      for (let i = 0; i < 4; i++) R(11 + i * 3, 6, 1, 4, '#c9a24a');
+      R(6, 22, 20, 4, '#1a1012');
+    },
   },
 };
 
@@ -1057,6 +1343,7 @@ export function drawPropSprite(ctx, p, opts = {}) {
   if (p.type === 'busstop' || p.type === 'gatepost' || p.type === 'statue' || p.type === 'watertower') label(ctx, p);
   if (p.type === 'windmill') wheel(ctx, p, opts.time || 0);
   if (p.type === 'laundry') washing(ctx, p, opts.time || 0);
+  if (p.type === 'floating_cards') EFFECTS.spiral(ctx, { x: p.x * T + 16, y: p.y * T + 6, height: 34, r: 10, n: 9, h: 6, speed: 0.35 }, opts.time || 0); // v0.52.0
   return true;
 }
 

@@ -57,13 +57,21 @@ export class Vehicles {
     const g = this.game;
     if (!g.world.vehicles) g.world.vehicles = freshVehicles(g.content);
     const s = g.world.vehicles;
-    // v0.34.0: older saves gain the signature cars (once each — a stolen one stays stolen)
-    if (!s.sigAdded) {
-      s.sigAdded = [];
-      for (const p of this.cfg.parked) if (this.cfg.models[p.model]?.sig && !s.cars[p.id]) s.cars[p.id] = parkedCar(p);
-      for (const p of this.cfg.parked) if (this.cfg.models[p.model]?.sig) s.sigAdded.push(p.id);
+    // v0.34.0: older saves gain the signature cars (once each — a stolen one stays stolen);
+    // v0.52.0: and any signature car added since the save was made
+    if (!s.sigAdded) s.sigAdded = [];
+    if (s.sigAdded.length < this.sigCount) {
+      for (const p of this.cfg.parked) {
+        if (!this.cfg.models[p.model]?.sig || s.sigAdded.includes(p.id)) continue;
+        if (!s.cars[p.id]) s.cars[p.id] = parkedCar(p);
+        s.sigAdded.push(p.id);
+      }
     }
     return s;
+  }
+
+  get sigCount() {
+    return (this._sigCount ??= this.cfg.parked.filter((p) => this.cfg.models[p.model]?.sig).length);
   }
 
   model(car) {

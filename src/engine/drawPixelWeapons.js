@@ -43,10 +43,15 @@ const S = {
   tinfoil: [[-2, -3, 9, 4, '#c9ced4'], [-2, -3, 9, 1, '#ffffff'], [0, -2, 1, 1, '#9aa0a8'], [3, -1, 1, 1, '#9aa0a8'], [7, -4, 3, 6, '#9aa0a8'], [10, -2, 4, 2, '#c9ced4'], [14, -3, 2, 4, '#5aff8a'], [2, -7, 1, 4, '#c9ced4'], [1, -8, 3, 2, '#ff5a5a'], [0, 1, 2, 3, '#9aa0a8']],
   harpoon: [[-5, -3, 6, 5, '#8a5a34'], [-5, -3, 6, 1, '#a87448'], [1, -4, 10, 6, '#c9a24a'], [1, -4, 10, 1, '#f0d070'], [11, -3, 2, 4, '#c9a24a'], [13, -2, 8, 2, '#c9ced4'], [21, -3, 2, 4, '#c9ced4'], [23, -2, 1, 2, '#c9ced4'], [4, 2, 2, 2, DARK]],
   cheddar: [[-4, -2, 5, 3, WOOD], [1, -6, 9, 9, '#f2c14e'], [1, -6, 9, 1, '#ffe08a'], [3, -4, 2, 2, '#c8902a'], [6, -2, 2, 2, '#c8902a'], [3, 0, 1, 1, '#c8902a'], [10, -3, 6, 3, STEEL], [10, -3, 6, 1, HI], [2, 3, 2, 2, DARK]],
+  // v0.52.0: Morganius's card shoe (a fan of cards rising out of it) and Octavius's gold phone
+  deadmanshand: [[-2, -2, 9, 4, '#4a1e6a'], [-2, -2, 9, 1, '#7a3aa8'], [-2, 1, 9, 1, GOLD], [7, -3, 2, 6, GOLD], [5, -7, 3, 5, '#f6f2e8'], [8, -8, 3, 5, '#f6f2e8'], [11, -7, 3, 5, '#f6f2e8'], [6, -6, 1, 1, '#c8242c'], [9, -7, 1, 1, '#14141e'], [12, -6, 1, 1, '#c8242c'], [0, 2, 2, 3, DARK]],
+  goldphone: [[-1, -4, 6, 9, GOLD], [-1, -4, 6, 1, GOLD_HI], [0, -3, 4, 6, '#6ac8f0'], [0, -3, 4, 1, '#c8f0ff'], [1, 4, 2, 1, '#8a6a1a'], [5, -3, 1, 2, GOLD_HI], [6, -2, 2, 1, GOLD_HI]],
+  // ---- not weapons: things people carry (v0.52.0)
+  phone: [[-1, -2, 7, 4, '#16161e'], [0, -2, 5, 3, '#6ac8f0'], [0, -2, 5, 1, '#c8f0ff'], [2, 0, 1, 1, '#16161e'], [5, -1, 1, 2, '#c9a24a']],
 };
 // the old `held` names still work
 const ALIAS = { pistol: 'pistol', longgun: 'rifle', club: 'bat', blade: 'machete', axe: 'fireaxe', knuckles: 'knuckles' };
-const GUNS = new Set(['revolver', 'pistol', 'shotgun', 'rifle', 'smg', 'ar', 'sniper', 'lmg', 'rpg', 'confetti', 'pigeon', 'mackerel', 'goldenhandshake', 'nailgun', 'pythagorean', 'tinfoil', 'harpoon', 'cheddar', 'longgun']);
+const GUNS = new Set(['revolver', 'pistol', 'shotgun', 'rifle', 'smg', 'ar', 'sniper', 'lmg', 'rpg', 'confetti', 'pigeon', 'mackerel', 'goldenhandshake', 'nailgun', 'pythagorean', 'tinfoil', 'harpoon', 'cheddar', 'longgun', 'deadmanshand', 'goldphone']);
 
 export const weaponLooks = () => Object.keys(S);
 export const isGunLook = (look) => GUNS.has(look);

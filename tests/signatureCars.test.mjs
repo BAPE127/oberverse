@@ -47,13 +47,13 @@ test('every imported character has exactly one signature car, parked clear of wa
 
 test('an older save gains the signature cars once; a stolen one is not put back', () => {
   const g = fresh();
-  assert.equal(sigCars(g).length, 7);
+  assert.equal(sigCars(g).length, 9);
   const s = JSON.parse(JSON.stringify(g.serialize()));
   for (const id of Object.keys(s.world.vehicles.cars)) if (id.startsWith('car_sig_')) delete s.world.vehicles.cars[id];
   delete s.world.vehicles.sigAdded;
   const g2 = new Game(CONTENT, { seed: 2 });
   g2.loadState(s);
-  assert.equal(sigCars(g2).length, 7);
+  assert.equal(sigCars(g2).length, 9);
   const cheese = steal(g2, 'car_sig_bigcheese');
   g2.vehicles.exit();
   delete g2.world.vehicles.cars[cheese.id]; // gone (say, scrapped)

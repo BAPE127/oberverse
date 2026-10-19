@@ -122,6 +122,30 @@ function paint(R0, a, f, fr, part, o) {
     if (a.apron && !up) { const ap = ramp(a.apron === true ? '#f2efe6' : a.apron); R(-half + 1, top + 3, tw - 2, tb - top - 1, ap[2]); R(-half + 1, top + 3, tw - 2, 1, ap[3]); R(half - 2, top + 3, 1, tb - top - 1, ap[1]); R(-1, top + 1, 2, 2, ap[2]); }
     if (acc.has('vest') && !up) { const v = ramp(a.vestColor || '#f2a33a'); R(-half, top, 2, tb - top - 1, v[2]); R(half - 2, top, 2, tb - top - 1, v[1]); R(-half, top + 4, tw, 1, '#f2efe6'); }
     if ((acc.has('chain') || acc.has('watchchain')) && down) { R(1, top + 4, 1, 1, '#e8c35a'); R(2, top + 5, 1, 1, '#e8c35a'); R(3, top + 4, 1, 1, '#e8c35a'); }
+    if (a.robe) {
+      // v0.52.0: a long robe over the legs, flaring to the floor, its hem and front stitched with runes
+      const rc = ramp(a.outfit || '#2c2c34');
+      const trim = a.accent || '#a04ae0';
+      for (let y = tb - 1; y < -1; y++) {
+        const k = y - (tb - 1);
+        const w2 = half + 1 + (k >> 1);
+        R(-w2, y, w2 * 2, 1, rc[2]);
+        R(-w2, y, 2, 1, side && dir < 0 ? rc[1] : rc[3]);
+        R(w2 - 2, y, 2, 1, side && dir < 0 ? rc[3] : rc[1]);
+        if (!side && (k === 2 || k === 4)) { R(-w2 + 3, y, 1, 1, rc[1]); R(w2 - 4, y, 1, 1, rc[1]); }
+      }
+      const hw = half + 1 + ((-2 - (tb - 1)) >> 1);
+      R(-hw, -2, hw * 2, 1, rc[0]);
+      for (let x = -hw + 1; x < hw - 1; x += 3) R(x, -3, 1, 1, trim);
+      if (down) { for (let y = top + 4; y < -2; y += 2) R(0, y, 1, 1, '#c9a24a'); R(-1, top + 4, 1, tb - top - 4, rc[1]); }
+      if (!up) { R(-half - 1, top - 2, 2, 4, rc[1]); R(half - 1, top - 2, 2, 4, rc[0]); R(-half - 1, top - 2, 1, 2, rc[3]); } // the high collar
+    }
+    if (acc.has('amulet') && down) {
+      // a gold amulet with a purple gem
+      R(-2, top, 1, 3, '#c9a24a'); R(1, top, 1, 3, '#c9a24a');
+      R(-2, top + 3, 4, 3, '#c9a24a'); R(-1, top + 3, 2, 1, '#f0d070');
+      R(-1, top + 4, 2, 1, a.accent || '#a04ae0'); R(0, top + 4, 1, 1, '#e8c8ff');
+    }
     if (acc.has('scarf') && !up) { const sc = ramp(a.accent || '#f2c14e'); R(-half, top - 1, tw, 2, sc[2]); R(-half, top - 1, tw, 1, sc[3]); if (down) R(1, top + 1, 2, 3, sc[1]); }
     // --- arms in front
     if (side) arm(dir * 1 - (dir > 0 ? 0 : 1) + armSwing, 0, false);
@@ -145,7 +169,7 @@ function paint(R0, a, f, fr, part, o) {
     }
   });
   R(-2, hy + 12, 4, 1, skin[1]); // the neck
-  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat'].includes(style) || a.hat;
+  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat', 'wizard'].includes(style) || a.hat;
   // --- the face
   if (!up) {
     const ey = hy + 6;
@@ -230,6 +254,30 @@ function paint(R0, a, f, fr, part, o) {
     if (!up) { if (side) R(dir > 0 ? 4 : -9, hy + 2, 5, 1, style === 'captain' ? '#1e2a3a' : c[0]); else R(-6, hy + 3, 12, 1, style === 'captain' ? '#1e2a3a' : c[0]); }
     if (style === 'captain' && !up) { R(-1, hy, 2, 2, '#c9a24a'); R(-5, hy + 2, 10, 1, '#1e2a3a'); }
   }
+  if (style === 'wizard') {
+    // v0.52.0: a tall pointed hat, embroidered in silver, the tip bent over (Morganius Spade)
+    const c = hc;
+    const band = a.hatBand || '#a8a8a0';
+    R(-9, hy + 2, 18, 2, c[1]); R(-9, hy + 2, 18, 1, c[2]); R(-8, hy + 3, 3, 1, c[0]); R(5, hy + 3, 3, 1, c[0]);
+    const lean = side ? -dir : 1;
+    for (let i = 0; i < 11; i++) {
+      const y = hy + 1 - i;
+      const w = Math.max(2, 12 - i);
+      const off = i > 7 ? (i - 7) * lean : 0;
+      const x0 = -Math.floor(w / 2) + off;
+      R(x0, y, w, 1, c[2]);
+      R(x0, y, Math.max(1, Math.floor(w / 4)), 1, c[3]);
+      R(x0 + w - Math.max(1, Math.floor(w / 4)), y, Math.max(1, Math.floor(w / 4)), 1, c[1]);
+    }
+    R(4 * lean + (lean > 0 ? 0 : -1), hy - 10, 2, 1, c[1]); R(5 * lean + (lean > 0 ? 0 : -1), hy - 9, 1, 1, c[0]);
+    R(-6, hy, 12, 2, c[1]); R(-6, hy, 12, 1, band); // the band
+    if (!up) {
+      // the embroidery: a silver arch and a diamond
+      R(-3, hy - 3, 1, 1, band); R(-2, hy - 4, 1, 1, band); R(-1, hy - 5, 2, 1, band); R(1, hy - 4, 1, 1, band); R(2, hy - 3, 1, 1, band);
+      R(0, hy - 2, 1, 1, band); R(-1, hy - 1, 1, 1, c[4]); R(1, hy - 1, 1, 1, c[4]);
+      R(-1, hy - 7, 1, 1, band); R(1, hy - 6, 1, 1, band);
+    }
+  }
   if (style === 'hardhat') {
     const c = ramp('#f2c14e');
     R(-7, hy + 3, 14, 1, c[1]); R(-6, hy - 1, 12, 4, c[2]); R(-6, hy - 1, 4, 1, c[4]); R(-5, hy, 3, 2, c[3]); R(-1, hy - 1, 2, 4, c[1]);
@@ -242,7 +290,7 @@ const cache = new Map();
 const canMake = () => typeof document !== 'undefined';
 const BOX = { x: -16, y: -40, w: 32, h: 42 };
 
-const lookKey = (a) => [a.height, a.skin, a.hair, a.hairStyle, a.outfit, a.sleeves, a.legs, a.shoes, a.tie, a.undershirt, a.accessory, (a.accessories || []).join('+'), a.apron, a.overalls, a.beard, a.moustache, a.moustacheColor, a.build, a.hatColor, a.hatBand, a.hat, a.accent, a.pattern, a.patternColor, a.vestColor, a.coat].join('|');
+const lookKey = (a) => [a.height, a.skin, a.hair, a.hairStyle, a.outfit, a.sleeves, a.legs, a.shoes, a.tie, a.undershirt, a.accessory, (a.accessories || []).join('+'), a.apron, a.overalls, a.beard, a.moustache, a.moustacheColor, a.build, a.hatColor, a.hatBand, a.hat, a.accent, a.pattern, a.patternColor, a.vestColor, a.coat, a.robe].join('|');
 
 function sprite(a, f, fr, part, o) {
   const key = `${lookKey(a)}#${f}${fr}${part}${o.sleeping ? 's' : ''}${o.angry ? 'a' : ''}`;
