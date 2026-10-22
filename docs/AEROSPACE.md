@@ -1,12 +1,12 @@
-# Aerospace — Starling Flats Aerospace Park (v0.55.0)
+# Aerospace — Starling Flats Aerospace Park (v0.55.0–v0.56.0)
 
 The aerospace industry, built in stages (owner's brief, "OBERVERSE MASTER DEVELOPMENT PROMPT — Aerospace Manufacturing, Defense Contracts, Rocket Launches, Satellite Networks, and Integrated Shipping"). Owner's answers to the questions asked before building: a **new region east** of the Ober Fields; the player gets in by **buying a failing firm**; **staged releases**; and every NPC — new ones and everybody who used to share a dorm, bunk room, staff corridor or shack — gets **a home of their own**.
 
 | Stage | Version | What |
 | --- | --- | --- |
 | I | **v0.55.0** | Homes; the region, campus, runway and launch complex; the people; the shared engine (catalogue, tenders and bids, contracts, pipelines, materials and purchase orders, books); Meridian (operating and listed as MRDN); Roost Aeroworks for sale; the aerospace terminal |
-| II | v0.56.0 | Facility upgrades on the map (new halls and bays drawn where they're built), workforce and quality management, product configuration, reputation events |
-| III | v0.57.0 | Procurement through **Ober & Sons Maritime**: internal shipping jobs on the existing voyage system, internal rates (0–5% of the market freight), intercompany accounting, the supply-chain savings view |
+| II | **v0.56.0** | Procurement through **Ober & Sons Maritime**: internal shipping jobs on the existing voyage system, internal rates (0–5% of the market freight), intercompany accounting, the supply-chain savings view |
+| III | v0.57.0 | Facility upgrades on the map (new halls and bays drawn where they're built), workforce and quality management, product configuration, reputation events |
 | IV | v0.58.0 | Finished aircraft taxi and take off on the runway (scripted, from the persistent aircraft entities); launches on the pad with the countdown and the ascent; the secure convoy |
 | V | v0.59.0 | Satellite services: roles, networks, recurring revenue, lifecycles; research tree polish; events and achievements; full financial reports |
 
@@ -40,13 +40,25 @@ Rules are pure modules in `src/aero/` (`catalog.js`, `pipeline.js`, `tenders.js`
 - **Contracts and units**: one persistent unit per item, linked to its contract. Late delivery costs 4% a day (up to 40%) and reputation; cancelling forfeits the deposit and costs 10%.
 - **Pipelines** (`PIPELINES`): aircraft 13 stages, rockets 15, strategic products 9 (secure convoy — never the pad), satellites 15. A unit takes a bay only when the next stage's materials are in hand (nobody holds a bay waiting for parts); materials are reserved per unit and consumed per stage; inspections fail by quality (rolled once at creation and kept), costing rework days; aircraft go to the apron (limited slots) and leave when the customer's crew arrives; rockets go to the pad (one at a time, two days to refurbish), launch (outcome rolled once), deploy; satellites ride a launcher the company builds at cost (bin-packed by mass and lift), integrate on the pad, launch, commission, then join the satellite registry.
 - **Materials and suppliers**: 20 materials (Ober's Oil sells fuel, propellant and chemicals — every lot is barrels the refinery sells); 11 suppliers, local or overseas, with finite stock shared by both companies. Landed cost = goods + duty + freight + handling; foreign goods come by an independent carrier (rates by value and distance over the real sea lanes) to Mill Road Docks, then up the Cut by truck; a supplier's reliability decides a late shipment once, at order time. Materials are usable only once received.
-- **Books** (`src/aero/books.js`): revenue on delivery (deposits deferred), materials an asset until consumed and delivered, wages/upkeep/overhead each morning, research, rework, launch costs, penalties, interest; an intercompany account ready for internal shipping (excluded from consolidated figures).
+- **Books** (`src/aero/books.js`): revenue on delivery (deposits deferred), materials an asset until consumed and delivered, wages/upkeep/overhead each morning, research, rework, launch costs, penalties, interest; internal freight (`cogs_freight_internal`) and the intercompany account, both excluded from consolidated figures; losses at sea (`losses`).
 - **Meridian's management** (`src/aero/rival.js`): crews its bays, bids what it can deliver at cost plus a markup that rises with load, orders materials for everything in hand from the cheapest supplier, researches out of profits, builds a bay of its busiest type when cash-rich.
 - **MRDN** (`src/aero/valuation.js`): fair value = equity + P/E × normalised daily earnings (before research; half trailing month, half order book) + half the backlog's margin, per share; the price moves 12% of the way to fair value each day, ±2% mood. Buy and sell on the tablet's Stocks app (1% fee, at most 5% of the company); dividends on Moondays from the week's positive earnings.
 
+## Materials in your own ships (v0.56.0)
+
+Own **Ober & Sons Maritime** as well as Roost Aeroworks and your foreign materials can come in your own ships instead of by Dunmere Parcel Post. Meridian never can (it's not your shipping line); local suppliers still truck. Numbers: `INTERNAL` in `src/content/aerospace.js`.
+
+- **Modes** (Supply tab): *in your own ships* (default once you own both) or *by carrier*; and when no ship is free, *fall back to a carrier after 24 h* (default) or *wait for a ship*. A manual order shows both landed costs and offers **Order (carrier)** / **Order (own ship)**; automatic ordering compares suppliers on the cost and time your own ship would actually give (`bestSupplier`).
+- **Consignments** (`state.jobs`, `SJn`): every internal purchase order joins the open consignment from its supplier's port to Mill Road Docks (up to the biggest hold you own). Materials are paid for (goods and duty, at full price) when ordered — the freight is what changes.
+- **Dispatch** (every 15 game minutes): a docked cargo ship that is free (no contract, no cargo, not in a convoy) and big enough is reserved for the consignment (its hold gets a reserved aerospace cargo, so the logistics terminal can't offer it a contract). If it's elsewhere it **sails there empty** — a real voyage, running costs and port fees paid by the line. When every order in the consignment is ready at the supplier's port, it **loads and sails** (`logistics.loadAero`): a real voyage on the sea lanes, with its pre-rolled delays and its piracy risk (aerospace cargo is attractive: ×1.25). No ship ever teleports and nothing arrives before the ship docks; then the trucks up the Cut (3 h) and it's in stores.
+- **The internal charge**: when it loads, the aerospace division pays the shipping line **1%** of what the carrier would have charged on a route your fleet sailed in the last 30 days, **2.5%** otherwise, **5%** if the ship had to sail there empty. The voyage's real running costs and port fees are the shipping line's, paid once. The charge leaves your wallet and comes straight back (net zero); the shipping line books it as internal revenue (`ledger.internal`), the aerospace books carry it with the materials into cost of sales (`cogs_freight_internal`), and the group view cancels it.
+- **Delays** (a gale, a slow port) move the consignment's ETA, every purchase order in it, and each unit waiting on it — the report names them. **Lost cargo** (piracy, a seizure): the orders are lost, nothing arrives, the goods and charge are booked to `losses`, and a shortfall is ordered again.
+- **Make it urgent / Send by carrier instead** on each consignment; the fallback policy does the latter by itself after a day without a ship. A switched order pays the carrier's normal market rate.
+- **Savings**: the dashboard and Supply tab show what a carrier would have charged, the internal charges paid, the saving on the aerospace books, the group saving after the voyages' real costs, and what's expected on work in hand. The Books tab's **group** table shows aerospace and shipping line operating profit with internal charges eliminated (buying ships and the line itself is capital, not an operating cost).
+
 ## The terminal
 
-`src/ui/aerospace.js`: Dashboard · Tenders (quote, cost breakdown, earliest delivery, sealed bid) · Contracts · Production (bays and every unit's stage, progress, blockers, work and materials still to come) · Supply (stores, reservations, on order, shortfalls, purchase orders, manual orders with every supplier's landed cost) · Facilities (workforce, bays, test cell, inspection, pad, research) · Books · Meridian (and MRDN). Roost office terminal, the tablet's Aerospace app, Billie, and (read-only) Meridian's share board.
+`src/ui/aerospace.js`: Dashboard · Tenders (quote, cost breakdown, earliest delivery, sealed bid) · Contracts · Production (bays and every unit's stage, progress, blockers, work and materials still to come) · Supply (shipping mode and consignments, stores, reservations, on order, shortfalls, purchase orders, manual orders with every supplier's landed cost) · Facilities (workforce, bays, test cell, inspection, pad, research) · Books · Meridian (and MRDN). Roost office terminal, the tablet's Aerospace app, Billie, and (read-only) Meridian's share board.
 
 ## What the world shows
 
@@ -54,7 +66,7 @@ Assembly bays (`bay_slot`) draw whatever unit is in them, from the simulation (`
 
 ## State
 
-`world.aero`: `{ v, rng, seq, lastDay, owned, boughtDay, companies: { meridian, roost? }, tenders, contracts, units, pos, satellites, aircraft, customers, suppliers, market, news, reports }`. Created on first use; a save from before v0.55.0 gets Meridian as at a new game and no firm. Finished units, received orders and old contracts are pruned after a while.
+`world.aero`: `{ v, rng, seq, lastDay, owned, boughtDay, companies: { meridian, roost? }, tenders, contracts, units, pos, jobs, satellites, aircraft, customers, suppliers, market, news, reports }`. A company carries `shipping`, `internalPolicy` and its `freight` tallies (v0.56.0); a consignment (`jobs`) carries its orders, origin, status, ship, rate, charge, the carrier's equivalent, the voyage's cost, ETA and its log; the ship it's in carries `cargo: { type: 'aero', job }` and its voyage `job`. Created on first use; a save from before v0.55.0 gets Meridian as at a new game and no firm. Finished units, received orders and old contracts are pruned after a while.
 
 ## For the flyable-aircraft update
 

@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.56.0',
+    date: '2026-10-22',
+    channel: 'development',
+    title: 'In Our Own Hulls',
+    notes: [
+      'Own Ober & Sons Maritime and Roost Aeroworks and your aerospace materials come home in your own ships — real voyages from the supplier\'s port to Mill Road, with their delays and their pirates — for a small internal charge instead of the carrier\'s freight.',
+      'The Supply tab follows every consignment (its ship, its manifest, when it lands, which aircraft are waiting on it); the Books show what you saved, with the money between your own companies cancelled out.',
+    ],
+  },
+  {
     version: '0.55.0',
     date: '2026-10-22',
     channel: 'development',

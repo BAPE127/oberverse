@@ -202,6 +202,22 @@ export const FREIGHT = {
 };
 
 /**
+ * Internal shipping (v0.56.0): owning Ober & Sons Maritime, Roost's foreign materials can come in
+ * your own ships. The aerospace division pays the shipping division a charge — a share of what an
+ * independent carrier would have charged (the equivalent external freight) — and the voyage's real
+ * running costs and port fees are paid once, by the shipping line. Group accounts eliminate the charge.
+ *   established: a ship already at the supplier's port, on a route your fleet has sailed lately
+ *   standard: a ship already at the supplier's port
+ *   inefficient: a ship has to go there empty first
+ */
+export const INTERNAL = {
+  rates: { established: 0.01, standard: 0.025, inefficient: 0.05 },
+  establishedDays: 30, // a route sailed within this many days counts as established
+  fallbackHours: 24, // policy 'fallback': with no ship found in this long, the job goes by carrier
+  dispatchEvery: 15, // game minutes between dispatcher passes
+};
+
+/**
  * The work: stages each line goes through. share: of the product's days.
  * uses: material groups consumed at that stage (all of the unit's lots of
  * those materials, reserved from delivered stock). bay: the stage occupies a

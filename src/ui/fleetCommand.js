@@ -155,7 +155,7 @@ export function fleetPanel(ui, body, opts = {}) {
     for (const v of Lg.vessels()) {
       if (v.status !== 'underway') continue;
       const mine = FC.sel?.kind === 'ship' && FC.sel.id === v.id;
-      route(v.voyage.from, v.voyage.to, v.kind === 'warship' ? 'rgba(255,120,220,0.55)' : v.voyage.contract || v.voyage.shipment ? 'rgba(80,220,255,0.6)' : 'rgba(160,180,200,0.4)', [6, 8], mine ? 3 : 1.5);
+      route(v.voyage.from, v.voyage.to, v.kind === 'warship' ? 'rgba(255,120,220,0.55)' : v.voyage.contract || v.voyage.shipment || v.voyage.job ? 'rgba(80,220,255,0.6)' : 'rgba(160,180,200,0.4)', [6, 8], mine ? 3 : 1.5);
     }
     if (preview) route(preview.from, preview.to, preview.colour || 'rgba(255,214,90,0.95)', [10, 6], 3);
     // ports
@@ -525,7 +525,7 @@ export function fleetPanel(ui, body, opts = {}) {
     if (v.status === 'underway') {
       const p = Lg.position(v);
       out.push(bar('Voyage', p.f, '#3ad6ff', `${Math.round(p.f * 100)}%`), h('p', {}, `${Lg.port(v.voyage.from).name} → ${Lg.port(v.voyage.to).name} · arrives ${Lg.when(v.voyage.arrive)}`));
-      if (v.cargo) out.push(h('p', { class: 'fc-muted' }, v.cargo.type === 'arms' ? `Carrying ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}` : `Carrying ${v.cargo.units} units`));
+      if (v.cargo) out.push(h('p', { class: 'fc-muted' }, v.cargo.type === 'arms' ? `Carrying ${v.cargo.units} crates for ${g.content.arms.countries[v.cargo.country].name}` : v.cargo.type === 'aero' ? (v.cargo.reserved ? `Reserved for Roost Aeroworks' consignment ${v.cargo.job} (${v.cargo.units} units)` : `Carrying ${v.cargo.units} units of aerospace materials for Roost Aeroworks (${v.cargo.job})`) : `Carrying ${v.cargo.units} units`));
       for (const i of v.voyage.incidents || []) out.push(h('div', { class: 'fc-alert bad' }, i.text));
     } else if (v.port) out.push(h('p', {}, `${v.status === 'mission' ? 'On station off' : 'At'} ${Lg.port(v.port).name}`));
     out.push(bar('Hull', v.condition / 100, v.condition > 60 ? '#4ade9a' : v.condition > 30 ? '#f2c14e' : '#ff4a5a', `${Math.round(v.condition)}%`));

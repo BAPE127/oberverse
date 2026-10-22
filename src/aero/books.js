@@ -2,7 +2,7 @@
 // once, where it's earned or spent; the books classify it. Revenue is
 // recognised on delivery (a deposit is a liability until then); materials
 // are an asset (inventory) until a unit consumes them and is delivered, when
-// they become cost of sales. Internal shipping (v0.57.0) is booked as an
+// they become cost of sales. Internal shipping (v0.56.0) is booked as an
 // intercompany charge and eliminated in the consolidated view.
 
 /** Income-statement accounts, in report order. */
@@ -14,6 +14,8 @@ export const ACCOUNTS = {
   rev_services: { name: 'Revenue — satellite services', kind: 'revenue' },
   cogs_materials: { name: 'Materials (cost of units delivered)', kind: 'cost' },
   cogs_freight: { name: 'Freight & logistics (on units delivered)', kind: 'cost' },
+  cogs_freight_internal: { name: 'Freight in your own ships (internal charge, on units delivered)', kind: 'cost', internal: true },
+  losses: { name: 'Cargo lost in transit', kind: 'cost' },
   wages: { name: 'Direct labour (wages)', kind: 'cost' },
   upkeep: { name: 'Facilities (upkeep)', kind: 'cost' },
   overhead: { name: 'Manufacturing & head-office overhead', kind: 'cost' },

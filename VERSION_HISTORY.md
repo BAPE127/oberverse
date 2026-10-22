@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.56.0 | 2026-10-22 | development | 1 | In our own hulls: Roost Aeroworks' foreign materials sail in your Ober & Sons ships on real voyages, for a 1–5% internal charge that cancels out in the group's books |
 | 0.55.0 | 2026-10-22 | development | 1 | Starling Flats: the aerospace park up the Cut, Meridian Aerospace (MRDN), Roost Aeroworks for sale, tenders and production for aircraft, rockets, strategic products and satellites; everyone who shared a home gets their own |
 | 0.54.0 | 2026-10-22 | development | 1 | Sleight of hand: a big, living Morganius across the table, dealing every card by magic; Marvel cards, Spells and Morganius's Gift in the Spade's Gambit |
 | 0.53.1 | 2026-10-19 | development | 1 | Legible again: menus no longer inherit a previous panel's dark ink; showroom titles and map labels readable |

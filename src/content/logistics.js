@@ -183,7 +183,7 @@ export const RISK = {
   base: 0.008, // any voyage: a petty thief at a quay
   perDangerKkm: 0.09, // + this × (danger-weighted km ÷ 1,000)
   maxChance: 0.85,
-  cargoValue: { highvalue: 1.4, arms: 1.3, special: 1.2 },
+  cargoValue: { highvalue: 1.4, arms: 1.3, special: 1.2, aero: 1.25 }, // v0.56.0: aerospace materials
   /** Worst outcome allowed by the most dangerous water on the route: safe water never costs you a ship or a cargo. */
   severity: [[0.2, 'delay'], [0.5, 'cargo'], [1.01, 'captured']],
   guards: { defense: 25, costShare: 0.03, min: 200 },

@@ -96,6 +96,7 @@ function dashboard(g, A, co, body, go) {
       stat('Apron', `${A.apronUsed(co)} / ${co.apron} slots`),
       stat('Reputation', `${Math.round(co.reputation)} / 100`),
       stat('Quality', `${Math.round(A.qualityOf(co))}`),
+      ...(A.canShipInternal(co) ? [stat('Saved by your own ships', money(A.shippingSavings(co).group), 'good'), stat('Consignments at sea', String(A.jobs(co).filter((j) => ['loading', 'at sea'].includes(j.status)).length))] : []),
     ),
     section('Alerts',
       blocked.length || active.some((c) => c.due < A.now) ? h('div', { class: 'list' },
@@ -219,6 +220,7 @@ function supply(g, A, co, body, say) {
   body.append(
     h('div', { class: 'row', style: 'justify-content:flex-start' },
       h('label', {}, h('input', { type: 'checkbox', checked: co.autoProcure, onchange: (e) => { co.autoProcure = e.target.checked; say({ ok: true, text: co.autoProcure ? 'Purchasing will order what the work in hand needs, from the cheapest supplier with stock (landed cost).' : 'Automatic purchasing is off: order materials yourself below.' }); } }), ' Order materials automatically (cheapest landed cost)')),
+    shippingSection(g, A, co, say),
     section('Materials', rows.length ? h('table', { class: 'aero-table' },
       h('tr', {}, ...['Material', 'In stores', 'Reserved', 'On order', 'Needed', 'Short'].map((x) => h('th', {}, x))),
       ...rows.map((x) => h('tr', { class: x.short ? 'bad' : '' }, h('td', {}, C.materials[x.m].name), h('td', {}, String(x.r.qty)), h('td', {}, String(x.r.reserved)), h('td', {}, String(x.onOrder)), h('td', {}, String(x.need)), h('td', {}, x.short ? String(x.short) : '—')))) : h('p', { class: 'muted' }, 'Nothing in stores and nothing needed.')),
@@ -226,7 +228,7 @@ function supply(g, A, co, body, say) {
   const pos = A.ordersOf(co, false).sort((a, b) => b.placed - a.placed).slice(0, 20);
   body.append(section('Purchase orders', pos.length ? h('table', { class: 'aero-table' },
     h('tr', {}, ...['Order', 'Supplier', 'Lots', 'Goods + duty', 'Freight + handling', 'Carrier', 'Status', 'Due'].map((x) => h('th', {}, x))),
-    ...pos.map((po) => h('tr', {}, h('td', {}, `${po.id} ${C.materials[po.material].name}`), h('td', {}, C.suppliers[po.supplier].name), h('td', {}, String(po.qty)), h('td', {}, money(po.goods)), h('td', {}, money(po.freight)), h('td', {}, po.mode === 'truck' ? 'truck (local)' : C.freight.carrier), h('td', {}, po.status), h('td', {}, po.status === 'received' ? A.when(po.received) : A.when(po.arrive))))) : h('p', { class: 'muted' }, 'No orders yet.')));
+    ...pos.map((po) => h('tr', {}, h('td', {}, `${po.id} ${C.materials[po.material].name}`), h('td', {}, C.suppliers[po.supplier].name), h('td', {}, String(po.qty)), h('td', {}, money(po.goods)), h('td', {}, money(po.mode === 'internal' ? po.freightInt || 0 : po.freight)), h('td', {}, po.mode === 'truck' ? 'truck (local)' : po.mode === 'internal' ? `your own ship (${A.job(po.job)?.vessel ? `the ${A.game.logistics.vessel(A.job(po.job).vessel)?.name || 'ship'}` : 'awaiting a ship'}, ${po.job})` : C.freight.carrier), h('td', {}, po.status), h('td', {}, po.status === 'received' ? A.when(po.received) : A.when(po.arrive))))) : h('p', { class: 'muted' }, 'No orders yet.')));
   // a manual order: pick a material, see every supplier's landed cost
   const sel = h('select', {}, ...mats.map((m) => h('option', { value: m }, C.materials[m].name)));
   const qty = h('input', { type: 'number', min: 1, value: '4', class: 'aero-num small' });
@@ -240,17 +242,67 @@ function supply(g, A, co, body, say) {
       const stock = A.state.suppliers[id].stock[m] || 0;
       const q = A.freightQuote(co, id, m, Math.min(n, Math.max(1, stock)));
       const total = q.goods + q.freight + q.duty + q.handling;
+      const own = sp.where !== 'local' && A.canShipInternal(co);
+      const iq = own ? A.internalQuote(co, sp.where, q.volume, A.now + sp.lead * 1440) : null;
+      const iCharge = own ? Math.round((q.freight + q.handling) * (iq.ok ? iq.rate : C.internal.rates.inefficient)) : 0;
       quotes.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' },
         h('div', { class: 'name' }, sp.name, h('span', { class: 'tag' }, sp.where === 'local' ? 'local (truck)' : A.game.logistics.port(sp.where)?.name), h('span', { class: 'tag' }, `${stock} in stock`)),
-        h('div', { class: 'desc' }, `Landed cost ${money(total)} for ${n}: goods ${money(q.goods)} + freight ${money(q.freight)}${q.duty ? ` + duty ${money(q.duty)}` : ''}${q.handling ? ` + handling ${money(q.handling)}` : ''} · ${Math.round(q.hours)} h to the Park${q.km ? ` (${q.km.toLocaleString()} km by sea)` : ''}`)),
-        h('button', { class: 'small primary', disabled: stock < n, onclick: () => say(A.order(co, id, m, n)) }, 'Order')));
+        h('div', { class: 'desc' }, `${sp.where === 'local' ? 'By truck' : 'By carrier'}: landed cost ${money(total)} for ${n} — goods ${money(q.goods)} + freight ${money(q.freight)}${q.duty ? ` + duty ${money(q.duty)}` : ''}${q.handling ? ` + handling ${money(q.handling)}` : ''} · ${Math.round(q.hours)} h to the Park${q.km ? ` (${q.km.toLocaleString()} km by sea)` : ''}`),
+        own ? h('div', { class: 'desc good' }, `In your own ship: landed cost ${money(q.goods + q.duty + iCharge)} — internal charge ${money(iCharge)} instead of ${money(q.freight + q.handling)} (saves ${money(q.freight + q.handling - iCharge)}) · ${iq.ok ? `the ${iq.vessel.name}${iq.atOrigin ? ', already there' : ' would sail there empty'}, about ${Math.round((iq.eta - A.now) / 60)} h to the Park` : `not right now: ${iq.reasons[0]} — it would wait${co.internalPolicy === 'fallback' ? ' up to a day, then go by carrier' : ''}`}`) : null),
+        h('div', {},
+          h('button', { class: 'small', disabled: stock < n, onclick: () => say(A.order(co, id, m, n, {}, { mode: 'carrier' })) }, sp.where === 'local' ? 'Order' : 'Order (carrier)'),
+          own ? h('button', { class: 'small primary', style: 'margin-left:4px', disabled: stock < n, onclick: () => say(A.order(co, id, m, n, {}, { mode: 'internal' })) }, 'Order (own ship)') : null)));
     }
   };
   sel.addEventListener('change', draw);
   qty.addEventListener('input', draw);
   draw();
   body.append(section('Order materials', h('div', { class: 'row', style: 'justify-content:flex-start' }, sel, ' lots ', qty), quotes,
-    h('p', { class: 'muted' }, 'Landed cost = the supplier\'s price + duty + freight + handling. Foreign goods come by an independent carrier to Mill Road Docks at the market rate, then up the Cut by truck; materials can only be used once they\'re delivered, counted and in stores.')));
+    h('p', { class: 'muted' }, 'Landed cost = the supplier\'s price + duty + freight + handling. Foreign goods come to Mill Road Docks — by an independent carrier at the market rate, or in your own Ober & Sons ships — then up the Cut by truck; materials can only be used once they\'re delivered, counted and in stores.')));
+}
+
+/** v0.56.0: shipping in your own ships — the setting, the consignments, what it saves. */
+function shippingSection(g, A, co, say) {
+  const C = A.cfg;
+  const L = g.logistics;
+  if (!A.canShipInternal(co)) {
+    return section('Shipping', h('p', { class: 'muted' }, `Foreign materials come by ${C.freight.carrier} at the market rate. Own a shipping line — Ober & Sons Maritime is for sale from Captain Ober at Mill Road Yards — and your own ships can bring them for a small internal charge instead.`));
+  }
+  const sv = A.shippingSavings(co);
+  const ex = A.expectedSavings(co);
+  const jobs = A.jobs(co, false).sort((a, b) => b.created - a.created).slice(0, 12);
+  const mode = h('select', { onchange: (e) => { co.shipping = e.target.value; say({ ok: true, text: co.shipping === 'internal' ? 'Foreign materials will come in your own ships.' : 'Foreign materials will come by carrier.' }); } },
+    h('option', { value: 'internal', selected: co.shipping === 'internal' }, 'in your own ships (Ober & Sons)'), h('option', { value: 'carrier', selected: co.shipping === 'carrier' }, `by carrier (${C.freight.carrier})`));
+  const policy = h('select', { onchange: (e) => { co.internalPolicy = e.target.value; say({ ok: true, text: co.internalPolicy === 'fallback' ? `A consignment with no free ship for ${C.internal.fallbackHours} hours goes by carrier.` : 'Consignments wait for one of your ships, however long it takes.' }); } },
+    h('option', { value: 'fallback', selected: co.internalPolicy === 'fallback' }, `fall back to a carrier after ${C.internal.fallbackHours} h without a ship`), h('option', { value: 'wait', selected: co.internalPolicy === 'wait' }, 'always wait for one of your ships'));
+  return section('Shipping — Ober & Sons Maritime',
+    h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, 'Foreign materials come ', mode, policy),
+    h('div', { class: 'grid4' },
+      stat('Freight a carrier would have charged', money(sv.equivalent)),
+      stat('Internal charges paid', money(sv.charges)),
+      stat('Saved (aerospace books)', money(sv.division), 'good'),
+      stat('Saved (group, after voyage costs)', money(sv.group), sv.group >= 0 ? 'good' : 'bad'),
+      stat('Still to order (carrier freight)', money(ex.carrier)),
+      stat('…in your own ships', money(ex.internal)),
+      stat('Expected saving on work in hand', money(ex.saving), 'good'),
+      stat('Paid to carriers so far', money(co.freight.external)),
+    ),
+    h('p', { class: 'muted' }, `Your ships carry a consignment from the supplier\'s port to Mill Road. The aerospace books pay the shipping line ${Math.round(C.internal.rates.established * 100)}–${Math.round(C.internal.rates.inefficient * 100)}% of what a carrier would charge (least on a route your fleet sails, most when a ship has to go there empty); the voyage\'s real running costs and port fees are the shipping line\'s, paid once. Group figures cancel the internal charge.`),
+    jobs.length ? h('div', { class: 'list' }, ...jobs.map((j) => {
+      const v = j.vessel && L.vessel(j.vessel);
+      const pos = j.pos.map((id) => A.state.pos[id]).filter(Boolean);
+      const hit = A.affectedUnits(j);
+      const open = ['waiting', 'reserved', 'repositioning'].includes(j.status);
+      return h('div', { class: `aero-card${['delivered', 'carrier'].includes(j.status) ? ' muted' : ''}` },
+        h('div', { class: 'name' }, `🚢 ${j.id}: ${L.port(j.origin)?.name} → Mill Road`, h('span', { class: `tag ${j.status === 'lost' ? 'bad' : j.status === 'delivered' ? 'good' : ''}` }, j.status), j.priority === 'urgent' ? h('span', { class: 'tag warn' }, 'urgent') : null, v ? h('span', { class: 'tag' }, `the ${v.name}${v.voyage ? ` (${Math.round((L.position(v)?.f || 0) * 100)}% of the way)` : ''}`) : null),
+        h('div', { class: 'desc' }, `Manifest: ${pos.map((po) => `${po.qty} × ${C.materials[po.material].name} (${C.suppliers[po.supplier].name}, ${po.id})`).join('; ')} — ${j.units} units, ${money(j.value)} of goods.`),
+        h('div', { class: 'desc' }, `${j.eta ? `Due at the Park ${A.when(j.eta)}${j.delayed ? ` (delayed ${j.delayed} h)` : ''}` : j.status === 'carrier' ? 'Went by carrier' : j.waitingWhy ? `Waiting: ${j.waitingWhy}` : 'Waiting for a ship'} · carrier would charge ${money(j.extFreight)}${j.charge ? ` · internal charge ${money(j.charge)} (${(j.rate * 100).toFixed(1)}%)` : ''}${j.voyageCost ? ` · voyage costs ${money(j.voyageCost)}` : ''}`),
+        hit.length ? h('div', { class: 'desc warn' }, `Waiting on it: ${hit.map((u) => `${C.products[u.product].name} #${u.n}`).join(', ')}`) : null,
+        h('details', {}, h('summary', {}, 'Log'), ...j.log.map((x) => h('div', { class: 'desc' }, `${A.when(x.at)} — ${x.text}`))),
+        open ? h('div', {},
+          h('button', { class: 'small', onclick: () => say(A.setJobPriority(j.id, j.priority === 'urgent' ? 'normal' : 'urgent')) }, j.priority === 'urgent' ? 'Normal priority' : 'Make it urgent'),
+          h('button', { class: 'small', style: 'margin-left:4px', onclick: () => say(A.jobToCarrier(j)) }, `Send by carrier instead (${money(pos.reduce((a, po) => a + po.extFreight, 0))})`)) : null);
+    })) : h('p', { class: 'muted' }, 'No consignments in your ships yet.'));
 }
 
 // ------------------------------------------------------------------ facilities
@@ -292,8 +344,24 @@ function books(g, A, co, body) {
       stat('Materials in stores and on order', money(co.books.inventoryValue)),
       stat('Capital spent (firm, bays, facilities)', money(co.books.capex)),
     ),
+    groupTable(A, periods),
     h('p', { class: 'muted' }, 'Revenue is booked when a unit is delivered (a deposit is owed work until then). Materials are an asset until a unit uses them, and become cost of sales when it\'s delivered, with the freight that brought them. Wages, upkeep and overhead are booked each morning.'),
   );
+}
+
+/** The group (Roost and Ober & Sons) with the internal charge between them eliminated. */
+function groupTable(A, periods) {
+  if (!A.game.logistics.owned) return null;
+  const sums = periods.map(([, n]) => A.groupStatement(n));
+  const row = (label, f, cls = '') => h('tr', { class: cls }, h('td', {}, label), ...sums.map((x) => h('td', {}, Math.round(f(x)).toLocaleString())));
+  return section('The group: Roost Aeroworks + Ober & Sons Maritime',
+    h('table', { class: 'aero-table' },
+      h('tr', {}, h('th', {}, ''), ...periods.map(([l]) => h('th', {}, l))),
+      row('Aerospace profit (internal freight eliminated)', (x) => x.aero.profit),
+      row('Shipping line operating profit (internal revenue eliminated; ships bought are capital)', (x) => x.shipping.profit),
+      row('…internal charges eliminated', (x) => x.shipping.internal),
+      row('Group operating profit', (x) => x.profit, 'total')),
+    h('p', { class: 'muted' }, 'The voyages that carry your materials are paid for once, in the shipping line\'s running costs and port fees; what the aerospace division pays the shipping line for them cancels out here.'));
 }
 
 // ------------------------------------------------------------------ Meridian

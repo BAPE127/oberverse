@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.56.0] — 2026-10-22 — In Our Own Hulls (development build)
+
+Stage II of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "Start the shipping integration." Own both Roost Aeroworks and Ober & Sons Maritime and your foreign materials come in your own ships, on the voyage system you already run.
+
+### Added — materials in your own ships (`src/systems/aerospace.js`, `src/systems/logistics.js`, `INTERNAL` in `src/content/aerospace.js`)
+- **Consignments**: each purchase order from an overseas supplier joins a consignment from that supplier's port to Mill Road Docks. A free cargo ship that can hold it is reserved, **sails empty** to fetch it if it must, **loads** once every order is ready, and **sails** a real voyage — with its running costs and port fees, its pre-rolled delays and its pirates. Nothing appears in stores until the ship docks and the trucks come up the Cut; nothing teleports.
+- **The internal charge**: 1% of what the carrier would charge on a route your fleet sailed in the last 30 days, 2.5% on a new one, 5% when the ship sails there empty. The goods and duty are still paid in full; the voyage's real costs are paid once, by the shipping line.
+- **Intercompany books**: the charge leaves your wallet and comes straight back (net zero); the shipping line books it as internal revenue, the aerospace books carry it with the materials into cost of sales, and the **group** table (Books tab) cancels it — no profit from moving money between your own companies. Buying ships and the line itself is counted as capital there, not operating cost.
+- **Delays and losses**: a delay at sea moves the consignment's ETA, its purchase orders, and the production waiting on them (the report names the units). A cargo lost to pirates is lost: no materials, the loss booked, the shortfall re-ordered.
+- **Choices**: own ships or carrier; when no ship is free, fall back to a carrier after a day (at the market rate) or wait; per consignment, *Make it urgent* or *Send by carrier instead*; manual orders show both landed costs with **Order (carrier)** and **Order (own ship)**. Automatic ordering compares suppliers on what your own ship would really cost and how long it would really take.
+- **Savings view**: what a carrier would have charged, the internal charges paid, the saving on the aerospace books and the group's saving after the voyages' real costs, and what's expected on work in hand — on the dashboard and the Supply tab, with every consignment's manifest, ship, ETA, charges, the units waiting on it and its log.
+- **Fleet Command** shows a reserved or laden ship's consignment; its voyage log marks an empty leg as "empty, to collect SJn".
+
+### Tests
+- `tests/aerospace_shipping.test.mjs` (8): own ships only with a shipping line; a consignment on the real voyage system, never in stores before it lands; the 0–5% charge with materials paid in full; no free money (wallet = goods + voyages + running costs, the charge cancels, capital excluded); delays move ETAs, orders and the units waiting; busy ships aren't taken, holds limit consignments, the carrier fallback at the market rate and the wait policy; save/load mid-voyage, delivered once; cargo lost to pirates.
+
 ## [0.55.0] — 2026-10-22 — Starling Flats (development build)
 
 The owner paused the casino for "more important content" — the aerospace master brief (aircraft, defence contracts, rockets, satellites and integrated shipping, against an established, publicly traded competitor) — and: "Remember that each NPC needs their own house too." Asked before building: the campus in a **new region east** of the oil fields, the player **buys a failing firm**, delivered in **staged releases**, and everyone who shares a home gets **their own**. This is stage I of five (docs/AEROSPACE.md).

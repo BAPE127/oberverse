@@ -64,6 +64,10 @@ Not in these updates. What's in place for it: one fleet (vessel records are the 
 
 Mason's Os build a shipyard at a port of yours; there you design and build your own cargo ships and warships from hulls and parts. See [SHIPBUILDING.md](SHIPBUILDING.md).
 
+## Aerospace materials (v0.56.0)
+
+If you also own Roost Aeroworks, your cargo ships carry its foreign materials from the supplier's port to Mill Road Docks — on ordinary voyages (an empty leg to get there if needed, then the loaded leg), paying their own running costs and port fees, exposed to the same delays and pirates. The aerospace division pays the line an internal charge of 1–5% of the carrier's rate, booked as internal revenue (`ledger.internal`) and cancelled in the group figures. A ship reserved for a consignment shows it in Fleet Command and can't be given a contract until it unloads. See `docs/AEROSPACE.md#materials-in-your-own-ships-v0560`.
+
 ## Money, exactly once
 
 Every obol moves inside `Logistics` through `spend()`/`earn()`, which also keep the ledger (all-time totals and the last 30 days) shown on the Finances page. A contract pays only on the `transit → delivered` transition; a contract that isn't `transit` when its ship arrives pays nothing.
