@@ -14,6 +14,9 @@ import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
 import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js';
 import { inWindow } from '../world/clock.js';
+
+/** v0.55.0: props whose look comes from the aerospace simulation (Aerospace.propView). */
+const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad']);
 import { floatLift, drawFloatShadow, HOST_FX, hostState, runEffects, EFFECTS } from './cardMagic.js';
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -395,14 +398,14 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { map: lm, time: this.time, night, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+          drawProp(ctx, p, { map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
         const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
         for (const p of lm.props) {
           if (!SPRITE_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE - 32, p.y * TILE - 64, p.w * TILE + 64, p.h * TILE + 96)) continue;
-          drawPropShadow(ctx, p, { map: lm, night }, shade);
+          drawPropShadow(ctx, p, { map: lm, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null }, shade);
         }
         if (g.vehicles?.skids?.length) this.drawSkids(ctx, lm.id);
         if (g.combat.decals.length) this.drawCombatGround(ctx, lm.id); // v0.44.0: blood and spent cases
@@ -426,7 +429,7 @@ export class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { map: lm, time: this.time, night, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus

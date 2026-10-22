@@ -114,6 +114,7 @@ const PX = {
   walk: P('#8a8890', '#919097', '#98969e'),
   plaza: P('#c8bfab', '#d1c9b6', '#dad3c2', '#e2dccd'),
   concrete: P('#86888c', '#909296', '#9a9ca0', '#a4a6aa'),
+  tarmac: P('#2e3036', '#33353b', '#383a40', '#3d3f45'), // v0.55.0: runways, taxiways, aprons
   // water: beach (foam → turquoise → blue), pond (dark, still), harbour (by the quays)
   foam: P('#e8f8f4', '#ffffff', '#c8f0ec'),
   beach: P('#86e6dc', '#5fd8dc', '#3cc4dc', '#2aaed2', '#2898c0', '#2784ad', '#26729a', '#25668a'),
@@ -124,7 +125,7 @@ const PX = {
 };
 
 // ------------------------------------------------------------------ tiles
-const CODES = '.,=:~bpsrBDWftcgmukRx';
+const CODES = '.,=:~bpsrBDWftcgmukRxa';
 const CID = {};
 [...CODES].forEach((c, i) => { CID[c] = i + 1; });
 const SOFT = new Uint8Array(32);
@@ -394,6 +395,7 @@ function paintPixels(ctx, map, tx0, ty0, tw, th) {
           break;
         }
         case CID['=']: col = pick(PX.road, 0.72 * big(wx, wy) + 0.28 * N(wx >> 1, wy >> 1), wx, wy); break;
+        case CID.a: col = pick(PX.tarmac, 0.55 * big(wx + 700, wy) + 0.45 * N(wx, wy), wx, wy); break;
         case CID[',']: case CID.B: case CID.D: {
           if (interior && c !== CID.B) { col = floorPx(st, 'f', wx, wy, tx, ty, ix, iy); break; }
           col = pick(PX.walk, 0.75 * big(wx + 200, wy) + 0.25 * N(wx >> 1, wy >> 1), wx, wy);
@@ -600,6 +602,7 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       break;
     }
     case 'k': break; // crops are drawn over it
+    case 'a': airfieldMarks(R, map, x, y, px, py, r); break;
     case 'b': case 'p': {
       const pal = ch === 'b' ? ['#9a6b45', '#8a5e3c', '#5e3c22', '#b48054'] : ['#a27650', '#946a46', '#62422a', '#bc8c60'];
       const across = ch === 'b' && at(x, y - 1) !== '~' && at(x, y + 1) !== '~';
@@ -929,5 +932,79 @@ export function paintFloor(R, ch, px, py, x, y) {
     if (r > 0.66) R(px, py + k, T, 8, f[1]);
     R(px, py + k + 7, T, 1, f[2]);
     if (hash2(x * 7 + k, y * 5) > 0.75) R(px + 8 + Math.floor(r * 16), py + k, 1, 7, f[2]);
+  }
+}
+
+
+// ------------------------------------------------------------------ v0.55.0: airfield markings
+const DIGITS = {
+  0: ['111', '101', '101', '101', '111'], 1: ['010', '110', '010', '010', '111'], 2: ['111', '001', '111', '100', '111'], 3: ['111', '001', '011', '001', '111'], 4: ['101', '101', '111', '001', '001'],
+  5: ['111', '100', '111', '001', '111'], 6: ['111', '100', '111', '101', '111'], 7: ['111', '001', '010', '010', '010'], 8: ['111', '101', '111', '101', '111'], 9: ['111', '101', '111', '001', '111'],
+};
+const inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+/** Runway, taxiway and apron paint for tile (x, y), from the map's `airfield` (src/content/maps/starling.js). */
+function airfieldMarks(R, map, x, y, px, py, r) {
+  const A = map.def?.airfield;
+  // rubber, cracks and tar seams on all tarmac
+  if (r > 0.9) R(px + 4 + Math.floor(r * 40) % 20, py + 6, 10, 1, '#26282c');
+  if (r < 0.05) { R(px + 6, py + 20, 9, 1, '#24262a'); R(px + 14, py + 21, 6, 1, '#24262a'); }
+  if (!A) return;
+  const WHITE = '#e8e8e2';
+  const YEL = '#e8c040';
+  for (const rw of A.runways || []) {
+    if (!inRect(rw, x, y)) continue;
+    const ix = x - rw.x;
+    const iy = y - rw.y;
+    // edge lines
+    if (iy === 0) R(px, py + 2, 32, 2, WHITE);
+    if (iy === rw.h - 1) R(px, py + 28, 32, 2, WHITE);
+    const mid = rw.h / 2;
+    const fromEnd = Math.min(ix, rw.w - 1 - ix);
+    if (fromEnd <= 1) {
+      // threshold "piano keys"
+      if (iy > 0 && iy < rw.h - 1) for (let k = 0; k < 4; k++) R(px + 4 + (ix === 0 || ix === rw.w - 1 ? 0 : 8) + (k % 2) * 14, py + 4 + k * 6, 10, 3, WHITE);
+      return;
+    }
+    // designators near each end: "09" at the west, "27" at the east, two tiles across and two high
+    if ((fromEnd === 3 || fromEnd === 4) && (iy === mid - 1 || iy === mid)) {
+      const west = ix < rw.w / 2;
+      const digit = west ? rw.ends[0][fromEnd - 3] : rw.ends[1][4 - fromEnd];
+      const g = DIGITS[digit];
+      const top = (rw.y + mid - 1) * T + 12 - py; // the glyph's top, relative to this tile
+      if (g) for (let gy = 0; gy < 5; gy++) for (let gx = 0; gx < 3; gx++) {
+        const yy = top + gy * 8;
+        if (g[gy][gx] === '1' && yy > -8 && yy < 32) R(px + 5 + gx * 8, py + Math.max(0, yy), 7, Math.min(7, 32 - yy, yy + 7), WHITE);
+      }
+      return;
+    }
+    // aiming points, then the dashed centreline
+    if ((fromEnd === 10 || fromEnd === 11) && (iy === 1 || iy === rw.h - 2)) R(px + 2, py + 8, 28, 16, WHITE);
+    if (iy === mid - 1 && ix % 3 !== 0) R(px, py + 30, 32, 2, WHITE);
+    if (iy === mid && ix % 3 !== 0) R(px, py, 32, 2, WHITE);
+    return;
+  }
+  // taxiways: a yellow centreline (along the long axis), and hold bars before the runway
+  for (const t of A.taxiways || []) {
+    if (!inRect(t, x, y)) continue;
+    if (t.w >= t.h) { if (y - t.y === Math.floor(t.h / 2) - 1) R(px, py + 30, 32, 2, YEL); if (y - t.y === Math.floor(t.h / 2)) R(px, py, 32, 2, YEL); }
+    else { if (x - t.x === Math.floor(t.w / 2) - 1) R(px + 30, py, 2, 32, YEL); if (x - t.x === Math.floor(t.w / 2)) R(px, py, 2, 32, YEL); }
+    for (const [hx, hy] of A.hold || []) if (Math.abs(x - hx) <= 1 && y === hy) { R(px, py + 6, 32, 2, YEL); R(px, py + 12, 32, 2, YEL); for (let k = 0; k < 32; k += 8) { R(px + k, py + 18, 4, 2, YEL); R(px + k, py + 24, 4, 2, YEL); } }
+    return;
+  }
+  // aprons: an edge line, and a stand for each slot — a lead-in line, a stop bar and the stand number
+  for (const ap of A.aprons || []) {
+    if (!inRect(ap, x, y)) continue;
+    if (y === ap.y) R(px, py, 32, 2, YEL);
+    if (x === ap.x) R(px, py, 2, 32, YEL);
+    if (x === ap.x + ap.w - 1) R(px + 30, py, 2, 32, YEL);
+    (ap.slots || []).forEach(([sx, sy], i) => {
+      const cx = sx + 3;
+      if (x === cx && y >= sy && y < ap.y + ap.h) R(px + 15, py, 2, 32, YEL);
+      if (y === sy && x >= cx - 2 && x <= cx + 2) R(px, py + 2, 32, 3, YEL);
+      if (y === sy + 1 && x === cx + 1) {
+        const g = DIGITS[(i + 1) % 10];
+        for (let gy = 0; gy < 5; gy++) for (let gx = 0; gx < 3; gx++) if (g[gy][gx] === '1') R(px + 4 + gx * 4, py + 6 + gy * 4, 3, 3, YEL);
+      }
+    });
   }
 }

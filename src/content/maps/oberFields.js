@@ -9,6 +9,8 @@ const m = new MapBuilder(W, H, '.');
 m.rect(0, 12, W - 7, 2, '=').rect(0, 11, 20, 1, ':').rect(0, 14, 20, 1, ':'); // the county road
 m.rect(44, 9, 7, 7, 'm'); // v0.20.0: Wellhead Circle — the county road ends round Ober's first well
 m.rect(51, 0, 1, H, 'r'); // the escarpment: the estate ends here
+m.rect(44, 12, 8, 2, '='); // v0.55.0: …and now runs on through the Cut, up to Starling Flats
+m.rect(9, 9, 1, 2, ','); // the walk from the estate cottages to the county road
 m.rect(33, 10, 1, 2, 'g'); // manor drive
 m.rect(22, 15, 27, 11, 'g'); // refinery apron
 m.rect(22, 26, 29, 13, ':'); // oil fields
@@ -39,6 +41,8 @@ export const oberFields = {
     { id: 'area_refinery', name: 'Ober\'s Oil Refinery', x: 20, y: 15, w: 32, h: 11 },
     { id: 'area_oilfields', name: 'The Oil Fields', x: 20, y: 26, w: 32, h: 14 },
   ],
+  // v0.55.0: the Cut — the county road climbs through the escarpment to Starling Flats (its own region)
+  doors: [12, 13].map((y, i) => ({ id: `door_of_cut_${i}`, x: W - 1, y, keepTile: true, gateway: 'Starling Flats', label: 'The Cut, east to Starling Flats', to: { map: 'starling_flats', spot: 'west_gate' } })),
   buildings: [
     {
       id: 'b_manor', mapLabel: 'Moneybucks Manor', name: 'Moneybucks Manor', x: 26, y: 2, w: 16, h: 8,
@@ -60,9 +64,11 @@ export const oberFields = {
         lock: { key: 'item_none', owners: ['npc_moneybucks', 'npc_gideon', 'npc_ruby', 'npc_pip', 'npc_otto', 'npc_delphine', 'npc_hank'], hours: { from: '06:00', to: '20:00' } },
       },
     },
+    // v0.55.0: the estate staff's own flats (they used to sleep in the manor's back corridor)
+    { id: 'b_estate_cottages', mapLabel: 'Estate Cottages', name: 'The Estate Cottages', x: 2, y: 2, w: 15, h: 7, roof: '#4a4e5a', wall: '#ece4d4', trim: '#2b2e38' },
     {
-      id: 'b_bunkhouse', mapLabel: 'Bunkhouse', name: 'Workers\' Bunkhouse', x: 5, y: 16, w: 9, h: 5,
-      roof: '#7d5a3c', wall: '#d8c9ad', trim: '#59402b', sign: 'BUNKHOUSE',
+      id: 'b_bunkhouse', mapLabel: 'Crew Mess', name: 'The Crew Mess (the old bunkhouse)', x: 5, y: 16, w: 9, h: 5,
+      roof: '#7d5a3c', wall: '#d8c9ad', trim: '#59402b', sign: 'CREW MESS',
       door: {
         x: 9, y: 20, to: { map: 'bunkhouse', spot: 'entry' },
         lock: { key: 'item_none', owners: ['npc_gideon', 'npc_ruby', 'npc_hank', 'npc_pip', 'npc_otto'], hours: { from: '06:00', to: '22:00' } },
@@ -71,6 +77,7 @@ export const oberFields = {
   ],
   spots: {
     west_road: { x: 2, y: 12, facing: 'right' },
+    cut_east: { x: 49, y: 12, facing: 'left' }, // v0.55.0: arriving down the Cut from Starling Flats
     gate_post: { x: 22, y: 10, facing: 'left' },
     picket_1: { x: 18, y: 11, facing: 'right' },
     picket_2: { x: 17, y: 13, facing: 'right' },
@@ -93,7 +100,8 @@ export const oberFields = {
     { id: 'wellhead_monument', type: 'statue', x: 46, y: 9, label: 'FIRST WELL', examine: '"OBER\'S FIRST WELL — struck by Sir R. E. Moneybucks\'s grandfather, who was standing on it at the time." The county road turns round here; beyond is the escarpment.' },
     { id: 'gate_booth', type: 'booth', x: 21, y: 9, examine: 'A green gatehouse booth. A clipboard on the counter lists approved visitors. Your name is not on it.' },
     { id: 'sign_private', type: 'sign', x: 18, y: 9, examine: '"OBER\'S OIL — PRIVATE PROPERTY. Trespassers will be invoiced." Underneath, smaller: "Sir R. E. Moneybucks, Esq., Founder, Owner, Benefactor."' },
-    { id: 'sign_bunk', type: 'sign', x: 14, y: 22, examine: 'A hand-painted sign: "BUNKHOUSE — wipe your boots, Gideon means it."' },
+    { id: 'sign_bunk', type: 'sign', x: 14, y: 22, examine: 'A hand-painted sign, repainted: "CREW MESS — wipe your boots, Gideon means it." Underneath, smaller: "(We live in Starling now. We still eat here.)"' },
+    { id: 'sign_cut', type: 'roadsign', x: 45, y: 10, w: 3, h: 1, text: 'THE CUT →', sub: 'STARLING FLATS', examine: 'THE CUT → STARLING FLATS AEROSPACE PARK. The county road climbs through a notch blasted in the escarpment. Somebody has added a small painted rocket.' },
     // manor grounds
     { id: 'manor_fountain', type: 'fountain', x: 37, y: 10, examine: 'A marble fountain topped with a gilded derrick that spouts — of course — water. For now.' },
     { id: 'hedge_1', type: 'bush', x: 24, y: 4, w: 1, h: 4 }, { id: 'hedge_2', type: 'bush', x: 43, y: 4, w: 1, h: 4 },
@@ -115,8 +123,8 @@ export const oberFields = {
     pipe('pipe_f1', 44, 27), pipe('pipe_f2', 44, 28), pipe('pipe_f3', 44, 31), pipe('pipe_f4', 44, 32),
     ...pipeline,
     // around the bunkhouse
-    { id: 'tree_b1', type: 'pine', x: 2, y: 17 }, { id: 'tree_b2', type: 'pine', x: 15, y: 17 }, { id: 'tree_b3', type: 'tree', x: 3, y: 4 },
-    { id: 'tree_b4', type: 'tree', x: 11, y: 6 }, { id: 'tree_b5', type: 'pine', x: 8, y: 29 },
+    { id: 'tree_b1', type: 'pine', x: 2, y: 17 }, { id: 'tree_b2', type: 'pine', x: 15, y: 17 }, { id: 'tree_b3', type: 'tree', x: 17, y: 2 },
+    { id: 'tree_b4', type: 'tree', x: 18, y: 6 }, { id: 'tree_b5', type: 'pine', x: 8, y: 29 },
     { id: 'sign_west', type: 'sign', x: 2, y: 10, examine: '"WEST ← Lanternside. Civic Office, Kettle & Crumb, the Quay."' }, { id: 'tree_b6', type: 'pine', x: 14, y: 33 },
     { id: 'bench_bunk', type: 'bench', x: 11, y: 22 },
   ],
@@ -139,10 +147,7 @@ export const manor = {
     dining: { x: 5, y: 2, facing: 'down' },
     dining_b: { x: 5, y: 4, facing: 'up' },
     master_bed: { x: 2, y: 2, facing: 'down' },
-    staff_bed1: { x: 1, y: 10, facing: 'up' },
-    staff_bed2: { x: 2, y: 10, facing: 'up' },
-    staff_bed3: { x: 3, y: 10, facing: 'up' },
-    staff_bed4: { x: 4, y: 10, facing: 'up' },
+    servants_hall: { x: 2, y: 9, facing: 'right' }, // v0.55.0: the staff live in the estate cottages now
     study_desk: { x: 15, y: 2, facing: 'down' },
     card_table: { x: 16, y: 7, facing: 'left' },
     agnes_desk: { x: 17, y: 8, facing: 'down' },
@@ -156,8 +161,8 @@ export const manor = {
     { id: 'manor_stove', type: 'stove', x: 10, y: 1, examine: 'Mabel\'s range. It is spotless, hot, and somehow judgemental.' },
     { id: 'manor_counter', type: 'counter', x: 10, y: 2 },
     { id: 'manor_rug', type: 'rug', x: 5, y: 6, w: 3, h: 2, color: '#7a2f35' },
-    { id: 'manor_bed1', type: 'bed', x: 1, y: 8, color: '#6d6a60' }, { id: 'manor_bed2', type: 'bed', x: 2, y: 8, color: '#6d6a60' },
-    { id: 'manor_bed3', type: 'bed', x: 3, y: 8, color: '#6d6a60' }, { id: 'manor_bed4', type: 'bed', x: 4, y: 8, color: '#6d6a60' },
+    { id: 'manor_servants_table', type: 'table', x: 1, y: 8, w: 2, examine: 'The servants\' hall table, where Crisp takes his tea at exactly four. The staff used to sleep along this corridor; they have cottages of their own now, and Crisp has never been happier (he would never say so).' },
+    { id: 'manor_bells', type: 'cabinet', x: 3, y: 8, examine: 'A board of service bells, one per room, labelled in copperplate. The "LIBRARY" bell has been rung so often the clapper is shiny.' },
     { id: 'manor_plant', type: 'plant', x: 9, y: 10 },
     // the study
     { id: 'study_shelf', type: 'shelf', x: 12, y: 1, w: 2, examine: 'Leather-bound books, uncut. "The Moral Case for Monopoly", volumes I to IX.' },
@@ -202,9 +207,11 @@ export const refinery = {
   ],
 };
 
+// v0.55.0: the crew mess. The crew used to sleep here in bunks; they have houses on Derrick Row in
+// Starling now (src/content/homes.js), and come here to eat and to play cards.
 export const bunkhouse = {
   id: 'bunkhouse',
-  name: 'Workers\' Bunkhouse',
+  name: 'The Crew Mess (the old bunkhouse)',
   kind: 'interior',
   music: 'mus_home',
   ambience: 'amb_indoor',
@@ -212,18 +219,13 @@ export const bunkhouse = {
   doors: [{ id: 'door_bunkhouse_exit', x: 6, y: 7, to: { map: 'ober_fields', spot: 'bunkhouse_door_out' } }],
   spots: {
     entry: { x: 6, y: 6, facing: 'up' },
-    bunk1: { x: 2, y: 2, facing: 'left' },
-    bunk2: { x: 4, y: 2, facing: 'left' },
-    bunk3: { x: 6, y: 2, facing: 'left' },
-    bunk4: { x: 8, y: 2, facing: 'left' },
-    bunk5: { x: 10, y: 2, facing: 'left' },
     table_a: { x: 4, y: 4, facing: 'right' },
     table_b: { x: 7, y: 4, facing: 'left' },
   },
   props: [
-    { id: 'bunk_bed1', type: 'bed', x: 1, y: 1, color: '#8a7a5a' }, { id: 'bunk_bed2', type: 'bed', x: 3, y: 1, color: '#7a8a5a' },
-    { id: 'bunk_bed3', type: 'bed', x: 5, y: 1, color: '#8a5a5a' }, { id: 'bunk_bed4', type: 'bed', x: 7, y: 1, color: '#5a6a8a' },
-    { id: 'bunk_bed5', type: 'bed', x: 9, y: 1, color: '#6a5a8a' },
+    { id: 'bunk_lockers', type: 'cabinet', x: 1, y: 1, examine: 'Five lockers, one per crew member, and five padlocks nobody locks. Hank\'s has a photo of Gerald the pumpjack taped inside.' },
+    { id: 'bunk_dartboard', type: 'painting', x: 5, y: 0, examine: 'A dartboard. The bullseye is a photograph of a pressure gauge.' },
+    { id: 'bunk_shelf', type: 'shelf', x: 8, y: 1, w: 2, examine: 'Mugs, a kettle, a tin of biscuits labelled "PIP — HANDS OFF", and the crew\'s card-game ledger going back eleven years.' },
     { id: 'bunk_table', type: 'table', x: 5, y: 4, w: 2, interact: { kind: 'read', doc: 'doc_union_pamphlet' } },
     { id: 'bunk_stove', type: 'stove', x: 10, y: 5, examine: 'A pot-bellied stove. Someone has hung wet socks on it. Several someones.' },
     { id: 'bunk_win', type: 'window', x: 3, y: 0 }, { id: 'bunk_win2', type: 'window', x: 8, y: 0 },

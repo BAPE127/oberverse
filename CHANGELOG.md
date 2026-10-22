@@ -2,6 +2,38 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.55.0] — 2026-10-22 — Starling Flats (development build)
+
+The owner paused the casino for "more important content" — the aerospace master brief (aircraft, defence contracts, rockets, satellites and integrated shipping, against an established, publicly traded competitor) — and: "Remember that each NPC needs their own house too." Asked before building: the campus in a **new region east** of the oil fields, the player **buys a failing firm**, delivered in **staged releases**, and everyone who shares a home gets **their own**. This is stage I of five (docs/AEROSPACE.md).
+
+### Added — Starling Flats (`src/content/maps/starling.js`, region `starling`)
+- **The Cut**: the county road runs on from Wellhead Circle through the escarpment to a new region on the high plain.
+- **Starling**: eleven houses on Mesa Road (the first five are **Derrick Row**, the Ober's Oil crew's), the Contrail Café, a water tower, a bus shelter with no bus yet.
+- **The Aerospace Park**: the freight depot, the security gate, **Roost Aeroworks** (office, Hangar 1 and its apron), **Meridian Aerospace** (HQ tower and share board, final assembly, the flight-line hall with its secure bay, space systems, engine test stand, paint shop, apron), **runway 09/27** with taxiway, hold bars, numbered stands, edge, threshold and approach lights (new tarmac tile and markings), flight operations, the control tower and radar, windsocks, **the launch complex** (vertical integration building, Meridian's pad with its service tower and flame trench, the propellant farm, pad 2 for you, launch control, the ground station), and the boneyard.
+- New art (`src/engine/drawAero.js`): a top-down aircraft painter for every class (private, airliner, fighter, bomber, flying wing, futuristic) with liveries, primer, wrecks and every stage of a build; rockets standing or on cradles; satellites with panels stowed or out; windsocks streaming in the wind, a turning radar, beacons, runway lights at night, a gantry crane; and **assembly bays that draw whatever is being built in them**, stage by stage, straight from the simulation.
+
+### Added — the people (`src/content/characters/aerospace.js`)
+Billie Roost (founder of Roost Aeroworks, selling up), Dr. Imogen Hale (Meridian's chief executive), Ailie Ronn (test pilot), Rudy Durr (head of production), Tina Minus (launch director), Wrenna Torq (Roost's chief mechanic) — each with a house, a schedule, dialogue, opinions; theme tunes for Billie and Dr. Hale.
+
+### Added — the aerospace industry, stage I (`src/aero/`, `src/systems/aerospace.js`, `src/content/aerospace.js`)
+- **A catalogue** of 39 products: private aircraft, airliners, fighters and bombers (fictional defence products), six launch vehicles, two fictional strategic missile products, thirteen satellites — each with price, work days, bay, materials, research, quality, and (aircraft) a full flight spec for the future flyable-aircraft update.
+- **Tenders and sealed bids**: customers post tenders from finite budgets; Meridian and you bid; the customer ranks by its own priorities. **No aircraft contract is ever for more than five aircraft** — enforced when tenders are made, when bids are placed and when contracts are signed.
+- **Production pipelines** for aircraft (13 stages), launch vehicles (15), strategic products (9; a secure convoy, never the pad) and satellites (15), each unit persistent and tied to its contract: bays taken only when materials are in hand, materials reserved and consumed stage by stage, inspections rolled once and kept (rework when they fail), the apron, the pad, launches, commissioning, the satellite registry.
+- **Materials and suppliers**: twenty materials, eleven suppliers with finite stock (Ober's Oil sells the fuel, propellant and chemicals), landed cost (goods, duty, freight by an independent carrier over the real sea lanes, handling, the truck up the Cut), delivery before use.
+- **Books** for each company: revenue on delivery, deposits deferred, materials as stock until used, wages, upkeep, overhead, research, rework, launches, penalties.
+- **Meridian Aerospace Corporation**, established and operating: its order book already on the floor, bidding, buying, building, launching, researching and hiring by the same rules as you. **MRDN** joins OBRO and CHZ on the exchange (the tablet's Stocks app): a price that follows its books and order book, a broker's fee, at most 5% for one investor, a dividend on Moondays.
+- **Roost Aeroworks** for sale from Billie (85,000 obols): a light bay, thirty workers, an apron, two Skylarks on order. **The aerospace terminal** (Roost office, the tablet's Aerospace app): dashboard, tender board and bids, contracts, production, supply (with every supplier's landed cost), facilities (workforce, bays, test cell, inspection, a pad, research), the books, Meridian.
+
+### Changed — a home of one's own
+- The Ober's Oil crew (Gideon, Ruby, Hank, Pip, Otto) move out of the bunkhouse into their own houses on **Derrick Row** in Starling; the bunkhouse is now the **crew mess** (they still eat and play cards there).
+- Moneybucks Manor's staff (Crisp, Agnes, Silas, Mabel) move from beds along the manor's back corridor into flats of their own in **the Estate Cottages** by the county road; the corridor is the servants' hall.
+- The Sums of Anarchy's crew no longer bunk two to a shack: Percy, Dee Nominator and Max have shacks of their own.
+- Vera and Brock of the Phonograph Grand move from the staff bunk room into flats of their own at **the Ledgerline Residences**; the bunk room is the staff lounge.
+- (The Sumps camp stays a camp, as agreed.)
+
+### Tests
+- `aerospace.test.mjs` (14): Meridian on a new game; the five-aircraft rule everywhere (and no back door); every product's pipeline uses its whole bill of materials once; margins; buying the firm once and never free on an old save; materials before work, no double use; Billie's Skylarks built, parked, collected and paid once each, as persistent aircraft; save/load mid-production (rolls and the aerospace random stream kept); the rival within capacity, buying what it uses; bids ranked by priorities; MRDN trading and a price that follows fair value; satellites only operational after launch and commissioning, and decommissioned at end of life; everyone's own home; the Park, runway and launch complex.
+
 ## [0.54.0] — 2026-10-22 — Sleight of Hand (development build)
 
 The owner: "I want him to feel a lot more magical in his card dealing and much more animated and larger. It should really feel like you are at a table with him. Also improve the roguelike to have special bonus cards and magical cards for the player."

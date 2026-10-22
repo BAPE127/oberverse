@@ -11,6 +11,7 @@
 import { hash2 } from '../core/rng.js';
 import { lightState, walkSignal } from '../world/lights.js';
 import { EFFECTS } from './cardMagic.js';
+import { AERO_PAINTERS, aeroLive, aeroLiveView } from './drawAero.js';
 
 const INK = '#1b1a24';
 const SHADOW_RGB = '16,14,36';
@@ -1252,6 +1253,8 @@ const PAINTERS = {
   },
 };
 
+Object.assign(PAINTERS, AERO_PAINTERS); // v0.55.0: Starling Flats
+
 /** Where a statue's plinth starts, and its plaque's middle (prop coordinates). */
 const plinthTop = (p) => Math.max(10, H(p) - 30);
 const plaqueY = (p) => Math.round((plinthTop(p) + H(p) - 10) / 2);
@@ -1279,7 +1282,7 @@ const painterOf = (type) => {
 };
 
 function make(P, p, v, o) {
-  const [x0, y0, x1, y1] = P.box(p);
+  const [x0, y0, x1, y1] = P.box(p, o.view);
   const w = x1 - x0 + 2;
   const h = y1 - y0 + 2;
   const body = document.createElement('canvas');
@@ -1321,10 +1324,11 @@ function spriteFor(p, opts) {
   const v = P.variants ? Math.floor(hash2(Math.round(p.x * 7) + 3, Math.round(p.y * 13) + 1) * P.variants) : 0;
   const night = P.night ? Boolean(opts.night) : false;
   const ln = P.connect ? links(opts.map, p) : 0;
-  const key = `${p.type}|${p.w}|${p.h}|${p.color || ''}|${v}|${night ? 1 : 0}|${ln}|${p.razor ? 1 : 0}|${p.vertical ? 1 : 0}`;
+  const view = P.view ? opts.aero || null : null; // v0.55.0: props drawn from the simulation
+  const key = `${p.type}|${p.w}|${p.h}|${p.color || ''}|${v}|${night ? 1 : 0}|${ln}|${p.razor ? 1 : 0}|${p.vertical ? 1 : 0}${view ? `|${view.key}` : ''}`;
   let s = sprites.get(key);
   if (!s) {
-    s = make(P, p, v, { night, links: ln });
+    s = make(P, p, v, { night, links: ln, view });
     sprites.set(key, s);
   }
   return s;
@@ -1343,6 +1347,7 @@ export function drawPropSprite(ctx, p, opts = {}) {
   if (p.type === 'busstop' || p.type === 'gatepost' || p.type === 'statue' || p.type === 'watertower') label(ctx, p);
   if (p.type === 'windmill') wheel(ctx, p, opts.time || 0);
   if (p.type === 'laundry') washing(ctx, p, opts.time || 0);
+  if (AERO_PAINTERS[p.type]) { aeroLive(ctx, p, opts); aeroLiveView(ctx, p, opts); }
   if (p.type === 'floating_cards') EFFECTS.spiral(ctx, { x: p.x * T + 16, y: p.y * T + 6, height: 34, r: 10, n: 9, h: 6, speed: 0.35 }, opts.time || 0); // v0.52.0
   return true;
 }

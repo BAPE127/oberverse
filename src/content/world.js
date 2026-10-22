@@ -19,6 +19,11 @@ export const REGIONS = {
     name: 'Lariat',
     maps: { lariat: { x: 0, y: 0, fallbackSpot: 'south_gate' } },
   },
+  // Starling Flats (v0.55.0): up the Cut from Wellhead Circle in the Ober Fields — the aerospace park.
+  starling: {
+    name: 'Starling Flats',
+    maps: { starling_flats: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
+  },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {

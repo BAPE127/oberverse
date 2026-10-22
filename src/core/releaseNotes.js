@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.55.0',
+    date: '2026-10-22',
+    channel: 'development',
+    title: 'Starling Flats',
+    notes: [
+      'Up the Cut from the Ober Fields: Starling Flats Aerospace Park — Meridian Aerospace\'s hangars, a runway, a launch complex, and Roost Aeroworks, which Billie Roost would like to sell you.',
+      'Bid against Meridian for aircraft, rockets, defence work and satellites; build them stage by stage (you can watch them grow in the bays); buy MRDN on the exchange.',
+      'Everybody has a home of their own now: the oil crew live on Derrick Row, the manor staff in the Estate Cottages, the Sums crew a shack each, and Vera and Brock in the Ledgerline.',
+    ],
+  },
+  {
     version: '0.54.0',
     date: '2026-10-22',
     channel: 'development',

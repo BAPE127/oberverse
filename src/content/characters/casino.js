@@ -192,11 +192,11 @@ export const vera = {
   walkSpeed: 1.0, punctuality: 0, impulses: [], notices: [], knowledge: [],
   noSnitch: true,
   schedule: [
-    { from: '02:30', to: '09:30', activity: 'sleep', spot: 'phonograph_staff:bed_1' },
+    { from: '02:30', to: '09:30', activity: 'sleep', spot: 'ledgerline_1:bed' },
     { from: '09:30', to: '10:00', activity: 'eat', spot: 'phonograph_staff:table', label: 'toast, and the float counted' },
     { from: '10:00', to: '16:00', activity: 'cashier', spot: 'phonograph_casino:cage_cashier', label: 'running the cage' },
     { from: '16:00', to: '17:00', activity: 'eat', spot: 'phonograph_lobby:lounge_a', label: 'a break in the Lucky Star Lounge' },
-    { from: '17:00', to: '20:00', activity: 'relax', spot: 'phonograph_staff:table', label: 'feet up in the staff quarters' },
+    { from: '17:00', to: '20:00', activity: 'relax', spot: 'phonograph_staff:table', label: 'feet up in the staff lounge' },
     { from: '20:00', to: '02:00', activity: 'cashier', spot: 'phonograph_casino:cage_cashier', label: 'running the cage' },
     { from: '02:00', to: '02:30', activity: 'relax', spot: 'phonograph_staff:table', label: 'balancing the night\'s books' },
   ],
@@ -236,7 +236,7 @@ export const brock = {
   speech: { rumorPrefix: 'Saw on the monitors:', factPrefix: 'Noted:', refuse: 'Can\'t say.' },
   walkSpeed: 0.95, punctuality: -5, impulses: [], notices: [], knowledge: [],
   schedule: [
-    { from: '04:30', to: '12:00', activity: 'sleep', spot: 'phonograph_staff:bed_2' },
+    { from: '04:30', to: '12:00', activity: 'sleep', spot: 'ledgerline_2:bed' },
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'phonograph_staff:table', label: 'six eggs' },
     { from: '13:00', to: '16:00', activity: 'work', spot: 'phonograph_lobby:doorman', label: 'on the front door' },
     { from: '16:00', to: '22:00', activity: 'work', spot: 'phonograph_casino:floor_watch', label: 'watching the floor' },

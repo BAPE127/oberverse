@@ -97,6 +97,8 @@ export const MOTIFS = {
   motif_ober: { title: 'Captain Ober — "Hoist Away" (a squeezebox shanty)', bpm: 118, notes: 'D4:1 F#4:1 A4:2 A4:1 B4:1 A4:1 F#4:1 D4:2 E4:1 F#4:1 G4:2 F#4:1 E4:1 D4:3', inst: 'reed', character: 'npc_ober' },
   motif_morganius: { title: 'Morganius Spade — "Sleight of Hand" (a sly clarinet, chromatic as a shuffle)', bpm: 104, notes: 'D4:1 F4:1 A4:1 G#4:1 A4:2 -:1 C5:1 B4:1 A#4:1 A4:1 F4:1 E4:1 C#4:1 D4:3', inst: 'clarinet', character: 'npc_morganius' },
   motif_octavius: { title: 'Octavius Thomas Phonograph — "Please Hold" (a ringtone in a hurry)', bpm: 150, notes: 'E5:1 B4:1 E5:1 B4:1 G#5:2 F#5:1 E5:1 -:1 E5:1 B4:1 E5:1 B4:1 C#6:2 B5:2', inst: 'bell', character: 'npc_octavius' },
+  motif_billie: { title: 'Billie Roost — "Full Throttle" (a racing brass fanfare, a bit out of breath)', bpm: 144, notes: 'C4:1 E4:1 G4:1 C5:2 -:1 B4:1 G4:1 A4:1 B4:1 C5:1 D5:1 E5:3 -:1 D5:1 C5:3', inst: 'brass', character: 'npc_billie' },
+  motif_imogen: { title: 'Dr. Imogen Hale — "On Schedule" (a precise clarinet, every note on the beat)', bpm: 120, notes: 'A4:1 C5:1 E5:1 A5:1 G5:1 E5:1 C5:1 D5:1 E5:2 -:1 E5:1 F5:1 G#5:1 A5:3', inst: 'clarinet', character: 'npc_imogen' },
   motif_tibbs: { title: 'Tibbs — "Splonk"', bpm: 170, notes: 'E5:1 G5:1 E5:1 B5:1 A5:1 -:1 F#5:2', inst: 'pluck', character: 'npc_tibbs' },
 };
 
@@ -125,6 +127,8 @@ export const AUDIO_REGISTRY = [
   { id: 'motif_lawrence', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_lawrence', trigger: 'conversation opens with Chief Lawrence Order', status: 'implemented', source: 'Original composition' },
   { id: 'motif_arthur', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_arthur', trigger: 'conversation opens with Arthur Anderson', status: 'implemented', source: 'Original composition' },
   { id: 'motif_chuckie', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_chuckie', trigger: 'conversation opens with Farmer Chuckie', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_billie', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_billie', trigger: 'conversation opens with Billie Roost', status: 'implemented', source: 'Original composition' },
+  { id: 'motif_imogen', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_imogen', trigger: 'conversation opens with Dr. Imogen Hale', status: 'implemented', source: 'Original composition' },
   { id: 'motif_ober', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_ober', trigger: 'conversation opens with Captain Ober', status: 'implemented', source: 'Original composition' },
   { id: 'motif_morganius', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_morganius', trigger: 'conversation opens with Morganius Spade', status: 'implemented', source: 'Original composition' },
   { id: 'motif_octavius', category: 'motif', method: 'procedural: MOTIFS', character: 'npc_octavius', trigger: 'conversation opens with Octavius Thomas Phonograph', status: 'implemented', source: 'Original composition' },

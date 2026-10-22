@@ -761,3 +761,29 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 @keyframes sg-float { 50% { transform: translateY(-6px) rotate(1.5deg); } }
 @media (max-width: 700px) { .sg-spells { display: none; } }
 .sg .ct-speech { top: 150px; left: 222px; right: auto; bottom: auto; max-width: 270px; } /* in the empty room by his shoulder, clear of the spellbook and the counters */
+
+/* ---------------------------------------------------------------- v0.55.0: the aerospace terminal */
+.panel.aero.wide { width: min(1100px, 96vw); }
+.aero .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.aero .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .aero .grid4, .aero .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.aero .stat.good b { color: var(--good, #5ad08a); }
+.aero .stat.bad b { color: var(--bad, #e86a5a); }
+.aero-section { margin: 14px 0 6px; }
+.aero-section > h3 { margin: 0 0 6px; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-2); }
+.aero-card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; background: rgba(255,255,255,0.03); }
+.aero-card .name, .aero-unit .name { font-weight: 700; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.aero-unit { margin: 6px 0 2px 10px; padding-left: 8px; border-left: 2px solid var(--line); }
+.aero-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 4px 0; }
+.aero-bar i { display: block; height: 100%; background: var(--accent-2); }
+.aero-bar.stage i { background: #e8c040; }
+.aero .desc.warn, .aero .item-row.warn .desc { color: #e8c040; }
+.aero .desc.bad, .aero .item-row.bad .desc, .aero tr.bad td { color: #ff8a7a; }
+.aero .desc.good, .aero tr.good td { color: #7ae0a0; }
+.aero-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.aero-table th, .aero-table td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.aero-table tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
+.aero-num { width: 110px; } .aero-num.small { width: 60px; }
+.aero-bid { gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-start; margin-top: 4px; }
+.aero-msg { font-weight: 700; color: var(--accent-2); }
+.ticker-fair { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 3; }

@@ -612,15 +612,16 @@ export function investPanel(ui, body, opts) {
 /** The share register: Sir Moneybucks's desk, and the tablet's Stocks app. */
 export function stocksScreen(ui, body, opts = {}) {
   const g = ui.game;
-  let company = opts.company === 'chz' ? 'chz' : 'obro';
-  // v0.29.0: the Halvermouth exchange lists two companies
+  let company = ['chz', 'mrdn'].includes(opts.company) ? opts.company : 'obro';
+  // v0.29.0: the Halvermouth exchange lists two companies; v0.55.0: three (MRDN)
   const tabs = (render) => h('div', { class: 'row', style: 'justify-content:flex-start;margin-bottom:10px' },
-    ...[['obro', 'OBRO · Ober\'s Oil'], ['chz', 'CHZ · Chuckie\'s Cheese']].map(([id, label]) => h('button', { class: `small${company === id ? ' primary' : ''}`, onclick: () => { company = id; render(); } }, label)));
+    ...[['obro', 'OBRO · Ober\'s Oil'], ['chz', 'CHZ · Chuckie\'s Cheese'], ['mrdn', 'MRDN · Meridian Aerospace']].map(([id, label]) => h('button', { class: `small${company === id ? ' primary' : ''}`, onclick: () => { company = id; render(); } }, label)));
   const render = (msg) => {
     body.innerHTML = '';
     if (opts.header) body.append(opts.header());
     body.append(tabs(render));
     if (company === 'chz') return chzScreen(g, body, msg, render);
+    if (company === 'mrdn') return mrdnScreen(g, body, msg, render);
     const s = g.oil.state;
     const out = g.oil.computeOutput();
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
@@ -680,6 +681,58 @@ function chzScreen(g, body, msg, render) {
     h('div', { class: 'row', style: 'justify-content:flex-start' }, buy(1), buy(10), buy(100), sell(1), sell(10), sell(100)),
   );
   if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.cheese} kg @ ${d.price}`).join(' · ')}`));
+}
+
+/** A share-price chart (inline SVG): price, and fair value dotted when given. */
+export function priceChart(hist, { label = 'price', fair = false } = {}) {
+  const holder = h('div', { class: 'tablet-ticker' });
+  if (hist.length < 2) { holder.append(h('p', { class: 'muted' }, 'The chart fills in day by day.')); return holder; }
+  const W = 520;
+  const H = 120;
+  const P = 10;
+  const vals = hist.flatMap((d) => [d.price, ...(fair && d.fair ? [d.fair] : [])]);
+  const lo = Math.min(...vals);
+  const hi = Math.max(...vals);
+  const x = (i) => P + (i / (hist.length - 1)) * (W - 2 * P);
+  const y = (v) => H - P - ((v - lo) / Math.max(0.01, hi - lo)) * (H - 2 * P);
+  const line = (key, cls) => `<polyline points="${hist.map((d, i) => `${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ')}" class="${cls}"></polyline>`;
+  const dots = hist.map((d, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(d.price).toFixed(1)}" r="6" class="ticker-hit"><title>Day ${d.day}: ${d.price.toFixed ? d.price.toFixed(2) : d.price}${d.profit !== undefined ? ` · day's profit ${Math.round(d.profit).toLocaleString()}` : ''}</title></circle>`).join('');
+  holder.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="ticker-chart" role="img" aria-label="${label} over ${hist.length} days, ${hist[0].price} to ${hist[hist.length - 1].price}"><line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" class="ticker-axis"></line>${fair ? line('fair', 'ticker-fair') : ''}${line('price', 'ticker-line')}${dots}</svg>`;
+  return holder;
+}
+
+/** MRDN: Meridian Aerospace Corporation on the exchange (src/systems/aerospace.js). */
+export function mrdnScreen(g, body, msg, render) {
+  const A = g.aero;
+  const m = A.state.market;
+  const M = A.meridian;
+  const X = A.A.exchange;
+  if (msg) body.append(h('p', {}, h('b', {}, msg)));
+  const room = A.maxShares() - m.sharesOwned;
+  const buy = (k) => { const q = A.shareQuote(k); return h('button', { class: 'small primary', disabled: k > room || g.player.money < q.gross + q.fee, onclick: () => render(A.buyShares(k).text) }, `Buy ${k.toLocaleString()} (${(q.gross + q.fee).toLocaleString()})`); };
+  const sell = (k) => h('button', { class: 'small', disabled: m.sharesOwned < k, onclick: () => render(A.sellShares(k).text) }, `Sell ${k.toLocaleString()}`);
+  const week = A.statement(M, 7);
+  const cap = Math.round(m.price * A.A.meridian.shares);
+  const last = m.history.at(-1);
+  body.append(
+    h('p', { class: 'muted' }, `${A.A.meridian.name} — aircraft, launch vehicles, defence products and satellites at Starling Flats. ${A.A.meridian.shares.toLocaleString()} shares; one investor may hold ${A.maxShares().toLocaleString()} (${Math.round(X.maxPlayerShare * 100)}%). Broker\'s fee ${Math.round(X.fee * 100)}% each way. A dividend on Moondays from the week\'s earnings.`),
+    h('div', { class: 'grid2', style: 'margin-bottom:12px' },
+      h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, g.player.money.toLocaleString())),
+      h('div', { class: 'stat' }, h('span', {}, 'Your shares'), h('b', {}, `${m.sharesOwned.toLocaleString()} / ${A.maxShares().toLocaleString()}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${m.price.toFixed(2)} obols`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Market capitalisation'), h('b', {}, `${(cap / 1e6).toFixed(1)}M obols`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Revenue, last 7 days'), h('b', {}, `${Math.round(week.revenue).toLocaleString()}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Profit, last 7 days'), h('b', {}, `${Math.round(week.profit).toLocaleString()}`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Order backlog'), h('b', {}, `${A.contractsOf(M, 'active').length} contracts`)),
+      h('div', { class: 'stat' }, h('span', {}, 'Dividends received'), h('b', {}, `${m.dividendsPaid.toLocaleString()} obols`)),
+      m.sharesOwned ? h('div', { class: 'stat' }, h('span', {}, 'Your holding is worth'), h('b', {}, `${Math.round(m.sharesOwned * m.price).toLocaleString()} (cost ${m.costBasis.toLocaleString()})`)) : null,
+      last ? h('div', { class: 'stat' }, h('span', {}, 'Cash in hand'), h('b', {}, `${(last.cash / 1e6).toFixed(1)}M`)) : null,
+    ),
+    priceChart(m.history, { label: 'MRDN' }),
+    h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:8px' }, buy(100), buy(1000), buy(10000), sell(100), sell(1000), sell(10000)),
+    h('h3', { style: 'margin:14px 0 6px' }, 'Company news'),
+    h('div', { class: 'list' }, ...A.state.news.slice(0, 6).map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} — ${n.text}`))))),
+  );
 }
 
 export function exchangePanel(ui, body, opts) {

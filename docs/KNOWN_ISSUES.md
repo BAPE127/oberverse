@@ -1,4 +1,7 @@
-# Known Issues and Limitations — v0.54.0
+# Known Issues and Limitations — v0.55.0
+
+- **Aerospace, stage I (v0.55.0)** — see docs/AEROSPACE.md for the plan. Not yet: shipping your materials in your own Ober & Sons ships (v0.57.0: everything comes by an independent carrier at the market rate for now); aircraft taxiing and taking off and rockets launching on screen (v0.58.0: deliveries and launches happen, and are recorded, without the animation); satellite services and networks (v0.59.0: satellites are built, launched, commissioned and registered, but earn nothing after delivery yet); bays and facilities you build don't appear on the map yet (v0.56.0). Meridian's new bays only come once it's very cash-rich, for the same reason. Pad 2 can be paid for but there's no service tower drawn on it yet. The aerospace terminal is a paged screen (no map view). Nobody drives: everyone walks the Cut.
+
 
 - **Morganius at the table (v0.54.0):** he's painted at 200 × 190 art pixels and scaled to the scene, so on very large screens his pixels are big (on purpose — the game's look). The world sprite of him (walking about the casino) is unchanged. The roulette ball's flick is a pose, not a thrown ball. On narrow screens the spellbook and the Curios hide (keys still cast).
 
@@ -6,7 +9,7 @@
 - **The Spade's Gambit (v0.53.0):** 17 Curios, 6 Inks, 5 Twists, and (v0.54.0) 6 Marvels and 10 Spells. You can't reorder your Curios (part with one and buy again to change the order). The Cabinet's "part with" asks with the browser's own confirm box. Loading an earlier save takes the Gambit back to how it was then (as with everything else in a save).
 
 
-- **The Phonograph Grand (v0.52.0):** Texas Hold'em isn't open yet (its tables say so). Octavius wears a stand-in look until the owner's picture arrives. Nobody else plays at the tables and there are no croupiers or visitors yet (nightlife is v0.55.0), so every seat is yours. The world pauses while you're at a table. The cage is shut 02:00–10:00. Blackjack pays 3:2 rounded down to whole chips (a 5-chip blackjack returns 12). Morganius is drawn at the table as his pixel figure scaled up (deliberately: the scene is in the game's own pixels), with the photo as his portrait beside what he says. Private floors open by flags that nothing in the game sets yet (invitations come later).
+- **The Phonograph Grand (v0.52.0):** Texas Hold'em isn't open yet (its tables say so). Octavius wears a stand-in look until the owner's picture arrives. Nobody else plays at the tables and there are no croupiers or visitors yet (nightlife comes after the aerospace stages), so every seat is yours. The world pauses while you're at a table. The cage is shut 02:00–10:00. Blackjack pays 3:2 rounded down to whole chips (a 5-chip blackjack returns 12). Morganius is drawn at the table as his pixel figure scaled up (deliberately: the scene is in the game's own pixels), with the photo as his portrait beside what he says. Private floors open by flags that nothing in the game sets yet (invitations come later).
 
 
 - **Light (v0.51.0):** a lit room is lit evenly (no lamps of its own inside it yet); the floors of towers and other rooms that aren't laid into a street still use the old indoor light. Light pools are round and don't stop at walls.

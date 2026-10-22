@@ -421,7 +421,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad', 'magic_circle']);
+export const FLAT_PROPS = new Set(['runway_light', 'crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad', 'magic_circle']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 

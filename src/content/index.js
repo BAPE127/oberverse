@@ -7,6 +7,7 @@ import westbrookMaps from './maps/westbrook.js';
 import halvermouthMaps from './maps/halvermouth.js';
 import yardsMaps from './maps/yards.js';
 import lariatMaps from './maps/lariat.js';
+import starlingMaps from './maps/starling.js';
 import { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } from './arms.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
@@ -59,7 +60,10 @@ import lariatChars from './characters/lariat.js';
 import dlgLariat from './dialogue/lariat.js';
 import casinoChars from './characters/casino.js';
 import dlgCasino from './dialogue/casino.js';
+import aeroChars from './characters/aerospace.js';
+import dlgAero from './dialogue/aerospace.js';
 import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
+import { AERO, BAYS as AERO_BAYS, FACILITIES as AERO_FACILITIES, MATERIALS as AERO_MATERIALS, SUPPLIERS as AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT as AERO_FREIGHT, PIPELINES as AERO_PIPELINES, RESEARCH as AERO_RESEARCH, PRODUCTS as AERO_PRODUCTS, CUSTOMERS as AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE } from './aerospace.js';
 import { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } from './farming.js';
 import { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } from './life.js';
 import { towerMaps, addTowers, TOWERS } from './towers.js';
@@ -83,7 +87,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -109,7 +113,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -134,7 +138,7 @@ export const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -148,6 +152,7 @@ export const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE }, // v0.55.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
@@ -158,7 +163,7 @@ export const BASE_CONTENT = {
 // v0.47.0: seamless buildings. The towns grow so every building holds its interior; every
 // street coordinate in the content moves with them (once — everything above is in the widened
 // coordinates); then each interior is laid over its building and the seams are re-stitched.
-const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat'];
+const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats'];
 const GROWTH = growStreets(MAPS, REGIONS, (id, b) => {
   const I = realInterior(MAPS, MAPS[id], b);
   return I ? { W: I.def.tiles[0].length, H: I.def.tiles.length, ex: I.exit.x } : null;

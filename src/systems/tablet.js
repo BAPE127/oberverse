@@ -13,6 +13,7 @@ export const TABLET_APPS = {
   news: { icon: '📰', name: 'World news' },
   stocks: { icon: '📈', name: 'Stocks' },
   ships: { icon: '⚓', name: 'Ober & Sons' },
+  aero: { icon: '✈️', name: 'Aerospace' }, // v0.55.0
 };
 const FEED_MAX = 60;
 

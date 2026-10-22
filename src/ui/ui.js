@@ -19,6 +19,7 @@ import { fleetPanel } from './fleetCommand.js';
 import { logbookPanel } from './logbook.js';
 import { cashierPanel, casinoTablePanel } from './casino.js';
 import { spadeTablePanel } from './spadeTable.js';
+import { aerospacePanel, aeroSalePanel } from './aerospace.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -34,6 +35,8 @@ PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;
 PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
+PANELS.aerospace = aerospacePanel; // v0.55.0: Starling Flats
+PANELS.aerospace_sale = aeroSalePanel;
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [

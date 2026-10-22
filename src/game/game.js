@@ -35,6 +35,7 @@ import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
 import { Logistics } from '../systems/logistics.js';
 import { Dairy } from '../systems/dairy.js';
+import { Aerospace } from '../systems/aerospace.js';
 import { Farm } from '../systems/farm.js';
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
@@ -79,6 +80,7 @@ export class Game {
     this.pursuit = new Pursuit(this);
     this.logistics = new Logistics(this);
     this.dairy = new Dairy(this);
+    this.aero = new Aerospace(this); // v0.55.0: Starling Flats Aerospace Park
     this.farm = new Farm(this);
     this.rng = new Rng(seed ?? 0x0b3e);
     this.clock = new WorldClock();
@@ -342,6 +344,7 @@ export class Game {
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
+    this.aero.minuteTick();
     this.farm.minuteTick();
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
@@ -827,6 +830,7 @@ export class Game {
       case 'lift': return 'Call the lift';
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
+      case 'aerospace': return { terminal: 'Use the aerospace terminal', board: 'Read the share board', sale: 'Read the sale notice' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
       case 'farm': return this.farm.label(prop);
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
@@ -931,6 +935,8 @@ export class Game {
         return this.logistics.interact(prop);
       case 'dairy':
         return this.dairy.interact(prop);
+      case 'aerospace':
+        return this.aero.interact(prop);
       case 'farm':
         return this.farm.interact(prop);
       case 'workstation':
@@ -1319,6 +1325,7 @@ export class Game {
     this.dairy.afterLoad();
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
+    this.aero.afterLoad(); // v0.55.0
     this.updateDiscovery();
     return this;
   }

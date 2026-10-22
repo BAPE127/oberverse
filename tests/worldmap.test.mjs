@@ -19,7 +19,7 @@ test('the world layout places every outdoor map, without overlaps', () => {
     const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
     assert.ok(ox <= 1 || oy <= 0, `${a.id} overlaps ${b.id}`);
   }
-  assert.equal(L.roads.length, 3, 'Westbrook–Halvermouth, Halvermouth–Yards and Halvermouth–Lariat');
+  assert.equal(L.roads.length, 4, 'Westbrook–Halvermouth, Halvermouth–Yards, Halvermouth–Lariat and the Cut (v0.55.0)');
   assert.ok(L.pos.lariat.y + g.maps.get('lariat').height <= L.pos.halvermouth.y, 'Lariat lies north of Halvermouth');
   assert.ok(L.pos.halvermouth.x < L.pos.westbrook.x, 'Halvermouth lies west of Westbrook');
   assert.ok(L.pos.yards.x < L.pos.halvermouth.x, 'the Yards lie west of Halvermouth');

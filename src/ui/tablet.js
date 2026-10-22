@@ -11,7 +11,7 @@ import { farmApp } from './farm.js';
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -26,11 +26,30 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Business') businessApp(ui, body, opts, open);
   else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
+  else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
   const label = (t) => (t === 'Home' && unread && tab !== 'Home' ? `Home (${unread})` : t);
   return { title: '📱 OberPad', className: 'tablet', tabs: apps.map((t) => ({ label: label(t), active: t === tab, onclick: () => open(t) })) };
+}
+
+/** v0.55.0: Roost Aeroworks at a glance, and the way into the terminal. */
+function aeroApp(ui, body) {
+  const g = ui.game;
+  const A = g.aero;
+  const co = A.roost;
+  const week = A.statement(co, 7);
+  const units = A.unitsOf(co);
+  body.append(
+    h('div', { class: 'grid2 tablet-cards' },
+      h('div', { class: 'tablet-card' }, h('b', {}, '✈️ Roost Aeroworks'), h('span', {}, `${A.contractsOf(co, 'active').length} contracts · ${units.length} units in hand`), h('span', {}, `Last 7 days: revenue ${week.revenue.toLocaleString()}, profit ${Math.round(week.profit).toLocaleString()}`)),
+      h('div', { class: 'tablet-card' }, h('b', {}, '📣 Tender board'), h('span', {}, `${A.openTenders().length} open tenders`), h('span', {}, `MRDN ${A.state.market.price.toFixed(2)}`)),
+    ),
+    h('button', { class: 'primary', onclick: () => ui.openPanel('aerospace', { company: 'roost' }) }, 'Open the aerospace terminal'),
+    h('h3', { style: 'margin:12px 0 6px' }, 'Latest'),
+    h('div', { class: 'list' }, ...A.state.reports.filter((r) => r.company === 'roost').slice(0, 8).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${A.when(r.at)} — ${r.text}`))))),
+  );
 }
 
 function homeApp(ui, body, open) {

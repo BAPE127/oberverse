@@ -32,6 +32,7 @@ export const OCCUPATIONS = {
   scientist: { name: 'Scientist', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   livestock: { name: 'Livestock', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   entertainer: { name: 'Entertainer', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.52.0
+  pilot: { name: 'Pilot', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.55.0
   inmate: { name: 'Inmate', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
 };
 
@@ -48,14 +49,14 @@ export const OCCUPATIONS = {
 export const RESIDENCES = {
   // Lanternside & the coast
   res_osric_house: { name: 'Osric Vane\'s house', type: 'house', units: { house: { map: 'osric_house', beds: ['bed'], capacity: 1 } } },
+  // v0.55.0: the staff have flats of their own in the estate cottages, and the crew houses on Derrick Row
+  // in Starling (src/content/homes.js) — nobody shares a dormitory or a staff corridor any more
   res_manor: {
     name: 'Moneybucks Manor', type: 'estate',
     units: {
       master_suite: { map: 'manor', beds: ['master_bed'], capacity: 1 },
-      staff_quarters: { map: 'manor', beds: ['staff_bed1', 'staff_bed2', 'staff_bed3', 'staff_bed4'], capacity: 4, shared: true },
     },
   },
-  res_bunkhouse: { name: 'The Ober\'s Oil bunkhouse', type: 'dormitory', units: { dorm: { map: 'bunkhouse', beds: ['bunk1', 'bunk2', 'bunk3', 'bunk4', 'bunk5'], capacity: 5, shared: true } } },
   // Westbrook: the Plumb Line Apartments — four flats off a shared hall (v0.32.0)
   res_plumb_line: {
     name: 'Plumb Line Apartments', type: 'apartment',
@@ -91,7 +92,6 @@ export const RESIDENCES = {
       spade_rooms: { map: 'phonograph_spade', beds: ['bed'], capacity: 1 },
     },
   },
-  res_phonograph_staff: { name: 'The Phonograph Grand — staff quarters', type: 'dormitory', units: { bunks: { map: 'phonograph_staff', beds: ['bed_1', 'bed_2', 'bed_3', 'bed_4', 'bed_5', 'bed_6'], capacity: 6, shared: true } } },
   res_bluebonnet: {
     name: 'Bluebonnet Boarding House', type: 'rooming_house',
     units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
@@ -104,15 +104,15 @@ export const LIFE = {
   npc_osric: { home: 'res_osric_house/house', occupation: 'clerk' },
   npc_tibbs: { home: 'res_gullwing11/flat_2', occupation: 'tradesperson' },
   npc_moneybucks: { home: 'res_manor/master_suite', occupation: 'executive' },
-  npc_crisp: { home: 'res_manor/staff_quarters', occupation: 'household_staff' },
-  npc_agnes: { home: 'res_manor/staff_quarters', occupation: 'clerk' },
-  npc_silas: { home: 'res_manor/staff_quarters', occupation: 'security' },
-  npc_mabel: { home: 'res_manor/staff_quarters', occupation: 'household_staff' },
-  npc_gideon: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
-  npc_ruby: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
-  npc_hank: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
-  npc_pip: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
-  npc_otto: { home: 'res_bunkhouse/dorm', occupation: 'labourer' },
+  npc_crisp: { home: 'res_estate_cottages/flat_1', occupation: 'household_staff' },
+  npc_agnes: { home: 'res_estate_cottages/flat_2', occupation: 'clerk' },
+  npc_silas: { home: 'res_estate_cottages/flat_3', occupation: 'security' },
+  npc_mabel: { home: 'res_estate_cottages/flat_4', occupation: 'household_staff' },
+  npc_gideon: { home: 'res_derrick_gideon/home', occupation: 'labourer', transport: 'walk' }, // Derrick Row is a walk down the Cut
+  npc_ruby: { home: 'res_derrick_ruby/home', occupation: 'labourer', transport: 'walk' },
+  npc_hank: { home: 'res_derrick_hank/home', occupation: 'labourer', transport: 'walk' },
+  npc_pip: { home: 'res_derrick_pip/home', occupation: 'labourer', transport: 'walk' },
+  npc_otto: { home: 'res_derrick_otto/home', occupation: 'labourer', transport: 'walk' },
   npc_delphine: { home: 'res_gullwing11/flat_3', occupation: 'scientist' },
   npc_mason: { home: 'res_plumb_line/apt_1', occupation: 'tradesperson' },
   npc_dee: { home: 'res_plumb_line/apt_2', occupation: 'tradesperson' },
@@ -121,7 +121,13 @@ export const LIFE = {
   npc_lawrence: { home: 'res_harbourline/flat_1', occupation: 'police' },
   ...Object.fromEntries(['justin', 'warren', 'bailey', 'miranda', 'hugh'].map((k, i) => [`npc_${k}`, { home: `res_harbourline/flat_${i + 2}`, occupation: 'police' }])),
   npc_arthur: { home: 'res_shack_arthur/home', occupation: 'gang' },
-  ...Object.fromEntries(['al', 'percy', 'minnie', 'dee_nom', 'tony', 'max'].map((k, i) => [`npc_${k}`, { home: `res_shack_crew_${'abc'[Math.floor(i / 2)]}/home`, occupation: 'gang' }])),
+  // v0.55.0: a shack each
+  npc_al: { home: 'res_shack_crew_a/home', occupation: 'gang' },
+  npc_percy: { home: 'res_shack_percy/home', occupation: 'gang' },
+  npc_minnie: { home: 'res_shack_crew_b/home', occupation: 'gang' },
+  npc_dee_nom: { home: 'res_shack_deenom/home', occupation: 'gang' },
+  npc_tony: { home: 'res_shack_crew_c/home', occupation: 'gang' },
+  npc_max: { home: 'res_shack_max/home', occupation: 'gang' },
   ...Object.fromEntries(['ray', 'dot', 'fern', 'sol'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/tents_north', occupation: 'casual' }])),
   ...Object.fromEntries(['mo', 'lena', 'hattie', 'pearl'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/tents_west', occupation: 'casual' }])),
   ...Object.fromEntries(['bill', 'nico', 'bram'].map((k) => [`npc_${k}`, { home: 'res_sumps_camp/south_shacks', occupation: 'casual' }])),
@@ -139,8 +145,15 @@ export const LIFE = {
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
   npc_octavius: { home: 'res_phonograph/penthouse', occupation: 'executive' },
   npc_morganius: { home: 'res_phonograph/spade_rooms', occupation: 'entertainer' },
-  npc_vera: { home: 'res_phonograph_staff/bunks', occupation: 'clerk', transport: 'walk' },
-  npc_brock: { home: 'res_phonograph_staff/bunks', occupation: 'security' },
+  npc_vera: { home: 'res_ledgerline/flat_1', occupation: 'clerk', transport: 'walk' },
+  npc_brock: { home: 'res_ledgerline/flat_2', occupation: 'security' },
+  // v0.55.0: Starling Flats Aerospace Park
+  npc_billie: { home: 'res_starling_roost/home', occupation: 'executive', transport: 'walk' },
+  npc_imogen: { home: 'res_starling_hale/home', occupation: 'executive', transport: 'walk' },
+  npc_ailie: { home: 'res_starling_ronn/home', occupation: 'pilot' },
+  npc_rudy: { home: 'res_starling_durr/home', occupation: 'tradesperson' },
+  npc_tina: { home: 'res_starling_minus/home', occupation: 'scientist' },
+  npc_wrenna: { home: 'res_starling_torq/home', occupation: 'tradesperson' },
 };
 
 /** Characters who don't need a home, and why. Exceptions must be justified; ordinary residents never go here. */

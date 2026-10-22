@@ -295,7 +295,7 @@ test('save and load: a hand in play stands and is settled once; chips on an unsp
   assert.equal(g4.casino.state.session, null);
 });
 
-test('Morganius and Octavius are imported and protected; Vera and Brock are staff; everyone has a bed in the tower', () => {
+test('Morganius and Octavius are imported and protected; Vera and Brock are staff; Vera and Brock have flats of their own', () => {
   const ch = CONTENT.characters;
   for (const id of ['npc_morganius', 'npc_octavius']) {
     assert.equal(ch[id].origin, 'imported');
@@ -303,6 +303,6 @@ test('Morganius and Octavius are imported and protected; Vera and Brock are staf
   }
   assert.ok(ch.npc_morganius.appearance.portrait, 'his portrait, from the photo');
   assert.equal(ch.npc_octavius.appearance.temporary, true, 'Octavius wears a stand-in until his picture arrives');
-  assert.equal(CONTENT.life.homes.npc_vera.home.split('/')[0], 'res_phonograph_staff');
+  assert.equal(CONTENT.life.homes.npc_vera.home.split('/')[0], 'res_ledgerline'); // v0.55.0: a flat of her own
   void TILE;
 });

@@ -84,18 +84,113 @@ export const HOMES = [
       { type: 'painting', x: 1, y: 0, w: 4, examine: 'A blackboard covered in sums, every one of them furious. Bottom corner, small: "π is a liar."' },
       { type: 'shelf', x: 1, y: 4, examine: 'Ledgers going back thirty years. Every debt owed to Arthur, to the obol. Several are underlined until the paper tore.' },
     ] }] },
-  { id: 'shack_crew_a', map: 'halvermouth', building: 'sh_7', name: 'Crew shack (Al & Percy)', mapLabel: 'Shack', type: 'house',
-    flats: [{ who: ['npc_al', 'npc_percy'], name: 'Al Gebra & Percy Ntage', bed: '#5a4a3a', rug: '#4a3a2a', loot: { items: { item_calc_grit: 1 }, money: 15 }, props: [
+  // v0.55.0: a shack each (the crew used to bunk two to a shack)
+  { id: 'shack_crew_a', map: 'halvermouth', building: 'sh_7', name: 'Al\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_al'], name: 'Al Gebra', bed: '#5a4a3a', rug: '#4a3a2a', loot: { items: { item_calc_grit: 1 }, money: 15 }, props: [
       { type: 'table', x: 1, y: 4, examine: 'A pool cue snapped in half and a scorecard: AL 7, PERCY 93%. Nobody knows what the units are.' },
     ] }] },
-  { id: 'shack_crew_b', map: 'halvermouth', building: 'sh_8', name: 'Crew shack (Minnie & Dee)', mapLabel: 'Shack', type: 'house',
-    flats: [{ who: ['npc_minnie', 'npc_dee_nom'], name: 'Minnie Mus & Dee Nominator', bed: '#6a3a5a', rug: '#4a2a4a', loot: { items: { item_calc_charm: 1, item_gold_ring: 1 }, money: 22 }, props: [
+  { id: 'shack_percy', map: 'halvermouth', building: 'sh_1', name: 'Percy\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_percy'], name: 'Percy Ntage', bed: '#4a3a2a', rug: '#5a4a3a', loot: { items: { item_pocket_watch: 1 }, money: 12 }, props: [
+      { type: 'painting', x: 1, y: 0, w: 3, examine: 'Pie charts, hand-drawn, of everything: Percy\'s week, Percy\'s wages, Percy\'s feelings (mostly "unaccounted for").' },
+      { type: 'shelf', x: 7, y: 4, examine: 'A jar of coins labelled "TIPS (100%)" and another labelled "TIPS (AFTER AL)".' },
+    ] }] },
+  { id: 'shack_crew_b', map: 'halvermouth', building: 'sh_8', name: 'Minnie\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_minnie'], name: 'Minnie Mus', bed: '#6a3a5a', rug: '#4a2a4a', loot: { items: { item_calc_charm: 1, item_gold_ring: 1 }, money: 22 }, props: [
       { type: 'shelf', x: 1, y: 4, examine: 'Calculators, wrapped as presents. For whom? "For the right person." Minnie won\'t elaborate.' },
     ] }] },
-  { id: 'shack_crew_c', map: 'halvermouth', building: 'sh_10', name: 'Crew shack (Tony & Max)', mapLabel: 'Shack', type: 'house',
-    flats: [{ who: ['npc_tony', 'npc_max'], name: 'Tony Tangent & Max Imum', bed: '#3a4a3a', rug: '#2a3a2a', loot: { items: { item_calc_energy: 2 }, money: 10 }, props: [
+  { id: 'shack_deenom', map: 'halvermouth', building: 'sh_3', name: 'Dee Nominator\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_dee_nom'], name: 'Dee Nominator', bed: '#3a2a4a', rug: '#5a3a5a', loot: { items: { item_calc_wits: 1 }, money: 18 }, props: [
+      { type: 'desk', x: 1, y: 4, w: 2, examine: 'Fractions, everywhere: on the wall, on the desk, on a mug that says WORLD\'S BEST 1/2. Dee divides the rent with nobody now and is thrilled.' },
+    ] }] },
+  { id: 'shack_crew_c', map: 'halvermouth', building: 'sh_10', name: 'Tony\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_tony'], name: 'Tony Tangent', bed: '#3a4a3a', rug: '#2a3a2a', loot: { items: { item_calc_energy: 2 }, money: 10 }, props: [
+      { type: 'painting', x: 1, y: 0, w: 2, examine: 'A circle with a line just touching it, framed. "My namesake," Tony tells nobody.' },
+    ] }] },
+  { id: 'shack_max', map: 'halvermouth', building: 'sh_5', name: 'Max\'s shack', mapLabel: 'Shack', type: 'house',
+    flats: [{ who: ['npc_max'], name: 'Max Imum', bed: '#4a4a3a', rug: '#3a3a2a', loot: { items: { item_calc_grit: 1 }, money: 9 }, props: [
       { type: 'crate', x: 1, y: 4, examine: 'Empty bottles, labelled with the date each was emptied. Max is very organised about some things.' },
     ] }] },
+  // v0.55.0: the Phonograph Grand's cage clerk and floor man each have a flat of their own (they used to bunk in the staff quarters)
+  { id: 'ledgerline', map: 'halvermouth', building: 't_ledgerline', name: 'The Ledgerline Residences', mapLabel: 'Ledgerline Residences', type: 'apartment',
+    flats: [
+      { who: ['npc_vera'], name: 'Vera Lusk', bed: '#5a1a2a', rug: '#c9a24a', loot: { items: { item_gold_ring: 1 }, money: 60 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'A ledger balanced to the obol, a green-shaded lamp, and a framed first chip: "MY FIRST NIGHT IN THE CAGE — V."' },
+        { type: 'plant', x: 7, y: 4 },
+      ] },
+      { who: ['npc_brock'], name: 'Brock Hadley', bed: '#2a2a3a', rug: '#4a4a5a', loot: { items: { item_pocket_watch: 1 }, money: 35 }, props: [
+        { type: 'crate', x: 1, y: 4, examine: 'Dumbbells, a skipping rope and a well-thumbed book of poetry, bookmarked with a bouncer\'s guest list.' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A photograph of Brock\'s mum, framed in gold. She looks exactly as unimpressed as Brock does.' },
+      ] },
+    ] },
+  // v0.55.0: Moneybucks Manor's staff, a flat each in the estate cottages (they used to sleep along the manor's back corridor)
+  { id: 'estate_cottages', map: 'ober_fields', building: 'b_estate_cottages', name: 'The Estate Cottages', mapLabel: 'Estate Cottages', type: 'apartment',
+    flats: [
+      { who: ['npc_crisp'], name: 'Bartholomew Crisp', bed: '#2b2e38', rug: '#6d6a60', loot: { items: { item_silver_spoons: 2, item_pocket_watch: 1 }, money: 55 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Shoe polish in eleven shades of black, alphabetised. A single volume: "Correct Forms of Address for Every Occasion, Including Riots".' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A portrait of Crisp\'s father, also a butler, also called Crisp, also not smiling.' },
+      ] },
+      { who: ['npc_agnes'], name: 'Agnes Thornbury', bed: '#5a4a6a', rug: '#8a7a6a', loot: { items: { item_gold_ring: 1 }, money: 40 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'The estate\'s ledgers, brought home "just to check". Every shareholder of Ober\'s Oil, listed, with a pencilled note on the newest one.' },
+      ] },
+      { who: ['npc_silas'], name: 'Silas Grimmer', bed: '#3a3a3a', rug: '#4a4a4a', loot: { items: { item_bandage: 2 }, money: 30 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'A radio scanner, a flask, and a notebook of every car that drove past the gate this year.' },
+      ] },
+      { who: ['npc_mabel'], name: 'Mabel Quince', bed: '#c8806a', rug: '#e0b080', loot: { items: { item_honey_bun: 3, item_silver_spoons: 1 }, money: 26 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Cookbooks, a sourdough starter called Reginald, and a framed menu from the night Sir Moneybucks cried at the soufflé.' },
+        { type: 'plant', x: 7, y: 4 },
+      ] },
+    ] },
+  // v0.55.0: Starling, up the Cut — Derrick Row (the Ober's Oil crew, a house each; they used to share the bunkhouse)
+  ...[
+    ['npc_gideon', 'Gideon Slate', '#7d5a3c', '#a07a4a', { item_pocket_watch: 1 }, 35, [
+      { type: 'shelf', x: 1, y: 4, examine: 'Safety manuals, every one of them annotated in red. A framed certificate: "GIDEON SLATE — 20 YEARS, NO LOST-TIME INCIDENTS (AND ONE VERY CLOSE CALL)".' },
+      { type: 'painting', x: 3, y: 0, w: 2, examine: 'A photograph of the refinery crew from twenty years ago: Gideon, a full head of hair, and a much smaller Hank.' },
+    ]],
+    ['npc_ruby', 'Ruby Calder', '#6a3a3a', '#8a5a4a', { item_bolts: 4, item_gold_ring: 1 }, 22, [
+      { type: 'toolrack', x: 1, y: 4, examine: 'Ruby\'s own tools, better than the company\'s, which she will tell you about.' },
+    ]],
+    ['npc_hank', 'Hank Dorsey', '#5a5a3a', '#7a7a4a', { item_cigar: 1 }, 18, [
+      { type: 'painting', x: 3, y: 0, w: 2, examine: 'A painting of a pumpjack at sunset, signed "H.D.". Titled: GERALD.' },
+      { type: 'shelf', x: 1, y: 4, examine: 'Fishing flies in a tackle box, a radio for the ball game, and the kind of slippers that have opinions.' },
+    ]],
+    ['npc_pip', 'Pip Wexley', '#3a5a6a', '#5a7a8a', { item_honey_bun: 2 }, 11, [
+      { type: 'desk', x: 1, y: 4, w: 2, examine: 'A correspondence course: "PETROLEUM ENGINEERING, PART 3". Part 4 is on order. Pip has a plan.' },
+    ]],
+    ['npc_otto', 'Otto Brandt', '#4a4a5a', '#6a6a7a', { item_pocket_watch: 1 }, 26, [
+      { type: 'shelf', x: 1, y: 4, examine: 'Union pamphlets, neatly filed. A thank-you card from the crew: "For the safety refit. We owe you, Otto."' },
+    ]],
+  ].map(([who, name, bed, rug, items, money, props], i) => ({
+    id: `derrick_${who.slice(4)}`, map: 'starling_flats', building: `sf_house_${i + 1}`, name: `${i + 1} Mesa Road (Derrick Row)`, mapLabel: `No. ${i + 1}`, type: 'house',
+    flats: [{ who: [who], name, bed, rug, loot: { items, money }, props }],
+  })),
+  // …and the Park's people, along Mesa Road
+  ...[
+    ['npc_billie', 'Billie Roost', 'roost', '#c8402a', '#e0b080', { item_gold_watch: 1, item_pocket_watch: 1 }, 140, [
+      { type: 'painting', x: 1, y: 0, w: 4, examine: 'A propeller, varnished and mounted, from the first aircraft Billie ever built. The brass plaque: "ROOST No. 1 — FLEW ONCE, BEAUTIFULLY, INTO A HEDGE."' },
+      { type: 'shelf', x: 1, y: 4, examine: 'Leather flying helmets on a row of mannequin heads, oldest to newest. The newest is forty years old.' },
+    ]],
+    ['npc_imogen', 'Dr. Imogen Hale', 'hale', '#2e3a4e', '#c8a040', { item_gold_watch: 1, item_gold_ring: 1 }, 260, [
+      { type: 'desk', x: 1, y: 4, w: 2, examine: 'A home desk with exactly one pen, one notepad and one framed photo, of a rocket. The notepad says: "GROWTH."' },
+      { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed MRDN share certificate, No. 1, issued to a much younger Imogen Hale for one obol.' },
+    ]],
+    ['npc_ailie', 'Ailie Ronn', 'ronn', '#c86a2a', '#e8c04a', { item_pocket_watch: 1 }, 70, [
+      { type: 'shelf', x: 1, y: 4, examine: 'Flight logbooks, twelve of them, and a jar of ejection-seat safety pins ("souvenirs, not regrets").' },
+      { type: 'painting', x: 3, y: 0, w: 2, examine: 'A poster: "THE ESCARPMENT DASH — WINNER: B. ROOST". Ailie has written underneath: "NEXT YEAR. — A.R."' },
+    ]],
+    ['npc_rudy', 'Rudy Durr', 'durr', '#5a5a5e', '#7a7a7e', { item_bolts: 6 }, 48, [
+      { type: 'toolrack', x: 1, y: 4, examine: 'Torque wrenches, each calibrated, each tagged with its calibration date. One is overdue. Rudy hasn\'t slept.' },
+    ]],
+    ['npc_tina', 'Tina Minus', 'minus', '#3a3a4a', '#c84a2a', { item_pocket_watch: 2 }, 55, [
+      { type: 'shelf', x: 1, y: 4, examine: 'Stopwatches. Dozens. Each labelled with a launch and its time to the hundredth. One is labelled "BIRTHDAY (MINE) — HELD FOR WEATHER".' },
+      { type: 'painting', x: 3, y: 0, w: 2, examine: 'A long-exposure photograph of a launch: a single bright scratch across the night, from the pad to the stars.' },
+    ]],
+    ['npc_wrenna', 'Wrenna Torq', 'torq', '#8a5a2a', '#c8a060', { item_bolts: 5, item_pocket_watch: 1 }, 30, [
+      { type: 'workbench', x: 1, y: 4, w: 2, examine: 'A home workbench with a carburettor in bits on it, a carburettor half-together, and a carburettor nobody will ever see again.' },
+    ]],
+  ].map(([who, name, key, bed, rug, items, money, props], i) => ({
+    id: `starling_${key}`, map: 'starling_flats', building: `sf_house_${i + 6}`, name: `${i + 6} Mesa Road`, mapLabel: `No. ${i + 6}`, type: 'house',
+    flats: [{ who: [who], name, bed, rug, loot: { items, money }, props }],
+  })),
   { id: 'lariat_tolliver', map: 'lariat', building: 'b_house_3', name: 'The Tolliver place', mapLabel: 'Tolliver', type: 'house',
     flats: [{ who: ['npc_wes'], name: 'Wes Tolliver', bed: '#8a5a3a', rug: '#a07a4a', loot: { items: { item_silver_spoons: 1 }, money: 28 }, props: [
       { type: 'painting', x: 3, y: 0, w: 2, examine: 'A rodeo poster, 1974: "WES TOLLIVER — THIRD PLACE". Third place has been framed in gold.' },

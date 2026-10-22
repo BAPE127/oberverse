@@ -157,18 +157,20 @@ function aloftFloor(id, name, w, h, ground, liftX, props, extra = {}) {
 }
 
 function staffQuarters() {
-  // the people who keep the place running live in: a bunk room off a staff corridor (more beds
-  // than staff, for the croupiers and the night shift)
-  const beds = [1, 3, 5, 7, 9, 11];
-  return aloftFloor('phonograph_staff', 'The Phonograph Grand — Staff Quarters', 14, 9, 'f', 2, [
-    ...beds.map((x, i) => ({ id: `pgs_bed_${i + 1}`, type: 'bed', x, y: 5, color: i % 2 ? '#3a2a4a' : '#5a1a2a' })),
+  // v0.55.0: the staff lounge off the staff corridor — lockers, a table and the rota. The staff
+  // used to sleep here in bunks; now Vera and Brock have flats of their own (the Ledgerline
+  // Residences, src/content/homes.js) and only come up here between shifts.
+  const sofas = [1, 4, 9, 12];
+  return aloftFloor('phonograph_staff', 'The Phonograph Grand — Staff Lounge', 14, 9, 'f', 2, [
+    ...sofas.map((x, i) => ({ id: `pgs_sofa_${i + 1}`, type: 'chair', x, y: 6, color: i % 2 ? '#3a2a4a' : '#5a1a2a', examine: 'A tired velvet armchair from the old casino floor, put out to pasture up here.' })),
+    { id: 'pgs_kettle', type: 'stove', x: 12, y: 3, examine: 'A kettle, a toaster and a microwave that has seen things. A sign: "STAFF ONLY. YES, MR SPADE, THAT MEANS YOU TOO."' },
     ...[4, 8, 12].map((x) => ({ id: `pgs_locker_${x}`, type: 'cabinet', x, y: 1, examine: 'A staff locker. Name tags: VERA, BROCK, and a row of blank ones for the night shift.' })),
     { id: 'pgs_table', type: 'table', x: 6, y: 3 }, { id: 'pgs_chair_a', type: 'chair', x: 5, y: 3 }, { id: 'pgs_chair_b', type: 'chair', x: 7, y: 3 },
     { id: 'pgs_rota', type: 'noticeboard', x: 9, y: 1, interact: undefined, examine: 'THE ROTA. Cage: Vera, 14:00–02:00. Floor: Brock, 16:00–04:00. Mr Phonograph: "whenever". Mr Spade: "eternally". Underneath, in purple ink: "Do not feed the cards."' },
   ], {
     restricted: 'phonograph_staff',
     wallStyle: 'grand', floorStyle: { f: 2 },
-    spots: { ...Object.fromEntries(beds.map((x, i) => [`bed_${i + 1}`, { x, y: 4, facing: 'down' }])), table: { x: 5, y: 3, facing: 'right' } },
+    spots: { table: { x: 5, y: 3, facing: 'right' }, sofa: { x: 4, y: 5, facing: 'down' } },
     doors: [shaft('shaft_pgs_down', 2, 1, 'phonograph_casino', 'lift', STAFF)],
   });
 }
