@@ -92,8 +92,9 @@ export function tidy(n) {
 /** Days → "3 d 4 h". */
 export function fmtDays(d) {
   if (d <= 0) return 'now';
-  const dd = Math.floor(d);
-  const hh = Math.round((d - dd) * 24);
+  let dd = Math.floor(d);
+  let hh = Math.round((d - dd) * 24);
+  if (hh === 24) { dd += 1; hh = 0; }
   return dd ? `${dd} d${hh ? ` ${hh} h` : ''}` : `${hh} h`;
 }
 

@@ -291,3 +291,21 @@ test('Starling Flats: the campus, runway and launch complex are there, and every
   g.settleNpcs?.();
   for (const id of ['npc_billie', 'npc_imogen', 'npc_tina', 'npc_wrenna', 'npc_gideon']) assert.ok(g.npcs.get(id).map.startsWith('starling_') || g.npcs.get(id).map.startsWith('derrick_'), `${id} is at home at 02:00 (${g.npcs.get(id).map})`);
 });
+
+test('the terminal and the hangar draw the same unit: unitLook follows the build stage by stage', () => {
+  const g = newGame(15);
+  const A = g.aero;
+  const M = A.meridian;
+  const bay = M.bays.find((b) => b.unit && A.state.units[b.unit].line === 'aircraft');
+  assert.ok(bay, 'Meridian has an aircraft in a bay on a new game');
+  const u = A.state.units[bay.unit];
+  const look = A.unitLook(u);
+  const prop = Object.values(CONTENT.maps).flatMap((m) => m.props || []).find((p) => p.type === 'bay_slot' && p.aero?.company === 'meridian' && p.aero.bay === bay.id);
+  assert.ok(prop, 'the bay is on the map');
+  assert.deepEqual(A.computeView(prop), look, 'the bay in the world shows exactly what the terminal shows');
+  assert.equal(look.kind, 'aircraft');
+  assert.equal(look.stageIndex, u.stage);
+  // a later stage never shows less of the airframe
+  const later = A.unitLook({ ...u, stage: u.stage + 1, work: 0 });
+  assert.ok(later.build.fuselage >= look.build.fuselage && later.build.wings >= look.build.wings);
+});

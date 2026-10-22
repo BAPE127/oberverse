@@ -1940,26 +1940,32 @@ export class Aerospace {
         u = bay.unit && this.state.units[bay.unit];
       }
       if (!u) return { key: 'empty' };
-      const pr = C.products[u.product];
-      const st = stagesOf(C, pr);
-      const k = u.stage;
-      const id = st[k]?.id;
-      const at = (sid) => { const i = st.findIndex((x) => x.id === sid); return i < 0 ? 0 : k > i ? 1 : k === i ? Math.min(1, u.work / Math.max(0.001, u.need)) : 0; };
-      const base = { stageIndex: k, stagesTotal: st.length, done: ['acceptance', 'inspection', 'certification', 'testing', 'calibration'].includes(id) };
-      if (p.aero.pad) return { ...base, key: `${u.id}|stack`, kind: 'stack', look: pr.look };
-      if (pr.line === 'aircraft') {
-        const build = { fuselage: Math.max(0.15, at('fuselage')), wings: at('wings'), engines: at('engines') > 0.5, painted: at('paint') > 0.6 };
-        const livery = pr.cls === 'fighter' || pr.cls === 'bomber' ? (pr.look.kind.includes('stealth') || pr.look.kind === 'flyingwing' ? 'stealth' : 'military') : co.id === 'roost' && u.product === 'ap_skylark' ? 'roost' : null;
-        return { ...base, key: `${u.id}|${Math.round(build.fuselage * 8)}${Math.round(build.wings * 8)}${build.engines ? 1 : 0}${build.painted ? 1 : 0}|${k}`, kind: 'aircraft', look: pr.look, livery, build };
-      }
-      if (pr.line === 'rocket' || pr.line === 'missile') {
-        const stages = pr.line === 'rocket' ? Math.max(0.2, at('stages') * 0.7 + at('propulsion') * 0.3) : Math.max(0.2, at('airframe'));
-        return { ...base, key: `${u.id}|${Math.round(stages * 6)}|${k}`, kind: pr.line, look: pr.look, stages };
-      }
-      const panels = at('power') >= 1 && !['testing', 'calibration'].includes(id) ? true : at('power') > 0.5;
-      return { ...base, key: `${u.id}|${panels ? 1 : 0}|${at('payload') > 0.5 ? 1 : 0}|${k}`, kind: 'satellite', look: { mass: pr.mass, role: pr.role }, panels, bare: at('structure') < 1 };
+      if (p.aero.pad) return { stageIndex: u.stage, stagesTotal: stagesOf(C, C.products[u.product]).length, done: false, key: `${u.id}|stack`, kind: 'stack', look: C.products[u.product].look };
+      return this.unitLook(u, co);
     }
     return null;
+  }
+
+  /** How a unit looks right now, stage by stage (the bays in the world and the terminal draw from this). */
+  unitLook(u, co = this.company(u.company)) {
+    const C = this.cfg;
+    const pr = C.products[u.product];
+    const st = stagesOf(C, pr);
+    const k = u.stage;
+    const id = st[k]?.id;
+    const at = (sid) => { const i = st.findIndex((x) => x.id === sid); return i < 0 ? 0 : k > i ? 1 : k === i ? Math.min(1, u.work / Math.max(0.001, u.need)) : 0; };
+    const base = { stageIndex: k, stagesTotal: st.length, done: ['acceptance', 'inspection', 'certification', 'testing', 'calibration'].includes(id) };
+    if (pr.line === 'aircraft') {
+      const build = { fuselage: Math.max(0.15, at('fuselage')), wings: at('wings'), engines: at('engines') > 0.5, painted: at('paint') > 0.6 };
+      const livery = pr.cls === 'fighter' || pr.cls === 'bomber' ? (pr.look.kind.includes('stealth') || pr.look.kind === 'flyingwing' ? 'stealth' : 'military') : co.id === 'roost' && u.product === 'ap_skylark' ? 'roost' : null;
+      return { ...base, key: `${u.id}|${Math.round(build.fuselage * 8)}${Math.round(build.wings * 8)}${build.engines ? 1 : 0}${build.painted ? 1 : 0}|${k}`, kind: 'aircraft', look: pr.look, livery, build };
+    }
+    if (pr.line === 'rocket' || pr.line === 'missile') {
+      const stages = pr.line === 'rocket' ? Math.max(0.2, at('stages') * 0.7 + at('propulsion') * 0.3) : Math.max(0.2, at('airframe'));
+      return { ...base, key: `${u.id}|${Math.round(stages * 6)}|${k}`, kind: pr.line, look: pr.look, stages };
+    }
+    const panels = at('power') >= 1 && !['testing', 'calibration'].includes(id) ? true : at('power') > 0.5;
+    return { ...base, key: `${u.id}|${panels ? 1 : 0}|${at('payload') > 0.5 ? 1 : 0}|${k}`, kind: 'satellite', look: { mass: pr.mass, role: pr.role }, panels, bare: at('structure') < 1 };
   }
 
   /** Map markers: the Park's two works. */

@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.56.1] — 2026-10-22 — Operations (development build)
+
+The owner didn't like the aerospace terminal and asked for an interface like the arms console and Fleet Command. It's rebuilt from scratch as a full-screen operations room (`src/ui/aerospace.js`); the simulation is unchanged.
+
+### Changed — Roost Aeroworks · Operations
+- **Full screen**, with its own look (amber on night-blue blueprint): a top bar with the clock, ⏩ 1 h / 6 h and ⏭ next morning (watch the floor work in real time), your money and today's result; a rail on the left (Floor, Tenders, Contracts, Supply, Hangar, Books, Meridian — keys 1–7, with badges for tenders you can bid on, late contracts and shortages); a log ticker; Esc goes back to the floor.
+- **The floor**: a live blueprint of your hangar — every bay draws the aircraft, rocket, satellite or (under a tarpaulin) strategic product being built in it, stage by stage, exactly as the bays in the world do (`Aerospace.unitLook`), with its lamp board, stage progress, time left, blocker and welders at work; idle bays say what's next for them, bays under construction are hatched. Below: the queue and drawing office, the apron with the aircraft waiting on their stands, the launch pad, the stores and the inbound road with its trucks. Click anything for its card on the right: a unit's picture and every stage of its build, a bay, the apron, the pad (build it from there), the stores, what's inbound.
+- **The overview card**: profit, backlog, reputation, quality, alerts (late contracts, blocked units, shortages, too few workers) that take you to the fix, the tenders you could win with the margin you'd make, what's next out of the door, what your own ships have saved.
+- **Tenders**: a board of cards with each product drawn, filters (I can bid, aircraft, launch, satellites, defence), the customer's priorities as bars, your cost and earliest delivery, and a **bid composer** — a price slider from below cost to the ceiling with the margin, contribution and deposit as you move it, and warnings before you bid something you can't deliver.
+- **Contracts** with each unit's build as a stage strip (click one to see it on the floor); **Supply** with stores and one-click orders for what's short, your own ships (two-way switches for the mode and the policy, consignment cards with their voyage), purchase orders, and supplier cards with carrier vs own-ship landed cost; **Hangar** with the workforce, bays and facilities as tiles and build cards, research with the products it unlocks; **Books** with a day-by-day chart, the statement and the group table; **Meridian** with its numbers, its order book drawn, and MRDN.
+- Meridian's share board opens the same screen, read-only, on the Meridian page.
+- Fixed: durations of "23 d 24 h" now read "24 d".
+
+### Tests
+- `aerospace.test.mjs`: the terminal and the hangar bays draw the same unit (`unitLook`), and a later stage never shows less of the airframe.
+
 ## [0.56.0] — 2026-10-22 — In Our Own Hulls (development build)
 
 Stage II of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "Start the shipping integration." Own both Roost Aeroworks and Ober & Sons Maritime and your foreign materials come in your own ships, on the voyage system you already run.

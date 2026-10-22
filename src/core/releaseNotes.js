@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.56.1',
+    date: '2026-10-22',
+    channel: 'development',
+    title: 'Operations',
+    notes: [
+      'The aerospace terminal is now a full-screen operations room: a live blueprint of your hangar floor where every bay shows what it\'s building, stage by stage — click anything to see it up close.',
+      'A tender board with every product drawn and a price slider that shows your margin as you bid; and new pages for contracts, supply, the hangar, the books and Meridian.',
+    ],
+  },
+  {
     version: '0.56.0',
     date: '2026-10-22',
     channel: 'development',

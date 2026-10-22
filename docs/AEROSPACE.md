@@ -1,4 +1,4 @@
-# Aerospace — Starling Flats Aerospace Park (v0.55.0–v0.56.0)
+# Aerospace — Starling Flats Aerospace Park (v0.55.0–v0.56.1)
 
 The aerospace industry, built in stages (owner's brief, "OBERVERSE MASTER DEVELOPMENT PROMPT — Aerospace Manufacturing, Defense Contracts, Rocket Launches, Satellite Networks, and Integrated Shipping"). Owner's answers to the questions asked before building: a **new region east** of the Ober Fields; the player gets in by **buying a failing firm**; **staged releases**; and every NPC — new ones and everybody who used to share a dorm, bunk room, staff corridor or shack — gets **a home of their own**.
 
@@ -56,9 +56,14 @@ Own **Ober & Sons Maritime** as well as Roost Aeroworks and your foreign materia
 - **Make it urgent / Send by carrier instead** on each consignment; the fallback policy does the latter by itself after a day without a ship. A switched order pays the carrier's normal market rate.
 - **Savings**: the dashboard and Supply tab show what a carrier would have charged, the internal charges paid, the saving on the aerospace books, the group saving after the voyages' real costs, and what's expected on work in hand. The Books tab's **group** table shows aerospace and shipping line operating profit with internal charges eliminated (buying ships and the line itself is capital, not an operating cost).
 
-## The terminal
+## The terminal — Roost Aeroworks · Operations (v0.56.1)
 
-`src/ui/aerospace.js`: Dashboard · Tenders (quote, cost breakdown, earliest delivery, sealed bid) · Contracts · Production (bays and every unit's stage, progress, blockers, work and materials still to come) · Supply (shipping mode and consignments, stores, reservations, on order, shortfalls, purchase orders, manual orders with every supplier's landed cost) · Facilities (workforce, bays, test cell, inspection, pad, research) · Books · Meridian (and MRDN). Roost office terminal, the tablet's Aerospace app, Billie, and (read-only) Meridian's share board.
+`src/ui/aerospace.js`, full screen like Fleet Command (`#modal-panel.aerocmd`, styles `.ao-*`). Opened from the Roost office terminal, the tablet's Aerospace app and Billie; Meridian's share board opens it read-only on the Meridian page.
+
+- **Top bar**: clock, ⏩ 1 h / 6 h / ⏭ next morning (06:00, when tenders are posted and decided) — real time passing (`game.skipTime`), drawn as it goes; money and today's result.
+- **Rail** (keys 1–7): Floor · Tenders · Contracts · Supply · Hangar · Books · Meridian, with badges (tenders you can bid on, late contracts, shortages). Esc returns to the floor.
+- **Floor** (canvas): every bay draws its unit from `Aerospace.unitLook(u)` — the same view the bays in the world use (`computeView`) — with the stage lamp board, stage progress, time left, blocker and welders; idle bays name what's next for them; bays under construction are hatched. Below: queue & drawing office, apron stands, launch pad, stores, inbound. Click anything for its card on the right (a unit's every stage, a bay, the apron, the pad, stores, inbound); with nothing selected the card is the overview (KPIs, alerts that link to the fix, tenders you could win, next deliveries, shipping savings).
+- **Tenders**: filterable cards (product art, customer priorities, your cost and earliest delivery) with a sealed-bid composer (price slider, days, live margin/contribution/deposit and warnings). **Contracts**: units as stage strips. **Supply**: stores with one-click orders for shortages, your own ships, purchase orders, supplier cards (carrier vs own-ship landed cost). **Hangar**: workforce, bays and facilities, build cards, research with what it unlocks. **Books**: day-by-day chart, statement, group table, reports. **Meridian**: its numbers, order book and MRDN.
 
 ## What the world shows
 

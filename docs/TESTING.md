@@ -46,6 +46,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.56.1 (2026-10-22)
+
+- `npm run check` — **462/462 tests passed** (1 new in `aerospace.test.mjs`: `unitLook` matches the bays in the world); `npm run smoke` — 25/25.
+- Browser (headless Chromium, the built `index.html`, 1440×900, 1280×800 and 760×900): the new Operations screen — the floor with four bays (a Meadowlark mid-build with welders, two idle, one under construction), a unit's card with its build stage by stage, every page (tenders, contracts, supply, hangar, books, Meridian), a sealed bid placed through the composer, ⏭ next morning running the clock, Esc back to the floor, the read-only MRDN board before buying Roost, the narrow layout. No page errors. Screenshots: `docs/mockups/v0561-*.png`.
+
 ## Verification record — v0.56.0 (2026-10-22)
 
 - `npm run check` — **461/461 tests passed** (8 new in `aerospace_shipping.test.mjs`); `npm run smoke` — 25/25.

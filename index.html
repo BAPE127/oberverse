@@ -600,16 +600,16 @@ body.pixel-ui {
   --accent: #e05a48; --accent-2: #5ab8c8; --gold: #f2c14e; --good: #5ad84a; --warn: #e8503a;
   --shadow: 6px 6px 0 rgba(8, 8, 24, 0.55);
 }
-body.pixel-ui #modal-panel.monitor, body.pixel-ui #modal-panel.fleetcmd {
+body.pixel-ui #modal-panel.monitor, body.pixel-ui #modal-panel.fleetcmd, body.pixel-ui #modal-panel.aerocmd {
   --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5;
   --accent: #c0614a; --accent-2: #4f8a8b; --gold: #e8b64c; --good: #4f8a4a; --warn: #c0614a;
 }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *) { border-radius: 2px; border: 3px solid #4a4aa8; background: #262660; color: #eef0fa; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):hover:not(:disabled) { background: #34347e; transform: none; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *).primary { background: #c0414a; border-color: #ff8a7a; color: #fff; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *).primary:hover:not(:disabled) { background: #d8505a; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *).ghost { background: transparent; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *) { border-radius: 2px; border: 3px solid #4a4aa8; background: #262660; color: #eef0fa; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):hover:not(:disabled) { background: #34347e; transform: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *).primary { background: #c0414a; border-color: #ff8a7a; color: #fff; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *).primary:hover:not(:disabled) { background: #d8505a; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *).ghost { background: transparent; }
 body.pixel-ui .panel { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
 body.pixel-ui .panel-head { border-bottom: 3px solid #3a3a7a; }
 body.pixel-ui .panel h2, body.pixel-ui #dlg-name { font-family: var(--font); font-weight: 900; letter-spacing: .5px; color: #f2c14e; text-shadow: 2px 2px 0 #0e0e26; }
@@ -619,7 +619,7 @@ body.pixel-ui #modal { background: rgba(8, 8, 24, .55); }
 body.pixel-ui .dlg-box { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
 body.pixel-ui #dlg-portrait { border-radius: 2px; border: 3px solid #4a4aa8; image-rendering: pixelated; background: #14143a; }
 body.pixel-ui #dlg-options button.quest { background: #3a3220; border-color: #f2c14e; }
-body.pixel-ui #dlg-ask input, body.pixel-ui input:not(.monitor *):not(.fleetcmd *), body.pixel-ui select:not(.monitor *):not(.fleetcmd *), body.pixel-ui textarea:not(.monitor *):not(.fleetcmd *) { background: #14143a; color: #eef0fa; border: 3px solid #4a4aa8; border-radius: 2px; }
+body.pixel-ui #dlg-ask input, body.pixel-ui input:not(.monitor *):not(.fleetcmd *):not(.aerocmd *), body.pixel-ui select:not(.monitor *):not(.fleetcmd *):not(.aerocmd *), body.pixel-ui textarea:not(.monitor *):not(.fleetcmd *):not(.aerocmd *) { background: #14143a; color: #eef0fa; border: 3px solid #4a4aa8; border-radius: 2px; }
 body.pixel-ui .title-card .logo { font-family: var(--font); font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 4px 4px 0 #14143a, -2px -2px 0 #14143a, 2px -2px 0 #14143a, -2px 2px 0 #14143a; }
 body.pixel-ui .title-card .logo span { color: #f2c14e; font-style: normal; }
 body.pixel-ui .title-card .tagline { text-shadow: 2px 2px 0 #14143a; }
@@ -772,31 +772,220 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 @media (max-width: 700px) { .sg-spells { display: none; } }
 .sg .ct-speech { top: 150px; left: 222px; right: auto; bottom: auto; max-width: 270px; } /* in the empty room by his shoulder, clear of the spellbook and the counters */
 
-/* ---------------------------------------------------------------- v0.55.0: the aerospace terminal */
-.panel.aero.wide { width: min(1100px, 96vw); }
-.aero .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
-.aero .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 760px) { .aero .grid4, .aero .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.aero .stat.good b { color: var(--good, #5ad08a); }
-.aero .stat.bad b { color: var(--bad, #e86a5a); }
-.aero-section { margin: 14px 0 6px; }
-.aero-section > h3 { margin: 0 0 6px; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-2); }
-.aero-card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; background: rgba(255,255,255,0.03); }
-.aero-card .name, .aero-unit .name { font-weight: 700; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.aero-unit { margin: 6px 0 2px 10px; padding-left: 8px; border-left: 2px solid var(--line); }
-.aero-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 4px 0; }
-.aero-bar i { display: block; height: 100%; background: var(--accent-2); }
-.aero-bar.stage i { background: #e8c040; }
-.aero .desc.warn, .aero .item-row.warn .desc { color: #e8c040; }
-.aero .desc.bad, .aero .item-row.bad .desc, .aero tr.bad td { color: #ff8a7a; }
-.aero .desc.good, .aero tr.good td { color: #7ae0a0; }
-.aero-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.aero-table th, .aero-table td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
-.aero-table tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
-.aero-num { width: 110px; } .aero-num.small { width: 60px; }
-.aero-bid { gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-start; margin-top: 4px; }
-.aero-msg { font-weight: 700; color: var(--accent-2); }
 .ticker-fair { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 3; }
+
+/* ---------------------------------------------------------------- v0.56.1: Roost Aeroworks — Operations
+   The aerospace terminal, full screen like Fleet Command: a live blueprint of the hangar floor,
+   a context card on the right, the rail on the left and full-screen pages. Amber on night-blue. */
+#modal-panel.aerocmd { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #070b12; color: #dfe9f5; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.aerocmd .panel-head, #modal-panel.aerocmd #modal-tabs { display: none; }
+#modal-panel.aerocmd #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; }
+.ao { --ao-glass: rgba(10,16,28,.9); --ao-line: rgba(255,181,71,.2); --ao-line2: rgba(120,170,255,.16); --ao-amber: #ffb547; --ao-blue: #6fb4ff; --ao-green: #5ee08a; --ao-red: #ff6b6b; height: 100%; user-select: none; font-size: 13px; }
+.ao button { font: inherit; color: inherit; cursor: pointer; background: none; border: none; box-shadow: none; text-shadow: none; padding: 0; border-radius: 0; transform: none; text-align: left; }
+.ao button:hover:not(:disabled), .ao button:active:not(:disabled) { transform: none; background: none; box-shadow: none; }
+.ao button:disabled { opacity: .42; cursor: not-allowed; }
+.ao input, .ao select { user-select: text; }
+.ao .pos { color: var(--ao-green); } .ao .neg { color: var(--ao-red); } .ao .warn { color: var(--ao-amber); }
+.ao-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ao-top { position: absolute; top: 0; left: 0; right: 0; height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 16px; background: linear-gradient(#0a0f1af2, #0a0f1ac8); border-bottom: 1px solid var(--ao-line); backdrop-filter: blur(6px); z-index: 3; }
+.ao-brand { display: flex; flex-direction: column; line-height: 1.1; }
+.ao-brand b { letter-spacing: 3px; color: var(--ao-amber); font-size: 15px; }
+.ao-brand span { letter-spacing: 5px; font-size: 10px; opacity: .6; }
+.ao-time { flex: 1; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.ao-clock { font-variant-numeric: tabular-nums; font-size: 14px; opacity: .9; }
+.ao-ff { display: flex; gap: 6px; }
+.ao-money { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.ao-money b { font-size: 18px; color: #fff; }
+.ao-money span { font-size: 11px; }
+.ao .ao-close { border: 1px solid var(--ao-line); border-radius: 10px; width: 38px; height: 38px; font-size: 18px; text-align: center; }
+.ao .ao-close:hover:not(:disabled) { background: rgba(255,80,80,.2); }
+.ao .ao-btn { border: 1px solid var(--ao-line); background: rgba(40,48,66,.7); border-radius: 9px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+.ao .ao-btn:hover:not(:disabled) { background: rgba(70,82,108,.8); border-color: rgba(255,181,71,.5); }
+.ao .ao-btn.primary { background: linear-gradient(#ffc566, #f09a2a); border-color: #ffd28a; color: #1d1205; font-weight: 700; }
+.ao .ao-btn.primary:hover:not(:disabled) { background: linear-gradient(#ffd27f, #ffab3d); }
+.ao .ao-btn.on { background: var(--ao-amber); color: #1d1205; }
+.ao .ao-btn.tiny { padding: 2px 8px; font-size: 11px; border-radius: 6px; }
+.ao .ao-btn.warn { border-color: rgba(255,181,71,.6); color: var(--ao-amber); }
+.ao .ao-btn.big { padding: 12px; font-size: 15px; text-align: center; }
+.ao-rail { position: absolute; top: 70px; left: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
+.ao .ao-rail-btn { position: relative; width: 70px; height: 60px; border-radius: 14px; border: 1px solid var(--ao-line2); background: var(--ao-glass); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; backdrop-filter: blur(6px); text-align: center; }
+.ao .ao-rail-btn .ic { font-size: 21px; }
+.ao .ao-rail-btn.on { border-color: var(--ao-amber); box-shadow: 0 0 14px rgba(255,181,71,.4); color: #fff; }
+.ao .ao-rail-btn:hover:not(:disabled) { border-color: rgba(255,181,71,.6); background: rgba(30,38,56,.9); }
+.ao-badge { position: absolute; top: 4px; right: 5px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--ao-amber); color: #1d1205; font-style: normal; font-size: 10px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; }
+.ao-badge.bad { background: var(--ao-red); color: #fff; }
+.ao-drawer { position: absolute; top: 70px; right: 12px; bottom: 54px; width: min(400px, calc(100vw - 120px)); overflow-y: auto; padding: 16px; border-radius: 16px; border: 1px solid var(--ao-line); background: var(--ao-glass); backdrop-filter: blur(8px); z-index: 3; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+.ao-hero h2 { font-family: inherit; font-size: 21px; margin: 2px 0 6px; color: #fff; }
+.ao-kicker { font-size: 10px; letter-spacing: 3px; color: var(--ao-amber); }
+.ao-hero-pic { border-radius: 12px; background: radial-gradient(ellipse at center, rgba(255,214,150,.12), transparent 70%), repeating-linear-gradient(0deg, rgba(120,170,255,.06) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, rgba(120,170,255,.06) 0 1px, transparent 1px 24px), #0b1220; border: 1px solid var(--ao-line2); image-rendering: pixelated; }
+.ao-pic { background: radial-gradient(ellipse at center, rgba(255,214,150,.1), transparent 70%), #0b1220; border-radius: 8px; border: 1px solid var(--ao-line2); image-rendering: pixelated; flex-shrink: 0; }
+.ao-muted { opacity: .62; font-size: 12px; margin: 0; line-height: 1.45; }
+.ao-sec { display: flex; flex-direction: column; gap: 8px; }
+.ao-sec h4 { margin: 10px 0 0; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ao-amber); opacity: .85; }
+.ao .ao-link { color: #ffd28a; font-size: 12px; }
+.ao .ao-link:hover:not(:disabled) { text-decoration: underline; }
+.ao .ao-link.danger { color: #ff9a9a; align-self: flex-start; }
+.ao .ao-alert { border: 1px solid rgba(255,181,71,.45); background: rgba(255,181,71,.1); border-radius: 10px; padding: 8px 10px; font-size: 13px; color: #ffe2b0; }
+.ao .ao-alert.bad { border-color: rgba(255,90,90,.55); background: rgba(255,60,60,.12); color: #ffc4c4; }
+.ao .ao-alert:hover:not(:disabled) { background: rgba(255,181,71,.18); }
+.ao .ao-alert.bad:hover:not(:disabled) { background: rgba(255,60,60,.2); }
+.ao .ao-row { border: 1px solid transparent; background: rgba(30,40,60,.55); border-radius: 10px; padding: 7px 9px; display: flex; gap: 10px; align-items: center; }
+.ao .ao-row:hover:not(:disabled):not(.static) { border-color: var(--ao-line); background: rgba(40,52,76,.7); }
+.ao-row .grow { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ao-row small { opacity: .7; }
+.ao-row em { font-style: normal; font-weight: 700; }
+.ao-row-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ao-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ao-pill { border: 1px solid; border-radius: 999px; padding: 1px 8px; font-size: 11px; white-space: nowrap; }
+.ao-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ao-kpis.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 0; }
+.ao-kpi { background: rgba(24,32,50,.7); border: 1px solid var(--ao-line2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ao-kpi small { opacity: .6; text-transform: uppercase; font-size: 9.5px; letter-spacing: 1.5px; }
+.ao-kpi b { font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; }
+.ao-kpi.pos b { color: var(--ao-green); } .ao-kpi.neg b { color: var(--ao-red); }
+.ao-kpi span { font-size: 11px; opacity: .55; }
+.ao-bar { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+.ao-bar > span { opacity: .7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ao-bar-track { height: 6px; background: rgba(255,255,255,.08); border-radius: 4px; overflow: hidden; min-width: 40px; }
+.ao-bar-track i { display: block; height: 100%; border-radius: 4px; }
+.ao-bar em { font-style: normal; font-variant-numeric: tabular-nums; opacity: .85; }
+.ao-strip { display: flex; gap: 2px; }
+.ao-strip i { flex: 1; height: 6px; border-radius: 2px; background: #2c3446; position: relative; overflow: hidden; }
+.ao-strip i.done { background: var(--ao-green); }
+.ao-strip i.now { background: #4a3a1a; }
+.ao-strip i.now::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--f, 50%); background: var(--ao-amber); animation: ao-blink 1.2s ease-in-out infinite; }
+.ao-strip i.now.wait::after { background: #c9a060; width: 100%; opacity: .5; }
+.ao-strip i.now.bad { background: rgba(255,90,90,.45); }
+@keyframes ao-blink { 50% { opacity: .55; } }
+.ao-stages { display: flex; flex-direction: column; gap: 3px; }
+.ao-stage { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 8px; font-size: 12px; opacity: .55; }
+.ao-stage i { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 10px; background: #2c3446; flex-shrink: 0; }
+.ao-stage .grow { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.ao-stage small { opacity: .6; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.ao-stage.done { opacity: .85; } .ao-stage.done i { background: rgba(94,224,138,.25); color: var(--ao-green); }
+.ao-stage.now { opacity: 1; background: rgba(255,181,71,.1); border: 1px solid rgba(255,181,71,.3); } .ao-stage.now i { background: var(--ao-amber); color: #1d1205; }
+.ao-feed { position: absolute; left: 96px; right: 424px; bottom: 10px; height: 34px; display: flex; align-items: center; gap: 16px; padding: 0 14px; overflow: hidden; white-space: nowrap; font-size: 12px; border-radius: 10px; background: var(--ao-glass); border: 1px solid var(--ao-line); z-index: 3; }
+.ao-feed-label { letter-spacing: 3px; color: var(--ao-amber); font-size: 10px; }
+.ao-feed-item { overflow: hidden; text-overflow: ellipsis; opacity: .85; max-width: 40%; }
+.ao-feed-item i { opacity: .55; font-style: normal; }
+.ao-feed .ao-link { margin-left: auto; }
+.ao-toast { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); max-width: min(560px, 70vw); padding: 10px 16px; border-radius: 12px; font-size: 14px; z-index: 6; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.ao-toast.good { background: #2c2210; border: 1px solid var(--ao-amber); color: #ffe7c0; }
+.ao-toast.bad { background: #431818; border: 1px solid #ff6a6a; }
+.ao-sheet { position: absolute; top: 70px; left: 96px; right: 12px; bottom: 54px; overflow-y: auto; padding: 18px 22px 28px; border-radius: 16px; border: 1px solid var(--ao-line); background: rgba(9,14,24,.96); z-index: 4; scrollbar-width: thin; }
+.ao-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.ao-sheet-head h2 { font-family: inherit; margin: 0; color: #fff; letter-spacing: 1px; }
+.ao-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.ao-grid.tenders { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
+.ao-grid.wide { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+.ao-grid.small { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ao-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ao-card { border: 1px solid var(--ao-line2); border-radius: 14px; padding: 12px 14px; background: linear-gradient(180deg, rgba(26,34,52,.85), rgba(16,22,36,.85)); display: flex; flex-direction: column; gap: 9px; }
+.ao-card:hover { border-color: rgba(255,181,71,.45); }
+.ao-card.off { opacity: .6; }
+.ao-card.ship { background: linear-gradient(180deg, rgba(18,36,60,.85), rgba(12,22,38,.85)); }
+.ao-card-head { display: flex; gap: 12px; align-items: center; }
+.ao-card-head .grow { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ao-card-head b { color: #fff; font-size: 14.5px; }
+.ao-card-head small { opacity: .7; }
+.ao-pay { display: flex; flex-direction: column; align-items: flex-end; font-weight: 800; color: var(--ao-amber); font-size: 17px; white-space: nowrap; }
+.ao-pay small { font-weight: 500; color: #dfe9f5; opacity: .55; font-size: 11px; }
+.ao-blurb { opacity: .55; font-style: italic; font-size: 12px; }
+.ao-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ao-facts div { background: rgba(0,0,0,.25); border-radius: 8px; padding: 5px 8px; display: flex; flex-direction: column; }
+.ao-facts small { font-size: 9.5px; opacity: .55; text-transform: uppercase; letter-spacing: 1px; }
+.ao-facts b { font-size: 14px; font-variant-numeric: tabular-nums; }
+.ao-prio { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+.ao-prio .ao-bar { grid-template-columns: 74px 1fr 34px; font-size: 11px; }
+.ao-you { font-size: 12px; opacity: .78; line-height: 1.45; }
+.ao-why { font-size: 12px; color: #ffb0a0; }
+.ao-sealed { border: 1px solid rgba(94,224,138,.4); background: rgba(94,224,138,.08); border-radius: 10px; padding: 8px 10px; font-size: 13px; color: #c4f4d4; }
+.ao-composer { border-top: 1px dashed var(--ao-line); padding-top: 9px; display: flex; flex-direction: column; gap: 8px; }
+.ao-composer small { opacity: .7; min-width: 70px; }
+.ao-range { flex: 1; min-width: 120px; accent-color: var(--ao-amber); }
+.ao-input { background: rgba(0,0,0,.4); border: 1px solid var(--ao-line); color: #fff; border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
+.ao-input.num { width: 100px; } .ao-input.num.small { width: 64px; }
+.ao-readout { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; opacity: .9; }
+.ao .ao-go { border-radius: 10px; padding: 9px 12px; background: linear-gradient(90deg, #ffc566, #f0902a); color: #1d1205; font-weight: 800; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ao .ao-go small { font-weight: 600; opacity: .75; }
+.ao .ao-go:hover:not(:disabled) { background: linear-gradient(90deg, #ffd27f, #ffa13d); box-shadow: 0 0 16px rgba(255,181,71,.45); }
+.ao-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.ao .ao-chip { border: 1px solid var(--ao-line2); background: rgba(30,40,60,.6); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
+.ao .ao-chip em { font-style: normal; opacity: .6; font-size: 11px; }
+.ao .ao-chip.on { border-color: var(--ao-amber); background: rgba(255,181,71,.16); color: #ffe2b0; }
+.ao .ao-chip:hover:not(:disabled) { border-color: rgba(255,181,71,.6); }
+.ao .ao-unit { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.22); border: 1px solid transparent; }
+.ao .ao-unit:hover:not(:disabled) { border-color: var(--ao-line); background: rgba(0,0,0,.32); }
+.ao-unit .grow { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ao-unit small { font-size: 11px; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ao-details summary { cursor: pointer; font-size: 12px; opacity: .7; }
+.ao-log { font-size: 12px; opacity: .82; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.ao-log.tall { max-height: 360px; overflow-y: auto; }
+.ao-log i { opacity: .55; font-style: normal; }
+.ao-table-wrap { overflow-x: auto; }
+.ao-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ao-table th { text-align: left; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; opacity: .55; font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--ao-line2); }
+.ao-table td { padding: 5px 8px; border-bottom: 1px solid rgba(120,170,255,.08); }
+.ao-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.ao-table tr.total td { font-weight: 700; border-top: 1px solid var(--ao-line); color: #fff; }
+.ao-table tr.dim td { opacity: .5; }
+.ao-table tr.pos td:first-child { color: var(--ao-green); }
+.ao-mats { display: flex; flex-direction: column; gap: 2px; }
+.ao-mat { display: grid; grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, .8fr)) 90px; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.ao-mat.head { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; opacity: .55; }
+.ao-mat:not(.head):nth-child(even) { background: rgba(255,255,255,.025); }
+.ao-mat.short { background: rgba(255,80,80,.08); }
+.ao-mat.short span:first-child { color: #ffb0b0; }
+.ao-switch { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 6px; cursor: pointer; }
+.ao-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.ao-switch span { width: 36px; height: 20px; border-radius: 10px; background: #2c3446; position: relative; transition: background .2s; }
+.ao-switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #dfe9f5; transition: left .2s; }
+.ao-switch input:checked + span { background: var(--ao-amber); }
+.ao-switch input:checked + span::after { left: 19px; background: #1d1205; }
+.ao-seg { display: inline-flex; border: 1px solid var(--ao-line2); border-radius: 10px; overflow: hidden; align-self: flex-start; }
+.ao .ao-seg button { padding: 6px 12px; font-size: 12.5px; }
+.ao .ao-seg button + button { border-left: 1px solid var(--ao-line2); }
+.ao .ao-seg button.on { background: rgba(255,181,71,.2); color: #ffe2b0; }
+.ao .ao-seg button:hover:not(:disabled):not(.on) { background: rgba(255,255,255,.05); }
+.ao-quote { display: flex; flex-direction: column; gap: 6px; }
+.ao-quote > div { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.22); }
+.ao-quote > div.own { background: rgba(60,120,200,.14); border: 1px solid rgba(111,180,255,.25); }
+.ao-quote small { opacity: .7; font-size: 11px; }
+.ao-quote b { grid-row: span 2; align-self: center; font-size: 15px; color: #fff; }
+.ao-quote span { font-size: 11px; opacity: .6; }
+.ao-tile { border: 1px solid var(--ao-line2); border-radius: 10px; padding: 8px 10px; background: rgba(24,32,50,.7); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.ao-tile small { font-size: 9.5px; letter-spacing: 1.5px; opacity: .55; }
+.ao-tile b { font-size: 13px; color: #fff; }
+.ao-unlocks { display: flex; gap: 8px; flex-wrap: wrap; }
+.ao-unlocks span { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; opacity: .85; }
+.ao-chart { width: 100%; height: auto; background: rgba(0,0,0,.28); border-radius: 10px; border: 1px solid var(--ao-line2); }
+.ao-list { display: flex; flex-direction: column; gap: 6px; }
+.ao .ao-embed .stat { color: #dfe9f5; box-shadow: none; background: rgba(24,32,50,.7); border: 1px solid var(--ao-line2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; }
+.ao .ao-embed .stat span { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; opacity: .6; }
+.ao .ao-embed .stat b { color: #fff; }
+.ao-embed .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ao-embed .row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ao-embed button { border: 1px solid var(--ao-line); background: rgba(40,48,66,.7); border-radius: 8px; padding: 5px 10px; font-size: 12px; }
+.ao-embed button.primary { background: linear-gradient(#ffc566, #f09a2a); color: #1d1205; font-weight: 700; }
+.ao-embed .item-row { padding: 4px 0; border-bottom: 1px solid rgba(120,170,255,.08); font-size: 12px; }
+.ao .ao-embed .muted, .ao .ao-embed p { opacity: .7; font-size: 12px; color: #dfe9f5; }
+.ao-embed h3 { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ao-amber); }
+.ao-embed .tablet-ticker { background: rgba(0,0,0,.28); border-radius: 10px; padding: 6px; }
+.ao .hidden { display: none !important; }
+@media (max-width: 900px) {
+  .ao-two { grid-template-columns: 1fr; }
+  .ao-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ao-grid.tenders, .ao-grid.wide { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .ao-drawer { top: auto; left: 8px; right: 8px; width: auto; height: 46vh; bottom: 8px; }
+  .ao-feed { display: none; }
+  .ao-rail { flex-direction: row; top: 64px; }
+  .ao .ao-rail-btn { width: 50px; height: 46px; font-size: 9px; }
+  .ao-sheet { left: 8px; right: 8px; top: 118px; bottom: 8px; }
+  .ao-time .ao-clock { display: none; }
+  .ao-facts { grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>
@@ -14881,7 +15070,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.56.0';
+const GAME_VERSION = '0.56.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -32365,8 +32554,9 @@ function tidy(n) {
 /** Days → "3 d 4 h". */
 function fmtDays(d) {
   if (d <= 0) return 'now';
-  const dd = Math.floor(d);
-  const hh = Math.round((d - dd) * 24);
+  let dd = Math.floor(d);
+  let hh = Math.round((d - dd) * 24);
+  if (hh === 24) { dd += 1; hh = 0; }
   return dd ? `${dd} d${hh ? ` ${hh} h` : ''}` : `${hh} h`;
 }
 
@@ -34709,26 +34899,32 @@ class Aerospace {
         u = bay.unit && this.state.units[bay.unit];
       }
       if (!u) return { key: 'empty' };
-      const pr = C.products[u.product];
-      const st = stagesOf(C, pr);
-      const k = u.stage;
-      const id = st[k]?.id;
-      const at = (sid) => { const i = st.findIndex((x) => x.id === sid); return i < 0 ? 0 : k > i ? 1 : k === i ? Math.min(1, u.work / Math.max(0.001, u.need)) : 0; };
-      const base = { stageIndex: k, stagesTotal: st.length, done: ['acceptance', 'inspection', 'certification', 'testing', 'calibration'].includes(id) };
-      if (p.aero.pad) return { ...base, key: `${u.id}|stack`, kind: 'stack', look: pr.look };
-      if (pr.line === 'aircraft') {
-        const build = { fuselage: Math.max(0.15, at('fuselage')), wings: at('wings'), engines: at('engines') > 0.5, painted: at('paint') > 0.6 };
-        const livery = pr.cls === 'fighter' || pr.cls === 'bomber' ? (pr.look.kind.includes('stealth') || pr.look.kind === 'flyingwing' ? 'stealth' : 'military') : co.id === 'roost' && u.product === 'ap_skylark' ? 'roost' : null;
-        return { ...base, key: `${u.id}|${Math.round(build.fuselage * 8)}${Math.round(build.wings * 8)}${build.engines ? 1 : 0}${build.painted ? 1 : 0}|${k}`, kind: 'aircraft', look: pr.look, livery, build };
-      }
-      if (pr.line === 'rocket' || pr.line === 'missile') {
-        const stages = pr.line === 'rocket' ? Math.max(0.2, at('stages') * 0.7 + at('propulsion') * 0.3) : Math.max(0.2, at('airframe'));
-        return { ...base, key: `${u.id}|${Math.round(stages * 6)}|${k}`, kind: pr.line, look: pr.look, stages };
-      }
-      const panels = at('power') >= 1 && !['testing', 'calibration'].includes(id) ? true : at('power') > 0.5;
-      return { ...base, key: `${u.id}|${panels ? 1 : 0}|${at('payload') > 0.5 ? 1 : 0}|${k}`, kind: 'satellite', look: { mass: pr.mass, role: pr.role }, panels, bare: at('structure') < 1 };
+      if (p.aero.pad) return { stageIndex: u.stage, stagesTotal: stagesOf(C, C.products[u.product]).length, done: false, key: `${u.id}|stack`, kind: 'stack', look: C.products[u.product].look };
+      return this.unitLook(u, co);
     }
     return null;
+  }
+
+  /** How a unit looks right now, stage by stage (the bays in the world and the terminal draw from this). */
+  unitLook(u, co = this.company(u.company)) {
+    const C = this.cfg;
+    const pr = C.products[u.product];
+    const st = stagesOf(C, pr);
+    const k = u.stage;
+    const id = st[k]?.id;
+    const at = (sid) => { const i = st.findIndex((x) => x.id === sid); return i < 0 ? 0 : k > i ? 1 : k === i ? Math.min(1, u.work / Math.max(0.001, u.need)) : 0; };
+    const base = { stageIndex: k, stagesTotal: st.length, done: ['acceptance', 'inspection', 'certification', 'testing', 'calibration'].includes(id) };
+    if (pr.line === 'aircraft') {
+      const build = { fuselage: Math.max(0.15, at('fuselage')), wings: at('wings'), engines: at('engines') > 0.5, painted: at('paint') > 0.6 };
+      const livery = pr.cls === 'fighter' || pr.cls === 'bomber' ? (pr.look.kind.includes('stealth') || pr.look.kind === 'flyingwing' ? 'stealth' : 'military') : co.id === 'roost' && u.product === 'ap_skylark' ? 'roost' : null;
+      return { ...base, key: `${u.id}|${Math.round(build.fuselage * 8)}${Math.round(build.wings * 8)}${build.engines ? 1 : 0}${build.painted ? 1 : 0}|${k}`, kind: 'aircraft', look: pr.look, livery, build };
+    }
+    if (pr.line === 'rocket' || pr.line === 'missile') {
+      const stages = pr.line === 'rocket' ? Math.max(0.2, at('stages') * 0.7 + at('propulsion') * 0.3) : Math.max(0.2, at('airframe'));
+      return { ...base, key: `${u.id}|${Math.round(stages * 6)}|${k}`, kind: pr.line, look: pr.look, stages };
+    }
+    const panels = at('power') >= 1 && !['testing', 'calibration'].includes(id) ? true : at('power') > 0.5;
+    return { ...base, key: `${u.id}|${panels ? 1 : 0}|${at('payload') > 0.5 ? 1 : 0}|${k}`, kind: 'satellite', look: { mass: pr.mass, role: pr.role }, panels, bare: at('structure') < 1 };
   }
 
   /** Map markers: the Park's two works. */
@@ -37073,6 +37269,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.56.1',
+    date: '2026-10-22',
+    channel: 'development',
+    title: 'Operations',
+    notes: [
+      'The aerospace terminal is now a full-screen operations room: a live blueprint of your hangar floor where every bay shows what it\'s building, stage by stage — click anything to see it up close.',
+      'A tender board with every product drawn and a price slider that shows your margin as you bid; and new pages for contracts, supply, the hangar, the books and Meridian.',
+    ],
+  },
   {
     version: '0.56.0',
     date: '2026-10-22',
@@ -56875,25 +57081,57 @@ return { spadeTablePanel };
 
 // ---- src/ui/aerospace.js
 __m["src/ui/aerospace.js"] = (function () {
-// The aerospace terminal (v0.55.0): Roost Aeroworks' business on one screen —
-// the dashboard, the tender board (bids), contracts, production, supply,
-// facilities, the books — and Meridian, the competition (MRDN on the exchange).
-// Opened from the Roost office terminal, the tablet's Aerospace app, Billie
-// ("Can I use the terminal?") and, read-only, Meridian's share board.
+// Roost Aeroworks — Operations (v0.56.1; the aerospace terminal since v0.55.0).
+// It takes the whole screen, like Fleet Command and the arms works' console:
+// a live blueprint of your hangar floor in the middle — every bay drawing the
+// aircraft, rocket or satellite that is in it, stage by stage, with its lamp
+// board and its welders — and around it:
+//
+//   click a bay, the apron, the pad, the drawing office, the stores or the
+//   inbound lane  → its card on the right (what's there, what it waits for)
+//   the left rail  → full-screen pages: Tenders (the board and your sealed
+//                    bids), Contracts, Supply (stores, your own ships, orders),
+//                    Hangar (workforce, bays, facilities, research), Books,
+//                    Meridian (and MRDN)
+//   ⏩ / ⏭          → let time pass and watch the floor work (the real clock)
+//
 // Everything it shows comes from src/systems/aerospace.js; everything it does
-// goes through that system's checked methods.
+// goes through that system's checked methods. Opened from the Roost office
+// terminal, the tablet's Aerospace app and Billie; read-only (Meridian and
+// MRDN only) from Meridian's share board.
 const { h, mrdnScreen } = __m["src/ui/panels.js"];
-const { fmtMoney, fmtDays, unitCost } = __m["src/aero/catalog.js"];
+const { fmtMoney, fmtDays } = __m["src/aero/catalog.js"];
 const { stagesOf } = __m["src/aero/pipeline.js"];
 const { ACCOUNTS } = __m["src/aero/books.js"];
+const { aircraftCanvas, rocketCanvas, satelliteCanvas } = __m["src/engine/drawAero.js"];
 
-const TABS = ['Dashboard', 'Tenders', 'Contracts', 'Production', 'Supply', 'Facilities', 'Books', 'Meridian'];
-const LINE_ICON = { aircraft: '✈️', rocket: '🚀', missile: '🛡️', satellite: '🛰️' };
-const STATUS = { queued: 'queued for a bay', waiting: 'waiting for materials', blocked: 'blocked', building: 'in production', engineering: 'in the drawing office', apron: 'on the apron', pad: 'on the pad', orbit: 'in orbit', storage: 'in secure storage', convoy: 'on the road (secure convoy)', delivered: 'delivered', failed: 'lost', cancelled: 'cancelled' };
-const AE = { tab: 'Dashboard' };
+const MODES = [
+  ['floor', '🏭', 'Floor'],
+  ['tenders', '📋', 'Tenders'],
+  ['contracts', '📑', 'Contracts'],
+  ['supply', '📦', 'Supply'],
+  ['hangar', '🏗', 'Hangar'],
+  ['books', '📒', 'Books'],
+  ['meridian', '📈', 'Meridian'],
+];
+/** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Books: 'books', Meridian: 'meridian' };
+const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
+const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
+const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
+const PRIORITY = [['price', 'Price'], ['time', 'Delivery'], ['quality', 'Quality'], ['reputation', 'Reputation']];
+const COL = { amber: '#ffb547', green: '#5ee08a', red: '#ff6b6b', blue: '#6fb4ff', dim: '#3a4356', ink: '#dfe9f5' };
+
+/** The terminal's own state survives re-opening (the page, what's selected, the order form). */
+const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null };
+
 const money = (n) => `${Math.round(n).toLocaleString()} ◎`;
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const clamp01 = (f) => Math.max(0, Math.min(1, f || 0));
+const hrs = (m) => { const x = m / 60; return x >= 36 ? `${(x / 24).toFixed(1)} days` : `${Math.max(1, Math.round(x))} h`; };
 
-/** The sale sheet for Roost Aeroworks (Billie's "I hear it's for sale", the sign by the office). */
+// ====================================================================== the sale sheet
+/** Roost Aeroworks for sale (Billie's "I hear it's for sale", the sign by the office). */
 function aeroSalePanel(ui, body) {
   const g = ui.game;
   const A = g.aero;
@@ -56919,350 +57157,861 @@ function aeroSalePanel(ui, body) {
   return { title: '✈ Roost Aeroworks — for sale', className: 'aero' };
 }
 
+// ====================================================================== pictures
+/** A unit (or a finished product) as the bays draw it — from Aerospace.unitLook — or null without a DOM. */
+function unitImage(look) {
+  if (!look?.kind) return null;
+  if (look.kind === 'aircraft') return aircraftCanvas(look.look, { livery: look.livery, build: look.build });
+  if (look.kind === 'rocket' || look.kind === 'missile') return rocketCanvas(look.look, { lying: true, stages: look.stages, secure: look.kind === 'missile' });
+  if (look.kind === 'stack') return rocketCanvas(look.look, { stages: 1 });
+  if (look.kind === 'satellite') return satelliteCanvas(look.look, { panels: look.panels, bare: look.bare });
+  return null;
+}
+/** A finished product, for the tender board and the contracts. */
+function productLook(C, id) {
+  const p = C.products[id];
+  if (p.line === 'aircraft') return { kind: 'aircraft', look: p.look, livery: p.cls === 'fighter' || p.cls === 'bomber' ? (p.look.kind.includes('stealth') || p.look.kind === 'flyingwing' ? 'stealth' : 'military') : id === 'ap_skylark' ? 'roost' : null };
+  if (p.line === 'rocket' || p.line === 'missile') return { kind: p.line, look: p.look, stages: 1 };
+  return { kind: 'satellite', look: { mass: p.mass, role: p.role }, panels: true };
+}
+/** Draw an image to fit a box, crisp (pixel art), centred. Returns the drawn rect. */
+function fitDraw(ctx, img, x, y, w, hh, maxScale = 6) {
+  if (!img) return null;
+  const s = Math.min(maxScale, w / img.width, hh / img.height);
+  const dw = img.width * s;
+  const dh = img.height * s;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (hh - dh) / 2, dw, dh);
+  return { x: x + (w - dw) / 2, y: y + (hh - dh) / 2, w: dw, h: dh };
+}
+/** A small blueprint picture of a product or unit. */
+function pic(look, w, hh, cls = 'ao-pic') {
+  const c = h('canvas', { width: w * 2, height: hh * 2, class: cls, style: `width:${w}px;height:${hh}px` });
+  const img = unitImage(look);
+  if (img) fitDraw(c.getContext('2d'), img, 8, 8, w * 2 - 16, hh * 2 - 16);
+  return c;
+}
+
+// ====================================================================== the panel
 function aerospacePanel(ui, body, opts = {}) {
   const g = ui.game;
   const A = g.aero;
-  const readonly = opts.readonly || !A.owned;
-  if (opts.tab && TABS.includes(opts.tab)) AE.tab = opts.tab;
-  if (readonly) AE.tab = 'Meridian';
-  const tab = AE.tab;
-  const co = A.roost;
-  const rerender = (msg) => { AE.msg = msg; ui.openPanel('aerospace', { ...opts, tab: AE.tab }); };
-  const say = (r) => { ui.audio?.sfx?.(r.ok === false ? 'sfx_fail' : 'sfx_coin'); rerender(r.text); };
-  body.classList.add('aero');
-  if (AE.msg) { body.append(h('p', { class: 'aero-msg' }, AE.msg)); AE.msg = null; }
-  if (tab === 'Meridian') meridianTab(g, body, rerender);
-  else if (tab === 'Dashboard') dashboard(g, A, co, body, (t) => { AE.tab = t; rerender(); });
-  else if (tab === 'Tenders') tenders(g, A, co, body, say);
-  else if (tab === 'Contracts') contracts(g, A, co, body, say);
-  else if (tab === 'Production') production(g, A, co, body);
-  else if (tab === 'Supply') supply(g, A, co, body, say);
-  else if (tab === 'Facilities') facilities(g, A, co, body, say);
-  else if (tab === 'Books') books(g, A, co, body);
-  const tabs = readonly ? [] : TABS.map((t) => ({ label: t, active: t === tab, onclick: () => { AE.tab = t; ui.openPanel('aerospace', { ...opts, tab: t }); } }));
-  return { title: readonly ? 'Meridian Aerospace — MRDN' : '✈ Roost Aeroworks — aerospace terminal', className: 'aero wide', tabs };
-}
-
-// ------------------------------------------------------------------ helpers
-const stat = (label, value, cls = '') => h('div', { class: `stat ${cls}` }, h('span', {}, label), h('b', {}, value));
-const bar = (f, cls = '') => h('div', { class: `aero-bar ${cls}` }, h('i', { style: `width:${Math.round(Math.max(0, Math.min(1, f)) * 100)}%` }));
-const section = (title, ...kids) => h('div', { class: 'aero-section' }, h('h3', {}, title), ...kids);
-
-// ------------------------------------------------------------------ dashboard
-function dashboard(g, A, co, body, go) {
-  const week = A.statement(co, 7);
-  const active = A.contractsOf(co, 'active');
-  const backlog = active.reduce((a, c) => a + (c.qty - c.delivered - c.failed) * c.unitPrice, 0);
-  const units = A.unitsOf(co);
-  const blocked = units.filter((u) => u.blocker && ['blocked', 'waiting', 'queued'].includes(u.status));
-  const transit = A.ordersOf(co).reduce((a, po) => a + po.qty, 0);
-  const bays = co.bays.filter((b) => b.ready <= A.now);
-  const busy = bays.filter((b) => b.unit).length;
-  const M = A.meridian;
-  body.append(
-    h('div', { class: 'grid4' },
-      stat('Cash (your obols)', money(g.player.money)),
-      stat('Revenue, 7 days', money(week.revenue)),
-      stat('Expenses, 7 days', money(week.costs)),
-      stat('Operating profit, 7 days', money(week.profit), week.profit >= 0 ? 'good' : 'bad'),
-      stat('Contract backlog', `${active.length} · ${fmtMoney(backlog)}`),
-      stat('Units in hand', String(units.length)),
-      stat('Bays in use', `${busy} / ${bays.length}`),
-      stat('Workers / needed', `${co.workforce} / ${A.crewNeeded(co, { all: true })}`),
-      stat('Materials in transit', `${transit} lots`),
-      stat('Apron', `${A.apronUsed(co)} / ${co.apron} slots`),
-      stat('Reputation', `${Math.round(co.reputation)} / 100`),
-      stat('Quality', `${Math.round(A.qualityOf(co))}`),
-      ...(A.canShipInternal(co) ? [stat('Saved by your own ships', money(A.shippingSavings(co).group), 'good'), stat('Consignments at sea', String(A.jobs(co).filter((j) => ['loading', 'at sea'].includes(j.status)).length))] : []),
-    ),
-    section('Alerts',
-      blocked.length || active.some((c) => c.due < A.now) ? h('div', { class: 'list' },
-        ...active.filter((c) => c.due < A.now).map((c) => h('div', { class: 'item-row bad' }, h('div', { class: 'icon' }, '⏰'), h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${A.cfg.customers[c.customer].name}: ${c.qty} × ${A.cfg.products[c.product].name} is past due — the customer withholds ${Math.round(A.A.latePerDay * 100)}% a day.`)))),
-        ...blocked.slice(0, 8).map((u) => h('div', { class: 'item-row warn' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${A.cfg.products[u.product].name} #${u.n}: ${u.blocker.text}.`)))),
-      ) : h('p', { class: 'muted' }, 'Nothing is holding production up.'),
-    ),
-    section('The competition',
-      h('div', { class: 'grid4' },
-        stat('MRDN', `${A.state.market.price.toFixed(2)} ◎`),
-        stat('Meridian contracts', String(A.contractsOf(M, 'active').length)),
-        stat('Meridian reputation', `${Math.round(M.reputation)}`),
-        stat('Open tenders', String(A.openTenders().length)),
-      ),
-      h('button', { class: 'small', onclick: () => go('Meridian') }, 'Meridian and MRDN →'),
-      h('button', { class: 'small primary', style: 'margin-left:6px', onclick: () => go('Tenders') }, 'The tender board →'),
-    ),
-    section('Reports', h('div', { class: 'list' }, ...A.state.reports.filter((r) => r.company === co.id).slice(0, 10).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${A.when(r.at)} — ${r.text}`)))))),
-  );
-}
-
-// ------------------------------------------------------------------ tenders
-function tenders(g, A, co, body, say) {
   const C = A.cfg;
-  body.append(h('p', { class: 'muted' }, `Customers post tenders each morning; bids are sealed, one per company, and the customer decides when the tender closes, weighing price, delivery, quality and reputation its own way. An aircraft contract is never for more than ${A.A.maxAircraftPerContract} aircraft. A deposit is paid when you win; the rest on delivery.`));
-  const open = A.openTenders();
-  if (!open.length) body.append(h('p', {}, 'No open tenders right now. New ones come in at 06:00.'));
-  const list = h('div', { class: 'list' });
-  for (const t of open) {
-    const p = C.products[t.product];
-    const cu = C.customers[t.customer];
-    const q = A.bidQuote(co.id, t.id);
-    const mine = t.bids.find((b) => b.company === co.id);
-    const price = h('input', { type: 'number', min: 1, step: 100, value: String(q.unitPrice || t.ceiling), class: 'aero-num' });
-    const days = h('input', { type: 'number', min: 1, step: 1, value: String(q.days || t.days), class: 'aero-num small' });
-    const profit = h('span', { class: 'muted' });
-    const update = () => { const pr = Number(price.value); profit.textContent = ` → about ${fmtMoney((pr - q.cost) * t.qty)} contribution on ${fmtMoney(pr * t.qty)} (deposit ${fmtMoney(pr * t.qty * t.deposit)})`; };
-    price.addEventListener('input', update);
-    update();
-    list.append(h('div', { class: `item-row aero-tender${q.ok ? '' : ' muted'}` },
-      h('div', { class: 'icon' }, LINE_ICON[p.line]),
-      h('div', { class: 'grow' },
-        h('div', { class: 'name' }, `${t.qty} × ${p.name}`, h('span', { class: 'tag' }, cu.name), t.defence ? h('span', { class: 'tag warn' }, 'defence') : null, t.embargoed ? h('span', { class: 'tag bad' }, 'embargoed') : null),
-        h('div', { class: 'desc' }, `Up to ${money(t.ceiling)} a unit · delivery within ${t.days} days · quality ${t.quality}+ · ${Math.round(t.deposit * 100)}% deposit · decides Day ${t.closes} · priorities: ${Object.entries(cu.priority).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v * 100)}%`).join(', ')}`),
-        h('div', { class: 'desc' }, `Your cost ≈ ${money(q.cost)} a unit (materials ${fmtMoney(q.est.materials)}, freight ${fmtMoney(q.est.freight)}, bay-days ${fmtMoney(q.est.labour)}${q.launch ? `, launch share ${fmtMoney(q.launch)}` : ''}); your earliest delivery ≈ ${Number.isFinite(q.delivery) ? `${q.delivery} days` : '—'}.`),
-        mine ? h('div', { class: 'desc good' }, `You bid ${money(mine.unitPrice)} a unit, ${mine.days} days.`)
-          : q.ok || /price|delivery/.test(q.reason || '') ? h('div', { class: 'row aero-bid' }, 'Price/unit ', price, ' days ', days, h('button', { class: 'small primary', onclick: () => say(A.placeBid(co.id, t.id, Number(price.value), Number(days.value))) }, 'Place sealed bid'), profit)
-            : h('div', { class: 'desc bad' }, `Can't bid: ${q.reason}.`),
-      )));
-  }
-  body.append(list);
-  const closed = A.state.tenders.filter((t) => t.status !== 'open').slice(-10).reverse();
-  if (closed.length) body.append(section('Recently decided', h('div', { class: 'list' }, ...closed.map((t) => {
-    const p = C.products[t.product];
-    const r = t.ranking || [];
-    const who = (id) => A.company(id)?.name || id;
-    return h('div', { class: 'item-row' }, h('div', { class: 'icon' }, t.winner === co.id ? '🏆' : t.status === 'lapsed' ? '—' : '✖'), h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${C.customers[t.customer].name}: ${t.qty} × ${p.name} — ${t.status === 'lapsed' ? 'no valid bids; it lapsed' : `won by ${who(t.winner)}`}${r.length ? ` (${r.map((b) => `${who(b.company)} ${fmtMoney(b.unitPrice)}/${b.days}d, score ${b.score}`).join(' vs ')})` : ''}.`)));
-  }))));
-}
+  const readonly = Boolean(opts.readonly) || !A.owned;
+  if (opts.tab) AO.mode = OLD_TABS[opts.tab] || AO.mode;
+  if (opts.mode) AO.mode = opts.mode;
+  if (readonly) AO.mode = 'meridian';
+  const co = () => A.roost;
+  body.classList.add('ao');
 
-// ------------------------------------------------------------------ contracts
-function contracts(g, A, co, body, say) {
-  const C = A.cfg;
-  const list = A.contractsOf(co).sort((a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || a.due - b.due);
-  if (!list.length) body.append(h('p', {}, 'No contracts yet. Win a tender.'));
-  for (const c of list) {
-    const p = C.products[c.product];
-    const left = (c.due - A.now) / 1440;
-    const units = c.units.map((id) => A.state.units[id]).filter(Boolean);
-    body.append(h('div', { class: `aero-card${c.status !== 'active' ? ' muted' : ''}` },
-      h('div', { class: 'name' }, `${LINE_ICON[p.line]} ${c.qty} × ${p.name}`, h('span', { class: 'tag' }, C.customers[c.customer].name), h('span', { class: `tag ${c.status === 'active' ? (left < 0 ? 'bad' : 'good') : ''}` }, c.status === 'active' ? (left < 0 ? `${fmtDays(-left)} late` : `due in ${fmtDays(left)}`) : c.status)),
-      h('div', { class: 'desc' }, `${money(c.unitPrice)} a unit · ${money(c.total)} in all · deposit ${money(c.depositPaid)} received · delivered ${c.delivered}/${c.qty}${c.failed ? ` · lost ${c.failed}` : ''} · earned ${money(c.revenue)}${c.penalties ? ` · penalties ${money(c.penalties)}` : ''}`),
-      c.note ? h('div', { class: 'desc muted' }, c.note) : null,
-      ...units.filter((u) => !u.finished).map((u) => unitRow(A, u)),
-      h('details', {}, h('summary', {}, 'History'), ...c.history.map((x) => h('div', { class: 'desc' }, `${A.when(x.at)} — ${x.text}`))),
-      c.status === 'active' ? h('button', { class: 'small', onclick: () => { if (confirm(`Cancel this contract? The deposit for undelivered units goes back and you pay a ${Math.round(A.A.cancelPenalty * 100)}% penalty.`)) say(A.cancelContract(co.id, c.id)); } }, 'Cancel contract…') : null,
-    ));
-  }
-}
+  const canvas = h('canvas', { class: 'ao-canvas' });
+  const top = h('div', { class: 'ao-top' });
+  const rail = h('div', { class: 'ao-rail' });
+  const drawer = h('div', { class: 'ao-drawer' });
+  const sheet = h('div', { class: 'ao-sheet hidden' });
+  const feed = h('div', { class: 'ao-feed' });
+  const toast = h('div', { class: 'ao-toast hidden' });
+  body.append(canvas, top, rail, drawer, sheet, feed, toast);
+  const ctx = canvas.getContext('2d');
 
-function unitRow(A, u) {
-  const C = A.cfg;
-  const p = C.products[u.product];
-  const st = stagesOf(C, p);
-  const s = st[u.stage];
-  const f = s && u.need ? u.work / u.need : 0;
-  const overall = (u.stage + f) / st.length;
-  return h('div', { class: 'aero-unit' },
-    h('div', { class: 'name' }, `#${u.n} — ${s ? s.name : 'done'}`, h('span', { class: 'tag' }, STATUS[u.status] || u.status), u.bay ? h('span', { class: 'tag' }, u.bay.replace('_', ' ')) : null),
-    bar(overall, 'overall'), s?.share ? bar(f, 'stage') : null,
-    h('div', { class: 'desc' }, `About ${fmtDays(A.unitDaysLeft(u))} of work left · materials still to come ≈ ${fmtMoney(A.unitCostLeft(u))}${u.inspections.length ? ` · inspections: ${u.inspections.map((i) => (i.pass ? 'pass' : 'FAIL')).join(', ')}` : ''}${u.rework ? ` · rework ${fmtDays(u.rework)}` : ''}`),
-    u.blocker ? h('div', { class: 'desc warn' }, `⚠ ${u.blocker.text}`) : null,
-  );
-}
+  const say = (r) => {
+    if (!r?.text) return;
+    ui.audio?.sfx?.(r.ok === false ? 'sfx_fail' : 'sfx_coin');
+    toast.textContent = r.text;
+    toast.className = `ao-toast ${r.ok === false ? 'bad' : 'good'}`;
+    clearTimeout(say.t);
+    say.t = setTimeout(() => toast.classList.add('hidden'), 4600);
+  };
+  /** Do something through the system, say what happened, redraw. */
+  const act = (fn) => { const r = fn(); say(r); refresh(); return r; };
+  const go = (mode, sel) => { AO.mode = mode; if (sel !== undefined) AO.sel = sel; ui.audio?.sfx?.('sfx_ui_click'); refresh(); };
 
-// ------------------------------------------------------------------ production
-function production(g, A, co, body) {
-  const C = A.cfg;
-  body.append(section('Bays', h('div', { class: 'grid3' }, ...co.bays.map((b) => {
-    const u = b.unit && A.state.units[b.unit];
-    return h('div', { class: 'aero-card' }, h('div', { class: 'name' }, `${C.bays[b.type].name} ${b.id.split('_').pop()}`),
-      b.ready > A.now ? h('div', { class: 'desc' }, `Under construction — ready ${A.when(b.ready)}`) : u ? h('div', { class: 'desc' }, `${C.products[u.product].name} #${u.n}: ${A.stageOf(u)?.name || ''}`) : h('div', { class: 'desc muted' }, 'Empty'),
-      u ? bar(u.need ? u.work / u.need : 0) : null);
-  }))));
-  const units = A.unitsOf(co).sort((a, b) => A.priority(a) - A.priority(b));
-  body.append(section(`Every unit in hand (${units.length})`, ...units.map((u) => h('div', { class: 'aero-card' }, h('div', { class: 'desc' }, `${LINE_ICON[u.line]} ${C.products[u.product].name}${u.contract ? ` for ${C.customers[A.contract(u.contract)?.customer]?.name || '—'}` : ' (our own launcher)'}`), unitRow(A, u)))));
-  const pipe = (line) => h('div', { class: 'desc' }, `${LINE_ICON[line]} ${line}: ${C.pipelines[line].map((s) => s.name).join(' → ')}`);
-  body.append(section('The pipelines', ...Object.keys(C.pipelines).map(pipe)));
-}
+  // ------------------------------------------------------------------ what's where on the floor
+  const unitOf = (id) => (id ? A.state.units[id] : null);
+  const inBay = () => new Set(co().bays.map((b) => b.unit).filter(Boolean));
+  const officeUnits = () => { const b = inBay(); return A.unitsOf(co()).filter((u) => !b.has(u.id) && ['queued', 'waiting', 'blocked', 'engineering'].includes(u.status)).sort((a, b2) => A.priority(a) - A.priority(b2)); };
+  const apronUnits = () => A.unitsOf(co()).filter((u) => u.status === 'apron');
+  const padUnit = () => unitOf(co().pad?.unit) || A.unitsOf(co()).find((u) => u.status === 'pad' || (u.line === 'rocket' && A.stageOf(u)?.wait === 'pad'));
+  const customerOf = (u) => (u.contract ? C.customers[A.contract(u.contract)?.customer]?.name : null);
 
-// ------------------------------------------------------------------ supply
-function supply(g, A, co, body, say) {
-  const C = A.cfg;
-  const mats = Object.keys(C.materials);
-  const rows = mats.map((m) => {
-    const r = co.inv[m] || { qty: 0, reserved: 0 };
-    const onOrder = A.ordersOf(co).filter((po) => po.material === m).reduce((a, po) => a + po.qty, 0);
-    const need = A.demand(co, m);
-    return { m, r, onOrder, need, short: Math.max(0, need - r.qty - onOrder) };
-  }).filter((x) => x.r.qty || x.onOrder || x.need);
-  body.append(
-    h('div', { class: 'row', style: 'justify-content:flex-start' },
-      h('label', {}, h('input', { type: 'checkbox', checked: co.autoProcure, onchange: (e) => { co.autoProcure = e.target.checked; say({ ok: true, text: co.autoProcure ? 'Purchasing will order what the work in hand needs, from the cheapest supplier with stock (landed cost).' : 'Automatic purchasing is off: order materials yourself below.' }); } }), ' Order materials automatically (cheapest landed cost)')),
-    shippingSection(g, A, co, say),
-    section('Materials', rows.length ? h('table', { class: 'aero-table' },
-      h('tr', {}, ...['Material', 'In stores', 'Reserved', 'On order', 'Needed', 'Short'].map((x) => h('th', {}, x))),
-      ...rows.map((x) => h('tr', { class: x.short ? 'bad' : '' }, h('td', {}, C.materials[x.m].name), h('td', {}, String(x.r.qty)), h('td', {}, String(x.r.reserved)), h('td', {}, String(x.onOrder)), h('td', {}, String(x.need)), h('td', {}, x.short ? String(x.short) : '—')))) : h('p', { class: 'muted' }, 'Nothing in stores and nothing needed.')),
-  );
-  const pos = A.ordersOf(co, false).sort((a, b) => b.placed - a.placed).slice(0, 20);
-  body.append(section('Purchase orders', pos.length ? h('table', { class: 'aero-table' },
-    h('tr', {}, ...['Order', 'Supplier', 'Lots', 'Goods + duty', 'Freight + handling', 'Carrier', 'Status', 'Due'].map((x) => h('th', {}, x))),
-    ...pos.map((po) => h('tr', {}, h('td', {}, `${po.id} ${C.materials[po.material].name}`), h('td', {}, C.suppliers[po.supplier].name), h('td', {}, String(po.qty)), h('td', {}, money(po.goods)), h('td', {}, money(po.mode === 'internal' ? po.freightInt || 0 : po.freight)), h('td', {}, po.mode === 'truck' ? 'truck (local)' : po.mode === 'internal' ? `your own ship (${A.job(po.job)?.vessel ? `the ${A.game.logistics.vessel(A.job(po.job).vessel)?.name || 'ship'}` : 'awaiting a ship'}, ${po.job})` : C.freight.carrier), h('td', {}, po.status), h('td', {}, po.status === 'received' ? A.when(po.received) : A.when(po.arrive))))) : h('p', { class: 'muted' }, 'No orders yet.')));
-  // a manual order: pick a material, see every supplier's landed cost
-  const sel = h('select', {}, ...mats.map((m) => h('option', { value: m }, C.materials[m].name)));
-  const qty = h('input', { type: 'number', min: 1, value: '4', class: 'aero-num small' });
-  const quotes = h('div', { class: 'list' });
-  const draw = () => {
-    quotes.innerHTML = '';
-    const m = sel.value;
-    const n = Math.max(1, Math.floor(Number(qty.value) || 1));
-    for (const [id, sp] of Object.entries(C.suppliers)) {
-      if (!sp.sells[m]) continue;
-      const stock = A.state.suppliers[id].stock[m] || 0;
-      const q = A.freightQuote(co, id, m, Math.min(n, Math.max(1, stock)));
-      const total = q.goods + q.freight + q.duty + q.handling;
-      const own = sp.where !== 'local' && A.canShipInternal(co);
-      const iq = own ? A.internalQuote(co, sp.where, q.volume, A.now + sp.lead * 1440) : null;
-      const iCharge = own ? Math.round((q.freight + q.handling) * (iq.ok ? iq.rate : C.internal.rates.inefficient)) : 0;
-      quotes.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, sp.name, h('span', { class: 'tag' }, sp.where === 'local' ? 'local (truck)' : A.game.logistics.port(sp.where)?.name), h('span', { class: 'tag' }, `${stock} in stock`)),
-        h('div', { class: 'desc' }, `${sp.where === 'local' ? 'By truck' : 'By carrier'}: landed cost ${money(total)} for ${n} — goods ${money(q.goods)} + freight ${money(q.freight)}${q.duty ? ` + duty ${money(q.duty)}` : ''}${q.handling ? ` + handling ${money(q.handling)}` : ''} · ${Math.round(q.hours)} h to the Park${q.km ? ` (${q.km.toLocaleString()} km by sea)` : ''}`),
-        own ? h('div', { class: 'desc good' }, `In your own ship: landed cost ${money(q.goods + q.duty + iCharge)} — internal charge ${money(iCharge)} instead of ${money(q.freight + q.handling)} (saves ${money(q.freight + q.handling - iCharge)}) · ${iq.ok ? `the ${iq.vessel.name}${iq.atOrigin ? ', already there' : ' would sail there empty'}, about ${Math.round((iq.eta - A.now) / 60)} h to the Park` : `not right now: ${iq.reasons[0]} — it would wait${co.internalPolicy === 'fallback' ? ' up to a day, then go by carrier' : ''}`}`) : null),
-        h('div', {},
-          h('button', { class: 'small', disabled: stock < n, onclick: () => say(A.order(co, id, m, n, {}, { mode: 'carrier' })) }, sp.where === 'local' ? 'Order' : 'Order (carrier)'),
-          own ? h('button', { class: 'small primary', style: 'margin-left:4px', disabled: stock < n, onclick: () => say(A.order(co, id, m, n, {}, { mode: 'internal' })) }, 'Order (own ship)') : null)));
+  // ================================================================== the floor (canvas)
+  let hits = [];
+  let hover = null;
+  const drawFloor = (t) => {
+    const k = window.devicePixelRatio || 1;
+    const bw = Math.round(canvas.clientWidth * k);
+    const bh = Math.round(canvas.clientHeight * k);
+    if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
+    const W = canvas.width;
+    const H = canvas.height;
+    // the blueprint
+    ctx.fillStyle = '#070b12';
+    ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W * 0.42, H * 0.45, 0, W * 0.42, H * 0.45, Math.max(W, H) * 0.7);
+    glow.addColorStop(0, 'rgba(40,70,120,0.28)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 24 * k) { ctx.strokeStyle = Math.round(x / (24 * k)) % 5 ? 'rgba(120,170,255,0.045)' : 'rgba(120,170,255,0.09)'; ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 24 * k) { ctx.strokeStyle = Math.round(y / (24 * k)) % 5 ? 'rgba(120,170,255,0.045)' : 'rgba(120,170,255,0.09)'; ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+    hits = [];
+    if (readonly || AO.mode !== 'floor') return;
+    // the floor fills the space the rail, the card and the log leave (they move on a narrow screen)
+    const cb = canvas.getBoundingClientRect();
+    const rr = rail.getBoundingClientRect();
+    const dr = drawer.getBoundingClientRect();
+    const across = rr.width > rr.height;
+    const below = dr.top - cb.top > cb.height * 0.35;
+    const x0 = (across ? 12 : rr.right - cb.left + 16) * k;
+    const x1 = (below ? cb.width - 12 : dr.left - cb.left - 14) * k;
+    const y0 = (across ? rr.bottom - cb.top + 10 : 76) * k;
+    const y1 = (below ? dr.top - cb.top - 10 : cb.height - 58) * k;
+    if (x1 - x0 < 200 * k || y1 - y0 < 160 * k) return;
+    text('HANGAR FLOOR', x0, y0 + 6 * k, COL.amber, 11, { spacing: 3, weight: 700 });
+    text(`Roost Aeroworks · Starling Flats · ${plural(co().bays.length, 'bay')} · ${co().workforce} workers (${Math.round(A.staffing(co()) * 100)}% staffed)`, x0 + 128 * k, y0 + 6 * k, 'rgba(223,233,245,0.6)', 11);
+    const gap = 12 * k;
+    const stripH = Math.min(150 * k, (y1 - y0) * 0.3);
+    const by0 = y0 + 22 * k;
+    const by1 = y1 - stripH - gap;
+    // the bays, in the best grid for the space
+    const bays = co().bays;
+    const n = Math.max(1, bays.length);
+    let best = null;
+    for (let c = 1; c <= n; c++) {
+      const r = Math.ceil(n / c);
+      const cw = (x1 - x0 - (c - 1) * gap) / c;
+      const ch = (by1 - by0 - (r - 1) * gap) / r;
+      const score = Math.min(cw, ch * 1.6);
+      if (!best || score > best.score) best = { c, r, cw: Math.min(cw, ch * 2.4), ch, score };
+    }
+    bays.forEach((b, i) => {
+      const cx = x0 + (i % best.c) * (best.cw + gap);
+      const cy = by0 + Math.floor(i / best.c) * (best.ch + gap);
+      drawBay(b, i, cx, cy, best.cw, best.ch, t, k);
+    });
+    // the strip: office, apron, pad, stores, inbound
+    const tiles = ['office', 'apron', 'pad', 'stores', 'inbound'];
+    const tw = (x1 - x0 - gap * (tiles.length - 1)) / tiles.length;
+    tiles.forEach((id, i) => drawTile(id, x0 + i * (tw + gap), y1 - stripH, tw, stripH, t, k));
+  };
+
+  const text = (s, x, y, colour, px, o = {}) => {
+    const k = window.devicePixelRatio || 1;
+    ctx.font = `${o.weight || 500} ${px * k}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textAlign = o.align || 'left';
+    ctx.textBaseline = o.base || 'middle';
+    if (o.spacing && 'letterSpacing' in ctx) ctx.letterSpacing = `${o.spacing * k}px`;
+    let str = String(s);
+    if (o.max) { while (str.length > 3 && ctx.measureText(str).width > o.max) str = `${str.slice(0, -2)}…`; }
+    ctx.fillStyle = colour;
+    ctx.fillText(str, x, y);
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  };
+  const box = (x, y, w, hh, r, fill, stroke, dash) => {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, hh, r); else ctx.rect(x, y, w, hh);
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.setLineDash(dash || []); ctx.strokeStyle = stroke; ctx.stroke(); ctx.setLineDash([]); }
+  };
+  const isSel = (kind, id) => AO.sel?.kind === kind && (id === undefined || AO.sel.id === id);
+  const isHover = (kind, id) => hover?.kind === kind && (id === undefined || hover.id === id);
+  const lamps = (x, y, n, i, t, k, size = 5) => {
+    for (let s = 0; s < n; s++) {
+      const on = s < i ? COL.green : s === i ? (Math.sin(t * 5) > -0.2 ? COL.amber : '#7a5a20') : COL.dim;
+      ctx.fillStyle = on;
+      ctx.fillRect(x + s * (size + 3) * k, y, size * k, size * k);
     }
   };
-  sel.addEventListener('change', draw);
-  qty.addEventListener('input', draw);
-  draw();
-  body.append(section('Order materials', h('div', { class: 'row', style: 'justify-content:flex-start' }, sel, ' lots ', qty), quotes,
-    h('p', { class: 'muted' }, 'Landed cost = the supplier\'s price + duty + freight + handling. Foreign goods come to Mill Road Docks — by an independent carrier at the market rate, or in your own Ober & Sons ships — then up the Cut by truck; materials can only be used once they\'re delivered, counted and in stores.')));
-}
+  const progress = (x, y, w, f, colour, k) => {
+    box(x, y, w, 4 * k, 2 * k, 'rgba(255,255,255,0.08)');
+    if (f > 0) box(x, y, Math.max(4 * k, w * clamp01(f)), 4 * k, 2 * k, colour);
+  };
 
-/** v0.56.0: shipping in your own ships — the setting, the consignments, what it saves. */
-function shippingSection(g, A, co, say) {
-  const C = A.cfg;
-  const L = g.logistics;
-  if (!A.canShipInternal(co)) {
-    return section('Shipping', h('p', { class: 'muted' }, `Foreign materials come by ${C.freight.carrier} at the market rate. Own a shipping line — Ober & Sons Maritime is for sale from Captain Ober at Mill Road Yards — and your own ships can bring them for a small internal charge instead.`));
-  }
-  const sv = A.shippingSavings(co);
-  const ex = A.expectedSavings(co);
-  const jobs = A.jobs(co, false).sort((a, b) => b.created - a.created).slice(0, 12);
-  const mode = h('select', { onchange: (e) => { co.shipping = e.target.value; say({ ok: true, text: co.shipping === 'internal' ? 'Foreign materials will come in your own ships.' : 'Foreign materials will come by carrier.' }); } },
-    h('option', { value: 'internal', selected: co.shipping === 'internal' }, 'in your own ships (Ober & Sons)'), h('option', { value: 'carrier', selected: co.shipping === 'carrier' }, `by carrier (${C.freight.carrier})`));
-  const policy = h('select', { onchange: (e) => { co.internalPolicy = e.target.value; say({ ok: true, text: co.internalPolicy === 'fallback' ? `A consignment with no free ship for ${C.internal.fallbackHours} hours goes by carrier.` : 'Consignments wait for one of your ships, however long it takes.' }); } },
-    h('option', { value: 'fallback', selected: co.internalPolicy === 'fallback' }, `fall back to a carrier after ${C.internal.fallbackHours} h without a ship`), h('option', { value: 'wait', selected: co.internalPolicy === 'wait' }, 'always wait for one of your ships'));
-  return section('Shipping — Ober & Sons Maritime',
-    h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, 'Foreign materials come ', mode, policy),
-    h('div', { class: 'grid4' },
-      stat('Freight a carrier would have charged', money(sv.equivalent)),
-      stat('Internal charges paid', money(sv.charges)),
-      stat('Saved (aerospace books)', money(sv.division), 'good'),
-      stat('Saved (group, after voyage costs)', money(sv.group), sv.group >= 0 ? 'good' : 'bad'),
-      stat('Still to order (carrier freight)', money(ex.carrier)),
-      stat('…in your own ships', money(ex.internal)),
-      stat('Expected saving on work in hand', money(ex.saving), 'good'),
-      stat('Paid to carriers so far', money(co.freight.external)),
-    ),
-    h('p', { class: 'muted' }, `Your ships carry a consignment from the supplier\'s port to Mill Road. The aerospace books pay the shipping line ${Math.round(C.internal.rates.established * 100)}–${Math.round(C.internal.rates.inefficient * 100)}% of what a carrier would charge (least on a route your fleet sails, most when a ship has to go there empty); the voyage\'s real running costs and port fees are the shipping line\'s, paid once. Group figures cancel the internal charge.`),
-    jobs.length ? h('div', { class: 'list' }, ...jobs.map((j) => {
-      const v = j.vessel && L.vessel(j.vessel);
-      const pos = j.pos.map((id) => A.state.pos[id]).filter(Boolean);
-      const hit = A.affectedUnits(j);
-      const open = ['waiting', 'reserved', 'repositioning'].includes(j.status);
-      return h('div', { class: `aero-card${['delivered', 'carrier'].includes(j.status) ? ' muted' : ''}` },
-        h('div', { class: 'name' }, `🚢 ${j.id}: ${L.port(j.origin)?.name} → Mill Road`, h('span', { class: `tag ${j.status === 'lost' ? 'bad' : j.status === 'delivered' ? 'good' : ''}` }, j.status), j.priority === 'urgent' ? h('span', { class: 'tag warn' }, 'urgent') : null, v ? h('span', { class: 'tag' }, `the ${v.name}${v.voyage ? ` (${Math.round((L.position(v)?.f || 0) * 100)}% of the way)` : ''}`) : null),
-        h('div', { class: 'desc' }, `Manifest: ${pos.map((po) => `${po.qty} × ${C.materials[po.material].name} (${C.suppliers[po.supplier].name}, ${po.id})`).join('; ')} — ${j.units} units, ${money(j.value)} of goods.`),
-        h('div', { class: 'desc' }, `${j.eta ? `Due at the Park ${A.when(j.eta)}${j.delayed ? ` (delayed ${j.delayed} h)` : ''}` : j.status === 'carrier' ? 'Went by carrier' : j.waitingWhy ? `Waiting: ${j.waitingWhy}` : 'Waiting for a ship'} · carrier would charge ${money(j.extFreight)}${j.charge ? ` · internal charge ${money(j.charge)} (${(j.rate * 100).toFixed(1)}%)` : ''}${j.voyageCost ? ` · voyage costs ${money(j.voyageCost)}` : ''}`),
-        hit.length ? h('div', { class: 'desc warn' }, `Waiting on it: ${hit.map((u) => `${C.products[u.product].name} #${u.n}`).join(', ')}`) : null,
-        h('details', {}, h('summary', {}, 'Log'), ...j.log.map((x) => h('div', { class: 'desc' }, `${A.when(x.at)} — ${x.text}`))),
-        open ? h('div', {},
-          h('button', { class: 'small', onclick: () => say(A.setJobPriority(j.id, j.priority === 'urgent' ? 'normal' : 'urgent')) }, j.priority === 'urgent' ? 'Normal priority' : 'Make it urgent'),
-          h('button', { class: 'small', style: 'margin-left:4px', onclick: () => say(A.jobToCarrier(j)) }, `Send by carrier instead (${money(pos.reduce((a, po) => a + po.extFreight, 0))})`)) : null);
-    })) : h('p', { class: 'muted' }, 'No consignments in your ships yet.'));
-}
+  const drawBay = (b, i, x, y, w, hh, t, k) => {
+    const sel = isSel('bay', b.id);
+    const hov = isHover('bay', b.id);
+    const u = unitOf(b.unit);
+    const building = b.ready > A.now;
+    box(x, y, w, hh, 10 * k, sel ? 'rgba(40,52,74,0.96)' : 'rgba(14,22,36,0.94)', sel ? COL.amber : hov ? 'rgba(255,181,71,0.6)' : 'rgba(255,181,71,0.22)');
+    ctx.lineWidth = sel ? 2 * k : 1;
+    // hazard ticks in the corners
+    for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + hh, 1, -1], [x + w, y + hh, -1, -1]]) {
+      for (let s = 0; s < 3; s++) { ctx.fillStyle = s % 2 ? '#1a1a20' : 'rgba(255,181,71,0.75)'; ctx.fillRect(cx + sx * (8 + s * 6) * k - (sx < 0 ? 6 * k : 0), cy + sy * 6 * k - (sy < 0 ? 3 * k : 0), 6 * k, 3 * k); }
+    }
+    const pad = 12 * k;
+    text(`BAY ${i + 1} · ${C.bays[b.type].name.toUpperCase()}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
+    const chip = building ? ['BUILDING', COL.blue] : !u ? ['IDLE', 'rgba(223,233,245,0.45)'] : u.status === 'building' ? ['WORKING', COL.green] : [STATUS[u.status]?.toUpperCase() || u.status.toUpperCase(), u.status === 'blocked' ? COL.red : COL.amber];
+    text(chip[0], x + w - pad, y + 18 * k, chip[1], 10, { align: 'right', weight: 700, spacing: 1 });
+    hits.push({ kind: 'bay', id: b.id, x, y, w, h: hh });
+    const artY = y + 30 * k;
+    const artH = hh - 30 * k - 62 * k;
+    if (building) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x + 4 * k, artY, w - 8 * k, artH); ctx.clip();
+      ctx.strokeStyle = 'rgba(111,180,255,0.16)'; ctx.lineWidth = 6 * k;
+      for (let s = -hh; s < w + hh; s += 22 * k) { ctx.beginPath(); ctx.moveTo(x + s, artY + artH); ctx.lineTo(x + s + artH, artY); ctx.stroke(); }
+      ctx.restore();
+      text('UNDER CONSTRUCTION', x + w / 2, artY + artH / 2 - 8 * k, COL.blue, 13, { align: 'center', weight: 700, spacing: 2 });
+      text(`ready ${A.when(b.ready)}`, x + w / 2, artY + artH / 2 + 12 * k, 'rgba(223,233,245,0.65)', 11, { align: 'center' });
+      return;
+    }
+    if (!u) {
+      // idle jigs
+      const jx = x + w / 2;
+      const jy = artY + artH / 2;
+      box(jx - w * 0.3, jy - artH * 0.32, w * 0.6, artH * 0.64, 8 * k, null, 'rgba(223,233,245,0.16)', [6 * k, 6 * k]);
+      text('IDLE', jx, jy - 6 * k, 'rgba(223,233,245,0.35)', 18, { align: 'center', weight: 800, spacing: 6 });
+      const next = officeUnits().find((x2) => C.products[x2.product].bay === b.type);
+      text(next ? `next: ${C.products[next.product].name} #${next.n} — ${next.blocker?.text || STATUS[next.status]}` : 'nothing waiting for this bay', jx, jy + 18 * k, 'rgba(223,233,245,0.5)', 11, { align: 'center', max: w - pad * 2 });
+      text(`${C.bays[b.type].crew} crew · ${money(C.bays[b.type].upkeep)}/day, busy or not`, x + pad, y + hh - 16 * k, 'rgba(223,233,245,0.4)', 10.5, { max: w - pad * 2 });
+      return;
+    }
+    const look = A.unitLook(u);
+    const img = unitImage(look);
+    // the work light, then the unit
+    const lg = ctx.createRadialGradient(x + w / 2, artY + artH / 2, 0, x + w / 2, artY + artH / 2, Math.max(w, artH) * 0.55);
+    lg.addColorStop(0, 'rgba(255,220,160,0.10)');
+    lg.addColorStop(1, 'rgba(255,220,160,0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(x + 2, artY, w - 4, artH);
+    const r = fitDraw(ctx, img, x + pad, artY + 4 * k, w - pad * 2, artH - 8 * k, 4 * k);
+    if (look.kind === 'missile' && r) {
+      box(r.x + r.w * 0.06, r.y - r.h * 0.2, r.w * 0.88, r.h * 1.4, 4 * k, 'rgba(74,90,58,0.94)', 'rgba(140,160,110,0.5)');
+      text('SECURE · AUTHORISED STAFF ONLY', r.x + r.w / 2, r.y + r.h / 2, 'rgba(230,240,200,0.75)', 10, { align: 'center', weight: 700, spacing: 1 });
+    }
+    // welders at work
+    if (u.status === 'building' && r) {
+      for (let s = 0; s < 4; s++) {
+        if (Math.sin(t * 17 + s * 7.3) < 0.35) continue;
+        const sx = r.x + r.w * (0.25 + 0.5 * ((Math.sin(t * 0.7 + s * 2.1) + 1) / 2));
+        const sy = r.y + r.h * (0.2 + 0.6 * ((Math.cos(t * 0.5 + s * 1.7) + 1) / 2));
+        const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, 9 * k);
+        sg.addColorStop(0, 'rgba(255,250,220,0.95)'); sg.addColorStop(0.3, 'rgba(120,200,255,0.55)'); sg.addColorStop(1, 'rgba(120,200,255,0)');
+        ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 9 * k, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // the label, the stage, the lamp board
+    const st = A.stageOf(u);
+    const ly = y + hh - 56 * k;
+    text(`${C.products[u.product].name} #${u.n}`, x + pad, ly, '#fff', 13, { weight: 700, max: w * 0.62 });
+    const who = customerOf(u);
+    text(who || 'our own launcher', x + w - pad, ly, 'rgba(223,233,245,0.55)', 11, { align: 'right', max: w * 0.36 });
+    text(u.blocker && u.status !== 'building' ? `⚠ ${u.blocker.text}` : st?.name || '', x + pad, ly + 17 * k, u.blocker && u.status !== 'building' ? (u.status === 'blocked' ? COL.red : COL.amber) : 'rgba(223,233,245,0.75)', 11, { max: w - pad * 2 });
+    progress(x + pad, ly + 30 * k, w - pad * 2 - 70 * k, u.need ? u.work / u.need : 0, u.status === 'building' ? COL.amber : '#7a6a40', k);
+    text(`${fmtDays(A.unitDaysLeft(u))} left`, x + w - pad, ly + 32 * k, 'rgba(223,233,245,0.6)', 10.5, { align: 'right' });
+    lamps(x + pad, ly + 41 * k, look.stagesTotal, look.stageIndex, t, k, Math.max(3, Math.min(6, (w - pad * 2) / k / look.stagesTotal - 3)));
+  };
 
-// ------------------------------------------------------------------ facilities
-function facilities(g, A, co, body, say) {
-  const C = A.cfg;
-  body.append(section('Workforce',
-    h('div', { class: 'grid4' }, stat('Employed', String(co.workforce)), stat('Needed (all bays)', String(A.crewNeeded(co, { all: true }))), stat('Wages a day', money(co.workforce * A.A.wage)), stat('Staffing now', `${Math.round(A.staffing(co) * 100)}%`)),
-    h('div', { class: 'row', style: 'justify-content:flex-start' }, ...[10, 30].map((n) => h('button', { class: 'small primary', onclick: () => say(A.hire(co, n)) }, `Hire ${n} (${money(n * A.A.hireCost)})`)), ...[10, 30].map((n) => h('button', { class: 'small', disabled: co.workforce < n, onclick: () => say(A.layoff(co, n)) }, `Lay off ${n}`))),
-    h('p', { class: 'muted' }, 'A bay works at full speed when its crew is all there; short-staffed, every bay slows. Wages are paid every morning, busy or not.')));
-  body.append(section('Build a bay', h('div', { class: 'list' }, ...Object.entries(C.bays).map(([id, b]) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, b.name, h('span', { class: 'tag' }, `${b.crew} crew`), h('span', { class: 'tag' }, `${money(b.upkeep)}/day`)), h('div', { class: 'desc' }, b.text)), h('button', { class: 'small primary', onclick: () => say(A.buildBay(co, id)) }, `${money(b.build)} · ${b.buildDays} d`))))));
-  body.append(section('Facilities', h('div', { class: 'list' }, ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => {
-    const have = id === 'pad' ? co.pad : co.facilities[id];
-    const building = co.building?.[id];
-    return h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, f.name, have ? h('span', { class: 'tag good' }, 'built') : building ? h('span', { class: 'tag' }, `ready ${A.when(building)}`) : null), h('div', { class: 'desc' }, f.text)),
-      have || building ? null : h('button', { class: 'small primary', onclick: () => say(A.buildFacility(co, id)) }, `${money(f.build)} · ${f.buildDays} d`));
-  }))));
-  const R = C.research;
-  const avail = Object.entries(R).filter(([id, r]) => !co.research.includes(id) && (r.requires || []).every((x) => co.research.includes(x)));
-  body.append(section('Research',
-    co.researching ? h('p', {}, `Researching ${R[co.researching.id].name} — done ${A.when(co.researching.doneAt)}.`) : h('p', { class: 'muted' }, 'Nothing being researched.'),
-    h('p', { class: 'desc' }, `Known: ${co.research.map((id) => R[id].name).join(', ')}.`),
-    h('div', { class: 'list' }, ...avail.map(([id, r]) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.name, r.clearance ? h('span', { class: 'tag warn' }, 'defence') : null), h('div', { class: 'desc' }, `${r.text} Unlocks: ${Object.entries(C.products).filter(([, p]) => p.tech === id).map(([, p]) => p.name).join(', ') || '—'}.`)),
-      h('button', { class: 'small primary', disabled: Boolean(co.researching), onclick: () => say(A.startResearch(co, id)) }, `${money(r.cost)} · ${r.days} d`))))));
-}
+  const drawTile = (id, x, y, w, hh, t, k) => {
+    const sel = isSel(id);
+    const hov = isHover(id);
+    box(x, y, w, hh, 10 * k, sel ? 'rgba(40,52,74,0.96)' : 'rgba(14,22,36,0.92)', sel ? COL.amber : hov ? 'rgba(255,181,71,0.6)' : 'rgba(120,170,255,0.18)');
+    hits.push({ kind: id, x, y, w, h: hh });
+    const pad = 12 * k;
+    const title = (s, colour = 'rgba(255,181,71,0.9)') => text(s, x + pad, y + 17 * k, colour, 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 });
+    const big = (s, colour = '#fff') => text(s, x + pad, y + 42 * k, colour, 20, { weight: 700, max: w - pad * 2 });
+    const small = (s, row, colour = 'rgba(223,233,245,0.6)') => text(s, x + pad, y + (62 + row * 15) * k, colour, 11, { max: w - pad * 2 });
+    const c = co();
+    if (id === 'office') {
+      const list = officeUnits();
+      title('QUEUE · OFFICE');
+      big(String(list.length));
+      list.slice(0, Math.floor((hh / k - 60) / 15)).forEach((u, i) => small(`${LINE_ICON[u.line]} ${C.products[u.product].name} #${u.n} · ${u.status === 'engineering' ? 'engineering' : u.blocker?.text || STATUS[u.status]}`, i, u.status === 'blocked' ? COL.red : 'rgba(223,233,245,0.6)'));
+      if (!list.length) small('Nothing waiting. Win a tender.', 0);
+    } else if (id === 'apron') {
+      const used = A.apronUsed(c);
+      title(`APRON · ${used}/${c.apron} STANDS`);
+      const units = apronUnits();
+      const sw = (w - pad * 2 - (c.apron - 1) * 6 * k) / Math.max(1, c.apron);
+      const sh = hh - 40 * k;
+      let slot = 0;
+      for (let s = 0; s < c.apron; s++) {
+        const sx = x + pad + s * (sw + 6 * k);
+        box(sx, y + 30 * k, sw, sh - 4 * k, 6 * k, 'rgba(255,255,255,0.03)', 'rgba(255,214,90,0.35)', [4 * k, 4 * k]);
+        text(String(s + 1), sx + 6 * k, y + 40 * k, 'rgba(255,214,90,0.5)', 9.5, { weight: 700 });
+      }
+      for (const u of units) {
+        const size = C.products[u.product].apron || 1;
+        const sx = x + pad + slot * (sw + 6 * k);
+        fitDraw(ctx, unitImage(A.unitLook(u)), sx + 4 * k, y + 34 * k, sw * size + 6 * k * (size - 1) - 8 * k, sh - 12 * k, 3 * k);
+        slot += size;
+      }
+      if (!units.length) text('empty', x + w / 2, y + 30 * k + sh / 2, 'rgba(223,233,245,0.3)', 11, { align: 'center' });
+    } else if (id === 'pad') {
+      const u = padUnit();
+      title('LAUNCH PAD', c.pad ? 'rgba(255,181,71,0.9)' : 'rgba(223,233,245,0.45)');
+      if (!c.pad) {
+        big(c.building?.pad ? 'building' : 'not built', 'rgba(223,233,245,0.45)');
+        small(c.building?.pad ? `ready ${A.when(c.building.pad)}` : 'Pad 2 is surveyed and waiting.', 0);
+        small(c.building?.pad ? '' : `${fmtMoney(C.facilities.pad.build)} to build`, 1);
+      } else if (u) {
+        const img = rocketCanvas(C.products[u.product].look, { stages: 1 });
+        fitDraw(ctx, img, x + w * 0.55, y + 22 * k, w * 0.4, hh - 30 * k, 3 * k);
+        small(`${C.products[u.product].name} #${u.n}`, 0, '#fff');
+        small(A.stageOf(u)?.name || '', 1);
+        if (Math.sin(t * 3) > 0) { ctx.fillStyle = 'rgba(230,240,255,0.25)'; ctx.beginPath(); ctx.arc(x + w * 0.75, y + hh - 18 * k, 12 * k, 0, Math.PI * 2); ctx.fill(); }
+      } else { big('clear', 'rgba(223,233,245,0.55)'); small(c.pad.readyAt > A.now ? `refurbishing until ${A.when(c.pad.readyAt)}` : 'ready for the next launch', 1); }
+    } else if (id === 'stores') {
+      const rows = Object.values(c.inv || {});
+      const qty = rows.reduce((a, r) => a + r.qty, 0);
+      const res = rows.reduce((a, r) => a + r.reserved, 0);
+      const short = A.shortfalls(c);
+      title('STORES');
+      big(fmtMoney(c.books.inventoryValue));
+      small(`${qty} lots in stores · ${res} reserved`, 0);
+      progress(x + pad, y + 72 * k, w - pad * 2, qty ? res / qty : 0, COL.blue, k);
+      small(short.length ? `⚠ ${short.length} material${short.length === 1 ? '' : 's'} short` : 'nothing short', 1.6, short.length ? COL.red : COL.green);
+    } else if (id === 'inbound') {
+      const pos = A.ordersOf(c);
+      const sea = A.jobs(c, true).filter((j) => ['loading', 'at sea'].includes(j.status));
+      const next = pos.reduce((m, p) => Math.min(m, p.arrive || Infinity), Infinity);
+      title('INBOUND');
+      big(String(pos.length));
+      small(`order${pos.length === 1 ? '' : 's'} on the way${sea.length ? ` · ${sea.length} in your ships` : ''}`, 0);
+      small(Number.isFinite(next) ? `next: ${A.when(next)}` : 'nothing on order', 1);
+      // the road up the Cut, with the trucks on it
+      const ry = y + hh - 16 * k;
+      ctx.strokeStyle = 'rgba(223,233,245,0.18)'; ctx.setLineDash([6 * k, 6 * k]); ctx.beginPath(); ctx.moveTo(x + pad, ry); ctx.lineTo(x + w - pad, ry); ctx.stroke(); ctx.setLineDash([]);
+      pos.slice(0, 6).forEach((p, i) => {
+        const f = p.placed && p.arrive > p.placed ? clamp01((A.now - p.placed) / (p.arrive - p.placed)) : 0.5;
+        const tx = x + pad + (w - pad * 2) * f;
+        ctx.fillStyle = p.mode === 'internal' ? COL.blue : p.mode === 'truck' ? COL.green : COL.amber;
+        ctx.fillRect(tx - 5 * k, ry - 4 * k - (i % 2) * 2 * k, 10 * k, 6 * k);
+      });
+    }
+  };
 
-// ------------------------------------------------------------------ books
-function books(g, A, co, body) {
-  const periods = [['Last 7 days', 7], ['Last 30 days', 30], ['Since you bought it', null]];
-  const sums = periods.map(([, n]) => A.statement(co, n));
-  const keys = Object.keys(ACCOUNTS).filter((k) => sums.some((s) => s.acc[k]));
-  body.append(
-    h('table', { class: 'aero-table' },
-      h('tr', {}, h('th', {}, 'Account'), ...periods.map(([l]) => h('th', {}, l))),
-      ...keys.map((k) => h('tr', { class: ACCOUNTS[k].kind === 'revenue' ? 'good' : '' }, h('td', {}, ACCOUNTS[k].name), ...sums.map((s) => h('td', {}, s.acc[k] ? `${ACCOUNTS[k].kind === 'revenue' ? '' : '−'}${Math.round(s.acc[k]).toLocaleString()}` : '—')))),
-      h('tr', { class: 'total' }, h('td', {}, 'Operating profit'), ...sums.map((s) => h('td', {}, Math.round(s.profit).toLocaleString()))),
-    ),
-    h('div', { class: 'grid4', style: 'margin-top:10px' },
-      stat('Deposits received (work still owed)', money(co.books.deferred)),
-      stat('Materials in stores and on order', money(co.books.inventoryValue)),
-      stat('Capital spent (firm, bays, facilities)', money(co.books.capex)),
-    ),
-    groupTable(A, periods),
-    h('p', { class: 'muted' }, 'Revenue is booked when a unit is delivered (a deposit is owed work until then). Materials are an asset until a unit uses them, and become cost of sales when it\'s delivered, with the freight that brought them. Wages, upkeep and overhead are booked each morning.'),
-  );
-}
+  // ------------------------------------------------------------------ the live loop and fast-forward
+  let lastUi = 0;
+  const loop = (ms) => {
+    if (!canvas.isConnected) { AO.ff = null; return; }
+    if (AO.ff) {
+      const left = AO.ff.until - g.clock.total;
+      if (left <= 0) { AO.ff = null; refresh(); } else g.skipTime(Math.min(left, Math.max(4, Math.ceil(left / 50))));
+    }
+    drawFloor(ms / 1000);
+    if (AO.ff && ms - lastUi > 450) { lastUi = ms; renderTop(); renderFeed(); if (AO.mode === 'floor') renderDrawer(); }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
 
-/** The group (Roost and Ober & Sons) with the internal charge between them eliminated. */
-function groupTable(A, periods) {
-  if (!A.game.logistics.owned) return null;
-  const sums = periods.map(([, n]) => A.groupStatement(n));
-  const row = (label, f, cls = '') => h('tr', { class: cls }, h('td', {}, label), ...sums.map((x) => h('td', {}, Math.round(f(x)).toLocaleString())));
-  return section('The group: Roost Aeroworks + Ober & Sons Maritime',
-    h('table', { class: 'aero-table' },
-      h('tr', {}, h('th', {}, ''), ...periods.map(([l]) => h('th', {}, l))),
-      row('Aerospace profit (internal freight eliminated)', (x) => x.aero.profit),
-      row('Shipping line operating profit (internal revenue eliminated; ships bought are capital)', (x) => x.shipping.profit),
-      row('…internal charges eliminated', (x) => x.shipping.internal),
-      row('Group operating profit', (x) => x.profit, 'total')),
-    h('p', { class: 'muted' }, 'The voyages that carry your materials are paid for once, in the shipping line\'s running costs and port fees; what the aerospace division pays the shipping line for them cancels out here.'));
-}
+  const local = (e) => { const b = canvas.getBoundingClientRect(); const k = window.devicePixelRatio || 1; return { x: (e.clientX - b.left) * k, y: (e.clientY - b.top) * k }; };
+  const hitAt = (p) => hits.find((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) || null;
+  canvas.addEventListener('mousemove', (e) => { hover = hitAt(local(e)); canvas.style.cursor = hover ? 'pointer' : 'default'; });
+  canvas.addEventListener('mouseleave', () => { hover = null; });
+  canvas.addEventListener('click', (e) => {
+    const k2 = hitAt(local(e));
+    AO.sel = k2 ? { kind: k2.kind, id: k2.id } : null;
+    ui.audio?.sfx?.('sfx_ui_click');
+    renderDrawer();
+  });
+  const keys = (e) => {
+    if (!canvas.isConnected) { window.removeEventListener('keydown', keys, true); return; }
+    if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'SELECT') return;
+    if (e.key === 'Escape' && !readonly && (AO.mode !== 'floor' || AO.sel)) {
+      e.stopImmediatePropagation();
+      if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
+      refresh();
+    } else if (!readonly && /^[1-7]$/.test(e.key)) {
+      e.stopImmediatePropagation();
+      go(MODES[Number(e.key) - 1][0]);
+    }
+  };
+  window.addEventListener('keydown', keys, true);
 
-// ------------------------------------------------------------------ Meridian
-function meridianTab(g, body, rerender) {
-  const A = g.aero;
-  const M = A.meridian;
-  const C = A.cfg;
-  const mount = h('div');
-  const render = (msg) => { mount.innerHTML = ''; mrdnScreen(g, mount, msg, render); };
-  render();
-  const active = A.contractsOf(M, 'active');
-  body.append(
-    section('Meridian Aerospace Corporation',
-      h('p', { class: 'muted' }, `${C.aero.meridian.founded}. What's public: its order book, its deliveries, its share price.`),
-      h('div', { class: 'grid4' },
-        stat('Bays', String(M.bays.filter((b) => b.ready <= A.now).length)), stat('Workforce', M.workforce.toLocaleString()),
-        stat('Reputation', `${Math.round(M.reputation)}`), stat('Delivered', `${M.stats.delivered} (${M.stats.late} late)`),
-        stat('Launches', `${M.stats.launches} (${M.stats.launchFailures} lost)`), stat('Contracts won', String(M.stats.contractsWon)),
-      ),
-      h('div', { class: 'list' }, ...active.slice(0, 12).map((c) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, LINE_ICON[C.products[c.product].line]), h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${c.qty} × ${C.products[c.product].name} for ${C.customers[c.customer].name} — ${c.delivered} delivered, due ${A.when(c.due)}`))))),
-    ),
-    section('MRDN on the exchange', mount),
-  );
-  void rerender; void unitCost;
+  // ================================================================== chrome
+  const renderTop = () => {
+    const c = co();
+    const today = c ? A.statement(c, 1) : null;
+    const ff = (mins) => { AO.ff = { until: g.clock.total + mins }; refresh(); };
+    const toMorning = (() => { const m = g.clock.total % 1440; const six = 6 * 60; return (m < six ? six - m : 1440 - m + six) + 1; })();
+    top.replaceChildren(
+      h('div', { class: 'ao-brand' }, h('b', {}, readonly ? '◆ MERIDIAN AEROSPACE' : '✈ ROOST AEROWORKS'), h('span', {}, readonly ? 'MRDN · INVESTOR BOARD' : 'OPERATIONS')),
+      h('div', { class: 'ao-time' },
+        h('div', { class: 'ao-clock' }, `${g.clock.weekday} · Day ${g.clock.day} · ${g.clock.timeString}`),
+        !readonly ? h('div', { class: 'ao-ff' },
+          AO.ff ? h('button', { class: 'ao-btn on', onclick: () => { AO.ff = null; refresh(); } }, '⏸ Stop') : null,
+          !AO.ff ? h('button', { class: 'ao-btn', title: 'Let an hour pass', onclick: () => ff(60) }, '⏩ 1 h') : null,
+          !AO.ff ? h('button', { class: 'ao-btn', title: 'Let six hours pass', onclick: () => ff(360) }, '⏩ 6 h') : null,
+          !AO.ff ? h('button', { class: 'ao-btn primary', title: 'Let time pass until 06:00, when tenders are posted and decided', onclick: () => ff(toMorning) }, `⏭ Next morning (${hrs(toMorning)})`) : null) : null),
+      h('div', { class: 'ao-money' }, h('b', {}, money(g.player.money)), today ? h('span', { class: today.profit < 0 ? 'neg' : 'pos' }, `today ${today.profit >= 0 ? '+' : ''}${fmtMoney(today.profit)}`) : null),
+      h('button', { class: 'ao-close', title: 'Close (Esc)', onclick: () => ui.closePanel() }, '✕'));
+  };
+
+  const renderRail = () => {
+    rail.replaceChildren(...MODES.map(([id, icon, name], i) => h('button', { class: `ao-rail-btn${AO.mode === id ? ' on' : ''}`, title: `${name} (${i + 1})`, disabled: readonly && id !== 'meridian', onclick: () => go(id) },
+      h('span', { class: 'ic' }, icon), h('span', {}, name), badge(id))));
+  };
+  /** A count on a rail button: something there wants you. */
+  const badge = (id) => {
+    if (readonly) return null;
+    const c = co();
+    let n = 0;
+    let bad = false;
+    if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
+    else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
+    else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
+  };
+
+  const renderFeed = () => {
+    const r = A.state.reports.filter((x) => readonly ? true : x.company === 'roost').slice(0, 3);
+    feed.replaceChildren(...[h('span', { class: 'ao-feed-label' }, 'LOG'), ...r.map((x) => h('span', { class: 'ao-feed-item' }, h('i', {}, A.when(x.at).replace('Day ', 'D')), ' ', x.text)),
+      readonly ? null : h('button', { class: 'ao-link', onclick: () => go('books') }, 'All reports ›')].filter(Boolean));
+  };
+
+  // ================================================================== shared bits
+  const section = (title, ...kids) => h('div', { class: 'ao-sec' }, h('h4', {}, title), ...kids);
+  const kpi = (label, value, cls = '', sub = null) => h('div', { class: `ao-kpi ${cls}` }, h('small', {}, label), h('b', {}, value), sub ? h('span', {}, sub) : null);
+  const bar = (label, f, colour, txt) => h('div', { class: 'ao-bar' }, h('span', {}, label), h('div', { class: 'ao-bar-track' }, h('i', { style: `width:${Math.round(clamp01(f) * 100)}%;background:${colour}` })), h('em', {}, txt));
+  const pill = (txt, colour) => h('span', { class: 'ao-pill', style: `border-color:${colour};color:${colour}` }, txt);
+  const muted = (txt) => h('p', { class: 'ao-muted' }, txt);
+  const btn = (label, onclick, cls = '', disabled = false, title = null) => h('button', { class: `ao-btn ${cls}`, onclick, disabled, title }, label);
+  const stageStrip = (u) => {
+    const st = stagesOf(C, C.products[u.product]);
+    return h('div', { class: 'ao-strip', title: st.map((s, i) => `${i < u.stage ? '✓' : i === u.stage ? '▶' : '·'} ${s.name}`).join('\n') },
+      ...st.map((s, i) => h('i', { class: i < u.stage ? 'done' : i === u.stage ? `now${u.status === 'blocked' ? ' bad' : u.status === 'building' ? '' : ' wait'}` : '', style: i === u.stage && u.need ? `--f:${Math.round(clamp01(u.work / u.need) * 100)}%` : '' })));
+  };
+
+  // ================================================================== the drawer (floor)
+  const renderDrawer = () => {
+    drawer.classList.toggle('hidden', readonly || AO.mode !== 'floor');
+    if (readonly || AO.mode !== 'floor') return;
+    const s = AO.sel;
+    let kids;
+    if (s?.kind === 'bay') { const b = co().bays.find((x) => x.id === s.id); const u = b && unitOf(b.unit); kids = u ? unitView(u, b) : bayView(b); }
+    else if (s?.kind === 'unit' && unitOf(s.id)) kids = unitView(unitOf(s.id));
+    else if (s?.kind === 'office') kids = officeView();
+    else if (s?.kind === 'apron') kids = apronView();
+    else if (s?.kind === 'pad') kids = padView();
+    else if (s?.kind === 'stores') kids = storesView();
+    else if (s?.kind === 'inbound') kids = inboundView();
+    else kids = homeView();
+    const back = s ? h('button', { class: 'ao-link', onclick: () => { AO.sel = null; renderDrawer(); } }, '‹ Overview') : null;
+    drawer.replaceChildren(...[back, ...kids].filter(Boolean));
+  };
+
+  const homeView = () => {
+    const c = co();
+    const week = A.statement(c, 7);
+    const active = A.contractsOf(c, 'active');
+    const backlog = active.reduce((a, x) => a + (x.qty - x.delivered - x.failed) * x.unitPrice, 0);
+    const late = active.filter((x) => x.due < A.now);
+    const blocked = A.unitsOf(c).filter((u) => u.status === 'blocked');
+    const short = A.shortfalls(c);
+    const crew = A.crewNeeded(c, { all: true });
+    const alerts = [];
+    for (const x of late) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('contracts') }, `⏰ ${x.qty} × ${C.products[x.product].name} for ${C.customers[x.customer].name} is late — ${Math.round(A.A.latePerDay * 100)}% a day withheld ›`));
+    for (const u of blocked.slice(0, 3)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, `⚠ ${C.products[u.product].name} #${u.n}: ${u.blocker?.text || 'blocked'} ›`));
+    if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
+    if (c.workforce < crew) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `👷 ${crew - c.workforce} workers short — every bay is slower ›`));
+    const ops = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id)).map((t) => ({ t, q: A.bidQuote(c.id, t.id) })).filter((x) => x.q.ok).sort((a, b) => b.q.profit - a.q.profit).slice(0, 3);
+    const soon = A.unitsOf(c).filter((u) => u.contract).sort((a, b) => A.unitDaysLeft(a) - A.unitDaysLeft(b)).slice(0, 4);
+    return [
+      h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'GOOD MORNING, OWNER'), h('h2', {}, `${plural(A.unitsOf(c).length, 'unit')} in work · ${plural(active.length, 'contract')}`), muted('Click a bay, the apron or the stores on the floor plan. The rail on the left has the rest.')),
+      h('div', { class: 'ao-kpis two' }, kpi('Profit, 7 days', fmtMoney(week.profit), week.profit >= 0 ? 'pos' : 'neg'), kpi('Order backlog', fmtMoney(backlog)), kpi('Reputation', `${Math.round(c.reputation)}`, '', '/ 100'), kpi('Quality', `${Math.round(A.qualityOf(c))}`)),
+      ...alerts,
+      section('Tenders you can win', ...(ops.length ? ops.map(({ t, q }) => h('button', { class: 'ao-row', onclick: () => { AO.focus = t.id; go('tenders'); } }, pic(productLook(C, t.product), 64, 30), h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${C.products[t.product].name}`), h('small', {}, `${C.customers[t.customer].name} · decides Day ${t.closes}`)), h('em', { class: 'pos' }, `+${fmtMoney(q.profit)}`))) : [muted('Nothing you can bid on right now. New tenders come in at 06:00.')])),
+      section('Next out of the door', ...(soon.length ? soon.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), stageStrip(u)), h('small', {}, fmtDays(A.unitDaysLeft(u))))) : [muted('No units in work.')])),
+      A.canShipInternal(c) ? section('Your own ships', h('div', { class: 'ao-kpis two' }, kpi('Saved so far', fmtMoney(A.shippingSavings(c).group), 'pos'), kpi('Consignments at sea', String(A.jobs(c).filter((j) => ['loading', 'at sea'].includes(j.status)).length)))) : null,
+    ].filter(Boolean);
+  };
+
+  const unitView = (u, b = null) => {
+    const p = C.products[u.product];
+    const st = stagesOf(C, p);
+    const look = A.unitLook(u);
+    const ct = u.contract ? A.contract(u.contract) : null;
+    const hero = h('canvas', { width: 760, height: 300, class: 'ao-hero-pic', style: 'width:100%;height:auto' });
+    const img = unitImage(look);
+    if (img) fitDraw(hero.getContext('2d'), img, 30, 20, 700, 260);
+    const out = [
+      hero,
+      h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, `${LINE_NAME[p.line].toUpperCase()} · ${(p.cls || '').toUpperCase()}${b ? ` · BAY ${co().bays.indexOf(b) + 1}` : ''}`), h('h2', {}, `${p.name} #${u.n}`),
+        h('div', { class: 'ao-pills' }, pill(STATUS[u.status] || u.status, u.status === 'blocked' ? COL.red : u.status === 'building' ? COL.green : COL.amber), ct ? pill(ct.due < A.now ? `${fmtDays((A.now - ct.due) / 1440)} late` : `due in ${fmtDays((ct.due - A.now) / 1440)}`, ct.due < A.now ? COL.red : COL.blue) : pill('our own launcher', COL.blue))),
+      ct ? muted(`For ${C.customers[ct.customer].name} · ${money(ct.unitPrice)} on delivery`) : null,
+      u.blocker && u.status !== 'building' ? h('div', { class: `ao-alert${u.status === 'blocked' ? ' bad' : ''}` }, `⚠ ${u.blocker.text}`) : null,
+      h('div', { class: 'ao-kpis two' }, kpi('Work left', fmtDays(A.unitDaysLeft(u))), kpi('Materials still to come', fmtMoney(A.unitCostLeft(u)))),
+      section('Build', h('div', { class: 'ao-stages' }, ...st.map((s, i) => {
+        const state = i < u.stage ? 'done' : i === u.stage ? 'now' : '';
+        return h('div', { class: `ao-stage ${state}` }, h('i', {}, i < u.stage ? '✓' : i === u.stage ? '▶' : String(i + 1)),
+          h('div', { class: 'grow' }, h('span', {}, s.name), i === u.stage && u.need ? h('div', { class: 'ao-bar-track' }, h('i', { style: `width:${Math.round(clamp01(u.work / u.need) * 100)}%;background:${COL.amber}` })) : null),
+          h('small', {}, s.office ? 'office' : s.bay ? 'bay' : s.wait ? 'wait' : ''));
+      }))),
+      u.inspections.length ? section('Inspections', h('div', { class: 'ao-pills' }, ...u.inspections.map((x, i) => pill(`#${i + 1} ${x.pass ? 'pass' : 'FAIL'}`, x.pass ? COL.green : COL.red))), u.rework ? muted(`Rework: ${fmtDays(u.rework)}.`) : null) : null,
+      ct ? btn('Open the contract ›', () => go('contracts'), '') : null,
+    ];
+    return out.filter(Boolean);
+  };
+
+  const bayView = (b) => {
+    if (!b) return homeView();
+    const T = C.bays[b.type];
+    const next = officeUnits().filter((u) => C.products[u.product].bay === b.type);
+    return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, `BAY ${co().bays.indexOf(b) + 1}`), h('h2', {}, T.name), muted(T.text)),
+      b.ready > A.now ? h('div', { class: 'ao-alert' }, `🏗 Under construction — ready ${A.when(b.ready)}`) : h('div', { class: 'ao-alert' }, '◌ Idle. A unit moves in as soon as its materials are in stores.'),
+      h('div', { class: 'ao-kpis two' }, kpi('Crew', String(T.crew)), kpi('Upkeep', `${fmtMoney(T.upkeep)}/day`)),
+      section(`Waiting for this bay (${next.length})`, ...(next.length ? next.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, u.blocker?.text || STATUS[u.status])), '›')) : [muted('Nothing. Win a tender for something this bay can build.')]))];
+  };
+
+  const officeView = () => {
+    const list = officeUnits();
+    return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'OFF THE FLOOR'), h('h2', {}, 'Drawing office & queue'), muted('Units being engineered, waiting for a bay of the right type, or waiting for their materials. Nobody holds a bay while waiting for parts.')),
+      ...(list.length ? list.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${LINE_ICON[u.line]} ${C.products[u.product].name} #${u.n}`), h('small', { class: u.status === 'blocked' ? 'neg' : '' }, u.status === 'engineering' ? 'Engineering configuration & approval' : u.blocker?.text || STATUS[u.status]), stageStrip(u)), '›')) : [muted('Nothing queued.')])];
+  };
+
+  const apronView = () => {
+    const c = co();
+    const list = apronUnits();
+    return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, `${A.apronUsed(c)} OF ${c.apron} STANDS`), h('h2', {}, 'The finished-aircraft apron'), muted(C.facilities.apron.text)),
+      ...(list.length ? list.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, pic(A.unitLook(u), 70, 40), h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, `${customerOf(u) || ''} · ${u.blocker?.text || 'waiting for the customer\'s crew'}`)), '›')) : [muted('No aircraft waiting for their customers.')]),
+      A.apronUsed(c) >= c.apron ? h('div', { class: 'ao-alert' }, '⚠ The apron is full: finished aircraft wait in their bays until a stand is free.') : null].filter(Boolean);
+  };
+
+  const padView = () => {
+    const c = co();
+    const u = padUnit();
+    if (!c.pad) {
+      const f = C.facilities.pad;
+      return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'PAD 2 · SURVEYED SITE'), h('h2', {}, f.name), muted(f.text)),
+        c.building?.pad ? h('div', { class: 'ao-alert' }, `🏗 Being built — ready ${A.when(c.building.pad)}`) : btn(`Build it · ${money(f.build)} · ${f.buildDays} days`, () => act(() => A.buildFacility(c, 'pad')), 'primary big', !A.canAfford(c, f.build))];
+    }
+    return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'LAUNCH COMPLEX'), h('h2', {}, 'Pad 2'), muted('One launch at a time; two days to refurbish after each.')),
+      u ? h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, A.stageOf(u)?.name || '')), '›') : muted(c.pad.readyAt > A.now ? `Refurbishing until ${A.when(c.pad.readyAt)}.` : 'Clear and ready.'),
+      section('Launch record', h('div', { class: 'ao-kpis two' }, kpi('Launches', String(c.stats?.launches || 0)), kpi('Lost', String(c.stats?.launchFailures || 0), c.stats?.launchFailures ? 'neg' : '')))];
+  };
+
+  const storesView = () => {
+    const c = co();
+    const rows = materialRows(c).slice(0, 14);
+    return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'STORES'), h('h2', {}, fmtMoney(c.books.inventoryValue)), muted('Materials in stores and on order, at cost. A unit\'s materials are reserved for it and used stage by stage.')),
+      ...rows.map((x) => bar(C.materials[x.m].name, x.need ? (x.r.qty + x.onOrder) / x.need : 1, x.short ? COL.red : COL.green, `${x.r.qty}${x.onOrder ? ` +${x.onOrder}` : ''}/${x.need}`)),
+      btn('Supply ›', () => go('supply'))];
+  };
+
+  const inboundView = () => {
+    const c = co();
+    const pos = A.ordersOf(c).sort((a, b) => a.arrive - b.arrive);
+    return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'INBOUND'), h('h2', {}, plural(pos.length, 'order')), muted('Overseas goods land at Mill Road Docks and come up the Cut by truck; local ones come straight here.')),
+      ...pos.slice(0, 12).map((p) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, `${p.qty} × ${C.materials[p.material].name}`), h('small', {}, `${C.suppliers[p.supplier].name} · ${p.mode === 'internal' ? `your own ship (${p.job})` : p.mode === 'truck' ? 'truck' : 'carrier'} · ${p.status}`)), h('small', {}, A.when(p.arrive)))),
+      btn('Supply ›', () => go('supply'))];
+  };
+
+  // ================================================================== the sheets
+  const renderSheet = () => {
+    const on = readonly || AO.mode !== 'floor';
+    sheet.classList.toggle('hidden', !on);
+    if (!on) return;
+    const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const name = MODES.find((x) => x[0] === AO.mode)[2];
+    sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
+    sheet.dataset.mode = AO.mode;
+    sheet.scrollTop = scroll;
+    if (AO.focus) { sheet.querySelector(`[data-tender="${AO.focus}"]`)?.scrollIntoView({ block: 'center' }); AO.focus = null; }
+  };
+
+  // ------------------------------------------------------------------ tenders
+  const tendersSheet = () => {
+    const c = co();
+    const FILTERS = [['all', 'All'], ['bid', 'I can bid'], ['aircraft', '✈ Aircraft'], ['rocket', '🚀 Launch'], ['satellite', '🛰 Satellites'], ['defence', '🛡 Defence']];
+    const all = A.openTenders().map((t) => ({ t, p: C.products[t.product], q: A.bidQuote(c.id, t.id), mine: t.bids.find((b) => b.company === c.id) }));
+    const shown = all.filter(({ t, p, q }) => AO.filter === 'all' || (AO.filter === 'bid' ? q.ok : AO.filter === 'defence' ? t.defence : p.line === AO.filter))
+      .sort((a, b) => (b.q.ok - a.q.ok) || (b.t.qty * b.t.ceiling - a.t.qty * a.t.ceiling));
+    const grid = h('div', { class: 'ao-grid tenders' }, ...shown.map(tenderCard));
+    const closed = A.state.tenders.filter((t) => t.status !== 'open').slice(-12).reverse();
+    const who = (id) => A.company(id)?.name || id;
+    return h('div', {},
+      h('div', { class: 'ao-chips' }, ...FILTERS.map(([id, label]) => h('button', { class: `ao-chip${AO.filter === id ? ' on' : ''}`, onclick: () => { AO.filter = id; refresh(); } }, label, h('em', {}, String(all.filter(({ t, p, q }) => id === 'all' || (id === 'bid' ? q.ok : id === 'defence' ? t.defence : p.line === id)).length))))),
+      muted(`Customers post tenders at 06:00 and decide when they close. Bids are sealed — one per company, Meridian included — and each customer weighs price, delivery, quality and reputation its own way. An aircraft contract is never for more than ${A.A.maxAircraftPerContract} aircraft. You get the deposit when you win; the rest on delivery.`),
+      shown.length ? grid : muted('No tenders here right now. New ones come in at 06:00.'),
+      closed.length ? section('Recently decided', h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+        h('tr', {}, ...['', 'Customer', 'Order', 'Result', 'Bids (price · days · score)'].map((x) => h('th', {}, x))),
+        ...closed.map((t) => h('tr', { class: t.winner === c.id ? 'pos' : '' }, h('td', {}, t.winner === c.id ? '🏆' : t.status === 'lapsed' ? '—' : '✖'), h('td', {}, C.customers[t.customer].name), h('td', {}, `${t.qty} × ${C.products[t.product].name}`), h('td', {}, t.status === 'lapsed' ? 'lapsed — no valid bids' : who(t.winner)),
+          h('td', {}, (t.ranking || []).map((b) => `${who(b.company)} ${fmtMoney(b.unitPrice)} · ${b.days} d · ${b.score}`).join('  vs  ') || '—')))))) : null);
+  };
+
+  const tenderCard = ({ t, p, q, mine }) => {
+    const c = co();
+    const cu = C.customers[t.customer];
+    const head = h('div', { class: 'ao-card-head' }, pic(productLook(C, t.product), 132, 64),
+      h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${p.name}`), h('small', {}, cu.name), h('div', { class: 'ao-pills' }, pill(LINE_NAME[p.line], COL.blue), t.defence ? pill('defence', COL.amber) : null, t.embargoed ? pill('embargoed', COL.red) : null, mine ? pill('bid sealed', COL.green) : null)),
+      h('div', { class: 'ao-pay' }, fmtMoney(t.ceiling * t.qty), h('small', {}, 'at the ceiling')));
+    const facts = h('div', { class: 'ao-facts' },
+      h('div', {}, h('small', {}, 'Ceiling / unit'), h('b', {}, fmtMoney(t.ceiling))),
+      h('div', {}, h('small', {}, 'Deliver within'), h('b', {}, `${t.days} d`)),
+      h('div', {}, h('small', {}, 'Quality'), h('b', {}, `${t.quality}+`)),
+      h('div', {}, h('small', {}, 'Decides'), h('b', {}, `Day ${t.closes}`)));
+    const prio = h('div', { class: 'ao-prio' }, ...PRIORITY.map(([k, label]) => bar(label, cu.priority[k] / 0.6, COL.blue, `${Math.round(cu.priority[k] * 100)}%`)));
+    const you = h('div', { class: 'ao-you' }, `Your cost ≈ ${money(q.cost)} a unit (materials ${fmtMoney(q.est.materials)}, freight ${fmtMoney(q.est.freight)}, bay-days ${fmtMoney(q.est.labour)}${q.launch ? `, launch ${fmtMoney(q.launch)}` : ''}) · earliest delivery ≈ ${Number.isFinite(q.delivery) ? `${q.delivery} d` : '—'}`);
+    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), facts, prio, you);
+    if (mine) card.append(h('div', { class: 'ao-sealed' }, `🔒 Sealed: ${money(mine.unitPrice)} a unit, ${mine.days} days — the customer decides Day ${t.closes}.`));
+    else if (q.ok || /price|delivery/.test(q.reason || '')) card.append(composer(t, q, c));
+    else card.append(h('div', { class: 'ao-why' }, `✖ ${q.reason}`));
+    return card;
+  };
+
+  /** The sealed-bid composer: a price slider from below cost to the ceiling, the days, what it means. */
+  const composer = (t, q, c) => {
+    const lo = Math.max(100, Math.floor((q.cost * 0.85) / 100) * 100);
+    const price = h('input', { type: 'range', min: lo, max: t.ceiling, step: 100, value: Math.min(t.ceiling, Math.max(lo, q.unitPrice)), class: 'ao-range' });
+    const priceN = h('input', { type: 'number', min: 1, step: 100, value: Math.min(t.ceiling, Math.max(lo, q.unitPrice)), class: 'ao-input num' });
+    const days = h('input', { type: 'number', min: 1, step: 1, value: q.days || t.days, class: 'ao-input num small' });
+    const read = h('div', { class: 'ao-readout' });
+    const go2 = h('button', { class: 'ao-go' });
+    const upd = (src) => {
+      if (src === 'n') price.value = priceN.value; else priceN.value = price.value;
+      const pr = Number(priceN.value);
+      const d = Number(days.value);
+      const margin = pr ? (pr - q.cost) / pr : 0;
+      const late = Number.isFinite(q.delivery) && d < q.delivery;
+      read.replaceChildren(...[
+        h('span', { class: margin >= 0 ? 'pos' : 'neg' }, `${margin >= 0 ? '+' : ''}${Math.round(margin * 100)}% margin`),
+        h('span', {}, `contribution ${fmtMoney((pr - q.cost) * t.qty)}`),
+        h('span', {}, `deposit ${fmtMoney(pr * t.qty * t.deposit)}`),
+        late ? h('span', { class: 'neg' }, `⚠ you expect to need ${q.delivery} d`) : null,
+        pr > t.ceiling ? h('span', { class: 'neg' }, '✖ over the ceiling') : null,
+        d > t.days ? h('span', { class: 'neg' }, '✖ longer than the customer allows') : null].filter(Boolean));
+      go2.replaceChildren(document.createTextNode('Place sealed bid'), h('small', {}, `${fmtMoney(pr * t.qty)} · ${d} d`));
+      go2.disabled = pr > t.ceiling || d > t.days || pr <= 0;
+    };
+    price.addEventListener('input', () => upd('r'));
+    priceN.addEventListener('input', () => upd('n'));
+    days.addEventListener('input', () => upd());
+    go2.addEventListener('click', () => act(() => A.placeBid(c.id, t.id, Number(priceN.value), Number(days.value))));
+    upd();
+    return h('div', { class: 'ao-composer' }, h('div', { class: 'ao-row-inline' }, h('small', {}, 'Price a unit'), price, priceN), h('div', { class: 'ao-row-inline' }, h('small', {}, 'Days'), days, read), go2);
+  };
+
+  // ------------------------------------------------------------------ contracts
+  const contractsSheet = () => {
+    const c = co();
+    const list = A.contractsOf(c).sort((a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || a.due - b.due);
+    const active = list.filter((x) => x.status === 'active');
+    const backlog = active.reduce((a, x) => a + (x.qty - x.delivered - x.failed) * x.unitPrice, 0);
+    return h('div', {},
+      h('div', { class: 'ao-kpis' }, kpi('Active contracts', String(active.length)), kpi('Backlog', fmtMoney(backlog)), kpi('Deposits held', fmtMoney(c.books.deferred), '', 'owed as work'), kpi('Late', String(active.filter((x) => x.due < A.now).length), active.some((x) => x.due < A.now) ? 'neg' : '')),
+      list.length ? h('div', { class: 'ao-grid wide' }, ...list.map(contractCard)) : muted('No contracts yet. Win a tender.'));
+  };
+
+  const contractCard = (ct) => {
+    const c = co();
+    const p = C.products[ct.product];
+    const left = (ct.due - A.now) / 1440;
+    const units = ct.units.map((id) => A.state.units[id]).filter(Boolean);
+    const card = h('div', { class: `ao-card${ct.status !== 'active' ? ' off' : ''}` },
+      h('div', { class: 'ao-card-head' }, pic(productLook(C, ct.product), 132, 64),
+        h('div', { class: 'grow' }, h('b', {}, `${ct.qty} × ${p.name}`), h('small', {}, C.customers[ct.customer].name),
+          h('div', { class: 'ao-pills' }, ct.status === 'active' ? pill(left < 0 ? `${fmtDays(-left)} late` : `due in ${fmtDays(left)}`, left < 0 ? COL.red : COL.green) : pill(ct.status, 'rgba(223,233,245,0.6)'), pill(`${ct.delivered}/${ct.qty} delivered`, COL.blue), ct.failed ? pill(`${ct.failed} lost`, COL.red) : null)),
+        h('div', { class: 'ao-pay' }, fmtMoney(ct.total), h('small', {}, `${fmtMoney(ct.unitPrice)} a unit`))),
+      h('div', { class: 'ao-facts' },
+        h('div', {}, h('small', {}, 'Deposit'), h('b', {}, fmtMoney(ct.depositPaid))),
+        h('div', {}, h('small', {}, 'Earned'), h('b', {}, fmtMoney(ct.revenue))),
+        h('div', {}, h('small', {}, 'Penalties'), h('b', { class: ct.penalties ? 'neg' : '' }, fmtMoney(ct.penalties || 0))),
+        h('div', {}, h('small', {}, 'Due'), h('b', {}, A.when(ct.due).replace('Day ', 'D')))),
+      ...units.filter((u) => !u.finished).map((u) => h('button', { class: 'ao-unit', onclick: () => go('floor', { kind: 'unit', id: u.id }) },
+        h('b', {}, `#${u.n}`), h('div', { class: 'grow' }, stageStrip(u), h('small', { class: u.status === 'blocked' ? 'neg' : '' }, `${A.stageOf(u)?.name || STATUS[u.status]}${u.blocker && u.status !== 'building' ? ` — ${u.blocker.text}` : ''}`)), h('small', {}, fmtDays(A.unitDaysLeft(u))))),
+      ct.note ? muted(ct.note) : null,
+      h('details', { class: 'ao-details' }, h('summary', {}, 'History'), h('div', { class: 'ao-log' }, ...ct.history.map((x) => h('div', {}, h('i', {}, A.when(x.at)), ' ', x.text)))),
+      ct.status === 'active' ? h('button', { class: 'ao-link danger', onclick: () => { if (confirm(`Cancel this contract? The deposit for undelivered units goes back and you pay a ${Math.round(A.A.cancelPenalty * 100)}% penalty.`)) act(() => A.cancelContract(c.id, ct.id)); } }, 'Cancel contract…') : null);
+    return card;
+  };
+
+  // ------------------------------------------------------------------ supply
+  const materialRows = (c) => Object.keys(C.materials).map((m) => {
+    const r = c.inv[m] || { qty: 0, reserved: 0 };
+    const onOrder = A.ordersOf(c).filter((po) => po.material === m).reduce((a, po) => a + po.qty, 0);
+    const need = A.demand(c, m);
+    return { m, r, onOrder, need, short: Math.max(0, need - r.qty - onOrder) };
+  }).filter((x) => x.r.qty || x.onOrder || x.need).sort((a, b) => b.short - a.short || b.need - a.need);
+
+  const supplySheet = () => {
+    const c = co();
+    const rows = materialRows(c);
+    const pos = A.ordersOf(c, false).sort((a, b) => b.placed - a.placed).slice(0, 20);
+    const carrierOf = (po) => (po.mode === 'truck' ? 'truck (local)' : po.mode === 'internal' ? `${A.job(po.job)?.vessel ? `the ${g.logistics.vessel(A.job(po.job).vessel)?.name || 'ship'}` : 'awaiting a ship'} · ${po.job}` : C.freight.carrier);
+    return h('div', {},
+      h('div', { class: 'ao-kpis' }, kpi('In stores & on order', fmtMoney(c.books.inventoryValue)), kpi('Orders on the way', String(A.ordersOf(c).length)), kpi('Short', String(rows.filter((x) => x.short).length), rows.some((x) => x.short) ? 'neg' : 'pos'), kpi('Paid to carriers', fmtMoney(c.freight.external))),
+      h('label', { class: 'ao-switch' }, h('input', { type: 'checkbox', checked: c.autoProcure, onchange: (e) => { c.autoProcure = e.target.checked; say({ ok: true, text: c.autoProcure ? 'Purchasing will order what the work in hand needs, from the cheapest supplier with stock (landed cost).' : 'Automatic purchasing is off: order materials yourself below.' }); refresh(); } }), h('span', {}), ' Order materials automatically (cheapest landed cost)'),
+      h('div', { class: 'ao-two' },
+        section('Stores', rows.length ? h('div', { class: 'ao-mats' }, h('div', { class: 'ao-mat head' }, h('span', {}, 'Material'), h('span', {}, 'Stores'), h('span', {}, 'Reserved'), h('span', {}, 'On order'), h('span', {}, 'Needed'), h('span', {}, '')),
+          ...rows.map((x) => h('div', { class: `ao-mat${x.short ? ' short' : ''}` }, h('span', {}, C.materials[x.m].name), h('span', {}, String(x.r.qty)), h('span', {}, String(x.r.reserved)), h('span', {}, String(x.onOrder)), h('span', {}, String(x.need)),
+            h('span', {}, x.short ? btn(`Order ${x.short}`, () => { AO.mat = x.m; AO.qty = x.short; refresh(); sheet.querySelector('.ao-order')?.scrollIntoView({ block: 'start' }); }, 'tiny warn') : h('div', { class: 'ao-bar-track' }, h('i', { style: `width:${Math.round(clamp01(x.need ? (x.r.qty + x.onOrder) / x.need : 1) * 100)}%;background:${COL.green}` })))))) : muted('Nothing in stores and nothing needed.')),
+        shippingSection(c)),
+      section('Purchase orders', pos.length ? h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+        h('tr', {}, ...['Order', 'Supplier', 'Lots', 'Goods + duty', 'Freight', 'By', 'Status', 'Due'].map((x) => h('th', {}, x))),
+        ...pos.map((po) => h('tr', { class: po.status === 'lost' ? 'neg' : po.status === 'received' ? 'dim' : '' }, h('td', {}, `${po.id} ${C.materials[po.material].name}`), h('td', {}, C.suppliers[po.supplier].name), h('td', {}, String(po.qty)), h('td', {}, money(po.goods)), h('td', {}, money(po.mode === 'internal' ? po.freightInt || 0 : po.freight)), h('td', {}, carrierOf(po)), h('td', {}, po.status), h('td', {}, po.status === 'received' ? A.when(po.received) : A.when(po.arrive)))))) : muted('No orders yet.')),
+      orderForm(c));
+  };
+
+  const orderForm = (c) => {
+    const mats = Object.keys(C.materials);
+    if (!AO.mat || !C.materials[AO.mat]) AO.mat = mats[0];
+    const sel = h('select', { class: 'ao-input', onchange: (e) => { AO.mat = e.target.value; draw(); } }, ...mats.map((m) => h('option', { value: m, selected: m === AO.mat }, C.materials[m].name)));
+    const qty = h('input', { type: 'number', min: 1, value: AO.qty, class: 'ao-input num small', oninput: (e) => { AO.qty = Math.max(1, Math.floor(Number(e.target.value) || 1)); draw(); } });
+    const grid = h('div', { class: 'ao-grid' });
+    const draw = () => {
+      const m = AO.mat;
+      const n = AO.qty;
+      grid.replaceChildren(...Object.entries(C.suppliers).filter(([, sp]) => sp.sells[m]).map(([id, sp]) => {
+        const stock = A.state.suppliers[id].stock[m] || 0;
+        const q = A.freightQuote(c, id, m, Math.min(n, Math.max(1, stock)));
+        const total = q.goods + q.freight + q.duty + q.handling;
+        const own = sp.where !== 'local' && A.canShipInternal(c);
+        const iq = own ? A.internalQuote(c, sp.where, q.volume, A.now + sp.lead * 1440) : null;
+        const iCharge = own ? Math.round((q.freight + q.handling) * (iq.ok ? iq.rate : C.internal.rates.inefficient)) : 0;
+        return h('div', { class: 'ao-card' },
+          h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, sp.name), h('small', {}, sp.where === 'local' ? 'Local · by truck' : `${g.logistics.port(sp.where)?.name} · ${q.km ? `${q.km.toLocaleString()} km by sea` : ''}`)), pill(`${stock} in stock`, stock >= n ? COL.green : COL.red)),
+          h('div', { class: 'ao-quote' }, h('div', {}, h('small', {}, sp.where === 'local' ? 'Landed (truck)' : 'Landed (carrier)'), h('b', {}, money(total)), h('span', {}, `goods ${fmtMoney(q.goods)} · freight ${fmtMoney(q.freight)}${q.duty ? ` · duty ${fmtMoney(q.duty)}` : ''}${q.handling ? ` · handling ${fmtMoney(q.handling)}` : ''} · ${Math.round(q.hours)} h`)),
+            own ? h('div', { class: 'own' }, h('small', {}, 'Landed (your own ship)'), h('b', {}, money(q.goods + q.duty + iCharge)), h('span', {}, iq.ok ? `the ${iq.vessel.name}${iq.atOrigin ? ', already there' : ' sails there empty'} · ~${Math.round((iq.eta - A.now) / 60)} h · saves ${fmtMoney(q.freight + q.handling - iCharge)}` : `${iq.reasons[0]} — it would wait${c.internalPolicy === 'fallback' ? ' up to a day, then go by carrier' : ''}`)) : null),
+          h('div', { class: 'ao-row-inline' },
+            btn(sp.where === 'local' ? `Order ${n}` : `Order ${n} by carrier`, () => act(() => A.order(c, id, m, n, {}, { mode: 'carrier' })), own ? '' : 'primary', stock < n),
+            own ? btn(`Order ${n} in my ship`, () => act(() => A.order(c, id, m, n, {}, { mode: 'internal' })), 'primary', stock < n) : null));
+      }));
+    };
+    draw();
+    return h('div', { class: 'ao-sec ao-order' }, h('h4', {}, 'Order materials'), h('div', { class: 'ao-row-inline' }, sel, h('small', {}, 'lots'), qty, h('small', { class: 'ao-muted' }, 'Landed cost = the supplier\'s price + duty + freight + handling. Materials can only be used once they\'re in stores.')), grid);
+  };
+
+  /** Shipping in your own ships (v0.56.0): the setting, the consignments, what it saves. */
+  const shippingSection = (c) => {
+    const L = g.logistics;
+    if (!A.canShipInternal(c)) return section('Shipping', h('div', { class: 'ao-card' }, h('b', {}, `🚚 ${C.freight.carrier}`), muted('Foreign materials come by an independent carrier at the market rate. Own a shipping line — Ober & Sons Maritime is for sale from Captain Ober at the Mill Road Yards — and your own ships can bring them for a small internal charge instead.')));
+    const sv = A.shippingSavings(c);
+    const ex = A.expectedSavings(c);
+    const jobs = A.jobs(c, false).sort((a, b) => b.created - a.created).slice(0, 10);
+    const seg = (key, options) => h('div', { class: 'ao-seg' }, ...options.map(([v, label]) => h('button', { class: c[key] === v ? 'on' : '', onclick: () => { c[key] = v; say({ ok: true, text: label }); refresh(); } }, label)));
+    return section('Your own ships — Ober & Sons Maritime',
+      seg('shipping', [['internal', 'In my own ships'], ['carrier', 'By carrier']]),
+      seg('internalPolicy', [['fallback', `No ship in ${C.internal.fallbackHours} h → carrier`], ['wait', 'Always wait for a ship']]),
+      h('div', { class: 'ao-kpis two' }, kpi('Carrier would have charged', fmtMoney(sv.equivalent)), kpi('Internal charges', fmtMoney(sv.charges)), kpi('Saved (aerospace)', fmtMoney(sv.division), 'pos'), kpi('Saved (group)', fmtMoney(sv.group), sv.group >= 0 ? 'pos' : 'neg', 'after voyage costs'), kpi('Expected on work in hand', fmtMoney(ex.saving), 'pos')),
+      muted(`The aerospace books pay the line ${Math.round(C.internal.rates.established * 100)}–${Math.round(C.internal.rates.inefficient * 100)}% of the carrier's rate (least on a route your fleet sails, most when a ship has to go there empty). The voyage's real costs are the line's, paid once; the group view cancels the charge.`),
+      ...(jobs.length ? jobs.map((j) => {
+        const v = j.vessel && L.vessel(j.vessel);
+        const posj = j.pos.map((id) => A.state.pos[id]).filter(Boolean);
+        const hit = A.affectedUnits(j);
+        const open = ['waiting', 'reserved', 'repositioning'].includes(j.status);
+        const f = v?.voyage && v.voyage.job === j.id ? L.position(v)?.f || 0 : j.status === 'delivered' || j.status === 'landed' ? 1 : 0;
+        return h('div', { class: `ao-card ship${['delivered', 'carrier'].includes(j.status) ? ' off' : ''}` },
+          h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, `🚢 ${j.id} · ${L.port(j.origin)?.name} → Mill Road`), h('small', {}, `${j.units} units · ${fmtMoney(j.value)} of goods${v ? ` · the ${v.name}` : ''}`)), pill(j.status, j.status === 'lost' ? COL.red : j.status === 'delivered' ? COL.green : COL.blue), j.priority === 'urgent' ? pill('urgent', COL.amber) : null),
+          bar('Voyage', f, COL.blue, j.eta ? A.when(j.eta).replace('Day ', 'D') : '—'),
+          h('small', {}, `${j.eta ? `Due at the Park ${A.when(j.eta)}${j.delayed ? ` (delayed ${j.delayed} h)` : ''}` : j.status === 'carrier' ? 'Went by carrier' : j.waitingWhy ? `Waiting: ${j.waitingWhy}` : 'Waiting for a ship'} · carrier ${fmtMoney(j.extFreight)}${j.charge ? ` · internal ${fmtMoney(j.charge)} (${(j.rate * 100).toFixed(1)}%)` : ''}${j.voyageCost ? ` · voyage ${fmtMoney(j.voyageCost)}` : ''}`),
+          h('small', { class: 'ao-muted' }, `Manifest: ${posj.map((po) => `${po.qty} × ${C.materials[po.material].name}`).join(', ')}`),
+          hit.length ? h('small', { class: 'warn' }, `Waiting on it: ${hit.map((u) => `${C.products[u.product].name} #${u.n}`).join(', ')}`) : null,
+          h('details', { class: 'ao-details' }, h('summary', {}, 'Log'), h('div', { class: 'ao-log' }, ...j.log.map((x) => h('div', {}, h('i', {}, A.when(x.at)), ' ', x.text)))),
+          open ? h('div', { class: 'ao-row-inline' }, btn(j.priority === 'urgent' ? 'Normal priority' : 'Make it urgent', () => act(() => A.setJobPriority(j.id, j.priority === 'urgent' ? 'normal' : 'urgent'))), btn(`Send by carrier (${fmtMoney(posj.reduce((a, po) => a + po.extFreight, 0))})`, () => act(() => A.jobToCarrier(j)))) : null);
+      }) : [muted('No consignments in your ships yet.')]));
+  };
+
+  // ------------------------------------------------------------------ hangar (workforce, bays, facilities, research)
+  const hangarSheet = () => {
+    const c = co();
+    const need = A.crewNeeded(c, { all: true });
+    const R = C.research;
+    const avail = Object.entries(R).filter(([id, r]) => !c.research.includes(id) && (r.requires || []).every((x) => c.research.includes(x)));
+    const locked = Object.entries(R).filter(([id, r]) => !c.research.includes(id) && !(r.requires || []).every((x) => c.research.includes(x)));
+    const unlocks = (id) => Object.values(C.products).filter((p) => p.tech === id);
+    return h('div', {},
+      h('div', { class: 'ao-two' },
+        section('Workforce',
+          h('div', { class: 'ao-kpis two' }, kpi('Employed', String(c.workforce)), kpi('Needed (every bay)', String(need), c.workforce < need ? 'neg' : 'pos'), kpi('Wages a day', fmtMoney(c.workforce * A.A.wage)), kpi('Staffing now', `${Math.round(A.staffing(c) * 100)}%`, A.staffing(c) < 1 ? 'neg' : 'pos')),
+          bar('Crew', need ? c.workforce / need : 1, c.workforce >= need ? COL.green : COL.amber, `${c.workforce}/${need}`),
+          h('div', { class: 'ao-row-inline' }, ...[10, 30, 100].map((n) => btn(`Hire ${n} · ${fmtMoney(n * A.A.hireCost)}`, () => act(() => A.hire(c, n)), 'primary')), ...[10, 30].map((n) => btn(`Lay off ${n}`, () => act(() => A.layoff(c, n)), '', c.workforce < n))),
+          muted('A bay works at full speed when its crew is all there; short-staffed, every bay slows. Wages are paid every morning, busy or not.')),
+        section('Your bays & facilities',
+          h('div', { class: 'ao-grid small' }, ...c.bays.map((b, i) => h('div', { class: 'ao-tile' }, h('small', {}, `BAY ${i + 1}`), h('b', {}, C.bays[b.type].name), b.ready > A.now ? pill(`ready ${A.when(b.ready).replace('Day ', 'D')}`, COL.blue) : b.unit ? pill('working', COL.green) : pill('idle', 'rgba(223,233,245,0.5)'))),
+            h('div', { class: 'ao-tile' }, h('small', {}, 'APRON'), h('b', {}, `${c.apron} stands`), pill(`${A.apronUsed(c)} in use`, COL.blue)),
+            ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => { const have = id === 'pad' ? c.pad : c.facilities[id]; const b = c.building?.[id]; return h('div', { class: 'ao-tile' }, h('small', {}, 'FACILITY'), h('b', {}, f.name), have ? pill('built', COL.green) : b ? pill(`ready ${A.when(b).replace('Day ', 'D')}`, COL.blue) : pill('not built', 'rgba(223,233,245,0.5)')); })))),
+      section('Build a bay', h('div', { class: 'ao-grid' }, ...Object.entries(C.bays).map(([id, b]) => h('div', { class: 'ao-card' },
+        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, b.name), h('small', {}, b.text)), h('div', { class: 'ao-pay' }, fmtMoney(b.build), h('small', {}, `${b.buildDays} days`))),
+        h('div', { class: 'ao-facts' }, h('div', {}, h('small', {}, 'Crew'), h('b', {}, String(b.crew))), h('div', {}, h('small', {}, 'Upkeep'), h('b', {}, `${fmtMoney(b.upkeep)}/d`)), h('div', {}, h('small', {}, 'Builds'), h('b', {}, b.lines.map((l) => LINE_ICON[l]).join(' '))), h('div', {}, h('small', {}, 'You have'), h('b', {}, String(c.bays.filter((x) => x.type === id).length)))),
+        btn(`Build · ${money(b.build)}`, () => act(() => A.buildBay(c, id)), 'primary', !A.canAfford(c, b.build)))))),
+      section('Facilities', h('div', { class: 'ao-grid' }, ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => {
+        const have = id === 'pad' ? c.pad : c.facilities[id];
+        const b = c.building?.[id];
+        return h('div', { class: `ao-card${have ? ' off' : ''}` }, h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, f.name), h('small', {}, f.text)), h('div', { class: 'ao-pay' }, fmtMoney(f.build), h('small', {}, `${f.buildDays} d · ${fmtMoney(f.upkeep)}/d`))),
+          have ? pill('built', COL.green) : b ? pill(`being built — ready ${A.when(b)}`, COL.blue) : btn(`Build · ${money(f.build)}`, () => act(() => A.buildFacility(c, id)), 'primary', !A.canAfford(c, f.build)));
+      }))),
+      section('Research',
+        c.researching ? h('div', { class: 'ao-alert' }, `🔬 Researching ${R[c.researching.id].name} — done ${A.when(c.researching.doneAt)}.`) : muted('Nothing being researched. Research opens new products to bid on.'),
+        h('div', { class: 'ao-pills' }, ...c.research.map((id) => pill(`✓ ${R[id].name}`, COL.green))),
+        h('div', { class: 'ao-grid' }, ...avail.map(([id, r]) => h('div', { class: 'ao-card' },
+          h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, r.name), h('small', {}, r.text)), r.clearance ? pill('defence', COL.amber) : null, h('div', { class: 'ao-pay' }, fmtMoney(r.cost), h('small', {}, `${r.days} days`))),
+          unlocks(id).length ? h('div', { class: 'ao-unlocks' }, ...unlocks(id).map((p) => h('span', {}, pic(productLook(C, Object.keys(C.products).find((k2) => C.products[k2] === p)), 56, 28), p.name))) : null,
+          btn(`Research · ${money(r.cost)}`, () => act(() => A.startResearch(c, id)), 'primary', Boolean(c.researching) || !A.canAfford(c, r.cost))))),
+        locked.length ? muted(`Later: ${locked.map(([, r]) => `${r.name} (needs ${(r.requires || []).filter((x) => !c.research.includes(x)).map((x) => R[x].name).join(', ')})`).join(' · ')}`) : null));
+  };
+
+  // ------------------------------------------------------------------ books
+  const booksSheet = () => {
+    const c = co();
+    const periods = [['7 days', 7], ['30 days', 30], ['Since you bought it', null]];
+    const sums = periods.map(([, n]) => A.statement(c, n));
+    const keys = Object.keys(ACCOUNTS).filter((k) => sums.some((s) => s.acc[k]));
+    const m = sums[1];
+    // the last 30 days, in (green) and out (red)
+    const days = [...c.books.days].reverse().slice(-30);
+    const chart = h('canvas', { width: 1400, height: 260, class: 'ao-chart' });
+    const x = chart.getContext('2d');
+    const per = days.map((d) => { let rev = 0; let cost = 0; for (const [k, v] of Object.entries(d.acc)) { const a = ACCOUNTS[k]; if (!a) continue; if (a.kind === 'revenue') rev += v; else cost += v; } return { day: d.day, rev, cost }; });
+    const max = Math.max(1, ...per.map((d) => Math.max(d.rev, d.cost)));
+    const bw = 1400 / Math.max(14, per.length);
+    per.forEach((d, i) => {
+      x.fillStyle = 'rgba(94,224,138,0.85)';
+      x.fillRect(i * bw + bw * 0.12, 225 - (d.rev / max) * 200, bw * 0.36, (d.rev / max) * 200);
+      x.fillStyle = 'rgba(255,107,107,0.8)';
+      x.fillRect(i * bw + bw * 0.52, 225 - (d.cost / max) * 200, bw * 0.36, (d.cost / max) * 200);
+      x.fillStyle = '#8fa3bf'; x.font = '18px system-ui'; x.textAlign = 'center';
+      if (per.length <= 16 || i % 2 === 0) x.fillText(`D${d.day}`, i * bw + bw / 2, 252);
+    });
+    const G = g.logistics.owned ? periods.map(([, n]) => A.groupStatement(n)) : null;
+    return h('div', {},
+      h('div', { class: 'ao-kpis' }, kpi('Revenue, 30 days', fmtMoney(m.revenue), 'pos'), kpi('Costs, 30 days', fmtMoney(m.costs), 'neg'), kpi('Operating profit, 30 days', fmtMoney(m.profit), m.profit >= 0 ? 'pos' : 'neg'), kpi('Capital spent', fmtMoney(c.books.capex), '', 'firm, bays, facilities')),
+      h('div', { class: 'ao-sec' }, h('h4', {}, 'Day by day — booked in (green) and out (red)'), per.length ? chart : muted('The chart fills in day by day.')),
+      h('div', { class: 'ao-two' },
+        section('The statement', h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+          h('tr', {}, h('th', {}, 'Account'), ...periods.map(([l]) => h('th', { class: 'r' }, l))),
+          ...keys.map((k) => h('tr', { class: ACCOUNTS[k].kind === 'revenue' ? 'pos' : '' }, h('td', {}, ACCOUNTS[k].name), ...sums.map((s) => h('td', { class: 'r' }, s.acc[k] ? `${ACCOUNTS[k].kind === 'revenue' ? '' : '−'}${Math.round(s.acc[k]).toLocaleString()}` : '—')))),
+          h('tr', { class: 'total' }, h('td', {}, 'Operating profit'), ...sums.map((s) => h('td', { class: `r ${s.profit >= 0 ? 'pos' : 'neg'}` }, Math.round(s.profit).toLocaleString()))))),
+          h('div', { class: 'ao-kpis two' }, kpi('Deposits held', fmtMoney(c.books.deferred), '', 'work still owed'), kpi('Materials (stores & on order)', fmtMoney(c.books.inventoryValue))),
+          muted('Revenue is booked when a unit is delivered (a deposit is owed work until then). Materials are an asset until a unit uses them, and become cost of sales when it\'s delivered, with the freight that brought them. Wages, upkeep and overhead are booked each morning.')),
+        h('div', {},
+          G ? section('The group: Roost + Ober & Sons', h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+            h('tr', {}, h('th', {}, ''), ...periods.map(([l]) => h('th', { class: 'r' }, l))),
+            ...[['Aerospace profit (internal freight eliminated)', (y) => y.aero.profit], ['Shipping line operating profit (internal revenue eliminated; ships bought are capital)', (y) => y.shipping.profit], ['…internal charges eliminated', (y) => y.shipping.internal]].map(([label, f]) => h('tr', {}, h('td', {}, label), ...G.map((y) => h('td', { class: 'r' }, Math.round(f(y)).toLocaleString())))),
+            h('tr', { class: 'total' }, h('td', {}, 'Group operating profit'), ...G.map((y) => h('td', { class: `r ${y.profit >= 0 ? 'pos' : 'neg'}` }, Math.round(y.profit).toLocaleString()))))),
+            muted('The voyages that carry your materials are paid for once, in the shipping line\'s running costs and port fees; what the aerospace division pays the line for them cancels out here.')) : null,
+          section('Reports', h('div', { class: 'ao-log tall' }, ...A.state.reports.filter((r) => r.company === c.id).slice(0, 60).map((r) => h('div', {}, h('i', {}, A.when(r.at)), ' ', r.text)))))));
+  };
+
+  // ------------------------------------------------------------------ Meridian
+  const meridianSheet = () => {
+    const M = A.meridian;
+    const active = A.contractsOf(M, 'active');
+    const mount = h('div', { class: 'ao-embed' });
+    const render = (msg) => { mount.innerHTML = ''; mrdnScreen(g, mount, msg, render); renderTop(); };
+    render();
+    const units = A.unitsOf(M).filter((u) => u.bay);
+    return h('div', {},
+      muted(`${C.aero.meridian.founded}. What's public: its order book, its deliveries, its share price.`),
+      h('div', { class: 'ao-kpis' }, kpi('MRDN', `${A.state.market.price.toFixed(2)} ◎`), kpi('Bays', String(M.bays.filter((b) => b.ready <= A.now).length), '', `${units.length} busy`), kpi('Workforce', M.workforce.toLocaleString()), kpi('Reputation', `${Math.round(M.reputation)}`), kpi('Delivered', String(M.stats.delivered), '', `${M.stats.late} late`), kpi('Launches', String(M.stats.launches), '', `${M.stats.launchFailures} lost`), kpi('Contracts won', String(M.stats.contractsWon)), kpi('Order book', String(active.length), '', 'contracts')),
+      h('div', { class: 'ao-two' },
+        section('MRDN on the exchange', mount),
+        section('Meridian\'s order book', h('div', { class: 'ao-list' }, ...active.slice(0, 14).map((ct) => h('div', { class: 'ao-row static' }, pic(productLook(C, ct.product), 70, 34), h('div', { class: 'grow' }, h('b', {}, `${ct.qty} × ${C.products[ct.product].name}`), h('small', {}, `${C.customers[ct.customer].name} · ${ct.delivered} delivered · due ${A.when(ct.due)}`))))))));
+  };
+
+  // ================================================================== refresh
+  const refresh = () => {
+    renderTop();
+    renderRail();
+    renderDrawer();
+    renderSheet();
+    renderFeed();
+  };
+  if (AO.msg) { say({ ok: true, text: AO.msg }); AO.msg = null; }
+  refresh();
+  return { title: '', className: 'aerocmd', onClose: () => { AO.ff = null; opts.onClose?.(); } };
 }
 
 return { aeroSalePanel, aerospacePanel };
