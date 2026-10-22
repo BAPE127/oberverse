@@ -2,6 +2,28 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.54.0] — 2026-10-22 — Sleight of Hand (development build)
+
+The owner: "I want him to feel a lot more magical in his card dealing and much more animated and larger. It should really feel like you are at a table with him. Also improve the roguelike to have special bonus cards and magical cards for the player."
+
+### Changed
+- **Morganius at the table** (`src/engine/drawMorganius.js`): a new, big Morganius sits across the felt from you in every table scene — nearly half the screen tall, drawn in the game's own pixels from the owner's photo (the tall charcoal hat with silver embroidery and its tip bent over, the high rune-trimmed collar, the gold amulet with its purple gem). He breathes and floats; blinks; follows what's happening with his eyes (the ball, the card he's dealing, the cards you're choosing, the card that's scoring); raises his brows; tilts his head; talks when he speaks; grins when you win and smirks when you lose. His arms are jointed — elbows solved every frame — and his hands go where his pose wants them: weaving over the felt, flicking each card to its place, holding a cascade of cards between his hands, raised to conjure with magic circles at his palms, flung wide in triumph, up for a big win, a shrug, a finger pointing as the hole card turns.
+- **Magical dealing:** every card leaves his fingertips with a flick of his wrist and flies on an arc, spinning, glowing, trailing sparks, and lands in a burst of light (blackjack, and every card of the Spade's Gambit — your hand, your plays). New cards conjured by a spell appear in the air between his hands. A shuffle is a cascade arching from hand to hand. Sparks (`Sparks` in `src/engine/cardMagic.js`) are drawn additively and cleaned up as they fade.
+- The Spade's Gambit's targets rise to 520 / 2100 / 4200 for the new magic (balance below).
+
+### Added — the Spade's Gambit's magic (`src/casino/rogue.js`)
+- **Marvel cards** that join your deck: **the Phantom** (wild — any rank, any suit; it becomes whatever makes your hand best, and the preview says what), **Crowned** (×1.5 Gasps), **Golden** (+10 Pips and +3 Sparks), **the Lucky Seven** (×3 Gasps when charged — it glows — then it rests until it scores again), **Mirrored** (the scoring card before it scores again) and **the Hourglass** (+1 Redraw when it comes into your hand). Each has its own look on the table.
+- **Spells** — Morganius's grimoire, two at a time, cast mid-Trick on the cards you've chosen, for no Play (Q and W): Transmutation, Ascension, Doppelgänger, Vanishing Act, Gilding, Curtain Call, Sleight of Hand, Dress Rehearsal, Conjuring and Midas Touch. Every Gambit starts with one. Casting is a show: he raises his hands, circles open under the cards it touches, changed cards turn over to show their new faces, vanished ones go up in sparks.
+- **Morganius's Gift:** win a Trick and he offers three magical cards — a Marvel, a Spell, and a Spell or Sparks — one free, before his Cabinet.
+- The Cabinet sells a Spell and a Marvel card too.
+- The scoring order gains the Marvels (after a card's Ink, before the card Curios); a Mirrored card's echo scores right after it.
+
+### Balance
+- With a greedy bot that takes Marvels, casts the simple spells and redraws when behind (400 runs): Act 1 cleared about half the time, Act 2 about 14%, all three about 1.5%; about 24 chips back per 25 staked.
+
+### Tests
+- The Phantom (trips, a straight flush), every Marvel, every Spell (and its card count), the Gift (and a full spellbook), the starting spell; the big Morganius's poses, elbows, the dealing flick and its return, his size at the table.
+
 ## [0.53.1] — 2026-10-19 — Legible Again (development build)
 
 ### Fixed

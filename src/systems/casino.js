@@ -14,7 +14,7 @@
 import { spin as spinWheel, settle as settleWheel, validBet, colourOf } from '../casino/roulette.js';
 import { act as bjAct, deal as bjDeal, legalActions, standAll, totalBet } from '../casino/blackjack.js';
 import { TILE } from '../core/util.js';
-import { newRun, play as rPlay, redraw as rRedraw, buy as rBuy, vanish as rVanish, reroll as rReroll, nextTrick as rNext, release as rRelease, concede as rConcede, finished as rFinished, payout as rPayout, ENTRY as ROGUE_ENTRY } from '../casino/rogue.js';
+import { newRun, cast as rCast, takeGift as rGift, dropSpell as rDrop, play as rPlay, redraw as rRedraw, buy as rBuy, vanish as rVanish, reroll as rReroll, nextTrick as rNext, release as rRelease, concede as rConcede, finished as rFinished, payout as rPayout, ENTRY as ROGUE_ENTRY } from '../casino/rogue.js';
 
 const HOST = 'npc_morganius';
 const FLOOR = 'phonograph_casino';
@@ -317,7 +317,7 @@ export class Casino {
     return { ok: true, run: R.run };
   }
 
-  /** Do something in the run: 'play' | 'redraw' (ids), 'buy' (i), 'vanish' (card), 'reroll', 'next', 'release' (curio), 'concede'. */
+  /** Do something in the run: 'play' | 'redraw' (ids), 'buy' (i), 'vanish' (card), 'reroll', 'next', 'release' (curio), 'concede', 'cast' ({ i, ids }), 'gift' (i or null), 'dropSpell' (i). */
   rogueAct(action, arg) {
     const sess = this.state.session;
     if (!sess || sess.game !== 'spade') return { ok: false, text: 'Sit at Morganius\'s table first.' };
@@ -333,6 +333,9 @@ export class Casino {
       else if (action === 'next') { rNext(run); res = { ok: true }; }
       else if (action === 'release') res = rRelease(run, arg);
       else if (action === 'concede') { rConcede(run); res = { ok: true }; }
+      else if (action === 'cast') res = { ok: true, ...rCast(run, arg.i, arg.ids || []) };
+      else if (action === 'gift') res = rGift(run, arg);
+      else if (action === 'dropSpell') res = rDrop(run, arg);
       else return { ok: false, text: 'Morganius raises an eyebrow.' };
     } catch (e) {
       return { ok: false, text: e.message.replace(/^rogue: /, '') };

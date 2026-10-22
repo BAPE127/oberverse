@@ -85,3 +85,34 @@ test('The Last Trick and the Dead Man\'s Hand are his; a save keeps him', () => 
   g2.loadState(s);
   assert.ok(g2.npcs.get('npc_morganius'));
 });
+
+test('at the table (v0.54.0): the big Morganius strikes every pose, reaches with real elbows, deals with his right hand, talks and looks about', async () => {
+  const { MorganiusPuppet, hostPlacement } = await import('../src/engine/drawMorganius.js');
+  const p = new MorganiusPuppet();
+  p.map = { x: 0, y: 0, k: 1 }; // art pixels = screen pixels, for the test
+  for (const pose of ['idle', 'deal', 'shuffle', 'conjure', 'roulette', 'win', 'big_win', 'lose', 'push', 'think', 'point']) {
+    p.setPose(pose, 0, 5);
+    for (let t = 0; t < 2; t += 0.05) p.update(t);
+    for (const s of ['L', 'R']) assert.ok(p.hand[s].every(Number.isFinite), `${pose} ${s}`);
+  }
+  p.setPose('big_win', 0, 5);
+  for (let t = 0; t < 2; t += 0.05) p.update(t);
+  assert.ok(p.hand.R[1] < 90, 'arms up for a big win');
+  // a deal throws the right hand toward the card, then it comes home
+  const q = new MorganiusPuppet();
+  q.map = { x: 0, y: 0, k: 1 };
+  for (let t = 0; t < 1; t += 0.05) q.update(t);
+  const rest = [...q.hand.R];
+  q.deal(1, { x: 190, y: 160 });
+  let moved = 0;
+  for (let t = 1; t < 1.5; t += 0.02) { q.update(t); moved = Math.max(moved, Math.hypot(q.hand.R[0] - rest[0], q.hand.R[1] - rest[1])); }
+  assert.ok(moved > 10, `the right hand flicks out (${moved.toFixed(1)})`);
+  for (let t = 1.5; t < 4; t += 0.05) q.update(t);
+  assert.ok(Math.hypot(q.hand.R[0] - rest[0], q.hand.R[1] - rest[1]) < 12, 'and comes home');
+  q.talk(10);
+  assert.ok(q.talkUntil === 10);
+  // in a table scene he fills the space above the felt
+  const c = { W: 1280, H: 800, cx: 640, horizon: 240, near: 688, half: 768 };
+  const pl = hostPlacement(c);
+  assert.ok(pl.k * 190 > 800 * 0.4, 'nearly half the screen tall');
+});

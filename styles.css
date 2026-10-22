@@ -731,3 +731,33 @@ body.pixel-ui #modal-panel.dealer-beaumont .panel-head h2 { color: #1e2a3f; text
 .dealer-fender .dealer-head { text-shadow: 0 2px 0 #7a2a1a, 1px 0 0 #7a2a1a, -1px 0 0 #7a2a1a, 0 -1px 0 #7a2a1a; }
 body.pixel-ui .cage .good { color: #7ad08a; } body.pixel-ui .cage .warn { color: #ff8a7a; }
 body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-color: #3a3a7a; }
+
+/* v0.54.0 — the Spade's Gambit's magic: the spellbook, Morganius's Gift */
+.sg-spells { position: absolute; right: 12px; top: 120px; display: flex; flex-direction: column; gap: 6px; width: 210px; }
+.sg-spells > i { font-style: normal; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: .7; text-align: right; }
+.sg-spell { padding: 7px 9px; border-radius: 8px; background: rgba(36,16,56,.9); border: 1px solid #5ac8e8; font-size: 12px; line-height: 1.25; }
+.sg-spell b { display: block; color: #9ae8ff; font-family: Georgia, serif; font-size: 13px; }
+.sg-spell span { opacity: .85; display: block; margin-bottom: 4px; }
+.sg-spell .sg-row { margin-top: 2px; gap: 4px; }
+.sg-spell button { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid #5ac8e8; background: #1a2a44; color: #e8f6ff; cursor: pointer; }
+.sg-spell button.primary { background: #2a6a9a; }
+.sg-spell button:disabled { opacity: .4; cursor: not-allowed; }
+.sg-spell.ready { box-shadow: 0 0 16px rgba(90,200,232,.6); animation: sg-ready 1.4s ease-in-out infinite; }
+.sg-spell.empty { border-style: dashed; opacity: .6; }
+@keyframes sg-ready { 50% { box-shadow: 0 0 26px rgba(90,200,232,.9); } }
+.sg-gifts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 12px 0; }
+.sg-gift { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 12px; background: linear-gradient(160deg, #2a1440, #160a24); border: 2px solid #b05af0; box-shadow: 0 0 22px rgba(176,90,240,.35); animation: sg-gift-in .6s cubic-bezier(.2,1.4,.4,1) both; }
+.sg-gift.spell { border-color: #5ac8e8; box-shadow: 0 0 22px rgba(90,200,232,.35); }
+.sg-gift.sparks { border-color: #e8c35a; box-shadow: 0 0 22px rgba(232,195,90,.35); }
+.sg-gift-face { align-self: center; width: 76px; height: 106px; display: grid; place-items: center; border-radius: 8px; background: #f6f2e8; color: #1b1a24; font: bold 26px Georgia, serif; box-shadow: 0 0 18px rgba(226,184,255,.7); margin-bottom: 6px; animation: sg-float 2.4s ease-in-out infinite; }
+.sg-gift.marvel .sg-gift-face { background: linear-gradient(160deg, #6a2aa8, #2a0e44); color: #f4e8ff; }
+.sg-gift.spell .sg-gift-face { background: linear-gradient(160deg, #2a6a9a, #0e2a44); color: #e8f6ff; font-size: 40px; }
+.sg-gift.sparks .sg-gift-face { background: linear-gradient(160deg, #e8c35a, #8a6a1a); color: #fff8e0; font-size: 40px; }
+.sg-gift i { font-style: normal; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: .7; }
+.sg-gift b { font-family: Georgia, serif; color: #e8c35a; font-size: 16px; }
+.sg-gift span { font-size: 13px; opacity: .88; flex: 1; }
+.sg-item.spell { border-color: #5ac8e8; } .sg-item.marvel { border-color: #b05af0; background: #2a1440; }
+@keyframes sg-gift-in { from { transform: translateY(40px) rotate(-6deg) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sg-float { 50% { transform: translateY(-6px) rotate(1.5deg); } }
+@media (max-width: 700px) { .sg-spells { display: none; } }
+.sg .ct-speech { top: 150px; left: 222px; right: auto; bottom: auto; max-width: 270px; } /* in the empty room by his shoulder, clear of the spellbook and the counters */

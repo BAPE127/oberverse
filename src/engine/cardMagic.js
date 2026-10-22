@@ -293,3 +293,52 @@ export function drawFloatShadow(ctx, x, y, lift, t) {
   ctx.beginPath(); ctx.ellipse(x, y, 5, 1.6, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
+
+// ------------------------------------------------------------------ sparks (v0.54.0)
+/**
+ * Little lights for the table scenes: a trail behind a card in flight, a burst where it lands, a
+ * shimmer where a spell takes. Each spark drifts, twinkles and fades; `draw` sweeps away the dead.
+ */
+export class Sparks {
+  constructor() {
+    this.list = [];
+  }
+
+  add(x, y, t, opts = {}) {
+    this.list.push({ x, y, t0: t + (opts.delay || 0), life: opts.life || 0.6, vx: opts.vx || 0, vy: opts.vy || 0, r: opts.r || 2, col: opts.col || '220,160,255' });
+    if (this.list.length > 600) this.list.splice(0, this.list.length - 600);
+  }
+
+  /** A few sparks shed where a moving thing is now. */
+  trail(x, y, t, size = 1) {
+    for (let i = 0; i < 2; i++) this.add(x + (Math.random() - 0.5) * 8 * size, y + (Math.random() - 0.5) * 8 * size, t, { life: 0.45 + Math.random() * 0.3, vy: -10 * size, r: (1 + Math.random() * 1.6) * size, col: Math.random() < 0.3 ? '255,240,180' : '220,160,255' });
+  }
+
+  /** A ring of sparks flying out from a point (after `delay` seconds). */
+  burst(x, y, t, { n = 18, size = 1, delay = 0, col = null } = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+      const sp = (40 + Math.random() * 70) * size;
+      this.add(x, y, t, { delay, life: 0.5 + Math.random() * 0.4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 20 * size, r: (1.2 + Math.random() * 1.8) * size, col: col || (i % 3 ? '220,160,255' : '255,240,180') });
+    }
+  }
+
+  draw(ctx, t) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    this.list = this.list.filter((p) => t - p.t0 < p.life);
+    for (const p of this.list) {
+      const age = t - p.t0;
+      if (age < 0) continue;
+      const k = age / p.life;
+      const x = p.x + p.vx * age;
+      const y = p.y + p.vy * age + 30 * age * age;
+      const a = (1 - k) * (0.6 + 0.4 * Math.sin(age * 30 + p.x));
+      ctx.fillStyle = `rgba(${p.col},${a.toFixed(2)})`;
+      const r = p.r * (1 - k * 0.5);
+      ctx.fillRect(x - r, y - r * 0.3, r * 2, r * 0.6);
+      ctx.fillRect(x - r * 0.3, y - r, r * 0.6, r * 2);
+    }
+    ctx.restore();
+  }
+}

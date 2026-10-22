@@ -19,6 +19,8 @@ function rig(run, str, extraHeld = '') {
   return ids.slice(0, str.split(' ').length);
 }
 const fresh = (seed = 1) => R.newRun(seed);
+/** Past Morganius's Gift (taking nothing) and into his Cabinet. */
+const toShop = (run) => { if (run.phase === 'gift') R.takeGift(run, null); };
 const ink = (run, s, k) => { run.deck.find((d) => d.c === C(s)).ink = k; };
 
 test('a run is dealt from its own seed: the same seed, the same Gambit; a different seed, a different one', () => {
@@ -130,7 +132,7 @@ test('Curios: the Mirror Box joins the red suits; Encore, Dove, Sawn Lady, Appla
   run.curios = ['rabbit_hat', 'smoke_bomb'];
   run.score = 1e9;
   R.play(run, run.hand.slice(0, 1));
-  R.nextTrick(run);
+  toShop(run); R.nextTrick(run);
   assert.equal(run.hand.length, R.HAND_SIZE + 1);
   assert.equal(run.redraws, R.REDRAWS + 1);
 });
@@ -176,10 +178,13 @@ test('a run\'s flow: plays run out and the curtain falls; a Trick won pays Spark
   const sparks = run.sparks;
   run.score = run.target - 1;
   R.play(run, run.hand.slice(0, 1));
+  assert.equal(run.phase, 'gift', 'first, Morganius\'s Gift');
+  assert.equal(run.gift.options.length, 3);
+  toShop(run);
   assert.equal(run.phase, 'shop');
   assert.equal(run.sparks, sparks + 3 + (R.PLAYS - 1), '3, and one for each Play left');
   assert.ok(run.shop.items.length >= 4);
-  R.nextTrick(run);
+  toShop(run); R.nextTrick(run);
   assert.equal(run.trick, 1);
   assert.equal(run.target, R.targetFor(0, 1));
   run.trick = 2;
@@ -187,7 +192,7 @@ test('a run\'s flow: plays run out and the curtain falls; a Trick won pays Spark
   run.score = 1e9;
   R.play(run, run.hand.slice(0, 1));
   assert.equal(run.actsCleared, 1);
-  R.nextTrick(run);
+  toShop(run); R.nextTrick(run);
   assert.equal(run.act, 1);
   assert.equal(run.trick, 0);
   // the last Finale wins the whole Gambit
@@ -213,7 +218,7 @@ test('every card is in exactly one place, always: hand, deck or used pile — an
   assert.throws(() => R.play(run, [run.hand[0], run.hand[0]]));
   run.score = 1e9;
   R.play(run, run.hand.slice(0, 1));
-  R.nextTrick(run);
+  toShop(run); R.nextTrick(run);
   check();
   assert.equal(run.used.length, 0);
 });
@@ -222,6 +227,7 @@ test('the Cabinet: prices, a purse that never goes below nothing, five Curios at
   const run = fresh(11);
   run.score = 1e9;
   R.play(run, run.hand.slice(0, 1));
+  toShop(run);
   run.sparks = 100;
   const curio = run.shop.items.findIndex((x) => x.kind === 'curio');
   const cost = run.shop.items[curio].cost;
@@ -283,6 +289,7 @@ test('the casino\'s books: the buy-in is taken once, a finished Gambit is paid o
   // finish it: clear Act 1, then lose — paid 30, once
   run2.trick = 2; run2.twist = run2.twists[0]; run2.score = 1e9;
   g2.casino.rogueAct('play', run2.hand.slice(0, 1));
+  g2.casino.rogueAct('gift', null);
   g2.casino.rogueAct('next');
   for (let i = 0; i < 4 && run2.phase === 'play'; i++) g2.casino.rogueAct('play', run2.hand.slice(0, 1));
   assert.equal(run2.phase, 'lost');
@@ -311,8 +318,11 @@ test('balance: a greedy player clears the first Act about half the time and rare
           if (toss.length) { R.redraw(run, toss); continue; }
         }
         R.play(run, best.c);
+      } else if (run.phase === 'gift') {
+        const i = run.gift.options.findIndex((o) => o.kind !== 'spell');
+        R.takeGift(run, i >= 0 ? i : null);
       } else {
-        run.shop.items.forEach((it, i) => { if (it.cost <= run.sparks) R.buy(run, i); });
+        run.shop.items.forEach((it, i) => { if (it.cost <= run.sparks && it.kind !== 'spell') R.buy(run, i); });
         R.nextTrick(run);
       }
     }
@@ -320,4 +330,120 @@ test('balance: a greedy player clears the first Act about half the time and rare
   }
   assert.ok(dist[0] >= N * 0.25 && dist[0] <= N * 0.75, `Act 1 lost ${dist[0]}/${N}`);
   assert.ok(dist[3] <= N * 0.1, `outright wins ${dist[3]}/${N}`);
+});
+
+// ---------------------------------------------------------------- v0.54.0: the magic
+/** Turn a card of the run's deck into a Marvel. */
+const marvel = (run, s, m) => { const d = run.deck.find((x) => x.c === C(s)); d.marvel = m; return d; };
+
+test('Marvels: the Phantom is whatever makes the best hand; Crowned, Golden, Lucky, Mirrored and the Hourglass do what they say', () => {
+  let run = fresh();
+  marvel(run, '2C', 'phantom');
+  let ids = rig(run, 'KS KH 2C');
+  let s = R.scoreHand(run, ids);
+  assert.equal(s.cat, HAND.TRIPS, 'the Phantom joins the kings');
+  assert.equal(s.as[run.deck.find((d) => d.c === C('2C')).id], 13);
+  assert.equal(s.total, (28 + 30) * 3);
+  ids = rig(run, '9H 6H 8H TH 2C');
+  assert.equal(R.scoreHand(run, ids).cat, HAND.STRAIGHT_FLUSH, 'and fills a straight flush, any suit');
+  run = fresh();
+  marvel(run, '8S', 'crown');
+  ids = rig(run, '8S 8H');
+  assert.equal(R.scoreHand(run, ids).total, Math.floor(28 * 3));
+  run = fresh();
+  marvel(run, '8S', 'golden');
+  ids = rig(run, '8S 8H', '2C 3C 4C 6D 9D JD');
+  const sp = run.sparks;
+  const r = R.play(run, ids);
+  assert.equal(r.total, (28 + 10) * 2);
+  assert.equal(run.sparks, sp + 3, 'Golden pays Sparks when it scores');
+  // the Lucky Seven: charged ×3, then rests, then recharges
+  run = fresh();
+  const seven = marvel(run, '7S', 'lucky');
+  ids = rig(run, '7S 7H', '2C 3C 4C 6D 9D JD');
+  assert.equal(R.play(run, ids).total, 26 * 6);
+  assert.equal(seven.charged, false);
+  ids = rig(run, '7S 7H', '2C 3C 4C 6D 9D JD');
+  assert.equal(R.play(run, ids).total, 26 * 2, 'resting');
+  assert.equal(seven.charged, true, 'recharged');
+  // Mirrored: the card before it scores again
+  run = fresh();
+  marvel(run, '8H', 'mirror');
+  ids = rig(run, '8S 8H');
+  assert.equal(R.scoreHand(run, ids).total, (12 + 24) * 2);
+  // the Hourglass: +1 Redraw when it comes into your hand
+  run = fresh(3);
+  const hg = run.deck.find((d) => run.draw.includes(d.id));
+  hg.marvel = 'hourglass';
+  run.draw = [...run.draw.filter((x) => x !== hg.id), hg.id];
+  const before = run.redraws;
+  R.redraw(run, run.hand.slice(0, 1));
+  assert.ok(run.hand.includes(hg.id));
+  assert.equal(run.redraws, before - 1 + 1);
+});
+
+test('Spells: cast on chosen cards for no Play, used up; each does what it says, and refuses the wrong number of cards', () => {
+  let run = fresh();
+  run.spells = ['transmute'];
+  let ids = rig(run, '2H 5S 9C', 'KD');
+  assert.throws(() => R.cast(run, 0, ids.slice(0, 1)), /needs/);
+  R.cast(run, 0, ids);
+  assert.ok(ids.every((id) => run.deck.find((d) => d.id === id).c % 13 !== undefined && Math.floor(run.deck.find((d) => d.id === id).c / 13) === 1), 'all hearts now');
+  assert.equal(run.spells.length, 0);
+  assert.equal(run.plays, R.PLAYS, 'no Play spent');
+  run.spells = ['ascend'];
+  ids = rig(run, 'KS 2H');
+  R.cast(run, 0, ids);
+  assert.deepEqual(ids.map((id) => run.deck.find((d) => d.id === id).c), [C('AS'), C('3H')]);
+  run.spells = ['doppel'];
+  ids = rig(run, 'QD', '2C');
+  const n = run.deck.length;
+  const out = R.cast(run, 0, ids);
+  assert.equal(run.deck.length, n + 1);
+  assert.ok(run.hand.includes(out.added[0]));
+  assert.equal(run.deck.find((d) => d.id === out.added[0]).c, C('QD'));
+  run.spells = ['vanishing'];
+  ids = rig(run, '2C 3C', '4C 5C 6C 7C 8C TC');
+  R.cast(run, 0, ids);
+  assert.equal(run.deck.length, n + 1 - 2);
+  assert.ok(!run.hand.some((id) => ids.includes(id)));
+  assert.equal(run.hand.length, R.HAND_SIZE, 'replacements drawn');
+  run.spells = ['gilding', 'encore_spell'];
+  ids = rig(run, '9S');
+  R.cast(run, 0, ids);
+  assert.equal(run.deck.find((d) => d.id === ids[0]).ink, 'gilt');
+  R.cast(run, 0, []);
+  assert.equal(run.plays, R.PLAYS + 1);
+  run.spells = ['rehearsal', 'conjure'];
+  ids = rig(run, '9S 9H');
+  R.cast(run, 0, ids);
+  assert.equal(run.levels[HAND.PAIR], 1);
+  const o2 = R.cast(run, 0, []);
+  assert.ok(run.deck.find((d) => d.id === o2.added[0]).marvel);
+  assert.throws(() => R.cast(run, 0, []), /no such spell/);
+});
+
+test('Morganius\'s Gift after a Trick won: one of three, free; two spells at most; you may take nothing', () => {
+  const run = fresh(21);
+  run.score = 1e9;
+  R.play(run, run.hand.slice(0, 1));
+  assert.equal(run.phase, 'gift');
+  assert.deepEqual(run.gift.options.map((o) => o.kind).slice(0, 2), ['marvel', 'spell']);
+  const deck = run.deck.length;
+  R.takeGift(run, 0);
+  assert.equal(run.deck.length, deck + 1, 'the Marvel joins your deck');
+  assert.equal(run.phase, 'shop');
+  assert.ok(run.shop.items.some((x) => x.kind === 'spell') && run.shop.items.some((x) => x.kind === 'marvel'), 'the Cabinet sells magic too');
+  // a full spellbook refuses another
+  const r2 = fresh(22);
+  r2.score = 1e9;
+  R.play(r2, r2.hand.slice(0, 1));
+  r2.spells = ['midas', 'sleight'];
+  assert.equal(R.takeGift(r2, 1).ok, false);
+  assert.equal(r2.phase, 'gift');
+  assert.ok(R.dropSpell(r2, 0).ok);
+  assert.ok(R.takeGift(r2, 1).ok);
+  assert.equal(r2.spells.length, 2);
+  // every run begins with one spell
+  assert.equal(fresh(5).spells.length, 1);
 });

@@ -36,13 +36,18 @@
 | `debug.test.mjs` | Debug console: give/take by id or name, money/health/energy/heal/god, weapons and ammo, time/skip/teleport/stats/rep/flags, reviving the dead and knocked-out. |
 | `casino_rules.test.mjs` | The Phonograph Grand's games as pure rules: the deck and shuffle, every poker hand, kickers and ties, best of seven, short hands; roulette coverage and payouts (every bet's fair odds, the zero), multi-bet settlement, a fair wheel; blackjack aces, naturals, the peek, busts, pushes, soft 17, double, split, split aces, illegal actions, the shoe. |
 | `casino_system.test.mjs` | The resort's maps and lifts (private floors, NPC-only lift doors, who can get where), the staff's hours, the cage (rate, minimum, overdraft, no cashing out seated, the ledger), debit and settle-once, seats and limits, the host's arrival (and skipping it), Morganius roaming, roulette and blackjack chip accounting over many rounds, save/load mid-hand and with chips on the layout. |
-| `casino_rogue.test.mjs` | The Spade's Gambit: seeded runs, the scoring and its fixed order (hand Curios in held order, card Curios per card), every Ink, the Curios, the Twists, a run's flow (lost, won Tricks and Sparks, Finales clearing Acts, the outright win), every card in exactly one place, the Cabinet's prices and limits, the books (buy-in once, paid once, a run kept across leaving and save/load), a balance range for a greedy bot. |
+| `casino_rogue.test.mjs` | The Spade's Gambit (and its magic, v0.54.0: the Phantom, every Marvel, every Spell, the Gift): seeded runs, the scoring and its fixed order (hand Curios in held order, card Curios per card), every Ink, the Curios, the Twists, a run's flow (lost, won Tricks and Sparks, Finales clearing Acts, the outright win), every card in exactly one place, the Cabinet's prices and limits, the books (buy-in once, paid once, a run kept across leaving and save/load), a balance range for a greedy bot. |
 | `character_morganius.test.mjs`, `character_octavius.test.mjs` | The two imported casino characters: looks, protection and Wraths, floating and card-magic states, schedules, dialogue, the cage topic, signature cars and weapons, saves. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
 
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.54.0 (2026-10-22)
+
+- `npm run check` — **439/439 tests passed**; `npm run smoke` — 25/25.
+- Browser (headless Chromium, the built `index.html`): roulette (his arrival with circles at his palms; three bets; a spin he watches) and blackjack (he flicks each card to its place; the hole card turns) with the big Morganius; the Spade's Gambit: the deal-in (cards in flight on arcs, trailing sparks), a hand with the Phantom, a Golden, the Lucky Seven and an Hourglass, Conjuring cast with W (a Marvel appeared between his hands), a pair with the Phantom playing as an Ace scored step by step, a Trick won → Morganius's Gift (a Golden J♥ taken) → the Cabinet (with a Spell and a Marvel for sale) → the next Trick's shuffle and deal. No page errors. Screenshots: `docs/mockups/v054-*.png`.
 
 ## Verification record — v0.53.1 (2026-10-19)
 

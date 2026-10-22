@@ -1,4 +1,4 @@
-# The Phonograph Grand — design and architecture (v0.53.0)
+# The Phonograph Grand — design and architecture (v0.54.0)
 
 The casino resort on Market Street, Halvermouth, built where the Lucky Star bar stood (its bar is the lobby's lounge). Owner: Octavius Thomas Phonograph. Host: Morganius Spade.
 
@@ -33,6 +33,12 @@ Rules: `src/casino/rogue.js` (pure, the run is plain saved data with its own mul
 - **Money:** buy-in 25 chips (debited once, ref = the Gambit's id); payout by Acts cleared 0/30/75/200 (credited once, same ref). A finished Gambit is settled at once (or on load). A Gambit in progress is never touched by leaving or loading.
 - **Balance:** see CHANGELOG 0.53.0 (greedy bot: ~23 back per 25 in); `tests/casino_rogue.test.mjs` keeps it in range.
 
+## The magic (v0.54.0)
+- **Marvels** (cards in your deck; Gift, Cabinet 4/6/9 Sparks by rarity, Conjuring): Phantom (wild; `evaluateRun` tries every rank for up to two Phantoms and keeps the best category, then the most Pips; it counts as every suit), Crowned ×1.5 Gasps, Golden +10 Pips +3 Sparks, Lucky Seven ×3 Gasps when charged (starts charged; firing rests it; scoring while resting recharges it — `d.charged`), Mirrored (the previous scoring card scores again, straight after), Hourglass (+1 Redraw when drawn).
+- **Spells** (two held; cast with `cast(run, i, ids)` during a Trick, free; Gift, Cabinet 2–4 Sparks, one to start): see `SPELLS` for each card count.
+- **Gift:** after every Trick won except the last — [a Marvel, a Spell, a Spell or 4 Sparks]; take one or none (`takeGift`), then the Cabinet.
+- **Scene:** `src/ui/spadeTable.js` (spellbook on the right, Q/W; the Gift overlay; Marvel art; magical flights `launch`). **Morganius:** `src/engine/drawMorganius.js` (`MorganiusPuppet`: poses as hand targets, two-bone IK arms, expressions, gaze, talking, `deal(t, screenPoint)`), drawn by `drawHost` in `src/ui/casino.js` for every table scene.
+
 ## Roadmap
-- v0.54.0 Texas Hold'em (blinds, four betting rounds, side pots, AI opponents with distinct styles, Morganius dealing).
-- v0.55.0 Nightlife: visitors through the night, croupiers and cleaners, table occupancy, ambience.
+- v0.55.0 Texas Hold'em (blinds, four betting rounds, side pots, AI opponents with distinct styles, Morganius dealing).
+- v0.56.0 Nightlife: visitors through the night, croupiers and cleaners, table occupancy, ambience.

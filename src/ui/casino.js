@@ -8,8 +8,8 @@
 // and the scene animates what that has already decided — the wheel is turned so the ball stops in
 // the pocket the system drew; the cards are the round's cards, dealt in the round's order.
 import { h } from './panels.js';
-import { drawCard, magicCircle, EFFECTS, PURPLE } from '../engine/cardMagic.js';
-import { drawPerson } from '../engine/drawPeople.js';
+import { drawCard, magicCircle, EFFECTS, PURPLE, Sparks } from '../engine/cardMagic.js';
+import { MorganiusPuppet, hostPlacement } from '../engine/drawMorganius.js';
 import { WHEEL, colourOf, betName } from '../casino/roulette.js';
 import { handValue, legalActions, RULES } from '../casino/blackjack.js';
 
@@ -177,55 +177,73 @@ export function drawRoom(ctx, c, t) {
   for (let i = 0; i < 9; i++) { ctx.fillStyle = `rgba(255,240,200,${0.5 + 0.3 * Math.sin(t * 2 + i)})`; ctx.fillRect(cx - W * 0.08 + i * W * 0.02, H * 0.06 + Math.sin(i) * 4, 3, 3); }
 }
 
+const POSE_OF = { win: 'win', big_win: 'big_win', lose: 'lose', push: 'push', roulette: 'roulette', shuffle: 'shuffle', blackjack: 'shuffle', conjure: 'conjure', think: 'think', point: 'point' };
+
 /**
- * Morganius, floating on the far side of the table, and his cards — which trick depends on `mood`
- * (win, big_win, lose, roulette, shuffle; anything else: cards circling his fingers). `introDur`
- * plays the arrival (a circle in the air, cards bursting out and snapping back). Returns where his
- * hands are (cards are dealt from the right one).
+ * v0.54.0: Morganius, sitting across the table from you — big, alive, and doing magic (the puppet
+ * is src/engine/drawMorganius.js; the scene keeps one in `puppet`). `mood` (with `age`, how long
+ * ago it changed) picks his pose and what his cards do: they circle his fingers while he waits,
+ * cascade between his hands as he shuffles, fan open when you win, storm round him on a big win,
+ * walk across his shoulders when you lose. `introDur` plays his arrival. Returns where his hands
+ * and head are on screen (cards are dealt from the right hand).
  */
-export function drawHost(ctx, c, t, look, { introDur = 0, mood = 'idle', age = 0 } = {}) {
-  if (!look) return null;
-  const { W, H } = c;
+export function drawHost(ctx, c, t, look, { introDur = 0, mood = 'idle', age = 0, puppet = null } = {}) {
+  if (!look || !puppet) return null;
   const intro = Math.min(1, t / Math.max(0.01, introDur));
-  const scale = Math.max(3, Math.round(H / 150));
-  const bob = Math.sin(t * 2.1) * scale * 1.5;
-  const x = W * 0.5;
-  const y = c.horizon + H * 0.07 + bob;
+  const key = `${mood}@${(t - age).toFixed(2)}`;
+  if (puppet.moodKey !== key) {
+    puppet.moodKey = key;
+    const pose = POSE_OF[mood];
+    if (pose) puppet.setPose(pose, t, mood === 'shuffle' || mood === 'blackjack' ? 1.4 : mood === 'roulette' ? 1.2 : 2.6);
+  }
+  if (t < introDur && puppet.pose !== 'conjure') puppet.setPose('conjure', t, Math.max(0.3, introDur - t));
+  const { cx, baseY, k } = hostPlacement(c);
+  // the arrival: a circle opens in the air and he comes through it, cards bursting round him
+  if (t < introDur + 0.6) {
+    const a = 1 - Math.max(0, (t - introDur) / 0.6);
+    magicCircle(ctx, cx, baseY - 110 * k, 80 * k * Math.min(1, intro * 1.6), t * 1.4, { squash: 1, alpha: a * 0.9 });
+    magicCircle(ctx, cx, baseY - 110 * k, 58 * k * Math.min(1, intro * 1.6), -t * 2, { squash: 1, alpha: a * 0.7 });
+  }
+  const pos = puppet.draw(ctx, cx, baseY, k, t, { alpha: Math.min(1, intro * 1.4 + 0.05) });
+  if (t < introDur + 0.6) EFFECTS.scatter(ctx, { x: cx, y: baseY - 100 * k, n: 30, r: 140 * k, h: 12 * k, k: 0.5 + intro * 0.5, seed: 4, glow: true }, t);
+  const { lh, rh } = pos;
+  const cardH = 10 * k;
   const hs = age;
-  // the arrival: a circle in the air, cards bursting out and snapping into his hands
-  if (t < introDur + 0.4) {
-    magicCircle(ctx, x, y - 6 * scale, 26 * scale * Math.min(1, intro * 2), t * 1.5, { squash: 0.35, alpha: 1 - Math.max(0, (t - introDur) / 0.4) });
-    EFFECTS.scatter(ctx, { x, y: y - 16 * scale, n: 26, r: 60 * scale, h: 6 * scale, k: 0.5 + intro * 0.5, seed: 4, glow: true }, t);
-  }
-  ctx.save();
-  ctx.globalAlpha = Math.min(1, intro * 1.6);
-  ctx.imageSmoothingEnabled = false;
-  drawPerson(ctx, look, { x, y, facing: 'down', scale, idleTime: t });
-  ctx.restore();
-  // his hands, and the cards about them — which trick depends on what just happened
-  const lh = { x: x - 8 * scale, y: y - 11 * scale };
-  const rh = { x: x + 8 * scale, y: y - 11 * scale };
-  const cardH = 5 * scale;
-  const st = mood;
-  if (st === 'win' || st === 'big_win') {
-    EFFECTS.fan(ctx, { x: rh.x, y: rh.y, n: st === 'big_win' ? 9 : 6, h: cardH * 1.4, spread: 2.2, open: Math.min(1, hs * 2), rot: -0.2, glow: true, cards: [12, 25, 38, 51, 11, 24, 37, 50, 10] }, t);
-    if (st === 'big_win') EFFECTS.spiral(ctx, { x, y: y + 2 * scale, height: 46 * scale, r: 22 * scale, n: 18, h: cardH, speed: 0.5, glow: true }, t);
-  } else if (st === 'lose') {
+  const pt = (p) => puppet.toScreen(p);
+  const pose = puppet.pose;
+  if (pose === 'win' || pose === 'big_win') {
+    EFFECTS.fan(ctx, { x: rh.x, y: rh.y, n: pose === 'big_win' ? 9 : 7, h: cardH * 1.3, spread: 2.3, open: Math.min(1, hs * 2), rot: -0.3, glow: true, cards: [12, 25, 38, 51, 11, 24, 37, 50, 10] }, t);
+    if (pose === 'big_win') EFFECTS.spiral(ctx, { x: cx, y: baseY, height: 170 * k, r: 80 * k, n: 26, h: cardH, speed: 0.45, glow: true }, t);
+    else EFFECTS.fan(ctx, { x: lh.x, y: lh.y, n: 5, h: cardH * 1.1, spread: 1.8, open: Math.min(1, hs * 2), rot: 0.3, cards: [0, 13, 26, 39, 1] }, t);
+  } else if (pose === 'lose') {
     // the cards run up one arm, across his shoulders and down the other
-    EFFECTS.path(ctx, { pts: [lh, { x: x - 7 * scale, y: y - 15 * scale }, { x, y: y - 14 * scale }, { x: x + 7 * scale, y: y - 15 * scale }, rh], n: 7, h: cardH, speed: 0.5, gap: 0.7 }, t);
-  } else if ((st === 'roulette' || st === 'shuffle') && hs < 2) {
-    EFFECTS.spiral(ctx, { x: rh.x, y: rh.y + 6 * scale, height: 18 * scale, r: 6 * scale, n: 8, h: cardH * 0.8, speed: 1.4, glow: true }, t);
+    EFFECTS.path(ctx, { pts: [lh, pt([56, 118]), pt([100, 108]), pt([144, 118]), rh], n: 9, h: cardH * 0.9, speed: 0.45, gap: 0.8 }, t);
+  } else if (pose === 'shuffle') {
+    // a cascade: an arch of cards pouring from one hand to the other
+    const top = { x: (lh.x + rh.x) / 2, y: Math.min(lh.y, rh.y) - 26 * k }; // a low arch over the felt, under his chin
+    EFFECTS.path(ctx, { pts: [lh, { x: lh.x + (top.x - lh.x) * 0.5, y: top.y + 10 * k }, top, { x: rh.x - (rh.x - top.x) * 0.5, y: top.y + 10 * k }, rh], n: 16, h: cardH * 0.85, speed: 1.6, gap: 1 }, t);
+    magicCircle(ctx, lh.x, lh.y + 4 * k, 14 * k, t * 3, { squash: 0.4, alpha: 0.7 });
+    magicCircle(ctx, rh.x, rh.y + 4 * k, 14 * k, -t * 3, { squash: 0.4, alpha: 0.7 });
+  } else if (pose === 'conjure') {
+    magicCircle(ctx, lh.x, lh.y, 22 * k, t * 2, { squash: 1, alpha: 0.9 });
+    magicCircle(ctx, rh.x, rh.y, 22 * k, -t * 2, { squash: 1, alpha: 0.9 });
+    EFFECTS.orbit(ctx, { x: lh.x, y: lh.y, r: 16 * k, n: 4, h: cardH * 0.8, speed: 3, tilt: 1, glow: true }, t);
+    EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 16 * k, n: 4, h: cardH * 0.8, speed: -3, tilt: 1, glow: true }, t);
+  } else if (pose === 'roulette') {
+    EFFECTS.spiral(ctx, { x: rh.x, y: rh.y + 10 * k, height: 40 * k, r: 12 * k, n: 8, h: cardH * 0.7, speed: 1.4, glow: true }, t);
+  } else if (pose === 'push') {
+    EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 9 * k, n: 3, h: cardH * 0.7, speed: 2 }, t);
   } else {
-    EFFECTS.orbit(ctx, { x: lh.x, y: lh.y, r: 4 * scale, n: 3, h: cardH, speed: 2.2 }, t);
-    EFFECTS.orbit(ctx, { x: rh.x, y: rh.y, r: 4 * scale, n: 3, h: cardH, speed: -1.9 }, t);
+    EFFECTS.orbit(ctx, { x: lh.x, y: lh.y - 4 * k, r: 9 * k, n: 3, h: cardH * 0.75, speed: 2.4 }, t);
+    EFFECTS.orbit(ctx, { x: rh.x, y: rh.y - 4 * k, r: 9 * k, n: 3, h: cardH * 0.75, speed: -2.1 }, t);
   }
-  // the purple light of his magic on the felt below him
-  const gr = ctx.createRadialGradient(x, c.horizon + H * 0.06, 0, x, c.horizon + H * 0.06, W * 0.25);
-  gr.addColorStop(0, 'rgba(176,90,240,0.18)');
+  // his magic lights the felt below him
+  const gr = ctx.createRadialGradient(cx, baseY, 0, cx, baseY, c.W * 0.32);
+  gr.addColorStop(0, 'rgba(176,90,240,0.16)');
   gr.addColorStop(1, 'rgba(176,90,240,0)');
   ctx.fillStyle = gr;
-  ctx.fillRect(x - W * 0.25, c.horizon, W * 0.5, H * 0.2);
-  return { lh, rh, scale };
+  ctx.fillRect(cx - c.W * 0.32, baseY - c.H * 0.05, c.W * 0.64, c.H * 0.3);
+  return { lh, rh, head: pos.head, scale: k };
 }
 
 // ------------------------------------------------------------------ the scene
@@ -258,6 +276,7 @@ export function casinoTablePanel(ui, body) {
     bet: T.min, deal: null, msgUntil: 0,
     host: { state: 'arrive', at: 0 },
     alive: true,
+    puppet: new MorganiusPuppet(), sparks: new Sparks(),
   };
   if (casinoTablePanel.live) casinoTablePanel.live.alive = false; // a re-render replaces the old scene's loop
   casinoTablePanel.live = S;
@@ -267,6 +286,7 @@ export function casinoTablePanel(ui, body) {
     if (look?.portrait) speech.append(h('img', { src: look.portrait, alt: '' }));
     speech.append(h('div', {}, h('b', {}, 'Morganius Spade'), h('span', {}, text)));
     speech.classList.remove('hidden');
+    S.puppet.talk(now() + Math.min(secs, 0.6 + text.length * 0.04)); // his mouth moves while he says it
     clearTimeout(say.t);
     say.t = setTimeout(() => speech.classList.add('hidden'), secs * 1000);
   };
@@ -421,10 +441,19 @@ export function casinoTablePanel(ui, body) {
     if (!S.deal) return;
     while (S.dealt < S.order.length && t >= S.deal.start + S.dealt * S.deal.step) {
       const o = S.order[S.dealt++];
-      if (o.reveal) { shown.hole = false; ui.audio.sfx('sfx_card'); continue; }
+      if (o.reveal) { shown.hole = false; ui.audio.sfx('sfx_card'); S.puppet.setPose('point', t, 0.8); continue; }
       if (o.dealer) shown.dealer++;
       else shown.hands[o.hand] = (shown.hands[o.hand] || 0) + 1;
       ui.audio.sfx('sfx_card');
+      // he flicks it from his fingers to its place, and it lands in a little burst of light
+      const cam = camera(canvas.width, canvas.height);
+      const r0 = round();
+      const n = o.dealer ? shown.dealer : shown.hands[o.hand];
+      const baseU = !r0 || r0.hands.length === 1 ? -0.1 : o.hand === 0 ? -0.5 : 0.18;
+      const at = o.dealer ? proj(cam, -0.18 + (n - 1) * 0.16, 0.7) : proj(cam, baseU + (n - 1) * 0.12, 0.2 - (n - 1) * 0.012);
+      S.puppet.deal(t, at);
+      S.puppet.lookToward(at);
+      S.sparks.burst(at.x, at.y, t, { n: 16, size: cam.H / 700, delay: S.deal.step });
     }
     if (t >= S.deal.end) {
       S.deal = null;
@@ -499,7 +528,7 @@ export function casinoTablePanel(ui, body) {
 
   // ---------------------------------------------------------------- drawing
   const drawRoomHere = (c, t) => drawRoom(ctx, c, t);
-  const drawHostHere = (c, t) => { S.hands = drawHost(ctx, c, t, look, { introDur: S.intro.dur, mood: S.host.state, age: now() - S.host.at }); };
+  const drawHostHere = (c, t) => { S.hands = drawHost(ctx, c, t, look, { introDur: S.intro.dur, mood: S.host.state, age: now() - S.host.at, puppet: S.puppet }); };
   const drawTable = (c, felt) => {
     // the rail all round, the felt inside it
     ctx.fillStyle = '#2a1410';
@@ -668,6 +697,7 @@ export function casinoTablePanel(ui, body) {
       y = sy + (p.y - sy) * e - Math.sin(k * Math.PI) * c.H * 0.08;
       flat = 0.62 + (1 - e) * 0.38;
       rot = (1 - e) * 2.4;
+      S.sparks.trail(x, y, now(), c.H / 700);
       ctx.save();
       ctx.shadowColor = PURPLE;
       ctx.shadowBlur = 14 * (1 - k);
@@ -767,6 +797,10 @@ export function casinoTablePanel(ui, body) {
     drawTable(c, T.game === 'roulette' && T.max >= 2500 ? ['#163a5a', '#1e4a6e'] : T.max >= 2000 ? ['#4a1424', '#5e1a2e'] : ['#145a30', '#1e7a40']);
     if (T.game === 'roulette') { drawWheel(c, t); drawLayout(c, t); }
     else if (T.game === 'blackjack') drawBlackjack(c, t);
+    S.sparks.draw(ctx, t);
+    // his eyes follow the ball while it runs, the cards while he deals; otherwise he looks at you
+    if (S.spin) S.puppet.lookToward(proj(c, -0.62, 0.78));
+    else if (!S.deal) S.puppet.lookToward(null);
     // a vignette, for the room's light
     const vg = ctx.createRadialGradient(c.W / 2, c.H * 0.55, c.H * 0.3, c.W / 2, c.H * 0.55, c.W * 0.75);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');

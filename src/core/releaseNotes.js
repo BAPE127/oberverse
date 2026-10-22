@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.54.0',
+    date: '2026-10-22',
+    channel: 'development',
+    title: 'Sleight of Hand',
+    notes: [
+      'Morganius sits across the table from you now — big, alive, and watching: he blinks, follows the cards with his eyes, talks, grins when you win, and deals every card with a flick of his fingers, sending it spinning through the air in a trail of sparks.',
+      'The Spade\'s Gambit gets its magic: Marvel cards for your deck (the wild Phantom, the Lucky Seven, Golden, Crowned, Mirrored and the Hourglass), Spells you cast on your cards mid-Trick, and a free Gift from Morganius after every Trick you win.',
+    ],
+  },
+  {
     version: '0.53.1',
     date: '2026-10-19',
     channel: 'development',
