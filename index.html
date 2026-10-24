@@ -899,6 +899,11 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao-prio .ao-bar { grid-template-columns: 74px 1fr 34px; font-size: 11px; }
 .ao-you { font-size: 12px; opacity: .78; line-height: 1.45; }
 .ao-why { font-size: 12px; color: #ffb0a0; }
+.ao-card.event { border-color: rgba(255,181,71,.5); background: linear-gradient(180deg, rgba(48,38,20,.85), rgba(24,20,14,.85)); }
+.ao-choice { display: flex; flex-direction: column; gap: 3px; max-width: 320px; }
+.ao-choice small { opacity: .65; font-size: 11.5px; }
+.ao .ao-row.dim { opacity: .5; }
+.ao-row .ic { font-size: 18px; width: 26px; text-align: center; }
 .ao-config { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ao-opt { border: 1px solid rgba(111,180,255,.4); background: rgba(111,180,255,.08); border-radius: 8px; padding: 3px 8px; font-size: 11.5px; display: inline-flex; gap: 6px; align-items: baseline; }
 .ao-opt b { color: #cfe4ff; font-weight: 600; }
@@ -3396,6 +3401,32 @@ const FACILITIES = {
 };
 
 /**
+ * Reputation and events (v0.57.0). Every change to a company's reputation is logged with its reason;
+ * repeated failures cost more each time (`step` of the base per failure in a row, up to `cap` times)
+ * and a run of on-time deliveries earns a little extra. Events are not dice: each one comes from a
+ * condition in the company's own books and floor (a reputation to qualify, a bay that has been the
+ * bottleneck, a run of failed inspections), is gated by a stable hash of the day (so a reload can't
+ * change it), has a cool-down, and works through the same checked methods as everything else.
+ */
+const EVENTS = {
+  rep: { flawless: 1, streakAt: 3, streakBonus: 1, step: 0.5, cap: 3, failWindowDays: 14, launchFailure: -6 },
+  government: { cooldown: 20, chance: 0.4, minReputation: 50, ceilingBoost: 1.12, deposit: 0.35, daysBoost: 1.15, closeDays: 3, reward: 3, kinds: ['government', 'defence'] },
+  constellation: { cooldown: 40, chance: 0.35, minReputation: 40, qty: [4, 8], deposit: 0.3, daysBoost: 1.3, closeDays: 3, reward: 4, kinds: ['comms', 'agency', 'science', 'government'] },
+  breakthrough: { base: 0.1, lab: 0.08, engineers: 0.05, quality: 2, reputation: 1 },
+  expansion: { pressureDays: 3, discount: 0.25, window: 7, cooldown: 30 },
+  audit: { failures: 3, cooldown: 30, decideDays: 5, fine: 15000, finePerTech: 150, programme: 20000, programmePerTech: 300, repFine: -3, repIgnored: -4, experience: 3 },
+  milestones: {
+    first_delivery: { name: 'First delivery', rep: 2, text: 'the first unit out of the door' },
+    first_aircraft: { name: 'First aircraft delivered', rep: 1, text: 'an aircraft flown away by its new owner' },
+    first_defence: { name: 'First defence contract delivered', rep: 2, text: 'work for a defence buyer, delivered' },
+    first_launch: { name: 'First successful launch', rep: 3, text: 'a launch vehicle off the pad and away' },
+    first_satellite: { name: 'First satellite in orbit', rep: 3, text: 'a satellite commissioned in orbit' },
+    first_government: { name: 'First government order delivered', rep: 2, text: 'a major order for the state, delivered in full' },
+    first_constellation: { name: 'First constellation complete', rep: 4, text: 'a whole constellation, delivered on time' },
+  },
+};
+
+/**
  * Product configuration (v0.57.0): bounded options a customer may ask for. A tender names the
  * configuration it wants (src/aero/config.js makes it from the customer's kind), and the contract,
  * its units and the finished aircraft carry it. Each option changes what the product costs and
@@ -3851,7 +3882,7 @@ const AERO_PEOPLE = {
   seller: 'npc_billie', ceo: 'npc_imogen', pilot: 'npc_ailie', foreman: 'npc_rudy', launch: 'npc_tina', mechanic: 'npc_wrenna',
 };
 
-return { AERO, STAFF, BAYS, HALLS, FACILITIES, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
+return { AERO, STAFF, BAYS, HALLS, FACILITIES, EVENTS, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
 })();
 
 // ---- src/content/maps/starling.js
@@ -15115,7 +15146,7 @@ const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
 const dlgAero = __m["src/content/dialogue/aerospace.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
-const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS } = __m["src/content/aerospace.js"];
+const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS } = __m["src/content/aerospace.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
 const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
@@ -15204,7 +15235,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS }, // v0.55.0; halls, staff and options v0.57.0
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS }, // v0.55.0; halls, staff, options and events v0.57.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
@@ -33146,18 +33177,19 @@ function allowedDays(product, qty, rng) {
  * the customer's live record ({ budget }). The customer's budget is
  * committed for the tender's ceiling and given back by the award or lapse.
  */
-function makeTender(C, rng, { id, customerId, state, day, embargoed = false }) {
+function makeTender(C, rng, { id, customerId, state, day, embargoed = false, force = null }) {
   const cu = C.customers[customerId];
   const wants = Object.entries(cu.wants).filter(([pid]) => C.products[pid]);
   const total = wants.reduce((a, [, w]) => a + w, 0);
   let r = rng.next() * total;
   let pid = wants[0][0];
   for (const [p, w] of wants) { r -= w; if (r <= 0) { pid = p; break; } }
+  if (force?.product) pid = force.product; // an event's tender names what it wants (v0.57.0)
   const base = C.products[pid];
   // v0.57.0: what the customer wants the product to be (fixed by the tender's id and its habits — no dice, so the rest is as it was)
   const config = pickConfig(C, base, cu, pid, id);
   const product = configure(C, base, config, pid);
-  let qty = tenderQty(C, base, rng);
+  let qty = force?.qty ?? tenderQty(C, base, rng);
   const unit = Math.round((product.price + launchAllowance(C, product)) * (0.97 + rng.next() * 0.14) / 100) * 100;
   while (qty > 1 && unit * qty > state.budget) qty--;
   if (unit * qty > state.budget || quantityError(C.aero, base, qty)) return null;
@@ -33180,6 +33212,7 @@ function bidError(C, tender, bid, bidder) {
   if (!(bid.days > 0) || bid.days > tender.days) return `delivery must be within ${tender.days} days`;
   if (bidder.quality < tender.quality) return `the customer requires quality ${tender.quality} (yours: ${Math.round(bidder.quality)})`;
   if (tender.defence && !bidder.cleared) return 'defence work needs a secure hall and security clearance';
+  if (tender.minReputation && bidder.reputation < tender.minReputation) return `this customer wants a supplier with a reputation of ${tender.minReputation}+ (yours: ${Math.round(bidder.reputation)})`;
   if (!bidder.canBuild) return bidder.missing?.length ? `it needs research you don't have yet: ${bidder.missing.join(', ')}` : 'you can\'t build this product (research or a suitable bay)';
   const err = quantityError(C.aero, C.products[tender.product], tender.qty);
   if (err) return err;
@@ -33324,6 +33357,228 @@ function busiestBayType(A, co) {
 return { rivalMorning, rivalBid };
 })();
 
+// ---- src/aero/events.js
+__m["src/aero/events.js"] = (function () {
+// Reputation and events (v0.57.0): what happens at the Park because of how a company is run.
+// Nothing here is a random interruption. Each event has a trigger in the company's own record
+// (its reputation, its bottleneck, its failed inspections, its research), a stable hash of the
+// day to decide *which* of the days that qualify it comes on, a cool-down, and an effect that goes
+// through the simulation's checked methods (src/systems/aerospace.js) — so a reload, or a rival
+// reading the same board, can't see it differently. The functions take the Aerospace system `A`.
+const { hashUnit } = __m["src/aero/config.js"];
+const { makeTender } = __m["src/aero/tenders.js"];
+const { quantityError, baysFor, fmtMoney } = __m["src/aero/catalog.js"];
+
+const cooled = (A, co, kind, days) => (A.day - (co.cool?.[kind] ?? -1e9)) >= days;
+const stamp = (A, co, kind) => { (co.cool ||= {})[kind] = A.day; };
+
+/** Each morning, for the player's company: expire what has run out, then see what the books and the floor say. */
+function eventsMorning(A, co) {
+  const E = A.cfg.events;
+  expireEvents(A, co);
+  trackPressure(A, co);
+  governmentOrder(A, co, E.government);
+  constellation(A, co, E.constellation);
+  expansionOffer(A, co, E.expansion);
+  audit(A, co, E.audit);
+}
+
+// ---------------------------------------------------------------- major orders (real tenders on the shared board)
+/** Post a tender for a customer's named product; the customer's budget is committed like any tender's. */
+function postEventTender(A, customerId, product, qty, kind, E) {
+  const C = A.cfg;
+  const st = A.state.customers[customerId];
+  const t = makeTender(C, A.rng, { id: A.nextId('T'), customerId, state: st, day: A.day, embargoed: A.embargoed(customerId), force: { product, qty } });
+  if (!t) return null;
+  t.event = kind;
+  t.ceiling = Math.round((t.ceiling * (E.ceilingBoost || 1)) / 100) * 100;
+  t.deposit = E.deposit;
+  t.days = Math.ceil(t.days * E.daysBoost);
+  t.closes = A.day + E.closeDays;
+  if (E.minReputation) t.minReputation = E.minReputation;
+  st.budget -= t.ceiling * t.qty;
+  A.state.tenders.push(t);
+  A.syncRng();
+  return t;
+}
+
+/** A government or defence buyer, flush with budget, places a major order — if Roost has the standing and could build it. */
+function governmentOrder(A, co, G) {
+  if (!cooled(A, co, 'government', G.cooldown) || co.reputation < G.minReputation) return;
+  if (hashUnit(`gov|${co.id}|${A.day}`) >= G.chance) return;
+  const C = A.cfg;
+  const buyers = Object.entries(C.customers).filter(([id, cu]) => G.kinds.includes(cu.kind) && !A.embargoed(id)).sort(([a], [b]) => (a < b ? -1 : 1));
+  if (!buyers.length) return;
+  const start = Math.floor(hashUnit(`govbuyer|${A.day}`) * buyers.length);
+  for (let k = 0; k < buyers.length; k++) {
+    const [cid, cu] = buyers[(start + k) % buyers.length];
+    const wants = Object.keys(cu.wants).filter((pid) => C.products[pid] && A.canBuild(co, C.products[pid]) && C.products[pid].line !== 'satellite');
+    if (!wants.length) continue;
+    const pid = wants[Math.floor(hashUnit(`govprod|${A.day}|${cid}`) * wants.length)];
+    const p = C.products[pid];
+    const qty = p.line === 'aircraft' ? 3 + Math.floor(hashUnit(`govqty|${A.day}`) * 3) : 1 + Math.floor(hashUnit(`govqty|${A.day}`) * 2);
+    if (quantityError(C.aero, p, Math.min(qty, 5))) continue;
+    const t = postEventTender(A, cid, pid, Math.min(qty, p.line === 'aircraft' ? C.aero.maxAircraftPerContract : qty), 'government', G);
+    if (!t) continue;
+    stamp(A, co, 'government');
+    const text = `🏛 A major government order: ${cu.name} wants ${t.qty} × ${p.name} (up to ${fmtMoney(t.ceiling)} each, ${Math.round(t.deposit * 100)}% deposit, within ${t.days} days). Reputation ${t.minReputation}+ to bid.`;
+    A.news(text, 'good');
+    A.report(co, 'event', text, 'good');
+    return;
+  }
+}
+
+/** A comms or space customer wants a whole constellation — if Roost can build, launch and commission satellites. */
+function constellation(A, co, K) {
+  if (!cooled(A, co, 'constellation', K.cooldown) || co.reputation < K.minReputation) return;
+  if (hashUnit(`con|${co.id}|${A.day}`) >= K.chance) return;
+  const C = A.cfg;
+  const buyers = Object.entries(C.customers).filter(([, cu]) => K.kinds.includes(cu.kind)).sort(([a], [b]) => (a < b ? -1 : 1));
+  const start = Math.floor(hashUnit(`conbuyer|${A.day}`) * Math.max(1, buyers.length));
+  for (let k = 0; k < buyers.length; k++) {
+    const [cid, cu] = buyers[(start + k) % buyers.length];
+    const wants = Object.keys(cu.wants).filter((pid) => C.products[pid]?.line === 'satellite' && A.canBuild(co, C.products[pid]));
+    if (!wants.length) continue;
+    const pid = wants[Math.floor(hashUnit(`conprod|${A.day}|${cid}`) * wants.length)];
+    const p = C.products[pid];
+    const qty = K.qty[0] + Math.floor(hashUnit(`conqty|${A.day}`) * (K.qty[1] - K.qty[0] + 1));
+    if (quantityError(C.aero, p, qty)) continue;
+    const t = postEventTender(A, cid, pid, qty, 'constellation', K);
+    if (!t) continue;
+    stamp(A, co, 'constellation');
+    const text = `🛰 A constellation contract: ${cu.name} wants ${t.qty} × ${p.name} launched and commissioned (up to ${fmtMoney(t.ceiling)} each, within ${t.days} days).`;
+    A.news(text, 'good');
+    A.report(co, 'event', text, 'good');
+    return;
+  }
+}
+
+// ---------------------------------------------------------------- expansion
+/** Count the mornings a bay has been the bottleneck (aircraft waiting for a bay of a type). */
+function trackPressure(A, co) {
+  const byType = {};
+  for (const u of A.unitsOf(co).filter((x) => x.blocker?.kind === 'bay')) { const t = baysFor(A.cfg, A.pOf(u))[0]; byType[t] = (byType[t] || 0) + 1; }
+  const [type, n] = Object.entries(byType).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+  co.pressure = n >= 1 ? { type, n, days: (co.pressure?.type === type ? co.pressure.days : 0) + 1 } : null;
+}
+
+/** The Park Authority offers a discount on the hall that would relieve the bottleneck. */
+function expansionOffer(A, co, X) {
+  if (!co.pressure || co.pressure.days < X.pressureDays || !cooled(A, co, 'expansion', X.cooldown)) return;
+  if (co.offers?.some((o) => o.kind === 'hall_discount' && o.until >= A.day)) return;
+  if (A.freeSlot(co, co.pressure.type)) return; // a slot is free: all it needs is a bay
+  const next = A.hallFor(co, co.pressure.type);
+  if (!next) return;
+  const [hid, H] = next;
+  (co.offers ||= []).push({ id: A.nextId('OF'), kind: 'hall_discount', hall: hid, pct: X.discount, until: A.day + X.window, reason: `${co.pressure.n} unit${co.pressure.n === 1 ? ' has' : 's have'} been waiting for a ${A.cfg.bays[co.pressure.type].name.toLowerCase()}` });
+  stamp(A, co, 'expansion');
+  A.report(co, 'event', `🏗 The Park Authority offers ${Math.round(X.discount * 100)}% off the ${H.name} for ${X.window} days: ${co.pressure.n} unit${co.pressure.n === 1 ? ' has' : 's have'} been waiting for a ${A.cfg.bays[co.pressure.type].name.toLowerCase()}.`, 'good');
+}
+
+/** The discount (a fraction) on a hall right now, and the offer it comes from. */
+function hallDiscount(A, co, hallId) {
+  const o = (co.offers || []).find((x) => x.kind === 'hall_discount' && x.hall === hallId && x.until >= A.day);
+  return o ? { pct: o.pct, offer: o } : { pct: 0, offer: null };
+}
+
+// ---------------------------------------------------------------- quality: the audit
+function audit(A, co, U) {
+  if (co.events?.some((e) => e.kind === 'audit' && !e.resolved)) return;
+  if (!cooled(A, co, 'audit', U.cooldown)) return;
+  const since = A.now - A.cfg.events.rep.failWindowDays * 1440;
+  const fails = (co.qaLog || []).filter((e) => !e.pass && e.at >= since);
+  if (fails.length < U.failures) return;
+  const prog = U.programme + U.programmePerTech * co.workforce;
+  const fine = U.fine + U.finePerTech * co.workforce;
+  (co.events ||= []).push({
+    id: A.nextId('EV'), kind: 'audit', at: A.now, expires: A.day + U.decideDays, resolved: null,
+    title: 'The regulator is auditing your inspections',
+    text: `${fails.length} failed inspections in ${A.cfg.events.rep.failWindowDays} days (${[...new Set(fails.map((f) => f.what.replace(/ #\d+$/, '')))].join(', ')}). The inspectors' office wants to see what you're doing about it — decide within ${U.decideDays} days or it will decide for you.`,
+    choices: [
+      { id: 'programme', label: `Fund a corrective programme · ${fmtMoney(prog)}`, text: `Retrain the floor: experience +${U.experience}, no fine, no mark against you.`, cost: prog },
+      { id: 'fine', label: `Accept the fine · ${fmtMoney(fine)}`, text: `Pay up and carry on: reputation ${U.repFine}.`, cost: fine },
+    ],
+  });
+  stamp(A, co, 'audit');
+  A.report(co, 'event', `🔍 A regulator's audit: ${fails.length} failed inspections in ${A.cfg.events.rep.failWindowDays} days. Decide in the Standing page within ${U.decideDays} days.`, 'warn');
+}
+
+/** The player's decision on an open event. */
+function resolveEvent(A, co, eventId, choiceId) {
+  const e = (co.events || []).find((x) => x.id === eventId);
+  if (!e) return { ok: false, text: 'No such event.' };
+  if (e.resolved) return { ok: false, text: 'That has already been decided.' };
+  const U = A.cfg.events.audit;
+  const ch = e.choices.find((c) => c.id === choiceId);
+  if (!ch) return { ok: false, text: 'No such choice.' };
+  if (!A.canAfford(co, ch.cost || 0)) return { ok: false, text: `That costs ${Math.round(ch.cost).toLocaleString()} obols.` };
+  A.pay(co, ch.cost || 0, ch.id === 'programme' ? 'training' : 'penalties');
+  e.resolved = { at: A.now, choice: ch.id };
+  if (e.kind === 'audit') {
+    if (ch.id === 'programme') { co.experience = Math.min(A.cfg.staff.experience.cap, co.experience + U.experience); A.report(co, 'event', `🔍 The audit closes: the corrective programme satisfied the regulator.`, 'good'); }
+    else { A.repChange(co, U.repFine, 'Fined after a regulator\'s audit'); A.report(co, 'event', `🔍 The audit closes: a fine of ${fmtMoney(ch.cost)}.`, 'warn'); }
+  }
+  return { ok: true, text: e.kind === 'audit' && ch.id === 'programme' ? 'The corrective programme is under way.' : 'Decided.' };
+}
+
+/** Events nobody decided in time decide themselves, against you. */
+function expireEvents(A, co) {
+  const U = A.cfg.events.audit;
+  for (const e of co.events || []) {
+    if (e.resolved || e.expires >= A.day) continue;
+    const fine = U.fine + U.finePerTech * co.workforce;
+    A.pay(co, fine, 'penalties');
+    e.resolved = { at: A.now, choice: 'ignored' };
+    A.repChange(co, U.repIgnored, 'Ignored a regulator\'s audit');
+    A.report(co, 'event', `🔍 The audit decided without you: a fine of ${fmtMoney(fine)}.`, 'bad');
+  }
+  co.events = (co.events || []).filter((e) => !e.resolved || e.resolved.at > A.now - 20 * 1440);
+  co.offers = (co.offers || []).filter((o) => o.until >= A.day - 3);
+}
+
+// ---------------------------------------------------------------- research breakthroughs (pre-rolled when the work begins)
+/** Whether a research project will turn up something extra: fixed when it starts, by its own hash, better with a lab and engineers. */
+function rollBreakthrough(A, co, researchId) {
+  const B = A.cfg.events.breakthrough;
+  const chance = Math.min(0.4, B.base + (A.hallState(co, 'lab').state === 'built' ? B.lab : 0) + (co.engineers >= A.staffNeeded(co, 'engineer') * 1.2 ? B.engineers : 0));
+  return hashUnit(`bt|${co.id}|${researchId}|${A.day}`) < chance;
+}
+
+function applyBreakthrough(A, co, research) {
+  const B = A.cfg.events.breakthrough;
+  co.qualityBase += B.quality;
+  A.repChange(co, B.reputation, `Research breakthrough: ${research.name}`);
+  const text = `💡 A breakthrough in ${research.name.toLowerCase()}: the team found more than it was looking for (quality +${B.quality} for good).`;
+  A.report(co, 'event', text, co.kind === 'player' ? 'good' : null);
+  A.news(co.kind === 'player' ? `${co.name} announces a research breakthrough: ${research.name.toLowerCase()}.` : `Meridian announces a breakthrough: ${research.name.toLowerCase()}.`, co.kind === 'player' ? 'good' : 'info');
+}
+
+// ---------------------------------------------------------------- milestones (the firsts, once each)
+function milestone(A, co, key, detail = '') {
+  const M = A.cfg.events.milestones[key];
+  if (!M) return false;
+  co.milestones ||= {};
+  if (co.milestones[key]) return false;
+  co.milestones[key] = { at: A.now, day: A.day, detail };
+  if (M.rep) A.repChange(co, M.rep, `Milestone: ${M.name.toLowerCase()}`);
+  A.report(co, 'event', `🏅 ${M.name}: ${M.text}${detail ? ` (${detail})` : ''}.`, co.kind === 'player' ? 'good' : null);
+  if (co.kind === 'rival') A.news(`${co.name}: ${M.name.toLowerCase()}.`);
+  return true;
+}
+
+/** An event contract (a government order, a constellation) is finished: the reward for delivering all of it, on time. */
+function eventContractDone(A, co, c) {
+  if (!c.event || c.status !== 'complete') return;
+  const E = A.cfg.events[c.event];
+  if (!E) return;
+  if (c.failed || c.penalties) { A.report(co, 'event', `The ${c.event === 'government' ? 'government order' : 'constellation'} for ${A.cfg.customers[c.customer].name} is complete — late or incomplete, so no standing to show for it.`, co.kind === 'player' ? 'warn' : null); return; }
+  A.repChange(co, E.reward, c.event === 'government' ? `Government order delivered in full (${A.cfg.customers[c.customer].name})` : `Constellation delivered on time (${A.cfg.customers[c.customer].name})`);
+  milestone(A, co, c.event === 'government' ? 'first_government' : 'first_constellation', A.cfg.customers[c.customer].name);
+}
+
+return { eventsMorning, hallDiscount, resolveEvent, rollBreakthrough, applyBreakthrough, milestone, eventContractDone };
+})();
+
 // ---- src/systems/aerospace.js
 __m["src/systems/aerospace.js"] = (function () {
 // Aerospace (v0.55.0): Starling Flats Aerospace Park. Two companies — Meridian
@@ -33355,6 +33610,7 @@ const { configure, cleanConfig, configError, configLabel } = __m["src/aero/confi
 const { makeTender, bidError, rankBids, launchAllowance } = __m["src/aero/tenders.js"];
 const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
 const { rivalMorning } = __m["src/aero/rival.js"];
+const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
 const DAY = 1440;
 const NEWS_MAX = 60;
@@ -33504,6 +33760,8 @@ class Aerospace {
       freight: { external: 0, internalCharges: 0, equivalent: 0, voyageCosts: 0 },
       // v0.57.0: the other people (engineers, inspectors), what they've learnt together, how it's kept up
       engineers: 0, inspectors: 0, experience: C.staff.experience.start[id] ?? 50, training: 'none', qaLog: [],
+      // v0.57.0: reputation with its reasons, the streaks behind it, decisions and offers, the firsts, cool-downs
+      repLog: [], streaks: { late: 0, onTime: 0 }, events: [], offers: [], cool: {}, milestones: {}, pressure: null,
     };
     co.engineers = this.staffNeeded(co, 'engineer');
     co.inspectors = this.staffNeeded(co, 'inspector');
@@ -33722,6 +33980,28 @@ class Aerospace {
     return { ok: true, text: level === 'none' ? 'Training stopped: the crew learn on the job.' : `Training: ${T.name.toLowerCase()} — ${T.perDay} obols per technician a day.` };
   }
 
+  // ------------------------------------------------------------- reputation (v0.57.0)
+  /** Every change to reputation goes through here: clamped to 0–100, and logged with its reason (so it can be read). */
+  repChange(co, delta, why) {
+    if (!delta) return 0;
+    const before = co.reputation;
+    co.reputation = Math.max(0, Math.min(100, before + delta));
+    const applied = Math.round((co.reputation - before) * 10) / 10;
+    (co.repLog ||= []).unshift({ at: this.now, delta: applied, wanted: delta, why, total: Math.round(co.reputation * 10) / 10 });
+    if (co.repLog.length > 60) co.repLog.length = 60;
+    return applied;
+  }
+
+  /** Repeated failures cost more each time: the base, then half as much again, up to the cap. */
+  streakMult(n) {
+    const R = this.cfg.events.rep;
+    return Math.min(R.cap, 1 + R.step * (n - 1));
+  }
+
+  resolveEvent(co, eventId, choiceId) {
+    return resolveEvent(this, co, eventId, choiceId);
+  }
+
   /** What the company's quality is made of (every part visible, so it can be managed). */
   qualityBreakdown(co) {
     const X = this.cfg.staff.experience;
@@ -33848,7 +34128,7 @@ class Aerospace {
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
     const days = Math.max(1, Math.round((R.days * this.researchFactor(co)) / this.engineerRate(co)));
-    co.researching = { id, doneAt: this.now + Math.round(days * DAY) };
+    co.researching = { id, doneAt: this.now + Math.round(days * DAY), breakthrough: rollBreakthrough(this, co, id) };
     this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
     return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : days > R.days ? ' (short of engineers)' : ''}.` };
   }
@@ -33905,12 +34185,15 @@ class Aerospace {
     if (!H || !H.build) return { ok: false, text: 'No such hall.' };
     if (co.kind !== 'player') return { ok: false, text: 'Only Roost builds on its plots.' };
     if (this.hallState(co, id).state !== 'site') return { ok: false, text: `${H.name}: already built or being built.` };
-    if (!this.canAfford(co, H.build)) return { ok: false, text: `${H.name} costs ${H.build.toLocaleString()} obols.` };
-    this.pay(co, H.build, null);
-    co.books.capex += H.build;
+    const disc = hallDiscount(this, co, id);
+    const cost = Math.round(H.build * (1 - disc.pct));
+    if (!this.canAfford(co, cost)) return { ok: false, text: `${H.name} costs ${cost.toLocaleString()} obols.` };
+    this.pay(co, cost, null);
+    co.books.capex += cost;
     co.halls[id] = this.now + Math.round(H.buildDays * DAY);
+    if (disc.offer) { co.offers = co.offers.filter((o) => o !== disc.offer); this.report(co, 'facility', `🏗 The Park Authority's offer saved ${fmtMoney(H.build - cost)} on the ${H.name}.`, 'good'); }
     this.report(co, 'facility', `🏗 ${co.name} breaks ground: ${H.name} (open in ${H.buildDays} days).`, 'info');
-    return { ok: true, text: `${H.name}: the site is open, and the building will be ready in ${H.buildDays} days.` };
+    return { ok: true, text: `${H.name}: the site is open, and the building will be ready in ${H.buildDays} days.${disc.offer ? ` (${Math.round(disc.pct * 100)}% off, thanks to the Park Authority.)` : ''}` };
   }
 
   /**
@@ -34057,7 +34340,7 @@ class Aerospace {
       const st = s.customers[t.customer];
       st.budget += t.ceiling * t.qty; // the commitment is released; the award spends what it costs
       const ranked = rankBids(C, t, bidders);
-      t.ranking = ranked.map((b) => ({ company: b.company, unitPrice: b.unitPrice, days: b.days, score: b.score }));
+      t.ranking = ranked.map((b) => ({ company: b.company, unitPrice: b.unitPrice, days: b.days, score: b.score, parts: Object.fromEntries(Object.entries(b.parts).map(([k, v]) => [k, Math.round(v * 100) / 100])) }));
       if (!ranked.length) {
         t.status = 'lapsed';
         continue;
@@ -34066,7 +34349,7 @@ class Aerospace {
       const co = this.company(win.company);
       t.status = 'awarded';
       t.winner = co.id;
-      const c = this.makeContract(co, { customer: t.customer, product: t.product, qty: t.qty, unitPrice: win.unitPrice, days: win.days, quality: t.quality, depositShare: t.deposit, tender: t.id, config: t.config });
+      const c = this.makeContract(co, { customer: t.customer, product: t.product, qty: t.qty, unitPrice: win.unitPrice, days: win.days, quality: t.quality, depositShare: t.deposit, tender: t.id, config: t.config, event: t.event });
       t.contract = c.id;
       st.budget -= c.total;
       st.spent += c.total;
@@ -34080,13 +34363,19 @@ class Aerospace {
       this.report(co, 'contract', `🏆 ${text} Deposit ${fmtMoney(c.depositPaid)}; due in ${win.days} days.`, co.kind === 'player' ? 'good' : null);
       for (const b of ranked.slice(1)) {
         const loser = this.company(b.company);
-        if (loser?.kind === 'player') this.report(loser, 'tender', `✖ ${cu.name} chose ${co.name} for ${t.qty} × ${p.name} (their ${fmtMoney(win.unitPrice)} a unit in ${win.days} days against your ${fmtMoney(b.unitPrice)} in ${b.days}).`, 'warn');
+        if (loser?.kind === 'player') {
+          // what the winner beat you on, by this customer's own weights (so the next bid can be better)
+          const labels = { price: 'price', time: 'delivery time', quality: 'quality', reputation: 'reputation' };
+          const gaps = Object.keys(labels).map((k) => [k, cu.priority[k] * (win.parts[k] - b.parts[k])]).filter(([, g]) => g > 0.005).sort((x, y) => y[1] - x[1]);
+          const lesson = gaps.length ? ` You lost mainly on ${gaps.slice(0, 2).map(([k]) => labels[k]).join(' and ')}.` : '';
+          this.report(loser, 'tender', `✖ ${cu.name} chose ${co.name} for ${t.qty} × ${p.name} (their ${fmtMoney(win.unitPrice)} a unit in ${win.days} days against your ${fmtMoney(b.unitPrice)} in ${b.days}).${lesson}`, 'warn');
+        }
       }
     }
   }
 
   /** A contract and its units. Quantities are checked here — the authoritative place (≤ 5 aircraft). */
-  makeContract(co, { customer, product, qty, unitPrice, days, quality, depositShare, tender, config = null }) {
+  makeContract(co, { customer, product, qty, unitPrice, days, quality, depositShare, tender, config = null, event = null }) {
     const C = this.cfg;
     const p = C.products[product];
     const err = quantityError(this.A, p, qty);
@@ -34102,6 +34391,7 @@ class Aerospace {
       signed: this.now, due: this.now + Math.round(days * DAY), tender,
       status: 'active', units: [], delivered: 0, failed: 0, revenue: 0, penalties: 0, settled: {}, history: [{ at: this.now, text: 'Signed.' }],
       ...(Object.keys(cfg).length ? { config: cfg } : {}),
+      ...(event ? { event } : {}),
     };
     this.state.contracts[id] = c;
     for (let n = 0; n < qty; n++) {
@@ -34142,7 +34432,7 @@ class Aerospace {
     c.penalties += penalty;
     c.history.push({ at: this.now, text: `Cancelled: deposit returned (${fmtMoney(owedDeposit)}), penalty ${fmtMoney(penalty)}.` });
     co.stats.cancelled += 1;
-    co.reputation = Math.max(0, co.reputation + this.A.reputation.cancelled);
+    this.repChange(co, this.A.reputation.cancelled, `Cancelled a contract for ${this.cfg.customers[c.customer].name}`);
     this.news(`${co.name} cancels its contract for ${this.cfg.customers[c.customer].name}.`, 'warn');
     return { ok: true, text: `Contract cancelled: ${fmtMoney(owedDeposit)} deposit returned and a ${fmtMoney(penalty)} penalty paid.` };
   }
@@ -34918,7 +35208,8 @@ class Aerospace {
     if (co.qaLog.length > 30) co.qaLog.length = 30;
     if (pass) return this.advance(co, u);
     co.stats.failedInspections += 1;
-    co.reputation = Math.max(0, co.reputation + this.A.reputation.failedInspection);
+    const recent = co.qaLog.filter((e) => !e.pass && e.at >= this.now - this.cfg.events.rep.failWindowDays * DAY).length;
+    this.repChange(co, this.A.reputation.failedInspection * this.streakMult(recent), `Failed inspection: ${p.name} #${u.n}${recent > 1 ? ` (${recent} in ${this.cfg.events.rep.failWindowDays} days)` : ''}`);
     const extra = Math.round(p.days * this.A.reworkShare * 1000) / 1000;
     u.need += extra;
     u.rework += extra;
@@ -34983,10 +35274,11 @@ class Aerospace {
     const what = u.purpose === 'launcher' ? `${(u.payload || []).length} satellite${(u.payload || []).length === 1 ? '' : 's'}` : `${C.customers[this.contract(u.contract)?.customer]?.name || 'a customer'}'s payload`;
     if (success) {
       this.news(`🚀 ${co.name} launches a ${p.name} from Starling Flats with ${what}.`, co.kind === 'player' ? 'good' : 'info');
+      milestone(this, co, 'first_launch', p.name);
       this.advance(co, u);
     } else {
       co.stats.launchFailures += 1;
-      co.reputation = Math.max(0, co.reputation - 6);
+      this.repChange(co, this.cfg.events.rep.launchFailure, `Launch failure: ${p.name}`);
       this.news(`💥 A ${co.name} ${p.name} is lost shortly after lift-off from Starling Flats, with ${what}.`, 'warn');
       this.failUnit(co, u, 'launch failure');
     }
@@ -35037,6 +35329,7 @@ class Aerospace {
       capability: u.commissioning?.partial ? 0.5 : 1, lifeDays: p.life, endsAt: this.now + p.life * DAY,
     };
     u.satellite = id;
+    milestone(this, co, 'first_satellite', p.name);
   }
 
   /** Delivery is complete: the customer pays the rest of the price, once. */
@@ -35071,7 +35364,23 @@ class Aerospace {
     c.revenue += price - penalty;
     c.penalties += penalty;
     co.stats.delivered += 1;
-    if (lateDays) { co.stats.late += 1; co.reputation = Math.max(0, co.reputation + this.A.reputation.late); } else { co.stats.onTime += 1; co.reputation = Math.min(100, co.reputation + this.A.reputation.onTime); }
+    const who = C.customers[c.customer].name;
+    const R = this.cfg.events.rep;
+    co.streaks ||= { late: 0, onTime: 0 };
+    if (lateDays) {
+      co.stats.late += 1;
+      co.streaks.late += 1; co.streaks.onTime = 0;
+      this.repChange(co, this.A.reputation.late * this.streakMult(co.streaks.late), `Late delivery: ${p.name} #${u.n} for ${who} (${lateDays} day${lateDays === 1 ? '' : 's'}${co.streaks.late > 1 ? `, ${co.streaks.late} late in a row` : ''})`);
+    } else {
+      co.stats.onTime += 1;
+      co.streaks.late = 0; co.streaks.onTime += 1;
+      this.repChange(co, this.A.reputation.onTime, `On-time delivery: ${p.name} #${u.n} for ${who}`);
+      if (co.streaks.onTime >= R.streakAt) this.repChange(co, R.streakBonus, `${co.streaks.onTime} deliveries on time in a row`);
+      if (!u.rework && !u.inspections.some((i) => !i.pass)) this.repChange(co, R.flawless, `Flawless build: ${p.name} #${u.n} passed first time`);
+    }
+    milestone(this, co, 'first_delivery', `${p.name} for ${who}`);
+    if (p.line === 'aircraft') milestone(this, co, 'first_aircraft', `${p.name} for ${who}`);
+    if (C.customers[c.customer].kind === 'defence') milestone(this, co, 'first_defence', who);
     c.history.push({ at: this.now, text: `Unit ${u.n} delivered${lateDays ? ` ${lateDays} day${lateDays === 1 ? '' : 's'} late (−${fmtMoney(penalty)})` : ''}${partial ? ' with reduced capability (half price)' : ''}.` });
     this.retire(u, 'delivered');
     u.status = 'delivered';
@@ -35085,6 +35394,7 @@ class Aerospace {
     if (c.delivered + c.failed < c.qty) return;
     c.status = c.failed && !c.delivered ? 'failed' : 'complete';
     c.history.push({ at: this.now, text: c.status === 'complete' ? 'Contract complete.' : 'Contract failed.' });
+    if (c.status === 'complete') eventContractDone(this, this.company(c.company), c);
   }
 
   /**
@@ -35155,6 +35465,7 @@ class Aerospace {
     for (const co of this.companies()) this.companyDay(co);
     this.closeTenders();
     this.postTenders();
+    if (this.roost) eventsMorning(this, this.roost); // v0.57.0: what the books and the floor say today
     const M = this.meridian;
     this.planLaunchers(M);
     rivalMorning(this, M);
@@ -35195,7 +35506,7 @@ class Aerospace {
       const R = C.research[co.researching.id];
       co.research.push(co.researching.id);
       this.report(co, 'research', `🔬 ${co.name} completes research: ${R.name}.`, co.kind === 'player' ? 'good' : null);
-      if (co.kind === 'rival') this.news(`Meridian announces a breakthrough: ${R.name.toLowerCase()}.`);
+      if (co.researching.breakthrough) applyBreakthrough(this, co, R);
       co.researching = null;
     }
     for (const b of co.bays) if (b.ready && b.ready <= this.now && !b.announced) { b.announced = true; this.report(co, 'facility', `🏗 ${C.bays[b.type].name} ${b.id.split('_').pop()} is open.`, co.kind === 'player' ? 'good' : null); }
@@ -35410,6 +35721,7 @@ class Aerospace {
       co.qaLog ||= [];
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
+      co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
     }
     this.migrateHalls();
   }
@@ -57903,11 +58215,12 @@ const MODES = [
   ['contracts', '📑', 'Contracts'],
   ['supply', '📦', 'Supply'],
   ['hangar', '🏗', 'Hangar'],
+  ['standing', '📣', 'Standing'],
   ['books', '📒', 'Books'],
   ['meridian', '📈', 'Meridian'],
 ];
 /** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
-const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Books: 'books', Meridian: 'meridian' };
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
 const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
 const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
 const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
@@ -58306,7 +58619,7 @@ function aerospacePanel(ui, body, opts = {}) {
       e.stopImmediatePropagation();
       if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
       refresh();
-    } else if (!readonly && /^[1-7]$/.test(e.key)) {
+    } else if (!readonly && /^[1-8]$/.test(e.key)) {
       e.stopImmediatePropagation();
       go(MODES[Number(e.key) - 1][0]);
     }
@@ -58345,6 +58658,7 @@ function aerospacePanel(ui, body, opts = {}) {
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
     else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
     return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
   };
 
@@ -58417,6 +58731,8 @@ function aerospacePanel(ui, body, opts = {}) {
     const short = A.shortfalls(c);
     const crew = A.crewNeeded(c, { all: true });
     const alerts = [];
+    for (const e of (c.events || []).filter((x) => !x.resolved)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('standing') }, `🔍 ${e.title} — decide by Day ${e.expires} ›`));
+    for (const o of (c.offers || []).filter((x) => x.until >= A.day)) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🏗 ${Math.round(o.pct * 100)}% off the ${C.halls[o.hall].name} until Day ${o.until} — ${o.reason} ›`));
     for (const x of late) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('contracts') }, `⏰ ${x.qty} × ${C.products[x.product].name} for ${C.customers[x.customer].name} is late — ${Math.round(A.A.latePerDay * 100)}% a day withheld ›`));
     for (const u of blocked.slice(0, 3)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, `⚠ ${C.products[u.product].name} #${u.n}: ${u.blocker?.text || 'blocked'} ›`));
     if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
@@ -58522,7 +58838,7 @@ function aerospacePanel(ui, body, opts = {}) {
     sheet.classList.toggle('hidden', !on);
     if (!on) return;
     const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
-    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
     const name = MODES.find((x) => x[0] === AO.mode)[2];
     sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
     sheet.dataset.mode = AO.mode;
@@ -58554,7 +58870,7 @@ function aerospacePanel(ui, body, opts = {}) {
     const c = co();
     const cu = C.customers[t.customer];
     const head = h('div', { class: 'ao-card-head' }, pic(productLook(C, t.product), 132, 64),
-      h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${p.name}`), h('small', {}, cu.name), h('div', { class: 'ao-pills' }, pill(LINE_NAME[p.line], COL.blue), t.defence ? pill('defence', COL.amber) : null, t.embargoed ? pill('embargoed', COL.red) : null, mine ? pill('bid sealed', COL.green) : null)),
+      h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${p.name}`), h('small', {}, cu.name), h('div', { class: 'ao-pills' }, t.event ? pill(t.event === 'government' ? '🏛 government order' : '🛰 constellation', COL.amber) : null, pill(LINE_NAME[p.line], COL.blue), t.minReputation ? pill(`reputation ${t.minReputation}+`, c.reputation >= t.minReputation ? COL.green : COL.red) : null, t.defence ? pill('defence', COL.amber) : null, t.embargoed ? pill('embargoed', COL.red) : null, mine ? pill('bid sealed', COL.green) : null)),
       h('div', { class: 'ao-pay' }, fmtMoney(t.ceiling * t.qty), h('small', {}, 'at the ceiling')));
     const facts = h('div', { class: 'ao-facts' },
       h('div', {}, h('small', {}, 'Ceiling / unit'), h('b', {}, fmtMoney(t.ceiling))),
@@ -58564,7 +58880,7 @@ function aerospacePanel(ui, body, opts = {}) {
     const confRow = configRow(t);
     const prio = h('div', { class: 'ao-prio' }, ...PRIORITY.map(([k, label]) => bar(label, cu.priority[k] / 0.6, COL.blue, `${Math.round(cu.priority[k] * 100)}%`)));
     const you = h('div', { class: 'ao-you' }, `Your cost ≈ ${money(q.cost)} a unit (materials ${fmtMoney(q.est.materials)}, freight ${fmtMoney(q.est.freight)}, bay-days ${fmtMoney(q.est.labour)}${q.launch ? `, launch ${fmtMoney(q.launch)}` : ''}) · earliest delivery ≈ ${Number.isFinite(q.delivery) ? `${q.delivery} d` : '—'}`);
-    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), confRow, facts, prio, you);
+    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}${t.event ? ' event' : ''}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), confRow, facts, prio, you);
     if (mine) card.append(h('div', { class: 'ao-sealed' }, `🔒 Sealed: ${money(mine.unitPrice)} a unit, ${mine.days} days — the customer decides Day ${t.closes}.`));
     else if (q.ok || /price|delivery/.test(q.reason || '')) card.append(composer(t, q, c));
     else card.append(h('div', { class: 'ao-why' }, `✖ ${q.reason}`));
@@ -58822,6 +59138,33 @@ function aerospacePanel(ui, body, opts = {}) {
           unlocks(id).length ? h('div', { class: 'ao-unlocks' }, ...unlocks(id).map((p) => h('span', {}, pic(productLook(C, Object.keys(C.products).find((k2) => C.products[k2] === p)), 56, 28), p.name))) : null,
           btn(`Research · ${money(r.cost)}`, () => act(() => A.startResearch(c, id)), 'primary', Boolean(c.researching) || !A.canAfford(c, r.cost))))),
         locked.length ? muted(`Later: ${locked.map(([, r]) => `${r.name} (needs ${(r.requires || []).filter((x) => !c.research.includes(x)).map((x) => R[x].name).join(', ')})`).join(' · ')}`) : null));
+  };
+
+  // ------------------------------------------------------------------ standing (reputation, decisions, the firsts)
+  const standingSheet = () => {
+    const c = co();
+    const M = A.meridian;
+    const R = C.events;
+    const open = (c.events || []).filter((e) => !e.resolved);
+    const done = (c.events || []).filter((e) => e.resolved).slice(-4).reverse();
+    const offers = (c.offers || []).filter((o) => o.until >= A.day);
+    const log = c.repLog || [];
+    const month = log.filter((e) => e.at >= A.now - 30 * 1440).reduce((a, e) => a + e.delta, 0);
+    const first = (key) => c.milestones?.[key];
+    return h('div', {},
+      h('div', { class: 'ao-kpis' }, kpi('Reputation', `${Math.round(c.reputation)} / 100`, c.reputation >= 60 ? 'pos' : c.reputation < 35 ? 'neg' : ''), kpi('Last 30 days', `${month >= 0 ? '+' : ''}${month.toFixed(1)}`, month >= 0 ? 'pos' : 'neg'), kpi('On time in a row', String(c.streaks?.onTime || 0), '', `${c.streaks?.late ? `${c.streaks.late} late in a row` : `${R.rep.streakAt}+ earns a bonus`}`), kpi('Meridian', `${Math.round(M.reputation)}`, '', 'for comparison')),
+      muted('Reputation weighs in every customer\'s choice between you and Meridian, and some orders are closed to anyone below a certain standing. It rises with on-time deliveries and flawless builds, and falls with late ones, failed inspections, lost launches and cancelled contracts — and repeating a failure costs more each time.'),
+      open.length || offers.length ? section('Decisions & offers', ...open.map((e) => h('div', { class: 'ao-card event' },
+        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, `🔍 ${e.title}`), h('small', {}, e.text)), pill(`decide by Day ${e.expires}`, COL.red)),
+        h('div', { class: 'ao-row-inline' }, ...e.choices.map((ch) => h('div', { class: 'ao-choice' }, btn(ch.label, () => act(() => A.resolveEvent(c, e.id, ch.id)), 'primary', !A.canAfford(c, ch.cost || 0)), h('small', {}, ch.text)))))),
+        ...offers.map((o) => h('div', { class: 'ao-card event' }, h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, `🏗 ${Math.round(o.pct * 100)}% off the ${C.halls[o.hall].name}`), h('small', {}, `The Park Authority: ${o.reason}. Build it by Day ${o.until} and pay ${fmtMoney(C.halls[o.hall].build * (1 - o.pct))} instead of ${fmtMoney(C.halls[o.hall].build)}.`)), pill(`until Day ${o.until}`, COL.amber)), btn('To the Hangar ›', () => go('hangar'))))) : null,
+      h('div', { class: 'ao-two' },
+        section('Reputation — what moved it', log.length ? h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+          h('tr', {}, h('th', {}, 'When'), h('th', { class: 'r' }, 'Change'), h('th', {}, 'Why'), h('th', { class: 'r' }, 'Now')),
+          ...log.slice(0, 24).map((e) => h('tr', {}, h('td', {}, A.when(e.at).replace('Day ', 'D')), h('td', { class: `r ${e.delta > 0 ? 'pos' : e.delta < 0 ? 'neg' : ''}` }, `${e.delta > 0 ? '+' : ''}${e.delta}`), h('td', {}, e.why), h('td', { class: 'r' }, String(e.total)))))) : muted('Nothing yet: it starts moving with your first delivery.')),
+        h('div', {},
+          section('The firsts', h('div', { class: 'ao-list' }, ...Object.entries(R.milestones).map(([key, m]) => { const got = first(key); return h('div', { class: `ao-row static${got ? '' : ' dim'}` }, h('div', { class: 'ic' }, got ? '🏅' : '○'), h('div', { class: 'grow' }, h('b', {}, m.name), h('small', {}, got ? `Day ${got.day}${got.detail ? ` · ${got.detail}` : ''}` : `${m.text} · +${m.rep} reputation`))); }))),
+          done.length ? section('Recently decided', ...done.map((e) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, e.title), h('small', {}, `Day ${Math.floor(e.resolved.at / 1440) + 1}: ${e.resolved.choice === 'programme' ? 'you funded a corrective programme' : e.resolved.choice === 'fine' ? 'you paid the fine' : 'ignored — the regulator fined you'}`))))) : null)));
   };
 
   // ------------------------------------------------------------------ books

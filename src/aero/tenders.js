@@ -38,18 +38,19 @@ export function allowedDays(product, qty, rng) {
  * the customer's live record ({ budget }). The customer's budget is
  * committed for the tender's ceiling and given back by the award or lapse.
  */
-export function makeTender(C, rng, { id, customerId, state, day, embargoed = false }) {
+export function makeTender(C, rng, { id, customerId, state, day, embargoed = false, force = null }) {
   const cu = C.customers[customerId];
   const wants = Object.entries(cu.wants).filter(([pid]) => C.products[pid]);
   const total = wants.reduce((a, [, w]) => a + w, 0);
   let r = rng.next() * total;
   let pid = wants[0][0];
   for (const [p, w] of wants) { r -= w; if (r <= 0) { pid = p; break; } }
+  if (force?.product) pid = force.product; // an event's tender names what it wants (v0.57.0)
   const base = C.products[pid];
   // v0.57.0: what the customer wants the product to be (fixed by the tender's id and its habits — no dice, so the rest is as it was)
   const config = pickConfig(C, base, cu, pid, id);
   const product = configure(C, base, config, pid);
-  let qty = tenderQty(C, base, rng);
+  let qty = force?.qty ?? tenderQty(C, base, rng);
   const unit = Math.round((product.price + launchAllowance(C, product)) * (0.97 + rng.next() * 0.14) / 100) * 100;
   while (qty > 1 && unit * qty > state.budget) qty--;
   if (unit * qty > state.budget || quantityError(C.aero, base, qty)) return null;
@@ -72,6 +73,7 @@ export function bidError(C, tender, bid, bidder) {
   if (!(bid.days > 0) || bid.days > tender.days) return `delivery must be within ${tender.days} days`;
   if (bidder.quality < tender.quality) return `the customer requires quality ${tender.quality} (yours: ${Math.round(bidder.quality)})`;
   if (tender.defence && !bidder.cleared) return 'defence work needs a secure hall and security clearance';
+  if (tender.minReputation && bidder.reputation < tender.minReputation) return `this customer wants a supplier with a reputation of ${tender.minReputation}+ (yours: ${Math.round(bidder.reputation)})`;
   if (!bidder.canBuild) return bidder.missing?.length ? `it needs research you don't have yet: ${bidder.missing.join(', ')}` : 'you can\'t build this product (research or a suitable bay)';
   const err = quantityError(C.aero, C.products[tender.product], tender.qty);
   if (err) return err;

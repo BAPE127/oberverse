@@ -196,6 +196,32 @@ export const FACILITIES = {
 };
 
 /**
+ * Reputation and events (v0.57.0). Every change to a company's reputation is logged with its reason;
+ * repeated failures cost more each time (`step` of the base per failure in a row, up to `cap` times)
+ * and a run of on-time deliveries earns a little extra. Events are not dice: each one comes from a
+ * condition in the company's own books and floor (a reputation to qualify, a bay that has been the
+ * bottleneck, a run of failed inspections), is gated by a stable hash of the day (so a reload can't
+ * change it), has a cool-down, and works through the same checked methods as everything else.
+ */
+export const EVENTS = {
+  rep: { flawless: 1, streakAt: 3, streakBonus: 1, step: 0.5, cap: 3, failWindowDays: 14, launchFailure: -6 },
+  government: { cooldown: 20, chance: 0.4, minReputation: 50, ceilingBoost: 1.12, deposit: 0.35, daysBoost: 1.15, closeDays: 3, reward: 3, kinds: ['government', 'defence'] },
+  constellation: { cooldown: 40, chance: 0.35, minReputation: 40, qty: [4, 8], deposit: 0.3, daysBoost: 1.3, closeDays: 3, reward: 4, kinds: ['comms', 'agency', 'science', 'government'] },
+  breakthrough: { base: 0.1, lab: 0.08, engineers: 0.05, quality: 2, reputation: 1 },
+  expansion: { pressureDays: 3, discount: 0.25, window: 7, cooldown: 30 },
+  audit: { failures: 3, cooldown: 30, decideDays: 5, fine: 15000, finePerTech: 150, programme: 20000, programmePerTech: 300, repFine: -3, repIgnored: -4, experience: 3 },
+  milestones: {
+    first_delivery: { name: 'First delivery', rep: 2, text: 'the first unit out of the door' },
+    first_aircraft: { name: 'First aircraft delivered', rep: 1, text: 'an aircraft flown away by its new owner' },
+    first_defence: { name: 'First defence contract delivered', rep: 2, text: 'work for a defence buyer, delivered' },
+    first_launch: { name: 'First successful launch', rep: 3, text: 'a launch vehicle off the pad and away' },
+    first_satellite: { name: 'First satellite in orbit', rep: 3, text: 'a satellite commissioned in orbit' },
+    first_government: { name: 'First government order delivered', rep: 2, text: 'a major order for the state, delivered in full' },
+    first_constellation: { name: 'First constellation complete', rep: 4, text: 'a whole constellation, delivered on time' },
+  },
+};
+
+/**
  * Product configuration (v0.57.0): bounded options a customer may ask for. A tender names the
  * configuration it wants (src/aero/config.js makes it from the customer's kind), and the contract,
  * its units and the finished aircraft carry it. Each option changes what the product costs and

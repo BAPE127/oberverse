@@ -29,11 +29,12 @@ const MODES = [
   ['contracts', '📑', 'Contracts'],
   ['supply', '📦', 'Supply'],
   ['hangar', '🏗', 'Hangar'],
+  ['standing', '📣', 'Standing'],
   ['books', '📒', 'Books'],
   ['meridian', '📈', 'Meridian'],
 ];
 /** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
-const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Books: 'books', Meridian: 'meridian' };
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
 const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
 const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
 const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
@@ -432,7 +433,7 @@ export function aerospacePanel(ui, body, opts = {}) {
       e.stopImmediatePropagation();
       if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
       refresh();
-    } else if (!readonly && /^[1-7]$/.test(e.key)) {
+    } else if (!readonly && /^[1-8]$/.test(e.key)) {
       e.stopImmediatePropagation();
       go(MODES[Number(e.key) - 1][0]);
     }
@@ -471,6 +472,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
     else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
     return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
   };
 
@@ -543,6 +545,8 @@ export function aerospacePanel(ui, body, opts = {}) {
     const short = A.shortfalls(c);
     const crew = A.crewNeeded(c, { all: true });
     const alerts = [];
+    for (const e of (c.events || []).filter((x) => !x.resolved)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('standing') }, `🔍 ${e.title} — decide by Day ${e.expires} ›`));
+    for (const o of (c.offers || []).filter((x) => x.until >= A.day)) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🏗 ${Math.round(o.pct * 100)}% off the ${C.halls[o.hall].name} until Day ${o.until} — ${o.reason} ›`));
     for (const x of late) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('contracts') }, `⏰ ${x.qty} × ${C.products[x.product].name} for ${C.customers[x.customer].name} is late — ${Math.round(A.A.latePerDay * 100)}% a day withheld ›`));
     for (const u of blocked.slice(0, 3)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, `⚠ ${C.products[u.product].name} #${u.n}: ${u.blocker?.text || 'blocked'} ›`));
     if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
@@ -648,7 +652,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     sheet.classList.toggle('hidden', !on);
     if (!on) return;
     const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
-    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
     const name = MODES.find((x) => x[0] === AO.mode)[2];
     sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
     sheet.dataset.mode = AO.mode;
@@ -680,7 +684,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     const c = co();
     const cu = C.customers[t.customer];
     const head = h('div', { class: 'ao-card-head' }, pic(productLook(C, t.product), 132, 64),
-      h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${p.name}`), h('small', {}, cu.name), h('div', { class: 'ao-pills' }, pill(LINE_NAME[p.line], COL.blue), t.defence ? pill('defence', COL.amber) : null, t.embargoed ? pill('embargoed', COL.red) : null, mine ? pill('bid sealed', COL.green) : null)),
+      h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${p.name}`), h('small', {}, cu.name), h('div', { class: 'ao-pills' }, t.event ? pill(t.event === 'government' ? '🏛 government order' : '🛰 constellation', COL.amber) : null, pill(LINE_NAME[p.line], COL.blue), t.minReputation ? pill(`reputation ${t.minReputation}+`, c.reputation >= t.minReputation ? COL.green : COL.red) : null, t.defence ? pill('defence', COL.amber) : null, t.embargoed ? pill('embargoed', COL.red) : null, mine ? pill('bid sealed', COL.green) : null)),
       h('div', { class: 'ao-pay' }, fmtMoney(t.ceiling * t.qty), h('small', {}, 'at the ceiling')));
     const facts = h('div', { class: 'ao-facts' },
       h('div', {}, h('small', {}, 'Ceiling / unit'), h('b', {}, fmtMoney(t.ceiling))),
@@ -690,7 +694,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     const confRow = configRow(t);
     const prio = h('div', { class: 'ao-prio' }, ...PRIORITY.map(([k, label]) => bar(label, cu.priority[k] / 0.6, COL.blue, `${Math.round(cu.priority[k] * 100)}%`)));
     const you = h('div', { class: 'ao-you' }, `Your cost ≈ ${money(q.cost)} a unit (materials ${fmtMoney(q.est.materials)}, freight ${fmtMoney(q.est.freight)}, bay-days ${fmtMoney(q.est.labour)}${q.launch ? `, launch ${fmtMoney(q.launch)}` : ''}) · earliest delivery ≈ ${Number.isFinite(q.delivery) ? `${q.delivery} d` : '—'}`);
-    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), confRow, facts, prio, you);
+    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}${t.event ? ' event' : ''}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), confRow, facts, prio, you);
     if (mine) card.append(h('div', { class: 'ao-sealed' }, `🔒 Sealed: ${money(mine.unitPrice)} a unit, ${mine.days} days — the customer decides Day ${t.closes}.`));
     else if (q.ok || /price|delivery/.test(q.reason || '')) card.append(composer(t, q, c));
     else card.append(h('div', { class: 'ao-why' }, `✖ ${q.reason}`));
@@ -948,6 +952,33 @@ export function aerospacePanel(ui, body, opts = {}) {
           unlocks(id).length ? h('div', { class: 'ao-unlocks' }, ...unlocks(id).map((p) => h('span', {}, pic(productLook(C, Object.keys(C.products).find((k2) => C.products[k2] === p)), 56, 28), p.name))) : null,
           btn(`Research · ${money(r.cost)}`, () => act(() => A.startResearch(c, id)), 'primary', Boolean(c.researching) || !A.canAfford(c, r.cost))))),
         locked.length ? muted(`Later: ${locked.map(([, r]) => `${r.name} (needs ${(r.requires || []).filter((x) => !c.research.includes(x)).map((x) => R[x].name).join(', ')})`).join(' · ')}`) : null));
+  };
+
+  // ------------------------------------------------------------------ standing (reputation, decisions, the firsts)
+  const standingSheet = () => {
+    const c = co();
+    const M = A.meridian;
+    const R = C.events;
+    const open = (c.events || []).filter((e) => !e.resolved);
+    const done = (c.events || []).filter((e) => e.resolved).slice(-4).reverse();
+    const offers = (c.offers || []).filter((o) => o.until >= A.day);
+    const log = c.repLog || [];
+    const month = log.filter((e) => e.at >= A.now - 30 * 1440).reduce((a, e) => a + e.delta, 0);
+    const first = (key) => c.milestones?.[key];
+    return h('div', {},
+      h('div', { class: 'ao-kpis' }, kpi('Reputation', `${Math.round(c.reputation)} / 100`, c.reputation >= 60 ? 'pos' : c.reputation < 35 ? 'neg' : ''), kpi('Last 30 days', `${month >= 0 ? '+' : ''}${month.toFixed(1)}`, month >= 0 ? 'pos' : 'neg'), kpi('On time in a row', String(c.streaks?.onTime || 0), '', `${c.streaks?.late ? `${c.streaks.late} late in a row` : `${R.rep.streakAt}+ earns a bonus`}`), kpi('Meridian', `${Math.round(M.reputation)}`, '', 'for comparison')),
+      muted('Reputation weighs in every customer\'s choice between you and Meridian, and some orders are closed to anyone below a certain standing. It rises with on-time deliveries and flawless builds, and falls with late ones, failed inspections, lost launches and cancelled contracts — and repeating a failure costs more each time.'),
+      open.length || offers.length ? section('Decisions & offers', ...open.map((e) => h('div', { class: 'ao-card event' },
+        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, `🔍 ${e.title}`), h('small', {}, e.text)), pill(`decide by Day ${e.expires}`, COL.red)),
+        h('div', { class: 'ao-row-inline' }, ...e.choices.map((ch) => h('div', { class: 'ao-choice' }, btn(ch.label, () => act(() => A.resolveEvent(c, e.id, ch.id)), 'primary', !A.canAfford(c, ch.cost || 0)), h('small', {}, ch.text)))))),
+        ...offers.map((o) => h('div', { class: 'ao-card event' }, h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, `🏗 ${Math.round(o.pct * 100)}% off the ${C.halls[o.hall].name}`), h('small', {}, `The Park Authority: ${o.reason}. Build it by Day ${o.until} and pay ${fmtMoney(C.halls[o.hall].build * (1 - o.pct))} instead of ${fmtMoney(C.halls[o.hall].build)}.`)), pill(`until Day ${o.until}`, COL.amber)), btn('To the Hangar ›', () => go('hangar'))))) : null,
+      h('div', { class: 'ao-two' },
+        section('Reputation — what moved it', log.length ? h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+          h('tr', {}, h('th', {}, 'When'), h('th', { class: 'r' }, 'Change'), h('th', {}, 'Why'), h('th', { class: 'r' }, 'Now')),
+          ...log.slice(0, 24).map((e) => h('tr', {}, h('td', {}, A.when(e.at).replace('Day ', 'D')), h('td', { class: `r ${e.delta > 0 ? 'pos' : e.delta < 0 ? 'neg' : ''}` }, `${e.delta > 0 ? '+' : ''}${e.delta}`), h('td', {}, e.why), h('td', { class: 'r' }, String(e.total)))))) : muted('Nothing yet: it starts moving with your first delivery.')),
+        h('div', {},
+          section('The firsts', h('div', { class: 'ao-list' }, ...Object.entries(R.milestones).map(([key, m]) => { const got = first(key); return h('div', { class: `ao-row static${got ? '' : ' dim'}` }, h('div', { class: 'ic' }, got ? '🏅' : '○'), h('div', { class: 'grow' }, h('b', {}, m.name), h('small', {}, got ? `Day ${got.day}${got.detail ? ` · ${got.detail}` : ''}` : `${m.text} · +${m.rep} reputation`))); }))),
+          done.length ? section('Recently decided', ...done.map((e) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, e.title), h('small', {}, `Day ${Math.floor(e.resolved.at / 1440) + 1}: ${e.resolved.choice === 'programme' ? 'you funded a corrective programme' : e.resolved.choice === 'fine' ? 'you paid the fine' : 'ignored — the regulator fined you'}`))))) : null)));
   };
 
   // ------------------------------------------------------------------ books

@@ -27,6 +27,7 @@ import { configure, cleanConfig, configError, configLabel } from '../aero/config
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
+import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
 const NEWS_MAX = 60;
@@ -176,6 +177,8 @@ export class Aerospace {
       freight: { external: 0, internalCharges: 0, equivalent: 0, voyageCosts: 0 },
       // v0.57.0: the other people (engineers, inspectors), what they've learnt together, how it's kept up
       engineers: 0, inspectors: 0, experience: C.staff.experience.start[id] ?? 50, training: 'none', qaLog: [],
+      // v0.57.0: reputation with its reasons, the streaks behind it, decisions and offers, the firsts, cool-downs
+      repLog: [], streaks: { late: 0, onTime: 0 }, events: [], offers: [], cool: {}, milestones: {}, pressure: null,
     };
     co.engineers = this.staffNeeded(co, 'engineer');
     co.inspectors = this.staffNeeded(co, 'inspector');
@@ -394,6 +397,28 @@ export class Aerospace {
     return { ok: true, text: level === 'none' ? 'Training stopped: the crew learn on the job.' : `Training: ${T.name.toLowerCase()} — ${T.perDay} obols per technician a day.` };
   }
 
+  // ------------------------------------------------------------- reputation (v0.57.0)
+  /** Every change to reputation goes through here: clamped to 0–100, and logged with its reason (so it can be read). */
+  repChange(co, delta, why) {
+    if (!delta) return 0;
+    const before = co.reputation;
+    co.reputation = Math.max(0, Math.min(100, before + delta));
+    const applied = Math.round((co.reputation - before) * 10) / 10;
+    (co.repLog ||= []).unshift({ at: this.now, delta: applied, wanted: delta, why, total: Math.round(co.reputation * 10) / 10 });
+    if (co.repLog.length > 60) co.repLog.length = 60;
+    return applied;
+  }
+
+  /** Repeated failures cost more each time: the base, then half as much again, up to the cap. */
+  streakMult(n) {
+    const R = this.cfg.events.rep;
+    return Math.min(R.cap, 1 + R.step * (n - 1));
+  }
+
+  resolveEvent(co, eventId, choiceId) {
+    return resolveEvent(this, co, eventId, choiceId);
+  }
+
   /** What the company's quality is made of (every part visible, so it can be managed). */
   qualityBreakdown(co) {
     const X = this.cfg.staff.experience;
@@ -520,7 +545,7 @@ export class Aerospace {
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
     const days = Math.max(1, Math.round((R.days * this.researchFactor(co)) / this.engineerRate(co)));
-    co.researching = { id, doneAt: this.now + Math.round(days * DAY) };
+    co.researching = { id, doneAt: this.now + Math.round(days * DAY), breakthrough: rollBreakthrough(this, co, id) };
     this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
     return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : days > R.days ? ' (short of engineers)' : ''}.` };
   }
@@ -577,12 +602,15 @@ export class Aerospace {
     if (!H || !H.build) return { ok: false, text: 'No such hall.' };
     if (co.kind !== 'player') return { ok: false, text: 'Only Roost builds on its plots.' };
     if (this.hallState(co, id).state !== 'site') return { ok: false, text: `${H.name}: already built or being built.` };
-    if (!this.canAfford(co, H.build)) return { ok: false, text: `${H.name} costs ${H.build.toLocaleString()} obols.` };
-    this.pay(co, H.build, null);
-    co.books.capex += H.build;
+    const disc = hallDiscount(this, co, id);
+    const cost = Math.round(H.build * (1 - disc.pct));
+    if (!this.canAfford(co, cost)) return { ok: false, text: `${H.name} costs ${cost.toLocaleString()} obols.` };
+    this.pay(co, cost, null);
+    co.books.capex += cost;
     co.halls[id] = this.now + Math.round(H.buildDays * DAY);
+    if (disc.offer) { co.offers = co.offers.filter((o) => o !== disc.offer); this.report(co, 'facility', `🏗 The Park Authority's offer saved ${fmtMoney(H.build - cost)} on the ${H.name}.`, 'good'); }
     this.report(co, 'facility', `🏗 ${co.name} breaks ground: ${H.name} (open in ${H.buildDays} days).`, 'info');
-    return { ok: true, text: `${H.name}: the site is open, and the building will be ready in ${H.buildDays} days.` };
+    return { ok: true, text: `${H.name}: the site is open, and the building will be ready in ${H.buildDays} days.${disc.offer ? ` (${Math.round(disc.pct * 100)}% off, thanks to the Park Authority.)` : ''}` };
   }
 
   /**
@@ -729,7 +757,7 @@ export class Aerospace {
       const st = s.customers[t.customer];
       st.budget += t.ceiling * t.qty; // the commitment is released; the award spends what it costs
       const ranked = rankBids(C, t, bidders);
-      t.ranking = ranked.map((b) => ({ company: b.company, unitPrice: b.unitPrice, days: b.days, score: b.score }));
+      t.ranking = ranked.map((b) => ({ company: b.company, unitPrice: b.unitPrice, days: b.days, score: b.score, parts: Object.fromEntries(Object.entries(b.parts).map(([k, v]) => [k, Math.round(v * 100) / 100])) }));
       if (!ranked.length) {
         t.status = 'lapsed';
         continue;
@@ -738,7 +766,7 @@ export class Aerospace {
       const co = this.company(win.company);
       t.status = 'awarded';
       t.winner = co.id;
-      const c = this.makeContract(co, { customer: t.customer, product: t.product, qty: t.qty, unitPrice: win.unitPrice, days: win.days, quality: t.quality, depositShare: t.deposit, tender: t.id, config: t.config });
+      const c = this.makeContract(co, { customer: t.customer, product: t.product, qty: t.qty, unitPrice: win.unitPrice, days: win.days, quality: t.quality, depositShare: t.deposit, tender: t.id, config: t.config, event: t.event });
       t.contract = c.id;
       st.budget -= c.total;
       st.spent += c.total;
@@ -752,13 +780,19 @@ export class Aerospace {
       this.report(co, 'contract', `🏆 ${text} Deposit ${fmtMoney(c.depositPaid)}; due in ${win.days} days.`, co.kind === 'player' ? 'good' : null);
       for (const b of ranked.slice(1)) {
         const loser = this.company(b.company);
-        if (loser?.kind === 'player') this.report(loser, 'tender', `✖ ${cu.name} chose ${co.name} for ${t.qty} × ${p.name} (their ${fmtMoney(win.unitPrice)} a unit in ${win.days} days against your ${fmtMoney(b.unitPrice)} in ${b.days}).`, 'warn');
+        if (loser?.kind === 'player') {
+          // what the winner beat you on, by this customer's own weights (so the next bid can be better)
+          const labels = { price: 'price', time: 'delivery time', quality: 'quality', reputation: 'reputation' };
+          const gaps = Object.keys(labels).map((k) => [k, cu.priority[k] * (win.parts[k] - b.parts[k])]).filter(([, g]) => g > 0.005).sort((x, y) => y[1] - x[1]);
+          const lesson = gaps.length ? ` You lost mainly on ${gaps.slice(0, 2).map(([k]) => labels[k]).join(' and ')}.` : '';
+          this.report(loser, 'tender', `✖ ${cu.name} chose ${co.name} for ${t.qty} × ${p.name} (their ${fmtMoney(win.unitPrice)} a unit in ${win.days} days against your ${fmtMoney(b.unitPrice)} in ${b.days}).${lesson}`, 'warn');
+        }
       }
     }
   }
 
   /** A contract and its units. Quantities are checked here — the authoritative place (≤ 5 aircraft). */
-  makeContract(co, { customer, product, qty, unitPrice, days, quality, depositShare, tender, config = null }) {
+  makeContract(co, { customer, product, qty, unitPrice, days, quality, depositShare, tender, config = null, event = null }) {
     const C = this.cfg;
     const p = C.products[product];
     const err = quantityError(this.A, p, qty);
@@ -774,6 +808,7 @@ export class Aerospace {
       signed: this.now, due: this.now + Math.round(days * DAY), tender,
       status: 'active', units: [], delivered: 0, failed: 0, revenue: 0, penalties: 0, settled: {}, history: [{ at: this.now, text: 'Signed.' }],
       ...(Object.keys(cfg).length ? { config: cfg } : {}),
+      ...(event ? { event } : {}),
     };
     this.state.contracts[id] = c;
     for (let n = 0; n < qty; n++) {
@@ -814,7 +849,7 @@ export class Aerospace {
     c.penalties += penalty;
     c.history.push({ at: this.now, text: `Cancelled: deposit returned (${fmtMoney(owedDeposit)}), penalty ${fmtMoney(penalty)}.` });
     co.stats.cancelled += 1;
-    co.reputation = Math.max(0, co.reputation + this.A.reputation.cancelled);
+    this.repChange(co, this.A.reputation.cancelled, `Cancelled a contract for ${this.cfg.customers[c.customer].name}`);
     this.news(`${co.name} cancels its contract for ${this.cfg.customers[c.customer].name}.`, 'warn');
     return { ok: true, text: `Contract cancelled: ${fmtMoney(owedDeposit)} deposit returned and a ${fmtMoney(penalty)} penalty paid.` };
   }
@@ -1590,7 +1625,8 @@ export class Aerospace {
     if (co.qaLog.length > 30) co.qaLog.length = 30;
     if (pass) return this.advance(co, u);
     co.stats.failedInspections += 1;
-    co.reputation = Math.max(0, co.reputation + this.A.reputation.failedInspection);
+    const recent = co.qaLog.filter((e) => !e.pass && e.at >= this.now - this.cfg.events.rep.failWindowDays * DAY).length;
+    this.repChange(co, this.A.reputation.failedInspection * this.streakMult(recent), `Failed inspection: ${p.name} #${u.n}${recent > 1 ? ` (${recent} in ${this.cfg.events.rep.failWindowDays} days)` : ''}`);
     const extra = Math.round(p.days * this.A.reworkShare * 1000) / 1000;
     u.need += extra;
     u.rework += extra;
@@ -1655,10 +1691,11 @@ export class Aerospace {
     const what = u.purpose === 'launcher' ? `${(u.payload || []).length} satellite${(u.payload || []).length === 1 ? '' : 's'}` : `${C.customers[this.contract(u.contract)?.customer]?.name || 'a customer'}'s payload`;
     if (success) {
       this.news(`🚀 ${co.name} launches a ${p.name} from Starling Flats with ${what}.`, co.kind === 'player' ? 'good' : 'info');
+      milestone(this, co, 'first_launch', p.name);
       this.advance(co, u);
     } else {
       co.stats.launchFailures += 1;
-      co.reputation = Math.max(0, co.reputation - 6);
+      this.repChange(co, this.cfg.events.rep.launchFailure, `Launch failure: ${p.name}`);
       this.news(`💥 A ${co.name} ${p.name} is lost shortly after lift-off from Starling Flats, with ${what}.`, 'warn');
       this.failUnit(co, u, 'launch failure');
     }
@@ -1709,6 +1746,7 @@ export class Aerospace {
       capability: u.commissioning?.partial ? 0.5 : 1, lifeDays: p.life, endsAt: this.now + p.life * DAY,
     };
     u.satellite = id;
+    milestone(this, co, 'first_satellite', p.name);
   }
 
   /** Delivery is complete: the customer pays the rest of the price, once. */
@@ -1743,7 +1781,23 @@ export class Aerospace {
     c.revenue += price - penalty;
     c.penalties += penalty;
     co.stats.delivered += 1;
-    if (lateDays) { co.stats.late += 1; co.reputation = Math.max(0, co.reputation + this.A.reputation.late); } else { co.stats.onTime += 1; co.reputation = Math.min(100, co.reputation + this.A.reputation.onTime); }
+    const who = C.customers[c.customer].name;
+    const R = this.cfg.events.rep;
+    co.streaks ||= { late: 0, onTime: 0 };
+    if (lateDays) {
+      co.stats.late += 1;
+      co.streaks.late += 1; co.streaks.onTime = 0;
+      this.repChange(co, this.A.reputation.late * this.streakMult(co.streaks.late), `Late delivery: ${p.name} #${u.n} for ${who} (${lateDays} day${lateDays === 1 ? '' : 's'}${co.streaks.late > 1 ? `, ${co.streaks.late} late in a row` : ''})`);
+    } else {
+      co.stats.onTime += 1;
+      co.streaks.late = 0; co.streaks.onTime += 1;
+      this.repChange(co, this.A.reputation.onTime, `On-time delivery: ${p.name} #${u.n} for ${who}`);
+      if (co.streaks.onTime >= R.streakAt) this.repChange(co, R.streakBonus, `${co.streaks.onTime} deliveries on time in a row`);
+      if (!u.rework && !u.inspections.some((i) => !i.pass)) this.repChange(co, R.flawless, `Flawless build: ${p.name} #${u.n} passed first time`);
+    }
+    milestone(this, co, 'first_delivery', `${p.name} for ${who}`);
+    if (p.line === 'aircraft') milestone(this, co, 'first_aircraft', `${p.name} for ${who}`);
+    if (C.customers[c.customer].kind === 'defence') milestone(this, co, 'first_defence', who);
     c.history.push({ at: this.now, text: `Unit ${u.n} delivered${lateDays ? ` ${lateDays} day${lateDays === 1 ? '' : 's'} late (−${fmtMoney(penalty)})` : ''}${partial ? ' with reduced capability (half price)' : ''}.` });
     this.retire(u, 'delivered');
     u.status = 'delivered';
@@ -1757,6 +1811,7 @@ export class Aerospace {
     if (c.delivered + c.failed < c.qty) return;
     c.status = c.failed && !c.delivered ? 'failed' : 'complete';
     c.history.push({ at: this.now, text: c.status === 'complete' ? 'Contract complete.' : 'Contract failed.' });
+    if (c.status === 'complete') eventContractDone(this, this.company(c.company), c);
   }
 
   /**
@@ -1827,6 +1882,7 @@ export class Aerospace {
     for (const co of this.companies()) this.companyDay(co);
     this.closeTenders();
     this.postTenders();
+    if (this.roost) eventsMorning(this, this.roost); // v0.57.0: what the books and the floor say today
     const M = this.meridian;
     this.planLaunchers(M);
     rivalMorning(this, M);
@@ -1867,7 +1923,7 @@ export class Aerospace {
       const R = C.research[co.researching.id];
       co.research.push(co.researching.id);
       this.report(co, 'research', `🔬 ${co.name} completes research: ${R.name}.`, co.kind === 'player' ? 'good' : null);
-      if (co.kind === 'rival') this.news(`Meridian announces a breakthrough: ${R.name.toLowerCase()}.`);
+      if (co.researching.breakthrough) applyBreakthrough(this, co, R);
       co.researching = null;
     }
     for (const b of co.bays) if (b.ready && b.ready <= this.now && !b.announced) { b.announced = true; this.report(co, 'facility', `🏗 ${C.bays[b.type].name} ${b.id.split('_').pop()} is open.`, co.kind === 'player' ? 'good' : null); }
@@ -2082,6 +2138,7 @@ export class Aerospace {
       co.qaLog ||= [];
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
+      co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
     }
     this.migrateHalls();
   }
