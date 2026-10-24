@@ -26,6 +26,16 @@ export const dlgBillie = {
       say: ['Four things. One: don\'t bid on what you can\'t deliver on time. Late costs you money and it costs you your name, and your name wins the next tender.', 'Two: order your materials the day you sign. Titanium doesn\'t grow on the Flats and the good stuff comes by sea. Three: an empty bay still eats wages. Keep it busy.', 'Four: Meridian prices off its costs. Learn yours, and you\'ll know theirs. And if you ever own a shipping line, flyer — use it. Freight\'s the hidden tax on every aeroplane ever built.'],
     },
     {
+      id: 't_billie_grow', label: '"What can I build on the land?"', keywords: ['build', 'expand', 'expansion', 'land', 'plot', 'halls', 'hall', 'grow', 'bay', 'bays', 'laboratory', 'lab'],
+      if: OWNS,
+      say: ['More than I ever could. Hangar 2 goes up north of the office — room for two more light bays, and it\'s the cheapest way to double what you make. A laboratory beside it: research takes a quarter less time, and the odd lucky discovery.', 'The big plots are across Campus Drive, the West Works: an assembly hall for heavy bays, a widebody hall with a fenced corner for defence work, and a space annex for rockets and clean rooms. You build the hall first — a crane, a few weeks, a lot of invoices — then you fit its bays one by one. Everything you build, you can walk into.', 'And mind the Park Authority. When a bay has been the bottleneck for a few days, they sometimes knock a quarter off the hall that fixes it. Seven days to take them up on it.'],
+    },
+    {
+      id: 't_billie_people', label: '"How do I keep the workforce sharp?"', keywords: ['workforce', 'staff', 'engineers', 'inspectors', 'training', 'experience', 'hire', 'hiring', 'quality', 'audit'],
+      if: OWNS,
+      say: ['Three kinds of people. Technicians work the bays. Engineers draw and research. Inspectors catch what the others miss — and if you run short of inspectors, more gets through, and then the regulator comes calling.', 'The thing nobody tells you is that a crowd of new hires is slower and sloppier than the old hands. Hire in a flood and the whole floor drops to the level of the newest. Train them and it comes back; it takes months, not days.', 'Wrenna says it better: "A hangar is a crew, not a headcount."'],
+    },
+    {
       id: 't_billie_books', label: '"Can I use the terminal?"', keywords: ['terminal', 'books', 'tenders', 'production'],
       if: OWNS,
       say: ['It\'s yours, flyer. Password\'s on the sticky note. It\'s "SKYLARK". It was always "SKYLARK".'],

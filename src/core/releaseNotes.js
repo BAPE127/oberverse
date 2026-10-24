@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.57.0',
+    date: '2026-10-24',
+    channel: 'development',
+    title: 'Room to Grow',
+    notes: [
+      'What Roost Aeroworks builds now stands on the map: building sites across Campus Drive rise into real halls you can walk into, and new bays are fitted into them.',
+      'Engineers, inspectors and technicians with experience and training; products configured to what the customer wants; and a Standing page that shows why your reputation is what it is — with government orders, audits and breakthroughs that come from what you\'ve actually done.',
+    ],
+  },
+  {
     version: '0.56.1',
     date: '2026-10-22',
     channel: 'development',

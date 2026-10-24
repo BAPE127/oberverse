@@ -2,6 +2,30 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.57.0] — 2026-10-24 — Room to Grow (development build)
+
+Stage III of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "Let's move forward with .57." What you build at Roost Aeroworks now appears on the map; the people who work there matter; products can be configured; and your reputation has causes you can read.
+
+### Added — halls on the map (`HALLS`, `src/content/maps/starling.js`, `src/engine/drawAero.js`)
+- **Five halls to build**, each a real building with a walkable room: Hangar 2 (north of the office), the research laboratory (beside Hangar 1), and across Campus Drive the **West Works** — an assembly hall (2 heavy), a widebody & secure hall, and a space systems annex (rocket bay, two clean rooms). Until you build one it is a **building site** on the map (gravel, stakes, an excavator and a cabin); once paid for it rises through its build days — slab, frame, panels, roof, a crane — and then opens. Its door stays shut until then (for people too).
+- **Bays go into slots.** A new bay needs a free slot that suits it in an open hall; the bay is drawn there — vacant plates, scaffolding while it's fitted, then the real thing. Meridian's halls are fixed; a Meridian bay beyond them goes up unseen, at half again the price. Engine test cell and inspection gantry stand at the apron's edge, drawn the same way. Old saves slot their existing bays into the first halls that suit them, at no charge.
+
+### Added — people and quality
+- **Technicians, engineers and inspectors**, for both companies. Too few engineers slow the drawing office and research; too few inspectors slow inspections and cost quality; extra inspectors raise it. **Experience** sets pace and quality and is diluted by new hires; **training** (standard, intensive) raises it at a daily cost. The Hangar page shows the people, the quality as a sum of its parts, the chance an inspection fails, and the last inspections.
+
+### Added — product configuration
+- Tenders ask for **configured** products — cabin layouts, VIP interiors, range, flight deck, sensors, endurance, heavy stores, spray gear, fairings, an upper stage, satellite payloads, life and hardening. A configuration changes the bill of materials (whole extra lots the line really uses), days, price (~1.4–1.7× its cost), required quality, research needs, flight spec and risk, and travels from tender to contract to unit to the finished aircraft (`config`, a configured `spec`). The tender board shows what each option costs and does; an option needing research says which.
+
+### Added — reputation and events
+- **Standing page** (key 6): reputation with a ledger that adds up (late streaks, failed inspections, on-time runs, flawless builds, lost launches, cancellations), decisions and offers, and the firsts. Events with causes, never random pop-ups: **government orders** (from reputation 50), **constellation contracts**, **research breakthroughs**, **expansion offers** when a bay has been the bottleneck, **regulator's audits** after repeated failures, and **milestones**. A lost bid's report says what the winner beat you on.
+- Billie has things to say about growing and hiring (two new topics).
+
+### Changed
+- The terminal's rail now has eight pages (Floor, Tenders, Contracts, Supply, Hangar, Standing, Books, Meridian — keys 1–8). Meridian's quality is 72.8 (experience counts now). Tenders may require a minimum reputation.
+
+### Tests
+- New: `aerospace_halls` (8), `aerospace_staff` (8), `aerospace_config` (8), `aerospace_events` (13), and `unitLook` in `aerospace.test.mjs`.
+
 ## [0.56.1] — 2026-10-22 — Operations (development build)
 
 The owner didn't like the aerospace terminal and asked for an interface like the arms console and Fleet Command. It's rebuilt from scratch as a full-screen operations room (`src/ui/aerospace.js`); the simulation is unchanged.

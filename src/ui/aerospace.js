@@ -260,7 +260,8 @@ export function aerospacePanel(ui, body, opts = {}) {
     }
     const pad = 12 * k;
     const hall = b.slot ? A.hallOfSlot(b.slot) : null;
-    text(`BAY ${i + 1} · ${C.bays[b.type].name.toUpperCase()}${hall ? ` · ${hall.short.toUpperCase()}` : ''}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
+    const tname = C.bays[b.type].name.replace(/ (bay|hall|building|room)$/i, '');
+    text(`BAY ${i + 1} · ${tname.toUpperCase()}${hall && w > 360 * k ? ` · ${hall.short.toUpperCase()}` : ''}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
     const chip = building ? ['BUILDING', COL.blue] : !u ? ['IDLE', 'rgba(223,233,245,0.45)'] : u.status === 'building' ? ['WORKING', COL.green] : [STATUS[u.status]?.toUpperCase() || u.status.toUpperCase(), u.status === 'blocked' ? COL.red : COL.amber];
     text(chip[0], x + w - pad, y + 18 * k, chip[1], 10, { align: 'right', weight: 700, spacing: 1 });
     hits.push({ kind: 'bay', id: b.id, x, y, w, h: hh });
@@ -314,9 +315,9 @@ export function aerospacePanel(ui, body, opts = {}) {
     // the label, the stage, the lamp board
     const st = A.stageOf(u);
     const ly = y + hh - 56 * k;
-    text(`${C.products[u.product].name} #${u.n}`, x + pad, ly, '#fff', 13, { weight: 700, max: w * 0.62 });
+    text(`${C.products[u.product].name} #${u.n}`, x + pad, ly, '#fff', 13, { weight: 700, max: w * 0.56 });
     const who = customerOf(u);
-    text(who || 'our own launcher', x + w - pad, ly, 'rgba(223,233,245,0.55)', 11, { align: 'right', max: w * 0.36 });
+    text(who || 'our own launcher', x + w - pad, ly, 'rgba(223,233,245,0.55)', 11, { align: 'right', max: w * 0.3 });
     text(u.blocker && u.status !== 'building' ? `⚠ ${u.blocker.text}` : st?.name || '', x + pad, ly + 17 * k, u.blocker && u.status !== 'building' ? (u.status === 'blocked' ? COL.red : COL.amber) : 'rgba(223,233,245,0.75)', 11, { max: w - pad * 2 });
     progress(x + pad, ly + 30 * k, w - pad * 2 - 70 * k, u.need ? u.work / u.need : 0, u.status === 'building' ? COL.amber : '#7a6a40', k);
     text(`${fmtDays(A.unitDaysLeft(u))} left`, x + w - pad, ly + 32 * k, 'rgba(223,233,245,0.6)', 10.5, { align: 'right' });
@@ -378,7 +379,7 @@ export function aerospacePanel(ui, body, opts = {}) {
       const res = rows.reduce((a, r) => a + r.reserved, 0);
       const short = A.shortfalls(c);
       title('STORES');
-      big(fmtMoney(c.books.inventoryValue));
+      big(fmtMoney(Math.max(0, c.books.inventoryValue)));
       small(`${qty} lots in stores · ${res} reserved`, 0);
       progress(x + pad, y + 72 * k, w - pad * 2, qty ? res / qty : 0, COL.blue, k);
       small(short.length ? `⚠ ${short.length} material${short.length === 1 ? '' : 's'} short` : 'nothing short', 1.6, short.length ? COL.red : COL.green);
