@@ -3,7 +3,7 @@
 // research and books (src/systems/aerospace.js). It bids on what it can build
 // in time at cost plus a markup that rises when it's busy; orders the
 // materials its backlog needs from the cheapest supplier with stock; hires
-// to crew its bays; builds a bay of its busiest type when cash allows; and
+// to crew its bays (technicians, engineers, inspectors); builds a bay of its busiest type when cash allows; and
 // researches down its list. Nothing is free: every bid, lot and bay is paid for.
 import { unitCost, baysFor } from './catalog.js';
 
@@ -14,6 +14,14 @@ export function rivalMorning(A, co) {
   const crew = A.crewNeeded(co, { all: true });
   if (co.workforce < crew) A.hire(co, crew - co.workforce);
   else if (co.workforce > crew * 1.15) A.layoff(co, Math.floor(co.workforce - crew * 1.05));
+  // engineers and inspectors in proportion (a little over what's needed), and a training programme when it can afford one
+  for (const role of ['engineer', 'inspector']) {
+    const want = Math.ceil(A.staffNeeded(co, role) * 1.05);
+    const have = A.staffCount(co, role);
+    if (have < want) A.hire(co, want - have, role);
+    else if (have > want * 1.3) A.layoff(co, Math.floor(have - want * 1.1), role);
+  }
+  A.setTraining(co, A.cash(co) > M.investAbove * 0.25 ? 'standard' : 'none');
   // 2. bid on open tenders it could deliver in time
   for (const t of A.openTenders()) {
     if (t.bids.some((b) => b.company === co.id)) continue;

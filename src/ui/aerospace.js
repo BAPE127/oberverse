@@ -18,7 +18,7 @@
 // MRDN only) from Meridian's share board.
 import { h, mrdnScreen } from './panels.js';
 import { fmtMoney, fmtDays } from '../aero/catalog.js';
-import { stagesOf } from '../aero/pipeline.js';
+import { stagesOf, failChance } from '../aero/pipeline.js';
 import { ACCOUNTS } from '../aero/books.js';
 import { aircraftCanvas, rocketCanvas, satelliteCanvas } from '../engine/drawAero.js';
 
@@ -186,7 +186,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     const y1 = (below ? dr.top - cb.top - 10 : cb.height - 58) * k;
     if (x1 - x0 < 200 * k || y1 - y0 < 160 * k) return;
     text('HANGAR FLOOR', x0, y0 + 6 * k, COL.amber, 11, { spacing: 3, weight: 700 });
-    text(`Roost Aeroworks · Starling Flats · ${plural(co().bays.length, 'bay')} · ${co().workforce} workers (${Math.round(A.staffing(co()) * 100)}% staffed)`, x0 + 128 * k, y0 + 6 * k, 'rgba(223,233,245,0.6)', 11);
+    text(`Roost Aeroworks · Starling Flats · ${plural(co().bays.length, 'bay')} · ${co().workforce} technicians (${Math.round(A.staffing(co()) * 100)}% staffed) · experience ${Math.round(co().experience)}`, x0 + 128 * k, y0 + 6 * k, 'rgba(223,233,245,0.6)', 11);
     const gap = 12 * k;
     const stripH = Math.min(150 * k, (y1 - y0) * 0.3);
     const by0 = y0 + 22 * k;
@@ -523,12 +523,14 @@ export function aerospacePanel(ui, body, opts = {}) {
     for (const x of late) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('contracts') }, `⏰ ${x.qty} × ${C.products[x.product].name} for ${C.customers[x.customer].name} is late — ${Math.round(A.A.latePerDay * 100)}% a day withheld ›`));
     for (const u of blocked.slice(0, 3)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, `⚠ ${C.products[u.product].name} #${u.n}: ${u.blocker?.text || 'blocked'} ›`));
     if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
-    if (c.workforce < crew) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `👷 ${crew - c.workforce} workers short — every bay is slower ›`));
+    if (c.workforce < crew) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `👷 ${crew - c.workforce} technicians short — every bay is slower ›`));
+    if (c.engineers < A.staffNeeded(c, 'engineer')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `📐 ${A.staffNeeded(c, 'engineer') - c.engineers} engineers short — the drawing office and research are slower ›`));
+    if (c.inspectors < A.staffNeeded(c, 'inspector')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🔍 ${A.staffNeeded(c, 'inspector') - c.inspectors} inspectors short — inspections are slower and more get through ›`));
     const ops = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id)).map((t) => ({ t, q: A.bidQuote(c.id, t.id) })).filter((x) => x.q.ok).sort((a, b) => b.q.profit - a.q.profit).slice(0, 3);
     const soon = A.unitsOf(c).filter((u) => u.contract).sort((a, b) => A.unitDaysLeft(a) - A.unitDaysLeft(b)).slice(0, 4);
     return [
       h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'GOOD MORNING, OWNER'), h('h2', {}, `${plural(A.unitsOf(c).length, 'unit')} in work · ${plural(active.length, 'contract')}`), muted('Click a bay, the apron or the stores on the floor plan. The rail on the left has the rest.')),
-      h('div', { class: 'ao-kpis two' }, kpi('Profit, 7 days', fmtMoney(week.profit), week.profit >= 0 ? 'pos' : 'neg'), kpi('Order backlog', fmtMoney(backlog)), kpi('Reputation', `${Math.round(c.reputation)}`, '', '/ 100'), kpi('Quality', `${Math.round(A.qualityOf(c))}`)),
+      h('div', { class: 'ao-kpis two' }, kpi('Profit, 7 days', fmtMoney(week.profit), week.profit >= 0 ? 'pos' : 'neg'), kpi('Order backlog', fmtMoney(backlog)), kpi('Reputation', `${Math.round(c.reputation)}`, '', '/ 100'), kpi('Quality', A.qualityOf(c).toFixed(1))),
       ...alerts,
       section('Tenders you can win', ...(ops.length ? ops.map(({ t, q }) => h('button', { class: 'ao-row', onclick: () => { AO.focus = t.id; go('tenders'); } }, pic(productLook(C, t.product), 64, 30), h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${C.products[t.product].name}`), h('small', {}, `${C.customers[t.customer].name} · decides Day ${t.closes}`)), h('em', { class: 'pos' }, `+${fmtMoney(q.profit)}`))) : [muted('Nothing you can bid on right now. New tenders come in at 06:00.')])),
       section('Next out of the door', ...(soon.length ? soon.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), stageStrip(u)), h('small', {}, fmtDays(A.unitDaysLeft(u))))) : [muted('No units in work.')])),
@@ -843,6 +845,52 @@ export function aerospacePanel(ui, body, opts = {}) {
       st.state === 'site' ? btn(`Build it · ${money(H.build)}`, () => act(() => A.buildHall(c, hid)), 'primary', !A.canAfford(c, H.build)) : null);
   };
 
+  /** The people: technicians, engineers, inspectors (hire, lay off), what they've learnt together, and the training that keeps it up. */
+  const peopleSection = (c) => {
+    const S = C.staff;
+    const wagesDay = c.workforce * S.roles.tech.wage + c.engineers * S.roles.engineer.wage + c.inspectors * S.roles.inspector.wage;
+    const T = S.training[c.training] || S.training.none;
+    const trainDay = c.workforce * T.perDay;
+    const role = (id) => {
+      const R = S.roles[id];
+      const have = A.staffCount(c, id);
+      const need = A.staffNeeded(c, id);
+      const ok = have >= need;
+      return h('div', { class: 'ao-card' },
+        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, R.name), h('small', {}, R.text)), h('div', { class: 'ao-pay' }, String(have), h('small', {}, `of ${need} needed · ${fmtMoney(R.wage)}/day each`))),
+        bar('Staffed', need ? have / need : 1, ok ? COL.green : COL.amber, `${Math.round(Math.min(2, have / need) * 100)}%`),
+        h('div', { class: 'ao-row-inline' }, ...R.batches.map((n) => btn(`Hire ${n} · ${fmtMoney(n * R.hire)}`, () => act(() => A.hire(c, n, id)), 'primary', !A.canAfford(c, n * R.hire))), ...R.batches.slice(0, 2).map((n) => btn(`Lay off ${n}`, () => act(() => A.layoff(c, n, id)), '', have < n))));
+    };
+    const x = c.experience;
+    const speed = A.experienceFactor(c);
+    return section('People',
+      h('div', { class: 'ao-kpis two' }, kpi('On the payroll', String(A.headcount(c))), kpi('Wages a day', fmtMoney(wagesDay + trainDay), '', trainDay ? `incl. ${fmtMoney(trainDay)} training` : null), kpi('Experience', `${Math.round(x)} / 100`, x >= 50 ? 'pos' : 'neg', `${speed >= 1 ? '+' : ''}${Math.round((speed - 1) * 100)}% pace`), kpi('Bays staffed', `${Math.round(A.staffing(c) * 100)}%`, A.staffing(c) < 1 ? 'neg' : 'pos')),
+      role('tech'), role('engineer'), role('inspector'),
+      h('h4', {}, 'Training'),
+      h('div', { class: 'ao-seg' }, ...Object.entries(S.training).map(([id, t]) => h('button', { class: c.training === id ? 'on' : '', onclick: () => act(() => A.setTraining(c, id)) }, `${t.name}${t.perDay ? ` · ${t.perDay}/tech/day` : ''}`))),
+      muted(`${T.text} Experience grows about ${(T.gain * 30 * (1 - x / 130)).toFixed(1)} points a month. New hires arrive with ${S.newHireExperience}, so a big hiring round dilutes it — and experience sets the pace of every bay (${Math.round(S.experience.speedAt0 * 100)}–${Math.round(S.experience.speedAt100 * 100)}%) and the quality of the work.`));
+  };
+
+  /** What quality is made of, the chance an inspection fails for what's in hand, and the last inspections. */
+  const qualitySection = (c) => {
+    const q = A.qualityBreakdown(c);
+    const row = (label, v, note) => h('tr', {}, h('td', {}, label), h('td', { class: `r ${v > 0.05 ? 'pos' : v < -0.05 ? 'neg' : ''}` }, v === null ? '' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`), h('td', { class: 'ao-muted' }, note || ''));
+    const units = A.unitsOf(c);
+    const products = [...new Set(units.map((u) => u.product))].slice(0, 5);
+    return section('Quality',
+      h('div', { class: 'ao-kpis two' }, kpi('Quality', q.total.toFixed(1), q.total >= 60 ? 'pos' : ''), kpi('Inspectors', `${Math.round(q.ratio * 100)}% of need`, q.ratio >= 1 ? 'pos' : 'neg')),
+      h('table', { class: 'ao-table' },
+        h('tr', {}, h('th', {}, 'Where it comes from'), h('th', { class: 'r' }, 'Points'), h('th', {}, '')),
+        row('The firm\'s standing', q.base, 'what Roost was known for'),
+        row('Research', q.research, 'airframe and process knowledge'),
+        row('Inspection equipment', q.equipment, c.facilities.inspection ? 'the gantry' : 'not built'),
+        row('Experience', q.experience, `${Math.round(c.experience)} (50 is average)`),
+        row('Inspectors', q.inspectors, q.ratio >= 1 ? 'more than the work needs' : 'fewer than the work needs'),
+        h('tr', { class: 'total' }, h('td', {}, 'Total'), h('td', { class: 'r' }, q.total.toFixed(1)), h('td', {}, ''))),
+      products.length ? h('div', {}, h('small', { class: 'ao-muted' }, 'Chance an inspection fails, for the work in hand: '), ...products.map((id) => { const p = C.products[id]; const pf = failChance(C, p, q.total, { engineCell: c.facilities.engine_cell }); return pill(`${p.name} ${Math.round(pf * 100)}%`, pf > 0.3 ? COL.red : pf > 0.15 ? COL.amber : COL.green); })) : null,
+      c.qaLog?.length ? h('div', { class: 'ao-pills' }, h('small', { class: 'ao-muted' }, 'Last inspections: '), ...c.qaLog.slice(0, 10).map((e) => pill(`${e.what} ${e.pass ? 'pass' : 'FAIL'}`, e.pass ? COL.green : COL.red))) : muted('No inspections yet.'));
+  };
+
   // ------------------------------------------------------------------ hangar (workforce, bays, facilities, research)
   const hangarSheet = () => {
     const c = co();
@@ -853,15 +901,11 @@ export function aerospacePanel(ui, body, opts = {}) {
     const unlocks = (id) => Object.values(C.products).filter((p) => p.tech === id);
     return h('div', {},
       h('div', { class: 'ao-two' },
-        section('Workforce',
-          h('div', { class: 'ao-kpis two' }, kpi('Employed', String(c.workforce)), kpi('Needed (every bay)', String(need), c.workforce < need ? 'neg' : 'pos'), kpi('Wages a day', fmtMoney(c.workforce * A.A.wage)), kpi('Staffing now', `${Math.round(A.staffing(c) * 100)}%`, A.staffing(c) < 1 ? 'neg' : 'pos')),
-          bar('Crew', need ? c.workforce / need : 1, c.workforce >= need ? COL.green : COL.amber, `${c.workforce}/${need}`),
-          h('div', { class: 'ao-row-inline' }, ...[10, 30, 100].map((n) => btn(`Hire ${n} · ${fmtMoney(n * A.A.hireCost)}`, () => act(() => A.hire(c, n)), 'primary')), ...[10, 30].map((n) => btn(`Lay off ${n}`, () => act(() => A.layoff(c, n)), '', c.workforce < n))),
-          muted('A bay works at full speed when its crew is all there; short-staffed, every bay slows. Wages are paid every morning, busy or not.')),
-        section('Apron-side facilities',
+        peopleSection(c),
+        h('div', {}, qualitySection(c), section('Apron-side facilities',
           h('div', { class: 'ao-grid small' },
             h('div', { class: 'ao-tile' }, h('small', {}, 'APRON'), h('b', {}, `${c.apron} stands`), pill(`${A.apronUsed(c)} in use`, COL.blue)),
-            ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => { const have = id === 'pad' ? c.pad : c.facilities[id]; const b = c.building?.[id]; return h('div', { class: 'ao-tile' }, h('small', {}, 'FACILITY'), h('b', {}, f.name), have ? pill('built', COL.green) : b ? pill(`ready ${A.when(b).replace('Day ', 'D')}`, COL.blue) : pill('not built', 'rgba(223,233,245,0.5)')); })))),
+            ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => { const have = id === 'pad' ? c.pad : c.facilities[id]; const b = c.building?.[id]; return h('div', { class: 'ao-tile' }, h('small', {}, 'FACILITY'), h('b', {}, f.name), have ? pill('built', COL.green) : b ? pill(`ready ${A.when(b).replace('Day ', 'D')}`, COL.blue) : pill('not built', 'rgba(223,233,245,0.5)')); }))))),
       section('Halls — where your bays stand', muted('Each hall is a building on Starling Flats: build it (the site on the map becomes the hall), then fit bays into its slots. A free slot takes only the bay types listed.'),
         h('div', { class: 'ao-grid wide' }, ...Object.entries(C.halls).map(([hid, H]) => hallCard(c, hid, H)))),
       section('Facilities', h('div', { class: 'ao-grid' }, ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => {

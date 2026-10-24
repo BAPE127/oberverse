@@ -917,6 +917,7 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao-table th { text-align: left; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; opacity: .55; font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--ao-line2); }
 .ao-table td { padding: 5px 8px; border-bottom: 1px solid rgba(120,170,255,.08); }
 .ao-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.ao-table td.pos { color: var(--ao-green); } .ao-table td.neg { color: var(--ao-red); }
 .ao-table tr.total td { font-weight: 700; border-top: 1px solid var(--ao-line); color: #fff; }
 .ao-table tr.dim td { opacity: .5; }
 .ao-table tr.pos td:first-child { color: var(--ao-green); }

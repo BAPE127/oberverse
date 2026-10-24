@@ -153,7 +153,7 @@ export class Aerospace {
 
   newCompany(id, name, kind, def) {
     const C = this.cfg;
-    return {
+    const co = {
       id, name, kind,
       cash: kind === 'rival' ? def.cash : 0,
       workforce: def.workforce,
@@ -173,7 +173,12 @@ export class Aerospace {
       // with policy 'fallback' a job that can't find a ship in a day goes by carrier, with 'wait' it waits for one
       shipping: 'internal', internalPolicy: 'fallback',
       freight: { external: 0, internalCharges: 0, equivalent: 0, voyageCosts: 0 },
+      // v0.57.0: the other people (engineers, inspectors), what they've learnt together, how it's kept up
+      engineers: 0, inspectors: 0, experience: C.staff.experience.start[id] ?? 50, training: 'none', qaLog: [],
     };
+    co.engineers = this.staffNeeded(co, 'engineer');
+    co.inspectors = this.staffNeeded(co, 'inspector');
+    return co;
   }
 
   /** A contract the company already holds when the game starts (Meridian's backlog; Billie's two Skylarks). */
@@ -243,10 +248,7 @@ export class Aerospace {
   }
 
   qualityOf(co) {
-    let q = co.qualityBase;
-    for (const id of co.research) q += this.cfg.research[id]?.effect?.quality || 0;
-    if (co.facilities.inspection) q += 8;
-    return Math.min(100, q);
+    return this.qualityBreakdown(co).total;
   }
 
   /** Research time multiplier: the laboratory takes a quarter off. */
@@ -255,7 +257,7 @@ export class Aerospace {
   }
 
   speedOf(co) {
-    return 1 + Math.min(0.3, co.research.length * 0.01);
+    return (1 + Math.min(0.3, co.research.length * 0.01)) * this.experienceFactor(co);
   }
 
   materialMultiplier(co) {
@@ -301,22 +303,90 @@ export class Aerospace {
     return need ? Math.min(1, co.workforce / need) : 1;
   }
 
-  hire(co, n) {
-    n = Math.max(0, Math.floor(n));
-    if (!n) return { ok: false, text: 'Hire how many?' };
-    const cost = n * this.A.hireCost;
-    if (!this.canAfford(co, cost)) return { ok: false, text: `Hiring ${n} costs ${cost.toLocaleString()} obols.` };
-    this.pay(co, cost, 'hiring');
-    co.workforce += n;
-    return { ok: true, text: `Hired ${n} worker${n === 1 ? '' : 's'} (${cost.toLocaleString()} obols for recruiting and training).` };
+  // ------------------------------------------------------------- the people (v0.57.0)
+  /** How many of a role the company's bays call for (technicians: every bay's crew; the rest a share of that). */
+  staffNeeded(co, role) {
+    const crew = this.crewNeeded(co, { all: true });
+    if (role === 'tech') return crew;
+    return Math.max(1, Math.ceil(crew * this.cfg.staff.roles[role].share - 1e-9));
   }
 
-  layoff(co, n) {
-    n = Math.max(0, Math.min(co.workforce, Math.floor(n)));
+  staffCount(co, role) {
+    return role === 'tech' ? co.workforce : role === 'engineer' ? co.engineers : co.inspectors;
+  }
+
+  /** Everybody on the payroll. */
+  headcount(co) {
+    return co.workforce + co.engineers + co.inspectors;
+  }
+
+  /** How much of the drawing office's and research's pace the engineers can keep (1 = fully staffed). */
+  engineerRate(co) {
+    const R = this.cfg.staff.roles.engineer;
+    return Math.max(R.minRate, Math.min(1, co.engineers / this.staffNeeded(co, 'engineer')));
+  }
+
+  /** The same for inspections. */
+  inspectorRate(co) {
+    const R = this.cfg.staff.roles.inspector;
+    return Math.max(R.minRate, Math.min(1, co.inspectors / this.staffNeeded(co, 'inspector')));
+  }
+
+  /** What a short-staffed drawing office and inspection line cost overall in pace (1 = nothing lost). */
+  staffDrag(co) {
+    return 1 / (1 + 0.06 * (1 / this.engineerRate(co) - 1) + 0.1 * (1 / this.inspectorRate(co) - 1));
+  }
+
+  /** Experience's effect on pace: from speedAt0 to speedAt100, 1.0 at 50. */
+  experienceFactor(co) {
+    const X = this.cfg.staff.experience;
+    return X.speedAt0 + (X.speedAt100 - X.speedAt0) * (co.experience / 100);
+  }
+
+  /** Hire people (role 'tech', 'engineer' or 'inspector'). New hires arrive green: the company's experience is diluted. */
+  hire(co, n, role = 'tech') {
+    const R = this.cfg.staff.roles[role];
+    if (!R) return { ok: false, text: 'No such job.' };
+    n = Math.max(0, Math.floor(n));
+    if (!n) return { ok: false, text: 'Hire how many?' };
+    const cost = n * R.hire;
+    if (!this.canAfford(co, cost)) return { ok: false, text: `Hiring ${n} costs ${cost.toLocaleString()} obols.` };
+    this.pay(co, cost, 'hiring');
+    const before = this.headcount(co);
+    co.experience = (co.experience * before + this.cfg.staff.newHireExperience * n) / (before + n);
+    if (role === 'tech') co.workforce += n; else if (role === 'engineer') co.engineers += n; else co.inspectors += n;
+    return { ok: true, text: `Hired ${n} ${n === 1 ? R.one : R.name.toLowerCase()} (${cost.toLocaleString()} obols for recruiting and training).` };
+  }
+
+  layoff(co, n, role = 'tech') {
+    const R = this.cfg.staff.roles[role];
+    if (!R) return { ok: false, text: 'No such job.' };
+    n = Math.max(0, Math.min(this.staffCount(co, role), Math.floor(n)));
     if (!n) return { ok: false, text: 'Lay off how many?' };
-    this.pay(co, n * this.A.layoffCost, 'hiring');
-    co.workforce -= n;
-    return { ok: true, text: `Laid off ${n} worker${n === 1 ? '' : 's'}.` };
+    this.pay(co, n * R.layoff, 'hiring');
+    if (role === 'tech') co.workforce -= n; else if (role === 'engineer') co.engineers -= n; else co.inspectors -= n;
+    return { ok: true, text: `Laid off ${n} ${n === 1 ? R.one : R.name.toLowerCase()}.` };
+  }
+
+  /** The training programme: what it costs each day (per technician) and how fast the company learns. */
+  setTraining(co, level) {
+    const T = this.cfg.staff.training[level];
+    if (!T) return { ok: false, text: 'No such programme.' };
+    co.training = level;
+    return { ok: true, text: level === 'none' ? 'Training stopped: the crew learn on the job.' : `Training: ${T.name.toLowerCase()} — ${T.perDay} obols per technician a day.` };
+  }
+
+  /** What the company's quality is made of (every part visible, so it can be managed). */
+  qualityBreakdown(co) {
+    const X = this.cfg.staff.experience;
+    const I = this.cfg.staff.inspectors;
+    const research = co.research.reduce((a, id) => a + (this.cfg.research[id]?.effect?.quality || 0), 0);
+    const equipment = co.facilities.inspection ? 8 : 0;
+    const experience = (co.experience - 50) * X.qualityPerPoint;
+    const ratio = co.inspectors / this.staffNeeded(co, 'inspector');
+    const inspectors = ratio >= 1 ? Math.min(I.bonusMax, (ratio - 1) * I.bonusMax) : -(1 - ratio) * I.penalty;
+    const total = Math.min(100, co.qualityBase + research + equipment + experience + inspectors);
+    return { base: co.qualityBase, research, equipment, experience, inspectors, ratio, total };
   }
 
   /** Utilisation of the bays a product would use (queued work per bay, 1 = a full queue). */
@@ -341,7 +411,7 @@ export class Aerospace {
       return ready + (u ? this.bayWorkLeft(u) : 0);
     }).sort((a, b) => a - b);
     for (const u of units) { free[0] += this.cfg.products[u.product].days; free.sort((a, b) => a - b); }
-    const speed = this.speedOf(co) * Math.max(0.5, Math.min(1, co.workforce / Math.max(1, this.crewNeeded(co, { all: true }))));
+    const speed = this.speedOf(co) * this.staffDrag(co) * Math.max(0.5, Math.min(1, co.workforce / Math.max(1, this.crewNeeded(co, { all: true }))));
     const lead = this.leadDays(co, p);
     let done = 0;
     for (let i = 0; i < qty; i++) {
@@ -384,12 +454,12 @@ export class Aerospace {
       company: F.name, price: F.price,
       includes: [
         `${F.bays.length} ${C.bays.light.name.toLowerCase()} (and room on the Park to build more)`,
-        `${F.workforce} skilled workers (Wrenna Torq, the chief mechanic, stays on)`,
+        `${F.workforce} skilled technicians, three engineers and two inspectors (Wrenna Torq, the chief mechanic, stays on)`,
         `A ${C.facilities.apron.slots.roost}-slot apron by the runway`,
         `Billie's order book: ${F.backlog.map((b) => `${b.qty} × ${C.products[b.product].name} for ${C.customers[b.customer].name}`).join('; ')} — deposits already received by Billie are hers; you're paid the rest on delivery`,
         'The aerospace terminal (and the Aerospace app on your tablet): the tender board, production, suppliers and the books',
       ],
-      costs: `Running costs about ${(F.workforce * this.A.wage + C.bays.light.upkeep + 600).toLocaleString()} obols a day (wages, the bay, the office).`,
+      costs: `Running costs about ${(F.workforce * C.staff.roles.tech.wage + 3 * C.staff.roles.engineer.wage + 2 * C.staff.roles.inspector.wage + C.bays.light.upkeep + 600).toLocaleString()} obols a day (wages for the technicians, three engineers and two inspectors, the bay, the office).`,
     };
   }
 
@@ -431,10 +501,10 @@ export class Aerospace {
     if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
-    const days = Math.max(1, Math.round(R.days * this.researchFactor(co)));
+    const days = Math.max(1, Math.round((R.days * this.researchFactor(co)) / this.engineerRate(co)));
     co.researching = { id, doneAt: this.now + Math.round(days * DAY) };
     this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
-    return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : ''}.` };
+    return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : days > R.days ? ' (short of engineers)' : ''}.` };
   }
 
   // ------------------------------------------------------------- halls and slots (v0.57.0)
@@ -543,7 +613,7 @@ export class Aerospace {
   unitDaysLeft(u) {
     const co = this.company(u.company);
     const p = this.cfg.products[u.product];
-    return workLeft(this.cfg, p, u) / Math.max(0.3, this.speedOf(co) * this.staffing(co));
+    return workLeft(this.cfg, p, u) / Math.max(0.3, this.speedOf(co) * this.staffing(co) * this.staffDrag(co));
   }
 
   /** Materials still to be bought or consumed for a unit, at their reference value. */
@@ -1368,7 +1438,7 @@ export class Aerospace {
     // work
     u.status = s.bay ? 'building' : s.office ? 'engineering' : s.kind === 'convoy' ? 'convoy' : s.kind === 'commission' ? 'orbit' : s.id === 'secure_storage' ? 'storage' : 'pad';
     if (!u.started) u.started = this.now;
-    const r = s.bay ? rate : s.office ? this.speedOf(co) : 1;
+    const r = (s.bay ? rate : s.office ? this.speedOf(co) * this.engineerRate(co) : 1) * (s.kind === 'inspect' ? this.inspectorRate(co) : 1);
     u.work += (minutes / DAY) * r;
     if (u.work + 1e-9 < u.need) return;
     if (s.kind === 'inspect') return this.inspect(co, u, s);
@@ -1493,6 +1563,8 @@ export class Aerospace {
     const roll = u.rolls.inspect[k % u.rolls.inspect.length];
     const pass = k >= 3 || roll >= pf; // after three fails it's rebuilt properly
     u.inspections.push({ at: this.now, pass, stage: s.id, chance: Math.round(pf * 100) });
+    (co.qaLog ||= []).unshift({ at: this.now, what: `${p.name} #${u.n}`, pass, chance: Math.round(pf * 100) });
+    if (co.qaLog.length > 30) co.qaLog.length = 30;
     if (pass) return this.advance(co, u);
     co.stats.failedInspections += 1;
     co.reputation = Math.max(0, co.reputation + this.A.reputation.failedInspection);
@@ -1755,8 +1827,11 @@ export class Aerospace {
 
   companyDay(co) {
     const C = this.cfg;
-    const wages = co.workforce * this.A.wage;
-    this.pay(co, wages, 'wages');
+    const W = C.staff.roles;
+    this.pay(co, co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, 'wages');
+    const T = C.staff.training[co.training] || C.staff.training.none;
+    if (T.perDay) this.pay(co, co.workforce * T.perDay, 'training');
+    co.experience = Math.min(C.staff.experience.cap, co.experience + T.gain * (1 - co.experience / 130));
     let upkeep = co.bays.reduce((a, b) => a + (b.ready <= this.now ? C.bays[b.type].upkeep : 0), 0);
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
@@ -1977,6 +2052,13 @@ export class Aerospace {
     s.aircraft ||= {};
     s.jobs ||= {};
     for (const co of Object.values(s.companies)) { co.shipping ||= 'internal'; co.internalPolicy ||= 'fallback'; co.freight ||= { external: 0, internalCharges: 0, equivalent: 0, voyageCosts: 0 }; }
+    for (const co of Object.values(s.companies)) {
+      co.experience ??= this.cfg.staff.experience.start[co.id] ?? 50;
+      co.training ||= 'none';
+      co.qaLog ||= [];
+      co.engineers ??= this.staffNeeded(co, 'engineer');
+      co.inspectors ??= this.staffNeeded(co, 'inspector');
+    }
     this.migrateHalls();
   }
 

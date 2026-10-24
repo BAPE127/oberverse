@@ -66,7 +66,7 @@ export const AERO = {
     credit: 12000000, // a revolving credit line; drawing on it costs interest
     interest: 0.0004, // per day on drawn credit
     reputation: 72,
-    quality: 74,
+    quality: 72.8, // (its experience, 60, adds 1.2: 74)
     workforce: 1180,
     bays: ['light_1', 'light_2', 'heavy_1', 'heavy_2', 'wide_1', 'secure_1', 'rocket_1', 'clean_1', 'clean_2'],
     pad: true,
@@ -108,6 +108,32 @@ export const AERO = {
   wage: 70, // per worker per day
   hireCost: 120, // recruiting and training one worker
   layoffCost: 60,
+};
+
+/**
+ * The people (v0.57.0). Technicians crew the bays (the headcount the company always had);
+ * engineers run the drawing office and research; inspectors are the testing and inspection
+ * capacity. `share` is how many a company needs per technician its bays call for. Short of
+ * either, that work slows (never below `minRate`); more inspectors than needed raise quality.
+ * Experience (0–100) is the whole company's: new hires arrive green and dilute it, training
+ * raises it slowly. Speed runs from `speedAt0` to `speedAt100`; quality ±`qualityPerPoint` per
+ * point from 50.
+ */
+export const STAFF = {
+  roles: {
+    tech: { name: 'Technicians', one: 'technician', wage: 70, hire: 120, layoff: 60, batches: [10, 30, 100], text: 'Crew the bays: a bay works at full speed when its crew is all there.' },
+    engineer: { name: 'Engineers', one: 'engineer', wage: 140, hire: 400, layoff: 200, share: 0.08, minRate: 0.4, batches: [1, 3, 10], text: 'The drawing office and research: short of them, engineering stages and research take longer.' },
+    inspector: { name: 'Inspectors', one: 'inspector', wage: 100, hire: 250, layoff: 120, share: 0.04, minRate: 0.3, batches: [1, 3, 10], text: 'Testing and inspection capacity: short of them, inspections take longer; more than you need make fewer mistakes get through.' },
+  },
+  newHireExperience: 20,
+  experience: { start: { roost: 50, meridian: 60 }, speedAt0: 0.8, speedAt100: 1.2, qualityPerPoint: 0.12, cap: 95 },
+  training: {
+    none: { name: 'None', perDay: 0, gain: 0.06, text: 'They learn on the job, slowly.' },
+    standard: { name: 'Standard', perDay: 6, gain: 0.25, text: 'Evening classes and a mentor for every new hire.' },
+    intensive: { name: 'Intensive', perDay: 14, gain: 0.6, text: 'A training school on the floor: the fastest way to turn hires into a crew.' },
+  },
+  /** Inspectors above need: +quality (up to `bonusMax` at double); below need: −quality up to `penalty`. */
+  inspectors: { bonusMax: 8, penalty: 10 },
 };
 
 /**
