@@ -18,7 +18,7 @@
 //
 // Coordinates are final (roads already 4 wide). Preview: `npm run map -- starling_flats`.
 import { MapBuilder, roomTiles } from '../../world/mapBuilder.js';
-import { PRODUCTS } from '../aerospace.js';
+import { PRODUCTS, HALLS } from '../aerospace.js';
 
 const W = 180;
 const H = 120;
@@ -71,9 +71,9 @@ m.rect(135, 12, 1, 1, ','); // the café's step
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
   roof: o.roof || '#6a6e76', wall: o.wall || '#d8dce0', trim: o.trim || '#3a3e46', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, awning: o.awning, columns: o.columns, tower: o.tower, glass: o.glass,
-  door: o.door,
+  door: o.door, hall: o.hall,
 });
-const staff = (owners, hours = { from: '06:00', to: '21:00' }, message) => ({ key: 'item_none', owners, hours, ...(message ? { message } : {}) });
+const staff = (owners, hours = { from: '06:00', to: '21:00' }, message, aeroHall) => ({ key: 'item_none', owners, hours, ...(message ? { message } : {}), ...(aeroHall ? { aeroHall } : {}) });
 const MERIDIAN_STAFF = ['npc_imogen', 'npc_ailie', 'npc_rudy', 'npc_tina'];
 const ROOST_STAFF = ['npc_billie', 'npc_wrenna'];
 const houseColours = [['#6a4a3a', '#efe6d4'], ['#3a4a6a', '#e6dcc8'], ['#5a6a3a', '#f2e8d8'], ['#7a3a2a', '#e8dcc4'], ['#4a5a5a', '#efe6d6'], ['#5a3a5a', '#ece4d8'], ['#3a5a4a', '#e8e0cc'], ['#6a5a3a', '#f2e8d8'], ['#2a4a6a', '#e8e4dc'], ['#7a5a2a', '#f0e6d2'], ['#4a3a2a', '#e6dcc8']];
@@ -92,6 +92,11 @@ const buildings = [
   B('sf_meridian_paint', 'Meridian — Paint Shop', 136, 35, 12, 8, { roof: '#6a6e76', wall: '#c8ccd2', sign: 'PAINT', door: { x: 142, y: 42, lock: staff(MERIDIAN_STAFF, { from: '06:00', to: '20:00'}, 'MERIDIAN PAINT SHOP. The smell of solvent and a sign: "DOOR SHUT — BOOTH RUNNING".') } }),
   B('sf_flightops', 'Flight Operations Office', 44, 76, 12, 7, { roof: '#3a4a5a', wall: '#e8ecf0', sign: 'FLIGHT OPS', door: { x: 50, y: 82, lock: staff(['npc_ailie', 'npc_billie'], { from: '06:00', to: '22:00' }, 'STARLING FLIGHT OPERATIONS. "Crews and handling agents only. Weather briefings on the board outside."') } }),
   B('sf_launch_control', 'Launch Control', 96, 96, 12, 8, { roof: '#5a5e62', wall: '#a8aca8', trim: '#3a3e42', sign: 'LAUNCH CONTROL', door: { x: 102, y: 103, to: { map: 'launch_control', spot: 'entry' }, lock: staff(['npc_tina', 'npc_imogen'], { from: '06:00', to: '22:00' }, 'LAUNCH CONTROL. "Range personnel only. If the red light is on, you\'re already too late."') } }),
+  // Roost's halls (v0.57.0): plots that become buildings when the player builds them (src/content/aerospace.js HALLS)
+  ...Object.entries(HALLS).filter(([, H]) => H.building).map(([key, H]) => B(H.building, `Roost Aeroworks — ${H.name}`, H.at.x, H.at.y, H.w, H.h, {
+    roof: key === 'lab' ? '#8a8a9a' : '#8a7a5a', wall: key === 'lab' ? '#d8d8e0' : '#c8bca4', trim: '#5a4a32', sign: H.sign, signColor: '#c8402a', hall: key,
+    door: { x: H.at.x + Math.floor(H.w / 2), y: H.at.y + H.h - 1, to: { map: H.room, spot: 'entry' },
+      lock: staff(ROOST_STAFF, { from: H.hours[0], to: H.hours[1] }, `ROOST AEROWORKS — ${H.short.toUpperCase()}. "Open ${H.hours[0]}–${H.hours[1]}. Hard hats beyond this point."`, key) } })),
   B('sf_vib', 'Vertical Integration Building', 124, 82, 12, 14, { roof: '#d8dce2', wall: '#e8ecf0', trim: '#2e3a4e', sign: 'MERIDIAN · VIB', signColor: '#2e3a4e', door: { x: 130, y: 95, to: { map: 'meridian_vib', spot: 'entry' }, lock: staff(MERIDIAN_STAFF, { from: '06:00', to: '22:00' }, 'VERTICAL INTEGRATION BUILDING. "Rocket stacking in progress. Look up — but not for long."') } }),
 ];
 
@@ -134,8 +139,14 @@ P('sign', 32, 27, { examine: 'ROOST AEROWORKS — "Fine aircraft since before yo
 P('windsock', 52, 42, { examine: 'The Roost windsock: faded orange, patched twice, and still the most honest instrument on the Park.' });
 P('tug', 50, 50, { w: 2, h: 1, color: '#e8c04a', examine: 'A tiny aircraft tug with ROOST stencilled on it and a seat cushion Billie knitted.' });
 P('engine_stand', 52, 46, { examine: 'A piston engine on a stand, cowling off, plugs out. A tag: "SKYLARK #31 — Wrenna, do NOT let Billie \'tune\' this."' });
-for (const [x, y] of [[52, 21], [52, 25], [52, 29], [52, 33], [52, 37], [56, 21], [56, 29], [56, 37]]) P('stake', x, y);
-P('sign', 54, 19, { examine: 'ROOST AEROWORKS — EXPANSION LAND. "Room for another bay or three, if anybody ever has the money."' });
+// the expansion land (v0.57.0): the halls themselves are drawn from the simulation (a building site, then the building)
+P('sign', 57, 29, { examine: 'ROOST AEROWORKS — EXPANSION LAND. "Hangar 2 north of the office, the laboratory here, and the assembly hall, the widebody hall and the space annex across Campus Drive. Ask at the terminal."' });
+P('sign', 24, 37, { examine: 'ROOST AEROWORKS — WEST WORKS. "Plots for the assembly hall, the widebody hall and the space annex. Hard hats beyond this point, and a building permit in your pocket."' });
+// the building sites (v0.57.0): drawn over a hall's plot until it's built, then they go
+for (const [key, H] of Object.entries(HALLS)) if (H.building) P('hall_site', H.at.x, H.at.y, { w: H.w, h: H.h, aero: { company: 'roost', hall: key }, hiddenUnless: { aeroHall: { id: key, built: false } }, examine: `A plot reserved for Roost Aeroworks: ${H.name}. ${H.text}` });
+// the facilities Roost can build on the apron side: drawn from the simulation (a site, then the thing)
+P('aero_facility', 55, 44, { w: 3, h: 3, aero: { company: 'roost', facility: 'engine_cell' }, examine: 'Roost\'s engine test cell, if it ever gets one: a fenced pad, a blast deflector and a very understanding set of neighbours.' });
+P('aero_facility', 54, 49, { w: 4, h: 3, aero: { company: 'roost', facility: 'inspection' }, examine: 'The inspection gantry, if Roost ever buys one: X-ray, ultrasound and laser trackers on rails over a parking bay.' });
 AC(34, 51, { model: 'ap_skylark', livery: 'roost', heading: 0, examine: 'Billie\'s own Skylark, the Rosie: thirty years old, polished every Sunday, flown every Monday. Not for sale. Never for sale.' });
 // --- Meridian: the forecourt, flags, the share board
 for (const x of [64, 67, 76, 79]) P('flagpole', x, 28, { color: '#2e3a4e' });
@@ -190,7 +201,7 @@ AC(16, 90, { model: 'ap_meadowlark', wreck: true, heading: -0.5, examine: 'A Mea
 AC(7, 95, { model: 'af_kestrel', wreck: true, heading: 1.2, examine: 'A retired Kestrel trainer, ROOST\'s first and only military aircraft (a prototype, never bought). Billie still talks to it.' });
 P('scrap', 20, 84, { w: 2, h: 1 }); P('scrap', 22, 96, { w: 2, h: 1 }); P('engine_stand', 14, 98);
 P('sign', 4, 81, { examine: 'THE BONEYARD. "Aircraft rest here. Please don\'t take bits. (Wrenna, this means you.)"' });
-for (const [x, y] of [[2, 106], [8, 104], [14, 108], [20, 103], [2, 74], [12, 73], [22, 76], [36, 100], [60, 96], [70, 88], [84, 100], [90, 82]]) P(k(x, y) ? 'tree' : 'bush', x, y);
+for (const [x, y] of [[2, 106], [8, 104], [14, 108], [20, 103], [22, 76], [36, 100], [60, 96], [70, 88], [84, 100], [90, 82]]) P(k(x, y) ? 'tree' : 'bush', x, y);
 function k(x, y) { return (x * 7 + y * 3) % 2 === 0; }
 // the edges of the plain: scrub along the south and east
 for (let x = 2; x < 178; x += 6) if (x < 24 || x > 31) P(x % 4 ? 'bush' : 'tree', x, H - 1);
@@ -209,6 +220,7 @@ export const starlingFlats = {
     { id: 'area_mesa_road', name: 'Mesa Road', x: 0, y: 13, w: 150, h: 6 },
     { id: 'area_freight', name: 'Starling Freight Receiving', x: 0, y: 19, w: 25, h: 19 },
     { id: 'area_roost', name: 'Roost Aeroworks', x: 31, y: 19, w: 30, h: 35 },
+    { id: 'area_roost_west', name: 'Roost West Works', x: 0, y: 38, w: 25, h: 38 },
     { id: 'area_meridian', name: 'Meridian Aerospace', x: 61, y: 19, w: 92, h: 41 },
     { id: 'area_airfield', name: 'Starling Field — runway 09/27', x: 19, y: 60, w: 161, h: 14 },
     { id: 'area_flightops', name: 'Flight Operations', x: 31, y: 74, w: 40, h: 20 },
@@ -240,6 +252,7 @@ export const starlingFlats = {
     cafe_bench: { x: 125, y: 13, facing: 'down' },
     roost_office_door_out: { x: 37, y: 27, facing: 'down' },
     roost_hangar_door_out: { x: 42, y: 41, facing: 'down' },
+    ...Object.fromEntries(Object.values(HALLS).filter((H) => H.room).map((H) => [`${H.room}_door_out`, { x: H.at.x + Math.floor(H.w / 2), y: H.at.y + H.h, facing: 'down' }])),
     meridian_lobby_door_out: { x: 72, y: 28, facing: 'down' },
     meridian_assembly_door_out: { x: 102, y: 33, facing: 'down' },
     meridian_flightline_door_out: { x: 135, y: 31, facing: 'down' },
@@ -279,7 +292,7 @@ export const roostOffice = room('roost_office', 'Roost Aeroworks — Office', 9,
 export const roostHangar = room('roost_hangar', 'Roost Aeroworks — Hangar 1', 18, 12, 'roost_hangar_door_out', {
   spots: { bench: { x: 2, y: 3, facing: 'up' }, bay: { x: 9, y: 8, facing: 'up' }, racks: { x: 15, y: 3, facing: 'up' }, wrenna: { x: 6, y: 8, facing: 'right' } },
   props: [
-    { id: 'rh_bay_1', type: 'bay_slot', x: 4, y: 2, w: 10, h: 7, aero: { company: 'roost', bay: 'light_1' }, examine: 'Light assembly bay 1: jigs, a work platform and whatever Roost is building today.' },
+    { id: 'rh_bay_1', type: 'bay_slot', x: 4, y: 2, w: 10, h: 7, aero: { company: 'roost', slot: 'h1_a' }, examine: 'Light assembly bay 1: jigs, a work platform and whatever Roost is building today.' },
     { id: 'rh_bench', type: 'workbench', x: 1, y: 1, w: 2, examine: 'Wrenna\'s workbench: every tool outlined in marker on the pegboard, and one outline empty ("SOMEBODY", it says underneath).' },
     { id: 'rh_toolrack', type: 'toolrack', x: 15, y: 1, w: 2, examine: 'Parts racks: rib sections, cowlings, a box of rivets labelled "RIVETS (GOOD)" and one labelled "RIVETS (BILLIE)".' },
     { id: 'rh_engine', type: 'engine_stand', x: 15, y: 5, examine: 'A Skylark engine on a stand, ready to hang.' },
@@ -369,4 +382,34 @@ export const launchControl = room('launch_control', 'Launch Control', 12, 8, 'la
   ],
 });
 
-export default [starlingFlats, roostOffice, roostHangar, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl];
+/**
+ * Roost's halls (v0.57.0): one room per hall, a bay_slot prop per slot (the build is drawn from the
+ * simulation, like Hangar 1's), the workbench and racks, the parts crates.
+ */
+const hallRooms = Object.entries(HALLS).filter(([, H]) => H.room).map(([key, H]) => {
+  const cx = Math.floor(H.w / 2);
+  const bottom = H.h - 2;
+  const props = [
+    ...H.slots.map((sl) => ({ id: `${H.room}_${sl.id}`, type: 'bay_slot', x: sl.x, y: sl.y, w: sl.w, h: sl.h, aero: { company: 'roost', slot: sl.id }, examine: `${H.short}: a ${sl.fits[0]} assembly bay — jigs, a work platform and whatever Roost is building today.` })),
+    { id: `${H.room}_board`, type: 'noticeboard', x: cx, y: 0, examine: `The ${H.short.toLowerCase()} board: each unit in the hall, its stage and its due date.` },
+  ];
+  if (key === 'lab') {
+    props.push(
+      { id: 'rl_bench_1', type: 'workbench', x: 1, y: 1, w: 2, examine: 'A test bench: a strain gauge, a cracked wing rib and a mug that says WORLD\'S OKAYEST AERODYNAMICIST.' },
+      { id: 'rl_bench_2', type: 'workbench', x: 3, y: 1, w: 2, examine: 'Materials testing: a coupon of aluminium, a coupon of titanium, and a tray of coupons that failed in interesting ways.' },
+      { id: 'rl_model', type: 'display', x: 4, y: 3, examine: 'A wind-tunnel model of the Skylark with wool tufts glued to its wings. In the tunnel, the tufts lie flat; in the pub, the story gets better.' },
+      { id: 'rl_shelf', type: 'shelf', x: 1, y: 4, w: 2, examine: 'Reports bound in blue card: every research programme Roost has run, and several it wishes it hadn\'t.' },
+      { id: 'rl_terminal', type: 'terminal', x: 2, y: 3, interact: { kind: 'aerospace', action: 'terminal', company: 'roost', name: 'laboratory terminal' }, examine: 'A lab terminal wired into the Roost network: the research tree, and a screensaver of a very slowly rotating propeller.' },
+      { id: 'rl_plant', type: 'plant', x: 4, y: 6 },
+    );
+  } else {
+    props.push(
+      { id: `${H.room}_bench`, type: 'workbench', x: 1, y: bottom, w: 2, examine: 'A workbench: every tool outlined in marker on the pegboard.' },
+      { id: `${H.room}_rack`, type: 'toolrack', x: H.w - 4, y: bottom, w: 2, examine: 'Parts racks: ribs, cowlings, and a box of rivets labelled "RIVETS (GOOD)".' },
+      { id: `${H.room}_crate_1`, type: 'crate', x: 4, y: bottom }, { id: `${H.room}_crate_2`, type: 'crate', x: 5, y: bottom }, { id: `${H.room}_barrel`, type: 'barrel', x: H.w - 2, y: bottom },
+    );
+  }
+  return { ...room(H.room, `Roost Aeroworks — ${H.name}`, H.w, H.h, `${H.room}_door_out`, { props, spots: { bench: { x: 3, y: bottom, facing: 'up' } } }), hall: key };
+});
+
+export default [starlingFlats, roostOffice, roostHangar, ...hallRooms, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl];

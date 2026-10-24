@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall',
 ];
 
 /**
@@ -52,6 +52,8 @@ function checkKey(key, val, game, npc) {
       const { id, count } = typeof val === 'string' ? { id: val, count: 1 } : val;
       return game.inventory.count(id) >= (count ?? 1);
     }
+    case 'aeroHall': // v0.57.0: { id: 'heavy', built: false } — a Roost hall is open (or still a site)
+      return game.aero.hallBuilt(val.id) === (val.built ?? true);
     case 'stolen':
       return Boolean(p.stolen?.[val]);
     case 'money':

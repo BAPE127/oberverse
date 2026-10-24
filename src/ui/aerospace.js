@@ -257,7 +257,8 @@ export function aerospacePanel(ui, body, opts = {}) {
       for (let s = 0; s < 3; s++) { ctx.fillStyle = s % 2 ? '#1a1a20' : 'rgba(255,181,71,0.75)'; ctx.fillRect(cx + sx * (8 + s * 6) * k - (sx < 0 ? 6 * k : 0), cy + sy * 6 * k - (sy < 0 ? 3 * k : 0), 6 * k, 3 * k); }
     }
     const pad = 12 * k;
-    text(`BAY ${i + 1} · ${C.bays[b.type].name.toUpperCase()}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
+    const hall = b.slot ? A.hallOfSlot(b.slot) : null;
+    text(`BAY ${i + 1} · ${C.bays[b.type].name.toUpperCase()}${hall ? ` · ${hall.short.toUpperCase()}` : ''}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
     const chip = building ? ['BUILDING', COL.blue] : !u ? ['IDLE', 'rgba(223,233,245,0.45)'] : u.status === 'building' ? ['WORKING', COL.green] : [STATUS[u.status]?.toUpperCase() || u.status.toUpperCase(), u.status === 'blocked' ? COL.red : COL.amber];
     text(chip[0], x + w - pad, y + 18 * k, chip[1], 10, { align: 'right', weight: 700, spacing: 1 });
     hits.push({ kind: 'bay', id: b.id, x, y, w, h: hh });
@@ -821,6 +822,27 @@ export function aerospacePanel(ui, body, opts = {}) {
       }) : [muted('No consignments in your ships yet.')]));
   };
 
+  /** A hall: its state on the map, what it costs, and its slots (a bay fitted, or free to fit). */
+  const hallCard = (c, hid, H) => {
+    const st = A.hallState(c, hid);
+    const slots = H.slots.map((sl) => {
+      const bay = c.bays.find((b) => b.slot === sl.id);
+      const types = [...new Set(sl.fits)];
+      if (bay) {
+        const u = unitOf(bay.unit);
+        return h('div', { class: 'ao-tile' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, C.bays[bay.type].name), bay.ready > A.now ? pill(`fitted ${A.when(bay.ready).replace('Day ', 'D')}`, COL.blue) : u ? pill(`${C.products[u.product].name} #${u.n}`, COL.green) : pill('idle', 'rgba(223,233,245,0.5)'));
+      }
+      if (st.state !== 'built') return h('div', { class: 'ao-tile off' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, 'after the hall opens'));
+      return h('div', { class: 'ao-tile' }, h('small', {}, `FREE SLOT · ${sl.fits[0].toUpperCase()}`), h('div', { class: 'ao-row-inline' }, ...types.map((type) => btn(`Fit ${C.bays[type].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(C.bays[type].build)}`, () => act(() => A.buildBay(c, type, sl.id)), 'tiny', !A.canAfford(c, C.bays[type].build)))));
+    });
+    return h('div', { class: 'ao-card' },
+      h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, H.name), h('small', {}, H.text)),
+        st.state === 'built' ? pill(H.owned ? 'yours' : 'open', COL.green) : st.state === 'building' ? pill(`opens ${A.when(st.ready).replace('Day ', 'D')}`, COL.blue) : h('div', { class: 'ao-pay' }, fmtMoney(H.build), h('small', {}, `${H.buildDays} d · ${fmtMoney(H.upkeep)}/d`))),
+      st.state === 'building' ? bar('Building', st.f, COL.blue, `${Math.round(st.f * 100)}%`) : null,
+      slots.length ? h('div', { class: 'ao-grid small' }, ...slots) : h('small', { class: 'ao-muted' }, H.effect ? `Effect: research takes ${Math.round((1 - H.effect.researchDays) * 100)}% less time.` : ''),
+      st.state === 'site' ? btn(`Build it · ${money(H.build)}`, () => act(() => A.buildHall(c, hid)), 'primary', !A.canAfford(c, H.build)) : null);
+  };
+
   // ------------------------------------------------------------------ hangar (workforce, bays, facilities, research)
   const hangarSheet = () => {
     const c = co();
@@ -836,14 +858,12 @@ export function aerospacePanel(ui, body, opts = {}) {
           bar('Crew', need ? c.workforce / need : 1, c.workforce >= need ? COL.green : COL.amber, `${c.workforce}/${need}`),
           h('div', { class: 'ao-row-inline' }, ...[10, 30, 100].map((n) => btn(`Hire ${n} · ${fmtMoney(n * A.A.hireCost)}`, () => act(() => A.hire(c, n)), 'primary')), ...[10, 30].map((n) => btn(`Lay off ${n}`, () => act(() => A.layoff(c, n)), '', c.workforce < n))),
           muted('A bay works at full speed when its crew is all there; short-staffed, every bay slows. Wages are paid every morning, busy or not.')),
-        section('Your bays & facilities',
-          h('div', { class: 'ao-grid small' }, ...c.bays.map((b, i) => h('div', { class: 'ao-tile' }, h('small', {}, `BAY ${i + 1}`), h('b', {}, C.bays[b.type].name), b.ready > A.now ? pill(`ready ${A.when(b.ready).replace('Day ', 'D')}`, COL.blue) : b.unit ? pill('working', COL.green) : pill('idle', 'rgba(223,233,245,0.5)'))),
+        section('Apron-side facilities',
+          h('div', { class: 'ao-grid small' },
             h('div', { class: 'ao-tile' }, h('small', {}, 'APRON'), h('b', {}, `${c.apron} stands`), pill(`${A.apronUsed(c)} in use`, COL.blue)),
             ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => { const have = id === 'pad' ? c.pad : c.facilities[id]; const b = c.building?.[id]; return h('div', { class: 'ao-tile' }, h('small', {}, 'FACILITY'), h('b', {}, f.name), have ? pill('built', COL.green) : b ? pill(`ready ${A.when(b).replace('Day ', 'D')}`, COL.blue) : pill('not built', 'rgba(223,233,245,0.5)')); })))),
-      section('Build a bay', h('div', { class: 'ao-grid' }, ...Object.entries(C.bays).map(([id, b]) => h('div', { class: 'ao-card' },
-        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, b.name), h('small', {}, b.text)), h('div', { class: 'ao-pay' }, fmtMoney(b.build), h('small', {}, `${b.buildDays} days`))),
-        h('div', { class: 'ao-facts' }, h('div', {}, h('small', {}, 'Crew'), h('b', {}, String(b.crew))), h('div', {}, h('small', {}, 'Upkeep'), h('b', {}, `${fmtMoney(b.upkeep)}/d`)), h('div', {}, h('small', {}, 'Builds'), h('b', {}, b.lines.map((l) => LINE_ICON[l]).join(' '))), h('div', {}, h('small', {}, 'You have'), h('b', {}, String(c.bays.filter((x) => x.type === id).length)))),
-        btn(`Build · ${money(b.build)}`, () => act(() => A.buildBay(c, id)), 'primary', !A.canAfford(c, b.build)))))),
+      section('Halls — where your bays stand', muted('Each hall is a building on Starling Flats: build it (the site on the map becomes the hall), then fit bays into its slots. A free slot takes only the bay types listed.'),
+        h('div', { class: 'ao-grid wide' }, ...Object.entries(C.halls).map(([hid, H]) => hallCard(c, hid, H)))),
       section('Facilities', h('div', { class: 'ao-grid' }, ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => {
         const have = id === 'pad' ? c.pad : c.facilities[id];
         const b = c.building?.[id];

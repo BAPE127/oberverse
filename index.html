@@ -955,6 +955,7 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao-quote span { font-size: 11px; opacity: .6; }
 .ao-tile { border: 1px solid var(--ao-line2); border-radius: 10px; padding: 8px 10px; background: rgba(24,32,50,.7); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .ao-tile small { font-size: 9.5px; letter-spacing: 1.5px; opacity: .55; }
+.ao-tile.off { opacity: .5; border-style: dashed; }
 .ao-tile b { font-size: 13px; color: #fff; }
 .ao-unlocks { display: flex; gap: 8px; flex-wrap: wrap; }
 .ao-unlocks span { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; opacity: .85; }
@@ -3316,6 +3317,43 @@ const BAYS = {
   clean: { name: 'Satellite clean room', crew: 60, upkeep: 1600, build: 280000, buildDays: 6, lines: ['satellite'], size: 1, text: 'Class-100 air, bunny suits and very small screwdrivers.' },
 };
 
+/**
+ * Roost's halls (v0.57.0): the buildings its bays stand in. Hangar 1 comes with the firm; the rest
+ * are plots on Starling Flats that you build (a building site becomes a hall, in a few days), and
+ * every bay you fit goes into a free slot of a finished hall that suits it — so what you build, and
+ * where, is on the map. `at` is the building's top-left tile, `w`×`h` its footprint and room (the
+ * door is the middle of the bottom wall). A slot is where a bay stands inside (x, y, w, h in room
+ * tiles); `fits` are the bay types it can take (a larger slot takes smaller bays).
+ * src/content/maps/starling.js builds the buildings and rooms from this table.
+ */
+const HALLS = {
+  hangar1: { name: 'Hangar 1', short: 'Hangar 1', owned: true, upkeep: 0, text: 'Billie\'s hangar: the first light bay, the workbench, the parts racks.', slots: [{ id: 'h1_a', fits: ['light'] }] },
+  hangar2: {
+    name: 'Hangar 2 — light assembly annex', short: 'Hangar 2', build: 150000, buildDays: 5, upkeep: 350, at: { x: 43, y: 19 }, w: 14, h: 9, building: 'sf_roost_hangar2', room: 'roost_hangar2', sign: 'ROOST · HANGAR 2', hours: ['06:00', '20:00'],
+    text: 'A plain steel shed next to the office, with room for two more light bays: the cheapest way to double Roost\'s output.',
+    slots: [{ id: 'h2_a', fits: ['light'], x: 1, y: 1, w: 6, h: 6 }, { id: 'h2_b', fits: ['light'], x: 7, y: 1, w: 6, h: 6 }],
+  },
+  heavy: {
+    name: 'Assembly hall — heavy bays', short: 'Assembly hall', build: 450000, buildDays: 8, upkeep: 600, at: { x: 2, y: 38 }, w: 22, h: 12, building: 'sf_roost_heavy', room: 'roost_heavy', sign: 'ROOST · ASSEMBLY HALL', hours: ['06:00', '20:00'],
+    text: 'Two heavy bays under one roof, with a gantry crane: airliners, business jets and fighters.',
+    slots: [{ id: 'hh_a', fits: ['heavy', 'light'], x: 1, y: 2, w: 10, h: 8 }, { id: 'hh_b', fits: ['heavy', 'light'], x: 11, y: 2, w: 10, h: 8 }],
+  },
+  wide: {
+    name: 'Widebody & secure hall', short: 'Widebody hall', build: 700000, buildDays: 10, upkeep: 800, at: { x: 2, y: 52 }, w: 22, h: 12, building: 'sf_roost_wide', room: 'roost_wide', sign: 'ROOST · WIDEBODY HALL', hours: ['06:00', '20:00'],
+    text: 'The biggest roof in the west works: one widebody bay, and a fenced, guarded secure integration bay for defence work.',
+    slots: [{ id: 'hw_a', fits: ['wide', 'heavy', 'light'], x: 1, y: 1, w: 11, h: 10 }, { id: 'hw_b', fits: ['secure'], x: 12, y: 2, w: 9, h: 7 }],
+  },
+  space: {
+    name: 'Space systems annex', short: 'Space annex', build: 650000, buildDays: 10, upkeep: 700, at: { x: 2, y: 66 }, w: 22, h: 10, building: 'sf_roost_space', room: 'roost_space', sign: 'ROOST · SPACE SYSTEMS', hours: ['06:00', '20:00'],
+    text: 'A rocket integration bay with its cradles and overhead crane, and two clean rooms for satellites.',
+    slots: [{ id: 'hs_a', fits: ['rocket'], x: 1, y: 2, w: 12, h: 6 }, { id: 'hs_b', fits: ['clean'], x: 13, y: 2, w: 4, h: 5 }, { id: 'hs_c', fits: ['clean'], x: 17, y: 2, w: 4, h: 5 }],
+  },
+  lab: {
+    name: 'Research laboratory', short: 'Laboratory', build: 320000, buildDays: 7, upkeep: 900, at: { x: 52, y: 30 }, w: 6, h: 9, building: 'sf_roost_lab', room: 'roost_lab', sign: 'ROOST · LABORATORY', hours: ['07:00', '19:00'],
+    text: 'Benches, a wind-tunnel model and a very good coffee machine: research takes a quarter less time.', effect: { researchDays: 0.75 }, slots: [],
+  },
+};
+
 /** Fixed capacities (per company): the finished-aircraft apron, a launch pad, test cells. */
 const FACILITIES = {
   apron: { name: 'Finished-aircraft apron', slots: { roost: 3, meridian: 6 }, text: 'Where finished aircraft wait for their customers. Big aircraft take more room (an airliner 2, a widebody or bomber 3).' },
@@ -3708,7 +3746,7 @@ const AERO_PEOPLE = {
   seller: 'npc_billie', ceo: 'npc_imogen', pilot: 'npc_ailie', foreman: 'npc_rudy', launch: 'npc_tina', mechanic: 'npc_wrenna',
 };
 
-return { AERO, BAYS, FACILITIES, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
+return { AERO, BAYS, HALLS, FACILITIES, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
 })();
 
 // ---- src/content/maps/starling.js
@@ -3733,7 +3771,7 @@ __m["src/content/maps/starling.js"] = (function () {
 //
 // Coordinates are final (roads already 4 wide). Preview: `npm run map -- starling_flats`.
 const { MapBuilder, roomTiles } = __m["src/world/mapBuilder.js"];
-const { PRODUCTS } = __m["src/content/aerospace.js"];
+const { PRODUCTS, HALLS } = __m["src/content/aerospace.js"];
 
 const W = 180;
 const H = 120;
@@ -3786,9 +3824,9 @@ m.rect(135, 12, 1, 1, ','); // the café's step
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
   roof: o.roof || '#6a6e76', wall: o.wall || '#d8dce0', trim: o.trim || '#3a3e46', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, awning: o.awning, columns: o.columns, tower: o.tower, glass: o.glass,
-  door: o.door,
+  door: o.door, hall: o.hall,
 });
-const staff = (owners, hours = { from: '06:00', to: '21:00' }, message) => ({ key: 'item_none', owners, hours, ...(message ? { message } : {}) });
+const staff = (owners, hours = { from: '06:00', to: '21:00' }, message, aeroHall) => ({ key: 'item_none', owners, hours, ...(message ? { message } : {}), ...(aeroHall ? { aeroHall } : {}) });
 const MERIDIAN_STAFF = ['npc_imogen', 'npc_ailie', 'npc_rudy', 'npc_tina'];
 const ROOST_STAFF = ['npc_billie', 'npc_wrenna'];
 const houseColours = [['#6a4a3a', '#efe6d4'], ['#3a4a6a', '#e6dcc8'], ['#5a6a3a', '#f2e8d8'], ['#7a3a2a', '#e8dcc4'], ['#4a5a5a', '#efe6d6'], ['#5a3a5a', '#ece4d8'], ['#3a5a4a', '#e8e0cc'], ['#6a5a3a', '#f2e8d8'], ['#2a4a6a', '#e8e4dc'], ['#7a5a2a', '#f0e6d2'], ['#4a3a2a', '#e6dcc8']];
@@ -3807,6 +3845,11 @@ const buildings = [
   B('sf_meridian_paint', 'Meridian — Paint Shop', 136, 35, 12, 8, { roof: '#6a6e76', wall: '#c8ccd2', sign: 'PAINT', door: { x: 142, y: 42, lock: staff(MERIDIAN_STAFF, { from: '06:00', to: '20:00'}, 'MERIDIAN PAINT SHOP. The smell of solvent and a sign: "DOOR SHUT — BOOTH RUNNING".') } }),
   B('sf_flightops', 'Flight Operations Office', 44, 76, 12, 7, { roof: '#3a4a5a', wall: '#e8ecf0', sign: 'FLIGHT OPS', door: { x: 50, y: 82, lock: staff(['npc_ailie', 'npc_billie'], { from: '06:00', to: '22:00' }, 'STARLING FLIGHT OPERATIONS. "Crews and handling agents only. Weather briefings on the board outside."') } }),
   B('sf_launch_control', 'Launch Control', 96, 96, 12, 8, { roof: '#5a5e62', wall: '#a8aca8', trim: '#3a3e42', sign: 'LAUNCH CONTROL', door: { x: 102, y: 103, to: { map: 'launch_control', spot: 'entry' }, lock: staff(['npc_tina', 'npc_imogen'], { from: '06:00', to: '22:00' }, 'LAUNCH CONTROL. "Range personnel only. If the red light is on, you\'re already too late."') } }),
+  // Roost's halls (v0.57.0): plots that become buildings when the player builds them (src/content/aerospace.js HALLS)
+  ...Object.entries(HALLS).filter(([, H]) => H.building).map(([key, H]) => B(H.building, `Roost Aeroworks — ${H.name}`, H.at.x, H.at.y, H.w, H.h, {
+    roof: key === 'lab' ? '#8a8a9a' : '#8a7a5a', wall: key === 'lab' ? '#d8d8e0' : '#c8bca4', trim: '#5a4a32', sign: H.sign, signColor: '#c8402a', hall: key,
+    door: { x: H.at.x + Math.floor(H.w / 2), y: H.at.y + H.h - 1, to: { map: H.room, spot: 'entry' },
+      lock: staff(ROOST_STAFF, { from: H.hours[0], to: H.hours[1] }, `ROOST AEROWORKS — ${H.short.toUpperCase()}. "Open ${H.hours[0]}–${H.hours[1]}. Hard hats beyond this point."`, key) } })),
   B('sf_vib', 'Vertical Integration Building', 124, 82, 12, 14, { roof: '#d8dce2', wall: '#e8ecf0', trim: '#2e3a4e', sign: 'MERIDIAN · VIB', signColor: '#2e3a4e', door: { x: 130, y: 95, to: { map: 'meridian_vib', spot: 'entry' }, lock: staff(MERIDIAN_STAFF, { from: '06:00', to: '22:00' }, 'VERTICAL INTEGRATION BUILDING. "Rocket stacking in progress. Look up — but not for long."') } }),
 ];
 
@@ -3849,8 +3892,14 @@ P('sign', 32, 27, { examine: 'ROOST AEROWORKS — "Fine aircraft since before yo
 P('windsock', 52, 42, { examine: 'The Roost windsock: faded orange, patched twice, and still the most honest instrument on the Park.' });
 P('tug', 50, 50, { w: 2, h: 1, color: '#e8c04a', examine: 'A tiny aircraft tug with ROOST stencilled on it and a seat cushion Billie knitted.' });
 P('engine_stand', 52, 46, { examine: 'A piston engine on a stand, cowling off, plugs out. A tag: "SKYLARK #31 — Wrenna, do NOT let Billie \'tune\' this."' });
-for (const [x, y] of [[52, 21], [52, 25], [52, 29], [52, 33], [52, 37], [56, 21], [56, 29], [56, 37]]) P('stake', x, y);
-P('sign', 54, 19, { examine: 'ROOST AEROWORKS — EXPANSION LAND. "Room for another bay or three, if anybody ever has the money."' });
+// the expansion land (v0.57.0): the halls themselves are drawn from the simulation (a building site, then the building)
+P('sign', 57, 29, { examine: 'ROOST AEROWORKS — EXPANSION LAND. "Hangar 2 north of the office, the laboratory here, and the assembly hall, the widebody hall and the space annex across Campus Drive. Ask at the terminal."' });
+P('sign', 24, 37, { examine: 'ROOST AEROWORKS — WEST WORKS. "Plots for the assembly hall, the widebody hall and the space annex. Hard hats beyond this point, and a building permit in your pocket."' });
+// the building sites (v0.57.0): drawn over a hall's plot until it's built, then they go
+for (const [key, H] of Object.entries(HALLS)) if (H.building) P('hall_site', H.at.x, H.at.y, { w: H.w, h: H.h, aero: { company: 'roost', hall: key }, hiddenUnless: { aeroHall: { id: key, built: false } }, examine: `A plot reserved for Roost Aeroworks: ${H.name}. ${H.text}` });
+// the facilities Roost can build on the apron side: drawn from the simulation (a site, then the thing)
+P('aero_facility', 55, 44, { w: 3, h: 3, aero: { company: 'roost', facility: 'engine_cell' }, examine: 'Roost\'s engine test cell, if it ever gets one: a fenced pad, a blast deflector and a very understanding set of neighbours.' });
+P('aero_facility', 54, 49, { w: 4, h: 3, aero: { company: 'roost', facility: 'inspection' }, examine: 'The inspection gantry, if Roost ever buys one: X-ray, ultrasound and laser trackers on rails over a parking bay.' });
 AC(34, 51, { model: 'ap_skylark', livery: 'roost', heading: 0, examine: 'Billie\'s own Skylark, the Rosie: thirty years old, polished every Sunday, flown every Monday. Not for sale. Never for sale.' });
 // --- Meridian: the forecourt, flags, the share board
 for (const x of [64, 67, 76, 79]) P('flagpole', x, 28, { color: '#2e3a4e' });
@@ -3905,7 +3954,7 @@ AC(16, 90, { model: 'ap_meadowlark', wreck: true, heading: -0.5, examine: 'A Mea
 AC(7, 95, { model: 'af_kestrel', wreck: true, heading: 1.2, examine: 'A retired Kestrel trainer, ROOST\'s first and only military aircraft (a prototype, never bought). Billie still talks to it.' });
 P('scrap', 20, 84, { w: 2, h: 1 }); P('scrap', 22, 96, { w: 2, h: 1 }); P('engine_stand', 14, 98);
 P('sign', 4, 81, { examine: 'THE BONEYARD. "Aircraft rest here. Please don\'t take bits. (Wrenna, this means you.)"' });
-for (const [x, y] of [[2, 106], [8, 104], [14, 108], [20, 103], [2, 74], [12, 73], [22, 76], [36, 100], [60, 96], [70, 88], [84, 100], [90, 82]]) P(k(x, y) ? 'tree' : 'bush', x, y);
+for (const [x, y] of [[2, 106], [8, 104], [14, 108], [20, 103], [22, 76], [36, 100], [60, 96], [70, 88], [84, 100], [90, 82]]) P(k(x, y) ? 'tree' : 'bush', x, y);
 function k(x, y) { return (x * 7 + y * 3) % 2 === 0; }
 // the edges of the plain: scrub along the south and east
 for (let x = 2; x < 178; x += 6) if (x < 24 || x > 31) P(x % 4 ? 'bush' : 'tree', x, H - 1);
@@ -3924,6 +3973,7 @@ const starlingFlats = {
     { id: 'area_mesa_road', name: 'Mesa Road', x: 0, y: 13, w: 150, h: 6 },
     { id: 'area_freight', name: 'Starling Freight Receiving', x: 0, y: 19, w: 25, h: 19 },
     { id: 'area_roost', name: 'Roost Aeroworks', x: 31, y: 19, w: 30, h: 35 },
+    { id: 'area_roost_west', name: 'Roost West Works', x: 0, y: 38, w: 25, h: 38 },
     { id: 'area_meridian', name: 'Meridian Aerospace', x: 61, y: 19, w: 92, h: 41 },
     { id: 'area_airfield', name: 'Starling Field — runway 09/27', x: 19, y: 60, w: 161, h: 14 },
     { id: 'area_flightops', name: 'Flight Operations', x: 31, y: 74, w: 40, h: 20 },
@@ -3955,6 +4005,7 @@ const starlingFlats = {
     cafe_bench: { x: 125, y: 13, facing: 'down' },
     roost_office_door_out: { x: 37, y: 27, facing: 'down' },
     roost_hangar_door_out: { x: 42, y: 41, facing: 'down' },
+    ...Object.fromEntries(Object.values(HALLS).filter((H) => H.room).map((H) => [`${H.room}_door_out`, { x: H.at.x + Math.floor(H.w / 2), y: H.at.y + H.h, facing: 'down' }])),
     meridian_lobby_door_out: { x: 72, y: 28, facing: 'down' },
     meridian_assembly_door_out: { x: 102, y: 33, facing: 'down' },
     meridian_flightline_door_out: { x: 135, y: 31, facing: 'down' },
@@ -3994,7 +4045,7 @@ const roostOffice = room('roost_office', 'Roost Aeroworks — Office', 9, 7, 'ro
 const roostHangar = room('roost_hangar', 'Roost Aeroworks — Hangar 1', 18, 12, 'roost_hangar_door_out', {
   spots: { bench: { x: 2, y: 3, facing: 'up' }, bay: { x: 9, y: 8, facing: 'up' }, racks: { x: 15, y: 3, facing: 'up' }, wrenna: { x: 6, y: 8, facing: 'right' } },
   props: [
-    { id: 'rh_bay_1', type: 'bay_slot', x: 4, y: 2, w: 10, h: 7, aero: { company: 'roost', bay: 'light_1' }, examine: 'Light assembly bay 1: jigs, a work platform and whatever Roost is building today.' },
+    { id: 'rh_bay_1', type: 'bay_slot', x: 4, y: 2, w: 10, h: 7, aero: { company: 'roost', slot: 'h1_a' }, examine: 'Light assembly bay 1: jigs, a work platform and whatever Roost is building today.' },
     { id: 'rh_bench', type: 'workbench', x: 1, y: 1, w: 2, examine: 'Wrenna\'s workbench: every tool outlined in marker on the pegboard, and one outline empty ("SOMEBODY", it says underneath).' },
     { id: 'rh_toolrack', type: 'toolrack', x: 15, y: 1, w: 2, examine: 'Parts racks: rib sections, cowlings, a box of rivets labelled "RIVETS (GOOD)" and one labelled "RIVETS (BILLIE)".' },
     { id: 'rh_engine', type: 'engine_stand', x: 15, y: 5, examine: 'A Skylark engine on a stand, ready to hang.' },
@@ -4084,7 +4135,37 @@ const launchControl = room('launch_control', 'Launch Control', 12, 8, 'launch_co
   ],
 });
 
-const __default = [starlingFlats, roostOffice, roostHangar, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl];
+/**
+ * Roost's halls (v0.57.0): one room per hall, a bay_slot prop per slot (the build is drawn from the
+ * simulation, like Hangar 1's), the workbench and racks, the parts crates.
+ */
+const hallRooms = Object.entries(HALLS).filter(([, H]) => H.room).map(([key, H]) => {
+  const cx = Math.floor(H.w / 2);
+  const bottom = H.h - 2;
+  const props = [
+    ...H.slots.map((sl) => ({ id: `${H.room}_${sl.id}`, type: 'bay_slot', x: sl.x, y: sl.y, w: sl.w, h: sl.h, aero: { company: 'roost', slot: sl.id }, examine: `${H.short}: a ${sl.fits[0]} assembly bay — jigs, a work platform and whatever Roost is building today.` })),
+    { id: `${H.room}_board`, type: 'noticeboard', x: cx, y: 0, examine: `The ${H.short.toLowerCase()} board: each unit in the hall, its stage and its due date.` },
+  ];
+  if (key === 'lab') {
+    props.push(
+      { id: 'rl_bench_1', type: 'workbench', x: 1, y: 1, w: 2, examine: 'A test bench: a strain gauge, a cracked wing rib and a mug that says WORLD\'S OKAYEST AERODYNAMICIST.' },
+      { id: 'rl_bench_2', type: 'workbench', x: 3, y: 1, w: 2, examine: 'Materials testing: a coupon of aluminium, a coupon of titanium, and a tray of coupons that failed in interesting ways.' },
+      { id: 'rl_model', type: 'display', x: 4, y: 3, examine: 'A wind-tunnel model of the Skylark with wool tufts glued to its wings. In the tunnel, the tufts lie flat; in the pub, the story gets better.' },
+      { id: 'rl_shelf', type: 'shelf', x: 1, y: 4, w: 2, examine: 'Reports bound in blue card: every research programme Roost has run, and several it wishes it hadn\'t.' },
+      { id: 'rl_terminal', type: 'terminal', x: 2, y: 3, interact: { kind: 'aerospace', action: 'terminal', company: 'roost', name: 'laboratory terminal' }, examine: 'A lab terminal wired into the Roost network: the research tree, and a screensaver of a very slowly rotating propeller.' },
+      { id: 'rl_plant', type: 'plant', x: 4, y: 6 },
+    );
+  } else {
+    props.push(
+      { id: `${H.room}_bench`, type: 'workbench', x: 1, y: bottom, w: 2, examine: 'A workbench: every tool outlined in marker on the pegboard.' },
+      { id: `${H.room}_rack`, type: 'toolrack', x: H.w - 4, y: bottom, w: 2, examine: 'Parts racks: ribs, cowlings, and a box of rivets labelled "RIVETS (GOOD)".' },
+      { id: `${H.room}_crate_1`, type: 'crate', x: 4, y: bottom }, { id: `${H.room}_crate_2`, type: 'crate', x: 5, y: bottom }, { id: `${H.room}_barrel`, type: 'barrel', x: H.w - 2, y: bottom },
+    );
+  }
+  return { ...room(H.room, `Roost Aeroworks — ${H.name}`, H.w, H.h, `${H.room}_door_out`, { props, spots: { bench: { x: 3, y: bottom, facing: 'up' } } }), hall: key };
+});
+
+const __default = [starlingFlats, roostOffice, roostHangar, ...hallRooms, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl];
 
 return { starlingFlats, roostOffice, roostHangar, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl, default: __default };
 })();
@@ -4521,6 +4602,8 @@ const PROP_TYPES = {
   aircraft: { solid: true, label: 'Aircraft', defaults: {} },
   bay_slot: { solid: false, label: 'Assembly bay', defaults: {} },
   launch_pad: { solid: false, label: 'Launch pad', defaults: { w: 10, h: 10 } },
+  hall_site: { solid: false, label: 'Building site', defaults: {} },
+  aero_facility: { solid: true, label: 'Test facility', defaults: { w: 3, h: 3 } },
   launch_tower: { solid: true, label: 'Service tower', defaults: { w: 2, h: 3 } },
   propellant_sphere: { solid: true, label: 'Propellant sphere', defaults: { w: 3, h: 3 } },
   engine_stand: { solid: true, label: 'Engine stand', defaults: { examine: 'An engine on a wheeled stand, cowlings off, waiting to be hung.' } },
@@ -14927,7 +15010,7 @@ const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
 const dlgAero = __m["src/content/dialogue/aerospace.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
-const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL } = __m["src/content/aerospace.js"];
+const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS } = __m["src/content/aerospace.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
 const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
@@ -15016,7 +15099,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL }, // v0.55.0
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS }, // v0.55.0; halls v0.57.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
@@ -18047,7 +18130,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall',
 ];
 
 /**
@@ -18091,6 +18174,8 @@ function checkKey(key, val, game, npc) {
       const { id, count } = typeof val === 'string' ? { id: val, count: 1 } : val;
       return game.inventory.count(id) >= (count ?? 1);
     }
+    case 'aeroHall': // v0.57.0: { id: 'heavy', built: false } — a Roost hall is open (or still a site)
+      return game.aero.hallBuilt(val.id) === (val.built ?? true);
     case 'stolen':
       return Boolean(p.stolen?.[val]);
     case 'money':
@@ -33116,9 +33201,11 @@ class Aerospace {
       id, name, kind,
       cash: kind === 'rival' ? def.cash : 0,
       workforce: def.workforce,
-      bays: def.bays.map((b) => ({ id: b, type: b.replace(/_\d+$/, ''), unit: null, ready: 0 })),
+      bays: def.bays.map((b) => ({ id: b, type: b.replace(/_\d+$/, ''), unit: null, ready: 0, ...(kind === 'player' && b === 'light_1' ? { slot: 'h1_a' } : {}) })),
       pad: def.pad ? { unit: null, readyAt: 0, launches: 0 } : null,
       facilities: {},
+      // v0.57.0: the halls Roost has (hall id → the time it opens; Hangar 1 always has) — Meridian's are fixed on the map
+      halls: kind === 'player' ? { hangar1: 0 } : null,
       research: [...def.research], researching: null,
       reputation: def.reputation, qualityBase: def.quality,
       inv: {}, books: freshBooks(),
@@ -33204,6 +33291,11 @@ class Aerospace {
     for (const id of co.research) q += this.cfg.research[id]?.effect?.quality || 0;
     if (co.facilities.inspection) q += 8;
     return Math.min(100, q);
+  }
+
+  /** Research time multiplier: the laboratory takes a quarter off. */
+  researchFactor(co) {
+    return this.hallState(co, 'lab').state === 'built' ? this.cfg.halls.lab.effect.researchDays : 1;
   }
 
   speedOf(co) {
@@ -33383,22 +33475,99 @@ class Aerospace {
     if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
-    co.researching = { id, doneAt: this.now + Math.round(R.days * DAY) };
-    this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${R.days} days).`, co.kind === 'player' ? 'info' : null);
-    return { ok: true, text: `Research started: ${R.name}. Done in ${R.days} days.` };
+    const days = Math.max(1, Math.round(R.days * this.researchFactor(co)));
+    co.researching = { id, doneAt: this.now + Math.round(days * DAY) };
+    this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
+    return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : ''}.` };
   }
 
-  buildBay(co, type) {
+  // ------------------------------------------------------------- halls and slots (v0.57.0)
+  /** A hall's state for a company: 'built' (open), 'building' (with its opening time and progress) or 'site'. */
+  hallState(co, id) {
+    const H = this.cfg.halls[id];
+    if (!H) return { state: 'none' };
+    if (H.owned) return { state: 'built', ready: 0 };
+    const at = co?.halls?.[id];
+    if (at === undefined || at === null) return { state: 'site' };
+    if (at <= this.now) return { state: 'built', ready: at };
+    return { state: 'building', ready: at, f: Math.max(0, Math.min(1, 1 - (at - this.now) / (H.buildDays * DAY))) };
+  }
+
+  /** True when Roost's hall is open (Hangar 1 is, from the start, even before you buy the firm). */
+  hallBuilt(id) {
+    const H = this.cfg.halls[id];
+    if (!H) return true;
+    if (H.owned) return true;
+    return this.hallState(this.roost, id).state === 'built';
+  }
+
+  /** Every slot in Roost's open halls, with the bay (if any) fitted to it. */
+  slotsOf(co) {
+    const out = [];
+    for (const [hid, H] of Object.entries(this.cfg.halls)) {
+      if (this.hallState(co, hid).state !== 'built') continue;
+      for (const sl of H.slots) out.push({ hall: hid, ...sl, bay: co.bays.find((b) => b.slot === sl.id) || null });
+    }
+    return out;
+  }
+
+  /** The hall (id, definition) a slot belongs to. */
+  hallOfSlot(slotId) {
+    const e = Object.entries(this.cfg.halls).find(([, H]) => H.slots.some((sl) => sl.id === slotId));
+    return e ? { id: e[0], ...e[1] } : null;
+  }
+
+  /** The first free slot in an open hall that takes this type of bay. */
+  freeSlot(co, type) {
+    return this.slotsOf(co).find((sl) => !sl.bay && sl.fits.includes(type)) || null;
+  }
+
+  /** The hall that would take a bay of this type next, if it were built: [hall id, hall] or null. */
+  hallFor(co, type) {
+    return Object.entries(this.cfg.halls).find(([hid, H]) => this.hallState(co, hid).state === 'site' && H.slots.some((sl) => sl.fits.includes(type))) || null;
+  }
+
+  /** Build one of Roost's halls: paid now, open after its build days (the site on the map becomes the building). */
+  buildHall(co, id) {
+    const H = this.cfg.halls[id];
+    if (!H || !H.build) return { ok: false, text: 'No such hall.' };
+    if (co.kind !== 'player') return { ok: false, text: 'Only Roost builds on its plots.' };
+    if (this.hallState(co, id).state !== 'site') return { ok: false, text: `${H.name}: already built or being built.` };
+    if (!this.canAfford(co, H.build)) return { ok: false, text: `${H.name} costs ${H.build.toLocaleString()} obols.` };
+    this.pay(co, H.build, null);
+    co.books.capex += H.build;
+    co.halls[id] = this.now + Math.round(H.buildDays * DAY);
+    this.report(co, 'facility', `🏗 ${co.name} breaks ground: ${H.name} (open in ${H.buildDays} days).`, 'info');
+    return { ok: true, text: `${H.name}: the site is open, and the building will be ready in ${H.buildDays} days.` };
+  }
+
+  /**
+   * Fit a bay. Roost's bays stand in a free slot of an open hall (the first that suits, or `slotId`);
+   * with none free the answer says which hall to build. Meridian's halls are fixed on the map (its
+   * bays carry the ids they were drawn for): a bay beyond them goes up at another of its sites —
+   * unseen, and half as much again.
+   */
+  buildBay(co, type, slotId = null) {
     const B = this.cfg.bays[type];
     if (!B) return { ok: false, text: 'No such bay.' };
-    if (!this.canAfford(co, B.build)) return { ok: false, text: `A ${B.name.toLowerCase()} costs ${B.build.toLocaleString()} obols.` };
-    this.pay(co, B.build, null);
-    co.books.capex += B.build;
+    let slot = null;
+    let cost = B.build;
+    if (co.kind === 'player') {
+      slot = slotId ? this.slotsOf(co).find((sl) => sl.id === slotId && !sl.bay && sl.fits.includes(type)) : this.freeSlot(co, type);
+      if (!slot) {
+        const next = this.hallFor(co, type);
+        return { ok: false, text: `There's no free slot for a ${B.name.toLowerCase()} in any hall you have.${next ? ` Build the ${next[1].name} first (${next[1].build.toLocaleString()} obols, ${next[1].buildDays} days).` : ''}` };
+      }
+    } else cost = Math.round(B.build * 1.5); // Meridian's halls on the map are full: a bay beyond them goes up at another of its sites
+    if (!this.canAfford(co, cost)) return { ok: false, text: `A ${B.name.toLowerCase()} costs ${cost.toLocaleString()} obols.` };
+    this.pay(co, cost, null);
+    co.books.capex += cost;
     const n = co.bays.filter((b) => b.type === type).length + 1;
-    co.bays.push({ id: `${type}_${n}`, type, unit: null, ready: this.now + Math.round(B.buildDays * DAY) });
-    this.report(co, 'facility', `🏗 ${co.name} is building ${B.name.toLowerCase()} No. ${n} (ready in ${B.buildDays} days).`, co.kind === 'player' ? 'info' : null);
+    co.bays.push({ id: `${type}_${n}`, type, unit: null, ready: this.now + Math.round(B.buildDays * DAY), ...(slot ? { slot: slot.id } : {}) });
+    const where = slot ? ` in ${this.cfg.halls[slot.hall].short}` : '';
+    this.report(co, 'facility', `🏗 ${co.name} is fitting ${B.name.toLowerCase()} No. ${n}${where} (ready in ${B.buildDays} days).`, co.kind === 'player' ? 'info' : null);
     if (co.kind === 'rival') this.news(`Meridian breaks ground on a new ${B.name.toLowerCase()} at Starling Flats.`);
-    return { ok: true, text: `${B.name} No. ${n} is under construction: ready in ${B.buildDays} days.` };
+    return { ok: true, text: `${B.name} No. ${n}${where} is being fitted: ready in ${B.buildDays} days.` };
   }
 
   /** Fixed facilities: the engine test cell, inspection equipment, a launch pad. Paid now, ready after their build days. */
@@ -34635,6 +34804,7 @@ class Aerospace {
     let upkeep = co.bays.reduce((a, b) => a + (b.ready <= this.now ? C.bays[b.type].upkeep : 0), 0);
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
+    if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
     this.pay(co, upkeep, 'upkeep');
     this.pay(co, co.overhead, 'overhead');
     if (co.kind === 'rival' && co.cash < 0) this.pay(co, -co.cash * this.A.meridian.interest, 'interest');
@@ -34646,6 +34816,7 @@ class Aerospace {
       co.researching = null;
     }
     for (const b of co.bays) if (b.ready && b.ready <= this.now && !b.announced) { b.announced = true; this.report(co, 'facility', `🏗 ${C.bays[b.type].name} ${b.id.split('_').pop()} is open.`, co.kind === 'player' ? 'good' : null); }
+    if (co.halls) for (const [id, at] of Object.entries(co.halls)) if (at && at <= this.now && !co.hallsOpened?.[id]) { (co.hallsOpened ||= {})[id] = true; this.report(co, 'facility', `🏗 ${C.halls[id].name} is open.`, 'good'); }
     for (const [id, at] of Object.entries(co.building || {})) {
       if (at > this.now) continue;
       delete co.building[id];
@@ -34850,6 +35021,27 @@ class Aerospace {
     s.aircraft ||= {};
     s.jobs ||= {};
     for (const co of Object.values(s.companies)) { co.shipping ||= 'internal'; co.internalPolicy ||= 'fallback'; co.freight ||= { external: 0, internalCharges: 0, equivalent: 0, voyageCosts: 0 }; }
+    this.migrateHalls();
+  }
+
+  /**
+   * A save from before v0.57.0 has Roost bays with no slots: each goes into the first free slot that
+   * suits it, and the hall it needs is opened for it (nothing is charged again, nothing is taken away).
+   * A bay with no slot to be had keeps working, unseen on the map.
+   */
+  migrateHalls() {
+    const co = this.state.companies?.roost;
+    if (!co) return;
+    co.halls ||= { hangar1: 0 };
+    for (const b of co.bays) {
+      if (b.slot) continue;
+      let slot = this.freeSlot(co, b.type);
+      if (!slot) {
+        const next = this.hallFor(co, b.type);
+        if (next) { co.halls[next[0]] = Math.min(this.now, b.ready || this.now); co.hallsOpened = { ...(co.hallsOpened || {}), [next[0]]: true }; slot = this.freeSlot(co, b.type); }
+      }
+      if (slot) b.slot = slot.id;
+    }
   }
 
   // ------------------------------------------------------------- what the world shows
@@ -34874,6 +35066,18 @@ class Aerospace {
       return { key: `${p.model}|${p.livery || ''}|${p.wreck ? 1 : 0}|${p.heading || 0}`, look, livery: p.livery, wreck: p.wreck, heading: p.heading || 0 };
     }
     const co = this.company(p.aero?.company || p.company);
+    if (p.type === 'hall_site') {
+      const st = this.hallState(this.roost, p.aero.hall);
+      const f = st.state === 'building' ? Math.max(0.05, Math.round(st.f * 5) / 5) : st.state === 'built' ? 1 : 0;
+      return { key: `${st.state}|${f}`, state: st.state, f };
+    }
+    if (p.type === 'aero_facility') {
+      const id = p.aero.facility;
+      if (this.roost?.facilities?.[id]) return { key: 'built', state: 'built' };
+      const at = this.roost?.building?.[id];
+      if (at) { const F = this.cfg.facilities[id]; const f = Math.max(0.1, Math.round((1 - (at - this.now) / (F.buildDays * DAY)) * 4) / 4); return { key: `construction|${f}`, state: 'construction', f }; }
+      return { key: 'site', state: 'site' };
+    }
     if (p.type === 'launch_pad') {
       if (!co?.pad) return { key: co?.building?.pad ? 'construction' : 'site', site: true };
       const u = co?.pad?.unit && this.state.units[co.pad.unit];
@@ -34893,8 +35097,8 @@ class Aerospace {
       let u = null;
       if (p.aero.pad) u = this.unitsOf(co).find((x) => x.line === 'rocket' && this.stageOf(x)?.wait === 'pad');
       else {
-        const bay = co.bays.find((b) => b.id === p.aero.bay);
-        if (!bay) return { key: 'closed', closed: true };
+        const bay = co.bays.find((b) => (p.aero.slot ? b.slot === p.aero.slot : b.id === p.aero.bay));
+        if (!bay) return { key: p.aero.slot ? 'vacant' : 'closed', closed: true, vacant: Boolean(p.aero.slot) };
         if (bay.ready > this.now) return { key: 'building', closed: true };
         u = bay.unit && this.state.units[bay.unit];
       }
@@ -36079,6 +36283,7 @@ class Game {
     if (!door.to) return door.lock?.message || 'It won\'t open.';
     const lock = door.lock;
     if (!lock) return null;
+    if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
     if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
@@ -36095,6 +36300,7 @@ class Game {
 
   npcCanPass(npc, door) {
     if (!door.to) return false;
+    if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
     if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts
@@ -40049,7 +40255,19 @@ Object.assign(AERO_PAINTERS, {
       for (let x = 0; x < w; x += 8) { R(x, 0, 4, 3, '#e8c040'); R(x + 4, 0, 4, 3, '#1e1e24'); R(x, h - 3, 4, 3, '#e8c040'); R(x + 4, h - 3, 4, 3, '#1e1e24'); }
       for (let y = 0; y < h; y += 8) { R(0, y, 3, 4, '#e8c040'); R(0, y + 4, 3, 4, '#1e1e24'); R(w - 3, y, 3, 4, '#e8c040'); R(w - 3, y + 4, 3, 4, '#1e1e24'); }
       for (let x = 24; x < w - 8; x += 32) for (let y = 24; y < h - 8; y += 32) R(x, y, 2, 2, '#5a5e66');
-      if (view.closed) { R(6, 6, w - 12, h - 12, 'rgba(20,20,30,0.25)'); return; }
+      if (view.closed) {
+        R(6, 6, w - 12, h - 12, 'rgba(20,20,30,0.25)');
+        if (view.vacant) {
+          // a slot nobody has fitted yet: bare floor, anchor plates where the jigs will bolt down
+          for (const [jx, jy] of [[12, 14], [w - 22, 14], [12, h - 24], [w - 22, h - 24]]) { R(jx, jy, 10, 10, '#7a7e86'); R(jx + 4, jy + 4, 2, 2, '#4a4e56'); }
+          for (let i = 0; i < 6; i++) R(w / 2 - 15 + i * 6, h / 2, 3, 1, 'rgba(232,192,64,0.5)');
+        } else {
+          // being fitted out: scaffold poles at the corners, a pallet of jig parts
+          for (const [jx, jy] of [[10, 10], [w - 14, 10], [10, h - 34], [w - 14, h - 34]]) { R(jx, jy, 3, 24, '#b0b4b8'); R(jx, jy, 3, 2, '#e0e4e8'); }
+          R(w / 2 - 14, h / 2 - 6, 28, 12, '#a07848'); R(w / 2 - 14, h / 2 - 6, 28, 2, '#c89868'); R(w / 2 - 10, h / 2 - 12, 20, 6, '#7a8a9a');
+        }
+        return;
+      }
       if (!view.kind) {
         // empty: the jigs stand idle
         for (const [jx, jy] of [[10, 12], [w - 22, 12], [10, h - 26], [w - 22, h - 26]]) { R(jx, jy, 12, 12, '#8a8e96'); R(jx, jy, 12, 2, '#b8bcc0'); R(jx + 4, jy - 18, 4, 18, '#c8a040'); }
@@ -40098,6 +40316,25 @@ Object.assign(AERO_PAINTERS, {
       for (let i = 0; i < n; i++) R(6 + i * 5, h - 10, 4, 4, i < view.stageIndex ? '#3fe07a' : i === view.stageIndex ? '#e8c040' : '#3a3e46');
     },
   },
+  hall_site: {
+    view: true,
+    box: (p) => [0, -158, W(p), H(p)],
+    shadow: [6, 4],
+    paint(k, p, v, o) { paintHallSite(k, p, o.view || {}); },
+  },
+  aero_facility: {
+    view: true,
+    box: (p) => [0, -14, W(p), H(p)],
+    shadow: [3, 2],
+    paint(k, p, v, o) {
+      const view = o.view || {};
+      const w = W(p);
+      const h = H(p);
+      if (view.state === 'built') { FACILITY_ART[p.aero?.facility]?.(k, w, h, 1); return; }
+      if (view.state === 'construction') { sitePad(k, w, h, p.x + p.y); FACILITY_ART[p.aero?.facility]?.(k, w, h, Math.max(0.1, Math.min(0.95, view.f || 0.3))); return; }
+      sitePad(k, w, h, p.x + p.y);
+    },
+  },
   launch_pad: {
     view: true,
     box: (p) => [0, -420, W(p), H(p)],
@@ -40131,6 +40368,164 @@ Object.assign(AERO_PAINTERS, {
     },
   },
 });
+
+// ------------------------------------------------------------------ v0.57.0: building sites and facilities
+/** A staked, string-lined site: packed gravel, ruts, corner stakes with flags, and a string line round the plot. */
+function sitePad(k, w, h, seed) {
+  const { R } = k;
+  R(0, 0, w, h, '#968f7e');
+  for (let i = 0; i < Math.round((w * h) / 150); i++) {
+    const x = Math.floor(hashi(i + seed, 3.7) * (w - 3));
+    const y = Math.floor(hashi(i * 1.9, seed + 8.1) * (h - 2));
+    R(x, y, 3, 1 + (i % 2), i % 3 ? '#7e7868' : '#aea896');
+  }
+  for (const rx of [Math.round(w * 0.3), Math.round(w * 0.31) + 9]) for (let y = Math.round(h * 0.55); y < h; y += 2) R(rx + Math.round(Math.sin(y / 9) * 2), y, 2, 1, 'rgba(60,54,44,0.35)');
+  R(0, 0, w, 2, '#aea896'); R(0, h - 2, w, 2, '#6e6858');
+  // the string line, a little inside the edge, and the stakes at its corners and every four tiles
+  const m = 10;
+  R(m, m, w - 2 * m, 1, '#e8e0c8'); R(m, h - m, w - 2 * m, 1, '#e8e0c8'); R(m, m, 1, h - 2 * m, '#e8e0c8'); R(w - m, m, 1, h - 2 * m, '#e8e0c8');
+  const stakes = [[m, m], [w - m, m], [m, h - m], [w - m, h - m]];
+  for (let x = m + 128; x < w - m - 40; x += 128) { stakes.push([x, m], [x, h - m]); }
+  for (let y = m + 128; y < h - m - 40; y += 128) { stakes.push([m, y], [w - m, y]); }
+  for (const [sx, sy] of stakes) { R(sx - 1, sy - 12, 3, 14, '#c8a060'); R(sx + 2, sy - 12, 5, 3, '#ff7a2a'); R(sx - 1, sy - 12, 1, 14, '#e0bc80'); }
+}
+
+/** A tower crane: lattice mast, a jib out over the site, a counter-jib with its weights, a cab, the hook and a hanging beam. */
+function crane(k, x, top, base, w, load = true) {
+  const { R } = k;
+  const steel = '#e8b830';
+  const dark = '#8a6a10';
+  R(x, top, 2, base - top, steel); R(x + 7, top, 2, base - top, dark);
+  for (let y = top + 6; y < base - 4; y += 10) { R(x + 2, y, 5, 1, steel); R(x + 2 + ((y / 10) % 2) * 2, y - 4, 2, 4, dark); }
+  R(x - 3, base - 4, 15, 4, '#5a5e66'); R(x - 3, base - 4, 15, 1, '#8a8e96');
+  R(x - 2, top - 10, 13, 10, '#c8c8c0'); R(x, top - 8, 9, 5, '#4a6a8a'); // the cab
+  const jibY = top - 14;
+  R(x - w, jibY, w + 22, 3, steel); R(x - w, jibY + 3, w + 22, 1, dark);
+  for (let i = 0; i < w; i += 12) { R(x - w + i, jibY + 4, 1, 6, dark); R(x - w + i, jibY + 4, 6, 1, steel); }
+  R(x + 9, jibY - 2, 14, 7, '#6a6e76'); R(x + 9, jibY - 2, 14, 1, '#9a9ea6'); // the counterweights
+  R(x + 4, jibY - 16, 2, 16, steel); R(x - w / 2, jibY - 6, 1, 6, dark); // the tie
+  const hx = x - Math.round(w * 0.55);
+  R(hx, jibY + 4, 1, 40, '#1b1a24');
+  if (load) { R(hx - 14, jibY + 44, 30, 4, '#7a8a9a'); R(hx - 14, jibY + 44, 30, 1, '#b0c0d0'); R(hx - 1, jibY + 40, 3, 4, '#c84a2a'); }
+  else R(hx - 2, jibY + 40, 5, 5, '#c84a2a');
+}
+
+/** What a hall looks like while it's being built: f runs 0 (a staked site) to 1 (done). */
+function paintHallSite(k, p, view) {
+  const { R, block, ball } = k;
+  const w = W(p);
+  const h = H(p);
+  const f = Math.max(0, Math.min(1, view.f || 0));
+  const seed = p.x * 7 + p.y;
+  sitePad(k, w, h, seed);
+  const stage = (a, b) => Math.max(0, Math.min(1, (f - a) / (b - a)));
+  const pal = ramp('#c8c4b8');
+  // site clutter: pallets of blocks, a sand heap, a site cabin, a porta-loo, a mini-excavator
+  const mx = 18;
+  if (f < 0.55) {
+    block(mx, h - 54, 40, 22, 6, ramp('#b08a68'));
+    for (let i = 0; i < 5; i++) R(mx + 4 + i * 7, h - 52, 1, 18, '#8a6a4a');
+    ball(mx + 62, h - 40, 18, 9, ramp('#d8c890'), 0.3, seed);
+    block(w - 96, h - 62, 56, 34, 7, ramp('#e8e8e0'));
+    R(w - 90, h - 50, 12, 10, '#4a6a8a'); R(w - 64, h - 50, 10, 22, '#5a4a3a');
+    block(w - 34, h - 56, 14, 28, 4, ramp('#4a8a6a'));
+  }
+  if (f === 0) {
+    // the excavator, parked: tracks, cab, boom and bucket
+    const ex = Math.round(w * 0.45);
+    R(ex, h - 40, 34, 8, '#2a2a30'); R(ex + 2, h - 38, 30, 2, '#4a4a52');
+    R(ex + 4, h - 54, 20, 14, '#e8b830'); R(ex + 4, h - 54, 20, 2, '#f8d868'); R(ex + 8, h - 51, 9, 7, '#4a6a8a');
+    R(ex + 22, h - 60, 3, 18, '#e8b830'); R(ex + 22, h - 60, 16, 3, '#e8b830'); R(ex + 36, h - 60, 3, 10, '#c8a020'); R(ex + 32, h - 51, 10, 4, '#5a5e66');
+    return;
+  }
+  // the slab, poured from the front back
+  const slab = stage(0.02, 0.2);
+  const sh = Math.round((h - 22) * slab);
+  R(11, h - 11 - sh, w - 22, sh, '#b8b6b0'); R(11, h - 11 - sh, w - 22, 1, '#d8d6d0');
+  for (let x = 11 + 64; x < w - 11; x += 64) R(x, h - 11 - sh, 1, sh, '#a09e98');
+  // the perimeter, walked from the front-left corner up the left side, across the back, down the right side and
+  // back along the front (leaving the doorway): the steel frame goes up round it, then the panels, then the roof
+  const m = 8;
+  const sideV = h - 2 * m;
+  const sideH = w - 2 * m;
+  const L = 2 * sideV + 2 * sideH;
+  const at = (d) => {
+    if (d < sideV) return [m, h - m - d];
+    d -= sideV;
+    if (d < sideH) return [m + d, m];
+    d -= sideH;
+    if (d < sideV) return [w - m, m + d];
+    d -= sideV;
+    return [w - m - d, h - m];
+  };
+  const doorGap = (x, y) => y > h - m - 2 && Math.abs(x - w / 2) < 18;
+  const fr = stage(0.12, 0.6);
+  const wl = stage(0.42, 0.88);
+  if (fr > 0) {
+    const end = Math.round(L * fr);
+    for (let d = 0; d < end; d += 2) { const [x, y] = at(d); if (!doorGap(x, y)) { R(x - 2, y - 2, 4, 4, '#6a8aa8'); R(x - 2, y - 2, 4, 1, '#9ab8d0'); } }
+    for (let d = 0; d < end; d += 96) { const [x, y] = at(d); R(x - 4, y - 8, 8, 12, '#5a7a98'); R(x - 4, y - 8, 8, 2, '#8aaac8'); R(x - 4, y - 8, 2, 12, '#7a9ab8'); R(x + 2, y - 8, 2, 12, '#3a5a78'); }
+  }
+  if (wl > 0) {
+    const end = Math.round(L * wl);
+    for (let d = 0; d < end; d += 4) {
+      const [x, y] = at(d);
+      if (doorGap(x, y)) continue;
+      R(x - 4, y - 4, 8, 8, pal[2]);
+      R(x - 4, y - 4, 8, 1, pal[4]); R(x - 4, y + 3, 8, 1, pal[1]);
+      if ((d / 4) % 4 === 0) R(x - 4, y - 4, 1, 8, pal[0]); // a panel joint
+    }
+  }
+  // the roof, laid sheet by sheet from the left
+  const rf = stage(0.8, 1);
+  if (rf > 0) {
+    const rw = Math.round((w - 2 * m) * rf);
+    R(m + 4, m + 4, rw, h - 2 * m - 8, '#7a7a82');
+    for (let x = m + 4; x < m + 4 + rw; x += 6) R(x, m + 4, 1, h - 2 * m - 8, '#6a6a72');
+    R(m + 4, m + 4, rw, 2, '#b0b0b8');
+  }
+  // scaffolding along the front while the walls go up
+  const sc = stage(0.2, 0.9) * (1 - stage(0.9, 1));
+  if (sc > 0) {
+    const sw = Math.round((w - 2 * m) * 0.6);
+    for (let x = m; x <= m + sw; x += 24) R(x, h - m - 30, 2, 30, '#b0b4b8');
+    for (let y = h - m - 8; y > h - m - 30; y -= 11) { R(m, y, sw + 2, 3, '#c89858'); R(m, y, sw + 2, 1, '#e0b878'); }
+  }
+  // the crane, until the roof is on
+  if (f < 0.97) crane(k, w - 40, -118, h - 30, Math.min(150, Math.round(w * 0.55)), f < 0.8);
+  // a stack of beams, until they're all up
+  if (f < 0.5) for (let i = 0; i < 4; i++) { R(24, h - 30 - i * 5, 70, 4, '#7a8a9a'); R(24, h - 30 - i * 5, 70, 1, '#a8b8c8'); }
+}
+
+const FACILITY_ART = {
+  engine_cell(k, w, h, f) {
+    const { R, ball, block } = k;
+    R(0, 0, w, h, '#a8a8a2'); R(0, 0, w, 2, '#c8c8c2'); R(0, h - 2, w, 2, '#7a7a74');
+    for (let x = 0; x < w; x += 32) R(x, 0, 1, h, '#98988f');
+    if (f < 1) { // half-built: the blast wall going up
+      R(w - 22, 8, 12, Math.round((h - 20) * f), '#8a8e96');
+      return;
+    }
+    R(w - 22, 6, 14, h - 14, '#8a8e96'); R(w - 22, 6, 14, 2, '#b0b4ba'); R(w - 9, 6, 1, h - 14, '#5a5e66'); // the blast wall
+    R(8, h - 34, 56, 6, '#5a5e66'); R(8, h - 34, 56, 1, '#8a8e96'); // the rig's rails
+    ball(32, h - 46, 24, 11, ramp('#9aa0a8'), 0.1, 3); // the turbofan
+    R(8, h - 50, 5, 18, '#2a2e34'); R(8, h - 50, 1, 18, '#4a4e54'); // the intake screen
+    R(56, h - 52, 14, 12, '#6a6e76'); // the exhaust cone
+    block(10, 8, 30, 22, 5, ramp('#d8dcd8')); R(14, 16, 8, 6, '#4a6a8a'); // the control hut
+    R(46, 12, 3, 10, '#e8b830'); R(47, 10, 2, 3, '#ff4a2a'); // the beacon
+  },
+  inspection(k, w, h, f) {
+    const { R, block } = k;
+    R(0, 0, w, h, '#a8a8a2'); R(0, 0, w, 2, '#c8c8c2'); R(0, h - 2, w, 2, '#7a7a74');
+    R(6, h - 30, w - 12, 3, '#e8d030'); R(6, h - 12, w - 12, 3, '#e8d030'); // the parking bay's lines
+    if (f < 1) { for (const x of [10, w - 16]) R(x, h - 20 - Math.round((h - 34) * f), 6, Math.round((h - 34) * f) + 4, '#e8b830'); return; }
+    for (const x of [8, w - 16]) { R(x, 10, 8, h - 20, '#e8b830'); R(x, 10, 2, h - 20, '#f8d868'); R(x + 6, 10, 2, h - 20, '#a07818'); } // the gantry's legs
+    R(8, 8, w - 16, 8, '#e8b830'); R(8, 8, w - 16, 2, '#f8d868'); R(8, 14, w - 16, 2, '#a07818'); // the beam
+    for (let x = 22; x < w - 22; x += 10) R(x, 16, 3, 4 + (x % 3), '#4a6a8a'); // the scanner heads
+    R(Math.round(w / 2) - 5, 16, 10, 6, '#c84a2a'); R(Math.round(w / 2) - 1, 22, 2, 14, '#8a8e96'); // the laser tracker
+    block(w - 40, h - 36, 24, 16, 4, ramp('#d8dcd8')); R(w - 36, h - 30, 8, 5, '#4a6a8a'); // the booth
+  },
+};
 
 /** The live bits that depend on the simulation: the pad venting, sparks in a busy bay. */
 function aeroLiveView(ctx, p, opts) {
@@ -48712,7 +49107,7 @@ const { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } = __m["src/engine/
 const { inWindow } = __m["src/world/clock.js"];
 
 /** v0.55.0: props whose look comes from the aerospace simulation (Aerospace.propView). */
-const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad']);
+const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad', 'hall_site', 'aero_facility']);
 const { floatLift, drawFloatShadow, HOST_FX, hostState, runEffects, EFFECTS } = __m["src/engine/cardMagic.js"];
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -49034,7 +49429,7 @@ class Renderer {
     const map = g.currentMap();
     // v0.47.0: the street and every building's interior are drawn together (buildings are walked
     // into, not loaded): the streets first, then the rooms over their footprints
-    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior'));
+    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].filter((L) => !(L.map.def?.hall && !g.aero.hallBuilt(L.map.def.hall))).sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.57.0: a hall still being built has no room to draw
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
@@ -49109,6 +49504,7 @@ class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
+        if (b.hall && !g.aero.hallBuilt(b.hall)) continue; // v0.57.0: a building site (the hall_site prop) stands here until it's built
         if (b.interior) {
           // v0.47.0: its room is drawn in its place; v0.51.0: its sign and awning over the front
           if ((b.sign || b.awning) && inView(b.x * TILE, (b.y + b.h - 2) * TILE, b.w * TILE, 3 * TILE)) items.push({ y: (b.y + b.h) * TILE + L.y + 1, draw: at(() => drawShopFront(ctx, b, this.time, night)) });
@@ -50724,6 +51120,11 @@ const BUILDING_ICONS = {
   sf_freight: { icon: '📦', kind: 'Freight receiving depot' },
   sf_roost_office: { icon: '✈️', kind: 'Roost Aeroworks — office' },
   sf_roost_hangar: { icon: '🛩️', kind: 'Roost Aeroworks — hangar' },
+  sf_roost_hangar2: { icon: '🛩️', kind: 'Roost Aeroworks — Hangar 2 (light assembly)' },
+  sf_roost_heavy: { icon: '✈️', kind: 'Roost Aeroworks — assembly hall (heavy bays)' },
+  sf_roost_wide: { icon: '🛫', kind: 'Roost Aeroworks — widebody & secure hall' },
+  sf_roost_space: { icon: '🚀', kind: 'Roost Aeroworks — space systems annex' },
+  sf_roost_lab: { icon: '🔬', kind: 'Roost Aeroworks — research laboratory' },
   sf_meridian_hq: { icon: '🏢', kind: 'Meridian Aerospace headquarters (MRDN)' },
   sf_meridian_assembly: { icon: '✈️', kind: 'Meridian final assembly' },
   sf_meridian_flightline: { icon: '🛩️', kind: 'Meridian flight-line hall' },
@@ -57340,7 +57741,8 @@ function aerospacePanel(ui, body, opts = {}) {
       for (let s = 0; s < 3; s++) { ctx.fillStyle = s % 2 ? '#1a1a20' : 'rgba(255,181,71,0.75)'; ctx.fillRect(cx + sx * (8 + s * 6) * k - (sx < 0 ? 6 * k : 0), cy + sy * 6 * k - (sy < 0 ? 3 * k : 0), 6 * k, 3 * k); }
     }
     const pad = 12 * k;
-    text(`BAY ${i + 1} · ${C.bays[b.type].name.toUpperCase()}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
+    const hall = b.slot ? A.hallOfSlot(b.slot) : null;
+    text(`BAY ${i + 1} · ${C.bays[b.type].name.toUpperCase()}${hall ? ` · ${hall.short.toUpperCase()}` : ''}`, x + pad, y + 18 * k, 'rgba(255,181,71,0.9)', 10.5, { spacing: 1.5, weight: 700, max: w - pad * 2 - 90 * k });
     const chip = building ? ['BUILDING', COL.blue] : !u ? ['IDLE', 'rgba(223,233,245,0.45)'] : u.status === 'building' ? ['WORKING', COL.green] : [STATUS[u.status]?.toUpperCase() || u.status.toUpperCase(), u.status === 'blocked' ? COL.red : COL.amber];
     text(chip[0], x + w - pad, y + 18 * k, chip[1], 10, { align: 'right', weight: 700, spacing: 1 });
     hits.push({ kind: 'bay', id: b.id, x, y, w, h: hh });
@@ -57904,6 +58306,27 @@ function aerospacePanel(ui, body, opts = {}) {
       }) : [muted('No consignments in your ships yet.')]));
   };
 
+  /** A hall: its state on the map, what it costs, and its slots (a bay fitted, or free to fit). */
+  const hallCard = (c, hid, H) => {
+    const st = A.hallState(c, hid);
+    const slots = H.slots.map((sl) => {
+      const bay = c.bays.find((b) => b.slot === sl.id);
+      const types = [...new Set(sl.fits)];
+      if (bay) {
+        const u = unitOf(bay.unit);
+        return h('div', { class: 'ao-tile' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, C.bays[bay.type].name), bay.ready > A.now ? pill(`fitted ${A.when(bay.ready).replace('Day ', 'D')}`, COL.blue) : u ? pill(`${C.products[u.product].name} #${u.n}`, COL.green) : pill('idle', 'rgba(223,233,245,0.5)'));
+      }
+      if (st.state !== 'built') return h('div', { class: 'ao-tile off' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, 'after the hall opens'));
+      return h('div', { class: 'ao-tile' }, h('small', {}, `FREE SLOT · ${sl.fits[0].toUpperCase()}`), h('div', { class: 'ao-row-inline' }, ...types.map((type) => btn(`Fit ${C.bays[type].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(C.bays[type].build)}`, () => act(() => A.buildBay(c, type, sl.id)), 'tiny', !A.canAfford(c, C.bays[type].build)))));
+    });
+    return h('div', { class: 'ao-card' },
+      h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, H.name), h('small', {}, H.text)),
+        st.state === 'built' ? pill(H.owned ? 'yours' : 'open', COL.green) : st.state === 'building' ? pill(`opens ${A.when(st.ready).replace('Day ', 'D')}`, COL.blue) : h('div', { class: 'ao-pay' }, fmtMoney(H.build), h('small', {}, `${H.buildDays} d · ${fmtMoney(H.upkeep)}/d`))),
+      st.state === 'building' ? bar('Building', st.f, COL.blue, `${Math.round(st.f * 100)}%`) : null,
+      slots.length ? h('div', { class: 'ao-grid small' }, ...slots) : h('small', { class: 'ao-muted' }, H.effect ? `Effect: research takes ${Math.round((1 - H.effect.researchDays) * 100)}% less time.` : ''),
+      st.state === 'site' ? btn(`Build it · ${money(H.build)}`, () => act(() => A.buildHall(c, hid)), 'primary', !A.canAfford(c, H.build)) : null);
+  };
+
   // ------------------------------------------------------------------ hangar (workforce, bays, facilities, research)
   const hangarSheet = () => {
     const c = co();
@@ -57919,14 +58342,12 @@ function aerospacePanel(ui, body, opts = {}) {
           bar('Crew', need ? c.workforce / need : 1, c.workforce >= need ? COL.green : COL.amber, `${c.workforce}/${need}`),
           h('div', { class: 'ao-row-inline' }, ...[10, 30, 100].map((n) => btn(`Hire ${n} · ${fmtMoney(n * A.A.hireCost)}`, () => act(() => A.hire(c, n)), 'primary')), ...[10, 30].map((n) => btn(`Lay off ${n}`, () => act(() => A.layoff(c, n)), '', c.workforce < n))),
           muted('A bay works at full speed when its crew is all there; short-staffed, every bay slows. Wages are paid every morning, busy or not.')),
-        section('Your bays & facilities',
-          h('div', { class: 'ao-grid small' }, ...c.bays.map((b, i) => h('div', { class: 'ao-tile' }, h('small', {}, `BAY ${i + 1}`), h('b', {}, C.bays[b.type].name), b.ready > A.now ? pill(`ready ${A.when(b.ready).replace('Day ', 'D')}`, COL.blue) : b.unit ? pill('working', COL.green) : pill('idle', 'rgba(223,233,245,0.5)'))),
+        section('Apron-side facilities',
+          h('div', { class: 'ao-grid small' },
             h('div', { class: 'ao-tile' }, h('small', {}, 'APRON'), h('b', {}, `${c.apron} stands`), pill(`${A.apronUsed(c)} in use`, COL.blue)),
             ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => { const have = id === 'pad' ? c.pad : c.facilities[id]; const b = c.building?.[id]; return h('div', { class: 'ao-tile' }, h('small', {}, 'FACILITY'), h('b', {}, f.name), have ? pill('built', COL.green) : b ? pill(`ready ${A.when(b).replace('Day ', 'D')}`, COL.blue) : pill('not built', 'rgba(223,233,245,0.5)')); })))),
-      section('Build a bay', h('div', { class: 'ao-grid' }, ...Object.entries(C.bays).map(([id, b]) => h('div', { class: 'ao-card' },
-        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, b.name), h('small', {}, b.text)), h('div', { class: 'ao-pay' }, fmtMoney(b.build), h('small', {}, `${b.buildDays} days`))),
-        h('div', { class: 'ao-facts' }, h('div', {}, h('small', {}, 'Crew'), h('b', {}, String(b.crew))), h('div', {}, h('small', {}, 'Upkeep'), h('b', {}, `${fmtMoney(b.upkeep)}/d`)), h('div', {}, h('small', {}, 'Builds'), h('b', {}, b.lines.map((l) => LINE_ICON[l]).join(' '))), h('div', {}, h('small', {}, 'You have'), h('b', {}, String(c.bays.filter((x) => x.type === id).length)))),
-        btn(`Build · ${money(b.build)}`, () => act(() => A.buildBay(c, id)), 'primary', !A.canAfford(c, b.build)))))),
+      section('Halls — where your bays stand', muted('Each hall is a building on Starling Flats: build it (the site on the map becomes the hall), then fit bays into its slots. A free slot takes only the bay types listed.'),
+        h('div', { class: 'ao-grid wide' }, ...Object.entries(C.halls).map(([hid, H]) => hallCard(c, hid, H)))),
       section('Facilities', h('div', { class: 'ao-grid' }, ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => {
         const have = id === 'pad' ? c.pad : c.facilities[id];
         const b = c.building?.[id];

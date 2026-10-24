@@ -663,7 +663,19 @@ Object.assign(AERO_PAINTERS, {
       for (let x = 0; x < w; x += 8) { R(x, 0, 4, 3, '#e8c040'); R(x + 4, 0, 4, 3, '#1e1e24'); R(x, h - 3, 4, 3, '#e8c040'); R(x + 4, h - 3, 4, 3, '#1e1e24'); }
       for (let y = 0; y < h; y += 8) { R(0, y, 3, 4, '#e8c040'); R(0, y + 4, 3, 4, '#1e1e24'); R(w - 3, y, 3, 4, '#e8c040'); R(w - 3, y + 4, 3, 4, '#1e1e24'); }
       for (let x = 24; x < w - 8; x += 32) for (let y = 24; y < h - 8; y += 32) R(x, y, 2, 2, '#5a5e66');
-      if (view.closed) { R(6, 6, w - 12, h - 12, 'rgba(20,20,30,0.25)'); return; }
+      if (view.closed) {
+        R(6, 6, w - 12, h - 12, 'rgba(20,20,30,0.25)');
+        if (view.vacant) {
+          // a slot nobody has fitted yet: bare floor, anchor plates where the jigs will bolt down
+          for (const [jx, jy] of [[12, 14], [w - 22, 14], [12, h - 24], [w - 22, h - 24]]) { R(jx, jy, 10, 10, '#7a7e86'); R(jx + 4, jy + 4, 2, 2, '#4a4e56'); }
+          for (let i = 0; i < 6; i++) R(w / 2 - 15 + i * 6, h / 2, 3, 1, 'rgba(232,192,64,0.5)');
+        } else {
+          // being fitted out: scaffold poles at the corners, a pallet of jig parts
+          for (const [jx, jy] of [[10, 10], [w - 14, 10], [10, h - 34], [w - 14, h - 34]]) { R(jx, jy, 3, 24, '#b0b4b8'); R(jx, jy, 3, 2, '#e0e4e8'); }
+          R(w / 2 - 14, h / 2 - 6, 28, 12, '#a07848'); R(w / 2 - 14, h / 2 - 6, 28, 2, '#c89868'); R(w / 2 - 10, h / 2 - 12, 20, 6, '#7a8a9a');
+        }
+        return;
+      }
       if (!view.kind) {
         // empty: the jigs stand idle
         for (const [jx, jy] of [[10, 12], [w - 22, 12], [10, h - 26], [w - 22, h - 26]]) { R(jx, jy, 12, 12, '#8a8e96'); R(jx, jy, 12, 2, '#b8bcc0'); R(jx + 4, jy - 18, 4, 18, '#c8a040'); }
@@ -712,6 +724,25 @@ Object.assign(AERO_PAINTERS, {
       for (let i = 0; i < n; i++) R(6 + i * 5, h - 10, 4, 4, i < view.stageIndex ? '#3fe07a' : i === view.stageIndex ? '#e8c040' : '#3a3e46');
     },
   },
+  hall_site: {
+    view: true,
+    box: (p) => [0, -158, W(p), H(p)],
+    shadow: [6, 4],
+    paint(k, p, v, o) { paintHallSite(k, p, o.view || {}); },
+  },
+  aero_facility: {
+    view: true,
+    box: (p) => [0, -14, W(p), H(p)],
+    shadow: [3, 2],
+    paint(k, p, v, o) {
+      const view = o.view || {};
+      const w = W(p);
+      const h = H(p);
+      if (view.state === 'built') { FACILITY_ART[p.aero?.facility]?.(k, w, h, 1); return; }
+      if (view.state === 'construction') { sitePad(k, w, h, p.x + p.y); FACILITY_ART[p.aero?.facility]?.(k, w, h, Math.max(0.1, Math.min(0.95, view.f || 0.3))); return; }
+      sitePad(k, w, h, p.x + p.y);
+    },
+  },
   launch_pad: {
     view: true,
     box: (p) => [0, -420, W(p), H(p)],
@@ -745,6 +776,164 @@ Object.assign(AERO_PAINTERS, {
     },
   },
 });
+
+// ------------------------------------------------------------------ v0.57.0: building sites and facilities
+/** A staked, string-lined site: packed gravel, ruts, corner stakes with flags, and a string line round the plot. */
+function sitePad(k, w, h, seed) {
+  const { R } = k;
+  R(0, 0, w, h, '#968f7e');
+  for (let i = 0; i < Math.round((w * h) / 150); i++) {
+    const x = Math.floor(hashi(i + seed, 3.7) * (w - 3));
+    const y = Math.floor(hashi(i * 1.9, seed + 8.1) * (h - 2));
+    R(x, y, 3, 1 + (i % 2), i % 3 ? '#7e7868' : '#aea896');
+  }
+  for (const rx of [Math.round(w * 0.3), Math.round(w * 0.31) + 9]) for (let y = Math.round(h * 0.55); y < h; y += 2) R(rx + Math.round(Math.sin(y / 9) * 2), y, 2, 1, 'rgba(60,54,44,0.35)');
+  R(0, 0, w, 2, '#aea896'); R(0, h - 2, w, 2, '#6e6858');
+  // the string line, a little inside the edge, and the stakes at its corners and every four tiles
+  const m = 10;
+  R(m, m, w - 2 * m, 1, '#e8e0c8'); R(m, h - m, w - 2 * m, 1, '#e8e0c8'); R(m, m, 1, h - 2 * m, '#e8e0c8'); R(w - m, m, 1, h - 2 * m, '#e8e0c8');
+  const stakes = [[m, m], [w - m, m], [m, h - m], [w - m, h - m]];
+  for (let x = m + 128; x < w - m - 40; x += 128) { stakes.push([x, m], [x, h - m]); }
+  for (let y = m + 128; y < h - m - 40; y += 128) { stakes.push([m, y], [w - m, y]); }
+  for (const [sx, sy] of stakes) { R(sx - 1, sy - 12, 3, 14, '#c8a060'); R(sx + 2, sy - 12, 5, 3, '#ff7a2a'); R(sx - 1, sy - 12, 1, 14, '#e0bc80'); }
+}
+
+/** A tower crane: lattice mast, a jib out over the site, a counter-jib with its weights, a cab, the hook and a hanging beam. */
+function crane(k, x, top, base, w, load = true) {
+  const { R } = k;
+  const steel = '#e8b830';
+  const dark = '#8a6a10';
+  R(x, top, 2, base - top, steel); R(x + 7, top, 2, base - top, dark);
+  for (let y = top + 6; y < base - 4; y += 10) { R(x + 2, y, 5, 1, steel); R(x + 2 + ((y / 10) % 2) * 2, y - 4, 2, 4, dark); }
+  R(x - 3, base - 4, 15, 4, '#5a5e66'); R(x - 3, base - 4, 15, 1, '#8a8e96');
+  R(x - 2, top - 10, 13, 10, '#c8c8c0'); R(x, top - 8, 9, 5, '#4a6a8a'); // the cab
+  const jibY = top - 14;
+  R(x - w, jibY, w + 22, 3, steel); R(x - w, jibY + 3, w + 22, 1, dark);
+  for (let i = 0; i < w; i += 12) { R(x - w + i, jibY + 4, 1, 6, dark); R(x - w + i, jibY + 4, 6, 1, steel); }
+  R(x + 9, jibY - 2, 14, 7, '#6a6e76'); R(x + 9, jibY - 2, 14, 1, '#9a9ea6'); // the counterweights
+  R(x + 4, jibY - 16, 2, 16, steel); R(x - w / 2, jibY - 6, 1, 6, dark); // the tie
+  const hx = x - Math.round(w * 0.55);
+  R(hx, jibY + 4, 1, 40, '#1b1a24');
+  if (load) { R(hx - 14, jibY + 44, 30, 4, '#7a8a9a'); R(hx - 14, jibY + 44, 30, 1, '#b0c0d0'); R(hx - 1, jibY + 40, 3, 4, '#c84a2a'); }
+  else R(hx - 2, jibY + 40, 5, 5, '#c84a2a');
+}
+
+/** What a hall looks like while it's being built: f runs 0 (a staked site) to 1 (done). */
+function paintHallSite(k, p, view) {
+  const { R, block, ball } = k;
+  const w = W(p);
+  const h = H(p);
+  const f = Math.max(0, Math.min(1, view.f || 0));
+  const seed = p.x * 7 + p.y;
+  sitePad(k, w, h, seed);
+  const stage = (a, b) => Math.max(0, Math.min(1, (f - a) / (b - a)));
+  const pal = ramp('#c8c4b8');
+  // site clutter: pallets of blocks, a sand heap, a site cabin, a porta-loo, a mini-excavator
+  const mx = 18;
+  if (f < 0.55) {
+    block(mx, h - 54, 40, 22, 6, ramp('#b08a68'));
+    for (let i = 0; i < 5; i++) R(mx + 4 + i * 7, h - 52, 1, 18, '#8a6a4a');
+    ball(mx + 62, h - 40, 18, 9, ramp('#d8c890'), 0.3, seed);
+    block(w - 96, h - 62, 56, 34, 7, ramp('#e8e8e0'));
+    R(w - 90, h - 50, 12, 10, '#4a6a8a'); R(w - 64, h - 50, 10, 22, '#5a4a3a');
+    block(w - 34, h - 56, 14, 28, 4, ramp('#4a8a6a'));
+  }
+  if (f === 0) {
+    // the excavator, parked: tracks, cab, boom and bucket
+    const ex = Math.round(w * 0.45);
+    R(ex, h - 40, 34, 8, '#2a2a30'); R(ex + 2, h - 38, 30, 2, '#4a4a52');
+    R(ex + 4, h - 54, 20, 14, '#e8b830'); R(ex + 4, h - 54, 20, 2, '#f8d868'); R(ex + 8, h - 51, 9, 7, '#4a6a8a');
+    R(ex + 22, h - 60, 3, 18, '#e8b830'); R(ex + 22, h - 60, 16, 3, '#e8b830'); R(ex + 36, h - 60, 3, 10, '#c8a020'); R(ex + 32, h - 51, 10, 4, '#5a5e66');
+    return;
+  }
+  // the slab, poured from the front back
+  const slab = stage(0.02, 0.2);
+  const sh = Math.round((h - 22) * slab);
+  R(11, h - 11 - sh, w - 22, sh, '#b8b6b0'); R(11, h - 11 - sh, w - 22, 1, '#d8d6d0');
+  for (let x = 11 + 64; x < w - 11; x += 64) R(x, h - 11 - sh, 1, sh, '#a09e98');
+  // the perimeter, walked from the front-left corner up the left side, across the back, down the right side and
+  // back along the front (leaving the doorway): the steel frame goes up round it, then the panels, then the roof
+  const m = 8;
+  const sideV = h - 2 * m;
+  const sideH = w - 2 * m;
+  const L = 2 * sideV + 2 * sideH;
+  const at = (d) => {
+    if (d < sideV) return [m, h - m - d];
+    d -= sideV;
+    if (d < sideH) return [m + d, m];
+    d -= sideH;
+    if (d < sideV) return [w - m, m + d];
+    d -= sideV;
+    return [w - m - d, h - m];
+  };
+  const doorGap = (x, y) => y > h - m - 2 && Math.abs(x - w / 2) < 18;
+  const fr = stage(0.12, 0.6);
+  const wl = stage(0.42, 0.88);
+  if (fr > 0) {
+    const end = Math.round(L * fr);
+    for (let d = 0; d < end; d += 2) { const [x, y] = at(d); if (!doorGap(x, y)) { R(x - 2, y - 2, 4, 4, '#6a8aa8'); R(x - 2, y - 2, 4, 1, '#9ab8d0'); } }
+    for (let d = 0; d < end; d += 96) { const [x, y] = at(d); R(x - 4, y - 8, 8, 12, '#5a7a98'); R(x - 4, y - 8, 8, 2, '#8aaac8'); R(x - 4, y - 8, 2, 12, '#7a9ab8'); R(x + 2, y - 8, 2, 12, '#3a5a78'); }
+  }
+  if (wl > 0) {
+    const end = Math.round(L * wl);
+    for (let d = 0; d < end; d += 4) {
+      const [x, y] = at(d);
+      if (doorGap(x, y)) continue;
+      R(x - 4, y - 4, 8, 8, pal[2]);
+      R(x - 4, y - 4, 8, 1, pal[4]); R(x - 4, y + 3, 8, 1, pal[1]);
+      if ((d / 4) % 4 === 0) R(x - 4, y - 4, 1, 8, pal[0]); // a panel joint
+    }
+  }
+  // the roof, laid sheet by sheet from the left
+  const rf = stage(0.8, 1);
+  if (rf > 0) {
+    const rw = Math.round((w - 2 * m) * rf);
+    R(m + 4, m + 4, rw, h - 2 * m - 8, '#7a7a82');
+    for (let x = m + 4; x < m + 4 + rw; x += 6) R(x, m + 4, 1, h - 2 * m - 8, '#6a6a72');
+    R(m + 4, m + 4, rw, 2, '#b0b0b8');
+  }
+  // scaffolding along the front while the walls go up
+  const sc = stage(0.2, 0.9) * (1 - stage(0.9, 1));
+  if (sc > 0) {
+    const sw = Math.round((w - 2 * m) * 0.6);
+    for (let x = m; x <= m + sw; x += 24) R(x, h - m - 30, 2, 30, '#b0b4b8');
+    for (let y = h - m - 8; y > h - m - 30; y -= 11) { R(m, y, sw + 2, 3, '#c89858'); R(m, y, sw + 2, 1, '#e0b878'); }
+  }
+  // the crane, until the roof is on
+  if (f < 0.97) crane(k, w - 40, -118, h - 30, Math.min(150, Math.round(w * 0.55)), f < 0.8);
+  // a stack of beams, until they're all up
+  if (f < 0.5) for (let i = 0; i < 4; i++) { R(24, h - 30 - i * 5, 70, 4, '#7a8a9a'); R(24, h - 30 - i * 5, 70, 1, '#a8b8c8'); }
+}
+
+const FACILITY_ART = {
+  engine_cell(k, w, h, f) {
+    const { R, ball, block } = k;
+    R(0, 0, w, h, '#a8a8a2'); R(0, 0, w, 2, '#c8c8c2'); R(0, h - 2, w, 2, '#7a7a74');
+    for (let x = 0; x < w; x += 32) R(x, 0, 1, h, '#98988f');
+    if (f < 1) { // half-built: the blast wall going up
+      R(w - 22, 8, 12, Math.round((h - 20) * f), '#8a8e96');
+      return;
+    }
+    R(w - 22, 6, 14, h - 14, '#8a8e96'); R(w - 22, 6, 14, 2, '#b0b4ba'); R(w - 9, 6, 1, h - 14, '#5a5e66'); // the blast wall
+    R(8, h - 34, 56, 6, '#5a5e66'); R(8, h - 34, 56, 1, '#8a8e96'); // the rig's rails
+    ball(32, h - 46, 24, 11, ramp('#9aa0a8'), 0.1, 3); // the turbofan
+    R(8, h - 50, 5, 18, '#2a2e34'); R(8, h - 50, 1, 18, '#4a4e54'); // the intake screen
+    R(56, h - 52, 14, 12, '#6a6e76'); // the exhaust cone
+    block(10, 8, 30, 22, 5, ramp('#d8dcd8')); R(14, 16, 8, 6, '#4a6a8a'); // the control hut
+    R(46, 12, 3, 10, '#e8b830'); R(47, 10, 2, 3, '#ff4a2a'); // the beacon
+  },
+  inspection(k, w, h, f) {
+    const { R, block } = k;
+    R(0, 0, w, h, '#a8a8a2'); R(0, 0, w, 2, '#c8c8c2'); R(0, h - 2, w, 2, '#7a7a74');
+    R(6, h - 30, w - 12, 3, '#e8d030'); R(6, h - 12, w - 12, 3, '#e8d030'); // the parking bay's lines
+    if (f < 1) { for (const x of [10, w - 16]) R(x, h - 20 - Math.round((h - 34) * f), 6, Math.round((h - 34) * f) + 4, '#e8b830'); return; }
+    for (const x of [8, w - 16]) { R(x, 10, 8, h - 20, '#e8b830'); R(x, 10, 2, h - 20, '#f8d868'); R(x + 6, 10, 2, h - 20, '#a07818'); } // the gantry's legs
+    R(8, 8, w - 16, 8, '#e8b830'); R(8, 8, w - 16, 2, '#f8d868'); R(8, 14, w - 16, 2, '#a07818'); // the beam
+    for (let x = 22; x < w - 22; x += 10) R(x, 16, 3, 4 + (x % 3), '#4a6a8a'); // the scanner heads
+    R(Math.round(w / 2) - 5, 16, 10, 6, '#c84a2a'); R(Math.round(w / 2) - 1, 22, 2, 14, '#8a8e96'); // the laser tracker
+    block(w - 40, h - 36, 24, 16, 4, ramp('#d8dcd8')); R(w - 36, h - 30, 8, 5, '#4a6a8a'); // the booth
+  },
+};
 
 /** The live bits that depend on the simulation: the pad venting, sparks in a busy bay. */
 export function aeroLiveView(ctx, p, opts) {

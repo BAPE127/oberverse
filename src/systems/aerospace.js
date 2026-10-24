@@ -157,9 +157,11 @@ export class Aerospace {
       id, name, kind,
       cash: kind === 'rival' ? def.cash : 0,
       workforce: def.workforce,
-      bays: def.bays.map((b) => ({ id: b, type: b.replace(/_\d+$/, ''), unit: null, ready: 0 })),
+      bays: def.bays.map((b) => ({ id: b, type: b.replace(/_\d+$/, ''), unit: null, ready: 0, ...(kind === 'player' && b === 'light_1' ? { slot: 'h1_a' } : {}) })),
       pad: def.pad ? { unit: null, readyAt: 0, launches: 0 } : null,
       facilities: {},
+      // v0.57.0: the halls Roost has (hall id → the time it opens; Hangar 1 always has) — Meridian's are fixed on the map
+      halls: kind === 'player' ? { hangar1: 0 } : null,
       research: [...def.research], researching: null,
       reputation: def.reputation, qualityBase: def.quality,
       inv: {}, books: freshBooks(),
@@ -245,6 +247,11 @@ export class Aerospace {
     for (const id of co.research) q += this.cfg.research[id]?.effect?.quality || 0;
     if (co.facilities.inspection) q += 8;
     return Math.min(100, q);
+  }
+
+  /** Research time multiplier: the laboratory takes a quarter off. */
+  researchFactor(co) {
+    return this.hallState(co, 'lab').state === 'built' ? this.cfg.halls.lab.effect.researchDays : 1;
   }
 
   speedOf(co) {
@@ -424,22 +431,99 @@ export class Aerospace {
     if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
-    co.researching = { id, doneAt: this.now + Math.round(R.days * DAY) };
-    this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${R.days} days).`, co.kind === 'player' ? 'info' : null);
-    return { ok: true, text: `Research started: ${R.name}. Done in ${R.days} days.` };
+    const days = Math.max(1, Math.round(R.days * this.researchFactor(co)));
+    co.researching = { id, doneAt: this.now + Math.round(days * DAY) };
+    this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
+    return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : ''}.` };
   }
 
-  buildBay(co, type) {
+  // ------------------------------------------------------------- halls and slots (v0.57.0)
+  /** A hall's state for a company: 'built' (open), 'building' (with its opening time and progress) or 'site'. */
+  hallState(co, id) {
+    const H = this.cfg.halls[id];
+    if (!H) return { state: 'none' };
+    if (H.owned) return { state: 'built', ready: 0 };
+    const at = co?.halls?.[id];
+    if (at === undefined || at === null) return { state: 'site' };
+    if (at <= this.now) return { state: 'built', ready: at };
+    return { state: 'building', ready: at, f: Math.max(0, Math.min(1, 1 - (at - this.now) / (H.buildDays * DAY))) };
+  }
+
+  /** True when Roost's hall is open (Hangar 1 is, from the start, even before you buy the firm). */
+  hallBuilt(id) {
+    const H = this.cfg.halls[id];
+    if (!H) return true;
+    if (H.owned) return true;
+    return this.hallState(this.roost, id).state === 'built';
+  }
+
+  /** Every slot in Roost's open halls, with the bay (if any) fitted to it. */
+  slotsOf(co) {
+    const out = [];
+    for (const [hid, H] of Object.entries(this.cfg.halls)) {
+      if (this.hallState(co, hid).state !== 'built') continue;
+      for (const sl of H.slots) out.push({ hall: hid, ...sl, bay: co.bays.find((b) => b.slot === sl.id) || null });
+    }
+    return out;
+  }
+
+  /** The hall (id, definition) a slot belongs to. */
+  hallOfSlot(slotId) {
+    const e = Object.entries(this.cfg.halls).find(([, H]) => H.slots.some((sl) => sl.id === slotId));
+    return e ? { id: e[0], ...e[1] } : null;
+  }
+
+  /** The first free slot in an open hall that takes this type of bay. */
+  freeSlot(co, type) {
+    return this.slotsOf(co).find((sl) => !sl.bay && sl.fits.includes(type)) || null;
+  }
+
+  /** The hall that would take a bay of this type next, if it were built: [hall id, hall] or null. */
+  hallFor(co, type) {
+    return Object.entries(this.cfg.halls).find(([hid, H]) => this.hallState(co, hid).state === 'site' && H.slots.some((sl) => sl.fits.includes(type))) || null;
+  }
+
+  /** Build one of Roost's halls: paid now, open after its build days (the site on the map becomes the building). */
+  buildHall(co, id) {
+    const H = this.cfg.halls[id];
+    if (!H || !H.build) return { ok: false, text: 'No such hall.' };
+    if (co.kind !== 'player') return { ok: false, text: 'Only Roost builds on its plots.' };
+    if (this.hallState(co, id).state !== 'site') return { ok: false, text: `${H.name}: already built or being built.` };
+    if (!this.canAfford(co, H.build)) return { ok: false, text: `${H.name} costs ${H.build.toLocaleString()} obols.` };
+    this.pay(co, H.build, null);
+    co.books.capex += H.build;
+    co.halls[id] = this.now + Math.round(H.buildDays * DAY);
+    this.report(co, 'facility', `🏗 ${co.name} breaks ground: ${H.name} (open in ${H.buildDays} days).`, 'info');
+    return { ok: true, text: `${H.name}: the site is open, and the building will be ready in ${H.buildDays} days.` };
+  }
+
+  /**
+   * Fit a bay. Roost's bays stand in a free slot of an open hall (the first that suits, or `slotId`);
+   * with none free the answer says which hall to build. Meridian's halls are fixed on the map (its
+   * bays carry the ids they were drawn for): a bay beyond them goes up at another of its sites —
+   * unseen, and half as much again.
+   */
+  buildBay(co, type, slotId = null) {
     const B = this.cfg.bays[type];
     if (!B) return { ok: false, text: 'No such bay.' };
-    if (!this.canAfford(co, B.build)) return { ok: false, text: `A ${B.name.toLowerCase()} costs ${B.build.toLocaleString()} obols.` };
-    this.pay(co, B.build, null);
-    co.books.capex += B.build;
+    let slot = null;
+    let cost = B.build;
+    if (co.kind === 'player') {
+      slot = slotId ? this.slotsOf(co).find((sl) => sl.id === slotId && !sl.bay && sl.fits.includes(type)) : this.freeSlot(co, type);
+      if (!slot) {
+        const next = this.hallFor(co, type);
+        return { ok: false, text: `There's no free slot for a ${B.name.toLowerCase()} in any hall you have.${next ? ` Build the ${next[1].name} first (${next[1].build.toLocaleString()} obols, ${next[1].buildDays} days).` : ''}` };
+      }
+    } else cost = Math.round(B.build * 1.5); // Meridian's halls on the map are full: a bay beyond them goes up at another of its sites
+    if (!this.canAfford(co, cost)) return { ok: false, text: `A ${B.name.toLowerCase()} costs ${cost.toLocaleString()} obols.` };
+    this.pay(co, cost, null);
+    co.books.capex += cost;
     const n = co.bays.filter((b) => b.type === type).length + 1;
-    co.bays.push({ id: `${type}_${n}`, type, unit: null, ready: this.now + Math.round(B.buildDays * DAY) });
-    this.report(co, 'facility', `🏗 ${co.name} is building ${B.name.toLowerCase()} No. ${n} (ready in ${B.buildDays} days).`, co.kind === 'player' ? 'info' : null);
+    co.bays.push({ id: `${type}_${n}`, type, unit: null, ready: this.now + Math.round(B.buildDays * DAY), ...(slot ? { slot: slot.id } : {}) });
+    const where = slot ? ` in ${this.cfg.halls[slot.hall].short}` : '';
+    this.report(co, 'facility', `🏗 ${co.name} is fitting ${B.name.toLowerCase()} No. ${n}${where} (ready in ${B.buildDays} days).`, co.kind === 'player' ? 'info' : null);
     if (co.kind === 'rival') this.news(`Meridian breaks ground on a new ${B.name.toLowerCase()} at Starling Flats.`);
-    return { ok: true, text: `${B.name} No. ${n} is under construction: ready in ${B.buildDays} days.` };
+    return { ok: true, text: `${B.name} No. ${n}${where} is being fitted: ready in ${B.buildDays} days.` };
   }
 
   /** Fixed facilities: the engine test cell, inspection equipment, a launch pad. Paid now, ready after their build days. */
@@ -1676,6 +1760,7 @@ export class Aerospace {
     let upkeep = co.bays.reduce((a, b) => a + (b.ready <= this.now ? C.bays[b.type].upkeep : 0), 0);
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
+    if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
     this.pay(co, upkeep, 'upkeep');
     this.pay(co, co.overhead, 'overhead');
     if (co.kind === 'rival' && co.cash < 0) this.pay(co, -co.cash * this.A.meridian.interest, 'interest');
@@ -1687,6 +1772,7 @@ export class Aerospace {
       co.researching = null;
     }
     for (const b of co.bays) if (b.ready && b.ready <= this.now && !b.announced) { b.announced = true; this.report(co, 'facility', `🏗 ${C.bays[b.type].name} ${b.id.split('_').pop()} is open.`, co.kind === 'player' ? 'good' : null); }
+    if (co.halls) for (const [id, at] of Object.entries(co.halls)) if (at && at <= this.now && !co.hallsOpened?.[id]) { (co.hallsOpened ||= {})[id] = true; this.report(co, 'facility', `🏗 ${C.halls[id].name} is open.`, 'good'); }
     for (const [id, at] of Object.entries(co.building || {})) {
       if (at > this.now) continue;
       delete co.building[id];
@@ -1891,6 +1977,27 @@ export class Aerospace {
     s.aircraft ||= {};
     s.jobs ||= {};
     for (const co of Object.values(s.companies)) { co.shipping ||= 'internal'; co.internalPolicy ||= 'fallback'; co.freight ||= { external: 0, internalCharges: 0, equivalent: 0, voyageCosts: 0 }; }
+    this.migrateHalls();
+  }
+
+  /**
+   * A save from before v0.57.0 has Roost bays with no slots: each goes into the first free slot that
+   * suits it, and the hall it needs is opened for it (nothing is charged again, nothing is taken away).
+   * A bay with no slot to be had keeps working, unseen on the map.
+   */
+  migrateHalls() {
+    const co = this.state.companies?.roost;
+    if (!co) return;
+    co.halls ||= { hangar1: 0 };
+    for (const b of co.bays) {
+      if (b.slot) continue;
+      let slot = this.freeSlot(co, b.type);
+      if (!slot) {
+        const next = this.hallFor(co, b.type);
+        if (next) { co.halls[next[0]] = Math.min(this.now, b.ready || this.now); co.hallsOpened = { ...(co.hallsOpened || {}), [next[0]]: true }; slot = this.freeSlot(co, b.type); }
+      }
+      if (slot) b.slot = slot.id;
+    }
   }
 
   // ------------------------------------------------------------- what the world shows
@@ -1915,6 +2022,18 @@ export class Aerospace {
       return { key: `${p.model}|${p.livery || ''}|${p.wreck ? 1 : 0}|${p.heading || 0}`, look, livery: p.livery, wreck: p.wreck, heading: p.heading || 0 };
     }
     const co = this.company(p.aero?.company || p.company);
+    if (p.type === 'hall_site') {
+      const st = this.hallState(this.roost, p.aero.hall);
+      const f = st.state === 'building' ? Math.max(0.05, Math.round(st.f * 5) / 5) : st.state === 'built' ? 1 : 0;
+      return { key: `${st.state}|${f}`, state: st.state, f };
+    }
+    if (p.type === 'aero_facility') {
+      const id = p.aero.facility;
+      if (this.roost?.facilities?.[id]) return { key: 'built', state: 'built' };
+      const at = this.roost?.building?.[id];
+      if (at) { const F = this.cfg.facilities[id]; const f = Math.max(0.1, Math.round((1 - (at - this.now) / (F.buildDays * DAY)) * 4) / 4); return { key: `construction|${f}`, state: 'construction', f }; }
+      return { key: 'site', state: 'site' };
+    }
     if (p.type === 'launch_pad') {
       if (!co?.pad) return { key: co?.building?.pad ? 'construction' : 'site', site: true };
       const u = co?.pad?.unit && this.state.units[co.pad.unit];
@@ -1934,8 +2053,8 @@ export class Aerospace {
       let u = null;
       if (p.aero.pad) u = this.unitsOf(co).find((x) => x.line === 'rocket' && this.stageOf(x)?.wait === 'pad');
       else {
-        const bay = co.bays.find((b) => b.id === p.aero.bay);
-        if (!bay) return { key: 'closed', closed: true };
+        const bay = co.bays.find((b) => (p.aero.slot ? b.slot === p.aero.slot : b.id === p.aero.bay));
+        if (!bay) return { key: p.aero.slot ? 'vacant' : 'closed', closed: true, vacant: Boolean(p.aero.slot) };
         if (bay.ready > this.now) return { key: 'building', closed: true };
         u = bay.unit && this.state.units[bay.unit];
       }

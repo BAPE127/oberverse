@@ -16,7 +16,7 @@ import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js'
 import { inWindow } from '../world/clock.js';
 
 /** v0.55.0: props whose look comes from the aerospace simulation (Aerospace.propView). */
-const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad']);
+const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad', 'hall_site', 'aero_facility']);
 import { floatLift, drawFloatShadow, HOST_FX, hostState, runEffects, EFFECTS } from './cardMagic.js';
 
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -338,7 +338,7 @@ export class Renderer {
     const map = g.currentMap();
     // v0.47.0: the street and every building's interior are drawn together (buildings are walked
     // into, not loaded): the streets first, then the rooms over their footprints
-    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior'));
+    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].filter((L) => !(L.map.def?.hall && !g.aero.hallBuilt(L.map.def.hall))).sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.57.0: a hall still being built has no room to draw
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
@@ -413,6 +413,7 @@ export class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
+        if (b.hall && !g.aero.hallBuilt(b.hall)) continue; // v0.57.0: a building site (the hall_site prop) stands here until it's built
         if (b.interior) {
           // v0.47.0: its room is drawn in its place; v0.51.0: its sign and awning over the front
           if ((b.sign || b.awning) && inView(b.x * TILE, (b.y + b.h - 2) * TILE, b.w * TILE, 3 * TILE)) items.push({ y: (b.y + b.h) * TILE + L.y + 1, draw: at(() => drawShopFront(ctx, b, this.time, night)) });

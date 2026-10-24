@@ -124,6 +124,43 @@ export const BAYS = {
   clean: { name: 'Satellite clean room', crew: 60, upkeep: 1600, build: 280000, buildDays: 6, lines: ['satellite'], size: 1, text: 'Class-100 air, bunny suits and very small screwdrivers.' },
 };
 
+/**
+ * Roost's halls (v0.57.0): the buildings its bays stand in. Hangar 1 comes with the firm; the rest
+ * are plots on Starling Flats that you build (a building site becomes a hall, in a few days), and
+ * every bay you fit goes into a free slot of a finished hall that suits it — so what you build, and
+ * where, is on the map. `at` is the building's top-left tile, `w`×`h` its footprint and room (the
+ * door is the middle of the bottom wall). A slot is where a bay stands inside (x, y, w, h in room
+ * tiles); `fits` are the bay types it can take (a larger slot takes smaller bays).
+ * src/content/maps/starling.js builds the buildings and rooms from this table.
+ */
+export const HALLS = {
+  hangar1: { name: 'Hangar 1', short: 'Hangar 1', owned: true, upkeep: 0, text: 'Billie\'s hangar: the first light bay, the workbench, the parts racks.', slots: [{ id: 'h1_a', fits: ['light'] }] },
+  hangar2: {
+    name: 'Hangar 2 — light assembly annex', short: 'Hangar 2', build: 150000, buildDays: 5, upkeep: 350, at: { x: 43, y: 19 }, w: 14, h: 9, building: 'sf_roost_hangar2', room: 'roost_hangar2', sign: 'ROOST · HANGAR 2', hours: ['06:00', '20:00'],
+    text: 'A plain steel shed next to the office, with room for two more light bays: the cheapest way to double Roost\'s output.',
+    slots: [{ id: 'h2_a', fits: ['light'], x: 1, y: 1, w: 6, h: 6 }, { id: 'h2_b', fits: ['light'], x: 7, y: 1, w: 6, h: 6 }],
+  },
+  heavy: {
+    name: 'Assembly hall — heavy bays', short: 'Assembly hall', build: 450000, buildDays: 8, upkeep: 600, at: { x: 2, y: 38 }, w: 22, h: 12, building: 'sf_roost_heavy', room: 'roost_heavy', sign: 'ROOST · ASSEMBLY HALL', hours: ['06:00', '20:00'],
+    text: 'Two heavy bays under one roof, with a gantry crane: airliners, business jets and fighters.',
+    slots: [{ id: 'hh_a', fits: ['heavy', 'light'], x: 1, y: 2, w: 10, h: 8 }, { id: 'hh_b', fits: ['heavy', 'light'], x: 11, y: 2, w: 10, h: 8 }],
+  },
+  wide: {
+    name: 'Widebody & secure hall', short: 'Widebody hall', build: 700000, buildDays: 10, upkeep: 800, at: { x: 2, y: 52 }, w: 22, h: 12, building: 'sf_roost_wide', room: 'roost_wide', sign: 'ROOST · WIDEBODY HALL', hours: ['06:00', '20:00'],
+    text: 'The biggest roof in the west works: one widebody bay, and a fenced, guarded secure integration bay for defence work.',
+    slots: [{ id: 'hw_a', fits: ['wide', 'heavy', 'light'], x: 1, y: 1, w: 11, h: 10 }, { id: 'hw_b', fits: ['secure'], x: 12, y: 2, w: 9, h: 7 }],
+  },
+  space: {
+    name: 'Space systems annex', short: 'Space annex', build: 650000, buildDays: 10, upkeep: 700, at: { x: 2, y: 66 }, w: 22, h: 10, building: 'sf_roost_space', room: 'roost_space', sign: 'ROOST · SPACE SYSTEMS', hours: ['06:00', '20:00'],
+    text: 'A rocket integration bay with its cradles and overhead crane, and two clean rooms for satellites.',
+    slots: [{ id: 'hs_a', fits: ['rocket'], x: 1, y: 2, w: 12, h: 6 }, { id: 'hs_b', fits: ['clean'], x: 13, y: 2, w: 4, h: 5 }, { id: 'hs_c', fits: ['clean'], x: 17, y: 2, w: 4, h: 5 }],
+  },
+  lab: {
+    name: 'Research laboratory', short: 'Laboratory', build: 320000, buildDays: 7, upkeep: 900, at: { x: 52, y: 30 }, w: 6, h: 9, building: 'sf_roost_lab', room: 'roost_lab', sign: 'ROOST · LABORATORY', hours: ['07:00', '19:00'],
+    text: 'Benches, a wind-tunnel model and a very good coffee machine: research takes a quarter less time.', effect: { researchDays: 0.75 }, slots: [],
+  },
+};
+
 /** Fixed capacities (per company): the finished-aircraft apron, a launch pad, test cells. */
 export const FACILITIES = {
   apron: { name: 'Finished-aircraft apron', slots: { roost: 3, meridian: 6 }, text: 'Where finished aircraft wait for their customers. Big aircraft take more room (an airliner 2, a widebody or bomber 3).' },

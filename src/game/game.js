@@ -259,6 +259,7 @@ export class Game {
     if (!door.to) return door.lock?.message || 'It won\'t open.';
     const lock = door.lock;
     if (!lock) return null;
+    if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
     if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
@@ -275,6 +276,7 @@ export class Game {
 
   npcCanPass(npc, door) {
     if (!door.to) return false;
+    if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
     if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts

@@ -159,6 +159,8 @@ export const PROP_TYPES = {
   aircraft: { solid: true, label: 'Aircraft', defaults: {} },
   bay_slot: { solid: false, label: 'Assembly bay', defaults: {} },
   launch_pad: { solid: false, label: 'Launch pad', defaults: { w: 10, h: 10 } },
+  hall_site: { solid: false, label: 'Building site', defaults: {} },
+  aero_facility: { solid: true, label: 'Test facility', defaults: { w: 3, h: 3 } },
   launch_tower: { solid: true, label: 'Service tower', defaults: { w: 2, h: 3 } },
   propellant_sphere: { solid: true, label: 'Propellant sphere', defaults: { w: 3, h: 3 } },
   engine_stand: { solid: true, label: 'Engine stand', defaults: { examine: 'An engine on a wheeled stand, cowlings off, waiting to be hung.' } },
