@@ -19,6 +19,7 @@
 import { h, mrdnScreen } from './panels.js';
 import { fmtMoney, fmtDays } from '../aero/catalog.js';
 import { stagesOf, failChance } from '../aero/pipeline.js';
+import { optionEffect, configLabel, cleanConfig } from '../aero/config.js';
 import { ACCOUNTS } from '../aero/books.js';
 import { aircraftCanvas, rocketCanvas, satelliteCanvas } from '../engine/drawAero.js';
 
@@ -492,6 +493,28 @@ export function aerospacePanel(ui, body, opts = {}) {
       ...st.map((s, i) => h('i', { class: i < u.stage ? 'done' : i === u.stage ? `now${u.status === 'blocked' ? ' bad' : u.status === 'building' ? '' : ' wait'}` : '', style: i === u.stage && u.need ? `--f:${Math.round(clamp01(u.work / u.need) * 100)}%` : '' })));
   };
 
+  /** What a tender, contract or unit is configured as: each option with what it costs, and what it does to the aircraft. */
+  const configRow = (x, { compact = false } = {}) => {
+    const cfg = cleanConfig(x.config);
+    if (!Object.keys(cfg).length) return compact ? null : h('small', { class: 'ao-muted' }, 'Standard configuration');
+    const base = C.products[x.product];
+    const P = A.pOf(x);
+    const have = new Set(co()?.research || []);
+    const chips = Object.entries(cfg).map(([g, ch]) => {
+      const o = C.options.groups[g].choices[ch];
+      const fx = optionEffect(C, base, g, ch, x.product);
+      const miss = o.needs && !have.has(o.needs);
+      return h('span', { class: `ao-opt${miss ? ' bad' : ''}`, title: o.text }, h('b', {}, o.name), h('em', {}, `${fx.price ? `+${fmtMoney(fx.price)}` : ''}${fx.days ? ` · +${fx.days} d` : ''}${fx.quality ? ` · quality +${fx.quality}` : ''}${miss ? ` · needs ${C.research[o.needs].name}` : ''}`));
+    });
+    const bits = [];
+    if (base.spec && P.spec) for (const [k, label, unit] of [['seats', 'seats', ''], ['range', 'range', ' km'], ['payload', 'payload', ' kg']]) if (base.spec[k] !== P.spec[k]) bits.push(`${label} ${Math.round(base.spec[k]).toLocaleString()} → ${Math.round(P.spec[k]).toLocaleString()}${unit}`);
+    if (P.effects?.life) bits.push(`${Math.round(P.life / 30)} months in service`);
+    if (P.effects?.launchRisk) bits.push(`${Math.round((1 - P.effects.launchRisk) * 100)}% less launch risk`);
+    if (P.effects?.commissionRisk) bits.push(`${Math.round((1 - P.effects.commissionRisk) * 100)}% less commissioning risk`);
+    if (P.effects?.service) bits.push(`+${Math.round((P.effects.service - 1) * 100)}% service income`);
+    return h('div', { class: 'ao-config' }, ...chips, bits.length ? h('small', { class: 'ao-muted' }, bits.join(' · ')) : null);
+  };
+
   // ================================================================== the drawer (floor)
   const renderDrawer = () => {
     drawer.classList.toggle('hidden', readonly || AO.mode !== 'floor');
@@ -532,7 +555,7 @@ export function aerospacePanel(ui, body, opts = {}) {
       h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'GOOD MORNING, OWNER'), h('h2', {}, `${plural(A.unitsOf(c).length, 'unit')} in work · ${plural(active.length, 'contract')}`), muted('Click a bay, the apron or the stores on the floor plan. The rail on the left has the rest.')),
       h('div', { class: 'ao-kpis two' }, kpi('Profit, 7 days', fmtMoney(week.profit), week.profit >= 0 ? 'pos' : 'neg'), kpi('Order backlog', fmtMoney(backlog)), kpi('Reputation', `${Math.round(c.reputation)}`, '', '/ 100'), kpi('Quality', A.qualityOf(c).toFixed(1))),
       ...alerts,
-      section('Tenders you can win', ...(ops.length ? ops.map(({ t, q }) => h('button', { class: 'ao-row', onclick: () => { AO.focus = t.id; go('tenders'); } }, pic(productLook(C, t.product), 64, 30), h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${C.products[t.product].name}`), h('small', {}, `${C.customers[t.customer].name} · decides Day ${t.closes}`)), h('em', { class: 'pos' }, `+${fmtMoney(q.profit)}`))) : [muted('Nothing you can bid on right now. New tenders come in at 06:00.')])),
+      section('Tenders you can win', ...(ops.length ? ops.map(({ t, q }) => h('button', { class: 'ao-row', onclick: () => { AO.focus = t.id; go('tenders'); } }, pic(productLook(C, t.product), 64, 30), h('div', { class: 'grow' }, h('b', {}, `${t.qty} × ${C.products[t.product].name}`), h('small', {}, `${C.customers[t.customer].name} · decides Day ${t.closes}${t.config ? ` · ${configLabel(C, C.products[t.product], t.config).toLowerCase()}` : ''}`)), h('em', { class: 'pos' }, `+${fmtMoney(q.profit)}`))) : [muted('Nothing you can bid on right now. New tenders come in at 06:00.')])),
       section('Next out of the door', ...(soon.length ? soon.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), stageStrip(u)), h('small', {}, fmtDays(A.unitDaysLeft(u))))) : [muted('No units in work.')])),
       A.canShipInternal(c) ? section('Your own ships', h('div', { class: 'ao-kpis two' }, kpi('Saved so far', fmtMoney(A.shippingSavings(c).group), 'pos'), kpi('Consignments at sea', String(A.jobs(c).filter((j) => ['loading', 'at sea'].includes(j.status)).length)))) : null,
     ].filter(Boolean);
@@ -551,6 +574,7 @@ export function aerospacePanel(ui, body, opts = {}) {
       h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, `${LINE_NAME[p.line].toUpperCase()} · ${(p.cls || '').toUpperCase()}${b ? ` · BAY ${co().bays.indexOf(b) + 1}` : ''}`), h('h2', {}, `${p.name} #${u.n}`),
         h('div', { class: 'ao-pills' }, pill(STATUS[u.status] || u.status, u.status === 'blocked' ? COL.red : u.status === 'building' ? COL.green : COL.amber), ct ? pill(ct.due < A.now ? `${fmtDays((A.now - ct.due) / 1440)} late` : `due in ${fmtDays((ct.due - A.now) / 1440)}`, ct.due < A.now ? COL.red : COL.blue) : pill('our own launcher', COL.blue))),
       ct ? muted(`For ${C.customers[ct.customer].name} · ${money(ct.unitPrice)} on delivery`) : null,
+      configRow(u, { compact: true }),
       u.blocker && u.status !== 'building' ? h('div', { class: `ao-alert${u.status === 'blocked' ? ' bad' : ''}` }, `⚠ ${u.blocker.text}`) : null,
       h('div', { class: 'ao-kpis two' }, kpi('Work left', fmtDays(A.unitDaysLeft(u))), kpi('Materials still to come', fmtMoney(A.unitCostLeft(u)))),
       section('Build', h('div', { class: 'ao-stages' }, ...st.map((s, i) => {
@@ -663,9 +687,10 @@ export function aerospacePanel(ui, body, opts = {}) {
       h('div', {}, h('small', {}, 'Deliver within'), h('b', {}, `${t.days} d`)),
       h('div', {}, h('small', {}, 'Quality'), h('b', {}, `${t.quality}+`)),
       h('div', {}, h('small', {}, 'Decides'), h('b', {}, `Day ${t.closes}`)));
+    const confRow = configRow(t);
     const prio = h('div', { class: 'ao-prio' }, ...PRIORITY.map(([k, label]) => bar(label, cu.priority[k] / 0.6, COL.blue, `${Math.round(cu.priority[k] * 100)}%`)));
     const you = h('div', { class: 'ao-you' }, `Your cost ≈ ${money(q.cost)} a unit (materials ${fmtMoney(q.est.materials)}, freight ${fmtMoney(q.est.freight)}, bay-days ${fmtMoney(q.est.labour)}${q.launch ? `, launch ${fmtMoney(q.launch)}` : ''}) · earliest delivery ≈ ${Number.isFinite(q.delivery) ? `${q.delivery} d` : '—'}`);
-    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), facts, prio, you);
+    const card = h('div', { class: `ao-card${q.ok || mine ? '' : ' off'}`, 'data-tender': t.id }, head, h('small', { class: 'ao-blurb' }, cu.blurb || ''), confRow, facts, prio, you);
     if (mine) card.append(h('div', { class: 'ao-sealed' }, `🔒 Sealed: ${money(mine.unitPrice)} a unit, ${mine.days} days — the customer decides Day ${t.closes}.`));
     else if (q.ok || /price|delivery/.test(q.reason || '')) card.append(composer(t, q, c));
     else card.append(h('div', { class: 'ao-why' }, `✖ ${q.reason}`));
@@ -725,6 +750,7 @@ export function aerospacePanel(ui, body, opts = {}) {
         h('div', { class: 'grow' }, h('b', {}, `${ct.qty} × ${p.name}`), h('small', {}, C.customers[ct.customer].name),
           h('div', { class: 'ao-pills' }, ct.status === 'active' ? pill(left < 0 ? `${fmtDays(-left)} late` : `due in ${fmtDays(left)}`, left < 0 ? COL.red : COL.green) : pill(ct.status, 'rgba(223,233,245,0.6)'), pill(`${ct.delivered}/${ct.qty} delivered`, COL.blue), ct.failed ? pill(`${ct.failed} lost`, COL.red) : null)),
         h('div', { class: 'ao-pay' }, fmtMoney(ct.total), h('small', {}, `${fmtMoney(ct.unitPrice)} a unit`))),
+      configRow(ct, { compact: true }),
       h('div', { class: 'ao-facts' },
         h('div', {}, h('small', {}, 'Deposit'), h('b', {}, fmtMoney(ct.depositPaid))),
         h('div', {}, h('small', {}, 'Earned'), h('b', {}, fmtMoney(ct.revenue))),

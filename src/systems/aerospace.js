@@ -23,6 +23,7 @@ import { Rng } from '../core/rng.js';
 import { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomValue, fmtMoney, fmtDays } from '../aero/catalog.js';
 import { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } from '../aero/pipeline.js';
 import { freshBooks, post, summarise, revenueAccount } from '../aero/books.js';
+import { configure, cleanConfig, configError, configLabel } from '../aero/config.js';
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
@@ -114,7 +115,7 @@ export class Aerospace {
     const rng = this.rng;
     const units = this.unitsOf(co).sort((a, b) => this.priority(a) - this.priority(b));
     for (const u of units) {
-      const p = C.products[u.product];
+      const p = this.pOf(u);
       const st = stagesOf(C, p);
       const bayStages = st.map((x, i) => (x.bay && x.share ? i : -1)).filter((i) => i >= 0);
       const types = baysFor(C, p);
@@ -133,7 +134,7 @@ export class Aerospace {
     }
     // the materials for the rest of the standing order book were bought before the game began: in stores, reserved
     for (const u of units) {
-      const need = remainingMaterials(C, C.products[u.product], u.stage + (u.consumed ? 1 : 0));
+      const need = remainingMaterials(C, this.pOf(u), u.stage + (u.consumed ? 1 : 0));
       for (const [m, n] of Object.entries(need)) {
         const r = this.stock(co, m);
         r.qty += n;
@@ -191,6 +192,23 @@ export class Aerospace {
     co.books.deferred += c.depositPaid;
     this.report(co, 'contract', `📋 ${co.name} holds ${c.qty} × ${p.name} for ${C.customers[b.customer].name} (due in ${b.daysLeft} days).`, null);
     return c;
+  }
+
+  // ------------------------------------------------------------- configured products (v0.57.0)
+  /**
+   * The product as it is for this unit, contract or tender: the catalogue entry, or — when a
+   * configuration was asked for — the configured product (its bill of materials, days, price,
+   * quality, spec). Every calculation about work in hand reads this, never the bare entry.
+   */
+  pOf(x) {
+    const base = this.cfg.products[x.product];
+    if (!x.config) return base;
+    const cache = (this._cp ||= new WeakMap());
+    const hit = cache.get(x.config);
+    if (hit && hit.id === x.product) return hit.p;
+    const p = configure(this.cfg, base, x.config, x.product);
+    cache.set(x.config, { id: x.product, p });
+    return p;
   }
 
   // ------------------------------------------------------------- companies
@@ -393,8 +411,8 @@ export class Aerospace {
   utilisation(co, p) {
     const types = baysFor(this.cfg, p);
     const bays = co.bays.filter((b) => types.includes(b.type)).length || 1;
-    const units = Object.values(this.state.units).filter((u) => u.company === co.id && !u.finished && types.includes(baysFor(this.cfg, this.cfg.products[u.product])[0]));
-    const days = units.reduce((a, u) => a + workLeft(this.cfg, this.cfg.products[u.product], u), 0);
+    const units = Object.values(this.state.units).filter((u) => u.company === co.id && !u.finished && types.includes(baysFor(this.cfg, this.pOf(u))[0]));
+    const days = units.reduce((a, u) => a + workLeft(this.cfg, this.pOf(u), u), 0);
     return days / (bays * 14);
   }
 
@@ -403,14 +421,14 @@ export class Aerospace {
     const types = baysFor(this.cfg, p);
     const bays = co.bays.filter((b) => types.includes(b.type));
     if (!bays.length) return Infinity;
-    const units = Object.values(this.state.units).filter((u) => u.company === co.id && !u.finished && u.bay === null && u.stage <= lastBayStage(this.cfg, this.cfg.products[u.product]) && types.includes(baysFor(this.cfg, this.cfg.products[u.product])[0]));
+    const units = Object.values(this.state.units).filter((u) => u.company === co.id && !u.finished && u.bay === null && u.stage <= lastBayStage(this.cfg, this.pOf(u)) && types.includes(baysFor(this.cfg, this.pOf(u))[0]));
     // each bay is free after its current unit's bay work; queued units take bays in turn
     const free = bays.map((b) => {
       const u = b.unit && this.state.units[b.unit];
       const ready = Math.max(0, (b.ready - this.now) / DAY);
       return ready + (u ? this.bayWorkLeft(u) : 0);
     }).sort((a, b) => a - b);
-    for (const u of units) { free[0] += this.cfg.products[u.product].days; free.sort((a, b) => a - b); }
+    for (const u of units) { free[0] += this.pOf(u).days; free.sort((a, b) => a - b); }
     const speed = this.speedOf(co) * this.staffDrag(co) * Math.max(0.5, Math.min(1, co.workforce / Math.max(1, this.crewNeeded(co, { all: true }))));
     const lead = this.leadDays(co, p);
     let done = 0;
@@ -437,7 +455,7 @@ export class Aerospace {
   }
 
   bayWorkLeft(u) {
-    const p = this.cfg.products[u.product];
+    const p = this.pOf(u);
     const st = stagesOf(this.cfg, p);
     const last = lastBayStage(this.cfg, p);
     let d = Math.max(0, u.need - u.work);
@@ -612,14 +630,14 @@ export class Aerospace {
   /** Days of work still ahead of a unit at the company's current pace (an estimate). */
   unitDaysLeft(u) {
     const co = this.company(u.company);
-    const p = this.cfg.products[u.product];
+    const p = this.pOf(u);
     return workLeft(this.cfg, p, u) / Math.max(0.3, this.speedOf(co) * this.staffing(co) * this.staffDrag(co));
   }
 
   /** Materials still to be bought or consumed for a unit, at their reference value. */
   unitCostLeft(u) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const need = remainingMaterials(C, p, u.stage + (u.consumed ? 1 : 0));
     return Object.entries(need).reduce((a, [m, n]) => a + n * C.materials[m].price, 0);
   }
@@ -627,7 +645,7 @@ export class Aerospace {
   /** How many lots of a material all open units still need from here on. */
   demand(co, m) {
     let n = 0;
-    for (const u of this.unitsOf(co)) n += remainingMaterials(this.cfg, this.cfg.products[u.product], u.stage + (u.consumed ? 1 : 0))[m] || 0;
+    for (const u of this.unitsOf(co)) n += remainingMaterials(this.cfg, this.pOf(u), u.stage + (u.consumed ? 1 : 0))[m] || 0;
     return n;
   }
 
@@ -661,7 +679,7 @@ export class Aerospace {
       if (!t) continue;
       st.budget -= t.ceiling * t.qty; // committed while the tender is open
       s.tenders.push(t);
-      const p = C.products[t.product];
+      const p = this.pOf(t);
       if (this.owned) this.game.tablet.post('aero', `📣 Tender: ${cu.name} wants ${t.qty} × ${p.name} (up to ${fmtMoney(t.ceiling)} each, within ${t.days} days).`, 'info');
     }
     // keep the board tidy: closed tenders older than 6 days go
@@ -674,13 +692,13 @@ export class Aerospace {
     const co = this.company(companyId);
     const t = this.tender(tenderId);
     if (!co || !t) return { ok: false, reason: 'nothing to quote' };
-    const p = C.products[t.product];
+    const p = this.pOf(t);
     const est = unitCost(C, p, { materialMult: this.materialMultiplier(co), freightShare: 0.08, speed: this.speedOf(co), failChance: failChance(C, p, this.qualityOf(co), { engineCell: co.facilities.engine_cell }) });
     const launch = p.line === 'satellite' ? this.launchShare(p) : 0;
     const delivery = this.deliveryEstimate(co, p, t.qty);
     const price = unitPrice ?? Math.min(t.ceiling, Math.round(((est.total + launch) * 1.25) / 100) * 100);
     const d = days ?? (Number.isFinite(delivery) ? Math.min(t.days, delivery) : t.days);
-    const err = bidError(C, t, { unitPrice: price, days: d }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p) });
+    const err = bidError(C, t, { unitPrice: price, days: d }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p), missing: missingTech(this.cfg, co, p).map((id) => this.cfg.research[id].name) });
     return { ok: !err, reason: err, unitPrice: price, days: d, delivery, cost: est.total + launch, est, launch, profit: (price - est.total - launch) * t.qty, value: price * t.qty, deposit: Math.round(price * t.qty * t.deposit) };
   }
 
@@ -692,8 +710,8 @@ export class Aerospace {
     if (!co) return { ok: false, text: 'You don\'t have an aerospace company.' };
     if (!t) return { ok: false, text: 'No such tender.' };
     if (t.bids.some((b) => b.company === co.id)) return { ok: false, text: 'You\'ve already bid on this tender (bids are sealed and final).' };
-    const p = C.products[t.product];
-    const err = bidError(C, t, { unitPrice, days }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p) });
+    const p = this.pOf(t);
+    const err = bidError(C, t, { unitPrice, days }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p), missing: missingTech(this.cfg, co, p).map((id) => this.cfg.research[id].name) });
     if (err) return { ok: false, text: `Can't bid: ${err}.` };
     t.bids.push({ company: co.id, unitPrice: Math.round(unitPrice), days: Math.round(days), at: this.now, valid: true });
     co.stats.tendersBid += 1;
@@ -720,7 +738,7 @@ export class Aerospace {
       const co = this.company(win.company);
       t.status = 'awarded';
       t.winner = co.id;
-      const c = this.makeContract(co, { customer: t.customer, product: t.product, qty: t.qty, unitPrice: win.unitPrice, days: win.days, quality: t.quality, depositShare: t.deposit, tender: t.id });
+      const c = this.makeContract(co, { customer: t.customer, product: t.product, qty: t.qty, unitPrice: win.unitPrice, days: win.days, quality: t.quality, depositShare: t.deposit, tender: t.id, config: t.config });
       t.contract = c.id;
       st.budget -= c.total;
       st.spent += c.total;
@@ -728,8 +746,8 @@ export class Aerospace {
       // the deposit arrives now: cash in, owed as work until delivery
       this.receive(co, c.depositPaid, null);
       co.books.deferred += c.depositPaid;
-      const p = C.products[t.product];
-      const text = `${cu.name} awards ${co.name} ${t.qty} × ${p.name} (${fmtMoney(c.total)}).`;
+      const p = this.pOf(t);
+      const text = `${cu.name} awards ${co.name} ${t.qty} × ${p.name}${t.config ? ` (${configLabel(C, p, t.config).toLowerCase()})` : ''} (${fmtMoney(c.total)}).`;
       this.news(text, co.kind === 'player' ? 'good' : 'info');
       this.report(co, 'contract', `🏆 ${text} Deposit ${fmtMoney(c.depositPaid)}; due in ${win.days} days.`, co.kind === 'player' ? 'good' : null);
       for (const b of ranked.slice(1)) {
@@ -740,11 +758,14 @@ export class Aerospace {
   }
 
   /** A contract and its units. Quantities are checked here — the authoritative place (≤ 5 aircraft). */
-  makeContract(co, { customer, product, qty, unitPrice, days, quality, depositShare, tender }) {
+  makeContract(co, { customer, product, qty, unitPrice, days, quality, depositShare, tender, config = null }) {
     const C = this.cfg;
     const p = C.products[product];
     const err = quantityError(this.A, p, qty);
     if (err) throw new Error(`aerospace: ${err}`);
+    const cfg = cleanConfig(config);
+    const cerr = configError(C, p, cfg, product);
+    if (cerr) throw new Error(`aerospace: ${cerr}`);
     const id = this.nextId('C');
     const total = unitPrice * qty;
     const c = {
@@ -752,10 +773,12 @@ export class Aerospace {
       deposit: depositShare, depositPaid: Math.round(total * depositShare),
       signed: this.now, due: this.now + Math.round(days * DAY), tender,
       status: 'active', units: [], delivered: 0, failed: 0, revenue: 0, penalties: 0, settled: {}, history: [{ at: this.now, text: 'Signed.' }],
+      ...(Object.keys(cfg).length ? { config: cfg } : {}),
     };
     this.state.contracts[id] = c;
     for (let n = 0; n < qty; n++) {
       const u = newUnit(C, { id: this.nextId('U'), company: co.id, contract: id, productId: product, n: n + 1, rng: this.rng, at: this.now });
+      if (c.config) u.config = c.config;
       this.state.units[u.id] = u;
       c.units.push(u.id);
     }
@@ -942,7 +965,7 @@ export class Aerospace {
     const out = [];
     const units = this.unitsOf(co).filter((u) => u.purpose !== 'held').sort((a, b) => this.priority(a) - this.priority(b));
     for (const u of units) {
-      const p = C.products[u.product];
+      const p = this.pOf(u);
       const need = remainingMaterials(C, p, u.stage + (u.consumed ? 1 : 0));
       for (const [m, n] of Object.entries(need)) {
         const have = (u.reserved[m] || 0) + this.onOrderFor(co, u.id, m);
@@ -1166,7 +1189,7 @@ export class Aerospace {
       job.delayed = (job.delayed || 0) + late;
       this.setJobEta(job, eta);
       const hit = this.affectedUnits(job);
-      if (hit.length) this.report(this.company(job.company), 'supply', `⏳ The ${v.name} is delayed ${late} h with ${job.id}: ${hit.map((u) => `${this.cfg.products[u.product].name} #${u.n}`).join(', ')} will wait for its materials.`, 'warn');
+      if (hit.length) this.report(this.company(job.company), 'supply', `⏳ The ${v.name} is delayed ${late} h with ${job.id}: ${hit.map((u) => `${this.pOf(u).name} #${u.n}`).join(', ')} will wait for its materials.`, 'warn');
     }
   }
 
@@ -1385,13 +1408,13 @@ export class Aerospace {
   }
 
   stageOf(u) {
-    return stagesOf(this.cfg, this.cfg.products[u.product])[u.stage];
+    return stagesOf(this.cfg, this.pOf(u))[u.stage];
   }
 
   /** Move a unit to its next stage (consuming that stage's materials when it can). */
   advance(co, u) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const st = stagesOf(C, p);
     if (u.bay && u.stage >= lastBayStage(C, p)) this.freeBay(co, u);
     u.stage += 1;
@@ -1413,7 +1436,7 @@ export class Aerospace {
 
   step(co, u, minutes, rate) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const s = this.stageOf(u);
     if (!s) return;
     // the stage's materials must be in hand before its work starts
@@ -1448,7 +1471,7 @@ export class Aerospace {
 
   waitStep(co, u, s) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     if (s.wait === 'slot') return this.advance(co, u);
     if (s.wait === 'materials') {
       // procurement: every lot for the rest of the build is in hand or on order for this unit
@@ -1498,7 +1521,7 @@ export class Aerospace {
       }
       const r = u.rocket && this.state.units[u.rocket];
       if (!r || r.finished) { u.status = 'blocked'; u.blocker = { kind: 'rocket', text: 'waiting for a launch vehicle on the pad' }; u.rocket = null; return; }
-      if (this.stageOf(r)?.id === 'to_pad' || stagesOf(C, C.products[r.product]).findIndex((x) => x.id === 'vertical') > r.stage) { u.blocker = { kind: 'rocket', text: `waiting for ${C.products[r.product].name} to stand on the pad` }; return; }
+      if (this.stageOf(r)?.id === 'to_pad' || stagesOf(C, this.pOf(r)).findIndex((x) => x.id === 'vertical') > r.stage) { u.blocker = { kind: 'rocket', text: `waiting for ${this.pOf(r).name} to stand on the pad` }; return; }
       this.freeBay(co, u);
       u.status = 'pad';
       return this.advance(co, u);
@@ -1519,7 +1542,7 @@ export class Aerospace {
   /** Take a free bay for a unit about to start bay work (its own bay type first). */
   takeBay(co, u) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const types = baysFor(C, p);
     const bay = co.bays.find((b) => b.type === p.bay && !b.unit && b.ready <= this.now) || co.bays.find((b) => types.includes(b.type) && !b.unit && b.ready <= this.now && !this.waitingFor(co, b.type));
     if (!bay) { u.status = 'queued'; u.blocker = { kind: 'bay', text: `materials in hand; waiting for a free ${C.bays[p.bay].name.toLowerCase()}` }; return false; }
@@ -1530,7 +1553,7 @@ export class Aerospace {
 
   /** Is any unit waiting for a bay of exactly this type (so a borrowed bay goes to its own kind first)? */
   waitingFor(co, type) {
-    return this.unitsOf(co).some((x) => x.blocker?.kind === 'bay' && this.cfg.products[x.product].bay === type);
+    return this.unitsOf(co).some((x) => x.blocker?.kind === 'bay' && this.pOf(x).bay === type);
   }
 
   eventStep(co, u, s) {
@@ -1552,12 +1575,12 @@ export class Aerospace {
   }
 
   apronUsed(co) {
-    return this.unitsOf(co).filter((u) => u.status === 'apron').reduce((a, u) => a + apronSize(this.cfg.products[u.product]), 0);
+    return this.unitsOf(co).filter((u) => u.status === 'apron').reduce((a, u) => a + apronSize(this.pOf(u)), 0);
   }
 
   inspect(co, u, s) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const k = u.inspections.length;
     const pf = failChance(C, p, this.qualityOf(co), { engineCell: co.facilities.engine_cell });
     const roll = u.rolls.inspect[k % u.rolls.inspect.length];
@@ -1582,12 +1605,13 @@ export class Aerospace {
     const s = this.state;
     s.aircraft ||= {};
     const id = this.nextId('AC');
-    const p = this.cfg.products[u.product];
+    const p = this.pOf(u);
     s.aircraft[id] = {
       id, model: u.product, unit: u.id, contract: u.contract, manufacturer: co.id, owner: co.id, // ownership passes to the customer on handover
       registration: `${co.id === 'meridian' ? 'MA' : 'RA'}-${String(Object.keys(s.aircraft).length).padStart(3, '0')}`,
       state: 'awaiting_delivery', location: { map: this.A.map, site: `${co.id}_apron` },
-      condition: 100, fuel: p.spec?.fuel ?? 0, hours: 0.6, built: this.now, config: {},
+      condition: 100, fuel: p.spec?.fuel ?? 0, hours: 0.6, built: this.now,
+      config: { ...(u.config || {}) }, spec: p.spec ? { ...p.spec } : null, // (as configured: more seats, a longer range — what the flight update reads)
       flight: { flyable: false }, // the flyable-aircraft update fills this in
     };
     return id;
@@ -1602,7 +1626,7 @@ export class Aerospace {
   /** Put the satellites waiting for a launch aboard this rocket (up to its lift). */
   assignPayloads(co, r) {
     const C = this.cfg;
-    const rp = C.products[r.product];
+    const rp = this.pOf(r);
     if (r.purpose !== 'launcher') return;
     let room = rp.lift;
     r.payload ||= [];
@@ -1618,7 +1642,7 @@ export class Aerospace {
 
   launch(co, u) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const pf = launchFailChance(p, this.qualityOf(co));
     const success = u.rolls.launch >= pf;
     u.launch = { at: this.now, success, chance: Math.round(pf * 100) };
@@ -1663,7 +1687,7 @@ export class Aerospace {
 
   commission(co, u) {
     const C = this.cfg;
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     const pf = commissionFailChance(p, this.qualityOf(co));
     const ok = u.rolls.commission >= pf;
     const partial = !ok && u.rolls.partial < 0.6;
@@ -1675,7 +1699,7 @@ export class Aerospace {
   /** The satellite joins the registry: owned by its customer, built and operated by the company. */
   activate(co, u) {
     const s = this.state;
-    const p = this.cfg.products[u.product];
+    const p = this.pOf(u);
     const c = this.contract(u.contract);
     const id = this.nextId('SAT');
     s.satellites[id] = {
@@ -1691,7 +1715,7 @@ export class Aerospace {
   settle(co, u) {
     const C = this.cfg;
     const c = this.contract(u.contract);
-    const p = C.products[u.product];
+    const p = this.pOf(u);
     if (!c) {
       // an internal launcher: its cost was the price of putting satellites up
       this.retire(u, 'delivered');
@@ -1750,7 +1774,7 @@ export class Aerospace {
     if (!rockets.length) return;
     while (waiting.length) {
       const heaviest = C.products[waiting[0].product].mass;
-      const mass = waiting.reduce((a, u) => a + C.products[u.product].mass, 0);
+      const mass = waiting.reduce((a, u) => a + this.pOf(u).mass, 0);
       // the vehicle that carries the most of what's waiting for the least per unit of lift
       const fits = rockets.filter(([, r]) => r.lift >= heaviest);
       if (!fits.length) break;
@@ -2120,7 +2144,7 @@ export class Aerospace {
       if (!co?.pad) return { key: co?.building?.pad ? 'construction' : 'site', site: true };
       const u = co?.pad?.unit && this.state.units[co.pad.unit];
       if (!u) return { key: 'empty' };
-      const rp = C.products[u.product];
+      const rp = this.pOf(u);
       const st = this.stageOf(u);
       const stages = st?.id === 'vertical' ? Math.min(1, 0.2 + 0.8 * (u.work / Math.max(0.001, u.need))) : 1;
       const venting = ['prep', 'countdown'].includes(st?.id);
@@ -2141,7 +2165,7 @@ export class Aerospace {
         u = bay.unit && this.state.units[bay.unit];
       }
       if (!u) return { key: 'empty' };
-      if (p.aero.pad) return { stageIndex: u.stage, stagesTotal: stagesOf(C, C.products[u.product]).length, done: false, key: `${u.id}|stack`, kind: 'stack', look: C.products[u.product].look };
+      if (p.aero.pad) return { stageIndex: u.stage, stagesTotal: stagesOf(C, this.pOf(u)).length, done: false, key: `${u.id}|stack`, kind: 'stack', look: this.pOf(u).look };
       return this.unitLook(u, co);
     }
     return null;
@@ -2150,7 +2174,7 @@ export class Aerospace {
   /** How a unit looks right now, stage by stage (the bays in the world and the terminal draw from this). */
   unitLook(u, co = this.company(u.company)) {
     const C = this.cfg;
-    const pr = C.products[u.product];
+    const pr = this.pOf(u);
     const st = stagesOf(C, pr);
     const k = u.stage;
     const id = st[k]?.id;

@@ -21,6 +21,7 @@ export function missingTech(C, company, product) {
     if (!company.research.includes(id)) out.push(id);
   };
   need(product.tech);
+  for (const t of product.needs || []) need(t); // research an option asks for (v0.57.0)
   return out;
 }
 

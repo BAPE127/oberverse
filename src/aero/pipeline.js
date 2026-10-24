@@ -66,13 +66,13 @@ export function failChance(C, product, quality, { engineCell = false } = {}) {
 export function launchFailChance(product, quality) {
   const gap = quality - product.quality;
   const p = 0.06 * Math.exp(-Math.max(0, gap) / 15) + Math.max(0, -gap) / 60;
-  return Math.max(0.01, Math.min(0.5, p * (product.reusable ? 0.85 : 1)));
+  return Math.max(0.01, Math.min(0.5, p * (product.reusable ? 0.85 : 1) * (product.effects?.launchRisk ?? 1)));
 }
 
 /** Chance a satellite fails commissioning (or commissions with reduced capability). */
 export function commissionFailChance(product, quality) {
   const gap = quality - product.quality;
-  return Math.max(0.02, Math.min(0.4, 0.08 * Math.exp(-Math.max(0, gap) / 14) + Math.max(0, -gap) / 70));
+  return Math.max(0.02, Math.min(0.4, (0.08 * Math.exp(-Math.max(0, gap) / 14) + Math.max(0, -gap) / 70) * (product.effects?.commissionRisk ?? 1)));
 }
 
 /**

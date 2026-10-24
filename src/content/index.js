@@ -63,7 +63,7 @@ import dlgCasino from './dialogue/casino.js';
 import aeroChars from './characters/aerospace.js';
 import dlgAero from './dialogue/aerospace.js';
 import { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } from './dairy.js';
-import { AERO, BAYS as AERO_BAYS, FACILITIES as AERO_FACILITIES, MATERIALS as AERO_MATERIALS, SUPPLIERS as AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT as AERO_FREIGHT, PIPELINES as AERO_PIPELINES, RESEARCH as AERO_RESEARCH, PRODUCTS as AERO_PRODUCTS, CUSTOMERS as AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL as AERO_INTERNAL, HALLS as AERO_HALLS, STAFF as AERO_STAFF } from './aerospace.js';
+import { AERO, BAYS as AERO_BAYS, FACILITIES as AERO_FACILITIES, MATERIALS as AERO_MATERIALS, SUPPLIERS as AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT as AERO_FREIGHT, PIPELINES as AERO_PIPELINES, RESEARCH as AERO_RESEARCH, PRODUCTS as AERO_PRODUCTS, CUSTOMERS as AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL as AERO_INTERNAL, HALLS as AERO_HALLS, STAFF as AERO_STAFF, OPTIONS as AERO_OPTIONS } from './aerospace.js';
 import { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } from './farming.js';
 import { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } from './life.js';
 import { towerMaps, addTowers, TOWERS } from './towers.js';
@@ -152,7 +152,7 @@ export const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF }, // v0.55.0; halls and staff v0.57.0
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS }, // v0.55.0; halls, staff and options v0.57.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},

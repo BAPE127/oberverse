@@ -48,7 +48,7 @@ export function rivalMorning(A, co) {
 /** The bid Meridian would make on a tender, or null. */
 export function rivalBid(A, co, t) {
   const C = A.cfg;
-  const p = C.products[t.product];
+  const p = A.pOf(t); // as configured
   if (t.embargoed) return null;
   if (!A.canBuild(co, p) || (t.defence && !A.cleared(co))) return null;
   if (A.qualityOf(co) < t.quality) return null;

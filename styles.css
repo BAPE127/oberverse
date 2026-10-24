@@ -889,6 +889,12 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao-prio .ao-bar { grid-template-columns: 74px 1fr 34px; font-size: 11px; }
 .ao-you { font-size: 12px; opacity: .78; line-height: 1.45; }
 .ao-why { font-size: 12px; color: #ffb0a0; }
+.ao-config { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ao-opt { border: 1px solid rgba(111,180,255,.4); background: rgba(111,180,255,.08); border-radius: 8px; padding: 3px 8px; font-size: 11.5px; display: inline-flex; gap: 6px; align-items: baseline; }
+.ao-opt b { color: #cfe4ff; font-weight: 600; }
+.ao-opt em { font-style: normal; opacity: .7; }
+.ao-opt.bad { border-color: rgba(255,107,107,.6); background: rgba(255,107,107,.08); }
+.ao-opt.bad em { color: #ffb0b0; opacity: 1; }
 .ao-sealed { border: 1px solid rgba(94,224,138,.4); background: rgba(94,224,138,.08); border-radius: 10px; padding: 8px 10px; font-size: 13px; color: #c4f4d4; }
 .ao-composer { border-top: 1px dashed var(--ao-line); padding-top: 9px; display: flex; flex-direction: column; gap: 8px; }
 .ao-composer small { opacity: .7; min-width: 70px; }

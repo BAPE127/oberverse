@@ -196,6 +196,78 @@ export const FACILITIES = {
 };
 
 /**
+ * Product configuration (v0.57.0): bounded options a customer may ask for. A tender names the
+ * configuration it wants (src/aero/config.js makes it from the customer's kind), and the contract,
+ * its units and the finished aircraft carry it. Each option changes what the product costs and
+ * takes: `cost` is the extra materials as a share of the product's own, laid into the materials
+ * listed in `into` (only ones the product's line really uses), `days` extra build time, `markup`
+ * what the customer pays over the extra cost, `quality` the extra the customer demands, `needs` the
+ * research the company must have, `spec` multipliers on the flight spec (seats, range…), `effects`
+ * other changes (launch or commissioning risk, design life, service income).
+ */
+export const OPTIONS = {
+  groups: {
+    cabin_pax: { name: 'Cabin', choices: {
+      dense: { name: 'High-density cabin', text: 'More seats, closer together: +18% seats.', cost: 0.035, into: ['electronics', 'glazing', 'chemicals'], days: 0.04, markup: 1.5, spec: { seats: 1.18 } },
+      premium: { name: 'Premium cabin', text: 'Lie-flat seats and a proper galley: 22% fewer seats, a much better product.', cost: 0.06, into: ['electronics', 'glazing', 'chemicals'], days: 0.07, markup: 1.55, quality: 3, spec: { seats: 0.78 } },
+    } },
+    cabin_vip: { name: 'Interior', choices: {
+      vip: { name: 'VIP interior', text: 'Leather, a galley and a bed: fewer seats, a lot more money.', cost: 0.07, into: ['electronics', 'glazing', 'chemicals'], days: 0.09, markup: 1.6, quality: 4, spec: { seats: 0.7 } },
+    } },
+    range: { name: 'Range', choices: {
+      extended: { name: 'Extended-range tanks', text: 'Extra tanks and a stronger wing box: +25% range.', cost: 0.04, into: ['alu', 'composite', 'fuel'], days: 0.05, markup: 1.5, spec: { range: 1.25, fuel: 1.22 } },
+    } },
+    avionics_adv: { name: 'Flight deck', choices: {
+      advanced: { name: 'Advanced flight deck', text: 'A glass cockpit and a much better autopilot.', cost: 0.05, into: ['avionics', 'instruments', 'electronics'], days: 0.05, markup: 1.5, quality: 5, needs: 'advanced_avionics' },
+    } },
+    sensors: { name: 'Sensors', choices: {
+      advanced: { name: 'Advanced sensor suite', text: 'A better radar and a longer eye.', cost: 0.07, into: ['sensors', 'avionics'], days: 0.06, markup: 1.6, quality: 5, needs: 'advanced_avionics' },
+    } },
+    endurance: { name: 'Endurance', choices: {
+      extended: { name: 'Conformal tanks and a probe', text: 'Longer on station: +30% range.', cost: 0.04, into: ['alu', 'titanium', 'fuel'], days: 0.05, markup: 1.5, spec: { range: 1.3, fuel: 1.25 } },
+    } },
+    stores: { name: 'Stores', choices: {
+      heavy: { name: 'Heavy stores', text: 'Reinforced hardpoints and bomb bay: +40% payload.', cost: 0.05, into: ['steel', 'titanium', 'composite'], days: 0.06, markup: 1.5, spec: { payload: 1.4 } },
+    } },
+    role_light: { name: 'Role', choices: {
+      sprayer: { name: 'Spray gear', text: 'A hopper, pumps and booms: a crop-duster, not a taxi.', cost: 0.13, into: ['alu', 'chemicals', 'steel'], days: 0.12, markup: 1.5, tags: ['sprayer'] },
+      trainer: { name: 'Dual controls', text: 'A second set of controls and a very patient instructor\'s seat.', cost: 0.1, into: ['instruments', 'electronics'], days: 0.08, markup: 1.5, tags: ['trainer'] },
+    } },
+    fairing: { name: 'Fairing', choices: {
+      extended: { name: 'Extended fairing', text: 'Room for a bigger payload.', cost: 0.04, into: ['composite', 'alu'], days: 0.04, markup: 1.5 },
+    } },
+    upper: { name: 'Upper stage', choices: {
+      restartable: { name: 'Restartable upper stage', text: 'Can light twice: 15% less risk of losing the mission.', cost: 0.06, into: ['avionics', 'instruments', 'titanium'], days: 0.08, markup: 1.55, quality: 3, effects: { launchRisk: 0.85 } },
+    } },
+    sat_payload: { name: 'Payload', choices: {
+      enhanced: { name: 'Enhanced payload', text: 'A sharper eye and more bandwidth: +25% service income.', cost: 0.09, into: ['sensors', 'comms', 'instruments'], days: 0.1, markup: 1.55, quality: 4, effects: { service: 1.25 } },
+    } },
+    sat_life: { name: 'Design life', choices: {
+      extended: { name: 'Extended design life', text: 'Bigger arrays and more fuel: 50% longer in service.', cost: 0.06, into: ['solar', 'electronics'], days: 0.05, markup: 1.5, effects: { life: 1.5 } },
+    } },
+    sat_hardened: { name: 'Bus', choices: {
+      hardened: { name: 'Radiation-hardened bus', text: 'Redundant everything: 40% less risk at commissioning.', cost: 0.05, into: ['electronics', 'avionics', 'titanium'], days: 0.06, markup: 1.55, quality: 3, effects: { commissionRisk: 0.6 } },
+    } },
+  },
+  /** Which groups a product offers: by id, else by class, else by line. */
+  byProduct: { ap_skylark: ['role_light', 'range'], ap_meadowlark: ['role_light', 'cabin_vip', 'range'], ap_puffin: ['cabin_pax', 'range'] },
+  byClass: { passenger: ['cabin_pax', 'range', 'avionics_adv'], private: ['cabin_vip', 'range'], fighter: ['sensors', 'endurance'], bomber: ['sensors', 'endurance', 'stores'] },
+  byLine: { rocket: ['fairing', 'upper'], satellite: ['sat_payload', 'sat_life', 'sat_hardened'] },
+  /** How likely each kind of customer is to ask for a choice (a share of its tenders for a product that offers it). */
+  demand: {
+    airline: { cabin_pax: { dense: 0.3, premium: 0.2 }, range: { extended: 0.25 }, avionics_adv: { advanced: 0.15 } },
+    cargo: { range: { extended: 0.3 } },
+    private: { cabin_vip: { vip: 0.35 }, range: { extended: 0.2 }, role_light: { trainer: 0.3 } },
+    agriculture: { role_light: { sprayer: 0.85 }, range: { extended: 0.1 } },
+    defence: { sensors: { advanced: 0.3 }, endurance: { extended: 0.3 }, stores: { heavy: 0.3 } },
+    government: { sat_payload: { enhanced: 0.3 }, sat_life: { extended: 0.3 }, sat_hardened: { hardened: 0.15 } },
+    comms: { sat_payload: { enhanced: 0.35 }, sat_life: { extended: 0.3 }, sat_hardened: { hardened: 0.2 } },
+    science: { sat_payload: { enhanced: 0.4 }, sat_hardened: { hardened: 0.3 }, sat_life: { extended: 0.2 } },
+    agency: { fairing: { extended: 0.3 }, upper: { restartable: 0.3 }, sat_payload: { enhanced: 0.3 }, sat_life: { extended: 0.3 }, sat_hardened: { hardened: 0.25 } },
+  },
+};
+
+/**
  * Materials (a manageable abstraction): price is per lot at a reference
  * supplier; volume is cargo units per lot. source: who makes it locally if
  * anyone (Ober's Oil makes the petroleum-based inputs, not finished parts).
