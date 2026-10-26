@@ -3328,6 +3328,12 @@ const FLIGHT = {
   exitTiles: 45, climbAlt: 6,
   vtolRise: 3, vtolAlt: 4, vtolSpeed: 16,
   touchdown: 14, finalTiles: 50, finalMin: 6, finalAlt: 7,
+  // Meridian's own aircraft, which live on its apron and go out and come back (a test sortie, an executive's trip). Times are hours of the day; away is minutes in the air.
+  ambient: [
+    { id: 'MA-TEST', reg: 'MA-X01', model: 'af_kestrel', livery: 'test', apron: 'meridian_apron', at: { x: 130, y: 51 }, chance: 0.75, max: 2, from: 9, to: 15, away: [22, 45] },
+    { id: 'MA-JET', reg: 'MA-001', model: 'ap_swift', livery: 'meridian', apron: 'meridian_apron', at: { x: 141, y: 51 }, chance: 0.5, max: 1, from: 7.5, to: 16, away: [90, 420] },
+  ],
+  convoySpeed: 3.6, convoyGap: 3.6, // tiles a minute, and the gap between its vehicles
   stagger: 9, // minutes between one aircraft starting its movement and the next (one runway, one taxiway)
   // launches: the crawler's rollout to the pad, the countdown (the last minutes with engines lit), the ascent, a failure's moment
   launch: {
@@ -4072,8 +4078,8 @@ P('blast_wall', 123, 35, { w: 1, h: 3 }); P('blast_wall', 119, 35, { w: 1, h: 3 
 P('sign', 118, 34, { examine: 'ENGINE TEST STAND — "When the beacon is lit, ear defenders on. When the beacon is lit and you can\'t hear this sign, you\'re too close."' });
 P('barrel', 125, 35); P('barrel', 126, 35); P('crate', 127, 36); P('tug', 129, 37, { w: 2, h: 1, color: '#2e3a4e', examine: 'A Meridian towing tractor, navy blue, with a flashing beacon and a very serious driver\'s seat.' });
 // Meridian's apron: two of its own aircraft live here (the company jet and a test aircraft), the rest come and go
-AC(141, 51, { model: 'ap_swift', livery: 'meridian', heading: 0, examine: 'Meridian\'s company jet, a Swift LJ-2 in navy and gold. Imogen Hale flies in it, works in it, and occasionally sleeps in it.' });
-AC(130, 51, { model: 'af_kestrel', livery: 'test', heading: 0, examine: 'A Kestrel T-3 in orange-and-white test colours, bristling with instrumentation. Ailie Ronn\'s office, she says.' });
+AC(141, 51, { model: 'ap_swift', livery: 'meridian', heading: 0, ambient: 'MA-JET', examine: 'Meridian\'s company jet, a Swift LJ-2 in navy and gold. Imogen Hale flies in it, works in it, and occasionally sleeps in it.' });
+AC(130, 51, { model: 'af_kestrel', livery: 'test', heading: 0, ambient: 'MA-TEST', examine: 'A Kestrel T-3 in orange-and-white test colours, bristling with instrumentation. Ailie Ronn\'s office, she says.' });
 for (const [x, y] of [[62, 47], [118, 47], [148, 47]]) P('runway_sign', x, y, { text: 'APRON' });
 // --- the airfield: edge lights, signs, windsocks, the tower
 for (let x = 36; x < 172; x += 6) { P('runway_light', x, 65); P('runway_light', x, 72); }
@@ -4132,6 +4138,11 @@ const starlingFlats = {
   launch: {
     meridian: { rollout: [[130, 96.3], [130, 96.8], [137.5, 96.8], [137.5, 90.8], [155, 90.8]] },
     roost: { rollout: [[141.5, 105.9], [141.5, 101.3], [169, 101.3]] },
+  },
+  // v0.58.0: where a secure convoy goes: out of the hall's door, along the service road, up Meridian Way and away down the Cut
+  convoy: {
+    meridian: [[135.5, 31.4], [135.5, 34], [59.5, 34], [59.5, 16], [-8, 16]],
+    roost: [[13.5, 64.6], [13.5, 66], [27.5, 66], [27.5, 16], [-8, 16]],
   },
   areas: [
     { id: 'area_starling', name: 'Starling', x: 0, y: 0, w: 150, h: 13 },
@@ -6610,6 +6621,7 @@ const AUDIO_REGISTRY = [
   sfx('sfx_crash', 'a car hitting a wall, another car or a person'),
   sfx('sfx_horn', 'the car horn (H while driving)'),
   { id: 'loop_siren', category: 'sfx', method: 'procedural: AudioEngine.setSiren (a triangle wail swept by a square LFO; louder as cruisers close in)', trigger: 'police cruisers chasing you', status: 'implemented', source: 'Original synthesis' },
+  { id: 'loop_field', category: 'sfx', method: 'procedural: AudioEngine.setField (band-passed noise with a swept sawtooth whine for aircraft; low-passed noise, two sines and a crackle for a launch; louder the closer, and by what the aircraft or rocket is doing)', trigger: 'aircraft rolling or climbing and rockets launching at Starling Field', status: 'implemented', source: 'Original synthesis' },
   { id: 'loop_engine', category: 'sfx', method: 'procedural: AudioEngine.setEngine (two detuned saws through a low-pass, pitch and level follow speed)', trigger: 'while you drive', status: 'implemented', source: 'Original synthesis' },
   sfx('sfx_crate', 'each crate of guns in Lucas Eastrise\'s Wrath; the fifth is the missile'),
   sfx('sfx_digit', 'each giant digit in Arthur Anderson\'s Wrath; the fifth is the giant calculator'),
@@ -16755,6 +16767,7 @@ __m["src/audio/audioEngine.js"] = (function () {
 const { SongPlayer, playMotif } = __m["src/audio/music.js"];
 const { SFX, voiceBlip } = __m["src/audio/sfx.js"];
 const { startAmbience } = __m["src/audio/ambience.js"];
+const { getNoise } = __m["src/audio/synth.js"];
 
 class AudioEngine {
   constructor(content, settings) {
@@ -16895,6 +16908,51 @@ class AudioEngine {
       this.siren.gain.gain.setTargetAtTime(0.02 + level * 0.09, t, 0.2);
     } catch (err) {
       this.failures.push(`siren: ${err.message}`);
+    }
+  }
+
+  /**
+   * The sounds of Starling Field (v0.58.0): null stops them; otherwise { jet, jetPitch, rocket },
+   * each 0..1 — how loud (distance and what the aircraft is doing) and, for the jet, its pitch. A roar of
+   * filtered noise with a turbine whine, and a deep rocket rumble that crackles under it. Built on first use.
+   */
+  setField(f) {
+    if (!this.enabled) return;
+    try {
+      const c = this.ctx;
+      const t = c.currentTime;
+      if (!f || (f.jet <= 0.003 && f.rocket <= 0.003)) {
+        if (this.field) { this.field.jetGain.gain.setTargetAtTime(0.0001, t, 0.25); this.field.rockGain.gain.setTargetAtTime(0.0001, t, 0.25); }
+        return;
+      }
+      if (!this.field) {
+        const loop = () => { const src = c.createBufferSource(); src.buffer = getNoise(c); src.loop = true; src.start(0, Math.random()); return src; };
+        const jetGain = c.createGain(); jetGain.gain.value = 0.0001;
+        const jetBand = c.createBiquadFilter(); jetBand.type = 'bandpass'; jetBand.frequency.value = 900; jetBand.Q.value = 0.7;
+        loop().connect(jetBand).connect(jetGain);
+        const whine = c.createOscillator(); whine.type = 'sawtooth'; whine.frequency.value = 520;
+        const whineLp = c.createBiquadFilter(); whineLp.type = 'lowpass'; whineLp.frequency.value = 1400;
+        const whineGain = c.createGain(); whineGain.gain.value = 0.18;
+        whine.connect(whineLp).connect(whineGain).connect(jetGain); whine.start();
+        jetGain.connect(this.buses.sfx);
+        const rockGain = c.createGain(); rockGain.gain.value = 0.0001;
+        const rockLp = c.createBiquadFilter(); rockLp.type = 'lowpass'; rockLp.frequency.value = 260; rockLp.Q.value = 0.9;
+        loop().connect(rockLp).connect(rockGain);
+        for (const hz of [38, 57]) { const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = hz; const og = c.createGain(); og.gain.value = 0.5; o.connect(og).connect(rockGain); o.start(); }
+        const crackle = c.createBiquadFilter(); crackle.type = 'bandpass'; crackle.frequency.value = 2400; crackle.Q.value = 3;
+        const crackleGain = c.createGain(); crackleGain.gain.value = 0.12;
+        loop().connect(crackle).connect(crackleGain).connect(rockGain);
+        rockGain.connect(this.buses.sfx);
+        this.field = { jetGain, jetBand, whine, rockGain, rockLp };
+      }
+      const F = this.field;
+      F.jetGain.gain.setTargetAtTime(0.0001 + f.jet * 0.5, t, 0.15);
+      F.jetBand.frequency.setTargetAtTime(500 + f.jetPitch * 1500, t, 0.2);
+      F.whine.frequency.setTargetAtTime(380 + f.jetPitch * 1100, t, 0.2);
+      F.rockGain.gain.setTargetAtTime(0.0001 + f.rocket * 0.75, t, 0.15);
+      F.rockLp.frequency.setTargetAtTime(180 + f.rocket * 380, t, 0.2);
+    } catch (err) {
+      this.failures.push(`field: ${err.message}`);
     }
   }
 
@@ -33704,8 +33762,9 @@ __m["src/aero/field.js"] = (function () {
 // an aircraft, `stand` = { apron, slot, size } and `move` = { kind, t0, rwy } while a movement
 // is under way (its `flight` record is the flyable-aircraft update's). Nothing else — the movement is rebuilt from those, so a reload, or a night's
 // sleep, finds every aircraft where it should be.
-const { fieldGeo, standPose, windRunway, departurePlan, arrivalPlan, poseAt, planLength, runwayWindow } = __m["src/aero/flight.js"];
+const { fieldGeo, standPose, windRunway, departurePlan, arrivalPlan, poseAt, planLength, runwayWindow, route, along } = __m["src/aero/flight.js"];
 const { apronSize } = __m["src/aero/catalog.js"];
+const { hashUnit } = __m["src/aero/config.js"];
 
 const MARGIN = 2; // minutes either side of another aircraft's time on the runway
 
@@ -33723,6 +33782,7 @@ const lookOf = (A, ac) => A.cfg.products[ac.model]?.look;
 
 /** Where an aircraft stands (tile centre), from its stand. */
 function standOf(A, ac) {
+  if (ac.stand.override) return { x: ac.stand.override.x, y: ac.stand.override.y, a: 0 };
   const look = lookOf(A, ac);
   return standPose(geoOf(A), ac.stand.apron, ac.stand.slot, ac.stand.size, look?.len || 4);
 }
@@ -33795,17 +33855,32 @@ function scheduleDeparture(A, ac) {
 /** Every minute: an aircraft in a movement takes the state its plan says. */
 function tickField(A) {
   const s = A.state;
+  ensureAmbient(A);
   const f = s.field;
   if (!f?.active.length) return;
+  // Meridian's own aircraft: each morning, who goes out today
+  if (f.ambientDay !== A.day && A.game.clock.minuteOfDay >= A.A.decisionHour * 60) { f.ambientDay = A.day; scheduleAmbient(A); }
   const now = A.now;
   for (const id of [...f.active]) {
     const ac = s.aircraft[id];
     if (!ac) { f.active.splice(f.active.indexOf(id), 1); continue; }
+    if (ac.ambient && ac.state === 'parked' && !ac.move && ac.sorties?.length && now >= ac.sorties[0].dep) {
+      ac.sortie = ac.sorties.shift();
+      scheduleDeparture(A, ac);
+    }
     const fl = ac.move;
     if (!fl || now < fl.t0) continue;
     const plan = planOf(A, ac);
     const p = poseAt(plan, now - fl.t0);
     if (p.done) {
+      if (fl.kind === 'departure' && ac.ambient) {
+        // one of Meridian's own: out of sight for the length of its trip, then it comes home (the landing is cleared now, for then)
+        ac.state = 'airborne';
+        ac.hours = Math.round((ac.hours + (ac.sortie?.away || 30) / 60) * 100) / 100;
+        scheduleArrival(A, ac, fl.t0 + planLength(plan) + (ac.sortie?.away || 30));
+        ac.sortie = null;
+        continue;
+      }
       if (fl.kind === 'departure') {
         ac.state = 'departed';
         ac.location = { departed: fl.t0 + planLength(plan) };
@@ -33844,7 +33919,7 @@ function movers(A) {
     if (!look) continue;
     let p;
     if (ac.move && now >= ac.move.t0) p = poseAt(planOf(A, ac), now - ac.move.t0);
-    else if (ac.state === 'awaiting_delivery' || ac.state === 'parked') p = parkedPose(A, ac);
+    else if (ac.state === 'awaiting_delivery' || (ac.state === 'parked' && !ac.ambient)) p = parkedPose(A, ac); // (Meridian's own sit on their props when home)
     else continue;
     if (p.done && ac.move?.kind === 'departure') continue;
     out.push({ id, look, livery: ac.livery || null, x: p.x, y: p.y, a: p.a, alt: p.alt, v: p.v, gear: p.gear, state: p.state, label: p.label, model: ac.model });
@@ -33855,7 +33930,7 @@ function movers(A) {
 /** Fix up saves: aircraft waiting on the apron get stands; the field's lists exist. */
 function migrateField(A) {
   const s = A.state;
-  if (!s.aircraft) return;
+  ensureAmbient(A);
   const f = fieldState(A);
   for (const ac of Object.values(s.aircraft)) {
     if (ac.state !== 'awaiting_delivery') continue;
@@ -33866,7 +33941,147 @@ function migrateField(A) {
   }
 }
 
-return { geoOf, fieldState, standOf, assignStand, planOf, scheduleDeparture, tickField, movers, migrateField };
+// ------------------------------------------------------------------ the secure convoy
+/** The convoy's road (from the map) as a measured path, kept. */
+function convoyPath(A, coId) {
+  const way = A.game.content.maps[A.A.map].convoy?.[coId];
+  if (!way) return null;
+  const cache = (A._convoyPaths ||= {});
+  return (cache[coId] ||= route(way, 3));
+}
+
+/** A strategic product has reached its convoy stage: the convoy leaves now and is off the map in a while. */
+function startConvoy(A, co, u) {
+  const path = convoyPath(A, co.id);
+  if (!path) return;
+  const F = A.cfg.flight;
+  const now = A.now;
+  u.convoy = { t0: now, t1: now + (path.len + 2 * F.convoyGap) / F.convoySpeed };
+  if (co.kind === 'player') A.news(`🛡️ A secure convoy leaves ${co.name} under escort — a consignment for ${A.cfg.customers[A.contract(u.contract)?.customer]?.name || 'a defence customer'}.`, 'info');
+}
+
+/** The vehicles of every convoy on the road right now: { id, model, color, x, y, angle } (tiles; angle 0 = east). */
+function convoys(A) {
+  const out = [];
+  const now = A.now;
+  const F = A.cfg.flight;
+  for (const co of A.companies()) {
+    for (const u of A.unitsOf(co)) {
+      if (!u.convoy || now < u.convoy.t0 || now > u.convoy.t1) continue;
+      const path = convoyPath(A, co.id);
+      if (!path) continue;
+      const lead = (now - u.convoy.t0) * F.convoySpeed;
+      [['dray', '#23272f', 0], ['longhorn', '#586048', 1], ['dray', '#23272f', 2]].forEach(([model, color, i]) => {
+        const d = lead - i * F.convoyGap;
+        if (d < 0 || d > path.len) return;
+        const p = along(path, d);
+        out.push({ id: `${u.id}|${i}`, model, color, x: p.x, y: p.y, angle: p.a - Math.PI / 2, escort: i !== 1 });
+      });
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------ Meridian's own aircraft
+/** The first time the field is looked at, Meridian's company jet and test aircraft become entities that go out and come home. */
+function ensureAmbient(A) {
+  const s = A.state;
+  const f = fieldState(A);
+  if (f.ambientDone) return;
+  s.aircraft ||= {};
+  for (const d of A.cfg.flight.ambient) {
+    if (s.aircraft[d.id]) continue;
+    const P = A.cfg.products[d.model];
+    s.aircraft[d.id] = {
+      id: d.id, model: d.model, unit: null, contract: null, manufacturer: 'meridian', owner: 'meridian', registration: d.reg, ambient: true,
+      state: 'parked', location: { map: A.A.map, site: d.apron }, condition: 100, fuel: P.spec?.fuel ?? 0, hours: 1200, built: 0,
+      config: {}, spec: P.spec ? { ...P.spec } : null, livery: d.livery, flight: { flyable: false }, move: null, sorties: [],
+      stand: { apron: d.apron, slot: 0, size: 1, override: { x: d.at.x + P.look.span / 2, y: d.at.y + P.look.len / 2 } },
+    };
+    if (!f.active.includes(d.id)) f.active.push(d.id);
+  }
+  f.ambientDone = true;
+}
+
+/** Is this one of Meridian's own at home on its stand (so its prop shows)? */
+function ambientHome(A, id) {
+  const ac = A.state.aircraft?.[id];
+  if (!ac) return true;
+  return ac.state === 'parked' && !(ac.move && A.now >= ac.move.t0);
+}
+
+/** Each morning: which of Meridian's own go out today, when, and for how long — fixed by the day, not the dice. */
+function scheduleAmbient(A) {
+  const s = A.state;
+  const day = A.day;
+  const base = (day - 1) * 1440;
+  for (const d of A.cfg.flight.ambient) {
+    const ac = s.aircraft?.[d.id];
+    if (!ac) continue;
+    const r = (k) => hashUnit(`amb|${d.id}|${day}|${k}`);
+    ac.sorties = [];
+    if (r('go') > d.chance) continue;
+    const n = d.max > 1 ? 1 + Math.floor(r('n') * d.max) : 1;
+    let free = base + d.from * 60;
+    for (let i = 0; i < n; i++) {
+      const away = Math.round(d.away[0] + r(`a${i}`) * (d.away[1] - d.away[0]));
+      const dep = Math.round(Math.max(free, base + d.from * 60 + r(`t${i}`) * (d.to - d.from) * 60));
+      ac.sorties.push({ dep, away });
+      free = dep + away + 90;
+    }
+  }
+}
+
+/** Clear a landing: the first time at or after `desired` that the runway is free for the whole of the approach and rollout. */
+function scheduleArrival(A, ac, desired) {
+  const f = fieldState(A);
+  const rwy = windRunway(Math.floor(desired / 1440) + 1);
+  ac.move = { kind: 'arrival', t0: desired, rwy };
+  const w = runwayWindow(planOf(A, ac));
+  f.reserved = f.reserved.filter((r) => r.to > A.now - 60);
+  let t0 = desired;
+  for (let guard = 0; guard < 60; guard++) {
+    let moved = false;
+    for (const r of f.reserved) if (t0 + w.from < r.to + MARGIN && t0 + w.to > r.from - MARGIN) { t0 = r.to + MARGIN - w.from; moved = true; }
+    if (!moved) break;
+  }
+  t0 = Math.round(t0 * 100) / 100;
+  ac.move = { kind: 'arrival', t0, rwy };
+  f.reserved.push({ from: t0 + w.from, to: t0 + w.to });
+  return t0;
+}
+
+// ------------------------------------------------------------------ what the player hears
+/**
+ * How loud the field is at (px, py) tiles: { jet, jetPitch, rocket } each 0..1 — the loudest aircraft
+ * (a roll or a climb-out is loud, a taxi a murmur) and the loudest launch (the ignition builds, the
+ * ascent thunders and fades, a vehicle lost is one hard crack).
+ */
+function soundAt(A, px, py) {
+  let jet = 0;
+  let jetPitch = 0;
+  for (const m of movers(A)) {
+    if (m.state === 'awaiting_delivery' || m.state === 'parked') continue;
+    const d = Math.hypot(m.x - px, m.y - py) + m.alt * 0.6;
+    const base = m.state === 'takeoff' ? 1 : m.state === 'airborne' ? 0.8 : m.state === 'landing' ? 0.7 : m.v > 0.5 ? 0.22 : 0.1;
+    const lvl = base / (1 + d / 12);
+    if (lvl > jet) { jet = lvl; jetPitch = Math.max(0, Math.min(1, m.v / 20)); }
+  }
+  let rocket = 0;
+  for (const l of A.launches()) {
+    if (l.kind !== 'sequence') continue;
+    const ph = l.ph;
+    const d = Math.hypot(l.base.x - px, l.base.y - py);
+    let base = 0;
+    if (ph.phase === 'ignition') base = 0.15 + 0.55 * ph.burn;
+    else if (ph.phase === 'ascent') base = 1 / (1 + ph.t * 0.12);
+    else if (ph.phase === 'lost') base = ph.boom < 0.5 ? 1.2 : Math.max(0, 0.5 - ph.boom * 0.2);
+    rocket = Math.max(rocket, Math.min(1, base / (1 + d / 22)));
+  }
+  return { jet: Math.min(1, jet), jetPitch, rocket };
+}
+
+return { geoOf, fieldState, standOf, assignStand, planOf, scheduleDeparture, tickField, movers, migrateField, startConvoy, convoys, ensureAmbient, ambientHome, scheduleAmbient, scheduleArrival, soundAt };
 })();
 
 // ---- src/aero/launch.js
@@ -34244,7 +34459,7 @@ const { configure, cleanConfig, configError, configLabel } = __m["src/aero/confi
 const { makeTender, bidError, rankBids, launchAllowance } = __m["src/aero/tenders.js"];
 const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
 const { rivalMorning } = __m["src/aero/rival.js"];
-const { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf } = __m["src/aero/field.js"];
+const { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt } = __m["src/aero/launch.js"];
 const { windRunway } = __m["src/aero/flight.js"];
 const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
@@ -35716,6 +35931,7 @@ class Aerospace {
     // work
     u.status = s.bay ? 'building' : s.office ? 'engineering' : s.kind === 'convoy' ? 'convoy' : s.kind === 'commission' ? 'orbit' : s.id === 'secure_storage' ? 'storage' : 'pad';
     if (!u.started) u.started = this.now;
+    if (s.kind === 'convoy' && !u.convoy) startConvoy(this, co, u);
     const r = (s.bay ? rate : s.office ? this.speedOf(co) * this.engineerRate(co) : 1) * (s.kind === 'inspect' ? this.inspectorRate(co) : 1);
     u.work += (minutes / DAY) * r;
     if (u.work + 1e-9 < u.need) return;
@@ -35941,6 +36157,21 @@ class Aerospace {
   /** Clear a finished aircraft to leave: it starts when the field is free (returns the time). */
   clearForDeparture(ac) {
     return scheduleDeparture(this, ac);
+  }
+
+  /** The field's sound where the player stands (tiles): { jet, jetPitch, rocket }, each 0..1. */
+  sound(px, py) {
+    return soundAt(this, px, py);
+  }
+
+  /** Is one of Meridian's own aircraft (the company jet, the test aircraft) at home on its stand? Its prop shows only then. */
+  ambientHome(id) {
+    return ambientHome(this, id);
+  }
+
+  /** Secure convoys on the road, for the renderer. */
+  convoys() {
+    return convoys(this);
   }
 
   /** The field's geometry (runway, taxiway, aprons) for the renderer. */
@@ -41586,10 +41817,11 @@ function aeroLive(ctx, p, opts) {
   const x = Math.round(p.x * T);
   const y = Math.round(p.y * T);
   if (p.type === 'windsock') {
-    // a west wind: the sock streams east, fluttering
+    // a west wind (runway 09 in use) streams the sock east, an east wind west (v0.58.0), fluttering
     const gust = 0.75 + 0.25 * Math.sin(t * 1.3 + p.x);
+    const dir = opts.wind === -1 ? -1 : 1;
     for (let i = 0; i < 5; i++) {
-      const sx = x + 18 + i * 5 * gust;
+      const sx = x + (dir > 0 ? 18 : 12) + dir * i * 5 * gust - (dir < 0 ? 5 : 0);
       const sy = y - 43 + i * (1 - gust) * 2 + Math.sin(t * 7 + i) * (i * 0.3);
       ctx.fillStyle = INK;
       ctx.fillRect(Math.round(sx), Math.round(sy) - 1, 6, 7 - i);
@@ -50757,6 +50989,7 @@ const { drawCar, drawBus, setPixelCars } = __m["src/engine/drawVehicles.js"];
 const { drawAircraft } = __m["src/engine/drawAero.js"];
 const { drawCrawler, drawBoard, drawPadFx, drawSky, launchLight } = __m["src/engine/drawLaunch.js"];
 const { shakeAt } = __m["src/aero/launch.js"];
+const { windRunway } = __m["src/aero/flight.js"];
 const { lookOf, isGunLook } = __m["src/engine/drawPixelWeapons.js"];
 const { drawTrail } = __m["src/engine/drawSignatureCars.js"];
 const { drawCharacter, setPixelPeople, rrect } = __m["src/engine/drawCharacter.js"];
@@ -51128,6 +51361,7 @@ class Renderer {
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
+    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1; // v0.58.0: the windsocks and the runway in use
     const items = [];
     // Draw the current map and its seamless neighbours, each at its offset.
     for (const L of this.layers) {
@@ -51148,7 +51382,7 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+          drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
         const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
@@ -51180,7 +51414,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus
@@ -51211,7 +51445,8 @@ class Renderer {
         }
       }
       // v0.58.0: the aircraft on Starling Field — on their stands, pushed back, taxiing, rolling, climbing away (src/aero/field.js)
-      if (lm.id === 'starling_flats') { this.drawField(items, at, inView); this.drawLaunches(items, at, inView, night); }
+      if (lm.id === 'starling_flats') { this.drawField(items, at, inView, night); this.drawLaunches(items, at, inView, night); }
+      if (lm.id === 'starling_flats') this.drawConvoys(items, at, inView, night);
       // the bus and the traffic (src/systems/transit.js)
       if (g.transit) {
         const models = g.content.vehicles.models;
@@ -51319,8 +51554,37 @@ class Renderer {
     }
   }
 
+  /** v0.58.0: an aircraft's navigation lights at night: red to port, green to starboard, white at the tail, and strobes on the wingtips. */
+  drawNavLights(ctx, m, x, y, k) {
+    if (m.state === 'awaiting_delivery') return;
+    const rx = Math.cos(m.a);
+    const ry = Math.sin(m.a);
+    const fx = Math.sin(m.a);
+    const fy = -Math.cos(m.a);
+    const half = m.look.span * TILE * 0.47 * k;
+    const tail = m.look.len * TILE * 0.44 * k;
+    const dot = (px, py, c, r) => { ctx.fillStyle = c; ctx.fillRect(Math.round(px) - 1, Math.round(py) - 1, r, r); };
+    dot(x - rx * half, y - ry * half, '#ff3a2a', 3);
+    dot(x + rx * half, y + ry * half, '#3fe07a', 3);
+    dot(x - fx * tail, y - fy * tail, '#f4f0d8', 3);
+    if (Math.floor(this.time * 1.6 + m.x) % 3 === 0) { dot(x - rx * half - fx * 3, y - ry * half - fy * 3, '#ffffff', 4); dot(x + rx * half - fx * 3, y + ry * half - fy * 3, '#ffffff', 4); }
+  }
+
+  /** v0.58.0: secure convoys on the road — escort, transporter, escort. */
+  drawConvoys(items, at, inView, night) {
+    const ctx = this.ctx;
+    const models = this.game.content.vehicles.models;
+    for (const v of this.game.aero.convoys()) {
+      const m = models[v.model];
+      const x = v.x * TILE;
+      const y = v.y * TILE;
+      if (!inView(x - m.len / 2, y - m.len / 2, m.len, m.len)) continue;
+      items.push({ y: y + Math.abs(Math.sin(v.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, x, y, v.angle, { color: v.color, id: v.id, lit: night, braking: false })) });
+    }
+  }
+
   /** v0.58.0: the aircraft on the field. Those on the ground sort among the props by their tail; those in the air are drawn over everything. */
-  drawField(items, at, inView) {
+  drawField(items, at, inView, night) {
     const ctx = this.ctx;
     for (const m of this.game.aero.movers()) {
       const px = m.x * TILE;
@@ -51329,7 +51593,7 @@ class Renderer {
       const lift = m.alt * TILE;
       if (!inView(px - r - lift, py - r - lift, r * 2 + lift * 2, r * 2 + lift * 2)) continue;
       const air = m.alt > 0.05;
-      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, draw: at(() => drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 })) });
+      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, draw: at(() => { drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 }); if (night) this.drawNavLights(ctx, m, px, py - lift, 1 + m.alt * 0.035); }) });
     }
   }
 
@@ -51420,6 +51684,7 @@ class Renderer {
 
   propVisible(p) {
     if (p.hiddenUnless && !check(p.hiddenUnless, this.game)) return false;
+    if (p.ambient && !this.game.aero.ambientHome(p.ambient)) return false; // v0.58.0: Meridian's own aircraft are out
     if (p.type === 'item' && this.game.world.props[p.id]?.taken) return false;
     return true;
   }
@@ -60965,6 +61230,8 @@ class UI {
         if (k > 0) siren = Math.max(siren ?? 0, k);
       }
       this.audio.setSiren(siren);
+      // Starling Field: aircraft rolling and climbing, a launch (src/aero/field.js)
+      this.audio.setField(g.player.map === 'starling_flats' && !g.paused && !busy ? g.aero.sound(g.player.x / TILE, g.player.y / TILE) : null);
       this.dialogue.update(dt);
       if (this.casinoWait) this.updateCasinoWait();
       const target = !g.paused ? g.interactables()[0] : null;

@@ -160,8 +160,8 @@ P('blast_wall', 123, 35, { w: 1, h: 3 }); P('blast_wall', 119, 35, { w: 1, h: 3 
 P('sign', 118, 34, { examine: 'ENGINE TEST STAND — "When the beacon is lit, ear defenders on. When the beacon is lit and you can\'t hear this sign, you\'re too close."' });
 P('barrel', 125, 35); P('barrel', 126, 35); P('crate', 127, 36); P('tug', 129, 37, { w: 2, h: 1, color: '#2e3a4e', examine: 'A Meridian towing tractor, navy blue, with a flashing beacon and a very serious driver\'s seat.' });
 // Meridian's apron: two of its own aircraft live here (the company jet and a test aircraft), the rest come and go
-AC(141, 51, { model: 'ap_swift', livery: 'meridian', heading: 0, examine: 'Meridian\'s company jet, a Swift LJ-2 in navy and gold. Imogen Hale flies in it, works in it, and occasionally sleeps in it.' });
-AC(130, 51, { model: 'af_kestrel', livery: 'test', heading: 0, examine: 'A Kestrel T-3 in orange-and-white test colours, bristling with instrumentation. Ailie Ronn\'s office, she says.' });
+AC(141, 51, { model: 'ap_swift', livery: 'meridian', heading: 0, ambient: 'MA-JET', examine: 'Meridian\'s company jet, a Swift LJ-2 in navy and gold. Imogen Hale flies in it, works in it, and occasionally sleeps in it.' });
+AC(130, 51, { model: 'af_kestrel', livery: 'test', heading: 0, ambient: 'MA-TEST', examine: 'A Kestrel T-3 in orange-and-white test colours, bristling with instrumentation. Ailie Ronn\'s office, she says.' });
 for (const [x, y] of [[62, 47], [118, 47], [148, 47]]) P('runway_sign', x, y, { text: 'APRON' });
 // --- the airfield: edge lights, signs, windsocks, the tower
 for (let x = 36; x < 172; x += 6) { P('runway_light', x, 65); P('runway_light', x, 72); }
@@ -220,6 +220,11 @@ export const starlingFlats = {
   launch: {
     meridian: { rollout: [[130, 96.3], [130, 96.8], [137.5, 96.8], [137.5, 90.8], [155, 90.8]] },
     roost: { rollout: [[141.5, 105.9], [141.5, 101.3], [169, 101.3]] },
+  },
+  // v0.58.0: where a secure convoy goes: out of the hall's door, along the service road, up Meridian Way and away down the Cut
+  convoy: {
+    meridian: [[135.5, 31.4], [135.5, 34], [59.5, 34], [59.5, 16], [-8, 16]],
+    roost: [[13.5, 64.6], [13.5, 66], [27.5, 66], [27.5, 16], [-8, 16]],
   },
   areas: [
     { id: 'area_starling', name: 'Starling', x: 0, y: 0, w: 150, h: 13 },

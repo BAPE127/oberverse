@@ -550,10 +550,11 @@ export function aeroLive(ctx, p, opts) {
   const x = Math.round(p.x * T);
   const y = Math.round(p.y * T);
   if (p.type === 'windsock') {
-    // a west wind: the sock streams east, fluttering
+    // a west wind (runway 09 in use) streams the sock east, an east wind west (v0.58.0), fluttering
     const gust = 0.75 + 0.25 * Math.sin(t * 1.3 + p.x);
+    const dir = opts.wind === -1 ? -1 : 1;
     for (let i = 0; i < 5; i++) {
-      const sx = x + 18 + i * 5 * gust;
+      const sx = x + (dir > 0 ? 18 : 12) + dir * i * 5 * gust - (dir < 0 ? 5 : 0);
       const sy = y - 43 + i * (1 - gust) * 2 + Math.sin(t * 7 + i) * (i * 0.3);
       ctx.fillStyle = INK;
       ctx.fillRect(Math.round(sx), Math.round(sy) - 1, 6, 7 - i);

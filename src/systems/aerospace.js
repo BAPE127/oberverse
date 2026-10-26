@@ -27,7 +27,7 @@ import { configure, cleanConfig, configError, configLabel } from '../aero/config
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
-import { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf } from '../aero/field.js';
+import { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt } from '../aero/launch.js';
 import { windRunway } from '../aero/flight.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
@@ -1499,6 +1499,7 @@ export class Aerospace {
     // work
     u.status = s.bay ? 'building' : s.office ? 'engineering' : s.kind === 'convoy' ? 'convoy' : s.kind === 'commission' ? 'orbit' : s.id === 'secure_storage' ? 'storage' : 'pad';
     if (!u.started) u.started = this.now;
+    if (s.kind === 'convoy' && !u.convoy) startConvoy(this, co, u);
     const r = (s.bay ? rate : s.office ? this.speedOf(co) * this.engineerRate(co) : 1) * (s.kind === 'inspect' ? this.inspectorRate(co) : 1);
     u.work += (minutes / DAY) * r;
     if (u.work + 1e-9 < u.need) return;
@@ -1724,6 +1725,21 @@ export class Aerospace {
   /** Clear a finished aircraft to leave: it starts when the field is free (returns the time). */
   clearForDeparture(ac) {
     return scheduleDeparture(this, ac);
+  }
+
+  /** The field's sound where the player stands (tiles): { jet, jetPitch, rocket }, each 0..1. */
+  sound(px, py) {
+    return soundAt(this, px, py);
+  }
+
+  /** Is one of Meridian's own aircraft (the company jet, the test aircraft) at home on its stand? Its prop shows only then. */
+  ambientHome(id) {
+    return ambientHome(this, id);
+  }
+
+  /** Secure convoys on the road, for the renderer. */
+  convoys() {
+    return convoys(this);
   }
 
   /** The field's geometry (runway, taxiway, aprons) for the renderer. */

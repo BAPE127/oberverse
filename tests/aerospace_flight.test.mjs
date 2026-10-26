@@ -248,3 +248,129 @@ test('delivery now sends the aircraft down the runway: paid at handover, gone a 
   stepAll(g, 140);
   assert.equal(handedOver.state, 'departed');
 });
+
+// ------------------------------------------------------------------ Meridian's own, the convoy, the sound
+const dayAt = (g, day, hour = 6, minute = 5) => { g.clock.total = (day - 1) * 1440 + hour * 60 + minute; };
+
+test('Meridian\'s own aircraft are entities: each morning the day decides who goes out, when and for how long', () => {
+  const g = newGame(61);
+  const A = g.aero;
+  dayAt(g, 6);
+  A.minuteTick();
+  const test = A.state.aircraft['MA-TEST'];
+  const jet = A.state.aircraft['MA-JET'];
+  assert.ok(test && jet && test.ambient && jet.ambient, 'both are entities');
+  assert.equal(test.state, 'parked'); assert.equal(jet.state, 'parked');
+  assert.ok(A.ambientHome('MA-TEST') && A.ambientHome('MA-JET'));
+  const plan = [test.sorties.map((s) => ({ ...s })), jet.sorties.map((s) => ({ ...s }))];
+  // the same day gives the same day, whatever the dice
+  const g2 = newGame(99);
+  dayAt(g2, 6);
+  g2.aero.minuteTick();
+  assert.deepEqual([g2.aero.state.aircraft['MA-TEST'].sorties, g2.aero.state.aircraft['MA-JET'].sorties], plan);
+  // within their hours, spaced apart, for the time they say
+  const base = 5 * 1440;
+  for (const [ac, d] of [[test, A.cfg.flight.ambient[0]], [jet, A.cfg.flight.ambient[1]]]) {
+    let free = 0;
+    for (const s of ac.sorties) {
+      assert.ok(s.dep >= base + d.from * 60 - 1 && s.dep <= base + 24 * 60, 'in the daytime');
+      assert.ok(s.away >= d.away[0] && s.away <= d.away[1]);
+      assert.ok(s.dep >= free, 'one trip at a time'); free = s.dep + s.away;
+    }
+  }
+  assert.ok(test.sorties.length + jet.sorties.length > 0, 'something happens on day 6');
+});
+
+test('a sortie: out of its stand, down the runway, away, and home again to the same stand', () => {
+  const g = newGame(62);
+  const A = g.aero;
+  dayAt(g, 6);
+  A.minuteTick();
+  const ac = A.state.aircraft['MA-TEST'];
+  const first = ac.sorties[0];
+  const away = first.away;
+  const seen = [ac.state];
+  let leftAt = null;
+  let homeAt = null;
+  for (let i = 0; i < 1000; i++) {
+    g.clock.total += 1; A.minuteTick();
+    if (seen[seen.length - 1] !== ac.state) seen.push(ac.state);
+    if (leftAt === null && !A.ambientHome('MA-TEST')) leftAt = g.clock.total;
+    if (leftAt !== null && homeAt === null && ac.state === 'parked' && !ac.move) { homeAt = g.clock.total; break; }
+  }
+  assert.deepEqual(seen, ['parked', 'taxiing', 'takeoff', 'airborne', 'landing', 'taxiing', 'parked']);
+  assert.ok(leftAt >= first.dep && leftAt <= first.dep + 30, 'it goes when the day said');
+  assert.ok(homeAt - leftAt > away, 'and is away at least as long as the trip');
+  assert.ok(A.ambientHome('MA-TEST'));
+  assert.equal(ac.sortie, null);
+  // while it is out it is not drawn on the apron and is not a mover, except on the field itself
+  assert.equal(A.movers().filter((m) => m.id === 'MA-TEST').length, 0);
+});
+
+test('the runway is shared: a sortie\'s landing and a delivery\'s take-off never overlap', () => {
+  const g = newGame(63);
+  const A = g.aero;
+  dayAt(g, 6);
+  A.minuteTick();
+  for (const pid of ['ap_swift', 'ap_tern', 'ap_skylark']) A.clearForDeparture(mk(g, A.meridian, pid));
+  stepAll(g, 900);
+  const f = A.state.field;
+  const r = [...f.reserved].sort((a, b) => a.from - b.from);
+  for (let i = 1; i < r.length; i++) assert.ok(r[i].from >= r[i - 1].to + 1.9, `window ${i} clear of ${i - 1}`);
+});
+
+test('a secure convoy leaves when a strategic product reaches its convoy stage, in three vehicles, and is off the map by the end of its road', () => {
+  const g = newGame(64);
+  const A = g.aero;
+  const co = A.meridian;
+  const P = A.cfg.products;
+  const mkId = Object.keys(P).find((k) => P[k].line === 'missile');
+  const c = A.makeContract(co, { customer: 'cu_ostmark_air', product: mkId, qty: 1, unitPrice: P[mkId].price, days: 60, quality: P[mkId].quality, depositShare: 0.2 });
+  const u = A.state.units[c.units[0]];
+  let ok = false;
+  for (let i = 0; i < 30 && !ok; i++) { u.stage = i; ok = A.stageOf(u)?.id === 'convoy'; }
+  assert.ok(ok);
+  u.work = 0; u.need = 1; u.consumed = true; u.blocker = null; if (u.bay) A.freeBay(co, u);
+  assert.equal(A.convoys().length, 0, 'not before its stage');
+  step1(g);
+  assert.ok(u.convoy && u.convoy.t1 > u.convoy.t0 + 20);
+  const t0 = u.convoy.t0;
+  const t1 = u.convoy.t1;
+  g.clock.total = t0 + 12;
+  let vs = A.convoys();
+  assert.equal(vs.length, 3);
+  assert.deepEqual(vs.map((v) => v.model), ['dray', 'longhorn', 'dray']);
+  // they drive along the road: never inside a building, in file, a gap apart
+  for (let t = t0 + 0.5; t < t1; t += 0.5) {
+    g.clock.total = t;
+    vs = A.convoys();
+    for (const v of vs) {
+      const inB = MAP.buildings.some((b) => !b.interior && v.x > b.x + 0.3 && v.x < b.x + b.w - 0.3 && v.y > b.y + 0.3 && v.y < b.y + b.h - 0.3);
+      assert.ok(!inB, `a vehicle at ${v.x.toFixed(1)},${v.y.toFixed(1)} is inside a building`);
+    }
+    if (vs.length === 3) assert.ok(Math.hypot(vs[0].x - vs[1].x, vs[0].y - vs[1].y) > 2.5);
+  }
+  g.clock.total = t1 + 1;
+  assert.equal(A.convoys().length, 0, 'gone');
+  step1(g);
+  assert.equal(u.convoy.t0, t0, 'and it left only once');
+});
+function step1(g) { g.clock.total += 1; g.aero.minuteTick(); }
+
+test('the field is loud where aircraft roll and climb, and a launch is louder still; nothing far away', () => {
+  const g = newGame(65);
+  const A = g.aero;
+  const ac = mk(g, A.meridian, 'ap_tern');
+  const t0 = A.clearForDeparture(ac);
+  const plan = departurePlan(F, geo, { stand: standPose(geo, ac.stand.apron, ac.stand.slot, ac.stand.size, P.ap_tern.look.len), apron: ac.stand.apron, len: P.ap_tern.look.len, spec: P.ap_tern.spec, rwy: ac.move.rwy });
+  const roll = plan.legs.slice(0, plan.legs.findIndex((l) => l.state === 'takeoff')).reduce((a, l) => a + l.dur, 0);
+  g.clock.total = t0 + roll + 4; // mid-roll
+  const m = A.movers()[0];
+  assert.equal(m.state, 'takeoff');
+  const near = A.sound(m.x, m.y + 6);
+  const far = A.sound(m.x, m.y + 140);
+  assert.ok(near.jet > 0.3 && far.jet < near.jet / 3);
+  assert.equal(near.rocket, 0);
+  g.clock.total = t0 - 5; // before it moves: the apron is quiet
+  assert.ok(A.sound(m.x, m.y).jet < 0.2);
+});

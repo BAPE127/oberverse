@@ -687,6 +687,8 @@ export class UI {
         if (k > 0) siren = Math.max(siren ?? 0, k);
       }
       this.audio.setSiren(siren);
+      // Starling Field: aircraft rolling and climbing, a launch (src/aero/field.js)
+      this.audio.setField(g.player.map === 'starling_flats' && !g.paused && !busy ? g.aero.sound(g.player.x / TILE, g.player.y / TILE) : null);
       this.dialogue.update(dt);
       if (this.casinoWait) this.updateCasinoWait();
       const target = !g.paused ? g.interactables()[0] : null;

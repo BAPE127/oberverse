@@ -10,6 +10,7 @@ import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
 import { drawAircraft } from './drawAero.js';
 import { drawCrawler, drawBoard, drawPadFx, drawSky, launchLight } from './drawLaunch.js';
 import { shakeAt } from '../aero/launch.js';
+import { windRunway } from '../aero/flight.js';
 import { lookOf, isGunLook } from './drawPixelWeapons.js';
 import { drawTrail } from './drawSignatureCars.js';
 import { drawCharacter, setPixelPeople, rrect } from './drawCharacter.js';
@@ -381,6 +382,7 @@ export class Renderer {
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
+    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1; // v0.58.0: the windsocks and the runway in use
     const items = [];
     // Draw the current map and its seamless neighbours, each at its offset.
     for (const L of this.layers) {
@@ -401,7 +403,7 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+          drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
         const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
@@ -433,7 +435,7 @@ export class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus
@@ -464,7 +466,8 @@ export class Renderer {
         }
       }
       // v0.58.0: the aircraft on Starling Field — on their stands, pushed back, taxiing, rolling, climbing away (src/aero/field.js)
-      if (lm.id === 'starling_flats') { this.drawField(items, at, inView); this.drawLaunches(items, at, inView, night); }
+      if (lm.id === 'starling_flats') { this.drawField(items, at, inView, night); this.drawLaunches(items, at, inView, night); }
+      if (lm.id === 'starling_flats') this.drawConvoys(items, at, inView, night);
       // the bus and the traffic (src/systems/transit.js)
       if (g.transit) {
         const models = g.content.vehicles.models;
@@ -572,8 +575,37 @@ export class Renderer {
     }
   }
 
+  /** v0.58.0: an aircraft's navigation lights at night: red to port, green to starboard, white at the tail, and strobes on the wingtips. */
+  drawNavLights(ctx, m, x, y, k) {
+    if (m.state === 'awaiting_delivery') return;
+    const rx = Math.cos(m.a);
+    const ry = Math.sin(m.a);
+    const fx = Math.sin(m.a);
+    const fy = -Math.cos(m.a);
+    const half = m.look.span * TILE * 0.47 * k;
+    const tail = m.look.len * TILE * 0.44 * k;
+    const dot = (px, py, c, r) => { ctx.fillStyle = c; ctx.fillRect(Math.round(px) - 1, Math.round(py) - 1, r, r); };
+    dot(x - rx * half, y - ry * half, '#ff3a2a', 3);
+    dot(x + rx * half, y + ry * half, '#3fe07a', 3);
+    dot(x - fx * tail, y - fy * tail, '#f4f0d8', 3);
+    if (Math.floor(this.time * 1.6 + m.x) % 3 === 0) { dot(x - rx * half - fx * 3, y - ry * half - fy * 3, '#ffffff', 4); dot(x + rx * half - fx * 3, y + ry * half - fy * 3, '#ffffff', 4); }
+  }
+
+  /** v0.58.0: secure convoys on the road — escort, transporter, escort. */
+  drawConvoys(items, at, inView, night) {
+    const ctx = this.ctx;
+    const models = this.game.content.vehicles.models;
+    for (const v of this.game.aero.convoys()) {
+      const m = models[v.model];
+      const x = v.x * TILE;
+      const y = v.y * TILE;
+      if (!inView(x - m.len / 2, y - m.len / 2, m.len, m.len)) continue;
+      items.push({ y: y + Math.abs(Math.sin(v.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, x, y, v.angle, { color: v.color, id: v.id, lit: night, braking: false })) });
+    }
+  }
+
   /** v0.58.0: the aircraft on the field. Those on the ground sort among the props by their tail; those in the air are drawn over everything. */
-  drawField(items, at, inView) {
+  drawField(items, at, inView, night) {
     const ctx = this.ctx;
     for (const m of this.game.aero.movers()) {
       const px = m.x * TILE;
@@ -582,7 +614,7 @@ export class Renderer {
       const lift = m.alt * TILE;
       if (!inView(px - r - lift, py - r - lift, r * 2 + lift * 2, r * 2 + lift * 2)) continue;
       const air = m.alt > 0.05;
-      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, draw: at(() => drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 })) });
+      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, draw: at(() => { drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 }); if (night) this.drawNavLights(ctx, m, px, py - lift, 1 + m.alt * 0.035); }) });
     }
   }
 
@@ -673,6 +705,7 @@ export class Renderer {
 
   propVisible(p) {
     if (p.hiddenUnless && !check(p.hiddenUnless, this.game)) return false;
+    if (p.ambient && !this.game.aero.ambientHome(p.ambient)) return false; // v0.58.0: Meridian's own aircraft are out
     if (p.type === 'item' && this.game.world.props[p.id]?.taken) return false;
     return true;
   }

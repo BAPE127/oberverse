@@ -4,6 +4,7 @@
 import { SongPlayer, playMotif } from './music.js';
 import { SFX, voiceBlip } from './sfx.js';
 import { startAmbience } from './ambience.js';
+import { getNoise } from './synth.js';
 
 export class AudioEngine {
   constructor(content, settings) {
@@ -144,6 +145,51 @@ export class AudioEngine {
       this.siren.gain.gain.setTargetAtTime(0.02 + level * 0.09, t, 0.2);
     } catch (err) {
       this.failures.push(`siren: ${err.message}`);
+    }
+  }
+
+  /**
+   * The sounds of Starling Field (v0.58.0): null stops them; otherwise { jet, jetPitch, rocket },
+   * each 0..1 — how loud (distance and what the aircraft is doing) and, for the jet, its pitch. A roar of
+   * filtered noise with a turbine whine, and a deep rocket rumble that crackles under it. Built on first use.
+   */
+  setField(f) {
+    if (!this.enabled) return;
+    try {
+      const c = this.ctx;
+      const t = c.currentTime;
+      if (!f || (f.jet <= 0.003 && f.rocket <= 0.003)) {
+        if (this.field) { this.field.jetGain.gain.setTargetAtTime(0.0001, t, 0.25); this.field.rockGain.gain.setTargetAtTime(0.0001, t, 0.25); }
+        return;
+      }
+      if (!this.field) {
+        const loop = () => { const src = c.createBufferSource(); src.buffer = getNoise(c); src.loop = true; src.start(0, Math.random()); return src; };
+        const jetGain = c.createGain(); jetGain.gain.value = 0.0001;
+        const jetBand = c.createBiquadFilter(); jetBand.type = 'bandpass'; jetBand.frequency.value = 900; jetBand.Q.value = 0.7;
+        loop().connect(jetBand).connect(jetGain);
+        const whine = c.createOscillator(); whine.type = 'sawtooth'; whine.frequency.value = 520;
+        const whineLp = c.createBiquadFilter(); whineLp.type = 'lowpass'; whineLp.frequency.value = 1400;
+        const whineGain = c.createGain(); whineGain.gain.value = 0.18;
+        whine.connect(whineLp).connect(whineGain).connect(jetGain); whine.start();
+        jetGain.connect(this.buses.sfx);
+        const rockGain = c.createGain(); rockGain.gain.value = 0.0001;
+        const rockLp = c.createBiquadFilter(); rockLp.type = 'lowpass'; rockLp.frequency.value = 260; rockLp.Q.value = 0.9;
+        loop().connect(rockLp).connect(rockGain);
+        for (const hz of [38, 57]) { const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = hz; const og = c.createGain(); og.gain.value = 0.5; o.connect(og).connect(rockGain); o.start(); }
+        const crackle = c.createBiquadFilter(); crackle.type = 'bandpass'; crackle.frequency.value = 2400; crackle.Q.value = 3;
+        const crackleGain = c.createGain(); crackleGain.gain.value = 0.12;
+        loop().connect(crackle).connect(crackleGain).connect(rockGain);
+        rockGain.connect(this.buses.sfx);
+        this.field = { jetGain, jetBand, whine, rockGain, rockLp };
+      }
+      const F = this.field;
+      F.jetGain.gain.setTargetAtTime(0.0001 + f.jet * 0.5, t, 0.15);
+      F.jetBand.frequency.setTargetAtTime(500 + f.jetPitch * 1500, t, 0.2);
+      F.whine.frequency.setTargetAtTime(380 + f.jetPitch * 1100, t, 0.2);
+      F.rockGain.gain.setTargetAtTime(0.0001 + f.rocket * 0.75, t, 0.15);
+      F.rockLp.frequency.setTargetAtTime(180 + f.rocket * 380, t, 0.2);
+    } catch (err) {
+      this.failures.push(`field: ${err.message}`);
     }
   }
 

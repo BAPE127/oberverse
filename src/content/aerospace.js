@@ -123,6 +123,12 @@ export const FLIGHT = {
   exitTiles: 45, climbAlt: 6,
   vtolRise: 3, vtolAlt: 4, vtolSpeed: 16,
   touchdown: 14, finalTiles: 50, finalMin: 6, finalAlt: 7,
+  // Meridian's own aircraft, which live on its apron and go out and come back (a test sortie, an executive's trip). Times are hours of the day; away is minutes in the air.
+  ambient: [
+    { id: 'MA-TEST', reg: 'MA-X01', model: 'af_kestrel', livery: 'test', apron: 'meridian_apron', at: { x: 130, y: 51 }, chance: 0.75, max: 2, from: 9, to: 15, away: [22, 45] },
+    { id: 'MA-JET', reg: 'MA-001', model: 'ap_swift', livery: 'meridian', apron: 'meridian_apron', at: { x: 141, y: 51 }, chance: 0.5, max: 1, from: 7.5, to: 16, away: [90, 420] },
+  ],
+  convoySpeed: 3.6, convoyGap: 3.6, // tiles a minute, and the gap between its vehicles
   stagger: 9, // minutes between one aircraft starting its movement and the next (one runway, one taxiway)
   // launches: the crawler's rollout to the pad, the countdown (the last minutes with engines lit), the ascent, a failure's moment
   launch: {
