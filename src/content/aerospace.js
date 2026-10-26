@@ -111,6 +111,22 @@ export const AERO = {
 };
 
 /**
+ * How things move on the field (v0.58.0). Distances are tiles, times game minutes (a minute is a
+ * second of play at the usual speed), so a departure — pushback, taxi, hold, line-up, roll, climb
+ * out — takes about a minute of watching. The take-off roll is the aircraft's own take-off run in
+ * metres, compressed to the runway it has; the launch times are the countdown and the ascent.
+ */
+export const FLIGHT = {
+  pushSpeed: 2.4, taxiSpeed: 3.6, lineupSpeed: 2.4,
+  holdShort: 1.2, lineupHold: 0.7,
+  rollTiles: 16, rollMin: 20, rollMargin: 24, metresPerTile: 30, rollMinutes: 3, rollPerTile: 0.09,
+  exitTiles: 45, climbAlt: 6,
+  vtolRise: 3, vtolAlt: 4, vtolSpeed: 16,
+  touchdown: 14, finalTiles: 50, finalMin: 6, finalAlt: 7,
+  stagger: 9, // minutes between one aircraft starting its movement and the next (one runway, one taxiway)
+};
+
+/**
  * The people (v0.57.0). Technicians crew the bays (the headcount the company always had);
  * engineers run the drawing office and research; inspectors are the testing and inspection
  * capacity. `share` is how many a company needs per technician its bays call for. Short of

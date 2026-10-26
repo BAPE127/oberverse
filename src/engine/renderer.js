@@ -7,6 +7,7 @@ import { drawShopFront } from './drawPixelBuildings.js';
 import { drawFields } from './drawFarm.js';
 import { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
+import { drawAircraft } from './drawAero.js';
 import { lookOf, isGunLook } from './drawPixelWeapons.js';
 import { drawTrail } from './drawSignatureCars.js';
 import { drawCharacter, setPixelPeople, rrect } from './drawCharacter.js';
@@ -460,6 +461,8 @@ export class Renderer {
           items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel, ...(m.sig && this.sigOpts(car, lm, driven)) })) });
         }
       }
+      // v0.58.0: the aircraft on Starling Field — on their stands, pushed back, taxiing, rolling, climbing away (src/aero/field.js)
+      if (lm.id === 'starling_flats') this.drawField(items, at, inView);
       // the bus and the traffic (src/systems/transit.js)
       if (g.transit) {
         const models = g.content.vehicles.models;
@@ -507,6 +510,20 @@ export class Renderer {
     this.drawLighting(map);
     this.drawOverlays(map);
     this.drawCrosshair();
+  }
+
+  /** v0.58.0: the aircraft on the field. Those on the ground sort among the props by their tail; those in the air are drawn over everything. */
+  drawField(items, at, inView) {
+    const ctx = this.ctx;
+    for (const m of this.game.aero.movers()) {
+      const px = m.x * TILE;
+      const py = m.y * TILE;
+      const r = (Math.max(m.look.len, m.look.span) / 2 + 2) * TILE;
+      const lift = m.alt * TILE;
+      if (!inView(px - r - lift, py - r - lift, r * 2 + lift * 2, r * 2 + lift * 2)) continue;
+      const air = m.alt > 0.05;
+      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, draw: at(() => drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 })) });
+    }
   }
 
   /** v0.44.0: a chunky pixel crosshair where the mouse is, while you hold a gun (the cursor is hidden). */

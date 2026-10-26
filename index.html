@@ -3316,6 +3316,22 @@ const AERO = {
 };
 
 /**
+ * How things move on the field (v0.58.0). Distances are tiles, times game minutes (a minute is a
+ * second of play at the usual speed), so a departure — pushback, taxi, hold, line-up, roll, climb
+ * out — takes about a minute of watching. The take-off roll is the aircraft's own take-off run in
+ * metres, compressed to the runway it has; the launch times are the countdown and the ascent.
+ */
+const FLIGHT = {
+  pushSpeed: 2.4, taxiSpeed: 3.6, lineupSpeed: 2.4,
+  holdShort: 1.2, lineupHold: 0.7,
+  rollTiles: 16, rollMin: 20, rollMargin: 24, metresPerTile: 30, rollMinutes: 3, rollPerTile: 0.09,
+  exitTiles: 45, climbAlt: 6,
+  vtolRise: 3, vtolAlt: 4, vtolSpeed: 16,
+  touchdown: 14, finalTiles: 50, finalMin: 6, finalAlt: 7,
+  stagger: 9, // minutes between one aircraft starting its movement and the next (one runway, one taxiway)
+};
+
+/**
  * The people (v0.57.0). Technicians crew the bays (the headcount the company always had);
  * engineers run the drawing office and research; inspectors are the testing and inspection
  * capacity. `share` is how many a company needs per technician its bays call for. Short of
@@ -3882,7 +3898,7 @@ const AERO_PEOPLE = {
   seller: 'npc_billie', ceo: 'npc_imogen', pilot: 'npc_ailie', foreman: 'npc_rudy', launch: 'npc_tina', mechanic: 'npc_wrenna',
 };
 
-return { AERO, STAFF, BAYS, HALLS, FACILITIES, EVENTS, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
+return { AERO, FLIGHT, STAFF, BAYS, HALLS, FACILITIES, EVENTS, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
 })();
 
 // ---- src/content/maps/starling.js
@@ -15156,7 +15172,7 @@ const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
 const dlgAero = __m["src/content/dialogue/aerospace.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
-const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS } = __m["src/content/aerospace.js"];
+const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS, FLIGHT: AERO_FLIGHT } = __m["src/content/aerospace.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
 const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
@@ -15245,7 +15261,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS }, // v0.55.0; halls, staff, options and events v0.57.0
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
@@ -33367,6 +33383,479 @@ function busiestBayType(A, co) {
 return { rivalMorning, rivalBid };
 })();
 
+// ---- src/aero/flight.js
+__m["src/aero/flight.js"] = (function () {
+// Flight (v0.58.0). Pure functions — no game state, no DOM. The aircraft state machine and the
+// scripted movements of an aircraft on the field: pushed back off its stand, taxiing to the
+// threshold, lined up, rolling, rotating and climbing away — and the mirror of it, an approach, a
+// landing, a rollout and a taxi back to a stand. A movement is a *plan*: a list of legs built
+// deterministically from the field's geometry, the aircraft's own flight spec and the runway in
+// use; `poseAt(plan, minutes)` says where the aircraft is and what it is doing that many game
+// minutes after the plan began. Nothing about a plan is saved: the save holds the start time, the
+// runway and the stand, and the plan is built again from those — so a reload, or a night's sleep,
+// puts every aircraft exactly where it belongs.
+//
+// Units: tiles (x, y; y grows downward), game minutes, and radians with 0 = nose up (north) and
+// clockwise positive — the convention drawAircraft(ctx, …, heading) uses. `alt` is in tiles above
+// the ground.
+//
+//   STATES, NEXT, canGo(from, to)        the aircraft state machine
+//   fieldGeo(airfield)                    runway, taxiway, connectors and aprons from the map's `airfield`
+//   standPose(geo, apron, slot, size, L)  where an aircraft stands
+//   windRunway(day)                       the runway in use (09 or 27), from the day's wind
+//   departurePlan(F, geo, o)              stand → … → away
+//   arrivalPlan(F, geo, o)                final → touchdown → rollout → taxi → stand
+//   poseAt(plan, t)                       { state, label, x, y, a, alt, v, gear }
+const { hashUnit } = __m["src/aero/config.js"];
+
+/** The aircraft entity's states (v0.58.0 drives the first five; the flight update the rest). */
+const STATES = ['awaiting_delivery', 'taxiing', 'takeoff', 'airborne', 'landing', 'parked', 'maintenance', 'stored', 'retired', 'departed'];
+
+/** Which state may follow which. Anything may be retired; a departed aircraft belongs to its customer and is gone. */
+const NEXT = {
+  awaiting_delivery: ['taxiing', 'departed', 'retired'],
+  parked: ['taxiing', 'maintenance', 'stored', 'retired'],
+  taxiing: ['takeoff', 'parked', 'retired'],
+  takeoff: ['airborne', 'taxiing', 'retired'],
+  airborne: ['landing', 'departed', 'retired'],
+  landing: ['taxiing', 'airborne', 'retired'],
+  maintenance: ['parked', 'retired'],
+  stored: ['parked', 'retired'],
+  retired: [],
+  departed: [],
+};
+
+const canGo = (from, to) => (NEXT[from] || []).includes(to);
+
+// ------------------------------------------------------------------ geometry
+const tau = Math.PI * 2;
+const norm = (a) => { let x = a % tau; if (x > Math.PI) x -= tau; if (x < -Math.PI) x += tau; return x; };
+const lerp = (a, b, u) => a + (b - a) * u;
+const lerpAngle = (a, b, u) => a + norm(b - a) * u;
+const smooth = (u) => { const c = Math.max(0, Math.min(1, u)); return c * c * (3 - 2 * c); };
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+/** The heading of a direction vector (0 = up/north, clockwise positive). */
+const headingOf = (dx, dy) => Math.atan2(dx, -dy);
+
+/**
+ * The field's working geometry from the map's `airfield` (src/content/maps/starling.js): the
+ * centrelines are where drawPixelGround paints them.
+ */
+function fieldGeo(af) {
+  const rw = af.runways[0];
+  const runway = { x0: rw.x, x1: rw.x + rw.w, y: rw.y + Math.floor(rw.h / 2), ends: rw.ends };
+  const tw = af.taxiways.find((t) => t.w >= t.h && t.y + t.h <= rw.y); // taxiway A
+  const taxi = { y: tw.y + Math.floor(tw.h / 2), x0: tw.x, x1: tw.x + tw.w };
+  const links = af.taxiways.filter((t) => t.w < t.h);
+  const conns = links.filter((t) => t.y + t.h === rw.y).map((t) => ({ x: t.x + Math.floor(t.w / 2) })).sort((a, b) => a.x - b.x);
+  const aprons = {};
+  for (const ap of af.aprons) {
+    const edge = ap.y + ap.h;
+    const link = links.find((t) => t.y === edge && t.x >= ap.x && t.x + t.w <= ap.x + ap.w);
+    aprons[ap.id] = { id: ap.id, company: ap.company, x: ap.x, y: ap.y, w: ap.w, h: ap.h, edge, slots: ap.slots, link: link ? { x: link.x + Math.floor(link.w / 2) } : null };
+  }
+  return { runway, taxi, west: conns[0], east: conns[conns.length - 1], aprons, hold: af.hold };
+}
+
+/** The lead-in line's x for a stand slot (drawPixelGround paints it a tile and a half in from the slot's x). */
+const slotX = (slot) => slot[0] + 3.5;
+
+/** Where an aircraft stands: `slot` is the first stand's index, `size` the stands it takes, `len` its length in tiles. */
+function standPose(geo, apronId, slot, size, len) {
+  const ap = geo.aprons[apronId];
+  const first = ap.slots[slot];
+  const last = ap.slots[Math.min(ap.slots.length - 1, slot + size - 1)];
+  return { x: (slotX(first) + slotX(last)) / 2, y: first[1] + 0.5 + len / 2, a: 0 };
+}
+
+/** The runway in use today: 09 (take off to the east, wind from the west) on most days. */
+function windRunway(day) {
+  return hashUnit(`wind|${day}`) < 0.7 ? '09' : '27';
+}
+
+/** The windsocks' bearing today: they stream away from where the wind comes from (radians, 0 = pointing up). */
+function windHeading(day) {
+  return windRunway(day) === '09' ? Math.PI / 2 : -Math.PI / 2;
+}
+
+// ------------------------------------------------------------------ paths
+/** A polyline with its corners rounded (a quadratic curve cut `r` tiles in), measured by distance. */
+function route(pts, r = 0) {
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const c = pts[i + 1];
+    const l1 = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const l2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    const rr = Math.min(r, l1 / 2, l2 / 2);
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (rr < 0.05 || Math.abs(cross) < 1e-6 * l1 * l2) { out.push(b); continue; }
+    const p1 = [lerp(b[0], a[0], rr / l1), lerp(b[1], a[1], rr / l1)];
+    const p2 = [lerp(b[0], c[0], rr / l2), lerp(b[1], c[1], rr / l2)];
+    out.push(p1);
+    for (let k = 1; k <= 7; k++) {
+      const t = k / 8;
+      out.push([(1 - t) * (1 - t) * p1[0] + 2 * (1 - t) * t * b[0] + t * t * p2[0], (1 - t) * (1 - t) * p1[1] + 2 * (1 - t) * t * b[1] + t * t * p2[1]]);
+    }
+    out.push(p2);
+  }
+  out.push(pts[pts.length - 1]);
+  const cum = [0];
+  for (let i = 1; i < out.length; i++) cum.push(cum[i - 1] + Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]));
+  return { pts: out, cum, len: cum[cum.length - 1] };
+}
+
+/** The point `d` tiles along a route, and the heading there. */
+function along(path, d) {
+  const dd = clamp(d, 0, path.len);
+  let i = 1;
+  while (i < path.cum.length - 1 && path.cum[i] < dd) i++;
+  const a = path.pts[i - 1];
+  const b = path.pts[i];
+  const seg = path.cum[i] - path.cum[i - 1] || 1;
+  const u = (dd - path.cum[i - 1]) / seg;
+  return { x: lerp(a[0], b[0], u), y: lerp(a[1], b[1], u), a: headingOf(b[0] - a[0], b[1] - a[1]) };
+}
+
+// ------------------------------------------------------------------ legs
+/** A leg of a plan: how long it takes (minutes), the state the aircraft is in, and its pose at u ∈ [0, 1]. */
+const leg = (state, label, dur, pose) => ({ state, label, dur, pose });
+
+const still = (state, label, dur, at) => leg(state, label, dur, () => ({ ...at, alt: 0, gear: true }));
+
+const go = (state, label, dur, path, o = {}) => leg(state, label, dur, (u) => {
+  const p = along(path, path.len * (o.ease ? o.ease(u) : u));
+  return { x: p.x, y: p.y, a: o.heading ? o.heading(u, p) : p.a, alt: o.alt ? o.alt(u) : 0, gear: o.gear ? o.gear(u) : true };
+});
+
+const ends = (path) => ({ first: along(path, 0), last: along(path, path.len) });
+
+/** Total minutes of a plan. */
+const planLength = (plan) => plan.legs.reduce((a, l) => a + l.dur, 0);
+
+/**
+ * Where the aircraft is, `t` minutes into a plan. Past the end it stays at the last pose with
+ * `done: true`. Also gives its ground speed (tiles a minute) for the engine sound.
+ */
+function poseAt(plan, t) {
+  if (t < 0) { const l = plan.legs[0]; return { ...l.pose(0), state: l.state, label: l.label, v: 0, done: false, before: true }; }
+  let rest = t;
+  for (let i = 0; i < plan.legs.length; i++) {
+    const l = plan.legs[i];
+    if (rest <= l.dur || i === plan.legs.length - 1) {
+      const u = l.dur > 0 ? clamp(rest / l.dur, 0, 1) : 1;
+      const p = l.pose(u);
+      // ground speed (tiles a minute) from a short step either side, for the engine sound
+      const du = 0.05 / Math.max(l.dur, 0.05);
+      const u2 = Math.min(1, u + du);
+      const u1 = Math.max(0, u2 - du);
+      const a = l.pose(u1);
+      const b = l.pose(u2);
+      const v = u2 > u1 ? Math.hypot(b.x - a.x, b.y - a.y) / ((u2 - u1) * l.dur) : 0;
+      return { ...p, state: l.state, label: l.label, v: Number.isFinite(v) ? v : 0, done: t >= planLength(plan), leg: i };
+    }
+    rest -= l.dur;
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ departure
+/** How far down the runway an aircraft rolls before it lifts off (tiles): its take-off run in metres, compressed, within the runway. */
+function rollTiles(F, geo, spec) {
+  const run = spec?.takeoff || 0;
+  const room = geo.runway.x1 - geo.runway.x0 - F.rollMargin;
+  return clamp(F.rollTiles + run / F.metresPerTile, F.rollMin, room);
+}
+
+/**
+ * The plan for an aircraft leaving: pushed back off its stand, a tail swing, a taxi to the
+ * threshold of the runway in use, a hold short, a line-up, the roll, the climb out.
+ * o: { stand: {x, y} (centre), apron, len (tiles), spec, rwy: '09' | '27' }
+ */
+function departurePlan(F, geo, o) {
+  const east = o.rwy !== '27'; // 09 departs to the east
+  const dir = east ? 1 : -1;
+  const taxiDir = -dir; // toward the threshold we leave from
+  const ap = geo.aprons[o.apron];
+  const th = (east ? geo.west : geo.east).x;
+  const legs = [];
+  const sx = o.stand.x;
+  const sy = o.stand.y;
+  const len = Math.min(o.len || 4, 12);
+  if (o.spec?.vtol) return vtolDeparture(F, geo, o, dir);
+  // pushed back along the lead-in to the apron's edge, swinging its tail round to face the way it will taxi
+  const py = ap.link ? ap.edge - 1.6 : ap.edge - 0.6 + len * 0.12;
+  const push = route([[sx, sy], [sx, py]]);
+  const taxiPts = ap.link
+    ? [[sx, py], [ap.link.x, py], [ap.link.x, geo.taxi.y], [th, geo.taxi.y], [th, geo.taxi.y + 1.25]]
+    : [[sx, py], [sx + taxiDir * 6, geo.taxi.y], [th, geo.taxi.y], [th, geo.taxi.y + 1.25]];
+  const taxi = route(taxiPts, 3);
+  const swingTo = along(taxi, 0.6).a;
+  legs.push(go('taxiing', 'being pushed back', Math.max(1.5, push.len / F.pushSpeed), push, { ease: smooth, heading: (u) => lerpAngle(0, swingTo, smooth((u - 0.35) / 0.65)) }));
+  legs.push(go('taxiing', `taxiing to runway ${o.rwy}`, taxi.len / F.taxiSpeed, taxi, { ease: (u) => lerp(u, smooth(u), 0.45) }));
+  const hold = along(taxi, taxi.len);
+  legs.push(still('taxiing', `holding short of runway ${o.rwy}`, F.holdShort, hold));
+  const lineX = th + dir * 5;
+  const line = route([[th, geo.taxi.y + 1.25], [th, geo.runway.y], [lineX, geo.runway.y]], 3);
+  legs.push(go('taxiing', `lining up on runway ${o.rwy}`, line.len / F.lineupSpeed, line, { ease: (u) => lerp(u, smooth(u), 0.5) }));
+  const lined = along(line, line.len);
+  legs.push(still('taxiing', `cleared for take-off, runway ${o.rwy}`, F.lineupHold, lined));
+  const D = rollTiles(F, geo, o.spec);
+  const roll = route([[lineX, geo.runway.y], [lineX + dir * D, geo.runway.y]]);
+  const heading = dir * Math.PI / 2;
+  legs.push(go('takeoff', `rolling, runway ${o.rwy}`, F.rollMinutes + D * F.rollPerTile, roll, { ease: (u) => u * u, heading: () => heading }));
+  // away: out past the end of the runway and off the map, speeding up from the speed it left the ground at
+  const outX = dir > 0 ? geo.runway.x1 + F.exitTiles : geo.runway.x0 - F.exitTiles;
+  const away = route([[lineX + dir * D, geo.runway.y], [outX, geo.runway.y]]);
+  const v0 = (2 * D) / (F.rollMinutes + D * F.rollPerTile);
+  const peak = F.climbAlt + clamp((o.spec?.climb || 10) / 10, 0.5, 6);
+  legs.push(go('airborne', 'climbing away', away.len / (v0 * 1.4), away, { ease: (u) => 0.714 * u + 0.286 * u * u, heading: () => heading, alt: (u) => peak * Math.pow(u, 1.25), gear: (u) => u < 0.12 }));
+  return { legs, kind: 'departure', rwy: o.rwy };
+}
+
+/** A vertical take-off: up off the stand, then the transition and away. */
+function vtolDeparture(F, geo, o, dir) {
+  const { x, y } = o.stand;
+  const heading = dir * Math.PI / 2;
+  const legs = [];
+  legs.push(still('taxiing', 'running up', F.lineupHold + 1, { x, y, a: 0 }));
+  legs.push(leg('takeoff', 'lifting off vertically', F.vtolRise, (u) => ({ x, y, a: lerpAngle(0, heading, smooth((u - 0.6) / 0.4)), alt: F.vtolAlt * smooth(u), gear: u < 0.2 })));
+  const away = route([[x, y], [dir > 0 ? geo.runway.x1 + F.exitTiles : geo.runway.x0 - F.exitTiles, y - 4]]);
+  legs.push(go('airborne', 'climbing away', away.len / F.vtolSpeed, away, { ease: (u) => u * u, heading: () => heading, alt: (u) => F.vtolAlt + F.climbAlt * u, gear: () => false }));
+  return { legs, kind: 'departure', rwy: dir > 0 ? '09' : '27' };
+}
+
+// ------------------------------------------------------------------ arrival
+/**
+ * An aircraft coming home: a straight-in final, the flare and touchdown, the rollout to the end of
+ * the runway, off at the far connector, back along taxiway A and nose-in to its stand.
+ * o: { stand: {x, y}, apron, len, spec, rwy }
+ */
+function arrivalPlan(F, geo, o) {
+  const east = o.rwy !== '27'; // 09 lands heading east
+  const dir = east ? 1 : -1;
+  const near = east ? geo.runway.x0 : geo.runway.x1;
+  const td = near + dir * F.touchdown;
+  const exit = (east ? geo.east : geo.west).x;
+  const ap = geo.aprons[o.apron];
+  const sx = o.stand.x;
+  const sy = o.stand.y;
+  const heading = dir * Math.PI / 2;
+  const legs = [];
+  const finalLen = F.finalTiles;
+  const fin = route([[td - dir * finalLen, geo.runway.y], [td, geo.runway.y]]);
+  legs.push(go('landing', `on final, runway ${o.rwy}`, F.finalMin, fin, { heading: () => heading, alt: (u) => F.finalAlt * Math.pow(1 - u, 1.15), gear: (u) => u > 0.35 }));
+  const stop = exit - dir * 6;
+  const rollLen = Math.abs(stop - td);
+  const rollout = route([[td, geo.runway.y], [stop, geo.runway.y]]);
+  legs.push(go('landing', 'braking', F.rollMinutes * 0.6 + rollLen * F.rollPerTile * 0.8, rollout, { ease: (u) => 1 - (1 - u) * (1 - u), heading: () => heading }));
+  // off the runway, along taxiway A, into the stand
+  const py = ap.link ? ap.edge - 1.6 : ap.edge - 0.6;
+  const pts = [[stop, geo.runway.y], [exit, geo.runway.y], [exit, geo.taxi.y]];
+  if (ap.link) pts.push([ap.link.x, geo.taxi.y], [ap.link.x, py], [sx, py], [sx, sy]);
+  else pts.push([sx, geo.taxi.y], [sx, sy]);
+  const taxi = route(pts, 3);
+  legs.push(go('taxiing', 'taxiing to its stand', taxi.len / F.taxiSpeed, taxi, { ease: (u) => lerp(u, smooth(u), 0.45) }));
+  legs.push(still('parked', 'on stand', 1, { x: sx, y: sy, a: 0 }));
+  return { legs, kind: 'arrival', rwy: o.rwy, final: { x: fin.pts[0][0], y: fin.pts[0][1] }, end: ends(taxi).last };
+}
+
+/**
+ * The minutes of a plan (from its start) in which the aircraft is on the runway: a departure from
+ * lining up to the end of its roll, an arrival from its final to the end of its braking.
+ */
+function runwayWindow(plan) {
+  let t = 0;
+  let from = null;
+  let to = 0;
+  for (const l of plan.legs) {
+    if (/lining up|cleared for|rolling|on final|braking/.test(l.label)) { if (from === null) from = t; to = t + l.dur; }
+    t += l.dur;
+  }
+  return { from: from ?? 0, to };
+}
+
+return { STATES, NEXT, canGo, fieldGeo, slotX, standPose, windRunway, windHeading, planLength, poseAt, rollTiles, departurePlan, arrivalPlan, runwayWindow };
+})();
+
+// ---- src/aero/field.js
+__m["src/aero/field.js"] = (function () {
+// The field (v0.58.0): what happens on Starling Field and how the simulation tells the renderer.
+// Pure plan-making is in flight.js; this is the glue to the aerospace system's state (`A` is the
+// Aerospace system, as in events.js): which stand a finished aircraft waits on, when it is
+// cleared to leave (one runway, one taxiway, so one at a time), the minute-by-minute change of
+// its state, and the list of everything moving on the field that the renderer draws.
+//
+// Saved: `state.field` = { reserved: [{ from, to }], starts: [t…], active: [aircraft ids] } and, on
+// an aircraft, `stand` = { apron, slot, size } and `move` = { kind, t0, rwy } while a movement
+// is under way (its `flight` record is the flyable-aircraft update's). Nothing else — the movement is rebuilt from those, so a reload, or a night's
+// sleep, finds every aircraft where it should be.
+const { fieldGeo, standPose, windRunway, departurePlan, arrivalPlan, poseAt, planLength, runwayWindow } = __m["src/aero/flight.js"];
+const { apronSize } = __m["src/aero/catalog.js"];
+
+const MARGIN = 2; // minutes either side of another aircraft's time on the runway
+
+const geoOf = (A) => (A._geo ||= fieldGeo(A.game.content.maps[A.A.map].airfield));
+
+/** The field's saved state (created on first use). */
+function fieldState(A) {
+  const s = A.state;
+  s.field ||= { reserved: [], starts: [], active: [] };
+  s.field.reserved ||= []; s.field.starts ||= []; s.field.active ||= [];
+  return s.field;
+}
+
+const lookOf = (A, ac) => A.cfg.products[ac.model]?.look;
+
+/** Where an aircraft stands (tile centre), from its stand. */
+function standOf(A, ac) {
+  const look = lookOf(A, ac);
+  return standPose(geoOf(A), ac.stand.apron, ac.stand.slot, ac.stand.size, look?.len || 4);
+}
+
+/** Give a finished aircraft the first run of free stands that fits it (the apron's capacity already allows it). */
+function assignStand(A, co, ac, product) {
+  const geo = geoOf(A);
+  const apronId = `${co.id}_apron`;
+  const ap = geo.aprons[apronId];
+  if (!ap) return;
+  const n = Math.min(ap.slots.length, co.apron || ap.slots.length);
+  const size = Math.max(1, Math.min(n, apronSize(product) || 1));
+  const taken = new Array(n).fill(false);
+  for (const o of Object.values(A.state.aircraft)) {
+    if (o === ac || o.state !== 'awaiting_delivery' || o.stand?.apron !== apronId) continue;
+    for (let i = 0; i < o.stand.size; i++) taken[o.stand.slot + i] = true;
+  }
+  let slot = -1;
+  for (let i = 0; i + size <= n && slot < 0; i++) if (taken.slice(i, i + size).every((x) => !x)) slot = i;
+  if (slot < 0) slot = Math.max(0, taken.indexOf(false)); // the apron is fragmented: take the first gap (it overlaps a neighbour a little)
+  ac.stand = { apron: apronId, slot, size };
+  const f = fieldState(A);
+  if (!f.active.includes(ac.id)) f.active.push(ac.id);
+}
+
+/** A movement's plan, built from what is saved and kept while it's needed. */
+function planOf(A, ac) {
+  const fl = ac.move;
+  if (!fl || !ac.stand) return null;
+  const key = `${ac.id}|${fl.kind}|${fl.t0}|${fl.rwy}`;
+  const cache = (A._plans ||= new Map());
+  let plan = cache.get(key);
+  if (!plan) {
+    const P = A.cfg.products[ac.model];
+    const o = { stand: standOf(A, ac), apron: ac.stand.apron, len: P.look.len, spec: ac.spec || P.spec, rwy: fl.rwy };
+    plan = fl.kind === 'arrival' ? arrivalPlan(A.cfg.flight, geoOf(A), o) : departurePlan(A.cfg.flight, geoOf(A), o);
+    if (cache.size > 40) cache.delete(cache.keys().next().value);
+    cache.set(key, plan);
+  }
+  return plan;
+}
+
+/**
+ * Clear an aircraft to leave: the earliest time from now that the runway is free for its roll and
+ * the taxiway is free for it to start. Returns the start time (also saved on the aircraft).
+ */
+function scheduleDeparture(A, ac) {
+  const f = fieldState(A);
+  const F = A.cfg.flight;
+  const now = A.now;
+  const rwy = windRunway(A.day);
+  ac.move = { kind: 'departure', t0: now, rwy };
+  const w = runwayWindow(planOf(A, ac));
+  f.reserved = f.reserved.filter((r) => r.to > now - 60);
+  f.starts = f.starts.filter((t) => t > now - 60);
+  let t0 = now;
+  for (let guard = 0; guard < 60; guard++) {
+    let moved = false;
+    for (const r of f.reserved) if (t0 + w.from < r.to + MARGIN && t0 + w.to > r.from - MARGIN) { t0 = r.to + MARGIN - w.from; moved = true; }
+    for (const st of f.starts) if (Math.abs(t0 - st) < F.stagger) { t0 = st + F.stagger; moved = true; }
+    if (!moved) break;
+  }
+  t0 = Math.round(t0 * 100) / 100;
+  ac.move = { kind: 'departure', t0, rwy };
+  f.reserved.push({ from: t0 + w.from, to: t0 + w.to });
+  f.starts.push(t0);
+  return t0;
+}
+
+/** Every minute: an aircraft in a movement takes the state its plan says. */
+function tickField(A) {
+  const s = A.state;
+  const f = s.field;
+  if (!f?.active.length) return;
+  const now = A.now;
+  for (const id of [...f.active]) {
+    const ac = s.aircraft[id];
+    if (!ac) { f.active.splice(f.active.indexOf(id), 1); continue; }
+    const fl = ac.move;
+    if (!fl || now < fl.t0) continue;
+    const plan = planOf(A, ac);
+    const p = poseAt(plan, now - fl.t0);
+    if (p.done) {
+      if (fl.kind === 'departure') {
+        ac.state = 'departed';
+        ac.location = { departed: fl.t0 + planLength(plan) };
+        ac.hours = Math.round((ac.hours + 0.15) * 100) / 100;
+        f.active.splice(f.active.indexOf(id), 1);
+      } else ac.state = 'parked';
+      ac.move = null;
+      ac.flight = { ...ac.flight, movements: (ac.flight?.movements || 0) + 1, lastMovement: { kind: fl.kind, t0: fl.t0, rwy: fl.rwy } };
+      continue;
+    }
+    if (ac.state !== p.state) {
+      if (p.state === 'takeoff' && fl.kind === 'departure') {
+        const P = A.cfg.products[ac.model];
+        const who = A.cfg.customers[ac.owner]?.name;
+        A.news(`✈ ${who ? `${who}'s ` : 'A '}${P.name} takes off from Starling Field, runway ${fl.rwy}.`, 'info');
+      }
+      ac.state = p.state;
+    }
+  }
+}
+
+/** An aircraft's standing pose at its stand. */
+const parkedPose = (A, ac) => ({ ...standOf(A, ac), alt: 0, gear: true, v: 0, state: ac.state, label: 'on stand' });
+
+/** Everything moving or standing on the field, for the renderer: { id, look, livery, x, y, a, alt, v, gear, state, label } in tiles. */
+function movers(A) {
+  const s = A.state;
+  const f = s.field;
+  if (!f?.active.length) return [];
+  const out = [];
+  const now = A.now;
+  for (const id of f.active) {
+    const ac = s.aircraft[id];
+    if (!ac?.stand) continue;
+    const look = lookOf(A, ac);
+    if (!look) continue;
+    let p;
+    if (ac.move && now >= ac.move.t0) p = poseAt(planOf(A, ac), now - ac.move.t0);
+    else if (ac.state === 'awaiting_delivery' || ac.state === 'parked') p = parkedPose(A, ac);
+    else continue;
+    if (p.done && ac.move?.kind === 'departure') continue;
+    out.push({ id, look, livery: ac.livery || null, x: p.x, y: p.y, a: p.a, alt: p.alt, v: p.v, gear: p.gear, state: p.state, label: p.label, model: ac.model });
+  }
+  return out;
+}
+
+/** Fix up saves: aircraft waiting on the apron get stands; the field's lists exist. */
+function migrateField(A) {
+  const s = A.state;
+  if (!s.aircraft) return;
+  const f = fieldState(A);
+  for (const ac of Object.values(s.aircraft)) {
+    if (ac.state !== 'awaiting_delivery') continue;
+    const co = A.company(ac.manufacturer);
+    if (!co) continue;
+    if (!ac.stand) assignStand(A, co, ac, A.cfg.products[ac.model]);
+    if (!f.active.includes(ac.id)) f.active.push(ac.id);
+  }
+}
+
+return { geoOf, fieldState, standOf, assignStand, planOf, scheduleDeparture, tickField, movers, migrateField };
+})();
+
 // ---- src/aero/events.js
 __m["src/aero/events.js"] = (function () {
 // Reputation and events (v0.57.0): what happens at the Park because of how a company is run.
@@ -33620,6 +34109,7 @@ const { configure, cleanConfig, configError, configLabel } = __m["src/aero/confi
 const { makeTender, bidError, rankBids, launchAllowance } = __m["src/aero/tenders.js"];
 const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
 const { rivalMorning } = __m["src/aero/rival.js"];
+const { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf } = __m["src/aero/field.js"];
 const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
 const DAY = 1440;
@@ -35241,15 +35731,41 @@ class Aerospace {
       state: 'awaiting_delivery', location: { map: this.A.map, site: `${co.id}_apron` },
       condition: 100, fuel: p.spec?.fuel ?? 0, hours: 0.6, built: this.now,
       config: { ...(u.config || {}) }, spec: p.spec ? { ...p.spec } : null, // (as configured: more seats, a longer range — what the flight update reads)
-      flight: { flyable: false }, // the flyable-aircraft update fills this in
+      livery: this.liveryOf(co, u.product),
+      flight: { flyable: false }, // the flyable-aircraft update fills this in (v0.58.0 adds `movements` and `lastMovement`)
+      move: null, // a movement under way: { kind, t0, rwy } (src/aero/field.js)
     };
+    assignStand(this, co, s.aircraft[id], p);
     return id;
   }
 
   depart(co, u) {
     const ac = this.state.aircraft?.[u.aircraft];
-    if (ac) { ac.state = 'departed'; ac.owner = this.contract(u.contract)?.customer || ac.owner; ac.location = { departed: this.now }; }
+    // the customer's crew takes it over (ownership and payment now); it leaves when the field is clear (src/aero/field.js)
+    if (ac) { ac.owner = this.contract(u.contract)?.customer || ac.owner; scheduleDeparture(this, ac); }
     return this.settle(co, u);
+  }
+
+  /** The livery a finished aircraft wears: its own firm's for the Skylark, grey for the military, plain otherwise. */
+  liveryOf(co, productId) {
+    const pr = this.cfg.products[productId];
+    if (pr.cls === 'fighter' || pr.cls === 'bomber') return pr.look.kind.includes('stealth') || pr.look.kind === 'flyingwing' ? 'stealth' : 'military';
+    return co.id === 'roost' && productId === 'ap_skylark' ? 'roost' : null;
+  }
+
+  /** Everything moving or standing on Starling Field right now (src/aero/field.js), in tiles. */
+  movers() {
+    return movers(this);
+  }
+
+  /** Clear a finished aircraft to leave: it starts when the field is free (returns the time). */
+  clearForDeparture(ac) {
+    return scheduleDeparture(this, ac);
+  }
+
+  /** The field's geometry (runway, taxiway, aprons) for the renderer. */
+  get field() {
+    return { geo: geoOf(this) };
   }
 
   /** Put the satellites waiting for a launch aboard this rocket (up to its lift). */
@@ -35452,6 +35968,7 @@ class Aerospace {
     this.tickOrders();
     if (this.roost && Math.floor(this.now) % this.cfg.internal.dispatchEvery === 0) { this.dispatch(); this.closeJobs(); }
     this.tickProduction(1);
+    tickField(this);
     if (g.clock.day > s.lastDay && g.clock.minuteOfDay >= this.A.decisionHour * 60) {
       s.lastDay = g.clock.day;
       this.daily();
@@ -35734,6 +36251,7 @@ class Aerospace {
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
     }
     this.migrateHalls();
+    migrateField(this);
   }
 
   /**
@@ -49820,6 +50338,7 @@ const { drawShopFront } = __m["src/engine/drawPixelBuildings.js"];
 const { drawFields } = __m["src/engine/drawFarm.js"];
 const { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } = __m["src/engine/drawWorld.js"];
 const { drawCar, drawBus, setPixelCars } = __m["src/engine/drawVehicles.js"];
+const { drawAircraft } = __m["src/engine/drawAero.js"];
 const { lookOf, isGunLook } = __m["src/engine/drawPixelWeapons.js"];
 const { drawTrail } = __m["src/engine/drawSignatureCars.js"];
 const { drawCharacter, setPixelPeople, rrect } = __m["src/engine/drawCharacter.js"];
@@ -50273,6 +50792,8 @@ class Renderer {
           items.push({ y: car.y + L.y + Math.abs(Math.sin(car.angle)) * m.len * 0.4 + 4, draw: at(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel, ...(m.sig && this.sigOpts(car, lm, driven)) })) });
         }
       }
+      // v0.58.0: the aircraft on Starling Field — on their stands, pushed back, taxiing, rolling, climbing away (src/aero/field.js)
+      if (lm.id === 'starling_flats') this.drawField(items, at, inView);
       // the bus and the traffic (src/systems/transit.js)
       if (g.transit) {
         const models = g.content.vehicles.models;
@@ -50320,6 +50841,20 @@ class Renderer {
     this.drawLighting(map);
     this.drawOverlays(map);
     this.drawCrosshair();
+  }
+
+  /** v0.58.0: the aircraft on the field. Those on the ground sort among the props by their tail; those in the air are drawn over everything. */
+  drawField(items, at, inView) {
+    const ctx = this.ctx;
+    for (const m of this.game.aero.movers()) {
+      const px = m.x * TILE;
+      const py = m.y * TILE;
+      const r = (Math.max(m.look.len, m.look.span) / 2 + 2) * TILE;
+      const lift = m.alt * TILE;
+      if (!inView(px - r - lift, py - r - lift, r * 2 + lift * 2, r * 2 + lift * 2)) continue;
+      const air = m.alt > 0.05;
+      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, draw: at(() => drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 })) });
+    }
   }
 
   /** v0.44.0: a chunky pixel crosshair where the mouse is, while you hold a gun (the cursor is hidden). */

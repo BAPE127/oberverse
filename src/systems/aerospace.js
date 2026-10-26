@@ -27,6 +27,7 @@ import { configure, cleanConfig, configError, configLabel } from '../aero/config
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
+import { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf } from '../aero/field.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
@@ -1648,15 +1649,41 @@ export class Aerospace {
       state: 'awaiting_delivery', location: { map: this.A.map, site: `${co.id}_apron` },
       condition: 100, fuel: p.spec?.fuel ?? 0, hours: 0.6, built: this.now,
       config: { ...(u.config || {}) }, spec: p.spec ? { ...p.spec } : null, // (as configured: more seats, a longer range — what the flight update reads)
-      flight: { flyable: false }, // the flyable-aircraft update fills this in
+      livery: this.liveryOf(co, u.product),
+      flight: { flyable: false }, // the flyable-aircraft update fills this in (v0.58.0 adds `movements` and `lastMovement`)
+      move: null, // a movement under way: { kind, t0, rwy } (src/aero/field.js)
     };
+    assignStand(this, co, s.aircraft[id], p);
     return id;
   }
 
   depart(co, u) {
     const ac = this.state.aircraft?.[u.aircraft];
-    if (ac) { ac.state = 'departed'; ac.owner = this.contract(u.contract)?.customer || ac.owner; ac.location = { departed: this.now }; }
+    // the customer's crew takes it over (ownership and payment now); it leaves when the field is clear (src/aero/field.js)
+    if (ac) { ac.owner = this.contract(u.contract)?.customer || ac.owner; scheduleDeparture(this, ac); }
     return this.settle(co, u);
+  }
+
+  /** The livery a finished aircraft wears: its own firm's for the Skylark, grey for the military, plain otherwise. */
+  liveryOf(co, productId) {
+    const pr = this.cfg.products[productId];
+    if (pr.cls === 'fighter' || pr.cls === 'bomber') return pr.look.kind.includes('stealth') || pr.look.kind === 'flyingwing' ? 'stealth' : 'military';
+    return co.id === 'roost' && productId === 'ap_skylark' ? 'roost' : null;
+  }
+
+  /** Everything moving or standing on Starling Field right now (src/aero/field.js), in tiles. */
+  movers() {
+    return movers(this);
+  }
+
+  /** Clear a finished aircraft to leave: it starts when the field is free (returns the time). */
+  clearForDeparture(ac) {
+    return scheduleDeparture(this, ac);
+  }
+
+  /** The field's geometry (runway, taxiway, aprons) for the renderer. */
+  get field() {
+    return { geo: geoOf(this) };
   }
 
   /** Put the satellites waiting for a launch aboard this rocket (up to its lift). */
@@ -1859,6 +1886,7 @@ export class Aerospace {
     this.tickOrders();
     if (this.roost && Math.floor(this.now) % this.cfg.internal.dispatchEvery === 0) { this.dispatch(); this.closeJobs(); }
     this.tickProduction(1);
+    tickField(this);
     if (g.clock.day > s.lastDay && g.clock.minuteOfDay >= this.A.decisionHour * 60) {
       s.lastDay = g.clock.day;
       this.daily();
@@ -2141,6 +2169,7 @@ export class Aerospace {
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
     }
     this.migrateHalls();
+    migrateField(this);
   }
 
   /**
