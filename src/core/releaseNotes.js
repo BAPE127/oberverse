@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.58.0',
+    date: '2026-10-26',
+    channel: 'development',
+    title: 'Wheels Up',
+    notes: [
+      'Starling Field is alive: finished aircraft are pushed back, taxi to the runway in use, line up, roll and climb away — and Meridian\'s own jet and test aircraft go out and land again. The windsocks follow the wind.',
+      'Rockets roll out to the pad on the crawler, count down on a board beside it, light up, lift off and climb on a trail of smoke — or are lost in a fireball. Strategic products leave by secure convoy. Stand at the pad\'s gate and listen.',
+    ],
+  },
+  {
     version: '0.57.0',
     date: '2026-10-24',
     channel: 'development',

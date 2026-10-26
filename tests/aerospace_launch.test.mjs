@@ -248,3 +248,30 @@ test('cancelling a rocket on its way to the pad gives the pad back', () => {
   assert.equal(co.pad.roll, null);
   assert.equal(A.launches().filter((l) => l.kind === 'rollout').length, 0);
 });
+
+test('the terminal reads the pad: the crawler, the clock, the climb — and then nothing', () => {
+  const g = newGame(58);
+  const A = g.aero;
+  const co = A.meridian;
+  assert.equal(A.launchStatus(co), null, 'quiet to begin with');
+  const u = rocketAt(g, 'to_pad');
+  step(g, 2);
+  let ls = A.launchStatus(co);
+  assert.equal(ls.kind, 'rollout');
+  assert.match(ls.clock, /min$/);
+  step(g, L.rolloutMin);
+  assert.equal(A.launchStatus(co), null, 'on the pad, standing up');
+  for (let i = 0; i < 30; i++) { u.stage = i; if (A.stageOf(u)?.id === 'launch') break; }
+  u.work = 0; u.need = 0; u.consumed = true;
+  step(g, 1);
+  ls = A.launchStatus(co);
+  assert.equal(ls.kind, 'countdown');
+  assert.match(ls.clock, /^T-00:/);
+  step(g, L.countdownMin - L.ignitionMin);
+  assert.equal(A.launchStatus(co).kind, 'ignition');
+  step(g, L.ignitionMin + 1);
+  assert.equal(A.launchStatus(co).kind, 'ascent');
+  assert.match(A.launchStatus(co).clock, /^T\+/);
+  step(g, L.ascentMin + 2);
+  assert.equal(A.launchStatus(co), null, 'away');
+});

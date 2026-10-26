@@ -156,7 +156,7 @@ test('a departure runs its course over game time: stands, pushback, taxi, hold, 
   assert.equal(ac.move, null);
   assert.equal(ac.flight.movements, 1);
   assert.ok(!A.state.field.active.includes(ac.id), 'it is no longer on the field');
-  assert.ok(A.state.news.some((n) => /takes off from Starling Field/.test(n.text)), 'the field notices');
+  assert.ok(!A.state.news.some((n) => /takes off from Starling Field/.test(n.text)), 'Meridian\'s deliveries are not news');
 });
 
 test('one runway, one at a time: several aircraft leave in turn, never on top of one another', () => {
@@ -247,6 +247,7 @@ test('delivery now sends the aircraft down the runway: paid at handover, gone a 
   assert.ok(['awaiting_delivery', 'taxiing', 'takeoff', 'airborne'].includes(handedOver.state));
   stepAll(g, 140);
   assert.equal(handedOver.state, 'departed');
+  assert.ok(A.state.news.some((n) => /takes off from Starling Field/.test(n.text)), 'the player\'s own delivery is news');
 });
 
 // ------------------------------------------------------------------ Meridian's own, the convoy, the sound
@@ -373,4 +374,23 @@ test('the field is loud where aircraft roll and climb, and a launch is louder st
   assert.equal(near.rocket, 0);
   g.clock.total = t0 - 5; // before it moves: the apron is quiet
   assert.ok(A.sound(m.x, m.y).jet < 0.2);
+});
+
+test('the terminal reads the field: the runway in use and what each aircraft is doing', () => {
+  const g = newGame(66);
+  const A = g.aero;
+  const co = A.meridian;
+  const idle = A.fieldStatus(co);
+  assert.ok(['09', '27'].includes(idle.rwy));
+  assert.equal(idle.list.length, 0);
+  const ac = mk(g, co, 'ap_tern');
+  assert.equal(A.fieldStatus(co).list[0].label, 'waiting for its crew');
+  const t0 = A.clearForDeparture(ac);
+  assert.match(A.fieldStatus(co).list[0].label, /^(cleared to leave|being pushed back)/);
+  g.clock.total = t0 + 10; A.minuteTick();
+  assert.match(A.fieldStatus(co).list[0].label, /taxiing to runway/);
+  g.clock.total = t0 + 200; A.minuteTick();
+  assert.equal(A.fieldStatus(co).list.length, 0, 'gone');
+  // Meridian's own aircraft are not "its customers' departures"
+  assert.ok(A.state.aircraft['MA-TEST'].ambient);
 });

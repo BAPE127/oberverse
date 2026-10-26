@@ -2,6 +2,29 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.58.0] — 2026-10-26 — Wheels Up (development build)
+
+Stage IV of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "let's go through with 58." Starling Field comes alive: what you build now leaves the ground, and the launch complex does what it is for.
+
+### Added — aircraft on the field (`src/aero/flight.js`, `src/aero/field.js`)
+- **Finished aircraft are on the apron**, parked on their stands. When the customer's crew collects one (you are paid and it changes hands, as before) it is **pushed back, taxies to the threshold of the runway in use, holds short, lines up, rolls and climbs away** off the map — its roll as long as its own take-off run, its shadow on the ground and its climb growing it against the sky; a VTOL lifts straight off its stand. One runway, one at a time: departures are cleared in turn. **09** on most days, **27** when the wind swings (a fixed function of the day; the windsocks follow it).
+- **The aircraft state machine** for the flight update: `awaiting_delivery → taxiing → takeoff → airborne → departed`, with `landing`, `parked`, `maintenance`, `stored`, `retired` in place. Movements are *plans* rebuilt from saved facts, so a reload or a night's sleep puts everything where it belongs.
+- **Meridian's own aircraft** (the company jet, the test Kestrel) are entities now: each morning the day decides who goes out and for how long, they depart, are away, and **land** (a final, a flare, braking, taxi in, nose-in on their stand) — sharing the runway with your deliveries. Their stands are empty while they're out.
+- Navigation lights and landing lights at night; the roar of a roll or a climb by distance (`AudioEngine.setField`).
+
+### Added — launches (`src/aero/launch.js`, `src/engine/drawLaunch.js`)
+- A rocket now **rolls out standing on the crawler** from the integration building (half an hour; the pad is taken, the deck bare until it arrives).
+- The launch step is a **sequence**: T-20 countdown on a board beside the pad, T-5 ignition (flame, a cloud of smoke across the deck, the ground shaking, the glare at night), lift-off, the climb with its trail and the spent stage falling away — or the moment a vehicle that was always going to be lost goes wrong (a flash, a fireball, burning pieces, ABORT). **What you watch is what is booked:** the outcome is fixed from the unit's own roll when the countdown begins, and booked when the sequence ends.
+- **The secure convoy** (escort, transporter, escort) drives a strategic product out of its hall, along the service road, up Meridian Way and away down the Cut.
+
+### Changed
+- The terminal: the pad tile shows the crawler's minutes, the T-minus clock, the climb or the loss; an overview alert; the Apron page has a **Starling Field** section (runway in use, what each aircraft is doing); the pad page says where to stand. A countdown posts to the tablet.
+- Tina, Ailie and the noticeboard know about all of it (a topic on where to watch a launch, one on sorties; runway 09).
+- A rocket's launch now takes about an hour from the pad to the outcome (rollout 30 minutes, countdown and ascent 32), and a satellite's deployment is dated from lift-off.
+
+### Tests
+- New: `aerospace_flight` (16: every aircraft on every stand and runway, arrivals, stands, the queue, reload, old saves, Meridian's own, the convoy, sound, the terminal's field status) and `aerospace_launch` (14: sequence fixed at its start, phases, the clock, smoke as a function of time, shake, the crawler's way on the map, rollout, countdown, a loss, reload mid-countdown, cancelling).
+
 ## [0.57.0] — 2026-10-24 — Room to Grow (development build)
 
 Stage III of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "Let's move forward with .57." What you build at Roost Aeroworks now appears on the map; the people who work there matter; products can be configured; and your reputation has causes you can read.

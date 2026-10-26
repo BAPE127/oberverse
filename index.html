@@ -13338,7 +13338,7 @@ const dlgAilie = {
   topics: [
     {
       id: 't_ailie_testing', label: '"What does a test pilot do?"', keywords: ['test', 'pilot', 'flying', 'fly', 'job'],
-      say: ['Every new aircraft gets flown before it\'s handed over: engine runs, a climb, stalls, a few things the brochure doesn\'t mention. I fly it, I write it up, Rudy fixes what I break.', 'Then the customer\'s crew comes, signs for it, and flies it home off runway 27. Best part of the job: watching one go and knowing it\'s right.'],
+      say: ['Every new aircraft gets flown before it\'s handed over: engine runs, a climb, stalls, a few things the brochure doesn\'t mention. I fly it, I write it up, Rudy fixes what I break.', 'Then the customer\'s crew comes, signs for it, and the tug pushes it back off its stand. They taxi to the threshold, hold short, line up and go. Best part of the job: watching one go and knowing it\'s right.'],
     },
     {
       id: 't_ailie_billie', label: '"Billie says you cheated in the Escarpment Dash."', keywords: ['billie', 'race', 'dash', 'escarpment', 'cheat'],
@@ -13346,7 +13346,11 @@ const dlgAilie = {
     },
     {
       id: 't_ailie_runway', label: '"Tell me about the runway."', keywords: ['runway', 'airfield', 'tower', 'taxi', 'apron'],
-      say: ['Runway 09/27, four and a half thousand feet of it, plenty for anything we build short of the big bombers — they use the whole thing and a prayer. Taxiway Alpha along the north, both aprons off it. Tower\'s south of the field. Wind\'s mostly west, so we take off on 27 and land on 27, and watch the refinery flare for gusts.'],
+      say: ['Runway 09/27, four and a half thousand feet of it, plenty for anything we build short of the big bombers — they use the whole thing and a prayer. Taxiway Alpha along the north, both aprons off it. Tower\'s south of the field. Wind\'s mostly from the west, so most days we use 09 — take off towards the sea, land the same way — and on an east-wind day it\'s 27. Look at the windsocks; they\'re never wrong. One runway, one aircraft at a time, and the tower is very firm about it.'],
+    },
+    {
+      id: 't_ailie_sorties', label: '"I saw the test aircraft go out."', keywords: ['sortie', 'sorties', 'flight', 'went', 'jet', 'kestrel', 'out', 'away', 'back'],
+      say: ['That was me, or the jet if Dr. Hale had a meeting somewhere with a better view. The Kestrel does its sorties between nine and three — twenty minutes up, a few things I won\'t describe near the tower — and the Swift goes off on trips that run most of the day. Look for their stands: when they\'re empty, we\'re out.'],
     },
   ],
   askAbout: [
@@ -13399,12 +13403,16 @@ const dlgTina = {
       say: ['A launch vehicle\'s built in the integration building, certified, then it goes to the pad: stacked vertically, propellant loaded — the kerosene comes from Ober\'s Oil — final checks, countdown, and then up.', 'Satellites ride on top. They\'re integrated on the pad, and they only start working after commissioning in orbit — a satellite that\'s merely "built" is just very expensive furniture. One launch at a time; two days to refurbish the pad after each.'],
     },
     {
+      id: 't_tina_watch', label: '"Where\'s the best place to watch a launch?"', keywords: ['watch', 'see', 'view', 'viewing', 'crawler', 'clock', 'board', 'T-minus', 'countdown', 'safe'],
+      say: ['When a vehicle comes out of the integration building it rides the crawler out to the pad — half an hour at walking pace, standing up the whole way. Then the board by the pad shows the clock. Twenty minutes to go, the last five with the engines lit.', 'The gate south of the pad is as close as I allow, and you\'ll feel it in your chest even there. Further back you\'ll hear it and see the trail. Do not stand in the flame trench. I have to say that. Someone tried.'],
+    },
+    {
       id: 't_tina_failure', label: '"Do launches ever fail?"', keywords: ['fail', 'failure', 'explode', 'lost', 'risk'],
       say: ['Sometimes. A good vehicle built well fails rarely; a rushed one less rarely. When one goes, it takes its payload with it, and the customer isn\'t charged. Nobody\'s ever been hurt on my range. That\'s the number I care about.'],
     },
     {
       id: 't_tina_missiles', label: '"Do you launch the strategic products?"', keywords: ['missile', 'strategic', 'sentinel', 'bastion', 'defence'],
-      say: ['Never. Those are a defence agency\'s procurement item: built in the secure hall and delivered inert by secure convoy to the agency\'s depot. They don\'t come near my pad. My pad is for satellites, and I like it that way.'],
+      say: ['Never. Those are a defence agency\'s procurement item: built in the secure hall and delivered inert by secure convoy to the agency\'s depot — out of the hall, along the service road, up Meridian Way and away down the Cut with an escort front and back. They don\'t come near my pad. My pad is for satellites, and I like it that way.'],
     },
   ],
   askAbout: [
@@ -15340,7 +15348,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.57.0';
+const GAME_VERSION = '0.58.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -33892,7 +33900,7 @@ function tickField(A) {
       continue;
     }
     if (ac.state !== p.state) {
-      if (p.state === 'takeoff' && fl.kind === 'departure') {
+      if (p.state === 'takeoff' && fl.kind === 'departure' && !ac.ambient && A.company(ac.manufacturer)?.kind === 'player') { // (the player's own deliveries are news; the rest of the field's traffic isn't)
         const P = A.cfg.products[ac.model];
         const who = A.cfg.customers[ac.owner]?.name;
         A.news(`✈ ${who ? `${who}'s ` : 'A '}${P.name} takes off from Starling Field, runway ${fl.rwy}.`, 'info');
@@ -34459,9 +34467,9 @@ const { configure, cleanConfig, configError, configLabel } = __m["src/aero/confi
 const { makeTender, bidError, rankBids, launchAllowance } = __m["src/aero/tenders.js"];
 const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
 const { rivalMorning } = __m["src/aero/rival.js"];
-const { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
-const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt } = __m["src/aero/launch.js"];
-const { windRunway } = __m["src/aero/flight.js"];
+const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
+const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
+const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
 const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
 const DAY = 1440;
@@ -36169,6 +36177,42 @@ class Aerospace {
     return ambientHome(this, id);
   }
 
+  /** What the pad is doing for the terminal: a crawler on its way, a countdown, a climb — or null. */
+  launchStatus(co) {
+    if (!co?.pad) return null;
+    const L = this.cfg.flight.launch;
+    const now = this.now;
+    const roll = co.pad.roll;
+    if (roll && now < roll.t1) return { kind: 'rollout', clock: `${Math.max(1, Math.round(roll.t1 - now))} min`, text: 'On the crawler, rolling out to the pad.', left: roll.t1 - now };
+    const seq = co.pad.seq;
+    if (!seq || now >= seq.end + 0.5) return null;
+    const ph = phaseAt(L, seq, now);
+    const text = { countdown: 'Counting down.', ignition: 'Engines lit.', ascent: ph.sep ? 'Second stage burning.' : 'Climbing.', lost: 'A vehicle lost.', done: 'Away.' }[ph.phase];
+    return { kind: ph.phase, clock: ph.phase === 'lost' ? 'ABORT' : clockText(ph.t), text, seq, ph };
+  }
+
+  /**
+   * The field as the terminal shows it: the runway in use and every aircraft of this company's
+   * that is waiting to leave, leaving or just gone (with what it is doing now).
+   */
+  fieldStatus(co) {
+    const f = this.state.field;
+    const now = this.now;
+    const out = [];
+    for (const id of f?.active || []) {
+      const ac = this.state.aircraft[id];
+      if (!ac || ac.manufacturer !== co.id || ac.ambient) continue;
+      const P = this.cfg.products[ac.model];
+      const cust = this.cfg.customers[ac.owner]?.name || null;
+      if (ac.move && now >= ac.move.t0) {
+        const p = poseAt(planOf(this, ac), now - ac.move.t0);
+        out.push({ id, name: P.name, owner: cust, state: ac.state, label: p.label, rwy: ac.move.rwy, left: Math.max(0, ac.move.t0 + planLength(planOf(this, ac)) - now) });
+      } else if (ac.move) out.push({ id, name: P.name, owner: cust, state: ac.state, label: `cleared to leave ${this.when(ac.move.t0)}`, rwy: ac.move.rwy, left: null });
+      else out.push({ id, name: P.name, owner: cust, state: ac.state, label: 'waiting for its crew', rwy: null, left: null });
+    }
+    return { rwy: windRunway(this.day), list: out };
+  }
+
   /** Secure convoys on the road, for the renderer. */
   convoys() {
     return convoys(this);
@@ -36232,7 +36276,9 @@ class Aerospace {
       const pf = launchFailChance(p, this.qualityOf(co));
       u.seq = startSequence(L, u, this.now, u.rolls.launch >= pf, Math.round(pf * 100));
       co.pad.seq = { ...u.seq, unit: u.id, look: p.look, name: p.name, company: co.id };
-      this.news(`🚀 ${co.name} is counting down a ${p.name} at Starling Flats — lift-off in ${L.countdownMin} minutes.`, co.kind === 'player' ? 'good' : 'info');
+      const msg = `🚀 ${co.name} is counting down a ${p.name} at Starling Flats — lift-off in ${L.countdownMin} minutes.`;
+      this.news(msg, co.kind === 'player' ? 'good' : 'info');
+      this.report(co, 'launch', co.kind === 'player' ? `${msg} The pad is south-east of the Park, behind the fence; the ground station's gate is the best seat.` : msg, co.kind === 'player' ? 'good' : null);
     }
     u.status = 'pad';
     if (this.now < u.seq.end) {
@@ -39140,6 +39186,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.58.0',
+    date: '2026-10-26',
+    channel: 'development',
+    title: 'Wheels Up',
+    notes: [
+      'Starling Field is alive: finished aircraft are pushed back, taxi to the runway in use, line up, roll and climb away — and Meridian\'s own jet and test aircraft go out and land again. The windsocks follow the wind.',
+      'Rockets roll out to the pad on the crawler, count down on a board beside it, light up, lift off and climb on a trail of smoke — or are lost in a fireball. Strategic products leave by secure convoy. Stand at the pad\'s gate and listen.',
+    ],
+  },
   {
     version: '0.57.0',
     date: '2026-10-24',
@@ -59849,6 +59905,15 @@ function aerospacePanel(ui, body, opts = {}) {
         big(c.building?.pad ? 'building' : 'not built', 'rgba(223,233,245,0.45)');
         small(c.building?.pad ? `ready ${A.when(c.building.pad)}` : 'Pad 2 is surveyed and waiting.', 0);
         small(c.building?.pad ? '' : `${fmtMoney(C.facilities.pad.build)} to build`, 1);
+      } else if (A.launchStatus(c)) {
+        const ls = A.launchStatus(c);
+        big(ls.clock, ls.kind === 'lost' ? COL.red : ls.kind === 'ascent' || ls.kind === 'done' ? COL.green : COL.amber);
+        small(u ? `${C.products[u.product].name} #${u.n}` : ls.seq?.name || '', 0, '#fff');
+        small(ls.text, 1);
+        const look = u ? C.products[u.product].look : ls.seq?.look;
+        const img = look && rocketCanvas(look, { stages: 1 });
+        if (img && ls.kind !== 'ascent' && ls.kind !== 'lost' && ls.kind !== 'done') fitDraw(ctx, img, x + w * 0.62, y + 22 * k, w * 0.34, hh - 30 * k, 3 * k);
+        if (ls.kind === 'ignition' || ls.kind === 'ascent') { ctx.fillStyle = `rgba(255,${150 + Math.round(60 * Math.sin(t * 20))},60,0.5)`; ctx.beginPath(); ctx.arc(x + w * 0.79, y + hh - 16 * k, 8 * k, 0, Math.PI * 2); ctx.fill(); }
       } else if (u) {
         const img = rocketCanvas(C.products[u.product].look, { stages: 1 });
         fitDraw(ctx, img, x + w * 0.55, y + 22 * k, w * 0.4, hh - 30 * k, 3 * k);
@@ -60036,6 +60101,8 @@ function aerospacePanel(ui, body, opts = {}) {
     if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
     if (c.workforce < crew) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `👷 ${crew - c.workforce} technicians short — every bay is slower ›`));
     if (c.engineers < A.staffNeeded(c, 'engineer')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `📐 ${A.staffNeeded(c, 'engineer') - c.engineers} engineers short — the drawing office and research are slower ›`));
+    const lsx = A.launchStatus(c);
+    if (lsx && lsx.kind !== 'done') alerts.push(h('button', { class: 'ao-alert', onclick: () => { AO.sel = { kind: 'pad' }; renderDrawer(); } }, `🚀 ${lsx.clock} · ${lsx.text}`));
     if (c.inspectors < A.staffNeeded(c, 'inspector')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🔍 ${A.staffNeeded(c, 'inspector') - c.inspectors} inspectors short — inspections are slower and more get through ›`));
     const ops = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id)).map((t) => ({ t, q: A.bidQuote(c.id, t.id) })).filter((x) => x.q.ok).sort((a, b) => b.q.profit - a.q.profit).slice(0, 3);
     const soon = A.unitsOf(c).filter((u) => u.contract).sort((a, b) => A.unitDaysLeft(a) - A.unitDaysLeft(b)).slice(0, 4);
@@ -60098,7 +60165,15 @@ function aerospacePanel(ui, body, opts = {}) {
     const list = apronUnits();
     return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, `${A.apronUsed(c)} OF ${c.apron} STANDS`), h('h2', {}, 'The finished-aircraft apron'), muted(C.facilities.apron.text)),
       ...(list.length ? list.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, pic(A.unitLook(u), 70, 40), h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, `${customerOf(u) || ''} · ${u.blocker?.text || 'waiting for the customer\'s crew'}`)), '›')) : [muted('No aircraft waiting for their customers.')]),
-      A.apronUsed(c) >= c.apron ? h('div', { class: 'ao-alert' }, '⚠ The apron is full: finished aircraft wait in their bays until a stand is free.') : null].filter(Boolean);
+      A.apronUsed(c) >= c.apron ? h('div', { class: 'ao-alert' }, '⚠ The apron is full: finished aircraft wait in their bays until a stand is free.') : null,
+      fieldSection(c)].filter(Boolean);
+  };
+
+  /** Starling Field: the runway in use and what is leaving (src/aero/field.js). */
+  const fieldSection = (c) => {
+    const fs = A.fieldStatus(c);
+    const rows = fs.list.map((m) => h('div', { class: 'ao-row' }, h('div', { class: 'grow' }, h('b', {}, `${m.name}${m.owner ? ` · ${m.owner}` : ''}`), h('small', { class: m.state === 'takeoff' || m.state === 'airborne' ? 'pos' : '' }, m.label)), m.left != null ? h('small', {}, `${Math.max(1, Math.round(m.left))} min`) : null));
+    return section('Starling Field', h('div', { class: 'ao-kpis two' }, kpi('Runway in use', fs.rwy), kpi('Movements', String(c.stats?.delivered || 0), '', 'aircraft delivered')), ...(rows.length ? rows : [muted('Nothing on the move. When a customer\'s crew collects an aircraft it is pushed back, taxis to the runway and leaves.')]));
   };
 
   const padView = () => {
@@ -60109,9 +60184,11 @@ function aerospacePanel(ui, body, opts = {}) {
       return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'PAD 2 · SURVEYED SITE'), h('h2', {}, f.name), muted(f.text)),
         c.building?.pad ? h('div', { class: 'ao-alert' }, `🏗 Being built — ready ${A.when(c.building.pad)}`) : btn(`Build it · ${money(f.build)} · ${f.buildDays} days`, () => act(() => A.buildFacility(c, 'pad')), 'primary big', !A.canAfford(c, f.build))];
     }
+    const ls = A.launchStatus(c);
     return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'LAUNCH COMPLEX'), h('h2', {}, 'Pad 2'), muted('One launch at a time; two days to refurbish after each.')),
+      ls ? h('div', { class: ls.kind === 'lost' ? 'ao-alert' : 'ao-card event' }, h('b', {}, `${ls.clock} · ${ls.text}`), h('small', {}, ls.kind === 'rollout' ? ' The crawler takes half an hour to reach the pad; the deck stays bare until it does.' : ls.kind === 'countdown' ? ' Walk to the pad (the ground station\'s gate is the best seat) and watch it go.' : '')) : null,
       u ? h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, A.stageOf(u)?.name || '')), '›') : muted(c.pad.readyAt > A.now ? `Refurbishing until ${A.when(c.pad.readyAt)}.` : 'Clear and ready.'),
-      section('Launch record', h('div', { class: 'ao-kpis two' }, kpi('Launches', String(c.stats?.launches || 0)), kpi('Lost', String(c.stats?.launchFailures || 0), c.stats?.launchFailures ? 'neg' : '')))];
+      section('Launch record', h('div', { class: 'ao-kpis two' }, kpi('Launches', String(c.stats?.launches || 0)), kpi('Lost', String(c.stats?.launchFailures || 0), c.stats?.launchFailures ? 'neg' : '')))].filter(Boolean);
   };
 
   const storesView = () => {

@@ -138,7 +138,7 @@ export function tickField(A) {
       continue;
     }
     if (ac.state !== p.state) {
-      if (p.state === 'takeoff' && fl.kind === 'departure') {
+      if (p.state === 'takeoff' && fl.kind === 'departure' && !ac.ambient && A.company(ac.manufacturer)?.kind === 'player') { // (the player's own deliveries are news; the rest of the field's traffic isn't)
         const P = A.cfg.products[ac.model];
         const who = A.cfg.customers[ac.owner]?.name;
         A.news(`✈ ${who ? `${who}'s ` : 'A '}${P.name} takes off from Starling Field, runway ${fl.rwy}.`, 'info');

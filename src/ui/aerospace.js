@@ -366,6 +366,15 @@ export function aerospacePanel(ui, body, opts = {}) {
         big(c.building?.pad ? 'building' : 'not built', 'rgba(223,233,245,0.45)');
         small(c.building?.pad ? `ready ${A.when(c.building.pad)}` : 'Pad 2 is surveyed and waiting.', 0);
         small(c.building?.pad ? '' : `${fmtMoney(C.facilities.pad.build)} to build`, 1);
+      } else if (A.launchStatus(c)) {
+        const ls = A.launchStatus(c);
+        big(ls.clock, ls.kind === 'lost' ? COL.red : ls.kind === 'ascent' || ls.kind === 'done' ? COL.green : COL.amber);
+        small(u ? `${C.products[u.product].name} #${u.n}` : ls.seq?.name || '', 0, '#fff');
+        small(ls.text, 1);
+        const look = u ? C.products[u.product].look : ls.seq?.look;
+        const img = look && rocketCanvas(look, { stages: 1 });
+        if (img && ls.kind !== 'ascent' && ls.kind !== 'lost' && ls.kind !== 'done') fitDraw(ctx, img, x + w * 0.62, y + 22 * k, w * 0.34, hh - 30 * k, 3 * k);
+        if (ls.kind === 'ignition' || ls.kind === 'ascent') { ctx.fillStyle = `rgba(255,${150 + Math.round(60 * Math.sin(t * 20))},60,0.5)`; ctx.beginPath(); ctx.arc(x + w * 0.79, y + hh - 16 * k, 8 * k, 0, Math.PI * 2); ctx.fill(); }
       } else if (u) {
         const img = rocketCanvas(C.products[u.product].look, { stages: 1 });
         fitDraw(ctx, img, x + w * 0.55, y + 22 * k, w * 0.4, hh - 30 * k, 3 * k);
@@ -553,6 +562,8 @@ export function aerospacePanel(ui, body, opts = {}) {
     if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
     if (c.workforce < crew) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `👷 ${crew - c.workforce} technicians short — every bay is slower ›`));
     if (c.engineers < A.staffNeeded(c, 'engineer')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `📐 ${A.staffNeeded(c, 'engineer') - c.engineers} engineers short — the drawing office and research are slower ›`));
+    const lsx = A.launchStatus(c);
+    if (lsx && lsx.kind !== 'done') alerts.push(h('button', { class: 'ao-alert', onclick: () => { AO.sel = { kind: 'pad' }; renderDrawer(); } }, `🚀 ${lsx.clock} · ${lsx.text}`));
     if (c.inspectors < A.staffNeeded(c, 'inspector')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🔍 ${A.staffNeeded(c, 'inspector') - c.inspectors} inspectors short — inspections are slower and more get through ›`));
     const ops = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id)).map((t) => ({ t, q: A.bidQuote(c.id, t.id) })).filter((x) => x.q.ok).sort((a, b) => b.q.profit - a.q.profit).slice(0, 3);
     const soon = A.unitsOf(c).filter((u) => u.contract).sort((a, b) => A.unitDaysLeft(a) - A.unitDaysLeft(b)).slice(0, 4);
@@ -615,7 +626,15 @@ export function aerospacePanel(ui, body, opts = {}) {
     const list = apronUnits();
     return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, `${A.apronUsed(c)} OF ${c.apron} STANDS`), h('h2', {}, 'The finished-aircraft apron'), muted(C.facilities.apron.text)),
       ...(list.length ? list.map((u) => h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, pic(A.unitLook(u), 70, 40), h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, `${customerOf(u) || ''} · ${u.blocker?.text || 'waiting for the customer\'s crew'}`)), '›')) : [muted('No aircraft waiting for their customers.')]),
-      A.apronUsed(c) >= c.apron ? h('div', { class: 'ao-alert' }, '⚠ The apron is full: finished aircraft wait in their bays until a stand is free.') : null].filter(Boolean);
+      A.apronUsed(c) >= c.apron ? h('div', { class: 'ao-alert' }, '⚠ The apron is full: finished aircraft wait in their bays until a stand is free.') : null,
+      fieldSection(c)].filter(Boolean);
+  };
+
+  /** Starling Field: the runway in use and what is leaving (src/aero/field.js). */
+  const fieldSection = (c) => {
+    const fs = A.fieldStatus(c);
+    const rows = fs.list.map((m) => h('div', { class: 'ao-row' }, h('div', { class: 'grow' }, h('b', {}, `${m.name}${m.owner ? ` · ${m.owner}` : ''}`), h('small', { class: m.state === 'takeoff' || m.state === 'airborne' ? 'pos' : '' }, m.label)), m.left != null ? h('small', {}, `${Math.max(1, Math.round(m.left))} min`) : null));
+    return section('Starling Field', h('div', { class: 'ao-kpis two' }, kpi('Runway in use', fs.rwy), kpi('Movements', String(c.stats?.delivered || 0), '', 'aircraft delivered')), ...(rows.length ? rows : [muted('Nothing on the move. When a customer\'s crew collects an aircraft it is pushed back, taxis to the runway and leaves.')]));
   };
 
   const padView = () => {
@@ -626,9 +645,11 @@ export function aerospacePanel(ui, body, opts = {}) {
       return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'PAD 2 · SURVEYED SITE'), h('h2', {}, f.name), muted(f.text)),
         c.building?.pad ? h('div', { class: 'ao-alert' }, `🏗 Being built — ready ${A.when(c.building.pad)}`) : btn(`Build it · ${money(f.build)} · ${f.buildDays} days`, () => act(() => A.buildFacility(c, 'pad')), 'primary big', !A.canAfford(c, f.build))];
     }
+    const ls = A.launchStatus(c);
     return [h('div', { class: 'ao-hero' }, h('div', { class: 'ao-kicker' }, 'LAUNCH COMPLEX'), h('h2', {}, 'Pad 2'), muted('One launch at a time; two days to refurbish after each.')),
+      ls ? h('div', { class: ls.kind === 'lost' ? 'ao-alert' : 'ao-card event' }, h('b', {}, `${ls.clock} · ${ls.text}`), h('small', {}, ls.kind === 'rollout' ? ' The crawler takes half an hour to reach the pad; the deck stays bare until it does.' : ls.kind === 'countdown' ? ' Walk to the pad (the ground station\'s gate is the best seat) and watch it go.' : '')) : null,
       u ? h('button', { class: 'ao-row', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, A.stageOf(u)?.name || '')), '›') : muted(c.pad.readyAt > A.now ? `Refurbishing until ${A.when(c.pad.readyAt)}.` : 'Clear and ready.'),
-      section('Launch record', h('div', { class: 'ao-kpis two' }, kpi('Launches', String(c.stats?.launches || 0)), kpi('Lost', String(c.stats?.launchFailures || 0), c.stats?.launchFailures ? 'neg' : '')))];
+      section('Launch record', h('div', { class: 'ao-kpis two' }, kpi('Launches', String(c.stats?.launches || 0)), kpi('Lost', String(c.stats?.launchFailures || 0), c.stats?.launchFailures ? 'neg' : '')))].filter(Boolean);
   };
 
   const storesView = () => {

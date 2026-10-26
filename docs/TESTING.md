@@ -42,6 +42,8 @@
 | `aerospace_staff.test.mjs` | People and quality (v0.57.0): headcounts and wages for three roles, engineer and inspector drag with floors, experience gain/dilution and its effect on speed and quality, training costs and diminishing returns, the quality breakdown adding up, inspection log, Meridian hiring and training. |
 | `aerospace_config.test.mjs` | Product configuration (v0.57.0): groups per product, `configure` (whole lots of materials the line uses, days, price within 1.4–1.7× cost, quality, needs, spec, effects), customers' wishes fixed by tender id (not the dice), config travelling tender → contract → unit → aircraft, research gating, the five-aircraft cap. |
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
+| `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
+| `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
 | `casino_rogue.test.mjs` | The Spade's Gambit (and its magic, v0.54.0: the Phantom, every Marvel, every Spell, the Gift): seeded runs, the scoring and its fixed order (hand Curios in held order, card Curios per card), every Ink, the Curios, the Twists, a run's flow (lost, won Tricks and Sparks, Finales clearing Acts, the outright win), every card in exactly one place, the Cabinet's prices and limits, the books (buy-in once, paid once, a run kept across leaving and save/load), a balance range for a greedy bot. |
 | `character_morganius.test.mjs`, `character_octavius.test.mjs` | The two imported casino characters: looks, protection and Wraths, floating and card-magic states, schedules, dialogue, the cage topic, signature cars and weapons, saves. |
 | `content.test.mjs` | Validator passes and catches injected errors, songs compile into whole bars, every major character has motif/voice/personality, **no network or external AI usage anywhere in `src/` or `index.html`**. |
@@ -49,6 +51,12 @@
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.58.0 (2026-10-26)
+
+- `npm run check` — **530/530 tests passed** (30 new across `aerospace_flight` and `aerospace_launch`); `npm run smoke` — 25/25.
+- Simulation (Node, 60 game days, Meridian alone): unchanged economics (the departures and launches add minutes, not money); 5 launches, 47 deliveries, no exceptions.
+- Browser (headless Chromium, the built `index.html`): an aircraft pushed back, taxiing, rolling (runway 27 and 09), climbing; a sortie of the test Kestrel and its landing (final, touchdown, braking, taxi in); a rocket on the crawler, on the pad, the countdown board, ignition by day and night, lift-off, the trail, stage separation, a loss; a convoy on the service road and Meridian Way; the terminal with a countdown running. No page errors. Screenshots: `docs/mockups/v058-*.png`.
 
 ## Verification record — v0.57.0 (2026-10-24)
 

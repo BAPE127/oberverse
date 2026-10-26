@@ -118,7 +118,7 @@ export const dlgAilie = {
   topics: [
     {
       id: 't_ailie_testing', label: '"What does a test pilot do?"', keywords: ['test', 'pilot', 'flying', 'fly', 'job'],
-      say: ['Every new aircraft gets flown before it\'s handed over: engine runs, a climb, stalls, a few things the brochure doesn\'t mention. I fly it, I write it up, Rudy fixes what I break.', 'Then the customer\'s crew comes, signs for it, and flies it home off runway 27. Best part of the job: watching one go and knowing it\'s right.'],
+      say: ['Every new aircraft gets flown before it\'s handed over: engine runs, a climb, stalls, a few things the brochure doesn\'t mention. I fly it, I write it up, Rudy fixes what I break.', 'Then the customer\'s crew comes, signs for it, and the tug pushes it back off its stand. They taxi to the threshold, hold short, line up and go. Best part of the job: watching one go and knowing it\'s right.'],
     },
     {
       id: 't_ailie_billie', label: '"Billie says you cheated in the Escarpment Dash."', keywords: ['billie', 'race', 'dash', 'escarpment', 'cheat'],
@@ -126,7 +126,11 @@ export const dlgAilie = {
     },
     {
       id: 't_ailie_runway', label: '"Tell me about the runway."', keywords: ['runway', 'airfield', 'tower', 'taxi', 'apron'],
-      say: ['Runway 09/27, four and a half thousand feet of it, plenty for anything we build short of the big bombers — they use the whole thing and a prayer. Taxiway Alpha along the north, both aprons off it. Tower\'s south of the field. Wind\'s mostly west, so we take off on 27 and land on 27, and watch the refinery flare for gusts.'],
+      say: ['Runway 09/27, four and a half thousand feet of it, plenty for anything we build short of the big bombers — they use the whole thing and a prayer. Taxiway Alpha along the north, both aprons off it. Tower\'s south of the field. Wind\'s mostly from the west, so most days we use 09 — take off towards the sea, land the same way — and on an east-wind day it\'s 27. Look at the windsocks; they\'re never wrong. One runway, one aircraft at a time, and the tower is very firm about it.'],
+    },
+    {
+      id: 't_ailie_sorties', label: '"I saw the test aircraft go out."', keywords: ['sortie', 'sorties', 'flight', 'went', 'jet', 'kestrel', 'out', 'away', 'back'],
+      say: ['That was me, or the jet if Dr. Hale had a meeting somewhere with a better view. The Kestrel does its sorties between nine and three — twenty minutes up, a few things I won\'t describe near the tower — and the Swift goes off on trips that run most of the day. Look for their stands: when they\'re empty, we\'re out.'],
     },
   ],
   askAbout: [
@@ -179,12 +183,16 @@ export const dlgTina = {
       say: ['A launch vehicle\'s built in the integration building, certified, then it goes to the pad: stacked vertically, propellant loaded — the kerosene comes from Ober\'s Oil — final checks, countdown, and then up.', 'Satellites ride on top. They\'re integrated on the pad, and they only start working after commissioning in orbit — a satellite that\'s merely "built" is just very expensive furniture. One launch at a time; two days to refurbish the pad after each.'],
     },
     {
+      id: 't_tina_watch', label: '"Where\'s the best place to watch a launch?"', keywords: ['watch', 'see', 'view', 'viewing', 'crawler', 'clock', 'board', 'T-minus', 'countdown', 'safe'],
+      say: ['When a vehicle comes out of the integration building it rides the crawler out to the pad — half an hour at walking pace, standing up the whole way. Then the board by the pad shows the clock. Twenty minutes to go, the last five with the engines lit.', 'The gate south of the pad is as close as I allow, and you\'ll feel it in your chest even there. Further back you\'ll hear it and see the trail. Do not stand in the flame trench. I have to say that. Someone tried.'],
+    },
+    {
       id: 't_tina_failure', label: '"Do launches ever fail?"', keywords: ['fail', 'failure', 'explode', 'lost', 'risk'],
       say: ['Sometimes. A good vehicle built well fails rarely; a rushed one less rarely. When one goes, it takes its payload with it, and the customer isn\'t charged. Nobody\'s ever been hurt on my range. That\'s the number I care about.'],
     },
     {
       id: 't_tina_missiles', label: '"Do you launch the strategic products?"', keywords: ['missile', 'strategic', 'sentinel', 'bastion', 'defence'],
-      say: ['Never. Those are a defence agency\'s procurement item: built in the secure hall and delivered inert by secure convoy to the agency\'s depot. They don\'t come near my pad. My pad is for satellites, and I like it that way.'],
+      say: ['Never. Those are a defence agency\'s procurement item: built in the secure hall and delivered inert by secure convoy to the agency\'s depot — out of the hall, along the service road, up Meridian Way and away down the Cut with an escort front and back. They don\'t come near my pad. My pad is for satellites, and I like it that way.'],
     },
   ],
   askAbout: [

@@ -27,9 +27,9 @@ import { configure, cleanConfig, configError, configLabel } from '../aero/config
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
-import { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
-import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt } from '../aero/launch.js';
-import { windRunway } from '../aero/flight.js';
+import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
+import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
+import { windRunway, poseAt, planLength } from '../aero/flight.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
@@ -1737,6 +1737,42 @@ export class Aerospace {
     return ambientHome(this, id);
   }
 
+  /** What the pad is doing for the terminal: a crawler on its way, a countdown, a climb — or null. */
+  launchStatus(co) {
+    if (!co?.pad) return null;
+    const L = this.cfg.flight.launch;
+    const now = this.now;
+    const roll = co.pad.roll;
+    if (roll && now < roll.t1) return { kind: 'rollout', clock: `${Math.max(1, Math.round(roll.t1 - now))} min`, text: 'On the crawler, rolling out to the pad.', left: roll.t1 - now };
+    const seq = co.pad.seq;
+    if (!seq || now >= seq.end + 0.5) return null;
+    const ph = phaseAt(L, seq, now);
+    const text = { countdown: 'Counting down.', ignition: 'Engines lit.', ascent: ph.sep ? 'Second stage burning.' : 'Climbing.', lost: 'A vehicle lost.', done: 'Away.' }[ph.phase];
+    return { kind: ph.phase, clock: ph.phase === 'lost' ? 'ABORT' : clockText(ph.t), text, seq, ph };
+  }
+
+  /**
+   * The field as the terminal shows it: the runway in use and every aircraft of this company's
+   * that is waiting to leave, leaving or just gone (with what it is doing now).
+   */
+  fieldStatus(co) {
+    const f = this.state.field;
+    const now = this.now;
+    const out = [];
+    for (const id of f?.active || []) {
+      const ac = this.state.aircraft[id];
+      if (!ac || ac.manufacturer !== co.id || ac.ambient) continue;
+      const P = this.cfg.products[ac.model];
+      const cust = this.cfg.customers[ac.owner]?.name || null;
+      if (ac.move && now >= ac.move.t0) {
+        const p = poseAt(planOf(this, ac), now - ac.move.t0);
+        out.push({ id, name: P.name, owner: cust, state: ac.state, label: p.label, rwy: ac.move.rwy, left: Math.max(0, ac.move.t0 + planLength(planOf(this, ac)) - now) });
+      } else if (ac.move) out.push({ id, name: P.name, owner: cust, state: ac.state, label: `cleared to leave ${this.when(ac.move.t0)}`, rwy: ac.move.rwy, left: null });
+      else out.push({ id, name: P.name, owner: cust, state: ac.state, label: 'waiting for its crew', rwy: null, left: null });
+    }
+    return { rwy: windRunway(this.day), list: out };
+  }
+
   /** Secure convoys on the road, for the renderer. */
   convoys() {
     return convoys(this);
@@ -1800,7 +1836,9 @@ export class Aerospace {
       const pf = launchFailChance(p, this.qualityOf(co));
       u.seq = startSequence(L, u, this.now, u.rolls.launch >= pf, Math.round(pf * 100));
       co.pad.seq = { ...u.seq, unit: u.id, look: p.look, name: p.name, company: co.id };
-      this.news(`🚀 ${co.name} is counting down a ${p.name} at Starling Flats — lift-off in ${L.countdownMin} minutes.`, co.kind === 'player' ? 'good' : 'info');
+      const msg = `🚀 ${co.name} is counting down a ${p.name} at Starling Flats — lift-off in ${L.countdownMin} minutes.`;
+      this.news(msg, co.kind === 'player' ? 'good' : 'info');
+      this.report(co, 'launch', co.kind === 'player' ? `${msg} The pad is south-east of the Park, behind the fence; the ground station's gate is the best seat.` : msg, co.kind === 'player' ? 'good' : null);
     }
     u.status = 'pad';
     if (this.now < u.seq.end) {
