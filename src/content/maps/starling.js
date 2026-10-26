@@ -215,6 +215,12 @@ export const starlingFlats = {
   ambience: 'amb_fields',
   tiles: m.rows(),
   airfield,
+  // v0.58.0: how a rocket gets to its pad. The crawler leaves the integration building (Meridian) or the launch complex's gate
+  // (Roost, whose rockets come in by road) and follows these waypoints (tiles), then the last stretch to the foot of the pad.
+  launch: {
+    meridian: { rollout: [[130, 96.3], [130, 96.8], [137.5, 96.8], [137.5, 90.8], [155, 90.8]] },
+    roost: { rollout: [[141.5, 105.9], [141.5, 101.3], [169, 101.3]] },
+  },
   areas: [
     { id: 'area_starling', name: 'Starling', x: 0, y: 0, w: 150, h: 13 },
     { id: 'area_mesa_road', name: 'Mesa Road', x: 0, y: 13, w: 150, h: 6 },

@@ -8,6 +8,8 @@ import { drawFields } from './drawFarm.js';
 import { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
 import { drawAircraft } from './drawAero.js';
+import { drawCrawler, drawBoard, drawPadFx, drawSky, launchLight } from './drawLaunch.js';
+import { shakeAt } from '../aero/launch.js';
 import { lookOf, isGunLook } from './drawPixelWeapons.js';
 import { drawTrail } from './drawSignatureCars.js';
 import { drawCharacter, setPixelPeople, rrect } from './drawCharacter.js';
@@ -365,7 +367,7 @@ export class Renderer {
     // explosions shake the camera
     // v0.44.0: and so do gunshots, hard hits and getting hurt (combat.kick)
     const cs = g.combat.shake;
-    const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0);
+    const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0, this.launchShake(map));
     const shx = shake ? (Math.random() - 0.5) * shake : 0;
     const shy = shake ? (Math.random() - 0.5) * shake : 0;
     // v0.46.0: the world is drawn on whole pixels (so it doesn't shimmer) and the finished picture
@@ -462,7 +464,7 @@ export class Renderer {
         }
       }
       // v0.58.0: the aircraft on Starling Field — on their stands, pushed back, taxiing, rolling, climbing away (src/aero/field.js)
-      if (lm.id === 'starling_flats') this.drawField(items, at, inView);
+      if (lm.id === 'starling_flats') { this.drawField(items, at, inView); this.drawLaunches(items, at, inView, night); }
       // the bus and the traffic (src/systems/transit.js)
       if (g.transit) {
         const models = g.content.vehicles.models;
@@ -510,6 +512,64 @@ export class Renderer {
     this.drawLighting(map);
     this.drawOverlays(map);
     this.drawCrosshair();
+  }
+
+  /** v0.58.0: how hard the ground shakes under the player from a launch (px; the pad's ignition and ascent). */
+  launchShake(map) {
+    if (map.id !== 'starling_flats') return 0;
+    const g = this.game;
+    const L = g.content.aerospace.flight.launch;
+    let m = 0;
+    for (const l of g.aero.launches()) {
+      if (l.kind !== 'sequence') continue;
+      const d = Math.hypot(l.base.x - g.player.x / TILE, l.base.y - g.player.y / TILE);
+      m = Math.max(m, shakeAt(L, l.ph, d));
+    }
+    return m;
+  }
+
+  /** v0.58.0: the launch complex in motion — the crawler, the countdown board, the fire and smoke, the rocket in the sky. */
+  drawLaunches(items, at, inView, night) {
+    const ctx = this.ctx;
+    const g = this.game;
+    const L = g.content.aerospace.flight.launch;
+    const time = g.realTime;
+    for (const l of g.aero.launches()) {
+      const bx = l.base.x * TILE;
+      const by = l.base.y * TILE;
+      if (l.kind === 'rollout') {
+        if (!inView(l.x * TILE - 140, l.y * TILE - 420, 280, 520)) continue;
+        items.push({ y: (l.y + 1.7) * TILE, draw: at(() => drawCrawler(ctx, l, this.time)) });
+        continue;
+      }
+      const reach = (l.ph.h + 14) * TILE;
+      if (inView(bx - 260, by - 120, 520, 420)) {
+        items.push({ y: by + 6 * TILE, draw: at(() => { drawPadFx(ctx, l, L, time); drawBoard(ctx, l, L); }) });
+      }
+      if (l.ph.t >= 0 && inView(bx - 300, by - reach - 300, 600, reach + 500)) items.push({ y: 1e7, draw: at(() => drawSky(ctx, l, L, time, night)) });
+    }
+  }
+
+  /** v0.58.0: the lights of the field and the pad at night: landing lights, the launch's glare. */
+  fieldLights(hole, warm) {
+    const g = this.game;
+    const L = g.content.aerospace.flight.launch;
+    for (const l of g.aero.launches()) {
+      if (l.kind !== 'sequence') continue;
+      const li = launchLight(l, L);
+      if (li) { hole(li.x * TILE, li.y * TILE, li.r * TILE, li.s); warm.push([li.x * TILE, li.y * TILE, li.r * TILE * 0.5]); }
+      if (l.ph.phase !== 'done') hole((l.base.x + 3.4) * TILE, (l.base.y + 2.4) * TILE, 70, 0.8); // the countdown board is lit
+    }
+    for (const m of g.aero.movers()) {
+      if (m.state === 'awaiting_delivery' || m.state === 'parked') continue;
+      const px = m.x * TILE;
+      const py = m.y * TILE - m.alt * TILE;
+      const fx = Math.sin(m.a);
+      const fy = -Math.cos(m.a);
+      const half = m.look.len * TILE / 2;
+      hole(px + fx * (half + 60), py + fy * (half + 60) - 4, 70 + (m.state === 'takeoff' ? 30 : 0), 0.7);
+      hole(px, py, 40, 0.4);
+    }
   }
 
   /** v0.58.0: the aircraft on the field. Those on the ground sort among the props by their tail; those in the air are drawn over everything. */
@@ -1075,6 +1135,7 @@ export class Renderer {
         hole(f.x + cs * (f.len / 2 + 40), f.y + sn * (f.len / 2 + 40) - 4, 60, 0.6);
         if (f.kind === 'bus') hole(f.x, f.y - 8, 80, 0.5); // a lit bus interior
       }
+      if (map.id === 'starling_flats') this.fieldLights(hole, warm);
       // headlights: a pool of light ahead of the car you're driving
       const car = g.vehicles?.driving();
       if (car) {

@@ -28,6 +28,8 @@ import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
 import { assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf } from '../aero/field.js';
+import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt } from '../aero/launch.js';
+import { windRunway } from '../aero/flight.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
@@ -859,7 +861,7 @@ export class Aerospace {
   retire(u, why) {
     const co = this.company(u.company);
     if (u.bay) this.freeBay(co, u);
-    if (co.pad?.unit === u.id) co.pad.unit = null;
+    if (co.pad?.unit === u.id) { co.pad.unit = null; if (co.pad.roll?.unit === u.id) co.pad.roll = null; }
     for (const [m, n] of Object.entries(u.reserved)) {
       const r = co.inv[m];
       if (r) r.reserved = Math.max(0, r.reserved - n);
@@ -1543,11 +1545,21 @@ export class Aerospace {
     }
     if (s.wait === 'pad') {
       if (!co.pad) { u.status = 'blocked'; u.blocker = { kind: 'pad', text: 'no launch pad' }; return; }
-      if (co.pad.unit || co.pad.readyAt > this.now) { u.status = 'blocked'; u.blocker = { kind: 'pad', text: co.pad.unit ? 'the pad is busy' : `the pad is being refurbished until ${this.when(co.pad.readyAt)}` }; return; }
-      this.freeBay(co, u);
-      co.pad.unit = u.id;
+      if (!u.rollout) {
+        if (co.pad.unit || co.pad.readyAt > this.now) { u.status = 'blocked'; u.blocker = { kind: 'pad', text: co.pad.unit ? 'the pad is busy' : `the pad is being refurbished until ${this.when(co.pad.readyAt)}` }; return; }
+        // out of the integration building on the crawler (v0.58.0): it takes the pad now and the road to it a half hour
+        this.freeBay(co, u);
+        co.pad.unit = u.id;
+        this.assignPayloads(co, u);
+        const L = this.cfg.flight.launch;
+        u.rollout = { t0: this.now, t1: this.now + L.rolloutMin };
+        co.pad.roll = { ...u.rollout, unit: u.id, look: this.pOf(u).look };
+        u.status = 'pad';
+        if (co.kind === 'player') this.news(`🚀 ${this.pOf(u).name} leaves ${co.id === 'meridian' ? 'the integration building' : 'the gate'} on the crawler, bound for the pad.`, 'info');
+      }
       u.status = 'pad';
-      this.assignPayloads(co, u);
+      if (this.now < u.rollout.t1) { u.blocker = { kind: 'pad', text: `on the crawler, ${Math.max(1, Math.round(u.rollout.t1 - this.now))} min from the pad` }; return; }
+      co.pad.roll = null;
       return this.advance(co, u);
     }
     if (s.wait === 'rocket') {
@@ -1601,7 +1613,7 @@ export class Aerospace {
         const ready = payload.length && payload.every((x) => this.stageOf(x)?.wait === 'launched');
         if (!ready) { u.status = 'pad'; u.blocker = { kind: 'payload', text: payload.length ? 'holding for its satellites to be integrated' : 'holding for a payload' }; return; }
       }
-      return this.launch(co, u);
+      return this.countdown(co, u);
     }
     if (s.event === 'settle') return this.settle(co, u);
     if (s.event === 'activate') {
@@ -1676,6 +1688,39 @@ export class Aerospace {
     return movers(this);
   }
 
+  /**
+   * The launch complex right now, for the renderer (src/engine/drawLaunch.js): for each pad a
+   * crawler on its way, or a launch sequence (and the smoke it leaves behind a while).
+   */
+  launches() {
+    const out = [];
+    const s = this.state;
+    const now = this.now;
+    const L = this.cfg.flight.launch;
+    const map = this.game.content.maps[this.A.map];
+    const wind = windRunway(this.day) === '09' ? 1 : -1;
+    for (const co of this.companies()) {
+      if (!co.pad) continue;
+      const prop = map.props.find((p) => p.type === 'launch_pad' && (p.aero?.company || p.company) === co.id);
+      if (!prop) continue;
+      const base = padBase(prop);
+      const roll = co.pad.roll;
+      if (roll && now < roll.t1) {
+        const way = map.launch?.[co.id]?.rollout;
+        if (way) {
+          const key = `${co.id}|${way.length}`;
+          const paths = (this._rolls ||= {});
+          const path = (paths[key] ||= rolloutPath(way, base));
+          out.push({ kind: 'rollout', company: co.id, look: roll.look, base, ...rolloutAt(path, roll, now) });
+        }
+      }
+      const seq = co.pad.seq;
+      if (seq && now < seq.end + L.trailLife + 1) out.push({ kind: 'sequence', company: co.id, look: seq.look, base, seq, ph: phaseAt(L, seq, now), wind, now });
+    }
+    void s;
+    return out;
+  }
+
   /** Clear a finished aircraft to leave: it starts when the field is free (returns the time). */
   clearForDeparture(ac) {
     return scheduleDeparture(this, ac);
@@ -1706,9 +1751,9 @@ export class Aerospace {
   launch(co, u) {
     const C = this.cfg;
     const p = this.pOf(u);
-    const pf = launchFailChance(p, this.qualityOf(co));
-    const success = u.rolls.launch >= pf;
-    u.launch = { at: this.now, success, chance: Math.round(pf * 100) };
+    const pf = u.seq ? u.seq.chance / 100 : launchFailChance(p, this.qualityOf(co));
+    const success = u.seq ? u.seq.success : u.rolls.launch >= pf;
+    u.launch = { at: u.seq ? u.seq.lift : this.now, success, chance: Math.round(pf * 100) };
     co.stats.launches += 1;
     co.pad.launches += 1;
     co.pad.unit = null;
@@ -1726,6 +1771,28 @@ export class Aerospace {
       this.news(`💥 A ${co.name} ${p.name} is lost shortly after lift-off from Starling Flats, with ${what}.`, 'warn');
       this.failUnit(co, u, 'launch failure');
     }
+  }
+
+  /**
+   * The launch step (v0.58.0): the countdown, then the ascent, then the outcome. The sequence is
+   * fixed when the countdown starts (src/aero/launch.js), shown on the pad, and booked when it ends.
+   */
+  countdown(co, u) {
+    const L = this.cfg.flight.launch;
+    const p = this.pOf(u);
+    if (!u.seq) {
+      const pf = launchFailChance(p, this.qualityOf(co));
+      u.seq = startSequence(L, u, this.now, u.rolls.launch >= pf, Math.round(pf * 100));
+      co.pad.seq = { ...u.seq, unit: u.id, look: p.look, name: p.name, company: co.id };
+      this.news(`🚀 ${co.name} is counting down a ${p.name} at Starling Flats — lift-off in ${L.countdownMin} minutes.`, co.kind === 'player' ? 'good' : 'info');
+    }
+    u.status = 'pad';
+    if (this.now < u.seq.end) {
+      u.blocker = { kind: 'launch', text: this.now < u.seq.lift ? `counting down: lift-off ${this.when(u.seq.lift)}` : 'in flight' };
+      return;
+    }
+    u.blocker = null;
+    return this.launch(co, u);
   }
 
   lostInLaunch(co, u) {
@@ -2230,6 +2297,8 @@ export class Aerospace {
       if (!co?.pad) return { key: co?.building?.pad ? 'construction' : 'site', site: true };
       const u = co?.pad?.unit && this.state.units[co.pad.unit];
       if (!u) return { key: 'empty' };
+      if (u.rollout && this.now < u.rollout.t1) return { key: 'rollout' }; // still on the crawler: the deck is bare
+      if (u.seq && this.now >= u.seq.lift) return { key: `away|${u.id}`, away: true }; // lifted off
       const rp = this.pOf(u);
       const st = this.stageOf(u);
       const stages = st?.id === 'vertical' ? Math.min(1, 0.2 + 0.8 * (u.work / Math.max(0.001, u.need))) : 1;
@@ -2243,7 +2312,7 @@ export class Aerospace {
         return { key: 'none' };
       }
       let u = null;
-      if (p.aero.pad) u = this.unitsOf(co).find((x) => x.line === 'rocket' && this.stageOf(x)?.wait === 'pad');
+      if (p.aero.pad) u = this.unitsOf(co).find((x) => x.line === 'rocket' && this.stageOf(x)?.wait === 'pad' && !x.rollout);
       else {
         const bay = co.bays.find((b) => (p.aero.slot ? b.slot === p.aero.slot : b.id === p.aero.bay));
         if (!bay) return { key: p.aero.slot ? 'vacant' : 'closed', closed: true, vacant: Boolean(p.aero.slot) };

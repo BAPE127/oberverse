@@ -93,7 +93,7 @@ export function windHeading(day) {
 
 // ------------------------------------------------------------------ paths
 /** A polyline with its corners rounded (a quadratic curve cut `r` tiles in), measured by distance. */
-function route(pts, r = 0) {
+export function route(pts, r = 0) {
   const out = [pts[0]];
   for (let i = 1; i < pts.length - 1; i++) {
     const a = pts[i - 1];
@@ -120,7 +120,7 @@ function route(pts, r = 0) {
 }
 
 /** The point `d` tiles along a route, and the heading there. */
-function along(path, d) {
+export function along(path, d) {
   const dd = clamp(d, 0, path.len);
   let i = 1;
   while (i < path.cum.length - 1 && path.cum[i] < dd) i++;

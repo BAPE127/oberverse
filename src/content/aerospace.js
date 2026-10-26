@@ -124,6 +124,13 @@ export const FLIGHT = {
   vtolRise: 3, vtolAlt: 4, vtolSpeed: 16,
   touchdown: 14, finalTiles: 50, finalMin: 6, finalAlt: 7,
   stagger: 9, // minutes between one aircraft starting its movement and the next (one runway, one taxiway)
+  // launches: the crawler's rollout to the pad, the countdown (the last minutes with engines lit), the ascent, a failure's moment
+  launch: {
+    rolloutMin: 30, countdownMin: 20, ignitionMin: 5, ascentMin: 12, accel: 0.34, // accel: tiles a minute², from lift-off
+    failFrom: 1.5, failSpan: 5, aftermath: 3, sepAt: 5,
+    cloudLife: 9, cloudMin: 4, puffGround: 0.16, cloudSpeed: 0.9, trailLife: 14, puffTrail: 0.2,
+    shakeRange: 70,
+  },
 };
 
 /**
