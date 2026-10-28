@@ -7,6 +7,7 @@
 import { hashUnit } from './config.js';
 import { makeTender } from './tenders.js';
 import { quantityError, baysFor, fmtMoney } from './catalog.js';
+import { resolveDebris } from './fleet.js';
 
 const cooled = (A, co, kind, days) => (A.day - (co.cool?.[kind] ?? -1e9)) >= days;
 const stamp = (A, co, kind) => { (co.cool ||= {})[kind] = A.day; };
@@ -24,7 +25,7 @@ export function eventsMorning(A, co) {
 
 // ---------------------------------------------------------------- major orders (real tenders on the shared board)
 /** Post a tender for a customer's named product; the customer's budget is committed like any tender's. */
-function postEventTender(A, customerId, product, qty, kind, E) {
+export function postEventTender(A, customerId, product, qty, kind, E) {
   const C = A.cfg;
   const st = A.state.customers[customerId];
   const t = makeTender(C, A.rng, { id: A.nextId('T'), customerId, state: st, day: A.day, embargoed: A.embargoed(customerId), force: { product, qty } });
@@ -147,6 +148,7 @@ export function resolveEvent(A, co, eventId, choiceId) {
   const e = (co.events || []).find((x) => x.id === eventId);
   if (!e) return { ok: false, text: 'No such event.' };
   if (e.resolved) return { ok: false, text: 'That has already been decided.' };
+  if (e.kind === 'debris') return resolveDebris(A, co, e, choiceId);
   const U = A.cfg.events.audit;
   const ch = e.choices.find((c) => c.id === choiceId);
   if (!ch) return { ok: false, text: 'No such choice.' };
@@ -165,6 +167,7 @@ function expireEvents(A, co) {
   const U = A.cfg.events.audit;
   for (const e of co.events || []) {
     if (e.resolved || e.expires >= A.day) continue;
+    if (e.kind === 'debris') { resolveDebris(A, co, e, 'risk'); continue; } // nobody decided: the dice (a hash) decide
     const fine = U.fine + U.finePerTech * co.workforce;
     A.pay(co, fine, 'penalties');
     e.resolved = { at: A.now, choice: 'ignored' };

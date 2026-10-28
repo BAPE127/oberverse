@@ -30,6 +30,7 @@ import { rivalMorning } from '../aero/rival.js';
 import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
 import { windRunway, poseAt, planLength } from '../aero/flight.js';
+import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay } from '../aero/fleet.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
@@ -172,7 +173,7 @@ export class Aerospace {
       inv: {}, books: freshBooks(),
       stats: { delivered: 0, onTime: 0, late: 0, failedInspections: 0, launches: 0, launchFailures: 0, contractsWon: 0, tendersBid: 0, cancelled: 0 },
       apron: C.facilities.apron.slots[id] || 3,
-      autoProcure: true,
+      autoProcure: true, insured: false, autoReplace: false, // v0.59.0: the fleet policies
       overhead: kind === 'rival' ? def.overhead : 600,
       // v0.56.0: how foreign materials travel — 'internal' (your own Ober & Sons ships, when you own the line) or 'carrier';
       // with policy 'fallback' a job that can't find a ship in a day goes by carrier, with 'wait' it waits for one
@@ -1881,20 +1882,9 @@ export class Aerospace {
     this.advance(co, u);
   }
 
-  /** The satellite joins the registry: owned by its customer, built and operated by the company. */
+  /** The satellite joins the registry: owned by its customer (built and supported by the company) or by the company (src/aero/fleet.js). */
   activate(co, u) {
-    const s = this.state;
-    const p = this.pOf(u);
-    const c = this.contract(u.contract);
-    const id = this.nextId('SAT');
-    s.satellites[id] = {
-      id, name: `${p.name.split(' ')[0]}-${String(Object.keys(s.satellites).length + 1).padStart(2, '0')}`, product: u.product, role: p.role,
-      owner: c?.customer || co.id, manufacturer: co.id, contract: u.contract, unit: u.id, rocket: u.rocket,
-      launched: this.state.units[u.rocket]?.launch?.at ?? this.now, commissioned: this.now, status: u.commissioning?.partial ? 'degraded' : 'operational',
-      capability: u.commissioning?.partial ? 0.5 : 1, lifeDays: p.life, endsAt: this.now + p.life * DAY,
-    };
-    u.satellite = id;
-    milestone(this, co, 'first_satellite', p.name);
+    return activateSatellite(this, co, u);
   }
 
   /** Delivery is complete: the customer pays the rest of the price, once. */
@@ -1902,6 +1892,12 @@ export class Aerospace {
     const C = this.cfg;
     const c = this.contract(u.contract);
     const p = this.pOf(u);
+    if (u.purpose === 'own') {
+      // a satellite for yourself: its cost is an asset now (the fleet), not a cost of sales
+      this.retire(u, 'delivered');
+      u.status = 'delivered';
+      return;
+    }
     if (!c) {
       // an internal launcher: its cost was the price of putting satellites up
       this.retire(u, 'delivered');
@@ -2086,13 +2082,23 @@ export class Aerospace {
     }
   }
 
-  /** Satellites age; at the end of their life they're decommissioned (and stop earning). */
+  /** Every morning the sky is looked at: ageing, losses, what the networks sell, support fees, running costs (src/aero/fleet.js). */
   satelliteDay() {
-    for (const sat of Object.values(this.state.satellites)) {
-      if (['decommissioned', 'failed'].includes(sat.status)) continue;
-      if (this.now >= sat.endsAt) { sat.status = 'decommissioned'; sat.decommissioned = this.now; }
-    }
+    satelliteDay(this);
   }
+
+  /** A non-cash charge booked to an account (depreciation). */
+  postExpense(co, account, amount) {
+    if (amount > 0) post(co.books, this.day, account, Math.round(amount), this.A.historyDays);
+  }
+
+  orderSatellite(co, pid, qty, config) { return orderSatellite(this, co, pid, qty, config); }
+  cancelOwnOrder(co, unitId) { return cancelOrder(this, co, unitId); }
+  decommissionSatellite(co, satId) { return decommission(this, co, satId); }
+  setFleetPolicy(co, key, on) { return setPolicy(this, co, key, on); }
+  networkReport(co) { return networkReport(this, co); }
+  orderForecast(co, pid) { return orderForecast(this, co, pid); }
+  fleetOf(co) { return fleetOf(this, co); }
 
   // ------------------------------------------------------------- MRDN on the exchange
   /** Meridian's equity: cash (less drawn credit), inventory, plant, less what it owes in work (deposits). */
@@ -2288,9 +2294,22 @@ export class Aerospace {
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
+      co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false;
     }
     this.migrateHalls();
     migrateField(this);
+    // v0.59.0: satellites from before the services carry what they need to earn (support fees for a customer's)
+    s.orbit ||= { mult: {}, cool: {} };
+    for (const sat of Object.values(s.satellites || {})) {
+      const p = this.cfg.products[sat.product];
+      if (!p) continue;
+      sat.service ||= { ...(p.service || {}) };
+      sat.price ??= p.price;
+      sat.opex ??= p.opex || 0;
+      sat.own ??= false;
+      sat.hardened ??= false;
+      sat.revenueTotal ??= 0; sat.supportTotal ??= 0;
+    }
   }
 
   /**

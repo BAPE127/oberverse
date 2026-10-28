@@ -247,6 +247,51 @@ export const EVENTS = {
     first_satellite: { name: 'First satellite in orbit', rep: 3, text: 'a satellite commissioned in orbit' },
     first_government: { name: 'First government order delivered', rep: 2, text: 'a major order for the state, delivered in full' },
     first_constellation: { name: 'First constellation complete', rep: 4, text: 'a whole constellation, delivered on time' },
+    first_own_satellite: { name: 'First satellite of your own', rep: 2, text: 'a satellite that works for you, not a customer' },
+    first_discovery: { name: 'First discovery from orbit', rep: 2, text: 'your science network finds something' },
+  },
+};
+
+/**
+ * Satellite services (v0.59.0). A satellite you build for a customer pays you a support fee for as
+ * long as it lives; one you build for yourself sells what its role makes — bandwidth, imagery,
+ * weather, navigation, grants, power — into a market with its own demand and its own rivals, and a
+ * network of them covers more than one. Satellites age (their capability falls), can be lost
+ * (a daily hazard, fixed by the hash of the satellite and the day), and end their lives. All of it
+ * is arithmetic on the day: src/aero/orbit.js is the pure part; src/systems/aerospace.js books it.
+ *
+ *   roles[r].price   obols per service unit a day; .unit what a unit is; .full how many satellites
+ *                    a complete network of that role needs (.exp: how sharply short of it hurts)
+ *   roles[r].demand/.rivals/.growth/.wave   the market: demand and rival capacity in service units,
+ *                    drifting with the days; what you sell is your share of demand, never more than you can carry
+ *   orbit            how it moves: period (game minutes), inclination (degrees) — drawn on the Orbit page and
+ *                    followed by the ground station's dishes
+ */
+export const SERVICES = {
+  maxOpenOrders: 8,
+  support: { rate: 0.004, warrantyShare: 0.25, warrantyRep: -2, replaceDays: 14, replaceBudgetShare: 0.9 },
+  centre: { cost: 2400, text: 'A network operations centre: controllers, links and the electricity bill, from the first satellite you operate.' },
+  hazard: { base: 0.0011, hardened: 0.5, platform: 0.5, late: 1.6, lateShare: 0.8 },
+  degrade: 0.25, // capability falls linearly to 75% over a satellite's design life
+  insurance: { premium: 0.0007, payout: 0.7 },
+  autoReplaceDays: 12,
+  roles: {
+    comms: { name: 'Communications bandwidth', short: 'Comms', icon: '📡', unit: 'Gbps', full: 4, exp: 0.8, price: 450, demand: 560, rivals: 260, growth: 0.0016, wave: 0.1, orbit: { period: 1436, inc: 0 }, colour: '#5fb0ff', text: 'Phone, broadcast and data relays sold by the gigabit. A network of four covers the world; one covers a continent.' },
+    weather: { name: 'Weather data', short: 'Weather', icon: '🌀', unit: 'feeds', full: 2, exp: 1, price: 24000, demand: 3, rivals: 1, growth: 0.0004, wave: 0.2, orbit: { period: 101, inc: 98 }, colour: '#9ad7ff', text: 'Forecasts for shipping, farms and airlines. Two satellites see every storm; in hurricane season everyone buys.' },
+    earthobs: { name: 'Earth imagery', short: 'Imagery', icon: '🛰', unit: 'scenes', full: 3, exp: 1, price: 800, demand: 240, rivals: 110, growth: 0.0012, wave: 0.12, orbit: { period: 98, inc: 98 }, colour: '#7ee08a', text: 'Crops, ports, pipelines and the coastline, by the scene. More satellites, shorter revisit, better prices.' },
+    nav: { name: 'Navigation & timing', short: 'Navigation', icon: '🧭', unit: 'signals', full: 4, exp: 1.7, price: 30000, demand: 8, rivals: 0, growth: 0.0006, wave: 0.05, orbit: { period: 720, inc: 55 }, colour: '#ffd45f', text: 'Ships, ploughs and phones asking where they are. Under four satellites there are gaps in the sky and nobody pays for gaps.' },
+    science: { name: 'Research grants', short: 'Science', icon: '🔭', unit: 'instrument-points', full: 1, exp: 1, price: 42000, demand: 8, rivals: 3, growth: 0.0004, wave: 0.15, orbit: { period: 240, inc: 30 }, colour: '#c89aff', text: 'Universities and agencies pay for observing time — and now and then something is found.' },
+    defense: { name: 'Government leases', short: 'Defence', icon: '🛡', unit: 'leases', full: 1, exp: 1, price: 38000, demand: 2, rivals: 0, growth: 0, wave: 0, needs: 'cleared', orbit: { period: 480, inc: 63 }, colour: '#ff8a7a', text: 'A government leases the whole satellite and asks nothing about it. Needs clearance.' },
+    platform: { name: 'On-orbit servicing', short: 'Servicing', icon: '🔧', unit: 'platforms', full: 1, exp: 1, price: 52000, demand: 1, rivals: 0, growth: 0, wave: 0, orbit: { period: 110, inc: 51 }, colour: '#ffaa5f', text: 'A servicing platform tops up, repairs and tows: your own satellites are half as likely to be lost, and others pay for the service.' },
+    power: { name: 'Beamed power', short: 'Power', icon: '⚡', unit: 'plants', full: 1, exp: 1, price: 100000, demand: 1, rivals: 0, growth: 0, wave: 0, orbit: { period: 1436, inc: 0 }, colour: '#fff08a', text: 'Sunlight collected in orbit and beamed down as microwaves to a field of receivers.' },
+  },
+  /** Orbit-side events: storms, debris, demand swings, discoveries. Each one comes from the day (a stable hash) and the fleet. */
+  events: {
+    storm: { cooldown: 22, chance: 0.18, hit: 0.15, days: 8, kill: 0.04 },
+    debris: { cooldown: 18, chance: 0.2, decideDays: 3, manoeuvre: 0.04, risk: 0.06, lifeDays: 4 },
+    surge: { cooldown: 25, chance: 0.2, roles: ['weather', 'earthobs'], mult: 1.6, days: 8 },
+    priceWar: { cooldown: 35, chance: 0.15, roles: ['comms', 'earthobs'], mult: 0.82, days: 25 },
+    discovery: { cooldown: 12, perPoint: 0.004, reward: 150000, rep: 1 },
   },
 };
 

@@ -11,7 +11,8 @@ export const ACCOUNTS = {
   rev_rocket: { name: 'Revenue — launch services', kind: 'revenue' },
   rev_missile: { name: 'Revenue — strategic products', kind: 'revenue' },
   rev_satellite: { name: 'Revenue — satellites', kind: 'revenue' },
-  rev_services: { name: 'Revenue — satellite services', kind: 'revenue' },
+  rev_services: { name: 'Revenue — satellite services & support', kind: 'revenue' },
+  rev_claims: { name: 'Insurance claims paid', kind: 'revenue' },
   cogs_materials: { name: 'Materials (cost of units delivered)', kind: 'cost' },
   cogs_freight: { name: 'Freight & logistics (on units delivered)', kind: 'cost' },
   cogs_freight_internal: { name: 'Freight in your own ships (internal charge, on units delivered)', kind: 'cost', internal: true },
@@ -24,6 +25,8 @@ export const ACCOUNTS = {
   rework: { name: 'Quality & rework', kind: 'cost' },
   launch: { name: 'Launch costs (range, refurbishment)', kind: 'cost' },
   sat_ops: { name: 'Satellite operations', kind: 'cost' },
+  depreciation: { name: 'Depreciation of the satellite fleet', kind: 'cost', noncash: true },
+  insurance: { name: 'Fleet insurance', kind: 'cost' },
   penalties: { name: 'Late penalties & cancellations', kind: 'cost' },
   interest: { name: 'Interest', kind: 'cost' },
   hiring: { name: 'Hiring & layoffs', kind: 'cost' },
@@ -31,7 +34,7 @@ export const ACCOUNTS = {
 };
 
 export function freshBooks() {
-  return { totals: {}, days: [], deferred: 0, inventoryValue: 0, capex: 0 };
+  return { totals: {}, days: [], deferred: 0, inventoryValue: 0, capex: 0, fleet: 0 };
 }
 
 /** Post an amount (positive) to an account on a day. */
