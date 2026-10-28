@@ -382,7 +382,8 @@ export class Renderer {
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
-    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1; // v0.58.0: the windsocks and the runway in use
+    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
+    this.dishTrack = g.player.map === 'starling_flats' ? g.aero.groundPass() : null; // v0.59.0: what the ground station's dishes follow // v0.58.0: the windsocks and the runway in use
     const items = [];
     // Draw the current map and its seamless neighbours, each at its offset.
     for (const L of this.layers) {
@@ -403,7 +404,7 @@ export class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+          drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
         const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
@@ -435,7 +436,7 @@ export class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus

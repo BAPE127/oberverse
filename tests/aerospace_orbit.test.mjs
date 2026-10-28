@@ -325,3 +325,31 @@ test('auto-replace puts a successor on the floor when your own satellite is near
   satelliteDay(A);
   assert.equal(A.fleetOf(co).orders.length, n0 + 1, 'once');
 });
+
+test('the ground station\'s dishes follow whichever satellite stands highest, and rest when none is up', () => {
+  const g = newGame(82);
+  const A = g.aero;
+  const co = A.meridian;
+  assert.equal(A.groundPass(), null, 'nothing in the sky');
+  A.state.satellites.G1 = sat({ id: 'G1', role: 'earthobs', service: { earthobs: 30 }, own: true, manufacturer: co.id, owner: co.id, commissioned: 0, endsAt: 60 * DAY, value: 1, book: 1 });
+  let seen = 0;
+  let best = null;
+  for (let t = 0; t < 1440; t += 2) { g.clock.total = t; const p = A.groundPass(); if (p) { seen++; assert.ok(p.el > 8 && p.az >= 0 && p.az < 360 && p.id === 'G1'); best = Math.max(best ?? 0, p.el); } }
+  assert.ok(seen > 4 && seen < 400, `in view for ${seen * 2} minutes of a day`);
+  assert.ok(best > 20);
+});
+
+test('the ordering sheet\'s forecast: costs and returns for every satellite, with a network in hand and without', () => {
+  const g = newGame(83);
+  const A = g.aero;
+  const co = A.meridian;
+  for (const [id, p] of Object.entries(P)) {
+    if (p.line !== 'satellite') continue;
+    const f = A.orderForecast(co, id);
+    assert.ok(f.build > 0 && f.launch > 0 && Number.isFinite(f.ratio), id);
+    assert.equal(f.cost, f.build + f.launch);
+  }
+  const before = A.orderForecast(co, 'st_relay').perDay;
+  for (let i = 0; i < 3; i++) A.state.satellites[`W${i}`] = sat({ id: `W${i}`, own: true, manufacturer: co.id, owner: co.id, commissioned: 0, endsAt: 60 * DAY, value: 1, book: 1 });
+  assert.ok(A.orderForecast(co, 'st_relay').perDay > before, 'the fourth is worth more than the first');
+});

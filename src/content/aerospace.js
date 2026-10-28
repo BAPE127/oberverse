@@ -17,6 +17,8 @@
 export const AERO = {
   park: 'Starling Flats Aerospace Park',
   map: 'starling_flats',
+  /** The ground station's place on the globe (degrees) — what it sees overhead (src/aero/orbit.js). */
+  station: { lat: 41.2, lon: 18.5 },
   /** Owner's rule: no aircraft contract may be for more than five aircraft. Enforced in src/aero/catalog.js. */
   maxAircraftPerContract: 5,
   /** Morning decisions: tenders posted, bids opened, rival's plans, wages and upkeep. */

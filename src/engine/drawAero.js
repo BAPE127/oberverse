@@ -562,6 +562,20 @@ export function aeroLive(ctx, p, opts) {
       ctx.fillRect(Math.round(sx), Math.round(sy), 5, 5 - i);
     }
   }
+  if (p.type === 'dish' && opts.track && (p.x >= 100 && p.x <= 116 && p.y >= 80)) {
+    // the ground station's dishes follow a satellite together: the dish face leans toward it, a beam into the sky
+    const tr = opts.track;
+    const az = (tr.az * Math.PI) / 180;
+    const k = 1 - tr.el / 90;
+    const cx = x + W(p) / 2;
+    const cy = y + H(p) * 0.2 - 4;
+    ctx.fillStyle = 'rgba(232,236,240,0.62)';
+    ctx.beginPath(); ctx.ellipse(cx + Math.sin(az) * k * 11, cy - Math.cos(az) * k * 6, 18, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,200,90,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(az) * (26 + k * 20), cy - 18 - Math.cos(az) * (26 + k * 20)); ctx.stroke();
+    if (Math.floor(t * 3 + p.x) % 2) { ctx.fillStyle = '#5fe07a'; ctx.fillRect(Math.round(cx) + 10, Math.round(y + H(p) - 20), 3, 3); }
+  }
   if (p.type === 'radar') {
     const a = t * 1.6;
     const cx = x + W(p) / 2;

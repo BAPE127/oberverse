@@ -999,6 +999,31 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
   .ao-time .ao-clock { display: none; }
   .ao-facts { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---- v0.59.0: the Orbit page */
+.ao .ao-meter { height: 6px; background: rgba(255,255,255,.09); border-radius: 4px; overflow: hidden; min-width: 40px; }
+.ao .ao-meter > i { display: block; height: 100%; border-radius: 4px; }
+.ao .ao-orbitwrap { position: relative; margin-bottom: 14px; }
+.ao .ao-orbit { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--ao-line); display: block; background: #05080f; }
+.ao .ao-orbit-note { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.ao .ao-card.orbit { border-left: 3px solid var(--role, #5fb0ff); }
+.ao .ao-card.orbit.sel { box-shadow: 0 0 0 1px var(--role, #5fb0ff); }
+.ao .ao-card-head { align-items: flex-start; }
+.ao .ao-role-icon { font-size: 22px; line-height: 1; }
+.ao .ao-kv { display: flex; gap: 6px; align-items: baseline; font-size: 12.5px; flex-wrap: wrap; }
+.ao .ao-kv span { opacity: .65; }
+.ao .ao-kv b { color: #fff; }
+.ao .ao-kv.big b { font-size: 19px; }
+.ao .ao-mini { width: 112px; display: flex; flex-direction: column; gap: 3px; }
+.ao .ao-mini small { opacity: .7; font-size: 11px; }
+.ao .ao-row.fleet { gap: 12px; align-items: center; }
+.ao .ao-cell { display: flex; gap: 10px; align-items: center; }
+.ao .ao-table tr.dim td { opacity: .55; }
+.ao .ao-log-line { font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+.ao .ao-log-line i { opacity: .55; font-style: normal; margin-right: 4px; }
+.ao .ordersheet { border: 1px solid var(--ao-line); border-radius: 14px; padding: 12px 14px; margin: 14px 0; background: rgba(16,22,36,.6); }
+
+.ao .ao-cell small { display: block; opacity: .65; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -3222,6 +3247,8 @@ __m["src/content/aerospace.js"] = (function () {
 const AERO = {
   park: 'Starling Flats Aerospace Park',
   map: 'starling_flats',
+  /** The ground station's place on the globe (degrees) — what it sees overhead (src/aero/orbit.js). */
+  station: { lat: 41.2, lon: 18.5 },
   /** Owner's rule: no aircraft contract may be for more than five aircraft. Enforced in src/aero/catalog.js. */
   maxAircraftPerContract: 5,
   /** Morning decisions: tenders posted, bids opened, rival's plans, wages and upkeep. */
@@ -34674,7 +34701,7 @@ __m["src/aero/fleet.js"] = (function () {
 //   fleetOf            a company's own satellites, those it supports for customers, and the orders in hand
 const { hashUnit, configError, cleanConfig } = __m["src/aero/config.js"];
 const { newUnit } = __m["src/aero/pipeline.js"];
-const { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf } = __m["src/aero/orbit.js"];
+const { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf, orbitOf, look } = __m["src/aero/orbit.js"];
 const { fmtMoney, missingTech, unitCost } = __m["src/aero/catalog.js"];
 const { postEventTender, milestone } = __m["src/aero/events.js"];
 
@@ -35021,7 +35048,21 @@ function resolveDebris(A, co, e, choiceId) {
   return { ok: true, text: 'It missed.' };
 }
 
-return { serviceBonus, priceBonus, activateSatellite, fleetOf, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, satelliteDay, lose, resolveDebris };
+// ---------------------------------------------------------------- the ground station
+/** The satellite the dishes follow: whichever of all the live ones stands highest above the station's horizon (at least 8°). */
+function groundPass(A) {
+  const S = A.cfg.services;
+  const st = A.A.station;
+  let best = null;
+  for (const sat of Object.values(A.state.satellites)) {
+    if (!live(sat)) continue;
+    const l = look(orbitOf(S, sat), A.now, st);
+    if (l.el > 8 && (!best || l.el > best.el)) best = { id: sat.id, name: sat.name, role: sat.role, own: Boolean(sat.own), el: l.el, az: l.az };
+  }
+  return best;
+}
+
+return { serviceBonus, priceBonus, activateSatellite, fleetOf, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, satelliteDay, lose, resolveDebris, groundPass };
 })();
 
 // ---- src/systems/aerospace.js
@@ -35058,7 +35099,7 @@ const { rivalMorning } = __m["src/aero/rival.js"];
 const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
 const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
-const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris } = __m["src/aero/fleet.js"];
+const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } = __m["src/aero/fleet.js"];
 const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
 const DAY = 1440;
@@ -37113,6 +37154,15 @@ class Aerospace {
   /** Every morning the sky is looked at: ageing, losses, what the networks sell, support fees, running costs (src/aero/fleet.js). */
   satelliteDay() {
     satelliteDay(this);
+  }
+
+  /** What the ground station's dishes are following now: the satellite highest above its horizon, or null (src/aero/fleet.js). */
+  groundPass() {
+    const m = Math.floor(this.now * 4);
+    if (this._pass?.at === m) return this._pass.v;
+    const v = groundPass(this);
+    this._pass = { at: m, v };
+    return v;
   }
 
   /** A non-cash charge booked to an account (depreciation). */
@@ -42492,6 +42542,20 @@ function aeroLive(ctx, p, opts) {
       ctx.fillStyle = i % 2 ? '#f4f4f0' : '#e85a2a';
       ctx.fillRect(Math.round(sx), Math.round(sy), 5, 5 - i);
     }
+  }
+  if (p.type === 'dish' && opts.track && (p.x >= 100 && p.x <= 116 && p.y >= 80)) {
+    // the ground station's dishes follow a satellite together: the dish face leans toward it, a beam into the sky
+    const tr = opts.track;
+    const az = (tr.az * Math.PI) / 180;
+    const k = 1 - tr.el / 90;
+    const cx = x + W(p) / 2;
+    const cy = y + H(p) * 0.2 - 4;
+    ctx.fillStyle = 'rgba(232,236,240,0.62)';
+    ctx.beginPath(); ctx.ellipse(cx + Math.sin(az) * k * 11, cy - Math.cos(az) * k * 6, 18, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,200,90,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(az) * (26 + k * 20), cy - 18 - Math.cos(az) * (26 + k * 20)); ctx.stroke();
+    if (Math.floor(t * 3 + p.x) % 2) { ctx.fillStyle = '#5fe07a'; ctx.fillRect(Math.round(cx) + 10, Math.round(y + H(p) - 20), 3, 3); }
   }
   if (p.type === 'radar') {
     const a = t * 1.6;
@@ -52025,7 +52089,8 @@ class Renderer {
     ctx.imageSmoothingEnabled = true;
 
     const night = g.clock.darkness > 0.45;
-    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1; // v0.58.0: the windsocks and the runway in use
+    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
+    this.dishTrack = g.player.map === 'starling_flats' ? g.aero.groundPass() : null; // v0.59.0: what the ground station's dishes follow // v0.58.0: the windsocks and the runway in use
     const items = [];
     // Draw the current map and its seamless neighbours, each at its offset.
     for (const L of this.layers) {
@@ -52046,7 +52111,7 @@ class Renderer {
         for (const p of lm.props) {
           if (!FLAT_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE)) continue;
-          drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
+          drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
         const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
@@ -52078,7 +52143,7 @@ class Renderer {
         // sortRow lets an actor stand "inside" a prop (Mason in the excavator cab)
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
-        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+        items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus
@@ -60143,6 +60208,298 @@ function spadeTablePanel(ui, body) {
 return { spadeTablePanel };
 })();
 
+// ---- src/engine/drawOrbit.js
+__m["src/engine/drawOrbit.js"] = (function () {
+// The Orbit page's picture (v0.59.0): the Earth turning under the satellites, their orbits, the
+// ground station's beams. Pure drawing — everything comes from src/aero/orbit.js. Radii are
+// compressed (a geostationary orbit is 6.6 Earth radii out in life; here it is under 3) so the
+// whole sky fits on the page.
+const { eci, orbitOf, look } = __m["src/aero/orbit.js"];
+
+const TAU = Math.PI * 2;
+const rad = (d) => (d * Math.PI) / 180;
+const OMEGA = 360 / 1436;
+const TILT = rad(64);
+
+/** A made-up world: a few continents (centre lat, lon, radius in degrees), so the globe has something to show as it turns. */
+const LAND = [[48, 20, 24], [10, 28, 22], [-18, 130, 18], [38, -90, 26], [-12, -60, 20], [62, 100, 22], [-5, 78, 10], [-70, 0, 14]];
+const landPoints = [];
+for (const [lat, lon, r] of LAND) for (let i = 0; i < 170; i++) {
+  const a = (i * 2.399963) % TAU;
+  const d = r * Math.sqrt((i + 0.5) / 170);
+  landPoints.push([lat + Math.sin(a) * d * 0.9, lon + (Math.cos(a) * d) / Math.max(0.35, Math.cos(rad(lat)))]);
+}
+
+/** Squeeze an orbital radius (Earth radii) onto the page. */
+const squash = (a) => 1 + Math.pow(Math.max(0, a - 1), 0.45) * 0.9;
+
+/**
+ * Draw the view into a canvas context of size w × h. `sats` are the live satellites to show;
+ * `now` the time (game minutes); `station` { lat, lon }; `S` the services content; `own` marks
+ * satellites to ring and name. Returns the screen position of each satellite drawn (for labels).
+ */
+function drawOrbitView(ctx, w, hh, { sats, now, S, station, own = new Set(), t = 0 }) {
+  const cx = w * 0.5;
+  const cy = hh * 0.52;
+  const R = Math.min(hh * 0.22, w * 0.11);
+  ctx.save();
+  ctx.fillStyle = '#05080f';
+  ctx.fillRect(0, 0, w, hh);
+  // stars
+  for (let i = 0; i < 140; i++) {
+    const x = (Math.sin(i * 91.7) * 0.5 + 0.5) * w;
+    const y = (Math.sin(i * 53.3 + 1) * 0.5 + 0.5) * hh;
+    ctx.fillStyle = `rgba(200,220,255,${0.15 + 0.35 * ((Math.sin(i * 7.7 + t * 1.5) + 1) / 2)})`;
+    ctx.fillRect(Math.round(x), Math.round(y), i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+  }
+  // world → screen: tilt the equatorial plane toward the viewer; depth > 0 is the near side
+  const proj = (p, scale = 1) => {
+    const x = p.x * scale;
+    const y = p.y * scale;
+    const z = p.z * scale;
+    const y1 = y * Math.cos(TILT) - z * Math.sin(TILT);
+    const z1 = y * Math.sin(TILT) + z * Math.cos(TILT);
+    return { x: cx + x * R, y: cy - y1 * R, d: z1 };
+  };
+  const earthAt = (lat, lon) => {
+    const th = rad(lon + OMEGA * now);
+    const la = rad(lat);
+    return proj({ x: Math.cos(la) * Math.cos(th), y: Math.cos(la) * Math.sin(th), z: Math.sin(la) });
+  };
+  // the geostationary belt and the orbits (faint, brighter on the near side)
+  const geoR = R * squash(6.6);
+  ctx.strokeStyle = 'rgba(120,160,220,0.18)';
+  ctx.setLineDash([3, 6]);
+  ctx.beginPath();
+  for (let i = 0; i <= 90; i++) { const a = (i / 90) * TAU; const q = proj({ x: Math.cos(a), y: Math.sin(a), z: 0 }, squash(6.6)); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  void geoR;
+  const seen = new Set();
+  for (const s of sats) {
+    const o = orbitOf(S, s);
+    const key = `${s.role}|${Math.round(o.inc)}|${Math.round(o.raan / 12)}`;
+    if (seen.has(key) && !own.has(s.id)) continue;
+    seen.add(key);
+    const col = S.roles[s.role]?.colour || '#9ad';
+    ctx.lineWidth = 1;
+    let prev = null;
+    for (let i = 0; i <= 72; i++) {
+      const p = eci({ ...o, m0: 0, raan: o.raan }, (i / 72) * o.period);
+      const sq = squash(p.a) / p.a;
+      const q = proj(p, sq);
+      const behind = q.d < 0 && Math.hypot(q.x - cx, q.y - cy) < R;
+      if (prev && !behind && !prev.behind) { ctx.strokeStyle = col + (q.d >= 0 ? '55' : '22'); ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+      prev = { x: q.x, y: q.y, behind };
+    }
+  }
+  // the Earth: ocean, land, a graticule, the night side
+  const grad = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
+  grad.addColorStop(0, '#2f6db8'); grad.addColorStop(1, '#0d2a55');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R - 0.5, 0, TAU); ctx.clip();
+  ctx.fillStyle = '#4c9a5a';
+  for (const [lat, lon] of landPoints) { const q = earthAt(lat, lon); if (q.d > 0) ctx.fillRect(Math.round(q.x) - 1, Math.round(q.y) - 1, 3, 3); }
+  ctx.strokeStyle = 'rgba(170,210,255,0.16)';
+  ctx.lineWidth = 1;
+  for (let lon = -180; lon < 180; lon += 30) { ctx.beginPath(); let on = false; for (let lat = -90; lat <= 90; lat += 6) { const q = earthAt(lat, lon); if (q.d > 0) { if (on) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); on = true; } else on = false; } ctx.stroke(); }
+  for (let lat = -60; lat <= 60; lat += 30) { ctx.beginPath(); let on = false; for (let lon = -180; lon <= 180; lon += 6) { const q = earthAt(lat, lon); if (q.d > 0) { if (on) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); on = true; } else on = false; } ctx.stroke(); }
+  // night: the side facing away from a sun that stands still over the page's left
+  const night = ctx.createLinearGradient(cx - R, cy, cx + R, cy);
+  night.addColorStop(0, 'rgba(0,0,0,0)'); night.addColorStop(0.55, 'rgba(0,4,20,0.2)'); night.addColorStop(1, 'rgba(0,4,20,0.7)');
+  ctx.fillStyle = night; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(140,190,255,0.5)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+  // the ground station
+  const st = earthAt(station.lat, station.lon);
+  const stOn = st.d > 0;
+  if (stOn) { ctx.fillStyle = '#ffb547'; ctx.fillRect(Math.round(st.x) - 2, Math.round(st.y) - 2, 5, 5); ctx.strokeStyle = 'rgba(255,181,71,0.5)'; ctx.beginPath(); ctx.arc(st.x, st.y, 7 + Math.sin(t * 3) * 1.5, 0, TAU); ctx.stroke(); }
+  // the satellites
+  const out = [];
+  for (const s of sats) {
+    const o = orbitOf(S, s);
+    const p = eci(o, now);
+    const q = proj(p, squash(p.a) / p.a);
+    const behind = q.d < 0 && Math.hypot(q.x - cx, q.y - cy) < R;
+    if (behind) continue;
+    const col = S.roles[s.role]?.colour || '#9ad';
+    const lk = look(o, now, station);
+    if (stOn && lk.el > 5) { ctx.strokeStyle = 'rgba(255,181,71,0.45)'; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(st.x, st.y); ctx.lineTo(q.x, q.y); ctx.stroke(); ctx.setLineDash([]); }
+    const mine = own.has(s.id);
+    const x = Math.round(q.x);
+    const y = Math.round(q.y);
+    ctx.fillStyle = '#0a0e18'; ctx.fillRect(x - 6, y - 3, 13, 7);
+    ctx.fillStyle = col; ctx.fillRect(x - 5, y - 1, 4, 3); ctx.fillRect(x + 2, y - 1, 4, 3); ctx.fillStyle = '#e8eef8'; ctx.fillRect(x - 1, y - 2, 3, 5);
+    if (mine) { ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.7; ctx.strokeRect(x - 8.5, y - 5.5, 17, 11); ctx.globalAlpha = 1; }
+    out.push({ id: s.id, x, y, name: s.name, mine });
+  }
+  ctx.font = '600 15px system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+  for (const o of out) if (o.mine) { ctx.fillStyle = 'rgba(223,233,245,0.85)'; ctx.fillText(o.name, o.x + 13, o.y - 1); }
+  ctx.restore();
+  return out;
+}
+
+return { drawOrbitView };
+})();
+
+// ---- src/ui/aeroOrbit.js
+__m["src/ui/aeroOrbit.js"] = (function () {
+// The Orbit page of the aerospace terminal (v0.59.0): your satellites and what they sell — the
+// Earth turning under them, a card for each market (what your network carries, what the market
+// wants and who else is selling), what one more satellite would earn, the fleet and its health,
+// the satellites you keep working for customers, and the policies (insurance, replacements).
+// Everything it shows comes from src/aero/fleet.js through the system; everything it does goes
+// through the system's checked methods.
+const { drawOrbitView } = __m["src/engine/drawOrbit.js"];
+const { daysLeft } = __m["src/aero/orbit.js"];
+const { fmtMoney, missingTech } = __m["src/aero/catalog.js"];
+const { satelliteCanvas } = __m["src/engine/drawAero.js"];
+
+const bar = (h, frac, colour, title) => h('div', { class: 'ao-meter', title }, h('i', { style: `width:${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%;background:${colour}` }));
+
+function orbitPage(env) {
+  const { A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co } = env;
+  const c = co();
+  const S = C.services;
+  const rows = A.networkReport(c);
+  const fleet = A.fleetOf(c);
+  const live = fleet.live;
+  const supportedLive = fleet.supported.filter((s) => s.status === 'operational' || s.status === 'degraded');
+  const estNetwork = rows.reduce((a, r) => a + r.sold.revenue, 0);
+  const estFees = supportedLive.reduce((a, s) => a + Math.round(s.price * S.support.rate * (s.capability ?? 1)), 0);
+  const estOps = Math.round(([...live, ...supportedLive].reduce((a, s) => a + (s.opex || 0), 0) + (live.length ? S.centre.cost : 0)) * Math.max(0.3, 1 + c.research.reduce((a, id) => a + (C.research[id]?.effect?.opsCost || 0), 0)));
+  const book = live.reduce((a, s) => a + (s.book || 0), 0);
+
+  // ---------------------------------------------------------------- the picture
+  const canvas = h('canvas', { class: 'ao-orbit', width: 1500, height: 560 });
+  const own = new Set(live.map((s) => s.id));
+  const show = [...live, ...supportedLive, ...Object.values(A.state.satellites).filter((s) => !s.own && s.manufacturer !== c.id && (s.status === 'operational' || s.status === 'degraded')).slice(0, 14)];
+  const station = C.aero.station || { lat: 41, lon: 18 };
+  const t0 = performance.now();
+  const loop = () => {
+    if (!canvas.isConnected) return;
+    const t = (performance.now() - t0) / 1000;
+    // time moves a little faster than it does in the world, so the sky is never still
+    drawOrbitView(canvas.getContext('2d'), canvas.width, canvas.height, { sats: show, now: A.now + t * 5, S, station, own, t });
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+
+  // ---------------------------------------------------------------- the markets
+  const marketCard = (r) => {
+    const R = r.def;
+    const buildable = Object.entries(C.products).filter(([, p]) => p.line === 'satellite' && Object.keys(p.service || {})[0] === r.role);
+    const best = buildable.find(([, p]) => A.canBuild(c, p));
+    const need = !best && buildable[0] ? missingTech(C, c, buildable[0][1]).map((id) => C.research[id].name).join(', ') : null;
+    const sel = AO.orbitRole === r.role;
+    const mult = r.mult !== 1 ? pill(`${r.mult > 1 ? '▲' : '▼'} ${Math.round(Math.abs(r.mult - 1) * 100)}% for now`, r.mult > 1 ? COL.green : COL.red) : null;
+    return h('div', { class: `ao-card orbit${sel ? ' sel' : ''}${r.net.n ? '' : ' off'}`, style: `--role:${R.colour}` },
+      h('div', { class: 'ao-card-head' }, h('span', { class: 'ao-role-icon' }, R.icon), h('div', { class: 'grow' }, h('b', {}, R.name), h('small', {}, `${r.net.n} satellite${r.net.n === 1 ? '' : 's'}${r.net.n ? ` · covers ${Math.round(r.net.coverage * 100)}% of a full network (${R.full})` : ` · a full network is ${R.full}`}`)), mult),
+      r.barred ? h('div', { class: 'ao-alert' }, 'Needs a secure hall and clearance.') : null,
+      h('div', { class: 'ao-kv' }, h('span', {}, 'You carry'), h('b', {}, `${r.net.capacity.toFixed(r.net.capacity < 10 ? 1 : 0)} ${R.unit}`)),
+      bar(h, r.net.coverage, R.colour, 'coverage'),
+      h('div', { class: 'ao-kv' }, h('span', {}, 'Market wants'), h('b', {}, `${r.market.demand.toFixed(r.market.demand < 10 ? 1 : 0)} ${R.unit}`), h('span', {}, `· others carry ${r.market.rivals.toFixed(r.market.rivals < 10 ? 1 : 0)}`)),
+      h('div', { class: 'ao-kv' }, h('span', {}, 'Selling'), h('b', {}, r.net.n ? `${Math.round(r.sold.utilisation * 100)}% of what you carry` : '—'), h('span', {}, `at ${Math.round(r.sold.price).toLocaleString()} a ${R.unit.replace(/s$/, '')}`)),
+      h('div', { class: 'ao-kv big' }, h('span', {}, 'Takes, a day'), h('b', { class: r.sold.revenue ? 'pos' : '' }, r.sold.revenue ? fmtMoney(r.sold.revenue) : '—')),
+      h('p', { class: 'ao-muted small' }, R.text),
+      best || sel ? btn(sel ? 'Hide the order sheet' : 'Order satellites ›', () => { AO.orbitRole = sel ? null : r.role; AO.scrollTo = sel ? null : '.ordersheet'; refresh(); }, sel ? '' : 'primary') : h('small', { class: 'neg' }, need ? `Needs ${need}` : 'Not yet buildable: research it first, and a clean room, pad and rocket of your own.'));
+  };
+
+  // ---------------------------------------------------------------- the ordering sheet
+  const orderSheet = () => {
+    const role = AO.orbitRole;
+    if (!role) return null;
+    const R = S.roles[role];
+    const list = Object.entries(C.products).filter(([, p]) => p.line === 'satellite' && Object.keys(p.service || {})[0] === role).sort((a, b) => a[1].price - b[1].price);
+    const qty = AO.orbitQty || 1;
+    const chips = h('div', { class: 'ao-chips' }, ...[1, 2, 3, 4].map((n) => h('button', { class: `ao-chip${qty === n ? ' on' : ''}`, onclick: () => { AO.orbitQty = n; refresh(); } }, `× ${n}`)));
+    const body = list.map(([pid, p]) => {
+      const f = A.orderForecast(c, pid);
+      const can = A.canBuild(c, p);
+      const barred = R.needs === 'cleared' && !A.cleared(c);
+      const miss = (p.tech && !c.research.includes(p.tech)) ? C.research[p.tech]?.name : null;
+      const good = f.ratio >= 1.15;
+      const img = satelliteCanvas({ mass: p.mass, role: p.role }, { panels: true });
+      const pic = h('canvas', { width: 90, height: 60, class: 'ao-pic', style: 'width:60px;height:40px' });
+      if (img) { const x = pic.getContext('2d'); x.imageSmoothingEnabled = false; const k = Math.min(78 / img.width, 48 / img.height, 2); x.drawImage(img, (90 - img.width * k) / 2, (60 - img.height * k) / 2, img.width * k, img.height * k); }
+      return h('tr', { class: can && !barred ? '' : 'dim' },
+        h('td', {}, h('div', { class: 'ao-cell' }, pic, h('div', {}, h('b', {}, p.name), h('small', {}, `${p.life} days of life · ${p.service[role]} ${R.unit} · mass ${'SMHX'[p.mass - 1]}`)))),
+        h('td', { class: 'r' }, fmtMoney(f.build), h('small', {}, ` + launch ${fmtMoney(f.launch)}`)),
+        h('td', { class: 'r' }, f.perDay ? `+${fmtMoney(f.perDay)}` : '—', h('small', {}, ` a day · ${fmtMoney(f.opex)} to run`)),
+        h('td', { class: `r ${good ? 'pos' : f.ratio < 0.9 ? 'neg' : ''}` }, f.cost ? `${f.ratio.toFixed(2)}×` : '—', h('small', {}, f.paybackDays ? ` payback ${f.paybackDays} d` : '')),
+        h('td', { class: 'r' }, barred ? h('small', { class: 'neg' }, 'needs clearance') : miss ? h('small', { class: 'neg' }, `needs ${miss}`) : !can ? h('small', { class: 'neg' }, 'needs a pad and a rocket') : btn(`Order ${qty}`, () => act(() => A.orderSatellite(c, pid, qty)), 'primary')));
+    });
+    const hint = (() => {
+      const r = rows.find((x) => x.role === role);
+      if (!r) return null;
+      if (!r.net.n) return `The first ${R.short.toLowerCase()} satellite covers little of the sky; the network is worth having at ${R.full}.`;
+      if (r.net.n < R.full) return `${R.full - r.net.n} more would give a full network: the last satellite is worth the most.`;
+      return r.sold.utilisation < 0.95 ? 'You already carry more than the market buys: another would sit idle.' : 'A full network, sold out. Another would add capacity the market still wants.';
+    })();
+    return h('div', { class: 'ao-sec ordersheet' }, h('h4', {}, `Order — ${R.name}`), chips, hint ? muted(hint) : null,
+      h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' }, h('tr', {}, h('th', {}, 'Satellite'), h('th', { class: 'r' }, 'To build and launch'), h('th', { class: 'r' }, 'Adds'), h('th', { class: 'r' }, 'Life return'), h('th', {}, '')), ...body)),
+      muted('Life return is what it earns over its whole life (less running costs and ageing) against what it costs to build and to launch. Prices are today\'s; storms, price wars and hurricane seasons move them.'));
+  };
+
+  // ---------------------------------------------------------------- the fleet
+  const satRow = (s) => {
+    const R = S.roles[s.role] || S.roles.comms;
+    const life = Math.max(0, daysLeft(s, A.now));
+    const share = c.orbit?.roles?.[s.role]?.revenue && c.orbit.roles[s.role].n ? Math.round(c.orbit.roles[s.role].revenue / c.orbit.roles[s.role].n) : null;
+    const cap = Math.round(((s.capability ?? 1) * (1 - S.degrade * Math.min(1, (A.now - s.commissioned) / (s.lifeDays * 1440)))) * 100);
+    const hit = s.hit && s.hit.untilDay >= A.day;
+    return h('div', { class: 'ao-row static fleet' },
+      h('span', { class: 'ao-role-icon', style: `color:${R.colour}` }, R.icon),
+      h('div', { class: 'grow' }, h('b', {}, s.name), h('small', {}, `${R.short} · ${s.status === 'degraded' ? 'degraded at commissioning' : 'operational'}${s.hardened ? ' · hardened' : ''}${hit ? ' · storm-damaged' : ''}`)),
+      h('div', { class: 'ao-mini' }, h('small', {}, `capability ${cap}%`), bar(h, cap / 100, cap > 80 ? COL.green : cap > 60 ? COL.amber : COL.red, 'capability')),
+      h('div', { class: 'ao-mini' }, h('small', {}, `${Math.round(life)} d left`), bar(h, life / s.lifeDays, life > 15 ? COL.blue : COL.amber, 'life')),
+      h('em', { class: 'pos' }, share != null ? `${fmtMoney(share)}/d` : '—'),
+      h('small', {}, fmtMoney(s.book || 0)),
+      btn('De-orbit', () => { if (window.confirm(`De-orbit ${s.name}? It stops costing and stops earning, and its ${fmtMoney(s.book || 0)} book value is written off.`)) act(() => A.decommissionSatellite(c, s.id)); }, 'small'));
+  };
+  const ended = fleet.own.filter((s) => s.status === 'failed' || s.status === 'decommissioned').slice(-4).reverse();
+  const orders = fleet.orders.map((u) => h('div', { class: 'ao-row static fleet' }, h('span', { class: 'ao-role-icon' }, '🛰'), h('div', { class: 'grow' }, h('b', {}, `${C.products[u.product].name} #${u.n}`), h('small', {}, u.blocker?.text || A.stageOf(u)?.name || 'queued')), h('small', {}, `stage ${u.stage + 1}`), btn('Cancel', () => act(() => A.cancelOwnOrder(c, u.id)), 'small')));
+
+  const supported = supportedLive.map((s) => {
+    const R = S.roles[s.role] || S.roles.comms;
+    const age = (A.now - s.commissioned) / (s.lifeDays * 1440);
+    return h('div', { class: 'ao-row static fleet' }, h('span', { class: 'ao-role-icon', style: `color:${R.colour}` }, R.icon), h('div', { class: 'grow' }, h('b', {}, s.name), h('small', {}, `${C.customers[s.owner]?.name || s.owner}${age < S.support.warrantyShare ? ' · under warranty' : ''}${s.replaceTender ? ' · replacement tendered' : ''}`)),
+      h('div', { class: 'ao-mini' }, h('small', {}, `${Math.round(daysLeft(s, A.now))} d left`), bar(h, daysLeft(s, A.now) / s.lifeDays, COL.blue, 'life')), h('em', { class: 'pos' }, `${fmtMoney(Math.round(s.price * S.support.rate * (s.capability ?? 1)))}/d`));
+  });
+
+  const premium = Math.round(book * S.insurance.premium);
+  const policies = h('div', { class: 'ao-grid small' },
+    h('div', { class: 'ao-tile' }, h('small', {}, 'INSURANCE'), h('b', {}, c.insured ? 'Fleet insured' : 'Uninsured'), h('small', {}, `${fmtMoney(premium)} a day · pays ${Math.round(S.insurance.payout * 100)}% of book value on a loss`), btn(c.insured ? 'Cancel cover' : 'Insure the fleet', () => act(() => A.setFleetPolicy(c, 'insured', !c.insured)), c.insured ? '' : 'primary')),
+    h('div', { class: 'ao-tile' }, h('small', {}, 'REPLACEMENTS'), h('b', {}, c.autoReplace ? 'Automatic' : 'By hand'), h('small', {}, `A successor goes on the floor when a satellite has ${S.autoReplaceDays} days left`), btn(c.autoReplace ? 'Turn off' : 'Replace automatically', () => act(() => A.setFleetPolicy(c, 'autoReplace', !c.autoReplace)), c.autoReplace ? '' : 'primary')));
+
+  const news = A.state.reports.filter((r) => r.company === c.id && r.kind === 'orbit').slice(0, 7);
+  const sky = Object.entries(A.state.orbit?.mult || {}).filter(([, m]) => m.untilDay >= A.day);
+
+  return h('div', {},
+    h('div', { class: 'ao-kpis' },
+      kpi('In orbit', String(live.length), '', `+ ${supportedLive.length} you keep for customers`),
+      kpi('Networks sell, today', fmtMoney(c.orbit?.revenue ?? estNetwork), 'pos', `estimate ${fmtMoney(estNetwork)}`),
+      kpi('Support fees, today', fmtMoney(c.orbit?.fees ?? estFees), 'pos', `${supportedLive.length} satellites`),
+      kpi('Running costs, a day', fmtMoney(estOps), 'neg', `fleet book value ${fmtMoney(book)}`)),
+    h('div', { class: 'ao-orbitwrap' }, canvas, h('div', { class: 'ao-orbit-note' }, sky.length ? sky.map(([r, m]) => pill(`${S.roles[r].icon} ${S.roles[r].short} ${m.m > 1 ? '▲' : '▼'} ${Math.round(Math.abs(m.m - 1) * 100)}% until Day ${m.untilDay}`, m.m > 1 ? COL.green : COL.red)) : muted('The sky is quiet.'))),
+    orderSheet(),
+    section('The markets', h('div', { class: 'ao-grid wide' }, ...rows.map(marketCard))),
+    h('div', { class: 'ao-two' },
+      h('div', {}, section(`Your fleet (${live.length})`, ...(live.length ? live.map(satRow) : [muted('Nothing of yours is in orbit yet. Order a satellite above: it is built, launched and commissioned like any customer\'s, and then it works for you.')]),
+        orders.length ? section('On the floor and on the way up', ...orders) : null,
+        ended.length ? section('Recently ended', ...ended.map((s) => h('div', { class: 'ao-row static dim' }, h('div', { class: 'grow' }, h('b', {}, s.name), h('small', {}, s.status === 'failed' ? `lost: ${s.failure}` : 'reached the end of its life')), h('small', {}, `Day ${Math.floor((s.failedAt || s.decommissioned || 0) / 1440) + 1}`)))) : null)),
+      h('div', {}, section('Policies', policies),
+        section(`Kept working for customers (${supportedLive.length})`, ...(supported.length ? supported : [muted('Satellites you build for customers pay a support fee for as long as they live — and ask for a replacement when they are nearly spent.')])),
+        section('From the sky', ...(news.length ? news.map((r) => h('div', { class: 'ao-log-line' }, h('i', {}, A.when(r.at).replace('Day ', 'D')), ' ', r.text)) : [muted('Nothing yet.')])))));
+}
+
+return { orbitPage };
+})();
+
 // ---- src/ui/aerospace.js
 __m["src/ui/aerospace.js"] = (function () {
 // Roost Aeroworks — Operations (v0.56.1; the aerospace terminal since v0.55.0).
@@ -60169,6 +60526,7 @@ const { stagesOf, failChance } = __m["src/aero/pipeline.js"];
 const { optionEffect, configLabel, cleanConfig } = __m["src/aero/config.js"];
 const { ACCOUNTS } = __m["src/aero/books.js"];
 const { aircraftCanvas, rocketCanvas, satelliteCanvas } = __m["src/engine/drawAero.js"];
+const { orbitPage } = __m["src/ui/aeroOrbit.js"];
 
 const MODES = [
   ['floor', '🏭', 'Floor'],
@@ -60176,12 +60534,13 @@ const MODES = [
   ['contracts', '📑', 'Contracts'],
   ['supply', '📦', 'Supply'],
   ['hangar', '🏗', 'Hangar'],
+  ['orbit', '🛰', 'Orbit'],
   ['standing', '📣', 'Standing'],
   ['books', '📒', 'Books'],
   ['meridian', '📈', 'Meridian'],
 ];
 /** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
-const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Orbit: 'orbit', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
 const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
 const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
 const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
@@ -60189,7 +60548,7 @@ const PRIORITY = [['price', 'Price'], ['time', 'Delivery'], ['quality', 'Quality
 const COL = { amber: '#ffb547', green: '#5ee08a', red: '#ff6b6b', blue: '#6fb4ff', dim: '#3a4356', ink: '#dfe9f5' };
 
 /** The terminal's own state survives re-opening (the page, what's selected, the order form). */
-const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null };
+const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1 };
 
 const money = (n) => `${Math.round(n).toLocaleString()} ◎`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -60590,7 +60949,7 @@ function aerospacePanel(ui, body, opts = {}) {
       e.stopImmediatePropagation();
       if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
       refresh();
-    } else if (!readonly && /^[1-8]$/.test(e.key)) {
+    } else if (!readonly && /^[1-9]$/.test(e.key)) {
       e.stopImmediatePropagation();
       go(MODES[Number(e.key) - 1][0]);
     }
@@ -60629,6 +60988,7 @@ function aerospacePanel(ui, body, opts = {}) {
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
     else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'orbit') { const f = A.fleetOf(c); n = f.live.filter((x) => (x.endsAt - A.now) / 1440 < 12).length + (c.events || []).filter((e) => e.kind === 'debris' && !e.resolved).length; bad = n > 0; }
     else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
     return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
   };
@@ -60821,11 +61181,12 @@ function aerospacePanel(ui, body, opts = {}) {
     sheet.classList.toggle('hidden', !on);
     if (!on) return;
     const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
-    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, orbit: () => orbitPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
     const name = MODES.find((x) => x[0] === AO.mode)[2];
     sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
     sheet.dataset.mode = AO.mode;
     sheet.scrollTop = scroll;
+    if (AO.scrollTo) { sheet.querySelector(AO.scrollTo)?.scrollIntoView({ block: 'start' }); AO.scrollTo = null; }
     if (AO.focus) { sheet.querySelector(`[data-tender="${AO.focus}"]`)?.scrollIntoView({ block: 'center' }); AO.focus = null; }
   };
 

@@ -30,7 +30,7 @@ import { rivalMorning } from '../aero/rival.js';
 import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
 import { windRunway, poseAt, planLength } from '../aero/flight.js';
-import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris } from '../aero/fleet.js';
+import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } from '../aero/fleet.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
@@ -2085,6 +2085,15 @@ export class Aerospace {
   /** Every morning the sky is looked at: ageing, losses, what the networks sell, support fees, running costs (src/aero/fleet.js). */
   satelliteDay() {
     satelliteDay(this);
+  }
+
+  /** What the ground station's dishes are following now: the satellite highest above its horizon, or null (src/aero/fleet.js). */
+  groundPass() {
+    const m = Math.floor(this.now * 4);
+    if (this._pass?.at === m) return this._pass.v;
+    const v = groundPass(this);
+    this._pass = { at: m, v };
+    return v;
   }
 
   /** A non-cash charge booked to an account (depreciation). */

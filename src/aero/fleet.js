@@ -9,7 +9,7 @@
 //   fleetOf            a company's own satellites, those it supports for customers, and the orders in hand
 import { hashUnit, configError, cleanConfig } from './config.js';
 import { newUnit } from './pipeline.js';
-import { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf } from './orbit.js';
+import { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf, orbitOf, look } from './orbit.js';
 import { fmtMoney, missingTech, unitCost } from './catalog.js';
 import { postEventTender, milestone } from './events.js';
 
@@ -354,4 +354,18 @@ export function resolveDebris(A, co, e, choiceId) {
   if (hashUnit(`debrisrisk|${e.id}`) < E.risk) { lose(A, co, sat, 'struck by debris'); return { ok: true, text: 'It was hit.' }; }
   A.report(co, 'event', `🛰 The debris missed ${sat.name} by a few hundred metres.`, 'good');
   return { ok: true, text: 'It missed.' };
+}
+
+// ---------------------------------------------------------------- the ground station
+/** The satellite the dishes follow: whichever of all the live ones stands highest above the station's horizon (at least 8°). */
+export function groundPass(A) {
+  const S = A.cfg.services;
+  const st = A.A.station;
+  let best = null;
+  for (const sat of Object.values(A.state.satellites)) {
+    if (!live(sat)) continue;
+    const l = look(orbitOf(S, sat), A.now, st);
+    if (l.el > 8 && (!best || l.el > best.el)) best = { id: sat.id, name: sat.name, role: sat.role, own: Boolean(sat.own), el: l.el, az: l.az };
+  }
+  return best;
 }

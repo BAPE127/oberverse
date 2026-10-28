@@ -22,6 +22,7 @@ import { stagesOf, failChance } from '../aero/pipeline.js';
 import { optionEffect, configLabel, cleanConfig } from '../aero/config.js';
 import { ACCOUNTS } from '../aero/books.js';
 import { aircraftCanvas, rocketCanvas, satelliteCanvas } from '../engine/drawAero.js';
+import { orbitPage } from './aeroOrbit.js';
 
 const MODES = [
   ['floor', '🏭', 'Floor'],
@@ -29,12 +30,13 @@ const MODES = [
   ['contracts', '📑', 'Contracts'],
   ['supply', '📦', 'Supply'],
   ['hangar', '🏗', 'Hangar'],
+  ['orbit', '🛰', 'Orbit'],
   ['standing', '📣', 'Standing'],
   ['books', '📒', 'Books'],
   ['meridian', '📈', 'Meridian'],
 ];
 /** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
-const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Orbit: 'orbit', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
 const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
 const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
 const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
@@ -42,7 +44,7 @@ const PRIORITY = [['price', 'Price'], ['time', 'Delivery'], ['quality', 'Quality
 const COL = { amber: '#ffb547', green: '#5ee08a', red: '#ff6b6b', blue: '#6fb4ff', dim: '#3a4356', ink: '#dfe9f5' };
 
 /** The terminal's own state survives re-opening (the page, what's selected, the order form). */
-const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null };
+const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1 };
 
 const money = (n) => `${Math.round(n).toLocaleString()} ◎`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -443,7 +445,7 @@ export function aerospacePanel(ui, body, opts = {}) {
       e.stopImmediatePropagation();
       if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
       refresh();
-    } else if (!readonly && /^[1-8]$/.test(e.key)) {
+    } else if (!readonly && /^[1-9]$/.test(e.key)) {
       e.stopImmediatePropagation();
       go(MODES[Number(e.key) - 1][0]);
     }
@@ -482,6 +484,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
     else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'orbit') { const f = A.fleetOf(c); n = f.live.filter((x) => (x.endsAt - A.now) / 1440 < 12).length + (c.events || []).filter((e) => e.kind === 'debris' && !e.resolved).length; bad = n > 0; }
     else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
     return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
   };
@@ -674,11 +677,12 @@ export function aerospacePanel(ui, body, opts = {}) {
     sheet.classList.toggle('hidden', !on);
     if (!on) return;
     const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
-    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, orbit: () => orbitPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
     const name = MODES.find((x) => x[0] === AO.mode)[2];
     sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
     sheet.dataset.mode = AO.mode;
     sheet.scrollTop = scroll;
+    if (AO.scrollTo) { sheet.querySelector(AO.scrollTo)?.scrollIntoView({ block: 'start' }); AO.scrollTo = null; }
     if (AO.focus) { sheet.querySelector(`[data-tender="${AO.focus}"]`)?.scrollIntoView({ block: 'center' }); AO.focus = null; }
   };
 
