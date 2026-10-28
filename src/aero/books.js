@@ -34,10 +34,10 @@ export const ACCOUNTS = {
 };
 
 export function freshBooks() {
-  return { totals: {}, days: [], deferred: 0, inventoryValue: 0, capex: 0, fleet: 0 };
+  return { totals: {}, days: [], months: [], deferred: 0, inventoryValue: 0, capex: 0, fleet: 0, lines: {}, products: {} };
 }
 
-/** Post an amount (positive) to an account on a day. */
+/** Post an amount (positive) to an account on a day (and into the month it falls in: thirty-day months, two years kept). */
 export function post(books, day, account, amount, keep = 30) {
   if (!amount) return;
   books.totals[account] = (books.totals[account] || 0) + amount;
@@ -48,6 +48,30 @@ export function post(books, day, account, amount, keep = 30) {
     if (books.days.length > keep) books.days.length = keep;
   }
   d.acc[account] = (d.acc[account] || 0) + amount;
+  const mi = Math.floor((day - 1) / 30);
+  books.months ||= [];
+  let m = books.months[0];
+  if (!m || m.m !== mi) {
+    m = { m: mi, acc: {} };
+    books.months.unshift(m);
+    if (books.months.length > 24) books.months.length = 24;
+  }
+  m.acc[account] = (m.acc[account] || 0) + amount;
+}
+
+/** How cash moved: every payment and receipt is also posted under a `cf_` account by what it was for. */
+export const FLOW = {
+  in: { customers: 'From customers — payments and deposits', other: 'Other — insurance claims, grants' },
+  out: { materials: 'Materials and their freight', people: 'Wages, hiring and training', running: 'Running costs — upkeep, overhead, operations, research, launches, rework', customers: 'To customers — refunds and penalties', capital: 'Halls, bays and facilities' },
+};
+
+/** Which cash category an account's payments and receipts fall in. */
+export function flowOf(account, dir) {
+  if (dir === 'in') return account && ACCOUNTS[account]?.kind === 'revenue' && account !== 'rev_claims' ? 'customers' : account === 'rev_claims' ? 'other' : 'customers';
+  if (['wages', 'hiring', 'training'].includes(account)) return 'people';
+  if (account === 'penalties') return 'customers';
+  if (account) return 'running';
+  return 'running';
 }
 
 /** Sum the accounts over the last `n` days (or all time when n is null). */

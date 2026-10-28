@@ -22,7 +22,7 @@
 import { Rng } from '../core/rng.js';
 import { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomValue, fmtMoney, fmtDays } from '../aero/catalog.js';
 import { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } from '../aero/pipeline.js';
-import { freshBooks, post, summarise, revenueAccount } from '../aero/books.js';
+import { freshBooks, post, summarise, revenueAccount, flowOf } from '../aero/books.js';
 import { configure, cleanConfig, configError, configLabel } from '../aero/config.js';
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
@@ -31,6 +31,7 @@ import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
 import { windRunway, poseAt, planLength } from '../aero/flight.js';
 import { checkAchievements, progress as achievementProgress } from '../aero/achievements.js';
+import { cashFlow, monthly, balanceSheet, segments, headline } from '../aero/reports.js';
 import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } from '../aero/fleet.js';
 import { eventsMorning, resolveEvent, hallDiscount, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
@@ -245,7 +246,7 @@ export class Aerospace {
   }
 
   /** Money out, booked to an account (null: an asset — materials, capital spending). */
-  pay(co, amount, account) {
+  pay(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
     if (co.kind === 'player') {
@@ -254,10 +255,11 @@ export class Aerospace {
       g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
     } else co.cash -= amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
+    post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
   }
 
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
-  receive(co, amount, account) {
+  receive(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
     if (co.kind === 'player') {
@@ -266,6 +268,7 @@ export class Aerospace {
       g.bus.emit('money:changed', { delta: amount, total: g.player.money });
     } else co.cash += amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
+    post(co.books, this.day, `cf_in_${flow || flowOf(account, 'in')}`, amount, this.A.historyDays);
   }
 
   /** Can it afford this now? The rival may draw on its credit line. */
@@ -660,7 +663,7 @@ export class Aerospace {
     const disc = hallDiscount(this, co, id);
     const cost = Math.round(H.build * (1 - disc.pct));
     if (!this.canAfford(co, cost)) return { ok: false, text: `${H.name} costs ${cost.toLocaleString()} obols.` };
-    this.pay(co, cost, null);
+    this.pay(co, cost, null, 'capital');
     co.books.capex += cost;
     co.halls[id] = this.now + Math.round(H.buildDays * DAY);
     if (disc.offer) { co.offers = co.offers.filter((o) => o !== disc.offer); this.report(co, 'facility', `🏗 The Park Authority's offer saved ${fmtMoney(H.build - cost)} on the ${H.name}.`, 'good'); }
@@ -687,7 +690,7 @@ export class Aerospace {
       }
     } else cost = Math.round(B.build * 1.5); // Meridian's halls on the map are full: a bay beyond them goes up at another of its sites
     if (!this.canAfford(co, cost)) return { ok: false, text: `A ${B.name.toLowerCase()} costs ${cost.toLocaleString()} obols.` };
-    this.pay(co, cost, null);
+    this.pay(co, cost, null, 'capital');
     co.books.capex += cost;
     const n = co.bays.filter((b) => b.type === type).length + 1;
     co.bays.push({ id: `${type}_${n}`, type, unit: null, ready: this.now + Math.round(B.buildDays * DAY), ...(slot ? { slot: slot.id } : {}) });
@@ -703,7 +706,7 @@ export class Aerospace {
     if (!F || !F.build) return { ok: false, text: 'No such facility.' };
     if ((id === 'pad' ? co.pad : co.facilities[id]) || co.building?.[id]) return { ok: false, text: `${F.name}: already built or being built.` };
     if (!this.canAfford(co, F.build)) return { ok: false, text: `${F.name} costs ${F.build.toLocaleString()} obols.` };
-    this.pay(co, F.build, null);
+    this.pay(co, F.build, null, 'capital');
     co.books.capex += F.build;
     (co.building ||= {})[id] = this.now + Math.round(F.buildDays * DAY);
     this.report(co, 'facility', `🏗 ${co.name} is building: ${F.name} (ready in ${F.buildDays} days).`, co.kind === 'player' ? 'info' : null);
@@ -896,7 +899,7 @@ export class Aerospace {
     const open = c.units.map((id) => this.state.units[id]).filter((u) => !u.finished);
     const owedDeposit = Math.round(c.depositPaid * (open.length / c.qty));
     const penalty = Math.round(c.unitPrice * open.length * this.A.cancelPenalty);
-    this.pay(co, owedDeposit, null);
+    this.pay(co, owedDeposit, null, 'customers');
     co.books.deferred -= owedDeposit;
     this.pay(co, penalty, 'penalties');
     for (const u of open) this.retire(u, 'cancelled');
@@ -1003,7 +1006,7 @@ export class Aerospace {
     const total = q.goods + q.duty + (internal ? 0 : q.freight + q.handling);
     if (!this.canAfford(co, total)) return { ok: false, text: `The order costs ${total.toLocaleString()} obols${internal ? ' (freight comes later, in your own ship)' : ' with freight'}.` };
     ss.stock[m] -= qty;
-    this.pay(co, total, null);
+    this.pay(co, total, null, 'materials');
     co.books.inventoryValue += total;
     if (!internal && q.mode === 'carrier') { co.freight.external += q.freight + q.handling; co.freight.equivalent += q.freight + q.handling; }
     // a late shipment is decided now, by the supplier's reliability (kept with the order)
@@ -1234,7 +1237,7 @@ export class Aerospace {
         job.voyageCost += r.cost;
         // the aerospace division pays the shipping division: a share of what a carrier would have charged
         const charge = Math.round(job.extFreight * job.rate);
-        this.pay(co, charge, null);
+        this.pay(co, charge, null, 'materials');
         co.books.inventoryValue += charge;
         L.earnInternal(charge);
         job.charge = charge;
@@ -1326,7 +1329,7 @@ export class Aerospace {
       const po = this.state.pos[pid];
       const q = this.freightQuote(co, po.supplier, po.material, po.qty);
       const f = q.freight + q.handling;
-      this.pay(co, f, null);
+      this.pay(co, f, null, 'materials');
       co.books.inventoryValue += f;
       co.freight.external += f;
       co.freight.equivalent += f;
@@ -1918,7 +1921,7 @@ export class Aerospace {
     const share = Math.round(c.depositPaid / c.qty);
     if (!c.settled[u.id]) {
       c.settled[u.id] = 'failed';
-      this.pay(co, share, null);
+      this.pay(co, share, null, 'customers');
       co.books.deferred -= share;
       c.failed += 1;
       c.history.push({ at: this.now, text: `Unit ${u.n}: ${why} — deposit share refunded.` });
@@ -1973,6 +1976,9 @@ export class Aerospace {
     co.books.deferred -= share;
     post(co.books, this.day, revenueAccount(p.line), price, this.A.historyDays);
     if (penalty) post(co.books, this.day, 'penalties', penalty, this.A.historyDays);
+    // by line and by product, for the segment report
+    const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
+    for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += price - penalty; bucket.cost += direct; if (lateDays) bucket.late += 1; }
     post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
     post(co.books, this.day, 'cogs_freight', Math.round(u.cost.freight), this.A.historyDays);
     post(co.books, this.day, 'cogs_freight_internal', Math.round(u.cost.freightInt || 0), this.A.historyDays);
@@ -2150,6 +2156,13 @@ export class Aerospace {
   satelliteDay() {
     satelliteDay(this);
   }
+
+  /** The financial reports (src/aero/reports.js). */
+  cashFlowReport(co, n) { return cashFlow(this, co, n); }
+  monthlyReport(co, k = 6) { return monthly(this, co, k); }
+  balanceReport(co) { return balanceSheet(this, co); }
+  segmentReport(co) { return segments(this, co); }
+  headlineReport(co) { return headline(this, co); }
 
   /** Every achievement with where the company stands on it (src/aero/achievements.js). */
   achievements(co) { return achievementProgress(this, co); }
@@ -2372,6 +2385,7 @@ export class Aerospace {
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
       co.achieved ||= {};
+      co.books.months ||= []; co.books.lines ||= {}; co.books.products ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
     this.migrateHalls();

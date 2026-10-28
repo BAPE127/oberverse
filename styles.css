@@ -1057,3 +1057,13 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao .ao-ach small.pos { opacity: 1; }
 .ao .ao-ach small.dim { opacity: .5; }
 .ao .ao-ach-bar { display: flex; flex-direction: column; gap: 3px; }
+
+/* ---- v0.59.0: financial reports */
+.ao .ao-bs-col { border: 1px solid var(--ao-line2); border-radius: 12px; padding: 10px 14px; background: rgba(16,22,36,.6); }
+.ao .ao-bs-col h5 { margin: 0 0 6px; letter-spacing: 2px; font-size: 11px; text-transform: uppercase; color: rgba(223,233,245,.55); font-family: inherit; }
+.ao .ao-bs-row { display: flex; justify-content: space-between; gap: 14px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
+.ao .ao-bs-row.total { border-top: 1px solid rgba(255,255,255,.25); border-bottom: 0; margin-top: 4px; font-weight: 700; color: #fff; }
+.ao .ao-table tr.sub td { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: rgba(223,233,245,.5); padding-top: 10px; }
+.ao .ao-table td .ao-meter { display: inline-block; width: 70px; vertical-align: middle; margin-right: 8px; }
+
+.ao .ao-exportrow { display: flex; justify-content: flex-end; margin: -4px 0 8px; }

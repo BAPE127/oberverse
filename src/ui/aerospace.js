@@ -24,6 +24,7 @@ import { ACCOUNTS } from '../aero/books.js';
 import { aircraftCanvas, rocketCanvas, satelliteCanvas } from '../engine/drawAero.js';
 import { orbitPage } from './aeroOrbit.js';
 import { researchPage } from './aeroResearch.js';
+import { booksReport, BOOK_TABS } from './aeroBooks.js';
 
 const MODES = [
   ['floor', '🏭', 'Floor'],
@@ -46,7 +47,7 @@ const PRIORITY = [['price', 'Price'], ['time', 'Delivery'], ['quality', 'Quality
 const COL = { amber: '#ffb547', green: '#5ee08a', red: '#ff6b6b', blue: '#6fb4ff', dim: '#3a4356', ink: '#dfe9f5' };
 
 /** The terminal's own state survives re-opening (the page, what's selected, the order form). */
-const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1 };
+const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1, booksTab: 'statement' };
 
 const money = (n) => `${Math.round(n).toLocaleString()} ◎`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -570,6 +571,8 @@ export function aerospacePanel(ui, body, opts = {}) {
     if (c.engineers < A.staffNeeded(c, 'engineer')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `📐 ${A.staffNeeded(c, 'engineer') - c.engineers} engineers short — the drawing office and research are slower ›`));
     const lsx = A.launchStatus(c);
     if (lsx && lsx.kind !== 'done') alerts.push(h('button', { class: 'ao-alert', onclick: () => { AO.sel = { kind: 'pad' }; renderDrawer(); } }, `🚀 ${lsx.clock} · ${lsx.text}`));
+    const spent = A.fleetOf(c).live.filter((x) => (x.endsAt - A.now) / 1440 < 12);
+    if (spent.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('orbit') }, `🛰 ${spent.map((x) => x.name).slice(0, 3).join(', ')}${spent.length > 3 ? ` and ${spent.length - 3} more` : ''} ${spent.length === 1 ? 'is' : 'are'} nearly spent — order replacements ›`));
     if (c.inspectors < A.staffNeeded(c, 'inspector')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🔍 ${A.staffNeeded(c, 'inspector') - c.inspectors} inspectors short — inspections are slower and more get through ›`));
     const ops = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id)).map((t) => ({ t, q: A.bidQuote(c.id, t.id) })).filter((x) => x.q.ok).sort((a, b) => b.q.profit - a.q.profit).slice(0, 3);
     const soon = A.unitsOf(c).filter((u) => u.contract).sort((a, b) => A.unitDaysLeft(a) - A.unitDaysLeft(b)).slice(0, 4);
@@ -1024,6 +1027,12 @@ export function aerospacePanel(ui, body, opts = {}) {
 
   // ------------------------------------------------------------------ books
   const booksSheet = () => {
+    const tab = AO.booksTab || 'statement';
+    const tabs = h('div', { class: 'ao-chips' }, ...BOOK_TABS.map(([id, label]) => h('button', { class: `ao-chip${tab === id ? ' on' : ''}`, onclick: () => { AO.booksTab = id; refresh(); } }, label)));
+    if (tab === 'statement') return h('div', {}, tabs, statementBody());
+    return h('div', {}, tabs, booksReport({ A, C, g, h, btn, kpi, section, muted, COL, AO, refresh, co }, tab));
+  };
+  const statementBody = () => {
     const c = co();
     const periods = [['7 days', 7], ['30 days', 30], ['Since you bought it', null]];
     const sums = periods.map(([, n]) => A.statement(c, n));

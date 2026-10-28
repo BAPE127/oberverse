@@ -51,7 +51,7 @@ export function checkAchievements(A, co) {
     if (co.achieved[a.id] || METRICS[a.metric](A, co) < a.goal) continue;
     co.achieved[a.id] = { at: A.now, day: A.day };
     if (a.rep) A.repChange(co, a.rep, `Achievement: ${a.name}`);
-    if (a.cash) A.receive(co, a.cash, null);
+    if (a.cash) A.receive(co, a.cash, null, 'other');
     A.report(co, 'event', `🏆 Achievement — ${a.name}: ${a.text}${a.cash ? ` The Park Authority sends ${a.cash.toLocaleString()} obols.` : ''}`, 'good');
     A.news(`🏆 ${co.name}: ${a.name}.`, 'good');
     won.push(a);

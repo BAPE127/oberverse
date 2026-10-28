@@ -187,6 +187,10 @@ export const dlgTina = {
       say: ['When a vehicle comes out of the integration building it rides the crawler out to the pad — half an hour at walking pace, standing up the whole way. Then the board by the pad shows the clock. Twenty minutes to go, the last five with the engines lit.', 'The gate south of the pad is as close as I allow, and you\'ll feel it in your chest even there. Further back you\'ll hear it and see the trail. Do not stand in the flame trench. I have to say that. Someone tried.'],
     },
     {
+      id: 't_tina_orbit', label: '"What do satellites earn once they\'re up?"', keywords: ['earn', 'income', 'network', 'service', 'support', 'fee', 'orbit', 'constellation', 'revenue', 'insurance'],
+      say: ['Two ways. A satellite you built for a customer pays you a small fee every day to keep it working — and when it\'s nearly spent, the customer asks for another. That\'s the quiet money.', 'A satellite of your own works for you: weather, imagery, bandwidth, navigation, science. One of a kind covers a corner of the sky; a full network is worth a good deal more than its parts, until you carry more than the market buys. They age, they can be lost, a solar storm takes a bite out of the unshielded ones, and there are insurers if you want them. Look at the Orbit page before you order.'],
+    },
+    {
       id: 't_tina_failure', label: '"Do launches ever fail?"', keywords: ['fail', 'failure', 'explode', 'lost', 'risk'],
       say: ['Sometimes. A good vehicle built well fails rarely; a rushed one less rarely. When one goes, it takes its payload with it, and the customer isn\'t charged. Nobody\'s ever been hurt on my range. That\'s the number I care about.'],
     },

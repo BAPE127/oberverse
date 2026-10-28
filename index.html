@@ -1067,6 +1067,16 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao .ao-ach small.pos { opacity: 1; }
 .ao .ao-ach small.dim { opacity: .5; }
 .ao .ao-ach-bar { display: flex; flex-direction: column; gap: 3px; }
+
+/* ---- v0.59.0: financial reports */
+.ao .ao-bs-col { border: 1px solid var(--ao-line2); border-radius: 12px; padding: 10px 14px; background: rgba(16,22,36,.6); }
+.ao .ao-bs-col h5 { margin: 0 0 6px; letter-spacing: 2px; font-size: 11px; text-transform: uppercase; color: rgba(223,233,245,.55); font-family: inherit; }
+.ao .ao-bs-row { display: flex; justify-content: space-between; gap: 14px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
+.ao .ao-bs-row.total { border-top: 1px solid rgba(255,255,255,.25); border-bottom: 0; margin-top: 4px; font-weight: 700; color: #fff; }
+.ao .ao-table tr.sub td { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: rgba(223,233,245,.5); padding-top: 10px; }
+.ao .ao-table td .ao-meter { display: inline-block; width: 70px; vertical-align: middle; margin-right: 8px; }
+
+.ao .ao-exportrow { display: flex; justify-content: flex-end; margin: -4px 0 8px; }
 </style>
 </head>
 <body>
@@ -3607,7 +3617,7 @@ const ACHIEVEMENTS = [
   // standing
   { id: 'rep_75', group: 'Standing', name: 'Well regarded', metric: 'reputation', goal: 75, rep: 0, cash: 100000, text: 'A reputation of 75.' },
   { id: 'rep_95', group: 'Standing', name: 'The name on every shortlist', metric: 'reputation', goal: 95, rep: 0, cash: 400000, text: 'A reputation of 95.' },
-  { id: 'beat_meridian', group: 'Standing', name: 'Overtaking Meridian', metric: 'beatMeridian', goal: 1, rep: 3, cash: 250000, text: 'More units delivered than Meridian Aerospace (at least ten).' },
+  { id: 'beat_meridian', group: 'Standing', name: 'Overtaking Meridian', metric: 'beatMeridian', goal: 1, rep: 3, cash: 250000, text: 'More units delivered than Meridian Aerospace — once it has delivered ten.' },
 ];
 
 /**
@@ -13576,6 +13586,10 @@ const dlgTina = {
     {
       id: 't_tina_watch', label: '"Where\'s the best place to watch a launch?"', keywords: ['watch', 'see', 'view', 'viewing', 'crawler', 'clock', 'board', 'T-minus', 'countdown', 'safe'],
       say: ['When a vehicle comes out of the integration building it rides the crawler out to the pad — half an hour at walking pace, standing up the whole way. Then the board by the pad shows the clock. Twenty minutes to go, the last five with the engines lit.', 'The gate south of the pad is as close as I allow, and you\'ll feel it in your chest even there. Further back you\'ll hear it and see the trail. Do not stand in the flame trench. I have to say that. Someone tried.'],
+    },
+    {
+      id: 't_tina_orbit', label: '"What do satellites earn once they\'re up?"', keywords: ['earn', 'income', 'network', 'service', 'support', 'fee', 'orbit', 'constellation', 'revenue', 'insurance'],
+      say: ['Two ways. A satellite you built for a customer pays you a small fee every day to keep it working — and when it\'s nearly spent, the customer asks for another. That\'s the quiet money.', 'A satellite of your own works for you: weather, imagery, bandwidth, navigation, science. One of a kind covers a corner of the sky; a full network is worth a good deal more than its parts, until you carry more than the market buys. They age, they can be lost, a solar storm takes a bite out of the unshielded ones, and there are insurers if you want them. Look at the Orbit page before you order.'],
     },
     {
       id: 't_tina_failure', label: '"Do launches ever fail?"', keywords: ['fail', 'failure', 'explode', 'lost', 'risk'],
@@ -33210,10 +33224,10 @@ const ACCOUNTS = {
 };
 
 function freshBooks() {
-  return { totals: {}, days: [], deferred: 0, inventoryValue: 0, capex: 0, fleet: 0 };
+  return { totals: {}, days: [], months: [], deferred: 0, inventoryValue: 0, capex: 0, fleet: 0, lines: {}, products: {} };
 }
 
-/** Post an amount (positive) to an account on a day. */
+/** Post an amount (positive) to an account on a day (and into the month it falls in: thirty-day months, two years kept). */
 function post(books, day, account, amount, keep = 30) {
   if (!amount) return;
   books.totals[account] = (books.totals[account] || 0) + amount;
@@ -33224,6 +33238,30 @@ function post(books, day, account, amount, keep = 30) {
     if (books.days.length > keep) books.days.length = keep;
   }
   d.acc[account] = (d.acc[account] || 0) + amount;
+  const mi = Math.floor((day - 1) / 30);
+  books.months ||= [];
+  let m = books.months[0];
+  if (!m || m.m !== mi) {
+    m = { m: mi, acc: {} };
+    books.months.unshift(m);
+    if (books.months.length > 24) books.months.length = 24;
+  }
+  m.acc[account] = (m.acc[account] || 0) + amount;
+}
+
+/** How cash moved: every payment and receipt is also posted under a `cf_` account by what it was for. */
+const FLOW = {
+  in: { customers: 'From customers — payments and deposits', other: 'Other — insurance claims, grants' },
+  out: { materials: 'Materials and their freight', people: 'Wages, hiring and training', running: 'Running costs — upkeep, overhead, operations, research, launches, rework', customers: 'To customers — refunds and penalties', capital: 'Halls, bays and facilities' },
+};
+
+/** Which cash category an account's payments and receipts fall in. */
+function flowOf(account, dir) {
+  if (dir === 'in') return account && ACCOUNTS[account]?.kind === 'revenue' && account !== 'rev_claims' ? 'customers' : account === 'rev_claims' ? 'other' : 'customers';
+  if (['wages', 'hiring', 'training'].includes(account)) return 'people';
+  if (account === 'penalties') return 'customers';
+  if (account) return 'running';
+  return 'running';
 }
 
 /** Sum the accounts over the last `n` days (or all time when n is null). */
@@ -33246,7 +33284,7 @@ function summarise(books, n = null, { consolidated = false } = {}) {
 /** The revenue account for a product line. */
 const revenueAccount = (line) => ({ aircraft: 'rev_aircraft', rocket: 'rev_rocket', missile: 'rev_missile', satellite: 'rev_satellite' }[line] || 'rev_aircraft');
 
-return { ACCOUNTS, freshBooks, post, summarise, revenueAccount };
+return { ACCOUNTS, freshBooks, post, FLOW, flowOf, summarise, revenueAccount };
 })();
 
 // ---- src/aero/config.js
@@ -34597,7 +34635,7 @@ const METRICS = {
   researched: (A, co) => co.research.length,
   workforce: (A, co) => co.workforce,
   reputation: (A, co) => co.reputation,
-  beatMeridian: (A, co) => ((co.stats.delivered || 0) >= 10 && (co.stats.delivered || 0) > (A.meridian?.stats.delivered || 0) ? 1 : 0),
+  beatMeridian: (A, co) => ((A.meridian?.stats.delivered || 0) >= 10 && (co.stats.delivered || 0) > A.meridian.stats.delivered ? 1 : 0),
 };
 
 /** Every achievement with where the company stands on it: { …def, value, goal, frac, done, at }. */
@@ -34618,7 +34656,7 @@ function checkAchievements(A, co) {
     if (co.achieved[a.id] || METRICS[a.metric](A, co) < a.goal) continue;
     co.achieved[a.id] = { at: A.now, day: A.day };
     if (a.rep) A.repChange(co, a.rep, `Achievement: ${a.name}`);
-    if (a.cash) A.receive(co, a.cash, null);
+    if (a.cash) A.receive(co, a.cash, null, 'other');
     A.report(co, 'event', `🏆 Achievement — ${a.name}: ${a.text}${a.cash ? ` The Park Authority sends ${a.cash.toLocaleString()} obols.` : ''}`, 'good');
     A.news(`🏆 ${co.name}: ${a.name}.`, 'good');
     won.push(a);
@@ -34627,6 +34665,108 @@ function checkAchievements(A, co) {
 }
 
 return { METRICS, progress, checkAchievements };
+})();
+
+// ---- src/aero/reports.js
+__m["src/aero/reports.js"] = (function () {
+// The financial reports (v0.59.0), read from a company's books and its floor: the statement by
+// month, how cash moved, what the company owns and owes, and which line of work makes the money.
+// Everything here only reads; the books are written by src/systems/aerospace.js through
+// src/aero/books.js. `A` is the Aerospace system.
+const { ACCOUNTS, FLOW, summarise } = __m["src/aero/books.js"];
+
+const sumKind = (acc, kind, { consolidated = false } = {}) => Object.entries(acc).reduce((a, [k, v]) => { const d = ACCOUNTS[k]; return d && d.kind === kind && !(consolidated && d.internal) ? a + v : a; }, 0);
+
+/** The last `k` months (thirty-day periods), newest last: { m, label, acc, revenue, costs, profit }. */
+function monthly(A, co, k = 6) {
+  const rows = (co.books.months || []).slice(0, k).reverse().map((x) => {
+    const revenue = sumKind(x.acc, 'revenue');
+    const costs = sumKind(x.acc, 'cost');
+    return { m: x.m, label: `Days ${x.m * 30 + 1}–${x.m * 30 + 30}`, short: `M${x.m + 1}`, acc: x.acc, revenue, costs, profit: revenue - costs, partial: x.m === Math.floor((A.day - 1) / 30) };
+  });
+  return rows;
+}
+
+/** How cash moved over the last `n` days (null: since the beginning): receipts and payments by what they were for. */
+function cashFlow(A, co, n = null) {
+  const acc = {};
+  if (n === null) Object.assign(acc, co.books.totals);
+  else for (const d of co.books.days.slice(0, n)) for (const [k, v] of Object.entries(d.acc)) acc[k] = (acc[k] || 0) + v;
+  const rows = (dir) => Object.entries(FLOW[dir]).map(([key, label]) => ({ key, label, value: acc[`cf_${dir}_${key}`] || 0 })).filter((r) => r.value);
+  const inRows = rows('in');
+  const outRows = rows('out');
+  const into = inRows.reduce((a, r) => a + r.value, 0);
+  const out = outRows.reduce((a, r) => a + r.value, 0);
+  return { in: inRows, out: outRows, totalIn: into, totalOut: out, net: into - out, operating: into - out + (acc.cf_out_capital || 0), capital: acc.cf_out_capital || 0 };
+}
+
+/** What the company owns and owes now. Cash is the owner's wallet for Roost (so it isn't counted); Meridian has its own. */
+function balanceSheet(A, co) {
+  const C = A.cfg;
+  const stores = Math.round(co.books.inventoryValue);
+  const wip = Math.round(A.unitsOf(co).filter((u) => u.purpose !== 'launcher').reduce((a, u) => a + u.cost.materials + u.cost.freight + (u.cost.freightInt || 0), 0));
+  let plant = co.bays.reduce((a, b) => a + C.bays[b.type].build, 0);
+  for (const id of Object.keys(co.facilities || {})) if (co.facilities[id] && C.facilities[id]?.build) plant += C.facilities[id].build;
+  if (co.pad) plant += C.facilities.pad.build;
+  if (co.halls) for (const id of Object.keys(C.halls)) if (!C.halls[id].owned && A.hallState(co, id).state === 'built') plant += C.halls[id].build;
+  plant = Math.round(plant * 0.6);
+  const fleet = Math.round(co.books.fleet || 0);
+  const cash = co.kind === 'rival' ? Math.round(co.cash) : null;
+  const assets = stores + wip + plant + fleet + (cash ?? 0);
+  const deposits = Math.round(co.books.deferred);
+  const liabilities = deposits;
+  const net = assets - liabilities;
+  const result = Math.round(summarise(co.books, null).profit);
+  return {
+    assets: [
+      ...(cash === null ? [] : [{ label: 'Cash', value: cash }]),
+      { label: 'Materials in stores and on order', value: stores },
+      { label: 'Work in progress (what open units have cost so far)', value: wip },
+      { label: 'Plant: bays, halls and facilities, at 60% of cost', value: plant },
+      { label: 'Satellite fleet (book value)', value: fleet },
+    ],
+    liabilities: [{ label: 'Deposits held — work still owed to customers', value: deposits }],
+    totalAssets: assets, totalLiabilities: liabilities, net, result, capital: net - result, cash,
+  };
+}
+
+/** Which line of work makes the money: revenue, direct cost (materials and freight), contribution and margin, per line and per product. */
+function segments(A, co) {
+  const C = A.cfg;
+  const L = co.books.lines || {};
+  const names = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic products', satellite: 'Satellites (built for customers)' };
+  const rows = Object.keys(names).map((id) => { const x = L[id] || { units: 0, revenue: 0, cost: 0, late: 0 }; return { id, name: names[id], units: x.units, revenue: x.revenue, cost: x.cost, late: x.late, contribution: x.revenue - x.cost, margin: x.revenue ? (x.revenue - x.cost) / x.revenue : 0 }; });
+  const t = co.books.totals;
+  const servicesRev = (t.rev_services || 0) + (t.rev_claims || 0);
+  const servicesCost = (t.sat_ops || 0) + (t.depreciation || 0) + (t.insurance || 0);
+  rows.push({ id: 'services', name: 'Satellite services & support', units: Object.values(A.state.satellites).filter((s) => s.manufacturer === co.id).length, revenue: servicesRev, cost: servicesCost, late: 0, contribution: servicesRev - servicesCost, margin: servicesRev ? (servicesRev - servicesCost) / servicesRev : 0, services: true });
+  const products = Object.entries(co.books.products || {}).map(([id, x]) => ({ id, name: C.products[id]?.name || id, line: C.products[id]?.line, units: x.units, revenue: x.revenue, cost: x.cost, late: x.late, contribution: x.revenue - x.cost, margin: x.revenue ? (x.revenue - x.cost) / x.revenue : 0 })).sort((a, b) => b.contribution - a.contribution);
+  return { rows, products, total: rows.reduce((a, r) => ({ revenue: a.revenue + r.revenue, cost: a.cost + r.cost, contribution: a.contribution + r.contribution }), { revenue: 0, cost: 0, contribution: 0 }) };
+}
+
+/** A few numbers that say how the year is going. */
+function headline(A, co) {
+  const all = summarise(co.books, null);
+  const m30 = summarise(co.books, 30);
+  const t = co.books.totals;
+  const cogs = (t.cogs_materials || 0) + (t.cogs_freight || 0) + (t.cogs_freight_internal || 0);
+  const goods = (t.rev_aircraft || 0) + (t.rev_rocket || 0) + (t.rev_missile || 0) + (t.rev_satellite || 0);
+  const fleet = Math.round(co.books.fleet || 0);
+  const svc30 = summarise({ days: co.books.days }, 30).acc.rev_services || 0;
+  return {
+    revenue: all.revenue, profit: all.profit, margin: all.revenue ? all.profit / all.revenue : 0,
+    grossMargin: goods ? (goods - cogs) / goods : 0, revenue30: m30.revenue, profit30: m30.profit,
+    perTechnician: co.workforce ? Math.round(m30.revenue / co.workforce) : 0,
+    fleetYield: fleet ? (svc30 / 30 * 365) / fleet : null,
+  };
+}
+
+/** Rows (arrays of cells) to CSV text, with the quoting a spreadsheet expects. */
+function toCsv(rows) {
+  return rows.map((r) => r.map((c) => { const v = c === null || c === undefined ? '' : String(c); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; }).join(',')).join('\n');
+}
+
+return { monthly, cashFlow, balanceSheet, segments, headline, toCsv };
 })();
 
 // ---- src/aero/events.js
@@ -35262,7 +35402,7 @@ __m["src/systems/aerospace.js"] = (function () {
 const { Rng } = __m["src/core/rng.js"];
 const { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomValue, fmtMoney, fmtDays } = __m["src/aero/catalog.js"];
 const { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } = __m["src/aero/pipeline.js"];
-const { freshBooks, post, summarise, revenueAccount } = __m["src/aero/books.js"];
+const { freshBooks, post, summarise, revenueAccount, flowOf } = __m["src/aero/books.js"];
 const { configure, cleanConfig, configError, configLabel } = __m["src/aero/config.js"];
 const { makeTender, bidError, rankBids, launchAllowance } = __m["src/aero/tenders.js"];
 const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
@@ -35271,6 +35411,7 @@ const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField,
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
 const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
 const { checkAchievements, progress: achievementProgress } = __m["src/aero/achievements.js"];
+const { cashFlow, monthly, balanceSheet, segments, headline } = __m["src/aero/reports.js"];
 const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } = __m["src/aero/fleet.js"];
 const { eventsMorning, resolveEvent, hallDiscount, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
@@ -35485,7 +35626,7 @@ class Aerospace {
   }
 
   /** Money out, booked to an account (null: an asset — materials, capital spending). */
-  pay(co, amount, account) {
+  pay(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
     if (co.kind === 'player') {
@@ -35494,10 +35635,11 @@ class Aerospace {
       g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
     } else co.cash -= amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
+    post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
   }
 
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
-  receive(co, amount, account) {
+  receive(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
     if (co.kind === 'player') {
@@ -35506,6 +35648,7 @@ class Aerospace {
       g.bus.emit('money:changed', { delta: amount, total: g.player.money });
     } else co.cash += amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
+    post(co.books, this.day, `cf_in_${flow || flowOf(account, 'in')}`, amount, this.A.historyDays);
   }
 
   /** Can it afford this now? The rival may draw on its credit line. */
@@ -35900,7 +36043,7 @@ class Aerospace {
     const disc = hallDiscount(this, co, id);
     const cost = Math.round(H.build * (1 - disc.pct));
     if (!this.canAfford(co, cost)) return { ok: false, text: `${H.name} costs ${cost.toLocaleString()} obols.` };
-    this.pay(co, cost, null);
+    this.pay(co, cost, null, 'capital');
     co.books.capex += cost;
     co.halls[id] = this.now + Math.round(H.buildDays * DAY);
     if (disc.offer) { co.offers = co.offers.filter((o) => o !== disc.offer); this.report(co, 'facility', `🏗 The Park Authority's offer saved ${fmtMoney(H.build - cost)} on the ${H.name}.`, 'good'); }
@@ -35927,7 +36070,7 @@ class Aerospace {
       }
     } else cost = Math.round(B.build * 1.5); // Meridian's halls on the map are full: a bay beyond them goes up at another of its sites
     if (!this.canAfford(co, cost)) return { ok: false, text: `A ${B.name.toLowerCase()} costs ${cost.toLocaleString()} obols.` };
-    this.pay(co, cost, null);
+    this.pay(co, cost, null, 'capital');
     co.books.capex += cost;
     const n = co.bays.filter((b) => b.type === type).length + 1;
     co.bays.push({ id: `${type}_${n}`, type, unit: null, ready: this.now + Math.round(B.buildDays * DAY), ...(slot ? { slot: slot.id } : {}) });
@@ -35943,7 +36086,7 @@ class Aerospace {
     if (!F || !F.build) return { ok: false, text: 'No such facility.' };
     if ((id === 'pad' ? co.pad : co.facilities[id]) || co.building?.[id]) return { ok: false, text: `${F.name}: already built or being built.` };
     if (!this.canAfford(co, F.build)) return { ok: false, text: `${F.name} costs ${F.build.toLocaleString()} obols.` };
-    this.pay(co, F.build, null);
+    this.pay(co, F.build, null, 'capital');
     co.books.capex += F.build;
     (co.building ||= {})[id] = this.now + Math.round(F.buildDays * DAY);
     this.report(co, 'facility', `🏗 ${co.name} is building: ${F.name} (ready in ${F.buildDays} days).`, co.kind === 'player' ? 'info' : null);
@@ -36136,7 +36279,7 @@ class Aerospace {
     const open = c.units.map((id) => this.state.units[id]).filter((u) => !u.finished);
     const owedDeposit = Math.round(c.depositPaid * (open.length / c.qty));
     const penalty = Math.round(c.unitPrice * open.length * this.A.cancelPenalty);
-    this.pay(co, owedDeposit, null);
+    this.pay(co, owedDeposit, null, 'customers');
     co.books.deferred -= owedDeposit;
     this.pay(co, penalty, 'penalties');
     for (const u of open) this.retire(u, 'cancelled');
@@ -36243,7 +36386,7 @@ class Aerospace {
     const total = q.goods + q.duty + (internal ? 0 : q.freight + q.handling);
     if (!this.canAfford(co, total)) return { ok: false, text: `The order costs ${total.toLocaleString()} obols${internal ? ' (freight comes later, in your own ship)' : ' with freight'}.` };
     ss.stock[m] -= qty;
-    this.pay(co, total, null);
+    this.pay(co, total, null, 'materials');
     co.books.inventoryValue += total;
     if (!internal && q.mode === 'carrier') { co.freight.external += q.freight + q.handling; co.freight.equivalent += q.freight + q.handling; }
     // a late shipment is decided now, by the supplier's reliability (kept with the order)
@@ -36474,7 +36617,7 @@ class Aerospace {
         job.voyageCost += r.cost;
         // the aerospace division pays the shipping division: a share of what a carrier would have charged
         const charge = Math.round(job.extFreight * job.rate);
-        this.pay(co, charge, null);
+        this.pay(co, charge, null, 'materials');
         co.books.inventoryValue += charge;
         L.earnInternal(charge);
         job.charge = charge;
@@ -36566,7 +36709,7 @@ class Aerospace {
       const po = this.state.pos[pid];
       const q = this.freightQuote(co, po.supplier, po.material, po.qty);
       const f = q.freight + q.handling;
-      this.pay(co, f, null);
+      this.pay(co, f, null, 'materials');
       co.books.inventoryValue += f;
       co.freight.external += f;
       co.freight.equivalent += f;
@@ -37158,7 +37301,7 @@ class Aerospace {
     const share = Math.round(c.depositPaid / c.qty);
     if (!c.settled[u.id]) {
       c.settled[u.id] = 'failed';
-      this.pay(co, share, null);
+      this.pay(co, share, null, 'customers');
       co.books.deferred -= share;
       c.failed += 1;
       c.history.push({ at: this.now, text: `Unit ${u.n}: ${why} — deposit share refunded.` });
@@ -37213,6 +37356,9 @@ class Aerospace {
     co.books.deferred -= share;
     post(co.books, this.day, revenueAccount(p.line), price, this.A.historyDays);
     if (penalty) post(co.books, this.day, 'penalties', penalty, this.A.historyDays);
+    // by line and by product, for the segment report
+    const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
+    for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += price - penalty; bucket.cost += direct; if (lateDays) bucket.late += 1; }
     post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
     post(co.books, this.day, 'cogs_freight', Math.round(u.cost.freight), this.A.historyDays);
     post(co.books, this.day, 'cogs_freight_internal', Math.round(u.cost.freightInt || 0), this.A.historyDays);
@@ -37390,6 +37536,13 @@ class Aerospace {
   satelliteDay() {
     satelliteDay(this);
   }
+
+  /** The financial reports (src/aero/reports.js). */
+  cashFlowReport(co, n) { return cashFlow(this, co, n); }
+  monthlyReport(co, k = 6) { return monthly(this, co, k); }
+  balanceReport(co) { return balanceSheet(this, co); }
+  segmentReport(co) { return segments(this, co); }
+  headlineReport(co) { return headline(this, co); }
 
   /** Every achievement with where the company stands on it (src/aero/achievements.js). */
   achievements(co) { return achievementProgress(this, co); }
@@ -37612,6 +37765,7 @@ class Aerospace {
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
       co.achieved ||= {};
+      co.books.months ||= []; co.books.lines ||= {}; co.books.products ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
     this.migrateHalls();
@@ -60912,6 +61066,109 @@ function researchPage(env) {
 return { researchPage };
 })();
 
+// ---- src/ui/aeroBooks.js
+__m["src/ui/aeroBooks.js"] = (function () {
+// The financial reports of the aerospace terminal (v0.59.0): month by month, how cash moved,
+// what the company owns and owes, and which line of work pays. Read from src/aero/reports.js.
+const { ACCOUNTS } = __m["src/aero/books.js"];
+const { toCsv } = __m["src/aero/reports.js"];
+const { fmtMoney } = __m["src/aero/catalog.js"];
+
+const BOOK_TABS = [['statement', 'Statement'], ['months', 'Month by month'], ['cash', 'Cash flow'], ['balance', 'Balance sheet'], ['lines', 'By line of work']];
+
+const n0 = (v) => Math.round(v).toLocaleString();
+const neg = (v) => (Math.round(v) ? `−${n0(v)}` : '—');
+const pct = (v) => `${(v * 100).toFixed(1)}%`;
+
+/** Download text as a file (a spreadsheet opens a .csv). */
+function download(name, text) {
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch { /* a browser that will not */ }
+}
+
+function booksReport(env, tab) {
+  const { A, C, h, btn, kpi, section, muted, COL, AO, refresh, co } = env;
+  const c = co();
+  const head = A.headlineReport(c);
+  const kpis = h('div', { class: 'ao-kpis' }, kpi('Revenue, all time', fmtMoney(head.revenue), 'pos'), kpi('Profit, all time', fmtMoney(head.profit), head.profit >= 0 ? 'pos' : 'neg', `${pct(head.margin)} of revenue`), kpi('Gross margin on units', pct(head.grossMargin), head.grossMargin > 0.25 ? 'pos' : '', 'before wages and running costs'), kpi('Revenue, 30 days', fmtMoney(head.revenue30), '', `${fmtMoney(head.perTechnician)} a technician`));
+  const exportBtn = (name, rows) => h('div', { class: 'ao-exportrow' }, btn('⬇ Export CSV', () => download(`${name}.csv`, toCsv(rows)), 'small'));
+
+  if (tab === 'months') {
+    const rows = A.monthlyReport(c, 6);
+    const accts = Object.keys(ACCOUNTS).filter((k) => rows.some((r) => r.acc[k]));
+    const chart = h('canvas', { width: 1400, height: 240, class: 'ao-chart' });
+    const x = chart.getContext('2d');
+    const max = Math.max(1, ...rows.map((r) => Math.max(r.revenue, r.costs)));
+    const bw = 1400 / Math.max(6, rows.length);
+    rows.forEach((r, i) => {
+      x.fillStyle = 'rgba(94,224,138,0.85)'; x.fillRect(i * bw + bw * 0.14, 205 - (r.revenue / max) * 180, bw * 0.34, (r.revenue / max) * 180);
+      x.fillStyle = 'rgba(255,107,107,0.8)'; x.fillRect(i * bw + bw * 0.52, 205 - (r.costs / max) * 180, bw * 0.34, (r.costs / max) * 180);
+      x.fillStyle = r.profit >= 0 ? '#9be8b4' : '#ffa3a3'; x.font = '20px system-ui'; x.textAlign = 'center';
+      x.fillText(`${r.profit >= 0 ? '+' : ''}${fmtMoney(r.profit)}`, i * bw + bw / 2, 30 + 0 * i);
+      x.fillStyle = '#8fa3bf'; x.font = '18px system-ui'; x.fillText(`${r.short}${r.partial ? ' (so far)' : ''}`, i * bw + bw / 2, 232);
+    });
+    const csv = [['Account', ...rows.map((r) => r.label)], ...accts.map((k) => [ACCOUNTS[k].name, ...rows.map((r) => Math.round(r.acc[k] || 0))]), ['Revenue', ...rows.map((r) => Math.round(r.revenue))], ['Costs', ...rows.map((r) => Math.round(r.costs))], ['Profit', ...rows.map((r) => Math.round(r.profit))]];
+    return h('div', {}, kpis,
+      section('Month by month — thirty-day months', exportBtn('roost-months', csv), rows.length ? chart : muted('The first month is still being written.'),
+        h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+          h('tr', {}, h('th', {}, 'Account'), ...rows.map((r) => h('th', { class: 'r', title: r.label }, `${r.short}${r.partial ? '*' : ''}`))),
+          ...accts.map((k) => h('tr', { class: ACCOUNTS[k].kind === 'revenue' ? 'pos' : '' }, h('td', {}, ACCOUNTS[k].name), ...rows.map((r) => h('td', { class: 'r' }, r.acc[k] ? `${ACCOUNTS[k].kind === 'revenue' ? '' : '−'}${n0(r.acc[k])}` : '—')))),
+          h('tr', { class: 'total' }, h('td', {}, 'Operating profit'), ...rows.map((r) => h('td', { class: `r ${r.profit >= 0 ? 'pos' : 'neg'}` }, n0(r.profit)))))),
+        muted('* the month in progress. Depreciation of the satellite fleet is a cost here that never left your account; the cash flow report shows what did.')));
+  }
+
+  if (tab === 'cash') {
+    const periods = [['7 days', 7], ['30 days', 30], ['Since the beginning', null]];
+    const flows = periods.map(([, n]) => A.cashFlowReport(c, n));
+    const keys = (dir) => [...new Set(flows.flatMap((f) => f[dir].map((r) => r.key)))];
+    const label = (dir, key) => flows.map((f) => f[dir].find((r) => r.key === key)).find(Boolean).label;
+    const csv = [['', ...periods.map(([l]) => l)], ...keys('in').map((k) => [label('in', k), ...flows.map((f) => Math.round(f.in.find((r) => r.key === k)?.value || 0))]), ...keys('out').map((k) => [label('out', k), ...flows.map((f) => -Math.round(f.out.find((r) => r.key === k)?.value || 0))]), ['Net', ...flows.map((f) => Math.round(f.net))]];
+    return h('div', {}, kpis,
+      section('How cash moved', exportBtn('roost-cashflow', csv), h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+        h('tr', {}, h('th', {}, ''), ...periods.map(([l]) => h('th', { class: 'r' }, l))),
+        h('tr', { class: 'sub' }, h('td', { colspan: 4 }, 'Cash in')),
+        ...keys('in').map((k) => h('tr', { class: 'pos' }, h('td', {}, label('in', k)), ...flows.map((f) => h('td', { class: 'r' }, f.in.find((r) => r.key === k)?.value ? n0(f.in.find((r) => r.key === k).value) : '—')))),
+        h('tr', { class: 'sub' }, h('td', { colspan: 4 }, 'Cash out')),
+        ...keys('out').map((k) => h('tr', {}, h('td', {}, label('out', k)), ...flows.map((f) => h('td', { class: 'r' }, neg(f.out.find((r) => r.key === k)?.value || 0))))),
+        h('tr', { class: 'total' }, h('td', {}, 'Net cash movement'), ...flows.map((f) => h('td', { class: `r ${f.net >= 0 ? 'pos' : 'neg'}` }, n0(f.net)))),
+        h('tr', {}, h('td', {}, '…of which before halls, bays and facilities'), ...flows.map((f) => h('td', { class: `r ${f.operating >= 0 ? 'pos' : 'neg'}` }, n0(f.operating)))))),
+      muted(c.kind === 'player' ? 'Roost draws on your own account, so this is what moved in and out of it on the firm\'s behalf. A deposit is cash in the day it is paid and revenue only when the unit is delivered.' : '')));
+  }
+
+  if (tab === 'balance') {
+    const b = A.balanceReport(c);
+    const csv = [['', 'Obols'], ...b.assets.map((r) => [r.label, r.value]), ['Total assets', b.totalAssets], ...b.liabilities.map((r) => [r.label, -r.value]), ['Net assets', b.net], ['Result since the beginning', b.result], ['Capital put in (net assets less the result)', b.capital]];
+    const col = (title, rows, total, totalLabel) => h('div', { class: 'ao-bs-col' }, h('h5', {}, title), ...rows.map((r) => h('div', { class: 'ao-bs-row' }, h('span', {}, r.label), h('b', {}, n0(r.value)))), h('div', { class: 'ao-bs-row total' }, h('span', {}, totalLabel), h('b', {}, n0(total))));
+    return h('div', {}, kpis,
+      section('What the company owns and owes — now', exportBtn('roost-balance', csv),
+        h('div', { class: 'ao-two' }, col('Owns', b.assets, b.totalAssets, 'Total assets'), col('Owes', b.liabilities, b.totalLiabilities, 'Total liabilities')),
+        h('div', { class: 'ao-kpis' }, kpi('Net assets', fmtMoney(b.net), b.net >= 0 ? 'pos' : 'neg'), kpi('Result since the beginning', fmtMoney(b.result), b.result >= 0 ? 'pos' : 'neg'), kpi('Capital put in', fmtMoney(b.capital), '', 'net assets less the result'), kpi('Satellite fleet', fmtMoney(c.books.fleet || 0), '', 'book value')),
+        muted(c.kind === 'player' ? 'Cash is not on the sheet: Roost spends from your own account. Work in progress is what the open units have cost in materials and freight so far; plant is counted at 60% of what the halls, bays and facilities cost.' : 'Meridian\'s own cash is in the assets.')));
+  }
+
+  // by line of work
+  const seg = A.segmentReport(c);
+  const csv = [['Line', 'Units', 'Revenue', 'Direct cost', 'Contribution', 'Margin'], ...seg.rows.map((r) => [r.name, r.units, Math.round(r.revenue), Math.round(r.cost), Math.round(r.contribution), pct(r.margin)]), [], ['Product', 'Units', 'Revenue', 'Direct cost', 'Contribution', 'Margin', 'Late'], ...seg.products.map((r) => [r.name, r.units, Math.round(r.revenue), Math.round(r.cost), Math.round(r.contribution), pct(r.margin), r.late])];
+  const marginBar = (m) => h('div', { class: 'ao-meter', title: pct(m) }, h('i', { style: `width:${Math.round(Math.max(0, Math.min(1, m)) * 100)}%;background:${m > 0.3 ? COL.green : m > 0.1 ? COL.amber : COL.red}` }));
+  return h('div', {}, kpis,
+    section('By line of work', exportBtn('roost-lines', csv), h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+      h('tr', {}, h('th', {}, 'Line'), h('th', { class: 'r' }, 'Units'), h('th', { class: 'r' }, 'Revenue'), h('th', { class: 'r' }, 'Direct cost'), h('th', { class: 'r' }, 'Contribution'), h('th', {}, 'Margin')),
+      ...seg.rows.map((r) => h('tr', {}, h('td', {}, r.name), h('td', { class: 'r' }, r.units ? String(r.units) : '—'), h('td', { class: 'r' }, n0(r.revenue)), h('td', { class: 'r' }, n0(r.cost)), h('td', { class: `r ${r.contribution >= 0 ? 'pos' : 'neg'}` }, n0(r.contribution)), h('td', {}, r.revenue ? [marginBar(r.margin), pct(r.margin)] : '—'))),
+      h('tr', { class: 'total' }, h('td', {}, 'All lines'), h('td', {}), h('td', { class: 'r' }, n0(seg.total.revenue)), h('td', { class: 'r' }, n0(seg.total.cost)), h('td', { class: `r ${seg.total.contribution >= 0 ? 'pos' : 'neg'}` }, n0(seg.total.contribution)), h('td', {})))),
+      muted('Direct cost is the materials and freight in the units delivered (for satellite services: running costs, depreciation and insurance). Wages, upkeep and overhead are shared by all of it and are in the statement.')),
+    seg.products.length ? section('By product', h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+      h('tr', {}, h('th', {}, 'Product'), h('th', { class: 'r' }, 'Units'), h('th', { class: 'r' }, 'Revenue'), h('th', { class: 'r' }, 'Contribution'), h('th', {}, 'Margin'), h('th', { class: 'r' }, 'Late')),
+      ...seg.products.map((r) => h('tr', {}, h('td', {}, r.name), h('td', { class: 'r' }, String(r.units)), h('td', { class: 'r' }, n0(r.revenue)), h('td', { class: `r ${r.contribution >= 0 ? 'pos' : 'neg'}` }, n0(r.contribution)), h('td', {}, [marginBar(r.margin), pct(r.margin)]), h('td', { class: 'r' }, r.late ? String(r.late) : '—')))))) : muted('Deliver something and it appears here.'));
+}
+
+return { BOOK_TABS, booksReport };
+})();
+
 // ---- src/ui/aerospace.js
 __m["src/ui/aerospace.js"] = (function () {
 // Roost Aeroworks — Operations (v0.56.1; the aerospace terminal since v0.55.0).
@@ -60940,6 +61197,7 @@ const { ACCOUNTS } = __m["src/aero/books.js"];
 const { aircraftCanvas, rocketCanvas, satelliteCanvas } = __m["src/engine/drawAero.js"];
 const { orbitPage } = __m["src/ui/aeroOrbit.js"];
 const { researchPage } = __m["src/ui/aeroResearch.js"];
+const { booksReport, BOOK_TABS } = __m["src/ui/aeroBooks.js"];
 
 const MODES = [
   ['floor', '🏭', 'Floor'],
@@ -60962,7 +61220,7 @@ const PRIORITY = [['price', 'Price'], ['time', 'Delivery'], ['quality', 'Quality
 const COL = { amber: '#ffb547', green: '#5ee08a', red: '#ff6b6b', blue: '#6fb4ff', dim: '#3a4356', ink: '#dfe9f5' };
 
 /** The terminal's own state survives re-opening (the page, what's selected, the order form). */
-const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1 };
+const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1, booksTab: 'statement' };
 
 const money = (n) => `${Math.round(n).toLocaleString()} ◎`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -61486,6 +61744,8 @@ function aerospacePanel(ui, body, opts = {}) {
     if (c.engineers < A.staffNeeded(c, 'engineer')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `📐 ${A.staffNeeded(c, 'engineer') - c.engineers} engineers short — the drawing office and research are slower ›`));
     const lsx = A.launchStatus(c);
     if (lsx && lsx.kind !== 'done') alerts.push(h('button', { class: 'ao-alert', onclick: () => { AO.sel = { kind: 'pad' }; renderDrawer(); } }, `🚀 ${lsx.clock} · ${lsx.text}`));
+    const spent = A.fleetOf(c).live.filter((x) => (x.endsAt - A.now) / 1440 < 12);
+    if (spent.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('orbit') }, `🛰 ${spent.map((x) => x.name).slice(0, 3).join(', ')}${spent.length > 3 ? ` and ${spent.length - 3} more` : ''} ${spent.length === 1 ? 'is' : 'are'} nearly spent — order replacements ›`));
     if (c.inspectors < A.staffNeeded(c, 'inspector')) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🔍 ${A.staffNeeded(c, 'inspector') - c.inspectors} inspectors short — inspections are slower and more get through ›`));
     const ops = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id)).map((t) => ({ t, q: A.bidQuote(c.id, t.id) })).filter((x) => x.q.ok).sort((a, b) => b.q.profit - a.q.profit).slice(0, 3);
     const soon = A.unitsOf(c).filter((u) => u.contract).sort((a, b) => A.unitDaysLeft(a) - A.unitDaysLeft(b)).slice(0, 4);
@@ -61940,6 +62200,12 @@ function aerospacePanel(ui, body, opts = {}) {
 
   // ------------------------------------------------------------------ books
   const booksSheet = () => {
+    const tab = AO.booksTab || 'statement';
+    const tabs = h('div', { class: 'ao-chips' }, ...BOOK_TABS.map(([id, label]) => h('button', { class: `ao-chip${tab === id ? ' on' : ''}`, onclick: () => { AO.booksTab = id; refresh(); } }, label)));
+    if (tab === 'statement') return h('div', {}, tabs, statementBody());
+    return h('div', {}, tabs, booksReport({ A, C, g, h, btn, kpi, section, muted, COL, AO, refresh, co }, tab));
+  };
+  const statementBody = () => {
     const c = co();
     const periods = [['7 days', 7], ['30 days', 30], ['Since you bought it', null]];
     const sums = periods.map(([, n]) => A.statement(c, n));
