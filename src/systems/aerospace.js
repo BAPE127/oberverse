@@ -30,7 +30,7 @@ import { rivalMorning } from '../aero/rival.js';
 import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
 import { windRunway, poseAt, planLength } from '../aero/flight.js';
-import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay } from '../aero/fleet.js';
+import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris } from '../aero/fleet.js';
 import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
@@ -2092,6 +2092,7 @@ export class Aerospace {
     if (amount > 0) post(co.books, this.day, account, Math.round(amount), this.A.historyDays);
   }
 
+  resolveDebris(co, e, choice) { return resolveDebris(this, co, e, choice); }
   orderSatellite(co, pid, qty, config) { return orderSatellite(this, co, pid, qty, config); }
   cancelOwnOrder(co, unitId) { return cancelOrder(this, co, unitId); }
   decommissionSatellite(co, satId) { return decommission(this, co, satId); }

@@ -3452,6 +3452,51 @@ const EVENTS = {
     first_satellite: { name: 'First satellite in orbit', rep: 3, text: 'a satellite commissioned in orbit' },
     first_government: { name: 'First government order delivered', rep: 2, text: 'a major order for the state, delivered in full' },
     first_constellation: { name: 'First constellation complete', rep: 4, text: 'a whole constellation, delivered on time' },
+    first_own_satellite: { name: 'First satellite of your own', rep: 2, text: 'a satellite that works for you, not a customer' },
+    first_discovery: { name: 'First discovery from orbit', rep: 2, text: 'your science network finds something' },
+  },
+};
+
+/**
+ * Satellite services (v0.59.0). A satellite you build for a customer pays you a support fee for as
+ * long as it lives; one you build for yourself sells what its role makes — bandwidth, imagery,
+ * weather, navigation, grants, power — into a market with its own demand and its own rivals, and a
+ * network of them covers more than one. Satellites age (their capability falls), can be lost
+ * (a daily hazard, fixed by the hash of the satellite and the day), and end their lives. All of it
+ * is arithmetic on the day: src/aero/orbit.js is the pure part; src/systems/aerospace.js books it.
+ *
+ *   roles[r].price   obols per service unit a day; .unit what a unit is; .full how many satellites
+ *                    a complete network of that role needs (.exp: how sharply short of it hurts)
+ *   roles[r].demand/.rivals/.growth/.wave   the market: demand and rival capacity in service units,
+ *                    drifting with the days; what you sell is your share of demand, never more than you can carry
+ *   orbit            how it moves: period (game minutes), inclination (degrees) — drawn on the Orbit page and
+ *                    followed by the ground station's dishes
+ */
+const SERVICES = {
+  maxOpenOrders: 8,
+  support: { rate: 0.004, warrantyShare: 0.25, warrantyRep: -2, replaceDays: 14, replaceBudgetShare: 0.9 },
+  centre: { cost: 2400, text: 'A network operations centre: controllers, links and the electricity bill, from the first satellite you operate.' },
+  hazard: { base: 0.0011, hardened: 0.5, platform: 0.5, late: 1.6, lateShare: 0.8 },
+  degrade: 0.25, // capability falls linearly to 75% over a satellite's design life
+  insurance: { premium: 0.0007, payout: 0.7 },
+  autoReplaceDays: 12,
+  roles: {
+    comms: { name: 'Communications bandwidth', short: 'Comms', icon: '📡', unit: 'Gbps', full: 4, exp: 0.8, price: 450, demand: 560, rivals: 260, growth: 0.0016, wave: 0.1, orbit: { period: 1436, inc: 0 }, colour: '#5fb0ff', text: 'Phone, broadcast and data relays sold by the gigabit. A network of four covers the world; one covers a continent.' },
+    weather: { name: 'Weather data', short: 'Weather', icon: '🌀', unit: 'feeds', full: 2, exp: 1, price: 24000, demand: 3, rivals: 1, growth: 0.0004, wave: 0.2, orbit: { period: 101, inc: 98 }, colour: '#9ad7ff', text: 'Forecasts for shipping, farms and airlines. Two satellites see every storm; in hurricane season everyone buys.' },
+    earthobs: { name: 'Earth imagery', short: 'Imagery', icon: '🛰', unit: 'scenes', full: 3, exp: 1, price: 800, demand: 240, rivals: 110, growth: 0.0012, wave: 0.12, orbit: { period: 98, inc: 98 }, colour: '#7ee08a', text: 'Crops, ports, pipelines and the coastline, by the scene. More satellites, shorter revisit, better prices.' },
+    nav: { name: 'Navigation & timing', short: 'Navigation', icon: '🧭', unit: 'signals', full: 4, exp: 1.7, price: 30000, demand: 8, rivals: 0, growth: 0.0006, wave: 0.05, orbit: { period: 720, inc: 55 }, colour: '#ffd45f', text: 'Ships, ploughs and phones asking where they are. Under four satellites there are gaps in the sky and nobody pays for gaps.' },
+    science: { name: 'Research grants', short: 'Science', icon: '🔭', unit: 'instrument-points', full: 1, exp: 1, price: 42000, demand: 8, rivals: 3, growth: 0.0004, wave: 0.15, orbit: { period: 240, inc: 30 }, colour: '#c89aff', text: 'Universities and agencies pay for observing time — and now and then something is found.' },
+    defense: { name: 'Government leases', short: 'Defence', icon: '🛡', unit: 'leases', full: 1, exp: 1, price: 38000, demand: 2, rivals: 0, growth: 0, wave: 0, needs: 'cleared', orbit: { period: 480, inc: 63 }, colour: '#ff8a7a', text: 'A government leases the whole satellite and asks nothing about it. Needs clearance.' },
+    platform: { name: 'On-orbit servicing', short: 'Servicing', icon: '🔧', unit: 'platforms', full: 1, exp: 1, price: 52000, demand: 1, rivals: 0, growth: 0, wave: 0, orbit: { period: 110, inc: 51 }, colour: '#ffaa5f', text: 'A servicing platform tops up, repairs and tows: your own satellites are half as likely to be lost, and others pay for the service.' },
+    power: { name: 'Beamed power', short: 'Power', icon: '⚡', unit: 'plants', full: 1, exp: 1, price: 100000, demand: 1, rivals: 0, growth: 0, wave: 0, orbit: { period: 1436, inc: 0 }, colour: '#fff08a', text: 'Sunlight collected in orbit and beamed down as microwaves to a field of receivers.' },
+  },
+  /** Orbit-side events: storms, debris, demand swings, discoveries. Each one comes from the day (a stable hash) and the fleet. */
+  events: {
+    storm: { cooldown: 22, chance: 0.18, hit: 0.15, days: 8, kill: 0.04 },
+    debris: { cooldown: 18, chance: 0.2, decideDays: 3, manoeuvre: 0.04, risk: 0.06, lifeDays: 4 },
+    surge: { cooldown: 25, chance: 0.2, roles: ['weather', 'earthobs'], mult: 1.6, days: 8 },
+    priceWar: { cooldown: 35, chance: 0.15, roles: ['comms', 'earthobs'], mult: 0.82, days: 25 },
+    discovery: { cooldown: 12, perPoint: 0.004, reward: 150000, rep: 1 },
   },
 };
 
@@ -3911,7 +3956,7 @@ const AERO_PEOPLE = {
   seller: 'npc_billie', ceo: 'npc_imogen', pilot: 'npc_ailie', foreman: 'npc_rudy', launch: 'npc_tina', mechanic: 'npc_wrenna',
 };
 
-return { AERO, FLIGHT, STAFF, BAYS, HALLS, FACILITIES, EVENTS, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
+return { AERO, FLIGHT, STAFF, BAYS, HALLS, FACILITIES, EVENTS, SERVICES, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
 })();
 
 // ---- src/content/maps/starling.js
@@ -15205,7 +15250,7 @@ const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
 const dlgAero = __m["src/content/dialogue/aerospace.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
-const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS, FLIGHT: AERO_FLIGHT } = __m["src/content/aerospace.js"];
+const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS, FLIGHT: AERO_FLIGHT, SERVICES: AERO_SERVICES } = __m["src/content/aerospace.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
 const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
@@ -15294,7 +15339,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT, services: AERO_SERVICES }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
@@ -33016,7 +33061,8 @@ const ACCOUNTS = {
   rev_rocket: { name: 'Revenue — launch services', kind: 'revenue' },
   rev_missile: { name: 'Revenue — strategic products', kind: 'revenue' },
   rev_satellite: { name: 'Revenue — satellites', kind: 'revenue' },
-  rev_services: { name: 'Revenue — satellite services', kind: 'revenue' },
+  rev_services: { name: 'Revenue — satellite services & support', kind: 'revenue' },
+  rev_claims: { name: 'Insurance claims paid', kind: 'revenue' },
   cogs_materials: { name: 'Materials (cost of units delivered)', kind: 'cost' },
   cogs_freight: { name: 'Freight & logistics (on units delivered)', kind: 'cost' },
   cogs_freight_internal: { name: 'Freight in your own ships (internal charge, on units delivered)', kind: 'cost', internal: true },
@@ -33029,6 +33075,8 @@ const ACCOUNTS = {
   rework: { name: 'Quality & rework', kind: 'cost' },
   launch: { name: 'Launch costs (range, refurbishment)', kind: 'cost' },
   sat_ops: { name: 'Satellite operations', kind: 'cost' },
+  depreciation: { name: 'Depreciation of the satellite fleet', kind: 'cost', noncash: true },
+  insurance: { name: 'Fleet insurance', kind: 'cost' },
   penalties: { name: 'Late penalties & cancellations', kind: 'cost' },
   interest: { name: 'Interest', kind: 'cost' },
   hiring: { name: 'Hiring & layoffs', kind: 'cost' },
@@ -33036,7 +33084,7 @@ const ACCOUNTS = {
 };
 
 function freshBooks() {
-  return { totals: {}, days: [], deferred: 0, inventoryValue: 0, capex: 0 };
+  return { totals: {}, days: [], deferred: 0, inventoryValue: 0, capex: 0, fleet: 0 };
 }
 
 /** Post an amount (positive) to an account on a day. */
@@ -34214,6 +34262,181 @@ function shakeAt(L, ph, d) {
 return { padBase, rolloutPath, rolloutAt, startSequence, height, phaseAt, clockText, puffs, debris, shakeAt };
 })();
 
+// ---- src/aero/orbit.js
+__m["src/aero/orbit.js"] = (function () {
+// Satellite services and orbits (v0.59.0). Pure functions — no game state, no DOM. `S` is
+// `SERVICES` from src/content/aerospace.js; a satellite is a record in `state.satellites`.
+//
+//   marketAt(S, role, day)             the demand and the rivals' capacity of a market on a day
+//   networkOf(S, sats, role, …)        what a company's satellites of one role make together
+//   sell(S, role, net, market, …)      what the network sells, and for how much
+//   hazardOf / lostToday               the daily chance a satellite is lost, and whether it is, today
+//   forecast(S, …)                     what one more satellite would add (for the ordering sheet)
+//   orbitOf / look / subpoint          where a satellite is, and what the ground station sees
+//
+// Everything is arithmetic on the satellite's own facts and the day, so a reload — or a night of
+// sleep — gives the same answer; the only random thing is the hash of (satellite, day).
+const { hashUnit } = __m["src/aero/config.js"];
+
+const DAY = 1440;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const rad = (d) => (d * Math.PI) / 180;
+const deg = (r) => (r * 180) / Math.PI;
+
+/** The role a product serves (the first service it sells; the experimental satellite sells science). */
+const roleOf = (p) => Object.keys(p.service || {})[0] || p.role;
+
+// ------------------------------------------------------------------ markets
+const phaseOf = (role) => hashUnit(`mkt|${role}`) * Math.PI * 2;
+
+/** A market on a day: how many service units it wants, and how many its other suppliers already carry. */
+function marketAt(S, role, day) {
+  const R = S.roles[role];
+  const wave = 1 + R.wave * Math.sin(day / 11 + phaseOf(role));
+  return {
+    demand: R.demand * Math.min(2.6, 1 + R.growth * day) * wave,
+    rivals: R.rivals * Math.min(2.2, 1 + R.growth * 0.7 * day),
+  };
+}
+
+/** How much of the sky a network of `n` satellites covers (a full network is 1). */
+function coverage(S, role, n) {
+  const R = S.roles[role];
+  if (n <= 0) return 0;
+  return Math.min(1, n / R.full) ** R.exp;
+}
+
+// ------------------------------------------------------------------ satellites
+/** A satellite's working capability now: what commissioning left it, ageing, and any storm damage. */
+function capabilityAt(S, sat, now, day) {
+  if (sat.status === 'failed' || sat.status === 'decommissioned') return 0;
+  const life = Math.max(1, sat.lifeDays * DAY);
+  const age = clamp((now - sat.commissioned) / life, 0, 1);
+  const hit = sat.hit && day <= sat.hit.untilDay ? 1 - sat.hit.amount : 1;
+  return clamp((sat.capability ?? 1) * (1 - S.degrade * age) * hit, 0, 1);
+}
+
+/** Service units a satellite makes of `role` now (its configured service × its capability). */
+function unitsOf(S, sat, role, now, day) {
+  return (sat.service?.[role] || 0) * capabilityAt(S, sat, now, day);
+}
+
+const live = (sat) => sat.status === 'operational' || sat.status === 'degraded';
+
+/** The network a company's satellites of one role make: how many, the units they carry, the coverage, the capacity. */
+function networkOf(S, sats, role, now, day, { bonus = 0 } = {}) {
+  const mine = sats.filter((s) => live(s) && s.service?.[role] > 0);
+  const units = mine.reduce((a, s) => a + unitsOf(S, s, role, now, day), 0) * (1 + bonus);
+  const cov = coverage(S, role, mine.length);
+  return { role, n: mine.length, units, coverage: cov, capacity: units * cov, sats: mine };
+}
+
+/** What a network sells in a market: your share of the demand, never more than you can carry, at the day's price. */
+function sell(S, role, net, market, { mult = 1, priceBonus = 0 } = {}) {
+  const R = S.roles[role];
+  const cap = net.capacity;
+  if (cap <= 0) return { sold: 0, revenue: 0, utilisation: 0, price: R.price * mult * (1 + priceBonus), share: 0 };
+  const share = (market.demand * cap) / (cap + market.rivals);
+  const sold = Math.min(cap, share);
+  const price = R.price * mult * (1 + priceBonus);
+  return { sold, revenue: Math.round(sold * price), utilisation: sold / cap, price, share: sold / Math.max(1e-9, market.demand) };
+}
+
+// ------------------------------------------------------------------ lifecycles
+/** The daily chance a satellite is lost: hardened buses and a servicing platform halve it, old age raises it. */
+function hazardOf(S, sat, { platform = false, research = 0, now, quality = 60 } = {}) {
+  const H = S.hazard;
+  const age = clamp((now - sat.commissioned) / Math.max(1, sat.lifeDays * DAY), 0, 1);
+  let p = H.base * (1.35 - quality / 200);
+  if (sat.hardened) p *= H.hardened;
+  if (platform) p *= H.platform;
+  if (age > H.lateShare) p *= H.late;
+  return Math.max(0, p * (1 + research));
+}
+
+/** Whether a satellite is lost on a day: a hash of the two, so the answer never changes. */
+const lostToday = (sat, day, p) => hashUnit(`sat|${sat.id}|${day}`) < p;
+
+/** Days left in a satellite's life. */
+const daysLeft = (sat, now) => Math.max(0, (sat.endsAt - now) / DAY);
+
+// ------------------------------------------------------------------ what one more would add
+/**
+ * What ordering one more satellite of a product would do, for the ordering sheet: the revenue a
+ * day it would add to the company's network (today's market), what it would make over its life,
+ * and how that compares with what it costs. `sats` are the company's live satellites already.
+ */
+function forecast(S, product, sats, now, day, { cost = 0, bonus = 0, mult = {}, priceBonus = {} } = {}) {
+  const role = roleOf(product);
+  const R = S.roles[role];
+  const svc = product.service?.[role] || 0;
+  const market = marketAt(S, role, day);
+  const before = networkOf(S, sats, role, now, day, { bonus });
+  const fake = { id: 'new', status: 'operational', service: product.service, commissioned: now, lifeDays: product.life, capability: 1 };
+  const after = networkOf(S, [...sats, fake], role, now, day, { bonus });
+  const b = sell(S, role, before, market, { mult: mult[role] ?? 1, priceBonus: priceBonus[role] ?? 0 });
+  const a = sell(S, role, after, market, { mult: mult[role] ?? 1, priceBonus: priceBonus[role] ?? 0 });
+  const perDay = a.revenue - b.revenue;
+  const opex = product.opex || 0;
+  const lifetime = Math.round((perDay - opex) * product.life * (1 - S.degrade / 2));
+  return { role, units: svc, perDay, opex, net: perDay - opex, lifetime, cost, ratio: cost ? lifetime / cost : 0, paybackDays: perDay - opex > 0 && cost ? Math.ceil(cost / (perDay - opex)) : null, n: after.n, coverage: after.coverage, saturated: a.utilisation < 0.95 };
+}
+
+// ------------------------------------------------------------------ orbits
+/** A satellite's orbit, from its role and the hash of its id: period (game minutes), inclination, node and phase (degrees). */
+function orbitOf(S, sat) {
+  const R = S.roles[sat.role] || S.roles.comms;
+  const h = (k) => hashUnit(`orb|${sat.id}|${k}`);
+  const geo = R.orbit.inc === 0;
+  return {
+    period: geo ? 1436 : R.orbit.period * (0.96 + 0.08 * h('p')),
+    inc: geo ? 0 : R.orbit.inc + (h('i') - 0.5) * 8,
+    raan: h('n') * 360,
+    m0: h('m') * 360,
+  };
+}
+
+const OMEGA = 360 / 1436; // the Earth's turn, degrees a minute
+
+/** Position in the inertial frame (Earth radii) at `now` minutes. */
+function eci(o, now) {
+  const a = (o.period / 84.4) ** (2 / 3);
+  const M = rad(o.m0 + (360 * now) / o.period);
+  const i = rad(o.inc);
+  const W = rad(o.raan);
+  const x = a * (Math.cos(M) * Math.cos(W) - Math.sin(M) * Math.cos(i) * Math.sin(W));
+  const y = a * (Math.cos(M) * Math.sin(W) + Math.sin(M) * Math.cos(i) * Math.cos(W));
+  const z = a * Math.sin(M) * Math.sin(i);
+  return { x, y, z, a };
+}
+
+/** Where on the Earth it is over (degrees) at `now`. */
+function subpoint(o, now) {
+  const p = eci(o, now);
+  const lat = deg(Math.asin(p.z / p.a));
+  let lon = deg(Math.atan2(p.y, p.x)) - OMEGA * now;
+  lon = ((lon + 540) % 360) - 180;
+  return { lat, lon, alt: p.a - 1 };
+}
+
+/** What a ground station at (lat, lon) sees: elevation and azimuth in degrees (negative elevation: below the horizon). */
+function look(o, now, station) {
+  const p = eci(o, now);
+  const phi = rad(station.lat);
+  const th = rad(station.lon + OMEGA * now);
+  const st = { x: Math.cos(phi) * Math.cos(th), y: Math.cos(phi) * Math.sin(th), z: Math.sin(phi) };
+  const rel = { x: p.x - st.x, y: p.y - st.y, z: p.z - st.z };
+  const d = Math.hypot(rel.x, rel.y, rel.z);
+  const up = st;
+  const east = { x: -Math.sin(th), y: Math.cos(th), z: 0 };
+  const north = { x: -Math.sin(phi) * Math.cos(th), y: -Math.sin(phi) * Math.sin(th), z: Math.cos(phi) };
+  const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  return { el: deg(Math.asin(clamp(dot(rel, up) / d, -1, 1))), az: (deg(Math.atan2(dot(rel, east), dot(rel, north))) + 360) % 360, range: d };
+}
+
+return { roleOf, marketAt, coverage, capabilityAt, unitsOf, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, orbitOf, eci, subpoint, look };
+})();
+
 // ---- src/aero/events.js
 __m["src/aero/events.js"] = (function () {
 // Reputation and events (v0.57.0): what happens at the Park because of how a company is run.
@@ -34365,6 +34588,7 @@ function resolveEvent(A, co, eventId, choiceId) {
   const e = (co.events || []).find((x) => x.id === eventId);
   if (!e) return { ok: false, text: 'No such event.' };
   if (e.resolved) return { ok: false, text: 'That has already been decided.' };
+  if (e.kind === 'debris') return A.resolveDebris(co, e, choiceId); // (the fleet's: src/aero/fleet.js)
   const U = A.cfg.events.audit;
   const ch = e.choices.find((c) => c.id === choiceId);
   if (!ch) return { ok: false, text: 'No such choice.' };
@@ -34383,6 +34607,7 @@ function expireEvents(A, co) {
   const U = A.cfg.events.audit;
   for (const e of co.events || []) {
     if (e.resolved || e.expires >= A.day) continue;
+    if (e.kind === 'debris') { A.resolveDebris(co, e, 'risk'); continue; } // nobody decided: the dice (a hash) decide
     const fine = U.fine + U.finePerTech * co.workforce;
     A.pay(co, fine, 'penalties');
     e.resolved = { at: A.now, choice: 'ignored' };
@@ -34433,7 +34658,370 @@ function eventContractDone(A, co, c) {
   milestone(A, co, c.event === 'government' ? 'first_government' : 'first_constellation', A.cfg.customers[c.customer].name);
 }
 
-return { eventsMorning, hallDiscount, resolveEvent, rollBreakthrough, applyBreakthrough, milestone, eventContractDone };
+return { eventsMorning, postEventTender, hallDiscount, resolveEvent, rollBreakthrough, applyBreakthrough, milestone, eventContractDone };
+})();
+
+// ---- src/aero/fleet.js
+__m["src/aero/fleet.js"] = (function () {
+// The fleet in orbit (v0.59.0): what a company's satellites earn and what becomes of them. Like
+// events.js, these functions take the Aerospace system `A` and go through its checked methods
+// (A.pay, A.receive, A.repChange…), so nothing here moves money or standing any other way.
+//
+//   activateSatellite  a commissioned satellite joins the registry (service, price, book value)
+//   orderSatellite     build one of your own: no customer, a network instead
+//   satelliteDay       every morning: ageing, losses, revenue, fees, running costs, insurance, events
+//   networkReport      for the Orbit page: each role's network, market and today's takings
+//   fleetOf            a company's own satellites, those it supports for customers, and the orders in hand
+const { hashUnit, configError, cleanConfig } = __m["src/aero/config.js"];
+const { newUnit } = __m["src/aero/pipeline.js"];
+const { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf } = __m["src/aero/orbit.js"];
+const { fmtMoney, missingTech, unitCost } = __m["src/aero/catalog.js"];
+const { postEventTender, milestone } = __m["src/aero/events.js"];
+
+const DAY = 1440;
+const live = (s) => s.status === 'operational' || s.status === 'degraded';
+
+// ---------------------------------------------------------------- research effects on the fleet
+const researchSum = (A, co, key) => co.research.reduce((a, id) => a + (A.cfg.research[id]?.effect?.[key] || 0), 0);
+/** Extra service units a company's research adds to a role (a share: 0.1 = +10%). */
+const serviceBonus = (A, co, role) => co.research.reduce((a, id) => { const e = A.cfg.research[id]?.effect?.service; return a + (e ? (e[role] || 0) + (e.all || 0) : 0); }, 0);
+/** Extra price a company's research earns on a role. */
+const priceBonus = (A, co, role) => co.research.reduce((a, id) => { const e = A.cfg.research[id]?.effect?.price; return a + (e ? (e[role] || 0) + (e.all || 0) : 0); }, 0);
+const hazardResearch = (A, co) => researchSum(A, co, 'hazard');
+const opsMult = (A, co) => Math.max(0.3, 1 + researchSum(A, co, 'opsCost'));
+
+// ---------------------------------------------------------------- the registry
+/** A commissioned satellite joins the registry: owned by its customer (built and supported by the company) or by the company itself. */
+function activateSatellite(A, co, u) {
+  const s = A.state;
+  const p = A.pOf(u);
+  const c = A.contract(u.contract);
+  const own = u.purpose === 'own';
+  const id = A.nextId('SAT');
+  const partial = Boolean(u.commissioning?.partial);
+  const sat = {
+    id, name: `${p.name.split(' ')[0]}-${String(Object.keys(s.satellites).length + 1).padStart(2, '0')}`, product: u.product, role: roleOf(p), kind: p.role, service: { ...(p.service || {}) },
+    owner: c?.customer || co.id, manufacturer: co.id, contract: u.contract, unit: u.id, rocket: u.rocket, own,
+    launched: A.state.units[u.rocket]?.launch?.at ?? A.now, commissioned: A.now, status: partial ? 'degraded' : 'operational',
+    capability: partial ? 0.5 : 1, lifeDays: p.life, endsAt: A.now + p.life * DAY, price: c ? c.unitPrice : p.price, opex: p.opex || 0,
+    hardened: u.config?.sat_hardened === 'hardened', config: { ...(u.config || {}) },
+    revenueTotal: 0, supportTotal: 0,
+  };
+  if (own) {
+    sat.value = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
+    sat.book = sat.value;
+    co.books.fleet = (co.books.fleet || 0) + sat.value;
+  }
+  s.satellites[id] = sat;
+  u.satellite = id;
+  milestone(A, co, 'first_satellite', p.name);
+  if (own) milestone(A, co, 'first_own_satellite', p.name);
+  return sat;
+}
+
+/** Every satellite of a company: its own, and those it built and supports for customers. */
+function fleetOf(A, co) {
+  const all = Object.values(A.state.satellites);
+  const mine = all.filter((x) => x.manufacturer === co.id);
+  const orders = A.unitsOf(co).filter((u) => u.purpose === 'own');
+  return {
+    own: mine.filter((x) => x.own),
+    supported: mine.filter((x) => !x.own),
+    orders,
+    live: mine.filter((x) => x.own && live(x)),
+    all: mine,
+  };
+}
+
+// ---------------------------------------------------------------- orders
+/** Build satellites for yourself. They go through the same floor, the same stores and the same launches as a customer's. */
+function orderSatellite(A, co, pid, qty = 1, config = null) {
+  const C = A.cfg;
+  const p = C.products[pid];
+  if (!p || p.line !== 'satellite') return { ok: false, text: 'That is not a satellite.' };
+  const role = C.services.roles[roleOf(p)];
+  if (!role) return { ok: false, text: 'Nobody buys what that does.' };
+  qty = Math.max(1, Math.min(6, Math.floor(qty) || 1));
+  if (role.needs === 'cleared' && !A.cleared(co)) return { ok: false, text: 'Leasing to a government needs a secure hall and clearance.' };
+  const miss = missingTech(C, co, p);
+  if (miss.length) return { ok: false, text: `It needs research you don't have yet: ${miss.map((id) => C.research[id].name).join(', ')}.` };
+  if (!A.canBuild(co, p)) return { ok: false, text: 'You can\'t build and launch that yet (a clean room, a pad and a rocket of your own).' };
+  const cfg = cleanConfig(config);
+  const err = configError(C, p, cfg, pid);
+  if (err) return { ok: false, text: err };
+  const open = A.unitsOf(co).filter((u) => u.purpose === 'own').length;
+  if (open + qty > C.services.maxOpenOrders) return { ok: false, text: `At most ${C.services.maxOpenOrders} of your own satellites can be on the floor at once.` };
+  for (let n = 0; n < qty; n++) {
+    const u = newUnit(C, { id: A.nextId('U'), company: co.id, contract: null, productId: pid, n: n + 1, purpose: 'own', rng: A.rng, at: A.now });
+    if (Object.keys(cfg).length) u.config = cfg;
+    A.state.units[u.id] = u;
+  }
+  A.syncRng();
+  A.report(co, 'orbit', `🛰 ${co.name} orders ${qty} × ${p.name} for its own network.`, co.kind === 'player' ? 'info' : null);
+  return { ok: true, text: `${qty} × ${p.name} on the floor. They are built, launched and commissioned like anyone's; then they earn.` };
+}
+
+/** Stop an order before the satellite has flown: what has been used is lost, the rest goes back to stores. */
+function cancelOrder(A, co, unitId) {
+  const u = A.state.units[unitId];
+  if (!u || u.company !== co.id || u.purpose !== 'own' || u.finished) return { ok: false, text: 'No such order.' };
+  if (u.launch || A.stageOf(u)?.id === 'launch' || u.rocket && A.state.units[u.rocket]?.seq) return { ok: false, text: 'It is already on its way up.' };
+  if (u.rocket) { const r = A.state.units[u.rocket]; if (r?.payload) r.payload = r.payload.filter((id) => id !== u.id); }
+  A.retire(u, 'cancelled');
+  return { ok: true, text: 'The order is cancelled.' };
+}
+
+/** Take a satellite out of service (it stops costing, and stops earning). */
+function decommission(A, co, satId) {
+  const sat = A.state.satellites[satId];
+  if (!sat || sat.manufacturer !== co.id || !sat.own || !live(sat)) return { ok: false, text: 'No such satellite of yours in service.' };
+  sat.status = 'decommissioned';
+  sat.decommissioned = A.now;
+  co.books.fleet = Math.max(0, (co.books.fleet || 0) - (sat.book || 0));
+  sat.book = 0;
+  A.report(co, 'orbit', `🛰 ${sat.name} is taken out of service and de-orbited.`, co.kind === 'player' ? 'info' : null);
+  return { ok: true, text: `${sat.name} is de-orbited.` };
+}
+
+function setPolicy(A, co, key, on) {
+  if (!['insured', 'autoReplace'].includes(key)) return { ok: false, text: 'No such policy.' };
+  co[key] = Boolean(on);
+  return { ok: true, text: key === 'insured' ? (on ? 'The fleet is insured.' : 'The fleet is no longer insured.') : (on ? 'Satellites near the end of their lives will be replaced automatically.' : 'No automatic replacements.') };
+}
+
+// ---------------------------------------------------------------- the report the Orbit page reads
+/** For each role: the company's network, the market it sells into, and what it would take today. */
+function networkReport(A, co) {
+  const S = A.cfg.services;
+  const now = A.now;
+  const day = A.day;
+  const f = fleetOf(A, co);
+  const platform = networkOf(S, f.live, 'platform', now, day).n > 0;
+  const out = [];
+  for (const [role, R] of Object.entries(S.roles)) {
+    const net = networkOf(S, f.live, role, now, day, { bonus: serviceBonus(A, co, role) });
+    const market = marketAt(S, role, day);
+    const mult = A.state.orbit?.mult?.[role] && A.state.orbit.mult[role].untilDay >= day ? A.state.orbit.mult[role].m : 1;
+    const barred = R.needs === 'cleared' && !A.cleared(co);
+    const sold = barred ? { sold: 0, revenue: 0, utilisation: 0, price: R.price, share: 0 } : sell(S, role, net, market, { mult, priceBonus: priceBonus(A, co, role) });
+    out.push({ role, def: R, net, market, mult, sold, barred, platform });
+  }
+  return out;
+}
+
+/** The ordering sheet's forecast for a product: what one more would add today, against what it costs to build and launch. */
+function orderForecast(A, co, pid) {
+  const C = A.cfg;
+  const p = C.products[pid];
+  const f = fleetOf(A, co);
+  const build = unitCost(C, p).total;
+  const launch = A.launchShare(p);
+  const role = roleOf(p);
+  const mult = A.state.orbit?.mult?.[role] && A.state.orbit.mult[role].untilDay >= A.day ? A.state.orbit.mult[role].m : 1;
+  return { build, launch, ...forecast(C.services, p, f.live, A.now, A.day, { cost: build + launch, bonus: serviceBonus(A, co, role), mult: { [role]: mult }, priceBonus: { [role]: priceBonus(A, co, role) } }) };
+}
+
+// ---------------------------------------------------------------- the day
+/** Every morning: the sky, then each company's fleet. */
+function satelliteDay(A) {
+  const s = A.state;
+  const S = A.cfg.services;
+  const day = A.day;
+  const now = A.now;
+  s.orbit ||= { mult: {}, cool: {} };
+  for (const [r, m] of Object.entries(s.orbit.mult)) if (m.untilDay < day) delete s.orbit.mult[r];
+  skyEvents(A, S);
+  for (const co of A.companies()) fleetDay(A, co, S, now, day);
+}
+
+function fleetDay(A, co, S, now, day) {
+  const f = fleetOf(A, co);
+  const platform = networkOf(S, f.live, 'platform', now, day).n > 0;
+  // ageing, losses, the end of a life — for everything this company built that is still up there
+  for (const sat of f.all) {
+    if (!live(sat)) continue;
+    const p = hazardOf(S, sat, { platform: platform && sat.own, research: hazardResearch(A, co), now, quality: A.qualityOf(co) });
+    if (lostToday(sat, day, p)) { lose(A, co, sat, 'lost to a fault'); continue; }
+    if (now >= sat.endsAt) {
+      sat.status = 'decommissioned';
+      sat.decommissioned = now;
+      if (sat.own) { co.books.fleet = Math.max(0, (co.books.fleet || 0) - (sat.book || 0)); sat.book = 0; }
+      A.report(co, 'orbit', `🛰 ${sat.name} has reached the end of its life and is de-orbited.`, co.kind === 'player' ? 'info' : null);
+    }
+  }
+  const nowLive = fleetOf(A, co);
+  // what the networks sell
+  const mult = (r) => (A.state.orbit.mult[r] && A.state.orbit.mult[r].untilDay >= day ? A.state.orbit.mult[r].m : 1);
+  let revenue = 0;
+  co.orbit = { day, roles: {} };
+  for (const [role, R] of Object.entries(S.roles)) {
+    const net = networkOf(S, nowLive.live, role, now, day, { bonus: serviceBonus(A, co, role) });
+    if (!net.n) continue;
+    if (R.needs === 'cleared' && !A.cleared(co)) { co.orbit.roles[role] = { revenue: 0, sold: 0, capacity: net.capacity, barred: true }; continue; }
+    const r = sell(S, role, net, marketAt(S, role, day), { mult: mult(role), priceBonus: priceBonus(A, co, role) });
+    co.orbit.roles[role] = { revenue: r.revenue, sold: r.sold, capacity: net.capacity, coverage: net.coverage, n: net.n, utilisation: r.utilisation };
+    revenue += r.revenue;
+    for (const sat of net.sats) sat.revenueTotal = (sat.revenueTotal || 0) + Math.round(r.revenue / net.n);
+    if (role === 'science') discovery(A, co, S, net);
+  }
+  if (revenue) A.receive(co, revenue, 'rev_services');
+  // support fees: what a customer pays to have its satellite kept working
+  let fees = 0;
+  for (const sat of nowLive.supported) {
+    if (!live(sat)) continue;
+    const fee = Math.round(sat.price * S.support.rate * (sat.capability ?? 1));
+    sat.supportTotal = (sat.supportTotal || 0) + fee;
+    fees += fee;
+  }
+  if (fees) A.receive(co, fees, 'rev_services');
+  co.orbit.fees = fees;
+  // what it costs: the controllers, the links, the electricity — and the book value wearing away
+  const ops = Math.round(([...nowLive.live, ...nowLive.supported.filter(live)].reduce((a, x) => a + (x.opex || 0), 0) + (nowLive.live.length ? S.centre.cost : 0)) * opsMult(A, co));
+  if (ops) A.pay(co, ops, 'sat_ops');
+  let depr = 0;
+  for (const sat of nowLive.live) {
+    const d = Math.min(sat.book || 0, Math.round((sat.value || 0) / Math.max(1, sat.lifeDays)));
+    sat.book = Math.max(0, (sat.book || 0) - d);
+    depr += d;
+  }
+  if (depr) {
+    A.postExpense(co, 'depreciation', depr);
+    co.books.fleet = Math.max(0, (co.books.fleet || 0) - depr);
+  }
+  if (co.insured && nowLive.live.length) {
+    const premium = Math.round(nowLive.live.reduce((a, x) => a + (x.book || 0), 0) * S.insurance.premium);
+    if (premium) A.pay(co, premium, 'insurance');
+  }
+  co.orbit.ops = ops;
+  co.orbit.revenue = revenue;
+  // replacements: a customer's satellite nearing its end is a new tender; your own may be replaced for you
+  for (const sat of nowLive.supported) if (live(sat) && daysLeft(sat, now) <= S.support.replaceDays && !sat.replaceTender) replacementTender(A, co, S, sat);
+  if (co.autoReplace) for (const sat of nowLive.live) if (daysLeft(sat, now) <= S.autoReplaceDays && !sat.replaced) {
+    sat.replaced = true;
+    const r = orderSatellite(A, co, sat.product, 1, sat.config);
+    if (r.ok) A.report(co, 'orbit', `🛰 ${sat.name} is nearing the end of its life: a replacement is on the floor.`, co.kind === 'player' ? 'info' : null);
+  }
+}
+
+/** A satellite is gone: its customer is told, the warranty bites, an insured fleet is paid. */
+function lose(A, co, sat, why) {
+  sat.status = 'failed';
+  sat.failedAt = A.now;
+  sat.failure = why;
+  const S = A.cfg.services;
+  const age = (A.now - sat.commissioned) / Math.max(1, sat.lifeDays * DAY);
+  if (sat.own) {
+    const book = sat.book || 0;
+    co.books.fleet = Math.max(0, (co.books.fleet || 0) - book);
+    sat.book = 0;
+    let text = `💥 ${sat.name} is ${why}: ${fmtMoney(book)} of book value written off.`;
+    if (co.insured && book) { const paid = Math.round(book * S.insurance.payout); A.receive(co, paid, 'rev_claims'); text += ` The insurers pay ${fmtMoney(paid)}.`; }
+    else if (book) A.postExpense(co, 'depreciation', book);
+    A.report(co, 'orbit', text, co.kind === 'player' ? 'bad' : null);
+  } else {
+    const who = A.cfg.customers[sat.owner]?.name || 'its owner';
+    if (age < S.support.warrantyShare) { A.repChange(co, S.support.warrantyRep, `${sat.name} for ${who} failed under warranty`); }
+    A.report(co, 'orbit', `💥 ${sat.name}, which you built for ${who}, is ${why}${age < S.support.warrantyShare ? ' — inside its warranty' : ''}.`, co.kind === 'player' ? 'bad' : null);
+  }
+  if (co.kind === 'player') A.news(`💥 ${sat.name} is lost.`, 'warn');
+}
+
+/** The customer whose satellite is nearly spent asks for another. */
+function replacementTender(A, co, S, sat) {
+  sat.replaceTender = true;
+  const cu = A.cfg.customers[sat.owner];
+  if (!cu || A.embargoed(sat.owner) || !A.cfg.products[sat.product]) return;
+  const t = postEventTender(A, sat.owner, sat.product, 1, 'replacement', { ceilingBoost: 1.05, deposit: 0.25, daysBoost: 1.2, closeDays: 3 });
+  if (!t) return;
+  const text = `🛰 ${cu.name}'s ${sat.name} is nearing the end of its life: they have put out a tender for its replacement (${fmtMoney(t.ceiling)}).`;
+  A.report(co, 'event', text, co.kind === 'player' ? 'info' : null);
+}
+
+/** A science network now and then finds something: a payment, a paper, a line in the news. */
+function discovery(A, co, S, net) {
+  const D = S.events.discovery;
+  const cool = (A.day - (co.cool?.discovery ?? -1e9)) >= D.cooldown;
+  if (!cool || hashUnit(`disc|${co.id}|${A.day}`) >= D.perPoint * net.units) return;
+  (co.cool ||= {}).discovery = A.day;
+  const reward = Math.round(D.reward * (1 + net.units / 4));
+  A.receive(co, reward, 'rev_services');
+  A.repChange(co, D.rep, 'A discovery from orbit');
+  const text = `🔭 Your science satellites have found something: a paper, a prize and ${fmtMoney(reward)}.`;
+  A.report(co, 'event', text, co.kind === 'player' ? 'good' : null);
+  if (co.kind === 'player') A.news('🔭 A discovery from orbit: your science network publishes.', 'good');
+  milestone(A, co, 'first_discovery', '');
+}
+
+// ---------------------------------------------------------------- the sky's events (everyone's satellites feel them)
+function skyEvents(A, S) {
+  const E = S.events;
+  const s = A.state;
+  const day = A.day;
+  const cool = (k, d) => day - (s.orbit.cool[k] ?? -1e9) >= d;
+  const all = Object.values(s.satellites).filter(live);
+  if (all.length && cool('storm', E.storm.cooldown) && hashUnit(`storm|${day}`) < E.storm.chance) {
+    s.orbit.cool.storm = day;
+    const hit = all.filter((x) => !x.hardened);
+    const killed = [];
+    for (const sat of hit) {
+      sat.hit = { untilDay: day + E.storm.days, amount: E.storm.hit };
+      if (hashUnit(`stormkill|${sat.id}|${day}`) < E.storm.kill) killed.push(sat);
+    }
+    for (const sat of killed) lose(A, A.company(sat.manufacturer), sat, 'burnt out by a solar storm');
+    const mine = hit.filter((x) => A.company(x.manufacturer)?.kind === 'player').length;
+    A.news(`☀ A solar storm: ${hit.length} unshielded satellite${hit.length === 1 ? '' : 's'} degraded for ${E.storm.days} days, ${all.length - hit.length} hardened ones untouched.`, 'warn');
+    for (const co of A.companies()) if (co.kind === 'player' && hit.some((x) => x.manufacturer === co.id)) A.report(co, 'orbit', `☀ A solar storm hit ${mine} of your satellites: −${Math.round(E.storm.hit * 100)}% capability for ${E.storm.days} days${killed.length ? `; ${killed.length} lost` : ''}. Hardened buses shrug it off.`, 'warn');
+  }
+  if (cool('surge', E.surge.cooldown) && hashUnit(`surge|${day}`) < E.surge.chance) {
+    s.orbit.cool.surge = day;
+    for (const r of E.surge.roles) s.orbit.mult[r] = { m: E.surge.mult, untilDay: day + E.surge.days };
+    A.news(`🌀 Hurricane season: ${E.surge.roles.map((r) => S.roles[r].short.toLowerCase()).join(' and ')} prices up ${Math.round((E.surge.mult - 1) * 100)}% for ${E.surge.days} days.`, 'info');
+  }
+  if (cool('priceWar', E.priceWar.cooldown) && hashUnit(`pwar|${day}`) < E.priceWar.chance) {
+    s.orbit.cool.priceWar = day;
+    const r = E.priceWar.roles[Math.floor(hashUnit(`pwarr|${day}`) * E.priceWar.roles.length)];
+    s.orbit.mult[r] = { m: E.priceWar.mult, untilDay: day + E.priceWar.days };
+    A.news(`📉 A rival operator slashes ${S.roles[r].short.toLowerCase()} prices: −${Math.round((1 - E.priceWar.mult) * 100)}% for ${E.priceWar.days} days.`, 'info');
+  }
+  // debris: the player's own satellites only, and a decision
+  for (const co of A.companies()) {
+    if (co.kind !== 'player') continue;
+    if ((co.events || []).some((e) => e.kind === 'debris' && !e.resolved)) continue;
+    if (!((co.cool?.debris ?? -1e9) + E.debris.cooldown <= day)) continue;
+    const mine = fleetOf(A, co).live;
+    if (!mine.length || hashUnit(`debris|${co.id}|${day}`) >= E.debris.chance) continue;
+    const sat = mine[Math.floor(hashUnit(`debrissat|${day}`) * mine.length)];
+    (co.cool ||= {}).debris = day;
+    (co.events ||= []).push({
+      id: A.nextId('EV'), kind: 'debris', sat: sat.id, at: A.now, expires: day + E.debris.decideDays, resolved: null,
+      title: `A piece of debris is on course for ${sat.name}`,
+      text: `The tracking network puts a fragment within a kilometre of ${sat.name} in a few days. A burn will keep it clear but costs fuel (${E.debris.lifeDays} days of its life); leave it alone and there is a ${Math.round(E.debris.risk * 100)}% chance of losing it.`,
+      choices: [
+        { id: 'manoeuvre', label: `Manoeuvre · ${E.debris.lifeDays} days of its life`, text: 'Burn clear. The satellite is safe and shorter-lived.', cost: 0 },
+        { id: 'risk', label: `Leave it · ${Math.round(E.debris.risk * 100)}% risk`, text: 'Do nothing and hope.', cost: 0 },
+      ],
+    });
+    A.report(co, 'event', `🛰 Debris is on course for ${sat.name}: decide on the Standing page within ${E.debris.decideDays} days.`, 'warn');
+  }
+}
+
+/** The player's decision about a piece of debris; and what happens if nobody decides. */
+function resolveDebris(A, co, e, choiceId) {
+  const E = A.cfg.services.events.debris;
+  const sat = A.state.satellites[e.sat];
+  e.resolved = { at: A.now, choice: choiceId };
+  if (!sat || !live(sat)) return { ok: true, text: 'It no longer matters.' };
+  if (choiceId === 'manoeuvre') {
+    sat.endsAt -= E.lifeDays * DAY;
+    A.report(co, 'event', `🛰 ${sat.name} burns clear of the debris (${E.lifeDays} days of life spent).`, 'good');
+    return { ok: true, text: 'The burn is done: it is safe.' };
+  }
+  if (hashUnit(`debrisrisk|${e.id}`) < E.risk) { lose(A, co, sat, 'struck by debris'); return { ok: true, text: 'It was hit.' }; }
+  A.report(co, 'event', `🛰 The debris missed ${sat.name} by a few hundred metres.`, 'good');
+  return { ok: true, text: 'It missed.' };
+}
+
+return { serviceBonus, priceBonus, activateSatellite, fleetOf, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, satelliteDay, lose, resolveDebris };
 })();
 
 // ---- src/systems/aerospace.js
@@ -34470,6 +35058,7 @@ const { rivalMorning } = __m["src/aero/rival.js"];
 const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
 const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
+const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris } = __m["src/aero/fleet.js"];
 const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
 const DAY = 1440;
@@ -34612,7 +35201,7 @@ class Aerospace {
       inv: {}, books: freshBooks(),
       stats: { delivered: 0, onTime: 0, late: 0, failedInspections: 0, launches: 0, launchFailures: 0, contractsWon: 0, tendersBid: 0, cancelled: 0 },
       apron: C.facilities.apron.slots[id] || 3,
-      autoProcure: true,
+      autoProcure: true, insured: false, autoReplace: false, // v0.59.0: the fleet policies
       overhead: kind === 'rival' ? def.overhead : 600,
       // v0.56.0: how foreign materials travel — 'internal' (your own Ober & Sons ships, when you own the line) or 'carrier';
       // with policy 'fallback' a job that can't find a ship in a day goes by carrier, with 'wait' it waits for one
@@ -36321,20 +36910,9 @@ class Aerospace {
     this.advance(co, u);
   }
 
-  /** The satellite joins the registry: owned by its customer, built and operated by the company. */
+  /** The satellite joins the registry: owned by its customer (built and supported by the company) or by the company (src/aero/fleet.js). */
   activate(co, u) {
-    const s = this.state;
-    const p = this.pOf(u);
-    const c = this.contract(u.contract);
-    const id = this.nextId('SAT');
-    s.satellites[id] = {
-      id, name: `${p.name.split(' ')[0]}-${String(Object.keys(s.satellites).length + 1).padStart(2, '0')}`, product: u.product, role: p.role,
-      owner: c?.customer || co.id, manufacturer: co.id, contract: u.contract, unit: u.id, rocket: u.rocket,
-      launched: this.state.units[u.rocket]?.launch?.at ?? this.now, commissioned: this.now, status: u.commissioning?.partial ? 'degraded' : 'operational',
-      capability: u.commissioning?.partial ? 0.5 : 1, lifeDays: p.life, endsAt: this.now + p.life * DAY,
-    };
-    u.satellite = id;
-    milestone(this, co, 'first_satellite', p.name);
+    return activateSatellite(this, co, u);
   }
 
   /** Delivery is complete: the customer pays the rest of the price, once. */
@@ -36342,6 +36920,12 @@ class Aerospace {
     const C = this.cfg;
     const c = this.contract(u.contract);
     const p = this.pOf(u);
+    if (u.purpose === 'own') {
+      // a satellite for yourself: its cost is an asset now (the fleet), not a cost of sales
+      this.retire(u, 'delivered');
+      u.status = 'delivered';
+      return;
+    }
     if (!c) {
       // an internal launcher: its cost was the price of putting satellites up
       this.retire(u, 'delivered');
@@ -36526,13 +37110,24 @@ class Aerospace {
     }
   }
 
-  /** Satellites age; at the end of their life they're decommissioned (and stop earning). */
+  /** Every morning the sky is looked at: ageing, losses, what the networks sell, support fees, running costs (src/aero/fleet.js). */
   satelliteDay() {
-    for (const sat of Object.values(this.state.satellites)) {
-      if (['decommissioned', 'failed'].includes(sat.status)) continue;
-      if (this.now >= sat.endsAt) { sat.status = 'decommissioned'; sat.decommissioned = this.now; }
-    }
+    satelliteDay(this);
   }
+
+  /** A non-cash charge booked to an account (depreciation). */
+  postExpense(co, account, amount) {
+    if (amount > 0) post(co.books, this.day, account, Math.round(amount), this.A.historyDays);
+  }
+
+  resolveDebris(co, e, choice) { return resolveDebris(this, co, e, choice); }
+  orderSatellite(co, pid, qty, config) { return orderSatellite(this, co, pid, qty, config); }
+  cancelOwnOrder(co, unitId) { return cancelOrder(this, co, unitId); }
+  decommissionSatellite(co, satId) { return decommission(this, co, satId); }
+  setFleetPolicy(co, key, on) { return setPolicy(this, co, key, on); }
+  networkReport(co) { return networkReport(this, co); }
+  orderForecast(co, pid) { return orderForecast(this, co, pid); }
+  fleetOf(co) { return fleetOf(this, co); }
 
   // ------------------------------------------------------------- MRDN on the exchange
   /** Meridian's equity: cash (less drawn credit), inventory, plant, less what it owes in work (deposits). */
@@ -36728,9 +37323,22 @@ class Aerospace {
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
+      co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false;
     }
     this.migrateHalls();
     migrateField(this);
+    // v0.59.0: satellites from before the services carry what they need to earn (support fees for a customer's)
+    s.orbit ||= { mult: {}, cool: {} };
+    for (const sat of Object.values(s.satellites || {})) {
+      const p = this.cfg.products[sat.product];
+      if (!p) continue;
+      sat.service ||= { ...(p.service || {}) };
+      sat.price ??= p.price;
+      sat.opex ??= p.opex || 0;
+      sat.own ??= false;
+      sat.hardened ??= false;
+      sat.revenueTotal ??= 0; sat.supportTotal ??= 0;
+    }
   }
 
   /**
