@@ -207,6 +207,28 @@ try {
   await shot('09-pause');
   await page.keyboard.press('Escape');
 
+  // v0.59.0: the aerospace terminal's pages all draw (Roost owned, a satellite up, a launch on the pad)
+  await closeAll();
+  const pages = await page.evaluate(async () => {
+    const ui = window.oberverse.ui;
+    const g = ui.game;
+    g.player.money = 30e6;
+    g.aero.buyFirm();
+    const A = g.aero;
+    const P = A.cfg.products.st_relay;
+    A.state.satellites.SMOKE = { id: 'SMOKE', name: 'Smoke-01', product: 'st_relay', role: 'comms', service: { ...P.service }, owner: A.roost.id, manufacturer: A.roost.id, own: true, status: 'operational', capability: 1, lifeDays: 60, commissioned: g.clock.total, endsAt: g.clock.total + 60 * 1440, price: 1, opex: 600, value: 100000, book: 90000, hardened: false, config: {} };
+    A.roost.books.fleet = 90000;
+    const seen = [];
+    for (const mode of ['floor', 'tenders', 'contracts', 'supply', 'hangar', 'research', 'orbit', 'standing', 'books', 'meridian']) {
+      ui.openPanel('aerospace', { mode });
+      await new Promise((r) => setTimeout(r, 120));
+      seen.push([mode, document.querySelector('.ao') ? document.querySelector('.ao').textContent.length : 0]);
+      if (mode === 'books') for (const label of ['Month by month', 'Cash flow', 'Balance sheet', 'By line of work']) { [...document.querySelectorAll('.ao-chip')].find((b) => b.textContent === label)?.click(); await new Promise((r) => setTimeout(r, 80)); seen.push([label, document.querySelector('.ao-sheet').textContent.length]); }
+    }
+    return seen;
+  });
+  record('the aerospace terminal draws every page (floor, tenders, research, orbit, books…)', pages.every(([, n]) => n > 300), JSON.stringify(pages.filter(([, n]) => n <= 300)));
+  await closeAll();
   s = await state();
   record('no game warnings', s.warnings.length === 0, s.warnings.join('; '));
 

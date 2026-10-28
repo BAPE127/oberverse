@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.59.0',
+    date: '2026-10-28',
+    channel: 'development',
+    title: 'The Sky\'s the Limit',
+    notes: [
+      'Satellites go on working: the ones you build for customers pay you to keep them going, and you can order satellites of your own and sell what they make — bandwidth, imagery, weather, navigation, grants. A full network earns far more than its parts; storms, debris and rivals have a say. The new Orbit page shows the Earth turning under all of it, and the ground station\'s dishes follow the sky.',
+      'The research tree is a page of its own, with a queue of three and five new projects; there are twenty-eight achievements to earn; and the Books now run to months, cash flow, a balance sheet and what each line of work really makes.',
+    ],
+  },
+  {
     version: '0.58.0',
     date: '2026-10-26',
     channel: 'development',

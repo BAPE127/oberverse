@@ -2,6 +2,33 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.59.0] — 2026-10-28 — The Sky's the Limit (development build)
+
+Stage V of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "let's push 59." The satellites you build now go on working, the research tree is a tree, and the books say where the money comes from.
+
+### Added — satellite services (`src/aero/orbit.js`, `src/aero/fleet.js`, `SERVICES` in `src/content/aerospace.js`)
+- **A satellite you built for a customer pays you every day to keep it working** (a support fee against what it cost the customer, less its running cost), and when it is nearly spent the customer puts out a **tender for its replacement**. Lose one inside its first quarter of life and the customer remembers it.
+- **Satellites of your own.** Order any satellite you can build and launch for yourself: it goes through the floor, the stores, the pad and commissioning like a customer's, and then it **sells what its role makes** — bandwidth, imagery, weather, navigation, research grants, government leases, servicing, beamed power — into a market with its own demand and its own rivals. A network earns more than its parts (**coverage**: four navigation satellites cover the sky, two leave gaps nobody pays for) and nothing past what the market buys. Its cost is a fleet asset that wears away over its life.
+- **Lifecycles.** Satellites age (capability falls to three quarters), can be lost (a daily hazard from the hash of the satellite and the day — hardened buses and a servicing platform halve it), and end their lives. **Insurance** pays 70% of book value on a loss; **automatic replacement** puts a successor on the floor twelve days before the end.
+- **The sky's events**: solar storms (unshielded satellites lose a share of their strength for days; the hardened are untouched), hurricane seasons and price wars that move prices, debris on a collision course (decide on the Standing page: burn clear, or leave it to the hash), discoveries from a science network.
+- **The Orbit page** (new, key 7): the Earth turning under every satellite and its orbit, your satellites ringed and named, the ground station's beams; a card for each market (what you carry, what it wants, who else sells, what you take a day); an ordering sheet with what each satellite would add today, its life return and its payback; the fleet with health bars; the satellites you keep for customers; the policies.
+- **The ground station's dishes on the map now follow the sky** — they lean together toward whichever satellite stands highest over the horizon, with a beam of light.
+
+### Added — research
+- **The Research page** (new): the whole tree laid out by branch and depth with the lines between what needs what, each project coloured by where you stand (researched, under way, queued, ready, locked); a card for the one you pick (what it does, what it opens, cost and time, the chance of a breakthrough); **a queue of three** so the laboratory never stands idle (the next project is paid for and starts when the last finishes).
+- **Five operations projects with real effects**: *Ground network* (+6% of everything your networks carry, −10% running costs), *Radiation hardening* (−30% chance of losing a satellite), *Data products* (+15% weather and imagery prices), *Precision timing* (+15% navigation prices), *Autonomous operations* (−30% running costs). *Constellation networking* now really does what it said (+10% communications bandwidth).
+
+### Added — achievements and reports
+- **Twenty-eight achievements** (the Standing page): measured against what you have done, earned once, each paying a little reputation and a grant from the Park Authority — ten deliveries to a hundred million in revenue, ten on time in a row, every kind of aircraft, a whole five-aircraft contract, ten clean launches, a full network of your own, overtaking Meridian…
+- **Financial reports** (the Books page, five tabs): the statement as before; **month by month** (thirty-day months, two years kept, a chart); **cash flow** (what came in from customers and what went out for materials, people, running costs, refunds and the halls — reconciled with your wallet); **balance sheet** (stores, work in progress, plant, satellite fleet, deposits owed; net assets and the capital put in); **by line of work** (units, revenue, direct cost, contribution and margin by line and by product). Each exports to CSV.
+
+### Changed
+- The terminal's rail has ten pages now (Floor, Tenders, Contracts, Supply, Hangar, Research, Orbit, Standing, Books, Meridian — keys 1–9 and 0); research left the Hangar page. A tablet notification and an overview alert tell you when a satellite is nearly spent.
+- Billie's Skylarks, Meridian's order book and everything else are as they were; Meridian's own customers' satellites now pay it their support fees (a few thousand a day). Tina has a topic on what satellites earn.
+
+### Tests
+- New: `aerospace_orbit` (21), `aerospace_research` (9), `aerospace_achievements` (10), `aerospace_reports` (9) — markets, coverage, ageing, losses, orbits and ground passes, forecasts, support fees, warranty, replacement tenders, own satellites end to end, insurance, storms, debris, saves; the tree's shape and layout, the queue, the new projects' effects; every achievement's metric; months, cash flow reconciled with the wallet, the balance sheet, segments, CSV. The smoke test draws every page of the terminal.
+
 ## [0.58.0] — 2026-10-26 — Wheels Up (development build)
 
 Stage IV of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "let's go through with 58." Starling Field comes alive: what you build now leaves the ground, and the launch complex does what it is for.

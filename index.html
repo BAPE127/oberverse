@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.58.0';
+const GAME_VERSION = '0.59.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -40237,6 +40237,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.59.0',
+    date: '2026-10-28',
+    channel: 'development',
+    title: 'The Sky\'s the Limit',
+    notes: [
+      'Satellites go on working: the ones you build for customers pay you to keep them going, and you can order satellites of your own and sell what they make — bandwidth, imagery, weather, navigation, grants. A full network earns far more than its parts; storms, debris and rivals have a say. The new Orbit page shows the Earth turning under all of it, and the ground station\'s dishes follow the sky.',
+      'The research tree is a page of its own, with a queue of three and five new projects; there are twenty-eight achievements to earn; and the Books now run to months, cash flow, a balance sheet and what each line of work really makes.',
+    ],
+  },
   {
     version: '0.58.0',
     date: '2026-10-26',

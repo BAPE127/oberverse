@@ -1,4 +1,4 @@
-# Aerospace — Starling Flats Aerospace Park (v0.55.0–v0.58.0)
+# Aerospace — Starling Flats Aerospace Park (v0.55.0–v0.59.0)
 
 The aerospace industry, built in stages (owner's brief, "OBERVERSE MASTER DEVELOPMENT PROMPT — Aerospace Manufacturing, Defense Contracts, Rocket Launches, Satellite Networks, and Integrated Shipping"). Owner's answers to the questions asked before building: a **new region east** of the Ober Fields; the player gets in by **buying a failing firm**; **staged releases**; and every NPC — new ones and everybody who used to share a dorm, bunk room, staff corridor or shack — gets **a home of their own**.
 
@@ -8,7 +8,7 @@ The aerospace industry, built in stages (owner's brief, "OBERVERSE MASTER DEVELO
 | II | **v0.56.0** | Procurement through **Ober & Sons Maritime**: internal shipping jobs on the existing voyage system, internal rates (0–5% of the market freight), intercompany accounting, the supply-chain savings view |
 | III | **v0.57.0** | **Room to grow**: halls you build on the Park (sites that become walkable buildings, bays fitted into their slots), technicians, engineers and inspectors with experience and training, product configuration, a reputation you can read, and events with causes |
 | IV | **v0.58.0** | **Wheels up**: the field in motion — aircraft pushed back, taxiing, rolling and climbing away (and Meridian's own coming home), rockets rolling out on the crawler, counting down, lifting off or lost, the secure convoy on the road, and the sound of it |
-| V | v0.59.0 | Satellite services: roles, networks, recurring revenue, lifecycles; research tree polish; events and achievements; full financial reports |
+| V | **v0.59.0** | **The sky's the limit**: satellites that go on earning (support fees, networks of your own with coverage, lifecycles, insurance, the sky's events), the research tree as a page with a queue and five operations projects, twenty-eight achievements, and full financial reports (months, cash flow, balance sheet, segments) |
 
 ## Where
 
@@ -136,6 +136,33 @@ When a strategic product reaches its convoy stage the convoy leaves at once (`un
 ### The terminal
 
 The Floor's pad tile shows the crawler's minutes, the T-minus clock, the climb or the loss; the overview raises an alert for it; the Apron page has a **Starling Field** section (the runway in use and what each of your aircraft is doing: *being pushed back*, *taxiing to runway 09*, *cleared for take-off*, *climbing away*) and the pad page says what the pad is doing and where to stand.
+
+## Satellite services (v0.59.0)
+
+A satellite is not finished when it is delivered. Numbers: `SERVICES` in `src/content/aerospace.js`; the pure rules: `src/aero/orbit.js`; the company's side (orders, the daily round, losses, events): `src/aero/fleet.js`; the system methods `orderSatellite`, `networkReport`, `fleetOf`… in `src/systems/aerospace.js`.
+
+- **For a customer**: a satellite you built is owned by the customer and kept working by you for a support fee a day (0.4% of its price × its capability), less its running cost. A fortnight before its life ends the customer puts out a tender for its replacement; one lost inside the first quarter of its life costs you reputation (the warranty).
+- **For yourself** (`orderSatellite`): the same satellite, the same floor, stores, launches and commissioning (a unit with `purpose: 'own'`, no contract), then a fleet asset (its cost, book value wearing away over its life) that sells what its role makes. Each role (`SERVICES.roles`) has a unit it sells (Gbps, scenes, feeds…), a price, a **full network** size (`full`, and how sharply being short of it hurts: `exp`), a market (`demand`, `rivals`, drifting with the days and breathing) and an orbit. **Coverage** = (n / full)^exp; **capacity** = units × coverage; you sell `min(capacity, demand × capacity / (capacity + rivals))` at the day's price. The government-lease role needs clearance; the experimental satellite counts as science.
+- **Lifecycles**: capability falls linearly to 75% over the design life; a daily loss hazard (`hazardOf`, a hash of the satellite and the day — hardened buses ×0.5, a servicing platform ×0.5, old age ×1.6, research ×(1+effect)); at the end of its life it is de-orbited. **Insurance** (a daily premium on book value) pays 70% of book value on a loss; **automatic replacement** orders a successor twelve days before the end.
+- **The sky's events** (`skyEvents`, hashed from the day, cooled down): solar storms (−15% capability for 8 days on unhardened satellites, a small chance to lose one), hurricane seasons (weather and imagery ×1.6 for 8 days), price wars (communications or imagery ×0.82 for 25 days), debris on a collision course (a decision on the Standing page: manoeuvre — 4 days of life — or leave it to the hash; undecided is left), discoveries from a science network (a payment and a line in the news).
+- **Where it shows**: the Orbit page (below), the ground station on the map (`groundPass`: the dishes lean toward the satellite highest above the horizon), the tablet and the log.
+- **Books**: revenue `rev_services` (network and support), `rev_claims`; costs `sat_ops`, `depreciation`, `insurance`; `books.fleet` is the fleet's book value.
+
+## Research (v0.59.0)
+
+The tree (`RESEARCH`, 31 projects in five branches) is laid out by `src/aero/research.js` and drawn on the **Research** page: a column for each depth, a lane for each branch, lines between what needs what, each project coloured by where you stand. Click one for its card: what it does (`effect` in words), what it opens (products, options, projects), cost and time (a laboratory saves a quarter; short of engineers it takes longer), the chance of a breakthrough. **The queue** holds three: `queueResearch` accepts a project whose needs are done, under way or ahead of it; `runQueue` starts the next when the laboratory is free and the money is there (said once if it isn't). Effects a project may carry: `quality`, `cost` (materials on aircraft), `launchCost`, and from v0.59.0 `service` (a share of what your networks carry, per role or `all`), `price` (per role), `hazard` and `opsCost`. New projects: Ground network, Radiation hardening, Data products, Precision timing, Autonomous operations.
+
+## Achievements (v0.59.0)
+
+`ACHIEVEMENTS` (28), measured by `METRICS` in `src/aero/achievements.js` against counters the company keeps (`stats.byClass`, `byProduct`, `bestStreak`, `flawless`, `bigContract`, `launchBest`, `discoveries`) and its books and fleet; earned the first time the metric reaches the goal (checked after each delivery, launch and satellite, and every morning), each paying a little reputation and a grant. Only the player's company collects them. They are on the Standing page with progress bars.
+
+## Financial reports (v0.59.0)
+
+`src/aero/reports.js` reads the books: `monthly` (thirty-day months, two years: `books.months`), `cashFlow` (every payment and receipt is also posted under `cf_in_<what>` / `cf_out_<what>`: customers, materials, people, running costs, capital, refunds; reconciled in the tests with the owner's wallet), `balanceSheet` (stores, work in progress, plant at 60% of cost, the satellite fleet, deposits owed; Roost's cash is the owner's), `segments` (by line and by product: units, revenue, direct cost, contribution, margin — `books.lines` and `books.products` are written at each delivery; satellite services as a line of its own), `headline`, `toCsv`. The Books page has five tabs (the statement, month by month, cash flow, balance sheet, by line of work), each exportable to CSV.
+
+## The terminal (v0.59.0 additions)
+
+Ten pages now — Floor, Tenders, Contracts, Supply, Hangar, **Research**, **Orbit**, Standing, Books, Meridian — keys 1–9 and 0. **Orbit** (`src/ui/aeroOrbit.js`, the picture in `src/engine/drawOrbit.js`): the Earth turning under every satellite on its orbit (radii squeezed to fit), your own ringed and named, the ground station's beams; a card for each market; the ordering sheet (what one more would add today — `forecast` — its life return and payback); the fleet with health and life bars and a de-orbit button; the satellites you keep for customers; insurance and automatic replacement; the sky's news. **Research** (`src/ui/aeroResearch.js`). **Standing** now also carries the achievements. **Books** (`src/ui/aeroBooks.js`).
 
 ## What the world shows
 
