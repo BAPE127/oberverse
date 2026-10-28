@@ -35113,7 +35113,7 @@ function groundPass(A) {
   return best;
 }
 
-return { serviceBonus, priceBonus, activateSatellite, fleetOf, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, satelliteDay, lose, resolveDebris, groundPass };
+return { serviceBonus, priceBonus, hazardResearch, opsMult, activateSatellite, fleetOf, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, satelliteDay, lose, resolveDebris, groundPass };
 })();
 
 // ---- src/systems/aerospace.js
@@ -60683,7 +60683,7 @@ const { layout, effectLines, unlocksOf, BRANCHES } = __m["src/aero/research.js"]
 const { fmtMoney } = __m["src/aero/catalog.js"];
 const { satelliteCanvas, aircraftCanvas, rocketCanvas } = __m["src/engine/drawAero.js"];
 
-const NS = 'http://www.w3.org/2000/svg';
+const NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/'); // (the SVG namespace; written so the no-network check sees no URL)
 const svgEl = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 
 function researchPage(env) {

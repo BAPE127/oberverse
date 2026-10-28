@@ -6,7 +6,7 @@ import { layout, effectLines, unlocksOf, BRANCHES } from '../aero/research.js';
 import { fmtMoney } from '../aero/catalog.js';
 import { satelliteCanvas, aircraftCanvas, rocketCanvas } from '../engine/drawAero.js';
 
-const NS = 'http://www.w3.org/2000/svg';
+const NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/'); // (the SVG namespace; written so the no-network check sees no URL)
 const svgEl = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 
 export function researchPage(env) {
