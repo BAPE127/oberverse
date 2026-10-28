@@ -31,7 +31,7 @@ import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
 import { windRunway, poseAt, planLength } from '../aero/flight.js';
 import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } from '../aero/fleet.js';
-import { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
+import { eventsMorning, resolveEvent, hallDiscount, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
 const DAY = 1440;
 const NEWS_MAX = 60;
@@ -173,7 +173,7 @@ export class Aerospace {
       inv: {}, books: freshBooks(),
       stats: { delivered: 0, onTime: 0, late: 0, failedInspections: 0, launches: 0, launchFailures: 0, contractsWon: 0, tendersBid: 0, cancelled: 0 },
       apron: C.facilities.apron.slots[id] || 3,
-      autoProcure: true, insured: false, autoReplace: false, // v0.59.0: the fleet policies
+      autoProcure: true, insured: false, autoReplace: false, queue: [], // v0.59.0: the fleet policies
       overhead: kind === 'rival' ? def.overhead : 600,
       // v0.56.0: how foreign materials travel — 'internal' (your own Ober & Sons ships, when you own the line) or 'carrier';
       // with policy 'fallback' a job that can't find a ship in a day goes by carrier, with 'wait' it waits for one
@@ -539,6 +539,56 @@ export class Aerospace {
   }
 
   // ------------------------------------------------------------- research, bays, facilities
+  /** The chance a project turns up something extra (a lab and surplus engineers raise it). */
+  breakthroughChance(co) { return breakthroughChance(this, co); }
+
+  /** How many days a project takes this company: its own time, a lab's saving, the engineers' pace. */
+  researchDays(co, id) {
+    return Math.max(1, Math.round((this.cfg.research[id].days * this.researchFactor(co)) / this.engineerRate(co)));
+  }
+
+  /** Put a project in the queue behind the one being researched (up to three); it starts by itself when its turn comes. */
+  queueResearch(co, id) {
+    const R = this.cfg.research[id];
+    if (!R) return { ok: false, text: 'No such research.' };
+    if (co.research.includes(id)) return { ok: false, text: 'Already researched.' };
+    if (co.researching?.id === id) return { ok: false, text: 'Already under way.' };
+    co.queue ||= [];
+    if (co.queue.includes(id)) return { ok: false, text: 'Already in the queue.' };
+    if (co.queue.length >= 3) return { ok: false, text: 'The queue holds three.' };
+    // what it needs must be done, under way or ahead of it in the queue
+    const done = new Set([...co.research, co.researching?.id, ...co.queue].filter(Boolean));
+    const missing = (R.requires || []).filter((r) => !done.has(r));
+    if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
+    co.queue.push(id);
+    return { ok: true, text: `${R.name} is queued.` };
+  }
+
+  /** Take a project out of the queue (and anything queued that depended on it). */
+  unqueueResearch(co, id) {
+    const q = co.queue || [];
+    if (!q.includes(id)) return { ok: false, text: 'It is not queued.' };
+    const drop = new Set([id]);
+    for (let again = true; again;) { again = false; for (const x of q) if (!drop.has(x) && (this.cfg.research[x].requires || []).some((r) => drop.has(r))) { drop.add(x); again = true; } }
+    co.queue = q.filter((x) => !drop.has(x));
+    return { ok: true, text: drop.size > 1 ? 'Removed, with what depended on it.' : 'Removed from the queue.' };
+  }
+
+  /** The next queued project starts when the lab is free and the money is there (said once if it isn't). */
+  runQueue(co) {
+    if (co.researching || !co.queue?.length) return;
+    const id = co.queue[0];
+    const R = this.cfg.research[id];
+    if (!(R.requires || []).every((r) => co.research.includes(r))) return;
+    if (!this.canAfford(co, R.cost)) {
+      if (!co.queueWaited) { co.queueWaited = true; this.report(co, 'research', `🔬 ${R.name} is next in the queue but you can't afford it yet (${fmtMoney(R.cost)}).`, co.kind === 'player' ? 'warn' : null); }
+      return;
+    }
+    co.queueWaited = false;
+    co.queue.shift();
+    this.startResearch(co, id);
+  }
+
   startResearch(co, id) {
     const R = this.cfg.research[id];
     if (!R) return { ok: false, text: 'No such research.' };
@@ -548,7 +598,7 @@ export class Aerospace {
     if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
-    const days = Math.max(1, Math.round((R.days * this.researchFactor(co)) / this.engineerRate(co)));
+    const days = this.researchDays(co, id);
     co.researching = { id, doneAt: this.now + Math.round(days * DAY), breakthrough: rollBreakthrough(this, co, id) };
     this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
     return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : days > R.days ? ' (short of engineers)' : ''}.` };
@@ -2071,6 +2121,7 @@ export class Aerospace {
       if (co.researching.breakthrough) applyBreakthrough(this, co, R);
       co.researching = null;
     }
+    this.runQueue(co);
     for (const b of co.bays) if (b.ready && b.ready <= this.now && !b.announced) { b.announced = true; this.report(co, 'facility', `🏗 ${C.bays[b.type].name} ${b.id.split('_').pop()} is open.`, co.kind === 'player' ? 'good' : null); }
     if (co.halls) for (const [id, at] of Object.entries(co.halls)) if (at && at <= this.now && !co.hallsOpened?.[id]) { (co.hallsOpened ||= {})[id] = true; this.report(co, 'facility', `🏗 ${C.halls[id].name} is open.`, 'good'); }
     for (const [id, at] of Object.entries(co.building || {})) {
@@ -2304,7 +2355,7 @@ export class Aerospace {
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
-      co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false;
+      co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
     this.migrateHalls();
     migrateField(this);

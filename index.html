@@ -1024,6 +1024,38 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao .ordersheet { border: 1px solid var(--ao-line); border-radius: 14px; padding: 12px 14px; margin: 14px 0; background: rgba(16,22,36,.6); }
 
 .ao .ao-cell small { display: block; opacity: .65; margin-top: 2px; }
+
+/* ---- v0.59.0: the Research page */
+.ao .ao-researchwrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; margin-top: 12px; }
+.ao .ao-treebox { min-width: 0; }
+.ao .ao-tree-scroll { overflow: auto; max-height: 560px; border: 1px solid var(--ao-line); border-radius: 14px; background: rgba(8,12,20,.8); scrollbar-width: thin; }
+.ao .ao-tree { position: relative; }
+.ao .ao-tree-lines { position: absolute; inset: 0; pointer-events: none; }
+.ao .ao-lane { position: absolute; left: 6px; border-top: 1px dashed rgba(255,255,255,.1); }
+.ao .ao-lane span { position: absolute; top: 4px; left: 6px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: rgba(223,233,245,.45); }
+.ao .ao-tech { position: absolute; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--c); background: linear-gradient(180deg, rgba(26,34,52,.95), rgba(14,20,32,.95)); color: #dfe9f5; cursor: pointer; font: inherit; overflow: hidden; }
+.ao .ao-tech b { font-size: 13px; color: #fff; line-height: 1.15; }
+.ao .ao-tech small { font-size: 11px; opacity: .75; }
+.ao .ao-tech .ao-tech-tags { font-size: 10.5px; opacity: .6; margin-top: auto; }
+.ao .ao-tech.done { background: linear-gradient(180deg, rgba(24,52,38,.95), rgba(14,32,24,.95)); }
+.ao .ao-tech.now { box-shadow: 0 0 0 2px rgba(111,180,255,.4); animation: aopulse 1.6s ease-in-out infinite; }
+.ao .ao-tech.locked { opacity: .55; }
+.ao .ao-tech.soon { opacity: .8; border-style: dashed; }
+.ao .ao-tech.sel { box-shadow: 0 0 0 2px #ffb547; }
+.ao .ao-tech:hover { filter: brightness(1.15); }
+@keyframes aopulse { 50% { box-shadow: 0 0 0 4px rgba(111,180,255,.15); } }
+.ao .ao-techdetail { border: 1px solid var(--ao-line); border-radius: 14px; padding: 14px 16px; background: rgba(16,22,36,.7); display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; }
+.ao .ao-techdetail h3 { margin: 0; color: #fff; font-family: inherit; }
+.ao .ao-sub { display: flex; flex-direction: column; gap: 5px; }
+.ao .ao-sub > small { letter-spacing: 2px; opacity: .5; font-size: 10.5px; }
+.ao .ao-reqs { display: flex; flex-wrap: wrap; gap: 6px; }
+.ao .ao-req { font-size: 12px; padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,.2); cursor: pointer; }
+.ao .ao-req.ok { border-color: rgba(94,224,138,.6); color: #9be8b4; }
+.ao .ao-fx { font-size: 12.5px; color: #cfe0f5; }
+.ao .ao-open { display: flex; gap: 10px; align-items: center; }
+.ao .ao-open small { display: block; opacity: .6; }
+.ao .ao-actions { margin-top: 4px; }
+@media (max-width: 1100px) { .ao .ao-researchwrap { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -3779,7 +3811,12 @@ const RESEARCH = {
   satellite_bus: { name: 'Satellite bus', cost: 300000, days: 6, requires: [], text: 'Communications, weather and observation satellites.' },
   earth_observation: { name: 'Earth observation payloads', cost: 260000, days: 5, requires: ['satellite_bus'], text: 'Mapping and infrastructure satellites.' },
   navigation_payloads: { name: 'Navigation & timing', cost: 340000, days: 6, requires: ['satellite_bus'], text: 'Navigation satellites.' },
-  comms_constellations: { name: 'Constellation networking', cost: 600000, days: 9, requires: ['satellite_bus'], text: 'High-capacity network satellites; +10% network revenue.' },
+  comms_constellations: { name: 'Constellation networking', cost: 600000, days: 9, requires: ['satellite_bus'], effect: { service: { comms: 0.1 } }, text: 'High-capacity network satellites; +10% of the bandwidth your communications satellites carry.' },
+  ground_network: { name: 'Ground network', cost: 420000, days: 7, requires: ['satellite_bus'], effect: { service: { all: 0.06 }, opsCost: -0.1 }, text: 'Dishes in three countries and a proper operations room: +6% of everything your networks carry, −10% on running costs.' },
+  radiation_hardening: { name: 'Radiation hardening', cost: 520000, days: 8, requires: ['satellite_bus'], effect: { hazard: -0.3 }, text: 'Shielded electronics and tougher panels: satellites 30% less likely to be lost.' },
+  data_products: { name: 'Data products', cost: 450000, days: 7, requires: ['earth_observation'], effect: { price: { weather: 0.15, earthobs: 0.15 } }, text: 'Sell answers, not pictures: +15% on weather and imagery prices.' },
+  precision_timing: { name: 'Precision timing', cost: 480000, days: 7, requires: ['navigation_payloads'], effect: { price: { nav: 0.15 } }, text: 'Better clocks, better fixes: +15% on navigation prices.' },
+  autonomous_ops: { name: 'Autonomous operations', cost: 700000, days: 9, requires: ['ground_network'], effect: { opsCost: -0.3 }, text: 'The satellites fly themselves and ring only when it matters: −30% on running costs.' },
   deep_space: { name: 'Deep-space instruments', cost: 700000, days: 10, requires: ['earth_observation'], text: 'Scientific research and deep-space observation satellites.' },
   secure_systems: { name: 'Secure systems', cost: 500000, days: 8, requires: ['satellite_bus'], clearance: true, text: 'Early-warning, secure-communications and space-surveillance satellites.' },
   strategic_systems: { name: 'Strategic systems', cost: 800000, days: 10, requires: ['orbital_rockets', 'secure_systems'], clearance: true, text: 'Fictional strategic missile products for defence agencies.' },
@@ -3787,6 +3824,17 @@ const RESEARCH = {
   futuristic_propulsion: { name: 'Exotic propulsion', cost: 2400000, days: 20, requires: ['stealth', 'reusable_rockets'], text: 'Futuristic aircraft and advanced launch vehicles.' },
   experimental: { name: 'Experimental platforms', cost: 3000000, days: 22, requires: ['space_power', 'futuristic_propulsion'], text: 'Experimental satellites and the most advanced airframes.' },
 };
+
+/** Which branch of the tree each project sits in (v0.59.0, for the Research page). */
+const BRANCHES = {
+  air: ['light_airframes', 'turboprops', 'jet_engines', 'pressurised_cabins', 'widebody', 'composite_structures', 'advanced_avionics', 'next_gen_airliners'],
+  secure: ['military_airframes', 'supersonic', 'stealth', 'secure_systems', 'strategic_systems'],
+  launch: ['orbital_rockets', 'medium_lift', 'heavy_lift', 'reusable_rockets', 'crew_vehicles'],
+  sat: ['satellite_bus', 'earth_observation', 'navigation_payloads', 'comms_constellations', 'deep_space', 'ground_network', 'radiation_hardening', 'data_products', 'precision_timing', 'autonomous_ops'],
+  adv: ['space_power', 'futuristic_propulsion', 'experimental'],
+};
+for (const [branch, ids] of Object.entries(BRANCHES)) for (const id of ids) { if (!RESEARCH[id]) throw new Error(`research branch: no ${id}`); RESEARCH[id].branch = branch; }
+for (const [id, r] of Object.entries(RESEARCH)) if (!r.branch) throw new Error(`research ${id} has no branch`);
 
 /**
  * The catalogue. line: aircraft | rocket | missile | satellite. cls: the
@@ -34647,10 +34695,13 @@ function expireEvents(A, co) {
 
 // ---------------------------------------------------------------- research breakthroughs (pre-rolled when the work begins)
 /** Whether a research project will turn up something extra: fixed when it starts, by its own hash, better with a lab and engineers. */
-function rollBreakthrough(A, co, researchId) {
+function breakthroughChance(A, co) {
   const B = A.cfg.events.breakthrough;
-  const chance = Math.min(0.4, B.base + (A.hallState(co, 'lab').state === 'built' ? B.lab : 0) + (co.engineers >= A.staffNeeded(co, 'engineer') * 1.2 ? B.engineers : 0));
-  return hashUnit(`bt|${co.id}|${researchId}|${A.day}`) < chance;
+  return Math.min(0.4, B.base + (A.hallState(co, 'lab').state === 'built' ? B.lab : 0) + (co.engineers >= A.staffNeeded(co, 'engineer') * 1.2 ? B.engineers : 0));
+}
+
+function rollBreakthrough(A, co, researchId) {
+  return hashUnit(`bt|${co.id}|${researchId}|${A.day}`) < breakthroughChance(A, co);
 }
 
 function applyBreakthrough(A, co, research) {
@@ -34685,7 +34736,7 @@ function eventContractDone(A, co, c) {
   milestone(A, co, c.event === 'government' ? 'first_government' : 'first_constellation', A.cfg.customers[c.customer].name);
 }
 
-return { eventsMorning, postEventTender, hallDiscount, resolveEvent, rollBreakthrough, applyBreakthrough, milestone, eventContractDone };
+return { eventsMorning, postEventTender, hallDiscount, resolveEvent, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone };
 })();
 
 // ---- src/aero/fleet.js
@@ -35100,7 +35151,7 @@ const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField,
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
 const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
 const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } = __m["src/aero/fleet.js"];
-const { eventsMorning, resolveEvent, hallDiscount, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
+const { eventsMorning, resolveEvent, hallDiscount, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
 const DAY = 1440;
 const NEWS_MAX = 60;
@@ -35242,7 +35293,7 @@ class Aerospace {
       inv: {}, books: freshBooks(),
       stats: { delivered: 0, onTime: 0, late: 0, failedInspections: 0, launches: 0, launchFailures: 0, contractsWon: 0, tendersBid: 0, cancelled: 0 },
       apron: C.facilities.apron.slots[id] || 3,
-      autoProcure: true, insured: false, autoReplace: false, // v0.59.0: the fleet policies
+      autoProcure: true, insured: false, autoReplace: false, queue: [], // v0.59.0: the fleet policies
       overhead: kind === 'rival' ? def.overhead : 600,
       // v0.56.0: how foreign materials travel — 'internal' (your own Ober & Sons ships, when you own the line) or 'carrier';
       // with policy 'fallback' a job that can't find a ship in a day goes by carrier, with 'wait' it waits for one
@@ -35608,6 +35659,56 @@ class Aerospace {
   }
 
   // ------------------------------------------------------------- research, bays, facilities
+  /** The chance a project turns up something extra (a lab and surplus engineers raise it). */
+  breakthroughChance(co) { return breakthroughChance(this, co); }
+
+  /** How many days a project takes this company: its own time, a lab's saving, the engineers' pace. */
+  researchDays(co, id) {
+    return Math.max(1, Math.round((this.cfg.research[id].days * this.researchFactor(co)) / this.engineerRate(co)));
+  }
+
+  /** Put a project in the queue behind the one being researched (up to three); it starts by itself when its turn comes. */
+  queueResearch(co, id) {
+    const R = this.cfg.research[id];
+    if (!R) return { ok: false, text: 'No such research.' };
+    if (co.research.includes(id)) return { ok: false, text: 'Already researched.' };
+    if (co.researching?.id === id) return { ok: false, text: 'Already under way.' };
+    co.queue ||= [];
+    if (co.queue.includes(id)) return { ok: false, text: 'Already in the queue.' };
+    if (co.queue.length >= 3) return { ok: false, text: 'The queue holds three.' };
+    // what it needs must be done, under way or ahead of it in the queue
+    const done = new Set([...co.research, co.researching?.id, ...co.queue].filter(Boolean));
+    const missing = (R.requires || []).filter((r) => !done.has(r));
+    if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
+    co.queue.push(id);
+    return { ok: true, text: `${R.name} is queued.` };
+  }
+
+  /** Take a project out of the queue (and anything queued that depended on it). */
+  unqueueResearch(co, id) {
+    const q = co.queue || [];
+    if (!q.includes(id)) return { ok: false, text: 'It is not queued.' };
+    const drop = new Set([id]);
+    for (let again = true; again;) { again = false; for (const x of q) if (!drop.has(x) && (this.cfg.research[x].requires || []).some((r) => drop.has(r))) { drop.add(x); again = true; } }
+    co.queue = q.filter((x) => !drop.has(x));
+    return { ok: true, text: drop.size > 1 ? 'Removed, with what depended on it.' : 'Removed from the queue.' };
+  }
+
+  /** The next queued project starts when the lab is free and the money is there (said once if it isn't). */
+  runQueue(co) {
+    if (co.researching || !co.queue?.length) return;
+    const id = co.queue[0];
+    const R = this.cfg.research[id];
+    if (!(R.requires || []).every((r) => co.research.includes(r))) return;
+    if (!this.canAfford(co, R.cost)) {
+      if (!co.queueWaited) { co.queueWaited = true; this.report(co, 'research', `🔬 ${R.name} is next in the queue but you can't afford it yet (${fmtMoney(R.cost)}).`, co.kind === 'player' ? 'warn' : null); }
+      return;
+    }
+    co.queueWaited = false;
+    co.queue.shift();
+    this.startResearch(co, id);
+  }
+
   startResearch(co, id) {
     const R = this.cfg.research[id];
     if (!R) return { ok: false, text: 'No such research.' };
@@ -35617,7 +35718,7 @@ class Aerospace {
     if (missing.length) return { ok: false, text: `Needs ${missing.map((r) => this.cfg.research[r].name).join(', ')} first.` };
     if (!this.canAfford(co, R.cost)) return { ok: false, text: `${R.name} costs ${R.cost.toLocaleString()} obols.` };
     this.pay(co, R.cost, 'research');
-    const days = Math.max(1, Math.round((R.days * this.researchFactor(co)) / this.engineerRate(co)));
+    const days = this.researchDays(co, id);
     co.researching = { id, doneAt: this.now + Math.round(days * DAY), breakthrough: rollBreakthrough(this, co, id) };
     this.report(co, 'research', `🔬 ${co.name} begins research: ${R.name} (${days} days).`, co.kind === 'player' ? 'info' : null);
     return { ok: true, text: `Research started: ${R.name}. Done in ${days} days${days < R.days ? ' (the laboratory saves time)' : days > R.days ? ' (short of engineers)' : ''}.` };
@@ -37140,6 +37241,7 @@ class Aerospace {
       if (co.researching.breakthrough) applyBreakthrough(this, co, R);
       co.researching = null;
     }
+    this.runQueue(co);
     for (const b of co.bays) if (b.ready && b.ready <= this.now && !b.announced) { b.announced = true; this.report(co, 'facility', `🏗 ${C.bays[b.type].name} ${b.id.split('_').pop()} is open.`, co.kind === 'player' ? 'good' : null); }
     if (co.halls) for (const [id, at] of Object.entries(co.halls)) if (at && at <= this.now && !co.hallsOpened?.[id]) { (co.hallsOpened ||= {})[id] = true; this.report(co, 'facility', `🏗 ${C.halls[id].name} is open.`, 'good'); }
     for (const [id, at] of Object.entries(co.building || {})) {
@@ -37373,7 +37475,7 @@ class Aerospace {
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
-      co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false;
+      co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
     this.migrateHalls();
     migrateField(this);
@@ -60500,6 +60602,179 @@ function orbitPage(env) {
 return { orbitPage };
 })();
 
+// ---- src/aero/research.js
+__m["src/aero/research.js"] = (function () {
+// The research tree (v0.59.0): pure helpers for the Research page — where each project sits, what
+// it does, what it opens. `R` is RESEARCH from src/content/aerospace.js, `C` the whole content.
+
+const BRANCHES = [['air', 'Aircraft'], ['secure', 'Secure & defence'], ['launch', 'Launch'], ['sat', 'Satellites'], ['adv', 'Advanced']];
+
+/** How many steps from a root a project is (a root needs nothing). */
+function depthOf(R, id, memo = {}) {
+  if (memo[id] !== undefined) return memo[id];
+  memo[id] = 0; // (a guard against a cycle: content is validated, but a loop must not hang)
+  const req = R[id].requires || [];
+  memo[id] = req.length ? 1 + Math.max(...req.map((r) => depthOf(R, r, memo))) : 0;
+  return memo[id];
+}
+
+/**
+ * Lay the tree out: a column for each depth, a lane for each branch, and within a lane the
+ * projects of one depth stacked. Returns { nodes: { id: { col, lane, row, x, y } }, cols, lanes: [{ id, name, top, rows }], width, height }.
+ */
+function layout(R, { w = 226, h = 74, gapX = 54, gapY = 12, laneGap = 26, pad = 10 } = {}) {
+  const memo = {};
+  const ids = Object.keys(R);
+  const out = { nodes: {}, lanes: [], cols: 0 };
+  let top = pad;
+  for (const [bid, name] of BRANCHES) {
+    const members = ids.filter((id) => R[id].branch === bid).sort((a, b) => depthOf(R, a, memo) - depthOf(R, b, memo) || (R[a].cost - R[b].cost));
+    if (!members.length) continue;
+    const perCol = {};
+    for (const id of members) { const col = depthOf(R, id, memo); const row = perCol[col] = (perCol[col] || 0) + 1; out.nodes[id] = { col, lane: bid, row: row - 1, x: pad + col * (w + gapX), y: top + 26 + (row - 1) * (h + gapY) }; out.cols = Math.max(out.cols, col + 1); }
+    const rows = Math.max(...Object.values(perCol));
+    out.lanes.push({ id: bid, name, top, rows, height: 26 + rows * (h + gapY) });
+    top += 26 + rows * (h + gapY) + laneGap;
+  }
+  out.width = pad * 2 + out.cols * (w + gapX) - gapX;
+  out.height = top - laneGap + pad;
+  out.size = { w, h };
+  return out;
+}
+
+const pct = (v) => `${v > 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)}%`;
+
+/** What a project does, in words (one line each). */
+function effectLines(C, effect) {
+  const out = [];
+  if (!effect) return out;
+  const roles = C.services?.roles || {};
+  const name = (r) => (r === 'all' ? 'everything your networks carry' : (roles[r]?.short || r).toLowerCase());
+  if (effect.quality) out.push(`${effect.quality > 0 ? '+' : '−'}${Math.abs(effect.quality)} quality on everything you build`);
+  if (effect.cost) out.push(`${pct(effect.cost)} materials on aircraft`);
+  if (effect.launchCost) out.push(`${pct(effect.launchCost)} on what a launch costs`);
+  if (effect.hazard) out.push(`satellites ${Math.round(Math.abs(effect.hazard) * 100)}% ${effect.hazard < 0 ? 'less' : 'more'} likely to be lost`);
+  if (effect.opsCost) out.push(`${pct(effect.opsCost)} on satellite running costs`);
+  for (const [r, v] of Object.entries(effect.service || {})) out.push(`${pct(v)} of ${r === 'all' ? '' : 'the '}${name(r)}${r === 'all' ? '' : ' your satellites carry'}`);
+  for (const [r, v] of Object.entries(effect.price || {})) out.push(`${pct(v)} on ${name(r)} prices`);
+  return out;
+}
+
+/** What finishing a project opens: the products it unlocks, the options that need it, the projects that wait for it. */
+function unlocksOf(C, id) {
+  const R = C.research;
+  const products = Object.entries(C.products).filter(([, p]) => p.tech === id).map(([pid]) => pid);
+  const options = [];
+  for (const [gid, g] of Object.entries(C.options?.groups || {})) for (const [cid, ch] of Object.entries(g.choices)) if (ch.needs === id) options.push(`${g.name}: ${ch.name}`);
+  const next = Object.entries(R).filter(([, r]) => (r.requires || []).includes(id)).map(([rid]) => rid);
+  return { products, options, next };
+}
+
+return { BRANCHES, depthOf, layout, effectLines, unlocksOf };
+})();
+
+// ---- src/ui/aeroResearch.js
+__m["src/ui/aeroResearch.js"] = (function () {
+// The Research page of the aerospace terminal (v0.59.0): the whole tree laid out by branch and
+// depth, each project coloured by where you stand with it, the lines between what needs what, a
+// card for the one you pick (what it does, what it opens, what it costs), and a queue of up to
+// three so the lab never stands idle. Layout and wording: src/aero/research.js.
+const { layout, effectLines, unlocksOf, BRANCHES } = __m["src/aero/research.js"];
+const { fmtMoney } = __m["src/aero/catalog.js"];
+const { satelliteCanvas, aircraftCanvas, rocketCanvas } = __m["src/engine/drawAero.js"];
+
+const NS = 'http://www.w3.org/2000/svg';
+const svgEl = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+
+function researchPage(env) {
+  const { A, C, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co } = env;
+  const c = co();
+  const R = C.research;
+  const L = layout(R);
+  const done = new Set(c.research);
+  const queue = c.queue || [];
+  const now = c.researching?.id || null;
+  const status = (id) => (done.has(id) ? 'done' : id === now ? 'now' : queue.includes(id) ? 'queued' : (R[id].requires || []).every((r) => done.has(r)) ? 'avail' : (R[id].requires || []).every((r) => done.has(r) || r === now || queue.includes(r)) ? 'soon' : 'locked');
+  const sel = AO.tech && R[AO.tech] ? AO.tech : (now || queue[0] || Object.keys(R).find((id) => status(id) === 'avail') || 'light_airframes');
+  const ROLE = { avail: COL.amber, done: COL.green, now: COL.blue, queued: COL.blue, soon: '#7a8aa6', locked: '#4a5468' };
+
+  // ---------------------------------------------------------------- the tree
+  const tree = h('div', { class: 'ao-tree', style: `width:${L.width}px;height:${L.height}px` });
+  const svg = svgEl('svg', { width: L.width, height: L.height, class: 'ao-tree-lines' });
+  for (const lane of L.lanes) {
+    tree.append(h('div', { class: 'ao-lane', style: `top:${lane.top}px;height:${lane.height - 8}px;width:${L.width - 12}px` }, h('span', {}, lane.name)));
+  }
+  const { w, h: nh } = L.size;
+  for (const [id, r] of Object.entries(R)) {
+    for (const q of r.requires || []) {
+      const a = L.nodes[q];
+      const b = L.nodes[id];
+      const x1 = a.x + w; const y1 = a.y + nh / 2; const x2 = b.x; const y2 = b.y + nh / 2;
+      const mid = (x1 + x2) / 2;
+      const lit = done.has(q);
+      svg.append(svgEl('path', { d: `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`, fill: 'none', stroke: lit ? 'rgba(94,224,138,0.55)' : 'rgba(120,140,170,0.32)', 'stroke-width': lit ? 2 : 1.4 }));
+    }
+  }
+  tree.append(svg);
+  for (const [id, r] of Object.entries(R)) {
+    const n = L.nodes[id];
+    const st = status(id);
+    const fx = effectLines(C, r.effect);
+    const opens = unlocksOf(C, id);
+    tree.append(h('button', { class: `ao-tech ${st}${sel === id ? ' sel' : ''}`, style: `left:${n.x}px;top:${n.y}px;width:${w}px;height:${nh}px;--c:${ROLE[st]}`, onclick: () => { AO.tech = id; refresh(); } },
+      h('b', {}, r.name),
+      h('small', {}, st === 'done' ? '✓ researched' : st === 'now' ? `under way · done ${A.when(c.researching.doneAt).replace('Day ', 'D')}` : st === 'queued' ? `queued · #${queue.indexOf(id) + 1}` : `${r.cost ? fmtMoney(r.cost) : 'free'} · ${A.researchDays(c, id)} d`),
+      h('span', { class: 'ao-tech-tags' }, opens.products.length ? `${opens.products.length} product${opens.products.length === 1 ? '' : 's'}` : '', fx.length ? ' ⚙' : '', r.clearance ? ' 🔒' : '')));
+  }
+  const scroller = h('div', { class: 'ao-tree-scroll' }, tree);
+  // bring the chosen project into view (once per page change)
+  requestAnimationFrame(() => { const el = tree.querySelector('.ao-tech.sel'); if (el && !scroller.dataset.seen) { scroller.scrollLeft = Math.max(0, el.offsetLeft - 80); scroller.dataset.seen = '1'; } });
+
+  // ---------------------------------------------------------------- the chosen project
+  const r = R[sel];
+  const st = status(sel);
+  const opens = unlocksOf(C, sel);
+  const pic = (pid) => {
+    const p = C.products[pid];
+    const cv = h('canvas', { width: 120, height: 64, class: 'ao-pic', style: 'width:60px;height:32px' });
+    const img = p.line === 'aircraft' ? aircraftCanvas(p.look, {}) : p.line === 'satellite' ? satelliteCanvas({ mass: p.mass, role: p.role }, { panels: true }) : rocketCanvas(p.look, { stages: 1, lying: true });
+    if (img) { const x = cv.getContext('2d'); x.imageSmoothingEnabled = false; const k = Math.min(108 / img.width, 54 / img.height, 2); x.drawImage(img, (120 - img.width * k) / 2, (64 - img.height * k) / 2, img.width * k, img.height * k); }
+    return cv;
+  };
+  const need = (r.requires || []).map((id) => h('span', { class: `ao-req ${done.has(id) ? 'ok' : ''}`, onclick: () => { AO.tech = id; refresh(); } }, `${done.has(id) ? '✓' : '○'} ${R[id].name}`));
+  const days = A.researchDays(c, sel);
+  const lab = A.hallState(c, 'lab').state === 'built';
+  const canNow = st === 'avail' && !c.researching && A.canAfford(c, r.cost);
+  const detail = h('div', { class: 'ao-techdetail' },
+    h('div', { class: 'ao-kicker' }, `${(BRANCHES.find(([id]) => id === r.branch) || [, 'Research'])[1].toUpperCase()}${r.clearance ? ' · NEEDS CLEARANCE' : ''}`),
+    h('h3', {}, r.name),
+    h('div', { class: 'ao-pills' }, pill(st === 'done' ? 'Researched' : st === 'now' ? 'Under way' : st === 'queued' ? 'Queued' : st === 'avail' ? 'Ready to research' : st === 'soon' ? 'Waiting on the queue' : 'Locked', ROLE[st])),
+    h('p', { class: 'ao-muted' }, r.text),
+    need.length ? h('div', { class: 'ao-sub' }, h('small', {}, 'NEEDS'), h('div', { class: 'ao-reqs' }, ...need)) : null,
+    effectLines(C, r.effect).length ? h('div', { class: 'ao-sub' }, h('small', {}, 'WHAT IT DOES'), ...effectLines(C, r.effect).map((t) => h('div', { class: 'ao-fx' }, '⚙ ', t))) : null,
+    opens.products.length || opens.options.length || opens.next.length ? h('div', { class: 'ao-sub' }, h('small', {}, 'WHAT IT OPENS'),
+      ...opens.products.map((pid) => h('div', { class: 'ao-open' }, pic(pid), h('div', {}, h('b', {}, C.products[pid].name), h('small', {}, C.products[pid].line === 'aircraft' ? 'aircraft' : C.products[pid].line === 'satellite' ? 'satellite' : C.products[pid].line === 'rocket' ? 'launch vehicle' : 'strategic product')))),
+      ...opens.options.map((t) => h('div', { class: 'ao-fx' }, '◇ option — ', t)),
+      opens.next.length ? h('div', { class: 'ao-fx' }, '→ leads to ', opens.next.map((id) => R[id].name).join(', ')) : null) : null,
+    st !== 'done' ? h('div', { class: 'ao-sub' }, h('small', {}, 'COST'), h('div', { class: 'ao-kpis two' }, kpi('Money', r.cost ? fmtMoney(r.cost) : 'free'), kpi('Time', `${days} days`, '', lab ? 'laboratory saves a quarter' : `${R[sel].days} days at standard pace`)),
+      muted(`Chance of a breakthrough on top: ${Math.round(A.breakthroughChance(c) * 100)}% (a laboratory and surplus engineers raise it).`)) : null,
+    st === 'avail' ? h('div', { class: 'ao-actions' }, btn(c.researching ? `Queue it (${queue.length}/3)` : `Research now · ${fmtMoney(r.cost)}`, () => act(() => (c.researching ? A.queueResearch(c, sel) : A.startResearch(c, sel))), 'primary big', c.researching ? queue.length >= 3 : !canNow, c.researching ? null : (!A.canAfford(c, r.cost) ? 'Not enough money' : null))) : null,
+    st === 'soon' ? h('div', { class: 'ao-actions' }, btn(`Queue it (${queue.length}/3)`, () => act(() => A.queueResearch(c, sel)), 'primary big', queue.length >= 3)) : null,
+    st === 'queued' ? h('div', { class: 'ao-actions' }, btn('Take it out of the queue', () => act(() => A.unqueueResearch(c, sel)))) : null,
+    st === 'locked' ? muted('Research what it needs first (queue it, or do it now).') : null);
+
+  const current = c.researching ? h('div', { class: 'ao-alert' }, `🔬 Researching ${R[c.researching.id].name} — done ${A.when(c.researching.doneAt)}${c.researching.breakthrough ? ' · the team has a feeling about this one' : ''}.`) : muted('The laboratory is idle. Pick a project and research it, or queue several.');
+  const qchips = queue.length ? h('div', { class: 'ao-pills' }, ...queue.map((id, i) => h('button', { class: 'ao-chip on', onclick: () => { AO.tech = id; refresh(); }, title: 'Click to look at it' }, `${i + 1}. ${R[id].name}`, h('em', {}, fmtMoney(R[id].cost))))) : null;
+
+  return h('div', {},
+    h('div', { class: 'ao-kpis' }, kpi('Researched', `${c.research.length}`, '', `of ${Object.keys(R).length} projects`), kpi('Under way', c.researching ? R[c.researching.id].name : '—'), kpi('Queued', `${queue.length} / 3`, '', queue.length ? `next: ${R[queue[0]].name}` : 'nothing waiting'), kpi('Engineers', `${Math.round(A.engineerRate(c) * 100)}%`, A.engineerRate(c) < 1 ? 'neg' : '', 'of the pace the lab could keep')),
+    current, qchips,
+    h('div', { class: 'ao-researchwrap' }, h('div', { class: 'ao-treebox' }, scroller, muted('Grey lines: needs. Green: done. ⚙ changes how something works; 🔒 needs clearance. Click a project.')), detail));
+}
+
+return { researchPage };
+})();
+
 // ---- src/ui/aerospace.js
 __m["src/ui/aerospace.js"] = (function () {
 // Roost Aeroworks — Operations (v0.56.1; the aerospace terminal since v0.55.0).
@@ -60527,6 +60802,7 @@ const { optionEffect, configLabel, cleanConfig } = __m["src/aero/config.js"];
 const { ACCOUNTS } = __m["src/aero/books.js"];
 const { aircraftCanvas, rocketCanvas, satelliteCanvas } = __m["src/engine/drawAero.js"];
 const { orbitPage } = __m["src/ui/aeroOrbit.js"];
+const { researchPage } = __m["src/ui/aeroResearch.js"];
 
 const MODES = [
   ['floor', '🏭', 'Floor'],
@@ -60534,13 +60810,14 @@ const MODES = [
   ['contracts', '📑', 'Contracts'],
   ['supply', '📦', 'Supply'],
   ['hangar', '🏗', 'Hangar'],
+  ['research', '🔬', 'Research'],
   ['orbit', '🛰', 'Orbit'],
   ['standing', '📣', 'Standing'],
   ['books', '📒', 'Books'],
   ['meridian', '📈', 'Meridian'],
 ];
 /** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
-const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Orbit: 'orbit', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Research: 'research', Orbit: 'orbit', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
 const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
 const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
 const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
@@ -60949,9 +61226,9 @@ function aerospacePanel(ui, body, opts = {}) {
       e.stopImmediatePropagation();
       if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
       refresh();
-    } else if (!readonly && /^[1-9]$/.test(e.key)) {
+    } else if (!readonly && /^[0-9]$/.test(e.key) && MODES[(Number(e.key) + 9) % 10]) {
       e.stopImmediatePropagation();
-      go(MODES[Number(e.key) - 1][0]);
+      go(MODES[(Number(e.key) + 9) % 10][0]);
     }
   };
   window.addEventListener('keydown', keys, true);
@@ -60988,6 +61265,7 @@ function aerospacePanel(ui, body, opts = {}) {
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
     else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'research') { n = c.researching || (c.queue || []).length ? 0 : 1; }
     else if (id === 'orbit') { const f = A.fleetOf(c); n = f.live.filter((x) => (x.endsAt - A.now) / 1440 < 12).length + (c.events || []).filter((e) => e.kind === 'debris' && !e.resolved).length; bad = n > 0; }
     else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
     return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
@@ -61181,7 +61459,7 @@ function aerospacePanel(ui, body, opts = {}) {
     sheet.classList.toggle('hidden', !on);
     if (!on) return;
     const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
-    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, orbit: () => orbitPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, research: () => researchPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), orbit: () => orbitPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
     const name = MODES.find((x) => x[0] === AO.mode)[2];
     sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
     sheet.dataset.mode = AO.mode;
@@ -61476,12 +61754,8 @@ function aerospacePanel(ui, body, opts = {}) {
       }))),
       section('Research',
         c.researching ? h('div', { class: 'ao-alert' }, `🔬 Researching ${R[c.researching.id].name} — done ${A.when(c.researching.doneAt)}.`) : muted('Nothing being researched. Research opens new products to bid on.'),
-        h('div', { class: 'ao-pills' }, ...c.research.map((id) => pill(`✓ ${R[id].name}`, COL.green))),
-        h('div', { class: 'ao-grid' }, ...avail.map(([id, r]) => h('div', { class: 'ao-card' },
-          h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, r.name), h('small', {}, r.text)), r.clearance ? pill('defence', COL.amber) : null, h('div', { class: 'ao-pay' }, fmtMoney(r.cost), h('small', {}, `${r.days} days`))),
-          unlocks(id).length ? h('div', { class: 'ao-unlocks' }, ...unlocks(id).map((p) => h('span', {}, pic(productLook(C, Object.keys(C.products).find((k2) => C.products[k2] === p)), 56, 28), p.name))) : null,
-          btn(`Research · ${money(r.cost)}`, () => act(() => A.startResearch(c, id)), 'primary', Boolean(c.researching) || !A.canAfford(c, r.cost))))),
-        locked.length ? muted(`Later: ${locked.map(([, r]) => `${r.name} (needs ${(r.requires || []).filter((x) => !c.research.includes(x)).map((x) => R[x].name).join(', ')})`).join(' · ')}`) : null));
+        h('div', { class: 'ao-kpis two' }, kpi('Researched', `${c.research.length} of ${Object.keys(R).length}`), kpi('Ready to start', String(avail.length), '', `${locked.length} still locked`)),
+        btn('Open the research tree ›', () => go('research'), 'primary')));
   };
 
   // ------------------------------------------------------------------ standing (reputation, decisions, the firsts)

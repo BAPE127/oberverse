@@ -23,6 +23,7 @@ import { optionEffect, configLabel, cleanConfig } from '../aero/config.js';
 import { ACCOUNTS } from '../aero/books.js';
 import { aircraftCanvas, rocketCanvas, satelliteCanvas } from '../engine/drawAero.js';
 import { orbitPage } from './aeroOrbit.js';
+import { researchPage } from './aeroResearch.js';
 
 const MODES = [
   ['floor', '🏭', 'Floor'],
@@ -30,13 +31,14 @@ const MODES = [
   ['contracts', '📑', 'Contracts'],
   ['supply', '📦', 'Supply'],
   ['hangar', '🏗', 'Hangar'],
+  ['research', '🔬', 'Research'],
   ['orbit', '🛰', 'Orbit'],
   ['standing', '📣', 'Standing'],
   ['books', '📒', 'Books'],
   ['meridian', '📈', 'Meridian'],
 ];
 /** The v0.55 tab names still open the right page (dialogue, the tablet, old callers). */
-const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Orbit: 'orbit', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
+const OLD_TABS = { Dashboard: 'floor', Production: 'floor', Tenders: 'tenders', Contracts: 'contracts', Supply: 'supply', Facilities: 'hangar', Research: 'research', Orbit: 'orbit', Standing: 'standing', Books: 'books', Meridian: 'meridian' };
 const LINE_ICON = { aircraft: '✈', rocket: '🚀', missile: '🛡', satellite: '🛰' };
 const LINE_NAME = { aircraft: 'Aircraft', rocket: 'Launch vehicles', missile: 'Strategic', satellite: 'Satellites' };
 const STATUS = { queued: 'Queued for a bay', waiting: 'Waiting for materials', blocked: 'Blocked', building: 'In production', engineering: 'In the drawing office', apron: 'On the apron', pad: 'On the pad', orbit: 'In orbit', storage: 'In secure storage', convoy: 'Secure convoy', delivered: 'Delivered', failed: 'Lost', cancelled: 'Cancelled' };
@@ -445,9 +447,9 @@ export function aerospacePanel(ui, body, opts = {}) {
       e.stopImmediatePropagation();
       if (AO.mode !== 'floor') AO.mode = 'floor'; else AO.sel = null;
       refresh();
-    } else if (!readonly && /^[1-9]$/.test(e.key)) {
+    } else if (!readonly && /^[0-9]$/.test(e.key) && MODES[(Number(e.key) + 9) % 10]) {
       e.stopImmediatePropagation();
-      go(MODES[Number(e.key) - 1][0]);
+      go(MODES[(Number(e.key) + 9) % 10][0]);
     }
   };
   window.addEventListener('keydown', keys, true);
@@ -484,6 +486,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
     else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'research') { n = c.researching || (c.queue || []).length ? 0 : 1; }
     else if (id === 'orbit') { const f = A.fleetOf(c); n = f.live.filter((x) => (x.endsAt - A.now) / 1440 < 12).length + (c.events || []).filter((e) => e.kind === 'debris' && !e.resolved).length; bad = n > 0; }
     else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
     return n ? h('em', { class: `ao-badge${bad ? ' bad' : ''}` }, String(n)) : null;
@@ -677,7 +680,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     sheet.classList.toggle('hidden', !on);
     if (!on) return;
     const scroll = sheet.dataset.mode === AO.mode ? sheet.scrollTop : 0;
-    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, orbit: () => orbitPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
+    const page = { tenders: tendersSheet, contracts: contractsSheet, supply: supplySheet, hangar: hangarSheet, research: () => researchPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), orbit: () => orbitPage({ A, C, g, h, btn, kpi, section, muted, pill, act, refresh, COL, AO, co }), standing: standingSheet, books: booksSheet, meridian: meridianSheet }[AO.mode]();
     const name = MODES.find((x) => x[0] === AO.mode)[2];
     sheet.replaceChildren(h('div', { class: 'ao-sheet-head' }, h('h2', {}, readonly ? 'Meridian Aerospace Corporation' : name), readonly ? null : btn('◂ Back to the floor', () => go('floor'))), page);
     sheet.dataset.mode = AO.mode;
@@ -972,12 +975,8 @@ export function aerospacePanel(ui, body, opts = {}) {
       }))),
       section('Research',
         c.researching ? h('div', { class: 'ao-alert' }, `🔬 Researching ${R[c.researching.id].name} — done ${A.when(c.researching.doneAt)}.`) : muted('Nothing being researched. Research opens new products to bid on.'),
-        h('div', { class: 'ao-pills' }, ...c.research.map((id) => pill(`✓ ${R[id].name}`, COL.green))),
-        h('div', { class: 'ao-grid' }, ...avail.map(([id, r]) => h('div', { class: 'ao-card' },
-          h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, r.name), h('small', {}, r.text)), r.clearance ? pill('defence', COL.amber) : null, h('div', { class: 'ao-pay' }, fmtMoney(r.cost), h('small', {}, `${r.days} days`))),
-          unlocks(id).length ? h('div', { class: 'ao-unlocks' }, ...unlocks(id).map((p) => h('span', {}, pic(productLook(C, Object.keys(C.products).find((k2) => C.products[k2] === p)), 56, 28), p.name))) : null,
-          btn(`Research · ${money(r.cost)}`, () => act(() => A.startResearch(c, id)), 'primary', Boolean(c.researching) || !A.canAfford(c, r.cost))))),
-        locked.length ? muted(`Later: ${locked.map(([, r]) => `${r.name} (needs ${(r.requires || []).filter((x) => !c.research.includes(x)).map((x) => R[x].name).join(', ')})`).join(' · ')}`) : null));
+        h('div', { class: 'ao-kpis two' }, kpi('Researched', `${c.research.length} of ${Object.keys(R).length}`), kpi('Ready to start', String(avail.length), '', `${locked.length} still locked`)),
+        btn('Open the research tree ›', () => go('research'), 'primary')));
   };
 
   // ------------------------------------------------------------------ standing (reputation, decisions, the firsts)

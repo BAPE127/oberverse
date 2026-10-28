@@ -179,10 +179,13 @@ function expireEvents(A, co) {
 
 // ---------------------------------------------------------------- research breakthroughs (pre-rolled when the work begins)
 /** Whether a research project will turn up something extra: fixed when it starts, by its own hash, better with a lab and engineers. */
-export function rollBreakthrough(A, co, researchId) {
+export function breakthroughChance(A, co) {
   const B = A.cfg.events.breakthrough;
-  const chance = Math.min(0.4, B.base + (A.hallState(co, 'lab').state === 'built' ? B.lab : 0) + (co.engineers >= A.staffNeeded(co, 'engineer') * 1.2 ? B.engineers : 0));
-  return hashUnit(`bt|${co.id}|${researchId}|${A.day}`) < chance;
+  return Math.min(0.4, B.base + (A.hallState(co, 'lab').state === 'built' ? B.lab : 0) + (co.engineers >= A.staffNeeded(co, 'engineer') * 1.2 ? B.engineers : 0));
+}
+
+export function rollBreakthrough(A, co, researchId) {
+  return hashUnit(`bt|${co.id}|${researchId}|${A.day}`) < breakthroughChance(A, co);
 }
 
 export function applyBreakthrough(A, co, research) {

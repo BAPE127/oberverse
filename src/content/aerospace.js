@@ -549,7 +549,12 @@ export const RESEARCH = {
   satellite_bus: { name: 'Satellite bus', cost: 300000, days: 6, requires: [], text: 'Communications, weather and observation satellites.' },
   earth_observation: { name: 'Earth observation payloads', cost: 260000, days: 5, requires: ['satellite_bus'], text: 'Mapping and infrastructure satellites.' },
   navigation_payloads: { name: 'Navigation & timing', cost: 340000, days: 6, requires: ['satellite_bus'], text: 'Navigation satellites.' },
-  comms_constellations: { name: 'Constellation networking', cost: 600000, days: 9, requires: ['satellite_bus'], text: 'High-capacity network satellites; +10% network revenue.' },
+  comms_constellations: { name: 'Constellation networking', cost: 600000, days: 9, requires: ['satellite_bus'], effect: { service: { comms: 0.1 } }, text: 'High-capacity network satellites; +10% of the bandwidth your communications satellites carry.' },
+  ground_network: { name: 'Ground network', cost: 420000, days: 7, requires: ['satellite_bus'], effect: { service: { all: 0.06 }, opsCost: -0.1 }, text: 'Dishes in three countries and a proper operations room: +6% of everything your networks carry, −10% on running costs.' },
+  radiation_hardening: { name: 'Radiation hardening', cost: 520000, days: 8, requires: ['satellite_bus'], effect: { hazard: -0.3 }, text: 'Shielded electronics and tougher panels: satellites 30% less likely to be lost.' },
+  data_products: { name: 'Data products', cost: 450000, days: 7, requires: ['earth_observation'], effect: { price: { weather: 0.15, earthobs: 0.15 } }, text: 'Sell answers, not pictures: +15% on weather and imagery prices.' },
+  precision_timing: { name: 'Precision timing', cost: 480000, days: 7, requires: ['navigation_payloads'], effect: { price: { nav: 0.15 } }, text: 'Better clocks, better fixes: +15% on navigation prices.' },
+  autonomous_ops: { name: 'Autonomous operations', cost: 700000, days: 9, requires: ['ground_network'], effect: { opsCost: -0.3 }, text: 'The satellites fly themselves and ring only when it matters: −30% on running costs.' },
   deep_space: { name: 'Deep-space instruments', cost: 700000, days: 10, requires: ['earth_observation'], text: 'Scientific research and deep-space observation satellites.' },
   secure_systems: { name: 'Secure systems', cost: 500000, days: 8, requires: ['satellite_bus'], clearance: true, text: 'Early-warning, secure-communications and space-surveillance satellites.' },
   strategic_systems: { name: 'Strategic systems', cost: 800000, days: 10, requires: ['orbital_rockets', 'secure_systems'], clearance: true, text: 'Fictional strategic missile products for defence agencies.' },
@@ -557,6 +562,17 @@ export const RESEARCH = {
   futuristic_propulsion: { name: 'Exotic propulsion', cost: 2400000, days: 20, requires: ['stealth', 'reusable_rockets'], text: 'Futuristic aircraft and advanced launch vehicles.' },
   experimental: { name: 'Experimental platforms', cost: 3000000, days: 22, requires: ['space_power', 'futuristic_propulsion'], text: 'Experimental satellites and the most advanced airframes.' },
 };
+
+/** Which branch of the tree each project sits in (v0.59.0, for the Research page). */
+const BRANCHES = {
+  air: ['light_airframes', 'turboprops', 'jet_engines', 'pressurised_cabins', 'widebody', 'composite_structures', 'advanced_avionics', 'next_gen_airliners'],
+  secure: ['military_airframes', 'supersonic', 'stealth', 'secure_systems', 'strategic_systems'],
+  launch: ['orbital_rockets', 'medium_lift', 'heavy_lift', 'reusable_rockets', 'crew_vehicles'],
+  sat: ['satellite_bus', 'earth_observation', 'navigation_payloads', 'comms_constellations', 'deep_space', 'ground_network', 'radiation_hardening', 'data_products', 'precision_timing', 'autonomous_ops'],
+  adv: ['space_power', 'futuristic_propulsion', 'experimental'],
+};
+for (const [branch, ids] of Object.entries(BRANCHES)) for (const id of ids) { if (!RESEARCH[id]) throw new Error(`research branch: no ${id}`); RESEARCH[id].branch = branch; }
+for (const [id, r] of Object.entries(RESEARCH)) if (!r.branch) throw new Error(`research ${id} has no branch`);
 
 /**
  * The catalogue. line: aircraft | rocket | missile | satellite. cls: the

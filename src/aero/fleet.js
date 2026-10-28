@@ -22,8 +22,8 @@ const researchSum = (A, co, key) => co.research.reduce((a, id) => a + (A.cfg.res
 export const serviceBonus = (A, co, role) => co.research.reduce((a, id) => { const e = A.cfg.research[id]?.effect?.service; return a + (e ? (e[role] || 0) + (e.all || 0) : 0); }, 0);
 /** Extra price a company's research earns on a role. */
 export const priceBonus = (A, co, role) => co.research.reduce((a, id) => { const e = A.cfg.research[id]?.effect?.price; return a + (e ? (e[role] || 0) + (e.all || 0) : 0); }, 0);
-const hazardResearch = (A, co) => researchSum(A, co, 'hazard');
-const opsMult = (A, co) => Math.max(0.3, 1 + researchSum(A, co, 'opsCost'));
+export const hazardResearch = (A, co) => researchSum(A, co, 'hazard');
+export const opsMult = (A, co) => Math.max(0.3, 1 + researchSum(A, co, 'opsCost'));
 
 // ---------------------------------------------------------------- the registry
 /** A commissioned satellite joins the registry: owned by its customer (built and supported by the company) or by the company itself. */
