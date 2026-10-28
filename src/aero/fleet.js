@@ -12,6 +12,7 @@ import { newUnit } from './pipeline.js';
 import { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf, orbitOf, look } from './orbit.js';
 import { fmtMoney, missingTech, unitCost } from './catalog.js';
 import { postEventTender, milestone } from './events.js';
+import { checkAchievements } from './achievements.js';
 
 const DAY = 1440;
 const live = (s) => s.status === 'operational' || s.status === 'degraded';
@@ -51,6 +52,7 @@ export function activateSatellite(A, co, u) {
   u.satellite = id;
   milestone(A, co, 'first_satellite', p.name);
   if (own) milestone(A, co, 'first_own_satellite', p.name);
+  checkAchievements(A, co);
   return sat;
 }
 
@@ -284,6 +286,7 @@ function discovery(A, co, S, net) {
   const text = `🔭 Your science satellites have found something: a paper, a prize and ${fmtMoney(reward)}.`;
   A.report(co, 'event', text, co.kind === 'player' ? 'good' : null);
   if (co.kind === 'player') A.news('🔭 A discovery from orbit: your science network publishes.', 'good');
+  co.stats.discoveries = (co.stats.discoveries || 0) + 1;
   milestone(A, co, 'first_discovery', '');
 }
 

@@ -980,6 +980,21 @@ export function aerospacePanel(ui, body, opts = {}) {
   };
 
   // ------------------------------------------------------------------ standing (reputation, decisions, the firsts)
+  /** The achievements: what has been done and what is nearly done (src/aero/achievements.js). */
+  const achievementsSection = () => {
+    const c = co();
+    const list = A.achievements(c);
+    const got = list.filter((a) => a.done).length;
+    const groups = [...new Set(list.map((a) => a.group))];
+    const fmt = (a) => (a.goal >= 1000 ? fmtMoney(Math.min(a.value, a.goal)) + ' / ' + fmtMoney(a.goal) : `${Math.min(Math.floor(a.value), a.goal)} / ${a.goal}`);
+    return section(`Achievements — ${got} of ${list.length}`, h('div', { class: 'ao-kpis two' }, kpi('Earned', `${got}`, 'pos', `${list.length - got} still to go`), kpi('Grants received', fmtMoney(list.filter((a) => a.done).reduce((x, a) => x + (a.cash || 0), 0)), 'pos')),
+      ...groups.map((gname) => h('div', { class: 'ao-ach-group' }, h('h5', {}, gname), h('div', { class: 'ao-grid small ach' }, ...list.filter((a) => a.group === gname).map((a) => h('div', { class: `ao-ach${a.done ? ' done' : ''}`, title: a.text },
+        h('div', { class: 'ao-ach-head' }, h('b', {}, `${a.done ? '🏆' : '○'} ${a.name}`)),
+        h('small', {}, a.text),
+        a.done ? h('small', { class: 'pos' }, `Day ${a.day}${a.cash ? ` · +${fmtMoney(a.cash)}` : ''}`) : h('div', { class: 'ao-ach-bar' }, h('div', { class: 'ao-meter' }, h('i', { style: `width:${Math.round(a.frac * 100)}%;background:${COL.amber}` })), h('small', {}, fmt(a))),
+        !a.done ? h('small', { class: 'dim' }, `${a.rep ? `+${a.rep} reputation` : ''}${a.rep && a.cash ? ' · ' : ''}${a.cash ? fmtMoney(a.cash) : ''}`) : null))))));
+  };
+
   const standingSheet = () => {
     const c = co();
     const M = A.meridian;
@@ -1003,7 +1018,8 @@ export function aerospacePanel(ui, body, opts = {}) {
           ...log.slice(0, 24).map((e) => h('tr', {}, h('td', {}, A.when(e.at).replace('Day ', 'D')), h('td', { class: `r ${e.delta > 0 ? 'pos' : e.delta < 0 ? 'neg' : ''}` }, `${e.delta > 0 ? '+' : ''}${e.delta}`), h('td', {}, e.why), h('td', { class: 'r' }, String(e.total)))))) : muted('Nothing yet: it starts moving with your first delivery.')),
         h('div', {},
           section('The firsts', h('div', { class: 'ao-list' }, ...Object.entries(R.milestones).map(([key, m]) => { const got = first(key); return h('div', { class: `ao-row static${got ? '' : ' dim'}` }, h('div', { class: 'ic' }, got ? '🏅' : '○'), h('div', { class: 'grow' }, h('b', {}, m.name), h('small', {}, got ? `Day ${got.day}${got.detail ? ` · ${got.detail}` : ''}` : `${m.text} · +${m.rep} reputation`))); }))),
-          done.length ? section('Recently decided', ...done.map((e) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, e.title), h('small', {}, `Day ${Math.floor(e.resolved.at / 1440) + 1}: ${e.resolved.choice === 'programme' ? 'you funded a corrective programme' : e.resolved.choice === 'fine' ? 'you paid the fine' : 'ignored — the regulator fined you'}`))))) : null)));
+          done.length ? section('Recently decided', ...done.map((e) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, e.title), h('small', {}, `Day ${Math.floor(e.resolved.at / 1440) + 1}: ${e.resolved.choice === 'programme' ? 'you funded a corrective programme' : e.resolved.choice === 'fine' ? 'you paid the fine' : 'ignored — the regulator fined you'}`))))) : null)),
+      achievementsSection());
   };
 
   // ------------------------------------------------------------------ books

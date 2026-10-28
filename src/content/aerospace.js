@@ -298,6 +298,46 @@ export const SERVICES = {
 };
 
 /**
+ * Achievements (v0.59.0): the measured things a company can have done. Each reads one metric
+ * (src/aero/achievements.js) against a goal; reaching it, once, pays its reward — a little
+ * reputation and a grant from the Park Authority — and goes in the book on the Standing page.
+ */
+export const ACHIEVEMENTS = [
+  // production
+  { id: 'deliver_10', group: 'Production', name: 'Ten out of the door', metric: 'delivered', goal: 10, rep: 1, cash: 25000, text: 'Ten units delivered.' },
+  { id: 'deliver_50', group: 'Production', name: 'A proper works', metric: 'delivered', goal: 50, rep: 2, cash: 90000, text: 'Fifty units delivered.' },
+  { id: 'deliver_200', group: 'Production', name: 'The Park\'s biggest', metric: 'delivered', goal: 200, rep: 3, cash: 300000, text: 'Two hundred units delivered.' },
+  { id: 'ontime_10', group: 'Production', name: 'You can set a watch by us', metric: 'bestStreak', goal: 10, rep: 2, cash: 60000, text: 'Ten deliveries on time in a row.' },
+  { id: 'flawless_10', group: 'Production', name: 'First time, every time', metric: 'flawless', goal: 10, rep: 2, cash: 60000, text: 'Ten units that passed every inspection first time.' },
+  { id: 'classes_4', group: 'Production', name: 'Every kind of aircraft', metric: 'classes', goal: 4, rep: 2, cash: 80000, text: 'Deliver a private aircraft, an airliner, a fighter and a bomber.' },
+  { id: 'big_contract', group: 'Production', name: 'The full five', metric: 'bigContract', goal: 5, rep: 1, cash: 50000, text: 'Deliver a five-aircraft contract, whole.' },
+  { id: 'widebody', group: 'Production', name: 'Wide-body', metric: 'widebodies', goal: 1, rep: 2, cash: 100000, text: 'Deliver a long-haul widebody or better.' },
+  // space
+  { id: 'launch_5', group: 'Space', name: 'Regular service', metric: 'launches', goal: 5, rep: 1, cash: 60000, text: 'Five launches that reached orbit.' },
+  { id: 'launch_20', group: 'Space', name: 'A busy pad', metric: 'launches', goal: 20, rep: 3, cash: 250000, text: 'Twenty launches that reached orbit.' },
+  { id: 'launch_run_10', group: 'Space', name: 'Ten clean', metric: 'launchRun', goal: 10, rep: 3, cash: 200000, text: 'Ten launches in a row without a loss.' },
+  { id: 'sat_5', group: 'Space', name: 'Constellation builders', metric: 'satellites', goal: 5, rep: 1, cash: 60000, text: 'Five satellites commissioned.' },
+  { id: 'sat_20', group: 'Space', name: 'The sky is crowded', metric: 'satellites', goal: 20, rep: 2, cash: 200000, text: 'Twenty satellites commissioned.' },
+  { id: 'network_1', group: 'Space', name: 'A network of your own', metric: 'networks', goal: 1, rep: 2, cash: 120000, text: 'A full network in one role, working for you.' },
+  { id: 'network_3', group: 'Space', name: 'Three markets', metric: 'networks', goal: 3, rep: 3, cash: 400000, text: 'Full networks in three roles.' },
+  { id: 'discovery', group: 'Space', name: 'Something out there', metric: 'discoveries', goal: 1, rep: 1, cash: 40000, text: 'Your science satellites find something.' },
+  { id: 'orbit_income', group: 'Space', name: 'Rent from the sky', metric: 'orbitIncome', goal: 1000000, rep: 2, cash: 150000, text: 'A million obols earned by satellites in service.' },
+  // business
+  { id: 'rev_1m', group: 'Business', name: 'A million in revenue', metric: 'revenue', goal: 1000000, rep: 1, cash: 30000, text: 'A million obols of revenue, all told.' },
+  { id: 'rev_10m', group: 'Business', name: 'Ten million', metric: 'revenue', goal: 10000000, rep: 2, cash: 150000, text: 'Ten million obols of revenue.' },
+  { id: 'rev_100m', group: 'Business', name: 'A hundred million', metric: 'revenue', goal: 100000000, rep: 4, cash: 800000, text: 'A hundred million obols of revenue.' },
+  { id: 'week_profit', group: 'Business', name: 'A very good week', metric: 'weekProfit', goal: 500000, rep: 2, cash: 100000, text: 'Half a million obols of profit in seven days.' },
+  { id: 'halls_all', group: 'Business', name: 'Every roof', metric: 'halls', goal: 5, rep: 2, cash: 150000, text: 'Build every hall the Park Authority has land for.' },
+  { id: 'research_16', group: 'Business', name: 'A research house', metric: 'researched', goal: 16, rep: 2, cash: 100000, text: 'Sixteen projects researched.' },
+  { id: 'research_all', group: 'Business', name: 'Nothing left to learn', metric: 'researched', goal: 31, rep: 4, cash: 500000, text: 'Every project researched.' },
+  { id: 'workforce_500', group: 'Business', name: 'Five hundred on the floor', metric: 'workforce', goal: 500, rep: 1, cash: 50000, text: 'Five hundred technicians.' },
+  // standing
+  { id: 'rep_75', group: 'Standing', name: 'Well regarded', metric: 'reputation', goal: 75, rep: 0, cash: 100000, text: 'A reputation of 75.' },
+  { id: 'rep_95', group: 'Standing', name: 'The name on every shortlist', metric: 'reputation', goal: 95, rep: 0, cash: 400000, text: 'A reputation of 95.' },
+  { id: 'beat_meridian', group: 'Standing', name: 'Overtaking Meridian', metric: 'beatMeridian', goal: 1, rep: 3, cash: 250000, text: 'More units delivered than Meridian Aerospace — once it has delivered ten.' },
+];
+
+/**
  * Product configuration (v0.57.0): bounded options a customer may ask for. A tender names the
  * configuration it wants (src/aero/config.js makes it from the customer's kind), and the contract,
  * its units and the finished aircraft carry it. Each option changes what the product costs and

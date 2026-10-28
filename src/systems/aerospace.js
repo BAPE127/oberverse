@@ -30,6 +30,7 @@ import { rivalMorning } from '../aero/rival.js';
 import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
 import { windRunway, poseAt, planLength } from '../aero/flight.js';
+import { checkAchievements, progress as achievementProgress } from '../aero/achievements.js';
 import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } from '../aero/fleet.js';
 import { eventsMorning, resolveEvent, hallDiscount, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } from '../aero/events.js';
 
@@ -1867,9 +1868,13 @@ export class Aerospace {
     if (success) {
       this.news(`🚀 ${co.name} launches a ${p.name} from Starling Flats with ${what}.`, co.kind === 'player' ? 'good' : 'info');
       milestone(this, co, 'first_launch', p.name);
+      co.stats.launchRun = (co.stats.launchRun || 0) + 1;
+      co.stats.launchBest = Math.max(co.stats.launchBest || 0, co.stats.launchRun);
+      checkAchievements(this, co);
       this.advance(co, u);
     } else {
       co.stats.launchFailures += 1;
+      co.stats.launchRun = 0;
       this.repChange(co, this.cfg.events.rep.launchFailure, `Launch failure: ${p.name}`);
       this.news(`💥 A ${co.name} ${p.name} is lost shortly after lift-off from Starling Flats, with ${what}.`, 'warn');
       this.failUnit(co, u, 'launch failure');
@@ -1975,6 +1980,8 @@ export class Aerospace {
     c.revenue += price - penalty;
     c.penalties += penalty;
     co.stats.delivered += 1;
+    (co.stats.byClass ||= {})[p.cls] = (co.stats.byClass[p.cls] || 0) + 1;
+    (co.stats.byProduct ||= {})[u.product] = (co.stats.byProduct[u.product] || 0) + 1;
     const who = C.customers[c.customer].name;
     const R = this.cfg.events.rep;
     co.streaks ||= { late: 0, onTime: 0 };
@@ -1985,9 +1992,10 @@ export class Aerospace {
     } else {
       co.stats.onTime += 1;
       co.streaks.late = 0; co.streaks.onTime += 1;
+      co.stats.bestStreak = Math.max(co.stats.bestStreak || 0, co.streaks.onTime);
       this.repChange(co, this.A.reputation.onTime, `On-time delivery: ${p.name} #${u.n} for ${who}`);
       if (co.streaks.onTime >= R.streakAt) this.repChange(co, R.streakBonus, `${co.streaks.onTime} deliveries on time in a row`);
-      if (!u.rework && !u.inspections.some((i) => !i.pass)) this.repChange(co, R.flawless, `Flawless build: ${p.name} #${u.n} passed first time`);
+      if (!u.rework && !u.inspections.some((i) => !i.pass)) { this.repChange(co, R.flawless, `Flawless build: ${p.name} #${u.n} passed first time`); co.stats.flawless = (co.stats.flawless || 0) + 1; }
     }
     milestone(this, co, 'first_delivery', `${p.name} for ${who}`);
     if (p.line === 'aircraft') milestone(this, co, 'first_aircraft', `${p.name} for ${who}`);
@@ -1998,6 +2006,7 @@ export class Aerospace {
     const verb = p.line === 'aircraft' ? 'took off for its new owner' : p.line === 'missile' ? 'was handed over at the agency\'s depot' : p.line === 'satellite' ? 'is operational in orbit' : 'completed its mission';
     this.report(co, 'delivery', `✅ ${p.name} #${u.n} for ${C.customers[c.customer].name} ${verb}: ${fmtMoney(price - penalty)}.`, co.kind === 'player' ? 'good' : null);
     this.closeIfDone(c);
+    checkAchievements(this, co);
   }
 
   closeIfDone(c) {
@@ -2005,7 +2014,11 @@ export class Aerospace {
     if (c.delivered + c.failed < c.qty) return;
     c.status = c.failed && !c.delivered ? 'failed' : 'complete';
     c.history.push({ at: this.now, text: c.status === 'complete' ? 'Contract complete.' : 'Contract failed.' });
-    if (c.status === 'complete') eventContractDone(this, this.company(c.company), c);
+    if (c.status === 'complete') {
+      const co = this.company(c.company);
+      if (!c.failed) co.stats.bigContract = Math.max(co.stats.bigContract || 0, c.qty);
+      eventContractDone(this, co, c);
+    }
   }
 
   /**
@@ -2077,7 +2090,7 @@ export class Aerospace {
     for (const co of this.companies()) this.companyDay(co);
     this.closeTenders();
     this.postTenders();
-    if (this.roost) eventsMorning(this, this.roost); // v0.57.0: what the books and the floor say today
+    if (this.roost) { eventsMorning(this, this.roost); checkAchievements(this, this.roost); } // v0.57.0: what the books and the floor say today
     const M = this.meridian;
     this.planLaunchers(M);
     rivalMorning(this, M);
@@ -2137,6 +2150,9 @@ export class Aerospace {
   satelliteDay() {
     satelliteDay(this);
   }
+
+  /** Every achievement with where the company stands on it (src/aero/achievements.js). */
+  achievements(co) { return achievementProgress(this, co); }
 
   /** What the ground station's dishes are following now: the satellite highest above its horizon, or null (src/aero/fleet.js). */
   groundPass() {
@@ -2355,6 +2371,7 @@ export class Aerospace {
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
+      co.achieved ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
     this.migrateHalls();

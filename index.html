@@ -1056,6 +1056,17 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao .ao-open small { display: block; opacity: .6; }
 .ao .ao-actions { margin-top: 4px; }
 @media (max-width: 1100px) { .ao .ao-researchwrap { grid-template-columns: 1fr; } }
+
+/* ---- v0.59.0: achievements */
+.ao .ao-ach-group h5 { margin: 14px 0 6px; letter-spacing: 2px; font-size: 11px; text-transform: uppercase; color: rgba(223,233,245,.55); font-family: inherit; }
+.ao .ao-grid.small.ach { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.ao .ao-ach { border: 1px solid var(--ao-line2); border-radius: 12px; padding: 9px 11px; background: rgba(16,22,36,.7); display: flex; flex-direction: column; gap: 4px; }
+.ao .ao-ach.done { border-color: rgba(94,224,138,.5); background: linear-gradient(180deg, rgba(22,46,34,.8), rgba(14,28,22,.8)); }
+.ao .ao-ach b { color: #fff; font-size: 13px; }
+.ao .ao-ach small { opacity: .75; font-size: 11.5px; }
+.ao .ao-ach small.pos { opacity: 1; }
+.ao .ao-ach small.dim { opacity: .5; }
+.ao .ao-ach-bar { display: flex; flex-direction: column; gap: 3px; }
 </style>
 </head>
 <body>
@@ -3560,6 +3571,46 @@ const SERVICES = {
 };
 
 /**
+ * Achievements (v0.59.0): the measured things a company can have done. Each reads one metric
+ * (src/aero/achievements.js) against a goal; reaching it, once, pays its reward — a little
+ * reputation and a grant from the Park Authority — and goes in the book on the Standing page.
+ */
+const ACHIEVEMENTS = [
+  // production
+  { id: 'deliver_10', group: 'Production', name: 'Ten out of the door', metric: 'delivered', goal: 10, rep: 1, cash: 25000, text: 'Ten units delivered.' },
+  { id: 'deliver_50', group: 'Production', name: 'A proper works', metric: 'delivered', goal: 50, rep: 2, cash: 90000, text: 'Fifty units delivered.' },
+  { id: 'deliver_200', group: 'Production', name: 'The Park\'s biggest', metric: 'delivered', goal: 200, rep: 3, cash: 300000, text: 'Two hundred units delivered.' },
+  { id: 'ontime_10', group: 'Production', name: 'You can set a watch by us', metric: 'bestStreak', goal: 10, rep: 2, cash: 60000, text: 'Ten deliveries on time in a row.' },
+  { id: 'flawless_10', group: 'Production', name: 'First time, every time', metric: 'flawless', goal: 10, rep: 2, cash: 60000, text: 'Ten units that passed every inspection first time.' },
+  { id: 'classes_4', group: 'Production', name: 'Every kind of aircraft', metric: 'classes', goal: 4, rep: 2, cash: 80000, text: 'Deliver a private aircraft, an airliner, a fighter and a bomber.' },
+  { id: 'big_contract', group: 'Production', name: 'The full five', metric: 'bigContract', goal: 5, rep: 1, cash: 50000, text: 'Deliver a five-aircraft contract, whole.' },
+  { id: 'widebody', group: 'Production', name: 'Wide-body', metric: 'widebodies', goal: 1, rep: 2, cash: 100000, text: 'Deliver a long-haul widebody or better.' },
+  // space
+  { id: 'launch_5', group: 'Space', name: 'Regular service', metric: 'launches', goal: 5, rep: 1, cash: 60000, text: 'Five launches that reached orbit.' },
+  { id: 'launch_20', group: 'Space', name: 'A busy pad', metric: 'launches', goal: 20, rep: 3, cash: 250000, text: 'Twenty launches that reached orbit.' },
+  { id: 'launch_run_10', group: 'Space', name: 'Ten clean', metric: 'launchRun', goal: 10, rep: 3, cash: 200000, text: 'Ten launches in a row without a loss.' },
+  { id: 'sat_5', group: 'Space', name: 'Constellation builders', metric: 'satellites', goal: 5, rep: 1, cash: 60000, text: 'Five satellites commissioned.' },
+  { id: 'sat_20', group: 'Space', name: 'The sky is crowded', metric: 'satellites', goal: 20, rep: 2, cash: 200000, text: 'Twenty satellites commissioned.' },
+  { id: 'network_1', group: 'Space', name: 'A network of your own', metric: 'networks', goal: 1, rep: 2, cash: 120000, text: 'A full network in one role, working for you.' },
+  { id: 'network_3', group: 'Space', name: 'Three markets', metric: 'networks', goal: 3, rep: 3, cash: 400000, text: 'Full networks in three roles.' },
+  { id: 'discovery', group: 'Space', name: 'Something out there', metric: 'discoveries', goal: 1, rep: 1, cash: 40000, text: 'Your science satellites find something.' },
+  { id: 'orbit_income', group: 'Space', name: 'Rent from the sky', metric: 'orbitIncome', goal: 1000000, rep: 2, cash: 150000, text: 'A million obols earned by satellites in service.' },
+  // business
+  { id: 'rev_1m', group: 'Business', name: 'A million in revenue', metric: 'revenue', goal: 1000000, rep: 1, cash: 30000, text: 'A million obols of revenue, all told.' },
+  { id: 'rev_10m', group: 'Business', name: 'Ten million', metric: 'revenue', goal: 10000000, rep: 2, cash: 150000, text: 'Ten million obols of revenue.' },
+  { id: 'rev_100m', group: 'Business', name: 'A hundred million', metric: 'revenue', goal: 100000000, rep: 4, cash: 800000, text: 'A hundred million obols of revenue.' },
+  { id: 'week_profit', group: 'Business', name: 'A very good week', metric: 'weekProfit', goal: 500000, rep: 2, cash: 100000, text: 'Half a million obols of profit in seven days.' },
+  { id: 'halls_all', group: 'Business', name: 'Every roof', metric: 'halls', goal: 5, rep: 2, cash: 150000, text: 'Build every hall the Park Authority has land for.' },
+  { id: 'research_16', group: 'Business', name: 'A research house', metric: 'researched', goal: 16, rep: 2, cash: 100000, text: 'Sixteen projects researched.' },
+  { id: 'research_all', group: 'Business', name: 'Nothing left to learn', metric: 'researched', goal: 31, rep: 4, cash: 500000, text: 'Every project researched.' },
+  { id: 'workforce_500', group: 'Business', name: 'Five hundred on the floor', metric: 'workforce', goal: 500, rep: 1, cash: 50000, text: 'Five hundred technicians.' },
+  // standing
+  { id: 'rep_75', group: 'Standing', name: 'Well regarded', metric: 'reputation', goal: 75, rep: 0, cash: 100000, text: 'A reputation of 75.' },
+  { id: 'rep_95', group: 'Standing', name: 'The name on every shortlist', metric: 'reputation', goal: 95, rep: 0, cash: 400000, text: 'A reputation of 95.' },
+  { id: 'beat_meridian', group: 'Standing', name: 'Overtaking Meridian', metric: 'beatMeridian', goal: 1, rep: 3, cash: 250000, text: 'More units delivered than Meridian Aerospace (at least ten).' },
+];
+
+/**
  * Product configuration (v0.57.0): bounded options a customer may ask for. A tender names the
  * configuration it wants (src/aero/config.js makes it from the customer's kind), and the contract,
  * its units and the finished aircraft carry it. Each option changes what the product costs and
@@ -4031,7 +4082,7 @@ const AERO_PEOPLE = {
   seller: 'npc_billie', ceo: 'npc_imogen', pilot: 'npc_ailie', foreman: 'npc_rudy', launch: 'npc_tina', mechanic: 'npc_wrenna',
 };
 
-return { AERO, FLIGHT, STAFF, BAYS, HALLS, FACILITIES, EVENTS, SERVICES, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
+return { AERO, FLIGHT, STAFF, BAYS, HALLS, FACILITIES, EVENTS, SERVICES, ACHIEVEMENTS, OPTIONS, MATERIALS, SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT, INTERNAL, PIPELINES, RESEARCH, LIFT, PRODUCTS, CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE };
 })();
 
 // ---- src/content/maps/starling.js
@@ -15325,7 +15376,7 @@ const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
 const dlgAero = __m["src/content/dialogue/aerospace.js"].default;
 const { DAIRY, LEAD_COWS, LASSO, HERD_REWARD } = __m["src/content/dairy.js"];
-const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS, FLIGHT: AERO_FLIGHT, SERVICES: AERO_SERVICES } = __m["src/content/aerospace.js"];
+const { AERO, BAYS: AERO_BAYS, FACILITIES: AERO_FACILITIES, MATERIALS: AERO_MATERIALS, SUPPLIERS: AERO_SUPPLIERS, RIVAL_SUPPLIER_PREMIUM, FREIGHT: AERO_FREIGHT, PIPELINES: AERO_PIPELINES, RESEARCH: AERO_RESEARCH, PRODUCTS: AERO_PRODUCTS, CUSTOMERS: AERO_CUSTOMERS, TENDER_RATE, BUDGET_START, BUDGET_DAILY, AERO_PEOPLE, INTERNAL: AERO_INTERNAL, HALLS: AERO_HALLS, STAFF: AERO_STAFF, OPTIONS: AERO_OPTIONS, EVENTS: AERO_EVENTS, FLIGHT: AERO_FLIGHT, SERVICES: AERO_SERVICES, ACHIEVEMENTS: AERO_ACHIEVEMENTS } = __m["src/content/aerospace.js"];
 const { FARM_PLOTS, FARM_CROPS, FARM, LIVESTOCK, FARM_MARKET, PASTURE } = __m["src/content/farming.js"];
 const { OCCUPATIONS, RESIDENCES, LIFE, LIFE_EXCEPTIONS, PATROLS, ERRANDS } = __m["src/content/life.js"];
 const { towerMaps, addTowers, TOWERS } = __m["src/content/towers.js"];
@@ -15414,7 +15465,7 @@ const BASE_CONTENT = {
   vehicles: { models: CAR_MODELS, dealers: DEALERS_W, parked: [...PARKED, ...SIGNATURE_PARKED, ...STREET_CARS], driving: DRIVING },
   blueprints: BLUEPRINTS,
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
-  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT, services: AERO_SERVICES }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
+  aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT, services: AERO_SERVICES, achievements: AERO_ACHIEVEMENTS }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
@@ -34512,6 +34563,72 @@ function look(o, now, station) {
 return { roleOf, marketAt, coverage, capabilityAt, unitsOf, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, orbitOf, eci, subpoint, look };
 })();
 
+// ---- src/aero/achievements.js
+__m["src/aero/achievements.js"] = (function () {
+// Achievements (v0.59.0). The metrics are plain reads of a company's own record; an achievement is
+// earned the first time its metric reaches its goal, and pays once (a little reputation, a grant).
+// The functions take the Aerospace system `A`, like events.js.
+const { summarise } = __m["src/aero/books.js"];
+const { networkOf } = __m["src/aero/orbit.js"];
+
+const WIDEBODIES = ['ap_condor', 'ap_skyliner'];
+
+/** What each metric reads for a company. */
+const METRICS = {
+  delivered: (A, co) => co.stats.delivered || 0,
+  bestStreak: (A, co) => co.stats.bestStreak || 0,
+  flawless: (A, co) => co.stats.flawless || 0,
+  classes: (A, co) => ['private', 'passenger', 'fighter', 'bomber'].filter((k) => (co.stats.byClass?.[k] || 0) > 0).length,
+  bigContract: (A, co) => co.stats.bigContract || 0,
+  widebodies: (A, co) => WIDEBODIES.reduce((a, id) => a + (co.stats.byProduct?.[id] || 0), 0),
+  launches: (A, co) => Math.max(0, (co.stats.launches || 0) - (co.stats.launchFailures || 0)),
+  launchRun: (A, co) => co.stats.launchBest || 0,
+  satellites: (A, co) => Object.values(A.state.satellites).filter((s) => s.manufacturer === co.id).length,
+  networks: (A, co) => {
+    const S = A.cfg.services;
+    const mine = Object.values(A.state.satellites).filter((s) => s.manufacturer === co.id && s.own && (s.status === 'operational' || s.status === 'degraded'));
+    return Object.entries(S.roles).filter(([role, R]) => networkOf(S, mine, role, A.now, A.day).n >= R.full).length;
+  },
+  discoveries: (A, co) => co.stats.discoveries || 0,
+  orbitIncome: (A, co) => co.books.totals.rev_services || 0,
+  revenue: (A, co) => summarise(co.books, null).revenue,
+  weekProfit: (A, co) => summarise(co.books, 7).profit,
+  halls: (A, co) => Object.keys(A.cfg.halls).filter((id) => !A.cfg.halls[id].owned && A.hallState(co, id).state === 'built').length,
+  researched: (A, co) => co.research.length,
+  workforce: (A, co) => co.workforce,
+  reputation: (A, co) => co.reputation,
+  beatMeridian: (A, co) => ((co.stats.delivered || 0) >= 10 && (co.stats.delivered || 0) > (A.meridian?.stats.delivered || 0) ? 1 : 0),
+};
+
+/** Every achievement with where the company stands on it: { …def, value, goal, frac, done, at }. */
+function progress(A, co) {
+  return A.cfg.achievements.map((a) => {
+    const value = METRICS[a.metric](A, co);
+    const got = co.achieved?.[a.id];
+    return { ...a, value, frac: Math.max(0, Math.min(1, value / a.goal)), done: Boolean(got), at: got?.at ?? null, day: got?.day ?? null };
+  });
+}
+
+/** Award what has been reached since the last look. Returns the ones just earned. */
+function checkAchievements(A, co) {
+  if (co.kind !== 'player') return [];
+  co.achieved ||= {};
+  const won = [];
+  for (const a of A.cfg.achievements) {
+    if (co.achieved[a.id] || METRICS[a.metric](A, co) < a.goal) continue;
+    co.achieved[a.id] = { at: A.now, day: A.day };
+    if (a.rep) A.repChange(co, a.rep, `Achievement: ${a.name}`);
+    if (a.cash) A.receive(co, a.cash, null);
+    A.report(co, 'event', `🏆 Achievement — ${a.name}: ${a.text}${a.cash ? ` The Park Authority sends ${a.cash.toLocaleString()} obols.` : ''}`, 'good');
+    A.news(`🏆 ${co.name}: ${a.name}.`, 'good');
+    won.push(a);
+  }
+  return won;
+}
+
+return { METRICS, progress, checkAchievements };
+})();
+
 // ---- src/aero/events.js
 __m["src/aero/events.js"] = (function () {
 // Reputation and events (v0.57.0): what happens at the Park because of how a company is run.
@@ -34755,6 +34872,7 @@ const { newUnit } = __m["src/aero/pipeline.js"];
 const { marketAt, networkOf, sell, hazardOf, lostToday, daysLeft, forecast, roleOf, orbitOf, look } = __m["src/aero/orbit.js"];
 const { fmtMoney, missingTech, unitCost } = __m["src/aero/catalog.js"];
 const { postEventTender, milestone } = __m["src/aero/events.js"];
+const { checkAchievements } = __m["src/aero/achievements.js"];
 
 const DAY = 1440;
 const live = (s) => s.status === 'operational' || s.status === 'degraded';
@@ -34794,6 +34912,7 @@ function activateSatellite(A, co, u) {
   u.satellite = id;
   milestone(A, co, 'first_satellite', p.name);
   if (own) milestone(A, co, 'first_own_satellite', p.name);
+  checkAchievements(A, co);
   return sat;
 }
 
@@ -35027,6 +35146,7 @@ function discovery(A, co, S, net) {
   const text = `🔭 Your science satellites have found something: a paper, a prize and ${fmtMoney(reward)}.`;
   A.report(co, 'event', text, co.kind === 'player' ? 'good' : null);
   if (co.kind === 'player') A.news('🔭 A discovery from orbit: your science network publishes.', 'good');
+  co.stats.discoveries = (co.stats.discoveries || 0) + 1;
   milestone(A, co, 'first_discovery', '');
 }
 
@@ -35150,6 +35270,7 @@ const { rivalMorning } = __m["src/aero/rival.js"];
 const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
 const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
+const { checkAchievements, progress: achievementProgress } = __m["src/aero/achievements.js"];
 const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } = __m["src/aero/fleet.js"];
 const { eventsMorning, resolveEvent, hallDiscount, breakthroughChance, rollBreakthrough, applyBreakthrough, milestone, eventContractDone } = __m["src/aero/events.js"];
 
@@ -36987,9 +37108,13 @@ class Aerospace {
     if (success) {
       this.news(`🚀 ${co.name} launches a ${p.name} from Starling Flats with ${what}.`, co.kind === 'player' ? 'good' : 'info');
       milestone(this, co, 'first_launch', p.name);
+      co.stats.launchRun = (co.stats.launchRun || 0) + 1;
+      co.stats.launchBest = Math.max(co.stats.launchBest || 0, co.stats.launchRun);
+      checkAchievements(this, co);
       this.advance(co, u);
     } else {
       co.stats.launchFailures += 1;
+      co.stats.launchRun = 0;
       this.repChange(co, this.cfg.events.rep.launchFailure, `Launch failure: ${p.name}`);
       this.news(`💥 A ${co.name} ${p.name} is lost shortly after lift-off from Starling Flats, with ${what}.`, 'warn');
       this.failUnit(co, u, 'launch failure');
@@ -37095,6 +37220,8 @@ class Aerospace {
     c.revenue += price - penalty;
     c.penalties += penalty;
     co.stats.delivered += 1;
+    (co.stats.byClass ||= {})[p.cls] = (co.stats.byClass[p.cls] || 0) + 1;
+    (co.stats.byProduct ||= {})[u.product] = (co.stats.byProduct[u.product] || 0) + 1;
     const who = C.customers[c.customer].name;
     const R = this.cfg.events.rep;
     co.streaks ||= { late: 0, onTime: 0 };
@@ -37105,9 +37232,10 @@ class Aerospace {
     } else {
       co.stats.onTime += 1;
       co.streaks.late = 0; co.streaks.onTime += 1;
+      co.stats.bestStreak = Math.max(co.stats.bestStreak || 0, co.streaks.onTime);
       this.repChange(co, this.A.reputation.onTime, `On-time delivery: ${p.name} #${u.n} for ${who}`);
       if (co.streaks.onTime >= R.streakAt) this.repChange(co, R.streakBonus, `${co.streaks.onTime} deliveries on time in a row`);
-      if (!u.rework && !u.inspections.some((i) => !i.pass)) this.repChange(co, R.flawless, `Flawless build: ${p.name} #${u.n} passed first time`);
+      if (!u.rework && !u.inspections.some((i) => !i.pass)) { this.repChange(co, R.flawless, `Flawless build: ${p.name} #${u.n} passed first time`); co.stats.flawless = (co.stats.flawless || 0) + 1; }
     }
     milestone(this, co, 'first_delivery', `${p.name} for ${who}`);
     if (p.line === 'aircraft') milestone(this, co, 'first_aircraft', `${p.name} for ${who}`);
@@ -37118,6 +37246,7 @@ class Aerospace {
     const verb = p.line === 'aircraft' ? 'took off for its new owner' : p.line === 'missile' ? 'was handed over at the agency\'s depot' : p.line === 'satellite' ? 'is operational in orbit' : 'completed its mission';
     this.report(co, 'delivery', `✅ ${p.name} #${u.n} for ${C.customers[c.customer].name} ${verb}: ${fmtMoney(price - penalty)}.`, co.kind === 'player' ? 'good' : null);
     this.closeIfDone(c);
+    checkAchievements(this, co);
   }
 
   closeIfDone(c) {
@@ -37125,7 +37254,11 @@ class Aerospace {
     if (c.delivered + c.failed < c.qty) return;
     c.status = c.failed && !c.delivered ? 'failed' : 'complete';
     c.history.push({ at: this.now, text: c.status === 'complete' ? 'Contract complete.' : 'Contract failed.' });
-    if (c.status === 'complete') eventContractDone(this, this.company(c.company), c);
+    if (c.status === 'complete') {
+      const co = this.company(c.company);
+      if (!c.failed) co.stats.bigContract = Math.max(co.stats.bigContract || 0, c.qty);
+      eventContractDone(this, co, c);
+    }
   }
 
   /**
@@ -37197,7 +37330,7 @@ class Aerospace {
     for (const co of this.companies()) this.companyDay(co);
     this.closeTenders();
     this.postTenders();
-    if (this.roost) eventsMorning(this, this.roost); // v0.57.0: what the books and the floor say today
+    if (this.roost) { eventsMorning(this, this.roost); checkAchievements(this, this.roost); } // v0.57.0: what the books and the floor say today
     const M = this.meridian;
     this.planLaunchers(M);
     rivalMorning(this, M);
@@ -37257,6 +37390,9 @@ class Aerospace {
   satelliteDay() {
     satelliteDay(this);
   }
+
+  /** Every achievement with where the company stands on it (src/aero/achievements.js). */
+  achievements(co) { return achievementProgress(this, co); }
 
   /** What the ground station's dishes are following now: the satellite highest above its horizon, or null (src/aero/fleet.js). */
   groundPass() {
@@ -37475,6 +37611,7 @@ class Aerospace {
       co.engineers ??= this.staffNeeded(co, 'engineer');
       co.inspectors ??= this.staffNeeded(co, 'inspector');
       co.repLog ||= []; co.streaks ||= { late: 0, onTime: 0 }; co.events ||= []; co.offers ||= []; co.cool ||= {}; co.milestones ||= {};
+      co.achieved ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
     this.migrateHalls();
@@ -61759,6 +61896,21 @@ function aerospacePanel(ui, body, opts = {}) {
   };
 
   // ------------------------------------------------------------------ standing (reputation, decisions, the firsts)
+  /** The achievements: what has been done and what is nearly done (src/aero/achievements.js). */
+  const achievementsSection = () => {
+    const c = co();
+    const list = A.achievements(c);
+    const got = list.filter((a) => a.done).length;
+    const groups = [...new Set(list.map((a) => a.group))];
+    const fmt = (a) => (a.goal >= 1000 ? fmtMoney(Math.min(a.value, a.goal)) + ' / ' + fmtMoney(a.goal) : `${Math.min(Math.floor(a.value), a.goal)} / ${a.goal}`);
+    return section(`Achievements — ${got} of ${list.length}`, h('div', { class: 'ao-kpis two' }, kpi('Earned', `${got}`, 'pos', `${list.length - got} still to go`), kpi('Grants received', fmtMoney(list.filter((a) => a.done).reduce((x, a) => x + (a.cash || 0), 0)), 'pos')),
+      ...groups.map((gname) => h('div', { class: 'ao-ach-group' }, h('h5', {}, gname), h('div', { class: 'ao-grid small ach' }, ...list.filter((a) => a.group === gname).map((a) => h('div', { class: `ao-ach${a.done ? ' done' : ''}`, title: a.text },
+        h('div', { class: 'ao-ach-head' }, h('b', {}, `${a.done ? '🏆' : '○'} ${a.name}`)),
+        h('small', {}, a.text),
+        a.done ? h('small', { class: 'pos' }, `Day ${a.day}${a.cash ? ` · +${fmtMoney(a.cash)}` : ''}`) : h('div', { class: 'ao-ach-bar' }, h('div', { class: 'ao-meter' }, h('i', { style: `width:${Math.round(a.frac * 100)}%;background:${COL.amber}` })), h('small', {}, fmt(a))),
+        !a.done ? h('small', { class: 'dim' }, `${a.rep ? `+${a.rep} reputation` : ''}${a.rep && a.cash ? ' · ' : ''}${a.cash ? fmtMoney(a.cash) : ''}`) : null))))));
+  };
+
   const standingSheet = () => {
     const c = co();
     const M = A.meridian;
@@ -61782,7 +61934,8 @@ function aerospacePanel(ui, body, opts = {}) {
           ...log.slice(0, 24).map((e) => h('tr', {}, h('td', {}, A.when(e.at).replace('Day ', 'D')), h('td', { class: `r ${e.delta > 0 ? 'pos' : e.delta < 0 ? 'neg' : ''}` }, `${e.delta > 0 ? '+' : ''}${e.delta}`), h('td', {}, e.why), h('td', { class: 'r' }, String(e.total)))))) : muted('Nothing yet: it starts moving with your first delivery.')),
         h('div', {},
           section('The firsts', h('div', { class: 'ao-list' }, ...Object.entries(R.milestones).map(([key, m]) => { const got = first(key); return h('div', { class: `ao-row static${got ? '' : ' dim'}` }, h('div', { class: 'ic' }, got ? '🏅' : '○'), h('div', { class: 'grow' }, h('b', {}, m.name), h('small', {}, got ? `Day ${got.day}${got.detail ? ` · ${got.detail}` : ''}` : `${m.text} · +${m.rep} reputation`))); }))),
-          done.length ? section('Recently decided', ...done.map((e) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, e.title), h('small', {}, `Day ${Math.floor(e.resolved.at / 1440) + 1}: ${e.resolved.choice === 'programme' ? 'you funded a corrective programme' : e.resolved.choice === 'fine' ? 'you paid the fine' : 'ignored — the regulator fined you'}`))))) : null)));
+          done.length ? section('Recently decided', ...done.map((e) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, e.title), h('small', {}, `Day ${Math.floor(e.resolved.at / 1440) + 1}: ${e.resolved.choice === 'programme' ? 'you funded a corrective programme' : e.resolved.choice === 'fine' ? 'you paid the fine' : 'ignored — the regulator fined you'}`))))) : null)),
+      achievementsSection());
   };
 
   // ------------------------------------------------------------------ books
