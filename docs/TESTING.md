@@ -48,6 +48,7 @@
 | `corporate_funding.test.mjs` | Funding (v0.60.0): only owned businesses with money you have, contributions logged and moving money once, distributions bounded and refused while it owes, closing an account, arrears paid first from income, a funded aerospace firm's cash flow reconciling with its own account, save/load. |
 | `corporate_identity.test.mjs` | Names and the registry (v0.60.0): name validation (trim, length, characters, clashes), a record and a naming prompt on founding (once), default names, rename history, no shared names across the whole registry, unique tickers, a real v0.59 save loading with identity records and nothing moved. |
 | `corporate_world.test.mjs` | The wider world (v0.60.0): about 45 companies in ten sectors with unique names and tickers, deterministic from the seed, made once and unchanged by loading, history and character, a day once a day (bounded catch-up), demand shared and the player's sales taken off the top, failure and merger rules, bounded population, two years in bounds. |
+| `corporate_paths.test.mjs` | Every business path from a funded company (v0.60.1): ports, ships, a naval mission's guard, land, fencing, animals, the co-op, a second works, parts, wholesale sales, the aerospace firm — the wallet never moves, a poor company is refused. |
 | `corporate_metrics.test.mjs` | Figures, value and rankings (v0.60.0): figures/growth/value/rank/shares as pure functions, internal charges eliminated, the aerospace figures being the books' own, valuation never making money, unavailable data shown as missing, zero for a business that sold nothing, sector tables, rivals squeezed by the player's sales, compare, rank history, an old save ranked at once. |
 | `aerospace_orbit.test.mjs` | Satellite services (v0.59.0): the markets and coverage, what a network sells (never more than it carries or than anyone wants), ageing and storms, losses by hash (halved by hardening and a platform), orbits and what the ground station sees, forecasts for every product, support fees and warranty, replacement tenders, an own satellite built, launched and earning (with its asset wearing away), ordering rules, insurance, storms, price swings, debris decisions, auto-replace, the dishes' pass, saves. |
 | `aerospace_research.test.mjs` | The research tree (v0.59.0): its shape (needs exist, no cycles, a branch each), the layout (no overlaps, right of what it needs), effect and unlock wording, research days, the queue (three deep, prerequisites, removal cascades), the lab never idle, waiting for money (said once), the operations projects doing what they claim. |
@@ -60,6 +61,13 @@
 ## Manual testing with the Debug menu
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
+
+## Verification record — v0.60.1 (2026-10-29)
+
+- `npm run check` — **641/641 tests passed** (6 new in `corporate_paths`); `npm run smoke` — 26/26.
+- Parity re-run on the shipped code (Node, 20 game days, all four businesses bought and run): identical to v0.59.0 line for line. Audit of every `player.money` use in `src`: one business path found on the wallet (naval missions) and fixed.
+- Save size (Node): a new game 87 KB (was 105), 145 KB after 400 days (was 206).
+- Browser (headless Chromium, the built `index.html`): the naming panel after each business founded through its real interface (Lucas's dialogue, Fleet Command's Buy button, the aeroworks sale panel, the Land Office closed with Esc); no page errors.
 
 ## Verification record — v0.60.0 (2026-10-29)
 

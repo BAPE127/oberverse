@@ -2,6 +2,23 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.60.1] — 2026-10-29 — Own Account, checked (development build)
+
+A patch to 0.60.0 after an independent review of the release against the code it shipped.
+
+### Fixed
+- **A funded shipping company's naval missions were checked against the owner's wallet** (the cost was paid from the company, the check was not). They are now checked against the company's cash. An audit of every `player.money` use found no other business path on the wallet; what remains is deliberately personal (shares and dividends, shops and supplies, cars and tractors from the dealers, homes, the calculator factory, fines and bribes, a day's labour, the casino).
+
+### Changed
+- **Saves are about 40% smaller for the wider world**: a company's cash, debt, capacity, plant and its month rows are kept in whole obols (its character to three decimals) — a new game's whole save is about 87 KB, 145 KB after a year of play. (No change to what the companies do.)
+
+### Verified (and now written down)
+- A 20-day run of all four businesses on the **shipped** 0.60.0 code is identical, line for line, to v0.59.0's (this had only been checked on the first part of the work).
+- Each business founded through its real interface — Lucas's dialogue, Fleet Command, the aeroworks sale panel, the Land Office — raises the naming panel once its window closes.
+
+### Tests
+- New: `corporate_paths` (6): ports, ships, missions, land, fencing, animals, the co-op, a second works, parts, wholesale sales, the aerospace firm — each from a funded company's account with the owner's wallet untouched, and a poor company refused however rich its owner is.
+
 ## [0.60.0] — 2026-10-29 — Own Account (development build)
 
 Stages 2–4 of the Corporate Empire brief (docs/CORPORATE_AUDIT.md, docs/CORPORATE.md), the foundation the rest stands on: each business is a company with a name and an account, there is a whole world of other companies to measure yourself against, and every company is read the same way.

@@ -152,7 +152,7 @@ export class Missions {
     const m = this.get(mid);
     const q = this.quote(mid, vids);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The mission costs ${q.cost} obols in running costs.` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The mission costs ${q.cost} obols in running costs.` };
     this.L.spend(q.cost, 'mission');
     const r = g.rng.next();
     const outcome = r < q.chance ? 'success' : r < q.chance + 0.15 ? 'partial' : 'failure';

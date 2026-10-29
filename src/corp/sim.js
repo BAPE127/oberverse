@@ -17,6 +17,7 @@ import { hashUnit } from '../aero/config.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v) => Math.round(v);
+const r3 = (v) => Math.round(v * 1000) / 1000;
 export const MONTH = 30;
 export const monthOf = (day) => Math.floor((day - 1) / MONTH); // the history before day 1 has negative months
 
@@ -52,19 +53,19 @@ export function makeCompany(K, { id, sector, country, day, name, ticker = null, 
   const h = (k) => hashUnit(`${salt}|${id}|${k}`);
   size = size || sizeFor(K, id, salt);
   const strategy = pickBy(Object.keys(K.strategies), `${id}|strategy`, salt);
-  const mgmt = clamp(0.25 + h('mgmt') * 0.7, 0, 1); // management quality
-  const effic = clamp(0.85 + h('effic') * 0.3 + (mgmt - 0.5) * 0.1, 0.8, 1.2);
+  const mgmt = r3(clamp(0.25 + h('mgmt') * 0.7, 0, 1)); // management quality
+  const effic = r3(clamp(0.85 + h('effic') * 0.3 + (mgmt - 0.5) * 0.1, 0.8, 1.2));
   const capacity = Math.max(500, round(pool * K.sizes[size].share * (0.7 + h('cap') * 0.6)));
   const fixed = capacity * S.margin * K.fixedOfMargin;
-  const priceLevel = clamp(1 + K.strategies[strategy].price + (h('price') - 0.5) * 0.06, 0.9, 1.1);
-  const risk = clamp(0.15 + h('risk') * 0.7, 0, 1);
+  const priceLevel = r3(clamp(1 + K.strategies[strategy].price + (h('price') - 0.5) * 0.06, 0.9, 1.1));
+  const risk = r3(clamp(0.15 + h('risk') * 0.7, 0, 1));
   const plant = capacity * K.plantCost * K.plantBook;
   const c = {
     id, name, kind: 'generated', sector, country, size, strategy, ticker, listed: Boolean(ticker),
     speciality: pickBy(S.specialities, `${id}|spec`, salt),
     age: Math.round(2 + h('age') * 70), // years old when the game began
     founded: day,
-    mgmt, effic, priceLevel, risk, rep: clamp(0.35 + h('rep') * 0.55, 0, 1),
+    mgmt, effic, priceLevel, risk, rep: r3(clamp(0.35 + h('rep') * 0.55, 0, 1)),
     capacity, util: 0.75, plantValue: plant,
     cash: round(fixed * (30 + h('cash') * 120)),
     debt: round(plant * (0.05 + h('debt') * 0.45 * K.strategies[strategy].debt)),
@@ -137,9 +138,19 @@ export function stepDay(K, companies, demand, day, ctx = {}) {
     c.totals.revenue += rev; c.totals.net += net;
     c.lastNet = net;
     treasury(K, c, day, row, ctx);
+    tidy(c, row);
   });
   const cap = live.reduce((a, c) => a + c.capacity, 0);
   return { sold: total, utilisation: cap ? total / cap : 0 };
+}
+
+/** Keep what is saved small: whole obols, a few decimals — a company's books are never finer than that. */
+function tidy(c, row) {
+  c.cash = round(c.cash); c.debt = round(c.debt); c.capacity = round(c.capacity); c.plantValue = round(c.plantValue);
+  c.util = Math.round(c.util * 10000) / 10000;
+  c.totals.revenue = round(c.totals.revenue); c.totals.net = round(c.totals.net);
+  c.lastNet = round(c.lastNet);
+  for (let i = 1; i < row.length; i++) row[i] = round(row[i]);
 }
 
 /** What a company does with its cash: borrow what it can when short, repay when flush, build when busy, shed when idle, go under when broke. */
@@ -207,7 +218,7 @@ export function monthEnd(K, world, day, ctx, { makeName, makeTicker, countries }
     if (!m || m[5] <= 0) continue;
     const S = K.sectors[c.sector];
     const fixed = c.capacity * S.margin * K.fixedOfMargin;
-    const div = Math.min(m[5] * (c.listed ? 0.4 : 0.3), Math.max(0, c.cash - fixed * 60));
+    const div = Math.round(Math.min(m[5] * (c.listed ? 0.4 : 0.3), Math.max(0, c.cash - fixed * 60)));
     if (div > 0) { c.cash -= div; m[7] += div; }
   }
   // mergers: a distressed company is taken over by the strongest in its sector that can pay
@@ -219,8 +230,8 @@ export function monthEnd(K, world, day, ctx, { makeName, makeTicker, countries }
     const price = Math.max(0, Math.round(c.plantValue * 0.5 - c.debt));
     b.cash -= price;
     b.debt += c.debt;
-    b.capacity += c.capacity * 0.8;
-    b.plantValue += c.plantValue * 0.8;
+    b.capacity += round(c.capacity * 0.8);
+    b.plantValue += round(c.plantValue * 0.8);
     c.debt = 0; c.cash = 0; c.capacity = 0; c.plantValue = 0;
     c.status = 'merged'; c.mergedInto = b.id; c.closedDay = day;
     out.push({ kind: 'merger', sector: c.sector, id: c.id, into: b.id, text: `${b.name} has taken over the failing ${c.name}.` });

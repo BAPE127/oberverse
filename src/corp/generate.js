@@ -56,7 +56,7 @@ export function buildWorld(K, { salt, day, taken, countries, poolExtra = {} }) {
     const k = (pool * 1.15) / cap;
     for (const c of mine) {
       c.capacity = Math.max(500, Math.round(c.capacity * k));
-      c.plantValue = c.capacity * K.plantCost * K.plantBook;
+      c.plantValue = Math.round(c.capacity * K.plantCost * K.plantBook);
       const fixed = c.capacity * S.margin * K.fixedOfMargin;
       c.cash = Math.round(fixed * (30 + hashUnit(`${salt}|${c.id}|cash`) * 120));
       c.debt = Math.round(c.plantValue * (0.05 + hashUnit(`${salt}|${c.id}|debt`) * 0.45 * K.strategies[c.strategy].debt));

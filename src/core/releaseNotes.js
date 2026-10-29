@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.60.1',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Own Account, Checked',
+    notes: [
+      'A funded shipping company now checks its own cash (not yours) before it sends a naval mission, and the wider world\'s saves are about 40% smaller.',
+    ],
+  },
+  {
     version: '0.60.0',
     date: '2026-10-29',
     channel: 'development',

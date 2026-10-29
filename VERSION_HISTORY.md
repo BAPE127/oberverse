@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.60.1 | 2026-10-29 | development | 1 | Own account, checked: naval missions of a funded shipping company check its own cash; the wider world's saves are about 40% smaller; every funded-company path tested against the wallet |
 | 0.60.0 | 2026-10-29 | development | 1 | Own account: each of your four businesses is a company with a name and, if you fund it, its own cash; a registry of every company, about forty-five generated ones in ten sectors that share real demand with you, and rankings, figures and estimated values for all of them (the Intelligence and Companies apps) |
 | 0.59.0 | 2026-10-28 | development | 1 | The sky's the limit: satellites that go on earning (support fees, networks of your own, coverage, insurance, storms and debris), the Orbit page, the research tree with a queue and five new projects, twenty-eight achievements, and full financial reports (months, cash flow, balance sheet, segments). Old saves migrate (nothing charged, nothing lost) |
 | 0.58.0 | 2026-10-26 | development | 1 | Wheels up: aircraft pushed back, taxiing, rolling and climbing away from Starling Field (and Meridian's own coming home), rockets rolling out on the crawler, counting down, lifting off or lost, the secure convoy on the road, the sound of it all. Old saves migrate (stands handed out, nothing charged) |
