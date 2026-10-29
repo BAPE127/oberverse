@@ -128,7 +128,7 @@ export class Logistics {
     const g = this.game;
     if (amount <= 0) return;
     if (why === 'company') g.corp.found('shipping', amount, this.L.company); // the owner buys the firm: equity in kind
-    else g.corp.pay('shipping', amount, { cat: why });
+    else g.corp.pay('shipping', amount, { cat: why, owe: true }); // short of cash: owed, never free
     this.book(0, amount, why);
     // capital spending (the company, ships) is tallied too, so operating figures can leave it out (v0.56.0)
     if (CAPEX.has(why)) {

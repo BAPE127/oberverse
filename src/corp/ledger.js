@@ -37,6 +37,7 @@ export function freshAccount(id) {
     cash: 0,
     contributed: 0, // money the owner put in (cash)
     distributed: 0, // money the owner took out
+    arrears: 0, // bills a funded company could not cover when they fell due: owed, and paid first out of what comes in
     inKind: 0, // assets the owner brought in at cost (a works, a plot, the company itself) — equity, not cash
     flowIn: 0, // cash that came in through the business while funded
     flowOut: 0, // cash that went out through the business while funded

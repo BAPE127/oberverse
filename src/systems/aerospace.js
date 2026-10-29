@@ -249,7 +249,7 @@ export class Aerospace {
   pay(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
-    if (co.kind === 'player') this.game.corp.pay('aerospace', amount, { cat: flow || flowOf(account, 'out') });
+    if (co.kind === 'player') this.game.corp.pay('aerospace', amount, { cat: flow || flowOf(account, 'out'), owe: true }); // a bill that falls due is owed if the account is short
     else co.cash -= amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
     post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
