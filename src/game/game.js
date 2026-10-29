@@ -352,6 +352,7 @@ export class Game {
     this.aero.minuteTick();
     this.farm.minuteTick();
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
+    if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);

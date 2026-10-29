@@ -478,7 +478,8 @@ export class Group {
     const K = this.K;
     if (id === 'parent') {
       const t = icTotals(K.account('parent'), m);
-      return { id, name: this.parent.name, revenue: 0, opex: 0, capex: 0, icIn: t.icIn, icOut: 0, interestIn: t.interestIn, dividendIn: t.dividendIn, internal: 0 };
+      const pm = monthTotals(K.account('parent'), m); // the parent's own costs: its people's wages, and any fee it paid
+      return { id, name: this.parent.name, revenue: 0, opex: pm.opex, capex: pm.capex, icIn: t.icIn, icOut: 0, interestIn: t.interestIn, dividendIn: t.dividendIn, internal: 0 };
     }
     const reg = K.registry().find((r) => r.playerId === id);
     const row = K.rowsOf(reg).rows.find((r) => r.m === m);
@@ -560,7 +561,7 @@ export class Group {
       received: { distributions: sum((t) => t.to === 'parent' && t.kind === 'distribution'), interest: sum((t) => t.to === 'parent' && t.kind === 'interest'), repayments: sum((t) => t.to === 'parent' && t.kind === 'repayment'), capitalReturned: sum((t) => t.to === 'parent' && t.kind === 'capital-return') },
       paid: { capital: sum((t) => t.from === 'parent' && t.kind === 'capital'), loans: sum((t) => t.from === 'parent' && t.kind === 'loan') },
       owner: { contributed: pa.contributed, distributed: pa.distributed, inKind: pa.inKind },
-      managementExpenses: 0, debt: 0, interestExpense: 0, restructuring: 0,
+      managementExpenses: months.reduce((a, m) => a + monthTotals(this.K.account('parent'), m).opex, 0), debt: 0, interestExpense: 0, restructuring: 0,
       cash: Math.round(pa.cash),
     };
   }

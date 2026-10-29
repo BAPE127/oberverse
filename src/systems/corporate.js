@@ -22,6 +22,7 @@ import { buildWorld, rebuildNamer, advance } from '../corp/generate.js';
 import { monthTotals } from '../corp/ledger.js';
 import { figures, growth, value as worth, rank as rankBy, shares } from '../corp/metrics.js';
 import { Group } from './group.js';
+import { Personnel } from './personnel.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
@@ -31,6 +32,7 @@ export class Corporate {
   constructor(game) {
     this.game = game;
     this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
+    this.personnel = new Personnel(this); // v0.62.0: the people who run them
   }
 
   get state() {
@@ -80,11 +82,12 @@ export class Corporate {
    * it has and the rest becomes ARREARS — a debt, paid first out of what next comes in — so that
    * nothing is ever received for nothing.
    */
-  pay(id, amount, { cat = 'purchase', quiet = false, owe = false } = {}) {
+  pay(id, amount, { cat = 'purchase', quiet = false, owe = false, actor = null } = {}) {
     if (!Number.isFinite(amount) || amount < 0) return false;
     if (amount === 0) return true;
     const a = this.account(id);
     const g = this.game;
+    if (actor) this.noteActor(id, actor, amount);
     if (a.funded) {
       if (a.cash < amount && !owe) return false;
       const now = Math.min(amount, Math.max(0, a.cash));
@@ -102,6 +105,16 @@ export class Corporate {
     }
     post(a, g.clock.day, 'out', cat, amount);
     return true;
+  }
+
+  /** Who spent what from an account: a record kept for the managers of stage 7 (the owner's own spending has no actor). */
+  noteActor(id, actor, amount) {
+    if (!actor) return;
+    const a = this.account(id);
+    a.actors ||= {};
+    a.actors[actor] = (a.actors[actor] || 0) + Math.round(amount);
+    const keys = Object.keys(a.actors);
+    if (keys.length > 60) delete a.actors[keys[0]];
   }
 
   /** Money in. */
@@ -385,6 +398,7 @@ export class Corporate {
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
   dailyTick() {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
+    this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     const st = this.state;
     if (!st.generated) return;
     const g = this.game;
