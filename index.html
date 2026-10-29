@@ -22719,8 +22719,12 @@ class Factory {
     const g = this.game;
     const def = this.def(whId);
     if (this.owns(whId)) return { ok: false, text: 'You already own it.' };
-    if (g.player.money < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${g.player.money}.` };
-    if (this.domain === 'arms') g.corp.found('arms', def.price, def.name); // v0.60.0: the owner buys the works (equity in kind)
+    // v0.60.0: the first arms works is the owner founding the business (equity in kind); later ones are the company's capital spending
+    const later = this.domain === 'arms' && this.ownedIds().length > 0;
+    const cash = this.domain !== 'arms' ? g.player.money : later ? g.corp.cashOf('arms') : g.player.money;
+    if (cash < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${cash}.` };
+    if (later) g.corp.pay('arms', def.price, { cat: 'works' });
+    else if (this.domain === 'arms') g.corp.found('arms', def.price, def.name);
     else {
       g.player.money -= def.price;
       g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });
@@ -38406,7 +38410,7 @@ const monthOf = (day) => Math.floor((Math.max(1, day) - 1) / MONTH_DAYS);
 /** How each flow category is classed in a cash-flow statement. Anything not listed: opex out, revenue in. */
 const KINDS = {
   out: {
-    machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
+    machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', works: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
     refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex',
   },
@@ -38461,6 +38465,110 @@ const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contribut
 return { MONTH_DAYS, MONTHS_KEPT, LOG_KEPT, monthOf, kindOf, freshAccount, post, logLine, monthTotals, balanceOk };
 })();
 
+// ---- src/corp/identity.js
+__m["src/corp/identity.js"] = (function () {
+// Company identity (v0.60.0). Pure functions — no game state, no DOM.
+//
+//   validateName(raw, taken)   a company name: trimmed, sensible length and characters, not taken
+//   SECTORS                    the sectors a company can belong to
+//   DEFAULT_NAMES              what a business is called until its owner names it
+//
+// A name is the one thing about a company the player may change; its id, sector and founding
+// day never change. Every name ever used stays in the company's history.
+
+const NAME_MIN = 3;
+const NAME_MAX = 40;
+
+const SECTORS = {
+  arms: { name: 'Arms manufacturing' },
+  shipping: { name: 'Shipping and logistics' },
+  aerospace: { name: 'Aerospace engineering' },
+  agriculture: { name: 'Farming and agriculture' },
+  energy: { name: 'Energy' },
+  industrial: { name: 'Industrial manufacturing' },
+  transport: { name: 'Transportation' },
+  communications: { name: 'Communications' },
+  satellites: { name: 'Satellite services' },
+  finance: { name: 'Finance' },
+};
+
+/** The player's four businesses, their sectors, and the name each carries until it is renamed. */
+const PLAYER_COMPANIES = {
+  arms: { sector: 'arms', defaultName: 'Mill Road Arms Works', icon: '🏭', kind: 'Arms manufacturer' },
+  shipping: { sector: 'shipping', defaultName: 'Ober & Sons Maritime', icon: '🚢', kind: 'Shipping company' },
+  aerospace: { sector: 'aerospace', defaultName: 'Roost Aeroworks', icon: '✈️', kind: 'Aerospace engineer' },
+  farming: { sector: 'agriculture', defaultName: 'East Plot Farms', icon: '🌾', kind: 'Farming business' },
+};
+
+// letters (any script), digits, spaces and a few marks a firm's name needs
+const ALLOWED = /^[\p{L}\p{N}][\p{L}\p{N} &'.,\-]*$/u;
+
+/**
+ * Check a proposed name. `taken` are the names already in use (any case). Returns
+ * { ok: true, name } with the name tidied, or { ok: false, error }.
+ */
+function validateName(raw, taken = []) {
+  if (typeof raw !== 'string') return { ok: false, error: 'Enter a name.' };
+  const name = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!name) return { ok: false, error: 'A company needs a name.' };
+  if (name.length < NAME_MIN) return { ok: false, error: `Use at least ${NAME_MIN} characters.` };
+  if (name.length > NAME_MAX) return { ok: false, error: `Use at most ${NAME_MAX} characters.` };
+  if (!ALLOWED.test(name)) return { ok: false, error: 'Use letters, numbers, spaces and & \' . , - only, starting with a letter or number.' };
+  if ((name.match(/\p{L}/gu) || []).length < 2) return { ok: false, error: 'A name needs at least two letters.' };
+  if (/[&'.,\-]{2,}/.test(name)) return { ok: false, error: 'Too much punctuation in a row.' };
+  const lc = name.toLowerCase();
+  if (taken.some((t) => String(t).toLowerCase() === lc)) return { ok: false, error: 'Another company already has that name.' };
+  return { ok: true, name };
+}
+
+return { NAME_MIN, NAME_MAX, SECTORS, PLAYER_COMPANIES, validateName };
+})();
+
+// ---- src/corp/registry.js
+__m["src/corp/registry.js"] = (function () {
+// The company registry (v0.60.0): every company in the Oberverse in one list. Pure functions.
+//
+//   existingRows(content)   the companies the game already had — the listed ones, the carriers
+//   countryName(content,id) where a company is from
+//
+// The player's four businesses are added by the Corporate service (their names are the player's
+// to change); the generated international companies are stored in the save (src/corp/generate.js).
+// A row: { id, name, sector, country, kind, ticker?, source }.
+// `kind`: 'listed' (public, has a ticker) · 'carrier' (a freight company the arms trade uses) ·
+//         'player' · 'generated'.
+
+/** The home country: the island of Halvermouth. (Not named elsewhere in the lore, so it is just its capital's name.) */
+const HOME = { id: 'home', name: 'Halvermouth' };
+
+function countryName(content, id) {
+  if (!id) return '—';
+  if (id === HOME.id) return HOME.name;
+  return content.arms.countries[id]?.name || id;
+}
+
+/** Every country a company can be from: home and the eight on the globe. */
+function countryIds(content) {
+  return [HOME.id, ...Object.keys(content.arms.countries)];
+}
+
+/** The companies that were already in the game before the registry. Identity only — figures come from their own systems. */
+function existingRows(content) {
+  const rows = [];
+  rows.push({ id: 'ober_oil', name: 'Ober\'s Oil', sector: 'energy', country: HOME.id, kind: 'listed', ticker: 'OBRO', source: 'oil' });
+  rows.push({ id: 'chuckies_cheese', name: content.dairy.config.company, sector: 'agriculture', country: HOME.id, kind: 'listed', ticker: content.dairy.config.ticker, source: 'dairy' });
+  const m = content.aerospace.aero.meridian;
+  rows.push({ id: 'meridian', name: m.name, sector: 'aerospace', country: HOME.id, kind: 'listed', ticker: m.ticker, source: 'aero' });
+  const carrierCountry = { morrow: 'morrow' };
+  const carrierSector = { stork: 'transport' };
+  for (const [id, s] of Object.entries(content.arms.shippers)) {
+    rows.push({ id: `carrier_${id}`, name: s.name, sector: carrierSector[id] || 'shipping', country: carrierCountry[id] || (id === 'ghost' ? null : HOME.id), kind: 'carrier', source: 'arms' });
+  }
+  return rows;
+}
+
+return { HOME, countryName, countryIds, existingRows };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -38480,6 +38588,8 @@ __m["src/systems/corporate.js"] = (function () {
 // State: game.world.corp = { v, accounts: { [id]: account } } — created on first use, so an old
 // save loads with every company unfunded and nothing moved (see src/corp/ledger.js).
 const { freshAccount, post, logLine, balanceOk } = __m["src/corp/ledger.js"];
+const { validateName, PLAYER_COMPANIES, SECTORS } = __m["src/corp/identity.js"];
+const { existingRows, countryName } = __m["src/corp/registry.js"];
 
 const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
 
@@ -38492,6 +38602,7 @@ class Corporate {
     const w = this.game.world;
     if (!w.corp) w.corp = { v: 1, accounts: {} };
     w.corp.accounts ||= {};
+    w.corp.companies ||= {}; // v0.60.0 part C: the identity of each business
     return w.corp;
   }
 
@@ -38666,12 +38777,108 @@ class Corporate {
     if (amount) g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
     a.inKind += amount;
     logLine(a, { day: g.clock.day, type: 'in-kind', amount, memo: what || 'Acquisition' });
+    this.ensureCompany(id, { fresh: true });
     return true;
   }
 
   /** Whether every funded account reconciles with its history (the invariant the tests check). */
   reconciles() {
     return Object.values(this.state.accounts).every(balanceOk);
+  }
+
+  // ------------------------------------------------------------- identity
+  /** The name a business carries until its owner renames it (shipping and aerospace keep the names they were bought with). */
+  defaultName(id) {
+    const g = this.game;
+    if (id === 'shipping') return g.logistics.L.company;
+    if (id === 'aerospace') return g.aero.A.firm.name;
+    return PLAYER_COMPANIES[id].defaultName;
+  }
+
+  /**
+   * A company's identity record, made when the business first exists. `fresh` (founded just now):
+   * the owner is asked to name it. Otherwise (a save from before this existed) it keeps its
+   * default name and nobody is asked.
+   */
+  ensureCompany(id, { fresh = false } = {}) {
+    const st = this.state.companies;
+    if (st[id]) return st[id];
+    if (!this.established(id) && !fresh) return null;
+    const g = this.game;
+    const P = PLAYER_COMPANIES[id];
+    const name = this.defaultName(id);
+    const day = fresh ? g.clock.day : (id === 'shipping' ? g.logistics.state.boughtDay : id === 'aerospace' ? g.aero.state.boughtDay : null) ?? g.clock.day;
+    st[id] = { id, sector: P.sector, name, named: !fresh, legacy: !fresh, founded: day, status: 'active', names: [{ day, name }] };
+    if (fresh) g.bus.emit('corp:founded', { id });
+    return st[id];
+  }
+
+  /** Make a record for every business the owner already has (a loaded save, or a day's tick). */
+  ensureCompanies() {
+    for (const id of COMPANY_IDS) if (this.established(id)) this.ensureCompany(id);
+  }
+
+  /** A business's name (its default until named). */
+  nameOf(id) {
+    return this.state.companies[id]?.name || this.defaultName(id);
+  }
+
+  /** The principal facility of a business, read from the game. */
+  hqOf(id) {
+    const g = this.game;
+    switch (id) {
+      case 'arms': { const w = g.arms.ownedIds()[0]; return w ? g.arms.def(w).name : '—'; }
+      case 'shipping': return g.logistics.owned ? g.logistics.port(g.logistics.L.homePort)?.name || '—' : '—';
+      case 'aerospace': return g.aero.owned ? 'Starling Flats' : '—';
+      case 'farming': { const p = g.farm.owned()[0]; return p ? g.farm.plotDef(p).name : '—'; }
+      default: return '—';
+    }
+  }
+
+  /** Every name in use, apart from one company's own — the names a new name must not repeat. */
+  takenNames(exceptId = null) {
+    const names = existingRows(this.game.content).map((r) => r.name);
+    for (const c of Object.values(this.state.companies)) if (c.id !== exceptId) names.push(c.name);
+    for (const c of this.state.generated || []) names.push(c.name);
+    return names;
+  }
+
+  /** Name or rename a business. The old name stays in its history. */
+  rename(id, raw) {
+    if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    const c = this.ensureCompany(id);
+    if (!c) return { ok: false, text: 'You do not own that business yet.' };
+    const v = validateName(raw, this.takenNames(id));
+    if (!v.ok) return { ok: false, text: v.error };
+    const g = this.game;
+    if (v.name === c.name) { c.named = true; return { ok: true, text: `It stays ${c.name}.`, name: c.name }; }
+    c.name = v.name;
+    c.named = true;
+    c.names.push({ day: g.clock.day, name: v.name });
+    if (c.names.length > 12) c.names.splice(1, c.names.length - 12);
+    if (id === 'aerospace' && g.aero.roost) g.aero.roost.name = v.name; // the terminal and the tender board read it
+    g.bus.emit('corp:renamed', { id, name: v.name });
+    return { ok: true, text: `Now trading as ${v.name}.`, name: v.name };
+  }
+
+  /** Identity, for the tablet and the registry. */
+  profile(id) {
+    const c = this.ensureCompany(id);
+    if (!c) return null;
+    const a = this.account(id);
+    return { ...c, kind: PLAYER_COMPANIES[id].kind, icon: PLAYER_COMPANIES[id].icon, sectorName: SECTORS[c.sector].name, hq: this.hqOf(id), funded: a.funded, cash: this.cashOf(id), ownCash: a.cash, arrears: a.arrears, contributed: a.contributed, distributed: a.distributed, inKind: a.inKind, country: 'home', countryName: countryName(this.game.content, 'home') };
+  }
+
+  /** The registry: the four businesses, the companies that were already in the game, and the generated ones. */
+  registry() {
+    const rows = [];
+    for (const id of COMPANY_IDS) {
+      const p = this.profile(id);
+      if (p) rows.push({ id: `player_${id}`, name: p.name, sector: p.sector, country: 'home', kind: 'player', source: id, playerId: id });
+    }
+    rows.push(...existingRows(this.game.content));
+    for (const c of this.state.generated || []) rows.push(c);
+    return rows;
   }
 }
 
@@ -40409,6 +40616,7 @@ class Game {
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
     this.aero.afterLoad(); // v0.55.0
+    this.corp.ensureCompanies(); // v0.60.0: a record of identity for each business already owned
     this.updateDiscovery();
     return this;
   }
@@ -57448,6 +57656,73 @@ function farmApp(ui, body) {
 return { farmlandPanel, farmplotPanel, coopPanel, livestockPanel, farmApp };
 })();
 
+// ---- src/ui/corpApp.js
+__m["src/ui/corpApp.js"] = (function () {
+// The Companies app and the naming panel (v0.60.0): the owner's four businesses — their names, their
+// own accounts — on the tablet. Everything shown is read from game.corp; every button calls it.
+const { h } = __m["src/ui/panels.js"];
+const { COMPANY_IDS } = __m["src/systems/corporate.js"];
+const { PLAYER_COMPANIES } = __m["src/corp/identity.js"];
+
+const ob = (n) => `${Math.round(n).toLocaleString()} obols`;
+const WHERE = { arms: 'Get a licence from Lucas, then buy a works at Mill Road Yards.', shipping: 'Captain Ober is selling Ober & Sons Maritime at the Yards.', aerospace: 'Billie Roost is selling her aeroworks at Starling Flats.', farming: 'Deeds to farmland are at the Lariat County Land Office.' };
+
+/** The panel that opens when a business is founded: name it, or keep the name it came with. */
+function corpNamePanel(ui, body, opts) {
+  const g = ui.game;
+  const id = opts.id;
+  const C = g.corp.ensureCompany(id);
+  if (!C) return { title: 'Name your company' };
+  const msg = h('p', { class: 'muted' }, 'Letters, numbers, spaces and & \' . , - — 3 to 40 characters. You can change it any time in the Companies app.');
+  const input = h('input', { type: 'text', class: 'debug-input', value: C.name, maxlength: 40, style: 'width:100%;font-size:18px' });
+  const done = () => ui.closePanel();
+  body.append(
+    h('p', { class: 'doc' }, `${PLAYER_COMPANIES[id].icon} You now run a ${PLAYER_COMPANIES[id].kind.toLowerCase()}. What is it called?`),
+    input, msg,
+    h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
+      h('button', { class: 'primary', onclick: () => { const r = g.corp.rename(id, input.value); if (r.ok) { ui.audio.sfx('sfx_coin'); done(); } else { msg.textContent = r.text; msg.className = 'neg'; ui.audio.sfx('sfx_fail'); } } }, 'Register this name'),
+      h('button', { class: 'ghost', onclick: () => { g.corp.rename(id, C.name); done(); } }, `Keep "${C.name}"`)));
+  setTimeout(() => input.focus(), 0);
+  return { title: 'Name your company', onClose: () => { C.named = true; } };
+}
+
+/** The tablet's Companies app. */
+function companiesApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  let note = null;
+  const say = (r) => { note = r; open('Companies'); };
+  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
+  const go = (r) => { ui.corpNote = r.text; ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); open('Companies'); };
+  void say; void note;
+  body.append(h('p', { class: 'muted' }, 'Your businesses are separate companies. Until you pay money into one, it simply spends yours; once you do, it pays its own bills from its own account — and goes into debt, not into your pocket, if it runs short.'));
+  const list = h('div', { class: 'list' });
+  for (const id of COMPANY_IDS) {
+    const p = K.profile(id);
+    const P = PLAYER_COMPANIES[id];
+    if (!p) { list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, P.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, P.kind, h('span', { class: 'tag' }, 'not yet started')), h('div', { class: 'desc' }, WHERE[id])))); continue; }
+    const name = h('input', { type: 'text', class: 'debug-input', value: p.name, maxlength: 40, style: 'width:100%' });
+    const amount = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 100, value: 1000, style: 'width:110px' });
+    const n = () => Math.max(0, Math.floor(Number(amount.value) || 0));
+    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, P.icon),
+      h('div', { class: 'grow' },
+        h('div', { class: 'name' }, p.name, h('span', { class: 'tag' }, p.sectorName), h('span', { class: 'tag good' }, 'private'), p.funded ? h('span', { class: 'tag' }, 'own account') : h('span', { class: 'tag' }, 'uses your money')),
+        h('div', { class: 'desc' }, `${p.kind} · ${p.hq} · ${p.legacy ? 'in your hands before the registry' : `founded day ${p.founded}`}${p.names.length > 1 ? ` · formerly ${p.names.slice(0, -1).map((x) => x.name).join(', ')}` : ''}`),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin:6px 0' }, name, h('button', { class: 'small', onclick: () => go(K.rename(id, name.value)) }, 'Rename')),
+        p.funded
+          ? h('div', { class: 'desc' }, `Its own cash ${ob(p.ownCash)}${p.arrears ? ` · OWES ${ob(p.arrears)}` : ''} · you have paid in ${ob(p.contributed)} and taken out ${ob(p.distributed)}`)
+          : h('div', { class: 'desc' }, `It draws on your ${ob(g.player.money)}. Brought in at cost: ${ob(p.inKind)}.`),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' }, amount,
+          h('button', { class: 'small primary', onclick: () => go(K.contribute(id, n())) }, 'Pay in'),
+          p.funded ? h('button', { class: 'small', onclick: () => go(K.distribute(id, n())) }, 'Take out') : null,
+          p.funded ? h('button', { class: 'small ghost', onclick: () => go(K.unfund(id)) }, 'Close its account') : null))));
+  }
+  body.append(list);
+}
+
+return { corpNamePanel, companiesApp };
+})();
+
 // ---- src/ui/tablet.js
 __m["src/ui/tablet.js"] = (function () {
 // The tablet (v0.15.0) — the journal's replacement. Apps along the top:
@@ -57459,11 +57734,12 @@ const { h, journalTab, JOURNAL_TABS, stocksScreen } = __m["src/ui/panels.js"];
 const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
 const { TABLET_APPS } = __m["src/systems/tablet.js"];
 const { farmApp } = __m["src/ui/farm.js"];
+const { companiesApp } = __m["src/ui/corpApp.js"]; // v0.60.0
 
 function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies'] : []), 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -57479,6 +57755,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
   else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
+  else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
@@ -62607,6 +62884,7 @@ const { logbookPanel } = __m["src/ui/logbook.js"];
 const { cashierPanel, casinoTablePanel } = __m["src/ui/casino.js"];
 const { spadeTablePanel } = __m["src/ui/spadeTable.js"];
 const { aerospacePanel, aeroSalePanel } = __m["src/ui/aerospace.js"];
+const { corpNamePanel } = __m["src/ui/corpApp.js"];
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -62624,6 +62902,7 @@ PANELS.casinoTable = casinoTablePanel;
 PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
 PANELS.aerospace = aerospacePanel; // v0.55.0: Starling Flats
 PANELS.aerospace_sale = aeroSalePanel;
+PANELS.corpname = corpNamePanel; // v0.60.0: name a business when it is founded
 const { saveSettings } = __m["src/save/saveManager.js"];
 
 const LOOKS = [
@@ -62897,6 +63176,15 @@ class UI {
   afterModalClose() {
     if (this.state === 'playing' && this.game && !this.panelOpen && !this.dialogue.open) this.game.paused = false;
     this.input.clear();
+    this.nextNamePrompt();
+  }
+
+  /** v0.60.0: a business just founded asks its owner for a name, once the panel they bought it in has closed. */
+  nextNamePrompt() {
+    const q = this.namePrompts;
+    if (!q?.length || this.state !== 'playing' || this.panelOpen || this.dialogue.open) return;
+    const id = q.shift();
+    if (this.game.corp.state.companies[id]?.named === false) this.openPanel('corpname', { id });
   }
 
   // ----------------------------------------------------------- feedback
@@ -62975,6 +63263,7 @@ class UI {
       this.audio.sfx('sfx_pickup');
       this.toast(`+${count} ${game.content.items[id]?.name}`, 'good', 3);
     });
+    bus.on('corp:founded', ({ id }) => { (this.namePrompts ||= []).push(id); if (!this.panelOpen) this.nextNamePrompt(); });
     bus.on('money:changed', ({ delta }) => {
       this.audio.sfx('sfx_coin');
       if (delta > 0) this.toast(`+${delta} obols`, 'good', 3);

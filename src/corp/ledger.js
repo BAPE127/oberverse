@@ -22,7 +22,7 @@ export const monthOf = (day) => Math.floor((Math.max(1, day) - 1) / MONTH_DAYS);
 /** How each flow category is classed in a cash-flow statement. Anything not listed: opex out, revenue in. */
 const KINDS = {
   out: {
-    machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
+    machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', works: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
     refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex',
   },

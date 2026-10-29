@@ -7,11 +7,12 @@ import { h, journalTab, JOURNAL_TABS, stocksScreen } from './panels.js';
 import { terminalScreen, TERMINAL_TABS } from './terminal.js';
 import { TABLET_APPS } from '../systems/tablet.js';
 import { farmApp } from './farm.js';
+import { companiesApp } from './corpApp.js'; // v0.60.0
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies'] : []), 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -27,6 +28,7 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
   else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
+  else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

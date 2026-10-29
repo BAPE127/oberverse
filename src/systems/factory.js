@@ -489,8 +489,12 @@ export class Factory {
     const g = this.game;
     const def = this.def(whId);
     if (this.owns(whId)) return { ok: false, text: 'You already own it.' };
-    if (g.player.money < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${g.player.money}.` };
-    if (this.domain === 'arms') g.corp.found('arms', def.price, def.name); // v0.60.0: the owner buys the works (equity in kind)
+    // v0.60.0: the first arms works is the owner founding the business (equity in kind); later ones are the company's capital spending
+    const later = this.domain === 'arms' && this.ownedIds().length > 0;
+    const cash = this.domain !== 'arms' ? g.player.money : later ? g.corp.cashOf('arms') : g.player.money;
+    if (cash < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${cash}.` };
+    if (later) g.corp.pay('arms', def.price, { cat: 'works' });
+    else if (this.domain === 'arms') g.corp.found('arms', def.price, def.name);
     else {
       g.player.money -= def.price;
       g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });

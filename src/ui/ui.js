@@ -20,6 +20,7 @@ import { logbookPanel } from './logbook.js';
 import { cashierPanel, casinoTablePanel } from './casino.js';
 import { spadeTablePanel } from './spadeTable.js';
 import { aerospacePanel, aeroSalePanel } from './aerospace.js';
+import { corpNamePanel } from './corpApp.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -37,6 +38,7 @@ PANELS.casinoTable = casinoTablePanel;
 PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
 PANELS.aerospace = aerospacePanel; // v0.55.0: Starling Flats
 PANELS.aerospace_sale = aeroSalePanel;
+PANELS.corpname = corpNamePanel; // v0.60.0: name a business when it is founded
 import { saveSettings } from '../save/saveManager.js';
 
 export const LOOKS = [
@@ -310,6 +312,15 @@ export class UI {
   afterModalClose() {
     if (this.state === 'playing' && this.game && !this.panelOpen && !this.dialogue.open) this.game.paused = false;
     this.input.clear();
+    this.nextNamePrompt();
+  }
+
+  /** v0.60.0: a business just founded asks its owner for a name, once the panel they bought it in has closed. */
+  nextNamePrompt() {
+    const q = this.namePrompts;
+    if (!q?.length || this.state !== 'playing' || this.panelOpen || this.dialogue.open) return;
+    const id = q.shift();
+    if (this.game.corp.state.companies[id]?.named === false) this.openPanel('corpname', { id });
   }
 
   // ----------------------------------------------------------- feedback
@@ -388,6 +399,7 @@ export class UI {
       this.audio.sfx('sfx_pickup');
       this.toast(`+${count} ${game.content.items[id]?.name}`, 'good', 3);
     });
+    bus.on('corp:founded', ({ id }) => { (this.namePrompts ||= []).push(id); if (!this.panelOpen) this.nextNamePrompt(); });
     bus.on('money:changed', ({ delta }) => {
       this.audio.sfx('sfx_coin');
       if (delta > 0) this.toast(`+${delta} obols`, 'good', 3);

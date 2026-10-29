@@ -1335,6 +1335,7 @@ export class Game {
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
     this.aero.afterLoad(); // v0.55.0
+    this.corp.ensureCompanies(); // v0.60.0: a record of identity for each business already owned
     this.updateDiscovery();
     return this;
   }

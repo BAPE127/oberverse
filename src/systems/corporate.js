@@ -15,6 +15,8 @@
 // State: game.world.corp = { v, accounts: { [id]: account } } — created on first use, so an old
 // save loads with every company unfunded and nothing moved (see src/corp/ledger.js).
 import { freshAccount, post, logLine, balanceOk } from '../corp/ledger.js';
+import { validateName, PLAYER_COMPANIES, SECTORS } from '../corp/identity.js';
+import { existingRows, countryName } from '../corp/registry.js';
 
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
 
@@ -27,6 +29,7 @@ export class Corporate {
     const w = this.game.world;
     if (!w.corp) w.corp = { v: 1, accounts: {} };
     w.corp.accounts ||= {};
+    w.corp.companies ||= {}; // v0.60.0 part C: the identity of each business
     return w.corp;
   }
 
@@ -201,11 +204,107 @@ export class Corporate {
     if (amount) g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
     a.inKind += amount;
     logLine(a, { day: g.clock.day, type: 'in-kind', amount, memo: what || 'Acquisition' });
+    this.ensureCompany(id, { fresh: true });
     return true;
   }
 
   /** Whether every funded account reconciles with its history (the invariant the tests check). */
   reconciles() {
     return Object.values(this.state.accounts).every(balanceOk);
+  }
+
+  // ------------------------------------------------------------- identity
+  /** The name a business carries until its owner renames it (shipping and aerospace keep the names they were bought with). */
+  defaultName(id) {
+    const g = this.game;
+    if (id === 'shipping') return g.logistics.L.company;
+    if (id === 'aerospace') return g.aero.A.firm.name;
+    return PLAYER_COMPANIES[id].defaultName;
+  }
+
+  /**
+   * A company's identity record, made when the business first exists. `fresh` (founded just now):
+   * the owner is asked to name it. Otherwise (a save from before this existed) it keeps its
+   * default name and nobody is asked.
+   */
+  ensureCompany(id, { fresh = false } = {}) {
+    const st = this.state.companies;
+    if (st[id]) return st[id];
+    if (!this.established(id) && !fresh) return null;
+    const g = this.game;
+    const P = PLAYER_COMPANIES[id];
+    const name = this.defaultName(id);
+    const day = fresh ? g.clock.day : (id === 'shipping' ? g.logistics.state.boughtDay : id === 'aerospace' ? g.aero.state.boughtDay : null) ?? g.clock.day;
+    st[id] = { id, sector: P.sector, name, named: !fresh, legacy: !fresh, founded: day, status: 'active', names: [{ day, name }] };
+    if (fresh) g.bus.emit('corp:founded', { id });
+    return st[id];
+  }
+
+  /** Make a record for every business the owner already has (a loaded save, or a day's tick). */
+  ensureCompanies() {
+    for (const id of COMPANY_IDS) if (this.established(id)) this.ensureCompany(id);
+  }
+
+  /** A business's name (its default until named). */
+  nameOf(id) {
+    return this.state.companies[id]?.name || this.defaultName(id);
+  }
+
+  /** The principal facility of a business, read from the game. */
+  hqOf(id) {
+    const g = this.game;
+    switch (id) {
+      case 'arms': { const w = g.arms.ownedIds()[0]; return w ? g.arms.def(w).name : 'no works yet'; }
+      case 'shipping': return g.logistics.owned ? g.logistics.port(g.logistics.L.homePort)?.name || '—' : '—';
+      case 'aerospace': return g.aero.owned ? 'Starling Flats' : '—';
+      case 'farming': { const p = g.farm.owned()[0]; return p ? g.farm.plotDef(p).name : '—'; }
+      default: return '—';
+    }
+  }
+
+  /** Every name in use, apart from one company's own — the names a new name must not repeat. */
+  takenNames(exceptId = null) {
+    const names = existingRows(this.game.content).map((r) => r.name);
+    for (const c of Object.values(this.state.companies)) if (c.id !== exceptId) names.push(c.name);
+    for (const c of this.state.generated || []) names.push(c.name);
+    return names;
+  }
+
+  /** Name or rename a business. The old name stays in its history. */
+  rename(id, raw) {
+    if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    const c = this.ensureCompany(id);
+    if (!c) return { ok: false, text: 'You do not own that business yet.' };
+    const v = validateName(raw, this.takenNames(id));
+    if (!v.ok) return { ok: false, text: v.error };
+    const g = this.game;
+    if (v.name === c.name) { c.named = true; return { ok: true, text: `It stays ${c.name}.`, name: c.name }; }
+    c.name = v.name;
+    c.named = true;
+    c.names.push({ day: g.clock.day, name: v.name });
+    if (c.names.length > 12) c.names.splice(1, c.names.length - 12);
+    if (id === 'aerospace' && g.aero.roost) g.aero.roost.name = v.name; // the terminal and the tender board read it
+    g.bus.emit('corp:renamed', { id, name: v.name });
+    return { ok: true, text: `Now trading as ${v.name}.`, name: v.name };
+  }
+
+  /** Identity, for the tablet and the registry. */
+  profile(id) {
+    const c = this.ensureCompany(id);
+    if (!c) return null;
+    const a = this.account(id);
+    return { ...c, kind: PLAYER_COMPANIES[id].kind, icon: PLAYER_COMPANIES[id].icon, sectorName: SECTORS[c.sector].name, hq: this.hqOf(id), funded: a.funded, cash: this.cashOf(id), ownCash: a.cash, arrears: a.arrears, contributed: a.contributed, distributed: a.distributed, inKind: a.inKind, country: 'home', countryName: countryName(this.game.content, 'home') };
+  }
+
+  /** The registry: the four businesses, the companies that were already in the game, and the generated ones. */
+  registry() {
+    const rows = [];
+    for (const id of COMPANY_IDS) {
+      const p = this.profile(id);
+      if (p) rows.push({ id: `player_${id}`, name: p.name, sector: p.sector, country: 'home', kind: 'player', source: id, playerId: id });
+    }
+    rows.push(...existingRows(this.game.content));
+    for (const c of this.state.generated || []) rows.push(c);
+    return rows;
   }
 }
