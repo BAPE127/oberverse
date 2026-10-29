@@ -13,7 +13,8 @@
 //
 // State (all created on forming, so an old save has none): world.corp.parent (identity, policies,
 // investments), .ownership (edges), .transfers, .loans, .group (counters, the monthly jobs' keys).
-import { logLine, freshAccount, monthTotals } from '../corp/ledger.js';
+import { logLine, freshAccount, monthTotals, post, icTotals } from '../corp/ledger.js';
+import { CORP } from '../content/corporate.js';
 import { canOwn, validPolicy, POLICY_DEFAULT } from '../corp/group.js';
 import { validateName } from '../corp/identity.js';
 
@@ -54,7 +55,7 @@ export class Group {
     st.ownership = [];
     st.transfers = [];
     st.loans = [];
-    st.group = { v: 1, nextXfer: 1, nextLoan: 1, dist: {}, jobs: { month: Math.floor((this.day - 1) / 30) }, ic: null };
+    st.group = { v: 1, nextXfer: 1, nextLoan: 1, dist: {}, jobs: { month: Math.floor((this.day - 1) / 30) - 1 }, ic: null }; // the monthly jobs have run for every month before this one
     g.bus.emit('corp:founded', { id: 'parent' });
     return { ok: true, text: `${name} is founded. It holds nothing yet: pay money in, then bring your businesses under it.` };
   }
@@ -212,5 +213,221 @@ export class Group {
 
   policyOf(id) {
     return validPolicy(this.parent?.policies[id] || this.parent?.policy || {});
+  }
+
+  // ------------------------------------------------------------- intercompany loans
+  get month() { return Math.floor((this.day - 1) / 30); }
+
+  /** The rate a parent charges its subsidiaries: the benchmark plus a point (the central bank sets the benchmark from a later stage). */
+  defaultRate() { return Math.round((CORP.baseRate + 0.01) * 1000) / 1000; }
+
+  /**
+   * The parent lends a subsidiary money. It is a transfer of cash, never revenue: the subsidiary owes the
+   * parent its principal back in equal instalments each month, with a month's interest on what is left.
+   */
+  lend(id, amount, { termMonths = 12, rate = this.defaultRate() } = {}) {
+    if (!this.isSub(id)) return { ok: false, text: 'Only a subsidiary can borrow from the parent.' };
+    amount = Math.round(amount);
+    termMonths = Math.round(termMonths);
+    if (!(termMonths >= 1 && termMonths <= 60)) return { ok: false, text: 'A loan runs from 1 to 60 months.' };
+    if (!(Number(rate) >= 0 && Number(rate) <= 0.25)) return { ok: false, text: 'The rate must be between 0% and 25% a year.' };
+    const t = this.transfer('parent', id, amount, 'loan', `Loan for ${termMonths} months`);
+    if (!t.ok) return t;
+    const gs = this.st.group;
+    const loan = { id: gs.nextLoan++, lender: 'parent', borrower: id, principal: amount, outstanding: amount, rate: Number(rate), termMonths, instalment: Math.ceil(amount / termMonths), since: this.day, firstMonth: this.month + 1, lastMonth: this.month, status: 'open', paid: 0, interestPaid: 0, missed: 0 };
+    this.st.loans.push(loan);
+    t.rec.loan = loan.id;
+    return { ok: true, loan, text: `${this.K.nameOf(id)} borrows ${amount.toLocaleString()} obols from ${this.parent.name}: ${termMonths} months at ${(loan.rate * 100).toFixed(1)}%.` };
+  }
+
+  /** Principal repaid early or on schedule: cash back to the parent. */
+  repayLoan(loanId, amount) {
+    const loan = (this.st.loans || []).find((l) => l.id === loanId && l.status === 'open');
+    if (!loan) return { ok: false, text: 'No such open loan.' };
+    amount = Math.round(amount);
+    const a = this.K.account(loan.borrower);
+    if (a.arrears > 0) return { ok: false, text: `${this.K.nameOf(loan.borrower)} owes ${Math.round(a.arrears).toLocaleString()} obols to others: those come first.` };
+    if (amount > loan.outstanding) return { ok: false, text: `Only ${loan.outstanding.toLocaleString()} obols are outstanding.` };
+    const t = this.transfer(loan.borrower, 'parent', amount, 'repayment', 'Loan repayment', { loan: loan.id });
+    if (!t.ok) return t;
+    loan.outstanding -= amount;
+    loan.paid += amount;
+    if (loan.outstanding <= 0) loan.status = 'repaid';
+    return { ok: true, text: `${amount.toLocaleString()} obols repaid${loan.status === 'repaid' ? ' — the loan is cleared' : ''}.` };
+  }
+
+  /** Interest between group companies: cash moves, and each side's own books show it (income for the parent, a cost for the borrower). */
+  payInterest(loan, amount) {
+    amount = Math.round(amount);
+    if (amount <= 0) return 0;
+    const t = this.transfer(loan.borrower, 'parent', amount, 'interest', 'Interest', { loan: loan.id });
+    if (!t.ok) return 0;
+    post(this.K.account(loan.borrower), this.day, 'out', 'ic_interest', amount);
+    post(this.K.account('parent'), this.day, 'in', 'ic_interest', amount);
+    loan.interestPaid += amount;
+    return amount;
+  }
+
+  // ------------------------------------------------------------- distributions
+  /** The subsidiary's trading result for a closed month, less the interest it paid the parent: what a distribution may come from. */
+  profitOf(id, m) {
+    const reg = this.K.registry().find((r) => r.playerId === id);
+    const row = this.K.rowsOf(reg).rows.find((r) => r.m === m);
+    const interest = icTotals(this.K.account(id), m).icOut;
+    return { net: row ? row.net : 0, interest, distributable: Math.max(0, (row ? row.net : 0) - interest) };
+  }
+
+  /** What the next month's loan service will need from a subsidiary (so a distribution never starves it). */
+  serviceDue(id) {
+    return this.loansOf(id).filter((l) => l.borrower === id).reduce((a, l) => a + Math.min(l.outstanding, l.instalment) + Math.round(l.outstanding * l.rate / 12), 0);
+  }
+
+  /**
+   * What a distribution may be, by the subsidiary's policy and its actual cash: never from profit it has not got in
+   * cash, never below its protected liquidity, never while it owes, loans first if the policy says so.
+   */
+  distributionPlan(id, m) {
+    const K = this.K;
+    const pol = this.policyOf(id);
+    const a = K.account(id);
+    const { net, interest, distributable } = this.profitOf(id, m);
+    const owes = this.loansOf(id).some((l) => l.borrower === id);
+    const reserve = Math.max(pol.targetReserve, pol.minLiquidity) + (owes ? pol.emergencyReserve : 0) + this.serviceDue(id);
+    const plan = { id, m, net, interest, distributable, reserve, cash: Math.round(a.cash), avail: Math.max(0, Math.floor(a.cash - reserve)), repay: 0, send: 0, why: null };
+    if (a.arrears > 0) { plan.why = `It owes ${Math.round(a.arrears).toLocaleString()} obols to others; nothing goes up until that is paid.`; plan.avail = 0; return plan; }
+    if (distributable <= 0) { plan.why = net > 0 ? 'The month\'s profit went to the parent as interest.' : 'No profit that month.'; return plan; }
+    if (plan.avail <= 0) { plan.why = 'The profit is not in cash above its reserve (it is tied up in stock, plant or what customers owe).'; return plan; }
+    let avail = plan.avail;
+    if (pol.debtFirst) {
+      const owed = this.loansOf(id).filter((l) => l.borrower === id).reduce((x, l) => x + l.outstanding, 0);
+      plan.repay = Math.min(avail, owed, Math.floor(distributable));
+      avail -= plan.repay;
+    }
+    plan.send = Math.max(0, Math.floor(Math.min(avail, (distributable * pol.distributePct) / 100)));
+    if (!plan.send && !plan.repay) plan.why = 'The policy sends none of it up.';
+    return plan;
+  }
+
+  /** The month's distribution for a subsidiary, once: debts first (if the policy says), then the share the policy sends up. */
+  distributeMonth(id, m) {
+    const gs = this.st.group;
+    gs.dist ||= {};
+    if ((gs.dist[id]?.m ?? -1) >= m) return gs.dist[id]; // this month's is done
+    const plan = this.distributionPlan(id, m);
+    let repaid = 0;
+    let sent = 0;
+    if (plan.repay > 0) for (const l of this.loansOf(id).filter((x) => x.borrower === id)) {
+      const n = Math.min(plan.repay - repaid, l.outstanding);
+      if (n > 0 && this.repayLoan(l.id, n).ok) repaid += n;
+    }
+    if (plan.send > 0) {
+      const t = this.transfer(id, 'parent', plan.send, 'distribution', `Distribution for month ${m + 1}`);
+      if (t.ok) { sent = plan.send; post(this.K.account('parent'), this.day, 'in', 'dividend_in', sent); }
+    }
+    gs.dist[id] = { m, day: this.day, net: plan.net, distributable: plan.distributable, reserve: plan.reserve, repaid, sent, why: plan.why };
+    gs.log ||= [];
+    gs.log.push({ ...gs.dist[id], id });
+    if (gs.log.length > 120) gs.log.shift();
+    return gs.dist[id];
+  }
+
+  /**
+   * The owner (or the parent's finance) sends money up outside the schedule. Protected liquidity holds unless the
+   * owner overrides it — and then the breach is recorded, and the subsidiary's own bills face what is left.
+   */
+  distributeNow(id, amount, { override = false } = {}) {
+    if (!this.isSub(id)) return { ok: false, text: 'It is not a subsidiary.' };
+    amount = Math.round(amount);
+    const a = this.K.account(id);
+    const pol = this.policyOf(id);
+    if (a.arrears > 0) return { ok: false, text: `${this.K.nameOf(id)} owes ${Math.round(a.arrears).toLocaleString()} obols: it cannot send money up while it does.` };
+    if (!(amount > 0)) return { ok: false, text: 'Enter an amount above zero.' };
+    const breach = a.cash - amount < pol.minLiquidity;
+    if (breach && !override) return { ok: false, breach: true, text: `That would leave ${this.K.nameOf(id)} with ${Math.round(a.cash - amount).toLocaleString()} obols, below its protected minimum of ${pol.minLiquidity.toLocaleString()}. Override only if you mean it.` };
+    const t = this.transfer(id, 'parent', amount, 'distribution', override && breach ? 'Distribution (liquidity protection overridden)' : 'Distribution');
+    if (!t.ok) return t;
+    post(this.K.account('parent'), this.day, 'in', 'dividend_in', amount);
+    if (breach) {
+      const gs = this.st.group;
+      (gs.breaches ||= []).push({ day: this.day, id, left: Math.round(a.cash), min: pol.minLiquidity });
+      if (gs.breaches.length > 20) gs.breaches.shift();
+      logLine(a, { day: this.day, type: 'breach', amount, memo: 'Distribution above the protected liquidity, by the owner\'s override' });
+    }
+    return { ok: true, text: `${amount.toLocaleString()} obols sent up to ${this.parent.name}${breach ? ' — below its protected liquidity' : ''}.` };
+  }
+
+  /** Set the group's default policy (`id` null) or one subsidiary's own. Anything not named keeps its value. */
+  setPolicy(id, patch) {
+    if (!this.parent) return { ok: false, text: 'There is no parent company.' };
+    if (id !== null && !this.isSub(id)) return { ok: false, text: 'It is not a subsidiary.' };
+    const base = id === null ? this.parent.policy : this.policyOf(id);
+    const next = validPolicy(patch, base);
+    if (id === null) this.parent.policy = next; else this.parent.policies[id] = next;
+    return { ok: true, policy: next, text: id === null ? 'The group\'s default policy is set.' : `${this.K.nameOf(id)} has its own policy now.` };
+  }
+
+  clearPolicy(id) {
+    if (this.parent?.policies[id]) delete this.parent.policies[id];
+    return { ok: true, text: 'It follows the group\'s default again.' };
+  }
+
+  // ------------------------------------------------------------- the month
+  /**
+   * Monthly jobs, once per closed month, keyed by the month in the save: loan interest and instalments,
+   * then each subsidiary's distribution. A save loaded between two days, or a long sleep, runs each closed
+   * month once and in order (the most recent three at most).
+   */
+  dailyTick() {
+    if (!this.parent) return;
+    const gs = this.st.group;
+    const now = this.month;
+    gs.jobs ||= { month: now };
+    let from = gs.jobs.month + 1;
+    if (now - 1 - from > 2) from = now - 3; // a very long gap: only the last three months are run
+    for (let m = from; m <= now - 1; m++) {
+      if (m <= gs.jobs.month) continue;
+      this.runMonth(m);
+      gs.jobs.month = m;
+    }
+    if (gs.jobs.month < now - 1) gs.jobs.month = now - 1;
+  }
+
+  runMonth(m) {
+    for (const loan of this.st.loans.filter((l) => l.status === 'open' && l.firstMonth <= m && (l.lastMonth ?? -1) < m)) {
+      const a = this.K.account(loan.borrower);
+      const interest = Math.round((loan.outstanding * loan.rate) / 12);
+      let owed = interest;
+      let paid = 0;
+      if (a.arrears > 0) loan.missed++; // its bills to others come first
+      else {
+        paid += this.payInterest(loan, Math.min(interest, Math.max(0, Math.floor(a.cash))));
+        const inst = Math.min(loan.outstanding, loan.instalment);
+        const can = Math.min(inst, Math.max(0, Math.floor(a.cash)));
+        if (can > 0 && this.repayLoan(loan.id, can).ok) paid += can;
+        owed += inst;
+        if (paid < owed) loan.missed++;
+      }
+      loan.lastMonth = m;
+    }
+    for (const id of this.subs()) this.distributeMonth(id, m);
+  }
+
+  /** What needs the owner's eye: each with the facts and what to do. */
+  alerts() {
+    const out = [];
+    if (!this.parent) return out;
+    const K = this.K;
+    for (const id of this.subs()) {
+      const a = K.account(id);
+      const pol = this.policyOf(id);
+      const per = this.runningPerDay(id);
+      const name = K.nameOf(id);
+      if (a.arrears > 0) out.push({ id, kind: 'arrears', text: `${name} owes ${Math.round(a.arrears).toLocaleString()} obols it could not pay.`, advice: 'Capitalise it from the parent, or lend it money; its bills come first.' });
+      else if (a.cash < pol.minLiquidity) out.push({ id, kind: 'liquidity', text: `${name} holds ${Math.round(a.cash).toLocaleString()} obols, below its protected minimum of ${pol.minLiquidity.toLocaleString()}.`, advice: `It spends about ${per.toLocaleString()} a day: capitalise it from the parent.` });
+      else if (per > 0 && a.cash < per * 7) out.push({ id, kind: 'runway', text: `${name} has under a week of running costs in cash (${Math.round(a.cash).toLocaleString()} against about ${per.toLocaleString()} a day).`, advice: 'Capitalise it before it runs dry.' });
+    }
+    for (const l of this.st.loans.filter((x) => x.status === 'open' && x.missed > 0)) out.push({ id: l.borrower, kind: 'loan', text: `${K.nameOf(l.borrower)} has missed ${l.missed} payment${l.missed > 1 ? 's' : ''} on loan ${l.id} (${l.outstanding.toLocaleString()} outstanding).`, advice: 'Fund it, or let it clear what it owes others first.' });
+    for (const b of (this.st.group.breaches || []).filter((x) => this.day - x.day < 60)) out.push({ id: b.id, kind: 'breach', text: `On day ${b.day} ${K.nameOf(b.id)} was left with ${b.left.toLocaleString()} obols, below its protected ${b.min.toLocaleString()}, by override.`, advice: 'Watch its bills until it has rebuilt its reserve.' });
+    return out;
   }
 }

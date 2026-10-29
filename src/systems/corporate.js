@@ -384,6 +384,7 @@ export class Corporate {
 
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
   dailyTick() {
+    this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     const st = this.state;
     if (!st.generated) return;
     const g = this.game;

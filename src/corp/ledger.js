@@ -24,9 +24,9 @@ const KINDS = {
   out: {
     machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', works: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
-    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex',
+    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex', ic_interest: 'other',
   },
-  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other', internal: 'other' },
+  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other', internal: 'other', ic_interest: 'other', dividend_in: 'other' },
 };
 export const kindOf = (cat, dir) => KINDS[dir]?.[cat] || (dir === 'in' ? 'revenue' : 'opex');
 
@@ -71,6 +71,16 @@ export function monthTotals(acct, month) {
   for (const [cat, a] of Object.entries(m.in)) { const k = kindOf(cat, 'in'); if (k === 'revenue') t.revenue += a; else t.otherIn += a; }
   for (const [cat, a] of Object.entries(m.out)) { const k = kindOf(cat, 'out'); if (k === 'capex') t.capex += a; else if (k === 'opex') t.opex += a; else t.otherOut += a; }
   return t;
+}
+
+/**
+ * What passed between companies of one group in a month, outside trading: `icIn` (the shipping line's charges to its
+ * sister company, interest a parent was paid, dividends a parent received) and `icOut` (interest a subsidiary paid).
+ * None of it is revenue or cost to the group; the separate statements show it and the consolidated one removes it.
+ */
+export function icTotals(acct, month) {
+  const m = acct.months[month] || { in: {}, out: {} };
+  return { icIn: (m.in.internal || 0) + (m.in.ic_interest || 0) + (m.in.dividend_in || 0), internal: m.in.internal || 0, interestIn: m.in.ic_interest || 0, dividendIn: m.in.dividend_in || 0, icOut: m.out.ic_interest || 0 };
 }
 
 /** A funded account's cash must equal what the owner put in, less what was taken out, plus the net flow since. */
