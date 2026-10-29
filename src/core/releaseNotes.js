@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.60.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Own Account',
+    notes: [
+      'Your four businesses are companies now: name them, rename them, and — if you choose — pay money into one so it spends only its own. Buying a business is your equity; a funded company that cannot afford something is refused, and a bill it cannot cover becomes a debt.',
+      'There is a whole world of other companies: about forty-five in ten sectors, from every country, sharing the same demand you sell into — win business and they get less. The tablet\'s Intelligence app ranks them by revenue, profit, margin, growth, value or share and compares them with you; the Companies app shows each of yours with its figures.',
+    ],
+  },
+  {
     version: '0.59.0',
     date: '2026-10-28',
     channel: 'development',

@@ -32,13 +32,14 @@ export const growth = (now, before) => (now && before && before > 0 ? now / befo
 
 /**
  * What a company is worth: its net assets, plus a multiple (`pe`) of a year's profit — a loss counts
- * for half as much against it. Never below zero. `annualProfit` may be null (no history yet): then
- * it is worth its net assets.
+ * for half as much against it. Never below a third of its net assets (what its plant would fetch
+ * if it were sold), nor below zero. `annualProfit` may be null (no history yet): then it is worth
+ * its net assets.
  */
 export function value(K, sector, { netAssets, annualProfit }) {
   const pe = K.sectors[sector].pe;
   const earnings = annualProfit === null || annualProfit === undefined ? 0 : annualProfit >= 0 ? pe * annualProfit : 0.5 * pe * annualProfit;
-  return Math.max(0, Math.round(netAssets + earnings));
+  return Math.max(0, Math.round(Math.max(netAssets + earnings, Math.max(0, netAssets) / 3)));
 }
 
 /** Order entries by `key(entry)` (a number, or null for "not available"); the ranked ones get rank 1..n. */

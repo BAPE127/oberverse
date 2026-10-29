@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.59.0",
+  "version": "0.60.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -17,6 +17,8 @@
   },
   "systems": {
     "worldClock": "src/world/clock.js",
+    "companyAccounts": "src/systems/corporate.js, src/corp/ledger.js",
+    "companyRegistry": "src/corp/registry.js, src/corp/identity.js, src/corp/generate.js, src/corp/sim.js, src/corp/metrics.js",
     "maps": "src/world/gameMap.js, src/world/mapBuilder.js, src/world/pathfinding.js",
     "npcSimulation": "src/sim/npcSystem.js, src/sim/npcBrain.js, src/sim/schedule.js",
     "knowledge": "src/sim/knowledge.js",

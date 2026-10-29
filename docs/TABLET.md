@@ -8,6 +8,8 @@ The journal became a tablet. Open it with **J** (or Q, or Pause → Tablet, or t
 | Quests · People · Customers · Notes · Standing | The old journal pages. |
 | Business | Appears once you own an arms works. A remote link to the works terminal: Overview, Parts, Equipment, Staff, Research, Market. Several works → a switcher. |
 | Stocks | The Ober's Oil share register (as at Sir Moneybucks's desk) with a closing-price chart. |
+| Companies | (v0.60.0) Your businesses as companies: name, sector, headquarters, last month's figures and place, and the company's own account — pay in, take out, close. A naming panel opens when a business is founded. |
+| Intelligence | (v0.60.0) Every company of a sector ranked (revenue, net income, margin, growth, value, share; last month, this month, 12 months), a profile of each, a comparison with your own business, and business news. See `docs/CORPORATE.md`. |
 
 ## Notifications
 

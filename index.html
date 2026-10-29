@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.59.0';
+const GAME_VERSION = '0.60.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -38414,7 +38414,7 @@ const KINDS = {
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
     refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex',
   },
-  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other' },
+  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other', internal: 'other' },
 };
 const kindOf = (cat, dir) => KINDS[dir]?.[cat] || (dir === 'in' ? 'revenue' : 'opex');
 
@@ -38569,6 +38569,525 @@ function existingRows(content) {
 return { HOME, countryName, countryIds, existingRows };
 })();
 
+// ---- src/content/corporate.js
+__m["src/content/corporate.js"] = (function () {
+// The companies of the wider world (v0.60.0): how many, of what kind, what a sector can sell in a
+// day, and how a company in it is made and run. Numbers are obols and days. The generated
+// companies are made ONCE from these (src/corp/generate.js) and then saved; changing this file
+// never changes a company that already exists.
+//
+// A sector's POOL is what its customers buy in a day, whoever supplies it. Companies share it by
+// capacity, standing and price; the player's own business and the already-existing companies
+// (Meridian, Ober's Oil, Chuckie's Cheese) take what they really sell off the top, so a player
+// who wins business leaves less for the rest — and the reverse.
+
+const CORP = {
+  /** Most generated companies alive at once, and records kept in all (closed ones beyond the cap are forgotten, oldest first). */
+  cap: { alive: 60, records: 90 },
+  /** Days simulated before the game begins, so every company has a history to rank on. */
+  warmupDays: 120,
+  /** The benchmark rate (annual) until a central bank sets one. */
+  baseRate: 0.05,
+  /** Daily capacity of a new company by size, as a share of its sector's pool; sizes are drawn by weight. */
+  sizes: { small: { w: 0.5, share: 0.02 }, mid: { w: 0.35, share: 0.05 }, large: { w: 0.15, share: 0.11 } },
+  /** Plant: what one obol of daily capacity costs to build, the share of that cost the plant is worth on the books. */
+  plantCost: 40,
+  plantBook: 0.6,
+  /** Fixed costs a day as a share of margin-earning capacity; a company breaks even at about this share of its capacity sold. */
+  fixedOfMargin: 0.55,
+  /** A company goes under when its cash has been below zero this many days in a row. */
+  insolventDays: 45,
+  /** Listed companies: the share of generated companies with a ticker, and the share counts. */
+  listedShare: 0.38,
+  shares: { small: [2e6, 6e6], mid: [6e6, 2e7], large: [2e7, 6e7] },
+  /** A new entrant may appear in a sector whose companies are this busy (30-day utilisation), at most this many a month overall and one per sector in `cooldown` days. */
+  entry: { busy: 0.95, chance: 0.35, perMonth: 2, cooldown: 120 },
+  /** What a sector's companies are called: stems by country (flavour), then a suffix by sector. */
+  stems: {
+    home: ['Copperfield', 'Lantern', 'Northbank', 'Harbourline', 'Millrace', 'Gullwing', 'Tidewater', 'Brasswick', 'Fairhaven', 'Quillon'],
+    varn: ['Kestrel', 'Varn', 'Tashkar', 'Orlov', 'Daghan', 'Ironmark'],
+    ostmark: ['Hartmann', 'Brandt', 'Ostwerk', 'Kessler', 'Rheinholt', 'Falken'],
+    caldera: ['Calder', 'Mesa', 'Horn', 'Corvane', 'Salto', 'Verdan'],
+    sund: ['Sundholm', 'Fjell', 'Norrby', 'Skarn', 'Lindqvist', 'Vik'],
+    pallas: ['Pallas', 'Aegir', 'Ionis', 'Thessal', 'Krios', 'Mylos'],
+    teshvar: ['Teshvar', 'Zhan', 'Orun', 'Khoral', 'Bai-Dun', 'Sarkhan'],
+    morrow: ['Morrow', 'Coralline', 'Tideline', 'Palmer', 'Reefgate', 'Kauri'],
+    lirre: ['Lirre', 'Valmont', 'Duchess', 'Aubrac', 'Montclair', 'Lorrain'],
+  },
+  suffix: {
+    arms: ['Arms', 'Ordnance', 'Defence Systems', 'Munitions', 'Armaments'],
+    shipping: ['Lines', 'Shipping', 'Maritime', 'Freight', 'Marine'],
+    aerospace: ['Aerospace', 'Aviation', 'Aeronautics', 'Aircraft'],
+    agriculture: ['Agri', 'Farms', 'Grain Co.', 'Harvest', 'Growers'],
+    energy: ['Petroleum', 'Power', 'Energy', 'Fuels'],
+    industrial: ['Steelworks', 'Machinery', 'Industries', 'Foundry', 'Engineering'],
+    transport: ['Rail', 'Haulage', 'Coaches', 'Transit'],
+    communications: ['Telecom', 'Signals', 'Broadcast', 'Cable'],
+    satellites: ['Orbital', 'Sky Networks', 'Satcom', 'Spaceworks'],
+    finance: ['Bank', 'Trust', 'Mutual', 'Insurance', 'Capital'],
+  },
+  /**
+   * The sectors with something to sell. count: how many generated at the start. pool: what the
+   * customers buy a day at the start; growth: yearly drift; wave: the size of the cycle (a share
+   * of the pool) and its length in days. pe: the multiple of a year's profit a company is worth (the player's businesses and the
+   * listed ones are valued the same way). margin: what a company at par keeps of each obol sold
+   * before fixed costs. specialities: what a company can be known for.
+   */
+  sectors: {
+    arms: { count: 6, pe: 11, pool: 160000, growth: 0.04, wave: 0.12, period: 47, margin: 0.32, specialities: ['small arms', 'heavy weapons', 'missiles', 'drones', 'ammunition'] },
+    shipping: { count: 6, pe: 10, pool: 95000, growth: 0.05, wave: 0.1, period: 61, margin: 0.18, specialities: ['bulk cargo', 'containers', 'tankers', 'roll-on/roll-off', 'refrigerated cargo'] },
+    aerospace: { count: 5, pe: 14, pool: 210000, growth: 0.05, wave: 0.14, period: 83, margin: 0.2, specialities: ['light aircraft', 'airliners', 'launch services', 'components', 'helicopters'] },
+    agriculture: { count: 6, pe: 11, pool: 125000, growth: 0.03, wave: 0.16, period: 90, margin: 0.14, specialities: ['grain', 'livestock', 'dairy', 'cotton', 'fruit and vegetables'] },
+    energy: { count: 4, pe: 10, pool: 300000, growth: 0.03, wave: 0.12, period: 71, margin: 0.3, specialities: ['crude oil', 'refining', 'gas', 'power generation'] },
+    industrial: { count: 5, pe: 10, pool: 260000, growth: 0.04, wave: 0.1, period: 77, margin: 0.16, specialities: ['steel', 'machine tools', 'vehicles', 'chemicals'] },
+    transport: { count: 4, pe: 9, pool: 120000, growth: 0.04, wave: 0.08, period: 53, margin: 0.12, specialities: ['rail freight', 'road haulage', 'passenger rail', 'air charter'] },
+    communications: { count: 3, pe: 12, pool: 140000, growth: 0.06, wave: 0.07, period: 67, margin: 0.28, specialities: ['telephony', 'broadcasting', 'undersea cable'] },
+    satellites: { count: 3, pe: 14, pool: 90000, growth: 0.1, wave: 0.12, period: 59, margin: 0.35, specialities: ['communications', 'imaging', 'navigation'] },
+    finance: { count: 4, pe: 9, pool: 200000, growth: 0.04, wave: 0.09, period: 73, margin: 0.4, specialities: ['commercial banking', 'insurance', 'trade finance', 'asset management'] },
+  },
+  /** How the arms pool is read from the real arms market: obols a day per obol of the countries' daily income, and what a war adds. */
+  armsPool: { perIncome: 0.7, perWar: 0.06 },
+  strategies: {
+    aggressive: { name: 'Aggressive', invest: 0.85, debt: 1.4, price: -0.05 },
+    steady: { name: 'Steady', invest: 0.93, debt: 1.0, price: 0 },
+    conservative: { name: 'Conservative', invest: 0.98, debt: 0.6, price: 0.04 },
+  },
+};
+
+return { CORP };
+})();
+
+// ---- src/corp/sim.js
+__m["src/corp/sim.js"] = (function () {
+// The wider world's companies (v0.60.0): how they are made and how a day goes for each. Pure
+// functions over plain records — no game state, no DOM, no RNG (only hashes of ids and days, so
+// the same save always gives the same history). `K` is CORP from src/content/corporate.js.
+//
+//   poolAt(K, sector, day, extra)       what a sector's customers buy in a day
+//   makeCompany(K, spec)                a new company from its id (everything about it a hash of that)
+//   allocate(demand, parts)             how a day's demand is shared by capacity, standing and price
+//   stepDay(K, companies, ctx)          one day for every company in a sector → what was sold
+//   monthEnd(K, world, day, ctx)        a month's entries, exits and mergers
+//
+// A company is: capacity (daily sales it can carry) · cash · debt · plant (what its capacity cost to
+// build). Each day it sells what its share of the pool and its capacity allow, pays for what it sold
+// and for being open, pays interest, and keeps what is left. Cash it does not have is borrowed (up to
+// a limit set by what it earns) or not paid; a company short of cash for too long goes under, its plant
+// sold and its lenders taking the loss — nothing is ever paid out of thin air.
+const { hashUnit } = __m["src/aero/config.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const round = (v) => Math.round(v);
+const MONTH = 30;
+const monthOf = (day) => Math.floor((day - 1) / MONTH); // the history before day 1 has negative months
+
+// ------------------------------------------------------------------ the pool
+/** What a sector's customers buy a day: its size, drifting up, with a slow cycle; arms reads the real arms market. */
+function poolAt(K, sector, day, extra = {}) {
+  const S = K.sectors[sector];
+  const phase = hashUnit(`pool|${sector}`) * Math.PI * 2;
+  const wave = 1 + S.wave * Math.sin((2 * Math.PI * day) / S.period + phase);
+  const drift = 1 + (S.growth * day) / 365;
+  let base = S.pool;
+  if (sector === 'arms' && extra.armsIncome) base = extra.armsIncome * K.armsPool.perIncome * (1 + K.armsPool.perWar * (extra.wars || 0));
+  return base * drift * wave * (extra.demand?.[sector] ?? 1);
+}
+
+// ------------------------------------------------------------------ making one
+const pickBy = (list, key, salt = '') => list[Math.floor(hashUnit(`${salt}|${key}`) * list.length) % list.length];
+
+function sizeFor(K, key, salt = '') {
+  const r = hashUnit(`${salt}|${key}|size`);
+  let acc = 0;
+  for (const [name, s] of Object.entries(K.sizes)) { acc += s.w; if (r < acc) return name; }
+  return 'mid';
+}
+
+/**
+ * A company from a spec { id, sector, country, day, name, ticker?, size? }. Its character — size,
+ * speciality, strategy, risk, management, standing, efficiency, price level — is a hash of its id,
+ * so it can never change; the money it starts with follows from them.
+ */
+function makeCompany(K, { id, sector, country, day, name, ticker = null, size = null, pool, salt = '' }) {
+  const S = K.sectors[sector];
+  const h = (k) => hashUnit(`${salt}|${id}|${k}`);
+  size = size || sizeFor(K, id, salt);
+  const strategy = pickBy(Object.keys(K.strategies), `${id}|strategy`, salt);
+  const mgmt = clamp(0.25 + h('mgmt') * 0.7, 0, 1); // management quality
+  const effic = clamp(0.85 + h('effic') * 0.3 + (mgmt - 0.5) * 0.1, 0.8, 1.2);
+  const capacity = Math.max(500, round(pool * K.sizes[size].share * (0.7 + h('cap') * 0.6)));
+  const fixed = capacity * S.margin * K.fixedOfMargin;
+  const priceLevel = clamp(1 + K.strategies[strategy].price + (h('price') - 0.5) * 0.06, 0.9, 1.1);
+  const risk = clamp(0.15 + h('risk') * 0.7, 0, 1);
+  const plant = capacity * K.plantCost * K.plantBook;
+  const c = {
+    id, name, kind: 'generated', sector, country, size, strategy, ticker, listed: Boolean(ticker),
+    speciality: pickBy(S.specialities, `${id}|spec`, salt),
+    age: Math.round(2 + h('age') * 70), // years old when the game began
+    founded: day,
+    mgmt, effic, priceLevel, risk, rep: clamp(0.35 + h('rep') * 0.55, 0, 1),
+    capacity, util: 0.75, plantValue: plant,
+    cash: round(fixed * (30 + h('cash') * 120)),
+    debt: round(plant * (0.05 + h('debt') * 0.45 * K.strategies[strategy].debt)),
+    shares: ticker ? Math.round(K.shares[size][0] + h('shares') * (K.shares[size][1] - K.shares[size][0])) : null,
+    status: 'active', negDays: 0, closedDay: null, mergedInto: null,
+    months: [], // [month, revenue, cogs, fixed, interest, net, capex, dividends] — newest last
+    totals: { revenue: 0, net: 0 },
+  };
+  return c;
+}
+
+// ------------------------------------------------------------------ a day
+/** Share a day's demand: each takes by weight, none beyond its capacity, what is left over goes to the rest. */
+function allocate(demand, parts) {
+  const sold = parts.map(() => 0);
+  let remaining = Math.max(0, demand);
+  let open = parts.map((_, i) => i);
+  for (let pass = 0; pass < 6 && open.length && remaining > 1e-6; pass++) {
+    const totalW = open.reduce((a, i) => a + parts[i].w, 0);
+    if (totalW <= 0) break;
+    const next = [];
+    let used = 0;
+    for (const i of open) {
+      const want = (remaining * parts[i].w) / totalW;
+      const room = parts[i].cap - sold[i];
+      if (want >= room) { sold[i] += room; used += room; } else { sold[i] += want; used += want; next.push(i); }
+    }
+    remaining -= used;
+    if (next.length === open.length) break; // everyone took their share and had room: done
+    open = next;
+  }
+  return sold;
+}
+
+const margin = (K, c, ctx) => {
+  const S = K.sectors[c.sector];
+  return clamp(S.margin * c.effic + (c.priceLevel - 1) * 0.8 - (ctx.cost?.[c.sector] ? (ctx.cost[c.sector] - 1) * (1 - S.margin) : 0), -0.2, 0.6);
+};
+
+function book(c, day) {
+  const m = monthOf(day);
+  let row = c.months.at(-1);
+  if (!row || row[0] !== m) { row = [m, 0, 0, 0, 0, 0, 0, 0]; c.months.push(row); while (c.months.length > 24) c.months.shift(); }
+  return row;
+}
+
+/**
+ * One day for every company of one sector. `demand` is the sector's pool less what the player's
+ * business and the older companies already sold. Returns { sold, utilisation }.
+ */
+function stepDay(K, companies, demand, day, ctx = {}) {
+  const live = companies.filter((c) => c.status === 'active' || c.status === 'distressed');
+  const parts = live.map((c) => ({ cap: c.capacity, w: c.capacity * (0.7 + 0.6 * c.rep) * (1.5 - c.priceLevel) }));
+  const sold = allocate(demand, parts);
+  let total = 0;
+  live.forEach((c, i) => {
+    const rev = sold[i];
+    total += rev;
+    const gm = margin(K, c, ctx);
+    const cogs = rev * (1 - gm);
+    const S = K.sectors[c.sector];
+    const fixed = c.capacity * S.margin * K.fixedOfMargin;
+    const rate = (ctx.rate ?? K.baseRate) + 0.01 + c.risk * 0.04;
+    const interest = (c.debt * rate) / 365;
+    const net = rev - cogs - fixed - interest;
+    c.cash += net;
+    c.util += ((c.capacity ? rev / c.capacity : 0) - c.util) / 30;
+    const row = book(c, day);
+    row[1] += rev; row[2] += cogs; row[3] += fixed; row[4] += interest; row[5] += net;
+    c.totals.revenue += rev; c.totals.net += net;
+    c.lastNet = net;
+    treasury(K, c, day, row, ctx);
+  });
+  const cap = live.reduce((a, c) => a + c.capacity, 0);
+  return { sold: total, utilisation: cap ? total / cap : 0 };
+}
+
+/** What a company does with its cash: borrow what it can when short, repay when flush, build when busy, shed when idle, go under when broke. */
+function treasury(K, c, day, row, ctx) {
+  const S = K.sectors[c.sector];
+  const T = K.strategies[c.strategy];
+  const fixed = c.capacity * S.margin * K.fixedOfMargin;
+  const annual = Math.max(0, (c.lastNet ?? 0) * 365);
+  const limit = Math.max(c.plantValue * 0.5, annual * 3 * T.debt);
+  if (c.cash < 0) {
+    const draw = Math.min(-c.cash + fixed * 20, Math.max(0, limit - c.debt));
+    if (draw > 0) { c.debt += draw; c.cash += draw; }
+  } else if (c.debt > 0 && c.cash > fixed * 120) {
+    const pay = Math.min(c.debt, (c.cash - fixed * 90) * 0.1);
+    c.debt -= pay; c.cash -= pay;
+  }
+  if (c.cash < 0) {
+    c.negDays++;
+    if (c.status === 'active') c.status = 'distressed';
+    if (c.negDays >= K.insolventDays) failure(K, c, day);
+    return;
+  }
+  c.negDays = 0;
+  if (c.status === 'distressed' && c.cash > fixed * 20) c.status = 'active';
+  // build: busy, with money to spare
+  if (c.status === 'active' && c.util > T.invest && c.cash > fixed * 60 && c.capacity < K.sectors[c.sector].pool * 0.4) {
+    const spend = Math.min(c.cash * 0.25, c.capacity * 0.04 * K.plantCost);
+    const add = spend / K.plantCost;
+    c.cash -= spend; c.capacity += add; c.plantValue += spend * K.plantBook; row[6] += spend;
+  }
+  // shed: idle for a long time — the plant is sold at half its book value
+  if (c.util < 0.45 && c.capacity > 800) {
+    const cut = c.capacity * 0.01;
+    c.capacity -= cut;
+    const gain = (c.plantValue * 0.5 * cut) / (c.capacity + cut);
+    c.plantValue -= (c.plantValue * cut) / (c.capacity + cut);
+    c.cash += gain;
+  }
+  // plant wears: a thirtieth of a percent a day
+  c.plantValue *= 1 - 0.0003;
+}
+
+/** A company that cannot pay is wound up: the plant is sold at 40% of its book value to its lenders, who take the rest as a loss. */
+function failure(K, c, day) {
+  const recover = c.plantValue * 0.4;
+  const paid = Math.min(c.debt, recover);
+  c.lossToLenders = Math.max(0, Math.round(c.debt - paid + Math.max(0, -c.cash)));
+  c.debt = 0; c.cash = 0; c.capacity = 0; c.plantValue = 0;
+  c.status = 'closed'; c.closedDay = day;
+}
+
+// ------------------------------------------------------------------ a month
+/**
+ * Month's end for a world { companies, nextId }: dividends to the shareholders of the listed,
+ * mergers of the failing into the strong, a new entrant where the sector is busy, and the oldest
+ * closed records forgotten past the cap. `makeName(sector, country, id)` and `makeTicker` come from
+ * the caller (they need the names already taken). Returns what happened, as lines.
+ */
+function monthEnd(K, world, day, ctx, { makeName, makeTicker, countries }) {
+  const out = [];
+  // to the owners: 40% of last month's profit for a listed company, 30% for a private one — if it can spare it
+  for (const c of world.companies) {
+    if (c.status !== 'active') continue;
+    const m = c.months.at(-2);
+    if (!m || m[5] <= 0) continue;
+    const S = K.sectors[c.sector];
+    const fixed = c.capacity * S.margin * K.fixedOfMargin;
+    const div = Math.min(m[5] * (c.listed ? 0.4 : 0.3), Math.max(0, c.cash - fixed * 60));
+    if (div > 0) { c.cash -= div; m[7] += div; }
+  }
+  // mergers: a distressed company is taken over by the strongest in its sector that can pay
+  for (const c of world.companies) {
+    if (c.status !== 'distressed' || c.capacity <= 0) continue;
+    const buyers = world.companies.filter((b) => b.sector === c.sector && b.status === 'active' && b.id !== c.id && b.cash > c.plantValue * 0.6).sort((a, b) => b.cash - a.cash);
+    const b = buyers[0];
+    if (!b) continue;
+    const price = Math.max(0, Math.round(c.plantValue * 0.5 - c.debt));
+    b.cash -= price;
+    b.debt += c.debt;
+    b.capacity += c.capacity * 0.8;
+    b.plantValue += c.plantValue * 0.8;
+    c.debt = 0; c.cash = 0; c.capacity = 0; c.plantValue = 0;
+    c.status = 'merged'; c.mergedInto = b.id; c.closedDay = day;
+    out.push({ kind: 'merger', sector: c.sector, id: c.id, into: b.id, text: `${b.name} has taken over the failing ${c.name}.` });
+  }
+  // entry: a sector whose companies are all busy draws a newcomer (never beyond the caps)
+  const alive = world.companies.filter((c) => c.status === 'active' || c.status === 'distressed');
+  let entered = 0;
+  for (const sector of Object.keys(K.sectors)) {
+    if (entered >= K.entry.perMonth || alive.length + entered >= K.cap.alive) break;
+    const mine = alive.filter((c) => c.sector === sector);
+    if (!mine.length) continue;
+    const cap = mine.reduce((a, c) => a + c.capacity, 0);
+    const util = mine.reduce((a, c) => a + c.util * c.capacity, 0) / Math.max(1, cap);
+    if (util < K.entry.busy) continue;
+    if (day - (world.lastEntry[sector] ?? -9999) < K.entry.cooldown) continue;
+    if (hashUnit(`${world.salt}|entry|${sector}|${monthOf(day)}`) >= K.entry.chance) continue;
+    world.lastEntry[sector] = day;
+    const id = `gen_${world.nextId++}`;
+    const country = countries[Math.floor(hashUnit(`${world.salt}|${id}|country`) * countries.length)];
+    const pool = poolAt(K, sector, day, ctx.poolExtra || {});
+    const name = makeName(sector, country, id);
+    const c = makeCompany(K, { id, sector, country, day, name, size: 'small', pool, salt: world.salt });
+    c.age = 0; c.cash = Math.round(c.capacity * K.sectors[sector].margin * K.fixedOfMargin * 120); c.debt = 0;
+    world.companies.push(c);
+    entered++;
+    out.push({ kind: 'entry', sector, id, text: `${c.name} (${c.country}) has entered the ${sector} business.` });
+  }
+  // forget the oldest closed records past the cap
+  const closed = world.companies.filter((c) => c.status === 'closed' || c.status === 'merged').sort((a, b) => a.closedDay - b.closedDay);
+  while (world.companies.length > K.cap.records && closed.length) world.companies.splice(world.companies.indexOf(closed.shift()), 1);
+  return out;
+}
+
+return { MONTH, monthOf, poolAt, makeCompany, allocate, stepDay, monthEnd };
+})();
+
+// ---- src/corp/generate.js
+__m["src/corp/generate.js"] = (function () {
+// Making the wider world (v0.60.0): the first population of companies, once, from a seed. Pure.
+//
+//   buildWorld(K, ctx)      → { salt, nextId, companies } and a history before the game begins
+//   namer(K, taken)         → { makeName, makeTicker } that never repeat a name or a ticker
+//
+// Everything about a company is a hash of the world's salt and its id, so the same save always
+// holds the same companies — and a save only ever makes them once (src/systems/corporate.js).
+const { hashUnit } = __m["src/aero/config.js"];
+const { validateName } = __m["src/corp/identity.js"];
+const { makeCompany, poolAt, stepDay, monthEnd, MONTH } = __m["src/corp/sim.js"];
+
+const RESERVED_TICKERS = ['OBRO', 'CHZ', 'MRDN'];
+
+/** Names and tickers that never repeat one already used. `taken` is a Set of lower-case names; `tickers` a Set of tickers. */
+function namer(K, taken, tickers, salt) {
+  const makeName = (sector, country, id) => {
+    const stems = K.stems[country] || K.stems.home;
+    const sufs = K.suffix[sector];
+    const base = Math.floor(hashUnit(`${salt}|${id}|stem`) * stems.length);
+    const sb = Math.floor(hashUnit(`${salt}|${id}|suf`) * sufs.length);
+    for (let i = 0; i < stems.length * sufs.length; i++) {
+      const name = `${stems[(base + i) % stems.length]} ${sufs[(sb + Math.floor(i / stems.length)) % sufs.length]}`;
+      if (!taken.has(name.toLowerCase()) && validateName(name).ok) { taken.add(name.toLowerCase()); return name; }
+    }
+    let n = 2;
+    for (;;) { const name = `${stems[base]} ${sufs[sb]} ${n++}`; if (!taken.has(name.toLowerCase())) { taken.add(name.toLowerCase()); return name; } }
+  };
+  const makeTicker = (name) => {
+    const letters = name.toUpperCase().replace(/[^A-Z ]/g, '').split(' ');
+    const stem = letters[0];
+    const tries = [stem.slice(0, 3), stem.slice(0, 4), stem[0] + stem.slice(1).replace(/[AEIOU]/g, '').slice(0, 2), `${stem[0]}${(letters[1] || 'X')[0]}${stem[1] || 'X'}`];
+    for (const t of tries) if (t.length >= 3 && !tickers.has(t) && !RESERVED_TICKERS.includes(t)) { tickers.add(t); return t; }
+    for (let i = 2; ; i++) { const t = `${stem.slice(0, 3)}${i}`; if (!tickers.has(t)) { tickers.add(t); return t; } }
+  };
+  return { makeName, makeTicker };
+}
+
+/**
+ * The first population, then `warmupDays` of history before `day`. `ctx`: { salt, day, names (taken), countries,
+ * poolExtra }. Returns { world: { salt, nextId, companies }, N } — N (the namer) is not saved; see rebuildNamer.
+ */
+function buildWorld(K, { salt, day, taken, countries, poolExtra = {} }) {
+  const tickers = new Set(RESERVED_TICKERS);
+  const N = namer(K, taken, tickers, salt);
+  const world = { salt, nextId: 1, lastEntry: {}, companies: [] };
+  for (const [sector, S] of Object.entries(K.sectors)) {
+    const pool = poolAt(K, sector, day - K.warmupDays, poolExtra);
+    const mine = [];
+    for (let i = 0; i < S.count; i++) {
+      const id = `gen_${world.nextId++}`;
+      const country = countries[Math.floor(hashUnit(`${salt}|${id}|country`) * countries.length)];
+      mine.push(makeCompany(K, { id, sector, country, day: day - K.warmupDays, name: N.makeName(sector, country, id), pool, salt }));
+    }
+    // sizes are drawn by chance: scale the sector's capacity so that, together, it can carry about 115% of the pool
+    const cap = mine.reduce((a, c) => a + c.capacity, 0);
+    const k = (pool * 1.15) / cap;
+    for (const c of mine) {
+      c.capacity = Math.max(500, Math.round(c.capacity * k));
+      c.plantValue = c.capacity * K.plantCost * K.plantBook;
+      const fixed = c.capacity * S.margin * K.fixedOfMargin;
+      c.cash = Math.round(fixed * (30 + hashUnit(`${salt}|${c.id}|cash`) * 120));
+      c.debt = Math.round(c.plantValue * (0.05 + hashUnit(`${salt}|${c.id}|debt`) * 0.45 * K.strategies[c.strategy].debt));
+    }
+    world.companies.push(...mine);
+  }
+  // the biggest 38% are listed, each with a ticker of its own
+  const byCap = [...world.companies].sort((a, b) => b.capacity - a.capacity);
+  const listed = Math.round(world.companies.length * K.listedShare);
+  for (const c of byCap.slice(0, listed)) {
+    c.listed = true;
+    c.ticker = N.makeTicker(c.name);
+    c.shares = Math.round(K.shares[c.size][0] + hashUnit(`${salt}|${c.id}|shares`) * (K.shares[c.size][1] - K.shares[c.size][0]));
+  }
+  return { world, N };
+}
+
+/** A namer for a world loaded from a save: the names and tickers already in use are the records' own. */
+function rebuildNamer(K, world, takenNames) {
+  const taken = new Set(takenNames.map((n) => n.toLowerCase()));
+  const tickers = new Set(RESERVED_TICKERS);
+  for (const c of world.companies) { taken.add(c.name.toLowerCase()); if (c.ticker) tickers.add(c.ticker); }
+  return namer(K, taken, tickers, world.salt);
+}
+
+/** Run the world from `from` to `to` (inclusive), a day at a time. `demandFor(sector, day)` is what the sector sells that day to others. */
+function advance(K, world, from, to, ctxFor, N, countries, news = null) {
+  for (let day = from; day <= to; day++) {
+    const ctx = ctxFor(day);
+    for (const sector of Object.keys(K.sectors)) {
+      const mine = world.companies.filter((c) => c.sector === sector);
+      const pool = poolAt(K, sector, day, ctx.poolExtra || {});
+      const demand = Math.max(pool * 0.25, pool - (ctx.external?.[sector] || 0));
+      stepDay(K, mine, demand, day, ctx);
+    }
+    if ((((day - 1) % MONTH) + MONTH) % MONTH === 0) {
+      const lines = monthEnd(K, world, day, ctx, { makeName: N.makeName, makeTicker: N.makeTicker, countries });
+      for (const l of lines) news?.push({ day, ...l });
+    }
+  }
+}
+
+return { namer, buildWorld, rebuildNamer, advance };
+})();
+
+// ---- src/corp/metrics.js
+__m["src/corp/metrics.js"] = (function () {
+// Comparing companies (v0.60.0). Pure functions over plain figures — no game state, no DOM.
+//
+//   figures(rows)             one period's figures from a list of month rows
+//   growth(now, before)       change between two periods (null when there is nothing to compare)
+//   value(K, sector, inputs)  what a company is worth: its net assets plus a multiple of a year's profit
+//   rank(entries, key)        entries ordered by a figure, ranks given, those without it left unranked
+//   shares(entries)           each one's share of what the tracked companies sold
+//
+// A figure that a company's books do not have is `null`, never zero or a guess; the screens say
+// "not available". A valuation is a statement about worth, not money: nothing here moves a coin.
+
+const sum = (a, f) => a.reduce((x, r) => x + (f(r) ?? 0), 0);
+const has = (a, f) => a.some((r) => f(r) !== null && f(r) !== undefined);
+
+/**
+ * Figures for a period from month rows { revenue, cogs|null, opex, capex, interest, net }. Operating
+ * profit is revenue less cost of goods (if kept apart) and operating expenses.
+ */
+function figures(rows) {
+  if (!rows.length) return null;
+  const revenue = sum(rows, (r) => r.revenue);
+  const cogs = has(rows, (r) => r.cogs) ? sum(rows, (r) => r.cogs) : null;
+  const opex = sum(rows, (r) => r.opex);
+  const capex = sum(rows, (r) => r.capex);
+  const interest = sum(rows, (r) => r.interest);
+  const operating = revenue - (cogs ?? 0) - opex;
+  const net = has(rows, (r) => r.net) ? sum(rows, (r) => r.net) : operating - interest;
+  return { revenue, cogs, opex, operating, interest, net, capex, margin: revenue > 0 ? net / revenue : null, months: rows.length };
+}
+
+const growth = (now, before) => (now && before && before > 0 ? now / before - 1 : null);
+
+/**
+ * What a company is worth: its net assets, plus a multiple (`pe`) of a year's profit — a loss counts
+ * for half as much against it. Never below a third of its net assets (what its plant would fetch
+ * if it were sold), nor below zero. `annualProfit` may be null (no history yet): then it is worth
+ * its net assets.
+ */
+function value(K, sector, { netAssets, annualProfit }) {
+  const pe = K.sectors[sector].pe;
+  const earnings = annualProfit === null || annualProfit === undefined ? 0 : annualProfit >= 0 ? pe * annualProfit : 0.5 * pe * annualProfit;
+  return Math.max(0, Math.round(Math.max(netAssets + earnings, Math.max(0, netAssets) / 3)));
+}
+
+/** Order entries by `key(entry)` (a number, or null for "not available"); the ranked ones get rank 1..n. */
+function rank(entries, key, { ascending = false } = {}) {
+  const ok = entries.filter((e) => Number.isFinite(key(e)));
+  ok.sort((a, b) => (ascending ? key(a) - key(b) : key(b) - key(a)) || String(a.id).localeCompare(String(b.id)));
+  const out = ok.map((e, i) => ({ ...e, rank: i + 1 }));
+  for (const e of entries) if (!Number.isFinite(key(e))) out.push({ ...e, rank: null });
+  return out;
+}
+
+/** Share of the revenue that the tracked companies made. */
+function shares(entries) {
+  const total = sum(entries, (e) => (Number.isFinite(e.revenue) ? e.revenue : 0));
+  return Object.fromEntries(entries.map((e) => [e.id, total > 0 && Number.isFinite(e.revenue) ? e.revenue / total : null]));
+}
+
+return { figures, growth, value, rank, shares };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -38589,7 +39108,11 @@ __m["src/systems/corporate.js"] = (function () {
 // save loads with every company unfunded and nothing moved (see src/corp/ledger.js).
 const { freshAccount, post, logLine, balanceOk } = __m["src/corp/ledger.js"];
 const { validateName, PLAYER_COMPANIES, SECTORS } = __m["src/corp/identity.js"];
-const { existingRows, countryName } = __m["src/corp/registry.js"];
+const { existingRows, countryName, countryIds } = __m["src/corp/registry.js"];
+const { CORP } = __m["src/content/corporate.js"];
+const { buildWorld, rebuildNamer, advance } = __m["src/corp/generate.js"];
+const { monthTotals } = __m["src/corp/ledger.js"];
+const { figures, growth, value: worth, rank: rankBy, shares } = __m["src/corp/metrics.js"];
 
 const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
 
@@ -38786,6 +39309,12 @@ class Corporate {
     return Object.values(this.state.accounts).every(balanceOk);
   }
 
+  /** After a new game or a load: a record for each business already owned, and the wider world (once). */
+  afterLoad() {
+    this.ensureCompanies();
+    this.ensureWorld();
+  }
+
   // ------------------------------------------------------------- identity
   /** The name a business carries until its owner renames it (shipping and aerospace keep the names they were bought with). */
   defaultName(id) {
@@ -38869,6 +39398,223 @@ class Corporate {
     return { ...c, kind: PLAYER_COMPANIES[id].kind, icon: PLAYER_COMPANIES[id].icon, sectorName: SECTORS[c.sector].name, hq: this.hqOf(id), funded: a.funded, cash: this.cashOf(id), ownCash: a.cash, arrears: a.arrears, contributed: a.contributed, distributed: a.distributed, inKind: a.inKind, country: 'home', countryName: countryName(this.game.content, 'home') };
   }
 
+  // ------------------------------------------------------------- the wider world
+  /**
+   * The companies of the other countries: made once, from a seed kept in the save, with a history
+   * before the game. A save that has them never makes them again.
+   */
+  ensureWorld() {
+    const st = this.state;
+    if (st.generated) return;
+    const g = this.game;
+    const salt = String(g.rng.state);
+    const day = g.clock.day;
+    const taken = new Set(this.takenNames().map((n) => n.toLowerCase()));
+    for (const id of COMPANY_IDS) taken.add(this.defaultName(id).toLowerCase());
+    const { world, N } = buildWorld(CORP, { salt, day, taken, countries: countryIds(g.content), poolExtra: this.poolExtra(day) });
+    st.gen = { salt, nextId: world.nextId, lastDay: day - 1, news: [] };
+    st.generated = world.companies;
+    this.namer = N;
+    advance(CORP, this.worldView(), day - CORP.warmupDays, day - 1, (d) => this.worldCtx(d, true), N, countryIds(g.content), []);
+  }
+
+  /** The saved companies as the simulation sees them (its id counter lives in the save). */
+  worldView() {
+    const st = this.state;
+    return { salt: st.gen.salt, get nextId() { return st.gen.nextId; }, set nextId(v) { st.gen.nextId = v; }, get lastEntry() { return (st.gen.lastEntry ||= {}); }, companies: st.generated };
+  }
+
+  /** What the rest of the world's pools are read from: the real arms market. */
+  poolExtra() {
+    const g = this.game;
+    const m = g.world.market; // read as it stands: the market's own getter would start it (and draw on the dice) earlier than it ever did
+    if (!m?.countries) return {};
+    const cs = Object.entries(m.countries || {});
+    const inc = cs.reduce((a, [id]) => a + (g.content.arms.countries[id]?.income || 0), 0);
+    return { armsIncome: inc, wars: (m.wars || []).length };
+  }
+
+  /** What the player's own businesses (and the older companies) sold a day over the last month: it comes off the top of each pool. */
+  externalSales() {
+    const g = this.game;
+    const day = g.clock.day;
+    const perDay = (id) => {
+      if (!this.established(id)) return 0;
+      const a = this.account(id);
+      const m = monthTotals(a, Math.floor((day - 1) / 30));
+      const p = monthTotals(a, Math.floor((day - 1) / 30) - 1);
+      const days = Math.min(30, ((day - 1) % 30) + 1) + 30;
+      return Math.max(0, (m.revenue + p.revenue) / days);
+    };
+    const ext = { arms: perDay('arms'), shipping: perDay('shipping'), agriculture: perDay('farming'), aerospace: perDay('aerospace') };
+    if (g.aero.owned || g.aero.meridian) {
+      const w = g.aero.statement?.(g.aero.meridian, 14);
+      if (w) ext.aerospace += Math.max(0, w.revenue / 14);
+    }
+    return ext;
+  }
+
+  worldCtx(day, warm = false) {
+    return { rate: CORP.baseRate, external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
+  }
+
+  /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
+  dailyTick() {
+    const st = this.state;
+    if (!st.generated) return;
+    const g = this.game;
+    const day = g.clock.day;
+    if (st.gen.lastDay >= day) return;
+    const from = Math.max(st.gen.lastDay + 1, day - 30);
+    const world = this.worldView();
+    this.namer ||= rebuildNamer(CORP, world, this.takenNames());
+    const news = [];
+    advance(CORP, world, from, day, (d) => this.worldCtx(d), this.namer, countryIds(g.content), news);
+    st.gen.lastDay = day;
+    if ((day - 1) % 30 === 0) this.recordRanks();
+    for (const n of news) st.gen.news.unshift({ day: n.day, text: n.text, kind: n.kind, sector: n.sector });
+    if (st.gen.news.length > 40) st.gen.news.length = 40;
+  }
+
+  // ------------------------------------------------------------- figures, worth, rankings
+  /**
+   * One company's months as plain rows { m, revenue, cogs, opex, capex, interest, net } — read from
+   * the books it already keeps. `basis` says how: 'books' (accrual books: aerospace), 'cash' (what
+   * actually moved through the company's account: arms, shipping, farming), 'model' (a generated
+   * company's own books), 'run-rate' (today's numbers for a month: Chuckie's Cheese), or 'none'.
+   */
+  rowsOf(r) {
+    const g = this.game;
+    if (r.kind === 'generated') {
+      const c = (this.state.generated || []).find((x) => x.id === r.id);
+      return { basis: 'model', rows: (c?.months || []).map((m) => ({ m: m[0], revenue: m[1], cogs: m[2], opex: m[3], interest: m[4], net: m[5], capex: m[6] })) };
+    }
+    if (r.kind === 'player') {
+      if (r.playerId === 'aerospace') return { basis: 'books', rows: this.aeroRows(g.aero.roost) };
+      const a = this.account(r.playerId);
+      const rows = Object.keys(a.months).map(Number).sort((x, y) => x - y).map((m) => {
+        const t = monthTotals(a, m);
+        return { m, revenue: t.revenue, cogs: null, opex: t.opex, capex: t.capex, interest: 0, net: t.revenue - t.opex };
+      });
+      return { basis: 'cash', rows };
+    }
+    if (r.id === 'meridian') return { basis: 'books', rows: this.aeroRows(g.aero.meridian) };
+    if (r.id === 'chuckies_cheese') {
+      const n = g.dairy.numbers();
+      return { basis: 'run-rate', rows: [{ m: Math.floor((g.clock.day - 1) / 30) - 1, revenue: n.revenue * 30, cogs: null, opex: n.costs * 30, capex: 0, interest: 0, net: n.profit * 30 }] };
+    }
+    return { basis: 'none', rows: [] };
+  }
+
+  aeroRows(co) {
+    if (!co) return [];
+    return this.game.aero.monthlyReport(co, 24).map((x) => ({ m: x.m, revenue: x.revenue, cogs: null, opex: x.costs, capex: x.acc?.cf_out_capital || 0, interest: 0, net: x.profit }));
+  }
+
+  /** What a company owns less what it owes, by its own accounts. `null` when its books do not say. */
+  netAssetsOf(r) {
+    const g = this.game;
+    if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); return c ? Math.round(c.cash + c.plantValue - c.debt) : null; }
+    if (r.kind === 'player') {
+      const a = this.account(r.playerId);
+      const own = a.funded ? a.cash - a.arrears : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's
+      switch (r.playerId) {
+        case 'aerospace': return Math.round(g.aero.balanceReport(g.aero.roost).net + own);
+        case 'arms': return Math.round(g.arms.ownedIds().reduce((x, w) => x + g.arms.def(w).price * 0.6, 0) + own);
+        case 'farming': return Math.round(g.farm.owned().reduce((x, id) => x + g.farm.plotDef(id).price, 0) + own); // land at cost
+        case 'shipping': return Math.round(g.logistics.ownedPorts().reduce((x, id) => x + (g.logistics.portType(id)?.price || 0) * 0.6, 0) + g.logistics.vessels().reduce((x, v) => x + (g.logistics.model(v.model)?.price || 0) * 0.6 * (v.condition / 100), 0) + own);
+        default: return null;
+      }
+    }
+    if (r.id === 'meridian') { const m = g.aero.meridian; return m ? Math.round(g.aero.balanceReport(m).net + m.cash) : null; }
+    return null;
+  }
+
+  /** The figures for one company over a period: 'month' (the last whole month), 'current' (the month so far), 'year' (the last twelve whole months). */
+  metricsOf(r, period = 'month') {
+    const day = this.game.clock.day;
+    const cur = Math.floor((day - 1) / 30);
+    const { basis, rows } = this.rowsOf(r);
+    const span = { month: [cur - 1, cur - 1, cur - 2, cur - 2], current: [cur, cur, cur - 1, cur - 1], year: [cur - 12, cur - 1, cur - 24, cur - 13] }[period];
+    const pick = (a, b) => rows.filter((x) => x.m >= a && x.m <= b);
+    // a business of the owner's that sold nothing in a period has sold nothing — zero, not "not available"
+    const nothing = r.kind === 'player' ? { revenue: 0, cogs: null, opex: 0, capex: 0, interest: 0, net: 0 } : null;
+    const now = figures(pick(span[0], span[1])) || (nothing && figures([nothing]) && { ...figures([nothing]), months: 0 });
+    const before = figures(pick(span[2], span[3]));
+    // a year's profit, from the whole months so far (up to six, a month with no entry counting as nothing) — and trusted only as far as it has been shown: one good month is a sixth of the way there
+    const first = rows.length ? Math.min(...rows.map((x) => x.m)) : cur;
+    const from = Math.max(cur - 6, first);
+    const n = Math.max(0, cur - from);
+    const annualProfit = rows.length && n ? (rows.filter((x) => x.m >= from && x.m < cur).reduce((a, x) => a + (x.net ?? 0), 0) / n) * 12 * Math.min(1, n / 6) : null;
+    const netAssets = this.netAssetsOf(r);
+    const val = netAssets === null ? null : worth(CORP, r.sector, { netAssets, annualProfit });
+    let cash = null;
+    let debt = null;
+    if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); cash = c ? Math.round(c.cash) : null; debt = c ? Math.round(c.debt) : null; }
+    else if (r.kind === 'player') { const a = this.account(r.playerId); cash = a.funded ? Math.round(a.cash) : 0; debt = Math.round(a.arrears); }
+    else if (r.id === 'meridian') { const m = this.game.aero.meridian; cash = m ? Math.round(Math.max(0, m.cash)) : null; debt = m ? Math.round(Math.max(0, -m.cash)) : null; }
+    return {
+      key: r.id, name: r.name, sector: r.sector, country: r.country, kind: r.kind, ticker: r.ticker || null, status: r.status || 'active', basis, period,
+      revenue: now ? now.revenue : null, operating: now ? now.operating : null, net: now ? now.net : null, margin: now ? now.margin : null, capex: now ? now.capex : null,
+      growth: now && before ? growth(now.revenue, before.revenue) : null, months: now ? now.months : 0,
+      cash, debt, netAssets, annualProfit, valuation: val,
+    };
+  }
+
+  /** Every tracked company of a sector, ranked by a figure ('revenue' | 'net' | 'margin' | 'growth' | 'valuation' | 'share'). Companies without the figure are listed after, unranked. */
+  sectorTable(sector, { by = 'revenue', period = 'month' } = {}) {
+    const rows = this.registry().filter((r) => r.sector === sector && r.status !== 'closed' && r.status !== 'merged');
+    const ms = rows.map((r) => this.metricsOf(r, period));
+    const sh = shares(ms.map((m) => ({ id: m.key, revenue: m.revenue })));
+    for (const m of ms) m.share = sh[m.key];
+    const player = new Set(this.registry().filter((r) => r.kind === 'player').map((r) => r.id));
+    const ranked = rankBy(ms, (m) => m[by]);
+    return ranked.map((m) => ({ ...m, mine: player.has(m.key), of: ms.filter((x) => Number.isFinite(x[by])).length }));
+  }
+
+  /** A player company's place in its sector by each figure: { revenue: { rank, of }, … }. */
+  placeOf(playerId, period = 'month') {
+    const r = this.registry().find((x) => x.playerId === playerId);
+    if (!r) return null;
+    const out = {};
+    for (const by of ['revenue', 'net', 'margin', 'growth', 'valuation', 'share']) {
+      const t = this.sectorTable(r.sector, { by, period });
+      const me = t.find((x) => x.key === r.id);
+      out[by] = { rank: me?.rank ?? null, of: me?.of ?? 0 };
+    }
+    return out;
+  }
+
+  /** Why one company is above or below another: figure by figure. */
+  compare(aKey, bKey, period = 'month') {
+    const reg = this.registry();
+    const a = reg.find((r) => r.id === aKey);
+    const b = reg.find((r) => r.id === bKey);
+    if (!a || !b) return null;
+    const A = this.metricsOf(a, period);
+    const B = this.metricsOf(b, period);
+    const lines = [];
+    for (const [k, label] of [['revenue', 'Revenue'], ['net', 'Net income'], ['margin', 'Net margin'], ['growth', 'Revenue growth'], ['valuation', 'Estimated value'], ['cash', 'Cash'], ['debt', 'Debt']]) {
+      lines.push({ key: k, label, a: A[k], b: B[k], lead: A[k] === null || B[k] === null ? null : A[k] === B[k] ? 0 : A[k] > B[k] ? 1 : -1 });
+    }
+    return { a: A, b: B, lines };
+  }
+
+  /** On each month's first morning, note where each of the player's companies stood for the month just ended. */
+  recordRanks() {
+    const st = this.state;
+    const cur = Math.floor((this.game.clock.day - 1) / 30);
+    st.rankHistory ||= {};
+    for (const id of COMPANY_IDS) {
+      if (!this.established(id)) continue;
+      const h = (st.rankHistory[id] ||= []);
+      if (h.at(-1)?.m === cur - 1 || cur < 1) continue;
+      const p = this.placeOf(id, 'month');
+      h.push({ m: cur - 1, rank: p?.revenue.rank ?? null, of: p?.revenue.of ?? 0 });
+      while (h.length > 24) h.shift();
+    }
+  }
+
   /** The registry: the four businesses, the companies that were already in the game, and the generated ones. */
   registry() {
     const rows = [];
@@ -38877,7 +39623,7 @@ class Corporate {
       if (p) rows.push({ id: `player_${id}`, name: p.name, sector: p.sector, country: 'home', kind: 'player', source: id, playerId: id });
     }
     rows.push(...existingRows(this.game.content));
-    for (const c of this.state.generated || []) rows.push(c);
+    for (const c of this.state.generated || []) rows.push({ id: c.id, name: c.name, sector: c.sector, country: c.country, kind: 'generated', ticker: c.ticker, status: c.status, source: 'generated' });
     return rows;
   }
 }
@@ -39481,6 +40227,7 @@ class Game {
     for (const npc of this.npcs.values()) this.npcSystem.think(npc, true);
     this.dairy.afterLoad();
     this.farm.sync();
+    this.corp.afterLoad(); // v0.60.0 (a new game)
     this.updateDiscovery();
   }
 
@@ -39631,6 +40378,7 @@ class Game {
     this.dairy.minuteTick();
     this.aero.minuteTick();
     this.farm.minuteTick();
+    if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
@@ -40616,7 +41364,7 @@ class Game {
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
     this.aero.afterLoad(); // v0.55.0
-    this.corp.ensureCompanies(); // v0.60.0: a record of identity for each business already owned
+    this.corp.afterLoad(); // v0.60.0: identity for each business owned; the other countries' companies, made once
     this.updateDiscovery();
     return this;
   }
@@ -40740,6 +41488,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.60.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Own Account',
+    notes: [
+      'Your four businesses are companies now: name them, rename them, and — if you choose — pay money into one so it spends only its own. Buying a business is your equity; a funded company that cannot afford something is refused, and a bill it cannot cover becomes a debt.',
+      'There is a whole world of other companies: about forty-five in ten sectors, from every country, sharing the same demand you sell into — win business and they get less. The tablet\'s Intelligence app ranks them by revenue, profit, margin, growth, value or share and compares them with you; the Companies app shows each of yours with its figures.',
+    ],
+  },
   {
     version: '0.59.0',
     date: '2026-10-28',
@@ -57701,6 +58459,10 @@ function companiesApp(ui, body, open) {
     const p = K.profile(id);
     const P = PLAYER_COMPANIES[id];
     if (!p) { list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, P.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, P.kind, h('span', { class: 'tag' }, 'not yet started')), h('div', { class: 'desc' }, WHERE[id])))); continue; }
+    const reg = K.registry().find((r) => r.playerId === id);
+    const m = K.metricsOf(reg, 'month');
+    const place = K.placeOf(id, 'month');
+    const k = (n) => (n === null || n === undefined ? '—' : Math.round(n).toLocaleString());
     const name = h('input', { type: 'text', class: 'debug-input', value: p.name, maxlength: 40, style: 'width:100%' });
     const amount = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 100, value: 1000, style: 'width:110px' });
     const n = () => Math.max(0, Math.floor(Number(amount.value) || 0));
@@ -57708,6 +58470,7 @@ function companiesApp(ui, body, open) {
       h('div', { class: 'grow' },
         h('div', { class: 'name' }, p.name, h('span', { class: 'tag' }, p.sectorName), h('span', { class: 'tag good' }, 'private'), p.funded ? h('span', { class: 'tag' }, 'own account') : h('span', { class: 'tag' }, 'uses your money')),
         h('div', { class: 'desc' }, `${p.kind} · ${p.hq} · ${p.legacy ? 'in your hands before the registry' : `founded day ${p.founded}`}${p.names.length > 1 ? ` · formerly ${p.names.slice(0, -1).map((x) => x.name).join(', ')}` : ''}`),
+        h('div', { class: 'desc' }, `Last month: revenue ${k(m.revenue)} · net ${k(m.net)} · estimated value ${k(m.valuation)} (an estimate, not cash)${place?.revenue.rank ? ` · ${place.revenue.rank === 1 ? 'first' : `#${place.revenue.rank}`} of ${place.revenue.of} in ${p.sectorName.toLowerCase()} by revenue` : ''}`),
         h('div', { class: 'row', style: 'justify-content:flex-start;margin:6px 0' }, name, h('button', { class: 'small', onclick: () => go(K.rename(id, name.value)) }, 'Rename')),
         p.funded
           ? h('div', { class: 'desc' }, `Its own cash ${ob(p.ownCash)}${p.arrears ? ` · OWES ${ob(p.arrears)}` : ''} · you have paid in ${ob(p.contributed)} and taken out ${ob(p.distributed)}`)
@@ -57723,6 +58486,72 @@ function companiesApp(ui, body, open) {
 return { corpNamePanel, companiesApp };
 })();
 
+// ---- src/ui/corpIntel.js
+__m["src/ui/corpIntel.js"] = (function () {
+// The Intelligence app (v0.60.0): every company, ranked, from the books each one keeps. Nothing
+// here is its own number — it is all read from game.corp (src/systems/corporate.js), which reads
+// the companies' own records. A figure a company's books do not have shows as "—", not as zero.
+const { h } = __m["src/ui/panels.js"];
+const { SECTORS } = __m["src/corp/identity.js"];
+const { countryName } = __m["src/corp/registry.js"];
+
+const money = (n) => (n === null || n === undefined ? '—' : Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e3)}k` : Math.round(n).toLocaleString());
+const pct = (n) => (n === null || n === undefined ? '—' : `${(n * 100).toFixed(Math.abs(n) < 0.1 ? 1 : 0)}%`);
+const BY = { revenue: 'Revenue', net: 'Net income', margin: 'Margin', growth: 'Growth', valuation: 'Value', share: 'Share' };
+const PERIODS = { month: 'Last month', current: 'This month so far', year: 'Last 12 months' };
+const BASIS = { books: 'its full books', cash: 'cash that moved through the company', model: 'its own books', 'run-rate': 'today\'s run-rate', none: 'no figures kept' };
+const STATUS = { distressed: 'in distress', closed: 'closed', merged: 'merged' };
+
+function intelApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const S = (ui.corpIntel ||= { sector: null, by: 'revenue', period: 'month', sel: null });
+  const mine = K.registry().filter((r) => r.kind === 'player');
+  S.sector ||= mine[0]?.sector || 'arms';
+  const go = (patch) => { Object.assign(S, patch); open('Intelligence'); };
+  const chip = (label, active, onclick) => h('button', { class: `small${active ? ' primary' : ''}`, onclick }, label);
+  const mySectors = new Set(mine.map((r) => r.sector));
+
+  body.append(
+    h('p', { class: 'muted' }, 'How every company in a line of business is doing, from the books each keeps. Your own businesses are private: they are compared here, and never listed on the exchange.'),
+    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;margin-bottom:6px' }, ...Object.entries(SECTORS).map(([id, s]) => chip(`${mySectors.has(id) ? '★ ' : ''}${s.name}`, S.sector === id, () => go({ sector: id, sel: null })))),
+    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;margin-bottom:6px' }, ...Object.entries(PERIODS).map(([id, l]) => chip(l, S.period === id, () => go({ period: id }))), h('span', { style: 'width:14px' }), ...Object.entries(BY).map(([id, l]) => chip(l, S.by === id, () => go({ by: id })))),
+  );
+
+  const table = K.sectorTable(S.sector, { by: S.by, period: S.period });
+  const th = (t, extra = '') => h('th', { style: `text-align:right;padding:2px 6px;${extra}` }, t);
+  const td = (t, extra = '') => h('td', { style: `text-align:right;padding:2px 6px;${extra}` }, t);
+  const head = h('tr', {}, th('#', 'text-align:left'), th('Company', 'text-align:left'), th('From', 'text-align:left'), th('Revenue'), th('Net'), th('Margin'), th('Growth'), th('Share'), th('Value'));
+  const rows = table.map((m) => h('tr', { style: `cursor:pointer;${m.mine ? 'background:rgba(255,200,80,0.14);font-weight:600' : ''}${S.sel === m.key ? ';outline:1px solid #ffb547' : ''}`, onclick: () => go({ sel: m.key }) },
+    td(m.rank ? String(m.rank) : '—', 'text-align:left'),
+    td(`${m.mine ? '★ ' : ''}${m.name}${m.ticker ? ` · ${m.ticker}` : ''}${STATUS[m.status] ? ` (${STATUS[m.status]})` : ''}`, 'text-align:left'),
+    td(countryName(g.content, m.country), 'text-align:left'),
+    td(money(m.revenue)), td(money(m.net)), td(pct(m.margin)), td(pct(m.growth)), td(pct(m.share)), td(money(m.valuation))));
+  body.append(h('div', { style: 'overflow-x:auto' }, h('table', { style: 'width:100%;border-collapse:collapse;font-size:13px' }, h('thead', {}, head), h('tbody', {}, ...rows))),
+    h('p', { class: 'muted', style: 'font-size:12px' }, `Ranked by ${BY[S.by].toLowerCase()}, ${PERIODS[S.period].toLowerCase()}. “Value” is an estimate (net assets plus a multiple of a year's profit) — it is not cash. “—”: that company's books do not keep it.`));
+
+  const sel = table.find((m) => m.key === S.sel);
+  if (sel) {
+    const me = table.find((m) => m.mine);
+    const reg = K.registry().find((r) => r.id === sel.key);
+    const gen = (K.state.generated || []).find((c) => c.id === sel.key);
+    const cmp = me && me.key !== sel.key ? K.compare(me.key, sel.key, S.period) : null;
+    body.append(h('h3', { style: 'margin:12px 0 4px' }, sel.name),
+      h('div', { class: 'desc' }, `${SECTORS[sel.sector].name} · ${countryName(g.content, sel.country)}${gen ? ` · ${gen.size} company, ${gen.age} years old · known for ${gen.speciality} · a ${gen.strategy} strategy` : ''}${reg?.ticker ? ` · listed as ${reg.ticker}` : ''}`),
+      h('div', { class: 'grid2', style: 'margin:6px 0' },
+        ...[['Revenue', money(sel.revenue)], ['Net income', money(sel.net)], ['Cash', money(sel.cash)], ['Debt', money(sel.debt)], ['Estimated value', money(sel.valuation)], ['Counted from', BASIS[sel.basis]]].map(([a, b]) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b)))));
+    if (cmp) {
+      body.append(h('h4', { style: 'margin:8px 0 4px' }, `${me.name} against ${sel.name}`),
+        h('div', { class: 'list' }, ...cmp.lines.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${l.label}: you ${l.key === 'margin' || l.key === 'growth' ? pct(l.a) : money(l.a)} · them ${l.key === 'margin' || l.key === 'growth' ? pct(l.b) : money(l.b)}`)), h('span', { class: `tag ${l.lead === 1 ? 'good' : ''}` }, l.lead === null ? 'n/a' : l.lead === 1 ? 'you lead' : l.lead === -1 ? 'they lead' : 'level')))));
+    }
+  }
+  const news = (K.state.gen?.news || []).slice(0, 6);
+  if (news.length) body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Business news'), h('div', { class: 'list' }, ...news.map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} — ${n.text}`))))));
+}
+
+return { intelApp };
+})();
+
 // ---- src/ui/tablet.js
 __m["src/ui/tablet.js"] = (function () {
 // The tablet (v0.15.0) — the journal's replacement. Apps along the top:
@@ -57735,11 +58564,12 @@ const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
 const { TABLET_APPS } = __m["src/systems/tablet.js"];
 const { farmApp } = __m["src/ui/farm.js"];
 const { companiesApp } = __m["src/ui/corpApp.js"]; // v0.60.0
+const { intelApp } = __m["src/ui/corpIntel.js"];
 
 function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies'] : []), 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies'] : []), 'Intelligence', 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -57756,6 +58586,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
   else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
   else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
+  else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

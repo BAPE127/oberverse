@@ -20,6 +20,7 @@ import { existingRows, countryName, countryIds } from '../corp/registry.js';
 import { CORP } from '../content/corporate.js';
 import { buildWorld, rebuildNamer, advance } from '../corp/generate.js';
 import { monthTotals } from '../corp/ledger.js';
+import { figures, growth, value as worth, rank as rankBy, shares } from '../corp/metrics.js';
 
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
 
@@ -334,8 +335,8 @@ export class Corporate {
   /** What the rest of the world's pools are read from: the real arms market. */
   poolExtra() {
     const g = this.game;
-    const m = g.market?.state;
-    if (!m) return {};
+    const m = g.world.market; // read as it stands: the market's own getter would start it (and draw on the dice) earlier than it ever did
+    if (!m?.countries) return {};
     const cs = Object.entries(m.countries || {});
     const inc = cs.reduce((a, [id]) => a + (g.content.arms.countries[id]?.income || 0), 0);
     return { armsIncome: inc, wars: (m.wars || []).length };
@@ -378,8 +379,148 @@ export class Corporate {
     const news = [];
     advance(CORP, world, from, day, (d) => this.worldCtx(d), this.namer, countryIds(g.content), news);
     st.gen.lastDay = day;
+    if ((day - 1) % 30 === 0) this.recordRanks();
     for (const n of news) st.gen.news.unshift({ day: n.day, text: n.text, kind: n.kind, sector: n.sector });
     if (st.gen.news.length > 40) st.gen.news.length = 40;
+  }
+
+  // ------------------------------------------------------------- figures, worth, rankings
+  /**
+   * One company's months as plain rows { m, revenue, cogs, opex, capex, interest, net } — read from
+   * the books it already keeps. `basis` says how: 'books' (accrual books: aerospace), 'cash' (what
+   * actually moved through the company's account: arms, shipping, farming), 'model' (a generated
+   * company's own books), 'run-rate' (today's numbers for a month: Chuckie's Cheese), or 'none'.
+   */
+  rowsOf(r) {
+    const g = this.game;
+    if (r.kind === 'generated') {
+      const c = (this.state.generated || []).find((x) => x.id === r.id);
+      return { basis: 'model', rows: (c?.months || []).map((m) => ({ m: m[0], revenue: m[1], cogs: m[2], opex: m[3], interest: m[4], net: m[5], capex: m[6] })) };
+    }
+    if (r.kind === 'player') {
+      if (r.playerId === 'aerospace') return { basis: 'books', rows: this.aeroRows(g.aero.roost) };
+      const a = this.account(r.playerId);
+      const rows = Object.keys(a.months).map(Number).sort((x, y) => x - y).map((m) => {
+        const t = monthTotals(a, m);
+        return { m, revenue: t.revenue, cogs: null, opex: t.opex, capex: t.capex, interest: 0, net: t.revenue - t.opex };
+      });
+      return { basis: 'cash', rows };
+    }
+    if (r.id === 'meridian') return { basis: 'books', rows: this.aeroRows(g.aero.meridian) };
+    if (r.id === 'chuckies_cheese') {
+      const n = g.dairy.numbers();
+      return { basis: 'run-rate', rows: [{ m: Math.floor((g.clock.day - 1) / 30) - 1, revenue: n.revenue * 30, cogs: null, opex: n.costs * 30, capex: 0, interest: 0, net: n.profit * 30 }] };
+    }
+    return { basis: 'none', rows: [] };
+  }
+
+  aeroRows(co) {
+    if (!co) return [];
+    return this.game.aero.monthlyReport(co, 24).map((x) => ({ m: x.m, revenue: x.revenue, cogs: null, opex: x.costs, capex: x.acc?.cf_out_capital || 0, interest: 0, net: x.profit }));
+  }
+
+  /** What a company owns less what it owes, by its own accounts. `null` when its books do not say. */
+  netAssetsOf(r) {
+    const g = this.game;
+    if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); return c ? Math.round(c.cash + c.plantValue - c.debt) : null; }
+    if (r.kind === 'player') {
+      const a = this.account(r.playerId);
+      const own = a.funded ? a.cash - a.arrears : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's
+      switch (r.playerId) {
+        case 'aerospace': return Math.round(g.aero.balanceReport(g.aero.roost).net + own);
+        case 'arms': return Math.round(g.arms.ownedIds().reduce((x, w) => x + g.arms.def(w).price * 0.6, 0) + own);
+        case 'farming': return Math.round(g.farm.owned().reduce((x, id) => x + g.farm.plotDef(id).price, 0) + own); // land at cost
+        case 'shipping': return Math.round(g.logistics.ownedPorts().reduce((x, id) => x + (g.logistics.portType(id)?.price || 0) * 0.6, 0) + g.logistics.vessels().reduce((x, v) => x + (g.logistics.model(v.model)?.price || 0) * 0.6 * (v.condition / 100), 0) + own);
+        default: return null;
+      }
+    }
+    if (r.id === 'meridian') { const m = g.aero.meridian; return m ? Math.round(g.aero.balanceReport(m).net + m.cash) : null; }
+    return null;
+  }
+
+  /** The figures for one company over a period: 'month' (the last whole month), 'current' (the month so far), 'year' (the last twelve whole months). */
+  metricsOf(r, period = 'month') {
+    const day = this.game.clock.day;
+    const cur = Math.floor((day - 1) / 30);
+    const { basis, rows } = this.rowsOf(r);
+    const span = { month: [cur - 1, cur - 1, cur - 2, cur - 2], current: [cur, cur, cur - 1, cur - 1], year: [cur - 12, cur - 1, cur - 24, cur - 13] }[period];
+    const pick = (a, b) => rows.filter((x) => x.m >= a && x.m <= b);
+    // a business of the owner's that sold nothing in a period has sold nothing — zero, not "not available"
+    const nothing = r.kind === 'player' ? { revenue: 0, cogs: null, opex: 0, capex: 0, interest: 0, net: 0 } : null;
+    const now = figures(pick(span[0], span[1])) || (nothing && figures([nothing]) && { ...figures([nothing]), months: 0 });
+    const before = figures(pick(span[2], span[3]));
+    // a year's profit, from the whole months so far (up to six, a month with no entry counting as nothing) — and trusted only as far as it has been shown: one good month is a sixth of the way there
+    const first = rows.length ? Math.min(...rows.map((x) => x.m)) : cur;
+    const from = Math.max(cur - 6, first);
+    const n = Math.max(0, cur - from);
+    const annualProfit = rows.length && n ? (rows.filter((x) => x.m >= from && x.m < cur).reduce((a, x) => a + (x.net ?? 0), 0) / n) * 12 * Math.min(1, n / 6) : null;
+    const netAssets = this.netAssetsOf(r);
+    const val = netAssets === null ? null : worth(CORP, r.sector, { netAssets, annualProfit });
+    let cash = null;
+    let debt = null;
+    if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); cash = c ? Math.round(c.cash) : null; debt = c ? Math.round(c.debt) : null; }
+    else if (r.kind === 'player') { const a = this.account(r.playerId); cash = a.funded ? Math.round(a.cash) : 0; debt = Math.round(a.arrears); }
+    else if (r.id === 'meridian') { const m = this.game.aero.meridian; cash = m ? Math.round(Math.max(0, m.cash)) : null; debt = m ? Math.round(Math.max(0, -m.cash)) : null; }
+    return {
+      key: r.id, name: r.name, sector: r.sector, country: r.country, kind: r.kind, ticker: r.ticker || null, status: r.status || 'active', basis, period,
+      revenue: now ? now.revenue : null, operating: now ? now.operating : null, net: now ? now.net : null, margin: now ? now.margin : null, capex: now ? now.capex : null,
+      growth: now && before ? growth(now.revenue, before.revenue) : null, months: now ? now.months : 0,
+      cash, debt, netAssets, annualProfit, valuation: val,
+    };
+  }
+
+  /** Every tracked company of a sector, ranked by a figure ('revenue' | 'net' | 'margin' | 'growth' | 'valuation' | 'share'). Companies without the figure are listed after, unranked. */
+  sectorTable(sector, { by = 'revenue', period = 'month' } = {}) {
+    const rows = this.registry().filter((r) => r.sector === sector && r.status !== 'closed' && r.status !== 'merged');
+    const ms = rows.map((r) => this.metricsOf(r, period));
+    const sh = shares(ms.map((m) => ({ id: m.key, revenue: m.revenue })));
+    for (const m of ms) m.share = sh[m.key];
+    const player = new Set(this.registry().filter((r) => r.kind === 'player').map((r) => r.id));
+    const ranked = rankBy(ms, (m) => m[by]);
+    return ranked.map((m) => ({ ...m, mine: player.has(m.key), of: ms.filter((x) => Number.isFinite(x[by])).length }));
+  }
+
+  /** A player company's place in its sector by each figure: { revenue: { rank, of }, … }. */
+  placeOf(playerId, period = 'month') {
+    const r = this.registry().find((x) => x.playerId === playerId);
+    if (!r) return null;
+    const out = {};
+    for (const by of ['revenue', 'net', 'margin', 'growth', 'valuation', 'share']) {
+      const t = this.sectorTable(r.sector, { by, period });
+      const me = t.find((x) => x.key === r.id);
+      out[by] = { rank: me?.rank ?? null, of: me?.of ?? 0 };
+    }
+    return out;
+  }
+
+  /** Why one company is above or below another: figure by figure. */
+  compare(aKey, bKey, period = 'month') {
+    const reg = this.registry();
+    const a = reg.find((r) => r.id === aKey);
+    const b = reg.find((r) => r.id === bKey);
+    if (!a || !b) return null;
+    const A = this.metricsOf(a, period);
+    const B = this.metricsOf(b, period);
+    const lines = [];
+    for (const [k, label] of [['revenue', 'Revenue'], ['net', 'Net income'], ['margin', 'Net margin'], ['growth', 'Revenue growth'], ['valuation', 'Estimated value'], ['cash', 'Cash'], ['debt', 'Debt']]) {
+      lines.push({ key: k, label, a: A[k], b: B[k], lead: A[k] === null || B[k] === null ? null : A[k] === B[k] ? 0 : A[k] > B[k] ? 1 : -1 });
+    }
+    return { a: A, b: B, lines };
+  }
+
+  /** On each month's first morning, note where each of the player's companies stood for the month just ended. */
+  recordRanks() {
+    const st = this.state;
+    const cur = Math.floor((this.game.clock.day - 1) / 30);
+    st.rankHistory ||= {};
+    for (const id of COMPANY_IDS) {
+      if (!this.established(id)) continue;
+      const h = (st.rankHistory[id] ||= []);
+      if (h.at(-1)?.m === cur - 1 || cur < 1) continue;
+      const p = this.placeOf(id, 'month');
+      h.push({ m: cur - 1, rank: p?.revenue.rank ?? null, of: p?.revenue.of ?? 0 });
+      while (h.length > 24) h.shift();
+    }
   }
 
   /** The registry: the four businesses, the companies that were already in the game, and the generated ones. */

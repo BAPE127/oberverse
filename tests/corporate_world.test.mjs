@@ -213,3 +213,13 @@ test('over two years the world stays in bounds: capacity, cash and debt are neve
   assert.ok(g.corp.state.generated.length <= CORP.cap.records);
   assert.ok(g.corp.state.gen.news.length <= 40);
 });
+
+test('making the world never touches the game\'s dice or starts anything else early', () => {
+  const g = newGame(913);
+  const rng = g.rng.state;
+  const market = g.world.market;
+  delete g.corp.state.generated; delete g.corp.state.gen;
+  g.corp.ensureWorld();
+  assert.equal(g.rng.state, rng, 'the shared RNG is where it was');
+  assert.equal(g.world.market, market, 'the arms market was not started by it');
+});

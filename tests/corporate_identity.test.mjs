@@ -102,7 +102,9 @@ test('the registry holds every company once: the owner\'s, the listed, the carri
   assert.equal(new Set(ids).size, ids.length, 'unique ids');
   assert.equal(new Set(names).size, names.length, 'unique names');
   const tickers = rows.filter((r) => r.ticker).map((r) => r.ticker);
-  assert.deepEqual([...tickers].sort(), ['CHZ', 'MRDN', 'OBRO'], 'the three that were already listed — and not a private business');
+  for (const t of ['CHZ', 'MRDN', 'OBRO']) assert.ok(tickers.includes(t), `${t} is still listed`);
+  assert.equal(new Set(tickers).size, tickers.length, 'no ticker twice');
+  assert.ok(rows.filter((r) => r.kind === 'player').every((r) => !r.ticker), 'and not one of the owner\'s private businesses');
   assert.equal(rows.filter((r) => r.kind === 'player').length, 2, 'only the businesses founded so far');
   assert.ok(rows.some((r) => r.kind === 'carrier'));
   assert.ok(existingRows(CONTENT).every((r) => r.sector));

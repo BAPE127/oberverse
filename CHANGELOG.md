@@ -2,6 +2,43 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.60.0] — 2026-10-29 — Own Account (development build)
+
+Stages 2–4 of the Corporate Empire brief (docs/CORPORATE_AUDIT.md, docs/CORPORATE.md), the foundation the rest stands on: each business is a company with a name and an account, there is a whole world of other companies to measure yourself against, and every company is read the same way.
+
+### Added — company accounts (`src/corp/ledger.js`, `src/systems/corporate.js`)
+- **One payment layer for the four businesses** (`game.corp`): arms, shipping, aerospace and farming all pay and are paid through it. A company you have not funded spends your money exactly as before (nothing about play changed — the whole existing suite passes unedited, and a 20-day run of all four businesses matches v0.59.0 obol for obol).
+- **Fund a company** (the Companies app on the tablet): pay money in and it has its own cash and pays its own bills; take it out; close the account. A funded company that cannot afford something is refused, and a bill it must meet but cannot cover becomes **arrears**, paid first from its next income — never free goods, never a quiet overdraft.
+- **Buying a business is your equity, not its spending**: the licence, the shipping line, the aeroworks, the first plot are paid from your wallet and recorded as assets brought in at cost; later works, ports and plots are the company's own capital spending.
+- Shares and dividends (OBRO, CHZ, MRDN) stay personal money, untouched.
+
+### Added — identity and the registry (`src/corp/identity.js`, `src/corp/registry.js`)
+- **Name your businesses** (a panel opens when you found one) and rename them any time: trimmed, 3–40 characters, letters, numbers and `& ' . , -`, no clash with any other company; every name used is kept in its history. Existing games keep Ober & Sons Maritime and Roost Aeroworks; the arms and farming businesses get default names (Mill Road Arms Works, East Plot Farms) nobody is asked about.
+- **One registry** of every company: your four (private, never listed), Ober's Oil, Chuckie's Cheese and Meridian (the listed three), the five freight carriers, and the generated companies.
+
+### Added — the wider world (`src/content/corporate.js`, `src/corp/sim.js`, `src/corp/generate.js`)
+- **About forty-five companies in ten sectors** (arms, shipping, aerospace, agriculture, energy, industrial, transport, communications, satellites, finance) from the eight countries and home, 17 of them listed with tickers. Made once, with a 120-day history, kept in the save, never regenerated.
+- They **share real demand** with you — what your business sells comes off the top of its sector, so winning business leaves less for them — and each pays its costs and interest, borrows within limits, builds when busy, sheds when idle, pays its owners; a busy sector draws newcomers, a failing company is bought by a strong one, one that stays broke is wound up and its lenders take the loss. All bounded (60 alive, 90 records).
+- The arms sector's demand follows the real arms market (its countries' incomes and wars).
+
+### Added — figures, value and rankings (`src/corp/metrics.js`)
+- **Intelligence** (tablet): every company of a sector ranked by revenue, net income, margin, growth, estimated value or share — last month, this month so far, or twelve months — with a profile for each and a figure-by-figure comparison with your own business. **Companies** shows each of yours with its figures and place.
+- Figures come from the books each company keeps; what a company does not keep shows as "—". **Estimated value** (net assets plus a multiple of a year's profit, trusted only as far as the history shows) is an opinion and never cash.
+- Each month's standing of your companies is recorded (24 months).
+
+### Changed
+- Terminal money readouts (arms funds, shipping, aerospace) show the company's own cash once it is funded. The Business app's later works and the shipping ports/ships/yards check the company's cash, not your wallet.
+- The tablet gains **Companies** and **Intelligence** apps.
+
+### Save
+- `world.corp` is created on first use. A save from v0.59 loads with every company unfunded, nothing moved, default names for arms and farming, the wider world made at load. No schema change (still 1). See docs/SAVE_FORMAT.md.
+
+### Tests
+- New: `corporate_accounts` (11), `corporate_funding` (9), `corporate_identity` (8), `corporate_world` (15), `corporate_metrics` (13) — the payment layer and its invariants, funding and arrears, a funded aerospace firm reconciling with its own account, names and the registry, a real v0.59 save loading with nothing moved, the world's make-once and determinism, demand sharing, failure and merger, caps, rankings, valuation never making money.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md: parent groups, managers, markets, banks and wars are later stages.
+
 ## [0.59.0] — 2026-10-28 — The Sky's the Limit (development build)
 
 Stage V of the aerospace brief (docs/AEROSPACE.md), at the owner's word: "let's push 59." The satellites you build now go on working, the research tree is a tree, and the books say where the money comes from.

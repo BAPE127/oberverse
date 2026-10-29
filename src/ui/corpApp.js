@@ -41,6 +41,10 @@ export function companiesApp(ui, body, open) {
     const p = K.profile(id);
     const P = PLAYER_COMPANIES[id];
     if (!p) { list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, P.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, P.kind, h('span', { class: 'tag' }, 'not yet started')), h('div', { class: 'desc' }, WHERE[id])))); continue; }
+    const reg = K.registry().find((r) => r.playerId === id);
+    const m = K.metricsOf(reg, 'month');
+    const place = K.placeOf(id, 'month');
+    const k = (n) => (n === null || n === undefined ? '—' : Math.round(n).toLocaleString());
     const name = h('input', { type: 'text', class: 'debug-input', value: p.name, maxlength: 40, style: 'width:100%' });
     const amount = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 100, value: 1000, style: 'width:110px' });
     const n = () => Math.max(0, Math.floor(Number(amount.value) || 0));
@@ -48,6 +52,7 @@ export function companiesApp(ui, body, open) {
       h('div', { class: 'grow' },
         h('div', { class: 'name' }, p.name, h('span', { class: 'tag' }, p.sectorName), h('span', { class: 'tag good' }, 'private'), p.funded ? h('span', { class: 'tag' }, 'own account') : h('span', { class: 'tag' }, 'uses your money')),
         h('div', { class: 'desc' }, `${p.kind} · ${p.hq} · ${p.legacy ? 'in your hands before the registry' : `founded day ${p.founded}`}${p.names.length > 1 ? ` · formerly ${p.names.slice(0, -1).map((x) => x.name).join(', ')}` : ''}`),
+        h('div', { class: 'desc' }, `Last month: revenue ${k(m.revenue)} · net ${k(m.net)} · estimated value ${k(m.valuation)} (an estimate, not cash)${place?.revenue.rank ? ` · ${place.revenue.rank === 1 ? 'first' : `#${place.revenue.rank}`} of ${place.revenue.of} in ${p.sectorName.toLowerCase()} by revenue` : ''}`),
         h('div', { class: 'row', style: 'justify-content:flex-start;margin:6px 0' }, name, h('button', { class: 'small', onclick: () => go(K.rename(id, name.value)) }, 'Rename')),
         p.funded
           ? h('div', { class: 'desc' }, `Its own cash ${ob(p.ownCash)}${p.arrears ? ` · OWES ${ob(p.arrears)}` : ''} · you have paid in ${ob(p.contributed)} and taken out ${ob(p.distributed)}`)

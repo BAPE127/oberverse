@@ -33,6 +33,7 @@ Then run `npm run check` before changing anything.
 | 16 | [Prompt Bank Maintenance](16-prompt-bank-maintenance.md) | Procedures changed; prompts must follow. |
 | 17 | [Add a Property Plot](17-property-plot.md) | The project owner asks for a building plot (home, rental or shop) somewhere on the map. |
 | 18 | [Extend the Shipping Business](18-shipping-extension.md) | Ships, ports, contracts, or the later shipping stages (own-fleet exports, piracy, warships, missions, the shipyard). |
+| 20 | [Extend the Corporate Empire](20-corporate-empire.md) | Companies and their accounts, groups, managers, markets, the central bank, bonds, loans, wars — anything that moves a business's money or compares companies. |
 | 19 | [Extend the Living World](19-world-simulation.md) | Residents, homes, jobs, police beats and incidents, bus lines, errands and meet-ups, signature cars — or NPC driving. |
 
 ## Universal rules (apply to every prompt)
