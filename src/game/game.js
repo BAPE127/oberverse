@@ -37,6 +37,7 @@ import { Logistics } from '../systems/logistics.js';
 import { Dairy } from '../systems/dairy.js';
 import { Aerospace } from '../systems/aerospace.js';
 import { Farm } from '../systems/farm.js';
+import { Corporate } from '../systems/corporate.js'; // v0.60.0: company accounts
 import { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } from '../systems/ledgerGame.js';
 import { applyEffects } from './effects.js';
 import { regionOffsetPx } from '../world/regions.js';
@@ -62,6 +63,7 @@ export class Game {
     this.events = new EventDirector(this);
     this.npcSystem = new NpcSystem(this);
     this.oil = new OilCompany(this);
+    this.corp = new Corporate(this); // v0.60.0: the businesses' accounts (before any business is built)
     this.construction = new Construction(this);
     this.properties = new Properties(this);
     this.combat = new Combat(this);
@@ -1142,13 +1144,18 @@ export class Game {
     if (!price || !this.inventory.count(itemId)) return { ok: false, text: 'They won\'t buy that.' };
     const owner = this.content.shops[shopId].owner;
     if (this.player.stolen[itemId] === owner) return { ok: false, text: 'Selling someone their own things back is a bold move. Too bold.' };
+    let toArms = false;
     if (this.content.shops[shopId].armsBuyer && this.content.items[itemId]?.arms && this.arms.licensed()) {
       const r = this.arms.sellToLucas(itemId, price);
       if (!r.ok) return r;
+      toArms = true; // v0.60.0: the arms company's wholesale sale
     }
     this.inventory.remove(itemId, 1);
-    this.player.money += price;
-    this.bus.emit('money:changed', { delta: price, total: this.player.money });
+    if (toArms) this.corp.receive('arms', price, { cat: 'wholesale' });
+    else {
+      this.player.money += price;
+      this.bus.emit('money:changed', { delta: price, total: this.player.money });
+    }
     return { ok: true, text: `Sold ${this.content.items[itemId].name} for ${price} obols.` };
   }
 

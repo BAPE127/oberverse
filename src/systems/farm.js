@@ -58,15 +58,21 @@ export class Farm {
   }
 
   // ------------------------------------------------------------------ land
+  /** Whether a plot at this price can be bought now: the first from the owner's wallet, later ones from the farm's account. */
+  canBuy(price) {
+    return this.owned().length === 0 ? this.game.player.money >= price : this.game.corp.canAfford('farming', price);
+  }
+
   buy(id) {
     const g = this.game;
     const d = this.plotDef(id);
     if (!d) return { ok: false, text: 'No such plot.' };
     const st = this.plot(id);
     if (st.owned) return { ok: false, text: `${d.name} is already yours.` };
-    if (g.player.money < d.price) return { ok: false, text: `You need ${d.price.toLocaleString()} obols for ${d.name}.` };
-    g.player.money -= d.price;
-    g.bus.emit('money:changed', { delta: -d.price, total: g.player.money });
+    if (!this.canBuy(d.price)) return { ok: false, text: `You need ${d.price.toLocaleString()} obols for ${d.name}.` };
+    // v0.60.0: the first plot is the owner founding the farm (equity in kind); later plots are the farm's capital spending
+    if (this.owned().length === 0) g.corp.found('farming', d.price, d.name);
+    else g.corp.pay('farming', d.price, { cat: 'land' });
     st.owned = true;
     g.setFlag('farm_owner', true);
     g.bus.emit('farm:bought', { plot: id });
@@ -110,12 +116,12 @@ export class Farm {
     const d = this.plotDef(id);
     const st = this.plot(id);
     const out = [];
-    if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: g.player.money >= d.price, why: 'Not enough obols.' }];
+    if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: this.canBuy(d.price), why: 'Not enough obols.' }];
     const C = this.def.crops;
     if (st.state === 'fallow') {
       out.push({ action: 'till', label: 'Till the field', ok: true });
       const fee = this.def.pasture.fencing;
-      out.push({ action: 'pasture', label: `Fence it as pasture for livestock (${fee} obols)`, ok: g.player.money >= fee, why: `Fencing costs ${fee} obols.` });
+      out.push({ action: 'pasture', label: `Fence it as pasture for livestock (${fee} obols)`, ok: g.corp.canAfford('farming', fee), why: `Fencing costs ${fee} obols.` });
     }
     if (st.state === 'pasture') return this.pastureActions(id);
     if (st.state === 'tilled') {
@@ -172,8 +178,7 @@ export class Farm {
       text = `You till ${d.name}`;
     } else if (action === 'pasture') {
       const fee = this.def.pasture.fencing;
-      g.player.money -= fee;
-      g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+      g.corp.pay('farming', fee, { cat: 'fencing' });
       Object.assign(st, { state: 'pasture', herd: null, feed: 0, produce: 0, hunger: 0 });
       this.record('Fencing', -fee);
       text = `You fence ${d.name} as pasture, with a feeder and a water trough`;
@@ -304,8 +309,7 @@ export class Farm {
     if (n <= 0) return { ok: false, text: 'You have none of that to sell.' };
     g.inventory.remove(itemId, n);
     const total = this.sellUnits(itemId, base, n);
-    g.player.money += total;
-    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    g.corp.receive('farming', total, { cat: 'crops' });
     this.record(g.content.items[itemId].name, total);
     return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${total.toLocaleString()} obols${n > 1 ? ` (the price softens as the bins fill — ${this.coopPrice(itemId)} for the next)` : ''}.` };
   }
@@ -376,9 +380,8 @@ export class Farm {
     const room = this.capacity(id, kind) - have;
     if (n <= 0 || n > room) return { ok: false, text: room > 0 ? `${d.name} has room for ${room} more.` : `${d.name} is full.` };
     const cost = L.price * n;
-    if (g.player.money < cost) return { ok: false, text: `That\'s ${cost.toLocaleString()} obols.` };
-    g.player.money -= cost;
-    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    if (!g.corp.canAfford('farming', cost)) return { ok: false, text: `That\'s ${cost.toLocaleString()} obols.` };
+    g.corp.pay('farming', cost, { cat: 'animals' });
     // cattle: the herd's average purchase day, weighted by head
     const day = have ? Math.round((st.herd.day * have + g.clock.day * n) / (have + n)) : g.clock.day;
     st.herd = { kind, count: have + n, day };
@@ -406,8 +409,7 @@ export class Farm {
     const total = this.sellUnits(st.herd.kind, this.animalValue(id), n);
     st.herd.count -= n;
     if (!st.herd.count) st.herd = null;
-    g.player.money += total;
-    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    g.corp.receive('farming', total, { cat: 'livestock' });
     this.record(`${L.name} sold`, total);
     this.syncAnimals();
     return { ok: true, text: `Sold at auction: ${n} ${n > 1 ? L.name.toLowerCase() : L.one} for ${total.toLocaleString()} obols.` };

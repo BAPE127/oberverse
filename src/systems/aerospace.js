@@ -242,18 +242,15 @@ export class Aerospace {
   }
 
   cash(co) {
-    return co.kind === 'player' ? this.game.player.money : co.cash;
+    return co.kind === 'player' ? this.game.corp.cashOf('aerospace') : co.cash;
   }
 
   /** Money out, booked to an account (null: an asset — materials, capital spending). */
   pay(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
-    if (co.kind === 'player') {
-      const g = this.game;
-      g.player.money -= amount;
-      g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
-    } else co.cash -= amount;
+    if (co.kind === 'player') this.game.corp.pay('aerospace', amount, { cat: flow || flowOf(account, 'out') });
+    else co.cash -= amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
     post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
   }
@@ -262,18 +259,15 @@ export class Aerospace {
   receive(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
-    if (co.kind === 'player') {
-      const g = this.game;
-      g.player.money += amount;
-      g.bus.emit('money:changed', { delta: amount, total: g.player.money });
-    } else co.cash += amount;
+    if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
+    else co.cash += amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
     post(co.books, this.day, `cf_in_${flow || flowOf(account, 'in')}`, amount, this.A.historyDays);
   }
 
   /** Can it afford this now? The rival may draw on its credit line. */
   canAfford(co, amount) {
-    return co.kind === 'player' ? this.game.player.money >= amount : co.cash - amount >= -this.A.meridian.credit;
+    return co.kind === 'player' ? this.game.corp.canAfford('aerospace', amount) : co.cash - amount >= -this.A.meridian.credit;
   }
 
   qualityOf(co) {
@@ -520,8 +514,7 @@ export class Aerospace {
     const F = this.A.firm;
     if (s.owned) return { ok: false, text: `You already own ${F.name}.` };
     if (g.player.money < F.price) return { ok: false, text: `${F.name} costs ${F.price.toLocaleString()} obols. You have ${g.player.money.toLocaleString()}.` };
-    g.player.money -= F.price;
-    g.bus.emit('money:changed', { delta: -F.price, total: g.player.money });
+    g.corp.found('aerospace', F.price, F.name); // the owner buys the firm: equity in kind
     const co = this.newCompany('roost', F.name, 'player', { ...F, pad: false });
     s.companies.roost = co;
     co.books.capex += F.price;

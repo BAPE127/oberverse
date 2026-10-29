@@ -490,8 +490,11 @@ export class Factory {
     const def = this.def(whId);
     if (this.owns(whId)) return { ok: false, text: 'You already own it.' };
     if (g.player.money < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${g.player.money}.` };
-    g.player.money -= def.price;
-    g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });
+    if (this.domain === 'arms') g.corp.found('arms', def.price, def.name); // v0.60.0: the owner buys the works (equity in kind)
+    else {
+      g.player.money -= def.price;
+      g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });
+    }
     g.setFlag(def.flag, true);
     g.bus.emit('factory:bought', { warehouse: whId });
     return { ok: true, text: `${def.name} is yours. Buy parts from Sal's Surplus down the quay, then craft at the workbench inside.` };

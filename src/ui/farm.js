@@ -34,7 +34,7 @@ export function farmlandPanel(ui, body, opts) {
       const st = F.plot(id);
       list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, st.owned ? '🌾' : '📜'),
         h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`), st.owned ? h('span', { class: 'tag good' }, 'yours') : null), h('div', { class: 'desc' }, plotStatus(F, id))),
-        st.owned ? null : h('button', { class: 'small primary', disabled: g.player.money < d.price, onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
+        st.owned ? null : h('button', { class: 'small primary', disabled: !F.canBuy(d.price), onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
     }
     body.append(list);
   };
@@ -109,7 +109,7 @@ export function livestockPanel(ui, body, opts) {
       for (const [kind, L] of Object.entries(F.def.livestock)) {
         if (st.herd?.count && st.herd.kind !== kind) continue;
         const room = F.capacity(id, kind) - (st.herd?.count || 0);
-        const buy = (n) => h('button', { class: 'small primary', disabled: n > room || g.player.money < L.price * n, onclick: () => { const r = F.buyAnimals(id, kind, n); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy ${n} (${(L.price * n).toLocaleString()})`);
+        const buy = (n) => h('button', { class: 'small primary', disabled: n > room || !g.corp.canAfford('farming', L.price * n), onclick: () => { const r = F.buyAnimals(id, kind, n); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy ${n} (${(L.price * n).toLocaleString()})`);
         list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, L.name, h('span', { class: 'tag' }, `${L.price} each`), h('span', { class: 'tag' }, `room for ${room}`)),
           h('div', { class: 'desc' }, `${L.feed} bags of feed a head a day${L.product ? ` · gives ${g.content.items[L.product.item].name.toLowerCase()}` : ` · grows ${L.grow} obols of value a day for ${L.maxDays} days`}`)),
           buy(1), buy(5), buy(Math.max(1, Math.min(room, 20)))));

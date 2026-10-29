@@ -171,9 +171,8 @@ export class Market {
     const value = order.qty * order.price;
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const fee = this.fee(shipper, value, insured);
-    if (g.player.money < fee) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
-    g.player.money -= fee;
-    g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+    if (!g.corp.canAfford('arms', fee)) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
+    g.corp.pay('arms', fee, { cat: 'freight' });
     for (const [id, n] of list) cage[id] -= n;
     c.budget -= value;
     order.status = 'shipped';
@@ -204,7 +203,7 @@ export class Market {
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const q = L.armsQuote(vessel, country, order.qty, { escorts, guards, value });
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, port fees${escorts.length ? ', escorts' : ''}${guards ? ', guards' : ''}).` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, port fees${escorts.length ? ', escorts' : ''}${guards ? ', guards' : ''}).` };
     // everything checked: commit
     cage[order.item] -= order.qty;
     c.budget -= value;
@@ -248,8 +247,7 @@ export class Market {
     const def = this.cfg.countries[shp.country];
     const c = this.country(shp.country);
     if (fate === 'delivered') {
-      g.player.money += shp.value;
-      g.bus.emit('money:changed', { delta: shp.value, total: g.player.money });
+      g.corp.receive('arms', shp.value, { cat: 'exports' });
       this.state.earned += shp.value;
       for (const [id, n] of Object.entries(shp.items)) {
         const fam = g.content.items[id].arms.family;
@@ -273,8 +271,7 @@ export class Market {
     let text = lines[fate];
     if (shp.insured && !(fate === 'seized' && shp.embargo)) {
       const payout = Math.round(shp.value * this.cfg.market.insurancePayout);
-      g.player.money += payout;
-      g.bus.emit('money:changed', { delta: payout, total: g.player.money });
+      g.corp.receive('arms', payout, { cat: 'insurance' });
       text += ` Insurance paid out ${payout} obols.`;
     } else if (shp.insured) text += ' The insurers don\'t cover smuggling.';
     if (fate === 'seized') {

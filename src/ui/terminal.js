@@ -371,7 +371,7 @@ export function terminalScreen(ui, body, opts, go) {
 
   const status = h('div', { class: 'os-box' },
     h('div', { class: 'os-label' }, '▌STATUS'),
-    h('div', {}, `FUNDS ........ ${g.player.money} OB`),
+    h('div', {}, `FUNDS ........ ${g.corp.cashOf('arms')} OB`),
     h('div', {}, `POWER ........ ${p.machines}/${p.capacity} STATIONS`),
     h('div', {}, `STAFF ........ ${staff.length}/${def.bunks} ON BOOKS`),
     h('div', {}, `RESEARCH ..... ${r.current ? `${cfg.research[r.current].name.toUpperCase()} ${Math.floor(r.progress)}/${cfg.research[r.current].cost}` : 'IDLE'}`),

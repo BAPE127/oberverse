@@ -58,8 +58,7 @@ export class Arms extends Factory {
     if (this.licensed()) return { ok: false, text: 'You already have a licence.' };
     const price = this.cfg.licencePrice;
     if (g.player.money < price) return { ok: false, text: `The licence costs ${price} obols.` };
-    g.player.money -= price;
-    g.bus.emit('money:changed', { delta: -price, total: g.player.money });
+    g.corp.found('arms', price, 'Arms licence');
     g.setFlag(LICENCE_FLAG, true);
     return { ok: true, text: 'You are now a licensed arms manufacturer and exporter. (Mill Road Yards: the west end of Mill Road.)' };
   }
@@ -401,9 +400,8 @@ export class Arms extends Factory {
     const g = this.game;
     const st = this.state.staff.find((x) => x.id === staffId);
     if (!st) return { ok: false, text: '' };
-    if (g.player.money < st.wage) return { ok: false, text: `A bonus is a day's wage: ${st.wage} obols.` };
-    g.player.money -= st.wage;
-    g.bus.emit('money:changed', { delta: -st.wage, total: g.player.money });
+    if (!g.corp.canAfford('arms', st.wage)) return { ok: false, text: `A bonus is a day's wage: ${st.wage} obols.` };
+    g.corp.pay('arms', st.wage, { cat: 'wages' });
     st.morale = clamp(st.morale + 15, 0, 100);
     return { ok: true, text: `${st.shortName} pockets the bonus. Morale ${Math.round(st.morale)}.` };
   }
@@ -452,8 +450,7 @@ export class Arms extends Factory {
     const leaving = [];
     for (const st of s.staff) {
       const q = this.quirk(st);
-      if (g.player.money >= st.wage) {
-        g.player.money -= st.wage;
+      if (g.corp.canAfford('arms', st.wage) && g.corp.pay('arms', st.wage, { cat: 'wages', quiet: true })) {
         paid += st.wage;
         st.unpaid = 0;
         st.morale += 1;
@@ -466,7 +463,7 @@ export class Arms extends Factory {
       st.morale = clamp(st.morale, 0, 100);
       if (st.unpaid >= 2 || st.morale < 15) leaving.push(st);
     }
-    if (paid) g.bus.emit('money:changed', { delta: -paid, total: g.player.money });
+    if (paid) g.corp.announce('arms', -paid);
     if (paid) g.tablet.post('arms', `💼 Payroll: ${paid} obols to ${s.staff.length - leaving.length} staff.`, 'info');
     for (const st of leaving) {
       this.fire(st.id);
@@ -487,9 +484,8 @@ export class Arms extends Factory {
     if (!it || !this.owns(whId)) return { ok: false, text: '' };
     qty = Math.max(1, Math.round(qty));
     const cost = this.partPrice(itemId) * qty;
-    if (g.player.money < cost) return { ok: false, text: `${qty}× ${it.name} costs ${cost} obols. You have ${g.player.money}.` };
-    g.player.money -= cost;
-    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    if (!g.corp.canAfford('arms', cost)) return { ok: false, text: `${qty}× ${it.name} costs ${cost} obols. You have ${g.corp.cashOf('arms')}.` };
+    g.corp.pay('arms', cost, { cat: it.category === 'arms_part' ? 'parts' : 'equipment' });
     this.state.orders.push({ wh: whId, item: itemId, qty, at: g.clock.total + DELIVERY_MINUTES });
     return { ok: true, text: `Ordered ${qty}× ${it.name} (${cost} obols). Arriving at the loading dock within the hour.` };
   }
@@ -536,7 +532,7 @@ export class Arms extends Factory {
     if (g.clock.minuteOfDay === PAY_MINUTE && s.lastPayDay < g.clock.day) this.payroll();
     if (g.clock.minuteOfDay === PAY_MINUTE - 60 && s.staff.length) {
       const due = s.staff.reduce((a, st) => a + st.wage, 0);
-      if (g.player.money < due) g.tablet.post('arms', `⚠ Payroll at 19:00 is ${due} obols and you have ${g.player.money}. Unpaid staff lose morale — twice unpaid and they quit.`, 'warn');
+      if (!g.corp.canAfford('arms', due)) g.tablet.post('arms', `⚠ Payroll at 19:00 is ${due} obols and you have ${g.corp.cashOf('arms')}. Unpaid staff lose morale — twice unpaid and they quit.`, 'warn');
     }
     if (g.clock.minuteOfDay % 60 === 30) this.checkStations();
   }

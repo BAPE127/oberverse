@@ -78,7 +78,7 @@ export class Shipyard {
     const g = this.game;
     const q = this.yardQuote(portId);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `Mason's Os quote ${q.cost} obols for a shipyard. You're a little short, pal.` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `Mason's Os quote ${q.cost} obols for a shipyard. You're a little short, pal.` };
     this.L.spend(q.cost, 'shipyard');
     this.L.state.ports[portId].shipyard = { status: 'building', commissioned: g.clock.total, days: q.days, start: g.clock.total, end: g.clock.total + q.days * 1440, paid: q.cost, lastNote: g.clock.day };
     this.flags(portId);
@@ -104,7 +104,7 @@ export class Shipyard {
     const have = this.state.stock[id] || 0;
     if (have + n > this.rules.maxStock) return { ok: false, text: `The store holds at most ${this.rules.maxStock} of each part.` };
     const cost = c.price * n;
-    if (g.player.money < cost) return { ok: false, text: `${n}× ${c.name} costs ${cost} obols.` };
+    if (!g.corp.canAfford('shipping', cost)) return { ok: false, text: `${n}× ${c.name} costs ${cost} obols.` };
     this.L.spend(cost, 'parts');
     this.state.stock[id] = have + n;
     return { ok: true, text: `Bought ${n}× ${c.name}.` };
@@ -115,7 +115,7 @@ export class Shipyard {
     const t = this.cfg.tech[id];
     if (!t) return { ok: false, text: 'No such licence.' };
     if (this.state.tech[id]) return { ok: false, text: 'You already hold it.' };
-    if (g.player.money < t.price) return { ok: false, text: `The ${t.name} costs ${t.price} obols.` };
+    if (!g.corp.canAfford('shipping', t.price)) return { ok: false, text: `The ${t.name} costs ${t.price} obols.` };
     this.L.spend(t.price, 'licence');
     this.state.tech[id] = g.clock.day;
     this.L.report('shipyard', `📜 You hold the ${t.name}.`, 'good');
@@ -268,7 +268,7 @@ export class Shipyard {
     const v = this.validate(design, design.port);
     if (!v.ok) return { ok: false, text: `Can't: ${v.reasons[0]}.` };
     if (v.missing.length) return { ok: false, text: `Missing parts: ${v.missing.map((m) => `${m.n}× ${this.cfg.components[m.id].name}`).join(', ')}.` };
-    if (g.player.money < v.cost.now) return { ok: false, text: `The hull and labour come to ${v.cost.now} obols.` };
+    if (!g.corp.canAfford('shipping', v.cost.now)) return { ok: false, text: `The hull and labour come to ${v.cost.now} obols.` };
     this.L.spend(v.cost.now, 'shipbuilding');
     for (const id of design.components) this.state.stock[id] -= 1;
     const s = this.state;

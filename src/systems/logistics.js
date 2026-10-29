@@ -127,8 +127,8 @@ export class Logistics {
   spend(amount, why) {
     const g = this.game;
     if (amount <= 0) return;
-    g.player.money -= amount;
-    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    if (why === 'company') g.corp.found('shipping', amount, this.L.company); // the owner buys the firm: equity in kind
+    else g.corp.pay('shipping', amount, { cat: why });
     this.book(0, amount, why);
     // capital spending (the company, ships) is tallied too, so operating figures can leave it out (v0.56.0)
     if (CAPEX.has(why)) {
@@ -141,8 +141,7 @@ export class Logistics {
   earn(amount, why) {
     const g = this.game;
     if (amount <= 0) return;
-    g.player.money += amount;
-    g.bus.emit('money:changed', { delta: amount, total: g.player.money });
+    g.corp.receive('shipping', amount, { cat: why });
     this.book(amount, 0, why);
   }
 
@@ -188,7 +187,7 @@ export class Logistics {
     const L = this.L;
     const s = this.state;
     if (s.owned) return { ok: false, text: `You already own ${L.company}.` };
-    if (g.player.money < L.price) return { ok: false, text: `${L.company} costs ${L.price} obols. You have ${g.player.money}.` };
+    if (g.player.money < L.price) return { ok: false, text: `${L.company} costs ${L.price} obols. You have ${g.player.money}.` }; // the owner's money: the company does not exist yet
     // build everything first, then commit in one go
     const ports = {};
     for (const id of L.starterPorts) {
@@ -231,7 +230,7 @@ export class Logistics {
     if (s.ports[id]) return { ok: false, text: `You already own ${p.name}.` };
     if (this.ownedPorts().length >= this.L.maxPorts) return { ok: false, text: `You can own at most ${this.L.maxPorts} ports.` };
     const price = this.portType(id).price;
-    if (g.player.money < price) return { ok: false, text: `${p.name} costs ${price} obols.` };
+    if (!g.corp.canAfford('shipping', price)) return { ok: false, text: `${p.name} costs ${price} obols.` };
     this.spend(price, 'port');
     s.ports[id] = { id, since: g.clock.day, upgrades: [], shipyard: null };
     const free = s.display.berths.length < this.L.physicalBerths;
@@ -351,7 +350,7 @@ export class Logistics {
     const probe = { model: modelId, status: 'docked' };
     const why = this.berthCheck(probe, portId);
     if (why) return { ok: false, text: `Can't deliver there: ${why}.` };
-    if (g.player.money < m.price) return { ok: false, text: `The ${m.name} costs ${m.price} obols. You have ${g.player.money}.` };
+    if (!g.corp.canAfford('shipping', m.price)) return { ok: false, text: `The ${m.name} costs ${m.price} obols. You have ${g.corp.cashOf('shipping')}.` };
     this.spend(m.price, 'ship');
     const v = this.addVessel(modelId, portId, name);
     this.report('fleet', `🚢 The ${m.name} "${v.name}" is delivered to ${this.port(portId).name}.`, 'good');
@@ -373,7 +372,7 @@ export class Logistics {
     if (!this.portType(v.port).services.includes('repairs')) return { ok: false, text: `${this.port(v.port).name} has no repair yard.` };
     if (v.condition >= 100) return { ok: false, text: 'It\'s in perfect shape.' };
     const cost = this.repairQuote(v);
-    if (g.player.money < cost) return { ok: false, text: `Repairs cost ${cost} obols.` };
+    if (!g.corp.canAfford('shipping', cost)) return { ok: false, text: `Repairs cost ${cost} obols.` };
     this.spend(cost, 'repairs');
     v.condition = 100;
     this.report('repair', `🔧 The ${v.name} is repaired at ${this.port(v.port).name} (${cost} obols).`, null);
@@ -527,7 +526,7 @@ export class Logistics {
     if (v.cargo?.type === 'aero') return { ok: false, text: `The ${v.name} is reserved for aerospace freight (release it on the aerospace terminal's Supply page).` };
     const pl = this.plan(v, to);
     if (!pl.ok) return { ok: false, text: `Can't sail: ${pl.reasons[0]}.` };
-    if (g.player.money < pl.cost) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
+    if (!g.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
     const from = v.port;
     this.spend(pl.cost, 'voyage');
     this.startVoyage(v, to, { purpose: 'reposition', depart: g.clock.total, risk: { cargo: null } });
@@ -628,7 +627,7 @@ export class Logistics {
     const c = this.contract(id);
     if (!c || c.status !== 'accepted') return { ok: false, text: 'Only an accepted contract that hasn\'t loaded can be cancelled.' };
     const fee = Math.round(c.pay * this.L.cancelPenalty);
-    this.spend(Math.min(fee, Math.max(0, this.game.player.money)), 'penalty');
+    this.spend(Math.min(fee, Math.max(0, this.game.corp.cashOf('shipping'))), 'penalty');
     c.status = 'failed';
     c.result = { paid: 0, penalty: fee, note: 'cancelled' };
     this.report('contract', `✖ You cancelled the ${this.cfg.contractTypes[c.type].name.toLowerCase()} contract for ${this.cfg.clients[c.client].name} (penalty ${fee}).`, 'warn');
@@ -686,7 +685,7 @@ export class Logistics {
     const v = this.vessel(vid);
     const q = this.quote(cid, vid, opts);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
     this.spend(q.cost, 'voyage');
     c.status = 'loading';
     c.vessel = v.id;
@@ -794,7 +793,7 @@ export class Logistics {
   repositionForAero(v, to, job) {
     const pl = this.plan(v, to);
     if (!pl.ok) return { ok: false, text: pl.reasons[0] };
-    if (this.game.player.money < pl.cost) return { ok: false, text: `the passage costs ${pl.cost} obols` };
+    if (!this.game.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `the passage costs ${pl.cost} obols` };
     const from = v.port;
     this.spend(pl.cost, 'voyage');
     const vo = this.startVoyage(v, to, { purpose: 'reposition', depart: this.game.clock.total, risk: { cargo: null } });
@@ -809,7 +808,7 @@ export class Logistics {
     const pl = this.plan(v, job.dest, job.units, job.origin);
     if (v.port !== job.origin) return { ok: false, text: `the ${v.name} isn't at ${this.port(job.origin).name}` };
     if (!pl.ok && !(pl.reasons.length === 1 && pl.reasons[0].includes('isn\'t free'))) return { ok: false, text: pl.reasons[0] };
-    if (g.player.money < pl.cost) return { ok: false, text: `the voyage costs ${pl.cost} obols up front` };
+    if (!g.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `the voyage costs ${pl.cost} obols up front` };
     this.spend(pl.cost, 'voyage');
     v.cargo = { type: 'aero', units: job.units, job: job.id };
     this.setStatus(v, 'loading');
@@ -903,7 +902,7 @@ export class Logistics {
       hurt(v, e.damage);
       V.arrive += e.hours * 60;
       this.syncShipment(v);
-      const paid = Math.min(e.cost, Math.max(0, g.player.money));
+      const paid = Math.min(e.cost, Math.max(0, g.corp.cashOf('shipping')));
       this.spend(paid, 'ransom');
       this.state.arrears += e.cost - paid;
       log(`🏴 Pirates in ${where} boarded the ${v.name} and took ${e.cost} obols to let her go${paid < e.cost ? ` (${e.cost - paid} owed — added to arrears)` : ''}.`);
@@ -946,7 +945,7 @@ export class Logistics {
       } else {
         const fee = Math.round(c.pay * this.L.failPenalty);
         c.result = { paid: 0, penalty: fee, note: how };
-        this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+        this.spend(Math.min(fee, Math.max(0, g.corp.cashOf('shipping'))), 'penalty');
       }
     }
     V.contract = null;
@@ -1026,7 +1025,7 @@ export class Logistics {
       const fee = Math.round(c.pay * this.L.failPenalty);
       c.status = 'failed';
       c.result = { paid: 0, penalty: fee, at: g.clock.total, note: 'too late' };
-      this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+      this.spend(Math.min(fee, Math.max(0, g.corp.cashOf('shipping'))), 'penalty');
       this.report('contract', `✖ The ${v.name} reached ${this.port(c.to).name} days late — ${client} refused the cargo and charged ${fee} obols.`, 'warn');
     }
   }
@@ -1038,7 +1037,7 @@ export class Logistics {
     let due = s.arrears;
     for (const id of this.ownedPorts()) due += this.portType(id).upkeep;
     for (const v of this.vessels()) if (v.status !== 'lost') due += this.stats(v).upkeep;
-    const pay = Math.min(due, Math.max(0, g.player.money));
+    const pay = Math.min(due, Math.max(0, g.corp.cashOf('shipping')));
     this.spend(pay, 'upkeep');
     s.arrears = due - pay;
     if (s.arrears > 0) this.report('upkeep', `⚠ Upkeep: ${due} obols due, ${pay} paid. ${s.arrears} in arrears — your ships can't sail until it's paid.`, 'warn');
@@ -1049,7 +1048,7 @@ export class Logistics {
         const fee = Math.round(c.pay * this.L.failPenalty);
         c.status = 'failed';
         c.result = { paid: 0, penalty: fee, note: 'never shipped' };
-        this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+        this.spend(Math.min(fee, Math.max(0, g.corp.cashOf('shipping'))), 'penalty');
         this.report('contract', `✖ You never shipped ${this.cfg.clients[c.client].name}'s cargo. Penalty ${fee} obols.`, 'warn');
       }
     }
@@ -1066,7 +1065,7 @@ export class Logistics {
   payArrears() {
     const s = this.state;
     if (!s.arrears) return { ok: false, text: 'Nothing owed.' };
-    if (this.game.player.money < s.arrears) return { ok: false, text: `You owe ${s.arrears} obols.` };
+    if (!this.game.corp.canAfford('shipping', s.arrears)) return { ok: false, text: `You owe ${s.arrears} obols.` };
     this.spend(s.arrears, 'upkeep');
     s.arrears = 0;
     return { ok: true, text: 'Arrears paid. Your ships may sail.' };

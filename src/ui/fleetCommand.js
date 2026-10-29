@@ -370,7 +370,7 @@ export function fleetPanel(ui, body, opts = {}) {
           !FC.ff ? h('button', { class: 'fc-btn', title: 'Let an hour pass', onclick: () => ff(60) }, '⏩ 1 h') : null,
           !FC.ff ? h('button', { class: 'fc-btn', title: 'Let six hours pass', onclick: () => ff(360) }, '⏩ 6 h') : null,
           !FC.ff && next ? h('button', { class: 'fc-btn primary', title: 'Let time pass until the next arrival, departure, launch or mission end', onclick: () => ff(Math.min(next - g.clock.total + 1, 4 * 1440)) }, `⏭ Next event (${hrs(next - g.clock.total)})`) : null) : null),
-      h('div', { class: 'fc-money' }, h('b', {}, `${num(g.player.money)} ◎`), Lg.owned ? h('span', { class: today.revenue - today.expenses < 0 ? 'neg' : 'pos' }, `today ${today.revenue - today.expenses >= 0 ? '+' : ''}${num(today.revenue - today.expenses)}`) : null),
+      h('div', { class: 'fc-money' }, h('b', {}, `${num(g.corp.cashOf('shipping'))} ◎`), Lg.owned ? h('span', { class: today.revenue - today.expenses < 0 ? 'neg' : 'pos' }, `today ${today.revenue - today.expenses >= 0 ? '+' : ''}${num(today.revenue - today.expenses)}`) : null),
       h('button', { class: 'fc-close', title: 'Close (Esc)', onclick: () => ui.closePanel() }, '✕'));
   };
 
@@ -501,7 +501,7 @@ export function fleetPanel(ui, body, opts = {}) {
     const contracts = Lg.contracts(['available', 'accepted']).filter((c) => c.from === id);
     const missions = Lg.missions.list('available').filter((m) => m.port === id);
     const out = [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, `${pt.name.toUpperCase()} · ${country.toUpperCase()}`), h('h2', {}, p.name), h('p', {}, p.blurb || ''),
-      own ? pill('Your port', '#3ad6ff') : h('button', { class: 'fc-go', disabled: g.player.money < pt.price || Lg.ownedPorts().length >= Lg.L.maxPorts, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy this port · ${num(pt.price)} ◎`, h('small', {}, `${pt.berths} berths · ${pt.upkeep}/day · brings daily contracts`)))];
+      own ? pill('Your port', '#3ad6ff') : h('button', { class: 'fc-go', disabled: !g.corp.canAfford('shipping', pt.price) || Lg.ownedPorts().length >= Lg.L.maxPorts, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy this port · ${num(pt.price)} ◎`, h('small', {}, `${pt.berths} berths · ${pt.upkeep}/day · brings daily contracts`)))];
     if (here.length) out.push(section('In port', h('div', { class: 'fc-chips' }, ...here.map(shipChip))));
     if (own) {
       out.push(section(`Contracts (${contracts.length})`, ...(contracts.length ? contracts.map(contractCard) : [h('p', { class: 'fc-muted' }, 'None today. New ones arrive at 06:00.')])));
@@ -513,7 +513,7 @@ export function fleetPanel(ui, body, opts = {}) {
       const y = Lg.shipyard.yard(id);
       const yq = Lg.shipyard.yardQuote(id);
       out.push(section('Shipyard', y ? h('div', {}, y.status === 'ready' ? '✅ Working · ' : `🏗 Mason's Os are building it — ready ${Lg.when(y.end)} · `, h('button', { class: 'fc-link', onclick: () => { FC.mode = 'shipyard'; refresh(); } }, 'Open shipyard ›'))
-        : yq.ok ? h('button', { class: 'fc-go', disabled: g.player.money < yq.cost, onclick: () => { say(Lg.shipyard.commissionYard(id)); refresh(); } }, `Commission Mason's Os · ${num(yq.cost)} ◎`, h('small', {}, `${yq.days} days`)) : h('p', { class: 'fc-muted' }, yq.reasons[0])));
+        : yq.ok ? h('button', { class: 'fc-go', disabled: !g.corp.canAfford('shipping', yq.cost), onclick: () => { say(Lg.shipyard.commissionYard(id)); refresh(); } }, `Commission Mason's Os · ${num(yq.cost)} ◎`, h('small', {}, `${yq.days} days`)) : h('p', { class: 'fc-muted' }, yq.reasons[0])));
     } else out.push(h('p', { class: 'fc-muted' }, 'Contracts start at your own ports. Your ships can still sail here — select one, then "Send to…".'));
     return out;
   };
@@ -577,7 +577,7 @@ export function fleetPanel(ui, body, opts = {}) {
         const pt = Lg.cfg.portTypes[p.type];
         grid.append(h('div', { class: 'fc-tile' }, h('b', {}, p.name), h('small', {}, `${pt.name} · ${p.country ? g.content.arms.countries[p.country].name : 'Free port'}`), h('small', { class: 'fc-muted' }, p.blurb),
           h('small', {}, `${pt.berths} berths · ships up to size ${pt.maxSize} · ${pt.upkeep}/day`),
-          h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'port', id }; centreOn(p.lat, p.lon, 2); refresh(); } }, 'Show'), h('button', { class: 'fc-btn primary', disabled: full || g.player.money < pt.price, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy · ${num(pt.price)}`))));
+          h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'port', id }; centreOn(p.lat, p.lon, 2); refresh(); } }, 'Show'), h('button', { class: 'fc-btn primary', disabled: full || !g.corp.canAfford('shipping', pt.price), onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy · ${num(pt.price)}`))));
       }
       wrap.append(h('p', { class: 'fc-muted' }, `You own ${Lg.ownedPorts().length} of at most ${Lg.L.maxPorts} ports. Each port you own offers contracts and missions every day.`), grid);
       return wrap;
@@ -594,7 +594,7 @@ export function fleetPanel(ui, body, opts = {}) {
         ? [bar('Attack', st.combat.attack / 100, '#ff78dc', st.combat.attack), bar('Defence', st.combat.defense / 100, '#3ad6ff', st.combat.defense), bar('Speed', m.speed / 40, '#4ade9a', `${m.speed} kn`)]
         : [bar('Hold', m.capacity / 420, '#3ad6ff', `${m.capacity}`), bar('Speed', m.speed / 35, '#4ade9a', `${m.speed} kn`), bar('Range', m.range / 80000, '#f2c14e', `${num(m.range / 1000)}k km`)];
       grid.append(h('div', { class: 'fc-tile' }, shipPic(m, 250, 74), h('b', {}, m.name), h('small', {}, `${Lg.className(m)} · size ${st.size}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`), ...stats, h('small', { class: 'fc-muted' }, m.blurb),
-        h('div', { class: 'fc-row-inline' }, ports.length ? sel : h('small', { class: 'fc-muted' }, 'None of your ports can berth it'), h('button', { class: 'fc-btn primary', disabled: !ports.length || g.player.money < m.price, onclick: () => { say(Lg.buyShip(id, sel.value)); refresh(); } }, `Buy · ${num(m.price)}`))));
+        h('div', { class: 'fc-row-inline' }, ports.length ? sel : h('small', { class: 'fc-muted' }, 'None of your ports can berth it'), h('button', { class: 'fc-btn primary', disabled: !ports.length || !g.corp.canAfford('shipping', m.price), onclick: () => { say(Lg.buyShip(id, sel.value)); refresh(); } }, `Buy · ${num(m.price)}`))));
     }
     wrap.append(grid);
     return wrap;

@@ -278,7 +278,7 @@ function designer(ui, B, say, refresh) {
   const name = h('input', { class: 'fc-input', value: d.name, maxlength: 28, placeholder: 'Name her' });
   name.addEventListener('input', () => { d.name = name.value; });
   const swatches = (key) => h('div', { class: 'sb-swatches' }, h('small', {}, key === 'color' ? 'Hull' : 'Trim'), ...C.colours.map((col) => h('button', { class: `sb-swatch${d[key] === col ? ' on' : ''}`, style: `background:${col}`, title: col, onclick: () => { d[key] = col; refresh(); } })));
-  const canBuild = v.ok && !v.missing.length && g.player.money >= v.cost.now;
+  const canBuild = v.ok && !v.missing.length && g.corp.canAfford('shipping', v.cost.now);
   const side = h('div', { class: 'sb-side' },
     h('div', { class: 'fc-kicker' }, `${Lg.className({ cls: H.cls }).toUpperCase()} · SIZE ${H.size}${H.needsTech ? ' · FUTURISTIC' : ''}`),
     h('h3', {}, H.name),
@@ -310,7 +310,7 @@ function designer(ui, B, say, refresh) {
         h('div', {}, h('span', {}, 'Labour'), h('b', {}, num(v.cost.labour))),
         h('div', {}, h('span', {}, `Parts (${comps.length})`), h('b', {}, `${num(v.cost.parts)}${v.missing.length ? ` · ${num(v.missingCost)} to buy` : ' · in store'}`)),
         h('div', {}, h('span', {}, 'On the slip'), h('b', {}, `${v.days} days`))),
-      v.missing.length ? h('button', { class: 'fc-btn', disabled: g.player.money < v.missingCost, onclick: () => { say(Y.buyMissing(design)); refresh(); } }, `Buy ${v.missing.reduce((a, m) => a + m.n, 0)} missing part${v.missing.reduce((a, m) => a + m.n, 0) === 1 ? '' : 's'} · ${num(v.missingCost)}`) : null,
+      v.missing.length ? h('button', { class: 'fc-btn', disabled: !g.corp.canAfford('shipping', v.missingCost), onclick: () => { say(Y.buyMissing(design)); refresh(); } }, `Buy ${v.missing.reduce((a, m) => a + m.n, 0)} missing part${v.missing.reduce((a, m) => a + m.n, 0) === 1 ? '' : 's'} · ${num(v.missingCost)}`) : null,
       h('button', { class: 'fc-go big', disabled: !canBuild, title: v.reasons[0] || '', onclick: () => {
         const r = Y.commission(design);
         say(r);
@@ -356,7 +356,7 @@ function yardsPage(ui, B, say, refresh) {
     const q = Y.yardQuote(id);
     yg.append(h('div', { class: 'fc-tile' }, h('b', {}, Lg.port(id).name), h('small', {}, Lg.portType(id).name),
       y ? (y.status === 'ready' ? h('span', { class: 'pos' }, '✅ Working') : h('div', {}, h('div', { class: 'fc-bar' }, h('span', {}, 'Building'), h('div', { class: 'fc-bar-track' }, h('i', { style: `width:${Math.round(Math.min(1, (g.clock.total - y.start) / (y.end - y.start)) * 100)}%;background:#f2c14e` })), h('em', {}, `ready ${Lg.when(y.end)}`))))
-        : q.ok ? h('button', { class: 'fc-go', disabled: g.player.money < q.cost, onclick: () => { say(Y.commissionYard(id)); refresh(); } }, `Commission Mason's Os`, h('small', {}, `${num(q.cost)} ◎ · ${q.days} days${q.discount ? ` · −${Math.round(q.discount * 100)}% goodwill` : ''}`))
+        : q.ok ? h('button', { class: 'fc-go', disabled: !g.corp.canAfford('shipping', q.cost), onclick: () => { say(Y.commissionYard(id)); refresh(); } }, `Commission Mason's Os`, h('small', {}, `${num(q.cost)} ◎ · ${q.days} days${q.discount ? ` · −${Math.round(q.discount * 100)}% goodwill` : ''}`))
           : h('small', { class: 'fc-muted' }, cap(q.reasons[0]))));
   }
   out.append(yg);
@@ -372,7 +372,7 @@ function storePage(ui, B, say, refresh) {
   const out = h('div', { class: 'sb-page' });
   for (const [id, t] of Object.entries(C.tech)) {
     out.append(h('div', { class: 'fc-card' }, h('div', { class: 'fc-card-head' }, h('span', { class: 'fc-ic' }, '📜'), h('div', { class: 'grow' }, h('b', {}, t.name), h('small', {}, t.text)),
-      Y.state.tech[id] ? h('span', { class: 'pos' }, '✔ Held') : h('button', { class: 'fc-btn primary', disabled: g.player.money < t.price, onclick: () => { say(Y.buyTech(id)); refresh(); } }, `Buy · ${num(t.price)}`))));
+      Y.state.tech[id] ? h('span', { class: 'pos' }, '✔ Held') : h('button', { class: 'fc-btn primary', disabled: !g.corp.canAfford('shipping', t.price), onclick: () => { say(Y.buyTech(id)); refresh(); } }, `Buy · ${num(t.price)}`))));
   }
   out.append(h('p', { class: 'fc-muted' }, `Parts wait in your store until a build uses them (at most ${Y.rules.maxStock} of each). The designer buys whatever a design still needs in one click, so you only need this to stock up.`));
   for (const [fam, label] of FAMILIES) {
@@ -385,7 +385,7 @@ function storePage(ui, B, say, refresh) {
       const locked = c.tech === 'advanced' && !Y.state.tech.advanced;
       grid.append(h('div', { class: `sb-card${locked ? ' off' : ''}` }, partPic(id, 120, 84), h('b', {}, c.name), h('small', {}, c.text),
         h('div', { class: 'sb-card-meta' }, h('span', {}, `${num(c.price)} ◎`), h('span', {}, `${c.weight} t`), h('span', {}, c.tech), have ? h('span', { class: 'pos' }, `${have} in store`) : null),
-        h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', disabled: locked || g.player.money < c.price, onclick: () => { say(Y.buyComponent(id, 1)); refresh(); } }, locked ? '🔒' : 'Buy 1'), !locked ? h('button', { class: 'fc-btn', disabled: g.player.money < c.price * 5, onclick: () => { say(Y.buyComponent(id, 5)); refresh(); } }, 'Buy 5') : null)));
+        h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', disabled: locked || !g.corp.canAfford('shipping', c.price), onclick: () => { say(Y.buyComponent(id, 1)); refresh(); } }, locked ? '🔒' : 'Buy 1'), !locked ? h('button', { class: 'fc-btn', disabled: !g.corp.canAfford('shipping', c.price) * 5, onclick: () => { say(Y.buyComponent(id, 5)); refresh(); } }, 'Buy 5') : null)));
     }
     out.append(grid);
   }

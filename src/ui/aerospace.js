@@ -470,7 +470,7 @@ export function aerospacePanel(ui, body, opts = {}) {
           !AO.ff ? h('button', { class: 'ao-btn', title: 'Let an hour pass', onclick: () => ff(60) }, '⏩ 1 h') : null,
           !AO.ff ? h('button', { class: 'ao-btn', title: 'Let six hours pass', onclick: () => ff(360) }, '⏩ 6 h') : null,
           !AO.ff ? h('button', { class: 'ao-btn primary', title: 'Let time pass until 06:00, when tenders are posted and decided', onclick: () => ff(toMorning) }, `⏭ Next morning (${hrs(toMorning)})`) : null) : null),
-      h('div', { class: 'ao-money' }, h('b', {}, money(g.player.money)), today ? h('span', { class: today.profit < 0 ? 'neg' : 'pos' }, `today ${today.profit >= 0 ? '+' : ''}${fmtMoney(today.profit)}`) : null),
+      h('div', { class: 'ao-money' }, h('b', {}, money(g.corp.cashOf('aerospace'))), today ? h('span', { class: today.profit < 0 ? 'neg' : 'pos' }, `today ${today.profit >= 0 ? '+' : ''}${fmtMoney(today.profit)}`) : null),
       h('button', { class: 'ao-close', title: 'Close (Esc)', onclick: () => ui.closePanel() }, '✕'));
   };
 

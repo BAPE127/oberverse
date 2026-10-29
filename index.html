@@ -22720,8 +22720,11 @@ class Factory {
     const def = this.def(whId);
     if (this.owns(whId)) return { ok: false, text: 'You already own it.' };
     if (g.player.money < def.price) return { ok: false, text: `${def.name} costs ${def.price} obols. You have ${g.player.money}.` };
-    g.player.money -= def.price;
-    g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });
+    if (this.domain === 'arms') g.corp.found('arms', def.price, def.name); // v0.60.0: the owner buys the works (equity in kind)
+    else {
+      g.player.money -= def.price;
+      g.bus.emit('money:changed', { delta: -def.price, total: g.player.money });
+    }
     g.setFlag(def.flag, true);
     g.bus.emit('factory:bought', { warehouse: whId });
     return { ok: true, text: `${def.name} is yours. Buy parts from Sal's Surplus down the quay, then craft at the workbench inside.` };
@@ -22977,8 +22980,7 @@ class Arms extends Factory {
     if (this.licensed()) return { ok: false, text: 'You already have a licence.' };
     const price = this.cfg.licencePrice;
     if (g.player.money < price) return { ok: false, text: `The licence costs ${price} obols.` };
-    g.player.money -= price;
-    g.bus.emit('money:changed', { delta: -price, total: g.player.money });
+    g.corp.found('arms', price, 'Arms licence');
     g.setFlag(LICENCE_FLAG, true);
     return { ok: true, text: 'You are now a licensed arms manufacturer and exporter. (Mill Road Yards: the west end of Mill Road.)' };
   }
@@ -23320,9 +23322,8 @@ class Arms extends Factory {
     const g = this.game;
     const st = this.state.staff.find((x) => x.id === staffId);
     if (!st) return { ok: false, text: '' };
-    if (g.player.money < st.wage) return { ok: false, text: `A bonus is a day's wage: ${st.wage} obols.` };
-    g.player.money -= st.wage;
-    g.bus.emit('money:changed', { delta: -st.wage, total: g.player.money });
+    if (!g.corp.canAfford('arms', st.wage)) return { ok: false, text: `A bonus is a day's wage: ${st.wage} obols.` };
+    g.corp.pay('arms', st.wage, { cat: 'wages' });
     st.morale = clamp(st.morale + 15, 0, 100);
     return { ok: true, text: `${st.shortName} pockets the bonus. Morale ${Math.round(st.morale)}.` };
   }
@@ -23371,8 +23372,7 @@ class Arms extends Factory {
     const leaving = [];
     for (const st of s.staff) {
       const q = this.quirk(st);
-      if (g.player.money >= st.wage) {
-        g.player.money -= st.wage;
+      if (g.corp.canAfford('arms', st.wage) && g.corp.pay('arms', st.wage, { cat: 'wages', quiet: true })) {
         paid += st.wage;
         st.unpaid = 0;
         st.morale += 1;
@@ -23385,7 +23385,7 @@ class Arms extends Factory {
       st.morale = clamp(st.morale, 0, 100);
       if (st.unpaid >= 2 || st.morale < 15) leaving.push(st);
     }
-    if (paid) g.bus.emit('money:changed', { delta: -paid, total: g.player.money });
+    if (paid) g.corp.announce('arms', -paid);
     if (paid) g.tablet.post('arms', `💼 Payroll: ${paid} obols to ${s.staff.length - leaving.length} staff.`, 'info');
     for (const st of leaving) {
       this.fire(st.id);
@@ -23406,9 +23406,8 @@ class Arms extends Factory {
     if (!it || !this.owns(whId)) return { ok: false, text: '' };
     qty = Math.max(1, Math.round(qty));
     const cost = this.partPrice(itemId) * qty;
-    if (g.player.money < cost) return { ok: false, text: `${qty}× ${it.name} costs ${cost} obols. You have ${g.player.money}.` };
-    g.player.money -= cost;
-    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    if (!g.corp.canAfford('arms', cost)) return { ok: false, text: `${qty}× ${it.name} costs ${cost} obols. You have ${g.corp.cashOf('arms')}.` };
+    g.corp.pay('arms', cost, { cat: it.category === 'arms_part' ? 'parts' : 'equipment' });
     this.state.orders.push({ wh: whId, item: itemId, qty, at: g.clock.total + DELIVERY_MINUTES });
     return { ok: true, text: `Ordered ${qty}× ${it.name} (${cost} obols). Arriving at the loading dock within the hour.` };
   }
@@ -23455,7 +23454,7 @@ class Arms extends Factory {
     if (g.clock.minuteOfDay === PAY_MINUTE && s.lastPayDay < g.clock.day) this.payroll();
     if (g.clock.minuteOfDay === PAY_MINUTE - 60 && s.staff.length) {
       const due = s.staff.reduce((a, st) => a + st.wage, 0);
-      if (g.player.money < due) g.tablet.post('arms', `⚠ Payroll at 19:00 is ${due} obols and you have ${g.player.money}. Unpaid staff lose morale — twice unpaid and they quit.`, 'warn');
+      if (!g.corp.canAfford('arms', due)) g.tablet.post('arms', `⚠ Payroll at 19:00 is ${due} obols and you have ${g.corp.cashOf('arms')}. Unpaid staff lose morale — twice unpaid and they quit.`, 'warn');
     }
     if (g.clock.minuteOfDay % 60 === 30) this.checkStations();
   }
@@ -23731,9 +23730,8 @@ class Market {
     const value = order.qty * order.price;
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const fee = this.fee(shipper, value, insured);
-    if (g.player.money < fee) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
-    g.player.money -= fee;
-    g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+    if (!g.corp.canAfford('arms', fee)) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
+    g.corp.pay('arms', fee, { cat: 'freight' });
     for (const [id, n] of list) cage[id] -= n;
     c.budget -= value;
     order.status = 'shipped';
@@ -23764,7 +23762,7 @@ class Market {
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const q = L.armsQuote(vessel, country, order.qty, { escorts, guards, value });
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, port fees${escorts.length ? ', escorts' : ''}${guards ? ', guards' : ''}).` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, port fees${escorts.length ? ', escorts' : ''}${guards ? ', guards' : ''}).` };
     // everything checked: commit
     cage[order.item] -= order.qty;
     c.budget -= value;
@@ -23808,8 +23806,7 @@ class Market {
     const def = this.cfg.countries[shp.country];
     const c = this.country(shp.country);
     if (fate === 'delivered') {
-      g.player.money += shp.value;
-      g.bus.emit('money:changed', { delta: shp.value, total: g.player.money });
+      g.corp.receive('arms', shp.value, { cat: 'exports' });
       this.state.earned += shp.value;
       for (const [id, n] of Object.entries(shp.items)) {
         const fam = g.content.items[id].arms.family;
@@ -23833,8 +23830,7 @@ class Market {
     let text = lines[fate];
     if (shp.insured && !(fate === 'seized' && shp.embargo)) {
       const payout = Math.round(shp.value * this.cfg.market.insurancePayout);
-      g.player.money += payout;
-      g.bus.emit('money:changed', { delta: payout, total: g.player.money });
+      g.corp.receive('arms', payout, { cat: 'insurance' });
       text += ` Insurance paid out ${payout} obols.`;
     } else if (shp.insured) text += ' The insurers don\'t cover smuggling.';
     if (fate === 'seized') {
@@ -28411,7 +28407,7 @@ class Shipyard {
     const g = this.game;
     const q = this.yardQuote(portId);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `Mason's Os quote ${q.cost} obols for a shipyard. You're a little short, pal.` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `Mason's Os quote ${q.cost} obols for a shipyard. You're a little short, pal.` };
     this.L.spend(q.cost, 'shipyard');
     this.L.state.ports[portId].shipyard = { status: 'building', commissioned: g.clock.total, days: q.days, start: g.clock.total, end: g.clock.total + q.days * 1440, paid: q.cost, lastNote: g.clock.day };
     this.flags(portId);
@@ -28437,7 +28433,7 @@ class Shipyard {
     const have = this.state.stock[id] || 0;
     if (have + n > this.rules.maxStock) return { ok: false, text: `The store holds at most ${this.rules.maxStock} of each part.` };
     const cost = c.price * n;
-    if (g.player.money < cost) return { ok: false, text: `${n}× ${c.name} costs ${cost} obols.` };
+    if (!g.corp.canAfford('shipping', cost)) return { ok: false, text: `${n}× ${c.name} costs ${cost} obols.` };
     this.L.spend(cost, 'parts');
     this.state.stock[id] = have + n;
     return { ok: true, text: `Bought ${n}× ${c.name}.` };
@@ -28448,7 +28444,7 @@ class Shipyard {
     const t = this.cfg.tech[id];
     if (!t) return { ok: false, text: 'No such licence.' };
     if (this.state.tech[id]) return { ok: false, text: 'You already hold it.' };
-    if (g.player.money < t.price) return { ok: false, text: `The ${t.name} costs ${t.price} obols.` };
+    if (!g.corp.canAfford('shipping', t.price)) return { ok: false, text: `The ${t.name} costs ${t.price} obols.` };
     this.L.spend(t.price, 'licence');
     this.state.tech[id] = g.clock.day;
     this.L.report('shipyard', `📜 You hold the ${t.name}.`, 'good');
@@ -28601,7 +28597,7 @@ class Shipyard {
     const v = this.validate(design, design.port);
     if (!v.ok) return { ok: false, text: `Can't: ${v.reasons[0]}.` };
     if (v.missing.length) return { ok: false, text: `Missing parts: ${v.missing.map((m) => `${m.n}× ${this.cfg.components[m.id].name}`).join(', ')}.` };
-    if (g.player.money < v.cost.now) return { ok: false, text: `The hull and labour come to ${v.cost.now} obols.` };
+    if (!g.corp.canAfford('shipping', v.cost.now)) return { ok: false, text: `The hull and labour come to ${v.cost.now} obols.` };
     this.L.spend(v.cost.now, 'shipbuilding');
     for (const id of design.components) this.state.stock[id] -= 1;
     const s = this.state;
@@ -31483,8 +31479,8 @@ class Logistics {
   spend(amount, why) {
     const g = this.game;
     if (amount <= 0) return;
-    g.player.money -= amount;
-    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    if (why === 'company') g.corp.found('shipping', amount, this.L.company); // the owner buys the firm: equity in kind
+    else g.corp.pay('shipping', amount, { cat: why });
     this.book(0, amount, why);
     // capital spending (the company, ships) is tallied too, so operating figures can leave it out (v0.56.0)
     if (CAPEX.has(why)) {
@@ -31497,8 +31493,7 @@ class Logistics {
   earn(amount, why) {
     const g = this.game;
     if (amount <= 0) return;
-    g.player.money += amount;
-    g.bus.emit('money:changed', { delta: amount, total: g.player.money });
+    g.corp.receive('shipping', amount, { cat: why });
     this.book(amount, 0, why);
   }
 
@@ -31544,7 +31539,7 @@ class Logistics {
     const L = this.L;
     const s = this.state;
     if (s.owned) return { ok: false, text: `You already own ${L.company}.` };
-    if (g.player.money < L.price) return { ok: false, text: `${L.company} costs ${L.price} obols. You have ${g.player.money}.` };
+    if (g.player.money < L.price) return { ok: false, text: `${L.company} costs ${L.price} obols. You have ${g.player.money}.` }; // the owner's money: the company does not exist yet
     // build everything first, then commit in one go
     const ports = {};
     for (const id of L.starterPorts) {
@@ -31587,7 +31582,7 @@ class Logistics {
     if (s.ports[id]) return { ok: false, text: `You already own ${p.name}.` };
     if (this.ownedPorts().length >= this.L.maxPorts) return { ok: false, text: `You can own at most ${this.L.maxPorts} ports.` };
     const price = this.portType(id).price;
-    if (g.player.money < price) return { ok: false, text: `${p.name} costs ${price} obols.` };
+    if (!g.corp.canAfford('shipping', price)) return { ok: false, text: `${p.name} costs ${price} obols.` };
     this.spend(price, 'port');
     s.ports[id] = { id, since: g.clock.day, upgrades: [], shipyard: null };
     const free = s.display.berths.length < this.L.physicalBerths;
@@ -31707,7 +31702,7 @@ class Logistics {
     const probe = { model: modelId, status: 'docked' };
     const why = this.berthCheck(probe, portId);
     if (why) return { ok: false, text: `Can't deliver there: ${why}.` };
-    if (g.player.money < m.price) return { ok: false, text: `The ${m.name} costs ${m.price} obols. You have ${g.player.money}.` };
+    if (!g.corp.canAfford('shipping', m.price)) return { ok: false, text: `The ${m.name} costs ${m.price} obols. You have ${g.corp.cashOf('shipping')}.` };
     this.spend(m.price, 'ship');
     const v = this.addVessel(modelId, portId, name);
     this.report('fleet', `🚢 The ${m.name} "${v.name}" is delivered to ${this.port(portId).name}.`, 'good');
@@ -31729,7 +31724,7 @@ class Logistics {
     if (!this.portType(v.port).services.includes('repairs')) return { ok: false, text: `${this.port(v.port).name} has no repair yard.` };
     if (v.condition >= 100) return { ok: false, text: 'It\'s in perfect shape.' };
     const cost = this.repairQuote(v);
-    if (g.player.money < cost) return { ok: false, text: `Repairs cost ${cost} obols.` };
+    if (!g.corp.canAfford('shipping', cost)) return { ok: false, text: `Repairs cost ${cost} obols.` };
     this.spend(cost, 'repairs');
     v.condition = 100;
     this.report('repair', `🔧 The ${v.name} is repaired at ${this.port(v.port).name} (${cost} obols).`, null);
@@ -31883,7 +31878,7 @@ class Logistics {
     if (v.cargo?.type === 'aero') return { ok: false, text: `The ${v.name} is reserved for aerospace freight (release it on the aerospace terminal's Supply page).` };
     const pl = this.plan(v, to);
     if (!pl.ok) return { ok: false, text: `Can't sail: ${pl.reasons[0]}.` };
-    if (g.player.money < pl.cost) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
+    if (!g.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
     const from = v.port;
     this.spend(pl.cost, 'voyage');
     this.startVoyage(v, to, { purpose: 'reposition', depart: g.clock.total, risk: { cargo: null } });
@@ -31984,7 +31979,7 @@ class Logistics {
     const c = this.contract(id);
     if (!c || c.status !== 'accepted') return { ok: false, text: 'Only an accepted contract that hasn\'t loaded can be cancelled.' };
     const fee = Math.round(c.pay * this.L.cancelPenalty);
-    this.spend(Math.min(fee, Math.max(0, this.game.player.money)), 'penalty');
+    this.spend(Math.min(fee, Math.max(0, this.game.corp.cashOf('shipping'))), 'penalty');
     c.status = 'failed';
     c.result = { paid: 0, penalty: fee, note: 'cancelled' };
     this.report('contract', `✖ You cancelled the ${this.cfg.contractTypes[c.type].name.toLowerCase()} contract for ${this.cfg.clients[c.client].name} (penalty ${fee}).`, 'warn');
@@ -32042,7 +32037,7 @@ class Logistics {
     const v = this.vessel(vid);
     const q = this.quote(cid, vid, opts);
     if (!q.ok) return { ok: false, text: `Can't: ${q.reasons[0]}.` };
-    if (g.player.money < q.cost) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
+    if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
     this.spend(q.cost, 'voyage');
     c.status = 'loading';
     c.vessel = v.id;
@@ -32150,7 +32145,7 @@ class Logistics {
   repositionForAero(v, to, job) {
     const pl = this.plan(v, to);
     if (!pl.ok) return { ok: false, text: pl.reasons[0] };
-    if (this.game.player.money < pl.cost) return { ok: false, text: `the passage costs ${pl.cost} obols` };
+    if (!this.game.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `the passage costs ${pl.cost} obols` };
     const from = v.port;
     this.spend(pl.cost, 'voyage');
     const vo = this.startVoyage(v, to, { purpose: 'reposition', depart: this.game.clock.total, risk: { cargo: null } });
@@ -32165,7 +32160,7 @@ class Logistics {
     const pl = this.plan(v, job.dest, job.units, job.origin);
     if (v.port !== job.origin) return { ok: false, text: `the ${v.name} isn't at ${this.port(job.origin).name}` };
     if (!pl.ok && !(pl.reasons.length === 1 && pl.reasons[0].includes('isn\'t free'))) return { ok: false, text: pl.reasons[0] };
-    if (g.player.money < pl.cost) return { ok: false, text: `the voyage costs ${pl.cost} obols up front` };
+    if (!g.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `the voyage costs ${pl.cost} obols up front` };
     this.spend(pl.cost, 'voyage');
     v.cargo = { type: 'aero', units: job.units, job: job.id };
     this.setStatus(v, 'loading');
@@ -32259,7 +32254,7 @@ class Logistics {
       hurt(v, e.damage);
       V.arrive += e.hours * 60;
       this.syncShipment(v);
-      const paid = Math.min(e.cost, Math.max(0, g.player.money));
+      const paid = Math.min(e.cost, Math.max(0, g.corp.cashOf('shipping')));
       this.spend(paid, 'ransom');
       this.state.arrears += e.cost - paid;
       log(`🏴 Pirates in ${where} boarded the ${v.name} and took ${e.cost} obols to let her go${paid < e.cost ? ` (${e.cost - paid} owed — added to arrears)` : ''}.`);
@@ -32302,7 +32297,7 @@ class Logistics {
       } else {
         const fee = Math.round(c.pay * this.L.failPenalty);
         c.result = { paid: 0, penalty: fee, note: how };
-        this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+        this.spend(Math.min(fee, Math.max(0, g.corp.cashOf('shipping'))), 'penalty');
       }
     }
     V.contract = null;
@@ -32382,7 +32377,7 @@ class Logistics {
       const fee = Math.round(c.pay * this.L.failPenalty);
       c.status = 'failed';
       c.result = { paid: 0, penalty: fee, at: g.clock.total, note: 'too late' };
-      this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+      this.spend(Math.min(fee, Math.max(0, g.corp.cashOf('shipping'))), 'penalty');
       this.report('contract', `✖ The ${v.name} reached ${this.port(c.to).name} days late — ${client} refused the cargo and charged ${fee} obols.`, 'warn');
     }
   }
@@ -32394,7 +32389,7 @@ class Logistics {
     let due = s.arrears;
     for (const id of this.ownedPorts()) due += this.portType(id).upkeep;
     for (const v of this.vessels()) if (v.status !== 'lost') due += this.stats(v).upkeep;
-    const pay = Math.min(due, Math.max(0, g.player.money));
+    const pay = Math.min(due, Math.max(0, g.corp.cashOf('shipping')));
     this.spend(pay, 'upkeep');
     s.arrears = due - pay;
     if (s.arrears > 0) this.report('upkeep', `⚠ Upkeep: ${due} obols due, ${pay} paid. ${s.arrears} in arrears — your ships can't sail until it's paid.`, 'warn');
@@ -32405,7 +32400,7 @@ class Logistics {
         const fee = Math.round(c.pay * this.L.failPenalty);
         c.status = 'failed';
         c.result = { paid: 0, penalty: fee, note: 'never shipped' };
-        this.spend(Math.min(fee, Math.max(0, g.player.money)), 'penalty');
+        this.spend(Math.min(fee, Math.max(0, g.corp.cashOf('shipping'))), 'penalty');
         this.report('contract', `✖ You never shipped ${this.cfg.clients[c.client].name}'s cargo. Penalty ${fee} obols.`, 'warn');
       }
     }
@@ -32422,7 +32417,7 @@ class Logistics {
   payArrears() {
     const s = this.state;
     if (!s.arrears) return { ok: false, text: 'Nothing owed.' };
-    if (this.game.player.money < s.arrears) return { ok: false, text: `You owe ${s.arrears} obols.` };
+    if (!this.game.corp.canAfford('shipping', s.arrears)) return { ok: false, text: `You owe ${s.arrears} obols.` };
     this.spend(s.arrears, 'upkeep');
     s.arrears = 0;
     return { ok: true, text: 'Arrears paid. Your ships may sail.' };
@@ -35622,18 +35617,15 @@ class Aerospace {
   }
 
   cash(co) {
-    return co.kind === 'player' ? this.game.player.money : co.cash;
+    return co.kind === 'player' ? this.game.corp.cashOf('aerospace') : co.cash;
   }
 
   /** Money out, booked to an account (null: an asset — materials, capital spending). */
   pay(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
-    if (co.kind === 'player') {
-      const g = this.game;
-      g.player.money -= amount;
-      g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
-    } else co.cash -= amount;
+    if (co.kind === 'player') this.game.corp.pay('aerospace', amount, { cat: flow || flowOf(account, 'out') });
+    else co.cash -= amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
     post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
   }
@@ -35642,18 +35634,15 @@ class Aerospace {
   receive(co, amount, account, flow = null) {
     amount = Math.round(amount);
     if (amount <= 0) return;
-    if (co.kind === 'player') {
-      const g = this.game;
-      g.player.money += amount;
-      g.bus.emit('money:changed', { delta: amount, total: g.player.money });
-    } else co.cash += amount;
+    if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
+    else co.cash += amount;
     if (account) post(co.books, this.day, account, amount, this.A.historyDays);
     post(co.books, this.day, `cf_in_${flow || flowOf(account, 'in')}`, amount, this.A.historyDays);
   }
 
   /** Can it afford this now? The rival may draw on its credit line. */
   canAfford(co, amount) {
-    return co.kind === 'player' ? this.game.player.money >= amount : co.cash - amount >= -this.A.meridian.credit;
+    return co.kind === 'player' ? this.game.corp.canAfford('aerospace', amount) : co.cash - amount >= -this.A.meridian.credit;
   }
 
   qualityOf(co) {
@@ -35900,8 +35889,7 @@ class Aerospace {
     const F = this.A.firm;
     if (s.owned) return { ok: false, text: `You already own ${F.name}.` };
     if (g.player.money < F.price) return { ok: false, text: `${F.name} costs ${F.price.toLocaleString()} obols. You have ${g.player.money.toLocaleString()}.` };
-    g.player.money -= F.price;
-    g.bus.emit('money:changed', { delta: -F.price, total: g.player.money });
+    g.corp.found('aerospace', F.price, F.name); // the owner buys the firm: equity in kind
     const co = this.newCompany('roost', F.name, 'player', { ...F, pad: false });
     s.companies.roost = co;
     co.books.capex += F.price;
@@ -37964,15 +37952,21 @@ class Farm {
   }
 
   // ------------------------------------------------------------------ land
+  /** Whether a plot at this price can be bought now: the first from the owner's wallet, later ones from the farm's account. */
+  canBuy(price) {
+    return this.owned().length === 0 ? this.game.player.money >= price : this.game.corp.canAfford('farming', price);
+  }
+
   buy(id) {
     const g = this.game;
     const d = this.plotDef(id);
     if (!d) return { ok: false, text: 'No such plot.' };
     const st = this.plot(id);
     if (st.owned) return { ok: false, text: `${d.name} is already yours.` };
-    if (g.player.money < d.price) return { ok: false, text: `You need ${d.price.toLocaleString()} obols for ${d.name}.` };
-    g.player.money -= d.price;
-    g.bus.emit('money:changed', { delta: -d.price, total: g.player.money });
+    if (!this.canBuy(d.price)) return { ok: false, text: `You need ${d.price.toLocaleString()} obols for ${d.name}.` };
+    // v0.60.0: the first plot is the owner founding the farm (equity in kind); later plots are the farm's capital spending
+    if (this.owned().length === 0) g.corp.found('farming', d.price, d.name);
+    else g.corp.pay('farming', d.price, { cat: 'land' });
     st.owned = true;
     g.setFlag('farm_owner', true);
     g.bus.emit('farm:bought', { plot: id });
@@ -38016,12 +38010,12 @@ class Farm {
     const d = this.plotDef(id);
     const st = this.plot(id);
     const out = [];
-    if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: g.player.money >= d.price, why: 'Not enough obols.' }];
+    if (!st.owned) return [{ action: 'buy', label: `Buy it — ${d.price.toLocaleString()} obols`, ok: this.canBuy(d.price), why: 'Not enough obols.' }];
     const C = this.def.crops;
     if (st.state === 'fallow') {
       out.push({ action: 'till', label: 'Till the field', ok: true });
       const fee = this.def.pasture.fencing;
-      out.push({ action: 'pasture', label: `Fence it as pasture for livestock (${fee} obols)`, ok: g.player.money >= fee, why: `Fencing costs ${fee} obols.` });
+      out.push({ action: 'pasture', label: `Fence it as pasture for livestock (${fee} obols)`, ok: g.corp.canAfford('farming', fee), why: `Fencing costs ${fee} obols.` });
     }
     if (st.state === 'pasture') return this.pastureActions(id);
     if (st.state === 'tilled') {
@@ -38078,8 +38072,7 @@ class Farm {
       text = `You till ${d.name}`;
     } else if (action === 'pasture') {
       const fee = this.def.pasture.fencing;
-      g.player.money -= fee;
-      g.bus.emit('money:changed', { delta: -fee, total: g.player.money });
+      g.corp.pay('farming', fee, { cat: 'fencing' });
       Object.assign(st, { state: 'pasture', herd: null, feed: 0, produce: 0, hunger: 0 });
       this.record('Fencing', -fee);
       text = `You fence ${d.name} as pasture, with a feeder and a water trough`;
@@ -38210,8 +38203,7 @@ class Farm {
     if (n <= 0) return { ok: false, text: 'You have none of that to sell.' };
     g.inventory.remove(itemId, n);
     const total = this.sellUnits(itemId, base, n);
-    g.player.money += total;
-    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    g.corp.receive('farming', total, { cat: 'crops' });
     this.record(g.content.items[itemId].name, total);
     return { ok: true, text: `The Co-op weighs it in: ${n} × ${g.content.items[itemId].name} for ${total.toLocaleString()} obols${n > 1 ? ` (the price softens as the bins fill — ${this.coopPrice(itemId)} for the next)` : ''}.` };
   }
@@ -38282,9 +38274,8 @@ class Farm {
     const room = this.capacity(id, kind) - have;
     if (n <= 0 || n > room) return { ok: false, text: room > 0 ? `${d.name} has room for ${room} more.` : `${d.name} is full.` };
     const cost = L.price * n;
-    if (g.player.money < cost) return { ok: false, text: `That\'s ${cost.toLocaleString()} obols.` };
-    g.player.money -= cost;
-    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    if (!g.corp.canAfford('farming', cost)) return { ok: false, text: `That\'s ${cost.toLocaleString()} obols.` };
+    g.corp.pay('farming', cost, { cat: 'animals' });
     // cattle: the herd's average purchase day, weighted by head
     const day = have ? Math.round((st.herd.day * have + g.clock.day * n) / (have + n)) : g.clock.day;
     st.herd = { kind, count: have + n, day };
@@ -38312,8 +38303,7 @@ class Farm {
     const total = this.sellUnits(st.herd.kind, this.animalValue(id), n);
     st.herd.count -= n;
     if (!st.herd.count) st.herd = null;
-    g.player.money += total;
-    g.bus.emit('money:changed', { delta: total, total: g.player.money });
+    g.corp.receive('farming', total, { cat: 'livestock' });
     this.record(`${L.name} sold`, total);
     this.syncAnimals();
     return { ok: true, text: `Sold at auction: ${n} ${n > 1 ? L.name.toLowerCase() : L.one} for ${total.toLocaleString()} obols.` };
@@ -38388,6 +38378,212 @@ class Farm {
 }
 
 return { freshFarm, Farm };
+})();
+
+// ---- src/corp/ledger.js
+__m["src/corp/ledger.js"] = (function () {
+// Company accounts (v0.60.0). Pure functions — no game state, no DOM. A company's *account* is
+// the money it holds and the story of how it moved: what the owner put in or took out, and the
+// cash that flowed through it month by month. Profit and loss stay in each business's own books
+// (aerospace `books`, shipping `ledger`, …); this is the cash side, and the same shape for all four.
+//
+//   freshAccount(id)                  a new, unfunded account
+//   monthOf(day)                      the 30-day month a day belongs to (0-based)
+//   post(acct, day, dir, cat, amt)    count a flow: dir 'in' | 'out'
+//   kindOf(cat, dir)                  how a flow is classed: revenue, opex, capex or other
+//   balanceOk(acct)                   whether a funded account's cash reconciles with its history
+//
+// An UNFUNDED account has no cash of its own: the business draws on the owner's wallet, and the
+// flows are only counted (so the books can still be told apart). A FUNDED account holds real cash
+// and the business pays from it alone. Funding is an explicit, logged act of the owner.
+
+const MONTH_DAYS = 30;
+const MONTHS_KEPT = 24;
+const LOG_KEPT = 120;
+
+const monthOf = (day) => Math.floor((Math.max(1, day) - 1) / MONTH_DAYS);
+
+/** How each flow category is classed in a cash-flow statement. Anything not listed: opex out, revenue in. */
+const KINDS = {
+  out: {
+    machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
+    animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
+    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex',
+  },
+  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other' },
+};
+const kindOf = (cat, dir) => KINDS[dir]?.[cat] || (dir === 'in' ? 'revenue' : 'opex');
+
+function freshAccount(id) {
+  return {
+    id,
+    funded: false, // true once the owner has put money in; from then on the business pays from `cash` alone
+    cash: 0,
+    contributed: 0, // money the owner put in (cash)
+    distributed: 0, // money the owner took out
+    inKind: 0, // assets the owner brought in at cost (a works, a plot, the company itself) — equity, not cash
+    flowIn: 0, // cash that came in through the business while funded
+    flowOut: 0, // cash that went out through the business while funded
+    log: [], // contributions, distributions and acquisitions, newest last
+    months: {}, // { [monthIndex]: { in: { cat: amt }, out: { cat: amt } } } — every flow, funded or not
+  };
+}
+
+const bump = (o, k, n) => { o[k] = (o[k] || 0) + n; };
+
+/** Count a flow in the month it happened (funded or not); the oldest months drop off. */
+function post(acct, day, dir, cat, amount) {
+  const m = (acct.months[monthOf(day)] ||= { in: {}, out: {} });
+  bump(m[dir], cat, amount);
+  const keys = Object.keys(acct.months).map(Number).sort((a, b) => a - b);
+  while (keys.length > MONTHS_KEPT) delete acct.months[keys.shift()];
+}
+
+/** Add a line to the owner's log (capped). */
+function logLine(acct, line) {
+  acct.log.push(line);
+  while (acct.log.length > LOG_KEPT) acct.log.shift();
+}
+
+/** Totals of one month by class: { revenue, opex, capex, otherIn, otherOut }. */
+function monthTotals(acct, month) {
+  const m = acct.months[month] || { in: {}, out: {} };
+  const t = { revenue: 0, opex: 0, capex: 0, otherIn: 0, otherOut: 0 };
+  for (const [cat, a] of Object.entries(m.in)) { const k = kindOf(cat, 'in'); if (k === 'revenue') t.revenue += a; else t.otherIn += a; }
+  for (const [cat, a] of Object.entries(m.out)) { const k = kindOf(cat, 'out'); if (k === 'capex') t.capex += a; else if (k === 'opex') t.opex += a; else t.otherOut += a; }
+  return t;
+}
+
+/** A funded account's cash must equal what the owner put in, less what was taken out, plus the net flow since. */
+const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contributed - acct.distributed + acct.flowIn - acct.flowOut)) < 0.5;
+
+return { MONTH_DAYS, MONTHS_KEPT, LOG_KEPT, monthOf, kindOf, freshAccount, post, logLine, monthTotals, balanceOk };
+})();
+
+// ---- src/systems/corporate.js
+__m["src/systems/corporate.js"] = (function () {
+// The company accounts (v0.60.0): the one place the player's four businesses move money.
+//
+//   game.corp.cashOf(id)              what the company can spend now
+//   game.corp.canAfford(id, n)        whether it can pay n
+//   game.corp.pay(id, n, { cat })     money out (a purchase, wages, a fee) — true when it was paid
+//   game.corp.receive(id, n, { cat }) money in (a sale, a contract payment)
+//   game.corp.found(id, n, what)      the OWNER buys a business or an asset for it: wallet → equity in kind
+//
+// A company is `arms`, `shipping`, `aerospace` or `farming`. Its account is UNFUNDED until the owner
+// puts money in: then the business draws on the owner's wallet exactly as it always did (the flows
+// are only counted). Once FUNDED it pays from its own cash alone, and a payment it cannot cover is
+// refused — nothing silently overdraws it. Personal money (shares, dividends, a day's labouring)
+// never passes through here.
+//
+// State: game.world.corp = { v, accounts: { [id]: account } } — created on first use, so an old
+// save loads with every company unfunded and nothing moved (see src/corp/ledger.js).
+const { freshAccount, post, logLine, balanceOk } = __m["src/corp/ledger.js"];
+
+const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
+
+class Corporate {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get state() {
+    const w = this.game.world;
+    if (!w.corp) w.corp = { v: 1, accounts: {} };
+    w.corp.accounts ||= {};
+    return w.corp;
+  }
+
+  /** A company's account (created on first use). */
+  account(id) {
+    if (!COMPANY_IDS.includes(id)) throw new Error(`Unknown company ${id}`);
+    const a = this.state.accounts;
+    if (!a[id]) a[id] = freshAccount(id);
+    return a[id];
+  }
+
+  funded(id) {
+    return this.account(id).funded;
+  }
+
+  /** What the company can spend now: its own cash once funded, otherwise the owner's wallet. */
+  cashOf(id) {
+    const a = this.account(id);
+    return a.funded ? a.cash : this.game.player.money;
+  }
+
+  canAfford(id, amount) {
+    return this.cashOf(id) >= amount;
+  }
+
+  /** The balance changed in the owner's wallet: tell the HUD (a funded company's cash is not the wallet). */
+  announce(id, delta) {
+    const g = this.game;
+    if (delta && !this.account(id).funded) g.bus.emit('money:changed', { delta, total: g.player.money });
+  }
+
+  /**
+   * Money out. An unfunded company draws on the wallet whatever it holds (callers check first, as
+   * they always did); a funded one pays only what it has. Returns whether the money moved.
+   * `quiet` leaves the HUD notice to the caller (a batch of wages is one notice).
+   */
+  pay(id, amount, { cat = 'purchase', quiet = false } = {}) {
+    if (!Number.isFinite(amount) || amount < 0) return false;
+    if (amount === 0) return true;
+    const a = this.account(id);
+    const g = this.game;
+    if (a.funded) {
+      if (a.cash < amount) return false;
+      a.cash -= amount;
+      a.flowOut += amount;
+    } else {
+      g.player.money -= amount;
+      if (!quiet) g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    }
+    post(a, g.clock.day, 'out', cat, amount);
+    return true;
+  }
+
+  /** Money in. */
+  receive(id, amount, { cat = 'sales', quiet = false } = {}) {
+    if (!Number.isFinite(amount) || amount < 0) return false;
+    if (amount === 0) return true;
+    const a = this.account(id);
+    const g = this.game;
+    if (a.funded) {
+      a.cash += amount;
+      a.flowIn += amount;
+    } else {
+      g.player.money += amount;
+      if (!quiet) g.bus.emit('money:changed', { delta: amount, total: g.player.money });
+    }
+    post(a, g.clock.day, 'in', cat, amount);
+    return true;
+  }
+
+  /**
+   * The owner buys a business, or an asset to found one, out of the wallet: the company has not the
+   * cash to pay for itself, so it is equity in kind (an asset brought in at cost), not a company
+   * expense. Money out of the wallet exactly once; the caller has checked the wallet.
+   */
+  found(id, amount, what) {
+    const a = this.account(id);
+    const g = this.game;
+    if (!Number.isFinite(amount) || amount < 0) return false;
+    g.player.money -= amount;
+    if (amount) g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    a.inKind += amount;
+    logLine(a, { day: g.clock.day, type: 'in-kind', amount, memo: what || 'Acquisition' });
+    return true;
+  }
+
+  /** Whether every funded account reconciles with its history (the invariant the tests check). */
+  reconciles() {
+    return Object.values(this.state.accounts).every(balanceOk);
+  }
+}
+
+return { COMPANY_IDS, Corporate };
 })();
 
 // ---- src/systems/ledgerGame.js
@@ -38823,6 +39019,7 @@ const { Logistics } = __m["src/systems/logistics.js"];
 const { Dairy } = __m["src/systems/dairy.js"];
 const { Aerospace } = __m["src/systems/aerospace.js"];
 const { Farm } = __m["src/systems/farm.js"];
+const { Corporate } = __m["src/systems/corporate.js"]; // v0.60.0: company accounts
 const { newLedgerMatch, playLedgerRound, ledgerWinner, LEDGER_STAKE } = __m["src/systems/ledgerGame.js"];
 const { applyEffects } = __m["src/game/effects.js"];
 const { regionOffsetPx } = __m["src/world/regions.js"];
@@ -38848,6 +39045,7 @@ class Game {
     this.events = new EventDirector(this);
     this.npcSystem = new NpcSystem(this);
     this.oil = new OilCompany(this);
+    this.corp = new Corporate(this); // v0.60.0: the businesses' accounts (before any business is built)
     this.construction = new Construction(this);
     this.properties = new Properties(this);
     this.combat = new Combat(this);
@@ -39928,13 +40126,18 @@ class Game {
     if (!price || !this.inventory.count(itemId)) return { ok: false, text: 'They won\'t buy that.' };
     const owner = this.content.shops[shopId].owner;
     if (this.player.stolen[itemId] === owner) return { ok: false, text: 'Selling someone their own things back is a bold move. Too bold.' };
+    let toArms = false;
     if (this.content.shops[shopId].armsBuyer && this.content.items[itemId]?.arms && this.arms.licensed()) {
       const r = this.arms.sellToLucas(itemId, price);
       if (!r.ok) return r;
+      toArms = true; // v0.60.0: the arms company's wholesale sale
     }
     this.inventory.remove(itemId, 1);
-    this.player.money += price;
-    this.bus.emit('money:changed', { delta: price, total: this.player.money });
+    if (toArms) this.corp.receive('arms', price, { cat: 'wholesale' });
+    else {
+      this.player.money += price;
+      this.bus.emit('money:changed', { delta: price, total: this.player.money });
+    }
     return { ok: true, text: `Sold ${this.content.items[itemId].name} for ${price} obols.` };
   }
 
@@ -56689,7 +56892,7 @@ function terminalScreen(ui, body, opts, go) {
 
   const status = h('div', { class: 'os-box' },
     h('div', { class: 'os-label' }, '▌STATUS'),
-    h('div', {}, `FUNDS ........ ${g.player.money} OB`),
+    h('div', {}, `FUNDS ........ ${g.corp.cashOf('arms')} OB`),
     h('div', {}, `POWER ........ ${p.machines}/${p.capacity} STATIONS`),
     h('div', {}, `STAFF ........ ${staff.length}/${def.bunks} ON BOOKS`),
     h('div', {}, `RESEARCH ..... ${r.current ? `${cfg.research[r.current].name.toUpperCase()} ${Math.floor(r.progress)}/${cfg.research[r.current].cost}` : 'IDLE'}`),
@@ -57027,7 +57230,7 @@ function farmlandPanel(ui, body, opts) {
       const st = F.plot(id);
       list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, st.owned ? '🌾' : '📜'),
         h('div', { class: 'grow' }, h('div', { class: 'name' }, d.name, h('span', { class: 'tag' }, `${d.tiles} tiles`), st.owned ? h('span', { class: 'tag good' }, 'yours') : null), h('div', { class: 'desc' }, plotStatus(F, id))),
-        st.owned ? null : h('button', { class: 'small primary', disabled: g.player.money < d.price, onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
+        st.owned ? null : h('button', { class: 'small primary', disabled: !F.canBuy(d.price), onclick: () => { const r = F.buy(id); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy · ${d.price.toLocaleString()}`)));
     }
     body.append(list);
   };
@@ -57102,7 +57305,7 @@ function livestockPanel(ui, body, opts) {
       for (const [kind, L] of Object.entries(F.def.livestock)) {
         if (st.herd?.count && st.herd.kind !== kind) continue;
         const room = F.capacity(id, kind) - (st.herd?.count || 0);
-        const buy = (n) => h('button', { class: 'small primary', disabled: n > room || g.player.money < L.price * n, onclick: () => { const r = F.buyAnimals(id, kind, n); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy ${n} (${(L.price * n).toLocaleString()})`);
+        const buy = (n) => h('button', { class: 'small primary', disabled: n > room || !g.corp.canAfford('farming', L.price * n), onclick: () => { const r = F.buyAnimals(id, kind, n); ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); render(r.text); } }, `Buy ${n} (${(L.price * n).toLocaleString()})`);
         list.append(h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, L.name, h('span', { class: 'tag' }, `${L.price} each`), h('span', { class: 'tag' }, `room for ${room}`)),
           h('div', { class: 'desc' }, `${L.feed} bags of feed a head a day${L.product ? ` · gives ${g.content.items[L.product.item].name.toLowerCase()}` : ` · grows ${L.grow} obols of value a day for ${L.maxDays} days`}`)),
           buy(1), buy(5), buy(Math.max(1, Math.min(room, 20)))));
@@ -57746,7 +57949,7 @@ function designer(ui, B, say, refresh) {
   const name = h('input', { class: 'fc-input', value: d.name, maxlength: 28, placeholder: 'Name her' });
   name.addEventListener('input', () => { d.name = name.value; });
   const swatches = (key) => h('div', { class: 'sb-swatches' }, h('small', {}, key === 'color' ? 'Hull' : 'Trim'), ...C.colours.map((col) => h('button', { class: `sb-swatch${d[key] === col ? ' on' : ''}`, style: `background:${col}`, title: col, onclick: () => { d[key] = col; refresh(); } })));
-  const canBuild = v.ok && !v.missing.length && g.player.money >= v.cost.now;
+  const canBuild = v.ok && !v.missing.length && g.corp.canAfford('shipping', v.cost.now);
   const side = h('div', { class: 'sb-side' },
     h('div', { class: 'fc-kicker' }, `${Lg.className({ cls: H.cls }).toUpperCase()} · SIZE ${H.size}${H.needsTech ? ' · FUTURISTIC' : ''}`),
     h('h3', {}, H.name),
@@ -57778,7 +57981,7 @@ function designer(ui, B, say, refresh) {
         h('div', {}, h('span', {}, 'Labour'), h('b', {}, num(v.cost.labour))),
         h('div', {}, h('span', {}, `Parts (${comps.length})`), h('b', {}, `${num(v.cost.parts)}${v.missing.length ? ` · ${num(v.missingCost)} to buy` : ' · in store'}`)),
         h('div', {}, h('span', {}, 'On the slip'), h('b', {}, `${v.days} days`))),
-      v.missing.length ? h('button', { class: 'fc-btn', disabled: g.player.money < v.missingCost, onclick: () => { say(Y.buyMissing(design)); refresh(); } }, `Buy ${v.missing.reduce((a, m) => a + m.n, 0)} missing part${v.missing.reduce((a, m) => a + m.n, 0) === 1 ? '' : 's'} · ${num(v.missingCost)}`) : null,
+      v.missing.length ? h('button', { class: 'fc-btn', disabled: !g.corp.canAfford('shipping', v.missingCost), onclick: () => { say(Y.buyMissing(design)); refresh(); } }, `Buy ${v.missing.reduce((a, m) => a + m.n, 0)} missing part${v.missing.reduce((a, m) => a + m.n, 0) === 1 ? '' : 's'} · ${num(v.missingCost)}`) : null,
       h('button', { class: 'fc-go big', disabled: !canBuild, title: v.reasons[0] || '', onclick: () => {
         const r = Y.commission(design);
         say(r);
@@ -57824,7 +58027,7 @@ function yardsPage(ui, B, say, refresh) {
     const q = Y.yardQuote(id);
     yg.append(h('div', { class: 'fc-tile' }, h('b', {}, Lg.port(id).name), h('small', {}, Lg.portType(id).name),
       y ? (y.status === 'ready' ? h('span', { class: 'pos' }, '✅ Working') : h('div', {}, h('div', { class: 'fc-bar' }, h('span', {}, 'Building'), h('div', { class: 'fc-bar-track' }, h('i', { style: `width:${Math.round(Math.min(1, (g.clock.total - y.start) / (y.end - y.start)) * 100)}%;background:#f2c14e` })), h('em', {}, `ready ${Lg.when(y.end)}`))))
-        : q.ok ? h('button', { class: 'fc-go', disabled: g.player.money < q.cost, onclick: () => { say(Y.commissionYard(id)); refresh(); } }, `Commission Mason's Os`, h('small', {}, `${num(q.cost)} ◎ · ${q.days} days${q.discount ? ` · −${Math.round(q.discount * 100)}% goodwill` : ''}`))
+        : q.ok ? h('button', { class: 'fc-go', disabled: !g.corp.canAfford('shipping', q.cost), onclick: () => { say(Y.commissionYard(id)); refresh(); } }, `Commission Mason's Os`, h('small', {}, `${num(q.cost)} ◎ · ${q.days} days${q.discount ? ` · −${Math.round(q.discount * 100)}% goodwill` : ''}`))
           : h('small', { class: 'fc-muted' }, cap(q.reasons[0]))));
   }
   out.append(yg);
@@ -57840,7 +58043,7 @@ function storePage(ui, B, say, refresh) {
   const out = h('div', { class: 'sb-page' });
   for (const [id, t] of Object.entries(C.tech)) {
     out.append(h('div', { class: 'fc-card' }, h('div', { class: 'fc-card-head' }, h('span', { class: 'fc-ic' }, '📜'), h('div', { class: 'grow' }, h('b', {}, t.name), h('small', {}, t.text)),
-      Y.state.tech[id] ? h('span', { class: 'pos' }, '✔ Held') : h('button', { class: 'fc-btn primary', disabled: g.player.money < t.price, onclick: () => { say(Y.buyTech(id)); refresh(); } }, `Buy · ${num(t.price)}`))));
+      Y.state.tech[id] ? h('span', { class: 'pos' }, '✔ Held') : h('button', { class: 'fc-btn primary', disabled: !g.corp.canAfford('shipping', t.price), onclick: () => { say(Y.buyTech(id)); refresh(); } }, `Buy · ${num(t.price)}`))));
   }
   out.append(h('p', { class: 'fc-muted' }, `Parts wait in your store until a build uses them (at most ${Y.rules.maxStock} of each). The designer buys whatever a design still needs in one click, so you only need this to stock up.`));
   for (const [fam, label] of FAMILIES) {
@@ -57853,7 +58056,7 @@ function storePage(ui, B, say, refresh) {
       const locked = c.tech === 'advanced' && !Y.state.tech.advanced;
       grid.append(h('div', { class: `sb-card${locked ? ' off' : ''}` }, partPic(id, 120, 84), h('b', {}, c.name), h('small', {}, c.text),
         h('div', { class: 'sb-card-meta' }, h('span', {}, `${num(c.price)} ◎`), h('span', {}, `${c.weight} t`), h('span', {}, c.tech), have ? h('span', { class: 'pos' }, `${have} in store`) : null),
-        h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', disabled: locked || g.player.money < c.price, onclick: () => { say(Y.buyComponent(id, 1)); refresh(); } }, locked ? '🔒' : 'Buy 1'), !locked ? h('button', { class: 'fc-btn', disabled: g.player.money < c.price * 5, onclick: () => { say(Y.buyComponent(id, 5)); refresh(); } }, 'Buy 5') : null)));
+        h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', disabled: locked || !g.corp.canAfford('shipping', c.price), onclick: () => { say(Y.buyComponent(id, 1)); refresh(); } }, locked ? '🔒' : 'Buy 1'), !locked ? h('button', { class: 'fc-btn', disabled: !g.corp.canAfford('shipping', c.price) * 5, onclick: () => { say(Y.buyComponent(id, 5)); refresh(); } }, 'Buy 5') : null)));
     }
     out.append(grid);
   }
@@ -58238,7 +58441,7 @@ function fleetPanel(ui, body, opts = {}) {
           !FC.ff ? h('button', { class: 'fc-btn', title: 'Let an hour pass', onclick: () => ff(60) }, '⏩ 1 h') : null,
           !FC.ff ? h('button', { class: 'fc-btn', title: 'Let six hours pass', onclick: () => ff(360) }, '⏩ 6 h') : null,
           !FC.ff && next ? h('button', { class: 'fc-btn primary', title: 'Let time pass until the next arrival, departure, launch or mission end', onclick: () => ff(Math.min(next - g.clock.total + 1, 4 * 1440)) }, `⏭ Next event (${hrs(next - g.clock.total)})`) : null) : null),
-      h('div', { class: 'fc-money' }, h('b', {}, `${num(g.player.money)} ◎`), Lg.owned ? h('span', { class: today.revenue - today.expenses < 0 ? 'neg' : 'pos' }, `today ${today.revenue - today.expenses >= 0 ? '+' : ''}${num(today.revenue - today.expenses)}`) : null),
+      h('div', { class: 'fc-money' }, h('b', {}, `${num(g.corp.cashOf('shipping'))} ◎`), Lg.owned ? h('span', { class: today.revenue - today.expenses < 0 ? 'neg' : 'pos' }, `today ${today.revenue - today.expenses >= 0 ? '+' : ''}${num(today.revenue - today.expenses)}`) : null),
       h('button', { class: 'fc-close', title: 'Close (Esc)', onclick: () => ui.closePanel() }, '✕'));
   };
 
@@ -58369,7 +58572,7 @@ function fleetPanel(ui, body, opts = {}) {
     const contracts = Lg.contracts(['available', 'accepted']).filter((c) => c.from === id);
     const missions = Lg.missions.list('available').filter((m) => m.port === id);
     const out = [h('div', { class: 'fc-hero' }, h('div', { class: 'fc-kicker' }, `${pt.name.toUpperCase()} · ${country.toUpperCase()}`), h('h2', {}, p.name), h('p', {}, p.blurb || ''),
-      own ? pill('Your port', '#3ad6ff') : h('button', { class: 'fc-go', disabled: g.player.money < pt.price || Lg.ownedPorts().length >= Lg.L.maxPorts, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy this port · ${num(pt.price)} ◎`, h('small', {}, `${pt.berths} berths · ${pt.upkeep}/day · brings daily contracts`)))];
+      own ? pill('Your port', '#3ad6ff') : h('button', { class: 'fc-go', disabled: !g.corp.canAfford('shipping', pt.price) || Lg.ownedPorts().length >= Lg.L.maxPorts, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy this port · ${num(pt.price)} ◎`, h('small', {}, `${pt.berths} berths · ${pt.upkeep}/day · brings daily contracts`)))];
     if (here.length) out.push(section('In port', h('div', { class: 'fc-chips' }, ...here.map(shipChip))));
     if (own) {
       out.push(section(`Contracts (${contracts.length})`, ...(contracts.length ? contracts.map(contractCard) : [h('p', { class: 'fc-muted' }, 'None today. New ones arrive at 06:00.')])));
@@ -58381,7 +58584,7 @@ function fleetPanel(ui, body, opts = {}) {
       const y = Lg.shipyard.yard(id);
       const yq = Lg.shipyard.yardQuote(id);
       out.push(section('Shipyard', y ? h('div', {}, y.status === 'ready' ? '✅ Working · ' : `🏗 Mason's Os are building it — ready ${Lg.when(y.end)} · `, h('button', { class: 'fc-link', onclick: () => { FC.mode = 'shipyard'; refresh(); } }, 'Open shipyard ›'))
-        : yq.ok ? h('button', { class: 'fc-go', disabled: g.player.money < yq.cost, onclick: () => { say(Lg.shipyard.commissionYard(id)); refresh(); } }, `Commission Mason's Os · ${num(yq.cost)} ◎`, h('small', {}, `${yq.days} days`)) : h('p', { class: 'fc-muted' }, yq.reasons[0])));
+        : yq.ok ? h('button', { class: 'fc-go', disabled: !g.corp.canAfford('shipping', yq.cost), onclick: () => { say(Lg.shipyard.commissionYard(id)); refresh(); } }, `Commission Mason's Os · ${num(yq.cost)} ◎`, h('small', {}, `${yq.days} days`)) : h('p', { class: 'fc-muted' }, yq.reasons[0])));
     } else out.push(h('p', { class: 'fc-muted' }, 'Contracts start at your own ports. Your ships can still sail here — select one, then "Send to…".'));
     return out;
   };
@@ -58445,7 +58648,7 @@ function fleetPanel(ui, body, opts = {}) {
         const pt = Lg.cfg.portTypes[p.type];
         grid.append(h('div', { class: 'fc-tile' }, h('b', {}, p.name), h('small', {}, `${pt.name} · ${p.country ? g.content.arms.countries[p.country].name : 'Free port'}`), h('small', { class: 'fc-muted' }, p.blurb),
           h('small', {}, `${pt.berths} berths · ships up to size ${pt.maxSize} · ${pt.upkeep}/day`),
-          h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'port', id }; centreOn(p.lat, p.lon, 2); refresh(); } }, 'Show'), h('button', { class: 'fc-btn primary', disabled: full || g.player.money < pt.price, onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy · ${num(pt.price)}`))));
+          h('div', { class: 'fc-row-inline' }, h('button', { class: 'fc-btn', onclick: () => { FC.mode = 'map'; FC.sel = { kind: 'port', id }; centreOn(p.lat, p.lon, 2); refresh(); } }, 'Show'), h('button', { class: 'fc-btn primary', disabled: full || !g.corp.canAfford('shipping', pt.price), onclick: () => { say(Lg.buyPort(id)); refresh(); } }, `Buy · ${num(pt.price)}`))));
       }
       wrap.append(h('p', { class: 'fc-muted' }, `You own ${Lg.ownedPorts().length} of at most ${Lg.L.maxPorts} ports. Each port you own offers contracts and missions every day.`), grid);
       return wrap;
@@ -58462,7 +58665,7 @@ function fleetPanel(ui, body, opts = {}) {
         ? [bar('Attack', st.combat.attack / 100, '#ff78dc', st.combat.attack), bar('Defence', st.combat.defense / 100, '#3ad6ff', st.combat.defense), bar('Speed', m.speed / 40, '#4ade9a', `${m.speed} kn`)]
         : [bar('Hold', m.capacity / 420, '#3ad6ff', `${m.capacity}`), bar('Speed', m.speed / 35, '#4ade9a', `${m.speed} kn`), bar('Range', m.range / 80000, '#f2c14e', `${num(m.range / 1000)}k km`)];
       grid.append(h('div', { class: 'fc-tile' }, shipPic(m, 250, 74), h('b', {}, m.name), h('small', {}, `${Lg.className(m)} · size ${st.size}${st.tags.length ? ` · ${st.tags.join(', ')}` : ''}`), ...stats, h('small', { class: 'fc-muted' }, m.blurb),
-        h('div', { class: 'fc-row-inline' }, ports.length ? sel : h('small', { class: 'fc-muted' }, 'None of your ports can berth it'), h('button', { class: 'fc-btn primary', disabled: !ports.length || g.player.money < m.price, onclick: () => { say(Lg.buyShip(id, sel.value)); refresh(); } }, `Buy · ${num(m.price)}`))));
+        h('div', { class: 'fc-row-inline' }, ports.length ? sel : h('small', { class: 'fc-muted' }, 'None of your ports can berth it'), h('button', { class: 'fc-btn primary', disabled: !ports.length || !g.corp.canAfford('shipping', m.price), onclick: () => { say(Lg.buyShip(id, sel.value)); refresh(); } }, `Buy · ${num(m.price)}`))));
     }
     wrap.append(grid);
     return wrap;
@@ -61653,7 +61856,7 @@ function aerospacePanel(ui, body, opts = {}) {
           !AO.ff ? h('button', { class: 'ao-btn', title: 'Let an hour pass', onclick: () => ff(60) }, '⏩ 1 h') : null,
           !AO.ff ? h('button', { class: 'ao-btn', title: 'Let six hours pass', onclick: () => ff(360) }, '⏩ 6 h') : null,
           !AO.ff ? h('button', { class: 'ao-btn primary', title: 'Let time pass until 06:00, when tenders are posted and decided', onclick: () => ff(toMorning) }, `⏭ Next morning (${hrs(toMorning)})`) : null) : null),
-      h('div', { class: 'ao-money' }, h('b', {}, money(g.player.money)), today ? h('span', { class: today.profit < 0 ? 'neg' : 'pos' }, `today ${today.profit >= 0 ? '+' : ''}${fmtMoney(today.profit)}`) : null),
+      h('div', { class: 'ao-money' }, h('b', {}, money(g.corp.cashOf('aerospace'))), today ? h('span', { class: today.profit < 0 ? 'neg' : 'pos' }, `today ${today.profit >= 0 ? '+' : ''}${fmtMoney(today.profit)}`) : null),
       h('button', { class: 'ao-close', title: 'Close (Esc)', onclick: () => ui.closePanel() }, '✕'));
   };
 
