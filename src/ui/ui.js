@@ -320,7 +320,8 @@ export class UI {
     const q = this.namePrompts;
     if (!q?.length || this.state !== 'playing' || this.panelOpen || this.dialogue.open) return;
     const id = q.shift();
-    if (this.game.corp.state.companies[id]?.named === false) this.openPanel('corpname', { id });
+    const rec = id === 'parent' ? this.game.corp.state.parent : this.game.corp.state.companies[id];
+    if (rec?.named === false) this.openPanel('corpname', { id });
   }
 
   // ----------------------------------------------------------- feedback

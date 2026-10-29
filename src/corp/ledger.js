@@ -37,6 +37,8 @@ export function freshAccount(id) {
     cash: 0,
     contributed: 0, // money the owner put in (cash)
     distributed: 0, // money the owner took out
+    xferIn: 0, // cash that came from another company of the same group (not trading income)
+    xferOut: 0, // cash that went to one
     arrears: 0, // bills a funded company could not cover when they fell due: owed, and paid first out of what comes in
     inKind: 0, // assets the owner brought in at cost (a works, a plot, the company itself) — equity, not cash
     flowIn: 0, // cash that came in through the business while funded
@@ -72,4 +74,4 @@ export function monthTotals(acct, month) {
 }
 
 /** A funded account's cash must equal what the owner put in, less what was taken out, plus the net flow since. */
-export const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contributed - acct.distributed + acct.flowIn - acct.flowOut)) < 0.5;
+export const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contributed - acct.distributed + acct.flowIn - acct.flowOut + (acct.xferIn || 0) - (acct.xferOut || 0))) < 0.5;

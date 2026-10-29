@@ -11,13 +11,14 @@ const WHERE = { arms: 'Get a licence from Lucas, then buy a works at Mill Road Y
 export function corpNamePanel(ui, body, opts) {
   const g = ui.game;
   const id = opts.id;
-  const C = g.corp.ensureCompany(id);
+  const C = id === 'parent' ? g.corp.state.parent : g.corp.ensureCompany(id);
   if (!C) return { title: 'Name your company' };
+  const P = id === 'parent' ? { icon: '🏛️', kind: 'Holding company' } : PLAYER_COMPANIES[id];
   const msg = h('p', { class: 'muted' }, 'Letters, numbers, spaces and & \' . , - — 3 to 40 characters. You can change it any time in the Companies app.');
   const input = h('input', { type: 'text', class: 'debug-input', value: C.name, maxlength: 40, style: 'width:100%;font-size:18px' });
   const done = () => ui.closePanel();
   body.append(
-    h('p', { class: 'doc' }, `${PLAYER_COMPANIES[id].icon} Your ${PLAYER_COMPANIES[id].kind.toLowerCase()} is founded. What is it called?`),
+    h('p', { class: 'doc' }, `${P.icon} Your ${P.kind.toLowerCase()} is founded. What is it called?`),
     input, msg,
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
       h('button', { class: 'primary', onclick: () => { const r = g.corp.rename(id, input.value); if (r.ok) { ui.audio.sfx('sfx_coin'); done(); } else { msg.textContent = r.text; msg.className = 'neg'; ui.audio.sfx('sfx_fail'); } } }, 'Register this name'),

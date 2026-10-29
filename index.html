@@ -37491,19 +37491,27 @@ class Aerospace {
     for (const [id, c] of Object.entries(s.contracts)) if (c.status !== 'active' && (c.history.at(-1)?.at ?? 0) < this.now - 30 * DAY) delete s.contracts[id];
   }
 
-  companyDay(co) {
+  /** What a company pays each day whether or not it is busy: wages, training, upkeep, overhead (the day's bills, and the group's running-cost estimate). */
+  fixedCosts(co) {
     const C = this.cfg;
     const W = C.staff.roles;
-    this.pay(co, co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, 'wages');
     const T = C.staff.training[co.training] || C.staff.training.none;
-    if (T.perDay) this.pay(co, co.workforce * T.perDay, 'training');
-    co.experience = Math.min(C.staff.experience.cap, co.experience + T.gain * (1 - co.experience / 130));
     let upkeep = co.bays.reduce((a, b) => a + (b.ready <= this.now ? C.bays[b.type].upkeep : 0), 0);
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
     if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
-    this.pay(co, upkeep, 'upkeep');
-    this.pay(co, co.overhead, 'overhead');
+    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.overhead };
+  }
+
+  companyDay(co) {
+    const C = this.cfg;
+    const F = this.fixedCosts(co);
+    this.pay(co, F.wages, 'wages');
+    const T = C.staff.training[co.training] || C.staff.training.none;
+    if (T.perDay) this.pay(co, F.training, 'training');
+    co.experience = Math.min(C.staff.experience.cap, co.experience + T.gain * (1 - co.experience / 130));
+    this.pay(co, F.upkeep, 'upkeep');
+    this.pay(co, F.overhead, 'overhead');
     if (co.kind === 'rival' && co.cash < 0) this.pay(co, -co.cash * this.A.meridian.interest, 'interest');
     if (co.researching && this.now >= co.researching.doneAt) {
       const R = C.research[co.researching.id];
@@ -38425,6 +38433,8 @@ function freshAccount(id) {
     cash: 0,
     contributed: 0, // money the owner put in (cash)
     distributed: 0, // money the owner took out
+    xferIn: 0, // cash that came from another company of the same group (not trading income)
+    xferOut: 0, // cash that went to one
     arrears: 0, // bills a funded company could not cover when they fell due: owed, and paid first out of what comes in
     inKind: 0, // assets the owner brought in at cost (a works, a plot, the company itself) — equity, not cash
     flowIn: 0, // cash that came in through the business while funded
@@ -38460,7 +38470,7 @@ function monthTotals(acct, month) {
 }
 
 /** A funded account's cash must equal what the owner put in, less what was taken out, plus the net flow since. */
-const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contributed - acct.distributed + acct.flowIn - acct.flowOut)) < 0.5;
+const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contributed - acct.distributed + acct.flowIn - acct.flowOut + (acct.xferIn || 0) - (acct.xferOut || 0))) < 0.5;
 
 return { MONTH_DAYS, MONTHS_KEPT, LOG_KEPT, monthOf, kindOf, freshAccount, post, logLine, monthTotals, balanceOk };
 })();
@@ -39099,6 +39109,281 @@ function shares(entries) {
 return { figures, growth, value, rank, shares };
 })();
 
+// ---- src/corp/group.js
+__m["src/corp/group.js"] = (function () {
+// The corporate group (v0.61.0): rules that need no game state. Pure functions.
+//
+//   canOwn(edges, owner, sub)      whether `owner` may take `sub` as a subsidiary (no cycles, no second parent)
+//   validPolicy(p)                 a distribution policy tidied and bounded
+//
+// An edge is { owner, sub, stake } — the stake is 1 (the parent owns all of it) in this release; the
+// field is kept so a part-share can come later without changing a record.
+
+/** Does following `owner` upward through the edges ever reach `sub`? (Then making `sub` own `owner` would close a circle.) */
+function reaches(edges, from, to, seen = new Set()) {
+  if (from === to) return true;
+  if (seen.has(from)) return false;
+  seen.add(from);
+  return edges.filter((e) => e.owner === from).some((e) => reaches(edges, e.sub, to, seen));
+}
+
+/** { ok, why } — an owner may take a sub if the sub is not the owner, has no parent yet, and does not (even indirectly) own the owner. */
+function canOwn(edges, owner, sub) {
+  if (owner === sub) return { ok: false, why: 'A company cannot own itself.' };
+  if (edges.some((e) => e.sub === sub && e.owner === owner)) return { ok: false, why: 'It is already a subsidiary of that company.' };
+  if (edges.some((e) => e.sub === sub)) return { ok: false, why: 'It already belongs to a group.' };
+  if (reaches(edges, sub, owner)) return { ok: false, why: 'That would make a company its own owner, through the group.' };
+  return { ok: true };
+}
+
+/** What a policy may hold; anything else is dropped, anything out of range is brought into it. */
+const POLICY_DEFAULT = {
+  targetReserve: 5000, // cash the subsidiary keeps after distributing
+  minLiquidity: 2000, // below this it is protected unless the owner overrides
+  emergencyReserve: 1000, // added to the reserve while the company owes anything
+  retainPct: 50, // of the distributable profit it keeps
+  distributePct: 50, // of the distributable profit it sends up (retain + distribute never exceed 100)
+  reinvestPct: 0, // of what it keeps, earmarked for its own spending (a note: it simply stays in the subsidiary)
+  debtFirst: true, // repay what it owes the parent before distributing
+};
+
+const clampN = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Number(v))) : d);
+
+function validPolicy(p = {}, base = POLICY_DEFAULT) {
+  const o = { ...base };
+  for (const k of ['targetReserve', 'minLiquidity', 'emergencyReserve']) if (k in p) o[k] = Math.round(clampN(p[k], 0, 1e9, base[k]));
+  for (const k of ['retainPct', 'distributePct', 'reinvestPct']) if (k in p) o[k] = Math.round(clampN(p[k], 0, 100, base[k]));
+  if ('debtFirst' in p) o.debtFirst = Boolean(p.debtFirst);
+  if (o.retainPct + o.distributePct > 100) o.distributePct = 100 - o.retainPct;
+  if (o.minLiquidity > o.targetReserve) o.targetReserve = o.minLiquidity;
+  return o;
+}
+
+return { reaches, canOwn, POLICY_DEFAULT, validPolicy };
+})();
+
+// ---- src/systems/group.js
+__m["src/systems/group.js"] = (function () {
+// The parent company and its subsidiaries (v0.61.0): game.corp.group.
+//
+//   form()                     found the parent company (free; it starts with nothing)
+//   joinPreview(id) / join(id, { opening })   a business becomes a subsidiary — atomically, with what it needs to go on
+//   spinOut(id)                a subsidiary leaves the group (never while it owes or is owed)
+//   transfer(from, to, n, kind)   money between companies of the group: one step, logged, never trading income
+//   capitalise(id, n)          the parent puts capital into a subsidiary
+//
+// Money reaches a subsidiary only through the parent: owner → parent (`corp.contribute('parent')`) →
+// subsidiary (capital or an intercompany loan), and back by distributions and repayments. The owner's
+// wallet never pays a subsidiary and never receives from one directly. A transfer moves cash between two
+// accounts (`xferOut` / `xferIn`), is recorded in `state.transfers`, and is not counted as sales or costs.
+//
+// State (all created on forming, so an old save has none): world.corp.parent (identity, policies,
+// investments), .ownership (edges), .transfers, .loans, .group (counters, the monthly jobs' keys).
+const { logLine, freshAccount, monthTotals } = __m["src/corp/ledger.js"];
+const { canOwn, validPolicy, POLICY_DEFAULT } = __m["src/corp/group.js"];
+const { validateName } = __m["src/corp/identity.js"];
+
+const TRANSFERS_KEPT = 400;
+
+class Group {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get game() { return this.K.game; }
+  get st() { return this.K.state; }
+  get parent() { return this.st.parent || null; }
+  get edges() { return this.st.ownership || []; }
+  get day() { return this.game.clock.day; }
+
+  isSub(id) { return this.edges.some((e) => e.sub === id); }
+  subs() { return this.edges.map((e) => e.sub); }
+  /** Every account in the group: the parent and its subsidiaries. */
+  members() { return this.parent ? ['parent', ...this.subs()] : []; }
+
+  // ------------------------------------------------------------- forming
+  defaultName() {
+    return `${this.game.player.name} Holdings`;
+  }
+
+  /** Found the parent company: free, and with no money, no business and no employee of its own. */
+  form() {
+    if (this.parent) return { ok: false, text: 'You already have a parent company.' };
+    const g = this.game;
+    const st = this.st;
+    const name = this.defaultName();
+    st.parent = {
+      id: 'parent', name, named: false, founded: this.day, status: 'active', names: [{ day: this.day, name }],
+      strategy: 'balanced', policy: { ...POLICY_DEFAULT }, policies: {}, investments: {},
+    };
+    st.accounts.parent = { ...freshAccount('parent'), funded: true };
+    st.ownership = [];
+    st.transfers = [];
+    st.loans = [];
+    st.group = { v: 1, nextXfer: 1, nextLoan: 1, dist: {}, jobs: { month: Math.floor((this.day - 1) / 30) }, ic: null };
+    g.bus.emit('corp:founded', { id: 'parent' });
+    return { ok: true, text: `${name} is founded. It holds nothing yet: pay money in, then bring your businesses under it.` };
+  }
+
+  /** Name or rename the parent company (same rules as any company's name). */
+  rename(raw) {
+    const p = this.parent;
+    if (!p) return { ok: false, text: 'There is no parent company yet.' };
+    const v = validateName(raw, this.K.takenNames('parent'));
+    if (!v.ok) return { ok: false, text: v.error };
+    p.named = true;
+    if (v.name !== p.name) {
+      p.name = v.name;
+      p.names.push({ day: this.day, name: v.name });
+      if (p.names.length > 12) p.names.splice(1, p.names.length - 12);
+      this.game.bus.emit('corp:renamed', { id: 'parent', name: v.name });
+    }
+    return { ok: true, text: `Now trading as ${p.name}.`, name: p.name };
+  }
+
+  // ------------------------------------------------------------- joining and leaving
+  /** What a business spends in a day, so the player can see what it will need from the parent. */
+  runningPerDay(id) {
+    const g = this.game;
+    let n = 0;
+    switch (id) {
+      case 'arms': n = g.arms.state.staff.reduce((a, s) => a + s.wage, 0); break;
+      case 'shipping': n = g.logistics.dailyUpkeep(); break;
+      case 'aerospace': { const F = g.aero.fixedCosts(g.aero.roost); n = F.wages + F.training + F.upkeep + F.overhead; break; }
+      case 'farming': {
+        const m = Math.floor((this.day - 1) / 30);
+        const a = this.K.account('farming');
+        const cost = monthTotals(a, m).opex + monthTotals(a, m - 1).opex;
+        n = cost / Math.min(60, ((this.day - 1) % 30) + 31);
+        break;
+      }
+      default: n = 0;
+    }
+    return Math.max(0, Math.round(n));
+  }
+
+  joinPreview(id) {
+    const blockers = [];
+    const warnings = [];
+    const K = this.K;
+    if (!this.parent) blockers.push('Found the parent company first.');
+    else if (!['arms', 'shipping', 'aerospace', 'farming'].includes(id)) blockers.push('No such business.');
+    else {
+      if (!K.established(id)) blockers.push('You do not own that business yet.');
+      else if (id === 'arms' && !this.game.arms.ownedIds().length) blockers.push('Buy your first arms works before bringing the business into a group (it would otherwise be bought from your own wallet).');
+      const c = canOwn(this.edges, 'parent', id);
+      if (!c.ok) blockers.push(c.why);
+    }
+    const perDay = blockers.length ? 0 : this.runningPerDay(id);
+    const suggested = Math.ceil((perDay * 30) / 100) * 100;
+    const cash = this.parent ? K.account('parent').cash : 0;
+    if (!blockers.length) {
+      const a = K.account(id);
+      if (!a.funded) warnings.push(`It will stop spending your wallet and use its own account, which starts at nothing. It spends about ${perDay.toLocaleString()} obols a day: with no opening capital its bills become debts${id === 'arms' ? ' and its staff go unpaid (they quit after two missed days)' : id === 'farming' ? ' and its purchases are refused' : ''}.`);
+      if (cash < suggested) warnings.push(`The parent holds ${cash.toLocaleString()} obols; a month of running costs is about ${suggested.toLocaleString()}.`);
+    }
+    return { ok: blockers.length === 0, blockers, warnings, perDay, suggested, parentCash: cash };
+  }
+
+  /** A business becomes a subsidiary: one step, or nothing. `opening` is capital from the parent's cash, moved in the same step. */
+  join(id, { opening = 0 } = {}) {
+    const pre = this.joinPreview(id);
+    if (!pre.ok) return { ok: false, text: pre.blockers[0] };
+    opening = Math.floor(Number(opening) || 0);
+    if (opening < 0) return { ok: false, text: 'The opening capital cannot be negative.' };
+    const K = this.K;
+    const pa = K.account('parent');
+    if (opening > pa.cash) return { ok: false, text: `The parent holds ${Math.round(pa.cash).toLocaleString()} obols.` };
+    const a = K.account(id);
+    // the owner's stake in the business so far becomes the parent's investment, in kind (no cash moves)
+    const brought = Math.max(0, Math.round(a.contributed - a.distributed + a.inKind));
+    this.parent.investments[id] = { since: this.day, brought, capital: 0 };
+    pa.inKind += brought;
+    logLine(pa, { day: this.day, type: 'in-kind', amount: brought, memo: `${K.nameOf(id)}: the owner's existing stake brought in` });
+    a.funded = true;
+    this.st.ownership.push({ owner: 'parent', sub: id, stake: 1, since: this.day });
+    logLine(a, { day: this.day, type: 'joined', amount: 0, memo: `Became a subsidiary of ${this.parent.name}` });
+    if (opening > 0) { const t = this.transfer('parent', id, opening, 'capital', 'Opening capital'); if (t.ok) this.parent.investments[id].capital += t.rec.amount; }
+    this.game.bus.emit('corp:joined', { id });
+    return { ok: true, text: `${K.nameOf(id)} is now a subsidiary of ${this.parent.name}.` };
+  }
+
+  /** A subsidiary leaves the group and is the owner's again — its own cash stays in it. Refused while loans or arrears are open. */
+  spinOut(id) {
+    if (!this.isSub(id)) return { ok: false, text: 'It is not a subsidiary.' };
+    const K = this.K;
+    const a = K.account(id);
+    if (a.arrears > 0) return { ok: false, text: `${K.nameOf(id)} owes ${Math.round(a.arrears).toLocaleString()} obols in arrears: clear that first.` };
+    if (this.loansOf(id).length) return { ok: false, text: `${K.nameOf(id)} has an intercompany loan open: repay it first.` };
+    const inv = this.parent.investments[id] || { brought: 0, capital: 0 };
+    const pa = K.account('parent');
+    const handed = Math.round(inv.brought + inv.capital);
+    // an in-kind return: no cash moves, and the parent's cash is untouched
+    logLine(pa, { day: this.day, type: 'in-kind-out', amount: handed, memo: `${K.nameOf(id)} returned to the owner` });
+    this.st.ownership = this.st.ownership.filter((e) => e.sub !== id);
+    delete this.parent.investments[id];
+    delete this.parent.policies[id];
+    logLine(a, { day: this.day, type: 'left', amount: 0, memo: 'Left the group: the owner\'s company again' });
+    this.game.bus.emit('corp:left', { id });
+    return { ok: true, text: `${K.nameOf(id)} is out of the group. It keeps the ${Math.round(a.cash).toLocaleString()} obols it holds; you can take them out from the Companies app.` };
+  }
+
+  // ------------------------------------------------------------- money inside the group
+  loansOf(id) {
+    return (this.st.loans || []).filter((l) => l.status === 'open' && (l.borrower === id || l.lender === id));
+  }
+
+  /**
+   * Cash from one company of the group to another, in one step. Not sales, not costs: it changes
+   * which account holds the money, never how much exists.
+   */
+  transfer(from, to, amount, kind, memo = '', extra = {}) {
+    amount = Math.round(amount);
+    const ids = this.members();
+    if (!ids.includes(from) || !ids.includes(to) || from === to) return { ok: false, text: 'Those two are not both in the group.' };
+    if (!Number.isFinite(amount) || amount <= 0) return { ok: false, text: 'Enter an amount above zero.' };
+    const src = this.K.account(from);
+    const dst = this.K.account(to);
+    if (src.cash < amount) return { ok: false, text: `${this.K.nameOf(from)} holds ${Math.round(src.cash).toLocaleString()} obols.` };
+    src.cash -= amount; src.xferOut += amount;
+    dst.cash += amount; dst.xferIn += amount;
+    const gs = this.st.group;
+    const rec = { id: gs.nextXfer++, day: this.day, from, to, amount, kind, memo, ...extra };
+    this.st.transfers.push(rec);
+    if (this.st.transfers.length > TRANSFERS_KEPT) this.st.transfers.shift();
+    if (to !== 'parent') this.K.settleArrears(to); // what it owed is paid first
+    return { ok: true, rec, text: `${amount.toLocaleString()} obols moved.` };
+  }
+
+  /** The parent puts capital into a subsidiary (a capital contribution, not a loan: it is never repaid, only distributed from). */
+  capitalise(id, amount) {
+    if (!this.isSub(id)) return { ok: false, text: 'Only a subsidiary can be capitalised from the parent.' };
+    const r = this.transfer('parent', id, amount, 'capital', 'Capital contribution');
+    if (r.ok) this.parent.investments[id].capital += r.rec.amount;
+    return r;
+  }
+
+  /** A subsidiary returns capital to the parent (reduces the parent's investment, never below nothing). */
+  returnCapital(id, amount) {
+    if (!this.isSub(id)) return { ok: false, text: 'Only a subsidiary can return capital.' };
+    amount = Math.round(amount);
+    const a = this.K.account(id);
+    if (a.arrears > 0) return { ok: false, text: `${this.K.nameOf(id)} owes ${Math.round(a.arrears).toLocaleString()} obols: it cannot send money up while it does.` };
+    const inv = this.parent.investments[id];
+    if (amount > inv.capital) return { ok: false, text: `The parent has put in ${Math.round(inv.capital).toLocaleString()} obols of capital.` };
+    const r = this.transfer(id, 'parent', amount, 'capital-return', 'Capital returned');
+    if (r.ok) inv.capital -= r.rec.amount;
+    return r;
+  }
+
+  policyOf(id) {
+    return validPolicy(this.parent?.policies[id] || this.parent?.policy || {});
+  }
+}
+
+return { Group };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -39124,12 +39409,16 @@ const { CORP } = __m["src/content/corporate.js"];
 const { buildWorld, rebuildNamer, advance } = __m["src/corp/generate.js"];
 const { monthTotals } = __m["src/corp/ledger.js"];
 const { figures, growth, value: worth, rank: rankBy, shares } = __m["src/corp/metrics.js"];
+const { Group } = __m["src/systems/group.js"];
 
+/** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
+const ACCOUNT_IDS = [...COMPANY_IDS, 'parent'];
 
 class Corporate {
   constructor(game) {
     this.game = game;
+    this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
   }
 
   get state() {
@@ -39142,10 +39431,12 @@ class Corporate {
 
   /** A company's account (created on first use). */
   account(id) {
-    if (!COMPANY_IDS.includes(id)) throw new Error(`Unknown company ${id}`);
+    if (!ACCOUNT_IDS.includes(id)) throw new Error(`Unknown company ${id}`);
     const a = this.state.accounts;
+    if (id === 'parent' && !a.parent) throw new Error('There is no parent company');
     if (!a[id]) a[id] = freshAccount(id);
     a[id].arrears ??= 0; // saves from before arrears existed
+    a[id].xferIn ??= 0; a[id].xferOut ??= 0; // before v0.61.0
     return a[id];
   }
 
@@ -39241,6 +39532,7 @@ class Corporate {
       case 'shipping': return g.logistics.owned;
       case 'aerospace': return g.aero.owned;
       case 'farming': return g.farm.owned().length > 0;
+      case 'parent': return Boolean(this.state.parent);
       default: return false;
     }
   }
@@ -39252,13 +39544,14 @@ class Corporate {
   contribute(id, amount, memo = 'Capital contribution') {
     const g = this.game;
     amount = Math.floor(Number(amount));
-    if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
-    if (!this.established(id)) return { ok: false, text: 'You do not own that business yet.' };
+    if (!ACCOUNT_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    if (!this.established(id)) return { ok: false, text: id === 'parent' ? 'There is no parent company yet.' : 'You do not own that business yet.' };
+    if (this.group.isSub(id)) return { ok: false, text: `${this.nameOf(id)} is a subsidiary: pay money into the parent company, then capitalise it from there.` };
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false, text: 'Enter an amount above zero.' };
     if (g.player.money < amount) return { ok: false, text: `You have ${g.player.money.toLocaleString()} obols.` };
     const a = this.account(id);
     g.player.money -= amount;
-    a.funded = true;
+    a.funded = true; // (the parent's account is always funded)
     a.cash += amount;
     a.contributed += amount;
     logLine(a, { day: g.clock.day, type: 'contribution', amount, memo });
@@ -39271,7 +39564,9 @@ class Corporate {
   distribute(id, amount, memo = 'Distribution to the owner') {
     const g = this.game;
     amount = Math.floor(Number(amount));
-    if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    if (!ACCOUNT_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    if (this.group.isSub(id)) return { ok: false, text: `${this.nameOf(id)} is a subsidiary: its money goes to the parent company as a distribution, and from the parent to you.` };
+    if (id === 'parent' && !this.state.parent) return { ok: false, text: 'There is no parent company.' };
     const a = this.account(id);
     if (!a.funded) return { ok: false, text: 'That company holds no money of its own.' };
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false, text: 'Enter an amount above zero.' };
@@ -39287,6 +39582,8 @@ class Corporate {
 
   /** Close the company's own account: whatever it holds goes to the owner, and it draws on the wallet again. */
   unfund(id) {
+    if (id === 'parent') return { ok: false, text: 'The parent company\'s account cannot be closed; take its money out instead.' };
+    if (this.group.isSub(id)) return { ok: false, text: `${this.nameOf(id)} is a subsidiary: take it out of the group first.` };
     const a = this.account(id);
     if (!a.funded) return { ok: false, text: 'That company holds no money of its own.' };
     if (a.arrears > 0) return { ok: false, text: `It owes ${a.arrears.toLocaleString()} obols — clear that first.` };
@@ -39307,6 +39604,7 @@ class Corporate {
     const a = this.account(id);
     const g = this.game;
     if (!Number.isFinite(amount) || amount < 0) return false;
+    if (this.group.isSub(id)) return false; // a subsidiary is never paid for from the owner's wallet
     g.player.money -= amount;
     if (amount) g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
     a.inKind += amount;
@@ -39360,6 +39658,7 @@ class Corporate {
 
   /** A business's name (its default until named). */
   nameOf(id) {
+    if (id === 'parent') return this.state.parent?.name || this.group.defaultName();
     return this.state.companies[id]?.name || this.defaultName(id);
   }
 
@@ -39379,12 +39678,14 @@ class Corporate {
   takenNames(exceptId = null) {
     const names = existingRows(this.game.content).map((r) => r.name);
     for (const c of Object.values(this.state.companies)) if (c.id !== exceptId) names.push(c.name);
+    if (this.state.parent && exceptId !== 'parent') names.push(this.state.parent.name);
     for (const c of this.state.generated || []) names.push(c.name);
     return names;
   }
 
   /** Name or rename a business. The old name stays in its history. */
   rename(id, raw) {
+    if (id === 'parent') return this.group.rename(raw);
     if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
     const c = this.ensureCompany(id);
     if (!c) return { ok: false, text: 'You do not own that business yet.' };
@@ -39639,7 +39940,7 @@ class Corporate {
   }
 }
 
-return { COMPANY_IDS, Corporate };
+return { COMPANY_IDS, ACCOUNT_IDS, Corporate };
 })();
 
 // ---- src/systems/ledgerGame.js
@@ -58449,13 +58750,14 @@ const WHERE = { arms: 'Get a licence from Lucas, then buy a works at Mill Road Y
 function corpNamePanel(ui, body, opts) {
   const g = ui.game;
   const id = opts.id;
-  const C = g.corp.ensureCompany(id);
+  const C = id === 'parent' ? g.corp.state.parent : g.corp.ensureCompany(id);
   if (!C) return { title: 'Name your company' };
+  const P = id === 'parent' ? { icon: '🏛️', kind: 'Holding company' } : PLAYER_COMPANIES[id];
   const msg = h('p', { class: 'muted' }, 'Letters, numbers, spaces and & \' . , - — 3 to 40 characters. You can change it any time in the Companies app.');
   const input = h('input', { type: 'text', class: 'debug-input', value: C.name, maxlength: 40, style: 'width:100%;font-size:18px' });
   const done = () => ui.closePanel();
   body.append(
-    h('p', { class: 'doc' }, `${PLAYER_COMPANIES[id].icon} Your ${PLAYER_COMPANIES[id].kind.toLowerCase()} is founded. What is it called?`),
+    h('p', { class: 'doc' }, `${P.icon} Your ${P.kind.toLowerCase()} is founded. What is it called?`),
     input, msg,
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
       h('button', { class: 'primary', onclick: () => { const r = g.corp.rename(id, input.value); if (r.ok) { ui.audio.sfx('sfx_coin'); done(); } else { msg.textContent = r.text; msg.className = 'neg'; ui.audio.sfx('sfx_fail'); } } }, 'Register this name'),
@@ -64035,7 +64337,8 @@ class UI {
     const q = this.namePrompts;
     if (!q?.length || this.state !== 'playing' || this.panelOpen || this.dialogue.open) return;
     const id = q.shift();
-    if (this.game.corp.state.companies[id]?.named === false) this.openPanel('corpname', { id });
+    const rec = id === 'parent' ? this.game.corp.state.parent : this.game.corp.state.companies[id];
+    if (rec?.named === false) this.openPanel('corpname', { id });
   }
 
   // ----------------------------------------------------------- feedback

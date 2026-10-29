@@ -21,12 +21,16 @@ import { CORP } from '../content/corporate.js';
 import { buildWorld, rebuildNamer, advance } from '../corp/generate.js';
 import { monthTotals } from '../corp/ledger.js';
 import { figures, growth, value as worth, rank as rankBy, shares } from '../corp/metrics.js';
+import { Group } from './group.js';
 
+/** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
+export const ACCOUNT_IDS = [...COMPANY_IDS, 'parent'];
 
 export class Corporate {
   constructor(game) {
     this.game = game;
+    this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
   }
 
   get state() {
@@ -39,10 +43,12 @@ export class Corporate {
 
   /** A company's account (created on first use). */
   account(id) {
-    if (!COMPANY_IDS.includes(id)) throw new Error(`Unknown company ${id}`);
+    if (!ACCOUNT_IDS.includes(id)) throw new Error(`Unknown company ${id}`);
     const a = this.state.accounts;
+    if (id === 'parent' && !a.parent) throw new Error('There is no parent company');
     if (!a[id]) a[id] = freshAccount(id);
     a[id].arrears ??= 0; // saves from before arrears existed
+    a[id].xferIn ??= 0; a[id].xferOut ??= 0; // before v0.61.0
     return a[id];
   }
 
@@ -138,6 +144,7 @@ export class Corporate {
       case 'shipping': return g.logistics.owned;
       case 'aerospace': return g.aero.owned;
       case 'farming': return g.farm.owned().length > 0;
+      case 'parent': return Boolean(this.state.parent);
       default: return false;
     }
   }
@@ -149,13 +156,14 @@ export class Corporate {
   contribute(id, amount, memo = 'Capital contribution') {
     const g = this.game;
     amount = Math.floor(Number(amount));
-    if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
-    if (!this.established(id)) return { ok: false, text: 'You do not own that business yet.' };
+    if (!ACCOUNT_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    if (!this.established(id)) return { ok: false, text: id === 'parent' ? 'There is no parent company yet.' : 'You do not own that business yet.' };
+    if (this.group.isSub(id)) return { ok: false, text: `${this.nameOf(id)} is a subsidiary: pay money into the parent company, then capitalise it from there.` };
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false, text: 'Enter an amount above zero.' };
     if (g.player.money < amount) return { ok: false, text: `You have ${g.player.money.toLocaleString()} obols.` };
     const a = this.account(id);
     g.player.money -= amount;
-    a.funded = true;
+    a.funded = true; // (the parent's account is always funded)
     a.cash += amount;
     a.contributed += amount;
     logLine(a, { day: g.clock.day, type: 'contribution', amount, memo });
@@ -168,7 +176,9 @@ export class Corporate {
   distribute(id, amount, memo = 'Distribution to the owner') {
     const g = this.game;
     amount = Math.floor(Number(amount));
-    if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    if (!ACCOUNT_IDS.includes(id)) return { ok: false, text: 'No such company.' };
+    if (this.group.isSub(id)) return { ok: false, text: `${this.nameOf(id)} is a subsidiary: its money goes to the parent company as a distribution, and from the parent to you.` };
+    if (id === 'parent' && !this.state.parent) return { ok: false, text: 'There is no parent company.' };
     const a = this.account(id);
     if (!a.funded) return { ok: false, text: 'That company holds no money of its own.' };
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false, text: 'Enter an amount above zero.' };
@@ -184,6 +194,8 @@ export class Corporate {
 
   /** Close the company's own account: whatever it holds goes to the owner, and it draws on the wallet again. */
   unfund(id) {
+    if (id === 'parent') return { ok: false, text: 'The parent company\'s account cannot be closed; take its money out instead.' };
+    if (this.group.isSub(id)) return { ok: false, text: `${this.nameOf(id)} is a subsidiary: take it out of the group first.` };
     const a = this.account(id);
     if (!a.funded) return { ok: false, text: 'That company holds no money of its own.' };
     if (a.arrears > 0) return { ok: false, text: `It owes ${a.arrears.toLocaleString()} obols — clear that first.` };
@@ -204,6 +216,7 @@ export class Corporate {
     const a = this.account(id);
     const g = this.game;
     if (!Number.isFinite(amount) || amount < 0) return false;
+    if (this.group.isSub(id)) return false; // a subsidiary is never paid for from the owner's wallet
     g.player.money -= amount;
     if (amount) g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
     a.inKind += amount;
@@ -257,6 +270,7 @@ export class Corporate {
 
   /** A business's name (its default until named). */
   nameOf(id) {
+    if (id === 'parent') return this.state.parent?.name || this.group.defaultName();
     return this.state.companies[id]?.name || this.defaultName(id);
   }
 
@@ -276,12 +290,14 @@ export class Corporate {
   takenNames(exceptId = null) {
     const names = existingRows(this.game.content).map((r) => r.name);
     for (const c of Object.values(this.state.companies)) if (c.id !== exceptId) names.push(c.name);
+    if (this.state.parent && exceptId !== 'parent') names.push(this.state.parent.name);
     for (const c of this.state.generated || []) names.push(c.name);
     return names;
   }
 
   /** Name or rename a business. The old name stays in its history. */
   rename(id, raw) {
+    if (id === 'parent') return this.group.rename(raw);
     if (!COMPANY_IDS.includes(id)) return { ok: false, text: 'No such company.' };
     const c = this.ensureCompany(id);
     if (!c) return { ok: false, text: 'You do not own that business yet.' };

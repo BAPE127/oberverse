@@ -2112,19 +2112,27 @@ export class Aerospace {
     for (const [id, c] of Object.entries(s.contracts)) if (c.status !== 'active' && (c.history.at(-1)?.at ?? 0) < this.now - 30 * DAY) delete s.contracts[id];
   }
 
-  companyDay(co) {
+  /** What a company pays each day whether or not it is busy: wages, training, upkeep, overhead (the day's bills, and the group's running-cost estimate). */
+  fixedCosts(co) {
     const C = this.cfg;
     const W = C.staff.roles;
-    this.pay(co, co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, 'wages');
     const T = C.staff.training[co.training] || C.staff.training.none;
-    if (T.perDay) this.pay(co, co.workforce * T.perDay, 'training');
-    co.experience = Math.min(C.staff.experience.cap, co.experience + T.gain * (1 - co.experience / 130));
     let upkeep = co.bays.reduce((a, b) => a + (b.ready <= this.now ? C.bays[b.type].upkeep : 0), 0);
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
     if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
-    this.pay(co, upkeep, 'upkeep');
-    this.pay(co, co.overhead, 'overhead');
+    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.overhead };
+  }
+
+  companyDay(co) {
+    const C = this.cfg;
+    const F = this.fixedCosts(co);
+    this.pay(co, F.wages, 'wages');
+    const T = C.staff.training[co.training] || C.staff.training.none;
+    if (T.perDay) this.pay(co, F.training, 'training');
+    co.experience = Math.min(C.staff.experience.cap, co.experience + T.gain * (1 - co.experience / 130));
+    this.pay(co, F.upkeep, 'upkeep');
+    this.pay(co, F.overhead, 'overhead');
     if (co.kind === 'rival' && co.cash < 0) this.pay(co, -co.cash * this.A.meridian.interest, 'interest');
     if (co.researching && this.now >= co.researching.doneAt) {
       const R = C.research[co.researching.id];
