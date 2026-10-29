@@ -126,10 +126,10 @@ export function needsFor(P, f) {
     return out;
   }
   add('gm', 'Every business runs better with someone in charge; a small one needs no one else.');
-  if (f.kind === 'arms') { if (f.works >= 1 && f.staff >= 4) add('manufacturing_mgr', `${f.staff} staff on the floor.`); if (f.staff >= 6) add('procurement_mgr', 'Parts bought by the hour could be bought for less.'); }
-  if (f.kind === 'aerospace') { if (f.bays >= 3) add('aero_ops_mgr', `${f.bays} bays to keep busy.`); if (f.bays >= 4) add('procurement_mgr', 'Materials are the biggest bill.'); if (f.bays >= 5) add('finance_mgr', 'A business this size needs its own books kept.'); if (f.bays >= 6) add('maintenance_mgr', 'Many bays, much to keep sound.'); }
-  if (f.kind === 'shipping') { if (f.vessels >= 3) add('logistics_mgr', `${f.vessels} ships and ${f.ports} ports.`); if (f.vessels >= 6) add('maintenance_mgr', 'A large fleet wears.'); }
-  if (f.kind === 'farming') { if (f.plots >= 2) add('farm_mgr', `${f.plots} plots to work.`); }
+  if (f.kind === 'arms') { if (f.works >= 1 && f.staff >= 4) add('manufacturing_mgr', `${f.staff} staff on the floor.`); if (f.staff >= 6) add('procurement_mgr', 'Parts bought by the hour could be bought for less.'); if (f.staff >= 6) add('supervisor', `${f.staff} on the floor: a supervisor to run a shift.`); if (f.staff >= 8) add('procurement_spec', 'Many hands on the floor, many parts to chase.'); }
+  if (f.kind === 'aerospace') { if (f.bays >= 3) add('aero_ops_mgr', `${f.bays} bays to keep busy.`); if (f.bays >= 3) add('supervisor', 'Bays running in shifts need someone to run them.'); if (f.bays >= 4) add('procurement_spec', 'Materials are bought by the lot; someone should chase the quotes.'); if (f.bays >= 4) add('procurement_mgr', 'Materials are the biggest bill.'); if (f.bays >= 5) add('finance_mgr', 'A business this size needs its own books kept.'); if (f.bays >= 6) add('maintenance_mgr', 'Many bays, much to keep sound.'); }
+  if (f.kind === 'shipping') { if (f.vessels >= 2) add('coordinator', `${f.vessels} ships to keep loaded.`); if (f.vessels >= 3) add('logistics_mgr', `${f.vessels} ships and ${f.ports} ports.`); if (f.vessels >= 6) add('maintenance_mgr', 'A large fleet wears.'); }
+  if (f.kind === 'farming') { if (f.plots >= 2) add('farm_mgr', `${f.plots} plots to work.`); if (f.plots >= 2) add('farm_supervisor', 'Hands in the field need someone to run them.'); }
   return out;
 }
 

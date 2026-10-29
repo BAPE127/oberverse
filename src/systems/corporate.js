@@ -23,6 +23,7 @@ import { monthTotals } from '../corp/ledger.js';
 import { figures, growth, value as worth, rank as rankBy, shares } from '../corp/metrics.js';
 import { Group } from './group.js';
 import { Personnel } from './personnel.js';
+import { Management } from './management.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
@@ -33,6 +34,7 @@ export class Corporate {
     this.game = game;
     this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
     this.personnel = new Personnel(this); // v0.62.0: the people who run them
+    this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
 
   get state() {
@@ -399,6 +401,7 @@ export class Corporate {
   dailyTick() {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
+    this.management.dailyTick(); // managers' decisions (only once a budget has been set)
     const st = this.state;
     if (!st.generated) return;
     const g = this.game;

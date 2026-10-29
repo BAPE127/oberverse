@@ -28,9 +28,9 @@ export const GRADES = [[85, 'exceptional'], [70, 'strong'], [50, 'competent'], [
 
 /** Authority every job starts with (data a manager's decisions will be held to from stage 7; nothing enforces it yet). */
 export const AUTHORITY = {
-  executive: { spendLimit: 50000, approvalAbove: 50000, canHire: true, canBorrow: true, canTransfer: true, canContract: true, canExpand: false },
-  manager: { spendLimit: 10000, approvalAbove: 10000, canHire: true, canBorrow: false, canTransfer: false, canContract: true, canExpand: false },
-  staff: { spendLimit: 1000, approvalAbove: 1000, canHire: false, canBorrow: false, canTransfer: false, canContract: false, canExpand: false },
+  executive: { spendLimit: 50000, approvalAbove: 20000, canHire: true, canBorrow: true, canTransfer: true, canContract: true, canExpand: false },
+  manager: { spendLimit: 10000, approvalAbove: 3000, canHire: true, canBorrow: false, canTransfer: false, canContract: true, canExpand: false },
+  staff: { spendLimit: 1000, approvalAbove: 500, canHire: false, canBorrow: false, canTransfer: false, canContract: false, canExpand: false },
 };
 
 const B = ['arms', 'shipping', 'aerospace', 'farming'];

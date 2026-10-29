@@ -378,7 +378,8 @@ test('openings: the jobs a business has a case for, once, with the reason', () =
   g.corp.group.form(); g.corp.contribute('parent', 100_000);
   g.corp.group.join('farming');
   assert.ok(pe.openings().some((x) => x.employer === 'parent' && x.role === 'ceo' && x.why));
-  assert.deepEqual(needsFor(P, { kind: 'farming', plots: 3, held: {} }).map((n) => n.role), ['gm', 'farm_mgr']);
+  assert.deepEqual(needsFor(P, { kind: 'farming', plots: 3, held: {} }).map((n) => n.role), ['gm', 'farm_mgr', 'farm_supervisor']); // v0.63.0: staff jobs a manager may fill
+  assert.deepEqual(needsFor(P, { kind: 'farming', plots: 1, held: {} }).map((n) => n.role), ['gm'], 'one plot: a manager and no one else');
 });
 
 test('what a hire would be worth is worked out from the business\'s own spending, and a small business is told so', () => {

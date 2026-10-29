@@ -979,6 +979,14 @@ export class Aerospace {
     return co.kind === 'player' && this.game.logistics.owned;
   }
 
+  /** What an order would cost now, and how it would travel. Nothing changes (the managers of v0.63 quote with it before they buy). */
+  orderCost(co, supplierId, m, qty, mode = null) {
+    const md = this.modeFor(co, supplierId, mode);
+    const q = this.freightQuote(co, supplierId, m, qty);
+    const internal = md === 'internal';
+    return { mode: md, q, internal, total: q.goods + q.duty + (internal ? 0 : q.freight + q.handling) };
+  }
+
   /**
    * Order materials. Stock at the supplier is taken now; goods and duty are paid now (an asset
    * until used). By carrier (or truck) the freight is paid now too; in your own ships the job's
@@ -994,10 +1002,7 @@ export class Aerospace {
     if (qty <= 0) return { ok: false, text: 'Order how many?' };
     if ((ss.stock[m] || 0) < qty) return { ok: false, text: `${sp.name} has only ${ss.stock[m] || 0} lots of ${C.materials[m].name.toLowerCase()} in stock.` };
     if (C.materials[m].secure && !this.cleared(co)) return { ok: false, text: `${C.materials[m].name} are controlled: you need security clearance.` };
-    const mode = this.modeFor(co, supplierId, opts.mode);
-    const q = this.freightQuote(co, supplierId, m, qty);
-    const internal = mode === 'internal';
-    const total = q.goods + q.duty + (internal ? 0 : q.freight + q.handling);
+    const { mode, q, internal, total } = this.orderCost(co, supplierId, m, qty, opts.mode);
     if (!this.canAfford(co, total)) return { ok: false, text: `The order costs ${total.toLocaleString()} obols${internal ? ' (freight comes later, in your own ship)' : ' with freight'}.` };
     ss.stock[m] -= qty;
     this.pay(co, total, null, 'materials');
@@ -1380,14 +1385,18 @@ export class Aerospace {
   }
 
   /** Reserve free stock for shortfalls first, then order what's left from the cheapest suppliers. */
-  autoProcure(co) {
-    const C = this.cfg;
-    // reserve spare stock for units that need it (priority order)
+  /** Reserve free stock for the units that are short of it (priority order). Costs nothing. */
+  reserveShortfalls(co) {
     for (const sf of this.shortfalls(co)) {
       const free = this.free(co, sf.material);
       if (free <= 0) continue;
       this.reserve(co, this.state.units[sf.unit], sf.material, Math.min(free, sf.qty));
     }
+  }
+
+  autoProcure(co) {
+    const C = this.cfg;
+    this.reserveShortfalls(co);
     const byMat = {};
     for (const sf of this.shortfalls(co)) (byMat[sf.material] ||= []).push(sf);
     const placed = [];
