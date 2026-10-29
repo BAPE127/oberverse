@@ -58,10 +58,12 @@ export function companiesApp(ui, body, open) {
         p.funded
           ? h('div', { class: 'desc' }, `Its own cash ${ob(p.ownCash)}${p.arrears ? ` · OWES ${ob(p.arrears)}` : ''} · you have paid in ${ob(p.contributed)} and taken out ${ob(p.distributed)}`)
           : h('div', { class: 'desc' }, `It draws on your ${ob(g.player.money)}. Brought in at cost: ${ob(p.inKind)}.`),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' }, amount,
-          h('button', { class: 'small primary', onclick: () => go(K.contribute(id, n())) }, 'Pay in'),
-          p.funded ? h('button', { class: 'small', onclick: () => go(K.distribute(id, n())) }, 'Take out') : null,
-          p.funded ? h('button', { class: 'small ghost', onclick: () => go(K.unfund(id)) }, 'Close its account') : null))));
+        K.group.isSub(id)
+          ? h('div', { class: 'desc' }, `A subsidiary of ${K.nameOf('parent')} — its money comes from and goes to the parent (see the Group app).`)
+          : h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' }, amount,
+            h('button', { class: 'small primary', onclick: () => go(K.contribute(id, n())) }, 'Pay in'),
+            p.funded ? h('button', { class: 'small', onclick: () => go(K.distribute(id, n())) }, 'Take out') : null,
+            p.funded ? h('button', { class: 'small ghost', onclick: () => go(K.unfund(id)) }, 'Close its account') : null))));
   }
   body.append(list);
 }

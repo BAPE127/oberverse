@@ -2,6 +2,40 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.61.0] — 2026-10-29 — Under One Roof (development build)
+
+Stage 5 of the Corporate Empire brief (docs/CORPORATE.md): a parent company, subsidiaries with their own books and cash, money that moves between them on the record, and statements that take the internal dealings out.
+
+### Added — the parent company (`src/systems/group.js`, `src/corp/group.js`)
+- **Found a parent company** from the new **Group** tablet app: free, and it makes nothing — it starts with no money, no business and no staff. Name it, rename it. You pay money into it (a logged contribution) and take dividends out.
+- **Bring a business under it** as a subsidiary (always wholly owned; the record keeps a stake field for later). It is one step with a preview first: the business stops spending your wallet and uses its own account, so the app tells you what it spends a day and what happens with no money (aerospace and shipping fall into debt, arms staff go unpaid and quit, a farm's purchases are refused) — and offers opening capital from the parent in the same step. An arms business needs its first works before it can join. No circles, no second parent.
+- **Money reaches a subsidiary only through the parent**: you → parent → subsidiary (capital, or an intercompany loan) and back by distributions, repayments and returned capital. Your wallet cannot pay, take from or fund a subsidiary, however it is asked. A subsidiary can **leave the group** (never while it owes or is owed): its cash stays in it and it is yours again.
+- Every transfer is one step, numbered and logged, and moves cash between two accounts — **it is never sales, never a cost**, so it cannot squeeze the other companies in a sector or make a profit.
+
+### Added — loans, distributions, policies
+- **Intercompany loans**: the parent lends at the benchmark plus a point (you may change the rate and term); each month the borrower pays a month's interest and an equal instalment, or — if it owes others — misses it and the miss is recorded; early repayment; borrowing is never revenue.
+- **Distribution policies** (a default for the group and one of its own per subsidiary): the cash it keeps, a protected minimum, an extra reserve while it owes the parent, the share of profit it keeps and sends up, loans first. Each month the plan is worked out from the month's actual trading result **and the cash it really holds above the reserve** — profit tied up in stock, plant or what customers owe is not sent — and runs once. You can send money up at any time; below the protected minimum it needs an explicit override, which is recorded, shows as an alert, and leaves the subsidiary with what is left.
+- Monthly jobs are keyed by month in the save: a save in the middle of a month, or a long sleep, runs each closed month once (the last three after a very long gap).
+
+### Added — statements
+- **Separate statements** for the parent and each subsidiary; **consolidated** for last month, this month so far or twelve months, with the intercompany dealings taken out: the freight charge between the shipping and aerospace subsidiaries (the part aerospace has not yet used stays held back and is not counted as group profit; it is released as aerospace uses the materials), interest a subsidiary paid its parent, dividends the parent was sent. A check line shows the companies' results less dividends less what is held back equals the consolidated result.
+- **Cash** shown as the parent's spendable cash, each subsidiary's, the group's, and what could be sent up next; **debt to outsiders**; **loans inside the group** (what the parent is owed and what the subsidiaries owe cancel); the parent's own ledger; recent transfers.
+- **Group value** (an estimate, never cash): the parent's cash and what it is owed, plus its stake in each subsidiary at its value after what it owes the parent — nothing counted twice; capital moved or lent inside the group leaves it unchanged. **Who contributes**: each subsidiary's share of value and earnings, cash sent up, and its risks.
+- **Alerts** for a subsidiary below its protected minimum, owing others, with under a week of cash, missing loan payments, or overridden.
+
+### Changed
+- The Companies app shows a subsidiary's money as the parent's business (its Pay in / Take out buttons are for independent businesses). The naming panel now also names the parent, and no longer lets an already-named company swallow a waiting prompt.
+- Aerospace's daily fixed costs are available as one figure (`fixedCosts`) — the day's bills are unchanged.
+
+### Save
+- `world.corp.parent`, `.ownership`, `.transfers`, `.loans`, `.group` are created when the parent is founded; accounts gain `xferIn`/`xferOut`. A save from v0.60 or earlier has no parent, no group and nothing consolidated. No schema change (still 1).
+
+### Tests
+- New: `corporate_group` (17), `corporate_loans` (16), `corporate_consolidation` (10): ownership rules, free formation, atomic join, the wallet guards, conservation of cash at every step, transfers not being trading, loans and their monthly terms, distribution policy and protected liquidity, once-a-month under save/load, the deferred-freight pool (a charge unused changes nothing; used up, nothing was made), moving money never changing the group's result, value without double counting, and a group of all four businesses run for two months on the real systems.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Selling or closing a subsidiary, part-owned subsidiaries, managers and budgets (stages 6–8) and a lender outside the group are later.
+
 ## [0.60.1] — 2026-10-29 — Own Account, checked (development build)
 
 A patch to 0.60.0 after an independent review of the release against the code it shipped.

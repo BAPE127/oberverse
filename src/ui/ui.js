@@ -319,9 +319,11 @@ export class UI {
   nextNamePrompt() {
     const q = this.namePrompts;
     if (!q?.length || this.state !== 'playing' || this.panelOpen || this.dialogue.open) return;
-    const id = q.shift();
-    const rec = id === 'parent' ? this.game.corp.state.parent : this.game.corp.state.companies[id];
-    if (rec?.named === false) this.openPanel('corpname', { id });
+    while (q.length) { // anyone already named (in the Companies app, say) is skipped, not allowed to swallow the turn
+      const id = q.shift();
+      const rec = id === 'parent' ? this.game.corp.state.parent : this.game.corp.state.companies[id];
+      if (rec?.named === false) { this.openPanel('corpname', { id }); return; }
+    }
   }
 
   // ----------------------------------------------------------- feedback

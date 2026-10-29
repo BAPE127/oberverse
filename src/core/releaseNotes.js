@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.61.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Under One Roof',
+    notes: [
+      'Found a parent company (free) and bring your businesses under it as subsidiaries. Each keeps its own books and cash; money reaches them only through the parent — as capital or a loan — and comes back as distributions and repayments. The tablet\'s Group app shows what a business will need before you move it in.',
+      'Distributions follow a policy and your real cash, not just reported profit; the group\'s statements are consolidated with the dealings between your own companies taken out, so moving money around never makes a profit.',
+    ],
+  },
+  {
     version: '0.60.1',
     date: '2026-10-29',
     channel: 'development',

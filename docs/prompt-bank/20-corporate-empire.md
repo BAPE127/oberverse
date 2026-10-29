@@ -12,4 +12,5 @@ Rules:
 - Migrations grant nothing: no money, shares, loans, businesses, employees; nothing is auto-consolidated. Test with `tests/fixtures/save-v0.59.0-four-businesses.json` (a real pre-v0.60 save).
 - Keep each stage independently testable, commit each part green, and gate payment-layer changes on the existing suite passing **unedited**.
 - Managers (stage 7) act only through validated services within budgets and permissions; the owner chose that they may also build or buy from **pre-approved plans** (each asset type needs an explicit placement rule).
+- The group: money to a subsidiary only through the parent; transfers are never trading income and must keep the total cash unchanged; whatever is internal to the group is eliminated in consolidation (and a charge a buyer has capitalised stays deferred until it is used); monthly jobs are keyed by month and must run once under save/load.
 - Deliver: tests (rules, persistence, old-save load), docs, a browser check of every screen touched, and an honest report of what is and is not done.
