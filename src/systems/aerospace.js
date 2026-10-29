@@ -934,7 +934,8 @@ export class Aerospace {
   supplierPrice(co, supplierId, m) {
     const sp = this.cfg.suppliers[supplierId];
     const base = this.cfg.materials[m].price * sp.sells[m];
-    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1));
+    const cut = co.kind === 'player' ? this.game.corp.personnel.effect('aerospace', 'materials') : 0; // v0.62.0: a good buyer pays less — it is the price actually paid
+    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1) * (1 - cut));
   }
 
   /** Freight, duty and handling for an order, and when it would arrive. Nothing changes. */
@@ -2121,7 +2122,7 @@ export class Aerospace {
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
     if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
-    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.overhead };
+    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.kind === 'player' ? Math.round(co.overhead * (1 - this.game.corp.personnel.effect('aerospace', 'overhead'))) : co.overhead };
   }
 
   companyDay(co) {

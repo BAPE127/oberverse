@@ -1034,9 +1034,10 @@ export class Logistics {
     const g = this.game;
     const s = this.state;
     // upkeep: your ports and your ships (unpaid → arrears, paid first next time)
-    let due = s.arrears;
-    for (const id of this.ownedPorts()) due += this.portType(id).upkeep;
-    for (const v of this.vessels()) if (v.status !== 'lost') due += this.stats(v).upkeep;
+    let run = 0;
+    for (const id of this.ownedPorts()) run += this.portType(id).upkeep;
+    for (const v of this.vessels()) if (v.status !== 'lost') run += this.stats(v).upkeep;
+    const due = s.arrears + Math.round(run * (1 - g.corp.personnel.effect('shipping', 'upkeep'))); // v0.62.0: a good manager keeps it sound for less
     const pay = Math.min(due, Math.max(0, g.corp.cashOf('shipping')));
     this.spend(pay, 'upkeep');
     s.arrears = due - pay;

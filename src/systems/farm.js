@@ -282,7 +282,7 @@ export class Farm {
     const D = M.demand[key] || 100;
     const sold = this.state.market[key] || 0;
     const f = M.floor + ((1 - M.floor) * D) / (D + sold);
-    return Math.max(1, Math.round(base * this.state.priceIndex * f));
+    return Math.max(1, Math.round(base * this.state.priceIndex * f * (1 + this.game.corp.personnel.effect('farming', 'farmPrice')))); // v0.62.0: the price actually paid
   }
 
   /** Sell n units into the market, one at a time (each sale lowers the next price). */

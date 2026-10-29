@@ -23028,7 +23028,7 @@ class Arms extends Factory {
   }
 
   speedMult() {
-    return 1 + this.bonusSum((b) => b.speed);
+    return (1 + this.bonusSum((b) => b.speed)) * (1 + this.game.corp.personnel.effect('arms', 'armsSpeed')); // v0.62.0: a good manager; no worker at a station, no speed
   }
 
   priceMult(family) {
@@ -23036,7 +23036,7 @@ class Arms extends Factory {
   }
 
   partsMult() {
-    return 1 + this.bonusSum((b) => b.parts);
+    return (1 + this.bonusSum((b) => b.parts)) * (1 - this.game.corp.personnel.effect('arms', 'parts')); // v0.62.0
   }
 
   recipeUnlocked(rid) {
@@ -32390,9 +32390,10 @@ class Logistics {
     const g = this.game;
     const s = this.state;
     // upkeep: your ports and your ships (unpaid → arrears, paid first next time)
-    let due = s.arrears;
-    for (const id of this.ownedPorts()) due += this.portType(id).upkeep;
-    for (const v of this.vessels()) if (v.status !== 'lost') due += this.stats(v).upkeep;
+    let run = 0;
+    for (const id of this.ownedPorts()) run += this.portType(id).upkeep;
+    for (const v of this.vessels()) if (v.status !== 'lost') run += this.stats(v).upkeep;
+    const due = s.arrears + Math.round(run * (1 - g.corp.personnel.effect('shipping', 'upkeep'))); // v0.62.0: a good manager keeps it sound for less
     const pay = Math.min(due, Math.max(0, g.corp.cashOf('shipping')));
     this.spend(pay, 'upkeep');
     s.arrears = due - pay;
@@ -36313,7 +36314,8 @@ class Aerospace {
   supplierPrice(co, supplierId, m) {
     const sp = this.cfg.suppliers[supplierId];
     const base = this.cfg.materials[m].price * sp.sells[m];
-    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1));
+    const cut = co.kind === 'player' ? this.game.corp.personnel.effect('aerospace', 'materials') : 0; // v0.62.0: a good buyer pays less — it is the price actually paid
+    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1) * (1 - cut));
   }
 
   /** Freight, duty and handling for an order, and when it would arrive. Nothing changes. */
@@ -37500,7 +37502,7 @@ class Aerospace {
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
     if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
-    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.overhead };
+    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.kind === 'player' ? Math.round(co.overhead * (1 - this.game.corp.personnel.effect('aerospace', 'overhead'))) : co.overhead };
   }
 
   companyDay(co) {
@@ -38188,7 +38190,7 @@ class Farm {
     const D = M.demand[key] || 100;
     const sold = this.state.market[key] || 0;
     const f = M.floor + ((1 - M.floor) * D) / (D + sold);
-    return Math.max(1, Math.round(base * this.state.priceIndex * f));
+    return Math.max(1, Math.round(base * this.state.priceIndex * f * (1 + this.game.corp.personnel.effect('farming', 'farmPrice')))); // v0.62.0: the price actually paid
   }
 
   /** Sell n units into the market, one at a time (each sale lowers the next price). */
@@ -39690,7 +39692,8 @@ class Group {
     const K = this.K;
     if (id === 'parent') {
       const t = icTotals(K.account('parent'), m);
-      return { id, name: this.parent.name, revenue: 0, opex: 0, capex: 0, icIn: t.icIn, icOut: 0, interestIn: t.interestIn, dividendIn: t.dividendIn, internal: 0 };
+      const pm = monthTotals(K.account('parent'), m); // the parent's own costs: its people's wages, and any fee it paid
+      return { id, name: this.parent.name, revenue: 0, opex: pm.opex, capex: pm.capex, icIn: t.icIn, icOut: 0, interestIn: t.interestIn, dividendIn: t.dividendIn, internal: 0 };
     }
     const reg = K.registry().find((r) => r.playerId === id);
     const row = K.rowsOf(reg).rows.find((r) => r.m === m);
@@ -39772,7 +39775,7 @@ class Group {
       received: { distributions: sum((t) => t.to === 'parent' && t.kind === 'distribution'), interest: sum((t) => t.to === 'parent' && t.kind === 'interest'), repayments: sum((t) => t.to === 'parent' && t.kind === 'repayment'), capitalReturned: sum((t) => t.to === 'parent' && t.kind === 'capital-return') },
       paid: { capital: sum((t) => t.from === 'parent' && t.kind === 'capital'), loans: sum((t) => t.from === 'parent' && t.kind === 'loan') },
       owner: { contributed: pa.contributed, distributed: pa.distributed, inKind: pa.inKind },
-      managementExpenses: 0, debt: 0, interestExpense: 0, restructuring: 0,
+      managementExpenses: months.reduce((a, m) => a + monthTotals(this.K.account('parent'), m).opex, 0), debt: 0, interestExpense: 0, restructuring: 0,
       cash: Math.round(pa.cash),
     };
   }
@@ -39823,6 +39826,707 @@ class Group {
 return { Group };
 })();
 
+// ---- src/content/personnel.js
+__m["src/content/personnel.js"] = (function () {
+// The people who run companies (v0.62.0): skills, jobs, what a job pays and what a person in it can do.
+// Everything here is data; src/corp/people.js turns it into candidates, offers and effects, and
+// src/systems/personnel.js into a hiring market, payrolls and records. Pay is obols a day.
+
+/** Seventeen skills, 0–100. 20 is a beginner, 50 competent, 70 strong, 90 exceptional. */
+const SKILLS = {
+  finance: { name: 'Financial management', text: 'Cash, debt, reserves and forecasts.' },
+  budgeting: { name: 'Budgeting and cost control', text: 'Holding spending to a plan; trimming waste and overhead.' },
+  production: { name: 'Production planning', text: 'Scheduling work so capacity is used.' },
+  procurement: { name: 'Procurement and negotiation', text: 'Buying what is needed at a good price.' },
+  logistics: { name: 'Logistics and routes', text: 'Moving things efficiently: ships, loads, routes.' },
+  bidding: { name: 'Contract bidding', text: 'Pricing and winning tenders and contracts.' },
+  sales: { name: 'Sales and revenue', text: 'Selling what is made at a good price.' },
+  research: { name: 'Research and development', text: 'Choosing and driving projects that pay.' },
+  workforce: { name: 'Workforce management', text: 'Keeping a crew productive and settled.' },
+  maintenance: { name: 'Maintenance planning', text: 'Keeping equipment working and downtime short.' },
+  risk: { name: 'Risk management', text: 'Seeing what could go wrong and being ready.' },
+  inventory: { name: 'Inventory management', text: 'Holding enough stock, and no more.' },
+  agriculture: { name: 'Agricultural operations', text: 'Crops, livestock, seasons, land.' },
+  aerospace: { name: 'Aerospace operations', text: 'Aircraft, rockets and satellites in production.' },
+  manufacturing: { name: 'Manufacturing operations', text: 'Factory floors, stations, throughput.' },
+  strategy: { name: 'Strategic planning', text: 'Where to invest and what to leave alone.' },
+  compliance: { name: 'Compliance and controls', text: 'Rules, licences, audits and internal controls.' },
+};
+
+/** What a grade of skill is called, for the screens. */
+const GRADES = [[85, 'exceptional'], [70, 'strong'], [50, 'competent'], [35, 'fair'], [0, 'weak']];
+
+/** Authority every job starts with (data a manager's decisions will be held to from stage 7; nothing enforces it yet). */
+const AUTHORITY = {
+  executive: { spendLimit: 50000, approvalAbove: 50000, canHire: true, canBorrow: true, canTransfer: true, canContract: true, canExpand: false },
+  manager: { spendLimit: 10000, approvalAbove: 10000, canHire: true, canBorrow: false, canTransfer: false, canContract: true, canExpand: false },
+  staff: { spendLimit: 1000, approvalAbove: 1000, canHire: false, canBorrow: false, canTransfer: false, canContract: false, canExpand: false },
+};
+
+const B = ['arms', 'shipping', 'aerospace', 'farming'];
+
+/**
+ * Jobs. tier: executive (at the parent company) · manager · staff (at a business). employers: where it can be.
+ * keys: the skills the job needs (a candidate must average 35+ in them). limit: how many one employer may have.
+ * pay: [low, high] a day. effects: what a good holder does for the business — { key: [cap, skills…] }.
+ */
+const ROLES = {
+  ceo: { name: 'Chief Executive Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'finance', 'workforce'], limit: 1, pay: [450, 780], sector: null, effects: { overhead: [0.03, 'strategy', 'budgeting'] }, text: 'Sets the group\'s direction and answers for all of it.' },
+  cfo: { name: 'Chief Financial Officer', tier: 'executive', employers: ['parent'], keys: ['finance', 'budgeting', 'risk'], limit: 1, pay: [420, 720], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'Cash, debt and the discipline of the budget.' },
+  coo: { name: 'Chief Operating Officer', tier: 'executive', employers: ['parent'], keys: ['production', 'workforce', 'logistics'], limit: 1, pay: [400, 680], sector: null, effects: { overhead: [0.03, 'production', 'workforce'] }, text: 'Runs the subsidiaries day to day.' },
+  controller: { name: 'Chief Financial Controller', tier: 'executive', employers: ['parent'], keys: ['compliance', 'finance', 'budgeting'], limit: 1, pay: [330, 580], sector: null, effects: { overhead: [0.02, 'compliance', 'budgeting'] }, text: 'Books, controls and audits.' },
+  cso: { name: 'Chief Strategy Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'risk', 'research'], limit: 1, pay: [360, 640], sector: null, effects: {}, text: 'Where to invest next; what to avoid.' },
+  cpo: { name: 'Chief Procurement Officer', tier: 'executive', employers: ['parent'], keys: ['procurement', 'inventory', 'finance'], limit: 1, pay: [360, 640], sector: null, effects: { materials: [0.03, 'procurement'], parts: [0.03, 'procurement'] }, text: 'Buys for the whole group.' },
+  hrd: { name: 'Human Resources Director', tier: 'executive', employers: ['parent'], keys: ['workforce', 'compliance', 'budgeting'], limit: 1, pay: [300, 540], sector: null, effects: {}, text: 'Recruiting, retention, pay.' },
+  gm: { name: 'General Manager', tier: 'manager', employers: B, keys: ['workforce', 'budgeting', 'strategy'], limit: 1, pay: [140, 340], sector: null, effects: { overhead: [0.06, 'budgeting', 'workforce'] }, text: 'Runs the whole business; the only manager a small one needs.' },
+  manufacturing_mgr: { name: 'Manufacturing Manager', tier: 'manager', employers: ['arms'], keys: ['production', 'manufacturing', 'workforce'], limit: 1, pay: [130, 320], sector: 'arms', effects: { armsSpeed: [0.07, 'production', 'manufacturing'] }, text: 'The floor: stations kept fed and busy.' },
+  logistics_mgr: { name: 'Shipping and Logistics Manager', tier: 'manager', employers: ['shipping'], keys: ['logistics', 'maintenance', 'risk'], limit: 1, pay: [130, 320], sector: 'shipping', effects: { upkeep: [0.1, 'logistics', 'maintenance'] }, text: 'Ships, ports, loads and routes.' },
+  aero_ops_mgr: { name: 'Aerospace Operations Manager', tier: 'manager', employers: ['aerospace'], keys: ['aerospace', 'production', 'workforce'], limit: 1, pay: [170, 370], sector: 'aerospace', effects: { overhead: [0.04, 'aerospace', 'production'] }, text: 'Bays, crews and the order of work.' },
+  farm_mgr: { name: 'Farm Manager', tier: 'manager', employers: ['farming'], keys: ['agriculture', 'inventory', 'workforce'], limit: 1, pay: [120, 270], sector: 'farming', effects: { farmPrice: [0.06, 'agriculture', 'sales'] }, text: 'Land, herds, harvest and the sale.' },
+  sales_mgr: { name: 'Sales and Contracts Manager', tier: 'manager', employers: B, keys: ['sales', 'bidding', 'risk'], limit: 1, pay: [130, 320], sector: null, effects: { farmPrice: [0.03, 'sales', 'bidding'] }, text: 'Wins and prices the work.' },
+  procurement_mgr: { name: 'Procurement Manager', tier: 'manager', employers: B, keys: ['procurement', 'inventory', 'budgeting'], limit: 1, pay: [125, 300], sector: null, effects: { materials: [0.05, 'procurement', 'inventory'], parts: [0.06, 'procurement', 'inventory'] }, text: 'Buys materials and parts for less.' },
+  rd_mgr: { name: 'Research and Development Manager', tier: 'manager', employers: ['arms', 'aerospace'], keys: ['research', 'strategy', 'risk'], limit: 1, pay: [145, 330], sector: null, effects: {}, text: 'Picks the projects worth the money.' },
+  finance_mgr: { name: 'Finance and Accounting Manager', tier: 'manager', employers: B, keys: ['finance', 'budgeting', 'compliance'], limit: 1, pay: [125, 300], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'The books, the cash and the forecast.' },
+  maintenance_mgr: { name: 'Maintenance Manager', tier: 'manager', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance', 'risk', 'workforce'], limit: 1, pay: [120, 270], sector: null, effects: { upkeep: [0.04, 'maintenance', 'risk'] }, text: 'Equipment kept sound; downtime kept short.' },
+  accountant: { name: 'Accountant', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'compliance'], limit: 3, pay: [45, 100], sector: null, effects: {}, text: 'Keeps the ledgers.' },
+  analyst: { name: 'Financial Analyst', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'risk'], limit: 3, pay: [55, 115], sector: null, effects: {}, text: 'Forecasts and comparisons.' },
+  procurement_spec: { name: 'Procurement Specialist', tier: 'staff', employers: B, keys: ['procurement', 'inventory'], limit: 3, pay: [45, 100], sector: null, effects: { materials: [0.02, 'procurement'], parts: [0.02, 'procurement'] }, text: 'Chases quotes and suppliers.' },
+  supervisor: { name: 'Production Supervisor', tier: 'staff', employers: ['arms', 'aerospace'], keys: ['production', 'workforce'], limit: 3, pay: [55, 115], sector: null, effects: { armsSpeed: [0.02, 'production', 'workforce'] }, text: 'Runs a shift.' },
+  coordinator: { name: 'Logistics Coordinator', tier: 'staff', employers: ['shipping'], keys: ['logistics', 'inventory'], limit: 3, pay: [45, 100], sector: 'shipping', effects: { upkeep: [0.02, 'logistics'] }, text: 'Berths, loads, paperwork.' },
+  farm_supervisor: { name: 'Farm Supervisor', tier: 'staff', employers: ['farming'], keys: ['agriculture', 'workforce'], limit: 3, pay: [40, 90], sector: 'farming', effects: { farmPrice: [0.02, 'agriculture'] }, text: 'Runs the hands in the field.' },
+  sales_rep: { name: 'Sales Representative', tier: 'staff', employers: B, keys: ['sales', 'bidding'], limit: 3, pay: [45, 105], sector: null, effects: {}, text: 'Calls on customers.' },
+  maintenance_worker: { name: 'Maintenance Worker', tier: 'staff', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance'], limit: 3, pay: [40, 90], sector: null, effects: {}, text: 'Keeps things running.' },
+  admin: { name: 'Administrative Staff', tier: 'staff', employers: ['parent', ...B], keys: ['compliance', 'budgeting'], limit: 3, pay: [35, 75], sector: null, effects: {}, text: 'Paper, phones, calendars.' },
+};
+
+/** The largest total each effect can ever reach, however many good people there are. */
+const EFFECT_CAPS = { materials: 0.08, parts: 0.1, armsSpeed: 0.1, upkeep: 0.12, farmPrice: 0.08, overhead: 0.1 };
+/** What a parent-level executive does for each subsidiary: a share of the effect. */
+const EXEC_REACH = 0.5;
+
+const MARKET = {
+  pool: 24, // candidates kept in the market
+  weekLeave: [3, 5], // taken other jobs each week
+  fee: 10, // recruiting fee, in days of the salary agreed
+  severance: 5, // days of salary on dismissal
+  resignUnpaid: 2, // days unpaid in a row before they leave
+  promoteDays: 60, // days in a job before a promotion is considered
+  xpPerSkill: 3, // good months for a skill point
+  maxGains: 6, // skill points a career can add
+  skillCap: 90,
+  notice: [0, 7, 14],
+};
+
+const FIRST = ['Adair', 'Beck', 'Calla', 'Dorian', 'Edda', 'Fenn', 'Greta', 'Hale', 'Iris', 'Joss', 'Kell', 'Lena', 'Maro', 'Nell', 'Orrin', 'Perrin', 'Quill', 'Rhea', 'Soren', 'Tamsin', 'Una', 'Vesper', 'Wynn', 'Xan', 'Yara', 'Zeb', 'Ansel', 'Brenna', 'Corin', 'Delphi', 'Emrys', 'Fiora', 'Gideon', 'Hester', 'Ingrid', 'Jasper', 'Kestrel', 'Lior', 'Mabel', 'Niall', 'Odessa', 'Pascal', 'Rowan', 'Saskia', 'Torin', 'Ulla', 'Viggo', 'Willa', 'Yusuf', 'Zora'];
+const LAST = ['Ashdown', 'Barrow', 'Cobb', 'Dunmore', 'Eastley', 'Fairweather', 'Garrick', 'Holloway', 'Ibbotson', 'Jarrow', 'Kingsley', 'Lockhart', 'Marlowe', 'Nightingale', 'Okonkwo', 'Pembroke', 'Quayle', 'Radcliffe', 'Sandoval', 'Thorne', 'Underhill', 'Vance', 'Whitlock', 'Yarrow', 'Zielinski', 'Abernathy', 'Brandt', 'Castellan', 'Draycott', 'Ellery', 'Foxley', 'Gallagher', 'Hartwell', 'Iverson', 'Jessop', 'Kovacs', 'Lindgren', 'Mercer', 'Novak', 'Oakes', 'Prowse', 'Rask', 'Strand', 'Tanaka', 'Voss', 'Wexford', 'Yoon', 'Zaleski'];
+const EDUCATION = {
+  executive: ['an MBA from the Halvermouth School of Commerce', 'a law degree and a CPA', 'a doctorate in economics', 'an engineering degree and a business diploma'],
+  manager: ['a diploma in operations management', 'a degree in engineering', 'a degree in accounting', 'a trade apprenticeship and night school', 'a degree in logistics'],
+  staff: ['a trade certificate', 'a clerical diploma', 'on-the-job training', 'a bookkeeping course', 'a technical certificate'],
+};
+const STYLES = {
+  cautious: 'Careful with money and slow to commit; prefers to hold back rather than gamble.',
+  balanced: 'Weighs gains against risks; steady in a crisis.',
+  aggressive: 'Pushes for growth and takes risks others would not; fond of a big contract.',
+  meticulous: 'Checks every figure twice; thorough, and slow.',
+  driven: 'Works hard and expects the same; can wear a crew down.',
+};
+
+return { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
+})();
+
+// ---- src/corp/people.js
+__m["src/corp/people.js"] = (function () {
+// People for hire (v0.62.0). Pure functions — no game state, no DOM, no RNG: a candidate is a hash of the
+// market's saved salt and its number, so the same save always holds the same candidates.
+//
+//   makeCandidate(P, spec)      a candidate: skills with strengths and a weakness, traits, history, pay asked
+//   roleFit(P, person, role)    how well their skills suit a job (the average of the job's key skills)
+//   rolesFor(P, person)         the jobs they would take
+//   evaluateOffer(person, pay)  accept, or what they would take
+//   effectsOf(P, roster, reach) what the good people at a business do for it — bounded
+//   needsFor(P, facts)          the jobs a business or the parent has a case for filling
+//   grade(v)                    a skill in words
+// P is src/content/personnel.js.
+const { hashUnit } = __m["src/aero/config.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const round5 = (v) => Math.round(v / 5) * 5;
+
+const grade = (P, v) => (P.GRADES.find(([min]) => v >= min) || [0, 'weak'])[1];
+const avgOf = (skills, keys) => (keys.length ? keys.reduce((a, k) => a + (skills[k] || 0), 0) / keys.length : 0);
+const roleFit = (P, person, role) => avgOf(person.skills, P.ROLES[role].keys);
+const MIN_FIT = 35;
+
+/** The jobs a person would take: the ones their skills suit (a manager can take staff work; nobody below takes a tier above). */
+function rolesFor(P, person) {
+  const tiers = { executive: ['executive', 'manager', 'staff'], manager: ['manager', 'staff'], staff: ['staff'] }[person.tier];
+  return Object.keys(P.ROLES).filter((r) => tiers.includes(P.ROLES[r].tier) && roleFit(P, person, r) >= MIN_FIT).sort((a, b) => roleFit(P, person, b) - roleFit(P, person, a));
+}
+
+const TIER_WEIGHT = { executive: 1, manager: 2, staff: 1.5 };
+
+/**
+ * A candidate. spec: { salt, n, day, prior } — `prior` are names of companies they may have worked for
+ * (kept as names: companies come and go). Strong in what the job asks, one key skill weak, one or two
+ * skills outside it strong; traits and pay follow.
+ */
+function makeCandidate(P, { salt, n, day, prior = [] }) {
+  const h = (k) => hashUnit(`${salt}|cand${n}|${k}`);
+  const ids = Object.keys(P.ROLES);
+  const total = ids.reduce((a, r) => a + TIER_WEIGHT[P.ROLES[r].tier], 0);
+  let acc = 0;
+  let role = ids[0];
+  const pick = h('role') * total;
+  for (const r of ids) { acc += TIER_WEIGHT[P.ROLES[r].tier]; if (pick < acc) { role = r; break; } }
+  const R = P.ROLES[role];
+  const tier = R.tier;
+  const age = tier === 'executive' ? 36 + Math.floor(h('age') * 28) : 24 + Math.floor(h('age') * 40);
+  const experience = Math.max(1, age - 22 - Math.floor(h('gap') * 6));
+  const quality = clamp(0.25 + h('q') * 0.7, 0, 1);
+  const skills = {};
+  for (const k of Object.keys(P.SKILLS)) skills[k] = 8 + Math.floor(h(`s_${k}`) * 26);
+  for (const k of R.keys) skills[k] = Math.round(clamp(38 + quality * 47 + (h(`k_${k}`) - 0.5) * 14, 25, 95));
+  const weak = R.keys[Math.floor(h('weak') * R.keys.length)];
+  skills[weak] = Math.max(15, skills[weak] - (14 + Math.floor(h('wd') * 16)));
+  // however weak, they must be fit for the job they came for
+  while (avgOf(skills, R.keys) < MIN_FIT + 1) { const lowest = [...R.keys].sort((a, b) => skills[a] - skills[b])[0]; skills[lowest] += 4; }
+  const others = Object.keys(P.SKILLS).filter((k) => !R.keys.includes(k));
+  for (let i = 0; i < 1 + Math.floor(h('ns') * 2); i++) { const k = others[Math.floor(h(`st${i}`) * others.length)]; skills[k] = Math.min(95, skills[k] + 18 + Math.floor(h(`sv${i}`) * 14)); }
+  const trait = (k, lo, hi) => Math.round(lo + h(k) * (hi - lo));
+  const leader = tier === 'staff' ? [15, 65] : [35, 90];
+  const traits = { workEthic: trait('we', 25, 95), reliability: trait('rel', 25, 95), leadership: trait('lead', ...leader), negotiation: trait('neg', 15, 95), financialDiscipline: trait('fd', 20, 95), riskTolerance: trait('risk', 5, 95) };
+  const style = traits.riskTolerance > 68 ? 'aggressive' : traits.riskTolerance < 32 ? 'cautious' : traits.financialDiscipline > 75 ? 'meticulous' : traits.workEthic > 80 ? 'driven' : 'balanced';
+  const keyAvg = avgOf(skills, R.keys);
+  const ask = R.pay[0] + (R.pay[1] - R.pay[0]) * clamp(0.55 * ((keyAvg - 35) / 55) + 0.3 * Math.min(1, experience / 30) + 0.15 * h('ask'), 0, 1);
+  const first = P.FIRST[Math.floor(h('fn') * P.FIRST.length)];
+  const last = P.LAST[Math.floor(h('ln') * P.LAST.length)];
+  const history = [];
+  const jobs = 1 + Math.floor(h('jobs') * 3);
+  for (let i = 0; i < jobs; i++) {
+    const name = prior.length ? prior[Math.floor(h(`pc${i}`) * prior.length)] : 'a firm in the city';
+    const rr = ids[Math.floor(h(`pr${i}`) * ids.length)];
+    history.push({ employer: name, role: P.ROLES[tier === 'staff' ? role : rr].name, years: 1 + Math.floor(h(`py${i}`) * Math.max(1, experience / jobs)) });
+  }
+  const edu = P.EDUCATION[tier];
+  const notice = P.MARKET.notice[h('notice') < 0.6 ? 0 : h('notice') < 0.85 ? 1 : 2];
+  return {
+    id: `cand_${n}`, n, name: `${first} ${last}`, first, last, age, tier, role, roles: null,
+    skills, ...traits, style, experience, mgmtExperience: tier === 'staff' ? Math.floor(experience * 0.1) : Math.floor(experience * (0.2 + h('me') * 0.4)),
+    education: edu[Math.floor(h('edu') * edu.length)], history,
+    sector: R.sector || (h('sec') < 0.5 ? null : ['arms', 'shipping', 'aerospace', 'farming'][Math.floor(h('sec2') * 4)]),
+    reputation: Math.round(clamp(20 + keyAvg * 0.6 + (h('rep') - 0.5) * 30, 5, 98)),
+    expects: round5(ask), availableDay: day + notice, since: day,
+  };
+}
+
+/** What a candidate will take for a job: accepted at the floor or above; below it, the lowest they would sign. */
+function floorPay(person) {
+  return round5(person.expects * (0.85 + 0.15 * (person.negotiation / 100)));
+}
+
+function evaluateOffer(person, pay) {
+  const floor = floorPay(person);
+  if (!Number.isFinite(pay) || pay <= 0) return { ok: false, floor, why: 'Offer a daily wage.' };
+  if (pay < floor) return { ok: false, floor, why: `${person.first} would not sign for less than ${floor.toLocaleString()} a day.` };
+  return { ok: true, floor, loyalty: Math.round(clamp(50 + (pay / person.expects - 1) * 100, 25, 90)) };
+}
+
+/**
+ * What the people at a business do for it: sums each job's effect (cap × skill × dependability) — nobody who
+ * is unpaid counts — and holds each total to its ceiling. `reach` scales it (a parent's executive reaches its
+ * subsidiaries at half strength). roster: [{ role, skills, reliability, unpaid }].
+ */
+function effectsOf(P, roster, reach = 1) {
+  const out = {};
+  for (const p of roster) {
+    if (p.unpaid > 0) continue;
+    const R = P.ROLES[p.role];
+    if (!R) continue;
+    for (const [key, [cap, ...keys]] of Object.entries(R.effects)) {
+      const f = clamp((avgOf(p.skills, keys) - 20) / 70, 0, 1);
+      const rel = 0.6 + 0.4 * ((p.reliability ?? 50) / 100);
+      out[key] = (out[key] || 0) + cap * f * rel * reach;
+    }
+  }
+  for (const k of Object.keys(out)) out[k] = Math.min(out[k], P.EFFECT_CAPS[k] ?? 0);
+  return out;
+}
+
+/** The jobs there is a case for filling, with the reason — from plain numbers about the business. */
+function needsFor(P, f) {
+  const out = [];
+  const add = (role, why) => { if (!f.held?.[role]) out.push({ role, why }); };
+  if (f.kind === 'parent') {
+    if (f.subs >= 1) add('ceo', `The group has ${f.subs} subsidiar${f.subs > 1 ? 'ies' : 'y'} and nobody running it.`);
+    if (f.subs >= 2 || f.loans) add('cfo', 'Cash and loans between companies need a financial head.');
+    if (f.subs >= 3) { add('coo', 'Three or more subsidiaries need an operating head.'); add('controller', 'Three or more sets of books need a controller.'); add('cpo', 'Buying for several businesses is worth a chief of procurement.'); }
+    if (f.people >= 6) add('hrd', `${f.people} people on the payroll: worth an HR director.`);
+    return out;
+  }
+  add('gm', 'Every business runs better with someone in charge; a small one needs no one else.');
+  if (f.kind === 'arms') { if (f.works >= 1 && f.staff >= 4) add('manufacturing_mgr', `${f.staff} staff on the floor.`); if (f.staff >= 6) add('procurement_mgr', 'Parts bought by the hour could be bought for less.'); }
+  if (f.kind === 'aerospace') { if (f.bays >= 3) add('aero_ops_mgr', `${f.bays} bays to keep busy.`); if (f.bays >= 4) add('procurement_mgr', 'Materials are the biggest bill.'); if (f.bays >= 5) add('finance_mgr', 'A business this size needs its own books kept.'); if (f.bays >= 6) add('maintenance_mgr', 'Many bays, much to keep sound.'); }
+  if (f.kind === 'shipping') { if (f.vessels >= 3) add('logistics_mgr', `${f.vessels} ships and ${f.ports} ports.`); if (f.vessels >= 6) add('maintenance_mgr', 'A large fleet wears.'); }
+  if (f.kind === 'farming') { if (f.plots >= 2) add('farm_mgr', `${f.plots} plots to work.`); }
+  return out;
+}
+
+/** A skill grows from good work, never from time alone: `xp` gained a good month; every `xpPerSkill` is a point in the job's key skills. */
+function grow(P, person, good) {
+  if (!good) return { gained: null, xp: person.xp };
+  let xp = (person.xp || 0) + 1;
+  let gained = null;
+  if (xp >= P.MARKET.xpPerSkill && (person.gains || 0) < P.MARKET.maxGains) {
+    const keys = P.ROLES[person.role].keys;
+    const k = [...keys].sort((a, b) => person.skills[a] - person.skills[b])[0];
+    if (person.skills[k] < P.MARKET.skillCap) { gained = k; xp = 0; }
+  }
+  return { gained, xp };
+}
+
+return { grade, avgOf, roleFit, MIN_FIT, rolesFor, makeCandidate, floorPay, evaluateOffer, effectsOf, needsFor, grow };
+})();
+
+// ---- src/systems/personnel.js
+__m["src/systems/personnel.js"] = (function () {
+// The people who run your companies (v0.62.0): game.corp.personnel.
+//
+//   candidates() / offer() / dismiss() / reassign() / promote() / raise() / setAuthority()
+//   payroll()                     once a day at 19:05, from each employer's own account
+//   effect(employer, key)         what the good people at an employer do for it (bounded, cached by day)
+//   openings()                    the jobs there is a case for filling, with the reason
+//   all()                         every person: your hires, and the arms works' floor staff as a view
+//
+// A market of about two dozen candidates is kept in the save and made once from a salt (hashes, never
+// the game's dice): reopening the screen or loading never reshuffles it, and each week a few leave and a
+// few arrive. Hiring takes the candidate out of the market, pays the fee once, and makes a person with
+// ONE job at ONE employer (the parent company or a business). Wages are an expense of that employer, paid
+// daily if it can afford them; a person unpaid two days running resigns. Skills grow only from good
+// results. The arms works' own staff (src/systems/arms.js) are not copied: they are listed here as they
+// are, and the arms works still hires, pays and dismisses them.
+//
+// Authority (what a person may spend, approve or do) is recorded now and enforced from stage 7, when
+// managers begin to decide things. Nothing acts on it yet.
+//
+// State: world.corp.people = { v, salt, nextCand, nextStaff, lastWeek, reviewMonth, pool, staff, pay, log }.
+// Created by ensure() on first use — never by a getter the hooks call.
+const { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES } = __m["src/content/personnel.js"];
+const { makeCandidate, rolesFor, roleFit, evaluateOffer, floorPay, effectsOf, needsFor, grow, avgOf, MIN_FIT } = __m["src/corp/people.js"];
+const { monthTotals } = __m["src/corp/ledger.js"];
+
+const LOG = 100;
+
+// the bundler has no `import * as`, so the content is gathered into one object here
+const P = { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
+
+class Personnel {
+  constructor(corp) {
+    this.K = corp;
+    this.cache = new Map();
+    this.epoch = 0;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  /** The saved market, or null if nothing has opened it yet (the hooks use this: it creates nothing). */
+  peek() { return this.K.state.people || null; }
+
+  /** Open the market: made once, from a salt kept in the save. */
+  ensure() {
+    const st = this.K.state;
+    if (st.people) return st.people;
+    const people = { v: 1, salt: String(this.g.rng.state), nextCand: 1, nextStaff: 1, lastWeek: Math.floor((this.day - 1) / 7), reviewMonth: Math.floor((this.day - 1) / 30) - 1, pool: [], staff: {}, pay: {}, log: [] };
+    st.people = people;
+    this.fill();
+    return people;
+  }
+
+  priorNames() {
+    const st = this.K.state;
+    return [...(st.generated || []).map((c) => c.name), ...Object.values(this.g.content.arms.shippers).map((s) => s.name)];
+  }
+
+  /** Top the market up to its size with new candidates (numbered, never reused). */
+  fill() {
+    const p = this.peek();
+    const prior = this.priorNames();
+    while (p.pool.length < P.MARKET.pool) p.pool.push(makeCandidate(P, { salt: p.salt, n: p.nextCand++, day: this.day, prior }));
+  }
+
+  /** Each week a few take other jobs and a few new ones appear; after a long gap at most four weeks are run. */
+  weekly() {
+    const p = this.peek();
+    if (!p) return;
+    const week = Math.floor((this.day - 1) / 7);
+    for (let w = Math.max(p.lastWeek + 1, week - 3); w <= week; w++) {
+      const [lo, hi] = P.MARKET.weekLeave;
+      const k = lo + Math.floor(hashU(`${p.salt}|leave${w}`) * (hi - lo + 1));
+      for (let i = 0; i < k && p.pool.length > 6; i++) p.pool.splice(Math.floor(hashU(`${p.salt}|w${w}|${i}`) * p.pool.length), 1);
+      this.fill();
+    }
+    p.lastWeek = week;
+  }
+
+  // ------------------------------------------------------------- employers
+  /** Whether a business or the parent can employ people now, and the account it pays from. */
+  employerOk(id) {
+    if (id === 'parent') return Boolean(this.K.state.parent);
+    return this.K.established(id);
+  }
+
+  employerName(id) { return id === 'parent' ? this.K.nameOf('parent') : this.K.nameOf(id); }
+
+  roleAllowed(role, employer) {
+    const R = P.ROLES[role];
+    return Boolean(R && R.employers.includes(employer));
+  }
+
+  holders(employer, role = null, except = null) {
+    const p = this.peek();
+    return p ? Object.values(p.staff).filter((x) => x.employer === employer && x.status === 'active' && (role === null || x.role === role) && x.id !== except) : [];
+  }
+
+  // ------------------------------------------------------------- the market
+  /** Every candidate, with what they would take and the jobs they suit. */
+  candidates() {
+    const p = this.ensure();
+    return p.pool.map((c) => ({ ...c, roles: rolesFor(P, c), floor: floorPay(c) }));
+  }
+
+  candidate(id) { return this.peek()?.pool.find((c) => c.id === id) || null; }
+
+  /** What hiring this person into that job there would be, and whether it would pay for itself on today's figures. */
+  benefit(cand, role, employer) {
+    const eff = effectsOf(P, [{ role, skills: cand.skills, reliability: cand.reliability, unpaid: 0 }], employer === 'parent' ? P.EXEC_REACH : 1);
+    const spend = (id, key) => this.spendPerDay(id, key);
+    let perDay = 0;
+    const targets = employer === 'parent' ? this.K.group.subs() : [employer];
+    for (const t of targets) for (const [k, v] of Object.entries(eff)) perDay += spend(t, k) * v;
+    return { effects: eff, perDay: Math.round(perDay) };
+  }
+
+  /** What a business spends (or sells, or produces) per day that an effect applies to: from its own recent books. */
+  spendPerDay(id, key) {
+    const g = this.g;
+    if (!this.K.established(id)) return 0;
+    const a = this.K.account(id);
+    const m = Math.floor((this.day - 1) / 30);
+    const days = Math.min(60, ((this.day - 1) % 30) + 31);
+    const out = (cat) => ((a.months[m]?.out[cat] || 0) + (a.months[m - 1]?.out[cat] || 0)) / days;
+    const rev = () => (monthTotals(a, m).revenue + monthTotals(a, m - 1).revenue) / days;
+    switch (key) {
+      case 'materials': return id === 'aerospace' ? out('materials') : 0;
+      case 'parts': return id === 'arms' ? out('parts') : 0;
+      case 'overhead': return id === 'aerospace' ? g.aero.roost.overhead : 0;
+      case 'upkeep': return id === 'shipping' ? g.logistics.dailyUpkeep() : 0;
+      case 'farmPrice': return id === 'farming' ? rev() : 0;
+      case 'armsSpeed': return id === 'arms' ? rev() : 0;
+      default: return 0;
+    }
+  }
+
+  // ------------------------------------------------------------- hiring
+  checkPlacement(cand, role, employer, except = null, { promotion = false } = {}) {
+    const R = P.ROLES[role];
+    if (!R) return 'No such job.';
+    if (!this.employerOk(employer)) return employer === 'parent' ? 'There is no parent company yet.' : 'You do not own that business yet.';
+    if (!this.roleAllowed(role, employer)) return `${R.name} is not a job at ${employer === 'parent' ? 'the parent company' : 'that kind of business'}.`;
+    if (promotion ? roleFit(P, cand, role) < MIN_FIT : !rolesFor(P, cand).includes(role)) return `${cand.first}'s skills do not suit ${R.name} (they average ${Math.round(roleFit(P, cand, role))}; the job needs ${MIN_FIT}).`;
+    if (this.holders(employer, role, except).length >= R.limit) return `${this.employerName(employer)} already has ${R.limit === 1 ? 'a' : R.limit} ${R.name}${R.limit > 1 ? 's' : ''}.`;
+    return null;
+  }
+
+  /** Pay a wage bill or a fee out of an employer, in the way that employer's own books record it. One call, one notice. */
+  payFor(employer, amount, cat, actor) {
+    amount = Math.round(amount);
+    if (amount <= 0) return true;
+    const g = this.g;
+    switch (employer) {
+      case 'aerospace': g.aero.pay(g.aero.roost, amount, cat === 'wages' ? 'wages' : 'hiring'); this.K.noteActor('aerospace', actor, amount); return true;
+      case 'shipping': g.logistics.spend(amount, cat); this.K.noteActor('shipping', actor, amount); return true;
+      case 'farming': this.K.pay('farming', amount, { cat, actor }); g.farm.record(cat === 'wages' ? 'Wages' : 'Hiring', -amount); return true;
+      default: return this.K.pay(employer, amount, { cat, actor });
+    }
+  }
+
+  /** Make an offer: they accept at or above their floor; the fee (days of the wage) is paid once; they start when their notice is served. */
+  offer(candId, { role, employer, pay, unit = null }) {
+    const p = this.ensure();
+    const c = this.candidate(candId);
+    if (!c) return { ok: false, text: 'That candidate has gone.' };
+    const why = this.checkPlacement(c, role, employer);
+    if (why) return { ok: false, text: why };
+    pay = Math.round(Number(pay));
+    const ev = evaluateOffer(c, pay);
+    if (!ev.ok) return { ok: false, text: ev.why, floor: ev.floor };
+    const fee = pay * P.MARKET.fee;
+    if (!this.K.canAfford(employer, fee)) return { ok: false, text: `${this.employerName(employer)} cannot pay the recruiting fee of ${fee.toLocaleString()} obols.` };
+    const id = `per_${p.nextStaff++}`;
+    this.payFor(employer, fee, 'hiring', id);
+    const R = P.ROLES[role];
+    const person = { ...c, id, employer, role, tier: R.tier, salary: pay, hiredDay: this.day, startDay: Math.max(this.day, c.availableDay), status: 'active', unpaid: 0, loyalty: ev.loyalty, xp: 0, gains: 0, unit, authority: { ...P.AUTHORITY[R.tier] }, log: [], reviews: [], skills0: { ...c.skills } };
+    p.staff[id] = person;
+    p.pool = p.pool.filter((x) => x.id !== candId);
+    this.note(person, 'hired', `Hired as ${R.name} at ${this.employerName(employer)} for ${pay.toLocaleString()} a day${person.startDay > this.day ? `, starting day ${person.startDay}` : ''}.`);
+    this.epoch++;
+    this.g.bus.emit('corp:hired', { id });
+    return { ok: true, person, text: `${c.name} is ${R.name} at ${this.employerName(employer)}: ${pay.toLocaleString()} a day${person.startDay > this.day ? `, starting on day ${person.startDay} when their notice ends` : ''}. Recruiting fee ${fee.toLocaleString()}.` };
+  }
+
+  note(person, type, text) {
+    person.log.push({ day: this.day, type, text });
+    if (person.log.length > 30) person.log.shift();
+    const p = this.peek();
+    p.log.push({ day: this.day, id: person.id, name: person.name, type, text });
+    if (p.log.length > LOG) p.log.shift();
+  }
+
+  person(id) { return this.peek()?.staff[id] || null; }
+
+  /** End a job. Severance (days of wage) is paid once; the record is kept. */
+  dismiss(id, reason = 'dismissed') {
+    const x = this.person(id);
+    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
+    const sev = x.salary * P.MARKET.severance;
+    if (reason === 'dismissed') {
+      if (!this.K.canAfford(x.employer, sev)) return { ok: false, text: `${this.employerName(x.employer)} cannot pay ${sev.toLocaleString()} obols of severance.` };
+      this.payFor(x.employer, sev, 'wages', id);
+    }
+    x.status = reason;
+    x.endDay = this.day;
+    this.note(x, reason, reason === 'dismissed' ? `Dismissed; ${sev.toLocaleString()} of severance paid.` : 'Resigned.');
+    this.epoch++;
+    return { ok: true, text: reason === 'dismissed' ? `${x.name} is dismissed with ${sev.toLocaleString()} obols of severance.` : `${x.name} has resigned.` };
+  }
+
+  /** Move a person to another job or employer (one assignment at a time); their wage goes with them. */
+  reassign(id, { role = null, employer = null, unit = null } = {}) {
+    const x = this.person(id);
+    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
+    const r = role || x.role;
+    const e = employer || x.employer;
+    const why = this.checkPlacement(x, r, e, id);
+    if (why) return { ok: false, text: why };
+    if (r === x.role && e === x.employer && unit === x.unit) return { ok: false, text: 'They are already there.' };
+    const from = `${P.ROLES[x.role].name} at ${this.employerName(x.employer)}`;
+    x.role = r; x.employer = e; x.tier = P.ROLES[r].tier; x.unit = unit; x.unpaid = 0;
+    this.note(x, 'moved', `Moved from ${from} to ${P.ROLES[r].name} at ${this.employerName(e)}.`);
+    this.epoch++;
+    return { ok: true, text: `${x.name} is now ${P.ROLES[r].name} at ${this.employerName(e)}.` };
+  }
+
+  /** Promotion: long enough in the job, results that held up, and skills that suit the higher one; with a raise. */
+  promoteCheck(id, role) {
+    const x = this.person(id);
+    if (!x || x.status !== 'active') return 'No such employee.';
+    const R = P.ROLES[role];
+    const rank = { staff: 0, manager: 1, executive: 2 };
+    if (!R || rank[R.tier] <= rank[x.tier]) return 'That is not a step up.';
+    if (this.day - x.startDay < P.MARKET.promoteDays) return `They need ${P.MARKET.promoteDays} days in the job first (${Math.max(0, P.MARKET.promoteDays - (this.day - x.startDay))} to go).`;
+    if (x.reviews.filter((r) => r.good).length < 2) return 'Their results have not yet earned it (two good months).';
+    if (roleFit(P, x, role) < MIN_FIT + 10) return `Their skills (${Math.round(roleFit(P, x, role))}) are short of what ${R.name} needs (${MIN_FIT + 10}).`;
+    return null;
+  }
+
+  promote(id, role, employer = null) {
+    const why = this.promoteCheck(id, role);
+    if (why) return { ok: false, text: why };
+    const x = this.person(id);
+    const e = employer || x.employer;
+    const place = this.checkPlacement(x, role, e, id, { promotion: true });
+    if (place) return { ok: false, text: place };
+    const R = P.ROLES[role];
+    const raise = Math.max(Math.round((x.salary * 1.15) / 5) * 5, R.pay[0]);
+    const from = P.ROLES[x.role].name;
+    x.role = role; x.employer = e; x.tier = R.tier; x.salary = raise; x.authority = { ...P.AUTHORITY[R.tier] }; x.unpaid = 0; x.loyalty = Math.min(95, x.loyalty + 10);
+    this.note(x, 'promoted', `Promoted from ${from} to ${R.name} at ${this.employerName(e)}; wage ${raise.toLocaleString()} a day.`);
+    this.epoch++;
+    return { ok: true, text: `${x.name} is promoted to ${R.name}, on ${raise.toLocaleString()} a day.` };
+  }
+
+  raise(id, pay) {
+    const x = this.person(id);
+    pay = Math.round(Number(pay));
+    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
+    if (!(pay > x.salary)) return { ok: false, text: 'A raise must be more than they earn now.' };
+    x.loyalty = Math.min(95, x.loyalty + 5);
+    this.note(x, 'raise', `Wage raised from ${x.salary.toLocaleString()} to ${pay.toLocaleString()} a day.`);
+    x.salary = pay;
+    return { ok: true, text: `${x.name} now earns ${pay.toLocaleString()} a day.` };
+  }
+
+  /** Set what a person may spend and do. Bounded by their level; recorded now, enforced from stage 7. */
+  setAuthority(id, patch) {
+    const x = this.person(id);
+    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
+    const max = { executive: 500000, manager: 100000, staff: 10000 }[x.tier];
+    const a = { ...x.authority };
+    for (const k of ['spendLimit', 'approvalAbove']) if (k in patch) a[k] = Math.max(0, Math.min(max, Math.round(Number(patch[k]) || 0)));
+    for (const k of ['canHire', 'canBorrow', 'canTransfer', 'canContract', 'canExpand']) if (k in patch) a[k] = Boolean(patch[k]);
+    if (a.approvalAbove > a.spendLimit) a.approvalAbove = a.spendLimit;
+    if (x.tier === 'staff') { a.canBorrow = false; a.canTransfer = false; }
+    x.authority = a;
+    this.note(x, 'authority', 'Authority changed.');
+    return { ok: true, text: `${x.name}'s authority is set (enforced from stage 7).` };
+  }
+
+  // ------------------------------------------------------------- payroll
+  /**
+   * Once a day: each employer pays the people it can afford, in order of engagement; anyone it cannot pay goes
+   * unpaid and loses heart, and two unpaid days running they resign. Whether it could is a question of the
+   * employer's own cash — a short business cannot simply borrow its way into paying.
+   */
+  payroll() {
+    const p = this.peek();
+    if (!p) return { paid: 0 };
+    const day = this.day;
+    const byEmp = {};
+    for (const x of Object.values(p.staff)) if (x.status === 'active' && x.startDay <= day) (byEmp[x.employer] ||= []).push(x);
+    let paidTotal = 0;
+    for (const [emp, list] of Object.entries(byEmp)) {
+      if (p.pay[emp] >= day) continue; // this employer's day is done
+      if (!this.employerOk(emp)) continue;
+      let cash = this.K.cashOf(emp);
+      let total = 0;
+      for (const x of list.sort((a, b) => a.hiredDay - b.hiredDay || a.id.localeCompare(b.id))) {
+        if (cash >= x.salary) { cash -= x.salary; total += x.salary; x.unpaid = 0; x.paidDays = (x.paidDays || 0) + 1; }
+        else {
+          x.unpaid += 1; x.loyalty = Math.max(0, x.loyalty - 12);
+          this.note(x, 'unpaid', `Unpaid today (${this.employerName(emp)} could not afford ${x.salary.toLocaleString()}).`);
+          if (x.unpaid >= P.MARKET.resignUnpaid) { this.dismiss(x.id, 'resigned'); this.g.notify?.(`${x.name} has resigned from ${this.employerName(emp)}: unpaid twice.`, 'warn'); }
+        }
+      }
+      if (total > 0) this.payFor(emp, total, 'wages', 'payroll');
+      p.pay[emp] = day;
+      paidTotal += total;
+    }
+    this.epoch++;
+    return { paid: paidTotal };
+  }
+
+  // ------------------------------------------------------------- effects
+  /** Everyone at an employer now at work (the notice served, wages not owed): what the effects read. */
+  roster(employer) {
+    const day = this.day;
+    return this.holders(employer).filter((x) => x.startDay <= day).map((x) => ({ role: x.role, skills: x.skills, reliability: x.reliability, unpaid: x.unpaid }));
+  }
+
+  /** What the good people at an employer do for it: a number to multiply by, bounded, and cached for the day. */
+  effects(employer) {
+    const p = this.peek();
+    if (!p) return {};
+    const key = `${this.day}|${this.epoch}|${employer}`;
+    const hit = this.cache.get(key);
+    if (hit) return hit;
+    if (this.cache.size > 40) this.cache.clear();
+    const own = effectsOf(P, this.roster(employer));
+    const out = { ...own };
+    if (employer !== 'parent' && this.K.group.isSub(employer)) {
+      const up = effectsOf(P, this.roster('parent'), P.EXEC_REACH);
+      for (const [k, v] of Object.entries(up)) out[k] = Math.min(P.EFFECT_CAPS[k] ?? 0, (out[k] || 0) + v);
+    }
+    this.cache.set(key, out);
+    return out;
+  }
+
+  effect(employer, key) { return this.peek() ? (this.effects(employer)[key] || 0) : 0; }
+
+  // ------------------------------------------------------------- time
+  dailyTick() {
+    const p = this.peek();
+    if (!p) return;
+    this.weekly();
+    const cur = Math.floor((this.day - 1) / 30);
+    for (let m = Math.max(p.reviewMonth + 1, cur - 3); m <= cur - 1; m++) this.review(m);
+    p.reviewMonth = Math.max(p.reviewMonth, cur - 1);
+  }
+
+  /** The business's trading result for a closed month. */
+  resultOf(employer, m) {
+    if (employer === 'parent') return this.K.group.subs().reduce((a, id) => a + this.resultOf(id, m), 0);
+    const reg = this.K.registry().find((r) => r.playerId === employer);
+    return this.K.rowsOf(reg).rows.find((r) => r.m === m)?.net ?? 0;
+  }
+
+  /**
+   * Month's end: each person's employer against its own recent form. A month better than the average of the
+   * three before it, with the person paid in full, is a good one; skills grow from good months and from nothing else.
+   */
+  review(m) {
+    const p = this.peek();
+    for (const x of Object.values(p.staff)) {
+      if (x.status !== 'active' || x.startDay > m * 30 + 30) continue;
+      if (!this.employerOk(x.employer)) continue;
+      const net = this.resultOf(x.employer, m);
+      const prev = [m - 1, m - 2, m - 3].map((k) => this.resultOf(x.employer, k));
+      const base = prev.reduce((a, b) => a + b, 0) / 3;
+      const good = net > base && x.unpaid === 0 && net > 0;
+      const r = grow(P, x, good);
+      if (r.gained) { x.skills[r.gained] += 1; x.gains += 1; this.note(x, 'skill', `${P.SKILLS[r.gained].name} rises to ${x.skills[r.gained]} on a good run.`); }
+      x.xp = r.xp;
+      x.reviews.push({ m, net: Math.round(net), base: Math.round(base), good });
+      if (x.reviews.length > 12) x.reviews.shift();
+      this.epoch++;
+    }
+  }
+
+  // ------------------------------------------------------------- what to show
+  /** What a business or the parent has a case for hiring, with the reason and what it costs. */
+  openings() {
+    const g = this.g;
+    const out = [];
+    const heldOf = (e) => Object.fromEntries(this.holders(e).map((x) => [x.role, true]));
+    const people = this.peek() ? Object.values(this.peek().staff).filter((x) => x.status === 'active').length : 0;
+    if (this.K.state.parent) {
+      for (const n of needsFor(P, { kind: 'parent', subs: this.K.group.subs().length, loans: (this.K.state.loans || []).some((l) => l.status === 'open'), people, held: heldOf('parent') })) out.push({ employer: 'parent', ...n });
+    }
+    for (const id of ['arms', 'shipping', 'aerospace', 'farming']) {
+      if (!this.K.established(id)) continue;
+      const f = { kind: id, held: heldOf(id) };
+      if (id === 'arms') { f.works = g.arms.ownedIds().length; f.staff = g.arms.state.staff.length; }
+      if (id === 'aerospace') f.bays = g.aero.roost.bays.length;
+      if (id === 'shipping') { f.vessels = g.logistics.vessels().length; f.ports = g.logistics.ownedPorts().length; }
+      if (id === 'farming') f.plots = g.farm.owned().length;
+      for (const n of needsFor(P, f)) out.push({ employer: id, ...n });
+    }
+    return out.map((o) => ({ ...o, roleName: P.ROLES[o.role].name, employerName: this.employerName(o.employer), pay: P.ROLES[o.role].pay }));
+  }
+
+  /** The arms works' staff, as they are (not copies): named people at stations, paid and dismissed by the works. */
+  armsFloor() {
+    const g = this.g;
+    return g.arms.state.staff.map((s) => ({ id: s.id, name: s.name, employer: 'arms', role: 'station worker', roleName: 'Station worker', tier: 'floor', salary: s.wage, unpaid: s.unpaid, loyalty: Math.round(s.morale), floor: true, skills: s.skills, main: s.main, hiredDay: s.hiredDay, status: 'active' }));
+  }
+
+  /** Everyone: the people you hired (current), and the arms works' floor staff. */
+  all() {
+    const p = this.peek();
+    const mine = p ? Object.values(p.staff).filter((x) => x.status === 'active') : [];
+    return [...mine, ...this.armsFloor()];
+  }
+
+  /** What each employer pays each day in wages that this system pays, and — for information — what the old systems pay on their own. */
+  payrollSummary() {
+    const p = this.peek();
+    const rows = {};
+    for (const x of p ? Object.values(p.staff).filter((y) => y.status === 'active') : []) { const r = (rows[x.employer] ||= { employer: x.employer, name: this.employerName(x.employer), people: 0, perDay: 0 }); r.people++; if (x.startDay <= this.day) r.perDay += x.salary; }
+    const g = this.g;
+    const floor = this.armsFloor().reduce((a, x) => a + x.salary, 0);
+    const crews = g.aero.owned ? (() => { const F = g.aero.fixedCosts(g.aero.roost); return F.wages + F.training; })() : 0;
+    return { rows: Object.values(rows), total: Object.values(rows).reduce((a, r) => a + r.perDay, 0), armsFloorPerDay: floor, aerospaceCrewsPerDay: crews };
+  }
+}
+
+function hashU(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 1000003) / 1000003;
+}
+
+return { Personnel };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -39849,6 +40553,7 @@ const { buildWorld, rebuildNamer, advance } = __m["src/corp/generate.js"];
 const { monthTotals } = __m["src/corp/ledger.js"];
 const { figures, growth, value: worth, rank: rankBy, shares } = __m["src/corp/metrics.js"];
 const { Group } = __m["src/systems/group.js"];
+const { Personnel } = __m["src/systems/personnel.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
@@ -39858,6 +40563,7 @@ class Corporate {
   constructor(game) {
     this.game = game;
     this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
+    this.personnel = new Personnel(this); // v0.62.0: the people who run them
   }
 
   get state() {
@@ -39907,11 +40613,12 @@ class Corporate {
    * it has and the rest becomes ARREARS — a debt, paid first out of what next comes in — so that
    * nothing is ever received for nothing.
    */
-  pay(id, amount, { cat = 'purchase', quiet = false, owe = false } = {}) {
+  pay(id, amount, { cat = 'purchase', quiet = false, owe = false, actor = null } = {}) {
     if (!Number.isFinite(amount) || amount < 0) return false;
     if (amount === 0) return true;
     const a = this.account(id);
     const g = this.game;
+    if (actor) this.noteActor(id, actor, amount);
     if (a.funded) {
       if (a.cash < amount && !owe) return false;
       const now = Math.min(amount, Math.max(0, a.cash));
@@ -39929,6 +40636,16 @@ class Corporate {
     }
     post(a, g.clock.day, 'out', cat, amount);
     return true;
+  }
+
+  /** Who spent what from an account: a record kept for the managers of stage 7 (the owner's own spending has no actor). */
+  noteActor(id, actor, amount) {
+    if (!actor) return;
+    const a = this.account(id);
+    a.actors ||= {};
+    a.actors[actor] = (a.actors[actor] || 0) + Math.round(amount);
+    const keys = Object.keys(a.actors);
+    if (keys.length > 60) delete a.actors[keys[0]];
   }
 
   /** Money in. */
@@ -40212,6 +40929,7 @@ class Corporate {
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
   dailyTick() {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
+    this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     const st = this.state;
     if (!st.generated) return;
     const g = this.game;
@@ -41131,6 +41849,7 @@ class Game {
     this.aero.minuteTick();
     this.farm.minuteTick();
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
+    if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);

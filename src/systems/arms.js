@@ -102,7 +102,7 @@ export class Arms extends Factory {
   }
 
   speedMult() {
-    return 1 + this.bonusSum((b) => b.speed);
+    return (1 + this.bonusSum((b) => b.speed)) * (1 + this.game.corp.personnel.effect('arms', 'armsSpeed')); // v0.62.0: a good manager; no worker at a station, no speed
   }
 
   priceMult(family) {
@@ -110,7 +110,7 @@ export class Arms extends Factory {
   }
 
   partsMult() {
-    return 1 + this.bonusSum((b) => b.parts);
+    return (1 + this.bonusSum((b) => b.parts)) * (1 - this.game.corp.personnel.effect('arms', 'parts')); // v0.62.0
   }
 
   recipeUnlocked(rid) {

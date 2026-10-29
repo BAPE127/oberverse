@@ -19,11 +19,14 @@
 //
 // State: world.corp.people = { v, salt, nextCand, nextStaff, lastWeek, reviewMonth, pool, staff, pay, log }.
 // Created by ensure() on first use — never by a getter the hooks call.
-import * as P from '../content/personnel.js';
+import { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES } from '../content/personnel.js';
 import { makeCandidate, rolesFor, roleFit, evaluateOffer, floorPay, effectsOf, needsFor, grow, avgOf, MIN_FIT } from '../corp/people.js';
 import { monthTotals } from '../corp/ledger.js';
 
 const LOG = 100;
+
+// the bundler has no `import * as`, so the content is gathered into one object here
+const P = { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
 
 export class Personnel {
   constructor(corp) {
