@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.63.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Within Limits',
+    notes: [
+      'Managers can now act for a business on their own — reorder the parts and materials it uses up, and fill a job — but only inside what you allow. You set a monthly budget for each kind of spending (none set means none allowed); each person has a spending limit and an ask-above limit; and they act only for a business with an account of its own, never your wallet. A decision above the ask-above limit waits on the tablet\'s Management tab for your word, and is judged again when you give it.',
+      'Aerospace\'s auto-buy stays your own standing order: managers buy only while it is off. Nothing runs, and nothing is created, until you set a budget.',
+    ],
+  },
+  {
     version: '0.62.0',
     date: '2026-10-29',
     channel: 'development',

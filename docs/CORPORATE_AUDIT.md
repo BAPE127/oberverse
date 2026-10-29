@@ -52,6 +52,7 @@ This is the audit that starts the **Corporate Empire** programme (companies, par
 6. **Roadmap — foundation first.** v0.60 = company accounts + identity + registry + generated competitors + finance/rankings (Stages 2–4). Then parent/subsidiaries (5) → personnel (6) → autonomous management & treasury (7–8) → unified stocks (9) → central bank, bonds, loans (10–12) → geopolitics (13) → robbery (14) → integration & regression (15–17).
 7. **Stage 5 (asked at v0.61):** money flows **owner → parent → subsidiary** (a subsidiary is never funded or drawn on by the owner directly); subsidiaries are **always 100% owned** (a stake field is kept); the parent is **free to form**.
 8. **Stage 6 (asked at v0.62):** arms staff join the registry as a view (not copied) and aerospace crews stay head-counts; payroll daily for everyone; hiring on the tablet only (no agency planned); about 24 candidates, refreshed weekly.
+9. **Stage 7 (asked at v0.63):** plans are *templates with limits* (the placement rule is fixed per asset: for the second half); budgets are *monthly caps per category*; a decision above a person's ask-above limit *queues on the tablet*; first decisions: procurement reorders, hiring, contract bids and expansion from pre-approved plans (reorders and hiring in v0.63, the rest next); managers act *only for companies with their own account*; aerospace auto-buy stays the owner's standing order and managers buy only while it is off.
 
 ## v0.60 plan (parts, each committed when green)
 

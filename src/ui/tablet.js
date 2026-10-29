@@ -11,11 +11,12 @@ import { companiesApp } from './corpApp.js'; // v0.60.0
 import { intelApp } from './corpIntel.js';
 import { groupApp } from './corpGroup.js';
 import { peopleApp } from './corpPeople.js'; // v0.62.0
+import { manageApp } from './corpManage.js'; // v0.63.0
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel'] : []), 'Intelligence', 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel', 'Management'] : []), 'Intelligence', 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -35,6 +36,7 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
   else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
+  else if (tab === 'Management') manageApp(ui, body, open); // v0.63.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

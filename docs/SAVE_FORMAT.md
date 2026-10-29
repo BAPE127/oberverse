@@ -65,6 +65,8 @@ Since **v0.61.0** `world.corp` gains, when a parent company is founded (a save w
 
 Since **v0.62.0** `world.corp.people` (created when the Personnel app is first opened or someone is hired; a save without it has no market and no staff): `salt` (the candidates are a pure function of it and their number), `nextCand`, `nextStaff`, `lastWeek`, `reviewMonth`, `pool` (candidates, about 24), `staff` (each person: `employer`, `role`, `tier`, `salary`, `hiredDay`, `startDay`, `status` — `active` / `dismissed` / `resigned` — `unpaid`, `loyalty`, `xp`, `gains`, `skills`, `skills0`, `authority`, `reviews`, `log`), `pay` (the day each employer was last paid — one payroll per employer per day), `log`. Nothing is created for an existing save beyond the candidates themselves, and no one is hired by loading.
 
+Since **v0.63.0** `world.corp.management`, created when the first budget is set (a save without it has no budgets and no manager decisions): `budgets` (`{ business: { materials, hiring } }` monthly caps), `spent` (`{ business: { category: { month: amount } } }`, three months), `pending` (requests: `id`, `key`, `kind`, `employer`, `actor`, `cost`, `day`, `why`), `log` (200 kept), `last` (`day` — the day's decisions were made — and `refused`, the last reason per decision), `hires` (`{ business: { m, n } }`) and `nextId`. Nothing is spent, hired or ordered by loading.
+
 Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).
 
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.

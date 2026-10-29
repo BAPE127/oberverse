@@ -266,6 +266,27 @@ export class Management {
     }
   }
 
+  /** What wants the owner's attention: waiting requests, recent refusals, budgets nearly used or with no one to use them. */
+  alerts() {
+    const m = this.peek();
+    if (!m) return [];
+    const out = [];
+    if (m.pending.length) out.push({ text: `${m.pending.length} request${m.pending.length === 1 ? ' is' : 's are'} waiting for you.`, advice: 'Approve or decline them below; they lapse after a week.' });
+    for (const target of BUSINESSES) {
+      for (const kind of ['reorder', 'hire']) {
+        const cat = this.catOf(kind);
+        const cap = this.budgetOf(target, cat);
+        if (!cap || !this.K.established(target)) continue;
+        const name = this.Pe.employerName(target);
+        if (!this.K.account(target).funded) out.push({ text: `${name} has a ${CATEGORIES[cat].name.toLowerCase()} budget but no account of its own.`, advice: 'Fund it: managers never spend your wallet.' });
+        else if (!this.deciders(kind, target).length && !(kind === 'reorder' && !['arms', 'aerospace'].includes(target))) out.push({ text: `${name}: nobody at work may decide ${kind === 'hire' ? 'hires' : 'reorders'}.`, advice: 'Hire the right manager, or the budget goes unused.' });
+        if (this.spentIn(target, cat) >= cap * 0.8) out.push({ text: `${name}: ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget is used.`, advice: 'Raise the budget if more is wanted this month.' });
+      }
+    }
+    for (const l of m.log.filter((e) => e.type === 'refused' && e.day >= this.day - 3).slice(-5)) out.push({ text: l.text, advice: 'Changing the budget, the person\'s limits or the business\'s cash would let it through.' });
+    return out;
+  }
+
   /** What the app shows: everything a manager is asked to watch, and why nothing is happening where that is the case. */
   status(target, kind) {
     const cat = this.catOf(kind);

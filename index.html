@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.62.0';
+const GAME_VERSION = '0.63.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -40115,8 +40115,7 @@ __m["src/systems/personnel.js"] = (function () {
 // results. The arms works' own staff (src/systems/arms.js) are not copied: they are listed here as they
 // are, and the arms works still hires, pays and dismisses them.
 //
-// Authority (what a person may spend, approve or do) is recorded now and enforced from stage 7, when
-// managers begin to decide things. Nothing acts on it yet.
+// Authority (what a person may spend, approve or do) is what managers' own decisions are held to (src/systems/management.js).
 //
 // State: world.corp.people = { v, salt, nextCand, nextStaff, lastWeek, reviewMonth, pool, staff, pay, log }.
 // Created by ensure() on first use — never by a getter the hooks call.
@@ -40365,7 +40364,7 @@ class Personnel {
     return { ok: true, text: `${x.name} now earns ${pay.toLocaleString()} a day.` };
   }
 
-  /** Set what a person may spend and do. Bounded by their level; recorded now, enforced from stage 7. */
+  /** Set what a person may spend and do. Bounded by their level; managers' decisions are judged against it (v0.63.0). */
   setAuthority(id, patch) {
     const x = this.person(id);
     if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
@@ -40377,7 +40376,7 @@ class Personnel {
     if (x.tier === 'staff') { a.canBorrow = false; a.canTransfer = false; }
     x.authority = a;
     this.note(x, 'authority', 'Authority changed.');
-    return { ok: true, text: `${x.name}'s authority is set (enforced from stage 7).` };
+    return { ok: true, text: `${x.name}'s authority is set: a manager's own decisions are held to it.` };
   }
 
   // ------------------------------------------------------------- payroll
@@ -40913,6 +40912,27 @@ class Management {
         if (who) this.decide(kind, target, who);
       }
     }
+  }
+
+  /** What wants the owner's attention: waiting requests, recent refusals, budgets nearly used or with no one to use them. */
+  alerts() {
+    const m = this.peek();
+    if (!m) return [];
+    const out = [];
+    if (m.pending.length) out.push({ text: `${m.pending.length} request${m.pending.length === 1 ? ' is' : 's are'} waiting for you.`, advice: 'Approve or decline them below; they lapse after a week.' });
+    for (const target of BUSINESSES) {
+      for (const kind of ['reorder', 'hire']) {
+        const cat = this.catOf(kind);
+        const cap = this.budgetOf(target, cat);
+        if (!cap || !this.K.established(target)) continue;
+        const name = this.Pe.employerName(target);
+        if (!this.K.account(target).funded) out.push({ text: `${name} has a ${CATEGORIES[cat].name.toLowerCase()} budget but no account of its own.`, advice: 'Fund it: managers never spend your wallet.' });
+        else if (!this.deciders(kind, target).length && !(kind === 'reorder' && !['arms', 'aerospace'].includes(target))) out.push({ text: `${name}: nobody at work may decide ${kind === 'hire' ? 'hires' : 'reorders'}.`, advice: 'Hire the right manager, or the budget goes unused.' });
+        if (this.spentIn(target, cat) >= cap * 0.8) out.push({ text: `${name}: ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget is used.`, advice: 'Raise the budget if more is wanted this month.' });
+      }
+    }
+    for (const l of m.log.filter((e) => e.type === 'refused' && e.day >= this.day - 3).slice(-5)) out.push({ text: l.text, advice: 'Changing the budget, the person\'s limits or the business\'s cash would let it through.' });
+    return out;
   }
 
   /** What the app shows: everything a manager is asked to watch, and why nothing is happening where that is the case. */
@@ -43366,6 +43386,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.63.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Within Limits',
+    notes: [
+      'Managers can now act for a business on their own — reorder the parts and materials it uses up, and fill a job — but only inside what you allow. You set a monthly budget for each kind of spending (none set means none allowed); each person has a spending limit and an ask-above limit; and they act only for a business with an account of its own, never your wallet. A decision above the ask-above limit waits on the tablet\'s Management tab for your word, and is judged again when you give it.',
+      'Aerospace\'s auto-buy stays your own standing order: managers buy only while it is off. Nothing runs, and nothing is created, until you set a budget.',
+    ],
+  },
   {
     version: '0.62.0',
     date: '2026-10-29',
@@ -60630,7 +60660,7 @@ function peopleApp(ui, body, open) {
   const num = (v, w = 80) => h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5, value: v, style: `width:${w}px` });
   const sel = (opts, cur) => h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
 
-  body.append(h('p', { class: 'doc' }, '🧑‍💼 People run the businesses you own. Hire executives for the parent company and managers and staff for each business. Each is paid every day from their employer\'s own cash. A good manager trims one real cost or lifts one real result, within a ceiling; they cannot do what needs a worker or a resource you do not have. Authority is recorded now and takes effect when managers begin to act on their own.'));
+  body.append(h('p', { class: 'doc' }, '🧑‍💼 People run the businesses you own. Hire executives for the parent company and managers and staff for each business. Each is paid every day from their employer\'s own cash. A good manager trims one real cost or lifts one real result, within a ceiling; they cannot do what needs a worker or a resource you do not have. Their authority sets what they may decide on their own — see the Management tab.'));
   body.append(h('div', { class: 'row', style: 'justify-content:flex-start;margin-bottom:6px;flex-wrap:wrap' }, ...Object.entries(VIEWS).map(([id, l]) => h('button', { class: `small${S.view === id ? ' primary' : ''}`, onclick: () => view({ view: id }) }, l))));
 
   if (S.view === 'openings') openings(); else if (S.view === 'candidates') candidates(); else if (S.view === 'staff') staff(); else payroll();
@@ -60779,7 +60809,7 @@ function peopleApp(ui, body, open) {
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, mv, mvEmp, h('button', { class: 'small', onclick: () => go(Pe.reassign(x.id, { role: mv.value, employer: mvEmp.value })) }, 'Move')),
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, h('span', { class: 'muted' }, 'May spend up to'), spend, h('span', { class: 'muted' }, 'and must ask above'), above, ...flags.map((f) => h('label', { class: 'muted' }, f.el, ` ${FL[f.k]}`)),
         h('button', { class: 'small', onclick: () => go(Pe.setAuthority(x.id, { spendLimit: Number(spend.value), approvalAbove: Number(above.value), ...Object.fromEntries(flags.map((f) => [f.k, f.el.checked])) })) }, 'Set authority')),
-      h('div', { class: 'desc' }, 'Recorded now; managers act within it from the autonomous-management update.'),
+      h('div', { class: 'desc' }, 'Managers act within this: above the ask-above limit a decision waits for you on the Management tab; above the spending limit it is refused. Hiring also needs the "hire" permission.'),
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(Pe.dismiss(x.id)) }, `Dismiss (severance ${n(x.salary * MARKET.severance)})`)));
   }
 
@@ -60808,6 +60838,72 @@ function peopleApp(ui, body, open) {
 return { peopleApp };
 })();
 
+// ---- src/ui/corpManage.js
+__m["src/ui/corpManage.js"] = (function () {
+// The Management app (v0.63.0): what managers may spend, what is waiting for your word, and what they have done.
+// Everything is read from game.corp.management and every button calls it; nothing is decided here.
+const { h } = __m["src/ui/panels.js"];
+const { CATEGORIES, MGMT } = __m["src/content/management.js"];
+const { ROLES } = __m["src/content/personnel.js"];
+
+const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
+const BUSINESSES = [['arms', ['materials', 'hiring']], ['aerospace', ['materials', 'hiring']], ['shipping', ['hiring']], ['farming', ['hiring']]];
+const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
+
+function manageApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const M = K.management;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
+  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
+  const name = (e) => K.personnel.employerName(e);
+
+  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
+
+  const alerts = M.alerts();
+  if (alerts.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Needs your attention'), h('div', { class: 'list' }, ...alerts.map((a) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'name' }, a.text), h('div', { class: 'desc' }, a.advice))))));
+
+  const m = M.peek();
+  const pending = m?.pending || [];
+  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Waiting for you'));
+  if (!pending.length) body.append(h('p', { class: 'muted' }, 'Nothing is waiting.'));
+  else body.append(h('div', { class: 'list' }, ...pending.map((q) => {
+    const x = K.personnel.person(q.actor);
+    return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${x?.name || 'Someone'} asks to ${q.kind === 'hire' ? 'hire' : 'reorder'} at ${name(q.employer)}`, h('span', { class: 'tag' }, `${n(q.cost)} obols when asked`), h('span', { class: 'tag' }, `${MGMT.expireDays - (g.clock.day - q.day)} days left`)),
+      h('div', { class: 'desc' }, `${q.why} Approving judges it again on today's figures: a changed need, price, budget or person can still stop it.`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small primary', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'small ghost', onclick: () => go(M.decline(q.id)) }, 'Decline'))));
+  })));
+
+  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Budgets'));
+  const list = h('div', { class: 'list' });
+  for (const [id, cats] of BUSINESSES) {
+    if (!K.established(id)) continue;
+    const funded = K.account(id).funded;
+    const rows = cats.map((cat) => {
+      const kind = cat === 'hiring' ? 'hire' : 'reorder';
+      const st = M.status(id, kind);
+      const box = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: st.budget, style: 'width:100px' });
+      const who = M.deciders(kind, id).map((x) => `${x.name} (${ROLES[x.role].name})`);
+      return h('div', { style: 'margin-top:6px' },
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, CATEGORIES[cat].name), box, h('span', { class: 'muted' }, 'a month'), h('button', { class: 'small', onclick: () => go(M.setBudget(id, cat, Number(box.value))) }, 'Set'), h('span', { class: 'muted' }, st.budget ? `${n(st.spent)} used this month, ${n(Math.max(0, st.budget - st.spent))} left` : '')),
+        h('div', { class: 'desc' }, CATEGORIES[cat].text, who.length ? ` Decided by ${who.join(', ')}.` : ''),
+        ...st.notes.map((t) => h('div', { class: 'desc' }, `• ${t}`)));
+    });
+    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, name(id), h('span', { class: `tag${funded ? ' good' : ''}` }, funded ? 'own account' : 'no account of its own')), ...rows)));
+  }
+  body.append(list);
+
+  const log = (m?.log || []).slice(-15).reverse();
+  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'What they have done'));
+  if (!log.length) body.append(h('p', { class: 'muted' }, 'Nothing yet.'));
+  else body.append(h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${LABEL[l.type] || l.type}: ${l.text}`))))));
+  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one reorder and one hire decision a day, at about 06:00, and a manager makes at most two hires a month at a business. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
+}
+
+return { manageApp };
+})();
+
 // ---- src/ui/tablet.js
 __m["src/ui/tablet.js"] = (function () {
 // The tablet (v0.15.0) — the journal's replacement. Apps along the top:
@@ -60823,11 +60919,12 @@ const { companiesApp } = __m["src/ui/corpApp.js"]; // v0.60.0
 const { intelApp } = __m["src/ui/corpIntel.js"];
 const { groupApp } = __m["src/ui/corpGroup.js"];
 const { peopleApp } = __m["src/ui/corpPeople.js"]; // v0.62.0
+const { manageApp } = __m["src/ui/corpManage.js"]; // v0.63.0
 
 function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel'] : []), 'Intelligence', 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel', 'Management'] : []), 'Intelligence', 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -60847,6 +60944,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
   else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
+  else if (tab === 'Management') manageApp(ui, body, open); // v0.63.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

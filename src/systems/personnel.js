@@ -14,8 +14,7 @@
 // results. The arms works' own staff (src/systems/arms.js) are not copied: they are listed here as they
 // are, and the arms works still hires, pays and dismisses them.
 //
-// Authority (what a person may spend, approve or do) is recorded now and enforced from stage 7, when
-// managers begin to decide things. Nothing acts on it yet.
+// Authority (what a person may spend, approve or do) is what managers' own decisions are held to (src/systems/management.js).
 //
 // State: world.corp.people = { v, salt, nextCand, nextStaff, lastWeek, reviewMonth, pool, staff, pay, log }.
 // Created by ensure() on first use — never by a getter the hooks call.
@@ -264,7 +263,7 @@ export class Personnel {
     return { ok: true, text: `${x.name} now earns ${pay.toLocaleString()} a day.` };
   }
 
-  /** Set what a person may spend and do. Bounded by their level; recorded now, enforced from stage 7. */
+  /** Set what a person may spend and do. Bounded by their level; managers' decisions are judged against it (v0.63.0). */
   setAuthority(id, patch) {
     const x = this.person(id);
     if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
@@ -276,7 +275,7 @@ export class Personnel {
     if (x.tier === 'staff') { a.canBorrow = false; a.canTransfer = false; }
     x.authority = a;
     this.note(x, 'authority', 'Authority changed.');
-    return { ok: true, text: `${x.name}'s authority is set (enforced from stage 7).` };
+    return { ok: true, text: `${x.name}'s authority is set: a manager's own decisions are held to it.` };
   }
 
   // ------------------------------------------------------------- payroll

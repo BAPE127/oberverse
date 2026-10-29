@@ -23,7 +23,7 @@ export function peopleApp(ui, body, open) {
   const num = (v, w = 80) => h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5, value: v, style: `width:${w}px` });
   const sel = (opts, cur) => h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
 
-  body.append(h('p', { class: 'doc' }, '🧑‍💼 People run the businesses you own. Hire executives for the parent company and managers and staff for each business. Each is paid every day from their employer\'s own cash. A good manager trims one real cost or lifts one real result, within a ceiling; they cannot do what needs a worker or a resource you do not have. Authority is recorded now and takes effect when managers begin to act on their own.'));
+  body.append(h('p', { class: 'doc' }, '🧑‍💼 People run the businesses you own. Hire executives for the parent company and managers and staff for each business. Each is paid every day from their employer\'s own cash. A good manager trims one real cost or lifts one real result, within a ceiling; they cannot do what needs a worker or a resource you do not have. Their authority sets what they may decide on their own — see the Management tab.'));
   body.append(h('div', { class: 'row', style: 'justify-content:flex-start;margin-bottom:6px;flex-wrap:wrap' }, ...Object.entries(VIEWS).map(([id, l]) => h('button', { class: `small${S.view === id ? ' primary' : ''}`, onclick: () => view({ view: id }) }, l))));
 
   if (S.view === 'openings') openings(); else if (S.view === 'candidates') candidates(); else if (S.view === 'staff') staff(); else payroll();
@@ -172,7 +172,7 @@ export function peopleApp(ui, body, open) {
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, mv, mvEmp, h('button', { class: 'small', onclick: () => go(Pe.reassign(x.id, { role: mv.value, employer: mvEmp.value })) }, 'Move')),
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, h('span', { class: 'muted' }, 'May spend up to'), spend, h('span', { class: 'muted' }, 'and must ask above'), above, ...flags.map((f) => h('label', { class: 'muted' }, f.el, ` ${FL[f.k]}`)),
         h('button', { class: 'small', onclick: () => go(Pe.setAuthority(x.id, { spendLimit: Number(spend.value), approvalAbove: Number(above.value), ...Object.fromEntries(flags.map((f) => [f.k, f.el.checked])) })) }, 'Set authority')),
-      h('div', { class: 'desc' }, 'Recorded now; managers act within it from the autonomous-management update.'),
+      h('div', { class: 'desc' }, 'Managers act within this: above the ask-above limit a decision waits for you on the Management tab; above the spending limit it is refused. Hiring also needs the "hire" permission.'),
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(Pe.dismiss(x.id)) }, `Dismiss (severance ${n(x.salary * MARKET.severance)})`)));
   }
 

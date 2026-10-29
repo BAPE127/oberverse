@@ -2,6 +2,38 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.63.0] — 2026-10-29 — Within Limits (development build)
+
+Stage 7 (first half) of the Corporate Empire brief (docs/CORPORATE.md): managers deciding for themselves, inside limits the owner sets. Contract bids and expansion from pre-approved plans are the second half (next release).
+
+### Added — decisions, budgets and approvals (`src/systems/management.js`, `src/corp/management.js`, `src/content/management.js`)
+- **One judgement for every decision** (`judge`): a person must be at work and paid, their job must make that kind of decision, a hire needs the permission to hire, the business must have **an account of its own** (managers never spend your personal wallet), a **monthly budget** for the category must be set and not exceeded, the cost must be within their **spending limit**, and the account must cover it. Then: at or below their **ask-above limit** it is done; above it, it **waits for you**. The first failure is the stated reason.
+- **Budgets** are monthly caps per business and category (**materials and parts**, **hiring**). None set means none allowed. Only spending by managers' decisions counts against a budget; your own purchases never do. A budget is permission, never money.
+- **Approvals queue**: a decision above the ask-above limit waits on the Management tab (up to 30; one per kind and business at a time; lapses unanswered after 7 days with nothing done). **Approving judges it again from scratch** — the need, the price, the budget, the account and the person are all checked at that moment; only the ask-above limit is lifted. Declining records it.
+- **A log** of everything managers did, asked, could not do (a refusal is written once, not daily), and what you approved or declined (200 kept), and **alerts**: requests waiting, refusals in the last days, a budget with no one to use it or no account, a budget 80% used.
+
+### Added — what managers decide
+- **Reorders** (procurement manager, manufacturing manager, aerospace operations manager, general manager). *Arms*: each part a staffed station uses is held at the works's loading dock at a par of one shift (8 hours of the stations using it); when the dock plus what is on order falls below half of par, an order brings it back (at most 60 of a part at a time). Only bought parts, only for stations with a worker assigned. *Aerospace*: one order per material, for what open units are short of after free stock, from the cheapest supplier, **quoted first and then bought at that price**; **only while the firm's auto-buy is off** (auto-buy is your own standing order and is left exactly as it is). Shipping and farming buy nothing through their company accounts, so they have nothing to reorder yet.
+- **Hiring** (general manager for staff jobs at their own business; the parent's HR director for staff and manager jobs at its subsidiaries): only into a job the business has a case for (the Openings list), the candidate of the job's own level with the best fit, offered the least they will accept, at most **two hires a month** per business. A hire counts its recruiting fee **and a month's wage** against the budget and the person's limits.
+- At most one reorder and one hire decision a day for each business, at about 06:00, keyed by day in the save so loading does not decide twice.
+
+### Added — the Management tablet app
+Waiting requests (approve / decline), a budget per business and category with what has been used and who decides it, plain notes where nothing is happening and why (no budget, no account, auto-buy on, nobody at work), and the log.
+
+### Changed
+- **Authority defaults for new hires**: the ask-above limit is now 20,000 (executives), 3,000 (managers), 500 (staff) — so the queue can happen; spending limits are unchanged. **People hired in v0.62 keep their stored limits** (a manager's 10,000 / 10,000), so for them everything within 10,000 is done without asking until you lower it under Personnel → Staff → Manage.
+- Openings now also list staff jobs a business has a case for (supervisor, procurement specialist, logistics coordinator, farm supervisor), so there is something for a manager to fill.
+- Aerospace: `orderCost` (what an order would cost, nothing changes) and `reserveShortfalls` are separated out of `order` and `autoProcure`, which behave as before.
+
+### Save
+- `world.corp.management` (`budgets`, `spent`, `pending`, `log`, `last`, `hires`, `nextId`) is created the first time a budget is set. A save from v0.62 or earlier has none. Setting no budget changes nothing: with people hired and no budgets, a 25-day scripted game matches v0.62.0 exactly. No schema change (still 1).
+
+### Tests
+- New: `management` (19): every branch of the judgement in order, the arms par and order rules, a deterministic hire choice, nothing created and nothing spent with no budget, arms reorders paid from the works's account and attributed, no order for an empty station or a stocked dock, the monthly budget as a hard stop that resets with the month, the owner's purchases not counting, the queue (once, approve, decline, expiry), approval judged again (a changed need, budget, funds, person), unfunded businesses never touching the wallet, jobs that do not decide, aerospace planning moving no RNG or stock and paying exactly the quote, auto-buy left alone, hiring (budget, monthly cap, cost = fee and a month's wage, authority, ask-above queue, no managers hired by a manager), the HR director's reach, and the save. One existing assertion (`personnel`, the farm's list of openings) was updated for the new staff openings; every other test passes unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Contract bids and building or buying from pre-approved plans are not in this release; there is no per-business reorder policy beyond the budget and the person's limits; executives at the parent do not decide anything on their own yet.
+
 ## [0.62.0] — 2026-10-29 — Good Help (development build)
 
 Stage 6 of the Corporate Empire brief (docs/CORPORATE.md): a market of people, hiring and paying them, and what a good one does.
