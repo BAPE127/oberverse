@@ -63,7 +63,7 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 ## Verification record — v0.60.0 (2026-10-29)
 
-- `npm run check` — **635/635 tests passed** (56 new across `corporate_accounts`, `corporate_funding`, `corporate_identity`, `corporate_world`, `corporate_metrics`); the 579 existing tests pass **unedited** after the payment layer. `npm run smoke` — 26/26 (the aerospace and Companies/Intelligence pages draw; no page errors).
+- `npm run check` — **635/635 tests passed** (56 new across `corporate_accounts`, `corporate_funding`, `corporate_identity`, `corporate_world`, `corporate_metrics`); the 579 existing tests pass **unedited** after the payment layer. `npm run smoke` — 26/26 (no new smoke checks this release; the Companies and Intelligence apps were checked by hand in the browser, below).
 - Parity (Node, 20 game days, all four businesses bought and run): wallet and ledger figures identical to v0.59.0 at every step.
 - World (Node, three seeds × two years): 46–54 companies alive, no company with negative cash or runaway capacity, newcomers every few months in busy sectors, occasional failures; each save/load round trip identical to the digit.
 - Browser (headless Chromium, the built `index.html`): the naming panel after founding (rejecting a too-short name, accepting a good one, the next business's prompt following), the Companies app (unfunded and funded, with arrears), Intelligence (arms ranking with the owner's company ringed, a selected rival with the comparison, energy with Ober's Oil unranked); no page errors.
