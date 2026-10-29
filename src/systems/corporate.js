@@ -442,7 +442,7 @@ export class Corporate {
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); return c ? Math.round(c.cash + c.plantValue - c.debt) : null; }
     if (r.kind === 'player') {
       const a = this.account(r.playerId);
-      const own = a.funded ? a.cash - a.arrears : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's
+      const own = a.funded ? a.cash - a.arrears - this.group.payableOf(r.playerId) : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's; what it owes its parent comes off
       switch (r.playerId) {
         case 'aerospace': return Math.round(g.aero.balanceReport(g.aero.roost).net + own);
         case 'arms': return Math.round(g.arms.ownedIds().reduce((x, w) => x + g.arms.def(w).price * 0.6, 0) + own);

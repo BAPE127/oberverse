@@ -15,6 +15,8 @@
 // investments), .ownership (edges), .transfers, .loans, .group (counters, the monthly jobs' keys).
 import { logLine, freshAccount, monthTotals, post, icTotals } from '../corp/ledger.js';
 import { CORP } from '../content/corporate.js';
+import { icStep } from '../corp/consolidate.js';
+import { value as worth } from '../corp/metrics.js';
 import { canOwn, validPolicy, POLICY_DEFAULT } from '../corp/group.js';
 import { validateName } from '../corp/identity.js';
 
@@ -410,6 +412,7 @@ export class Group {
       loan.lastMonth = m;
     }
     for (const id of this.subs()) this.distributeMonth(id, m);
+    this.recordIc(m);
   }
 
   /** What needs the owner's eye: each with the facts and what to do. */
@@ -429,5 +432,177 @@ export class Group {
     for (const l of this.st.loans.filter((x) => x.status === 'open' && x.missed > 0)) out.push({ id: l.borrower, kind: 'loan', text: `${K.nameOf(l.borrower)} has missed ${l.missed} payment${l.missed > 1 ? 's' : ''} on loan ${l.id} (${l.outstanding.toLocaleString()} outstanding).`, advice: 'Fund it, or let it clear what it owes others first.' });
     for (const b of (this.st.group.breaches || []).filter((x) => this.day - x.day < 60)) out.push({ id: b.id, kind: 'breach', text: `On day ${b.day} ${K.nameOf(b.id)} was left with ${b.left.toLocaleString()} obols, below its protected ${b.min.toLocaleString()}, by override.`, advice: 'Watch its bills until it has rebuilt its reserve.' });
     return out;
+  }
+
+  // ------------------------------------------------------------- consolidation
+  /** The intercompany freight charge aerospace still holds: in its stores, on the way, or in units not yet delivered (read from its own records). */
+  unrealisedFreight() {
+    const A = this.game.aero;
+    const co = A?.roost;
+    if (!co) return 0;
+    let u = 0;
+    for (const r of Object.values(co.inv || {})) u += r.freightInt || 0;
+    for (const po of Object.values(A.state.pos || {})) if (po.company === co.id && !['received', 'lost'].includes(po.status)) u += po.freightInt || 0;
+    for (const un of A.unitsOf(co)) u += un.cost?.freightInt || 0;
+    return Math.round(u);
+  }
+
+  /** Both ends of the freight charge are in the group: only then is it inside the group. */
+  icActive() { return this.isSub('aerospace') && this.isSub('shipping'); }
+
+  /** Month's end: how much of the freight charge is still deferred. Kept for each month (two years). */
+  recordIc(m) {
+    const gs = this.st.group;
+    const ic = (gs.ic ||= { state: null, months: {} });
+    const R = this.icActive() ? icTotals(this.K.account('shipping'), m).internal : 0;
+    const step = icStep(ic.state, { R, U: this.unrealisedFreight(), active: this.icActive() });
+    ic.state = step.state;
+    ic.months[m] = { R: step.R, E: step.E, G: step.state.G, P: step.state.P };
+    const keys = Object.keys(ic.months).map(Number).sort((a, b) => a - b);
+    while (keys.length > 24) delete ic.months[keys.shift()];
+  }
+
+  /** The eliminations for a month: stored for a closed one, projected from the live records for the month in progress. */
+  icOf(m) {
+    const ic = this.st.group.ic;
+    if (ic?.months[m]) return ic.months[m];
+    if (m !== this.month || !this.icActive()) return { R: 0, E: 0, G: ic?.state?.G || 0 };
+    const R = icTotals(this.K.account('shipping'), m).internal;
+    const step = icStep(ic?.state, { R, U: this.unrealisedFreight(), active: true });
+    return { R: step.R, E: step.E, G: step.state.G, projected: true };
+  }
+
+  /** What a company's own books say for one month: trading and intercompany apart. */
+  memberMonth(id, m) {
+    const K = this.K;
+    if (id === 'parent') {
+      const t = icTotals(K.account('parent'), m);
+      return { id, name: this.parent.name, revenue: 0, opex: 0, capex: 0, icIn: t.icIn, icOut: 0, interestIn: t.interestIn, dividendIn: t.dividendIn, internal: 0 };
+    }
+    const reg = K.registry().find((r) => r.playerId === id);
+    const row = K.rowsOf(reg).rows.find((r) => r.m === m);
+    const t = icTotals(K.account(id), m);
+    return { id, name: K.nameOf(id), revenue: row?.revenue || 0, opex: row?.opex || 0, capex: row?.capex || 0, icIn: t.internal, icOut: t.icOut, interestIn: 0, dividendIn: 0, internal: t.internal };
+  }
+
+  /** Loans between group companies: what the parent is owed and what the subsidiaries owe — the same sum, seen from both ends. */
+  receivables() {
+    const open = (this.st.loans || []).filter((l) => l.status === 'open');
+    return { receivable: open.reduce((a, l) => a + l.outstanding, 0), payable: open.reduce((a, l) => a + l.outstanding, 0), byBorrower: Object.fromEntries(open.map((l) => [l.borrower, 0]).map(([k]) => [k, open.filter((l) => l.borrower === k).reduce((a, l) => a + l.outstanding, 0)])) };
+  }
+  payableOf(id) { return (this.st.loans || []).filter((l) => l.status === 'open' && l.borrower === id).reduce((a, l) => a + l.outstanding, 0); }
+
+  /** The months a period covers. */
+  monthsOf(period) {
+    const cur = this.month;
+    return period === 'current' ? [cur] : period === 'year' ? Array.from({ length: 12 }, (_, i) => cur - 12 + i).filter((m) => m >= 0) : [cur - 1].filter((m) => m >= 0);
+  }
+
+  /**
+   * The group's statements: each company's own, and the consolidated one with what is internal taken out —
+   * the freight charge between sister companies (the part aerospace has not yet used stays deferred), the
+   * interest a subsidiary paid its parent, and the dividends the parent was sent. Transfers of capital,
+   * loans and their repayment are never in either: they move cash, not results.
+   */
+  consolidated(period = 'month') {
+    if (!this.parent) return null;
+    const K = this.K;
+    const months = this.monthsOf(period);
+    const ids = this.members();
+    const sep = ids.map((id) => {
+      const rows = months.map((m) => this.memberMonth(id, m));
+      const sum = (k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
+      const x = { id, name: rows[0]?.name || K.nameOf(id), revenue: sum('revenue'), icIn: sum('icIn'), opex: sum('opex'), icOut: sum('icOut'), capex: sum('capex'), interestIn: sum('interestIn'), dividendIn: sum('dividendIn'), internal: sum('internal') };
+      x.net = x.revenue + x.icIn - x.opex - x.icOut;
+      return x;
+    });
+    const ics = months.map((m) => this.icOf(m));
+    const R = ics.reduce((a, x) => a + x.R, 0);
+    const E = ics.reduce((a, x) => a + x.E, 0);
+    // shipping's charges to aerospace in months when they were not both in the group were sales to an outsider
+    const ship = sep.find((x) => x.id === 'shipping');
+    if (ship && ship.internal > R) { ship.revenue += ship.internal - R; ship.icIn -= ship.internal - R; ship.net = ship.revenue + ship.icIn - ship.opex - ship.icOut; }
+    const interest = sep.reduce((a, x) => a + x.interestIn, 0);
+    const dividends = sep.reduce((a, x) => a + x.dividendIn, 0);
+    const revenue = sep.reduce((a, x) => a + x.revenue, 0);
+    const opex = sep.reduce((a, x) => a + x.opex, 0);
+    const capex = sep.reduce((a, x) => a + x.capex, 0);
+    const cons = { revenue, costs: opex - E, capex };
+    cons.net = cons.revenue - cons.costs;
+    const sumNets = sep.reduce((a, x) => a + x.net, 0);
+    const cash = Object.fromEntries(ids.map((id) => [id, Math.round(K.account(id).cash)]));
+    const rec = this.receivables();
+    const plans = this.subs().map((id) => this.distributionPlan(id, this.month - 1 >= 0 ? this.month - 1 : 0));
+    return {
+      period, months, separate: sep,
+      eliminations: { internalSales: R, internalCost: E, deferred: R - E, interest, dividends },
+      consolidated: cons,
+      reconciliation: { sumOfSeparateNets: sumNets, lessDividends: dividends, lessDeferredFreight: R - E, equals: sumNets - dividends - (R - E) },
+      cash: { parent: cash.parent, subs: Object.fromEntries(this.subs().map((id) => [id, cash[id]])), consolidated: ids.reduce((a, id) => a + cash[id], 0), availableToDistribute: plans.reduce((a, p) => a + p.send, 0) },
+      debt: { external: this.subs().reduce((a, id) => a + Math.round(K.account(id).arrears), 0) },
+      intercompany: { receivable: rec.receivable, payable: rec.payable, afterElimination: rec.receivable - rec.payable },
+      distributionsReceived: dividends,
+      value: this.groupValue(),
+    };
+  }
+
+  /** The parent's own books: what came up from the subsidiaries and what went down to them. */
+  parentLedger(period = 'year') {
+    const months = this.monthsOf(period);
+    const first = months.length ? months[0] * 30 + 1 : 1;
+    const last = months.length ? months.at(-1) * 30 + 30 : this.day;
+    const rows = (this.st.transfers || []).filter((t) => t.day >= first && t.day <= last);
+    const sum = (f) => rows.filter(f).reduce((a, t) => a + t.amount, 0);
+    const pa = this.K.account('parent');
+    return {
+      period, months,
+      received: { distributions: sum((t) => t.to === 'parent' && t.kind === 'distribution'), interest: sum((t) => t.to === 'parent' && t.kind === 'interest'), repayments: sum((t) => t.to === 'parent' && t.kind === 'repayment'), capitalReturned: sum((t) => t.to === 'parent' && t.kind === 'capital-return') },
+      paid: { capital: sum((t) => t.from === 'parent' && t.kind === 'capital'), loans: sum((t) => t.from === 'parent' && t.kind === 'loan') },
+      owner: { contributed: pa.contributed, distributed: pa.distributed, inKind: pa.inKind },
+      managementExpenses: 0, debt: 0, interestExpense: 0, restructuring: 0,
+      cash: Math.round(pa.cash),
+    };
+  }
+
+  /**
+   * What the group is worth, without counting anything twice: the parent's cash and what it is owed, plus its
+   * stake in each subsidiary at that subsidiary's value — which already takes off what it owes the parent. An
+   * estimate, never money. (A value has a floor and cannot be negative, so the sum is exact only for companies
+   * that are not near nothing.)
+   */
+  groupValue() {
+    const K = this.K;
+    const rec = this.receivables();
+    const subs = this.subs().map((id) => {
+      const reg = K.registry().find((r) => r.playerId === id);
+      const m = K.metricsOf(reg, 'year');
+      return { id, name: K.nameOf(id), value: m.valuation ?? 0, netAssets: m.netAssets ?? 0, payable: this.payableOf(id) };
+    });
+    const parentCash = Math.round(K.account('parent').cash);
+    const stakes = subs.reduce((a, x) => a + x.value, 0);
+    const parent = parentCash + rec.receivable + stakes;
+    return { parentCash, loansToSubsidiaries: rec.receivable, subsidiaries: subs, stakes, parent, group: parent, intercompanyAfterElimination: rec.receivable - rec.payable, spendableCash: parentCash };
+  }
+
+  /** Who contributes what: share of the group's value, of its year's earnings, of the cash it makes, and what risks it carries. */
+  contribution() {
+    const K = this.K;
+    const v = this.groupValue();
+    const subs = this.subs().map((id) => {
+      const reg = K.registry().find((r) => r.playerId === id);
+      const m = K.metricsOf(reg, 'year');
+      const a = K.account(id);
+      const sent = (this.st.transfers || []).filter((t) => t.from === id && t.to === 'parent' && ['distribution', 'interest', 'repayment'].includes(t.kind) && t.day > this.day - 360).reduce((x, t) => x + t.amount, 0);
+      const perDay = this.runningPerDay(id);
+      const risks = [];
+      if (a.arrears > 0) risks.push('owes others');
+      if (perDay > 0 && a.cash < perDay * 7) risks.push('under a week of cash');
+      if (this.payableOf(id) > a.cash) risks.push('owes the parent more than it holds');
+      if ((m.net ?? 0) < 0) risks.push('losing money');
+      return { id, name: K.nameOf(id), value: m.valuation ?? 0, valueShare: v.stakes ? (m.valuation ?? 0) / v.stakes : 0, net: m.net ?? 0, cashSentUp: Math.round(sent), cash: Math.round(a.cash), risks };
+    });
+    const totalNet = subs.reduce((a, x) => a + Math.max(0, x.net), 0);
+    for (const x of subs) x.earningsShare = totalNet ? Math.max(0, x.net) / totalNet : 0;
+    return subs;
   }
 }
