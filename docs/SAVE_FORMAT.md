@@ -67,6 +67,8 @@ Since **v0.62.0** `world.corp.people` (created when the Personnel app is first o
 
 Since **v0.63.0** `world.corp.management`, created when the first budget is set (a save without it has no budgets and no manager decisions): `budgets` (`{ business: { materials, hiring } }` monthly caps), `spent` (`{ business: { category: { month: amount } } }`, three months), `pending` (requests: `id`, `key`, `kind`, `employer`, `actor`, `cost`, `day`, `why`), `log` (200 kept), `last` (`day` — the day's decisions were made — and `refused`, the last reason per decision), `hires` (`{ business: { m, n } }`) and `nextId`. Nothing is spent, hired or ordered by loading.
 
+Since **v0.64.0** `world.corp.management` also holds `margins` (`{ aerospace: percent }`), `plans` (each `{ id, type, business, params, limit, maxEach, reserve, bought, placed, since, blocked? }`) and `nextPlan`; a v0.63 save has none of them until a margin or plan is set. A request in `pending` may carry `item` (a tender or plan id) and `desc`. Nothing is bid, bought or placed by loading.
+
 Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).
 
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.

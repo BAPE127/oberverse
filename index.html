@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.63.0';
+const GAME_VERSION = '0.64.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -22429,12 +22429,14 @@ class Factory {
   }
 
   /** Place a machine/belt/inserter/generator item from your inventory. */
-  place(whId, itemId, x, y, dir = 0) {
+  place(whId, itemId, x, y, dir = 0, from = null) {
     const g = this.game;
     const item = g.content.items[itemId];
     if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
     if (!this.owns(whId)) return { ok: false, text: 'This isn\'t your warehouse.' };
-    if (!g.inventory.count(itemId)) return { ok: false, text: `You don't have a ${item.name}.` };
+    // `from`: a container (the works's loading dock) to take it from instead of your pockets — a manager's placement
+    const source = from ? g.world.containers[from] : null;
+    if (from ? !(source?.items[itemId] > 0) : !g.inventory.count(itemId)) return { ok: false, text: from ? `There is no ${item.name} on the dock.` : `You don't have a ${item.name}.` };
     const { type, kind, w = 1, h = 1, cap, filter } = item.build;
     const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
     if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
@@ -22455,7 +22457,7 @@ class Factory {
     if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: this.initialSetting(kind), interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
     if (type === 'generator') e.interact = { kind: this.kind, action: 'entity', warehouse: whId, name: 'generator' };
     if (type === 'belt') e.carry = null;
-    g.inventory.remove(itemId, 1);
+    if (from) { source.items[itemId] -= 1; if (!source.items[itemId]) delete source.items[itemId]; } else g.inventory.remove(itemId, 1);
     wh.entities.push(e);
     g.maps.get(this.def(whId).map).addProp(e);
     this.cache.delete(whId);
@@ -23175,8 +23177,8 @@ class Arms extends Factory {
     for (const id of Object.keys(this.defs())) if (this.game.maps.get(this.def(id).map)) this.refreshSpots(id);
   }
 
-  place(whId, itemId, x, y, dir) {
-    const r = super.place(whId, itemId, x, y, dir);
+  place(whId, itemId, x, y, dir, from = null) {
+    const r = super.place(whId, itemId, x, y, dir, from);
     if (r.ok) this.refreshSpots(whId);
     return r;
   }
@@ -40543,9 +40545,12 @@ __m["src/content/management.js"] = (function () {
 /** The decisions a job may make, and where. Anything not listed decides nothing. */
 const DECIDES = {
   procurement_mgr: { reorder: ['arms', 'aerospace'] },
-  manufacturing_mgr: { reorder: ['arms'] },
-  aero_ops_mgr: { reorder: ['aerospace'] },
-  gm: { reorder: ['arms', 'aerospace'], hire: ['arms', 'shipping', 'aerospace', 'farming'] },
+  manufacturing_mgr: { reorder: ['arms'], expand: ['arms'] },
+  aero_ops_mgr: { reorder: ['aerospace'], bid: ['aerospace'], expand: ['aerospace'] },
+  gm: { reorder: ['arms', 'aerospace'], hire: ['arms', 'shipping', 'aerospace', 'farming'], bid: ['aerospace'], expand: ['arms', 'shipping', 'aerospace', 'farming'] },
+  sales_mgr: { bid: ['aerospace'] },
+  farm_mgr: { expand: ['farming'] },
+  logistics_mgr: { expand: ['shipping'] },
   hrd: { hire: ['arms', 'shipping', 'aerospace', 'farming'] }, // the parent's HR director hires for its subsidiaries
 };
 
@@ -40553,6 +40558,20 @@ const DECIDES = {
 const CATEGORIES = {
   materials: { name: 'Materials and parts', text: 'Reordering what the business uses up.' },
   hiring: { name: 'Hiring', text: 'The recruiting fee and the first month\'s wage of each hire a manager makes.' },
+  contracts: { name: 'Contract bids', text: 'What the work of the tenders a manager bids on would cost to build (the commitment, if the bid wins).' },
+  expansion: { name: 'Expansion', text: 'The price of each asset bought or built from a plan you have approved.' },
+};
+
+/** Which kinds of decision a business can have, in the order they are made each day. */
+const KINDS = { arms: ['reorder', 'hire', 'expand'], aerospace: ['reorder', 'hire', 'bid', 'expand'], shipping: ['hire', 'expand'], farming: ['hire', 'expand'] };
+
+/** The plans an owner may approve, by type: where, and what the plan says. Placement is a fixed rule for each. */
+const PLAN_TYPES = {
+  arms_station: { business: 'arms', name: 'Arms station in a works', rule: 'The first free cell of the works floor, row by row, with a clear ring around it and power for it. The station comes from the works\'s own order and goes in once it reaches the dock.' },
+  farm_plot: { business: 'farming', name: 'Farm plot next to your land', rule: 'The cheapest plot for sale across a lane (up to eight tiles) from a plot you already own.' },
+  port: { business: 'shipping', name: 'Port', rule: 'The cheapest port for sale, up to the fleet\'s port limit.' },
+  aero_bay: { business: 'aerospace', name: 'Aerospace bay', rule: 'The first free slot in a hall you have already built; never builds a hall.' },
+  aero_facility: { business: 'aerospace', name: 'Aerospace facility', rule: 'The named facility, if not already built or under construction.' },
 };
 
 const MGMT = {
@@ -40563,11 +40582,13 @@ const MGMT = {
   maxOrderQty: 60, // arms: most of one part in one order
   shiftHours: 8, // arms: the par stock of a part is this many hours of the staffed stations using it
   reorderAt: 0.5, // arms: order up to par when stock and what is on order fall below this share of it
+  maxContracts: 3, // active contracts and bids still open, at most, before a manager bids for more
+  plotGap: 8, // tiles between two plots (a lane's width) that still count as next to each other
   hireBand: 30, // days of wage counted with the fee against a hire's limits and the budget
   spentMonths: 3,
 };
 
-return { DECIDES, CATEGORIES, MGMT };
+return { DECIDES, CATEGORIES, KINDS, PLAN_TYPES, MGMT };
 })();
 
 // ---- src/corp/management.js
@@ -40591,6 +40612,8 @@ function judge(d) {
   if (!d.atWork) return no('They are not at work and paid.');
   if (!d.allowed) return no('Their job does not make this kind of decision.');
   if (d.kind === 'hire' && !d.canHire) return no('They are not authorised to hire.');
+  if (d.kind === 'bid' && !d.canContract) return no('They are not authorised to sign contracts.');
+  if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (!(d.cost > 0)) return no('There is nothing to spend.');
   if (d.kind === 'hire' && d.hiresLeft <= 0) return no('The most hires a month has been made.');
@@ -40600,6 +40623,7 @@ function judge(d) {
   if (d.cost > left) return no(`It would pass the monthly budget (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
   if (d.cost > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}.`);
   if (!d.affordable) return no('The business\'s account cannot cover it.');
+  if (!d.owner && d.ask) return { verdict: 'queue', reason: d.ask };
   if (!d.owner && d.cost > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking.` };
   return { verdict: 'execute', reason: '' };
 }
@@ -40641,7 +40665,58 @@ function hireChoice(cands, tier) {
   return [...pool].sort((a, b) => b.fit - a.fit || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] || null;
 }
 
-return { judge, armsPar, planArmsOrders, hireChoice };
+// ------------------------------------------------------------------ bids and expansion (v0.64.0)
+
+/** Tiles between two rectangles { x, y, w, h }: 0 where they touch or overlap. */
+function rectGap(a, b) {
+  const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+  const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+  return Math.max(dx, dy);
+}
+
+/** The cheapest plot for sale next to one already owned (ties by id); nobody owns none, so a first plot is never chosen. */
+function nextPlot(plots, owned, maxGap) {
+  const mine = plots.filter((p) => owned.includes(p.id));
+  if (!mine.length) return null;
+  return plots.filter((p) => !owned.includes(p.id) && mine.some((m) => rectGap(m.rect, p.rect) <= maxGap))
+    .sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0] || null;
+}
+
+/** The cheapest port for sale (ties by id). */
+function nextPort(ports, owned) {
+  return ports.filter((p) => !owned.includes(p.id)).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0] || null;
+}
+
+/** The first cell, row by row, where a w×h item fits on the floor with a ring of cells around it free of anything built. */
+function firstFreeCell(w, h, W, H, floor, taken) {
+  for (let y = 0; y + h <= H; y++) {
+    for (let x = 0; x + w <= W; x++) {
+      let ok = true;
+      for (let yy = y - 1; yy <= y + h && ok; yy++) {
+        for (let xx = x - 1; xx <= x + w && ok; xx++) {
+          const inside = xx >= x && xx < x + w && yy >= y && yy < y + h;
+          if (inside) { if (!floor(xx, yy) || taken(xx, yy)) ok = false; } else if (taken(xx, yy)) ok = false;
+        }
+      }
+      if (ok) return { x, y };
+    }
+  }
+  return null;
+}
+
+/**
+ * A bid: the price is the owner's minimum margin over the unit's cost (the floor), rounded up to 100.
+ * Over the customer's ceiling it can only be bid at the ceiling — below the floor, which the owner must approve;
+ * and never below cost. tender: { ceiling }, q: { cost } (per unit).
+ */
+function bidPrice(cost, marginPct, ceiling) {
+  const floor = Math.ceil((cost * (1 + marginPct / 100)) / 100) * 100;
+  if (floor <= ceiling) return { price: floor, below: false };
+  if (ceiling < cost) return { price: null, below: true, why: 'the customer\'s ceiling is below what it would cost' };
+  return { price: ceiling, below: true };
+}
+
+return { judge, armsPar, planArmsOrders, hireChoice, rectGap, nextPlot, nextPort, firstFreeCell, bidPrice };
 })();
 
 // ---- src/systems/management.js
@@ -40655,8 +40730,8 @@ __m["src/systems/management.js"] = (function () {
 // the business's own account (managers act only for a company with an account of its own, never your wallet).
 //
 // Nothing here runs, or is created, until the owner sets a budget.
-const { DECIDES, CATEGORIES, MGMT } = __m["src/content/management.js"];
-const { judge, armsPar, planArmsOrders, hireChoice } = __m["src/corp/management.js"];
+const { DECIDES, CATEGORIES, MGMT, KINDS, PLAN_TYPES } = __m["src/content/management.js"];
+const { judge, armsPar, planArmsOrders, hireChoice, nextPlot, nextPort, firstFreeCell, bidPrice } = __m["src/corp/management.js"];
 const { monthOf } = __m["src/corp/ledger.js"];
 const { roleFit } = __m["src/corp/people.js"];
 const { ROLES, MARKET } = __m["src/content/personnel.js"];
@@ -40677,7 +40752,9 @@ class Management {
 
   ensure() {
     const st = this.K.state;
-    return (st.management ||= { v: 1, budgets: {}, spent: {}, pending: [], log: [], last: { day: 0, refused: {} }, hires: {}, nextId: 1 });
+    const m = (st.management ||= { v: 1, budgets: {}, spent: {}, pending: [], log: [], last: { day: 0, refused: {} }, hires: {}, nextId: 1 });
+    m.margins ||= {}; m.plans ||= []; m.nextPlan ||= 1; // v0.64.0: a v0.63 save gains them when next used
+    return m;
   }
 
   // ------------------------------------------------------------- budgets
@@ -40726,7 +40803,12 @@ class Management {
   deciders(kind, target) {
     const p = this.Pe.peek();
     if (!p) return [];
-    return Object.values(p.staff).filter((x) => this.mayDecide(x, kind, target) && this.atWork(x) && (kind !== 'hire' || x.authority.canHire)).sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
+    return Object.values(p.staff).filter((x) => this.mayDecide(x, kind, target) && this.atWork(x) && this.permitted(x, kind)).sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
+  }
+
+  /** The permission a kind of decision needs, besides the job. */
+  permitted(x, kind) {
+    return kind === 'hire' ? Boolean(x.authority.canHire) : kind === 'bid' ? Boolean(x.authority.canContract) : kind === 'expand' ? Boolean(x.authority.canExpand) : true;
   }
 
   // ------------------------------------------------------------- judging
@@ -40735,12 +40817,12 @@ class Management {
     return MGMT.hiresPerMonth - (h && h.m === this.month ? h.n : 0);
   }
 
-  judgeFor(x, kind, target, cat, cost, { owner = false } = {}) {
+  judgeFor(x, kind, target, cat, cost, { owner = false, ask = null, reserve = 0 } = {}) {
     return judge({
-      kind, owner, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire),
+      kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand),
       funded: this.K.established(target) && this.K.account(target).funded, cost,
       spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
-      cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(target, cost), hiresLeft: this.hiresLeft(target),
+      cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });
   }
 
@@ -40828,45 +40910,220 @@ class Management {
     return { ok: r.ok, paid: r.ok ? pick.cost : 0, text: r.text, person: r.person };
   }
 
-  /** The cost a decision would have now, or 0 if there is nothing to do. */
-  quote(kind, target, x) {
-    if (kind === 'reorder') return (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0);
-    return this.planHire(target, x)?.cost || 0;
+  // ------------------------------------------------------------- bids (v0.64.0)
+  /** Aerospace tenders worth a bid at the owner's minimum margin, best profit first. Nothing changes: the quotes are pure. */
+  planBids() {
+    const A = this.g.aero;
+    const co = A.roost;
+    const margin = this.peek()?.margins.aerospace;
+    if (!A.owned || !co || margin === undefined) return [];
+    const open = A.openTenders().filter((t) => t.bids.some((b) => b.company === co.id)).length;
+    if (A.contractsOf(co, 'active').length + open >= MGMT.maxContracts) return [];
+    const out = [];
+    for (const t of A.openTenders().filter((q) => !q.bids.some((b) => b.company === co.id))) {
+      const q0 = A.bidQuote(co.id, t.id);
+      if (!q0.ok || !(q0.cost > 0)) continue;
+      const bp = bidPrice(q0.cost, margin, t.ceiling);
+      if (bp.price === null) continue;
+      const q = A.bidQuote(co.id, t.id, bp.price, q0.days);
+      if (!q.ok) continue;
+      const p = A.pOf(t);
+      out.push({ item: t.id, cost: Math.round(q.cost * t.qty), price: bp.price, days: q.days, profit: q.profit, ask: bp.below ? `The most this customer pays is below your minimum margin of ${margin}%.` : null, desc: `${t.qty} × ${p.name} at ${bp.price.toLocaleString()} each` });
+    }
+    return out.sort((x, y) => y.profit - x.profit || (x.item < y.item ? -1 : 1));
   }
 
-  catOf(kind) { return kind === 'hire' ? 'hiring' : 'materials'; }
+  // ------------------------------------------------------------- plans (v0.64.0)
+  plansOf(business) { return (this.peek()?.plans || []).filter((q) => q.business === business); }
 
-  /** Make a decision: execute, queue or refuse. */
-  decide(kind, target, x, { owner = false, pendingId = null } = {}) {
+  /** Add a plan the owner approves: a template with limits. Validated here, so no caller can bypass the rules. */
+  addPlan(spec) {
+    const T = PLAN_TYPES[spec.type];
+    if (!T) return { ok: false, text: 'No such kind of plan.' };
+    if (!this.K.established(T.business)) return { ok: false, text: 'You do not own that business.' };
+    const limit = Math.round(Number(spec.limit)); const maxEach = Math.round(Number(spec.maxEach)); const reserve = Math.round(Number(spec.reserve) || 0);
+    if (!(limit >= 1 && limit <= 10)) return { ok: false, text: 'A plan buys between 1 and 10.' };
+    if (!(maxEach >= 1 && maxEach <= 5e6)) return { ok: false, text: 'The most to pay for each is between 1 and 5,000,000 obols.' };
+    if (!(reserve >= 0 && reserve <= 5e6)) return { ok: false, text: 'The cash to leave in the account is between 0 and 5,000,000 obols.' };
+    const params = {};
+    const g = this.g;
+    if (spec.type === 'arms_station') {
+      const it = g.content.items[spec.item];
+      if (!it?.build || it.build.domain !== 'arms' || it.build.type !== 'machine') return { ok: false, text: 'That is not an arms station.' };
+      if (!g.arms.owns(spec.works)) return { ok: false, text: 'You do not own that works.' };
+      if (spec.recipe) { const r = g.arms.cfg.recipes[spec.recipe]; if (!r || r.station !== it.build.kind) return { ok: false, text: 'That recipe is not made at that station.' }; params.recipe = spec.recipe; }
+      Object.assign(params, { works: spec.works, item: spec.item });
+    } else if (spec.type === 'aero_bay') {
+      if (!g.aero.cfg.bays[spec.bay]) return { ok: false, text: 'No such bay.' };
+      params.bay = spec.bay;
+    } else if (spec.type === 'aero_facility') {
+      if (!g.aero.cfg.facilities[spec.facility]?.build) return { ok: false, text: 'No such facility.' };
+      params.facility = spec.facility;
+    }
+    const m = this.ensure();
+    if (m.plans.length >= 12) return { ok: false, text: 'Twelve plans at most.' };
+    const plan = { id: `plan_${m.nextPlan++}`, type: spec.type, business: T.business, params, limit, maxEach, reserve, bought: 0, placed: 0, since: this.day };
+    m.plans.push(plan);
+    this.log({ type: 'plan', employer: T.business, text: `Plan approved: up to ${limit} × ${this.planName(plan)} at ${this.Pe.employerName(T.business)}, at most ${maxEach.toLocaleString()} each, leaving ${reserve.toLocaleString()} in the account.` });
+    return { ok: true, plan, text: `Plan approved: ${this.planName(plan)}, up to ${limit}.` };
+  }
+
+  removePlan(id) {
+    const m = this.peek();
+    const q = m?.plans.find((r) => r.id === id);
+    if (!q) return { ok: false, text: 'No such plan.' };
+    m.plans = m.plans.filter((r) => r !== q);
+    this.log({ type: 'plan', employer: q.business, text: `Plan withdrawn: ${this.planName(q)} (${q.bought} of ${q.limit} bought).` });
+    return { ok: true, text: 'Plan withdrawn.' };
+  }
+
+  planName(q) {
+    const g = this.g;
+    if (q.type === 'arms_station') return `${g.content.items[q.params.item]?.name || 'station'} in ${g.arms.def(q.params.works)?.name || 'a works'}`;
+    if (q.type === 'aero_bay') return g.aero.cfg.bays[q.params.bay]?.name || 'bay';
+    if (q.type === 'aero_facility') return g.aero.cfg.facilities[q.params.facility]?.name || 'facility';
+    return PLAN_TYPES[q.type].name;
+  }
+
+  /** What the next purchase under a plan would be, or why there is none. { cost, desc, run } | { why }. Nothing changes. */
+  evalPlan(q) {
+    const g = this.g;
+    if (q.bought >= q.limit) return { why: 'Done: all bought.' };
+    const over = (price) => (price > q.maxEach ? `The next one costs ${price.toLocaleString()}, over the ${q.maxEach.toLocaleString()} limit.` : null);
+    if (q.type === 'arms_station') {
+      const A = g.arms; const wh = q.params.works;
+      if (!A.owns(wh)) return { why: 'You no longer own that works.' };
+      if (q.bought > q.placed) return { why: 'Waiting for the last one to arrive and be placed.' };
+      const pw = A.power(wh);
+      if (pw.machines >= pw.capacity) return { why: 'The works has no power left for another machine.' };
+      const price = A.partPrice(q.params.item);
+      return over(price) ? { why: over(price) } : { cost: price, desc: `a ${g.content.items[q.params.item].name} for ${A.def(wh).name}`, run: () => A.order(wh, q.params.item, 1) };
+    }
+    if (q.type === 'farm_plot') {
+      const F = g.farm;
+      const plots = Object.keys(F.def.plots).map((id) => ({ id, d: F.plotDef(id) })).filter((x) => x.d).map((x) => ({ id: x.id, price: x.d.price, rect: x.d.field }));
+      const pick = nextPlot(plots, F.owned(), MGMT.plotGap);
+      if (!pick) return { why: F.owned().length ? 'No plot for sale next to your land.' : 'You own no plot yet: the first is yours to buy.' };
+      return over(pick.price) ? { why: over(pick.price) } : { cost: pick.price, desc: F.plotDef(pick.id).name, run: () => F.buy(pick.id) };
+    }
+    if (q.type === 'port') {
+      const L = g.logistics;
+      if (L.ownedPorts().length >= L.L.maxPorts) return { why: 'The fleet\'s port limit is reached.' };
+      const pick = nextPort(Object.keys(L.cfg.ports).map((id) => ({ id, price: L.portType(id)?.price ?? Infinity })).filter((p) => Number.isFinite(p.price)), L.ownedPorts());
+      if (!pick) return { why: 'No port for sale.' };
+      return over(pick.price) ? { why: over(pick.price) } : { cost: pick.price, desc: L.port(pick.id).name, run: () => L.buyPort(pick.id) };
+    }
+    const A = g.aero; const co = A.roost;
+    if (!A.owned || !co) return { why: 'You no longer own the firm.' };
+    if (q.type === 'aero_bay') {
+      const B = A.cfg.bays[q.params.bay];
+      if (!A.freeSlot(co, q.params.bay)) return { why: 'No free slot in a hall you have built (managers never build a hall).' };
+      return over(B.build) ? { why: over(B.build) } : { cost: B.build, desc: `a ${B.name.toLowerCase()}`, run: () => A.buildBay(co, q.params.bay) };
+    }
+    const F = A.cfg.facilities[q.params.facility];
+    if ((q.params.facility === 'pad' ? co.pad : co.facilities[q.params.facility]) || co.building?.[q.params.facility]) return { why: 'Already built or being built.' };
+    return over(F.build) ? { why: over(F.build) } : { cost: F.build, desc: F.name, run: () => A.buildFacility(co, q.params.facility) };
+  }
+
+  planExpansion(target) {
+    const out = [];
+    for (const q of this.plansOf(target)) {
+      const e = this.evalPlan(q);
+      if (e.cost) out.push({ item: q.id, cost: e.cost, reserve: q.reserve, desc: e.desc, run: e.run, plan: q });
+    }
+    return out;
+  }
+
+  /** Arms stations that were bought: when one is on the works's dock, it goes in at the first free cell (a fixed rule). Not a judged decision: it was paid for under the plan. */
+  placeStations() {
+    const m = this.peek();
+    if (!m) return;
+    const g = this.g; const A = g.arms;
+    for (const q of m.plans.filter((r) => r.type === 'arms_station' && r.placed < r.bought)) {
+      const wh = q.params.works;
+      if (!A.owns(wh)) continue;
+      const dock = A.def(wh).inBay;
+      if (!(g.world.containers[dock]?.items[q.params.item] > 0)) continue;
+      const it = g.content.items[q.params.item].build;
+      const map = g.maps.get(A.def(wh).map);
+      const cover = (x, y) => map.props.some((p) => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h) || (map.def.keepClear || []).some(([kx, ky]) => kx === x && ky === y);
+      const cell = firstFreeCell(it.w, it.h, map.width, map.height, (x, y) => map.inBounds(x, y) && map.grid[y][x] === 'g', (x, y) => map.inBounds(x, y) && cover(x, y));
+      const name = this.planName(q);
+      if (!cell) { if (q.blocked !== 'full') { q.blocked = 'full'; this.log({ type: 'failed', kind: 'expand', employer: 'arms', text: `${name} is on the dock but the works has no free place for it.` }); } continue; }
+      const r = A.place(wh, q.params.item, cell.x, cell.y, 0, dock);
+      if (!r.ok) { if (q.blocked !== r.text) { q.blocked = r.text; this.log({ type: 'failed', kind: 'expand', employer: 'arms', text: `${name} could not be placed: ${r.text}` }); } continue; }
+      q.placed += 1; delete q.blocked;
+      let said = '';
+      if (q.params.recipe) { const rr = A.setRecipe(r.entity.id, q.params.recipe); said = rr.ok ? ` and set to make ${g.content.items[A.cfg.recipes[q.params.recipe].out].name}` : ` (the recipe could not be set: ${rr.text || 'not researched'})`; }
+      this.log({ type: 'done', kind: 'expand', employer: 'arms', text: `${name} placed at (${cell.x}, ${cell.y})${said}. It needs a worker assigned.` });
+    }
+  }
+
+  // ------------------------------------------------------------- the decision
+  catOf(kind) { return { hire: 'hiring', bid: 'contracts', expand: 'expansion' }[kind] || 'materials'; }
+
+  /** What a decision could be now: [{ item, cost, ... }]; the first is the one made. Nothing changes. */
+  candidates(kind, target, x) {
+    if (kind === 'reorder') { const c = (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0); return c > 0 ? [{ item: null, cost: c }] : []; }
+    if (kind === 'hire') { const h = this.planHire(target, x); return h ? [{ item: null, cost: h.cost }] : []; }
+    if (kind === 'bid') return this.planBids();
+    return this.planExpansion(target);
+  }
+
+  /** The text of what was done or asked, by kind. */
+  verb(kind) { return { reorder: 'reorder', hire: 'hire', bid: 'bid', expand: 'expand' }[kind]; }
+
+  /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
+  decide(kind, target, x, { owner = false, item = undefined } = {}) {
     const m = this.ensure();
     const cat = this.catOf(kind);
-    const key = `${kind}|${target}`;
-    const cost = this.quote(kind, target, x);
-    if (cost <= 0) return { verdict: 'none' };
-    const j = this.judgeFor(x, kind, target, cat, cost, { owner });
+    const all = this.candidates(kind, target, x);
+    let cand;
+    const judgeOf = (c) => this.judgeFor(x, kind, target, cat, c.cost, { owner, ask: c.ask || null, reserve: c.reserve || 0 });
+    if (item !== undefined) cand = all.find((c) => c.item === item);
+    else cand = all.find((c) => judgeOf(c).verdict !== 'refuse') || all[0];
+    if (!cand) return { verdict: 'none' };
+    const cost = cand.cost;
+    const key = `${kind}|${target}${cand.item ? `|${cand.item}` : ''}`;
+    const j = judgeOf(cand);
     const who = `${x.name} (${ROLES[x.role].name})`;
+    const at = this.Pe.employerName(target);
     if (j.verdict === 'refuse') {
-      if (m.last.refused[key] !== j.reason) { m.last.refused[key] = j.reason; this.log({ type: 'refused', kind, employer: target, actor: x.id, cost, text: `${who} did not ${kind === 'hire' ? 'hire' : 'reorder'} for ${this.Pe.employerName(target)}: ${j.reason}` }); }
+      if (m.last.refused[key] !== j.reason) { m.last.refused[key] = j.reason; this.log({ type: 'refused', kind, employer: target, actor: x.id, cost, text: `${who} did not ${this.verb(kind)} for ${at}${cand.desc ? ` (${cand.desc})` : ''}: ${j.reason}` }); }
       return { ...j, cost };
     }
     if (j.verdict === 'queue') {
       if (m.pending.some((q) => q.key === key)) return { verdict: 'pending', cost };
       if (m.pending.length >= MGMT.maxPending) return { verdict: 'refuse', reason: 'Too many requests are waiting for you.', cost };
-      const q = { id: `req_${m.nextId++}`, key, kind, employer: target, actor: x.id, cost, day: this.day, why: j.reason };
+      const q = { id: `req_${m.nextId++}`, key, kind, employer: target, actor: x.id, cost, day: this.day, why: j.reason, ...(cand.item ? { item: cand.item, desc: cand.desc } : {}) };
       m.pending.push(q);
-      this.log({ type: 'queued', kind, employer: target, actor: x.id, cost, text: `${who} asks to ${kind === 'hire' ? 'hire' : 'reorder'} for ${this.Pe.employerName(target)}, ${cost.toLocaleString()} obols. ${j.reason}` });
-      this.g.notify?.(`${x.name} is waiting for your approval: ${kind === 'hire' ? 'a hire' : 'a reorder'} at ${this.Pe.employerName(target)} (${cost.toLocaleString()} obols).`, 'info');
+      this.log({ type: 'queued', kind, employer: target, actor: x.id, cost, text: `${who} asks to ${this.verb(kind)} for ${at}${cand.desc ? ` (${cand.desc})` : ''}, ${cost.toLocaleString()} obols. ${j.reason}` });
+      this.g.notify?.(`${x.name} is waiting for your approval: ${this.verb(kind)} at ${at} (${cost.toLocaleString()} obols).`, 'info');
       return { ...j, cost, request: q };
     }
     delete m.last.refused[key];
-    const r = kind === 'reorder' ? this.doReorder(target, x) : this.doHire(target, x);
+    const r = this.carryOut(kind, target, x, cand);
     if (!r.ok) { this.log({ type: 'failed', kind, employer: target, actor: x.id, cost, text: `${who}: ${r.text}` }); return { verdict: 'failed', text: r.text, cost }; }
-    const spend = kind === 'hire' ? cost : r.paid;
+    const spend = kind === 'hire' || kind === 'bid' ? cost : r.paid;
     this.note(target, cat, spend);
     if (kind === 'hire') { const h = (m.hires[target] ||= { m: this.month, n: 0 }); if (h.m !== this.month) { h.m = this.month; h.n = 0; } h.n++; }
-    else this.K.noteActor(target, x.id, r.paid);
+    else if (kind !== 'bid') this.K.noteActor(target, x.id, r.paid);
     this.log({ type: owner ? 'approved' : 'done', kind, employer: target, actor: x.id, cost: spend, text: `${who}: ${r.text}` });
     return { verdict: 'execute', cost: spend, text: r.text };
+  }
+
+  carryOut(kind, target, x, cand) {
+    if (kind === 'reorder') return this.doReorder(target, x);
+    if (kind === 'hire') return this.doHire(target, x);
+    if (kind === 'bid') {
+      const r = this.g.aero.placeBid(this.g.aero.roost.id, cand.item, cand.price, cand.days);
+      return { ok: r.ok, paid: 0, text: r.text };
+    }
+    const before = this.g.corp.cashOf(target);
+    const r = cand.run();
+    if (!r.ok) return { ok: false, paid: 0, text: r.text };
+    cand.plan.bought += 1;
+    return { ok: true, paid: Math.max(0, before - this.g.corp.cashOf(target)) || cand.cost, text: r.text };
   }
 
   // ------------------------------------------------------------- the owner's side
@@ -40878,7 +41135,7 @@ class Management {
     m.pending = m.pending.filter((r) => r !== q);
     const x = this.Pe.person(q.actor);
     if (!x || x.status !== 'active' || !this.mayDecide(x, q.kind, q.employer)) { this.log({ type: 'failed', kind: q.kind, employer: q.employer, actor: q.actor, text: 'Request lapsed: the person no longer holds that job.' }); return { ok: false, text: 'They no longer hold that job.' }; }
-    const r = this.decide(q.kind, q.employer, x, { owner: true });
+    const r = this.decide(q.kind, q.employer, x, { owner: true, item: q.item || (q.kind === 'bid' || q.kind === 'expand' ? undefined : null) });
     if (r.verdict === 'execute') return { ok: true, text: r.text };
     if (r.verdict === 'none') { this.log({ type: 'failed', kind: q.kind, employer: q.employer, actor: q.actor, text: 'Request lapsed: it is no longer needed.' }); return { ok: false, text: 'It is no longer needed.' }; }
     return { ok: false, text: r.reason || r.text || 'It could not be done now.' };
@@ -40889,7 +41146,7 @@ class Management {
     const q = m?.pending.find((r) => r.id === id);
     if (!q) return { ok: false, text: 'That request is gone.' };
     m.pending = m.pending.filter((r) => r !== q);
-    this.log({ type: 'declined', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `You declined ${this.Pe.person(q.actor)?.name || 'a request'}'s ${q.kind === 'hire' ? 'hire' : 'reorder'} at ${this.Pe.employerName(q.employer)}.` });
+    this.log({ type: 'declined', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `You declined ${this.Pe.person(q.actor)?.name || 'a request'}'s ${this.verb(q.kind)} at ${this.Pe.employerName(q.employer)}.` });
     return { ok: true, text: 'Declined.' };
   }
 
@@ -40900,18 +41157,29 @@ class Management {
     if (!m || m.last.day >= this.day) return;
     m.last.day = this.day;
     const expired = m.pending.filter((q) => this.day - q.day >= MGMT.expireDays);
-    for (const q of expired) this.log({ type: 'expired', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `A ${q.kind === 'hire' ? 'hire' : 'reorder'} request at ${this.Pe.employerName(q.employer)} lapsed unanswered after ${MGMT.expireDays} days.` });
+    for (const q of expired) this.log({ type: 'expired', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `A ${this.verb(q.kind)} request at ${this.Pe.employerName(q.employer)} lapsed unanswered after ${MGMT.expireDays} days.` });
     m.pending = m.pending.filter((q) => !expired.includes(q));
+    this.placeStations(); // what a plan bought earlier goes in first
     for (const target of BUSINESSES) {
       if (!this.K.established(target) || !this.K.account(target).funded) continue;
-      for (const kind of ['reorder', 'hire']) {
+      for (const kind of KINDS[target]) {
         if (!this.budgetOf(target, this.catOf(kind))) continue;
         if (kind === 'reorder' && target === 'aerospace' && this.g.aero.roost?.autoProcure) continue; // auto-buy is the owner's own standing order, left as it is
-        if (kind === 'reorder' && !['arms', 'aerospace'].includes(target)) continue;
         const who = this.deciders(kind, target)[0];
         if (who) this.decide(kind, target, who);
       }
     }
+  }
+
+  /** The owner's minimum margin over cost for bids at a business (a percentage). Without one managers bid on nothing. */
+  setMargin(employer, pct) {
+    if (employer !== 'aerospace' || !this.K.established(employer)) return { ok: false, text: 'Managers bid only for the aerospace firm, once you own it.' };
+    pct = Number(pct);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 300) return { ok: false, text: 'A minimum margin is between 0% and 300% over cost.' };
+    const m = this.ensure();
+    m.margins[employer] = Math.round(pct * 10) / 10;
+    this.log({ type: 'budget', employer, text: `Minimum margin on bids at ${this.Pe.employerName(employer)} set to ${m.margins[employer]}% over cost.` });
+    return { ok: true, text: `Managers bid at ${m.margins[employer]}% over cost or more.` };
   }
 
   /** What wants the owner's attention: waiting requests, recent refusals, budgets nearly used or with no one to use them. */
@@ -40921,13 +41189,13 @@ class Management {
     const out = [];
     if (m.pending.length) out.push({ text: `${m.pending.length} request${m.pending.length === 1 ? ' is' : 's are'} waiting for you.`, advice: 'Approve or decline them below; they lapse after a week.' });
     for (const target of BUSINESSES) {
-      for (const kind of ['reorder', 'hire']) {
+      for (const kind of KINDS[target]) {
         const cat = this.catOf(kind);
         const cap = this.budgetOf(target, cat);
         if (!cap || !this.K.established(target)) continue;
         const name = this.Pe.employerName(target);
         if (!this.K.account(target).funded) out.push({ text: `${name} has a ${CATEGORIES[cat].name.toLowerCase()} budget but no account of its own.`, advice: 'Fund it: managers never spend your wallet.' });
-        else if (!this.deciders(kind, target).length && !(kind === 'reorder' && !['arms', 'aerospace'].includes(target))) out.push({ text: `${name}: nobody at work may decide ${kind === 'hire' ? 'hires' : 'reorders'}.`, advice: 'Hire the right manager, or the budget goes unused.' });
+        else if (!this.deciders(kind, target).length) out.push({ text: `${name}: nobody at work may decide ${this.verb(kind)}s${kind === 'bid' ? ' (they need the permission to sign contracts)' : kind === 'expand' ? ' (they need the permission to expand)' : ''}.`, advice: 'Hire the right manager or give them the permission, or the budget goes unused.' });
         if (this.spentIn(target, cat) >= cap * 0.8) out.push({ text: `${name}: ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget is used.`, advice: 'Raise the budget if more is wanted this month.' });
       }
     }
@@ -40935,7 +41203,7 @@ class Management {
     return out;
   }
 
-  /** What the app shows: everything a manager is asked to watch, and why nothing is happening where that is the case. */
+  /** What the app shows for one kind of decision at a business: the budget, what is used, and plain notes where nothing is happening. */
   status(target, kind) {
     const cat = this.catOf(kind);
     const out = { budget: this.budgetOf(target, cat), spent: this.spentIn(target, cat), notes: [] };
@@ -40943,7 +41211,9 @@ class Management {
     if (!this.K.account(target).funded) out.notes.push('Fund this business first: managers never spend your personal wallet.');
     if (!out.budget) out.notes.push('No monthly budget is set, so managers here may not spend.');
     if (kind === 'reorder' && target === 'aerospace' && this.g.aero.roost?.autoProcure) out.notes.push('Auto-buy is on: the firm buys for itself. Turn it off to have a manager buy within budget.');
-    if (!this.deciders(kind, target).length) out.notes.push(`Nobody at work who may decide ${kind === 'hire' ? 'hires' : 'reorders'} here.`);
+    if (kind === 'bid' && this.peek()?.margins.aerospace === undefined) out.notes.push('No minimum margin is set, so managers bid on nothing.');
+    if (kind === 'expand' && !this.plansOf(target).length) out.notes.push('No plan is approved, so managers build and buy nothing.');
+    if (!this.deciders(kind, target).length) out.notes.push(`Nobody at work who may decide ${this.verb(kind)}s here${kind === 'bid' ? ' (the permission to sign contracts is needed)' : kind === 'expand' ? ' (the permission to expand is needed)' : ''}.`);
     return out;
   }
 }
@@ -43386,6 +43656,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.64.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'By the Plan',
+    notes: [
+      'Managers can bid on aerospace tenders and expand a business — but only as you have said. For bids you set a minimum margin over cost; where a customer\'s ceiling is lower, the bid waits for your word (and is never made below cost). For expansion you approve a plan: what (an arms station in a works, a farm plot across the lane from yours, a port, an aerospace bay or facility), how many, the most to pay for each, and the cash to leave in the account. Where it goes is a fixed rule, and everything is paid from the business\'s own account, inside a monthly budget.',
+      'A manager needs the permission to sign contracts or to expand, set on their authority; nothing is bid or bought without a margin or a plan.',
+    ],
+  },
   {
     version: '0.63.0',
     date: '2026-10-29',
@@ -60843,11 +61123,12 @@ __m["src/ui/corpManage.js"] = (function () {
 // The Management app (v0.63.0): what managers may spend, what is waiting for your word, and what they have done.
 // Everything is read from game.corp.management and every button calls it; nothing is decided here.
 const { h } = __m["src/ui/panels.js"];
-const { CATEGORIES, MGMT } = __m["src/content/management.js"];
+const { CATEGORIES, MGMT, PLAN_TYPES } = __m["src/content/management.js"];
 const { ROLES } = __m["src/content/personnel.js"];
 
 const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
-const BUSINESSES = [['arms', ['materials', 'hiring']], ['aerospace', ['materials', 'hiring']], ['shipping', ['hiring']], ['farming', ['hiring']]];
+const BUSINESSES = [['arms', ['materials', 'hiring', 'expansion']], ['aerospace', ['materials', 'contracts', 'hiring', 'expansion']], ['shipping', ['hiring', 'expansion']], ['farming', ['hiring', 'expansion']]];
+const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand' };
 const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
 
 function manageApp(ui, body, open) {
@@ -60858,7 +61139,7 @@ function manageApp(ui, body, open) {
   if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
   const name = (e) => K.personnel.employerName(e);
 
-  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
+  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage, with the permissions to hire, sign contracts and expand), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
 
   const alerts = M.alerts();
   if (alerts.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Needs your attention'), h('div', { class: 'list' }, ...alerts.map((a) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'name' }, a.text), h('div', { class: 'desc' }, a.advice))))));
@@ -60881,7 +61162,7 @@ function manageApp(ui, body, open) {
     if (!K.established(id)) continue;
     const funded = K.account(id).funded;
     const rows = cats.map((cat) => {
-      const kind = cat === 'hiring' ? 'hire' : 'reorder';
+      const kind = KIND[cat];
       const st = M.status(id, kind);
       const box = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: st.budget, style: 'width:100px' });
       const who = M.deciders(kind, id).map((x) => `${x.name} (${ROLES[x.role].name})`);
@@ -60893,12 +61174,60 @@ function manageApp(ui, body, open) {
     list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, name(id), h('span', { class: `tag${funded ? ' good' : ''}` }, funded ? 'own account' : 'no account of its own')), ...rows)));
   }
   body.append(list);
+  if (K.established('aerospace')) {
+    const mg = M.peek()?.margins.aerospace;
+    const box = h('input', { type: 'number', class: 'debug-qty', min: 0, max: 300, step: 1, value: mg ?? 25, style: 'width:70px' });
+    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:8px' }, h('b', {}, 'Minimum margin on bids'), box, h('span', { class: 'muted' }, '% over cost'), h('button', { class: 'small', onclick: () => go(M.setMargin('aerospace', Number(box.value))) }, 'Set'),
+      h('span', { class: 'muted' }, mg === undefined ? 'None set: managers bid on nothing.' : `Bids go in at ${mg}% over cost; where the customer's ceiling is lower, the bid waits for you (never below cost).`)));
+  }
+
+  plans();
+
+  function plans() {
+    function planRow(q) {
+      const e = M.evalPlan(q);
+      const next = e.cost ? `Next: ${e.desc}, ${n(e.cost)} obols.` : e.why;
+      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+        h('div', { class: 'name' }, `${M.planName(q)} — up to ${q.limit}`, h('span', { class: 'tag' }, `${q.bought} bought`), h('span', { class: 'tag' }, `${n(q.maxEach)} at most each`)),
+        h('div', { class: 'desc' }, `${PLAN_TYPES[q.type].rule} Leaves ${n(q.reserve)} in the account. ${next}${q.blocked ? ` (${q.blocked})` : ''}`),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(M.removePlan(q.id)) }, 'Withdraw'))));
+    }
+    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Plans you have approved'));
+    const list = M.peek()?.plans || [];
+    if (!list.length) body.append(h('p', { class: 'muted' }, 'None. A plan names what a manager may build or buy, how many, and the most to pay for each; where it goes is a fixed rule. Without a plan, nothing is built or bought.'));
+    else body.append(h('div', { class: 'list' }, ...list.map(planRow)));
+    addForm();
+  }
+
+  function addForm() {
+    const owned = Object.entries(PLAN_TYPES).filter(([, T]) => K.established(T.business));
+    if (!owned.length) return;
+    const type = h('select', { class: 'debug-input', style: 'min-width:240px' }, ...owned.map(([id, T]) => h('option', { value: id }, T.name)));
+    const limit = h('input', { type: 'number', class: 'debug-qty', min: 1, max: 10, value: 1, style: 'width:60px' });
+    const maxEach = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 1000, value: 20000, style: 'width:100px' });
+    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: 20000, style: 'width:100px' });
+    const extra = h('span', { class: 'row', style: 'gap:6px;flex-wrap:wrap' });
+    const rule = h('div', { class: 'desc' });
+    const field = {};
+    const mk = (k, opts) => { field[k] = h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v }, t))); return field[k]; };
+    const refill = () => {
+      extra.replaceChildren(); Object.keys(field).forEach((k) => delete field[k]);
+      const t = type.value;
+      rule.textContent = PLAN_TYPES[t].rule;
+      if (t === 'arms_station') extra.append(mk('works', g.arms.ownedIds().map((w) => [w, g.arms.def(w).name])), mk('item', Object.entries(g.content.items).filter(([, it]) => it.build?.domain === 'arms' && it.build.type === 'machine').map(([id, it]) => [id, it.name])), mk('recipe', [['', 'no recipe set'], ...Object.entries(g.arms.cfg.recipes).map(([id, r]) => [id, `${g.content.items[r.out].name} (${r.station})`])]));
+      if (t === 'aero_bay') extra.append(mk('bay', Object.entries(g.aero.cfg.bays).map(([id, B]) => [id, B.name])));
+      if (t === 'aero_facility') extra.append(mk('facility', Object.entries(g.aero.cfg.facilities).filter(([, F]) => F.build).map(([id, F]) => [id, F.name])));
+    };
+    type.addEventListener('change', refill); refill();
+    body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Approve a plan'), h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, type, extra, h('span', { class: 'muted' }, 'up to'), limit, h('span', { class: 'muted' }, 'at most'), maxEach, h('span', { class: 'muted' }, 'each, leaving'), reserve, h('span', { class: 'muted' }, 'in the account'),
+      h('button', { class: 'small primary', onclick: () => go(M.addPlan({ type: type.value, limit: Number(limit.value), maxEach: Number(maxEach.value), reserve: Number(reserve.value), ...Object.fromEntries(Object.entries(field).map(([k, el]) => [k, el.value])) })) }, 'Approve plan')), rule);
+  }
 
   const log = (m?.log || []).slice(-15).reverse();
   body.append(h('h3', { style: 'margin:12px 0 4px' }, 'What they have done'));
   if (!log.length) body.append(h('p', { class: 'muted' }, 'Nothing yet.'));
   else body.append(h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${LABEL[l.type] || l.type}: ${l.text}`))))));
-  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one reorder and one hire decision a day, at about 06:00, and a manager makes at most two hires a month at a business. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
+  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one decision of each kind a day, at about 06:00; a manager makes at most two hires a month at a business and a bid counts the cost of the work it would commit against its budget. A plan buys one at a time, next to what you own and at the first free place by a fixed rule; a station that arrives is placed from the dock but needs a worker you assign. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
 }
 
 return { manageApp };

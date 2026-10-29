@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.64.0 | 2026-10-29 | development | 1 | By the plan: managers bid on aerospace tenders at the owner's minimum margin over cost, and expand from plans the owner approves (an arms station, a farm plot, a port, an aerospace bay or facility) — a fixed rule for where, paid from the business's own account inside a monthly budget |
 | 0.63.0 | 2026-10-29 | development | 1 | Within limits: managers reorder parts and materials and fill jobs on their own, inside a monthly budget per business and category, their own spending and ask-above limits and a business account of its own; what is above the ask-above limit waits on the Management tab and is judged again when approved |
 | 0.62.0 | 2026-10-29 | development | 1 | Good help: a market of about two dozen people for hire, executives for the parent company and managers and staff for each business, paid every day from their employer's own cash, whose skills grow from results and who lower one real cost or raise one real result each, within a ceiling; the Personnel tablet app |
 | 0.61.1 | 2026-10-29 | development | 1 | Under one roof, checked: a closed account reconciles again after leaving and rejoining a group, the parent's books let go of a business that leaves, and the loan rate can be set |

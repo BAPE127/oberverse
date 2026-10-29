@@ -249,8 +249,8 @@ export class Arms extends Factory {
     for (const id of Object.keys(this.defs())) if (this.game.maps.get(this.def(id).map)) this.refreshSpots(id);
   }
 
-  place(whId, itemId, x, y, dir) {
-    const r = super.place(whId, itemId, x, y, dir);
+  place(whId, itemId, x, y, dir, from = null) {
+    const r = super.place(whId, itemId, x, y, dir, from);
     if (r.ok) this.refreshSpots(whId);
     return r;
   }

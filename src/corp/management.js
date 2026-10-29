@@ -17,6 +17,8 @@ export function judge(d) {
   if (!d.atWork) return no('They are not at work and paid.');
   if (!d.allowed) return no('Their job does not make this kind of decision.');
   if (d.kind === 'hire' && !d.canHire) return no('They are not authorised to hire.');
+  if (d.kind === 'bid' && !d.canContract) return no('They are not authorised to sign contracts.');
+  if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (!(d.cost > 0)) return no('There is nothing to spend.');
   if (d.kind === 'hire' && d.hiresLeft <= 0) return no('The most hires a month has been made.');
@@ -26,6 +28,7 @@ export function judge(d) {
   if (d.cost > left) return no(`It would pass the monthly budget (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
   if (d.cost > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}.`);
   if (!d.affordable) return no('The business\'s account cannot cover it.');
+  if (!d.owner && d.ask) return { verdict: 'queue', reason: d.ask };
   if (!d.owner && d.cost > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking.` };
   return { verdict: 'execute', reason: '' };
 }
@@ -65,4 +68,55 @@ export function hireChoice(cands, tier) {
   const own = cands.filter((c) => c.tier === tier);
   const pool = own.length ? own : cands;
   return [...pool].sort((a, b) => b.fit - a.fit || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] || null;
+}
+
+// ------------------------------------------------------------------ bids and expansion (v0.64.0)
+
+/** Tiles between two rectangles { x, y, w, h }: 0 where they touch or overlap. */
+export function rectGap(a, b) {
+  const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+  const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+  return Math.max(dx, dy);
+}
+
+/** The cheapest plot for sale next to one already owned (ties by id); nobody owns none, so a first plot is never chosen. */
+export function nextPlot(plots, owned, maxGap) {
+  const mine = plots.filter((p) => owned.includes(p.id));
+  if (!mine.length) return null;
+  return plots.filter((p) => !owned.includes(p.id) && mine.some((m) => rectGap(m.rect, p.rect) <= maxGap))
+    .sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0] || null;
+}
+
+/** The cheapest port for sale (ties by id). */
+export function nextPort(ports, owned) {
+  return ports.filter((p) => !owned.includes(p.id)).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0] || null;
+}
+
+/** The first cell, row by row, where a w×h item fits on the floor with a ring of cells around it free of anything built. */
+export function firstFreeCell(w, h, W, H, floor, taken) {
+  for (let y = 0; y + h <= H; y++) {
+    for (let x = 0; x + w <= W; x++) {
+      let ok = true;
+      for (let yy = y - 1; yy <= y + h && ok; yy++) {
+        for (let xx = x - 1; xx <= x + w && ok; xx++) {
+          const inside = xx >= x && xx < x + w && yy >= y && yy < y + h;
+          if (inside) { if (!floor(xx, yy) || taken(xx, yy)) ok = false; } else if (taken(xx, yy)) ok = false;
+        }
+      }
+      if (ok) return { x, y };
+    }
+  }
+  return null;
+}
+
+/**
+ * A bid: the price is the owner's minimum margin over the unit's cost (the floor), rounded up to 100.
+ * Over the customer's ceiling it can only be bid at the ceiling — below the floor, which the owner must approve;
+ * and never below cost. tender: { ceiling }, q: { cost } (per unit).
+ */
+export function bidPrice(cost, marginPct, ceiling) {
+  const floor = Math.ceil((cost * (1 + marginPct / 100)) / 100) * 100;
+  if (floor <= ceiling) return { price: floor, below: false };
+  if (ceiling < cost) return { price: null, below: true, why: 'the customer\'s ceiling is below what it would cost' };
+  return { price: ceiling, below: true };
 }

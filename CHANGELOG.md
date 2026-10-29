@@ -2,6 +2,33 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.64.0] — 2026-10-29 — By the Plan (development build)
+
+Stage 7 (second half) of the Corporate Empire brief (docs/CORPORATE.md): managers bidding on contracts and expanding from pre-approved plans, by the same judgement and limits as before.
+
+### Added — contract bids (aerospace)
+- **The owner's minimum margin** (Management tab): a percentage over cost, per business. **Without one managers bid on nothing.**
+- A sales manager, general manager or aerospace operations manager **with the permission to sign contracts** picks the open tender with the best profit that the firm can build, and **bids at cost plus the margin** (rounded up to 100), through `aerospace.placeBid` — so every rule of the tender (quality, clearance, reputation, delivery days, the five-aircraft rule) still holds. Where the customer's ceiling is **below** the margin the bid is **queued for you** and, when approved, is placed at the ceiling; where the ceiling is below cost it is never bid or asked. Bids are sealed and final, one each.
+- A bid costs no money; what it **commits** (the cost of the work if it wins) counts against a monthly **Contract bids** budget and the person's limits. At most three contracts and open bids at a time. The quote is pure: planning moves no RNG and no supplier stock.
+
+### Added — plans and expansion
+- **Plans you approve** (Management tab): a type, how many (1–10), the most to pay for each, and the cash that must be left in the account afterwards. Twelve at most; withdrawable. Types and their fixed rules: **arms station** (ordered through the works's own order, so the price and delivery are the arms system's; when it reaches the dock it is placed at the first free cell of the works floor, row by row, with a clear ring around it and power for it; an optional recipe is set; **no worker is assigned: that stays yours**); **farm plot** (the cheapest plot for sale up to eight tiles — a lane — from one you already own; never your first); **port** (the cheapest port for sale, up to the port limit); **aerospace bay** (the first free slot in a hall you have built; never builds a hall); **aerospace facility** (a named one, if not built or under construction).
+- A manager **with the permission to expand** (general manager; manufacturing, farm, logistics or aerospace operations manager for their own business) buys the next item of a plan once a day at most, one at a time, from the business's own account, inside a monthly **Expansion** budget, the price limit, the reserve and their own limits; a purchase above their ask-above limit waits for you.
+
+### Changed
+- The judgement has two more permissions (sign contracts, expand) and a reason to ask even within the limits (a bid below the margin); `owner: true` lifts it. Decisions now carry an item (a tender, a plan), so a request is per tender or plan and is judged again at approval.
+- Arms `place` and the factory's accept a container to take the item from (the works's dock) instead of your pockets; with none, they act as before.
+- Authority text in the Personnel app now says what the permissions do.
+
+### Save
+- `world.corp.management` gains `margins`, `plans` (`type`, `params`, `limit`, `maxEach`, `reserve`, `bought`, `placed`) and `nextPlan`; a v0.63 save gains them when first used. Nothing is bid or bought by loading. No schema change (still 1).
+
+### Tests
+- New: `management_plans` (13): the pure rules (bid price and floor, plot, port and free-cell rules, the two permissions and the owner lifting a queued bid), bids (margin, budget, permission, one at a time, open limit, queue and approval at the ceiling, never below cost, nothing drawn and nothing moved by planning), plan validation, a farm plot (cheapest next to yours, from the farm's account, limit, reserve, budget, permission, never the first), a port, an aerospace facility and bay, an arms station (ordered, delivered, placed from the dock, the recipe set, no worker, one at a time, power and no-free-place logged once), saves, and nothing happening when nothing is authorised. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Bids are aerospace only; shipping contracts and arms purchase orders are not decided by managers; no expansion of a hall, a ship, or a farm's fences, crops or animals; no selling or closing anything.
+
 ## [0.63.0] — 2026-10-29 — Within Limits (development build)
 
 Stage 7 (first half) of the Corporate Empire brief (docs/CORPORATE.md): managers deciding for themselves, inside limits the owner sets. Contract bids and expansion from pre-approved plans are the second half (next release).

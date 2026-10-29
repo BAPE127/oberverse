@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.64.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'By the Plan',
+    notes: [
+      'Managers can bid on aerospace tenders and expand a business — but only as you have said. For bids you set a minimum margin over cost; where a customer\'s ceiling is lower, the bid waits for your word (and is never made below cost). For expansion you approve a plan: what (an arms station in a works, a farm plot across the lane from yours, a port, an aerospace bay or facility), how many, the most to pay for each, and the cash to leave in the account. Where it goes is a fixed rule, and everything is paid from the business\'s own account, inside a monthly budget.',
+      'A manager needs the permission to sign contracts or to expand, set on their authority; nothing is bid or bought without a margin or a plan.',
+    ],
+  },
+  {
     version: '0.63.0',
     date: '2026-10-29',
     channel: 'development',

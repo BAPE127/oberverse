@@ -199,12 +199,14 @@ export class Factory {
   }
 
   /** Place a machine/belt/inserter/generator item from your inventory. */
-  place(whId, itemId, x, y, dir = 0) {
+  place(whId, itemId, x, y, dir = 0, from = null) {
     const g = this.game;
     const item = g.content.items[itemId];
     if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
     if (!this.owns(whId)) return { ok: false, text: 'This isn\'t your warehouse.' };
-    if (!g.inventory.count(itemId)) return { ok: false, text: `You don't have a ${item.name}.` };
+    // `from`: a container (the works's loading dock) to take it from instead of your pockets — a manager's placement
+    const source = from ? g.world.containers[from] : null;
+    if (from ? !(source?.items[itemId] > 0) : !g.inventory.count(itemId)) return { ok: false, text: from ? `There is no ${item.name} on the dock.` : `You don't have a ${item.name}.` };
     const { type, kind, w = 1, h = 1, cap, filter } = item.build;
     const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
     if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
@@ -225,7 +227,7 @@ export class Factory {
     if (type === 'machine') Object.assign(e, { kind, in: {}, out: {}, progress: 0, setting: this.initialSetting(kind), interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
     if (type === 'generator') e.interact = { kind: this.kind, action: 'entity', warehouse: whId, name: 'generator' };
     if (type === 'belt') e.carry = null;
-    g.inventory.remove(itemId, 1);
+    if (from) { source.items[itemId] -= 1; if (!source.items[itemId]) delete source.items[itemId]; } else g.inventory.remove(itemId, 1);
     wh.entities.push(e);
     g.maps.get(this.def(whId).map).addProp(e);
     this.cache.delete(whId);
