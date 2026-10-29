@@ -38827,7 +38827,7 @@ class Corporate {
   hqOf(id) {
     const g = this.game;
     switch (id) {
-      case 'arms': { const w = g.arms.ownedIds()[0]; return w ? g.arms.def(w).name : '—'; }
+      case 'arms': { const w = g.arms.ownedIds()[0]; return w ? g.arms.def(w).name : 'no works yet'; }
       case 'shipping': return g.logistics.owned ? g.logistics.port(g.logistics.L.homePort)?.name || '—' : '—';
       case 'aerospace': return g.aero.owned ? 'Starling Flats' : '—';
       case 'farming': { const p = g.farm.owned()[0]; return p ? g.farm.plotDef(p).name : '—'; }
@@ -57677,7 +57677,7 @@ function corpNamePanel(ui, body, opts) {
   const input = h('input', { type: 'text', class: 'debug-input', value: C.name, maxlength: 40, style: 'width:100%;font-size:18px' });
   const done = () => ui.closePanel();
   body.append(
-    h('p', { class: 'doc' }, `${PLAYER_COMPANIES[id].icon} You now run a ${PLAYER_COMPANIES[id].kind.toLowerCase()}. What is it called?`),
+    h('p', { class: 'doc' }, `${PLAYER_COMPANIES[id].icon} Your ${PLAYER_COMPANIES[id].kind.toLowerCase()} is founded. What is it called?`),
     input, msg,
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
       h('button', { class: 'primary', onclick: () => { const r = g.corp.rename(id, input.value); if (r.ok) { ui.audio.sfx('sfx_coin'); done(); } else { msg.textContent = r.text; msg.className = 'neg'; ui.audio.sfx('sfx_fail'); } } }, 'Register this name'),
