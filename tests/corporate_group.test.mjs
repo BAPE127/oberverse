@@ -296,3 +296,32 @@ test('an old save has no parent, no group, and nothing consolidated', () => {
   assert.deepEqual(g.corp.group.members(), []);
   for (const id of ['arms', 'shipping', 'aerospace', 'farming']) assert.equal(g.corp.group.isSub(id), false);
 });
+
+test('leaving, closing the account and funding or joining again keeps every account reconciled, and the parent\'s books let go of what left', () => {
+  const g = empire(1215);
+  g.corp.group.form();
+  g.corp.contribute('parent', 800_000);
+  const inKind0 = g.corp.account('parent').inKind;
+  assert.ok(g.corp.group.join('farming', { opening: 100_000 }).ok);
+  assert.ok(g.corp.account('parent').inKind > inKind0, 'brought in');
+  assert.ok(g.corp.group.spinOut('farming').ok);
+  assert.equal(g.corp.account('parent').inKind, inKind0, 'and it left the parent\'s books when the business left');
+  assert.ok(g.corp.unfund('farming').ok, 'closing the account returns its cash');
+  const a = g.corp.account('farming');
+  assert.deepEqual([a.xferIn, a.xferOut, a.cash], [0, 0, 0]);
+  assert.ok(g.corp.reconciles());
+  assert.ok(g.corp.contribute('farming', 50).ok);
+  assert.ok(g.corp.reconciles(), 'funded again, from nothing');
+  assert.ok(g.corp.unfund('farming').ok);
+  assert.ok(g.corp.group.join('farming', { opening: 20_000 }).ok);
+  assert.ok(g.corp.reconciles(), 'joined again');
+  assert.equal(g.corp.account('farming').cash, 20_000);
+});
+
+test('a loan\'s rate can be set, within 0 to 25% a year', () => {
+  const g = empire(1216);
+  g.corp.group.form(); g.corp.contribute('parent', 500_000); g.corp.group.join('farming');
+  assert.equal(g.corp.group.lend('farming', 1000, { termMonths: 6, rate: 0.021 }).loan.rate, 0.021);
+  assert.ok(!g.corp.group.lend('farming', 1000, { rate: 0.3 }).ok);
+  assert.ok(!g.corp.group.lend('farming', 1000, { rate: -0.01 }).ok);
+});

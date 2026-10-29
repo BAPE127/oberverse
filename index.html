@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.61.0';
+const GAME_VERSION = '0.61.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -39367,7 +39367,8 @@ class Group {
     const inv = this.parent.investments[id] || { brought: 0, capital: 0 };
     const pa = K.account('parent');
     const handed = Math.round(inv.brought + inv.capital);
-    // an in-kind return: no cash moves, and the parent's cash is untouched
+    // an in-kind return: no cash moves, and the parent's cash is untouched — but what it counted as brought in leaves its books
+    pa.inKind = Math.max(0, pa.inKind - Math.round(inv.brought));
     logLine(pa, { day: this.day, type: 'in-kind-out', amount: handed, memo: `${K.nameOf(id)} returned to the owner` });
     this.st.ownership = this.st.ownership.filter((e) => e.sub !== id);
     delete this.parent.investments[id];
@@ -40028,7 +40029,7 @@ class Corporate {
     if (a.cash > 0) { const r = this.distribute(id, a.cash, 'Account closed'); if (!r.ok) return r; }
     a.funded = false;
     // the cash story starts again, so a later funding reconciles from nothing
-    a.contributed = 0; a.distributed = 0; a.flowIn = 0; a.flowOut = 0;
+    a.contributed = 0; a.distributed = 0; a.flowIn = 0; a.flowOut = 0; a.xferIn = 0; a.xferOut = 0;
     logLine(a, { day: this.game.clock.day, type: 'closed', amount: 0, memo: 'Own account closed — the business draws on the owner again' });
     return { ok: true, text: 'The company\'s own account is closed.' };
   }
@@ -42239,6 +42240,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.61.1',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Under One Roof, Checked',
+    notes: [
+      'Fixes after a review of the group: a business that leaves a group and has its account closed reconciles properly if it is funded or joined again, the parent\'s books let go of a business that leaves, and the loan rate in the Group app can now be set.',
+    ],
+  },
   {
     version: '0.61.0',
     date: '2026-10-29',
@@ -59392,6 +59402,7 @@ function groupApp(ui, body, open) {
     const pol = G.policyOf(id);
     const loans = G.loansOf(id);
     const cap = amount(10000); const loanAmt = amount(50000); const months = h('input', { type: 'number', class: 'debug-qty', min: 1, max: 60, value: 12, style: 'width:60px' });
+    const rate = h('input', { type: 'number', class: 'debug-qty', min: 0, max: 25, step: 0.1, value: +(G.defaultRate() * 100).toFixed(1), style: 'width:64px' });
     const up = amount(5000); const over = h('input', { type: 'checkbox' });
     const own$ = S.policy === id;
     list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, I.icon),
@@ -59399,7 +59410,7 @@ function groupApp(ui, body, open) {
         h('div', { class: 'name' }, p.name, h('span', { class: 'tag good' }, 'subsidiary'), P.policies[id] ? h('span', { class: 'tag' }, 'own policy') : null),
         h('div', { class: 'desc' }, `Cash ${n(a.cash)}${a.arrears ? ` · OWES ${n(a.arrears)}` : ''} · spends about ${n(G.runningPerDay(id))} a day · parent put in ${n(P.investments[id]?.capital)} (brought in at ${n(P.investments[id]?.brought)}) · owes the parent ${n(G.payableOf(id))}`),
         h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, cap, h('button', { class: 'small primary', onclick: () => go(G.capitalise(id, val(cap))) }, 'Capitalise'), h('button', { class: 'small', onclick: () => go(G.returnCapital(id, val(cap))) }, 'Return capital')),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, loanAmt, months, h('span', { class: 'muted' }, 'months at'), h('span', { class: 'muted' }, `${(G.defaultRate() * 100).toFixed(1)}%`), h('button', { class: 'small', onclick: () => go(G.lend(id, val(loanAmt), { termMonths: Number(months.value) })) }, 'Lend')),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, loanAmt, months, h('span', { class: 'muted' }, 'months at'), rate, h('span', { class: 'muted' }, '% a year'), h('button', { class: 'small', onclick: () => go(G.lend(id, val(loanAmt), { termMonths: Number(months.value), rate: Number(rate.value) / 100 })) }, 'Lend')),
         h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, up, h('button', { class: 'small', onclick: () => go(G.distributeNow(id, val(up), { override: over.checked })) }, 'Send up now'), h('label', { class: 'muted' }, over, ' override protected liquidity'), h('button', { class: 'small', onclick: () => view({ policy: own$ ? null : id }) }, own$ ? 'Close policy' : `Policy (keep ${n(pol.targetReserve)}, send ${pol.distributePct}%)`), h('button', { class: 'small ghost', onclick: () => go(G.spinOut(id)) }, 'Leave the group')),
         ...loans.map((l) => { const r = amount(l.outstanding); return h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('span', { class: 'muted' }, `Loan ${l.id}: ${n(l.outstanding)} of ${n(l.principal)} at ${(l.rate * 100).toFixed(1)}%, ${n(l.instalment)} a month${l.missed ? `, ${l.missed} missed` : ''}`), r, h('button', { class: 'small', onclick: () => go(G.repayLoan(l.id, val(r))) }, 'Repay')); }),
         own$ ? policyEditor(G, id, pol, go) : null)));

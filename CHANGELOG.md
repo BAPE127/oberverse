@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.61.1] — 2026-10-29 — Under One Roof, checked (development build)
+
+A patch to 0.61.0 after an independent review of the release.
+
+### Fixed
+- **Closing a company's account left its group transfer counters behind**, so a business that had left the group, closed its account and was funded or joined again would no longer reconcile with its own history. They are reset with the rest.
+- **A business that left the group stayed in the parent's books** as an in-kind contribution (`inKind`), overstating the parent's ledger. It leaves them when the business does.
+- **The Lend row in the Group app showed the loan rate as fixed text** though the release notes said it could be set. It is now a field (0–25% a year; it starts at the benchmark plus a point).
+
+### Verified
+- A 20-day run of all four businesses on the current code is identical, line for line, to v0.59.0's (the daily-bills refactor in aerospace and the group's monthly hook run for every player).
+
+### Tests
+- New in `corporate_group` (2): leaving → closing the account → funding or joining again stays reconciled and the parent's books let go of what left; a loan's rate can be set within bounds.
+
 ## [0.61.0] — 2026-10-29 — Under One Roof (development build)
 
 Stage 5 of the Corporate Empire brief (docs/CORPORATE.md): a parent company, subsidiaries with their own books and cash, money that moves between them on the record, and statements that take the internal dealings out.

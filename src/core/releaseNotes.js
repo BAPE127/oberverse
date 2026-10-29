@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.61.1',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Under One Roof, Checked',
+    notes: [
+      'Fixes after a review of the group: a business that leaves a group and has its account closed reconciles properly if it is funded or joined again, the parent\'s books let go of a business that leaves, and the loan rate in the Group app can now be set.',
+    ],
+  },
+  {
     version: '0.61.0',
     date: '2026-10-29',
     channel: 'development',

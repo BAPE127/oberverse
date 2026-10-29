@@ -155,7 +155,8 @@ export class Group {
     const inv = this.parent.investments[id] || { brought: 0, capital: 0 };
     const pa = K.account('parent');
     const handed = Math.round(inv.brought + inv.capital);
-    // an in-kind return: no cash moves, and the parent's cash is untouched
+    // an in-kind return: no cash moves, and the parent's cash is untouched — but what it counted as brought in leaves its books
+    pa.inKind = Math.max(0, pa.inKind - Math.round(inv.brought));
     logLine(pa, { day: this.day, type: 'in-kind-out', amount: handed, memo: `${K.nameOf(id)} returned to the owner` });
     this.st.ownership = this.st.ownership.filter((e) => e.sub !== id);
     delete this.parent.investments[id];

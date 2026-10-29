@@ -202,7 +202,7 @@ export class Corporate {
     if (a.cash > 0) { const r = this.distribute(id, a.cash, 'Account closed'); if (!r.ok) return r; }
     a.funded = false;
     // the cash story starts again, so a later funding reconciles from nothing
-    a.contributed = 0; a.distributed = 0; a.flowIn = 0; a.flowOut = 0;
+    a.contributed = 0; a.distributed = 0; a.flowIn = 0; a.flowOut = 0; a.xferIn = 0; a.xferOut = 0;
     logLine(a, { day: this.game.clock.day, type: 'closed', amount: 0, memo: 'Own account closed — the business draws on the owner again' });
     return { ok: true, text: 'The company\'s own account is closed.' };
   }

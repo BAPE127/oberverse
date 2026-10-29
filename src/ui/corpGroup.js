@@ -63,6 +63,7 @@ export function groupApp(ui, body, open) {
     const pol = G.policyOf(id);
     const loans = G.loansOf(id);
     const cap = amount(10000); const loanAmt = amount(50000); const months = h('input', { type: 'number', class: 'debug-qty', min: 1, max: 60, value: 12, style: 'width:60px' });
+    const rate = h('input', { type: 'number', class: 'debug-qty', min: 0, max: 25, step: 0.1, value: +(G.defaultRate() * 100).toFixed(1), style: 'width:64px' });
     const up = amount(5000); const over = h('input', { type: 'checkbox' });
     const own$ = S.policy === id;
     list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, I.icon),
@@ -70,7 +71,7 @@ export function groupApp(ui, body, open) {
         h('div', { class: 'name' }, p.name, h('span', { class: 'tag good' }, 'subsidiary'), P.policies[id] ? h('span', { class: 'tag' }, 'own policy') : null),
         h('div', { class: 'desc' }, `Cash ${n(a.cash)}${a.arrears ? ` · OWES ${n(a.arrears)}` : ''} · spends about ${n(G.runningPerDay(id))} a day · parent put in ${n(P.investments[id]?.capital)} (brought in at ${n(P.investments[id]?.brought)}) · owes the parent ${n(G.payableOf(id))}`),
         h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, cap, h('button', { class: 'small primary', onclick: () => go(G.capitalise(id, val(cap))) }, 'Capitalise'), h('button', { class: 'small', onclick: () => go(G.returnCapital(id, val(cap))) }, 'Return capital')),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, loanAmt, months, h('span', { class: 'muted' }, 'months at'), h('span', { class: 'muted' }, `${(G.defaultRate() * 100).toFixed(1)}%`), h('button', { class: 'small', onclick: () => go(G.lend(id, val(loanAmt), { termMonths: Number(months.value) })) }, 'Lend')),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, loanAmt, months, h('span', { class: 'muted' }, 'months at'), rate, h('span', { class: 'muted' }, '% a year'), h('button', { class: 'small', onclick: () => go(G.lend(id, val(loanAmt), { termMonths: Number(months.value), rate: Number(rate.value) / 100 })) }, 'Lend')),
         h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap' }, up, h('button', { class: 'small', onclick: () => go(G.distributeNow(id, val(up), { override: over.checked })) }, 'Send up now'), h('label', { class: 'muted' }, over, ' override protected liquidity'), h('button', { class: 'small', onclick: () => view({ policy: own$ ? null : id }) }, own$ ? 'Close policy' : `Policy (keep ${n(pol.targetReserve)}, send ${pol.distributePct}%)`), h('button', { class: 'small ghost', onclick: () => go(G.spinOut(id)) }, 'Leave the group')),
         ...loans.map((l) => { const r = amount(l.outstanding); return h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('span', { class: 'muted' }, `Loan ${l.id}: ${n(l.outstanding)} of ${n(l.principal)} at ${(l.rate * 100).toFixed(1)}%, ${n(l.instalment)} a month${l.missed ? `, ${l.missed} missed` : ''}`), r, h('button', { class: 'small', onclick: () => go(G.repayLoan(l.id, val(r))) }, 'Repay')); }),
         own$ ? policyEditor(G, id, pol, go) : null)));

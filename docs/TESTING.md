@@ -65,6 +65,11 @@
 
 Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp halvermouth` for combat; `money 1000` for shops and property; `time 22:00` for night lighting; `revive all` after combat tests; `god` to watch fights without dying; `npcs` to find someone. Saves made after using it carry `flags.debug_used = true`.
 
+## Verification record — v0.61.1 (2026-10-29)
+
+- `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
+- Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
 ## Verification record — v0.61.0 (2026-10-29)
 
 - `npm run check` — **684/684 tests passed** (43 new across `corporate_group`, `corporate_loans`, `corporate_consolidation`); the existing suite passes **unedited** after the account changes. `npm run smoke` — 26/26 (no new smoke checks this release; the Group app was checked by hand in the browser).

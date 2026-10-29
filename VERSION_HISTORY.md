@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.61.1 | 2026-10-29 | development | 1 | Under one roof, checked: a closed account reconciles again after leaving and rejoining a group, the parent's books let go of a business that leaves, and the loan rate can be set |
 | 0.61.0 | 2026-10-29 | development | 1 | Under one roof: a free parent company, subsidiaries with their own cash that are funded only through it, intercompany loans, distribution policies with protected liquidity, separate and consolidated statements that eliminate what is internal, and group value without double counting |
 | 0.60.1 | 2026-10-29 | development | 1 | Own account, checked: naval missions of a funded shipping company check its own cash; the wider world's saves are about 40% smaller; every funded-company path tested against the wallet |
 | 0.60.0 | 2026-10-29 | development | 1 | Own account: each of your four businesses is a company with a name and, if you fund it, its own cash; a registry of every company, about forty-five generated ones in ten sectors that share real demand with you, and rankings, figures and estimated values for all of them (the Intelligence and Companies apps) |
