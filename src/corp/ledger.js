@@ -26,7 +26,7 @@ const KINDS = {
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
     refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex',
   },
-  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other' },
+  in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other', internal: 'other' },
 };
 export const kindOf = (cat, dir) => KINDS[dir]?.[cat] || (dir === 'in' ? 'revenue' : 'opex');
 

@@ -16,7 +16,10 @@
 // save loads with every company unfunded and nothing moved (see src/corp/ledger.js).
 import { freshAccount, post, logLine, balanceOk } from '../corp/ledger.js';
 import { validateName, PLAYER_COMPANIES, SECTORS } from '../corp/identity.js';
-import { existingRows, countryName } from '../corp/registry.js';
+import { existingRows, countryName, countryIds } from '../corp/registry.js';
+import { CORP } from '../content/corporate.js';
+import { buildWorld, rebuildNamer, advance } from '../corp/generate.js';
+import { monthTotals } from '../corp/ledger.js';
 
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
 
@@ -213,6 +216,12 @@ export class Corporate {
     return Object.values(this.state.accounts).every(balanceOk);
   }
 
+  /** After a new game or a load: a record for each business already owned, and the wider world (once). */
+  afterLoad() {
+    this.ensureCompanies();
+    this.ensureWorld();
+  }
+
   // ------------------------------------------------------------- identity
   /** The name a business carries until its owner renames it (shipping and aerospace keep the names they were bought with). */
   defaultName(id) {
@@ -296,6 +305,83 @@ export class Corporate {
     return { ...c, kind: PLAYER_COMPANIES[id].kind, icon: PLAYER_COMPANIES[id].icon, sectorName: SECTORS[c.sector].name, hq: this.hqOf(id), funded: a.funded, cash: this.cashOf(id), ownCash: a.cash, arrears: a.arrears, contributed: a.contributed, distributed: a.distributed, inKind: a.inKind, country: 'home', countryName: countryName(this.game.content, 'home') };
   }
 
+  // ------------------------------------------------------------- the wider world
+  /**
+   * The companies of the other countries: made once, from a seed kept in the save, with a history
+   * before the game. A save that has them never makes them again.
+   */
+  ensureWorld() {
+    const st = this.state;
+    if (st.generated) return;
+    const g = this.game;
+    const salt = String(g.rng.state);
+    const day = g.clock.day;
+    const taken = new Set(this.takenNames().map((n) => n.toLowerCase()));
+    for (const id of COMPANY_IDS) taken.add(this.defaultName(id).toLowerCase());
+    const { world, N } = buildWorld(CORP, { salt, day, taken, countries: countryIds(g.content), poolExtra: this.poolExtra(day) });
+    st.gen = { salt, nextId: world.nextId, lastDay: day - 1, news: [] };
+    st.generated = world.companies;
+    this.namer = N;
+    advance(CORP, this.worldView(), day - CORP.warmupDays, day - 1, (d) => this.worldCtx(d, true), N, countryIds(g.content), []);
+  }
+
+  /** The saved companies as the simulation sees them (its id counter lives in the save). */
+  worldView() {
+    const st = this.state;
+    return { salt: st.gen.salt, get nextId() { return st.gen.nextId; }, set nextId(v) { st.gen.nextId = v; }, get lastEntry() { return (st.gen.lastEntry ||= {}); }, companies: st.generated };
+  }
+
+  /** What the rest of the world's pools are read from: the real arms market. */
+  poolExtra() {
+    const g = this.game;
+    const m = g.market?.state;
+    if (!m) return {};
+    const cs = Object.entries(m.countries || {});
+    const inc = cs.reduce((a, [id]) => a + (g.content.arms.countries[id]?.income || 0), 0);
+    return { armsIncome: inc, wars: (m.wars || []).length };
+  }
+
+  /** What the player's own businesses (and the older companies) sold a day over the last month: it comes off the top of each pool. */
+  externalSales() {
+    const g = this.game;
+    const day = g.clock.day;
+    const perDay = (id) => {
+      if (!this.established(id)) return 0;
+      const a = this.account(id);
+      const m = monthTotals(a, Math.floor((day - 1) / 30));
+      const p = monthTotals(a, Math.floor((day - 1) / 30) - 1);
+      const days = Math.min(30, ((day - 1) % 30) + 1) + 30;
+      return Math.max(0, (m.revenue + p.revenue) / days);
+    };
+    const ext = { arms: perDay('arms'), shipping: perDay('shipping'), agriculture: perDay('farming'), aerospace: perDay('aerospace') };
+    if (g.aero.owned || g.aero.meridian) {
+      const w = g.aero.statement?.(g.aero.meridian, 14);
+      if (w) ext.aerospace += Math.max(0, w.revenue / 14);
+    }
+    return ext;
+  }
+
+  worldCtx(day, warm = false) {
+    return { rate: CORP.baseRate, external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
+  }
+
+  /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
+  dailyTick() {
+    const st = this.state;
+    if (!st.generated) return;
+    const g = this.game;
+    const day = g.clock.day;
+    if (st.gen.lastDay >= day) return;
+    const from = Math.max(st.gen.lastDay + 1, day - 30);
+    const world = this.worldView();
+    this.namer ||= rebuildNamer(CORP, world, this.takenNames());
+    const news = [];
+    advance(CORP, world, from, day, (d) => this.worldCtx(d), this.namer, countryIds(g.content), news);
+    st.gen.lastDay = day;
+    for (const n of news) st.gen.news.unshift({ day: n.day, text: n.text, kind: n.kind, sector: n.sector });
+    if (st.gen.news.length > 40) st.gen.news.length = 40;
+  }
+
   /** The registry: the four businesses, the companies that were already in the game, and the generated ones. */
   registry() {
     const rows = [];
@@ -304,7 +390,7 @@ export class Corporate {
       if (p) rows.push({ id: `player_${id}`, name: p.name, sector: p.sector, country: 'home', kind: 'player', source: id, playerId: id });
     }
     rows.push(...existingRows(this.game.content));
-    for (const c of this.state.generated || []) rows.push(c);
+    for (const c of this.state.generated || []) rows.push({ id: c.id, name: c.name, sector: c.sector, country: c.country, kind: 'generated', ticker: c.ticker, status: c.status, source: 'generated' });
     return rows;
   }
 }

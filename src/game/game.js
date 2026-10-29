@@ -200,6 +200,7 @@ export class Game {
     for (const npc of this.npcs.values()) this.npcSystem.think(npc, true);
     this.dairy.afterLoad();
     this.farm.sync();
+    this.corp.afterLoad(); // v0.60.0 (a new game)
     this.updateDiscovery();
   }
 
@@ -350,6 +351,7 @@ export class Game {
     this.dairy.minuteTick();
     this.aero.minuteTick();
     this.farm.minuteTick();
+    if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
       this.npcSystem.think(npc);
@@ -1335,7 +1337,7 @@ export class Game {
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
     this.aero.afterLoad(); // v0.55.0
-    this.corp.ensureCompanies(); // v0.60.0: a record of identity for each business already owned
+    this.corp.afterLoad(); // v0.60.0: identity for each business owned; the other countries' companies, made once
     this.updateDiscovery();
     return this;
   }
