@@ -2,6 +2,37 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.62.0] — 2026-10-29 — Good Help (development build)
+
+Stage 6 of the Corporate Empire brief (docs/CORPORATE.md): a market of people, hiring and paying them, and what a good one does.
+
+### Added — people (`src/content/personnel.js`, `src/corp/people.js`, `src/systems/personnel.js`)
+- **A market of about 24 candidates**, made once from a seed kept in the save (the same save always has the same people) and refreshed weekly: three to five take other jobs, new ones arrive. Each has 17 skills (0–100, with strengths and a weakness), six traits, an age, experience, education, a work history, a reputation, a style, the pay they ask and the least they will take, and a notice period.
+- **26 jobs in three levels**: executives work for the parent company (CEO, CFO, COO, controller, strategy, procurement, HR); managers (general manager and one for manufacturing, logistics, aerospace, farm, sales, procurement, R&D, finance, maintenance) and staff work for a business. Each job has a pay band, the skills it needs, and a limit on how many an employer may have.
+- **Hiring**: an offer is accepted at or above the person's floor (a good negotiator holds out a little longer); the recruiting fee (ten days' wage) is paid once from the employer; they start when their notice ends. One person, one job at a time. **Dismissal** pays five days' severance once and keeps the record.
+- **Payroll every day at 19:05**, from each employer's own account, in the way its own books record it (aerospace wages, shipping upkeep, the farm ledger, the parent's expenses). An employer that cannot pay leaves people unpaid and they lose heart; unpaid two days running, they resign. Someone unpaid does nothing for the business.
+- **Skills grow from results, not from time**: each month a person's employer is compared with its average of the three before; a good month with the person paid in full builds experience, and every third good month adds a point to the weakest of the skills their job needs (at most six points in a career, never above 90). **Promotion** needs sixty days in the job, two good months and the skills for the higher one, and raises the pay.
+- **Authority** (spending limit, ask-above limit, may hire / borrow / transfer / sign / expand) is set per person, bounded by their level, and **recorded now; nothing enforces it until managers act on their own (stage 7)**.
+- **The arms works' station workers join the list as a view** — counted once, still hired, paid and let go at the works. Aerospace crews stay head-counts and are shown as one line.
+
+### Added — what a good person does (and only that)
+Each effect is applied at the moment the money is paid or the output made, is capped, scales with their skills, their reliability and being paid, and does nothing without what it acts on: **materials** price at aerospace suppliers (cap 8%), **parts** price for the arms works (10%), aerospace **overhead** (10%), **arms station speed** (10%, and only a station with a worker at it), shipping **upkeep** (12%), **farm sale prices** (8%). A parent's executive reaches each subsidiary at half strength; the sum is capped. With nobody hired the game is identical to v0.59.0 (checked by running both).
+
+### Added — the Personnel app
+Openings (what a business has a case for, the best candidate of the job's own level, and what the hire would be worth against what they cost — it says so when that is less), Candidates (filters, sort, side-by-side comparison of three, an offer form that shows the effect, the value and the fee), Staff (raise, promote, move, set authority, dismiss), Payroll (each employer's daily wages and whether its account covers them; the arms floor and aerospace crews for information).
+
+### Changed
+- Aerospace, arms, shipping and farming consult the personnel service at the point of paying (`supplierPrice`, `fixedCosts`, `speedMult`/`partsMult`, `daily()` upkeep, `unitPrice`). All return exactly what they did before when nobody is hired, and ask nothing of a market that has not been opened.
+
+### Save
+- `world.corp.people` (`salt`, `pool`, `staff`, `pay`, `log`, counters) is created the first time the Personnel app is opened or someone is hired. A save from v0.61 or earlier has none, and opening the market creates no money, people or businesses beyond the candidates themselves. No schema change (still 1).
+
+### Tests
+- New: `personnel` (23) and `personnel_effects` (11): the market made once and the same after save/load; weekly turnover bounded and numbers never reused; one person one job and the limits; wages paid once a day from the employer's account under funded and unfunded accounts and across a save; unpaid twice and they resign; severance once; skills growing from results only; promotion rules; authority bounds; the arms staff counted once; parent wages in the consolidated statement; every effect shown to move real money or output, within its ceiling and nothing without its resource; two managers with different strengths giving different results; nobody hired changing nothing.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Passive effects are small next to wages in small businesses; managers' decisions (stage 7) are where they are meant to pay.
+
 ## [0.61.1] — 2026-10-29 — Under One Roof, checked (development build)
 
 A patch to 0.61.0 after an independent review of the release.

@@ -51,6 +51,7 @@ This is the audit that starts the **Corporate Empire** programme (companies, par
 5. **Manager scope (Stage 7, not yet built).** Managers may act through existing services **and** may build or buy new stations, plots and berths from **pre-approved plans**. Each asset type will need an explicit placement rule and a budget; to be designed with the owner when Stage 7 begins.
 6. **Roadmap — foundation first.** v0.60 = company accounts + identity + registry + generated competitors + finance/rankings (Stages 2–4). Then parent/subsidiaries (5) → personnel (6) → autonomous management & treasury (7–8) → unified stocks (9) → central bank, bonds, loans (10–12) → geopolitics (13) → robbery (14) → integration & regression (15–17).
 7. **Stage 5 (asked at v0.61):** money flows **owner → parent → subsidiary** (a subsidiary is never funded or drawn on by the owner directly); subsidiaries are **always 100% owned** (a stake field is kept); the parent is **free to form**.
+8. **Stage 6 (asked at v0.62):** arms staff join the registry as a view (not copied) and aerospace crews stay head-counts; payroll daily for everyone; hiring on the tablet only (no agency planned); about 24 candidates, refreshed weekly.
 
 ## v0.60 plan (parts, each committed when green)
 

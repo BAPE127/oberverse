@@ -10,6 +10,7 @@ The journal became a tablet. Open it with **J** (or Q, or Pause → Tablet, or t
 | Stocks | The Ober's Oil share register (as at Sir Moneybucks's desk) with a closing-price chart. |
 | Companies | (v0.60.0) Your businesses as companies: name, sector, headquarters, last month's figures and place, and the company's own account — pay in, take out, close. A naming panel opens when a business is founded. |
 | Group | (v0.61.0) The parent company and its subsidiaries: found it, name it, pay in and take dividends; bring a business under it (with a preview of what it will need), capitalise, lend, send up, set policies, repay, leave; separate and consolidated statements, cash, group value, who contributes, the parent's ledger, transfers. See `docs/CORPORATE.md`. |
+| Personnel | (v0.62.0) The people who run your businesses: Openings (what a business has a case for, with what a hire would be worth), Candidates (about two dozen, filters, side-by-side comparison, an offer form), Staff (raise, promote, move, authority, dismiss), Payroll (each employer's daily wages, the arms floor and aerospace crews for information). See `docs/CORPORATE.md`. |
 | Intelligence | (v0.60.0) Every company of a sector ranked (revenue, net income, margin, growth, value, share; last month, this month, 12 months), a profile of each, a comparison with your own business, and business news. See `docs/CORPORATE.md`. |
 
 ## Notifications

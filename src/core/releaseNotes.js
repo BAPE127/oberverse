@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.62.0',
+    date: '2026-10-29',
+    channel: 'development',
+    title: 'Good Help',
+    notes: [
+      'The tablet\'s Personnel app: about two dozen people are looking for work (the market refreshes weekly). Compare them side by side, see what a hire would be worth on today\'s figures, make an offer, and manage the people you hired — raises, promotions, moves, dismissal. Executives work for the parent company; managers and staff for each business. Everyone is paid every day from their employer\'s own cash.',
+      'A good manager does one real thing: buys materials or parts for a little less, trims the overhead, speeds a staffed station, cuts upkeep, or gets a better farm price — each within a ceiling, and nothing without the thing it acts on. A small business may not earn back a manager\'s wage this way; the larger case for managers arrives when they begin to act on their own.',
+    ],
+  },
+  {
     version: '0.61.1',
     date: '2026-10-29',
     channel: 'development',
