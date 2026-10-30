@@ -3,6 +3,7 @@
 // the pipeline, strikes, accidents and scandal; dividends are paid daily at
 // 18:00 from real output. Expansion and corner-cutting feed emergent events
 // (accidents, strikes, the canal slick) defined in src/content/events.js.
+import { INCOME } from '../content/income.js';
 import { clamp } from '../core/util.js';
 import { remember } from '../sim/memory.js';
 import { CORP } from '../content/corporate.js';
@@ -236,6 +237,6 @@ export class OilCompany {
   wagesOwed() {
     const g = this.game;
     const corners = g.getFlag('shift_corners_day') === g.clock.day ? g.getFlag('shift_corners') || 0 : 0;
-    return 5 * this.state.wageLevel + 2 * corners;
+    return INCOME.shift.refineryPerLevel * this.state.wageLevel + INCOME.shift.refineryPerCorner * corners; // was 5 and 2 (v0.82.0)
   }
 }

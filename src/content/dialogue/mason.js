@@ -1,3 +1,5 @@
+import { INCOME } from '../income.js';
+const OB = (n) => n.toLocaleString('en-US');
 // Dialogue for Mason Nails and the Mason's Os crew. Mason is always friendly:
 // no line here lowers his regard for the player below friendly, and he never
 // insults anyone. Every topic carries a pun; the Pun of the Day changes daily.
@@ -74,7 +76,7 @@ export const dlgMason = {
     },
     {
       id: 't_mason_work', label: '"Any work going?"', tag: 'quest', keywords: ['work', 'job', 'shift', 'hire'],
-      say: ['Always, pal! Dee handles hiring — she\'s the one at the site gate with the clipboard. Mornings, seven till one. Trench, bricks, mixer, six obols, fair and square. Squarer than fair, even.', 'And do it properly, yeah? Good work makes the crew happy, and a happy crew builds faster and cheaper — for you, when the time comes.'],
+      say: ['Always, pal! Dee handles hiring — she\'s the one at the site gate with the clipboard. Mornings, seven till one. Trench, bricks, mixer, ' + OB(INCOME.shift.construction) + ' obols, fair and square. Squarer than fair, even.', 'And do it properly, yeah? Good work makes the crew happy, and a happy crew builds faster and cheaper — for you, when the time comes.'],
     },
     {
       id: 't_mason_contracts', label: '"I\'d like to have something built."', tag: 'quest', keywords: ['build', 'property', 'house', 'home', 'contract', 'plot', 'land'],
@@ -150,7 +152,7 @@ export const dlgDee = {
         { if: { not: { jobDoneToday: 'job_construction_shift' }, time: { from: '13:00', to: '07:00' } }, text: 'Hiring\'s seven till one. Come back in the morning.' },
         {
           if: { not: { jobDoneToday: 'job_construction_shift' }, time: { from: '07:00', to: '13:00' } },
-          text: 'Day shift: dig the trench, lay a course at the brick stack, and run a batch in the mixer. Then come back to me. Six obols, paid in coin, no scrip, no nonsense. Do it right and the whole crew remembers.',
+          text: 'Day shift: dig the trench, lay a course at the brick stack, and run a batch in the mixer. Then come back to me. ' + OB(INCOME.shift.construction) + ' obols, paid in coin, no scrip, no nonsense. Do it right and the whole crew remembers.',
           effects: [{ quest: { id: 'job_construction_shift', start: true } }, { flag: { site_hired: true } }],
         },
       ],
@@ -159,8 +161,8 @@ export const dlgDee = {
       id: 't_dee_report', label: '"Shift\'s done."', tag: 'quest', keywords: ['done', 'finished', 'report', 'pay'],
       if: { quest: { id: 'job_construction_shift', stage: 'report' } },
       say: [
-        { if: { not: { flagToday: 'site_rushed' } }, text: 'Trench is square, course is level, mix is right. Nice work. That\'s six — and the crew noticed.' },
-        { if: { flagToday: 'site_rushed' }, text: 'It\'s done. Some of it\'s… done-ish. Here\'s your six. Next time, slower — the crew notices that too.' },
+        { if: { not: { flagToday: 'site_rushed' } }, text: 'Trench is square, course is level, mix is right. Nice work. That\'s ' + OB(INCOME.shift.construction) + ' — and the crew noticed.' },
+        { if: { flagToday: 'site_rushed' }, text: 'It\'s done. Some of it\'s… done-ish. Here\'s your ' + OB(INCOME.shift.construction) + '. Next time, slower — the crew notices that too.' },
       ],
       effects: [{ payWages: 'construction' }, { quest: { id: 'job_construction_shift', complete: 'paid' } }, { rel: { respect: 2 } }],
     },
@@ -181,7 +183,7 @@ export const dlgDee = {
       ],
     },
   ],
-  askAbout: [{ keywords: ['wage', 'pay', 'scrip'], say: ['Six obols. Coin, not scrip. Mason won\'t do scrip. Says it\'s "not worth the paper it\'s written on", and then laughs for a minute.'] }],
+  askAbout: [{ keywords: ['wage', 'pay', 'scrip'], say: [OB(INCOME.shift.construction) + ' obols. Coin, not scrip. Mason won\'t do scrip. Says it\'s "not worth the paper it\'s written on", and then laughs for a minute.'] }],
   unknown: [['Not my department.'], ['Ask Quinn. Quinn knows everything to four decimal places.']],
   gift: gift('…Oh. That\'s nice. Thanks. Really.', 'Thanks.', 'Huh. Thanks.', 'I\'ll put it with the scrap.'),
   barks: { greet: ['Morning.', 'Hard hat.'], work: ['That\'s not level.', 'Check it again.', 'Good. Next.'], eat: ['Ten minutes. Then back to it.'], leisure: ['Off the clock.'], build: ['Footings first!'], sleep: ['…two hundred and thirteen… *snore*'], chat: ['Mm.', 'Fair.', 'Don\'t tell Mason.'], argue: ['Not on my site!'] },

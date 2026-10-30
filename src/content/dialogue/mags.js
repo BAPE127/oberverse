@@ -1,3 +1,5 @@
+import { INCOME } from '../income.js';
+const OB = (n) => n.toLocaleString('en-US');
 // Dialogue for Marguerite "Mags" Pell. Voice: warm, chatty, nosy; endearments
 // (petal, duck, love); rhetorical questions; drifts into tangents.
 export default {
@@ -115,7 +117,7 @@ export default {
         { if: { not: { jobDoneToday: 'job_cafe_delivery' }, time: { from: '16:00', to: '07:00' } }, text: 'Osric shuts up shop at five, so not today. Come in the morning, there\'s always a coffee needs carrying.' },
         {
           if: { not: { jobDoneToday: 'job_cafe_delivery' }, time: { from: '07:00', to: '16:00' } },
-          text: 'Funny you should ask. Osric\'s coffee — black, no nonsense — needs to reach the Civic Office. He pays six obols on delivery and grumbles for free.',
+          text: 'Funny you should ask. Osric\'s coffee — black, no nonsense — needs to reach the Civic Office. He pays ' + OB(INCOME.shift.coffee) + ' obols on delivery and grumbles for free.',
           effects: [{ quest: { id: 'job_cafe_delivery', start: true } }, { give: 'item_coffee_order' }, { notify: 'Received: Coffee Order (for Osric)' }],
         },
       ],

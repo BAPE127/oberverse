@@ -1,6 +1,7 @@
 // The arms trade (v0.13.0): Lucas Eastrise and Pipecreek Armory, the pitch and
 // the licence, Mill Road Yards, arms works with workstations, generated staff,
 // research, parts orders, wholesale to Lucas, saves.
+import { INCOME } from '../src/content/income.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, run, setTime, besideNpc, noImpulses, CONTENT, Game, TILE } from './helpers.mjs';
@@ -227,13 +228,13 @@ test('payroll at 19:00: wages paid, or morale crashes; unpaid twice and they qui
   assert.ok(!g.npcs.has(a.id), 'and left');
 });
 
-test('Lucas buys arms wholesale — half value, with research — up to his daily budget; licence required', () => {
+test('Lucas buys arms wholesale — the INCOME share of value (0.65 since v0.82.0; was half), with research — up to his daily budget; licence required', () => {
   const g = fresh(10, '11:00');
   g.inventory.add('item_assault_rifle', 100);
   assert.equal(g.priceFor('shop_rook', 'item_assault_rifle', true), 0, 'no licence, no deal');
   runCommand(g, 'licence');
   const price = g.priceFor('shop_rook', 'item_assault_rifle', true);
-  assert.equal(price, 240);
+  assert.equal(price, Math.round(480 * INCOME.business.wholesaleShare), 'the rifle is worth 480; Lucas pays the INCOME share');
   let sold = 0;
   while (g.sell('shop_rook', 'item_assault_rifle').ok) sold++;
   assert.equal(sold, Math.floor(CONTENT.arms.wholesale.dailyBudget / price), 'until the kitty is empty');

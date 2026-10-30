@@ -93,6 +93,10 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.82.0 (2026-10-30)
+
+- New: `income.test.mjs` (5 tests: the shifts and quests through the real systems, the day-3 arithmetic, the quest texts, the Lucas share and the crop and contract multipliers with the multiplier switched, and a scan that the old literals are gone). Existing tests edited: `character_mason`, `character_moneybucks`, `arms` (see the changelog).
+
 ## Verification record — v0.81.0 (2026-10-30)
 
 - New: `aerospace_supply.test.mjs` (10 tests; see the changelog). Mutation checks: the cap removed → the cap test fails; the dispatcher's `reserved`/`repositioning` guard removed → the three-loads-on-one-ship test fails with the dispatcher error.

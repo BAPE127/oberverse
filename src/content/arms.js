@@ -7,6 +7,8 @@
 // Eastrise buys wholesale at half value (v0.13); the global market opens in
 // v0.14.
 
+import { INCOME } from './income.js';
+
 const part = (id, name, price, icon, description) => [`item_ap_${id}`, { name, category: 'arms_part', price, tags: ['arms', 'part'], icon, description }];
 const comp = (id, name, icon, description) => [`item_ai_${id}`, { name, category: 'arms_part', price: 0, tags: ['arms', 'part', 'intermediate'], icon, description }];
 const station = (id, name, kind, price, description) => [`item_st_${id}`, { name, category: 'machine', price, tags: ['machine', 'arms'], icon: 'machine', build: { type: 'machine', kind, w: 2, h: 2, domain: 'arms' }, description }];
@@ -201,7 +203,7 @@ export const ARMS_WAREHOUSES = {
 
 export const ARMS_LICENCE_PRICE = 500;
 /** What Lucas pays: a share of value, and a daily budget. */
-export const WHOLESALE = { share: 0.5, dailyBudget: 15000 };
+export const WHOLESALE = { share: INCOME.business.wholesaleShare, dailyBudget: 15000 }; // the share was 0.5 before v0.82.0
 
 /** Employee generation. */
 export const STAFF_NAMES = {

@@ -1,3 +1,5 @@
+import { INCOME } from '../income.js';
+const OB = (n) => n.toLocaleString('en-US');
 // Dialogue for Osric Vane. Voice: formal, precise, dry; cites form numbers;
 // qualifies everything; sentiment leaks out sideways and is immediately denied.
 const PERMISSION_GRANTED = [
@@ -130,8 +132,8 @@ export default {
       id: 't_osric_coffee', label: '"Coffee delivery from the Kettle & Crumb."', tag: 'quest', keywords: ['coffee', 'delivery'],
       if: { hasItem: 'item_coffee_order', quest: { id: 'job_cafe_delivery', state: 'active' } },
       variants: [
-        ['Black. No nonsense. Correct.', 'Six obols, as per the standing arrangement. Count them. I did.'],
-        ['Ah. On time. Within tolerance, at least.', 'Six obols. Please convey my regards to Mrs. Pell. Formally.'],
+        ['Black. No nonsense. Correct.', OB(INCOME.shift.coffee) + ' obols, as per the standing arrangement. Count them. I did.'],
+        ['Ah. On time. Within tolerance, at least.', OB(INCOME.shift.coffee) + ' obols. Please convey my regards to Mrs. Pell. Formally.'],
       ],
       effects: [
         { take: 'item_coffee_order' },

@@ -2,6 +2,8 @@
 // at least one hook into a system (invitation, shares, shifts, the mystery,
 // the strike, gossip, the feud).
 import { USEFUL } from './moneybucks.js';
+import { INCOME } from '../income.js';
+const OB = (n) => n.toLocaleString('en-US');
 
 const basicGift = (loved, liked, neutral, disliked) => ({
   loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]],
@@ -134,7 +136,7 @@ export const dlgGideon = {
         { if: { not: { jobDoneToday: 'job_refinery_shift' }, time: { from: '14:00', to: '06:00' } }, text: 'Shift\'s over. Six sharp tomorrow, and not a minute after.' },
         {
           if: { not: { jobDoneToday: 'job_refinery_shift' }, time: { from: '06:00', to: '14:00' }, oil: { strike: false } },
-          text: 'Day labour. Three jobs: valve bank, gauge panel, barrel line. Do \'em, report to me, get paid. Five obols. Don\'t argue, it\'s in the contract. The contract also says I can dock you for arguing.',
+          text: 'Day labour. Three jobs: valve bank, gauge panel, barrel line. Do \'em, report to me, get paid. ' + OB(INCOME.shift.refineryPerLevel) + ' obols. Don\'t argue, it\'s in the contract. The contract also says I can dock you for arguing.',
           effects: [{ quest: { id: 'job_refinery_shift', start: true } }, { flag: { refinery_hired: true } }],
         },
       ],

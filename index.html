@@ -4563,6 +4563,31 @@ const __default = [starlingFlats, roostOffice, roostHangar, ...hallRooms, meridi
 return { starlingFlats, roostOffice, roostHangar, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl, default: __default };
 })();
 
+// ---- src/content/income.js
+__m["src/content/income.js"] = (function () {
+// What the game pays (v0.82.0). One place for the figures that decide how fast a new player gets from 12 obols to a
+// first business, and how much the first businesses earn. Change a number here and the game, the journal texts and the
+// tests that read them follow. Nothing in the game creates money from nothing: these are the prices of work and sales.
+//
+// The target the owner set: a first arms works by day 3 (a 500 licence, a 2,500 works, parts), a second company by day 15.
+// Before this, the early shifts paid 5–8 obols and the first quests 12–20: reaching 3,000 took months. Shifts now pay
+// about 50 times what they did; the one-off quests pay what they are worth to someone with nothing.
+const INCOME = {
+  /** Wages for the early shifts, in obols a shift. (Were 6, 6 and 5 per wage level + 2 per corner worked.) */
+  shift: { construction: 300, coffee: 300, refineryPerLevel: 250, refineryPerCorner: 100 },
+  /** One-off rewards of the first quests. (Were 12 and 20.) The Lost Herd (2,500) is unchanged, and so is Tibbs's 8 obols for his spanner ("it's all I've got"). */
+  quest: { darkLamp: 600, sealOfM: 1000 },
+  /** What the first businesses pay, as a multiplier on what they paid before. */
+  business: {
+    wholesaleShare: 0.65, // Lucas buys your arms at this share of an item's value (was 0.5)
+    crops: 1.5, // the Co-op's price for crops (the index still moves it day to day)
+    contracts: 1.5, // what shipping clients pay for a delivery
+  },
+};
+
+return { INCOME };
+})();
+
 // ---- src/content/arms.js
 __m["src/content/arms.js"] = (function () {
 // The arms trade (v0.13.0): Mill Road Yards arms works, parts, components,
@@ -4573,6 +4598,8 @@ __m["src/content/arms.js"] = (function () {
 // buyer pays for a standard unit; research raises it per family. Lucas
 // Eastrise buys wholesale at half value (v0.13); the global market opens in
 // v0.14.
+
+const { INCOME } = __m["src/content/income.js"];
 
 const part = (id, name, price, icon, description) => [`item_ap_${id}`, { name, category: 'arms_part', price, tags: ['arms', 'part'], icon, description }];
 const comp = (id, name, icon, description) => [`item_ai_${id}`, { name, category: 'arms_part', price: 0, tags: ['arms', 'part', 'intermediate'], icon, description }];
@@ -4768,7 +4795,7 @@ const ARMS_WAREHOUSES = {
 
 const ARMS_LICENCE_PRICE = 500;
 /** What Lucas pays: a share of value, and a daily budget. */
-const WHOLESALE = { share: 0.5, dailyBudget: 15000 };
+const WHOLESALE = { share: INCOME.business.wholesaleShare, dailyBudget: 15000 }; // the share was 0.5 before v0.82.0
 
 /** Employee generation. */
 const STAFF_NAMES = {
@@ -5668,6 +5695,9 @@ return { FACTIONS };
 __m["src/content/quests.js"] = (function () {
 // Quests and jobs. Objectives describe outcomes, not mandatory steps; hints
 // appear in the journal only once the player knows the relevant fact.
+const { INCOME } = __m["src/content/income.js"];
+const ob = (n) => n.toLocaleString('en-US');
+
 const QUESTS = {
   q_dark_lamp: {
     title: 'The Dark Lamp',
@@ -5708,11 +5738,11 @@ const QUESTS = {
     outcomes: {
       told_mags: {
         journal: 'You told Mags about the keeper\'s log. Within the hour, half of Canal Row was speculating about "M."',
-        effects: [{ money: 12 }, { rep: { fac_merchants: 5, lanternside: 3 } }, { notify: 'Quest complete: The Dark Lamp (+12 obols)' }],
+        effects: [{ money: INCOME.quest.darkLamp }, { rep: { fac_merchants: 5, lanternside: 3 } }, { notify: `Quest complete: The Dark Lamp (+${ob(INCOME.quest.darkLamp)} obols)` }],
       },
       told_osric: {
         journal: 'You brought the keeper\'s log to Osric. He went very quiet, then opened a new file marked "M."',
-        effects: [{ money: 12 }, { rep: { fac_civic: 6, lanternside: 2 } }, { notify: 'Quest complete: The Dark Lamp (+12 obols)' }],
+        effects: [{ money: INCOME.quest.darkLamp }, { rep: { fac_civic: 6, lanternside: 2 } }, { notify: `Quest complete: The Dark Lamp (+${ob(INCOME.quest.darkLamp)} obols)` }],
       },
     },
   },
@@ -5790,7 +5820,7 @@ const QUESTS = {
     outcomes: {
       exposed: {
         journal: 'You brought the proof to Osric. The Civic Office — all one of it — opened proceedings against Ober\'s Oil. The lens is coming home.',
-        effects: [{ money: 20 }, { notify: 'Quest complete: The Seal of M. (exposed)' }],
+        effects: [{ money: INCOME.quest.sealOfM }, { notify: `Quest complete: The Seal of M. (exposed, +${ob(INCOME.quest.sealOfM)} obols)` }],
       },
       restored: {
         journal: 'You carried the great lens back up the Point yourself and set it in its cradle. The old clockwork turned. Lanternside has a lighthouse again.',
@@ -5811,7 +5841,7 @@ const QUESTS = {
     title: 'Job: Refinery Shift',
     kind: 'job',
     giver: 'npc_gideon',
-    summary: 'Day labour at Ober\'s Oil Refinery No. 1. Three stations, one foreman, five obols.',
+    summary: 'Day labour at Ober\'s Oil Refinery No. 1. Three stations, one foreman, ' + ob(INCOME.shift.refineryPerLevel) + ' obols.',
     start: 'work',
     expires: { at: '20:00' },
     stages: {
@@ -5838,7 +5868,7 @@ const QUESTS = {
     title: 'Job: Construction Shift',
     kind: 'job',
     giver: 'npc_dee',
-    summary: 'Day labour on the Mason\'s Os site in Westbrook. Three jobs, one foreman, six obols — and the crew\'s goodwill.',
+    summary: 'Day labour on the Mason\'s Os site in Westbrook. Three jobs, one foreman, ' + ob(INCOME.shift.construction) + ' obols — and the crew\'s goodwill.',
     start: 'work',
     expires: { at: '19:00' },
     stages: {
@@ -5857,7 +5887,7 @@ const QUESTS = {
         marker: 'westbrook:foreman_post',
       },
     },
-    outcomes: { paid: { journal: 'Six obols, a sore back and a pun from Mason you will not be able to forget.', effects: [{ rep: { fac_builders: 1 } }] } },
+    outcomes: { paid: { journal: ob(INCOME.shift.construction) + ' obols, a sore back and a pun from Mason you will not be able to forget.', effects: [{ rep: { fac_builders: 1 } }] } },
     failures: { expired: { journal: 'The site closed before you finished. Dee says no hard feelings — come back tomorrow.', effects: [{ notify: 'Construction shift not finished — no pay today.', notifyKind: 'warn' }] } },
   },
 
@@ -5879,7 +5909,7 @@ const QUESTS = {
     outcomes: {
       delivered: {
         journal: 'Delivered. Osric inspected the lid, nodded once, and paid exactly.',
-        effects: [{ money: 6 }, { rep: { fac_merchants: 1 } }, { notify: 'Job done: +6 obols' }],
+        effects: [{ money: INCOME.shift.coffee }, { rep: { fac_merchants: 1 } }, { notify: `Job done: +${ob(INCOME.shift.coffee)} obols` }],
       },
     },
     failures: {
@@ -7617,6 +7647,8 @@ return { crisp, agnes, gideon, ruby, hank, pip, delphine, silas, mabel, otto, de
 
 // ---- src/content/dialogue/mags.js
 __m["src/content/dialogue/mags.js"] = (function () {
+const { INCOME } = __m["src/content/income.js"];
+const OB = (n) => n.toLocaleString('en-US');
 // Dialogue for Marguerite "Mags" Pell. Voice: warm, chatty, nosy; endearments
 // (petal, duck, love); rhetorical questions; drifts into tangents.
 const __default = {
@@ -7734,7 +7766,7 @@ const __default = {
         { if: { not: { jobDoneToday: 'job_cafe_delivery' }, time: { from: '16:00', to: '07:00' } }, text: 'Osric shuts up shop at five, so not today. Come in the morning, there\'s always a coffee needs carrying.' },
         {
           if: { not: { jobDoneToday: 'job_cafe_delivery' }, time: { from: '07:00', to: '16:00' } },
-          text: 'Funny you should ask. Osric\'s coffee — black, no nonsense — needs to reach the Civic Office. He pays six obols on delivery and grumbles for free.',
+          text: 'Funny you should ask. Osric\'s coffee — black, no nonsense — needs to reach the Civic Office. He pays ' + OB(INCOME.shift.coffee) + ' obols on delivery and grumbles for free.',
           effects: [{ quest: { id: 'job_cafe_delivery', start: true } }, { give: 'item_coffee_order' }, { notify: 'Received: Coffee Order (for Osric)' }],
         },
       ],
@@ -7816,6 +7848,8 @@ return { default: __default };
 
 // ---- src/content/dialogue/osric.js
 __m["src/content/dialogue/osric.js"] = (function () {
+const { INCOME } = __m["src/content/income.js"];
+const OB = (n) => n.toLocaleString('en-US');
 // Dialogue for Osric Vane. Voice: formal, precise, dry; cites form numbers;
 // qualifies everything; sentiment leaks out sideways and is immediately denied.
 const PERMISSION_GRANTED = [
@@ -7948,8 +7982,8 @@ const __default = {
       id: 't_osric_coffee', label: '"Coffee delivery from the Kettle & Crumb."', tag: 'quest', keywords: ['coffee', 'delivery'],
       if: { hasItem: 'item_coffee_order', quest: { id: 'job_cafe_delivery', state: 'active' } },
       variants: [
-        ['Black. No nonsense. Correct.', 'Six obols, as per the standing arrangement. Count them. I did.'],
-        ['Ah. On time. Within tolerance, at least.', 'Six obols. Please convey my regards to Mrs. Pell. Formally.'],
+        ['Black. No nonsense. Correct.', OB(INCOME.shift.coffee) + ' obols, as per the standing arrangement. Count them. I did.'],
+        ['Ah. On time. Within tolerance, at least.', OB(INCOME.shift.coffee) + ' obols. Please convey my regards to Mrs. Pell. Formally.'],
       ],
       effects: [
         { take: 'item_coffee_order' },
@@ -8560,6 +8594,8 @@ __m["src/content/dialogue/oberStaff.js"] = (function () {
 // at least one hook into a system (invitation, shares, shifts, the mystery,
 // the strike, gossip, the feud).
 const { USEFUL } = __m["src/content/dialogue/moneybucks.js"];
+const { INCOME } = __m["src/content/income.js"];
+const OB = (n) => n.toLocaleString('en-US');
 
 const basicGift = (loved, liked, neutral, disliked) => ({
   loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]],
@@ -8692,7 +8728,7 @@ const dlgGideon = {
         { if: { not: { jobDoneToday: 'job_refinery_shift' }, time: { from: '14:00', to: '06:00' } }, text: 'Shift\'s over. Six sharp tomorrow, and not a minute after.' },
         {
           if: { not: { jobDoneToday: 'job_refinery_shift' }, time: { from: '06:00', to: '14:00' }, oil: { strike: false } },
-          text: 'Day labour. Three jobs: valve bank, gauge panel, barrel line. Do \'em, report to me, get paid. Five obols. Don\'t argue, it\'s in the contract. The contract also says I can dock you for arguing.',
+          text: 'Day labour. Three jobs: valve bank, gauge panel, barrel line. Do \'em, report to me, get paid. ' + OB(INCOME.shift.refineryPerLevel) + ' obols. Don\'t argue, it\'s in the contract. The contract also says I can dock you for arguing.',
           effects: [{ quest: { id: 'job_refinery_shift', start: true } }, { flag: { refinery_hired: true } }],
         },
       ],
@@ -9176,6 +9212,8 @@ return { mason, dee, barnaby, quinn, CREW_HOME, default: __default };
 
 // ---- src/content/dialogue/mason.js
 __m["src/content/dialogue/mason.js"] = (function () {
+const { INCOME } = __m["src/content/income.js"];
+const OB = (n) => n.toLocaleString('en-US');
 // Dialogue for Mason Nails and the Mason's Os crew. Mason is always friendly:
 // no line here lowers his regard for the player below friendly, and he never
 // insults anyone. Every topic carries a pun; the Pun of the Day changes daily.
@@ -9252,7 +9290,7 @@ const dlgMason = {
     },
     {
       id: 't_mason_work', label: '"Any work going?"', tag: 'quest', keywords: ['work', 'job', 'shift', 'hire'],
-      say: ['Always, pal! Dee handles hiring — she\'s the one at the site gate with the clipboard. Mornings, seven till one. Trench, bricks, mixer, six obols, fair and square. Squarer than fair, even.', 'And do it properly, yeah? Good work makes the crew happy, and a happy crew builds faster and cheaper — for you, when the time comes.'],
+      say: ['Always, pal! Dee handles hiring — she\'s the one at the site gate with the clipboard. Mornings, seven till one. Trench, bricks, mixer, ' + OB(INCOME.shift.construction) + ' obols, fair and square. Squarer than fair, even.', 'And do it properly, yeah? Good work makes the crew happy, and a happy crew builds faster and cheaper — for you, when the time comes.'],
     },
     {
       id: 't_mason_contracts', label: '"I\'d like to have something built."', tag: 'quest', keywords: ['build', 'property', 'house', 'home', 'contract', 'plot', 'land'],
@@ -9328,7 +9366,7 @@ const dlgDee = {
         { if: { not: { jobDoneToday: 'job_construction_shift' }, time: { from: '13:00', to: '07:00' } }, text: 'Hiring\'s seven till one. Come back in the morning.' },
         {
           if: { not: { jobDoneToday: 'job_construction_shift' }, time: { from: '07:00', to: '13:00' } },
-          text: 'Day shift: dig the trench, lay a course at the brick stack, and run a batch in the mixer. Then come back to me. Six obols, paid in coin, no scrip, no nonsense. Do it right and the whole crew remembers.',
+          text: 'Day shift: dig the trench, lay a course at the brick stack, and run a batch in the mixer. Then come back to me. ' + OB(INCOME.shift.construction) + ' obols, paid in coin, no scrip, no nonsense. Do it right and the whole crew remembers.',
           effects: [{ quest: { id: 'job_construction_shift', start: true } }, { flag: { site_hired: true } }],
         },
       ],
@@ -9337,8 +9375,8 @@ const dlgDee = {
       id: 't_dee_report', label: '"Shift\'s done."', tag: 'quest', keywords: ['done', 'finished', 'report', 'pay'],
       if: { quest: { id: 'job_construction_shift', stage: 'report' } },
       say: [
-        { if: { not: { flagToday: 'site_rushed' } }, text: 'Trench is square, course is level, mix is right. Nice work. That\'s six — and the crew noticed.' },
-        { if: { flagToday: 'site_rushed' }, text: 'It\'s done. Some of it\'s… done-ish. Here\'s your six. Next time, slower — the crew notices that too.' },
+        { if: { not: { flagToday: 'site_rushed' } }, text: 'Trench is square, course is level, mix is right. Nice work. That\'s ' + OB(INCOME.shift.construction) + ' — and the crew noticed.' },
+        { if: { flagToday: 'site_rushed' }, text: 'It\'s done. Some of it\'s… done-ish. Here\'s your ' + OB(INCOME.shift.construction) + '. Next time, slower — the crew notices that too.' },
       ],
       effects: [{ payWages: 'construction' }, { quest: { id: 'job_construction_shift', complete: 'paid' } }, { rel: { respect: 2 } }],
     },
@@ -9359,7 +9397,7 @@ const dlgDee = {
       ],
     },
   ],
-  askAbout: [{ keywords: ['wage', 'pay', 'scrip'], say: ['Six obols. Coin, not scrip. Mason won\'t do scrip. Says it\'s "not worth the paper it\'s written on", and then laughs for a minute.'] }],
+  askAbout: [{ keywords: ['wage', 'pay', 'scrip'], say: [OB(INCOME.shift.construction) + ' obols. Coin, not scrip. Mason won\'t do scrip. Says it\'s "not worth the paper it\'s written on", and then laughs for a minute.'] }],
   unknown: [['Not my department.'], ['Ask Quinn. Quinn knows everything to four decimal places.']],
   gift: gift('…Oh. That\'s nice. Thanks. Really.', 'Thanks.', 'Huh. Thanks.', 'I\'ll put it with the scrap.'),
   barks: { greet: ['Morning.', 'Hard hat.'], work: ['That\'s not level.', 'Check it again.', 'Good. Next.'], eat: ['Ten minutes. Then back to it.'], leisure: ['Off the clock.'], build: ['Footings first!'], sleep: ['…two hundred and thirteen… *snore*'], chat: ['Mm.', 'Fair.', 'Don\'t tell Mason.'], argue: ['Not on my site!'] },
@@ -16080,7 +16118,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.81.0';
+const GAME_VERSION = '0.82.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -20715,6 +20753,7 @@ __m["src/systems/oilCompany.js"] = (function () {
 // the pipeline, strikes, accidents and scandal; dividends are paid daily at
 // 18:00 from real output. Expansion and corner-cutting feed emergent events
 // (accidents, strikes, the canal slick) defined in src/content/events.js.
+const { INCOME } = __m["src/content/income.js"];
 const { clamp } = __m["src/core/util.js"];
 const { remember } = __m["src/sim/memory.js"];
 const { CORP } = __m["src/content/corporate.js"];
@@ -20948,7 +20987,7 @@ class OilCompany {
   wagesOwed() {
     const g = this.game;
     const corners = g.getFlag('shift_corners_day') === g.clock.day ? g.getFlag('shift_corners') || 0 : 0;
-    return 5 * this.state.wageLevel + 2 * corners;
+    return INCOME.shift.refineryPerLevel * this.state.wageLevel + INCOME.shift.refineryPerCorner * corners; // was 5 and 2 (v0.82.0)
   }
 }
 
@@ -20963,6 +21002,7 @@ __m["src/systems/construction.js"] = (function () {
 // (see src/systems/properties.js). Unlike the refinery, rushing is never
 // rewarded — and nobody here ever shouts about it.
 const { clamp } = __m["src/core/util.js"];
+const { INCOME } = __m["src/content/income.js"];
 
 const SITE_STATIONS = {
   trench: { name: 'Trench', proper: 'You dig to the string line, square the sides and shore them. (40 min)', rush: 'You scoop out roughly a trench-shaped hole. (10 min)' },
@@ -20970,7 +21010,7 @@ const SITE_STATIONS = {
   mixer: { name: 'Cement mixer', proper: 'You measure sand, cement and water to Dee\'s recipe. (40 min)', rush: 'You eyeball it and add water until it looks like porridge. (10 min)' },
 };
 
-const SITE_WAGE = 6;
+const SITE_WAGE = INCOME.shift.construction; // was 6 (v0.82.0)
 const MAX_GOODWILL = 30;
 
 function freshConstruction() {
@@ -32842,6 +32882,7 @@ __m["src/systems/logistics.js"] = (function () {
 //
 // State: game.world.logistics (created on first use; saves from before
 // v0.21.0 get it fresh and unowned).
+const { INCOME } = __m["src/content/income.js"];
 const { clamp } = __m["src/core/util.js"];
 const { seaRoute, pointAlong } = __m["src/world/seaRoutes.js"];
 const { Missions } = __m["src/systems/missions.js"];
@@ -33426,7 +33467,7 @@ class Logistics {
         const [u0, u1] = T.units;
         let units = Math.round(u0 + R.next() * (u1 - u0));
         if (easy) units = Math.min(units, maxCap);
-        const pay = Math.round(T.base + units * T.rate * (route.km / 1000));
+        const pay = Math.round((T.base + units * T.rate * (route.km / 1000)) * INCOME.business.contracts); // v0.82.0: clients pay more (INCOME)
         const refHours = this.sailHours(route.km, 14) + L.loadHoursBase + units * L.loadHoursPerUnit;
         const deadline = g.clock.total + Math.round((refHours * T.slack + 12) * 60);
         s.contracts.push({
@@ -39118,6 +39159,7 @@ __m["src/systems/farm.js"] = (function () {
 // renderer redraws the ground when the version changes.
 const { TILE } = __m["src/core/util.js"];
 const { hash2 } = __m["src/core/rng.js"];
+const { INCOME } = __m["src/content/income.js"];
 
 const MINUTES_PER_DAY = 1440;
 
@@ -39386,7 +39428,7 @@ class Farm {
     const D = M.demand[key] || 100;
     const sold = this.state.market[key] || 0;
     const f = M.floor + ((1 - M.floor) * D) / (D + sold);
-    return Math.max(1, Math.round(base * this.state.priceIndex * f * (1 + this.game.corp.personnel.effect('farming', 'farmPrice')))); // v0.62.0: the price actually paid
+    return Math.max(1, Math.round(base * INCOME.business.crops * this.state.priceIndex * f * (1 + this.game.corp.personnel.effect('farming', 'farmPrice')))); // v0.62.0: the price actually paid
   }
 
   /** Sell n units into the market, one at a time (each sale lowers the next price). */
@@ -46765,6 +46807,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.82.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'First Steps',
+    notes: [
+      'The first days now pay like a start in life: a construction or refinery shift pays about 300 obols, the first quests 600 and 1,000, so a first arms works is within reach by day 3.',
+      'Lucas pays more for arms, the Co-op pays more for crops and shipping clients pay more for a delivery.',
+    ],
+  },
   {
     version: '0.81.0',
     date: '2026-10-30',

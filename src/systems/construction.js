@@ -4,6 +4,7 @@
 // (see src/systems/properties.js). Unlike the refinery, rushing is never
 // rewarded — and nobody here ever shouts about it.
 import { clamp } from '../core/util.js';
+import { INCOME } from '../content/income.js';
 
 export const SITE_STATIONS = {
   trench: { name: 'Trench', proper: 'You dig to the string line, square the sides and shore them. (40 min)', rush: 'You scoop out roughly a trench-shaped hole. (10 min)' },
@@ -11,7 +12,7 @@ export const SITE_STATIONS = {
   mixer: { name: 'Cement mixer', proper: 'You measure sand, cement and water to Dee\'s recipe. (40 min)', rush: 'You eyeball it and add water until it looks like porridge. (10 min)' },
 };
 
-export const SITE_WAGE = 6;
+export const SITE_WAGE = INCOME.shift.construction; // was 6 (v0.82.0)
 export const MAX_GOODWILL = 30;
 
 export function freshConstruction() {

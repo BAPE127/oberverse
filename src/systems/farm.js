@@ -14,6 +14,7 @@
 // renderer redraws the ground when the version changes.
 import { TILE } from '../core/util.js';
 import { hash2 } from '../core/rng.js';
+import { INCOME } from '../content/income.js';
 
 const MINUTES_PER_DAY = 1440;
 
@@ -282,7 +283,7 @@ export class Farm {
     const D = M.demand[key] || 100;
     const sold = this.state.market[key] || 0;
     const f = M.floor + ((1 - M.floor) * D) / (D + sold);
-    return Math.max(1, Math.round(base * this.state.priceIndex * f * (1 + this.game.corp.personnel.effect('farming', 'farmPrice')))); // v0.62.0: the price actually paid
+    return Math.max(1, Math.round(base * INCOME.business.crops * this.state.priceIndex * f * (1 + this.game.corp.personnel.effect('farming', 'farmPrice')))); // v0.62.0: the price actually paid
   }
 
   /** Sell n units into the market, one at a time (each sale lowers the next price). */

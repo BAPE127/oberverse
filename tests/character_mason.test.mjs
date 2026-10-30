@@ -10,6 +10,7 @@ import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { validateContent } from '../tools/validate-content.mjs';
 import { readFileSync } from 'node:fs';
 import { check } from '../src/sim/conditions.js';
+import { INCOME } from '../src/content/income.js';
 
 const talk = (g, id, ...choices) => {
   const s = new DialogueSession(g, id);
@@ -142,11 +143,11 @@ test('Mason walks his whole day physically (arrives at the excavator and the Civ
   assert.equal(m.map, 'civic_office', 'he made it to Osric by half past four');
 });
 
-test('a construction shift pays six obols; careful work earns crew goodwill', () => {
+test('a construction shift pays the wage in INCOME; careful work earns crew goodwill', () => {
   for (const mode of ['proper', 'rush']) {
     const g = newGame(9);
     setTime(g, 2, '08:00');
-    assert.match(text(talk(g, 'npc_dee', 'topic:t_dee_job').node), /Six obols/);
+    assert.match(text(talk(g, 'npc_dee', 'topic:t_dee_job').node), new RegExp(`${INCOME.shift.construction.toLocaleString('en-US')} obols`));
     assert.equal(g.quests.state('job_construction_shift').stage, 'work');
     g.changeMap('westbrook', 'site_center');
     for (const id of ['site_trench', 'site_bricks', 'site_mixer']) {
@@ -159,7 +160,7 @@ test('a construction shift pays six obols; careful work earns crew goodwill', ()
     const before = g.player.money;
     talk(g, 'npc_dee', 'topic:t_dee_report');
     assert.equal(g.quests.state('job_construction_shift').state, 'completed');
-    assert.equal(g.player.money - before, 6, 'fair, flat wage either way');
+    assert.equal(g.player.money - before, INCOME.shift.construction, 'fair, flat wage either way');
     assert.equal(g.construction.state.goodwill, mode === 'proper' ? 2 : 0);
     assert.ok(g.player.reputation.fac_builders > 0);
   }

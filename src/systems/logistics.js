@@ -19,6 +19,7 @@
 //
 // State: game.world.logistics (created on first use; saves from before
 // v0.21.0 get it fresh and unowned).
+import { INCOME } from '../content/income.js';
 import { clamp } from '../core/util.js';
 import { seaRoute, pointAlong } from '../world/seaRoutes.js';
 import { Missions } from './missions.js';
@@ -603,7 +604,7 @@ export class Logistics {
         const [u0, u1] = T.units;
         let units = Math.round(u0 + R.next() * (u1 - u0));
         if (easy) units = Math.min(units, maxCap);
-        const pay = Math.round(T.base + units * T.rate * (route.km / 1000));
+        const pay = Math.round((T.base + units * T.rate * (route.km / 1000)) * INCOME.business.contracts); // v0.82.0: clients pay more (INCOME)
         const refHours = this.sailHours(route.km, 14) + L.loadHoursBase + units * L.loadHoursPerUnit;
         const deadline = g.clock.total + Math.round((refHours * T.slack + 12) * 60);
         s.contracts.push({

@@ -1,5 +1,6 @@
 // Sir Moneybucks (imported character) and Ober's Oil: status tiers, schedule,
 // invitation, refinery shifts, investing, the Ledger, the strike, the mystery.
+import { INCOME } from '../src/content/income.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, run, setTime, CONTENT, Game, TILE } from './helpers.mjs';
@@ -101,7 +102,7 @@ test('a refinery shift pays wages; cutting corners pays more and raises risk', (
     const before = g.player.money;
     talk(g, 'npc_gideon', 'topic:t_gideon_report');
     assert.equal(g.quests.state('job_refinery_shift').state, 'completed');
-    assert.equal(g.player.money - before, mode === 'proper' ? 5 : 11);
+    assert.equal(g.player.money - before, mode === 'proper' ? INCOME.shift.refineryPerLevel : INCOME.shift.refineryPerLevel + 3 * INCOME.shift.refineryPerCorner, 'the wage, plus a bonus for each corner cut');
     assert.equal(g.oil.state.risk, mode === 'proper' ? 0 : 3);
     assert.ok(g.getFlag('refinery_hired'));
   }

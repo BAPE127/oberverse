@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.82.0 | 2026-10-30 | development | 1 | First steps: the early shifts pay about 50 times what they did (300 obols a shift, not 6), the first quests pay 600 and 1,000, Lucas pays 65% of value, crops and shipping contracts pay half as much again — all from one file, `src/content/income.js` — so a first arms works is within reach by day 3. |
 | 0.81.0 | 2026-10-30 | development | 1 | Supply, rebuilt: one card per shortage, your own ships or a carrier, one order of any size split into loads, and the freight to your own shipping line capped at 500 obols an order — plus a dispatcher bug the loads exposed. |
 | 0.80.1 | 2026-10-30 | development | 1 | Morganius's arms: his elbows bent the wrong way (sleeves folded across his chest, hands floating) — now they hang out and down like a real arm, and a test holds them there through every pose. Corrections to the 0.73–0.80 wording and tests. |
 | 0.80.0 | 2026-10-30 | development | 1 | The whole group: milestones awarded from the records, your trades and a watchlist, the brief's integrated corporate-group test, save-migration and transaction-integrity tests — and the two flaws they found (loan stacking, split purchases) fixed |

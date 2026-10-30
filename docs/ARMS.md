@@ -69,7 +69,7 @@ Procedurally generated: name, look, four skills (one speciality 3–5), an optio
 
 ## Selling (v0.13)
 
-Lucas buys any arms item — crates or single weapons — at **half its value**, raised by research, up to **15,000 obols a day** (2,500 before v0.19).
+Lucas buys any arms item — crates or single weapons — at **65% of its value** (half before v0.82.0; `INCOME.business.wholesaleShare`), raised by research, up to **15,000 obols a day** (2,500 before v0.19).
 
 # The global market and heavy weapons (v0.14.0)
 

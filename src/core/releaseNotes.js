@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.82.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'First Steps',
+    notes: [
+      'The first days now pay like a start in life: a construction or refinery shift pays about 300 obols, the first quests 600 and 1,000, so a first arms works is within reach by day 3.',
+      'Lucas pays more for arms, the Co-op pays more for crops and shipping clients pay more for a delivery.',
+    ],
+  },
+  {
     version: '0.81.0',
     date: '2026-10-30',
     channel: 'development',

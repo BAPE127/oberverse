@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.82.0] — 2026-10-30 — First Steps (development build)
+
+The first pass at the early game's money. The owner's target: a first arms works by day 3 and a second company by day 15. A new player had 12 obols, and everything early paid 5–20 (a construction or refinery shift 5–6, the first quests 12 and 20); the licence alone is 500 and a works 2,500.
+
+- **`src/content/income.js` is now the one place for these figures.** The game, the journal texts, the characters' dialogue and the tests read it; change a number there and they follow.
+- **Shifts pay about 50 times what they did:** a construction shift 300 (was 6), the coffee run 300 (was 6), a refinery shift 250 for each wage level and 100 for each corner cut (was 5 and 2). **First quests:** The Dark Lamp 600 (was 12), The Seal of M. (exposed) 1,000 (was 20). The Lost Herd (2,500) and Tibbs's 8 obols (he says it is all he has) are unchanged. The people who name the wage (Mason, Dee, Gideon, Mags, Osric, the journal) now say the right figure.
+- **The three daily shifts pay 850 a day, so three days of them and the two quests pay the licence (500), the cheapest works (2,500) and 500 for parts, with change — and a week of shifts alone does.** A test computes this from the real systems.
+- **The first businesses pay more:** Lucas buys arms at **65%** of value (was 50%), the Co-op pays **1.5×** for crops, and shipping clients pay **1.5×** for a delivery (the offers show the real figure).
+- **What this does not do (stated plainly):** the day-3 target is shown by the shift-and-quest arithmetic above, not by a scripted full playthrough; the second-company-by-day-15 target is not measured at all yet, and the businesses' daily profit has not been tuned end to end (see docs/KNOWN_ISSUES.md). Dairy, the oil dividend, property rent, aerospace and the casino are unchanged.
+- **Existing tests edited:** `character_mason` (the shift pays the INCOME wage), `character_moneybucks` (the refinery wage and the corner bonus), `arms` (Lucas's share), each now reading `INCOME` instead of a literal. New: `tests/income.test.mjs` (5 tests).
+
 ## [0.81.0] — 2026-10-30 — Supply, Rebuilt (development build)
 
 The aerospace Supply page, rebuilt around your ships, as in `docs/mockups/proposal-aerospace-supply.png` (the real screen is `docs/mockups/v081-supply.png`).

@@ -1,5 +1,8 @@
 // Quests and jobs. Objectives describe outcomes, not mandatory steps; hints
 // appear in the journal only once the player knows the relevant fact.
+import { INCOME } from './income.js';
+const ob = (n) => n.toLocaleString('en-US');
+
 export const QUESTS = {
   q_dark_lamp: {
     title: 'The Dark Lamp',
@@ -40,11 +43,11 @@ export const QUESTS = {
     outcomes: {
       told_mags: {
         journal: 'You told Mags about the keeper\'s log. Within the hour, half of Canal Row was speculating about "M."',
-        effects: [{ money: 12 }, { rep: { fac_merchants: 5, lanternside: 3 } }, { notify: 'Quest complete: The Dark Lamp (+12 obols)' }],
+        effects: [{ money: INCOME.quest.darkLamp }, { rep: { fac_merchants: 5, lanternside: 3 } }, { notify: `Quest complete: The Dark Lamp (+${ob(INCOME.quest.darkLamp)} obols)` }],
       },
       told_osric: {
         journal: 'You brought the keeper\'s log to Osric. He went very quiet, then opened a new file marked "M."',
-        effects: [{ money: 12 }, { rep: { fac_civic: 6, lanternside: 2 } }, { notify: 'Quest complete: The Dark Lamp (+12 obols)' }],
+        effects: [{ money: INCOME.quest.darkLamp }, { rep: { fac_civic: 6, lanternside: 2 } }, { notify: `Quest complete: The Dark Lamp (+${ob(INCOME.quest.darkLamp)} obols)` }],
       },
     },
   },
@@ -122,7 +125,7 @@ export const QUESTS = {
     outcomes: {
       exposed: {
         journal: 'You brought the proof to Osric. The Civic Office — all one of it — opened proceedings against Ober\'s Oil. The lens is coming home.',
-        effects: [{ money: 20 }, { notify: 'Quest complete: The Seal of M. (exposed)' }],
+        effects: [{ money: INCOME.quest.sealOfM }, { notify: `Quest complete: The Seal of M. (exposed, +${ob(INCOME.quest.sealOfM)} obols)` }],
       },
       restored: {
         journal: 'You carried the great lens back up the Point yourself and set it in its cradle. The old clockwork turned. Lanternside has a lighthouse again.',
@@ -143,7 +146,7 @@ export const QUESTS = {
     title: 'Job: Refinery Shift',
     kind: 'job',
     giver: 'npc_gideon',
-    summary: 'Day labour at Ober\'s Oil Refinery No. 1. Three stations, one foreman, five obols.',
+    summary: 'Day labour at Ober\'s Oil Refinery No. 1. Three stations, one foreman, ' + ob(INCOME.shift.refineryPerLevel) + ' obols.',
     start: 'work',
     expires: { at: '20:00' },
     stages: {
@@ -170,7 +173,7 @@ export const QUESTS = {
     title: 'Job: Construction Shift',
     kind: 'job',
     giver: 'npc_dee',
-    summary: 'Day labour on the Mason\'s Os site in Westbrook. Three jobs, one foreman, six obols — and the crew\'s goodwill.',
+    summary: 'Day labour on the Mason\'s Os site in Westbrook. Three jobs, one foreman, ' + ob(INCOME.shift.construction) + ' obols — and the crew\'s goodwill.',
     start: 'work',
     expires: { at: '19:00' },
     stages: {
@@ -189,7 +192,7 @@ export const QUESTS = {
         marker: 'westbrook:foreman_post',
       },
     },
-    outcomes: { paid: { journal: 'Six obols, a sore back and a pun from Mason you will not be able to forget.', effects: [{ rep: { fac_builders: 1 } }] } },
+    outcomes: { paid: { journal: ob(INCOME.shift.construction) + ' obols, a sore back and a pun from Mason you will not be able to forget.', effects: [{ rep: { fac_builders: 1 } }] } },
     failures: { expired: { journal: 'The site closed before you finished. Dee says no hard feelings — come back tomorrow.', effects: [{ notify: 'Construction shift not finished — no pay today.', notifyKind: 'warn' }] } },
   },
 
@@ -211,7 +214,7 @@ export const QUESTS = {
     outcomes: {
       delivered: {
         journal: 'Delivered. Osric inspected the lid, nodded once, and paid exactly.',
-        effects: [{ money: 6 }, { rep: { fac_merchants: 1 } }, { notify: 'Job done: +6 obols' }],
+        effects: [{ money: INCOME.shift.coffee }, { rep: { fac_merchants: 1 } }, { notify: `Job done: +${ob(INCOME.shift.coffee)} obols` }],
       },
     },
     failures: {
