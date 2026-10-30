@@ -16,6 +16,7 @@ import { exchangeApp } from './corpExchange.js'; // v0.66.0
 import { bankApp } from './corpBank.js'; // v0.68.0
 import { loansApp } from './corpLoans.js'; // v0.73.0
 import { economyApp } from './corpEconomy.js'; // v0.75.0
+import { milestonesApp } from './corpMilestones.js'; // v0.80.0
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
 
@@ -55,6 +56,7 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
+  else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

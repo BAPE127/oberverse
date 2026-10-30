@@ -116,6 +116,11 @@ export class Management {
     return q;
   }
 
+  /** What this person has already committed today (decisions carried out), so that splitting a purchase does not get under a limit. */
+  committedToday(x) {
+    return (this.peek()?.log || []).filter((l) => l.day === this.day && l.actor === x.id && (l.type === 'done' || l.type === 'approved')).reduce((a, l) => a + (Number(l.cost) || 0), 0);
+  }
+
   // ------------------------------------------------------------- judging
   hiresLeft(employer) {
     const h = this.peek()?.hires[employer];
@@ -126,7 +131,7 @@ export class Management {
     return judge({
       kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
       funded: this.K.established(target) && this.K.account(target).funded, frozen: this.K.business.inArrears(target), cost,
-      spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
+      spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove, daySpent: this.committedToday(x),
       hold: kind === 'expand' && this.pressure(target) >= MGMT.costHold ? `Costs here are up ${(this.pressure(target) * 100).toFixed(1)}% because of the wars and embargoes: managers hold back expansion to keep cash.` : null,
       cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });

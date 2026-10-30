@@ -171,8 +171,31 @@ export class Exchange {
     return { ...q, total: q.gross + q.fee };
   }
 
-  /** Buy or sell. The three old shares go through their own rules; a wider-world listing through the exchange's. */
-  buy(ticker, n) {
+  // ------------------------------------------------------------- the player's record of trades and watchlist (v0.80.0)
+  /** What the exchange has done for you, newest last: { day, side, ticker, n, value } — value is obols out of (buy) or into (sell) your wallet, fee included. */
+  trades() { return this.peek()?.trades || []; }
+  noteTrade(side, ticker, n, before) {
+    const s = this.ensure();
+    const value = Math.abs(Math.round(this.g.player.money - before));
+    (s.trades ||= []).push({ day: this.day, side, ticker, n: Math.floor(n), value });
+    while (s.trades.length > 200) s.trades.shift();
+  }
+  watched() { return this.peek()?.watch || []; }
+  toggleWatch(ticker) {
+    if (!this.find(ticker)) return { ok: false, text: 'No such company is listed.' };
+    const s = this.ensure();
+    const w = (s.watch ||= []);
+    const i = w.indexOf(ticker);
+    if (i >= 0) w.splice(i, 1); else w.push(ticker);
+    return { ok: true, on: i < 0, text: i < 0 ? `${ticker} is on your watchlist.` : `${ticker} is off your watchlist.` };
+  }
+
+  /** Buy or sell, and keep the record. */
+  buy(ticker, n) { const m = this.g.player.money; const r = this._buy(ticker, n); if (r.ok) this.noteTrade('buy', ticker, n, m); return r; }
+  sell(ticker, n) { const m = this.g.player.money; const r = this._sell(ticker, n); if (r.ok) this.noteTrade('sell', ticker, n, m); return r; }
+
+  /** The three old shares go through their own rules; a wider-world listing through the exchange's. */
+  _buy(ticker, n) {
     const r = this.find(ticker);
     n = Math.floor(n);
     if (!r) return { ok: false, text: 'No such company is listed.' };
@@ -195,7 +218,7 @@ export class Exchange {
     return { ok: true, text: `Bought ${n.toLocaleString()} ${ticker} for ${money(q.gross)} obols (+${money(q.fee)} fee).` };
   }
 
-  sell(ticker, n) {
+  _sell(ticker, n) {
     const r = this.find(ticker);
     n = Math.floor(n);
     if (!r) return { ok: false, text: 'No such company is listed.' };

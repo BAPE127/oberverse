@@ -44,6 +44,10 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `corporate_integration.test.mjs` | The brief's 20.5 (v0.80.0): all four businesses under a parent, a manager each, budgets, autonomy, 62 days on the real systems; twelve claims checked against ledgers, logs and the saved state. About 90 seconds. |
+| `transaction_integrity.test.mjs` | Brief 17.1 (v0.80.0): unique names and tickers; every morning service run twice changes nothing; loans bounded by what stands behind them; split purchases; save after every transaction type is exact and consistent; eighteen refusals that move nothing. |
+| `save_migration_corporate.test.mjs` | Brief 17.2 (v0.80.0): a v0.59.0 save keeps balances, shares and businesses and is granted nothing; ten weeks of play; save, load and the oldest schema. |
+| `milestones.test.mjs` | Milestones from the records (each rule and its near miss), awarded once and kept; the exchange's trade record and watchlist. |
 | `robbery.test.mjs` | Bank robbery (v0.79.0): the pure state machine and its bounds; configured hauls; a hold-up end to end with the loot paid once through repeats and a reload; sealing, four days, restocking, reopening and a bounded second robbery; a night raid; alerts that come to nothing; the Lariat bank; the front door at night; the market reaction. |
 | `robbery_separation.test.mjs` | The absolute creditworthiness rule (brief 14.1): control-game proof that every financial answer is identical after a robbery, while sealed and after reopening (both banks); what does change; source scans in both directions. Checked by mutation. |
 | `banks_physical.test.mjs` | Staffed banks (v0.78.0): seven people with homes, beds, sleep blocks and registry rows; streets and halls exactly their old sizes; both banks staffed at their spots in hours and at home at night; doors by hours, staff list and staff-only office; counters opening the right apps; dialogue and combat temperaments. |
@@ -88,6 +92,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.80.0 (2026-10-30)
+
+- `npm run check` — **872/872 tests passed** (20 new: 8 `corporate_integration`, 6 `transaction_integrity`, 3 `save_migration_corporate`, 3 `milestones`); every other earlier test passes unedited. `npm run smoke` — 26/26.
+- The loan-stacking test was **mutation-checked**: with the old limit it fails, with the fix it passes.
+- Browser (headless Chromium): the Milestones app, the Exchange with a ★ and "Your trades", and a bond's schedule line; no page errors.
 
 ## Verification record — v0.79.0 (2026-10-30)
 

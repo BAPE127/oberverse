@@ -23,7 +23,7 @@ export function bondsApp(ui, body, open) {
   if (!P.rows.length) body.append(h('p', { class: 'muted' }, 'You hold none.'));
   else body.append(h('div', { class: 'list' }, ...P.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
     h('div', { class: 'name' }, `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
-    h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · worth ${n(r.value)} today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
+    h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · next coupon day ${r.due}, face repaid day ${r.end} · worth ${n(r.value)} today (paid ${n(r.cost)}, ${r.value >= r.cost ? 'ahead' : 'behind'} ${n(Math.abs(r.value - r.cost))} on paper, ${n(r.coupons * r.perMonth)} of coupons so far); selling gets ${n(r.sale)}`),
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(B.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
   corporate();
   foreign();

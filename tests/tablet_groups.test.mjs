@@ -15,13 +15,13 @@ test('a new game has the journal, the markets and the bank; owning businesses ad
   groups = tabletGroups(g);
   assert.deepEqual(groups.map((x) => x.id), ['Home', 'Journal', 'Businesses', 'Group', 'Markets', 'Bank']);
   assert.deepEqual(groups.find((x) => x.id === 'Businesses').apps, ['Farm', 'Aerospace', 'Companies']);
-  assert.deepEqual(groups.find((x) => x.id === 'Group').apps, ['Group', 'Personnel', 'Management']);
+  assert.deepEqual(groups.find((x) => x.id === 'Group').apps, ['Group', 'Personnel', 'Management', 'Milestones']);
   const apps = allApps(groups);
   assert.equal(new Set(apps).size, apps.length, 'no app in two groups');
   for (const a of apps) assert.equal(groupOf(groups, a).apps.includes(a), true);
   assert.equal(groupOf(groups, 'Nonsense').id, 'Home', 'an unknown app falls back to Home');
   // the apps the tablet had before are all still there
-  for (const a of ['Home', 'Quests', 'People', 'Customers', 'Notes', 'Standing', 'Farm', 'Aerospace', 'Companies', 'Group', 'Personnel', 'Management', 'Intelligence', 'Exchange', 'Economy', 'Bank', 'Bonds', 'Loans', 'Stocks']) assert.ok(apps.includes(a), a);
+  for (const a of ['Home', 'Quests', 'People', 'Customers', 'Notes', 'Standing', 'Farm', 'Aerospace', 'Companies', 'Group', 'Personnel', 'Management', 'Milestones', 'Intelligence', 'Exchange', 'Economy', 'Bank', 'Bonds', 'Loans', 'Stocks']) assert.ok(apps.includes(a), a);
 });
 
 test('badges count the newest unread notifications by the app they belong to', () => {

@@ -7,6 +7,7 @@ The journal became a tablet. Open it with **J** (or Q, or Pause → Tablet, or t
 | Home | Business notifications (newest first, unread ones marked) and summary cards for your business and shares. Opening Home marks everything read. |
 | Quests · People · Customers · Notes · Standing | The old journal pages. |
 | Bonds (foreign) | (v0.77.0) Bank group, in the Bonds app below the corporate bonds: the eight countries' three-year bonds with each one's rating, causes and price, what you hold and what a country owes you while it delays. |
+| Milestones | (v0.80.0) Group tab. Seventeen milestones awarded from the books — what is earned (and when) and how near the others are. |
 | Economy | (v0.75.0) Markets group. The wars and embargoes that are on, what they cost each sector now, who is exposed, the bank and bonds, the day's movers and the headlines — facts, never a forecast. |
 | Loans (business) | (v0.74.0) The same app, below your own loans: pick a company, a guarantee and a purpose, borrow, see arrears and repay from the company. |
 | Loans | (v0.73.0) Bank group. Lariat State Bank lends against the shares and bonds you hold: borrow (four terms), see rate and first instalment before you sign, repay early, see arrears and your borrowing record. |

@@ -35,7 +35,7 @@ export class BusinessLoans {
   /** Companies that could borrow: owned, and holding their own cash. */
   eligible() { return ['arms', 'shipping', 'aerospace', 'farming', 'parent'].filter((id) => this.K.established(id) && this.K.account(id).funded); }
 
-  /** What the bank sees of a company: assets before this debt, what it earns in a month, and so what it may owe in all. */
+  /** What the bank sees of a company: what it is worth after all it owes, what it earns in a month, and so what it may owe in all. */
   view(id) {
     const K = this.K;
     const a = K.account(id);
@@ -43,7 +43,7 @@ export class BusinessLoans {
     const m = reg ? K.metricsOf(reg) : null;
     const owed = this.owedBy(id);
     const net = m?.netAssets ?? Math.round(a.cash - a.arrears - K.group.payableOf(id) - owed);
-    const assets = net + owed; // before the bank's own claim
+    const assets = net; // what it owns less everything it owes, the bank included: borrowing adds cash and debt together, so a loan never raises the ceiling it was lent under
     const monthly = m?.annualProfit != null ? m.annualProfit / 12 : 0;
     const standing = this.standing(id);
     const total = companyLimit({ assets, monthlyNet: monthly, standing });

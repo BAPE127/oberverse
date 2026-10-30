@@ -32,6 +32,7 @@ import { Lending } from './lending.js';
 import { BusinessLoans } from './businessLoans.js';
 import { Geo } from './geo.js';
 import { Sovereign } from './sovereign.js';
+import { Milestones } from './milestones.js';
 import { valuationFactor } from '../corp/bank.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -50,6 +51,7 @@ export class Corporate {
     this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
     this.geo = new Geo(this); // v0.75.0: wars and embargoes as persistent events
     this.sovereign = new Sovereign(this); // v0.77.0: foreign government bonds
+    this.milestones = new Milestones(this); // v0.80.0: milestones from the records
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -426,6 +428,7 @@ export class Corporate {
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
     this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
+    this.milestones.dailyTick(); // milestones, from what the records now say
     this.sovereign.dailyTick(); // the countries' ratings, delayed payments and restructurings, and coupons (once the arms market is running)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
     this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)

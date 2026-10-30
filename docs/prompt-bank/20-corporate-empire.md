@@ -23,6 +23,8 @@ Rules:
 - Bonds (v0.69): a bond is a list of dated cash flows priced at the current yield (par at issue, falling when rates rise); each coupon is paid exactly once whatever is saved or slept through; nothing is created before a purchase.
 - A new interior for an existing building must be the building's grown footprint (make it after `growStreets`, like `phonographLobby`); a larger one moves the town and every hand-placed coordinate in the content.
 - Corporate bonds (v0.71): default is the world's own closing of a company, never a dice roll; the rating is a pure function of the books; the bond market must not change a company's records.
+- A limit that rests on a figure a transaction can change is a loophole: write the test that applies the transaction until it is refused (`transaction_integrity`), and mutation-check it.
+- A person's limits are cumulative over the day: judge a decision with what they have already committed, not alone.
 - Crime, police and the wanted level never feed a financial decision, and no financial figure feeds them (brief 14.1). If a new mechanic needs the two to meet, put the crossing in one named function, leave it out of every lender's, rating's, valuation's and ranking's inputs, and extend `tests/robbery_separation.test.mjs` first.
 - A new building or home must not move a street: make a hall or room the exact footprint (and door) of what it replaces (`hallSize`, `firstBankInterior`, `lariatBankInterior`) and compare every building's position before and after. A moved street breaks saves.
 - A consequence of default is whatever the owner chose, no more: do not add a clever extra (a cash sweep, a seizure) because it feels natural. If a design needs one, ask.

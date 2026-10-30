@@ -15,6 +15,7 @@ export const TABLET_APPS = {
   ships: { icon: '⚓', name: 'Ober & Sons' },
   aero: { icon: '✈️', name: 'Aerospace' }, // v0.55.0
   bank: { icon: '🏦', name: 'First Bank' }, // v0.68.0
+  milestones: { icon: '🏆', name: 'Milestones' }, // v0.80.0
 };
 const FEED_MAX = 60;
 

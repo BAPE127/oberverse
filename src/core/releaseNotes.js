@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.80.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The Whole Group',
+    notes: [
+      'A new Milestones app records what your group has actually done — four businesses, a parent company, managers who make their own decisions, three months in the black, a loan repaid — from the books, never from clicking. The Exchange keeps your trades and a watchlist, and each bond shows its next coupon. Behind the scenes the whole corporate update was tested end to end: a full group run for two months, old saves loaded and played on, and every kind of transaction saved and reloaded. That found two loopholes (loans that could stack past a company\'s limit, and purchases split to dodge a manager\'s limit); both are closed.',
+    ],
+  },
+  {
     version: '0.79.0',
     date: '2026-10-30',
     channel: 'development',

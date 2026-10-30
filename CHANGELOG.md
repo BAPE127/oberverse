@@ -2,6 +2,25 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.80.0] — 2026-10-30 — The Whole Group (development build)
+
+Stages 15–17: economic integration, save migration and regression, and the release. It adds milestones, the last tablet features, and the tests that the brief's acceptance section asks for — which found and fixed two flaws.
+
+### Added
+- **Milestones from the records** (`src/corp/milestones.js`, `src/systems/milestones.js`, `src/systems/milestonesRecords.js`; a **Milestones** app in the Group tab): seventeen, awarded once each, each from something in the game's own books — four businesses owned, a parent formed, all four as subsidiaries, a staffed headquarters with a CFO, a CFO of skill 80, **delegation** (every subsidiary with a manager, a budget *and* a decision made), a top-five place, leading shipping or arms, a top-three farm, a 500,000 aerospace contract, three months in the black, three months of profitable *autonomous* operation, a diversified portfolio, a gain after two months, a large loan repaid without a miss, an expansion through a war. Hiring, opening a screen or pressing a button earns none of them, and a war promises nothing.
+- **Your trades and a watchlist** in the Exchange app (a record of each buy and sell through the exchange, with what left or entered your wallet; a ★ per company and a ★ Watchlist filter), saved with the game; and in the Bonds app each bond shows its **next coupon day, the day its face is repaid, and how far ahead or behind its price is on paper**.
+- **A document**: `docs/CORPORATE_ACCEPTANCE.md` — the brief's section 20, item by item, with ✔ ◐ ✘ and the tests.
+
+### Fixed (both found by the new tests)
+- **Loans to a company could stack past its limit.** The limit counted the cash from the company's own loans as assets, so each loan raised the ceiling it was lent under (about 1.7 times what the books allowed, in the limit). It now rests on what the company is worth after everything it owes, which a loan does not change.
+- **A manager could get round a limit by splitting a purchase.** Their spending limit and ask-above limit were per decision; they are now counted with what the same person has already committed that day.
+
+### Tests
+- New: `corporate_integration` (8; **the brief's 20.5**: the full group on the real systems for 62 days, twelve claims checked against records, a save and load in the middle); `transaction_integrity` (6: unique identities; a day is run once; a loan is bounded; split purchases; a save after every kind of transaction gives back exactly what was saved, consistently; eighteen refusals that change nothing); `save_migration_corporate` (3: a v0.59.0 save keeps every balance, share and business and is granted nothing; ten weeks of play from it; save, load, and the oldest schema); `milestones` (3). `tablet_groups` lists the new app. All other tests pass unedited. The integrated test takes about 90 seconds of the suite.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md and docs/CORPORATE_ACCEPTANCE.md. A save and load re-rolls the arms market's dice and the townspeople (older than this update), so the world's wars and competitors do not replay identically after a reload; the group's own records do.
+
 ## [0.79.0] — 2026-10-30 — The Vault (development build)
 
 Stage 14: bank robbery, with the brief's absolute rule — a robbery has no effect whatsoever on anyone's financial standing — proved by tests, not asserted.

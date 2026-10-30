@@ -7,6 +7,7 @@ const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocale
 const px = (x) => (x >= 100 ? x.toFixed(0) : x.toFixed(2));
 const pct = (x) => (x === null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1)}%`);
 const SORTS = { ticker: 'Ticker', change: 'Day change', value: 'Held', price: 'Price' };
+const WATCH = '★ Watchlist';
 
 export function exchangeApp(ui, body, open) {
   const g = ui.game;
@@ -24,16 +25,17 @@ export function exchangeApp(ui, body, open) {
 
   let rows = E.board();
   const sectors = [...new Set(rows.map((r) => r.sector).filter(Boolean))].sort();
-  const sector = h('select', { class: 'debug-input' }, h('option', { value: '' }, 'All sectors'), ...sectors.map((s) => h('option', { value: s, selected: s === S.sector }, s)));
+  const sector = h('select', { class: 'debug-input' }, h('option', { value: '' }, 'All sectors'), h('option', { value: WATCH, selected: S.sector === WATCH }, WATCH), ...sectors.map((s) => h('option', { value: s, selected: s === S.sector }, s)));
   const sort = h('select', { class: 'debug-input' }, ...Object.entries(SORTS).map(([v, t]) => h('option', { value: v, selected: v === S.sort }, `Sort: ${t}`)));
   body.append(h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin:8px 0' }, sector, sort, h('button', { class: 'small', onclick: () => view({ sector: sector.value, sort: sort.value }) }, 'Apply')));
-  if (S.sector) rows = rows.filter((r) => r.sector === S.sector);
+  if (S.sector === WATCH) rows = rows.filter((r) => E.watched().includes(r.ticker));
+  else if (S.sector) rows = rows.filter((r) => r.sector === S.sector);
   const key = { ticker: (a, b) => (a.ticker < b.ticker ? -1 : 1), change: (a, b) => (b.change ?? -9) - (a.change ?? -9), value: (a, b) => b.value - a.value || (a.ticker < b.ticker ? -1 : 1), price: (a, b) => b.price - a.price }[S.sort];
   rows = [...rows].sort(key);
 
   body.append(h('div', { class: 'list' }, ...rows.map((r) => h('div', { class: 'item-row', style: `align-items:flex-start;cursor:pointer;${S.sel === r.ticker ? 'outline:1px solid #8ab' : ''}`, onclick: () => view({ sel: S.sel === r.ticker ? null : r.ticker }) },
     h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, r.sector ? h('span', { class: 'tag' }, r.sector) : null, r.status && r.status !== 'listed' ? h('span', { class: 'tag neg' }, r.status) : null, r.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(r.held)}`) : null),
+      h('div', { class: 'name' }, h('span', { style: `cursor:pointer;color:${E.watched().includes(r.ticker) ? '#e8c04a' : '#889'}`, title: 'Watchlist', onclick: (ev) => { ev.stopPropagation(); go(E.toggleWatch(r.ticker)); } }, E.watched().includes(r.ticker) ? '★ ' : '☆ '), `${r.ticker} · ${r.name}`, r.sector ? h('span', { class: 'tag' }, r.sector) : null, r.status && r.status !== 'listed' ? h('span', { class: 'tag neg' }, r.status) : null, r.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(r.held)}`) : null),
       h('div', { class: 'desc' }, `${px(r.price)} obols`, ' ', h('span', { style: `color:${r.change === null ? 'inherit' : r.change >= 0 ? '#7c7' : '#e66'}` }, pct(r.change)), `  ${spark(r.history.slice(-30))}`)),
     h('div', { class: 'desc' }, r.held > 0 ? `worth ${n(r.value)}` : '')))));
 
@@ -42,6 +44,8 @@ export function exchangeApp(ui, body, open) {
   const r = S.sel && E.find(S.sel);
   if (r) body.append(detail(r));
 
+  const trades = E.trades().slice(-8).reverse();
+  if (trades.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Your trades'), h('div', { class: 'list' }, ...trades.map((t) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${t.day} · ${t.side === 'buy' ? 'Bought' : 'Sold'} ${n(t.n)} ${t.ticker} — ${n(t.value)} obols${t.side === 'buy' ? ' paid' : ' received'}, fee included`))))));
   const log = (E.peek()?.log || []).slice(-6).reverse();
   if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
   body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'A share\'s price moves a part of the way each day toward what the company\'s own books say it is worth; it never follows what you buy or sell. A broker\'s fee is charged each way, and no investor may hold more than 5% of a company. Dividends are what the company really paid out of a month\'s profit, once a month. Nothing here is advice: a company can fail, and then its shares are worth nothing.'));

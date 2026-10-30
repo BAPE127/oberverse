@@ -506,10 +506,10 @@ export class Group {
    * interest a subsidiary paid its parent, and the dividends the parent was sent. Transfers of capital,
    * loans and their repayment are never in either: they move cash, not results.
    */
-  consolidated(period = 'month') {
+  consolidated(period = 'month', monthsOverride = null) {
     if (!this.parent) return null;
     const K = this.K;
-    const months = this.monthsOf(period);
+    const months = monthsOverride || this.monthsOf(period);
     const ids = this.members();
     const sep = ids.map((id) => {
       const rows = months.map((m) => this.memberMonth(id, m));

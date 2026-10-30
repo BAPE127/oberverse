@@ -29,10 +29,11 @@ export function judge(d) {
   if (!cap) return no('No monthly budget is set for this.');
   const left = cap - (d.spent || 0);
   if (d.cost > left) return no(`It would pass the monthly budget (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
-  if (d.cost > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}.`);
+  const today = Math.max(0, Number(d.daySpent) || 0); // what this person has already committed today: a split purchase counts as one
+  if (d.cost + today > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}${today ? ` (with the ${today.toLocaleString()} they have already committed today)` : ''}.`);
   if (!d.affordable) return no('The business\'s account cannot cover it.');
   if (!d.owner && d.ask) return { verdict: 'queue', reason: d.ask };
-  if (!d.owner && d.cost > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking.` };
+  if (!d.owner && d.cost + today > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking${today ? ` (counting the ${today.toLocaleString()} they have already committed today)` : ''}.` };
   return { verdict: 'execute', reason: '' };
 }
 

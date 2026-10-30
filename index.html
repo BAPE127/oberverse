@@ -16046,7 +16046,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.79.0';
+const GAME_VERSION = '0.80.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -25587,6 +25587,7 @@ const TABLET_APPS = {
   ships: { icon: '⚓', name: 'Ober & Sons' },
   aero: { icon: '✈️', name: 'Aerospace' }, // v0.55.0
   bank: { icon: '🏦', name: 'First Bank' }, // v0.68.0
+  milestones: { icon: '🏆', name: 'Milestones' }, // v0.80.0
 };
 const FEED_MAX = 60;
 
@@ -40759,10 +40760,10 @@ class Group {
    * interest a subsidiary paid its parent, and the dividends the parent was sent. Transfers of capital,
    * loans and their repayment are never in either: they move cash, not results.
    */
-  consolidated(period = 'month') {
+  consolidated(period = 'month', monthsOverride = null) {
     if (!this.parent) return null;
     const K = this.K;
-    const months = this.monthsOf(period);
+    const months = monthsOverride || this.monthsOf(period);
     const ids = this.members();
     const sep = ids.map((id) => {
       const rows = months.map((m) => this.memberMonth(id, m));
@@ -41660,10 +41661,11 @@ function judge(d) {
   if (!cap) return no('No monthly budget is set for this.');
   const left = cap - (d.spent || 0);
   if (d.cost > left) return no(`It would pass the monthly budget (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
-  if (d.cost > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}.`);
+  const today = Math.max(0, Number(d.daySpent) || 0); // what this person has already committed today: a split purchase counts as one
+  if (d.cost + today > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}${today ? ` (with the ${today.toLocaleString()} they have already committed today)` : ''}.`);
   if (!d.affordable) return no('The business\'s account cannot cover it.');
   if (!d.owner && d.ask) return { verdict: 'queue', reason: d.ask };
-  if (!d.owner && d.cost > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking.` };
+  if (!d.owner && d.cost + today > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking${today ? ` (counting the ${today.toLocaleString()} they have already committed today)` : ''}.` };
   return { verdict: 'execute', reason: '' };
 }
 
@@ -41906,6 +41908,11 @@ class Management {
     return q;
   }
 
+  /** What this person has already committed today (decisions carried out), so that splitting a purchase does not get under a limit. */
+  committedToday(x) {
+    return (this.peek()?.log || []).filter((l) => l.day === this.day && l.actor === x.id && (l.type === 'done' || l.type === 'approved')).reduce((a, l) => a + (Number(l.cost) || 0), 0);
+  }
+
   // ------------------------------------------------------------- judging
   hiresLeft(employer) {
     const h = this.peek()?.hires[employer];
@@ -41916,7 +41923,7 @@ class Management {
     return judge({
       kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
       funded: this.K.established(target) && this.K.account(target).funded, frozen: this.K.business.inArrears(target), cost,
-      spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
+      spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove, daySpent: this.committedToday(x),
       hold: kind === 'expand' && this.pressure(target) >= MGMT.costHold ? `Costs here are up ${(this.pressure(target) * 100).toFixed(1)}% because of the wars and embargoes: managers hold back expansion to keep cash.` : null,
       cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });
@@ -42566,8 +42573,31 @@ class Exchange {
     return { ...q, total: q.gross + q.fee };
   }
 
-  /** Buy or sell. The three old shares go through their own rules; a wider-world listing through the exchange's. */
-  buy(ticker, n) {
+  // ------------------------------------------------------------- the player's record of trades and watchlist (v0.80.0)
+  /** What the exchange has done for you, newest last: { day, side, ticker, n, value } — value is obols out of (buy) or into (sell) your wallet, fee included. */
+  trades() { return this.peek()?.trades || []; }
+  noteTrade(side, ticker, n, before) {
+    const s = this.ensure();
+    const value = Math.abs(Math.round(this.g.player.money - before));
+    (s.trades ||= []).push({ day: this.day, side, ticker, n: Math.floor(n), value });
+    while (s.trades.length > 200) s.trades.shift();
+  }
+  watched() { return this.peek()?.watch || []; }
+  toggleWatch(ticker) {
+    if (!this.find(ticker)) return { ok: false, text: 'No such company is listed.' };
+    const s = this.ensure();
+    const w = (s.watch ||= []);
+    const i = w.indexOf(ticker);
+    if (i >= 0) w.splice(i, 1); else w.push(ticker);
+    return { ok: true, on: i < 0, text: i < 0 ? `${ticker} is on your watchlist.` : `${ticker} is off your watchlist.` };
+  }
+
+  /** Buy or sell, and keep the record. */
+  buy(ticker, n) { const m = this.g.player.money; const r = this._buy(ticker, n); if (r.ok) this.noteTrade('buy', ticker, n, m); return r; }
+  sell(ticker, n) { const m = this.g.player.money; const r = this._sell(ticker, n); if (r.ok) this.noteTrade('sell', ticker, n, m); return r; }
+
+  /** The three old shares go through their own rules; a wider-world listing through the exchange's. */
+  _buy(ticker, n) {
     const r = this.find(ticker);
     n = Math.floor(n);
     if (!r) return { ok: false, text: 'No such company is listed.' };
@@ -42590,7 +42620,7 @@ class Exchange {
     return { ok: true, text: `Bought ${n.toLocaleString()} ${ticker} for ${money(q.gross)} obols (+${money(q.fee)} fee).` };
   }
 
-  sell(ticker, n) {
+  _sell(ticker, n) {
     const r = this.find(ticker);
     n = Math.floor(n);
     if (!r) return { ok: false, text: 'No such company is listed.' };
@@ -43136,12 +43166,12 @@ function dueMonth(loan) {
 
 const CO_SPREAD = 0.03;
 const GUARANTEE_DISCOUNT = { none: 0, personal: 0.01, parent: 0.0075 };
-const CO_FACTOR = 0.4; // of what a company owns, net of other debt
+const CO_FACTOR = 0.4; // of what a company is worth after its debts
 const CO_PROFIT_MONTHS = 6; // of its monthly profit
 const PERSONAL_GUARANTEE_HIT = 4; // record points the owner loses when a company they guaranteed misses an instalment
 const PURPOSES = ['Working capital', 'Material procurement', 'Factory or facility expansion', 'Ships and fleet', 'Farm land and equipment', 'Research and development', 'Acquisition or restructuring'];
 
-/** What a company may owe the bank in all: a share of its assets (before this debt) and some months of its profit, scaled by its record. */
+/** What a company may owe the bank in all: a share of what it is worth after its debts and some months of its profit, scaled by its record. */
 function companyLimit({ assets, monthlyNet, standing }) {
   return Math.max(0, Math.round((CO_FACTOR * Math.max(0, assets) + CO_PROFIT_MONTHS * Math.max(0, monthlyNet)) * limitFactor(standing)));
 }
@@ -43336,7 +43366,7 @@ class BusinessLoans {
   /** Companies that could borrow: owned, and holding their own cash. */
   eligible() { return ['arms', 'shipping', 'aerospace', 'farming', 'parent'].filter((id) => this.K.established(id) && this.K.account(id).funded); }
 
-  /** What the bank sees of a company: assets before this debt, what it earns in a month, and so what it may owe in all. */
+  /** What the bank sees of a company: what it is worth after all it owes, what it earns in a month, and so what it may owe in all. */
   view(id) {
     const K = this.K;
     const a = K.account(id);
@@ -43344,7 +43374,7 @@ class BusinessLoans {
     const m = reg ? K.metricsOf(reg) : null;
     const owed = this.owedBy(id);
     const net = m?.netAssets ?? Math.round(a.cash - a.arrears - K.group.payableOf(id) - owed);
-    const assets = net + owed; // before the bank's own claim
+    const assets = net; // what it owns less everything it owes, the bank included: borrowing adds cash and debt together, so a loan never raises the ceiling it was lent under
     const monthly = m?.annualProfit != null ? m.annualProfit / 12 : 0;
     const standing = this.standing(id);
     const total = companyLimit({ assets, monthlyNet: monthly, standing });
@@ -44004,6 +44034,139 @@ class Sovereign {
 return { Sovereign };
 })();
 
+// ---- src/corp/milestones.js
+__m["src/corp/milestones.js"] = (function () {
+// Corporate milestones (v0.80.0). Pure functions — no game state, no DOM, no RNG.
+//
+//   MILESTONES            the list: id, name, what it asks, and `check(rec)` → { met, have }
+//   evaluate(rec, earned) the ones not yet earned, each with whether it is met and a progress line
+//
+// A milestone is met by something that is in the game's own records: a business owned, an ownership edge, a person employed, a decision a manager
+// made, a month's consolidated result, a place in a sector's table, a share held, a loan repaid. Opening a screen, clicking a button or hiring
+// someone is never enough on its own — and none of them promises a profit from a war or an embargo.
+//
+// rec: { established: [ids], parent: bool, subs: [ids], staff: [{ role, employer, skill, status }], budgets: { employer: n }, decided: { employer: n },
+//        ranks: { id: [{ m, rank, of }] }, months: [{ net, decisions }] (closed months, newest first), portfolio: { tickers, sectors, value, gain, since },
+//        loans: [{ principal, status, missed }], contracts: [{ value }], expandedInWar: bool, day }
+const have = (n, of) => `${n}/${of}`;
+const best = (rec, id, n) => { const h = rec.ranks[id] || []; return h.length >= n && h.slice(-n).every((x) => x.rank !== null && x.rank !== undefined) ? Math.max(...h.slice(-n).map((x) => x.rank)) : null; };
+
+const MILESTONES = [
+  { id: 'four', name: 'Four businesses', text: 'Own all four private businesses: arms, shipping, aerospace and farming.', check: (r) => ({ met: r.established.length === 4, have: have(r.established.length, 4) }) },
+  { id: 'parent', name: 'A holding company', text: 'Form a parent company.', check: (r) => ({ met: r.parent, have: r.parent ? 'formed' : 'none' }) },
+  { id: 'group', name: 'One group', text: 'Bring all four businesses under your parent company as subsidiaries.', check: (r) => ({ met: r.parent && r.subs.length === 4, have: have(r.subs.length, 4) }) },
+  { id: 'hq', name: 'A staffed headquarters', text: 'Employ at least three people at the parent company, one of them a chief financial officer.', check: (r) => { const p = r.staff.filter((x) => x.employer === 'parent' && x.status === 'active'); return { met: p.length >= 3 && p.some((x) => x.role === 'cfo'), have: `${p.length} people, ${p.some((x) => x.role === 'cfo') ? 'a CFO' : 'no CFO'}` }; } },
+  { id: 'cfo', name: 'A first-rate CFO', text: 'Employ a chief financial officer whose best skill is 80 or more.', check: (r) => { const c = r.staff.filter((x) => x.role === 'cfo' && x.status === 'active').sort((a, b) => b.skill - a.skill)[0]; return { met: Boolean(c && c.skill >= 80), have: c ? `best ${Math.round(c.skill)}` : 'none' }; } },
+  { id: 'delegated', name: 'Delegation', text: 'Have every subsidiary run by a manager with a budget who has made a decision of their own.', check: (r) => { const ok = r.subs.filter((id) => r.staff.some((x) => x.employer === id && x.status === 'active') && (r.budgets[id] || 0) > 0 && (r.decided[id] || 0) > 0); return { met: r.subs.length === 4 && ok.length === 4, have: have(ok.length, 4) }; } },
+  { id: 'top5', name: 'A top-five company', text: 'Stand in the top five of your sector by sales for two months running (with at least six companies in it).', check: (r) => { const ids = Object.keys(r.ranks).filter((id) => { const h = r.ranks[id].slice(-2); return h.length === 2 && h.every((x) => x.of >= 6 && x.rank !== null && x.rank <= 5); }); return { met: ids.length > 0, have: ids.length ? ids.join(', ') : 'no' }; } },
+  { id: 'shipping_leader', name: 'The leading shipping company', text: 'Be first in the shipping sector by sales for two months running.', check: (r) => ({ met: best(r, 'shipping', 2) === 1 && (r.ranks.shipping.at(-1)?.of ?? 0) >= 6, have: r.ranks.shipping?.at(-1)?.rank ? `#${r.ranks.shipping.at(-1).rank}` : '—' }) },
+  { id: 'arms_leader', name: 'A leading arms maker', text: 'Be first in the arms sector by sales for two months running.', check: (r) => ({ met: best(r, 'arms', 2) === 1 && (r.ranks.arms.at(-1)?.of ?? 0) >= 6, have: r.ranks.arms?.at(-1)?.rank ? `#${r.ranks.arms.at(-1).rank}` : '—' }) },
+  { id: 'farm_major', name: 'A major producer', text: 'Stand in the top three of the farming sector by sales for two months running.', check: (r) => ({ met: (best(r, 'farming', 2) ?? 99) <= 3 && (r.ranks.farming.at(-1)?.of ?? 0) >= 6, have: r.ranks.farming?.at(-1)?.rank ? `#${r.ranks.farming.at(-1).rank}` : '—' }) },
+  { id: 'aero_contract', name: 'A major contract', text: 'Win an aerospace contract worth 500,000 obols or more.', check: (r) => { const v = Math.max(0, ...r.contracts.map((c) => c.value)); return { met: v >= 500000, have: `best ${Math.round(v).toLocaleString()}` }; } },
+  { id: 'cash_positive', name: 'In the black', text: 'Show a positive consolidated result for three months running.', check: (r) => { const m = r.months.slice(0, 3); return { met: m.length === 3 && m.every((x) => x.net > 0), have: `${m.filter((x) => x.net > 0).length}/3 months` }; } },
+  { id: 'autonomous', name: 'Running itself', text: 'Make a positive consolidated result for three months running, with your managers deciding things for themselves in each.', check: (r) => { const m = r.months.slice(0, 3); return { met: m.length === 3 && m.every((x) => x.net > 0 && x.decisions > 0), have: `${m.filter((x) => x.net > 0 && x.decisions > 0).length}/3 months` }; } },
+  { id: 'diversified', name: 'A diversified portfolio', text: 'Hold shares in five companies across at least three sectors, worth 50,000 obols or more.', check: (r) => ({ met: r.portfolio.tickers >= 5 && r.portfolio.sectors >= 3 && r.portfolio.value >= 50000, have: `${r.portfolio.tickers} companies, ${r.portfolio.sectors} sectors, ${Math.round(r.portfolio.value).toLocaleString()}` }) },
+  { id: 'investor', name: 'A sound investor', text: 'Be ahead on the shares you hold, with a cost on record, two months after your first trade.', check: (r) => ({ met: r.portfolio.since !== null && r.day - r.portfolio.since >= 60 && r.portfolio.gain > 0, have: r.portfolio.since === null ? 'no trades' : `${r.day - r.portfolio.since} days, ${r.portfolio.gain >= 0 ? '+' : '−'}${Math.abs(Math.round(r.portfolio.gain)).toLocaleString()}` }) },
+  { id: 'repaid', name: 'Debt cleared', text: 'Repay a loan of 100,000 obols or more, in full, without missing an instalment.', check: (r) => { const ok = r.loans.filter((l) => l.status === 'repaid' && l.principal >= 100000 && l.missed === 0); return { met: ok.length > 0, have: `${ok.length} repaid` }; } },
+  { id: 'war_expansion', name: 'Building through a war', text: 'Have a manager expand a business while a war is on.', check: (r) => ({ met: r.expandedInWar, have: r.expandedInWar ? 'yes' : 'no' }) },
+];
+
+/** Every milestone not yet earned: whether the records now meet it, and how near it is. */
+function evaluate(rec, earned = {}) {
+  return MILESTONES.filter((m) => !earned[m.id]).map((m) => { const c = m.check(rec); return { id: m.id, met: Boolean(c.met), have: c.have }; });
+}
+
+return { MILESTONES, evaluate };
+})();
+
+// ---- src/systems/milestonesRecords.js
+__m["src/systems/milestonesRecords.js"] = (function () {
+// What the milestones read (v0.80.0): the game's own records gathered into one plain object. Nothing here is computed from a screen or a click;
+// each line names the record it comes from.
+const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming']; // (not imported from corporate.js, which imports this chain)
+
+function recordsOf(K) {
+  const g = K.game;
+  const day = g.clock.day;
+  const cur = Math.floor((day - 1) / 30);
+  const pe = K.personnel.peek();
+  const M = K.management.peek();
+  const staff = Object.values(pe?.staff || {}).map((x) => ({ role: x.role, employer: x.employer, status: x.status, skill: Math.max(0, ...Object.values(x.skills || {})) }));
+  const budgets = {};
+  for (const [e, cats] of Object.entries(M?.budgets || {})) budgets[e] = Object.values(cats).reduce((a, b) => a + (b || 0), 0);
+  const done = (M?.log || []).filter((l) => l.type === 'done' || l.type === 'approved');
+  const decided = {};
+  for (const l of done) decided[l.employer] = (decided[l.employer] || 0) + 1;
+  const ranks = {};
+  for (const id of COMPANY_IDS) if (K.state.rankHistory?.[id]) ranks[id] = K.state.rankHistory[id].map((x) => ({ ...x }));
+  // closed months, newest first: the consolidated result and the decisions managers made in each
+  const months = [];
+  if (K.group.parent) {
+    for (let m = cur - 1; m >= Math.max(0, cur - 3); m--) {
+      const c = K.group.consolidated('month', [m]);
+      months.push({ net: c.consolidated.net, decisions: done.filter((l) => Math.floor((l.day - 1) / 30) === m).length });
+    }
+  }
+  // shares: what is held, in how many sectors, what it is worth, the gain on those whose cost is kept, and the first trade
+  const P = K.exchange.portfolio();
+  const trades = K.exchange.trades();
+  const portfolio = { tickers: P.rows.length, sectors: new Set(P.rows.map((r) => r.sector).filter(Boolean)).size, value: P.value, gain: P.gain, since: trades.length ? trades[0].day : null };
+  const loans = [...K.lending.loans(true), ...K.business.loans(null, true)].map((l) => ({ principal: l.principal, status: l.status, missed: l.missed || 0 }));
+  const contracts = g.aero.owned ? g.aero.contractsOf(g.aero.roost).filter((c) => c.status !== 'cancelled').map((c) => ({ value: c.unitPrice * c.qty })) : [];
+  const wars = K.geo.events().filter((e) => e.kind === 'war');
+  const expandedInWar = done.some((l) => l.kind === 'expand' && wars.some((w) => l.day >= w.start && l.day <= (w.end ?? Infinity)));
+  return { established: COMPANY_IDS.filter((id) => K.established(id)), parent: Boolean(K.state.parent), subs: K.group.subs(), staff, budgets, decided, ranks, months, portfolio, loans, contracts, expandedInWar, day };
+}
+
+return { recordsOf };
+})();
+
+// ---- src/systems/milestones.js
+__m["src/systems/milestones.js"] = (function () {
+// Corporate milestones (v0.80.0): game.corp.milestones — awarded each morning from the game's own records (src/corp/milestones.js), never from
+// opening a screen, hiring someone or pressing a button, and never promised from a war. Each is awarded once, with the day and what the records said.
+// State: world.corp.milestones = { earned: { id: { day, have } } }, created when the first is earned.
+const { MILESTONES, evaluate } = __m["src/corp/milestones.js"];
+const { recordsOf } = __m["src/systems/milestonesRecords.js"];
+
+class Milestones {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.K.state.milestones || null; }
+  earned() { return this.peek()?.earned || {}; }
+
+  /** What the game's records say, in the shape the rules read. */
+  records() { return recordsOf(this.K); }
+
+  /** Every milestone with its state: earned (when), or not (and how near). */
+  view() {
+    const rec = this.records();
+    const now = Object.fromEntries(evaluate(rec, this.earned()).map((x) => [x.id, x]));
+    return MILESTONES.map((m) => ({ id: m.id, name: m.name, text: m.text, earned: this.earned()[m.id] || null, have: now[m.id]?.have ?? this.earned()[m.id]?.have ?? '' }));
+  }
+
+  /** Each morning, after the group's and the managers' day: award what the records now meet, once. */
+  dailyTick() {
+    if (!this.K.registry().some((r) => r.kind === 'player')) return;
+    const rec = this.records();
+    for (const r of evaluate(rec, this.earned())) {
+      if (!r.met) continue;
+      const m = MILESTONES.find((x) => x.id === r.id);
+      const st = (this.K.state.milestones ||= { v: 1, earned: {} });
+      if (st.earned[r.id]) continue; // once
+      st.earned[r.id] = { day: this.day, have: r.have };
+      this.g.tablet.post('milestones', `Milestone: ${m.name} — ${m.text}`, 'good');
+    }
+  }
+}
+
+return { Milestones };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -44040,6 +44203,7 @@ const { Lending } = __m["src/systems/lending.js"];
 const { BusinessLoans } = __m["src/systems/businessLoans.js"];
 const { Geo } = __m["src/systems/geo.js"];
 const { Sovereign } = __m["src/systems/sovereign.js"];
+const { Milestones } = __m["src/systems/milestones.js"];
 const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -44058,6 +44222,7 @@ class Corporate {
     this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
     this.geo = new Geo(this); // v0.75.0: wars and embargoes as persistent events
     this.sovereign = new Sovereign(this); // v0.77.0: foreign government bonds
+    this.milestones = new Milestones(this); // v0.80.0: milestones from the records
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -44434,6 +44599,7 @@ class Corporate {
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
     this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
+    this.milestones.dailyTick(); // milestones, from what the records now say
     this.sovereign.dailyTick(); // the countries' ratings, delayed payments and restructurings, and coupons (once the arms market is running)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
     this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)
@@ -46477,6 +46643,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.80.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The Whole Group',
+    notes: [
+      'A new Milestones app records what your group has actually done — four businesses, a parent company, managers who make their own decisions, three months in the black, a loan repaid — from the books, never from clicking. The Exchange keeps your trades and a watchlist, and each bond shows its next coupon. Behind the scenes the whole corporate update was tested end to end: a full group run for two months, old saves loaded and played on, and every kind of transaction saved and reloaded. That found two loopholes (loans that could stack past a company\'s limit, and purchases split to dodge a manager\'s limit); both are closed.',
+    ],
+  },
   {
     version: '0.79.0',
     date: '2026-10-30',
@@ -64242,6 +64417,7 @@ const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocale
 const px = (x) => (x >= 100 ? x.toFixed(0) : x.toFixed(2));
 const pct = (x) => (x === null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1)}%`);
 const SORTS = { ticker: 'Ticker', change: 'Day change', value: 'Held', price: 'Price' };
+const WATCH = '★ Watchlist';
 
 function exchangeApp(ui, body, open) {
   const g = ui.game;
@@ -64259,16 +64435,17 @@ function exchangeApp(ui, body, open) {
 
   let rows = E.board();
   const sectors = [...new Set(rows.map((r) => r.sector).filter(Boolean))].sort();
-  const sector = h('select', { class: 'debug-input' }, h('option', { value: '' }, 'All sectors'), ...sectors.map((s) => h('option', { value: s, selected: s === S.sector }, s)));
+  const sector = h('select', { class: 'debug-input' }, h('option', { value: '' }, 'All sectors'), h('option', { value: WATCH, selected: S.sector === WATCH }, WATCH), ...sectors.map((s) => h('option', { value: s, selected: s === S.sector }, s)));
   const sort = h('select', { class: 'debug-input' }, ...Object.entries(SORTS).map(([v, t]) => h('option', { value: v, selected: v === S.sort }, `Sort: ${t}`)));
   body.append(h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin:8px 0' }, sector, sort, h('button', { class: 'small', onclick: () => view({ sector: sector.value, sort: sort.value }) }, 'Apply')));
-  if (S.sector) rows = rows.filter((r) => r.sector === S.sector);
+  if (S.sector === WATCH) rows = rows.filter((r) => E.watched().includes(r.ticker));
+  else if (S.sector) rows = rows.filter((r) => r.sector === S.sector);
   const key = { ticker: (a, b) => (a.ticker < b.ticker ? -1 : 1), change: (a, b) => (b.change ?? -9) - (a.change ?? -9), value: (a, b) => b.value - a.value || (a.ticker < b.ticker ? -1 : 1), price: (a, b) => b.price - a.price }[S.sort];
   rows = [...rows].sort(key);
 
   body.append(h('div', { class: 'list' }, ...rows.map((r) => h('div', { class: 'item-row', style: `align-items:flex-start;cursor:pointer;${S.sel === r.ticker ? 'outline:1px solid #8ab' : ''}`, onclick: () => view({ sel: S.sel === r.ticker ? null : r.ticker }) },
     h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, r.sector ? h('span', { class: 'tag' }, r.sector) : null, r.status && r.status !== 'listed' ? h('span', { class: 'tag neg' }, r.status) : null, r.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(r.held)}`) : null),
+      h('div', { class: 'name' }, h('span', { style: `cursor:pointer;color:${E.watched().includes(r.ticker) ? '#e8c04a' : '#889'}`, title: 'Watchlist', onclick: (ev) => { ev.stopPropagation(); go(E.toggleWatch(r.ticker)); } }, E.watched().includes(r.ticker) ? '★ ' : '☆ '), `${r.ticker} · ${r.name}`, r.sector ? h('span', { class: 'tag' }, r.sector) : null, r.status && r.status !== 'listed' ? h('span', { class: 'tag neg' }, r.status) : null, r.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(r.held)}`) : null),
       h('div', { class: 'desc' }, `${px(r.price)} obols`, ' ', h('span', { style: `color:${r.change === null ? 'inherit' : r.change >= 0 ? '#7c7' : '#e66'}` }, pct(r.change)), `  ${spark(r.history.slice(-30))}`)),
     h('div', { class: 'desc' }, r.held > 0 ? `worth ${n(r.value)}` : '')))));
 
@@ -64277,6 +64454,8 @@ function exchangeApp(ui, body, open) {
   const r = S.sel && E.find(S.sel);
   if (r) body.append(detail(r));
 
+  const trades = E.trades().slice(-8).reverse();
+  if (trades.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Your trades'), h('div', { class: 'list' }, ...trades.map((t) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${t.day} · ${t.side === 'buy' ? 'Bought' : 'Sold'} ${n(t.n)} ${t.ticker} — ${n(t.value)} obols${t.side === 'buy' ? ' paid' : ' received'}, fee included`))))));
   const log = (E.peek()?.log || []).slice(-6).reverse();
   if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
   body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'A share\'s price moves a part of the way each day toward what the company\'s own books say it is worth; it never follows what you buy or sell. A broker\'s fee is charged each way, and no investor may hold more than 5% of a company. Dividends are what the company really paid out of a month\'s profit, once a month. Nothing here is advice: a company can fail, and then its shares are worth nothing.'));
@@ -64518,6 +64697,27 @@ function economyApp(ui, body) {
 return { economyApp };
 })();
 
+// ---- src/ui/corpMilestones.js
+__m["src/ui/corpMilestones.js"] = (function () {
+// The Milestones app (v0.80.0): what your group has actually done, from the game's records. Read from game.corp.milestones.
+const { h } = __m["src/ui/panels.js"];
+
+function milestonesApp(ui, body) {
+  const g = ui.game;
+  const rows = g.corp.milestones.view();
+  const got = rows.filter((r) => r.earned);
+  body.append(h('p', { class: 'doc' }, '🏆 Milestones are awarded from what is in the books — a business owned, a manager who decided something, a month in the black, a loan repaid — never from opening a screen or pressing a button, and never promised from a war.'),
+    h('div', { class: 'grid2' }, h('div', { class: 'stat' }, h('span', {}, 'Earned'), h('b', {}, `${got.length} of ${rows.length}`))));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Earned'));
+  if (!got.length) body.append(h('p', { class: 'muted' }, 'None yet.'));
+  else body.append(h('div', { class: 'list' }, ...got.sort((a, b) => a.earned.day - b.earned.day).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '🏆'), h('div', { class: 'grow' }, h('div', { class: 'name' }, r.name, h('span', { class: 'tag good' }, `day ${r.earned.day}`)), h('div', { class: 'desc' }, `${r.text} (${r.earned.have})`))))));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'To earn'));
+  body.append(h('div', { class: 'list' }, ...rows.filter((r) => !r.earned).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.name, h('span', { class: 'tag' }, r.have || '—')), h('div', { class: 'desc' }, r.text))))));
+}
+
+return { milestonesApp };
+})();
+
 // ---- src/ui/corpBonds.js
 __m["src/ui/corpBonds.js"] = (function () {
 // The Bonds app (v0.69.0): government bonds from the First Bank of Halvermouth. Read from game.corp.bonds; every button calls it.
@@ -64545,7 +64745,7 @@ function bondsApp(ui, body, open) {
   if (!P.rows.length) body.append(h('p', { class: 'muted' }, 'You hold none.'));
   else body.append(h('div', { class: 'list' }, ...P.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
     h('div', { class: 'name' }, `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
-    h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · worth ${n(r.value)} today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
+    h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · next coupon day ${r.due}, face repaid day ${r.end} · worth ${n(r.value)} today (paid ${n(r.cost)}, ${r.value >= r.cost ? 'ahead' : 'behind'} ${n(Math.abs(r.value - r.cost))} on paper, ${n(r.coupons * r.perMonth)} of coupons so far); selling gets ${n(r.sale)}`),
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(B.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
   corporate();
   foreign();
@@ -64609,7 +64809,7 @@ __m["src/ui/tabletGroups.js"] = (function () {
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐' };
+const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
 
 function tabletGroups(g) {
   const T = g.tablet;
@@ -64618,7 +64818,7 @@ function tabletGroups(g) {
     { id: 'Home', apps: ['Home'] },
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
-    { id: 'Group', apps: own ? ['Group', 'Personnel', 'Management'] : [] },
+    { id: 'Group', apps: own ? ['Group', 'Personnel', 'Management', 'Milestones'] : [] },
     { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence'] },
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
@@ -64629,7 +64829,7 @@ const allApps = (groups) => groups.flatMap((x) => x.apps);
 const groupOf = (groups, tab) => groups.find((x) => x.apps.includes(tab)) || groups[0];
 
 /** Which app a feed item belongs to (the feed's own app names are older than the tablet's). */
-const FEED_TAB = { arms: 'Business', market: 'Business', ships: 'Ships', aero: 'Aerospace', stocks: 'Stocks', bank: 'Bank', news: 'Economy' };
+const FEED_TAB = { arms: 'Business', market: 'Business', ships: 'Ships', aero: 'Aerospace', stocks: 'Stocks', bank: 'Bank', news: 'Economy', milestones: 'Milestones' };
 
 /** The newest `unread` feed items, counted by the app they belong to (news and the like belong to Home). */
 function badges(g) {
@@ -64671,6 +64871,7 @@ const { exchangeApp } = __m["src/ui/corpExchange.js"]; // v0.66.0
 const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
 const { economyApp } = __m["src/ui/corpEconomy.js"]; // v0.75.0
+const { milestonesApp } = __m["src/ui/corpMilestones.js"]; // v0.80.0
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
 
@@ -64710,6 +64911,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
+  else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
