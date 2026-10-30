@@ -6,6 +6,7 @@ The journal became a tablet. Open it with **J** (or Q, or Pause → Tablet, or t
 | --- | --- |
 | Home | Business notifications (newest first, unread ones marked) and summary cards for your business and shares. Opening Home marks everything read. |
 | Quests · People · Customers · Notes · Standing | The old journal pages. |
+| (Groups) | (v0.72.0) The apps are in six groups along the top — Home, Journal, Businesses, Group, Markets, Bank — with the apps of the group you are in one tap below; Home lists them all with a badge for what is new and a search box. |
 | Business | Appears once you own an arms works. A remote link to the works terminal: Overview, Parts, Equipment, Staff, Research, Market. Several works → a switcher. |
 | Stocks | The Ober's Oil share register (as at Sir Moneybucks's desk) with a closing-price chart. |
 | Companies | (v0.60.0) Your businesses as companies: name, sector, headquarters, last month's figures and place, and the company's own account — pay in, take out, close. A naming panel opens when a business is founded. |

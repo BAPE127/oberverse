@@ -15,22 +15,30 @@ import { manageApp } from './corpManage.js'; // v0.63.0
 import { exchangeApp } from './corpExchange.js'; // v0.66.0
 import { bankApp } from './corpBank.js'; // v0.68.0
 import { bondsApp } from './corpBonds.js'; // v0.69.0
+import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel', 'Management'] : []), 'Intelligence', 'Exchange', 'Bank', 'Bonds', 'Stocks'];
+  const groups = tabletGroups(g);
+  const apps = allApps(groups);
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
+  const group = groupOf(groups, tab);
+  const badge = badges(g);
+  (ui.tabletLast ||= {})[group.id] = tab;
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
+
+  /** The apps of the group you are in, one tap away (v0.72.0). A group of one app has none. */
+  const appBar = () => (group.apps.length > 1 ? h('div', { class: 'row tablet-apps', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:4px 0 8px' }, ...group.apps.map((a) => h('button', { class: `small${a === tab ? ' primary' : ''}`, onclick: () => open(a) }, `${APP_ICONS[a] || ''} ${a}${badge[a] ? ` (${badge[a]})` : ''}`))) : null);
 
   const bar = () => h('div', { class: 'tablet-bar' },
     h('span', {}, `Day ${g.clock.day} · ${g.clock.weekday} · ${g.clock.timeString}`),
     h('span', {}, `${g.player.money} obols · 📶 ▮▮▮ 🔋`));
 
-  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, bar(), stocksHeader(g)) });
-  else body.append(bar());
-  if (tab === 'Home') homeApp(ui, body, open);
+  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, bar(), appBar(), stocksHeader(g)) });
+  else { body.append(bar()); const ab = appBar(); if (ab) body.append(ab); }
+  if (tab === 'Home') homeApp(ui, body, open, groups, badge);
   else if (tab === 'Business') businessApp(ui, body, opts, open);
   else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
@@ -46,8 +54,9 @@ export function tabletPanel(ui, body, opts) {
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 
-  const label = (t) => (t === 'Home' && unread && tab !== 'Home' ? `Home (${unread})` : t);
-  return { title: '📱 OberPad', className: 'tablet', tabs: apps.map((t) => ({ label: label(t), active: t === tab, onclick: () => open(t) })) };
+  const count = (x) => x.apps.reduce((a, t) => a + (badge[t] || 0), 0);
+  const label = (x) => `${x.icon} ${x.id}${count(x) && x.id !== group.id ? ` (${count(x)})` : x.id === 'Home' && unread && tab !== 'Home' ? ` (${unread})` : ''}`;
+  return { title: '📱 OberPad', className: 'tablet', tabs: groups.map((x) => ({ label: label(x), active: x.id === group.id, onclick: () => open(x.id === group.id ? x.apps[0] : (ui.tabletLast[x.id] && x.apps.includes(ui.tabletLast[x.id]) ? ui.tabletLast[x.id] : x.apps[0])) })) };
 }
 
 /** v0.55.0: Roost Aeroworks at a glance, and the way into the terminal. */
@@ -68,9 +77,17 @@ function aeroApp(ui, body) {
   );
 }
 
-function homeApp(ui, body, open) {
+function homeApp(ui, body, open, groups, badge) {
   const g = ui.game;
   const T = g.tablet;
+  // v0.72.0: the apps, in their groups, with what is new in each — and a search
+  const q = h('input', { type: 'text', class: 'debug-input', placeholder: 'Find an app…', value: ui.tabletSearch || '', style: 'width:100%;margin-bottom:6px' });
+  q.addEventListener('change', () => { ui.tabletSearch = q.value; open('Home'); });
+  body.append(q);
+  const found = searchApps(groups, ui.tabletSearch);
+  if (ui.tabletSearch) body.append(found.length ? h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:8px' }, ...found.map((f) => h('button', { class: 'small primary', onclick: () => { ui.tabletSearch = ''; open(f.app); } }, `${APP_ICONS[f.app] || ''} ${f.app} · ${f.group}`))) : h('p', { class: 'muted' }, 'No app by that name.'));
+  else body.append(h('div', { class: 'list' }, ...groups.filter((x) => x.id !== 'Home').map((x) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, x.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, x.id),
+    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin-top:4px' }, ...x.apps.map((a) => h('button', { class: 'small', onclick: () => open(a) }, `${APP_ICONS[a] || ''} ${a}${badge[a] ? ` (${badge[a]})` : ''}`))))))));
   const cards = h('div', { class: 'grid2 tablet-cards' });
   if (T.hasBusiness()) {
     const A = g.arms;

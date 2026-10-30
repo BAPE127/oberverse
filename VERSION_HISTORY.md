@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.72.0 | 2026-10-30 | development | 1 | A tidier tablet: six groups instead of a row of twenty tabs, the apps of a group one tap below, and a Home screen that is a launcher with a badge on every app that has something new and a search box |
 | 0.71.0 | 2026-10-30 | development | 1 | Lending to business: every listed company issues a three-year bond rated from its own books (the policy rate plus a term premium and a credit spread), priced by its rating every day, defaulting only when the world closes it (at the world's recovery rate) and repaid at par when it is taken over; at most a twentieth of an issue each |
 | 0.70.0 | 2026-10-30 | development | 1 | Open for business: the First Bank of Halvermouth is a real building you can walk into (09:00–17:00) with a banking hall the size of its footprint, a vault door that never opens, a bond desk that opens Bonds and a rate board that opens the Bank app; no staff yet |
 | 0.69.0 | 2026-10-30 | development | 1 | Government paper: one-, three- and five-year government bonds at par from the First Bank, with a coupon of the policy rate plus a term premium, a month's coupon every thirty days, the face at the end, and a market value that follows the yield (sell back at any time for a half-percent spread) |

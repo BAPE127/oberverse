@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.71.0
+# Known Issues and Limitations — v0.72.0
+
+- **The tablet's groups (v0.72.0)** — the badges are the notifications that have arrived since you last viewed Home, counted by the app they belong to; opening an app does not clear its badge, only viewing Home does (as before). Notifications from the arms trade's shipments and orders are counted under Business; world news under Home. The search finds apps, not the things inside them (a company, a ticker, a person). The group and app bars have no automated test, only a browser check.
 
 - **Corporate bonds (v0.71.0)** — see docs/CORPORATE.md. **The bonds run beside the companies' books**: the cash an issue raises is not added to the company's cash, nor its coupons taken from its profit, so a company is worth and priced the same with or without bonds outstanding; the rating uses its real debt. A company only defaults when the world's simulation closes it, and then the recovery is the world's own rule, not negotiated. The rating is a model of the books (leverage, losses, cash, distress): it can lag, and a company can be AA and fail in a bad month. The bonds' interest and the face are paid to you out of nothing, as with government bonds and dividends (a larger spread for a riskier company is the only brake, with the one-twentieth cap). Bond values are not in the net worth quests read, nor the exchange portfolio. The corporate section has no automated test of its screens, only a browser check.
 

@@ -44,6 +44,7 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `tablet_groups.test.mjs` | The tablet's groups (v0.72.0): which groups and apps a game has as it grows, each app in one group, every earlier app still there; badges by app (only what is new, cleared by reading); search by name or group. |
 | `credit.test.mjs` | Corporate bonds (v0.71.0): the pure rating, spread, recovery and issue-size rules; one issue per priced listed company, once, at the coupon the rule gives, none before the exchange; buying (par, a twentieth, refusals changing nothing), coupons once a month, thirty-six and the face; the rating following the books and the price the rating; default once at the recovery rate, a takeover at par; a repaid issue replaced a month later; saves. |
 | `first_bank.test.mjs` | The physical bank (v0.70.0): the door leads to a hall exactly the building's size with its way out and a place to stand outside; the hours; the bond desk and rate board opening Bonds and Bank; the vault and counter giving messages; the street around it unmoved. |
 | `bonds.test.mjs` | Government bonds (v0.69.0): the premium curve, the coupon, the cash flows and the value (par at issue, falling and rising with the rate, never wild); nothing made before a purchase; the bounds and refusals; coupons once a month and never early, twelve and the face and no more, after a gap each missed one once; value and sale with the spread, a round trip costing only the spread; saves; a coupon fixed at issue while the offers follow the rate. |
@@ -79,6 +80,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.72.0 (2026-10-30)
+
+- `npm run check` — **798/798 tests passed** (3 new in `tablet_groups`); every earlier test passes unedited. `npm run smoke` — 26/26 (it opens the tablet).
+- No game rule changed (a UI-only release), so no parity run was needed beyond the suite: the same simulation code runs as in v0.71.0.
+- Browser (headless Chromium): the group bar with badges, the Home launcher, the search finding Bonds and opening it, the app bar of a group, the Journal; no page errors. A stray "null" at the top of Home (a group of one app has no app bar) was found and fixed.
 
 ## Verification record — v0.71.0 (2026-10-30)
 

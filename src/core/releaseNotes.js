@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.72.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'A Tidier Tablet',
+    notes: [
+      'The tablet\'s long row of twenty tabs is now six groups — Home, Journal, Businesses, Group, Markets, Bank — and the apps of the group you are in sit one tap below. The Home screen lists every app in its group, with a number beside any app that has something new, and a box to find an app by name. Nothing was added or taken away: every app works as before.',
+    ],
+  },
+  {
     version: '0.71.0',
     date: '2026-10-30',
     channel: 'development',

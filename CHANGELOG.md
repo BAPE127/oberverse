@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.72.0] — 2026-10-30 — A Tidier Tablet (development build)
+
+Stage 11 of the Corporate Empire brief: the tablet's apps, organised. No app was added, removed or changed.
+
+### Changed (`src/ui/tabletGroups.js`, `src/ui/tablet.js`)
+- **Six groups instead of a row of up to twenty tabs**: **Home**; **Journal** (Quests, People, Customers, Notes, Standing); **Businesses** (Business, Ships, Farm, Aerospace, Companies — those you own); **Group** (Group, Personnel, Management — once you own a company); **Markets** (Exchange, Stocks, Intelligence); **Bank** (Bank, Bonds). A group with nothing in it is not shown. The group's **apps are one tap below the bar**, and tapping a group returns to the app you last used in it.
+- **The Home screen is a launcher**: every group with its apps, a **badge** on each app with what is new (the notifications that have arrived since you last looked at Home, counted by the app they belong to; the group bar shows the total), and a **search box** that finds an app by its name or its group.
+- Every `openPanel('tablet', { tab })` call in the game still works (the apps have the same names); an unknown tab falls back to Home.
+
+### Fixed
+- A stray "null" printed at the top of Home while the apps bar was being built.
+
+### Tests
+- New: `tablet_groups` (3): which groups and apps a game has as it grows, each app in exactly one group and every app the tablet had still present; the badges (by app, only what is new, cleared by reading); the search. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. The layout has no automated test, only a browser check.
+
 ## [0.71.0] — 2026-10-30 — Lending to Business (development build)
 
 Stage 10, last of four parts: corporate bonds.

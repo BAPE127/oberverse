@@ -23,4 +23,5 @@ Rules:
 - Bonds (v0.69): a bond is a list of dated cash flows priced at the current yield (par at issue, falling when rates rise); each coupon is paid exactly once whatever is saved or slept through; nothing is created before a purchase.
 - A new interior for an existing building must be the building's grown footprint (make it after `growStreets`, like `phonographLobby`); a larger one moves the town and every hand-placed coordinate in the content.
 - Corporate bonds (v0.71): default is the world's own closing of a company, never a dice roll; the rating is a pure function of the books; the bond market must not change a company's records.
+- A new tablet app goes in a group in `src/ui/tabletGroups.js` and keeps a unique name; `openPanel('tablet', { tab })` is how every other part of the game opens it.
 - Deliver: tests (rules, persistence, old-save load), docs, a browser check of every screen touched, and an honest report of what is and is not done.
