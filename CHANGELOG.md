@@ -2,6 +2,14 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.80.1] — 2026-10-30 — Morganius's Arms (development build)
+
+A patch. No rule or figure changed.
+
+- **Morganius Spade's arms.** His elbows bent the wrong way: with his hands resting on the felt the sleeves folded inward across his chest and the hands floated apart from them, and the cuffs stood detached. The two-bone arm solver now takes whichever of its two elbow solutions hangs lower and farther from the middle of his body, as a real arm does, and only changes sides when the other is clearly better, so an elbow never snaps across mid-motion. Checked frame by frame in the live Spade's Gambit scene — a card mid-throw, the cascade, win and lose — and in all eleven poses.
+- **`tests/morganius_arms.test.mjs`** (4 tests): the chosen elbow is the natural one in every pose; the rest poses keep their elbows outside the shoulders; the bones keep their length; through a whole dealt hand the elbows never cross the body's middle. Mutation-checked against an inverted solver (two fail).
+- The wording and test corrections to the 0.73–0.80 releases (see docs/TESTING.md "follow-up corrections"): the robbery's separation is stated as "no financial rule reads it", the civic-standing effect is documented, the reload divergence is recorded as present at 0.59.0 too, and a few test titles and assertions were made honest.
+
 ## [0.80.0] — 2026-10-30 — The Whole Group (development build)
 
 Stages 15–17: economic integration, save migration and regression, and the release. It adds milestones, the last tablet features, and the tests that the brief's acceptance section asks for — which found and fixed two flaws.

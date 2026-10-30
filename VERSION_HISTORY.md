@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.80.1 | 2026-10-30 | development | 1 | Morganius's arms: his elbows bent the wrong way (sleeves folded across his chest, hands floating) — now they hang out and down like a real arm, and a test holds them there through every pose. Corrections to the 0.73–0.80 wording and tests. |
 | 0.80.0 | 2026-10-30 | development | 1 | The whole group: milestones awarded from the records, your trades and a watchlist, the brief's integrated corporate-group test, save-migration and transaction-integrity tests — and the two flaws they found (loan stacking, split purchases) fixed |
 | 0.79.0 | 2026-10-30 | development | 1 | Bank robbery: a hold-up or a night break-in at the First Bank or the Lariat State Bank for a bounded haul of notes and gold, one explicit state machine, loot paid once, police and closure — and a proof, by control-game tests and source scans, that no financial standing is touched |
 | 0.78.0 | 2026-10-30 | development | 1 | Staffed banks: a building for the Lariat State Bank, the Governor's office at the First Bank, and seven new people (Governor, chief teller, bond clerk, guard; manager, teller, guard) with homes, schedules and dialogue |

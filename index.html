@@ -16046,7 +16046,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.80.0';
+const GAME_VERSION = '0.80.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -46644,6 +46644,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.80.1',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Morganius\'s Arms',
+    notes: [
+      'Morganius Spade\'s elbows now bend the right way. At the table his sleeves used to fold across his chest with his hands floating apart from them; now his arms hang out and down like a real arm, through every pose — dealing, shuffling, conjuring, winning and losing.',
+    ],
+  },
+  {
     version: '0.80.0',
     date: '2026-10-30',
     channel: 'development',
@@ -66356,6 +66365,20 @@ function elbow(sh, hand, side) {
   return { e: [sh[0] + Math.cos(a + b) * UPPER, sh[1] + Math.sin(a + b) * UPPER], h: [hx, hy] };
 }
 
+/**
+ * Which way the elbow bends (+1 or -1 for `elbow`): the natural one — hanging low and away from the middle of
+ * his body, like a real arm. `prev` is the side it had a moment ago; it only switches when the other is clearly
+ * better, so an elbow never pops across mid-motion. (Before v0.80.1 the side was fixed per arm, and was the
+ * wrong way for the arms at rest: the sleeves folded inward across his chest.)
+ */
+function chooseSide(sh, hand, prev) {
+  const score = (side) => { const e = elbow(sh, hand, side).e; return Math.abs(e[0] - 100) + 0.5 * e[1]; };
+  const a = score(1);
+  const b = score(-1);
+  if (prev === 1 || prev === -1) return (prev === 1 ? a : b) >= (prev === 1 ? b : a) - 30 ? prev : -prev;
+  return a >= b ? 1 : -1;
+}
+
 class MorganiusPuppet {
   constructor() {
     this.cv = typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -66364,6 +66387,7 @@ class MorganiusPuppet {
     this.poseAt = 0;
     this.hold = 0; // the pose lasts until then, then he goes back to idle
     this.hand = { L: [...POSES.idle.L], R: [...POSES.idle.R] };
+    this.bend = { L: 1, R: -1 }; // which way each elbow bends (see chooseSide)
     this.brow = 0;
     this.tilt = 0;
     this.shrug = 0;
@@ -66678,9 +66702,10 @@ class MorganiusPuppet {
 
     // --- the arms: sleeves flaring to the cuff, rune-trimmed; the hands
     for (const s of ['L', 'R']) {
-      const side = s === 'L' ? -1 : 1;
+      const side = s === 'L' ? 1 : -1; // (which side the thumb is on)
       const sh = s === 'L' ? [SHOULDER_L[0], SHOULDER_L[1] - sy] : [SHOULDER_R[0], SHOULDER_R[1] - sy];
-      const { e, h } = elbow(sh, this.hand[s], side);
+      const bend = (this.bend[s] = chooseSide(sh, this.hand[s], this.bend[s]));
+      const { e, h } = elbow(sh, this.hand[s], bend);
       const tone = s === 'L' ? ROBE[2] : ROBE[1];
       const limb = (a, b, w0, w1, col) => {
         const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
@@ -66743,7 +66768,7 @@ function hostPlacement(c) {
 }
 
 
-return { MorganiusPuppet, hostPlacement };
+return { POSES, SHOULDER_L, SHOULDER_R, elbow, chooseSide, MorganiusPuppet, hostPlacement };
 })();
 
 // ---- src/ui/casino.js

@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.80.1',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Morganius\'s Arms',
+    notes: [
+      'Morganius Spade\'s elbows now bend the right way. At the table his sleeves used to fold across his chest with his hands floating apart from them; now his arms hang out and down like a real arm, through every pose — dealing, shuffling, conjuring, winning and losing.',
+    ],
+  },
+  {
     version: '0.80.0',
     date: '2026-10-30',
     channel: 'development',

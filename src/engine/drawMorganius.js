@@ -25,7 +25,7 @@ const GOLD = '#c9a24a';
 const GOLD_HI = '#f0d070';
 
 /** Where each pose wants his hands (art coordinates), and how he holds himself. */
-const POSES = {
+export const POSES = {
   idle: { L: [68, 150], R: [132, 150], brow: 0, mouth: 'smile', tilt: 0, shrug: 0 },
   deal: { L: [64, 152], R: [150, 140], brow: 0.3, mouth: 'smile', tilt: 0.04, shrug: 0 },
   shuffle: { L: [54, 146], R: [146, 146], brow: 0.5, mouth: 'smile', tilt: 0, shrug: 0 },
@@ -38,13 +38,13 @@ const POSES = {
   think: { L: [68, 152], R: [114, 112], brow: -0.2, mouth: 'flat', tilt: 0.08, shrug: 0 },
   point: { L: [68, 152], R: [126, 160], brow: 0.6, mouth: 'smile', tilt: 0.03, shrug: 0 },
 };
-const SHOULDER_L = [56, 124];
-const SHOULDER_R = [144, 124];
+export const SHOULDER_L = [56, 124];
+export const SHOULDER_R = [144, 124];
 const UPPER = 36;
 const FORE = 36;
 
 /** Two-bone reach: the elbow for a hand at `hand` from a shoulder, bending outward (`side` ±1). */
-function elbow(sh, hand, side) {
+export function elbow(sh, hand, side) {
   const dx = hand[0] - sh[0];
   const dy = hand[1] - sh[1];
   let d = Math.hypot(dx, dy);
@@ -59,6 +59,20 @@ function elbow(sh, hand, side) {
   return { e: [sh[0] + Math.cos(a + b) * UPPER, sh[1] + Math.sin(a + b) * UPPER], h: [hx, hy] };
 }
 
+/**
+ * Which way the elbow bends (+1 or -1 for `elbow`): the natural one — hanging low and away from the middle of
+ * his body, like a real arm. `prev` is the side it had a moment ago; it only switches when the other is clearly
+ * better, so an elbow never pops across mid-motion. (Before v0.80.1 the side was fixed per arm, and was the
+ * wrong way for the arms at rest: the sleeves folded inward across his chest.)
+ */
+export function chooseSide(sh, hand, prev) {
+  const score = (side) => { const e = elbow(sh, hand, side).e; return Math.abs(e[0] - 100) + 0.5 * e[1]; };
+  const a = score(1);
+  const b = score(-1);
+  if (prev === 1 || prev === -1) return (prev === 1 ? a : b) >= (prev === 1 ? b : a) - 30 ? prev : -prev;
+  return a >= b ? 1 : -1;
+}
+
 export class MorganiusPuppet {
   constructor() {
     this.cv = typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -67,6 +81,7 @@ export class MorganiusPuppet {
     this.poseAt = 0;
     this.hold = 0; // the pose lasts until then, then he goes back to idle
     this.hand = { L: [...POSES.idle.L], R: [...POSES.idle.R] };
+    this.bend = { L: 1, R: -1 }; // which way each elbow bends (see chooseSide)
     this.brow = 0;
     this.tilt = 0;
     this.shrug = 0;
@@ -381,9 +396,10 @@ export class MorganiusPuppet {
 
     // --- the arms: sleeves flaring to the cuff, rune-trimmed; the hands
     for (const s of ['L', 'R']) {
-      const side = s === 'L' ? -1 : 1;
+      const side = s === 'L' ? 1 : -1; // (which side the thumb is on)
       const sh = s === 'L' ? [SHOULDER_L[0], SHOULDER_L[1] - sy] : [SHOULDER_R[0], SHOULDER_R[1] - sy];
-      const { e, h } = elbow(sh, this.hand[s], side);
+      const bend = (this.bend[s] = chooseSide(sh, this.hand[s], this.bend[s]));
+      const { e, h } = elbow(sh, this.hand[s], bend);
       const tone = s === 'L' ? ROBE[2] : ROBE[1];
       const limb = (a, b, w0, w1, col) => {
         const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);

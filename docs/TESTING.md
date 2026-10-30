@@ -93,6 +93,10 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.80.1 (2026-10-30)
+
+- Morganius's elbow solver: `tests/morganius_arms.test.mjs` (4 tests; two fail against an inverted solver). Browser (headless Chromium): all eleven poses rendered before and after; the live Spade's Gambit scene played through three hands (a card mid-throw, the cascade, scoring), 0 page errors. Screens: `docs/mockups/v0801-morganius-arms.png`.
+
 ## Verification record — v0.80.0 follow-up corrections (2026-10-30, no version change)
 
 A review of v0.80.0 found wording and test-quality faults; no game rule changed.
