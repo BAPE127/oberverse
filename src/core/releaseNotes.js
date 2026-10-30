@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.67.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'One Set of Rules',
+    notes: [
+      'Ober\'s Oil now trades under the same rules as every other listed company: a 1% broker\'s fee each way, no investor holding more than 5%, and a price that moves a part of the way each day toward what the refinery\'s output says a share is worth, instead of jumping with it. It starts from where it was, and what you hold and what you have been paid are untouched. Chuckie\'s Cheese already had a fee, a cap and that kind of price; it now keeps what you pay, so the Exchange can show your gain.',
+      'Correction: the previous notes said Chuckie\'s Cheese had no fee or cap. It always had both.',
+    ],
+  },
+  {
     version: '0.66.0',
     date: '2026-10-30',
     channel: 'development',

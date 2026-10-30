@@ -146,6 +146,9 @@ export class Dairy {
     const q = this.quote(n);
     if (g.player.money < q.gross + q.fee) return { ok: false, text: 'You cannot afford that many shares (with the broker\'s fee).' };
     g.player.money -= q.gross + q.fee;
+    // v0.67.0: what you paid is kept from here on (shares held before then have no cost on record)
+    if (s.costBasis === undefined && s.sharesOwned === 0) s.costBasis = 0;
+    if (s.costBasis !== undefined) s.costBasis += q.gross + q.fee;
     s.sharesOwned += n;
     g.bus.emit('money:changed', { delta: -(q.gross + q.fee), total: g.player.money });
     return { ok: true, text: `Bought ${n} CHZ for ${q.gross} obols (+${q.fee} fee).` };
@@ -157,6 +160,7 @@ export class Dairy {
     if (n <= 0 || s.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = this.quote(n);
     const value = Math.max(0, q.gross - q.fee);
+    if (s.costBasis !== undefined) s.costBasis = Math.round(s.costBasis * (1 - n / s.sharesOwned));
     s.sharesOwned -= n;
     g.player.money += value;
     g.bus.emit('money:changed', { delta: value, total: g.player.money });

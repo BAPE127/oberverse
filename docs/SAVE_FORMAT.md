@@ -73,6 +73,8 @@ Since **v0.65.0** `world.corp.management.treasury` (`{ [subsidiary]: { floor, ce
 
 Since **v0.66.0** `world.corp.exchange` (created on the first morning after the wider world is made): `listings` (`{ [ticker]: { id, ticker, shares, price, fair, since, status: 'listed' | 'bought out' | 'failed', history: [{ day, price, fair }] } }`), `holdings` (`{ [ticker]: { n, cost, divs, closed? } }` — only the wider world's shares; the three older shares keep their holdings where they were), `log`, `lastDay`, `divMonth`. Nobody is given a share by loading.
 
+Since **v0.67.0** `world.oil` also has `costBasis` (only while every share held was bought through the exchange or the Stocks app) and `fair`, and its history entries carry `fair`; `world.dairy` has `costBasis` likewise. Absent in older saves: those holdings have no cost on record.
+
 Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).
 
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.

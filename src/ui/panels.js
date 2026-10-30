@@ -4,7 +4,9 @@ import { GAME_VERSION, BUILD_CHANNEL, SAVE_SCHEMA_VERSION, versionLabel } from '
 import { RELEASE_NOTES } from '../core/releaseNotes.js';
 import { SLOTS } from '../save/saveManager.js';
 import { STATS } from '../dialogue/dialogueEngine.js';
-import { OIL_PROJECTS } from '../systems/oilCompany.js';
+import { OIL_PROJECTS, OIL_LISTED } from '../systems/oilCompany.js';
+import { CORP } from '../content/corporate.js';
+import { maxHold } from '../corp/exchange.js';
 import { runCommand } from '../game/debugCommands.js';
 import { spotName, hhmm } from '../systems/gang.js';
 
@@ -626,16 +628,17 @@ export function stocksScreen(ui, body, opts = {}) {
     const out = g.oil.computeOutput();
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
     body.append(
+      h('p', { class: 'muted' }, `Ober's Oil — ${OIL_LISTED.toLocaleString()} shares; one investor may hold at most ${maxHold(CORP.exchange, OIL_LISTED).toLocaleString()}. Broker's fee ${Math.round(CORP.exchange.fee * 100)}% each way. The price moves a part of the way each day toward what the refinery's output says a share is worth (about ${s.fair ?? '—'}).`),
       h('div', { class: 'grid2', style: 'margin-bottom:12px' },
         h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, String(g.player.money))),
         h('div', { class: 'stat' }, h('span', {}, 'Your shares'), h('b', {}, String(s.sharesOwned))),
-        h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${s.sharePrice} obols`)),
+        h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${s.sharePrice.toFixed(2)} obols`)),
         h('div', { class: 'stat' }, h('span', {}, 'Output today'), h('b', {}, `${out} barrels${s.strike ? ' (STRIKE)' : ''}`)),
         h('div', { class: 'stat' }, h('span', {}, 'Dividend/share'), h('b', {}, `≈${g.oil.dividendPerShare(out).toFixed(2)} at 18:00`)),
         h('div', { class: 'stat' }, h('span', {}, 'Dividends received'), h('b', {}, `${s.dividendsPaid} obols`)),
       ),
       h('div', { class: 'row', style: 'justify-content:flex-start' },
-        ...[1, 5].map((n) => h('button', { class: 'small primary', disabled: g.player.money < s.sharePrice * n, onclick: () => { const r = g.oil.buyShares(n); render(r.text); } }, `Buy ${n} (${s.sharePrice * n})`)),
+        ...[1, 5].map((n) => { const q = g.oil.quote(n); return h('button', { class: 'small primary', disabled: g.player.money < q.gross + q.fee, onclick: () => { const r = g.oil.buyShares(n); render(r.text); } }, `Buy ${n} (${q.gross + q.fee})`); }),
         ...[1, 5].map((n) => h('button', { class: 'small', disabled: s.sharesOwned < n, onclick: () => { const r = g.oil.sellShares(n); render(r.text); } }, `Sell ${n}`)),
       ),
       h('h3', { style: 'margin:16px 0 6px' }, 'Expansion projects'),
@@ -649,7 +652,7 @@ export function stocksScreen(ui, body, opts = {}) {
         h('button', { class: 'small primary', disabled: done || g.player.money < p.cost, onclick: () => { const r = g.oil.fundProject(id); render(r.text); } }, `Fund · ${p.cost}`)));
     }
     body.append(wrap);
-    if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price}`).join(' · ')}`));
+    if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price.toFixed ? d.price.toFixed(2) : d.price}`).join(' · ')}`));
   };
   render();
 }

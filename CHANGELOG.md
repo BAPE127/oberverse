@@ -2,6 +2,31 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.67.0] — 2026-10-30 — One Set of Rules (development build)
+
+Stage 9, second part, of the Corporate Empire brief (docs/CORPORATE.md): the two older shares that were not under the exchange's rules.
+
+### Correction to 0.66.0
+- 0.66.0's changelog, release notes, known issues and board said **Chuckie's Cheese had no broker's fee and no cap**. That was wrong: CHZ has always had a **1% fee each way** and a **cap of 1,500 shares (1% of the company)**, and a price that moves a part of the way to fair value each day. The board showed it as having neither. It now shows what CHZ really has. (Nothing about CHZ's trading was wrong in the game; only what the new screen and the notes said.)
+
+### Changed — Ober's Oil (OBRO) under the exchange's rules
+- **A 1% broker's fee each way** and a **cap of 5%** of its 100,000 shares (5,000 for one investor). A purchase over the cap is refused with what you may still buy; a holding above the cap (from project shares) stays as it is. Shares from an expansion project still arrive free.
+- **One price step**: the old formula (20 + output ÷ 8, less 6 in a strike, floor 5) is now what a share is *worth*; the price moves 12% of the way there each evening with the exchange's ±2% mood (a hash of the day and the world's seed, **no game RNG**). It starts from today's price, so nothing jumps on the day you load. A strike or an accident now takes the price down over days, not at once. Prices have pennies.
+- **What you paid is kept** for shares bought from now on; shares you held before, or got from a project, have no cost on record, so the Exchange shows no gain for them rather than guess. Dividends are unchanged: still paid every evening from real output.
+
+### Changed — Chuckie's Cheese (CHZ)
+- Its own rules are unchanged (fee, cap, price step, daily dividends). It now **keeps what you pay** for shares bought from now on; shares held before have no cost on record.
+- Its price noise still uses the game's random numbers, as it always did: taking that out would shift the numbers every other part of the game draws.
+
+### Save
+- `world.oil` gains `costBasis` (while every share held was bought) and `fair`; `world.dairy` gains `costBasis`. History entries for OBRO carry `fair`. Old saves keep their price, shares and cash; nobody is charged or given anything by loading. No schema change (still 1).
+
+### Tests
+- New and changed in `exchange` (now 12): OBRO's fee each way and cap, cost kept and lost to a project's bonus shares, the price a step toward the refinery's figure with no RNG and the same in two games, a strike pulling the price down over days; CHZ's cost kept and the pre-existing holding left without one; an old save with OBRO shares loading at the same price and holding; the board showing CHZ's real fee and cap. **Two assertions of the previous release's tests were changed on purpose** (OBRO's fee on the board, and which holdings have a known cost). Every other test passes unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. The exchange's rules now apply to every listed company; CHZ keeps a 1% cap (Chuckie keeps control) and its own noise source.
+
 ## [0.66.0] — 2026-10-30 — Open Board (development build)
 
 Stage 9, first part, of the Corporate Empire brief (docs/CORPORATE.md): one exchange for every listed company. The listed companies of the wider world are tradable for the first time, under one set of rules; the three shares the game already had are on the same board **but keep their own rules for now** (the second part).
@@ -9,10 +34,10 @@ Stage 9, first part, of the Corporate Empire brief (docs/CORPORATE.md): one exch
 ### Added
 - **The Exchange app** (tablet): a board of every listed company (price, the day's change, thirty days as blocks, what you hold) with a sector filter and sort, a portfolio summary (what you hold at today's prices, the gain on holdings whose cost is kept, dividends received), a company panel (sixty days of price, low and high, what the company's books say a share is worth, the shares, the cap, the fee, your holding and its cost) and buttons to buy or sell 1, 10 or 100.
 - **The wider world's listed companies** (about seventeen) are listed once their books can value them, each with a share count made to fit its worth at a first price of 20–120 obols, so a company is priced from its first morning. Under `CORP.exchange`: **price** moves 12% of the way each day to the company's own estimated value over its listed shares, with a ±2% daily mood that is a hash of the world's seed, the ticker and the day (no game RNG, so two games from one save agree); **a 1% broker's fee** each way; **a 5% cap** on one investor; **dividends** are what the company really paid out of a closed month's profit (the world already pays them), once a month, per share; a company that **fails** leaves its shares worth nothing, and one that is **taken over** buys them out at its last price. Nothing ever follows your trades.
-- Buying and selling goes through the exchange for these; for Ober's Oil, Chuckie's Cheese and Meridian it goes through their own services, so their rules (no fee or cap for the first two; Meridian's own fee and cap) are exactly what they were.
+- Buying and selling goes through the exchange for these; for Ober's Oil, Chuckie's Cheese and Meridian it goes through their own services, so their rules are exactly what they were. (*Corrected in 0.67.0: this line said the first two had no fee or cap; Chuckie's Cheese always had both.*)
 
 ### Not changed
-- OBRO, CHZ and MRDN keep their own prices, dividends and rules, and their tests pass unedited. Bringing them under the exchange's rules (a fee and cap on the first two, one price step) is the second part of this stage and will change those shares' behaviour on purpose, with their prices continuing from where they are.
+- OBRO, CHZ and MRDN keep their own prices, dividends and rules, and their tests pass unedited. (Ober's Oil, the only one of them without a fee, a cap or a smoothed price, came under the exchange's rules in 0.67.0.)
 
 ### Save
 - `world.corp.exchange` (`listings` per ticker: `shares`, `price`, `fair`, `status`, sixty days of `history`; `holdings`: `n`, `cost`, `divs`; `log`; `lastDay`; `divMonth`) is created on the first morning after the wider world is made. A save from v0.65 or earlier gains empty holdings: no one is given a share. No schema change (still 1).

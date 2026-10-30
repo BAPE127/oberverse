@@ -5,6 +5,13 @@
 // (accidents, strikes, the canal slick) defined in src/content/events.js.
 import { clamp } from '../core/util.js';
 import { remember } from '../sim/memory.js';
+import { CORP } from '../content/corporate.js';
+import { nextPrice, quote, maxHold, roomFor } from '../corp/exchange.js';
+import { hashUnit } from '../aero/config.js';
+
+/** Shares of Ober's Oil on the exchange (v0.67.0): the cap on one investor is 5% of them, as everywhere on the board. */
+export const OIL_LISTED = 100000;
+const FLOOR = 5; // the price never falls below this
 
 export const OIL_PROJECTS = {
   derrick: { name: 'New derrick on the east field', cost: 60, bonusShares: 3, max: 3, text: 'Another derrick: more output, more noise, more risk.' },
@@ -66,14 +73,24 @@ export class OilCompany {
 
   /** Total value of the player's shares. */
   holdingsValue() {
-    return this.state.sharesOwned * this.state.sharePrice;
+    return Math.round(this.state.sharesOwned * this.state.sharePrice);
   }
+
+  /** What n shares cost or fetch, and the broker's fee (v0.67.0: the exchange's, like every listed company). */
+  quote(n) { return quote(CORP.exchange, this.state.sharePrice, n); }
 
   buyShares(n = 1) {
     const s = this.state;
-    const cost = s.sharePrice * n;
-    if (n <= 0 || this.game.player.money < cost) return { ok: false, text: 'You cannot afford that many shares.' };
+    if (n <= 0) return { ok: false, text: 'Buy how many?' };
+    const room = roomFor(CORP.exchange, OIL_LISTED, s.sharesOwned);
+    if (n > room) return { ok: false, text: room > 0 ? `One investor may hold at most ${maxHold(CORP.exchange, OIL_LISTED).toLocaleString()} shares of Ober's Oil: you can buy ${room.toLocaleString()} more.` : 'You hold as much of Ober\'s Oil as one investor may.' };
+    const q = this.quote(n);
+    const cost = q.gross + q.fee;
+    if (this.game.player.money < cost) return { ok: false, text: 'You cannot afford that many shares (with the broker\'s fee).' };
     this.game.player.money -= cost;
+    // what you paid is kept only while every share you hold was bought (shares from a project were not)
+    if (s.costBasis === undefined && s.sharesOwned === 0) s.costBasis = 0;
+    if (s.costBasis !== undefined) s.costBasis += cost;
     s.sharesOwned += n;
     this.game.bus.emit('money:changed', { delta: -cost, total: this.game.player.money });
     this.game.bus.emit('oil:shares', { owned: s.sharesOwned });
@@ -83,18 +100,20 @@ export class OilCompany {
       const agnes = this.game.npcs.get('npc_agnes');
       if (agnes) this.game.knowledge.learn(agnes, 'fact_player_invested', { kind: 'fact', source: 'observed', at: this.game.clock.total });
     }
-    return { ok: true, text: `Bought ${n} share${n > 1 ? 's' : ''} of Ober's Oil for ${cost} obols.` };
+    return { ok: true, text: `Bought ${n} share${n > 1 ? 's' : ''} of Ober's Oil for ${q.gross.toLocaleString()} obols (+${q.fee} fee).` };
   }
 
   sellShares(n = 1) {
     const s = this.state;
     if (n <= 0 || s.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
-    const value = s.sharePrice * n;
+    const q = this.quote(n);
+    const value = Math.max(0, q.gross - q.fee);
+    if (s.costBasis !== undefined) s.costBasis = Math.round(s.costBasis * (1 - n / s.sharesOwned));
     s.sharesOwned -= n;
     this.game.player.money += value;
     this.game.bus.emit('money:changed', { delta: value, total: this.game.player.money });
     this.game.bus.emit('oil:shares', { owned: s.sharesOwned });
-    return { ok: true, text: `Sold ${n} share${n > 1 ? 's' : ''} for ${value} obols.` };
+    return { ok: true, text: `Sold ${n} share${n > 1 ? 's' : ''} for ${value.toLocaleString()} obols (after a ${q.fee} fee).` };
   }
 
   projectCount(id) {
@@ -112,6 +131,7 @@ export class OilCompany {
     g.player.money -= p.cost;
     g.bus.emit('money:changed', { delta: -p.cost, total: g.player.money });
     s.sharesOwned += p.bonusShares;
+    delete s.costBasis; // shares from a project were not bought: what you paid is no longer the whole story
     if (id === 'derrick') {
       s.derricks += 1;
       s.risk += 1;
@@ -142,7 +162,10 @@ export class OilCompany {
     const output = this.computeOutput();
     s.output = output;
     const oldPrice = s.sharePrice;
-    s.sharePrice = Math.max(5, Math.round(20 + output / 8 - (s.strike ? 6 : 0)));
+    // v0.67.0: the old formula is now what a share is worth; the price moves a part of the way there each day, like every listed company's
+    const fair = Math.max(FLOOR, 20 + output / 8 - (s.strike ? 6 : 0));
+    s.fair = Math.round(fair * 100) / 100;
+    s.sharePrice = nextPrice({ ...CORP.exchange, minPrice: FLOOR }, s.sharePrice, fair, hashUnit(`oil|${g.clock.day}|${g.corp.state.gen?.salt || ''}`));
     const dividend = Math.floor(s.sharesOwned * this.dividendPerShare(output));
     if (dividend > 0) {
       g.player.money += dividend;
@@ -152,14 +175,14 @@ export class OilCompany {
     } else if (s.sharesOwned > 0) {
       g.tablet.post('stocks', `Ober's Oil paid no dividend today (${s.strike ? 'strike' : 'no output'}).`, 'warn');
     }
-    if (s.sharesOwned > 0 && Math.abs(s.sharePrice - oldPrice) >= 3) {
+    if (s.sharesOwned > 0 && Math.abs(s.sharePrice - oldPrice) / oldPrice >= 0.03) {
       const up = s.sharePrice > oldPrice;
-      g.tablet.post('stocks', `Ober's Oil shares ${up ? 'rose' : 'fell'} to ${s.sharePrice} obols (${up ? '+' : '−'}${Math.abs(s.sharePrice - oldPrice)}). Your ${s.sharesOwned} shares are worth ${s.sharesOwned * s.sharePrice}.`, up ? 'good' : 'warn');
+      g.tablet.post('stocks', `Ober's Oil shares ${up ? 'rose' : 'fell'} to ${s.sharePrice} obols (${up ? '+' : '−'}${Math.abs(s.sharePrice - oldPrice).toFixed(2)}). Your ${s.sharesOwned} shares are worth ${Math.round(s.sharesOwned * s.sharePrice)}.`, up ? 'good' : 'warn');
     }
     s.lastDividendDay = g.clock.day;
     s.morale = clamp(s.morale + (s.wageLevel >= 2 ? 5 : 1) - (s.derricks > 1 ? 1 : 0), 0, 100);
     if (s.scandalDays > 0) s.scandalDays -= 1;
-    s.history.push({ day: g.clock.day, output, price: s.sharePrice, dividend });
+    s.history.push({ day: g.clock.day, output, price: s.sharePrice, fair: s.fair, dividend });
     if (s.history.length > 14) s.history.shift();
     g.bus.emit('oil:daily', { output, dividend });
   }

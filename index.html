@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.66.0';
+const GAME_VERSION = '0.67.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -19636,6 +19636,531 @@ class EventDirector {
 return { EventDirector };
 })();
 
+// ---- src/content/corporate.js
+__m["src/content/corporate.js"] = (function () {
+// The companies of the wider world (v0.60.0): how many, of what kind, what a sector can sell in a
+// day, and how a company in it is made and run. Numbers are obols and days. The generated
+// companies are made ONCE from these (src/corp/generate.js) and then saved; changing this file
+// never changes a company that already exists.
+//
+// A sector's POOL is what its customers buy in a day, whoever supplies it. Companies share it by
+// capacity, standing and price; the player's own business and the already-existing companies
+// (Meridian, Ober's Oil, Chuckie's Cheese) take what they really sell off the top, so a player
+// who wins business leaves less for the rest — and the reverse.
+
+const CORP = {
+  /** Most generated companies alive at once, and records kept in all (closed ones beyond the cap are forgotten, oldest first). */
+  cap: { alive: 60, records: 90 },
+  /** Days simulated before the game begins, so every company has a history to rank on. */
+  warmupDays: 120,
+  /** The benchmark rate (annual) until a central bank sets one. */
+  baseRate: 0.05,
+  /** Daily capacity of a new company by size, as a share of its sector's pool; sizes are drawn by weight. */
+  sizes: { small: { w: 0.5, share: 0.02 }, mid: { w: 0.35, share: 0.05 }, large: { w: 0.15, share: 0.11 } },
+  /** Plant: what one obol of daily capacity costs to build, the share of that cost the plant is worth on the books. */
+  plantCost: 40,
+  plantBook: 0.6,
+  /** Fixed costs a day as a share of margin-earning capacity; a company breaks even at about this share of its capacity sold. */
+  fixedOfMargin: 0.55,
+  /** A company goes under when its cash has been below zero this many days in a row. */
+  insolventDays: 45,
+  /** Listed companies: the share of generated companies with a ticker, and the share counts. */
+  listedShare: 0.38,
+  shares: { small: [2e6, 6e6], mid: [6e6, 2e7], large: [2e7, 6e7] },
+  /** A new entrant may appear in a sector whose companies are this busy (30-day utilisation), at most this many a month overall and one per sector in `cooldown` days. */
+  entry: { busy: 0.95, chance: 0.35, perMonth: 2, cooldown: 120 },
+  /** What a sector's companies are called: stems by country (flavour), then a suffix by sector. */
+  stems: {
+    home: ['Copperfield', 'Lantern', 'Northbank', 'Harbourline', 'Millrace', 'Gullwing', 'Tidewater', 'Brasswick', 'Fairhaven', 'Quillon'],
+    varn: ['Kestrel', 'Varn', 'Tashkar', 'Orlov', 'Daghan', 'Ironmark'],
+    ostmark: ['Hartmann', 'Brandt', 'Ostwerk', 'Kessler', 'Rheinholt', 'Falken'],
+    caldera: ['Calder', 'Mesa', 'Horn', 'Corvane', 'Salto', 'Verdan'],
+    sund: ['Sundholm', 'Fjell', 'Norrby', 'Skarn', 'Lindqvist', 'Vik'],
+    pallas: ['Pallas', 'Aegir', 'Ionis', 'Thessal', 'Krios', 'Mylos'],
+    teshvar: ['Teshvar', 'Zhan', 'Orun', 'Khoral', 'Bai-Dun', 'Sarkhan'],
+    morrow: ['Morrow', 'Coralline', 'Tideline', 'Palmer', 'Reefgate', 'Kauri'],
+    lirre: ['Lirre', 'Valmont', 'Duchess', 'Aubrac', 'Montclair', 'Lorrain'],
+  },
+  suffix: {
+    arms: ['Arms', 'Ordnance', 'Defence Systems', 'Munitions', 'Armaments'],
+    shipping: ['Lines', 'Shipping', 'Maritime', 'Freight', 'Marine'],
+    aerospace: ['Aerospace', 'Aviation', 'Aeronautics', 'Aircraft'],
+    agriculture: ['Agri', 'Farms', 'Grain Co.', 'Harvest', 'Growers'],
+    energy: ['Petroleum', 'Power', 'Energy', 'Fuels'],
+    industrial: ['Steelworks', 'Machinery', 'Industries', 'Foundry', 'Engineering'],
+    transport: ['Rail', 'Haulage', 'Coaches', 'Transit'],
+    communications: ['Telecom', 'Signals', 'Broadcast', 'Cable'],
+    satellites: ['Orbital', 'Sky Networks', 'Satcom', 'Spaceworks'],
+    finance: ['Bank', 'Trust', 'Mutual', 'Insurance', 'Capital'],
+  },
+  /**
+   * The sectors with something to sell. count: how many generated at the start. pool: what the
+   * customers buy a day at the start; growth: yearly drift; wave: the size of the cycle (a share
+   * of the pool) and its length in days. pe: the multiple of a year's profit a company is worth (the player's businesses and the
+   * listed ones are valued the same way). margin: what a company at par keeps of each obol sold
+   * before fixed costs. specialities: what a company can be known for.
+   */
+  sectors: {
+    arms: { count: 6, pe: 11, pool: 160000, growth: 0.04, wave: 0.12, period: 47, margin: 0.32, specialities: ['small arms', 'heavy weapons', 'missiles', 'drones', 'ammunition'] },
+    shipping: { count: 6, pe: 10, pool: 95000, growth: 0.05, wave: 0.1, period: 61, margin: 0.18, specialities: ['bulk cargo', 'containers', 'tankers', 'roll-on/roll-off', 'refrigerated cargo'] },
+    aerospace: { count: 5, pe: 14, pool: 210000, growth: 0.05, wave: 0.14, period: 83, margin: 0.2, specialities: ['light aircraft', 'airliners', 'launch services', 'components', 'helicopters'] },
+    agriculture: { count: 6, pe: 11, pool: 125000, growth: 0.03, wave: 0.16, period: 90, margin: 0.14, specialities: ['grain', 'livestock', 'dairy', 'cotton', 'fruit and vegetables'] },
+    energy: { count: 4, pe: 10, pool: 300000, growth: 0.03, wave: 0.12, period: 71, margin: 0.3, specialities: ['crude oil', 'refining', 'gas', 'power generation'] },
+    industrial: { count: 5, pe: 10, pool: 260000, growth: 0.04, wave: 0.1, period: 77, margin: 0.16, specialities: ['steel', 'machine tools', 'vehicles', 'chemicals'] },
+    transport: { count: 4, pe: 9, pool: 120000, growth: 0.04, wave: 0.08, period: 53, margin: 0.12, specialities: ['rail freight', 'road haulage', 'passenger rail', 'air charter'] },
+    communications: { count: 3, pe: 12, pool: 140000, growth: 0.06, wave: 0.07, period: 67, margin: 0.28, specialities: ['telephony', 'broadcasting', 'undersea cable'] },
+    satellites: { count: 3, pe: 14, pool: 90000, growth: 0.1, wave: 0.12, period: 59, margin: 0.35, specialities: ['communications', 'imaging', 'navigation'] },
+    finance: { count: 4, pe: 9, pool: 200000, growth: 0.04, wave: 0.09, period: 73, margin: 0.4, specialities: ['commercial banking', 'insurance', 'trade finance', 'asset management'] },
+  },
+  /** How the arms pool is read from the real arms market: obols a day per obol of the countries' daily income, and what a war adds. */
+  armsPool: { perIncome: 0.7, perWar: 0.06 },
+  /** The exchange (v0.66.0): one set of rules for every share a company of the wider world has. Prices are obols a share. */
+  exchange: {
+    fee: 0.01, // broker's commission each way (the rate Meridian's shares have always had)
+    maxShare: 0.05, // one investor may hold at most this share of a company
+    priceAdjust: 0.12, // a price moves this share of the way to fair value each day
+    noise: 0.02, // ± daily market mood
+    target: [20, 120], // the price a company is first listed at (its share count is made to fit its worth)
+    minPrice: 0.5,
+    historyDays: 60,
+    logKept: 60,
+  },
+  strategies: {
+    aggressive: { name: 'Aggressive', invest: 0.85, debt: 1.4, price: -0.05 },
+    steady: { name: 'Steady', invest: 0.93, debt: 1.0, price: 0 },
+    conservative: { name: 'Conservative', invest: 0.98, debt: 0.6, price: 0.04 },
+  },
+};
+
+return { CORP };
+})();
+
+// ---- src/corp/exchange.js
+__m["src/corp/exchange.js"] = (function () {
+// The exchange (v0.66.0). Pure functions — no game state, no DOM, no RNG: a day's mood is a hash the caller supplies.
+//
+//   listingShares(value, price)      how many shares a company of this worth has at its first price
+//   fairPrice(value, shares)         what a share is worth on the company's own books
+//   nextPrice(X, price, fair, mood)  tomorrow's price: part of the way to fair value, times the day's mood
+//   quote(X, price, n)               what n shares cost or fetch, and the broker's fee
+//   roomFor(X, shares, held)         how many more one investor may hold
+//   spark(prices)                    a line of blocks showing a run of prices
+//
+// A valuation is an opinion: nothing here makes money. A share's price is the company's worth divided by the shares it has.
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+const listingShares = (value, price) => Math.max(1000, Math.round(value / Math.max(1, price)));
+const fairPrice = (value, shares) => (shares > 0 && value >= 0 ? value / shares : null);
+
+/** The same step Meridian's shares have always taken: part of the way to fair value, times a mood in ±noise. */
+function nextPrice(X, price, fair, mood) {
+  const p = (price + (fair - price) * X.priceAdjust) * (1 + (mood * 2 - 1) * X.noise);
+  return Math.max(X.minPrice, Math.round(p * 100) / 100);
+}
+
+function quote(X, price, n) {
+  const gross = Math.round(price * n);
+  return { gross, fee: Math.ceil(gross * X.fee) };
+}
+
+const maxHold = (X, shares) => Math.floor(shares * X.maxShare);
+const roomFor = (X, shares, held) => Math.max(0, maxHold(X, shares) - held);
+
+const BLOCKS = '▁▂▃▄▅▆▇█';
+/** A run of prices as blocks, scaled to its own low and high. */
+function spark(prices) {
+  if (!prices.length) return '';
+  const lo = Math.min(...prices); const hi = Math.max(...prices);
+  if (hi === lo) return BLOCKS[3].repeat(prices.length);
+  return prices.map((p) => BLOCKS[clamp(Math.round(((p - lo) / (hi - lo)) * 7), 0, 7)]).join('');
+}
+
+return { listingShares, fairPrice, nextPrice, quote, maxHold, roomFor, spark };
+})();
+
+// ---- src/aero/catalog.js
+__m["src/aero/catalog.js"] = (function () {
+// The aerospace catalogue's rules (v0.55.0): pure functions over the content in
+// src/content/aerospace.js. No game state, no DOM — the simulation
+// (src/systems/aerospace.js), the terminal and the tests all use these.
+
+/** Owner's rule: an aircraft contract is for 1–5 aircraft. Rockets, missiles and satellites aren't capped here. */
+function quantityError(A, product, qty) {
+  if (!product) return 'no such product';
+  if (!Number.isInteger(qty) || qty < 1) return 'a contract is for at least one unit';
+  if (product.line === 'aircraft' && qty > A.maxAircraftPerContract) return `an aircraft contract may be for at most ${A.maxAircraftPerContract} aircraft (this is for ${qty})`;
+  if (product.line !== 'aircraft' && qty > 12) return `at most 12 units per contract (this is for ${qty})`;
+  return null;
+}
+
+/** The research a company still needs for a product (empty when it can build it). */
+function missingTech(C, company, product) {
+  const out = [];
+  const seen = new Set();
+  const need = (id) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    if (!company.research.includes(id)) out.push(id);
+  };
+  need(product.tech);
+  for (const t of product.needs || []) need(t); // research an option asks for (v0.57.0)
+  return out;
+}
+
+/** Bay types able to build a product (its own type; a secure hall can also do non-military aircraft of its size). */
+function baysFor(C, product) {
+  const own = C.bays[product.bay];
+  const out = [product.bay];
+  if (product.line === 'aircraft' && product.bay !== 'secure' && C.bays.secure.size >= own.size) out.push('secure');
+  if (product.line === 'aircraft' && product.bay === 'light') out.push('heavy');
+  if (product.line === 'aircraft' && ['light', 'heavy'].includes(product.bay)) out.push('wide');
+  return [...new Set(out)];
+}
+
+/** Cargo units a unit's materials take. */
+function bomVolume(C, product) {
+  return Object.entries(product.bom).reduce((a, [m, n]) => a + n * (C.materials[m]?.volume || 1), 0);
+}
+
+/** The materials' value at reference prices. */
+function bomValue(C, product) {
+  return Object.entries(product.bom).reduce((a, [m, n]) => a + n * C.materials[m].price, 0);
+}
+
+/** Daily cost of running a bay: its crew's wages plus its upkeep. */
+function bayDayCost(C, bayType) {
+  const b = C.bays[bayType];
+  return b.crew * C.aero.wage + b.upkeep;
+}
+
+/**
+ * What one unit costs to build, roughly (shown to the player before bidding,
+ * used by the rival to price its bids): materials at reference prices ×
+ * `materialMult`, freight at `freightShare` of their value, the bay-days at
+ * `speed`, inspection rework expected at `failChance`, launch costs.
+ */
+function unitCost(C, product, { materialMult = 1, freightShare = 0.07, speed = 1, failChance = 0.2, launchMult = 1 } = {}) {
+  const materials = Math.round(bomValue(C, product) * materialMult);
+  const freight = Math.round(materials * freightShare);
+  const days = product.days / Math.max(0.2, speed);
+  const labour = Math.round(days * bayDayCost(C, product.bay));
+  const rework = Math.round(failChance * C.aero.reworkShare * labour);
+  const launch = product.line === 'rocket' ? Math.round((product.launchCost || 0) * launchMult) : 0;
+  const total = materials + freight + labour + rework + launch;
+  return { materials, freight, labour, rework, launch, total, days, margin: product.price - total, marginShare: (product.price - total) / product.price };
+}
+
+/** Apron slots an aircraft takes (0 for anything else). */
+function apronSize(product) {
+  return product.line === 'aircraft' ? product.apron || 1 : 0;
+}
+
+/** A launch vehicle can carry a satellite when its lift class is at least the satellite's mass class. */
+function canLift(rocket, satellite) {
+  return rocket?.line === 'rocket' && satellite?.line === 'satellite' && rocket.lift >= satellite.mass;
+}
+
+/** Products in a class/line, cheapest first. */
+function productsOf(C, pred) {
+  return Object.entries(C.products).filter(([, p]) => pred(p)).sort((a, b) => a[1].price - b[1].price).map(([id]) => id);
+}
+
+/** A tidy price: 3 significant figures. */
+function tidy(n) {
+  if (n <= 0) return 0;
+  const k = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 2);
+  return Math.round(n / k) * k;
+}
+
+/** Days → "3 d 4 h". */
+function fmtDays(d) {
+  if (d <= 0) return 'now';
+  let dd = Math.floor(d);
+  let hh = Math.round((d - dd) * 24);
+  if (hh === 24) { dd += 1; hh = 0; }
+  return dd ? `${dd} d${hh ? ` ${hh} h` : ''}` : `${hh} h`;
+}
+
+/** Big numbers for the terminal: 1,250,000 → "1.25M". */
+function fmtMoney(n) {
+  const a = Math.abs(n);
+  const s = n < 0 ? '−' : '';
+  if (a >= 1e6) return `${s}${(a / 1e6).toFixed(a >= 1e7 ? 1 : 2)}M`;
+  if (a >= 1e4) return `${s}${Math.round(a / 1000)}k`;
+  return `${s}${Math.round(a).toLocaleString()}`;
+}
+
+return { quantityError, missingTech, baysFor, bomVolume, bomValue, bayDayCost, unitCost, apronSize, canLift, productsOf, tidy, fmtDays, fmtMoney };
+})();
+
+// ---- src/aero/pipeline.js
+__m["src/aero/pipeline.js"] = (function () {
+// Production pipelines (v0.55.0): every aircraft, launch vehicle, strategic
+// product and satellite is a persistent production unit that walks its line's
+// stages (src/content/aerospace.js PIPELINES). Pure helpers — the simulation
+// in src/systems/aerospace.js moves units; these say what a stage needs.
+
+/** The stages of a product's line. */
+function stagesOf(C, product) {
+  return C.pipelines[product.line];
+}
+
+/** Work days a stage takes at standard speed (0 for waits and events). */
+function stageDays(C, product, stage) {
+  return Math.round(product.days * (stage.share || 0) * 1000) / 1000;
+}
+
+/** Materials (lots) a stage consumes for one unit: the product's lots of the stage's material groups. */
+function stageMaterials(product, stage) {
+  const out = {};
+  for (const m of stage.uses || []) if (product.bom[m]) out[m] = product.bom[m];
+  return out;
+}
+
+/** The whole bill of materials still to be consumed from stage `from` on. */
+function remainingMaterials(C, product, from) {
+  const out = {};
+  const st = stagesOf(C, product);
+  for (let i = from; i < st.length; i++) for (const [m, n] of Object.entries(stageMaterials(product, st[i]))) out[m] = (out[m] || 0) + n;
+  return out;
+}
+
+/** Index of the stage with this id (or -1). */
+function stageIndex(C, product, id) {
+  return stagesOf(C, product).findIndex((s) => s.id === id);
+}
+
+/** The last stage that occupies a bay (the unit leaves its bay after it). */
+function lastBayStage(C, product) {
+  const st = stagesOf(C, product);
+  let k = -1;
+  st.forEach((s, i) => { if (s.bay) k = i; });
+  return k;
+}
+
+/** Total work days still ahead of a unit (its current stage's remainder + later stages). */
+function workLeft(C, product, unit) {
+  const st = stagesOf(C, product);
+  let d = Math.max(0, (unit.need || 0) - (unit.work || 0));
+  for (let i = unit.stage + 1; i < st.length; i++) d += stageDays(C, product, st[i]);
+  return d;
+}
+
+/**
+ * Chance an inspection fails: AERO.inspectionFailAtRequired when quality equals the
+ * product's requirement, falling (to a floor of 3%) as quality exceeds it and
+ * rising as it falls short; an engine test cell cuts it by a quarter (aircraft, rockets).
+ */
+function failChance(C, product, quality, { engineCell = false } = {}) {
+  const base = C.aero.inspectionFailAtRequired;
+  const gap = quality - product.quality;
+  let p = gap >= 0 ? base * Math.exp(-gap / 10) : Math.min(0.9, base + (-gap / 40));
+  if (engineCell && ['aircraft', 'rocket'].includes(product.line)) p *= 0.75;
+  return Math.max(0.03, Math.min(0.9, p));
+}
+
+/** Chance a launch fails (rocket quality above its requirement makes it safer; reusable vehicles a little safer still). */
+function launchFailChance(product, quality) {
+  const gap = quality - product.quality;
+  const p = 0.06 * Math.exp(-Math.max(0, gap) / 15) + Math.max(0, -gap) / 60;
+  return Math.max(0.01, Math.min(0.5, p * (product.reusable ? 0.85 : 1) * (product.effects?.launchRisk ?? 1)));
+}
+
+/** Chance a satellite fails commissioning (or commissions with reduced capability). */
+function commissionFailChance(product, quality) {
+  const gap = quality - product.quality;
+  return Math.max(0.02, Math.min(0.4, (0.08 * Math.exp(-Math.max(0, gap) / 14) + Math.max(0, -gap) / 70) * (product.effects?.commissionRisk ?? 1)));
+}
+
+/**
+ * Pre-roll everything random about a unit when it's created (kept with it,
+ * so saving and reloading can't change an inspection, a launch or a
+ * commissioning). rng: { next() }.
+ */
+function rollUnit(rng) {
+  return { inspect: [rng.next(), rng.next(), rng.next(), rng.next()], launch: rng.next(), commission: rng.next(), partial: rng.next(), departure: rng.next(), weather: rng.next() };
+}
+
+/** A fresh unit record. */
+function newUnit(C, { id, company, contract, productId, n, purpose = 'contract', rng, at }) {
+  const product = C.products[productId];
+  return {
+    id, company, contract, product: productId, line: product.line, n, purpose,
+    stage: 0, work: 0, need: 0, bay: null, status: 'queued', blocker: null,
+    reserved: {}, cost: { materials: 0, freight: 0 }, inspections: [], rework: 0,
+    rolls: rollUnit(rng), created: at, started: null, finished: null, log: [],
+  };
+}
+
+return { stagesOf, stageDays, stageMaterials, remainingMaterials, stageIndex, lastBayStage, workLeft, failChance, launchFailChance, commissionFailChance, rollUnit, newUnit };
+})();
+
+// ---- src/aero/config.js
+__m["src/aero/config.js"] = (function () {
+// Product configuration (v0.57.0). Pure functions over the content in src/content/aerospace.js
+// (OPTIONS): no game state, no DOM — the simulation, the terminal, the rival and the tests all
+// use these. A configuration is a small object { group: choice } holding only what differs from
+// the standard product; `configure` turns a product and a configuration into the product as it
+// would really be built — its bill of materials, days, price, quality, flight spec and effects —
+// and that is the one thing every other calculation reads.
+//
+//   optionGroupsOf(C, product)   which option groups a product offers
+//   configError(C, product, cfg) why a configuration isn't valid (or null)
+//   configure(C, product, cfg)   the configured product (the product itself for the standard one)
+//   pickConfig(C, product, …)    the configuration a customer asks for (from its kind, by a hash, never the RNG)
+//   configLabel(C, product, cfg) the options in words
+//   optionEffect(C, product, g, choice)  what one option does to a product, for the terminal
+const { bomValue, bayDayCost } = __m["src/aero/catalog.js"];
+const { stagesOf } = __m["src/aero/pipeline.js"];
+
+/** A stable number in [0, 1) from a string (FNV-1a), so a tender's wishes are fixed by what it is, not by the dice. */
+function hashUnit(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 1000003) / 1000003;
+}
+
+/** Groups a product offers: by its id, else its class, else its line. */
+function optionGroupsOf(C, product, productId = null) {
+  const O = C.options;
+  if (!O) return [];
+  const id = productId || Object.keys(C.products).find((k) => C.products[k] === product);
+  return (id && O.byProduct[id]) || O.byClass[product.cls] || O.byLine[product.line] || [];
+}
+
+/** Only what differs from standard, in a stable order. */
+function cleanConfig(config) {
+  const out = {};
+  for (const k of Object.keys(config || {}).sort()) if (config[k] && config[k] !== 'standard') out[k] = config[k];
+  return out;
+}
+
+const configKey = (config) => Object.entries(cleanConfig(config)).map(([g, c]) => `${g}=${c}`).join(';');
+
+/** Why a configuration can't be made for this product (or null). */
+function configError(C, product, config, productId = null) {
+  const groups = optionGroupsOf(C, product, productId);
+  for (const [g, choice] of Object.entries(cleanConfig(config))) {
+    if (!groups.includes(g)) return `this product has no "${g}" option`;
+    if (!C.options.groups[g]?.choices[choice]) return `there is no "${choice}" choice for ${C.options.groups[g]?.name || g}`;
+  }
+  return null;
+}
+
+/** The materials a product's line really consumes, stage by stage (an option may only add these). */
+function usedMaterials(C, product) {
+  const out = new Set();
+  for (const s of stagesOf(C, product)) for (const m of s.uses || []) out.add(m);
+  return out;
+}
+
+const scaleNumbers = (obj, mult) => (obj ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v === 'number' ? v * mult : v])) : obj);
+
+/**
+ * The product as built with this configuration. Each option adds materials (its `cost` share of
+ * the product's own materials, spread over the materials it lists that the line really uses; at
+ * least one lot), adds build days, and raises the price by what it costs the builder times its
+ * markup — so an option is worth having for the customer and for the builder, and never free.
+ */
+function configure(C, product, config, productId = null) {
+  const cfg = cleanConfig(config);
+  const keys = Object.keys(cfg);
+  if (!keys.length) return product;
+  const id = productId || Object.keys(C.products).find((k) => C.products[k] === product);
+  const used = usedMaterials(C, product);
+  const baseValue = bomValue(C, product);
+  const dayCost = bayDayCost(C, product.bay);
+  const bom = { ...product.bom };
+  let extraMaterials = 0;
+  let extraDays = 0;
+  let premium = 0;
+  let quality = product.quality;
+  const needs = [...(product.needs || [])];
+  const effects = {};
+  const tags = [...(product.tags || [])];
+  let spec = product.spec ? { ...product.spec } : undefined;
+  for (const g of keys) {
+    const opt = C.options.groups[g]?.choices[cfg[g]];
+    if (!opt) continue;
+    // the extra materials: whole lots, going round the listed materials that still fit in what's left to spend
+    // (at least one lot — the cheapest — however small the product)
+    const pool = opt.into.filter((m) => used.has(m));
+    let remaining = baseValue * opt.cost;
+    let added = 0;
+    for (let n = 0; n < 80 && pool.length; n++) {
+      const fit = pool.filter((m) => C.materials[m].price <= remaining * 1.25);
+      let m;
+      if (fit.length) m = fit[n % fit.length];
+      else if (added === 0) m = [...pool].sort((x, y) => C.materials[x].price - C.materials[y].price)[0];
+      else break;
+      bom[m] = (bom[m] || 0) + 1;
+      remaining -= C.materials[m].price;
+      added += C.materials[m].price;
+      if (remaining <= 0) break;
+    }
+    const days = product.days * (opt.days || 0);
+    extraMaterials += added;
+    extraDays += days;
+    premium += (added * 1.07 + days * dayCost) * (opt.markup || 1.5);
+    quality += opt.quality || 0;
+    if (opt.needs && !needs.includes(opt.needs)) needs.push(opt.needs);
+    for (const [k, v] of Object.entries(opt.effects || {})) effects[k] = (effects[k] ?? 1) * v;
+    for (const t of opt.tags || []) if (!tags.includes(t)) tags.push(t);
+    if (spec && opt.spec) for (const [k, mult] of Object.entries(opt.spec)) if (typeof spec[k] === 'number' && spec[k] > 0) spec[k] = Math.round(spec[k] * mult * 100) / 100;
+  }
+  const out = {
+    ...product,
+    bom,
+    days: Math.round((product.days + extraDays) * 100) / 100,
+    price: Math.round((product.price + premium) / 100) * 100,
+    quality,
+    needs,
+    tags,
+    effects,
+    spec,
+    config: cfg,
+    configKey: configKey(cfg),
+    extra: { materials: extraMaterials, days: Math.round(extraDays * 100) / 100, price: Math.round((product.price + premium) / 100) * 100 - product.price },
+  };
+  if (effects.life && product.life) out.life = Math.round(product.life * effects.life);
+  if (effects.service && product.service) out.service = scaleNumbers(product.service, effects.service);
+  void id;
+  return out;
+}
+
+/** What one option does to a product by itself (for showing the choice before it's made). */
+function optionEffect(C, product, group, choice, productId = null) {
+  const P = configure(C, product, { [group]: choice }, productId);
+  return { price: P.price - product.price, days: Math.round((P.days - product.days) * 100) / 100, quality: P.quality - product.quality, needs: (P.needs || []).filter((n) => !(product.needs || []).includes(n)), materials: P.extra?.materials || 0, effects: P.effects || {}, spec: P.spec, base: product.spec };
+}
+
+/** The configuration a customer asks for in a tender: by its kind's habits, fixed by `key` (the tender's id). */
+function pickConfig(C, product, customer, productId, key) {
+  const demand = C.options?.demand?.[customer.kind] || {};
+  const out = {};
+  for (const g of optionGroupsOf(C, product, productId)) {
+    const probs = demand[g];
+    if (!probs) continue;
+    const r = hashUnit(`${key}|${productId}|${g}`);
+    let acc = 0;
+    for (const [choice, p] of Object.entries(probs)) {
+      acc += p;
+      if (r < acc) { out[g] = choice; break; }
+    }
+  }
+  return out;
+}
+
+/** The options in words ("High-density cabin · Extended-range tanks"), or "Standard". */
+function configLabel(C, product, config) {
+  const parts = Object.entries(cleanConfig(config)).map(([g, c]) => C.options.groups[g]?.choices[c]?.name).filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Standard';
+}
+
+return { hashUnit, optionGroupsOf, cleanConfig, configKey, configError, configure, optionEffect, pickConfig, configLabel };
+})();
+
 // ---- src/systems/oilCompany.js
 __m["src/systems/oilCompany.js"] = (function () {
 // Ober's Oil: a small company economy the player can work in, invest in and
@@ -19645,6 +20170,13 @@ __m["src/systems/oilCompany.js"] = (function () {
 // (accidents, strikes, the canal slick) defined in src/content/events.js.
 const { clamp } = __m["src/core/util.js"];
 const { remember } = __m["src/sim/memory.js"];
+const { CORP } = __m["src/content/corporate.js"];
+const { nextPrice, quote, maxHold, roomFor } = __m["src/corp/exchange.js"];
+const { hashUnit } = __m["src/aero/config.js"];
+
+/** Shares of Ober's Oil on the exchange (v0.67.0): the cap on one investor is 5% of them, as everywhere on the board. */
+const OIL_LISTED = 100000;
+const FLOOR = 5; // the price never falls below this
 
 const OIL_PROJECTS = {
   derrick: { name: 'New derrick on the east field', cost: 60, bonusShares: 3, max: 3, text: 'Another derrick: more output, more noise, more risk.' },
@@ -19706,14 +20238,24 @@ class OilCompany {
 
   /** Total value of the player's shares. */
   holdingsValue() {
-    return this.state.sharesOwned * this.state.sharePrice;
+    return Math.round(this.state.sharesOwned * this.state.sharePrice);
   }
+
+  /** What n shares cost or fetch, and the broker's fee (v0.67.0: the exchange's, like every listed company). */
+  quote(n) { return quote(CORP.exchange, this.state.sharePrice, n); }
 
   buyShares(n = 1) {
     const s = this.state;
-    const cost = s.sharePrice * n;
-    if (n <= 0 || this.game.player.money < cost) return { ok: false, text: 'You cannot afford that many shares.' };
+    if (n <= 0) return { ok: false, text: 'Buy how many?' };
+    const room = roomFor(CORP.exchange, OIL_LISTED, s.sharesOwned);
+    if (n > room) return { ok: false, text: room > 0 ? `One investor may hold at most ${maxHold(CORP.exchange, OIL_LISTED).toLocaleString()} shares of Ober's Oil: you can buy ${room.toLocaleString()} more.` : 'You hold as much of Ober\'s Oil as one investor may.' };
+    const q = this.quote(n);
+    const cost = q.gross + q.fee;
+    if (this.game.player.money < cost) return { ok: false, text: 'You cannot afford that many shares (with the broker\'s fee).' };
     this.game.player.money -= cost;
+    // what you paid is kept only while every share you hold was bought (shares from a project were not)
+    if (s.costBasis === undefined && s.sharesOwned === 0) s.costBasis = 0;
+    if (s.costBasis !== undefined) s.costBasis += cost;
     s.sharesOwned += n;
     this.game.bus.emit('money:changed', { delta: -cost, total: this.game.player.money });
     this.game.bus.emit('oil:shares', { owned: s.sharesOwned });
@@ -19723,18 +20265,20 @@ class OilCompany {
       const agnes = this.game.npcs.get('npc_agnes');
       if (agnes) this.game.knowledge.learn(agnes, 'fact_player_invested', { kind: 'fact', source: 'observed', at: this.game.clock.total });
     }
-    return { ok: true, text: `Bought ${n} share${n > 1 ? 's' : ''} of Ober's Oil for ${cost} obols.` };
+    return { ok: true, text: `Bought ${n} share${n > 1 ? 's' : ''} of Ober's Oil for ${q.gross.toLocaleString()} obols (+${q.fee} fee).` };
   }
 
   sellShares(n = 1) {
     const s = this.state;
     if (n <= 0 || s.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
-    const value = s.sharePrice * n;
+    const q = this.quote(n);
+    const value = Math.max(0, q.gross - q.fee);
+    if (s.costBasis !== undefined) s.costBasis = Math.round(s.costBasis * (1 - n / s.sharesOwned));
     s.sharesOwned -= n;
     this.game.player.money += value;
     this.game.bus.emit('money:changed', { delta: value, total: this.game.player.money });
     this.game.bus.emit('oil:shares', { owned: s.sharesOwned });
-    return { ok: true, text: `Sold ${n} share${n > 1 ? 's' : ''} for ${value} obols.` };
+    return { ok: true, text: `Sold ${n} share${n > 1 ? 's' : ''} for ${value.toLocaleString()} obols (after a ${q.fee} fee).` };
   }
 
   projectCount(id) {
@@ -19752,6 +20296,7 @@ class OilCompany {
     g.player.money -= p.cost;
     g.bus.emit('money:changed', { delta: -p.cost, total: g.player.money });
     s.sharesOwned += p.bonusShares;
+    delete s.costBasis; // shares from a project were not bought: what you paid is no longer the whole story
     if (id === 'derrick') {
       s.derricks += 1;
       s.risk += 1;
@@ -19782,7 +20327,10 @@ class OilCompany {
     const output = this.computeOutput();
     s.output = output;
     const oldPrice = s.sharePrice;
-    s.sharePrice = Math.max(5, Math.round(20 + output / 8 - (s.strike ? 6 : 0)));
+    // v0.67.0: the old formula is now what a share is worth; the price moves a part of the way there each day, like every listed company's
+    const fair = Math.max(FLOOR, 20 + output / 8 - (s.strike ? 6 : 0));
+    s.fair = Math.round(fair * 100) / 100;
+    s.sharePrice = nextPrice({ ...CORP.exchange, minPrice: FLOOR }, s.sharePrice, fair, hashUnit(`oil|${g.clock.day}|${g.corp.state.gen?.salt || ''}`));
     const dividend = Math.floor(s.sharesOwned * this.dividendPerShare(output));
     if (dividend > 0) {
       g.player.money += dividend;
@@ -19792,14 +20340,14 @@ class OilCompany {
     } else if (s.sharesOwned > 0) {
       g.tablet.post('stocks', `Ober's Oil paid no dividend today (${s.strike ? 'strike' : 'no output'}).`, 'warn');
     }
-    if (s.sharesOwned > 0 && Math.abs(s.sharePrice - oldPrice) >= 3) {
+    if (s.sharesOwned > 0 && Math.abs(s.sharePrice - oldPrice) / oldPrice >= 0.03) {
       const up = s.sharePrice > oldPrice;
-      g.tablet.post('stocks', `Ober's Oil shares ${up ? 'rose' : 'fell'} to ${s.sharePrice} obols (${up ? '+' : '−'}${Math.abs(s.sharePrice - oldPrice)}). Your ${s.sharesOwned} shares are worth ${s.sharesOwned * s.sharePrice}.`, up ? 'good' : 'warn');
+      g.tablet.post('stocks', `Ober's Oil shares ${up ? 'rose' : 'fell'} to ${s.sharePrice} obols (${up ? '+' : '−'}${Math.abs(s.sharePrice - oldPrice).toFixed(2)}). Your ${s.sharesOwned} shares are worth ${Math.round(s.sharesOwned * s.sharePrice)}.`, up ? 'good' : 'warn');
     }
     s.lastDividendDay = g.clock.day;
     s.morale = clamp(s.morale + (s.wageLevel >= 2 ? 5 : 1) - (s.derricks > 1 ? 1 : 0), 0, 100);
     if (s.scandalDays > 0) s.scandalDays -= 1;
-    s.history.push({ day: g.clock.day, output, price: s.sharePrice, dividend });
+    s.history.push({ day: g.clock.day, output, price: s.sharePrice, fair: s.fair, dividend });
     if (s.history.length > 14) s.history.shift();
     g.bus.emit('oil:daily', { output, dividend });
   }
@@ -19855,7 +20403,7 @@ class OilCompany {
   }
 }
 
-return { OIL_PROJECTS, STATIONS, freshOil, OilCompany };
+return { OIL_LISTED, OIL_PROJECTS, STATIONS, freshOil, OilCompany };
 })();
 
 // ---- src/systems/construction.js
@@ -32699,6 +33247,9 @@ class Dairy {
     const q = this.quote(n);
     if (g.player.money < q.gross + q.fee) return { ok: false, text: 'You cannot afford that many shares (with the broker\'s fee).' };
     g.player.money -= q.gross + q.fee;
+    // v0.67.0: what you paid is kept from here on (shares held before then have no cost on record)
+    if (s.costBasis === undefined && s.sharesOwned === 0) s.costBasis = 0;
+    if (s.costBasis !== undefined) s.costBasis += q.gross + q.fee;
     s.sharesOwned += n;
     g.bus.emit('money:changed', { delta: -(q.gross + q.fee), total: g.player.money });
     return { ok: true, text: `Bought ${n} CHZ for ${q.gross} obols (+${q.fee} fee).` };
@@ -32710,6 +33261,7 @@ class Dairy {
     if (n <= 0 || s.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = this.quote(n);
     const value = Math.max(0, q.gross - q.fee);
+    if (s.costBasis !== undefined) s.costBasis = Math.round(s.costBasis * (1 - n / s.sharesOwned));
     s.sharesOwned -= n;
     g.player.money += value;
     g.bus.emit('money:changed', { delta: value, total: g.player.money });
@@ -32971,223 +33523,6 @@ function compareCount(n, v) {
 return { freshDairy, Dairy };
 })();
 
-// ---- src/aero/catalog.js
-__m["src/aero/catalog.js"] = (function () {
-// The aerospace catalogue's rules (v0.55.0): pure functions over the content in
-// src/content/aerospace.js. No game state, no DOM — the simulation
-// (src/systems/aerospace.js), the terminal and the tests all use these.
-
-/** Owner's rule: an aircraft contract is for 1–5 aircraft. Rockets, missiles and satellites aren't capped here. */
-function quantityError(A, product, qty) {
-  if (!product) return 'no such product';
-  if (!Number.isInteger(qty) || qty < 1) return 'a contract is for at least one unit';
-  if (product.line === 'aircraft' && qty > A.maxAircraftPerContract) return `an aircraft contract may be for at most ${A.maxAircraftPerContract} aircraft (this is for ${qty})`;
-  if (product.line !== 'aircraft' && qty > 12) return `at most 12 units per contract (this is for ${qty})`;
-  return null;
-}
-
-/** The research a company still needs for a product (empty when it can build it). */
-function missingTech(C, company, product) {
-  const out = [];
-  const seen = new Set();
-  const need = (id) => {
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    if (!company.research.includes(id)) out.push(id);
-  };
-  need(product.tech);
-  for (const t of product.needs || []) need(t); // research an option asks for (v0.57.0)
-  return out;
-}
-
-/** Bay types able to build a product (its own type; a secure hall can also do non-military aircraft of its size). */
-function baysFor(C, product) {
-  const own = C.bays[product.bay];
-  const out = [product.bay];
-  if (product.line === 'aircraft' && product.bay !== 'secure' && C.bays.secure.size >= own.size) out.push('secure');
-  if (product.line === 'aircraft' && product.bay === 'light') out.push('heavy');
-  if (product.line === 'aircraft' && ['light', 'heavy'].includes(product.bay)) out.push('wide');
-  return [...new Set(out)];
-}
-
-/** Cargo units a unit's materials take. */
-function bomVolume(C, product) {
-  return Object.entries(product.bom).reduce((a, [m, n]) => a + n * (C.materials[m]?.volume || 1), 0);
-}
-
-/** The materials' value at reference prices. */
-function bomValue(C, product) {
-  return Object.entries(product.bom).reduce((a, [m, n]) => a + n * C.materials[m].price, 0);
-}
-
-/** Daily cost of running a bay: its crew's wages plus its upkeep. */
-function bayDayCost(C, bayType) {
-  const b = C.bays[bayType];
-  return b.crew * C.aero.wage + b.upkeep;
-}
-
-/**
- * What one unit costs to build, roughly (shown to the player before bidding,
- * used by the rival to price its bids): materials at reference prices ×
- * `materialMult`, freight at `freightShare` of their value, the bay-days at
- * `speed`, inspection rework expected at `failChance`, launch costs.
- */
-function unitCost(C, product, { materialMult = 1, freightShare = 0.07, speed = 1, failChance = 0.2, launchMult = 1 } = {}) {
-  const materials = Math.round(bomValue(C, product) * materialMult);
-  const freight = Math.round(materials * freightShare);
-  const days = product.days / Math.max(0.2, speed);
-  const labour = Math.round(days * bayDayCost(C, product.bay));
-  const rework = Math.round(failChance * C.aero.reworkShare * labour);
-  const launch = product.line === 'rocket' ? Math.round((product.launchCost || 0) * launchMult) : 0;
-  const total = materials + freight + labour + rework + launch;
-  return { materials, freight, labour, rework, launch, total, days, margin: product.price - total, marginShare: (product.price - total) / product.price };
-}
-
-/** Apron slots an aircraft takes (0 for anything else). */
-function apronSize(product) {
-  return product.line === 'aircraft' ? product.apron || 1 : 0;
-}
-
-/** A launch vehicle can carry a satellite when its lift class is at least the satellite's mass class. */
-function canLift(rocket, satellite) {
-  return rocket?.line === 'rocket' && satellite?.line === 'satellite' && rocket.lift >= satellite.mass;
-}
-
-/** Products in a class/line, cheapest first. */
-function productsOf(C, pred) {
-  return Object.entries(C.products).filter(([, p]) => pred(p)).sort((a, b) => a[1].price - b[1].price).map(([id]) => id);
-}
-
-/** A tidy price: 3 significant figures. */
-function tidy(n) {
-  if (n <= 0) return 0;
-  const k = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 2);
-  return Math.round(n / k) * k;
-}
-
-/** Days → "3 d 4 h". */
-function fmtDays(d) {
-  if (d <= 0) return 'now';
-  let dd = Math.floor(d);
-  let hh = Math.round((d - dd) * 24);
-  if (hh === 24) { dd += 1; hh = 0; }
-  return dd ? `${dd} d${hh ? ` ${hh} h` : ''}` : `${hh} h`;
-}
-
-/** Big numbers for the terminal: 1,250,000 → "1.25M". */
-function fmtMoney(n) {
-  const a = Math.abs(n);
-  const s = n < 0 ? '−' : '';
-  if (a >= 1e6) return `${s}${(a / 1e6).toFixed(a >= 1e7 ? 1 : 2)}M`;
-  if (a >= 1e4) return `${s}${Math.round(a / 1000)}k`;
-  return `${s}${Math.round(a).toLocaleString()}`;
-}
-
-return { quantityError, missingTech, baysFor, bomVolume, bomValue, bayDayCost, unitCost, apronSize, canLift, productsOf, tidy, fmtDays, fmtMoney };
-})();
-
-// ---- src/aero/pipeline.js
-__m["src/aero/pipeline.js"] = (function () {
-// Production pipelines (v0.55.0): every aircraft, launch vehicle, strategic
-// product and satellite is a persistent production unit that walks its line's
-// stages (src/content/aerospace.js PIPELINES). Pure helpers — the simulation
-// in src/systems/aerospace.js moves units; these say what a stage needs.
-
-/** The stages of a product's line. */
-function stagesOf(C, product) {
-  return C.pipelines[product.line];
-}
-
-/** Work days a stage takes at standard speed (0 for waits and events). */
-function stageDays(C, product, stage) {
-  return Math.round(product.days * (stage.share || 0) * 1000) / 1000;
-}
-
-/** Materials (lots) a stage consumes for one unit: the product's lots of the stage's material groups. */
-function stageMaterials(product, stage) {
-  const out = {};
-  for (const m of stage.uses || []) if (product.bom[m]) out[m] = product.bom[m];
-  return out;
-}
-
-/** The whole bill of materials still to be consumed from stage `from` on. */
-function remainingMaterials(C, product, from) {
-  const out = {};
-  const st = stagesOf(C, product);
-  for (let i = from; i < st.length; i++) for (const [m, n] of Object.entries(stageMaterials(product, st[i]))) out[m] = (out[m] || 0) + n;
-  return out;
-}
-
-/** Index of the stage with this id (or -1). */
-function stageIndex(C, product, id) {
-  return stagesOf(C, product).findIndex((s) => s.id === id);
-}
-
-/** The last stage that occupies a bay (the unit leaves its bay after it). */
-function lastBayStage(C, product) {
-  const st = stagesOf(C, product);
-  let k = -1;
-  st.forEach((s, i) => { if (s.bay) k = i; });
-  return k;
-}
-
-/** Total work days still ahead of a unit (its current stage's remainder + later stages). */
-function workLeft(C, product, unit) {
-  const st = stagesOf(C, product);
-  let d = Math.max(0, (unit.need || 0) - (unit.work || 0));
-  for (let i = unit.stage + 1; i < st.length; i++) d += stageDays(C, product, st[i]);
-  return d;
-}
-
-/**
- * Chance an inspection fails: AERO.inspectionFailAtRequired when quality equals the
- * product's requirement, falling (to a floor of 3%) as quality exceeds it and
- * rising as it falls short; an engine test cell cuts it by a quarter (aircraft, rockets).
- */
-function failChance(C, product, quality, { engineCell = false } = {}) {
-  const base = C.aero.inspectionFailAtRequired;
-  const gap = quality - product.quality;
-  let p = gap >= 0 ? base * Math.exp(-gap / 10) : Math.min(0.9, base + (-gap / 40));
-  if (engineCell && ['aircraft', 'rocket'].includes(product.line)) p *= 0.75;
-  return Math.max(0.03, Math.min(0.9, p));
-}
-
-/** Chance a launch fails (rocket quality above its requirement makes it safer; reusable vehicles a little safer still). */
-function launchFailChance(product, quality) {
-  const gap = quality - product.quality;
-  const p = 0.06 * Math.exp(-Math.max(0, gap) / 15) + Math.max(0, -gap) / 60;
-  return Math.max(0.01, Math.min(0.5, p * (product.reusable ? 0.85 : 1) * (product.effects?.launchRisk ?? 1)));
-}
-
-/** Chance a satellite fails commissioning (or commissions with reduced capability). */
-function commissionFailChance(product, quality) {
-  const gap = quality - product.quality;
-  return Math.max(0.02, Math.min(0.4, (0.08 * Math.exp(-Math.max(0, gap) / 14) + Math.max(0, -gap) / 70) * (product.effects?.commissionRisk ?? 1)));
-}
-
-/**
- * Pre-roll everything random about a unit when it's created (kept with it,
- * so saving and reloading can't change an inspection, a launch or a
- * commissioning). rng: { next() }.
- */
-function rollUnit(rng) {
-  return { inspect: [rng.next(), rng.next(), rng.next(), rng.next()], launch: rng.next(), commission: rng.next(), partial: rng.next(), departure: rng.next(), weather: rng.next() };
-}
-
-/** A fresh unit record. */
-function newUnit(C, { id, company, contract, productId, n, purpose = 'contract', rng, at }) {
-  const product = C.products[productId];
-  return {
-    id, company, contract, product: productId, line: product.line, n, purpose,
-    stage: 0, work: 0, need: 0, bay: null, status: 'queued', blocker: null,
-    reserved: {}, cost: { materials: 0, freight: 0 }, inspections: [], rework: 0,
-    rolls: rollUnit(rng), created: at, started: null, finished: null, log: [],
-  };
-}
-
-return { stagesOf, stageDays, stageMaterials, remainingMaterials, stageIndex, lastBayStage, workLeft, failChance, launchFailChance, commissionFailChance, rollUnit, newUnit };
-})();
-
 // ---- src/aero/books.js
 __m["src/aero/books.js"] = (function () {
 // The books (v0.55.0): one simple ledger per aerospace company. Cash moves
@@ -33287,171 +33622,6 @@ function summarise(books, n = null, { consolidated = false } = {}) {
 const revenueAccount = (line) => ({ aircraft: 'rev_aircraft', rocket: 'rev_rocket', missile: 'rev_missile', satellite: 'rev_satellite' }[line] || 'rev_aircraft');
 
 return { ACCOUNTS, freshBooks, post, FLOW, flowOf, summarise, revenueAccount };
-})();
-
-// ---- src/aero/config.js
-__m["src/aero/config.js"] = (function () {
-// Product configuration (v0.57.0). Pure functions over the content in src/content/aerospace.js
-// (OPTIONS): no game state, no DOM — the simulation, the terminal, the rival and the tests all
-// use these. A configuration is a small object { group: choice } holding only what differs from
-// the standard product; `configure` turns a product and a configuration into the product as it
-// would really be built — its bill of materials, days, price, quality, flight spec and effects —
-// and that is the one thing every other calculation reads.
-//
-//   optionGroupsOf(C, product)   which option groups a product offers
-//   configError(C, product, cfg) why a configuration isn't valid (or null)
-//   configure(C, product, cfg)   the configured product (the product itself for the standard one)
-//   pickConfig(C, product, …)    the configuration a customer asks for (from its kind, by a hash, never the RNG)
-//   configLabel(C, product, cfg) the options in words
-//   optionEffect(C, product, g, choice)  what one option does to a product, for the terminal
-const { bomValue, bayDayCost } = __m["src/aero/catalog.js"];
-const { stagesOf } = __m["src/aero/pipeline.js"];
-
-/** A stable number in [0, 1) from a string (FNV-1a), so a tender's wishes are fixed by what it is, not by the dice. */
-function hashUnit(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return ((h >>> 0) % 1000003) / 1000003;
-}
-
-/** Groups a product offers: by its id, else its class, else its line. */
-function optionGroupsOf(C, product, productId = null) {
-  const O = C.options;
-  if (!O) return [];
-  const id = productId || Object.keys(C.products).find((k) => C.products[k] === product);
-  return (id && O.byProduct[id]) || O.byClass[product.cls] || O.byLine[product.line] || [];
-}
-
-/** Only what differs from standard, in a stable order. */
-function cleanConfig(config) {
-  const out = {};
-  for (const k of Object.keys(config || {}).sort()) if (config[k] && config[k] !== 'standard') out[k] = config[k];
-  return out;
-}
-
-const configKey = (config) => Object.entries(cleanConfig(config)).map(([g, c]) => `${g}=${c}`).join(';');
-
-/** Why a configuration can't be made for this product (or null). */
-function configError(C, product, config, productId = null) {
-  const groups = optionGroupsOf(C, product, productId);
-  for (const [g, choice] of Object.entries(cleanConfig(config))) {
-    if (!groups.includes(g)) return `this product has no "${g}" option`;
-    if (!C.options.groups[g]?.choices[choice]) return `there is no "${choice}" choice for ${C.options.groups[g]?.name || g}`;
-  }
-  return null;
-}
-
-/** The materials a product's line really consumes, stage by stage (an option may only add these). */
-function usedMaterials(C, product) {
-  const out = new Set();
-  for (const s of stagesOf(C, product)) for (const m of s.uses || []) out.add(m);
-  return out;
-}
-
-const scaleNumbers = (obj, mult) => (obj ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v === 'number' ? v * mult : v])) : obj);
-
-/**
- * The product as built with this configuration. Each option adds materials (its `cost` share of
- * the product's own materials, spread over the materials it lists that the line really uses; at
- * least one lot), adds build days, and raises the price by what it costs the builder times its
- * markup — so an option is worth having for the customer and for the builder, and never free.
- */
-function configure(C, product, config, productId = null) {
-  const cfg = cleanConfig(config);
-  const keys = Object.keys(cfg);
-  if (!keys.length) return product;
-  const id = productId || Object.keys(C.products).find((k) => C.products[k] === product);
-  const used = usedMaterials(C, product);
-  const baseValue = bomValue(C, product);
-  const dayCost = bayDayCost(C, product.bay);
-  const bom = { ...product.bom };
-  let extraMaterials = 0;
-  let extraDays = 0;
-  let premium = 0;
-  let quality = product.quality;
-  const needs = [...(product.needs || [])];
-  const effects = {};
-  const tags = [...(product.tags || [])];
-  let spec = product.spec ? { ...product.spec } : undefined;
-  for (const g of keys) {
-    const opt = C.options.groups[g]?.choices[cfg[g]];
-    if (!opt) continue;
-    // the extra materials: whole lots, going round the listed materials that still fit in what's left to spend
-    // (at least one lot — the cheapest — however small the product)
-    const pool = opt.into.filter((m) => used.has(m));
-    let remaining = baseValue * opt.cost;
-    let added = 0;
-    for (let n = 0; n < 80 && pool.length; n++) {
-      const fit = pool.filter((m) => C.materials[m].price <= remaining * 1.25);
-      let m;
-      if (fit.length) m = fit[n % fit.length];
-      else if (added === 0) m = [...pool].sort((x, y) => C.materials[x].price - C.materials[y].price)[0];
-      else break;
-      bom[m] = (bom[m] || 0) + 1;
-      remaining -= C.materials[m].price;
-      added += C.materials[m].price;
-      if (remaining <= 0) break;
-    }
-    const days = product.days * (opt.days || 0);
-    extraMaterials += added;
-    extraDays += days;
-    premium += (added * 1.07 + days * dayCost) * (opt.markup || 1.5);
-    quality += opt.quality || 0;
-    if (opt.needs && !needs.includes(opt.needs)) needs.push(opt.needs);
-    for (const [k, v] of Object.entries(opt.effects || {})) effects[k] = (effects[k] ?? 1) * v;
-    for (const t of opt.tags || []) if (!tags.includes(t)) tags.push(t);
-    if (spec && opt.spec) for (const [k, mult] of Object.entries(opt.spec)) if (typeof spec[k] === 'number' && spec[k] > 0) spec[k] = Math.round(spec[k] * mult * 100) / 100;
-  }
-  const out = {
-    ...product,
-    bom,
-    days: Math.round((product.days + extraDays) * 100) / 100,
-    price: Math.round((product.price + premium) / 100) * 100,
-    quality,
-    needs,
-    tags,
-    effects,
-    spec,
-    config: cfg,
-    configKey: configKey(cfg),
-    extra: { materials: extraMaterials, days: Math.round(extraDays * 100) / 100, price: Math.round((product.price + premium) / 100) * 100 - product.price },
-  };
-  if (effects.life && product.life) out.life = Math.round(product.life * effects.life);
-  if (effects.service && product.service) out.service = scaleNumbers(product.service, effects.service);
-  void id;
-  return out;
-}
-
-/** What one option does to a product by itself (for showing the choice before it's made). */
-function optionEffect(C, product, group, choice, productId = null) {
-  const P = configure(C, product, { [group]: choice }, productId);
-  return { price: P.price - product.price, days: Math.round((P.days - product.days) * 100) / 100, quality: P.quality - product.quality, needs: (P.needs || []).filter((n) => !(product.needs || []).includes(n)), materials: P.extra?.materials || 0, effects: P.effects || {}, spec: P.spec, base: product.spec };
-}
-
-/** The configuration a customer asks for in a tender: by its kind's habits, fixed by `key` (the tender's id). */
-function pickConfig(C, product, customer, productId, key) {
-  const demand = C.options?.demand?.[customer.kind] || {};
-  const out = {};
-  for (const g of optionGroupsOf(C, product, productId)) {
-    const probs = demand[g];
-    if (!probs) continue;
-    const r = hashUnit(`${key}|${productId}|${g}`);
-    let acc = 0;
-    for (const [choice, p] of Object.entries(probs)) {
-      acc += p;
-      if (r < acc) { out[g] = choice; break; }
-    }
-  }
-  return out;
-}
-
-/** The options in words ("High-density cabin · Extended-range tanks"), or "Standard". */
-function configLabel(C, product, config) {
-  const parts = Object.entries(cleanConfig(config)).map(([g, c]) => C.options.groups[g]?.choices[c]?.name).filter(Boolean);
-  return parts.length ? parts.join(' · ') : 'Standard';
-}
-
-return { hashUnit, optionGroupsOf, cleanConfig, configKey, configError, configure, optionEffect, pickConfig, configLabel };
 })();
 
 // ---- src/aero/tenders.js
@@ -38602,105 +38772,6 @@ function existingRows(content) {
 return { HOME, countryName, countryIds, existingRows };
 })();
 
-// ---- src/content/corporate.js
-__m["src/content/corporate.js"] = (function () {
-// The companies of the wider world (v0.60.0): how many, of what kind, what a sector can sell in a
-// day, and how a company in it is made and run. Numbers are obols and days. The generated
-// companies are made ONCE from these (src/corp/generate.js) and then saved; changing this file
-// never changes a company that already exists.
-//
-// A sector's POOL is what its customers buy in a day, whoever supplies it. Companies share it by
-// capacity, standing and price; the player's own business and the already-existing companies
-// (Meridian, Ober's Oil, Chuckie's Cheese) take what they really sell off the top, so a player
-// who wins business leaves less for the rest — and the reverse.
-
-const CORP = {
-  /** Most generated companies alive at once, and records kept in all (closed ones beyond the cap are forgotten, oldest first). */
-  cap: { alive: 60, records: 90 },
-  /** Days simulated before the game begins, so every company has a history to rank on. */
-  warmupDays: 120,
-  /** The benchmark rate (annual) until a central bank sets one. */
-  baseRate: 0.05,
-  /** Daily capacity of a new company by size, as a share of its sector's pool; sizes are drawn by weight. */
-  sizes: { small: { w: 0.5, share: 0.02 }, mid: { w: 0.35, share: 0.05 }, large: { w: 0.15, share: 0.11 } },
-  /** Plant: what one obol of daily capacity costs to build, the share of that cost the plant is worth on the books. */
-  plantCost: 40,
-  plantBook: 0.6,
-  /** Fixed costs a day as a share of margin-earning capacity; a company breaks even at about this share of its capacity sold. */
-  fixedOfMargin: 0.55,
-  /** A company goes under when its cash has been below zero this many days in a row. */
-  insolventDays: 45,
-  /** Listed companies: the share of generated companies with a ticker, and the share counts. */
-  listedShare: 0.38,
-  shares: { small: [2e6, 6e6], mid: [6e6, 2e7], large: [2e7, 6e7] },
-  /** A new entrant may appear in a sector whose companies are this busy (30-day utilisation), at most this many a month overall and one per sector in `cooldown` days. */
-  entry: { busy: 0.95, chance: 0.35, perMonth: 2, cooldown: 120 },
-  /** What a sector's companies are called: stems by country (flavour), then a suffix by sector. */
-  stems: {
-    home: ['Copperfield', 'Lantern', 'Northbank', 'Harbourline', 'Millrace', 'Gullwing', 'Tidewater', 'Brasswick', 'Fairhaven', 'Quillon'],
-    varn: ['Kestrel', 'Varn', 'Tashkar', 'Orlov', 'Daghan', 'Ironmark'],
-    ostmark: ['Hartmann', 'Brandt', 'Ostwerk', 'Kessler', 'Rheinholt', 'Falken'],
-    caldera: ['Calder', 'Mesa', 'Horn', 'Corvane', 'Salto', 'Verdan'],
-    sund: ['Sundholm', 'Fjell', 'Norrby', 'Skarn', 'Lindqvist', 'Vik'],
-    pallas: ['Pallas', 'Aegir', 'Ionis', 'Thessal', 'Krios', 'Mylos'],
-    teshvar: ['Teshvar', 'Zhan', 'Orun', 'Khoral', 'Bai-Dun', 'Sarkhan'],
-    morrow: ['Morrow', 'Coralline', 'Tideline', 'Palmer', 'Reefgate', 'Kauri'],
-    lirre: ['Lirre', 'Valmont', 'Duchess', 'Aubrac', 'Montclair', 'Lorrain'],
-  },
-  suffix: {
-    arms: ['Arms', 'Ordnance', 'Defence Systems', 'Munitions', 'Armaments'],
-    shipping: ['Lines', 'Shipping', 'Maritime', 'Freight', 'Marine'],
-    aerospace: ['Aerospace', 'Aviation', 'Aeronautics', 'Aircraft'],
-    agriculture: ['Agri', 'Farms', 'Grain Co.', 'Harvest', 'Growers'],
-    energy: ['Petroleum', 'Power', 'Energy', 'Fuels'],
-    industrial: ['Steelworks', 'Machinery', 'Industries', 'Foundry', 'Engineering'],
-    transport: ['Rail', 'Haulage', 'Coaches', 'Transit'],
-    communications: ['Telecom', 'Signals', 'Broadcast', 'Cable'],
-    satellites: ['Orbital', 'Sky Networks', 'Satcom', 'Spaceworks'],
-    finance: ['Bank', 'Trust', 'Mutual', 'Insurance', 'Capital'],
-  },
-  /**
-   * The sectors with something to sell. count: how many generated at the start. pool: what the
-   * customers buy a day at the start; growth: yearly drift; wave: the size of the cycle (a share
-   * of the pool) and its length in days. pe: the multiple of a year's profit a company is worth (the player's businesses and the
-   * listed ones are valued the same way). margin: what a company at par keeps of each obol sold
-   * before fixed costs. specialities: what a company can be known for.
-   */
-  sectors: {
-    arms: { count: 6, pe: 11, pool: 160000, growth: 0.04, wave: 0.12, period: 47, margin: 0.32, specialities: ['small arms', 'heavy weapons', 'missiles', 'drones', 'ammunition'] },
-    shipping: { count: 6, pe: 10, pool: 95000, growth: 0.05, wave: 0.1, period: 61, margin: 0.18, specialities: ['bulk cargo', 'containers', 'tankers', 'roll-on/roll-off', 'refrigerated cargo'] },
-    aerospace: { count: 5, pe: 14, pool: 210000, growth: 0.05, wave: 0.14, period: 83, margin: 0.2, specialities: ['light aircraft', 'airliners', 'launch services', 'components', 'helicopters'] },
-    agriculture: { count: 6, pe: 11, pool: 125000, growth: 0.03, wave: 0.16, period: 90, margin: 0.14, specialities: ['grain', 'livestock', 'dairy', 'cotton', 'fruit and vegetables'] },
-    energy: { count: 4, pe: 10, pool: 300000, growth: 0.03, wave: 0.12, period: 71, margin: 0.3, specialities: ['crude oil', 'refining', 'gas', 'power generation'] },
-    industrial: { count: 5, pe: 10, pool: 260000, growth: 0.04, wave: 0.1, period: 77, margin: 0.16, specialities: ['steel', 'machine tools', 'vehicles', 'chemicals'] },
-    transport: { count: 4, pe: 9, pool: 120000, growth: 0.04, wave: 0.08, period: 53, margin: 0.12, specialities: ['rail freight', 'road haulage', 'passenger rail', 'air charter'] },
-    communications: { count: 3, pe: 12, pool: 140000, growth: 0.06, wave: 0.07, period: 67, margin: 0.28, specialities: ['telephony', 'broadcasting', 'undersea cable'] },
-    satellites: { count: 3, pe: 14, pool: 90000, growth: 0.1, wave: 0.12, period: 59, margin: 0.35, specialities: ['communications', 'imaging', 'navigation'] },
-    finance: { count: 4, pe: 9, pool: 200000, growth: 0.04, wave: 0.09, period: 73, margin: 0.4, specialities: ['commercial banking', 'insurance', 'trade finance', 'asset management'] },
-  },
-  /** How the arms pool is read from the real arms market: obols a day per obol of the countries' daily income, and what a war adds. */
-  armsPool: { perIncome: 0.7, perWar: 0.06 },
-  /** The exchange (v0.66.0): one set of rules for every share a company of the wider world has. Prices are obols a share. */
-  exchange: {
-    fee: 0.01, // broker's commission each way (the rate Meridian's shares have always had)
-    maxShare: 0.05, // one investor may hold at most this share of a company
-    priceAdjust: 0.12, // a price moves this share of the way to fair value each day
-    noise: 0.02, // ± daily market mood
-    target: [20, 120], // the price a company is first listed at (its share count is made to fit its worth)
-    minPrice: 0.5,
-    historyDays: 60,
-    logKept: 60,
-  },
-  strategies: {
-    aggressive: { name: 'Aggressive', invest: 0.85, debt: 1.4, price: -0.05 },
-    steady: { name: 'Steady', invest: 0.93, debt: 1.0, price: 0 },
-    conservative: { name: 'Conservative', invest: 0.98, debt: 0.6, price: 0.04 },
-  },
-};
-
-return { CORP };
-})();
-
 // ---- src/corp/sim.js
 __m["src/corp/sim.js"] = (function () {
 // The wider world's companies (v0.60.0): how they are made and how a day goes for each. Pure
@@ -41333,50 +41404,6 @@ class Management {
 return { Management };
 })();
 
-// ---- src/corp/exchange.js
-__m["src/corp/exchange.js"] = (function () {
-// The exchange (v0.66.0). Pure functions — no game state, no DOM, no RNG: a day's mood is a hash the caller supplies.
-//
-//   listingShares(value, price)      how many shares a company of this worth has at its first price
-//   fairPrice(value, shares)         what a share is worth on the company's own books
-//   nextPrice(X, price, fair, mood)  tomorrow's price: part of the way to fair value, times the day's mood
-//   quote(X, price, n)               what n shares cost or fetch, and the broker's fee
-//   roomFor(X, shares, held)         how many more one investor may hold
-//   spark(prices)                    a line of blocks showing a run of prices
-//
-// A valuation is an opinion: nothing here makes money. A share's price is the company's worth divided by the shares it has.
-
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-
-const listingShares = (value, price) => Math.max(1000, Math.round(value / Math.max(1, price)));
-const fairPrice = (value, shares) => (shares > 0 && value >= 0 ? value / shares : null);
-
-/** The same step Meridian's shares have always taken: part of the way to fair value, times a mood in ±noise. */
-function nextPrice(X, price, fair, mood) {
-  const p = (price + (fair - price) * X.priceAdjust) * (1 + (mood * 2 - 1) * X.noise);
-  return Math.max(X.minPrice, Math.round(p * 100) / 100);
-}
-
-function quote(X, price, n) {
-  const gross = Math.round(price * n);
-  return { gross, fee: Math.ceil(gross * X.fee) };
-}
-
-const maxHold = (X, shares) => Math.floor(shares * X.maxShare);
-const roomFor = (X, shares, held) => Math.max(0, maxHold(X, shares) - held);
-
-const BLOCKS = '▁▂▃▄▅▆▇█';
-/** A run of prices as blocks, scaled to its own low and high. */
-function spark(prices) {
-  if (!prices.length) return '';
-  const lo = Math.min(...prices); const hi = Math.max(...prices);
-  if (hi === lo) return BLOCKS[3].repeat(prices.length);
-  return prices.map((p) => BLOCKS[clamp(Math.round(((p - lo) / (hi - lo)) * 7), 0, 7)]).join('');
-}
-
-return { listingShares, fairPrice, nextPrice, quote, maxHold, roomFor, spark };
-})();
-
 // ---- src/systems/exchange.js
 __m["src/systems/exchange.js"] = (function () {
 // The exchange (v0.66.0): game.corp.exchange — every listed company on one board.
@@ -41388,6 +41415,7 @@ __m["src/systems/exchange.js"] = (function () {
 // the dividends the company really pays out of its profit. Nothing here uses the game's RNG, creates a share
 // outside a listing, or moves money except a purchase, a sale or a dividend the player is owed.
 const { CORP } = __m["src/content/corporate.js"];
+const { OIL_LISTED } = __m["src/systems/oilCompany.js"];
 const { listingShares, fairPrice, nextPrice, quote, maxHold, roomFor } = __m["src/corp/exchange.js"];
 const { hashUnit } = __m["src/aero/config.js"];
 
@@ -41516,11 +41544,11 @@ class Exchange {
     const g = this.g;
     const out = [];
     const oil = g.oil.state;
-    out.push({ ticker: 'OBRO', name: 'Ober\'s Oil', sector: 'energy', source: 'oil', price: oil.sharePrice, prev: oil.history.at(-2)?.price ?? null, held: oil.sharesOwned, cost: null, divs: oil.dividendsPaid, fee: 0, cap: null, history: oil.history.map((h) => h.price), own: 'Ober\'s Oil keeps its own rules: its price follows the refinery\'s output, it pays a dividend every evening, and there is no broker\'s fee or limit. Its expansion projects are in the Stocks app.' });
+    out.push({ ticker: 'OBRO', name: 'Ober\'s Oil', sector: 'energy', source: 'oil', price: oil.sharePrice, prev: oil.history.at(-2)?.price ?? null, held: oil.sharesOwned, cost: oil.costBasis ?? null, divs: oil.dividendsPaid, fee: X.fee, cap: maxHold(X, OIL_LISTED), shares: OIL_LISTED, fair: oil.fair, history: oil.history.map((h) => h.price), own: 'Ober\'s Oil is worth what the refinery\'s output says (that is its "worth on its books"), pays a dividend every evening from real output, and follows the exchange\'s rules since v0.67.0. Its expansion projects, which bring bonus shares, are in the Stocks app; shares from a project have no cost on record, so a gain is not shown once you hold some.' });
     const dc = g.content.dairy.config; const dz = g.dairy.state;
-    out.push({ ticker: dc.ticker, name: dc.company, sector: 'agriculture', source: 'dairy', price: dz.sharePrice, prev: dz.history.at(-2)?.price ?? null, held: dz.sharesOwned, cost: null, divs: dz.dividendsPaid, fee: 0, cap: null, history: dz.history.map((h) => h.price), own: 'Chuckie\'s Cheese keeps its own rules: its price follows its milk and cheese, it pays a dividend every evening, and there is no broker\'s fee or limit.' });
+    out.push({ ticker: dc.ticker, name: dc.company, sector: 'agriculture', source: 'dairy', price: dz.sharePrice, prev: dz.history.at(-2)?.price ?? null, held: dz.sharesOwned, cost: dz.costBasis ?? null, divs: dz.dividendsPaid, fee: dc.fee ?? g.dairy.cfg.fee, cap: g.dairy.cfg.maxPlayerShares, shares: g.dairy.cfg.shares, fair: g.dairy.fairValue(), history: dz.history.map((h) => h.price), own: 'Chuckie\'s Cheese has always had a broker\'s fee and a cap (1% of the company: Chuckie keeps control); its price follows its milk and cheese toward what its books are worth, and it pays a dividend every evening. Shares you held before v0.67.0 have no cost on record.' });
     const mk = g.aero.state.market; const mer = g.aero.meridian;
-    out.push({ ticker: g.aero.A.meridian.ticker, name: mer.name, sector: 'aerospace', source: 'aero', price: mk.price, prev: mk.history.at(-2)?.price ?? null, held: mk.sharesOwned, cost: mk.costBasis, divs: mk.dividendsPaid, fee: g.aero.A.exchange.fee, cap: g.aero.maxShares(), shares: mer.shares, history: mk.history.map((h) => h.price), own: 'Meridian\'s shares follow its books under the exchange\'s rules: a broker\'s fee each way, and no investor may hold more than 5%.' });
+    out.push({ ticker: g.aero.A.meridian.ticker, name: mer.name, sector: 'aerospace', source: 'aero', price: mk.price, prev: mk.history.at(-2)?.price ?? null, held: mk.sharesOwned, cost: mk.costBasis, divs: mk.dividendsPaid, fee: g.aero.A.exchange.fee, cap: g.aero.maxShares(), shares: mer.shares, history: mk.history.map((h) => h.price), own: 'Meridian\'s shares follow its books under the exchange\'s rules: a broker\'s fee each way, and no investor may hold more than 5%; it pays a dividend on Moondays.' });
     const s = this.peek();
     for (const l of Object.values(s?.listings || {})) {
       const c = this.record(l.id);
@@ -44042,6 +44070,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.67.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'One Set of Rules',
+    notes: [
+      'Ober\'s Oil now trades under the same rules as every other listed company: a 1% broker\'s fee each way, no investor holding more than 5%, and a price that moves a part of the way each day toward what the refinery\'s output says a share is worth, instead of jumping with it. It starts from where it was, and what you hold and what you have been paid are untouched. Chuckie\'s Cheese already had a fee, a cap and that kind of price; it now keeps what you pay, so the Exchange can show your gain.',
+      'Correction: the previous notes said Chuckie\'s Cheese had no fee or cap. It always had both.',
+    ],
+  },
   {
     version: '0.66.0',
     date: '2026-10-30',
@@ -59182,7 +59220,9 @@ const { GAME_VERSION, BUILD_CHANNEL, SAVE_SCHEMA_VERSION, versionLabel } = __m["
 const { RELEASE_NOTES } = __m["src/core/releaseNotes.js"];
 const { SLOTS } = __m["src/save/saveManager.js"];
 const { STATS } = __m["src/dialogue/dialogueEngine.js"];
-const { OIL_PROJECTS } = __m["src/systems/oilCompany.js"];
+const { OIL_PROJECTS, OIL_LISTED } = __m["src/systems/oilCompany.js"];
+const { CORP } = __m["src/content/corporate.js"];
+const { maxHold } = __m["src/corp/exchange.js"];
 const { runCommand } = __m["src/game/debugCommands.js"];
 const { spotName, hhmm } = __m["src/systems/gang.js"];
 
@@ -59804,16 +59844,17 @@ function stocksScreen(ui, body, opts = {}) {
     const out = g.oil.computeOutput();
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
     body.append(
+      h('p', { class: 'muted' }, `Ober's Oil — ${OIL_LISTED.toLocaleString()} shares; one investor may hold at most ${maxHold(CORP.exchange, OIL_LISTED).toLocaleString()}. Broker's fee ${Math.round(CORP.exchange.fee * 100)}% each way. The price moves a part of the way each day toward what the refinery's output says a share is worth (about ${s.fair ?? '—'}).`),
       h('div', { class: 'grid2', style: 'margin-bottom:12px' },
         h('div', { class: 'stat' }, h('span', {}, 'Your obols'), h('b', {}, String(g.player.money))),
         h('div', { class: 'stat' }, h('span', {}, 'Your shares'), h('b', {}, String(s.sharesOwned))),
-        h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${s.sharePrice} obols`)),
+        h('div', { class: 'stat' }, h('span', {}, 'Share price'), h('b', {}, `${s.sharePrice.toFixed(2)} obols`)),
         h('div', { class: 'stat' }, h('span', {}, 'Output today'), h('b', {}, `${out} barrels${s.strike ? ' (STRIKE)' : ''}`)),
         h('div', { class: 'stat' }, h('span', {}, 'Dividend/share'), h('b', {}, `≈${g.oil.dividendPerShare(out).toFixed(2)} at 18:00`)),
         h('div', { class: 'stat' }, h('span', {}, 'Dividends received'), h('b', {}, `${s.dividendsPaid} obols`)),
       ),
       h('div', { class: 'row', style: 'justify-content:flex-start' },
-        ...[1, 5].map((n) => h('button', { class: 'small primary', disabled: g.player.money < s.sharePrice * n, onclick: () => { const r = g.oil.buyShares(n); render(r.text); } }, `Buy ${n} (${s.sharePrice * n})`)),
+        ...[1, 5].map((n) => { const q = g.oil.quote(n); return h('button', { class: 'small primary', disabled: g.player.money < q.gross + q.fee, onclick: () => { const r = g.oil.buyShares(n); render(r.text); } }, `Buy ${n} (${q.gross + q.fee})`); }),
         ...[1, 5].map((n) => h('button', { class: 'small', disabled: s.sharesOwned < n, onclick: () => { const r = g.oil.sellShares(n); render(r.text); } }, `Sell ${n}`)),
       ),
       h('h3', { style: 'margin:16px 0 6px' }, 'Expansion projects'),
@@ -59827,7 +59868,7 @@ function stocksScreen(ui, body, opts = {}) {
         h('button', { class: 'small primary', disabled: done || g.player.money < p.cost, onclick: () => { const r = g.oil.fundProject(id); render(r.text); } }, `Fund · ${p.cost}`)));
     }
     body.append(wrap);
-    if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price}`).join(' · ')}`));
+    if (s.history.length) body.append(h('p', { class: 'muted', style: 'margin-top:10px' }, `Recent days: ${s.history.slice(-5).map((d) => `Day ${d.day}: ${d.output} bbl @ ${d.price.toFixed ? d.price.toFixed(2) : d.price}`).join(' · ')}`));
   };
   render();
 }
@@ -61841,8 +61882,8 @@ function homeApp(ui, body, open) {
   const oil = g.oil.state;
   cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
     h('b', {}, '📈 Ober\'s Oil'),
-    h('span', {}, `${oil.sharePrice} obols a share · you own ${oil.sharesOwned}`),
-    h('span', {}, oil.sharesOwned ? `Worth ${oil.sharesOwned * oil.sharePrice} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
+    h('span', {}, `${oil.sharePrice.toFixed(2)} obols a share · you own ${oil.sharesOwned}`),
+    h('span', {}, oil.sharesOwned ? `Worth ${Math.round(oil.sharesOwned * oil.sharePrice)} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
   body.append(cards);
 
   const s = T.state;

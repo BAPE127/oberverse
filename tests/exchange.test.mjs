@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { newGame, Game, CONTENT } from './helpers.mjs';
 import { CORP } from '../src/content/corporate.js';
 import { listingShares, fairPrice, nextPrice, quote, maxHold, roomFor, spark } from '../src/corp/exchange.js';
+import { OIL_LISTED } from '../src/systems/oilCompany.js';
 
 const X = CORP.exchange;
 const day = (g, d) => { g.clock.total = (d - 1) * 1440 + 8 * 60; };
@@ -144,14 +145,17 @@ test('a company that fails leaves its shares worthless; one that is taken over b
   assert.equal(g.player.money - money, Math.round(500 * priceB), 'settled once');
 });
 
-test('the three shares the game had are on the board as they are, and trading them goes through their own rules', () => {
+test('the three older shares are on the board, and trading them goes through their own services', () => {
   const g = open(2006); const ex = g.corp.exchange;
   const board = ex.board();
   for (const t of ['OBRO', 'CHZ', 'MRDN']) assert.ok(board.find((r) => r.ticker === t), t);
   assert.equal(board.find((r) => r.ticker === 'OBRO').price, g.oil.state.sharePrice);
   assert.equal(board.find((r) => r.ticker === 'MRDN').price, g.aero.state.market.price);
   assert.equal(board.find((r) => r.ticker === 'MRDN').fee, g.aero.A.exchange.fee);
-  assert.equal(board.find((r) => r.ticker === 'OBRO').fee, 0);
+  assert.equal(board.find((r) => r.ticker === 'OBRO').fee, X.fee, 'since v0.67.0');
+  assert.equal(board.find((r) => r.ticker === 'OBRO').cap, maxHold(X, OIL_LISTED));
+  assert.equal(board.find((r) => r.ticker === 'CHZ').fee, g.dairy.cfg.fee, 'it has always had one');
+  assert.equal(board.find((r) => r.ticker === 'CHZ').cap, g.dairy.cfg.maxPlayerShares);
   const twin = newGame(2006); twin.player.money = g.player.money = 100000;
   const a = ex.buy('OBRO', 5); const b = twin.oil.buyShares(5);
   assert.deepEqual(a, b); assert.equal(g.player.money, twin.player.money); assert.equal(g.oil.state.sharesOwned, 5);
@@ -160,20 +164,23 @@ test('the three shares the game had are on the board as they are, and trading th
   assert.ok(ex.sell('OBRO', 5).ok);
   const p = ex.portfolio();
   assert.ok(p.rows.some((r) => r.ticker === 'MRDN') && !p.rows.some((r) => r.ticker === 'OBRO'));
-  assert.equal(p.unknownCost, false, 'MRDN keeps its cost');
+  assert.equal(p.unknownCost, false, 'MRDN keeps its cost, and so now do the others for shares bought here');
 });
 
 test('the portfolio adds up what is held; a holding whose cost is not kept is said so, not guessed', () => {
   const g = open(2007); const ex = g.corp.exchange;
   g.player.money = 1e9;
   const r = first(g);
+  g.dairy.state.sharesOwned = 7; // held before v0.67.0: no cost on record
   ex.buy(r.ticker, 200); ex.buy('OBRO', 10); ex.buy('CHZ', 3);
   const p = ex.portfolio();
   assert.equal(p.rows.length, 3);
   assert.equal(p.value, p.rows.reduce((a, x) => a + x.value, 0));
   assert.equal(p.unknownCost, true);
-  assert.equal(p.cost, ex.peek().holdings[r.ticker].cost, 'only the holding whose cost is known');
-  assert.equal(p.gain, Math.round(200 * r.price) - p.cost);
+  const known = ex.peek().holdings[r.ticker].cost + g.oil.state.costBasis;
+  assert.equal(p.cost, known, 'only the holdings whose cost is known: the wider-world shares and the Ober\'s Oil bought here');
+  assert.equal(p.gain, p.knownValue - known);
+  assert.equal(p.knownValue, p.rows.filter((x) => x.cost !== null).reduce((a, x) => a + x.value, 0));
 });
 
 test('saves keep listings, holdings and history; a day after loading is not counted twice; an old save has none until the world is made', () => {
@@ -192,4 +199,67 @@ test('saves keep listings, holdings and history; a day after loading is not coun
   old.corp.ensureWorld(); day(old, 2); old.corp.dailyTick();
   assert.equal(old.player.money, money); assert.ok(old.corp.state.exchange);
   assert.deepEqual(old.corp.state.exchange.holdings, {}, 'no one is given a share');
+});
+
+test('Ober\'s Oil under the exchange\'s rules (v0.67.0): the fee each way, the 5% cap, the cost kept, the price a step toward what the refinery says', () => {
+  const g = newGame(2010); g.player.money = 1e9;
+  const oil = g.oil; const s = oil.state;
+  assert.equal(s.sharePrice, 30, 'it starts where it always did');
+  const q = quote(X, 30, 100);
+  const m0 = g.player.money;
+  assert.ok(oil.buyShares(100).ok);
+  assert.equal(m0 - g.player.money, q.gross + q.fee); assert.equal(s.costBasis, q.gross + q.fee);
+  assert.ok(oil.sellShares(40).ok);
+  assert.equal(g.player.money, m0 - q.gross - q.fee + (quote(X, 30, 40).gross - quote(X, 30, 40).fee));
+  assert.equal(s.costBasis, Math.round((q.gross + q.fee) * 0.6)); assert.equal(s.sharesOwned, 60);
+  const cap = maxHold(X, OIL_LISTED);
+  assert.match(oil.buyShares(cap).text, /at most 5,000 shares of Ober's Oil: you can buy 4,940 more/);
+  assert.ok(oil.buyShares(cap - 60).ok);
+  assert.match(oil.buyShares(1).text, /as much of Ober's Oil as one investor may/);
+  const before = g.player.money;
+  g.player.money = 3; assert.match(oil.sellShares(0).text, /do not own/);
+  assert.match(oil.buyShares(1).text, /as much|cannot afford/);
+  g.player.money = before;
+  // a project's bonus shares were not bought: the cost is no longer the whole story
+  const h = newGame(2011); h.player.money = 1e6; h.oil.buyShares(5); assert.ok(h.oil.state.costBasis > 0);
+  assert.ok(h.oil.fundProject('derrick').ok); assert.equal(h.oil.state.costBasis, undefined);
+  // the price takes a part of the way to what the output says each evening, with no RNG, the same in two games
+  const a = newGame(2012); const b = newGame(2012);
+  const rng = a.rng.state;
+  const day1 = (gm, d) => { gm.clock.total = (d - 1) * 1440 + 18 * 60; gm.oil.dailyTick(); };
+  const out = a.oil.computeOutput(); const fair = Math.max(5, 20 + out / 8);
+  day1(a, 2); day1(b, 2);
+  const p1 = a.oil.state.sharePrice;
+  assert.equal(p1, b.oil.state.sharePrice);
+  assert.equal(a.rng.state, rng, 'no game RNG');
+  assert.ok(Math.abs(p1 - (30 + (fair - 30) * X.priceAdjust)) <= 30 * X.noise + 0.01, 'by the exchange\'s step');
+  a.oil.state.strike = true;
+  for (let d = 3; d < 40; d++) day1(a, d);
+  const struck = Math.max(5, 20 + a.oil.computeOutput() / 8 - 6);
+  assert.ok(Math.abs(a.oil.state.sharePrice - struck) < 3, `a strike takes the price down over days toward ${struck}: ${a.oil.state.sharePrice}`);
+  assert.equal(a.oil.state.fair, Math.round(struck * 100) / 100);
+});
+
+test('Chuckie\'s Cheese keeps what you pay from now on; what you held before has no cost on record', () => {
+  const g = newGame(2013); g.player.money = 1e9;
+  const D = g.dairy; const s = D.state;
+  s.sharesOwned = 20; // held before
+  assert.ok(D.buyShares(10).ok); assert.equal(s.costBasis, undefined);
+  const g2 = newGame(2014); g2.player.money = 1e9;
+  const q = g2.dairy.quote(10);
+  assert.ok(g2.dairy.buyShares(10).ok);
+  assert.equal(g2.dairy.state.costBasis, q.gross + q.fee);
+  assert.ok(g2.dairy.sellShares(5).ok);
+  assert.equal(g2.dairy.state.costBasis, Math.round((q.gross + q.fee) * 0.5));
+  assert.equal(g2.corp.exchange.find('CHZ').cost, g2.dairy.state.costBasis);
+});
+
+test('an old save with Ober\'s Oil shares keeps its price and its holding; nothing is charged or given on loading', () => {
+  const g = newGame(2015); g.player.money = 1e6;
+  g.oil.state.sharesOwned = 12; g.oil.state.sharePrice = 31;
+  delete g.oil.state.costBasis;
+  const g2 = new Game(CONTENT, { seed: 1 });
+  g2.loadState(JSON.parse(JSON.stringify(g.serialize())));
+  assert.equal(g2.oil.state.sharePrice, 31); assert.equal(g2.oil.state.sharesOwned, 12); assert.equal(g2.player.money, 1e6);
+  assert.equal(g2.corp.exchange.find('OBRO').cost, null, 'no cost on record');
 });

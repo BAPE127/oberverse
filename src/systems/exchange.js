@@ -7,6 +7,7 @@
 // the dividends the company really pays out of its profit. Nothing here uses the game's RNG, creates a share
 // outside a listing, or moves money except a purchase, a sale or a dividend the player is owed.
 import { CORP } from '../content/corporate.js';
+import { OIL_LISTED } from './oilCompany.js';
 import { listingShares, fairPrice, nextPrice, quote, maxHold, roomFor } from '../corp/exchange.js';
 import { hashUnit } from '../aero/config.js';
 
@@ -135,11 +136,11 @@ export class Exchange {
     const g = this.g;
     const out = [];
     const oil = g.oil.state;
-    out.push({ ticker: 'OBRO', name: 'Ober\'s Oil', sector: 'energy', source: 'oil', price: oil.sharePrice, prev: oil.history.at(-2)?.price ?? null, held: oil.sharesOwned, cost: null, divs: oil.dividendsPaid, fee: 0, cap: null, history: oil.history.map((h) => h.price), own: 'Ober\'s Oil keeps its own rules: its price follows the refinery\'s output, it pays a dividend every evening, and there is no broker\'s fee or limit. Its expansion projects are in the Stocks app.' });
+    out.push({ ticker: 'OBRO', name: 'Ober\'s Oil', sector: 'energy', source: 'oil', price: oil.sharePrice, prev: oil.history.at(-2)?.price ?? null, held: oil.sharesOwned, cost: oil.costBasis ?? null, divs: oil.dividendsPaid, fee: X.fee, cap: maxHold(X, OIL_LISTED), shares: OIL_LISTED, fair: oil.fair, history: oil.history.map((h) => h.price), own: 'Ober\'s Oil is worth what the refinery\'s output says (that is its "worth on its books"), pays a dividend every evening from real output, and follows the exchange\'s rules since v0.67.0. Its expansion projects, which bring bonus shares, are in the Stocks app; shares from a project have no cost on record, so a gain is not shown once you hold some.' });
     const dc = g.content.dairy.config; const dz = g.dairy.state;
-    out.push({ ticker: dc.ticker, name: dc.company, sector: 'agriculture', source: 'dairy', price: dz.sharePrice, prev: dz.history.at(-2)?.price ?? null, held: dz.sharesOwned, cost: null, divs: dz.dividendsPaid, fee: 0, cap: null, history: dz.history.map((h) => h.price), own: 'Chuckie\'s Cheese keeps its own rules: its price follows its milk and cheese, it pays a dividend every evening, and there is no broker\'s fee or limit.' });
+    out.push({ ticker: dc.ticker, name: dc.company, sector: 'agriculture', source: 'dairy', price: dz.sharePrice, prev: dz.history.at(-2)?.price ?? null, held: dz.sharesOwned, cost: dz.costBasis ?? null, divs: dz.dividendsPaid, fee: dc.fee ?? g.dairy.cfg.fee, cap: g.dairy.cfg.maxPlayerShares, shares: g.dairy.cfg.shares, fair: g.dairy.fairValue(), history: dz.history.map((h) => h.price), own: 'Chuckie\'s Cheese has always had a broker\'s fee and a cap (1% of the company: Chuckie keeps control); its price follows its milk and cheese toward what its books are worth, and it pays a dividend every evening. Shares you held before v0.67.0 have no cost on record.' });
     const mk = g.aero.state.market; const mer = g.aero.meridian;
-    out.push({ ticker: g.aero.A.meridian.ticker, name: mer.name, sector: 'aerospace', source: 'aero', price: mk.price, prev: mk.history.at(-2)?.price ?? null, held: mk.sharesOwned, cost: mk.costBasis, divs: mk.dividendsPaid, fee: g.aero.A.exchange.fee, cap: g.aero.maxShares(), shares: mer.shares, history: mk.history.map((h) => h.price), own: 'Meridian\'s shares follow its books under the exchange\'s rules: a broker\'s fee each way, and no investor may hold more than 5%.' });
+    out.push({ ticker: g.aero.A.meridian.ticker, name: mer.name, sector: 'aerospace', source: 'aero', price: mk.price, prev: mk.history.at(-2)?.price ?? null, held: mk.sharesOwned, cost: mk.costBasis, divs: mk.dividendsPaid, fee: g.aero.A.exchange.fee, cap: g.aero.maxShares(), shares: mer.shares, history: mk.history.map((h) => h.price), own: 'Meridian\'s shares follow its books under the exchange\'s rules: a broker\'s fee each way, and no investor may hold more than 5%; it pays a dividend on Moondays.' });
     const s = this.peek();
     for (const l of Object.values(s?.listings || {})) {
       const c = this.record(l.id);

@@ -99,8 +99,8 @@ function homeApp(ui, body, open) {
   const oil = g.oil.state;
   cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
     h('b', {}, '📈 Ober\'s Oil'),
-    h('span', {}, `${oil.sharePrice} obols a share · you own ${oil.sharesOwned}`),
-    h('span', {}, oil.sharesOwned ? `Worth ${oil.sharesOwned * oil.sharePrice} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
+    h('span', {}, `${oil.sharePrice.toFixed(2)} obols a share · you own ${oil.sharesOwned}`),
+    h('span', {}, oil.sharesOwned ? `Worth ${Math.round(oil.sharesOwned * oil.sharePrice)} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
   body.append(cards);
 
   const s = T.state;
