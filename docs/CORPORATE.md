@@ -133,6 +133,14 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Personal**: bought and paid through `player.money` like shares. No company is involved; the money is the government's. Bond values are not in the net-worth figure quests read.
 - **Not in this release**: the physical bond desk and corporate bonds (the next two releases); bonds held by companies; floating or inflation-linked bonds.
 
+### The physical bank (v0.70.0)
+
+`src/content/maps/firstBank.js` (`firstBankInterior(street)`, called in `src/content/index.js` after the streets have grown, as for the Phonograph Grand's lobby); the building `b_bank` in `src/content/maps/halvermouth.js` has its door `to: first_bank`, hours 09:00–17:00. The third of four parts of stage 10.
+
+- **Size**: an interior is laid over its building's *grown* footprint and a larger interior makes the town grow (shifting every hand-placed coordinate in the content, such as the signature cars), so the hall is made after growth at exactly the footprint's size (11 × 7 now; it throws if it would be under 9 × 7).
+- **Props**: `bank_vault` (a `vault` fixture, examine only), `bank_tellers` (a counter), `bank_bond_desk` (`interact: { kind: 'bank', tab: 'Bonds' }`), `bank_rate_board` (`tab: 'Bank'`). `game.interact` turns kind `bank` into `{ type: 'panel', panel: 'tablet', opts: { tab } }`.
+- **Not in this release**: staff; a separate policy office or vault room; anything inside the vault (the robbery stage's); a bank robbery never touches the policy rate or any credit figure, by the owner's rule.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

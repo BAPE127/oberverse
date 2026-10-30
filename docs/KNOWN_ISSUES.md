@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.69.0
+# Known Issues and Limitations — v0.70.0
+
+- **The physical bank (v0.70.0)** — see docs/CORPORATE.md. There are **no tellers, governor or guard**: the hall is empty and the counter's windows say so; the vault door is a fixture that never opens; the hall is small (9 × 5 floor) because it is the size of the building on the street as it was drawn, and a bigger interior would move the street (and the hand-placed cars); the policy office is only the rate board. Open 09:00–17:00 every day (no weekends or holidays). The hall's furniture has no automated test beyond what is listed; its look was checked by eye in the browser.
 
 - **Government bonds (v0.69.0)** — see docs/CORPORATE.md. One issuer, no default, a fixed premium curve; a coupon is fixed when you buy and is not recalculated when the bank changes its rate (the value is). A bond bought and sold the same day costs the half-percent spread. The interest and the face are paid out of nothing (they are the government's): like dividends on shares, this puts money into your wallet that no company in the game paid, so a large holding earns without risk; the cap (2,000,000 face of each term) and the policy rate (usually near 5%) keep that modest, and a bank that cuts the rate takes the income down. Bond values are not counted in the net worth that quests and achievements read, and are not in the exchange's portfolio. The Bonds screens have no automated test, only a browser check.
 

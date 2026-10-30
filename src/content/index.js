@@ -73,6 +73,7 @@ import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING 
 import { buildPatrols } from '../world/patrols.js';
 import { growStreets, shiftContent } from '../world/grow.js';
 import { placeInteriors, realInterior } from '../world/interiors.js';
+import { firstBankInterior } from './maps/firstBank.js';
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 export const DUPLICATE_IDS = [];
@@ -180,6 +181,7 @@ REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
 REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 // v0.52.0: the Phonograph Grand's lobby is the size of its building on the grown street
 MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
+MAPS.first_bank = firstBankInterior(MAPS.halvermouth); // v0.70.0: the First Bank's hall is the size of its building, so the street does not move
 placeInteriors(MAPS, REGIONS, STREETS);
 {
   const b = MAPS.halvermouth.buildings.find((x) => x.id === 'b_phonograph');

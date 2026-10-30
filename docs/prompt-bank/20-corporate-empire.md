@@ -21,4 +21,5 @@ Rules:
 - When a screen states how an older system behaves, read that system's code first: v0.66 said Chuckie's Cheese had no fee or cap and it always had both.
 - Central bank (v0.68): the policy rate is a pure function of the world's own indicators, decided once a month, written down, never set by the player; every effect is exactly identity at the neutral rate, so the game before the first meeting is unchanged.
 - Bonds (v0.69): a bond is a list of dated cash flows priced at the current yield (par at issue, falling when rates rise); each coupon is paid exactly once whatever is saved or slept through; nothing is created before a purchase.
+- A new interior for an existing building must be the building's grown footprint (make it after `growStreets`, like `phonographLobby`); a larger one moves the town and every hand-placed coordinate in the content.
 - Deliver: tests (rules, persistence, old-save load), docs, a browser check of every screen touched, and an honest report of what is and is not done.

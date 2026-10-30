@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.70.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Open for Business',
+    notes: [
+      'The First Bank of Halvermouth is open, from nine until five. Walk in from the street (it has a banking hall, a vault door you will not be opening, a rate board and a bond desk). The bond desk opens the tablet at Bonds, where you can buy and sell government bonds; the rate board opens it at the Bank, where the policy rate and the record of each decision are kept.',
+      'There are no tellers yet. The hall is the size of the bank\'s building, so nothing around it moved.',
+    ],
+  },
+  {
     version: '0.69.0',
     date: '2026-10-30',
     channel: 'development',

@@ -82,7 +82,7 @@ const buildings = [
   // Bank Row
   tower('t_harbourline', 'Harbourline Apartments', 1, 15, 11, 8, 15, { wall: '#a08a72', trim: '#4a3a2e', glass: '#b4c8cc', closed: 'Harbourline Apartments: residents only. The buzzer panel has 120 buttons and none of them are yours.' }),
   tower('t_ober', 'Ober\'s Oil Tower', 18, 24, 12, 11, 30, { wall: '#1e2228', glass: '#c9a24a', trim: '#8a6a2a', roof: '#2a2a30', sign: 'OBER\'S OIL', signColor: '#5a3a14', label: 'Ober\'s Oil Tower', closed: 'Ober\'s Oil Tower: "Appointments only. Sir Moneybucks does not receive walk-ins." The doorman is gold-buttoned and enormous.' }),
-  shop('b_bank', 'First Bank of Halvermouth', 31, 28, 6, 7, { roof: '#5a5a62', wall: '#e8e2d4', trim: '#5a5a62', columns: true, sign: 'BANK', closed: 'First Bank of Halvermouth: closed to the public until the next update. The vault door behind the glass is very round and very shiny.' }),
+  shop('b_bank', 'First Bank of Halvermouth', 31, 28, 6, 7, { roof: '#5a5a62', wall: '#e8e2d4', trim: '#5a5a62', columns: true, sign: 'BANK', door: { x: 34, y: 34, to: { map: 'first_bank', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '09:00', to: '17:00' }, message: 'First Bank of Halvermouth: open 09:00 to 17:00. The vault door behind the glass is very round and very shiny, and very shut.' } } }),
   // Civic Plaza
   {
     id: 'b_hall_of_justice', name: 'Halvermouth Hall of Justice', mapLabel: 'Hall of Justice & Mayor\'s Office',

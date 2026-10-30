@@ -2,6 +2,28 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.70.0] — 2026-10-30 — Open for Business (development build)
+
+Stage 10, third of four parts: the physical First Bank of Halvermouth.
+
+### Added
+- **The building is open** (it was a closed façade with a message): **09:00–17:00**, locked outside those hours with the hours in the message. You walk in from the street through the seamless doorway like every other building and see straight in from the pavement.
+- **The banking hall** (`first_bank`, 11 × 7 tiles — exactly the footprint of the bank's building after the street's growth, like the Phonograph Grand's lobby, so no street, road, car or signature car moved): a **vault door** (a locked fixture: it says it is shut and never opens — the bank robbery stage will use it), a **tellers' counter**, a **bond desk** and a **rate board**, with a rug, plants, a bench and windows.
+- **The bond desk** opens the tablet at **Bonds**; **the rate board** opens it at **Bank**. A new interaction kind (`bank`) does this; the content validator knows it.
+
+### Not included
+- **No staff.** There are no tellers, no governor and no bank guard yet: the counter says so ("please use the bond desk or the rate board"). Characters need their own schedules, homes, portraits and dialogue, which are a release of their own.
+- **No separate policy office or vault room**: the footprint is small, so the policy office is the rate board in the hall and the vault is a door in the wall. Nothing can be taken from it; nothing is stored in it.
+
+### Changed
+- (No existing behaviour.) A first attempt, with a larger interior, made the street grow to fit it and moved the signature cars into walls (four existing tests failed); the hall now matches the building instead.
+
+### Tests
+- New: `first_bank` (4): the door leads to a hall exactly the building's size with its way back to the street and a place to stand, the hours (open at ten, shut at 18:30 and 08:59, the hours in the message), the bond desk and the rate board opening Bonds and Bank, the vault and the counter giving messages, and the street around the bank not having moved. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md.
+
 ## [0.69.0] — 2026-10-30 — Government Paper (development build)
 
 Stage 10, second of four parts: government bonds. The physical bank and corporate bonds follow.
