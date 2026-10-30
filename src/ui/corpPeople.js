@@ -11,7 +11,7 @@ const TIERS = { executive: 'Executives', manager: 'Managers', staff: 'Staff' };
 const EFFECT_TEXT = { materials: 'materials cost', parts: 'parts cost', armsSpeed: 'arms output speed', upkeep: 'upkeep cost', farmPrice: 'farm sale prices', overhead: 'overhead' };
 const pct = (v) => `${(v * 100).toFixed(1)}%`;
 
-export function peopleApp(ui, body, open) {
+export function peopleFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   const Pe = K.personnel;

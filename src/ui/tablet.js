@@ -7,20 +7,14 @@ import { h, journalTab, JOURNAL_TABS, stocksScreen } from './panels.js';
 import { terminalScreen, TERMINAL_TABS } from './terminal.js';
 import { TABLET_APPS } from '../systems/tablet.js';
 import { farmApp } from './farm.js';
-import { companiesApp } from './corpApp.js'; // v0.60.0
-import { intelApp } from './corpIntel.js';
-import { groupApp } from './corpGroup.js';
-import { peopleApp } from './corpPeople.js'; // v0.62.0
-import { manageApp } from './corpManage.js'; // v0.63.0
-import { exchangeApp } from './corpExchange.js'; // v0.66.0
 import { bankApp } from './corpBank.js'; // v0.68.0
 import { loansApp } from './corpLoans.js'; // v0.73.0
-import { economyApp } from './corpEconomy.js'; // v0.75.0
-import { milestonesApp } from './corpMilestones.js'; // v0.80.0
+import { groupApp, peopleApp, managementApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js'; // v0.84.0: the summaries
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
-import { statusBar, navBar, segments } from './tabletKit.js'; // v0.83.0
+import { statusBar, navBar, segments, hero, tiles, row, fold } from './tabletKit.js'; // v0.83.0
 import { homeScreen } from './tabletHome.js';
+import { calcItem } from '../systems/gang.js';
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
@@ -62,17 +56,32 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
   else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
-  else if (tab === 'Management') manageApp(ui, body, open); // v0.63.0
+  else if (tab === 'Management') managementApp(ui, body, open); // v0.63.0
   else if (tab === 'Exchange') exchangeApp(ui, body, open); // v0.66.0
   else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
+  else if (tab === 'Customers') customersApp(ui, body, open); // v0.84.0: a summary, the list one tap down
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home' && ui.tabletInbox) T.markRead();
   if (tab !== 'Home') ui.tabletInbox = false;
   return { title: '📱 OberPad', className: 'tablet tablet2' }; // (the title is for the frame and the tests; the tablet's own screen has none)
+}
+
+/** Journal → Customers (v0.84.0): the gang's mood and who has an order today; the whole list is one tap down. */
+function customersApp(ui, body, open) {
+  const g = ui.game;
+  const G = g.gang;
+  const mine = G.playerCustomers().map((id) => ({ id, c: G.customer(id), npc: g.npcs.get(id) })).filter((x) => x.npc);
+  const orders = mine.filter((x) => x.c?.order);
+  const anger = G.state.anger;
+  body.append(
+    hero({ label: 'Sums of Anarchy', value: anger < 25 ? 'Calm' : anger < 50 ? 'Uneasy' : anger < 75 ? 'Angry' : 'Hunting you', tone: anger >= 50 ? 'neg' : '', sub: `anger ${Math.round(anger)} / 100 — dealing and stealing customers raise it; quiet days lower it` }),
+    tiles([{ n: String(mine.length), t: 'your customers' }, { n: String(orders.length), t: 'orders waiting' }, { n: `${Math.round(anger)}`, t: 'anger / 100', tone: anger >= 50 ? 'neg' : '' }]),
+    orders.length ? h('div', { class: 'tb-card list' }, ...orders.slice(0, 4).map((x) => row({ icon: '📟', title: x.npc.profile.shortName, sub: `${x.c.order.qty} × ${g.content.items[calcItem(x.c.order.type)]?.name || 'calculator'} at ${x.c.order.price} obols` }))) : null,
+    fold(ui, 'Customers', 'Every customer and the calculator trade ›', (box) => journalTab(ui, box, 'Customers')));
 }
 
 /** v0.55.0: Roost Aeroworks at a glance, and the way into the terminal. */

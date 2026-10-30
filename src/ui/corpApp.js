@@ -28,7 +28,7 @@ export function corpNamePanel(ui, body, opts) {
 }
 
 /** The tablet's Companies app. */
-export function companiesApp(ui, body, open) {
+export function companiesFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   let note = null;

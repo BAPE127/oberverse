@@ -1181,6 +1181,11 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .tb-dock { display: flex; justify-content: space-around; background: rgba(10,8,34,.7); border: 2px solid #3a3794; border-radius: 26px; padding: 10px; margin-top: 10px; }
 #modal-panel.tablet2 .doc, #modal-panel.tablet2 p.doc { background: rgba(10,8,34,.45); color: var(--ink); border: 1.5px solid #3a3794; border-radius: 12px; padding: 10px 12px; font-family: inherit; }
 #modal-panel.tablet2 input, #modal-panel.tablet2 select, #modal-panel.tablet2 textarea { background: #15133e; color: var(--ink); border: 2px solid var(--line); border-radius: 8px; }
+.tb-fold { background: rgba(10,8,34,.45); border: 1.5px solid #3a3794; border-radius: 12px; padding: 8px 12px; margin-bottom: 10px; }
+.tb-fold > summary { cursor: pointer; color: var(--ink-soft); font-weight: 700; padding: 4px 0; }
+.tb-foldbody { margin-top: 8px; }
+.tb-acts { display: flex; gap: 6px; }
+#modal-panel.tablet2 .tb-btn.pri:hover:not(:disabled), #modal-panel.tablet2 .tb-mini.pri:hover:not(:disabled) { background: linear-gradient(#ffdd80, #e6a93a); color: #2a1a00; }
 </style>
 </head>
 <body>
@@ -16190,7 +16195,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.83.0';
+const GAME_VERSION = '0.84.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -46880,6 +46885,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.84.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The OberPad, Stage 2',
+    notes: [
+      'Management, your Group, Personnel, World News, Milestones, the Exchange, Companies, Intelligence and Customers now open on a short summary: one figure, a few tiles and what is waiting for you, with Approve and Decline right on the line.',
+      'Everything the old pages did is one tap further down. Management went from 1,286 words to 53.',
+    ],
+  },
+  {
     version: '0.83.0',
     date: '2026-10-30',
     channel: 'development',
@@ -64065,145 +64080,374 @@ function farmApp(ui, body) {
 return { farmlandPanel, farmplotPanel, coopPanel, livestockPanel, farmApp };
 })();
 
-// ---- src/ui/corpApp.js
-__m["src/ui/corpApp.js"] = (function () {
-// The Companies app and the naming panel (v0.60.0): the owner's four businesses — their names, their
-// own accounts — on the tablet. Everything shown is read from game.corp; every button calls it.
+// ---- src/ui/tabletKit.js
+__m["src/ui/tabletKit.js"] = (function () {
+// The OberPad's pieces (v0.83.0): the same few shapes in every app, so a screen is a number, three tiles and a button or two,
+// and anything that needs a paragraph keeps it behind a "?". DOM only — no game rules here.
+//
+//   statusBar(g)                 the strip across the top: time and day, the signal and the battery
+//   navBar({ icon, title, back, right })   a back arrow, the app's name and what sits on the right
+//   segments(items, active, pick)          the app's sections as one switch: items = [{ id, label, badge? }]
+//   hero({ label, value, sub, ring })      the one headline figure (a ring shows how much of something is used)
+//   tiles(list)                            three small figures: [{ n, t, tone? }]
+//   row({ icon, title, sub, tag, tone, action })   one line of a list
+//   help(title, ...paragraphs)             a "?" that opens the explanation, closed by default
+//   note(ui)                               the line saying what the last button did, once
 const { h } = __m["src/ui/panels.js"];
-const { COMPANY_IDS } = __m["src/systems/corporate.js"];
-const { PLAYER_COMPANIES } = __m["src/corp/identity.js"];
 
-const ob = (n) => `${Math.round(n).toLocaleString()} obols`;
-const WHERE = { arms: 'Get a licence from Lucas, then buy a works at Mill Road Yards.', shipping: 'Captain Ober is selling Ober & Sons Maritime at the Yards.', aerospace: 'Billie Roost is selling her aeroworks at Starling Flats.', farming: 'Deeds to farmland are at the Lariat County Land Office.' };
+const n = (x) => Math.round(x).toLocaleString('en-US');
+const pc = (v, d = 2) => `${(v * 100).toFixed(d)}%`;
 
-/** The panel that opens when a business is founded: name it, or keep the name it came with. */
-function corpNamePanel(ui, body, opts) {
-  const g = ui.game;
-  const id = opts.id;
-  const C = id === 'parent' ? g.corp.state.parent : g.corp.ensureCompany(id);
-  if (!C) return { title: 'Name your company' };
-  const P = id === 'parent' ? { icon: '🏛️', kind: 'Holding company' } : PLAYER_COMPANIES[id];
-  const msg = h('p', { class: 'muted' }, 'Letters, numbers, spaces and & \' . , - — 3 to 40 characters. You can change it any time in the Companies app.');
-  const input = h('input', { type: 'text', class: 'debug-input', value: C.name, maxlength: 40, style: 'width:100%;font-size:18px' });
-  const done = () => ui.closePanel();
-  body.append(
-    h('p', { class: 'doc' }, `${P.icon} Your ${P.kind.toLowerCase()} is founded. What is it called?`),
-    input, msg,
-    h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
-      h('button', { class: 'primary', onclick: () => { const r = g.corp.rename(id, input.value); if (r.ok) { ui.audio.sfx('sfx_coin'); done(); } else { msg.textContent = r.text; msg.className = 'neg'; ui.audio.sfx('sfx_fail'); } } }, 'Register this name'),
-      h('button', { class: 'ghost', onclick: () => { g.corp.rename(id, C.name); done(); } }, `Keep "${C.name}"`)));
-  setTimeout(() => input.focus(), 0);
-  return { title: 'Name your company', onClose: () => { C.named = true; } };
+function statusBar(g) {
+  return h('div', { class: 'tb-status' }, h('span', {}, h('b', {}, g.clock.timeString), ` · ${g.clock.weekday} · Day ${g.clock.day}`), h('span', {}, `${n(g.player.money)} ◎ · 📶 ▮▮▮ 🔋`));
 }
 
-/** The tablet's Companies app. */
-function companiesApp(ui, body, open) {
-  const g = ui.game;
-  const K = g.corp;
-  let note = null;
-  const say = (r) => { note = r; open('Companies'); };
-  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
-  const go = (r) => { ui.corpNote = r.text; ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); open('Companies'); };
-  void say; void note;
-  body.append(h('p', { class: 'muted' }, 'Your businesses are separate companies. Until you pay money into one, it simply spends yours; once you do, it pays its own bills from its own account — and goes into debt, not into your pocket, if it runs short.'));
-  const list = h('div', { class: 'list' });
-  for (const id of COMPANY_IDS) {
-    const p = K.profile(id);
-    const P = PLAYER_COMPANIES[id];
-    if (!p) { list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, P.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, P.kind, h('span', { class: 'tag' }, 'not yet started')), h('div', { class: 'desc' }, WHERE[id])))); continue; }
-    const reg = K.registry().find((r) => r.playerId === id);
-    const m = K.metricsOf(reg, 'month');
-    const place = K.placeOf(id, 'month');
-    const k = (n) => (n === null || n === undefined ? '—' : Math.round(n).toLocaleString());
-    const name = h('input', { type: 'text', class: 'debug-input', value: p.name, maxlength: 40, style: 'width:100%' });
-    const amount = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 100, value: 1000, style: 'width:110px' });
-    const n = () => Math.max(0, Math.floor(Number(amount.value) || 0));
-    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, P.icon),
-      h('div', { class: 'grow' },
-        h('div', { class: 'name' }, p.name, h('span', { class: 'tag' }, p.sectorName), h('span', { class: 'tag good' }, 'private'), p.funded ? h('span', { class: 'tag' }, 'own account') : h('span', { class: 'tag' }, 'uses your money')),
-        h('div', { class: 'desc' }, `${p.kind} · ${p.hq} · ${p.legacy ? 'in your hands before the registry' : `founded day ${p.founded}`}${p.names.length > 1 ? ` · formerly ${p.names.slice(0, -1).map((x) => x.name).join(', ')}` : ''}`),
-        h('div', { class: 'desc' }, `Last month: revenue ${k(m.revenue)} · net ${k(m.net)} · estimated value ${k(m.valuation)} (an estimate, not cash)${place?.revenue.rank ? ` · ${place.revenue.rank === 1 ? 'first' : `#${place.revenue.rank}`} of ${place.revenue.of} in ${p.sectorName.toLowerCase()} by revenue` : ''}`),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin:6px 0' }, name, h('button', { class: 'small', onclick: () => go(K.rename(id, name.value)) }, 'Rename')),
-        p.funded
-          ? h('div', { class: 'desc' }, `Its own cash ${ob(p.ownCash)}${p.arrears ? ` · OWES ${ob(p.arrears)}` : ''} · you have paid in ${ob(p.contributed)} and taken out ${ob(p.distributed)}`)
-          : h('div', { class: 'desc' }, `It draws on your ${ob(g.player.money)}. Brought in at cost: ${ob(p.inKind)}.`),
-        K.group.isSub(id)
-          ? h('div', { class: 'desc' }, `A subsidiary of ${K.nameOf('parent')} — its money comes from and goes to the parent (see the Group app).`)
-          : h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' }, amount,
-            h('button', { class: 'small primary', onclick: () => go(K.contribute(id, n())) }, 'Pay in'),
-            p.funded ? h('button', { class: 'small', onclick: () => go(K.distribute(id, n())) }, 'Take out') : null,
-            p.funded ? h('button', { class: 'small ghost', onclick: () => go(K.unfund(id)) }, 'Close its account') : null))));
-  }
-  body.append(list);
+function navBar({ icon, title, back, right }) {
+  return h('div', { class: 'tb-nav' }, back ? h('button', { class: 'tb-back', 'aria-label': 'Back', onclick: back }, '‹') : null, h('div', { class: 'tb-title' }, icon ? `${icon} ` : '', title), h('div', { class: 'grow' }), right || null);
 }
 
-return { corpNamePanel, companiesApp };
+function segments(items, active, pick) {
+  if (items.length < 2) return null;
+  return h('div', { class: 'tb-seg' }, ...items.map((x) => h('button', { class: x.id === active ? 'on' : '', onclick: () => pick(x.id) }, x.label, x.badge ? h('i', { class: 'tb-dot' }, String(x.badge)) : null)));
+}
+
+function hero({ label, value, sub, ring = null, tone = '' }) {
+  const body = h('div', { class: 'grow' }, h('div', { class: 'tb-label' }, label), h('div', { class: `tb-big ${tone}` }, value), sub ? h('div', { class: 'tb-sub' }, sub) : null);
+  if (ring === null) return h('div', { class: 'tb-hero' }, body);
+  const f = Math.max(0, Math.min(1, ring));
+  return h('div', { class: 'tb-hero' }, h('div', { class: 'tb-ring', style: `background:conic-gradient(var(--gold) 0 ${Math.round(f * 100)}%, rgba(255,255,255,.1) ${Math.round(f * 100)}% 100%)` }, h('div', {}, h('b', {}, `${Math.round(f * 100)}%`), h('small', {}, 'used'))), body);
+}
+
+function tiles(list) {
+  return h('div', { class: 'tb-tiles' }, ...list.map((x) => h('div', { class: `tb-tile ${x.tone || ''}` }, h('div', { class: 'tb-n' }, x.n), h('div', { class: 'tb-t' }, x.t))));
+}
+
+function row({ icon, title, sub, tag, tone = '', action, onclick }) {
+  return h('div', { class: `tb-row${onclick ? ' tap' : ''}`, onclick }, icon ? h('div', { class: 'tb-ico' }, icon) : null, h('div', { class: 'grow' }, h('b', {}, title), sub ? h('small', {}, sub) : null), tag ? h('span', { class: `tb-pill ${tone}` }, tag) : null, action || null);
+}
+
+function help(title, ...paragraphs) {
+  return h('details', { class: 'tb-help' }, h('summary', {}, title), ...paragraphs.map((p) => h('p', {}, p)));
+}
+
+function note(ui) {
+  if (!ui.corpNote) return null;
+  const t = ui.corpNote;
+  ui.corpNote = null;
+  return h('div', { class: 'tb-note' }, t);
+}
+
+const buttons = (...bs) => h('div', { class: 'tb-btns' }, ...bs);
+const big = (label, onclick, kind = '', disabled = false) => h('button', { class: `tb-btn ${kind}`, onclick, disabled }, label);
+
+/**
+ * The whole old page, one tap down (v0.84.0). The summary above it says what matters; this opens everything the app could do, as it
+ * always did. `render(into)` draws it, and only when it is open, so a closed fold costs nothing. The open/closed state is kept per app.
+ */
+function fold(ui, key, label, render) {
+  const st = (ui.tabFold ||= {});
+  const box = h('div', { class: 'tb-foldbody' });
+  const d = h('details', { class: 'tb-fold', open: Boolean(st[key]) }, h('summary', {}, label), box);
+  if (st[key]) render(box);
+  d.addEventListener('toggle', () => { st[key] = d.open; if (d.open && !box.childNodes.length) render(box); });
+  return d;
+}
+
+/** Open the app's fold from a button elsewhere on the screen (a row that says "see the candidates"). */
+const openFold = (ui, key) => { (ui.tabFold ||= {})[key] = true; };
+
+return { n, pc, statusBar, navBar, segments, hero, tiles, row, help, note, buttons, big, fold, openFold };
 })();
 
-// ---- src/ui/corpIntel.js
-__m["src/ui/corpIntel.js"] = (function () {
-// The Intelligence app (v0.60.0): every company, ranked, from the books each one keeps. Nothing
-// here is its own number — it is all read from game.corp (src/systems/corporate.js), which reads
-// the companies' own records. A figure a company's books do not have shows as "—", not as zero.
+// ---- src/ui/corpBank.js
+__m["src/ui/corpBank.js"] = (function () {
+// The Bank app (v0.68.0; the OberPad's "Rates", v0.83.0): the First Bank of Halvermouth's policy rate — one figure, three tiles,
+// the last few decisions; how it works and what it does are behind the "?". Read-only: nobody sets the rate, and nothing here moves money.
 const { h } = __m["src/ui/panels.js"];
-const { SECTORS } = __m["src/corp/identity.js"];
-const { countryName } = __m["src/corp/registry.js"];
+const { spark } = __m["src/corp/exchange.js"];
+const { NEUTRAL } = __m["src/corp/bank.js"];
+const { hero, tiles, row, help, pc } = __m["src/ui/tabletKit.js"];
 
-const money = (n) => (n === null || n === undefined ? '—' : Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e3)}k` : Math.round(n).toLocaleString());
-const pct = (n) => (n === null || n === undefined ? '—' : `${(n * 100).toFixed(Math.abs(n) < 0.1 ? 1 : 0)}%`);
-const BY = { revenue: 'Revenue', net: 'Net income', margin: 'Margin', growth: 'Growth', valuation: 'Value', share: 'Share' };
-const PERIODS = { month: 'Last month', current: 'This month so far', year: 'Last 12 months' };
-const BASIS = { books: 'its full books', cash: 'cash that moved through the company', model: 'its own books', 'run-rate': 'today\'s run-rate', none: 'no figures kept' };
-const STATUS = { distressed: 'in distress', closed: 'closed', merged: 'merged' };
+const sgn = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)}`;
 
-function intelApp(ui, body, open) {
+function bankApp(ui, body) {
   const g = ui.game;
-  const K = g.corp;
-  const S = (ui.corpIntel ||= { sector: null, by: 'revenue', period: 'month', sel: null });
-  const mine = K.registry().filter((r) => r.kind === 'player');
-  S.sector ||= mine[0]?.sector || 'arms';
-  const go = (patch) => { Object.assign(S, patch); open('Intelligence'); };
-  const chip = (label, active, onclick) => h('button', { class: `small${active ? ' primary' : ''}`, onclick }, label);
-  const mySectors = new Set(mine.map((r) => r.sector));
-
+  const B = g.corp.bank;
+  const st = B.peek();
+  const E = B.effects();
+  const month = Math.floor((g.clock.day - 1) / 30);
+  const next = Math.max(month + 1, 3) * 30 + 1;
+  const rates = (st?.decisions || []).map((d) => d.to);
   body.append(
-    h('p', { class: 'muted' }, 'How every company in a line of business is doing, from the books each keeps. Your own businesses are private: they are compared here, and never listed on the exchange.'),
-    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;margin-bottom:6px' }, ...Object.entries(SECTORS).map(([id, s]) => chip(`${mySectors.has(id) ? '★ ' : ''}${s.name}`, S.sector === id, () => go({ sector: id, sel: null })))),
-    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;margin-bottom:6px' }, ...Object.entries(PERIODS).map(([id, l]) => chip(l, S.period === id, () => go({ period: id }))), h('span', { style: 'width:14px' }), ...Object.entries(BY).map(([id, l]) => chip(l, S.by === id, () => go({ by: id })))),
-  );
-
-  const table = K.sectorTable(S.sector, { by: S.by, period: S.period });
-  const th = (t, extra = '') => h('th', { style: `text-align:right;padding:2px 6px;${extra}` }, t);
-  const td = (t, extra = '') => h('td', { style: `text-align:right;padding:2px 6px;${extra}` }, t);
-  const head = h('tr', {}, th('#', 'text-align:left'), th('Company', 'text-align:left'), th('From', 'text-align:left'), th('Revenue'), th('Net'), th('Margin'), th('Growth'), th('Share'), th('Value'));
-  const rows = table.map((m) => h('tr', { style: `cursor:pointer;${m.mine ? 'background:rgba(255,200,80,0.14);font-weight:600' : ''}${S.sel === m.key ? ';outline:1px solid #ffb547' : ''}`, onclick: () => go({ sel: m.key }) },
-    td(m.rank ? String(m.rank) : '—', 'text-align:left'),
-    td(`${m.mine ? '★ ' : ''}${m.name}${m.ticker ? ` · ${m.ticker}` : ''}${STATUS[m.status] ? ` (${STATUS[m.status]})` : ''}`, 'text-align:left'),
-    td(countryName(g.content, m.country), 'text-align:left'),
-    td(money(m.revenue)), td(money(m.net)), td(pct(m.margin)), td(pct(m.growth)), td(pct(m.share)), td(money(m.valuation))));
-  body.append(h('div', { style: 'overflow-x:auto' }, h('table', { style: 'width:100%;border-collapse:collapse;font-size:13px' }, h('thead', {}, head), h('tbody', {}, ...rows))),
-    h('p', { class: 'muted', style: 'font-size:12px' }, `Ranked by ${BY[S.by].toLowerCase()}, ${PERIODS[S.period].toLowerCase()}. “Value” is an estimate (net assets plus a multiple of a year's profit) — it is not cash. “—”: that company's books do not keep it.`));
-
-  const sel = table.find((m) => m.key === S.sel);
-  if (sel) {
-    const me = table.find((m) => m.mine);
-    const reg = K.registry().find((r) => r.id === sel.key);
-    const gen = (K.state.generated || []).find((c) => c.id === sel.key);
-    const cmp = me && me.key !== sel.key ? K.compare(me.key, sel.key, S.period) : null;
-    body.append(h('h3', { style: 'margin:12px 0 4px' }, sel.name),
-      h('div', { class: 'desc' }, `${SECTORS[sel.sector].name} · ${countryName(g.content, sel.country)}${gen ? ` · ${gen.size} company, ${gen.age} years old · known for ${gen.speciality} · a ${gen.strategy} strategy` : ''}${reg?.ticker ? ` · listed as ${reg.ticker}` : ''}`),
-      h('div', { class: 'grid2', style: 'margin:6px 0' },
-        ...[['Revenue', money(sel.revenue)], ['Net income', money(sel.net)], ['Cash', money(sel.cash)], ['Debt', money(sel.debt)], ['Estimated value', money(sel.valuation)], ['Counted from', BASIS[sel.basis]]].map(([a, b]) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b)))));
-    if (cmp) {
-      body.append(h('h4', { style: 'margin:8px 0 4px' }, `${me.name} against ${sel.name}`),
-        h('div', { class: 'list' }, ...cmp.lines.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${l.label}: you ${l.key === 'margin' || l.key === 'growth' ? pct(l.a) : money(l.a)} · them ${l.key === 'margin' || l.key === 'growth' ? pct(l.b) : money(l.b)}`)), h('span', { class: `tag ${l.lead === 1 ? 'good' : ''}` }, l.lead === null ? 'n/a' : l.lead === 1 ? 'you lead' : l.lead === -1 ? 'they lead' : 'level')))));
-    }
-  }
-  const news = (K.state.gen?.news || []).slice(0, 6);
-  if (news.length) body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Business news'), h('div', { class: 'list' }, ...news.map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} — ${n.text}`))))));
+    hero({ label: 'Policy rate', value: pc(E.rate), sub: rates.length > 1 ? `${spark(rates)}  ${pc(Math.min(...rates))} – ${pc(Math.max(...rates))}` : 'the rate it has always been' }),
+    tiles([{ n: pc(NEUTRAL, 1), t: 'neutral rate' }, { n: st ? `day ${st.since}` : 'the start', t: 'held since' }, { n: `day ${next}`, t: 'next meeting' }]));
+  const rows = (st?.decisions || []).slice(-3).reverse();
+  body.append(h('div', { class: 'tb-card list' }, ...(rows.length ? rows.map((d) => row({ icon: d.to > d.from ? '▲' : d.to < d.from ? '▼' : '＝', title: `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc(d.to)}`, sub: d.text })) : [row({ icon: '🏦', title: 'No meeting yet', sub: 'The first is on day 91; until then the rate is the 5% it has always been.' })])));
+  const ind = B.indicators();
+  body.append(
+    help('How the rate is set ›', 'The First Bank of Halvermouth sets one rate for the whole economy. It is nobody\'s to set: once a month, from the fourth month of the game, it follows how busy the world\'s companies are, how fast their sales are growing and how many are in distress, a quarter-point at a time, and writes down why.',
+      ...(ind ? [`Looking at now: capacity in use ${pc(ind.util, 0)}, sales last month on the month before ${sgn(ind.growth)}%, companies in distress ${pc(ind.stress, 0)}.`] : [])),
+    help('What the rate does ›',
+      `Loans inside your group: the parent lends its subsidiaries at the policy rate plus a point: ${pc(g.corp.group.defaultRate(), 1)} now.`,
+      `The world's companies: they borrow at the policy rate plus a point and their risk; they build when busier than ${pc(0.8 + E.invest, 1)} of capacity (usually 80%), and new ones appear ${E.entry >= 1 ? `${((E.entry - 1) * 100).toFixed(0)}% more` : `${((1 - E.entry) * 100).toFixed(0)}% less`} often than at the neutral rate.`,
+      `What companies are worth: a year's profit counts for ${(E.valuation * 100).toFixed(1)}% of its usual multiple: every estimated value, yours and theirs, and so the exchange's prices. It never creates money.`),
+    ...((st?.decisions.length || 0) > 3 ? [help('The whole record ›', ...(st.decisions.slice(-12).reverse().map((d) => `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc(d.to)}. ${d.text}`)))] : []));
 }
 
-return { intelApp };
+return { bankApp };
+})();
+
+// ---- src/ui/corpLoans.js
+__m["src/ui/corpLoans.js"] = (function () {
+// The Loans app (v0.73.0; v0.83.0 in the OberPad's pattern): borrowing from Lariat State Bank against the shares and bonds you hold —
+// how much you may borrow as the one figure, what you owe and when it is next due as tiles, Borrow and Repay as the two buttons — and,
+// on its own switch, loans to your companies. Read from game.corp.lending and game.corp.business; every button calls them.
+const { h } = __m["src/ui/panels.js"];
+const { TERMS, MIN_LOAN, PENALTY, PURPOSES } = __m["src/corp/lending.js"];
+const { hero, tiles, row, help, note, buttons, big, n, pc } = __m["src/ui/tabletKit.js"];
+
+const AMOUNTS = [5000, 25000, 100000];
+
+/** What a loan costs, stated before it is signed (brief 12.1): the card both views show for a draft. */
+function termsCard(o, amount, months, who, extra, onAccept, onCancel) {
+  const last = amount / months;
+  return h('div', { class: 'tb-card tb-terms' },
+    h('b', {}, `${who === 'You' ? 'You borrow' : `${who} borrows`} ${n(amount)} over ${months} months at ${pc(o.rate)}, fixed`),
+    h('div', { class: 'tb-sub' }, `First instalment ${n(o.first)}, falling by about ${n((amount * o.rate) / 12 / months)} a month to ${n(last + (last * o.rate) / 12)} at the end · interest in all ${n(o.interest)} · you repay ${n(o.total)} in all.`),
+    h('div', { class: 'tb-sub' }, `If an instalment is missed it becomes arrears at ${pc(o.rate + PENALTY)}; nothing is ever seized.`),
+    ...extra.map((t) => h('div', { class: 'tb-sub' }, t)),
+    buttons(big(`Accept: borrow ${n(amount)}`, onAccept, 'pri'), big('Cancel', onCancel)));
+}
+
+function loansApp(ui, body, open) {
+  const g = ui.game;
+  const L = g.corp.lending;
+  const view = ui.loanView === 'companies' && g.corp.business.eligible().length ? 'companies' : 'you';
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Loans'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const hasCos = g.corp.business.eligible().length > 0;
+  if (hasCos) body.append(h('div', { class: 'tb-seg two' }, h('button', { class: view === 'you' ? 'on' : '', onclick: () => { ui.loanView = 'you'; open('Loans'); } }, 'You'), h('button', { class: view === 'companies' ? 'on' : '', onclick: () => { ui.loanView = 'companies'; open('Loans'); } }, 'Your companies')));
+  if (view === 'you') personal(); else business();
+
+  function personal() {
+    const C = L.capacity();
+    const standing = Math.round(L.standing());
+    const loans = L.loans(true);
+    const open_ = loans.filter((l) => l.status !== 'repaid');
+    const nextDue = open_.length ? Math.min(...open_.map((l) => l.due)) - g.clock.day : null;
+    body.append(
+      hero({ label: 'You can borrow', value: n(C.free), sub: `policy rate ${pc(g.corp.bank.rate())} · holdings secure ${n(C.total)}`, ring: C.total > 0 ? C.owed / C.total : 0 }),
+      tiles([{ n: n(C.owed), t: 'you owe', tone: C.over > 0 ? 'neg' : '' }, { n: `${standing}`, t: 'borrowing record / 100', tone: standing >= 60 ? 'good' : 'neg' }, { n: nextDue === null ? '—' : `${Math.max(0, nextDue)} d`, t: 'next payment' }]));
+    if (C.over > 0) body.append(h('div', { class: 'tb-note warn' }, `You owe ${n(C.over)} more than your holdings now secure. Nothing is taken; you just cannot sell them or borrow more.`));
+    const d0 = ui.loanDraft?.who === 'you' ? ui.loanDraft : null;
+    if (d0) body.append(termsCard(L.offer(d0.amount, d0.months), d0.amount, d0.months, 'You', [], () => { ui.loanDraft = null; go(L.borrow(d0.amount, d0.months)); }, () => { ui.loanDraft = null; open('Loans'); }));
+    else {
+      const total = open_.reduce((a, l) => a + l.outstanding + l.arrears, 0);
+      const blocked = L.inArrears() ? 'Clear the arrears to borrow again.' : C.free < MIN_LOAN ? (C.items.length ? `The smallest loan is ${n(MIN_LOAN)}; you can borrow ${n(C.free)} now.` : 'Buy shares or bonds first: they are what a loan is secured on.') : null;
+      body.append(buttons(big('＋ Borrow', () => { ui.loanSheet = !ui.loanSheet; open('Loans'); }, 'pri', Boolean(blocked)), big('Repay', () => { ui.repaySheet = !ui.repaySheet; open('Loans'); }, '', !open_.length || g.player.money <= 0)));
+      if (blocked) body.append(h('div', { class: 'tb-sub' }, blocked));
+      if (ui.loanSheet && !blocked) {
+        const term = TERMS.includes(ui.loanTerm) ? ui.loanTerm : TERMS[0];
+        const amounts = AMOUNTS.filter((a) => a <= C.free);
+        if (!amounts.length || C.free > AMOUNTS.at(-1)) amounts.push(Math.floor(C.free));
+        body.append(h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'How long'), h('div', { class: 'tb-chips' }, ...TERMS.map((m) => h('button', { class: `tb-chip${m === term ? ' on' : ''}`, onclick: () => { ui.loanTerm = m; open('Loans'); } }, `${m} months`))),
+          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'How much'), h('div', { class: 'tb-chips' }, ...amounts.map((a) => { const o = L.offer(a, term); return h('button', { class: 'tb-chip', title: `${pc(o.rate)}, first instalment ${n(o.first)}`, onclick: () => { ui.loanDraft = { who: 'you', amount: a, months: term }; ui.loanSheet = false; open('Loans'); } }, `${n(a)} · ${pc(o.rate)}`); }))));
+      }
+      if (ui.repaySheet && open_.length) body.append(h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Repay'), h('button', { class: 'tb-chip on', disabled: g.player.money < total, onclick: () => { for (const l of open_) L.repay(l.id, l.outstanding + l.arrears); ui.repaySheet = false; go({ ok: true, text: `Repaid ${n(total)} in all.` }); } }, `Everything (${n(total)})`)));
+    }
+    body.append(h('div', { class: 'tb-card list' }, ...(loans.length ? loans.slice().reverse().slice(0, 6).map((l) => {
+      const owed = l.outstanding + l.arrears;
+      return row({ icon: l.status === 'repaid' ? '✔' : '📄', title: `${n(l.principal)} · ${pc(l.rate)}`, sub: l.status === 'repaid' ? `repaid day ${l.closed}; ${n(l.interestPaid)} interest` : `owes ${n(owed)} · ${l.left} instalments left · due day ${l.due}${l.arrears ? ` · arrears at ${pc(l.rate + PENALTY)}` : ''}`, tag: l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'behind' : 'on time', tone: l.status === 'repaid' ? 'good' : l.arrears > 0 ? 'neg' : 'good',
+        action: l.status === 'repaid' ? null : h('button', { class: 'tb-mini', disabled: g.player.money < owed, onclick: () => go(L.repay(l.id, owed)) }, `Repay ${n(owed)}`) });
+    }) : [row({ icon: '📄', title: 'You have never borrowed' })])));
+    body.append(
+      help('What backs your loans ›', ...(C.items.length ? C.items.map((i) => `${i.name}: counted at ${Math.round(i.advance * 100)}%.`) : ['You hold no shares or bonds. Buy some in the Exchange or Bonds apps first.'])),
+      help('How the limit is worked out ›', 'Lariat State Bank lends to you, personally, against the shares and bonds you hold: half the value of shares, nine tenths of government bonds, and corporate bonds by rating. A loan is repaid in equal parts every thirty days with the month\'s interest, at a rate fixed when you sign it (the policy rate plus a spread). If you cannot pay an instalment it becomes arrears at 5.00% above the loan\'s rate — nothing is ever taken from you — but you cannot borrow again until it is cleared, your borrowing record falls, and the holdings pledged against a loan cannot be sold while the rest would not secure what you owe.'),
+      ...((L.peek()?.log || []).length ? [help('Recent ›', ...(L.peek().log.slice(-6).reverse().map((x) => `Day ${x.day} · ${x.text}`)))] : []));
+  }
+
+  /** Loans to your companies (v0.74.0): the company borrows on its own books; a guarantee is yours to choose and is spelled out. */
+  function business() {
+    const BL = g.corp.business;
+    const ids = BL.eligible();
+    const id = ids.includes(ui.loanCo) ? ui.loanCo : ids[0];
+    const v = BL.view(id);
+    const gs = BL.guarantees(id);
+    const gu = gs.includes(ui.loanGuar) ? ui.loanGuar : 'none';
+    const purpose = PURPOSES.includes(ui.loanPurpose) ? ui.loanPurpose : PURPOSES[0];
+    const chip = (label, on, fn) => h('button', { class: `tb-chip${on ? ' on' : ''}`, onclick: fn }, label);
+    body.append(
+      h('div', { class: 'tb-chips' }, ...ids.map((c) => chip(g.corp.nameOf(c), c === id, () => { ui.loanCo = c; open('Loans'); }))),
+      hero({ label: `${v.name} may borrow`, value: n(v.free), sub: `it holds ${n(v.cash)} · may owe ${n(v.total)} in all` }),
+      tiles([{ n: n(v.owed), t: 'it owes the bank' }, { n: `${Math.round(v.standing)}`, t: 'its record / 100', tone: v.standing >= 60 ? 'good' : 'neg' }, { n: gu === 'none' ? 'None' : gu === 'personal' ? 'You' : 'Parent', t: 'guarantee' }]));
+    const dc = ui.loanDraft && ui.loanDraft.who === id ? ui.loanDraft : null;
+    if (dc) body.append(termsCard(BL.offer(id, dc.amount, dc.months, dc.guarantee), dc.amount, dc.months, v.name, [`For: ${dc.purpose}.`, BL.guaranteeText(id, dc.guarantee)], () => { ui.loanDraft = null; go(BL.borrow(id, dc.amount, dc.months, { guarantee: dc.guarantee, purpose: dc.purpose })); }, () => { ui.loanDraft = null; open('Loans'); }));
+    else {
+      const blocked = BL.inArrears(id) ? `${v.name} is behind on a loan: its managers are not hiring, bidding or expanding.` : v.free < MIN_LOAN ? `${v.name} cannot borrow ${n(MIN_LOAN)} against its books today.` : null;
+      body.append(buttons(big('＋ Borrow for it', () => { ui.loanSheet = !ui.loanSheet; open('Loans'); }, 'pri', Boolean(blocked))));
+      if (blocked) body.append(h('div', { class: 'tb-sub' }, blocked));
+      if (ui.loanSheet && !blocked) {
+        const term = TERMS.includes(ui.loanTerm) ? ui.loanTerm : TERMS[0];
+        const amounts = AMOUNTS.filter((a) => a <= v.free);
+        if (!amounts.length || v.free > AMOUNTS.at(-1)) amounts.push(Math.floor(v.free));
+        body.append(h('div', { class: 'tb-card' },
+          h('div', { class: 'tb-label' }, 'Guarantee'), h('div', { class: 'tb-chips' }, ...gs.map((x) => chip(x === 'none' ? 'None' : x === 'personal' ? 'You' : 'The parent', x === gu, () => { ui.loanGuar = x; open('Loans'); }))),
+          h('div', { class: 'tb-sub' }, BL.guaranteeText(id, gu)),
+          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'For'), h('select', { class: 'tb-select', onchange: (e) => { ui.loanPurpose = e.target.value; } }, ...PURPOSES.map((x) => h('option', { value: x, selected: x === purpose }, x))),
+          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'How long'), h('div', { class: 'tb-chips' }, ...TERMS.map((m) => chip(`${m} months`, m === term, () => { ui.loanTerm = m; open('Loans'); }))),
+          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'How much'), h('div', { class: 'tb-chips' }, ...amounts.map((a) => { const o = BL.offer(id, a, term, gu); return h('button', { class: 'tb-chip', onclick: () => { ui.loanDraft = { who: id, amount: a, months: term, guarantee: gu, purpose: ui.loanPurpose && PURPOSES.includes(ui.loanPurpose) ? ui.loanPurpose : purpose }; ui.loanSheet = false; open('Loans'); } }, `${n(a)} · ${pc(o.rate)}`); }))));
+      }
+    }
+    const all = BL.loans(null, true);
+    body.append(h('div', { class: 'tb-card list' }, ...(all.length ? all.slice().reverse().slice(0, 6).map((l) => {
+      const owed = l.outstanding + l.arrears;
+      return row({ icon: l.status === 'repaid' ? '✔' : '📄', title: `${g.corp.nameOf(l.borrower)} · ${n(l.principal)} · ${pc(l.rate)}`, sub: `${l.purpose} · ${l.status === 'repaid' ? `repaid day ${l.closed}` : `owes ${n(owed)}${l.arrears ? ` incl. arrears at ${pc(l.rate + PENALTY)}` : ''}`}`, tag: l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'behind' : 'on time', tone: l.status === 'repaid' ? 'good' : l.arrears > 0 ? 'neg' : 'good',
+        action: l.status === 'repaid' ? null : h('button', { class: 'tb-mini', disabled: g.corp.cashOf(l.borrower) < owed, onclick: () => go(BL.repay(l.id, owed)) }, `Repay ${n(owed)}`) });
+    }) : [row({ icon: '📄', title: 'No company loans yet' })])));
+    body.append(help('How a company\'s limit is worked out ›', 'Lariat State Bank also lends to a company of yours that holds its own cash, on its own books alone: 40% of what it is worth after all its debts (the bank\'s included), plus six months of what it earns, scaled by its own borrowing record. The money goes into the company\'s account and the instalments come out of it (interest is a cost to the company; the principal is not). If it misses one, it is in arrears at the penalty rate, nothing is seized, and its managers stop hiring, bidding and expanding until it has repaid what it is behind. A guarantee by you costs your own record only; a parent\'s guarantee is called once per missed instalment, only for what the parent holds.'));
+  }
+}
+
+return { loansApp };
+})();
+
+// ---- src/ui/corpManage.js
+__m["src/ui/corpManage.js"] = (function () {
+// The Management app (v0.63.0): what managers may spend, what is waiting for your word, and what they have done.
+// Everything is read from game.corp.management and every button calls it; nothing is decided here.
+const { h } = __m["src/ui/panels.js"];
+const { CATEGORIES, MGMT, PLAN_TYPES } = __m["src/content/management.js"];
+const { ROLES } = __m["src/content/personnel.js"];
+
+const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
+const BUSINESSES = [['arms', ['materials', 'hiring', 'expansion']], ['aerospace', ['materials', 'contracts', 'hiring', 'expansion']], ['shipping', ['hiring', 'expansion']], ['farming', ['hiring', 'expansion']]];
+const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand', treasury: 'transfer' };
+const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
+
+function managementFull(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const M = K.management;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
+  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
+  const name = (e) => K.personnel.employerName(e);
+
+  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage, with the permissions to hire, sign contracts, expand and move cash), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
+
+  const alerts = M.alerts();
+  if (alerts.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Needs your attention'), h('div', { class: 'list' }, ...alerts.map((a) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'name' }, a.text), h('div', { class: 'desc' }, a.advice))))));
+
+  const m = M.peek();
+  const pending = m?.pending || [];
+  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Waiting for you'));
+  if (!pending.length) body.append(h('p', { class: 'muted' }, 'Nothing is waiting.'));
+  else body.append(h('div', { class: 'list' }, ...pending.map((q) => {
+    const x = K.personnel.person(q.actor);
+    return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${x?.name || 'Someone'} asks to ${q.kind === 'budget' ? 'raise the materials budget' : q.kind === 'hire' ? 'hire' : 'reorder'} at ${name(q.employer)}`, h('span', { class: 'tag' }, q.kind === 'budget' ? `+${n(q.cost)} a month` : `${n(q.cost)} obols when asked`), h('span', { class: 'tag' }, `${MGMT.expireDays - (g.clock.day - q.day)} days left`)),
+      h('div', { class: 'desc' }, q.kind === 'budget' ? `${q.why} Approving raises the monthly permission only; it is not money and nothing is spent by it.` : `${q.why} Approving judges it again on today's figures: a changed need, price, budget or person can still stop it.`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small primary', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'small ghost', onclick: () => go(M.decline(q.id)) }, 'Decline'))));
+  })));
+
+  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Budgets'));
+  const list = h('div', { class: 'list' });
+  for (const [id, base] of BUSINESSES) {
+    if (!K.established(id)) continue;
+    const cats = K.group.isSub(id) ? [...base, 'treasury'] : base;
+    const funded = K.account(id).funded;
+    const rows = cats.map((cat) => {
+      const kind = KIND[cat];
+      const st = M.status(id, kind);
+      const box = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: st.budget, style: 'width:100px' });
+      const who = M.deciders(kind, id).map((x) => `${x.name} (${ROLES[x.role].name})`);
+      return h('div', { style: 'margin-top:6px' },
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, CATEGORIES[cat].name), box, h('span', { class: 'muted' }, 'a month'), h('button', { class: 'small', onclick: () => go(M.setBudget(id, cat, Number(box.value))) }, 'Set'), h('span', { class: 'muted' }, st.budget ? `${n(st.spent)} used this month, ${n(Math.max(0, st.budget - st.spent))} left` : '')),
+        h('div', { class: 'desc' }, CATEGORIES[cat].text, who.length ? ` Decided by ${who.join(', ')}.` : ''),
+        ...st.notes.map((t) => h('div', { class: 'desc' }, `• ${t}`)));
+    });
+    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, name(id), h('span', { class: `tag${funded ? ' good' : ''}` }, funded ? 'own account' : 'no account of its own')), ...rows)));
+  }
+  body.append(list);
+  if (K.established('aerospace')) {
+    const mg = M.peek()?.margins.aerospace;
+    const box = h('input', { type: 'number', class: 'debug-qty', min: 0, max: 300, step: 1, value: mg ?? 25, style: 'width:70px' });
+    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:8px' }, h('b', {}, 'Minimum margin on bids'), box, h('span', { class: 'muted' }, '% over cost'), h('button', { class: 'small', onclick: () => go(M.setMargin('aerospace', Number(box.value))) }, 'Set'),
+      h('span', { class: 'muted' }, mg === undefined ? 'None set: managers bid on nothing.' : `Bids go in at ${mg}% over cost; where the customer's ceiling is lower, the bid waits for you (never below cost).`)));
+  }
+
+  treasury();
+  plans();
+
+  function treasury() {
+    const G = K.group;
+    if (!G.parent) return;
+    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Treasury policy'));
+    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 10000, value: M.parentReserve(), style: 'width:110px' });
+    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, `${G.parent.name} keeps at least`), reserve, h('span', { class: 'muted' }, `obols (it holds ${n(K.cashOf('parent'))}); top-ups never take it lower`), h('button', { class: 'small', onclick: () => go(M.setParentReserve(Number(reserve.value))) }, 'Set')));
+    const subs = G.subs();
+    if (!subs.length) { body.append(h('p', { class: 'muted' }, 'Bring a business under the parent to keep its cash between a floor and a ceiling.')); return; }
+    body.append(h('div', { class: 'list' }, ...subs.map((id) => {
+      const pol = M.peek()?.treasury[id];
+      const floor = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.floor ?? 20000, style: 'width:100px' });
+      const ceil = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.ceiling ?? 100000, style: 'width:100px' });
+      const mv = M.planTreasury(id)[0];
+      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+        h('div', { class: 'name' }, name(id), h('span', { class: 'tag' }, `holds ${n(K.cashOf(id))}`), pol ? h('span', { class: 'tag good' }, 'policy set') : h('span', { class: 'tag' }, 'no policy')),
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:4px' }, h('span', { class: 'muted' }, 'Keep it between'), floor, h('span', { class: 'muted' }, 'and'), ceil,
+          h('button', { class: 'small', onclick: () => go(M.setTreasury(id, { floor: Number(floor.value), ceiling: Number(ceil.value) })) }, 'Set'), pol ? h('button', { class: 'small ghost', onclick: () => go(M.clearTreasury(id)) }, 'Withdraw') : null),
+        h('div', { class: 'desc' }, pol ? (mv ? `Next, a chief financial officer would ${mv.desc}.` : 'Nothing to move now.') : 'Below the floor it is topped up from the parent; above the ceiling the surplus repays what it owes the parent, then returns capital the parent put in. Only a chief financial officer with the permission to move cash does it, inside a Treasury budget.')));
+    })));
+  }
+
+  function plans() {
+    function planRow(q) {
+      const e = M.evalPlan(q);
+      const next = e.cost ? `Next: ${e.desc}, ${n(e.cost)} obols.` : e.why;
+      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+        h('div', { class: 'name' }, `${M.planName(q)} — up to ${q.limit}`, h('span', { class: 'tag' }, `${q.bought} bought`), h('span', { class: 'tag' }, `${n(q.maxEach)} at most each`)),
+        h('div', { class: 'desc' }, `${PLAN_TYPES[q.type].rule} Leaves ${n(q.reserve)} in the account. ${next}${q.blocked ? ` (${q.blocked})` : ''}`),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(M.removePlan(q.id)) }, 'Withdraw'))));
+    }
+    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Plans you have approved'));
+    const list = M.peek()?.plans || [];
+    if (!list.length) body.append(h('p', { class: 'muted' }, 'None. A plan names what a manager may build or buy, how many, and the most to pay for each; where it goes is a fixed rule. Without a plan, nothing is built or bought.'));
+    else body.append(h('div', { class: 'list' }, ...list.map(planRow)));
+    addForm();
+  }
+
+  function addForm() {
+    const owned = Object.entries(PLAN_TYPES).filter(([, T]) => K.established(T.business));
+    if (!owned.length) return;
+    const type = h('select', { class: 'debug-input', style: 'min-width:240px' }, ...owned.map(([id, T]) => h('option', { value: id }, T.name)));
+    const limit = h('input', { type: 'number', class: 'debug-qty', min: 1, max: 10, value: 1, style: 'width:60px' });
+    const maxEach = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 1000, value: 20000, style: 'width:100px' });
+    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: 20000, style: 'width:100px' });
+    const extra = h('span', { class: 'row', style: 'gap:6px;flex-wrap:wrap' });
+    const rule = h('div', { class: 'desc' });
+    const field = {};
+    const mk = (k, opts) => { field[k] = h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v }, t))); return field[k]; };
+    const refill = () => {
+      extra.replaceChildren(); Object.keys(field).forEach((k) => delete field[k]);
+      const t = type.value;
+      rule.textContent = PLAN_TYPES[t].rule;
+      if (t === 'arms_station') extra.append(mk('works', g.arms.ownedIds().map((w) => [w, g.arms.def(w).name])), mk('item', Object.entries(g.content.items).filter(([, it]) => it.build?.domain === 'arms' && it.build.type === 'machine').map(([id, it]) => [id, it.name])), mk('recipe', [['', 'no recipe set'], ...Object.entries(g.arms.cfg.recipes).map(([id, r]) => [id, `${g.content.items[r.out].name} (${r.station})`])]));
+      if (t === 'aero_bay') extra.append(mk('bay', Object.entries(g.aero.cfg.bays).map(([id, B]) => [id, B.name])));
+      if (t === 'aero_facility') extra.append(mk('facility', Object.entries(g.aero.cfg.facilities).filter(([, F]) => F.build).map(([id, F]) => [id, F.name])));
+    };
+    type.addEventListener('change', refill); refill();
+    body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Approve a plan'), h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, type, extra, h('span', { class: 'muted' }, 'up to'), limit, h('span', { class: 'muted' }, 'at most'), maxEach, h('span', { class: 'muted' }, 'each, leaving'), reserve, h('span', { class: 'muted' }, 'in the account'),
+      h('button', { class: 'small primary', onclick: () => go(M.addPlan({ type: type.value, limit: Number(limit.value), maxEach: Number(maxEach.value), reserve: Number(reserve.value), ...Object.fromEntries(Object.entries(field).map(([k, el]) => [k, el.value])) })) }, 'Approve plan')), rule);
+  }
+
+  const log = (m?.log || []).slice(-15).reverse();
+  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'What they have done'));
+  if (!log.length) body.append(h('p', { class: 'muted' }, 'Nothing yet.'));
+  else body.append(h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${LABEL[l.type] || l.type}: ${l.text}`))))));
+  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one decision of each kind a day, at about 06:00 (treasury moves, by the chief financial officer, are between the parent and a subsidiary: they are transfers, never sales or costs); a manager makes at most two hires a month at a business and a bid counts the cost of the work it would commit against its budget. A plan buys one at a time, next to what you own and at the first free place by a fixed rule; a station that arrives is placed from the dock but needs a worker you assign. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
+}
+
+return { managementFull };
 })();
 
 // ---- src/ui/corpGroup.js
@@ -64219,7 +64463,7 @@ const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocale
 const PERIODS = { month: 'Last month', current: 'This month so far', year: 'Last 12 months' };
 const KIND = { capital: 'capital', loan: 'loan', repayment: 'repayment', interest: 'interest', distribution: 'distribution', 'capital-return': 'capital returned' };
 
-function groupApp(ui, body, open) {
+function groupFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   const G = K.group;
@@ -64335,7 +64579,7 @@ function policyEditor(G, id, pol, go) {
       id !== null ? h('button', { class: 'small ghost', onclick: () => go(G.clearPolicy(id)) }, 'Use the default') : null));
 }
 
-return { groupApp };
+return { groupFull };
 })();
 
 // ---- src/ui/corpPeople.js
@@ -64353,7 +64597,7 @@ const TIERS = { executive: 'Executives', manager: 'Managers', staff: 'Staff' };
 const EFFECT_TEXT = { materials: 'materials cost', parts: 'parts cost', armsSpeed: 'arms output speed', upkeep: 'upkeep cost', farmPrice: 'farm sale prices', overhead: 'overhead' };
 const pct = (v) => `${(v * 100).toFixed(1)}%`;
 
-function peopleApp(ui, body, open) {
+function peopleFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   const Pe = K.personnel;
@@ -64540,145 +64784,67 @@ function peopleApp(ui, body, open) {
   }
 }
 
-return { peopleApp };
+return { peopleFull };
 })();
 
-// ---- src/ui/corpManage.js
-__m["src/ui/corpManage.js"] = (function () {
-// The Management app (v0.63.0): what managers may spend, what is waiting for your word, and what they have done.
-// Everything is read from game.corp.management and every button calls it; nothing is decided here.
+// ---- src/ui/corpEconomy.js
+__m["src/ui/corpEconomy.js"] = (function () {
+// The Economy app (v0.75.0): the wars, embargoes and restrictions that are on, what they do to each sector, who is exposed, and the rest of the
+// news. Read from game.corp.geo.overview(); nothing here moves money, and nothing says what will happen next.
 const { h } = __m["src/ui/panels.js"];
-const { CATEGORIES, MGMT, PLAN_TYPES } = __m["src/content/management.js"];
-const { ROLES } = __m["src/content/personnel.js"];
 
-const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
-const BUSINESSES = [['arms', ['materials', 'hiring', 'expansion']], ['aerospace', ['materials', 'contracts', 'hiring', 'expansion']], ['shipping', ['hiring', 'expansion']], ['farming', ['hiring', 'expansion']]];
-const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand', treasury: 'transfer' };
-const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
+const pc = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`;
+const pc2 = (v) => `${(v * 100).toFixed(2)}%`;
 
-function manageApp(ui, body, open) {
+function economyFull(ui, body) {
   const g = ui.game;
-  const K = g.corp;
-  const M = K.management;
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
-  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
-  const name = (e) => K.personnel.employerName(e);
+  const O = g.corp.geo.overview();
+  O.banks = Object.values(g.robbery.view()); O.bankNews = g.robbery.news(); O.robberyPremium = g.robbery.premium(); // the banks' security is the public's business, not the economy's: read straight from the robbery record
+  const none = (t) => h('p', { class: 'muted' }, t);
+  const sev = (e) => (e.severity >= 0.7 ? 'severe' : e.severity >= 0.4 ? 'serious' : 'limited');
+  const effect = (x) => `${x.sector} ${x.kind === 'cost' ? 'costs' : 'demand'} ${pc(x.pct)}`;
+  const event = (e) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, e.kind === 'war' ? `⚔️ ${e.names.join(' – ')}` : `🚫 ${e.names[0]}: arms embargo`, h('span', { class: `tag${e.status === 'active' ? ' neg' : ' good'}` }, e.status === 'active' ? sev(e) : 'ended'), h('span', { class: 'tag' }, e.id)),
+    h('div', { class: 'desc' }, e.kind === 'war'
+      ? `Since day ${e.start}${e.age >= 60 ? ' (prolonged)' : ''} · ${e.status === 'active' ? `${Math.round(e.phase * 100)}% of its full effect so far` : `ended day ${e.end}, ${Math.round(e.phase * 100)}% of its effect left`}`
+      : `Imposed by ${e.imposer} on day ${e.start}${e.cause ? ` after ${e.cause}` : ''} · restricts ${e.goods.join(', ')} · ${e.status === 'active' ? `${Math.round(e.phase * 100)}% in force` : `lifted day ${e.end}`}`),
+    e.effects.length ? h('div', { class: 'desc' }, `Now: ${e.effects.map(effect).join(' · ')}`) : null,
+    h('div', { class: 'desc muted' }, e.timeline.slice(-2).map((t) => `Day ${t.day}: ${t.text}`).join(' — '))));
 
-  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage, with the permissions to hire, sign contracts, expand and move cash), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
+  body.append(h('p', { class: 'doc' }, '🌐 What the world\'s quarrels do to business. Each war and embargo is kept as a record; its effects build up over ten days and fade over thirty after it ends, are bounded, and fall unevenly: a sector, a company\'s own exposure, and whether it is from a country involved all matter. This is what has happened and what it costs now — never a forecast.'));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Wars'), O.wars.length ? h('div', { class: 'list' }, ...O.wars.map(event)) : none('No war is on.'));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Embargoes and restrictions'), O.embargoes.length ? h('div', { class: 'list' }, ...O.embargoes.map(event)) : none('No embargo is in force.'));
+  if (O.ended.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Ceasefires and lifted restrictions'), h('div', { class: 'list' }, ...O.ended.map(event)));
 
-  const alerts = M.alerts();
-  if (alerts.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Needs your attention'), h('div', { class: 'list' }, ...alerts.map((a) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'name' }, a.text), h('div', { class: 'desc' }, a.advice))))));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Commodities, materials and demand'));
+  if (!O.sectors.length) body.append(none('No sector is being moved by events.'));
+  else body.append(h('div', { class: 'list' }, ...O.sectors.map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.sector), h('div', { class: 'desc' }, [Math.abs(r.demand) >= 0.05 ? `customers' demand ${pc(r.demand)}` : null, Math.abs(r.cost) >= 0.05 ? `costs ${pc(r.cost)}` : null].filter(Boolean).join(' · ')))))));
 
-  const m = M.peek();
-  const pending = m?.pending || [];
-  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Waiting for you'));
-  if (!pending.length) body.append(h('p', { class: 'muted' }, 'Nothing is waiting.'));
-  else body.append(h('div', { class: 'list' }, ...pending.map((q) => {
-    const x = K.personnel.person(q.actor);
-    return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${x?.name || 'Someone'} asks to ${q.kind === 'budget' ? 'raise the materials budget' : q.kind === 'hire' ? 'hire' : 'reorder'} at ${name(q.employer)}`, h('span', { class: 'tag' }, q.kind === 'budget' ? `+${n(q.cost)} a month` : `${n(q.cost)} obols when asked`), h('span', { class: 'tag' }, `${MGMT.expireDays - (g.clock.day - q.day)} days left`)),
-      h('div', { class: 'desc' }, q.kind === 'budget' ? `${q.why} Approving raises the monthly permission only; it is not money and nothing is spent by it.` : `${q.why} Approving judges it again on today's figures: a changed need, price, budget or person can still stop it.`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small primary', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'small ghost', onclick: () => go(M.decline(q.id)) }, 'Decline'))));
-  })));
+  const co = (r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.sentiment > 0 ? 'good' : 'neg'}` }, `${pc(r.sentiment * 100)} expected`)), h('div', { class: 'desc' }, `${r.sector} · ${r.price.toFixed(2)}${r.change != null ? ` (${pc(r.change * 100)} on the day)` : ''}`)));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Who is exposed'));
+  if (!O.lifted.length && !O.pressed.length) body.append(none('No listed company is moved by events today.'));
+  else body.append(h('div', { class: 'list' }, ...O.lifted.map(co), ...O.pressed.map(co)));
+  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'The figure is how much the market is pricing a company\'s earnings up or down because of events, on top of what its books already show (bounded at 12%).'));
 
-  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Budgets'));
-  const list = h('div', { class: 'list' });
-  for (const [id, base] of BUSINESSES) {
-    if (!K.established(id)) continue;
-    const cats = K.group.isSub(id) ? [...base, 'treasury'] : base;
-    const funded = K.account(id).funded;
-    const rows = cats.map((cat) => {
-      const kind = KIND[cat];
-      const st = M.status(id, kind);
-      const box = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: st.budget, style: 'width:100px' });
-      const who = M.deciders(kind, id).map((x) => `${x.name} (${ROLES[x.role].name})`);
-      return h('div', { style: 'margin-top:6px' },
-        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, CATEGORIES[cat].name), box, h('span', { class: 'muted' }, 'a month'), h('button', { class: 'small', onclick: () => go(M.setBudget(id, cat, Number(box.value))) }, 'Set'), h('span', { class: 'muted' }, st.budget ? `${n(st.spent)} used this month, ${n(Math.max(0, st.budget - st.spent))} left` : '')),
-        h('div', { class: 'desc' }, CATEGORIES[cat].text, who.length ? ` Decided by ${who.join(', ')}.` : ''),
-        ...st.notes.map((t) => h('div', { class: 'desc' }, `• ${t}`)));
-    });
-    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, name(id), h('span', { class: `tag${funded ? ' good' : ''}` }, funded ? 'own account' : 'no account of its own')), ...rows)));
-  }
-  body.append(list);
-  if (K.established('aerospace')) {
-    const mg = M.peek()?.margins.aerospace;
-    const box = h('input', { type: 'number', class: 'debug-qty', min: 0, max: 300, step: 1, value: mg ?? 25, style: 'width:70px' });
-    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:8px' }, h('b', {}, 'Minimum margin on bids'), box, h('span', { class: 'muted' }, '% over cost'), h('button', { class: 'small', onclick: () => go(M.setMargin('aerospace', Number(box.value))) }, 'Set'),
-      h('span', { class: 'muted' }, mg === undefined ? 'None set: managers bid on nothing.' : `Bids go in at ${mg}% over cost; where the customer's ceiling is lower, the bid waits for you (never below cost).`)));
-  }
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Central bank and bonds'),
+    h('div', { class: 'list' }, h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Policy rate ${pc2(O.rate)}`), h('div', { class: 'desc' }, `${O.premium > 0 ? `Wars and embargoes add ${pc2(O.premium)} to government bond yields · ` : ''}Government bond yields: ${O.yields.map((y) => `${y.years}-year ${pc2(y.yield)}`).join(' · ')}`))),
+      ...O.bank.map((d) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc2(d.to)}`), h('div', { class: 'desc' }, d.text))))));
 
-  treasury();
-  plans();
+  if (O.sovereign.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Foreign government bonds'), h('div', { class: 'list' }, ...O.sovereign.map((s) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, s.name, h('span', { class: `tag${s.rating === 'AA' || s.rating === 'A' ? ' good' : s.rating === 'CCC' || s.status === 'delayed' ? ' neg' : ''}` }, s.status === 'delayed' ? `${s.rating} · delayed` : s.rating)), h('div', { class: 'desc' }, `Yield ${pc2(s.yield)}`))))),
+    ...(O.bondNews.length ? [h('div', { class: 'list' }, ...O.bondNews.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Banks and security'), h('div', { class: 'list' }, ...O.banks.map((b) => h('div', { class: 'item-row' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, b.name, h('span', { class: `tag${b.state === 'normal' ? ' good' : ' neg'}` }, { normal: 'open for business', alert: 'security alert', robbery: 'robbery in progress', police: 'police on the scene', recovery: `closed to day ${b.closedUntil}`, reopening: 'reopening' }[b.state])),
+    h('div', { class: 'desc' }, `Vault: ${b.stock.cash.toLocaleString()} obols in notes and ${b.stock.gold} gold bars of ${b.full.cash.toLocaleString()} and ${b.full.gold}${b.last ? ` · robbed on day ${b.last.day}: ${b.last.cash.toLocaleString()} obols and ${b.last.gold} bars taken` : ''}`))))),
+    ...(O.bankNews.length ? [h('div', { class: 'list' }, ...O.bankNews.slice(0, 4).map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []),
+    h('p', { class: 'muted', style: 'font-size:12px' }, `A robbery of the First Bank is a loss of physical notes and gold only; it never touches anyone's credit, loans, ratings or valuations.${O.robberyPremium > 0 ? ` Its market reaction adds ${pc2(O.robberyPremium)} to government bond yields for now, fading over ten days; lenders do not count it.` : ''}`));
+  if (O.movers.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Biggest moves on the exchange today'), h('div', { class: 'list' }, ...[...O.movers.slice(0, 3), ...O.movers.slice(-3).reverse()].filter((r, i, a) => a.findIndex((x) => x.ticker === r.ticker) === i).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.change > 0 ? 'good' : 'neg'}` }, pc(r.change * 100))), h('div', { class: 'desc' }, `${r.price.toFixed(2)} · ${r.sector}`))))));
 
-  function treasury() {
-    const G = K.group;
-    if (!G.parent) return;
-    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Treasury policy'));
-    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 10000, value: M.parentReserve(), style: 'width:110px' });
-    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, `${G.parent.name} keeps at least`), reserve, h('span', { class: 'muted' }, `obols (it holds ${n(K.cashOf('parent'))}); top-ups never take it lower`), h('button', { class: 'small', onclick: () => go(M.setParentReserve(Number(reserve.value))) }, 'Set')));
-    const subs = G.subs();
-    if (!subs.length) { body.append(h('p', { class: 'muted' }, 'Bring a business under the parent to keep its cash between a floor and a ceiling.')); return; }
-    body.append(h('div', { class: 'list' }, ...subs.map((id) => {
-      const pol = M.peek()?.treasury[id];
-      const floor = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.floor ?? 20000, style: 'width:100px' });
-      const ceil = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.ceiling ?? 100000, style: 'width:100px' });
-      const mv = M.planTreasury(id)[0];
-      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, name(id), h('span', { class: 'tag' }, `holds ${n(K.cashOf(id))}`), pol ? h('span', { class: 'tag good' }, 'policy set') : h('span', { class: 'tag' }, 'no policy')),
-        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:4px' }, h('span', { class: 'muted' }, 'Keep it between'), floor, h('span', { class: 'muted' }, 'and'), ceil,
-          h('button', { class: 'small', onclick: () => go(M.setTreasury(id, { floor: Number(floor.value), ceiling: Number(ceil.value) })) }, 'Set'), pol ? h('button', { class: 'small ghost', onclick: () => go(M.clearTreasury(id)) }, 'Withdraw') : null),
-        h('div', { class: 'desc' }, pol ? (mv ? `Next, a chief financial officer would ${mv.desc}.` : 'Nothing to move now.') : 'Below the floor it is topped up from the parent; above the ceiling the surplus repays what it owes the parent, then returns capital the parent put in. Only a chief financial officer with the permission to move cash does it, inside a Treasury budget.')));
-    })));
-  }
-
-  function plans() {
-    function planRow(q) {
-      const e = M.evalPlan(q);
-      const next = e.cost ? `Next: ${e.desc}, ${n(e.cost)} obols.` : e.why;
-      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, `${M.planName(q)} — up to ${q.limit}`, h('span', { class: 'tag' }, `${q.bought} bought`), h('span', { class: 'tag' }, `${n(q.maxEach)} at most each`)),
-        h('div', { class: 'desc' }, `${PLAN_TYPES[q.type].rule} Leaves ${n(q.reserve)} in the account. ${next}${q.blocked ? ` (${q.blocked})` : ''}`),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(M.removePlan(q.id)) }, 'Withdraw'))));
-    }
-    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Plans you have approved'));
-    const list = M.peek()?.plans || [];
-    if (!list.length) body.append(h('p', { class: 'muted' }, 'None. A plan names what a manager may build or buy, how many, and the most to pay for each; where it goes is a fixed rule. Without a plan, nothing is built or bought.'));
-    else body.append(h('div', { class: 'list' }, ...list.map(planRow)));
-    addForm();
-  }
-
-  function addForm() {
-    const owned = Object.entries(PLAN_TYPES).filter(([, T]) => K.established(T.business));
-    if (!owned.length) return;
-    const type = h('select', { class: 'debug-input', style: 'min-width:240px' }, ...owned.map(([id, T]) => h('option', { value: id }, T.name)));
-    const limit = h('input', { type: 'number', class: 'debug-qty', min: 1, max: 10, value: 1, style: 'width:60px' });
-    const maxEach = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 1000, value: 20000, style: 'width:100px' });
-    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: 20000, style: 'width:100px' });
-    const extra = h('span', { class: 'row', style: 'gap:6px;flex-wrap:wrap' });
-    const rule = h('div', { class: 'desc' });
-    const field = {};
-    const mk = (k, opts) => { field[k] = h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v }, t))); return field[k]; };
-    const refill = () => {
-      extra.replaceChildren(); Object.keys(field).forEach((k) => delete field[k]);
-      const t = type.value;
-      rule.textContent = PLAN_TYPES[t].rule;
-      if (t === 'arms_station') extra.append(mk('works', g.arms.ownedIds().map((w) => [w, g.arms.def(w).name])), mk('item', Object.entries(g.content.items).filter(([, it]) => it.build?.domain === 'arms' && it.build.type === 'machine').map(([id, it]) => [id, it.name])), mk('recipe', [['', 'no recipe set'], ...Object.entries(g.arms.cfg.recipes).map(([id, r]) => [id, `${g.content.items[r.out].name} (${r.station})`])]));
-      if (t === 'aero_bay') extra.append(mk('bay', Object.entries(g.aero.cfg.bays).map(([id, B]) => [id, B.name])));
-      if (t === 'aero_facility') extra.append(mk('facility', Object.entries(g.aero.cfg.facilities).filter(([, F]) => F.build).map(([id, F]) => [id, F.name])));
-    };
-    type.addEventListener('change', refill); refill();
-    body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Approve a plan'), h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, type, extra, h('span', { class: 'muted' }, 'up to'), limit, h('span', { class: 'muted' }, 'at most'), maxEach, h('span', { class: 'muted' }, 'each, leaving'), reserve, h('span', { class: 'muted' }, 'in the account'),
-      h('button', { class: 'small primary', onclick: () => go(M.addPlan({ type: type.value, limit: Number(limit.value), maxEach: Number(maxEach.value), reserve: Number(reserve.value), ...Object.fromEntries(Object.entries(field).map(([k, el]) => [k, el.value])) })) }, 'Approve plan')), rule);
-  }
-
-  const log = (m?.log || []).slice(-15).reverse();
-  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'What they have done'));
-  if (!log.length) body.append(h('p', { class: 'muted' }, 'Nothing yet.'));
-  else body.append(h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${LABEL[l.type] || l.type}: ${l.text}`))))));
-  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one decision of each kind a day, at about 06:00 (treasury moves, by the chief financial officer, are between the parent and a subsidiary: they are transfers, never sales or costs); a manager makes at most two hires a month at a business and a bid counts the cost of the work it would commit against its budget. A plan buys one at a time, next to what you own and at the first free place by a fixed rule; a station that arrives is placed from the dock but needs a worker you assign. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Headlines'));
+  if (!O.headlines.length) body.append(none('Nothing reported yet.'));
+  else body.append(h('div', { class: 'list' }, ...O.headlines.map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} · ${n.text}`))))));
 }
 
-return { manageApp };
+return { economyFull };
 })();
 
 // ---- src/ui/corpExchange.js
@@ -64694,7 +64860,7 @@ const pct = (x) => (x === null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 
 const SORTS = { ticker: 'Ticker', change: 'Day change', value: 'Held', price: 'Price' };
 const WATCH = '★ Watchlist';
 
-function exchangeApp(ui, body, open) {
+function exchangeFull(ui, body, open) {
   const g = ui.game;
   const E = g.corp.exchange;
   const S = (ui.corpExchange ||= { sel: null, sector: '', sort: 'ticker' });
@@ -64758,283 +64924,7 @@ function exchangeApp(ui, body, open) {
   }
 }
 
-return { exchangeApp };
-})();
-
-// ---- src/ui/tabletKit.js
-__m["src/ui/tabletKit.js"] = (function () {
-// The OberPad's pieces (v0.83.0): the same few shapes in every app, so a screen is a number, three tiles and a button or two,
-// and anything that needs a paragraph keeps it behind a "?". DOM only — no game rules here.
-//
-//   statusBar(g)                 the strip across the top: time and day, the signal and the battery
-//   navBar({ icon, title, back, right })   a back arrow, the app's name and what sits on the right
-//   segments(items, active, pick)          the app's sections as one switch: items = [{ id, label, badge? }]
-//   hero({ label, value, sub, ring })      the one headline figure (a ring shows how much of something is used)
-//   tiles(list)                            three small figures: [{ n, t, tone? }]
-//   row({ icon, title, sub, tag, tone, action })   one line of a list
-//   help(title, ...paragraphs)             a "?" that opens the explanation, closed by default
-//   note(ui)                               the line saying what the last button did, once
-const { h } = __m["src/ui/panels.js"];
-
-const n = (x) => Math.round(x).toLocaleString('en-US');
-const pc = (v, d = 2) => `${(v * 100).toFixed(d)}%`;
-
-function statusBar(g) {
-  return h('div', { class: 'tb-status' }, h('span', {}, h('b', {}, g.clock.timeString), ` · ${g.clock.weekday} · Day ${g.clock.day}`), h('span', {}, `${n(g.player.money)} ◎ · 📶 ▮▮▮ 🔋`));
-}
-
-function navBar({ icon, title, back, right }) {
-  return h('div', { class: 'tb-nav' }, back ? h('button', { class: 'tb-back', 'aria-label': 'Back', onclick: back }, '‹') : null, h('div', { class: 'tb-title' }, icon ? `${icon} ` : '', title), h('div', { class: 'grow' }), right || null);
-}
-
-function segments(items, active, pick) {
-  if (items.length < 2) return null;
-  return h('div', { class: 'tb-seg' }, ...items.map((x) => h('button', { class: x.id === active ? 'on' : '', onclick: () => pick(x.id) }, x.label, x.badge ? h('i', { class: 'tb-dot' }, String(x.badge)) : null)));
-}
-
-function hero({ label, value, sub, ring = null, tone = '' }) {
-  const body = h('div', { class: 'grow' }, h('div', { class: 'tb-label' }, label), h('div', { class: `tb-big ${tone}` }, value), sub ? h('div', { class: 'tb-sub' }, sub) : null);
-  if (ring === null) return h('div', { class: 'tb-hero' }, body);
-  const f = Math.max(0, Math.min(1, ring));
-  return h('div', { class: 'tb-hero' }, h('div', { class: 'tb-ring', style: `background:conic-gradient(var(--gold) 0 ${Math.round(f * 100)}%, rgba(255,255,255,.1) ${Math.round(f * 100)}% 100%)` }, h('div', {}, h('b', {}, `${Math.round(f * 100)}%`), h('small', {}, 'used'))), body);
-}
-
-function tiles(list) {
-  return h('div', { class: 'tb-tiles' }, ...list.map((x) => h('div', { class: `tb-tile ${x.tone || ''}` }, h('div', { class: 'tb-n' }, x.n), h('div', { class: 'tb-t' }, x.t))));
-}
-
-function row({ icon, title, sub, tag, tone = '', action, onclick }) {
-  return h('div', { class: `tb-row${onclick ? ' tap' : ''}`, onclick }, icon ? h('div', { class: 'tb-ico' }, icon) : null, h('div', { class: 'grow' }, h('b', {}, title), sub ? h('small', {}, sub) : null), tag ? h('span', { class: `tb-pill ${tone}` }, tag) : null, action || null);
-}
-
-function help(title, ...paragraphs) {
-  return h('details', { class: 'tb-help' }, h('summary', {}, title), ...paragraphs.map((p) => h('p', {}, p)));
-}
-
-function note(ui) {
-  if (!ui.corpNote) return null;
-  const t = ui.corpNote;
-  ui.corpNote = null;
-  return h('div', { class: 'tb-note' }, t);
-}
-
-const buttons = (...bs) => h('div', { class: 'tb-btns' }, ...bs);
-const big = (label, onclick, kind = '', disabled = false) => h('button', { class: `tb-btn ${kind}`, onclick, disabled }, label);
-
-return { n, pc, statusBar, navBar, segments, hero, tiles, row, help, note, buttons, big };
-})();
-
-// ---- src/ui/corpBank.js
-__m["src/ui/corpBank.js"] = (function () {
-// The Bank app (v0.68.0; the OberPad's "Rates", v0.83.0): the First Bank of Halvermouth's policy rate — one figure, three tiles,
-// the last few decisions; how it works and what it does are behind the "?". Read-only: nobody sets the rate, and nothing here moves money.
-const { h } = __m["src/ui/panels.js"];
-const { spark } = __m["src/corp/exchange.js"];
-const { NEUTRAL } = __m["src/corp/bank.js"];
-const { hero, tiles, row, help, pc } = __m["src/ui/tabletKit.js"];
-
-const sgn = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)}`;
-
-function bankApp(ui, body) {
-  const g = ui.game;
-  const B = g.corp.bank;
-  const st = B.peek();
-  const E = B.effects();
-  const month = Math.floor((g.clock.day - 1) / 30);
-  const next = Math.max(month + 1, 3) * 30 + 1;
-  const rates = (st?.decisions || []).map((d) => d.to);
-  body.append(
-    hero({ label: 'Policy rate', value: pc(E.rate), sub: rates.length > 1 ? `${spark(rates)}  ${pc(Math.min(...rates))} – ${pc(Math.max(...rates))}` : 'the rate it has always been' }),
-    tiles([{ n: pc(NEUTRAL, 1), t: 'neutral rate' }, { n: st ? `day ${st.since}` : 'the start', t: 'held since' }, { n: `day ${next}`, t: 'next meeting' }]));
-  const rows = (st?.decisions || []).slice(-3).reverse();
-  body.append(h('div', { class: 'tb-card list' }, ...(rows.length ? rows.map((d) => row({ icon: d.to > d.from ? '▲' : d.to < d.from ? '▼' : '＝', title: `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc(d.to)}`, sub: d.text })) : [row({ icon: '🏦', title: 'No meeting yet', sub: 'The first is on day 91; until then the rate is the 5% it has always been.' })])));
-  const ind = B.indicators();
-  body.append(
-    help('How the rate is set ›', 'The First Bank of Halvermouth sets one rate for the whole economy. It is nobody\'s to set: once a month, from the fourth month of the game, it follows how busy the world\'s companies are, how fast their sales are growing and how many are in distress, a quarter-point at a time, and writes down why.',
-      ...(ind ? [`Looking at now: capacity in use ${pc(ind.util, 0)}, sales last month on the month before ${sgn(ind.growth)}%, companies in distress ${pc(ind.stress, 0)}.`] : [])),
-    help('What the rate does ›',
-      `Loans inside your group: the parent lends its subsidiaries at the policy rate plus a point: ${pc(g.corp.group.defaultRate(), 1)} now.`,
-      `The world's companies: they borrow at the policy rate plus a point and their risk; they build when busier than ${pc(0.8 + E.invest, 1)} of capacity (usually 80%), and new ones appear ${E.entry >= 1 ? `${((E.entry - 1) * 100).toFixed(0)}% more` : `${((1 - E.entry) * 100).toFixed(0)}% less`} often than at the neutral rate.`,
-      `What companies are worth: a year's profit counts for ${(E.valuation * 100).toFixed(1)}% of its usual multiple: every estimated value, yours and theirs, and so the exchange's prices. It never creates money.`),
-    ...((st?.decisions.length || 0) > 3 ? [help('The whole record ›', ...(st.decisions.slice(-12).reverse().map((d) => `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc(d.to)}. ${d.text}`)))] : []));
-}
-
-return { bankApp };
-})();
-
-// ---- src/ui/corpLoans.js
-__m["src/ui/corpLoans.js"] = (function () {
-// The Loans app (v0.73.0; v0.83.0 in the OberPad's pattern): borrowing from Lariat State Bank against the shares and bonds you hold —
-// how much you may borrow as the one figure, what you owe and when it is next due as tiles, Borrow and Repay as the two buttons — and,
-// on its own switch, loans to your companies. Read from game.corp.lending and game.corp.business; every button calls them.
-const { h } = __m["src/ui/panels.js"];
-const { TERMS, MIN_LOAN, PENALTY, PURPOSES } = __m["src/corp/lending.js"];
-const { hero, tiles, row, help, note, buttons, big, n, pc } = __m["src/ui/tabletKit.js"];
-
-const AMOUNTS = [5000, 25000, 100000];
-
-/** What a loan costs, stated before it is signed (brief 12.1): the card both views show for a draft. */
-function termsCard(o, amount, months, who, extra, onAccept, onCancel) {
-  const last = amount / months;
-  return h('div', { class: 'tb-card tb-terms' },
-    h('b', {}, `${who === 'You' ? 'You borrow' : `${who} borrows`} ${n(amount)} over ${months} months at ${pc(o.rate)}, fixed`),
-    h('div', { class: 'tb-sub' }, `First instalment ${n(o.first)}, falling by about ${n((amount * o.rate) / 12 / months)} a month to ${n(last + (last * o.rate) / 12)} at the end · interest in all ${n(o.interest)} · you repay ${n(o.total)} in all.`),
-    h('div', { class: 'tb-sub' }, `If an instalment is missed it becomes arrears at ${pc(o.rate + PENALTY)}; nothing is ever seized.`),
-    ...extra.map((t) => h('div', { class: 'tb-sub' }, t)),
-    buttons(big(`Accept: borrow ${n(amount)}`, onAccept, 'pri'), big('Cancel', onCancel)));
-}
-
-function loansApp(ui, body, open) {
-  const g = ui.game;
-  const L = g.corp.lending;
-  const view = ui.loanView === 'companies' && g.corp.business.eligible().length ? 'companies' : 'you';
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Loans'); };
-  const nt = note(ui);
-  if (nt) body.append(nt);
-  const hasCos = g.corp.business.eligible().length > 0;
-  if (hasCos) body.append(h('div', { class: 'tb-seg two' }, h('button', { class: view === 'you' ? 'on' : '', onclick: () => { ui.loanView = 'you'; open('Loans'); } }, 'You'), h('button', { class: view === 'companies' ? 'on' : '', onclick: () => { ui.loanView = 'companies'; open('Loans'); } }, 'Your companies')));
-  if (view === 'you') personal(); else business();
-
-  function personal() {
-    const C = L.capacity();
-    const standing = Math.round(L.standing());
-    const loans = L.loans(true);
-    const open_ = loans.filter((l) => l.status !== 'repaid');
-    const nextDue = open_.length ? Math.min(...open_.map((l) => l.due)) - g.clock.day : null;
-    body.append(
-      hero({ label: 'You can borrow', value: n(C.free), sub: `policy rate ${pc(g.corp.bank.rate())} · holdings secure ${n(C.total)}`, ring: C.total > 0 ? C.owed / C.total : 0 }),
-      tiles([{ n: n(C.owed), t: 'you owe', tone: C.over > 0 ? 'neg' : '' }, { n: `${standing}`, t: 'borrowing record / 100', tone: standing >= 60 ? 'good' : 'neg' }, { n: nextDue === null ? '—' : `${Math.max(0, nextDue)} d`, t: 'next payment' }]));
-    if (C.over > 0) body.append(h('div', { class: 'tb-note warn' }, `You owe ${n(C.over)} more than your holdings now secure. Nothing is taken; you just cannot sell them or borrow more.`));
-    const d0 = ui.loanDraft?.who === 'you' ? ui.loanDraft : null;
-    if (d0) body.append(termsCard(L.offer(d0.amount, d0.months), d0.amount, d0.months, 'You', [], () => { ui.loanDraft = null; go(L.borrow(d0.amount, d0.months)); }, () => { ui.loanDraft = null; open('Loans'); }));
-    else {
-      const total = open_.reduce((a, l) => a + l.outstanding + l.arrears, 0);
-      const blocked = L.inArrears() ? 'Clear the arrears to borrow again.' : C.free < MIN_LOAN ? (C.items.length ? `The smallest loan is ${n(MIN_LOAN)}; you can borrow ${n(C.free)} now.` : 'Buy shares or bonds first: they are what a loan is secured on.') : null;
-      body.append(buttons(big('＋ Borrow', () => { ui.loanSheet = !ui.loanSheet; open('Loans'); }, 'pri', Boolean(blocked)), big('Repay', () => { ui.repaySheet = !ui.repaySheet; open('Loans'); }, '', !open_.length || g.player.money <= 0)));
-      if (blocked) body.append(h('div', { class: 'tb-sub' }, blocked));
-      if (ui.loanSheet && !blocked) {
-        const term = TERMS.includes(ui.loanTerm) ? ui.loanTerm : TERMS[0];
-        const amounts = AMOUNTS.filter((a) => a <= C.free);
-        if (!amounts.length || C.free > AMOUNTS.at(-1)) amounts.push(Math.floor(C.free));
-        body.append(h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'How long'), h('div', { class: 'tb-chips' }, ...TERMS.map((m) => h('button', { class: `tb-chip${m === term ? ' on' : ''}`, onclick: () => { ui.loanTerm = m; open('Loans'); } }, `${m} months`))),
-          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'How much'), h('div', { class: 'tb-chips' }, ...amounts.map((a) => { const o = L.offer(a, term); return h('button', { class: 'tb-chip', title: `${pc(o.rate)}, first instalment ${n(o.first)}`, onclick: () => { ui.loanDraft = { who: 'you', amount: a, months: term }; ui.loanSheet = false; open('Loans'); } }, `${n(a)} · ${pc(o.rate)}`); }))));
-      }
-      if (ui.repaySheet && open_.length) body.append(h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Repay'), h('button', { class: 'tb-chip on', disabled: g.player.money < total, onclick: () => { for (const l of open_) L.repay(l.id, l.outstanding + l.arrears); ui.repaySheet = false; go({ ok: true, text: `Repaid ${n(total)} in all.` }); } }, `Everything (${n(total)})`)));
-    }
-    body.append(h('div', { class: 'tb-card list' }, ...(loans.length ? loans.slice().reverse().slice(0, 6).map((l) => {
-      const owed = l.outstanding + l.arrears;
-      return row({ icon: l.status === 'repaid' ? '✔' : '📄', title: `${n(l.principal)} · ${pc(l.rate)}`, sub: l.status === 'repaid' ? `repaid day ${l.closed}; ${n(l.interestPaid)} interest` : `owes ${n(owed)} · ${l.left} instalments left · due day ${l.due}${l.arrears ? ` · arrears at ${pc(l.rate + PENALTY)}` : ''}`, tag: l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'behind' : 'on time', tone: l.status === 'repaid' ? 'good' : l.arrears > 0 ? 'neg' : 'good',
-        action: l.status === 'repaid' ? null : h('button', { class: 'tb-mini', disabled: g.player.money < owed, onclick: () => go(L.repay(l.id, owed)) }, `Repay ${n(owed)}`) });
-    }) : [row({ icon: '📄', title: 'You have never borrowed' })])));
-    body.append(
-      help('What backs your loans ›', ...(C.items.length ? C.items.map((i) => `${i.name}: counted at ${Math.round(i.advance * 100)}%.`) : ['You hold no shares or bonds. Buy some in the Exchange or Bonds apps first.'])),
-      help('How the limit is worked out ›', 'Lariat State Bank lends to you, personally, against the shares and bonds you hold: half the value of shares, nine tenths of government bonds, and corporate bonds by rating. A loan is repaid in equal parts every thirty days with the month\'s interest, at a rate fixed when you sign it (the policy rate plus a spread). If you cannot pay an instalment it becomes arrears at 5.00% above the loan\'s rate — nothing is ever taken from you — but you cannot borrow again until it is cleared, your borrowing record falls, and the holdings pledged against a loan cannot be sold while the rest would not secure what you owe.'),
-      ...((L.peek()?.log || []).length ? [help('Recent ›', ...(L.peek().log.slice(-6).reverse().map((x) => `Day ${x.day} · ${x.text}`)))] : []));
-  }
-
-  /** Loans to your companies (v0.74.0): the company borrows on its own books; a guarantee is yours to choose and is spelled out. */
-  function business() {
-    const BL = g.corp.business;
-    const ids = BL.eligible();
-    const id = ids.includes(ui.loanCo) ? ui.loanCo : ids[0];
-    const v = BL.view(id);
-    const gs = BL.guarantees(id);
-    const gu = gs.includes(ui.loanGuar) ? ui.loanGuar : 'none';
-    const purpose = PURPOSES.includes(ui.loanPurpose) ? ui.loanPurpose : PURPOSES[0];
-    const chip = (label, on, fn) => h('button', { class: `tb-chip${on ? ' on' : ''}`, onclick: fn }, label);
-    body.append(
-      h('div', { class: 'tb-chips' }, ...ids.map((c) => chip(g.corp.nameOf(c), c === id, () => { ui.loanCo = c; open('Loans'); }))),
-      hero({ label: `${v.name} may borrow`, value: n(v.free), sub: `it holds ${n(v.cash)} · may owe ${n(v.total)} in all` }),
-      tiles([{ n: n(v.owed), t: 'it owes the bank' }, { n: `${Math.round(v.standing)}`, t: 'its record / 100', tone: v.standing >= 60 ? 'good' : 'neg' }, { n: gu === 'none' ? 'None' : gu === 'personal' ? 'You' : 'Parent', t: 'guarantee' }]));
-    const dc = ui.loanDraft && ui.loanDraft.who === id ? ui.loanDraft : null;
-    if (dc) body.append(termsCard(BL.offer(id, dc.amount, dc.months, dc.guarantee), dc.amount, dc.months, v.name, [`For: ${dc.purpose}.`, BL.guaranteeText(id, dc.guarantee)], () => { ui.loanDraft = null; go(BL.borrow(id, dc.amount, dc.months, { guarantee: dc.guarantee, purpose: dc.purpose })); }, () => { ui.loanDraft = null; open('Loans'); }));
-    else {
-      const blocked = BL.inArrears(id) ? `${v.name} is behind on a loan: its managers are not hiring, bidding or expanding.` : v.free < MIN_LOAN ? `${v.name} cannot borrow ${n(MIN_LOAN)} against its books today.` : null;
-      body.append(buttons(big('＋ Borrow for it', () => { ui.loanSheet = !ui.loanSheet; open('Loans'); }, 'pri', Boolean(blocked))));
-      if (blocked) body.append(h('div', { class: 'tb-sub' }, blocked));
-      if (ui.loanSheet && !blocked) {
-        const term = TERMS.includes(ui.loanTerm) ? ui.loanTerm : TERMS[0];
-        const amounts = AMOUNTS.filter((a) => a <= v.free);
-        if (!amounts.length || v.free > AMOUNTS.at(-1)) amounts.push(Math.floor(v.free));
-        body.append(h('div', { class: 'tb-card' },
-          h('div', { class: 'tb-label' }, 'Guarantee'), h('div', { class: 'tb-chips' }, ...gs.map((x) => chip(x === 'none' ? 'None' : x === 'personal' ? 'You' : 'The parent', x === gu, () => { ui.loanGuar = x; open('Loans'); }))),
-          h('div', { class: 'tb-sub' }, BL.guaranteeText(id, gu)),
-          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'For'), h('select', { class: 'tb-select', onchange: (e) => { ui.loanPurpose = e.target.value; } }, ...PURPOSES.map((x) => h('option', { value: x, selected: x === purpose }, x))),
-          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'How long'), h('div', { class: 'tb-chips' }, ...TERMS.map((m) => chip(`${m} months`, m === term, () => { ui.loanTerm = m; open('Loans'); }))),
-          h('div', { class: 'tb-label', style: 'margin-top:8px' }, 'How much'), h('div', { class: 'tb-chips' }, ...amounts.map((a) => { const o = BL.offer(id, a, term, gu); return h('button', { class: 'tb-chip', onclick: () => { ui.loanDraft = { who: id, amount: a, months: term, guarantee: gu, purpose: ui.loanPurpose && PURPOSES.includes(ui.loanPurpose) ? ui.loanPurpose : purpose }; ui.loanSheet = false; open('Loans'); } }, `${n(a)} · ${pc(o.rate)}`); }))));
-      }
-    }
-    const all = BL.loans(null, true);
-    body.append(h('div', { class: 'tb-card list' }, ...(all.length ? all.slice().reverse().slice(0, 6).map((l) => {
-      const owed = l.outstanding + l.arrears;
-      return row({ icon: l.status === 'repaid' ? '✔' : '📄', title: `${g.corp.nameOf(l.borrower)} · ${n(l.principal)} · ${pc(l.rate)}`, sub: `${l.purpose} · ${l.status === 'repaid' ? `repaid day ${l.closed}` : `owes ${n(owed)}${l.arrears ? ` incl. arrears at ${pc(l.rate + PENALTY)}` : ''}`}`, tag: l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'behind' : 'on time', tone: l.status === 'repaid' ? 'good' : l.arrears > 0 ? 'neg' : 'good',
-        action: l.status === 'repaid' ? null : h('button', { class: 'tb-mini', disabled: g.corp.cashOf(l.borrower) < owed, onclick: () => go(BL.repay(l.id, owed)) }, `Repay ${n(owed)}`) });
-    }) : [row({ icon: '📄', title: 'No company loans yet' })])));
-    body.append(help('How a company\'s limit is worked out ›', 'Lariat State Bank also lends to a company of yours that holds its own cash, on its own books alone: 40% of what it is worth after all its debts (the bank\'s included), plus six months of what it earns, scaled by its own borrowing record. The money goes into the company\'s account and the instalments come out of it (interest is a cost to the company; the principal is not). If it misses one, it is in arrears at the penalty rate, nothing is seized, and its managers stop hiring, bidding and expanding until it has repaid what it is behind. A guarantee by you costs your own record only; a parent\'s guarantee is called once per missed instalment, only for what the parent holds.'));
-  }
-}
-
-return { loansApp };
-})();
-
-// ---- src/ui/corpEconomy.js
-__m["src/ui/corpEconomy.js"] = (function () {
-// The Economy app (v0.75.0): the wars, embargoes and restrictions that are on, what they do to each sector, who is exposed, and the rest of the
-// news. Read from game.corp.geo.overview(); nothing here moves money, and nothing says what will happen next.
-const { h } = __m["src/ui/panels.js"];
-
-const pc = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`;
-const pc2 = (v) => `${(v * 100).toFixed(2)}%`;
-
-function economyApp(ui, body) {
-  const g = ui.game;
-  const O = g.corp.geo.overview();
-  O.banks = Object.values(g.robbery.view()); O.bankNews = g.robbery.news(); O.robberyPremium = g.robbery.premium(); // the banks' security is the public's business, not the economy's: read straight from the robbery record
-  const none = (t) => h('p', { class: 'muted' }, t);
-  const sev = (e) => (e.severity >= 0.7 ? 'severe' : e.severity >= 0.4 ? 'serious' : 'limited');
-  const effect = (x) => `${x.sector} ${x.kind === 'cost' ? 'costs' : 'demand'} ${pc(x.pct)}`;
-  const event = (e) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-    h('div', { class: 'name' }, e.kind === 'war' ? `⚔️ ${e.names.join(' – ')}` : `🚫 ${e.names[0]}: arms embargo`, h('span', { class: `tag${e.status === 'active' ? ' neg' : ' good'}` }, e.status === 'active' ? sev(e) : 'ended'), h('span', { class: 'tag' }, e.id)),
-    h('div', { class: 'desc' }, e.kind === 'war'
-      ? `Since day ${e.start}${e.age >= 60 ? ' (prolonged)' : ''} · ${e.status === 'active' ? `${Math.round(e.phase * 100)}% of its full effect so far` : `ended day ${e.end}, ${Math.round(e.phase * 100)}% of its effect left`}`
-      : `Imposed by ${e.imposer} on day ${e.start}${e.cause ? ` after ${e.cause}` : ''} · restricts ${e.goods.join(', ')} · ${e.status === 'active' ? `${Math.round(e.phase * 100)}% in force` : `lifted day ${e.end}`}`),
-    e.effects.length ? h('div', { class: 'desc' }, `Now: ${e.effects.map(effect).join(' · ')}`) : null,
-    h('div', { class: 'desc muted' }, e.timeline.slice(-2).map((t) => `Day ${t.day}: ${t.text}`).join(' — '))));
-
-  body.append(h('p', { class: 'doc' }, '🌐 What the world\'s quarrels do to business. Each war and embargo is kept as a record; its effects build up over ten days and fade over thirty after it ends, are bounded, and fall unevenly: a sector, a company\'s own exposure, and whether it is from a country involved all matter. This is what has happened and what it costs now — never a forecast.'));
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Wars'), O.wars.length ? h('div', { class: 'list' }, ...O.wars.map(event)) : none('No war is on.'));
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Embargoes and restrictions'), O.embargoes.length ? h('div', { class: 'list' }, ...O.embargoes.map(event)) : none('No embargo is in force.'));
-  if (O.ended.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Ceasefires and lifted restrictions'), h('div', { class: 'list' }, ...O.ended.map(event)));
-
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Commodities, materials and demand'));
-  if (!O.sectors.length) body.append(none('No sector is being moved by events.'));
-  else body.append(h('div', { class: 'list' }, ...O.sectors.map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.sector), h('div', { class: 'desc' }, [Math.abs(r.demand) >= 0.05 ? `customers' demand ${pc(r.demand)}` : null, Math.abs(r.cost) >= 0.05 ? `costs ${pc(r.cost)}` : null].filter(Boolean).join(' · ')))))));
-
-  const co = (r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.sentiment > 0 ? 'good' : 'neg'}` }, `${pc(r.sentiment * 100)} expected`)), h('div', { class: 'desc' }, `${r.sector} · ${r.price.toFixed(2)}${r.change != null ? ` (${pc(r.change * 100)} on the day)` : ''}`)));
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Who is exposed'));
-  if (!O.lifted.length && !O.pressed.length) body.append(none('No listed company is moved by events today.'));
-  else body.append(h('div', { class: 'list' }, ...O.lifted.map(co), ...O.pressed.map(co)));
-  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'The figure is how much the market is pricing a company\'s earnings up or down because of events, on top of what its books already show (bounded at 12%).'));
-
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Central bank and bonds'),
-    h('div', { class: 'list' }, h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Policy rate ${pc2(O.rate)}`), h('div', { class: 'desc' }, `${O.premium > 0 ? `Wars and embargoes add ${pc2(O.premium)} to government bond yields · ` : ''}Government bond yields: ${O.yields.map((y) => `${y.years}-year ${pc2(y.yield)}`).join(' · ')}`))),
-      ...O.bank.map((d) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc2(d.to)}`), h('div', { class: 'desc' }, d.text))))));
-
-  if (O.sovereign.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Foreign government bonds'), h('div', { class: 'list' }, ...O.sovereign.map((s) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, s.name, h('span', { class: `tag${s.rating === 'AA' || s.rating === 'A' ? ' good' : s.rating === 'CCC' || s.status === 'delayed' ? ' neg' : ''}` }, s.status === 'delayed' ? `${s.rating} · delayed` : s.rating)), h('div', { class: 'desc' }, `Yield ${pc2(s.yield)}`))))),
-    ...(O.bondNews.length ? [h('div', { class: 'list' }, ...O.bondNews.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []));
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Banks and security'), h('div', { class: 'list' }, ...O.banks.map((b) => h('div', { class: 'item-row' }, h('div', { class: 'grow' },
-    h('div', { class: 'name' }, b.name, h('span', { class: `tag${b.state === 'normal' ? ' good' : ' neg'}` }, { normal: 'open for business', alert: 'security alert', robbery: 'robbery in progress', police: 'police on the scene', recovery: `closed to day ${b.closedUntil}`, reopening: 'reopening' }[b.state])),
-    h('div', { class: 'desc' }, `Vault: ${b.stock.cash.toLocaleString()} obols in notes and ${b.stock.gold} gold bars of ${b.full.cash.toLocaleString()} and ${b.full.gold}${b.last ? ` · robbed on day ${b.last.day}: ${b.last.cash.toLocaleString()} obols and ${b.last.gold} bars taken` : ''}`))))),
-    ...(O.bankNews.length ? [h('div', { class: 'list' }, ...O.bankNews.slice(0, 4).map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []),
-    h('p', { class: 'muted', style: 'font-size:12px' }, `A robbery of the First Bank is a loss of physical notes and gold only; it never touches anyone's credit, loans, ratings or valuations.${O.robberyPremium > 0 ? ` Its market reaction adds ${pc2(O.robberyPremium)} to government bond yields for now, fading over ten days; lenders do not count it.` : ''}`));
-  if (O.movers.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Biggest moves on the exchange today'), h('div', { class: 'list' }, ...[...O.movers.slice(0, 3), ...O.movers.slice(-3).reverse()].filter((r, i, a) => a.findIndex((x) => x.ticker === r.ticker) === i).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.change > 0 ? 'good' : 'neg'}` }, pc(r.change * 100))), h('div', { class: 'desc' }, `${r.price.toFixed(2)} · ${r.sector}`))))));
-
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Headlines'));
-  if (!O.headlines.length) body.append(none('Nothing reported yet.'));
-  else body.append(h('div', { class: 'list' }, ...O.headlines.map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} · ${n.text}`))))));
-}
-
-return { economyApp };
+return { exchangeFull };
 })();
 
 // ---- src/ui/corpMilestones.js
@@ -65042,7 +64932,7 @@ __m["src/ui/corpMilestones.js"] = (function () {
 // The Milestones app (v0.80.0): what your group has actually done, from the game's records. Read from game.corp.milestones.
 const { h } = __m["src/ui/panels.js"];
 
-function milestonesApp(ui, body) {
+function milestonesFull(ui, body) {
   const g = ui.game;
   const rows = g.corp.milestones.view();
   const got = rows.filter((r) => r.earned);
@@ -65055,7 +64945,330 @@ function milestonesApp(ui, body) {
   body.append(h('div', { class: 'list' }, ...rows.filter((r) => !r.earned).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.name, h('span', { class: 'tag' }, r.have || '—')), h('div', { class: 'desc' }, r.text))))));
 }
 
-return { milestonesApp };
+return { milestonesFull };
+})();
+
+// ---- src/ui/corpApp.js
+__m["src/ui/corpApp.js"] = (function () {
+// The Companies app and the naming panel (v0.60.0): the owner's four businesses — their names, their
+// own accounts — on the tablet. Everything shown is read from game.corp; every button calls it.
+const { h } = __m["src/ui/panels.js"];
+const { COMPANY_IDS } = __m["src/systems/corporate.js"];
+const { PLAYER_COMPANIES } = __m["src/corp/identity.js"];
+
+const ob = (n) => `${Math.round(n).toLocaleString()} obols`;
+const WHERE = { arms: 'Get a licence from Lucas, then buy a works at Mill Road Yards.', shipping: 'Captain Ober is selling Ober & Sons Maritime at the Yards.', aerospace: 'Billie Roost is selling her aeroworks at Starling Flats.', farming: 'Deeds to farmland are at the Lariat County Land Office.' };
+
+/** The panel that opens when a business is founded: name it, or keep the name it came with. */
+function corpNamePanel(ui, body, opts) {
+  const g = ui.game;
+  const id = opts.id;
+  const C = id === 'parent' ? g.corp.state.parent : g.corp.ensureCompany(id);
+  if (!C) return { title: 'Name your company' };
+  const P = id === 'parent' ? { icon: '🏛️', kind: 'Holding company' } : PLAYER_COMPANIES[id];
+  const msg = h('p', { class: 'muted' }, 'Letters, numbers, spaces and & \' . , - — 3 to 40 characters. You can change it any time in the Companies app.');
+  const input = h('input', { type: 'text', class: 'debug-input', value: C.name, maxlength: 40, style: 'width:100%;font-size:18px' });
+  const done = () => ui.closePanel();
+  body.append(
+    h('p', { class: 'doc' }, `${P.icon} Your ${P.kind.toLowerCase()} is founded. What is it called?`),
+    input, msg,
+    h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
+      h('button', { class: 'primary', onclick: () => { const r = g.corp.rename(id, input.value); if (r.ok) { ui.audio.sfx('sfx_coin'); done(); } else { msg.textContent = r.text; msg.className = 'neg'; ui.audio.sfx('sfx_fail'); } } }, 'Register this name'),
+      h('button', { class: 'ghost', onclick: () => { g.corp.rename(id, C.name); done(); } }, `Keep "${C.name}"`)));
+  setTimeout(() => input.focus(), 0);
+  return { title: 'Name your company', onClose: () => { C.named = true; } };
+}
+
+/** The tablet's Companies app. */
+function companiesFull(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  let note = null;
+  const say = (r) => { note = r; open('Companies'); };
+  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
+  const go = (r) => { ui.corpNote = r.text; ui.audio.sfx(r.ok ? 'sfx_coin' : 'sfx_fail'); open('Companies'); };
+  void say; void note;
+  body.append(h('p', { class: 'muted' }, 'Your businesses are separate companies. Until you pay money into one, it simply spends yours; once you do, it pays its own bills from its own account — and goes into debt, not into your pocket, if it runs short.'));
+  const list = h('div', { class: 'list' });
+  for (const id of COMPANY_IDS) {
+    const p = K.profile(id);
+    const P = PLAYER_COMPANIES[id];
+    if (!p) { list.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, P.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, P.kind, h('span', { class: 'tag' }, 'not yet started')), h('div', { class: 'desc' }, WHERE[id])))); continue; }
+    const reg = K.registry().find((r) => r.playerId === id);
+    const m = K.metricsOf(reg, 'month');
+    const place = K.placeOf(id, 'month');
+    const k = (n) => (n === null || n === undefined ? '—' : Math.round(n).toLocaleString());
+    const name = h('input', { type: 'text', class: 'debug-input', value: p.name, maxlength: 40, style: 'width:100%' });
+    const amount = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 100, value: 1000, style: 'width:110px' });
+    const n = () => Math.max(0, Math.floor(Number(amount.value) || 0));
+    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, P.icon),
+      h('div', { class: 'grow' },
+        h('div', { class: 'name' }, p.name, h('span', { class: 'tag' }, p.sectorName), h('span', { class: 'tag good' }, 'private'), p.funded ? h('span', { class: 'tag' }, 'own account') : h('span', { class: 'tag' }, 'uses your money')),
+        h('div', { class: 'desc' }, `${p.kind} · ${p.hq} · ${p.legacy ? 'in your hands before the registry' : `founded day ${p.founded}`}${p.names.length > 1 ? ` · formerly ${p.names.slice(0, -1).map((x) => x.name).join(', ')}` : ''}`),
+        h('div', { class: 'desc' }, `Last month: revenue ${k(m.revenue)} · net ${k(m.net)} · estimated value ${k(m.valuation)} (an estimate, not cash)${place?.revenue.rank ? ` · ${place.revenue.rank === 1 ? 'first' : `#${place.revenue.rank}`} of ${place.revenue.of} in ${p.sectorName.toLowerCase()} by revenue` : ''}`),
+        h('div', { class: 'row', style: 'justify-content:flex-start;margin:6px 0' }, name, h('button', { class: 'small', onclick: () => go(K.rename(id, name.value)) }, 'Rename')),
+        p.funded
+          ? h('div', { class: 'desc' }, `Its own cash ${ob(p.ownCash)}${p.arrears ? ` · OWES ${ob(p.arrears)}` : ''} · you have paid in ${ob(p.contributed)} and taken out ${ob(p.distributed)}`)
+          : h('div', { class: 'desc' }, `It draws on your ${ob(g.player.money)}. Brought in at cost: ${ob(p.inKind)}.`),
+        K.group.isSub(id)
+          ? h('div', { class: 'desc' }, `A subsidiary of ${K.nameOf('parent')} — its money comes from and goes to the parent (see the Group app).`)
+          : h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' }, amount,
+            h('button', { class: 'small primary', onclick: () => go(K.contribute(id, n())) }, 'Pay in'),
+            p.funded ? h('button', { class: 'small', onclick: () => go(K.distribute(id, n())) }, 'Take out') : null,
+            p.funded ? h('button', { class: 'small ghost', onclick: () => go(K.unfund(id)) }, 'Close its account') : null))));
+  }
+  body.append(list);
+}
+
+return { corpNamePanel, companiesFull };
+})();
+
+// ---- src/ui/corpIntel.js
+__m["src/ui/corpIntel.js"] = (function () {
+// The Intelligence app (v0.60.0): every company, ranked, from the books each one keeps. Nothing
+// here is its own number — it is all read from game.corp (src/systems/corporate.js), which reads
+// the companies' own records. A figure a company's books do not have shows as "—", not as zero.
+const { h } = __m["src/ui/panels.js"];
+const { SECTORS } = __m["src/corp/identity.js"];
+const { countryName } = __m["src/corp/registry.js"];
+
+const money = (n) => (n === null || n === undefined ? '—' : Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e3)}k` : Math.round(n).toLocaleString());
+const pct = (n) => (n === null || n === undefined ? '—' : `${(n * 100).toFixed(Math.abs(n) < 0.1 ? 1 : 0)}%`);
+const BY = { revenue: 'Revenue', net: 'Net income', margin: 'Margin', growth: 'Growth', valuation: 'Value', share: 'Share' };
+const PERIODS = { month: 'Last month', current: 'This month so far', year: 'Last 12 months' };
+const BASIS = { books: 'its full books', cash: 'cash that moved through the company', model: 'its own books', 'run-rate': 'today\'s run-rate', none: 'no figures kept' };
+const STATUS = { distressed: 'in distress', closed: 'closed', merged: 'merged' };
+
+function intelFull(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const S = (ui.corpIntel ||= { sector: null, by: 'revenue', period: 'month', sel: null });
+  const mine = K.registry().filter((r) => r.kind === 'player');
+  S.sector ||= mine[0]?.sector || 'arms';
+  const go = (patch) => { Object.assign(S, patch); open('Intelligence'); };
+  const chip = (label, active, onclick) => h('button', { class: `small${active ? ' primary' : ''}`, onclick }, label);
+  const mySectors = new Set(mine.map((r) => r.sector));
+
+  body.append(
+    h('p', { class: 'muted' }, 'How every company in a line of business is doing, from the books each keeps. Your own businesses are private: they are compared here, and never listed on the exchange.'),
+    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;margin-bottom:6px' }, ...Object.entries(SECTORS).map(([id, s]) => chip(`${mySectors.has(id) ? '★ ' : ''}${s.name}`, S.sector === id, () => go({ sector: id, sel: null })))),
+    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;margin-bottom:6px' }, ...Object.entries(PERIODS).map(([id, l]) => chip(l, S.period === id, () => go({ period: id }))), h('span', { style: 'width:14px' }), ...Object.entries(BY).map(([id, l]) => chip(l, S.by === id, () => go({ by: id })))),
+  );
+
+  const table = K.sectorTable(S.sector, { by: S.by, period: S.period });
+  const th = (t, extra = '') => h('th', { style: `text-align:right;padding:2px 6px;${extra}` }, t);
+  const td = (t, extra = '') => h('td', { style: `text-align:right;padding:2px 6px;${extra}` }, t);
+  const head = h('tr', {}, th('#', 'text-align:left'), th('Company', 'text-align:left'), th('From', 'text-align:left'), th('Revenue'), th('Net'), th('Margin'), th('Growth'), th('Share'), th('Value'));
+  const rows = table.map((m) => h('tr', { style: `cursor:pointer;${m.mine ? 'background:rgba(255,200,80,0.14);font-weight:600' : ''}${S.sel === m.key ? ';outline:1px solid #ffb547' : ''}`, onclick: () => go({ sel: m.key }) },
+    td(m.rank ? String(m.rank) : '—', 'text-align:left'),
+    td(`${m.mine ? '★ ' : ''}${m.name}${m.ticker ? ` · ${m.ticker}` : ''}${STATUS[m.status] ? ` (${STATUS[m.status]})` : ''}`, 'text-align:left'),
+    td(countryName(g.content, m.country), 'text-align:left'),
+    td(money(m.revenue)), td(money(m.net)), td(pct(m.margin)), td(pct(m.growth)), td(pct(m.share)), td(money(m.valuation))));
+  body.append(h('div', { style: 'overflow-x:auto' }, h('table', { style: 'width:100%;border-collapse:collapse;font-size:13px' }, h('thead', {}, head), h('tbody', {}, ...rows))),
+    h('p', { class: 'muted', style: 'font-size:12px' }, `Ranked by ${BY[S.by].toLowerCase()}, ${PERIODS[S.period].toLowerCase()}. “Value” is an estimate (net assets plus a multiple of a year's profit) — it is not cash. “—”: that company's books do not keep it.`));
+
+  const sel = table.find((m) => m.key === S.sel);
+  if (sel) {
+    const me = table.find((m) => m.mine);
+    const reg = K.registry().find((r) => r.id === sel.key);
+    const gen = (K.state.generated || []).find((c) => c.id === sel.key);
+    const cmp = me && me.key !== sel.key ? K.compare(me.key, sel.key, S.period) : null;
+    body.append(h('h3', { style: 'margin:12px 0 4px' }, sel.name),
+      h('div', { class: 'desc' }, `${SECTORS[sel.sector].name} · ${countryName(g.content, sel.country)}${gen ? ` · ${gen.size} company, ${gen.age} years old · known for ${gen.speciality} · a ${gen.strategy} strategy` : ''}${reg?.ticker ? ` · listed as ${reg.ticker}` : ''}`),
+      h('div', { class: 'grid2', style: 'margin:6px 0' },
+        ...[['Revenue', money(sel.revenue)], ['Net income', money(sel.net)], ['Cash', money(sel.cash)], ['Debt', money(sel.debt)], ['Estimated value', money(sel.valuation)], ['Counted from', BASIS[sel.basis]]].map(([a, b]) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b)))));
+    if (cmp) {
+      body.append(h('h4', { style: 'margin:8px 0 4px' }, `${me.name} against ${sel.name}`),
+        h('div', { class: 'list' }, ...cmp.lines.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${l.label}: you ${l.key === 'margin' || l.key === 'growth' ? pct(l.a) : money(l.a)} · them ${l.key === 'margin' || l.key === 'growth' ? pct(l.b) : money(l.b)}`)), h('span', { class: `tag ${l.lead === 1 ? 'good' : ''}` }, l.lead === null ? 'n/a' : l.lead === 1 ? 'you lead' : l.lead === -1 ? 'they lead' : 'level')))));
+    }
+  }
+  const news = (K.state.gen?.news || []).slice(0, 6);
+  if (news.length) body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Business news'), h('div', { class: 'list' }, ...news.map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} — ${n.text}`))))));
+}
+
+return { intelFull };
+})();
+
+// ---- src/ui/tabletSummaries.js
+__m["src/ui/tabletSummaries.js"] = (function () {
+// Summary screens for the OberPad's heaviest apps (v0.84.0). Each says what matters — one figure, three tiles, what is waiting for you — and
+// the app as it always was is one tap down in a fold. Nothing is computed here but layout; every button calls the system that always did the work.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, note, fold, openFold, buttons, big, n } = __m["src/ui/tabletKit.js"];
+const { managementFull } = __m["src/ui/corpManage.js"];
+const { groupFull } = __m["src/ui/corpGroup.js"];
+const { peopleFull } = __m["src/ui/corpPeople.js"];
+const { economyFull } = __m["src/ui/corpEconomy.js"];
+const { exchangeFull } = __m["src/ui/corpExchange.js"];
+const { milestonesFull } = __m["src/ui/corpMilestones.js"];
+const { companiesFull } = __m["src/ui/corpApp.js"];
+const { intelFull } = __m["src/ui/corpIntel.js"];
+const { COMPANY_IDS } = __m["src/systems/corporate.js"];
+const { PLAYER_COMPANIES } = __m["src/corp/identity.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const KIND = { budget: 'raise the materials budget', hire: 'hire', reorder: 'reorder', bid: 'bid', expand: 'expand', transfer: 'move cash' };
+
+// ---------------------------------------------------------------- Management
+function managementApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const M = K.management;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const m = M.peek();
+  const pending = m?.pending || [];
+  const alerts = M.alerts();
+  const log = (m?.log || []).slice(-3).reverse();
+  const budgets = Object.values(m?.budgets || {}).reduce((a, b) => a + Object.values(b || {}).filter((v) => v > 0).length, 0);
+  body.append(
+    hero({ label: 'Waiting for your word', value: pending.length ? `${pending.length} request${pending.length === 1 ? '' : 's'}` : 'Nothing', tone: pending.length ? 'gold' : '', sub: pending.length ? 'Managers asked before spending; nothing happens until you say.' : 'Managers act on their own inside the budgets you set.' }),
+    tiles([{ n: String(budgets), t: 'budgets set' }, { n: String((m?.plans || []).length), t: 'plans approved' }, { n: String((m?.log || []).length), t: 'decisions made' }]));
+  if (pending.length) body.append(list(...pending.map((q) => row({ icon: '📋', title: `${K.personnel.person(q.actor)?.name || 'Someone'} asks to ${KIND[q.kind] || q.kind}`, sub: `${K.personnel.employerName(q.employer)} · ${q.why}`, tag: q.kind === 'budget' ? `+${n(q.cost)} / month` : n(q.cost),
+    action: h('span', { class: 'tb-acts' }, h('button', { class: 'tb-mini pri', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'tb-mini', onclick: () => go(M.decline(q.id)) }, 'Decline')) }))));
+  if (alerts.length) body.append(list(...alerts.slice(0, 3).map((a) => row({ icon: '⚠', title: a.text, sub: a.advice }))));
+  if (log.length) body.append(list(...log.map((l) => row({ icon: '✔', title: `Day ${l.day}`, sub: l.text }))));
+  body.append(fold(ui, 'Management', 'Budgets, treasury and plans ›', (box) => managementFull(ui, box, open)));
+}
+
+// ---------------------------------------------------------------- Group
+function groupApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const G = K.group;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Group'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  if (!G.parent) {
+    body.append(hero({ label: 'Your group', value: 'No parent company yet', sub: 'A parent company holds your businesses as subsidiaries. Founding one costs nothing.' }), buttons(big('Found a parent company', () => go(G.form()), 'pri')),
+      help('How it works ›', 'A parent company holds your businesses as subsidiaries. Each keeps its own books and its own cash; the parent owns them, supplies their capital, and receives what they send up. Money then runs one way in and one way out: you pay into the parent; the parent capitalises or lends to each subsidiary; each sends distributions and repayments back. Your own wallet never pays a subsidiary directly.'));
+    return;
+  }
+  const pa = K.account('parent');
+  const subs = G.subs();
+  const alerts = G.alerts();
+  const sheet = ui.groupSheet || null;
+  body.append(
+    hero({ label: G.parent.name, value: n(pa.cash), sub: `obols in the parent · your wallet ${n(g.player.money)}` }),
+    tiles([{ n: String(subs.length), t: subs.length === 1 ? 'subsidiary' : 'subsidiaries' }, { n: n(pa.contributed), t: 'put in by you' }, { n: String(alerts.length), t: 'need attention', tone: alerts.length ? 'neg' : '' }]),
+    buttons(big('Pay in', () => { ui.groupSheet = sheet === 'in' ? null : 'in'; open('Group'); }, 'pri'), big('Take out', () => { ui.groupSheet = sheet === 'out' ? null : 'out'; open('Group'); })));
+  if (sheet) body.append(h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, sheet === 'in' ? 'Pay into the parent' : 'Take a dividend out'), h('div', { class: 'tb-chips' }, ...[1000, 10000, 100000].map((a) => h('button', { class: 'tb-chip', disabled: sheet === 'in' ? g.player.money < a : pa.cash < a, onclick: () => { ui.groupSheet = null; go(sheet === 'in' ? K.contribute('parent', a) : K.distribute('parent', a)); } }, n(a))))));
+  if (alerts.length) body.append(list(...alerts.slice(0, 3).map((a) => row({ icon: '⚠', title: a.text, sub: a.advice }))));
+  const COMPANY = ['arms', 'shipping', 'aerospace', 'farming'];
+  const joining = ui.groupJoin && !G.isSub(ui.groupJoin) && K.profile(ui.groupJoin) ? ui.groupJoin : null;
+  if (joining) {
+    const pre = G.joinPreview(joining);
+    const cap = Math.max(pre.suggested || 0, 0);
+    body.append(h('div', { class: 'tb-card tb-terms' }, h('b', {}, `Bring ${K.profile(joining).name} into the group`),
+      ...pre.blockers.map((b) => h('div', { class: 'tb-sub' }, b)), ...pre.warnings.map((w) => h('div', { class: 'tb-sub' }, `⚠ ${w}`)),
+      pre.ok ? buttons(big(cap ? `Bring in with ${n(cap)} of capital` : 'Bring in', () => { ui.groupJoin = null; go(G.join(joining, { opening: cap })); }, 'pri'), big('Cancel', () => { ui.groupJoin = null; open('Group'); })) : buttons(big('Cancel', () => { ui.groupJoin = null; open('Group'); }))));
+  }
+  body.append(list(...COMPANY.map((id) => {
+    const p = K.profile(id);
+    if (!p) return null;
+    if (G.isSub(id)) return row({ icon: '🏢', title: p.name, sub: `cash ${n(K.account(id).cash)} · spends about ${n(G.runningPerDay(id))} a day`, tag: 'subsidiary', tone: 'good' });
+    const pre = G.joinPreview(id);
+    return row({ icon: '🏢', title: p.name, sub: pre.ok ? 'independent: it uses its own account only once it is brought in' : pre.blockers[0], tag: 'independent', action: pre.ok ? h('button', { class: 'tb-mini pri', onclick: () => { ui.groupJoin = id; open('Group'); } }, 'Bring in ›') : null });
+  })));
+  body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
+}
+
+// ---------------------------------------------------------------- Personnel
+function peopleApp(ui, body, open) {
+  const g = ui.game;
+  const Pe = g.corp.personnel;
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const staff = Object.values(Pe.peek()?.staff || {}).filter((x) => x.status === 'active');
+  const perDay = staff.reduce((a, x) => a + (x.salary || 0), 0);
+  const openings = Pe.openings();
+  body.append(
+    hero({ label: 'Your people', value: String(staff.length), sub: staff.length ? `paid ${n(perDay)} obols a day by the businesses they work for` : 'Nobody works for your businesses yet.' }),
+    tiles([{ n: String(openings.length), t: 'openings', tone: openings.length ? 'good' : '' }, { n: n(perDay), t: 'a day in pay' }, { n: String((Pe.candidates() || []).length), t: 'candidates' }]));
+  if (openings.length) body.append(list(...openings.slice(0, 4).map((o) => row({ icon: '🧑‍💼', title: `${o.roleName} — ${o.employerName}`, sub: o.why, tag: `${n(o.pay[0])}–${n(o.pay[1])} a day`, action: h('button', { class: 'tb-mini pri', onclick: () => { const S = (ui.corpPeople ||= { view: 'openings', tier: '', role: '', sort: 'fit', sel: null, cmp: [], who: null }); Object.assign(S, { view: 'candidates', role: o.role, tier: '' }); openFold(ui, 'Personnel'); open('Personnel'); } }, 'See candidates') }))));
+  if (staff.length) body.append(list(...staff.slice(0, 5).map((x) => row({ icon: '🧑', title: x.name, sub: `${x.roleName || x.role} — ${Pe.employerName(x.employer)}`, tag: `${n(x.salary)} a day` }))));
+  body.append(fold(ui, 'Personnel', 'Hire, compare, manage and pay ›', (box) => peopleFull(ui, box, open)));
+}
+
+// ---------------------------------------------------------------- Milestones
+function milestonesApp(ui, body) {
+  const g = ui.game;
+  const rows = g.corp.milestones.view();
+  const got = rows.filter((r) => r.earned).sort((a, b) => b.earned.day - a.earned.day);
+  const next = rows.filter((r) => !r.earned);
+  body.append(
+    hero({ label: 'Milestones earned', value: `${got.length} of ${rows.length}`, ring: rows.length ? got.length / rows.length : 0, sub: 'Awarded from what is in the books — never from a click.' }));
+  if (got.length) body.append(list(...got.slice(0, 3).map((r) => row({ icon: '🏆', title: r.name, sub: `day ${r.earned.day}`, tag: 'earned', tone: 'good' }))));
+  if (next.length) body.append(list(...next.slice(0, 3).map((r) => row({ icon: '◻︎', title: r.name, sub: r.text, tag: r.have ? String(r.have) : '' }))));
+  body.append(fold(ui, 'Milestones', `All ${rows.length} ›`, (box) => milestonesFull(ui, box)));
+}
+
+// ---------------------------------------------------------------- World News (the Economy app)
+function economyApp(ui, body) {
+  const g = ui.game;
+  const O = g.corp.geo.overview();
+  const head = O.headlines.slice(0, 3);
+  const on = O.wars.length + O.embargoes.length;
+  const ev = (e) => row({ icon: e.kind === 'war' ? '⚔️' : '🚫', title: e.kind === 'war' ? e.names.join(' – ') : `${e.names[0]}: arms embargo`, sub: e.effects.slice(0, 2).map((x) => `${x.sector} ${x.kind === 'cost' ? 'costs' : 'demand'} ${x.pct >= 0 ? '+' : '−'}${Math.abs(x.pct).toFixed(1)}%`).join(' · ') || `since day ${e.start}`, tag: e.severity >= 0.7 ? 'severe' : e.severity >= 0.4 ? 'serious' : 'limited', tone: 'neg' });
+  body.append(
+    hero({ label: 'The world today', value: on ? `${O.wars.length} war${O.wars.length === 1 ? '' : 's'}, ${O.embargoes.length} embargo${O.embargoes.length === 1 ? '' : 'es'}` : 'Quiet', tone: on ? 'gold' : '', sub: on ? 'Costs and demand move with them; nothing says what happens next.' : 'No war or embargo is on.' }),
+    tiles([{ n: `${(O.rate * 100).toFixed(2)}%`, t: 'policy rate' }, { n: String(O.sectors.length), t: 'sectors moved' }, { n: String(O.lifted.length + O.pressed.length), t: 'companies exposed' }]));
+  const evs = [...O.wars, ...O.embargoes].slice(0, 4);
+  if (evs.length) body.append(list(...evs.map(ev)));
+  if (head.length) body.append(list(...head.map((x) => row({ icon: '📰', title: `Day ${x.day}`, sub: x.text }))));
+  body.append(fold(ui, 'Economy', 'Sectors, who is exposed, the banks and everything else ›', (box) => economyFull(ui, box)));
+}
+
+// ---------------------------------------------------------------- Exchange
+function exchangeApp(ui, body, open) {
+  const g = ui.game;
+  const E = g.corp.exchange;
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const P = E.portfolio();
+  const board = E.board();
+  const movers = board.filter((r) => r.change !== null).sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 3);
+  const pct = (x) => `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1)}%`;
+  const px = (x) => (x >= 100 ? x.toFixed(0) : x.toFixed(2));
+  body.append(
+    hero({ label: 'Your shares are worth', value: n(P.value), sub: P.rows.length ? `${P.rows.length} holding${P.rows.length === 1 ? '' : 's'} · dividends received ${n(P.divs)}` : 'You hold no shares yet.' }),
+    tiles([{ n: String(board.length), t: 'companies listed' }, { n: n(g.player.money), t: 'your obols' }, { n: P.cost ? `${P.gain >= 0 ? '+' : '−'}${n(Math.abs(P.gain))}` : '—', t: 'gain on holdings', tone: P.gain >= 0 ? 'good' : 'neg' }]));
+  if (P.rows.length) body.append(list(...P.rows.slice(0, 4).map((r) => row({ icon: '📈', title: `${r.ticker} · ${r.name}`, sub: `${px(r.price)} obols · worth ${n(r.value)}`, tag: r.change === null ? '' : pct(r.change), tone: r.change >= 0 ? 'good' : 'neg' }))));
+  if (movers.length) body.append(list(...movers.map((r) => row({ icon: '↕', title: `${r.ticker} · ${r.name}`, sub: `${px(r.price)} obols`, tag: pct(r.change), tone: r.change >= 0 ? 'good' : 'neg' }))));
+  body.append(fold(ui, 'Exchange', 'The whole board — search, buy and sell ›', (box) => exchangeFull(ui, box, open)));
+}
+
+// ---------------------------------------------------------------- Companies
+function companiesApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const mine = COMPANY_IDS.filter((id) => K.profile(id));
+  const own = mine.filter((id) => K.account(id).funded).length;
+  body.append(
+    hero({ label: 'Your businesses', value: String(mine.length), sub: mine.length ? `${own} with an account of their own · the rest spend your wallet` : 'You do not own a business yet.' }),
+    tiles([{ n: String(own), t: 'own account' }, { n: String(mine.length - own), t: 'spend your wallet' }, { n: K.group.parent ? String(K.group.subs().length) : '—', t: 'in your group' }]),
+    list(...COMPANY_IDS.map((id) => { const p = K.profile(id); const I = PLAYER_COMPANIES[id]; return p ? row({ icon: I.icon, title: p.name, sub: I.kind, tag: K.account(id).funded ? 'own account' : 'uses your money', tone: K.account(id).funded ? 'good' : '' }) : row({ icon: I.icon, title: I.kind, sub: 'not yet started', tag: '' }); })),
+    fold(ui, 'Companies', 'Rename, pay in, take out and last month\'s figures ›', (box) => companiesFull(ui, box, open)));
+}
+
+// ---------------------------------------------------------------- Intelligence
+function intelApp(ui, body, open) {
+  const g = ui.game;
+  const K = g.corp;
+  const reg = K.registry();
+  const mine = reg.filter((r) => r.kind === 'player');
+  const listed = K.exchange.board().filter((r) => r.source === 'generated').length;
+  const distress = reg.filter((r) => r.status === 'distressed').length;
+  body.append(
+    hero({ label: 'Companies tracked', value: String(reg.length), sub: 'Every company, ranked from the books it keeps. Yours are compared here and never listed.' }),
+    tiles([{ n: String(mine.length), t: 'yours' }, { n: String(listed), t: 'listed on the exchange' }, { n: String(distress), t: 'in distress', tone: distress ? 'neg' : '' }]),
+    fold(ui, 'Intelligence', 'Rankings, profiles and comparisons ›', (box) => intelFull(ui, box, open)));
+}
+
+return { managementApp, groupApp, peopleApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
 // ---- src/ui/corpBonds.js
@@ -65247,20 +65460,14 @@ const { h, journalTab, JOURNAL_TABS, stocksScreen } = __m["src/ui/panels.js"];
 const { terminalScreen, TERMINAL_TABS } = __m["src/ui/terminal.js"];
 const { TABLET_APPS } = __m["src/systems/tablet.js"];
 const { farmApp } = __m["src/ui/farm.js"];
-const { companiesApp } = __m["src/ui/corpApp.js"]; // v0.60.0
-const { intelApp } = __m["src/ui/corpIntel.js"];
-const { groupApp } = __m["src/ui/corpGroup.js"];
-const { peopleApp } = __m["src/ui/corpPeople.js"]; // v0.62.0
-const { manageApp } = __m["src/ui/corpManage.js"]; // v0.63.0
-const { exchangeApp } = __m["src/ui/corpExchange.js"]; // v0.66.0
 const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
-const { economyApp } = __m["src/ui/corpEconomy.js"]; // v0.75.0
-const { milestonesApp } = __m["src/ui/corpMilestones.js"]; // v0.80.0
+const { groupApp, peopleApp, managementApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"]; // v0.84.0: the summaries
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
-const { statusBar, navBar, segments } = __m["src/ui/tabletKit.js"]; // v0.83.0
+const { statusBar, navBar, segments, hero, tiles, row, fold } = __m["src/ui/tabletKit.js"]; // v0.83.0
 const { homeScreen } = __m["src/ui/tabletHome.js"];
+const { calcItem } = __m["src/systems/gang.js"];
 
 function tabletPanel(ui, body, opts) {
   const g = ui.game;
@@ -65302,17 +65509,32 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
   else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
-  else if (tab === 'Management') manageApp(ui, body, open); // v0.63.0
+  else if (tab === 'Management') managementApp(ui, body, open); // v0.63.0
   else if (tab === 'Exchange') exchangeApp(ui, body, open); // v0.66.0
   else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
+  else if (tab === 'Customers') customersApp(ui, body, open); // v0.84.0: a summary, the list one tap down
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home' && ui.tabletInbox) T.markRead();
   if (tab !== 'Home') ui.tabletInbox = false;
   return { title: '📱 OberPad', className: 'tablet tablet2' }; // (the title is for the frame and the tests; the tablet's own screen has none)
+}
+
+/** Journal → Customers (v0.84.0): the gang's mood and who has an order today; the whole list is one tap down. */
+function customersApp(ui, body, open) {
+  const g = ui.game;
+  const G = g.gang;
+  const mine = G.playerCustomers().map((id) => ({ id, c: G.customer(id), npc: g.npcs.get(id) })).filter((x) => x.npc);
+  const orders = mine.filter((x) => x.c?.order);
+  const anger = G.state.anger;
+  body.append(
+    hero({ label: 'Sums of Anarchy', value: anger < 25 ? 'Calm' : anger < 50 ? 'Uneasy' : anger < 75 ? 'Angry' : 'Hunting you', tone: anger >= 50 ? 'neg' : '', sub: `anger ${Math.round(anger)} / 100 — dealing and stealing customers raise it; quiet days lower it` }),
+    tiles([{ n: String(mine.length), t: 'your customers' }, { n: String(orders.length), t: 'orders waiting' }, { n: `${Math.round(anger)}`, t: 'anger / 100', tone: anger >= 50 ? 'neg' : '' }]),
+    orders.length ? h('div', { class: 'tb-card list' }, ...orders.slice(0, 4).map((x) => row({ icon: '📟', title: x.npc.profile.shortName, sub: `${x.c.order.qty} × ${g.content.items[calcItem(x.c.order.type)]?.name || 'calculator'} at ${x.c.order.price} obols` }))) : null,
+    fold(ui, 'Customers', 'Every customer and the calculator trade ›', (box) => journalTab(ui, box, 'Customers')));
 }
 
 /** v0.55.0: Roost Aeroworks at a glance, and the way into the terminal. */

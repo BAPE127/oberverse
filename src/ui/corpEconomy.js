@@ -5,7 +5,7 @@ import { h } from './panels.js';
 const pc = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`;
 const pc2 = (v) => `${(v * 100).toFixed(2)}%`;
 
-export function economyApp(ui, body) {
+export function economyFull(ui, body) {
   const g = ui.game;
   const O = g.corp.geo.overview();
   O.banks = Object.values(g.robbery.view()); O.bankNews = g.robbery.news(); O.robberyPremium = g.robbery.premium(); // the banks' security is the public's business, not the economy's: read straight from the robbery record

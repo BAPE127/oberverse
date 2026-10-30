@@ -130,6 +130,17 @@ try {
   record('OberPad: the back arrow returns to the home screen', (await page.textContent('#modal-body')).includes('Good '));
   await closeAll();
 
+  // OberPad stage 2 (v0.84.0): the heavy apps open on a summary, with the whole old page one tap down
+  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.aero.buyFirm(); g.corp.ensureWorld(); g.corp.group.form(); ui.openPanel('tablet', { tab: 'Management' }); });
+  await wait(300);
+  const mText = await page.textContent('#modal-body');
+  record('OberPad: Management opens on a short summary, not a wall of settings', mText.split(/\s+/).length < 150 && !mText.includes('Treasury policy'));
+  await page.click('.tb-fold > summary'); await wait(300);
+  record('OberPad: the fold opens the full Management page', (await page.textContent('#modal-body')).includes('Budgets'));
+  await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Exchange' })); await wait(300);
+  record('OberPad: Exchange opens on your holdings, the board one tap down', (await page.textContent('#modal-body')).includes('Your shares are worth'));
+  await closeAll();
+
   // Teleport next to Mags (test hook) and talk to her
   await closeAll();
   await page.evaluate(() => {

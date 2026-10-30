@@ -1171,3 +1171,8 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .tb-dock { display: flex; justify-content: space-around; background: rgba(10,8,34,.7); border: 2px solid #3a3794; border-radius: 26px; padding: 10px; margin-top: 10px; }
 #modal-panel.tablet2 .doc, #modal-panel.tablet2 p.doc { background: rgba(10,8,34,.45); color: var(--ink); border: 1.5px solid #3a3794; border-radius: 12px; padding: 10px 12px; font-family: inherit; }
 #modal-panel.tablet2 input, #modal-panel.tablet2 select, #modal-panel.tablet2 textarea { background: #15133e; color: var(--ink); border: 2px solid var(--line); border-radius: 8px; }
+.tb-fold { background: rgba(10,8,34,.45); border: 1.5px solid #3a3794; border-radius: 12px; padding: 8px 12px; margin-bottom: 10px; }
+.tb-fold > summary { cursor: pointer; color: var(--ink-soft); font-weight: 700; padding: 4px 0; }
+.tb-foldbody { margin-top: 8px; }
+.tb-acts { display: flex; gap: 6px; }
+#modal-panel.tablet2 .tb-btn.pri:hover:not(:disabled), #modal-panel.tablet2 .tb-mini.pri:hover:not(:disabled) { background: linear-gradient(#ffdd80, #e6a93a); color: #2a1a00; }

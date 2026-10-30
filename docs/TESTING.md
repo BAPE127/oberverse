@@ -93,6 +93,11 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.84.0 (2026-10-30)
+
+- `tablet_home.test.mjs` +1 (no old page imported directly; each drawn inside a fold); smoke +3 (Management summary short, its fold opens the full page, Exchange opens on holdings). No existing test edited.
+- Browser (headless Chromium), real clicks: Group — found a parent, **Pay in 10,000 (−10,000)**, **Bring in** showed the blockers and warnings with Cancel first, confirm made it a subsidiary, the fold opened the full page; Management — a pending request showed with Approve and Decline, **Decline** removed it; Personnel — See candidates opened the fold on the role; the Milestones, World News and Exchange folds; the fold stayed open on reopening; 0 page errors. Words/controls before → after: Management 1,286/50 → 53/5, Group 606/50 → 169/7, Personnel 623/17 → 131/9, World News 545/5 → 113/5, Milestones 361/5 → 105/5, Exchange 320/8 → 52/5, Companies 314/11 → 93/5, Intelligence 213/24 → 56/5, Customers 370/6 → 62/6.
+
 ## Verification record — v0.83.0 (2026-10-30)
 
 - New: `tablet_home.test.mjs` (3 tests: the home icons for a new game and for a game with businesses, every icon opens an app that exists and every app has a way in, at most eight icons). `tools/smoke-test.mjs` gained five checks (home shows icons and under 120 words; a loan shows its terms before money moves; Accept signs it; the back arrow). No existing test edited.

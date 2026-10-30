@@ -9,7 +9,7 @@ const pct = (x) => (x === null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 
 const SORTS = { ticker: 'Ticker', change: 'Day change', value: 'Held', price: 'Price' };
 const WATCH = '★ Watchlist';
 
-export function exchangeApp(ui, body, open) {
+export function exchangeFull(ui, body, open) {
   const g = ui.game;
   const E = g.corp.exchange;
   const S = (ui.corpExchange ||= { sel: null, sector: '', sort: 'ticker' });

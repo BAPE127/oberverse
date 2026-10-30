@@ -9,7 +9,7 @@ const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocale
 const PERIODS = { month: 'Last month', current: 'This month so far', year: 'Last 12 months' };
 const KIND = { capital: 'capital', loan: 'loan', repayment: 'repayment', interest: 'interest', distribution: 'distribution', 'capital-return': 'capital returned' };
 
-export function groupApp(ui, body, open) {
+export function groupFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   const G = K.group;

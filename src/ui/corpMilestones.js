@@ -1,7 +1,7 @@
 // The Milestones app (v0.80.0): what your group has actually done, from the game's records. Read from game.corp.milestones.
 import { h } from './panels.js';
 
-export function milestonesApp(ui, body) {
+export function milestonesFull(ui, body) {
   const g = ui.game;
   const rows = g.corp.milestones.view();
   const got = rows.filter((r) => r.earned);

@@ -55,3 +55,19 @@ export function note(ui) {
 
 export const buttons = (...bs) => h('div', { class: 'tb-btns' }, ...bs);
 export const big = (label, onclick, kind = '', disabled = false) => h('button', { class: `tb-btn ${kind}`, onclick, disabled }, label);
+
+/**
+ * The whole old page, one tap down (v0.84.0). The summary above it says what matters; this opens everything the app could do, as it
+ * always did. `render(into)` draws it, and only when it is open, so a closed fold costs nothing. The open/closed state is kept per app.
+ */
+export function fold(ui, key, label, render) {
+  const st = (ui.tabFold ||= {});
+  const box = h('div', { class: 'tb-foldbody' });
+  const d = h('details', { class: 'tb-fold', open: Boolean(st[key]) }, h('summary', {}, label), box);
+  if (st[key]) render(box);
+  d.addEventListener('toggle', () => { st[key] = d.open; if (d.open && !box.childNodes.length) render(box); });
+  return d;
+}
+
+/** Open the app's fold from a button elsewhere on the screen (a row that says "see the candidates"). */
+export const openFold = (ui, key) => { (ui.tabFold ||= {})[key] = true; };

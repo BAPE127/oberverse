@@ -32,3 +32,11 @@ test('the dock is four of the icons', () => {
   const ids = homeTiles(tabletGroups(g)).map((t) => t.id);
   for (const d of ['Journal', 'Markets', 'Bank']) assert.ok(ids.includes(d));
 });
+
+test('the heavy apps are reached only through their summaries: the tablet imports no old page directly (v0.84.0)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const t = readFileSync('src/ui/tablet.js', 'utf8');
+  for (const f of ['corpGroup', 'corpPeople', 'corpManage', 'corpExchange', 'corpEconomy', 'corpMilestones', 'corpApp', 'corpIntel']) assert.ok(!t.includes(`./${f}.js`), `tablet.js must not import ${f} directly`);
+  const s = readFileSync('src/ui/tabletSummaries.js', 'utf8');
+  for (const fn of ['managementFull', 'groupFull', 'peopleFull', 'economyFull', 'exchangeFull', 'milestonesFull', 'companiesFull', 'intelFull']) assert.ok(new RegExp(`fold\\(ui, '[A-Za-z]+', [^\\n]*${fn}\\(`).test(s), `${fn} is rendered inside a fold`);
+});

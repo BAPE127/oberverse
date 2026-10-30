@@ -12,7 +12,7 @@ const PERIODS = { month: 'Last month', current: 'This month so far', year: 'Last
 const BASIS = { books: 'its full books', cash: 'cash that moved through the company', model: 'its own books', 'run-rate': 'today\'s run-rate', none: 'no figures kept' };
 const STATUS = { distressed: 'in distress', closed: 'closed', merged: 'merged' };
 
-export function intelApp(ui, body, open) {
+export function intelFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   const S = (ui.corpIntel ||= { sector: null, by: 'revenue', period: 'month', sel: null });

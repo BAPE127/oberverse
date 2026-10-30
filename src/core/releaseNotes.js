@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.84.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The OberPad, Stage 2',
+    notes: [
+      'Management, your Group, Personnel, World News, Milestones, the Exchange, Companies, Intelligence and Customers now open on a short summary: one figure, a few tiles and what is waiting for you, with Approve and Decline right on the line.',
+      'Everything the old pages did is one tap further down. Management went from 1,286 words to 53.',
+    ],
+  },
+  {
     version: '0.83.0',
     date: '2026-10-30',
     channel: 'development',

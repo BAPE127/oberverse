@@ -2,6 +2,27 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.84.0] — 2026-10-30 — The OberPad, Stage 2: Summaries (development build)
+
+The rest of the OberPad, in the same pattern as the Bank (v0.83.0): each heavy app opens on **a summary — one figure, three tiles, and what is waiting for you —** and **the whole page it always was is one tap down** (a fold, drawn only when opened, its open or closed state kept for the app). Nothing was removed.
+
+| App | Words before → after | What the summary shows |
+| --- | --- | --- |
+| Management | 1,286 → 53 | requests waiting for your word, with **Approve** and **Decline** on the line; alerts; the last decisions. Budgets, treasury and plans are in the fold. |
+| Group | 606 → 169 | the parent's cash, your wallet, subsidiaries; **Pay in** and **Take out** (1,000 / 10,000 / 100,000); a business **Bring in ›** that shows its blockers and warnings and asks before it happens. Statements, lending and policies are in the fold. |
+| Personnel | 623 → 131 | people, pay a day, openings with **See candidates** (opens the fold on that role); your staff. |
+| World News (Economy) | 545 → 113 | wars and embargoes with what they do to each sector; the latest headlines. |
+| Milestones | 361 → 105 | a ring of what is earned; the last three earned and the next three. |
+| Exchange | 320 → 52 | what your shares are worth and what they gained; your holdings; the biggest movers. The board is in the fold. |
+| Companies | 314 → 93 | your four businesses and whether each has its own account. |
+| Intelligence | 213 → 56 | how many companies are tracked and how yours compare. |
+| Customers | 370 → 62 | the gang's mood and the orders waiting. |
+
+- **Not changed:** Stocks (206 words, 15 controls), Business (the arms terminal, 248/15), Farm, Ships, Aerospace (a launcher), Standing (155) and the other journal pages are in the new frame with their old pages; they are short enough or are tools rather than reports. Logged in docs/KNOWN_ISSUES.md.
+- Measured in the same built-out game as v0.83.0 (arms, shipping, aerospace, a group, 30 shares).
+- **Tests:** `tablet_home.test.mjs` gained one (the tablet imports none of the old pages directly; each is drawn inside a fold); the browser smoke gained three checks (Management opens on a short summary, the fold opens the full page, Exchange opens on your holdings). No existing test edited.
+- A bug caught by the click-through (not shipped): the first "See candidates" created the Personnel state without its compare list; fixed before release.
+
 ## [0.83.0] — 2026-10-30 — The OberPad, Stage 1: the Tablet and the Bank (development build)
 
 The first stage of the OberPad overhaul (mockups: `docs/mockups/proposal-oberpad-*.png`; the real screens: `docs/mockups/v083-*.png`).

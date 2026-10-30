@@ -9,7 +9,7 @@ const BUSINESSES = [['arms', ['materials', 'hiring', 'expansion']], ['aerospace'
 const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand', treasury: 'transfer' };
 const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
 
-export function manageApp(ui, body, open) {
+export function managementFull(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
   const M = K.management;
