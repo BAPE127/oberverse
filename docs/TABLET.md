@@ -1,4 +1,6 @@
-# The OberPad (v0.15.0)
+# The OberPad (v0.15.0; a tablet since v0.83.0)
+
+**Since v0.83.0** it opens on a home screen: your cash and what needs you, a search, up to eight icons with red dots (Journal, Businesses, My Group, Markets, Bank, World News, People, Milestones) and a dock; the 🔔 opens the notifications. Inside an app there is a back arrow and one switch for the group's other apps. The Bank group (Rates, Loans, Bonds) is built in the new pattern — one figure, three tiles, a button or two, explanations behind a "?" — with `src/ui/tabletKit.js` (the pieces), `src/ui/tabletHome.js` (the home screen) and `src/ui/tablet.js` (the frame). The other apps are in the new frame with their old pages, to be rebuilt group by group. The table below describes what each app does.
 
 The journal became a tablet. Open it with **J** (or Q, or Pause → Tablet, or the 📱 badge on the HUD).
 

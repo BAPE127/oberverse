@@ -1,73 +1,64 @@
-// The Bonds app (v0.69.0): government bonds from the First Bank of Halvermouth. Read from game.corp.bonds; every button calls it.
+// The Bonds app (v0.69.0; v0.83.0 in the OberPad's pattern): what your bonds are worth and pay as the one figure, then one switch for the
+// three kinds — the First Bank's government bonds, listed companies' bonds, and the eight countries' bonds. An offer is one line with a Buy
+// button that opens the amounts; every explanation is behind a "?". Read from game.corp.bonds, .credit and .sovereign; every button calls them.
 import { h } from './panels.js';
-
-const n = (x) => Math.round(x).toLocaleString();
-const pc = (v) => `${(v * 100).toFixed(2)}%`;
+import { hero, tiles, row, help, note, n, pc } from './tabletKit.js';
 
 export function bondsApp(ui, body, open) {
   const g = ui.game;
   const B = g.corp.bonds;
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Bonds'); };
-  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
-  const stat = (a, b) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b));
+  const C = g.corp.credit;
+  const Sv = g.corp.sovereign;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); ui.bondOpen = null; open('Bonds'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const view = ['gov', 'corp', 'foreign'].includes(ui.bondView) ? ui.bondView : 'gov';
   const P = B.portfolio();
+  const PC = C.portfolio();
+  const PF = Sv.portfolio();
+  const value = P.value + PC.value + PF.value;
+  const perMonth = [...P.rows, ...PC.rows, ...PF.rows].reduce((a, r) => a + (r.perMonth || 0), 0);
+  const held = P.rows.length + PC.rows.length + PF.rows.length;
+  const extra = [g.corp.geo.premium() > 0 ? `wars and embargoes add ${pc(g.corp.geo.premium())}` : null, g.robbery.premium() > 0 ? `the robbery adds ${pc(g.robbery.premium())}` : null].filter(Boolean);
   body.append(
-    h('p', { class: 'doc' }, '📜 Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. Its coupon is the policy rate plus a premium for the term, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'),
-    h('div', { class: 'grid2' }, stat('Your obols', n(g.player.money)), stat('Policy rate', pc(B.rate())), ...(g.corp.geo.premium() > 0 ? [stat('Added by wars and embargoes', `+${pc(g.corp.geo.premium())}`)] : []), ...(g.robbery.premium() > 0 ? [stat('Added by the robbery', `+${pc(g.robbery.premium())}`)] : []), stat('Bonds held, at today\'s yield', n(P.value)), stat('Coupons received', n(P.earned))));
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'On offer today'));
-  body.append(h('div', { class: 'list' }, ...B.offers().map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-    h('div', { class: 'name' }, `${o.years}-year bond`, h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), h('span', { class: 'tag' }, `${n((100000 * o.coupon) / 12)} a month on 100,000`)),
-    h('div', { class: 'desc' }, `You may still buy ${n(o.room)} of face value.`),
-    h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, ...[1000, 10000, 100000].map((f) => h('button', { class: 'small primary', disabled: g.player.money < f || o.room < f, onclick: () => go(B.buy(o.years, f)) }, `Buy ${n(f)}`))))))));
-  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Your bonds'));
-  if (!P.rows.length) body.append(h('p', { class: 'muted' }, 'You hold none.'));
-  else body.append(h('div', { class: 'list' }, ...P.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-    h('div', { class: 'name' }, `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
-    h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · next coupon day ${r.due}, face repaid day ${r.end} · worth ${n(r.value)} today (paid ${n(r.cost)}, ${r.value >= r.cost ? 'ahead' : 'behind'} ${n(Math.abs(r.value - r.cost))} on paper, ${n(r.coupons * r.perMonth)} of coupons so far); selling gets ${n(r.sale)}`),
-    h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(B.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
-  corporate();
-  foreign();
+    hero({ label: 'Your bonds are worth', value: n(value), sub: `${n(perMonth)} a month in coupons · policy rate ${pc(B.rate())}${extra.length ? ` · ${extra.join(', ')}` : ''}` }),
+    tiles([{ n: String(held), t: 'bonds held' }, { n: n(P.earned + PC.earned + PF.earned), t: 'coupons received' }, { n: n(g.player.money), t: 'your obols' }]),
+    h('div', { class: 'tb-seg two three' }, ...[['gov', 'Government'], ['corp', 'Companies'], ['foreign', 'Foreign']].map(([id, l]) => h('button', { class: view === id ? 'on' : '', onclick: () => { ui.bondView = id; ui.bondOpen = null; open('Bonds'); } }, l))));
 
-  function corporate() {
-    const C = g.corp.credit;
-    const offers = C.offers();
-    const held = C.portfolio();
-    body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Corporate bonds'),
-      h('p', { class: 'muted', style: 'font-size:12px' }, 'Three-year bonds issued by the listed companies of the wider world, at par, with a coupon of the policy rate, the term premium and a credit spread for the company\'s rating. A rating follows the company\'s own books (what it owes against what it owns, whether it earns, whether it is in distress), and so does the bond\'s price. A company that fails defaults: you get back a part of what you lent, once; one that is taken over repays at par. You may hold at most a twentieth of an issue; selling costs a 1% spread.'));
-    if (!offers.length) body.append(h('p', { class: 'muted' }, 'No company has issued yet: they do once the exchange has priced them, after the first morning.'));
-    else body.append(h('div', { class: 'list' }, ...offers.map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${o.ticker} · ${o.name}`, h('span', { class: `tag${o.rating === 'AA' || o.rating === 'A' ? ' good' : o.rating === 'CCC' ? ' neg' : ''}` }, o.rating), h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), o.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(o.held)}`) : null),
-      h('div', { class: 'desc' }, `Issue ${n(o.face)} · due day ${o.end} · priced at ${o.price.toFixed(1)} per 100 (yield ${pc(o.yield)}) · you may buy ${n(o.room)} more`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, ...[1000, 10000].map((f) => h('button', { class: 'small primary', disabled: o.room < f || g.player.money < Math.round(f * o.price / 100), onclick: () => go(C.buy(o.id, f)) }, `Buy ${n(f)} (${n(f * o.price / 100)})`))))))));
-    if (held.rows.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Your corporate bonds'), h('div', { class: 'list' }, ...held.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${n(r.face)} of ${r.ticker} · ${r.name}`, h('span', { class: 'tag' }, r.rating), h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
-      h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons · worth ${n(r.value)} at its rating today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(C.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
-    const clog = (C.peek()?.log || []).slice(-4).reverse();
-    if (clog.length) body.append(h('div', { class: 'list' }, ...clog.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
-  }
+  /** An offer's Buy button and, once pressed, the amounts to buy. */
+  const buyer = (key, amounts, can, doBuy) => [
+    h('button', { class: 'tb-mini pri', onclick: () => { ui.bondOpen = ui.bondOpen === key ? null : key; open('Bonds'); } }, ui.bondOpen === key ? 'Close' : 'Buy ›')];
+  const amountsRow = (key, amounts, can, doBuy) => (ui.bondOpen === key ? h('div', { class: 'tb-chips tb-sheet' }, ...amounts.map((f) => h('button', { class: 'tb-chip', disabled: !can(f), onclick: () => go(doBuy(f)) }, `Buy ${n(f)}`))) : null);
+  const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+  const logHelp = (log, label) => (log.length ? [help(label, ...log.slice(-6).reverse().map((l) => `Day ${l.day} · ${l.text}`))] : []);
 
-  /** Foreign government bonds (v0.77.0): the eight countries, rated from their own finances and quarrels. */
-  function foreign() {
-    const Sv = g.corp.sovereign;
-    const offers = Sv.offers();
-    const held = Sv.portfolio();
+  if (view === 'gov') {
+    body.append(list(...B.offers().map((o) => [
+      row({ icon: '📜', title: `${o.years}-year bond`, sub: `${n((100000 * o.coupon) / 12)} a month on 100,000 · you may still buy ${n(o.room)}`, tag: `${pc(o.coupon)}`, action: buyer(`g${o.years}`)[0] }),
+      amountsRow(`g${o.years}`, [1000, 10000, 100000], (f) => g.player.money >= f && o.room >= f, (f) => B.buy(o.years, f))])));
+    if (P.rows.length) body.append(list(...P.rows.map((r) => row({ icon: '💼', title: `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, sub: `${n(r.perMonth)} a month · ${n(r.daysLeft)} days left · worth ${n(r.value)} (paid ${n(r.cost)})`, action: h('button', { class: 'tb-mini', onclick: () => go(B.sell(r.id)) }, `Sell ${n(r.sale)}`) }))));
+    body.append(help('How government bonds work ›', 'Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. Its coupon is the policy rate plus a premium for the term, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'), ...logHelp(B.peek()?.log || [], 'Recent ›'));
+  } else if (view === 'corp') {
+    const all = C.offers();
+    const offers = ui.bondAll ? all : all.slice(0, 5);
+    body.append(offers.length
+      ? list(...offers.map((o) => [
+        row({ icon: '🏢', title: `${o.ticker} · ${o.name}`, sub: `${pc(o.coupon)} a year · price ${o.price.toFixed(1)}${o.held > 0 ? ` · you hold ${n(o.held)}` : ''}`, tag: o.rating, tone: o.rating === 'AA' || o.rating === 'A' ? 'good' : o.rating === 'CCC' ? 'neg' : '', action: buyer(`c${o.id}`)[0] }),
+        amountsRow(`c${o.id}`, [1000, 10000], (f) => o.room >= f && g.player.money >= Math.round(f * o.price / 100), (f) => C.buy(o.id, f))]))
+      : h('div', { class: 'tb-card' }, row({ icon: '🏢', title: 'No company has issued yet', sub: 'They do once the exchange has priced them, after the first morning.' })));
+    if (all.length > 5) body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn', onclick: () => { ui.bondAll = !ui.bondAll; open('Bonds'); } }, ui.bondAll ? 'Show fewer' : `Show all ${all.length} ›`)));
+    if (PC.rows.length) body.append(list(...PC.rows.map((r) => row({ icon: '💼', title: `${n(r.face)} of ${r.ticker}`, sub: `${n(r.perMonth)} a month · ${n(r.daysLeft)} days left · worth ${n(r.value)} (paid ${n(r.cost)})`, tag: r.rating, action: h('button', { class: 'tb-mini', onclick: () => go(C.sell(r.id)) }, `Sell ${n(r.sale)}`) }))));
+    body.append(help('How company bonds work ›', 'Three-year bonds issued by the listed companies of the wider world, at par, with a coupon of the policy rate, the term premium and a credit spread for the company\'s rating. A rating follows the company\'s own books (what it owes against what it owns, whether it earns, whether it is in distress), and so does the bond\'s price. A company that fails defaults: you get back a part of what you lent, once; one that is taken over repays at par. You may hold at most a twentieth of an issue; selling costs a 1% spread.'), ...logHelp(C.peek()?.log || [], 'Recent ›'));
+  } else {
+    const allF = Sv.offers();
+    const offers = ui.bondAll ? allF : allF.slice(0, 5);
     const why = (c) => [c.war > 0.01 ? `at war (${(c.war * 100).toFixed(0)}% of its full effect)` : null, c.embargo > 0.01 ? 'under an arms embargo' : null, c.treasury < 1 ? `its treasury is at ${(c.treasury * 100).toFixed(0)}% of what it began with` : null, `a ${c.trait < 0.25 ? 'light' : c.trait < 0.45 ? 'moderate' : 'heavy'} debt load`].filter(Boolean).join(' · ');
-    body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Foreign government bonds'),
-      h('p', { class: 'muted', style: 'font-size:12px' }, 'Each of the eight countries issues a three-year bond. Its rating follows its own finances — how much it owes, the wars it is in, an embargo on it, and how far its treasury has fallen — and so does the bond\'s price. A country that stays at the very top of the strain for ten days delays its payments (what it owes you is kept and paid when it recovers), and for forty restructures: you get back a part of the face, once, and the issue ends. Nothing here is random, and none of it changes the arms market. You may hold at most a twentieth of an issue; selling costs a 1.5% spread.'));
-    if (!offers.length) body.append(h('p', { class: 'muted' }, 'No country has issued yet: they do once the arms market is running.'));
-    else body.append(h('div', { class: 'list' }, ...offers.map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, o.name, h('span', { class: `tag${o.rating === 'AA' || o.rating === 'A' ? ' good' : o.rating === 'CCC' || o.status === 'delayed' ? ' neg' : ''}` }, o.status === 'delayed' ? `${o.rating} · delayed` : o.rating), h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), o.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(o.held)}`) : null),
-      h('div', { class: 'desc' }, `${why(o.causes)} · priced at ${o.price.toFixed(1)} per 100 (yield ${pc(o.yield)}) · due day ${o.end} · you may buy ${n(o.room)} more`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, ...[1000, 10000].map((f) => h('button', { class: 'small primary', disabled: o.status !== 'open' || o.room < f || g.player.money < Math.round(f * o.price / 100), onclick: () => go(Sv.buy(o.country, f)) }, `Buy ${n(f)} (${n(f * o.price / 100)})`))))))));
-    if (held.rows.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Your foreign bonds'), h('div', { class: 'list' }, ...held.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${n(r.face)} of ${r.name}`, h('span', { class: 'tag' }, r.issueStatus === 'delayed' ? `${r.rating} · payments delayed` : r.rating), h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
-      h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons${r.owed ? ` · ${n(r.owed)} owed to you, delayed` : ''} · worth ${n(r.value)} at its rating today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(Sv.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
-    const slog = (Sv.peek()?.log || []).slice(-4).reverse();
-    if (slog.length) body.append(h('div', { class: 'list' }, ...slog.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
+    body.append(offers.length
+      ? list(...offers.map((o) => [
+        row({ icon: '🌐', title: o.name, sub: `${pc(o.coupon)} a year · price ${o.price.toFixed(1)}`, tag: o.status === 'delayed' ? `${o.rating} · delayed` : o.rating, tone: o.rating === 'AA' || o.rating === 'A' ? 'good' : o.rating === 'CCC' || o.status === 'delayed' ? 'neg' : '', action: o.status === 'open' ? buyer(`f${o.country || o.name}`)[0] : null }),
+        amountsRow(`f${o.country || o.name}`, [1000, 10000], (f) => o.status === 'open' && o.room >= f && g.player.money >= Math.round(f * o.price / 100), (f) => Sv.buy(o.country, f))]))
+      : h('div', { class: 'tb-card' }, row({ icon: '🌐', title: 'No country has issued yet', sub: 'They do once the arms market is running.' })));
+    if (PF.rows.length) body.append(list(...PF.rows.map((r) => row({ icon: '💼', title: `${n(r.face)} of ${r.name}`, sub: `${n(r.perMonth)} a month${r.owed ? ` · ${n(r.owed)} owed to you, delayed` : ''} · ${n(r.daysLeft)} days left · worth ${n(r.value)} (paid ${n(r.cost)})`, tag: r.issueStatus === 'delayed' ? `${r.rating} · delayed` : r.rating, action: h('button', { class: 'tb-mini', onclick: () => go(Sv.sell(r.id)) }, `Sell ${n(r.sale)}`) }))));
+    body.append(...(allF.length > 5 ? [h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn', onclick: () => { ui.bondAll = !ui.bondAll; open('Bonds'); } }, ui.bondAll ? 'Show fewer' : `Show all ${allF.length} ›`))] : []), ...(offers.length ? [help('Why these ratings ›', ...allF.map((o) => `${o.name}: ${why(o.causes)}.`))] : []), help('How foreign bonds work ›', 'Each of the eight countries issues a three-year bond. Its rating follows its own finances — how much it owes, the wars it is in, an embargo on it, and how far its treasury has fallen — and so does the bond\'s price. A country that stays at the very top of the strain for ten days delays its payments (what it owes you is kept and paid when it recovers), and for forty restructures: you get back a part of the face, once, and the issue ends. Nothing here is random, and none of it changes the arms market. You may hold at most a twentieth of an issue; selling costs a 1.5% spread.'), ...logHelp(Sv.peek()?.log || [], 'Recent ›'));
   }
-
-  const log = (B.peek()?.log || []).slice(-6).reverse();
-  if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
 }

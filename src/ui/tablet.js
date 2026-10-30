@@ -19,6 +19,8 @@ import { economyApp } from './corpEconomy.js'; // v0.75.0
 import { milestonesApp } from './corpMilestones.js'; // v0.80.0
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
+import { statusBar, navBar, segments } from './tabletKit.js'; // v0.83.0
+import { homeScreen } from './tabletHome.js';
 
 export function tabletPanel(ui, body, opts) {
   const g = ui.game;
@@ -32,16 +34,26 @@ export function tabletPanel(ui, body, opts) {
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
 
-  /** The apps of the group you are in, one tap away (v0.72.0). A group of one app has none. */
-  const appBar = () => (group.apps.length > 1 ? h('div', { class: 'row tablet-apps', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:4px 0 8px' }, ...group.apps.map((a) => h('button', { class: `small${a === tab ? ' primary' : ''}`, onclick: () => open(a) }, `${APP_ICONS[a] || ''} ${a}${badge[a] ? ` (${badge[a]})` : ''}`))) : null);
+  // v0.83.0: it is a tablet — a status bar, then the home screen of icons, or an app with a back arrow and its sections as one switch
+  const status = statusBar(g);
+  /** What needs you, as chips on the home screen: approvals waiting, a loan in arrears, materials short. */
+  const needs = () => {
+    const out = [];
+    const pend = g.corp.management.peek()?.pending?.length || 0;
+    if (pend) out.push({ app: 'Management', text: `📋 ${pend} approval${pend === 1 ? '' : 's'}` });
+    if (g.corp.lending.inArrears()) out.push({ app: 'Loans', text: '🏦 a loan is behind' });
+    if (g.aero.owned) { const a = g.aero.roost; const m = Object.keys(a.inv || {}).length ? g.aero.shortfalls(a).length : 0; if (m) out.push({ app: 'Aerospace', text: `🛒 ${m} materials short` }); }
+    return out.slice(0, 3);
+  };
+  const appHead = () => {
+    const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : a}`, badge: badge[a] })), tab, (a) => open(a));
+    return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : tab, back: () => open('Home') }), seg);
+  };
 
-  const bar = () => h('div', { class: 'tablet-bar' },
-    h('span', {}, `Day ${g.clock.day} · ${g.clock.weekday} · ${g.clock.timeString}`),
-    h('span', {}, `${g.player.money} obols · 📶 ▮▮▮ 🔋`));
-
-  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, bar(), appBar(), stocksHeader(g)) });
-  else { body.append(bar()); const ab = appBar(); if (ab) body.append(ab); }
-  if (tab === 'Home') homeApp(ui, body, open, groups, badge);
+  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), stocksHeader(g)) });
+  else { body.append(status); if (tab !== 'Home') body.append(appHead()); else if (ui.tabletInbox) body.append(navBar({ icon: '🔔', title: 'Notifications', back: () => { ui.tabletInbox = false; open('Home'); } })); }
+  if (tab === 'Home' && ui.tabletInbox) inboxScreen(ui, body, open);
+  else if (tab === 'Home') homeScreen(ui, body, open, groups, badge, needs(), unread);
   else if (tab === 'Business') businessApp(ui, body, opts, open);
   else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
@@ -58,11 +70,9 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
-  if (tab === 'Home') T.markRead();
-
-  const count = (x) => x.apps.reduce((a, t) => a + (badge[t] || 0), 0);
-  const label = (x) => `${x.icon} ${x.id}${count(x) && x.id !== group.id ? ` (${count(x)})` : x.id === 'Home' && unread && tab !== 'Home' ? ` (${unread})` : ''}`;
-  return { title: '📱 OberPad', className: 'tablet', tabs: groups.map((x) => ({ label: label(x), active: x.id === group.id, onclick: () => open(x.id === group.id ? x.apps[0] : (ui.tabletLast[x.id] && x.apps.includes(ui.tabletLast[x.id]) ? ui.tabletLast[x.id] : x.apps[0])) })) };
+  if (tab === 'Home' && ui.tabletInbox) T.markRead();
+  if (tab !== 'Home') ui.tabletInbox = false;
+  return { title: '📱 OberPad', className: 'tablet tablet2' }; // (the title is for the frame and the tests; the tablet's own screen has none)
 }
 
 /** v0.55.0: Roost Aeroworks at a glance, and the way into the terminal. */
@@ -83,53 +93,10 @@ function aeroApp(ui, body) {
   );
 }
 
-function homeApp(ui, body, open, groups, badge) {
+/** The notifications (the old Home's feed): opened from the bell on the home screen. */
+function inboxScreen(ui, body, open) {
   const g = ui.game;
   const T = g.tablet;
-  // v0.72.0: the apps, in their groups, with what is new in each — and a search
-  const q = h('input', { type: 'text', class: 'debug-input', placeholder: 'Find an app…', value: ui.tabletSearch || '', style: 'width:100%;margin-bottom:6px' });
-  q.addEventListener('change', () => { ui.tabletSearch = q.value; open('Home'); });
-  body.append(q);
-  const found = searchApps(groups, ui.tabletSearch);
-  if (ui.tabletSearch) body.append(found.length ? h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:8px' }, ...found.map((f) => h('button', { class: 'small primary', onclick: () => { ui.tabletSearch = ''; open(f.app); } }, `${APP_ICONS[f.app] || ''} ${f.app} · ${f.group}`))) : h('p', { class: 'muted' }, 'No app by that name.'));
-  else body.append(h('div', { class: 'list' }, ...groups.filter((x) => x.id !== 'Home').map((x) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'icon' }, x.icon), h('div', { class: 'grow' }, h('div', { class: 'name' }, x.id),
-    h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin-top:4px' }, ...x.apps.map((a) => h('button', { class: 'small', onclick: () => open(a) }, `${APP_ICONS[a] || ''} ${a}${badge[a] ? ` (${badge[a]})` : ''}`))))))));
-  const cards = h('div', { class: 'grid2 tablet-cards' });
-  if (T.hasBusiness()) {
-    const A = g.arms;
-    const works = A.ownedIds();
-    const staff = A.state.staff.length;
-    const ms = g.market.state;
-    cards.append(h('button', { class: 'tablet-card', onclick: () => open('Business') },
-      h('b', {}, '🏭 Arms business'),
-      h('span', {}, `${works.length} works · ${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea`),
-      h('span', {}, `Research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'} · Exports earned ${ms.earned}`)));
-  } else {
-    cards.append(h('div', { class: 'tablet-card muted' }, h('b', {}, '🏭 Business'), h('span', {}, 'You don\'t own a business yet. Buy an arms works and it will show up here.')));
-  }
-  const cars = g.vehicles.ownedCars();
-  if (cars.length) {
-    const models = g.content.vehicles.models;
-    cards.append(h('div', { class: 'tablet-card' },
-      h('b', {}, `🚗 Your cars (${cars.length})`),
-      ...cars.slice(0, 4).map((c) => h('span', {}, `${models[c.model].name}${c.stolen ? ' (stolen)' : ''} — ${c.id === g.player.driving ? 'you\'re driving it' : g.maps.get(c.map).name}`)),
-      cars.length > 4 ? h('span', {}, `…and ${cars.length - 4} more (all on the map).`) : null));
-  }
-  if (g.logistics.owned) {
-    const Lg = g.logistics;
-    const vs = Lg.vessels();
-    cards.append(h('button', { class: 'tablet-card', onclick: () => ui.openPanel('logistics') },
-      h('b', {}, '⚓ Ober & Sons Maritime'),
-      h('span', {}, `${vs.length} ship${vs.length === 1 ? '' : 's'} (${vs.filter((v) => v.status === 'underway').length} at sea) · ${Lg.ownedPorts().length} ports`),
-      h('span', {}, `${Lg.contracts(['accepted', 'loading', 'transit']).length} contracts running · ${Lg.contracts('available').length} on offer`)));
-  }
-  const oil = g.oil.state;
-  cards.append(h('button', { class: 'tablet-card', onclick: () => open('Stocks') },
-    h('b', {}, '📈 Ober\'s Oil'),
-    h('span', {}, `${oil.sharePrice.toFixed(2)} obols a share · you own ${oil.sharesOwned}`),
-    h('span', {}, oil.sharesOwned ? `Worth ${Math.round(oil.sharesOwned * oil.sharePrice)} · dividends so far ${oil.dividendsPaid}` : 'Buy shares from the Stocks app.')));
-  body.append(cards);
-
   const s = T.state;
   const filter = h('div', { class: 'row', style: 'justify-content:space-between;margin:12px 0 6px' },
     h('h3', { style: 'margin:0' }, 'Notifications'),

@@ -2,6 +2,19 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.83.0] — 2026-10-30 — The OberPad, Stage 1: the Tablet and the Bank (development build)
+
+The first stage of the OberPad overhaul (mockups: `docs/mockups/proposal-oberpad-*.png`; the real screens: `docs/mockups/v083-*.png`).
+
+- **A tablet.** The OberPad now opens on a **home screen**: a greeting, your cash and what needs you (approvals waiting, a loan that is behind, materials short), a search, **eight big icons with red dots** (Journal, Businesses, My Group, Markets, Bank, World News, People, Milestones — only those your game has) and a dock. The notifications are behind the 🔔. **Every app** has a status bar, a back arrow and *one switch* for the other apps of its group, in place of the row of group tabs and the row of app buttons. The same apps, none removed; all 19 are still there, and `tests/tablet_home.test.mjs` proves every one has a way in. The home screen went from 188 words and 25 controls to **50 words and 14 controls**.
+- **A dark screen.** The tablet's colours come from variables, so the apps not yet rebuilt are readable on it.
+- **The Bank group, rebuilt** (same functions, a different shape: one headline figure, three tiles, one or two big buttons, a short list; every explanation behind a "?"):
+  - **Rates** (the Bank app): the policy rate, with neutral, held-since and next meeting; the last three decisions. *73 words (was 225).*
+  - **Loans**: how much you may borrow, with a ring for how much of it you use; what you owe, your record and the next payment; **Borrow** (how long, how much — then the full terms and Accept/Cancel, as before) and **Repay** (everything, or one loan at a time). A switch to *Your companies* has the company-loan flow (guarantee, purpose, terms). *81 and 92 words (was 366).*
+  - **Bonds**: what your bonds are worth and pay, then *Government / Companies / Foreign*; each offer is one line with a **Buy ›** that opens the amounts; the first five issuers with *Show all*. *109, 132 and 134 words (was 1,283 on one page, 62 controls).*
+- The counts are from the same built-out game, empty portfolios both times. The apps outside the Bank group still show their old pages inside the new frame (Management, for example, is still about 900 words) — they are the next stages.
+- **Tests:** `tablet_home.test.mjs` (3); the browser smoke now opens the home screen, goes Bank → Loans → Borrow, checks the terms appear before any money moves, Accept, and the back arrow. The panel's title is kept for the frame and the tests (the tablet's own screen shows none). No existing test was edited.
+
 ## [0.82.0] — 2026-10-30 — First Steps (development build)
 
 The first pass at the early game's money. The owner's target: a first arms works by day 3 and a second company by day 15. A new player had 12 obols, and everything early paid 5–20 (a construction or refinery shift 5–6, the first quests 12 and 20); the licence alone is 500 and a works 2,500.

@@ -93,6 +93,11 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.83.0 (2026-10-30)
+
+- New: `tablet_home.test.mjs` (3 tests: the home icons for a new game and for a game with businesses, every icon opens an app that exists and every app has a way in, at most eight icons). `tools/smoke-test.mjs` gained five checks (home shows icons and under 120 words; a loan shows its terms before money moves; Accept signs it; the back arrow). No existing test edited.
+- Browser (headless Chromium), real clicks: search → Bonds, back, Bank icon → Rates, Loans → Borrow → 12 months → 5,000 → terms (money unchanged) → Accept (+5,000) → listed on time → Repay (−5,000) → Bonds → Buy 1,000 (−1,000) → held with Sell; the Companies and Foreign views; the bell and back; 0 page errors. Words and controls (same game, empty portfolios) before → after: Home 188/25 → 50/14, Rates 225/3 → 73/4, Loans 366/11 → 81/8 (companies 92/11), Bonds 1,283/62 → 109/10, 132/13, 134/13.
+
 ## Verification record — v0.82.0 (2026-10-30)
 
 - New: `income.test.mjs` (5 tests: the shifts and quests through the real systems, the day-3 arithmetic, the quest texts, the Lucas share and the crop and contract multipliers with the multiplier switched, and a scan that the old literals are gone). Existing tests edited: `character_mason`, `character_moneybucks`, `arms` (see the changelog).

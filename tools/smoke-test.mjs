@@ -112,6 +112,24 @@ try {
     await wait(200);
   }
 
+  // The OberPad (v0.83.0): the home screen of icons, an app with a back arrow, and the Loans flow — terms before money, then Accept
+  await closeAll();
+  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.player.money = 3_000_000; g.corp.ensureWorld(); g.market.state; g.clock.total += 1440; g.corp.dailyTick(); const r = g.corp.exchange.board().find((x) => x.source === 'generated'); g.corp.exchange.buy(r.ticker, 200); ui.openPanel('tablet', { tab: 'Home' }); });
+  await wait(300);
+  record('OberPad home shows icons and no wall of words', (await page.$$('.tb-grid .tb-icon')).length >= 4 && (await page.textContent('#modal-body')).split(/\s+/).length < 120);
+  await page.click('.tb-grid .tb-icon:has-text("Bank")'); await wait(200);
+  await page.click('.tb-seg button:has-text("Loans")'); await wait(200);
+  const m0 = await page.evaluate(() => window.oberverse.ui.game.player.money);
+  await page.click('.tb-btn.pri'); await wait(200);
+  await page.click('.tb-chip:has-text("5,000")'); await wait(250);
+  const terms = await page.textContent('#modal-body');
+  record('OberPad: a loan shows its terms before any money moves', terms.includes('you repay') && (await page.evaluate(() => window.oberverse.ui.game.player.money)) === m0);
+  await page.click('.tb-terms .tb-btn.pri'); await wait(250);
+  record('OberPad: Accept signs the loan', (await page.evaluate(() => window.oberverse.ui.game.player.money)) === m0 + 5000);
+  await page.click('.tb-back'); await wait(200);
+  record('OberPad: the back arrow returns to the home screen', (await page.textContent('#modal-body')).includes('Good '));
+  await closeAll();
+
   // Teleport next to Mags (test hook) and talk to her
   await closeAll();
   await page.evaluate(() => {

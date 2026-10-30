@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.83.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The OberPad, Stage 1',
+    notes: [
+      'The OberPad is a tablet now: a home screen of big icons with red dots for what is waiting, your cash and what needs you at the top, and a back arrow in every app.',
+      'The Bank apps — Rates, Loans and Bonds — are rebuilt: one figure, a few tiles and a button or two instead of a wall of text, with the explanations a tap away.',
+    ],
+  },
+  {
     version: '0.82.0',
     date: '2026-10-30',
     channel: 'development',
