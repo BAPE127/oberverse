@@ -41,6 +41,7 @@ test('listings: every priced listed company of the wider world gets one, once, a
   const rows = ex.board().filter((r) => r.source === 'generated');
   const listed = (g.corp.state.generated || []).filter((c) => c.ticker && (c.status === 'active' || c.status === 'distressed'));
   assert.ok(rows.length >= 10 && rows.length <= listed.length);
+  assert.ok(!ex.board().some((r) => /^(player|central|lariat)/.test(String(r.source))), 'no player business and no central bank is ever on the board');
   for (const r of rows) {
     assert.ok(r.price >= X.minPrice && r.price < 500, `${r.ticker} ${r.price}`);
     const l = st.listings[r.ticker];

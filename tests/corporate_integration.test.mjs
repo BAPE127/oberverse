@@ -94,7 +94,7 @@ test('3: managers procured only what is eligible, within their budgets, once per
   for (const o of g.arms.state.orders) assert.equal(CONTENT.items[o.item].category, 'arms_part');
 });
 
-test('4: payroll, purchases and debt service hit the right ledgers, exactly once a day', () => {
+test('4: payroll, purchases and debt service hit the right ledgers: every manager paid on (nearly) every day and never more than once a day', () => {
   for (const id of ['arms', 'shipping', 'aerospace', 'farming', 'parent']) {
     const people = Object.values(pe.peek().staff).filter((x) => x.employer === id);
     const wages = people.reduce((s, x) => s + x.salary * (x.paidDays || 0), 0);
@@ -138,7 +138,8 @@ test('8–9: wars, embargoes and shortages reach the managers\' decisions, and b
   assert.ok(ask && ask.kind === 'budget', 'a manager asks for a bigger materials budget');
   const x = Object.values(pe.peek().staff).find((p) => p.role === 'gm' && p.employer === 'arms');
   const hold = M.judgeFor(x, 'expand', 'arms', 'expansion', 1000);
-  assert.ok(M.pressure('arms') >= MGMT.costHold ? hold.verdict === 'refuse' && /hold back expansion/.test(hold.reason) : true);
+  assert.ok(M.pressure('arms') >= MGMT.costHold, 'the two wars push arms costs past the hold-back line');
+  assert.equal(hold.verdict, 'refuse'); assert.match(hold.reason, /hold back expansion/);
   st.events = st.events.filter((e) => !String(e.id).startsWith('ev_t'));
   // a budget that is gone is a refusal with its reason; a company that cannot pay is refused too
   M.ensure().spent.arms = { materials: { [M.month]: M.budgetOf('arms', 'materials') } };
@@ -181,7 +182,7 @@ test('11: manager skill makes a bounded, measurable difference to outcomes', () 
   assert.ok(hi >= none * 0.8 && lo <= none * 1.05, 'bounded: no manager makes parts free or worth more than they are');
 });
 
-test('12: saved and loaded in the middle of it all, every balance, record and pending obligation is the same — and the world goes on identically', () => {
+test('12: saved and loaded in the middle of it all, every balance, record and pending obligation is the same — and the group\'s own records go on identically', () => {
   const sm = new SaveManager(new MemoryStorage());
   assert.ok(sm.save('slot1', g).ok);
   const h = new Game(CONTENT, { seed: 1 });

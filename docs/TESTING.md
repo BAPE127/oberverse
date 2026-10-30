@@ -93,9 +93,17 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.80.0 follow-up corrections (2026-10-30, no version change)
+
+A review of v0.80.0 found wording and test-quality faults; no game rule changed.
+- **Existing tests edited in the whole 0.73–0.80 series, stated once so that no release line is read as "all earlier tests unedited"**: `tablet_groups` (0.73 Loans, 0.75 Economy and the news badge, 0.80 Milestones), `exchange` (0.75, its twin game), and `business_loans` (0.77.1, the arrears test, after the cash sweep was removed).
+- Test claims made honest: `corporate_integration` test 12 now says the *group's own records* go on identically (the world's dice do not, see KNOWN_ISSUES); test 4 says "never more than once a day" rather than "exactly once"; the vacuous `cond ? … : true` in tests 8–9 is a real assertion; `exchange` asserts no player business or central bank is on the board; `robbery_separation` no longer reads a shipping "reputation" that does not exist.
+- Robbery wording corrected: the separation is that no financial rule, figure or record reads the robbery, shown by source scans and a control game with the world held still; the shared random sequence is drawn by a police call or a combat bark like any action. Faction standing with the Civic Office (−15) is stated as a social effect: only Osric's permit dialogue and shops owned by that faction read it, and none is.
+- Browser (headless Chromium), v0.80.0 build, a game with arms, shipping, aerospace and a parent group: all 17 tablet apps (Home, Business, Ships, Farm, Aerospace, Companies, Group, Personnel, Management, Milestones, Exchange, Stocks, Economy, Intelligence, Bank, Bonds, Loans) and the five journal tabs rendered, then the First Bank hall, the Governor's office and the Lariat State Bank hall at 10:30 with their staff present — **0 page errors**.
+
 ## Verification record — v0.80.0 (2026-10-30)
 
-- `npm run check` — **872/872 tests passed** (20 new: 8 `corporate_integration`, 6 `transaction_integrity`, 3 `save_migration_corporate`, 3 `milestones`); every other earlier test passes unedited. `npm run smoke` — 26/26.
+- `npm run check` — **872/872 tests passed** (20 new: 8 `corporate_integration`, 6 `transaction_integrity`, 3 `save_migration_corporate`, 3 `milestones`); one earlier test was edited (`tablet_groups`, for the Milestones app joining its group). `npm run smoke` — 26/26.
 - The loan-stacking test was **mutation-checked**: with the old limit it fails, with the fix it passes.
 - Browser (headless Chromium): the Milestones app, the Exchange with a ★ and "Your trades", and a bond's schedule line; no page errors.
 

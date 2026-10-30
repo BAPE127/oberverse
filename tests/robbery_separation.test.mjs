@@ -48,7 +48,7 @@ function finance(g) {
   out.sectors = ['arms', 'shipping', 'aerospace', 'agriculture'].map((s) => K.sectorTable(s).map((r) => [r.key, r.revenue, r.valuation, r.rank]));
   out.group = { value: K.group.groupValue?.(), consolidated: K.group.consolidated('month') };
   out.policy = K.bank.rate();
-  out.reputation = { aero: g.aero.owned ? g.aero.roost.reputation : null, ships: g.logistics.owned ? (g.logistics.state?.reputation ?? null) : null }; // the businesses' own reputations (brief 14.1)
+  out.reputation = { aero: g.aero.owned ? g.aero.roost.reputation : null }; // (the shipping and farming businesses keep no reputation of their own) // the businesses' own reputations (brief 14.1)
   out.collateral = K.bonds.collateral();
   out.sovereign = K.sovereign.offers().map((o) => [o.country, o.rating, o.strain, o.price]);
   out.exchange = K.exchange.board().filter((r) => r.source === 'generated').map((r) => [r.ticker, r.price, r.fair]);
