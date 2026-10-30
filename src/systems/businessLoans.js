@@ -2,7 +2,7 @@
 // own books alone (a share of what it owns and some months of what it has earned, scaled by its own record). The money goes into
 // the company's account as a loan (never revenue), its instalments come out of that account (principal is not a cost, interest is),
 // and a missed one is arrears at the penalty rate with nothing seized: the company's managers stop hiring, bidding and expanding
-// until it is cleared, and the bank takes what the account collects while it is owed. An owner may *guarantee* a loan for a lower
+// until it is cleared — and it is cleared only by the company repaying, as with your own loans. An owner may *guarantee* a loan for a lower
 // rate (a missed instalment then costs their own borrowing record); a parent may guarantee a subsidiary's (it is called, and what it
 // pays becomes an intercompany loan to the subsidiary). Loans share `world.corp.lending` with your own, marked by `borrower`.
 import { TERMS, MIN_LOAN, PENALTY, START_STANDING, limitFactor, quote, dueMonth, companyLimit, companyRate, PERSONAL_GUARANTEE_HIT, PURPOSES } from '../corp/lending.js';
@@ -142,12 +142,6 @@ export class BusinessLoans {
         if (l.left <= 0 && l.outstanding <= 0 && l.arrears <= 0) { l.status = 'repaid'; l.outstanding = 0; l.closed = this.day; this.L.note(`${K.nameOf(id)} repaid a loan of ${money(l.principal)}.`); this.g.tablet.post('bank', `${K.nameOf(id)}'s loan of ${money(l.principal)} is repaid in full.`, 'good'); }
         else if (l.left <= 0) l.status = 'overdue';
         if (l.arrears > 0) this.setStanding(id, this.standing(id) - 1);
-      }
-      // what the account collects now goes to the bank's arrears (after the company's own bills to others)
-      if (l.arrears > 0 && l.status !== 'repaid') {
-        const a = K.account(id);
-        const n = Math.min(l.arrears, a.funded && a.arrears <= 0 ? Math.floor(a.cash) : 0);
-        if (n > 0 && K.pay(id, n, { cat: 'loan_principal' })) this.apply(l, n);
       }
     }
   }

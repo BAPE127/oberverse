@@ -49,7 +49,7 @@ export function rivalMorning(A, co) {
 export function rivalBid(A, co, t) {
   const C = A.cfg;
   const p = A.pOf(t); // as configured
-  if (t.embargoed) return null;
+  if (A.liveTender(t).embargoed) return null; // the embargo as it stands today, not as it stood when the tender was posted
   if (!A.canBuild(co, p) || (t.defence && !A.cleared(co))) return null;
   if (A.qualityOf(co) < t.quality) return null;
   const M = C.aero.meridian;

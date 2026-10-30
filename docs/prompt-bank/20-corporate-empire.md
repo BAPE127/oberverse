@@ -23,6 +23,7 @@ Rules:
 - Bonds (v0.69): a bond is a list of dated cash flows priced at the current yield (par at issue, falling when rates rise); each coupon is paid exactly once whatever is saved or slept through; nothing is created before a purchase.
 - A new interior for an existing building must be the building's grown footprint (make it after `growStreets`, like `phonographLobby`); a larger one moves the town and every hand-placed coordinate in the content.
 - Corporate bonds (v0.71): default is the world's own closing of a company, never a dice roll; the rating is a pure function of the books; the bond market must not change a company's records.
+- A consequence of default is whatever the owner chose, no more: do not add a clever extra (a cash sweep, a seizure) because it feels natural. If a design needs one, ask.
 - A bond issuer's trouble comes from a number that moves every day for a reason a player can read (`causes()`); never from a die. Anything that can default is driven there by a counter of days, not a roll.
 - A fact about the world that a stored record captured when it was made (a tender's embargo flag, a price quoted yesterday) must be re-read when it is acted on, or it goes stale: ask the live source (`A.embargoed(customer)`), not the copy.
 - An event's economic effect is a pure function of its saved record and the day (`src/corp/geo.js`): never apply a shock once, in a tick, or from a handler — that is how it repeats on a reload.

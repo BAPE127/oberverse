@@ -7,6 +7,17 @@ const n = (x) => Math.round(x).toLocaleString();
 const pc = (v) => `${(v * 100).toFixed(2)}%`;
 const AMOUNTS = [5000, 25000, 100000];
 
+/** What a loan costs, stated before it is signed (brief 12.1): the card both sections show for a draft. */
+function termsCard(h, o, amount, months, who, extra, onAccept, onCancel) {
+  const last = amount / months;
+  return h('div', { class: 'item-row', style: 'align-items:flex-start;border:1px solid var(--accent, #c9a227)' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, `${who === 'You' ? 'You borrow' : `${who} borrows`} ${n(amount)} over ${months} months at ${pc(o.rate)}, fixed`),
+    h('div', { class: 'desc' }, `First instalment ${n(o.first)}, falling by about ${n((amount * o.rate) / 12 / months)} a month to ${n(last + (last * o.rate) / 12)} at the end · interest in all ${n(o.interest)} · you repay ${n(o.total)} in all.`),
+    h('div', { class: 'desc' }, `If an instalment is missed it becomes arrears at ${pc(o.rate + PENALTY)}; nothing is ever seized.`),
+    ...extra.map((t) => h('div', { class: 'desc' }, t)),
+    h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:6px' }, h('button', { class: 'small primary', onclick: onAccept }, `Accept: borrow ${n(amount)}`), h('button', { class: 'small ghost', onclick: onCancel }, 'Cancel'))));
+}
+
 export function loansApp(ui, body, open) {
   const g = ui.game;
   const L = g.corp.lending;
@@ -25,6 +36,8 @@ export function loansApp(ui, body, open) {
   else body.append(h('div', { class: 'list' }, ...C.items.map((i) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, i.name, h('span', { class: 'tag' }, `${Math.round(i.advance * 100)}%`)), h('div', { class: 'desc' }, `Worth ${n(i.value)} · secures ${n(i.secures)}`))))));
 
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Borrow'));
+  const d0 = ui.loanDraft?.who === 'you' ? ui.loanDraft : null;
+  if (d0) body.append(termsCard(h, L.offer(d0.amount, d0.months), d0.amount, d0.months, 'You', [], () => { ui.loanDraft = null; go(L.borrow(d0.amount, d0.months)); }, () => { ui.loanDraft = null; open('Loans'); }));
   if (L.inArrears()) body.append(h('p', { class: 'muted' }, 'You are behind on a loan: clear the arrears to borrow again.'));
   else if (C.free < MIN_LOAN) body.append(h('p', { class: 'muted' }, `The smallest loan is ${n(MIN_LOAN)} obols; you can borrow ${n(C.free)} now.`));
   else body.append(h('div', { class: 'list' }, ...TERMS.map((m) => {
@@ -32,7 +45,7 @@ export function loansApp(ui, body, open) {
     if (!amounts.length || (C.free > AMOUNTS.at(-1))) amounts.push(Math.floor(C.free));
     return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
       h('div', { class: 'name' }, `${m} months`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = L.offer(a, m); return h('button', { class: 'small primary', title: `${pc(o.rate)} fixed; ${n(o.first)} the first month; ${n(o.interest)} interest in all`, onclick: () => go(L.borrow(a, m)) }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo`); }))));
+      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = L.offer(a, m); return h('button', { class: 'small primary', onclick: () => { ui.loanDraft = { who: 'you', amount: a, months: m }; open('Loans'); } }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo · ${n(o.total)} in all`); }))));
   })));
 
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Your loans'));
@@ -51,7 +64,7 @@ export function loansApp(ui, body, open) {
   function business() {
     const BL = g.corp.business;
     body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Business loans'),
-      h('p', { class: 'muted', style: 'font-size:12px' }, 'Lariat State Bank also lends to a company of yours that holds its own cash, on its own books alone: a share of what it owns and some months of what it earns. The money goes into the company\'s account and the instalments come out of it (interest is a cost to the company; the principal is not). If it misses one, it is in arrears at the penalty rate, nothing is seized, its managers stop hiring, bidding and expanding, and the bank collects what the account takes in until it is cleared.'));
+      h('p', { class: 'muted', style: 'font-size:12px' }, 'Lariat State Bank also lends to a company of yours that holds its own cash, on its own books alone: a share of what it owns and some months of what it earns. The money goes into the company\'s account and the instalments come out of it (interest is a cost to the company; the principal is not). If it misses one, it is in arrears at the penalty rate, nothing is seized, its managers stop hiring, bidding and expanding until it has repaid what it is behind.'));
     const ids = BL.eligible();
     if (!ids.length) { body.append(h('p', { class: 'muted' }, 'None of your companies holds its own cash yet: fund one from its tablet app first.')); }
     else {
@@ -67,13 +80,15 @@ export function loansApp(ui, body, open) {
         h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:6px 0' }, h('span', { class: 'muted' }, 'Guarantee:'), ...gs.map((x) => chip(x === 'none' ? 'None' : x === 'personal' ? 'You' : 'The parent', x === gu, () => { ui.loanGuar = x; open('Loans'); }))),
         h('p', { class: 'muted', style: 'font-size:12px' }, BL.guaranteeText(id, gu)),
         h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin:4px 0' }, h('span', { class: 'muted' }, 'For:'), h('select', { onchange: (e) => { ui.loanPurpose = e.target.value; } }, ...PURPOSES.map((x) => h('option', { value: x, selected: x === purpose }, x)))));
+      const dc = ui.loanDraft && ui.loanDraft.who === id ? ui.loanDraft : null;
+      if (dc) body.append(termsCard(h, BL.offer(id, dc.amount, dc.months, dc.guarantee), dc.amount, dc.months, v.name, [`For: ${dc.purpose}.`, BL.guaranteeText(id, dc.guarantee)], () => { ui.loanDraft = null; go(BL.borrow(id, dc.amount, dc.months, { guarantee: dc.guarantee, purpose: dc.purpose })); }, () => { ui.loanDraft = null; open('Loans'); }));
       if (BL.inArrears(id)) body.append(h('p', { class: 'muted' }, `${v.name} is behind on a loan: its managers are not hiring, bidding or expanding.`));
       else if (v.free < MIN_LOAN) body.append(h('p', { class: 'muted' }, `${v.name} cannot borrow ${n(MIN_LOAN)} against its books today.`));
       else body.append(h('div', { class: 'list' }, ...TERMS.map((m) => {
         const amounts = AMOUNTS.filter((a) => a <= v.free);
         if (!amounts.length || v.free > AMOUNTS.at(-1)) amounts.push(Math.floor(v.free));
         return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${m} months`),
-          h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = BL.offer(id, a, m, gu); return h('button', { class: 'small primary', title: `${n(o.interest)} interest in all`, onclick: () => go(BL.borrow(id, a, m, { guarantee: gu, purpose: ui.loanPurpose || purpose })) }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo`); }))));
+          h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = BL.offer(id, a, m, gu); return h('button', { class: 'small primary', onclick: () => { ui.loanDraft = { who: id, amount: a, months: m, guarantee: gu, purpose: ui.loanPurpose || purpose }; open('Loans'); } }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo · ${n(o.total)} in all`); }))));
       })));
     }
     const all = BL.loans(null, true);

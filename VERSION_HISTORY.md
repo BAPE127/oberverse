@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.77.1 | 2026-10-30 | development | 1 | Honest terms: no cash sweep on a company in arrears (the owner never chose it), the total repayment shown before a loan is signed, a delayed bond sellable, and Meridian held to the embargo as it stands |
 | 0.77.0 | 2026-10-30 | development | 1 | Foreign government bonds: a three-year bond from each of the eight countries, rated from its debt, wars, embargo and treasury; delayed payments and restructuring only after weeks of the worst strain; collateral for your loans |
 | 0.76.0 | 2026-10-30 | development | 1 | What the wars cost: the cost index reaches your own arms and aerospace purchases, a bounded war premium on Halvermouth's bond yields, managers asking for bigger budgets and holding back expansion under cost pressure, and a fix so nobody can bid on an embargoed buyer's older tender |
 | 0.75.0 | 2026-10-30 | development | 1 | The world's quarrels: the arms market's wars and embargoes kept as persistent events (id, status, severity, timeline) whose bounded, exposure-weighted effects reach the wider world's costs and demand and the listed companies' prices; an Economy app |

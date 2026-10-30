@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.77.1',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Honest Terms',
+    notes: [
+      'Loans now show what they will cost in all before you agree, with Accept and Cancel. A company that falls behind on a loan is no longer drained of its cash by the bank: it pays its arrears itself, and until it does its managers hold off hiring, bidding and expanding. A bond from a country that has delayed its payments can be sold again, and Meridian now respects an embargo that began after a tender was posted.',
+    ],
+  },
+  {
     version: '0.77.0',
     date: '2026-10-30',
     channel: 'development',

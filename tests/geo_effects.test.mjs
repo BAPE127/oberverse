@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, setTime, noImpulses, CONTENT } from './helpers.mjs';
 import { makeTender } from '../src/aero/tenders.js';
+import { rivalBid } from '../src/aero/rival.js';
 import { Rng } from '../src/core/rng.js';
 import { runCommand } from '../src/game/debugCommands.js';
 import { GEO } from '../src/content/geo.js';
@@ -169,4 +170,19 @@ test('a manager does not bid for a buyer under an embargo — even one whose ten
   assert.equal(r.ok, false, 'and nobody, owner or manager, can place the bid'); assert.match(r.text, /embargo/);
   g.world.market.countries.sund.embargo = false;
   assert.equal(A.bidQuote(co.id, t.id).ok, true, 'lifted: biddable again');
+});
+
+test('Meridian is held to the embargo as it stands today too, not as it stood when a tender was posted', () => {
+  const g = newGame(2607);
+  g.corp.ensureWorld(); g.market.state;
+  const A = g.aero; const mer = A.meridian;
+  const t = makeTender(CONTENT.aerospace, new Rng(3), { id: 'Tr', customerId: 'cu_sund_defence', state: { budget: 1e9 }, day: g.clock.day });
+  Object.assign(t, { product: 'ap_skylark', qty: 1, ceiling: 4_000_000, days: 60, quality: 10, closes: g.clock.day + 6, defence: false, embargoed: false });
+  delete t.config;
+  g.world.market.countries.sund.embargo = false;
+  const before = rivalBid(A, mer, t);
+  assert.ok(before, 'Meridian would bid on it with its buyer free');
+  g.world.market.countries.sund.embargo = true;
+  assert.equal(t.embargoed, false, 'the tender still carries the flag it was posted with');
+  assert.equal(rivalBid(A, mer, t), null, 'with the buyer embargoed now, Meridian does not bid');
 });

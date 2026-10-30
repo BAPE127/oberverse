@@ -167,3 +167,22 @@ test('the bonds are collateral at their rating and cannot be sold out from under
   const copy = JSON.parse(JSON.stringify(g.corp.state.sovereign));
   assert.deepEqual(copy, g.corp.state.sovereign);
 });
+
+test('a delayed bond is not collateral, so selling it is never refused for want of security that was never counted', () => {
+  const g = open(2706);
+  g.player.money = 5_000_000;
+  assert.ok(g.corp.sovereign.buy('teshvar', 200000).ok);
+  assert.ok(g.corp.sovereign.buy('pallas', 100000).ok);
+  const free = g.corp.lending.capacity().free;
+  assert.ok(g.corp.lending.borrow(Math.floor(free), 12).ok, 'borrowed to the limit');
+  wreck(g, 'pallas');
+  const i = g.corp.state.sovereign.issues.pallas;
+  for (let d = 41; d < 41 + 12; d++) morning(g, d);
+  assert.equal(i.status, 'delayed');
+  assert.ok(!g.corp.lending.holdings().some((h) => h.name.includes('Pallas')), 'a delayed bond secures nothing');
+  const pallas = g.corp.sovereign.lots().find((l) => l.issue === 'pallas');
+  const r = g.corp.sovereign.sell(pallas.id);
+  assert.ok(r.ok, `the bond nobody lends against can be sold: ${r.text}`);
+  const teshvar = g.corp.sovereign.lots().find((l) => l.issue === 'teshvar');
+  assert.equal(g.corp.sovereign.sell(teshvar.id).ok, false, 'the one that is collateral cannot');
+});

@@ -86,6 +86,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.77.1 (2026-10-30)
+
+- `npm run check` — **831/831 tests passed**; `npm run smoke` — 26/26. Two of the new tests were run against the v0.77.0 code and fail there, as they should.
+- **Parity**: identical to v0.77.0 (no company loan exists in the runs; the changes touch loans, a delayed bond and Meridian's bidding).
+- Browser (headless Chromium): choosing a 25,000 loan shows the terms (7.75%, 2,245 first instalment, 1,049 interest, 26,049 in all) and signs nothing; *Accept* signs it; no page errors.
+
 ## Verification record — v0.77.0 (2026-10-30)
 
 - `npm run check` — **829/829 tests passed** (6 new in `sovereign`); every earlier test passes unedited. `npm run smoke` — 26/26.

@@ -79,7 +79,7 @@ test('a loan is cash but never revenue; interest is a cost, principal is not; as
   assert.equal(g.corp.lending.owed(), 0);
 });
 
-test('a missed instalment is arrears with nothing seized; managers freeze; borrowing is closed; the bank collects as cash arrives', () => {
+test('a missed instalment is arrears with nothing seized; managers freeze; borrowing is closed; only the company repaying clears it', () => {
   const g = arms(2403);
   assert.ok(g.corp.business.borrow('arms', 150000, 12).ok);
   const l = g.corp.business.loans('arms')[0];
@@ -98,11 +98,17 @@ test('a missed instalment is arrears with nothing seized; managers freeze; borro
   assert.equal(judge(base).verdict, 'execute');
   for (const kind of ['hire', 'bid', 'expand']) { const r = judge({ ...base, kind, frozen: true }); assert.equal(r.verdict, 'refuse'); assert.match(r.reason, /behind on a bank loan/); }
   assert.equal(judge({ ...base, kind: 'order', frozen: true }).verdict, 'execute', 'buying materials to keep running is not frozen');
-  // cash arrives: the bank collects it
+  // cash arrives: nothing is taken from it — the company clears the arrears by repaying, and only then are its managers free again
   g.corp.receive('arms', 50000, { cat: 'sales' });
   const owed = l.arrears;
+  const cash = g.corp.account('arms').cash;
   dayAt(g, 32);
-  assert.ok(l.arrears < owed, 'arrears fall as the account collects');
+  assert.ok(l.arrears >= owed, 'they do not shrink on their own');
+  assert.equal(g.corp.account('arms').cash, cash, 'no cash is swept from the account');
+  assert.ok(g.corp.business.inArrears('arms'), 'still behind, still frozen');
+  const r = g.corp.business.repay(l.id, l.arrears);
+  assert.ok(r.ok, r.text);
+  assert.equal(g.corp.business.inArrears('arms'), false, 'repaid: the managers are free again');
   assert.ok(balanceOk(g.corp.account('arms')));
 });
 

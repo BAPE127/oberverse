@@ -103,8 +103,10 @@ export class Sovereign {
     const v = this.lotView(l);
     if (v.issueStatus === 'restructured') return { ok: false, text: 'That bond can no longer be sold.' };
     const g = this.g;
-    const lock = g.corp.lending.checkRelease({ kind: 'sovBond', value: v.value, rating: v.rating });
-    if (!lock.ok) return lock;
+    if (v.issueStatus === 'open') { // a delayed bond is not counted as collateral, so selling it cannot take security away
+      const lock = g.corp.lending.checkRelease({ kind: 'sovBond', value: v.value, rating: v.rating });
+      if (!lock.ok) return lock;
+    }
     s.lots = s.lots.filter((x) => x !== l);
     g.player.money += v.sale;
     g.bus.emit('money:changed', { delta: v.sale, total: g.player.money });

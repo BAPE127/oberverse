@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.77.1] — 2026-10-30 — Honest Terms (development build)
+
+A patch after a review of v0.74–v0.77. Nothing here adds a feature; it removes something the owner never chose, states a cost before it is agreed, and closes three holes.
+
+### Fixed
+- **A company in arrears no longer has its cash swept.** Since v0.74.0 the bank took, every morning, all of a company's cash up to what it was behind — which was never in the owner's answer (arrears, a penalty rate, and managers stopping non-essential spending) and was documented as if it were. It also starved wages: payroll is at 19:05 and the sweep at 06:07, so staff were paid only from what arrived that day. **A company's arrears are now cleared only by the company repaying them** (the *Repay* button, as for your own loans); until then its managers stay frozen. The v0.74.0 entry and known-issues text that described the sweep were wrong and are corrected.
+- **The total repayment is shown before you agree** (the brief asks for it). Choosing an amount and a term in the Loans app, for you or for a company, now shows the terms — rate, first and last instalment, interest in all, **total repaid**, what a missed instalment costs, the purpose and the guarantee's consequence — with *Accept* and *Cancel*; nothing is signed by the first click. Each button also shows the total.
+- **A delayed foreign bond could not be sold by someone with a loan near their limit** although it was never counted as collateral; the sale lock now applies only to bonds that are.
+- **Meridian could still bid on a tender whose buyer was embargoed after it was posted** (v0.76.0 closed this for you and your managers only). It now reads the embargo as it stands.
+
+### Tests
+- `business_loans` (the arrears test now proves nothing is swept and that repaying frees the managers), `sovereign` (+1: a delayed bond sells while a collateral one does not) and `geo_effects` (+1: Meridian and the late embargo); the last two fail on the v0.77.0 code. No earlier test was otherwise changed.
+
+### Not done (said plainly)
+- **Stage 12's lender has no building.** Lariat State Bank is a name on the Loans app and a closed façade in Lariat; there is no interior, counter or staff. Say if you want it built (the First Bank of Halvermouth is the pattern). "Monetary policy" in stage 12 is met by the policy rate of v0.68.0: every loan's rate, the group's intercompany rate and the bonds' yields are built on it.
+
 ## [0.77.0] — 2026-10-30 — Sovereign Debt (development build)
 
 Stage 13, last part: foreign government bonds — the other half of the owner's answer on bonds (Halvermouth's own bonds feel the wars since v0.76.0).
