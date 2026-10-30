@@ -102,6 +102,18 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Not trading**: transfers change which account holds cash, never the total, and never appear in sales or costs; `distributions` (v0.61) are separate.
 - **Not in this release**: forecasts, interest on idle cash, debt monitoring, moves between two subsidiaries, treasury by managers below the parent.
 
+## The exchange (v0.66.0)
+
+`game.corp.exchange` (`src/systems/exchange.js`; pure rules in `src/corp/exchange.js`; settings in `CORP.exchange`); the **Exchange** tablet app. The first part of stage 9.
+
+- **Listings** (`state.exchange.listings[ticker]`): made once, on the first day a listed company of the wider world has a valuation (`metricsOf(...).valuation`): `shares = listingShares(value, firstPrice)` with the first price a hash of `gen.salt` and the ticker between 20 and 120, so the price starts at its worth (no company has an absurd price or a handful of shares). The shares are the exchange's own count; they do not change the company's record.
+- **Price** (`nextPrice`, the same step as Meridian's): `price += (fair − price) × 0.12`, times `1 ± 2%` of a mood that is `hashUnit(salt | ticker | day)`, floor 0.5, two decimals; `fair` = the company's estimated value over the listed shares. **No game RNG, and nothing you do moves it.** One step a day (`lastDay`), history of sixty days.
+- **Trading**: `buy`/`sell` for a listing take the price on the day; **1% fee each way** (rounded up), **cap 5%** of the listed shares for one investor, refusals change nothing; the holding keeps `n`, the cost (fee included) and dividends received. For `OBRO`, `CHZ` and `MRDN` they delegate to `oil.buyShares`, `dairy.buyShares`, `aero.buyShares` (and sell) — unchanged.
+- **Dividends** (`payDividends`): for each closed month (the last three at most after a gap), the dividend the company really paid out of that month's profit (`months` row `[7]`, set at the world's month end from profit and spare cash) over the listed shares, to the shares held — keyed by `divMonth`, so once.
+- **Failure and takeover** (`delist`): `closed` → the shares are worth nothing (holding written off, a note); `merged` → bought out at the last price (cash to the wallet, once). Neither company is ever listed again under that ticker.
+- **Board and portfolio** (`board`, `portfolio`): the three older shares read through as they are, with the cost kept only where it exists (Meridian's); the portfolio says when a holding's cost is not known and leaves it out of the gain.
+- **Not in this release**: the older shares' rules (a fee and cap for OBRO and CHZ, one price step) — the second part; listing one of your own businesses; shares held by generated companies, short selling, orders at a price; anything the player's trades could do to a price.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

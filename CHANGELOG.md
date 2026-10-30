@@ -2,6 +2,27 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.66.0] — 2026-10-30 — Open Board (development build)
+
+Stage 9, first part, of the Corporate Empire brief (docs/CORPORATE.md): one exchange for every listed company. The listed companies of the wider world are tradable for the first time, under one set of rules; the three shares the game already had are on the same board **but keep their own rules for now** (the second part).
+
+### Added
+- **The Exchange app** (tablet): a board of every listed company (price, the day's change, thirty days as blocks, what you hold) with a sector filter and sort, a portfolio summary (what you hold at today's prices, the gain on holdings whose cost is kept, dividends received), a company panel (sixty days of price, low and high, what the company's books say a share is worth, the shares, the cap, the fee, your holding and its cost) and buttons to buy or sell 1, 10 or 100.
+- **The wider world's listed companies** (about seventeen) are listed once their books can value them, each with a share count made to fit its worth at a first price of 20–120 obols, so a company is priced from its first morning. Under `CORP.exchange`: **price** moves 12% of the way each day to the company's own estimated value over its listed shares, with a ±2% daily mood that is a hash of the world's seed, the ticker and the day (no game RNG, so two games from one save agree); **a 1% broker's fee** each way; **a 5% cap** on one investor; **dividends** are what the company really paid out of a closed month's profit (the world already pays them), once a month, per share; a company that **fails** leaves its shares worth nothing, and one that is **taken over** buys them out at its last price. Nothing ever follows your trades.
+- Buying and selling goes through the exchange for these; for Ober's Oil, Chuckie's Cheese and Meridian it goes through their own services, so their rules (no fee or cap for the first two; Meridian's own fee and cap) are exactly what they were.
+
+### Not changed
+- OBRO, CHZ and MRDN keep their own prices, dividends and rules, and their tests pass unedited. Bringing them under the exchange's rules (a fee and cap on the first two, one price step) is the second part of this stage and will change those shares' behaviour on purpose, with their prices continuing from where they are.
+
+### Save
+- `world.corp.exchange` (`listings` per ticker: `shares`, `price`, `fair`, `status`, sixty days of `history`; `holdings`: `n`, `cost`, `divs`; `log`; `lastDay`; `divMonth`) is created on the first morning after the wider world is made. A save from v0.65 or earlier gains empty holdings: no one is given a share. No schema change (still 1).
+
+### Tests
+- New: `exchange` (9): the pure rules, listings made once at a price that fits their worth, prices following the books within the mood and the same in two games, the fee each way and the cap and refusals that change nothing, dividends once a month and none for shares not held, failure and takeover settled once, the three older shares read and traded through their own rules, the portfolio saying plainly when a cost is not kept, and saves. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Ober's Oil and Chuckie's Cheese have never kept what you paid, so the app cannot show a gain on them. The exchange's history begins on the first morning of the wider world, and a company's price history is sixty days.
+
 ## [0.65.0] — 2026-10-30 — Counting House (development build)
 
 Stage 8 of the Corporate Empire brief (docs/CORPORATE.md): treasury — a policy that moves cash within the group, decided by a chief financial officer through the same judgement, budget and approvals as every other manager decision.

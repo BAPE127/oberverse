@@ -74,6 +74,17 @@ export const CORP = {
   },
   /** How the arms pool is read from the real arms market: obols a day per obol of the countries' daily income, and what a war adds. */
   armsPool: { perIncome: 0.7, perWar: 0.06 },
+  /** The exchange (v0.66.0): one set of rules for every share a company of the wider world has. Prices are obols a share. */
+  exchange: {
+    fee: 0.01, // broker's commission each way (the rate Meridian's shares have always had)
+    maxShare: 0.05, // one investor may hold at most this share of a company
+    priceAdjust: 0.12, // a price moves this share of the way to fair value each day
+    noise: 0.02, // ± daily market mood
+    target: [20, 120], // the price a company is first listed at (its share count is made to fit its worth)
+    minPrice: 0.5,
+    historyDays: 60,
+    logKept: 60,
+  },
   strategies: {
     aggressive: { name: 'Aggressive', invest: 0.85, debt: 1.4, price: -0.05 },
     steady: { name: 'Steady', invest: 0.93, debt: 1.0, price: 0 },

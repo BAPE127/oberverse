@@ -24,6 +24,7 @@ import { figures, growth, value as worth, rank as rankBy, shares } from '../corp
 import { Group } from './group.js';
 import { Personnel } from './personnel.js';
 import { Management } from './management.js';
+import { Exchange } from './exchange.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
@@ -34,6 +35,7 @@ export class Corporate {
     this.game = game;
     this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
     this.personnel = new Personnel(this); // v0.62.0: the people who run them
+    this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
 
@@ -402,6 +404,12 @@ export class Corporate {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once a budget has been set)
+    this.generatedDay();
+    this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
+  }
+
+  /** The wider world's day. */
+  generatedDay() {
     const st = this.state;
     if (!st.generated) return;
     const g = this.game;

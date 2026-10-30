@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.66.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Open Board',
+    notes: [
+      'A new Exchange app in the tablet puts every listed company on one board: Ober\'s Oil, Chuckie\'s Cheese, Meridian, and now the listed companies of the wider world (about seventeen). Each has a price with a history, what you hold, and what you have been paid.',
+      'The new listings trade under one set of rules: the price moves a part of the way each day toward what the company\'s own books say a share is worth (it never follows what you buy or sell), a 1% broker\'s fee each way, no more than 5% of a company in one pair of hands, and dividends that are what the company really paid out of a month\'s profit. A company that fails leaves its shares worthless; one that is taken over buys them out at the last price. The three older shares keep their own rules for now.',
+    ],
+  },
+  {
     version: '0.65.0',
     date: '2026-10-30',
     channel: 'development',
