@@ -2,6 +2,28 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.65.0] — 2026-10-30 — Counting House (development build)
+
+Stage 8 of the Corporate Empire brief (docs/CORPORATE.md): treasury — a policy that moves cash within the group, decided by a chief financial officer through the same judgement, budget and approvals as every other manager decision.
+
+### Added
+- **Treasury policy** (Management tab): for each subsidiary, a **floor** and a **ceiling** of cash (the ceiling at least 1,000 above the floor and never below its protected minimum), and a **reserve the parent keeps** that top-ups never go below. Cash, not profit.
+- **A treasury decision** (`transfer`), made once a day at most per subsidiary by a **chief financial officer** at the parent who has the **permission to move cash** (executives have it by default; it is set per person): **below the floor**, a top-up from the parent to the floor — only what the parent has free above its reserve (so it may be partial) — as a capital contribution through the group's own transfer; **above the ceiling**, the surplus repays what the subsidiary owes the parent (loans in order), then returns capital the parent put in (never more than it put in), and **nothing while the subsidiary owes anyone else** or below its protected minimum. Nothing under 1,000 is moved.
+- It uses the one judgement: a monthly **Treasury** budget per subsidiary (the cash moved, both ways added together, counts), the person's spending limit and ask-above limit (above it the move waits for you; approving judges it again from today's figures and moves what is needed *now*), and the funded-companies-only rule. Planning changes nothing.
+- The Management tab shows each subsidiary's cash, policy and what the next move would be, and alerts and plain notes where nothing is happening (no policy, no budget, no officer or permission, not in the group).
+
+### Unchanged by design
+- Moves are the group's own **transfers**: they are numbered and logged, they change which account holds the money and never how much exists, and they appear in no company's sales or costs. The v0.61 monthly distribution policies are separate and keep running as before.
+
+### Save
+- `world.corp.management.treasury` (`{ [subsidiary]: { floor, ceiling }, parent: { reserve } }`) is created when a policy or reserve is first set. A save from v0.64 or earlier has none; nothing is moved by loading. No schema change (still 1).
+
+### Tests
+- New: `management_treasury` (8): the pure move rule (top-up, partial under the reserve, nothing below the least worth moving, sweep order loans-then-capital, never while owing others, never below the protected minimum), policy bounds, a top-up through the real transfer with cash conserved and the subsidiary's months untouched, the reserve, the budget as a hard stop, the ask-above queue and re-judging at approval, nothing happening without a policy, budget, officer or group, saves, and a run of repeated sweeps and top-ups in which every obol that moved existed. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Treasury is one policy per subsidiary, moves between the parent and a subsidiary only (never directly between two subsidiaries), and has no forecasts, interest on cash or debt monitoring yet (not chosen for this release).
+
 ## [0.64.0] — 2026-10-29 — By the Plan (development build)
 
 Stage 7 (second half) of the Corporate Empire brief (docs/CORPORATE.md): managers bidding on contracts and expanding from pre-approved plans, by the same judgement and limits as before.

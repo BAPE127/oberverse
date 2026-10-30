@@ -10,6 +10,7 @@ export const DECIDES = {
   sales_mgr: { bid: ['aerospace'] },
   farm_mgr: { expand: ['farming'] },
   logistics_mgr: { expand: ['shipping'] },
+  cfo: { transfer: ['arms', 'shipping', 'aerospace', 'farming'] },
   hrd: { hire: ['arms', 'shipping', 'aerospace', 'farming'] }, // the parent's HR director hires for its subsidiaries
 };
 
@@ -18,11 +19,12 @@ export const CATEGORIES = {
   materials: { name: 'Materials and parts', text: 'Reordering what the business uses up.' },
   hiring: { name: 'Hiring', text: 'The recruiting fee and the first month\'s wage of each hire a manager makes.' },
   contracts: { name: 'Contract bids', text: 'What the work of the tenders a manager bids on would cost to build (the commitment, if the bid wins).' },
+  treasury: { name: 'Treasury', text: 'Cash a chief financial officer moves between the parent and this subsidiary (both ways added together).' },
   expansion: { name: 'Expansion', text: 'The price of each asset bought or built from a plan you have approved.' },
 };
 
 /** Which kinds of decision a business can have, in the order they are made each day. */
-export const KINDS = { arms: ['reorder', 'hire', 'expand'], aerospace: ['reorder', 'hire', 'bid', 'expand'], shipping: ['hire', 'expand'], farming: ['hire', 'expand'] };
+export const KINDS = { arms: ['reorder', 'hire', 'expand', 'transfer'], aerospace: ['reorder', 'hire', 'bid', 'expand', 'transfer'], shipping: ['hire', 'expand', 'transfer'], farming: ['hire', 'expand', 'transfer'] };
 
 /** The plans an owner may approve, by type: where, and what the plan says. Placement is a fixed rule for each. */
 export const PLAN_TYPES = {
@@ -41,6 +43,7 @@ export const MGMT = {
   maxOrderQty: 60, // arms: most of one part in one order
   shiftHours: 8, // arms: the par stock of a part is this many hours of the staffed stations using it
   reorderAt: 0.5, // arms: order up to par when stock and what is on order fall below this share of it
+  minMove: 1000, // the least a treasury decision moves (no dust)
   maxContracts: 3, // active contracts and bids still open, at most, before a manager bids for more
   plotGap: 8, // tiles between two plots (a lane's width) that still count as next to each other
   hireBand: 30, // days of wage counted with the fee against a hire's limits and the budget

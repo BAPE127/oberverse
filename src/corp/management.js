@@ -18,6 +18,7 @@ export function judge(d) {
   if (!d.allowed) return no('Their job does not make this kind of decision.');
   if (d.kind === 'hire' && !d.canHire) return no('They are not authorised to hire.');
   if (d.kind === 'bid' && !d.canContract) return no('They are not authorised to sign contracts.');
+  if (d.kind === 'transfer' && !d.canTransfer) return no('They are not authorised to move cash between companies.');
   if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (!(d.cost > 0)) return no('There is nothing to spend.');
@@ -119,4 +120,32 @@ export function bidPrice(cost, marginPct, ceiling) {
   if (floor <= ceiling) return { price: floor, below: false };
   if (ceiling < cost) return { price: null, below: true, why: 'the customer\'s ceiling is below what it would cost' };
   return { price: ceiling, below: true };
+}
+
+// ------------------------------------------------------------------ treasury (v0.65.0)
+
+/**
+ * What a treasury decision would move for one subsidiary. policy: { floor, ceiling }, parentReserve: cash the parent keeps;
+ * s: { cash, parentCash, arrears, minLiquidity, loans: [{ id, outstanding }], capital }. Returns null or
+ * { kind: 'topup', amount } | { kind: 'sweep', steps: [{ loan, amount } | { capital: amount }], amount }.
+ * Below the floor it is topped up from the parent (never below the parent's reserve); above the ceiling the surplus
+ * repays what it owes the parent, then returns capital the parent put in — and nothing while it owes anyone else.
+ */
+export function treasuryMove(policy, parentReserve, s, minMove) {
+  if (!policy) return null;
+  if (s.cash < policy.floor) {
+    const amount = Math.floor(Math.min(policy.floor - s.cash, s.parentCash - (parentReserve || 0)));
+    return amount >= minMove ? { kind: 'topup', amount } : null;
+  }
+  const keep = Math.max(policy.ceiling, s.minLiquidity || 0);
+  if (s.cash > keep && !(s.arrears > 0)) {
+    let left = Math.floor(s.cash - keep);
+    const steps = [];
+    for (const l of [...s.loans].sort((a, b) => (a.id < b.id ? -1 : 1))) { const a = Math.min(l.outstanding, left); if (a > 0) { steps.push({ loan: l.id, amount: a }); left -= a; } }
+    const c = Math.min(s.capital, left);
+    if (c > 0) { steps.push({ capital: c }); left -= c; }
+    const amount = Math.floor(steps.reduce((a, x) => a + (x.amount ?? x.capital), 0));
+    return amount >= minMove ? { kind: 'sweep', steps, amount } : null;
+  }
+  return null;
 }

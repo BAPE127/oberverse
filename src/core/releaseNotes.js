@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.65.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Counting House',
+    notes: [
+      'A chief financial officer can now keep your subsidiaries\' cash where you want it. Set a floor and a ceiling for each subsidiary and a reserve the parent always keeps: below the floor it is topped up from the parent; above the ceiling the surplus repays what it owes the parent, then returns capital the parent put in — never while it owes others, and never below its protected minimum.',
+      'It is the same cash moving between your own companies, as before: never sales or costs, nothing created or destroyed. It runs inside a monthly Treasury budget, the person\'s own limits and the permission to move cash, and a move above their ask-above limit waits for your word.',
+    ],
+  },
+  {
     version: '0.64.0',
     date: '2026-10-29',
     channel: 'development',

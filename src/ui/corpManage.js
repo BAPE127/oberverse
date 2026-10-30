@@ -6,7 +6,7 @@ import { ROLES } from '../content/personnel.js';
 
 const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
 const BUSINESSES = [['arms', ['materials', 'hiring', 'expansion']], ['aerospace', ['materials', 'contracts', 'hiring', 'expansion']], ['shipping', ['hiring', 'expansion']], ['farming', ['hiring', 'expansion']]];
-const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand' };
+const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand', treasury: 'transfer' };
 const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
 
 export function manageApp(ui, body, open) {
@@ -17,7 +17,7 @@ export function manageApp(ui, body, open) {
   if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
   const name = (e) => K.personnel.employerName(e);
 
-  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage, with the permissions to hire, sign contracts and expand), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
+  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage, with the permissions to hire, sign contracts, expand and move cash), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
 
   const alerts = M.alerts();
   if (alerts.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Needs your attention'), h('div', { class: 'list' }, ...alerts.map((a) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'name' }, a.text), h('div', { class: 'desc' }, a.advice))))));
@@ -36,8 +36,9 @@ export function manageApp(ui, body, open) {
 
   body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Budgets'));
   const list = h('div', { class: 'list' });
-  for (const [id, cats] of BUSINESSES) {
+  for (const [id, base] of BUSINESSES) {
     if (!K.established(id)) continue;
+    const cats = K.group.isSub(id) ? [...base, 'treasury'] : base;
     const funded = K.account(id).funded;
     const rows = cats.map((cat) => {
       const kind = KIND[cat];
@@ -59,7 +60,29 @@ export function manageApp(ui, body, open) {
       h('span', { class: 'muted' }, mg === undefined ? 'None set: managers bid on nothing.' : `Bids go in at ${mg}% over cost; where the customer's ceiling is lower, the bid waits for you (never below cost).`)));
   }
 
+  treasury();
   plans();
+
+  function treasury() {
+    const G = K.group;
+    if (!G.parent) return;
+    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Treasury policy'));
+    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 10000, value: M.parentReserve(), style: 'width:110px' });
+    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, `${G.parent.name} keeps at least`), reserve, h('span', { class: 'muted' }, `obols (it holds ${n(K.cashOf('parent'))}); top-ups never take it lower`), h('button', { class: 'small', onclick: () => go(M.setParentReserve(Number(reserve.value))) }, 'Set')));
+    const subs = G.subs();
+    if (!subs.length) { body.append(h('p', { class: 'muted' }, 'Bring a business under the parent to keep its cash between a floor and a ceiling.')); return; }
+    body.append(h('div', { class: 'list' }, ...subs.map((id) => {
+      const pol = M.peek()?.treasury[id];
+      const floor = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.floor ?? 20000, style: 'width:100px' });
+      const ceil = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.ceiling ?? 100000, style: 'width:100px' });
+      const mv = M.planTreasury(id)[0];
+      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+        h('div', { class: 'name' }, name(id), h('span', { class: 'tag' }, `holds ${n(K.cashOf(id))}`), pol ? h('span', { class: 'tag good' }, 'policy set') : h('span', { class: 'tag' }, 'no policy')),
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:4px' }, h('span', { class: 'muted' }, 'Keep it between'), floor, h('span', { class: 'muted' }, 'and'), ceil,
+          h('button', { class: 'small', onclick: () => go(M.setTreasury(id, { floor: Number(floor.value), ceiling: Number(ceil.value) })) }, 'Set'), pol ? h('button', { class: 'small ghost', onclick: () => go(M.clearTreasury(id)) }, 'Withdraw') : null),
+        h('div', { class: 'desc' }, pol ? (mv ? `Next, a chief financial officer would ${mv.desc}.` : 'Nothing to move now.') : 'Below the floor it is topped up from the parent; above the ceiling the surplus repays what it owes the parent, then returns capital the parent put in. Only a chief financial officer with the permission to move cash does it, inside a Treasury budget.')));
+    })));
+  }
 
   function plans() {
     function planRow(q) {
@@ -105,5 +128,5 @@ export function manageApp(ui, body, open) {
   body.append(h('h3', { style: 'margin:12px 0 4px' }, 'What they have done'));
   if (!log.length) body.append(h('p', { class: 'muted' }, 'Nothing yet.'));
   else body.append(h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${LABEL[l.type] || l.type}: ${l.text}`))))));
-  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one decision of each kind a day, at about 06:00; a manager makes at most two hires a month at a business and a bid counts the cost of the work it would commit against its budget. A plan buys one at a time, next to what you own and at the first free place by a fixed rule; a station that arrives is placed from the dock but needs a worker you assign. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
+  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one decision of each kind a day, at about 06:00 (treasury moves, by the chief financial officer, are between the parent and a subsidiary: they are transfers, never sales or costs); a manager makes at most two hires a month at a business and a bid counts the cost of the work it would commit against its budget. A plan buys one at a time, next to what you own and at the first free place by a fixed rule; a station that arrives is placed from the dock but needs a worker you assign. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
 }

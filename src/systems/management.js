@@ -8,7 +8,7 @@
 //
 // Nothing here runs, or is created, until the owner sets a budget.
 import { DECIDES, CATEGORIES, MGMT, KINDS, PLAN_TYPES } from '../content/management.js';
-import { judge, armsPar, planArmsOrders, hireChoice, nextPlot, nextPort, firstFreeCell, bidPrice } from '../corp/management.js';
+import { judge, armsPar, planArmsOrders, hireChoice, nextPlot, nextPort, firstFreeCell, bidPrice, treasuryMove } from '../corp/management.js';
 import { monthOf } from '../corp/ledger.js';
 import { roleFit } from '../corp/people.js';
 import { ROLES, MARKET } from '../content/personnel.js';
@@ -31,6 +31,7 @@ export class Management {
     const st = this.K.state;
     const m = (st.management ||= { v: 1, budgets: {}, spent: {}, pending: [], log: [], last: { day: 0, refused: {} }, hires: {}, nextId: 1 });
     m.margins ||= {}; m.plans ||= []; m.nextPlan ||= 1; // v0.64.0: a v0.63 save gains them when next used
+    m.treasury ||= {}; // v0.65.0
     return m;
   }
 
@@ -85,7 +86,7 @@ export class Management {
 
   /** The permission a kind of decision needs, besides the job. */
   permitted(x, kind) {
-    return kind === 'hire' ? Boolean(x.authority.canHire) : kind === 'bid' ? Boolean(x.authority.canContract) : kind === 'expand' ? Boolean(x.authority.canExpand) : true;
+    return kind === 'hire' ? Boolean(x.authority.canHire) : kind === 'bid' ? Boolean(x.authority.canContract) : kind === 'transfer' ? Boolean(x.authority.canTransfer) : kind === 'expand' ? Boolean(x.authority.canExpand) : true;
   }
 
   // ------------------------------------------------------------- judging
@@ -94,12 +95,12 @@ export class Management {
     return MGMT.hiresPerMonth - (h && h.m === this.month ? h.n : 0);
   }
 
-  judgeFor(x, kind, target, cat, cost, { owner = false, ask = null, reserve = 0 } = {}) {
+  judgeFor(x, kind, target, cat, cost, { owner = false, ask = null, reserve = 0, source = null } = {}) {
     return judge({
-      kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand),
+      kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
       funded: this.K.established(target) && this.K.account(target).funded, cost,
       spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
-      cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(target, cost + reserve), hiresLeft: this.hiresLeft(target),
+      cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });
   }
 
@@ -336,19 +337,80 @@ export class Management {
     }
   }
 
+  // ------------------------------------------------------------- treasury (v0.65.0)
+  /** The owner's treasury policy for a subsidiary: keep its cash between a floor and a ceiling. Both are cash, not profit. */
+  setTreasury(target, { floor, ceiling }) {
+    const G = this.K.group;
+    if (!G.isSub(target)) return { ok: false, text: 'Treasury moves cash only for a subsidiary of your group.' };
+    floor = Math.round(Number(floor)); ceiling = Math.round(Number(ceiling));
+    if (!(floor >= 0 && floor <= 5e7)) return { ok: false, text: 'The floor is between 0 and 50,000,000 obols.' };
+    if (!(ceiling >= floor + MGMT.minMove && ceiling <= 5e7)) return { ok: false, text: `The ceiling must be at least ${MGMT.minMove.toLocaleString()} above the floor.` };
+    if (ceiling < G.policyOf(target).minLiquidity) return { ok: false, text: `The ceiling is below the subsidiary's protected minimum (${G.policyOf(target).minLiquidity.toLocaleString()}).` };
+    const m = this.ensure();
+    m.treasury[target] = { floor, ceiling };
+    this.log({ type: 'plan', employer: target, text: `Treasury policy for ${this.Pe.employerName(target)}: keep its cash between ${floor.toLocaleString()} and ${ceiling.toLocaleString()}.` });
+    return { ok: true, text: `${this.Pe.employerName(target)}'s cash is kept between ${floor.toLocaleString()} and ${ceiling.toLocaleString()}.` };
+  }
+
+  clearTreasury(target) {
+    const m = this.peek();
+    if (!m?.treasury[target]) return { ok: false, text: 'No treasury policy there.' };
+    delete m.treasury[target];
+    this.log({ type: 'plan', employer: target, text: `Treasury policy for ${this.Pe.employerName(target)} withdrawn.` });
+    return { ok: true, text: 'Withdrawn.' };
+  }
+
+  /** The cash the parent never lets a treasury top-up take. */
+  setParentReserve(n) {
+    if (!this.K.state.parent) return { ok: false, text: 'There is no parent company.' };
+    n = Math.round(Number(n));
+    if (!(n >= 0 && n <= 5e7)) return { ok: false, text: 'The reserve is between 0 and 50,000,000 obols.' };
+    this.ensure().treasury.parent = { reserve: n };
+    this.log({ type: 'plan', employer: 'parent', text: `The parent keeps at least ${n.toLocaleString()} obols: treasury top-ups never take it below that.` });
+    return { ok: true, text: `Top-ups leave the parent at least ${n.toLocaleString()}.` };
+  }
+
+  parentReserve() { return this.peek()?.treasury.parent?.reserve || 0; }
+
+  /** What the policy would move for a subsidiary now. Nothing changes. */
+  planTreasury(target) {
+    const G = this.K.group;
+    const m = this.peek();
+    if (!m || !G.isSub(target) || !m.treasury[target]) return [];
+    const K = this.K;
+    const inv = G.parent.investments[target];
+    const mv = treasuryMove(m.treasury[target], this.parentReserve(), {
+      cash: K.cashOf(target), parentCash: K.cashOf('parent'), arrears: K.account(target).arrears, minLiquidity: G.policyOf(target).minLiquidity,
+      loans: G.loansOf(target).filter((l) => l.borrower === target).map((l) => ({ id: l.id, outstanding: l.outstanding })), capital: inv?.capital || 0,
+    }, MGMT.minMove);
+    if (!mv) return [];
+    const name = this.Pe.employerName(target);
+    if (mv.kind === 'topup') return [{ item: 'topup', cost: mv.amount, source: 'parent', reserve: this.parentReserve(), desc: `top ${name} up by ${mv.amount.toLocaleString()} from the parent`, run: () => { const r = G.capitalise(target, mv.amount); return { ...r, paid: r.ok ? mv.amount : 0, text: r.ok ? `${name} topped up by ${mv.amount.toLocaleString()} from the parent.` : r.text }; } }];
+    return [{ item: 'sweep', cost: mv.amount, source: target, reserve: 0, desc: `bring ${mv.amount.toLocaleString()} up from ${name}`, run: () => {
+      let paid = 0; const said = [];
+      for (const s of mv.steps) {
+        const r = s.loan ? G.repayLoan(s.loan, s.amount) : G.returnCapital(target, s.capital);
+        if (!r.ok) { if (!paid) return { ok: false, paid: 0, text: r.text }; break; }
+        const a = s.amount ?? s.capital; paid += a; said.push(s.loan ? `${a.toLocaleString()} repaid on a loan` : `${a.toLocaleString()} of capital returned`);
+      }
+      return { ok: true, paid, text: `${name}: ${said.join(', ')}.` };
+    } }];
+  }
+
   // ------------------------------------------------------------- the decision
-  catOf(kind) { return { hire: 'hiring', bid: 'contracts', expand: 'expansion' }[kind] || 'materials'; }
+  catOf(kind) { return { hire: 'hiring', bid: 'contracts', expand: 'expansion', transfer: 'treasury' }[kind] || 'materials'; }
 
   /** What a decision could be now: [{ item, cost, ... }]; the first is the one made. Nothing changes. */
   candidates(kind, target, x) {
     if (kind === 'reorder') { const c = (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0); return c > 0 ? [{ item: null, cost: c }] : []; }
     if (kind === 'hire') { const h = this.planHire(target, x); return h ? [{ item: null, cost: h.cost }] : []; }
     if (kind === 'bid') return this.planBids();
+    if (kind === 'transfer') return this.planTreasury(target);
     return this.planExpansion(target);
   }
 
   /** The text of what was done or asked, by kind. */
-  verb(kind) { return { reorder: 'reorder', hire: 'hire', bid: 'bid', expand: 'expand' }[kind]; }
+  verb(kind) { return { reorder: 'reorder', hire: 'hire', bid: 'bid', expand: 'expand', transfer: 'move cash' }[kind]; }
 
   /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
   decide(kind, target, x, { owner = false, item = undefined } = {}) {
@@ -356,7 +418,7 @@ export class Management {
     const cat = this.catOf(kind);
     const all = this.candidates(kind, target, x);
     let cand;
-    const judgeOf = (c) => this.judgeFor(x, kind, target, cat, c.cost, { owner, ask: c.ask || null, reserve: c.reserve || 0 });
+    const judgeOf = (c) => this.judgeFor(x, kind, target, cat, c.cost, { owner, ask: c.ask || null, reserve: c.reserve || 0, source: c.source || null });
     if (item !== undefined) cand = all.find((c) => c.item === item);
     else cand = all.find((c) => judgeOf(c).verdict !== 'refuse') || all[0];
     if (!cand) return { verdict: 'none' };
@@ -396,6 +458,7 @@ export class Management {
       const r = this.g.aero.placeBid(this.g.aero.roost.id, cand.item, cand.price, cand.days);
       return { ok: r.ok, paid: 0, text: r.text };
     }
+    if (kind === 'transfer') { const r = cand.run(); return { ok: r.ok, paid: r.paid || 0, text: r.text }; }
     const before = this.g.corp.cashOf(target);
     const r = cand.run();
     if (!r.ok) return { ok: false, paid: 0, text: r.text };
@@ -442,6 +505,7 @@ export class Management {
       for (const kind of KINDS[target]) {
         if (!this.budgetOf(target, this.catOf(kind))) continue;
         if (kind === 'reorder' && target === 'aerospace' && this.g.aero.roost?.autoProcure) continue; // auto-buy is the owner's own standing order, left as it is
+        if (kind === 'transfer' && !this.K.group.isSub(target)) continue;
         const who = this.deciders(kind, target)[0];
         if (who) this.decide(kind, target, who);
       }
@@ -470,9 +534,10 @@ export class Management {
         const cat = this.catOf(kind);
         const cap = this.budgetOf(target, cat);
         if (!cap || !this.K.established(target)) continue;
+        if (kind === 'transfer' && !this.K.group.isSub(target)) continue;
         const name = this.Pe.employerName(target);
         if (!this.K.account(target).funded) out.push({ text: `${name} has a ${CATEGORIES[cat].name.toLowerCase()} budget but no account of its own.`, advice: 'Fund it: managers never spend your wallet.' });
-        else if (!this.deciders(kind, target).length) out.push({ text: `${name}: nobody at work may decide ${this.verb(kind)}s${kind === 'bid' ? ' (they need the permission to sign contracts)' : kind === 'expand' ? ' (they need the permission to expand)' : ''}.`, advice: 'Hire the right manager or give them the permission, or the budget goes unused.' });
+        else if (!this.deciders(kind, target).length) out.push({ text: `${name}: nobody at work may decide ${this.verb(kind)}s${kind === 'bid' ? ' (they need the permission to sign contracts)' : kind === 'expand' ? ' (they need the permission to expand)' : kind === 'transfer' ? ' (a chief financial officer with the permission to move cash)' : ''}.`, advice: 'Hire the right manager or give them the permission, or the budget goes unused.' });
         if (this.spentIn(target, cat) >= cap * 0.8) out.push({ text: `${name}: ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget is used.`, advice: 'Raise the budget if more is wanted this month.' });
       }
     }
@@ -490,7 +555,11 @@ export class Management {
     if (kind === 'reorder' && target === 'aerospace' && this.g.aero.roost?.autoProcure) out.notes.push('Auto-buy is on: the firm buys for itself. Turn it off to have a manager buy within budget.');
     if (kind === 'bid' && this.peek()?.margins.aerospace === undefined) out.notes.push('No minimum margin is set, so managers bid on nothing.');
     if (kind === 'expand' && !this.plansOf(target).length) out.notes.push('No plan is approved, so managers build and buy nothing.');
-    if (!this.deciders(kind, target).length) out.notes.push(`Nobody at work who may decide ${this.verb(kind)}s here${kind === 'bid' ? ' (the permission to sign contracts is needed)' : kind === 'expand' ? ' (the permission to expand is needed)' : ''}.`);
+    if (kind === 'transfer') {
+      if (!this.K.group.isSub(target)) out.notes.push('Not in your group: treasury moves cash only inside it.');
+      else if (!this.peek()?.treasury[target]) out.notes.push('No treasury policy is set, so nothing is moved.');
+    }
+    if (!this.deciders(kind, target).length) out.notes.push(`Nobody at work who may decide ${this.verb(kind)}s here${kind === 'bid' ? ' (the permission to sign contracts is needed)' : kind === 'expand' ? ' (the permission to expand is needed)' : kind === 'transfer' ? ' (a chief financial officer with the permission to move cash)' : ''}.`);
     return out;
   }
 }
