@@ -20,4 +20,5 @@ Rules:
 - Exchange (v0.66): a share's price is a pure function of the company's own books and a hash mood — never of the player's trades and never the game RNG; fees, caps and dividends are the same for every listing; a failed company's shares are worthless and a takeover pays out once; the older shares' behaviour changes only on purpose, with a test saying so.
 - When a screen states how an older system behaves, read that system's code first: v0.66 said Chuckie's Cheese had no fee or cap and it always had both.
 - Central bank (v0.68): the policy rate is a pure function of the world's own indicators, decided once a month, written down, never set by the player; every effect is exactly identity at the neutral rate, so the game before the first meeting is unchanged.
+- Bonds (v0.69): a bond is a list of dated cash flows priced at the current yield (par at issue, falling when rates rise); each coupon is paid exactly once whatever is saved or slept through; nothing is created before a purchase.
 - Deliver: tests (rules, persistence, old-save load), docs, a browser check of every screen touched, and an honest report of what is and is not done.

@@ -77,6 +77,8 @@ Since **v0.67.0** `world.oil` also has `costBasis` (only while every share held 
 
 Since **v0.68.0** `world.corp.bank` (created at the bank's first meeting, day 91): `rate` (yearly fraction), `since` (the day it last changed), `decisions` (`day`, `month`, `from`, `to`, `target`, `util`, `growth`, `stress`, `text`; 36 kept), `lastMeeting` (month index). A save without it has the old 5%.
 
+Since **v0.69.0** `world.corp.bonds` (created at the first purchase): `lots` (`{ id, years, face, coupon, issued, due, end, cost, coupons }`), `earned` (coupons received), `log`, `lastDay`, `nextId`. A save without it holds no bonds.
+
 Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).
 
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.

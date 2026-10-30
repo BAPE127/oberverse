@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.69.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Government Paper',
+    notes: [
+      'Government bonds from the First Bank of Halvermouth, in the tablet\'s new Bonds app: one-, three- and five-year, sold at par with a coupon equal to the policy rate plus a premium for the term. A bond pays a month\'s coupon every thirty days and its face at the end. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when the bank raises its rate your old bonds are worth less, when it cuts they are worth more.',
+      'They are your own investment, paid for from your wallet, with at most two million of each term. The bank building and corporate bonds follow.',
+    ],
+  },
+  {
     version: '0.68.0',
     date: '2026-10-30',
     channel: 'development',

@@ -123,6 +123,16 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Effects** (identity at 5%): `valuationFactor` multiplies a sector's earnings multiple in `metrics.value`; `investShift` raises the utilisation a company needs before it builds; `entryFactor` multiplies the chance of a new company; `worldCtx().rate` is the policy rate (the world's borrowing cost is `rate + 1% + 4% × risk`); `group.defaultRate()` is `rate + 1%`. Loans already made keep their rate.
 - **Not in this release**: government bonds, the physical bank, corporate bonds (the next three releases); bank loans (stage 12); an inflation measure.
 
+### Government bonds (v0.69.0)
+
+`game.corp.bonds` (`src/systems/bonds.js`; the pure maths in `src/corp/bonds.js`); the **Bonds** tablet app. The second of four parts of stage 10.
+
+- **Offer**: 1, 3, 5 years at par; `couponAt(rate, years)` = `yieldFor` to the quarter-point, `yieldFor = rate + premium(years)`, `premium` a straight line through (0, 0), (1, 0.25%), (3, 0.75%), (5+, 1.25%).
+- **Lot** (`state.bonds.lots`): `{ id, years, face, coupon, issued, due, end, cost, coupons }`; `due` is the next coupon's day (30 days apart; the last is `end` = issued + 360 × years, which carries the face). `dailyTick` pays every coupon that has fallen due (once; `due` advances), and the face with the last; a matured lot is removed.
+- **Value** (`valueOf`): `Σ amount / (1 + y/12)^months` over `cashFlows(lot, today)` with `y = yieldFor(policy rate, years left)` — par at issue when the coupon is the yield; sell back at `round(value × 0.995)`.
+- **Personal**: bought and paid through `player.money` like shares. No company is involved; the money is the government's. Bond values are not in the net-worth figure quests read.
+- **Not in this release**: the physical bond desk and corporate bonds (the next two releases); bonds held by companies; floating or inflation-linked bonds.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

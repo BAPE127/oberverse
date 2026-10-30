@@ -2,6 +2,29 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.69.0] — 2026-10-30 — Government Paper (development build)
+
+Stage 10, second of four parts: government bonds. The physical bank and corporate bonds follow.
+
+### Added (`src/corp/bonds.js`, `src/systems/bonds.js`, the Bonds app)
+- **Three terms on offer** (1, 3 and 5 years of 360 days), always, at par. The **coupon** is fixed when you buy: the policy rate plus a **term premium** (0.25% at 1 year, 0.75% at 3, 1.25% at 5, in a straight line between) to the quarter-point.
+- **A month's coupon (face × coupon ÷ 12) every thirty days**, and the face with the last one. Paid once each whatever is saved or slept through (a gap pays each missed coupon once).
+- **Market value**: the cash a bond still pays, discounted at today's yield for the time it has left — par at issue, less when the bank raises its rate, more when it cuts. **Sell back at any time** for that value less a **0.5% spread**; the app shows the gain or loss on what you paid, not counting coupons.
+- **Limits**: at least 1,000 and in hundreds; at most 2,000,000 of each term in one pair of hands. Refusals change nothing.
+- **Your own investment**: bought from and paid to your wallet like shares. The interest and the face are the government's, not any company's, so no company account is touched and nothing is consolidated.
+
+### Not included
+- Bond values are **not** in the net-worth figure that quests and achievements read (shares of Ober's Oil and Chuckie's Cheese are); the Bonds app shows them. Bonds in the exchange's portfolio are not shown there. Corporate bonds and bonds held by companies come later.
+
+### Save
+- `world.corp.bonds` (`lots`: `id`, `years`, `face`, `coupon`, `issued`, `due`, `end`, `cost`, `coupons`; `earned`, `log`, `lastDay`, `nextId`) is created at the first purchase. No schema change (still 1).
+
+### Tests
+- New: `bonds` (6): the curve, the coupon, the cash flows and the value (par at issue, falling and rising with the rate, never wild); nothing made before a purchase and the offers at the old 5%; the bounds and refusals; coupons once a month, none early, twelve and the face and no more; value and sale with the spread and a round trip costing only the spread; saves and an old save; a coupon fixed at issue while the offers follow the rate. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. There is one issuer and no default; the premium curve is fixed; no inflation-linked or floating bonds; a coupon is not recalculated when the bank changes its rate.
+
 ## [0.68.0] — 2026-10-30 — The Policy Rate (development build)
 
 Stage 10, first of four parts, of the Corporate Empire brief (docs/CORPORATE.md): the First Bank of Halvermouth's policy rate. Government bonds, the physical bank and corporate bonds are the next three releases.
