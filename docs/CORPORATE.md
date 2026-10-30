@@ -170,7 +170,7 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 
 `src/content/geo.js` (every figure), `src/corp/geo.js` (pure), `src/systems/geo.js` (`game.corp.geo`), `src/ui/corpEconomy.js`. Owner's answer: **layer on top of** the arms market's wars and embargoes (it decides their start and end; the layer records them as persistent events and spreads their consequences). Effects: sector cost and demand indices into the wider world's days (`ctx.cost`, `poolExtra.demand`), an embargo's lost arms income, and an exposure-weighted bounded sentiment on every listed fair price. Since v0.76.0 the cost index also prices your own arms parts and aerospace materials/freight, a bounded war premium rides on Halvermouth's bond yields (the policy rate is untouched), and managers answer with budget requests and an expansion hold. Foreign government bonds (v0.77.0, `src/corp/sovereign.js`, `src/systems/sovereign.js`) complete stage 13: eight three-year bonds rated from each country's debt trait, wars, embargo and treasury; delayed payments after ten days and restructuring after forty at the top of the strain, never by chance; collateral for loans by rating.
 
-- **Lariat State Bank has no building** (stage 12's lender is a name in the Loans app and a closed façade); monetary policy in stage 12 is the policy rate of v0.68.0 that every loan and yield is built on.
+- **Lariat State Bank** (stage 12's lender) has had a building and staff since v0.78.0 (`src/content/maps/lariatBank.js`); monetary policy in stage 12 is the policy rate of v0.68.0 that every loan and yield is built on.
 
 ## Rules every later stage keeps
 

@@ -49,6 +49,13 @@ Stable IDs never change once a character exists in a released build (saves refer
 | `npc_julian` | Julian Beaumont | Original (transportation update) | Minor | Beaumont Motor Gallery, Halvermouth East End: high-end cars | `characters/dealers.js`, `dialogue/dealers.js` | Implemented & tested |
 | `npc_sal` | Sal Vage | Generated for the gang update | Minor | Sal's Surplus Electronics: calculator parts, machinery, deliveries | — | Implemented & tested |
 | `npc_staff_*` | (procedural) | Generated at runtime | Minor | Your arms-works employees (`world.arms.staff`) | — | Implemented & tested |
+| `npc_augustus` | Augustus Prime | Generated for the banks (v0.78.0) | Minor | Governor of the First Bank of Halvermouth; sets the rate from the record, insists it isn't his; works in the Governor's office; home: Crown Court flat 2 | `characters/banks.js`, `dialogue/banks.js` | Implemented & tested |
+| `npc_prudence` | Prudence Tally | 〃 | Minor | Chief teller of the First Bank; exact and kind; corrects the Governor in pencil; Crown Court flat 1 | 〃 | Implemented & tested |
+| `npc_cyrus` | Cyrus Coupon | 〃 | Minor | Bond clerk at the First Bank; thrilled by yields; flatmate of Bertram, Crown Court flat 3 | 〃 | Implemented & tested |
+| `npc_bertram` | Bertram Locke | 〃 | Minor | Vault guard at the First Bank; says little, writes poems about doors; baton; Crown Court flat 3 | 〃 | Implemented & tested |
+| `npc_hollis` | Hollis Marsh | 〃 | Minor | Manager and loan officer of the Lariat State Bank; slow to say yes; Bluebonnet Boarding House | 〃 | Implemented & tested |
+| `npc_dottie` | Dottie Cain | 〃 | Minor | Teller at the Lariat State Bank; hums hymns; Bluebonnet Boarding House | 〃 | Implemented & tested |
+| `npc_clint` | Clint Brazos | 〃 | Minor | Guard at the Lariat State Bank, once a deputy; revolver; Bluebonnet Boarding House | 〃 | Implemented & tested |
 | `npc_dee` | Dolores "Dee" Rivera | Generated for the Mason import | Minor | Site foreman; hires and pays | — | Implemented & tested |
 | `npc_barnaby` | Barnaby Cole | 〃 | Minor | Labourer; birdwatcher; gull defender | — | Implemented & tested |
 | `npc_quinn` | Quinn Abernathy | 〃 | Minor | Apprentice surveyor and draftsperson | — | Implemented & tested |

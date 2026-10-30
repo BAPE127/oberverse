@@ -88,7 +88,7 @@ const buildings = [
   // Main Street, north side (doors open onto the pavement)
   B('b_church', 'First Baptist Church of Lariat', 5, 28, 11, 10, { roof: '#5a5a62', wall: '#f4efe4', trim: '#3a3a42', sign: 'FIRST BAPTIST', columns: true, door: { x: 10, y: 37, lock: closed('FIRST BAPTIST CHURCH OF LARIAT. "Services Sunday 10am. Potluck after. Bring a dish — Chuckie is bringing cheese again."') } }),
   B('b_post_office', 'Lariat Post Office', 26, 31, 8, 7, { roof: '#3a4a6a', wall: '#e8dcc8', sign: 'U.S. MAIL · LARIAT', flatRoof: true, door: { x: 29, y: 37, lock: closed('LARIAT POST OFFICE. "Window closed. Parcels for Chuckie\'s Cheese: leave on the bench. Parcels FROM Chuckie\'s Cheese: open a window."') } }),
-  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, lock: closed('LARIAT STATE BANK. Est. 1911. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates when the Land Office opens."') } }),
+  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, to: { map: 'lariat_bank', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_hollis', 'npc_dottie', 'npc_clint'], hours: { from: '09:00', to: '16:00' }, message: 'LARIAT STATE BANK. Est. 1911. Open 09:00 to 16:00. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates in the morning."' } } }),
   B('b_mercantile', 'Lariat Mercantile', 44, 30, 12, 8, { roof: '#7a2a24', wall: '#e8d8b8', sign: 'LARIAT MERCANTILE', awning: '#c8402a', door: { x: 49, y: 37, to: { map: 'mercantile', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal'], hours: { from: '07:00', to: '20:00' } } } }),
   B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, to: { map: 'land_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '08:00', to: '18:00' } } } }),
   B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, to: { map: 'feed_seed', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '07:00', to: '19:00' } } } }),
@@ -285,6 +285,7 @@ export const lariat = {
     south_gate: { x: 73, y: H - 3, facing: 'up' },
     town_square: { x: 119, y: 53, facing: 'up' },
     mercantile_door_out: { x: 49, y: 38, facing: 'down' },
+    lariat_bank_door_out: { x: 39, y: 38, facing: 'down' },
     diner_door_out: { x: 56, y: 56, facing: 'down' },
     boarding_door_out: { x: 66, y: 56, facing: 'down' },
     parlour_door_out: { x: 29, y: 73, facing: 'down' },
@@ -357,9 +358,10 @@ export const diner = room('diner', 'Mesquite Diner', 14, 9, 'diner_door_out', {
 });
 export const boardingHouse = room('boarding_house', 'Bluebonnet Boarding House', 14, 10, 'boarding_door_out', {
   floor: 'c',
-  spots: { ...Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])), bed_dale: { x: 2, y: 7, facing: 'up' }, bed_lorna: { x: 11, y: 7, facing: 'up' } },
+  spots: { ...Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])), bed_dale: { x: 2, y: 7, facing: 'up' }, bed_hollis: { x: 5, y: 7, facing: 'left' }, bed_dottie: { x: 10, y: 7, facing: 'right' }, bed_clint: { x: 6, y: 3, facing: 'up' }, bed_lorna: { x: 11, y: 7, facing: 'up' } },
   props: [
     ...[1, 4, 9, 12].map((x, i) => ({ id: `bh_bed_${i}`, type: 'bed', x, y: 1, w: 1, h: 2 })),
+    { id: 'bh_bed_6', type: 'bed', x: 4, y: 6, w: 1, h: 2 }, { id: 'bh_bed_7', type: 'bed', x: 9, y: 6, w: 1, h: 2 }, { id: 'bh_bed_8', type: 'bed', x: 6, y: 1, w: 1, h: 2 }, // v0.78.0: the bank's three
     { id: 'bh_bed_4', type: 'bed', x: 1, y: 6, w: 1, h: 2 }, { id: 'bh_bed_5', type: 'bed', x: 12, y: 5, w: 1, h: 2 }, // v0.30.0
     { id: 'bh_table', type: 'table', x: 6, y: 5, w: 2, examine: 'The boarding-house table, set for breakfast forever: grits, eggs, and a pot of coffee that bites.' },
     { id: 'bh_painting', type: 'painting', x: 6, y: 0, examine: 'A painting of bluebonnets, by Mrs. Haskins, aged nine. Framed like it\'s in a museum. It deserves it.' },

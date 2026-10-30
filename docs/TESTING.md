@@ -44,6 +44,7 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `banks_physical.test.mjs` | Staffed banks (v0.78.0): seven people with homes, beds, sleep blocks and registry rows; streets and halls exactly their old sizes; both banks staffed at their spots in hours and at home at night; doors by hours, staff list and staff-only office; counters opening the right apps; dialogue and combat temperaments. |
 | `sovereign.test.mjs` | Foreign government bonds (v0.77.0): the pure rules (trait, strain and its caps, bands, day counter, recovery, issue size); nothing before the arms market; eight deterministic issues rated by cause; trading and coupons; a war's downgrade and its recovery; delayed payments, owed and repaid, restructuring once and the new issue after the pause; collateral and the sale lock. |
 | `geo_effects.test.mjs` | Geopolitics, second part (v0.76.0): the bond premium (basis points, bounded, ramps); your own part prices against the cost index; government bond yields and value with the policy rate untouched; managers' budget requests (one at a time, nothing changed until approved) and the expansion hold through the real judgement; an embargo that begins after a tender is posted. |
 | `geo.test.mjs` | Geopolitics (v0.75.0): phase/severity/indices/sentiment rules (bounds, ramp, recovery, exposure, capacity); records made once with stable ids and the market not started by them; milestones, ceasefire, lifting and reloads that never stack or lose a shock; costs and demand in the companies' days and the exchange's fair prices; the Economy overview. |
@@ -85,6 +86,13 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.78.0 (2026-10-30)
+
+- `npm run check` — **838/838 tests passed** (7 new in `banks_physical`; content validation 0 errors); every earlier test passes unedited. `npm run smoke` — 26/26.
+- **Street layout**: every street's size and every building's position identical to v0.77.1 (compared building by building).
+- **Parity** against v0.77.1 (`3f0d8a2`): your money, cash and staff lines identical; two lines differ — Meridian's share price and the managers' reorder quotes — because seven more people walking about take more draws from the shared random sequence, so the arms market's wars begin and end on different days. (The shared sequence is identical at the start of a new game: 0.846716 in both.)
+- Browser (headless Chromium): the First Bank at 10:30 with Prudence at the grille, Cyrus at the bond desk and Bertram by the vault; the Governor at his desk; the Lariat State Bank with Hollis at the loan desk, Dottie at the window and Clint by the door; no page errors.
 
 ## Verification record — v0.77.1 (2026-10-30)
 

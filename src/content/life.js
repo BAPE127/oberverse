@@ -94,7 +94,7 @@ export const RESIDENCES = {
   },
   res_bluebonnet: {
     name: 'Bluebonnet Boarding House', type: 'rooming_house',
-    units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
+    units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna', 'hollis', 'dottie', 'clint'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
   },
 };
 
@@ -140,6 +140,14 @@ export const LIFE = {
   npc_chuckie: { home: 'res_chuckie_ranch/house', occupation: 'farmer' },
   npc_earl: { home: 'res_hollister/house', occupation: 'farmer' },
   npc_wes: { home: 'res_lariat_tolliver/home', occupation: 'shopkeeper' },
+  // v0.78.0: the banks' staff
+  npc_prudence: { home: 'res_crown_court/flat_1', occupation: 'clerk' },
+  npc_cyrus: { home: 'res_crown_court/flat_3', occupation: 'clerk' },
+  npc_augustus: { home: 'res_crown_court/flat_2', occupation: 'clerk' },
+  npc_bertram: { home: 'res_crown_court/flat_3', occupation: 'security' },
+  npc_hollis: { home: 'res_bluebonnet/room_hollis', occupation: 'shopkeeper' },
+  npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
+  npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },

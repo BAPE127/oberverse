@@ -58,6 +58,8 @@ import dealerChars from './characters/dealers.js';
 import dlgDealers from './dialogue/dealers.js';
 import lariatChars from './characters/lariat.js';
 import dlgLariat from './dialogue/lariat.js';
+import bankChars from './characters/banks.js'; // v0.78.0
+import dlgBanks from './dialogue/banks.js';
 import casinoChars from './characters/casino.js';
 import dlgCasino from './dialogue/casino.js';
 import aeroChars from './characters/aerospace.js';
@@ -73,7 +75,8 @@ import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING 
 import { buildPatrols } from '../world/patrols.js';
 import { growStreets, shiftContent } from '../world/grow.js';
 import { placeInteriors, realInterior } from '../world/interiors.js';
-import { firstBankInterior } from './maps/firstBank.js';
+import { firstBankInterior, firstBankOffice } from './maps/firstBank.js';
+import { lariatBankInterior } from './maps/lariatBank.js';
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 export const DUPLICATE_IDS = [];
@@ -114,7 +117,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -139,7 +142,7 @@ export const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -181,6 +184,8 @@ REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
 REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 // v0.52.0: the Phonograph Grand's lobby is the size of its building on the grown street
 MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
+MAPS.first_bank_office = firstBankOffice(); // v0.78.0
+MAPS.lariat_bank = lariatBankInterior(MAPS.lariat); // v0.78.0: the same, for the Lariat State Bank
 MAPS.first_bank = firstBankInterior(MAPS.halvermouth); // v0.70.0: the First Bank's hall is the size of its building, so the street does not move
 placeInteriors(MAPS, REGIONS, STREETS);
 {

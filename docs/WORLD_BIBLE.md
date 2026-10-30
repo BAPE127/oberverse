@@ -39,7 +39,7 @@ The big city, west of Westbrook along the old coast road: "the City of a Thousan
 
 | District | Area id | Contents |
 | --- | --- | --- |
-| The Financial District | `area_hv_financial` | A wall of skyscrapers along Crown Street: Halvermouth Mutual, the Ledgerline Building, Crown Insurance, Meridian Trust (helipad), the Halvermouth Herald, Copperfield Exchange, the Atlas Rooms, Vantage Point (helipad), the Telephone Co. |
+| The Financial District | `area_hv_financial` | A wall of skyscrapers along Crown Street: Halvermouth Mutual, the Ledgerline Building, Crown Court (once Crown Insurance; flats for the First Bank's staff since v0.78.0), Meridian Trust (helipad), the Halvermouth Herald, Copperfield Exchange, the Atlas Rooms, Vantage Point (helipad), the Telephone Co. |
 | Bank Row | `area_hv_bank_row` | **Ober's Oil Tower** (30 storeys, gold glass; appointments only), the First Bank of Halvermouth, Harbourline Apartments and its car park. |
 | Civic Plaza | `area_hv_civic` | The domed **Hall of Justice** (courthouse + Office of the Mayor), the statue of Aldous Halver, flags, benches, the city notice board. |
 | Precinct Row | `area_hv_precinct` | **Police Precinct 1** (open day and night) with its cruiser car park; Ironclad Securities. |

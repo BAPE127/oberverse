@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.78.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Staffed Banks',
+    notes: [
+      'Both banks now have people behind the counter. The First Bank of Halvermouth has a chief teller, a bond clerk, a vault guard and a Governor in his own office (staff only); the Lariat State Bank has finally opened its doors, with a manager who handles loans, a teller who hums hymns, and an old deputy by the door. They live in flats and boarding rooms, open up before you arrive, and go home at night.',
+    ],
+  },
+  {
     version: '0.77.1',
     date: '2026-10-30',
     channel: 'development',

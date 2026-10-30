@@ -2137,7 +2137,7 @@ const buildings = [
   // Bank Row
   tower('t_harbourline', 'Harbourline Apartments', 1, 15, 11, 8, 15, { wall: '#a08a72', trim: '#4a3a2e', glass: '#b4c8cc', closed: 'Harbourline Apartments: residents only. The buzzer panel has 120 buttons and none of them are yours.' }),
   tower('t_ober', 'Ober\'s Oil Tower', 18, 24, 12, 11, 30, { wall: '#1e2228', glass: '#c9a24a', trim: '#8a6a2a', roof: '#2a2a30', sign: 'OBER\'S OIL', signColor: '#5a3a14', label: 'Ober\'s Oil Tower', closed: 'Ober\'s Oil Tower: "Appointments only. Sir Moneybucks does not receive walk-ins." The doorman is gold-buttoned and enormous.' }),
-  shop('b_bank', 'First Bank of Halvermouth', 31, 28, 6, 7, { roof: '#5a5a62', wall: '#e8e2d4', trim: '#5a5a62', columns: true, sign: 'BANK', door: { x: 34, y: 34, to: { map: 'first_bank', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '09:00', to: '17:00' }, message: 'First Bank of Halvermouth: open 09:00 to 17:00. The vault door behind the glass is very round and very shiny, and very shut.' } } }),
+  shop('b_bank', 'First Bank of Halvermouth', 31, 28, 6, 7, { roof: '#5a5a62', wall: '#e8e2d4', trim: '#5a5a62', columns: true, sign: 'BANK', door: { x: 34, y: 34, to: { map: 'first_bank', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_augustus', 'npc_prudence', 'npc_cyrus', 'npc_bertram'], hours: { from: '09:00', to: '17:00' }, message: 'First Bank of Halvermouth: open 09:00 to 17:00. The vault door behind the glass is very round and very shiny, and very shut.' } } }),
   // Civic Plaza
   {
     id: 'b_hall_of_justice', name: 'Halvermouth Hall of Justice', mapLabel: 'Hall of Justice & Mayor\'s Office',
@@ -2922,7 +2922,7 @@ const buildings = [
   // Main Street, north side (doors open onto the pavement)
   B('b_church', 'First Baptist Church of Lariat', 5, 28, 11, 10, { roof: '#5a5a62', wall: '#f4efe4', trim: '#3a3a42', sign: 'FIRST BAPTIST', columns: true, door: { x: 10, y: 37, lock: closed('FIRST BAPTIST CHURCH OF LARIAT. "Services Sunday 10am. Potluck after. Bring a dish — Chuckie is bringing cheese again."') } }),
   B('b_post_office', 'Lariat Post Office', 26, 31, 8, 7, { roof: '#3a4a6a', wall: '#e8dcc8', sign: 'U.S. MAIL · LARIAT', flatRoof: true, door: { x: 29, y: 37, lock: closed('LARIAT POST OFFICE. "Window closed. Parcels for Chuckie\'s Cheese: leave on the bench. Parcels FROM Chuckie\'s Cheese: open a window."') } }),
-  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, lock: closed('LARIAT STATE BANK. Est. 1911. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates when the Land Office opens."') } }),
+  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, to: { map: 'lariat_bank', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_hollis', 'npc_dottie', 'npc_clint'], hours: { from: '09:00', to: '16:00' }, message: 'LARIAT STATE BANK. Est. 1911. Open 09:00 to 16:00. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates in the morning."' } } }),
   B('b_mercantile', 'Lariat Mercantile', 44, 30, 12, 8, { roof: '#7a2a24', wall: '#e8d8b8', sign: 'LARIAT MERCANTILE', awning: '#c8402a', door: { x: 49, y: 37, to: { map: 'mercantile', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal'], hours: { from: '07:00', to: '20:00' } } } }),
   B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, to: { map: 'land_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '08:00', to: '18:00' } } } }),
   B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, to: { map: 'feed_seed', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '07:00', to: '19:00' } } } }),
@@ -3119,6 +3119,7 @@ const lariat = {
     south_gate: { x: 73, y: H - 3, facing: 'up' },
     town_square: { x: 119, y: 53, facing: 'up' },
     mercantile_door_out: { x: 49, y: 38, facing: 'down' },
+    lariat_bank_door_out: { x: 39, y: 38, facing: 'down' },
     diner_door_out: { x: 56, y: 56, facing: 'down' },
     boarding_door_out: { x: 66, y: 56, facing: 'down' },
     parlour_door_out: { x: 29, y: 73, facing: 'down' },
@@ -3191,9 +3192,10 @@ const diner = room('diner', 'Mesquite Diner', 14, 9, 'diner_door_out', {
 });
 const boardingHouse = room('boarding_house', 'Bluebonnet Boarding House', 14, 10, 'boarding_door_out', {
   floor: 'c',
-  spots: { ...Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])), bed_dale: { x: 2, y: 7, facing: 'up' }, bed_lorna: { x: 11, y: 7, facing: 'up' } },
+  spots: { ...Object.fromEntries([['opal', 1], ['lupe', 4], ['wade', 9], ['rosa', 12]].map(([k, x]) => [`bed_${k}`, { x, y: 3, facing: 'down' }])), bed_dale: { x: 2, y: 7, facing: 'up' }, bed_hollis: { x: 5, y: 7, facing: 'left' }, bed_dottie: { x: 10, y: 7, facing: 'right' }, bed_clint: { x: 6, y: 3, facing: 'up' }, bed_lorna: { x: 11, y: 7, facing: 'up' } },
   props: [
     ...[1, 4, 9, 12].map((x, i) => ({ id: `bh_bed_${i}`, type: 'bed', x, y: 1, w: 1, h: 2 })),
+    { id: 'bh_bed_6', type: 'bed', x: 4, y: 6, w: 1, h: 2 }, { id: 'bh_bed_7', type: 'bed', x: 9, y: 6, w: 1, h: 2 }, { id: 'bh_bed_8', type: 'bed', x: 6, y: 1, w: 1, h: 2 }, // v0.78.0: the bank's three
     { id: 'bh_bed_4', type: 'bed', x: 1, y: 6, w: 1, h: 2 }, { id: 'bh_bed_5', type: 'bed', x: 12, y: 5, w: 1, h: 2 }, // v0.30.0
     { id: 'bh_table', type: 'table', x: 6, y: 5, w: 2, examine: 'The boarding-house table, set for breakfast forever: grits, eggs, and a pot of coffee that bites.' },
     { id: 'bh_painting', type: 'painting', x: 6, y: 0, examine: 'A painting of bluebonnets, by Mrs. Haskins, aged nine. Framed like it\'s in a museum. It deserves it.' },
@@ -12630,6 +12632,359 @@ const __default = [dlgWes, dlgDale, dlgLorna, dlgChuckie, dlgOpal, dlgLupe, dlgW
 return { dlgChuckie, dlgOpal, dlgLupe, dlgWade, dlgRosa, dlgEarl, dlgBessie, dlgClementine, dlgDuchess, dlgPatsy, dlgDaisy, COW_DIALOGUES, dlgDale, dlgLorna, dlgWes, default: __default };
 })();
 
+// ---- src/content/characters/banks.js
+__m["src/content/characters/banks.js"] = (function () {
+// The banks' staff (v0.78.0). Seven people, generated for the update (the owner's request: every bank building is physical, with a
+// counter and staff). They follow docs/WORLD_SIMULATION.md: a home with a bed (a flat in Crown Court for the First Bank's staff, a room in the
+// Bluebonnet Boarding House for the State Bank's), an occupation, a schedule whose sleep block is in that home.
+//
+//   First Bank of Halvermouth: Augustus Prime (Governor), Prudence Tally (chief teller), Cyrus Coupon (bond clerk), Bertram Locke (vault guard)
+//   Lariat State Bank:         Hollis Marsh (manager and loan officer), Dottie Cain (teller), Clint Brazos (guard)
+//
+// None is a major character: no interview, no Wrath. Nobody here knows anything about anyone's credit but their own bank's rules, and
+// nothing a clerk says changes a rate: the rate is the economy's (see docs/CORPORATE.md).
+const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
+
+// ------------------------------------------------------------- the First Bank of Halvermouth
+const augustus = local({
+  id: 'npc_augustus', name: 'Augustus Prime', shortName: 'Augustus',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Governor of the First Bank of Halvermouth. Meets the economy once a month, writes down what it said, and sets the rate accordingly. Insists the rate is not his.',
+  dialogue: 'dlg_augustus',
+  voice: { wave: 'sine', pitch: 120, variance: 8, rate: 0.85 },
+  appearance: { skin: '#d8b090', hair: '#c8c4bc', hairStyle: 'parted', outfit: '#2a3040', undershirt: '#f4f2ee', tie: '#7a2a34', legs: '#222633', shoes: '#141418', accessories: ['watchchain'], accent: '#c9a24a', build: 'average', height: 1.03 },
+  personality: { traits: ['measured', 'dry', 'incorruptible', 'allergic to being quoted'], sociability: 0.4, conscientiousness: 1, impulsiveness: 0.05, discretion: 0.95, honesty: 0.95, empathy: 0.5, confidence: 0.85, humor: 0.35 },
+  speech: { rumorPrefix: 'It is not the Bank\'s view, but', factPrefix: 'The record shows', refuse: 'The Bank does not comment on that.' },
+  schedule: [
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'crown_court_2:bed' },
+    { from: '06:30', to: '08:30', activity: 'eat', spot: 'crown_court_2:chair', label: 'breakfast and the overnight figures' },
+    { from: '08:30', to: '12:30', activity: 'work', spot: 'first_bank_office:desk', label: 'at the Governor\'s desk' },
+    { from: '12:30', to: '13:30', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'lunch on the bank steps' },
+    { from: '13:30', to: '17:30', activity: 'work', spot: 'first_bank_office:desk', label: 'at the Governor\'s desk' },
+    { from: '17:30', to: '22:00', activity: 'relax', spot: 'crown_court_2:chair', label: 'reading the economy\'s minutes' },
+  ],
+  relationships: { player: { trust: 0, affection: 5, respect: 0, suspicion: 5 }, npc_prudence: { trust: 60, affection: 30, respect: 45, suspicion: 0 }, npc_cyrus: { trust: 40, affection: 15, respect: 35, suspicion: 5 }, npc_bertram: { trust: 55, affection: 25, respect: 40, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_cigar: 3, tags: { food: 1 } },
+  opinions: {
+    npc_prudence: { warm: 'Miss Tally has never once been wrong about a column of figures. I have tested this.', cool: 'Miss Tally corrects my sums in pencil. Where I can see them.' },
+    npc_cyrus: { warm: 'Mr Coupon is sound on the bond desk. His enthusiasm is the only unsound thing about him.', cool: 'Mr Coupon would sell a bond to a lamp-post. It would be a good bond.' },
+    npc_bertram: { warm: 'Mr Locke has guarded that door for nineteen years and has never asked what is behind it. A professional.', cool: 'Mr Locke hums. At the vault. It is a mild irritation.' },
+  },
+});
+
+const prudence = local({
+  id: 'npc_prudence', name: 'Prudence Tally', shortName: 'Prudence',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Chief teller of the First Bank of Halvermouth. Runs the counter, knows every account holder by hand-writing, and corrects the Governor in pencil.',
+  dialogue: 'dlg_prudence',
+  voice: { wave: 'triangle', pitch: 260, variance: 14, rate: 1.1 },
+  appearance: { skin: '#e8c4a0', hair: '#4a3a30', hairStyle: 'bun', outfit: '#3a4a5a', undershirt: '#f4f2ee', tie: '#c9a24a', legs: '#2a3040', shoes: '#141418', accessory: 'glasses', accent: '#c9a24a', build: 'thin', height: 0.97 },
+  personality: { traits: ['precise', 'warm underneath', 'miserly with errors', 'remembers handwriting'], sociability: 0.6, conscientiousness: 1, impulsiveness: 0.05, discretion: 0.85, honesty: 0.95, empathy: 0.65, confidence: 0.8, humor: 0.5 },
+  speech: { rumorPrefix: 'Between the grille and me,', factPrefix: 'To the obol:', refuse: 'That\'s not a counter matter, dear.' },
+  schedule: [
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'crown_court_1:bed' },
+    { from: '06:30', to: '08:20', activity: 'eat', spot: 'crown_court_1:chair', label: 'tea and toast' },
+    { from: '08:20', to: '12:30', activity: 'work', spot: 'first_bank:teller', label: 'behind the tellers\' grille' },
+    { from: '12:30', to: '13:15', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'lunch on the bank steps' },
+    { from: '13:15', to: '17:20', activity: 'work', spot: 'first_bank:teller', label: 'behind the tellers\' grille' },
+    { from: '17:20', to: '22:00', activity: 'relax', spot: 'crown_court_1:chair', label: 'knitting, and balancing the day in her head' },
+  ],
+  relationships: { player: { trust: 0, affection: 5, respect: 0, suspicion: 5 }, npc_augustus: { trust: 60, affection: 30, respect: 40, suspicion: 0 }, npc_cyrus: { trust: 45, affection: 40, respect: 30, suspicion: 0 }, npc_bertram: { trust: 60, affection: 45, respect: 35, suspicion: 0 } },
+  giftPrefs: { item_coffee: 8, item_wildflowers: 6, tags: { sweet: 4 } },
+  opinions: {
+    npc_augustus: { warm: 'The Governor is the only man I would trust with the rate. He doesn\'t want it. That is the qualification.', cool: 'The Governor writes his figures in ink. Ink! As if he were sure.' },
+    npc_cyrus: { warm: 'Cyrus is a love. A bond-crazed love.', cool: 'Cyrus told a customer a bond was "exciting". In my bank.' },
+    npc_bertram: { warm: 'Bertram walks me to the tram every evening and never says a word. Bless him.', cool: 'Bertram eats at the counter. Crumbs.' },
+  },
+});
+
+const cyrus = local({
+  id: 'npc_cyrus', name: 'Cyrus Coupon', shortName: 'Cyrus',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Bond clerk at the First Bank of Halvermouth. Sells government bonds at par, explains yields to anyone who stands still, and is thrilled by all of it.',
+  dialogue: 'dlg_cyrus',
+  voice: { wave: 'triangle', pitch: 190, variance: 28, rate: 1.2 },
+  appearance: { skin: '#c8906a', hair: '#2a1e1a', hairStyle: 'curly', outfit: '#6a3a28', undershirt: '#f4f2ee', tie: '#2a6a4a', legs: '#2a2a32', shoes: '#241a14', accessory: 'glasses', accent: '#e8c04a', build: 'round', height: 0.98 },
+  personality: { traits: ['enthusiastic', 'earnest', 'bond-obsessed', 'talks with his hands'], sociability: 0.9, conscientiousness: 0.8, impulsiveness: 0.35, discretion: 0.6, honesty: 0.9, empathy: 0.7, confidence: 0.7, humor: 0.65 },
+  speech: { rumorPrefix: 'Now between you and the yield curve,', factPrefix: 'As a matter of arithmetic,', refuse: 'Oh, I couldn\'t say. Ask the Governor — he won\'t say either.' },
+  schedule: [
+    { from: '23:00', to: '07:00', activity: 'sleep', spot: 'crown_court_3:bed' },
+    { from: '07:00', to: '08:30', activity: 'eat', spot: 'crown_court_3:chair', label: 'breakfast, and the yields in the paper' },
+    { from: '08:30', to: '12:45', activity: 'work', spot: 'first_bank:bond_clerk', label: 'at the bond desk' },
+    { from: '12:45', to: '13:30', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'a sandwich on the steps' },
+    { from: '13:30', to: '17:15', activity: 'work', spot: 'first_bank:bond_clerk', label: 'at the bond desk' },
+    { from: '17:15', to: '23:00', activity: 'leisure', spot: 'crown_court_3:chair', label: 'working out what a bond would have paid' },
+  ],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 0 }, npc_augustus: { trust: 45, affection: 25, respect: 50, suspicion: 0 }, npc_prudence: { trust: 50, affection: 45, respect: 35, suspicion: 0 }, npc_bertram: { trust: 40, affection: 30, respect: 20, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_honey_bun: 8, tags: { sweet: 4 } },
+  opinions: {
+    npc_augustus: { warm: 'The Governor can say "unchanged" in nine ways. I have counted. It is the most beautiful word in finance.', cool: 'The Governor has never smiled at a yield. Not once.' },
+    npc_prudence: { warm: 'Miss Tally checks my arithmetic. I check hers. We have never disagreed. We are wary of each other.', cool: 'Miss Tally says "exciting" is not a financial term. I say it should be.' },
+    npc_bertram: { warm: 'Bertram listens to my bond lectures. Bertram is a saint.', cool: 'Bertram yawns at the five-year. The FIVE-YEAR.' },
+  },
+});
+
+const bertram = local({
+  id: 'npc_bertram', name: 'Bertram Locke', shortName: 'Bertram',
+  combat: { fights: true, defends: true, weapon: 'item_baton', maxHealth: 160 },
+  role: 'Guard at the First Bank of Halvermouth. Stands by the vault door nine to five, as he has for nineteen years, and has never once looked behind it.',
+  dialogue: 'dlg_bertram',
+  voice: { wave: 'square', pitch: 85, variance: 6, rate: 0.75 },
+  appearance: { skin: '#a8744c', hair: '#6a6a6a', hairStyle: 'short', outfit: '#1e2a3a', undershirt: '#f4f2ee', tie: '#1e2a3a', legs: '#1e2a3a', shoes: '#0e0e12', accessory: null, accent: '#c9a24a', build: 'broad', height: 1.1 },
+  personality: { traits: ['stolid', 'loyal', 'hums to himself', 'unflappable'], sociability: 0.3, conscientiousness: 1, impulsiveness: 0.1, discretion: 0.95, honesty: 0.9, empathy: 0.5, confidence: 0.85, humor: 0.3 },
+  speech: { rumorPrefix: 'Heard it said,', factPrefix: 'Plain fact:', refuse: 'Not my door to talk about.' },
+  schedule: [
+    { from: '22:00', to: '06:00', activity: 'sleep', spot: 'crown_court_3:bed_b' },
+    { from: '06:00', to: '08:00', activity: 'eat', spot: 'crown_court_3:chair', label: 'porridge, strictly' },
+    { from: '08:00', to: '12:30', activity: 'guard', spot: 'first_bank:guard_post', label: 'by the vault door' },
+    { from: '12:30', to: '13:00', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'lunch on the steps' },
+    { from: '13:00', to: '17:30', activity: 'guard', spot: 'first_bank:guard_post', label: 'by the vault door' },
+    { from: '17:30', to: '22:00', activity: 'relax', spot: 'crown_court_3:chair', label: 'poetry, and a mug of tea' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_augustus: { trust: 55, affection: 25, respect: 45, suspicion: 0 }, npc_prudence: { trust: 60, affection: 45, respect: 35, suspicion: 0 }, npc_cyrus: { trust: 40, affection: 35, respect: 20, suspicion: 0 } },
+  giftPrefs: { item_coffee: 6, item_cigar: 3, tags: { food: 3 } },
+  opinions: {
+    npc_augustus: { warm: 'The Governor is fair. Doesn\'t ask me my views. I appreciate that.', cool: 'The Governor stood in front of the vault door once. I made him step back. He thanked me.' },
+    npc_prudence: { warm: 'Miss Tally. Good lady. I walk her to the tram.', cool: 'Miss Tally reads my poetry over my shoulder.' },
+    npc_cyrus: { warm: 'Mr Coupon talks. I listen. It works.', cool: 'Mr Coupon has explained the five-year to me forty times. It is still a bond.' },
+  },
+});
+
+// ------------------------------------------------------------- Lariat State Bank
+const hollis = local({
+  id: 'npc_hollis', name: 'Hollis Marsh', shortName: 'Hollis',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Manager and loan officer of the Lariat State Bank, est. 1911. Lends to farmers, ranchers and anyone with shares worth the paper, and knows which is which.',
+  dialogue: 'dlg_hollis',
+  voice: { wave: 'triangle', pitch: 150, variance: 20, rate: 0.95 },
+  appearance: { skin: '#e0b894', hair: '#8a8a82', hairStyle: 'hat', hatColor: '#5a4a3a', outfit: '#5a4a3a', undershirt: '#f2ead8', tie: '#7a2a24', legs: '#3a3228', shoes: '#2a1e14', accessory: 'glasses', accent: '#c9a24a', build: 'round', height: 1.0 },
+  personality: { traits: ['fair', 'slow to say yes', 'slower to say no', 'knows everybody\'s fences'], sociability: 0.7, conscientiousness: 0.9, impulsiveness: 0.1, discretion: 0.8, honesty: 0.9, empathy: 0.7, confidence: 0.7, humor: 0.5 },
+  speech: { rumorPrefix: 'Folks at the window say', factPrefix: 'The ledger says', refuse: 'That\'s between the bank and the borrower, friend.' },
+  schedule: [
+    { from: '22:00', to: '06:30', activity: 'sleep', spot: 'boarding_house:bed_hollis' },
+    { from: '06:30', to: '08:30', activity: 'eat', spot: 'boarding_house:bed_hollis', label: 'breakfast and the cotton prices' },
+    { from: '08:30', to: '12:00', activity: 'work', spot: 'lariat_bank:manager', label: 'at the manager\'s desk' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'diner:stool', label: 'lunch at the diner' },
+    { from: '13:00', to: '16:30', activity: 'work', spot: 'lariat_bank:manager', label: 'at the manager\'s desk' },
+    { from: '16:30', to: '22:00', activity: 'leisure', spot: 'boarding_house:bed_hollis', label: 'going over the day\'s loans' },
+  ],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 5 }, npc_dottie: { trust: 55, affection: 40, respect: 40, suspicion: 0 }, npc_clint: { trust: 50, affection: 35, respect: 30, suspicion: 0 }, npc_chuckie: { trust: 40, affection: 30, respect: 30, suspicion: 0 } },
+  giftPrefs: { item_pecan_pie: 8, item_coffee: 4, tags: { sweet: 4 } },
+  opinions: {
+    npc_dottie: { warm: 'Dottie counts faster than the adding machine and says it\'s a gift. It is.', cool: 'Dottie hums hymns at the window. Flat.' },
+    npc_clint: { warm: 'Clint stands by that door like it was his own. Fifty-one years with no robbery. He takes it personally.', cool: 'Clint drinks my coffee. All of it.' },
+    npc_chuckie: { warm: 'Chuckie pays his notes on the day and tips the teller in cheese. A good customer.', cool: 'Chuckie tried to pledge a cow. A talking one. She had opinions about the interest.' },
+  },
+});
+
+const dottie = local({
+  id: 'npc_dottie', name: 'Dottie Cain', shortName: 'Dottie',
+  combat: { never: true, maxHealth: 80 },
+  role: 'Teller at the Lariat State Bank. Counts the cotton money twice, knows every farmer\'s deposit by the dirt on the envelope, and hums hymns at the window.',
+  dialogue: 'dlg_dottie',
+  voice: { wave: 'triangle', pitch: 290, variance: 26, rate: 1.1 },
+  appearance: { skin: '#f0d0b0', hair: '#9a5a2a', hairStyle: 'ponytail', outfit: '#5a7a9a', undershirt: '#f4f2ee', tie: '#c8402a', legs: '#3a3a4a', shoes: '#2a1e14', accessory: null, accent: '#c9a24a', build: 'thin', height: 0.96 },
+  personality: { traits: ['quick', 'cheerful', 'hums hymns', 'discreet about money, not about weather'], sociability: 0.85, conscientiousness: 0.9, impulsiveness: 0.2, discretion: 0.85, honesty: 0.95, empathy: 0.8, confidence: 0.7, humor: 0.7 },
+  speech: { rumorPrefix: 'Well, I can\'t say a word about money, but I can say', factPrefix: 'The cotton people say', refuse: 'Hon, a teller never tells.' },
+  schedule: [
+    { from: '22:00', to: '07:00', activity: 'sleep', spot: 'boarding_house:bed_dottie' },
+    { from: '07:00', to: '08:30', activity: 'eat', spot: 'boarding_house:bed_dottie', label: 'eggs and hymns' },
+    { from: '08:30', to: '12:00', activity: 'work', spot: 'lariat_bank:teller', label: 'at the teller\'s window' },
+    { from: '12:00', to: '12:45', activity: 'eat', spot: 'lariat:main_bench', label: 'lunch on the bench out front' },
+    { from: '12:45', to: '16:30', activity: 'work', spot: 'lariat_bank:teller', label: 'at the teller\'s window' },
+    { from: '16:30', to: '22:00', activity: 'leisure', spot: 'diner:stool', label: 'pie and gossip at the diner', errand: 'lariat_evening', errandChance: 0.3 },
+  ],
+  relationships: { player: { trust: 5, affection: 10, respect: 0, suspicion: 0 }, npc_hollis: { trust: 55, affection: 40, respect: 40, suspicion: 0 }, npc_clint: { trust: 50, affection: 45, respect: 25, suspicion: 0 }, npc_opal: { trust: 40, affection: 35, respect: 25, suspicion: 0 } },
+  giftPrefs: { item_pecan_pie: 8, item_wildflowers: 8, item_coffee: 3, tags: { sweet: 4 } },
+  opinions: {
+    npc_hollis: { warm: 'Mr Marsh is the fairest man in the county. And the slowest to sign anything.', cool: 'Mr Marsh says "let me think on it". The thinking takes a week.' },
+    npc_clint: { warm: 'Clint sees me to my door every evening. Never says why.', cool: 'Clint stands in front of the safe-deposit boxes. All day. They are boxes.' },
+    npc_opal: { warm: 'Opal and I have the same news by noon. Hers has more adjectives.', cool: 'Opal pays in nickels. Out of spite.' },
+  },
+});
+
+const clint = local({
+  id: 'npc_clint', name: 'Clint Brazos', shortName: 'Clint',
+  combat: { fights: true, defends: true, weapon: 'item_revolver', maxHealth: 140 },
+  role: 'Guard at the Lariat State Bank, and a deputy in a past life. Has stood by that door for fifty-one years without a robbery, and takes it personally.',
+  dialogue: 'dlg_clint',
+  voice: { wave: 'square', pitch: 100, variance: 10, rate: 0.8 },
+  appearance: { skin: '#c89a74', hair: '#cfcfc8', hairStyle: 'hat', hatColor: '#4a3a2a', outfit: '#6a5a3a', undershirt: '#f2ead8', tie: '#4a3a2a', legs: '#3a3228', shoes: '#2a1e14', accessories: ['vest'], accent: '#c9a24a', build: 'wiry', height: 1.04 },
+  personality: { traits: ['laconic', 'watchful', 'old-fashioned', 'loves the coffee'], sociability: 0.4, conscientiousness: 1, impulsiveness: 0.1, discretion: 0.9, honesty: 0.9, empathy: 0.6, confidence: 0.9, humor: 0.4 },
+  speech: { rumorPrefix: 'Heard tell', factPrefix: 'Know for a fact', refuse: 'Not a thing I\'ll say, son.' },
+  schedule: [
+    { from: '22:00', to: '06:00', activity: 'sleep', spot: 'boarding_house:bed_clint' },
+    { from: '06:00', to: '08:30', activity: 'eat', spot: 'boarding_house:bed_clint', label: 'coffee, black, a lot of it' },
+    { from: '08:30', to: '12:00', activity: 'guard', spot: 'lariat_bank:guard_post', label: 'by the door' },
+    { from: '12:00', to: '12:45', activity: 'eat', spot: 'lariat:diner_bench', label: 'lunch outside the diner' },
+    { from: '12:45', to: '16:30', activity: 'guard', spot: 'lariat_bank:guard_post', label: 'by the door' },
+    { from: '16:30', to: '22:00', activity: 'relax', spot: 'boarding_house:bed_clint', label: 'cleaning a revolver he has never fired in anger' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 10 }, npc_hollis: { trust: 50, affection: 35, respect: 40, suspicion: 0 }, npc_dottie: { trust: 55, affection: 45, respect: 35, suspicion: 0 } },
+  giftPrefs: { item_coffee: 10, item_cigar: 4, tags: { food: 3 } },
+  opinions: {
+    npc_hollis: { warm: 'Mr Marsh signs for every loan himself. Reads it twice. That is a banker.', cool: 'Mr Marsh moves the coffee pot. Every week. I find it.' },
+    npc_dottie: { warm: 'Dottie\'s a good girl. Safe home, every night. That\'s my one rule.', cool: 'Dottie hums. Through the whole day. Through a whole hymnal.' },
+  },
+});
+
+const __default = [augustus, prudence, cyrus, bertram, hollis, dottie, clint];
+
+return { augustus, prudence, cyrus, bertram, hollis, dottie, clint, default: __default };
+})();
+
+// ---- src/content/dialogue/banks.js
+__m["src/content/dialogue/banks.js"] = (function () {
+// The banks' staff (v0.78.0). Voices: the Governor is measured and allergic to being quoted; Prudence is exact and kind; Cyrus is thrilled
+// by bonds; Bertram says little; Hollis is slow to say yes; Dottie hums; Clint is laconic. Nobody here ever says a clerk can change a rate
+// or a credit record: the rate is the economy's, and a loan is what the borrower holds and repays.
+// Effects { panel: { name: 'tablet', opts: { tab } } } open the tablet at that app.
+const open = (tab) => ({ panel: { name: 'tablet', opts: { tab } } });
+const gifts = (loved, liked, neutral, disliked) => ({ loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]], tooMany: [['That is plenty. Truly.']], ownStolen: [['That is — ahem — ours. Or rather, mine.']] });
+
+const dlgAugustus = {
+  id: 'dlg_augustus',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep upright in an armchair, a ledger open on his chest, the page turned to "Unchanged"*'] },
+    { if: { firstMeeting: true }, say: ['Ah. A visitor in the public hours. Augustus Prime, Governor of the First Bank of Halvermouth.', 'I should say at once that the rate is not mine. I merely read what the economy has done and write it down. Quarter-point at a time. Do sit, if there is something to sit on.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['Good to see you. The figures are, on the whole, unchanged. That is a compliment.']] },
+    { if: {}, variants: [['Good day. The Bank is open. The rate is as the board says.'], ['Yes? Please be brief and do not quote me.'], ['Ah. The public. Welcome, welcome. Mind the vault; it minds you.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Good day. Do read the board on your way out.'], ['Unchanged, as ever. Good day.']] }],
+  topics: [
+    { id: 't_aug_rate', label: '"Who sets the rate?"', keywords: ['rate', 'interest', 'policy', 'who', 'sets'], say: ['Nobody, strictly. Once a month, from the fourth month of the game, I look at how busy the companies are, how fast their sales are growing and how many are in distress. If the economy is running hot, the rate goes up a quarter-point. If it is cold, down. If it is neither, I write "unchanged" and go to lunch.', 'I record why. It is on the board in the hall and in the tablet\'s Bank app. If a rate ever looks arbitrary, I have written the record badly.'], effects: [open('Bank')] },
+    { id: 't_aug_wars', label: '"Do wars change the rate?"', keywords: ['war', 'wars', 'embargo', 'sanctions', 'conflict'], say: ['The rate? Not directly. Wars make things dearer and make markets nervous, and the bonds we sell carry a premium for it: a few basis points while a war is on, fading after. That premium is not the rate. It is the price of uncertainty, and I have learnt to keep them apart.'] },
+    { id: 't_aug_credit', label: '"Does the Bank decide who gets loans?"', keywords: ['loan', 'loans', 'lend', 'credit', 'borrow'], say: ['The First Bank is not a lender; it sets a benchmark and sells the government\'s bonds. Loans come from Lariat State Bank, and its rule is simple: what you hold, what you owe, and whether you pay. Nothing else enters into it. Nothing. I would be the first to say so.'] },
+  ],
+  askPrompt: [['Ask what you like. I reserve the right to say "unchanged".']],
+  unknown: [['The Bank has no view.'], ['I could not possibly say. I could not possibly say that either.']],
+  gift: gifts('Coffee. Properly strong. You understand the Bank.', 'Thank you. Noted. In ink.', 'Thank you. It will be logged.', 'I... will place it with the lost property.'),
+  barks: { greet: ['Good day.', 'Mm.'], work: ['Unchanged.', 'Noted.'], chat: ['Hm. Interesting.'], argue: ['That is not the Bank\'s view.'], sleep: ['zzz… unchanged… zzz'], moods: {} },
+};
+
+const dlgPrudence = {
+  id: 'dlg_prudence',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep, one hand tucked under her cheek; a half-finished scarf on the chair, eight stitches wrong and marked in pencil*'] },
+    { if: { firstMeeting: true }, say: ['Good morning, dear. Prudence Tally, chief teller. I should tell you at once that this counter does not do much any more.', 'The Bank has been reorganised: the bond desk is on your left, the rate board on your right, and I count the money that comes in and out of both. Do ask if you are lost.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['There you are, dear! Tea\'s on. The tellers\' tea, I mean — which is bank policy.']] },
+    { if: {}, variants: [['Good morning. How may the First Bank help?'], ['Yes, dear? One moment — I\'m totting a column.'], ['Welcome. Mind the step; it has been done by seven customers.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Good day, dear.'], ['Mind how you go, and mind your purse.']] }],
+  topics: [
+    { id: 't_pru_counter', label: '"What do you do here?"', keywords: ['do', 'counter', 'teller', 'work', 'job'], say: ['I count, dear. The bonds are bought at the bond desk and the rate is posted on the board, but every obol of it has to be counted by somebody who is not pleased to be wrong, and that is me.', 'And I correct the Governor in pencil. That is unofficial. It is also the most important thing I do.'] },
+    { id: 't_pru_safe', label: '"Is my money safe in here?"', keywords: ['safe', 'money', 'vault', 'secure', 'deposit'], say: ['The vault is round, a metre thick and time-locked. Mr Locke stands by it from eight until half past five. I have no reason to think anybody could take a thing from it. I have, also, no reason to say so to a stranger.'] },
+    { id: 't_pru_history', label: '"How long have you worked here?"', keywords: ['long', 'years', 'history', 'started'], say: ['Twenty-six years in March. I began on the bond desk when it was a card table with a lamp. We sold three bonds that year and I remember each of them.'] },
+  ],
+  askPrompt: [['Ask, dear. The counter is quiet.']],
+  unknown: [['That one I would have to check, dear.'], ['I haven\'t a notion. Isn\'t that lovely?']],
+  gift: gifts('Wildflowers! In a bank! You\'ll have me undone.', 'How thoughtful, dear. Thank you.', 'Thank you. I will put it by the lamp.', 'Oh. Well. It\'s the thought.'),
+  barks: { greet: ['Good morning.'], work: ['Seven, eight, nine…', 'Mm, and carry the one.'], chat: ['Is that right?'], argue: ['That is quite wrong, dear.'], sleep: ['…stitch… stitch…'], moods: {} },
+};
+
+const dlgCyrus = {
+  id: 'dlg_cyrus',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep, murmuring "a hundred-and-three at par… at par…"*'] },
+    { if: { firstMeeting: true }, say: ['Welcome, welcome, welcome! Cyrus Coupon, bond clerk! You are standing at the finest desk in the First Bank — oh, the only desk, but still, THE FINEST.', 'Government bonds: one-year, three-year, five-year, at par, coupons every thirty days, face at the end. Ask me anything. I will answer for forty minutes.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['My favourite customer! I have a five-year with your name on it. Figuratively. They are bearer instruments.']] },
+    { if: {}, variants: [['Good day, good day! Interested in a bond?'], ['Ah, a yield enthusiast! Or a lost soul. Either is welcome.'], ['Step up, step up! The three-year has been quite lively.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Come again when the yields have moved!'], ['Hold to maturity, my friend!']] }],
+  topics: [
+    { id: 't_cy_bonds', label: '"Tell me about the bonds."', keywords: ['bond', 'bonds', 'buy', 'yield', 'coupon', 'government'], say: ['Three terms: one, three and five years. The coupon is the policy rate plus a premium for the term — and, while a war is on, a little more for the nerves. It is fixed on the day you buy. You get a month\'s coupon every thirty days and the face at the end.', 'Sell any time at what it is worth at today\'s yield, less half a percent. When rates rise, the bond you hold is worth less; when they fall, more. It\'s a see-saw. A government see-saw!'], effects: [open('Bonds')] },
+    { id: 't_cy_foreign', label: '"Can I buy other countries\' bonds?"', keywords: ['foreign', 'countries', 'varnistan', 'teshvar', 'caldera', 'sovereign'], say: ['You can, in the tablet — Bonds, down the page — and I can tell you nothing about them, because we do not sell them here. They are rated on their own finances: debt, wars, embargoes, the treasury. A country in trouble for weeks delays its payments, then restructures. Nothing random. Exciting, isn\'t it? Miss Tally says I shouldn\'t say "exciting".'] },
+    { id: 't_cy_loan', label: '"Can I borrow against my bonds?"', keywords: ['borrow', 'loan', 'collateral', 'pledge'], say: ['Lariat State Bank will — nine tenths of a government bond\'s value, for you personally. You keep the bond and the coupons. The only catch is you can\'t sell it while you owe more than the rest would secure. Ask Mr Marsh in Lariat; he\'s a lovely man and a slow signer.'] },
+  ],
+  askPrompt: [['Ask me about yield. Go on. I dare you.']],
+  unknown: [['Oh, that one I\'d have to look up! Don\'t tell the Governor.'], ['Not my desk, I\'m afraid!']],
+  gift: gifts('A honey bun! You have saved my afternoon and possibly my yield curve.', 'Lovely, thank you!', 'Thank you! I\'ll file it under "thanks".', 'Oh. Well. It\'s very… generous.'),
+  barks: { greet: ['Good day!'], work: ['Par, par, par…', 'Three-year, three-year…'], chat: ['Did you know the term premium…'], argue: ['That is NOT how a yield works!'], sleep: ['…at par…'], moods: {} },
+};
+
+const dlgBertram = {
+  id: 'dlg_bertram',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep on his back, hands folded, a book of poetry on his chest; he hums, even now*'] },
+    { if: { firstMeeting: true }, say: ['Bertram. Guard.', '*nods towards the vault* Nineteen years. Haven\'t looked in it once.'] },
+    { if: {}, variants: [['*nods*'], ['Mm.'], ['*hums a bar of something and stops, embarrassed*']] },
+  ],
+  farewells: [{ if: {}, variants: [['Mm. Mind the step.'], ['*nods*']] }],
+  topics: [
+    { id: 't_ber_vault', label: '"What\'s in the vault?"', keywords: ['vault', 'inside', 'door', 'safe'], say: ['Don\'t know. Not my job.', 'Round. Thick. Shut. Time-locked. The brass plate says no one is ever alone with it. That\'s why I\'m here. And the Governor. And a clock.'] },
+    { id: 't_ber_job', label: '"Nice work if you can get it?"', keywords: ['job', 'work', 'guard', 'boring', 'nineteen'], say: ['It\'s quiet. That\'s the job. If it\'s ever loud, I did it wrong.'] },
+    { id: 't_ber_poem', label: '"You read poetry?"', keywords: ['poetry', 'book', 'read', 'poem'], say: ['Evenings. Wasn\'t meant to be known. Miss Tally told. Mm.', 'Don\'t tell Coupon. He\'d want to hear it.'] },
+  ],
+  askPrompt: [['Mm?']],
+  unknown: [['Don\'t know.'], ['Not mine to say.']],
+  gift: gifts('Coffee. Mm. Strong. Thank you.', 'Thank you.', 'Mm.', 'Mm. No.'),
+  barks: { greet: ['Mm.'], work: ['*hums*'], chat: ['Mm.'], argue: ['Step back.'], sleep: ['…mm…'], moods: {} },
+};
+
+const dlgHollis = {
+  id: 'dlg_hollis',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep with a pencil behind his ear and a ledger on the floor, open to a page headed "NOTES — SLOW TO SIGN"*'] },
+    { if: { firstMeeting: true }, say: ['Howdy, friend. Hollis Marsh, manager of the Lariat State Bank, est. 1911.', 'We lend to farmers, ranchers and anybody holding shares worth the paper. Against what you hold, at a fixed rate, paid back monthly. I don\'t rush. Neither does the ledger.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['Good to see you, friend. Pull up a chair; there\'s coffee, and I haven\'t signed anything yet.']] },
+    { if: {}, variants: [['Howdy. Something I can do for you?'], ['Morning, friend. Loans, deposits, or the weather?'], ['Come on in. The coffee\'s fresh. Clint\'s been at the other pot.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Come back any time. Bring the rain.'], ['Take care, friend.']] }],
+  topics: [
+    { id: 't_hol_loans', label: '"How do I get a loan?"', keywords: ['loan', 'loans', 'borrow', 'lend', 'money', 'credit'], say: ['We lend to you personally, against shares and bonds you hold: half the value of shares, nine tenths of a government bond, corporate and foreign bonds by rating. The rate is fixed on the day you sign — the policy rate plus a spread for how much of your limit you use. Pay a month at a time.', 'If you miss one, it\'s arrears at a higher rate. We don\'t take your stock and we don\'t take your land. What we do is not lend you more until you\'re square, and keep you from selling what\'s pledged till the loan is covered.'], effects: [open('Loans')] },
+    { id: 't_hol_business', label: '"Do you lend to my companies?"', keywords: ['company', 'business', 'companies', 'firm', 'subsidiary', 'guarantee'], say: ['Yes, if it holds cash of its own. We judge the company on its own books: what it owns and what it\'s earning. You can guarantee a loan for a lower rate — if the company misses, your own record takes a knock. A parent can guarantee a subsidiary the same way. All in writing, before you sign.'], effects: [open('Loans')] },
+    { id: 't_hol_fair', label: '"Is it fair? Does anything else count?"', keywords: ['fair', 'record', 'score', 'reputation', 'crime', 'police', 'wanted'], say: ['It\'s fair because it\'s plain. What you hold, what you owe, and whether you pay. Your record with us moves only with how you repay. What you do outside this door — I don\'t ask, and the ledger doesn\'t know.', 'That\'s the whole rule. I\'ve never wanted another.'] },
+  ],
+  askPrompt: [['Ask away. I\'m slow, not deaf.']],
+  unknown: [['Can\'t say, friend. Haven\'t the paperwork.'], ['I\'d have to think on that. A week or so.']],
+  gift: gifts('Pecan pie! You\'ve done it. You\'ve bought the bank. Metaphorically.', 'Why, thank you, friend.', 'Appreciate it.', 'Hm. I\'ll… think on it.'),
+  barks: { greet: ['Howdy.'], work: ['Let me think on that.', '*turns a page*'], chat: ['Well now.'], argue: ['That, friend, is a poor idea.'], sleep: ['…fixed rate… fixed…'], moods: {} },
+};
+
+const dlgDottie = {
+  id: 'dlg_dottie',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep, humming softly; a hymnbook on the night-stand, a pressed wildflower for a bookmark*'] },
+    { if: { firstMeeting: true }, say: ['Morning, hon! Dottie Cain, teller. Deposits, withdrawals, change for the pay phone.', 'I count the cotton money twice. Once for the bank. Once for the farmer. Neither of us has ever been short.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['Well hey, you! Pull up a stool. The line\'s just two cows long.']] },
+    { if: {}, variants: [['Morning, hon! What can I do you for?'], ['*humming* …oh! Didn\'t see you there.'], ['Step on up. Don\'t mind the humming.']] },
+  ],
+  farewells: [{ if: {}, variants: [['You take care, hon.'], ['Safe home!']] }],
+  topics: [
+    { id: 't_dot_work', label: '"What does a teller do here?"', keywords: ['teller', 'work', 'job', 'do', 'counter', 'window'], say: ['Counts. Smiles. Knows whose envelope has cotton on it and whose has cow. I don\'t tell a soul who deposited what — a teller never tells — but I can tell you who needs rain.'] },
+    { id: 't_dot_hymn', label: '"What\'s that you\'re humming?"', keywords: ['hum', 'humming', 'hymn', 'song', 'music'], say: ['"Bringing in the Sheaves." Always. I know the cows like it. I\'ve seen one tap a hoof. Well — Chuckie\'s cow tapped a hoof. I\'m not saying she was keeping time.'] },
+    { id: 't_dot_hours', label: '"When are you open?"', keywords: ['hours', 'open', 'close', 'closed', 'when'], say: ['Nine to four, hon. Closed for the afternoon after that — Clint puts up the sign himself. Come back at nine and the door\'s open.'] },
+  ],
+  askPrompt: [['Go on, hon. I\'ve got a minute and a half.']],
+  unknown: [['Oh, I wouldn\'t know, hon.'], ['That one\'s above my window.']],
+  gift: gifts('Wildflowers! Oh, hon — now I\'ll be humming for a week.', 'Well, thank you, hon!', 'Why, thank you.', 'Hm. Well. Kind of you.'),
+  barks: { greet: ['Morning!'], work: ['*hums "Bringing in the Sheaves"*', 'One, two, three…'], chat: ['You don\'t say!'], argue: ['Now hold on a minute, hon.'], sleep: ['…sheaves… sheaves…'], moods: {} },
+};
+
+const dlgClint = {
+  id: 'dlg_clint',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep in a rocker, hat over his face, one hand on a revolver that is, thankfully, holstered*'] },
+    { if: { firstMeeting: true }, say: ['Clint Brazos. I mind the door.', 'Fifty-one years. No robberies. Don\'t aim to start.'] },
+    { if: {}, variants: [['Mornin\'.'], ['*tips hat*'], ['Hm.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Ride safe.'], ['*tips hat*']] }],
+  topics: [
+    { id: 't_cli_door', label: '"Does anybody ever try the bank?"', keywords: ['robbery', 'rob', 'robbed', 'thief', 'thieves', 'crime', 'try', 'steal'], say: ['Once in a while somebody looks at the door a while. Then looks at me. Then goes to the diner.', 'Anybody who tries it is a fool and a bad shot, and I\'d rather be neither. Don\'t take it as advice.'] },
+    { id: 't_cli_sheriff', label: '"Were you really a deputy?"', keywords: ['deputy', 'sheriff', 'law', 'badge', 'past'], say: ['Thirty years. Gave the badge back the day I took this job. Kept the coat.'] },
+    { id: 't_cli_coffee', label: '"What about that coffee?"', keywords: ['coffee', 'pot', 'drink'], say: ['Black. A lot of it. Mr Marsh moves the pot. I find it.'] },
+  ],
+  askPrompt: [['Hm?']],
+  unknown: [['Wouldn\'t know.'], ['Not my business.']],
+  gift: gifts('Coffee. Black. Thank you, son.', 'Much obliged.', 'Hm. Thanks.', 'Hm. Don\'t much care for it.'),
+  barks: { greet: ['Mornin\'.'], work: ['*watches the door*'], chat: ['Hm.'], argue: ['Back up.'], sleep: ['…zzz…'], moods: {} },
+};
+
+const __default = [dlgAugustus, dlgPrudence, dlgCyrus, dlgBertram, dlgHollis, dlgDottie, dlgClint];
+
+return { dlgAugustus, dlgPrudence, dlgCyrus, dlgBertram, dlgHollis, dlgDottie, dlgClint, default: __default };
+})();
+
 // ---- src/content/characters/casino.js
 __m["src/content/characters/casino.js"] = (function () {
 // The Phonograph Grand (v0.52.0): the people of the casino resort on Market Street.
@@ -13859,7 +14214,7 @@ const RESIDENCES = {
   },
   res_bluebonnet: {
     name: 'Bluebonnet Boarding House', type: 'rooming_house',
-    units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
+    units: Object.fromEntries(['opal', 'lupe', 'wade', 'rosa', 'dale', 'lorna', 'hollis', 'dottie', 'clint'].map((k) => [`room_${k}`, { map: 'boarding_house', beds: [`bed_${k}`], capacity: 1 }])),
   },
 };
 
@@ -13905,6 +14260,14 @@ const LIFE = {
   npc_chuckie: { home: 'res_chuckie_ranch/house', occupation: 'farmer' },
   npc_earl: { home: 'res_hollister/house', occupation: 'farmer' },
   npc_wes: { home: 'res_lariat_tolliver/home', occupation: 'shopkeeper' },
+  // v0.78.0: the banks' staff
+  npc_prudence: { home: 'res_crown_court/flat_1', occupation: 'clerk' },
+  npc_cyrus: { home: 'res_crown_court/flat_3', occupation: 'clerk' },
+  npc_augustus: { home: 'res_crown_court/flat_2', occupation: 'clerk' },
+  npc_bertram: { home: 'res_crown_court/flat_3', occupation: 'security' },
+  npc_hollis: { home: 'res_bluebonnet/room_hollis', occupation: 'shopkeeper' },
+  npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
+  npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -14623,6 +14986,23 @@ const HOMES = [
         { type: 'painting', x: 3, y: 0, w: 2, examine: 'A photograph of Brock\'s mum, framed in gold. She looks exactly as unimpressed as Brock does.' },
       ] },
     ] },
+  // v0.78.0: the First Bank of Halvermouth's four (the chief teller, the Governor, and the bond clerk and vault guard as flatmates) lease the old Crown Insurance
+  // tower on Crown Street (the insurers moved out; the flats were always upstairs). The hall is made the size of the tower's old footprint (15×9), so the street does not move.
+  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9 },
+    flats: [
+      { who: ['npc_prudence'], name: 'Prudence Tally', bed: '#5a6a8a', rug: '#c9a24a', loot: { items: { item_silver_spoons: 1 }, money: 48 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Knitting needles, a basket of wool, and a ledger-shaped notebook labelled "WHERE I WAS RIGHT". It is a large notebook.' },
+        { type: 'plant', x: 7, y: 4 },
+      ] },
+      { who: ['npc_augustus'], name: 'Augustus Prime', bed: '#2a3040', rug: '#7a2a34', loot: { items: { item_gold_watch: 1 }, money: 85 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Eleven bound volumes of "Minutes of the Economy", and a twelfth in progress. Every spine reads "UNCHANGED" in the same hand.' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A watercolour of a vault door at sunrise. The Governor says it is a clock. It is not a clock.' },
+      ] },
+      // two flatmates: the bond clerk and the vault guard share the third flat (a four-flat hall would be wider than the tower, and the street would have to move)
+      { who: ['npc_cyrus', 'npc_bertram'], name: 'Cyrus Coupon & Bertram Locke', bed: '#6a3a28', rug: '#2a6a4a', loot: { items: { item_pocket_watch: 1, item_cigar: 1 }, money: 52 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Yield curves pinned all over one wall, in three colours of string; the five-year has a small gold star. On the other wall, a shoebox of poems, tidily filed by month. Every one is about doors. Some are very good.' },
+      ] },
+    ] },
   // v0.55.0: Moneybucks Manor's staff, a flat each in the estate cottages (they used to sleep along the manor's back corridor)
   { id: 'estate_cottages', map: 'ober_fields', building: 'b_estate_cottages', name: 'The Estate Cottages', mapLabel: 'Estate Cottages', type: 'apartment',
     flats: [
@@ -14736,21 +15116,22 @@ function flatMap(h, i) {
 
 function hallMap(h) {
   const n = h.flats.length;
-  const w = Math.max(9, n * 3 + 3);
-  const door = Math.floor(w / 2);
+  const w = h.hallSize?.w ?? Math.max(9, n * 3 + 3); // hallSize: a hall made the size of the building it replaces, so the street does not move (v0.78.0)
+  const H = h.hallSize?.h ?? 7;
+  const door = h.hallSize?.door ?? Math.floor(w / 2);
   const xs = h.flats.map((_, i) => 2 + i * 3);
   return {
     id: hallId(h), name: `${h.name} — stairwell`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
-    tiles: roomTiles(w, 7, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
+    tiles: roomTiles(w, H, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
     doors: [
-      { id: `door_${hallId(h)}_exit`, x: door, y: 6, to: { map: h.map, spot: homeDoorOut(h) } },
+      { id: `door_${hallId(h)}_exit`, x: door, y: H - 1, to: { map: h.map, spot: homeDoorOut(h) } },
       ...xs.map((x, i) => ({ id: `door_${flatId(h, i)}`, x, y: 0, label: `Flat ${i + 1} — ${h.flats[i].name}`, to: { map: flatId(h, i), spot: 'entry' }, lock: lockFor(h.flats[i].who, `Flat ${i + 1} — ${h.flats[i].name.toUpperCase()}`) })),
     ],
-    spots: { entry: { x: door, y: 5, facing: 'up' }, ...Object.fromEntries(xs.map((x, i) => [`unit_${i + 1}_door`, { x, y: 1, facing: 'down' }])) },
-    keepClear: [[door, 5]],
+    spots: { entry: { x: door, y: H - 2, facing: 'up' }, ...Object.fromEntries(xs.map((x, i) => [`unit_${i + 1}_door`, { x, y: 1, facing: 'down' }])) },
+    keepClear: [[door, H - 2]],
     props: [
-      { id: `${hallId(h)}_mail`, type: 'cabinet', x: w - 2, y: 4, examine: `Mailboxes: ${h.flats.map((f, i) => `${i + 1} ${f.name.toUpperCase()}`).join(', ')}.` },
-      { id: `${hallId(h)}_plant`, type: 'plant', x: 1, y: 5 },
+      { id: `${hallId(h)}_mail`, type: 'cabinet', x: w - 2, y: H - 3, examine: `Mailboxes: ${h.flats.map((f, i) => `${i + 1} ${f.name.toUpperCase()}`).join(', ')}.` },
+      { id: `${hallId(h)}_plant`, type: 'plant', x: 1, y: H - 2 },
     ],
   };
 }
@@ -15330,6 +15711,9 @@ __m["src/content/maps/firstBank.js"] = (function () {
 //   west: the bond desk · centre: the tellers' counter and the vault · east: the rate board
 const { roomTiles } = __m["src/world/mapBuilder.js"];
 
+/** Who may walk through the staff doors at any hour: the bank's own people. */
+const FIRST_BANK_STAFF = ['npc_augustus', 'npc_prudence', 'npc_cyrus', 'npc_bertram'];
+
 function firstBankInterior(street) {
   const b = street.buildings.find((x) => x.id === 'b_bank');
   const W = b.w;
@@ -15352,14 +15736,88 @@ function firstBankInterior(street) {
   return {
     id: 'first_bank', name: 'First Bank of Halvermouth', kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor',
     wallStyle: 'grand', floorStyle: { t: 4 },
-    tiles: roomTiles(W, H, 't', dx),
-    doors: [{ id: 'door_bank_exit', x: dx, y: H - 1, to: { map: 'halvermouth', spot: 'b_bank_out' } }],
-    spots: { entry: { x: dx, y: H - 2, facing: 'up' }, teller: { x: mid, y: 2, facing: 'down' }, bond_desk: { x: 2, y: 3, facing: 'up' }, rate_board: { x: W - 3, y: 2, facing: 'up' }, vault_front: { x: mid, y: 2, facing: 'up' } },
+    tiles: roomTiles(W, H, 't', dx, [[3, 0, 1, 1, 'D']]),
+    doors: [
+      { id: 'door_bank_exit', x: dx, y: H - 1, to: { map: 'halvermouth', spot: 'b_bank_out' } },
+      // v0.78.0: the Governor's office, behind the vault side of the hall; staff only, at any hour
+      { id: 'door_bank_office', x: 3, y: 0, label: 'Staff only — the Governor\'s office', to: { map: 'first_bank_office', spot: 'entry' }, lock: { key: 'item_none', owners: FIRST_BANK_STAFF, message: 'STAFF ONLY. The Governor\'s office. The door is solid oak and the sign is polite.' } },
+    ],
+    spots: {
+      entry: { x: dx, y: H - 2, facing: 'up' }, teller: { x: mid, y: 2, facing: 'down' }, bond_desk: { x: 2, y: 3, facing: 'up' }, rate_board: { x: W - 3, y: 2, facing: 'up' }, vault_front: { x: mid, y: 2, facing: 'up' },
+      bond_clerk: { x: 1, y: 3, facing: 'right' }, guard_post: { x: W - 3, y: 3, facing: 'down' }, office_door: { x: 3, y: 1, facing: 'down' },
+    },
     props,
   };
 }
 
-return { firstBankInterior };
+/** The Governor's office (v0.78.0): a desk, the policy ledger, a window. A small room of its own, entered from the hall by staff only. */
+function firstBankOffice() {
+  const W = 9;
+  const H = 6;
+  return {
+    id: 'first_bank_office', name: 'First Bank of Halvermouth — the Governor\'s office', kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor',
+    wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTiles(W, H, 't', 4),
+    doors: [{ id: 'door_bank_office_exit', x: 4, y: H - 1, to: { map: 'first_bank', spot: 'office_door' } }],
+    spots: { entry: { x: 4, y: H - 2, facing: 'up' }, desk: { x: 4, y: 2, facing: 'down' }, visitor: { x: 4, y: 3, facing: 'up' } },
+    props: [
+      { id: 'bank_off_desk', type: 'desk', x: 3, y: 1, w: 3, color: '#4a3a2e', label: 'THE GOVERNOR\'S DESK', interact: { kind: 'bank', tab: 'Bank' }, examine: 'The Governor\'s desk: the policy rate, the record of every decision, and the reasons. A framed card: "THE RATE IS NOT OURS TO SET."' },
+      { id: 'bank_off_chair', type: 'chair', x: 4, y: 2 },
+      { id: 'bank_off_shelf', type: 'shelf', x: 1, y: 1, w: 2, examine: 'Bound volumes: "MINUTES OF THE ECONOMY", one a year. Each has a ribbon. The latest has two.' },
+      { id: 'bank_off_cabinet', type: 'cabinet', x: 7, y: 1, examine: 'A tall locked cabinet of monthly figures. Not a thing in it is anyone\'s money; it is all just numbers about money, which the Governor finds safer.' },
+      { id: 'bank_off_rug', type: 'rug', x: 3, y: 3, w: 3, h: 2, color: '#2a3a5a' },
+      { id: 'bank_off_plant', type: 'plant', x: 1, y: 4 },
+      { id: 'bank_off_win', type: 'window', x: 6, y: 0 },
+    ],
+  };
+}
+
+return { FIRST_BANK_STAFF, firstBankInterior, firstBankOffice };
+})();
+
+// ---- src/content/maps/lariatBank.js
+__m["src/content/maps/lariatBank.js"] = (function () {
+// The Lariat State Bank (v0.78.0): est. 1911, a teller's window, a loan officer's desk, a small vault and a guard by the door. Like the First
+// Bank's hall it is made after the street has grown, at exactly the size of its building, so nothing around it moves.
+//   west: the loan desk · centre: the teller's window and the vault · east: the rate card and the guard
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+
+const LARIAT_BANK_STAFF = ['npc_hollis', 'npc_dottie', 'npc_clint'];
+
+function lariatBankInterior(street) {
+  const b = street.buildings.find((x) => x.id === 'b_bank');
+  const W = b.w;
+  const H = b.h;
+  if (W < 9 || H < 7) throw new Error(`lariat bank: the hall is too small (${W}×${H})`);
+  const dx = b.door.x - b.x;
+  const mid = Math.floor(W / 2);
+  return {
+    id: 'lariat_bank', name: 'Lariat State Bank', kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor',
+    wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTiles(W, H, 't', dx),
+    doors: [{ id: 'door_lariat_bank_exit', x: dx, y: H - 1, to: { map: 'lariat', spot: 'lariat_bank_door_out' } }],
+    spots: {
+      entry: { x: dx, y: H - 2, facing: 'up' }, teller: { x: mid, y: 2, facing: 'down' }, loan_front: { x: 2, y: 4, facing: 'up' }, manager: { x: 1, y: 3, facing: 'right' },
+      rate_card: { x: W - 3, y: 3, facing: 'up' }, guard_post: { x: W - 2, y: 5, facing: 'left' }, vault_front: { x: mid, y: 2, facing: 'up' },
+    },
+    keepClear: [[dx, H - 2]],
+    props: [
+      { id: 'lb_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', examine: 'A small round vault door with "L.S.B. 1911" in brass. It has never been opened in front of a customer, and the customers like it that way.' },
+      { id: 'lb_loan_desk', type: 'desk', x: 1, y: 2, w: 2, color: '#5a3a24', label: 'LOANS', interact: { kind: 'bank', tab: 'Loans' }, examine: 'The loan officer\'s desk: loans against the shares and bonds you hold, at a rate fixed on the day you sign. A blotter, a pen on a chain, and a cup of coffee that is nobody\'s.' },
+      { id: 'lb_manager_chair', type: 'chair', x: 1, y: 3 },
+      { id: 'lb_teller', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', examine: 'The teller\'s window: brass grille, a dish for coins, and a hand-lettered card — "ASK DOTTIE."' },
+      { id: 'lb_rate_card', type: 'sign', x: W - 4, y: 1, w: 3, label: 'THE BANK\'S RATE', interact: { kind: 'bank', tab: 'Bank' }, examine: 'The rate card, chalked daily: the First Bank of Halvermouth\'s policy rate, and what the Lariat State Bank adds to it. Under it: "WE LEND AGAINST WHAT YOU HOLD, AND ASK ONLY THAT YOU PAY."' },
+      { id: 'lb_boxes', type: 'cabinet', x: W - 2, y: 2, h: 2, examine: 'Safe-deposit boxes, forty of them, each with a tiny brass door. Clint stands in front of them a great deal. They are boxes.' },
+      { id: 'lb_clock', type: 'painting', x: mid, y: 0, examine: 'A wall clock stopped, by custom, at ten past ten. It is wound on the first of the month and always right by then.' },
+      { id: 'lb_rug', type: 'rug', x: mid - 1, y: H - 3, w: 3, h: 1, color: '#6a2a24' },
+      { id: 'lb_plant', type: 'plant', x: 1, y: H - 2 },
+      { id: 'lb_bench', type: 'bench', x: 3, y: H - 2 },
+      { id: 'lb_win1', type: 'window', x: 3, y: 0 }, { id: 'lb_win2', type: 'window', x: W - 3, y: 0 },
+    ],
+  };
+}
+
+return { LARIAT_BANK_STAFF, lariatBankInterior };
 })();
 
 // ---- src/content/index.js
@@ -15424,6 +15882,8 @@ const dealerChars = __m["src/content/characters/dealers.js"].default;
 const dlgDealers = __m["src/content/dialogue/dealers.js"].default;
 const lariatChars = __m["src/content/characters/lariat.js"].default;
 const dlgLariat = __m["src/content/dialogue/lariat.js"].default;
+const bankChars = __m["src/content/characters/banks.js"].default; // v0.78.0
+const dlgBanks = __m["src/content/dialogue/banks.js"].default;
 const casinoChars = __m["src/content/characters/casino.js"].default;
 const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
@@ -15439,7 +15899,8 @@ const { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING }
 const { buildPatrols } = __m["src/world/patrols.js"];
 const { growStreets, shiftContent } = __m["src/world/grow.js"];
 const { placeInteriors, realInterior } = __m["src/world/interiors.js"];
-const { firstBankInterior } = __m["src/content/maps/firstBank.js"];
+const { firstBankInterior, firstBankOffice } = __m["src/content/maps/firstBank.js"];
+const { lariatBankInterior } = __m["src/content/maps/lariatBank.js"];
 
 /** Ids registered twice (a later entry silently replaces an earlier one): the validator reports these. */
 const DUPLICATE_IDS = [];
@@ -15480,7 +15941,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -15505,7 +15966,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -15547,6 +16008,8 @@ REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
 REGIONS.coast.maps.ober_fields.x = MAPS.lanternside.tiles[0].length - 1;
 // v0.52.0: the Phonograph Grand's lobby is the size of its building on the grown street
 MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
+MAPS.first_bank_office = firstBankOffice(); // v0.78.0
+MAPS.lariat_bank = lariatBankInterior(MAPS.lariat); // v0.78.0: the same, for the Lariat State Bank
 MAPS.first_bank = firstBankInterior(MAPS.halvermouth); // v0.70.0: the First Bank's hall is the size of its building, so the street does not move
 placeInteriors(MAPS, REGIONS, STREETS);
 {
@@ -15574,7 +16037,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.77.1';
+const GAME_VERSION = '0.78.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -45631,6 +46094,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.78.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Staffed Banks',
+    notes: [
+      'Both banks now have people behind the counter. The First Bank of Halvermouth has a chief teller, a bond clerk, a vault guard and a Governor in his own office (staff only); the Lariat State Bank has finally opened its doors, with a manager who handles loans, a teller who hums hymns, and an old deputy by the door. They live in flats and boarding rooms, open up before you arrive, and go home at night.',
+    ],
+  },
   {
     version: '0.77.1',
     date: '2026-10-30',

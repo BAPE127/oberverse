@@ -122,6 +122,23 @@ export const HOMES = [
         { type: 'painting', x: 3, y: 0, w: 2, examine: 'A photograph of Brock\'s mum, framed in gold. She looks exactly as unimpressed as Brock does.' },
       ] },
     ] },
+  // v0.78.0: the First Bank of Halvermouth's four (the chief teller, the Governor, and the bond clerk and vault guard as flatmates) lease the old Crown Insurance
+  // tower on Crown Street (the insurers moved out; the flats were always upstairs). The hall is made the size of the tower's old footprint (15×9), so the street does not move.
+  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9 },
+    flats: [
+      { who: ['npc_prudence'], name: 'Prudence Tally', bed: '#5a6a8a', rug: '#c9a24a', loot: { items: { item_silver_spoons: 1 }, money: 48 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Knitting needles, a basket of wool, and a ledger-shaped notebook labelled "WHERE I WAS RIGHT". It is a large notebook.' },
+        { type: 'plant', x: 7, y: 4 },
+      ] },
+      { who: ['npc_augustus'], name: 'Augustus Prime', bed: '#2a3040', rug: '#7a2a34', loot: { items: { item_gold_watch: 1 }, money: 85 }, props: [
+        { type: 'shelf', x: 1, y: 4, examine: 'Eleven bound volumes of "Minutes of the Economy", and a twelfth in progress. Every spine reads "UNCHANGED" in the same hand.' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A watercolour of a vault door at sunrise. The Governor says it is a clock. It is not a clock.' },
+      ] },
+      // two flatmates: the bond clerk and the vault guard share the third flat (a four-flat hall would be wider than the tower, and the street would have to move)
+      { who: ['npc_cyrus', 'npc_bertram'], name: 'Cyrus Coupon & Bertram Locke', bed: '#6a3a28', rug: '#2a6a4a', loot: { items: { item_pocket_watch: 1, item_cigar: 1 }, money: 52 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Yield curves pinned all over one wall, in three colours of string; the five-year has a small gold star. On the other wall, a shoebox of poems, tidily filed by month. Every one is about doors. Some are very good.' },
+      ] },
+    ] },
   // v0.55.0: Moneybucks Manor's staff, a flat each in the estate cottages (they used to sleep along the manor's back corridor)
   { id: 'estate_cottages', map: 'ober_fields', building: 'b_estate_cottages', name: 'The Estate Cottages', mapLabel: 'Estate Cottages', type: 'apartment',
     flats: [
@@ -235,21 +252,22 @@ function flatMap(h, i) {
 
 function hallMap(h) {
   const n = h.flats.length;
-  const w = Math.max(9, n * 3 + 3);
-  const door = Math.floor(w / 2);
+  const w = h.hallSize?.w ?? Math.max(9, n * 3 + 3); // hallSize: a hall made the size of the building it replaces, so the street does not move (v0.78.0)
+  const H = h.hallSize?.h ?? 7;
+  const door = h.hallSize?.door ?? Math.floor(w / 2);
   const xs = h.flats.map((_, i) => 2 + i * 3);
   return {
     id: hallId(h), name: `${h.name} — stairwell`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
-    tiles: roomTiles(w, 7, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
+    tiles: roomTiles(w, H, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
     doors: [
-      { id: `door_${hallId(h)}_exit`, x: door, y: 6, to: { map: h.map, spot: homeDoorOut(h) } },
+      { id: `door_${hallId(h)}_exit`, x: door, y: H - 1, to: { map: h.map, spot: homeDoorOut(h) } },
       ...xs.map((x, i) => ({ id: `door_${flatId(h, i)}`, x, y: 0, label: `Flat ${i + 1} — ${h.flats[i].name}`, to: { map: flatId(h, i), spot: 'entry' }, lock: lockFor(h.flats[i].who, `Flat ${i + 1} — ${h.flats[i].name.toUpperCase()}`) })),
     ],
-    spots: { entry: { x: door, y: 5, facing: 'up' }, ...Object.fromEntries(xs.map((x, i) => [`unit_${i + 1}_door`, { x, y: 1, facing: 'down' }])) },
-    keepClear: [[door, 5]],
+    spots: { entry: { x: door, y: H - 2, facing: 'up' }, ...Object.fromEntries(xs.map((x, i) => [`unit_${i + 1}_door`, { x, y: 1, facing: 'down' }])) },
+    keepClear: [[door, H - 2]],
     props: [
-      { id: `${hallId(h)}_mail`, type: 'cabinet', x: w - 2, y: 4, examine: `Mailboxes: ${h.flats.map((f, i) => `${i + 1} ${f.name.toUpperCase()}`).join(', ')}.` },
-      { id: `${hallId(h)}_plant`, type: 'plant', x: 1, y: 5 },
+      { id: `${hallId(h)}_mail`, type: 'cabinet', x: w - 2, y: H - 3, examine: `Mailboxes: ${h.flats.map((f, i) => `${i + 1} ${f.name.toUpperCase()}`).join(', ')}.` },
+      { id: `${hallId(h)}_plant`, type: 'plant', x: 1, y: H - 2 },
     ],
   };
 }

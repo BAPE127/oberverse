@@ -2,6 +2,29 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.78.0] — 2026-10-30 — Staffed Banks (development build)
+
+Every bank is a physical building with a counter and staff (the owner's request), made under the repository's rules for adding people.
+
+### Added
+- **The Lariat State Bank has a building** (`src/content/maps/lariatBank.js`): open 09:00–16:00, with a teller's window, a loan desk that opens the Loans app, a rate card that opens the Bank app, a small round vault, forty safe-deposit boxes and a bench. Like the First Bank's hall it is made after the street has grown, at exactly the size of its building (11×9), so nothing in Lariat moves.
+- **The First Bank of Halvermouth is staffed**, and gains **the Governor's office** (`first_bank_office`): a staff-only door in the hall (the sign is polite, the oak is solid), a desk that opens the Bank app, the bound "Minutes of the Economy".
+- **Seven new people** (`src/content/characters/banks.js`, `dialogue/banks.js`; minor, generated; listed in `docs/CHARACTER_REGISTRY.md`):
+  - *First Bank*: **Augustus Prime**, Governor (the office; explains the rate and says it is not his); **Prudence Tally**, chief teller (the grille); **Cyrus Coupon**, bond clerk (the bond desk; thrilled by yields); **Bertram Locke**, vault guard (baton; says little; writes poems about doors).
+  - *Lariat State Bank*: **Hollis Marsh**, manager and loan officer (slow to say yes; explains personal and company loans and opens the Loans app); **Dottie Cain**, teller (hums hymns); **Clint Brazos**, guard and former deputy (revolver, laconic).
+  - They keep to the **world-simulation rules**: every one has a home with a bed (a three-flat Crown Court in the old Crown Insurance tower on Crown Street for the First Bank's four — Cyrus and Bertram as flatmates — and rooms at the Bluebonnet Boarding House for Lariat's three), a `LIFE` entry and occupation, and a schedule whose sleep block is in that bed; staff work at spots inside the bank in its hours and eat lunch on the steps or at the diner; the doors carry a staff list so they can open up before the public and the player cannot follow them into the office. `tools/validate-content.mjs` passes (0 errors).
+- **Nothing moved.** The two new homes were made so no street changed size or position (Crown Court's hall is the old tower's own footprint, 15×9, with its door in the same place; a first attempt that made the hall a different shape shifted the whole financial district, and was thrown away). Every street map and building position is identical to v0.77.1.
+
+### Fixed / changed
+- The Crown Insurance tower on Crown Street is now Crown Court, flats for bank staff (the insurers moved out; `docs/WORLD_BIBLE.md`).
+- `homes.js` can make a stairwell hall a stated size and door (`hallSize`), so a home that replaces a façade can keep the building's footprint.
+
+### Tests
+- New: `banks_physical` (7): seven people with homes, beds and sleep blocks and registry rows; streets and halls exactly their old sizes; both banks staffed in their hours with each person at their spot, and at home at night; the doors (hours for you, any hour for staff, the Governor's office for staff only); the counters opening the right tablet apps; dialogue never claiming a clerk moves a rate or a record, and the guards fighting while the clerks do not. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Staff do not yet react to a robbery (stage 14), and no clerk can be hired, promoted or replaced.
+
 ## [0.77.1] — 2026-10-30 — Honest Terms (development build)
 
 A patch after a review of v0.74–v0.77. Nothing here adds a feature; it removes something the owner never chose, states a cost before it is agreed, and closes three holes.
