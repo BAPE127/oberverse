@@ -64,6 +64,10 @@ export const ITEMS = {
     name: 'Gold Wristwatch', category: 'valuable', price: 90, tags: ['valuable', 'pawn'], icon: 'cog',
     description: 'Heavy, gold and loud about it. It keeps excellent time for someone who has never been on time.',
   },
+  item_gold_bar: {
+    name: 'Gold Bar', category: 'valuable', price: 2000, tags: ['valuable', 'pawn', 'gold'], icon: 'cog',
+    description: 'A bar of vault gold, stamped with the First Bank\'s seal and a number. Heavy, cold and very much missed by somebody.',
+  },
   item_silver_spoons: {
     name: 'Silver Spoons', category: 'valuable', price: 25, tags: ['valuable', 'pawn'], icon: 'cog',
     description: 'A set of six silver spoons in a velvet case. Good for nothing but stirring and selling.',

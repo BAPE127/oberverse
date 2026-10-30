@@ -44,6 +44,8 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `robbery.test.mjs` | Bank robbery (v0.79.0): the pure state machine and its bounds; configured hauls; a hold-up end to end with the loot paid once through repeats and a reload; sealing, four days, restocking, reopening and a bounded second robbery; a night raid; alerts that come to nothing; the Lariat bank; the front door at night; the market reaction. |
+| `robbery_separation.test.mjs` | The absolute creditworthiness rule (brief 14.1): control-game proof that every financial answer is identical after a robbery, while sealed and after reopening (both banks); what does change; source scans in both directions. Checked by mutation. |
 | `banks_physical.test.mjs` | Staffed banks (v0.78.0): seven people with homes, beds, sleep blocks and registry rows; streets and halls exactly their old sizes; both banks staffed at their spots in hours and at home at night; doors by hours, staff list and staff-only office; counters opening the right apps; dialogue and combat temperaments. |
 | `sovereign.test.mjs` | Foreign government bonds (v0.77.0): the pure rules (trait, strain and its caps, bands, day counter, recovery, issue size); nothing before the arms market; eight deterministic issues rated by cause; trading and coupons; a war's downgrade and its recovery; delayed payments, owed and repaid, restructuring once and the new issue after the pause; collateral and the sale lock. |
 | `geo_effects.test.mjs` | Geopolitics, second part (v0.76.0): the bond premium (basis points, bounded, ramps); your own part prices against the cost index; government bond yields and value with the policy rate untouched; managers' budget requests (one at a time, nothing changed until approved) and the expansion hold through the real judgement; an embargo that begins after a tender is posted. |
@@ -86,6 +88,13 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.79.0 (2026-10-30)
+
+- `npm run check` — **852/852 tests passed** (14 new: 9 in `robbery`, 5 in `robbery_separation`; content validation 0 errors); every earlier test passes unedited. `npm run smoke` — 26/26.
+- **The separation tests were mutation-checked**: with a deliberate `lending standing −10` inside the robbery's loot function, four of five fail; with lending's collateral switched to count the robbery's premium, two fail; restored, all five pass.
+- **Parity** against v0.78.0 (`55cf3f9`): both runs identical line for line (no robbery, so nothing differs).
+- Browser (headless Chromium): a hold-up at the First Bank at 10:30 (Prudence "Help! Help!", Cyrus "Run!", Bertram "You want a fight? You've got one!", "Someone is calling the police!"), the vault paying 250,000 obols and 25 bars once, and the Economy app's Banks and security section (police on the scene, vault 150,000 of 400,000, the news line); no page errors.
 
 ## Verification record — v0.78.0 (2026-10-30)
 

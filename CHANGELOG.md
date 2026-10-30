@@ -2,6 +2,29 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.79.0] — 2026-10-30 — The Vault (development build)
+
+Stage 14: bank robbery, with the brief's absolute rule — a robbery has no effect whatsoever on anyone's financial standing — proved by tests, not asserted.
+
+### Added (`src/content/robbery.js`, `src/corp/robbery.js`, `src/systems/robbery.js` — `game.robbery`)
+- **The First Bank of Halvermouth and the Lariat State Bank can both be robbed**, two ways (the owner's answers): a **hold-up in opening hours** (a gun drawn in the hall puts the guard on alert; at the counter or the vault it becomes a hold-up: the staff fight or run, someone hits the alarm, and under the gun the vault opens in three minutes) and a **night break-in** (the front door can be forced or picked like a home's; inside a closed bank a silent alarm starts at once and reaches the police in ten minutes; the time-lock takes twelve).
+- **A defined, bounded haul of physical valuables from the vault's stock** — never a balance sheet: **250,000 obols in notes and 25 gold bars** at the First Bank (its vault holds 400,000 and 40), **40,000 and 4 bars** at Lariat (90,000 and 8), never more than the vault holds. Bars are a new item (`item_gold_bar`, worth 2,000, pawnable).
+- **One explicit state machine for each bank** (`normal → alert → robbery → police → recovery → reopening → normal`; every other move is refused): a gun drawn or a closed bank entered is an *alert* (put the gun away or leave and it stands down); the hold-up or the time-lock is the *robbery*; the alarm brings the *police* (a call at severity 12 — three stars — and witnesses' reports); after thirty minutes on the scene the bank is *sealed* for four days (Lariat three) while its vault is refilled a day's worth a day; then it *reopens* in its hours and is normal again.
+- **The loot is paid once.** It is paid by one function that marks the robbery as looted before paying; pressing the vault again, calling it twice, reloading the save in the middle, or an interrupted transition pays nothing more. To be paid again the bank must have come all the way round and been restocked.
+- **Public consequences**: news ("First Bank of Halvermouth was robbed…", its closure and its reopening) in the tablet's feed and the Economy app's new **Banks and security** section (state, vault stock, last robbery); a **bounded market reaction** — a premium of up to 0.15% on Halvermouth's government bond yields, fading over ten days, **for the central bank only** (a robbery of the Lariat bank has none).
+- **Police and the wanted level** use the existing system (`fact_player_bank_robbery`, severity 12); the player is an ordinary suspect — witnesses, the call, the officers, the stars, arrest. The *criminal reputation* is the police record and the civic reputation that already existed; no new number was added (the owner did not ask for one).
+
+### The creditworthiness rule (brief 14.1), and how it is enforced
+- **Nothing a robbery does is read by any financial decision**: your borrowing record, loan limits, rates and offers, loans and schedules, company records and ratings, valuations, rankings, group value, business reputations and the exchange and sovereign bonds are *exactly* what they would have been. The tests build two identical games, rob a bank in one and not the other, and require every one of those answers to be identical just after the robbery, while the bank is sealed, and after it reopens — for the First Bank and for the Lariat State Bank (the lender itself).
+- **The one visible effect is on the screen, not on standing**: while the market premium lasts, a government bond you already hold shows a little less value (a few basis points of yield). **What it secures does not move** — lending values bonds without the robbery's premium (`Bonds.collateral()`), so your limit, your rates and your right to sell are untouched.
+- **A source scan** requires that the money code (lending, business loans, ratings, valuations, groups, the exchange, bonds' collateral, management) never mention robbery, the police or the wanted level, and that the robbery code never mentions credit, loans, ratings, valuations, rankings or standing; the only file in the money system that reads the robbery is the bond yield's premium. The tests were checked by deliberately breaking the rule (a robbery lowering the record; lending counting the premium): each break fails them.
+
+### Tests
+- New: `robbery` (9): the pure machine (every legal move, every refused one), loot and restock bounds, the premium; the configured hauls; a hold-up end to end with the loot paid once through presses, repeats and a reload; the sealing, the four days, restocking, reopening and a second robbery for no more than the haul; a night raid; an alert that comes to nothing; the Lariat bank; the front door at night; the market reaction. `robbery_separation` (5): the control-game proof (three stages, two banks), what *does* change, and the source scans. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md.
+
 ## [0.78.0] — 2026-10-30 — Staffed Banks (development build)
 
 Every bank is a physical building with a counter and staff (the owner's request), made under the repository's rules for adding people.

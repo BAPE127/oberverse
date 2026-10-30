@@ -172,6 +172,10 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 
 - **Lariat State Bank** (stage 12's lender) has had a building and staff since v0.78.0 (`src/content/maps/lariatBank.js`); monetary policy in stage 12 is the policy rate of v0.68.0 that every loan and yield is built on.
 
+## Bank robbery (v0.79.0) — and why it cannot touch your standing
+
+`src/systems/robbery.js` (`game.robbery`), `src/corp/robbery.js` (the pure state machine), `src/content/robbery.js` (every figure). Owner's answers: both a hold-up and a night break-in; a large haul (250,000 obols and 25 gold bars at the First Bank; Lariat's smaller); wanted level and manhunt plus news and a market reaction; the Lariat State Bank robbable too. The brief's absolute rule (14.1) is built in as structure, not as a promise: **the robbery code never mentions the money system and the money system never mentions the robbery** (a source scan in `tests/robbery_separation.test.mjs`); the one thing that crosses is a bounded premium on government bond yields (the market's reaction), and **lending values your bonds without it** (`Bonds.collateral()`), so what you may borrow, at what rate, and what your companies are rated, valued and ranked at are exactly what they would have been. A control-game test proves it for both banks at every stage of the robbery.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

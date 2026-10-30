@@ -27,7 +27,7 @@ export class Lending {
   holdings() {
     const out = [];
     for (const r of this.K.exchange.board()) if (r.held > 0 && r.value > 0 && (r.status ?? 'listed') === 'listed') out.push({ kind: 'share', name: `${r.ticker} · ${r.name}`, value: r.value });
-    for (const r of this.K.bonds.portfolio().rows) out.push({ kind: 'govBond', name: `${r.years}-year government bond`, value: r.value });
+    for (const r of this.K.bonds.collateral()) out.push({ kind: 'govBond', name: `${r.years}-year government bond`, value: r.value }); // v0.79.0: collateral ignores a robbery's market premium
     for (const r of this.K.credit.portfolio().rows) if (r.issueStatus === 'open') out.push({ kind: 'corpBond', name: `${r.ticker} bond`, value: r.value, rating: r.rating });
     for (const r of this.K.sovereign.portfolio().rows) if (r.issueStatus === 'open' && r.value > 0) out.push({ kind: 'sovBond', name: `${r.name} bond`, value: r.value, rating: r.rating });
     return out.map((i) => ({ ...i, advance: advance(i), secures: Math.round(i.value * advance(i)) }));

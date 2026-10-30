@@ -14,11 +14,11 @@ export function firstBankInterior(street) {
   const dx = b.door.x - b.x;
   const mid = Math.floor(W / 2);
   const props = [
-    { id: 'bank_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', examine: 'The vault door: round, shiny, a metre thick, and shut. A brass plate reads "TIME-LOCKED. NO ONE IS EVER ALONE WITH THIS DOOR." Nothing about it is for you.' },
+    { id: 'bank_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', interact: { kind: 'vault', bank: 'first' }, examine: 'The vault door: round, shiny, a metre thick, and shut. A brass plate reads "TIME-LOCKED. NO ONE IS EVER ALONE WITH THIS DOOR." Nothing about it is for you.' },
     { id: 'bank_bond_desk', type: 'desk', x: 1, y: 2, w: 2, color: '#5a3a24', label: 'BOND DESK', interact: { kind: 'bank', tab: 'Bonds' }, examine: 'The bond desk: government bonds at par, sold by the First Bank of Halvermouth.' },
     { id: 'bank_bond_chair', type: 'chair', x: 1, y: 3 },
     { id: 'bank_rate_board', type: 'sign', x: W - 4, y: 1, w: 3, label: 'POLICY RATE', interact: { kind: 'bank', tab: 'Bank' }, examine: 'The rate board: the First Bank\'s policy rate and the record of every decision, with the reasons. Under it, a framed card: "THE RATE IS NOT OURS TO SET. IT IS THE ECONOMY\'S."' },
-    { id: 'bank_tellers', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', examine: 'The tellers\' counter, with a brass grille and three windows. All three are marked "PLEASE USE THE BOND DESK OR THE RATE BOARD", which is not what banks say, but this one has been reorganised.' },
+    { id: 'bank_tellers', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', interact: { kind: 'teller', bank: 'first' }, examine: 'The tellers\' counter, with a brass grille and three windows. All three are marked "PLEASE USE THE BOND DESK OR THE RATE BOARD", which is not what banks say, but this one has been reorganised.' },
     { id: 'bank_rug', type: 'rug', x: mid - 1, y: H - 3, w: 3, h: 1, color: '#2a3a5a' },
     { id: 'bank_plant1', type: 'plant', x: 1, y: H - 2 }, { id: 'bank_plant2', type: 'plant', x: W - 2, y: H - 2 },
     { id: 'bank_bench', type: 'bench', x: W - 4, y: H - 2 },

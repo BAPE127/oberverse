@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.79.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The Vault',
+    notes: [
+      'You can now rob a bank. Draw a gun in the First Bank of Halvermouth or the Lariat State Bank in opening hours and hold it up, or break in at night and work through the time-lock; either way you walk off with a fixed haul of notes and gold bars (250,000 obols and 25 bars at the First Bank, less at Lariat), paid once. The guard fights, the staff run, the police come, and the bank is shut for days while its vault is restocked. It makes the news and nudges bond yields for a few days. It does not touch your credit, your loans, your companies\' ratings or valuations, or what you may borrow — and the game\'s tests prove it.',
+    ],
+  },
+  {
     version: '0.78.0',
     date: '2026-10-30',
     channel: 'development',

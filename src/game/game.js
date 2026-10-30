@@ -26,6 +26,7 @@ import { Gang, freshGang } from '../systems/gang.js';
 import { Factory, freshFactory } from '../systems/factory.js';
 import { Arms, freshArms } from '../systems/arms.js';
 import { Market, freshMarket } from '../systems/market.js';
+import { Robbery } from '../systems/robbery.js'; // v0.79.0
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
@@ -73,6 +74,7 @@ export class Game {
     this.factory = new Factory(this);
     this.arms = new Arms(this);
     this.market = new Market(this);
+    this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
@@ -262,6 +264,7 @@ export class Game {
     if (!door.to) return door.lock?.message || 'It won\'t open.';
     const lock = door.lock;
     if (!lock) return null;
+    if (lock.bank) { const sealed = this.robbery.closedReason(lock.bank); if (sealed) return sealed; } // v0.79.0: shut for the investigation
     if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
@@ -346,6 +349,7 @@ export class Game {
     this.factory.minuteTick();
     this.arms.minuteTick();
     this.market.minuteTick();
+    this.robbery.minuteTick();
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
@@ -907,6 +911,8 @@ export class Game {
         const r = this.casino.sit(act.table);
         return r.ok ? { type: 'casino', table: act.table } : { type: 'message', text: r.text };
       }
+      case 'vault': return this.robbery.vault(act.bank); // v0.79.0
+      case 'teller': return this.robbery.armed() && this.robbery.inHours(act.bank) && this.robbery.inHall(act.bank) ? { type: 'message', text: this.robbery.holdup(act.bank).text } : { type: 'message', text: prop.examine };
       case 'bank': return { type: 'panel', panel: 'tablet', opts: { tab: act.tab } }; // v0.70.0: the First Bank's desks open the tablet at that app
       case 'casino_cashier': return this.casino.cashier() ? { type: 'panel', panel: 'cashier' } : { type: 'message', text: 'The cage is shut: a brass bell, a sign — "BACK SHORTLY. — V." — and nobody behind the bars.' };
       case 'container': {

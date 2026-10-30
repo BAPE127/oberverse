@@ -118,6 +118,11 @@ export const FACTS = {
     text: 'The newcomer was seen breaking into somebody\'s home.', importance: 8, aboutPlayer: true,
     relImpact: { trust: -15, affection: -6, suspicion: 20 }, reputation: { fac_civic: -6 }, keywords: ['burglary', 'break-in', 'theft', 'stole'],
   },
+  // v0.79.0: robbing a bank (the First Bank of Halvermouth or the Lariat State Bank)
+  fact_player_bank_robbery: {
+    text: 'The newcomer was seen robbing a bank.', importance: 10, aboutPlayer: true,
+    relImpact: { trust: -25, affection: -10, respect: -5, suspicion: 35 }, reputation: { fac_civic: -15 }, keywords: ['robbery', 'robbed', 'bank', 'stole', 'theft', 'heist'],
+  },
   fact_player_stole_from_osric: {
     text: 'The newcomer was seen taking something from Osric\'s desk.', importance: 7, aboutPlayer: true,
     relImpact: { trust: -12, suspicion: 15 }, reputation: { fac_civic: -8, lanternside: -4 }, keywords: ['theft', 'stole'],

@@ -8,6 +8,7 @@ const pc2 = (v) => `${(v * 100).toFixed(2)}%`;
 export function economyApp(ui, body) {
   const g = ui.game;
   const O = g.corp.geo.overview();
+  O.banks = Object.values(g.robbery.view()); O.bankNews = g.robbery.news(); O.robberyPremium = g.robbery.premium(); // the banks' security is the public's business, not the economy's: read straight from the robbery record
   const none = (t) => h('p', { class: 'muted' }, t);
   const sev = (e) => (e.severity >= 0.7 ? 'severe' : e.severity >= 0.4 ? 'serious' : 'limited');
   const effect = (x) => `${x.sector} ${x.kind === 'cost' ? 'costs' : 'demand'} ${pc(x.pct)}`;
@@ -40,6 +41,11 @@ export function economyApp(ui, body) {
 
   if (O.sovereign.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Foreign government bonds'), h('div', { class: 'list' }, ...O.sovereign.map((s) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, s.name, h('span', { class: `tag${s.rating === 'AA' || s.rating === 'A' ? ' good' : s.rating === 'CCC' || s.status === 'delayed' ? ' neg' : ''}` }, s.status === 'delayed' ? `${s.rating} · delayed` : s.rating)), h('div', { class: 'desc' }, `Yield ${pc2(s.yield)}`))))),
     ...(O.bondNews.length ? [h('div', { class: 'list' }, ...O.bondNews.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Banks and security'), h('div', { class: 'list' }, ...O.banks.map((b) => h('div', { class: 'item-row' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, b.name, h('span', { class: `tag${b.state === 'normal' ? ' good' : ' neg'}` }, { normal: 'open for business', alert: 'security alert', robbery: 'robbery in progress', police: 'police on the scene', recovery: `closed to day ${b.closedUntil}`, reopening: 'reopening' }[b.state])),
+    h('div', { class: 'desc' }, `Vault: ${b.stock.cash.toLocaleString()} obols in notes and ${b.stock.gold} gold bars of ${b.full.cash.toLocaleString()} and ${b.full.gold}${b.last ? ` · robbed on day ${b.last.day}: ${b.last.cash.toLocaleString()} obols and ${b.last.gold} bars taken` : ''}`))))),
+    ...(O.bankNews.length ? [h('div', { class: 'list' }, ...O.bankNews.slice(0, 4).map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []),
+    h('p', { class: 'muted', style: 'font-size:12px' }, `A robbery of the First Bank is a loss of physical notes and gold only; it never touches anyone's credit, loans, ratings or valuations.${O.robberyPremium > 0 ? ` Its market reaction adds ${pc2(O.robberyPremium)} to government bond yields for now, fading over ten days; lenders do not count it.` : ''}`));
   if (O.movers.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Biggest moves on the exchange today'), h('div', { class: 'list' }, ...[...O.movers.slice(0, 3), ...O.movers.slice(-3).reverse()].filter((r, i, a) => a.findIndex((x) => x.ticker === r.ticker) === i).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.change > 0 ? 'good' : 'neg'}` }, pc(r.change * 100))), h('div', { class: 'desc' }, `${r.price.toFixed(2)} · ${r.sector}`))))));
 
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Headlines'));

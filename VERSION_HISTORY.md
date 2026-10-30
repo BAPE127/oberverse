@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.79.0 | 2026-10-30 | development | 1 | Bank robbery: a hold-up or a night break-in at the First Bank or the Lariat State Bank for a bounded haul of notes and gold, one explicit state machine, loot paid once, police and closure — and a proof, by control-game tests and source scans, that no financial standing is touched |
 | 0.78.0 | 2026-10-30 | development | 1 | Staffed banks: a building for the Lariat State Bank, the Governor's office at the First Bank, and seven new people (Governor, chief teller, bond clerk, guard; manager, teller, guard) with homes, schedules and dialogue |
 | 0.77.1 | 2026-10-30 | development | 1 | Honest terms: no cash sweep on a company in arrears (the owner never chose it), the total repayment shown before a loan is signed, a delayed bond sellable, and Meridian held to the embargo as it stands |
 | 0.77.0 | 2026-10-30 | development | 1 | Foreign government bonds: a three-year bond from each of the eight countries, rated from its debt, wars, embargo and treasury; delayed payments and restructuring only after weeks of the worst strain; collateral for your loans |

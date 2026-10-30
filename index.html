@@ -2137,7 +2137,7 @@ const buildings = [
   // Bank Row
   tower('t_harbourline', 'Harbourline Apartments', 1, 15, 11, 8, 15, { wall: '#a08a72', trim: '#4a3a2e', glass: '#b4c8cc', closed: 'Harbourline Apartments: residents only. The buzzer panel has 120 buttons and none of them are yours.' }),
   tower('t_ober', 'Ober\'s Oil Tower', 18, 24, 12, 11, 30, { wall: '#1e2228', glass: '#c9a24a', trim: '#8a6a2a', roof: '#2a2a30', sign: 'OBER\'S OIL', signColor: '#5a3a14', label: 'Ober\'s Oil Tower', closed: 'Ober\'s Oil Tower: "Appointments only. Sir Moneybucks does not receive walk-ins." The doorman is gold-buttoned and enormous.' }),
-  shop('b_bank', 'First Bank of Halvermouth', 31, 28, 6, 7, { roof: '#5a5a62', wall: '#e8e2d4', trim: '#5a5a62', columns: true, sign: 'BANK', door: { x: 34, y: 34, to: { map: 'first_bank', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_augustus', 'npc_prudence', 'npc_cyrus', 'npc_bertram'], hours: { from: '09:00', to: '17:00' }, message: 'First Bank of Halvermouth: open 09:00 to 17:00. The vault door behind the glass is very round and very shiny, and very shut.' } } }),
+  shop('b_bank', 'First Bank of Halvermouth', 31, 28, 6, 7, { roof: '#5a5a62', wall: '#e8e2d4', trim: '#5a5a62', columns: true, sign: 'BANK', door: { x: 34, y: 34, to: { map: 'first_bank', spot: 'entry' }, lock: { key: 'item_none', bank: 'first', home: [], owners: ['npc_augustus', 'npc_prudence', 'npc_cyrus', 'npc_bertram'], hours: { from: '09:00', to: '17:00' }, message: 'First Bank of Halvermouth: open 09:00 to 17:00. The vault door behind the glass is very round and very shiny, and very shut.' } } }),
   // Civic Plaza
   {
     id: 'b_hall_of_justice', name: 'Halvermouth Hall of Justice', mapLabel: 'Hall of Justice & Mayor\'s Office',
@@ -2922,7 +2922,7 @@ const buildings = [
   // Main Street, north side (doors open onto the pavement)
   B('b_church', 'First Baptist Church of Lariat', 5, 28, 11, 10, { roof: '#5a5a62', wall: '#f4efe4', trim: '#3a3a42', sign: 'FIRST BAPTIST', columns: true, door: { x: 10, y: 37, lock: closed('FIRST BAPTIST CHURCH OF LARIAT. "Services Sunday 10am. Potluck after. Bring a dish — Chuckie is bringing cheese again."') } }),
   B('b_post_office', 'Lariat Post Office', 26, 31, 8, 7, { roof: '#3a4a6a', wall: '#e8dcc8', sign: 'U.S. MAIL · LARIAT', flatRoof: true, door: { x: 29, y: 37, lock: closed('LARIAT POST OFFICE. "Window closed. Parcels for Chuckie\'s Cheese: leave on the bench. Parcels FROM Chuckie\'s Cheese: open a window."') } }),
-  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, to: { map: 'lariat_bank', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_hollis', 'npc_dottie', 'npc_clint'], hours: { from: '09:00', to: '16:00' }, message: 'LARIAT STATE BANK. Est. 1911. Open 09:00 to 16:00. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates in the morning."' } } }),
+  B('b_bank', 'Lariat State Bank', 36, 31, 7, 7, { roof: '#5a4a3a', wall: '#ece4d4', sign: 'STATE BANK', flatRoof: true, columns: true, door: { x: 39, y: 37, to: { map: 'lariat_bank', spot: 'entry' }, lock: { key: 'item_none', bank: 'lariat', home: [], owners: ['npc_hollis', 'npc_dottie', 'npc_clint'], hours: { from: '09:00', to: '16:00' }, message: 'LARIAT STATE BANK. Est. 1911. Open 09:00 to 16:00. "Closed for the afternoon. Loans: ask about our Farm & Ranch rates in the morning."' } } }),
   B('b_mercantile', 'Lariat Mercantile', 44, 30, 12, 8, { roof: '#7a2a24', wall: '#e8d8b8', sign: 'LARIAT MERCANTILE', awning: '#c8402a', door: { x: 49, y: 37, to: { map: 'mercantile', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_opal'], hours: { from: '07:00', to: '20:00' } } } }),
   B('b_land_office', 'Lariat Land Office', 58, 32, 8, 6, { roof: '#4a5a6a', wall: '#f2ead8', sign: 'LAND OFFICE', flatRoof: true, door: { x: 61, y: 37, to: { map: 'land_office', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '08:00', to: '18:00' } } } }),
   B('b_feed_seed', 'Lone Star Feed & Seed', 80, 30, 13, 8, { roof: '#2a5a3a', wall: '#e8dcc0', sign: 'LONE STAR FEED & SEED', awning: '#3a8a4a', door: { x: 86, y: 37, to: { map: 'feed_seed', spot: 'entry' }, lock: { key: 'item_none', owners: ['npc_lorna'], hours: { from: '07:00', to: '19:00' } } } }),
@@ -5046,6 +5046,10 @@ const ITEMS = {
     name: 'Gold Wristwatch', category: 'valuable', price: 90, tags: ['valuable', 'pawn'], icon: 'cog',
     description: 'Heavy, gold and loud about it. It keeps excellent time for someone who has never been on time.',
   },
+  item_gold_bar: {
+    name: 'Gold Bar', category: 'valuable', price: 2000, tags: ['valuable', 'pawn', 'gold'], icon: 'cog',
+    description: 'A bar of vault gold, stamped with the First Bank\'s seal and a number. Heavy, cold and very much missed by somebody.',
+  },
   item_silver_spoons: {
     name: 'Silver Spoons', category: 'valuable', price: 25, tags: ['valuable', 'pawn'], icon: 'cog',
     description: 'A set of six silver spoons in a velvet case. Good for nothing but stirring and selling.',
@@ -5397,6 +5401,11 @@ const FACTS = {
   fact_player_burglary: {
     text: 'The newcomer was seen breaking into somebody\'s home.', importance: 8, aboutPlayer: true,
     relImpact: { trust: -15, affection: -6, suspicion: 20 }, reputation: { fac_civic: -6 }, keywords: ['burglary', 'break-in', 'theft', 'stole'],
+  },
+  // v0.79.0: robbing a bank (the First Bank of Halvermouth or the Lariat State Bank)
+  fact_player_bank_robbery: {
+    text: 'The newcomer was seen robbing a bank.', importance: 10, aboutPlayer: true,
+    relImpact: { trust: -25, affection: -10, respect: -5, suspicion: 35 }, reputation: { fac_civic: -15 }, keywords: ['robbery', 'robbed', 'bank', 'stole', 'theft', 'heist'],
   },
   fact_player_stole_from_osric: {
     text: 'The newcomer was seen taking something from Osric\'s desk.', importance: 7, aboutPlayer: true,
@@ -15722,11 +15731,11 @@ function firstBankInterior(street) {
   const dx = b.door.x - b.x;
   const mid = Math.floor(W / 2);
   const props = [
-    { id: 'bank_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', examine: 'The vault door: round, shiny, a metre thick, and shut. A brass plate reads "TIME-LOCKED. NO ONE IS EVER ALONE WITH THIS DOOR." Nothing about it is for you.' },
+    { id: 'bank_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', interact: { kind: 'vault', bank: 'first' }, examine: 'The vault door: round, shiny, a metre thick, and shut. A brass plate reads "TIME-LOCKED. NO ONE IS EVER ALONE WITH THIS DOOR." Nothing about it is for you.' },
     { id: 'bank_bond_desk', type: 'desk', x: 1, y: 2, w: 2, color: '#5a3a24', label: 'BOND DESK', interact: { kind: 'bank', tab: 'Bonds' }, examine: 'The bond desk: government bonds at par, sold by the First Bank of Halvermouth.' },
     { id: 'bank_bond_chair', type: 'chair', x: 1, y: 3 },
     { id: 'bank_rate_board', type: 'sign', x: W - 4, y: 1, w: 3, label: 'POLICY RATE', interact: { kind: 'bank', tab: 'Bank' }, examine: 'The rate board: the First Bank\'s policy rate and the record of every decision, with the reasons. Under it, a framed card: "THE RATE IS NOT OURS TO SET. IT IS THE ECONOMY\'S."' },
-    { id: 'bank_tellers', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', examine: 'The tellers\' counter, with a brass grille and three windows. All three are marked "PLEASE USE THE BOND DESK OR THE RATE BOARD", which is not what banks say, but this one has been reorganised.' },
+    { id: 'bank_tellers', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', interact: { kind: 'teller', bank: 'first' }, examine: 'The tellers\' counter, with a brass grille and three windows. All three are marked "PLEASE USE THE BOND DESK OR THE RATE BOARD", which is not what banks say, but this one has been reorganised.' },
     { id: 'bank_rug', type: 'rug', x: mid - 1, y: H - 3, w: 3, h: 1, color: '#2a3a5a' },
     { id: 'bank_plant1', type: 'plant', x: 1, y: H - 2 }, { id: 'bank_plant2', type: 'plant', x: W - 2, y: H - 2 },
     { id: 'bank_bench', type: 'bench', x: W - 4, y: H - 2 },
@@ -15802,10 +15811,10 @@ function lariatBankInterior(street) {
     },
     keepClear: [[dx, H - 2]],
     props: [
-      { id: 'lb_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', examine: 'A small round vault door with "L.S.B. 1911" in brass. It has never been opened in front of a customer, and the customers like it that way.' },
+      { id: 'lb_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', interact: { kind: 'vault', bank: 'lariat' }, examine: 'A small round vault door with "L.S.B. 1911" in brass. It has never been opened in front of a customer, and the customers like it that way.' },
       { id: 'lb_loan_desk', type: 'desk', x: 1, y: 2, w: 2, color: '#5a3a24', label: 'LOANS', interact: { kind: 'bank', tab: 'Loans' }, examine: 'The loan officer\'s desk: loans against the shares and bonds you hold, at a rate fixed on the day you sign. A blotter, a pen on a chain, and a cup of coffee that is nobody\'s.' },
       { id: 'lb_manager_chair', type: 'chair', x: 1, y: 3 },
-      { id: 'lb_teller', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', examine: 'The teller\'s window: brass grille, a dish for coins, and a hand-lettered card — "ASK DOTTIE."' },
+      { id: 'lb_teller', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', interact: { kind: 'teller', bank: 'lariat' }, examine: 'The teller\'s window: brass grille, a dish for coins, and a hand-lettered card — "ASK DOTTIE."' },
       { id: 'lb_rate_card', type: 'sign', x: W - 4, y: 1, w: 3, label: 'THE BANK\'S RATE', interact: { kind: 'bank', tab: 'Bank' }, examine: 'The rate card, chalked daily: the First Bank of Halvermouth\'s policy rate, and what the Lariat State Bank adds to it. Under it: "WE LEND AGAINST WHAT YOU HOLD, AND ASK ONLY THAT YOU PAY."' },
       { id: 'lb_boxes', type: 'cabinet', x: W - 2, y: 2, h: 2, examine: 'Safe-deposit boxes, forty of them, each with a tiny brass door. Clint stands in front of them a great deal. They are boxes.' },
       { id: 'lb_clock', type: 'painting', x: mid, y: 0, examine: 'A wall clock stopped, by custom, at ten past ten. It is wound on the first of the month and always right by then.' },
@@ -16037,7 +16046,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.78.0';
+const GAME_VERSION = '0.79.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -22134,6 +22143,7 @@ class Police {
       case e.fact === 'fact_player_explosion': return 10;
       case e.fact === 'fact_player_car_theft': return 3;
       case e.fact === 'fact_player_burglary': return 3; // v0.36.0: breaking into someone's home
+      case e.fact === 'fact_player_bank_robbery': return 12; // v0.79.0: three stars at once
       case /trespass/.test(e.fact || ''): return 1;
       case /stole|theft/.test(e.fact || ''): return 1;
       default: return 1;
@@ -24977,6 +24987,371 @@ class Market {
 }
 
 return { freshMarket, Market };
+})();
+
+// ---- src/content/robbery.js
+__m["src/content/robbery.js"] = (function () {
+// Bank robbery (v0.79.0). Data only: src/corp/robbery.js holds the state machine, src/systems/robbery.js carries it out.
+//
+// The loot is a *defined* quantity of physical valuables — banknotes and gold bars in a vault stock — and nothing else. It is never the bank's
+// balance sheet, its bonds, its customers' balances or any record. The vault stock is refilled after a robbery over the recovery.
+// A robbery changes nothing about anyone's credit, loan terms, ratings, valuations or rankings: see docs/CORPORATE.md and tests/robbery_separation.test.mjs.
+const BAR_VALUE = 2000; // what a gold bar is worth (item_gold_bar's price)
+
+const ROBBERY = {
+  banks: {
+    first: {
+      name: 'First Bank of Halvermouth', street: 'halvermouth', building: 'b_bank', hall: 'first_bank', vault: 'bank_vault', counter: 'bank_tellers',
+      hours: { from: '09:00', to: '17:00' }, staff: ['npc_augustus', 'npc_prudence', 'npc_cyrus', 'npc_bertram'], guards: ['npc_bertram'],
+      stock: { cash: 400000, gold: 40 }, // what the vault holds when full
+      haul: { cash: 250000, gold: 25 }, // the most one robbery can take (the owner's answer: large)
+      closeDays: 4, restockPerDay: { cash: 100000, gold: 10 }, press: 'the central bank',
+    },
+    lariat: {
+      name: 'Lariat State Bank', street: 'lariat', building: 'b_bank', hall: 'lariat_bank', vault: 'lb_vault', counter: 'lb_teller',
+      hours: { from: '09:00', to: '16:00' }, staff: ['npc_hollis', 'npc_dottie', 'npc_clint'], guards: ['npc_clint'],
+      stock: { cash: 90000, gold: 8 },
+      haul: { cash: 40000, gold: 4 }, // smaller, as the owner asked
+      closeDays: 3, restockPerDay: { cash: 30000, gold: 3 }, press: 'the county bank',
+    },
+  },
+  warnMinutes: 2, // a gun drawn in the hall: this long to put it away or leave before it is a hold-up in all but name
+  complyMinutes: 3, // a hold-up: how long the staff take to open the vault under the gun
+  crackMinutes: 12, // a break-in: how long the time-lock takes to work through
+  breakInAlarm: 10, // minutes after you are inside a closed bank that the silent alarm reaches the police
+  holdupAlarm: 1, // minutes after a hold-up begins that someone hits the alarm
+  policeWindow: 30, // minutes the police stay on the scene before the bank is sealed for the investigation
+  openMinutes: 8, // a vault left open stays open this long after it is opened
+  // a robbery's market reaction: a premium on Halvermouth's government bond yields, only for the First Bank (the central bank), fading over ten days
+  premium: { max: 0.0015, days: 10 },
+};
+
+return { BAR_VALUE, ROBBERY };
+})();
+
+// ---- src/corp/robbery.js
+__m["src/corp/robbery.js"] = (function () {
+// Bank robbery (v0.79.0). Pure functions — no game state, no DOM, no RNG.
+//
+//   STATES, EDGES, step(state, event)      the explicit state machine: normal → alert → robbery → police → recovery → reopening → normal
+//   lootOf(stock, haul)                    what one robbery can take: the haul, never more than the vault holds
+//   restockOf(stock, full, perDay)         the vault refilled a day's worth, never past full
+//   premiumOf(events, day, R)              the bounded market reaction to a robbery of the central bank (a rate)
+//
+// Nothing here knows anything about credit, loans, ratings, valuations, rankings or anyone's wallet. That is the point: it cannot affect them.
+const STATES = ['normal', 'alert', 'robbery', 'police', 'recovery', 'reopening'];
+
+/** The only moves there are. An event that is not on this list for the state does nothing: that is what stops a repeat from paying twice. */
+const EDGES = {
+  normal: { warn: 'alert' },
+  alert: { stand_down: 'normal', strike: 'robbery' },
+  robbery: { alarm: 'police' },
+  police: { seal: 'recovery' },
+  recovery: { restocked: 'reopening' },
+  reopening: { open: 'normal' },
+};
+
+/** The state after an event, or null if that event means nothing in this state. */
+const step = (state, event) => EDGES[state]?.[event] ?? null;
+
+/** What one robbery takes: its defined haul, limited to what the vault actually holds. */
+function lootOf(stock, haul) {
+  return { cash: Math.max(0, Math.min(stock.cash, haul.cash)), gold: Math.max(0, Math.min(stock.gold, haul.gold)) };
+}
+
+/** The vault, refilled by a day's worth (never past full). */
+function restockOf(stock, full, perDay) {
+  return { cash: Math.min(full.cash, stock.cash + perDay.cash), gold: Math.min(full.gold, stock.gold + perDay.gold) };
+}
+
+const isFull = (stock, full) => stock.cash >= full.cash && stock.gold >= full.gold;
+
+/**
+ * What the central bank's loss does to government bond yields: a premium that is largest the day after and falls to nothing in `days`,
+ * scaled by how much was taken against the biggest haul possible. events: [{ day, share }] where share = taken value / the haul's value.
+ */
+function premiumOf(events, day, R) {
+  let p = 0;
+  for (const e of events) {
+    const age = day - e.day;
+    if (age < 0 || age >= R.days) continue;
+    p += R.max * Math.min(1, e.share) * (1 - age / R.days);
+  }
+  return Math.round(Math.min(R.max, p) / 0.0001) * 0.0001;
+}
+
+return { STATES, EDGES, step, lootOf, restockOf, isFull, premiumOf };
+})();
+
+// ---- src/systems/robbery.js
+__m["src/systems/robbery.js"] = (function () {
+// Bank robbery (v0.79.0): game.robbery — the First Bank of Halvermouth (the central bank) and the Lariat State Bank can be robbed, by a hold-up
+// in opening hours or a break-in at night, for a *defined quantity of physical valuables* (notes and gold bars) from the vault's stock.
+//
+// One explicit state machine for each bank (src/corp/robbery.js): normal → alert → robbery → police → recovery → reopening → normal. The loot is
+// paid once for a robbery and cannot be paid again by pressing the vault twice, by reloading, or by an interrupted transition: the only way
+// to be paid again is for the bank to have come all the way round, reopened and restocked. The police, witnesses, the wanted level and the
+// bank's temporary closure are the consequences; the news and a bounded market reaction (a premium on government bond yields, central bank only)
+// are public. NOTHING HERE TOUCHES ANYONE'S FINANCIAL STANDING: this file reads and writes no loan, rating, valuation, ranking, record or
+// account of the corporate system, and the corporate system never reads it (the market premium is left out of what your holdings secure).
+// See tests/robbery_separation.test.mjs. State: game.world.robbery, created the first time a bank is entered by someone who is not a customer.
+const { ROBBERY: R, BAR_VALUE } = __m["src/content/robbery.js"];
+const { step, lootOf, restockOf, isFull, premiumOf } = __m["src/corp/robbery.js"];
+const { inWindow } = __m["src/world/clock.js"];
+
+const money = (n) => Math.round(n).toLocaleString();
+const IDS = Object.keys(R.banks);
+
+class Robbery {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get g() { return this.game; }
+  get now() { return this.g.clock.total; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.g.world.robbery || null; }
+  ensure() { return (this.g.world.robbery ||= { v: 1, banks: {}, events: [], news: [], count: 0 }); }
+  cfg(id) { return R.banks[id]; }
+  full(id) { return this.cfg(id).stock; }
+
+  /** A bank's record (created, full, the first time it is needed). */
+  rec(id) {
+    const w = this.ensure();
+    return (w.banks[id] ||= { state: 'normal', since: 0, why: null, method: null, vaultOpenAt: null, vaultShutAt: null, alarmAt: null, alarmed: false, sealedAt: null, looted: false, number: 0, stock: { ...this.full(id) }, taken: { cash: 0, gold: 0 }, closedUntil: 0, restockDay: 0, last: null, history: [] });
+  }
+  state(id) { return this.peek()?.banks[id]?.state || 'normal'; }
+
+  // ------------------------------------------------------------- the player and the room
+  inHall(id) { return this.g.player.map === this.cfg(id).hall; }
+  armed() { const it = this.g.player.equipped; return Boolean(it && this.g.content.items[it]?.tags?.includes('gun')); }
+  inHours(id) { const h = this.cfg(id).hours; return inWindow(this.g.clock.minuteOfDay, h.from, h.to); }
+  /** Open to the public: in its hours and not shut for an investigation. */
+  openNow(id) { return this.inHours(id) && !['recovery', 'reopening'].includes(this.state(id)); }
+  sealed(id) { return ['recovery', 'reopening'].includes(this.state(id)); }
+
+  /** Why the door is shut to the public for this bank, or null (hours are the door's own business). */
+  closedReason(id) {
+    const s = this.peek()?.banks[id];
+    if (!s || !this.sealed(id)) return null;
+    return `${this.cfg(id).name}: CLOSED. Police tape across the door and a notice — "Closed during the investigation. Reopens day ${s.closedUntil}." The vault is sealed.`;
+  }
+
+  log(text) {
+    const w = this.ensure();
+    w.news.unshift({ day: this.day, text });
+    w.news = w.news.slice(0, 12);
+    this.g.tablet.post('news', text, 'event');
+  }
+
+  // ------------------------------------------------------------- the state machine
+  go(id, event) {
+    const s = this.rec(id);
+    const to = step(s.state, event);
+    if (!to) return false;
+    s.state = to; s.since = this.now;
+    this.g.bus.emit('robbery:state', { bank: id, state: to, event });
+    return true;
+  }
+
+  warn(id, why) {
+    if (!this.go(id, 'warn')) return false;
+    const s = this.rec(id);
+    s.why = why;
+    s.alarmed = false;
+    if (why === 'intruder') { s.alarmAt = this.now + R.breakInAlarm; this.g.notify('A silent alarm trips somewhere in the walls. You do not have long.', 'warn'); }
+    else { const guard = this.g.npcs.get(this.cfg(id).guards[0]); if (guard) this.g.bark(guard, 'Easy, friend. Put that away.'); this.g.notify(`${this.cfg(id).name}: the guard has seen your gun.`, 'warn'); }
+    return true;
+  }
+
+  standDown(id) {
+    const s = this.rec(id);
+    if (!this.go(id, 'stand_down')) return false;
+    s.why = null; s.alarmAt = null;
+    return true;
+  }
+
+  /** Staff in the hall at the moment of a hold-up: guards stand and fight, the rest run. */
+  frighten(id) {
+    const g = this.g;
+    for (const sid of this.cfg(id).staff) {
+      const n = g.npcs.get(sid);
+      if (n && n.map === this.cfg(id).hall && !n.dead) g.combat.react(n, null);
+    }
+  }
+
+  // ------------------------------------------------------------- the two ways in
+  /**
+   * The hold-up: in opening hours, with a gun drawn, at the counter or the vault. The staff are frightened, someone hits the alarm, and under
+   * the gun the vault is opened after a few minutes. Returns { ok, text }.
+   */
+  holdup(id) {
+    const g = this.g;
+    const s = this.rec(id);
+    if (!this.inHall(id)) return { ok: false, text: 'You are not in the bank.' };
+    if (this.sealed(id)) return { ok: false, text: this.closedReason(id) };
+    if (!this.inHours(id)) return { ok: false, text: 'The bank is closed. There is nobody here to hold up.' };
+    if (!this.armed()) return { ok: false, text: 'You would need a gun in your hand to make anyone open a vault. (A staff member looks at you politely.)' };
+    if (s.state === 'normal') this.warn(id, 'drawn');
+    if (s.state === 'robbery') return { ok: true, text: s.looted ? 'The vault is open and empty. Time to go.' : `"Just a moment — the dials —" The vault will be open in ${Math.max(0, s.vaultOpenAt - this.now)} minutes.` };
+    if (!this.go(id, 'strike')) return { ok: false, text: 'Not now.' };
+    s.method = 'holdup'; s.number += 1; s.looted = false; s.alarmed = false;
+    s.vaultOpenAt = this.now + R.complyMinutes; s.alarmAt = this.now + R.holdupAlarm;
+    this.crime(id);
+    this.frighten(id);
+    return { ok: true, text: `"EVERYBODY DOWN. Open the vault." The teller's hands shake on the dials: it will take about ${R.complyMinutes} minutes. Somebody is going for the alarm.` };
+  }
+
+  /** The break-in: in a closed bank, the vault's time-lock is worked through (a number of minutes), the silent alarm already running. */
+  crack(id) {
+    const s = this.rec(id);
+    if (!this.inHall(id)) return { ok: false, text: 'You are not in the bank.' };
+    if (this.sealed(id)) return { ok: false, text: 'The vault is sealed by the investigation: the time-lock is set to the day the bank reopens.' };
+    if (this.inHours(id)) return { ok: false, text: 'The bank is open. The vault is not for breaking into in front of customers.' };
+    if (s.state === 'normal') this.warn(id, 'intruder');
+    if (s.state === 'robbery') return { ok: true, text: s.looted ? 'Open and empty. Go.' : `You are still at the dials: about ${Math.max(0, s.vaultOpenAt - this.now)} minutes to go.` };
+    if (!this.go(id, 'strike')) return { ok: false, text: 'Not now.' };
+    s.method = 'breakin'; s.number += 1; s.looted = false;
+    s.vaultOpenAt = this.now + R.crackMinutes;
+    s.alarmAt = s.alarmAt ?? this.now + R.breakInAlarm;
+    return { ok: true, text: `You put your ear to the time-lock and start on the dials. About ${R.crackMinutes} minutes, if nobody comes. The silent alarm is already ticking.` };
+  }
+
+  crime(id) {
+    const g = this.g;
+    const c = this.cfg(id);
+    g.reportCrime({ fact: 'fact_player_bank_robbery', map: c.hall, x: g.player.x, y: g.player.y, radius: 14 });
+  }
+
+  // ------------------------------------------------------------- the vault
+  /** E at the vault: the one place loot is paid, once per robbery. */
+  vault(id) {
+    const g = this.g;
+    const s = this.peek()?.banks[id];
+    const name = this.cfg(id).name;
+    if (this.sealed(id)) return { type: 'message', text: this.closedReason(id) };
+    if (!s || s.state === 'normal' || s.state === 'alert') {
+      // armed, in the bank's hours: a hold-up; inside after hours with the alarm already running: the time-lock; otherwise it is only a door
+      if (this.inHours(id) && this.armed()) { const r = this.holdup(id); return { type: 'message', text: r.text }; }
+      if (s?.state === 'alert' && s.why === 'intruder' && !this.inHours(id)) { const r = this.crack(id); return { type: 'message', text: r.text }; }
+      return { type: 'message', text: 'The vault door: round, shiny, thick, and shut. A brass plate reads "TIME-LOCKED. NO ONE IS EVER ALONE WITH THIS DOOR." Nothing about it is for you.' };
+    }
+    if (s.state === 'recovery' || s.state === 'reopening') return { type: 'message', text: this.closedReason(id) };
+    // robbery or police: in progress
+    if (s.looted) return { type: 'message', text: `${name}: the vault stands open and empty. There is nothing left of what was meant to be taken. (A police siren, getting closer.)` };
+    if (this.now < s.vaultOpenAt) return { type: 'message', text: `The time-lock is still turning. About ${s.vaultOpenAt - this.now} minutes.` };
+    if (s.vaultShutAt && this.now > s.vaultShutAt) return { type: 'message', text: 'The vault has swung shut again: too late.' };
+    const r = this.take(id);
+    return { type: 'message', text: r.text };
+  }
+
+  /** Pay the haul, once. Idempotent: a second call (a repeated press, a reload, an interrupted transition) pays nothing. */
+  take(id) {
+    const g = this.g;
+    const s = this.rec(id);
+    if (!['robbery', 'police'].includes(s.state) || s.looted || this.now < (s.vaultOpenAt ?? Infinity)) return { ok: false, text: 'Nothing to take.' };
+    s.looted = true; // first, so nothing below can run twice
+    const got = lootOf(s.stock, this.cfg(id).haul);
+    s.stock = { cash: s.stock.cash - got.cash, gold: s.stock.gold - got.gold };
+    s.taken = { cash: got.cash, gold: got.gold };
+    g.player.money += got.cash;
+    g.bus.emit('money:changed', { delta: got.cash, total: g.player.money });
+    if (got.gold) g.inventory.add('item_gold_bar', got.gold);
+    const value = got.cash + got.gold * BAR_VALUE;
+    const full = this.cfg(id).haul.cash + this.cfg(id).haul.gold * BAR_VALUE;
+    s.last = { day: this.day, method: s.method, cash: got.cash, gold: got.gold };
+    s.history.push(s.last);
+    while (s.history.length > 10) s.history.shift();
+    if (id === 'first') this.ensure().events.push({ day: this.day, share: value / full });
+    this.log(`${this.cfg(id).name} was robbed ${s.method === 'holdup' ? 'in a hold-up' : 'in a night raid'}: ${money(got.cash)} obols and ${got.gold} gold bars taken from the vault. The police are on the scene.`);
+    g.bus.emit('robbery:loot', { bank: id, cash: got.cash, gold: got.gold });
+    return { ok: true, text: `You fill the bags: ${money(got.cash)} obols in notes and ${got.gold} gold bars. The siren is close. GO.`, cash: got.cash, gold: got.gold };
+  }
+
+  // ------------------------------------------------------------- the minute
+  minuteTick() {
+    const g = this.g;
+    for (const id of IDS) {
+      const hallHere = this.inHall(id);
+      const s = this.peek()?.banks[id];
+      if (!s && !hallHere) continue;
+      const st = s?.state || 'normal';
+      if (st === 'normal' && hallHere) {
+        if (!this.inHours(id)) this.warn(id, 'intruder'); // a closed bank, and you in it
+        else if (this.armed()) this.warn(id, 'drawn');
+        continue;
+      }
+      if (!s) continue;
+      if (st === 'alert') {
+        if (s.why === 'drawn') {
+          if (!hallHere || !this.armed()) this.standDown(id);
+          else if (this.now - s.since >= R.warnMinutes) { const guard = g.npcs.get(this.cfg(id).guards[0]); if (guard && !guard.hostile) g.combat.react(guard, null); }
+        } else if (s.why === 'intruder') {
+          if (this.now >= s.alarmAt && !s.alarmed) this.alarm(id, 8);
+          if (!hallHere && this.now - s.since >= 3) this.standDown(id);
+        }
+      } else if (st === 'robbery') {
+        if (s.vaultOpenAt && s.looted === false && this.now >= s.vaultOpenAt + R.openMinutes) s.vaultShutAt = s.vaultOpenAt + R.openMinutes;
+        if (this.now >= s.alarmAt && !s.alarmed) this.alarm(id, 12);
+        if (s.alarmed) this.go(id, 'alarm');
+      } else if (st === 'police') {
+        if (this.now >= s.alarmAt + R.policeWindow) this.seal(id);
+      } else if (st === 'recovery') {
+        this.restock(id);
+      } else if (st === 'reopening') {
+        const h = this.cfg(id).hours;
+        if (this.day >= s.closedUntil && inWindow(g.clock.minuteOfDay, h.from, h.to)) { this.go(id, 'open'); this.log(`${this.cfg(id).name} reopens. The vault is restocked and the guard is on the door.`); }
+      }
+    }
+  }
+
+  /** The silent alarm reaches the police. */
+  alarm(id, sev) {
+    const g = this.g;
+    const s = this.rec(id);
+    s.alarmed = true;
+    const c = this.cfg(id);
+    const pos = { map: c.hall, x: g.player.map === c.hall ? g.player.x : 5 * 32, y: g.player.map === c.hall ? g.player.y : 5 * 32 };
+    g.police.placeCall(sev, pos, { fact: 'fact_player_bank_robbery', witnesses: [] });
+  }
+
+  /** The police have had their time on the scene: the bank is sealed for the investigation. */
+  seal(id) {
+    const s = this.rec(id);
+    if (!this.go(id, 'seal')) return false;
+    s.closedUntil = this.day + this.cfg(id).closeDays;
+    s.sealedAt = this.now; s.restockDay = this.day;
+    this.log(`${this.cfg(id).name} is shut for the investigation until day ${s.closedUntil}. The vault will be restocked from the treasury.`);
+    return true;
+  }
+
+  /** In recovery, once a day: the vault is refilled a day's worth; when it is full and the days are up, the bank begins to reopen. */
+  restock(id) {
+    const s = this.rec(id);
+    if (s.restockDay < this.day) { s.stock = restockOf(s.stock, this.full(id), this.cfg(id).restockPerDay); s.restockDay = this.day; }
+    if (this.day >= s.closedUntil && isFull(s.stock, this.full(id))) this.go(id, 'restocked');
+  }
+
+  // ------------------------------------------------------------- what the world sees
+  /** The market's reaction to a robbery of the central bank: a bounded premium on government bond yields (a rate; 0 with none). */
+  premium(day = this.day) {
+    const e = this.peek()?.events;
+    return e?.length ? premiumOf(e, day, R.premium) : 0;
+  }
+
+  /** For the screens: each bank's state, its vault and its last robbery. Only facts. */
+  view() {
+    const out = {};
+    for (const id of IDS) {
+      const s = this.peek()?.banks[id];
+      out[id] = { id, name: this.cfg(id).name, state: s?.state || 'normal', stock: s?.stock || { ...this.full(id) }, full: this.full(id), closedUntil: s?.closedUntil || 0, last: s?.last || null, robberies: s?.history.length || 0 };
+    }
+    return out;
+  }
+  news() { return this.peek()?.news || []; }
+}
+
+return { Robbery };
 })();
 
 // ---- src/systems/heavy.js
@@ -42388,7 +42763,9 @@ class Bonds {
   ensure() { return (this.K.state.bonds ||= { v: 1, lots: [], nextId: 1, log: [], earned: 0, lastDay: 0 }); }
   rate() { return this.K.bank.rate(); }
   /** What yields are built on: the policy rate and what the wars of the day add (v0.76.0). */
-  base() { return this.rate() + this.K.geo.premium(); }
+  base() { return this.rate() + this.K.geo.premium() + this.K.game.robbery.premium(); }
+  /** What lending counts: the same without a robbery's market reaction (a robbery of the central bank never changes what you may borrow) — v0.79.0. */
+  collateral() { return this.lots().map((l) => ({ years: l.years, value: valueOf(l, this.day, this.rate() + this.K.geo.premium()) })); }
 
   note(text) {
     const s = this.ensure();
@@ -42807,7 +43184,7 @@ class Lending {
   holdings() {
     const out = [];
     for (const r of this.K.exchange.board()) if (r.held > 0 && r.value > 0 && (r.status ?? 'listed') === 'listed') out.push({ kind: 'share', name: `${r.ticker} · ${r.name}`, value: r.value });
-    for (const r of this.K.bonds.portfolio().rows) out.push({ kind: 'govBond', name: `${r.years}-year government bond`, value: r.value });
+    for (const r of this.K.bonds.collateral()) out.push({ kind: 'govBond', name: `${r.years}-year government bond`, value: r.value }); // v0.79.0: collateral ignores a robbery's market premium
     for (const r of this.K.credit.portfolio().rows) if (r.issueStatus === 'open') out.push({ kind: 'corpBond', name: `${r.ticker} bond`, value: r.value, rating: r.rating });
     for (const r of this.K.sovereign.portfolio().rows) if (r.issueStatus === 'open' && r.value > 0) out.push({ kind: 'sovBond', name: `${r.name} bond`, value: r.value, rating: r.rating });
     return out.map((i) => ({ ...i, advance: advance(i), secures: Math.round(i.value * advance(i)) }));
@@ -44657,6 +45034,7 @@ const { Gang, freshGang } = __m["src/systems/gang.js"];
 const { Factory, freshFactory } = __m["src/systems/factory.js"];
 const { Arms, freshArms } = __m["src/systems/arms.js"];
 const { Market, freshMarket } = __m["src/systems/market.js"];
+const { Robbery } = __m["src/systems/robbery.js"]; // v0.79.0
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
@@ -44704,6 +45082,7 @@ class Game {
     this.factory = new Factory(this);
     this.arms = new Arms(this);
     this.market = new Market(this);
+    this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
@@ -44893,6 +45272,7 @@ class Game {
     if (!door.to) return door.lock?.message || 'It won\'t open.';
     const lock = door.lock;
     if (!lock) return null;
+    if (lock.bank) { const sealed = this.robbery.closedReason(lock.bank); if (sealed) return sealed; } // v0.79.0: shut for the investigation
     if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
@@ -44977,6 +45357,7 @@ class Game {
     this.factory.minuteTick();
     this.arms.minuteTick();
     this.market.minuteTick();
+    this.robbery.minuteTick();
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
@@ -45538,6 +45919,8 @@ class Game {
         const r = this.casino.sit(act.table);
         return r.ok ? { type: 'casino', table: act.table } : { type: 'message', text: r.text };
       }
+      case 'vault': return this.robbery.vault(act.bank); // v0.79.0
+      case 'teller': return this.robbery.armed() && this.robbery.inHours(act.bank) && this.robbery.inHall(act.bank) ? { type: 'message', text: this.robbery.holdup(act.bank).text } : { type: 'message', text: prop.examine };
       case 'bank': return { type: 'panel', panel: 'tablet', opts: { tab: act.tab } }; // v0.70.0: the First Bank's desks open the tablet at that app
       case 'casino_cashier': return this.casino.cashier() ? { type: 'panel', panel: 'cashier' } : { type: 'message', text: 'The cage is shut: a brass bell, a sign — "BACK SHORTLY. — V." — and nobody behind the bars.' };
       case 'container': {
@@ -46094,6 +46477,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.79.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The Vault',
+    notes: [
+      'You can now rob a bank. Draw a gun in the First Bank of Halvermouth or the Lariat State Bank in opening hours and hold it up, or break in at night and work through the time-lock; either way you walk off with a fixed haul of notes and gold bars (250,000 obols and 25 bars at the First Bank, less at Lariat), paid once. The guard fights, the staff run, the police come, and the bank is shut for days while its vault is restocked. It makes the news and nudges bond yields for a few days. It does not touch your credit, your loans, your companies\' ratings or valuations, or what you may borrow — and the game\'s tests prove it.',
+    ],
+  },
   {
     version: '0.78.0',
     date: '2026-10-30',
@@ -64078,6 +64470,7 @@ const pc2 = (v) => `${(v * 100).toFixed(2)}%`;
 function economyApp(ui, body) {
   const g = ui.game;
   const O = g.corp.geo.overview();
+  O.banks = Object.values(g.robbery.view()); O.bankNews = g.robbery.news(); O.robberyPremium = g.robbery.premium(); // the banks' security is the public's business, not the economy's: read straight from the robbery record
   const none = (t) => h('p', { class: 'muted' }, t);
   const sev = (e) => (e.severity >= 0.7 ? 'severe' : e.severity >= 0.4 ? 'serious' : 'limited');
   const effect = (x) => `${x.sector} ${x.kind === 'cost' ? 'costs' : 'demand'} ${pc(x.pct)}`;
@@ -64110,6 +64503,11 @@ function economyApp(ui, body) {
 
   if (O.sovereign.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Foreign government bonds'), h('div', { class: 'list' }, ...O.sovereign.map((s) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, s.name, h('span', { class: `tag${s.rating === 'AA' || s.rating === 'A' ? ' good' : s.rating === 'CCC' || s.status === 'delayed' ? ' neg' : ''}` }, s.status === 'delayed' ? `${s.rating} · delayed` : s.rating)), h('div', { class: 'desc' }, `Yield ${pc2(s.yield)}`))))),
     ...(O.bondNews.length ? [h('div', { class: 'list' }, ...O.bondNews.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Banks and security'), h('div', { class: 'list' }, ...O.banks.map((b) => h('div', { class: 'item-row' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, b.name, h('span', { class: `tag${b.state === 'normal' ? ' good' : ' neg'}` }, { normal: 'open for business', alert: 'security alert', robbery: 'robbery in progress', police: 'police on the scene', recovery: `closed to day ${b.closedUntil}`, reopening: 'reopening' }[b.state])),
+    h('div', { class: 'desc' }, `Vault: ${b.stock.cash.toLocaleString()} obols in notes and ${b.stock.gold} gold bars of ${b.full.cash.toLocaleString()} and ${b.full.gold}${b.last ? ` · robbed on day ${b.last.day}: ${b.last.cash.toLocaleString()} obols and ${b.last.gold} bars taken` : ''}`))))),
+    ...(O.bankNews.length ? [h('div', { class: 'list' }, ...O.bankNews.slice(0, 4).map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []),
+    h('p', { class: 'muted', style: 'font-size:12px' }, `A robbery of the First Bank is a loss of physical notes and gold only; it never touches anyone's credit, loans, ratings or valuations.${O.robberyPremium > 0 ? ` Its market reaction adds ${pc2(O.robberyPremium)} to government bond yields for now, fading over ten days; lenders do not count it.` : ''}`));
   if (O.movers.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Biggest moves on the exchange today'), h('div', { class: 'list' }, ...[...O.movers.slice(0, 3), ...O.movers.slice(-3).reverse()].filter((r, i, a) => a.findIndex((x) => x.ticker === r.ticker) === i).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.change > 0 ? 'good' : 'neg'}` }, pc(r.change * 100))), h('div', { class: 'desc' }, `${r.price.toFixed(2)} · ${r.sector}`))))));
 
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Headlines'));
@@ -64137,7 +64535,7 @@ function bondsApp(ui, body, open) {
   const P = B.portfolio();
   body.append(
     h('p', { class: 'doc' }, '📜 Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. Its coupon is the policy rate plus a premium for the term, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'),
-    h('div', { class: 'grid2' }, stat('Your obols', n(g.player.money)), stat('Policy rate', pc(B.rate())), ...(g.corp.geo.premium() > 0 ? [stat('Added by wars and embargoes', `+${pc(g.corp.geo.premium())}`)] : []), stat('Bonds held, at today\'s yield', n(P.value)), stat('Coupons received', n(P.earned))));
+    h('div', { class: 'grid2' }, stat('Your obols', n(g.player.money)), stat('Policy rate', pc(B.rate())), ...(g.corp.geo.premium() > 0 ? [stat('Added by wars and embargoes', `+${pc(g.corp.geo.premium())}`)] : []), ...(g.robbery.premium() > 0 ? [stat('Added by the robbery', `+${pc(g.robbery.premium())}`)] : []), stat('Bonds held, at today\'s yield', n(P.value)), stat('Coupons received', n(P.earned))));
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'On offer today'));
   body.append(h('div', { class: 'list' }, ...B.offers().map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
     h('div', { class: 'name' }, `${o.years}-year bond`, h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), h('span', { class: 'tag' }, `${n((100000 * o.coupon) / 12)} a month on 100,000`)),

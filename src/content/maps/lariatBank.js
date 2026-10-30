@@ -23,10 +23,10 @@ export function lariatBankInterior(street) {
     },
     keepClear: [[dx, H - 2]],
     props: [
-      { id: 'lb_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', examine: 'A small round vault door with "L.S.B. 1911" in brass. It has never been opened in front of a customer, and the customers like it that way.' },
+      { id: 'lb_vault', type: 'vault', x: mid - 1, y: 1, w: 2, h: 1, label: 'VAULT', interact: { kind: 'vault', bank: 'lariat' }, examine: 'A small round vault door with "L.S.B. 1911" in brass. It has never been opened in front of a customer, and the customers like it that way.' },
       { id: 'lb_loan_desk', type: 'desk', x: 1, y: 2, w: 2, color: '#5a3a24', label: 'LOANS', interact: { kind: 'bank', tab: 'Loans' }, examine: 'The loan officer\'s desk: loans against the shares and bonds you hold, at a rate fixed on the day you sign. A blotter, a pen on a chain, and a cup of coffee that is nobody\'s.' },
       { id: 'lb_manager_chair', type: 'chair', x: 1, y: 3 },
-      { id: 'lb_teller', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', examine: 'The teller\'s window: brass grille, a dish for coins, and a hand-lettered card — "ASK DOTTIE."' },
+      { id: 'lb_teller', type: 'counter', x: mid - 1, y: 3, w: 3, color: '#4a3a2e', interact: { kind: 'teller', bank: 'lariat' }, examine: 'The teller\'s window: brass grille, a dish for coins, and a hand-lettered card — "ASK DOTTIE."' },
       { id: 'lb_rate_card', type: 'sign', x: W - 4, y: 1, w: 3, label: 'THE BANK\'S RATE', interact: { kind: 'bank', tab: 'Bank' }, examine: 'The rate card, chalked daily: the First Bank of Halvermouth\'s policy rate, and what the Lariat State Bank adds to it. Under it: "WE LEND AGAINST WHAT YOU HOLD, AND ASK ONLY THAT YOU PAY."' },
       { id: 'lb_boxes', type: 'cabinet', x: W - 2, y: 2, h: 2, examine: 'Safe-deposit boxes, forty of them, each with a tiny brass door. Clint stands in front of them a great deal. They are boxes.' },
       { id: 'lb_clock', type: 'painting', x: mid, y: 0, examine: 'A wall clock stopped, by custom, at ten past ten. It is wound on the first of the month and always right by then.' },
