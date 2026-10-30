@@ -114,6 +114,15 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Board and portfolio** (`board`, `portfolio`): the three older shares read through as they are, with the cost kept only where it exists (Meridian's); the portfolio says when a holding's cost is not known and leaves it out of the gain.
 - **Not in this release**: listing one of your own businesses (an IPO); shares held by generated companies, short selling, orders at a price; anything the player's trades could do to a price.
 
+## The central bank (v0.68.0)
+
+`game.corp.bank` (`src/systems/centralBank.js`; the pure rule in `src/corp/bank.js`); the **Bank** tablet app. The first of four parts of stage 10.
+
+- **Rate** (`state.bank.rate`, default `CORP.baseRate` 5% until the bank first meets): read through `bank.rate()`, which creates nothing.
+- **Meeting** (`dailyTick`, after the wider world's day): the first day of each month from month index 3, once (`lastMeeting`), whatever is saved or slept through. `indicators()` reads the live generated companies: capacity-weighted `util`, `growth` (last closed month's sales over the one before, over companies with both), `stress` (share distressed). `decide(rate, ind)`: target `5% + 0.06·(util − 0.75) + 0.3·clamp(growth, ±0.1) − 0.1·stress`, to the quarter-point, 1–12%; hold within a quarter-point, else one step (a quarter-point; two if a point or more away). The decision, its figures and its text are kept 36 months.
+- **Effects** (identity at 5%): `valuationFactor` multiplies a sector's earnings multiple in `metrics.value`; `investShift` raises the utilisation a company needs before it builds; `entryFactor` multiplies the chance of a new company; `worldCtx().rate` is the policy rate (the world's borrowing cost is `rate + 1% + 4% × risk`); `group.defaultRate()` is `rate + 1%`. Loans already made keep their rate.
+- **Not in this release**: government bonds, the physical bank, corporate bonds (the next three releases); bank loans (stage 12); an inflation measure.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

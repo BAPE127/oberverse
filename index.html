@@ -15533,7 +15533,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.67.0';
+const GAME_VERSION = '0.68.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -24705,6 +24705,7 @@ const TABLET_APPS = {
   stocks: { icon: '📈', name: 'Stocks' },
   ships: { icon: '⚓', name: 'Ober & Sons' },
   aero: { icon: '✈️', name: 'Aerospace' }, // v0.55.0
+  bank: { icon: '🏦', name: 'First Bank' }, // v0.68.0
 };
 const FEED_MAX = 60;
 
@@ -38772,6 +38773,59 @@ function existingRows(content) {
 return { HOME, countryName, countryIds, existingRows };
 })();
 
+// ---- src/corp/bank.js
+__m["src/corp/bank.js"] = (function () {
+// The central bank's rule (v0.68.0). Pure functions — no game state, no DOM, no RNG.
+//
+//   target(ind)                 where the policy rate would sit for what the economy is doing
+//   decide(rate, ind)           what the bank does this month: hold, or move one step toward it — and why, in words
+//   valuationFactor(rate)       how much a year's profit is worth at this rate, against the neutral one
+//   investShift(rate)           how much busier a company must be before it builds, at this rate
+//   entryFactor(rate)           how likely a new company is to appear, at this rate
+//
+// The rate is nobody's to set: it follows the economy by this rule once a month, and every decision is written down.
+// At the neutral rate every effect is exactly nothing.
+
+const NEUTRAL = 0.05;
+const STEP = 0.0025;
+const FLOOR = 0.01;
+const CEILING = 0.12;
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const pc = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
+const sgn = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)}%`;
+
+/**
+ * ind: { util, growth, stress } — how busy the world's companies are (0–1, capacity-weighted), how much their sales grew last month,
+ * and the share of them in distress. Busy and growing: the rate rises toward 'cooling' it; in distress it falls.
+ */
+function target(ind) {
+  const t = NEUTRAL + 0.06 * (ind.util - 0.75) + 0.3 * clamp(ind.growth, -0.1, 0.1) - 0.1 * ind.stress;
+  return clamp(Math.round(t / STEP) * STEP, FLOOR, CEILING);
+}
+
+/** One monthly decision: a quarter-point step toward the target (a half when it is a point or more away), or a hold within a quarter-point of it. */
+function decide(rate, ind) {
+  const goal = target(ind);
+  const gap = goal - rate;
+  let to = rate;
+  if (Math.abs(gap) >= STEP - 1e-9) to = rate + Math.sign(gap) * (Math.abs(gap) >= 0.01 - 1e-9 ? 2 * STEP : STEP);
+  to = clamp(Math.round(to / STEP) * STEP, FLOOR, CEILING);
+  const why = [`capacity in use ${pc(ind.util, 0)} (neutral 75%)`, `sales ${sgn(ind.growth)} on the month before`, `${pc(ind.stress, 0)} of companies in distress`];
+  const verb = to > rate ? `raised the policy rate from ${pc(rate, 2)} to ${pc(to, 2)}` : to < rate ? `lowered the policy rate from ${pc(rate, 2)} to ${pc(to, 2)}` : `held the policy rate at ${pc(rate, 2)}`;
+  return { to, target: goal, text: `The First Bank of Halvermouth ${verb}: ${why.join('; ')}.` };
+}
+
+/** A year's profit is worth less when money costs more: 3% off the multiple for each point above neutral, within ±15%. */
+const valuationFactor = (rate) => clamp(1 - 3 * (rate - NEUTRAL), 0.85, 1.15);
+/** Companies build later when borrowing costs more: half a point of utilisation for each point, within ±3 points. */
+const investShift = (rate) => clamp(0.5 * (rate - NEUTRAL), -0.03, 0.03);
+/** Fewer newcomers when money is dear: 4% fewer for each point above neutral, within 0.7–1.3. */
+const entryFactor = (rate) => clamp(1 - 4 * (rate - NEUTRAL), 0.7, 1.3);
+
+return { NEUTRAL, STEP, FLOOR, CEILING, target, decide, valuationFactor, investShift, entryFactor };
+})();
+
 // ---- src/corp/sim.js
 __m["src/corp/sim.js"] = (function () {
 // The wider world's companies (v0.60.0): how they are made and how a day goes for each. Pure
@@ -38790,6 +38844,7 @@ __m["src/corp/sim.js"] = (function () {
 // a limit set by what it earns) or not paid; a company short of cash for too long goes under, its plant
 // sold and its lenders taking the loss — nothing is ever paid out of thin air.
 const { hashUnit } = __m["src/aero/config.js"];
+const { investShift, entryFactor } = __m["src/corp/bank.js"];
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v) => Math.round(v);
@@ -38952,7 +39007,7 @@ function treasury(K, c, day, row, ctx) {
   c.negDays = 0;
   if (c.status === 'distressed' && c.cash > fixed * 20) c.status = 'active';
   // build: busy, with money to spare
-  if (c.status === 'active' && c.util > T.invest && c.cash > fixed * 60 && c.capacity < K.sectors[c.sector].pool * 0.4) {
+  if (c.status === 'active' && c.util > T.invest + investShift(ctx?.rate ?? K.baseRate) && c.cash > fixed * 60 && c.capacity < K.sectors[c.sector].pool * 0.4) {
     const spend = Math.min(c.cash * 0.25, c.capacity * 0.04 * K.plantCost);
     const add = spend / K.plantCost;
     c.cash -= spend; c.capacity += add; c.plantValue += spend * K.plantBook; row[6] += spend;
@@ -39023,7 +39078,7 @@ function monthEnd(K, world, day, ctx, { makeName, makeTicker, countries }) {
     const util = mine.reduce((a, c) => a + c.util * c.capacity, 0) / Math.max(1, cap);
     if (util < K.entry.busy) continue;
     if (day - (world.lastEntry[sector] ?? -9999) < K.entry.cooldown) continue;
-    if (hashUnit(`${world.salt}|entry|${sector}|${monthOf(day)}`) >= K.entry.chance) continue;
+    if (hashUnit(`${world.salt}|entry|${sector}|${monthOf(day)}`) >= K.entry.chance * entryFactor(ctx.rate ?? K.baseRate)) continue;
     world.lastEntry[sector] = day;
     const id = `gen_${world.nextId++}`;
     const country = countries[Math.floor(hashUnit(`${world.salt}|${id}|country`) * countries.length)];
@@ -39190,8 +39245,8 @@ const growth = (now, before) => (now && before && before > 0 ? now / before - 1 
  * if it were sold), nor below zero. `annualProfit` may be null (no history yet): then it is worth
  * its net assets.
  */
-function value(K, sector, { netAssets, annualProfit }) {
-  const pe = K.sectors[sector].pe;
+function value(K, sector, { netAssets, annualProfit }, factor = 1) {
+  const pe = K.sectors[sector].pe * factor; // the bank's rate: dearer money, a lower multiple (exactly 1 at the neutral rate)
   const earnings = annualProfit === null || annualProfit === undefined ? 0 : annualProfit >= 0 ? pe * annualProfit : 0.5 * pe * annualProfit;
   return Math.max(0, Math.round(Math.max(netAssets + earnings, Math.max(0, netAssets) / 3)));
 }
@@ -39529,7 +39584,7 @@ class Group {
   get month() { return Math.floor((this.day - 1) / 30); }
 
   /** The rate a parent charges its subsidiaries: the benchmark plus a point (the central bank sets the benchmark from a later stage). */
-  defaultRate() { return Math.round((CORP.baseRate + 0.01) * 1000) / 1000; }
+  defaultRate() { return Math.round((this.K.bank.rate() + 0.01) * 1000) / 1000; }
 
   /**
    * The parent lends a subsidiary money. It is a transfer of cash, never revenue: the subsidiary owes the
@@ -41627,6 +41682,74 @@ class Exchange {
 return { Exchange };
 })();
 
+// ---- src/systems/centralBank.js
+__m["src/systems/centralBank.js"] = (function () {
+// The First Bank of Halvermouth (v0.68.0): game.corp.bank — the policy rate everything else uses.
+//
+// The rate starts at the benchmark the game has always had (5%) and is the bank's, not yours: once a month, from the
+// third month on, it follows what the wider world's companies are doing (src/corp/bank.js), a quarter-point at a
+// time, and each decision is written down with its reasons. It sets the rate intercompany loans are made at, the
+// interest the world's companies pay, how much a year's profit is worth (every valuation), how soon they build, and how
+// many newcomers appear — each within fixed limits and exactly nothing at the neutral rate. Nothing is created until
+// the first meeting; before it, the rate is the constant it always was.
+const { CORP } = __m["src/content/corporate.js"];
+const { decide, valuationFactor, investShift, entryFactor, NEUTRAL } = __m["src/corp/bank.js"];
+
+const FIRST_MONTH = 3; // the bank meets from the fourth month of the game (day 91)
+const KEPT = 36;
+
+class CentralBank {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.K.state.bank || null; }
+
+  /** The policy rate now (a yearly fraction). */
+  rate() { return this.peek()?.rate ?? CORP.baseRate; }
+
+  /** What the bank's rate does to the world, now: nothing at the neutral rate. */
+  effects() {
+    const r = this.rate();
+    return { rate: r, valuation: valuationFactor(r), invest: investShift(r), entry: entryFactor(r), neutral: NEUTRAL };
+  }
+
+  /** How the wider world is doing: capacity in use (weighted by capacity), last month's sales against the month before, and the share in distress. */
+  indicators() {
+    const live = (this.K.state.generated || []).filter((c) => c.status === 'active' || c.status === 'distressed');
+    if (!live.length) return null;
+    const month = Math.floor((this.day - 1) / 30);
+    const cap = live.reduce((a, c) => a + c.capacity, 0) || 1;
+    const util = live.reduce((a, c) => a + c.capacity * c.util, 0) / cap;
+    let now = 0; let before = 0;
+    for (const c of live) {
+      const a = c.months.find((x) => x[0] === month - 1); const b = c.months.find((x) => x[0] === month - 2);
+      if (a && b) { now += a[1]; before += b[1]; }
+    }
+    return { util, growth: before > 0 ? now / before - 1 : 0, stress: live.filter((c) => c.status === 'distressed').length / live.length };
+  }
+
+  /** Once a day: the first day of each month from the fourth, the bank decides (once, whatever is saved or slept through). */
+  dailyTick() {
+    const month = Math.floor((this.day - 1) / 30);
+    if (month < FIRST_MONTH || (this.peek()?.lastMeeting ?? -1) >= month) return;
+    const ind = this.indicators();
+    if (!ind) return;
+    const st = (this.K.state.bank ||= { v: 1, rate: CORP.baseRate, since: 1, decisions: [], lastMeeting: -1 });
+    const d = decide(st.rate, ind);
+    st.decisions.push({ day: this.day, month, from: st.rate, to: d.to, target: d.target, util: Math.round(ind.util * 1000) / 1000, growth: Math.round(ind.growth * 1000) / 1000, stress: Math.round(ind.stress * 1000) / 1000, text: d.text });
+    while (st.decisions.length > KEPT) st.decisions.shift();
+    if (d.to !== st.rate) { st.since = this.day; this.g.tablet.post('bank', d.text, 'info'); }
+    st.rate = d.to;
+    st.lastMeeting = month;
+  }
+}
+
+return { CentralBank };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -41656,6 +41779,8 @@ const { Group } = __m["src/systems/group.js"];
 const { Personnel } = __m["src/systems/personnel.js"];
 const { Management } = __m["src/systems/management.js"];
 const { Exchange } = __m["src/systems/exchange.js"];
+const { CentralBank } = __m["src/systems/centralBank.js"];
+const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
@@ -41666,6 +41791,7 @@ class Corporate {
     this.game = game;
     this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
     this.personnel = new Personnel(this); // v0.62.0: the people who run them
+    this.bank = new CentralBank(this); // v0.68.0: the policy rate
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -42027,7 +42153,7 @@ class Corporate {
   }
 
   worldCtx(day, warm = false) {
-    return { rate: CORP.baseRate, external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
+    return { rate: this.bank.rate(), external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
   }
 
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
@@ -42036,6 +42162,7 @@ class Corporate {
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once a budget has been set)
     this.generatedDay();
+    this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
   }
 
@@ -42128,7 +42255,7 @@ class Corporate {
     const n = Math.max(0, cur - from);
     const annualProfit = rows.length && n ? (rows.filter((x) => x.m >= from && x.m < cur).reduce((a, x) => a + (x.net ?? 0), 0) / n) * 12 * Math.min(1, n / 6) : null;
     const netAssets = this.netAssetsOf(r);
-    const val = netAssets === null ? null : worth(CORP, r.sector, { netAssets, annualProfit });
+    const val = netAssets === null ? null : worth(CORP, r.sector, { netAssets, annualProfit }, valuationFactor(this.bank.rate()));
     let cash = null;
     let debt = null;
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); cash = c ? Math.round(c.cash) : null; debt = c ? Math.round(c.debt) : null; }
@@ -44070,6 +44197,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.68.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The Policy Rate',
+    notes: [
+      'The First Bank of Halvermouth now sets one rate for the whole economy. It is nobody\'s to set: from the fourth month of the game it meets once a month, looks at how busy the world\'s companies are, how fast their sales are growing and how many are in distress, and moves a quarter-point (or a half) toward where that says it should be — and writes down why. The tablet\'s new Bank app shows the rate, what it is looking at, what it does and the record.',
+      'The rate is what the parent charges its subsidiaries (plus a point), what the world\'s companies borrow at, how much a year\'s profit is worth in every estimated value, how soon they build and how many new ones appear — each within fixed limits and exactly nothing at the 5% neutral rate. Until the first meeting it is the 5% it always was. Bonds, the bank building and bank loans follow.',
+    ],
+  },
   {
     version: '0.67.0',
     date: '2026-10-30',
@@ -61779,6 +61916,48 @@ function exchangeApp(ui, body, open) {
 return { exchangeApp };
 })();
 
+// ---- src/ui/corpBank.js
+__m["src/ui/corpBank.js"] = (function () {
+// The Bank app (v0.68.0): the First Bank of Halvermouth's policy rate, how it was decided and what it does. Read-only:
+// nobody sets the rate, and nothing here moves money.
+const { h } = __m["src/ui/panels.js"];
+const { spark } = __m["src/corp/exchange.js"];
+const { NEUTRAL } = __m["src/corp/bank.js"];
+
+const pc = (v, d = 2) => `${(v * 100).toFixed(d)}%`;
+const sgn = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)}`;
+
+function bankApp(ui, body) {
+  const g = ui.game;
+  const B = g.corp.bank;
+  const st = B.peek();
+  const E = B.effects();
+  const stat = (a, b) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b));
+  const month = Math.floor((g.clock.day - 1) / 30);
+  const next = Math.max(month + 1, 3) * 30 + 1;
+  body.append(
+    h('p', { class: 'doc' }, '🏦 The First Bank of Halvermouth sets one rate for the whole economy. It is nobody\'s to set: once a month, from the fourth month of the game, it follows how busy the world\'s companies are, how fast their sales are growing and how many are in distress, a quarter-point at a time, and writes down why.'),
+    h('div', { class: 'grid2' },
+      stat('Policy rate', pc(E.rate)), stat('Neutral rate', pc(NEUTRAL)),
+      stat('Held since', st ? `day ${st.since}` : 'the start'), stat('Next meeting', `day ${next}`)));
+  if (st?.decisions.length) body.append(h('div', { class: 'desc', style: 'font-family:monospace;font-size:15px;margin:6px 0' }, `Rate over the meetings: ${spark(st.decisions.map((d) => d.to))}  (${pc(Math.min(...st.decisions.map((d) => d.to)))} – ${pc(Math.max(...st.decisions.map((d) => d.to)))})`));
+  const ind = B.indicators();
+  if (ind) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'What it is looking at now'), h('div', { class: 'grid2' }, stat('Capacity in use', pc(ind.util, 0)), stat('Sales, last month on the month before', `${sgn(ind.growth)}%`), stat('Companies in distress', pc(ind.stress, 0))));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'What the rate does'), h('div', { class: 'list' },
+    h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, 'Loans inside your group'), h('div', { class: 'desc' }, `The parent lends its subsidiaries at the policy rate plus a point: ${pc(g.corp.group.defaultRate(), 1)} now.`))),
+    h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, 'The world\'s companies'), h('div', { class: 'desc' }, `They borrow at the policy rate plus a point and their risk; they build when busier than ${pc(0.8 + E.invest, 1)} of capacity (usually 80%), and new ones appear ${E.entry >= 1 ? `${((E.entry - 1) * 100).toFixed(0)}% more` : `${((1 - E.entry) * 100).toFixed(0)}% less`} often than at the neutral rate.`))),
+    h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, 'What companies are worth'), h('div', { class: 'desc' }, `A year's profit counts for ${(E.valuation * 100).toFixed(1)}% of its usual multiple: every estimated value, yours and theirs, and so the exchange's prices. It never creates money.`)))));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'The record'));
+  const rows = (st?.decisions || []).slice(-12).reverse();
+  if (!rows.length) body.append(h('p', { class: 'muted' }, 'The bank has not met yet. Its first meeting is on day 91; until then the rate is the 5% it has always been.'));
+  else body.append(h('div', { class: 'list' }, ...rows.map((d) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc(d.to)}`), h('div', { class: 'desc' }, d.text))))));
+}
+
+return { bankApp };
+})();
+
 // ---- src/ui/tablet.js
 __m["src/ui/tablet.js"] = (function () {
 // The tablet (v0.15.0) — the journal's replacement. Apps along the top:
@@ -61796,11 +61975,12 @@ const { groupApp } = __m["src/ui/corpGroup.js"];
 const { peopleApp } = __m["src/ui/corpPeople.js"]; // v0.62.0
 const { manageApp } = __m["src/ui/corpManage.js"]; // v0.63.0
 const { exchangeApp } = __m["src/ui/corpExchange.js"]; // v0.66.0
+const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 
 function tabletPanel(ui, body, opts) {
   const g = ui.game;
   const T = g.tablet;
-  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel', 'Management'] : []), 'Intelligence', 'Exchange', 'Stocks'];
+  const apps = ['Home', ...JOURNAL_TABS, ...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(g.corp.registry().some((r) => r.kind === 'player') ? ['Companies', 'Group', 'Personnel', 'Management'] : []), 'Intelligence', 'Exchange', 'Bank', 'Stocks'];
   const tab = apps.includes(opts.tab) ? opts.tab : 'Home';
   const open = (t, extra = {}) => ui.openPanel('tablet', { tab: t, ...extra });
   const unread = T.unread;
@@ -61822,6 +62002,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
   else if (tab === 'Management') manageApp(ui, body, open); // v0.63.0
   else if (tab === 'Exchange') exchangeApp(ui, body, open); // v0.66.0
+  else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

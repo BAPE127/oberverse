@@ -14,6 +14,7 @@
 // a limit set by what it earns) or not paid; a company short of cash for too long goes under, its plant
 // sold and its lenders taking the loss — nothing is ever paid out of thin air.
 import { hashUnit } from '../aero/config.js';
+import { investShift, entryFactor } from './bank.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v) => Math.round(v);
@@ -176,7 +177,7 @@ function treasury(K, c, day, row, ctx) {
   c.negDays = 0;
   if (c.status === 'distressed' && c.cash > fixed * 20) c.status = 'active';
   // build: busy, with money to spare
-  if (c.status === 'active' && c.util > T.invest && c.cash > fixed * 60 && c.capacity < K.sectors[c.sector].pool * 0.4) {
+  if (c.status === 'active' && c.util > T.invest + investShift(ctx?.rate ?? K.baseRate) && c.cash > fixed * 60 && c.capacity < K.sectors[c.sector].pool * 0.4) {
     const spend = Math.min(c.cash * 0.25, c.capacity * 0.04 * K.plantCost);
     const add = spend / K.plantCost;
     c.cash -= spend; c.capacity += add; c.plantValue += spend * K.plantBook; row[6] += spend;
@@ -247,7 +248,7 @@ export function monthEnd(K, world, day, ctx, { makeName, makeTicker, countries }
     const util = mine.reduce((a, c) => a + c.util * c.capacity, 0) / Math.max(1, cap);
     if (util < K.entry.busy) continue;
     if (day - (world.lastEntry[sector] ?? -9999) < K.entry.cooldown) continue;
-    if (hashUnit(`${world.salt}|entry|${sector}|${monthOf(day)}`) >= K.entry.chance) continue;
+    if (hashUnit(`${world.salt}|entry|${sector}|${monthOf(day)}`) >= K.entry.chance * entryFactor(ctx.rate ?? K.baseRate)) continue;
     world.lastEntry[sector] = day;
     const id = `gen_${world.nextId++}`;
     const country = countries[Math.floor(hashUnit(`${world.salt}|${id}|country`) * countries.length)];

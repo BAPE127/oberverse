@@ -2,6 +2,28 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.68.0] — 2026-10-30 — The Policy Rate (development build)
+
+Stage 10, first of four parts, of the Corporate Empire brief (docs/CORPORATE.md): the First Bank of Halvermouth's policy rate. Government bonds, the physical bank and corporate bonds are the next three releases.
+
+### Added — the rate (`src/corp/bank.js`, `src/systems/centralBank.js`)
+- **One policy rate**, starting at the benchmark the game has always had (5%). It is **nobody's to set**: on the first day of each month from the **fourth month (day 91)** the bank looks at the wider world — capacity in use (weighted by capacity, neutral 75%), last month's sales against the month before (counted up to ±10%), the share of companies in distress — and works out a target (neutral + 6 points per point of busyness above 75% + 0.3 × growth − 0.1 × the share in distress, to the quarter-point, 1%–12%). It then **holds if within a quarter-point, moves a quarter-point, or a half-point if a point or more away**. Decided once a month on the world as it stands that day, whatever is saved or slept through; the new rate applies from the next day.
+- **Every decision is written down** with the figures and the words ("The First Bank of Halvermouth lowered the policy rate from 3.00% to 2.75%: capacity in use 82% (neutral 75%); sales +6.7% on the month before; 0% of companies in distress."), kept for 36 months, with a line in the tablet feed.
+- **What the rate does**, each within fixed limits and **exactly nothing at the neutral rate**: the parent's loans to its subsidiaries are at the rate plus a point (was a fixed 6%); the interest the world's companies pay is the rate plus a point and their risk (was fixed); a year's profit counts for 3% less of its multiple for each point above neutral, ±15% — every estimated value, so the exchange's prices (a valuation never creates money); a company builds when it is half a point of utilisation busier for each point above neutral, ±3 points; new companies appear 4% less often for each point above neutral, 0.7–1.3 times.
+- **The Bank app** (tablet): the rate and the neutral one, since when, the next meeting, the rate over the meetings, what the bank is looking at now, what the rate does today, and the record.
+
+### Unchanged
+- Before the first meeting nothing is made and the rate is the old constant, so every existing game and test behaves as before until day 91. At the neutral rate (5%) every effect is exactly one or zero. A game that stays at 5% behaves as it did.
+
+### Save
+- `world.corp.bank` (`rate`, `since`, `decisions`, `lastMeeting`) is created at the first meeting. A save from v0.67 or earlier has none and the rate is 5%. No schema change (still 1).
+
+### Tests
+- New: `bank` (7): the rule (target, step sizes, holds, limits, the words), the effects exactly nothing at neutral and bounded, nothing made before the first meeting and the old 6% loan rate, the first meeting on day 91 once a month and once after a long sleep and a reload, a distressed world lowering it and a busy one raising it and a long run staying in bounds by quarter-points, the rate reaching loans, interest and valuations, and no way to set it. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. The rate follows only the wider world (not your own businesses); there are no bank loans, bonds or building yet; no inflation measure (the bank has none to read).
+
 ## [0.67.0] — 2026-10-30 — One Set of Rules (development build)
 
 Stage 9, second part, of the Corporate Empire brief (docs/CORPORATE.md): the two older shares that were not under the exchange's rules.

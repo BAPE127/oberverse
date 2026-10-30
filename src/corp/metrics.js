@@ -36,8 +36,8 @@ export const growth = (now, before) => (now && before && before > 0 ? now / befo
  * if it were sold), nor below zero. `annualProfit` may be null (no history yet): then it is worth
  * its net assets.
  */
-export function value(K, sector, { netAssets, annualProfit }) {
-  const pe = K.sectors[sector].pe;
+export function value(K, sector, { netAssets, annualProfit }, factor = 1) {
+  const pe = K.sectors[sector].pe * factor; // the bank's rate: dearer money, a lower multiple (exactly 1 at the neutral rate)
   const earnings = annualProfit === null || annualProfit === undefined ? 0 : annualProfit >= 0 ? pe * annualProfit : 0.5 * pe * annualProfit;
   return Math.max(0, Math.round(Math.max(netAssets + earnings, Math.max(0, netAssets) / 3)));
 }

@@ -75,6 +75,8 @@ Since **v0.66.0** `world.corp.exchange` (created on the first morning after the 
 
 Since **v0.67.0** `world.oil` also has `costBasis` (only while every share held was bought through the exchange or the Stocks app) and `fair`, and its history entries carry `fair`; `world.dairy` has `costBasis` likewise. Absent in older saves: those holdings have no cost on record.
 
+Since **v0.68.0** `world.corp.bank` (created at the bank's first meeting, day 91): `rate` (yearly fraction), `since` (the day it last changed), `decisions` (`day`, `month`, `from`, `to`, `target`, `util`, `growth`, `stress`, `text`; 36 kept), `lastMeeting` (month index). A save without it has the old 5%.
+
 Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).
 
 NPC `profile` data is **not** saved; it is reattached from content on load. Paths are recomputed. Only errand intents are persisted.

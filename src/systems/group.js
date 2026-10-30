@@ -222,7 +222,7 @@ export class Group {
   get month() { return Math.floor((this.day - 1) / 30); }
 
   /** The rate a parent charges its subsidiaries: the benchmark plus a point (the central bank sets the benchmark from a later stage). */
-  defaultRate() { return Math.round((CORP.baseRate + 0.01) * 1000) / 1000; }
+  defaultRate() { return Math.round((this.K.bank.rate() + 0.01) * 1000) / 1000; }
 
   /**
    * The parent lends a subsidiary money. It is a transfer of cash, never revenue: the subsidiary owes the

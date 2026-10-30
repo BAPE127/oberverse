@@ -19,4 +19,5 @@ Rules:
 - Treasury (v0.65): cash moves only along the group's own transfers (never sales or costs, total cash unchanged), by a policy the owner set; the source account is checked with the reserve left; approval re-judges and moves what is needed now.
 - Exchange (v0.66): a share's price is a pure function of the company's own books and a hash mood — never of the player's trades and never the game RNG; fees, caps and dividends are the same for every listing; a failed company's shares are worthless and a takeover pays out once; the older shares' behaviour changes only on purpose, with a test saying so.
 - When a screen states how an older system behaves, read that system's code first: v0.66 said Chuckie's Cheese had no fee or cap and it always had both.
+- Central bank (v0.68): the policy rate is a pure function of the world's own indicators, decided once a month, written down, never set by the player; every effect is exactly identity at the neutral rate, so the game before the first meeting is unchanged.
 - Deliver: tests (rules, persistence, old-save load), docs, a browser check of every screen touched, and an honest report of what is and is not done.

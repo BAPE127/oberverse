@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.68.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The Policy Rate',
+    notes: [
+      'The First Bank of Halvermouth now sets one rate for the whole economy. It is nobody\'s to set: from the fourth month of the game it meets once a month, looks at how busy the world\'s companies are, how fast their sales are growing and how many are in distress, and moves a quarter-point (or a half) toward where that says it should be — and writes down why. The tablet\'s new Bank app shows the rate, what it is looking at, what it does and the record.',
+      'The rate is what the parent charges its subsidiaries (plus a point), what the world\'s companies borrow at, how much a year\'s profit is worth in every estimated value, how soon they build and how many new ones appear — each within fixed limits and exactly nothing at the 5% neutral rate. Until the first meeting it is the 5% it always was. Bonds, the bank building and bank loans follow.',
+    ],
+  },
+  {
     version: '0.67.0',
     date: '2026-10-30',
     channel: 'development',

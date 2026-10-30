@@ -25,6 +25,8 @@ import { Group } from './group.js';
 import { Personnel } from './personnel.js';
 import { Management } from './management.js';
 import { Exchange } from './exchange.js';
+import { CentralBank } from './centralBank.js';
+import { valuationFactor } from '../corp/bank.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
@@ -35,6 +37,7 @@ export class Corporate {
     this.game = game;
     this.group = new Group(this); // v0.61.0: the parent company and its subsidiaries
     this.personnel = new Personnel(this); // v0.62.0: the people who run them
+    this.bank = new CentralBank(this); // v0.68.0: the policy rate
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -396,7 +399,7 @@ export class Corporate {
   }
 
   worldCtx(day, warm = false) {
-    return { rate: CORP.baseRate, external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
+    return { rate: this.bank.rate(), external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
   }
 
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
@@ -405,6 +408,7 @@ export class Corporate {
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once a budget has been set)
     this.generatedDay();
+    this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
   }
 
@@ -497,7 +501,7 @@ export class Corporate {
     const n = Math.max(0, cur - from);
     const annualProfit = rows.length && n ? (rows.filter((x) => x.m >= from && x.m < cur).reduce((a, x) => a + (x.net ?? 0), 0) / n) * 12 * Math.min(1, n / 6) : null;
     const netAssets = this.netAssetsOf(r);
-    const val = netAssets === null ? null : worth(CORP, r.sector, { netAssets, annualProfit });
+    const val = netAssets === null ? null : worth(CORP, r.sector, { netAssets, annualProfit }, valuationFactor(this.bank.rate()));
     let cash = null;
     let debt = null;
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); cash = c ? Math.round(c.cash) : null; debt = c ? Math.round(c.debt) : null; }
