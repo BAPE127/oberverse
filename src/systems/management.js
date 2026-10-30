@@ -98,7 +98,7 @@ export class Management {
   judgeFor(x, kind, target, cat, cost, { owner = false, ask = null, reserve = 0, source = null } = {}) {
     return judge({
       kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
-      funded: this.K.established(target) && this.K.account(target).funded, cost,
+      funded: this.K.established(target) && this.K.account(target).funded, frozen: this.K.business.inArrears(target), cost,
       spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
       cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });
@@ -380,7 +380,7 @@ export class Management {
     const K = this.K;
     const inv = G.parent.investments[target];
     const mv = treasuryMove(m.treasury[target], this.parentReserve(), {
-      cash: K.cashOf(target), parentCash: K.cashOf('parent'), arrears: K.account(target).arrears, minLiquidity: G.policyOf(target).minLiquidity,
+      cash: K.cashOf(target), parentCash: K.cashOf('parent'), arrears: K.account(target).arrears + K.business.arrearsOf(target), minLiquidity: G.policyOf(target).minLiquidity,
       loans: G.loansOf(target).filter((l) => l.borrower === target).map((l) => ({ id: l.id, outstanding: l.outstanding })), capital: inv?.capital || 0,
     }, MGMT.minMove);
     if (!mv) return [];

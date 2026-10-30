@@ -24,7 +24,7 @@ const KINDS = {
   out: {
     machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', works: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
-    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex', ic_interest: 'other',
+    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex', ic_interest: 'other', loan_principal: 'other', guarantee: 'other',
   },
   in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other', internal: 'other', ic_interest: 'other', dividend_in: 'other' },
 };

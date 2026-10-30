@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.74.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Lending to Your Companies',
+    notes: [
+      'Lariat State Bank now lends to your companies too, in the Loans app. A company that holds its own cash borrows on what it owns and earns, at a fixed rate; the loan lands in its account, and its instalments — interest a cost, principal not — come out of it. A company that falls behind pays a penalty rate, nothing is seized, and its managers stop hiring, bidding and expanding until it is clear. You can guarantee a company\'s loan (a miss costs your own borrowing record), or a parent can guarantee a subsidiary\'s (it pays the missed instalment, and the subsidiary owes it back).',
+    ],
+  },
+  {
     version: '0.73.0',
     date: '2026-10-30',
     channel: 'development',

@@ -29,6 +29,7 @@ import { CentralBank } from './centralBank.js';
 import { Bonds } from './bonds.js';
 import { Credit } from './creditBonds.js';
 import { Lending } from './lending.js';
+import { BusinessLoans } from './businessLoans.js';
 import { valuationFactor } from '../corp/bank.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -44,6 +45,7 @@ export class Corporate {
     this.bonds = new Bonds(this); // v0.69.0: government bonds
     this.credit = new Credit(this); // v0.71.0: corporate bonds
     this.lending = new Lending(this); // v0.73.0: loans from Lariat State Bank
+    this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -419,6 +421,7 @@ export class Corporate {
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
     this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
+    this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)
   }
 
   /** The wider world's day. */
@@ -480,7 +483,7 @@ export class Corporate {
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); return c ? Math.round(c.cash + c.plantValue - c.debt) : null; }
     if (r.kind === 'player') {
       const a = this.account(r.playerId);
-      const own = a.funded ? a.cash - a.arrears - this.group.payableOf(r.playerId) : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's; what it owes its parent comes off
+      const own = a.funded ? a.cash - a.arrears - this.group.payableOf(r.playerId) - this.business.owedBy(r.playerId) : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's; what it owes its parent comes off
       switch (r.playerId) {
         case 'aerospace': return Math.round(g.aero.balanceReport(g.aero.roost).net + own);
         case 'arms': return Math.round(g.arms.ownedIds().reduce((x, w) => x + g.arms.def(w).price * 0.6, 0) + own);
@@ -514,7 +517,7 @@ export class Corporate {
     let cash = null;
     let debt = null;
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); cash = c ? Math.round(c.cash) : null; debt = c ? Math.round(c.debt) : null; }
-    else if (r.kind === 'player') { const a = this.account(r.playerId); cash = a.funded ? Math.round(a.cash) : 0; debt = Math.round(a.arrears); }
+    else if (r.kind === 'player') { const a = this.account(r.playerId); cash = a.funded ? Math.round(a.cash) : 0; debt = Math.round(a.arrears + this.business.owedBy(r.playerId)); }
     else if (r.id === 'meridian') { const m = this.game.aero.meridian; cash = m ? Math.round(Math.max(0, m.cash)) : null; debt = m ? Math.round(Math.max(0, -m.cash)) : null; }
     return {
       key: r.id, name: r.name, sector: r.sector, country: r.country, kind: r.kind, ticker: r.ticker || null, status: r.status || 'active', basis, period,

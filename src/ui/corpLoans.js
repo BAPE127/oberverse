@@ -1,7 +1,7 @@
 // The Loans app (v0.73.0): borrowing from Lariat State Bank against the shares and bonds you hold. Read from game.corp.lending;
 // every button calls it. Wallet loans only — no company is touched.
 import { h } from './panels.js';
-import { TERMS, MIN_LOAN, PENALTY } from '../corp/lending.js';
+import { TERMS, MIN_LOAN, PENALTY, PURPOSES } from '../corp/lending.js';
 
 const n = (x) => Math.round(x).toLocaleString();
 const pc = (v) => `${(v * 100).toFixed(2)}%`;
@@ -44,6 +44,44 @@ export function loansApp(ui, body, open) {
     l.status === 'repaid' ? null : h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' },
       ...[1000, 10000].filter((a) => a < l.outstanding + l.arrears).map((a) => h('button', { class: 'small', disabled: g.player.money < a, onclick: () => go(L.repay(l.id, a)) }, `Repay ${n(a)}`)),
       h('button', { class: 'small primary', disabled: g.player.money < l.outstanding + l.arrears, onclick: () => go(L.repay(l.id, l.outstanding + l.arrears)) }, `Repay all (${n(l.outstanding + l.arrears)})`)))))));
+
+  business();
+
+  /** Loans to your companies (v0.74.0): the company borrows on its own books; a guarantee is yours to choose and is spelled out. */
+  function business() {
+    const BL = g.corp.business;
+    body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Business loans'),
+      h('p', { class: 'muted', style: 'font-size:12px' }, 'Lariat State Bank also lends to a company of yours that holds its own cash, on its own books alone: a share of what it owns and some months of what it earns. The money goes into the company\'s account and the instalments come out of it (interest is a cost to the company; the principal is not). If it misses one, it is in arrears at the penalty rate, nothing is seized, its managers stop hiring, bidding and expanding, and the bank collects what the account takes in until it is cleared.'));
+    const ids = BL.eligible();
+    if (!ids.length) { body.append(h('p', { class: 'muted' }, 'None of your companies holds its own cash yet: fund one from its tablet app first.')); }
+    else {
+      const id = ids.includes(ui.loanCo) ? ui.loanCo : ids[0];
+      const v = BL.view(id);
+      const gs = BL.guarantees(id);
+      const gu = gs.includes(ui.loanGuar) ? ui.loanGuar : 'none';
+      const purpose = PURPOSES.includes(ui.loanPurpose) ? ui.loanPurpose : PURPOSES[0];
+      const chip = (label, on, fn) => h('button', { class: `small${on ? ' primary' : ''}`, onclick: fn }, label);
+      body.append(
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:4px 0' }, ...ids.map((c) => chip(g.corp.nameOf(c), c === id, () => { ui.loanCo = c; open('Loans'); }))),
+        h('div', { class: 'grid2' }, stat('It holds', n(v.cash)), stat('It may owe in all', n(v.total)), stat('It owes the bank', n(v.owed)), stat('It may borrow', n(v.free)), stat('Its record', `${Math.round(v.standing)} / 100`), stat('Profit a month (est.)', n(v.monthly))),
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:6px 0' }, h('span', { class: 'muted' }, 'Guarantee:'), ...gs.map((x) => chip(x === 'none' ? 'None' : x === 'personal' ? 'You' : 'The parent', x === gu, () => { ui.loanGuar = x; open('Loans'); }))),
+        h('p', { class: 'muted', style: 'font-size:12px' }, BL.guaranteeText(id, gu)),
+        h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin:4px 0' }, h('span', { class: 'muted' }, 'For:'), h('select', { onchange: (e) => { ui.loanPurpose = e.target.value; } }, ...PURPOSES.map((x) => h('option', { value: x, selected: x === purpose }, x)))));
+      if (BL.inArrears(id)) body.append(h('p', { class: 'muted' }, `${v.name} is behind on a loan: its managers are not hiring, bidding or expanding.`));
+      else if (v.free < MIN_LOAN) body.append(h('p', { class: 'muted' }, `${v.name} cannot borrow ${n(MIN_LOAN)} against its books today.`));
+      else body.append(h('div', { class: 'list' }, ...TERMS.map((m) => {
+        const amounts = AMOUNTS.filter((a) => a <= v.free);
+        if (!amounts.length || v.free > AMOUNTS.at(-1)) amounts.push(Math.floor(v.free));
+        return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${m} months`),
+          h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = BL.offer(id, a, m, gu); return h('button', { class: 'small primary', title: `${n(o.interest)} interest in all`, onclick: () => go(BL.borrow(id, a, m, { guarantee: gu, purpose: ui.loanPurpose || purpose })) }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo`); }))));
+      })));
+    }
+    const all = BL.loans(null, true);
+    if (all.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Company loans'), h('div', { class: 'list' }, ...all.slice().reverse().map((l) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${g.corp.nameOf(l.borrower)} · ${n(l.principal)} at ${pc(l.rate)}`, h('span', { class: `tag${l.status === 'repaid' ? ' good' : l.arrears > 0 ? ' neg' : ''}` }, l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'in arrears' : 'open'), l.guarantee !== 'none' ? h('span', { class: 'tag' }, `guaranteed by ${l.guarantee === 'parent' ? 'the parent' : 'you'}`) : null),
+      h('div', { class: 'desc' }, `${l.purpose} · ` + (l.status === 'repaid' ? `signed day ${l.signed}, repaid day ${l.closed}; ${n(l.interestPaid)} interest paid.` : `owes ${n(l.outstanding)}${l.arrears ? ` + ${n(l.arrears)} arrears (at ${pc(l.rate + PENALTY)})` : ''} · ${l.left} instalment${l.left === 1 ? '' : 's'} left · next day ${l.due}${l.called ? ` · the parent has paid ${n(l.called)} under its guarantee` : ''}`)),
+      l.status === 'repaid' ? null : h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, h('button', { class: 'small primary', disabled: g.corp.cashOf(l.borrower) < l.outstanding + l.arrears, onclick: () => go(BL.repay(l.id, l.outstanding + l.arrears)) }, `Repay all from the company (${n(l.outstanding + l.arrears)})`)))))));
+  }
 
   const log = (L.peek()?.log || []).slice(-6).reverse();
   if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((x) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${x.day} · ${x.text}`))))));

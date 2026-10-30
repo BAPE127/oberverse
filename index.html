@@ -15574,7 +15574,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.73.0';
+const GAME_VERSION = '0.74.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -38651,7 +38651,7 @@ const KINDS = {
   out: {
     machines: 'capex', ship: 'capex', port: 'capex', shipyard: 'capex', works: 'capex', shipbuilding: 'capex', capital: 'capex', company: 'capex', land: 'capex', fencing: 'capex',
     animals: 'capex', research: 'opex', capex: 'capex', equipment: 'capex', plant: 'capex', facility: 'capex', hall: 'capex',
-    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex', ic_interest: 'other',
+    refund: 'other', deposit: 'other', transfer: 'other', interest: 'opex', ic_interest: 'other', loan_principal: 'other', guarantee: 'other',
   },
   in: { refund: 'other', deposit: 'other', transfer: 'other', loan: 'other', grant: 'other', insurance: 'other', other: 'other', internal: 'other', ic_interest: 'other', dividend_in: 'other' },
 };
@@ -39691,7 +39691,7 @@ class Group {
 
   /** What the next month's loan service will need from a subsidiary (so a distribution never starves it). */
   serviceDue(id) {
-    return this.loansOf(id).filter((l) => l.borrower === id).reduce((a, l) => a + Math.min(l.outstanding, l.instalment) + Math.round(l.outstanding * l.rate / 12), 0);
+    return this.loansOf(id).filter((l) => l.borrower === id).reduce((a, l) => a + Math.min(l.outstanding, l.instalment) + Math.round(l.outstanding * l.rate / 12), 0) + this.K.business.dueNext(id);
   }
 
   /**
@@ -39950,7 +39950,7 @@ class Group {
       consolidated: cons,
       reconciliation: { sumOfSeparateNets: sumNets, lessDividends: dividends, lessDeferredFreight: R - E, equals: sumNets - dividends - (R - E) },
       cash: { parent: cash.parent, subs: Object.fromEntries(this.subs().map((id) => [id, cash[id]])), consolidated: ids.reduce((a, id) => a + cash[id], 0), availableToDistribute: plans.reduce((a, p) => a + p.send, 0) },
-      debt: { external: this.subs().reduce((a, id) => a + Math.round(K.account(id).arrears), 0) },
+      debt: { external: this.subs().reduce((a, id) => a + Math.round(K.account(id).arrears), 0), bank: this.members().reduce((a, id) => a + Math.round(K.business.owedBy(id)), 0) },
       intercompany: { receivable: rec.receivable, payable: rec.payable, afterElimination: rec.receivable - rec.payable },
       distributionsReceived: dividends,
       value: this.groupValue(),
@@ -40803,6 +40803,7 @@ function judge(d) {
   if (d.kind === 'transfer' && !d.canTransfer) return no('They are not authorised to move cash between companies.');
   if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
+  if (d.frozen && (d.kind === 'hire' || d.kind === 'bid' || d.kind === 'expand')) return no('The company is behind on a bank loan: no hiring, bidding or expanding until it is cleared.');
   if (!(d.cost > 0)) return no('There is nothing to spend.');
   if (d.kind === 'hire' && d.hiresLeft <= 0) return no('The most hires a month has been made.');
   const cap = Math.max(0, Number(d.cap) || 0);
@@ -41037,7 +41038,7 @@ class Management {
   judgeFor(x, kind, target, cat, cost, { owner = false, ask = null, reserve = 0, source = null } = {}) {
     return judge({
       kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
-      funded: this.K.established(target) && this.K.account(target).funded, cost,
+      funded: this.K.established(target) && this.K.account(target).funded, frozen: this.K.business.inArrears(target), cost,
       spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
       cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });
@@ -41319,7 +41320,7 @@ class Management {
     const K = this.K;
     const inv = G.parent.investments[target];
     const mv = treasuryMove(m.treasury[target], this.parentReserve(), {
-      cash: K.cashOf(target), parentCash: K.cashOf('parent'), arrears: K.account(target).arrears, minLiquidity: G.policyOf(target).minLiquidity,
+      cash: K.cashOf(target), parentCash: K.cashOf('parent'), arrears: K.account(target).arrears + K.business.arrearsOf(target), minLiquidity: G.policyOf(target).minLiquidity,
       loans: G.loansOf(target).filter((l) => l.borrower === target).map((l) => ({ id: l.id, outstanding: l.outstanding })), capital: inv?.capital || 0,
     }, MGMT.minMove);
     if (!mv) return [];
@@ -42239,7 +42240,27 @@ function dueMonth(loan) {
   return { interest, principal, instalment: interest + principal, penalty: Math.round((loan.arrears * (loan.rate + PENALTY)) / 12) };
 }
 
-return { TERMS, MIN_LOAN, BASE_SPREAD, PENALTY, START_STANDING, advance, secured, standingRate, limitFactor, rateFor, quote, dueMonth };
+// ------------------------------------------------------------------ business loans (v0.74.0)
+// A company is lent to on its own books alone: what it owns less what it owes, and what it has earned. A guarantee is a promise the
+// borrower's owner (or a parent, for a subsidiary) makes in exchange for a lower rate; what it costs the guarantor is stated before signing.
+
+const CO_SPREAD = 0.03;
+const GUARANTEE_DISCOUNT = { none: 0, personal: 0.01, parent: 0.0075 };
+const CO_FACTOR = 0.4; // of what a company owns, net of other debt
+const CO_PROFIT_MONTHS = 6; // of its monthly profit
+const PERSONAL_GUARANTEE_HIT = 4; // record points the owner loses when a company they guaranteed misses an instalment
+const PURPOSES = ['Working capital', 'Material procurement', 'Factory or facility expansion', 'Ships and fleet', 'Farm land and equipment', 'Research and development', 'Acquisition or restructuring'];
+
+/** What a company may owe the bank in all: a share of its assets (before this debt) and some months of its profit, scaled by its record. */
+function companyLimit({ assets, monthlyNet, standing }) {
+  return Math.max(0, Math.round((CO_FACTOR * Math.max(0, assets) + CO_PROFIT_MONTHS * Math.max(0, monthlyNet)) * limitFactor(standing)));
+}
+
+function companyRate({ policy, util, standing, guarantee = 'none' }) {
+  return Math.max(0.0025, Math.round((policy + CO_SPREAD + 0.02 * clamp(util, 0, 1) + standingRate(standing) - (GUARANTEE_DISCOUNT[guarantee] || 0)) / 0.0025) * 0.0025);
+}
+
+return { TERMS, MIN_LOAN, BASE_SPREAD, PENALTY, START_STANDING, advance, secured, standingRate, limitFactor, rateFor, quote, dueMonth, CO_SPREAD, GUARANTEE_DISCOUNT, CO_FACTOR, CO_PROFIT_MONTHS, PERSONAL_GUARANTEE_HIT, PURPOSES, companyLimit, companyRate };
 })();
 
 // ---- src/systems/lending.js
@@ -42279,7 +42300,8 @@ class Lending {
   }
 
   owed() { return this.loans().reduce((a, l) => a + l.outstanding + l.arrears, 0); }
-  loans(all = false) { return (this.peek()?.loans || []).filter((l) => all || l.status !== 'repaid'); }
+  /** Your own loans (a company's are in `game.corp.business`). */
+  loans(all = false) { return (this.peek()?.loans || []).filter((l) => (!l.borrower || l.borrower === 'you') && (all || l.status !== 'repaid')); }
   inArrears() { return this.loans().some((l) => l.arrears > 0); }
 
   /** What your holdings secure (scaled by your record), what you owe, and what you may still borrow. */
@@ -42319,7 +42341,7 @@ class Lending {
     const o = this.offer(amount, months);
     const s = this.ensure();
     const g = this.g;
-    const loan = { id: `ln_${s.nextId++}`, principal: amount, outstanding: amount, rate: o.rate, months, left: months, signed: this.day, due: this.day + 30, arrears: 0, missed: 0, paid: 0, interestPaid: 0, status: 'open' };
+    const loan = { id: `ln_${s.nextId++}`, borrower: 'you', principal: amount, outstanding: amount, rate: o.rate, months, left: months, signed: this.day, due: this.day + 30, arrears: 0, missed: 0, paid: 0, interestPaid: 0, status: 'open' };
     s.loans.push(loan);
     g.player.money += amount;
     g.bus.emit('money:changed', { delta: amount, total: g.player.money });
@@ -42330,7 +42352,7 @@ class Lending {
   /** Repay early (to the arrears first, then the principal). */
   repay(id, amount) {
     const s = this.peek();
-    const l = s?.loans.find((x) => x.id === id && x.status !== 'repaid');
+    const l = this.loans().find((x) => x.id === id);
     if (!l) return { ok: false, text: 'No such loan.' };
     const g = this.g;
     amount = Math.min(Math.floor(Number(amount)), l.arrears + l.outstanding);
@@ -42351,7 +42373,7 @@ class Lending {
     if (!s || s.lastDay >= this.day) return;
     s.lastDay = this.day;
     const g = this.g;
-    for (const l of s.loans) {
+    for (const l of this.loans()) {
       if (l.status === 'repaid') continue;
       let guard = 0;
       while (l.due <= this.day && l.status !== 'repaid' && guard++ < 48) {
@@ -42382,6 +42404,185 @@ class Lending {
 }
 
 return { Lending };
+})();
+
+// ---- src/systems/businessLoans.js
+__m["src/systems/businessLoans.js"] = (function () {
+// Loans to companies (v0.74.0): game.corp.business — Lariat State Bank lends to a company that has its own funded account, on its
+// own books alone (a share of what it owns and some months of what it has earned, scaled by its own record). The money goes into
+// the company's account as a loan (never revenue), its instalments come out of that account (principal is not a cost, interest is),
+// and a missed one is arrears at the penalty rate with nothing seized: the company's managers stop hiring, bidding and expanding
+// until it is cleared, and the bank takes what the account collects while it is owed. An owner may *guarantee* a loan for a lower
+// rate (a missed instalment then costs their own borrowing record); a parent may guarantee a subsidiary's (it is called, and what it
+// pays becomes an intercompany loan to the subsidiary). Loans share `world.corp.lending` with your own, marked by `borrower`.
+const { TERMS, MIN_LOAN, PENALTY, START_STANDING, limitFactor, quote, dueMonth, companyLimit, companyRate, PERSONAL_GUARANTEE_HIT, PURPOSES } = __m["src/corp/lending.js"];
+
+const money = (n) => Math.round(n).toLocaleString();
+
+class BusinessLoans {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  get L() { return this.K.lending; }
+  peek() { return this.L.peek(); }
+
+  // ------------------------------------------------------------- who and how much
+  loans(id, all = false) { return (this.peek()?.loans || []).filter((l) => l.borrower && l.borrower !== 'you' && (!id || l.borrower === id) && (all || l.status !== 'repaid')); }
+  owedBy(id) { return this.loans(id).reduce((a, l) => a + l.outstanding + l.arrears, 0); }
+  arrearsOf(id) { return this.loans(id).reduce((a, l) => a + l.arrears, 0); }
+  inArrears(id) { return this.arrearsOf(id) > 0; }
+  /** What a company owes the bank in all (the books' debt line). */
+  totalOwed() { return this.loans().reduce((a, l) => a + l.outstanding + l.arrears, 0); }
+  /** What the next instalment will take (so a distribution or a sweep never starves it). */
+  dueNext(id) { return this.loans(id).reduce((a, l) => { const d = dueMonth(l); return a + (l.left > 0 ? d.instalment : 0); }, 0); }
+
+  standing(id) { return this.peek()?.company?.[id]?.standing ?? START_STANDING; }
+  setStanding(id, v) { const s = this.L.ensure(); ((s.company ||= {})[id] ||= { standing: START_STANDING }).standing = Math.max(0, Math.min(100, v)); }
+
+  /** Companies that could borrow: owned, and holding their own cash. */
+  eligible() { return ['arms', 'shipping', 'aerospace', 'farming', 'parent'].filter((id) => this.K.established(id) && this.K.account(id).funded); }
+
+  /** What the bank sees of a company: assets before this debt, what it earns in a month, and so what it may owe in all. */
+  view(id) {
+    const K = this.K;
+    const a = K.account(id);
+    const reg = K.registry().find((r) => r.playerId === id);
+    const m = reg ? K.metricsOf(reg) : null;
+    const owed = this.owedBy(id);
+    const net = m?.netAssets ?? Math.round(a.cash - a.arrears - K.group.payableOf(id) - owed);
+    const assets = net + owed; // before the bank's own claim
+    const monthly = m?.annualProfit != null ? m.annualProfit / 12 : 0;
+    const standing = this.standing(id);
+    const total = companyLimit({ assets, monthlyNet: monthly, standing });
+    return { id, name: K.nameOf(id), cash: Math.round(a.cash), assets: Math.round(assets), monthly: Math.round(monthly), standing, total, owed, free: Math.max(0, total - owed) };
+  }
+
+  guarantees(id) {
+    const out = ['none', 'personal'];
+    const G = this.K.group;
+    if (G.isSub(id) && this.K.account('parent').funded) out.push('parent');
+    return out;
+  }
+
+  offer(id, amount, months, guarantee = 'none') {
+    const v = this.view(id);
+    const util = v.total ? (v.owed + amount) / v.total : 1;
+    const rate = companyRate({ policy: this.K.bank.rate(), util, standing: v.standing, guarantee });
+    return { rate, months, guarantee, ...quote(amount, months, rate), free: v.free };
+  }
+
+  guaranteeText(id, guarantee) {
+    if (guarantee === 'personal') return `You guarantee it: if ${this.K.nameOf(id)} misses an instalment, your own borrowing record falls by ${PERSONAL_GUARANTEE_HIT} points (nothing is taken from you).`;
+    if (guarantee === 'parent') return `${this.K.nameOf('parent')} guarantees it: if ${this.K.nameOf(id)} misses an instalment, the parent pays it from its own cash if it can, and ${this.K.nameOf(id)} then owes the parent that sum as an intercompany loan.`;
+    return 'Nobody guarantees it: only the company is liable.';
+  }
+
+  // ------------------------------------------------------------- borrowing
+  borrow(id, amount, months, { guarantee = 'none', purpose = PURPOSES[0] } = {}) {
+    amount = Math.floor(Number(amount));
+    if (!this.eligible().includes(id)) return { ok: false, text: 'Only a company with its own funded account can borrow.' };
+    if (!TERMS.includes(months)) return { ok: false, text: 'Choose 6, 12, 24 or 36 months.' };
+    if (!this.guarantees(id).includes(guarantee)) return { ok: false, text: 'That guarantee is not available for this company.' };
+    if (!PURPOSES.includes(purpose)) return { ok: false, text: 'Choose what the loan is for.' };
+    if (!(amount >= MIN_LOAN)) return { ok: false, text: `A loan is for at least ${money(MIN_LOAN)} obols.` };
+    if (this.inArrears(id) || this.K.account(id).arrears > 0) return { ok: false, text: `${this.K.nameOf(id)} is behind on what it owes: clear that first.` };
+    if (this.standing(id) < 20) return { ok: false, text: `${this.K.nameOf(id)}'s borrowing record is too poor for another loan.` };
+    const v = this.view(id);
+    if (amount > v.free) return { ok: false, text: v.total ? `The bank would let ${v.name} owe ${money(v.total)} in all, and it owes ${money(v.owed)}: it may borrow up to ${money(v.free)}.` : `${v.name} has too little behind it (assets ${money(v.assets)}, profit ${money(v.monthly)} a month) to borrow.` };
+    const o = this.offer(id, amount, months, guarantee);
+    const s = this.L.ensure();
+    const loan = { id: `bl_${s.nextId++}`, borrower: id, principal: amount, outstanding: amount, rate: o.rate, months, left: months, signed: this.day, due: this.day + 30, arrears: 0, missed: 0, paid: 0, interestPaid: 0, status: 'open', guarantee, purpose, called: 0 };
+    s.loans.push(loan);
+    this.K.receive(id, amount, { cat: 'loan' });
+    this.L.note(`${v.name} borrowed ${money(amount)} (${purpose.toLowerCase()}) over ${months} months at ${(o.rate * 100).toFixed(2)}%${guarantee !== 'none' ? `, guaranteed by ${guarantee === 'parent' ? 'its parent' : 'you'}` : ''}.`);
+    return { ok: true, loan, text: `Lariat State Bank lent ${v.name} ${money(amount)} obols over ${months} months at ${(o.rate * 100).toFixed(2)}% (fixed): ${money(o.first)} the first month.` };
+  }
+
+  /** The company repays early from its own account. */
+  repay(loanId, amount) {
+    const l = this.loans(null).find((x) => x.id === loanId);
+    if (!l) return { ok: false, text: 'No such loan.' };
+    amount = Math.min(Math.floor(Number(amount)), l.arrears + l.outstanding);
+    if (!(amount > 0)) return { ok: false, text: 'Repay how much?' };
+    const K = this.K;
+    if (K.cashOf(l.borrower) < amount) return { ok: false, text: `${K.nameOf(l.borrower)} does not have that much.` };
+    if (!K.pay(l.borrower, amount, { cat: 'loan_principal' })) return { ok: false, text: `${K.nameOf(l.borrower)} does not have that much.` };
+    this.apply(l, amount);
+    return { ok: true, text: l.status === 'repaid' ? 'The loan is repaid in full.' : `${money(amount)} repaid. ${K.nameOf(l.borrower)} still owes ${money(l.outstanding + l.arrears)}.` };
+  }
+
+  /** Money paid to the bank clears arrears first, then principal. */
+  apply(l, amount) {
+    let left = amount;
+    const toArrears = Math.min(l.arrears, left); l.arrears -= toArrears; left -= toArrears;
+    l.outstanding -= left;
+    if (l.outstanding <= 0 && l.arrears <= 0) { l.status = 'repaid'; l.outstanding = 0; l.closed = this.day; this.L.note(`${this.K.nameOf(l.borrower)} repaid a loan of ${money(l.principal)}.`); }
+  }
+
+  // ------------------------------------------------------------- each day
+  dailyTick() {
+    const s = this.peek();
+    if (!s || s.lastBusinessDay >= this.day) return;
+    s.lastBusinessDay = this.day;
+    const K = this.K;
+    for (const l of this.loans()) {
+      const id = l.borrower;
+      let guard = 0;
+      while (l.due <= this.day && l.status !== 'repaid' && guard++ < 48) {
+        const d = dueMonth(l);
+        if (l.arrears > 0) l.arrears += d.penalty;
+        if (l.left > 0) {
+          const a = K.account(id);
+          if (a.funded && a.arrears <= 0 && a.cash >= d.instalment && K.pay(id, d.interest, { cat: 'interest' }) && K.pay(id, d.principal, { cat: 'loan_principal' })) {
+            l.outstanding -= d.principal; l.interestPaid += d.interest; l.paid += 1;
+            this.setStanding(id, this.standing(id) + 0.5);
+          } else {
+            l.outstanding -= d.principal; l.arrears += d.instalment; l.missed += 1;
+            this.setStanding(id, this.standing(id) - 8);
+            this.L.note(`${K.nameOf(id)} missed an instalment of ${money(d.instalment)}: arrears at ${((l.rate + PENALTY) * 100).toFixed(2)}%.`);
+            this.g.tablet.post('bank', `${K.nameOf(id)} missed a loan instalment of ${money(d.instalment)} obols. It is in arrears and its managers have stopped hiring, bidding and expanding.`, 'warn');
+            this.guaranteeCalled(l, d.instalment);
+          }
+          l.left -= 1;
+        }
+        l.due += 30;
+        if (l.left <= 0 && l.outstanding <= 0 && l.arrears <= 0) { l.status = 'repaid'; l.outstanding = 0; l.closed = this.day; this.L.note(`${K.nameOf(id)} repaid a loan of ${money(l.principal)}.`); this.g.tablet.post('bank', `${K.nameOf(id)}'s loan of ${money(l.principal)} is repaid in full.`, 'good'); }
+        else if (l.left <= 0) l.status = 'overdue';
+        if (l.arrears > 0) this.setStanding(id, this.standing(id) - 1);
+      }
+      // what the account collects now goes to the bank's arrears (after the company's own bills to others)
+      if (l.arrears > 0 && l.status !== 'repaid') {
+        const a = K.account(id);
+        const n = Math.min(l.arrears, a.funded && a.arrears <= 0 ? Math.floor(a.cash) : 0);
+        if (n > 0 && K.pay(id, n, { cat: 'loan_principal' })) this.apply(l, n);
+      }
+    }
+  }
+
+  /** A guarantor is called for a missed instalment. */
+  guaranteeCalled(l, amount) {
+    const K = this.K;
+    if (l.guarantee === 'personal') {
+      this.L.ensure().standing = Math.max(0, this.L.standing() - PERSONAL_GUARANTEE_HIT);
+      this.L.note(`You guaranteed ${K.nameOf(l.borrower)}'s loan: your borrowing record fell by ${PERSONAL_GUARANTEE_HIT}.`);
+      return;
+    }
+    if (l.guarantee !== 'parent' || !K.group.isSub(l.borrower)) return;
+    const G = K.group;
+    const pay = Math.min(Math.round(amount), l.arrears, Math.max(0, Math.floor(K.account('parent').cash)));
+    if (pay <= 0) { this.L.note(`${K.nameOf('parent')} was called to cover ${K.nameOf(l.borrower)}'s instalment but holds no cash.`); return; }
+    if (!K.pay('parent', pay, { cat: 'guarantee' })) return;
+    l.arrears -= pay; l.called += pay;
+    const gs = G.st.group;
+    G.st.loans.push({ id: gs.nextLoan++, lender: 'parent', borrower: l.borrower, principal: pay, outstanding: pay, rate: G.defaultRate(), termMonths: 6, instalment: Math.ceil(pay / 6), since: this.day, firstMonth: G.month + 1, lastMonth: G.month, status: 'open', paid: 0, interestPaid: 0, missed: 0, guarantee: l.id });
+    this.L.note(`${K.nameOf('parent')} paid ${money(pay)} of ${K.nameOf(l.borrower)}'s instalment under its guarantee: now an intercompany loan.`);
+  }
+}
+
+return { BusinessLoans };
 })();
 
 // ---- src/systems/corporate.js
@@ -42417,6 +42618,7 @@ const { CentralBank } = __m["src/systems/centralBank.js"];
 const { Bonds } = __m["src/systems/bonds.js"];
 const { Credit } = __m["src/systems/creditBonds.js"];
 const { Lending } = __m["src/systems/lending.js"];
+const { BusinessLoans } = __m["src/systems/businessLoans.js"];
 const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -42432,6 +42634,7 @@ class Corporate {
     this.bonds = new Bonds(this); // v0.69.0: government bonds
     this.credit = new Credit(this); // v0.71.0: corporate bonds
     this.lending = new Lending(this); // v0.73.0: loans from Lariat State Bank
+    this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -42807,6 +43010,7 @@ class Corporate {
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
     this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
+    this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)
   }
 
   /** The wider world's day. */
@@ -42868,7 +43072,7 @@ class Corporate {
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); return c ? Math.round(c.cash + c.plantValue - c.debt) : null; }
     if (r.kind === 'player') {
       const a = this.account(r.playerId);
-      const own = a.funded ? a.cash - a.arrears - this.group.payableOf(r.playerId) : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's; what it owes its parent comes off
+      const own = a.funded ? a.cash - a.arrears - this.group.payableOf(r.playerId) - this.business.owedBy(r.playerId) : 0; // an unfunded company holds no cash of its own: the owner's wallet is the owner's; what it owes its parent comes off
       switch (r.playerId) {
         case 'aerospace': return Math.round(g.aero.balanceReport(g.aero.roost).net + own);
         case 'arms': return Math.round(g.arms.ownedIds().reduce((x, w) => x + g.arms.def(w).price * 0.6, 0) + own);
@@ -42902,7 +43106,7 @@ class Corporate {
     let cash = null;
     let debt = null;
     if (r.kind === 'generated') { const c = (this.state.generated || []).find((x) => x.id === r.id); cash = c ? Math.round(c.cash) : null; debt = c ? Math.round(c.debt) : null; }
-    else if (r.kind === 'player') { const a = this.account(r.playerId); cash = a.funded ? Math.round(a.cash) : 0; debt = Math.round(a.arrears); }
+    else if (r.kind === 'player') { const a = this.account(r.playerId); cash = a.funded ? Math.round(a.cash) : 0; debt = Math.round(a.arrears + this.business.owedBy(r.playerId)); }
     else if (r.id === 'meridian') { const m = this.game.aero.meridian; cash = m ? Math.round(Math.max(0, m.cash)) : null; debt = m ? Math.round(Math.max(0, -m.cash)) : null; }
     return {
       key: r.id, name: r.name, sector: r.sector, country: r.country, kind: r.kind, ticker: r.ticker || null, status: r.status || 'active', basis, period,
@@ -44841,6 +45045,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.74.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Lending to Your Companies',
+    notes: [
+      'Lariat State Bank now lends to your companies too, in the Loans app. A company that holds its own cash borrows on what it owns and earns, at a fixed rate; the loan lands in its account, and its instalments — interest a cost, principal not — come out of it. A company that falls behind pays a penalty rate, nothing is seized, and its managers stop hiring, bidding and expanding until it is clear. You can guarantee a company\'s loan (a miss costs your own borrowing record), or a parent can guarantee a subsidiary\'s (it pays the missed instalment, and the subsidiary owes it back).',
+    ],
+  },
   {
     version: '0.73.0',
     date: '2026-10-30',
@@ -62655,7 +62868,7 @@ __m["src/ui/corpLoans.js"] = (function () {
 // The Loans app (v0.73.0): borrowing from Lariat State Bank against the shares and bonds you hold. Read from game.corp.lending;
 // every button calls it. Wallet loans only — no company is touched.
 const { h } = __m["src/ui/panels.js"];
-const { TERMS, MIN_LOAN, PENALTY } = __m["src/corp/lending.js"];
+const { TERMS, MIN_LOAN, PENALTY, PURPOSES } = __m["src/corp/lending.js"];
 
 const n = (x) => Math.round(x).toLocaleString();
 const pc = (v) => `${(v * 100).toFixed(2)}%`;
@@ -62698,6 +62911,44 @@ function loansApp(ui, body, open) {
     l.status === 'repaid' ? null : h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' },
       ...[1000, 10000].filter((a) => a < l.outstanding + l.arrears).map((a) => h('button', { class: 'small', disabled: g.player.money < a, onclick: () => go(L.repay(l.id, a)) }, `Repay ${n(a)}`)),
       h('button', { class: 'small primary', disabled: g.player.money < l.outstanding + l.arrears, onclick: () => go(L.repay(l.id, l.outstanding + l.arrears)) }, `Repay all (${n(l.outstanding + l.arrears)})`)))))));
+
+  business();
+
+  /** Loans to your companies (v0.74.0): the company borrows on its own books; a guarantee is yours to choose and is spelled out. */
+  function business() {
+    const BL = g.corp.business;
+    body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Business loans'),
+      h('p', { class: 'muted', style: 'font-size:12px' }, 'Lariat State Bank also lends to a company of yours that holds its own cash, on its own books alone: a share of what it owns and some months of what it earns. The money goes into the company\'s account and the instalments come out of it (interest is a cost to the company; the principal is not). If it misses one, it is in arrears at the penalty rate, nothing is seized, its managers stop hiring, bidding and expanding, and the bank collects what the account takes in until it is cleared.'));
+    const ids = BL.eligible();
+    if (!ids.length) { body.append(h('p', { class: 'muted' }, 'None of your companies holds its own cash yet: fund one from its tablet app first.')); }
+    else {
+      const id = ids.includes(ui.loanCo) ? ui.loanCo : ids[0];
+      const v = BL.view(id);
+      const gs = BL.guarantees(id);
+      const gu = gs.includes(ui.loanGuar) ? ui.loanGuar : 'none';
+      const purpose = PURPOSES.includes(ui.loanPurpose) ? ui.loanPurpose : PURPOSES[0];
+      const chip = (label, on, fn) => h('button', { class: `small${on ? ' primary' : ''}`, onclick: fn }, label);
+      body.append(
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:4px 0' }, ...ids.map((c) => chip(g.corp.nameOf(c), c === id, () => { ui.loanCo = c; open('Loans'); }))),
+        h('div', { class: 'grid2' }, stat('It holds', n(v.cash)), stat('It may owe in all', n(v.total)), stat('It owes the bank', n(v.owed)), stat('It may borrow', n(v.free)), stat('Its record', `${Math.round(v.standing)} / 100`), stat('Profit a month (est.)', n(v.monthly))),
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:4px;margin:6px 0' }, h('span', { class: 'muted' }, 'Guarantee:'), ...gs.map((x) => chip(x === 'none' ? 'None' : x === 'personal' ? 'You' : 'The parent', x === gu, () => { ui.loanGuar = x; open('Loans'); }))),
+        h('p', { class: 'muted', style: 'font-size:12px' }, BL.guaranteeText(id, gu)),
+        h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin:4px 0' }, h('span', { class: 'muted' }, 'For:'), h('select', { onchange: (e) => { ui.loanPurpose = e.target.value; } }, ...PURPOSES.map((x) => h('option', { value: x, selected: x === purpose }, x)))));
+      if (BL.inArrears(id)) body.append(h('p', { class: 'muted' }, `${v.name} is behind on a loan: its managers are not hiring, bidding or expanding.`));
+      else if (v.free < MIN_LOAN) body.append(h('p', { class: 'muted' }, `${v.name} cannot borrow ${n(MIN_LOAN)} against its books today.`));
+      else body.append(h('div', { class: 'list' }, ...TERMS.map((m) => {
+        const amounts = AMOUNTS.filter((a) => a <= v.free);
+        if (!amounts.length || v.free > AMOUNTS.at(-1)) amounts.push(Math.floor(v.free));
+        return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${m} months`),
+          h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = BL.offer(id, a, m, gu); return h('button', { class: 'small primary', title: `${n(o.interest)} interest in all`, onclick: () => go(BL.borrow(id, a, m, { guarantee: gu, purpose: ui.loanPurpose || purpose })) }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo`); }))));
+      })));
+    }
+    const all = BL.loans(null, true);
+    if (all.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Company loans'), h('div', { class: 'list' }, ...all.slice().reverse().map((l) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${g.corp.nameOf(l.borrower)} · ${n(l.principal)} at ${pc(l.rate)}`, h('span', { class: `tag${l.status === 'repaid' ? ' good' : l.arrears > 0 ? ' neg' : ''}` }, l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'in arrears' : 'open'), l.guarantee !== 'none' ? h('span', { class: 'tag' }, `guaranteed by ${l.guarantee === 'parent' ? 'the parent' : 'you'}`) : null),
+      h('div', { class: 'desc' }, `${l.purpose} · ` + (l.status === 'repaid' ? `signed day ${l.signed}, repaid day ${l.closed}; ${n(l.interestPaid)} interest paid.` : `owes ${n(l.outstanding)}${l.arrears ? ` + ${n(l.arrears)} arrears (at ${pc(l.rate + PENALTY)})` : ''} · ${l.left} instalment${l.left === 1 ? '' : 's'} left · next day ${l.due}${l.called ? ` · the parent has paid ${n(l.called)} under its guarantee` : ''}`)),
+      l.status === 'repaid' ? null : h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, h('button', { class: 'small primary', disabled: g.corp.cashOf(l.borrower) < l.outstanding + l.arrears, onclick: () => go(BL.repay(l.id, l.outstanding + l.arrears)) }, `Repay all from the company (${n(l.outstanding + l.arrears)})`)))))));
+  }
 
   const log = (L.peek()?.log || []).slice(-6).reverse();
   if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((x) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${x.day} · ${x.text}`))))));

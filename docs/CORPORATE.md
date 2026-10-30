@@ -162,10 +162,14 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **The record is its own thing** (`world.corp.lending.standing`): it is moved only by how the player repays loans. It is not, and must never be made, a function of anything else — stage 14's bank robbery has its own separate criminal reputation and must not read or write it, nor affect the rate, limits or valuations.
 - No company is a party: no company account is debited or credited, and no company's valuation, rating or ranking reads a loan.
 
+### Business loans (v0.74.0)
+
+`src/systems/businessLoans.js` (`game.corp.business`), the company section of `src/ui/corpLoans.js`. The company is the borrower and stands alone (owner's answer): limit and rate from its own books and own record; **guarantees are explicit** (you: a record hit; a parent: it is called and the subsidiary owes it back as an intercompany loan); a missed instalment is arrears + penalty with no seizure, **managers refuse hire/bid/expand while behind** (`judge`'s `frozen`), and the bank collects what the account takes in. Borrowed money is a loan, never revenue; interest is opex, principal is not; a company's net assets and debt include what it owes the bank, and the consolidated statement reports it as `debt.bank` (external, not eliminated).
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.
 
 ## Not yet (see the roadmap in `docs/CORPORATE_AUDIT.md`)
 
-Selling or closing a subsidiary and part-owned subsidiaries (stage 5's remainder); managers that act on their own, budgets and approvals (7–8); a unified stock market with the generated companies' prices (9); loans to companies and a physical Lariat State Bank (12; personal loans exist since v0.73.0; the policy rate, bonds and the First Bank since 0.68–0.71); wars and embargoes beyond the arms pool (13; the sim already accepts a per-sector cost index); the bank robbery (14).
+Selling or closing a subsidiary and part-owned subsidiaries (stage 5's remainder); managers that act on their own, budgets and approvals (7–8); a unified stock market with the generated companies' prices (9); a physical Lariat State Bank (12; personal loans since v0.73.0, company loans since v0.74.0; the policy rate, bonds and the First Bank since 0.68–0.71); wars and embargoes beyond the arms pool (13; the sim already accepts a per-sector cost index); the bank robbery (14).

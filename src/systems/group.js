@@ -282,7 +282,7 @@ export class Group {
 
   /** What the next month's loan service will need from a subsidiary (so a distribution never starves it). */
   serviceDue(id) {
-    return this.loansOf(id).filter((l) => l.borrower === id).reduce((a, l) => a + Math.min(l.outstanding, l.instalment) + Math.round(l.outstanding * l.rate / 12), 0);
+    return this.loansOf(id).filter((l) => l.borrower === id).reduce((a, l) => a + Math.min(l.outstanding, l.instalment) + Math.round(l.outstanding * l.rate / 12), 0) + this.K.business.dueNext(id);
   }
 
   /**
@@ -541,7 +541,7 @@ export class Group {
       consolidated: cons,
       reconciliation: { sumOfSeparateNets: sumNets, lessDividends: dividends, lessDeferredFreight: R - E, equals: sumNets - dividends - (R - E) },
       cash: { parent: cash.parent, subs: Object.fromEntries(this.subs().map((id) => [id, cash[id]])), consolidated: ids.reduce((a, id) => a + cash[id], 0), availableToDistribute: plans.reduce((a, p) => a + p.send, 0) },
-      debt: { external: this.subs().reduce((a, id) => a + Math.round(K.account(id).arrears), 0) },
+      debt: { external: this.subs().reduce((a, id) => a + Math.round(K.account(id).arrears), 0), bank: this.members().reduce((a, id) => a + Math.round(K.business.owedBy(id)), 0) },
       intercompany: { receivable: rec.receivable, payable: rec.payable, afterElimination: rec.receivable - rec.payable },
       distributionsReceived: dividends,
       value: this.groupValue(),

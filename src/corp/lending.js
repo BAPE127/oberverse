@@ -54,3 +54,23 @@ export function dueMonth(loan) {
   const principal = loan.left <= 1 ? loan.outstanding : Math.min(loan.outstanding, Math.ceil(loan.outstanding / loan.left));
   return { interest, principal, instalment: interest + principal, penalty: Math.round((loan.arrears * (loan.rate + PENALTY)) / 12) };
 }
+
+// ------------------------------------------------------------------ business loans (v0.74.0)
+// A company is lent to on its own books alone: what it owns less what it owes, and what it has earned. A guarantee is a promise the
+// borrower's owner (or a parent, for a subsidiary) makes in exchange for a lower rate; what it costs the guarantor is stated before signing.
+
+export const CO_SPREAD = 0.03;
+export const GUARANTEE_DISCOUNT = { none: 0, personal: 0.01, parent: 0.0075 };
+export const CO_FACTOR = 0.4; // of what a company owns, net of other debt
+export const CO_PROFIT_MONTHS = 6; // of its monthly profit
+export const PERSONAL_GUARANTEE_HIT = 4; // record points the owner loses when a company they guaranteed misses an instalment
+export const PURPOSES = ['Working capital', 'Material procurement', 'Factory or facility expansion', 'Ships and fleet', 'Farm land and equipment', 'Research and development', 'Acquisition or restructuring'];
+
+/** What a company may owe the bank in all: a share of its assets (before this debt) and some months of its profit, scaled by its record. */
+export function companyLimit({ assets, monthlyNet, standing }) {
+  return Math.max(0, Math.round((CO_FACTOR * Math.max(0, assets) + CO_PROFIT_MONTHS * Math.max(0, monthlyNet)) * limitFactor(standing)));
+}
+
+export function companyRate({ policy, util, standing, guarantee = 'none' }) {
+  return Math.max(0.0025, Math.round((policy + CO_SPREAD + 0.02 * clamp(util, 0, 1) + standingRate(standing) - (GUARANTEE_DISCOUNT[guarantee] || 0)) / 0.0025) * 0.0025);
+}

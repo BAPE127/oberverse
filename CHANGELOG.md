@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.74.0] — 2026-10-30 — Lending to Your Companies (development build)
+
+Stage 12, second part: business loans.
+
+### Added (`src/systems/businessLoans.js`, `game.corp.business`; a section of the Loans app)
+- **Lariat State Bank lends to a company of yours that holds its own cash** (a funded account; an unfunded one spends your wallet, so there would be nothing separate to lend to). **On its own books alone**: it may owe in all 40% of what it owns (before this debt) plus six months of its estimated monthly profit, scaled by **its own borrowing record** (0.8×–1.2×; 60 at the start). No collateral is pledged — the owner's answer was that the company stands alone — so there is no asset to pledge twice.
+- **The rate is fixed for the loan's life**: the policy rate at signing + 3% + up to 2% for the share of the company's limit used + a record adjustment − a guarantee discount, to the quarter-point. Terms of 6/12/24/36 months, equal parts of principal plus the month's interest, as for your own loans. A loan has a **stated purpose** (working capital, materials, expansion, fleet, farm, research, acquisition) which is a label kept with it — it does not restrict what the company spends on.
+- **Cash, debt and expense are the company's**: the proceeds go into its account as a *loan* (never revenue; the cash-flow statement files it under other inflows), each instalment comes out of that account — **interest as a cost** (it lowers the company's profit, valuation and rank) and **principal as a repayment (not a cost)**. What it owes the bank is taken off its net assets and appears as its debt in the figures; the group's consolidated statement shows it as **debt to the bank** (it is not intercompany, so nothing is eliminated), and a distribution or a treasury sweep leaves what the next instalment needs.
+- **A missed instalment is arrears at the loan's rate + 5%, and nothing is seized.** Its record falls (−8 per miss, −1 a month while behind, +0.5 per instalment paid), it cannot borrow again until clear, and **its managers refuse hiring, bids and expansion** with the reason "behind on a bank loan" (buying materials to keep running, and treasury moves, are not frozen). While the loan is in arrears, **the bank collects what the company's account takes in** (after the company's own bills to others) — the whole of its consequence.
+- **Guarantees, each stated before you sign**: *you* may guarantee a company's loan for 1% off the rate — a missed instalment then lowers **your own** borrowing record by 4 (nothing is taken from you); a *parent* may guarantee a subsidiary's loan for 0.75% off — a missed instalment **calls the parent**, which pays it from its own cash if it can, and the subsidiary then owes the parent that sum as an **intercompany loan** at the group rate (recorded on both sides, eliminated in consolidation as any other). If the parent has no cash the instalment simply stays arrears. No other cross-default exists: the bank's claim never reaches another company.
+- **Nothing exists until a company borrows** (loans share `world.corp.lending` with yours, marked by `borrower`); loading an old save gives no company a loan, and with no company loan the new code changes nothing — the parity runs with and without it are identical.
+
+### Tests
+- New: `business_loans` (6): the pure limit and rate; funded companies only, nothing before a loan, refusals changing nothing; a loan is cash but never revenue, interest a cost and principal not, net assets unchanged by borrowing, accounts reconcile, and none of it is yours; arrears with nothing seized, the managers' freeze (hire, bid, expand — not materials), borrowing closed, the bank collecting as cash comes in; a personal guarantee; a parent guarantee making an intercompany loan and the consolidated bank debt. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Companies only borrow on their own books (no collateral or acquisition-specific lending rules), and the Lariat State Bank building is still a façade.
+
 ## [0.73.0] — 2026-10-30 — Lariat State Bank (development build)
 
 Stage 12, first part: loans for you, from Lariat State Bank, secured on the shares and bonds you hold.

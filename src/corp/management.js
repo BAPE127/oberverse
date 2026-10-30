@@ -21,6 +21,7 @@ export function judge(d) {
   if (d.kind === 'transfer' && !d.canTransfer) return no('They are not authorised to move cash between companies.');
   if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
+  if (d.frozen && (d.kind === 'hire' || d.kind === 'bid' || d.kind === 'expand')) return no('The company is behind on a bank loan: no hiring, bidding or expanding until it is cleared.');
   if (!(d.cost > 0)) return no('There is nothing to spend.');
   if (d.kind === 'hire' && d.hiresLeft <= 0) return no('The most hires a month has been made.');
   const cap = Math.max(0, Number(d.cap) || 0);

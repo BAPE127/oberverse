@@ -33,7 +33,8 @@ export class Lending {
   }
 
   owed() { return this.loans().reduce((a, l) => a + l.outstanding + l.arrears, 0); }
-  loans(all = false) { return (this.peek()?.loans || []).filter((l) => all || l.status !== 'repaid'); }
+  /** Your own loans (a company's are in `game.corp.business`). */
+  loans(all = false) { return (this.peek()?.loans || []).filter((l) => (!l.borrower || l.borrower === 'you') && (all || l.status !== 'repaid')); }
   inArrears() { return this.loans().some((l) => l.arrears > 0); }
 
   /** What your holdings secure (scaled by your record), what you owe, and what you may still borrow. */
@@ -73,7 +74,7 @@ export class Lending {
     const o = this.offer(amount, months);
     const s = this.ensure();
     const g = this.g;
-    const loan = { id: `ln_${s.nextId++}`, principal: amount, outstanding: amount, rate: o.rate, months, left: months, signed: this.day, due: this.day + 30, arrears: 0, missed: 0, paid: 0, interestPaid: 0, status: 'open' };
+    const loan = { id: `ln_${s.nextId++}`, borrower: 'you', principal: amount, outstanding: amount, rate: o.rate, months, left: months, signed: this.day, due: this.day + 30, arrears: 0, missed: 0, paid: 0, interestPaid: 0, status: 'open' };
     s.loans.push(loan);
     g.player.money += amount;
     g.bus.emit('money:changed', { delta: amount, total: g.player.money });
@@ -84,7 +85,7 @@ export class Lending {
   /** Repay early (to the arrears first, then the principal). */
   repay(id, amount) {
     const s = this.peek();
-    const l = s?.loans.find((x) => x.id === id && x.status !== 'repaid');
+    const l = this.loans().find((x) => x.id === id);
     if (!l) return { ok: false, text: 'No such loan.' };
     const g = this.g;
     amount = Math.min(Math.floor(Number(amount)), l.arrears + l.outstanding);
@@ -105,7 +106,7 @@ export class Lending {
     if (!s || s.lastDay >= this.day) return;
     s.lastDay = this.day;
     const g = this.g;
-    for (const l of s.loans) {
+    for (const l of this.loans()) {
       if (l.status === 'repaid') continue;
       let guard = 0;
       while (l.due <= this.day && l.status !== 'repaid' && guard++ < 48) {
