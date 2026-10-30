@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.76.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'What the Wars Cost',
+    notes: [
+      'The wars now reach your own businesses: parts for your arms works and materials and freight for your aerospace firm cost a little more while a war is on. Halvermouth\'s government bonds yield a little more too (new bonds pay more; ones you hold are worth less) — the central bank\'s own rate does not move. Managers notice: when costs are up and the month\'s materials budget is nearly used they ask you for a bigger one, and when costs are up sharply they hold back expansion to keep cash. Fixed: a tender posted before its buyer\'s country was embargoed could still be bid on.',
+    ],
+  },
+  {
     version: '0.75.0',
     date: '2026-10-30',
     channel: 'development',

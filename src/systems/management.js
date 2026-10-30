@@ -89,6 +89,33 @@ export class Management {
     return kind === 'hire' ? Boolean(x.authority.canHire) : kind === 'bid' ? Boolean(x.authority.canContract) : kind === 'transfer' ? Boolean(x.authority.canTransfer) : kind === 'expand' ? Boolean(x.authority.canExpand) : true;
   }
 
+  // ------------------------------------------------------------- the world's events (v0.76.0)
+  /** How much dearer what this business buys is, because of the wars and embargoes of the day (0 with none). */
+  pressure(target) { return this.K.geo.costFactor({ arms: 'arms', aerospace: 'aerospace', shipping: 'shipping', farming: 'agriculture' }[target]) - 1; }
+
+  /**
+   * A manager who buys materials at a business whose costs the wars have raised, and who has used most of the month's budget, asks the owner to
+   * raise it in proportion — a request, never an act: nothing changes until the owner approves, and the budget is a permission, not money.
+   */
+  askMoreBudget(target) {
+    const m = this.peek();
+    const cat = 'materials';
+    const cap = this.budgetOf(target, cat);
+    const pr = this.pressure(target);
+    if (!m || !cap || pr < MGMT.costNotice || this.spentIn(target, cat) < cap * MGMT.askUsed) return null;
+    const key = `budget|${target}`;
+    if (m.pending.some((q) => q.key === key) || (m.last.asked?.[target] ?? -99) > this.day - MGMT.askAfter) return null;
+    const who = this.deciders('reorder', target)[0];
+    if (!who || m.pending.length >= MGMT.maxPending) return null;
+    const inc = Math.max(100, Math.round((cap * pr) / 100) * 100);
+    (m.last.asked ||= {})[target] = this.day;
+    const q = { id: `req_${m.nextId++}`, key, kind: 'budget', employer: target, actor: who.id, cost: inc, day: this.day, cat, why: `What ${this.Pe.employerName(target)} buys costs ${(pr * 100).toFixed(1)}% more because of the wars and embargoes, and ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget (${cap.toLocaleString()}) is used. Raising it by ${inc.toLocaleString()} keeps the same orders going.` };
+    m.pending.push(q);
+    this.log({ type: 'queued', kind: 'budget', employer: target, actor: who.id, cost: inc, text: `${who.name} (${ROLES[who.role].name}) asks to raise the ${CATEGORIES[cat].name.toLowerCase()} budget at ${this.Pe.employerName(target)} by ${inc.toLocaleString()}. ${q.why}` });
+    this.g.notify?.(`${who.name} asks for a bigger ${CATEGORIES[cat].name.toLowerCase()} budget at ${this.Pe.employerName(target)}: costs are up.`, 'info');
+    return q;
+  }
+
   // ------------------------------------------------------------- judging
   hiresLeft(employer) {
     const h = this.peek()?.hires[employer];
@@ -100,6 +127,7 @@ export class Management {
       kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
       funded: this.K.established(target) && this.K.account(target).funded, frozen: this.K.business.inArrears(target), cost,
       spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove,
+      hold: kind === 'expand' && this.pressure(target) >= MGMT.costHold ? `Costs here are up ${(this.pressure(target) * 100).toFixed(1)}% because of the wars and embargoes: managers hold back expansion to keep cash.` : null,
       cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
     });
   }
@@ -410,7 +438,7 @@ export class Management {
   }
 
   /** The text of what was done or asked, by kind. */
-  verb(kind) { return { reorder: 'reorder', hire: 'hire', bid: 'bid', expand: 'expand', transfer: 'move cash' }[kind]; }
+  verb(kind) { return { reorder: 'reorder', hire: 'hire', bid: 'bid', expand: 'expand', transfer: 'move cash', budget: 'raise the budget' }[kind]; }
 
   /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
   decide(kind, target, x, { owner = false, item = undefined } = {}) {
@@ -473,6 +501,11 @@ export class Management {
     const q = m?.pending.find((r) => r.id === id);
     if (!q) return { ok: false, text: 'That request is gone.' };
     m.pending = m.pending.filter((r) => r !== q);
+    if (q.kind === 'budget') {
+      const r = this.setBudget(q.employer, q.cat, this.budgetOf(q.employer, q.cat) + q.cost);
+      if (r.ok) this.log({ type: 'approved', kind: 'budget', employer: q.employer, actor: q.actor, cost: q.cost, text: `You raised the ${CATEGORIES[q.cat].name.toLowerCase()} budget at ${this.Pe.employerName(q.employer)} by ${q.cost.toLocaleString()}.` });
+      return r;
+    }
     const x = this.Pe.person(q.actor);
     if (!x || x.status !== 'active' || !this.mayDecide(x, q.kind, q.employer)) { this.log({ type: 'failed', kind: q.kind, employer: q.employer, actor: q.actor, text: 'Request lapsed: the person no longer holds that job.' }); return { ok: false, text: 'They no longer hold that job.' }; }
     const r = this.decide(q.kind, q.employer, x, { owner: true, item: q.item || (q.kind === 'bid' || q.kind === 'expand' ? undefined : null) });
@@ -500,6 +533,7 @@ export class Management {
     for (const q of expired) this.log({ type: 'expired', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `A ${this.verb(q.kind)} request at ${this.Pe.employerName(q.employer)} lapsed unanswered after ${MGMT.expireDays} days.` });
     m.pending = m.pending.filter((q) => !expired.includes(q));
     this.placeStations(); // what a plan bought earlier goes in first
+    for (const target of BUSINESSES) if (this.K.established(target) && this.K.account(target).funded) this.askMoreBudget(target);
     for (const target of BUSINESSES) {
       if (!this.K.established(target) || !this.K.account(target).funded) continue;
       for (const kind of KINDS[target]) {

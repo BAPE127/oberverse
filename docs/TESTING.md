@@ -44,6 +44,7 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `geo_effects.test.mjs` | Geopolitics, second part (v0.76.0): the bond premium (basis points, bounded, ramps); your own part prices against the cost index; government bond yields and value with the policy rate untouched; managers' budget requests (one at a time, nothing changed until approved) and the expansion hold through the real judgement; an embargo that begins after a tender is posted. |
 | `geo.test.mjs` | Geopolitics (v0.75.0): phase/severity/indices/sentiment rules (bounds, ramp, recovery, exposure, capacity); records made once with stable ids and the market not started by them; milestones, ceasefire, lifting and reloads that never stack or lose a shock; costs and demand in the companies' days and the exchange's fair prices; the Economy overview. |
 | `business_loans.test.mjs` | Loans to companies (v0.74.0): limit and rate rules; funded companies only and refusals that change nothing; a loan is cash not revenue, interest a cost and principal not, net assets unchanged, accounts reconcile; arrears with nothing seized, managers' freeze, the bank collecting; personal and parent guarantees. |
 | `lending.test.mjs` | Loans (v0.73.0): the pure rules (advance rates, quarter-point rate, quote, a month's accounts); nothing before a first loan and refusals that change nothing; a loan from signing to its last instalment (fixed rate, repaid to the obol); arrears at the penalty rate with no seizure and borrowing closed until cleared; the sale lock on bonds, OBRO and the exchange route; record effects and the state round trip. |
@@ -83,6 +84,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.76.0 (2026-10-30)
+
+- `npm run check` — **823/823 tests passed** (6 new in `geo_effects`); every earlier test passes unedited. `npm run smoke` — 26/26.
+- **Parity** against v0.75.0 (`7b1e680`) with managers hired over 25 days: money, cash and staff lines identical; the managers' quotes and Meridian's price differ, as intended (costs now carry the wars).
+- Browser (headless Chromium): the Bonds app showing "Added by wars and embargoes +0.26%" on day 60; a manager's budget request in the Management app with its reason and the Approve/Decline buttons; no page errors.
 
 ## Verification record — v0.75.0 (2026-10-30)
 

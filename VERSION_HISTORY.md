@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.76.0 | 2026-10-30 | development | 1 | What the wars cost: the cost index reaches your own arms and aerospace purchases, a bounded war premium on Halvermouth's bond yields, managers asking for bigger budgets and holding back expansion under cost pressure, and a fix so nobody can bid on an embargoed buyer's older tender |
 | 0.75.0 | 2026-10-30 | development | 1 | The world's quarrels: the arms market's wars and embargoes kept as persistent events (id, status, severity, timeline) whose bounded, exposure-weighted effects reach the wider world's costs and demand and the listed companies' prices; an Economy app |
 | 0.74.0 | 2026-10-30 | development | 1 | Lending to your companies: a funded company borrows on its own books at a fixed rate, interest a cost and principal not, arrears freeze its managers' hiring/bids/expansion, optional personal or parent guarantees |
 | 0.73.0 | 2026-10-30 | development | 1 | Lariat State Bank: personal loans against your shares and bonds — fixed rate from the policy rate, monthly instalments, arrears at a penalty rate and nothing seized, pledged holdings that cannot be sold, a Loans app |

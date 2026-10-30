@@ -8,7 +8,7 @@
 // cannot repeat on a reload or be lost by one. Nothing is created until the market has begun to run.
 import { GEO as G } from '../content/geo.js';
 import { CORP } from '../content/corporate.js';
-import { severityOf, phaseOf, indices, sentimentOf } from '../corp/geo.js';
+import { severityOf, phaseOf, indices, sentimentOf, bondPremium } from '../corp/geo.js';
 
 export class Geo {
   constructor(corp) {
@@ -118,10 +118,17 @@ export class Geo {
       bank,
       yields: K.bonds.offers().map((o) => ({ years: o.years, yield: o.yield })),
       rate: K.bank.rate(),
+      premium: this.premium(),
       headlines: (this.g.world.market?.news || []).slice(0, 8),
       log: (this.peek()?.log || []).slice(-8).reverse(),
     };
   }
+
+  /** What the wars and embargoes add to the yield of Halvermouth's government bonds today (a rate, to the basis point; 0 with no events). */
+  premium(day = this.day) { return this.events().length ? bondPremium(this.events(), day, G) : 0; }
+
+  /** What wars and embargoes do to the price of what a sector buys today: 1 with no events, at most 1.12 (v0.76.0: your own purchases carry it). */
+  costFactor(sector, day = this.day) { return this.events().length ? (indices(this.events(), day, this.ctx(), G).cost[sector] ?? 1) : 1; }
 
   /** The expected-earnings change the market prices into a company's fair price today (a fraction; 0 with no events). */
   sentiment(company, day = this.day) { return this.events().length ? sentimentOf(this.events(), company, day, this.ctx(), G) : 0; }

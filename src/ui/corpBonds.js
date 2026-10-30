@@ -13,7 +13,7 @@ export function bondsApp(ui, body, open) {
   const P = B.portfolio();
   body.append(
     h('p', { class: 'doc' }, '📜 Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. Its coupon is the policy rate plus a premium for the term, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'),
-    h('div', { class: 'grid2' }, stat('Your obols', n(g.player.money)), stat('Policy rate', pc(B.rate())), stat('Bonds held, at today\'s yield', n(P.value)), stat('Coupons received', n(P.earned))));
+    h('div', { class: 'grid2' }, stat('Your obols', n(g.player.money)), stat('Policy rate', pc(B.rate())), ...(g.corp.geo.premium() > 0 ? [stat('Added by wars and embargoes', `+${pc(g.corp.geo.premium())}`)] : []), stat('Bonds held, at today\'s yield', n(P.value)), stat('Coupons received', n(P.earned))));
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'On offer today'));
   body.append(h('div', { class: 'list' }, ...B.offers().map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
     h('div', { class: 'name' }, `${o.years}-year bond`, h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), h('span', { class: 'tag' }, `${n((100000 * o.coupon) / 12)} a month on 100,000`)),

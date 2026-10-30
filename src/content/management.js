@@ -48,4 +48,9 @@ export const MGMT = {
   plotGap: 8, // tiles between two plots (a lane's width) that still count as next to each other
   hireBand: 30, // days of wage counted with the fee against a hire's limits and the budget
   spentMonths: 3,
+  // v0.76.0: how managers answer a war's effect on what they buy (the cost index of the business's sector above 1)
+  costNotice: 0.01, // up this much: a manager whose materials budget is 70% used asks the owner to raise it, in proportion
+  costHold: 0.02, // up this much: managers hold back expansion to keep cash (reorders and hires go on)
+  askAfter: 15, // days between one such request and the next at a business
+  askUsed: 0.7, // of the materials budget already used before they ask
 };

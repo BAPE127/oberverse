@@ -474,7 +474,7 @@ export class Arms extends Factory {
   // ------------------------------------------------------------ ordering
   partPrice(itemId) {
     const it = this.game.content.items[itemId];
-    return Math.max(1, Math.round(it.price * (it.category === 'arms_part' ? this.partsMult() : 1)));
+    return Math.max(1, Math.round(it.price * (it.category === 'arms_part' ? this.partsMult() * (this.game.corp?.geo.costFactor('arms') ?? 1) : 1))); // v0.76.0: the wars' effect on what parts cost
   }
 
   /** Order parts or equipment from the terminal; delivered to the loading dock in an hour. */

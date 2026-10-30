@@ -168,7 +168,7 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 
 ## Wars, embargoes and geopolitics (v0.75.0)
 
-`src/content/geo.js` (every figure), `src/corp/geo.js` (pure), `src/systems/geo.js` (`game.corp.geo`), `src/ui/corpEconomy.js`. Owner's answer: **layer on top of** the arms market's wars and embargoes (it decides their start and end; the layer records them as persistent events and spreads their consequences). Effects: sector cost and demand indices into the wider world's days (`ctx.cost`, `poolExtra.demand`), an embargo's lost arms income, and an exposure-weighted bounded sentiment on every listed fair price. Bonds, managers and foreign government bonds are the next parts of stage 13.
+`src/content/geo.js` (every figure), `src/corp/geo.js` (pure), `src/systems/geo.js` (`game.corp.geo`), `src/ui/corpEconomy.js`. Owner's answer: **layer on top of** the arms market's wars and embargoes (it decides their start and end; the layer records them as persistent events and spreads their consequences). Effects: sector cost and demand indices into the wider world's days (`ctx.cost`, `poolExtra.demand`), an embargo's lost arms income, and an exposure-weighted bounded sentiment on every listed fair price. Since v0.76.0 the cost index also prices your own arms parts and aerospace materials/freight, a bounded war premium rides on Halvermouth's bond yields (the policy rate is untouched), and managers answer with budget requests and an expansion hold. Foreign government bonds are the last part of stage 13.
 
 ## Rules every later stage keeps
 

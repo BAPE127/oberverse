@@ -19,6 +19,8 @@ export class Bonds {
   peek() { return this.K.state.bonds || null; }
   ensure() { return (this.K.state.bonds ||= { v: 1, lots: [], nextId: 1, log: [], earned: 0, lastDay: 0 }); }
   rate() { return this.K.bank.rate(); }
+  /** What yields are built on: the policy rate and what the wars of the day add (v0.76.0). */
+  base() { return this.rate() + this.K.geo.premium(); }
 
   note(text) {
     const s = this.ensure();
@@ -28,7 +30,7 @@ export class Bonds {
 
   /** What is on offer today: each term's yield and coupon, and how much more of it you may hold. */
   offers() {
-    const r = this.rate();
+    const r = this.base();
     return TERMS.map((years) => ({ years, yield: yieldFor(r, years), coupon: couponAt(r, years), room: BONDS.maxFacePerTerm - this.faceHeld(years) }));
   }
 
@@ -37,7 +39,7 @@ export class Bonds {
 
   /** A lot as the screens show it. */
   view(l) {
-    const value = valueOf(l, this.day, this.rate());
+    const value = valueOf(l, this.day, this.base());
     return { ...l, value, sale: Math.round(value * (1 - BONDS.spread)), daysLeft: l.end - this.day, perMonth: Math.round((l.face * l.coupon) / 12) };
   }
 
@@ -46,7 +48,7 @@ export class Bonds {
     return { rows, face: rows.reduce((a, r) => a + r.face, 0), value: rows.reduce((a, r) => a + r.value, 0), paid: rows.reduce((a, r) => a + r.cost, 0), earned: this.peek()?.earned || 0 };
   }
 
-  holdingsValue() { return this.lots().reduce((a, l) => a + valueOf(l, this.day, this.rate()), 0); }
+  holdingsValue() { return this.lots().reduce((a, l) => a + valueOf(l, this.day, this.base()), 0); }
 
   buy(years, face) {
     face = Math.floor(Number(face));
@@ -57,7 +59,7 @@ export class Bonds {
     const g = this.g;
     if (g.player.money < face) return { ok: false, text: 'You cannot afford that.' };
     const s = this.ensure();
-    const coupon = couponAt(this.rate(), years);
+    const coupon = couponAt(this.base(), years);
     g.player.money -= face;
     const lot = { id: `bond_${s.nextId++}`, years, face, coupon, issued: this.day, due: this.day + MONTH, end: this.day + years * YEAR, cost: face, coupons: 0 };
     s.lots.push(lot);

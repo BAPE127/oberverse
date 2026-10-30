@@ -29,8 +29,8 @@ export function manageApp(ui, body, open) {
   else body.append(h('div', { class: 'list' }, ...pending.map((q) => {
     const x = K.personnel.person(q.actor);
     return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${x?.name || 'Someone'} asks to ${q.kind === 'hire' ? 'hire' : 'reorder'} at ${name(q.employer)}`, h('span', { class: 'tag' }, `${n(q.cost)} obols when asked`), h('span', { class: 'tag' }, `${MGMT.expireDays - (g.clock.day - q.day)} days left`)),
-      h('div', { class: 'desc' }, `${q.why} Approving judges it again on today's figures: a changed need, price, budget or person can still stop it.`),
+      h('div', { class: 'name' }, `${x?.name || 'Someone'} asks to ${q.kind === 'budget' ? 'raise the materials budget' : q.kind === 'hire' ? 'hire' : 'reorder'} at ${name(q.employer)}`, h('span', { class: 'tag' }, q.kind === 'budget' ? `+${n(q.cost)} a month` : `${n(q.cost)} obols when asked`), h('span', { class: 'tag' }, `${MGMT.expireDays - (g.clock.day - q.day)} days left`)),
+      h('div', { class: 'desc' }, q.kind === 'budget' ? `${q.why} Approving raises the monthly permission only; it is not money and nothing is spent by it.` : `${q.why} Approving judges it again on today's figures: a changed need, price, budget or person can still stop it.`),
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small primary', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'small ghost', onclick: () => go(M.decline(q.id)) }, 'Decline'))));
   })));
 

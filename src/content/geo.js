@@ -17,6 +17,8 @@ export const GEO = {
     oil: { countries: ['teshvar'], demand: 0.2 }, // a war with an oil state in it moves energy prices (revenue) much more
     partyHit: 0.2, // a company from a country at war: its expected profit falls by this × severity × phase (before the market's weight)
   },
+  /** What wars and embargoes add to Halvermouth's government bond yields: uncertainty and defence borrowing, at severity 1 (bounded). */
+  bond: { war: 0.004, embargo: 0.0005, max: 0.01 },
   /** An arms embargo shuts a market: the lawful arms trade loses the target's share of the world's arms income (× this), at severity 1. */
   embargo: { armsShare: 0.8, partyHit: 0.4 }, // a company from the embargoed country loses this × severity × phase of its profit expectation
   /** How severe: the countries' combined income, over this, within these limits. */

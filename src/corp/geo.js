@@ -56,6 +56,13 @@ export function indices(events, day, ctx, G) {
   return out;
 }
 
+/** What the live events add to the yield of Halvermouth's bonds (a rate; 0 with none), bounded, to the basis point. */
+export function bondPremium(events, day, G) {
+  let p = 0;
+  for (const e of live(events, day, G)) p += (e.kind === 'war' ? G.bond.war : G.bond.embargo) * e.severity * phaseOf(e, day, G);
+  return Math.round(clamp(p, 0, G.bond.max) / 0.0001) * 0.0001;
+}
+
 /** A company's own exposure: a stable hash of its id, so two companies of one sector are not hit alike. */
 export const exposureOf = (id, salt, G) => G.expo[0] + hashUnit(`${salt}|${id}|geo`) * (G.expo[1] - G.expo[0]);
 

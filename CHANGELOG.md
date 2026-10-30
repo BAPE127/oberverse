@@ -2,6 +2,28 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.76.0] — 2026-10-30 — What the Wars Cost (development build)
+
+Stage 13, second part: the wars reach your own purchases and the government bond market, and managers answer them.
+
+### Added
+- **Your arms works' parts and your aerospace firm's materials and freight cost what the wars make them cost** (`game.corp.geo.costFactor(sector)`, the same bounded index the wider world pays: arms +2%, aerospace +3%, shipping +8% at full severity; up to +12% in all). It is a pure function of the events and the day, so it is exactly 1 with none and no price is "changed once".
+- **A war and embargo premium on Halvermouth's government bond yields** (`src/corp/geo.js › bondPremium`): +0.4% at full severity per war and +0.05% per embargo, ramping in over ten days, bounded at +1%, to the basis point. New bonds are issued at the policy rate + the term premium + this, a bond already held loses value when it rises (its own coupon stays as bought) and gains when it fades. **The policy rate is the central bank's alone and is not touched.** The Bonds and Economy apps show the premium when there is one.
+- **Managers answer cost pressure with legitimate decisions** (`src/systems/management.js`). When what a business buys is dearer by 1% or more and a manager who buys its materials has used 70% of the month's materials budget, **they ask you to raise that budget** in proportion (a request in the *Waiting for you* list with the reason, at most one at a time and one in fifteen days; it changes nothing until you approve, and approving raises the permission, not money). When costs are 2% or more up, **managers hold back expansion** to keep cash, with that reason in the log (reorders, hires and treasury moves go on).
+- **The Economy app** shows the premium.
+
+### Fixed
+- **A manager (or you) could bid on a tender whose buyer's country was embargoed *after* the tender was posted**: a tender stored the embargo flag it had when posted. Bidding now looks at the embargo as it stands (`liveTender`); a manager plans no bid for such a buyer, and `placeBid` refuses it. (A bid placed *before* the embargo is a bid already made, and is not recalled.)
+
+### Changed
+- Parity against v0.75.0: your money, cash and staff are the same line for line; what differs is what the wars now change — the managers' reorder quotes (about 4% dearer on day 16 of the run) and Meridian's share price. No earlier test was edited.
+
+### Tests
+- New: `geo_effects` (6): the pure premium (basis points, bounded, wars over embargoes, ramps in); your own part prices against the index, exactly 1 with none; bond coupons, yields and the value of a bond held, the policy rate unchanged; a manager's request, one at a time, nothing changed until approval, declining changing nothing, and the expansion hold through the real judgement; the pure hold rule; and the embargo-after-posting case end to end. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Foreign government bonds, the other half of the owner's bond answer, are the next release.
+
 ## [0.75.0] — 2026-10-30 — The World's Quarrels (development build)
 
 Stage 13, first part: wars and embargoes as persistent events with real economic effects, and an Economy app.

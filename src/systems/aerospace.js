@@ -766,6 +766,9 @@ export class Aerospace {
   }
 
   /** Everything the company needs to see about bidding (error, an estimate), without bidding. */
+  /** A tender as the bidder must treat it today: one posted before its buyer's country was embargoed is embargoed now (v0.76.0). */
+  liveTender(t) { return t.embargoed || !this.embargoed(t.customer) ? t : { ...t, embargoed: true }; }
+
   bidQuote(companyId, tenderId, unitPrice = null, days = null) {
     const C = this.cfg;
     const co = this.company(companyId);
@@ -777,7 +780,7 @@ export class Aerospace {
     const delivery = this.deliveryEstimate(co, p, t.qty);
     const price = unitPrice ?? Math.min(t.ceiling, Math.round(((est.total + launch) * 1.25) / 100) * 100);
     const d = days ?? (Number.isFinite(delivery) ? Math.min(t.days, delivery) : t.days);
-    const err = bidError(C, t, { unitPrice: price, days: d }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p), missing: missingTech(this.cfg, co, p).map((id) => this.cfg.research[id].name) });
+    const err = bidError(C, this.liveTender(t), { unitPrice: price, days: d }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p), missing: missingTech(this.cfg, co, p).map((id) => this.cfg.research[id].name) });
     return { ok: !err, reason: err, unitPrice: price, days: d, delivery, cost: est.total + launch, est, launch, profit: (price - est.total - launch) * t.qty, value: price * t.qty, deposit: Math.round(price * t.qty * t.deposit) };
   }
 
@@ -790,7 +793,7 @@ export class Aerospace {
     if (!t) return { ok: false, text: 'No such tender.' };
     if (t.bids.some((b) => b.company === co.id)) return { ok: false, text: 'You\'ve already bid on this tender (bids are sealed and final).' };
     const p = this.pOf(t);
-    const err = bidError(C, t, { unitPrice, days }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p), missing: missingTech(this.cfg, co, p).map((id) => this.cfg.research[id].name) });
+    const err = bidError(C, this.liveTender(t), { unitPrice, days }, { quality: this.qualityOf(co), reputation: co.reputation, cleared: this.cleared(co), canBuild: this.canBuild(co, p), missing: missingTech(this.cfg, co, p).map((id) => this.cfg.research[id].name) });
     if (err) return { ok: false, text: `Can't bid: ${err}.` };
     t.bids.push({ company: co.id, unitPrice: Math.round(unitPrice), days: Math.round(days), at: this.now, valid: true });
     co.stats.tendersBid += 1;
@@ -943,7 +946,8 @@ export class Aerospace {
     const C = this.cfg;
     const F = C.freight;
     const sp = C.suppliers[supplierId];
-    const unit = this.supplierPrice(co, supplierId, m);
+    const gf = this.game.corp?.geo.costFactor('aerospace') ?? 1; // v0.76.0: what the wars do to the price of materials…
+    const unit = gf === 1 ? this.supplierPrice(co, supplierId, m) : Math.round(this.supplierPrice(co, supplierId, m) * gf);
     const goods = unit * qty;
     const volume = qty * (C.materials[m].volume || 1);
     const lead = sp.lead * DAY;
@@ -954,7 +958,8 @@ export class Aerospace {
     const r = L.route(sp.where, F.receivingPort);
     const km = r?.km ?? 8000;
     const sea = L.sailHours(km, F.knots);
-    const freight = Math.max(F.minimum, Math.round(goods * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)));
+    const sf = this.game.corp?.geo.costFactor('shipping') ?? 1; // …and of freight
+    const freight = Math.max(F.minimum, Math.round((goods * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf));
     const country = L.port(sp.where)?.country;
     const duty = country ? Math.round(goods * F.duty) : 0;
     const hours = lead / 60 + sea + F.truckHours + 2;
