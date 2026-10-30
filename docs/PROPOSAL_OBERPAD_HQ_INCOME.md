@@ -1,6 +1,6 @@
 # Proposal: supply ordering, early-game income, the OberPad and a headquarters
 
-Status: **proposal, nothing built yet** (apart from the Morganius fix, which shipped as v0.80.1). Mockups are in `docs/mockups/proposal-*.png`; every figure below was read from the running game, not estimated. Mockup screens use sample values where a screen needs a number the game does not have yet; they say so.
+Status: **proposal with the owner's first answers recorded below; nothing built yet** (apart from the Morganius fix, which shipped as v0.80.1). Mockups are in `docs/mockups/proposal-*.png`; every figure below was read from the running game, not estimated. Mockup screens use sample values where a screen needs a number the game does not have yet; they say so.
 
 ## 1. Aerospace → Supply
 
@@ -91,3 +91,10 @@ Home itself is 188 words and 25 controls, and it lists 19 apps in six groups.
 3. OberPad shell and the Bank group, then the other groups.
 4. HQ: buildings and purchase → officers at work → furniture.
 Each is its own release with tests, parity, mockups and a report like the last ones.
+
+## 7. Decisions so far (owner's answers, 2026-10-30)
+- **Early-income pace: fast** — first works by day 3, a second company by day 15 (parent company around day 30).
+- **HQ officers**: given flats in existing houses and scheduled (no new buildings, so the streets do not move).
+- **HQ site**: three separate plots, one per tier; you can own more than one.
+- **The "500" rule**: the answer was "500 dollar price". My reading, to be confirmed before building: *when you have a ship available, the delivery of an order costs at most 500 obols* (what the order pays your own shipping company for freight and handling), while a carrier is charged at its own rate. Today your own ship's charge is 2.5%–5% of the carrier freight (about 520 obols for 120 lots of Aluminium alloy from Kingsfjord), so the cap would bind only on large orders. If you meant something else (a cap on the price of the goods, or on the order size), say so and I change the design before any code.
+- **Still open**: approval of the mockups (OberPad home, app pattern, Supply, HQ tiers, HQ interior), and the exact prices and perks of the three HQ tiers.
