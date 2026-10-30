@@ -15574,7 +15574,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.76.0';
+const GAME_VERSION = '0.77.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -42260,7 +42260,7 @@ const CORP = { AA: 0.7, A: 0.7, BBB: 0.6, BB: 0.4, B: 0.4, CCC: 0.2 };
 /** item: { kind: 'share' | 'govBond' | 'corpBond', value, rating? } */
 function advance(item) {
   if (item.kind === 'govBond') return 0.9;
-  if (item.kind === 'corpBond') return CORP[item.rating] ?? 0;
+  if (item.kind === 'corpBond' || item.kind === 'sovBond') return CORP[item.rating] ?? 0;
   return 0.5;
 }
 
@@ -42346,6 +42346,7 @@ class Lending {
     for (const r of this.K.exchange.board()) if (r.held > 0 && r.value > 0 && (r.status ?? 'listed') === 'listed') out.push({ kind: 'share', name: `${r.ticker} · ${r.name}`, value: r.value });
     for (const r of this.K.bonds.portfolio().rows) out.push({ kind: 'govBond', name: `${r.years}-year government bond`, value: r.value });
     for (const r of this.K.credit.portfolio().rows) if (r.issueStatus === 'open') out.push({ kind: 'corpBond', name: `${r.ticker} bond`, value: r.value, rating: r.rating });
+    for (const r of this.K.sovereign.portfolio().rows) if (r.issueStatus === 'open' && r.value > 0) out.push({ kind: 'sovBond', name: `${r.name} bond`, value: r.value, rating: r.rating });
     return out.map((i) => ({ ...i, advance: advance(i), secures: Math.round(i.value * advance(i)) }));
   }
 
@@ -42664,7 +42665,25 @@ const GEO = {
   severity: { warIncome: 60000, embargoIncome: 50000, min: 0.25, max: 1, embargoMin: 0.2, embargoMax: 0.8 },
 };
 
-return { GEO };
+/**
+ * Foreign government bonds (v0.77.0): the eight countries each issue a three-year bond. A country's *strain* comes from what it owes (a fixed
+ * trait of the country), its wars, an embargo on it, and how far its treasury has fallen below what it started with; the rating follows the strain.
+ * Nothing is random: a country goes into distress only if its strain stays at the top for weeks.
+ */
+const SOVEREIGN = {
+  years: 3, minFace: 1000, step: 100, maxShare: 0.05, spread: 0.015, reissueDays: 90, logKept: 40,
+  issuePerIncome: 500, // an issue is this many days of the country's income, to the nearest million (at least a million)
+  base: 0.15, debtWeight: 0.35, // strain: a floor of 0.15, plus up to this × the country's debt trait
+  war: 0.25, warCap: 0.35, // plus this × the severity and phase of each war it is in (capped)
+  embargo: 0.3, embargoCap: 0.3, // plus this × an embargo on it
+  treasury: 0.3, // plus up to this for a treasury that has fallen below its starting level
+  bands: [0.2, 0.3, 0.42, 0.55, 0.7], // strain below each is AA, A, BBB, BB, B; at or above the last, CCC
+  distress: 0.85, // a strain at or above this counts a day towards distress
+  delayAfter: 10, restructureAfter: 40, // days in a row: coupons are delayed, then the debt is restructured
+  recovery: [0.35, 0.6], // lenders get back this share of the face when it is restructured (the worse the strain, the less)
+};
+
+return { GEO, SOVEREIGN };
 })();
 
 // ---- src/corp/geo.js
@@ -42885,6 +42904,8 @@ class Geo {
       yields: K.bonds.offers().map((o) => ({ years: o.years, yield: o.yield })),
       rate: K.bank.rate(),
       premium: this.premium(),
+      sovereign: K.sovereign.offers().map((o) => ({ country: o.country, name: o.name, rating: o.rating, status: o.status, yield: o.yield, strain: o.strain })),
+      bondNews: (K.state.sovereign?.log || []).slice(-6).reverse(),
       headlines: (this.g.world.market?.news || []).slice(0, 8),
       log: (this.peek()?.log || []).slice(-8).reverse(),
     };
@@ -42901,6 +42922,250 @@ class Geo {
 }
 
 return { Geo };
+})();
+
+// ---- src/corp/sovereign.js
+__m["src/corp/sovereign.js"] = (function () {
+// Foreign government bonds (v0.77.0). Pure functions — no game state, no DOM, no RNG.
+//
+//   debtTrait(id, income, hash)    how heavily a country is in debt: a fixed trait
+//   strainOf(...)                  how strained its finances are today, from the trait, its wars, an embargo and its treasury
+//   ratingOf(strain, S)            the rating that strain means
+//   distressStep(days, strain, S)  the days-in-distress counter and what state it puts the debt in: normal, delayed, restructure
+//   recoveryOf(strain, S)          what lenders get back of the face when it is restructured
+//   issueFace(income, S)           how big a country's issue is
+//
+// No country is given a chance of defaulting. Its rating moves with its strain, its bond's price moves with the rating, delayed payments
+// begin only after ten days of the worst strain in a row and a restructuring only after forty.
+const { RATINGS } = __m["src/corp/credit.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** 0..0.8: a fixed trait of the country — some hash of its name, less for a rich one. hash: a number 0..1 from the country's id. */
+const debtTrait = (hash, income, richest = 48000) => clamp(0.2 + 0.5 * hash - 0.3 * (income / richest), 0, 0.8);
+
+/** war, embargo: the sum of severity × phase of the events the country is in. treasury: its budget over the budget it started with. */
+function strainOf({ trait, war, embargo, treasury }, S) {
+  const t = S.base + S.debtWeight * trait + Math.min(S.warCap, S.war * war) + Math.min(S.embargoCap, S.embargo * embargo) + S.treasury * clamp(1 - treasury, 0, 1);
+  return Math.round(t * 1000) / 1000;
+}
+
+const ratingOf = (strain, S) => RATINGS[S.bands.findIndex((b) => strain < b) === -1 ? RATINGS.length - 1 : S.bands.findIndex((b) => strain < b)];
+
+/** One day: strain at the distress line counts a day; below it, the count falls by two. */
+function distressStep(days, strain, S) {
+  const d = strain >= S.distress ? days + 1 : Math.max(0, days - 2);
+  return { days: d, state: d >= S.restructureAfter ? 'restructure' : d >= S.delayAfter ? 'delayed' : 'normal' };
+}
+
+const recoveryOf = (strain, S) => Math.round(clamp(S.recovery[1] - (strain - S.distress) * 1.5, S.recovery[0], S.recovery[1]) * 100) / 100;
+
+const issueFace = (income, S) => Math.max(1000000, Math.round((income * S.issuePerIncome) / 1000000) * 1000000);
+
+return { debtTrait, strainOf, ratingOf, distressStep, recoveryOf, issueFace };
+})();
+
+// ---- src/systems/sovereign.js
+__m["src/systems/sovereign.js"] = (function () {
+// Foreign government bonds (v0.77.0): game.corp.sovereign — a three-year bond from each of the eight countries.
+//
+// A country's rating comes from its own finances and its quarrels (see src/corp/sovereign.js): the more it owes, the more war it is in and
+// the worse an embargo on it, the lower its treasury has fallen, the worse the rating, and the price of its bonds follows the rating. Coupons come
+// every thirty days and the face at the end, as for every bond here. A country goes into distress only if its strain stays at the top for
+// ten days (its coupons are then delayed — owed, not paid) and forty (the debt is restructured: lenders get a part of the face, once, and the
+// issue ends); nothing about it is random, and a country that recovers pays what it delayed. The arms market's own wars, embargoes and treasuries
+// are read as they stand; nothing here changes them. Nothing is made until the arms market is running.
+const { SOVEREIGN: S } = __m["src/content/geo.js"];
+const { MONTH, YEAR, yieldFor, valueOf } = __m["src/corp/bonds.js"];
+const { spreadOf } = __m["src/corp/credit.js"];
+const { debtTrait, strainOf, ratingOf, distressStep, recoveryOf, issueFace } = __m["src/corp/sovereign.js"];
+const { hashUnit } = __m["src/aero/config.js"];
+
+const money = (n) => Math.round(n).toLocaleString();
+
+class Sovereign {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.K.state.sovereign || null; }
+  ensure() { return (this.K.state.sovereign ||= { v: 1, issues: {}, lots: [], nextId: 1, nextIssue: 1, log: [], earned: 0, lastDay: 0 }); }
+  policy() { return this.K.bank.rate(); }
+  cfg(id) { return this.g.content.arms.countries[id]; }
+  note(text) { const s = this.ensure(); s.log.push({ day: this.day, text }); while (s.log.length > S.logKept) s.log.shift(); }
+
+  // ------------------------------------------------------------- a country's finances
+  /** The causes of a country's strain, today: what an owner of its bond can read (nothing hidden, nothing about tomorrow). */
+  causes(id) {
+    const def = this.cfg(id);
+    const m = this.g.world.market?.countries?.[id];
+    const geo = this.K.geo;
+    let war = 0; let embargo = 0;
+    for (const e of geo.events()) {
+      const p = geo.phase(e) * e.severity;
+      if (e.kind === 'war' && e.parties.includes(id)) war += p;
+      if (e.kind === 'embargo' && e.target === id) embargo += p;
+    }
+    const incomes = Object.keys(this.g.content.arms.countries).map((c) => this.cfg(c).income);
+    const trait = debtTrait(hashUnit(`sov|${id}`), def.income, Math.max(...incomes));
+    const treasury = m ? m.budget / def.budget : 1;
+    return { trait, war, embargo, treasury };
+  }
+
+  strain(id) { return strainOf(this.causes(id), S); }
+
+  // ------------------------------------------------------------- the issues
+  view(i) {
+    const lot = { face: 100, coupon: i.coupon, due: this.nextDue(i), end: i.end };
+    const spread = spreadOf(i.rating);
+    const price = i.status === 'open' ? valueOf(lot, this.day, this.policy(), spread) : Math.min(valueOf(lot, this.day, this.policy(), spread), i.recoveryNow * 100);
+    const held = this.lots().filter((l) => l.issue === i.id).reduce((a, l) => a + l.face, 0);
+    return { ...i, price, yield: yieldFor(this.policy(), Math.max(0, (i.end - this.day) / YEAR)) + spread, held, room: Math.max(0, Math.floor(i.face * S.maxShare) - held), causes: this.causes(i.country) };
+  }
+
+  nextDue(i) { return i.issued + Math.ceil((this.day - i.issued + 1) / MONTH) * MONTH; }
+  issues() { return Object.values(this.peek()?.issues || {}); }
+  /** What you can buy now: open or delayed issues, by country name. */
+  offers() { return this.issues().filter((i) => (i.status === 'open' || i.status === 'delayed') && i.end > this.day).map((i) => this.view(i)).sort((a, b) => a.name < b.name ? -1 : 1); }
+  lots() { return this.peek()?.lots || []; }
+
+  lotView(l) {
+    const i = this.peek().issues[l.issue];
+    const v = this.view(i);
+    const value = l.status === 'open' ? Math.min(valueOf(l, this.day, this.policy(), spreadOf(i.rating)), i.status === 'delayed' ? i.recoveryNow * l.face : Infinity) + (l.owed || 0) * (i.status === 'delayed' ? i.recoveryNow : 1) : 0;
+    return { ...l, rating: i.rating, name: i.name, country: i.country, issueStatus: i.status, value, sale: Math.round(value * (1 - S.spread)), daysLeft: l.end - this.day, perMonth: Math.round((l.face * l.coupon) / 12), owed: l.owed || 0, causes: v.causes };
+  }
+
+  portfolio() {
+    const rows = this.lots().map((l) => this.lotView(l));
+    return { rows, face: rows.reduce((a, r) => a + r.face, 0), value: rows.reduce((a, r) => a + r.value, 0), earned: this.peek()?.earned || 0 };
+  }
+  holdingsValue() { return this.lots().reduce((a, l) => a + this.lotView(l).value, 0); }
+
+  // ------------------------------------------------------------- trading
+  buy(country, face) {
+    face = Math.floor(Number(face));
+    const i = this.peek()?.issues[country];
+    if (!i || (i.status !== 'open' && i.status !== 'delayed')) return { ok: false, text: 'That country has no bond on offer.' };
+    if (i.status === 'delayed') return { ok: false, text: `${i.name} has delayed its payments: no new bonds are sold.` };
+    if (!(face >= S.minFace) || face % S.step) return { ok: false, text: `A bond is for at least ${money(S.minFace)} obols, in hundreds.` };
+    const v = this.view(i);
+    if (face > v.room) return { ok: false, text: v.room > 0 ? `One investor may hold at most a twentieth of an issue: you can buy ${money(v.room)} more of ${i.name}'s.` : `You hold as much of ${i.name}'s bond as one investor may.` };
+    const g = this.g;
+    const cost = Math.round((face * v.price) / 100);
+    if (g.player.money < cost) return { ok: false, text: 'You cannot afford that.' };
+    g.player.money -= cost;
+    const s = this.ensure();
+    const lot = { id: `sb_${s.nextId++}`, issue: i.id, face, coupon: i.coupon, bought: this.day, due: this.nextDue(i), end: i.end, cost, coupons: 0, owed: 0, status: 'open' };
+    s.lots.push(lot);
+    g.bus.emit('money:changed', { delta: -cost, total: g.player.money });
+    this.note(`Bought ${money(face)} of ${i.name}'s bond (${i.rating}) for ${money(cost)}.`);
+    return { ok: true, lot, text: `Bought ${money(face)} obols of ${i.name}'s ${S.years}-year bond (${i.rating}) at ${v.price.toFixed(1)} per 100: ${(i.coupon * 100).toFixed(2)}% a year.` };
+  }
+
+  sell(id) {
+    const s = this.peek();
+    const l = s?.lots.find((x) => x.id === id);
+    if (!l) return { ok: false, text: 'You do not hold that bond.' };
+    const v = this.lotView(l);
+    if (v.issueStatus === 'restructured') return { ok: false, text: 'That bond can no longer be sold.' };
+    const g = this.g;
+    const lock = g.corp.lending.checkRelease({ kind: 'sovBond', value: v.value, rating: v.rating });
+    if (!lock.ok) return lock;
+    s.lots = s.lots.filter((x) => x !== l);
+    g.player.money += v.sale;
+    g.bus.emit('money:changed', { delta: v.sale, total: g.player.money });
+    this.note(`Sold ${money(l.face)} of ${v.name}'s bond for ${money(v.sale)} (worth ${money(v.value)} at its ${v.rating} rating, less a ${S.spread * 100}% spread; paid ${money(l.cost)}).`);
+    return { ok: true, text: `Sold for ${money(v.sale)} obols (${v.sale >= l.cost ? 'a gain' : 'a loss'} of ${money(Math.abs(v.sale - l.cost))} on what you paid, not counting coupons).` };
+  }
+
+  // ------------------------------------------------------------- each day
+  dailyTick() {
+    if (!this.g.world.market?.countries) return; // the arms market has not started: there is no world to lend to
+    const s = this.ensure();
+    if (s.lastDay >= this.day) return;
+    s.lastDay = this.day;
+    const g = this.g;
+    const policy = this.policy();
+    for (const id of Object.keys(g.content.arms.countries)) {
+      const def = this.cfg(id);
+      const strain = this.strain(id);
+      const rating = ratingOf(strain, S);
+      let i = s.issues[id];
+      if (!i || i.status === 'matured' || i.status === 'restructured') {
+        if (i && this.day < i.closedDay + S.reissueDays) continue;
+        if (i?.status === 'restructured' && strain >= S.distress) continue; // no new issue while it is still at the top of the strain
+        const coupon = Math.round((yieldFor(policy, S.years) + spreadOf(rating)) / 0.0025) * 0.0025;
+        i = s.issues[id] = { id, country: id, name: def.name, face: issueFace(def.income, S), years: S.years, coupon, rating, strain, issued: this.day, end: this.day + S.years * YEAR, status: 'open', distressDays: 0, serial: s.nextIssue++, recoveryNow: 1 };
+        this.note(`${def.name} issued a ${S.years}-year bond (${rating}).`);
+        continue;
+      }
+      // the rating follows the strain; a change is recorded, and told if you hold the bond
+      i.strain = strain;
+      if (rating !== i.rating) {
+        const worse = ['AA', 'A', 'BBB', 'BB', 'B', 'CCC'].indexOf(rating) > ['AA', 'A', 'BBB', 'BB', 'B', 'CCC'].indexOf(i.rating);
+        this.note(`${def.name} ${worse ? 'downgraded' : 'upgraded'} from ${i.rating} to ${rating}.`);
+        if (s.lots.some((l) => l.issue === id)) g.tablet.post('stocks', `${def.name}'s bond was ${worse ? 'downgraded' : 'upgraded'} to ${rating}.`, worse ? 'warn' : 'good');
+        i.rating = rating;
+      }
+      // distress: counted in days at the top of the strain; the state follows the count
+      const st = distressStep(i.distressDays, strain, S);
+      i.distressDays = st.days;
+      i.recoveryNow = recoveryOf(strain, S);
+      if (st.state === 'delayed' && i.status === 'open') { i.status = 'delayed'; this.note(`${def.name} has delayed its payments.`); if (s.lots.some((l) => l.issue === id)) g.tablet.post('stocks', `${def.name} has delayed the payments on its bond.`, 'warn'); }
+      else if (st.state === 'normal' && i.status === 'delayed') { i.status = 'open'; this.note(`${def.name} is paying again.`); if (s.lots.some((l) => l.issue === id)) g.tablet.post('stocks', `${def.name} is paying its bond again.`, 'good'); }
+      else if (st.state === 'restructure') { this.restructure(i); continue; }
+      this.pay(i);
+    }
+    // a matured issue is closed once nobody holds it
+    for (const i of Object.values(s.issues)) if (i.status === 'open' && i.end <= this.day && !s.lots.some((l) => l.issue === i.id)) { i.status = 'matured'; i.closedDay = this.day; }
+  }
+
+  /** Coupons and the face for the lots you hold: paid while the country pays; owed (and paid when it recovers) while it has delayed. */
+  pay(i) {
+    const s = this.peek();
+    const g = this.g;
+    for (const l of [...s.lots].filter((x) => x.issue === i.id)) {
+      let paid = 0;
+      while (l.due <= this.day && l.due <= l.end) {
+        const last = l.due + MONTH > l.end;
+        const cpn = Math.round((l.face * l.coupon) / 12);
+        if (i.status === 'delayed') { l.owed = (l.owed || 0) + cpn + (last ? l.face : 0); l.due += MONTH; if (last) break; continue; }
+        paid += cpn + (last ? l.face : 0);
+        l.coupons += 1; s.earned += cpn;
+        l.due += MONTH;
+        if (last) break;
+      }
+      if (i.status === 'open' && l.owed > 0) { paid += l.owed; this.note(`${i.name} paid the ${money(l.owed)} it had delayed.`); l.owed = 0; }
+      if (paid > 0) {
+        g.player.money += paid;
+        g.bus.emit('money:changed', { delta: paid, total: g.player.money });
+        if (l.due > l.end && !(l.owed > 0)) { s.lots = s.lots.filter((x) => x !== l); this.note(`${i.name}'s bond matured: ${money(l.face)} repaid.`); g.tablet.post('stocks', `${i.name}'s bond matured: ${money(paid)} obols paid.`, 'good'); } else g.tablet.post('stocks', `${i.name} bond coupon: +${money(paid)} obols.`, 'good');
+      }
+    }
+  }
+
+  /** The debt is restructured: lenders get a part of the face, once, and what was delayed is written off; the issue ends. */
+  restructure(i) {
+    const s = this.peek();
+    const g = this.g;
+    const frac = recoveryOf(i.strain, S);
+    for (const l of [...s.lots].filter((x) => x.issue === i.id)) {
+      const pay = Math.round(l.face * frac);
+      g.player.money += pay;
+      g.bus.emit('money:changed', { delta: pay, total: g.player.money });
+      s.lots = s.lots.filter((x) => x !== l);
+      this.note(`${i.name} restructured its debt: your bond recovered ${money(pay)} of ${money(l.face)} (${Math.round(frac * 100)}%).`);
+      g.tablet.post('stocks', `${i.name} restructured its debt. Your bond recovered ${money(pay)} of ${money(l.face)}.`, 'warn');
+    }
+    i.status = 'restructured'; i.closedDay = this.day; i.recovery = frac;
+    this.note(`${i.name} restructured its debt: lenders recover ${Math.round(frac * 100)}% of the face.`);
+  }
+}
+
+return { Sovereign };
 })();
 
 // ---- src/systems/corporate.js
@@ -42938,6 +43203,7 @@ const { Credit } = __m["src/systems/creditBonds.js"];
 const { Lending } = __m["src/systems/lending.js"];
 const { BusinessLoans } = __m["src/systems/businessLoans.js"];
 const { Geo } = __m["src/systems/geo.js"];
+const { Sovereign } = __m["src/systems/sovereign.js"];
 const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -42955,6 +43221,7 @@ class Corporate {
     this.lending = new Lending(this); // v0.73.0: loans from Lariat State Bank
     this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
     this.geo = new Geo(this); // v0.75.0: wars and embargoes as persistent events
+    this.sovereign = new Sovereign(this); // v0.77.0: foreign government bonds
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -43331,6 +43598,7 @@ class Corporate {
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
     this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
+    this.sovereign.dailyTick(); // the countries' ratings, delayed payments and restructurings, and coupons (once the arms market is running)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
     this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)
   }
@@ -45367,6 +45635,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.77.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Sovereign Debt',
+    notes: [
+      'You can now lend to the eight countries of the world: each sells a three-year government bond, rated from what it owes, the wars it is in, any embargo on it and how far its treasury has fallen — and the bond\'s price follows the rating. A country that stays in the worst trouble for weeks delays its payments (what it owes you is kept and paid when it recovers) and, after longer, restructures its debt, paying back only part of the face. Nothing is by chance. The bonds count as collateral for your loans, and the Economy app lists each country\'s rating.',
+    ],
+  },
   {
     version: '0.76.0',
     date: '2026-10-30',
@@ -63339,6 +63616,8 @@ function economyApp(ui, body) {
     h('div', { class: 'list' }, h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Policy rate ${pc2(O.rate)}`), h('div', { class: 'desc' }, `${O.premium > 0 ? `Wars and embargoes add ${pc2(O.premium)} to government bond yields · ` : ''}Government bond yields: ${O.yields.map((y) => `${y.years}-year ${pc2(y.yield)}`).join(' · ')}`))),
       ...O.bank.map((d) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc2(d.to)}`), h('div', { class: 'desc' }, d.text))))));
 
+  if (O.sovereign.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Foreign government bonds'), h('div', { class: 'list' }, ...O.sovereign.map((s) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, s.name, h('span', { class: `tag${s.rating === 'AA' || s.rating === 'A' ? ' good' : s.rating === 'CCC' || s.status === 'delayed' ? ' neg' : ''}` }, s.status === 'delayed' ? `${s.rating} · delayed` : s.rating)), h('div', { class: 'desc' }, `Yield ${pc2(s.yield)}`))))),
+    ...(O.bondNews.length ? [h('div', { class: 'list' }, ...O.bondNews.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`)))))] : []));
   if (O.movers.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Biggest moves on the exchange today'), h('div', { class: 'list' }, ...[...O.movers.slice(0, 3), ...O.movers.slice(-3).reverse()].filter((r, i, a) => a.findIndex((x) => x.ticker === r.ticker) === i).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.change > 0 ? 'good' : 'neg'}` }, pc(r.change * 100))), h('div', { class: 'desc' }, `${r.price.toFixed(2)} · ${r.sector}`))))));
 
   body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Headlines'));
@@ -63379,6 +63658,7 @@ function bondsApp(ui, body, open) {
     h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · worth ${n(r.value)} today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(B.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
   corporate();
+  foreign();
 
   function corporate() {
     const C = g.corp.credit;
@@ -63397,6 +63677,27 @@ function bondsApp(ui, body, open) {
       h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(C.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
     const clog = (C.peek()?.log || []).slice(-4).reverse();
     if (clog.length) body.append(h('div', { class: 'list' }, ...clog.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
+  }
+
+  /** Foreign government bonds (v0.77.0): the eight countries, rated from their own finances and quarrels. */
+  function foreign() {
+    const Sv = g.corp.sovereign;
+    const offers = Sv.offers();
+    const held = Sv.portfolio();
+    const why = (c) => [c.war > 0.01 ? `at war (${(c.war * 100).toFixed(0)}% of its full effect)` : null, c.embargo > 0.01 ? 'under an arms embargo' : null, c.treasury < 1 ? `its treasury is at ${(c.treasury * 100).toFixed(0)}% of what it began with` : null, `a ${c.trait < 0.25 ? 'light' : c.trait < 0.45 ? 'moderate' : 'heavy'} debt load`].filter(Boolean).join(' · ');
+    body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Foreign government bonds'),
+      h('p', { class: 'muted', style: 'font-size:12px' }, 'Each of the eight countries issues a three-year bond. Its rating follows its own finances — how much it owes, the wars it is in, an embargo on it, and how far its treasury has fallen — and so does the bond\'s price. A country that stays at the very top of the strain for ten days delays its payments (what it owes you is kept and paid when it recovers), and for forty restructures: you get back a part of the face, once, and the issue ends. Nothing here is random, and none of it changes the arms market. You may hold at most a twentieth of an issue; selling costs a 1.5% spread.'));
+    if (!offers.length) body.append(h('p', { class: 'muted' }, 'No country has issued yet: they do once the arms market is running.'));
+    else body.append(h('div', { class: 'list' }, ...offers.map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, o.name, h('span', { class: `tag${o.rating === 'AA' || o.rating === 'A' ? ' good' : o.rating === 'CCC' || o.status === 'delayed' ? ' neg' : ''}` }, o.status === 'delayed' ? `${o.rating} · delayed` : o.rating), h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), o.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(o.held)}`) : null),
+      h('div', { class: 'desc' }, `${why(o.causes)} · priced at ${o.price.toFixed(1)} per 100 (yield ${pc(o.yield)}) · due day ${o.end} · you may buy ${n(o.room)} more`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, ...[1000, 10000].map((f) => h('button', { class: 'small primary', disabled: o.status !== 'open' || o.room < f || g.player.money < Math.round(f * o.price / 100), onclick: () => go(Sv.buy(o.country, f)) }, `Buy ${n(f)} (${n(f * o.price / 100)})`))))))));
+    if (held.rows.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Your foreign bonds'), h('div', { class: 'list' }, ...held.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${n(r.face)} of ${r.name}`, h('span', { class: 'tag' }, r.issueStatus === 'delayed' ? `${r.rating} · payments delayed` : r.rating), h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
+      h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons${r.owed ? ` · ${n(r.owed)} owed to you, delayed` : ''} · worth ${n(r.value)} at its rating today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(Sv.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
+    const slog = (Sv.peek()?.log || []).slice(-4).reverse();
+    if (slog.length) body.append(h('div', { class: 'list' }, ...slog.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
   }
 
   const log = (B.peek()?.log || []).slice(-6).reverse();

@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.77.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Sovereign Debt',
+    notes: [
+      'You can now lend to the eight countries of the world: each sells a three-year government bond, rated from what it owes, the wars it is in, any embargo on it and how far its treasury has fallen — and the bond\'s price follows the rating. A country that stays in the worst trouble for weeks delays its payments (what it owes you is kept and paid when it recovers) and, after longer, restructures its debt, paying back only part of the face. Nothing is by chance. The bonds count as collateral for your loans, and the Economy app lists each country\'s rating.',
+    ],
+  },
+  {
     version: '0.76.0',
     date: '2026-10-30',
     channel: 'development',

@@ -44,6 +44,7 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `sovereign.test.mjs` | Foreign government bonds (v0.77.0): the pure rules (trait, strain and its caps, bands, day counter, recovery, issue size); nothing before the arms market; eight deterministic issues rated by cause; trading and coupons; a war's downgrade and its recovery; delayed payments, owed and repaid, restructuring once and the new issue after the pause; collateral and the sale lock. |
 | `geo_effects.test.mjs` | Geopolitics, second part (v0.76.0): the bond premium (basis points, bounded, ramps); your own part prices against the cost index; government bond yields and value with the policy rate untouched; managers' budget requests (one at a time, nothing changed until approved) and the expansion hold through the real judgement; an embargo that begins after a tender is posted. |
 | `geo.test.mjs` | Geopolitics (v0.75.0): phase/severity/indices/sentiment rules (bounds, ramp, recovery, exposure, capacity); records made once with stable ids and the market not started by them; milestones, ceasefire, lifting and reloads that never stack or lose a shock; costs and demand in the companies' days and the exchange's fair prices; the Economy overview. |
 | `business_loans.test.mjs` | Loans to companies (v0.74.0): limit and rate rules; funded companies only and refusals that change nothing; a loan is cash not revenue, interest a cost and principal not, net assets unchanged, accounts reconcile; arrears with nothing seized, managers' freeze, the bank collecting; personal and parent guarantees. |
@@ -84,6 +85,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.77.0 (2026-10-30)
+
+- `npm run check` — **829/829 tests passed** (6 new in `sovereign`); every earlier test passes unedited. `npm run smoke` — 26/26.
+- **Parity**: both runs — nobody hired and managers hired over 25 days — are **identical to v0.76.0 (`1719fc7`)** line for line (the issues are market data: nothing moves until you buy). (Against v0.59.0 the runs differ only by the wars' effects introduced in v0.75.0–v0.76.0, as recorded there.)
+- Browser (headless Chromium): the Bonds app with the eight countries (ratings AA–BB, causes shown beside each price), buying 10,000 of Varnistan's bond (BB, 96.0 per 100, 7.75%) through the real button, and the Economy app's country rows; no page errors.
 
 ## Verification record — v0.76.0 (2026-10-30)
 

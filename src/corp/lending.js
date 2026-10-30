@@ -25,7 +25,7 @@ const CORP = { AA: 0.7, A: 0.7, BBB: 0.6, BB: 0.4, B: 0.4, CCC: 0.2 };
 /** item: { kind: 'share' | 'govBond' | 'corpBond', value, rating? } */
 export function advance(item) {
   if (item.kind === 'govBond') return 0.9;
-  if (item.kind === 'corpBond') return CORP[item.rating] ?? 0;
+  if (item.kind === 'corpBond' || item.kind === 'sovBond') return CORP[item.rating] ?? 0;
   return 0.5;
 }
 

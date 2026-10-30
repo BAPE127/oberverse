@@ -119,6 +119,8 @@ export class Geo {
       yields: K.bonds.offers().map((o) => ({ years: o.years, yield: o.yield })),
       rate: K.bank.rate(),
       premium: this.premium(),
+      sovereign: K.sovereign.offers().map((o) => ({ country: o.country, name: o.name, rating: o.rating, status: o.status, yield: o.yield, strain: o.strain })),
+      bondNews: (K.state.sovereign?.log || []).slice(-6).reverse(),
       headlines: (this.g.world.market?.news || []).slice(0, 8),
       log: (this.peek()?.log || []).slice(-8).reverse(),
     };

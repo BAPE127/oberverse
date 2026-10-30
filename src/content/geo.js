@@ -24,3 +24,21 @@ export const GEO = {
   /** How severe: the countries' combined income, over this, within these limits. */
   severity: { warIncome: 60000, embargoIncome: 50000, min: 0.25, max: 1, embargoMin: 0.2, embargoMax: 0.8 },
 };
+
+/**
+ * Foreign government bonds (v0.77.0): the eight countries each issue a three-year bond. A country's *strain* comes from what it owes (a fixed
+ * trait of the country), its wars, an embargo on it, and how far its treasury has fallen below what it started with; the rating follows the strain.
+ * Nothing is random: a country goes into distress only if its strain stays at the top for weeks.
+ */
+export const SOVEREIGN = {
+  years: 3, minFace: 1000, step: 100, maxShare: 0.05, spread: 0.015, reissueDays: 90, logKept: 40,
+  issuePerIncome: 500, // an issue is this many days of the country's income, to the nearest million (at least a million)
+  base: 0.15, debtWeight: 0.35, // strain: a floor of 0.15, plus up to this × the country's debt trait
+  war: 0.25, warCap: 0.35, // plus this × the severity and phase of each war it is in (capped)
+  embargo: 0.3, embargoCap: 0.3, // plus this × an embargo on it
+  treasury: 0.3, // plus up to this for a treasury that has fallen below its starting level
+  bands: [0.2, 0.3, 0.42, 0.55, 0.7], // strain below each is AA, A, BBB, BB, B; at or above the last, CCC
+  distress: 0.85, // a strain at or above this counts a day towards distress
+  delayAfter: 10, restructureAfter: 40, // days in a row: coupons are delayed, then the debt is restructured
+  recovery: [0.35, 0.6], // lenders get back this share of the face when it is restructured (the worse the strain, the less)
+};

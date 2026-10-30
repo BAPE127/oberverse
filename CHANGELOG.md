@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.77.0] — 2026-10-30 — Sovereign Debt (development build)
+
+Stage 13, last part: foreign government bonds — the other half of the owner's answer on bonds (Halvermouth's own bonds feel the wars since v0.76.0).
+
+### Added (`src/content/geo.js › SOVEREIGN`, `src/corp/sovereign.js`, `src/systems/sovereign.js` — `game.corp.sovereign`; a section of the Bonds app; rows in the Economy app)
+- **A three-year bond from each of the eight countries** (Varnistan, the Ostmark Union, Caldera, Sund, Pallas, Teshvar, Morrow, Lirre), issued once the arms market is running (an issue is 500 days of the country's income, to the nearest million), at par for its rating with a fixed coupon of the policy rate + the 3-year term premium + a credit spread for its rating, to the quarter-point. Monthly coupons and the face at the end, as for every bond here; at most a twentieth of an issue each; selling costs a 1.5% spread.
+- **A rating from the country's own finances and quarrels — never a die.** Its *strain* is a floor of 0.15, plus up to 0.35 × its **debt load** (a fixed trait of the country: a hash of its name, lighter for a rich one), plus 0.25 × the severity and phase of each **war** it is in (capped at 0.35), plus 0.3 × an **embargo** on it (capped), plus up to 0.3 for a **treasury** that has fallen below what it began with. Bands give AA…CCC. At the start Teshvar is AA; Lirre, Morrow, Ostmark A; Pallas and Sund BBB; Varnistan and Caldera (at war) BB. The war premium on a country's bond comes through this rating, not on top of it. **A bond's price follows its country's rating every day**; a downgrade or upgrade is logged, and told to you if you hold the bond.
+- **Distress and restructuring only after weeks at the top of the strain.** A strain of 0.85 or more counts a day (and eases by two a day below it). After **ten days in a row** the country **delays its payments**: no new bonds are sold, the coupons and face that fall due are *owed to you, not lost*, and are paid when it recovers; after **forty** its debt is **restructured**: you recover 35–60% of the face (less the worse the strain), once, the lot is settled, and a new issue appears only ninety days later, and only once it is not at the top of the strain again. No country defaults or restructures by chance: a test drives one to each step and back.
+- **They are collateral** for your loans at the same rates as corporate bonds by rating (not while delayed), and cannot be sold out from under a loan.
+- **Economy app**: each country's rating and yield, and bond news (issues, downgrades, delays, restructurings). The Bonds app shows each country's causes — at war, under embargo, treasury level, debt load — beside its price.
+
+### Tests
+- New: `sovereign` (6): the pure rules (trait, strain by each cause and its caps, bands, the day counter, recovery, issue size); nothing before the arms market runs and the service not starting it; eight issues, ratings by cause, deterministic; buying, the cap, coupons, selling, refusals changing nothing; a war's downgrade and a holder told, recovery in peace; the whole distress path (delay, owed and paid on recovery, restructuring once, a new issue after the pause); collateral, the sale lock and the saved state's round trip. All earlier tests pass unedited.
+- Parity: identical to v0.76.0 line for line (the issues are market data: nothing moves until you buy).
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Stages 14–17 (the bank robbery, integration, migration and the release report) remain.
+
 ## [0.76.0] — 2026-10-30 — What the Wars Cost (development build)
 
 Stage 13, second part: the wars reach your own purchases and the government bond market, and managers answer them.
