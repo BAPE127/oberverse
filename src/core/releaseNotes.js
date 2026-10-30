@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.71.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Lending to Business',
+    notes: [
+      'Corporate bonds, in the tablet\'s Bonds app: every listed company of the wider world issues a three-year bond once the exchange can price it, at par, with a coupon of the policy rate, the term premium and a credit spread for its rating. A company\'s rating follows its own books — what it owes against what it owns, whether it earns, whether it is in distress — and so does the bond\'s price. The riskier the company, the more it pays.',
+      'A company that fails defaults: you get back a part of what you lent, once (the world\'s own rule: its plant sold at 40% of book against its debt). One that is taken over repays at par. You may hold at most a twentieth of an issue. This finishes the central bank stage: the rate, government bonds, the bank itself and now corporate bonds.',
+    ],
+  },
+  {
     version: '0.70.0',
     date: '2026-10-30',
     channel: 'development',

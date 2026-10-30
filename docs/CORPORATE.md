@@ -141,6 +141,17 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Props**: `bank_vault` (a `vault` fixture, examine only), `bank_tellers` (a counter), `bank_bond_desk` (`interact: { kind: 'bank', tab: 'Bonds' }`), `bank_rate_board` (`tab: 'Bank'`). `game.interact` turns kind `bank` into `{ type: 'panel', panel: 'tablet', opts: { tab } }`.
 - **Not in this release**: staff; a separate policy office or vault room; anything inside the vault (the robbery stage's); a bank robbery never touches the policy rate or any credit figure, by the owner's rule.
 
+### Corporate bonds (v0.71.0)
+
+`game.corp.credit` (`src/systems/creditBonds.js`; the pure rules in `src/corp/credit.js`; the bond maths are `src/corp/bonds.js` with a credit `spread`), in the **Bonds** app. The last of four parts of stage 10.
+
+- **Issue** (`state.credit.issues[ticker]`): created when the exchange has a listing for the company and it is live; `face = issueFace(listed value)`; `coupon = round((yieldFor(policy, 3) + spreadOf(rating)) / 0.0025) × 0.0025`; `end = issued + 1080`; `status` open → matured / defaulted / repaid; reissued `CREDIT.reissueDays` (30) after it closes. `lastDebt`/`lastPlant` are kept while the company lives, for the recovery.
+- **Rating** (`rate(c)`): leverage `debt ÷ (plant + max(0, cash))` → AA < 10%, A < 25%, BBB < 45%, BB < 70%, else B; +1 notch if `lastNet < 0`; +1 if `cash < 0`; CCC if distressed. Re-rated each day while the issue is open.
+- **Price/value**: `valueOf(lot, today, policy, spread)` — the cash still to come discounted at `yieldFor(policy, years left) + spreadOf(rating)`; sell at 99%.
+- **Settlement** (`settle`): when the issuer's record is closed → `status: defaulted`, each lot paid `face × recovery(lastPlant, lastDebt)` once; merged → `repaid`, par. A company's records are never changed by its bonds (they run beside its books).
+- **Lots**: `{ id, issue, face, coupon, bought, due, end, cost, coupons }`; coupons every 30 days from the issue day, each once.
+- **Not in this release**: bonds of your own businesses, bonds held by companies, anything that changes a company's books; bank loans (stage 12).
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

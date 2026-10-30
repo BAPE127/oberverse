@@ -27,6 +27,7 @@ import { Management } from './management.js';
 import { Exchange } from './exchange.js';
 import { CentralBank } from './centralBank.js';
 import { Bonds } from './bonds.js';
+import { Credit } from './creditBonds.js';
 import { valuationFactor } from '../corp/bank.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -40,6 +41,7 @@ export class Corporate {
     this.personnel = new Personnel(this); // v0.62.0: the people who run them
     this.bank = new CentralBank(this); // v0.68.0: the policy rate
     this.bonds = new Bonds(this); // v0.69.0: government bonds
+    this.credit = new Credit(this); // v0.71.0: corporate bonds
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -413,6 +415,7 @@ export class Corporate {
     this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
+    this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
   }
 
   /** The wider world's day. */

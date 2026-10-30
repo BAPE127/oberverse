@@ -39,9 +39,9 @@ export function cashFlows(lot, today) {
   return out;
 }
 
-export function valueOf(lot, today, rate) {
+export function valueOf(lot, today, rate, spread = 0) {
   const flows = cashFlows(lot, today);
   if (!flows.length) return 0;
-  const y = yieldFor(rate, Math.max(0, (lot.end - today) / YEAR)) / 12;
+  const y = (yieldFor(rate, Math.max(0, (lot.end - today) / YEAR)) + spread) / 12; // a company's bond: its credit spread on top
   return Math.round(flows.reduce((a, f) => a + f.amount / (1 + y) ** f.months, 0));
 }

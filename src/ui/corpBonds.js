@@ -25,6 +25,27 @@ export function bondsApp(ui, body, open) {
     h('div', { class: 'name' }, `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
     h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons received · worth ${n(r.value)} today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
     h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(B.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
+  corporate();
+
+  function corporate() {
+    const C = g.corp.credit;
+    const offers = C.offers();
+    const held = C.portfolio();
+    body.append(h('h3', { style: 'margin:14px 0 4px' }, 'Corporate bonds'),
+      h('p', { class: 'muted', style: 'font-size:12px' }, 'Three-year bonds issued by the listed companies of the wider world, at par, with a coupon of the policy rate, the term premium and a credit spread for the company\'s rating. A rating follows the company\'s own books (what it owes against what it owns, whether it earns, whether it is in distress), and so does the bond\'s price. A company that fails defaults: you get back a part of what you lent, once; one that is taken over repays at par. You may hold at most a twentieth of an issue; selling costs a 1% spread.'));
+    if (!offers.length) body.append(h('p', { class: 'muted' }, 'No company has issued yet: they do once the exchange has priced them, after the first morning.'));
+    else body.append(h('div', { class: 'list' }, ...offers.map((o) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${o.ticker} · ${o.name}`, h('span', { class: `tag${o.rating === 'AA' || o.rating === 'A' ? ' good' : o.rating === 'CCC' ? ' neg' : ''}` }, o.rating), h('span', { class: 'tag' }, `${pc(o.coupon)} a year`), o.held > 0 ? h('span', { class: 'tag good' }, `hold ${n(o.held)}`) : null),
+      h('div', { class: 'desc' }, `Issue ${n(o.face)} · due day ${o.end} · priced at ${o.price.toFixed(1)} per 100 (yield ${pc(o.yield)}) · you may buy ${n(o.room)} more`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' }, ...[1000, 10000].map((f) => h('button', { class: 'small primary', disabled: o.room < f || g.player.money < Math.round(f * o.price / 100), onclick: () => go(C.buy(o.id, f)) }, `Buy ${n(f)} (${n(f * o.price / 100)})`))))))));
+    if (held.rows.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Your corporate bonds'), h('div', { class: 'list' }, ...held.rows.map((r) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${n(r.face)} of ${r.ticker} · ${r.name}`, h('span', { class: 'tag' }, r.rating), h('span', { class: 'tag' }, `${n(r.daysLeft)} days left`)),
+      h('div', { class: 'desc' }, `${n(r.perMonth)} a month · ${r.coupons} coupons · worth ${n(r.value)} at its rating today (paid ${n(r.cost)}); selling gets ${n(r.sale)}`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => go(C.sell(r.id)) }, `Sell for ${n(r.sale)}`)))))));
+    const clog = (C.peek()?.log || []).slice(-4).reverse();
+    if (clog.length) body.append(h('div', { class: 'list' }, ...clog.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
+  }
+
   const log = (B.peek()?.log || []).slice(-6).reverse();
   if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.text}`))))));
 }

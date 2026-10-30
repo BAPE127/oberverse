@@ -2,6 +2,32 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.71.0] — 2026-10-30 — Lending to Business (development build)
+
+Stage 10, last of four parts: corporate bonds.
+
+### Added (`src/corp/credit.js`, `src/systems/creditBonds.js`, a section of the Bonds app)
+- **An issue for each listed company** of the wider world, once the exchange has priced it (and again a month after a bond is repaid): a **three-year bond**, a twentieth of the company's worth (to the nearest hundred thousand, at least 100,000), at par, with a coupon fixed at issue of **the policy rate + the 3-year term premium + a credit spread for its rating**, to the quarter-point. Monthly coupons and the face at the end, exactly as for government bonds.
+- **Ratings from the company's own books**, every day: what it owes against what it owns (under 10% AA, 25% A, 45% BBB, 70% BB, above that B), a notch worse for losing money and another for a negative cash balance, CCC in distress. Spreads widen with each notch (0.75% AA, 1.25%, 2%, 3.5%, 5.5%, 10% CCC). **A bond's price follows the rating**: the cash it still pays discounted at the policy rate, the term premium and the *current* spread — so a company that borrows more, or starts to lose money, is cheaper to lend to the next morning.
+- **Default only when the world closes the company** — no random defaults. Holders then get the world's own recovery (its plant sold at 40% of book against its debt, never under 5% nor over 90%), **once**, and the issue ends; **a takeover repays at par**.
+- **Limits**: at least 1,000, in hundreds; at most a twentieth of one issue in your hands; sell back at any time at the value at today's rating less a **1% spread**. Your own investment from your wallet, like shares and government bonds.
+- In the **Bonds** app below the government bonds: each issue with its rating, coupon, size, price and yield; your lots with their rating, monthly coupon, value and what selling gets; recent events.
+
+### A simplification, said plainly
+- The bond market runs **beside** the company's books: the cash an issue raises is not added to the company's cash or debt, and its coupons are not subtracted from its profit, so a company's records, valuation and exchange price are the same whether or not it has bonds outstanding. (The company's real debt does set its rating.)
+
+### Not included
+- Bond values are not in the net worth that quests read nor in the exchange portfolio; issues by your own businesses; companies buying bonds; floating-rate or callable bonds.
+
+### Save
+- `world.corp.credit` (`issues` by ticker: `face`, `coupon`, `rating`, `status` open / matured / defaulted / repaid, `issued`, `end`, last debt and plant; `lots`; `earned`; `log`; `lastDay`) is created the first morning after the exchange has priced the listed; nobody is given a bond. No schema change (still 1).
+
+### Tests
+- New: `credit` (6): the rating, spread, recovery and issue-size rules; one issue per priced listed company, once, with the coupon the rule gives and nothing before the exchange; buying (par, the twentieth, refusals changing nothing), coupons once a month and thirty-six and the face at the end; the rating following the books and the price the rating (and selling at its spread); default once at the recovery rate and a takeover at par, neither paying again; a repaid issue replaced a month later, and saves. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md.
+
 ## [0.70.0] — 2026-10-30 — Open for Business (development build)
 
 Stage 10, third of four parts: the physical First Bank of Halvermouth.

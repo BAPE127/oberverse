@@ -44,6 +44,7 @@
 | `aerospace_events.test.mjs` | Reputation and events (v0.57.0): the ledger adds up and clamps, streak multipliers, bonuses, government orders / constellations / breakthroughs / expansion offers / audits / milestones fire only on their conditions and cool-downs, decisions and their outcomes, minimum-reputation tenders, loser reports, old-save migration. |
 | `aerospace_flight.test.mjs` | Starling Field (v0.58.0): the aircraft state machine, the field geometry against the map, every aircraft leaving from every stand on either runway (continuous, in order, off the map) and arriving, stands, the queue (one on the runway at a time), a departure over game time, reload mid-departure, old saves, Meridian's own sorties, the convoy, the field's sound, the terminal's field status. |
 | `aerospace_launch.test.mjs` | Launches (v0.58.0): a sequence fixed when it starts, its phases, the clock, smoke as a function of the time, shake, the crawler's way on the map, rollout, one rocket on the pad at a time, a countdown booked when it ends, a loss at its moment, the roll deciding the outcome, reload mid-countdown, cancelling, the terminal's pad status. |
+| `credit.test.mjs` | Corporate bonds (v0.71.0): the pure rating, spread, recovery and issue-size rules; one issue per priced listed company, once, at the coupon the rule gives, none before the exchange; buying (par, a twentieth, refusals changing nothing), coupons once a month, thirty-six and the face; the rating following the books and the price the rating; default once at the recovery rate, a takeover at par; a repaid issue replaced a month later; saves. |
 | `first_bank.test.mjs` | The physical bank (v0.70.0): the door leads to a hall exactly the building's size with its way out and a place to stand outside; the hours; the bond desk and rate board opening Bonds and Bank; the vault and counter giving messages; the street around it unmoved. |
 | `bonds.test.mjs` | Government bonds (v0.69.0): the premium curve, the coupon, the cash flows and the value (par at issue, falling and rising with the rate, never wild); nothing made before a purchase; the bounds and refusals; coupons once a month and never early, twelve and the face and no more, after a gap each missed one once; value and sale with the spread, a round trip costing only the spread; saves; a coupon fixed at issue while the offers follow the rate. |
 | `bank.test.mjs` | The policy rate (v0.68.0): the pure rule (target, steps, holds, limits, the words); the three effects exactly nothing at neutral and bounded; nothing made before the first meeting; the first meeting on day 91, once a month, once after a long sleep and a reload; a distressed world lowering the rate, a busy one raising it, a long run inside its limits by quarter-points; the rate reaching loans, interest and valuations; no way to set it. |
@@ -78,6 +79,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
+
+## Verification record — v0.71.0 (2026-10-30)
+
+- `npm run check` — **795/795 tests passed** (6 new in `credit`); every earlier test passes unedited. `npm run smoke` — 26/26.
+- **Parity**: nobody hired — identical to v0.59.0 (`b05b986`); managers hired and deciding — identical to v0.70.0 (`eee2e4a`) over 25 days (issues are market data: no money moves until a purchase, and the companies' own records are untouched).
+- Browser (headless Chromium): the Bonds app with the corporate section after the exchange had priced the listed; buying 10,000 of an AA company's bond through the real button (6.5% a year, due day 1082); no page errors.
 
 ## Verification record — v0.70.0 (2026-10-30)
 

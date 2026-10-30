@@ -1,6 +1,6 @@
 {
   "name": "The Oberverse",
-  "version": "0.70.0",
+  "version": "0.71.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
@@ -18,6 +18,7 @@
   "systems": {
     "worldClock": "src/world/clock.js",
     "companyAccounts": "src/systems/corporate.js, src/corp/ledger.js",
+    "corporateBonds": "src/systems/creditBonds.js, src/corp/credit.js",
     "governmentBonds": "src/systems/bonds.js, src/corp/bonds.js",
     "centralBank": "src/systems/centralBank.js, src/corp/bank.js",
     "corporateExchange": "src/systems/exchange.js, src/corp/exchange.js",
