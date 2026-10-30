@@ -81,6 +81,8 @@ Since **v0.69.0** `world.corp.bonds` (created at the first purchase): `lots` (`{
 
 Since **v0.73.0** `world.corp.lending` (created at the first loan): `loans` (`{ id, principal, outstanding, rate, months, left, signed, due, arrears, missed, paid, interestPaid, status ('open'|'overdue'|'repaid'), closed? }`), `standing` (borrowing record 0–100, 60 at the start), `onTime`, `missed`, `log`, `lastDay`, `nextId`. A save without it holds no loans and the starting record; nobody is given a loan by loading.
 
+Since **v0.75.0** `world.corp.geo` (created the first morning after the arms market exists): `events` (`{ id, key, kind: 'war'|'embargo', parties, target?, imposer?, cause?, goods, start, registered, end, status, severity, milestone?, timeline: [{ day, text }] }`), `nextId`, `lastDay`, `log`. Effects are not stored: they are worked out from the events and the day. A save without it has no events and no effects.
+
 Since **v0.74.0** company loans are in the same `world.corp.lending.loans` list with `borrower` (a company id; yours have `borrower: 'you'` or none), `guarantee` ('none'|'personal'|'parent'), `purpose`, `called`; `lending.company[id].standing` is each company's own record; `lastBusinessDay`. A save without them holds no company loans.
 
 Since **v0.71.0** `world.corp.credit` (created the first morning after the exchange has priced the listed): `issues` (`{ [ticker]: { id, ticker, name, face, years, coupon, rating, spreadRank, issued, end, due, status, serial, lastDebt, lastPlant, closedDay?, recovery? } }`), `lots` (`{ id, issue, face, coupon, bought, due, end, cost, coupons, status }`), `earned`, `log`, `lastDay`, `nextId`, `nextIssue`. A save without it holds no corporate bonds; nobody is given one by loading.

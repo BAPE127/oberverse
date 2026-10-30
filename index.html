@@ -15574,7 +15574,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.74.0';
+const GAME_VERSION = '0.75.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -20371,7 +20371,7 @@ class OilCompany {
     s.output = output;
     const oldPrice = s.sharePrice;
     // v0.67.0: the old formula is now what a share is worth; the price moves a part of the way there each day, like every listed company's
-    const fair = Math.max(FLOOR, 20 + output / 8 - (s.strike ? 6 : 0));
+    const fair = Math.max(FLOOR, (20 + output / 8 - (s.strike ? 6 : 0)) * (1 + (g.corp?.geo.sentiment({ id: 'ober_oil', sector: 'energy', country: 'home' }) || 0))); // v0.75.0: and what the market expects of the wars and embargoes of the day
     s.fair = Math.round(fair * 100) / 100;
     s.sharePrice = nextPrice({ ...CORP.exchange, minPrice: FLOOR }, s.sharePrice, fair, hashUnit(`oil|${g.clock.day}|${g.corp.state.gen?.salt || ''}`));
     const dividend = Math.floor(s.sharesOwned * this.dividendPerShare(output));
@@ -33243,7 +33243,8 @@ class Dairy {
     const now = this.numbers().profit;
     const normal = this.numbers(1, 1).profit;
     const w = c.recoveryWeight;
-    return c.bookPerShare + (c.pe * 365 * ((1 - w) * now + w * normal)) / c.shares;
+    const base = c.bookPerShare + (c.pe * 365 * ((1 - w) * now + w * normal)) / c.shares;
+    return base * (1 + (this.game.corp?.geo.sentiment({ id: 'chuckies_cheese', sector: 'agriculture', country: 'home' }) || 0)); // v0.75.0: what the market expects of the wars and embargoes of the day
   }
 
   /** 18:00: the day's milk is sold, dividends paid, and CHZ moves toward its fair value. */
@@ -37821,7 +37822,7 @@ class Aerospace {
     const X = { ...this.A.exchange, shares: this.A.meridian.shares };
     const co = this.meridian;
     const ema = this.state.market.ema ?? this.expectedDailyProfit();
-    return fairValue(X, { equity: this.equity(co), ema, backlog: this.backlogValue(co) });
+    return fairValue(X, { equity: this.equity(co), ema, backlog: this.backlogValue(co) }) * (1 + (this.game.corp?.geo.sentiment({ id: 'meridian', sector: 'aerospace', country: 'home' }) || 0)); // v0.75.0
   }
 
   /** Before Meridian has a history, the market expects what its order book implies. */
@@ -41557,7 +41558,9 @@ class Exchange {
   /** What one share of a company is worth on its own books today: its estimated value over its listed shares. */
   fairOf(l, row) {
     const v = this.K.metricsOf(row).valuation;
-    return v === null || v === undefined ? null : fairPrice(v, l.shares);
+    if (v === null || v === undefined) return null;
+    const c = this.record(l.id);
+    return fairPrice(v * (1 + this.K.geo.sentiment({ id: l.id, sector: row.sector, country: row.country, util: c?.util })), l.shares); // v0.75.0: the wars and embargoes of the day, by this company's exposure
   }
 
   /** Once a day: list what has just become priced, move every price, settle what has closed, and pay what is owed. */
@@ -42585,6 +42588,258 @@ class BusinessLoans {
 return { BusinessLoans };
 })();
 
+// ---- src/content/geo.js
+__m["src/content/geo.js"] = (function () {
+// Geopolitics (v0.75.0): how wars and embargoes touch the economy. Every figure is the change at full severity and full phase, before a company's own
+// exposure; the indices that result are bounded (see `bounds`). Nothing here is a headline: each number is read by `src/corp/geo.js` and ends up in
+// the wider world's costs, its customers' demand, or the price the market expects a company to earn.
+const GEO = {
+  rampDays: 10, // an event reaches its full effect over this many days from the day it is first seen (never a day-one jump)
+  recoverDays: 30, // after a ceasefire or a lifting, the effect fades out over this many days
+  prolongedDays: 60, // a war this old has escalated: its severity counts 15% more
+  milestones: [30, 60, 120], // days into a war when the timeline records that it goes on
+  keepResolved: 40, // resolved events kept in the save (newest)
+  bounds: { demand: [0.75, 1.3], cost: [1, 1.12], sentiment: 0.12 },
+  sentimentWeight: 0.45, // of the expected change in a year's profit, how much the market prices ahead of the books
+  expo: [0.5, 1.5], // a company's own exposure to a sector's effect (a hash of its id): not everyone in a sector is hit alike
+  /** What a war does to a sector's customers' demand and its costs, at severity 1. (Arms demand already follows the war count in the arms market's own pool.) */
+  war: {
+    demand: { arms: 0, aerospace: 0.06, satellites: 0.1, energy: 0.06, shipping: 0.04, agriculture: -0.03, industrial: 0.04, finance: -0.02, transport: -0.03, communications: 0.02 },
+    cost: { shipping: 0.08, agriculture: 0.04, industrial: 0.05, transport: 0.05, aerospace: 0.03, arms: 0.02, energy: 0.01, satellites: 0.01, communications: 0.01, finance: 0 },
+    oil: { countries: ['teshvar'], demand: 0.2 }, // a war with an oil state in it moves energy prices (revenue) much more
+    partyHit: 0.2, // a company from a country at war: its expected profit falls by this × severity × phase (before the market's weight)
+  },
+  /** An arms embargo shuts a market: the lawful arms trade loses the target's share of the world's arms income (× this), at severity 1. */
+  embargo: { armsShare: 0.8, partyHit: 0.4 }, // a company from the embargoed country loses this × severity × phase of its profit expectation
+  /** How severe: the countries' combined income, over this, within these limits. */
+  severity: { warIncome: 60000, embargoIncome: 50000, min: 0.25, max: 1, embargoMin: 0.2, embargoMax: 0.8 },
+};
+
+return { GEO };
+})();
+
+// ---- src/corp/geo.js
+__m["src/corp/geo.js"] = (function () {
+// Geopolitics (v0.75.0). Pure functions — no game state, no DOM, no RNG.
+//
+//   severityOf(kind, incomes, G)            how severe an event is, from the countries' income
+//   phaseOf(e, day, G)                      how much of its effect an event has today: ramps in, escalates, fades out after it ends
+//   indices(events, day, ctx, G)            { demand: {sector}, cost: {sector} } — what the sectors face (bounded)
+//   sentimentOf(events, company, day, ctx, G)  the bounded change in the price the market expects a company to earn
+//
+// An event's effect is a function of its own saved record and the day — never a change applied once — so a save or a reload cannot repeat it or lose it.
+const { hashUnit } = __m["src/aero/config.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function severityOf(kind, incomes, G) {
+  const S = G.severity;
+  const sum = incomes.reduce((a, b) => a + b, 0);
+  return kind === 'war' ? clamp(sum / S.warIncome, S.min, S.max) : clamp(sum / S.embargoIncome, S.embargoMin, S.embargoMax);
+}
+
+/** 0..1.15: ramping in from the day it was first seen, 15% heavier once a war is prolonged, fading to nothing over `recoverDays` once it has ended. */
+function phaseOf(e, day, G) {
+  const from = e.registered ?? e.start;
+  if (day < from) return 0;
+  const ramp = (d) => Math.min(1, (d - from + 1) / G.rampDays);
+  if (e.status === 'resolved' && day >= e.end) return ramp(e.end) * Math.max(0, 1 - (day - e.end) / G.recoverDays);
+  const long = e.kind === 'war' && day - e.start >= G.prolongedDays ? 1.15 : 1;
+  return ramp(day) * long;
+}
+
+const live = (events, day, G) => events.filter((e) => phaseOf(e, day, G) > 0);
+
+/** Sector indices: demand multipliers and cost multipliers, each bounded. ctx: { sectors: {sector: {margin}}, incomes: {country: obols a day} }. */
+function indices(events, day, ctx, G) {
+  const demand = {};
+  const cost = {};
+  const total = Object.values(ctx.incomes).reduce((a, b) => a + b, 0) || 1;
+  for (const e of live(events, day, G)) {
+    const p = phaseOf(e, day, G) * e.severity;
+    if (e.kind === 'war') {
+      const oil = e.parties.some((c) => G.war.oil.countries.includes(c));
+      for (const s of Object.keys(ctx.sectors)) {
+        let d = G.war.demand[s] || 0;
+        if (s === 'energy' && oil) d = G.war.demand.energy + G.war.oil.demand;
+        demand[s] = (demand[s] || 0) + d * p;
+        cost[s] = (cost[s] || 0) + (G.war.cost[s] || 0) * p;
+      }
+    } else if (e.kind === 'embargo' && e.goods.includes('arms')) {
+      const share = (ctx.incomes[e.target] || 0) / total;
+      demand.arms = (demand.arms || 0) - G.embargo.armsShare * share * phaseOf(e, day, G);
+    }
+  }
+  const out = { demand: {}, cost: {} };
+  for (const s of Object.keys(ctx.sectors)) {
+    if (demand[s]) out.demand[s] = clamp(1 + demand[s], G.bounds.demand[0], G.bounds.demand[1]);
+    if (cost[s]) out.cost[s] = clamp(1 + cost[s], G.bounds.cost[0], G.bounds.cost[1]);
+  }
+  return out;
+}
+
+/** A company's own exposure: a stable hash of its id, so two companies of one sector are not hit alike. */
+const exposureOf = (id, salt, G) => G.expo[0] + hashUnit(`${salt}|${id}|geo`) * (G.expo[1] - G.expo[0]);
+
+/**
+ * What the market expects a company to earn differently because of the events live today, as a share of its price (bounded):
+ * the change in a year's profit its sector's demand and cost indices imply (profit moves with sales, and with cost against the
+ * sector's margin), times the company's exposure, more for one from a country in the event, less for an arms company with no room
+ * to sell more. company: { id, sector, country, util? }.
+ */
+function sentimentOf(events, company, day, ctx, G) {
+  const idx = indices(events, day, ctx, G);
+  const m = ctx.sectors[company.sector]?.margin || 0.2;
+  const expo = exposureOf(company.id, ctx.salt || '', G);
+  let d = ((idx.demand[company.sector] ?? 1) - 1);
+  if (company.sector === 'arms' && d > 0 && company.util != null) d *= clamp(1.05 - company.util, 0, 1) / 0.3; // a works already full cannot sell more
+  const c = ((idx.cost[company.sector] ?? 1) - 1) * (1 - m) / m;
+  let delta = (d - c) * expo;
+  for (const e of live(events, day, G)) {
+    const p = phaseOf(e, day, G) * e.severity;
+    if (e.kind === 'war' && e.parties.includes(company.country)) delta -= G.war.partyHit * p;
+    if (e.kind === 'embargo' && e.target === company.country) delta -= G.embargo.partyHit * p;
+  }
+  return clamp(G.sentimentWeight * delta, -G.bounds.sentiment, G.bounds.sentiment);
+}
+
+return { severityOf, phaseOf, indices, exposureOf, sentimentOf };
+})();
+
+// ---- src/systems/geo.js
+__m["src/systems/geo.js"] = (function () {
+// Geopolitics (v0.75.0): game.corp.geo — the arms market's wars and embargoes as persistent events, and what they do to the economy.
+//
+// The arms market still decides when a war or an embargo begins and ends (so the arms trade plays as it always did). Each morning this
+// service reads what the market says is happening and keeps a record of every war and embargo: an id that never changes, a status, a
+// start and an end, how severe it is, and a timeline of what happened and when. Everything the economy takes from an event is worked
+// out from that record and the day (see src/corp/geo.js): the wider world's costs and demand, and the price the market expects its
+// companies to earn. An event's effect ramps in over ten days and fades over thirty after it ends; it is never applied "once", so it
+// cannot repeat on a reload or be lost by one. Nothing is created until the market has begun to run.
+const { GEO: G } = __m["src/content/geo.js"];
+const { CORP } = __m["src/content/corporate.js"];
+const { severityOf, phaseOf, indices, sentimentOf } = __m["src/corp/geo.js"];
+
+class Geo {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.K.state.geo || null; }
+  ensure() { return (this.K.state.geo ||= { v: 1, events: [], nextId: 1, lastDay: 0, log: [] }); }
+  events() { return this.peek()?.events || []; }
+  active() { return this.events().filter((e) => e.status === 'active'); }
+  find(id) { return this.events().find((e) => e.id === id) || null; }
+  name(c) { return this.g.content.arms.countries[c]?.name || c; }
+  note(e, text) { e.timeline.push({ day: this.day, text }); }
+  log(text) { const s = this.ensure(); s.log.push({ day: this.day, text }); while (s.log.length > 60) s.log.shift(); }
+
+  income(c) { return this.g.content.arms.countries[c]?.income || 0; }
+  incomes() { return Object.fromEntries(Object.keys(this.g.content.arms.countries).map((c) => [c, this.income(c)])); }
+
+  // ------------------------------------------------------------- the morning
+  /** Once a day: record what the arms market says has begun or ended. (The market is read as it stands, never started from here.) */
+  dailyTick() {
+    const m = this.g.world.market;
+    if (!m?.countries) return;
+    const s = this.peek();
+    if (s && s.lastDay >= this.day) return;
+    const st = this.ensure();
+    st.lastDay = this.day;
+    const A = this.g.content.arms.countries;
+    // wars
+    for (const w of m.wars || []) {
+      const key = `war|${w.a}|${w.b}|${w.since}`;
+      if (st.events.some((e) => e.key === key)) continue;
+      const e = { id: `ev_${st.nextId++}`, key, kind: 'war', parties: [w.a, w.b], start: w.since, registered: this.day, end: null, status: 'active', severity: severityOf('war', [this.income(w.a), this.income(w.b)], G), goods: [], timeline: [], milestone: 0 };
+      this.note(e, w.since > 0 ? `${A[w.a].name} and ${A[w.b].name} are at war.` : `${A[w.a].name} and ${A[w.b].name} are at war (it was under way when the record began).`);
+      st.events.push(e);
+      this.log(`WAR: ${A[w.a].name} and ${A[w.b].name}.`);
+    }
+    for (const e of st.events) {
+      if (e.status !== 'active' || e.kind !== 'war') continue;
+      const [a, b] = e.parties;
+      const still = (m.wars || []).some((w) => `war|${w.a}|${w.b}|${w.since}` === e.key);
+      if (!still) { e.status = 'resolved'; e.end = this.day; this.note(e, `Ceasefire: ${A[a].name} and ${A[b].name} stop fighting.`); this.log(`Ceasefire: ${A[a].name} and ${A[b].name}.`); continue; }
+      const age = this.day - e.start;
+      while (e.milestone < G.milestones.length && age >= G.milestones[e.milestone]) { this.note(e, `The war between ${A[a].name} and ${A[b].name} has gone on for ${G.milestones[e.milestone]} days.`); e.milestone++; }
+    }
+    // embargoes
+    for (const [cid, c] of Object.entries(m.countries)) {
+      const open = st.events.find((e) => e.kind === 'embargo' && e.target === cid && e.status === 'active');
+      if (c.embargo && !open) {
+        const war = st.events.find((e) => e.kind === 'war' && e.status === 'active' && e.parties.includes(cid));
+        const e = { id: `ev_${st.nextId++}`, key: `embargo|${cid}|${this.day}`, kind: 'embargo', target: cid, parties: [cid], imposer: c.embargoReason === 'war' ? 'the arms-exporting nations' : 'international coalition', cause: c.embargoReason === 'war' && war ? war.id : null, start: this.day, registered: this.day, end: null, status: 'active', severity: severityOf('embargo', [this.income(cid)], G), goods: ['arms'], timeline: [] };
+        this.note(e, `${A[cid].name} is placed under an arms embargo (${c.embargoReason === 'war' ? 'for going to war' : c.embargoReason || 'international sanctions'}).`);
+        st.events.push(e);
+        this.log(`Embargo: ${A[cid].name}.`);
+      } else if (!c.embargo && open) {
+        open.status = 'resolved'; open.end = this.day; this.note(open, `The embargo on ${A[cid].name} is lifted.`); this.log(`The embargo on ${A[cid].name} is lifted.`);
+      }
+    }
+    // keep the newest resolved ones
+    const done = st.events.filter((e) => e.status === 'resolved');
+    if (done.length > G.keepResolved) { const drop = new Set(done.sort((a, b) => a.end - b.end).slice(0, done.length - G.keepResolved).map((e) => e.id)); st.events = st.events.filter((e) => !drop.has(e.id)); }
+  }
+
+  // ------------------------------------------------------------- what the economy takes from them
+  ctx(salt) { return { sectors: CORP.sectors, incomes: this.incomes(), salt: salt ?? (this.K.state.gen?.salt || '') }; }
+  phase(e, day = this.day) { return phaseOf(e, day, G); }
+
+  /** { demand: {sector: ×}, cost: {sector: ×} } for a day — the wider world's customers and costs. Empty with no events. */
+  indices(day = this.day) { return this.events().length ? indices(this.events(), day, this.ctx(), G) : { demand: {}, cost: {} }; }
+
+  /** What the Economy app shows: the events, what they do to each sector, who is exposed, and the rest of the news — facts as they stand, never what comes next. */
+  overview() {
+    const K = this.K;
+    const day = this.day;
+    const ctx = this.ctx();
+    const evs = this.events();
+    const describe = (e) => {
+      const idx = indices([e], day, ctx, G);
+      const eff = [];
+      for (const [s, v] of Object.entries(idx.demand)) eff.push({ sector: s, kind: 'demand', pct: (v - 1) * 100 });
+      for (const [s, v] of Object.entries(idx.cost)) eff.push({ sector: s, kind: 'cost', pct: (v - 1) * 100 });
+      eff.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+      return { ...e, phase: phaseOf(e, day, G), names: e.parties.map((c) => this.name(c)), age: day - e.start, effects: eff.slice(0, 4) };
+    };
+    const live = evs.map(describe);
+    const idx = this.indices();
+    const sectors = Object.keys(CORP.sectors).map((s) => ({ sector: s, demand: ((idx.demand[s] ?? 1) - 1) * 100, cost: ((idx.cost[s] ?? 1) - 1) * 100 })).filter((r) => Math.abs(r.demand) >= 0.05 || Math.abs(r.cost) >= 0.05);
+    const reg = new Map(K.registry().map((r) => [r.id, r]));
+    const rows = K.exchange.board().filter((r) => (r.status ?? 'listed') === 'listed').map((r) => {
+      const row = reg.get(r.ticker) || [...reg.values()].find((x) => x.ticker === r.ticker);
+      const util = r.source === 'generated' ? K.exchange.record(row?.id)?.util : undefined;
+      const s = this.sentiment({ id: row?.id || r.ticker, sector: r.sector, country: row?.country || 'home', util });
+      return { ticker: r.ticker, name: r.name, sector: r.sector, sentiment: s, change: r.change, price: r.price };
+    });
+    const exposed = rows.filter((r) => Math.abs(r.sentiment) >= 0.005);
+    const bank = (K.state.bank?.decisions || []).slice(-3).reverse();
+    return {
+      wars: live.filter((e) => e.kind === 'war' && e.status === 'active'),
+      embargoes: live.filter((e) => e.kind === 'embargo' && e.status === 'active'),
+      ended: live.filter((e) => e.status === 'resolved').sort((a, b) => b.end - a.end).slice(0, 6),
+      sectors,
+      lifted: exposed.filter((r) => r.sentiment > 0).sort((a, b) => b.sentiment - a.sentiment).slice(0, 4),
+      pressed: exposed.filter((r) => r.sentiment < 0).sort((a, b) => a.sentiment - b.sentiment).slice(0, 4),
+      movers: rows.filter((r) => r.change != null && r.change !== 0).sort((a, b) => b.change - a.change),
+      bank,
+      yields: K.bonds.offers().map((o) => ({ years: o.years, yield: o.yield })),
+      rate: K.bank.rate(),
+      headlines: (this.g.world.market?.news || []).slice(0, 8),
+      log: (this.peek()?.log || []).slice(-8).reverse(),
+    };
+  }
+
+  /** The expected-earnings change the market prices into a company's fair price today (a fraction; 0 with no events). */
+  sentiment(company, day = this.day) { return this.events().length ? sentimentOf(this.events(), company, day, this.ctx(), G) : 0; }
+}
+
+return { Geo };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -42619,6 +42874,7 @@ const { Bonds } = __m["src/systems/bonds.js"];
 const { Credit } = __m["src/systems/creditBonds.js"];
 const { Lending } = __m["src/systems/lending.js"];
 const { BusinessLoans } = __m["src/systems/businessLoans.js"];
+const { Geo } = __m["src/systems/geo.js"];
 const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -42635,6 +42891,7 @@ class Corporate {
     this.credit = new Credit(this); // v0.71.0: corporate bonds
     this.lending = new Lending(this); // v0.73.0: loans from Lariat State Bank
     this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
+    this.geo = new Geo(this); // v0.75.0: wars and embargoes as persistent events
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -42952,7 +43209,7 @@ class Corporate {
     const day = g.clock.day;
     const taken = new Set(this.takenNames().map((n) => n.toLowerCase()));
     for (const id of COMPANY_IDS) taken.add(this.defaultName(id).toLowerCase());
-    const { world, N } = buildWorld(CORP, { salt, day, taken, countries: countryIds(g.content), poolExtra: this.poolExtra(day) });
+    const { world, N } = buildWorld(CORP, { salt, day, taken, countries: countryIds(g.content), poolExtra: this.poolExtra(day, true) });
     st.gen = { salt, nextId: world.nextId, lastDay: day - 1, news: [] };
     st.generated = world.companies;
     this.namer = N;
@@ -42966,13 +43223,14 @@ class Corporate {
   }
 
   /** What the rest of the world's pools are read from: the real arms market. */
-  poolExtra() {
+  poolExtra(day, warm = false) {
     const g = this.game;
     const m = g.world.market; // read as it stands: the market's own getter would start it (and draw on the dice) earlier than it ever did
     if (!m?.countries) return {};
     const cs = Object.entries(m.countries || {});
     const inc = cs.reduce((a, [id]) => a + (g.content.arms.countries[id]?.income || 0), 0);
-    return { armsIncome: inc, wars: (m.wars || []).length };
+    const demand = warm ? {} : this.geo.indices(day).demand; // the wars' and embargoes' effect on customers starts with the live days, never in the made-up history
+    return Object.keys(demand).length ? { armsIncome: inc, wars: (m.wars || []).length, demand } : { armsIncome: inc, wars: (m.wars || []).length };
   }
 
   /** What the player's own businesses (and the older companies) sold a day over the last month: it comes off the top of each pool. */
@@ -42996,7 +43254,7 @@ class Corporate {
   }
 
   worldCtx(day, warm = false) {
-    return { rate: this.bank.rate(), external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
+    return { rate: this.bank.rate(), external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day, warm), cost: warm ? {} : this.geo.indices(day).cost };
   }
 
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
@@ -43004,6 +43262,7 @@ class Corporate {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once a budget has been set)
+    this.geo.dailyTick(); // what the arms market says has begun or ended, recorded (before the world's day reads it)
     this.generatedDay();
     this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
@@ -45045,6 +45304,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.75.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The World\'s Quarrels',
+    notes: [
+      'Wars and embargoes now matter to business. Each one is kept as a record with its own id, timeline and severity, and its effect builds up over ten days and fades over thirty after it ends: shipping and industry pay more, satellites and aerospace sell more, an embargo shuts a market to the lawful arms trade, and the market prices each company\'s earnings up or down by how exposed it really is. A new Economy app on the tablet lists what is on, what it costs sector by sector, and who is exposed.',
+    ],
+  },
   {
     version: '0.74.0',
     date: '2026-10-30',
@@ -62957,6 +63225,58 @@ function loansApp(ui, body, open) {
 return { loansApp };
 })();
 
+// ---- src/ui/corpEconomy.js
+__m["src/ui/corpEconomy.js"] = (function () {
+// The Economy app (v0.75.0): the wars, embargoes and restrictions that are on, what they do to each sector, who is exposed, and the rest of the
+// news. Read from game.corp.geo.overview(); nothing here moves money, and nothing says what will happen next.
+const { h } = __m["src/ui/panels.js"];
+
+const pc = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`;
+const pc2 = (v) => `${(v * 100).toFixed(2)}%`;
+
+function economyApp(ui, body) {
+  const g = ui.game;
+  const O = g.corp.geo.overview();
+  const none = (t) => h('p', { class: 'muted' }, t);
+  const sev = (e) => (e.severity >= 0.7 ? 'severe' : e.severity >= 0.4 ? 'serious' : 'limited');
+  const effect = (x) => `${x.sector} ${x.kind === 'cost' ? 'costs' : 'demand'} ${pc(x.pct)}`;
+  const event = (e) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, e.kind === 'war' ? `⚔️ ${e.names.join(' – ')}` : `🚫 ${e.names[0]}: arms embargo`, h('span', { class: `tag${e.status === 'active' ? ' neg' : ' good'}` }, e.status === 'active' ? sev(e) : 'ended'), h('span', { class: 'tag' }, e.id)),
+    h('div', { class: 'desc' }, e.kind === 'war'
+      ? `Since day ${e.start}${e.age >= 60 ? ' (prolonged)' : ''} · ${e.status === 'active' ? `${Math.round(e.phase * 100)}% of its full effect so far` : `ended day ${e.end}, ${Math.round(e.phase * 100)}% of its effect left`}`
+      : `Imposed by ${e.imposer} on day ${e.start}${e.cause ? ` after ${e.cause}` : ''} · restricts ${e.goods.join(', ')} · ${e.status === 'active' ? `${Math.round(e.phase * 100)}% in force` : `lifted day ${e.end}`}`),
+    e.effects.length ? h('div', { class: 'desc' }, `Now: ${e.effects.map(effect).join(' · ')}`) : null,
+    h('div', { class: 'desc muted' }, e.timeline.slice(-2).map((t) => `Day ${t.day}: ${t.text}`).join(' — '))));
+
+  body.append(h('p', { class: 'doc' }, '🌐 What the world\'s quarrels do to business. Each war and embargo is kept as a record; its effects build up over ten days and fade over thirty after it ends, are bounded, and fall unevenly: a sector, a company\'s own exposure, and whether it is from a country involved all matter. This is what has happened and what it costs now — never a forecast.'));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Wars'), O.wars.length ? h('div', { class: 'list' }, ...O.wars.map(event)) : none('No war is on.'));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Embargoes and restrictions'), O.embargoes.length ? h('div', { class: 'list' }, ...O.embargoes.map(event)) : none('No embargo is in force.'));
+  if (O.ended.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Ceasefires and lifted restrictions'), h('div', { class: 'list' }, ...O.ended.map(event)));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Commodities, materials and demand'));
+  if (!O.sectors.length) body.append(none('No sector is being moved by events.'));
+  else body.append(h('div', { class: 'list' }, ...O.sectors.map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.sector), h('div', { class: 'desc' }, [Math.abs(r.demand) >= 0.05 ? `customers' demand ${pc(r.demand)}` : null, Math.abs(r.cost) >= 0.05 ? `costs ${pc(r.cost)}` : null].filter(Boolean).join(' · ')))))));
+
+  const co = (r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.sentiment > 0 ? 'good' : 'neg'}` }, `${pc(r.sentiment * 100)} expected`)), h('div', { class: 'desc' }, `${r.sector} · ${r.price.toFixed(2)}${r.change != null ? ` (${pc(r.change * 100)} on the day)` : ''}`)));
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Who is exposed'));
+  if (!O.lifted.length && !O.pressed.length) body.append(none('No listed company is moved by events today.'));
+  else body.append(h('div', { class: 'list' }, ...O.lifted.map(co), ...O.pressed.map(co)));
+  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'The figure is how much the market is pricing a company\'s earnings up or down because of events, on top of what its books already show (bounded at 12%).'));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Central bank and bonds'),
+    h('div', { class: 'list' }, h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Policy rate ${pc2(O.rate)}`), h('div', { class: 'desc' }, `Government bond yields: ${O.yields.map((y) => `${y.years}-year ${pc2(y.yield)}`).join(' · ')}`))),
+      ...O.bank.map((d) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `Day ${d.day}: ${d.to > d.from ? 'raised' : d.to < d.from ? 'lowered' : 'held'} at ${pc2(d.to)}`), h('div', { class: 'desc' }, d.text))))));
+
+  if (O.movers.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Biggest moves on the exchange today'), h('div', { class: 'list' }, ...[...O.movers.slice(0, 3), ...O.movers.slice(-3).reverse()].filter((r, i, a) => a.findIndex((x) => x.ticker === r.ticker) === i).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, `${r.ticker} · ${r.name}`, h('span', { class: `tag ${r.change > 0 ? 'good' : 'neg'}` }, pc(r.change * 100))), h('div', { class: 'desc' }, `${r.price.toFixed(2)} · ${r.sector}`))))));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Headlines'));
+  if (!O.headlines.length) body.append(none('Nothing reported yet.'));
+  else body.append(h('div', { class: 'list' }, ...O.headlines.map((n) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${n.day} · ${n.text}`))))));
+}
+
+return { economyApp };
+})();
+
 // ---- src/ui/corpBonds.js
 __m["src/ui/corpBonds.js"] = (function () {
 // The Bonds app (v0.69.0): government bonds from the First Bank of Halvermouth. Read from game.corp.bonds; every button calls it.
@@ -63026,7 +63346,7 @@ __m["src/ui/tabletGroups.js"] = (function () {
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️' };
+const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐' };
 
 function tabletGroups(g) {
   const T = g.tablet;
@@ -63036,7 +63356,7 @@ function tabletGroups(g) {
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Personnel', 'Management'] : [] },
-    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Intelligence'] },
+    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence'] },
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
   return groups.filter((x) => x.apps.length).map((x) => ({ ...x, icon: ICONS[x.id] }));
@@ -63046,7 +63366,7 @@ const allApps = (groups) => groups.flatMap((x) => x.apps);
 const groupOf = (groups, tab) => groups.find((x) => x.apps.includes(tab)) || groups[0];
 
 /** Which app a feed item belongs to (the feed's own app names are older than the tablet's). */
-const FEED_TAB = { arms: 'Business', market: 'Business', ships: 'Ships', aero: 'Aerospace', stocks: 'Stocks', bank: 'Bank' };
+const FEED_TAB = { arms: 'Business', market: 'Business', ships: 'Ships', aero: 'Aerospace', stocks: 'Stocks', bank: 'Bank', news: 'Economy' };
 
 /** The newest `unread` feed items, counted by the app they belong to (news and the like belong to Home). */
 function badges(g) {
@@ -63087,6 +63407,7 @@ const { manageApp } = __m["src/ui/corpManage.js"]; // v0.63.0
 const { exchangeApp } = __m["src/ui/corpExchange.js"]; // v0.66.0
 const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
+const { economyApp } = __m["src/ui/corpEconomy.js"]; // v0.75.0
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
 
@@ -63125,6 +63446,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
+  else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

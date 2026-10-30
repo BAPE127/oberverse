@@ -2,6 +2,27 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.75.0] — 2026-10-30 — The World's Quarrels (development build)
+
+Stage 13, first part: wars and embargoes as persistent events with real economic effects, and an Economy app.
+
+### Added (`src/content/geo.js`, `src/corp/geo.js`, `src/systems/geo.js` — `game.corp.geo`; `src/ui/corpEconomy.js`)
+- **Persistent events layered on the arms market.** The arms market still decides when a war or an embargo begins and ends (so the arms trade plays as it always did, and the dice are not touched). Each morning, once the market is running, the service records each as an event: a **permanent id** (`ev_1`…), kind, parties (or target, imposer, restricted goods and the war that caused it), start, end, **status** (active/resolved), **severity** (from the countries' incomes), and a **timeline** (begins, milestones at 30/60/120 days, ceasefire or lifting). A war 60 days old counts as escalated (+15%). Resolved events are kept (newest 40). Nothing exists until the market has started; an old save gets its records the first morning, ramping in from that day.
+- **Effects are a function of the record and the day — never applied once.** An event ramps in over **10 days** from the day it is first seen and **fades over 30** after it ends, so a reload, a repeated morning or a long sleep cannot repeat or lose a shock (a test proves it).
+- **Costs and demand reach the wider world's companies.** The sim's per-sector **cost index** (shipping, agriculture, industrial, transport, aerospace… up to +12%) and **customers' demand** (satellites and aerospace up with war, an oil state at war moves energy much more, agriculture and transport down; each bounded 0.75×–1.3×) enter the companies' own days. **An embargo removes the target's share of the world's arms income from the lawful arms trade** (the arms pool's demand falls by that share). The made-up history before the game began is untouched.
+- **A bounded price response, by exposure.** What the market expects a company to earn changes with the sector's demand and cost against its margin, times **the company's own exposure** (a stable hash: two shipping companies are not hit alike), worse for a company from a country at war or under embargo, and an arms company **with no room to sell more gains nothing** from a surge. It moves the company's **fair price** (bounded at ±12%) for every exchange listing and for **OBRO, CHZ and MRDN**; the price still steps toward it a little each day.
+- **The Economy app** (Markets group): active wars and embargoes (id, severity, effects now, timeline), ceasefires and lifted restrictions with how much of their effect is left, a sector table of demand and cost changes, who is exposed (lifted and pressed, with the expected change), the policy rate, bond yields and the bank's recent meetings, the day's biggest movers, and the headlines. The arms market's world news now counts under it. It states what is happening and costs now — never a forecast.
+
+### Changed
+- **Listed prices and the wider world now move with events from the first morning.** A new game has a war (Varnistan–Caldera) and an embargo (Pallas) on day one, so exchange prices, the three older shares and the generated companies' books differ from v0.74.0. **Your own businesses' money is identical**: the parity runs agree to the obol on every line except Meridian's share price.
+- One earlier test was edited: the twin game in `exchange` ("the three older shares…") is now made to the same day as the other (before, a twin a day behind had the same MRDN price only because it never moved in a day). `tablet_groups` now expects world news under Economy and four apps in Markets.
+
+### Tests
+- New: `geo` (7): the pure phase/severity/indices/sentiment rules (bounds, ramp, recovery, exposure, capacity, embargo share); nothing before the market runs and the service not starting it; one record per war and embargo with stable ids, no duplicates on repeat ticks; a war's milestones, ceasefire and recovery, an embargo lifted, a reload and repeated mornings not stacking the shock; costs and demand reaching the companies and the exchange's fair prices; the overview. 
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. Bonds, managers' responses and foreign government bonds come in the next releases.
+
 ## [0.74.0] — 2026-10-30 — Lending to Your Companies (development build)
 
 Stage 12, second part: business loans.

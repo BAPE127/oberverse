@@ -46,7 +46,9 @@ export class Exchange {
   /** What one share of a company is worth on its own books today: its estimated value over its listed shares. */
   fairOf(l, row) {
     const v = this.K.metricsOf(row).valuation;
-    return v === null || v === undefined ? null : fairPrice(v, l.shares);
+    if (v === null || v === undefined) return null;
+    const c = this.record(l.id);
+    return fairPrice(v * (1 + this.K.geo.sentiment({ id: l.id, sector: row.sector, country: row.country, util: c?.util })), l.shares); // v0.75.0: the wars and embargoes of the day, by this company's exposure
   }
 
   /** Once a day: list what has just become priced, move every price, settle what has closed, and pay what is owed. */

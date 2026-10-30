@@ -2223,7 +2223,7 @@ export class Aerospace {
     const X = { ...this.A.exchange, shares: this.A.meridian.shares };
     const co = this.meridian;
     const ema = this.state.market.ema ?? this.expectedDailyProfit();
-    return fairValue(X, { equity: this.equity(co), ema, backlog: this.backlogValue(co) });
+    return fairValue(X, { equity: this.equity(co), ema, backlog: this.backlogValue(co) }) * (1 + (this.game.corp?.geo.sentiment({ id: 'meridian', sector: 'aerospace', country: 'home' }) || 0)); // v0.75.0
   }
 
   /** Before Meridian has a history, the market expects what its order book implies. */

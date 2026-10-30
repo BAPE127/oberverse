@@ -8,7 +8,7 @@
 export const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-export const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️' };
+export const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐' };
 
 export function tabletGroups(g) {
   const T = g.tablet;
@@ -18,7 +18,7 @@ export function tabletGroups(g) {
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Personnel', 'Management'] : [] },
-    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Intelligence'] },
+    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence'] },
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
   return groups.filter((x) => x.apps.length).map((x) => ({ ...x, icon: ICONS[x.id] }));
@@ -28,7 +28,7 @@ export const allApps = (groups) => groups.flatMap((x) => x.apps);
 export const groupOf = (groups, tab) => groups.find((x) => x.apps.includes(tab)) || groups[0];
 
 /** Which app a feed item belongs to (the feed's own app names are older than the tablet's). */
-const FEED_TAB = { arms: 'Business', market: 'Business', ships: 'Ships', aero: 'Aerospace', stocks: 'Stocks', bank: 'Bank' };
+const FEED_TAB = { arms: 'Business', market: 'Business', ships: 'Ships', aero: 'Aerospace', stocks: 'Stocks', bank: 'Bank', news: 'Economy' };
 
 /** The newest `unread` feed items, counted by the app they belong to (news and the like belong to Home). */
 export function badges(g) {

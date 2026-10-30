@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.75.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'The World\'s Quarrels',
+    notes: [
+      'Wars and embargoes now matter to business. Each one is kept as a record with its own id, timeline and severity, and its effect builds up over ten days and fades over thirty after it ends: shipping and industry pay more, satellites and aerospace sell more, an embargo shuts a market to the lawful arms trade, and the market prices each company\'s earnings up or down by how exposed it really is. A new Economy app on the tablet lists what is on, what it costs sector by sector, and who is exposed.',
+    ],
+  },
+  {
     version: '0.74.0',
     date: '2026-10-30',
     channel: 'development',

@@ -156,7 +156,7 @@ test('the three older shares are on the board, and trading them goes through the
   assert.equal(board.find((r) => r.ticker === 'OBRO').cap, maxHold(X, OIL_LISTED));
   assert.equal(board.find((r) => r.ticker === 'CHZ').fee, g.dairy.cfg.fee, 'it has always had one');
   assert.equal(board.find((r) => r.ticker === 'CHZ').cap, g.dairy.cfg.maxPlayerShares);
-  const twin = newGame(2006); twin.player.money = g.player.money = 100000;
+  const twin = open(2006); twin.player.money = g.player.money = 100000; // v0.75.0: the same day as g (a share's price now moves with the wars of the day, so a twin a day behind no longer matches)
   const a = ex.buy('OBRO', 5); const b = twin.oil.buyShares(5);
   assert.deepEqual(a, b); assert.equal(g.player.money, twin.player.money); assert.equal(g.oil.state.sharesOwned, 5);
   const c = ex.buy('MRDN', 100); const d = twin.aero.buyShares(100);

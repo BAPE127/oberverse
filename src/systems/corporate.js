@@ -30,6 +30,7 @@ import { Bonds } from './bonds.js';
 import { Credit } from './creditBonds.js';
 import { Lending } from './lending.js';
 import { BusinessLoans } from './businessLoans.js';
+import { Geo } from './geo.js';
 import { valuationFactor } from '../corp/bank.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -46,6 +47,7 @@ export class Corporate {
     this.credit = new Credit(this); // v0.71.0: corporate bonds
     this.lending = new Lending(this); // v0.73.0: loans from Lariat State Bank
     this.business = new BusinessLoans(this); // v0.74.0: loans to your companies
+    this.geo = new Geo(this); // v0.75.0: wars and embargoes as persistent events
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -363,7 +365,7 @@ export class Corporate {
     const day = g.clock.day;
     const taken = new Set(this.takenNames().map((n) => n.toLowerCase()));
     for (const id of COMPANY_IDS) taken.add(this.defaultName(id).toLowerCase());
-    const { world, N } = buildWorld(CORP, { salt, day, taken, countries: countryIds(g.content), poolExtra: this.poolExtra(day) });
+    const { world, N } = buildWorld(CORP, { salt, day, taken, countries: countryIds(g.content), poolExtra: this.poolExtra(day, true) });
     st.gen = { salt, nextId: world.nextId, lastDay: day - 1, news: [] };
     st.generated = world.companies;
     this.namer = N;
@@ -377,13 +379,14 @@ export class Corporate {
   }
 
   /** What the rest of the world's pools are read from: the real arms market. */
-  poolExtra() {
+  poolExtra(day, warm = false) {
     const g = this.game;
     const m = g.world.market; // read as it stands: the market's own getter would start it (and draw on the dice) earlier than it ever did
     if (!m?.countries) return {};
     const cs = Object.entries(m.countries || {});
     const inc = cs.reduce((a, [id]) => a + (g.content.arms.countries[id]?.income || 0), 0);
-    return { armsIncome: inc, wars: (m.wars || []).length };
+    const demand = warm ? {} : this.geo.indices(day).demand; // the wars' and embargoes' effect on customers starts with the live days, never in the made-up history
+    return Object.keys(demand).length ? { armsIncome: inc, wars: (m.wars || []).length, demand } : { armsIncome: inc, wars: (m.wars || []).length };
   }
 
   /** What the player's own businesses (and the older companies) sold a day over the last month: it comes off the top of each pool. */
@@ -407,7 +410,7 @@ export class Corporate {
   }
 
   worldCtx(day, warm = false) {
-    return { rate: this.bank.rate(), external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day), cost: {} };
+    return { rate: this.bank.rate(), external: warm ? {} : this.externalSales(), poolExtra: this.poolExtra(day, warm), cost: warm ? {} : this.geo.indices(day).cost };
   }
 
   /** Once a day (a little after 06:00): the world's companies live the days since the last time — at most a month's worth. */
@@ -415,6 +418,7 @@ export class Corporate {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once a budget has been set)
+    this.geo.dailyTick(); // what the arms market says has begun or ended, recorded (before the world's day reads it)
     this.generatedDay();
     this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)

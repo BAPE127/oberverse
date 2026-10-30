@@ -98,7 +98,8 @@ export class Dairy {
     const now = this.numbers().profit;
     const normal = this.numbers(1, 1).profit;
     const w = c.recoveryWeight;
-    return c.bookPerShare + (c.pe * 365 * ((1 - w) * now + w * normal)) / c.shares;
+    const base = c.bookPerShare + (c.pe * 365 * ((1 - w) * now + w * normal)) / c.shares;
+    return base * (1 + (this.game.corp?.geo.sentiment({ id: 'chuckies_cheese', sector: 'agriculture', country: 'home' }) || 0)); // v0.75.0: what the market expects of the wars and embargoes of the day
   }
 
   /** 18:00: the day's milk is sold, dividends paid, and CHZ moves toward its fair value. */

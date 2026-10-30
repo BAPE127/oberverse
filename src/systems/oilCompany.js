@@ -165,7 +165,7 @@ export class OilCompany {
     s.output = output;
     const oldPrice = s.sharePrice;
     // v0.67.0: the old formula is now what a share is worth; the price moves a part of the way there each day, like every listed company's
-    const fair = Math.max(FLOOR, 20 + output / 8 - (s.strike ? 6 : 0));
+    const fair = Math.max(FLOOR, (20 + output / 8 - (s.strike ? 6 : 0)) * (1 + (g.corp?.geo.sentiment({ id: 'ober_oil', sector: 'energy', country: 'home' }) || 0))); // v0.75.0: and what the market expects of the wars and embargoes of the day
     s.fair = Math.round(fair * 100) / 100;
     s.sharePrice = nextPrice({ ...CORP.exchange, minPrice: FLOOR }, s.sharePrice, fair, hashUnit(`oil|${g.clock.day}|${g.corp.state.gen?.salt || ''}`));
     const dividend = Math.floor(s.sharesOwned * this.dividendPerShare(output));

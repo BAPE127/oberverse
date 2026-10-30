@@ -166,6 +166,10 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 
 `src/systems/businessLoans.js` (`game.corp.business`), the company section of `src/ui/corpLoans.js`. The company is the borrower and stands alone (owner's answer): limit and rate from its own books and own record; **guarantees are explicit** (you: a record hit; a parent: it is called and the subsidiary owes it back as an intercompany loan); a missed instalment is arrears + penalty with no seizure, **managers refuse hire/bid/expand while behind** (`judge`'s `frozen`), and the bank collects what the account takes in. Borrowed money is a loan, never revenue; interest is opex, principal is not; a company's net assets and debt include what it owes the bank, and the consolidated statement reports it as `debt.bank` (external, not eliminated).
 
+## Wars, embargoes and geopolitics (v0.75.0)
+
+`src/content/geo.js` (every figure), `src/corp/geo.js` (pure), `src/systems/geo.js` (`game.corp.geo`), `src/ui/corpEconomy.js`. Owner's answer: **layer on top of** the arms market's wars and embargoes (it decides their start and end; the layer records them as persistent events and spreads their consequences). Effects: sector cost and demand indices into the wider world's days (`ctx.cost`, `poolExtra.demand`), an embargo's lost arms income, and an exposure-weighted bounded sentiment on every listed fair price. Bonds, managers and foreign government bonds are the next parts of stage 13.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.

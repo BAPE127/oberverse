@@ -10,7 +10,7 @@ test('a new game has the journal, the markets and the bank; owning businesses ad
   let groups = tabletGroups(g);
   assert.deepEqual(groups.map((x) => x.id), ['Home', 'Journal', 'Markets', 'Bank']);
   assert.deepEqual(groups.find((x) => x.id === 'Journal').apps, JOURNAL);
-  assert.deepEqual(groups.find((x) => x.id === 'Markets').apps, ['Exchange', 'Stocks', 'Intelligence']);
+  assert.deepEqual(groups.find((x) => x.id === 'Markets').apps, ['Exchange', 'Stocks', 'Economy', 'Intelligence']);
   g.player.money = 5e6; g.aero.buyFirm(); g.farm.buy('plot_east_1');
   groups = tabletGroups(g);
   assert.deepEqual(groups.map((x) => x.id), ['Home', 'Journal', 'Businesses', 'Group', 'Markets', 'Bank']);
@@ -21,14 +21,14 @@ test('a new game has the journal, the markets and the bank; owning businesses ad
   for (const a of apps) assert.equal(groupOf(groups, a).apps.includes(a), true);
   assert.equal(groupOf(groups, 'Nonsense').id, 'Home', 'an unknown app falls back to Home');
   // the apps the tablet had before are all still there
-  for (const a of ['Home', 'Quests', 'People', 'Customers', 'Notes', 'Standing', 'Farm', 'Aerospace', 'Companies', 'Group', 'Personnel', 'Management', 'Intelligence', 'Exchange', 'Bank', 'Bonds', 'Loans', 'Stocks']) assert.ok(apps.includes(a), a);
+  for (const a of ['Home', 'Quests', 'People', 'Customers', 'Notes', 'Standing', 'Farm', 'Aerospace', 'Companies', 'Group', 'Personnel', 'Management', 'Intelligence', 'Exchange', 'Economy', 'Bank', 'Bonds', 'Loans', 'Stocks']) assert.ok(apps.includes(a), a);
 });
 
 test('badges count the newest unread notifications by the app they belong to', () => {
   const g = newGame(3202);
   assert.deepEqual(badges(g), {});
   g.tablet.post('arms', 'a'); g.tablet.post('stocks', 'b'); g.tablet.post('stocks', 'c'); g.tablet.post('bank', 'd'); g.tablet.post('news', 'e'); g.tablet.post('ships', 'f');
-  assert.deepEqual(badges(g), { Business: 1, Stocks: 2, Bank: 1, Home: 1, Ships: 1 });
+  assert.deepEqual(badges(g), { Business: 1, Stocks: 2, Bank: 1, Economy: 1, Ships: 1 }, 'world news belongs to the Economy app since v0.75.0');
   g.tablet.markRead();
   assert.deepEqual(badges(g), {}, 'reading clears them');
   g.tablet.post('aero', 'g');
@@ -42,5 +42,5 @@ test('search finds an app by its name or its group, ignoring case, and nothing f
   assert.deepEqual(searchApps(groups, 'BANK').map((x) => x.app), ['Bank', 'Bonds', 'Loans']);
   assert.deepEqual(searchApps(groups, 'ex').map((x) => x.app), ['Exchange']);
   assert.deepEqual(searchApps(groups, ''), []); assert.deepEqual(searchApps(groups, '   '), []); assert.deepEqual(searchApps(groups, 'zzz'), []);
-  assert.ok(searchApps(groups, 'markets').length === 3, 'by group');
+  assert.ok(searchApps(groups, 'markets').length === 4, 'by group');
 });
