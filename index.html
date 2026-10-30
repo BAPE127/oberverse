@@ -15574,7 +15574,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.72.0';
+const GAME_VERSION = '0.73.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -20313,6 +20313,8 @@ class OilCompany {
     const s = this.state;
     if (n <= 0 || s.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = this.quote(n);
+    const lock = this.game.corp.lending.checkRelease({ kind: 'share', value: q.gross });
+    if (!lock.ok) return lock; // v0.73.0: shares pledged to a loan cannot be sold
     const value = Math.max(0, q.gross - q.fee);
     if (s.costBasis !== undefined) s.costBasis = Math.round(s.costBasis * (1 - n / s.sharesOwned));
     s.sharesOwned -= n;
@@ -33302,6 +33304,8 @@ class Dairy {
     const s = this.state;
     if (n <= 0 || s.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = this.quote(n);
+    const lock = g.corp.lending.checkRelease({ kind: 'share', value: q.gross });
+    if (!lock.ok) return lock; // v0.73.0: shares pledged to a loan cannot be sold
     const value = Math.max(0, q.gross - q.fee);
     if (s.costBasis !== undefined) s.costBasis = Math.round(s.costBasis * (1 - n / s.sharesOwned));
     s.sharesOwned -= n;
@@ -37907,6 +37911,8 @@ class Aerospace {
     n = Math.floor(n);
     if (n <= 0 || m.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = this.shareQuote(n);
+    const lock = g.corp.lending.checkRelease({ kind: 'share', value: q.gross });
+    if (!lock.ok) return lock; // v0.73.0: shares pledged to a loan cannot be sold
     const value = Math.max(0, q.gross - q.fee);
     m.costBasis = Math.round(m.costBasis * (1 - n / m.sharesOwned));
     m.sharesOwned -= n;
@@ -41710,8 +41716,10 @@ class Exchange {
     if (l.status !== 'listed') return { ok: false, text: `${ticker} is no longer traded.` };
     if (!(n > 0) || !h || h.n < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = quote(X, l.price, n);
-    const value = Math.max(0, q.gross - q.fee);
     const g = this.g;
+    const lock = g.corp.lending.checkRelease({ kind: 'share', value: q.gross });
+    if (!lock.ok) return lock; // v0.73.0: shares pledged to a loan cannot be sold
+    const value = Math.max(0, q.gross - q.fee);
     h.cost = Math.round(h.cost * (1 - n / h.n));
     h.n -= n;
     g.player.money += value;
@@ -41920,6 +41928,8 @@ class Bonds {
     if (!l) return { ok: false, text: 'You do not hold that bond.' };
     const v = this.view(l);
     const g = this.g;
+    const lock = g.corp.lending.checkRelease({ kind: 'govBond', value: v.value });
+    if (!lock.ok) return lock; // v0.73.0: bonds pledged to a loan cannot be sold
     s.lots = s.lots.filter((x) => x !== l);
     g.player.money += v.sale;
     g.bus.emit('money:changed', { delta: v.sale, total: g.player.money });
@@ -42088,6 +42098,8 @@ class Credit {
     const v = this.lotView(l);
     if (v.issueStatus !== 'open') return { ok: false, text: 'That bond can no longer be sold.' };
     const g = this.g;
+    const lock = g.corp.lending.checkRelease({ kind: 'corpBond', value: v.value, rating: v.rating });
+    if (!lock.ok) return lock; // v0.73.0: bonds pledged to a loan cannot be sold
     s.lots = s.lots.filter((x) => x !== l);
     g.player.money += v.sale;
     g.bus.emit('money:changed', { delta: v.sale, total: g.player.money });
@@ -42168,6 +42180,210 @@ class Credit {
 return { CREDIT, Credit };
 })();
 
+// ---- src/corp/lending.js
+__m["src/corp/lending.js"] = (function () {
+// Lending (v0.73.0). Pure functions — no game state, no DOM, no RNG.
+//
+//   advance(item)                 how much of a holding's value the bank will lend against
+//   secured(items)                what a set of holdings secures in all
+//   standingRate(s)               how a borrowing record moves the rate; limitFactor(s) how it moves the limit
+//   quote(...)                    the rate, the first instalment and the interest over the life of a loan
+//   dueMonth(loan)                one month's accounts: the instalment, and what is owed after
+//
+// A loan is repaid in equal principal parts with the month's interest on what is left. The rate is fixed when it is signed. A missed
+// instalment becomes arrears that grow at a penalty rate; nothing is ever taken — the pressure is the penalty, a record that makes
+// the next loan dearer and smaller, and holdings pledged against a loan that cannot be sold while it is owed.
+// Nothing here knows about anything but borrowing: a loan's terms depend on what is held and how past loans were repaid, never on
+// anything done to the borrower by anyone else.
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+const TERMS = [6, 12, 24, 36]; // months of thirty days
+const MIN_LOAN = 1000;
+const BASE_SPREAD = 0.025;
+const PENALTY = 0.05;
+const START_STANDING = 60;
+
+const CORP = { AA: 0.7, A: 0.7, BBB: 0.6, BB: 0.4, B: 0.4, CCC: 0.2 };
+
+/** item: { kind: 'share' | 'govBond' | 'corpBond', value, rating? } */
+function advance(item) {
+  if (item.kind === 'govBond') return 0.9;
+  if (item.kind === 'corpBond') return CORP[item.rating] ?? 0;
+  return 0.5;
+}
+
+const secured = (items) => items.reduce((a, i) => a + Math.max(0, i.value) * advance(i), 0);
+
+/** Standing is 0–100 (60 at the start): on-time payments raise it, missed ones lower it. */
+const standingRate = (s) => clamp((0.01 * (START_STANDING - s)) / 40, -0.005, 0.02);
+const limitFactor = (s) => clamp(1 + (s - START_STANDING) / 200, 0.8, 1.2);
+
+/** The rate a loan would be signed at: the policy rate, a base spread, more the more of the limit it uses, and the borrower's record; to the quarter-point. */
+function rateFor({ policy, util, standing }) {
+  return Math.round((policy + BASE_SPREAD + 0.02 * clamp(util, 0, 1) + standingRate(standing)) / 0.0025) * 0.0025;
+}
+
+/** What a loan of `amount` over `months` at `rate` costs: the first instalment and the interest paid by the end. */
+function quote(amount, months, rate) {
+  const part = amount / months;
+  let owed = amount; let interest = 0;
+  for (let i = 0; i < months; i++) { interest += (owed * rate) / 12; owed -= part; }
+  return { part: Math.ceil(part), first: Math.round(part + (amount * rate) / 12), interest: Math.round(interest), total: Math.round(amount + interest) };
+}
+
+/** What falls due on a loan's day. loan: { outstanding, rate, left (instalments still to come, this one included), arrears }. */
+function dueMonth(loan) {
+  const interest = Math.round((loan.outstanding * loan.rate) / 12);
+  const principal = loan.left <= 1 ? loan.outstanding : Math.min(loan.outstanding, Math.ceil(loan.outstanding / loan.left));
+  return { interest, principal, instalment: interest + principal, penalty: Math.round((loan.arrears * (loan.rate + PENALTY)) / 12) };
+}
+
+return { TERMS, MIN_LOAN, BASE_SPREAD, PENALTY, START_STANDING, advance, secured, standingRate, limitFactor, rateFor, quote, dueMonth };
+})();
+
+// ---- src/systems/lending.js
+__m["src/systems/lending.js"] = (function () {
+// Lariat State Bank (v0.73.0): game.corp.lending — loans for you, secured on the shares and bonds you hold.
+//
+// What the bank will lend is a share of what you hold (shares half, government bonds nine tenths, corporate bonds by rating) scaled
+// by your borrowing record. A loan is paid back in equal parts every thirty days with the month's interest, at a rate fixed when it
+// is signed. If your wallet cannot cover an instalment it becomes arrears that grow at a penalty rate — nothing is taken from you —
+// but you cannot borrow again while you are in arrears, your record falls (so the next loan is smaller and dearer), and the holdings
+// pledged against what you owe cannot be sold. Wallet loans only: no company account is touched. Nothing is created until a loan.
+const { advance, secured, limitFactor, rateFor, quote, dueMonth, TERMS, MIN_LOAN, START_STANDING, PENALTY } = __m["src/corp/lending.js"];
+
+const money = (n) => Math.round(n).toLocaleString();
+const LOG = 40;
+
+class Lending {
+  constructor(corp) {
+    this.K = corp;
+  }
+
+  get g() { return this.K.game; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.K.state.lending || null; }
+  ensure() { return (this.K.state.lending ||= { v: 1, loans: [], nextId: 1, standing: START_STANDING, onTime: 0, missed: 0, log: [], lastDay: 0 }); }
+  standing() { return this.peek()?.standing ?? START_STANDING; }
+  note(text) { const s = this.ensure(); s.log.push({ day: this.day, text }); while (s.log.length > LOG) s.log.shift(); }
+
+  // ------------------------------------------------------------- what you hold
+  /** Every holding the bank would lend against, at today's value. */
+  holdings() {
+    const out = [];
+    for (const r of this.K.exchange.board()) if (r.held > 0 && r.value > 0 && (r.status ?? 'listed') === 'listed') out.push({ kind: 'share', name: `${r.ticker} · ${r.name}`, value: r.value });
+    for (const r of this.K.bonds.portfolio().rows) out.push({ kind: 'govBond', name: `${r.years}-year government bond`, value: r.value });
+    for (const r of this.K.credit.portfolio().rows) if (r.issueStatus === 'open') out.push({ kind: 'corpBond', name: `${r.ticker} bond`, value: r.value, rating: r.rating });
+    return out.map((i) => ({ ...i, advance: advance(i), secures: Math.round(i.value * advance(i)) }));
+  }
+
+  owed() { return this.loans().reduce((a, l) => a + l.outstanding + l.arrears, 0); }
+  loans(all = false) { return (this.peek()?.loans || []).filter((l) => all || l.status !== 'repaid'); }
+  inArrears() { return this.loans().some((l) => l.arrears > 0); }
+
+  /** What your holdings secure (scaled by your record), what you owe, and what you may still borrow. */
+  capacity() {
+    const items = this.holdings();
+    const total = Math.round(secured(items) * limitFactor(this.standing()));
+    const owed = this.owed();
+    return { items, total, owed, free: Math.max(0, total - owed), over: Math.max(0, owed - total) };
+  }
+
+  // ------------------------------------------------------------- the sale lock
+  /** A sale of pledged holdings is refused if it would leave more owed than the rest secures. `item`: { kind, value, rating? }. */
+  checkRelease(item) {
+    if (!this.owed()) return { ok: true };
+    const c = this.capacity();
+    const after = c.total - Math.round(Math.max(0, item.value) * advance(item) * limitFactor(this.standing()));
+    if (after >= c.owed) return { ok: true };
+    return { ok: false, text: `Pledged to Lariat State Bank: you owe ${money(c.owed)} and what you would still hold secures ${money(Math.max(0, after))}. Repay some of the loan first.` };
+  }
+
+  // ------------------------------------------------------------- loans
+  offer(amount, months) {
+    const c = this.capacity();
+    const util = c.total ? (c.owed + amount) / c.total : 1;
+    const rate = rateFor({ policy: this.K.bank.rate(), util, standing: this.standing() });
+    return { rate, months, ...quote(amount, months, rate), free: c.free };
+  }
+
+  borrow(amount, months) {
+    amount = Math.floor(Number(amount));
+    if (!TERMS.includes(months)) return { ok: false, text: 'Choose 6, 12, 24 or 36 months.' };
+    if (!(amount >= MIN_LOAN)) return { ok: false, text: `A loan is for at least ${money(MIN_LOAN)} obols.` };
+    if (this.inArrears()) return { ok: false, text: 'You are behind on a loan: clear the arrears first.' };
+    if (this.standing() < 20) return { ok: false, text: 'Your borrowing record is too poor for another loan.' };
+    const c = this.capacity();
+    if (amount > c.free) return { ok: false, text: c.items.length ? `Your holdings secure ${money(c.total)} and you owe ${money(c.owed)}: you may borrow up to ${money(c.free)}.` : 'You hold no shares or bonds to borrow against.' };
+    const o = this.offer(amount, months);
+    const s = this.ensure();
+    const g = this.g;
+    const loan = { id: `ln_${s.nextId++}`, principal: amount, outstanding: amount, rate: o.rate, months, left: months, signed: this.day, due: this.day + 30, arrears: 0, missed: 0, paid: 0, interestPaid: 0, status: 'open' };
+    s.loans.push(loan);
+    g.player.money += amount;
+    g.bus.emit('money:changed', { delta: amount, total: g.player.money });
+    this.note(`Borrowed ${money(amount)} over ${months} months at ${(o.rate * 100).toFixed(2)}%.`);
+    return { ok: true, loan, text: `Lariat State Bank lent you ${money(amount)} obols over ${months} months at ${(o.rate * 100).toFixed(2)}% (fixed): ${money(o.first)} the first month.` };
+  }
+
+  /** Repay early (to the arrears first, then the principal). */
+  repay(id, amount) {
+    const s = this.peek();
+    const l = s?.loans.find((x) => x.id === id && x.status !== 'repaid');
+    if (!l) return { ok: false, text: 'No such loan.' };
+    const g = this.g;
+    amount = Math.min(Math.floor(Number(amount)), l.arrears + l.outstanding);
+    if (!(amount > 0)) return { ok: false, text: 'Repay how much?' };
+    if (g.player.money < amount) return { ok: false, text: 'You do not have that much.' };
+    g.player.money -= amount;
+    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    let left = amount;
+    const toArrears = Math.min(l.arrears, left); l.arrears -= toArrears; left -= toArrears;
+    l.outstanding -= left;
+    if (l.outstanding <= 0 && l.arrears <= 0) { l.status = 'repaid'; l.outstanding = 0; l.closed = this.day; this.note(`Repaid a loan of ${money(l.principal)} in full.`); }
+    return { ok: true, text: l.status === 'repaid' ? 'The loan is repaid in full.' : `${money(amount)} repaid. You still owe ${money(l.outstanding + l.arrears)}.` };
+  }
+
+  /** Each instalment that has fallen due, once; arrears grow at the penalty rate; the record moves. */
+  dailyTick() {
+    const s = this.peek();
+    if (!s || s.lastDay >= this.day) return;
+    s.lastDay = this.day;
+    const g = this.g;
+    for (const l of s.loans) {
+      if (l.status === 'repaid') continue;
+      let guard = 0;
+      while (l.due <= this.day && l.status !== 'repaid' && guard++ < 48) {
+        const d = dueMonth(l);
+        // arrears grow first, on what was owed before this month
+        if (l.arrears > 0) l.arrears += d.penalty;
+        if (l.left > 0) {
+          if (g.player.money >= d.instalment) {
+            g.player.money -= d.instalment;
+            g.bus.emit('money:changed', { delta: -d.instalment, total: g.player.money });
+            l.outstanding -= d.principal; l.interestPaid += d.interest; l.paid += 1;
+            s.onTime += 1; s.standing = Math.min(100, s.standing + 0.5);
+          } else {
+            l.outstanding -= d.principal; l.arrears += d.instalment; l.missed += 1;
+            s.missed += 1; s.standing = Math.max(0, s.standing - 8);
+            this.note(`Missed an instalment of ${money(d.instalment)}: it is now arrears at ${((l.rate + PENALTY) * 100).toFixed(2)}%.`);
+            g.tablet.post('bank', `You missed a loan instalment of ${money(d.instalment)} obols. It is in arrears at ${((l.rate + PENALTY) * 100).toFixed(1)}% and your record has fallen.`, 'warn');
+          }
+          l.left -= 1;
+        }
+        l.due += 30;
+        if (l.left <= 0 && l.outstanding <= 0 && l.arrears <= 0) { l.status = 'repaid'; l.outstanding = 0; l.closed = this.day; this.note(`Repaid a loan of ${money(l.principal)}.`); g.tablet.post('bank', `Your loan of ${money(l.principal)} is repaid in full.`, 'good'); }
+        else if (l.left <= 0 && (l.outstanding > 0 || l.arrears > 0)) l.status = 'overdue';
+        if (l.arrears > 0) s.standing = Math.max(0, s.standing - 1);
+      }
+    }
+  }
+}
+
+return { Lending };
+})();
+
 // ---- src/systems/corporate.js
 __m["src/systems/corporate.js"] = (function () {
 // The company accounts (v0.60.0): the one place the player's four businesses move money.
@@ -42200,6 +42416,7 @@ const { Exchange } = __m["src/systems/exchange.js"];
 const { CentralBank } = __m["src/systems/centralBank.js"];
 const { Bonds } = __m["src/systems/bonds.js"];
 const { Credit } = __m["src/systems/creditBonds.js"];
+const { Lending } = __m["src/systems/lending.js"];
 const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
@@ -42214,6 +42431,7 @@ class Corporate {
     this.bank = new CentralBank(this); // v0.68.0: the policy rate
     this.bonds = new Bonds(this); // v0.69.0: government bonds
     this.credit = new Credit(this); // v0.71.0: corporate bonds
+    this.lending = new Lending(this); // v0.73.0: loans from Lariat State Bank
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
@@ -42588,6 +42806,7 @@ class Corporate {
     this.exchange.dailyTick(); // prices and dividends of the listed (once the wider world exists)
     this.bonds.dailyTick(); // coupons and maturities (once a bond has been bought)
     this.credit.dailyTick(); // corporate issues, their ratings, coupons and defaults (once the exchange has priced the listed)
+    this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
   }
 
   /** The wider world's day. */
@@ -44622,6 +44841,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.73.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Lariat State Bank',
+    notes: [
+      'You can now borrow from Lariat State Bank, in a new Loans app on the tablet. It lends against the shares and bonds you hold (half of shares, nine tenths of government bonds), at the policy rate plus a spread that is fixed for the life of the loan, and you pay it back monthly. Miss a payment and the shortfall becomes arrears at a higher rate — nothing is ever taken from you — but you cannot borrow again until it is cleared, your borrowing record falls, and shares or bonds pledged to a loan cannot be sold until you have repaid enough.',
+    ],
+  },
   {
     version: '0.72.0',
     date: '2026-10-30',
@@ -62422,6 +62650,62 @@ function bankApp(ui, body) {
 return { bankApp };
 })();
 
+// ---- src/ui/corpLoans.js
+__m["src/ui/corpLoans.js"] = (function () {
+// The Loans app (v0.73.0): borrowing from Lariat State Bank against the shares and bonds you hold. Read from game.corp.lending;
+// every button calls it. Wallet loans only — no company is touched.
+const { h } = __m["src/ui/panels.js"];
+const { TERMS, MIN_LOAN, PENALTY } = __m["src/corp/lending.js"];
+
+const n = (x) => Math.round(x).toLocaleString();
+const pc = (v) => `${(v * 100).toFixed(2)}%`;
+const AMOUNTS = [5000, 25000, 100000];
+
+function loansApp(ui, body, open) {
+  const g = ui.game;
+  const L = g.corp.lending;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Loans'); };
+  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
+  const stat = (a, b) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b));
+  const C = L.capacity();
+  const standing = Math.round(L.standing());
+  body.append(
+    h('p', { class: 'doc' }, `🏛️ Lariat State Bank lends to you, personally, against the shares and bonds you hold: half the value of shares, nine tenths of government bonds, and corporate bonds by rating. A loan is repaid in equal parts every thirty days with the month's interest, at a rate fixed when you sign it (the policy rate plus a spread). If you cannot pay an instalment it becomes arrears at ${pc(PENALTY)} above the loan's rate — nothing is ever taken from you — but you cannot borrow again until it is cleared, your borrowing record falls, and the holdings pledged against a loan cannot be sold while the rest would not secure what you owe.`),
+    h('div', { class: 'grid2' }, stat('Your obols', n(g.player.money)), stat('Policy rate', pc(g.corp.bank.rate())), stat('Your holdings secure', n(C.total)), stat('You owe', n(C.owed)), stat('You may borrow', n(C.free)), stat('Borrowing record', `${standing} / 100`)));
+  if (C.over > 0) body.append(h('p', { class: 'muted' }, `You owe ${n(C.over)} more than your holdings now secure (their prices fell or your record did). Nothing is taken; you simply cannot sell them or borrow more.`));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Pledged: what you hold'));
+  if (!C.items.length) body.append(h('p', { class: 'muted' }, 'You hold no shares or bonds. Buy some in the Exchange or Bonds apps first.'));
+  else body.append(h('div', { class: 'list' }, ...C.items.map((i) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, i.name, h('span', { class: 'tag' }, `${Math.round(i.advance * 100)}%`)), h('div', { class: 'desc' }, `Worth ${n(i.value)} · secures ${n(i.secures)}`))))));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Borrow'));
+  if (L.inArrears()) body.append(h('p', { class: 'muted' }, 'You are behind on a loan: clear the arrears to borrow again.'));
+  else if (C.free < MIN_LOAN) body.append(h('p', { class: 'muted' }, `The smallest loan is ${n(MIN_LOAN)} obols; you can borrow ${n(C.free)} now.`));
+  else body.append(h('div', { class: 'list' }, ...TERMS.map((m) => {
+    const amounts = AMOUNTS.filter((a) => a <= C.free);
+    if (!amounts.length || (C.free > AMOUNTS.at(-1))) amounts.push(Math.floor(C.free));
+    return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+      h('div', { class: 'name' }, `${m} months`),
+      h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-top:4px' }, ...amounts.map((a) => { const o = L.offer(a, m); return h('button', { class: 'small primary', title: `${pc(o.rate)} fixed; ${n(o.first)} the first month; ${n(o.interest)} interest in all`, onclick: () => go(L.borrow(a, m)) }, `${n(a)} · ${pc(o.rate)} · ${n(o.first)}/mo`); }))));
+  })));
+
+  body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Your loans'));
+  const loans = L.loans(true);
+  if (!loans.length) body.append(h('p', { class: 'muted' }, 'You have never borrowed.'));
+  else body.append(h('div', { class: 'list' }, ...loans.slice().reverse().map((l) => h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
+    h('div', { class: 'name' }, `${n(l.principal)} at ${pc(l.rate)}`, h('span', { class: `tag${l.status === 'repaid' ? ' good' : l.arrears > 0 ? ' neg' : ''}` }, l.status === 'repaid' ? 'repaid' : l.arrears > 0 ? 'in arrears' : 'open')),
+    h('div', { class: 'desc' }, l.status === 'repaid' ? `Signed day ${l.signed}, repaid day ${l.closed}; ${n(l.interestPaid)} interest paid.` : `Owed ${n(l.outstanding)}${l.arrears ? ` + ${n(l.arrears)} arrears (at ${pc(l.rate + PENALTY)})` : ''} · ${l.left} instalment${l.left === 1 ? '' : 's'} left · next on day ${l.due}`),
+    l.status === 'repaid' ? null : h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px;margin-top:4px' },
+      ...[1000, 10000].filter((a) => a < l.outstanding + l.arrears).map((a) => h('button', { class: 'small', disabled: g.player.money < a, onclick: () => go(L.repay(l.id, a)) }, `Repay ${n(a)}`)),
+      h('button', { class: 'small primary', disabled: g.player.money < l.outstanding + l.arrears, onclick: () => go(L.repay(l.id, l.outstanding + l.arrears)) }, `Repay all (${n(l.outstanding + l.arrears)})`)))))));
+
+  const log = (L.peek()?.log || []).slice(-6).reverse();
+  if (log.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((x) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${x.day} · ${x.text}`))))));
+}
+
+return { loansApp };
+})();
+
 // ---- src/ui/corpBonds.js
 __m["src/ui/corpBonds.js"] = (function () {
 // The Bonds app (v0.69.0): government bonds from the First Bank of Halvermouth. Read from game.corp.bonds; every button calls it.
@@ -62491,7 +62775,7 @@ __m["src/ui/tabletGroups.js"] = (function () {
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜' };
+const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️' };
 
 function tabletGroups(g) {
   const T = g.tablet;
@@ -62502,7 +62786,7 @@ function tabletGroups(g) {
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Personnel', 'Management'] : [] },
     { id: 'Markets', apps: ['Exchange', 'Stocks', 'Intelligence'] },
-    { id: 'Bank', apps: ['Bank', 'Bonds'] },
+    { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
   return groups.filter((x) => x.apps.length).map((x) => ({ ...x, icon: ICONS[x.id] }));
 }
@@ -62551,6 +62835,7 @@ const { peopleApp } = __m["src/ui/corpPeople.js"]; // v0.62.0
 const { manageApp } = __m["src/ui/corpManage.js"]; // v0.63.0
 const { exchangeApp } = __m["src/ui/corpExchange.js"]; // v0.66.0
 const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
+const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
 
@@ -62588,6 +62873,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Exchange') exchangeApp(ui, body, open); // v0.66.0
   else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
+  else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home') T.markRead();
 

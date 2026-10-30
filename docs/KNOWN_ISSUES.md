@@ -1,4 +1,6 @@
-# Known Issues and Limitations — v0.72.0
+# Known Issues and Limitations — v0.73.0
+
+- **Lariat State Bank loans (v0.73.0)** — personal loans only: the money comes from the bank and the interest goes back to it (no company's books and no account of anyone's are involved), so a loan does add cash to your wallet and a liability to the loans list; nothing shows debt in any net-worth figure because the game has none. The lender's building (`b_bank` in Lariat) is still a closed façade; the loans are made from the tablet and there are no bank staff. Collateral is valued at the price the app shows, before any selling fee or spread. A sale is refused by the lock only through the player's own sale routes: a takeover, a failure or a maturity can still leave you owing more than your holdings secure, and then nothing happens but that you cannot sell or borrow. Instalments are taken on the bank's day-start, not at a time you choose; there is no automatic top-up and no way to refinance. The Loans screen has only a browser check. Loans to companies and the later stages are not done.
 
 - **The tablet's groups (v0.72.0)** — the badges are the notifications that have arrived since you last viewed Home, counted by the app they belong to; opening an app does not clear its badge, only viewing Home does (as before). Notifications from the arms trade's shipments and orders are counted under Business; world news under Home. The search finds apps, not the things inside them (a company, a ticker, a person). The group and app bars have no automated test, only a browser check.
 

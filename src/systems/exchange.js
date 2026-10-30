@@ -206,8 +206,10 @@ export class Exchange {
     if (l.status !== 'listed') return { ok: false, text: `${ticker} is no longer traded.` };
     if (!(n > 0) || !h || h.n < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = quote(X, l.price, n);
-    const value = Math.max(0, q.gross - q.fee);
     const g = this.g;
+    const lock = g.corp.lending.checkRelease({ kind: 'share', value: q.gross });
+    if (!lock.ok) return lock; // v0.73.0: shares pledged to a loan cannot be sold
+    const value = Math.max(0, q.gross - q.fee);
     h.cost = Math.round(h.cost * (1 - n / h.n));
     h.n -= n;
     g.player.money += value;

@@ -2313,6 +2313,8 @@ export class Aerospace {
     n = Math.floor(n);
     if (n <= 0 || m.sharesOwned < n) return { ok: false, text: 'You do not own that many shares.' };
     const q = this.shareQuote(n);
+    const lock = g.corp.lending.checkRelease({ kind: 'share', value: q.gross });
+    if (!lock.ok) return lock; // v0.73.0: shares pledged to a loan cannot be sold
     const value = Math.max(0, q.gross - q.fee);
     m.costBasis = Math.round(m.costBasis * (1 - n / m.sharesOwned));
     m.sharesOwned -= n;

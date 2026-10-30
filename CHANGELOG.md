@@ -2,6 +2,25 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.73.0] — 2026-10-30 — Lariat State Bank (development build)
+
+Stage 12, first part: loans for you, from Lariat State Bank, secured on the shares and bonds you hold.
+
+### Added (`src/corp/lending.js`, `src/systems/lending.js`, `src/ui/corpLoans.js`; `game.corp.lending`)
+- **A Loans app in the Bank group.** It lists what you hold that the bank will lend against, what that secures, what you owe and may still borrow, your borrowing record, the loans on offer (four terms × a few amounts, each button showing its fixed rate and first instalment), your loans (open, in arrears, repaid) with early repayment, and a short log.
+- **What you can borrow**: half the value of shares (OBRO, CHZ, MRDN and every exchange listing), nine tenths of government bonds, and corporate bonds by rating (AA/A 70%, BBB 60%, BB/B 40%, CCC 20%), all at today's value, scaled by your **borrowing record** (0.8× to 1.2×). Loans are **to you personally** — no company's account is touched, and nothing is borrowed on a company's behalf.
+- **The rate is fixed for the life of the loan**: the policy rate on the day you sign, plus 2.5%, plus up to 2% more the more of your limit the loan uses, plus or minus up to 2%/0.5% for a poor/good record, to the quarter-point. A later change of the policy rate does not change a loan you already have (it changes the next one).
+- **Repayment**: terms of 6, 12, 24 or 36 months of thirty days; each instalment is an equal part of the principal plus the month's interest on what is left, taken from your wallet on its day. Repay any amount early (arrears first, then principal; later instalments shrink to fit).
+- **Arrears and the penalty rate only**: if your wallet cannot cover an instalment, its principal is still counted as paid down but the whole instalment becomes arrears that grow every month at the loan's rate **+ 5%**. **Nothing is taken from you** — no seizure of shares or bonds, no margin call. The consequences are all in the record: you cannot take a new loan while in arrears, a miss costs 8 points of record (and 1 a month while arrears stand), on-time payments add half a point, and a record under 20 shuts borrowing altogether until it recovers.
+- **Pledged holdings cannot be sold out from under a loan**: every route that sells shares (the Exchange app, the Stocks app and the three companies' own screens) or a bond refuses a sale if what you would still hold would secure less than you owe, and says so. Repaying frees them. Shares and bonds that leave your hands on their own (a takeover, a company's failure, a bond maturing) are not blocked; if that leaves you owing more than you hold secures, nothing is taken — you simply cannot sell what is left or borrow more.
+- **Nothing exists until your first loan** (`world.corp.lending` is created by `borrow`); loading an old save gives nobody a loan, and without a loan the new code changes nothing: a parity run with and without it is identical.
+
+### Tests
+- New: `lending` (6): the pure rules, nothing-before-first-loan and refusals, a loan from signing to the last instalment (rate fixed when the policy rate moves, repaid to the obol, record built), arrears (no seizure, penalty growth, borrowing closed, cleared by repaying), the sale lock across bond/oil/exchange routes and its release, record effects and the round trip of the saved state. `tablet_groups` lists the new app. All earlier tests pass unedited.
+
+### Known limits
+- See docs/KNOWN_ISSUES.md. The Lariat State Bank building (`b_bank` in Lariat) is still a closed façade: the loans are made through the tablet. Company loans, the rest of stage 12 and the later stages are not done.
+
 ## [0.72.0] — 2026-10-30 — A Tidier Tablet (development build)
 
 Stage 11 of the Corporate Empire brief: the tablet's apps, organised. No app was added, removed or changed.

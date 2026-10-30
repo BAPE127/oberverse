@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.73.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Lariat State Bank',
+    notes: [
+      'You can now borrow from Lariat State Bank, in a new Loans app on the tablet. It lends against the shares and bonds you hold (half of shares, nine tenths of government bonds), at the policy rate plus a spread that is fixed for the life of the loan, and you pay it back monthly. Miss a payment and the shortfall becomes arrears at a higher rate — nothing is ever taken from you — but you cannot borrow again until it is cleared, your borrowing record falls, and shares or bonds pledged to a loan cannot be sold until you have repaid enough.',
+    ],
+  },
+  {
     version: '0.72.0',
     date: '2026-10-30',
     channel: 'development',

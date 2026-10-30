@@ -79,6 +79,8 @@ Since **v0.68.0** `world.corp.bank` (created at the bank's first meeting, day 91
 
 Since **v0.69.0** `world.corp.bonds` (created at the first purchase): `lots` (`{ id, years, face, coupon, issued, due, end, cost, coupons }`), `earned` (coupons received), `log`, `lastDay`, `nextId`. A save without it holds no bonds.
 
+Since **v0.73.0** `world.corp.lending` (created at the first loan): `loans` (`{ id, principal, outstanding, rate, months, left, signed, due, arrears, missed, paid, interestPaid, status ('open'|'overdue'|'repaid'), closed? }`), `standing` (borrowing record 0–100, 60 at the start), `onTime`, `missed`, `log`, `lastDay`, `nextId`. A save without it holds no loans and the starting record; nobody is given a loan by loading.
+
 Since **v0.71.0** `world.corp.credit` (created the first morning after the exchange has priced the listed): `issues` (`{ [ticker]: { id, ticker, name, face, years, coupon, rating, spreadRank, issued, end, due, status, serial, lastDebt, lastPlant, closedDay?, recovery? } }`), `lots` (`{ id, issue, face, coupon, bought, due, end, cost, coupons, status }`), `earned`, `log`, `lastDay`, `nextId`, `nextIssue`. A save without it holds no corporate bonds; nobody is given one by loading.
 
 Version-dependent fixes on load (no schema change): saves older than **0.20.0** have positions on the widened maps shifted (`Game.widenSave`).

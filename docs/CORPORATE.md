@@ -152,10 +152,20 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Lots**: `{ id, issue, face, coupon, bought, due, end, cost, coupons }`; coupons every 30 days from the issue day, each once.
 - **Not in this release**: bonds of your own businesses, bonds held by companies, anything that changes a company's books; bank loans (stage 12).
 
+## Lending (v0.73.0)
+
+`src/corp/lending.js` (pure: advance rates, `rateFor`, `quote`, `dueMonth`, record effects), `src/systems/lending.js` (`game.corp.lending`), `src/ui/corpLoans.js` (the Loans app, Bank group). The first part of stage 12.
+
+- **Borrower and security** (owner's answers): *you personally*, secured against your shares and bonds. Advance rates: shares 50%, government bonds 90%, corporate bonds 70/70/60/40/40/20% by rating AA…CCC, scaled by the borrowing record (0.8–1.2×).
+- **Rate** (owner's answer: fixed for life): policy rate at signing + 2.5% + up to 2% for the share of the limit used + a record adjustment (−0.5% … +2%), to the quarter-point. The policy rate's later moves touch only new loans.
+- **Default** (owner's answer: arrears and penalty rate only, no seizure): a missed instalment becomes arrears growing monthly at the loan's rate + 5%; the player is never debited by force and no holding is taken. Consequences: no new loan while in arrears, a lower borrowing record (−8 per miss, −1 a month in arrears, +0.5 per on-time payment), and the **sale lock** on pledged holdings.
+- **The record is its own thing** (`world.corp.lending.standing`): it is moved only by how the player repays loans. It is not, and must never be made, a function of anything else — stage 14's bank robbery has its own separate criminal reputation and must not read or write it, nor affect the rate, limits or valuations.
+- No company is a party: no company account is debited or credited, and no company's valuation, rating or ranking reads a loan.
+
 ## Rules every later stage keeps
 
 No money, shares, loans, employees or businesses are created by migration; no business is auto-consolidated; generated entities are stored once and never regenerated; investments stay personal; valuations never create cash; managers (stage 7) act only through the businesses' own validated services (`game.corp.pay` and below), within budgets that are authorisations, not money, and for a company with its own account.
 
 ## Not yet (see the roadmap in `docs/CORPORATE_AUDIT.md`)
 
-Selling or closing a subsidiary and part-owned subsidiaries (stage 5's remainder); managers that act on their own, budgets and approvals (7–8); a unified stock market with the generated companies' prices (9); the central bank at the First Bank of Halvermouth, bonds, loans at Lariat State Bank, the policy rate (10–12; the sim reads `CORP.baseRate` until then); wars and embargoes beyond the arms pool (13; the sim already accepts a per-sector cost index); the bank robbery (14).
+Selling or closing a subsidiary and part-owned subsidiaries (stage 5's remainder); managers that act on their own, budgets and approvals (7–8); a unified stock market with the generated companies' prices (9); loans to companies and a physical Lariat State Bank (12; personal loans exist since v0.73.0; the policy rate, bonds and the First Bank since 0.68–0.71); wars and embargoes beyond the arms pool (13; the sim already accepts a per-sector cost index); the bank robbery (14).

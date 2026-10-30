@@ -21,7 +21,7 @@ test('a new game has the journal, the markets and the bank; owning businesses ad
   for (const a of apps) assert.equal(groupOf(groups, a).apps.includes(a), true);
   assert.equal(groupOf(groups, 'Nonsense').id, 'Home', 'an unknown app falls back to Home');
   // the apps the tablet had before are all still there
-  for (const a of ['Home', 'Quests', 'People', 'Customers', 'Notes', 'Standing', 'Farm', 'Aerospace', 'Companies', 'Group', 'Personnel', 'Management', 'Intelligence', 'Exchange', 'Bank', 'Bonds', 'Stocks']) assert.ok(apps.includes(a), a);
+  for (const a of ['Home', 'Quests', 'People', 'Customers', 'Notes', 'Standing', 'Farm', 'Aerospace', 'Companies', 'Group', 'Personnel', 'Management', 'Intelligence', 'Exchange', 'Bank', 'Bonds', 'Loans', 'Stocks']) assert.ok(apps.includes(a), a);
 });
 
 test('badges count the newest unread notifications by the app they belong to', () => {
@@ -39,7 +39,7 @@ test('search finds an app by its name or its group, ignoring case, and nothing f
   const g = newGame(3203);
   const groups = tabletGroups(g);
   assert.deepEqual(searchApps(groups, 'bond'), [{ app: 'Bonds', group: 'Bank' }]);
-  assert.deepEqual(searchApps(groups, 'BANK').map((x) => x.app), ['Bank', 'Bonds']);
+  assert.deepEqual(searchApps(groups, 'BANK').map((x) => x.app), ['Bank', 'Bonds', 'Loans']);
   assert.deepEqual(searchApps(groups, 'ex').map((x) => x.app), ['Exchange']);
   assert.deepEqual(searchApps(groups, ''), []); assert.deepEqual(searchApps(groups, '   '), []); assert.deepEqual(searchApps(groups, 'zzz'), []);
   assert.ok(searchApps(groups, 'markets').length === 3, 'by group');

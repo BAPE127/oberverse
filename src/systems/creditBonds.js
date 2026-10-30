@@ -91,6 +91,8 @@ export class Credit {
     const v = this.lotView(l);
     if (v.issueStatus !== 'open') return { ok: false, text: 'That bond can no longer be sold.' };
     const g = this.g;
+    const lock = g.corp.lending.checkRelease({ kind: 'corpBond', value: v.value, rating: v.rating });
+    if (!lock.ok) return lock; // v0.73.0: bonds pledged to a loan cannot be sold
     s.lots = s.lots.filter((x) => x !== l);
     g.player.money += v.sale;
     g.bus.emit('money:changed', { delta: v.sale, total: g.player.money });
