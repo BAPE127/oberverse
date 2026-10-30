@@ -992,13 +992,89 @@ export class Aerospace {
     return { mode: md, q, internal, total: q.goods + q.duty + (internal ? 0 : q.freight + q.handling) };
   }
 
+  // ------------------------------------------------------------- one order, split into loads (v0.81.0)
+  /** Lots of this material one load of your ships can hold (0: no ship, or one lot is bigger than your biggest hull). */
+  lotsPerLoad(m) {
+    return Math.floor(this.maxHold() / (this.cfg.materials[m].volume || 1));
+  }
+
+  /** What an order's own-ship charge is: the share of the carrier's freight at `rate`, but never more than the cap for one order less what the order has been charged already. */
+  internalCharge(extFreight, rate, already = 0) {
+    return Math.max(0, Math.min(Math.round(extFreight * rate), this.cfg.internal.maxChargePerOrder - already));
+  }
+
+  /**
+   * What an order of `qty` lots would be, split the way it will travel: by carrier or truck in one piece,
+   * or in your own ships in loads no bigger than your biggest hull. Nothing changes. `own` says what the ships
+   * would cost and when the first load lands (the capped charge); `carrier` what an independent carrier would.
+   */
+  quoteOrder(co, supplierId, m, qty, mode = null) {
+    const sp = this.cfg.suppliers[supplierId];
+    qty = Math.max(1, Math.floor(qty));
+    let md = this.modeFor(co, supplierId, mode);
+    const ownOk = sp.where !== 'local' && this.canShipInternal(co) && this.lotsPerLoad(m) > 0;
+    if (md === 'internal' && !ownOk) md = 'carrier';
+    const per = md === 'internal' ? this.lotsPerLoad(m) : qty;
+    const chunks = [];
+    for (let left = qty; left > 0; left -= per) { const n = Math.min(per, left); chunks.push({ qty: n, q: this.freightQuote(co, supplierId, m, n) }); }
+    const sum = (k) => chunks.reduce((a, c) => a + c.q[k], 0);
+    const goods = sum('goods'); const duty = sum('duty'); const freight = sum('freight'); const handling = sum('handling');
+    const carrierQuote = md === 'internal' ? this.freightQuote(co, supplierId, m, qty) : null; // what the same order would be by carrier, in one piece
+    let own = null;
+    if (ownOk) {
+      const first = chunks[0];
+      const iq = this.internalQuote(co, sp.where, first.q.volume, this.now + sp.lead * DAY);
+      const rate = iq.ok ? iq.rate : this.cfg.internal.rates.inefficient;
+      let charged = 0;
+      for (const c of chunks) charged += this.internalCharge(c.q.freight + c.q.handling, rate, charged);
+      own = { ok: iq.ok, vessel: iq.vessel || null, eta: iq.ok ? iq.eta : null, rate, charge: charged, reasons: iq.reasons || [], loads: this.cfg.suppliers[supplierId].where === 'local' ? 0 : Math.ceil(qty / this.lotsPerLoad(m)) };
+    }
+    const cq = carrierQuote || { goods, duty, freight, handling, hours: chunks[0].q.hours };
+    return { mode: md, chunks, loads: chunks.length, goods, duty, freight, handling, hours: chunks[0].q.hours, km: chunks[0].q.km,
+      payNow: goods + duty + (md === 'internal' ? 0 : freight + handling),
+      carrier: { goods: cq.goods, duty: cq.duty, freight: cq.freight, handling: cq.handling, total: cq.goods + cq.duty + cq.freight + cq.handling, hours: cq.hours },
+      own, ownOk };
+  }
+
+  /**
+   * Order materials. One order of any size: by your own ships it is split into loads no bigger than your biggest
+   * hull, all of them one order for the cap on the internal charge. Everything — the terminal, automatic purchasing,
+   * the managers — goes through here. Returns { ok, po (the first), pos, loads, text }.
+   */
+  order(co, supplierId, m, qty, forUnits = {}, opts = {}) {
+    const sp = this.cfg.suppliers[supplierId];
+    qty = Math.floor(qty);
+    if (!sp || !sp.sells[m] || !(qty > 0)) return this.orderOne(co, supplierId, m, qty, forUnits, opts);
+    const quote = this.quoteOrder(co, supplierId, m, qty, opts.mode);
+    if (quote.loads <= 1) return this.orderOne(co, supplierId, m, qty, forUnits, opts);
+    // several loads: check all of it first, so a half-placed order cannot happen
+    const ss = this.state.suppliers[supplierId];
+    if ((ss.stock[m] || 0) < qty) return { ok: false, text: `${sp.name} has only ${ss.stock[m] || 0} lots of ${this.cfg.materials[m].name.toLowerCase()} in stock.` };
+    if (this.cfg.materials[m].secure && !this.cleared(co)) return { ok: false, text: `${this.cfg.materials[m].name} are controlled: you need security clearance.` };
+    if (!this.canAfford(co, quote.payNow)) return { ok: false, text: `The order costs ${quote.payNow.toLocaleString()} obols (freight comes later, in your own ships).` };
+    const left = { ...forUnits };
+    const pos = [];
+    let batch = null;
+    for (const c of quote.chunks) {
+      const mine = {};
+      let need = c.qty;
+      for (const [u, k] of Object.entries(left)) { const t = Math.min(k, need); if (t > 0) { mine[u] = t; left[u] -= t; need -= t; } }
+      const r = this.orderOne(co, supplierId, m, c.qty, mine, { ...opts, mode: 'internal', batch });
+      if (!r.ok) return pos.length ? { ok: true, po: pos[0], pos, loads: pos.length, text: `Ordered ${pos.length} of ${quote.loads} loads (${r.text})` } : r;
+      batch ||= r.po.id;
+      pos.push(r.po);
+    }
+    const goods = pos.reduce((a, po) => a + po.goods, 0);
+    return { ok: true, po: pos[0], pos, loads: pos.length, text: `Ordered ${qty} × ${this.cfg.materials[m].name} from ${sp.name}: ${goods.toLocaleString()} obols for the goods, to come in your own ships in ${pos.length} loads (freight to your own line at most ${this.cfg.internal.maxChargePerOrder.toLocaleString()}).` };
+  }
+
   /**
    * Order materials. Stock at the supplier is taken now; goods and duty are paid now (an asset
    * until used). By carrier (or truck) the freight is paid now too; in your own ships the job's
    * internal charge is paid when a ship loads it. forUnits: { unitId: lots } reserved on arrival.
    * opts.mode: 'carrier' | 'internal' (default: the company's shipping setting).
    */
-  order(co, supplierId, m, qty, forUnits = {}, opts = {}) {
+  orderOne(co, supplierId, m, qty, forUnits = {}, opts = {}) {
     const C = this.cfg;
     const sp = C.suppliers[supplierId];
     const ss = this.state.suppliers[supplierId];
@@ -1020,7 +1096,7 @@ export class Aerospace {
     const po = {
       id, company: co.id, supplier: supplierId, material: m, qty, unitPrice: q.unitPrice, goods: q.goods + q.duty, freight: internal ? 0 : q.freight + q.handling, freightInt: 0,
       extFreight: q.freight + q.handling, volume: q.volume, mode: internal ? 'internal' : q.mode, km: q.km, placed: this.now, ready: this.now + Math.round(sp.lead * DAY) + (internal ? late : 0),
-      arrive: q.arrive + late, late, status: 'preparing', for: { ...forUnits },
+      arrive: q.arrive + late, late, status: 'preparing', for: { ...forUnits }, batch: opts.batch || id, // v0.81.0: the player's one order (its loads share it)
     };
     this.state.pos[id] = po;
     if (internal) {
@@ -1201,7 +1277,8 @@ export class Aerospace {
     const jobs = this.jobs(co).sort((a, b) => (a.priority === 'urgent' ? 0 : 1) - (b.priority === 'urgent' ? 0 : 1) || a.created - b.created);
     for (const job of jobs) {
       let v = job.vessel && L.vessel(job.vessel);
-      if (job.vessel && (!v || v.status === 'lost' || (v.cargo && v.cargo.job !== job.id))) {
+      // (only a job still waiting for its ship: once loaded it is the ship's cargo, and after it has landed the ship may be on another job — v0.81.0)
+      if (job.vessel && ['reserved', 'repositioning'].includes(job.status) && (!v || v.status === 'lost' || (v.cargo && v.cargo.job !== job.id))) {
         job.log.push({ at: this.now, text: v ? `The ${v.name} can no longer take it.` : 'Its ship is gone.' });
         if (v?.cargo?.job === job.id) L.releaseAero(v);
         job.vessel = null;
@@ -1240,12 +1317,23 @@ export class Aerospace {
         if (!r.ok) { job.waitingWhy = r.text; continue; }
         job.voyageCost += r.cost;
         // the aerospace division pays the shipping division: a share of what a carrier would have charged
-        const charge = Math.round(job.extFreight * job.rate);
+        // v0.81.0: each order's loads together pay the line at most the cap (per order, not per load or per consignment).
+        // When the cap does not bind it is exactly the old charge: a share of what the carrier would have charged.
+        const doneOf = (po) => Object.values(this.state.pos).reduce((a, x) => a + ((x.batch || x.id) === (po.batch || po.id) && x.id !== po.id ? (x.freightInt || 0) : 0), 0);
+        const binds = pos.some((po) => Math.round(po.extFreight * job.rate) > this.cfg.internal.maxChargePerOrder - doneOf(po));
+        let charge;
+        if (!binds) {
+          charge = Math.round(job.extFreight * job.rate);
+          for (const po of pos) po.freightInt = Math.round(charge * (po.volume / job.units));
+        } else {
+          charge = 0;
+          for (const po of pos) { po.freightInt = this.internalCharge(po.extFreight, job.rate, doneOf(po)); charge += po.freightInt; }
+        }
         this.pay(co, charge, null, 'materials');
         co.books.inventoryValue += charge;
         L.earnInternal(charge);
         job.charge = charge;
-        for (const po of pos) { po.freightInt = Math.round(charge * (po.volume / job.units)); po.status = 'loading'; }
+        for (const po of pos) po.status = 'loading';
         co.freight.internalCharges += charge;
         co.freight.equivalent += job.extFreight;
         job.status = 'loading';

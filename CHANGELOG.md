@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.81.0] — 2026-10-30 — Supply, Rebuilt (development build)
+
+The aerospace Supply page, rebuilt around your ships, as in `docs/mockups/proposal-aerospace-supply.png` (the real screen is `docs/mockups/v081-supply.png`).
+
+- **One card per shortage** instead of five blocks on one page. The first shortage is open: how many (a slider with tappable marks — what the work needs, a full load for your biggest ship, all the supplier has — and a stepper), from which supplier (the cheapest landed one is chosen; the others are in Details), and **how it travels**: *your ship* or *carrier* (or truck, for a local supplier), each with its price, what it saves and when it lands. The better route is marked BEST. One **Order** button. The rest of the shortages are one line each (**Order N ›**). *Order something else…* picks any material. The stores table, purchase orders, consignments and the shipping settings are still there, in two collapsed sections. A fleet strip says which ships you have and what the limit is.
+- **One order of any size, in loads.** An order is split into loads no bigger than your biggest hull (60 lots on a 20-unit ship is three loads); before this an order bigger than a hull simply waited for a ship that could never take it, then went by carrier after a day. All the loads are one order: they are checked together (stock, money, clearance) and nothing is placed unless all can be. A material whose single lot is bigger than your biggest hull goes by carrier, and says so. Automatic purchasing and the managers' orders go through the same splitter.
+- **The cap (the owner's rule):** the freight and handling an order pays your own shipping line is **at most 500 obols for the whole order**, however many loads and consignments it takes (`INTERNAL.maxChargePerOrder`). Until now it was 1–5% of what a carrier would charge, uncapped; when the cap does not bind the charge is exactly the same as before. A carrier, or a load that falls back to one after the wait, pays the carrier's own rate. **The shipping line therefore earns less internal revenue on very large orders: its voyage costs are unchanged while the charge is capped.** The price on the card is the price that will be charged.
+- **A dispatcher bug found by the loads** (older than this release): a consignment that had already sailed or landed was reset to "waiting" whenever its ship was given another job, which corrupted it and, with several consignments on one ship, stopped the dispatcher with an error. Only a consignment still waiting for its ship can now be reset. A test runs three loads on one ship to delivery.
+- The rail's Supply badge counts *materials short*, as the page does (it counted unit shortages).
+- `tests/aerospace_supply.test.mjs` (10 tests: splitting, the cap per order and not per load, an unbound cap leaves the old charge exactly, all loads delivered with the books reconciling and the line paid exactly what it earned, carrier and local orders unsplit, all-or-nothing placement, save and load mid-order, every caller through the splitter, a lot too big for the hull). Mutation-checked: removing the cap and reverting the dispatcher guard each fail a test.
+
 ## [0.80.1] — 2026-10-30 — Morganius's Arms (development build)
 
 A patch. No rule or figure changed.

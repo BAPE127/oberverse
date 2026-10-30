@@ -47,7 +47,7 @@ const PRIORITY = [['price', 'Price'], ['time', 'Delivery'], ['quality', 'Quality
 const COL = { amber: '#ffb547', green: '#5ee08a', red: '#ff6b6b', blue: '#6fb4ff', dim: '#3a4356', ink: '#dfe9f5' };
 
 /** The terminal's own state survives re-opening (the page, what's selected, the order form). */
-const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1, booksTab: 'statement' };
+const AO = { mode: 'floor', sel: null, filter: 'all', ff: null, mat: null, qty: 4, msg: null, orbitRole: null, orbitQty: 1, booksTab: 'statement', supply: { qty: {}, sup: {}, route: {}, exp: {}, more: null, orders: false, settings: false } };
 
 const money = (n) => `${Math.round(n).toLocaleString()} ◎`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -486,7 +486,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     let bad = false;
     if (id === 'tenders') n = A.openTenders().filter((t) => !t.bids.some((b) => b.company === c.id) && A.bidQuote(c.id, t.id).ok).length;
     else if (id === 'contracts') { n = A.contractsOf(c, 'active').filter((x) => x.due < A.now).length; bad = n > 0; }
-    else if (id === 'supply') { n = A.shortfalls(c).length; bad = n > 0; }
+    else if (id === 'supply') { n = materialRows(c).filter((x) => x.short).length; bad = n > 0; }
     else if (id === 'research') { n = c.researching || (c.queue || []).length ? 0 : 1; }
     else if (id === 'orbit') { const f = A.fleetOf(c); n = f.live.filter((x) => (x.endsAt - A.now) / 1440 < 12).length + (c.events || []).filter((e) => e.kind === 'debris' && !e.resolved).length; bad = n > 0; }
     else if (id === 'standing') { n = (c.events || []).filter((e) => !e.resolved).length + (c.offers || []).filter((o) => o.until >= A.day).length; bad = (c.events || []).some((e) => !e.resolved); }
@@ -808,52 +808,107 @@ export function aerospacePanel(ui, body, opts = {}) {
     return { m, r, onOrder, need, short: Math.max(0, need - r.qty - onOrder) };
   }).filter((x) => x.r.qty || x.onOrder || x.need).sort((a, b) => b.short - a.short || b.need - a.need);
 
+  /**
+   * Supply (v0.81.0): what is short, one card each — how many, from whom, in your ships or by carrier, one button.
+   * The details (stores, purchase orders, consignments, the shipping settings) are one tap away, not on the page.
+   */
   const supplySheet = () => {
     const c = co();
+    const S = AO.supply;
     const rows = materialRows(c);
-    const pos = A.ordersOf(c, false).sort((a, b) => b.placed - a.placed).slice(0, 20);
-    const carrierOf = (po) => (po.mode === 'truck' ? 'truck (local)' : po.mode === 'internal' ? `${A.job(po.job)?.vessel ? `the ${g.logistics.vessel(A.job(po.job).vessel)?.name || 'ship'}` : 'awaiting a ship'} · ${po.job}` : C.freight.carrier);
+    const shorts = rows.filter((x) => x.short);
+    const L = g.logistics;
+    const own = A.canShipInternal(c);
+    const fleet = own ? L.vessels().filter((v) => v.status !== 'lost' && L.stats(v).capacity > 0) : [];
+    const free = fleet.filter((v) => v.status === 'docked' && !v.contract && !v.cargo && !v.convoyOf);
+    const pos = A.ordersOf(c);
+
+    const fleetStrip = own
+      ? h('div', { class: 'ao-fleet' }, h('span', { class: 'ico' }, '⚓'),
+        h('div', { class: 'grow' }, h('b', {}, fleet.length ? `Your fleet: ${plural(fleet.length, 'ship')}` : 'You have no ship yet'),
+          h('small', {}, fleet.length ? `biggest holds ${A.maxHold()} · ${free.length} free now · freight to your own line is at most ${C.internal.maxChargePerOrder.toLocaleString()} ◎ an order` : 'Orders go by carrier until Ober & Sons Maritime has a ship')),
+        pill(free.length ? 'ships ready' : fleet.length ? 'all busy' : 'carrier only', free.length ? COL.green : COL.amber))
+      : h('div', { class: 'ao-fleet' }, h('span', { class: 'ico' }, '🚚'), h('div', { class: 'grow' }, h('b', {}, 'Freight by carrier'), h('small', {}, 'Own Ober & Sons Maritime (for sale at the Mill Road Yards) and your own ships carry your materials for at most 500 ◎ an order.')));
+
+    /** One material's card. `short` = how many the work in hand is short of (0 for "something else"). */
+    const card = (m, x) => {
+      const mat = C.materials[m];
+      const sellers = Object.entries(C.suppliers).filter(([, sp]) => sp.sells[m]).map(([id, sp]) => ({ id, sp, stock: A.state.suppliers[id].stock[m] || 0 }));
+      const want = Math.max(1, S.qty[m] || x?.short || 1);
+      const landed = (sl) => { const n = Math.min(want, Math.max(1, sl.stock)); const q = A.quoteOrder(c, sl.id, m, n, 'internal'); return (q.mode === 'internal' && q.own ? q.payNow + q.own.charge : q.carrier.total) / n; };
+      const usable = sellers.filter((sl) => sl.stock > 0);
+      const best = (usable.length ? usable : sellers).slice().sort((a, b) => (b.stock >= want) - (a.stock >= want) || landed(a) - landed(b))[0];
+      const pick = sellers.find((sl) => sl.id === S.sup[m]) || best;
+      const stock = pick.stock;
+      const qty = Math.max(1, Math.min(want, Math.max(1, stock)));
+      const local = pick.sp.where === 'local';
+      const qOwn = local ? null : A.quoteOrder(c, pick.id, m, qty, 'internal');
+      const qCar = A.quoteOrder(c, pick.id, m, qty, local ? null : 'carrier');
+      const ownOk = Boolean(qOwn && qOwn.mode === 'internal' && qOwn.own);
+      const ownTotal = ownOk ? qOwn.payNow + qOwn.own.charge : 0;
+      const carTotal = qCar.carrier.total;
+      const dflt = ownOk && qOwn.own.ok && ownTotal <= carTotal ? 'own' : 'carrier';
+      const route = local ? 'truck' : (S.route[m] === 'own' && ownOk) || (S.route[m] === 'carrier') ? S.route[m] : dflt;
+      const total = route === 'own' ? ownTotal : carTotal;
+      const q = route === 'own' ? qOwn : qCar;
+      const set = (patch) => { Object.assign(S.qty, { [m]: patch.qty ?? qty }); if (patch.sup) S.sup[m] = patch.sup; if (patch.route) S.route[m] = patch.route; refresh(); };
+      const lotsLoad = A.lotsPerLoad(m);
+      const marks = [[x?.short ? `need ${x.short}` : null, x?.short], [own && lotsLoad ? `a full load ${lotsLoad}` : null, lotsLoad], [stock ? `all ${stock}` : null, stock]].filter(([t, v]) => t && v >= 1 && v <= stock);
+      const readout = h('b', { class: 'ao-qty' }, String(qty));
+      const slider = h('input', { type: 'range', class: 'ao-range', min: 1, max: Math.max(1, stock), value: qty, disabled: stock < 1, oninput: (e) => { readout.textContent = e.target.value; }, onchange: (e) => set({ qty: Number(e.target.value) }) });
+      const routeCard = (id, icon, title, price, line, ok = true) => h('button', { class: `ao-route${route === id ? ' sel' : ''}${ok ? '' : ' dim'}`, onclick: () => set({ route: id }) },
+        route === id && id === dflt && !local ? h('i', { class: 'rec' }, 'BEST') : null, h('small', {}, `${icon} ${title}`), h('b', {}, money(price)), h('span', { class: ok ? '' : 'warn' }, line));
+      const loads = ownOk ? qOwn.loads : 1;
+      const saves = ownOk ? carTotal - ownTotal : 0;
+      const ownLine = !ownOk ? '' : qOwn.own.ok
+        ? `${saves > 0 ? `saves ${money(saves)} · ` : ''}${loads > 1 ? `${loads} loads · ` : ''}first lands in ~${hrs(qOwn.own.eta - A.now)}`
+        : `${qOwn.own.reasons[0] || 'no ship is free'} — ${c.internalPolicy === 'fallback' ? `waits up to ${C.internal.fallbackHours} h, then a carrier` : 'it waits for one'}`;
+      const open = S.open?.[m];
+      return h('div', { class: `ao-card ao-supply${x?.short ? ' short' : ''}` },
+        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, mat.name), h('small', {}, x ? `have ${x.r.qty} · need ${x.need} · ${x.onOrder} on order` : `have ${(c.inv[m] || {}).qty || 0} in stores`)),
+          h('div', { class: 'ao-from' }, h('small', {}, `${pick.sp.name}${local ? ' · local' : ` · ${g.logistics.port(pick.sp.where)?.name || ''}`}`), pill(`${stock} in stock`, stock >= want ? COL.green : COL.red))),
+        h('div', { class: 'ao-slide' }, slider, h('div', { class: 'ao-marks' }, ...marks.map(([t, v]) => h('button', { class: 'tiny', onclick: () => set({ qty: v }) }, t)))),
+        h('div', { class: 'ao-stepper' }, btn('−', () => set({ qty: Math.max(1, qty - 1) }), 'tiny', qty <= 1), readout, btn('＋', () => set({ qty: Math.min(stock, qty + 1) }), 'tiny', qty >= stock), h('small', {}, 'lots')),
+        local
+          ? h('div', { class: 'ao-routes' }, routeCard('truck', '🚚', 'By truck', carTotal, `up the Cut in ~${hrs(qCar.hours * 60)}`))
+          : h('div', { class: 'ao-routes' }, own ? routeCard('own', '⚓', 'Your ship', ownTotal, ownLine, ownOk && qOwn.own.ok) : null, routeCard('carrier', '🚢', 'Carrier', carTotal, `${hrs(qCar.hours * 60)} · no wait`)),
+        h('div', { class: 'ao-row-inline' },
+          btn(`Order ${qty} · ${money(total)}`, () => { const r = act(() => A.order(c, pick.id, m, qty, {}, route === 'truck' ? {} : { mode: route === 'own' ? 'internal' : 'carrier' })); if (r.ok) { delete S.qty[m]; delete S.route[m]; if (S.more === m) S.more = null; refresh(); } }, 'primary', stock < 1 || !A.canAfford(c, q.payNow)),
+          btn(open ? 'Details ▴' : 'Details ▾', () => { (S.open ||= {})[m] = !open; refresh(); }, 'ghost')),
+        open ? h('div', { class: 'ao-detail' },
+          h('div', {}, `goods ${money(q.goods)}${q.duty ? ` · duty ${money(q.duty)}` : ''}`),
+          route === 'own' ? h('div', {}, `freight to your own line ${money(qOwn.own.charge)} (a share of the carrier's ${money(qOwn.carrier.freight + qOwn.carrier.handling)}, never more than ${C.internal.maxChargePerOrder.toLocaleString()} ◎ for this order), paid as each load is loaded`)
+            : h('div', {}, `freight ${money(qCar.freight)}${qCar.handling ? ` · handling ${money(qCar.handling)}` : ''}${q.km ? ` · ${q.km.toLocaleString()} km by sea` : ''}`),
+          h('div', {}, `paid now: ${money(q.payNow)}`),
+          sellers.length > 1 ? h('div', { class: 'ao-others' }, h('small', {}, 'Other suppliers: '), ...sellers.filter((sl) => sl.id !== pick.id).map((sl) => btn(`${sl.sp.name} (${sl.stock})`, () => set({ sup: sl.id }), 'tiny'))) : null) : null);
+    };
+
+    const extra = S.more && !shorts.some((x) => x.m === S.more) ? card(S.more, rows.find((x) => x.m === S.more) || null) : null;
+    const mats = Object.keys(C.materials);
+    const picker = h('select', { class: 'ao-input', onchange: (e) => { S.more = e.target.value || null; refresh(); } }, h('option', { value: '' }, 'Order something else…'), ...mats.map((m) => h('option', { value: m, selected: m === S.more }, C.materials[m].name)));
+
     return h('div', {},
-      h('div', { class: 'ao-kpis' }, kpi('In stores & on order', fmtMoney(c.books.inventoryValue)), kpi('Orders on the way', String(A.ordersOf(c).length)), kpi('Short', String(rows.filter((x) => x.short).length), rows.some((x) => x.short) ? 'neg' : 'pos'), kpi('Paid to carriers', fmtMoney(c.freight.external))),
-      h('label', { class: 'ao-switch' }, h('input', { type: 'checkbox', checked: c.autoProcure, onchange: (e) => { c.autoProcure = e.target.checked; say({ ok: true, text: c.autoProcure ? 'Purchasing will order what the work in hand needs, from the cheapest supplier with stock (landed cost).' : 'Automatic purchasing is off: order materials yourself below.' }); refresh(); } }), h('span', {}), ' Order materials automatically (cheapest landed cost)'),
-      h('div', { class: 'ao-two' },
-        section('Stores', rows.length ? h('div', { class: 'ao-mats' }, h('div', { class: 'ao-mat head' }, h('span', {}, 'Material'), h('span', {}, 'Stores'), h('span', {}, 'Reserved'), h('span', {}, 'On order'), h('span', {}, 'Needed'), h('span', {}, '')),
-          ...rows.map((x) => h('div', { class: `ao-mat${x.short ? ' short' : ''}` }, h('span', {}, C.materials[x.m].name), h('span', {}, String(x.r.qty)), h('span', {}, String(x.r.reserved)), h('span', {}, String(x.onOrder)), h('span', {}, String(x.need)),
-            h('span', {}, x.short ? btn(`Order ${x.short}`, () => { AO.mat = x.m; AO.qty = x.short; refresh(); sheet.querySelector('.ao-order')?.scrollIntoView({ block: 'start' }); }, 'tiny warn') : h('div', { class: 'ao-bar-track' }, h('i', { style: `width:${Math.round(clamp01(x.need ? (x.r.qty + x.onOrder) / x.need : 1) * 100)}%;background:${COL.green}` })))))) : muted('Nothing in stores and nothing needed.')),
-        shippingSection(c)),
-      section('Purchase orders', pos.length ? h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
-        h('tr', {}, ...['Order', 'Supplier', 'Lots', 'Goods + duty', 'Freight', 'By', 'Status', 'Due'].map((x) => h('th', {}, x))),
-        ...pos.map((po) => h('tr', { class: po.status === 'lost' ? 'neg' : po.status === 'received' ? 'dim' : '' }, h('td', {}, `${po.id} ${C.materials[po.material].name}`), h('td', {}, C.suppliers[po.supplier].name), h('td', {}, String(po.qty)), h('td', {}, money(po.goods)), h('td', {}, money(po.mode === 'internal' ? po.freightInt || 0 : po.freight)), h('td', {}, carrierOf(po)), h('td', {}, po.status), h('td', {}, po.status === 'received' ? A.when(po.received) : A.when(po.arrive)))))) : muted('No orders yet.')),
-      orderForm(c));
+      fleetStrip,
+      h('div', { class: 'ao-shorthead' }, h('div', {}, h('b', {}, shorts.length ? `${plural(shorts.length, 'material')} short` : 'Nothing is short'), h('small', {}, shorts.length ? 'for the work in hand' : 'the work in hand has what it needs')),
+        h('label', { class: 'ao-switch' }, h('input', { type: 'checkbox', checked: c.autoProcure, onchange: (e) => { c.autoProcure = e.target.checked; say({ ok: true, text: c.autoProcure ? 'Purchasing will order what the work in hand needs, from the cheapest supplier with stock.' : 'Automatic purchasing is off: order materials yourself.' }); refresh(); } }), h('span', {}), ' Auto-buy')),
+      ...(extra ? [extra] : []),
+      ...shorts.map((x, i) => (i === 0 || S.exp[x.m] ? card(x.m, x) : h('div', { class: 'ao-card ao-supply compact' },
+        h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, C.materials[x.m].name), h('small', {}, `need ${x.need} · have ${x.r.qty} · ${x.onOrder} on order`)), btn(`Order ${x.short} ›`, () => { S.exp[x.m] = true; refresh(); }, 'primary'))))),
+      h('div', { class: 'ao-row-inline' }, picker),
+      h('details', { class: 'ao-fold', open: S.orders, ontoggle: (e) => { S.orders = e.target.open; } }, h('summary', {}, `On the way: ${plural(pos.length, 'order')} · in stores ${fmtMoney(c.books.inventoryValue)}`), purchaseOrders(c, rows)),
+      h('details', { class: 'ao-fold', open: S.settings, ontoggle: (e) => { S.settings = e.target.open; } }, h('summary', {}, 'Shipping settings and consignments'), shippingSection(c)));
   };
 
-  const orderForm = (c) => {
-    const mats = Object.keys(C.materials);
-    if (!AO.mat || !C.materials[AO.mat]) AO.mat = mats[0];
-    const sel = h('select', { class: 'ao-input', onchange: (e) => { AO.mat = e.target.value; draw(); } }, ...mats.map((m) => h('option', { value: m, selected: m === AO.mat }, C.materials[m].name)));
-    const qty = h('input', { type: 'number', min: 1, value: AO.qty, class: 'ao-input num small', oninput: (e) => { AO.qty = Math.max(1, Math.floor(Number(e.target.value) || 1)); draw(); } });
-    const grid = h('div', { class: 'ao-grid' });
-    const draw = () => {
-      const m = AO.mat;
-      const n = AO.qty;
-      grid.replaceChildren(...Object.entries(C.suppliers).filter(([, sp]) => sp.sells[m]).map(([id, sp]) => {
-        const stock = A.state.suppliers[id].stock[m] || 0;
-        const q = A.freightQuote(c, id, m, Math.min(n, Math.max(1, stock)));
-        const total = q.goods + q.freight + q.duty + q.handling;
-        const own = sp.where !== 'local' && A.canShipInternal(c);
-        const iq = own ? A.internalQuote(c, sp.where, q.volume, A.now + sp.lead * 1440) : null;
-        const iCharge = own ? Math.round((q.freight + q.handling) * (iq.ok ? iq.rate : C.internal.rates.inefficient)) : 0;
-        return h('div', { class: 'ao-card' },
-          h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, sp.name), h('small', {}, sp.where === 'local' ? 'Local · by truck' : `${g.logistics.port(sp.where)?.name} · ${q.km ? `${q.km.toLocaleString()} km by sea` : ''}`)), pill(`${stock} in stock`, stock >= n ? COL.green : COL.red)),
-          h('div', { class: 'ao-quote' }, h('div', {}, h('small', {}, sp.where === 'local' ? 'Landed (truck)' : 'Landed (carrier)'), h('b', {}, money(total)), h('span', {}, `goods ${fmtMoney(q.goods)} · freight ${fmtMoney(q.freight)}${q.duty ? ` · duty ${fmtMoney(q.duty)}` : ''}${q.handling ? ` · handling ${fmtMoney(q.handling)}` : ''} · ${Math.round(q.hours)} h`)),
-            own ? h('div', { class: 'own' }, h('small', {}, 'Landed (your own ship)'), h('b', {}, money(q.goods + q.duty + iCharge)), h('span', {}, iq.ok ? `the ${iq.vessel.name}${iq.atOrigin ? ', already there' : ' sails there empty'} · ~${Math.round((iq.eta - A.now) / 60)} h · saves ${fmtMoney(q.freight + q.handling - iCharge)}` : `${iq.reasons[0]} — it would wait${c.internalPolicy === 'fallback' ? ' up to a day, then go by carrier' : ''}`)) : null),
-          h('div', { class: 'ao-row-inline' },
-            btn(sp.where === 'local' ? `Order ${n}` : `Order ${n} by carrier`, () => act(() => A.order(c, id, m, n, {}, { mode: 'carrier' })), own ? '' : 'primary', stock < n),
-            own ? btn(`Order ${n} in my ship`, () => act(() => A.order(c, id, m, n, {}, { mode: 'internal' })), 'primary', stock < n) : null));
-      }));
-    };
-    draw();
-    return h('div', { class: 'ao-sec ao-order' }, h('h4', {}, 'Order materials'), h('div', { class: 'ao-row-inline' }, sel, h('small', {}, 'lots'), qty, h('small', { class: 'ao-muted' }, 'Landed cost = the supplier\'s price + duty + freight + handling. Materials can only be used once they\'re in stores.')), grid);
+  /** The stores table and the purchase orders (the old Supply page, kept one tap down). */
+  const purchaseOrders = (c, rows) => {
+    const list = A.ordersOf(c, false).sort((a, b) => b.placed - a.placed).slice(0, 20);
+    const carrierOf = (po) => (po.mode === 'truck' ? 'truck (local)' : po.mode === 'internal' ? `${A.job(po.job)?.vessel ? `the ${g.logistics.vessel(A.job(po.job).vessel)?.name || 'ship'}` : 'awaiting a ship'} · ${po.job}` : C.freight.carrier);
+    return h('div', {},
+      rows.length ? h('div', { class: 'ao-mats' }, h('div', { class: 'ao-mat head' }, h('span', {}, 'Material'), h('span', {}, 'Stores'), h('span', {}, 'Reserved'), h('span', {}, 'On order'), h('span', {}, 'Needed'), h('span', {}, '')),
+        ...rows.map((x) => h('div', { class: `ao-mat${x.short ? ' short' : ''}` }, h('span', {}, C.materials[x.m].name), h('span', {}, String(x.r.qty)), h('span', {}, String(x.r.reserved)), h('span', {}, String(x.onOrder)), h('span', {}, String(x.need)), h('span', {}, '')))) : muted('Nothing in stores and nothing needed.'),
+      list.length ? h('div', { class: 'ao-table-wrap' }, h('table', { class: 'ao-table' },
+        h('tr', {}, ...['Order', 'Supplier', 'Lots', 'Goods + duty', 'Freight', 'By', 'Status', 'Due'].map((x) => h('th', {}, x))),
+        ...list.map((po) => h('tr', { class: po.status === 'lost' ? 'neg' : po.status === 'received' ? 'dim' : '' }, h('td', {}, `${po.id} ${C.materials[po.material].name}`), h('td', {}, C.suppliers[po.supplier].name), h('td', {}, String(po.qty)), h('td', {}, money(po.goods)), h('td', {}, money(po.mode === 'internal' ? po.freightInt || 0 : po.freight)), h('td', {}, carrierOf(po)), h('td', {}, po.status), h('td', {}, po.status === 'received' ? A.when(po.received) : A.when(po.arrive)))))) : muted('No orders yet.'));
   };
 
   /** Shipping in your own ships (v0.56.0): the setting, the consignments, what it saves. */

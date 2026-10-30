@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.81.0',
+    date: '2026-10-30',
+    channel: 'development',
+    title: 'Supply, Rebuilt',
+    notes: [
+      'The aerospace Supply page is now one card for each material you are short of: how many, from whom, in your own ship or by carrier, and one Order button. The rest of the old page is a tap away.',
+      'An order can be any size: it is split into loads your ships can carry, and the freight you pay your own shipping line is never more than 500 obols for the whole order.',
+    ],
+  },
+  {
     version: '0.80.1',
     date: '2026-10-30',
     channel: 'development',

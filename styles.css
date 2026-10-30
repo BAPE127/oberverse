@@ -1067,3 +1067,35 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao .ao-table td .ao-meter { display: inline-block; width: 70px; vertical-align: middle; margin-right: 8px; }
 
 .ao .ao-exportrow { display: flex; justify-content: flex-end; margin: -4px 0 8px; }
+
+/* Aerospace → Supply (v0.81.0): one card per shortage, a fleet strip, route cards */
+.ao-fleet { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--ao-line2); border-radius: 12px; background: rgba(10,16,28,.7); margin-bottom: 10px; }
+.ao-fleet .ico { width: 36px; height: 36px; border-radius: 10px; background: rgba(120,170,255,.14); display: grid; place-items: center; font-size: 18px; }
+.ao-fleet small { display: block; opacity: .75; }
+.ao-shorthead { display: flex; justify-content: space-between; align-items: center; margin: 4px 2px 10px; }
+.ao-shorthead b { font-size: 16px; } .ao-shorthead small { display: block; opacity: .7; }
+.ao-supply { margin-bottom: 10px; }
+.ao-supply.short { border-color: rgba(255,181,71,.4); }
+.ao-from { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.ao-slide { display: flex; flex-direction: column; gap: 6px; }
+.ao-range { width: 100%; accent-color: var(--ao-amber); height: 26px; }
+.ao-marks { display: flex; gap: 8px; flex-wrap: wrap; }
+.ao-marks .tiny { border: 1px dashed var(--ao-line); background: transparent; color: #ffe0a8; border-radius: 99px; padding: 2px 10px; font-size: 12px; }
+.ao-stepper { display: flex; align-items: center; gap: 10px; }
+.ao-qty { font-size: 26px; min-width: 56px; text-align: center; }
+.ao-routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.ao .ao-route { position: relative; text-align: left; border: 2px solid var(--ao-line2); border-radius: 12px; background: rgba(16,22,36,.9); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; color: inherit; font: inherit; cursor: pointer; }
+.ao-route b { font-size: 20px; } .ao-route small { opacity: .75; } .ao-route span { font-size: 12px; opacity: .85; }
+.ao .ao-route.sel { border-color: var(--ao-amber); background: rgba(60,46,18,.55); box-shadow: 0 0 0 1px rgba(255,181,71,.35); }
+.ao .ao-route.dim { opacity: .8; }
+.ao-route .rec { position: absolute; top: -9px; right: 10px; background: var(--ao-amber); color: #1d1205; font-style: normal; font-weight: 800; font-size: 10px; border-radius: 99px; padding: 1px 8px; }
+.ao-detail { display: flex; flex-direction: column; gap: 4px; font-size: 12px; opacity: .9; border-top: 1px solid var(--ao-line2); padding-top: 8px; }
+.ao-others { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ao-fold { border: 1px solid var(--ao-line2); border-radius: 12px; padding: 8px 12px; margin-top: 10px; background: rgba(10,16,28,.5); }
+.ao-fold > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.ao .ao-btn.ghost { background: transparent; }
+
+.ao-supply.compact { padding: 8px 14px; }
+.ao-supply.compact .ao-card-head { align-items: center; }
+.ao .ao-route { color: #dfe9f5; text-align: left; }
+.ao-range::-webkit-slider-thumb { width: 20px; height: 20px; }

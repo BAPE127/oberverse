@@ -486,12 +486,14 @@ export const FREIGHT = {
  *   established: a ship already at the supplier's port, on a route your fleet has sailed lately
  *   standard: a ship already at the supplier's port
  *   inefficient: a ship has to go there empty first
+ * v0.81.0: whatever the rate, one order's internal charge is capped at maxChargePerOrder.
  */
 export const INTERNAL = {
   rates: { established: 0.01, standard: 0.025, inefficient: 0.05 },
   establishedDays: 30, // a route sailed within this many days counts as established
   fallbackHours: 24, // policy 'fallback': with no ship found in this long, the job goes by carrier
   dispatchEvery: 15, // game minutes between dispatcher passes
+  maxChargePerOrder: 500, // v0.81.0: one order, however many loads it is split into, never pays your own line more than this for freight and handling
 };
 
 /**

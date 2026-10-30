@@ -93,6 +93,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.81.0 (2026-10-30)
+
+- New: `aerospace_supply.test.mjs` (10 tests; see the changelog). Mutation checks: the cap removed → the cap test fails; the dispatcher's `reserved`/`repositioning` guard removed → the three-loads-on-one-ship test fails with the dispatcher error.
+- Parity against v0.80.1 (`d9598d3`): identical line for line (the run's orders are small, so the cap never binds).
+- Browser (headless Chromium), a game with the line and the firm: the Supply page draws, a real order from the button spent 7,441 obols and said it comes in your own ship, Details opens, a 60-lot slider shows 3 loads, 279 ◎ freight (under the cap) and 4,998 ◎ saved; 0 page errors. Screen: `docs/mockups/v081-supply.png`. Differences from the approved mockup: the terminal's own dark/amber look rather than the tablet's, the first shortage open and the rest one line each, route prices include the whole order, and the fleet strip states the cap.
+
 ## Verification record — v0.80.1 (2026-10-30)
 
 - Morganius's elbow solver: `tests/morganius_arms.test.mjs` (4 tests; two fail against an inverted solver). Browser (headless Chromium): all eleven poses rendered before and after; the live Spade's Gambit scene played through three hands (a card mid-throw, the cascade, scoring), 0 page errors. Screens: `docs/mockups/v0801-morganius-arms.png`.
