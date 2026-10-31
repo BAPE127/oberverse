@@ -140,6 +140,7 @@ export class Personnel {
     if (!this.employerOk(employer)) return employer === 'parent' ? 'There is no parent company yet.' : 'You do not own that business yet.';
     if (!this.roleAllowed(role, employer)) return `${R.name} is not a job at ${employer === 'parent' ? 'the parent company' : 'that kind of business'}.`;
     if (promotion ? roleFit(P, cand, role) < MIN_FIT : !rolesFor(P, cand).includes(role)) return `${cand.first}'s skills do not suit ${R.name} (they average ${Math.round(roleFit(P, cand, role))}; the job needs ${MIN_FIT}).`;
+    if (employer === 'parent') { const seat = this.g.hq?.seatError(except); if (seat) return seat; } // v0.87.0: an office has only so many seats (no office, no limit)
     if (this.holders(employer, role, except).length >= R.limit) return `${this.employerName(employer)} already has ${R.limit === 1 ? 'a' : R.limit} ${R.name}${R.limit > 1 ? 's' : ''}.`;
     return null;
   }

@@ -93,6 +93,11 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.87.0 (2026-10-31)
+
+- New: `hq_officers.test.mjs` (9 tests). Smoke +2. The validator's rule "no beds outside homes" was met by marking the quarters a dwelling. No existing test edited.
+- Browser (headless Chromium): three officers at their desks in the centre at 10:00 with their name tags and barks; the staff quarters at 20:00 with the cots and the officers off duty; a conversation with one; 0 page errors. Screens: `docs/mockups/v087-*.png`.
+
 ## Verification record — v0.86.0 (2026-10-31)
 
 - New: `hq.test.mjs` (9 tests). Smoke +2. Placement fallout found and fixed by the suite and the validator: two of the Grand Hotel's parked limousines stood on the first site chosen for the tower, and a police patrol point (`patrol_beat_eastend_1`, y=19) ran along the row above; both sites were moved, and the three buildings got map icons. No existing test edited.

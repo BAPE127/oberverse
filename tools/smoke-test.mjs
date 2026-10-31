@@ -165,6 +165,12 @@ try {
   record('Headquarters: the parent pays exactly the price and the door opens', parent0 - (await page.evaluate(() => window.oberverse.ui.game.corp.account('parent').cash)) === 25000 && await page.evaluate(() => { const g = window.oberverse.ui.game; return g.playerCanPass(g.maps.get('halvermouth').doors.find((d) => d.building === 'b_hq_small')); }));
   await closeAll();
 
+  // Officers at work (v0.87.0): the parent's hires get bodies in the office it owns; the office has only so many seats
+  const offi = await page.evaluate(() => { const g = window.oberverse.ui.game; g.player.money = 5_000_000; const pe = g.corp.personnel; const role = ['ceo', 'cfo', 'coo', 'controller'].find((q) => pe.candidates().some((x) => x.roles.includes(q))); const c = pe.candidates().find((x) => x.roles.includes(role)); const r = pe.offer(c.id, { role, employer: 'parent', pay: c.floor + 5 }); g.hq.minuteTick(); return { ok: r.ok, body: Boolean(r.person && g.npcs.get(r.person.id)?.profile.hqStaff) }; });
+  record('Officers: a hire at the parent gets a body in the office it owns', offi.ok && offi.body);
+  const seat = await page.evaluate(() => { const g = window.oberverse.ui.game; const pe = g.corp.personnel; let last = null; for (const role of ['ceo', 'cfo', 'coo', 'controller', 'cso', 'cpo', 'hrd', 'gm', 'accountant', 'analyst']) { if (pe.holders('parent', role).length) continue; const c = pe.candidates().find((x) => x.roles.includes(role) && !pe.holders('parent').some((p) => p.id === x.id)); if (!c) continue; last = pe.offer(c.id, { role, employer: 'parent', pay: c.floor + 5 }); if (!last.ok && /seats/.test(last.text)) break; } return last ? last.text : ''; });
+  record('Officers: the small office has only three seats', /seats for 3 officers/.test(seat), seat);
+
   // Teleport next to Mags (test hook) and talk to her
   await closeAll();
   await page.evaluate(() => {

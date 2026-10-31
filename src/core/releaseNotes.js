@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.87.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The Headquarters, Stage 2: Officers at Work',
+    notes: [
+      'Your parent company\'s executives and managers now work in the office you bought: they walk to their own desks in the morning, take lunch in the boardroom, and go home to staff quarters behind the hall to sleep.',
+      'An office has only so many seats, so buy a bigger one to hire more. You can still hire as many as you like if you have no office.',
+    ],
+  },
+  {
     version: '0.86.0',
     date: '2026-10-31',
     channel: 'development',

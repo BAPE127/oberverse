@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.87.0 | 2026-10-31 | development | 1 | The headquarters, stage 2: officers at work — the parent's executives and managers walk to their own desks in office hours, lunch in the boardroom, and sleep in staff quarters behind the hall; an office holds only as many officers as it has seats. |
 | 0.86.0 | 2026-10-31 | development | 1 | The headquarters, stage 1: three offices on the paving of Halvermouth — a small office, a corporate centre and a tower — real buildings from the first day, shut and for sale until the parent company buys one from its own account; each hall the size of its building, a daily upkeep, and a Headquarters section in the Group app. |
 | 0.85.0 | 2026-10-31 | development | 1 | The OberPad, finished: Business and Standing open on summaries (248 → 62 and 155 → 54 words), the Stocks chart folds away, touch and phone-width rules — every app is now in the tablet's pattern. |
 | 0.84.0 | 2026-10-30 | development | 1 | The OberPad, stage 2: Management, Group, Personnel, Milestones, World News, Exchange, Companies, Intelligence and Customers open on a short summary (one figure, three tiles, what is waiting for you) with the whole old page one tap down — Management from 1,286 words to 53. |

@@ -11012,6 +11012,46 @@ const __default = [dlgLucas, dlgStaff];
 return { dlgLucas, dlgStaff, default: __default };
 })();
 
+// ---- src/content/dialogue/officer.js
+__m["src/content/dialogue/officer.js"] = (function () {
+// The officers who work at your headquarters (v0.87.0): generated people (src/systems/hq.js profileOf), so these lines are generic —
+// they know their desk, their hours and that you pay them.
+const dlgOfficer = {
+  id: 'dlg_officer',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*mumbles into a pillow* …the minutes can wait until nine, Chief…'] },
+    { if: { activity: 'work' }, variants: [['Chief. I have the figures, if you want them.'], ['Good to see you, Chief. Mind the paper on the floor; it is filed that way.'], ['*looks up from a ledger* Chief.']] },
+    { if: { activity: 'leisure' }, variants: [['Chief. Off the clock, but never off the record.'], ['*stirs a cup of something* Chief. A quiet moment, for once.']] },
+    { if: {}, variants: [['Chief.'], ['Good day, Chief.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Back to the desk.'], ['Chief.']] }],
+  topics: [
+    {
+      id: 't_officer_job', label: '"How is the work?"', keywords: ['work', 'job', 'desk', 'office'],
+      say: ['Steady. The books balance, the desk is mine and the kettle is never empty. The hours are nine till half past five, with an hour at noon.'],
+    },
+    {
+      id: 't_officer_home', label: '"Where do you sleep?"', keywords: ['sleep', 'home', 'bed', 'quarters'],
+      say: ['Behind the hall, in the staff quarters: a cot each, a stove, a table where we do the minutes. It is not the Phonograph Grand, but it is ours.'],
+    },
+  ],
+  askAbout: [],
+  unknown: [['I would have to check the files, Chief.'], ['Above my signature, Chief.']],
+  gift: { loved: [['For me? Chief, I shall frame it.']], liked: [['Thank you, Chief.']], neutral: [['Noted, with thanks.']], disliked: [['I will file this under "other".']] },
+  barks: {
+    greet: ['Chief.', 'Good day.'],
+    work: ['*signs something*', '*totals a column*', 'Eleven, twelve, carry the two…', '*files a memo*'],
+    leisure: ['*stirs a cup*', '*reads the minutes for fun*', 'A quiet half hour.'],
+    sleep: ['…zzz…'],
+    chat: ['Indeed.', 'Mm.', 'It is in the minutes.'],
+    argue: ['I would prefer we put that in writing.'],
+  },
+};
+const __default = [dlgOfficer];
+
+return { dlgOfficer, default: __default };
+})();
+
 // ---- src/content/characters/ober.js
 __m["src/content/characters/ober.js"] = (function () {
 // Captain Ober, of Ober & Sons Maritime. IMPORTED character (player-supplied
@@ -15705,7 +15745,7 @@ function hqInterior(tier) {
   const perRow = T.desks / rows;
   const props = [];
   const spots = { entry: { x: dx, y: H - 2, facing: 'up' } };
-  props.push({ id: `hq_${tier}_plant_b`, type: 'plant', x: W - 2, y: 1 });
+  props.push({ id: `hq_${tier}_plant_b`, type: 'plant', x: 1, y: 1 });
   props.push({ id: `hq_${tier}_rug`, type: 'rug', x: dx - 1, y: H - 3, w: 3, h: 1, color: '#2a3a5a' });
   for (let x = 2; x < W - 2; x += 3) props.push({ id: `hq_${tier}_win_${x}`, type: 'window', x, y: 0 });
   let n = 0;
@@ -15731,20 +15771,53 @@ function hqInterior(tier) {
   if (tier === 'tower') props.push({ id: 'hq_tower_painting', type: 'painting', x: Math.floor(W / 2) + 2, y: 1, examine: 'A portrait of the founder. It has your eyes.' });
   return {
     id: hqMapId(tier), name: T.name, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTilesFor(W, H, dx, [[W - 2, 0, 1, 1, 'D']]),
+    doors: [
+      { id: `door_hq_${tier}_exit`, x: dx, y: H - 1, to: { map: 'halvermouth', spot: `${hqBuildingId(tier)}_out` } },
+      // v0.87.0: the staff quarters, behind the hall, for the officers who work here (and for you)
+      { id: `door_hq_${tier}_quarters`, x: W - 2, y: 0, label: 'Staff quarters', to: { map: hqQuartersId(tier), spot: 'entry' }, lock: { key: 'item_none', hq: tier, message: 'Staff quarters. The company keeps rooms behind the hall for its officers.' } },
+    ],
+    spots: { ...spots, quarters_door: { x: W - 2, y: 1, facing: 'down' } }, keepClear: [[dx, H - 2], [W - 2, 1]], props,
+  };
+}
+
+const hqQuartersId = (tier) => `hq_${tier}_quarters`;
+
+/** The rooms behind a hall (v0.87.0): a cot for every officer's seat, a table and a stove. Not a street building, so nothing outside moves. */
+function hqQuarters(tier) {
+  const T = HQ_TIERS[tier];
+  const perRow = 6;
+  const rows = Math.ceil(T.seats / perRow);
+  const W = 2 * perRow + 2;
+  const H = 3 * rows + 4;
+  const dx = Math.floor(W / 2);
+  const props = [];
+  const spots = { entry: { x: dx, y: H - 2, facing: 'up' }, common: { x: dx, y: H - 3, facing: 'up' } };
+  for (let k = 0; k < T.seats; k++) {
+    const x = 1 + 2 * (k % perRow);
+    const y = 1 + 3 * Math.floor(k / perRow);
+    props.push({ id: `hq_${tier}_cot_${k + 1}`, type: 'cot', x, y });
+    spots[`bed_${k + 1}`] = { x: x + 1, y: y + 1, facing: 'left' }; // beside the cot (a cot is 1×2)
+  }
+  props.push({ id: `hq_${tier}_q_table`, type: 'table', x: dx - 1, y: H - 4, w: 3, examine: 'A table, a kettle and a rota in a neat hand: "WHOSE TURN TO MAKE THE MINUTES". Every name has been initialled.' });
+  props.push({ id: `hq_${tier}_q_stove`, type: 'stove', x: W - 2, y: H - 2 });
+  return {
+    id: hqQuartersId(tier), name: `${T.name} — staff quarters`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor', dwelling: true, // the officers live here, so beds are allowed (the validator's rule: beds only in homes)
     tiles: roomTilesFor(W, H, dx),
-    doors: [{ id: `door_hq_${tier}_exit`, x: dx, y: H - 1, to: { map: 'halvermouth', spot: `${hqBuildingId(tier)}_out` } }],
+    doors: [{ id: `door_hq_${tier}_quarters_exit`, x: dx, y: H - 1, to: { map: hqMapId(tier), spot: 'quarters_door' } }],
     spots, keepClear: [[dx, H - 2]], props,
   };
 }
 // (the room's tiles come from the shared builder; imported lazily so this file stays plain data for the content tests)
 const { roomTiles } = __m["src/world/mapBuilder.js"];
-const roomTilesFor = (W, H, dx) => roomTiles(W, H, 't', dx);
+const roomTilesFor = (W, H, dx, extra = []) => roomTiles(W, H, 't', dx, extra);
 
 /** Put the three offices on the street and their halls beside it (called once, before the interiors are laid over the buildings). */
 function addHq(MAPS) {
   const S = MAPS.halvermouth;
   for (const tier of HQ_ORDER) {
     MAPS[hqMapId(tier)] = hqInterior(tier);
+    MAPS[hqQuartersId(tier)] = hqQuarters(tier); // v0.87.0
     S.buildings.push(hqBuilding(tier));
     const T = HQ_TIERS[tier];
     // a board in front: FOR SALE until the parent buys it, then a brass plate
@@ -15755,7 +15828,7 @@ function addHq(MAPS) {
   }
 }
 
-return { HQ_TIERS, HQ_ORDER, hqMapId, hqBuildingId, hqBuilding, hqInterior, addHq };
+return { HQ_TIERS, HQ_ORDER, hqMapId, hqBuildingId, hqBuilding, hqInterior, hqQuartersId, hqQuarters, addHq };
 })();
 
 // ---- src/world/interiors.js
@@ -16147,6 +16220,7 @@ const dlgSal = __m["src/content/dialogue/sal.js"].default;
 const { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } = __m["src/content/warehouses.js"];
 const lucasChars = __m["src/content/characters/lucas.js"].default;
 const dlgLucas = __m["src/content/dialogue/lucas.js"].default;
+const dlgOfficer = __m["src/content/dialogue/officer.js"].default; // v0.87.0
 const captainOber = __m["src/content/characters/ober.js"].default;
 const dlgCaptainOber = __m["src/content/dialogue/ober.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
@@ -16244,7 +16318,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -16317,7 +16391,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.86.0';
+const GAME_VERSION = '0.87.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -25629,6 +25703,115 @@ class Robbery {
 return { Robbery };
 })();
 
+// ---- src/content/personnel.js
+__m["src/content/personnel.js"] = (function () {
+// The people who run companies (v0.62.0): skills, jobs, what a job pays and what a person in it can do.
+// Everything here is data; src/corp/people.js turns it into candidates, offers and effects, and
+// src/systems/personnel.js into a hiring market, payrolls and records. Pay is obols a day.
+
+/** Seventeen skills, 0–100. 20 is a beginner, 50 competent, 70 strong, 90 exceptional. */
+const SKILLS = {
+  finance: { name: 'Financial management', text: 'Cash, debt, reserves and forecasts.' },
+  budgeting: { name: 'Budgeting and cost control', text: 'Holding spending to a plan; trimming waste and overhead.' },
+  production: { name: 'Production planning', text: 'Scheduling work so capacity is used.' },
+  procurement: { name: 'Procurement and negotiation', text: 'Buying what is needed at a good price.' },
+  logistics: { name: 'Logistics and routes', text: 'Moving things efficiently: ships, loads, routes.' },
+  bidding: { name: 'Contract bidding', text: 'Pricing and winning tenders and contracts.' },
+  sales: { name: 'Sales and revenue', text: 'Selling what is made at a good price.' },
+  research: { name: 'Research and development', text: 'Choosing and driving projects that pay.' },
+  workforce: { name: 'Workforce management', text: 'Keeping a crew productive and settled.' },
+  maintenance: { name: 'Maintenance planning', text: 'Keeping equipment working and downtime short.' },
+  risk: { name: 'Risk management', text: 'Seeing what could go wrong and being ready.' },
+  inventory: { name: 'Inventory management', text: 'Holding enough stock, and no more.' },
+  agriculture: { name: 'Agricultural operations', text: 'Crops, livestock, seasons, land.' },
+  aerospace: { name: 'Aerospace operations', text: 'Aircraft, rockets and satellites in production.' },
+  manufacturing: { name: 'Manufacturing operations', text: 'Factory floors, stations, throughput.' },
+  strategy: { name: 'Strategic planning', text: 'Where to invest and what to leave alone.' },
+  compliance: { name: 'Compliance and controls', text: 'Rules, licences, audits and internal controls.' },
+};
+
+/** What a grade of skill is called, for the screens. */
+const GRADES = [[85, 'exceptional'], [70, 'strong'], [50, 'competent'], [35, 'fair'], [0, 'weak']];
+
+/** Authority every job starts with (data a manager's decisions will be held to from stage 7; nothing enforces it yet). */
+const AUTHORITY = {
+  executive: { spendLimit: 50000, approvalAbove: 20000, canHire: true, canBorrow: true, canTransfer: true, canContract: true, canExpand: false },
+  manager: { spendLimit: 10000, approvalAbove: 3000, canHire: true, canBorrow: false, canTransfer: false, canContract: true, canExpand: false },
+  staff: { spendLimit: 1000, approvalAbove: 500, canHire: false, canBorrow: false, canTransfer: false, canContract: false, canExpand: false },
+};
+
+const B = ['arms', 'shipping', 'aerospace', 'farming'];
+
+/**
+ * Jobs. tier: executive (at the parent company) · manager · staff (at a business). employers: where it can be.
+ * keys: the skills the job needs (a candidate must average 35+ in them). limit: how many one employer may have.
+ * pay: [low, high] a day. effects: what a good holder does for the business — { key: [cap, skills…] }.
+ */
+const ROLES = {
+  ceo: { name: 'Chief Executive Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'finance', 'workforce'], limit: 1, pay: [450, 780], sector: null, effects: { overhead: [0.03, 'strategy', 'budgeting'] }, text: 'Sets the group\'s direction and answers for all of it.' },
+  cfo: { name: 'Chief Financial Officer', tier: 'executive', employers: ['parent'], keys: ['finance', 'budgeting', 'risk'], limit: 1, pay: [420, 720], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'Cash, debt and the discipline of the budget.' },
+  coo: { name: 'Chief Operating Officer', tier: 'executive', employers: ['parent'], keys: ['production', 'workforce', 'logistics'], limit: 1, pay: [400, 680], sector: null, effects: { overhead: [0.03, 'production', 'workforce'] }, text: 'Runs the subsidiaries day to day.' },
+  controller: { name: 'Chief Financial Controller', tier: 'executive', employers: ['parent'], keys: ['compliance', 'finance', 'budgeting'], limit: 1, pay: [330, 580], sector: null, effects: { overhead: [0.02, 'compliance', 'budgeting'] }, text: 'Books, controls and audits.' },
+  cso: { name: 'Chief Strategy Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'risk', 'research'], limit: 1, pay: [360, 640], sector: null, effects: {}, text: 'Where to invest next; what to avoid.' },
+  cpo: { name: 'Chief Procurement Officer', tier: 'executive', employers: ['parent'], keys: ['procurement', 'inventory', 'finance'], limit: 1, pay: [360, 640], sector: null, effects: { materials: [0.03, 'procurement'], parts: [0.03, 'procurement'] }, text: 'Buys for the whole group.' },
+  hrd: { name: 'Human Resources Director', tier: 'executive', employers: ['parent'], keys: ['workforce', 'compliance', 'budgeting'], limit: 1, pay: [300, 540], sector: null, effects: {}, text: 'Recruiting, retention, pay.' },
+  gm: { name: 'General Manager', tier: 'manager', employers: B, keys: ['workforce', 'budgeting', 'strategy'], limit: 1, pay: [140, 340], sector: null, effects: { overhead: [0.06, 'budgeting', 'workforce'] }, text: 'Runs the whole business; the only manager a small one needs.' },
+  manufacturing_mgr: { name: 'Manufacturing Manager', tier: 'manager', employers: ['arms'], keys: ['production', 'manufacturing', 'workforce'], limit: 1, pay: [130, 320], sector: 'arms', effects: { armsSpeed: [0.07, 'production', 'manufacturing'] }, text: 'The floor: stations kept fed and busy.' },
+  logistics_mgr: { name: 'Shipping and Logistics Manager', tier: 'manager', employers: ['shipping'], keys: ['logistics', 'maintenance', 'risk'], limit: 1, pay: [130, 320], sector: 'shipping', effects: { upkeep: [0.1, 'logistics', 'maintenance'] }, text: 'Ships, ports, loads and routes.' },
+  aero_ops_mgr: { name: 'Aerospace Operations Manager', tier: 'manager', employers: ['aerospace'], keys: ['aerospace', 'production', 'workforce'], limit: 1, pay: [170, 370], sector: 'aerospace', effects: { overhead: [0.04, 'aerospace', 'production'] }, text: 'Bays, crews and the order of work.' },
+  farm_mgr: { name: 'Farm Manager', tier: 'manager', employers: ['farming'], keys: ['agriculture', 'inventory', 'workforce'], limit: 1, pay: [120, 270], sector: 'farming', effects: { farmPrice: [0.06, 'agriculture', 'sales'] }, text: 'Land, herds, harvest and the sale.' },
+  sales_mgr: { name: 'Sales and Contracts Manager', tier: 'manager', employers: B, keys: ['sales', 'bidding', 'risk'], limit: 1, pay: [130, 320], sector: null, effects: { farmPrice: [0.03, 'sales', 'bidding'] }, text: 'Wins and prices the work.' },
+  procurement_mgr: { name: 'Procurement Manager', tier: 'manager', employers: B, keys: ['procurement', 'inventory', 'budgeting'], limit: 1, pay: [125, 300], sector: null, effects: { materials: [0.05, 'procurement', 'inventory'], parts: [0.06, 'procurement', 'inventory'] }, text: 'Buys materials and parts for less.' },
+  rd_mgr: { name: 'Research and Development Manager', tier: 'manager', employers: ['arms', 'aerospace'], keys: ['research', 'strategy', 'risk'], limit: 1, pay: [145, 330], sector: null, effects: {}, text: 'Picks the projects worth the money.' },
+  finance_mgr: { name: 'Finance and Accounting Manager', tier: 'manager', employers: B, keys: ['finance', 'budgeting', 'compliance'], limit: 1, pay: [125, 300], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'The books, the cash and the forecast.' },
+  maintenance_mgr: { name: 'Maintenance Manager', tier: 'manager', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance', 'risk', 'workforce'], limit: 1, pay: [120, 270], sector: null, effects: { upkeep: [0.04, 'maintenance', 'risk'] }, text: 'Equipment kept sound; downtime kept short.' },
+  accountant: { name: 'Accountant', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'compliance'], limit: 3, pay: [45, 100], sector: null, effects: {}, text: 'Keeps the ledgers.' },
+  analyst: { name: 'Financial Analyst', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'risk'], limit: 3, pay: [55, 115], sector: null, effects: {}, text: 'Forecasts and comparisons.' },
+  procurement_spec: { name: 'Procurement Specialist', tier: 'staff', employers: B, keys: ['procurement', 'inventory'], limit: 3, pay: [45, 100], sector: null, effects: { materials: [0.02, 'procurement'], parts: [0.02, 'procurement'] }, text: 'Chases quotes and suppliers.' },
+  supervisor: { name: 'Production Supervisor', tier: 'staff', employers: ['arms', 'aerospace'], keys: ['production', 'workforce'], limit: 3, pay: [55, 115], sector: null, effects: { armsSpeed: [0.02, 'production', 'workforce'] }, text: 'Runs a shift.' },
+  coordinator: { name: 'Logistics Coordinator', tier: 'staff', employers: ['shipping'], keys: ['logistics', 'inventory'], limit: 3, pay: [45, 100], sector: 'shipping', effects: { upkeep: [0.02, 'logistics'] }, text: 'Berths, loads, paperwork.' },
+  farm_supervisor: { name: 'Farm Supervisor', tier: 'staff', employers: ['farming'], keys: ['agriculture', 'workforce'], limit: 3, pay: [40, 90], sector: 'farming', effects: { farmPrice: [0.02, 'agriculture'] }, text: 'Runs the hands in the field.' },
+  sales_rep: { name: 'Sales Representative', tier: 'staff', employers: B, keys: ['sales', 'bidding'], limit: 3, pay: [45, 105], sector: null, effects: {}, text: 'Calls on customers.' },
+  maintenance_worker: { name: 'Maintenance Worker', tier: 'staff', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance'], limit: 3, pay: [40, 90], sector: null, effects: {}, text: 'Keeps things running.' },
+  admin: { name: 'Administrative Staff', tier: 'staff', employers: ['parent', ...B], keys: ['compliance', 'budgeting'], limit: 3, pay: [35, 75], sector: null, effects: {}, text: 'Paper, phones, calendars.' },
+};
+
+/** The largest total each effect can ever reach, however many good people there are. */
+const EFFECT_CAPS = { materials: 0.08, parts: 0.1, armsSpeed: 0.1, upkeep: 0.12, farmPrice: 0.08, overhead: 0.1 };
+/** What a parent-level executive does for each subsidiary: a share of the effect. */
+const EXEC_REACH = 0.5;
+
+const MARKET = {
+  pool: 24, // candidates kept in the market
+  weekLeave: [3, 5], // taken other jobs each week
+  fee: 10, // recruiting fee, in days of the salary agreed
+  severance: 5, // days of salary on dismissal
+  resignUnpaid: 2, // days unpaid in a row before they leave
+  promoteDays: 60, // days in a job before a promotion is considered
+  xpPerSkill: 3, // good months for a skill point
+  maxGains: 6, // skill points a career can add
+  skillCap: 90,
+  notice: [0, 7, 14],
+};
+
+const FIRST = ['Adair', 'Beck', 'Calla', 'Dorian', 'Edda', 'Fenn', 'Greta', 'Hale', 'Iris', 'Joss', 'Kell', 'Lena', 'Maro', 'Nell', 'Orrin', 'Perrin', 'Quill', 'Rhea', 'Soren', 'Tamsin', 'Una', 'Vesper', 'Wynn', 'Xan', 'Yara', 'Zeb', 'Ansel', 'Brenna', 'Corin', 'Delphi', 'Emrys', 'Fiora', 'Gideon', 'Hester', 'Ingrid', 'Jasper', 'Kestrel', 'Lior', 'Mabel', 'Niall', 'Odessa', 'Pascal', 'Rowan', 'Saskia', 'Torin', 'Ulla', 'Viggo', 'Willa', 'Yusuf', 'Zora'];
+const LAST = ['Ashdown', 'Barrow', 'Cobb', 'Dunmore', 'Eastley', 'Fairweather', 'Garrick', 'Holloway', 'Ibbotson', 'Jarrow', 'Kingsley', 'Lockhart', 'Marlowe', 'Nightingale', 'Okonkwo', 'Pembroke', 'Quayle', 'Radcliffe', 'Sandoval', 'Thorne', 'Underhill', 'Vance', 'Whitlock', 'Yarrow', 'Zielinski', 'Abernathy', 'Brandt', 'Castellan', 'Draycott', 'Ellery', 'Foxley', 'Gallagher', 'Hartwell', 'Iverson', 'Jessop', 'Kovacs', 'Lindgren', 'Mercer', 'Novak', 'Oakes', 'Prowse', 'Rask', 'Strand', 'Tanaka', 'Voss', 'Wexford', 'Yoon', 'Zaleski'];
+const EDUCATION = {
+  executive: ['an MBA from the Halvermouth School of Commerce', 'a law degree and a CPA', 'a doctorate in economics', 'an engineering degree and a business diploma'],
+  manager: ['a diploma in operations management', 'a degree in engineering', 'a degree in accounting', 'a trade apprenticeship and night school', 'a degree in logistics'],
+  staff: ['a trade certificate', 'a clerical diploma', 'on-the-job training', 'a bookkeeping course', 'a technical certificate'],
+};
+const STYLES = {
+  cautious: 'Careful with money and slow to commit; prefers to hold back rather than gamble.',
+  balanced: 'Weighs gains against risks; steady in a crisis.',
+  aggressive: 'Pushes for growth and takes risks others would not; fond of a big contract.',
+  meticulous: 'Checks every figure twice; thorough, and slow.',
+  driven: 'Works hard and expects the same; can wear a crew down.',
+};
+
+return { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
+})();
+
 // ---- src/systems/hq.js
 __m["src/systems/hq.js"] = (function () {
 // The headquarters (v0.86.0): game.hq. The parent company can buy any of three offices (src/content/hq.js), paying from its own account
@@ -25636,7 +25819,9 @@ __m["src/systems/hq.js"] = (function () {
 // never a source of money, and an office is only ever a place: its seats and desks come into use when officers work there (v0.87.0).
 //
 // State (world.hq, created on first use, saved): { v: 1, owned: { tier: { day, paid } }, lastDay, log: [{ day, text }] }
-const { HQ_TIERS, HQ_ORDER } = __m["src/content/hq.js"];
+const { HQ_TIERS, HQ_ORDER, hqMapId, hqQuartersId } = __m["src/content/hq.js"];
+const { ROLES } = __m["src/content/personnel.js"];
+const { hash2, hashString } = __m["src/core/rng.js"];
 
 const money = (n) => `${Math.round(n).toLocaleString('en-US')} obols`;
 
@@ -25697,6 +25882,88 @@ class Headquarters {
     s.lastDay = day;
     for (const t of this.owned()) this.K.pay('parent', HQ_TIERS[t].upkeep, { cat: 'upkeep', owe: true, quiet: true });
   }
+
+  // ------------------------------------------------------------- officers at work (v0.87.0)
+  /** Everyone employed by the parent company, in the order they were taken on. */
+  officers() {
+    return Object.values(this.K.personnel.peek()?.staff || {}).filter((x) => x.employer === 'parent' && x.status === 'active').sort((a, b) => (a.hiredDay ?? 0) - (b.hiredDay ?? 0) || (a.id < b.id ? -1 : 1));
+  }
+
+  /** How many officers the biggest office you own holds (0: none owned, so no limit applies). */
+  seats() { const t = this.best(); return t ? HQ_TIERS[t].seats : 0; }
+
+  /** The officers who have a seat — the first ones taken on — and the rest, paid and without a desk. */
+  seated() {
+    const all = this.officers();
+    const n = this.seats();
+    return n ? all.slice(0, n) : [];
+  }
+
+  /** Why a parent-company hire cannot be made, or null. A company with no office has no limit. */
+  seatError(exceptId = null) {
+    const t = this.best();
+    if (!t) return null;
+    const n = this.officers().filter((x) => x.id !== exceptId).length;
+    return n >= HQ_TIERS[t].seats ? `${HQ_TIERS[t].name} has seats for ${HQ_TIERS[t].seats} officers and they are all taken: buy a bigger office first.` : null;
+  }
+
+  /** A body for an officer: deterministic from their id (no random numbers are drawn), a suit, a desk, a cot. */
+  profileOf(x, rank, tier) {
+    const T = HQ_TIERS[tier];
+    const h = (k) => hash2(hashString(x.id), k);
+    const pick = (a, k) => a[Math.floor(h(k) * a.length)];
+    const hall = hqMapId(tier);
+    const quarters = hqQuartersId(tier);
+    const desk = `${hall}:desk_${rank}`;
+    const lunch = T.desks > 4 ? `${hall}:boardroom` : `${hall}:reception`;
+    const common = `${quarters}:common`;
+    const R = ROLES[x.role];
+    return {
+      id: x.id, name: x.name, shortName: x.first || x.name.split(' ')[0], tier: 'minor', origin: 'generated', faction: null, noSnitch: true, hqStaff: true,
+      role: `${R?.name || 'Officer'} at ${this.K.nameOf('parent')}.`,
+      dialogue: 'dlg_officer', voice: { wave: pick(['triangle', 'square', 'sine'], 1), pitch: 110 + Math.floor(h(2) * 200), variance: 20, rate: 0.95 + h(3) * 0.3 },
+      appearance: { skin: pick(['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'], 4), hair: pick(['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a', '#e8e2d4', '#8a7a6a', '#2a1e1a'], 5), hairStyle: pick(['short', 'messy', 'curly', 'parted', 'bun', 'ponytail', 'long'], 6), hatColor: null,
+        outfit: pick(['#2a3550', '#3a3a44', '#5a2a34', '#2a4a4a', '#4a3a2a'], 7), legs: '#22222a', build: pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.94 + h(9) * 0.14, accessories: [], accent: '#c9a24a' },
+      personality: { traits: ['punctual', x.style || 'steady'], sociability: 0.5, conscientiousness: 0.8, impulsiveness: 0.2, discretion: 0.8, honesty: 0.7, empathy: 0.5 },
+      speech: { rumorPrefix: 'Around the office they say', factPrefix: 'Chief,', refuse: 'That is not something I can discuss, Chief.' },
+      combat: { never: true, maxHealth: 90 }, walkSpeed: 1, punctuality: 10,
+      schedule: [
+        { from: '09:00', to: '12:30', activity: 'work', spot: desk },
+        { from: '12:30', to: '13:30', activity: 'leisure', spot: lunch },
+        { from: '13:30', to: '17:30', activity: 'work', spot: desk },
+        { from: '17:30', to: '23:00', activity: 'leisure', spot: common },
+        { from: '23:00', to: '07:00', activity: 'sleep', spot: `${quarters}:bed_${rank}` },
+        { from: '07:00', to: '09:00', activity: 'leisure', spot: common },
+      ],
+      impulses: [], notices: [], knowledge: [], relationships: { player: { trust: 10, affection: 0, respect: 10, suspicion: 0 } }, giftPrefs: { item_coffee: 6, tags: { food: 3 } }, opinions: {},
+    };
+  }
+
+  /**
+   * Make the bodies match the books: one for each seated officer, none for anyone who has left or has no seat, and a body is replaced when
+   * the office they work in changes (a bigger one is bought). Cheap, and safe to call as often as you like.
+   */
+  sync() {
+    const g = this.game;
+    const tier = this.best();
+    const want = new Map(this.seated().map((x, i) => [x.id, { x, rank: i + 1 }]));
+    for (const id of [...g.npcs.keys()]) if (g.npcs.get(id)?.profile.hqStaff && (!want.has(id) || g.npcs.get(id).profile.hqTier !== tier)) g.npcs.delete(id);
+    for (const [id, { x, rank }] of want) {
+      if (g.npcs.has(id)) continue;
+      const profile = { ...this.profileOf(x, rank, tier), hqTier: tier };
+      g.npcs.set(id, g.createNpc(profile));
+    }
+    this.seen = this.K.personnel.epoch;
+    this.seenTier = tier;
+  }
+
+  /** Every minute: if the people or the office changed since last looked, make the bodies match. */
+  minuteTick() {
+    if (!this.peek() || !this.owned().length) return;
+    if (this.seen !== this.K.personnel.epoch || this.seenTier !== this.best()) this.sync();
+  }
+
+  afterLoad() { this.seen = undefined; if (this.owned().length) this.sync(); }
 
   /** What owning costs a day, all offices together. */
   upkeepPerDay() { return this.owned().reduce((a, t) => a + HQ_TIERS[t].upkeep, 0); }
@@ -41307,115 +41574,6 @@ class Group {
 return { Group };
 })();
 
-// ---- src/content/personnel.js
-__m["src/content/personnel.js"] = (function () {
-// The people who run companies (v0.62.0): skills, jobs, what a job pays and what a person in it can do.
-// Everything here is data; src/corp/people.js turns it into candidates, offers and effects, and
-// src/systems/personnel.js into a hiring market, payrolls and records. Pay is obols a day.
-
-/** Seventeen skills, 0–100. 20 is a beginner, 50 competent, 70 strong, 90 exceptional. */
-const SKILLS = {
-  finance: { name: 'Financial management', text: 'Cash, debt, reserves and forecasts.' },
-  budgeting: { name: 'Budgeting and cost control', text: 'Holding spending to a plan; trimming waste and overhead.' },
-  production: { name: 'Production planning', text: 'Scheduling work so capacity is used.' },
-  procurement: { name: 'Procurement and negotiation', text: 'Buying what is needed at a good price.' },
-  logistics: { name: 'Logistics and routes', text: 'Moving things efficiently: ships, loads, routes.' },
-  bidding: { name: 'Contract bidding', text: 'Pricing and winning tenders and contracts.' },
-  sales: { name: 'Sales and revenue', text: 'Selling what is made at a good price.' },
-  research: { name: 'Research and development', text: 'Choosing and driving projects that pay.' },
-  workforce: { name: 'Workforce management', text: 'Keeping a crew productive and settled.' },
-  maintenance: { name: 'Maintenance planning', text: 'Keeping equipment working and downtime short.' },
-  risk: { name: 'Risk management', text: 'Seeing what could go wrong and being ready.' },
-  inventory: { name: 'Inventory management', text: 'Holding enough stock, and no more.' },
-  agriculture: { name: 'Agricultural operations', text: 'Crops, livestock, seasons, land.' },
-  aerospace: { name: 'Aerospace operations', text: 'Aircraft, rockets and satellites in production.' },
-  manufacturing: { name: 'Manufacturing operations', text: 'Factory floors, stations, throughput.' },
-  strategy: { name: 'Strategic planning', text: 'Where to invest and what to leave alone.' },
-  compliance: { name: 'Compliance and controls', text: 'Rules, licences, audits and internal controls.' },
-};
-
-/** What a grade of skill is called, for the screens. */
-const GRADES = [[85, 'exceptional'], [70, 'strong'], [50, 'competent'], [35, 'fair'], [0, 'weak']];
-
-/** Authority every job starts with (data a manager's decisions will be held to from stage 7; nothing enforces it yet). */
-const AUTHORITY = {
-  executive: { spendLimit: 50000, approvalAbove: 20000, canHire: true, canBorrow: true, canTransfer: true, canContract: true, canExpand: false },
-  manager: { spendLimit: 10000, approvalAbove: 3000, canHire: true, canBorrow: false, canTransfer: false, canContract: true, canExpand: false },
-  staff: { spendLimit: 1000, approvalAbove: 500, canHire: false, canBorrow: false, canTransfer: false, canContract: false, canExpand: false },
-};
-
-const B = ['arms', 'shipping', 'aerospace', 'farming'];
-
-/**
- * Jobs. tier: executive (at the parent company) · manager · staff (at a business). employers: where it can be.
- * keys: the skills the job needs (a candidate must average 35+ in them). limit: how many one employer may have.
- * pay: [low, high] a day. effects: what a good holder does for the business — { key: [cap, skills…] }.
- */
-const ROLES = {
-  ceo: { name: 'Chief Executive Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'finance', 'workforce'], limit: 1, pay: [450, 780], sector: null, effects: { overhead: [0.03, 'strategy', 'budgeting'] }, text: 'Sets the group\'s direction and answers for all of it.' },
-  cfo: { name: 'Chief Financial Officer', tier: 'executive', employers: ['parent'], keys: ['finance', 'budgeting', 'risk'], limit: 1, pay: [420, 720], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'Cash, debt and the discipline of the budget.' },
-  coo: { name: 'Chief Operating Officer', tier: 'executive', employers: ['parent'], keys: ['production', 'workforce', 'logistics'], limit: 1, pay: [400, 680], sector: null, effects: { overhead: [0.03, 'production', 'workforce'] }, text: 'Runs the subsidiaries day to day.' },
-  controller: { name: 'Chief Financial Controller', tier: 'executive', employers: ['parent'], keys: ['compliance', 'finance', 'budgeting'], limit: 1, pay: [330, 580], sector: null, effects: { overhead: [0.02, 'compliance', 'budgeting'] }, text: 'Books, controls and audits.' },
-  cso: { name: 'Chief Strategy Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'risk', 'research'], limit: 1, pay: [360, 640], sector: null, effects: {}, text: 'Where to invest next; what to avoid.' },
-  cpo: { name: 'Chief Procurement Officer', tier: 'executive', employers: ['parent'], keys: ['procurement', 'inventory', 'finance'], limit: 1, pay: [360, 640], sector: null, effects: { materials: [0.03, 'procurement'], parts: [0.03, 'procurement'] }, text: 'Buys for the whole group.' },
-  hrd: { name: 'Human Resources Director', tier: 'executive', employers: ['parent'], keys: ['workforce', 'compliance', 'budgeting'], limit: 1, pay: [300, 540], sector: null, effects: {}, text: 'Recruiting, retention, pay.' },
-  gm: { name: 'General Manager', tier: 'manager', employers: B, keys: ['workforce', 'budgeting', 'strategy'], limit: 1, pay: [140, 340], sector: null, effects: { overhead: [0.06, 'budgeting', 'workforce'] }, text: 'Runs the whole business; the only manager a small one needs.' },
-  manufacturing_mgr: { name: 'Manufacturing Manager', tier: 'manager', employers: ['arms'], keys: ['production', 'manufacturing', 'workforce'], limit: 1, pay: [130, 320], sector: 'arms', effects: { armsSpeed: [0.07, 'production', 'manufacturing'] }, text: 'The floor: stations kept fed and busy.' },
-  logistics_mgr: { name: 'Shipping and Logistics Manager', tier: 'manager', employers: ['shipping'], keys: ['logistics', 'maintenance', 'risk'], limit: 1, pay: [130, 320], sector: 'shipping', effects: { upkeep: [0.1, 'logistics', 'maintenance'] }, text: 'Ships, ports, loads and routes.' },
-  aero_ops_mgr: { name: 'Aerospace Operations Manager', tier: 'manager', employers: ['aerospace'], keys: ['aerospace', 'production', 'workforce'], limit: 1, pay: [170, 370], sector: 'aerospace', effects: { overhead: [0.04, 'aerospace', 'production'] }, text: 'Bays, crews and the order of work.' },
-  farm_mgr: { name: 'Farm Manager', tier: 'manager', employers: ['farming'], keys: ['agriculture', 'inventory', 'workforce'], limit: 1, pay: [120, 270], sector: 'farming', effects: { farmPrice: [0.06, 'agriculture', 'sales'] }, text: 'Land, herds, harvest and the sale.' },
-  sales_mgr: { name: 'Sales and Contracts Manager', tier: 'manager', employers: B, keys: ['sales', 'bidding', 'risk'], limit: 1, pay: [130, 320], sector: null, effects: { farmPrice: [0.03, 'sales', 'bidding'] }, text: 'Wins and prices the work.' },
-  procurement_mgr: { name: 'Procurement Manager', tier: 'manager', employers: B, keys: ['procurement', 'inventory', 'budgeting'], limit: 1, pay: [125, 300], sector: null, effects: { materials: [0.05, 'procurement', 'inventory'], parts: [0.06, 'procurement', 'inventory'] }, text: 'Buys materials and parts for less.' },
-  rd_mgr: { name: 'Research and Development Manager', tier: 'manager', employers: ['arms', 'aerospace'], keys: ['research', 'strategy', 'risk'], limit: 1, pay: [145, 330], sector: null, effects: {}, text: 'Picks the projects worth the money.' },
-  finance_mgr: { name: 'Finance and Accounting Manager', tier: 'manager', employers: B, keys: ['finance', 'budgeting', 'compliance'], limit: 1, pay: [125, 300], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'The books, the cash and the forecast.' },
-  maintenance_mgr: { name: 'Maintenance Manager', tier: 'manager', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance', 'risk', 'workforce'], limit: 1, pay: [120, 270], sector: null, effects: { upkeep: [0.04, 'maintenance', 'risk'] }, text: 'Equipment kept sound; downtime kept short.' },
-  accountant: { name: 'Accountant', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'compliance'], limit: 3, pay: [45, 100], sector: null, effects: {}, text: 'Keeps the ledgers.' },
-  analyst: { name: 'Financial Analyst', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'risk'], limit: 3, pay: [55, 115], sector: null, effects: {}, text: 'Forecasts and comparisons.' },
-  procurement_spec: { name: 'Procurement Specialist', tier: 'staff', employers: B, keys: ['procurement', 'inventory'], limit: 3, pay: [45, 100], sector: null, effects: { materials: [0.02, 'procurement'], parts: [0.02, 'procurement'] }, text: 'Chases quotes and suppliers.' },
-  supervisor: { name: 'Production Supervisor', tier: 'staff', employers: ['arms', 'aerospace'], keys: ['production', 'workforce'], limit: 3, pay: [55, 115], sector: null, effects: { armsSpeed: [0.02, 'production', 'workforce'] }, text: 'Runs a shift.' },
-  coordinator: { name: 'Logistics Coordinator', tier: 'staff', employers: ['shipping'], keys: ['logistics', 'inventory'], limit: 3, pay: [45, 100], sector: 'shipping', effects: { upkeep: [0.02, 'logistics'] }, text: 'Berths, loads, paperwork.' },
-  farm_supervisor: { name: 'Farm Supervisor', tier: 'staff', employers: ['farming'], keys: ['agriculture', 'workforce'], limit: 3, pay: [40, 90], sector: 'farming', effects: { farmPrice: [0.02, 'agriculture'] }, text: 'Runs the hands in the field.' },
-  sales_rep: { name: 'Sales Representative', tier: 'staff', employers: B, keys: ['sales', 'bidding'], limit: 3, pay: [45, 105], sector: null, effects: {}, text: 'Calls on customers.' },
-  maintenance_worker: { name: 'Maintenance Worker', tier: 'staff', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance'], limit: 3, pay: [40, 90], sector: null, effects: {}, text: 'Keeps things running.' },
-  admin: { name: 'Administrative Staff', tier: 'staff', employers: ['parent', ...B], keys: ['compliance', 'budgeting'], limit: 3, pay: [35, 75], sector: null, effects: {}, text: 'Paper, phones, calendars.' },
-};
-
-/** The largest total each effect can ever reach, however many good people there are. */
-const EFFECT_CAPS = { materials: 0.08, parts: 0.1, armsSpeed: 0.1, upkeep: 0.12, farmPrice: 0.08, overhead: 0.1 };
-/** What a parent-level executive does for each subsidiary: a share of the effect. */
-const EXEC_REACH = 0.5;
-
-const MARKET = {
-  pool: 24, // candidates kept in the market
-  weekLeave: [3, 5], // taken other jobs each week
-  fee: 10, // recruiting fee, in days of the salary agreed
-  severance: 5, // days of salary on dismissal
-  resignUnpaid: 2, // days unpaid in a row before they leave
-  promoteDays: 60, // days in a job before a promotion is considered
-  xpPerSkill: 3, // good months for a skill point
-  maxGains: 6, // skill points a career can add
-  skillCap: 90,
-  notice: [0, 7, 14],
-};
-
-const FIRST = ['Adair', 'Beck', 'Calla', 'Dorian', 'Edda', 'Fenn', 'Greta', 'Hale', 'Iris', 'Joss', 'Kell', 'Lena', 'Maro', 'Nell', 'Orrin', 'Perrin', 'Quill', 'Rhea', 'Soren', 'Tamsin', 'Una', 'Vesper', 'Wynn', 'Xan', 'Yara', 'Zeb', 'Ansel', 'Brenna', 'Corin', 'Delphi', 'Emrys', 'Fiora', 'Gideon', 'Hester', 'Ingrid', 'Jasper', 'Kestrel', 'Lior', 'Mabel', 'Niall', 'Odessa', 'Pascal', 'Rowan', 'Saskia', 'Torin', 'Ulla', 'Viggo', 'Willa', 'Yusuf', 'Zora'];
-const LAST = ['Ashdown', 'Barrow', 'Cobb', 'Dunmore', 'Eastley', 'Fairweather', 'Garrick', 'Holloway', 'Ibbotson', 'Jarrow', 'Kingsley', 'Lockhart', 'Marlowe', 'Nightingale', 'Okonkwo', 'Pembroke', 'Quayle', 'Radcliffe', 'Sandoval', 'Thorne', 'Underhill', 'Vance', 'Whitlock', 'Yarrow', 'Zielinski', 'Abernathy', 'Brandt', 'Castellan', 'Draycott', 'Ellery', 'Foxley', 'Gallagher', 'Hartwell', 'Iverson', 'Jessop', 'Kovacs', 'Lindgren', 'Mercer', 'Novak', 'Oakes', 'Prowse', 'Rask', 'Strand', 'Tanaka', 'Voss', 'Wexford', 'Yoon', 'Zaleski'];
-const EDUCATION = {
-  executive: ['an MBA from the Halvermouth School of Commerce', 'a law degree and a CPA', 'a doctorate in economics', 'an engineering degree and a business diploma'],
-  manager: ['a diploma in operations management', 'a degree in engineering', 'a degree in accounting', 'a trade apprenticeship and night school', 'a degree in logistics'],
-  staff: ['a trade certificate', 'a clerical diploma', 'on-the-job training', 'a bookkeeping course', 'a technical certificate'],
-};
-const STYLES = {
-  cautious: 'Careful with money and slow to commit; prefers to hold back rather than gamble.',
-  balanced: 'Weighs gains against risks; steady in a crisis.',
-  aggressive: 'Pushes for growth and takes risks others would not; fond of a big contract.',
-  meticulous: 'Checks every figure twice; thorough, and slow.',
-  driven: 'Works hard and expects the same; can wear a crew down.',
-};
-
-return { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
-})();
-
 // ---- src/corp/people.js
 __m["src/corp/people.js"] = (function () {
 // People for hire (v0.62.0). Pure functions — no game state, no DOM, no RNG: a candidate is a hash of the
@@ -41713,6 +41871,7 @@ class Personnel {
     if (!this.employerOk(employer)) return employer === 'parent' ? 'There is no parent company yet.' : 'You do not own that business yet.';
     if (!this.roleAllowed(role, employer)) return `${R.name} is not a job at ${employer === 'parent' ? 'the parent company' : 'that kind of business'}.`;
     if (promotion ? roleFit(P, cand, role) < MIN_FIT : !rolesFor(P, cand).includes(role)) return `${cand.first}'s skills do not suit ${R.name} (they average ${Math.round(roleFit(P, cand, role))}; the job needs ${MIN_FIT}).`;
+    if (employer === 'parent') { const seat = this.g.hq?.seatError(except); if (seat) return seat; } // v0.87.0: an office has only so many seats (no office, no limit)
     if (this.holders(employer, role, except).length >= R.limit) return `${this.employerName(employer)} already has ${R.limit === 1 ? 'a' : R.limit} ${R.name}${R.limit > 1 ? 's' : ''}.`;
     return null;
   }
@@ -45902,7 +46061,7 @@ class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
-    if (door.lock?.hq) return this.hq.owns(door.lock.hq) && (door.lock.owners || []).includes(npc.id); // v0.86.0: an owned office is for its officers (from v0.87.0)
+    if (door.lock?.hq) return this.hq.owns(door.lock.hq) && Boolean(npc.profile.hqStaff); // v0.86.0: an owned office is for its officers (v0.87.0: they have bodies)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
     if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts
@@ -45970,6 +46129,7 @@ class Game {
     this.arms.minuteTick();
     this.market.minuteTick();
     this.robbery.minuteTick();
+    this.hq.minuteTick(); // v0.87.0: officers' bodies follow the books
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
@@ -46961,6 +47121,7 @@ class Game {
       }
     }
     this.arms.spawnStaff();
+    this.hq.afterLoad(); // v0.87.0
     this.dairy.afterLoad();
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
@@ -47089,6 +47250,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.87.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The Headquarters, Stage 2: Officers at Work',
+    notes: [
+      'Your parent company\'s executives and managers now work in the office you bought: they walk to their own desks in the morning, take lunch in the boardroom, and go home to staff quarters behind the hall to sleep.',
+      'An office has only so many seats, so buy a bigger one to hire more. You can still hire as many as you like if you have no office.',
+    ],
+  },
   {
     version: '0.86.0',
     date: '2026-10-31',
@@ -65408,7 +65579,7 @@ function groupApp(ui, body, open) {
       h('div', { class: 'tb-sub' }, `${n(T.price)} obols once, from the parent's own account (it holds ${n(pa.cash)}); then ${n(T.upkeep)} a day to keep it open. ${T.desks} desks, ${T.seats} officer seats. It stands in Halvermouth.`),
       buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
   }
-  body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
+  body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.id === g.hq.best() ? `${g.hq.officers().length} of ${t.seats} seats taken` : `${t.desks} desks, ${t.seats} seats`} · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
     action: t.owned ? null : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
 }

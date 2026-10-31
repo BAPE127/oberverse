@@ -286,7 +286,7 @@ export class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
-    if (door.lock?.hq) return this.hq.owns(door.lock.hq) && (door.lock.owners || []).includes(npc.id); // v0.86.0: an owned office is for its officers (from v0.87.0)
+    if (door.lock?.hq) return this.hq.owns(door.lock.hq) && Boolean(npc.profile.hqStaff); // v0.86.0: an owned office is for its officers (v0.87.0: they have bodies)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
     if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts
@@ -354,6 +354,7 @@ export class Game {
     this.arms.minuteTick();
     this.market.minuteTick();
     this.robbery.minuteTick();
+    this.hq.minuteTick(); // v0.87.0: officers' bodies follow the books
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
@@ -1345,6 +1346,7 @@ export class Game {
       }
     }
     this.arms.spawnStaff();
+    this.hq.afterLoad(); // v0.87.0
     this.dairy.afterLoad();
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load

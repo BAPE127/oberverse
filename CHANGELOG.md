@@ -2,6 +2,16 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.87.0] — 2026-10-31 — The Headquarters, Stage 2: Officers at Work (development build)
+
+- **Officers work in the office.** Every executive and manager you employ at the **parent company** now has a body once the parent owns an office: they sit at **their own desk** from 09:00 to 12:30 and 13:30 to 17:30, take lunch in the **boardroom** (the reception, in the small office), then go home to the **staff quarters** and sleep in **their own cot** from 23:00 to 07:00. They leave ten minutes early, like everyone, and really walk (a test runs the simulation from the quarters to the desks). They pass the office's doors and nobody else does; you pass them all.
+- **Staff quarters:** a room behind each hall (a door at the top right, for staff and for you) with a cot for each seat, a table and a stove. It is not a street building, so nothing outside moved. (The world's rule is that beds are only in homes, so the quarters are marked as a dwelling.)
+- **The office has only so many seats** — 3, 8 and 12. With an office, a hire at the parent that would exceed the seats of the biggest office you own is refused, with the reason ("buy a bigger office first"). **With no office there is still no limit** (nothing changes for a game that never buys one). Buying a bigger office moves the officers into it. Anyone with no seat would simply have no body; they are still paid.
+- **Who they are:** a face, a suit and a voice from a hash of their id (no random number is drawn, so the world's dice are untouched), and a short, generic conversation (their hours, where they sleep).
+- **The Group app** shows how many seats are taken. A resignation or dismissal takes the body away; nothing in the books changes because of the bodies.
+- **Tests:** `tests/hq_officers.test.mjs` (9): no office means no limit and no bodies; the seat limit and its reason; a bigger office; desks, lunch, quarters and sleep at the right times in the right places with their own desk and cot; **walking from the quarters to the desks**; who may pass the doors; leaving takes the body away; the minute tick draws no random numbers; save and load; the quarters' cots and doors. The smoke gained two checks. No existing test edited.
+- **Still to come:** restyling the furniture (stage 3), the upper floors of the tower, selling an office. Officers have no tasks of their own yet beyond their routine.
+
 ## [0.86.0] — 2026-10-31 — The Headquarters, Stage 1 (development build)
 
 Stage 1 of the headquarters (mockups `docs/mockups/proposal-hq-*.png`; the real screens `docs/mockups/v086-*.png`).

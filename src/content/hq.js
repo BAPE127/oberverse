@@ -48,7 +48,7 @@ export function hqInterior(tier) {
   const perRow = T.desks / rows;
   const props = [];
   const spots = { entry: { x: dx, y: H - 2, facing: 'up' } };
-  props.push({ id: `hq_${tier}_plant_b`, type: 'plant', x: W - 2, y: 1 });
+  props.push({ id: `hq_${tier}_plant_b`, type: 'plant', x: 1, y: 1 });
   props.push({ id: `hq_${tier}_rug`, type: 'rug', x: dx - 1, y: H - 3, w: 3, h: 1, color: '#2a3a5a' });
   for (let x = 2; x < W - 2; x += 3) props.push({ id: `hq_${tier}_win_${x}`, type: 'window', x, y: 0 });
   let n = 0;
@@ -74,20 +74,53 @@ export function hqInterior(tier) {
   if (tier === 'tower') props.push({ id: 'hq_tower_painting', type: 'painting', x: Math.floor(W / 2) + 2, y: 1, examine: 'A portrait of the founder. It has your eyes.' });
   return {
     id: hqMapId(tier), name: T.name, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTilesFor(W, H, dx, [[W - 2, 0, 1, 1, 'D']]),
+    doors: [
+      { id: `door_hq_${tier}_exit`, x: dx, y: H - 1, to: { map: 'halvermouth', spot: `${hqBuildingId(tier)}_out` } },
+      // v0.87.0: the staff quarters, behind the hall, for the officers who work here (and for you)
+      { id: `door_hq_${tier}_quarters`, x: W - 2, y: 0, label: 'Staff quarters', to: { map: hqQuartersId(tier), spot: 'entry' }, lock: { key: 'item_none', hq: tier, message: 'Staff quarters. The company keeps rooms behind the hall for its officers.' } },
+    ],
+    spots: { ...spots, quarters_door: { x: W - 2, y: 1, facing: 'down' } }, keepClear: [[dx, H - 2], [W - 2, 1]], props,
+  };
+}
+
+export const hqQuartersId = (tier) => `hq_${tier}_quarters`;
+
+/** The rooms behind a hall (v0.87.0): a cot for every officer's seat, a table and a stove. Not a street building, so nothing outside moves. */
+export function hqQuarters(tier) {
+  const T = HQ_TIERS[tier];
+  const perRow = 6;
+  const rows = Math.ceil(T.seats / perRow);
+  const W = 2 * perRow + 2;
+  const H = 3 * rows + 4;
+  const dx = Math.floor(W / 2);
+  const props = [];
+  const spots = { entry: { x: dx, y: H - 2, facing: 'up' }, common: { x: dx, y: H - 3, facing: 'up' } };
+  for (let k = 0; k < T.seats; k++) {
+    const x = 1 + 2 * (k % perRow);
+    const y = 1 + 3 * Math.floor(k / perRow);
+    props.push({ id: `hq_${tier}_cot_${k + 1}`, type: 'cot', x, y });
+    spots[`bed_${k + 1}`] = { x: x + 1, y: y + 1, facing: 'left' }; // beside the cot (a cot is 1×2)
+  }
+  props.push({ id: `hq_${tier}_q_table`, type: 'table', x: dx - 1, y: H - 4, w: 3, examine: 'A table, a kettle and a rota in a neat hand: "WHOSE TURN TO MAKE THE MINUTES". Every name has been initialled.' });
+  props.push({ id: `hq_${tier}_q_stove`, type: 'stove', x: W - 2, y: H - 2 });
+  return {
+    id: hqQuartersId(tier), name: `${T.name} — staff quarters`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor', dwelling: true, // the officers live here, so beds are allowed (the validator's rule: beds only in homes)
     tiles: roomTilesFor(W, H, dx),
-    doors: [{ id: `door_hq_${tier}_exit`, x: dx, y: H - 1, to: { map: 'halvermouth', spot: `${hqBuildingId(tier)}_out` } }],
+    doors: [{ id: `door_hq_${tier}_quarters_exit`, x: dx, y: H - 1, to: { map: hqMapId(tier), spot: 'quarters_door' } }],
     spots, keepClear: [[dx, H - 2]], props,
   };
 }
 // (the room's tiles come from the shared builder; imported lazily so this file stays plain data for the content tests)
 import { roomTiles } from '../world/mapBuilder.js';
-const roomTilesFor = (W, H, dx) => roomTiles(W, H, 't', dx);
+const roomTilesFor = (W, H, dx, extra = []) => roomTiles(W, H, 't', dx, extra);
 
 /** Put the three offices on the street and their halls beside it (called once, before the interiors are laid over the buildings). */
 export function addHq(MAPS) {
   const S = MAPS.halvermouth;
   for (const tier of HQ_ORDER) {
     MAPS[hqMapId(tier)] = hqInterior(tier);
+    MAPS[hqQuartersId(tier)] = hqQuarters(tier); // v0.87.0
     S.buildings.push(hqBuilding(tier));
     const T = HQ_TIERS[tier];
     // a board in front: FOR SALE until the parent buys it, then a brass plate
