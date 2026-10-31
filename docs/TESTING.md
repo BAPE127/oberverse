@@ -93,6 +93,11 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.85.0 (2026-10-31)
+
+- Smoke +3 (Business opens on a summary; its fold opens the arms console; Standing likewise); and the v0.83.0 loan check no longer assumes a 5,000 amount exists (it depends on the share price; it failed once, honestly). 36/36 three times in a row. No existing test edited.
+- Browser (headless Chromium), real clicks: Business summary → fold → the console, a console tab clicked, the fold stayed open; Standing summary → fold; Stocks chart fold, then **Buy 1 share (0 → 1)**; all 22 apps opened in turn with 0 page errors; the home screen at 520 and 1100 px wide. Words/controls: Business 248/15 → 62/5, Standing 155/6 → 54/6, Stocks 206/15 → 189/15.
+
 ## Verification record — v0.84.0 (2026-10-30)
 
 - `tablet_home.test.mjs` +1 (no old page imported directly; each drawn inside a fold); smoke +3 (Management summary short, its fold opens the full page, Exchange opens on holdings). No existing test edited.

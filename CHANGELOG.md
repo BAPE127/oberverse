@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.85.0] — 2026-10-31 — The OberPad, Finished (development build)
+
+The last stage of the overhaul.
+
+- **Business** (the arms trade) opens on a summary — works, staff, shipments at sea, what exports have earned, the research under way — with the console (parts, equipment, staff, research, market) one tap down. If something sends you to a page of the console, the fold opens on it. *248 → 62 words.*
+- **Standing** (the journal) opens on how many factions know you, the best and the worst of them, and the four strongest feelings; every faction is one tap down. *155 → 54 words.*
+- **Stocks:** the price chart is folded away; buying and selling are as they were. (189 words, 15 controls: it is the trading screen for three companies and is left as one.)
+- **The Aerospace launcher** lists the three latest reports, not eight.
+- **Touch and small screens:** bigger things to press where the device has a coarse pointer, three icons a row and a one-column "today" strip on a narrow screen (`docs/mockups/v085-narrow.png`). **Not tried on a real touch device.**
+- **Every app now follows the tablet's pattern:** the 22 tabs were opened one after another at two screen widths with no page errors. Journal's Quests, People and Notes, Farm, Ships and the Aerospace launcher were already short (31–94 words) and are unchanged.
+- **Tests:** the browser smoke gained three checks (Business opens on a summary, its fold opens the console, Standing opens on a summary). **A flaw in my v0.83.0 smoke check, found by this run:** it clicked a "5,000" loan amount, which only exists when your borrowing room is at least 5,000, and that depends on the share price; it now takes the first amount on offer. 36/36 on three runs in a row. No existing test edited.
+
 ## [0.84.0] — 2026-10-30 — The OberPad, Stage 2: Summaries (development build)
 
 The rest of the OberPad, in the same pattern as the Bank (v0.83.0): each heavy app opens on **a summary — one figure, three tiles, and what is waiting for you —** and **the whole page it always was is one tap down** (a fold, drawn only when opened, its open or closed state kept for the app). Nothing was removed.

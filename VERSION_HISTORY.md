@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.85.0 | 2026-10-31 | development | 1 | The OberPad, finished: Business and Standing open on summaries (248 → 62 and 155 → 54 words), the Stocks chart folds away, touch and phone-width rules — every app is now in the tablet's pattern. |
 | 0.84.0 | 2026-10-30 | development | 1 | The OberPad, stage 2: Management, Group, Personnel, Milestones, World News, Exchange, Companies, Intelligence and Customers open on a short summary (one figure, three tiles, what is waiting for you) with the whole old page one tap down — Management from 1,286 words to 53. |
 | 0.83.0 | 2026-10-30 | development | 1 | The OberPad as a tablet: a home screen of eight icons with red dots, a back arrow and one switch inside every app, and the whole Bank group (Rates, Loans, Bonds) rebuilt as a figure, three tiles and a button or two — 100–135 words a screen instead of 225–1,283. |
 | 0.82.0 | 2026-10-30 | development | 1 | First steps: the early shifts pay about 50 times what they did (300 obols a shift, not 6), the first quests pay 600 and 1,000, Lucas pays 65% of value, crops and shipping contracts pay half as much again — all from one file, `src/content/income.js` — so a first arms works is within reach by day 3. |

@@ -121,11 +121,13 @@ try {
   await page.click('.tb-seg button:has-text("Loans")'); await wait(200);
   const m0 = await page.evaluate(() => window.oberverse.ui.game.player.money);
   await page.click('.tb-btn.pri'); await wait(200);
-  await page.click('.tb-chip:has-text("5,000")'); await wait(250);
+  const chip = page.locator('.tb-label:has-text("How much") + .tb-chips .tb-chip').first();
+  const lent = Number((await chip.textContent()).split('·')[0].replace(/[^0-9]/g, '')); // whatever the first amount on offer is: the room depends on the share price
+  await chip.click(); await wait(250);
   const terms = await page.textContent('#modal-body');
   record('OberPad: a loan shows its terms before any money moves', terms.includes('you repay') && (await page.evaluate(() => window.oberverse.ui.game.player.money)) === m0);
   await page.click('.tb-terms .tb-btn.pri'); await wait(250);
-  record('OberPad: Accept signs the loan', (await page.evaluate(() => window.oberverse.ui.game.player.money)) === m0 + 5000);
+  record('OberPad: Accept signs the loan', lent > 0 && (await page.evaluate(() => window.oberverse.ui.game.player.money)) === m0 + lent);
   await page.click('.tb-back'); await wait(200);
   record('OberPad: the back arrow returns to the home screen', (await page.textContent('#modal-body')).includes('Good '));
   await closeAll();
@@ -139,6 +141,17 @@ try {
   record('OberPad: the fold opens the full Management page', (await page.textContent('#modal-body')).includes('Budgets'));
   await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Exchange' })); await wait(300);
   record('OberPad: Exchange opens on your holdings, the board one tap down', (await page.textContent('#modal-body')).includes('Your shares are worth'));
+  await closeAll();
+
+  // OberPad finished (v0.85.0): Business and Standing open on summaries too
+  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.player.money = 5_000_000; g.arms.buyLicence(); g.arms.buy('aw1'); ui.openPanel('tablet', { tab: 'Business' }); });
+  await wait(300);
+  const bText = await page.textContent('#modal-body');
+  record('OberPad: Business opens on a summary of the arms trade', bText.includes('Your arms trade') && bText.split(/\s+/).length < 120);
+  await page.click('.tb-fold > summary'); await wait(400);
+  record('OberPad: the Business fold opens the works console', (await page.textContent('#modal-body')).toUpperCase().includes('OVERWATCH'));
+  await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Standing' })); await wait(300);
+  record('OberPad: Standing opens on a summary', (await page.textContent('#modal-body')).includes('How the borough sees you'));
   await closeAll();
 
   // Teleport next to Mags (test hook) and talk to her

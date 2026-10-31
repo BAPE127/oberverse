@@ -1176,3 +1176,17 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .tb-foldbody { margin-top: 8px; }
 .tb-acts { display: flex; gap: 6px; }
 #modal-panel.tablet2 .tb-btn.pri:hover:not(:disabled), #modal-panel.tablet2 .tb-mini.pri:hover:not(:disabled) { background: linear-gradient(#ffdd80, #e6a93a); color: #2a1a00; }
+
+/* touch and small screens (v0.85.0): bigger things to press, fewer icons a row. Not yet tried on a touch device. */
+@media (pointer: coarse) {
+  #modal-panel.tablet2 .tb-mini, #modal-panel.tablet2 .tb-chip { min-height: 44px; padding: 10px 16px; }
+  #modal-panel.tablet2 .tb-seg button, #modal-panel.tablet2 .tb-back { min-height: 44px; }
+  #modal-panel.tablet2 .tb-btn { min-height: 52px; }
+  #modal-panel.tablet2 .tb-fold > summary, #modal-panel.tablet2 .tb-help > summary { padding: 10px 0; }
+}
+@media (max-width: 560px) {
+  .tb-grid { grid-template-columns: repeat(3, 1fr); }
+  .tb-today { grid-template-columns: 1fr; }
+  .tb-hero { flex-direction: column; align-items: flex-start; }
+  .tb-tiles { gap: 6px; } .tb-tile .tb-n { font-size: 17px; }
+}

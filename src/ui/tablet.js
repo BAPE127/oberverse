@@ -12,7 +12,7 @@ import { loansApp } from './corpLoans.js'; // v0.73.0
 import { groupApp, peopleApp, managementApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js'; // v0.84.0: the summaries
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
-import { statusBar, navBar, segments, hero, tiles, row, fold } from './tabletKit.js'; // v0.83.0
+import { statusBar, navBar, segments, hero, tiles, row, fold, openFold, n as fmt } from './tabletKit.js'; // v0.83.0
 import { homeScreen } from './tabletHome.js';
 import { calcItem } from '../systems/gang.js';
 
@@ -44,11 +44,11 @@ export function tabletPanel(ui, body, opts) {
     return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : tab, back: () => open('Home') }), seg);
   };
 
-  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), stocksHeader(g)) });
+  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), fold(ui, 'StocksChart', 'Ober\'s Oil price chart ›', (box) => box.append(stocksHeader(g)))) });
   else { body.append(status); if (tab !== 'Home') body.append(appHead()); else if (ui.tabletInbox) body.append(navBar({ icon: '🔔', title: 'Notifications', back: () => { ui.tabletInbox = false; open('Home'); } })); }
   if (tab === 'Home' && ui.tabletInbox) inboxScreen(ui, body, open);
   else if (tab === 'Home') homeScreen(ui, body, open, groups, badge, needs(), unread);
-  else if (tab === 'Business') businessApp(ui, body, opts, open);
+  else if (tab === 'Business') businessSummary(ui, body, opts, open);
   else if (tab === 'Ships') shipsApp(ui, body);
   else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
   else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
@@ -64,10 +64,40 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab === 'Customers') customersApp(ui, body, open); // v0.84.0: a summary, the list one tap down
+  else if (tab === 'Standing') standingApp(ui, body); // v0.85.0
   else if (tab !== 'Stocks') journalTab(ui, body, tab); // Stocks: above (it re-renders itself, bar included, after each trade)
   if (tab === 'Home' && ui.tabletInbox) T.markRead();
   if (tab !== 'Home') ui.tabletInbox = false;
   return { title: '📱 OberPad', className: 'tablet tablet2' }; // (the title is for the frame and the tests; the tablet's own screen has none)
+}
+
+/** Business (v0.85.0): the arms trade at a glance; the console, with its parts, equipment, staff, research and market, one tap down. */
+function businessSummary(ui, body, opts, open) {
+  const g = ui.game;
+  const A = g.arms;
+  const works = A.ownedIds();
+  const ms = g.market.state;
+  const staff = A.state.staff.length;
+  if (opts.sub || opts.warehouse || opts.msg || opts.country || opts.ship) openFold(ui, 'Business'); // sent here to a page of the console: open it
+  body.append(
+    hero({ label: 'Your arms trade', value: `${works.length} works`, sub: `${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea · research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'}` }),
+    tiles([{ n: fmt(ms.earned), t: 'earned by exports' }, { n: String(staff), t: 'staff on the books' }, { n: String(ms.shipments.length), t: 'at sea' }]),
+    fold(ui, 'Business', 'The works console — parts, equipment, staff, research, market ›', (box) => businessApp(ui, box, opts, open)));
+}
+
+/** Journal → Standing (v0.85.0): how the factions regard you — the strongest feelings first, the full list one tap down. */
+function standingApp(ui, body) {
+  const g = ui.game;
+  const rep = g.player.reputation;
+  const all = Object.entries(g.content.factions).map(([id, f]) => ({ id, f, v: rep[id] || 0 }));
+  const known = all.filter((x) => x.v !== 0).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+  const best = known.filter((x) => x.v > 0)[0];
+  const worst = known.filter((x) => x.v < 0)[0];
+  body.append(
+    hero({ label: 'How the borough sees you', value: known.length ? `${known.length} of ${all.length} know you` : 'Nobody yet', sub: best ? `${best.f.name} thinks best of you` : 'Do something for someone and it shows here.' }),
+    tiles([{ n: best ? `+${best.v}` : '—', t: best ? best.f.name : 'best standing', tone: best ? 'good' : '' }, { n: worst ? String(worst.v) : '—', t: worst ? worst.f.name : 'worst standing', tone: worst ? 'neg' : '' }, { n: String(all.length - known.length), t: 'have no view' }]),
+    known.length ? h('div', { class: 'tb-card list' }, ...known.slice(0, 4).map((x) => row({ icon: x.v > 0 ? '⭐' : '⚠', title: x.f.name, sub: x.f.description, tag: x.v > 0 ? `+${x.v}` : String(x.v), tone: x.v > 0 ? 'good' : 'neg' }))) : null,
+    fold(ui, 'Standing', 'Every faction ›', (box) => journalTab(ui, box, 'Standing')));
 }
 
 /** Journal → Customers (v0.84.0): the gang's mood and who has an order today; the whole list is one tap down. */
@@ -98,7 +128,7 @@ function aeroApp(ui, body) {
     ),
     h('button', { class: 'primary', onclick: () => ui.openPanel('aerospace', { company: 'roost' }) }, 'Open the aerospace terminal'),
     h('h3', { style: 'margin:12px 0 6px' }, 'Latest'),
-    h('div', { class: 'list' }, ...A.state.reports.filter((r) => r.company === 'roost').slice(0, 8).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${A.when(r.at)} — ${r.text}`))))),
+    h('div', { class: 'list' }, ...A.state.reports.filter((r) => r.company === 'roost').slice(0, 3).map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `${A.when(r.at)} — ${r.text}`))))),
   );
 }
 
