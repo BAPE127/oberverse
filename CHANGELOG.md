@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.88.0] — 2026-10-31 — The Headquarters, Stage 3: Furnishing (development build)
+
+- **Furnish an office.** In the **Group** app, each office you own now has a **Furnish ›** button. It opens a screen of six sections — **Desks, Floor, Walls, Lights, Art, Plants** — each a row of swatches. Tap one and the app shows what it costs and what it does, and moves no money until you confirm. The parent pays once, from its own account; the hall changes the moment it has paid.
+  - **Desks** (walnut, oak, steel, white, ebony; gilded in the Tower only): the colour of every desk. **Floor** (black & white, cream marble, teal, olive, slate): the floor of the hall and the colour of the rug by the door. **Walls** (black & gold, navy, stone, cream, teal, plum; starlit in the Tower only). **Lights**: brass lamps along the back wall in warm, cool or rose, which really glow at night in the hall and nowhere else. **Art**: landscapes, seascapes or abstracts framed on the back wall. **Plants**: a few more pots, or a jungle (people walk past them, not through them).
+  - **Prices** are a base price for the choice times the size of the office (×1 small, ×3 centre, ×8 tower): oak desks are 400, 1,200 or 3,200. **Going back to the original is free.** Choosing what you already have is refused.
+  - **Looks only.** A choice earns nothing, saves nothing and returns nothing; it is booked as an expense (`fitout`, so it never adds to the books as an asset). The player's wallet and the other companies do not move.
+- The lamps, pictures and extra plants stand on fixed free tiles of each hall (a test proves none of them is under a desk, chair, table, stand-point or door), and they never block a step.
+- The engine learned to paint a hall again when its style changes (a style version on the map, the same trick the farm fields use), to light the hall's lamps at night, and to draw framed pictures from a palette. A freshly bought office is exactly the hall it was.
+- **Tests:** `tests/hq_style.test.mjs` (10): a bought office is unchanged; refusals (not owned, unknown, already there, tower-only, too poor); cost = price × office from the parent only and booked as an expense; what each choice changes; lamps/pictures/plants showing only while chosen; every place is clear paving; style props never block; the options table; the view and no random numbers; save and load. Smoke +2 (the price is shown before money moves; the parent pays exactly the price and the desks change); the smoke's officer check was made robust to whichever candidates the pool has. No existing test edited.
+- **Not yet:** moving furniture, per-floor styles (the Tower still has one floor), and selling or restyling for a refund. Pictures are three simple palettes, not portraits.
+
 ## [0.87.0] — 2026-10-31 — The Headquarters, Stage 2: Officers at Work (development build)
 
 - **Officers work in the office.** Every executive and manager you employ at the **parent company** now has a body once the parent owns an office: they sit at **their own desk** from 09:00 to 12:30 and 13:30 to 17:30, take lunch in the **boardroom** (the reception, in the small office), then go home to the **staff quarters** and sleep in **their own cot** from 23:00 to 07:00. They leave ten minutes early, like everyone, and really walk (a test runs the simulation from the quarters to the desks). They pass the office's doors and nobody else does; you pass them all.

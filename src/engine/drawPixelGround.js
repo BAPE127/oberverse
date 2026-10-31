@@ -139,12 +139,12 @@ const SOFTISH = new Set([CID['.'], CID.R, CID.u, CID[':']]); // shores a pond ha
 const facts = new WeakMap();
 function factsOf(map) {
   let f = facts.get(map);
-  if (f) return f;
+  if (f && f.sv === (map.styleVersion || 0)) return f;
   const W = map.width;
   const H = map.height;
   const code = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) code[y * W + x] = CID[map.tileAt(x, y)] || 0;
-  f = { code, run: roadRuns(map), style: map.kind === 'interior' ? interiorStyle(map) : null };
+  f = { code, run: roadRuns(map), style: map.kind === 'interior' ? interiorStyle(map) : null, sv: map.styleVersion || 0 };
   facts.set(map, f);
   return f;
 }
@@ -205,7 +205,7 @@ function interiorStyle(map) {
   const d = map.def || {};
   const name = `${d.id} ${d.name || ''} ${d.trade || ''}`;
   const seed = [...String(d.id)].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0;
-  let wall = d.wallStyle;
+  let wall = map.styleOverride?.wall || d.wallStyle; // v0.88.0: a furnished headquarters
   if (!wall) {
     if (/shack|barn|storage|warehouse|stable|shed|beach|hut|cabin|saloon|barrack/i.test(name)) wall = 'wood';
     else if (/gun|armory|workshop|works|factory|refinery|garage|repair/i.test(name)) wall = 'brick';
@@ -218,7 +218,7 @@ function interiorStyle(map) {
   }
   const fl = (ch, def) => {
     const list = FLOORS[ch];
-    const i = d.floorStyle?.[ch] ?? (ch === 't' && /shop|store|market|pharmac/i.test(name) ? 3 : ch === 't' && /gun|armory|works/i.test(name) ? 2 : def ?? (seed >>> 3) % list.length);
+    const i = map.styleOverride?.floor?.[ch] ?? d.floorStyle?.[ch] ?? (ch === 't' && /shop|store|market|pharmac/i.test(name) ? 3 : ch === 't' && /gun|armory|works/i.test(name) ? 2 : def ?? (seed >>> 3) % list.length);
     return list[i % list.length].map(rgb).map(pack);
   };
   // how worn the floor is: a workshop or a gun shop is filthy, a café is kept clean

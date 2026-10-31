@@ -1138,6 +1138,14 @@ export class Renderer {
           hole(p.x * TILE + 16 + L.x, p.y * TILE + 4 + L.y, 80, 0.85);
           warm.push([p.x * TILE + 16 + L.x, p.y * TILE + 2 + L.y, 30]);
         }
+        for (const L2 of this.layers) { // v0.88.0: the lamps inside a headquarters (the hall is lit, so the lamps show)
+          if (L2.map.kind !== 'interior') continue;
+          for (const p of L2.map.props) {
+            if (p.type !== 'floorlamp' || !p.glow || !this.propVisible(p)) continue;
+            hole(p.x * TILE + 16 + L2.x, p.y * TILE + 8 + L2.y, 90, 0.9);
+            warm.push([p.x * TILE + 16 + L2.x, p.y * TILE + 4 + L2.y, 0, p.glow]);
+          }
+        }
         for (const b of L.map.buildings) {
           if (b.tower && !this.pixel) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
           if (!this.buildingLit(b)) continue;
@@ -1202,8 +1210,8 @@ export class Renderer {
     gc.globalCompositeOperation = 'lighter';
     for (const [wx, wy, r0, tint] of warm) {
       const s = gpos(wx, wy);
-      const r = tint ? 110 : r0;
-      const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
+      const r = tint === 'red' || tint === 'blue' ? 110 : tint ? 70 : r0;
+      const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : tint || '255,190,90';
       if (glow) {
         const sp = lightSprite(r * gk, 1, rgb, 6);
         gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * g.clock.darkness);

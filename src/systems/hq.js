@@ -6,6 +6,7 @@
 import { HQ_TIERS, HQ_ORDER, hqMapId, hqQuartersId } from '../content/hq.js';
 import { ROLES } from '../content/personnel.js';
 import { hash2, hashString } from '../core/rng.js';
+import { STYLE, STYLE_SLOTS, STYLE_DEFAULT, optionOf, priceOf } from '../content/hqStyle.js';
 
 const money = (n) => `${Math.round(n).toLocaleString('en-US')} obols`;
 
@@ -147,7 +148,63 @@ export class Headquarters {
     if (this.seen !== this.K.personnel.epoch || this.seenTier !== this.best()) this.sync();
   }
 
-  afterLoad() { this.seen = undefined; if (this.owned().length) this.sync(); }
+  afterLoad() { this.seen = undefined; if (this.owned().length) this.sync(); for (const t of this.owned()) this.applyStyle(t); }
+
+  // ------------------------------------------------------------- furnishing (v0.88.0)
+  /** How an office is furnished now: a choice for every slot (what it came with, unless you changed it). */
+  styleOf(tier) { return { ...STYLE_DEFAULT, ...(this.peek()?.style?.[tier] || {}) }; }
+
+  /** Can the parent choose this option for this office now, and what it costs. */
+  canStyle(tier, slot, id) {
+    const o = optionOf(slot, id);
+    if (!HQ_TIERS[tier] || !STYLE[slot] || !o) return { ok: false, why: 'There is no such choice.', price: 0 };
+    if (!this.owns(tier)) return { ok: false, why: 'The parent does not own that office.', price: 0 };
+    if (o.only && !o.only.includes(tier)) return { ok: false, why: `Only ${o.only.map((t) => HQ_TIERS[t].short).join(' and ')} has ${o.name.toLowerCase()}.`, price: 0 };
+    if (this.styleOf(tier)[slot] === id) return { ok: false, why: 'It is already like that.', price: 0 };
+    const price = priceOf(tier, slot, id);
+    const cash = this.K.account('parent').cash;
+    if (price > cash) return { ok: false, why: `The parent holds ${money(cash)}; this costs ${money(price)}.`, price };
+    return { ok: true, why: '', price };
+  }
+
+  /** What the style screen shows for one office: each slot, its options, which one you have and what each would cost. */
+  styleView(tier) {
+    const now = this.styleOf(tier);
+    return STYLE_SLOTS.map((slot) => ({ slot, name: STYLE[slot].name, icon: STYLE[slot].icon, text: STYLE[slot].text, current: now[slot],
+      options: STYLE[slot].options.map((o) => ({ id: o.id, name: o.name, color: o.color, here: o.id === now[slot], ...this.canStyle(tier, slot, o.id), price: priceOf(tier, slot, o.id), locked: Boolean(o.only && !o.only.includes(tier)), only: o.only ? o.only.map((x) => HQ_TIERS[x].short).join(' and ') + ' only' : '', ...(o.id === now[slot] ? { why: '' } : {}) })) }));
+  }
+
+  /** Choose it: the parent pays once, from its own account, and the hall looks different from then on. Nothing here returns money. */
+  setStyle(tier, slot, id) {
+    const c = this.canStyle(tier, slot, id);
+    if (!c.ok) return { ok: false, text: c.why };
+    const o = optionOf(slot, id);
+    if (c.price > 0 && !this.K.pay('parent', c.price, { cat: 'fitout' })) return { ok: false, text: `The parent cannot pay ${money(c.price)}.` };
+    const s = this.state;
+    ((s.style ||= {})[tier] ||= {})[slot] = id;
+    this.note(`${HQ_TIERS[tier].short}: ${STYLE[slot].name.toLowerCase()} — ${o.name}${c.price ? ` (${money(c.price)})` : ''}.`);
+    this.applyStyle(tier);
+    this.game.bus.emit('hq:styled', { tier, slot, id });
+    return { ok: true, text: `${STYLE[slot].name}: ${o.name}.${c.price ? ` ${money(c.price)} from the parent.` : ' The original, free.'}` };
+  }
+
+  /** Make a hall look as styled: the colours of its desks and rug, its floor and its walls. (Lamps, pictures and plants are props that show or hide themselves.) */
+  applyStyle(tier) {
+    const map = this.game.maps?.get(hqMapId(tier));
+    if (!map) return;
+    const now = this.styleOf(tier);
+    const floor = optionOf('floor', now.floor);
+    const walls = optionOf('walls', now.walls);
+    const desks = optionOf('desks', now.desks);
+    const plain = now.floor === STYLE_DEFAULT.floor && now.walls === STYLE_DEFAULT.walls;
+    map.styleOverride = plain ? null : { wall: walls.wall, floor: { t: floor.tile } };
+    for (const p of map.props) {
+      if (p.type === 'desk') p.color = desks.color;
+      else if (p.id === `hq_${tier}_rug`) p.color = floor.rug;
+    }
+    map.styleVersion = (map.styleVersion || 0) + 1; // the ground is painted again
+    map.fieldsVersion = (map.fieldsVersion || 0) + 1;
+  }
 
   /** What owning costs a day, all offices together. */
   upkeepPerDay() { return this.owned().reduce((a, t) => a + HQ_TIERS[t].upkeep, 0); }

@@ -1155,6 +1155,13 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .tb-pill.good { color: var(--good); } .tb-pill.neg { color: var(--warn); }
 .tb-mini { padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; border: 1.5px solid var(--line); }
 #modal-panel.tablet2 .tb-mini.pri { background: linear-gradient(#f6cf6a, #d99a2b); color: #2a1a00; border-color: #ffe08a; }
+.tb-swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
+.tb-sw { background: var(--paper); border: 2px solid var(--line); border-radius: 14px; padding: 8px 6px 7px; text-align: center; font: 600 13px system-ui; color: var(--ink); }
+.tb-sw i { display: block; height: 34px; border-radius: 9px; margin-bottom: 5px; border: 2px solid rgba(255,255,255,.18); }
+.tb-sw small { display: block; font-weight: 500; font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
+.tb-sw.on { border-color: #ffe08a; box-shadow: 0 0 0 2px rgba(242,193,78,.45); }
+.tb-sw.pick { border-color: #6fd0a4; }
+.tb-sw:disabled { opacity: .45; }
 .tb-chips { display: flex; gap: 8px; flex-wrap: wrap; } .tb-sheet { padding: 4px 2px 10px; }
 .tb-chip { border-radius: 99px; padding: 8px 14px; border: 2px solid var(--line); font-weight: 600; background: var(--paper); }
 #modal-panel.tablet2 .tb-chip.on { background: #f2c14e; color: #2a1a00; border-color: #ffe08a; }
@@ -5045,6 +5052,7 @@ const PROP_TYPES = {
   column: { solid: true, label: 'Distillation column', defaults: { w: 2, h: 3 } },
   vault: { solid: true, label: 'Vault', defaults: {} },
   painting: { solid: false, label: 'Painting', defaults: {} },
+  floorlamp: { solid: false, label: 'Brass lamp', defaults: { examine: 'A brass lamp with a green glass shade. It comes on at dusk.' } }, // v0.88.0
   // Halvermouth
   car: { solid: true, label: 'Car', defaults: { w: 2, examine: 'A parked car. Nobody in Lanternside owns one of these.' } },
   flagpole: { solid: true, label: 'Flagpole', defaults: {} },
@@ -15693,6 +15701,97 @@ function shiftContent(obj, shifts, ctx = null, seen = new WeakSet()) {
 return { growStreets, shiftContent };
 })();
 
+// ---- src/content/hqStyle.js
+__m["src/content/hqStyle.js"] = (function () {
+// Furnishing the headquarters (v0.88.0): what the parent can choose for the inside of an office it owns. All of it is looks — the desks,
+// the floor and rug, the walls, the lamps, the pictures and the plants — and none of it makes or saves a coin: a choice costs obols, paid
+// from the parent's own account, once, whenever you change to something that is not already there. Going back to the original is free.
+//
+// Each slot lists its options; the first is what an office has when it is bought (free, and exactly the hall as it was).
+//   price   base obols, multiplied by the office (STYLE_SCALE) — a bigger hall has more of it to do
+//   only    the offices that offer it (a luxury only the tower has)
+const STYLE_SCALE = { small: 1, mid: 3, tower: 8 };
+
+const STYLE_SLOTS = ['desks', 'floor', 'walls', 'lights', 'art', 'plants'];
+
+const STYLE = {
+  desks: { name: 'Desks', icon: '🗄️', text: 'The wood or metal of every desk in the hall.', options: [
+    { id: 'walnut', name: 'Walnut', price: 0, color: '#6a4a2e' },
+    { id: 'oak', name: 'Oak', price: 400, color: '#b98a56' },
+    { id: 'steel', name: 'Steel', price: 500, color: '#7d8794' },
+    { id: 'white', name: 'White', price: 450, color: '#e2dfd6' },
+    { id: 'ebony', name: 'Ebony', price: 600, color: '#2f2b33' },
+    { id: 'gilded', name: 'Gilded', price: 1500, color: '#c9a24a', only: ['tower'] },
+  ] },
+  floor: { name: 'Floor', icon: '🟫', text: 'The floor of the hall, and the rug by the door.', options: [
+    { id: 'checker', name: 'Black & white', price: 0, tile: 4, rug: '#2a3a5a', color: '#d8d2c4' },
+    { id: 'marble', name: 'Cream marble', price: 700, tile: 0, rug: '#7a3a3a', color: '#dcd6cc' },
+    { id: 'teal', name: 'Teal tile', price: 500, tile: 1, rug: '#d8c9a0', color: '#3f9b98' },
+    { id: 'olive', name: 'Olive', price: 400, tile: 2, rug: '#3a2a1e', color: '#5e6248' },
+    { id: 'slate', name: 'Slate', price: 450, tile: 3, rug: '#2a2a3a', color: '#b8bcc4' },
+  ] },
+  walls: { name: 'Walls', icon: '🧱', text: 'The colour and finish of the walls inside.', options: [
+    { id: 'grand', name: 'Black & gold', price: 0, wall: 'grand', color: '#4a1a28' },
+    { id: 'navy', name: 'Navy', price: 500, wall: 'navy', color: '#c8d0dc' },
+    { id: 'stone', name: 'Stone', price: 700, wall: 'stone', color: '#cec8bc' },
+    { id: 'cream', name: 'Cream', price: 400, wall: 'cream', color: '#e9dcc3' },
+    { id: 'teal', name: 'Teal', price: 450, wall: 'teal', color: '#596370' },
+    { id: 'plum', name: 'Plum', price: 450, wall: 'plum', color: '#c2607c' },
+    { id: 'starlit', name: 'Starlit', price: 1800, wall: 'arcane', color: '#2a1e44', only: ['tower'] },
+  ] },
+  lights: { name: 'Lights', icon: '💡', text: 'Brass lamps along the back wall. They glow at night, and only the hall is lit.', options: [
+    { id: 'plain', name: 'No lamps', price: 0, glow: null, color: '#3a3a44' },
+    { id: 'warm', name: 'Warm lamps', price: 350, glow: '255,214,140', color: '#f2c870' },
+    { id: 'cool', name: 'Cool lamps', price: 350, glow: '190,225,255', color: '#bfe0ff' },
+    { id: 'rose', name: 'Rose lamps', price: 400, glow: '255,170,190', color: '#ffb0c0' },
+  ] },
+  art: { name: 'Art', icon: '🖼️', text: 'Pictures for the back wall.', options: [
+    { id: 'bare', name: 'Bare walls', price: 0, color: '#3a3a44' },
+    { id: 'landscape', name: 'Landscapes', price: 250, color: '#4f8a4a' },
+    { id: 'seascape', name: 'Seascapes', price: 300, color: '#2f5f8a' },
+    { id: 'abstract', name: 'Abstracts', price: 450, color: '#c0392b' },
+  ] },
+  plants: { name: 'Plants', icon: '🪴', text: 'Pot plants in the corners of the hall. People walk past them, not through them.', options: [
+    { id: 'none', name: 'Just the two', price: 0, count: 0, color: '#3a3a44' },
+    { id: 'some', name: 'A few more', price: 300, count: 2, color: '#6aa860' },
+    { id: 'lush', name: 'A jungle', price: 700, count: 99, color: '#4f8a4a' },
+  ] },
+};
+
+/** What an office has when it is bought: the first option of every slot. */
+const STYLE_DEFAULT = Object.fromEntries(STYLE_SLOTS.map((s) => [s, STYLE[s].options[0].id]));
+
+const optionOf = (slot, id) => STYLE[slot]?.options.find((o) => o.id === id) || null;
+const priceOf = (tier, slot, id) => Math.round((optionOf(slot, id)?.price || 0) * (STYLE_SCALE[tier] || 1));
+
+// Places for the extras, read off the free paving of each hall (the rows by the back wall and the corner beside the boardroom). They are
+// fixed, so a hall never gets a lamp or a plant in anyone's way: nobody's desk, chair, stand-point or door is on one of them.
+const STYLE_SPOTS = {
+  small: { lamps: [[2, 1], [6, 1]], art: [[4, 1]], plants: [[7, 3], [7, 4]] },
+  mid: { lamps: [[2, 1], [5, 1], [9, 1]], art: [[3, 1], [8, 1]], plants: [[10, 4], [10, 6], [8, 6]] },
+  tower: { lamps: [[2, 1], [5, 1], [8, 1], [10, 1]], art: [[3, 1], [6, 1], [11, 1]], plants: [[12, 3], [12, 5], [12, 7], [12, 9], [11, 6]] },
+};
+
+// What a picture on the wall shows: a frame, a sky, the ground below it and one mark (a sun, a sail, a splash).
+const ART = {
+  landscape: { frame: '#b8892e', sky: '#9cc8d8', land: '#4f8a4a', mark: '#f2e2a0' },
+  seascape: { frame: '#7a5236', sky: '#cfe0e8', land: '#2f5f8a', mark: '#f4f4f4' },
+  abstract: { frame: '#2a2a32', sky: '#c0392b', land: '#e8b83a', mark: '#2a4a8a' },
+};
+
+/** The props a hall gets for its style: lamps, pictures and extra plants, each shown only while its option is chosen. */
+function styleProps(tier) {
+  const S = STYLE_SPOTS[tier];
+  const out = [];
+  STYLE.lights.options.filter((o) => o.glow).forEach((o) => S.lamps.forEach(([x, y], i) => out.push({ id: `hq_${tier}_lamp_${o.id}_${i}`, type: 'floorlamp', x, y, glow: o.glow, color: o.color, hiddenUnless: { hqStyle: { tier, slot: 'lights', is: [o.id] } } })));
+  STYLE.art.options.filter((o) => ART[o.id]).forEach((o) => S.art.forEach(([x, y], i) => out.push({ id: `hq_${tier}_art_${o.id}_${i}`, type: 'painting', x, y, art: o.id, examine: `${STYLE.art.options.find((q) => q.id === o.id).name}, framed. The parent's accountant has opinions about the price.`, hiddenUnless: { hqStyle: { tier, slot: 'art', is: [o.id] } } })));
+  S.plants.forEach(([x, y], i) => out.push({ id: `hq_${tier}_plant_x${i}`, type: 'plant', x, y, hiddenUnless: { hqStyle: { tier, slot: 'plants', is: i < 2 ? ['some', 'lush'] : ['lush'] } } }));
+  return out;
+}
+
+return { STYLE_SCALE, STYLE_SLOTS, STYLE, STYLE_DEFAULT, optionOf, priceOf, STYLE_SPOTS, ART, styleProps };
+})();
+
 // ---- src/content/hq.js
 __m["src/content/hq.js"] = (function () {
 // The headquarters (v0.86.0): three offices on the paving of Halvermouth that the parent company can buy — a small office, a corporate
@@ -15718,6 +15817,7 @@ const HQ_TIERS = {
     roof: '#1f2a4a', wall: '#3f5078', trim: '#c9a24a', sign: 'TOWER', flatRoof: true, columns: true,
     at: { x: 141, y: 20, w: 14, h: 13, doorX: 147 } },
 };
+const { styleProps } = __m["src/content/hqStyle.js"];
 const HQ_ORDER = ['small', 'mid', 'tower'];
 const hqMapId = (tier) => `hq_${tier}`;
 const hqBuildingId = (tier) => `b_hq_${tier}`;
@@ -15769,6 +15869,7 @@ function hqInterior(tier) {
     spots.boardroom = { x: W - 3, y: 4, facing: 'up' };
   }
   if (tier === 'tower') props.push({ id: 'hq_tower_painting', type: 'painting', x: Math.floor(W / 2) + 2, y: 1, examine: 'A portrait of the founder. It has your eyes.' });
+  props.push(...styleProps(tier)); // v0.88.0: the lamps, pictures and extra plants you may choose (each shown only while chosen)
   return {
     id: hqMapId(tier), name: T.name, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
     tiles: roomTilesFor(W, H, dx, [[W - 2, 0, 1, 1, 'D']]),
@@ -16391,7 +16492,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.87.0';
+const GAME_VERSION = '0.88.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -19414,7 +19515,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq', 'hqStyle',
 ];
 
 /**
@@ -19458,6 +19559,8 @@ function checkKey(key, val, game, npc) {
       const { id, count } = typeof val === 'string' ? { id: val, count: 1 } : val;
       return game.inventory.count(id) >= (count ?? 1);
     }
+    case 'hqStyle': // v0.88.0: { tier, slot, is: [ids] } — the office is styled that way (the lamps, pictures and plants of a hall)
+      return game.hq.owns(val.tier) && val.is.includes(game.hq.styleOf(val.tier)[val.slot]);
     case 'hq': // v0.86.0: { tier: 'small', owned: false } — the parent company owns that office (or does not)
       return game.hq.owns(val.tier) === (val.owned ?? true);
     case 'aeroHall': // v0.57.0: { id: 'heavy', built: false } — a Roost hall is open (or still a site)
@@ -25822,6 +25925,7 @@ __m["src/systems/hq.js"] = (function () {
 const { HQ_TIERS, HQ_ORDER, hqMapId, hqQuartersId } = __m["src/content/hq.js"];
 const { ROLES } = __m["src/content/personnel.js"];
 const { hash2, hashString } = __m["src/core/rng.js"];
+const { STYLE, STYLE_SLOTS, STYLE_DEFAULT, optionOf, priceOf } = __m["src/content/hqStyle.js"];
 
 const money = (n) => `${Math.round(n).toLocaleString('en-US')} obols`;
 
@@ -25963,7 +26067,63 @@ class Headquarters {
     if (this.seen !== this.K.personnel.epoch || this.seenTier !== this.best()) this.sync();
   }
 
-  afterLoad() { this.seen = undefined; if (this.owned().length) this.sync(); }
+  afterLoad() { this.seen = undefined; if (this.owned().length) this.sync(); for (const t of this.owned()) this.applyStyle(t); }
+
+  // ------------------------------------------------------------- furnishing (v0.88.0)
+  /** How an office is furnished now: a choice for every slot (what it came with, unless you changed it). */
+  styleOf(tier) { return { ...STYLE_DEFAULT, ...(this.peek()?.style?.[tier] || {}) }; }
+
+  /** Can the parent choose this option for this office now, and what it costs. */
+  canStyle(tier, slot, id) {
+    const o = optionOf(slot, id);
+    if (!HQ_TIERS[tier] || !STYLE[slot] || !o) return { ok: false, why: 'There is no such choice.', price: 0 };
+    if (!this.owns(tier)) return { ok: false, why: 'The parent does not own that office.', price: 0 };
+    if (o.only && !o.only.includes(tier)) return { ok: false, why: `Only ${o.only.map((t) => HQ_TIERS[t].short).join(' and ')} has ${o.name.toLowerCase()}.`, price: 0 };
+    if (this.styleOf(tier)[slot] === id) return { ok: false, why: 'It is already like that.', price: 0 };
+    const price = priceOf(tier, slot, id);
+    const cash = this.K.account('parent').cash;
+    if (price > cash) return { ok: false, why: `The parent holds ${money(cash)}; this costs ${money(price)}.`, price };
+    return { ok: true, why: '', price };
+  }
+
+  /** What the style screen shows for one office: each slot, its options, which one you have and what each would cost. */
+  styleView(tier) {
+    const now = this.styleOf(tier);
+    return STYLE_SLOTS.map((slot) => ({ slot, name: STYLE[slot].name, icon: STYLE[slot].icon, text: STYLE[slot].text, current: now[slot],
+      options: STYLE[slot].options.map((o) => ({ id: o.id, name: o.name, color: o.color, here: o.id === now[slot], ...this.canStyle(tier, slot, o.id), price: priceOf(tier, slot, o.id), locked: Boolean(o.only && !o.only.includes(tier)), only: o.only ? o.only.map((x) => HQ_TIERS[x].short).join(' and ') + ' only' : '', ...(o.id === now[slot] ? { why: '' } : {}) })) }));
+  }
+
+  /** Choose it: the parent pays once, from its own account, and the hall looks different from then on. Nothing here returns money. */
+  setStyle(tier, slot, id) {
+    const c = this.canStyle(tier, slot, id);
+    if (!c.ok) return { ok: false, text: c.why };
+    const o = optionOf(slot, id);
+    if (c.price > 0 && !this.K.pay('parent', c.price, { cat: 'fitout' })) return { ok: false, text: `The parent cannot pay ${money(c.price)}.` };
+    const s = this.state;
+    ((s.style ||= {})[tier] ||= {})[slot] = id;
+    this.note(`${HQ_TIERS[tier].short}: ${STYLE[slot].name.toLowerCase()} — ${o.name}${c.price ? ` (${money(c.price)})` : ''}.`);
+    this.applyStyle(tier);
+    this.game.bus.emit('hq:styled', { tier, slot, id });
+    return { ok: true, text: `${STYLE[slot].name}: ${o.name}.${c.price ? ` ${money(c.price)} from the parent.` : ' The original, free.'}` };
+  }
+
+  /** Make a hall look as styled: the colours of its desks and rug, its floor and its walls. (Lamps, pictures and plants are props that show or hide themselves.) */
+  applyStyle(tier) {
+    const map = this.game.maps?.get(hqMapId(tier));
+    if (!map) return;
+    const now = this.styleOf(tier);
+    const floor = optionOf('floor', now.floor);
+    const walls = optionOf('walls', now.walls);
+    const desks = optionOf('desks', now.desks);
+    const plain = now.floor === STYLE_DEFAULT.floor && now.walls === STYLE_DEFAULT.walls;
+    map.styleOverride = plain ? null : { wall: walls.wall, floor: { t: floor.tile } };
+    for (const p of map.props) {
+      if (p.type === 'desk') p.color = desks.color;
+      else if (p.id === `hq_${tier}_rug`) p.color = floor.rug;
+    }
+    map.styleVersion = (map.styleVersion || 0) + 1; // the ground is painted again
+    map.fieldsVersion = (map.fieldsVersion || 0) + 1;
+  }
 
   /** What owning costs a day, all offices together. */
   upkeepPerDay() { return this.owned().reduce((a, t) => a + HQ_TIERS[t].upkeep, 0); }
@@ -47251,6 +47411,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.88.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The Headquarters, Stage 3: Furnishing',
+    notes: [
+      'In the Group app, tap Furnish on an office you own to choose its desks, floor, walls, lamps, pictures and plants. You see the price first; your parent company pays once, and the hall changes.',
+      'It is all looks: furnishing earns nothing and saves nothing, and going back to the original is free. The lamps glow at night.',
+    ],
+  },
+  {
     version: '0.87.0',
     date: '2026-10-31',
     channel: 'development',
@@ -48477,12 +48647,12 @@ const SOFTISH = new Set([CID['.'], CID.R, CID.u, CID[':']]); // shores a pond ha
 const facts = new WeakMap();
 function factsOf(map) {
   let f = facts.get(map);
-  if (f) return f;
+  if (f && f.sv === (map.styleVersion || 0)) return f;
   const W = map.width;
   const H = map.height;
   const code = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) code[y * W + x] = CID[map.tileAt(x, y)] || 0;
-  f = { code, run: roadRuns(map), style: map.kind === 'interior' ? interiorStyle(map) : null };
+  f = { code, run: roadRuns(map), style: map.kind === 'interior' ? interiorStyle(map) : null, sv: map.styleVersion || 0 };
   facts.set(map, f);
   return f;
 }
@@ -48543,7 +48713,7 @@ function interiorStyle(map) {
   const d = map.def || {};
   const name = `${d.id} ${d.name || ''} ${d.trade || ''}`;
   const seed = [...String(d.id)].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0;
-  let wall = d.wallStyle;
+  let wall = map.styleOverride?.wall || d.wallStyle; // v0.88.0: a furnished headquarters
   if (!wall) {
     if (/shack|barn|storage|warehouse|stable|shed|beach|hut|cabin|saloon|barrack/i.test(name)) wall = 'wood';
     else if (/gun|armory|workshop|works|factory|refinery|garage|repair/i.test(name)) wall = 'brick';
@@ -48556,7 +48726,7 @@ function interiorStyle(map) {
   }
   const fl = (ch, def) => {
     const list = FLOORS[ch];
-    const i = d.floorStyle?.[ch] ?? (ch === 't' && /shop|store|market|pharmac/i.test(name) ? 3 : ch === 't' && /gun|armory|works/i.test(name) ? 2 : def ?? (seed >>> 3) % list.length);
+    const i = map.styleOverride?.floor?.[ch] ?? d.floorStyle?.[ch] ?? (ch === 't' && /shop|store|market|pharmac/i.test(name) ? 3 : ch === 't' && /gun|armory|works/i.test(name) ? 2 : def ?? (seed >>> 3) % list.length);
     return list[i % list.length].map(rgb).map(pack);
   };
   // how worn the floor is: a workshop or a gun shop is filthy, a café is kept clean
@@ -52379,6 +52549,13 @@ function drawPixelProp(ctx, p, opts) {
       if (p.type === 'stove') for (let i = 0; i < 2; i++) R(3 + i * (W - 9), -1, 3, 2, '#20202a');
       return true;
     }
+    case 'floorlamp': { // v0.88.0: the headquarters' brass lamps (the shade is the colour of their light)
+      R(5, 13, 6, 2, SHADOW);
+      R(5, 12, 6, 2, INK); R(6, 12, 4, 1, '#8a6a2a');
+      R(8, 5, 1, 8, INK); R(7, 5, 1, 8, '#a8832e');
+      R(4, 1, 9, 5, INK); R(5, 2, 7, 3, p.color || '#f2c870'); R(5, 2, 7, 1, opts.night ? '#ffffff' : '#fffaf0');
+      return true;
+    }
     case 'plant': {
       R(4, 13, 9, 2, SHADOW);
       box(5, 8, 6, 6, '#b5683f', 1);
@@ -55606,6 +55783,7 @@ __m["src/engine/drawWorld.js"] = (function () {
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 const { drawFarmProp } = __m["src/engine/drawFarm.js"];
+const { ART } = __m["src/content/hqStyle.js"];
 const { drawPixelProp } = __m["src/engine/drawPixelProps.js"];
 const { drawPropSprite } = __m["src/engine/propSprites.js"];
 const { drawPixelBuilding } = __m["src/engine/drawPixelBuildings.js"];
@@ -57020,6 +57198,14 @@ function drawProp(ctx, p, opts) {
       break;
     }
     case 'painting': {
+      const A = p.art && ART[p.art]; // v0.88.0: the pictures you hang in the headquarters
+      if (A) {
+        ctx.fillStyle = A.frame; ctx.fillRect(x + 3, y + 3, w - 6, h * 0.6);
+        ctx.fillStyle = A.sky; ctx.fillRect(x + 5, y + 5, w - 10, h * 0.6 - 4);
+        ctx.fillStyle = A.land; ctx.fillRect(x + 5, y + 5 + (h * 0.6 - 4) * 0.55, w - 10, (h * 0.6 - 4) * 0.45);
+        ctx.fillStyle = A.mark; ctx.fillRect(x + w * 0.55, y + 8, 6, 6);
+        break;
+      }
       ctx.fillStyle = '#b8892e';
       ctx.fillRect(x + 3, y + 3, w - 6, h * 0.55);
       ctx.fillStyle = '#5a6a7a';
@@ -60568,6 +60754,14 @@ class Renderer {
           hole(p.x * TILE + 16 + L.x, p.y * TILE + 4 + L.y, 80, 0.85);
           warm.push([p.x * TILE + 16 + L.x, p.y * TILE + 2 + L.y, 30]);
         }
+        for (const L2 of this.layers) { // v0.88.0: the lamps inside a headquarters (the hall is lit, so the lamps show)
+          if (L2.map.kind !== 'interior') continue;
+          for (const p of L2.map.props) {
+            if (p.type !== 'floorlamp' || !p.glow || !this.propVisible(p)) continue;
+            hole(p.x * TILE + 16 + L2.x, p.y * TILE + 8 + L2.y, 90, 0.9);
+            warm.push([p.x * TILE + 16 + L2.x, p.y * TILE + 4 + L2.y, 0, p.glow]);
+          }
+        }
         for (const b of L.map.buildings) {
           if (b.tower && !this.pixel) hole((b.x + b.w / 2) * TILE + L.x, (b.y + b.h) * TILE - towerHeight(b) * 0.45 + L.y, b.w * 18, 0.45);
           if (!this.buildingLit(b)) continue;
@@ -60632,8 +60826,8 @@ class Renderer {
     gc.globalCompositeOperation = 'lighter';
     for (const [wx, wy, r0, tint] of warm) {
       const s = gpos(wx, wy);
-      const r = tint ? 110 : r0;
-      const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : '255,190,90';
+      const r = tint === 'red' || tint === 'blue' ? 110 : tint ? 70 : r0;
+      const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : tint || '255,190,90';
       if (glow) {
         const sp = lightSprite(r * gk, 1, rgb, 6);
         gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * g.clock.darkness);
@@ -65493,7 +65687,7 @@ __m["src/ui/tabletSummaries.js"] = (function () {
 // Summary screens for the OberPad's heaviest apps (v0.84.0). Each says what matters — one figure, three tiles, what is waiting for you — and
 // the app as it always was is one tap down in a fold. Nothing is computed here but layout; every button calls the system that always did the work.
 const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, note, fold, openFold, buttons, big, n } = __m["src/ui/tabletKit.js"];
+const { hero, segments, tiles, row, help, note, fold, openFold, buttons, big, n } = __m["src/ui/tabletKit.js"];
 const { managementFull } = __m["src/ui/corpManage.js"];
 const { groupFull } = __m["src/ui/corpGroup.js"];
 const { peopleFull } = __m["src/ui/corpPeople.js"];
@@ -65548,6 +65742,7 @@ function groupApp(ui, body, open) {
   const pa = K.account('parent');
   const subs = G.subs();
   const alerts = G.alerts();
+  if (ui.hqStyle && g.hq.owns(ui.hqStyle)) { hqStyleScreen(ui, body, open, ui.hqStyle, pa); return; } // v0.88.0: furnishing an office (a screen of its own)
   const sheet = ui.groupSheet || null;
   body.append(
     hero({ label: G.parent.name, value: n(pa.cash), sub: `obols in the parent · your wallet ${n(g.player.money)}` }),
@@ -65580,8 +65775,32 @@ function groupApp(ui, body, open) {
       buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
   }
   body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.id === g.hq.best() ? `${g.hq.officers().length} of ${t.seats} seats taken` : `${t.desks} desks, ${t.seats} seats`} · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
-    action: t.owned ? null : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
+    action: t.owned ? h('button', { class: 'tb-mini pri', onclick: () => { ui.hqStyle = t.id; ui.hqPick = null; open('Group'); } }, 'Furnish ›') : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
+}
+
+/** Furnishing an office (v0.88.0): one slot at a time (desks, floor, walls, lights, art, plants), a swatch for each choice, and the price before any money moves. */
+function hqStyleScreen(ui, body, open, tier, pa) {
+  const g = ui.game;
+  const T = HQ_TIERS[tier];
+  const view = g.hq.styleView(tier);
+  const slot = view.some((v) => v.slot === ui.hqSlot) ? ui.hqSlot : 'desks';
+  const cur = view.find((v) => v.slot === slot);
+  const pick = ui.hqPick && ui.hqPick.tier === tier && ui.hqPick.slot === slot ? cur.options.find((o) => o.id === ui.hqPick.id) : null;
+  const done = (r) => { if (r?.text) ui.corpNote = r.text; ui.hqPick = null; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Group'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  body.append(hero({ label: T.name, value: 'Furnish', sub: `${n(pa.cash)} obols in the parent · looks only, never income` }),
+    h('div', { class: 'tb-chips' }, ...view.map((v) => h('button', { class: `tb-chip${v.slot === slot ? ' on' : ''}`, onclick: () => { ui.hqSlot = v.slot; ui.hqPick = null; open('Group'); } }, `${v.icon} ${v.name}`))),
+    h('div', { class: 'tb-swatches' }, ...cur.options.map((o) => h('button', { class: `tb-sw${o.here ? ' on' : ''}${pick?.id === o.id ? ' pick' : ''}`, disabled: !o.ok && !o.here, title: o.ok || o.here ? '' : o.why, onclick: () => { ui.hqPick = o.here ? null : { tier, slot, id: o.id }; open('Group'); } },
+      h('i', { style: `background:${o.color}` }), o.name, h('small', {}, o.here ? 'yours now' : o.locked ? `🔒 ${o.only}` : o.price ? `${n(o.price)} ◎` : 'free')))));
+  if (pick) {
+    body.append(h('div', { class: 'tb-card tb-terms' }, h('b', {}, `${cur.name}: ${pick.name}?`),
+      h('div', { class: 'tb-sub' }, pick.price ? `${n(pick.price)} obols once, from the parent's own account (it holds ${n(pa.cash)}). It changes how ${T.short} looks and nothing else.` : `The original, free. It changes how ${T.short} looks and nothing else.`),
+      buttons(big(pick.price ? `Pay ${n(pick.price)}` : 'Change back', () => done(g.hq.setStyle(tier, slot, pick.id)), 'pri', !pick.ok), big('Cancel', () => { ui.hqPick = null; open('Group'); }))));
+  }
+  body.append(help(`About ${cur.name.toLowerCase()} ›`, cur.text, 'Furnishing is looks only: it never earns, saves or returns money. Going back to the original is free. Lamps glow at night; the rest you will see when you walk in.'),
+    buttons(big('‹ Back to the group', () => { ui.hqStyle = null; ui.hqPick = null; open('Group'); })));
 }
 
 // ---------------------------------------------------------------- Personnel

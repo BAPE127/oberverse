@@ -189,6 +189,13 @@ export function drawPixelProp(ctx, p, opts) {
       if (p.type === 'stove') for (let i = 0; i < 2; i++) R(3 + i * (W - 9), -1, 3, 2, '#20202a');
       return true;
     }
+    case 'floorlamp': { // v0.88.0: the headquarters' brass lamps (the shade is the colour of their light)
+      R(5, 13, 6, 2, SHADOW);
+      R(5, 12, 6, 2, INK); R(6, 12, 4, 1, '#8a6a2a');
+      R(8, 5, 1, 8, INK); R(7, 5, 1, 8, '#a8832e');
+      R(4, 1, 9, 5, INK); R(5, 2, 7, 3, p.color || '#f2c870'); R(5, 2, 7, 1, opts.night ? '#ffffff' : '#fffaf0');
+      return true;
+    }
     case 'plant': {
       R(4, 13, 9, 2, SHADOW);
       box(5, 8, 6, 6, '#b5683f', 1);

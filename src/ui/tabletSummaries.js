@@ -1,7 +1,7 @@
 // Summary screens for the OberPad's heaviest apps (v0.84.0). Each says what matters — one figure, three tiles, what is waiting for you — and
 // the app as it always was is one tap down in a fold. Nothing is computed here but layout; every button calls the system that always did the work.
 import { h } from './panels.js';
-import { hero, tiles, row, help, note, fold, openFold, buttons, big, n } from './tabletKit.js';
+import { hero, segments, tiles, row, help, note, fold, openFold, buttons, big, n } from './tabletKit.js';
 import { managementFull } from './corpManage.js';
 import { groupFull } from './corpGroup.js';
 import { peopleFull } from './corpPeople.js';
@@ -56,6 +56,7 @@ export function groupApp(ui, body, open) {
   const pa = K.account('parent');
   const subs = G.subs();
   const alerts = G.alerts();
+  if (ui.hqStyle && g.hq.owns(ui.hqStyle)) { hqStyleScreen(ui, body, open, ui.hqStyle, pa); return; } // v0.88.0: furnishing an office (a screen of its own)
   const sheet = ui.groupSheet || null;
   body.append(
     hero({ label: G.parent.name, value: n(pa.cash), sub: `obols in the parent · your wallet ${n(g.player.money)}` }),
@@ -88,8 +89,32 @@ export function groupApp(ui, body, open) {
       buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
   }
   body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.id === g.hq.best() ? `${g.hq.officers().length} of ${t.seats} seats taken` : `${t.desks} desks, ${t.seats} seats`} · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
-    action: t.owned ? null : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
+    action: t.owned ? h('button', { class: 'tb-mini pri', onclick: () => { ui.hqStyle = t.id; ui.hqPick = null; open('Group'); } }, 'Furnish ›') : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
+}
+
+/** Furnishing an office (v0.88.0): one slot at a time (desks, floor, walls, lights, art, plants), a swatch for each choice, and the price before any money moves. */
+function hqStyleScreen(ui, body, open, tier, pa) {
+  const g = ui.game;
+  const T = HQ_TIERS[tier];
+  const view = g.hq.styleView(tier);
+  const slot = view.some((v) => v.slot === ui.hqSlot) ? ui.hqSlot : 'desks';
+  const cur = view.find((v) => v.slot === slot);
+  const pick = ui.hqPick && ui.hqPick.tier === tier && ui.hqPick.slot === slot ? cur.options.find((o) => o.id === ui.hqPick.id) : null;
+  const done = (r) => { if (r?.text) ui.corpNote = r.text; ui.hqPick = null; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Group'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  body.append(hero({ label: T.name, value: 'Furnish', sub: `${n(pa.cash)} obols in the parent · looks only, never income` }),
+    h('div', { class: 'tb-chips' }, ...view.map((v) => h('button', { class: `tb-chip${v.slot === slot ? ' on' : ''}`, onclick: () => { ui.hqSlot = v.slot; ui.hqPick = null; open('Group'); } }, `${v.icon} ${v.name}`))),
+    h('div', { class: 'tb-swatches' }, ...cur.options.map((o) => h('button', { class: `tb-sw${o.here ? ' on' : ''}${pick?.id === o.id ? ' pick' : ''}`, disabled: !o.ok && !o.here, title: o.ok || o.here ? '' : o.why, onclick: () => { ui.hqPick = o.here ? null : { tier, slot, id: o.id }; open('Group'); } },
+      h('i', { style: `background:${o.color}` }), o.name, h('small', {}, o.here ? 'yours now' : o.locked ? `🔒 ${o.only}` : o.price ? `${n(o.price)} ◎` : 'free')))));
+  if (pick) {
+    body.append(h('div', { class: 'tb-card tb-terms' }, h('b', {}, `${cur.name}: ${pick.name}?`),
+      h('div', { class: 'tb-sub' }, pick.price ? `${n(pick.price)} obols once, from the parent's own account (it holds ${n(pa.cash)}). It changes how ${T.short} looks and nothing else.` : `The original, free. It changes how ${T.short} looks and nothing else.`),
+      buttons(big(pick.price ? `Pay ${n(pick.price)}` : 'Change back', () => done(g.hq.setStyle(tier, slot, pick.id)), 'pri', !pick.ok), big('Cancel', () => { ui.hqPick = null; open('Group'); }))));
+  }
+  body.append(help(`About ${cur.name.toLowerCase()} ›`, cur.text, 'Furnishing is looks only: it never earns, saves or returns money. Going back to the original is free. Lamps glow at night; the rest you will see when you walk in.'),
+    buttons(big('‹ Back to the group', () => { ui.hqStyle = null; ui.hqPick = null; open('Group'); })));
 }
 
 // ---------------------------------------------------------------- Personnel

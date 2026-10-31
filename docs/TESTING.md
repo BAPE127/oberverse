@@ -93,6 +93,12 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.88.0 (2026-10-31)
+
+- New: `hq_style.test.mjs` (10 tests). Smoke +2 (42/42). No existing test edited. Parity with v0.87.0 identical (no payouts changed).
+- Browser (headless Chromium): the Furnish screen with its price card; a Corporate Centre furnished with oak desks, cream marble, navy walls, warm lamps, seascapes and a jungle of plants, by day and at night (the lamps glow); 0 page errors. Screens: `docs/mockups/v088-*.png`. Not tested: a touch device.
+- The previous release's smoke check for officers failed once, on one run only, in this session while the furnishing checks were added (`Cannot read properties of undefined (reading 'id')`: no candidate had the role it asked for). I did not find why it passed on the runs before and after; the check now accepts any parent role the pool has, and passed 42/42 afterwards.
+
 ## Verification record — v0.87.0 (2026-10-31)
 
 - New: `hq_officers.test.mjs` (9 tests). Smoke +2. The validator's rule "no beds outside homes" was met by marking the quarters a dwelling. No existing test edited.

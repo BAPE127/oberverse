@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq', 'hqStyle',
 ];
 
 /**
@@ -52,6 +52,8 @@ function checkKey(key, val, game, npc) {
       const { id, count } = typeof val === 'string' ? { id: val, count: 1 } : val;
       return game.inventory.count(id) >= (count ?? 1);
     }
+    case 'hqStyle': // v0.88.0: { tier, slot, is: [ids] } — the office is styled that way (the lamps, pictures and plants of a hall)
+      return game.hq.owns(val.tier) && val.is.includes(game.hq.styleOf(val.tier)[val.slot]);
     case 'hq': // v0.86.0: { tier: 'small', owned: false } — the parent company owns that office (or does not)
       return game.hq.owns(val.tier) === (val.owned ?? true);
     case 'aeroHall': // v0.57.0: { id: 'heavy', built: false } — a Roost hall is open (or still a site)

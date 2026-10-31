@@ -21,6 +21,7 @@ export const HQ_TIERS = {
     roof: '#1f2a4a', wall: '#3f5078', trim: '#c9a24a', sign: 'TOWER', flatRoof: true, columns: true,
     at: { x: 141, y: 20, w: 14, h: 13, doorX: 147 } },
 };
+import { styleProps } from './hqStyle.js';
 export const HQ_ORDER = ['small', 'mid', 'tower'];
 export const hqMapId = (tier) => `hq_${tier}`;
 export const hqBuildingId = (tier) => `b_hq_${tier}`;
@@ -72,6 +73,7 @@ export function hqInterior(tier) {
     spots.boardroom = { x: W - 3, y: 4, facing: 'up' };
   }
   if (tier === 'tower') props.push({ id: 'hq_tower_painting', type: 'painting', x: Math.floor(W / 2) + 2, y: 1, examine: 'A portrait of the founder. It has your eyes.' });
+  props.push(...styleProps(tier)); // v0.88.0: the lamps, pictures and extra plants you may choose (each shown only while chosen)
   return {
     id: hqMapId(tier), name: T.name, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
     tiles: roomTilesFor(W, H, dx, [[W - 2, 0, 1, 1, 'D']]),

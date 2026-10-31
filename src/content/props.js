@@ -91,6 +91,7 @@ export const PROP_TYPES = {
   column: { solid: true, label: 'Distillation column', defaults: { w: 2, h: 3 } },
   vault: { solid: true, label: 'Vault', defaults: {} },
   painting: { solid: false, label: 'Painting', defaults: {} },
+  floorlamp: { solid: false, label: 'Brass lamp', defaults: { examine: 'A brass lamp with a green glass shade. It comes on at dusk.' } }, // v0.88.0
   // Halvermouth
   car: { solid: true, label: 'Car', defaults: { w: 2, examine: 'A parked car. Nobody in Lanternside owns one of these.' } },
   flagpole: { solid: true, label: 'Flagpole', defaults: {} },

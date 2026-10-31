@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.88.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The Headquarters, Stage 3: Furnishing',
+    notes: [
+      'In the Group app, tap Furnish on an office you own to choose its desks, floor, walls, lamps, pictures and plants. You see the price first; your parent company pays once, and the hall changes.',
+      'It is all looks: furnishing earns nothing and saves nothing, and going back to the original is free. The lamps glow at night.',
+    ],
+  },
+  {
     version: '0.87.0',
     date: '2026-10-31',
     channel: 'development',

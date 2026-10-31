@@ -1,6 +1,7 @@
 // Procedural drawing for terrain, buildings and props in a soft, stylised
 // angled top-down look. Everything is drawn in world pixels (1 tile = 32px).
 import { drawFarmProp } from './drawFarm.js';
+import { ART } from '../content/hqStyle.js';
 import { drawPixelProp } from './drawPixelProps.js';
 import { drawPropSprite } from './propSprites.js';
 import { drawPixelBuilding } from './drawPixelBuildings.js';
@@ -1415,6 +1416,14 @@ export function drawProp(ctx, p, opts) {
       break;
     }
     case 'painting': {
+      const A = p.art && ART[p.art]; // v0.88.0: the pictures you hang in the headquarters
+      if (A) {
+        ctx.fillStyle = A.frame; ctx.fillRect(x + 3, y + 3, w - 6, h * 0.6);
+        ctx.fillStyle = A.sky; ctx.fillRect(x + 5, y + 5, w - 10, h * 0.6 - 4);
+        ctx.fillStyle = A.land; ctx.fillRect(x + 5, y + 5 + (h * 0.6 - 4) * 0.55, w - 10, (h * 0.6 - 4) * 0.45);
+        ctx.fillStyle = A.mark; ctx.fillRect(x + w * 0.55, y + 8, 6, 6);
+        break;
+      }
       ctx.fillStyle = '#b8892e';
       ctx.fillRect(x + 3, y + 3, w - 6, h * 0.55);
       ctx.fillStyle = '#5a6a7a';
