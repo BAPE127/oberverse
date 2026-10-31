@@ -60,7 +60,9 @@ Every company is read into the same record (`metricsOf`): revenue, operating pro
 - **Value**: `groupValue()` = the parent's cash + what it is owed + its stake in each subsidiary at that subsidiary's value, whose net assets already take off what it owes the parent. Capital and loans inside the group leave it unchanged. (Values have a floor and cannot be negative, so the sum is exact only for companies not close to nothing.)
 - **Not in this release**: the parent has no debt or interest expense yet (those ledger lines read 0; its management expenses are the wages of the people hired for it since v0.62.0); no selling, closing or part-owning a subsidiary.
 
-## People (v0.62.0)
+## People (v0.62.0) — replaced by the flat jobs of v0.89.0
+
+> **Since v0.89.0** this whole section and the Management section below it describe the system before it was simplified. Now: three jobs (`manager` for each business, `group_manager` at the parent, `office` for the headquarters' desks), each at one flat wage (`src/content/personnel.js`, `WAGES`); no skills, no candidates, no market, no growth; hired in one tap (`personnel.hire`), a signing fee of ten days' wage; a manager does `PERKS` (3%) for their business and nothing more; what a person may do alone is `person.perm` (tick-boxes: `reorder`, `bid`, `research`, `expand`, `transfer`); each business has one monthly limit (`management.capOf`: yours, or `autoCap` of its cash) and an automatic reserve; expansion is always queued for the owner; budgets by category, plans, margins and treasury bands are gone (the group manager's band is `autoTreasury`); the Personnel and Management apps are the one **Managers** app. Saves are converted by `personnel.migrate` / `management.migrate`. The paragraphs below are kept as the record of v0.62–v0.88.
 
 `game.corp.personnel` (`src/systems/personnel.js`; pure rules in `src/corp/people.js`; content in `src/content/personnel.js`); the **Personnel** tablet app.
 

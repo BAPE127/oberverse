@@ -93,6 +93,14 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.89.0 (2026-10-31)
+
+- **Removed (74 tests, all of them about things that no longer exist):** `personnel.test.mjs` (23: skills, candidates, offers, promotion, reviews), `personnel_effects.test.mjs` (11: skill effects), `management.test.mjs` (19: budgets by category, spending limits, hires), `management_plans.test.mjs` (13: expansion plans, margins), `management_treasury.test.mjs` (8: treasury bands you set; the pure `treasuryMove` test lives on in `managers.test.mjs`).
+- **Added:** `managers.test.mjs` (21).
+- **Existing tests edited (their setup used the old hire, budget or authority calls; each assertion about money, ledgers, saves and conservation is unchanged):** `corporate_integration.test.mjs` (hires, limits, test 3, 8–9 and 11 rewritten; the save/load comparison leaves out the manager's log and requests, which follow the war news that a reload re-rolls); `geo_effects.test.mjs` (the budget-request test became "managers hold back expansion"; margin removed); `transaction_integrity.test.mjs` (hire, split-purchase test now about the monthly limit); `business_loans.test.mjs` (the pure `judge` call); `hq_officers.test.mjs` (hire helper); `milestones.test.mjs` (hq, furnished, delegated); `tablet_home.test.mjs`, `tablet_groups.test.mjs` (the Managers app).
+- Smoke 44/44 (the four Management checks became four Managers checks). Parity with v0.88.0 identical over 25 days, all four businesses, nobody hired.
+- Browser (headless Chromium): the Managers app with five managers and four expansion requests waiting; the hire price card; 0 page errors. Screens `docs/mockups/v089-*.png`. Not tested: a touch device.
+
 ## Verification record — v0.88.0 (2026-10-31)
 
 - New: `hq_style.test.mjs` (10 tests). Smoke +2 (42/42). No existing test edited. Parity with v0.87.0 identical (no payouts changed).

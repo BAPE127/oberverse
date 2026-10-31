@@ -74,7 +74,7 @@ test('government bonds: the wars add a bounded premium to new coupons and move t
   assert.equal(o.premium, p);
 });
 
-/** A funded arms works with one worker at a lathe, and a procurement manager. */
+/** A funded arms works with one worker at a lathe, and a manager. */
 function works(seed) {
   const g = newGame(seed); setTime(g, 1, '07:30'); noImpulses(g);
   g.player.money = 5e6;
@@ -87,62 +87,35 @@ function works(seed) {
   assert.ok(g.corp.contribute('arms', 500000).ok);
   g.corp.ensureWorld(); g.market.state;
   const pe = g.corp.personnel; pe.ensure();
-  let c = pe.candidates().find((x) => x.roles.includes('procurement_mgr'));
-  assert.ok(c, 'a candidate for procurement');
-  const r = pe.offer(c.id, { role: 'procurement_mgr', employer: 'arms', pay: c.floor + 5 });
+  const r = pe.hire('manager', 'arms');
   assert.ok(r.ok, r.text); r.person.startDay = 1;
   return g;
 }
 
-test('managers answer cost pressure by asking, not spending: a request to raise the materials budget, once, and nothing changes until you approve', () => {
+test('managers answer cost pressure by holding back expansion, with the reason, while supplies go on (and there is no budget to ask about any more)', () => {
   const g = works(2603);
   const M = g.corp.management;
-  assert.ok(M.setBudget('arms', 'materials', 10000).ok);
-  M.ensure().spent.arms = { materials: { [M.month]: 8000 } }; // 80% used
-  assert.equal(M.askMoreBudget('arms'), null, 'no pressure, no request');
+  const x = Object.values(g.corp.personnel.peek().staff).find((p) => p.role === 'manager' && p.employer === 'arms');
+  assert.equal(M.pressure('arms') < MGMT.costHold, true, 'no pressure yet');
+  assert.doesNotMatch(M.judgeFor(x, 'expand', 'arms', 1000).reason || '', /hold back/, 'no war, no hold');
   // two wars cost more
   day(g, 2); g.corp.geo.dailyTick();
   g.world.market.wars.push({ a: 'teshvar', b: 'morrow', since: 2 });
   day(g, 3); g.corp.geo.dailyTick(); day(g, 80);
   const pr = M.pressure('arms');
-  assert.ok(pr >= MGMT.costNotice, `arms costs are up ${(pr * 100).toFixed(2)}%`);
-  M.ensure().spent.arms = { materials: { [M.month]: 8000 } };
-  const cap0 = M.budgetOf('arms', 'materials');
-  const q = M.askMoreBudget('arms');
-  assert.ok(q && q.kind === 'budget' && q.cost >= 100 && q.cost === Math.max(100, Math.round((cap0 * pr) / 100) * 100), 'a request in proportion');
-  assert.equal(M.budgetOf('arms', 'materials'), cap0, 'a request changes nothing');
-  assert.equal(M.askMoreBudget('arms'), null, 'one at a time');
-  const r = M.approve(q.id);
-  assert.ok(r.ok, r.text);
-  assert.equal(M.budgetOf('arms', 'materials'), cap0 + q.cost);
-  assert.equal(M.peek().pending.length, 0);
-  // restraint: a general manager's expansion is held back for want of cash, with the reason, while a reorder is not
-  const pe = g.corp.personnel; pe.ensure();
-  const gc = pe.candidates().find((x) => x.roles.includes('gm'));
-  assert.ok(gc, 'a candidate for general manager');
-  const hire = pe.offer(gc.id, { role: 'gm', employer: 'arms', pay: gc.floor + 5 });
-  assert.ok(hire.ok, hire.text); hire.person.startDay = 1; pe.epoch++;
-  const gm = hire.person; gm.authority = { ...gm.authority, canExpand: true, spendLimit: 1e6, approvalAbove: 1e6 };
   assert.ok(pr >= MGMT.costHold, `arms costs up ${(pr * 100).toFixed(2)}%`);
-  const hold = M.judgeFor(gm, 'expand', 'arms', 'expansion', 1000);
+  const hold = M.judgeFor(x, 'expand', 'arms', 1000);
   assert.equal(hold.verdict, 'refuse'); assert.match(hold.reason, /hold back expansion to keep cash/);
-  assert.notEqual(M.judgeFor(gm, 'reorder', 'arms', 'materials', 1000).reason, hold.reason, 'procurement carries on');
-  // a request that is declined changes nothing
-  M.peek().last.asked.arms = -999; M.ensure().spent.arms = { materials: { [M.month]: M.budgetOf('arms', 'materials') } };
-  const q2 = M.askMoreBudget('arms');
-  assert.ok(q2);
-  const before = M.budgetOf('arms', 'materials');
-  assert.ok(M.decline(q2.id).ok);
-  assert.equal(M.budgetOf('arms', 'materials'), before);
+  assert.notEqual(M.judgeFor(x, 'reorder', 'arms', 1000).reason, hold.reason, 'supplies carry on');
+  assert.equal(M.peek().pending.length, 0, 'nothing is asked of you: there is no budget request any more');
 });
 
-test('pressure rules, pure: expansion is held back under cost pressure with the reason; reorders and hires are not', () => {
-  const base = { kind: 'expand', owner: false, atWork: true, allowed: true, canExpand: true, funded: true, cost: 1000, spendLimit: 10000, approvalAbove: 3000, cap: 5000, spent: 0, affordable: true, hiresLeft: 2 };
+test('pressure rules, pure: expansion is held back under cost pressure with the reason; reorders are not', () => {
+  const base = { kind: 'expand', owner: false, atWork: true, allowed: true, permitted: true, funded: true, cost: 1000, cap: 5000, spent: 0, affordable: true };
   const held = judge({ ...base, hold: 'Costs here are up 3.0% because of the wars and embargoes: managers hold back expansion to keep cash.' });
   assert.equal(held.verdict, 'refuse'); assert.match(held.reason, /hold back expansion/);
-  assert.equal(judge({ ...base, kind: 'hire', canHire: true, hold: 'x' }).verdict, 'execute');
   assert.equal(judge({ ...base, kind: 'reorder', hold: 'x' }).verdict, 'execute');
-  assert.equal(judge({ ...base }).verdict, 'execute');
+  assert.equal(judge({ ...base }).verdict, 'queue', 'with no pressure, expansion is still asked about first');
 });
 
 test('a manager does not bid for a buyer under an embargo — even one whose tender was posted before the embargo began', () => {
@@ -152,7 +125,7 @@ test('a manager does not bid for a buyer under an embargo — even one whose ten
   assert.ok(g.corp.contribute('aerospace', 6_000_000).ok);
   const A = g.aero; const co = A.roost;
   A.roost.autoProcure = false; A.state.tenders = [];
-  const M = g.corp.management; M.ensure(); M.setMargin('aerospace', 0);
+  const M = g.corp.management; M.ensure();
   // a tender from a defence buyer (Sund), for a civil aircraft the firm can build, posted while its country is not embargoed
   const t = makeTender(CONTENT.aerospace, new Rng(3), { id: 'Te', customerId: 'cu_sund_defence', state: { budget: 1e9 }, day: g.clock.day });
   Object.assign(t, { product: 'ap_skylark', qty: 2, ceiling: 400000, days: 20, quality: 30, closes: g.clock.day + 6, defence: false, embargoed: false });

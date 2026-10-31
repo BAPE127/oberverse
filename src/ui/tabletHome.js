@@ -12,7 +12,7 @@ const TILES = {
   Markets: { icon: '📈', label: 'Markets', hue: ['#5fb0ff', '#2f6fd0'] },
   Bank: { icon: '🏦', label: 'Bank', hue: ['#f2c14e', '#c8872a'] },
   Economy: { icon: '🌍', label: 'World News', hue: ['#ff6b8a', '#c23b62'] },
-  Personnel: { icon: '🧑‍💼', label: 'People', hue: ['#b58cff', '#7a4fd6'] },
+  Managers: { icon: '🧑‍💼', label: 'Managers', hue: ['#b58cff', '#7a4fd6'] },
   Milestones: { icon: '🏆', label: 'Milestones', hue: ['#f5e27a', '#c9a230'] },
 };
 const DOCK = ['Journal', 'Businesses', 'Markets', 'Bank'];
@@ -23,7 +23,7 @@ export function homeTiles(groups) {
   const apps = new Set(groups.flatMap((x) => x.apps));
   const out = [];
   for (const id of ['Journal', 'Businesses', 'Group', 'Markets', 'Bank']) if (have.has(id)) out.push({ id, ...TILES[id], target: TILES[id].open || groups.find((x) => x.id === id).apps[0] });
-  for (const a of ['Economy', 'Personnel', 'Milestones']) if (apps.has(a)) out.push({ id: a, ...TILES[a], target: a });
+  for (const a of ['Economy', 'Managers', 'Milestones']) if (apps.has(a)) out.push({ id: a, ...TILES[a], target: a });
   return out;
 }
 

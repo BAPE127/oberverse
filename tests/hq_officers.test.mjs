@@ -20,11 +20,8 @@ function office(seed, tier = 'small', n = 2) {
 function hire(g, n) {
   const pe = g.corp.personnel;
   const out = [];
-  for (const role of ['ceo', 'cfo', 'coo', 'controller', 'cso', 'cpo', 'hrd', 'gm', 'accountant', 'analyst']) {
-    if (out.length >= n) break;
-    const c = pe.candidates().find((x) => x.roles.includes(role) && !out.some((o) => o.id === x.id));
-    if (!c) continue;
-    const r = pe.offer(c.id, { role, employer: 'parent', pay: c.floor + 5 });
+  for (let i = 0; i < n; i++) {
+    const r = pe.hire(i === 0 ? 'group_manager' : 'office', 'parent');
     if (r.ok) out.push(r.person);
   }
   return out;
@@ -40,8 +37,7 @@ test('with no office the parent has no seat limit and its people have no bodies;
   const got = hire(g, 5);
   assert.equal(got.length, HQ_TIERS.small.seats, `the small office seats ${HQ_TIERS.small.seats}`);
   const pe = g.corp.personnel;
-  const extra = pe.candidates().find((c) => c.roles.includes('cfo') && !got.some((p) => p.id === c.id)) || pe.candidates().find((c) => !got.some((p) => p.id === c.id));
-  const r = pe.offer(extra.id, { role: extra.roles[0], employer: 'parent', pay: extra.floor + 5 });
+  const r = pe.hire('office', 'parent');
   assert.equal(r.ok, false); assert.match(r.text, /seats for 3 officers/);
   void hired;
 });

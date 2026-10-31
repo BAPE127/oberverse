@@ -9,7 +9,8 @@ import { TABLET_APPS } from '../systems/tablet.js';
 import { farmApp } from './farm.js';
 import { bankApp } from './corpBank.js'; // v0.68.0
 import { loansApp } from './corpLoans.js'; // v0.73.0
-import { groupApp, peopleApp, managementApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js'; // v0.84.0: the summaries
+import { managersApp } from './tabletManagers.js';
+import { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js'; // v0.84.0: the summaries
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
 import { statusBar, navBar, segments, hero, tiles, row, fold, openFold, n as fmt } from './tabletKit.js'; // v0.83.0
@@ -34,7 +35,7 @@ export function tabletPanel(ui, body, opts) {
   const needs = () => {
     const out = [];
     const pend = g.corp.management.peek()?.pending?.length || 0;
-    if (pend) out.push({ app: 'Management', text: `📋 ${pend} approval${pend === 1 ? '' : 's'}` });
+    if (pend) out.push({ app: 'Managers', text: `🙋 ${pend} to answer` });
     if (g.corp.lending.inArrears()) out.push({ app: 'Loans', text: '🏦 a loan is behind' });
     if (g.aero.owned) { const a = g.aero.roost; const m = Object.keys(a.inv || {}).length ? g.aero.shortfalls(a).length : 0; if (m) out.push({ app: 'Aerospace', text: `🛒 ${m} materials short` }); }
     return out.slice(0, 3);
@@ -55,8 +56,7 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
-  else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
-  else if (tab === 'Management') managementApp(ui, body, open); // v0.63.0
+  else if (tab === 'Managers') managersApp(ui, body, open); // v0.89.0: replaces People and Management
   else if (tab === 'Exchange') exchangeApp(ui, body, open); // v0.66.0
   else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0

@@ -10,7 +10,7 @@ test('a new game has Journal, Markets, Bank and the news on its home screen; own
   const g = newGame(3301);
   assert.deepEqual(homeTiles(tabletGroups(g)).map((t) => t.id), ['Journal', 'Markets', 'Bank', 'Economy']);
   g.player.money = 5e6; g.aero.buyFirm();
-  assert.deepEqual(homeTiles(tabletGroups(g)).map((t) => t.id), ['Journal', 'Businesses', 'Group', 'Markets', 'Bank', 'Economy', 'Personnel', 'Milestones']);
+  assert.deepEqual(homeTiles(tabletGroups(g)).map((t) => t.id), ['Journal', 'Businesses', 'Group', 'Markets', 'Bank', 'Economy', 'Managers', 'Milestones']);
 });
 
 test('every icon opens an app that exists, and every app can be reached: by its own icon or from the switch inside its group', () => {
@@ -36,7 +36,7 @@ test('the dock is four of the icons', () => {
 test('the heavy apps are reached only through their summaries: the tablet imports no old page directly (v0.84.0)', async () => {
   const { readFileSync } = await import('node:fs');
   const t = readFileSync('src/ui/tablet.js', 'utf8');
-  for (const f of ['corpGroup', 'corpPeople', 'corpManage', 'corpExchange', 'corpEconomy', 'corpMilestones', 'corpApp', 'corpIntel']) assert.ok(!t.includes(`./${f}.js`), `tablet.js must not import ${f} directly`);
+  for (const f of ['corpGroup', 'corpExchange', 'corpEconomy', 'corpMilestones', 'corpApp', 'corpIntel']) assert.ok(!t.includes(`./${f}.js`), `tablet.js must not import ${f} directly`);
   const s = readFileSync('src/ui/tabletSummaries.js', 'utf8');
-  for (const fn of ['managementFull', 'groupFull', 'peopleFull', 'economyFull', 'exchangeFull', 'milestonesFull', 'companiesFull', 'intelFull']) assert.ok(new RegExp(`fold\\(ui, '[A-Za-z]+', [^\\n]*${fn}\\(`).test(s), `${fn} is rendered inside a fold`);
+  for (const fn of ['groupFull', 'economyFull', 'exchangeFull', 'milestonesFull', 'companiesFull', 'intelFull']) assert.ok(new RegExp(`fold\\(ui, '[A-Za-z]+', [^\\n]*${fn}\\(`).test(s), `${fn} is rendered inside a fold`);
 });

@@ -133,12 +133,20 @@ try {
   await closeAll();
 
   // OberPad stage 2 (v0.84.0): the heavy apps open on a summary, with the whole old page one tap down
-  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.aero.buyFirm(); g.corp.ensureWorld(); g.corp.group.form(); ui.openPanel('tablet', { tab: 'Management' }); });
+  // Managers (v0.89.0): one short screen; the price is read before any money moves; the boxes are ticks
+  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.aero.buyFirm(); g.corp.ensureWorld(); g.corp.group.form(); g.corp.contribute('aerospace', 600000); ui.openPanel('tablet', { tab: 'Managers' }); });
   await wait(300);
   const mText = await page.textContent('#modal-body');
-  record('OberPad: Management opens on a short summary, not a wall of settings', mText.split(/\s+/).length < 150 && !mText.includes('Treasury policy'));
-  await page.click('.tb-fold > summary'); await wait(300);
-  record('OberPad: the fold opens the full Management page', (await page.textContent('#modal-body')).includes('Budgets'));
+  record('Managers: opens on a short screen with a hire button, not a wall of settings', mText.split(/\s+/).length < 120 && mText.includes('Hire a manager'), String(mText.split(/\s+/).length));
+  const aero0 = await page.evaluate(() => window.oberverse.ui.game.corp.cashOf('aerospace'));
+  await page.click('.tb-mgr .tb-btn.pri'); await wait(250);
+  const hireText = await page.textContent('#modal-body');
+  record('Managers: hiring shows the wage and the fee and spends nothing until confirmed', hireText.includes('a day, and') && hireText.includes('to sign') && (await page.evaluate(() => window.oberverse.ui.game.corp.cashOf('aerospace'))) === aero0);
+  await page.click('.tb-terms .tb-btn.pri'); await wait(300);
+  const hired = await page.evaluate(() => { const g = window.oberverse.ui.game; const x = g.corp.personnel.holders('aerospace', 'manager')[0]; return { x: Boolean(x), fee: x ? x.salary * 10 : 0, paid: 0 }; });
+  record('Managers: the manager is hired at the flat wage with every box ticked', hired.x && (await page.$$('.tb-check.on')).length === 4);
+  await page.click('.tb-check:nth-child(1)'); await wait(250);
+  record('Managers: unticking a box is one tap and takes effect', await page.evaluate(() => { const g = window.oberverse.ui.game; const x = g.corp.personnel.holders('aerospace', 'manager')[0]; return g.corp.personnel.may(x, 'reorder') === false; }));
   await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Exchange' })); await wait(300);
   record('OberPad: Exchange opens on your holdings, the board one tap down', (await page.textContent('#modal-body')).includes('Your shares are worth'));
   await closeAll();
@@ -169,7 +177,7 @@ try {
   await page.evaluate(() => { const ui = window.oberverse.ui; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Group' }); });
   await wait(300);
   const fur0 = await page.evaluate(() => window.oberverse.ui.game.corp.account('parent').cash);
-  await page.click('.tb-row:has-text("Small Office") .tb-mini'); await wait(250);
+  await page.click('.tb-row:has-text("Small Office") .tb-mini.pri'); await wait(250);
   await page.click('.tb-sw:nth-child(2)'); await wait(250);
   const furTerms = await page.textContent('#modal-body');
   record('Furnishing: the choice shows its price and spends nothing until confirmed', furTerms.includes('Desks: Oak?') && furTerms.includes('400 obols once') && (await page.evaluate(() => window.oberverse.ui.game.corp.account('parent').cash)) === fur0);
@@ -179,9 +187,9 @@ try {
   await closeAll();
 
   // Officers at work (v0.87.0): the parent's hires get bodies in the office it owns; the office has only so many seats
-  const offi = await page.evaluate(() => { const g = window.oberverse.ui.game; g.player.money = 5_000_000; const pe = g.corp.personnel; const role = ['ceo', 'cfo', 'coo', 'controller', 'cso', 'cpo', 'hrd', 'accountant', 'analyst'].find((q) => pe.candidates().some((x) => x.roles.includes(q))); const c = pe.candidates().find((x) => x.roles.includes(role)); const r = pe.offer(c.id, { role, employer: 'parent', pay: c.floor + 5 }); g.hq.minuteTick(); return { ok: r.ok, body: Boolean(r.person && g.npcs.get(r.person.id)?.profile.hqStaff) }; });
+  const offi = await page.evaluate(() => { const g = window.oberverse.ui.game; g.player.money = 5_000_000; const pe = g.corp.personnel; const r = pe.hire('group_manager', 'parent'); g.hq.minuteTick(); return { ok: r.ok, body: Boolean(r.person && g.npcs.get(r.person.id)?.profile.hqStaff) }; });
   record('Officers: a hire at the parent gets a body in the office it owns', offi.ok && offi.body);
-  const seat = await page.evaluate(() => { const g = window.oberverse.ui.game; const pe = g.corp.personnel; let last = null; for (const role of ['ceo', 'cfo', 'coo', 'controller', 'cso', 'cpo', 'hrd', 'gm', 'accountant', 'analyst']) { if (pe.holders('parent', role).length) continue; const c = pe.candidates().find((x) => x.roles.includes(role) && !pe.holders('parent').some((p) => p.id === x.id)); if (!c) continue; last = pe.offer(c.id, { role, employer: 'parent', pay: c.floor + 5 }); if (!last.ok && /seats/.test(last.text)) break; } return last ? last.text : ''; });
+  const seat = await page.evaluate(() => { const g = window.oberverse.ui.game; const pe = g.corp.personnel; let last = null; for (let i = 0; i < 6; i++) { last = pe.hire('office', 'parent'); if (!last.ok) break; } return last ? last.text : ''; });
   record('Officers: the small office has only three seats', /seats for 3 officers/.test(seat), seat);
 
   // Teleport next to Mags (test hook) and talk to her

@@ -1155,6 +1155,15 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .tb-pill.good { color: var(--good); } .tb-pill.neg { color: var(--warn); }
 .tb-mini { padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; border: 1.5px solid var(--line); }
 #modal-panel.tablet2 .tb-mini.pri { background: linear-gradient(#f6cf6a, #d99a2b); color: #2a1a00; border-color: #ffe08a; }
+.tb-mgr { display: flex; flex-direction: column; gap: 8px; }
+.tb-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.tb-check { display: flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 12px; border: 2px solid var(--line); background: var(--paper); font: 600 14px system-ui; color: var(--ink-soft); }
+.tb-check i { font-style: normal; font-size: 17px; }
+#modal-panel.tablet2 .tb-check.on { color: var(--ink); border-color: #6fd0a4; background: rgba(111,208,164,.16); }
+.tb-limit { display: flex; justify-content: space-between; align-items: baseline; font: 600 14px system-ui; }
+.tb-limit small { color: var(--ink-soft); font-weight: 500; }
+.tb-bar { height: 7px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
+.tb-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6fd0a4, #f2c14e); }
 .tb-swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
 .tb-sw { background: var(--paper); border: 2px solid var(--line); border-radius: 14px; padding: 8px 6px 7px; text-align: center; font: 600 13px system-ui; color: var(--ink); }
 .tb-sw i { display: block; height: 34px; border-radius: 9px; margin-bottom: 5px; border: 2px solid rgba(255,255,255,.18); }
@@ -16492,7 +16501,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.88.0';
+const GAME_VERSION = '0.89.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -25808,111 +25817,48 @@ return { Robbery };
 
 // ---- src/content/personnel.js
 __m["src/content/personnel.js"] = (function () {
-// The people who run companies (v0.62.0): skills, jobs, what a job pays and what a person in it can do.
-// Everything here is data; src/corp/people.js turns it into candidates, offers and effects, and
-// src/systems/personnel.js into a hiring market, payrolls and records. Pay is obols a day.
-
-/** Seventeen skills, 0–100. 20 is a beginner, 50 competent, 70 strong, 90 exceptional. */
-const SKILLS = {
-  finance: { name: 'Financial management', text: 'Cash, debt, reserves and forecasts.' },
-  budgeting: { name: 'Budgeting and cost control', text: 'Holding spending to a plan; trimming waste and overhead.' },
-  production: { name: 'Production planning', text: 'Scheduling work so capacity is used.' },
-  procurement: { name: 'Procurement and negotiation', text: 'Buying what is needed at a good price.' },
-  logistics: { name: 'Logistics and routes', text: 'Moving things efficiently: ships, loads, routes.' },
-  bidding: { name: 'Contract bidding', text: 'Pricing and winning tenders and contracts.' },
-  sales: { name: 'Sales and revenue', text: 'Selling what is made at a good price.' },
-  research: { name: 'Research and development', text: 'Choosing and driving projects that pay.' },
-  workforce: { name: 'Workforce management', text: 'Keeping a crew productive and settled.' },
-  maintenance: { name: 'Maintenance planning', text: 'Keeping equipment working and downtime short.' },
-  risk: { name: 'Risk management', text: 'Seeing what could go wrong and being ready.' },
-  inventory: { name: 'Inventory management', text: 'Holding enough stock, and no more.' },
-  agriculture: { name: 'Agricultural operations', text: 'Crops, livestock, seasons, land.' },
-  aerospace: { name: 'Aerospace operations', text: 'Aircraft, rockets and satellites in production.' },
-  manufacturing: { name: 'Manufacturing operations', text: 'Factory floors, stations, throughput.' },
-  strategy: { name: 'Strategic planning', text: 'Where to invest and what to leave alone.' },
-  compliance: { name: 'Compliance and controls', text: 'Rules, licences, audits and internal controls.' },
-};
-
-/** What a grade of skill is called, for the screens. */
-const GRADES = [[85, 'exceptional'], [70, 'strong'], [50, 'competent'], [35, 'fair'], [0, 'weak']];
-
-/** Authority every job starts with (data a manager's decisions will be held to from stage 7; nothing enforces it yet). */
-const AUTHORITY = {
-  executive: { spendLimit: 50000, approvalAbove: 20000, canHire: true, canBorrow: true, canTransfer: true, canContract: true, canExpand: false },
-  manager: { spendLimit: 10000, approvalAbove: 3000, canHire: true, canBorrow: false, canTransfer: false, canContract: true, canExpand: false },
-  staff: { spendLimit: 1000, approvalAbove: 500, canHire: false, canBorrow: false, canTransfer: false, canContract: false, canExpand: false },
-};
+// The people who run your companies (v0.89.0). Three jobs, one flat wage each, no skills and no candidates: you hire, they work.
+// Everything here is data; src/systems/personnel.js turns it into hires, payroll and what a manager does for a business, and
+// src/systems/management.js into what they decide for themselves. Pay is obols a day.
 
 const B = ['arms', 'shipping', 'aerospace', 'farming'];
 
-/**
- * Jobs. tier: executive (at the parent company) · manager · staff (at a business). employers: where it can be.
- * keys: the skills the job needs (a candidate must average 35+ in them). limit: how many one employer may have.
- * pay: [low, high] a day. effects: what a good holder does for the business — { key: [cap, skills…] }.
- */
+/** The jobs. tier is where they sit (manager: at a business; executive/staff: at the parent). limit: how many one employer may have. */
 const ROLES = {
-  ceo: { name: 'Chief Executive Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'finance', 'workforce'], limit: 1, pay: [450, 780], sector: null, effects: { overhead: [0.03, 'strategy', 'budgeting'] }, text: 'Sets the group\'s direction and answers for all of it.' },
-  cfo: { name: 'Chief Financial Officer', tier: 'executive', employers: ['parent'], keys: ['finance', 'budgeting', 'risk'], limit: 1, pay: [420, 720], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'Cash, debt and the discipline of the budget.' },
-  coo: { name: 'Chief Operating Officer', tier: 'executive', employers: ['parent'], keys: ['production', 'workforce', 'logistics'], limit: 1, pay: [400, 680], sector: null, effects: { overhead: [0.03, 'production', 'workforce'] }, text: 'Runs the subsidiaries day to day.' },
-  controller: { name: 'Chief Financial Controller', tier: 'executive', employers: ['parent'], keys: ['compliance', 'finance', 'budgeting'], limit: 1, pay: [330, 580], sector: null, effects: { overhead: [0.02, 'compliance', 'budgeting'] }, text: 'Books, controls and audits.' },
-  cso: { name: 'Chief Strategy Officer', tier: 'executive', employers: ['parent'], keys: ['strategy', 'risk', 'research'], limit: 1, pay: [360, 640], sector: null, effects: {}, text: 'Where to invest next; what to avoid.' },
-  cpo: { name: 'Chief Procurement Officer', tier: 'executive', employers: ['parent'], keys: ['procurement', 'inventory', 'finance'], limit: 1, pay: [360, 640], sector: null, effects: { materials: [0.03, 'procurement'], parts: [0.03, 'procurement'] }, text: 'Buys for the whole group.' },
-  hrd: { name: 'Human Resources Director', tier: 'executive', employers: ['parent'], keys: ['workforce', 'compliance', 'budgeting'], limit: 1, pay: [300, 540], sector: null, effects: {}, text: 'Recruiting, retention, pay.' },
-  gm: { name: 'General Manager', tier: 'manager', employers: B, keys: ['workforce', 'budgeting', 'strategy'], limit: 1, pay: [140, 340], sector: null, effects: { overhead: [0.06, 'budgeting', 'workforce'] }, text: 'Runs the whole business; the only manager a small one needs.' },
-  manufacturing_mgr: { name: 'Manufacturing Manager', tier: 'manager', employers: ['arms'], keys: ['production', 'manufacturing', 'workforce'], limit: 1, pay: [130, 320], sector: 'arms', effects: { armsSpeed: [0.07, 'production', 'manufacturing'] }, text: 'The floor: stations kept fed and busy.' },
-  logistics_mgr: { name: 'Shipping and Logistics Manager', tier: 'manager', employers: ['shipping'], keys: ['logistics', 'maintenance', 'risk'], limit: 1, pay: [130, 320], sector: 'shipping', effects: { upkeep: [0.1, 'logistics', 'maintenance'] }, text: 'Ships, ports, loads and routes.' },
-  aero_ops_mgr: { name: 'Aerospace Operations Manager', tier: 'manager', employers: ['aerospace'], keys: ['aerospace', 'production', 'workforce'], limit: 1, pay: [170, 370], sector: 'aerospace', effects: { overhead: [0.04, 'aerospace', 'production'] }, text: 'Bays, crews and the order of work.' },
-  farm_mgr: { name: 'Farm Manager', tier: 'manager', employers: ['farming'], keys: ['agriculture', 'inventory', 'workforce'], limit: 1, pay: [120, 270], sector: 'farming', effects: { farmPrice: [0.06, 'agriculture', 'sales'] }, text: 'Land, herds, harvest and the sale.' },
-  sales_mgr: { name: 'Sales and Contracts Manager', tier: 'manager', employers: B, keys: ['sales', 'bidding', 'risk'], limit: 1, pay: [130, 320], sector: null, effects: { farmPrice: [0.03, 'sales', 'bidding'] }, text: 'Wins and prices the work.' },
-  procurement_mgr: { name: 'Procurement Manager', tier: 'manager', employers: B, keys: ['procurement', 'inventory', 'budgeting'], limit: 1, pay: [125, 300], sector: null, effects: { materials: [0.05, 'procurement', 'inventory'], parts: [0.06, 'procurement', 'inventory'] }, text: 'Buys materials and parts for less.' },
-  rd_mgr: { name: 'Research and Development Manager', tier: 'manager', employers: ['arms', 'aerospace'], keys: ['research', 'strategy', 'risk'], limit: 1, pay: [145, 330], sector: null, effects: {}, text: 'Picks the projects worth the money.' },
-  finance_mgr: { name: 'Finance and Accounting Manager', tier: 'manager', employers: B, keys: ['finance', 'budgeting', 'compliance'], limit: 1, pay: [125, 300], sector: null, effects: { overhead: [0.03, 'finance', 'budgeting'] }, text: 'The books, the cash and the forecast.' },
-  maintenance_mgr: { name: 'Maintenance Manager', tier: 'manager', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance', 'risk', 'workforce'], limit: 1, pay: [120, 270], sector: null, effects: { upkeep: [0.04, 'maintenance', 'risk'] }, text: 'Equipment kept sound; downtime kept short.' },
-  accountant: { name: 'Accountant', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'compliance'], limit: 3, pay: [45, 100], sector: null, effects: {}, text: 'Keeps the ledgers.' },
-  analyst: { name: 'Financial Analyst', tier: 'staff', employers: ['parent', ...B], keys: ['finance', 'risk'], limit: 3, pay: [55, 115], sector: null, effects: {}, text: 'Forecasts and comparisons.' },
-  procurement_spec: { name: 'Procurement Specialist', tier: 'staff', employers: B, keys: ['procurement', 'inventory'], limit: 3, pay: [45, 100], sector: null, effects: { materials: [0.02, 'procurement'], parts: [0.02, 'procurement'] }, text: 'Chases quotes and suppliers.' },
-  supervisor: { name: 'Production Supervisor', tier: 'staff', employers: ['arms', 'aerospace'], keys: ['production', 'workforce'], limit: 3, pay: [55, 115], sector: null, effects: { armsSpeed: [0.02, 'production', 'workforce'] }, text: 'Runs a shift.' },
-  coordinator: { name: 'Logistics Coordinator', tier: 'staff', employers: ['shipping'], keys: ['logistics', 'inventory'], limit: 3, pay: [45, 100], sector: 'shipping', effects: { upkeep: [0.02, 'logistics'] }, text: 'Berths, loads, paperwork.' },
-  farm_supervisor: { name: 'Farm Supervisor', tier: 'staff', employers: ['farming'], keys: ['agriculture', 'workforce'], limit: 3, pay: [40, 90], sector: 'farming', effects: { farmPrice: [0.02, 'agriculture'] }, text: 'Runs the hands in the field.' },
-  sales_rep: { name: 'Sales Representative', tier: 'staff', employers: B, keys: ['sales', 'bidding'], limit: 3, pay: [45, 105], sector: null, effects: {}, text: 'Calls on customers.' },
-  maintenance_worker: { name: 'Maintenance Worker', tier: 'staff', employers: ['arms', 'shipping', 'aerospace'], keys: ['maintenance'], limit: 3, pay: [40, 90], sector: null, effects: {}, text: 'Keeps things running.' },
-  admin: { name: 'Administrative Staff', tier: 'staff', employers: ['parent', ...B], keys: ['compliance', 'budgeting'], limit: 3, pay: [35, 75], sector: null, effects: {}, text: 'Paper, phones, calendars.' },
+  manager: { name: 'Manager', tier: 'manager', employers: B, limit: 1, text: 'Runs the business day to day in its own interest: buys supplies, takes contracts, starts research, and asks you before it expands. You choose what it may do.' },
+  group_manager: { name: 'Group manager', tier: 'executive', employers: ['parent'], limit: 1, text: 'Keeps the parent\'s cash and its companies\' cash where they should be, in the group\'s interest.' },
+  office: { name: 'Office staff', tier: 'staff', employers: ['parent'], limit: 99, text: 'Sits at a desk in your headquarters. Fills a seat and does nothing else.' },
 };
 
-/** The largest total each effect can ever reach, however many good people there are. */
-const EFFECT_CAPS = { materials: 0.08, parts: 0.1, armsSpeed: 0.1, upkeep: 0.12, farmPrice: 0.08, overhead: 0.1 };
-/** What a parent-level executive does for each subsidiary: a share of the effect. */
-const EXEC_REACH = 0.5;
+/** What each job pays a day, by where it works: the same for every person, because nobody has a skill. */
+const WAGES = { manager: { arms: 220, shipping: 220, aerospace: 270, farming: 180 }, group_manager: { parent: 400 }, office: { parent: 60 } };
+const wageOf = (role, employer) => WAGES[role]?.[employer] ?? 0;
+
+/** What a manager does for a business just by being there: the same for every manager (a share of what that business buys or sells). */
+const PERKS = { arms: { armsSpeed: 0.03, parts: 0.03 }, aerospace: { materials: 0.03 }, shipping: { upkeep: 0.03 }, farming: { farmPrice: 0.03 } };
+
+/** The things a person may be allowed to do on their own — the checkboxes. Anything unticked they never do. */
+const PERM_NAMES = {
+  reorder: { name: 'Buy supplies', text: 'Orders parts and materials when the stock runs low.' },
+  bid: { name: 'Take contracts', text: 'Bids for tenders at a fair margin over what the work costs.' },
+  research: { name: 'Research', text: 'Starts the next research when none is under way.' },
+  expand: { name: 'Expand', text: 'Proposes buying or building more. It always asks you first.' },
+  transfer: { name: 'Move cash', text: 'Tops a company up from the parent, or brings its extra cash back.' },
+};
+/** Which of them each job has at each place. */
+const PERMS = { manager: { arms: ['reorder', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
+const permsFor = (role, employer) => PERMS[role]?.[employer] || [];
 
 const MARKET = {
-  pool: 24, // candidates kept in the market
-  weekLeave: [3, 5], // taken other jobs each week
-  fee: 10, // recruiting fee, in days of the salary agreed
-  severance: 5, // days of salary on dismissal
+  fee: 10, // signing fee, in days of the wage
+  severance: 5, // days of wage on dismissal
   resignUnpaid: 2, // days unpaid in a row before they leave
-  promoteDays: 60, // days in a job before a promotion is considered
-  xpPerSkill: 3, // good months for a skill point
-  maxGains: 6, // skill points a career can add
-  skillCap: 90,
-  notice: [0, 7, 14],
 };
 
 const FIRST = ['Adair', 'Beck', 'Calla', 'Dorian', 'Edda', 'Fenn', 'Greta', 'Hale', 'Iris', 'Joss', 'Kell', 'Lena', 'Maro', 'Nell', 'Orrin', 'Perrin', 'Quill', 'Rhea', 'Soren', 'Tamsin', 'Una', 'Vesper', 'Wynn', 'Xan', 'Yara', 'Zeb', 'Ansel', 'Brenna', 'Corin', 'Delphi', 'Emrys', 'Fiora', 'Gideon', 'Hester', 'Ingrid', 'Jasper', 'Kestrel', 'Lior', 'Mabel', 'Niall', 'Odessa', 'Pascal', 'Rowan', 'Saskia', 'Torin', 'Ulla', 'Viggo', 'Willa', 'Yusuf', 'Zora'];
 const LAST = ['Ashdown', 'Barrow', 'Cobb', 'Dunmore', 'Eastley', 'Fairweather', 'Garrick', 'Holloway', 'Ibbotson', 'Jarrow', 'Kingsley', 'Lockhart', 'Marlowe', 'Nightingale', 'Okonkwo', 'Pembroke', 'Quayle', 'Radcliffe', 'Sandoval', 'Thorne', 'Underhill', 'Vance', 'Whitlock', 'Yarrow', 'Zielinski', 'Abernathy', 'Brandt', 'Castellan', 'Draycott', 'Ellery', 'Foxley', 'Gallagher', 'Hartwell', 'Iverson', 'Jessop', 'Kovacs', 'Lindgren', 'Mercer', 'Novak', 'Oakes', 'Prowse', 'Rask', 'Strand', 'Tanaka', 'Voss', 'Wexford', 'Yoon', 'Zaleski'];
-const EDUCATION = {
-  executive: ['an MBA from the Halvermouth School of Commerce', 'a law degree and a CPA', 'a doctorate in economics', 'an engineering degree and a business diploma'],
-  manager: ['a diploma in operations management', 'a degree in engineering', 'a degree in accounting', 'a trade apprenticeship and night school', 'a degree in logistics'],
-  staff: ['a trade certificate', 'a clerical diploma', 'on-the-job training', 'a bookkeeping course', 'a technical certificate'],
-};
-const STYLES = {
-  cautious: 'Careful with money and slow to commit; prefers to hold back rather than gamble.',
-  balanced: 'Weighs gains against risks; steady in a crisis.',
-  aggressive: 'Pushes for growth and takes risks others would not; fond of a big contract.',
-  meticulous: 'Checks every figure twice; thorough, and slow.',
-  driven: 'Works hard and expects the same; can wear a crew down.',
-};
 
-return { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
+return { ROLES, WAGES, wageOf, PERKS, PERM_NAMES, PERMS, permsFor, MARKET, FIRST, LAST };
 })();
 
 // ---- src/systems/hq.js
@@ -41736,187 +41682,75 @@ return { Group };
 
 // ---- src/corp/people.js
 __m["src/corp/people.js"] = (function () {
-// People for hire (v0.62.0). Pure functions — no game state, no DOM, no RNG: a candidate is a hash of the
-// market's saved salt and its number, so the same save always holds the same candidates.
+// People for hire (v0.89.0). Pure functions — no game state, no DOM, no RNG: a person is a hash of the saved salt and their number, so
+// the same save always hires the same people. There are no skills and no candidates any more: only a name, to put on a door and a payslip.
 //
-//   makeCandidate(P, spec)      a candidate: skills with strengths and a weakness, traits, history, pay asked
-//   roleFit(P, person, role)    how well their skills suit a job (the average of the job's key skills)
-//   rolesFor(P, person)         the jobs they would take
-//   evaluateOffer(person, pay)  accept, or what they would take
-//   effectsOf(P, roster, reach) what the good people at a business do for it — bounded
-//   needsFor(P, facts)          the jobs a business or the parent has a case for filling
-//   grade(v)                    a skill in words
+//   makePerson(P, { salt, n })    a name: first, last
+//   migratePeople(P, old)         a v0.62–v0.88 save's people turned into the three flat jobs (see the function)
 // P is src/content/personnel.js.
 const { hashUnit } = __m["src/aero/config.js"];
 
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const round5 = (v) => Math.round(v / 5) * 5;
-
-const grade = (P, v) => (P.GRADES.find(([min]) => v >= min) || [0, 'weak'])[1];
-const avgOf = (skills, keys) => (keys.length ? keys.reduce((a, k) => a + (skills[k] || 0), 0) / keys.length : 0);
-const roleFit = (P, person, role) => avgOf(person.skills, P.ROLES[role].keys);
-const MIN_FIT = 35;
-
-/** The jobs a person would take: the ones their skills suit (a manager can take staff work; nobody below takes a tier above). */
-function rolesFor(P, person) {
-  const tiers = { executive: ['executive', 'manager', 'staff'], manager: ['manager', 'staff'], staff: ['staff'] }[person.tier];
-  return Object.keys(P.ROLES).filter((r) => tiers.includes(P.ROLES[r].tier) && roleFit(P, person, r) >= MIN_FIT).sort((a, b) => roleFit(P, person, b) - roleFit(P, person, a));
-}
-
-const TIER_WEIGHT = { executive: 1, manager: 2, staff: 1.5 };
-
-/**
- * A candidate. spec: { salt, n, day, prior } — `prior` are names of companies they may have worked for
- * (kept as names: companies come and go). Strong in what the job asks, one key skill weak, one or two
- * skills outside it strong; traits and pay follow.
- */
-function makeCandidate(P, { salt, n, day, prior = [] }) {
-  const h = (k) => hashUnit(`${salt}|cand${n}|${k}`);
-  const ids = Object.keys(P.ROLES);
-  const total = ids.reduce((a, r) => a + TIER_WEIGHT[P.ROLES[r].tier], 0);
-  let acc = 0;
-  let role = ids[0];
-  const pick = h('role') * total;
-  for (const r of ids) { acc += TIER_WEIGHT[P.ROLES[r].tier]; if (pick < acc) { role = r; break; } }
-  const R = P.ROLES[role];
-  const tier = R.tier;
-  const age = tier === 'executive' ? 36 + Math.floor(h('age') * 28) : 24 + Math.floor(h('age') * 40);
-  const experience = Math.max(1, age - 22 - Math.floor(h('gap') * 6));
-  const quality = clamp(0.25 + h('q') * 0.7, 0, 1);
-  const skills = {};
-  for (const k of Object.keys(P.SKILLS)) skills[k] = 8 + Math.floor(h(`s_${k}`) * 26);
-  for (const k of R.keys) skills[k] = Math.round(clamp(38 + quality * 47 + (h(`k_${k}`) - 0.5) * 14, 25, 95));
-  const weak = R.keys[Math.floor(h('weak') * R.keys.length)];
-  skills[weak] = Math.max(15, skills[weak] - (14 + Math.floor(h('wd') * 16)));
-  // however weak, they must be fit for the job they came for
-  while (avgOf(skills, R.keys) < MIN_FIT + 1) { const lowest = [...R.keys].sort((a, b) => skills[a] - skills[b])[0]; skills[lowest] += 4; }
-  const others = Object.keys(P.SKILLS).filter((k) => !R.keys.includes(k));
-  for (let i = 0; i < 1 + Math.floor(h('ns') * 2); i++) { const k = others[Math.floor(h(`st${i}`) * others.length)]; skills[k] = Math.min(95, skills[k] + 18 + Math.floor(h(`sv${i}`) * 14)); }
-  const trait = (k, lo, hi) => Math.round(lo + h(k) * (hi - lo));
-  const leader = tier === 'staff' ? [15, 65] : [35, 90];
-  const traits = { workEthic: trait('we', 25, 95), reliability: trait('rel', 25, 95), leadership: trait('lead', ...leader), negotiation: trait('neg', 15, 95), financialDiscipline: trait('fd', 20, 95), riskTolerance: trait('risk', 5, 95) };
-  const style = traits.riskTolerance > 68 ? 'aggressive' : traits.riskTolerance < 32 ? 'cautious' : traits.financialDiscipline > 75 ? 'meticulous' : traits.workEthic > 80 ? 'driven' : 'balanced';
-  const keyAvg = avgOf(skills, R.keys);
-  const ask = R.pay[0] + (R.pay[1] - R.pay[0]) * clamp(0.55 * ((keyAvg - 35) / 55) + 0.3 * Math.min(1, experience / 30) + 0.15 * h('ask'), 0, 1);
+function makePerson(P, { salt, n }) {
+  const h = (k) => hashUnit(`${salt}|person${n}|${k}`);
   const first = P.FIRST[Math.floor(h('fn') * P.FIRST.length)];
   const last = P.LAST[Math.floor(h('ln') * P.LAST.length)];
-  const history = [];
-  const jobs = 1 + Math.floor(h('jobs') * 3);
-  for (let i = 0; i < jobs; i++) {
-    const name = prior.length ? prior[Math.floor(h(`pc${i}`) * prior.length)] : 'a firm in the city';
-    const rr = ids[Math.floor(h(`pr${i}`) * ids.length)];
-    history.push({ employer: name, role: P.ROLES[tier === 'staff' ? role : rr].name, years: 1 + Math.floor(h(`py${i}`) * Math.max(1, experience / jobs)) });
-  }
-  const edu = P.EDUCATION[tier];
-  const notice = P.MARKET.notice[h('notice') < 0.6 ? 0 : h('notice') < 0.85 ? 1 : 2];
-  return {
-    id: `cand_${n}`, n, name: `${first} ${last}`, first, last, age, tier, role, roles: null,
-    skills, ...traits, style, experience, mgmtExperience: tier === 'staff' ? Math.floor(experience * 0.1) : Math.floor(experience * (0.2 + h('me') * 0.4)),
-    education: edu[Math.floor(h('edu') * edu.length)], history,
-    sector: R.sector || (h('sec') < 0.5 ? null : ['arms', 'shipping', 'aerospace', 'farming'][Math.floor(h('sec2') * 4)]),
-    reputation: Math.round(clamp(20 + keyAvg * 0.6 + (h('rep') - 0.5) * 30, 5, 98)),
-    expects: round5(ask), availableDay: day + notice, since: day,
-  };
-}
-
-/** What a candidate will take for a job: accepted at the floor or above; below it, the lowest they would sign. */
-function floorPay(person) {
-  return round5(person.expects * (0.85 + 0.15 * (person.negotiation / 100)));
-}
-
-function evaluateOffer(person, pay) {
-  const floor = floorPay(person);
-  if (!Number.isFinite(pay) || pay <= 0) return { ok: false, floor, why: 'Offer a daily wage.' };
-  if (pay < floor) return { ok: false, floor, why: `${person.first} would not sign for less than ${floor.toLocaleString()} a day.` };
-  return { ok: true, floor, loyalty: Math.round(clamp(50 + (pay / person.expects - 1) * 100, 25, 90)) };
+  return { first, last, name: `${first} ${last}` };
 }
 
 /**
- * What the people at a business do for it: sums each job's effect (cap × skill × dependability) — nobody who
- * is unpaid counts — and holds each total to its ceiling. `reach` scales it (a parent's executive reaches its
- * subsidiaries at half strength). roster: [{ role, skills, reliability, unpaid }].
+ * An old save's people (skills, a market of candidates, nine executive and manager titles, staff jobs) become the three flat jobs.
+ * Per employer, the longest-serving manager keeps the job (as the one Manager) and the longest-serving executive becomes the Group
+ * manager; the other executives become Office staff at the parent; everyone else (the second manager, staff jobs at a business) is
+ * let go with no payment either way. Wages become the new flat wages. Returns { staff, kept, released } — a new people record's staff.
  */
-function effectsOf(P, roster, reach = 1) {
-  const out = {};
-  for (const p of roster) {
-    if (p.unpaid > 0) continue;
-    const R = P.ROLES[p.role];
-    if (!R) continue;
-    for (const [key, [cap, ...keys]] of Object.entries(R.effects)) {
-      const f = clamp((avgOf(p.skills, keys) - 20) / 70, 0, 1);
-      const rel = 0.6 + 0.4 * ((p.reliability ?? 50) / 100);
-      out[key] = (out[key] || 0) + cap * f * rel * reach;
-    }
+function migratePeople(P, old) {
+  const staff = {};
+  const released = [];
+  const list = Object.values(old.staff || {}).filter((x) => x.status === 'active').sort((a, b) => (a.hiredDay ?? 0) - (b.hiredDay ?? 0) || (a.id < b.id ? -1 : 1));
+  let group = false;
+  const manager = {};
+  for (const x of list) {
+    let role = null;
+    let employer = x.employer;
+    if (x.tier === 'manager' && employer !== 'parent' && !manager[employer]) { role = 'manager'; manager[employer] = true; }
+    else if (x.tier === 'executive' && employer === 'parent') { if (!group) { role = 'group_manager'; group = true; } else role = 'office'; }
+    if (!role) { released.push(x.id); continue; }
+    const a = x.authority || {};
+    const perm = {};
+    for (const k of P.permsFor(role, employer)) perm[k] = k === 'expand' ? Boolean(a.canExpand) : k === 'transfer' ? Boolean(a.canTransfer) : k === 'bid' ? a.canContract !== false : true;
+    staff[x.id] = { id: x.id, name: x.name, first: x.first, last: x.last, employer, role, tier: P.ROLES[role].tier, salary: P.wageOf(role, employer), hiredDay: x.hiredDay, startDay: Math.min(x.startDay ?? x.hiredDay, x.hiredDay ?? 0) || x.hiredDay, status: 'active', unpaid: x.unpaid || 0, perm, log: [{ day: x.hiredDay, type: 'moved', text: 'Moved to the flat jobs of v0.89.0: one wage for everyone, no skills.' }] };
   }
-  for (const k of Object.keys(out)) out[k] = Math.min(out[k], P.EFFECT_CAPS[k] ?? 0);
-  return out;
+  for (const id of released) { const x = old.staff[id]; staff[id] = { ...x, status: 'let go', endDay: x.endDay ?? null, skills: undefined, authority: undefined }; }
+  return { staff, released };
 }
 
-/** The jobs there is a case for filling, with the reason — from plain numbers about the business. */
-function needsFor(P, f) {
-  const out = [];
-  const add = (role, why) => { if (!f.held?.[role]) out.push({ role, why }); };
-  if (f.kind === 'parent') {
-    if (f.subs >= 1) add('ceo', `The group has ${f.subs} subsidiar${f.subs > 1 ? 'ies' : 'y'} and nobody running it.`);
-    if (f.subs >= 2 || f.loans) add('cfo', 'Cash and loans between companies need a financial head.');
-    if (f.subs >= 3) { add('coo', 'Three or more subsidiaries need an operating head.'); add('controller', 'Three or more sets of books need a controller.'); add('cpo', 'Buying for several businesses is worth a chief of procurement.'); }
-    if (f.people >= 6) add('hrd', `${f.people} people on the payroll: worth an HR director.`);
-    return out;
-  }
-  add('gm', 'Every business runs better with someone in charge; a small one needs no one else.');
-  if (f.kind === 'arms') { if (f.works >= 1 && f.staff >= 4) add('manufacturing_mgr', `${f.staff} staff on the floor.`); if (f.staff >= 6) add('procurement_mgr', 'Parts bought by the hour could be bought for less.'); if (f.staff >= 6) add('supervisor', `${f.staff} on the floor: a supervisor to run a shift.`); if (f.staff >= 8) add('procurement_spec', 'Many hands on the floor, many parts to chase.'); }
-  if (f.kind === 'aerospace') { if (f.bays >= 3) add('aero_ops_mgr', `${f.bays} bays to keep busy.`); if (f.bays >= 3) add('supervisor', 'Bays running in shifts need someone to run them.'); if (f.bays >= 4) add('procurement_spec', 'Materials are bought by the lot; someone should chase the quotes.'); if (f.bays >= 4) add('procurement_mgr', 'Materials are the biggest bill.'); if (f.bays >= 5) add('finance_mgr', 'A business this size needs its own books kept.'); if (f.bays >= 6) add('maintenance_mgr', 'Many bays, much to keep sound.'); }
-  if (f.kind === 'shipping') { if (f.vessels >= 2) add('coordinator', `${f.vessels} ships to keep loaded.`); if (f.vessels >= 3) add('logistics_mgr', `${f.vessels} ships and ${f.ports} ports.`); if (f.vessels >= 6) add('maintenance_mgr', 'A large fleet wears.'); }
-  if (f.kind === 'farming') { if (f.plots >= 2) add('farm_mgr', `${f.plots} plots to work.`); if (f.plots >= 2) add('farm_supervisor', 'Hands in the field need someone to run them.'); }
-  return out;
-}
-
-/** A skill grows from good work, never from time alone: `xp` gained a good month; every `xpPerSkill` is a point in the job's key skills. */
-function grow(P, person, good) {
-  if (!good) return { gained: null, xp: person.xp };
-  let xp = (person.xp || 0) + 1;
-  let gained = null;
-  if (xp >= P.MARKET.xpPerSkill && (person.gains || 0) < P.MARKET.maxGains) {
-    const keys = P.ROLES[person.role].keys;
-    const k = [...keys].sort((a, b) => person.skills[a] - person.skills[b])[0];
-    if (person.skills[k] < P.MARKET.skillCap) { gained = k; xp = 0; }
-  }
-  return { gained, xp };
-}
-
-return { grade, avgOf, roleFit, MIN_FIT, rolesFor, makeCandidate, floorPay, evaluateOffer, effectsOf, needsFor, grow };
+return { makePerson, migratePeople };
 })();
 
 // ---- src/systems/personnel.js
 __m["src/systems/personnel.js"] = (function () {
-// The people who run your companies (v0.62.0): game.corp.personnel.
+// The people who run your companies (v0.89.0): game.corp.personnel.
 //
-//   candidates() / offer() / dismiss() / reassign() / promote() / raise() / setAuthority()
+//   quote(role, employer)         what hiring one costs, or why not
+//   hire(role, employer)          one tap: a flat wage, a signing fee, no skills and no candidates
+//   dismiss(id) / setPerm(id, key, on)
 //   payroll()                     once a day at 19:05, from each employer's own account
-//   effect(employer, key)         what the good people at an employer do for it (bounded, cached by day)
-//   openings()                    the jobs there is a case for filling, with the reason
+//   effect(employer, key)         what a manager does for their business (the same for every manager; cached by day)
+//   vacancies()                   the jobs worth filling now
 //   all()                         every person: your hires, and the arms works' floor staff as a view
 //
-// A market of about two dozen candidates is kept in the save and made once from a salt (hashes, never
-// the game's dice): reopening the screen or loading never reshuffles it, and each week a few leave and a
-// few arrive. Hiring takes the candidate out of the market, pays the fee once, and makes a person with
-// ONE job at ONE employer (the parent company or a business). Wages are an expense of that employer, paid
-// daily if it can afford them; a person unpaid two days running resigns. Skills grow only from good
-// results. The arms works' own staff (src/systems/arms.js) are not copied: they are listed here as they
-// are, and the arms works still hires, pays and dismisses them.
+// There are three jobs (src/content/personnel.js): a Manager for each business, one Group manager at the parent, and Office staff for the
+// headquarters' desks. A person has ONE job at ONE employer, is paid a flat wage out of that employer's own account each day (unpaid two
+// days running, they resign), and has a tick-box for each thing they may decide for themselves (src/systems/management.js). The arms
+// works' own staff (src/systems/arms.js) are not copied: they are listed here as they are.
 //
-// Authority (what a person may spend, approve or do) is what managers' own decisions are held to (src/systems/management.js).
-//
-// State: world.corp.people = { v, salt, nextCand, nextStaff, lastWeek, reviewMonth, pool, staff, pay, log }.
-// Created by ensure() on first use — never by a getter the hooks call.
-const { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES } = __m["src/content/personnel.js"];
-const { makeCandidate, rolesFor, roleFit, evaluateOffer, floorPay, effectsOf, needsFor, grow, avgOf, MIN_FIT } = __m["src/corp/people.js"];
-const { monthTotals } = __m["src/corp/ledger.js"];
+// State: world.corp.people = { v: 2, salt, nextStaff, staff, pay, log }. Created by ensure() on first use — never by a getter the hooks
+// call. A save from v0.62–v0.88 is converted the first time it is read (migrate()).
+const { ROLES, MARKET, PERKS, FIRST, LAST, PERM_NAMES, wageOf, permsFor } = __m["src/content/personnel.js"];
+const { makePerson, migratePeople } = __m["src/corp/people.js"];
 
 const LOG = 100;
-
-// the bundler has no `import * as`, so the content is gathered into one object here
-const P = { SKILLS, GRADES, AUTHORITY, ROLES, EFFECT_CAPS, EXEC_REACH, MARKET, FIRST, LAST, EDUCATION, STYLES };
+const P = { ROLES, MARKET, PERKS, FIRST, LAST, PERM_NAMES, wageOf, permsFor };
 
 class Personnel {
   constructor(corp) {
@@ -41927,43 +41761,25 @@ class Personnel {
 
   get g() { return this.K.game; }
   get day() { return this.g.clock.day; }
-  /** The saved market, or null if nothing has opened it yet (the hooks use this: it creates nothing). */
-  peek() { return this.K.state.people || null; }
+  /** The saved people, or null if nothing has opened it yet (the hooks use this: it creates nothing). */
+  peek() {
+    const p = this.K.state.people || null;
+    if (p && p.v !== 2) this.migrate(p);
+    return this.K.state.people || null;
+  }
 
-  /** Open the market: made once, from a salt kept in the save. */
   ensure() {
     const st = this.K.state;
-    if (st.people) return st.people;
-    const people = { v: 1, salt: String(this.g.rng.state), nextCand: 1, nextStaff: 1, lastWeek: Math.floor((this.day - 1) / 7), reviewMonth: Math.floor((this.day - 1) / 30) - 1, pool: [], staff: {}, pay: {}, log: [] };
-    st.people = people;
-    this.fill();
-    return people;
+    if (st.people) return this.peek();
+    st.people = { v: 2, salt: String(this.g.rng.state), nextStaff: 1, staff: {}, pay: {}, log: [] };
+    return st.people;
   }
 
-  priorNames() {
-    const st = this.K.state;
-    return [...(st.generated || []).map((c) => c.name), ...Object.values(this.g.content.arms.shippers).map((s) => s.name)];
-  }
-
-  /** Top the market up to its size with new candidates (numbered, never reused). */
-  fill() {
-    const p = this.peek();
-    const prior = this.priorNames();
-    while (p.pool.length < P.MARKET.pool) p.pool.push(makeCandidate(P, { salt: p.salt, n: p.nextCand++, day: this.day, prior }));
-  }
-
-  /** Each week a few take other jobs and a few new ones appear; after a long gap at most four weeks are run. */
-  weekly() {
-    const p = this.peek();
-    if (!p) return;
-    const week = Math.floor((this.day - 1) / 7);
-    for (let w = Math.max(p.lastWeek + 1, week - 3); w <= week; w++) {
-      const [lo, hi] = P.MARKET.weekLeave;
-      const k = lo + Math.floor(hashU(`${p.salt}|leave${w}`) * (hi - lo + 1));
-      for (let i = 0; i < k && p.pool.length > 6; i++) p.pool.splice(Math.floor(hashU(`${p.salt}|w${w}|${i}`) * p.pool.length), 1);
-      this.fill();
-    }
-    p.lastWeek = week;
+  /** A v0.62–v0.88 save: the market and the skills go, the people become the three flat jobs (src/corp/people.js says how). */
+  migrate(old) {
+    const { staff, released } = migratePeople(P, old);
+    this.K.state.people = { v: 2, salt: old.salt, nextStaff: old.nextStaff || 1, staff, pay: old.pay || {}, log: (old.log || []).slice(-LOG), migrated: { day: this.day, released: released.length } };
+    this.epoch++;
   }
 
   // ------------------------------------------------------------- employers
@@ -41985,55 +41801,26 @@ class Personnel {
     return p ? Object.values(p.staff).filter((x) => x.employer === employer && x.status === 'active' && (role === null || x.role === role) && x.id !== except) : [];
   }
 
-  // ------------------------------------------------------------- the market
-  /** Every candidate, with what they would take and the jobs they suit. */
-  candidates() {
-    const p = this.ensure();
-    return p.pool.map((c) => ({ ...c, roles: rolesFor(P, c), floor: floorPay(c) }));
-  }
-
-  candidate(id) { return this.peek()?.pool.find((c) => c.id === id) || null; }
-
-  /** What hiring this person into that job there would be, and whether it would pay for itself on today's figures. */
-  benefit(cand, role, employer) {
-    const eff = effectsOf(P, [{ role, skills: cand.skills, reliability: cand.reliability, unpaid: 0 }], employer === 'parent' ? P.EXEC_REACH : 1);
-    const spend = (id, key) => this.spendPerDay(id, key);
-    let perDay = 0;
-    const targets = employer === 'parent' ? this.K.group.subs() : [employer];
-    for (const t of targets) for (const [k, v] of Object.entries(eff)) perDay += spend(t, k) * v;
-    return { effects: eff, perDay: Math.round(perDay) };
-  }
-
-  /** What a business spends (or sells, or produces) per day that an effect applies to: from its own recent books. */
-  spendPerDay(id, key) {
-    const g = this.g;
-    if (!this.K.established(id)) return 0;
-    const a = this.K.account(id);
-    const m = Math.floor((this.day - 1) / 30);
-    const days = Math.min(60, ((this.day - 1) % 30) + 31);
-    const out = (cat) => ((a.months[m]?.out[cat] || 0) + (a.months[m - 1]?.out[cat] || 0)) / days;
-    const rev = () => (monthTotals(a, m).revenue + monthTotals(a, m - 1).revenue) / days;
-    switch (key) {
-      case 'materials': return id === 'aerospace' ? out('materials') : 0;
-      case 'parts': return id === 'arms' ? out('parts') : 0;
-      case 'overhead': return id === 'aerospace' ? g.aero.roost.overhead : 0;
-      case 'upkeep': return id === 'shipping' ? g.logistics.dailyUpkeep() : 0;
-      case 'farmPrice': return id === 'farming' ? rev() : 0;
-      case 'armsSpeed': return id === 'arms' ? rev() : 0;
-      default: return 0;
-    }
-  }
-
   // ------------------------------------------------------------- hiring
-  checkPlacement(cand, role, employer, except = null, { promotion = false } = {}) {
+  /** Why this job cannot be filled at that employer now, or null. */
+  checkPlacement(role, employer, except = null) {
     const R = P.ROLES[role];
     if (!R) return 'No such job.';
     if (!this.employerOk(employer)) return employer === 'parent' ? 'There is no parent company yet.' : 'You do not own that business yet.';
     if (!this.roleAllowed(role, employer)) return `${R.name} is not a job at ${employer === 'parent' ? 'the parent company' : 'that kind of business'}.`;
-    if (promotion ? roleFit(P, cand, role) < MIN_FIT : !rolesFor(P, cand).includes(role)) return `${cand.first}'s skills do not suit ${R.name} (they average ${Math.round(roleFit(P, cand, role))}; the job needs ${MIN_FIT}).`;
-    if (employer === 'parent') { const seat = this.g.hq?.seatError(except); if (seat) return seat; } // v0.87.0: an office has only so many seats (no office, no limit)
+    if (employer === 'parent') { const seat = this.g.hq?.seatError(except); if (seat) return seat; } // an office has only so many seats (no office, no limit)
     if (this.holders(employer, role, except).length >= R.limit) return `${this.employerName(employer)} already has ${R.limit === 1 ? 'a' : R.limit} ${R.name}${R.limit > 1 ? 's' : ''}.`;
     return null;
+  }
+
+  /** What hiring costs: { ok, why, wage, fee }. Nothing changes. */
+  quote(role, employer) {
+    const wage = P.wageOf(role, employer);
+    const fee = wage * P.MARKET.fee;
+    const why = this.checkPlacement(role, employer);
+    if (why) return { ok: false, why, wage, fee };
+    if (!this.K.canAfford(employer, fee)) return { ok: false, why: `${this.employerName(employer)} cannot pay the signing fee of ${fee.toLocaleString()} obols.`, wage, fee };
+    return { ok: true, why: '', wage, fee };
   }
 
   /** Pay a wage bill or a fee out of an employer, in the way that employer's own books record it. One call, one notice. */
@@ -42049,29 +41836,38 @@ class Personnel {
     }
   }
 
-  /** Make an offer: they accept at or above their floor; the fee (days of the wage) is paid once; they start when their notice is served. */
-  offer(candId, { role, employer, pay, unit = null }) {
+
+  /** One tap: the fee (days of the wage) is paid once from the employer's own account; they start at once, with every box ticked. */
+  hire(role, employer) {
+    const q = this.quote(role, employer);
+    if (!q.ok) return { ok: false, text: q.why };
     const p = this.ensure();
-    const c = this.candidate(candId);
-    if (!c) return { ok: false, text: 'That candidate has gone.' };
-    const why = this.checkPlacement(c, role, employer);
-    if (why) return { ok: false, text: why };
-    pay = Math.round(Number(pay));
-    const ev = evaluateOffer(c, pay);
-    if (!ev.ok) return { ok: false, text: ev.why, floor: ev.floor };
-    const fee = pay * P.MARKET.fee;
-    if (!this.K.canAfford(employer, fee)) return { ok: false, text: `${this.employerName(employer)} cannot pay the recruiting fee of ${fee.toLocaleString()} obols.` };
-    const id = `per_${p.nextStaff++}`;
-    this.payFor(employer, fee, 'hiring', id);
+    this.K.management.ensure(); // from now on managers' decisions run
+    const n = p.nextStaff++;
+    const id = `per_${n}`;
+    this.payFor(employer, q.fee, 'hiring', id);
     const R = P.ROLES[role];
-    const person = { ...c, id, employer, role, tier: R.tier, salary: pay, hiredDay: this.day, startDay: Math.max(this.day, c.availableDay), status: 'active', unpaid: 0, loyalty: ev.loyalty, xp: 0, gains: 0, unit, authority: { ...P.AUTHORITY[R.tier] }, log: [], reviews: [], skills0: { ...c.skills } };
+    const perm = Object.fromEntries(P.permsFor(role, employer).map((k) => [k, true]));
+    const person = { id, ...makePerson(P, { salt: p.salt, n }), employer, role, tier: R.tier, salary: q.wage, hiredDay: this.day, startDay: this.day, status: 'active', unpaid: 0, perm, log: [] };
     p.staff[id] = person;
-    p.pool = p.pool.filter((x) => x.id !== candId);
-    this.note(person, 'hired', `Hired as ${R.name} at ${this.employerName(employer)} for ${pay.toLocaleString()} a day${person.startDay > this.day ? `, starting day ${person.startDay}` : ''}.`);
+    this.note(person, 'hired', `Hired as ${R.name} at ${this.employerName(employer)} for ${q.wage.toLocaleString()} a day.`);
     this.epoch++;
     this.g.bus.emit('corp:hired', { id });
-    return { ok: true, person, text: `${c.name} is ${R.name} at ${this.employerName(employer)}: ${pay.toLocaleString()} a day${person.startDay > this.day ? `, starting on day ${person.startDay} when their notice ends` : ''}. Recruiting fee ${fee.toLocaleString()}.` };
+    return { ok: true, person, text: `${person.name} is ${R.name} at ${this.employerName(employer)}: ${q.wage.toLocaleString()} a day (${q.fee.toLocaleString()} to sign).` };
   }
+
+  /** Tick or untick one thing a person may do on their own. */
+  setPerm(id, key, on) {
+    const x = this.person(id);
+    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
+    if (!P.permsFor(x.role, x.employer).includes(key)) return { ok: false, text: `${x.name} has no say in that.` };
+    x.perm = { ...x.perm, [key]: Boolean(on) };
+    this.note(x, 'perm', `${P.PERM_NAMES[key].name}: ${on ? 'allowed' : 'not allowed'}.`);
+    return { ok: true, text: `${x.name}: ${P.PERM_NAMES[key].name} ${on ? 'allowed' : 'switched off'}.` };
+  }
+
+  /** Whether a person may decide this on their own (an old record without ticks counts as all ticked). */
+  may(x, key) { return x.perm ? x.perm[key] !== false : true; }
 
   note(person, type, text) {
     person.log.push({ day: this.day, type, text });
@@ -42099,76 +41895,6 @@ class Personnel {
     return { ok: true, text: reason === 'dismissed' ? `${x.name} is dismissed with ${sev.toLocaleString()} obols of severance.` : `${x.name} has resigned.` };
   }
 
-  /** Move a person to another job or employer (one assignment at a time); their wage goes with them. */
-  reassign(id, { role = null, employer = null, unit = null } = {}) {
-    const x = this.person(id);
-    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
-    const r = role || x.role;
-    const e = employer || x.employer;
-    const why = this.checkPlacement(x, r, e, id);
-    if (why) return { ok: false, text: why };
-    if (r === x.role && e === x.employer && unit === x.unit) return { ok: false, text: 'They are already there.' };
-    const from = `${P.ROLES[x.role].name} at ${this.employerName(x.employer)}`;
-    x.role = r; x.employer = e; x.tier = P.ROLES[r].tier; x.unit = unit; x.unpaid = 0;
-    this.note(x, 'moved', `Moved from ${from} to ${P.ROLES[r].name} at ${this.employerName(e)}.`);
-    this.epoch++;
-    return { ok: true, text: `${x.name} is now ${P.ROLES[r].name} at ${this.employerName(e)}.` };
-  }
-
-  /** Promotion: long enough in the job, results that held up, and skills that suit the higher one; with a raise. */
-  promoteCheck(id, role) {
-    const x = this.person(id);
-    if (!x || x.status !== 'active') return 'No such employee.';
-    const R = P.ROLES[role];
-    const rank = { staff: 0, manager: 1, executive: 2 };
-    if (!R || rank[R.tier] <= rank[x.tier]) return 'That is not a step up.';
-    if (this.day - x.startDay < P.MARKET.promoteDays) return `They need ${P.MARKET.promoteDays} days in the job first (${Math.max(0, P.MARKET.promoteDays - (this.day - x.startDay))} to go).`;
-    if (x.reviews.filter((r) => r.good).length < 2) return 'Their results have not yet earned it (two good months).';
-    if (roleFit(P, x, role) < MIN_FIT + 10) return `Their skills (${Math.round(roleFit(P, x, role))}) are short of what ${R.name} needs (${MIN_FIT + 10}).`;
-    return null;
-  }
-
-  promote(id, role, employer = null) {
-    const why = this.promoteCheck(id, role);
-    if (why) return { ok: false, text: why };
-    const x = this.person(id);
-    const e = employer || x.employer;
-    const place = this.checkPlacement(x, role, e, id, { promotion: true });
-    if (place) return { ok: false, text: place };
-    const R = P.ROLES[role];
-    const raise = Math.max(Math.round((x.salary * 1.15) / 5) * 5, R.pay[0]);
-    const from = P.ROLES[x.role].name;
-    x.role = role; x.employer = e; x.tier = R.tier; x.salary = raise; x.authority = { ...P.AUTHORITY[R.tier] }; x.unpaid = 0; x.loyalty = Math.min(95, x.loyalty + 10);
-    this.note(x, 'promoted', `Promoted from ${from} to ${R.name} at ${this.employerName(e)}; wage ${raise.toLocaleString()} a day.`);
-    this.epoch++;
-    return { ok: true, text: `${x.name} is promoted to ${R.name}, on ${raise.toLocaleString()} a day.` };
-  }
-
-  raise(id, pay) {
-    const x = this.person(id);
-    pay = Math.round(Number(pay));
-    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
-    if (!(pay > x.salary)) return { ok: false, text: 'A raise must be more than they earn now.' };
-    x.loyalty = Math.min(95, x.loyalty + 5);
-    this.note(x, 'raise', `Wage raised from ${x.salary.toLocaleString()} to ${pay.toLocaleString()} a day.`);
-    x.salary = pay;
-    return { ok: true, text: `${x.name} now earns ${pay.toLocaleString()} a day.` };
-  }
-
-  /** Set what a person may spend and do. Bounded by their level; managers' decisions are judged against it (v0.63.0). */
-  setAuthority(id, patch) {
-    const x = this.person(id);
-    if (!x || x.status !== 'active') return { ok: false, text: 'No such employee.' };
-    const max = { executive: 500000, manager: 100000, staff: 10000 }[x.tier];
-    const a = { ...x.authority };
-    for (const k of ['spendLimit', 'approvalAbove']) if (k in patch) a[k] = Math.max(0, Math.min(max, Math.round(Number(patch[k]) || 0)));
-    for (const k of ['canHire', 'canBorrow', 'canTransfer', 'canContract', 'canExpand']) if (k in patch) a[k] = Boolean(patch[k]);
-    if (a.approvalAbove > a.spendLimit) a.approvalAbove = a.spendLimit;
-    if (x.tier === 'staff') { a.canBorrow = false; a.canTransfer = false; }
-    x.authority = a;
-    this.note(x, 'authority', 'Authority changed.');
-    return { ok: true, text: `${x.name}'s authority is set: a manager's own decisions are held to it.` };
-  }
 
   // ------------------------------------------------------------- payroll
   /**
@@ -42204,14 +41930,14 @@ class Personnel {
     return { paid: paidTotal };
   }
 
-  // ------------------------------------------------------------- effects
-  /** Everyone at an employer now at work (the notice served, wages not owed): what the effects read. */
+
+  // ------------------------------------------------------------- what a manager does just by being there
+  /** Everyone at an employer now at work (wages not owed): what the perks read. */
   roster(employer) {
-    const day = this.day;
-    return this.holders(employer).filter((x) => x.startDay <= day).map((x) => ({ role: x.role, skills: x.skills, reliability: x.reliability, unpaid: x.unpaid }));
+    return this.holders(employer).filter((x) => x.startDay <= this.day).map((x) => ({ role: x.role, unpaid: x.unpaid }));
   }
 
-  /** What the good people at an employer do for it: a number to multiply by, bounded, and cached for the day. */
+  /** The perk of a manager at work: the same for everyone, because nobody has a skill. Cached for the day. */
   effects(employer) {
     const p = this.peek();
     if (!p) return {};
@@ -42219,77 +41945,24 @@ class Personnel {
     const hit = this.cache.get(key);
     if (hit) return hit;
     if (this.cache.size > 40) this.cache.clear();
-    const own = effectsOf(P, this.roster(employer));
-    const out = { ...own };
-    if (employer !== 'parent' && this.K.group.isSub(employer)) {
-      const up = effectsOf(P, this.roster('parent'), P.EXEC_REACH);
-      for (const [k, v] of Object.entries(up)) out[k] = Math.min(P.EFFECT_CAPS[k] ?? 0, (out[k] || 0) + v);
-    }
+    const out = this.roster(employer).some((x) => x.role === 'manager' && !x.unpaid) ? { ...(P.PERKS[employer] || {}) } : {};
     this.cache.set(key, out);
     return out;
   }
 
   effect(employer, key) { return this.peek() ? (this.effects(employer)[key] || 0) : 0; }
 
-  // ------------------------------------------------------------- time
-  dailyTick() {
-    const p = this.peek();
-    if (!p) return;
-    this.weekly();
-    const cur = Math.floor((this.day - 1) / 30);
-    for (let m = Math.max(p.reviewMonth + 1, cur - 3); m <= cur - 1; m++) this.review(m);
-    p.reviewMonth = Math.max(p.reviewMonth, cur - 1);
-  }
-
-  /** The business's trading result for a closed month. */
-  resultOf(employer, m) {
-    if (employer === 'parent') return this.K.group.subs().reduce((a, id) => a + this.resultOf(id, m), 0);
-    const reg = this.K.registry().find((r) => r.playerId === employer);
-    return this.K.rowsOf(reg).rows.find((r) => r.m === m)?.net ?? 0;
-  }
-
-  /**
-   * Month's end: each person's employer against its own recent form. A month better than the average of the
-   * three before it, with the person paid in full, is a good one; skills grow from good months and from nothing else.
-   */
-  review(m) {
-    const p = this.peek();
-    for (const x of Object.values(p.staff)) {
-      if (x.status !== 'active' || x.startDay > m * 30 + 30) continue;
-      if (!this.employerOk(x.employer)) continue;
-      const net = this.resultOf(x.employer, m);
-      const prev = [m - 1, m - 2, m - 3].map((k) => this.resultOf(x.employer, k));
-      const base = prev.reduce((a, b) => a + b, 0) / 3;
-      const good = net > base && x.unpaid === 0 && net > 0;
-      const r = grow(P, x, good);
-      if (r.gained) { x.skills[r.gained] += 1; x.gains += 1; this.note(x, 'skill', `${P.SKILLS[r.gained].name} rises to ${x.skills[r.gained]} on a good run.`); }
-      x.xp = r.xp;
-      x.reviews.push({ m, net: Math.round(net), base: Math.round(base), good });
-      if (x.reviews.length > 12) x.reviews.shift();
-      this.epoch++;
-    }
-  }
+  /** Kept so the day's hook stays: there is no market to refresh and no review to hold any more. */
+  dailyTick() {}
 
   // ------------------------------------------------------------- what to show
-  /** What a business or the parent has a case for hiring, with the reason and what it costs. */
-  openings() {
-    const g = this.g;
+  /** The jobs worth filling now: a business with no manager, a group with no group manager. */
+  vacancies() {
     const out = [];
-    const heldOf = (e) => Object.fromEntries(this.holders(e).map((x) => [x.role, true]));
-    const people = this.peek() ? Object.values(this.peek().staff).filter((x) => x.status === 'active').length : 0;
-    if (this.K.state.parent) {
-      for (const n of needsFor(P, { kind: 'parent', subs: this.K.group.subs().length, loans: (this.K.state.loans || []).some((l) => l.status === 'open'), people, held: heldOf('parent') })) out.push({ employer: 'parent', ...n });
-    }
-    for (const id of ['arms', 'shipping', 'aerospace', 'farming']) {
-      if (!this.K.established(id)) continue;
-      const f = { kind: id, held: heldOf(id) };
-      if (id === 'arms') { f.works = g.arms.ownedIds().length; f.staff = g.arms.state.staff.length; }
-      if (id === 'aerospace') f.bays = g.aero.roost.bays.length;
-      if (id === 'shipping') { f.vessels = g.logistics.vessels().length; f.ports = g.logistics.ownedPorts().length; }
-      if (id === 'farming') f.plots = g.farm.owned().length;
-      for (const n of needsFor(P, f)) out.push({ employer: id, ...n });
-    }
-    return out.map((o) => ({ ...o, roleName: P.ROLES[o.role].name, employerName: this.employerName(o.employer), pay: P.ROLES[o.role].pay }));
+    const add = (role, employer, why) => { if (this.employerOk(employer) && !this.holders(employer, role).length) out.push({ role, employer, why, roleName: P.ROLES[role].name, employerName: this.employerName(employer), wage: P.wageOf(role, employer) }); };
+    for (const id of ['arms', 'shipping', 'aerospace', 'farming']) if (this.K.established(id)) add('manager', id, 'Nobody is minding the business.');
+    if (this.K.state.parent && this.K.group.subs().length) add('group_manager', 'parent', 'Nobody keeps the group\'s cash where it should be.');
+    return out;
   }
 
   /** The arms works' staff, as they are (not copies): named people at stations, paid and dismissed by the works. */
@@ -42317,116 +41990,86 @@ class Personnel {
   }
 }
 
-function hashU(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return ((h >>> 0) % 1000003) / 1000003;
-}
-
 return { Personnel };
 })();
 
 // ---- src/content/management.js
 __m["src/content/management.js"] = (function () {
-// What managers may decide on their own (v0.63.0). Data only: src/corp/management.js judges a decision against it,
-// src/systems/management.js carries decisions out through the businesses' own services.
+// What managers may decide on their own (v0.63.0, simplified in v0.89.0). Data only: src/corp/management.js judges a decision against it,
+// src/systems/management.js carries decisions out through the businesses' own services. Which things a person may do is ticked on the
+// person (src/content/personnel.js lists the boxes); here is only where each kind of decision applies and how it is bounded.
 
-/** The decisions a job may make, and where. Anything not listed decides nothing. */
-const DECIDES = {
-  procurement_mgr: { reorder: ['arms', 'aerospace'] },
-  manufacturing_mgr: { reorder: ['arms'], expand: ['arms'] },
-  aero_ops_mgr: { reorder: ['aerospace'], bid: ['aerospace'], expand: ['aerospace'] },
-  gm: { reorder: ['arms', 'aerospace'], hire: ['arms', 'shipping', 'aerospace', 'farming'], bid: ['aerospace'], expand: ['arms', 'shipping', 'aerospace', 'farming'] },
-  sales_mgr: { bid: ['aerospace'] },
-  farm_mgr: { expand: ['farming'] },
-  logistics_mgr: { expand: ['shipping'] },
-  cfo: { transfer: ['arms', 'shipping', 'aerospace', 'farming'] },
-  hrd: { hire: ['arms', 'shipping', 'aerospace', 'farming'] }, // the parent's HR director hires for its subsidiaries
-};
-
-/** What a monthly budget can be set for. A budget is an authorisation to spend, never money. */
-const CATEGORIES = {
-  materials: { name: 'Materials and parts', text: 'Reordering what the business uses up.' },
-  hiring: { name: 'Hiring', text: 'The recruiting fee and the first month\'s wage of each hire a manager makes.' },
-  contracts: { name: 'Contract bids', text: 'What the work of the tenders a manager bids on would cost to build (the commitment, if the bid wins).' },
-  treasury: { name: 'Treasury', text: 'Cash a chief financial officer moves between the parent and this subsidiary (both ways added together).' },
-  expansion: { name: 'Expansion', text: 'The price of each asset bought or built from a plan you have approved.' },
-};
-
-/** Which kinds of decision a business can have, in the order they are made each day. */
-const KINDS = { arms: ['reorder', 'hire', 'expand', 'transfer'], aerospace: ['reorder', 'hire', 'bid', 'expand', 'transfer'], shipping: ['hire', 'expand', 'transfer'], farming: ['hire', 'expand', 'transfer'] };
-
-/** The plans an owner may approve, by type: where, and what the plan says. Placement is a fixed rule for each. */
-const PLAN_TYPES = {
-  arms_station: { business: 'arms', name: 'Arms station in a works', rule: 'The first free cell of the works floor, row by row, with a clear ring around it and power for it. The station comes from the works\'s own order and goes in once it reaches the dock.' },
-  farm_plot: { business: 'farming', name: 'Farm plot next to your land', rule: 'The cheapest plot for sale across a lane (up to eight tiles) from a plot you already own.' },
-  port: { business: 'shipping', name: 'Port', rule: 'The cheapest port for sale, up to the fleet\'s port limit.' },
-  aero_bay: { business: 'aerospace', name: 'Aerospace bay', rule: 'The first free slot in a hall you have already built; never builds a hall.' },
-  aero_facility: { business: 'aerospace', name: 'Aerospace facility', rule: 'The named facility, if not already built or under construction.' },
-};
+/** Which kinds of decision a business can have, in the order they are made each day. 'transfer' is the group manager's, for subsidiaries. */
+const KINDS = { arms: ['reorder', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
 
 const MGMT = {
   expireDays: 7, // a request left unanswered this long lapses; nothing happens by default
   maxPending: 30,
   logKept: 200,
-  hiresPerMonth: 2, // per employer, by managers
   maxOrderQty: 60, // arms: most of one part in one order
   shiftHours: 8, // arms: the par stock of a part is this many hours of the staffed stations using it
   reorderAt: 0.5, // arms: order up to par when stock and what is on order fall below this share of it
   minMove: 1000, // the least a treasury decision moves (no dust)
   maxContracts: 3, // active contracts and bids still open, at most, before a manager bids for more
+  bidMargin: 15, // percent over cost a manager bids at (a bid the customer's ceiling forces lower is asked about)
   plotGap: 8, // tiles between two plots (a lane's width) that still count as next to each other
-  hireBand: 30, // days of wage counted with the fee against a hire's limits and the budget
   spentMonths: 3,
   // v0.76.0: how managers answer a war's effect on what they buy (the cost index of the business's sector above 1)
-  costNotice: 0.01, // up this much: a manager whose materials budget is 70% used asks the owner to raise it, in proportion
-  costHold: 0.02, // up this much: managers hold back expansion to keep cash (reorders and hires go on)
-  askAfter: 15, // days between one such request and the next at a business
-  askUsed: 0.7, // of the materials budget already used before they ask
+  costHold: 0.02, // up this much: managers hold back expansion to keep cash (supplies go on)
 };
 
-return { DECIDES, CATEGORIES, KINDS, PLAN_TYPES, MGMT };
+return { KINDS, MGMT };
 })();
 
 // ---- src/corp/management.js
 __m["src/corp/management.js"] = (function () {
-// Managers deciding for themselves (v0.63.0). Pure functions — no game state, no DOM, no RNG.
+// Managers deciding for themselves (v0.63.0, simplified in v0.89.0). Pure functions — no game state, no DOM, no RNG.
 //
 //   judge(d)                    one decision, one answer: execute, queue for the owner, or refuse — with the reason
 //   armsPar(stations, price)    what an arms works should hold of each bought part, and what it holds
 //   planArmsOrders(...)         the orders that bring it back up
-//   hireChoice(candidates, ...) who a manager would hire into a job: deterministic
+//   nextPlot / nextPort / bidPrice / treasuryMove     the fixed rules for expansion, bids and cash moves
+//   autoCap / autoReserve / autoTreasury             the limits the game works out when you set none
 //
 // A decision is judged the same way when it is made and again when the owner approves it later.
 
 /**
- * d: { kind, atWork, allowed, canHire, funded, cost, spendLimit, approvalAbove, cap, spent, affordable, hiresLeft }
- * `cost` is what the decision commits (for a hire: the fee and a month's wage). Order matters — the first failure is the reason.
- * `owner: true` is the owner's own approval: the ask-above limit no longer applies, everything else still does.
+ * d: { kind, owner, ask, atWork, allowed, permitted, funded, frozen, hold, cost, cap, spent, affordable }
+ * `cost` is what the decision commits. Order matters — the first failure is the reason. The monthly cap holds what a manager does on
+ * their own; moving cash and expanding are not held to it (cash moves stay inside the group; expansion is your call). `owner: true` is
+ * your own approval of something a manager asked about: everything else still holds.
+ * Expansion is always asked about first; a bid below the margin is too (d.ask); the rest is done and reported.
  */
 function judge(d) {
   const no = (reason) => ({ verdict: 'refuse', reason });
   if (!d.atWork) return no('They are not at work and paid.');
   if (!d.allowed) return no('Their job does not make this kind of decision.');
-  if (d.kind === 'hire' && !d.canHire) return no('They are not authorised to hire.');
-  if (d.kind === 'bid' && !d.canContract) return no('They are not authorised to sign contracts.');
-  if (d.kind === 'transfer' && !d.canTransfer) return no('They are not authorised to move cash between companies.');
-  if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
+  if (!d.permitted) return no('You have switched this off for them.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (d.hold && d.kind === 'expand') return no(d.hold);
-  if (d.frozen && (d.kind === 'hire' || d.kind === 'bid' || d.kind === 'expand')) return no('The company is behind on a bank loan: no hiring, bidding or expanding until it is cleared.');
-  if (!(d.cost > 0)) return no('There is nothing to spend.');
-  if (d.kind === 'hire' && d.hiresLeft <= 0) return no('The most hires a month has been made.');
-  const cap = Math.max(0, Number(d.cap) || 0);
-  if (!cap) return no('No monthly budget is set for this.');
-  const left = cap - (d.spent || 0);
-  if (d.cost > left) return no(`It would pass the monthly budget (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
-  const today = Math.max(0, Number(d.daySpent) || 0); // what this person has already committed today: a split purchase counts as one
-  if (d.cost + today > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}${today ? ` (with the ${today.toLocaleString()} they have already committed today)` : ''}.`);
+  if (d.frozen && (d.kind === 'bid' || d.kind === 'expand' || d.kind === 'research')) return no('The company is behind on a bank loan: no bidding, research or expanding until it is cleared.');
+  if (!(d.cost > 0) && d.kind !== 'research') return no('There is nothing to spend.');
+  if (d.kind !== 'transfer' && d.kind !== 'expand' && !d.owner) { // (expansion is only ever asked about, so the monthly limit is not what stops it: your answer is)
+    const cap = Math.max(0, Number(d.cap) || 0);
+    const left = cap - (d.spent || 0);
+    if (d.cost > left) return no(`It would pass the monthly limit (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
+  }
   if (!d.affordable) return no('The business\'s account cannot cover it.');
+  if (!d.owner && d.kind === 'expand') return { verdict: 'queue', reason: 'Expanding is always your call.' };
   if (!d.owner && d.ask) return { verdict: 'queue', reason: d.ask };
-  if (!d.owner && d.cost + today > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking${today ? ` (counting the ${today.toLocaleString()} they have already committed today)` : ''}.` };
   return { verdict: 'execute', reason: '' };
+}
+
+/** The monthly limit when you set none: about a quarter of the company's cash, to the nearest thousand, never under 5,000. */
+const autoCap = (cash) => Math.max(5000, Math.round(Math.max(0, cash) * 0.25 / 1000) * 1000);
+
+/** The cash a manager always leaves in the account: fifteen days of its wages and running costs, never under 1,000. */
+const autoReserve = (runningPerDay) => Math.max(1000, Math.round(Math.max(0, runningPerDay) * 15));
+
+/** The band the group manager keeps a subsidiary's cash in: from a month of its running costs to four times that (never under 2,000 and 10,000). */
+function autoTreasury(runningPerDay) {
+  const floor = Math.max(2000, Math.round((runningPerDay * 30) / 500) * 500);
+  return { floor, ceiling: Math.max(10000, floor * 4) };
 }
 
 /**
@@ -42456,16 +42099,6 @@ function planArmsOrders(par, held, price, M) {
   return out;
 }
 
-/**
- * Who a manager would hire into a job: the job's own level first, then the best fit, ties by id. Offered the floor.
- * cands: [{ id, tier, floor, fit }] already limited to people who suit the job.
- */
-function hireChoice(cands, tier) {
-  const own = cands.filter((c) => c.tier === tier);
-  const pool = own.length ? own : cands;
-  return [...pool].sort((a, b) => b.fit - a.fit || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] || null;
-}
-
 // ------------------------------------------------------------------ bids and expansion (v0.64.0)
 
 /** Tiles between two rectangles { x, y, w, h }: 0 where they touch or overlap. */
@@ -42486,23 +42119,6 @@ function nextPlot(plots, owned, maxGap) {
 /** The cheapest port for sale (ties by id). */
 function nextPort(ports, owned) {
   return ports.filter((p) => !owned.includes(p.id)).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0] || null;
-}
-
-/** The first cell, row by row, where a w×h item fits on the floor with a ring of cells around it free of anything built. */
-function firstFreeCell(w, h, W, H, floor, taken) {
-  for (let y = 0; y + h <= H; y++) {
-    for (let x = 0; x + w <= W; x++) {
-      let ok = true;
-      for (let yy = y - 1; yy <= y + h && ok; yy++) {
-        for (let xx = x - 1; xx <= x + w && ok; xx++) {
-          const inside = xx >= x && xx < x + w && yy >= y && yy < y + h;
-          if (inside) { if (!floor(xx, yy) || taken(xx, yy)) ok = false; } else if (taken(xx, yy)) ok = false;
-        }
-      }
-      if (ok) return { x, y };
-    }
-  }
-  return null;
 }
 
 /**
@@ -42545,28 +42161,28 @@ function treasuryMove(policy, parentReserve, s, minMove) {
   return null;
 }
 
-return { judge, armsPar, planArmsOrders, hireChoice, rectGap, nextPlot, nextPort, firstFreeCell, bidPrice, treasuryMove };
+return { judge, autoCap, autoReserve, autoTreasury, armsPar, planArmsOrders, rectGap, nextPlot, nextPort, bidPrice, treasuryMove };
 })();
 
 // ---- src/systems/management.js
 __m["src/systems/management.js"] = (function () {
-// Managers deciding for themselves (v0.63.0): game.corp.management.
+// Managers deciding for themselves (v0.63.0, simplified in v0.89.0): game.corp.management.
 //
-// Every thing a manager does on their own is a *decision*, judged by one pure function (src/corp/management.js):
-// carried out through the business's own service and written to the log; or queued for the owner, who approves
-// or refuses on the tablet; or refused with the reason. Nothing a manager does can exceed what the owner has
-// authorised: a monthly budget per category (none set = none allowed), the person's own spending limit, and
-// the business's own account (managers act only for a company with an account of its own, never your wallet).
+// Every thing a manager does on their own is a *decision*, judged by one pure function (src/corp/management.js): carried out through the
+// business's own service and written to the log; or queued for the owner, who approves or declines it on the tablet; or refused with the reason.
+// A manager acts in the business's own interest and only inside what you have ticked for them (Buy supplies, Take contracts, Research, Expand;
+// the group manager: Move cash). Expansion is always asked first. Each business has one monthly limit (set by you, or about a quarter of its
+// cash), a cash reserve the game keeps in its account, and nothing is ever spent from your wallet: managers act only for a company with an
+// account of its own.
 //
-// Nothing here runs, or is created, until the owner sets a budget.
-const { DECIDES, CATEGORIES, MGMT, KINDS, PLAN_TYPES } = __m["src/content/management.js"];
-const { judge, armsPar, planArmsOrders, hireChoice, nextPlot, nextPort, firstFreeCell, bidPrice, treasuryMove } = __m["src/corp/management.js"];
+// Nothing here runs, or is created, until someone is hired.
+const { MGMT, KINDS } = __m["src/content/management.js"];
+const { PERM_NAMES } = __m["src/content/personnel.js"];
+const { judge, armsPar, planArmsOrders, nextPlot, nextPort, bidPrice, treasuryMove, autoCap, autoReserve, autoTreasury } = __m["src/corp/management.js"];
 const { monthOf } = __m["src/corp/ledger.js"];
-const { roleFit } = __m["src/corp/people.js"];
-const { ROLES, MARKET } = __m["src/content/personnel.js"];
 
 const BUSINESSES = ['arms', 'shipping', 'aerospace', 'farming'];
-const P = { ROLES };
+const KIND_PERM = { reorder: 'reorder', bid: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
 
 class Management {
   constructor(corp) {
@@ -42577,41 +42193,61 @@ class Management {
   get day() { return this.g.clock.day; }
   get month() { return monthOf(this.day); }
   get Pe() { return this.K.personnel; }
-  peek() { return this.K.state.management || null; }
+  peek() {
+    const m = this.K.state.management || null;
+    if (m && m.v !== 2) this.migrate(m);
+    return this.K.state.management || null;
+  }
 
   ensure() {
     const st = this.K.state;
-    const m = (st.management ||= { v: 1, budgets: {}, spent: {}, pending: [], log: [], last: { day: 0, refused: {} }, hires: {}, nextId: 1 });
-    m.margins ||= {}; m.plans ||= []; m.nextPlan ||= 1; // v0.64.0: a v0.63 save gains them when next used
-    m.treasury ||= {}; // v0.65.0
-    return m;
+    if (st.management) return this.peek();
+    st.management = { v: 2, caps: {}, spent: {}, pending: [], log: [], last: { day: 0, refused: {}, asked: {} }, nextId: 1 };
+    return st.management;
   }
 
-  // ------------------------------------------------------------- budgets
-  budgetOf(employer, cat) { return this.peek()?.budgets[employer]?.[cat] || 0; }
+  /** A v0.63–v0.88 save: budgets by category become one limit a business, plans and treasury bands go (the game works them out now), waiting requests lapse. */
+  migrate(old) {
+    const caps = {};
+    for (const [e, cats] of Object.entries(old.budgets || {})) { const sum = Object.entries(cats).filter(([c]) => c !== 'treasury').reduce((a, [, v]) => a + (v || 0), 0); if (sum > 0) caps[e] = sum; }
+    const spent = {};
+    for (const [e, cats] of Object.entries(old.spent || {})) for (const [c, by] of Object.entries(cats)) if (c !== 'treasury') for (const [mo, v] of Object.entries(by)) ((spent[e] ||= {})[mo] = (spent[e][mo] || 0) + v);
+    const log = (old.log || []).slice(-MGMT.logKept);
+    if ((old.pending || []).length) log.push({ day: this.day, type: 'expired', text: `${old.pending.length} waiting request${old.pending.length === 1 ? '' : 's'} lapsed when managers were simplified (v0.89.0); managers will ask again if it is still wanted.` });
+    this.K.state.management = { v: 2, caps, spent, pending: [], log, last: { day: old.last?.day || 0, refused: {}, asked: {} }, nextId: old.nextId || 1, migrated: { day: this.day, plans: (old.plans || []).length } };
+  }
 
-  spentIn(employer, cat, m = this.month) { return this.peek()?.spent[employer]?.[cat]?.[m] || 0; }
+  // ------------------------------------------------------------- the monthly limit
+  /** What a business's managers may spend this month: yours if you set one, else about a quarter of its cash. */
+  capOf(employer) { const c = this.peek()?.caps[employer]; return c > 0 ? c : autoCap(this.K.cashOf(employer)); }
+  customCap(employer) { return this.peek()?.caps[employer] || 0; }
+  spentIn(employer, m = this.month) { return this.peek()?.spent[employer]?.[m] || 0; }
+  remaining(employer) { return Math.max(0, this.capOf(employer) - this.spentIn(employer)); }
 
-  remaining(employer, cat) { return Math.max(0, this.budgetOf(employer, cat) - this.spentIn(employer, cat)); }
-
-  /** Set (or clear, with 0) what managers may spend on a category at a business in a month. An authorisation, not money. */
-  setBudget(employer, cat, cap) {
+  /** Set the monthly limit (0 or null: back to automatic). */
+  setCap(employer, cap) {
     if (!BUSINESSES.includes(employer) || !this.K.established(employer)) return { ok: false, text: 'You do not own that business.' };
-    if (!CATEGORIES[cat]) return { ok: false, text: 'No such budget.' };
-    cap = Math.round(Number(cap));
-    if (!Number.isFinite(cap) || cap < 0 || cap > 5e6) return { ok: false, text: 'A budget is between 0 and 5,000,000 obols a month.' };
+    cap = Math.round(Number(cap) || 0);
+    if (!Number.isFinite(cap) || cap < 0 || cap > 5e6) return { ok: false, text: 'The limit is between 0 and 5,000,000 obols a month.' };
     const m = this.ensure();
-    (m.budgets[employer] ||= {})[cat] = cap;
-    this.log({ type: 'budget', employer, text: `Monthly ${CATEGORIES[cat].name.toLowerCase()} budget for ${this.Pe.employerName(employer)} set to ${cap.toLocaleString()}.` });
-    return { ok: true, text: `${CATEGORIES[cat].name} at ${this.Pe.employerName(employer)}: up to ${cap.toLocaleString()} obols a month.` };
+    if (cap) m.caps[employer] = cap; else delete m.caps[employer];
+    const name = this.Pe.employerName(employer);
+    this.log({ type: 'budget', employer, text: cap ? `Monthly limit for ${name} set to ${cap.toLocaleString()}.` : `Monthly limit for ${name} is automatic again.` });
+    return { ok: true, text: cap ? `${name}: managers may spend up to ${cap.toLocaleString()} obols a month.` : `${name}: the limit is automatic (about a quarter of its cash).` };
   }
 
-  note(employer, cat, amount) {
+  note(employer, amount) {
     const m = this.ensure();
-    const by = ((m.spent[employer] ||= {})[cat] ||= {});
+    const by = (m.spent[employer] ||= {});
     by[this.month] = (by[this.month] || 0) + Math.round(amount);
     for (const k of Object.keys(by).map(Number).sort((a, b) => a - b).slice(0, -MGMT.spentMonths)) delete by[k];
   }
+
+  /** The cash the game leaves in a business's account whatever a manager wants: fifteen days of what it costs to run. */
+  reserveOf(employer) { return autoReserve(this.K.group.runningPerDay(employer) + this.Pe.holders(employer).reduce((a, x) => a + (x.salary || 0), 0)); }
+
+  /** The cash the group manager never takes out of the parent: a month of what the parent itself costs. */
+  parentReserve() { return Math.max(5000, 30 * (this.Pe.holders('parent').reduce((a, x) => a + (x.salary || 0), 0) + this.g.hq.upkeepPerDay())); }
 
   // ------------------------------------------------------------- the log
   log(e) {
@@ -42621,13 +42257,16 @@ class Management {
   }
 
   // ------------------------------------------------------------- who may decide
+  /** A manager of that business with the box ticked, or the group manager for a subsidiary of the group. */
   mayDecide(x, kind, target) {
-    const list = DECIDES[x.role]?.[kind];
-    if (!list || !list.includes(target)) return false;
-    return x.employer === target || (x.employer === 'parent' && this.K.group.isSub(target));
+    if (kind === 'transfer') return x.role === 'group_manager' && this.K.group.isSub(target);
+    return x.role === 'manager' && x.employer === target && (KINDS[target] || []).includes(kind);
   }
 
   atWork(x) { return x.status === 'active' && x.startDay <= this.day && x.unpaid === 0 && this.Pe.employerOk(x.employer); }
+
+  /** Whether they may do this on their own (the box). */
+  permitted(x, kind) { return this.Pe.may(x, KIND_PERM[kind]); }
 
   /** The people at work who may make this kind of decision for a business, in a fixed order. */
   deciders(kind, target) {
@@ -42636,60 +42275,21 @@ class Management {
     return Object.values(p.staff).filter((x) => this.mayDecide(x, kind, target) && this.atWork(x) && this.permitted(x, kind)).sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
   }
 
-  /** The permission a kind of decision needs, besides the job. */
-  permitted(x, kind) {
-    return kind === 'hire' ? Boolean(x.authority.canHire) : kind === 'bid' ? Boolean(x.authority.canContract) : kind === 'transfer' ? Boolean(x.authority.canTransfer) : kind === 'expand' ? Boolean(x.authority.canExpand) : true;
-  }
-
   // ------------------------------------------------------------- the world's events (v0.76.0)
   /** How much dearer what this business buys is, because of the wars and embargoes of the day (0 with none). */
   pressure(target) { return this.K.geo.costFactor({ arms: 'arms', aerospace: 'aerospace', shipping: 'shipping', farming: 'agriculture' }[target]) - 1; }
 
-  /**
-   * A manager who buys materials at a business whose costs the wars have raised, and who has used most of the month's budget, asks the owner to
-   * raise it in proportion — a request, never an act: nothing changes until the owner approves, and the budget is a permission, not money.
-   */
-  askMoreBudget(target) {
-    const m = this.peek();
-    const cat = 'materials';
-    const cap = this.budgetOf(target, cat);
-    const pr = this.pressure(target);
-    if (!m || !cap || pr < MGMT.costNotice || this.spentIn(target, cat) < cap * MGMT.askUsed) return null;
-    const key = `budget|${target}`;
-    if (m.pending.some((q) => q.key === key) || (m.last.asked?.[target] ?? -99) > this.day - MGMT.askAfter) return null;
-    const who = this.deciders('reorder', target)[0];
-    if (!who || m.pending.length >= MGMT.maxPending) return null;
-    const inc = Math.max(100, Math.round((cap * pr) / 100) * 100);
-    (m.last.asked ||= {})[target] = this.day;
-    const q = { id: `req_${m.nextId++}`, key, kind: 'budget', employer: target, actor: who.id, cost: inc, day: this.day, cat, why: `What ${this.Pe.employerName(target)} buys costs ${(pr * 100).toFixed(1)}% more because of the wars and embargoes, and ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget (${cap.toLocaleString()}) is used. Raising it by ${inc.toLocaleString()} keeps the same orders going.` };
-    m.pending.push(q);
-    this.log({ type: 'queued', kind: 'budget', employer: target, actor: who.id, cost: inc, text: `${who.name} (${ROLES[who.role].name}) asks to raise the ${CATEGORIES[cat].name.toLowerCase()} budget at ${this.Pe.employerName(target)} by ${inc.toLocaleString()}. ${q.why}` });
-    this.g.notify?.(`${who.name} asks for a bigger ${CATEGORIES[cat].name.toLowerCase()} budget at ${this.Pe.employerName(target)}: costs are up.`, 'info');
-    return q;
-  }
-
-  /** What this person has already committed today (decisions carried out), so that splitting a purchase does not get under a limit. */
-  committedToday(x) {
-    return (this.peek()?.log || []).filter((l) => l.day === this.day && l.actor === x.id && (l.type === 'done' || l.type === 'approved')).reduce((a, l) => a + (Number(l.cost) || 0), 0);
-  }
-
   // ------------------------------------------------------------- judging
-  hiresLeft(employer) {
-    const h = this.peek()?.hires[employer];
-    return MGMT.hiresPerMonth - (h && h.m === this.month ? h.n : 0);
-  }
-
-  judgeFor(x, kind, target, cat, cost, { owner = false, ask = null, reserve = 0, source = null } = {}) {
+  judgeFor(x, kind, target, cost, { owner = false, ask = null, source = null } = {}) {
     return judge({
-      kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), canHire: Boolean(x.authority.canHire), canContract: Boolean(x.authority.canContract), canExpand: Boolean(x.authority.canExpand), canTransfer: Boolean(x.authority.canTransfer),
+      kind, owner, ask, atWork: this.atWork(x), allowed: this.mayDecide(x, kind, target), permitted: this.permitted(x, kind),
       funded: this.K.established(target) && this.K.account(target).funded, frozen: this.K.business.inArrears(target), cost,
-      spendLimit: x.authority.spendLimit, approvalAbove: x.authority.approvalAbove, daySpent: this.committedToday(x),
       hold: kind === 'expand' && this.pressure(target) >= MGMT.costHold ? `Costs here are up ${(this.pressure(target) * 100).toFixed(1)}% because of the wars and embargoes: managers hold back expansion to keep cash.` : null,
-      cap: this.budgetOf(target, cat), spent: this.spentIn(target, cat), affordable: this.K.canAfford(source || target, cost + reserve), hiresLeft: this.hiresLeft(target),
+      cap: this.capOf(target), spent: this.spentIn(target), affordable: this.K.canAfford(source || target, cost + (source ? this.parentReserve() : this.reserveOf(target))),
     });
   }
 
-  // ------------------------------------------------------------- plans (nothing changes)
+  // ------------------------------------------------------------- what they would do (nothing changes)
   /** Arms: what each works should order to bring its dock back to par. */
   planArms() {
     const A = this.g.arms;
@@ -42723,22 +42323,6 @@ class Management {
     return out;
   }
 
-  /** Who a manager would hire into which opening at a business (the job's own level first, the best fit, offered the least they accept). */
-  planHire(target, x) {
-    const Pe = this.Pe;
-    const reach = x.role === 'hrd' ? ['staff', 'manager'] : ['staff'];
-    for (const o of Pe.openings().filter((q) => q.employer === target)) {
-      const R = ROLES[o.role];
-      if (!reach.includes(R.tier)) continue;
-      const cands = Pe.candidates().filter((c) => c.roles.includes(o.role) && c.availableDay <= this.day + 14 && !Pe.checkPlacement(c, o.role, target))
-        .map((c) => ({ id: c.id, tier: c.tier, floor: c.floor, fit: roleFit(P, c, o.role), role: o.role }));
-      const pick = hireChoice(cands, R.tier);
-      if (pick) return { ...pick, target, cost: pick.floor * (MARKET.fee + MGMT.hireBand) };
-    }
-    return null;
-  }
-
-  // ------------------------------------------------------------- carrying out
   /** Carry out a reorder now: re-planned, so what is done is what is needed now. Returns { ok, text, paid }. */
   doReorder(target, x) {
     const A = this.g.arms;
@@ -42766,20 +42350,12 @@ class Management {
     return { ok: paid > 0, paid, text: paid > 0 ? `Ordered ${said.join(', ')} for ${this.Pe.employerName('aerospace')} (${paid.toLocaleString()} obols).` : 'Nothing to order.' };
   }
 
-  doHire(target, x) {
-    const pick = this.planHire(target, x);
-    if (!pick) return { ok: false, paid: 0, text: 'Nobody suitable to hire.' };
-    const r = this.Pe.offer(pick.id, { role: pick.role, employer: target, pay: pick.floor });
-    return { ok: r.ok, paid: r.ok ? pick.cost : 0, text: r.text, person: r.person };
-  }
-
-  // ------------------------------------------------------------- bids (v0.64.0)
   /** Aerospace tenders worth a bid at the owner's minimum margin, best profit first. Nothing changes: the quotes are pure. */
   planBids() {
     const A = this.g.aero;
     const co = A.roost;
-    const margin = this.peek()?.margins.aerospace;
-    if (!A.owned || !co || margin === undefined) return [];
+    const margin = MGMT.bidMargin;
+    if (!A.owned || !co) return [];
     const open = A.openTenders().filter((t) => t.bids.some((b) => b.company === co.id)).length;
     if (A.contractsOf(co, 'active').length + open >= MGMT.maxContracts) return [];
     const out = [];
@@ -42791,180 +42367,18 @@ class Management {
       const q = A.bidQuote(co.id, t.id, bp.price, q0.days);
       if (!q.ok) continue;
       const p = A.pOf(t);
-      out.push({ item: t.id, cost: Math.round(q.cost * t.qty), price: bp.price, days: q.days, profit: q.profit, ask: bp.below ? `The most this customer pays is below your minimum margin of ${margin}%.` : null, desc: `${t.qty} × ${p.name} at ${bp.price.toLocaleString()} each` });
+      out.push({ item: t.id, cost: Math.round(q.cost * t.qty), price: bp.price, days: q.days, profit: q.profit, ask: bp.below ? `The most this customer pays is below the usual margin of ${margin}%.` : null, desc: `${t.qty} × ${p.name} at ${bp.price.toLocaleString()} each` });
     }
     return out.sort((x, y) => y.profit - x.profit || (x.item < y.item ? -1 : 1));
   }
 
-  // ------------------------------------------------------------- plans (v0.64.0)
-  plansOf(business) { return (this.peek()?.plans || []).filter((q) => q.business === business); }
-
-  /** Add a plan the owner approves: a template with limits. Validated here, so no caller can bypass the rules. */
-  addPlan(spec) {
-    const T = PLAN_TYPES[spec.type];
-    if (!T) return { ok: false, text: 'No such kind of plan.' };
-    if (!this.K.established(T.business)) return { ok: false, text: 'You do not own that business.' };
-    const limit = Math.round(Number(spec.limit)); const maxEach = Math.round(Number(spec.maxEach)); const reserve = Math.round(Number(spec.reserve) || 0);
-    if (!(limit >= 1 && limit <= 10)) return { ok: false, text: 'A plan buys between 1 and 10.' };
-    if (!(maxEach >= 1 && maxEach <= 5e6)) return { ok: false, text: 'The most to pay for each is between 1 and 5,000,000 obols.' };
-    if (!(reserve >= 0 && reserve <= 5e6)) return { ok: false, text: 'The cash to leave in the account is between 0 and 5,000,000 obols.' };
-    const params = {};
-    const g = this.g;
-    if (spec.type === 'arms_station') {
-      const it = g.content.items[spec.item];
-      if (!it?.build || it.build.domain !== 'arms' || it.build.type !== 'machine') return { ok: false, text: 'That is not an arms station.' };
-      if (!g.arms.owns(spec.works)) return { ok: false, text: 'You do not own that works.' };
-      if (spec.recipe) { const r = g.arms.cfg.recipes[spec.recipe]; if (!r || r.station !== it.build.kind) return { ok: false, text: 'That recipe is not made at that station.' }; params.recipe = spec.recipe; }
-      Object.assign(params, { works: spec.works, item: spec.item });
-    } else if (spec.type === 'aero_bay') {
-      if (!g.aero.cfg.bays[spec.bay]) return { ok: false, text: 'No such bay.' };
-      params.bay = spec.bay;
-    } else if (spec.type === 'aero_facility') {
-      if (!g.aero.cfg.facilities[spec.facility]?.build) return { ok: false, text: 'No such facility.' };
-      params.facility = spec.facility;
-    }
-    const m = this.ensure();
-    if (m.plans.length >= 12) return { ok: false, text: 'Twelve plans at most.' };
-    const plan = { id: `plan_${m.nextPlan++}`, type: spec.type, business: T.business, params, limit, maxEach, reserve, bought: 0, placed: 0, since: this.day };
-    m.plans.push(plan);
-    this.log({ type: 'plan', employer: T.business, text: `Plan approved: up to ${limit} × ${this.planName(plan)} at ${this.Pe.employerName(T.business)}, at most ${maxEach.toLocaleString()} each, leaving ${reserve.toLocaleString()} in the account.` });
-    return { ok: true, plan, text: `Plan approved: ${this.planName(plan)}, up to ${limit}.` };
-  }
-
-  removePlan(id) {
-    const m = this.peek();
-    const q = m?.plans.find((r) => r.id === id);
-    if (!q) return { ok: false, text: 'No such plan.' };
-    m.plans = m.plans.filter((r) => r !== q);
-    this.log({ type: 'plan', employer: q.business, text: `Plan withdrawn: ${this.planName(q)} (${q.bought} of ${q.limit} bought).` });
-    return { ok: true, text: 'Plan withdrawn.' };
-  }
-
-  planName(q) {
-    const g = this.g;
-    if (q.type === 'arms_station') return `${g.content.items[q.params.item]?.name || 'station'} in ${g.arms.def(q.params.works)?.name || 'a works'}`;
-    if (q.type === 'aero_bay') return g.aero.cfg.bays[q.params.bay]?.name || 'bay';
-    if (q.type === 'aero_facility') return g.aero.cfg.facilities[q.params.facility]?.name || 'facility';
-    return PLAN_TYPES[q.type].name;
-  }
-
-  /** What the next purchase under a plan would be, or why there is none. { cost, desc, run } | { why }. Nothing changes. */
-  evalPlan(q) {
-    const g = this.g;
-    if (q.bought >= q.limit) return { why: 'Done: all bought.' };
-    const over = (price) => (price > q.maxEach ? `The next one costs ${price.toLocaleString()}, over the ${q.maxEach.toLocaleString()} limit.` : null);
-    if (q.type === 'arms_station') {
-      const A = g.arms; const wh = q.params.works;
-      if (!A.owns(wh)) return { why: 'You no longer own that works.' };
-      if (q.bought > q.placed) return { why: 'Waiting for the last one to arrive and be placed.' };
-      const pw = A.power(wh);
-      if (pw.machines >= pw.capacity) return { why: 'The works has no power left for another machine.' };
-      const price = A.partPrice(q.params.item);
-      return over(price) ? { why: over(price) } : { cost: price, desc: `a ${g.content.items[q.params.item].name} for ${A.def(wh).name}`, run: () => A.order(wh, q.params.item, 1) };
-    }
-    if (q.type === 'farm_plot') {
-      const F = g.farm;
-      const plots = Object.keys(F.def.plots).map((id) => ({ id, d: F.plotDef(id) })).filter((x) => x.d).map((x) => ({ id: x.id, price: x.d.price, rect: x.d.field }));
-      const pick = nextPlot(plots, F.owned(), MGMT.plotGap);
-      if (!pick) return { why: F.owned().length ? 'No plot for sale next to your land.' : 'You own no plot yet: the first is yours to buy.' };
-      return over(pick.price) ? { why: over(pick.price) } : { cost: pick.price, desc: F.plotDef(pick.id).name, run: () => F.buy(pick.id) };
-    }
-    if (q.type === 'port') {
-      const L = g.logistics;
-      if (L.ownedPorts().length >= L.L.maxPorts) return { why: 'The fleet\'s port limit is reached.' };
-      const pick = nextPort(Object.keys(L.cfg.ports).map((id) => ({ id, price: L.portType(id)?.price ?? Infinity })).filter((p) => Number.isFinite(p.price)), L.ownedPorts());
-      if (!pick) return { why: 'No port for sale.' };
-      return over(pick.price) ? { why: over(pick.price) } : { cost: pick.price, desc: L.port(pick.id).name, run: () => L.buyPort(pick.id) };
-    }
-    const A = g.aero; const co = A.roost;
-    if (!A.owned || !co) return { why: 'You no longer own the firm.' };
-    if (q.type === 'aero_bay') {
-      const B = A.cfg.bays[q.params.bay];
-      if (!A.freeSlot(co, q.params.bay)) return { why: 'No free slot in a hall you have built (managers never build a hall).' };
-      return over(B.build) ? { why: over(B.build) } : { cost: B.build, desc: `a ${B.name.toLowerCase()}`, run: () => A.buildBay(co, q.params.bay) };
-    }
-    const F = A.cfg.facilities[q.params.facility];
-    if ((q.params.facility === 'pad' ? co.pad : co.facilities[q.params.facility]) || co.building?.[q.params.facility]) return { why: 'Already built or being built.' };
-    return over(F.build) ? { why: over(F.build) } : { cost: F.build, desc: F.name, run: () => A.buildFacility(co, q.params.facility) };
-  }
-
-  planExpansion(target) {
-    const out = [];
-    for (const q of this.plansOf(target)) {
-      const e = this.evalPlan(q);
-      if (e.cost) out.push({ item: q.id, cost: e.cost, reserve: q.reserve, desc: e.desc, run: e.run, plan: q });
-    }
-    return out;
-  }
-
-  /** Arms stations that were bought: when one is on the works's dock, it goes in at the first free cell (a fixed rule). Not a judged decision: it was paid for under the plan. */
-  placeStations() {
-    const m = this.peek();
-    if (!m) return;
-    const g = this.g; const A = g.arms;
-    for (const q of m.plans.filter((r) => r.type === 'arms_station' && r.placed < r.bought)) {
-      const wh = q.params.works;
-      if (!A.owns(wh)) continue;
-      const dock = A.def(wh).inBay;
-      if (!(g.world.containers[dock]?.items[q.params.item] > 0)) continue;
-      const it = g.content.items[q.params.item].build;
-      const map = g.maps.get(A.def(wh).map);
-      const cover = (x, y) => map.props.some((p) => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h) || (map.def.keepClear || []).some(([kx, ky]) => kx === x && ky === y);
-      const cell = firstFreeCell(it.w, it.h, map.width, map.height, (x, y) => map.inBounds(x, y) && map.grid[y][x] === 'g', (x, y) => map.inBounds(x, y) && cover(x, y));
-      const name = this.planName(q);
-      if (!cell) { if (q.blocked !== 'full') { q.blocked = 'full'; this.log({ type: 'failed', kind: 'expand', employer: 'arms', text: `${name} is on the dock but the works has no free place for it.` }); } continue; }
-      const r = A.place(wh, q.params.item, cell.x, cell.y, 0, dock);
-      if (!r.ok) { if (q.blocked !== r.text) { q.blocked = r.text; this.log({ type: 'failed', kind: 'expand', employer: 'arms', text: `${name} could not be placed: ${r.text}` }); } continue; }
-      q.placed += 1; delete q.blocked;
-      let said = '';
-      if (q.params.recipe) { const rr = A.setRecipe(r.entity.id, q.params.recipe); said = rr.ok ? ` and set to make ${g.content.items[A.cfg.recipes[q.params.recipe].out].name}` : ` (the recipe could not be set: ${rr.text || 'not researched'})`; }
-      this.log({ type: 'done', kind: 'expand', employer: 'arms', text: `${name} placed at (${cell.x}, ${cell.y})${said}. It needs a worker assigned.` });
-    }
-  }
-
-  // ------------------------------------------------------------- treasury (v0.65.0)
-  /** The owner's treasury policy for a subsidiary: keep its cash between a floor and a ceiling. Both are cash, not profit. */
-  setTreasury(target, { floor, ceiling }) {
-    const G = this.K.group;
-    if (!G.isSub(target)) return { ok: false, text: 'Treasury moves cash only for a subsidiary of your group.' };
-    floor = Math.round(Number(floor)); ceiling = Math.round(Number(ceiling));
-    if (!(floor >= 0 && floor <= 5e7)) return { ok: false, text: 'The floor is between 0 and 50,000,000 obols.' };
-    if (!(ceiling >= floor + MGMT.minMove && ceiling <= 5e7)) return { ok: false, text: `The ceiling must be at least ${MGMT.minMove.toLocaleString()} above the floor.` };
-    if (ceiling < G.policyOf(target).minLiquidity) return { ok: false, text: `The ceiling is below the subsidiary's protected minimum (${G.policyOf(target).minLiquidity.toLocaleString()}).` };
-    const m = this.ensure();
-    m.treasury[target] = { floor, ceiling };
-    this.log({ type: 'plan', employer: target, text: `Treasury policy for ${this.Pe.employerName(target)}: keep its cash between ${floor.toLocaleString()} and ${ceiling.toLocaleString()}.` });
-    return { ok: true, text: `${this.Pe.employerName(target)}'s cash is kept between ${floor.toLocaleString()} and ${ceiling.toLocaleString()}.` };
-  }
-
-  clearTreasury(target) {
-    const m = this.peek();
-    if (!m?.treasury[target]) return { ok: false, text: 'No treasury policy there.' };
-    delete m.treasury[target];
-    this.log({ type: 'plan', employer: target, text: `Treasury policy for ${this.Pe.employerName(target)} withdrawn.` });
-    return { ok: true, text: 'Withdrawn.' };
-  }
-
-  /** The cash the parent never lets a treasury top-up take. */
-  setParentReserve(n) {
-    if (!this.K.state.parent) return { ok: false, text: 'There is no parent company.' };
-    n = Math.round(Number(n));
-    if (!(n >= 0 && n <= 5e7)) return { ok: false, text: 'The reserve is between 0 and 50,000,000 obols.' };
-    this.ensure().treasury.parent = { reserve: n };
-    this.log({ type: 'plan', employer: 'parent', text: `The parent keeps at least ${n.toLocaleString()} obols: treasury top-ups never take it below that.` });
-    return { ok: true, text: `Top-ups leave the parent at least ${n.toLocaleString()}.` };
-  }
-
-  parentReserve() { return this.peek()?.treasury.parent?.reserve || 0; }
-
   /** What the policy would move for a subsidiary now. Nothing changes. */
   planTreasury(target) {
     const G = this.K.group;
-    const m = this.peek();
-    if (!m || !G.isSub(target) || !m.treasury[target]) return [];
+    if (!G.isSub(target) || !this.K.established(target)) return [];
     const K = this.K;
     const inv = G.parent.investments[target];
-    const mv = treasuryMove(m.treasury[target], this.parentReserve(), {
+    const mv = treasuryMove(autoTreasury(G.runningPerDay(target)), this.parentReserve(), {
       cash: K.cashOf(target), parentCash: K.cashOf('parent'), arrears: K.account(target).arrears + K.business.arrearsOf(target), minLiquidity: G.policyOf(target).minLiquidity,
       loans: G.loansOf(target).filter((l) => l.borrower === target).map((l) => ({ id: l.id, outstanding: l.outstanding })), capital: inv?.capital || 0,
     }, MGMT.minMove);
@@ -42982,35 +42396,77 @@ class Management {
     } }];
   }
 
-  // ------------------------------------------------------------- the decision
-  catOf(kind) { return { hire: 'hiring', bid: 'contracts', expand: 'expansion', transfer: 'treasury' }[kind] || 'materials'; }
+  /** Research: the cheapest project that can start now, when none is under way (and none is queued). */
+  planResearch(target) {
+    const g = this.g;
+    if (target === 'arms') {
+      const A = g.arms;
+      if (A.state.research.current) return [];
+      const open = Object.entries(A.cfg.research).filter(([id]) => A.available(id)).sort((a, b) => a[1].cost - b[1].cost || (a[0] < b[0] ? -1 : 1));
+      return open.length ? [{ item: open[0][0], cost: 0, desc: open[0][1].name, run: () => A.selectResearch(open[0][0]) }] : [];
+    }
+    const A = g.aero; const co = A.roost;
+    if (!A.owned || !co || co.researching || co.queue?.length) return [];
+    const open = Object.entries(A.cfg.research).filter(([id, R]) => !co.research.includes(id) && (R.requires || []).every((r) => co.research.includes(r))).sort((a, b) => a[1].cost - b[1].cost || (a[0] < b[0] ? -1 : 1));
+    return open.length ? [{ item: open[0][0], cost: open[0][1].cost, desc: open[0][1].name, run: () => { const before = this.K.cashOf('aerospace'); const r = A.startResearch(co, open[0][0]); return { ...r, paid: Math.max(0, before - this.K.cashOf('aerospace')) || open[0][1].cost }; } }] : [];
+  }
 
+  /** Expansion: what the business would buy or build next, by a fixed rule (cheapest first) — only ever proposed to you, never done unasked. */
+  planExpansion(target) {
+    const g = this.g;
+    const out = [];
+    if (target === 'arms') {
+      const A = g.arms;
+      if (!A.licensed()) return [];
+      const next = Object.keys(g.content.armsWarehouses || {}).filter((id) => !A.owns(id)).map((id) => ({ id, price: A.def(id).price })).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0];
+      if (next) out.push({ item: `works:${next.id}`, cost: next.price, desc: A.def(next.id).name, run: () => A.buy(next.id) });
+    } else if (target === 'farming') {
+      const F = g.farm;
+      const plots = Object.keys(F.def.plots).map((id) => ({ id, d: F.plotDef(id) })).filter((x) => x.d).map((x) => ({ id: x.id, price: x.d.price, rect: x.d.field }));
+      const pick = nextPlot(plots, F.owned(), MGMT.plotGap);
+      if (pick) out.push({ item: `plot:${pick.id}`, cost: pick.price, desc: F.plotDef(pick.id).name, run: () => F.buy(pick.id) });
+    } else if (target === 'shipping') {
+      const L = g.logistics;
+      if (L.ownedPorts().length < L.L.maxPorts) {
+        const pick = nextPort(Object.keys(L.cfg.ports).map((id) => ({ id, price: L.portType(id)?.price ?? Infinity })).filter((p) => Number.isFinite(p.price)), L.ownedPorts());
+        if (pick) out.push({ item: `port:${pick.id}`, cost: pick.price, desc: L.port(pick.id).name, run: () => L.buyPort(pick.id) });
+      }
+    } else if (target === 'aerospace') {
+      const A = g.aero; const co = A.roost;
+      if (!A.owned || !co) return [];
+      for (const [id, B] of Object.entries(A.cfg.bays)) if (A.freeSlot(co, id)) out.push({ item: `bay:${id}`, cost: B.build, desc: `a ${B.name.toLowerCase()}`, run: () => A.buildBay(co, id) });
+      for (const [id, F] of Object.entries(A.cfg.facilities)) { if (!F.build) continue; if ((id === 'pad' ? co.pad : co.facilities[id]) || co.building?.[id]) continue; out.push({ item: `facility:${id}`, cost: F.build, desc: F.name, run: () => A.buildFacility(co, id) }); }
+      out.sort((a, b) => a.cost - b.cost || (a.item < b.item ? -1 : 1));
+    }
+    return out;
+  }
+
+  // ------------------------------------------------------------- the decision
   /** What a decision could be now: [{ item, cost, ... }]; the first is the one made. Nothing changes. */
-  candidates(kind, target, x) {
+  candidates(kind, target) {
     if (kind === 'reorder') { const c = (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0); return c > 0 ? [{ item: null, cost: c }] : []; }
-    if (kind === 'hire') { const h = this.planHire(target, x); return h ? [{ item: null, cost: h.cost }] : []; }
     if (kind === 'bid') return this.planBids();
+    if (kind === 'research') return this.planResearch(target);
     if (kind === 'transfer') return this.planTreasury(target);
     return this.planExpansion(target);
   }
 
   /** The text of what was done or asked, by kind. */
-  verb(kind) { return { reorder: 'reorder', hire: 'hire', bid: 'bid', expand: 'expand', transfer: 'move cash', budget: 'raise the budget' }[kind]; }
+  verb(kind) { return { reorder: 'buy supplies', bid: 'bid', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
 
   /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
   decide(kind, target, x, { owner = false, item = undefined } = {}) {
     const m = this.ensure();
-    const cat = this.catOf(kind);
-    const all = this.candidates(kind, target, x);
+    const all = this.candidates(kind, target);
     let cand;
-    const judgeOf = (c) => this.judgeFor(x, kind, target, cat, c.cost, { owner, ask: c.ask || null, reserve: c.reserve || 0, source: c.source || null });
+    const judgeOf = (c) => this.judgeFor(x, kind, target, c.cost, { owner, ask: c.ask || null, source: c.source || null });
     if (item !== undefined) cand = all.find((c) => c.item === item);
     else cand = all.find((c) => judgeOf(c).verdict !== 'refuse') || all[0];
     if (!cand) return { verdict: 'none' };
     const cost = cand.cost;
     const key = `${kind}|${target}${cand.item ? `|${cand.item}` : ''}`;
     const j = judgeOf(cand);
-    const who = `${x.name} (${ROLES[x.role].name})`;
+    const who = `${x.name} (${this.Pe.employerName(x.employer)} ${x.role === 'manager' ? 'manager' : 'group manager'})`;
     const at = this.Pe.employerName(target);
     if (j.verdict === 'refuse') {
       if (m.last.refused[key] !== j.reason) { m.last.refused[key] = j.reason; this.log({ type: 'refused', kind, employer: target, actor: x.id, cost, text: `${who} did not ${this.verb(kind)} for ${at}${cand.desc ? ` (${cand.desc})` : ''}: ${j.reason}` }); }
@@ -43022,50 +42478,43 @@ class Management {
       const q = { id: `req_${m.nextId++}`, key, kind, employer: target, actor: x.id, cost, day: this.day, why: j.reason, ...(cand.item ? { item: cand.item, desc: cand.desc } : {}) };
       m.pending.push(q);
       this.log({ type: 'queued', kind, employer: target, actor: x.id, cost, text: `${who} asks to ${this.verb(kind)} for ${at}${cand.desc ? ` (${cand.desc})` : ''}, ${cost.toLocaleString()} obols. ${j.reason}` });
-      this.g.notify?.(`${x.name} is waiting for your approval: ${this.verb(kind)} at ${at} (${cost.toLocaleString()} obols).`, 'info');
+      this.g.notify?.(`${x.name} would like to ${this.verb(kind)}${cand.desc ? `: ${cand.desc}` : ''} (${cost.toLocaleString()} obols). Your call.`, 'info');
       return { ...j, cost, request: q };
     }
     delete m.last.refused[key];
     const r = this.carryOut(kind, target, x, cand);
     if (!r.ok) { this.log({ type: 'failed', kind, employer: target, actor: x.id, cost, text: `${who}: ${r.text}` }); return { verdict: 'failed', text: r.text, cost }; }
-    const spend = kind === 'hire' || kind === 'bid' ? cost : r.paid;
-    this.note(target, cat, spend);
-    if (kind === 'hire') { const h = (m.hires[target] ||= { m: this.month, n: 0 }); if (h.m !== this.month) { h.m = this.month; h.n = 0; } h.n++; }
-    else if (kind !== 'bid') this.K.noteActor(target, x.id, r.paid);
+    const spend = kind === 'bid' ? cost : r.paid;
+    if (kind !== 'transfer' && !owner) this.note(target, spend);
+    if (kind !== 'bid') this.K.noteActor(kind === 'transfer' ? 'parent' : target, x.id, r.paid);
     this.log({ type: owner ? 'approved' : 'done', kind, employer: target, actor: x.id, cost: spend, text: `${who}: ${r.text}` });
+    if (!owner && (kind === 'bid' || kind === 'research')) this.g.notify?.(r.text, 'info');
     return { verdict: 'execute', cost: spend, text: r.text };
   }
 
   carryOut(kind, target, x, cand) {
     if (kind === 'reorder') return this.doReorder(target, x);
-    if (kind === 'hire') return this.doHire(target, x);
     if (kind === 'bid') {
       const r = this.g.aero.placeBid(this.g.aero.roost.id, cand.item, cand.price, cand.days);
       return { ok: r.ok, paid: 0, text: r.text };
     }
-    if (kind === 'transfer') { const r = cand.run(); return { ok: r.ok, paid: r.paid || 0, text: r.text }; }
-    const before = this.g.corp.cashOf(target);
+    if (kind === 'transfer' || kind === 'research') { const r = cand.run(); return { ok: r.ok, paid: r.paid || 0, text: r.text }; }
+    const before = this.K.cashOf(target);
     const r = cand.run();
     if (!r.ok) return { ok: false, paid: 0, text: r.text };
-    cand.plan.bought += 1;
-    return { ok: true, paid: Math.max(0, before - this.g.corp.cashOf(target)) || cand.cost, text: r.text };
+    return { ok: true, paid: Math.max(0, before - this.K.cashOf(target)) || cand.cost, text: r.text };
   }
 
   // ------------------------------------------------------------- the owner's side
-  /** Approve a waiting request: judged again from scratch (the world may have moved); only the ask-above limit is lifted. */
+  /** Approve a waiting request: judged again from scratch (the world may have moved). */
   approve(id) {
     const m = this.peek();
     const q = m?.pending.find((r) => r.id === id);
     if (!q) return { ok: false, text: 'That request is gone.' };
     m.pending = m.pending.filter((r) => r !== q);
-    if (q.kind === 'budget') {
-      const r = this.setBudget(q.employer, q.cat, this.budgetOf(q.employer, q.cat) + q.cost);
-      if (r.ok) this.log({ type: 'approved', kind: 'budget', employer: q.employer, actor: q.actor, cost: q.cost, text: `You raised the ${CATEGORIES[q.cat].name.toLowerCase()} budget at ${this.Pe.employerName(q.employer)} by ${q.cost.toLocaleString()}.` });
-      return r;
-    }
     const x = this.Pe.person(q.actor);
-    if (!x || x.status !== 'active' || !this.mayDecide(x, q.kind, q.employer)) { this.log({ type: 'failed', kind: q.kind, employer: q.employer, actor: q.actor, text: 'Request lapsed: the person no longer holds that job.' }); return { ok: false, text: 'They no longer hold that job.' }; }
-    const r = this.decide(q.kind, q.employer, x, { owner: true, item: q.item || (q.kind === 'bid' || q.kind === 'expand' ? undefined : null) });
+    if (!x || x.status !== 'active' || !this.mayDecide(x, q.kind, q.employer)) { this.log({ type: 'failed', kind: q.kind, employer: q.employer, actor: q.actor, text: 'Request lapsed: the person no longer works there.' }); return { ok: false, text: 'They no longer work there.' }; }
+    const r = this.decide(q.kind, q.employer, x, { owner: true, item: q.item || (q.kind === 'bid' ? undefined : null) });
     if (r.verdict === 'execute') return { ok: true, text: r.text };
     if (r.verdict === 'none') { this.log({ type: 'failed', kind: q.kind, employer: q.employer, actor: q.actor, text: 'Request lapsed: it is no longer needed.' }); return { ok: false, text: 'It is no longer needed.' }; }
     return { ok: false, text: r.reason || r.text || 'It could not be done now.' };
@@ -43081,20 +42530,17 @@ class Management {
   }
 
   // ------------------------------------------------------------- each day
-  /** Once a day, after payroll's day: each business with a budget gets, at most, one reorder and one hire decision. Does nothing until a budget exists. */
+  /** Once a day, after payroll's day: each business gets, at most, one decision of each kind its manager may make. Does nothing until someone is hired. */
   dailyTick() {
     const m = this.peek();
     if (!m || m.last.day >= this.day) return;
     m.last.day = this.day;
     const expired = m.pending.filter((q) => this.day - q.day >= MGMT.expireDays);
-    for (const q of expired) this.log({ type: 'expired', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `A ${this.verb(q.kind)} request at ${this.Pe.employerName(q.employer)} lapsed unanswered after ${MGMT.expireDays} days.` });
+    for (const q of expired) this.log({ type: 'expired', kind: q.kind, employer: q.employer, actor: q.actor, cost: q.cost, text: `A request to ${this.verb(q.kind)} at ${this.Pe.employerName(q.employer)} lapsed: you did not answer in ${MGMT.expireDays} days.` });
     m.pending = m.pending.filter((q) => !expired.includes(q));
-    this.placeStations(); // what a plan bought earlier goes in first
-    for (const target of BUSINESSES) if (this.K.established(target) && this.K.account(target).funded) this.askMoreBudget(target);
     for (const target of BUSINESSES) {
       if (!this.K.established(target) || !this.K.account(target).funded) continue;
       for (const kind of KINDS[target]) {
-        if (!this.budgetOf(target, this.catOf(kind))) continue;
         if (kind === 'reorder' && target === 'aerospace' && this.g.aero.roost?.autoProcure) continue; // auto-buy is the owner's own standing order, left as it is
         if (kind === 'transfer' && !this.K.group.isSub(target)) continue;
         const who = this.deciders(kind, target)[0];
@@ -43103,54 +42549,28 @@ class Management {
     }
   }
 
-  /** The owner's minimum margin over cost for bids at a business (a percentage). Without one managers bid on nothing. */
-  setMargin(employer, pct) {
-    if (employer !== 'aerospace' || !this.K.established(employer)) return { ok: false, text: 'Managers bid only for the aerospace firm, once you own it.' };
-    pct = Number(pct);
-    if (!Number.isFinite(pct) || pct < 0 || pct > 300) return { ok: false, text: 'A minimum margin is between 0% and 300% over cost.' };
-    const m = this.ensure();
-    m.margins[employer] = Math.round(pct * 10) / 10;
-    this.log({ type: 'budget', employer, text: `Minimum margin on bids at ${this.Pe.employerName(employer)} set to ${m.margins[employer]}% over cost.` });
-    return { ok: true, text: `Managers bid at ${m.margins[employer]}% over cost or more.` };
-  }
-
-  /** What wants the owner's attention: waiting requests, recent refusals, budgets nearly used or with no one to use them. */
+  // ------------------------------------------------------------- what to show
+  /** What wants the owner's attention: waiting requests and the reasons nothing is happening. */
   alerts() {
     const m = this.peek();
     if (!m) return [];
     const out = [];
-    if (m.pending.length) out.push({ text: `${m.pending.length} request${m.pending.length === 1 ? ' is' : 's are'} waiting for you.`, advice: 'Approve or decline them below; they lapse after a week.' });
+    if (m.pending.length) out.push({ text: `${m.pending.length} request${m.pending.length === 1 ? ' is' : 's are'} waiting for you.`, advice: 'Approve or decline them; they lapse after a week.' });
     for (const target of BUSINESSES) {
-      for (const kind of KINDS[target]) {
-        const cat = this.catOf(kind);
-        const cap = this.budgetOf(target, cat);
-        if (!cap || !this.K.established(target)) continue;
-        if (kind === 'transfer' && !this.K.group.isSub(target)) continue;
-        const name = this.Pe.employerName(target);
-        if (!this.K.account(target).funded) out.push({ text: `${name} has a ${CATEGORIES[cat].name.toLowerCase()} budget but no account of its own.`, advice: 'Fund it: managers never spend your wallet.' });
-        else if (!this.deciders(kind, target).length) out.push({ text: `${name}: nobody at work may decide ${this.verb(kind)}s${kind === 'bid' ? ' (they need the permission to sign contracts)' : kind === 'expand' ? ' (they need the permission to expand)' : kind === 'transfer' ? ' (a chief financial officer with the permission to move cash)' : ''}.`, advice: 'Hire the right manager or give them the permission, or the budget goes unused.' });
-        if (this.spentIn(target, cat) >= cap * 0.8) out.push({ text: `${name}: ${Math.round((this.spentIn(target, cat) / cap) * 100)}% of the month's ${CATEGORIES[cat].name.toLowerCase()} budget is used.`, advice: 'Raise the budget if more is wanted this month.' });
-      }
+      if (!this.K.established(target) || !this.Pe.holders(target, 'manager').length) continue;
+      if (!this.K.account(target).funded) out.push({ text: `${this.Pe.employerName(target)} has a manager but no account of its own.`, advice: 'Fund it: managers never spend your wallet.' });
     }
-    for (const l of m.log.filter((e) => e.type === 'refused' && e.day >= this.day - 3).slice(-5)) out.push({ text: l.text, advice: 'Changing the budget, the person\'s limits or the business\'s cash would let it through.' });
+    for (const l of m.log.filter((e) => e.type === 'refused' && e.day >= this.day - 3).slice(-3)) out.push({ text: l.text, advice: 'A bigger limit, more cash in the business, or a ticked box would change this.' });
     return out;
   }
 
-  /** What the app shows for one kind of decision at a business: the budget, what is used, and plain notes where nothing is happening. */
-  status(target, kind) {
-    const cat = this.catOf(kind);
-    const out = { budget: this.budgetOf(target, cat), spent: this.spentIn(target, cat), notes: [] };
+  /** What a business's manager card shows: who, what is ticked, the limit and what is used, and a plain note where nothing can happen. */
+  card(target) {
+    const x = this.Pe.holders(target, 'manager')[0] || null;
+    const out = { target, name: this.Pe.employerName(target), manager: x, limit: this.capOf(target), custom: this.customCap(target), spent: this.spentIn(target), notes: [] };
     if (!this.K.established(target)) { out.notes.push('Not yet owned.'); return out; }
-    if (!this.K.account(target).funded) out.notes.push('Fund this business first: managers never spend your personal wallet.');
-    if (!out.budget) out.notes.push('No monthly budget is set, so managers here may not spend.');
-    if (kind === 'reorder' && target === 'aerospace' && this.g.aero.roost?.autoProcure) out.notes.push('Auto-buy is on: the firm buys for itself. Turn it off to have a manager buy within budget.');
-    if (kind === 'bid' && this.peek()?.margins.aerospace === undefined) out.notes.push('No minimum margin is set, so managers bid on nothing.');
-    if (kind === 'expand' && !this.plansOf(target).length) out.notes.push('No plan is approved, so managers build and buy nothing.');
-    if (kind === 'transfer') {
-      if (!this.K.group.isSub(target)) out.notes.push('Not in your group: treasury moves cash only inside it.');
-      else if (!this.peek()?.treasury[target]) out.notes.push('No treasury policy is set, so nothing is moved.');
-    }
-    if (!this.deciders(kind, target).length) out.notes.push(`Nobody at work who may decide ${this.verb(kind)}s here${kind === 'bid' ? ' (the permission to sign contracts is needed)' : kind === 'expand' ? ' (the permission to expand is needed)' : kind === 'transfer' ? ' (a chief financial officer with the permission to move cash)' : ''}.`);
+    if (x && !this.K.account(target).funded) out.notes.push('Fund this business first: managers never spend your wallet.');
+    if (x && target === 'aerospace' && this.g.aero.roost?.autoProcure && this.Pe.may(x, 'reorder')) out.notes.push('Auto-buy is on, so the firm buys supplies itself.');
     return out;
   }
 }
@@ -44805,7 +44225,7 @@ __m["src/corp/milestones.js"] = (function () {
 // made, a month's consolidated result, a place in a sector's table, a share held, a loan repaid. Opening a screen, clicking a button or hiring
 // someone is never enough on its own — and none of them promises a profit from a war or an embargo.
 //
-// rec: { established: [ids], parent: bool, subs: [ids], staff: [{ role, employer, skill, status }], budgets: { employer: n }, decided: { employer: n },
+// rec: { established: [ids], parent: bool, subs: [ids], staff: [{ role, employer, status }], furnished: bool, decided: { employer: n },
 //        ranks: { id: [{ m, rank, of }] }, months: [{ net, decisions }] (closed months, newest first), portfolio: { tickers, sectors, value, gain, since },
 //        loans: [{ principal, status, missed }], contracts: [{ value }], expandedInWar: bool, day }
 const have = (n, of) => `${n}/${of}`;
@@ -44815,9 +44235,9 @@ const MILESTONES = [
   { id: 'four', name: 'Four businesses', text: 'Own all four private businesses: arms, shipping, aerospace and farming.', check: (r) => ({ met: r.established.length === 4, have: have(r.established.length, 4) }) },
   { id: 'parent', name: 'A holding company', text: 'Form a parent company.', check: (r) => ({ met: r.parent, have: r.parent ? 'formed' : 'none' }) },
   { id: 'group', name: 'One group', text: 'Bring all four businesses under your parent company as subsidiaries.', check: (r) => ({ met: r.parent && r.subs.length === 4, have: have(r.subs.length, 4) }) },
-  { id: 'hq', name: 'A staffed headquarters', text: 'Employ at least three people at the parent company, one of them a chief financial officer.', check: (r) => { const p = r.staff.filter((x) => x.employer === 'parent' && x.status === 'active'); return { met: p.length >= 3 && p.some((x) => x.role === 'cfo'), have: `${p.length} people, ${p.some((x) => x.role === 'cfo') ? 'a CFO' : 'no CFO'}` }; } },
-  { id: 'cfo', name: 'A first-rate CFO', text: 'Employ a chief financial officer whose best skill is 80 or more.', check: (r) => { const c = r.staff.filter((x) => x.role === 'cfo' && x.status === 'active').sort((a, b) => b.skill - a.skill)[0]; return { met: Boolean(c && c.skill >= 80), have: c ? `best ${Math.round(c.skill)}` : 'none' }; } },
-  { id: 'delegated', name: 'Delegation', text: 'Have every subsidiary run by a manager with a budget who has made a decision of their own.', check: (r) => { const ok = r.subs.filter((id) => r.staff.some((x) => x.employer === id && x.status === 'active') && (r.budgets[id] || 0) > 0 && (r.decided[id] || 0) > 0); return { met: r.subs.length === 4 && ok.length === 4, have: have(ok.length, 4) }; } },
+  { id: 'hq', name: 'A staffed headquarters', text: 'Employ at least three people at the parent company, one of them a group manager.', check: (r) => { const p = r.staff.filter((x) => x.employer === 'parent' && x.status === 'active'); const gm = p.some((x) => x.role === 'group_manager'); return { met: p.length >= 3 && gm, have: `${p.length} people, ${gm ? 'a group manager' : 'no group manager'}` }; } },
+  { id: 'furnished', name: 'A furnished office', text: 'Furnish an office of your own: change its desks, floor, walls, lamps, pictures or plants.', check: (r) => ({ met: r.furnished, have: r.furnished ? 'furnished' : 'bare' }) },
+  { id: 'delegated', name: 'Delegation', text: 'Have every subsidiary run by a manager who has made a decision of their own.', check: (r) => { const ok = r.subs.filter((id) => r.staff.some((x) => x.employer === id && x.role === 'manager' && x.status === 'active') && (r.decided[id] || 0) > 0); return { met: r.subs.length === 4 && ok.length === 4, have: have(ok.length, 4) }; } },
   { id: 'top5', name: 'A top-five company', text: 'Stand in the top five of your sector by sales for two months running (with at least six companies in it).', check: (r) => { const ids = Object.keys(r.ranks).filter((id) => { const h = r.ranks[id].slice(-2); return h.length === 2 && h.every((x) => x.of >= 6 && x.rank !== null && x.rank <= 5); }); return { met: ids.length > 0, have: ids.length ? ids.join(', ') : 'no' }; } },
   { id: 'shipping_leader', name: 'The leading shipping company', text: 'Be first in the shipping sector by sales for two months running.', check: (r) => ({ met: best(r, 'shipping', 2) === 1 && (r.ranks.shipping.at(-1)?.of ?? 0) >= 6, have: r.ranks.shipping?.at(-1)?.rank ? `#${r.ranks.shipping.at(-1).rank}` : '—' }) },
   { id: 'arms_leader', name: 'A leading arms maker', text: 'Be first in the arms sector by sales for two months running.', check: (r) => ({ met: best(r, 'arms', 2) === 1 && (r.ranks.arms.at(-1)?.of ?? 0) >= 6, have: r.ranks.arms?.at(-1)?.rank ? `#${r.ranks.arms.at(-1).rank}` : '—' }) },
@@ -44851,9 +44271,8 @@ function recordsOf(K) {
   const cur = Math.floor((day - 1) / 30);
   const pe = K.personnel.peek();
   const M = K.management.peek();
-  const staff = Object.values(pe?.staff || {}).map((x) => ({ role: x.role, employer: x.employer, status: x.status, skill: Math.max(0, ...Object.values(x.skills || {})) }));
-  const budgets = {};
-  for (const [e, cats] of Object.entries(M?.budgets || {})) budgets[e] = Object.values(cats).reduce((a, b) => a + (b || 0), 0);
+  const staff = Object.values(pe?.staff || {}).map((x) => ({ role: x.role, employer: x.employer, status: x.status }));
+  const furnished = Object.values(K.game.hq?.peek()?.style || {}).some((t) => Object.keys(t).length > 0);
   const done = (M?.log || []).filter((l) => l.type === 'done' || l.type === 'approved');
   const decided = {};
   for (const l of done) decided[l.employer] = (decided[l.employer] || 0) + 1;
@@ -44875,7 +44294,7 @@ function recordsOf(K) {
   const contracts = g.aero.owned ? g.aero.contractsOf(g.aero.roost).filter((c) => c.status !== 'cancelled').map((c) => ({ value: c.unitPrice * c.qty })) : [];
   const wars = K.geo.events().filter((e) => e.kind === 'war');
   const expandedInWar = done.some((l) => l.kind === 'expand' && wars.some((w) => l.day >= w.start && l.day <= (w.end ?? Infinity)));
-  return { established: COMPANY_IDS.filter((id) => K.established(id)), parent: Boolean(K.state.parent), subs: K.group.subs(), staff, budgets, decided, ranks, months, portfolio, loans, contracts, expandedInWar, day };
+  return { established: COMPANY_IDS.filter((id) => K.established(id)), parent: Boolean(K.state.parent), subs: K.group.subs(), staff, furnished, decided, ranks, months, portfolio, loans, contracts, expandedInWar, day };
 }
 
 return { recordsOf };
@@ -47410,6 +46829,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.89.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'Managers, Simplified',
+    notes: [
+      'Skills are gone. Hire a manager for a business in one tap at a flat wage; tick what they may do on their own (buy supplies, take contracts, research, expand); set one monthly limit.',
+      'A manager always asks you before expanding. Old saves are converted for you.',
+    ],
+  },
   {
     version: '0.88.0',
     date: '2026-10-31',
@@ -64905,142 +64334,74 @@ function loansApp(ui, body, open) {
 return { loansApp };
 })();
 
-// ---- src/ui/corpManage.js
-__m["src/ui/corpManage.js"] = (function () {
-// The Management app (v0.63.0): what managers may spend, what is waiting for your word, and what they have done.
-// Everything is read from game.corp.management and every button calls it; nothing is decided here.
+// ---- src/ui/tabletManagers.js
+__m["src/ui/tabletManagers.js"] = (function () {
+// The Managers app (v0.89.0): one card for each business, and a card for the group. No candidates, no skills, no budgets by category:
+// hire in one tap (the price is shown before any money moves), tick what they may do on their own, pick a monthly limit. Requests that
+// need you (always: expansion) are at the top with Approve and Decline. Everything the old People and Management apps did is gone.
 const { h } = __m["src/ui/panels.js"];
-const { CATEGORIES, MGMT, PLAN_TYPES } = __m["src/content/management.js"];
-const { ROLES } = __m["src/content/personnel.js"];
+const { hero, row, help, note, fold, buttons, big, n } = __m["src/ui/tabletKit.js"];
+const { PERM_NAMES, permsFor, wageOf, ROLES } = __m["src/content/personnel.js"];
 
-const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
-const BUSINESSES = [['arms', ['materials', 'hiring', 'expansion']], ['aerospace', ['materials', 'contracts', 'hiring', 'expansion']], ['shipping', ['hiring', 'expansion']], ['farming', ['hiring', 'expansion']]];
-const KIND = { materials: 'reorder', hiring: 'hire', contracts: 'bid', expansion: 'expand', treasury: 'transfer' };
-const LABEL = { done: 'did', approved: 'approved', queued: 'asked', refused: 'could not', declined: 'declined', expired: 'lapsed', failed: 'failed', budget: 'budget' };
+const card = (...kids) => h('div', { class: 'tb-card tb-mgr' }, ...kids.flat().filter(Boolean));
+const LIMITS = [0, 10000, 25000, 50000, 100000, 250000];
 
-function managementFull(ui, body, open) {
+function managersApp(ui, body, open) {
   const g = ui.game;
   const K = g.corp;
+  const Pe = K.personnel;
   const M = K.management;
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
-  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
-  const name = (e) => K.personnel.employerName(e);
-
-  body.append(h('p', { class: 'doc' }, '🧭 Managers can act for a business on their own, but only inside what you allow: a monthly budget for each kind of spending (none set means none allowed), their own spending limit and ask-above limit (set under Personnel → Staff → Manage, with the permissions to hire, sign contracts, expand and move cash), and only for a business with an account of its own. A decision above the ask-above limit waits here for your word. Every decision is judged again when you approve it. A budget is permission to spend, not money.'));
-
-  const alerts = M.alerts();
-  if (alerts.length) body.append(h('h3', { style: 'margin:10px 0 4px' }, 'Needs your attention'), h('div', { class: 'list' }, ...alerts.map((a) => h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '⚠'), h('div', { class: 'grow' }, h('div', { class: 'name' }, a.text), h('div', { class: 'desc' }, a.advice))))));
-
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); ui.mgrAsk = null; open('Managers'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
   const m = M.peek();
   const pending = m?.pending || [];
-  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Waiting for you'));
-  if (!pending.length) body.append(h('p', { class: 'muted' }, 'Nothing is waiting.'));
-  else body.append(h('div', { class: 'list' }, ...pending.map((q) => {
-    const x = K.personnel.person(q.actor);
-    return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-      h('div', { class: 'name' }, `${x?.name || 'Someone'} asks to ${q.kind === 'budget' ? 'raise the materials budget' : q.kind === 'hire' ? 'hire' : 'reorder'} at ${name(q.employer)}`, h('span', { class: 'tag' }, q.kind === 'budget' ? `+${n(q.cost)} a month` : `${n(q.cost)} obols when asked`), h('span', { class: 'tag' }, `${MGMT.expireDays - (g.clock.day - q.day)} days left`)),
-      h('div', { class: 'desc' }, q.kind === 'budget' ? `${q.why} Approving raises the monthly permission only; it is not money and nothing is spent by it.` : `${q.why} Approving judges it again on today's figures: a changed need, price, budget or person can still stop it.`),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small primary', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'small ghost', onclick: () => go(M.decline(q.id)) }, 'Decline'))));
-  })));
+  const staff = Object.values(Pe.peek()?.staff || {}).filter((x) => x.status === 'active' && x.role !== 'office');
+  const perDay = staff.reduce((a, x) => a + (x.salary || 0), 0);
+  body.append(hero({ label: 'Managers', value: pending.length ? `${pending.length} waiting for you` : staff.length ? 'All running' : 'No managers yet', tone: pending.length ? 'gold' : '', sub: staff.length ? `${staff.length} hired · ${n(perDay)} obols a day` : 'Hire one for a business and it looks after itself.' }));
+  if (pending.length) {
+    body.append(card(...pending.map((q) => row({ icon: '🙋', title: `${Pe.person(q.actor)?.first || 'A manager'} would like to ${M.verb(q.kind)}`, sub: `${Pe.employerName(q.employer)}${q.desc ? ` · ${q.desc}` : ''}`, tag: q.cost ? `${n(q.cost)} ◎` : '',
+      action: h('span', { class: 'tb-acts' }, h('button', { class: 'tb-mini pri', onclick: () => go(M.approve(q.id)) }, 'Yes'), h('button', { class: 'tb-mini', onclick: () => go(M.decline(q.id)) }, 'No')) }))));
+  }
+  // a hire waiting for its price to be read
+  const ask = ui.mgrAsk;
+  if (ask) {
+    const q = Pe.quote(ask.role, ask.employer);
+    body.append(h('div', { class: 'tb-card tb-terms' }, h('b', {}, `Hire a ${ROLES[ask.role].name.toLowerCase()} for ${Pe.employerName(ask.employer)}?`),
+      h('div', { class: 'tb-sub' }, `${n(q.wage)} obols a day, and ${n(q.fee)} to sign, from ${Pe.employerName(ask.employer)}'s own account.${q.why ? ` ${q.why}` : ''}`),
+      buttons(big(`Hire for ${n(q.wage)} a day`, () => go(Pe.hire(ask.role, ask.employer)), 'pri', !q.ok), big('Cancel', () => { ui.mgrAsk = null; open('Managers'); }))));
+  }
+  const ticks = (x) => h('div', { class: 'tb-checks' }, ...permsFor(x.role, x.employer).map((k) => {
+    const on = Pe.may(x, k);
+    return h('button', { class: `tb-check${on ? ' on' : ''}`, title: PERM_NAMES[k].text, onclick: () => go(Pe.setPerm(x.id, k, !on)) }, h('i', {}, on ? '☑' : '☐'), PERM_NAMES[k].name);
+  }));
+  const hireButton = (role, employer, label) => h('button', { class: 'tb-btn pri', onclick: () => { ui.mgrAsk = { role, employer }; open('Managers'); } }, `${label} · ${n(wageOf(role, employer))} a day`);
+  const who = (x) => row({ icon: '🧑‍💼', title: x.name, sub: `${n(x.salary)} a day${x.unpaid ? ' · unpaid!' : ''}`, action: h('button', { class: 'tb-mini', onclick: () => { ui.mgrFire = ui.mgrFire === x.id ? null : x.id; open('Managers'); } }, 'Let go') });
+  const fire = (x) => (ui.mgrFire === x.id ? h('div', { class: 'tb-terms' }, h('div', { class: 'tb-sub' }, `${x.name} goes at once with ${n(x.salary * 5)} obols of severance from the company.`), buttons(big('Let go', () => { ui.mgrFire = null; go(Pe.dismiss(x.id)); }, 'pri'), big('Keep', () => { ui.mgrFire = null; open('Managers'); }))) : null);
 
-  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Budgets'));
-  const list = h('div', { class: 'list' });
-  for (const [id, base] of BUSINESSES) {
+  for (const id of ['arms', 'shipping', 'aerospace', 'farming']) {
     if (!K.established(id)) continue;
-    const cats = K.group.isSub(id) ? [...base, 'treasury'] : base;
-    const funded = K.account(id).funded;
-    const rows = cats.map((cat) => {
-      const kind = KIND[cat];
-      const st = M.status(id, kind);
-      const box = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: st.budget, style: 'width:100px' });
-      const who = M.deciders(kind, id).map((x) => `${x.name} (${ROLES[x.role].name})`);
-      return h('div', { style: 'margin-top:6px' },
-        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, CATEGORIES[cat].name), box, h('span', { class: 'muted' }, 'a month'), h('button', { class: 'small', onclick: () => go(M.setBudget(id, cat, Number(box.value))) }, 'Set'), h('span', { class: 'muted' }, st.budget ? `${n(st.spent)} used this month, ${n(Math.max(0, st.budget - st.spent))} left` : '')),
-        h('div', { class: 'desc' }, CATEGORIES[cat].text, who.length ? ` Decided by ${who.join(', ')}.` : ''),
-        ...st.notes.map((t) => h('div', { class: 'desc' }, `• ${t}`)));
-    });
-    list.append(h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, name(id), h('span', { class: `tag${funded ? ' good' : ''}` }, funded ? 'own account' : 'no account of its own')), ...rows)));
+    const c = M.card(id);
+    const x = c.manager;
+    if (!x) { body.append(card(h('div', { class: 'tb-label' }, c.name), h('div', { class: 'tb-sub' }, 'No manager. You run it yourself.'), hireButton('manager', id, 'Hire a manager'))); continue; }
+    const used = c.limit ? Math.min(100, Math.round((c.spent / c.limit) * 100)) : 0;
+    body.append(card(h('div', { class: 'tb-label' }, c.name), who(x), fire(x), ticks(x),
+      h('div', { class: 'tb-limit' }, h('span', {}, `Spends up to ${n(c.limit)} a month`), h('small', {}, c.custom ? `${n(c.spent)} used` : `automatic · ${n(c.spent)} used`)),
+      h('div', { class: 'tb-bar' }, h('i', { style: `width:${used}%` })),
+      h('div', { class: 'tb-chips' }, ...LIMITS.map((v) => h('button', { class: `tb-chip${(c.custom || 0) === v ? ' on' : ''}`, onclick: () => go(M.setCap(id, v)) }, v ? n(v) : 'Auto'))),
+      ...c.notes.map((t) => h('div', { class: 'tb-sub' }, `⚠ ${t}`))));
   }
-  body.append(list);
-  if (K.established('aerospace')) {
-    const mg = M.peek()?.margins.aerospace;
-    const box = h('input', { type: 'number', class: 'debug-qty', min: 0, max: 300, step: 1, value: mg ?? 25, style: 'width:70px' });
-    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:8px' }, h('b', {}, 'Minimum margin on bids'), box, h('span', { class: 'muted' }, '% over cost'), h('button', { class: 'small', onclick: () => go(M.setMargin('aerospace', Number(box.value))) }, 'Set'),
-      h('span', { class: 'muted' }, mg === undefined ? 'None set: managers bid on nothing.' : `Bids go in at ${mg}% over cost; where the customer's ceiling is lower, the bid waits for you (never below cost).`)));
+  if (K.state.parent && K.group.subs().length) {
+    const x = Pe.holders('parent', 'group_manager')[0];
+    body.append(card(h('div', { class: 'tb-label' }, K.nameOf('parent')), x ? [who(x), fire(x), ticks(x)] : [h('div', { class: 'tb-sub' }, 'Nobody moves cash between your companies. You do it yourself.'), hireButton('group_manager', 'parent', 'Hire a group manager')]));
   }
-
-  treasury();
-  plans();
-
-  function treasury() {
-    const G = K.group;
-    if (!G.parent) return;
-    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Treasury policy'));
-    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 10000, value: M.parentReserve(), style: 'width:110px' });
-    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, h('b', {}, `${G.parent.name} keeps at least`), reserve, h('span', { class: 'muted' }, `obols (it holds ${n(K.cashOf('parent'))}); top-ups never take it lower`), h('button', { class: 'small', onclick: () => go(M.setParentReserve(Number(reserve.value))) }, 'Set')));
-    const subs = G.subs();
-    if (!subs.length) { body.append(h('p', { class: 'muted' }, 'Bring a business under the parent to keep its cash between a floor and a ceiling.')); return; }
-    body.append(h('div', { class: 'list' }, ...subs.map((id) => {
-      const pol = M.peek()?.treasury[id];
-      const floor = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.floor ?? 20000, style: 'width:100px' });
-      const ceil = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5000, value: pol?.ceiling ?? 100000, style: 'width:100px' });
-      const mv = M.planTreasury(id)[0];
-      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, name(id), h('span', { class: 'tag' }, `holds ${n(K.cashOf(id))}`), pol ? h('span', { class: 'tag good' }, 'policy set') : h('span', { class: 'tag' }, 'no policy')),
-        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:4px' }, h('span', { class: 'muted' }, 'Keep it between'), floor, h('span', { class: 'muted' }, 'and'), ceil,
-          h('button', { class: 'small', onclick: () => go(M.setTreasury(id, { floor: Number(floor.value), ceiling: Number(ceil.value) })) }, 'Set'), pol ? h('button', { class: 'small ghost', onclick: () => go(M.clearTreasury(id)) }, 'Withdraw') : null),
-        h('div', { class: 'desc' }, pol ? (mv ? `Next, a chief financial officer would ${mv.desc}.` : 'Nothing to move now.') : 'Below the floor it is topped up from the parent; above the ceiling the surplus repays what it owes the parent, then returns capital the parent put in. Only a chief financial officer with the permission to move cash does it, inside a Treasury budget.')));
-    })));
-  }
-
-  function plans() {
-    function planRow(q) {
-      const e = M.evalPlan(q);
-      const next = e.cost ? `Next: ${e.desc}, ${n(e.cost)} obols.` : e.why;
-      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, `${M.planName(q)} — up to ${q.limit}`, h('span', { class: 'tag' }, `${q.bought} bought`), h('span', { class: 'tag' }, `${n(q.maxEach)} at most each`)),
-        h('div', { class: 'desc' }, `${PLAN_TYPES[q.type].rule} Leaves ${n(q.reserve)} in the account. ${next}${q.blocked ? ` (${q.blocked})` : ''}`),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(M.removePlan(q.id)) }, 'Withdraw'))));
-    }
-    body.append(h('h3', { style: 'margin:12px 0 4px' }, 'Plans you have approved'));
-    const list = M.peek()?.plans || [];
-    if (!list.length) body.append(h('p', { class: 'muted' }, 'None. A plan names what a manager may build or buy, how many, and the most to pay for each; where it goes is a fixed rule. Without a plan, nothing is built or bought.'));
-    else body.append(h('div', { class: 'list' }, ...list.map(planRow)));
-    addForm();
-  }
-
-  function addForm() {
-    const owned = Object.entries(PLAN_TYPES).filter(([, T]) => K.established(T.business));
-    if (!owned.length) return;
-    const type = h('select', { class: 'debug-input', style: 'min-width:240px' }, ...owned.map(([id, T]) => h('option', { value: id }, T.name)));
-    const limit = h('input', { type: 'number', class: 'debug-qty', min: 1, max: 10, value: 1, style: 'width:60px' });
-    const maxEach = h('input', { type: 'number', class: 'debug-qty', min: 1, step: 1000, value: 20000, style: 'width:100px' });
-    const reserve = h('input', { type: 'number', class: 'debug-qty', min: 0, step: 1000, value: 20000, style: 'width:100px' });
-    const extra = h('span', { class: 'row', style: 'gap:6px;flex-wrap:wrap' });
-    const rule = h('div', { class: 'desc' });
-    const field = {};
-    const mk = (k, opts) => { field[k] = h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v }, t))); return field[k]; };
-    const refill = () => {
-      extra.replaceChildren(); Object.keys(field).forEach((k) => delete field[k]);
-      const t = type.value;
-      rule.textContent = PLAN_TYPES[t].rule;
-      if (t === 'arms_station') extra.append(mk('works', g.arms.ownedIds().map((w) => [w, g.arms.def(w).name])), mk('item', Object.entries(g.content.items).filter(([, it]) => it.build?.domain === 'arms' && it.build.type === 'machine').map(([id, it]) => [id, it.name])), mk('recipe', [['', 'no recipe set'], ...Object.entries(g.arms.cfg.recipes).map(([id, r]) => [id, `${g.content.items[r.out].name} (${r.station})`])]));
-      if (t === 'aero_bay') extra.append(mk('bay', Object.entries(g.aero.cfg.bays).map(([id, B]) => [id, B.name])));
-      if (t === 'aero_facility') extra.append(mk('facility', Object.entries(g.aero.cfg.facilities).filter(([, F]) => F.build).map(([id, F]) => [id, F.name])));
-    };
-    type.addEventListener('change', refill); refill();
-    body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Approve a plan'), h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, type, extra, h('span', { class: 'muted' }, 'up to'), limit, h('span', { class: 'muted' }, 'at most'), maxEach, h('span', { class: 'muted' }, 'each, leaving'), reserve, h('span', { class: 'muted' }, 'in the account'),
-      h('button', { class: 'small primary', onclick: () => go(M.addPlan({ type: type.value, limit: Number(limit.value), maxEach: Number(maxEach.value), reserve: Number(reserve.value), ...Object.fromEntries(Object.entries(field).map(([k, el]) => [k, el.value])) })) }, 'Approve plan')), rule);
-  }
-
-  const log = (m?.log || []).slice(-15).reverse();
-  body.append(h('h3', { style: 'margin:12px 0 4px' }, 'What they have done'));
-  if (!log.length) body.append(h('p', { class: 'muted' }, 'Nothing yet.'));
-  else body.append(h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${LABEL[l.type] || l.type}: ${l.text}`))))));
-  body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Each business gets at most one decision of each kind a day, at about 06:00 (treasury moves, by the chief financial officer, are between the parent and a subsidiary: they are transfers, never sales or costs); a manager makes at most two hires a month at a business and a bid counts the cost of the work it would commit against its budget. A plan buys one at a time, next to what you own and at the first free place by a fixed rule; a station that arrives is placed from the dock but needs a worker you assign. A hire counts its recruiting fee and a month\'s wage against the hiring budget. Aerospace\'s auto-buy is your own standing order: managers buy only while it is off.'));
+  if (!K.registry().some((r) => r.kind === 'player')) body.append(card(h('div', { class: 'tb-sub' }, 'Own a business first.')));
+  body.append(help('How managers work ›', 'A manager looks after one business in its own interest. It only does what is ticked, only from that company\'s own account, and never past its monthly limit. It always asks you before expanding.', 'Every manager is paid the same and does a little for their business just by being there (about 3% off what it buys, or on what it sells).'));
+  const log = (m?.log || []).slice(-12).reverse();
+  if (log.length) body.append(fold(ui, 'Managers', 'What they did ›', (box) => box.append(card(...log.map((l) => row({ icon: l.type === 'refused' ? '✋' : l.type === 'queued' ? '🙋' : '✔', title: `Day ${l.day}`, sub: l.text }))))));
 }
 
-return { managementFull };
+return { managersApp };
 })();
 
 // ---- src/ui/corpGroup.js
@@ -65173,211 +64534,6 @@ function policyEditor(G, id, pol, go) {
 }
 
 return { groupFull };
-})();
-
-// ---- src/ui/corpPeople.js
-__m["src/ui/corpPeople.js"] = (function () {
-// The People app (v0.62.0): who could run your businesses, who does, and what they cost. Everything is read
-// from game.corp.personnel and every button calls it; nothing is computed here but layout.
-const { h } = __m["src/ui/panels.js"];
-const { SKILLS, ROLES, GRADES, STYLES, MARKET, EFFECT_CAPS } = __m["src/content/personnel.js"];
-const { grade, roleFit } = __m["src/corp/people.js"];
-
-const P = { GRADES, ROLES };
-const n = (x) => (x === null || x === undefined ? '—' : Math.round(x).toLocaleString());
-const VIEWS = { openings: 'Openings', candidates: 'Candidates', staff: 'Staff', payroll: 'Payroll' };
-const TIERS = { executive: 'Executives', manager: 'Managers', staff: 'Staff' };
-const EFFECT_TEXT = { materials: 'materials cost', parts: 'parts cost', armsSpeed: 'arms output speed', upkeep: 'upkeep cost', farmPrice: 'farm sale prices', overhead: 'overhead' };
-const pct = (v) => `${(v * 100).toFixed(1)}%`;
-
-function peopleFull(ui, body, open) {
-  const g = ui.game;
-  const K = g.corp;
-  const Pe = K.personnel;
-  const S = (ui.corpPeople ||= { view: 'openings', tier: '', role: '', sort: 'fit', sel: null, cmp: [], who: null });
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Personnel'); };
-  const view = (patch) => { Object.assign(S, patch); open('Personnel'); };
-  if (ui.corpNote) { body.append(h('p', {}, h('b', {}, ui.corpNote))); ui.corpNote = null; }
-  const stat = (a, b) => h('div', { class: 'stat' }, h('span', {}, a), h('b', {}, b));
-  const num = (v, w = 80) => h('input', { type: 'number', class: 'debug-qty', min: 0, step: 5, value: v, style: `width:${w}px` });
-  const sel = (opts, cur) => h('select', { class: 'debug-input' }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
-
-  body.append(h('p', { class: 'doc' }, '🧑‍💼 People run the businesses you own. Hire executives for the parent company and managers and staff for each business. Each is paid every day from their employer\'s own cash. A good manager trims one real cost or lifts one real result, within a ceiling; they cannot do what needs a worker or a resource you do not have. Their authority sets what they may decide on their own — see the Management tab.'));
-  body.append(h('div', { class: 'row', style: 'justify-content:flex-start;margin-bottom:6px;flex-wrap:wrap' }, ...Object.entries(VIEWS).map(([id, l]) => h('button', { class: `small${S.view === id ? ' primary' : ''}`, onclick: () => view({ view: id }) }, l))));
-
-  if (S.view === 'openings') openings(); else if (S.view === 'candidates') candidates(); else if (S.view === 'staff') staff(); else payroll();
-
-  // ---------------------------------------------------------------- openings
-  function openings() {
-    const list = Pe.openings();
-    if (!list.length) { body.append(h('p', { class: 'muted' }, 'Nothing needs filling yet. Roles appear here when a business has grown enough to make a case for one.')); return; }
-    body.append(h('div', { class: 'list' }, ...list.map((o) => {
-      // someone of the job's own level first (an executive would cost far more than the job pays); anyone who suits it otherwise
-      const fits = Pe.candidates().filter((c) => c.roles.includes(o.role));
-      const own = fits.filter((c) => c.tier === ROLES[o.role].tier);
-      const best = (own.length ? own : fits).sort((a, b) => roleFit(P, b, o.role) - roleFit(P, a, o.role))[0];
-      const est = best ? Pe.benefit(best, o.role, o.employer) : null;
-      const can = best ? K.canAfford(o.employer, best.floor * MARKET.fee) : false;
-      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, `${o.roleName} — ${o.employerName}`, h('span', { class: 'tag' }, `${n(o.pay[0])}–${n(o.pay[1])} a day`)),
-        h('div', { class: 'desc' }, o.why),
-        best ? h('div', { class: 'desc' }, `Best candidate today: ${best.name} (${Math.round(roleFit(P, best, o.role))}, ${grade(P, roleFit(P, best, o.role))}) at about ${n(best.floor)} a day. ${est.perDay > 0 ? `On today's figures they would save or earn about ${n(est.perDay)} a day${est.perDay < best.floor ? ` — less than their wage; the case is for later decisions, not passive savings` : ''}.` : 'Their direct effect on today\'s spending is nil; the value is in decisions they will make.'}${can ? '' : ` ${o.employerName} could not pay the recruiting fee yet.`}`) : h('div', { class: 'desc' }, 'No candidate in the market suits this job right now.'),
-        best ? h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => view({ view: 'candidates', sel: best.id, tier: '', role: o.role }) }, 'See candidates')) : null));
-    })));
-  }
-
-  // ---------------------------------------------------------------- candidates
-  function candidates() {
-    let list = Pe.candidates();
-    const tiers = h('select', { class: 'debug-input' }, h('option', { value: '' }, 'All levels'), ...Object.entries(TIERS).map(([v, t]) => h('option', { value: v, selected: v === S.tier }, t)));
-    const roles = h('select', { class: 'debug-input' }, h('option', { value: '' }, 'Any job'), ...Object.entries(ROLES).map(([v, R]) => h('option', { value: v, selected: v === S.role }, R.name)));
-    const sort = h('select', { class: 'debug-input' }, ...[['fit', 'Best fit'], ['cheap', 'Cheapest'], ['rep', 'Reputation'], ['soon', 'Available soonest']].map(([v, t]) => h('option', { value: v, selected: v === S.sort }, t)));
-    const apply = () => view({ tier: tiers.value, role: roles.value, sort: sort.value });
-    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:wrap;gap:6px' }, tiers, roles, sort, h('button', { class: 'small', onclick: apply }, 'Apply')));
-    if (S.tier) list = list.filter((c) => c.tier === S.tier);
-    if (S.role) list = list.filter((c) => c.roles.includes(S.role));
-    const fit = (c) => (S.role ? roleFit(P, c, S.role) : roleFit(P, c, c.roles[0] || c.role));
-    list.sort((a, b) => (S.sort === 'cheap' ? a.floor - b.floor : S.sort === 'rep' ? b.reputation - a.reputation : S.sort === 'soon' ? a.availableDay - b.availableDay : fit(b) - fit(a)));
-    body.append(h('p', { class: 'muted', style: 'font-size:12px' }, `${list.length} candidates. The market refreshes weekly: some take other jobs, new people arrive. Pick up to three to compare.`));
-    body.append(h('div', { class: 'list' }, ...list.map((c) => {
-      const f = fit(c);
-      const inCmp = S.cmp.includes(c.id);
-      return h('div', { class: 'item-row', style: `align-items:flex-start;${S.sel === c.id ? 'outline:1px solid #8ab' : ''}` }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, c.name, h('span', { class: 'tag' }, c.tier), h('span', { class: 'tag' }, c.style), c.availableDay > g.clock.day ? h('span', { class: 'tag' }, `from day ${c.availableDay}`) : h('span', { class: 'tag good' }, 'available now')),
-        h('div', { class: 'desc' }, `Suits ${c.roles.slice(0, 3).map((r) => ROLES[r].name).join(', ')} · fit ${Math.round(f)} (${grade(P, f)}) · age ${c.age}, ${c.experience} years · asks about ${n(c.expects)} a day, will not go below ${n(c.floor)}`),
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' },
-          h('button', { class: 'small', onclick: () => view({ sel: S.sel === c.id ? null : c.id }) }, S.sel === c.id ? 'Close' : 'Details & offer'),
-          h('button', { class: `small${inCmp ? ' primary' : ' ghost'}`, onclick: () => view({ cmp: inCmp ? S.cmp.filter((x) => x !== c.id) : [...S.cmp, c.id].slice(-3) }) }, inCmp ? 'Comparing' : 'Compare')),
-        S.sel === c.id ? detail(c) : null));
-    })));
-    const picks = S.cmp.map((id) => Pe.candidates().find((c) => c.id === id)).filter(Boolean);
-    if (picks.length >= 2) body.append(compare(picks));
-  }
-
-  function detail(c) {
-    const top = Object.entries(c.skills).sort((a, b) => b[1] - a[1]);
-    const jobs = c.roles.map((r) => [r, ROLES[r].name]);
-    const roleSel = sel(jobs, S.role && c.roles.includes(S.role) ? S.role : c.roles[0]);
-    const empBox = h('select', { class: 'debug-input' });
-    const pay = num(c.expects, 90);
-    const info = h('div', { class: 'desc' });
-    const refill = () => {
-      const R = ROLES[roleSel.value];
-      empBox.replaceChildren();
-      for (const e of R.employers) {
-        if (!Pe.employerOk(e)) continue;
-        if (Pe.holders(e, roleSel.value).length >= R.limit) continue;
-        empBox.append(h('option', { value: e }, Pe.employerName(e)));
-      }
-      if (!empBox.options.length) { info.textContent = 'No business of yours has room for this job.'; return; }
-      const b = Pe.benefit(c, roleSel.value, empBox.value);
-      const fee = Number(pay.value) * MARKET.fee;
-      const fx = Object.entries(b.effects).filter(([, v]) => v > 0).map(([k, v]) => `${pct(v)} off ${EFFECT_TEXT[k] || k}`.replace('off farm sale prices', 'on farm sale prices').replace('off arms output speed', 'on arms output speed'));
-      info.textContent = `${fx.length ? `Effect: ${fx.join(', ')} (ceilings: ${Object.entries(EFFECT_CAPS).map(([k, v]) => `${EFFECT_TEXT[k]} ${pct(v)}`).join(', ')}). ` : 'No direct effect on spending from this job. '}Worth about ${n(b.perDay)} a day on today's figures. Fee ${n(fee)} (${MARKET.fee} days' wage), ${K.canAfford(empBox.value, fee) ? 'which they can pay' : 'which they cannot pay yet'}. Notice: starts day ${c.availableDay}.`;
-    };
-    roleSel.addEventListener('change', refill); empBox.addEventListener('change', refill); pay.addEventListener('input', refill);
-    refill();
-    return h('div', { style: 'margin-top:6px;padding:6px;border:1px solid #556;border-radius:4px' },
-      h('div', { class: 'desc' }, `${c.education}. ${STYLES[c.style]} Work ethic ${c.workEthic}, reliability ${c.reliability}, leadership ${c.leadership}, negotiation ${c.negotiation}, discipline ${c.financialDiscipline}, risk appetite ${c.riskTolerance}. Reputation ${c.reputation}.`),
-      h('div', { class: 'desc' }, `Before: ${c.history.map((x) => `${x.role} at ${x.employer} (${x.years} yr)`).join('; ')}.`),
-      h('div', { class: 'desc' }, 'Skills: ', ...top.slice(0, 8).map(([k, v]) => `${SKILLS[k].name} ${v} (${grade(P, v)})`).join(' · ')),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px;flex-wrap:wrap;gap:6px' }, roleSel, empBox, h('span', { class: 'muted' }, 'a day'), pay,
-        h('button', { class: 'small primary', onclick: () => go(Pe.offer(c.id, { role: roleSel.value, employer: empBox.value, pay: Number(pay.value) })) }, 'Make an offer')),
-      info);
-  }
-
-  function compare(picks) {
-    const keys = Object.keys(SKILLS);
-    const th = (t) => h('th', { style: 'text-align:right;padding:2px 6px' }, t);
-    const rowOf = (label, f, best = null) => h('tr', {}, h('td', { style: 'padding:2px 6px' }, label), ...picks.map((c) => { const v = f(c); const top = best !== null && v === best(picks.map(f)); return h('td', { style: `text-align:right;padding:2px 6px;${top ? 'font-weight:700;color:#7c7' : ''}` }, typeof v === 'number' ? String(v) : v); }));
-    const hi = (a) => Math.max(...a); const lo = (a) => Math.min(...a);
-    return h('div', { style: 'margin-top:10px;overflow-x:auto' }, h('h4', { style: 'margin:4px 0' }, 'Side by side'),
-      h('table', { style: 'width:100%;border-collapse:collapse;font-size:12px' },
-        h('thead', {}, h('tr', {}, h('th', {}), ...picks.map((c) => th(c.name)))),
-        h('tbody', {},
-          rowOf('Level', (c) => c.tier), rowOf('Floor pay a day', (c) => c.floor, lo), rowOf('Reputation', (c) => c.reputation, hi), rowOf('Experience (years)', (c) => c.experience, hi),
-          rowOf('Reliability', (c) => c.reliability, hi), rowOf('Negotiation', (c) => c.negotiation, hi), rowOf('Leadership', (c) => c.leadership, hi), rowOf('Starts on day', (c) => c.availableDay, lo),
-          ...keys.map((k) => rowOf(SKILLS[k].name, (c) => c.skills[k], hi)))));
-  }
-
-  // ---------------------------------------------------------------- staff
-  function staff() {
-    const mine = Pe.all().filter((x) => !x.floor);
-    const floor = Pe.all().filter((x) => x.floor);
-    if (!mine.length) body.append(h('p', { class: 'muted' }, 'You have hired nobody through here yet. See Openings for where a hire would help, or Candidates to browse.'));
-    body.append(h('div', { class: 'list' }, ...mine.map((x) => {
-      const R = ROLES[x.role];
-      const fit = roleFit(P, x, x.role);
-      const open$ = S.who === x.id;
-      const chk = Pe.promoteCheck(x.id, Object.keys(ROLES).find((r) => ROLES[r].tier === (x.tier === 'staff' ? 'manager' : 'executive') && roleFit(P, x, r) >= 45) || '');
-      return h('div', { class: 'item-row', style: 'align-items:flex-start' }, h('div', { class: 'grow' },
-        h('div', { class: 'name' }, x.name, h('span', { class: 'tag' }, R.name), h('span', { class: 'tag' }, Pe.employerName(x.employer)), x.startDay > g.clock.day ? h('span', { class: 'tag' }, `starts day ${x.startDay}`) : null, x.unpaid ? h('span', { class: 'tag neg' }, 'UNPAID') : null),
-        h('div', { class: 'desc' }, `${n(x.salary)} a day · loyalty ${Math.round(x.loyalty)} · fit ${Math.round(fit)} (${grade(P, fit)}) · hired day ${x.hiredDay}${x.reviews.length ? ` · last review ${x.reviews[x.reviews.length - 1].good ? 'good' : 'flat'}` : ''}`),
-        Object.entries(Pe.effects(x.employer)).some(([, v]) => v > 0) && x.startDay <= g.clock.day ? h('div', { class: 'desc' }, `${Pe.employerName(x.employer)} now gets: ${Object.entries(Pe.effects(x.employer)).filter(([, v]) => v > 0).map(([k, v]) => `${pct(v)} ${EFFECT_TEXT[k]}`).join(', ')}`) : null,
-        h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small', onclick: () => view({ who: open$ ? null : x.id }) }, open$ ? 'Close' : 'Manage')),
-        open$ ? manage(x, chk) : null));
-    })));
-    if (floor.length) body.append(h('h4', { style: 'margin:10px 0 4px' }, 'Arms works floor staff (managed at the works)'), h('div', { class: 'list' }, ...floor.map((x) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, x.name, h('span', { class: 'tag' }, 'station worker')), h('div', { class: 'desc' }, `${n(x.salary)} a day · morale ${x.loyalty} · ${x.unpaid ? 'UNPAID' : 'paid'}. Hired, paid and let go at the works themselves; listed here as they are.`))))));
-  }
-
-  function manage(x, chk) {
-    const R = ROLES[x.role];
-    const raise = num(x.salary + 10, 90);
-    const rank = { staff: 0, manager: 1, executive: 2 };
-    const places = (r) => ROLES[r].employers.filter((e) => Pe.employerOk(e));
-    // the employers a job can be at follow the job chosen: a chief executive is the parent's, never an arms works'
-    const empFor = (roleBox, empBox, keep) => {
-      const fill = () => { empBox.replaceChildren(...places(roleBox.value).map((e) => h('option', { value: e, selected: e === keep }, Pe.employerName(e)))); };
-      roleBox.addEventListener('change', fill); fill();
-    };
-    const higher = Object.keys(ROLES).filter((r) => rank[ROLES[r].tier] > rank[x.tier] && places(r).length);
-    const promo = sel(higher.map((r) => [r, ROLES[r].name]), higher[0]);
-    const promoEmp = h('select', { class: 'debug-input' });
-    if (higher.length) empFor(promo, promoEmp, x.employer);
-    const jobs = Object.keys(ROLES).filter((r) => ROLES[r].tier === x.tier && places(r).length);
-    const mv = sel(jobs.map((r) => [r, ROLES[r].name]), x.role);
-    const mvEmp = h('select', { class: 'debug-input' });
-    empFor(mv, mvEmp, x.employer);
-    const a = x.authority;
-    const spend = num(a.spendLimit, 90); const above = num(a.approvalAbove, 90);
-    const flags = ['canHire', 'canBorrow', 'canTransfer', 'canContract', 'canExpand'].map((k) => ({ k, el: h('input', { type: 'checkbox', checked: a[k] }) }));
-    const FL = { canHire: 'hire', canBorrow: 'borrow', canTransfer: 'transfer', canContract: 'sign contracts', canExpand: 'expand' };
-    const why = promoteWhy(x);
-    return h('div', { style: 'margin-top:6px;padding:6px;border:1px solid #556;border-radius:4px' },
-      h('div', { class: 'desc' }, `${R.text} Skills: ${Object.entries(x.skills).sort((p, q) => q[1] - p[1]).slice(0, 6).map(([k, v]) => `${SKILLS[k].name} ${v}${x.skills0[k] !== undefined && v > x.skills0[k] ? ` (+${v - x.skills0[k]})` : ''}`).join(' · ')}`),
-      x.log.length ? h('div', { class: 'desc' }, `Lately: ${x.log.slice(-3).map((l) => `day ${l.day} ${l.text}`).join(' / ')}`) : null,
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, raise, h('button', { class: 'small', onclick: () => go(Pe.raise(x.id, Number(raise.value))) }, 'Give a raise')),
-      higher.length ? h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, promo, promoEmp, h('button', { class: 'small', onclick: () => go(Pe.promote(x.id, promo.value, promoEmp.value)) }, 'Promote'), h('span', { class: 'muted' }, why)) : null,
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, mv, mvEmp, h('button', { class: 'small', onclick: () => go(Pe.reassign(x.id, { role: mv.value, employer: mvEmp.value })) }, 'Move')),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px;flex-wrap:wrap;gap:6px' }, h('span', { class: 'muted' }, 'May spend up to'), spend, h('span', { class: 'muted' }, 'and must ask above'), above, ...flags.map((f) => h('label', { class: 'muted' }, f.el, ` ${FL[f.k]}`)),
-        h('button', { class: 'small', onclick: () => go(Pe.setAuthority(x.id, { spendLimit: Number(spend.value), approvalAbove: Number(above.value), ...Object.fromEntries(flags.map((f) => [f.k, f.el.checked])) })) }, 'Set authority')),
-      h('div', { class: 'desc' }, 'Managers act within this: above the ask-above limit a decision waits for you on the Management tab; above the spending limit it is refused. Hiring also needs the "hire" permission.'),
-      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:4px' }, h('button', { class: 'small ghost', onclick: () => go(Pe.dismiss(x.id)) }, `Dismiss (severance ${n(x.salary * MARKET.severance)})`)));
-  }
-
-  function promoteWhy(x) {
-    for (const r of Object.keys(ROLES)) {
-      const rank = { staff: 0, manager: 1, executive: 2 };
-      if (rank[ROLES[r].tier] <= rank[x.tier]) continue;
-      const w = Pe.promoteCheck(x.id, r);
-      if (!w) return `Ready for ${ROLES[r].name}.`;
-    }
-    return Pe.promoteCheck(x.id, Object.keys(ROLES).find((r) => ({ staff: 0, manager: 1, executive: 2 }[ROLES[r].tier] > { staff: 0, manager: 1, executive: 2 }[x.tier])) || '') || '';
-  }
-
-  // ---------------------------------------------------------------- payroll
-  function payroll() {
-    const s = Pe.payrollSummary();
-    body.append(h('div', { class: 'grid2' }, stat('Wages paid here, a day', `${n(s.total)} obols`), stat('Arms floor staff (paid by the works)', `${n(s.armsFloorPerDay)} a day`), stat('Aerospace crews (paid by Roost)', `${n(s.aerospaceCrewsPerDay)} a day`), stat('Your wallet', `${n(g.player.money)} obols`)));
-    if (s.rows.length) body.append(h('div', { class: 'list', style: 'margin-top:6px' }, ...s.rows.map((r) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'name' }, r.name), h('div', { class: 'desc' }, `${r.people} ${r.people === 1 ? 'person' : 'people'} · ${n(r.perDay)} a day · ${K.account(r.employer).funded ? `account holds ${n(K.cashOf(r.employer))}` : 'not funded: paid from your wallet'}${K.account(r.employer).funded && K.cashOf(r.employer) < r.perDay * 5 ? ' — under five days of wages' : ''}`))))));
-    else body.append(h('p', { class: 'muted' }, 'No wages from here yet.'));
-    body.append(h('p', { class: 'muted', style: 'font-size:12px' }, 'Wages are paid once a day at 19:05, from each employer\'s own cash (an employer you have not funded draws on your wallet, as the rest of it does). Unpaid twice and a person resigns. Arms floor staff and aerospace crews keep their own wage systems and are shown here for information; they are not paid twice.'));
-    const log = (Pe.peek()?.log || []).slice(-12).reverse();
-    if (log.length) body.append(h('h4', { style: 'margin:8px 0 4px' }, 'Recent'), h('div', { class: 'list' }, ...log.map((l) => h('div', { class: 'item-row' }, h('div', { class: 'grow' }, h('div', { class: 'desc' }, `Day ${l.day} · ${l.name}: ${l.text}`))))));
-  }
-}
-
-return { peopleFull };
 })();
 
 // ---- src/ui/corpEconomy.js
@@ -65688,9 +64844,7 @@ __m["src/ui/tabletSummaries.js"] = (function () {
 // the app as it always was is one tap down in a fold. Nothing is computed here but layout; every button calls the system that always did the work.
 const { h } = __m["src/ui/panels.js"];
 const { hero, segments, tiles, row, help, note, fold, openFold, buttons, big, n } = __m["src/ui/tabletKit.js"];
-const { managementFull } = __m["src/ui/corpManage.js"];
 const { groupFull } = __m["src/ui/corpGroup.js"];
-const { peopleFull } = __m["src/ui/corpPeople.js"];
 const { economyFull } = __m["src/ui/corpEconomy.js"];
 const { exchangeFull } = __m["src/ui/corpExchange.js"];
 const { milestonesFull } = __m["src/ui/corpMilestones.js"];
@@ -65701,30 +64855,6 @@ const { HQ_TIERS } = __m["src/content/hq.js"];
 const { PLAYER_COMPANIES } = __m["src/corp/identity.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const KIND = { budget: 'raise the materials budget', hire: 'hire', reorder: 'reorder', bid: 'bid', expand: 'expand', transfer: 'move cash' };
-
-// ---------------------------------------------------------------- Management
-function managementApp(ui, body, open) {
-  const g = ui.game;
-  const K = g.corp;
-  const M = K.management;
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
-  const nt = note(ui);
-  if (nt) body.append(nt);
-  const m = M.peek();
-  const pending = m?.pending || [];
-  const alerts = M.alerts();
-  const log = (m?.log || []).slice(-3).reverse();
-  const budgets = Object.values(m?.budgets || {}).reduce((a, b) => a + Object.values(b || {}).filter((v) => v > 0).length, 0);
-  body.append(
-    hero({ label: 'Waiting for your word', value: pending.length ? `${pending.length} request${pending.length === 1 ? '' : 's'}` : 'Nothing', tone: pending.length ? 'gold' : '', sub: pending.length ? 'Managers asked before spending; nothing happens until you say.' : 'Managers act on their own inside the budgets you set.' }),
-    tiles([{ n: String(budgets), t: 'budgets set' }, { n: String((m?.plans || []).length), t: 'plans approved' }, { n: String((m?.log || []).length), t: 'decisions made' }]));
-  if (pending.length) body.append(list(...pending.map((q) => row({ icon: '📋', title: `${K.personnel.person(q.actor)?.name || 'Someone'} asks to ${KIND[q.kind] || q.kind}`, sub: `${K.personnel.employerName(q.employer)} · ${q.why}`, tag: q.kind === 'budget' ? `+${n(q.cost)} / month` : n(q.cost),
-    action: h('span', { class: 'tb-acts' }, h('button', { class: 'tb-mini pri', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'tb-mini', onclick: () => go(M.decline(q.id)) }, 'Decline')) }))));
-  if (alerts.length) body.append(list(...alerts.slice(0, 3).map((a) => row({ icon: '⚠', title: a.text, sub: a.advice }))));
-  if (log.length) body.append(list(...log.map((l) => row({ icon: '✔', title: `Day ${l.day}`, sub: l.text }))));
-  body.append(fold(ui, 'Management', 'Budgets, treasury and plans ›', (box) => managementFull(ui, box, open)));
-}
 
 // ---------------------------------------------------------------- Group
 function groupApp(ui, body, open) {
@@ -65775,7 +64905,7 @@ function groupApp(ui, body, open) {
       buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
   }
   body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.id === g.hq.best() ? `${g.hq.officers().length} of ${t.seats} seats taken` : `${t.desks} desks, ${t.seats} seats`} · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
-    action: t.owned ? h('button', { class: 'tb-mini pri', onclick: () => { ui.hqStyle = t.id; ui.hqPick = null; open('Group'); } }, 'Furnish ›') : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
+    action: t.owned ? h('span', { class: 'tb-acts' }, t.id === g.hq.best() && !g.hq.seatError() ? h('button', { class: 'tb-mini', onclick: () => { ui.mgrAsk = { role: 'office', employer: 'parent' }; open('Managers'); } }, 'Hire staff') : null, h('button', { class: 'tb-mini pri', onclick: () => { ui.hqStyle = t.id; ui.hqPick = null; open('Group'); } }, 'Furnish ›')) : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
 }
 
@@ -65801,23 +64931,6 @@ function hqStyleScreen(ui, body, open, tier, pa) {
   }
   body.append(help(`About ${cur.name.toLowerCase()} ›`, cur.text, 'Furnishing is looks only: it never earns, saves or returns money. Going back to the original is free. Lamps glow at night; the rest you will see when you walk in.'),
     buttons(big('‹ Back to the group', () => { ui.hqStyle = null; ui.hqPick = null; open('Group'); })));
-}
-
-// ---------------------------------------------------------------- Personnel
-function peopleApp(ui, body, open) {
-  const g = ui.game;
-  const Pe = g.corp.personnel;
-  const nt = note(ui);
-  if (nt) body.append(nt);
-  const staff = Object.values(Pe.peek()?.staff || {}).filter((x) => x.status === 'active');
-  const perDay = staff.reduce((a, x) => a + (x.salary || 0), 0);
-  const openings = Pe.openings();
-  body.append(
-    hero({ label: 'Your people', value: String(staff.length), sub: staff.length ? `paid ${n(perDay)} obols a day by the businesses they work for` : 'Nobody works for your businesses yet.' }),
-    tiles([{ n: String(openings.length), t: 'openings', tone: openings.length ? 'good' : '' }, { n: n(perDay), t: 'a day in pay' }, { n: String((Pe.candidates() || []).length), t: 'candidates' }]));
-  if (openings.length) body.append(list(...openings.slice(0, 4).map((o) => row({ icon: '🧑‍💼', title: `${o.roleName} — ${o.employerName}`, sub: o.why, tag: `${n(o.pay[0])}–${n(o.pay[1])} a day`, action: h('button', { class: 'tb-mini pri', onclick: () => { const S = (ui.corpPeople ||= { view: 'openings', tier: '', role: '', sort: 'fit', sel: null, cmp: [], who: null }); Object.assign(S, { view: 'candidates', role: o.role, tier: '' }); openFold(ui, 'Personnel'); open('Personnel'); } }, 'See candidates') }))));
-  if (staff.length) body.append(list(...staff.slice(0, 5).map((x) => row({ icon: '🧑', title: x.name, sub: `${x.roleName || x.role} — ${Pe.employerName(x.employer)}`, tag: `${n(x.salary)} a day` }))));
-  body.append(fold(ui, 'Personnel', 'Hire, compare, manage and pay ›', (box) => peopleFull(ui, box, open)));
 }
 
 // ---------------------------------------------------------------- Milestones
@@ -65897,7 +65010,7 @@ function intelApp(ui, body, open) {
     fold(ui, 'Intelligence', 'Rankings, profiles and comparisons ›', (box) => intelFull(ui, box, open)));
 }
 
-return { managementApp, groupApp, peopleApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
+return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
 // ---- src/ui/corpBonds.js
@@ -65982,7 +65095,7 @@ __m["src/ui/tabletGroups.js"] = (function () {
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Personnel: '🧑‍💼', Management: '🧭', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
+const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
 
 function tabletGroups(g) {
   const T = g.tablet;
@@ -65991,7 +65104,7 @@ function tabletGroups(g) {
     { id: 'Home', apps: ['Home'] },
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
-    { id: 'Group', apps: own ? ['Group', 'Personnel', 'Management', 'Milestones'] : [] },
+    { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },
     { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence'] },
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
@@ -66040,7 +65153,7 @@ const TILES = {
   Markets: { icon: '📈', label: 'Markets', hue: ['#5fb0ff', '#2f6fd0'] },
   Bank: { icon: '🏦', label: 'Bank', hue: ['#f2c14e', '#c8872a'] },
   Economy: { icon: '🌍', label: 'World News', hue: ['#ff6b8a', '#c23b62'] },
-  Personnel: { icon: '🧑‍💼', label: 'People', hue: ['#b58cff', '#7a4fd6'] },
+  Managers: { icon: '🧑‍💼', label: 'Managers', hue: ['#b58cff', '#7a4fd6'] },
   Milestones: { icon: '🏆', label: 'Milestones', hue: ['#f5e27a', '#c9a230'] },
 };
 const DOCK = ['Journal', 'Businesses', 'Markets', 'Bank'];
@@ -66051,7 +65164,7 @@ function homeTiles(groups) {
   const apps = new Set(groups.flatMap((x) => x.apps));
   const out = [];
   for (const id of ['Journal', 'Businesses', 'Group', 'Markets', 'Bank']) if (have.has(id)) out.push({ id, ...TILES[id], target: TILES[id].open || groups.find((x) => x.id === id).apps[0] });
-  for (const a of ['Economy', 'Personnel', 'Milestones']) if (apps.has(a)) out.push({ id: a, ...TILES[a], target: a });
+  for (const a of ['Economy', 'Managers', 'Milestones']) if (apps.has(a)) out.push({ id: a, ...TILES[a], target: a });
   return out;
 }
 
@@ -66091,7 +65204,8 @@ const { TABLET_APPS } = __m["src/systems/tablet.js"];
 const { farmApp } = __m["src/ui/farm.js"];
 const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
-const { groupApp, peopleApp, managementApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"]; // v0.84.0: the summaries
+const { managersApp } = __m["src/ui/tabletManagers.js"];
+const { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"]; // v0.84.0: the summaries
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
 const { statusBar, navBar, segments, hero, tiles, row, fold, openFold, n: fmt } = __m["src/ui/tabletKit.js"]; // v0.83.0
@@ -66116,7 +65230,7 @@ function tabletPanel(ui, body, opts) {
   const needs = () => {
     const out = [];
     const pend = g.corp.management.peek()?.pending?.length || 0;
-    if (pend) out.push({ app: 'Management', text: `📋 ${pend} approval${pend === 1 ? '' : 's'}` });
+    if (pend) out.push({ app: 'Managers', text: `🙋 ${pend} to answer` });
     if (g.corp.lending.inArrears()) out.push({ app: 'Loans', text: '🏦 a loan is behind' });
     if (g.aero.owned) { const a = g.aero.roost; const m = Object.keys(a.inv || {}).length ? g.aero.shortfalls(a).length : 0; if (m) out.push({ app: 'Aerospace', text: `🛒 ${m} materials short` }); }
     return out.slice(0, 3);
@@ -66137,8 +65251,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
-  else if (tab === 'Personnel') peopleApp(ui, body, open); // v0.62.0
-  else if (tab === 'Management') managementApp(ui, body, open); // v0.63.0
+  else if (tab === 'Managers') managersApp(ui, body, open); // v0.89.0: replaces People and Management
   else if (tab === 'Exchange') exchangeApp(ui, body, open); // v0.66.0
   else if (tab === 'Bank') bankApp(ui, body); // v0.68.0
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0

@@ -1,4 +1,4 @@
-// The integrated corporate-group test (brief 20.5, v0.80.0): all four businesses under one parent, a qualified manager at each, separate budgets,
+// The integrated corporate-group test (brief 20.5, v0.80.0): all four businesses under one parent, a manager at each and a group manager, separate monthly limits,
 // autonomous operations, the world clock advanced through multiple operating periods — and every claim checked against the game's own records
 // (ledgers, logs, statements, saved state), not against what a screen shows. One long scenario, run once, asserted from every side.
 import { test, before } from 'node:test';
@@ -36,11 +36,10 @@ before(() => {
   for (const id of IDS) ok(`capital ${id}`, K.group.capitalise(id, 800_000));
   g.aero.roost.autoProcure = false;
   pe.ensure();
-  const hire = (role, employer) => { const c = pe.candidates().find((x) => x.roles.includes(role)); assert.ok(c, `a candidate for ${role}`); const r = pe.offer(c.id, { role, employer, pay: c.floor + 5 }); ok(`hire ${role}`, r); return r.person; };
-  staff = [hire('gm', 'arms'), hire('procurement_mgr', 'arms'), hire('aero_ops_mgr', 'aerospace'), hire('procurement_mgr', 'aerospace'), hire('logistics_mgr', 'shipping'), hire('farm_mgr', 'farming'), hire('cfo', 'parent')];
-  for (const [e, c] of [['arms', 'materials'], ['aerospace', 'materials'], ['aerospace', 'hiring'], ['aerospace', 'contracts'], ['farming', 'hiring'], ['shipping', 'hiring'], ['arms', 'hiring'], ['arms', 'expansion']]) ok(`budget ${e} ${c}`, M.setBudget(e, c, 300_000));
-  ok('margin', M.setMargin('aerospace', 15));
-  for (const x of Object.values(pe.peek().staff)) { x.authority = { ...x.authority, spendLimit: 500_000, approvalAbove: 100_000, canHire: true, canContract: true, canExpand: true, canTransfer: true }; x.startDay = 1; }
+  const hire = (role, employer) => { const r = pe.hire(role, employer); ok(`hire ${role} ${employer}`, r); return r.person; };
+  staff = [hire('manager', 'arms'), hire('manager', 'aerospace'), hire('manager', 'shipping'), hire('manager', 'farming'), hire('group_manager', 'parent')];
+  for (const [e, c] of [['arms', 100_000], ['aerospace', 300_000], ['shipping', 100_000], ['farming', 100_000]]) ok(`limit ${e}`, M.setCap(e, c));
+  for (const x of Object.values(pe.peek().staff)) x.startDay = 1;
   pe.epoch++;
   dayRun(g, DAYS);
 });
@@ -74,18 +73,20 @@ test('1–2: each subsidiary did real, industry-specific things, and every reven
   assert.ok(K.reconciles(), 'every account in the group reconciles');
 });
 
-test('3: managers procured only what is eligible, within their budgets, once per day and per need', () => {
+test('3: managers procured only what is eligible, within their monthly limits, once per day and per need', () => {
   const done = M.peek().log.filter((l) => l.type === 'done');
   assert.ok(done.some((l) => l.kind === 'reorder'), 'managers reordered');
   assert.ok(done.some((l) => l.kind === 'bid'), 'and bid');
-  // never past a budget in any month
-  for (const e of IDS) for (const cat of ['materials', 'hiring', 'contracts', 'expansion', 'treasury']) {
-    const cap = M.budgetOf(e, cat);
-    for (const m of Object.keys(M.peek().spent[e]?.[cat] || {})) assert.ok((M.peek().spent[e][cat][m] || 0) <= cap, `${e} ${cat} month ${m}: spent ${M.peek().spent[e][cat][m]} of ${cap}`);
+  // never past a limit in any month
+  for (const e of IDS) {
+    const cap = M.customCap(e);
+    for (const m of Object.keys(M.peek().spent[e] || {})) assert.ok((M.peek().spent[e][m] || 0) <= cap, `${e} month ${m}: spent ${M.peek().spent[e][m]} of ${cap}`);
   }
   // one reorder decision per business per day (a repeated simulation tick never buys twice)
   const seen = new Set();
   for (const l of done.filter((x) => x.kind === 'reorder')) { const k = `${l.employer}|${l.day}`; assert.ok(!seen.has(k), `no second reorder at ${l.employer} on day ${l.day}`); seen.add(k); }
+  // expansion is only ever asked about, never done unasked
+  assert.equal(done.filter((l) => l.kind === 'expand').length, 0, 'nobody expanded without asking');
   // bids honour capacity: never more than the limit of live contracts and open bids
   const A = g.aero;
   const open = A.openTenders().filter((t) => t.bids.some((b) => b.company === A.roost.id)).length;
@@ -125,26 +126,23 @@ test('5–7: every subsidiary has a report; the parent holds only what was recor
   assert.deepEqual(K.state.ownership.map((e) => e.sub).sort(), [...IDS].sort());
 });
 
-test('8–9: wars, embargoes and shortages reach the managers\' decisions, and budgets and distress are met with real, logged responses', () => {
+test('8–9: wars, embargoes and shortages reach the managers\' decisions, and limits and distress are met with real, logged responses', () => {
   // the arms market's wars and embargoes ran through the period and are recorded
   assert.ok(K.geo.events().length > 0);
-  // put a war in force and watch the response: costs up → a request for a bigger budget, expansion held back
+  // put a war in force and watch the response: costs up → expansion held back (supplies go on)
   const st = K.geo.ensure();
   const ev = (kind, extra) => ({ id: `ev_t${st.nextId++}`, key: `t${st.nextId}`, kind, start: 1, registered: 1, end: null, status: 'active', severity: 1, goods: [], timeline: [], ...extra });
   st.events.push(ev('war', { parties: ['teshvar', 'morrow'] }), ev('war', { parties: ['varn', 'caldera'] }));
-  assert.ok(M.pressure('aerospace') > MGMT.costNotice, `aerospace costs up ${(M.pressure('aerospace') * 100).toFixed(1)}%`);
-  M.ensure().spent.aerospace = { materials: { [M.month]: M.budgetOf('aerospace', 'materials') * 0.9 } };
-  const ask = M.askMoreBudget('aerospace');
-  assert.ok(ask && ask.kind === 'budget', 'a manager asks for a bigger materials budget');
-  const x = Object.values(pe.peek().staff).find((p) => p.role === 'gm' && p.employer === 'arms');
-  const hold = M.judgeFor(x, 'expand', 'arms', 'expansion', 1000);
+  assert.ok(M.pressure('aerospace') > 0, `aerospace costs up ${(M.pressure('aerospace') * 100).toFixed(1)}%`);
+  const x = Object.values(pe.peek().staff).find((p) => p.role === 'manager' && p.employer === 'arms');
+  const hold = M.judgeFor(x, 'expand', 'arms', 1000);
   assert.ok(M.pressure('arms') >= MGMT.costHold, 'the two wars push arms costs past the hold-back line');
   assert.equal(hold.verdict, 'refuse'); assert.match(hold.reason, /hold back expansion/);
   st.events = st.events.filter((e) => !String(e.id).startsWith('ev_t'));
-  // a budget that is gone is a refusal with its reason; a company that cannot pay is refused too
-  M.ensure().spent.arms = { materials: { [M.month]: M.budgetOf('arms', 'materials') } };
-  const j = M.judgeFor(Object.values(pe.peek().staff).find((p) => p.role === 'procurement_mgr' && p.employer === 'arms'), 'reorder', 'arms', 'materials', 1000);
-  assert.equal(j.verdict, 'refuse'); assert.match(j.reason, /monthly budget/);
+  // a limit that is used up is a refusal with its reason
+  M.ensure().spent.arms = { [M.month]: M.capOf('arms') };
+  const j = M.judgeFor(x, 'reorder', 'arms', 1000);
+  assert.equal(j.verdict, 'refuse'); assert.match(j.reason, /monthly limit/);
   // distress: an account drained to nothing cannot be spent from, and its arrears are recorded, not hidden
   const a = K.account('arms'); const had = a.cash;
   assert.ok(K.pay('arms', had, { cat: 'wages' }));
@@ -165,21 +163,17 @@ test('10: the parent can put capital into a subsidiary, once, as a recorded tran
   assert.equal(Math.round(after), Math.round(before.all), 'no money made or lost: the group moved it');
 });
 
-test('11: manager skill makes a bounded, measurable difference to outcomes', () => {
-  const run = (skill) => {
+test('11: a manager does the same small, bounded good for any business, whoever they are', () => {
+  const parts = (hire) => {
     const h = newGame(7002); h.player.money = 30_000_000;
     assert.ok(h.arms.buyLicence().ok && h.arms.buy('aw1').ok); h.corp.ensureWorld();
     assert.ok(h.corp.contribute('arms', 600_000).ok);
-    const p = h.corp.personnel; p.ensure();
-    const c = p.candidates().find((x) => x.roles.includes('procurement_mgr'));
-    const r = p.offer(c.id, { role: 'procurement_mgr', employer: 'arms', pay: c.floor + 5 });
-    for (const k of Object.keys(r.person.skills)) r.person.skills[k] = skill;
-    r.person.startDay = 1; p.epoch++;
+    if (hire) { const r = h.corp.personnel.hire('manager', 'arms'); assert.ok(r.ok, r.text); r.person.startDay = 1; h.corp.personnel.epoch++; }
     return h.arms.partsMult();
   };
-  const hi = run(100); const lo = run(10); const none = (() => { const h = newGame(7002); return h.arms.partsMult(); })();
-  assert.ok(hi < lo, `a skilled buyer pays less for parts (${hi} vs ${lo})`);
-  assert.ok(hi >= none * 0.8 && lo <= none * 1.05, 'bounded: no manager makes parts free or worth more than they are');
+  const none = parts(false); const one = parts(true); const again = parts(true);
+  assert.ok(Math.abs(one - none * 0.97) < 1e-9, `a manager takes exactly 3% off parts (${one} vs ${none})`);
+  assert.equal(one, again, 'and every manager does the same: nobody has a skill to make it better or worse');
 });
 
 test('12: saved and loaded in the middle of it all, every balance, record and pending obligation is the same — and the group\'s own records go on identically', () => {
@@ -194,8 +188,8 @@ test('12: saved and loaded in the middle of it all, every balance, record and pe
   assert.ok(h.corp.reconciles());
   dayRun(g, 3); dayRun(h, 3);
   // (the arms market's own dice and the townspeople are not bit-for-bit after a reload — that is older than this update — so the market and the wars it starts are not compared three days on; the group's records are)
-  const MINE = ['accounts', 'companies', 'parent', 'ownership', 'transfers', 'loans', 'group', 'management', 'personnel', 'lending', 'bonds', 'bank']; // the group's own records
-  const mine = (x) => [MINE.map((k) => x.world.corp[k]), x.world.robbery, x.player.money]; // (the wars, the competitors and the exchange follow the arms market's dice, which a reload re-rolls)
+  const MINE = ['accounts', 'companies', 'parent', 'ownership', 'transfers', 'loans', 'group', 'management', 'people', 'lending', 'bonds', 'bank']; // the group's own records
+  const noLog = (k, v) => (k === 'management' && v ? { ...v, log: undefined, last: undefined, pending: undefined } : v); // (what managers say about the wars follows the arms market's re-rolled dice, so their log and open requests are not compared; their spending is)
+  const mine = (x) => [MINE.map((k) => noLog(k, x.world.corp[k])), x.world.robbery, x.player.money]; // (the wars, the competitors and the exchange follow the arms market's dice, which a reload re-rolls)
   assert.deepEqual(diffs(mine(g), mine(h)), [], 'identical three days on: nothing duplicated, nothing lost, no second decision, no second payroll');
-  assert.equal(h.corp.management.peek().pending.length, g.corp.management.peek().pending.length);
 });

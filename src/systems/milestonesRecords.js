@@ -8,9 +8,8 @@ export function recordsOf(K) {
   const cur = Math.floor((day - 1) / 30);
   const pe = K.personnel.peek();
   const M = K.management.peek();
-  const staff = Object.values(pe?.staff || {}).map((x) => ({ role: x.role, employer: x.employer, status: x.status, skill: Math.max(0, ...Object.values(x.skills || {})) }));
-  const budgets = {};
-  for (const [e, cats] of Object.entries(M?.budgets || {})) budgets[e] = Object.values(cats).reduce((a, b) => a + (b || 0), 0);
+  const staff = Object.values(pe?.staff || {}).map((x) => ({ role: x.role, employer: x.employer, status: x.status }));
+  const furnished = Object.values(K.game.hq?.peek()?.style || {}).some((t) => Object.keys(t).length > 0);
   const done = (M?.log || []).filter((l) => l.type === 'done' || l.type === 'approved');
   const decided = {};
   for (const l of done) decided[l.employer] = (decided[l.employer] || 0) + 1;
@@ -32,5 +31,5 @@ export function recordsOf(K) {
   const contracts = g.aero.owned ? g.aero.contractsOf(g.aero.roost).filter((c) => c.status !== 'cancelled').map((c) => ({ value: c.unitPrice * c.qty })) : [];
   const wars = K.geo.events().filter((e) => e.kind === 'war');
   const expandedInWar = done.some((l) => l.kind === 'expand' && wars.some((w) => l.day >= w.start && l.day <= (w.end ?? Infinity)));
-  return { established: COMPANY_IDS.filter((id) => K.established(id)), parent: Boolean(K.state.parent), subs: K.group.subs(), staff, budgets, decided, ranks, months, portfolio, loans, contracts, expandedInWar, day };
+  return { established: COMPANY_IDS.filter((id) => K.established(id)), parent: Boolean(K.state.parent), subs: K.group.subs(), staff, furnished, decided, ranks, months, portfolio, loans, contracts, expandedInWar, day };
 }

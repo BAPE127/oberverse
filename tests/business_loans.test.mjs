@@ -94,10 +94,10 @@ test('a missed instalment is arrears with nothing seized; managers freeze; borro
   assert.ok(balanceOk(g.corp.account('arms')));
   assert.equal(g.corp.business.borrow('arms', 5000, 6).ok, false, 'no new loan while behind');
   // the judgement
-  const base = { kind: 'hire', atWork: true, allowed: true, canHire: true, canContract: true, canExpand: true, funded: true, cost: 100, spendLimit: 1000, approvalAbove: 1000, cap: 1000, spent: 0, affordable: true, hiresLeft: 2 };
+  const base = { kind: 'reorder', atWork: true, allowed: true, permitted: true, funded: true, cost: 100, cap: 1000, spent: 0, affordable: true };
   assert.equal(judge(base).verdict, 'execute');
-  for (const kind of ['hire', 'bid', 'expand']) { const r = judge({ ...base, kind, frozen: true }); assert.equal(r.verdict, 'refuse'); assert.match(r.reason, /behind on a bank loan/); }
-  assert.equal(judge({ ...base, kind: 'order', frozen: true }).verdict, 'execute', 'buying materials to keep running is not frozen');
+  for (const kind of ['research', 'bid', 'expand']) { const r = judge({ ...base, kind, frozen: true }); assert.equal(r.verdict, 'refuse'); assert.match(r.reason, /behind on a bank loan/); }
+  assert.equal(judge({ ...base, kind: 'reorder', frozen: true }).verdict, 'execute', 'buying materials to keep running is not frozen');
   // cash arrives: nothing is taken from it — the company clears the arrears by repaying, and only then are its managers free again
   g.corp.receive('arms', 50000, { cat: 'sales' });
   const owed = l.arrears;

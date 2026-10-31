@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.89.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'Managers, Simplified',
+    notes: [
+      'Skills are gone. Hire a manager for a business in one tap at a flat wage; tick what they may do on their own (buy supplies, take contracts, research, expand); set one monthly limit.',
+      'A manager always asks you before expanding. Old saves are converted for you.',
+    ],
+  },
+  {
     version: '0.88.0',
     date: '2026-10-31',
     channel: 'development',

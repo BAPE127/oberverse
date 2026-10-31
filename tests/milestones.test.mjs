@@ -5,9 +5,9 @@ import { newGame, Game, CONTENT } from './helpers.mjs';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { MILESTONES, evaluate } from '../src/corp/milestones.js';
 
-const blank = () => ({ established: [], parent: false, subs: [], staff: [], budgets: {}, decided: {}, ranks: {}, months: [], portfolio: { tickers: 0, sectors: 0, value: 0, gain: 0, since: null }, loans: [], contracts: [], expandedInWar: false, day: 200 });
+const blank = () => ({ established: [], parent: false, subs: [], staff: [], furnished: false, decided: {}, ranks: {}, months: [], portfolio: { tickers: 0, sectors: 0, value: 0, gain: 0, since: null }, loans: [], contracts: [], expandedInWar: false, day: 200 });
 const met = (rec, id) => evaluate(rec).find((x) => x.id === id).met;
-const person = (role, employer, skill = 50, status = 'active') => ({ role, employer, status, skill });
+const person = (role, employer, status = 'active') => ({ role, employer, status });
 
 test('pure: each milestone asks for something that is in the records, and a little short of it is not enough', () => {
   const r = blank();
@@ -18,16 +18,17 @@ test('pure: each milestone asks for something that is in the records, and a litt
   assert.equal(met({ ...r, parent: true, subs: ['arms', 'shipping', 'aerospace'] }, 'group'), false);
   assert.equal(met({ ...r, parent: true, subs: ['arms', 'shipping', 'aerospace', 'farming'] }, 'group'), true);
   assert.equal(met({ ...r, subs: ['arms', 'shipping', 'aerospace', 'farming'] }, 'group'), false, 'subsidiaries need a parent');
-  const hq = [person('cfo', 'parent'), person('gm', 'parent'), person('hrd', 'parent')];
-  assert.equal(met({ ...r, staff: hq }, 'hq'), true); assert.equal(met({ ...r, staff: hq.slice(1) }, 'hq'), false, 'no CFO'); assert.equal(met({ ...r, staff: hq.slice(0, 2) }, 'hq'), false);
-  assert.equal(met({ ...r, staff: [person('cfo', 'parent', 79)] }, 'cfo'), false); assert.equal(met({ ...r, staff: [person('cfo', 'parent', 80)] }, 'cfo'), true);
-  assert.equal(met({ ...r, staff: [person('cfo', 'parent', 95, 'resigned')] }, 'cfo'), false, 'a CFO who has left does not count');
-  // delegation needs a manager, a budget AND a decision at every subsidiary: hiring and a budget alone are not enough
+  const hq = [person('group_manager', 'parent'), person('office', 'parent'), person('office', 'parent')];
+  assert.equal(met({ ...r, staff: hq }, 'hq'), true); assert.equal(met({ ...r, staff: hq.slice(1) }, 'hq'), false, 'no group manager'); assert.equal(met({ ...r, staff: hq.slice(0, 2) }, 'hq'), false);
+  assert.equal(met({ ...r, staff: [person('group_manager', 'parent', 'resigned'), person('office', 'parent'), person('office', 'parent')] }, 'hq'), false, 'a group manager who has left does not count');
+  assert.equal(met({ ...r, furnished: false }, 'furnished'), false); assert.equal(met({ ...r, furnished: true }, 'furnished'), true);
+  // delegation needs a manager AND a decision at every subsidiary: hiring alone is not enough
   const subs = ['arms', 'shipping', 'aerospace', 'farming'];
-  const mgr = subs.map((e) => person('gm', e)); const bud = Object.fromEntries(subs.map((e) => [e, 1000]));
-  assert.equal(met({ ...r, parent: true, subs, staff: mgr, budgets: bud }, 'delegated'), false, 'managers and budgets, but no decisions');
-  assert.equal(met({ ...r, parent: true, subs, staff: mgr, budgets: bud, decided: Object.fromEntries(subs.map((e) => [e, 1])) }, 'delegated'), true);
-  assert.equal(met({ ...r, parent: true, subs, staff: mgr, budgets: bud, decided: { arms: 1, shipping: 1, aerospace: 1 } }, 'delegated'), false, 'one subsidiary never decided anything');
+  const mgr = subs.map((e) => person('manager', e));
+  assert.equal(met({ ...r, parent: true, subs, staff: mgr }, 'delegated'), false, 'managers, but no decisions');
+  assert.equal(met({ ...r, parent: true, subs, staff: mgr, decided: Object.fromEntries(subs.map((e) => [e, 1])) }, 'delegated'), true);
+  assert.equal(met({ ...r, parent: true, subs, staff: mgr, decided: { arms: 1, shipping: 1, aerospace: 1 } }, 'delegated'), false, 'one subsidiary never decided anything');
+  assert.equal(met({ ...r, parent: true, subs, staff: subs.map((e) => person('office', e)), decided: Object.fromEntries(subs.map((e) => [e, 1])) }, 'delegated'), false, 'only a manager counts');
   // ranks
   const rk = (rank, of = 8) => [{ m: 1, rank, of }, { m: 2, rank, of }];
   assert.equal(met({ ...r, ranks: { arms: rk(5) } }, 'top5'), true); assert.equal(met({ ...r, ranks: { arms: rk(6) } }, 'top5'), false); assert.equal(met({ ...r, ranks: { arms: rk(2, 4) } }, 'top5'), false, 'a sector of four has no top five');
@@ -67,13 +68,15 @@ test('the service: nothing exists before the first award; awards are from real r
   for (const id of ['arms', 'shipping', 'aerospace', 'farming']) assert.ok(g.corp.group.join(id).ok);
   g.corp.milestones.dailyTick();
   assert.ok(g.corp.state.milestones.earned.parent && g.corp.state.milestones.earned.group);
-  // hiring a good CFO earns the CFO milestone — but hiring managers does not earn delegation
+  // a staffed headquarters needs a group manager and three people; hiring a manager does not earn delegation
   assert.ok(g.corp.contribute('parent', 3_000_000).ok);
   const pe = g.corp.personnel; pe.ensure();
-  const c = pe.candidates().find((x) => x.roles.includes('cfo')); const r = pe.offer(c.id, { role: 'cfo', employer: 'parent', pay: c.floor + 5 });
-  assert.ok(r.ok); for (const k of Object.keys(r.person.skills)) r.person.skills[k] = 90;
+  assert.ok(pe.hire('group_manager', 'parent').ok); assert.ok(pe.hire('office', 'parent').ok);
   g.corp.milestones.dailyTick();
-  assert.ok(g.corp.state.milestones.earned.cfo, 'a CFO of skill 90, employed');
+  assert.equal(g.corp.state.milestones.earned.hq, undefined, 'two people are not a staffed headquarters');
+  assert.ok(pe.hire('office', 'parent').ok);
+  g.corp.milestones.dailyTick();
+  assert.ok(g.corp.state.milestones.earned.hq, 'a group manager and two more, employed');
   assert.equal(g.corp.state.milestones.earned.delegated, undefined);
   assert.equal(g.corp.state.milestones.earned.autonomous, undefined);
   // the screen

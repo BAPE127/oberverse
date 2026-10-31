@@ -51,8 +51,8 @@ test('a day is run once: every service that runs each morning can be asked twice
   const row = g.corp.exchange.board().find((r) => r.source === 'generated'); assert.ok(g.corp.exchange.buy(row.ticker, 100).ok);
   assert.ok(g.corp.lending.borrow(100_000, 12).ok); assert.ok(g.corp.business.borrow('arms', 80_000, 12).ok);
   const pe = g.corp.personnel; pe.ensure();
-  const c = pe.candidates().find((x) => x.roles.includes('gm')); assert.ok(pe.offer(c.id, { role: 'gm', employer: 'arms', pay: c.floor + 5 }).ok);
-  assert.ok(g.corp.management.setBudget('arms', 'materials', 100_000).ok);
+  assert.ok(pe.hire('manager', 'arms').ok);
+  assert.ok(g.corp.management.setCap('arms', 100_000).ok);
   for (const d of [35, 36, 70]) {
     day(g, d, '19:05');
     g.corp.dailyTick(); pe.payroll();
@@ -80,19 +80,19 @@ test('a loan is bounded by what stands behind it: borrowing again and again stop
   invariants(g, 'after borrowing to the limit');
 });
 
-test('a purchase split into pieces does not get under a manager\'s limits: what they have committed today counts', () => {
-  const base = { kind: 'reorder', owner: false, atWork: true, allowed: true, canHire: true, funded: true, cost: 600, spendLimit: 1000, approvalAbove: 1000, cap: 10_000, spent: 0, affordable: true, hiresLeft: 2 };
-  assert.equal(judge(base).verdict, 'execute', 'one purchase of 600 is within both limits');
-  assert.equal(judge({ ...base, daySpent: 600 }).verdict, 'refuse', 'a second of 600 the same day passes the limit of 1000');
-  assert.match(judge({ ...base, daySpent: 600 }).reason, /already committed today/);
-  assert.equal(judge({ ...base, spendLimit: 5000, daySpent: 600 }).verdict, 'queue', 'inside the limit, but above what they may do without asking');
-  assert.equal(judge({ ...base, spendLimit: 5000, daySpent: 600, owner: true }).verdict, 'execute', 'the owner may approve it');
-  // and the service keeps the tally from its own log
+test('a purchase split into pieces does not get under a manager\'s monthly limit: what has been spent this month counts', () => {
+  const base = { kind: 'reorder', owner: false, atWork: true, allowed: true, permitted: true, funded: true, cost: 600, cap: 1000, spent: 0, affordable: true };
+  assert.equal(judge(base).verdict, 'execute', 'one purchase of 600 is within the limit of 1000');
+  assert.equal(judge({ ...base, spent: 600 }).verdict, 'refuse', 'a second of 600 the same month passes it');
+  assert.match(judge({ ...base, spent: 600 }).reason, /monthly limit/);
+  assert.equal(judge({ ...base, kind: 'expand', cost: 5000 }).verdict, 'queue', 'expansion is asked about, whatever it costs');
+  assert.equal(judge({ ...base, kind: 'expand', cost: 5000, owner: true }).verdict, 'execute', 'and you may say yes to it');
+  // and the service keeps the tally from what it was told was spent
   const g = rich(6104);
   const M = g.corp.management; M.ensure();
-  const x = { id: 'per_t' };
-  M.peek().log.push({ day: g.clock.day, type: 'done', actor: 'per_t', cost: 450, kind: 'reorder', employer: 'arms' }, { day: g.clock.day, type: 'refused', actor: 'per_t', cost: 9999 }, { day: g.clock.day - 1, type: 'done', actor: 'per_t', cost: 777 }, { day: g.clock.day, type: 'done', actor: 'someone', cost: 5 });
-  assert.equal(M.committedToday(x), 450, 'only today\'s carried-out decisions of this person');
+  M.note('arms', 450); M.note('arms', 150);
+  assert.equal(M.spentIn('arms'), 600, 'the pieces add up');
+  assert.equal(M.spentIn('shipping'), 0, 'and belong to the business that spent them');
 });
 
 test('after every kind of transaction the game can be saved, and what comes back is exactly what was saved — and consistent', () => {
@@ -109,7 +109,7 @@ test('after every kind of transaction the game can be saved, and what comes back
   assert.ok(g.corp.group.form().ok); assert.ok(g.corp.group.join('arms').ok); check('a parent formed and a subsidiary joined');
   assert.ok(g.corp.contribute('parent', 1_000_000).ok); assert.ok(g.corp.group.capitalise('arms', 300_000).ok); check('capital moved to a subsidiary');
   assert.ok(g.corp.group.lend('arms', 100_000, { termMonths: 6 }).ok); check('an intercompany loan');
-  const pe = g.corp.personnel; pe.ensure(); const c = pe.candidates().find((x) => x.roles.includes('gm')); assert.ok(pe.offer(c.id, { role: 'gm', employer: 'arms', pay: c.floor + 5 }).ok); check('a manager hired');
+  const pe = g.corp.personnel; pe.ensure(); assert.ok(pe.hire('manager', 'arms').ok); check('a manager hired');
   day(g, 40, '19:05'); g.corp.dailyTick(); pe.payroll(); check('a month closed and payroll paid');
   g.inventory.add('item_revolver', 1); g.player.equipped = 'item_revolver'; g.changeMap('first_bank', 'entry'); setTime(g, 41, '10:30'); g.changeMap('first_bank', 'entry');
   g.robbery.minuteTick(); g.interact({ id: 'bank_tellers' }); check('a robbery begun');
@@ -131,7 +131,7 @@ test('a refused transaction changes nothing: no money, holding, record or log mo
     'borrow far more than your holdings secure': () => g.corp.lending.borrow(5_000_000, 12), 'borrow less than the smallest loan': () => g.corp.lending.borrow(50, 12), 'borrow for a term not offered': () => g.corp.lending.borrow(5000, 7), 'repay a loan you do not have': () => g.corp.lending.repay('nope', 10),
     'lend to an unfunded company': () => g.corp.business.borrow('farming', 5000, 12), 'lend a company more than its books allow': () => g.corp.business.borrow('arms', 99_999_999, 12), 'repay a company loan that is not there': () => g.corp.business.repay('nope', 10),
     'join a group that is not formed': () => g.corp.group.join('arms'), 'capitalise without a parent': () => g.corp.group.capitalise('arms', 1000), 'lend from a parent that is not there': () => g.corp.group.lend('arms', 1000),
-    'hire someone who does not exist': () => g.corp.personnel.offer('per_nobody', { role: 'gm', employer: 'arms', pay: 1 }),
+    'hire a job that does not exist': () => g.corp.personnel.hire('wizard', 'arms'),
   };
   let n = 0;
   for (const [what, f] of Object.entries(tries)) {

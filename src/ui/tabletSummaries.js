@@ -2,9 +2,7 @@
 // the app as it always was is one tap down in a fold. Nothing is computed here but layout; every button calls the system that always did the work.
 import { h } from './panels.js';
 import { hero, segments, tiles, row, help, note, fold, openFold, buttons, big, n } from './tabletKit.js';
-import { managementFull } from './corpManage.js';
 import { groupFull } from './corpGroup.js';
-import { peopleFull } from './corpPeople.js';
 import { economyFull } from './corpEconomy.js';
 import { exchangeFull } from './corpExchange.js';
 import { milestonesFull } from './corpMilestones.js';
@@ -15,30 +13,6 @@ import { HQ_TIERS } from '../content/hq.js';
 import { PLAYER_COMPANIES } from '../corp/identity.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const KIND = { budget: 'raise the materials budget', hire: 'hire', reorder: 'reorder', bid: 'bid', expand: 'expand', transfer: 'move cash' };
-
-// ---------------------------------------------------------------- Management
-export function managementApp(ui, body, open) {
-  const g = ui.game;
-  const K = g.corp;
-  const M = K.management;
-  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Management'); };
-  const nt = note(ui);
-  if (nt) body.append(nt);
-  const m = M.peek();
-  const pending = m?.pending || [];
-  const alerts = M.alerts();
-  const log = (m?.log || []).slice(-3).reverse();
-  const budgets = Object.values(m?.budgets || {}).reduce((a, b) => a + Object.values(b || {}).filter((v) => v > 0).length, 0);
-  body.append(
-    hero({ label: 'Waiting for your word', value: pending.length ? `${pending.length} request${pending.length === 1 ? '' : 's'}` : 'Nothing', tone: pending.length ? 'gold' : '', sub: pending.length ? 'Managers asked before spending; nothing happens until you say.' : 'Managers act on their own inside the budgets you set.' }),
-    tiles([{ n: String(budgets), t: 'budgets set' }, { n: String((m?.plans || []).length), t: 'plans approved' }, { n: String((m?.log || []).length), t: 'decisions made' }]));
-  if (pending.length) body.append(list(...pending.map((q) => row({ icon: '📋', title: `${K.personnel.person(q.actor)?.name || 'Someone'} asks to ${KIND[q.kind] || q.kind}`, sub: `${K.personnel.employerName(q.employer)} · ${q.why}`, tag: q.kind === 'budget' ? `+${n(q.cost)} / month` : n(q.cost),
-    action: h('span', { class: 'tb-acts' }, h('button', { class: 'tb-mini pri', onclick: () => go(M.approve(q.id)) }, 'Approve'), h('button', { class: 'tb-mini', onclick: () => go(M.decline(q.id)) }, 'Decline')) }))));
-  if (alerts.length) body.append(list(...alerts.slice(0, 3).map((a) => row({ icon: '⚠', title: a.text, sub: a.advice }))));
-  if (log.length) body.append(list(...log.map((l) => row({ icon: '✔', title: `Day ${l.day}`, sub: l.text }))));
-  body.append(fold(ui, 'Management', 'Budgets, treasury and plans ›', (box) => managementFull(ui, box, open)));
-}
 
 // ---------------------------------------------------------------- Group
 export function groupApp(ui, body, open) {
@@ -89,7 +63,7 @@ export function groupApp(ui, body, open) {
       buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
   }
   body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.id === g.hq.best() ? `${g.hq.officers().length} of ${t.seats} seats taken` : `${t.desks} desks, ${t.seats} seats`} · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
-    action: t.owned ? h('button', { class: 'tb-mini pri', onclick: () => { ui.hqStyle = t.id; ui.hqPick = null; open('Group'); } }, 'Furnish ›') : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
+    action: t.owned ? h('span', { class: 'tb-acts' }, t.id === g.hq.best() && !g.hq.seatError() ? h('button', { class: 'tb-mini', onclick: () => { ui.mgrAsk = { role: 'office', employer: 'parent' }; open('Managers'); } }, 'Hire staff') : null, h('button', { class: 'tb-mini pri', onclick: () => { ui.hqStyle = t.id; ui.hqPick = null; open('Group'); } }, 'Furnish ›')) : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
 }
 
@@ -115,23 +89,6 @@ function hqStyleScreen(ui, body, open, tier, pa) {
   }
   body.append(help(`About ${cur.name.toLowerCase()} ›`, cur.text, 'Furnishing is looks only: it never earns, saves or returns money. Going back to the original is free. Lamps glow at night; the rest you will see when you walk in.'),
     buttons(big('‹ Back to the group', () => { ui.hqStyle = null; ui.hqPick = null; open('Group'); })));
-}
-
-// ---------------------------------------------------------------- Personnel
-export function peopleApp(ui, body, open) {
-  const g = ui.game;
-  const Pe = g.corp.personnel;
-  const nt = note(ui);
-  if (nt) body.append(nt);
-  const staff = Object.values(Pe.peek()?.staff || {}).filter((x) => x.status === 'active');
-  const perDay = staff.reduce((a, x) => a + (x.salary || 0), 0);
-  const openings = Pe.openings();
-  body.append(
-    hero({ label: 'Your people', value: String(staff.length), sub: staff.length ? `paid ${n(perDay)} obols a day by the businesses they work for` : 'Nobody works for your businesses yet.' }),
-    tiles([{ n: String(openings.length), t: 'openings', tone: openings.length ? 'good' : '' }, { n: n(perDay), t: 'a day in pay' }, { n: String((Pe.candidates() || []).length), t: 'candidates' }]));
-  if (openings.length) body.append(list(...openings.slice(0, 4).map((o) => row({ icon: '🧑‍💼', title: `${o.roleName} — ${o.employerName}`, sub: o.why, tag: `${n(o.pay[0])}–${n(o.pay[1])} a day`, action: h('button', { class: 'tb-mini pri', onclick: () => { const S = (ui.corpPeople ||= { view: 'openings', tier: '', role: '', sort: 'fit', sel: null, cmp: [], who: null }); Object.assign(S, { view: 'candidates', role: o.role, tier: '' }); openFold(ui, 'Personnel'); open('Personnel'); } }, 'See candidates') }))));
-  if (staff.length) body.append(list(...staff.slice(0, 5).map((x) => row({ icon: '🧑', title: x.name, sub: `${x.roleName || x.role} — ${Pe.employerName(x.employer)}`, tag: `${n(x.salary)} a day` }))));
-  body.append(fold(ui, 'Personnel', 'Hire, compare, manage and pay ›', (box) => peopleFull(ui, box, open)));
 }
 
 // ---------------------------------------------------------------- Milestones

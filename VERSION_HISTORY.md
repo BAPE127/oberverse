@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.89.0 | 2026-10-31 | development | 1 | Managers, simplified: no skills, no candidates, no budgets by category. One-tap hire at a flat wage; tick-boxes for what a manager may do on their own; one monthly limit per business; expansion is always asked first; a group manager and office staff at the parent. Saves from before are converted. |
 | 0.88.0 | 2026-10-31 | development | 1 | The headquarters, stage 3: furnishing — the parent chooses desks, floor, walls, lamps, pictures and plants for an office it owns, from the Group app; looks only, paid once from the parent. |
 | 0.87.0 | 2026-10-31 | development | 1 | The headquarters, stage 2: officers at work — the parent's executives and managers walk to their own desks in office hours, lunch in the boardroom, and sleep in staff quarters behind the hall; an office holds only as many officers as it has seats. |
 | 0.86.0 | 2026-10-31 | development | 1 | The headquarters, stage 1: three offices on the paving of Halvermouth — a small office, a corporate centre and a tower — real buildings from the first day, shut and for sale until the parent company buys one from its own account; each hall the size of its building, a daily upkeep, and a Headquarters section in the Group app. |

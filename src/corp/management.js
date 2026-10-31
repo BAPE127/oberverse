@@ -1,40 +1,50 @@
-// Managers deciding for themselves (v0.63.0). Pure functions — no game state, no DOM, no RNG.
+// Managers deciding for themselves (v0.63.0, simplified in v0.89.0). Pure functions — no game state, no DOM, no RNG.
 //
 //   judge(d)                    one decision, one answer: execute, queue for the owner, or refuse — with the reason
 //   armsPar(stations, price)    what an arms works should hold of each bought part, and what it holds
 //   planArmsOrders(...)         the orders that bring it back up
-//   hireChoice(candidates, ...) who a manager would hire into a job: deterministic
+//   nextPlot / nextPort / bidPrice / treasuryMove     the fixed rules for expansion, bids and cash moves
+//   autoCap / autoReserve / autoTreasury             the limits the game works out when you set none
 //
 // A decision is judged the same way when it is made and again when the owner approves it later.
 
 /**
- * d: { kind, atWork, allowed, canHire, funded, cost, spendLimit, approvalAbove, cap, spent, affordable, hiresLeft }
- * `cost` is what the decision commits (for a hire: the fee and a month's wage). Order matters — the first failure is the reason.
- * `owner: true` is the owner's own approval: the ask-above limit no longer applies, everything else still does.
+ * d: { kind, owner, ask, atWork, allowed, permitted, funded, frozen, hold, cost, cap, spent, affordable }
+ * `cost` is what the decision commits. Order matters — the first failure is the reason. The monthly cap holds what a manager does on
+ * their own; moving cash and expanding are not held to it (cash moves stay inside the group; expansion is your call). `owner: true` is
+ * your own approval of something a manager asked about: everything else still holds.
+ * Expansion is always asked about first; a bid below the margin is too (d.ask); the rest is done and reported.
  */
 export function judge(d) {
   const no = (reason) => ({ verdict: 'refuse', reason });
   if (!d.atWork) return no('They are not at work and paid.');
   if (!d.allowed) return no('Their job does not make this kind of decision.');
-  if (d.kind === 'hire' && !d.canHire) return no('They are not authorised to hire.');
-  if (d.kind === 'bid' && !d.canContract) return no('They are not authorised to sign contracts.');
-  if (d.kind === 'transfer' && !d.canTransfer) return no('They are not authorised to move cash between companies.');
-  if (d.kind === 'expand' && !d.canExpand) return no('They are not authorised to expand the business.');
+  if (!d.permitted) return no('You have switched this off for them.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (d.hold && d.kind === 'expand') return no(d.hold);
-  if (d.frozen && (d.kind === 'hire' || d.kind === 'bid' || d.kind === 'expand')) return no('The company is behind on a bank loan: no hiring, bidding or expanding until it is cleared.');
-  if (!(d.cost > 0)) return no('There is nothing to spend.');
-  if (d.kind === 'hire' && d.hiresLeft <= 0) return no('The most hires a month has been made.');
-  const cap = Math.max(0, Number(d.cap) || 0);
-  if (!cap) return no('No monthly budget is set for this.');
-  const left = cap - (d.spent || 0);
-  if (d.cost > left) return no(`It would pass the monthly budget (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
-  const today = Math.max(0, Number(d.daySpent) || 0); // what this person has already committed today: a split purchase counts as one
-  if (d.cost + today > d.spendLimit) return no(`It is above their spending limit of ${d.spendLimit.toLocaleString()}${today ? ` (with the ${today.toLocaleString()} they have already committed today)` : ''}.`);
+  if (d.frozen && (d.kind === 'bid' || d.kind === 'expand' || d.kind === 'research')) return no('The company is behind on a bank loan: no bidding, research or expanding until it is cleared.');
+  if (!(d.cost > 0) && d.kind !== 'research') return no('There is nothing to spend.');
+  if (d.kind !== 'transfer' && d.kind !== 'expand' && !d.owner) { // (expansion is only ever asked about, so the monthly limit is not what stops it: your answer is)
+    const cap = Math.max(0, Number(d.cap) || 0);
+    const left = cap - (d.spent || 0);
+    if (d.cost > left) return no(`It would pass the monthly limit (${Math.max(0, Math.round(left)).toLocaleString()} left of ${cap.toLocaleString()}).`);
+  }
   if (!d.affordable) return no('The business\'s account cannot cover it.');
+  if (!d.owner && d.kind === 'expand') return { verdict: 'queue', reason: 'Expanding is always your call.' };
   if (!d.owner && d.ask) return { verdict: 'queue', reason: d.ask };
-  if (!d.owner && d.cost + today > d.approvalAbove) return { verdict: 'queue', reason: `It is above the ${d.approvalAbove.toLocaleString()} they may spend without asking${today ? ` (counting the ${today.toLocaleString()} they have already committed today)` : ''}.` };
   return { verdict: 'execute', reason: '' };
+}
+
+/** The monthly limit when you set none: about a quarter of the company's cash, to the nearest thousand, never under 5,000. */
+export const autoCap = (cash) => Math.max(5000, Math.round(Math.max(0, cash) * 0.25 / 1000) * 1000);
+
+/** The cash a manager always leaves in the account: fifteen days of its wages and running costs, never under 1,000. */
+export const autoReserve = (runningPerDay) => Math.max(1000, Math.round(Math.max(0, runningPerDay) * 15));
+
+/** The band the group manager keeps a subsidiary's cash in: from a month of its running costs to four times that (never under 2,000 and 10,000). */
+export function autoTreasury(runningPerDay) {
+  const floor = Math.max(2000, Math.round((runningPerDay * 30) / 500) * 500);
+  return { floor, ceiling: Math.max(10000, floor * 4) };
 }
 
 /**
@@ -64,16 +74,6 @@ export function planArmsOrders(par, held, price, M) {
   return out;
 }
 
-/**
- * Who a manager would hire into a job: the job's own level first, then the best fit, ties by id. Offered the floor.
- * cands: [{ id, tier, floor, fit }] already limited to people who suit the job.
- */
-export function hireChoice(cands, tier) {
-  const own = cands.filter((c) => c.tier === tier);
-  const pool = own.length ? own : cands;
-  return [...pool].sort((a, b) => b.fit - a.fit || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] || null;
-}
-
 // ------------------------------------------------------------------ bids and expansion (v0.64.0)
 
 /** Tiles between two rectangles { x, y, w, h }: 0 where they touch or overlap. */
@@ -94,23 +94,6 @@ export function nextPlot(plots, owned, maxGap) {
 /** The cheapest port for sale (ties by id). */
 export function nextPort(ports, owned) {
   return ports.filter((p) => !owned.includes(p.id)).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1))[0] || null;
-}
-
-/** The first cell, row by row, where a w×h item fits on the floor with a ring of cells around it free of anything built. */
-export function firstFreeCell(w, h, W, H, floor, taken) {
-  for (let y = 0; y + h <= H; y++) {
-    for (let x = 0; x + w <= W; x++) {
-      let ok = true;
-      for (let yy = y - 1; yy <= y + h && ok; yy++) {
-        for (let xx = x - 1; xx <= x + w && ok; xx++) {
-          const inside = xx >= x && xx < x + w && yy >= y && yy < y + h;
-          if (inside) { if (!floor(xx, yy) || taken(xx, yy)) ok = false; } else if (taken(xx, yy)) ok = false;
-        }
-      }
-      if (ok) return { x, y };
-    }
-  }
-  return null;
 }
 
 /**
