@@ -1216,6 +1216,25 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
   .tb-hero { flex-direction: column; align-items: flex-start; }
   .tb-tiles { gap: 6px; } .tb-tile .tb-n { font-size: 17px; }
 }
+/* v0.90.0: the OberPad's business screens */
+.tb-spark { display: flex; align-items: flex-end; gap: 3px; }
+.tb-spark i { width: 7px; border-radius: 3px; background: linear-gradient(#6fd0a4, #2f8f6a); }
+.tb-spark i.neg { background: linear-gradient(#ff9a8a, #c24a3a); }
+.tb-fig.up { animation: tb-up 1.2s ease-out; } .tb-fig.down { animation: tb-down 1.2s ease-out; }
+@keyframes tb-up { 0% { color: #5fe08a; text-shadow: 0 0 14px #5fe08a; } 100% { color: inherit; text-shadow: none; } }
+@keyframes tb-down { 0% { color: #ff8a7a; text-shadow: 0 0 14px #ff8a7a; } 100% { color: inherit; text-shadow: none; } }
+.tb-biz .tb-hero .grow { min-width: 0; }
+.tb-dotc { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.tb-dotc.g { background: #5fe08a; } .tb-dotc.a { background: #f2c14e; } .tb-dotc.r { background: #ff8a7a; }
+.tb-next { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; border: 2px solid var(--line); background: rgba(35,32,90,.82); margin-bottom: 8px; }
+.tb-next .t { flex: 1; min-width: 0; } .tb-next .t b { display: block; font-size: 16px; } .tb-next .t small { display: block; color: var(--ink-soft); font-size: 12.5px; margin-top: 2px; }
+.tb-next .tb-btn { flex: none; padding: 11px 18px; }
+.tb-needs { border-color: #f2c14e; text-align: left; align-items: flex-start; color: inherit; font: inherit; cursor: pointer; }
+.tb-needs.quiet { border-color: var(--line); }
+.tb-ask { margin: -2px 0 12px; }
+#modal-panel.tablet2 .tb-btn:active:not(:disabled), #modal-panel.tablet2 .tb-mini:active:not(:disabled), #modal-panel.tablet2 .tb-check:active, #modal-panel.tablet2 .tb-chip:active { transform: scale(.96); transition: transform .06s; }
+.tb-note { animation: tb-slide .35s ease-out; }
+@keyframes tb-slide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 </style>
 </head>
 <body>
@@ -16501,7 +16520,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.89.0';
+const GAME_VERSION = '0.90.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -41993,34 +42012,6 @@ class Personnel {
 return { Personnel };
 })();
 
-// ---- src/content/management.js
-__m["src/content/management.js"] = (function () {
-// What managers may decide on their own (v0.63.0, simplified in v0.89.0). Data only: src/corp/management.js judges a decision against it,
-// src/systems/management.js carries decisions out through the businesses' own services. Which things a person may do is ticked on the
-// person (src/content/personnel.js lists the boxes); here is only where each kind of decision applies and how it is bounded.
-
-/** Which kinds of decision a business can have, in the order they are made each day. 'transfer' is the group manager's, for subsidiaries. */
-const KINDS = { arms: ['reorder', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
-
-const MGMT = {
-  expireDays: 7, // a request left unanswered this long lapses; nothing happens by default
-  maxPending: 30,
-  logKept: 200,
-  maxOrderQty: 60, // arms: most of one part in one order
-  shiftHours: 8, // arms: the par stock of a part is this many hours of the staffed stations using it
-  reorderAt: 0.5, // arms: order up to par when stock and what is on order fall below this share of it
-  minMove: 1000, // the least a treasury decision moves (no dust)
-  maxContracts: 3, // active contracts and bids still open, at most, before a manager bids for more
-  bidMargin: 15, // percent over cost a manager bids at (a bid the customer's ceiling forces lower is asked about)
-  plotGap: 8, // tiles between two plots (a lane's width) that still count as next to each other
-  spentMonths: 3,
-  // v0.76.0: how managers answer a war's effect on what they buy (the cost index of the business's sector above 1)
-  costHold: 0.02, // up this much: managers hold back expansion to keep cash (supplies go on)
-};
-
-return { KINDS, MGMT };
-})();
-
 // ---- src/corp/management.js
 __m["src/corp/management.js"] = (function () {
 // Managers deciding for themselves (v0.63.0, simplified in v0.89.0). Pure functions — no game state, no DOM, no RNG.
@@ -42162,6 +42153,212 @@ function treasuryMove(policy, parentReserve, s, minMove) {
 }
 
 return { judge, autoCap, autoReserve, autoTreasury, armsPar, planArmsOrders, rectGap, nextPlot, nextPort, bidPrice, treasuryMove };
+})();
+
+// ---- src/systems/todo.js
+__m["src/systems/todo.js"] = (function () {
+// What needs doing, and what to do next (v0.90.0): game.corp.todo. Nothing here decides or spends by itself: it reads the same planners the managers
+// use (what to reorder, which contract to bid on, which research to start, what to expand into) and adds the plain jobs a farm and a fleet have
+// (harvest, plant, sell the crop; send a ship on the best contract), so the OberPad can show them to you as one button each, and gathers every
+// decision waiting for you into one inbox. A daily trail of each business's result feeds the little bar charts.
+//
+//   items(id)      what you could do now at a business: [{ key, icon, title, sub, cost, button }] (at most three; nothing a manager already does for you)
+//   run(id, key)   do it, through the service that has always done it; { ok, text }
+//   status(id)     { dot: 'g' | 'a' | 'r', text }   two words, and a colour
+//   tiles(id)      three figures for the business screen
+//   monthNet(id) / trail(id)   this month's result so far, and the last days'
+//   inbox()        every decision waiting for you: [{ key, icon, title, sub, amount, yes: { label, run }, no: { label, run } | null }]
+//
+// State: world.corp.trail = { [business]: { m, net, days: [ ... up to 14 daily results ] } }, written once a day (no random numbers).
+const { autoReserve } = __m["src/corp/management.js"];
+
+const BUSINESSES = ['arms', 'shipping', 'aerospace', 'farming'];
+const MAXITEMS = 3;
+const TRAIL = 14;
+
+class Todo {
+  constructor(corp) { this.K = corp; }
+  get g() { return this.K.game; }
+  get M() { return this.K.management; }
+  get Pe() { return this.K.personnel; }
+  get day() { return this.g.clock.day; }
+  peek() { return this.K.state.trail || null; }
+
+  // ------------------------------------------------------------- the results
+  regOf(id) { return this.K.registry().find((r) => r.playerId === id) || null; }
+  monthNet(id) {
+    const reg = this.regOf(id);
+    if (!reg) return 0;
+    const cur = Math.floor((this.day - 1) / 30);
+    return Math.round(this.K.rowsOf(reg).rows.find((r) => r.m === cur)?.net ?? 0);
+  }
+
+  /** Once a day: how much better or worse this month's result is than yesterday's, per business. */
+  dailyTick() {
+    if (!BUSINESSES.some((id) => this.K.established(id))) return;
+    const st = (this.K.state.trail ||= {});
+    const cur = Math.floor((this.day - 1) / 30);
+    for (const id of BUSINESSES) {
+      if (!this.K.established(id)) continue;
+      const net = this.monthNet(id);
+      const t = (st[id] ||= { m: cur, net, days: [] });
+      if (t.last === this.day) continue;
+      t.days.push(Math.round(t.m === cur ? net - t.net : net));
+      while (t.days.length > TRAIL) t.days.shift();
+      t.m = cur; t.net = net; t.last = this.day;
+    }
+  }
+
+  trail(id, n = 7) { return (this.peek()?.[id]?.days || []).slice(-n); }
+
+  // ------------------------------------------------------------- who already does it
+  /** The manager at work for this business who has the box for it ticked, or null. */
+  handled(id, kind) {
+    const x = this.Pe.holders(id, 'manager')[0];
+    return x && this.M.atWork(x) && this.Pe.may(x, kind) ? x : null;
+  }
+
+  // ------------------------------------------------------------- what to do next
+  items(id) {
+    if (!this.K.established(id)) return [];
+    const out = [];
+    const M = this.M; const g = this.g;
+    const money = (n) => `${Math.round(n).toLocaleString('en-US')}`;
+    const planned = (kind, make) => { if (this.handled(id, kind)) return; const c = M.candidates(kind, id)[0]; if (c) out.push(make(c)); };
+    if (id === 'arms' || id === 'aerospace') planned('reorder', (c) => ({ key: 'reorder', icon: '🛒', title: id === 'arms' ? 'Order parts' : `Buy ${M.planAero().length} material${M.planAero().length === 1 ? '' : 's'}`, sub: `What is running short · ${money(c.cost)}`, cost: c.cost, button: 'Buy' }));
+    if (id === 'aerospace') planned('bid', (c) => ({ key: 'bid', icon: '📄', title: 'A contract worth bidding on', sub: `${money(c.price)} · about ${money(c.profit)} profit`, cost: 0, button: 'Bid' }));
+    if (id === 'arms' || id === 'aerospace') planned('research', (c) => ({ key: 'research', icon: '🔬', title: `Research ${c.desc}`, sub: c.cost ? `${money(c.cost)}` : 'Free to start', cost: c.cost, button: 'Start' }));
+    if (id === 'shipping') {
+      const o = this.sendable();
+      if (o) out.push({ key: 'send', icon: '🚢', title: `Send the ${o.vessel.name}`, sub: `${g.logistics.cfg.clients[o.contract.client].name} · about ${money(o.quote.profit)} profit`, cost: o.quote.cost, button: 'Send' });
+    }
+    if (id === 'farming') out.push(...this.farmItems());
+    planned('expand', (c) => ({ key: 'expand', icon: '🏗️', title: `Expand: ${c.desc}`, sub: `${money(c.cost)}`, cost: c.cost, button: 'Buy' }));
+    return out.slice(0, MAXITEMS);
+  }
+
+  /** The best contract an idle ship could take right now: one still open to accept (or already accepted), most profit first. */
+  sendable() {
+    const L = this.g.logistics; const now = this.g.clock.total;
+    return L.opportunities(8).find((o) => o.contract.status === 'accepted' || o.contract.deadline > now) || null;
+  }
+
+  /** Harvest what is ready, plant what is tilled (if you hold the seed), till what lies fallow, sell the crop you carry. */
+  farmItems() {
+    const F = this.g.farm; const g = this.g;
+    const out = [];
+    const rows = F.owned().map((id) => ({ id, st: F.plot(id), d: F.plotDef(id) })).filter((x) => x.d);
+    for (const { id, st, d } of rows) if (st.state === 'planted' && st.stage >= 3) out.push({ key: `harvest:${id}`, icon: '🌾', title: `Harvest ${d.name}`, sub: `About ${F.expectedYield(id)} ${F.def.crops[st.crop].name.toLowerCase()} · ${Math.round(F.workPlan(id).minutes / 60)} h`, cost: 0, button: 'Harvest' });
+    for (const { id, st, d } of rows) {
+      if (st.state !== 'tilled') continue;
+      const a = F.actions(id).find((x) => x.action === 'plant' && x.ok);
+      if (a) out.push({ key: `plant:${id}:${a.crop}`, icon: '🌱', title: `Plant ${F.def.crops[a.crop].name.toLowerCase()} on ${d.name}`, sub: `${F.seedBags(id, a.crop)} bags of seed · ready in ${F.def.crops[a.crop].days} days`, cost: 0, button: 'Plant' });
+    }
+    for (const { id, st, d } of rows) if (st.state === 'fallow') out.push({ key: `till:${id}`, icon: '🚜', title: `Till ${d.name}`, sub: `${Math.round(F.workPlan(id).minutes / 60)} h of work`, cost: 0, button: 'Till' });
+    for (const c of Object.values(F.def.crops)) {
+      const n = g.inventory.count(c.crop);
+      if (n > 0) out.push({ key: `sell:${c.crop}`, icon: '💰', title: `Sell ${n} ${g.content.items[c.crop].name.toLowerCase()}`, sub: `The Co-op pays about ${(F.coopPrice(c.crop) * n).toLocaleString('en-US')}`, cost: 0, button: 'Sell' });
+    }
+    return out;
+  }
+
+  /** Do one of them now. Re-planned at the moment you press, so what is done is what is needed now. */
+  run(id, key) {
+    const g = this.g; const M = this.M;
+    const [what, a, b] = String(key).split(':');
+    if (['reorder', 'bid', 'research', 'expand'].includes(what)) return M.doNow(what, id);
+    if (what === 'send') {
+      const L = g.logistics; const o = this.sendable();
+      if (!o) return { ok: false, text: 'Nothing to send right now.' };
+      if (o.contract.status === 'available') { const r = L.accept(o.contract.id); if (!r.ok) return r; }
+      return L.assign(o.contract.id, o.vessel.id);
+    }
+    if (what === 'harvest' || what === 'till') return g.farm.work(a, what);
+    if (what === 'plant') return g.farm.work(a, 'plant', b);
+    if (what === 'sell') return g.farm.sellAtCoop(a, g.inventory.count(a));
+    return { ok: false, text: 'No such job.' };
+  }
+
+  // ------------------------------------------------------------- how a business is
+  /** Two words and a colour: red for a loan behind, amber for something short, green for running. */
+  status(id) {
+    const K = this.K;
+    if (!K.established(id)) return { dot: 'r', text: 'Not yours' };
+    if (K.business.inArrears(id)) return { dot: 'r', text: 'Behind on a loan' };
+    const short = this.shortage(id);
+    if (short) return { dot: 'a', text: short };
+    const a = K.account(id);
+    if (a.funded && a.cash < autoReserve(K.group.runningPerDay(id))) return { dot: 'a', text: 'Low on cash' };
+    return { dot: 'g', text: 'Running' };
+  }
+
+  /** What is short, if anything: parts at the arms works, materials at the aerospace firm. */
+  shortage(id) {
+    const M = this.M;
+    if (id === 'arms') { const n = M.planArms().length; return n ? `Short of ${n} part${n === 1 ? '' : 's'}` : null; }
+    if (id === 'aerospace') { const A = this.g.aero; const n = A.owned ? new Set(A.shortfalls(A.roost).map((s) => s.material)).size : 0; return n ? `Short of ${n} part${n === 1 ? '' : 's'}` : null; }
+    return null;
+  }
+
+  tiles(id) {
+    const g = this.g;
+    if (id === 'arms') return [{ n: g.arms.ownedIds().length, t: 'works' }, { n: g.arms.state.staff.length, t: 'staff' }, { n: g.market.state.shipments.length, t: 'at sea' }];
+    if (id === 'shipping') { const vs = g.logistics.vessels().filter((v) => v.status !== 'lost'); return [{ n: vs.length, t: 'ships' }, { n: vs.filter((v) => v.status === 'underway').length, t: 'at sea' }, { n: g.logistics.ownedPorts().length, t: 'ports' }]; }
+    if (id === 'aerospace') { const A = g.aero; return [{ n: A.contractsOf(A.roost, 'active').length, t: 'contracts' }, { n: new Set(A.shortfalls(A.roost).map((s) => s.material)).size, t: 'parts short' }, { n: A.openTenders().length, t: 'open tenders' }]; }
+    const F = g.farm; const owned = F.owned();
+    return [{ n: owned.length, t: 'plots' }, { n: owned.filter((p) => F.plot(p).state === 'planted' && F.plot(p).stage >= 3).length, t: 'ready' }, { n: owned.filter((p) => F.plot(p).state === 'fallow').length, t: 'fallow' }];
+  }
+
+  // ------------------------------------------------------------- the inbox
+  inbox() {
+    const K = this.K; const M = this.M; const Pe = this.Pe;
+    const out = [];
+    const money = (n) => `${Math.round(n).toLocaleString('en-US')}`;
+    for (const q of M.peek()?.pending || []) {
+      const who = Pe.person(q.actor)?.first || 'A manager';
+      out.push({ key: `req:${q.id}`, icon: '🙋', title: `${who} would like to ${M.verb(q.kind)}`, sub: `${Pe.employerName(q.employer)}${q.desc ? ` · ${q.desc}` : ''}`, amount: q.cost || 0,
+        yes: { label: 'Yes', run: () => M.approve(q.id) }, no: { label: 'No', run: () => M.decline(q.id) } });
+    }
+    for (const l of K.lending.loans().filter((x) => x.arrears > 0)) out.push({ key: `loan:${l.id}`, icon: '🏦', title: 'You are behind on a loan', sub: 'Lariat State Bank · nothing is taken from you', amount: l.arrears, yes: { label: 'Pay now', run: () => K.lending.repay(l.id, l.arrears) }, no: null });
+    for (const id of BUSINESSES) {
+      if (!K.established(id)) continue;
+      for (const l of K.business.loans(id).filter((x) => x.arrears > 0)) out.push({ key: `bloan:${l.id}`, icon: '🏦', title: `${Pe.employerName(id)} is behind on a loan`, sub: 'Lariat State Bank', amount: l.arrears, yes: { label: 'Pay now', run: () => K.business.repay(l.id, l.arrears) }, no: null });
+      const short = this.shortage(id);
+      if (short && !this.handled(id, 'reorder')) { const c = M.candidates('reorder', id)[0]; if (c) out.push({ key: `short:${id}`, icon: '🛒', title: `${Pe.employerName(id)}: ${short.toLowerCase()}`, sub: `Order what is needed · ${money(c.cost)}`, amount: c.cost, yes: { label: 'Buy', run: () => M.doNow('reorder', id) }, no: null }); }
+    }
+    return out.slice(0, 8);
+  }
+}
+
+return { Todo };
+})();
+
+// ---- src/content/management.js
+__m["src/content/management.js"] = (function () {
+// What managers may decide on their own (v0.63.0, simplified in v0.89.0). Data only: src/corp/management.js judges a decision against it,
+// src/systems/management.js carries decisions out through the businesses' own services. Which things a person may do is ticked on the
+// person (src/content/personnel.js lists the boxes); here is only where each kind of decision applies and how it is bounded.
+
+/** Which kinds of decision a business can have, in the order they are made each day. 'transfer' is the group manager's, for subsidiaries. */
+const KINDS = { arms: ['reorder', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
+
+const MGMT = {
+  expireDays: 7, // a request left unanswered this long lapses; nothing happens by default
+  maxPending: 30,
+  logKept: 200,
+  maxOrderQty: 60, // arms: most of one part in one order
+  shiftHours: 8, // arms: the par stock of a part is this many hours of the staffed stations using it
+  reorderAt: 0.5, // arms: order up to par when stock and what is on order fall below this share of it
+  minMove: 1000, // the least a treasury decision moves (no dust)
+  maxContracts: 3, // active contracts and bids still open, at most, before a manager bids for more
+  bidMargin: 15, // percent over cost a manager bids at (a bid the customer's ceiling forces lower is asked about)
+  plotGap: 8, // tiles between two plots (a lane's width) that still count as next to each other
+  spentMonths: 3,
+  // v0.76.0: how managers answer a war's effect on what they buy (the cost index of the business's sector above 1)
+  costHold: 0.02, // up this much: managers hold back expansion to keep cash (supplies go on)
+};
+
+return { KINDS, MGMT };
 })();
 
 // ---- src/systems/management.js
@@ -42490,6 +42687,17 @@ class Management {
     this.log({ type: owner ? 'approved' : 'done', kind, employer: target, actor: x.id, cost: spend, text: `${who}: ${r.text}` });
     if (!owner && (kind === 'bid' || kind === 'research')) this.g.notify?.(r.text, 'info');
     return { verdict: 'execute', cost: spend, text: r.text };
+  }
+
+  /** You do what a manager would: the first thing worth doing of that kind, now, from the business's own account. No limit applies: it is you. */
+  doNow(kind, target) {
+    const at = this.Pe.employerName(target);
+    const c = this.candidates(kind, target)[0];
+    if (!c) return { ok: false, text: 'Nothing to do right now.' };
+    if (!this.K.canAfford(target, c.cost)) return { ok: false, text: `${at} cannot pay ${c.cost.toLocaleString()} obols.` };
+    const r = this.carryOut(kind, target, null, c);
+    if (r.ok) this.log({ type: 'owner', kind, employer: target, cost: r.paid, text: `You: ${r.text}` });
+    return { ok: r.ok, text: r.text };
   }
 
   carryOut(kind, target, x, cand) {
@@ -44373,6 +44581,7 @@ const { monthTotals } = __m["src/corp/ledger.js"];
 const { figures, growth, value: worth, rank: rankBy, shares } = __m["src/corp/metrics.js"];
 const { Group } = __m["src/systems/group.js"];
 const { Personnel } = __m["src/systems/personnel.js"];
+const { Todo } = __m["src/systems/todo.js"];
 const { Management } = __m["src/systems/management.js"];
 const { Exchange } = __m["src/systems/exchange.js"];
 const { CentralBank } = __m["src/systems/centralBank.js"];
@@ -44403,6 +44612,7 @@ class Corporate {
     this.sovereign = new Sovereign(this); // v0.77.0: foreign government bonds
     this.milestones = new Milestones(this); // v0.80.0: milestones from the records
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
+    this.todo = new Todo(this); // v0.90.0: what to do next, and the inbox
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
 
@@ -44771,7 +44981,8 @@ class Corporate {
   dailyTick() {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
-    this.management.dailyTick(); // managers' decisions (only once a budget has been set)
+    this.management.dailyTick(); // managers' decisions (only once someone is hired)
+    this.todo.dailyTick(); // each business's result of the day, for the little charts
     this.geo.dailyTick(); // what the arms market says has begun or ended, recorded (before the world's day reads it)
     this.generatedDay();
     this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
@@ -46829,6 +47040,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.90.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The OberPad\'s Businesses, Made Simple',
+    notes: [
+      'Every business of yours is one short screen: how it is doing, three figures, Do next (one button each: buy parts, bid, research, plant, harvest, sell, send a ship, expand), your manager, and the old page one tap down.',
+      'Home has one Needs-you card that opens a single Yes/No list of everything waiting for you.',
+    ],
+  },
   {
     version: '0.89.0',
     date: '2026-10-31',
@@ -64178,7 +64399,31 @@ function fold(ui, key, label, render) {
 /** Open the app's fold from a button elsewhere on the screen (a row that says "see the candidates"). */
 const openFold = (ui, key) => { (ui.tabFold ||= {})[key] = true; };
 
-return { n, pc, statusBar, navBar, segments, hero, tiles, row, help, note, buttons, big, fold, openFold };
+// ---------------------------------------------------------------- v0.90.0: the small things that make it feel good
+/** The last days as little bars (green up, red down); `vals` are daily results. */
+function spark(vals, height = 34) {
+  const m = Math.max(1, ...vals.map((v) => Math.abs(v)));
+  return h('div', { class: 'tb-spark', style: `height:${height}px` }, ...(vals.length ? vals : [0]).map((v) => h('i', { class: v < 0 ? 'neg' : '', style: `height:${Math.max(4, Math.round((Math.abs(v) / m) * height))}px` })));
+}
+
+/** A number that counts up to its value when the screen opens, and flashes green or red if it has moved since you last looked (remembered per key). */
+function figure(ui, key, value, { signed = false, cls = '' } = {}) {
+  const seen = (ui.tabSeen ||= {});
+  const was = seen[key];
+  seen[key] = value;
+  const text = (v) => `${signed && v > 0 ? '+' : ''}${n(v)}`;
+  const el = h('span', { class: `tb-fig ${cls}${was !== undefined && value > was ? ' up' : was !== undefined && value < was ? ' down' : ''}` }, text(value));
+  if (typeof requestAnimationFrame === 'function' && typeof performance !== 'undefined' && Math.abs(value) >= 10) {
+    const from = was !== undefined ? was : 0;
+    const t0 = performance.now();
+    const step = (t) => { const f = Math.min(1, (t - t0) / 450); const v = Math.round(from + (value - from) * (1 - (1 - f) ** 3)); el.textContent = text(v); if (f < 1) requestAnimationFrame(step); };
+    el.textContent = text(from);
+    requestAnimationFrame(step);
+  }
+  return el;
+}
+
+return { n, pc, statusBar, navBar, segments, hero, tiles, row, help, note, buttons, big, fold, openFold, spark, figure };
 })();
 
 // ---- src/ui/corpBank.js
@@ -64402,6 +64647,76 @@ function managersApp(ui, body, open) {
 }
 
 return { managersApp };
+})();
+
+// ---- src/ui/tabletBiz.js
+__m["src/ui/tabletBiz.js"] = (function () {
+// The business screens and the inbox (v0.90.0). Every business — arms, shipping, aerospace, farming — is the same screen: how it is doing this
+// month (and the last days as little bars), three figures, **Do next** (the jobs worth doing, one button each), its manager with their tick-boxes,
+// and one fold for everything the old page did. The Inbox gathers every decision waiting for you into one list. Nothing is computed here but
+// layout: the jobs come from game.corp.todo, which reads the same planners the managers use.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, note, fold, buttons, big, spark, figure, n } = __m["src/ui/tabletKit.js"];
+const { PERM_NAMES, permsFor, wageOf } = __m["src/content/personnel.js"];
+
+const card = (...kids) => h('div', { class: 'tb-card' }, ...kids.flat().filter(Boolean));
+
+function bizScreen(ui, body, open, id, { tab, foldKey, foldLabel, renderFold, openFoldNow = false }) {
+  const g = ui.game;
+  const K = g.corp;
+  const T = K.todo;
+  const Pe = K.personnel;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open(tab); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const st = T.status(id);
+  const net = T.monthNet(id);
+  const cash = K.cashOf(id);
+  const days = T.trail(id, 7);
+  body.append(h('div', { class: 'tb-hero tb-biz' },
+    h('div', { class: 'grow' }, h('div', { class: 'tb-label' }, 'Made this month'), h('div', { class: `tb-big ${net < 0 ? 'neg' : 'gold'}` }, figure(ui, `${id}:net`, net, { signed: true })),
+      h('div', { class: 'tb-sub' }, h('span', { class: `tb-dotc ${st.dot}` }), `${st.text} · ${n(cash)} in the account`)),
+    days.length ? spark(days, 46) : null));
+  body.append(tiles(T.tiles(id).map((x) => ({ n: String(x.n), t: x.t, tone: x.tone }))));
+  const items = T.items(id);
+  if (items.length) {
+    body.append(h('div', { class: 'tb-label', style: 'margin:2px 4px 6px' }, 'Do next'),
+      ...items.map((it) => h('div', { class: 'tb-next' }, h('div', { class: 'tb-ico' }, it.icon), h('div', { class: 't' }, h('b', {}, it.title), h('small', {}, it.sub)), h('button', { class: 'tb-btn pri', onclick: () => go(T.run(id, it.key)) }, it.button))));
+  } else {
+    body.append(card(h('div', { class: 'tb-sub' }, 'Nothing to do right now.')));
+  }
+  body.append(managerStrip(ui, open, id, tab));
+  body.append(fold(ui, foldKey, foldLabel, renderFold));
+  if (openFoldNow) (ui.tabFold ||= {})[foldKey] = true;
+}
+
+/** The manager of a business, with the tick-boxes right here; or the way to hire one. */
+function managerStrip(ui, open, id, tab) {
+  const K = ui.game.corp; const Pe = K.personnel;
+  const x = Pe.holders(id, 'manager')[0];
+  if (!x) {
+    return buttons(big(`🧑‍💼  Hire a manager · ${n(wageOf('manager', id))} a day`, () => { ui.mgrAsk = { role: 'manager', employer: id }; open('Managers'); }));
+  }
+  const m = K.management;
+  return card(h('div', { class: 'tb-row', style: 'border:0;padding:0' }, h('div', { class: 'tb-ico' }, '🧑‍💼'), h('div', { class: 'grow' }, h('b', {}, `${x.name} · Manager`), h('small', {}, `${n(x.salary)} a day · spends up to ${n(m.capOf(id))} a month`)), h('button', { class: 'tb-mini', onclick: () => open('Managers') }, 'Manage')),
+    h('div', { class: 'tb-checks' }, ...permsFor(x.role, x.employer).map((k) => { const on = Pe.may(x, k); return h('button', { class: `tb-check${on ? ' on' : ''}`, title: PERM_NAMES[k].text, onclick: () => { Pe.setPerm(x.id, k, !on); ui.audio.sfx('sfx_coin'); open(tab); } }, h('i', {}, on ? '☑' : '☐'), PERM_NAMES[k].name); })));
+}
+
+/** The Inbox: every decision waiting for you, in one list — a sentence, an amount, Yes or No. */
+function needsApp(ui, body, open) {
+  const T = ui.game.corp.todo;
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const list = T.inbox();
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Needs'); };
+  if (!list.length) { body.append(hero({ label: 'Needs you', value: 'All quiet', sub: 'Nothing is waiting for an answer.' })); return; }
+  for (const it of list) {
+    body.append(h('div', { class: 'tb-next' }, h('div', { class: 'tb-ico' }, it.icon), h('div', { class: 't' }, h('b', {}, it.title), h('small', {}, it.sub)), it.amount ? h('span', { class: 'tb-tag' }, `${n(it.amount)} ◎`) : null),
+      buttons(big(it.yes.label, () => go(it.yes.run()), 'pri'), it.no ? big(it.no.label, () => go(it.no.run())) : null));
+  }
+}
+
+return { bizScreen, needsApp };
 })();
 
 // ---- src/ui/corpGroup.js
@@ -65095,13 +65410,13 @@ __m["src/ui/tabletGroups.js"] = (function () {
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
+const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
 
 function tabletGroups(g) {
   const T = g.tablet;
   const own = g.corp.registry().some((r) => r.kind === 'player');
   const groups = [
-    { id: 'Home', apps: ['Home'] },
+    { id: 'Home', apps: ['Home', 'Needs'] },
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },
@@ -65181,7 +65496,7 @@ function homeScreen(ui, body, open, groups, badge, needs, unread = 0) {
     h('div', { class: 'tb-greet' }, h('div', { class: 'tb-hello' }, `Good ${g.clock.hour < 12 ? 'morning' : g.clock.hour < 18 ? 'afternoon' : 'evening'}, ${g.player.name || 'Ace'}`)),
     h('div', { class: 'tb-today' },
       h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Your cash'), h('div', { class: 'tb-big gold' }, n(g.player.money))),
-      h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Needs you'), ...(needs.length ? needs.map((x) => h('button', { class: 'tb-chip', onclick: () => open(x.app) }, x.text)) : [h('div', { class: 'tb-sub' }, 'All quiet')]))),
+      h('button', { class: `tb-card tb-needs${needs.length ? '' : ' quiet'}`, onclick: () => open('Needs') }, h('div', { class: 'tb-label' }, 'Needs you'), needs.length ? [h('div', { class: 'tb-big gold' }, String(needs.length)), h('div', { class: 'tb-sub' }, needs.length === 1 ? 'thing waits for you' : 'things wait for you')] : h('div', { class: 'tb-sub' }, 'All quiet'))),
     h('div', { class: 'tb-searchrow' }, q, h('button', { class: 'tb-bell', title: 'Notifications', onclick: () => { ui.tabletInbox = true; open('Home'); } }, '🔔', unread ? h('i', { class: 'tb-dot' }, String(unread)) : null)));
   if (ui.tabletSearch) body.append(found.length ? h('div', { class: 'tb-found' }, ...found.map((f) => h('button', { class: 'tb-chip', onclick: () => { ui.tabletSearch = ''; open(f.app); } }, `${f.app} · ${f.group}`))) : h('div', { class: 'tb-sub', style: 'padding:6px 4px' }, 'No app by that name.'));
   body.append(h('div', { class: 'tb-grid' }, ...tiles.map((t) => icon(t))), h('div', { class: 'grow' }),
@@ -65205,6 +65520,7 @@ const { farmApp } = __m["src/ui/farm.js"];
 const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
 const { managersApp } = __m["src/ui/tabletManagers.js"];
+const { bizScreen, needsApp } = __m["src/ui/tabletBiz.js"]; // v0.90.0
 const { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"]; // v0.84.0: the summaries
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
@@ -65226,28 +65542,23 @@ function tabletPanel(ui, body, opts) {
 
   // v0.83.0: it is a tablet — a status bar, then the home screen of icons, or an app with a back arrow and its sections as one switch
   const status = statusBar(g);
-  /** What needs you, as chips on the home screen: approvals waiting, a loan in arrears, materials short. */
-  const needs = () => {
-    const out = [];
-    const pend = g.corp.management.peek()?.pending?.length || 0;
-    if (pend) out.push({ app: 'Managers', text: `🙋 ${pend} to answer` });
-    if (g.corp.lending.inArrears()) out.push({ app: 'Loans', text: '🏦 a loan is behind' });
-    if (g.aero.owned) { const a = g.aero.roost; const m = Object.keys(a.inv || {}).length ? g.aero.shortfalls(a).length : 0; if (m) out.push({ app: 'Aerospace', text: `🛒 ${m} materials short` }); }
-    return out.slice(0, 3);
-  };
+  /** What needs you: every decision waiting for an answer (the inbox). */
+  const needs = () => g.corp.todo.inbox();
   const appHead = () => {
     const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : a}`, badge: badge[a] })), tab, (a) => open(a));
     return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : tab, back: () => open('Home') }), seg);
   };
 
-  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), fold(ui, 'StocksChart', 'Ober\'s Oil price chart ›', (box) => box.append(stocksHeader(g)))) });
+  if (tab === 'Needs') body.append(statusBar(g), navBar({ icon: '📥', title: 'Needs you', back: () => open('Home') }));
+  else if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), fold(ui, 'StocksChart', 'Ober\'s Oil price chart ›', (box) => box.append(stocksHeader(g)))) });
   else { body.append(status); if (tab !== 'Home') body.append(appHead()); else if (ui.tabletInbox) body.append(navBar({ icon: '🔔', title: 'Notifications', back: () => { ui.tabletInbox = false; open('Home'); } })); }
   if (tab === 'Home' && ui.tabletInbox) inboxScreen(ui, body, open);
   else if (tab === 'Home') homeScreen(ui, body, open, groups, badge, needs(), unread);
+  else if (tab === 'Needs') needsApp(ui, body, open); // v0.90.0: the inbox
   else if (tab === 'Business') businessSummary(ui, body, opts, open);
-  else if (tab === 'Ships') shipsApp(ui, body);
-  else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
-  else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
+  else if (tab === 'Ships') shipsApp(ui, body, open);
+  else if (tab === 'Farm') bizScreen(ui, body, open, 'farming', { tab: 'Farm', foldKey: 'Farm', foldLabel: 'The farm in full — land, Co-op prices, books ›', renderFold: (box) => farmApp(ui, box) });
+  else if (tab === 'Aerospace') bizScreen(ui, body, open, 'aerospace', { tab: 'Aerospace', foldKey: 'Aerospace', foldLabel: 'The firm in full — terminal, latest reports ›', renderFold: (box) => aeroApp(ui, box) });
   else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
@@ -65268,16 +65579,8 @@ function tabletPanel(ui, body, opts) {
 
 /** Business (v0.85.0): the arms trade at a glance; the console, with its parts, equipment, staff, research and market, one tap down. */
 function businessSummary(ui, body, opts, open) {
-  const g = ui.game;
-  const A = g.arms;
-  const works = A.ownedIds();
-  const ms = g.market.state;
-  const staff = A.state.staff.length;
   if (opts.sub || opts.warehouse || opts.msg || opts.country || opts.ship) openFold(ui, 'Business'); // sent here to a page of the console: open it
-  body.append(
-    hero({ label: 'Your arms trade', value: `${works.length} works`, sub: `${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea · research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'}` }),
-    tiles([{ n: fmt(ms.earned), t: 'earned by exports' }, { n: String(staff), t: 'staff on the books' }, { n: String(ms.shipments.length), t: 'at sea' }]),
-    fold(ui, 'Business', 'The works console — parts, equipment, staff, research, market ›', (box) => businessApp(ui, box, opts, open)));
+  bizScreen(ui, body, open, 'arms', { tab: 'Business', foldKey: 'Business', foldLabel: 'The works console — parts, equipment, staff, research, market ›', renderFold: (box) => businessApp(ui, box, opts, open) });
 }
 
 /** Journal → Standing (v0.85.0): how the factions regard you — the strongest feelings first, the full list one tap down. */
@@ -65394,15 +65697,10 @@ function stocksHeader(g) {
   return wrap;
 }
 
-/** Ships: Fleet Command takes the whole screen, so the tablet just launches it (closing it comes back here). */
-function shipsApp(ui, body) {
+/** Ships: Fleet Command takes the whole screen, so the tablet shows the line at a glance and launches it (closing it comes back here). */
+function shipsApp(ui, body, open) {
   const Lg = ui.game.logistics;
-  const vs = Lg.vessels().filter((v) => v.status !== 'lost');
-  const sea = vs.filter((v) => v.status === 'underway').length;
-  body.append(h('div', { class: 'tablet-card fc-launch' },
-    h('h3', {}, '⚓ Ober & Sons — Fleet Command'),
-    h('p', {}, `${vs.length} ships (${sea} at sea) · ${Lg.ownedPorts().length} ports · ${Lg.idle().length} waiting for orders`),
-    h('button', { class: 'primary', onclick: () => ui.openPanel('logistics') }, 'Open Fleet Command')));
+  bizScreen(ui, body, open, 'shipping', { tab: 'Ships', foldKey: 'Ships', foldLabel: 'Fleet Command — every ship, port and contract ›', renderFold: (box) => box.append(h('div', { class: 'tablet-card fc-launch' }, h('p', {}, `${Lg.vessels().filter((v) => v.status !== 'lost').length} ships · ${Lg.ownedPorts().length} ports · ${Lg.idle().length} waiting for orders`), h('button', { class: 'primary', onclick: () => ui.openPanel('logistics') }, 'Open Fleet Command'))) });
 }
 
 return { tabletPanel };

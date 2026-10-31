@@ -147,6 +147,18 @@ try {
   record('Managers: the manager is hired at the flat wage with every box ticked', hired.x && (await page.$$('.tb-check.on')).length === 4);
   await page.click('.tb-check:nth-child(1)'); await wait(250);
   record('Managers: unticking a box is one tap and takes effect', await page.evaluate(() => { const g = window.oberverse.ui.game; const x = g.corp.personnel.holders('aerospace', 'manager')[0]; return g.corp.personnel.may(x, 'reorder') === false; }));
+  // The business screens and the inbox (v0.90.0)
+  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.clock.total += 1440; g.corp.management.dailyTick(); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Home' }); });
+  await wait(300);
+  record('OberPad: Home has one "Needs you" card with a count', /Needs you\s*\d+/.test((await page.textContent('#modal-body')).replace(/\n/g, ' ')));
+  await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Aerospace' })); await wait(300);
+  const aText = await page.textContent('#modal-body');
+  record('OberPad: a business screen is the same shape — result, three figures, Do next, manager, one fold, and few words', aText.includes('Made this month') && (await page.$$('.tb-tile')).length === 3 && (await page.$$('.tb-fold')).length === 1 && aText.split(/\s+/).length < 90, String(aText.split(/\s+/).length));
+  await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Needs' })); await wait(300);
+  const needsBefore = await page.evaluate(() => ({ n: window.oberverse.ui.game.corp.management.peek().pending.length, cash: window.oberverse.ui.game.corp.cashOf('aerospace') }));
+  await page.click('.tb-btns .tb-btn.pri'); await wait(350);
+  const needsAfter = await page.evaluate(() => ({ n: window.oberverse.ui.game.corp.management.peek().pending.length, cash: window.oberverse.ui.game.corp.cashOf('aerospace') }));
+  record('OberPad: Yes in the inbox answers the request, once, and the firm pays for it', needsBefore.n >= 1 && needsAfter.n === needsBefore.n - 1 && needsAfter.cash < needsBefore.cash, JSON.stringify([needsBefore, needsAfter]));
   await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Exchange' })); await wait(300);
   record('OberPad: Exchange opens on your holdings, the board one tap down', (await page.textContent('#modal-body')).includes('Your shares are worth'));
   await closeAll();
@@ -155,7 +167,7 @@ try {
   await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.player.money = 5_000_000; g.arms.buyLicence(); g.arms.buy('aw1'); ui.openPanel('tablet', { tab: 'Business' }); });
   await wait(300);
   const bText = await page.textContent('#modal-body');
-  record('OberPad: Business opens on a summary of the arms trade', bText.includes('Your arms trade') && bText.split(/\s+/).length < 120);
+  record('OberPad: Business opens on the same short screen as every business (result, figures, Do next)', bText.includes('Made this month') && bText.split(/\s+/).length < 90, String(bText.split(/\s+/).length));
   await page.click('.tb-fold > summary'); await wait(400);
   record('OberPad: the Business fold opens the works console', (await page.textContent('#modal-body')).toUpperCase().includes('OVERWATCH'));
   await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Standing' })); await wait(300);

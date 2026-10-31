@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.90.0] — 2026-10-31 — The OberPad's Businesses, Made Simple (development build)
+
+You said the business menus were wordy and hard to follow, and that it should take little thought. The five business tabs stay (Business, Ships, Farm, Aerospace, Companies) but the four that are yours are now **one screen**, and everything waiting for you has **one front door**.
+
+- **One shape for every business.** *Made this month* (the result so far, in green or red, with the last days as little bars and a coloured dot and two words: **Running**, **Short of 2 parts**, **Low on cash**, **Behind on a loan**), three figures, **Do next**, the manager with their tick-boxes right there (or *Hire a manager · 180 a day*), and one fold for everything the old page did (the arms console, Fleet Command, the farm's land and Co-op prices, the aerospace terminal). Between 40 and 60 words a screen, from 37–88 before.
+- **Do next**: at most three big rows, one button each, never anything a manager already does for you (untick their box and it comes back). *Arms and aerospace*: buy what is short, bid on a contract, start research. *Shipping*: **send the best idle ship on the best contract** (accepts it and assigns the ship). *Farming*: **harvest** what is ripe, **plant** what is tilled when you hold seed, **till** fallow land, **sell** the crop you carry at the Co-op. *Every business*: the next expansion. They use the same planners the managers use, so a manager and you always agree on what is worth doing. Farm work is the same work as before (by hand it takes hours and tires you; a tractor is quicker).
+- **The inbox.** Home has one card, **Needs you**, with a count. It opens one list: a sentence, an amount, **Yes / No**. Manager requests (expansion), a loan behind (**Pay now**), parts short (**Buy**). All quiet when it is empty. This replaces the small chips.
+- **Feels good**: the figures count up when a screen opens and glow green or red if they have moved since you last looked; buttons squeeze when pressed; a receipt line slides in at the top after you act.
+- **New, small, saved**: each business's result of the day (up to 14 numbers each, written once a day, no random numbers) for the little charts.
+- **Tests:** `todo.test.mjs` (10): status, Do next (three at most, managers' jobs left out), doing it pays from the business and conserves money, the farm's order of jobs, the fleet's send, the inbox, the trail (once a day, bounded, saved, no dice). Smoke 47 (+3: the Needs-you card, a business screen's shape, Yes in the inbox). One existing test edited: `tablet_home.test.mjs` (the inbox is reached from the Needs-you card, not an icon). Parity with v0.89.0: no hire, no change (the economy is untouched).
+- **Not done:** the rivals' *Companies* tab is as it was (it is not yours); the Ships page still opens Fleet Command for the real work; "Do next" for shipping sends the single best contract, not a plan. A touch device is untested.
+
 ## [0.89.0] — 2026-10-31 — Managers, Simplified (development build)
 
 You said the manager system and the parent company felt convoluted. They are now small. **Every skill is gone**: no candidates, no comparing, no grades, no growth, no "good manager" and "poor manager".

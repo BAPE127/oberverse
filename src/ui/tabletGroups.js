@@ -8,13 +8,13 @@
 export const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-export const APP_ICONS = { Home: '🏠', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
+export const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
 
 export function tabletGroups(g) {
   const T = g.tablet;
   const own = g.corp.registry().some((r) => r.kind === 'player');
   const groups = [
-    { id: 'Home', apps: ['Home'] },
+    { id: 'Home', apps: ['Home', 'Needs'] },
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },

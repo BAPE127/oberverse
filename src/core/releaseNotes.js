@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.90.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The OberPad\'s Businesses, Made Simple',
+    notes: [
+      'Every business of yours is one short screen: how it is doing, three figures, Do next (one button each: buy parts, bid, research, plant, harvest, sell, send a ship, expand), your manager, and the old page one tap down.',
+      'Home has one Needs-you card that opens a single Yes/No list of everything waiting for you.',
+    ],
+  },
+  {
     version: '0.89.0',
     date: '2026-10-31',
     channel: 'development',

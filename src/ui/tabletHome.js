@@ -40,7 +40,7 @@ export function homeScreen(ui, body, open, groups, badge, needs, unread = 0) {
     h('div', { class: 'tb-greet' }, h('div', { class: 'tb-hello' }, `Good ${g.clock.hour < 12 ? 'morning' : g.clock.hour < 18 ? 'afternoon' : 'evening'}, ${g.player.name || 'Ace'}`)),
     h('div', { class: 'tb-today' },
       h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Your cash'), h('div', { class: 'tb-big gold' }, n(g.player.money))),
-      h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Needs you'), ...(needs.length ? needs.map((x) => h('button', { class: 'tb-chip', onclick: () => open(x.app) }, x.text)) : [h('div', { class: 'tb-sub' }, 'All quiet')]))),
+      h('button', { class: `tb-card tb-needs${needs.length ? '' : ' quiet'}`, onclick: () => open('Needs') }, h('div', { class: 'tb-label' }, 'Needs you'), needs.length ? [h('div', { class: 'tb-big gold' }, String(needs.length)), h('div', { class: 'tb-sub' }, needs.length === 1 ? 'thing waits for you' : 'things wait for you')] : h('div', { class: 'tb-sub' }, 'All quiet'))),
     h('div', { class: 'tb-searchrow' }, q, h('button', { class: 'tb-bell', title: 'Notifications', onclick: () => { ui.tabletInbox = true; open('Home'); } }, '🔔', unread ? h('i', { class: 'tb-dot' }, String(unread)) : null)));
   if (ui.tabletSearch) body.append(found.length ? h('div', { class: 'tb-found' }, ...found.map((f) => h('button', { class: 'tb-chip', onclick: () => { ui.tabletSearch = ''; open(f.app); } }, `${f.app} · ${f.group}`))) : h('div', { class: 'tb-sub', style: 'padding:6px 4px' }, 'No app by that name.'));
   body.append(h('div', { class: 'tb-grid' }, ...tiles.map((t) => icon(t))), h('div', { class: 'grow' }),

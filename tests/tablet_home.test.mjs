@@ -20,7 +20,7 @@ test('every icon opens an app that exists, and every app can be reached: by its 
   const apps = allApps(groups);
   const tiles = homeTiles(groups);
   for (const t of tiles) assert.ok(apps.includes(t.target), `${t.id} opens ${t.target}`);
-  for (const a of apps.filter((x) => x !== 'Home')) {
+  for (const a of apps.filter((x) => x !== 'Home' && x !== 'Needs')) { // (the inbox is reached from the Needs-you card on the home screen itself)
     const gr = groupOf(groups, a);
     assert.ok(tiles.some((t) => t.id === gr.id || t.id === a), `${a} (in ${gr.id}) has a way in from the home screen`);
   }

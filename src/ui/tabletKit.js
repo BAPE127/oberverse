@@ -71,3 +71,27 @@ export function fold(ui, key, label, render) {
 
 /** Open the app's fold from a button elsewhere on the screen (a row that says "see the candidates"). */
 export const openFold = (ui, key) => { (ui.tabFold ||= {})[key] = true; };
+
+// ---------------------------------------------------------------- v0.90.0: the small things that make it feel good
+/** The last days as little bars (green up, red down); `vals` are daily results. */
+export function spark(vals, height = 34) {
+  const m = Math.max(1, ...vals.map((v) => Math.abs(v)));
+  return h('div', { class: 'tb-spark', style: `height:${height}px` }, ...(vals.length ? vals : [0]).map((v) => h('i', { class: v < 0 ? 'neg' : '', style: `height:${Math.max(4, Math.round((Math.abs(v) / m) * height))}px` })));
+}
+
+/** A number that counts up to its value when the screen opens, and flashes green or red if it has moved since you last looked (remembered per key). */
+export function figure(ui, key, value, { signed = false, cls = '' } = {}) {
+  const seen = (ui.tabSeen ||= {});
+  const was = seen[key];
+  seen[key] = value;
+  const text = (v) => `${signed && v > 0 ? '+' : ''}${n(v)}`;
+  const el = h('span', { class: `tb-fig ${cls}${was !== undefined && value > was ? ' up' : was !== undefined && value < was ? ' down' : ''}` }, text(value));
+  if (typeof requestAnimationFrame === 'function' && typeof performance !== 'undefined' && Math.abs(value) >= 10) {
+    const from = was !== undefined ? was : 0;
+    const t0 = performance.now();
+    const step = (t) => { const f = Math.min(1, (t - t0) / 450); const v = Math.round(from + (value - from) * (1 - (1 - f) ** 3)); el.textContent = text(v); if (f < 1) requestAnimationFrame(step); };
+    el.textContent = text(from);
+    requestAnimationFrame(step);
+  }
+  return el;
+}

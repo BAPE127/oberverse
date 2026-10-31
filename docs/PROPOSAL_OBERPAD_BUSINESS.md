@@ -1,6 +1,6 @@
 # Proposal: the OberPad's businesses, made simple (v0.90.0)
 
-Status: **proposal, nothing built yet.** Mockups: `docs/mockups/proposal-v090-home-inbox.png` and `proposal-v090-businesses.png` (they use the game's own styles; the figures in them are samples).
+Status: **built in v0.90.0** (answers: the inbox yes; the five tabs kept and restyled, not merged into one list; "Do next" with plant/harvest and ship dispatch added). Originally: proposal. Mockups: `docs/mockups/proposal-v090-home-inbox.png` and `proposal-v090-businesses.png` (they use the game's own styles; the figures in them are samples).
 
 ## What is wrong now (measured in a built-out game)
 - The Businesses group is **five tabs** (Business = arms, Ships, Farm, Aerospace, Companies), and each is built differently. Farm is a block of prices and a land list; Ships and Aerospace are another style; arms is a summary and a fold. You have to learn each one.

@@ -324,6 +324,17 @@ export class Management {
     return { verdict: 'execute', cost: spend, text: r.text };
   }
 
+  /** You do what a manager would: the first thing worth doing of that kind, now, from the business's own account. No limit applies: it is you. */
+  doNow(kind, target) {
+    const at = this.Pe.employerName(target);
+    const c = this.candidates(kind, target)[0];
+    if (!c) return { ok: false, text: 'Nothing to do right now.' };
+    if (!this.K.canAfford(target, c.cost)) return { ok: false, text: `${at} cannot pay ${c.cost.toLocaleString()} obols.` };
+    const r = this.carryOut(kind, target, null, c);
+    if (r.ok) this.log({ type: 'owner', kind, employer: target, cost: r.paid, text: `You: ${r.text}` });
+    return { ok: r.ok, text: r.text };
+  }
+
   carryOut(kind, target, x, cand) {
     if (kind === 'reorder') return this.doReorder(target, x);
     if (kind === 'bid') {

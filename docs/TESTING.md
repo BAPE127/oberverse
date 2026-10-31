@@ -93,6 +93,13 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.90.0 (2026-10-31)
+
+- New: `todo.test.mjs` (10). Smoke 47/47 (+3). Existing test edited: `tablet_home.test.mjs` (reachability: the inbox is reached from the Needs-you card). The earlier Business smoke check ("Your arms trade") now checks the shared shape.
+- Words per screen in a built-out game: Home 20, Needs 27, Ships 42, Farm 61, Aerospace 57 (before: Farm 88, Aerospace 76, Ships 37 in a different style each).
+- Browser (headless Chromium): Home with the Needs-you card, the inbox with Yes/No, Ships, Farm with a Plant row, Aerospace; 0 page errors. Screens `docs/mockups/v090-*.png`. Not tested: a touch device, or the count-up animation's feel (headless).
+- Noted while testing: the aerospace tender board is made the first time anyone looks at it (as when you open the aerospace tab), so the very first read draws the game's dice; later reads draw none.
+
 ## Verification record — v0.89.0 (2026-10-31)
 
 - **Removed (74 tests, all of them about things that no longer exist):** `personnel.test.mjs` (23: skills, candidates, offers, promotion, reviews), `personnel_effects.test.mjs` (11: skill effects), `management.test.mjs` (19: budgets by category, spending limits, hires), `management_plans.test.mjs` (13: expansion plans, margins), `management_treasury.test.mjs` (8: treasury bands you set; the pure `treasuryMove` test lives on in `managers.test.mjs`).

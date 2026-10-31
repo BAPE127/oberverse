@@ -1206,3 +1206,22 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
   .tb-hero { flex-direction: column; align-items: flex-start; }
   .tb-tiles { gap: 6px; } .tb-tile .tb-n { font-size: 17px; }
 }
+/* v0.90.0: the OberPad's business screens */
+.tb-spark { display: flex; align-items: flex-end; gap: 3px; }
+.tb-spark i { width: 7px; border-radius: 3px; background: linear-gradient(#6fd0a4, #2f8f6a); }
+.tb-spark i.neg { background: linear-gradient(#ff9a8a, #c24a3a); }
+.tb-fig.up { animation: tb-up 1.2s ease-out; } .tb-fig.down { animation: tb-down 1.2s ease-out; }
+@keyframes tb-up { 0% { color: #5fe08a; text-shadow: 0 0 14px #5fe08a; } 100% { color: inherit; text-shadow: none; } }
+@keyframes tb-down { 0% { color: #ff8a7a; text-shadow: 0 0 14px #ff8a7a; } 100% { color: inherit; text-shadow: none; } }
+.tb-biz .tb-hero .grow { min-width: 0; }
+.tb-dotc { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.tb-dotc.g { background: #5fe08a; } .tb-dotc.a { background: #f2c14e; } .tb-dotc.r { background: #ff8a7a; }
+.tb-next { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; border: 2px solid var(--line); background: rgba(35,32,90,.82); margin-bottom: 8px; }
+.tb-next .t { flex: 1; min-width: 0; } .tb-next .t b { display: block; font-size: 16px; } .tb-next .t small { display: block; color: var(--ink-soft); font-size: 12.5px; margin-top: 2px; }
+.tb-next .tb-btn { flex: none; padding: 11px 18px; }
+.tb-needs { border-color: #f2c14e; text-align: left; align-items: flex-start; color: inherit; font: inherit; cursor: pointer; }
+.tb-needs.quiet { border-color: var(--line); }
+.tb-ask { margin: -2px 0 12px; }
+#modal-panel.tablet2 .tb-btn:active:not(:disabled), #modal-panel.tablet2 .tb-mini:active:not(:disabled), #modal-panel.tablet2 .tb-check:active, #modal-panel.tablet2 .tb-chip:active { transform: scale(.96); transition: transform .06s; }
+.tb-note { animation: tb-slide .35s ease-out; }
+@keyframes tb-slide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }

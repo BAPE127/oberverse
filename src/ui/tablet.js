@@ -10,6 +10,7 @@ import { farmApp } from './farm.js';
 import { bankApp } from './corpBank.js'; // v0.68.0
 import { loansApp } from './corpLoans.js'; // v0.73.0
 import { managersApp } from './tabletManagers.js';
+import { bizScreen, needsApp } from './tabletBiz.js'; // v0.90.0
 import { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js'; // v0.84.0: the summaries
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
@@ -31,28 +32,23 @@ export function tabletPanel(ui, body, opts) {
 
   // v0.83.0: it is a tablet — a status bar, then the home screen of icons, or an app with a back arrow and its sections as one switch
   const status = statusBar(g);
-  /** What needs you, as chips on the home screen: approvals waiting, a loan in arrears, materials short. */
-  const needs = () => {
-    const out = [];
-    const pend = g.corp.management.peek()?.pending?.length || 0;
-    if (pend) out.push({ app: 'Managers', text: `🙋 ${pend} to answer` });
-    if (g.corp.lending.inArrears()) out.push({ app: 'Loans', text: '🏦 a loan is behind' });
-    if (g.aero.owned) { const a = g.aero.roost; const m = Object.keys(a.inv || {}).length ? g.aero.shortfalls(a).length : 0; if (m) out.push({ app: 'Aerospace', text: `🛒 ${m} materials short` }); }
-    return out.slice(0, 3);
-  };
+  /** What needs you: every decision waiting for an answer (the inbox). */
+  const needs = () => g.corp.todo.inbox();
   const appHead = () => {
     const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : a}`, badge: badge[a] })), tab, (a) => open(a));
     return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : tab, back: () => open('Home') }), seg);
   };
 
-  if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), fold(ui, 'StocksChart', 'Ober\'s Oil price chart ›', (box) => box.append(stocksHeader(g)))) });
+  if (tab === 'Needs') body.append(statusBar(g), navBar({ icon: '📥', title: 'Needs you', back: () => open('Home') }));
+  else if (tab === 'Stocks') stocksScreen(ui, body, { header: () => h('div', {}, status, appHead(), fold(ui, 'StocksChart', 'Ober\'s Oil price chart ›', (box) => box.append(stocksHeader(g)))) });
   else { body.append(status); if (tab !== 'Home') body.append(appHead()); else if (ui.tabletInbox) body.append(navBar({ icon: '🔔', title: 'Notifications', back: () => { ui.tabletInbox = false; open('Home'); } })); }
   if (tab === 'Home' && ui.tabletInbox) inboxScreen(ui, body, open);
   else if (tab === 'Home') homeScreen(ui, body, open, groups, badge, needs(), unread);
+  else if (tab === 'Needs') needsApp(ui, body, open); // v0.90.0: the inbox
   else if (tab === 'Business') businessSummary(ui, body, opts, open);
-  else if (tab === 'Ships') shipsApp(ui, body);
-  else if (tab === 'Farm') farmApp(ui, body); // v0.31.0
-  else if (tab === 'Aerospace') aeroApp(ui, body); // v0.55.0
+  else if (tab === 'Ships') shipsApp(ui, body, open);
+  else if (tab === 'Farm') bizScreen(ui, body, open, 'farming', { tab: 'Farm', foldKey: 'Farm', foldLabel: 'The farm in full — land, Co-op prices, books ›', renderFold: (box) => farmApp(ui, box) });
+  else if (tab === 'Aerospace') bizScreen(ui, body, open, 'aerospace', { tab: 'Aerospace', foldKey: 'Aerospace', foldLabel: 'The firm in full — terminal, latest reports ›', renderFold: (box) => aeroApp(ui, box) });
   else if (tab === 'Companies') companiesApp(ui, body, open); // v0.60.0
   else if (tab === 'Intelligence') intelApp(ui, body, open);
   else if (tab === 'Group') groupApp(ui, body, open); // v0.61.0
@@ -73,16 +69,8 @@ export function tabletPanel(ui, body, opts) {
 
 /** Business (v0.85.0): the arms trade at a glance; the console, with its parts, equipment, staff, research and market, one tap down. */
 function businessSummary(ui, body, opts, open) {
-  const g = ui.game;
-  const A = g.arms;
-  const works = A.ownedIds();
-  const ms = g.market.state;
-  const staff = A.state.staff.length;
   if (opts.sub || opts.warehouse || opts.msg || opts.country || opts.ship) openFold(ui, 'Business'); // sent here to a page of the console: open it
-  body.append(
-    hero({ label: 'Your arms trade', value: `${works.length} works`, sub: `${staff} staff · ${ms.shipments.length} shipment${ms.shipments.length === 1 ? '' : 's'} at sea · research: ${A.state.research.current ? A.cfg.research[A.state.research.current].name : 'none'}` }),
-    tiles([{ n: fmt(ms.earned), t: 'earned by exports' }, { n: String(staff), t: 'staff on the books' }, { n: String(ms.shipments.length), t: 'at sea' }]),
-    fold(ui, 'Business', 'The works console — parts, equipment, staff, research, market ›', (box) => businessApp(ui, box, opts, open)));
+  bizScreen(ui, body, open, 'arms', { tab: 'Business', foldKey: 'Business', foldLabel: 'The works console — parts, equipment, staff, research, market ›', renderFold: (box) => businessApp(ui, box, opts, open) });
 }
 
 /** Journal → Standing (v0.85.0): how the factions regard you — the strongest feelings first, the full list one tap down. */
@@ -199,13 +187,8 @@ function stocksHeader(g) {
   return wrap;
 }
 
-/** Ships: Fleet Command takes the whole screen, so the tablet just launches it (closing it comes back here). */
-function shipsApp(ui, body) {
+/** Ships: Fleet Command takes the whole screen, so the tablet shows the line at a glance and launches it (closing it comes back here). */
+function shipsApp(ui, body, open) {
   const Lg = ui.game.logistics;
-  const vs = Lg.vessels().filter((v) => v.status !== 'lost');
-  const sea = vs.filter((v) => v.status === 'underway').length;
-  body.append(h('div', { class: 'tablet-card fc-launch' },
-    h('h3', {}, '⚓ Ober & Sons — Fleet Command'),
-    h('p', {}, `${vs.length} ships (${sea} at sea) · ${Lg.ownedPorts().length} ports · ${Lg.idle().length} waiting for orders`),
-    h('button', { class: 'primary', onclick: () => ui.openPanel('logistics') }, 'Open Fleet Command')));
+  bizScreen(ui, body, open, 'shipping', { tab: 'Ships', foldKey: 'Ships', foldLabel: 'Fleet Command — every ship, port and contract ›', renderFold: (box) => box.append(h('div', { class: 'tablet-card fc-launch' }, h('p', {}, `${Lg.vessels().filter((v) => v.status !== 'lost').length} ships · ${Lg.ownedPorts().length} ports · ${Lg.idle().length} waiting for orders`), h('button', { class: 'primary', onclick: () => ui.openPanel('logistics') }, 'Open Fleet Command'))) });
 }

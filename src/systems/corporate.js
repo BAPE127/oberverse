@@ -23,6 +23,7 @@ import { monthTotals } from '../corp/ledger.js';
 import { figures, growth, value as worth, rank as rankBy, shares } from '../corp/metrics.js';
 import { Group } from './group.js';
 import { Personnel } from './personnel.js';
+import { Todo } from './todo.js';
 import { Management } from './management.js';
 import { Exchange } from './exchange.js';
 import { CentralBank } from './centralBank.js';
@@ -53,6 +54,7 @@ export class Corporate {
     this.sovereign = new Sovereign(this); // v0.77.0: foreign government bonds
     this.milestones = new Milestones(this); // v0.80.0: milestones from the records
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
+    this.todo = new Todo(this); // v0.90.0: what to do next, and the inbox
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
 
@@ -421,7 +423,8 @@ export class Corporate {
   dailyTick() {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
-    this.management.dailyTick(); // managers' decisions (only once a budget has been set)
+    this.management.dailyTick(); // managers' decisions (only once someone is hired)
+    this.todo.dailyTick(); // each business's result of the day, for the little charts
     this.geo.dailyTick(); // what the arms market says has begun or ended, recorded (before the world's day reads it)
     this.generatedDay();
     this.bank.dailyTick(); // the monthly rate decision, on the world as it stands today (the rate applies from tomorrow)
