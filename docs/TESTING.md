@@ -93,6 +93,11 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.86.0 (2026-10-31)
+
+- New: `hq.test.mjs` (9 tests). Smoke +2. Placement fallout found and fixed by the suite and the validator: two of the Grand Hotel's parked limousines stood on the first site chosen for the tower, and a police patrol point (`patrol_beat_eastend_1`, y=19) ran along the row above; both sites were moved, and the three buildings got map icons. No existing test edited.
+- Browser (headless Chromium), real clicks: the Group app lists the three offices; **Buy › shows the terms and spends nothing; Buy took exactly 25,000 from the parent**; the door opened; walked to and into the small office, the centre and the tower; 0 page errors.
+
 ## Verification record — v0.85.0 (2026-10-31)
 
 - Smoke +3 (Business opens on a summary; its fold opens the arms console; Standing likewise); and the v0.83.0 loan check no longer assumes a 5,000 amount exists (it depends on the share price; it failed once, honestly). 36/36 three times in a row. No existing test edited.

@@ -74,6 +74,7 @@ import { SPECIAL_ITEMS, addSpecialWeapons } from './specialWeapons.js';
 import { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } from './homes.js';
 import { buildPatrols } from '../world/patrols.js';
 import { growStreets, shiftContent } from '../world/grow.js';
+import { addHq, HQ_TIERS } from './hq.js';
 import { placeInteriors, realInterior } from '../world/interiors.js';
 import { firstBankInterior, firstBankOffice } from './maps/firstBank.js';
 import { lariatBankInterior } from './maps/lariatBank.js';
@@ -158,6 +159,7 @@ export const BASE_CONTENT = {
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
   aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT, services: AERO_SERVICES, achievements: AERO_ACHIEVEMENTS }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
+  hq: HQ_TIERS, // v0.86.0: the three offices the parent company can buy
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
   startingMap: 'player_flat',
@@ -187,6 +189,7 @@ MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
 MAPS.first_bank_office = firstBankOffice(); // v0.78.0
 MAPS.lariat_bank = lariatBankInterior(MAPS.lariat); // v0.78.0: the same, for the Lariat State Bank
 MAPS.first_bank = firstBankInterior(MAPS.halvermouth); // v0.70.0: the First Bank's hall is the size of its building, so the street does not move
+addHq(MAPS); // v0.86.0: three offices for sale on Halvermouth's paving, each hall the size of its building
 placeInteriors(MAPS, REGIONS, STREETS);
 {
   const b = MAPS.halvermouth.buildings.find((x) => x.id === 'b_phonograph');

@@ -27,6 +27,7 @@ import { Factory, freshFactory } from '../systems/factory.js';
 import { Arms, freshArms } from '../systems/arms.js';
 import { Market, freshMarket } from '../systems/market.js';
 import { Robbery } from '../systems/robbery.js'; // v0.79.0
+import { Headquarters } from '../systems/hq.js'; // v0.86.0
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
@@ -74,6 +75,7 @@ export class Game {
     this.factory = new Factory(this);
     this.arms = new Arms(this);
     this.market = new Market(this);
+    this.hq = new Headquarters(this); // v0.86.0: the parent company's offices
     this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
@@ -265,6 +267,7 @@ export class Game {
     const lock = door.lock;
     if (!lock) return null;
     if (lock.bank) { const sealed = this.robbery.closedReason(lock.bank); if (sealed) return sealed; } // v0.79.0: shut for the investigation
+    if (lock.hq) return this.hq.owns(lock.hq) ? null : lock.message; // v0.86.0: an office is shut until the parent company buys it
     if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
@@ -283,6 +286,7 @@ export class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
+    if (door.lock?.hq) return this.hq.owns(door.lock.hq) && (door.lock.owners || []).includes(npc.id); // v0.86.0: an owned office is for its officers (from v0.87.0)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
     if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts

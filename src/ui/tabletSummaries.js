@@ -11,6 +11,7 @@ import { milestonesFull } from './corpMilestones.js';
 import { companiesFull } from './corpApp.js';
 import { intelFull } from './corpIntel.js';
 import { COMPANY_IDS } from '../systems/corporate.js';
+import { HQ_TIERS } from '../content/hq.js';
 import { PLAYER_COMPANIES } from '../corp/identity.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -78,6 +79,16 @@ export function groupApp(ui, body, open) {
     const pre = G.joinPreview(id);
     return row({ icon: '🏢', title: p.name, sub: pre.ok ? 'independent: it uses its own account only once it is brought in' : pre.blockers[0], tag: 'independent', action: pre.ok ? h('button', { class: 'tb-mini pri', onclick: () => { ui.groupJoin = id; open('Group'); } }, 'Bring in ›') : null });
   })));
+  // ---- the headquarters (v0.86.0): three offices in Halvermouth the parent can buy
+  const buying = ui.hqBuy && !g.hq.owns(ui.hqBuy) ? ui.hqBuy : null;
+  if (buying) {
+    const T = HQ_TIERS[buying];
+    body.append(h('div', { class: 'tb-card tb-terms' }, h('b', {}, `Buy ${T.name}?`),
+      h('div', { class: 'tb-sub' }, `${n(T.price)} obols once, from the parent's own account (it holds ${n(pa.cash)}); then ${n(T.upkeep)} a day to keep it open. ${T.desks} desks, ${T.seats} officer seats. It stands in Halvermouth.`),
+      buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
+  }
+  body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
+    action: t.owned ? null : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
 }
 

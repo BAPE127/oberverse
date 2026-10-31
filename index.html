@@ -15653,6 +15653,111 @@ function shiftContent(obj, shifts, ctx = null, seen = new WeakSet()) {
 return { growStreets, shiftContent };
 })();
 
+// ---- src/content/hq.js
+__m["src/content/hq.js"] = (function () {
+// The headquarters (v0.86.0): three offices on the paving of Halvermouth that the parent company can buy — a small office, a corporate
+// centre and a tower. Each is a real building from the first day, shut and "for sale" until bought; its hall is exactly the size of the
+// building, so the street does not move (the same trick as the banks). What they do is room and presence, never money:
+// desks, officer seats and what it costs to keep. Nothing here creates cash.
+//
+//   desks     the work places in the hall (officers sit here, from v0.87.0)
+//   seats     how many officers (executives and managers of the parent) the building holds
+//   upkeep    what the parent pays a day to keep it open (rates, heat, cleaning) — paid whether or not anyone is in
+//   price     what the parent pays once; from its own account only
+const HQ_TIERS = {
+  small: { id: 'small', name: 'The Ledger Row Office', short: 'Small Office', price: 25000, upkeep: 60, desks: 4, seats: 3, floors: 1,
+    text: 'A brick office with a reception desk, four desks and a back room. Enough for a chief executive, a chief financial officer and one more.',
+    roof: '#7a3a2e', wall: '#b86a54', trim: '#4a2a22', sign: 'OFFICE',
+    at: { x: 55, y: 33, w: 9, h: 7, doorX: 59 } },
+  mid: { id: 'mid', name: 'The Corporate Centre', short: 'Corporate Centre', price: 600000, upkeep: 900, desks: 12, seats: 8, floors: 1,
+    text: 'A glass-and-steel block with a lobby, an open floor of twelve desks and a boardroom.',
+    roof: '#3a4a6a', wall: '#7f93b0', trim: '#2a3450', sign: 'CENTRE', flatRoof: true,
+    at: { x: 162, y: 20, w: 12, h: 9, doorX: 167 } },
+  tower: { id: 'tower', name: 'The Tower', short: 'The Tower', price: 6000000, upkeep: 9000, desks: 24, seats: 12, floors: 1,
+    text: 'A landmark of dark glass: a marble lobby, twenty-four desks and a boardroom. (The upper floors come later.)',
+    roof: '#1f2a4a', wall: '#3f5078', trim: '#c9a24a', sign: 'TOWER', flatRoof: true, columns: true,
+    at: { x: 141, y: 20, w: 14, h: 13, doorX: 147 } },
+};
+const HQ_ORDER = ['small', 'mid', 'tower'];
+const hqMapId = (tier) => `hq_${tier}`;
+const hqBuildingId = (tier) => `b_hq_${tier}`;
+
+/** The building on the street for a tier. */
+function hqBuilding(tier) {
+  const T = HQ_TIERS[tier];
+  const { x, y, w, h, doorX } = T.at;
+  return {
+    id: hqBuildingId(tier), name: T.name, mapLabel: T.name, x, y, w, h, sign: T.sign, roof: T.roof, wall: T.wall, trim: T.trim, flatRoof: T.flatRoof, columns: T.columns,
+    door: { x: doorX, y: y + h - 1, to: { map: hqMapId(tier), spot: 'entry' }, lock: { key: 'item_none', hq: tier, message: `${T.name}: for sale, and shut. A notice in the window: "Enquire at your parent company's tablet."` } },
+    interior: hqMapId(tier),
+  };
+}
+
+/**
+ * The hall of a tier: the size of its building, the door at the foot. Desks in rows (a desk, its chair, a free tile to stand on, a walkway:
+ * three rows apiece), a reception beside the door, windows along the top, and a boardroom where there is room.
+ */
+function hqInterior(tier) {
+  const T = HQ_TIERS[tier];
+  const { w: W, h: H, doorX } = T.at;
+  const dx = doorX - T.at.x;
+  const rows = tier === 'small' ? 1 : tier === 'mid' ? 2 : 3;
+  const perRow = T.desks / rows;
+  const props = [];
+  const spots = { entry: { x: dx, y: H - 2, facing: 'up' } };
+  props.push({ id: `hq_${tier}_plant_b`, type: 'plant', x: W - 2, y: 1 });
+  props.push({ id: `hq_${tier}_rug`, type: 'rug', x: dx - 1, y: H - 3, w: 3, h: 1, color: '#2a3a5a' });
+  for (let x = 2; x < W - 2; x += 3) props.push({ id: `hq_${tier}_win_${x}`, type: 'window', x, y: 0 });
+  let n = 0;
+  const cols = []; // desk columns: left to right, skipping the one in front of the door
+  for (let x = 1; cols.length < perRow; x++) if (x !== dx) cols.push(x);
+  const recX = Math.max(dx + 2, cols[perRow - 1] + 1); // the reception sits beside the door, clear of the last desk's standing place
+  props.push({ id: `hq_${tier}_reception`, type: 'counter', x: recX, y: H - 2, w: 2, color: '#4a3a2e', label: 'RECEPTION', examine: 'The reception desk. A bell, a visitors\' book and a brass plate with the company\'s name.' });
+  spots.reception = { x: recX - 1, y: H - 2, facing: 'right' };
+  if (W - 2 > cols[perRow - 1] + 2) props.push({ id: `hq_${tier}_plant_a`, type: 'plant', x: W - 2, y: H - 2 }); // (beside the reception, where there is room)
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < perRow; k++) {
+      const x = cols[k];
+      const y = 2 + 3 * r;
+      n += 1;
+      props.push({ id: `hq_${tier}_desk_${n}`, type: 'desk', x, y, color: '#6a4a2e' }, { id: `hq_${tier}_chair_${n}`, type: 'chair', x, y: y + 1 });
+      spots[`desk_${n}`] = { x, y: y + 2, facing: 'up' }; // where an officer stands to work: at the chair, from the walkway
+    }
+  }
+  if (tier !== 'small') {
+    props.push({ id: `hq_${tier}_board`, type: 'table', x: W - 4, y: 2, w: 3, color: '#3a2a1e', label: 'BOARDROOM', examine: 'The boardroom table. Twelve chairs, one of which is yours.' });
+    spots.boardroom = { x: W - 3, y: 4, facing: 'up' };
+  }
+  if (tier === 'tower') props.push({ id: 'hq_tower_painting', type: 'painting', x: Math.floor(W / 2) + 2, y: 1, examine: 'A portrait of the founder. It has your eyes.' });
+  return {
+    id: hqMapId(tier), name: T.name, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTilesFor(W, H, dx),
+    doors: [{ id: `door_hq_${tier}_exit`, x: dx, y: H - 1, to: { map: 'halvermouth', spot: `${hqBuildingId(tier)}_out` } }],
+    spots, keepClear: [[dx, H - 2]], props,
+  };
+}
+// (the room's tiles come from the shared builder; imported lazily so this file stays plain data for the content tests)
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+const roomTilesFor = (W, H, dx) => roomTiles(W, H, 't', dx);
+
+/** Put the three offices on the street and their halls beside it (called once, before the interiors are laid over the buildings). */
+function addHq(MAPS) {
+  const S = MAPS.halvermouth;
+  for (const tier of HQ_ORDER) {
+    MAPS[hqMapId(tier)] = hqInterior(tier);
+    S.buildings.push(hqBuilding(tier));
+    const T = HQ_TIERS[tier];
+    // a board in front: FOR SALE until the parent buys it, then a brass plate
+    S.props.push(
+      { id: `hq_${tier}_forsale`, type: 'sign', x: T.at.doorX + 2, y: T.at.y + T.at.h, examine: `"${T.name} — FOR SALE. Viewings by appointment: your parent company's tablet, Group."`, hiddenUnless: { hq: { tier, owned: false } } },
+      { id: `hq_${tier}_plate`, type: 'sign', x: T.at.doorX + 2, y: T.at.y + T.at.h, examine: `A brass plate: "${T.name}. Head office."`, hiddenUnless: { hq: { tier, owned: true } } },
+    );
+  }
+}
+
+return { HQ_TIERS, HQ_ORDER, hqMapId, hqBuildingId, hqBuilding, hqInterior, addHq };
+})();
+
 // ---- src/world/interiors.js
 __m["src/world/interiors.js"] = (function () {
 // Seamless buildings, part 2 (v0.47.0): every building's interior is laid over its footprint in
@@ -16070,6 +16175,7 @@ const { SPECIAL_ITEMS, addSpecialWeapons } = __m["src/content/specialWeapons.js"
 const { homeMaps, addHomes, homeContainers, homeResidences, markHomes, LODGING } = __m["src/content/homes.js"];
 const { buildPatrols } = __m["src/world/patrols.js"];
 const { growStreets, shiftContent } = __m["src/world/grow.js"];
+const { addHq, HQ_TIERS } = __m["src/content/hq.js"];
 const { placeInteriors, realInterior } = __m["src/world/interiors.js"];
 const { firstBankInterior, firstBankOffice } = __m["src/content/maps/firstBank.js"];
 const { lariatBankInterior } = __m["src/content/maps/lariatBank.js"];
@@ -16154,6 +16260,7 @@ const BASE_CONTENT = {
   dairy: { config: DAIRY, cows: LEAD_COWS, lasso: LASSO, reward: HERD_REWARD },
   aerospace: { aero: AERO, bays: AERO_BAYS, facilities: AERO_FACILITIES, materials: AERO_MATERIALS, suppliers: AERO_SUPPLIERS, rivalPremium: RIVAL_SUPPLIER_PREMIUM, freight: AERO_FREIGHT, pipelines: AERO_PIPELINES, research: AERO_RESEARCH, products: AERO_PRODUCTS, customers: AERO_CUSTOMERS, tenderRate: TENDER_RATE, budgetStart: BUDGET_START, budgetDaily: BUDGET_DAILY, people: AERO_PEOPLE, internal: AERO_INTERNAL, halls: AERO_HALLS, staff: AERO_STAFF, options: AERO_OPTIONS, events: AERO_EVENTS, flight: AERO_FLIGHT, services: AERO_SERVICES, achievements: AERO_ACHIEVEMENTS }, // v0.55.0; halls, staff, options and events v0.57.0; flight v0.58.0
   life: { occupations: OCCUPATIONS, residences: { ...RESIDENCES, ...HOMES_LIFE.residences }, homes: LIFE, exceptions: LIFE_EXCEPTIONS, patrols: PATROLS, patrolRoutes: PATROL_ROUTES, errands: ERRANDS },
+  hq: HQ_TIERS, // v0.86.0: the three offices the parent company can buy
   farming: { plots: FARM_PLOTS, crops: FARM_CROPS, config: FARM, livestock: LIVESTOCK, market: FARM_MARKET, pasture: PASTURE },
   plots: {},
   startingMap: 'player_flat',
@@ -16183,6 +16290,7 @@ MAPS.phonograph_lobby = phonographLobby(MAPS.halvermouth);
 MAPS.first_bank_office = firstBankOffice(); // v0.78.0
 MAPS.lariat_bank = lariatBankInterior(MAPS.lariat); // v0.78.0: the same, for the Lariat State Bank
 MAPS.first_bank = firstBankInterior(MAPS.halvermouth); // v0.70.0: the First Bank's hall is the size of its building, so the street does not move
+addHq(MAPS); // v0.86.0: three offices for sale on Halvermouth's paving, each hall the size of its building
 placeInteriors(MAPS, REGIONS, STREETS);
 {
   const b = MAPS.halvermouth.buildings.find((x) => x.id === 'b_phonograph');
@@ -16209,7 +16317,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.85.0';
+const GAME_VERSION = '0.86.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -19232,7 +19340,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq',
 ];
 
 /**
@@ -19276,6 +19384,8 @@ function checkKey(key, val, game, npc) {
       const { id, count } = typeof val === 'string' ? { id: val, count: 1 } : val;
       return game.inventory.count(id) >= (count ?? 1);
     }
+    case 'hq': // v0.86.0: { tier: 'small', owned: false } — the parent company owns that office (or does not)
+      return game.hq.owns(val.tier) === (val.owned ?? true);
     case 'aeroHall': // v0.57.0: { id: 'heavy', built: false } — a Roost hall is open (or still a site)
       return game.aero.hallBuilt(val.id) === (val.built ?? true);
     case 'stolen':
@@ -25517,6 +25627,82 @@ class Robbery {
 }
 
 return { Robbery };
+})();
+
+// ---- src/systems/hq.js
+__m["src/systems/hq.js"] = (function () {
+// The headquarters (v0.86.0): game.hq. The parent company can buy any of three offices (src/content/hq.js), paying from its own account
+// only; from then on it pays their upkeep each morning. Owning one opens its door and its hall. Buying is an asset bought and a cost paid,
+// never a source of money, and an office is only ever a place: its seats and desks come into use when officers work there (v0.87.0).
+//
+// State (world.hq, created on first use, saved): { v: 1, owned: { tier: { day, paid } }, lastDay, log: [{ day, text }] }
+const { HQ_TIERS, HQ_ORDER } = __m["src/content/hq.js"];
+
+const money = (n) => `${Math.round(n).toLocaleString('en-US')} obols`;
+
+class Headquarters {
+  constructor(game) { this.game = game; }
+
+  get K() { return this.game.corp; }
+  peek() { return this.game.world?.hq || null; }
+  get state() { return (this.game.world.hq ||= { v: 1, owned: {}, lastDay: 0, log: [] }); }
+  owns(tier) { return Boolean(this.peek()?.owned?.[tier]); }
+  owned() { return HQ_ORDER.filter((t) => this.owns(t)); }
+  /** The biggest office the parent owns (where its officers will work), or null. */
+  best() { return [...this.owned()].pop() || null; }
+
+  /** Can the parent buy this office now, and if not, why. */
+  canBuy(tier) {
+    const T = HQ_TIERS[tier];
+    if (!T) return { ok: false, why: 'There is no such office.' };
+    if (this.owns(tier)) return { ok: false, why: 'The parent already owns it.' };
+    if (!this.K.group.parent) return { ok: false, why: 'Found a parent company first: it is the parent that owns an office.' };
+    const a = this.K.account('parent');
+    if (!a.funded) return { ok: false, why: 'The parent has no money of its own yet: pay into it first.' };
+    if (a.cash < T.price) return { ok: false, why: `The parent holds ${money(a.cash)}; it needs ${money(T.price)}.` };
+    return { ok: true, why: '' };
+  }
+
+  /** What the Group app shows: each office with its state. */
+  view() {
+    return HQ_ORDER.map((id) => ({ ...HQ_TIERS[id], owned: this.owns(id), since: this.peek()?.owned?.[id]?.day ?? null, ...this.canBuy(id) }));
+  }
+
+  buy(tier) {
+    const c = this.canBuy(tier);
+    if (!c.ok) return { ok: false, text: c.why };
+    const T = HQ_TIERS[tier];
+    const g = this.game;
+    if (!this.K.pay('parent', T.price, { cat: 'capex' })) return { ok: false, text: `The parent cannot pay ${money(T.price)}.` };
+    const s = this.state;
+    s.owned[tier] = { day: g.clock.day, paid: T.price };
+    this.note(`Bought ${T.name} for ${money(T.price)}.`);
+    g.tablet.post('news', `🏢 ${this.K.nameOf('parent')} bought ${T.name}.`, 'good');
+    g.bus.emit('hq:bought', { tier });
+    return { ok: true, text: `${this.K.nameOf('parent')} now owns ${T.name}. Its door is open; upkeep is ${money(T.upkeep)} a day.` };
+  }
+
+  note(text) {
+    const s = this.state;
+    s.log.push({ day: this.game.clock.day, text });
+    if (s.log.length > 40) s.log.shift();
+  }
+
+  /** Each morning, once: the parent pays to keep what it owns open. A day it cannot pay in full becomes arrears, as for any company. */
+  dailyTick() {
+    const s = this.peek();
+    if (!s || !Object.keys(s.owned).length) return;
+    const day = this.game.clock.day;
+    if (s.lastDay >= day) return;
+    s.lastDay = day;
+    for (const t of this.owned()) this.K.pay('parent', HQ_TIERS[t].upkeep, { cat: 'upkeep', owe: true, quiet: true });
+  }
+
+  /** What owning costs a day, all offices together. */
+  upkeepPerDay() { return this.owned().reduce((a, t) => a + HQ_TIERS[t].upkeep, 0); }
+}
+
+return { Headquarters };
 })();
 
 // ---- src/systems/heavy.js
@@ -44858,6 +45044,7 @@ class Corporate {
     this.sovereign.dailyTick(); // the countries' ratings, delayed payments and restructurings, and coupons (once the arms market is running)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
     this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)
+    this.game.hq.dailyTick(); // v0.86.0: what the parent pays to keep its offices open (once it owns one)
   }
 
   /** The wider world's day. */
@@ -45456,6 +45643,7 @@ const { Factory, freshFactory } = __m["src/systems/factory.js"];
 const { Arms, freshArms } = __m["src/systems/arms.js"];
 const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Robbery } = __m["src/systems/robbery.js"]; // v0.79.0
+const { Headquarters } = __m["src/systems/hq.js"]; // v0.86.0
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
@@ -45503,6 +45691,7 @@ class Game {
     this.factory = new Factory(this);
     this.arms = new Arms(this);
     this.market = new Market(this);
+    this.hq = new Headquarters(this); // v0.86.0: the parent company's offices
     this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
@@ -45694,6 +45883,7 @@ class Game {
     const lock = door.lock;
     if (!lock) return null;
     if (lock.bank) { const sealed = this.robbery.closedReason(lock.bank); if (sealed) return sealed; } // v0.79.0: shut for the investigation
+    if (lock.hq) return this.hq.owns(lock.hq) ? null : lock.message; // v0.86.0: an office is shut until the parent company buys it
     if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
@@ -45712,6 +45902,7 @@ class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
+    if (door.lock?.hq) return this.hq.owns(door.lock.hq) && (door.lock.owners || []).includes(npc.id); // v0.86.0: an owned office is for its officers (from v0.87.0)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
     if (npc.profile.worksMap && door.to.map === npc.profile.worksMap) return true; // …and the works its hands, for their shifts
@@ -46898,6 +47089,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.86.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The Headquarters, Stage 1',
+    notes: [
+      'Three offices stand empty and for sale in Halvermouth: a small office behind the First Bank, a corporate centre and a tower. Your parent company can buy any of them from the Group app, from its own money, and then pays to keep it open every day.',
+      'You can walk into an office you own. Officers who work there come next.',
+    ],
+  },
   {
     version: '0.85.0',
     date: '2026-10-31',
@@ -61224,6 +61425,9 @@ const BUILDING_ICONS = {
   b_diner: { icon: '🍳', kind: 'Diner' },
   b_pawn: { icon: '💍', kind: 'Pawn shop' },
   b_phonograph: { icon: '🎰', kind: 'Casino resort' },
+  b_hq_small: { icon: '🏢', kind: 'Office for sale (the parent company\'s)' }, // v0.86.0
+  b_hq_mid: { icon: '🏢', kind: 'Corporate centre for sale' },
+  b_hq_tower: { icon: '🏙️', kind: 'Tower for sale' },
   b_garage: { icon: '🚗', kind: 'Garage' },
   b_gun_shop: { icon: '🔫', kind: 'Gun shop' },
   b_locksmith: { icon: '🔐', kind: 'Locksmith' },
@@ -65128,6 +65332,7 @@ const { milestonesFull } = __m["src/ui/corpMilestones.js"];
 const { companiesFull } = __m["src/ui/corpApp.js"];
 const { intelFull } = __m["src/ui/corpIntel.js"];
 const { COMPANY_IDS } = __m["src/systems/corporate.js"];
+const { HQ_TIERS } = __m["src/content/hq.js"];
 const { PLAYER_COMPANIES } = __m["src/corp/identity.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -65195,6 +65400,16 @@ function groupApp(ui, body, open) {
     const pre = G.joinPreview(id);
     return row({ icon: '🏢', title: p.name, sub: pre.ok ? 'independent: it uses its own account only once it is brought in' : pre.blockers[0], tag: 'independent', action: pre.ok ? h('button', { class: 'tb-mini pri', onclick: () => { ui.groupJoin = id; open('Group'); } }, 'Bring in ›') : null });
   })));
+  // ---- the headquarters (v0.86.0): three offices in Halvermouth the parent can buy
+  const buying = ui.hqBuy && !g.hq.owns(ui.hqBuy) ? ui.hqBuy : null;
+  if (buying) {
+    const T = HQ_TIERS[buying];
+    body.append(h('div', { class: 'tb-card tb-terms' }, h('b', {}, `Buy ${T.name}?`),
+      h('div', { class: 'tb-sub' }, `${n(T.price)} obols once, from the parent's own account (it holds ${n(pa.cash)}); then ${n(T.upkeep)} a day to keep it open. ${T.desks} desks, ${T.seats} officer seats. It stands in Halvermouth.`),
+      buttons(big(`Buy for ${n(T.price)}`, () => { ui.hqBuy = null; go(g.hq.buy(buying)); }, 'pri', !g.hq.canBuy(buying).ok), big('Cancel', () => { ui.hqBuy = null; open('Group'); }))));
+  }
+  body.append(h('div', { class: 'tb-label', style: 'margin:6px 2px 4px' }, 'Headquarters'), list(...g.hq.view().map((t) => row({ icon: '🏢', title: t.short, sub: t.owned ? `owned since day ${t.since} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day` : `${n(t.price)} · ${t.desks} desks, ${t.seats} seats · ${n(t.upkeep)} a day`, tag: t.owned ? 'yours' : t.ok ? 'for sale' : '', tone: t.owned ? 'good' : '',
+    action: t.owned ? null : h('button', { class: 'tb-mini pri', disabled: !t.ok, title: t.ok ? '' : t.why, onclick: () => { ui.hqBuy = t.id; open('Group'); } }, 'Buy ›') }))));
   body.append(fold(ui, 'Group', 'Statements, lending, policies and everything else ›', (box) => groupFull(ui, box, open)));
 }
 

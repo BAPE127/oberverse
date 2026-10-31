@@ -69,6 +69,9 @@ export const BUILDING_ICONS = {
   b_diner: { icon: '🍳', kind: 'Diner' },
   b_pawn: { icon: '💍', kind: 'Pawn shop' },
   b_phonograph: { icon: '🎰', kind: 'Casino resort' },
+  b_hq_small: { icon: '🏢', kind: 'Office for sale (the parent company\'s)' }, // v0.86.0
+  b_hq_mid: { icon: '🏢', kind: 'Corporate centre for sale' },
+  b_hq_tower: { icon: '🏙️', kind: 'Tower for sale' },
   b_garage: { icon: '🚗', kind: 'Garage' },
   b_gun_shop: { icon: '🔫', kind: 'Gun shop' },
   b_locksmith: { icon: '🔐', kind: 'Locksmith' },

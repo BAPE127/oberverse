@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.86.0] — 2026-10-31 — The Headquarters, Stage 1 (development build)
+
+Stage 1 of the headquarters (mockups `docs/mockups/proposal-hq-*.png`; the real screens `docs/mockups/v086-*.png`).
+
+- **Three offices stand in Halvermouth from the first day**, on empty paving, shut and "FOR SALE": **The Ledger Row Office** (9×7, behind the First Bank), **The Corporate Centre** (12×9, east of the Grand Hotel's forecourt) and **The Tower** (14×13, beside the precinct). Each is a real building with a seamless door, and its hall is **exactly the size of the building**, so no street, no road and no other building moved. Each has windows, a reception, a rug, plants, desks with chairs and a place to stand at each, and (the centre and the tower) a boardroom table.
+- **The parent company buys one** — from the Group app's new *Headquarters* list, with its terms shown first (price, upkeep, desks, seats) and a Buy and a Cancel. It pays **from its own account only**, never your wallet, and it must be funded and hold the price. **25,000** (small), **600,000** (centre), **6,000,000** (tower); you may own several. Owning one opens its door, swaps the FOR SALE board for a brass plate, and starts a **daily upkeep paid by the parent** (60, 900, 9,000 obols; a day it cannot pay becomes arrears, as for any company). Nothing is ever paid *to* anyone: the system creates no money, and a control-game test shows the rest of the group is untouched.
+- **Locked until bought:** a stranger can't walk in either way; an owned office is for its officers, who arrive in the next stage.
+- A new condition, `hq`, and a lock, `lock.hq`; map icons for the three buildings.
+- **What it is not yet (stated plainly):** it is a place, not yet a perk. **Officers do not work there yet** (stage 2: they commute, sit at the desks, meet in the boardroom and go home), **nothing limits how many officers you have** until they do, **you cannot restyle the furniture** (stage 3), **the tower is one floor** (its upper floors are not built), and there is no selling an office.
+- The desks and seats are smaller than the mockup's samples (12 and 24 desks, not 16 and 40), because the halls had to fit the free paving; seats are 3, 8 and 12.
+- **Tests:** `tests/hq.test.mjs` (9): the buildings' placement and hall sizes, the purchase from the parent's account only, refusals that change nothing, upkeep once a day and arrears, the control game, the door lock, the board and plate, save and load, and a scan that the system never pays anyone. The smoke gained two checks. No existing test edited.
+
 ## [0.85.0] — 2026-10-31 — The OberPad, Finished (development build)
 
 The last stage of the overhaul.

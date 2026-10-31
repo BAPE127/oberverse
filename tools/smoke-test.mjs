@@ -154,6 +154,17 @@ try {
   record('OberPad: Standing opens on a summary', (await page.textContent('#modal-body')).includes('How the borough sees you'));
   await closeAll();
 
+  // The headquarters (v0.86.0): bought from the Group app, from the parent's own account; the door opens
+  await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.player.money = 5_000_000; g.corp.contribute('parent', 200_000); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Group' }); });
+  await wait(300);
+  const parent0 = await page.evaluate(() => window.oberverse.ui.game.corp.account('parent').cash);
+  await page.click('.tb-row:has-text("Small Office") .tb-mini'); await wait(250);
+  const terms2 = await page.textContent('#modal-body');
+  record('Headquarters: Buy shows the terms and spends nothing', terms2.includes('Buy The Ledger Row Office?') && (await page.evaluate(() => window.oberverse.ui.game.corp.account('parent').cash)) === parent0);
+  await page.click('.tb-terms .tb-btn.pri'); await wait(300);
+  record('Headquarters: the parent pays exactly the price and the door opens', parent0 - (await page.evaluate(() => window.oberverse.ui.game.corp.account('parent').cash)) === 25000 && await page.evaluate(() => { const g = window.oberverse.ui.game; return g.playerCanPass(g.maps.get('halvermouth').doors.find((d) => d.building === 'b_hq_small')); }));
+  await closeAll();
+
   // Teleport next to Mags (test hook) and talk to her
   await closeAll();
   await page.evaluate(() => {

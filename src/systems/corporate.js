@@ -432,6 +432,7 @@ export class Corporate {
     this.sovereign.dailyTick(); // the countries' ratings, delayed payments and restructurings, and coupons (once the arms market is running)
     this.lending.dailyTick(); // instalments, arrears and the borrowing record (once a loan has been taken)
     this.business.dailyTick(); // companies' instalments and arrears (once a company has borrowed)
+    this.game.hq.dailyTick(); // v0.86.0: what the parent pays to keep its offices open (once it owns one)
   }
 
   /** The wider world's day. */

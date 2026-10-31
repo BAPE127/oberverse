@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.86.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'The Headquarters, Stage 1',
+    notes: [
+      'Three offices stand empty and for sale in Halvermouth: a small office behind the First Bank, a corporate centre and a tower. Your parent company can buy any of them from the Group app, from its own money, and then pays to keep it open every day.',
+      'You can walk into an office you own. Officers who work there come next.',
+    ],
+  },
+  {
     version: '0.85.0',
     date: '2026-10-31',
     channel: 'development',
