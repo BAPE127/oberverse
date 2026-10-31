@@ -89,8 +89,14 @@ export class Logistics {
     return this.cfg.ports[id] || null;
   }
 
+  /** A port's type, with what it charges halved (v0.91.0: what a business pays to run). */
   portType(id) {
-    return this.cfg.portTypes[this.port(id)?.type] || null;
+    const t = this.cfg.portTypes[this.port(id)?.type];
+    if (!t) return null;
+    const cache = (this._portTypes ||= new Map());
+    let o = cache.get(t);
+    if (!o) { o = { ...t, upkeep: Math.round(t.upkeep * INCOME.cost), fee: Math.round((t.fee || 0) * INCOME.cost) }; cache.set(t, o); }
+    return o;
   }
 
   /** A ship model: from the catalogues, or a custom design from your own yard (v0.24.0). */
@@ -286,7 +292,7 @@ export class Logistics {
     const m = this.specOf(v);
     const k = this.cls(m);
     return {
-      capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags || [],
+      capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex * INCOME.cost, upkeep: Math.round(m.upkeep * INCOME.cost), tags: m.tags || [],
       size: m.size ?? k.size, wear: m.wear ?? k.wear ?? 1, needsPortType: m.needsPortType ?? k.needsPortType ?? null,
       combat: { attack: 0, defense: 5, detection: 10, stealth: 10, mounts: 0, ...(k.combat || {}), ...(m.combat || {}) }, bonuses: m.bonuses || [],
     };
@@ -363,7 +369,7 @@ export class Logistics {
     const m = this.model(v.model);
     const pts = 100 - v.condition;
     const foreign = !this.ownsPort(v.port);
-    return Math.round(pts * m.price * this.L.repairPerPoint * (foreign ? 1.5 : 1));
+    return Math.round(pts * m.price * this.L.repairPerPoint * (foreign ? 1.5 : 1) * INCOME.cost);
   }
 
   repair(id) {

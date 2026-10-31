@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { newGame } from './helpers.mjs';
 import { freshAccount, post, monthTotals, monthOf, balanceOk, kindOf, MONTHS_KEPT } from '../src/corp/ledger.js';
 import { COMPANY_IDS } from '../src/systems/corporate.js';
+import { INCOME } from '../src/content/income.js';
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const fund = (g, id, cash) => { const a = g.corp.account(id); a.funded = true; a.cash = cash; a.contributed = cash; return a; };
 

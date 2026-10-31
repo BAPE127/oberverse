@@ -5,6 +5,8 @@
 //   badges(g)              { app: number of unread notifications that belong to it }
 //   searchApps(groups, q)  the apps whose name or group matches a search
 
+/** What an app is called on screen where its id is not a good name (the arms business is the app id 'Business'). */
+export const APP_LABELS = { Business: 'Arms' };
 export const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
@@ -44,5 +46,5 @@ export function badges(g) {
 export function searchApps(groups, q) {
   const s = String(q || '').trim().toLowerCase();
   if (!s) return [];
-  return groups.flatMap((x) => x.apps.filter((a) => a.toLowerCase().includes(s) || x.id.toLowerCase().includes(s)).map((a) => ({ app: a, group: x.id })));
+  return groups.flatMap((x) => x.apps.filter((a) => a.toLowerCase().includes(s) || (APP_LABELS[a] || '').toLowerCase().includes(s) || x.id.toLowerCase().includes(s)).map((a) => ({ app: a, group: x.id })));
 }

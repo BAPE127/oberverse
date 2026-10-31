@@ -93,6 +93,13 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.91.0 (2026-10-31)
+
+- New: `aero_watch.test.mjs` (4), `arms_manager.test.mjs` (7), `rebalance.test.mjs` (6). Smoke 50/50 (+3: the Arms label, the take-off card, Watch it).
+- **Existing tests edited:** eleven files that pin the old prices or the internal freight charge (`aerospace`, `aerospace_config`, `aerospace_shipping`, `aerospace_staff`, `aerospace_supply`, `arms`, `corporate_accounts`, `corporate_consolidation`, `geo_effects`, `logistics`, `market`) set `INCOME.cost = 1`, `INCOME.revenue = 1` and `INCOME.ownShippingFree = false` after their imports (each runs in its own process, so nothing leaks); `managers.test.mjs` has the new wages and the arms boxes. Their assertions are unchanged. The new figures are tested in `rebalance.test.mjs`.
+- Parity with v0.90.0: **not identical, by design** (costs, revenue and freight changed).
+- Browser (headless Chromium): the take-off card with its countdown and the jump to the runway viewpoint, 0 page errors. Not tested: how the card feels over a busy screen; a touch device.
+
 ## Verification record — v0.90.0 (2026-10-31)
 
 - New: `todo.test.mjs` (10). Smoke 47/47 (+3). Existing test edited: `tablet_home.test.mjs` (reachability: the inbox is reached from the Needs-you card). The earlier Business smoke check ("Your arms trade") now checks the shared shape.

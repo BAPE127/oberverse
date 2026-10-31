@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'Arms, Costs, and Take-offs',
+    notes: [
+      'A big notice at the bottom left tells you when a finished aircraft is about to take off, with a button to go and watch.',
+      'Running costs are halved, sales are up 10%, and your own shipping line makes supplies and exports free to carry. The arms manager can now hire staff, keep the line running and fill export orders.',
+    ],
+  },
+  {
     version: '0.90.0',
     date: '2026-10-31',
     channel: 'development',

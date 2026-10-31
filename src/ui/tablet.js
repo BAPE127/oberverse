@@ -13,7 +13,7 @@ import { managersApp } from './tabletManagers.js';
 import { bizScreen, needsApp } from './tabletBiz.js'; // v0.90.0
 import { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js'; // v0.84.0: the summaries
 import { bondsApp } from './corpBonds.js'; // v0.69.0
-import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } from './tabletGroups.js'; // v0.72.0
+import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS, APP_LABELS } from './tabletGroups.js'; // v0.72.0
 import { statusBar, navBar, segments, hero, tiles, row, fold, openFold, n as fmt } from './tabletKit.js'; // v0.83.0
 import { homeScreen } from './tabletHome.js';
 import { calcItem } from '../systems/gang.js';
@@ -35,8 +35,8 @@ export function tabletPanel(ui, body, opts) {
   /** What needs you: every decision waiting for an answer (the inbox). */
   const needs = () => g.corp.todo.inbox();
   const appHead = () => {
-    const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : a}`, badge: badge[a] })), tab, (a) => open(a));
-    return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : tab, back: () => open('Home') }), seg);
+    const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : APP_LABELS[a] || a}`, badge: badge[a] })), tab, (a) => open(a));
+    return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : APP_LABELS[tab] || tab, back: () => open('Home') }), seg);
   };
 
   if (tab === 'Needs') body.append(statusBar(g), navBar({ icon: '📥', title: 'Needs you', back: () => open('Home') }));

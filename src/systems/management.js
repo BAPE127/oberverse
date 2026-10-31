@@ -14,7 +14,7 @@ import { judge, armsPar, planArmsOrders, nextPlot, nextPort, bidPrice, treasuryM
 import { monthOf } from '../corp/ledger.js';
 
 const BUSINESSES = ['arms', 'shipping', 'aerospace', 'farming'];
-const KIND_PERM = { reorder: 'reorder', bid: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
+const KIND_PERM = { reorder: 'reorder', hire: 'hire', automation: 'automation', bid: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
 
 export class Management {
   constructor(corp) {
@@ -273,23 +273,92 @@ export class Management {
     return out;
   }
 
+  /** Arms: a worker, when there are stations with nobody at them and a free bunk — the applicant best at what the first of them needs. (Reading uses today's applicants; a decision may have them drawn.) */
+  planStaff() {
+    const A = this.g.arms;
+    for (const wh of A.ownedIds()) {
+      const def = A.def(wh);
+      const machines = A.cells(wh).machines.filter((e) => e.kind !== 'lab');
+      const unstaffed = machines.filter((e) => !A.workerAt(e));
+      const free = A.staffOf(wh).filter((x) => !x.assigned);
+      if (unstaffed.length <= free.length || A.staffOf(wh).length >= def.bunks) continue;
+      const fresh = A.state.candidatesDay === this.day && A.state.candidates.length;
+      if (!fresh && !this.acting) return [{ item: `hire:${wh}`, cost: 300, desc: 'a new worker', run: null }];
+      const skill = A.cfg.stations[unstaffed[0].kind].skill;
+      const cands = A.candidates().map((c, i) => ({ c, i })).sort((a, b) => (b.c.skills[skill] || 0) - (a.c.skills[skill] || 0) || a.c.wage - b.c.wage || a.i - b.i);
+      if (!cands.length) continue;
+      const { c, i } = cands[0];
+      return [{ item: `hire:${wh}`, cost: c.wage * 10, desc: `${c.name} at ${def.name} (${c.wage} a day)`, run: () => { const r = A.hire(i, wh); if (r.ok) A.autoAssign(wh); return { ok: r.ok, paid: 0, text: r.text }; } }];
+    }
+    return [];
+  }
+
+  /** Arms: the line, kept running — every idle station gets the recipe worth most, and free workers go to stations with nobody at them. */
+  planAutomation() {
+    const A = this.g.arms; const g = this.g;
+    let idle = 0; let manned = 0;
+    const plan = [];
+    for (const wh of A.ownedIds()) {
+      const machines = A.cells(wh).machines.filter((e) => e.kind !== 'lab');
+      for (const e of machines.filter((x) => !A.recipeOf(x))) {
+        const best = Object.entries(A.cfg.recipes).filter(([rid, r]) => r.station === e.kind && A.recipeUnlocked(rid)).sort((a, b) => A.value(b[1].out) - A.value(a[1].out) || (a[0] < b[0] ? -1 : 1))[0];
+        if (best) { plan.push([e.id, best[0]]); idle++; }
+      }
+      const free = A.staffOf(wh).filter((x) => !x.assigned).length;
+      manned += Math.min(free, machines.filter((x) => !A.workerAt(x)).length);
+    }
+    if (!idle && !manned) return [];
+    return [{ item: 'line', cost: 0, desc: `${idle ? `${idle} idle station${idle === 1 ? '' : 's'}` : ''}${idle && manned ? ', ' : ''}${manned ? `${manned} station${manned === 1 ? '' : 's'} to staff` : ''}`, run: () => {
+      for (const [id, rid] of plan) A.setRecipe(id, rid);
+      let put = 0;
+      for (const wh of A.ownedIds()) { const before = A.staffOf(wh).filter((x) => x.assigned).length; A.autoAssign(wh); put += A.staffOf(wh).filter((x) => x.assigned).length - before; }
+      void g;
+      return { ok: true, paid: 0, text: `The line is running: ${plan.length} station${plan.length === 1 ? '' : 's'} set, ${put} worker${put === 1 ? '' : 's'} placed.` };
+    } }];
+  }
+
+  /** Arms: the export orders the cage can fill now, most profit first — sent with the cheapest shipper that will take the cargo (nothing to pay if you own the shipping line). */
+  planExports() {
+    const g = this.g; const A = g.arms; const Mk = g.market;
+    if (!A.licensed()) return [];
+    const out = [];
+    for (const wh of A.ownedIds()) {
+      const cage = g.world.containers[A.def(wh)?.outCrate]?.items || {};
+      for (const o of Mk.openOrders()) {
+        if ((cage[o.item] || 0) < o.qty) continue;
+        const c = Mk.country(o.country);
+        if (!c || c.hostility >= Mk.cfg.market.refuseHostility) continue;
+        const value = o.qty * o.price;
+        if (value > c.budget) continue;
+        const ships = Object.keys(Mk.cfg.shippers).filter((id) => !c.embargo || Mk.cfg.shippers[id].embargo).map((id) => ({ id, fee: Mk.fee(id, value, false) })).sort((a, b) => a.fee - b.fee || (a.id < b.id ? -1 : 1));
+        if (!ships.length) continue;
+        out.push({ item: `order:${o.id}`, cost: ships[0].fee, profit: value - ships[0].fee, desc: `${o.qty} × ${g.content.items[o.item].name} for ${Mk.cfg.countries[o.country].name} — ${value.toLocaleString()}`, run: () => { const r = Mk.ship({ wh, order: o.id, shipper: ships[0].id }); return { ok: r.ok, paid: ships[0].fee, text: r.text }; } });
+      }
+    }
+    return out.sort((a, b) => b.profit - a.profit || (a.item < b.item ? -1 : 1));
+  }
+
   // ------------------------------------------------------------- the decision
   /** What a decision could be now: [{ item, cost, ... }]; the first is the one made. Nothing changes. */
   candidates(kind, target) {
     if (kind === 'reorder') { const c = (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0); return c > 0 ? [{ item: null, cost: c }] : []; }
-    if (kind === 'bid') return this.planBids();
+    if (kind === 'bid') return target === 'arms' ? this.planExports() : this.planBids();
+    if (kind === 'hire') return this.planStaff();
+    if (kind === 'automation') return this.planAutomation();
     if (kind === 'research') return this.planResearch(target);
     if (kind === 'transfer') return this.planTreasury(target);
     return this.planExpansion(target);
   }
 
   /** The text of what was done or asked, by kind. */
-  verb(kind) { return { reorder: 'buy supplies', bid: 'bid', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
+  verb(kind) { return { reorder: 'buy supplies', hire: 'hire staff', automation: 'keep the line running', bid: 'take a contract', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
 
   /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
   decide(kind, target, x, { owner = false, item = undefined } = {}) {
     const m = this.ensure();
+    this.acting = true;
     const all = this.candidates(kind, target);
+    this.acting = false;
     let cand;
     const judgeOf = (c) => this.judgeFor(x, kind, target, c.cost, { owner, ask: c.ask || null, source: c.source || null });
     if (item !== undefined) cand = all.find((c) => c.item === item);
@@ -316,9 +385,9 @@ export class Management {
     delete m.last.refused[key];
     const r = this.carryOut(kind, target, x, cand);
     if (!r.ok) { this.log({ type: 'failed', kind, employer: target, actor: x.id, cost, text: `${who}: ${r.text}` }); return { verdict: 'failed', text: r.text, cost }; }
-    const spend = kind === 'bid' ? cost : r.paid;
+    const spend = kind === 'bid' && target !== 'arms' ? cost : r.paid;
     if (kind !== 'transfer' && !owner) this.note(target, spend);
-    if (kind !== 'bid') this.K.noteActor(kind === 'transfer' ? 'parent' : target, x.id, r.paid);
+    if (kind !== 'bid' || target === 'arms') this.K.noteActor(kind === 'transfer' ? 'parent' : target, x.id, r.paid);
     this.log({ type: owner ? 'approved' : 'done', kind, employer: target, actor: x.id, cost: spend, text: `${who}: ${r.text}` });
     if (!owner && (kind === 'bid' || kind === 'research')) this.g.notify?.(r.text, 'info');
     return { verdict: 'execute', cost: spend, text: r.text };
@@ -327,8 +396,11 @@ export class Management {
   /** You do what a manager would: the first thing worth doing of that kind, now, from the business's own account. No limit applies: it is you. */
   doNow(kind, target) {
     const at = this.Pe.employerName(target);
+    this.acting = true;
     const c = this.candidates(kind, target)[0];
+    this.acting = false;
     if (!c) return { ok: false, text: 'Nothing to do right now.' };
+    if (!c.run && kind === 'hire') return { ok: false, text: 'No applicants today.' };
     if (!this.K.canAfford(target, c.cost)) return { ok: false, text: `${at} cannot pay ${c.cost.toLocaleString()} obols.` };
     const r = this.carryOut(kind, target, null, c);
     if (r.ok) this.log({ type: 'owner', kind, employer: target, cost: r.paid, text: `You: ${r.text}` });
@@ -337,6 +409,7 @@ export class Management {
 
   carryOut(kind, target, x, cand) {
     if (kind === 'reorder') return this.doReorder(target, x);
+    if (cand.run && (kind === 'hire' || kind === 'automation' || (kind === 'bid' && target === 'arms'))) { const r = cand.run(); return { ok: r.ok, paid: r.paid || 0, text: r.text }; }
     if (kind === 'bid') {
       const r = this.g.aero.placeBid(this.g.aero.roost.id, cand.item, cand.price, cand.days);
       return { ok: r.ok, paid: 0, text: r.text };

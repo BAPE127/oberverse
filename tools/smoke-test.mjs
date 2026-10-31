@@ -159,6 +159,13 @@ try {
   await page.click('.tb-btns .tb-btn.pri'); await wait(350);
   const needsAfter = await page.evaluate(() => ({ n: window.oberverse.ui.game.corp.management.peek().pending.length, cash: window.oberverse.ui.game.corp.cashOf('aerospace') }));
   record('OberPad: Yes in the inbox answers the request, once, and the firm pays for it', needsBefore.n >= 1 && needsAfter.n === needsBefore.n - 1 && needsAfter.cash < needsBefore.cash, JSON.stringify([needsBefore, needsAfter]));
+  // The take-off notice (v0.91.0)
+  await page.evaluate(() => { const ui = window.oberverse.ui; while (ui.panelStack.length) ui.closePanel(); const g = ui.game; const A = g.aero; const id = A.registerAircraft(A.roost, { id: 'U-smoke', product: 'ap_skylark', contract: null, config: {} }); const ac = A.state.aircraft[id]; A.announceDeparture(ac, A.clearForDeparture(ac)); });
+  await wait(500);
+  const wnText = await page.evaluate(() => document.getElementById('watchnote').innerText);
+  record('Take-off notice: a big card at the bottom left counts down to the take-off', /takes off in \d+ min|taking off now/.test(wnText) && wnText.includes('Watch it'), wnText.replace(/\s+/g, ' '));
+  await page.click('#watchnote .wn-go'); await wait(700);
+  record('Take-off notice: Watch it takes you to the runway viewpoint on Starling Field', (await page.evaluate(() => window.oberverse.ui.game.currentMap().id)) === 'starling_flats');
   await page.evaluate(() => window.oberverse.ui.openPanel('tablet', { tab: 'Exchange' })); await wait(300);
   record('OberPad: Exchange opens on your holdings, the board one tap down', (await page.textContent('#modal-body')).includes('Your shares are worth'));
   await closeAll();
@@ -167,6 +174,7 @@ try {
   await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; g.player.money = 5_000_000; g.arms.buyLicence(); g.arms.buy('aw1'); ui.openPanel('tablet', { tab: 'Business' }); });
   await wait(300);
   const bText = await page.textContent('#modal-body');
+  record('OberPad: the arms business is labelled Arms', (await page.textContent('.tb-nav .tb-title')).includes('Arms') && (await page.textContent('.tb-seg')).includes('Arms'));
   record('OberPad: Business opens on the same short screen as every business (result, figures, Do next)', bText.includes('Made this month') && bText.split(/\s+/).length < 90, String(bText.split(/\s+/).length));
   await page.click('.tb-fold > summary'); await wait(400);
   record('OberPad: the Business fold opens the works console', (await page.textContent('#modal-body')).toUpperCase().includes('OVERWATCH'));

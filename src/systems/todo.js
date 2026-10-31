@@ -66,6 +66,11 @@ export class Todo {
     const M = this.M; const g = this.g;
     const money = (n) => `${Math.round(n).toLocaleString('en-US')}`;
     const planned = (kind, make) => { if (this.handled(id, kind)) return; const c = M.candidates(kind, id)[0]; if (c) out.push(make(c)); };
+    if (id === 'arms') {
+      planned('bid', (c) => ({ key: 'bid', icon: '📦', title: 'Fill an export order', sub: `${c.desc}${c.cost ? ` · shipping ${money(c.cost)}` : ''}`, cost: c.cost, button: 'Ship' }));
+      planned('automation', (c) => ({ key: 'automation', icon: '🛠️', title: 'Keep the line running', sub: c.desc, cost: 0, button: 'Start' }));
+      planned('hire', (c) => ({ key: 'hire', icon: '🧑‍🏭', title: 'Hire a worker', sub: c.desc, cost: c.cost, button: 'Hire' }));
+    }
     if (id === 'arms' || id === 'aerospace') planned('reorder', (c) => ({ key: 'reorder', icon: '🛒', title: id === 'arms' ? 'Order parts' : `Buy ${M.planAero().length} material${M.planAero().length === 1 ? '' : 's'}`, sub: `What is running short · ${money(c.cost)}`, cost: c.cost, button: 'Buy' }));
     if (id === 'aerospace') planned('bid', (c) => ({ key: 'bid', icon: '📄', title: 'A contract worth bidding on', sub: `${money(c.price)} · about ${money(c.profit)} profit`, cost: 0, button: 'Bid' }));
     if (id === 'arms' || id === 'aerospace') planned('research', (c) => ({ key: 'research', icon: '🔬', title: `Research ${c.desc}`, sub: c.cost ? `${money(c.cost)}` : 'Free to start', cost: c.cost, button: 'Start' }));
@@ -107,7 +112,7 @@ export class Todo {
   run(id, key) {
     const g = this.g; const M = this.M;
     const [what, a, b] = String(key).split(':');
-    if (['reorder', 'bid', 'research', 'expand'].includes(what)) return M.doNow(what, id);
+    if (['reorder', 'bid', 'research', 'expand', 'hire', 'automation'].includes(what)) return M.doNow(what, id);
     if (what === 'send') {
       const L = g.logistics; const o = this.sendable();
       if (!o) return { ok: false, text: 'Nothing to send right now.' };

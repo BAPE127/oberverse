@@ -19,6 +19,7 @@
 //
 // State: game.world.aero (created on first use; a save from before v0.55.0
 // gets Meridian as it is at the start of a new game — and never a free firm).
+import { INCOME } from '../content/income.js';
 import { Rng } from '../core/rng.js';
 import { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomValue, fmtMoney, fmtDays } from '../aero/catalog.js';
 import { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } from '../aero/pipeline.js';
@@ -29,7 +30,7 @@ import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
 import { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } from '../aero/field.js';
 import { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } from '../aero/launch.js';
-import { windRunway, poseAt, planLength } from '../aero/flight.js';
+import { windRunway, poseAt, planLength, runwayWindow } from '../aero/flight.js';
 import { checkAchievements, progress as achievementProgress } from '../aero/achievements.js';
 import { cashFlow, monthly, balanceSheet, segments, headline } from '../aero/reports.js';
 import { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } from '../aero/fleet.js';
@@ -257,7 +258,7 @@ export class Aerospace {
 
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
   receive(co, amount, account, flow = null) {
-    amount = Math.round(amount);
+    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue : 1)); // v0.91.0: +10% on what your firm sells
     if (amount <= 0) return;
     if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
     else co.cash += amount;
@@ -938,7 +939,7 @@ export class Aerospace {
     const sp = this.cfg.suppliers[supplierId];
     const base = this.cfg.materials[m].price * sp.sells[m];
     const cut = co.kind === 'player' ? this.game.corp.personnel.effect('aerospace', 'materials') : 0; // v0.62.0: a good buyer pays less — it is the price actually paid
-    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1) * (1 - cut));
+    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1) * (1 - cut) * (co.kind === 'player' ? INCOME.cost : 1)); // (half the price for you: v0.91.0)
   }
 
   /** Freight, duty and handling for an order, and when it would arrive. Nothing changes. */
@@ -951,19 +952,22 @@ export class Aerospace {
     const goods = unit * qty;
     const volume = qty * (C.materials[m].volume || 1);
     const lead = sp.lead * DAY;
+    const mine = co.kind === 'player';
+    const own = mine && INCOME.ownShippingFree && this.game.logistics.owned; // v0.91.0: with a shipping line of your own, no freight or handling is charged (duty still is)
+    const k = mine ? INCOME.cost : 1;
     if (sp.where === 'local') {
-      return { goods, unitPrice: unit, freight: F.truck, duty: 0, handling: 0, mode: 'truck', km: 0, hours: lead / 60 + F.truckHours, arrive: this.now + Math.round(lead + F.truckHours * 60), volume };
+      return { goods, unitPrice: unit, freight: own ? 0 : Math.round(F.truck * k), duty: 0, handling: 0, mode: 'truck', km: 0, hours: lead / 60 + F.truckHours, arrive: this.now + Math.round(lead + F.truckHours * 60), volume };
     }
     const L = this.game.logistics;
     const r = L.route(sp.where, F.receivingPort);
     const km = r?.km ?? 8000;
     const sea = L.sailHours(km, F.knots);
     const sf = this.game.corp?.geo.costFactor('shipping') ?? 1; // …and of freight
-    const freight = Math.max(F.minimum, Math.round((goods * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf));
+    const freight = own ? 0 : Math.max(Math.round(F.minimum * k), Math.round(((goods / k) * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf * k));
     const country = L.port(sp.where)?.country;
     const duty = country ? Math.round(goods * F.duty) : 0;
     const hours = lead / 60 + sea + F.truckHours + 2;
-    return { goods, unitPrice: unit, freight, duty, handling: F.handling, mode: 'carrier', km, hours, sea, arrive: this.now + Math.round(hours * 60), volume };
+    return { goods, unitPrice: unit, freight, duty, handling: own ? 0 : Math.round(F.handling * k), mode: 'carrier', km, hours, sea, arrive: this.now + Math.round(hours * 60), volume };
   }
 
   /**
@@ -1824,9 +1828,34 @@ export class Aerospace {
   depart(co, u) {
     const ac = this.state.aircraft?.[u.aircraft];
     // the customer's crew takes it over (ownership and payment now); it leaves when the field is clear (src/aero/field.js)
-    if (ac) { ac.owner = this.contract(u.contract)?.customer || ac.owner; scheduleDeparture(this, ac); }
+    if (ac) {
+      ac.owner = this.contract(u.contract)?.customer || ac.owner;
+      const t0 = scheduleDeparture(this, ac);
+      if (co.kind === 'player') this.announceDeparture(ac, t0); // v0.91.0: say so, loudly, so the take-off is not missed
+    }
     return this.settle(co, u);
   }
+
+  /**
+   * v0.91.0: a finished aircraft of yours has been cleared to leave. Remembered (and saved) so the screen can show a big "watch it" notice with a
+   * countdown to the take-off, which the player can follow to the runway. { id, name, at: when it takes off, end: when it is gone }.
+   */
+  announceDeparture(ac, t0) {
+    const w = runwayWindow(planOf(this, ac));
+    const name = this.cfg.products[ac.model]?.name || 'aircraft';
+    this.state.watch = { id: ac.id, name, reg: ac.registration, at: Math.round(t0 + w.from), end: Math.round(t0 + w.to), spot: 'runway_view', map: this.A.map };
+    this.game.bus.emit('aero:departure', { ...this.state.watch });
+  }
+
+  /** The take-off notice, while it still matters (null once the aircraft has gone or you have dismissed it). */
+  watchNotice() {
+    const w = this.state.watch;
+    if (!w) return null;
+    if (this.now > w.end + 2 || w.dismissed) return null;
+    return w;
+  }
+
+  dismissWatch() { if (this.state.watch) this.state.watch.dismissed = true; }
 
   /** The livery a finished aircraft wears: its own firm's for the Skylark, grey for the military, plain otherwise. */
   liveryOf(co, productId) {
@@ -2063,7 +2092,7 @@ export class Aerospace {
     const partial = u.commissioning?.partial;
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
     const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1));
+    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue : 1)); // (+10% for you: v0.91.0)
     const penalty = Math.round(price * penaltyShare);
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';
@@ -2224,7 +2253,8 @@ export class Aerospace {
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
     if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
-    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.kind === 'player' ? Math.round(co.overhead * (1 - this.game.corp.personnel.effect('aerospace', 'overhead'))) : co.overhead };
+    const k = co.kind === 'player' ? INCOME.cost : 1; // v0.91.0: half, for you
+    return { wages: Math.round((co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage) * k), training: T.perDay ? Math.round(co.workforce * T.perDay * k) : 0, upkeep: Math.round(upkeep * k), overhead: co.kind === 'player' ? Math.round(co.overhead * (1 - this.game.corp.personnel.effect('aerospace', 'overhead')) * k) : co.overhead };
   }
 
   companyDay(co) {

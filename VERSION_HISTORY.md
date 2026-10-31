@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.91.0 | 2026-10-31 | development | 1 | Quick fixes: the arms tab is labelled Arms and its manager can hire staff, keep the line running and fill export orders; what businesses pay to run is halved, what they sell is up 10%, and your own shipping line frees freight; a big bottom-left notice lets you watch a finished aircraft take off. |
 | 0.90.0 | 2026-10-31 | development | 1 | The OberPad's businesses made simple: every business screen is one shape (result, three figures, Do next, manager, one fold); a Needs-you inbox on Home; plant, harvest, sell and send-a-ship in one tap; counting numbers and small feedback. |
 | 0.89.0 | 2026-10-31 | development | 1 | Managers, simplified: no skills, no candidates, no budgets by category. One-tap hire at a flat wage; tick-boxes for what a manager may do on their own; one monthly limit per business; expansion is always asked first; a group manager and office staff at the parent. Saves from before are converted. |
 | 0.88.0 | 2026-10-31 | development | 1 | The headquarters, stage 3: furnishing — the parent chooses desks, floor, walls, lamps, pictures and plants for an office it owns, from the Group app; looks only, paid once from the parent. |

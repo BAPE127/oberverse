@@ -103,6 +103,7 @@ export class UI {
       hotbar: document.getElementById('hotbar'),
       healthText: document.getElementById('bar-health-text'),
       toasts: document.getElementById('toasts'),
+      watch: document.getElementById('watchnote'),
       minimap: document.getElementById('minimap'),
       debug: document.getElementById('debug'),
       title: document.getElementById('screen-title'),
@@ -333,6 +334,38 @@ export class UI {
     while (this.el.toasts.children.length > 6) this.el.toasts.firstChild.remove();
     setTimeout(() => t.classList.add('fade'), seconds * 1000);
     setTimeout(() => t.remove(), seconds * 1000 + 700);
+  }
+
+  /**
+   * v0.91.0: when a finished aircraft of yours is cleared to leave Starling Field, a big card at the bottom left counts down to the take-off and
+   * lets you go and watch it (it puts you at the runway viewpoint). It goes by itself once the aircraft has gone, or when you close it.
+   */
+  updateWatch() {
+    const g = this.game;
+    const el = this.el.watch;
+    if (!el) return;
+    const w = g.aero?.watchNotice?.();
+    if (!w) { if (!el.classList.contains('hidden')) { el.classList.add('hidden'); el.textContent = ''; } this.watchId = null; return; }
+    const left = Math.max(0, Math.ceil(w.at - g.aero.now));
+    const text = left > 0 ? `takes off in ${left} min` : 'is taking off now';
+    const key = `${w.id}|${text}`;
+    if (el.dataset.key === key && !el.classList.contains('hidden')) return;
+    el.dataset.key = key;
+    if (this.watchId !== w.id) { this.watchId = w.id; this.audio.sfx('sfx_quest'); }
+    el.classList.remove('hidden');
+    el.classList.toggle('now', left === 0);
+    el.replaceChildren(h('div', { class: 'wn-icon' }, '✈️'), h('div', { class: 'wn-text' }, h('b', {}, `Your ${w.name} ${text}`), h('small', {}, `${w.reg} · Starling Field — you will want to see this`)),
+      h('button', { class: 'wn-go', onclick: () => this.watchTakeoff() }, 'Watch it'), h('button', { class: 'wn-x', title: 'Dismiss', onclick: () => { g.aero.dismissWatch(); this.updateWatch(); } }, '✕'));
+  }
+
+  /** Go to the runway viewpoint to watch the take-off. */
+  watchTakeoff() {
+    const g = this.game;
+    const w = g.aero.watchNotice();
+    if (!w) return;
+    while (this.panelStack?.length) this.closePanel();
+    g.changeMap(w.map, w.spot);
+    this.toast('Look to the runway.', 'quest', 4);
   }
 
   showCaption(text, seconds = 5) {
@@ -731,6 +764,7 @@ export class UI {
     this.el.health.style.width = `${p.health}%`;
     if (this.el.healthText) set(this.el.healthText, `Health ${Math.max(0, Math.ceil(p.health))} / 100`);
     renderHotbar(this);
+    this.updateWatch(); // v0.91.0: a finished aircraft is about to take off
     // the law: Wanted stars, a bribe running, time left inside
     const pol = g.world.police;
     let whtmlWanted = '';

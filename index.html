@@ -1235,6 +1235,15 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 #modal-panel.tablet2 .tb-btn:active:not(:disabled), #modal-panel.tablet2 .tb-mini:active:not(:disabled), #modal-panel.tablet2 .tb-check:active, #modal-panel.tablet2 .tb-chip:active { transform: scale(.96); transition: transform .06s; }
 .tb-note { animation: tb-slide .35s ease-out; }
 @keyframes tb-slide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+/* v0.91.0: the take-off notice */
+#watchnote { position: absolute; left: 14px; bottom: 112px; z-index: 40; display: flex; align-items: center; gap: 12px; max-width: min(430px, 88vw); padding: 12px 14px; border-radius: 16px; background: linear-gradient(#2a2670, #1c1850); border: 3px solid #f2c14e; color: #fff; box-shadow: 0 0 0 4px rgba(242,193,78,.25), 0 10px 30px #000a; animation: wn-pulse 1.4s ease-in-out infinite; pointer-events: auto; }
+#watchnote.hidden { display: none; }
+#watchnote.now { border-color: #ff8a5a; }
+#watchnote .wn-icon { font-size: 34px; }
+#watchnote .wn-text { flex: 1; min-width: 0; } #watchnote .wn-text b { display: block; font: 800 16px system-ui; } #watchnote .wn-text small { display: block; color: #cfcdf5; font: 12px system-ui; margin-top: 2px; }
+#watchnote .wn-go { padding: 11px 16px; border-radius: 12px; font: 800 15px system-ui; background: linear-gradient(#f6cf6a, #d99a2b); color: #2a1a00; border: 2px solid #ffe08a; cursor: pointer; }
+#watchnote .wn-x { background: transparent; color: #cfcdf5; border: 0; font-size: 16px; cursor: pointer; }
+@keyframes wn-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(242,193,78,.25), 0 10px 30px #000a; } 50% { box-shadow: 0 0 0 9px rgba(242,193,78,.4), 0 10px 30px #000a; } }
 </style>
 </head>
 <body>
@@ -1263,6 +1272,7 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
     <div id="build-bar" class="hud-card hidden"></div>
     <div id="hud-keys">E interact · F / click attack · R reload · X weapon · G surrender · Shift sprint · I inventory · J tablet · M map · Esc menu</div>
     <div id="toasts" aria-live="polite"></div>
+    <div id="watchnote" class="hidden" role="status" aria-live="assertive"></div>
     <div id="debug" class="hidden"></div>
   </div>
 
@@ -4700,15 +4710,21 @@ __m["src/content/income.js"] = (function () {
 // about 50 times what they did; the one-off quests pay what they are worth to someone with nothing.
 const INCOME = {
   /** Wages for the early shifts, in obols a shift. (Were 6, 6 and 5 per wage level + 2 per corner worked.) */
-  shift: { construction: 300, coffee: 300, refineryPerLevel: 250, refineryPerCorner: 100 },
+  shift: { construction: 330, coffee: 330, refineryPerLevel: 275, refineryPerCorner: 110 }, // (v0.91.0: +10%)
   /** One-off rewards of the first quests. (Were 12 and 20.) The Lost Herd (2,500) is unchanged, and so is Tibbs's 8 obols for his spanner ("it's all I've got"). */
-  quest: { darkLamp: 600, sealOfM: 1000 },
+  quest: { darkLamp: 660, sealOfM: 1100 }, // (v0.91.0: +10%)
   /** What the first businesses pay, as a multiplier on what they paid before. */
   business: {
-    wholesaleShare: 0.65, // Lucas buys your arms at this share of an item's value (was 0.5)
-    crops: 1.5, // the Co-op's price for crops (the index still moves it day to day)
-    contracts: 1.5, // what shipping clients pay for a delivery
+    wholesaleShare: 0.715, // Lucas buys your arms at this share of an item's value (was 0.5; 0.65 before v0.91.0)
+    crops: 1.65, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0)
+    contracts: 1.65, // what shipping clients pay for a delivery (1.5 before v0.91.0)
   },
+  /** v0.91.0: what a business pays to run — wages, parts and materials, upkeep, port and freight charges, repairs — as a multiplier (it was 1). Buying a business or its big assets is not in it. */
+  cost: 0.5,
+  /** v0.91.0: more for what a business sells that has no figure above (arms export orders, aerospace deliveries and services). The figures above already carry the same +10%. */
+  revenue: 1.1,
+  /** v0.91.0: with a shipping line of your own, supplies and exports travel without a freight charge (the line's own running costs are still the line's). */
+  ownShippingFree: true,
 };
 
 return { INCOME };
@@ -16520,7 +16536,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.90.0';
+const GAME_VERSION = '0.91.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -24490,6 +24506,7 @@ const { TILE, clamp } = __m["src/core/util.js"];
 const { isDown } = __m["src/systems/combat.js"];
 
 const LICENCE_FLAG = 'arms_licence';
+const { INCOME } = __m["src/content/income.js"];
 const DELIVERY_MINUTES = 60;
 const RP_PER_MINUTE = 0.05;
 const PAY_MINUTE = 19 * 60;
@@ -24787,7 +24804,7 @@ class Arms extends Factory {
     skills[main] = 3 + Math.floor(R.next() * 3);
     const quirk = R.next() < 0.65 ? pick(Object.keys(this.cfg.quirks)) : null;
     const total = Object.values(skills).reduce((a, b) => a + b, 0);
-    const wage = Math.max(10, Math.round((10 + 5 * total) * (1 + (this.cfg.quirks[quirk]?.wage || 0))));
+    const wage = Math.max(5, Math.round((10 + 5 * total) * (1 + (this.cfg.quirks[quirk]?.wage || 0)) * INCOME.cost)); // (half what it was: v0.91.0)
     const first = pick(this.cfg.staffNames.first);
     const last = pick(this.cfg.staffNames.last);
     const skins = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'];
@@ -24946,7 +24963,7 @@ class Arms extends Factory {
   // ------------------------------------------------------------ ordering
   partPrice(itemId) {
     const it = this.game.content.items[itemId];
-    return Math.max(1, Math.round(it.price * (it.category === 'arms_part' ? this.partsMult() * (this.game.corp?.geo.costFactor('arms') ?? 1) : 1))); // v0.76.0: the wars' effect on what parts cost
+    return Math.max(1, Math.round(it.price * (it.category === 'arms_part' ? this.partsMult() * (this.game.corp?.geo.costFactor('arms') ?? 1) * INCOME.cost : 1))); // v0.76.0: the wars' effect on what parts cost
   }
 
   /** Order parts or equipment from the terminal; delivered to the loading dock in an hour. */
@@ -25126,6 +25143,7 @@ __m["src/systems/market.js"] = (function () {
 //
 // State: game.world.market. Prices: arms value (with research) × the
 // country's want × war boost × (1 − saturation) × (1 − hostility/200).
+const { INCOME } = __m["src/content/income.js"];
 const { clamp } = __m["src/core/util.js"];
 
 function freshMarket(content) {
@@ -25240,7 +25258,7 @@ class Market {
     const fam = it.arms.family;
     const war = this.warOf(countryId) ? this.cfg.market.warMult[fam] : 1;
     const v = g.arms.value(itemId) * (def.wants[fam] ?? 1) * war * (1 - (c.sat[fam] || 0)) * (1 - c.hostility / 200);
-    return Math.max(1, Math.round(v));
+    return Math.max(1, Math.round(v * INCOME.revenue)); // (+10%: v0.91.0)
   }
 
   quote(countryId, items) {
@@ -25251,7 +25269,8 @@ class Market {
 
   fee(shipperId, value, insured) {
     const sh = this.cfg.shippers[shipperId];
-    return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
+    // v0.91.0: with a shipping line of your own, there is no shipper's freight to pay (insurance, if you buy it, still is)
+    return (this.game.logistics.owned && INCOME.ownShippingFree ? 0 : Math.round(value * sh.fee)) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
   }
 
   /**
@@ -25281,7 +25300,7 @@ class Market {
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const fee = this.fee(shipper, value, insured);
     if (!g.corp.canAfford('arms', fee)) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
-    g.corp.pay('arms', fee, { cat: 'freight' });
+    if (fee > 0) g.corp.pay('arms', fee, { cat: 'freight' });
     for (const [id, n] of list) cage[id] -= n;
     c.budget -= value;
     order.status = 'shipped';
@@ -25850,7 +25869,7 @@ const ROLES = {
 };
 
 /** What each job pays a day, by where it works: the same for every person, because nobody has a skill. */
-const WAGES = { manager: { arms: 220, shipping: 220, aerospace: 270, farming: 180 }, group_manager: { parent: 400 }, office: { parent: 60 } };
+const WAGES = { manager: { arms: 110, shipping: 110, aerospace: 135, farming: 90 }, group_manager: { parent: 200 }, office: { parent: 30 } }; // (half of v0.89.0's)
 const wageOf = (role, employer) => WAGES[role]?.[employer] ?? 0;
 
 /** What a manager does for a business just by being there: the same for every manager (a share of what that business buys or sells). */
@@ -25859,13 +25878,15 @@ const PERKS = { arms: { armsSpeed: 0.03, parts: 0.03 }, aerospace: { materials: 
 /** The things a person may be allowed to do on their own — the checkboxes. Anything unticked they never do. */
 const PERM_NAMES = {
   reorder: { name: 'Buy supplies', text: 'Orders parts and materials when the stock runs low.' },
-  bid: { name: 'Take contracts', text: 'Bids for tenders at a fair margin over what the work costs.' },
+  hire: { name: 'Hire staff', text: 'Takes on a worker when there are stations with nobody at them (and a free bunk).' },
+  automation: { name: 'Keep the line running', text: 'Gives every idle station a recipe and puts free workers on stations with nobody at them.' },
+  bid: { name: 'Take contracts', text: 'Bids for tenders at a fair margin over what the work costs (arms: fills export orders from the stock in the cage).' },
   research: { name: 'Research', text: 'Starts the next research when none is under way.' },
   expand: { name: 'Expand', text: 'Proposes buying or building more. It always asks you first.' },
   transfer: { name: 'Move cash', text: 'Tops a company up from the parent, or brings its extra cash back.' },
 };
 /** Which of them each job has at each place. */
-const PERMS = { manager: { arms: ['reorder', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
+const PERMS = { manager: { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
 const permsFor = (role, employer) => PERMS[role]?.[employer] || [];
 
 const MARKET = {
@@ -33621,8 +33642,14 @@ class Logistics {
     return this.cfg.ports[id] || null;
   }
 
+  /** A port's type, with what it charges halved (v0.91.0: what a business pays to run). */
   portType(id) {
-    return this.cfg.portTypes[this.port(id)?.type] || null;
+    const t = this.cfg.portTypes[this.port(id)?.type];
+    if (!t) return null;
+    const cache = (this._portTypes ||= new Map());
+    let o = cache.get(t);
+    if (!o) { o = { ...t, upkeep: Math.round(t.upkeep * INCOME.cost), fee: Math.round((t.fee || 0) * INCOME.cost) }; cache.set(t, o); }
+    return o;
   }
 
   /** A ship model: from the catalogues, or a custom design from your own yard (v0.24.0). */
@@ -33818,7 +33845,7 @@ class Logistics {
     const m = this.specOf(v);
     const k = this.cls(m);
     return {
-      capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex, upkeep: m.upkeep, tags: m.tags || [],
+      capacity: m.capacity, speed: m.speed, range: m.range, reliability: m.reliability, opex: m.opex * INCOME.cost, upkeep: Math.round(m.upkeep * INCOME.cost), tags: m.tags || [],
       size: m.size ?? k.size, wear: m.wear ?? k.wear ?? 1, needsPortType: m.needsPortType ?? k.needsPortType ?? null,
       combat: { attack: 0, defense: 5, detection: 10, stealth: 10, mounts: 0, ...(k.combat || {}), ...(m.combat || {}) }, bonuses: m.bonuses || [],
     };
@@ -33895,7 +33922,7 @@ class Logistics {
     const m = this.model(v.model);
     const pts = 100 - v.condition;
     const foreign = !this.ownsPort(v.port);
-    return Math.round(pts * m.price * this.L.repairPerPoint * (foreign ? 1.5 : 1));
+    return Math.round(pts * m.price * this.L.repairPerPoint * (foreign ? 1.5 : 1) * INCOME.cost);
   }
 
   repair(id) {
@@ -37201,6 +37228,7 @@ __m["src/systems/aerospace.js"] = (function () {
 //
 // State: game.world.aero (created on first use; a save from before v0.55.0
 // gets Meridian as it is at the start of a new game — and never a free firm).
+const { INCOME } = __m["src/content/income.js"];
 const { Rng } = __m["src/core/rng.js"];
 const { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomValue, fmtMoney, fmtDays } = __m["src/aero/catalog.js"];
 const { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } = __m["src/aero/pipeline.js"];
@@ -37211,7 +37239,7 @@ const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
 const { rivalMorning } = __m["src/aero/rival.js"];
 const { planOf, assignStand, scheduleDeparture, tickField, movers, migrateField, geoOf, startConvoy, convoys, ambientHome, soundAt } = __m["src/aero/field.js"];
 const { startSequence, phaseAt, padBase, rolloutPath, rolloutAt, clockText } = __m["src/aero/launch.js"];
-const { windRunway, poseAt, planLength } = __m["src/aero/flight.js"];
+const { windRunway, poseAt, planLength, runwayWindow } = __m["src/aero/flight.js"];
 const { checkAchievements, progress: achievementProgress } = __m["src/aero/achievements.js"];
 const { cashFlow, monthly, balanceSheet, segments, headline } = __m["src/aero/reports.js"];
 const { activateSatellite, orderSatellite, cancelOrder, decommission, setPolicy, networkReport, orderForecast, fleetOf, satelliteDay, resolveDebris, groundPass } = __m["src/aero/fleet.js"];
@@ -37439,7 +37467,7 @@ class Aerospace {
 
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
   receive(co, amount, account, flow = null) {
-    amount = Math.round(amount);
+    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue : 1)); // v0.91.0: +10% on what your firm sells
     if (amount <= 0) return;
     if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
     else co.cash += amount;
@@ -38120,7 +38148,7 @@ class Aerospace {
     const sp = this.cfg.suppliers[supplierId];
     const base = this.cfg.materials[m].price * sp.sells[m];
     const cut = co.kind === 'player' ? this.game.corp.personnel.effect('aerospace', 'materials') : 0; // v0.62.0: a good buyer pays less — it is the price actually paid
-    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1) * (1 - cut));
+    return Math.round(base * (sp.rivalOwned && co.id !== 'meridian' ? 1 + this.cfg.rivalPremium : 1) * (1 - cut) * (co.kind === 'player' ? INCOME.cost : 1)); // (half the price for you: v0.91.0)
   }
 
   /** Freight, duty and handling for an order, and when it would arrive. Nothing changes. */
@@ -38133,19 +38161,22 @@ class Aerospace {
     const goods = unit * qty;
     const volume = qty * (C.materials[m].volume || 1);
     const lead = sp.lead * DAY;
+    const mine = co.kind === 'player';
+    const own = mine && INCOME.ownShippingFree && this.game.logistics.owned; // v0.91.0: with a shipping line of your own, no freight or handling is charged (duty still is)
+    const k = mine ? INCOME.cost : 1;
     if (sp.where === 'local') {
-      return { goods, unitPrice: unit, freight: F.truck, duty: 0, handling: 0, mode: 'truck', km: 0, hours: lead / 60 + F.truckHours, arrive: this.now + Math.round(lead + F.truckHours * 60), volume };
+      return { goods, unitPrice: unit, freight: own ? 0 : Math.round(F.truck * k), duty: 0, handling: 0, mode: 'truck', km: 0, hours: lead / 60 + F.truckHours, arrive: this.now + Math.round(lead + F.truckHours * 60), volume };
     }
     const L = this.game.logistics;
     const r = L.route(sp.where, F.receivingPort);
     const km = r?.km ?? 8000;
     const sea = L.sailHours(km, F.knots);
     const sf = this.game.corp?.geo.costFactor('shipping') ?? 1; // …and of freight
-    const freight = Math.max(F.minimum, Math.round((goods * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf));
+    const freight = own ? 0 : Math.max(Math.round(F.minimum * k), Math.round(((goods / k) * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf * k));
     const country = L.port(sp.where)?.country;
     const duty = country ? Math.round(goods * F.duty) : 0;
     const hours = lead / 60 + sea + F.truckHours + 2;
-    return { goods, unitPrice: unit, freight, duty, handling: F.handling, mode: 'carrier', km, hours, sea, arrive: this.now + Math.round(hours * 60), volume };
+    return { goods, unitPrice: unit, freight, duty, handling: own ? 0 : Math.round(F.handling * k), mode: 'carrier', km, hours, sea, arrive: this.now + Math.round(hours * 60), volume };
   }
 
   /**
@@ -39006,9 +39037,34 @@ class Aerospace {
   depart(co, u) {
     const ac = this.state.aircraft?.[u.aircraft];
     // the customer's crew takes it over (ownership and payment now); it leaves when the field is clear (src/aero/field.js)
-    if (ac) { ac.owner = this.contract(u.contract)?.customer || ac.owner; scheduleDeparture(this, ac); }
+    if (ac) {
+      ac.owner = this.contract(u.contract)?.customer || ac.owner;
+      const t0 = scheduleDeparture(this, ac);
+      if (co.kind === 'player') this.announceDeparture(ac, t0); // v0.91.0: say so, loudly, so the take-off is not missed
+    }
     return this.settle(co, u);
   }
+
+  /**
+   * v0.91.0: a finished aircraft of yours has been cleared to leave. Remembered (and saved) so the screen can show a big "watch it" notice with a
+   * countdown to the take-off, which the player can follow to the runway. { id, name, at: when it takes off, end: when it is gone }.
+   */
+  announceDeparture(ac, t0) {
+    const w = runwayWindow(planOf(this, ac));
+    const name = this.cfg.products[ac.model]?.name || 'aircraft';
+    this.state.watch = { id: ac.id, name, reg: ac.registration, at: Math.round(t0 + w.from), end: Math.round(t0 + w.to), spot: 'runway_view', map: this.A.map };
+    this.game.bus.emit('aero:departure', { ...this.state.watch });
+  }
+
+  /** The take-off notice, while it still matters (null once the aircraft has gone or you have dismissed it). */
+  watchNotice() {
+    const w = this.state.watch;
+    if (!w) return null;
+    if (this.now > w.end + 2 || w.dismissed) return null;
+    return w;
+  }
+
+  dismissWatch() { if (this.state.watch) this.state.watch.dismissed = true; }
 
   /** The livery a finished aircraft wears: its own firm's for the Skylark, grey for the military, plain otherwise. */
   liveryOf(co, productId) {
@@ -39245,7 +39301,7 @@ class Aerospace {
     const partial = u.commissioning?.partial;
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
     const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1));
+    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue : 1)); // (+10% for you: v0.91.0)
     const penalty = Math.round(price * penaltyShare);
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';
@@ -39406,7 +39462,8 @@ class Aerospace {
     if (co.pad) upkeep += C.facilities.pad.upkeep;
     for (const [f, on] of Object.entries(co.facilities)) if (on) upkeep += C.facilities[f]?.upkeep || 0;
     if (co.halls) for (const hid of Object.keys(co.halls)) if (this.hallState(co, hid).state === 'built') upkeep += C.halls[hid]?.upkeep || 0;
-    return { wages: co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage, training: T.perDay ? co.workforce * T.perDay : 0, upkeep, overhead: co.kind === 'player' ? Math.round(co.overhead * (1 - this.game.corp.personnel.effect('aerospace', 'overhead'))) : co.overhead };
+    const k = co.kind === 'player' ? INCOME.cost : 1; // v0.91.0: half, for you
+    return { wages: Math.round((co.workforce * W.tech.wage + co.engineers * W.engineer.wage + co.inspectors * W.inspector.wage) * k), training: T.perDay ? Math.round(co.workforce * T.perDay * k) : 0, upkeep: Math.round(upkeep * k), overhead: co.kind === 'player' ? Math.round(co.overhead * (1 - this.game.corp.personnel.effect('aerospace', 'overhead')) * k) : co.overhead };
   }
 
   companyDay(co) {
@@ -42038,8 +42095,8 @@ function judge(d) {
   if (!d.permitted) return no('You have switched this off for them.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (d.hold && d.kind === 'expand') return no(d.hold);
-  if (d.frozen && (d.kind === 'bid' || d.kind === 'expand' || d.kind === 'research')) return no('The company is behind on a bank loan: no bidding, research or expanding until it is cleared.');
-  if (!(d.cost > 0) && d.kind !== 'research') return no('There is nothing to spend.');
+  if (d.frozen && (d.kind === 'bid' || d.kind === 'expand' || d.kind === 'research' || d.kind === 'hire')) return no('The company is behind on a bank loan: no bidding, hiring, research or expanding until it is cleared.');
+  if (!(d.cost > 0) && !['research', 'automation', 'bid'].includes(d.kind)) return no('There is nothing to spend.');
   if (d.kind !== 'transfer' && d.kind !== 'expand' && !d.owner) { // (expansion is only ever asked about, so the monthly limit is not what stops it: your answer is)
     const cap = Math.max(0, Number(d.cap) || 0);
     const left = cap - (d.spent || 0);
@@ -42225,6 +42282,11 @@ class Todo {
     const M = this.M; const g = this.g;
     const money = (n) => `${Math.round(n).toLocaleString('en-US')}`;
     const planned = (kind, make) => { if (this.handled(id, kind)) return; const c = M.candidates(kind, id)[0]; if (c) out.push(make(c)); };
+    if (id === 'arms') {
+      planned('bid', (c) => ({ key: 'bid', icon: '📦', title: 'Fill an export order', sub: `${c.desc}${c.cost ? ` · shipping ${money(c.cost)}` : ''}`, cost: c.cost, button: 'Ship' }));
+      planned('automation', (c) => ({ key: 'automation', icon: '🛠️', title: 'Keep the line running', sub: c.desc, cost: 0, button: 'Start' }));
+      planned('hire', (c) => ({ key: 'hire', icon: '🧑‍🏭', title: 'Hire a worker', sub: c.desc, cost: c.cost, button: 'Hire' }));
+    }
     if (id === 'arms' || id === 'aerospace') planned('reorder', (c) => ({ key: 'reorder', icon: '🛒', title: id === 'arms' ? 'Order parts' : `Buy ${M.planAero().length} material${M.planAero().length === 1 ? '' : 's'}`, sub: `What is running short · ${money(c.cost)}`, cost: c.cost, button: 'Buy' }));
     if (id === 'aerospace') planned('bid', (c) => ({ key: 'bid', icon: '📄', title: 'A contract worth bidding on', sub: `${money(c.price)} · about ${money(c.profit)} profit`, cost: 0, button: 'Bid' }));
     if (id === 'arms' || id === 'aerospace') planned('research', (c) => ({ key: 'research', icon: '🔬', title: `Research ${c.desc}`, sub: c.cost ? `${money(c.cost)}` : 'Free to start', cost: c.cost, button: 'Start' }));
@@ -42266,7 +42328,7 @@ class Todo {
   run(id, key) {
     const g = this.g; const M = this.M;
     const [what, a, b] = String(key).split(':');
-    if (['reorder', 'bid', 'research', 'expand'].includes(what)) return M.doNow(what, id);
+    if (['reorder', 'bid', 'research', 'expand', 'hire', 'automation'].includes(what)) return M.doNow(what, id);
     if (what === 'send') {
       const L = g.logistics; const o = this.sendable();
       if (!o) return { ok: false, text: 'Nothing to send right now.' };
@@ -42340,7 +42402,7 @@ __m["src/content/management.js"] = (function () {
 // person (src/content/personnel.js lists the boxes); here is only where each kind of decision applies and how it is bounded.
 
 /** Which kinds of decision a business can have, in the order they are made each day. 'transfer' is the group manager's, for subsidiaries. */
-const KINDS = { arms: ['reorder', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
+const KINDS = { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
 
 const MGMT = {
   expireDays: 7, // a request left unanswered this long lapses; nothing happens by default
@@ -42379,7 +42441,7 @@ const { judge, armsPar, planArmsOrders, nextPlot, nextPort, bidPrice, treasuryMo
 const { monthOf } = __m["src/corp/ledger.js"];
 
 const BUSINESSES = ['arms', 'shipping', 'aerospace', 'farming'];
-const KIND_PERM = { reorder: 'reorder', bid: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
+const KIND_PERM = { reorder: 'reorder', hire: 'hire', automation: 'automation', bid: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
 
 class Management {
   constructor(corp) {
@@ -42638,23 +42700,92 @@ class Management {
     return out;
   }
 
+  /** Arms: a worker, when there are stations with nobody at them and a free bunk — the applicant best at what the first of them needs. (Reading uses today's applicants; a decision may have them drawn.) */
+  planStaff() {
+    const A = this.g.arms;
+    for (const wh of A.ownedIds()) {
+      const def = A.def(wh);
+      const machines = A.cells(wh).machines.filter((e) => e.kind !== 'lab');
+      const unstaffed = machines.filter((e) => !A.workerAt(e));
+      const free = A.staffOf(wh).filter((x) => !x.assigned);
+      if (unstaffed.length <= free.length || A.staffOf(wh).length >= def.bunks) continue;
+      const fresh = A.state.candidatesDay === this.day && A.state.candidates.length;
+      if (!fresh && !this.acting) return [{ item: `hire:${wh}`, cost: 300, desc: 'a new worker', run: null }];
+      const skill = A.cfg.stations[unstaffed[0].kind].skill;
+      const cands = A.candidates().map((c, i) => ({ c, i })).sort((a, b) => (b.c.skills[skill] || 0) - (a.c.skills[skill] || 0) || a.c.wage - b.c.wage || a.i - b.i);
+      if (!cands.length) continue;
+      const { c, i } = cands[0];
+      return [{ item: `hire:${wh}`, cost: c.wage * 10, desc: `${c.name} at ${def.name} (${c.wage} a day)`, run: () => { const r = A.hire(i, wh); if (r.ok) A.autoAssign(wh); return { ok: r.ok, paid: 0, text: r.text }; } }];
+    }
+    return [];
+  }
+
+  /** Arms: the line, kept running — every idle station gets the recipe worth most, and free workers go to stations with nobody at them. */
+  planAutomation() {
+    const A = this.g.arms; const g = this.g;
+    let idle = 0; let manned = 0;
+    const plan = [];
+    for (const wh of A.ownedIds()) {
+      const machines = A.cells(wh).machines.filter((e) => e.kind !== 'lab');
+      for (const e of machines.filter((x) => !A.recipeOf(x))) {
+        const best = Object.entries(A.cfg.recipes).filter(([rid, r]) => r.station === e.kind && A.recipeUnlocked(rid)).sort((a, b) => A.value(b[1].out) - A.value(a[1].out) || (a[0] < b[0] ? -1 : 1))[0];
+        if (best) { plan.push([e.id, best[0]]); idle++; }
+      }
+      const free = A.staffOf(wh).filter((x) => !x.assigned).length;
+      manned += Math.min(free, machines.filter((x) => !A.workerAt(x)).length);
+    }
+    if (!idle && !manned) return [];
+    return [{ item: 'line', cost: 0, desc: `${idle ? `${idle} idle station${idle === 1 ? '' : 's'}` : ''}${idle && manned ? ', ' : ''}${manned ? `${manned} station${manned === 1 ? '' : 's'} to staff` : ''}`, run: () => {
+      for (const [id, rid] of plan) A.setRecipe(id, rid);
+      let put = 0;
+      for (const wh of A.ownedIds()) { const before = A.staffOf(wh).filter((x) => x.assigned).length; A.autoAssign(wh); put += A.staffOf(wh).filter((x) => x.assigned).length - before; }
+      void g;
+      return { ok: true, paid: 0, text: `The line is running: ${plan.length} station${plan.length === 1 ? '' : 's'} set, ${put} worker${put === 1 ? '' : 's'} placed.` };
+    } }];
+  }
+
+  /** Arms: the export orders the cage can fill now, most profit first — sent with the cheapest shipper that will take the cargo (nothing to pay if you own the shipping line). */
+  planExports() {
+    const g = this.g; const A = g.arms; const Mk = g.market;
+    if (!A.licensed()) return [];
+    const out = [];
+    for (const wh of A.ownedIds()) {
+      const cage = g.world.containers[A.def(wh)?.outCrate]?.items || {};
+      for (const o of Mk.openOrders()) {
+        if ((cage[o.item] || 0) < o.qty) continue;
+        const c = Mk.country(o.country);
+        if (!c || c.hostility >= Mk.cfg.market.refuseHostility) continue;
+        const value = o.qty * o.price;
+        if (value > c.budget) continue;
+        const ships = Object.keys(Mk.cfg.shippers).filter((id) => !c.embargo || Mk.cfg.shippers[id].embargo).map((id) => ({ id, fee: Mk.fee(id, value, false) })).sort((a, b) => a.fee - b.fee || (a.id < b.id ? -1 : 1));
+        if (!ships.length) continue;
+        out.push({ item: `order:${o.id}`, cost: ships[0].fee, profit: value - ships[0].fee, desc: `${o.qty} × ${g.content.items[o.item].name} for ${Mk.cfg.countries[o.country].name} — ${value.toLocaleString()}`, run: () => { const r = Mk.ship({ wh, order: o.id, shipper: ships[0].id }); return { ok: r.ok, paid: ships[0].fee, text: r.text }; } });
+      }
+    }
+    return out.sort((a, b) => b.profit - a.profit || (a.item < b.item ? -1 : 1));
+  }
+
   // ------------------------------------------------------------- the decision
   /** What a decision could be now: [{ item, cost, ... }]; the first is the one made. Nothing changes. */
   candidates(kind, target) {
     if (kind === 'reorder') { const c = (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0); return c > 0 ? [{ item: null, cost: c }] : []; }
-    if (kind === 'bid') return this.planBids();
+    if (kind === 'bid') return target === 'arms' ? this.planExports() : this.planBids();
+    if (kind === 'hire') return this.planStaff();
+    if (kind === 'automation') return this.planAutomation();
     if (kind === 'research') return this.planResearch(target);
     if (kind === 'transfer') return this.planTreasury(target);
     return this.planExpansion(target);
   }
 
   /** The text of what was done or asked, by kind. */
-  verb(kind) { return { reorder: 'buy supplies', bid: 'bid', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
+  verb(kind) { return { reorder: 'buy supplies', hire: 'hire staff', automation: 'keep the line running', bid: 'take a contract', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
 
   /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
   decide(kind, target, x, { owner = false, item = undefined } = {}) {
     const m = this.ensure();
+    this.acting = true;
     const all = this.candidates(kind, target);
+    this.acting = false;
     let cand;
     const judgeOf = (c) => this.judgeFor(x, kind, target, c.cost, { owner, ask: c.ask || null, source: c.source || null });
     if (item !== undefined) cand = all.find((c) => c.item === item);
@@ -42681,9 +42812,9 @@ class Management {
     delete m.last.refused[key];
     const r = this.carryOut(kind, target, x, cand);
     if (!r.ok) { this.log({ type: 'failed', kind, employer: target, actor: x.id, cost, text: `${who}: ${r.text}` }); return { verdict: 'failed', text: r.text, cost }; }
-    const spend = kind === 'bid' ? cost : r.paid;
+    const spend = kind === 'bid' && target !== 'arms' ? cost : r.paid;
     if (kind !== 'transfer' && !owner) this.note(target, spend);
-    if (kind !== 'bid') this.K.noteActor(kind === 'transfer' ? 'parent' : target, x.id, r.paid);
+    if (kind !== 'bid' || target === 'arms') this.K.noteActor(kind === 'transfer' ? 'parent' : target, x.id, r.paid);
     this.log({ type: owner ? 'approved' : 'done', kind, employer: target, actor: x.id, cost: spend, text: `${who}: ${r.text}` });
     if (!owner && (kind === 'bid' || kind === 'research')) this.g.notify?.(r.text, 'info');
     return { verdict: 'execute', cost: spend, text: r.text };
@@ -42692,8 +42823,11 @@ class Management {
   /** You do what a manager would: the first thing worth doing of that kind, now, from the business's own account. No limit applies: it is you. */
   doNow(kind, target) {
     const at = this.Pe.employerName(target);
+    this.acting = true;
     const c = this.candidates(kind, target)[0];
+    this.acting = false;
     if (!c) return { ok: false, text: 'Nothing to do right now.' };
+    if (!c.run && kind === 'hire') return { ok: false, text: 'No applicants today.' };
     if (!this.K.canAfford(target, c.cost)) return { ok: false, text: `${at} cannot pay ${c.cost.toLocaleString()} obols.` };
     const r = this.carryOut(kind, target, null, c);
     if (r.ok) this.log({ type: 'owner', kind, employer: target, cost: r.paid, text: `You: ${r.text}` });
@@ -42702,6 +42836,7 @@ class Management {
 
   carryOut(kind, target, x, cand) {
     if (kind === 'reorder') return this.doReorder(target, x);
+    if (cand.run && (kind === 'hire' || kind === 'automation' || (kind === 'bid' && target === 'arms'))) { const r = cand.run(); return { ok: r.ok, paid: r.paid || 0, text: r.text }; }
     if (kind === 'bid') {
       const r = this.g.aero.placeBid(this.g.aero.roost.id, cand.item, cand.price, cand.days);
       return { ok: r.ok, paid: 0, text: r.text };
@@ -47040,6 +47175,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.91.0',
+    date: '2026-10-31',
+    channel: 'development',
+    title: 'Arms, Costs, and Take-offs',
+    notes: [
+      'A big notice at the bottom left tells you when a finished aircraft is about to take off, with a button to go and watch.',
+      'Running costs are halved, sales are up 10%, and your own shipping line makes supplies and exports free to carry. The arms manager can now hire staff, keep the line running and fill export orders.',
+    ],
+  },
   {
     version: '0.90.0',
     date: '2026-10-31',
@@ -65407,6 +65552,8 @@ __m["src/ui/tabletGroups.js"] = (function () {
 //   badges(g)              { app: number of unread notifications that belong to it }
 //   searchApps(groups, q)  the apps whose name or group matches a search
 
+/** What an app is called on screen where its id is not a good name (the arms business is the app id 'Business'). */
+const APP_LABELS = { Business: 'Arms' };
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
@@ -65446,10 +65593,10 @@ function badges(g) {
 function searchApps(groups, q) {
   const s = String(q || '').trim().toLowerCase();
   if (!s) return [];
-  return groups.flatMap((x) => x.apps.filter((a) => a.toLowerCase().includes(s) || x.id.toLowerCase().includes(s)).map((a) => ({ app: a, group: x.id })));
+  return groups.flatMap((x) => x.apps.filter((a) => a.toLowerCase().includes(s) || (APP_LABELS[a] || '').toLowerCase().includes(s) || x.id.toLowerCase().includes(s)).map((a) => ({ app: a, group: x.id })));
 }
 
-return { JOURNAL, APP_ICONS, tabletGroups, allApps, groupOf, badges, searchApps };
+return { APP_LABELS, JOURNAL, APP_ICONS, tabletGroups, allApps, groupOf, badges, searchApps };
 })();
 
 // ---- src/ui/tabletHome.js
@@ -65458,7 +65605,7 @@ __m["src/ui/tabletHome.js"] = (function () {
 // for what is waiting, and a dock. Groups open on their first app; the other apps of a group are one switch away inside it.
 const { h } = __m["src/ui/panels.js"];
 const { n } = __m["src/ui/tabletKit.js"];
-const { searchApps } = __m["src/ui/tabletGroups.js"];
+const { searchApps, APP_LABELS } = __m["src/ui/tabletGroups.js"];
 
 // the icon on the home screen: group id or app → what it shows
 const TILES = {
@@ -65498,7 +65645,7 @@ function homeScreen(ui, body, open, groups, badge, needs, unread = 0) {
       h('div', { class: 'tb-card' }, h('div', { class: 'tb-label' }, 'Your cash'), h('div', { class: 'tb-big gold' }, n(g.player.money))),
       h('button', { class: `tb-card tb-needs${needs.length ? '' : ' quiet'}`, onclick: () => open('Needs') }, h('div', { class: 'tb-label' }, 'Needs you'), needs.length ? [h('div', { class: 'tb-big gold' }, String(needs.length)), h('div', { class: 'tb-sub' }, needs.length === 1 ? 'thing waits for you' : 'things wait for you')] : h('div', { class: 'tb-sub' }, 'All quiet'))),
     h('div', { class: 'tb-searchrow' }, q, h('button', { class: 'tb-bell', title: 'Notifications', onclick: () => { ui.tabletInbox = true; open('Home'); } }, '🔔', unread ? h('i', { class: 'tb-dot' }, String(unread)) : null)));
-  if (ui.tabletSearch) body.append(found.length ? h('div', { class: 'tb-found' }, ...found.map((f) => h('button', { class: 'tb-chip', onclick: () => { ui.tabletSearch = ''; open(f.app); } }, `${f.app} · ${f.group}`))) : h('div', { class: 'tb-sub', style: 'padding:6px 4px' }, 'No app by that name.'));
+  if (ui.tabletSearch) body.append(found.length ? h('div', { class: 'tb-found' }, ...found.map((f) => h('button', { class: 'tb-chip', onclick: () => { ui.tabletSearch = ''; open(f.app); } }, `${APP_LABELS[f.app] || f.app} · ${f.group}`))) : h('div', { class: 'tb-sub', style: 'padding:6px 4px' }, 'No app by that name.'));
   body.append(h('div', { class: 'tb-grid' }, ...tiles.map((t) => icon(t))), h('div', { class: 'grow' }),
     h('div', { class: 'tb-dock' }, ...DOCK.map((id) => tiles.find((t) => t.id === id)).filter(Boolean).map((t) => icon(t, true))));
 }
@@ -65523,7 +65670,7 @@ const { managersApp } = __m["src/ui/tabletManagers.js"];
 const { bizScreen, needsApp } = __m["src/ui/tabletBiz.js"]; // v0.90.0
 const { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"]; // v0.84.0: the summaries
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
-const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
+const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS, APP_LABELS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
 const { statusBar, navBar, segments, hero, tiles, row, fold, openFold, n: fmt } = __m["src/ui/tabletKit.js"]; // v0.83.0
 const { homeScreen } = __m["src/ui/tabletHome.js"];
 const { calcItem } = __m["src/systems/gang.js"];
@@ -65545,8 +65692,8 @@ function tabletPanel(ui, body, opts) {
   /** What needs you: every decision waiting for an answer (the inbox). */
   const needs = () => g.corp.todo.inbox();
   const appHead = () => {
-    const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : a}`, badge: badge[a] })), tab, (a) => open(a));
-    return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : tab, back: () => open('Home') }), seg);
+    const seg = segments(group.apps.map((a) => ({ id: a, label: `${APP_ICONS[a] || ''} ${a === 'Bank' && group.id === 'Bank' ? 'Rates' : APP_LABELS[a] || a}`, badge: badge[a] })), tab, (a) => open(a));
+    return h('div', {}, navBar({ icon: APP_ICONS[tab] || '', title: group.id === 'Journal' ? 'Journal' : APP_LABELS[tab] || tab, back: () => open('Home') }), seg);
   };
 
   if (tab === 'Needs') body.append(statusBar(g), navBar({ icon: '📥', title: 'Needs you', back: () => open('Home') }));
@@ -70847,6 +70994,7 @@ class UI {
       hotbar: document.getElementById('hotbar'),
       healthText: document.getElementById('bar-health-text'),
       toasts: document.getElementById('toasts'),
+      watch: document.getElementById('watchnote'),
       minimap: document.getElementById('minimap'),
       debug: document.getElementById('debug'),
       title: document.getElementById('screen-title'),
@@ -71077,6 +71225,38 @@ class UI {
     while (this.el.toasts.children.length > 6) this.el.toasts.firstChild.remove();
     setTimeout(() => t.classList.add('fade'), seconds * 1000);
     setTimeout(() => t.remove(), seconds * 1000 + 700);
+  }
+
+  /**
+   * v0.91.0: when a finished aircraft of yours is cleared to leave Starling Field, a big card at the bottom left counts down to the take-off and
+   * lets you go and watch it (it puts you at the runway viewpoint). It goes by itself once the aircraft has gone, or when you close it.
+   */
+  updateWatch() {
+    const g = this.game;
+    const el = this.el.watch;
+    if (!el) return;
+    const w = g.aero?.watchNotice?.();
+    if (!w) { if (!el.classList.contains('hidden')) { el.classList.add('hidden'); el.textContent = ''; } this.watchId = null; return; }
+    const left = Math.max(0, Math.ceil(w.at - g.aero.now));
+    const text = left > 0 ? `takes off in ${left} min` : 'is taking off now';
+    const key = `${w.id}|${text}`;
+    if (el.dataset.key === key && !el.classList.contains('hidden')) return;
+    el.dataset.key = key;
+    if (this.watchId !== w.id) { this.watchId = w.id; this.audio.sfx('sfx_quest'); }
+    el.classList.remove('hidden');
+    el.classList.toggle('now', left === 0);
+    el.replaceChildren(h('div', { class: 'wn-icon' }, '✈️'), h('div', { class: 'wn-text' }, h('b', {}, `Your ${w.name} ${text}`), h('small', {}, `${w.reg} · Starling Field — you will want to see this`)),
+      h('button', { class: 'wn-go', onclick: () => this.watchTakeoff() }, 'Watch it'), h('button', { class: 'wn-x', title: 'Dismiss', onclick: () => { g.aero.dismissWatch(); this.updateWatch(); } }, '✕'));
+  }
+
+  /** Go to the runway viewpoint to watch the take-off. */
+  watchTakeoff() {
+    const g = this.game;
+    const w = g.aero.watchNotice();
+    if (!w) return;
+    while (this.panelStack?.length) this.closePanel();
+    g.changeMap(w.map, w.spot);
+    this.toast('Look to the runway.', 'quest', 4);
   }
 
   showCaption(text, seconds = 5) {
@@ -71475,6 +71655,7 @@ class UI {
     this.el.health.style.width = `${p.health}%`;
     if (this.el.healthText) set(this.el.healthText, `Health ${Math.max(0, Math.ceil(p.health))} / 100`);
     renderHotbar(this);
+    this.updateWatch(); // v0.91.0: a finished aircraft is about to take off
     // the law: Wanted stars, a bribe running, time left inside
     const pol = g.world.police;
     let whtmlWanted = '';

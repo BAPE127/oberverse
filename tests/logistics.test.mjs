@@ -7,6 +7,8 @@ import { newGame, setTime, CONTENT, Game } from './helpers.mjs';
 import { seaRoute, pointAlong } from '../src/world/seaRoutes.js';
 import { isLand } from '../src/world/globe.js';
 import { findPath } from '../src/world/pathfinding.js';
+import { INCOME } from '../src/content/income.js';
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const C = CONTENT.logistics;
 const fresh = (money = 200000) => {

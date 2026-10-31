@@ -1225,3 +1225,12 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 #modal-panel.tablet2 .tb-btn:active:not(:disabled), #modal-panel.tablet2 .tb-mini:active:not(:disabled), #modal-panel.tablet2 .tb-check:active, #modal-panel.tablet2 .tb-chip:active { transform: scale(.96); transition: transform .06s; }
 .tb-note { animation: tb-slide .35s ease-out; }
 @keyframes tb-slide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+/* v0.91.0: the take-off notice */
+#watchnote { position: absolute; left: 14px; bottom: 112px; z-index: 40; display: flex; align-items: center; gap: 12px; max-width: min(430px, 88vw); padding: 12px 14px; border-radius: 16px; background: linear-gradient(#2a2670, #1c1850); border: 3px solid #f2c14e; color: #fff; box-shadow: 0 0 0 4px rgba(242,193,78,.25), 0 10px 30px #000a; animation: wn-pulse 1.4s ease-in-out infinite; pointer-events: auto; }
+#watchnote.hidden { display: none; }
+#watchnote.now { border-color: #ff8a5a; }
+#watchnote .wn-icon { font-size: 34px; }
+#watchnote .wn-text { flex: 1; min-width: 0; } #watchnote .wn-text b { display: block; font: 800 16px system-ui; } #watchnote .wn-text small { display: block; color: #cfcdf5; font: 12px system-ui; margin-top: 2px; }
+#watchnote .wn-go { padding: 11px 16px; border-radius: 12px; font: 800 15px system-ui; background: linear-gradient(#f6cf6a, #d99a2b); color: #2a1a00; border: 2px solid #ffe08a; cursor: pointer; }
+#watchnote .wn-x { background: transparent; color: #cfcdf5; border: 0; font-size: 16px; cursor: pointer; }
+@keyframes wn-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(242,193,78,.25), 0 10px 30px #000a; } 50% { box-shadow: 0 0 0 9px rgba(242,193,78,.4), 0 10px 30px #000a; } }

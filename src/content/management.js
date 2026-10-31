@@ -3,7 +3,7 @@
 // person (src/content/personnel.js lists the boxes); here is only where each kind of decision applies and how it is bounded.
 
 /** Which kinds of decision a business can have, in the order they are made each day. 'transfer' is the group manager's, for subsidiaries. */
-export const KINDS = { arms: ['reorder', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
+export const KINDS = { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand', 'transfer'], aerospace: ['reorder', 'bid', 'research', 'expand', 'transfer'], shipping: ['expand', 'transfer'], farming: ['expand', 'transfer'] };
 
 export const MGMT = {
   expireDays: 7, // a request left unanswered this long lapses; nothing happens by default

@@ -7,13 +7,19 @@
 // about 50 times what they did; the one-off quests pay what they are worth to someone with nothing.
 export const INCOME = {
   /** Wages for the early shifts, in obols a shift. (Were 6, 6 and 5 per wage level + 2 per corner worked.) */
-  shift: { construction: 300, coffee: 300, refineryPerLevel: 250, refineryPerCorner: 100 },
+  shift: { construction: 330, coffee: 330, refineryPerLevel: 275, refineryPerCorner: 110 }, // (v0.91.0: +10%)
   /** One-off rewards of the first quests. (Were 12 and 20.) The Lost Herd (2,500) is unchanged, and so is Tibbs's 8 obols for his spanner ("it's all I've got"). */
-  quest: { darkLamp: 600, sealOfM: 1000 },
+  quest: { darkLamp: 660, sealOfM: 1100 }, // (v0.91.0: +10%)
   /** What the first businesses pay, as a multiplier on what they paid before. */
   business: {
-    wholesaleShare: 0.65, // Lucas buys your arms at this share of an item's value (was 0.5)
-    crops: 1.5, // the Co-op's price for crops (the index still moves it day to day)
-    contracts: 1.5, // what shipping clients pay for a delivery
+    wholesaleShare: 0.715, // Lucas buys your arms at this share of an item's value (was 0.5; 0.65 before v0.91.0)
+    crops: 1.65, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0)
+    contracts: 1.65, // what shipping clients pay for a delivery (1.5 before v0.91.0)
   },
+  /** v0.91.0: what a business pays to run — wages, parts and materials, upkeep, port and freight charges, repairs — as a multiplier (it was 1). Buying a business or its big assets is not in it. */
+  cost: 0.5,
+  /** v0.91.0: more for what a business sells that has no figure above (arms export orders, aerospace deliveries and services). The figures above already carry the same +10%. */
+  revenue: 1.1,
+  /** v0.91.0: with a shipping line of your own, supplies and exports travel without a freight charge (the line's own running costs are still the line's). */
+  ownShippingFree: true,
 };

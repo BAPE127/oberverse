@@ -12,7 +12,7 @@ export const ROLES = {
 };
 
 /** What each job pays a day, by where it works: the same for every person, because nobody has a skill. */
-export const WAGES = { manager: { arms: 220, shipping: 220, aerospace: 270, farming: 180 }, group_manager: { parent: 400 }, office: { parent: 60 } };
+export const WAGES = { manager: { arms: 110, shipping: 110, aerospace: 135, farming: 90 }, group_manager: { parent: 200 }, office: { parent: 30 } }; // (half of v0.89.0's)
 export const wageOf = (role, employer) => WAGES[role]?.[employer] ?? 0;
 
 /** What a manager does for a business just by being there: the same for every manager (a share of what that business buys or sells). */
@@ -21,13 +21,15 @@ export const PERKS = { arms: { armsSpeed: 0.03, parts: 0.03 }, aerospace: { mate
 /** The things a person may be allowed to do on their own — the checkboxes. Anything unticked they never do. */
 export const PERM_NAMES = {
   reorder: { name: 'Buy supplies', text: 'Orders parts and materials when the stock runs low.' },
-  bid: { name: 'Take contracts', text: 'Bids for tenders at a fair margin over what the work costs.' },
+  hire: { name: 'Hire staff', text: 'Takes on a worker when there are stations with nobody at them (and a free bunk).' },
+  automation: { name: 'Keep the line running', text: 'Gives every idle station a recipe and puts free workers on stations with nobody at them.' },
+  bid: { name: 'Take contracts', text: 'Bids for tenders at a fair margin over what the work costs (arms: fills export orders from the stock in the cage).' },
   research: { name: 'Research', text: 'Starts the next research when none is under way.' },
   expand: { name: 'Expand', text: 'Proposes buying or building more. It always asks you first.' },
   transfer: { name: 'Move cash', text: 'Tops a company up from the parent, or brings its extra cash back.' },
 };
 /** Which of them each job has at each place. */
-export const PERMS = { manager: { arms: ['reorder', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
+export const PERMS = { manager: { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
 export const permsFor = (role, employer) => PERMS[role]?.[employer] || [];
 
 export const MARKET = {

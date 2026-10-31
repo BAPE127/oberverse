@@ -22,8 +22,8 @@ export function judge(d) {
   if (!d.permitted) return no('You have switched this off for them.');
   if (!d.funded) return no('The business has no account of its own: fund it first.');
   if (d.hold && d.kind === 'expand') return no(d.hold);
-  if (d.frozen && (d.kind === 'bid' || d.kind === 'expand' || d.kind === 'research')) return no('The company is behind on a bank loan: no bidding, research or expanding until it is cleared.');
-  if (!(d.cost > 0) && d.kind !== 'research') return no('There is nothing to spend.');
+  if (d.frozen && (d.kind === 'bid' || d.kind === 'expand' || d.kind === 'research' || d.kind === 'hire')) return no('The company is behind on a bank loan: no bidding, hiring, research or expanding until it is cleared.');
+  if (!(d.cost > 0) && !['research', 'automation', 'bid'].includes(d.kind)) return no('There is nothing to spend.');
   if (d.kind !== 'transfer' && d.kind !== 'expand' && !d.owner) { // (expansion is only ever asked about, so the monthly limit is not what stops it: your answer is)
     const cap = Math.max(0, Number(d.cap) || 0);
     const left = cap - (d.spent || 0);

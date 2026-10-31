@@ -17,6 +17,7 @@
 //
 // State: game.world.market. Prices: arms value (with research) × the
 // country's want × war boost × (1 − saturation) × (1 − hostility/200).
+import { INCOME } from '../content/income.js';
 import { clamp } from '../core/util.js';
 
 export function freshMarket(content) {
@@ -131,7 +132,7 @@ export class Market {
     const fam = it.arms.family;
     const war = this.warOf(countryId) ? this.cfg.market.warMult[fam] : 1;
     const v = g.arms.value(itemId) * (def.wants[fam] ?? 1) * war * (1 - (c.sat[fam] || 0)) * (1 - c.hostility / 200);
-    return Math.max(1, Math.round(v));
+    return Math.max(1, Math.round(v * INCOME.revenue)); // (+10%: v0.91.0)
   }
 
   quote(countryId, items) {
@@ -142,7 +143,8 @@ export class Market {
 
   fee(shipperId, value, insured) {
     const sh = this.cfg.shippers[shipperId];
-    return Math.round(value * sh.fee) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
+    // v0.91.0: with a shipping line of your own, there is no shipper's freight to pay (insurance, if you buy it, still is)
+    return (this.game.logistics.owned && INCOME.ownShippingFree ? 0 : Math.round(value * sh.fee)) + (insured ? Math.round(value * this.cfg.market.insuranceRate) : 0);
   }
 
   /**
@@ -172,7 +174,7 @@ export class Market {
     if (value > c.budget) return { ok: false, text: `${def.name} can't pay ${value} obols right now.` };
     const fee = this.fee(shipper, value, insured);
     if (!g.corp.canAfford('arms', fee)) return { ok: false, text: `Shipping costs ${fee} obols up front.` };
-    g.corp.pay('arms', fee, { cat: 'freight' });
+    if (fee > 0) g.corp.pay('arms', fee, { cat: 'freight' });
     for (const [id, n] of list) cage[id] -= n;
     c.budget -= value;
     order.status = 'shipped';

@@ -9,6 +9,7 @@ import { isProtected, WRATH } from '../src/systems/combat.js';
 import { check } from '../src/sim/conditions.js';
 import { runCommand } from '../src/game/debugCommands.js';
 import { findPath } from '../src/world/pathfinding.js';
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const fresh = (seed = 1, hhmm = '10:00') => {
   const g = newGame(seed);

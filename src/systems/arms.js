@@ -18,6 +18,7 @@ import { TILE, clamp } from '../core/util.js';
 import { isDown } from './combat.js';
 
 export const LICENCE_FLAG = 'arms_licence';
+import { INCOME } from '../content/income.js';
 const DELIVERY_MINUTES = 60;
 const RP_PER_MINUTE = 0.05;
 const PAY_MINUTE = 19 * 60;
@@ -315,7 +316,7 @@ export class Arms extends Factory {
     skills[main] = 3 + Math.floor(R.next() * 3);
     const quirk = R.next() < 0.65 ? pick(Object.keys(this.cfg.quirks)) : null;
     const total = Object.values(skills).reduce((a, b) => a + b, 0);
-    const wage = Math.max(10, Math.round((10 + 5 * total) * (1 + (this.cfg.quirks[quirk]?.wage || 0))));
+    const wage = Math.max(5, Math.round((10 + 5 * total) * (1 + (this.cfg.quirks[quirk]?.wage || 0)) * INCOME.cost)); // (half what it was: v0.91.0)
     const first = pick(this.cfg.staffNames.first);
     const last = pick(this.cfg.staffNames.last);
     const skins = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'];
@@ -474,7 +475,7 @@ export class Arms extends Factory {
   // ------------------------------------------------------------ ordering
   partPrice(itemId) {
     const it = this.game.content.items[itemId];
-    return Math.max(1, Math.round(it.price * (it.category === 'arms_part' ? this.partsMult() * (this.game.corp?.geo.costFactor('arms') ?? 1) : 1))); // v0.76.0: the wars' effect on what parts cost
+    return Math.max(1, Math.round(it.price * (it.category === 'arms_part' ? this.partsMult() * (this.game.corp?.geo.costFactor('arms') ?? 1) * INCOME.cost : 1))); // v0.76.0: the wars' effect on what parts cost
   }
 
   /** Order parts or equipment from the terminal; delivered to the loading dock in an hour. */

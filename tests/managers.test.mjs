@@ -65,11 +65,11 @@ test('hiring is one tap: the fee is ten days of the wage, from the business\'s o
   const g = group(9102);
   const cash0 = g.corp.cashOf('farming'); const me = g.player.money;
   const q = g.corp.personnel.quote('manager', 'farming');
-  assert.deepEqual([q.ok, q.wage, q.fee], [true, 180, 1800]);
+  assert.deepEqual([q.ok, q.wage, q.fee], [true, 90, 900]);
   assert.equal(g.corp.cashOf('farming'), cash0, 'a quote moves nothing');
   const r = g.corp.personnel.hire('manager', 'farming');
   assert.ok(r.ok, r.text);
-  assert.equal(cash0 - g.corp.cashOf('farming'), 1800); assert.equal(g.player.money, me, 'never your wallet');
+  assert.equal(cash0 - g.corp.cashOf('farming'), 900); assert.equal(g.player.money, me, 'never your wallet');
   assert.equal(r.person.startDay, g.clock.day, 'no notice period');
   assert.deepEqual(r.person.perm, { expand: true }, 'a farm manager may only be asked to expand');
   assert.deepEqual(hire(g, 'manager', 'aerospace').perm, { reorder: true, bid: true, research: true, expand: true });
@@ -89,7 +89,7 @@ test('refusals say why and change nothing: a second manager, the wrong place, no
   assert.match(pe.hire('wizard', 'arms').text, /No such job/);
   assert.equal(JSON.stringify([g.corp.state.accounts, pe.peek().staff]), before, 'nothing moved');
   const poor = group(9104, { cash: 1000 });
-  assert.match(poor.corp.personnel.hire('manager', 'aerospace').text, /cannot pay the signing fee of 2,700/);
+  assert.match(poor.corp.personnel.hire('manager', 'aerospace').text, /cannot pay the signing fee of 1,350/);
   const lone = newGame(9105); lone.player.money = 5e6; assert.ok(lone.farm.buy('plot_east_1').ok); lone.corp.ensureWorld();
   assert.match(lone.corp.personnel.hire('group_manager', 'parent').text, /no parent company/);
   assert.match(lone.corp.personnel.hire('manager', 'arms').text, /do not own that business/);
@@ -101,7 +101,7 @@ test('wages come out of each employer\'s own account once a day; two unpaid days
   const x = hire(g, 'manager', 'farming'); const y = hire(g, 'group_manager', 'parent');
   const f0 = g.corp.cashOf('farming'); const p0 = g.corp.cashOf('parent');
   dayAt(g, 5, '19:05'); pe.payroll(); pe.payroll();
-  assert.equal(f0 - g.corp.cashOf('farming'), 180, 'once, from the farm'); assert.equal(p0 - g.corp.cashOf('parent'), 400, 'the group manager from the parent');
+  assert.equal(f0 - g.corp.cashOf('farming'), 90, 'once, from the farm'); assert.equal(p0 - g.corp.cashOf('parent'), 200, 'the group manager from the parent');
   // a business that cannot pay
   g.corp.state.accounts.farming.cash = 0;
   dayAt(g, 6, '19:05'); pe.payroll(); assert.equal(x.unpaid, 1); assert.equal(x.status, 'active');
@@ -109,7 +109,7 @@ test('wages come out of each employer\'s own account once a day; two unpaid days
   // dismissal
   const c0 = g.corp.cashOf('parent');
   const r = pe.dismiss(y.id);
-  assert.ok(r.ok, r.text); assert.equal(c0 - g.corp.cashOf('parent'), 400 * MARKET.severance);
+  assert.ok(r.ok, r.text); assert.equal(c0 - g.corp.cashOf('parent'), 200 * MARKET.severance);
   assert.equal(pe.person(y.id).status, 'dismissed'); assert.ok(pe.person(y.id).log.length >= 2, 'the record is kept');
   assert.ok(pe.hire('group_manager', 'parent').ok, 'the job is open again');
 });
@@ -138,7 +138,7 @@ test('every manager does exactly the same small good for their business — 3% �
 // ------------------------------------------------------------------ the tick-boxes
 
 test('the boxes: each job has its own, you tick and untick them, and a box that is off is never used', () => {
-  assert.deepEqual(permsFor('manager', 'arms'), ['reorder', 'research', 'expand']);
+  assert.deepEqual(permsFor('manager', 'arms'), ['reorder', 'hire', 'automation', 'bid', 'research', 'expand']);
   assert.deepEqual(permsFor('manager', 'shipping'), ['expand']);
   assert.deepEqual(PERMS.group_manager, { parent: ['transfer'] });
   const g = group(9120);
@@ -402,7 +402,7 @@ test('a save from v0.62–v0.88 is converted on first read: one manager a busine
 });
 
 test('the kinds of decision each business can have, and where only the group manager acts', () => {
-  assert.deepEqual(KINDS.farming, ['expand', 'transfer']); assert.deepEqual(KINDS.aerospace, ['reorder', 'bid', 'research', 'expand', 'transfer']);
+  assert.deepEqual(KINDS.farming, ['expand', 'transfer']); assert.deepEqual(KINDS.arms, ['reorder', 'hire', 'automation', 'bid', 'research', 'expand', 'transfer']); assert.deepEqual(KINDS.aerospace, ['reorder', 'bid', 'research', 'expand', 'transfer']);
   const g = group(9190);
   const M = g.corp.management; const gm = hire(g, 'group_manager', 'parent'); const m = hire(g, 'manager', 'farming');
   assert.equal(M.mayDecide(gm, 'transfer', 'farming'), true); assert.equal(M.mayDecide(gm, 'expand', 'farming'), false, 'the group manager moves cash, nothing else');
