@@ -1,9 +1,0 @@
-<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="2200" height="760"></canvas>
-<script type="module">
-import { drawVehicle } from './d_veh.js';
-const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#5b9a45'; g.fillRect(0, 0, 2200, 760);
-drawVehicle(g, 'tank', 'company', 200, 230, 0.0, { number: 11 }); drawVehicle(g, 'tank', 'varn', 520, 230, 0.8, { number: 4 }); drawVehicle(g, 'dozer', 'company', 860, 230, 0.0, {});
-drawVehicle(g, 'mlrs', 'company', 1200, 250, 0.0, {}); drawVehicle(g, 'spg', 'company', 1520, 250, 0.0, {}); drawVehicle(g, 'apc', 'company', 1850, 250, 0.0, {});
-drawVehicle(g, 'truck', 'company', 220, 600, 1.57, {}); drawVehicle(g, 'tank', 'company', 600, 600, 3.14, { turret: 2.3 }); drawVehicle(g, 'mlrs', 'varn', 1000, 600, 1.2, {});
-window.__done = true;
-</script>

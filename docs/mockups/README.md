@@ -76,3 +76,7 @@ These are drawn by the game's own code (people, weapons, aircraft, ground, atlas
 | `proposal-war-hoi-command.png`, `-orders.png`, `-army.png` | the command map, giving orders with the combat window, army groups and fronts |
 
 Sources: `src/war/` (served by `node server.js`, then open `http://127.0.0.1:8080/docs/mockups/src/war/battle.html` and the others) and `atlas-src/` (`node render.mjs hf 40 58 22 58 52 provinces` makes the strategic base).
+
+### Regenerating the command-map pictures
+The `hoi-*.html` pages read atlas base layers that are not committed (they are generated). From `docs/mockups/atlas-src/` run
+`node render.mjs hf4 42.2 54.6 28.3 50.5 130 provinces` (command and army screens) and `node render.mjs hf5 47.3 50.9 35.2 42.2 300 provinces` (zoomed orders screen), then serve the repo with `PORT=8099 node server.js` and screenshot with `node docs/mockups/src/war/shot.mjs <page> <out.png> <width> <height>`.
