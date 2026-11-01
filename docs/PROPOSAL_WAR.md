@@ -5,6 +5,8 @@ As you asked, the plan **starts with the world map**: `docs/WORLD_ATLAS_PROPOSAL
 
 Answers you have already given. Round 1: Sund runs down to the home island (so the map is redrawn); missiles come from **both** Aerospace (strategic) and the Arms works (battlefield), as free transfers of real stock. Round 2: **Politics is built first, then War**; **three free territories become small countries** (Westreach League, Sunmouth Isthmus Compact, Free Harbour of Dunmere), so the world has **eleven countries**.
 
+> **Update (the war needs far more detail):** the tactical battle and the strategic layer now have their own detailed plans with much better target art, drawn by the game's real code: **`PROPOSAL_WAR_TACTICAL.md`** (overhead battles, unit models, destructible buildings) and **`PROPOSAL_WAR_STRATEGIC.md`** (provinces, battalions, supply, combat). Sections 3.7 and 3.8 below are the short version; where they differ, those two documents win.
+
 ## 1. What the code already has (and what is missing)
 
 | Need | Today | Consequence |
@@ -136,11 +138,12 @@ v0.92.0 is the shared World Atlas (see the politics plan). The war update's 14 s
 | v0.113.0 | 7 People and squads | Recruitment, roles, training, squads, equipment, appearance, assignments. | no duplicate assignment; roles need training and kit |
 | v0.114.0 | 8 Living base | Facilities in use, routines, capacities, morale, supply, medical, the base running while you are away; **profile and set caps**. | capacities constrain; performance bounds |
 | v0.115.0 | 9 Generals | Hireable generals with differences, assessments, autoresolution, after-action reports. | a resolution changes real units; results are explainable |
-| v0.116.0 | 10a Tactical engine | The battle mode, deployment, orders, fog, combat model, objectives, extraction. | deterministic by seed; results written once |
-| v0.116.1 | 10b Air and missiles | Close air support, bombing runs, missile strikes from real stock. | consumes real stock; ranges and eligibility |
-| v0.117.0 | 11a Strategic war | Provinces, formations, orders, supply, AI nations' weekly battles, province control feeding geo. | no double resolution; formations draw from real items |
-| v0.117.1 | 11b International contracts | Embassy and client contracts at war scale. | requirements checked against what you own |
-| v0.118.0 | 12a Destruction | Persistent structure state, collision and path updates, repair. | reload keeps state; no stuck units |
+| v0.116.0 | 10a Tactical engine | Battle mode: camera tiers, sprite cache and caps, soldiers on the real sprites with a `helmet` style, the battle-map generator (village first), squad orders, line of sight, cover, suppression, objectives, the HUD (`PROPOSAL_WAR_TACTICAL.md`). | deterministic by seed; results written once |
+| v0.116.1 | 10b Vehicles, air and missiles | Tanks and vehicles with module damage, helicopters, aircraft passes, close air support, bombing runs, missile strikes from real stock, smoke, fire, tracers. | consumes real stock; ranges and eligibility |
+| v0.116.2 | 10c Maps and medics | The other map recipes (industrial, port, airfield, rural, forest, military site), fog of war from strategic intel, engineers, medics, evacuation. | every recipe generates a playable map |
+| v0.117.0 | 11a Strategic war | Provinces on the atlas, the map screen with modes, the battalion designer, raising a battalion from real items, orders, supply and hubs, the engagement window, AI nations' weekly battles (`PROPOSAL_WAR_STRATEGIC.md`). | no double resolution; formations draw from real items |
+| v0.117.1 | 11b Air, sea and contracts | Air wings, fleets and convoys, landings, intel levels and satellites, international contracts. | requirements checked against what you own |
+| v0.118.0 | 12a Destruction | Building segments, rubble, collapse, saved state, navigation updates, repair contracts. | reload keeps state; no stuck units |
 | v0.118.1 | 12b Government response + coup | The government military's finite stock, the 4th star, the coup state and its consequences, settlement events. | the base cannot be destroyed before a coup and can be after |
 | v0.119.0 | 13 Migration + regression | Migrations, a large-scale sim, parity with the military "off", old saves. | the full suite |
 | v0.120.0 | 14 Polish | Docs, version records, final report. | the full suite |
@@ -168,4 +171,4 @@ Order against politics: **the Presidency update comes first** (v0.93 to v0.106),
 7. **The 4th star dispatches finite real units; the base is never made vulnerable by it.**
 
 ## Mock-ups
-`proposal-war-atlas-world.png`, `-biomes.png`, `-theatres.png`, `-sund.png`, `-east.png`, `-south.png`, `-west.png`, `-morrow.png`; `proposal-war-merc-hq.png`, `proposal-war-national-base.png`, `proposal-war-tactical.png`, `proposal-war-strategic.png`; `proposal-war-oberpad-company.png`, `proposal-war-oberpad-command.png`.
+`proposal-war-atlas-world.png`, `-biomes.png`, `-theatres.png`, `-sund.png`, `-east.png`, `-south.png`, `-west.png`, `-morrow.png`; `proposal-war-merc-hq.png`, `proposal-war-national-base.png`; `proposal-war-oberpad-company.png`, `proposal-war-oberpad-command.png`; and the new target art: `proposal-war-models.png`, `proposal-war-battle.png`, `proposal-war-closeup-troops.png`, `proposal-war-closeup-fight.png`, `proposal-war-destruction.png`, `proposal-war-strategic-map.png`, `proposal-war-supply.png`, `proposal-war-designer.png`, `proposal-war-combat.png`, `proposal-war-oob.png`, `proposal-war-flow.png`.

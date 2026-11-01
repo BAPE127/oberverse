@@ -49,7 +49,21 @@ Plans only; the game is unchanged. Written up in `docs/PROPOSAL_POLITICS.md`, `d
 | `proposal-pol-mansions.png`, `proposal-pol-embassies.png` | the two mansions; embassy templates |
 | `proposal-pol-oberpad-overview.png`, `-diplomacy.png`, `-influence.png` | OberPad: politics, polls, government, diplomacy, news, campaigns, access, an offer, your party |
 | `proposal-war-merc-hq.png`, `proposal-war-national-base.png` | the mercenary lot in three stages; the government's base |
-| `proposal-war-tactical.png`, `proposal-war-strategic.png` | a tactical battle; the strategic map |
 | `proposal-war-oberpad-company.png`, `-command.png` | OberPad: military company, transfers, production, generals, contracts, an after-action report |
 
 Sources: `src/` (plans and OberPad screens: `plans.html` + `scenes.js`, `make_phones.py`, `strategic.html`) and `atlas-src/` (the atlas: `atlas.mjs` is the data; `make-all.sh` rebuilds the pictures). Generated files are ignored.
+
+## War: the detailed target art (2026-11-01, second pass)
+These are drawn by the game's own code (people, weapons, aircraft, ground, atlas) plus a mock-only module for tanks, vehicles, helicopters, roofs and effects. They are **target art, not in the game**. See `docs/PROPOSAL_WAR_TACTICAL.md` and `docs/PROPOSAL_WAR_STRATEGIC.md`.
+
+| File | What |
+| --- | --- |
+| `proposal-war-models.png` | unit model sheet: ten infantry roles in two uniforms, camouflage by environment, eight vehicles in three states, helicopters, aircraft |
+| `proposal-war-battle.png` | tactical command view at Halden Roads: HUD, fog of war, tracers, helicopter pass, wreck, breached building, banner inset |
+| `proposal-war-closeup-troops.png`, `-closeup-fight.png` | the same battle at camera x3 |
+| `proposal-war-destruction.png` | one block before, at impact and after, with the changes to cover, sight and paths |
+| `proposal-war-strategic-map.png`, `proposal-war-supply.png` | the strategic map (provinces, figurines, plans, combat icons) and its supply mode |
+| `proposal-war-designer.png`, `proposal-war-combat.png`, `proposal-war-oob.png` | battalion template designer, combat overview, order of battle with a soldier's record |
+| `proposal-war-flow.png` | the six-step loop |
+
+Sources: `src/war/` (served by `node server.js`, then open `http://127.0.0.1:8080/docs/mockups/src/war/battle.html` and the others) and `atlas-src/` (`node render.mjs hf 40 58 22 58 52 provinces` makes the strategic base).

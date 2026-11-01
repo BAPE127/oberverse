@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#101420"><canvas id="c" width="1920" height="1760"></canvas>
+<script type="module">
+import { drawTank, drawVehicle, drawHeli, drawSandbags, drawTree, drawCrater, INK, FACTIONS, shade } from './warart.js';
+import { drawSoldier, ROLES } from './soldiers.js';
+import { drawAircraft } from '/src/engine/drawAero.js';
+import { PRODUCTS } from '/src/content/aerospace.js';
+const c = document.getElementById('c'), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+g.fillStyle = '#101420'; g.fillRect(0, 0, 1920, 1760);
+const label = (t, x, y, s = 13, col = '#e8e6ff', w = 700) => { g.font = `${w} ${s}px system-ui`; g.fillStyle = col; g.textAlign = 'center'; g.fillText(t, x, y); };
+const head = (t, y) => { g.fillStyle = '#ffe28a'; g.font = '800 20px system-ui'; g.textAlign = 'left'; g.fillText(t, 24, y); g.fillStyle = '#2a2d4a'; g.fillRect(24, y + 8, 1872, 2); };
+const grass = (x, y, w, h, c1 = '#6f9a58', c2 = '#68925a') => { for (let j = 0; j < h; j += 16) for (let i = 0; i < w; i += 16) { g.fillStyle = (i + j) / 16 % 2 ? c1 : c2; g.fillRect(x + i, y + j, 16, 16); } };
+g.fillStyle = '#fff'; g.font = '800 26px system-ui'; g.textAlign = 'left'; g.fillText('UNIT MODEL SHEET — target art, built on the game\'s own drawing code (mock-up; nothing here is in the game)', 24, 36);
+g.fillStyle = '#a09ec9'; g.font = '600 13px system-ui'; g.fillText('Soldiers and weapons: the game\'s real people and weapon sprites (drawPerson, drawWeaponSprite). Aircraft: the game\'s real drawAircraft (the same types Aerospace builds). Tanks, vehicles, helicopters: new, same idiom (ink outline, lit left, shaded right, cached by heading).', 24, 58);
+
+// -------- infantry
+head('INFANTRY — ten roles; the same people the base schedules and the tactical map both use', 100);
+const roles = Object.keys(ROLES);
+grass(24, 112, 1872, 250);
+roles.forEach((r, n) => { const x = 110 + n * 183; drawSoldierScaled(r, 'company', x, 200, 'right'); drawSoldierScaled(r, 'sund', x, 330, 'right'); label(ROLES[r].name, x, 360 - 0, 12, '#fff'); });
+function drawSoldierScaled(role, faction, x, y, facing, env) { g.save(); g.scale(3, 3); drawSoldier(g, role, faction, x / 3, y / 3, facing, { env }); g.restore(); }
+label('YOUR COMPANY', 66, 128, 11, '#c8f0b0'); label('SUND ARMY (government)', 86, 262, 11, '#a8c8ff');
+// camo variants
+head('CAMOUFLAGE BY ENVIRONMENT, and facings (a squad is mixed roles)', 400);
+grass(24, 412, 1872, 190);
+['forest', 'desert', 'urban', 'snow'].forEach((env, n) => { const bg = { forest: ['#5f8a4c', '#58824a'], desert: ['#d2bc88', '#c8b27e'], urban: ['#8a8c92', '#80838a'], snow: ['#e6ecf0', '#dde4ea'] }[env]; grass(40 + n * 300, 424, 276, 160, bg[0], bg[1]); ['rifleman', 'mg', 'at', 'medic'].forEach((r, k) => drawSoldierScaled(r, 'company', 78 + n * 300 + k * 64, 530, ['right', 'down', 'left', 'up'][k], env)); label(env.toUpperCase(), 178 + n * 300, 578, 12, env === 'snow' || env === 'desert' ? '#222' : '#fff'); });
+g.fillStyle = '#1c2038'; g.fillRect(1250, 412, 650, 190); label('A squad = 8 to 12 named people with roles and kit.', 1575, 440, 14, '#ffe28a', 800); label('Each role needs its training and its weapon from the right store:', 1575, 464, 12, '#c9c7ee', 600); label('rifles, MG, launchers: Arms works cages · medicine, radios: suppliers', 1575, 484, 12, '#c9c7ee', 600); label('Hurt people leave the line and recover in the clinic; dead stay dead.', 1575, 504, 12, '#c9c7ee', 600); label('Government troops (blue-grey, yellow band) are visibly different.', 1575, 524, 12, '#c9c7ee', 600);
+// -------- vehicles
+head('VEHICLES — intact, damaged, wreck. Only tanks and helicopters are built by your company; the rest are bought or transferred', 640);
+const vs = [['mbt', 'Main battle tank', 'tank'], ['light', 'Light tank', 'tank'], ['apc', 'APC / IFV', 'veh'], ['recon', 'Recon car', 'veh'], ['spg', 'Self-propelled gun', 'veh'], ['aa', 'Anti-air', 'veh'], ['truck', 'Supply truck', 'veh'], ['medevac', 'Medevac', 'veh']];
+grass(24, 652, 1872, 520, '#7a8a6a', '#74846a');
+vs.forEach(([k, name, t], n) => { const x = 130 + n * 233; label(name, x, 676, 13, '#fff'); ['ok', 'damaged', 'wreck'].forEach((st, m) => { const y = 780 + m * 150; g.save(); g.scale(2, 2); if (t === 'tank') drawTank(g, { faction: 'company', kind: k, camo: 1, number: 11 + n, state: st }, x / 2, y / 2, 0, st === 'wreck' ? 0.7 : -0.25); else drawVehicle(g, { faction: 'company', kind: k, state: st }, x / 2, y / 2, 0); g.restore(); if (n === 0) label(st, 40, y + 4, 11, '#222', 700); }); });
+// -------- the air
+head('AIR — helicopters (new, built at your works) and aircraft (the game\'s own types, transferred from Aerospace)', 1210);
+g.fillStyle = '#5d7a52'; g.fillRect(24, 1222, 1872, 500);
+[['scout', 'Scout'], ['transport', 'Transport'], ['attack', 'Attack']].forEach(([k, name], n) => { const x = 190 + n * 310, y = 1450; g.save(); g.scale(1.8, 1.8); drawHeli(g, { faction: 'company', kind: k }, x / 1.8, y / 1.8, 0, { altitude: 26, phase: 0.5 + n }); g.restore(); label(name + ' helicopter', x, 1660, 13, '#fff'); });
+[['af_falcon', 'Falcon F-9 fighter'], ['ab_harrow', 'Harrow B-5 bomber'], ['af_wraith', 'Wraith F-14 stealth']].forEach(([id, name], n) => { const x = 1160 + n * 260, y = 1450; g.save(); g.scale(0.7, 0.7); drawAircraft(g, PRODUCTS[id].look, x / 0.7, y / 0.7, 0, { altitude: 40 }); g.restore(); label(name, x, 1660, 13, '#fff'); });
+label('Rotor discs blur and spin; shadows fall by altitude. Aircraft are drawn smaller here than in the base.', 960, 1700, 12, '#d8e8d0', 600);
+window.__done = true;
+</script>

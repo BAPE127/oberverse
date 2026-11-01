@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0b0a1e"><canvas id="c" width="1960" height="800"></canvas>
+<script type="module">
+import * as A from './warart.js';
+import { drawSoldier } from './soldiers.js';
+import { groundFrom, makeGrid, fillRect } from './ground.js';
+const { INK, hash } = A;
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+g.fillStyle = '#0b0a1e'; g.fillRect(0, 0, 1960, 800);
+const Gd = makeGrid(20, 15, '.'); fillRect(Gd, 0, 11, 20, 4, '='); fillRect(Gd, 0, 9, 20, 2, ','); fillRect(Gd, 0, 0, 20, 2, ','); fillRect(Gd, 9, 0, 2, 11, ','); fillRect(Gd, 2, 3, 6, 5, ','); fillRect(Gd, 12, 3, 7, 6, ',');
+const ground = groundFrom(Gd, 'tri');
+const W = 640, H = 480, OX = [20, 660 + 20, 1300 + 20], OY = 70;
+const panel = (n, title, sub) => { const x = OX[n]; g.fillStyle = '#05040f'; g.fillRect(x - 4, OY - 4, W + 8, H + 8); g.save(); g.beginPath(); g.rect(x, OY, W, H); g.clip(); g.translate(x, OY); g.drawImage(ground, 0, 0); return () => g.restore(); };
+const txt = (t, x, y, s = 14, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+txt('ONE BLOCK, THREE MOMENTS — what a missile strike changes in play (target art; mock-up)', 20, 34, 22, '#ffe28a', 800); txt('The same buildings and people, drawn by the game\'s real code plus the war update\'s new art. Overlays show the rules: cover, sight and paths all change when a building does.', 20, 56, 13, '#a09ec9');
+const flats = { w: 192, h: 160, kind: 'flats', seed: 3, wall: '#bdb8b0', roof: '#6e6a66' }, shop = { w: 160, h: 128, kind: 'shop', seed: 5, wall: '#cfc3ab', roof: '#8a5a3a' }, house = { w: 160, h: 128, kind: 'house', seed: 8, wall: '#d8ccb0', roof: '#9a4a3a' };
+const BX = [{ x: 60, y: 60, b: flats }, { x: 360, y: 40, b: shop }, { x: 380, y: 230, b: house }];
+const wallLine = (x, y, w, h) => { g.fillStyle = INK; g.fillRect(x - 1, y - 1, w + 2, h + 2); g.fillStyle = '#8a8478'; g.fillRect(x, y, w, h); g.fillStyle = '#a8a294'; g.fillRect(x, y, w, 2); };
+const units = (fx, st) => { // friendly in the street south, enemy garrison inside the flats
+  [[110, 380, 'rifleman'], [150, 392, 'leader'], [190, 380, 'mg'], [230, 395, 'rifleman'], [270, 384, 'at']].forEach(([x, y, r], i) => drawSoldier(g, r, 'company', x + 20, y + 10, 'up', { env: 'forest', t: i }));
+  if (st < 2) [[100, 180, 'rifleman'], [140, 190, 'mg'], [180, 184, 'marksman'], [120, 150, 'rifleman'], [165, 156, 'officer']].forEach(([x, y, r], i) => drawSoldier(g, r, 'varn', x, y + 20, 'down', { env: 'desert', t: i }));
+  else if (st === 3) [[130, 232, 'rifleman'], [170, 240, 'rifleman']].forEach(([x, y, r], i) => drawSoldier(g, r, 'varn', x, y, 'down', { env: 'desert', t: i }));
+};
+const shield = (x, y, c, t, x2) => { g.save(); g.translate(x, y); g.fillStyle = INK; g.beginPath(); g.moveTo(-12, -14); g.lineTo(12, -14); g.lineTo(12, 2); g.lineTo(0, 14); g.lineTo(-12, 2); g.closePath(); g.fill(); g.fillStyle = c; g.beginPath(); g.moveTo(-10, -12); g.lineTo(10, -12); g.lineTo(10, 1); g.lineTo(0, 12); g.lineTo(-10, 1); g.closePath(); g.fill(); if (x2) { g.strokeStyle = '#ff6a5a'; g.lineWidth = 4; g.beginPath(); g.moveTo(-9, -9); g.lineTo(9, 9); g.moveTo(9, -9); g.lineTo(-9, 9); g.stroke(); } g.restore(); if (t) { g.font = '700 12px system-ui'; g.fillStyle = '#fff'; g.lineWidth = 3; g.strokeStyle = 'rgba(8,6,28,.9)'; g.strokeText(t, x + 16, y + 4); g.fillText(t, x + 16, y + 4); } };
+// ---- 1 BEFORE
+let end = panel(0);
+BX.forEach(({ x, y, b }, i) => A.drawBuilding(g, { ...b, state: 0, cut: i === 0 }, x, y)); wallLine(40, 250, 120, 8); wallLine(330, 330, 8, 60);
+units(0, 0); A.drawSandbags(g, 240, 340, 60, 10);
+shield(120, 232, '#5fa0ff', 'heavy cover (walls)'); shield(282, 330, '#5fe08a', 'heavy (sandbags)');
+g.fillStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.moveTo(190, 372); g.lineTo(60, 230); g.lineTo(330, 230); g.closePath(); g.fill(); g.strokeStyle = '#ff6a5a'; g.setLineDash([6, 6]); g.lineWidth = 3; g.beginPath(); g.moveTo(190, 372); g.lineTo(150, 238); g.stroke(); g.setLineDash([]); txt('✕ sight blocked by the walls', 60, 360, 12, '#ff9a8a', 700);
+end();
+// ---- 2 IMPACT
+end = panel(1);
+BX.forEach(({ x, y, b }, i) => A.drawBuilding(g, { ...b, state: i === 0 ? 2 : 1, cut: false }, x, y)); wallLine(40, 250, 120, 8); wallLine(330, 330, 8, 60);
+units(0, 2); A.drawSandbags(g, 240, 340, 60, 10);
+A.ring(g, 150, 150, 120, 90, 'rgba(255,200,90,.9)', 3, [8, 6]); A.drawExplosion(g, 150, 140, 42, 4); for (let i = 0; i < 22; i++) { g.fillStyle = i % 2 ? '#8a7a68' : '#3a302a'; g.fillRect(40 + hash(i, 5) * 220, 60 + hash(i, 6) * 190, 3 + hash(i, 7) * 6, 3 + hash(i, 8) * 4); }
+g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 3; g.beginPath(); g.moveTo(560, -40); g.lineTo(165, 128); g.stroke(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(165, 128); g.lineTo(178, 118); g.lineTo(180, 132); g.fill(); txt('Longbow missile', 430, 28, 13, '#ffe28a', 800);
+txt('blast radius (damages by distance)', 40, 252, 12, '#ffd9a0', 700); txt('garrison: 3 killed, 2 wounded', 40, 290, 12, '#ffd0a0', 700);
+A.drawFire(g, 120, 130, 1.1, 1); A.drawFire(g, 200, 150, 0.9, 2); A.drawSmoke(g, 150, 120, 150, 1.4);
+end();
+// ---- 3 AFTER
+end = panel(2);
+BX.forEach(({ x, y, b }, i) => A.drawBuilding(g, { ...b, state: i === 0 ? 3 : 1, cut: false }, x, y)); wallLine(40, 250, 70, 8); wallLine(330, 330, 8, 60); A.drawCrater(g, 160, 250, 12, 2);
+units(0, 3); A.drawSandbags(g, 240, 340, 60, 10);
+A.drawSmoke(g, 150, 170, 110, 2.2, 0.6); A.drawFire(g, 110, 200, 0.7, 3);
+shield(100, 160, '#c8b070', 'light cover (rubble)'); shield(120, 232, '#5fa0ff', null, true); shield(282, 330, '#5fe08a', 'heavy (sandbags)');
+g.strokeStyle = '#5fe08a'; g.lineWidth = 4; g.setLineDash([2, 9]); g.beginPath(); g.moveTo(190, 372); g.lineTo(170, 250); g.lineTo(150, 120); g.stroke(); g.setLineDash([]); txt('NEW PATH through the footprint', 190, 182, 12, '#9af0c0', 700);
+g.fillStyle = 'rgba(255,255,255,.1)'; g.beginPath(); g.moveTo(190, 372); g.lineTo(40, 70); g.lineTo(330, 70); g.closePath(); g.fill(); txt('sight now reaches the far side', 70, 98, 12, '#fff', 700);
+end();
+// ---- captions under each frame: what changed in play
+const caps = [
+  ['BEFORE — intact block', ['Flats: 3 floors, cover heavy (walls)', 'Sight from the street: blocked by walls', 'Paths: only through the door (1 tile wide)', 'Garrison: 5 enemy inside, safe from rifles', 'Vehicles: cannot enter, road is clear']],
+  ['IMPACT — a strike from real stock', ['1 Longbow missile used (2 left in the store)', 'Damage by distance from the centre of the blast', 'Roof and floors fall in; fire starts, smoke blocks sight', 'Garrison: 3 killed, 2 wounded, rest pinned', 'Shock: nearby squads lose morale for 10 seconds']],
+  ['AFTER — what the ruin does', ['Rubble: light cover (was heavy)', 'New open path (3 tiles) through the footprint', 'Sight extends past the block; the squad can be seen', 'Rubble blocks vehicles; engineers clear it in 40 s', 'Saved: stays rubble after a reload; repair needs a contract']],
+];
+caps.forEach(([t, ls], n) => { const x = OX[n]; g.fillStyle = '#16143c'; g.fillRect(x, OY + H + 14, W, 190); g.strokeStyle = '#4a47b0'; g.lineWidth = 2; g.strokeRect(x, OY + H + 14, W, 190); txt(t, x + 14, OY + H + 40, 17, '#ffe28a', 800); ls.forEach((l, i) => txt('• ' + l, x + 14, OY + H + 68 + i * 26, 13.5, '#e8e6ff', 600)); });
+[[0, 'tag-before'], [1, 'tag-impact'], [2, 'tag-after']].forEach(() => {});
+['1  BEFORE', '2  IMPACT', '3  AFTER'].forEach((t, n) => { g.fillStyle = '#f2c14e'; g.fillRect(OX[n] + 8, OY + 8, 120, 26); txt(t, OX[n] + 18, OY + 27, 14, '#2a1a00', 800); });
+txt('Buildings are made of segments with their own hit points (walls, floors, roof). A building falls when enough segments fail; its footprint then becomes rubble with new cover, new paths and new sight lines. Core base facilities are exempt before a coup.', 20, 790, 12.5, '#a09ec9', 600);
+window.__done = true;
+</script>

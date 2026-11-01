@@ -35,6 +35,15 @@ for (let y = 0; y < H; y++) { const la = lat[y]; const cl = Math.cos(la * D);
     for (const s of near) { const dl = ((((wo - s.lon) + 540) % 360) - 180) * cl; const d = Math.hypot(wl - s.lat, dl) / s.w; if (d < bd) { bd = d; best = s.k; } }
     if (bd < 22) state[y * W + x] = best;
   } }
+// provinces (strategic layer): each state is cut into provinces by a jittered lattice of seeds, 1.7 degrees apart, owned by the state they fall in
+const stateAtPt = (la, lo) => { const cl = Math.cos(la * D); const wl = la + 0.55 * Math.sin(lo * 0.9 + la * 0.55) + 0.2 * Math.sin(lo * 2.3 - la * 1.7), wo = lo + (0.55 * Math.sin(la * 0.8 - lo * 0.45) + 0.2 * Math.sin(la * 2.1 + lo * 1.9)) / Math.max(0.3, cl); let best = -1, bd = 1e9; for (const s of near) { const dl = ((((wo - s.lon) + 540) % 360) - 180) * cl; const d = Math.hypot(wl - s.lat, dl) / s.w; if (d < bd) { bd = d; best = s.k; } } return bd < 22 ? best : -1; };
+const prov = new Int32Array(W * H).fill(-1); const pseeds = [];
+if (mode === 'provinces') {
+  const SP = 1.7; const hsh = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  for (let la = Math.floor(la0 / SP) * SP - SP; la < la1 + SP; la += SP) for (let lo = Math.floor(lo0 / SP) * SP - SP; lo < lo1 + SP; lo += SP) { const i = Math.round(la / SP), j = Math.round(lo / SP); const pla = la + (hsh(i, j, 1) - 0.5) * SP * 0.8, plo = lo + (hsh(i, j, 2) - 0.5) * SP * 0.8; if (geo.elevation(pla, plo) < 0.02) continue; const k = stateAtPt(pla, plo); if (k < 0) continue; pseeds.push({ la: pla, lo: plo, k, id: pseeds.length }); }
+  for (let y = 0; y < H; y++) { const la = lat[y], cl = Math.cos(la * D); for (let x = 0; x < W; x++) { const st = state[y * W + x]; if (st < 0) continue; const lo = lon[x]; let best = -1, bd = 1e9; for (const p of pseeds) { if (p.k !== st) continue; const dl = (lo - p.lo) * cl, d = Math.hypot(la - p.la, dl); if (d < bd) { bd = d; best = p.id; } } prov[y * W + x] = best; } }
+  writeFileSync(new URL(`./base/${name}.provinces.js`, import.meta.url), 'window.PROVS=' + JSON.stringify(pseeds.map((p) => ({ id: p.id, la: +p.la.toFixed(2), lo: +p.lo.toFixed(2), state: seeds[p.k].id }))) + ';');
+}
 // biome per pixel: the game's climate refined by height and the state's own character (same rules as the atlas)
 for (let y = 0; y < H; y++) { const la = lat[y], a = Math.abs(la); for (let x = 0; x < W; x++) { const e = E(x, y); if (e < 0) continue; const lo = lon[x]; const s = state[y * W + x] >= 0 ? seeds[state[y * W + x]] : null; let b;
   const rel = geo.relief(la, lo, e);
@@ -52,6 +61,7 @@ const edge = new Uint8Array(W * H); // 1 state edge, 2 country edge, 3 free-terr
 const cOf = (k) => (k < 0 ? 'x' : seeds[k].country);
 for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) { const k = state[y * W + x]; if (k < 0) continue; for (const m of [state[y * W + x + 1], state[(y + 1) * W + x]]) { if (m < 0 || m === k) continue; const cA = cOf(k), cB = cOf(m); const v = cA === cB ? 1 : (cA === 'free' || cB === 'free' ? 3 : 2); edge[y * W + x] = Math.max(edge[y * W + x], v); } }
 function widen(src, r) { const out = new Uint8Array(src); if (r <= 0) return out; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const v = src[y * W + x]; if (!v) continue; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (dx * dx + dy * dy > r * r + 1) continue; const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; if (state[yy * W + xx] < 0) continue; out[yy * W + xx] = Math.max(out[yy * W + xx], v); } } return out; }
+const pedge = new Uint8Array(W * H); if (mode === 'provinces') for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) { const p = prov[y * W + x]; if (p < 0) continue; if ((prov[y * W + x + 1] >= 0 && prov[y * W + x + 1] !== p) || (prov[(y + 1) * W + x] >= 0 && prov[(y + 1) * W + x] !== p)) pedge[y * W + x] = 1; }
 const e1 = widen(edge.map((v) => (v === 1 ? 1 : 0)), Math.floor(bw / 2)), e2 = widen(edge.map((v) => (v === 2 || v === 3 ? v : 0)), Math.floor(cw / 2));
 // colour
 const rgb = Buffer.alloc(W * H * 3);
@@ -72,10 +82,11 @@ for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const n = y * W + x; c
     else if ((b === 'grassland' || b === 'steppe' || b === 'savanna') && hh < 0.1) c = c.map((v) => v * 0.93);
     else if (b === 'desert' && hh < 0.08) c = c.map((v) => v * 1.06);
     if (b !== 'ice') c = c.map((v) => v * (0.97 + 0.06 * Math.min(1, e / 3)));
-    if (mode !== 'biome' && s >= 0) { const st = seeds[s]; const t = hex(atlas.countries[st.country].color); const a = mode === 'political' ? 0.30 : 0.14; const vv = 0.93 + 0.14 * ((((s * 2654435761) >>> 0) % 100) / 100); c = c.map((v, k) => (v * (1 - a) + t[k] * a) * vv);
+    if (mode !== 'biome' && s >= 0) { const st = seeds[s]; const t = hex(atlas.countries[st.country].color); const a = mode === 'political' || mode === 'provinces' ? 0.30 : 0.14; const vv = 0.93 + 0.14 * ((((s * 2654435761) >>> 0) % 100) / 100); c = c.map((v, k) => (v * (1 - a) + t[k] * a) * vv);
       if (mode === 'theatres') { const th = theatreOf[st.id]; if (th !== undefined) { const col = hex(['#ff6a5a', '#4ab4ff', '#ffb04a', '#c58aff', '#5fe08a', '#ffe14a', '#cfcfcf'][th % 7]); c = c.map((v, k) => v * 0.45 + col[k] * 0.55); } else c = c.map((v) => v * 0.62); } }
     // coast line: land beside the sea gets a dark rim
     if (E(x + 1, y) < 0 || E(x - 1, y) < 0 || E(x, y + 1) < 0 || E(x, y - 1) < 0) c = c.map((v) => v * 0.55);
+    if (pedge[n] && !e1[n] && !e2[n]) c = mix(c, [12, 18, 28], 0.42);
     if (e1[n] && !e2[n]) c = mix(c, [8, 16, 26], 0.55);
     if (e2[n]) c = mix(c, e2[n] === 2 ? [255, 244, 200] : [235, 240, 250], 0.85);
   }
@@ -88,7 +99,20 @@ const chunk = (t, d) => { const len = Buffer.alloc(4); len.writeUInt32BE(d.lengt
 const raw = Buffer.alloc((W * 3 + 1) * H); for (let y = 0; y < H; y++) { raw[y * (W * 3 + 1)] = 0; rgb.copy(raw, y * (W * 3 + 1) + 1, y * W * 3, (y + 1) * W * 3); }
 const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 2;
 mkdirSync(new URL('./base/', import.meta.url), { recursive: true });
+if (mode === 'provinces') { const pr = Buffer.alloc(W * H * 3); for (let n = 0; n < W * H; n++) { const p = prov[n]; if (p >= 0) { pr[n * 3] = p & 255; pr[n * 3 + 1] = p >> 8; pr[n * 3 + 2] = 255; } }
+  const raw2 = Buffer.alloc((W * 3 + 1) * H); for (let y = 0; y < H; y++) { raw2[y * (W * 3 + 1)] = 0; pr.copy(raw2, y * (W * 3 + 1) + 1, y * W * 3, (y + 1) * W * 3); }
+  writeFileSync(new URL(`./base/${name}.prov.png`, import.meta.url), Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw2, { level: 6 })), chunk('IEND', Buffer.alloc(0))])); }
 writeFileSync(new URL(`./base/${name}.png`, import.meta.url), Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 6 })), chunk('IEND', Buffer.alloc(0))]));
 writeFileSync(new URL(`./base/${name}.meta.js`, import.meta.url), 'window.META=' + JSON.stringify({ name, la0, la1, lo0, lo1, ppd, W, H, mode }) + ';');
-if (mode === 'political') { const st = {}; for (let y = 0; y < H; y++) { const w = Math.cos(lat[y] * D); for (let x = 0; x < W; x++) { const k = state[y * W + x]; if (k < 0) continue; const id = seeds[k].id, b = atlas.BIOMES[bio[y * W + x]]; st[id] = st[id] || {}; st[id][b] = (st[id][b] || 0) + w; } } writeFileSync(new URL(`./base/${name}.stats.json`, import.meta.url), JSON.stringify(st)); }
+if (mode === 'provinces') { // scatter for the overlay: trees in woods, peaks on mountains, hills on high ground, farm squares on fertile plains
+  const hs = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const F = { trees: [], peaks: [], hills: [], farms: [] }; const CELL = 15;
+  for (let cy = 0; cy < H - CELL; cy += CELL) for (let cx = 0; cx < W - CELL; cx += CELL) { const x = cx + Math.floor(hs(cx, cy, 1) * CELL), y = cy + Math.floor(hs(cx, cy, 2) * CELL); const b = atlas.BIOMES[bio[y * W + x]]; if (!b || b === 'sea' || E(x, y) < 0.04) continue; const r = hs(cx, cy, 3);
+    if ((b === 'forest' || b === 'taiga' || b === 'jungle') && r < 0.55) F.trees.push([x, y, +(0.55 + hs(cx, cy, 4) * 0.35).toFixed(2), b === 'taiga' ? 1 : 0]);
+    else if (b === 'mountain' && r < 0.7) F.peaks.push([x, y, +(0.7 + hs(cx, cy, 4) * 0.6).toFixed(2)]);
+    else if (E(x, y) > 1.3 && b !== 'ice' && r < 0.25) F.hills.push([x, y]);
+    else if ((b === 'grassland' || b === 'savanna') && r < 0.12) F.farms.push([x, y, hs(cx, cy, 5) > 0.5 ? 1 : 0]); }
+  writeFileSync(new URL(`./base/${name}.features.js`, import.meta.url), 'window.FEAT=' + JSON.stringify(F) + ';');
+}
+if (mode === 'political' || mode === 'provinces') { const st = {}; for (let y = 0; y < H; y++) { const w = Math.cos(lat[y] * D); for (let x = 0; x < W; x++) { const k = state[y * W + x]; if (k < 0) continue; const id = seeds[k].id, b = atlas.BIOMES[bio[y * W + x]]; st[id] = st[id] || {}; st[id][b] = (st[id][b] || 0) + w; } } writeFileSync(new URL(`./base/${name}.stats.json`, import.meta.url), JSON.stringify(st)); }
 console.log(name, W + 'x' + H);
