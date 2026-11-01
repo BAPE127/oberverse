@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>War flow</title>
+<style>
+body{margin:0;background:#0b0a1e;font-family:system-ui,sans-serif;color:#eeecff;padding:22px;width:1560px}
+h1{font:800 22px system-ui;color:#ffe28a;margin:0 0 4px}.sub{color:#a09ec9;font:600 14px system-ui;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:#16143c;border:2px solid #4a47b0;border-radius:16px;padding:14px;min-height:300px;position:relative}
+.n{position:absolute;top:-12px;left:14px;background:#f2c14e;color:#2a1a00;font:800 15px system-ui;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:2px solid #05040f}
+.card h2{font:800 17px system-ui;margin:6px 0 4px}.card p{font:600 13px/1.4 system-ui;color:#c9c7ee;margin:0 0 10px}
+.mini{background:#0d0c28;border:2px solid #2d2a70;border-radius:12px;padding:10px;font:600 12.5px system-ui;line-height:1.5}
+.b{display:inline-block;padding:4px 10px;border-radius:9px;background:#2d2a70;border:1px solid #4a47b0;margin:2px 3px 2px 0;font:700 12px system-ui}.b.go{background:#f2c14e;color:#2a1a00;border-color:#ffe08a}.b.red{background:#5a2a2a;border-color:#ff8a7a}
+.bar{height:7px;border-radius:5px;background:#2d2a70;margin:3px 0 7px;overflow:hidden}.bar i{display:block;height:100%;background:#5fe08a}.bar i.a{background:#f2c14e}
+.row{display:flex;justify-content:space-between;gap:8px}.dim{color:#a09ec9}.g{color:#9af0c0}.r{color:#ff9a8a}.y{color:#ffe28a}
+.map{height:120px;border-radius:10px;position:relative;background:linear-gradient(120deg,#3a6a4a,#7a8a5a 55%,#a89a62);overflow:hidden;border:2px solid #2d2a70}
+.map .sea{position:absolute;left:0;bottom:0;width:48%;height:48%;background:#1f5a86;clip-path:polygon(0 100%,0 18%,45% 40%,100% 100%)}
+.u{position:absolute;width:42px;height:22px;border-radius:4px;border:2px solid #05101a;font:800 10px/18px system-ui;text-align:center;color:#05101a}.u.f{background:#7ab8ff}.u.e{background:#ff8a7a}
+.ar{position:absolute;height:3px;background:repeating-linear-gradient(90deg,#fff 0 6px,transparent 6px 11px);transform-origin:left}
+.front{position:absolute;left:58%;top:0;width:3px;height:100%;background:repeating-linear-gradient(180deg,#ff6a5a 0 8px,transparent 8px 14px)}
+</style><body>
+<h1>HOW TROOPS AND BATTLES WORK — the whole loop in six steps (mock-up)</h1>
+<div class="sub">Everything below reads and writes the same saved military record. A soldier, a tank or a missile exists once, in one place, in one state.</div>
+<div class="grid">
+
+<div class="card"><div class="n">1</div><h2>Build the force (the base)</h2><p>People are hired and trained, squads are made, and kit comes from the right place. Nothing is spawned for you.</p>
+<div class="mini"><div class="row"><b>Alpha Squad</b><span class="g">8/8 ready</span></div><div class="dim">4 rifles · 1 MG · 1 medic · 1 AT · leader Sgt. Orla</div>
+<div class="bar"><i style="width:94%"></i></div>
+<div class="row"><b>Anvil (tank)</b><span class="y">hull 82%</span></div><div class="dim">crew 3 · 6 shells · built at your works</div>
+<div class="row" style="margin-top:6px"><b>2 Skylarks</b><span class="g">moved free</span></div><div class="dim">from Aerospace · no fee · gone from its count</div></div></div>
+
+<div class="card"><div class="n">2</div><h2>Take a contract</h2><p>Clients and embassies offer jobs. Requirements are checked against what you really own. A job you cannot staff stays red.</p>
+<div class="mini"><b class="y">Hold Halden Roads</b> · Ostmark Union · 21 days<br>Pays <b>95,000</b> · penalty if lost<br><span class="g">✓ 2 tanks</span> &nbsp; <span class="g">✓ 40 troops</span> &nbsp; <span class="r">✗ 1 medic team short</span><br><span class="b go">Accept</span><span class="b">Decline</span><div class="dim" style="margin-top:6px">Early jobs are small: guard a warehouse, escort a cargo. They need only guards.</div></div></div>
+
+<div class="card"><div class="n">3</div><h2>Form battalions and give orders</h2><p>You group real squads and vehicles into a battalion and send it across the map. Orders take time and use fuel and supply.</p>
+<div class="map"><div class="sea"></div><div class="front"></div><div class="u f" style="left:14px;top:20px">1st ARM</div><div class="u f" style="left:30px;top:60px">2nd INF</div><div class="u e" style="left:140px;top:28px">VARN I</div><div class="u e" style="left:150px;top:70px">? ? ?</div><div class="ar" style="left:58px;top:31px;width:70px"></div></div>
+<div style="margin-top:8px"><span class="b">Move</span><span class="b">Defend</span><span class="b">Advance</span><span class="b">Recon</span><span class="b">Resupply</span><span class="b">Withdraw</span></div></div>
+
+<div class="card"><div class="n">4</div><h2>A battle is about to happen</h2><p>Where forces meet, an engagement opens with a clock. You see an estimate (not a promise) and one choice.</p>
+<div class="mini"><b class="r">Halden Roads · in 6 hours</b><br>You ≈ 80 troops, 4 tanks · Enemy ≈ 900?<br>Estimate: <b class="y">hard but possible</b> · expected losses 12 to 25<br><br><span class="b go">Play it myself</span><span class="b">Let Gen. Rostrov fight</span><span class="b red">Withdraw</span><div class="dim" style="margin-top:6px">Once chosen, the other ways close. If you do nothing, the general on the front resolves it when the clock ends.</div></div></div>
+
+<div class="card"><div class="n">5</div><h2>Fight it: your way or the general's</h2><p><b>You play:</b> the overhead view, squad orders, air and missile support from real stock. <b>General:</b> the same combat rules run in aggregate, with the general's strengths and a seeded uncertainty.</p>
+<div class="mini"><div class="row"><span>Alpha Squad</span><span class="g">holding the crossing</span></div><div class="row"><span>Anvil</span><span class="y">hull 61%, 3 shells</span></div><div class="row"><span>Longbow strike</span><span class="g">2 left → 1 left</span></div><div class="row"><span>Enemy depot</span><span class="r">destroyed (stays destroyed)</span></div></div></div>
+
+<div class="card"><div class="n">6</div><h2>After-action: it is all real</h2><p>The result is written once. People are dead, hurt or fine; kit is damaged or gone; ammo and fuel are spent; the front moves.</p>
+<div class="mini"><b class="g">Held</b> · paid 88,000 of 95,000<br>9 killed · 14 wounded (recover in your clinic) · 1 tank lost<br>Ammo −34% · fuel −22% · 2 missiles used<br>Falkenmark: held · enemy depot destroyed<br><span class="dim">Your reputation with Ostmark ▲ · Varnistan ▼ · next jobs are bigger</span></div></div>
+</div></body>
