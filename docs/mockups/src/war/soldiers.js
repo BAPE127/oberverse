@@ -75,3 +75,4 @@ export function banner(ctx, x, y, faction, label, n, kind = 'inf', o = {}) {
   if (o.hp != null) { ctx.fillStyle = '#2a2a34'; ctx.fillRect(-w / 2, h + 5, w, 3); ctx.fillStyle = o.hp > 0.6 ? '#5fe08a' : '#f2c14e'; ctx.fillRect(-w / 2, h + 5, w * o.hp, 3); }
   ctx.restore();
 }
+export { drawPerson };

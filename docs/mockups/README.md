@@ -69,6 +69,7 @@ These are drawn by the game's own code (people, weapons, aircraft, ground, atlas
 | `proposal-war-troop-eras.png` | four armour eras (field uniform to power armour) across seven roles |
 | `proposal-war-troop-loadouts-1.png`, `-2.png` | nine troop classes, five weapon tiers each, with stats, perks and where each unlocks |
 | `proposal-war-troop-customizer.png` | the armoury screen: class, look (colours, pattern, insignia, crest, band), loadout and tier, squad lineup |
+| `proposal-war-city-battle.png`, `-battle-clean.png`, `-map.png`, `-far.png`, `-breach.png`, `-states.png` | **current overhead battle look**: the game's own renderer on a dense 200x130-tile city; ram vs blast; building states; far view |
 | `proposal-war3d-battle.png`, `-battle-clean.png` | the overhead battle at the new level of detail (2.5D ground, buildings, units, fire), with and without the screen |
 | `proposal-war3d-breach.png`, `-states.png` | ram vs blast on one wall (six moments); one house in six damage states |
 | `proposal-war3d-models.png` | model sheet: troops, vehicles, aircraft, drones and effects |

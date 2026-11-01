@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+import { baseItems, render, fxPass, soldiers, vehicle, bAt, ground, civilians, T, W, H, LM } from './g_scene.js';
+import { hud } from './g_hud.js';
+import * as F from './d_fx.js';
+import { drawSandbags } from './warart.js';
+const Q = new URLSearchParams(location.search); const HUDON = Q.get('hud') !== '0'; const cv = document.getElementById('c'), g = cv.getContext('2d');
+const bake = bAt(116, 55), blast = bAt(116, 72), burn = bAt(123, 83), coll = bAt(116, 83), shell = bAt(128, 72), post = bAt(123, 55);
+const damage = { [bake.id]: { level: 2, breach: [{ u: 34, w: 22, kind: 'ram' }] }, [blast.id]: { level: 2, breach: [{ u: 42, w: 16, kind: 'blast' }] }, [coll.id]: { level: 3 }, [burn.id]: { level: 2, breach: [{ u: 30, w: 14, kind: 'shell' }], side: ['E'] }, [shell.id]: { level: 1 }, [post.id]: { level: 1 } };
+const items = baseItems({ damage }); civilians(items, 70, 3);
+const cam = { x: 2480, y: 1790, z: 1 };
+// ---- our column on the second avenue, the squads on the pavements
+soldiers(items, ['leader', 'rifleman', 'rifleman', 'mg', 'rifleman', 'rifleman', 'medic', 'rifleman'], 3190, 2078, 'right', 'company', { cols: 4, spread: 15, moving: true });
+soldiers(items, ['at', 'at', 'rifleman'], 3452, 2292, 'right', 'company', { cols: 3, spread: 15 }); items.push({ y: 2286, draw: (g) => drawSandbags(g, 3402, 2282, 110, 10) });
+soldiers(items, ['recon', 'recon', 'signaller'], 3420, 2084, 'right', 'company', { cols: 3, spread: 15 });
+soldiers(items, ['engineer', 'engineer', 'engineer', 'rifleman'], 3796, 2624, 'up', 'company', { cols: 4, spread: 14 });
+soldiers(items, ['medic', 'rifleman'], 2840, 2290, ['right', 'left'], 'company', { cols: 2, spread: 22 });
+vehicle(items, 'anvil', 3300, 2172, Math.PI / 2, { turret: -0.2 }); vehicle(items, 'anvil', 3010, 2206, Math.PI / 2, { turret: -0.35 }); vehicle(items, 'breacher', 3802, 2056, 0, {}); vehicle(items, 'badger', 2740, 2162, Math.PI / 2, {}); vehicle(items, 'medevac', 2630, 2208, Math.PI / 2, {}); vehicle(items, 'rainmaker', 3180, 2610, 0.9, {});
+// ---- the enemy: in the bakery's room, behind a wreck, in the open
+soldiers(items, ['rifleman', 'rifleman', 'mg'], 3786, 1900, 'down', 'varn', { cols: 3, spread: 22 });
+soldiers(items, ['rifleman', 'rifleman', 'mg', 'at', 'rifleman'], 4260, 2180, 'left', 'varn', { cols: 3, spread: 15 }); soldiers(items, ['rifleman', 'marksman', 'officer'], 4400, 2080, 'left', 'varn', { cols: 3, spread: 15 });
+vehicle(items, 'anvil', 4130, 2200, 3.5, { paint: 'varn', state: 'wreck', turret: 0.8 }); vehicle(items, 'viper', 3560, 1930, 1.4, { phase: 0.9, scale: 1 });
+const tank = [3300, 2172], mz = [tank[0] + 64, tank[1] - 10];
+const fx = (og) => {
+  F.blaze(og, burn.x * T + 90, (burn.y + 1) * T + 40, 34, { seed: 3, tall: 4 }); F.blaze(og, 4130, 2200, 30, { seed: 7, tall: 3.5 }); F.smoke(og, coll.x * T + 90, coll.y * T + 120, 240, { seed: 41, w: 24, dark: 0.7, alpha: 0.8, lean: 0.4 }); F.fire(og, coll.x * T + 150, coll.y * T + 150, 22, 36, { seed: 8, phase: 1 });
+  F.explosion(og, 3810, 2560, 50, 0.36, { seed: 11 }); F.wallBurst(og, 3810, 2572, 80, Math.PI / 2, 4); F.smoke(og, 3824, 2520, 300, { seed: 2, w: 30, dark: 0.9, lean: 0.35 });
+  F.dust(og, 3770, 2020, 22, 4, 5); F.wallBurst(og, 3850, 2028, 46, 0.5, 6); F.wallBurst(og, 3750, 2028, 40, Math.PI - 0.4, 7);
+  F.cannonBlast(og, mz[0], mz[1], -0.2, 0.8); F.tracer(og, mz[0] + 10, mz[1], 3786, 1900, '#ffd868', 3); F.explosion(og, 3786, 1890, 24, 0.5, { seed: 21 });
+  for (let i = 0; i < 4; i++) F.tracer(og, 3530 + i * 4, 2082 + i * 3, 4200 - i * 20, 2110 + i * 6, '#9aff9a', 2); for (let i = 0; i < 4; i++) F.tracer(og, 4240 - i * 6, 2178 + i * 4, 3560 + i * 24, 2120 + i * 8, '#ff9a5a', 2);
+  F.muzzle(og, 3530, 2082, 0, 0.6); F.muzzle(og, 4242, 2180, Math.PI, 0.6); F.muzzle(og, 3790, 1906, Math.PI / 2, 0.5);
+  const hx = 3560, hy = 1930; for (let i = 0; i < 3; i++) { const pts = []; for (let k = 0; k < 6; k++) pts.push([hx + 40 + k * 36 + i * 4, hy + 8 + k * 14 + i * 6]); F.rocket(og, pts); } F.explosion(og, 3860, 2020, 18, 0.5, { seed: 31 });
+};
+render(g, cam, items, null);
+fxPass(g, cam, { w: 1920, h: 1080 }, fx);
+if (HUDON) { const mm = document.createElement('canvas'); mm.width = 600; mm.height = 390; mm.getContext('2d').drawImage(ground(), 0, 0, W * T, H * T, 0, 0, 600, 390); hud(g, { minimap: mm, mmRect: [cam.x / (W * T), cam.y / (H * T), 1920 / (W * T), 1080 / (H * T)] }); }
+window.__done = true;
+</script>

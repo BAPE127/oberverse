@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="1920" height="1250"></canvas>
+<script type="module">
+import * as HM from '/src/content/maps/halvermouth.js';
+import { GameMap } from '/src/world/gameMap.js';
+import { buildPixelGround } from '/src/engine/drawPixelGround.js';
+import { PROP_TYPES } from '/src/content/props.js';
+import { setPixelProps, drawBuilding, drawProp } from '/src/engine/drawWorld.js';
+import { drawShopFront } from '/src/engine/drawPixelBuildings.js';
+setPixelProps(true);
+const def = HM.halvermouth || HM.default; const map = new GameMap(def, PROP_TYPES);
+const q = new URLSearchParams(location.search); const z = +(q.get('z') || 0.55), cx = +(q.get('cx') || 0), cy = +(q.get('cy') || 0);
+const g = document.getElementById('c').getContext('2d'); g.imageSmoothingEnabled = false;
+const ground = buildPixelGround(map, (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
+g.save(); g.translate(-cx * z, -cy * z); g.scale(z, z); g.drawImage(ground, 0, 0);
+const items = [];
+for (const b of map.buildings) { items.push({ y: (b.y + b.h) * 32, d: () => drawBuilding(g, b, { lit: false, night: false, time: 0, doorLocked: false, inside: null, people: null }) }); if (b.sign || b.awning) items.push({ y: (b.y + b.h) * 32 + 1, d: () => drawShopFront(g, b, 0, false) }); }
+for (const p of map.props) items.push({ y: (p.y + (p.h || 1)) * 32 - 4, d: () => drawProp(g, p, { wind: 0, map, time: 0, night: false }) });
+items.sort((a, b) => a.y - b.y); items.forEach((i) => i.d()); g.restore();
+console.log('stats', map.width, map.height, map.buildings.length, map.props.length);
+window.__done = true;
+</script>

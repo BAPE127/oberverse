@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="1920" height="1250"></canvas>
+<script type="module">
+import { baseItems, render, civilians } from './g_scene.js';
+const g = document.getElementById('c').getContext('2d'); const items = baseItems(); civilians(items, 160);
+const q = new URLSearchParams(location.search); const z = +(q.get('z') || 0.3), cx = +(q.get('cx') || 0), cy = +(q.get('cy') || 0);
+render(g, { x: cx, y: cy, z }, items); window.__done = true;
+</script>

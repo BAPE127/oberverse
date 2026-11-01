@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="1920" height="1250"></canvas>
+<script type="module">
+import { baseItems, render, fxPass, bAt, buildings, T, W, H, ground, civilians } from './g_scene.js';
+import { banner } from './soldiers.js';
+import * as F from './d_fx.js';
+const cv = document.getElementById('c'), g = cv.getContext('2d'); const Z = 0.3;
+const damage = { [bAt(116, 55).id]: { level: 2, breach: [{ u: 34, w: 22, kind: 'ram' }] }, [bAt(116, 83).id]: { level: 3 }, [bAt(123, 83).id]: { level: 2, breach: [{ u: 30, w: 14, kind: 'shell' }] }, [bAt(116, 72).id]: { level: 2, breach: [{ u: 42, w: 16, kind: 'blast' }] } };
+const items = baseItems({ damage }); civilians(items, 120, 3); render(g, { x: 0, y: 0, z: Z }, items, null);
+const S = (x, y) => [x * Z, y * Z];
+// fire and smoke at the fighting
+fxPass(g, { x: 0, y: 0, z: Z }, { w: 1920, h: 1250 }, (og) => { for (const [x, y, s] of [[3600, 2480, 40], [3860, 2440, 34], [2850, 2528, 28]]) F.blaze(og, x, y, s * 1.6, { seed: x, tall: 3 }); F.smoke(og, 4032, 1950, 200, { seed: 2, w: 26, dark: 0.5, alpha: 0.7 }); });
+// fog: unseen ground
+const fog = document.createElement('canvas'); fog.width = 1920; fog.height = 1250; const fg = fog.getContext('2d'); fg.fillStyle = 'rgba(6,10,26,.52)'; fg.fillRect(0, 0, 1920, 1250); fg.globalCompositeOperation = 'destination-out';
+for (const [x, y, r] of [[3300, 2100, 1300], [4000, 2050, 700], [2200, 2000, 500]]) { const [sx, sy] = S(x, y); const rr = r * Z; const gr = fg.createRadialGradient(sx, sy, rr * 0.6, sx, sy, rr); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); fg.fillStyle = gr; fg.beginPath(); fg.arc(sx, sy, rr, 0, 7); fg.fill(); }
+g.drawImage(fog, 0, 0);
+// banners (the zoomed-out look of squads and vehicles)
+const bn = (x, y, f, l, n, k, o = {}) => { const [sx, sy] = S(x, y); banner(g, sx, sy, f, l, n, k, { w: 44, ...o }); };
+bn(3000, 2040, 'company', 'Alpha', 8, 'inf', { sel: true, hp: 0.9 }); bn(3050, 2160, 'company', 'Tanks', 2, 'arm', { hp: 0.9 }); bn(3150, 2290, 'company', 'Bravo', 3, 'inf'); bn(2850, 2600, 'company', 'Engrs', 3, 'inf'); bn(3030, 2480, 'company', 'MLRS', 1, 'art'); bn(4034, 2010, 'company', 'Dozer', 1, 'arm'); bn(3340, 1740, 'company', 'Heli', 1, 'air', { w: 40 }); bn(2500, 2110, 'company', 'Recce', 2, 'arm');
+bn(4380, 2110, 'varn', 'Varn', 5, 'inf'); bn(4520, 2030, 'varn', 'Varn', 3, 'inf'); bn(3990, 1860, 'varn', 'Varn', 3, 'inf'); bn(5400, 3400, 'varn', 'Depot', 12, 'inf', { w: 48 }); bn(5800, 3320, 'varn', 'AT', 4, 'arm');
+for (const [x, y] of [[5300, 700], [5900, 300], [1700, 3600]]) { const [sx, sy] = S(x, y); g.fillStyle = 'rgba(255,106,90,.28)'; g.beginPath(); g.arc(sx, sy, 20, 0, 7); g.fill(); g.strokeStyle = '#ff8a7a'; g.lineWidth = 2; g.setLineDash([4, 4]); g.stroke(); g.setLineDash([]); g.fillStyle = '#ffd0c8'; g.font = '800 20px system-ui'; g.textAlign = 'center'; g.fillText('?', sx, sy + 7); g.textAlign = 'left'; }
+// objectives and district names
+const lab = (t, x, y, col = '#ffe28a', s = 15) => { const [sx, sy] = S(x, y); g.font = `800 ${s}px system-ui`; const w = g.measureText(t).width + 16; g.fillStyle = 'rgba(8,6,28,.88)'; g.fillRect(sx - w / 2, sy - 12, w, 24); g.strokeStyle = col; g.lineWidth = 1.5; g.strokeRect(sx - w / 2, sy - 12, w, 24); g.fillStyle = col; g.textAlign = 'center'; g.fillText(t, sx, sy + 5); g.textAlign = 'left'; };
+lab('HALDEN CROSSING · hold 04:12', 3600, 2330, '#9af0c0'); lab('MAIN STREET', 5000, 2130, '#c9c7ee'); lab('NORTH SHOPS', 2300, 560, '#c9c7ee'); lab('RIVER CADDO', 150, 1800, '#9fd0f0'); lab('FOUNDERS PARK (enemy spotters?)', 5500, 700, '#ffb08a'); lab('ENEMY DEPOT · objective', 5600, 3200, '#ff9a8a'); lab('OUR FIELD HQ', 3750, 3500, '#9af0c0'); lab('THE SUMPS (housing)', 800, 1450, '#c9c7ee'); lab('CIVIC PLAZA', 2900, 1500, '#c9c7ee'); lab('WHEAT FARMS', 800, 3300, '#c9c7ee'); 
+// the old battle map for scale
+g.strokeStyle = 'rgba(255,226,138,.9)'; g.lineWidth = 3; g.setLineDash([10, 6]); const [ox, oy] = S(2480, 1590); g.strokeRect(ox, oy, 1920 * Z, 1080 * Z); g.setLineDash([]); g.font = '800 14px system-ui'; g.fillStyle = '#ffe28a'; g.fillText('one screen at normal zoom', ox + 6, oy + 1080 * Z + 18);
+g.fillStyle = 'rgba(8,7,26,.94)'; g.fillRect(0, 0, 1920, 46); g.strokeStyle = '#3a38a0'; g.lineWidth = 2; g.strokeRect(1, 1, 1918, 44); g.font = '800 18px system-ui'; g.fillStyle = '#ffe28a'; g.fillText('THE CROSSING AT HALDEN ROADS · FAR VIEW', 20, 30); g.font = '600 14px system-ui'; g.fillStyle = '#c9c7ee'; g.fillText('200 × 130 tiles (6,400 × 4,160 px): four times the old battle map · zoomed out, units become banners · fog hides what you cannot see', 440, 29);
+g.fillStyle = 'rgba(8,7,26,.94)'; g.fillRect(1500, 1170, 410, 72); g.strokeStyle = '#3a38a0'; g.strokeRect(1501, 1171, 408, 70); g.font = '700 13px system-ui'; g.fillStyle = '#e8e6ff'; g.fillText('Camera tiers: far (this) · command (×1) · close (×3)', 1514, 1196); g.fillStyle = '#a09ec9'; g.fillText('The yellow box is one normal screen of the battle.', 1514, 1218);
+window.__done = true;
+</script>
