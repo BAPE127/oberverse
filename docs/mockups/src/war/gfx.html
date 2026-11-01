@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1500"></canvas>
+<script type="module">
+import { baseItems, render } from './g_scene.js';
+import { pixelFx, F } from './g_fx.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1500);
+const txt = (t, x, y, s = 16, c = '#e8e6ff', w = 600) => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.fillText(t, x, y); };
+txt('FIRE, SMOKE AND EXPLOSIONS IN THE GAME\'S PIXEL LOOK (target art)', 30, 48, 32, '#ffe28a', 800); txt('Drawn at art-pixel size, then forced onto a 7-colour fire ramp and a 5-grey smoke ramp, dithered where translucent, with a 1-px dark rim like every sprite in the game.', 30, 76, 17, '#a09ec9');
+// the ground each panel sits on: the real city, cropped
+const items = baseItems(); const PW = 460, PH = 330;
+const panel = (i, r, title, sub, fn, cam0 = { x: 3200, y: 1930 }) => { const x = 30 + i * (PW + 24), y = 100 + r * (PH + 78); g.save(); g.translate(x, y); g.beginPath(); g.rect(0, 0, PW, PH); g.clip(); const cam = { x: cam0.x - PW / 2 / 1.5, y: cam0.y - PH / 2 / 1.5, z: 1.5 }; render(g, cam, items.map((i2) => ({ ...i2 })), null); pixelFx(g, cam, { w: PW, h: PH }, (og) => fn(og, cam0)); g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(x, y, PW, PH); txt(title, x, y + PH + 24, 18, '#ffe28a', 800); txt(sub, x, y + PH + 44, 13, '#c9c7ee'); };
+const C = [3000, 2060]; // a bit of road and pavement
+[0.05, 0.2, 0.4, 0.62, 0.82].forEach((t, i) => panel(i, 0, ['1  Flash', '2  Fireball', '3  Peak', '4  Cooling', '5  Smoke head'][i], ['bright core, hard rim', 'orange mass, debris lines', 'widest, dust ring', 'embers, dark smoke rises', 'column leans downwind'][i], (og, c) => F.explosion(og, c.x, c.y + 20, 64, t, { seed: 4 }), { x: C[0], y: C[1] }));
+[0, 0.9, 1.8, 2.7, 3.6].forEach((ph, i) => panel(i, 1, 'Fire, frame ' + (i + 1), ['a small fire', 'bigger fire', 'a building on fire', 'a burning wreck', 'oil fire, black smoke'][i], (og, c) => { const sz = [22, 34, 46, 30, 40][i]; F.fire(og, c.x, c.y + 40, sz, sz * 1.5, { seed: 3 + i, phase: ph }); if (i > 1) F.smoke(og, c.x + 4, c.y + 10, 90 + i * 30, { seed: 5 + i, w: 22, dark: i === 4 ? 1 : 0.8, lean: 0.4 }); }, { x: C[0], y: C[1] }));
+panel(0, 2, 'Muzzle flashes', 'rifle, gun, cannon', (og, c) => { F.muzzle(og, c.x - 90, c.y + 40, 0, 0.7); F.muzzle(og, c.x - 20, c.y + 10, 0, 1.0); F.cannonBlast(og, c.x + 50, c.y - 10, 0, 0.8); }, { x: C[0], y: C[1] });
+panel(1, 2, 'Tracers and rockets', 'ours green, theirs orange', (og, c) => { for (let i = 0; i < 3; i++) F.tracer(og, c.x - 150, c.y + i * 10, c.x + 130, c.y - 40 + i * 12, '#9aff9a', 2); for (let i = 0; i < 3; i++) F.tracer(og, c.x + 150, c.y + 60 + i * 8, c.x - 120, c.y + 30 + i * 10, '#ff9a5a', 2); const pts = []; for (let k = 0; k < 9; k++) pts.push([c.x - 130 + k * 28, c.y - 40 - k * 5 + Math.sin(k) * 3]); F.rocket(og, pts); }, { x: C[0], y: C[1] });
+panel(2, 2, 'Dust and rubble', 'a vehicle on gravel, a wall falling', (og, c) => { F.dust(og, c.x - 60, c.y + 50, 32, 10, 3); F.wallBurst(og, c.x + 60, c.y + 30, 60, Math.PI / 2, 4); F.dust(og, c.x + 70, c.y + 40, 26, 6, 5); }, { x: C[0], y: C[1] });
+panel(3, 2, 'Smoke screen', 'a grenade or a smoke mission', (og, c) => { for (let i = 0; i < 4; i++) F.smoke(og, c.x - 90 + i * 56, c.y + 50, 70, { seed: 11 + i, w: 30, dark: 0.1, alpha: 0.9, lean: 0.2 }); }, { x: C[0], y: C[1] });
+panel(4, 2, 'Air strike', 'a bomb stick', (og, c) => { for (let i = 0; i < 4; i++) F.explosion(og, c.x - 120 + i * 80, c.y + 20 + Math.sin(i) * 10, 40, [0.5, 0.35, 0.2, 0.1][i], { seed: 20 + i }); }, { x: C[0], y: C[1] });
+window.__done = true;
+</script>

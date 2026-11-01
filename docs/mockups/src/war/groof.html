@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1500"></canvas>
+<script type="module">
+import { STYLES, drawRoofed, drawFloor, drawSection, groundOf, minTiles, faceH } from './g_roof.js';
+import { soldiers, vehicle } from './g_scene.js';
+import { drawCar } from './g_cars.js';
+import { drawSoldier } from './soldiers.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1500);
+const txt = (t, x, y, s = 16, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+txt('REAL BUILDINGS: roofs and floors, until your force goes in (target art, the game\'s pixel style)', 30, 48, 32, '#ffe28a', 800);
+txt('Seen from outside you get the roof and a facade with one row of windows per floor. When your soldiers enter, the roof and the floors above lift away and you see only the floor they are on.', 30, 76, 17, '#a09ec9');
+// ---- row 1: the five national styles on a street of pavement
+const grid = Array.from({ length: 24 }, (_, y) => Array.from({ length: 90 }, (_, x) => (y > 17 ? '=' : y > 16 ? ',' : ',')));
+const GR = groundOf(grid);
+const row = (key, defs, x, y, w) => { g.save(); g.translate(x, y); g.beginPath(); g.rect(0, 0, w, 560); g.clip(); g.drawImage(GR, 0, 0, w, 560, 0, 0, w, 560); g.translate(8, 28); defs.forEach((d) => drawRoofed(g, { style: key, ...d })); g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(x, y, w, 560); };
+const PW = 560; const names = ['halver', 'ostmark', 'varn', 'sund', 'windfen'];
+const L = (key, defs) => { let x = 0; return defs.map((d) => { const h = minTiles(d.floors) + (d.extra ?? 3); const o = { ...d, x, y: 13 - h, h, door: { x: x + (d.dx ?? 3), y: 12 } }; x += d.w; return o; }); };
+const spec = { halver: L('halver', [{ w: 7, floors: 5, seed: 3, sign: 'BANK', roofKind: 'mansard' }, { w: 6, floors: 3, seed: 8, awning: '#c8402a', sign: 'DINER', shop: 1 }, { w: 7, floors: 6, seed: 4 }]),
+  ostmark: L('ostmark', [{ w: 6, floors: 3, seed: 12 }, { w: 8, floors: 4, seed: 17, sign: 'APOTHEKE', roofKind: 'gable', dx: 4 }, { w: 6, floors: 2, seed: 23, roofKind: 'hip' }]),
+  varn: L('varn', [{ w: 8, floors: 2, seed: 5, roofKind: 'dome', domeCol: '#4a8a8a', extra: 4 }, { w: 6, floors: 1, seed: 9, awning: '#c8402a', shop: 1 }, { w: 6, floors: 3, seed: 14, roofKind: 'flat' }]),
+  sund: L('sund', [{ w: 6, floors: 2, seed: 31 }, { w: 6, floors: 2, seed: 35 }, { w: 7, floors: 1, seed: 39, sign: 'FISK', dx: 4 }]),
+  windfen: L('windfen', [{ w: 8, floors: 8, seed: 41, extra: 2 }, { w: 7, floors: 6, seed: 43, extra: 2 }, { w: 6, floors: 4, seed: 47, extra: 3 }]) };
+names.forEach((k, i) => { row(k, spec[k], 30 + i * (PW + 10), 100, PW); txt(STYLES[k].name.toUpperCase(), 30 + i * (PW + 10), 100 + 582, 20, '#ffe28a', 800); txt(['brick, flat roofs, mansards, 2–8 floors', 'steep red tile, timber, shutters, 2–4 floors', 'sand walls, flat roofs, domes, arches, 1–3 floors', 'painted planks, steep tar roofs, 1–3 floors', 'concrete panels, ribbon windows, 4–9 floors'][i], 30 + i * (PW + 10), 100 + 604, 13, '#c9c7ee', 600); });
+// ---- row 2: entering the building
+const SB = { style: 'halver', x: 2, y: 2, w: 9, h: 8, floors: 3, seed: 6, sign: 'MERIDIAN TRUST', door: { x: 7, y: 9 }, wall: '#a8604a', roofKind: 'flat', id: 'trust' };
+const frame = (i, title, sub, fn) => { const x = 30 + i * 540, y = 760, w = 520, h = 450; g.save(); g.translate(x, y); g.beginPath(); g.rect(0, 0, w, h); g.clip(); g.drawImage(GR, 0, 0, w, h, 0, 0, w, h); fn(g); g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(x, y, w, h); txt(title, x, y + h + 26, 19, '#ffe28a', 800); txt(sub, x, y + h + 46, 13, '#c9c7ee', 600); };
+const FM = (f) => { const b = { ...SB, x: 0 }; return b; };
+frame(0, '1  Outside: roof and facade', 'floors, windows and a roof you cannot see through', (c) => { drawRoofed(c, { ...SB, x: 3, y: 1 }); soldiers2(c, [120, 330], 'right'); });
+frame(1, '2  At the door', 'a squad reaches the front door', (c) => { drawRoofed(c, { ...SB, x: 3, y: 1 }); soldiers2(c, [150, 300], 'up'); });
+frame(2, '3  Inside: the ground floor', 'roof and upper floors lift away; you see the room they are in', (c) => { drawFloor(c, { ...SB, x: 3, y: 1 }, 0); drawSoldier(c, 'leader', 'company', 250, 290, 'up', { env: 'forest', scale: 0.9 }); drawSoldier(c, 'rifleman', 'company', 280, 300, 'up', { env: 'forest', scale: 0.9 }); drawSoldier(c, 'mg', 'company', 220, 305, 'up', { env: 'forest', scale: 0.9 }); });
+frame(3, '4  Up to the third floor', 'only floor 3 is shown: longer sight, and the street is below you', (c) => { drawFloor(c, { ...SB, x: 3, y: 1 }, 2); drawSoldier(c, 'marksman', 'company', 170, 250, 'down', { env: 'forest', scale: 0.9 }); drawSoldier(c, 'rifleman', 'company', 330, 260, 'down', { env: 'forest', scale: 0.9 }); c.strokeStyle = 'rgba(154,240,192,0.8)'; c.lineWidth = 3; c.setLineDash([10, 6]); c.beginPath(); c.moveTo(170, 262); c.lineTo(90, 440); c.moveTo(330, 272); c.lineTo(450, 440); c.stroke(); c.setLineDash([]); });
+function soldiers2(c, xs, face) { xs.forEach((x, i) => ['leader', 'rifleman', 'rifleman'].forEach((r, k) => drawSoldier(c, r, 'company', x + k * 16, 418 + (k % 2) * 8, face, { env: 'forest', scale: 0.9 }))); drawCar(c, 'sedan', '#3a5a8a', 'E', 440, 430); }
+// ---- the section: height advantage
+g.fillStyle = 'rgba(14,12,44,.95)'; g.fillRect(2200, 740, 650, 500); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(2200, 740, 650, 500);
+txt('IN SECTION: why floors matter', 2220, 776, 22, '#ffe28a', 800); drawSection(g, 2236, 1010, 3, 2, { w: 150, fh: 46 });
+[['Sight', 'each floor adds about +3 tiles of view'], ['Range', 'weapons reach further; the street is a firing lane'], ['Cover', 'a window and a floor edge; the enemy sees a facade'], ['Risk', 'a shell or collapse hits the floors above; stairs only']].forEach(([a, b], i) => { txt(a, 2230 + (i % 2) * 310, 1070 + Math.floor(i / 2) * 78, 17, '#fff', 800); txt(b, 2230 + (i % 2) * 310, 1092 + Math.floor(i / 2) * 78, 12.5, '#c9c7ee', 600); });
+window.__done = true;
+</script>

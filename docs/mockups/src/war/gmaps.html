@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1950"></canvas>
+<script type="module">
+import { generate, build, render } from './g_gen.js';
+import { BIOMES } from './g_gen.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1950); g.imageSmoothingEnabled = false;
+const txt = (t, x, y, s = 16, c = '#e8e6ff', w = 600) => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.fillText(t, x, y); };
+txt('GENERATED MISSION MAPS: one recipe per mission, one palette per biome, one architecture per country (target art)', 30, 44, 30, '#ffe28a', 800);
+txt('Every map below is made by a recipe from a seed, painted with the game\'s own ground, props and people sprites, with roofed multi-floor buildings. Pick an atlas place and the game picks the recipe, the biome and the national style.', 30, 72, 16, '#a09ec9');
+const LIST = [
+  ['trench', 'temperate', 'halver', 'TRENCH LINE · temperate', 'e.g. Falkenmark front (forest, grassland)'], ['trench', 'snow', 'halver', 'TRENCH LINE · snow', 'e.g. Orlov Highlands (taiga, tundra)'], ['trench', 'desert', 'halver', 'TRENCH LINE · desert', 'e.g. the Varnistan border (desert)'], ['trench', 'mud', 'halver', 'TRENCH LINE · wet', 'e.g. Caldera coast (jungle)'], ['compound', 'desert', 'varn', 'COMPOUND RAID · desert', 'a walled villa, barracks, gate, towers'],
+  ['compound', 'temperate', 'ostmark', 'COMPOUND RAID · temperate', 'a country estate used as a base'], ['compound', 'snow', 'sund', 'COMPOUND RAID · snow', 'a northern outpost'], ['forest', 'temperate', 'ostmark', 'FOREST · temperate', 'trails, stream, a logging camp'], ['forest', 'snow', 'sund', 'FOREST · taiga', 'pines, snow, a hunting lodge'], ['forest', 'mud', 'varn', 'FOREST · jungle', 'dense, humid, dark undergrowth'],
+  ['city', 'temperate', 'halver', 'CITY · Halvermouth style', 'brick, flat roofs, mansards, towers'], ['city', 'temperate', 'ostmark', 'CITY · Ostmark style', 'steep red tile, timber, shutters'], ['city', 'desert', 'varn', 'CITY · Varnistan style', 'sand walls, domes, arches, dirt streets'], ['city', 'snow', 'sund', 'CITY · Sund style', 'painted planks, tar roofs, snow'], ['city', 'steppe', 'windfen', 'CITY · Windfen style', 'concrete panel blocks, 4–9 floors'],
+  ['village', 'temperate', 'ostmark', 'FIELDS + VILLAGES · temperate', 'e.g. Falkenmark farmland'], ['village', 'desert', 'varn', 'FIELDS + VILLAGES · desert', 'e.g. an oasis belt'], ['village', 'snow', 'sund', 'FIELDS + VILLAGES · snow', 'e.g. northern farms'], ['village', 'steppe', 'windfen', 'FIELDS + VILLAGES · steppe', 'e.g. the Windfen plains'], ['village', 'mud', 'halver', 'FIELDS + VILLAGES · wet', 'e.g. river meadows'],
+];
+const TW = 540, TH = 330, GX = 30, GY = 100, DX = 570, DY = 460;
+for (let i = 0; i < LIST.length; i++) { const [kind, biome, style, title, sub] = LIST[i]; const M = generate(kind, { biome, style, seed: 3 + i }); const B = build(M); const z = Math.min(TW / (M.W * 32), TH / (M.H * 32)) * 1.0; const ox = GX + (i % 5) * DX, oy = GY + Math.floor(i / 5) * (DY - 70); g.save(); g.beginPath(); g.rect(ox, oy, TW, TH); g.clip(); g.fillStyle = '#10101c'; g.fillRect(ox, oy, TW, TH); g.translate(ox, oy); g.scale(1, 1); render(g, B, { x: 0, y: 0, z: TW / (M.W * 32) }); g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(ox, oy, TW, TH); txt(title, ox, oy + TH + 24, 17, '#ffe28a', 800); txt(sub, ox, oy + TH + 44, 13, '#c9c7ee'); txt(`${M.W}×${M.H} tiles · ${M.buildings.length} buildings`, ox, oy + TH + 62, 12, '#8a88b8'); B.ground.width = 1; }
+window.__done = true;
+</script>

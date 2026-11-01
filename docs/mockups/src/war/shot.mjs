@@ -6,6 +6,6 @@ const [,, page_, out, w = '1920', h = '1500'] = process.argv;
 const b = await pw.chromium.launch({ headless: true });
 const page = await b.newPage({ viewport: { width: +w, height: +h } });
 page.on('pageerror', (e) => { if (!/close-view-done/.test(e.message)) console.log('ERR', e.message); }); page.on('console', (m) => m.type() === 'error' && console.log('CERR', m.text()));
-await page.goto(`http://127.0.0.1:8099/docs/mockups/src/war/${page_}`);
-await page.waitForFunction('window.__done', null, { timeout: 60000 });
+await page.goto(`http://127.0.0.1:8099/docs/mockups/src/war/${page_}`, { waitUntil: 'commit', timeout: 120000 });
+await page.waitForFunction('window.__done', null, { timeout: 280000 });
 const hh = await page.evaluate('window.__h || 0'); if (hh) await page.screenshot({ path: out, clip: { x: 0, y: 0, width: +w, height: hh } }); else await (await page.$('canvas')).screenshot({ path: out }); await b.close(); console.log('ok');

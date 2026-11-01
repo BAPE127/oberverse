@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="1920" height="1250"></canvas>
+<script type="module">
+import { generate, build, render } from './g_gen.js';
+const q = new URLSearchParams(location.search); const kind = q.get('k') || 'trench', biome = q.get('b') || 'temperate', style = q.get('s') || 'halver', z = +(q.get('z') || 0.5), cx = +(q.get('cx') || 0), cy = +(q.get('cy') || 0);
+const g = document.getElementById('c').getContext('2d'); const M = generate(kind, { biome, style, seed: +(q.get('seed') || 3) }); const B = build(M); render(g, B, { x: cx, y: cy, z }); window.__done = true;
+</script>

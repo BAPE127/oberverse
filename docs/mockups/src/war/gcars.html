@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2400" height="1000"></canvas>
+<script type="module">
+import { baseItems, render } from './g_scene.js';
+import { car, MODELS, drawCar } from './g_cars.js';
+import { drawProp } from '/src/engine/drawWorld.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2400, 1000);
+const txt = (t, x, y, s = 16, c = '#e8e6ff', w = 600) => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.fillText(t, x, y); };
+txt('CAR MODELS in the game\'s pixel style (target art)', 30, 46, 30, '#ffe28a', 800); txt('Wheels stand out of the body, glass glints, lights glow, every model has its own shape. Sedan, hatchback, taxi, police, van, ambulance, pickup, box truck, bus, military jeep. Painted once, turned by whole quarter turns.', 30, 72, 16, '#a09ec9');
+// the model line-up on a road, drawn at 2x for a close look
+g.save(); g.translate(30, 100); g.beginPath(); g.rect(0, 0, 2340, 420); g.clip(); g.fillStyle = '#4a4a54'; g.fillRect(0, 0, 2340, 420); for (let x = 0; x < 2340; x += 90) { g.fillStyle = '#e6c53c'; g.fillRect(x + 10, 206, 50, 6); } g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(0, 12, 2340, 4); g.fillRect(0, 404, 2340, 4);
+g.scale(2, 2); g.imageSmoothingEnabled = false; MODELS.forEach(([k, c], i) => { const col = i % 8, row = Math.floor(i / 8); drawCar(g, k, c, row ? 'W' : 'E', 50 + col * 138 - (k === 'bus' ? 0 : 0) + (k === 'bus' ? 30 : 0), 52 + row * 100); }); g.restore();
+['sedan', 'sedan', 'sedan', 'hatch', 'hatch', 'sedan', 'taxi', 'police', 'van', 'van', 'ambulance', 'pickup', 'pickup', 'truck', 'bus', 'jeep'].forEach((n, i) => { const col = i % 8, row = Math.floor(i / 8); txt(n.toUpperCase(), 30 + (50 + col * 138 + (n === 'bus' ? 30 : 0)) * 2 - 40, 100 + 14 + (52 + row * 100) * 2 + 54, 14, '#fff', 800); });
+// in the city: every direction, parked and moving, on the real ground
+const items = baseItems(); const PW = 1130, PH = 330;
+const view = (i, cx, cy, title, fn) => { const x = 30 + i * (PW + 80), y = 570; g.save(); g.translate(x, y); g.beginPath(); g.rect(0, 0, PW, PH); g.clip(); const cam = { x: cx - PW / 2 / 1.6, y: cy - PH / 2 / 1.6, z: 1.6 }; const its = items.filter((it) => !it.isCar); render(g, cam, its.map((a) => ({ ...a })), (gg) => fn(gg)); g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(x, y, PW, PH); txt(title, x, y + PH + 28, 18, '#ffe28a', 800); };
+view(0, 3400, 2110, 'On the second avenue: traffic both ways, a bus, a police car, a taxi', (gg) => { const y1 = 2112, y2 = 2176; drawCar(gg, 'sedan', '#b8483a', 'E', 3150, y2); drawCar(gg, 'taxi', '#e8c02a', 'E', 3250, y2); drawCar(gg, 'bus', '#4a8a6a', 'E', 3400, y2); drawCar(gg, 'hatch', '#4a7a4a', 'E', 3560, y2); drawCar(gg, 'police', '#1f2f56', 'W', 3200, y1); drawCar(gg, 'van', '#a8a8a8', 'W', 3330, y1); drawCar(gg, 'sedan', '#3a5a8a', 'W', 3470, y1); drawCar(gg, 'pickup', '#c8683a', 'W', 3600, y1); drawCar(gg, 'sedan', '#e8e2d4', 'N', 3680, 2060); drawCar(gg, 'ambulance', '#f4f2ee', 'S', 3730, 2200); });
+view(1, 3584, 2176, 'Parked along the kerb, and at a junction (north and south)', (gg) => { for (let i = 0; i < 6; i++) drawCar(gg, ['sedan', 'hatch', 'sedan', 'pickup', 'van', 'sedan'][i], ['#2a2a2e', '#c8b848', '#a8a8a8', '#4a6a4a', '#6a4a8a', '#8a3a32'][i], 'E', 3200 + i * 74, 2224); drawCar(gg, 'sedan', '#3a5a8a', 'S', 3560, 2120); drawCar(gg, 'truck', '#3a5a8a', 'N', 3606, 2200); drawCar(gg, 'jeep', '#566a3e', 'N', 3606, 2260); drawCar(gg, 'taxi', '#e8c02a', 'S', 3560, 2060); drawCar(gg, 'police', '#1f2f56', 'W', 3700, 2140); });
+window.__done = true;
+</script>
