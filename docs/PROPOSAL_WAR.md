@@ -160,7 +160,7 @@ Order against politics: **the Presidency update comes first** (v0.93 to v0.106),
 
 ## 11. Decisions I will take unless you say otherwise
 1. **The politics update goes first** (settled).
-2. **Sites**: the national base *Fort Gullcrest* on the Hald Reach north of Lariat; your lot *Hollowmoor Lot* south of the Yards. Both are their own region maps entered through a gate. (You may prefer other places.)
+2. **Sites (settled)**: the national base *Fort Gullcrest* on the Hald Reach north of Lariat; your lot *Hollowmoor Lot* south of the Yards. Both are their own region maps entered through a gate.
 3. **The free territories that stay free** (30 of the 76 regions) hold small contracts and the mercenary frontier; the three promoted countries are small and can be sides in wars and clients for contracts.
 4. **Soldiers are records; about 40 are drawn at once.**
 5. **Tactical battles use the same renderer with a higher camera.**

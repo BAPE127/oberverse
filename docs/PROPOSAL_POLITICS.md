@@ -174,8 +174,10 @@ I will keep to your standing rules: tests, `npm run check` and `npm run smoke` b
 
 Settled by you: a **120-day term** (election in the last 30); **Politics first, then War**; **one bond for Sund**; **three free territories become countries**.
 
+Also settled: **party names** ("the Order Party" for Vegas, "the Liberty League" for Susan; the leaders keep exactly the names you gave), **Sund's shape**, and **the three promoted countries**.
+
 I will take these unless you object:
-1. **Party names** are placeholders: "the Order Party" (Vegas) and "the Liberty League" (Susan). The leaders keep exactly the names you gave.
+1. (Party names: settled.)
 2. **The free territories that stay free** share one **Free Ports Mission** in the Crown Quarter.
 3. **No general tax on you**, only named levies.
 4. **Politics can be switched off** in a debug setting for parity checks (the same trick as the other knobs).

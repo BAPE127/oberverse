@@ -241,15 +241,15 @@ Totals: 76 states and regions, 130 named places, 17 military sites, 7 theatres.
 
 ## 6. The atlas release (v0.92.0)
 
-What it would contain: the one added chain of land, the removal of the lone-island scatter and the four noise archipelagos from `geography.js`, and an island for Marrow Strait; `src/content/atlas.js` (countries, states, places, military sites, theatres); a `state` on every port and a Sund country for the home-island ports; **three new country records** in the arms content (Westreach, Sunmouth, Dunmere: budget, income, wants, aggression, rivals) with their ports moved from "free" to their country; an **Atlas** page on the arms terminal's globe and Fleet Command (state borders, names, cities, biomes on hover); documentation. **No other gameplay changes.**
+What it would contain: the major rivers and roads as data and drawn on the Atlas page, the one added chain of land, the removal of the lone-island scatter and the four noise archipelagos from `geography.js`, and an island for Marrow Strait; `src/content/atlas.js` (countries, states, places, military sites, theatres); a `state` on every port and a Sund country for the home-island ports; **three new country records** in the arms content (Westreach, Sunmouth, Dunmere: budget, income, wants, aggression, rivals) with their ports moved from "free" to their country; an **Atlas** page on the arms terminal's globe and Fleet Command (state borders, names, cities, biomes on hover); documentation. **No other gameplay changes.**
 
 Knock-on effects of three more countries, so nothing surprises you: the arms market gains three buyers; generated companies gain three home countries; the foreign bond list gains three issuers (and Sund's merges into Halvermouth's); the geo events can involve them. Tests that count "eight countries" will be edited and listed. I will keep the three small (low budget and income) so the arms trade does not change character.
 
 Tests: every seed and place is on land; every state has land; every country has a capital; no two places share a name; ports are on the coast of their state; every state is reachable by sea or land; every list that counts countries now has eleven; old saves load; the existing geography and ports tests still pass (with a listed edit where the home-island ports change country).
 
-## 7. Questions still open
+## 7. Settled
 
-1. **Is Sund's shape right?** It is now a long chain. You may prefer the Hald Reach shorter or the home island nearer Sund.
-2. **Are Westreach, Sunmouth and Dunmere the right three?** I chose them as the biggest free ports. Others that fit: the Meridian Free Zone (a gleaming free port on its own island), Cape Low, Coral Sound.
-3. **Names and extra states**: the data is one file (`atlas.mjs`).
-4. **How detailed in-game?** The Atlas page can start at state level (76 regions) with cities, and add rivers and roads later. Do you want rivers and roads in the game at all, or only as this mock-up's decoration?
+- **Sund's shape is right** (the long chain with the Hald Reach).
+- **Westreach, Sunmouth and Dunmere** are the three promoted countries.
+- **Rivers and roads go into the game's map**, not only the mock-up: the Atlas release stores the major rivers and the main and local roads as data (they are generated deterministically from the terrain and can be edited by hand) and the Atlas page draws them.
+- Still open and small: names and extra states (the data is one file, `atlas.mjs`), and an island for the Marrow Strait port.
