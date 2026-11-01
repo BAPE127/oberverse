@@ -1,0 +1,14 @@
+import { createRequire } from 'node:module';
+import { execSync } from 'node:child_process';
+const require = createRequire(import.meta.url);
+const pw = require(`${execSync('npm root -g').toString().trim()}/playwright`);
+const [,, name, query, w = '1600', h = '900'] = process.argv;
+const b = await pw.chromium.launch({ headless: true });
+const page = await b.newPage({ viewport: { width: +w, height: +h } });
+const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+await page.goto(`file://${process.cwd()}/atlas.html?${query}`);
+await page.waitForFunction('window.__done', null, { timeout: 60000 });
+const el = await page.$('canvas');
+await el.screenshot({ path: `${process.cwd()}/../${name}.png` });
+console.log(name, errs.length ? errs : 'ok');
+await b.close();

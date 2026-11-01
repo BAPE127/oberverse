@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><title>Oberverse plan mock-ups (proposal)</title>
+<style>html,body{margin:0;background:#0b0a1e;font-family:system-ui,sans-serif}canvas{display:block}</style><body><canvas id="c"></canvas>
+<script>
+const q = new URLSearchParams(location.search); const scene = q.get('scene') || 'crown';
+const T = { '.': '#7fb069', ',': '#cfc6b4', '=': '#5f6470', ':': '#c9a978', '~': '#3f88a8', m: '#d8d2c4', g: '#a7a9a6', a: '#3e4048', t: '#dcd6cc', f: '#b98a5e', c: '#8e5a6e', u: '#7d6e5a', s: '#e6d3a1', x: '#14121a', k: '#9c7a4e' };
+const cv = document.getElementById('c'); const g = cv.getContext('2d');
+let S = 6, GW = 0, GH = 0, grid;
+let PADR = 0; const PADT = 64;
+function setup0(w, h, s, fill = '.', padR = 0) { GW = w; GH = h; S = s; PADR = padR; cv.width = w * s + padR; cv.height = h * s + PADT; g.fillStyle = '#0b0a1e'; g.fillRect(0, 0, cv.width, cv.height); g.translate(0, PADT); grid = Array.from({ length: h }, () => Array(w).fill(fill)); }
+const rect = (x, y, w, h, t) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (grid[j] && grid[j][i] !== undefined) grid[j][i] = t; };
+const items = []; // buildings and labels drawn over the ground
+const B = (x, y, w, h, fill, label, o = {}) => items.push({ x, y, w, h, fill, label, ...o });
+const L = (x, y, text, o = {}) => items.push({ label: text, x, y, w: 0, h: 0, textOnly: true, ...o });
+function flush(title, sub) {
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) { g.fillStyle = T[grid[j][i]] || '#000'; g.fillRect(i * S, j * S, S, S); if ((i + j) % 2 === 0 && grid[j][i] !== '=' ) { g.fillStyle = 'rgba(0,0,0,.025)'; g.fillRect(i * S, j * S, S, S); } }
+  for (const b of items) { if (b.textOnly) continue; g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(b.x * S + 3, b.y * S + 3, b.w * S, b.h * S); g.fillStyle = b.fill; g.fillRect(b.x * S, b.y * S, b.w * S, b.h * S); g.strokeStyle = b.edge || 'rgba(10,8,20,.85)'; g.lineWidth = 2; g.strokeRect(b.x * S + 1, b.y * S + 1, b.w * S - 2, b.h * S - 2); if (b.door) { g.fillStyle = '#5a4636'; g.fillRect((b.door.x) * S, (b.door.y) * S, S * (b.door.w || 2), S * 0.8); } }
+  for (const b of items) { if (!b.label) continue; const sz = b.size || Math.max(10, Math.min(15, S * 1.6)); g.font = `700 ${sz}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; const lines = String(b.label).split('\n'); const cx = (b.x + (b.textOnly ? 0 : b.w / 2)) * S, cy = (b.y + (b.textOnly ? 0 : b.h / 2)) * S; lines.forEach((ln, n) => { const y = cy + (n - (lines.length - 1) / 2) * (sz + 2); g.lineWidth = 3.5; g.strokeStyle = b.halo || 'rgba(8,6,20,.85)'; g.lineJoin = 'round'; g.strokeText(ln, cx, y); g.fillStyle = b.color || '#fff'; g.fillText(ln, cx, y); }); }
+  PEND.splice(0).forEach((a) => drawDot(...a)); FL = true;
+  if (title) { g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = 'rgba(8,6,20,.9)'; const w = Math.max(420, title.length * 9.5 + 40); g.fillRect(0, -PADT, cv.width, PADT); g.fillStyle = '#ffe28a'; g.font = '800 17px system-ui'; g.fillText(title, 14, -PADT + 10); if (sub) { g.fillStyle = '#c9c7ee'; g.font = '600 12.5px system-ui'; g.fillText(sub, 14, -PADT + 36); } }
+}
+let FL = false; const PEND = [];
+function dot(...a) { if (FL) drawDot(...a); else PEND.push(a); }
+function drawDot(x, y, c, label, r = 4) { g.fillStyle = c; g.strokeStyle = '#0a0814'; g.lineWidth = 1.5; g.beginPath(); g.arc(x * S, y * S, r, 0, 7); g.fill(); g.stroke(); if (label) { g.font = '600 10.5px system-ui'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = 'rgba(8,6,20,.85)'; g.strokeText(label, x * S + 7, y * S); g.fillStyle = '#fff'; g.fillText(label, x * S + 7, y * S); } }
+function legend(x, y, rows) { g.font = '600 12px system-ui'; const h = rows.length * 20 + 14; g.fillStyle = 'rgba(8,6,20,.9)'; g.fillRect(x, y, 300, h); rows.forEach(([c, t], n) => { g.fillStyle = c; g.fillRect(x + 12, y + 10 + n * 20, 14, 14); g.fillStyle = '#e8e6ff'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(t, x + 34, y + 10 + n * 20); }); }
+const COL = { gov: '#d9c27a', palace: '#e9dcc3', embassy: '#9bb4d8', party1: '#c0504a', party2: '#4a8ac0', press: '#c8a0d8', shop: '#e0a870', hotel: '#a0c8a0', sec: '#b0b0b8', home: '#d8b896', ministry: '#c4b890' };
+window.SC = { get PADR() { return PADR; }, setup: setup0, rect, B, L, flush, dot, legend, COL, T, g, cv, get S() { return S; } };
+</script>
+<script src="scenes.js"></script>
+<script>window.__done = false; (SCENES[scene] || SCENES.crown)(); window.__done = true;</script>

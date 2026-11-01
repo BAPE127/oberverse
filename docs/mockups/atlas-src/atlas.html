@@ -1,0 +1,83 @@
+<!doctype html><meta charset="utf-8"><title>Oberverse atlas (proposal)</title>
+<style>html,body{margin:0;background:#07101c}canvas{display:block}</style><body><canvas id="c"></canvas>
+<script src="atlas-out.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const bbox = (q.get('bbox') || '-60,84,-180,180').split(',').map(Number); // latMin,latMax,lonMin,lonMax
+const SC = +(q.get('scale') || 4); // pixels per half-degree cell
+const mode = q.get('mode') || 'full'; // full | biome | political
+const [la0, la1, lo0, lo1] = bbox;
+const A = ATLAS, W = A.W, H = A.H;
+const PW = Math.round((lo1 - lo0) * 2 * SC), PH = Math.round((la1 - la0) * 2 * SC);
+const cv = document.getElementById('c'); cv.width = PW; cv.height = PH; const g = cv.getContext('2d');
+const BC = { sea:'#0f2a44', ice:'#e6eef4', tundra:'#b9c4b0', taiga:'#3f6a4e', forest:'#4f8a4a', grassland:'#9bbf5e', steppe:'#c9b86a', desert:'#e0c07a', savanna:'#c9a24a', jungle:'#2f7f4a', mountain:'#8a8478', volcanic:'#6a4a44' };
+const hex = (h) => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+const px = (lat, lon) => [((((lon - lo0) % 360) + 540) % 360 - 180 + 180 - ((lo0 + 180) % 360 === 0 ? 0 : 0)) , 0];
+const X = (lon) => (lon - lo0) * 2 * SC, Y = (lat) => (la1 - lat) * 2 * SC;
+const img = g.createImageData(PW, PH);
+const cell = (x, y) => { const lon = lo0 + x / (2 * SC), lat = la1 - y / (2 * SC); const i = Math.min(W - 1, Math.max(0, Math.floor((lon + 180) * 2))), j = Math.min(H - 1, Math.max(0, Math.floor((90 - lat) * 2))); return j * W + i; };
+const country = A.states.map((s) => s.country);
+const CC = A.countries;
+for (let y = 0; y < PH; y++) for (let x = 0; x < PW; x++) {
+  const n = cell(x, y), e = A.elev[n]; const o = (y * PW + x) * 4; let c;
+  if (e < 0) { const d = Math.min(1, -e * 1.3); c = hex('#1a4468').map((v, k) => v + (hex('#0a1a2e')[k] - v) * d); if (e > -0.12) c = c.map((v, k) => v + (hex('#3a7f9f')[k] - v) * 0.5 * (1 + e / 0.12)); }
+  else { const b = A.BIOMES[A.biome[n]]; c = hex(BC[b]); const r = A.relief[n]; const shade = 1 + (r - 0.25) * 0.5 - (e < 0.06 ? 0.04 : 0); c = c.map((v) => Math.min(255, v * shade));
+    if (mode !== 'biome') { const s = A.state[n]; if (s >= 0) { const t = hex(CC[country[s]].color); const a = mode === 'political' ? 0.55 : 0.34; const vv = 0.9 + 0.2 * (((s * 2654435761) >>> 0) % 100) / 100; c = c.map((v, k) => (v * (1 - a) + t[k] * a) * vv); } } }
+  img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+}
+g.putImageData(img, 0, 0);
+// borders: state (thin) and country (thick), drawn from the cell grid
+function borders() {
+  g.lineCap = 'round';
+  for (let j = Math.max(0, Math.floor((90 - la1) * 2) - 1); j < Math.min(H - 1, Math.ceil((90 - la0) * 2) + 1); j++) for (let i = Math.max(0, Math.floor((lo0 + 180) * 2) - 1); i < Math.min(W - 1, Math.ceil((lo1 + 180) * 2) + 1); i++) {
+    const n = j * W + i, a = A.state[n]; if (a < 0) continue;
+    for (const [dn, vx, vy] of [[1, 1, 0], [W, 0, 1]]) { const b = A.state[n + dn]; if (b < 0 || b === a) continue;
+      const cA = country[a], cB = country[b]; const x0 = (i + 1 - (vx ? 0 : 1) * 1) , y0 = j + 1;
+      const lon = i / 2 - 180 + (vx ? 0.5 : 0), lat = 90 - j / 2 - (vy ? 0.5 : 0);
+      g.strokeStyle = cA !== cB ? (cA === 'free' || cB === 'free' ? 'rgba(255,255,255,.55)' : '#fff6d0') : 'rgba(8,16,26,.8)'; g.lineWidth = cA !== cB ? (SC >= 5 ? 3.2 : 2) : (SC >= 5 ? 1.6 : 0.8);
+      g.beginPath(); if (vx) { g.moveTo(X(lon), Y(lat + 0.5)); g.lineTo(X(lon), Y(lat)); } else { g.moveTo(X(lon), Y(lat)); g.lineTo(X(lon + 0.5), Y(lat)); } g.stroke(); }
+  }
+}
+borders();
+// graticule
+g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1; for (let la = Math.ceil(la0 / 15) * 15; la <= la1; la += 15) { g.beginPath(); g.moveTo(0, Y(la)); g.lineTo(PW, Y(la)); g.stroke(); } for (let lo = Math.ceil(lo0 / 15) * 15; lo <= lo1; lo += 15) { g.beginPath(); g.moveTo(X(lo), 0); g.lineTo(X(lo), PH); g.stroke(); }
+// labels with greedy collision avoidance
+const placed = [];
+const fits = (r) => !placed.some((p) => r.x < p.x + p.w && r.x + r.w > p.x && r.y < p.y + p.h && r.y + r.h > p.y) && r.x > 2 && r.y > 2 && r.x + r.w < PW - 2 && r.y + r.h < PH - 2;
+function label(text, cx, cy, size, o = {}) {
+  g.font = `${o.weight || 700} ${size}px system-ui, sans-serif`; const w = g.measureText(text).width, h = size; const dx = o.dx || 0, dy = o.dy || 0;
+  const tries = o.tries || [[0, 0], [0, -1], [0, 1], [1, 0], [-1, 0], [1, -1], [-1, -1], [1, 1], [-1, 1]];
+  for (const [tx, ty] of tries) { const x = cx - w / 2 + dx + tx * (w / 2 + 6), y = cy - h / 2 + dy + ty * (h + 4); const r = { x: x - 2, y: y - 1, w: w + 4, h: h + 2 }; if (!o.force && !fits(r)) continue; placed.push(r);
+    g.textBaseline = 'top'; g.lineJoin = 'round'; g.lineWidth = o.halo || Math.max(3, size / 3.2); g.strokeStyle = o.haloColor || 'rgba(6,14,24,.88)'; g.strokeText(text, x, y); g.fillStyle = o.color || '#fff'; g.fillText(text, x, y); return true; }
+  return false;
+}
+const showStates = SC >= 4 && (la1 - la0) * (lo1 - lo0) < 9000;
+const spread = (lo1 - lo0) * (la1 - la0);
+// military sites and cities first so labels avoid the dots
+const dots = [];
+function mark(lat, lon, kind, name, importance) { if (lat < la0 || lat > la1 || lon < lo0 || lon > lo1) return; const x = X(lon), y = Y(lat);
+  if (kind === 'c') { g.fillStyle = '#ffd24a'; g.strokeStyle = '#1a1200'; g.lineWidth = 2; star(x, y, SC * 1.5 + 3); }
+  else if (kind === 'mil') { g.fillStyle = '#ff6a5a'; g.strokeStyle = '#1a0500'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x + 6, y); g.lineTo(x, y + 6); g.lineTo(x - 6, y); g.closePath(); g.fill(); g.stroke(); }
+  else { g.fillStyle = kind === 'p' ? '#7fe8ff' : kind === 'm' ? '#c9a24a' : kind === 'f' ? '#ff9a5a' : '#ffffff'; g.strokeStyle = '#05101a'; g.lineWidth = 1.6; g.beginPath(); g.arc(x, y, kind === 'p' ? 3.4 : 3, 0, 7); g.fill(); g.stroke(); }
+  dots.push({ x, y, name, kind, importance }); placed.push({ x: x - 5, y: y - 5, w: 10, h: 10 }); }
+function star(x, y, r) { g.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); g.stroke(); }
+const CL = q.get('cities') !== '0';
+if (CL) { A.mil.forEach((m) => mark(m.lat, m.lon, 'mil', m.name, 2)); A.places.forEach((p) => mark(p.lat, p.lon, p.k, p.name, p.k === 'c' ? 5 : 1)); }
+// country names
+const ctr = {}; A.states.forEach((s) => { const c = (ctr[s.country] = ctr[s.country] || { n: 0, lat: 0, lon: 0 }); c.n += s.area; c.lat += s.lat * s.area; c.lon += s.lon * s.area; });
+const bigSize = Math.max(14, Math.min(46, SC * 4.4)) * (q.get('big') ? +q.get('big') : 1);
+const COUNTRY_AT = { sund: [62, -11], ostmark: [54, 17], varn: [40, 52], teshvar: [29, 90], caldera: [-3, 31], pallas: [10, -35], morrow: [-33, 148], lirre: [45, -78] };
+for (const [id, c] of Object.entries(CC)) { if (id === 'free') continue; const at = COUNTRY_AT[id]; if (!at) continue; if (at[0] < la0 || at[0] > la1 || at[1] < lo0 || at[1] > lo1) continue; label(c.name.toUpperCase(), X(at[1]), Y(at[0]), bigSize, { force: true, halo: bigSize / 3, color: '#ffffff', weight: 800 }); }
+if (showStates) A.states.forEach((s) => { if (s.lat < la0 || s.lat > la1 || s.lon < lo0 || s.lon > lo1) return; const free = s.country === 'free'; label(s.name, X(s.lon), Y(s.lat), free ? Math.max(10, SC * 2.2) : Math.max(11, SC * 2.5), { weight: 600, color: free ? '#d6dae3' : '#fff', haloColor: 'rgba(5,12,20,.8)' }); });
+else if (spread > 3000) { /* world view: states unlabelled */ }
+if (CL && (la1 - la0) * (lo1 - lo0) < 5200) A.places.forEach((p) => { if (p.lat < la0 || p.lat > la1 || p.lon < lo0 || p.lon > lo1) return; label(p.name, X(p.lon), Y(p.lat), p.k === 'c' ? Math.max(12, SC * 2.8) : Math.max(10, SC * 2), { dy: 10, weight: p.k === 'c' ? 800 : 500, color: p.k === 'c' ? '#ffe28a' : '#cfe6f0', tries: [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1]] }); });
+if (q.get('legend') === '1') {
+  const bx = 14, by = PH - 14; const items = [['Biomes', null], ...A.BIOMES.slice(1).map((b) => [b, BC[b]])];
+  const LW = 640, LH = 190; const x0 = bx, y0 = by - LH; g.fillStyle = 'rgba(5,12,22,.9)'; g.strokeStyle = '#2a4a6a'; g.lineWidth = 2; g.fillRect(x0, y0, LW, LH); g.strokeRect(x0, y0, LW, LH);
+  g.textBaseline = 'top'; g.font = '700 17px system-ui'; g.fillStyle = '#ffe28a'; g.fillText('THE OBERVERSE — world atlas (proposal, with Sund redrawn to Halvermouth)', x0 + 14, y0 + 10);
+  g.font = '600 14px system-ui'; let cx = x0 + 14, cy = y0 + 40; A.BIOMES.slice(1).forEach((b, n) => { g.fillStyle = BC[b]; g.fillRect(cx, cy, 16, 16); g.fillStyle = '#e8eef4'; g.fillText(b, cx + 22, cy); cx += 100; if (n === 5) { cx = x0 + 14; cy += 26; } });
+  cy += 36; cx = x0 + 14; Object.entries(CC).forEach(([id, c], n) => { g.fillStyle = c.color; g.fillRect(cx, cy, 16, 16); g.fillStyle = '#e8eef4'; g.font = '600 12px system-ui'; g.fillText(id === 'free' ? 'free territories' : c.name.replace(/^(The |Kingdom of |Republic of |Grand Duchy of |Free State of )/, ''), cx + 22, cy + 1); cx += 100; if (n === 5) { cx = x0 + 14; cy += 24; } });
+  cy = y0 + LH - 24; g.font = '600 13px system-ui'; g.fillStyle = '#ffd24a'; g.fillText('★ capital', x0 + 14, cy); g.fillStyle = '#7fe8ff'; g.fillText('● port', x0 + 100, cy); g.fillStyle = '#fff'; g.fillText('● city', x0 + 160, cy); g.fillStyle = '#c9a24a'; g.fillText('● mine / oil', x0 + 215, cy); g.fillStyle = '#ff6a5a'; g.fillText('◆ military site', x0 + 310, cy); g.fillStyle = '#fff6d0'; g.fillText('━ country border   ┈ state border', x0 + 420, cy);
+}
+window.__done = true;
+</script>

@@ -1,0 +1,40 @@
+<!doctype html><meta charset="utf-8"><title>Strategic map mock-up</title><style>html,body{margin:0;background:#07101c}canvas{display:block}</style><body><canvas id="c" width="1600" height="900"></canvas>
+<script src="../atlas-src/base/east.meta.js"></script>
+<script>
+const M = window.META; const img = new Image(); img.src = '../atlas-src/base/east.png';
+img.onload = () => {
+  const cv = document.getElementById('c'), g = cv.getContext('2d');
+  // crop: lat 36..64, lon 4..58 of the east map, scaled to 1100 px wide
+  const la0 = 38, la1 = 63, lo0 = 6, lo1 = 56; const sx = (lo0 - M.lo0) * M.ppd, sy = (M.la1 - la1) * M.ppd, sw = (lo1 - lo0) * M.ppd, sh = (la1 - la0) * M.ppd;
+  const MW = 1130, MH = Math.round(MW * sh / sw); const k = MW / sw;
+  g.fillStyle = '#07101c'; g.fillRect(0, 0, 1600, 900); g.drawImage(img, sx, sy, sw, sh, 20, 70, MW, MH);
+  const X = (lon) => 20 + (lon - lo0) * M.ppd * k, Y = (lat) => 70 + (la1 - lat) * M.ppd * k;
+  g.fillStyle = 'rgba(7,16,28,.88)'; g.fillRect(0, 0, 1600, 60); g.fillStyle = '#ffe28a'; g.font = '800 20px system-ui'; g.fillText('STRATEGIC MAP — The Halden Front (mock-up on the atlas; states are the provinces)', 20, 28); g.fillStyle = '#c9c7ee'; g.font = '600 13px system-ui'; g.fillText('Your company holds Halden Roads under an Ostmark Union contract. Battalions are real squads and vehicles from your base. Supply runs by road and ship.', 20, 48);
+  const text = (t, x, y, s = 12, c = '#fff', w = 700) => { g.font = `${w} ${s}px system-ui`; g.textAlign = 'center'; g.lineWidth = 3.5; g.strokeStyle = 'rgba(5,10,18,.9)'; g.strokeText(t, x, y); g.fillStyle = c; g.fillText(t, x, y); };
+  // province tint outlines for the two sides
+  const prov = (lat, lon, t, c) => text(t, X(lon), Y(lat), 12, c, 800);
+  prov(51.5, 28.5, 'FALKENMARK', '#bcd8ff'); prov(46.5, 46, 'PORT VARN COAST', '#ffd0a0'); prov(44, 52, 'ORLOV HIGHLANDS', '#ffd0a0'); prov(56.2, 17, 'HARTMANN MARCH', '#bcd8ff'); prov(49.6, 23, 'KESSLERAU', '#bcd8ff'); prov(57.5, 23, 'RHEINHOLT', '#bcd8ff');
+  // front line
+  g.strokeStyle = '#ff6a5a'; g.lineWidth = 5; g.setLineDash([14, 8]); g.beginPath(); g.moveTo(X(34.5), Y(52.5)); g.bezierCurveTo(X(37), Y(51.3), X(39), Y(49.5), X(42), Y(48.5)); g.lineTo(X(47), Y(47.5)); g.stroke(); g.setLineDash([]); text('FRONT LINE', X(40.5), Y(52.6), 12, '#ff9a8a', 800);
+  // supply lines
+  g.strokeStyle = '#7fe8a0'; g.lineWidth = 3; g.setLineDash([4, 6]); g.beginPath(); g.moveTo(X(18.4), Y(54.6)); g.lineTo(X(24), Y(52)); g.lineTo(X(28.2), Y(50.6)); g.lineTo(X(32), Y(50)); g.stroke(); g.setLineDash([]); text('road supply 62%', X(25.5), Y(50.2), 11, '#9af0c0', 700);
+  // counters
+  const ctr = (lat, lon, c, n, t, sub, big) => { const x = X(lon), y = Y(lat), w = big ? 78 : 66, h = 38; g.fillStyle = c; g.strokeStyle = '#05101a'; g.lineWidth = 2.5; g.fillRect(x - w / 2, y - h / 2, w, h); g.strokeRect(x - w / 2, y - h / 2, w, h); g.fillStyle = '#05101a'; g.font = '800 15px system-ui'; g.textAlign = 'center'; g.fillText(t, x, y - 2); g.font = '700 11px system-ui'; g.fillText(sub, x, y + 13); g.fillStyle = '#05101a'; g.fillRect(x - w / 2, y + h / 2 + 2, w, 5); g.fillStyle = n > 0.6 ? '#5fe08a' : '#f2c14e'; g.fillRect(x - w / 2, y + h / 2 + 2, w * n, 5); };
+  ctr(49.6, 33.5, '#7ab8ff', 0.84, '1st ARM', '2 tanks · 40 inf', true); ctr(51.9, 29, '#7ab8ff', 0.7, '2nd INF', '60 inf · AT'); ctr(54, 22, '#a8d0ff', 0.95, 'RESERVE', '18 inf'); ctr(53.4, 35.5, '#9ae0ff', 1, 'AIR', '3 aircraft');
+  ctr(48.4, 40, '#ff8a7a', 0.7, 'Varn I', '≈ 900?'); ctr(45.2, 47.5, '#ff8a7a', 0.9, 'Varn II', '≈ 1500?'); ctr(50.2, 46, '#ffb0a0', 0.5, '? ? ?', 'recon needed');
+  // selected battalion card
+  g.fillStyle = 'rgba(8,6,28,.95)'; g.fillRect(1170, 70, 410, 440); g.strokeStyle = '#4a47b0'; g.lineWidth = 2; g.strokeRect(1170, 70, 410, 440);
+  g.textAlign = 'left'; g.fillStyle = '#ffe28a'; g.font = '800 20px system-ui'; g.fillText('1st Armoured Battalion', 1188, 104); g.fillStyle = '#c9c7ee'; g.font = '600 13px system-ui'; g.fillText('In Falkenmark · order: HOLD Halden Roads', 1188, 126);
+  const stat = (y, l, v, c) => { g.fillStyle = '#a09ec9'; g.font = '600 13px system-ui'; g.fillText(l, 1188, y); g.fillStyle = '#2d2a70'; g.fillRect(1300, y - 11, 190, 12); g.fillStyle = c; g.fillRect(1300, y - 11, 190 * v, 12); g.fillStyle = '#fff'; g.fillText(Math.round(v * 100) + '%', 1500, y); };
+  stat(160, 'Strength', 0.84, '#5fe08a'); stat(184, 'Readiness', 0.78, '#5fe08a'); stat(208, 'Supply', 0.62, '#f2c14e'); stat(232, 'Morale', 0.81, '#5fe08a'); stat(256, 'Fuel', 0.55, '#f2c14e');
+  g.fillStyle = '#fff'; g.font = '700 14px system-ui'; g.fillText('Made of', 1188, 292); g.fillStyle = '#c9c7ee'; g.font = '600 13px system-ui'; ['4 tanks (Anvil, Ledger, …)', '40 infantry in 5 squads', '2 anti-tank squads · 1 medic team', 'Commander: Gen. Pell Rostrov'].forEach((t, n) => g.fillText('• ' + t, 1188, 316 + n * 22));
+  const btn = (x, y, w, t, pri) => { g.fillStyle = pri ? '#f2c14e' : '#2d2a70'; g.fillRect(x, y, w, 40); g.fillStyle = pri ? '#2a1a00' : '#fff'; g.font = '800 14px system-ui'; g.textAlign = 'center'; g.fillText(t, x + w / 2, y + 25); g.textAlign = 'left'; };
+  btn(1188, 420, 110, 'Move…', false); btn(1306, 420, 110, 'Resupply', false); btn(1424, 420, 140, 'Play this battle', true); btn(1188, 466, 180, 'Let Gen. Rostrov fight it', false);
+  // battle prompt
+  g.fillStyle = 'rgba(8,6,28,.95)'; g.fillRect(1170, 530, 410, 170); g.strokeStyle = '#ff8a7a'; g.strokeRect(1170, 530, 410, 170); g.fillStyle = '#ff9a8a'; g.font = '800 15px system-ui'; g.fillText('A BATTLE IS ABOUT TO HAPPEN', 1188, 558); g.fillStyle = '#fff'; g.font = '600 13px system-ui'; ['Halden Roads · day 44 · in 6 hours', 'You: ≈ 80 troops, 4 tanks · Enemy: ≈ 900?', 'Estimate: hard but possible. Not a promise.', 'Choose one: you command it, or a general does.', 'Once chosen it cannot be played again.'].forEach((t, n) => g.fillText(t, 1188, 582 + n * 22));
+  // timeline strip
+  g.fillStyle = 'rgba(8,6,28,.95)'; g.fillRect(20, 720, 1560, 160); g.strokeStyle = '#4a47b0'; g.strokeRect(20, 720, 1560, 160); g.fillStyle = '#ffe28a'; g.font = '800 14px system-ui'; g.fillText('WAR LOG — everything below is saved state, not decoration', 36, 746);
+  g.fillStyle = '#e8e6ff'; g.font = '600 13px system-ui'; ['Day 43   Contract accepted: hold Halden Roads for 21 days (95,000). Needs 2+ tanks and 40 troops. Check passed.', 'Day 43   1st Armoured moved from the base to Falkenmark: 2 days by road; fuel −12%.', 'Day 44   Recon: enemy Varn I (≈ 900) is massing near Port Varn. Intelligence is an estimate.', 'Day 44   Supply convoy arrived by road (62% of need). Ship convoy from Mill Road Docks: 3 days.', 'Day 44   Varn II seen at Salt Landing. Battle at Halden Roads in 6 hours: you command it, or a general does.'].forEach((t, n) => g.fillText(t, 36, 774 + n * 22));
+  window.__done = true;
+};
+</script>

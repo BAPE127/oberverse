@@ -35,3 +35,21 @@ Owner's request: try making the Oberverse look like *Streets of Rogue 2*, and ex
 2. Roofless buildings: move each building's interior onto the street map (or draw interiors in place), so you walk in without a scene change.
 3. Floors for tall buildings (Ober's Oil Tower first), with lifts and stairs.
 4. Lighting, the new HUD, then the menus and panels (keeping the ships' and gun-running terminals as they are).
+
+# Proposal mock-ups for the Presidency and War updates (2026-11-01)
+
+Plans only; the game is unchanged. Written up in `docs/PROPOSAL_POLITICS.md`, `docs/PROPOSAL_WAR.md` and `docs/WORLD_ATLAS_PROPOSAL.md`. The figures in the screens are samples.
+
+| File | What |
+| --- | --- |
+| `proposal-war-atlas-world.png`, `-biomes.png`, `-theatres.png` | the redrawn world: countries, states, rivers, roads, cities, biomes, the seven theatres |
+| `proposal-war-atlas-sund.png`, `-east.png`, `-south.png`, `-west.png`, `-morrow.png` | zoomed regions with state and city names |
+| `proposal-pol-crown-quarter.png` | the new capital district map |
+| `proposal-pol-presidency.png` | Halver House, ground floor, with the three access zones |
+| `proposal-pol-mansions.png`, `proposal-pol-embassies.png` | the two mansions; embassy templates |
+| `proposal-pol-oberpad-overview.png`, `-diplomacy.png`, `-influence.png` | OberPad: politics, polls, government, diplomacy, news, campaigns, access, an offer, your party |
+| `proposal-war-merc-hq.png`, `proposal-war-national-base.png` | the mercenary lot in three stages; the government's base |
+| `proposal-war-tactical.png`, `proposal-war-strategic.png` | a tactical battle; the strategic map |
+| `proposal-war-oberpad-company.png`, `-command.png` | OberPad: military company, transfers, production, generals, contracts, an after-action report |
+
+Sources: `src/` (plans and OberPad screens: `plans.html` + `scenes.js`, `make_phones.py`, `strategic.html`) and `atlas-src/` (the atlas: `atlas.mjs` is the data; `make-all.sh` rebuilds the pictures). Generated files are ignored.
