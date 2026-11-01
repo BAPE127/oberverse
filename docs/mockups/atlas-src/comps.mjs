@@ -1,0 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { PORTS } from '../../../src/content/logistics.js';
+const g = JSON.parse(readFileSync(new URL('./grid.json', import.meta.url)));
+const { W, H, elev } = g; const comp = new Int32Array(W * H).fill(-1); const sizes = []; const cells = [];
+for (let s = 0; s < W * H; s++) { if (elev[s] < 0 || comp[s] >= 0) continue; const id = sizes.length; const st = [s]; comp[s] = id; let n = 0, la = 0, lo = 0; while (st.length) { const c = st.pop(); n++; const j = (c / W) | 0, i = c % W; la += 90 - j / 2; lo += i / 2 - 180; for (const [dj, di] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) { const jj = j + dj; if (jj < 0 || jj >= H) continue; const m = jj * W + ((i + di + W) % W); if (elev[m] >= 0 && comp[m] < 0) { comp[m] = id; st.push(m); } } } sizes.push(n); cells.push([la / n, lo / n]); }
+const hist = {}; sizes.forEach((n) => { const k = n < 3 ? '1-2' : n < 6 ? '3-5' : n < 15 ? '6-14' : n < 40 ? '15-39' : n < 120 ? '40-119' : '120+'; hist[k] = (hist[k] || 0) + 1; }); console.log(hist, 'components', sizes.length);
+// which components the ports sit on or near (within 1.5 degrees)
+for (const [id, p] of Object.entries(PORTS)) { let best = null; for (let c = 0; c < sizes.length; c++) { } const j = Math.round((90 - p.lat) * 2), i = Math.round((p.lon + 180) * 2) % W; let found = null; for (let r = 0; r <= 8 && found === null; r++) for (let dj = -r; dj <= r && found === null; dj++) for (let di = -r; di <= r; di++) { const jj = j + dj; if (jj < 0 || jj >= H) continue; const m = jj * W + ((i + di + W) % W); if (comp[m] >= 0) { found = comp[m]; break; } } if (found !== null && sizes[found] < 120) console.log(id, p.name, 'on component of', sizes[found], 'cells'); }

@@ -18,6 +18,9 @@ for (let x = 0; x < W; x++) lon[x] = lo0 + (x + 0.5) / ppd;
 const PAD = 1, PW = W + 2 * PAD;
 const elev = new Float32Array(PW * (H + 2 * PAD));
 for (let y = -PAD; y < H + PAD; y++) for (let x = -PAD; x < W + PAD; x++) elev[(y + PAD) * PW + x + PAD] = geo.elevation(la1 - (y + 0.5) / ppd, lo0 + (x + 0.5) / ppd);
+// the open ocean is left clear: land pieces the grid marked as specks are sea here too
+const grid0 = JSON.parse(readFileSync(new URL('./grid.json', import.meta.url)));
+for (let y = -PAD; y < H + PAD; y++) for (let x = -PAD; x < W + PAD; x++) { const la = la1 - (y + 0.5) / ppd, lo = lo0 + (x + 0.5) / ppd; const gi = (((Math.floor((lo + 180) * 2)) % grid0.W) + grid0.W) % grid0.W, gj = Math.max(0, Math.min(grid0.H - 1, Math.floor((90 - la) * 2))); if (grid0.specks[gj * grid0.W + gi] && elev[(y + PAD) * PW + x + PAD] >= 0) elev[(y + PAD) * PW + x + PAD] = -0.2; }
 const E = (x, y) => elev[(y + PAD) * PW + x + PAD];
 // states: weighted nearest seed (the same rule as the 0.5° atlas, now per pixel)
 const seeds = atlas.states; const southIce = seeds.find((s) => s.id === 'fr_southern_ice').k;

@@ -126,7 +126,7 @@ v0.92.0 is the shared World Atlas (see the politics plan). The war update's 14 s
 
 | Release | Stage | What exists after it | Main new tests |
 | --- | --- | --- | --- |
-| **v0.92.0** | Atlas (shared) | The redrawn world, 79 states and regions, 133 places, biomes, theatres as data; an Atlas page. | atlas validation; places on land; old saves load |
+| **v0.92.0** | Atlas (shared) | The redrawn world, 76 states and regions, 130 places, biomes, theatres as data; an Atlas page. | atlas validation; places on land; old saves load |
 | v0.107.0 | 1 Audit + skeleton | `world.military` with the consistency checker, **the damage gate and the base-protection flag with their tests**, a debug view. Nothing visible to play yet. | gate refuses every source before a coup; checker finds each kind of corruption |
 | v0.108.0 | 2 Places + construction | Fort Gullcrest (shell, gate, guards on patrol), Hollowmoor Lot, the staged facility blueprints in Mason's Os with progress, permits, cost, and repair. | map validation; paths; construction persistence |
 | v0.109.0 | 3 Company + state | Company identity (name, badge, colours), personnel records, inventories, facilities as state; the Military app. | persistence; government separate from the company |
@@ -161,7 +161,7 @@ Order against politics: **the Presidency update comes first** (v0.93 to v0.106),
 ## 11. Decisions I will take unless you say otherwise
 1. **The politics update goes first** (settled).
 2. **Sites**: the national base *Fort Gullcrest* on the Hald Reach north of Lariat; your lot *Hollowmoor Lot* south of the Yards. Both are their own region maps entered through a gate. (You may prefer other places.)
-3. **The free territories that stay free** (30 of the 79 regions) hold small contracts and the mercenary frontier; the three promoted countries are small and can be sides in wars and clients for contracts.
+3. **The free territories that stay free** (30 of the 76 regions) hold small contracts and the mercenary frontier; the three promoted countries are small and can be sides in wars and clients for contracts.
 4. **Soldiers are records; about 40 are drawn at once.**
 5. **Tactical battles use the same renderer with a higher camera.**
 6. **After a coup ends, protection is only restored by an explicit settlement; damage stays.**
