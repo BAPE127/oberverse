@@ -97,6 +97,8 @@ What the screens add to `PROPOSAL_WAR_STRATEGIC.md`:
 
 ## 7. Release placement
 
+**Superseded by `ROADMAP.md`**; the table below is kept for context.
+
 | Release | Adds |
 | --- | --- |
 | v0.115.1 (9b) | the **detail renderer** only (terrain, buildings with states, soldiers, vehicles, effects), no new rules; replaces the placeholder art in the tactical plan |

@@ -61,6 +61,8 @@ The **province's terrain** and the **engagement's type** choose among the recipe
 
 ## 5. Release placement
 
+**Superseded by `ROADMAP.md`**; the table below is kept for context.
+
 | Release | Adds |
 | --- | --- |
 | v0.115.1 (9b) | the **pixel fire and smoke layer**, the **car models**, the **roofed building painter** with the floor view, **no rule changes** |

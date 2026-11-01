@@ -57,14 +57,7 @@ Eras (`proposal-war-troop-eras.png`):
 
 ## 5. Release placement
 
-| Release | Adds |
-| --- | --- |
-| v0.108.0 | Vehicle catalog as data, the mercenary works for tanks and helicopters, buy/transfer of the other classes, the garage screen |
-| v0.109.0 | Troop classes, weapon tiers 1–3, loadout screen, per-class and per-person equipping, helmets (era 1–2 looks) |
-| v0.110.0 | Looks: eras 3–4 sprites, colours, patterns, insignia, crest, squad band, presets, the armoury screen |
-| after research | Tier 4–5 energy weapons and future-era vehicles on the research tree |
-
-(Slot these into the existing War release table; they replace the smaller "units" lines there, and no earlier release changes.)
+**Superseded by `ROADMAP.md`** (the earlier numbers v0.108–v0.110 collided with Places, Company and Procurement). Now: the vehicle catalog's buy/transfer classes enter at v0.110 (Procurement); the tank and helicopter works at v0.111 (Manufacturing); troop classes, weapon tiers 1–3, the UAV class and looks eras 1–2 at v0.113 (People and squads); looks eras 3–4 and the customiser at v0.115.1; tier 4–5 energy weapons and future vehicles after research.
 
 ## 6. Decisions from the owner
 

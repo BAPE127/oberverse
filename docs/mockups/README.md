@@ -1,3 +1,5 @@
+> The master release list and the index of plan documents is `docs/ROADMAP.md`.
+
 # Art direction mock-up: a Streets of Rogue 2–style look (2026-10-17)
 
 Owner's request: try making the Oberverse look like *Streets of Rogue 2*, and experiment with skyscrapers and multi-level buildings — a mock-up with screenshots before revamping the whole game. The ships' and gun-running terminals stay as they are.

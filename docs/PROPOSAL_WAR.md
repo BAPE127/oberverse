@@ -124,6 +124,8 @@ A **Military** group in the standard pattern: Company (hero, readiness, Do next)
 
 ## 8. Release plan (stage by stage; each is tested, pushed and playable)
 
+> **The master list is `docs/ROADMAP.md`; where this table differs, the roadmap wins.**
+
 v0.92.0 is the shared World Atlas (see the politics plan). The war update's 14 stages then become releases, **with the protection gate moved to the front** because it is the hardest rule.
 
 | Release | Stage | What exists after it | Main new tests |
@@ -138,7 +140,7 @@ v0.92.0 is the shared World Atlas (see the politics plan). The war update's 14 s
 | v0.113.0 | 7 People and squads | Recruitment, roles, training, squads, equipment, appearance, assignments. | no duplicate assignment; roles need training and kit |
 | v0.114.0 | 8 Living base | Facilities in use, routines, capacities, morale, supply, medical, the base running while you are away; **profile and set caps**. | capacities constrain; performance bounds |
 | v0.115.0 | 9 Generals | Hireable generals with differences, assessments, autoresolution, after-action reports. | a resolution changes real units; results are explainable |
-| v0.115.1 | 9b Detail renderer | The new overhead art only: height-lit ground, oblique buildings with states, detailed soldiers, vehicles, effects (`PROPOSAL_WAR_DETAIL.md`). | no rule changes; the suite unedited |
+| v0.115.1 | 9b Look renderer | The overhead look on the game's own renderer: pixel fire and smoke, ten car models, roofed multi-floor buildings with the one-floor view, national style data; eras 3–4 looks and the customiser. Superseded detail in `ROADMAP.md` (`PROPOSAL_WAR_DETAIL.md`, `PROPOSAL_WAR_MAPS.md`). | no rule changes; the suite unedited |
 | v0.116.0 | 10a Tactical engine | Battle mode: camera tiers, sprite cache and caps, soldiers on the real sprites with a `helmet` style, the battle-map generator (village first), squad orders, line of sight, cover, suppression, objectives, the HUD (`PROPOSAL_WAR_TACTICAL.md`). | deterministic by seed; results written once |
 | v0.116.1 | 10b Vehicles, air and missiles | Tanks and vehicles with module damage, helicopters, aircraft passes, close air support, bombing runs, missile strikes from real stock, smoke, fire, tracers. | consumes real stock; ranges and eligibility |
 | v0.116.2 | 10c Maps, medics and UAV team | The other map recipes (industrial, port, airfield, rural, forest, military site), fog of war from strategic intel, engineers, medics, evacuation. | every recipe generates a playable map |
