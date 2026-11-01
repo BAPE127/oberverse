@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="2200" height="760"></canvas>
+<script type="module">
+import { drawSoldier } from './d_units.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#5b9a45'; g.fillRect(0, 0, 2200, 760);
+const roles = ['rifleman','mg','at','marksman','medic','engineer','signaller','officer','recon','uav'];
+roles.forEach((r, i) => { const w = { rifleman: 'rifle', mg: 'mg', at: 'at', marksman: 'sniper', medic: 'smg', engineer: 'shotgun', signaller: 'smg', officer: 'pistol', recon: 'smg', uav: 'controller' }[r];
+  drawSoldier(g, { role: r, faction: 'company', weapon: w, camo: i % 2, seed: i, band: i % 3 ? '#e8764a' : null, skin: i % 5 }, 'stand', 'E', 120 + i * 210, 160);
+  drawSoldier(g, { role: r, faction: 'varn', weapon: w, skin: (i + 2) % 5 }, 'stand', 'S', 120 + i * 210, 340);
+  drawSoldier(g, { role: r, faction: 'ostmark', weapon: w, skin: (i + 1) % 5 }, 'stand', 'N', 120 + i * 210, 520); });
+['run','crouch','prone','dead'].forEach((p, i) => drawSoldier(g, { role: 'rifleman', faction: 'company', weapon: 'rifle', t: 1, camo: 1 }, p, 'E', 220 + i * 300, 700));
+window.__done = true;
+</script>

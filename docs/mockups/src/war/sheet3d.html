@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1900"></canvas>
+<script type="module">
+import { drawSoldier } from './d_units.js';
+import { drawVehicle } from './d_veh.js';
+import { drawAir } from './d_air.js';
+import * as F from './d_fx.js';
+import { paintTerrain } from './d_terrain.js';
+const GT = paintTerrain({ W: 2880, H: 700, seed: 11, hills: [], roads: [{ pts: [[-900, -900], [-800, -900]], w: 10 }], river: null }).canvas;
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1900);
+const head = (t, y, sub) => { g.font = '800 26px system-ui'; g.fillStyle = '#ffe28a'; g.fillText(t, 30, y); g.font = '600 16px system-ui'; g.fillStyle = '#a09ec9'; g.fillText(sub, 30 + g.measureText(t).width * 0 + 520, y); };
+const band = (y, h) => { g.save(); g.beginPath(); g.rect(30, y, 2820, h); g.clip(); g.drawImage(GT, 0, 0, 2820, Math.min(h, 700), 30, y, 2820, Math.min(h, 700)); g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(30, y, 2820, h); };
+const lab = (t, x, y, c = '#fff') => { g.font = '800 15px system-ui'; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = 'rgba(6,8,20,.8)'; g.strokeText(t, x, y); g.fillStyle = c; g.fillText(t, x, y); g.textAlign = 'left'; };
+g.font = '800 34px system-ui'; g.fillStyle = '#ffe28a'; g.fillText('MODEL SHEET: troops, vehicles, aircraft, drones and effects at the new level of detail (target art)', 30, 50);
+// infantry
+head('INFANTRY', 100, '10 roles · three facings (front, back, side) · poses · camouflage and squad band chosen separately');
+band(114, 330); const roles = [['rifleman', 'rifle', 'Rifleman'], ['mg', 'mg', 'Machine gunner'], ['at', 'at', 'Anti-tank'], ['marksman', 'sniper', 'Marksman'], ['medic', 'smg', 'Medic'], ['engineer', 'shotgun', 'Engineer'], ['signaller', 'smg', 'Signaller'], ['officer', 'pistol', 'Officer'], ['recon', 'smg', 'Recon'], ['uav', 'controller', 'UAV operator (new)']];
+roles.forEach(([r, w, n], i) => { const x = 160 + i * 280; drawSoldier(g, { role: r, faction: 'company', weapon: w, camo: i % 2, seed: i, band: i % 3 ? '#e8764a' : null, skin: i % 5 }, 'stand', 'E', x, 250); drawSoldier(g, { role: r, faction: 'varn', weapon: w, skin: (i + 2) % 5 }, 'stand', 'S', x - 54, 400, { scale: 0.9 }); drawSoldier(g, { role: r, faction: 'ostmark', weapon: w, skin: (i + 1) % 5 }, 'stand', 'N', x + 56, 400, { scale: 0.9 }); lab(n, x, 430, r === 'uav' ? '#7ae8f8' : '#fff'); });
+// poses
+head('POSES', 482, 'run · crouch · prone · fallen (a casualty stays on the map until a medic or a clinic takes them)');
+band(496, 190); [['stand', 'Aim'], ['run', 'Run'], ['crouch', 'Crouch'], ['prone', 'Prone'], ['dead', 'Fallen']].forEach(([p, n], i) => { const x = 280 + i * 520; drawSoldier(g, { role: 'rifleman', faction: 'company', weapon: 'rifle', t: 1, camo: 1, band: '#e8764a' }, p, 'E', x, 640); lab(n, x, 674); });
+// vehicles
+head('VEHICLES', 724, 'tank (hull and independent turret) · breacher dozer · MLRS · mobile cannon · APC · supply truck · enemy tank wreck');
+band(738, 400); [['tank', 'company', 'Anvil Mk1 battle tank', { number: 11, turret: 0.5 }], ['dozer', 'company', 'Breacher dozer', {}], ['mlrs', 'company', 'Rainmaker MLRS', {}], ['spg', 'company', 'Hammer mobile cannon', {}], ['apc', 'company', 'Badger IFV', {}], ['truck', 'company', 'Supply truck', { cargo: '#7a7a52' }], ['tank', 'varn', 'Enemy tank (wreck)', { wreck: true, number: 7 }]].forEach(([k, f, n, o], i) => { const x = 230 + i * 395; drawVehicle(g, k, f, x, 960 + (k === 'spg' ? 10 : 0), 0.0, o); lab(n, x, 1112); });
+// air
+head('AIRCRAFT AND DRONES', 1160, 'attack helicopter (blurred rotor) · strike jet · bomber · scout quad drone · long-range UAV · FPV strike drone · shadows show altitude');
+band(1174, 340); drawAir(g, 'heli', 'company', 280, 1350, 0.0, { alt: 70, lift: 40, phase: 0.8, scale: 0.8 }); lab('Talon attack helicopter', 280, 1500); drawAir(g, 'jet', 'grey', 720, 1370, 0.0, { alt: 120, lift: 90, scale: 0.68, sprite: { stores: [[50, 50], [84, 40]], burn: true } }); lab('Kestrel strike jet', 720, 1500); drawAir(g, 'bomber', 'grey', 1280, 1370, 0.0, { alt: 140, lift: 100, scale: 0.66 }); lab('Harrow bomber', 1280, 1500); drawAir(g, 'quad', 'company', 1760, 1340, 0.5, { alt: 60, lift: 40, scale: 1.3 }); lab('Scout quad drone', 1760, 1500, '#7ae8f8'); drawAir(g, 'uav', 'grey', 2150, 1360, 0.0, { alt: 100, lift: 70, scale: 0.9 }); lab('Long-range UAV', 2150, 1500, '#7ae8f8'); drawAir(g, 'fpv', 'company', 2560, 1340, 0.6, { alt: 40, lift: 30, scale: 1.5 }); lab('FPV strike drone', 2560, 1500, '#7ae8f8');
+// fx
+head('EFFECTS', 1550, 'blast stages (flash, fireball, smoke head) · fire · smoke columns · crater · tracers · rocket trail · wall burst · muzzle flash');
+band(1564, 330); [0.06, 0.25, 0.5, 0.9].forEach((t, i) => F.explosion(g, 160 + i * 280, 1810, 70, t, { seed: i + 1 })); lab('flash', 160, 1880); lab('fireball', 440, 1880); lab('peak', 720, 1880); lab('smoke head', 1000, 1880);
+F.blaze(g, 1260, 1840, 50, { seed: 4 }); lab('burning wreck', 1260, 1880); F.crater(g, 1480, 1810, 50, 2); lab('crater', 1480, 1880); F.wallBurst(g, 1700, 1780, 90, 0.2, 5); lab('wall burst', 1700, 1880); F.rocket(g, [[1800, 1720], [1850, 1700], [1900, 1682], [1950, 1666], [2000, 1652]]); lab('rocket trail', 1900, 1760); F.tracer(g, 2100, 1700, 2380, 1650, '#ffd868', 3); F.tracer(g, 2100, 1730, 2370, 1690, '#ff9a5a', 3); F.muzzle(g, 2460, 1700, 0, 1.2); F.cannonBlast(g, 2540, 1780, -0.3, 0.9); lab('tracers · muzzle · cannon', 2400, 1880); F.fire(g, 2760, 1830, 40, 70, { seed: 8, phase: 1 }); lab('fire', 2760, 1880);
+window.__done = true;
+</script>

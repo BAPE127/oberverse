@@ -1,0 +1,102 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="2880" height="1620"></canvas>
+<script type="module">
+import { scene, renderBase, squad, unit, W, H, B, terrain } from './d_scene.js';
+import { drawVehicle } from './d_veh.js';
+import { drawAir } from './d_air.js';
+import { drawSoldier } from './d_units.js';
+import * as F from './d_fx.js';
+import { INK, hash, rng, blob, ell } from './d_util.js';
+import { buildingAnchors } from './d_build.js';
+const Q = new URLSearchParams(location.search); const Z = +(Q.get('z') || 1), CX = +(Q.get('cx') || 0), CY = +(Q.get('cy') || 0), HUD = Q.get('hud') !== '0';
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+const S = scene(); const items = S.items; const aim = (x, y, tx, ty) => Math.atan2(tx - x, -(ty - y));
+const fx = []; const fxAdd = (f) => fx.push(f);
+// ---------------------------------------------------------------- our side
+squad(items, ['officer', 'rifleman', 'rifleman', 'mg', 'rifleman', 'rifleman', 'medic', 'rifleman'], 1010, 868, 'E', 'company', 'run', { cols: 4, spread: 50, row: 34, seed: 1 });
+squad(items, ['at', 'at', 'rifleman'], 1405, 930, 'E', 'company', 'crouch', { cols: 3, spread: 46, seed: 2 });
+squad(items, ['mg', 'rifleman'], 1352, 968, 'E', 'company', ['prone', 'crouch'], { cols: 2, spread: 66, seed: 3 });
+squad(items, ['uav', 'uav', 'signaller'], 1560, 972, 'E', 'company', 'crouch', { cols: 3, spread: 50, seed: 4, band: '#4ad8e8' });
+squad(items, ['medic', 'rifleman'], 1250, 912, ['E', 'W'], 'company', ['crouch', 'dead'], { cols: 2, spread: 70, seed: 5 });
+squad(items, ['engineer', 'engineer', 'engineer', 'rifleman'], 1805, 868, 'N', 'company', 'crouch', { cols: 4, spread: 46, seed: 6, band: '#e8c84a' });
+squad(items, ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'signaller'], 640, 800, 'E', 'company', 'run', { cols: 5, spread: 50, seed: 7 });
+// garrisoned house (roof cut away): three riflemen inside
+squad(items.map(() => 0) && items, ['rifleman', 'rifleman', 'marksman'], 770, 640, ['S', 'S', 'E'], 'company', ['stand', 'crouch', 'stand'], { cols: 3, spread: 90, seed: 8 });
+items.filter((i) => i.y > 600 && i.y < 660 && i.y !== 0).forEach((i) => { if (i.y < 700) i.y = 712; });
+// tanks
+const anvil = { x: 1210, y: 842 }; const tgt1 = [1790, 1070];
+unit(items, (g) => drawVehicle(g, 'tank', 'company', anvil.x, anvil.y, Math.PI / 2, { number: 11, turret: aim(anvil.x, anvil.y, ...tgt1) }), anvil.y);
+unit(items, (g) => drawVehicle(g, 'tank', 'company', 780, 892, Math.PI / 2, { number: 12, turret: 1.0, seed: 4 }), 892);
+unit(items, (g) => drawVehicle(g, 'dozer', 'company', 2412, 836, 0, {}), 836);
+unit(items, (g) => drawVehicle(g, 'apc', 'company', 380, 836, Math.PI / 2, {}), 836);
+unit(items, (g) => drawVehicle(g, 'truck', 'company', 130, 836, Math.PI / 2, { cross: true, cargo: '#8a8a5a' }), 836);
+unit(items, (g) => drawVehicle(g, 'mlrs', 'company', 1260, 1420, 0.5, {}), 1420);
+unit(items, (g) => drawVehicle(g, 'spg', 'company', 1450, 1500, 0.78, {}), 1500);
+// ---------------------------------------------------------------- the enemy
+squad(items, ['rifleman', 'rifleman', 'mg', 'rifleman', 'rifleman', 'at'], 2080, 804, 'W', 'varn', ['stand', 'crouch', 'crouch'], { cols: 3, spread: 48, row: 36, seed: 20 });
+squad(items, ['rifleman', 'rifleman', 'rifleman'], 1860, 1100, ['W', 'S'], 'varn', ['crouch', 'stand'], { cols: 3, spread: 54, seed: 21 });
+squad(items, ['marksman', 'mg'], 2470, 440, 'W', 'varn', 'prone', { cols: 2, spread: 90, seed: 22 });
+squad(items, ['rifleman', 'at'], 1760, 1040, 'W', 'varn', 'crouch', { cols: 2, spread: 60, seed: 23 });
+unit(items, (g) => drawVehicle(g, 'tank', 'varn', 2110, 950, 2.2, { number: 7, wreck: true, turret: 2.9 }), 950);
+// ---------------------------------------------------------------- the drone and the aircraft
+unit(items, (g) => { g.save(); g.fillStyle = 'rgba(74,216,232,.10)'; g.strokeStyle = 'rgba(74,216,232,.7)'; g.lineWidth = 3; g.beginPath(); g.moveTo(1700, 628); g.lineTo(2040, 560); g.lineTo(2060, 800); g.closePath(); g.fill(); g.stroke(); g.restore(); drawAir(g, 'quad', 'company', 1690, 640, 1.1, { alt: 70, lift: 90, scale: 0.9 }); }, 1000);
+unit(items, (g) => drawAir(g, 'heli', 'company', 1520, 590, 1.9, { alt: 130, lift: 70, phase: 0.8, scale: 0.9 }), 1200);
+unit(items, (g) => { for (let i = 0; i < 28; i++) { const t = i / 28; F.dust(g, 2540 - t * 520, 120 + t * -40 - 70, 14 + t * 10, 1, i); } drawAir(g, 'jet', 'grey', 2560, 150, 1.45, { alt: 230, lift: 200, scale: 0.9, sprite: { stores: [[50, 50], [84, 40]], burn: true } }); }, 1300);
+// ---------------------------------------------------------------- render world, then effects
+const cam = { x: CX, y: CY, z: Z };
+renderBase(g, cam, items, (g) => { // selection rings and decals under units
+  g.strokeStyle = '#ffe28a'; g.lineWidth = 4; for (const [x, y, rx, ry] of [[1210, 850, 120, 52], [1010, 880, 150, 46]]) { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.stroke(); }
+  g.strokeStyle = 'rgba(255,90,70,.8)'; g.lineWidth = 3; g.setLineDash([10, 8]); g.beginPath(); g.ellipse(1790, 1090, 150, 70, 0, 0, 7); g.stroke(); g.setLineDash([]);
+});
+g.save(); g.translate(-cam.x * Z, -cam.y * Z); g.scale(Z, Z);
+const q = rng(9);
+// the breach charge on the warehouse and the debris cloud
+const wh = buildingAnchors(B.warehouse); const [bx, by] = wh.south(150 + 65, 0);
+F.smoke(g, bx, by - 20, 420, { seed: 3, w: 46, dark: 0.9, lean: 0.4 }); F.explosion(g, bx, by + 6, 90, 0.34, { seed: 5 }); F.wallBurst(g, bx, by + 10, 120, Math.PI / 2, 4);
+// the dozer is ramming the flats
+const fl = buildingAnchors(B.flats); const [rx, ry] = fl.south(150 + 60, 0); F.dust(g, rx, ry + 4, 70, 12, 9); F.wallBurst(g, rx, ry + 30, 70, Math.PI / 2 + 0.2, 8); F.smoke(g, rx + 30, ry - 20, 160, { seed: 6, w: 30, dark: 0.5, lean: 0.3, alpha: 0.7 });
+// burning house, rubble smoke and the wreck
+F.smoke(g, 1085, 1000, 500, { seed: 11, w: 52, dark: 0.95, lean: 0.55 }); F.fire(g, 1082, 1020, 70, 110, { seed: 12, phase: 1.1 });
+F.smoke(g, 760, 1110, 260, { seed: 13, w: 34, dark: 0.7, lean: 0.4, alpha: 0.8 }); F.fire(g, 790, 1130, 30, 46, { seed: 14, phase: 0.4 });
+F.smoke(g, 2110, 940, 420, { seed: 15, w: 40, dark: 1, lean: 0.5 }); F.fire(g, 2118, 950, 52, 80, { seed: 16, phase: 2 });
+F.fire(g, 2040, 745, 22, 40, { seed: 17, phase: 1 }); F.smoke(g, 2040, 740, 200, { seed: 18, w: 22, dark: 0.8, alpha: 0.7 });
+// Anvil fires
+const a1 = aim(anvil.x, anvil.y, ...tgt1); const mx = anvil.x + Math.sin(a1) * 164, my = anvil.y - 12 - Math.cos(a1) * 164; F.cannonBlast(g, mx, my, a1 - Math.PI / 2 + 0.0, 1);
+F.tracer(g, mx + 20, my + 8, 1750, 1060, '#ffd868', 4); F.explosion(g, 1790, 1076, 56, 0.45, { seed: 21 });
+// our MG and AT sandbag line, their squad, tracers both ways
+for (let i = 0; i < 5; i++) { const y0 = 920 + i * 6; F.tracer(g, 1445 + i * 8, y0, 1800 + i * 40, 1050 + i * 10, '#9aff9a', 2.2); }
+for (let i = 0; i < 6; i++) { F.tracer(g, 2030 - i * 6, 800 + i * 4, 1650 - i * 60, 860 + i * 5, '#ff9a5a', 2.2); }
+F.muzzle(g, 2030, 800, Math.PI, 0.9); F.muzzle(g, 2046, 828, Math.PI + 0.1, 0.8); F.muzzle(g, 1425, 925, -0.1, 0.8); F.muzzle(g, 1815, 1100, Math.PI, 0.7);
+// the enemy AT rocket at the dozer and the MLRS salvo
+F.rocket(g, [[2000, 790], [2060, 770], [2120, 758], [2180, 750], [2240, 750], [2300, 756]], { body: '#e0d8c0' });
+for (let i = 0; i < 6; i++) { const sx = 1260 + i * 14, sy = 1380 + i * 4; const pts = []; for (let k = 0; k <= 11; k++) { const t = k / 11; pts.push([sx + (1800 - sx + (i - 3) * 22) * t * 0.55, sy - (sy - 1070 + 120) * t * 0.55 - Math.sin(t * Math.PI) * 120]); } F.rocket(g, pts.slice(0, 6 + i)); }
+F.dust(g, 1250, 1380, 80, 14, 2); F.smoke(g, 1250, 1370, 90, { seed: 22, w: 40, dark: 0.1, alpha: 0.8, lean: 0.5 });
+F.cannonBlast(g, 1450 + Math.sin(0.78) * 190, 1500 - Math.cos(0.78) * 190, 0.78 - Math.PI / 2, 1.2);
+// heli rockets
+for (let i = 0; i < 3; i++) { const pts = []; for (let k = 0; k < 7; k++) pts.push([1600 + k * 50 + i * 4, 620 + k * 17 + i * 12]); F.rocket(g, pts); }
+F.explosion(g, 2062, 826, 50, 0.5, { seed: 30 });
+// cloud shadows and a warm sun grade
+for (const [x, y, rx, ry] of [[600, 320, 620, 300], [2100, 1180, 700, 340], [1500, 700, 380, 200]]) { g.save(); g.filter = 'blur(40px)'; g.fillStyle = 'rgba(20,30,70,.16)'; g.beginPath(); g.ellipse(x, y, rx, ry, 0.3, 0, 7); g.fill(); g.restore(); }
+g.restore();
+const vg = g.createRadialGradient(1440, 810, 600, 1440, 810, 1800); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,10,30,.42)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+const sg = g.createLinearGradient(0, 0, W, H); sg.addColorStop(0, 'rgba(255,230,170,.10)'); sg.addColorStop(1, 'rgba(60,70,140,.10)'); g.fillStyle = sg; g.fillRect(0, 0, W, H);
+// ---------------------------------------------------------------- HUD (scaled 1.5: it is a 1920 layout over a 2880 render)
+if (HUD) { g.save(); g.scale(1.5, 1.5);
+  const panel = (x, y, w, h, a = 0.92) => { g.fillStyle = `rgba(14,12,44,${a})`; g.fillRect(x, y, w, h); g.strokeStyle = '#3a38a0'; g.lineWidth = 2; g.strokeRect(x + 1, y + 1, w - 2, h - 2); };
+  const txt = (t, x, y, s = 13, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+  panel(0, 0, 1920, 48, 0.94); txt('THE CROSSING AT HALDEN ROADS', 20, 31, 21, '#ffe28a', 800); txt('Falkenmark · Ostmark contract · day 44 · 08:42 · clear, light wind', 400, 30, 13, '#c9c7ee'); txt('◉ Hold the crossing  04:12', 1010, 22, 13, '#9af0c0', 700); txt('○ Open the warehouse  ✓', 1010, 40, 13, '#9af0c0', 700); txt('○ Break the depot', 1290, 22, 13, '#e8e6ff', 700); txt('○ Keep both tanks alive', 1290, 40, 13, '#e8e6ff', 700); txt('×1 ▶▶', 1840, 31, 15, '#fff', 800);
+  const cards = [['Alpha Squad', '8/8 · 5 mags', 'rifleman'], ['Bravo (AT)', '3/3 · rockets 4', 'at'], ['UAV team', '2 ops · 2 drones', 'uav'], ['Engineers', '3 · charges 2', 'engineer'], ['Anvil (11)', 'crew 3 · 11 shells', null], ['Breacher dozer', 'ramming', null]];
+  cards.forEach(([n, d, r], i) => { const y = 58 + i * 68; g.fillStyle = i === 0 || i === 4 ? '#2a2870' : '#16143c'; g.fillRect(12, y, 220, 62); g.strokeStyle = i === 0 || i === 4 ? '#ffe28a' : '#3a38a0'; g.lineWidth = 2; g.strokeRect(12, y, 220, 62); g.fillStyle = '#24244a'; g.fillRect(14, y + 2, 60, 60); if (r) { g.save(); g.beginPath(); g.rect(14, y + 2, 60, 60); g.clip(); drawSoldier(g, { role: r, faction: 'company', weapon: { rifleman: 'rifle', at: 'at', mg: 'mg', uav: 'controller', engineer: 'shotgun' }[r], band: '#e8764a', skin: 1 }, 'stand', 'E', 44, y + 62, { scale: 0.58 }); g.restore(); } else { g.save(); g.beginPath(); g.rect(14, y + 2, 60, 60); g.clip(); drawVehicle(g, i === 5 ? 'dozer' : 'tank', 'company', 44, y + 34, 0, { scale: 0.22, turret: 0.4 }); g.restore(); } txt(n, 82, y + 24, 14, '#fff', 800); txt(d, 82, y + 42, 11.5, '#a09ec9'); g.fillStyle = '#2a2a50'; g.fillRect(82, y + 50, 140, 6); g.fillStyle = i === 5 ? '#f2c14e' : '#5fe08a'; g.fillRect(82, y + 50, 140 * (0.55 + hash(i, 3) * 0.45), 6); });
+  panel(1696, 58, 214, 500);
+  txt('ANVIL Mk1 · Battle tank', 1708, 88, 16, '#ffe28a', 800); txt('Cmdr O. Venn · crew 3', 1708, 106, 11.5, '#c9c7ee');
+  [['Armour', 0.6, '#7ab8ff'], ['Firepower', 0.6, '#ff8a6a'], ['Speed', 0.6, '#5fe08a'], ['Hull', 0.82, '#5fe08a'], ['Fuel', 0.7, '#f2c14e']].forEach(([n, v, c], i) => { txt(n, 1708, 134 + i * 24, 12, '#c9c7ee', 700); g.fillStyle = '#26264a'; g.fillRect(1772, 124 + i * 24, 126, 10); g.fillStyle = c; g.fillRect(1772, 124 + i * 24, 126 * v, 10); });
+  txt('PERK  Fires on the move', 1708, 268, 11.5, '#9af0c0', 700); txt('ABILITY  Smoke (20 s)', 1708, 288, 11.5, '#ffe28a', 700);
+  txt('MODULES', 1708, 322, 12, '#ffe28a', 800); [['Gun', 'ok'], ['Turret ring', 'ok'], ['Left track', 'damaged'], ['Engine', 'ok'], ['Optics', 'ok']].forEach(([n, s], i) => { txt(n, 1708, 346 + i * 22, 12, '#fff', 700); txt(s, 1830, 346 + i * 22, 12, s === 'ok' ? '#5fe08a' : '#f2c14e', 800); });
+  txt('Target: DEPOT (drone)', 1708, 456, 12, '#ff9a8a', 800); txt('Hit 71% · HE · heavy cover', 1708, 476, 12, '#c9c7ee'); g.fillStyle = '#f2c14e'; g.fillRect(1708, 496, 190, 40); txt('FIRE  (F)', 1803, 522, 15, '#2a1a00', 800, 'center');
+  panel(246, 962, 1210, 88, 0.94); ['Move', 'Hold', 'Attack', 'Flank', 'Suppress', 'Garrison', 'Breach', 'Smoke', 'Call strike'].forEach((n, i) => { const x = 256 + i * 132; g.fillStyle = i === 2 ? '#f2c14e' : i === 8 ? '#7a2a2a' : '#2d2a70'; g.fillRect(x, 972, 118, 66); g.strokeStyle = '#4a47b0'; g.strokeRect(x, 972, 118, 66); txt(String(i + 1), x + 8, 990, 11, i === 2 ? '#2a1a00' : '#a09ec9', 700); txt(n, x + 59, 1022, 15, i === 2 ? '#2a1a00' : '#fff', 800, 'center'); });
+  panel(1466, 880, 214, 170); g.drawImage(terrain().c, 1476, 906, 194, 109); [[1210, 842, '#5fe08a'], [1010, 868, '#5fe08a'], [2412, 836, '#5fe08a'], [1805, 868, '#5fe08a'], [2080, 804, '#ff6a5a'], [1860, 1100, '#ff6a5a'], [2470, 440, '#ff6a5a'], [2110, 950, '#ff6a5a']].forEach(([x, y, c]) => { g.fillStyle = c; g.fillRect(1476 + x / 2880 * 194 - 2, 906 + y / 1620 * 109 - 2, 5, 5); }); g.strokeStyle = '#ffe28a'; g.lineWidth = 2; g.strokeRect(1476, 906, 194, 109); txt('MAP', 1476, 900, 11, '#a09ec9', 700); txt('Spotted 6 · unknown ?', 1480, 1034, 11, '#c9c7ee', 700);
+  g.restore(); }
+// callouts
+const call = (t, x, y, tx, ty, col = '#ffe28a') => { g.save(); g.scale(1.5, 1.5); g.font = '800 13px system-ui'; const w = g.measureText(t).width + 16; g.fillStyle = 'rgba(14,12,44,.92)'; g.fillRect(x / 1.5, y / 1.5, w, 26); g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(x / 1.5, y / 1.5, w, 26); g.fillStyle = col; g.fillText(t, x / 1.5 + 8, y / 1.5 + 18); g.restore(); g.strokeStyle = col; g.lineWidth = 3; g.beginPath(); g.moveTo(x + 10, y + 40); g.lineTo(tx, ty); g.stroke(); g.fillStyle = col; g.beginPath(); g.arc(tx, ty, 6, 0, 7); g.fill(); };
+if (HUD) { call('CHARGE BLOWN: wall open, cover gone', 1480, 330, 1840, 700, '#ff9a6a'); call('RAM: dozer through the wall', 1980, 330, 2410, 730, '#ff9a6a'); call('Garrisoned: roof cut away', 700, 420, 770, 600, '#7ab8ff'); call('Drone sees the depot', 1480, 230, 1700, 560, '#4ad8e8'); }
+window.__done = true;
+</script>

@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="2400" height="800"></canvas>
+<script type="module">
+import * as F from './d_fx.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#5b9a45'; g.fillRect(0, 0, 2400, 800);
+F.crater(g, 150, 600, 60, 1); F.explosion(g, 420, 560, 70, 0.08, { seed: 1 }); F.explosion(g, 760, 560, 80, 0.4, { seed: 2 }); F.explosion(g, 1160, 600, 90, 0.85, { seed: 3 });
+F.blaze(g, 1500, 640, 60, { seed: 4 }); F.fire(g, 1700, 640, 40, 70, { seed: 5, phase: 1 }); F.wallBurst(g, 1950, 600, 90, 0.4, 3);
+F.muzzle(g, 150, 250, 0, 1.2); F.cannonBlast(g, 300, 300, 0, 1); F.tracer(g, 600, 200, 900, 260); F.tracer(g, 600, 230, 880, 300, '#ff9a5a');
+F.rocket(g, [[1000, 330], [1060, 300], [1120, 270], [1180, 245], [1240, 225], [1300, 210]]);
+window.__done = true;
+</script>

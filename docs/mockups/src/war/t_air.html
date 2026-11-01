@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"><canvas id="c" width="2200" height="760"></canvas>
+<script type="module">
+import { drawAir } from './d_air.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#5b9a45'; g.fillRect(0, 0, 2200, 760);
+drawAir(g, 'heli', 'company', 220, 260, 0.2, {}); drawAir(g, 'jet', 'grey', 640, 280, -0.3, { sprite: { stores: [[50, 50], [84, 40]], burn: true } }); drawAir(g, 'bomber', 'grey', 1180, 260, 0, { scale: 0.9 });
+drawAir(g, 'quad', 'company', 1700, 150, 0.4, { alt: 40 }); drawAir(g, 'uav', 'grey', 1900, 420, 0.5, { scale: 0.8 }); drawAir(g, 'fpv', 'company', 1650, 380, 0.8, { alt: 30 });
+window.__done = true;
+</script>

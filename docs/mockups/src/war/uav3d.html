@@ -1,0 +1,87 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1900"></canvas>
+<script type="module">
+import { scene, renderBase, squad, unit, B, terrain, panelView, caption } from './d_scene.js';
+import { drawVehicle } from './d_veh.js';
+import { drawAir } from './d_air.js';
+import { drawSoldier } from './d_units.js';
+import * as F from './d_fx.js';
+import { buildingAnchors, drawBuilding } from './d_build.js';
+import * as PR from './d_props.js';
+import { hash, rng, INK } from './d_util.js';
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1900);
+const txt = (t, x, y, s = 16, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+txt('UAV TEAM: scout drones find the target, then the strike can land (target art)', 30, 50, 34, '#ffe28a', 800);
+txt('No designated target, no air strike, no missile, no accurate artillery. The scout drone, the FPV window and the strike menu, on the same ground as the battle.', 30, 80, 18, '#a09ec9');
+// ---------------------------------------------------------------- the map with fog of war
+const MX = 30, MY = 100, MW = 1880, MH = 900, CX = 1900, CY = 800, Z = 1.0; const wx = (x) => MX + MW / 2 + (x - CX) * Z, wy = (y) => MY + MH / 2 + (y - CY) * Z;
+const S = scene({ buildings: ['warehouse', 'flats', 'factory', 'shop', 'burning'] }); const items = S.items;
+squad(items, ['uav', 'uav', 'signaller'], 1560, 972, 'E', 'company', 'crouch', { cols: 3, spread: 50, seed: 4, band: '#4ad8e8' });
+squad(items, ['mg', 'rifleman', 'rifleman'], 1420, 960, 'E', 'company', 'crouch', { cols: 3, spread: 50, seed: 3 });
+unit(items, (g) => drawVehicle(g, 'tank', 'company', 1250, 850, Math.PI / 2, { number: 11, turret: 1.1 }), 850);
+squad(items, ['rifleman', 'rifleman', 'mg', 'rifleman', 'at'], 2080, 804, 'W', 'varn', ['stand', 'crouch'], { cols: 3, spread: 48, row: 36, seed: 20 });
+squad(items, ['rifleman', 'rifleman', 'rifleman', 'mg'], 1860, 1100, ['W', 'S'], 'varn', ['crouch', 'stand'], { cols: 4, spread: 54, seed: 21 });
+squad(items, ['at', 'rifleman', 'rifleman'], 1980, 1010, 'W', 'varn', 'crouch', { cols: 3, spread: 60, seed: 23 });
+squad(items, ['marksman', 'mg'], 2470, 440, 'W', 'varn', 'prone', { cols: 2, spread: 90, seed: 22 });
+unit(items, (g) => drawVehicle(g, 'tank', 'varn', 2110, 950, 2.2, { number: 7, wreck: true, turret: 2.9 }), 950);
+unit(items, (g) => drawVehicle(g, 'apc', 'varn', 2230, 1100, 3.3, { }), 1100);
+const drone = [1900, 880];
+unit(items, (g) => { g.strokeStyle = 'rgba(74,216,232,.55)'; g.lineWidth = 3; g.setLineDash([12, 10]); g.beginPath(); g.moveTo(1572, 925); g.lineTo(drone[0], drone[1] - 80); g.stroke(); g.setLineDash([]); drawAir(g, 'quad', 'company', drone[0], drone[1], 0.6, { alt: 90, lift: 100, scale: 1.2 }); }, 2000);
+renderBase(g, { x: CX - MW / 2 - 0, y: CY - MH / 2 - 0, z: Z }, items, null);
+// renderBase draws at canvas origin; re-draw clipped into the map frame instead
+g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1900); txt('UAV TEAM: scout drones find the target, then the strike can land (target art)', 30, 50, 34, '#ffe28a', 800); txt('No designated target, no air strike, no missile, no accurate artillery. The scout drone, the FPV window and the strike menu, on the same ground as the battle.', 30, 80, 18, '#a09ec9');
+g.save(); g.beginPath(); g.rect(MX, MY, MW, MH); g.clip(); g.translate(MX + MW / 2 - CX * Z, MY + MH / 2 - CY * Z); g.scale(Z, Z); g.drawImage(terrain().c, 0, 0); items.sort((a, b) => a.y - b.y); items.forEach((it) => it.f(g));
+// effects: the revealed contacts glow, our shells in flight, the target
+const tgt = [[2080, 804, 'ENEMY MG TEAM · 6', 'designated'], [1860, 1100, 'AT + MG POSITION · 4', 'designated'], [1980, 1010, 'AT TEAM · 3', 'spotted'], [2230, 1100, 'ENEMY APC', 'spotted']];
+g.restore();
+// fog: dark everywhere except around our units and the drone's cone
+const [fc, fg] = (() => { const c = document.createElement('canvas'); c.width = MW; c.height = MH; return [c, c.getContext('2d')]; })(); fg.fillStyle = 'rgba(6,10,28,.82)'; fg.fillRect(0, 0, MW, MH); fg.globalCompositeOperation = 'destination-out';
+const hole = (x, y, r) => { const gr = fg.createRadialGradient(x - MX, y - MY, r * 0.6, x - MX, y - MY, r); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); fg.fillStyle = gr; fg.beginPath(); fg.arc(x - MX, y - MY, r, 0, 7); fg.fill(); };
+hole(wx(1560), wy(972), 420); hole(wx(1250), wy(850), 380); hole(wx(drone[0]), wy(drone[1]), 520);
+g.save(); g.beginPath(); g.rect(MX, MY, MW, MH); g.clip(); g.drawImage(fc, MX, MY);
+// the drone's scan ring
+g.strokeStyle = 'rgba(74,216,232,.8)'; g.lineWidth = 4; g.setLineDash([16, 12]); g.beginPath(); g.ellipse(wx(drone[0]), wy(drone[1]), 520 * Z, 520 * Z * 0.62, 0, 0, 7); g.stroke(); g.setLineDash([]);
+// contacts: spotted ones outlined in red with labels; the unknown one stays a question mark
+const tag = (x, y, t, st, col = '#ff5a4a') => { const px = wx(x), py = wy(y); g.save(); g.translate(px, py - 120); g.fillStyle = 'rgba(14,12,44,.94)'; g.font = '800 15px system-ui'; const w = g.measureText(t).width + 54; g.fillRect(-w / 2, -16, w, 32); g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(-w / 2, -16, w, 32); g.fillStyle = col; g.beginPath(); g.moveTo(-w / 2 + 14, -2); g.lineTo(-w / 2 + 24, -12); g.lineTo(-w / 2 + 34, -2); g.lineTo(-w / 2 + 24, 8); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.fillText(t, -w / 2 + 44, 4); g.font = '700 11px system-ui'; g.fillStyle = st === 'designated' ? '#9af0c0' : '#ffe28a'; g.fillText(st.toUpperCase(), -w / 2 + 44, 14); g.restore(); g.strokeStyle = col; g.lineWidth = 2; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(px, py - 104); g.lineTo(px, py - 40); g.stroke(); g.setLineDash([]); };
+tgt.forEach(([x, y, t, st]) => tag(x, y, t, st)); F.targetRing(g, wx(1900), wy(1135), 60, '#ff5a4a'); txt('MLRS ×12 inbound  0:12', wx(1900) - 90, wy(1135) + 86, 15, '#ffb0a0', 800);
+g.fillStyle = 'rgba(14,12,44,.94)'; g.fillRect(wx(2470) - 30, wy(440) - 90, 62, 34); g.strokeStyle = '#ffe28a'; g.strokeRect(wx(2470) - 30, wy(440) - 90, 62, 34); txt('? ? ?', wx(2470), wy(440) - 66, 18, '#ffe28a', 800, 'center');
+g.restore(); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(MX, MY, MW, MH);
+// map overlay labels
+const lab = (t, x, y, col) => { g.font = '800 15px system-ui'; const w = g.measureText(t).width + 20; g.fillStyle = 'rgba(14,12,44,.94)'; g.fillRect(x, y, w, 28); g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(x, y, w, 28); g.fillStyle = col; g.fillText(t, x + 10, y + 19); };
+lab('UAV team: 2 operators + signaller', wx(1500) - 60, wy(1040) + 20, '#4ad8e8'); lab('Scout drone: battery 71%, 2:08 left', wx(1900) - 330, wy(880) - 170, '#4ad8e8'); lab('FOG: unseen ground, enemy hidden', MX + 20, MY + MH - 50, '#a09ec9');
+// ---------------------------------------------------------------- the FPV window
+const FX_ = 1940, FY = 100, FW = 910, FH = 520; panelView(g, FX_, FY, FW, FH, 1900, 1090, 1.9, (g) => {
+  [[1760, 1040, 'W'], [1840, 1070, 'W'], [1900, 1080, 'S'], [1960, 1100, 'W']].forEach(([x, y, v], i) => drawSoldier(g, { role: i === 3 ? 'at' : i === 2 ? 'mg' : 'rifleman', faction: 'varn', weapon: i === 3 ? 'at' : i === 2 ? 'mg' : 'rifle', skin: i }, i % 2 ? 'stand' : 'crouch', v, x, y));
+  PR.sandbags(g, 1700, 1010, 120, 2, 7); PR.crate(g, 1990, 1060, 1); PR.barrel(g, 2020, 1130, 1, '#a83a2a'); drawVehicle(g, 'apc', 'varn', 2230, 1100, 3.3, {}); F.crater(g, 1880, 1160, 30, 3);
+});
+// FPV post-processing: tint, scanlines, noise, vignette, rounded corners
+g.save(); g.beginPath(); g.rect(FX_, FY, FW, FH); g.clip(); g.fillStyle = 'rgba(30,80,100,.14)'; g.fillRect(FX_, FY, FW, FH); for (let y = FY; y < FY + FH; y += 4) { g.fillStyle = 'rgba(0,0,0,.16)'; g.fillRect(FX_, y, FW, 1.5); } const q = rng(5); for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(255,255,255,${q() * 0.1})`; g.fillRect(FX_ + q() * FW, FY + q() * FH, 2 + q() * 4, 1); } for (const y of [FY + 130, FY + 330]) { g.fillStyle = 'rgba(180,255,255,.12)'; g.fillRect(FX_, y, FW, 5); }
+const vg = g.createRadialGradient(FX_ + FW / 2, FY + FH / 2, FH * 0.35, FX_ + FW / 2, FY + FH / 2, FW * 0.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,10,20,.78)'); g.fillStyle = vg; g.fillRect(FX_, FY, FW, FH);
+g.strokeStyle = 'rgba(120,255,255,.9)'; g.lineWidth = 2; const cx = FX_ + FW / 2 - 40, cy = FY + FH / 2 + 10; g.beginPath(); g.moveTo(cx - 40, cy); g.lineTo(cx - 12, cy); g.moveTo(cx + 12, cy); g.lineTo(cx + 40, cy); g.moveTo(cx, cy - 40); g.lineTo(cx, cy - 12); g.moveTo(cx, cy + 12); g.lineTo(cx, cy + 40); g.stroke(); g.strokeRect(cx - 120, cy - 100, 240, 200);
+g.font = '700 16px "Courier New", monospace'; g.fillStyle = '#7af0f0'; g.fillText('FPV-2   ALT 38 m   SPD 14 m/s   HDG 143', FX_ + 22, FY + 32); g.fillText('REC ●   BAT 71%   SIG ▮▮▮▯', FX_ + 22, FY + 54); g.fillStyle = '#ffe28a'; g.fillText('TARGET  AT + MG POSITION  ·  4 men  ·  140 m', FX_ + 22, FY + FH - 22); g.restore();
+g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(FX_, FY, FW, FH);
+[['Designate (Space)', '#2d2a70'], ['Dive: one-way strike', '#7a2a2a'], ['Return', '#2d2a70']].forEach(([t, c], i) => { g.fillStyle = c; g.fillRect(FX_ + i * 306, FY + FH + 10, 298, 44); g.strokeStyle = '#4a47b0'; g.strokeRect(FX_ + i * 306, FY + FH + 10, 298, 44); txt(t, FX_ + i * 306 + 149, FY + FH + 39, 17, '#fff', 800, 'center'); });
+// ---------------------------------------------------------------- the class card
+const CY0 = FY + FH + 70; g.fillStyle = 'rgba(14,12,44,.96)'; g.fillRect(FX_, CY0, FW, 1000 - CY0 + 0); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(FX_, CY0, FW, 1000 - CY0);
+txt('NEW CLASS · UAV TEAM', FX_ + 18, CY0 + 30, 20, '#ffe28a', 800); drawSoldier(g, { role: 'uav', faction: 'company', weapon: 'controller', band: '#4ad8e8', skin: 2 }, 'stand', 'E', FX_ + 90, CY0 + 150, { scale: 1.3 }); drawSoldier(g, { role: 'uav', faction: 'company', weapon: 'controller', band: '#4ad8e8', skin: 0 }, 'stand', 'S', FX_ + 190, CY0 + 150, { scale: 1.1 });
+[['Scout drone', 'reusable · battery 3 min · reveals 12 tiles · can be shot down'], ['FPV strike drone', 'one-way · kills a light vehicle or a squad · jammable'], ['Designate', 'marks a target for air strikes, missiles, MLRS, cannon'], ['Relay', 'extends radio range and keeps the link in cover']].forEach(([a, b], i) => { txt(a, FX_ + 270, CY0 + 54 + i * 40, 16, '#fff', 800); txt(b, FX_ + 270, CY0 + 73 + i * 40, 13, '#c9c7ee', 600); });
+txt('Counters: marksmen and AA shoot scouts down · signallers jam FPV drones · the team is fragile', FX_ + 18, CY0 + 224, 13, '#ff9a8a', 700); txt('Weapon tiers: hand controller → long-link set → sensor pack → drone controller → command uplink', FX_ + 18, CY0 + 250, 13, '#9af0c0', 700);
+// ---------------------------------------------------------------- fire mission: three panels
+const PW = 920, PH = 540, RY = 1030; const target = [1900, 1120]; const mlrs = [1260, 1420], spg = [1450, 1500];
+const mh = Math.atan2(target[0] - mlrs[0], -(target[1] - mlrs[1])), sh = Math.atan2(target[0] - spg[0], -(target[1] - spg[1]));
+const artpanel = (i, stage) => { const x = 30 + i * (PW + 30);
+  if (stage < 2) panelView(g, x, RY, PW, PH, 1400, 1370, 1.1, (g) => {
+    PR.hedge(g, 1110, 1240, 120, 20, 2); drawVehicle(g, 'mlrs', 'company', mlrs[0], mlrs[1], mh, {}); drawVehicle(g, 'spg', 'company', spg[0], spg[1], sh, {}); squad([], [], 0, 0, 'E', 'company', 'stand');
+    const items2 = []; squad(items2, ['signaller', 'officer'], 1380, 1360, 'E', 'company', 'stand', { cols: 2, spread: 56, seed: 2 }); squad(items2, ['rifleman', 'rifleman', 'engineer'], 1180, 1500, 'N', 'company', 'crouch', { cols: 3, spread: 50, seed: 8 }); items2.forEach((it) => it.f(g));
+    if (stage === 0) { g.font = '800 17px system-ui'; const t = 'FIRE MISSION · DEPOT · 12 rockets + 6 shells'; const w = g.measureText(t).width + 24; g.fillStyle = 'rgba(14,12,44,.94)'; g.fillRect(1180, 1290, w, 34); g.strokeStyle = '#ffe28a'; g.lineWidth = 2; g.strokeRect(1180, 1290, w, 34); g.fillStyle = '#ffe28a'; g.fillText(t, 1192, 1313); }
+    if (stage === 1) { const dx = Math.sin(mh), dy = -Math.cos(mh); for (let k = 0; k < 8; k++) { const sx = mlrs[0] + dx * 30 + (k - 3.5) * 9 * Math.cos(mh), sy = mlrs[1] + dy * 30 + (k - 3.5) * 9 * Math.sin(mh); const pts = []; for (let n = 0; n <= 10; n++) { const t = n / 10; pts.push([sx + dx * (70 + t * (230 + k * 24)), sy + dy * (70 + t * (230 + k * 24)) - Math.sin(t * 3) * 30 * t]); } F.rocket(g, pts.slice(0, 5 + (k % 5))); } F.dust(g, mlrs[0] - dx * 10, mlrs[1] - dy * 20, 90, 14, 2); F.smoke(g, mlrs[0], mlrs[1] - 30, 120, { seed: 22, w: 46, dark: 0.15, alpha: 0.9, lean: 0.5 }); F.cannonBlast(g, spg[0] + Math.sin(sh) * 215, spg[1] - Math.cos(sh) * 215, sh - Math.PI / 2, 1.3); F.dust(g, spg[0] + 30, spg[1] + 40, 70, 10, 5); }
+  }); else panelView(g, x, RY, PW, PH, 1930, 1130, 1.1, (g) => {
+    drawBuilding(g, { ...B.factory, state: 2, burning: true }); const q = rng(3); [[1810, 1180, 42], [1900, 1210, 50], [1990, 1170, 36], [2080, 1220, 44]].forEach(([cx2, cy2, r], k) => { F.crater(g, cx2, cy2 + 60, r * 0.8, k + 1); F.explosion(g, cx2, cy2 + 60, r, 0.35 + k * 0.17, { seed: k + 3 }); }); F.fire(g, 2000, 1060, 50, 80, { seed: 6 }); F.smoke(g, 1990, 1050, 340, { seed: 7, w: 44, dark: 0.95, lean: 0.5 });
+    [[1850, 1290, 'dead'], [1950, 1300, 'dead'], [2040, 1280, 'prone']].forEach(([sx, sy, p], k) => drawSoldier(g, { role: 'rifleman', faction: 'varn', weapon: 'rifle', skin: k }, p, 'W', sx, sy)); });
+  caption(g, x, RY + PH, PW, ['7  Call the mission', '8  Fire', '9  Impact'][stage], [['The signaller reports the designated target; the guns slew round.', 'Rainmaker MLRS (12 rockets) and the Hammer mobile cannon (6 shells).'], ['The salvo leaves the pod; the cannon fires. Both leave smoke and dust.', 'They are also targets now: counter-battery fire can find them.'], ['Shells and rockets spread over the designated area, not one point.', 'Craters, fire, damage to the depot; the accuracy came from the drone.']][stage], ['needs designation', 'time of flight 12 s', 'area effect'][stage]); };
+[0, 1, 2].forEach((s, i) => artpanel(i, s));
+// ---------------------------------------------------------------- the strike menu
+const MYY = RY + PH + 120; g.fillStyle = 'rgba(14,12,44,.96)'; g.fillRect(30, MYY, 2820, 1900 - MYY - 20); g.strokeStyle = '#3a38a0'; g.lineWidth = 3; g.strokeRect(30, MYY, 2820, 1900 - MYY - 20);
+txt('CALL STRIKE · every option needs a designated target', 48, MYY + 30, 20, '#ffe28a', 800); txt('Without one the menu greys out; blind fire is possible only for guns, at about 40% of the accuracy.', 700, MYY + 30, 15, '#a09ec9');
+[['Air strike', 'Harrow bomber (Aerospace)', '1 run left · needs air superiority (62% ✓) · ETA 40 s', '#7a2a2a'], ['Missile', 'Longbow ×2 (Arms works)', 'one structure or vehicle group · ETA 18 s', '#7a2a2a'], ['MLRS salvo', 'Rainmaker ×12 rockets', 'area about 60 px · ETA 12 s · reloads in 90 s', '#2d2a70'], ['Mobile cannon', 'Hammer ×6 shells', 'accuracy 71% (designated) · ETA 8 s', '#2d2a70']].forEach(([a, b, c, col], i) => { const x = 48 + i * 700; g.fillStyle = col; g.fillRect(x, MYY + 48, 676, 96); g.strokeStyle = '#4a47b0'; g.strokeRect(x, MYY + 48, 676, 96); txt(a, x + 16, MYY + 80, 24, '#fff', 800); txt(b, x + 16, MYY + 106, 16, '#ffe28a', 700); txt(c, x + 16, MYY + 130, 14, '#c9c7ee', 600); txt('✓ designated', x + 590, MYY + 80, 14, '#9af0c0', 800); });
+window.__done = true;
+</script>

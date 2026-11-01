@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1480"></canvas>
+<script type="module">
+import { B, panelView, caption } from './d_scene.js';
+import { drawBuilding, buildingAnchors } from './d_build.js';
+import * as F from './d_fx.js';
+import { drawSoldier } from './d_units.js';
+const g = document.getElementById('c').getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1480);
+g.font = '800 34px system-ui'; g.fillStyle = '#ffe28a'; g.fillText('ONE HOUSE, SIX STATES: destruction is real and it stays (target art)', 30, 52);
+g.font = '600 18px system-ui'; g.fillStyle = '#a09ec9'; g.fillText('Each wall, floor and roof is a segment with a state. What happens to it changes cover, sight, paths and fire, and the result is written into the save once the battle ends.', 30, 82);
+const base = { x: 980, y: 1000, w: 320, d: 180, kind: 'house', wall: '#d4c8ac', roof: '#9a4a3a', seed: 31 };
+const PW = 920, PH = 480; const defs = [
+  ['1  Intact', { }, [], 'Full cover, no line of sight through the walls. Doors and windows are the only ways in.', 'Garrison: up to 6 · cover: heavy'],
+  ['2  Damaged', { state: 1 }, [], 'Windows broken (sight through), plaster off, pocks. Cover is lower; the roof tiles start to go.', 'cover: medium · sight through windows'],
+  ['3  Shell hit', { state: 2, breach: [{ u: 90, w: 90, kind: 'blast' }] }, [], 'A shell or charge opens a wall and the roof: a new way in, cover lost on that side.', 'new door · cover lost on one side'],
+  ['4  Burning', { state: 2, burning: true, breach: [{ u: 90, w: 90, kind: 'blast' }] }, ['fire'], 'Fire inside: smoke blocks sight, anyone inside takes damage and must leave.', 'hazard · sight blocked · garrison flees'],
+  ['5  Collapsed', { state: 3 }, ['smoke'], 'The roof and floors fall in: rubble, light cover, a chimney still standing. Passable on foot.', 'rubble: light cover · open path'],
+  ['6  Garrisoned (roof cut away)', { cut: true }, ['men'], 'When you select a garrisoned building the roof lifts away so you can see and order the rooms.', 'rooms · windows · stairs · roof hatch'],
+];
+defs.forEach(([t, ov, fx, line, tag], i) => { const x = 30 + (i % 3) * (PW + 30), y = 110 + Math.floor(i / 3) * (PH + 110 + 24);
+  panelView(g, x, y, PW, PH, 1170, 1060, 1.45, (g) => { const b = { ...base, ...ov }; drawBuilding(g, b); const a = buildingAnchors(b);
+    if (fx.includes('fire')) { F.smoke(g, 1080, 1010, 360, { seed: 2, w: 40, dark: 0.95, lean: 0.55 }); F.fire(g, 1075, 1030, 60, 100, { seed: 3, phase: 1 }); const [bx, by] = a.south(135, 20); F.fire(g, bx, by, 30, 50, { seed: 5, phase: 2 }); }
+    if (fx.includes('smoke')) { F.smoke(g, 1110, 1100, 300, { seed: 4, w: 36, dark: 0.7, lean: 0.4, alpha: 0.8 }); F.fire(g, 1130, 1120, 26, 40, { seed: 6 }); }
+    if (fx.includes('men')) { [[1090, 1080], [1170, 1120], [1210, 1070]].forEach(([sx, sy], k) => drawSoldier(g, { role: k === 2 ? 'marksman' : 'rifleman', faction: 'company', weapon: k === 2 ? 'sniper' : 'rifle', seed: k, skin: k }, 'stand', 'S', sx, sy + 12, { scale: 0.85 })); }
+    if (i === 2) { F.explosion(g, 1130, 1110, 50, 0.7, { seed: 9 }); F.dust(g, 1130, 1160, 40, 6, 3); }
+  });
+  caption(g, x, y + PH, PW, t, [line], tag); });
+window.__done = true;
+</script>

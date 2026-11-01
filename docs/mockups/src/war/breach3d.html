@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="2880" height="1650"></canvas>
+<script type="module">
+import { B, panelView, caption } from './d_scene.js';
+import { drawBuilding, buildingAnchors } from './d_build.js';
+import { drawVehicle } from './d_veh.js';
+import { drawSoldier } from './d_units.js';
+import * as F from './d_fx.js';
+import * as PR from './d_props.js';
+import { hash } from './d_util.js';
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.fillStyle = '#07061a'; g.fillRect(0, 0, 2880, 1650);
+g.font = '800 34px system-ui'; g.fillStyle = '#ffe28a'; g.fillText('OPENING A BUILDING: ram it, or blow it open (target art; the same wall, six moments)', 30, 52);
+g.font = '600 18px system-ui'; g.fillStyle = '#a09ec9'; g.fillText('Walls are segments with states: intact, damaged, breached, rubble. A breach is written once and changes cover, sight and paths for everyone. Each way costs something.', 30, 82);
+const co = (r, w, p, s = 0, v = 'E') => ({ role: r, faction: 'company', weapon: w, skin: s, seed: s + 3, band: '#e8764a' }); const en = (r, w, s = 0) => ({ role: r, faction: 'varn', weapon: w, skin: s, seed: s });
+const PW = 920, PH = 600, X0 = 30, GAP = 30;
+const sol = (g, l, pose, v, x, y, s = 1) => drawSoldier(g, l, pose, v, x, y, { scale: s });
+// ------------------------------------------------------------- row 1: the dozer ram (flats)
+const FL = { ...B.flats, state: 1 }; const fa = (b) => buildingAnchors(b);
+const ramPanel = (i, stage) => { const x = X0 + i * (PW + GAP), y = 110; panelView(g, x, y, PW, PH, 2410, 790, 1.5, (g) => {
+  const b = { ...FL, breach: stage === 0 ? [] : stage === 1 ? [{ u: 190, w: 70, kind: 'ram', v1: 40 }] : [{ u: 150, w: 120, kind: 'ram' }] }; drawBuilding(g, b);
+  PR.lamp(g, 2140, 735, 1); PR.crate(g, 2570, 770, 1);
+  const dy = stage === 0 ? 960 : stage === 1 ? 846 : 826; const [sx, sy] = fa(b).south(210, 0);
+  if (stage === 0) F.dustTrail(g, 2410, dy, 0, 150, 3);
+  drawVehicle(g, 'dozer', 'company', 2410, dy, 0, {});
+  [[2330, 1010], [2380, 1030], [2450, 1020], [2500, 1000]].forEach(([sx2, sy2], k) => sol(g, co(k === 0 ? 'officer' : 'rifleman', k === 0 ? 'pistol' : 'rifle', k), 'run', 'N', sx2, sy2 - (stage ? 90 - stage * 20 : 0)));
+  if (stage === 1) { F.wallBurst(g, sx + 10, sy + 20, 70, Math.PI / 2, 4); F.dust(g, sx, sy + 10, 60, 10, 5); for (const k of [-1, 1]) { g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 3; g.beginPath(); g.moveTo(2410 + k * 70, 780); g.lineTo(2410 + k * 98, 770); g.moveTo(2410 + k * 72, 800); g.lineTo(2410 + k * 104, 802); g.stroke(); } }
+  if (stage === 2) { F.dust(g, sx - 30, sy + 24, 60, 8, 7); F.wallBurst(g, sx + 20, sy + 40, 80, Math.PI / 2 + 0.3, 6); F.smoke(g, sx + 70, sy - 40, 120, { seed: 3, w: 22, dark: 0.45, alpha: 0.45, lean: 0.6 }); }
+ }); caption(g, x, y + PH, PW, ['1  Approach', '2  Impact', '3  Through'][stage] + ' · Breacher dozer', [['The wall is intact: heavy cover, no line of sight inside.', 'The dozer has no gun worth the name, so it is slow and exposed.'], ['The blade bites: bricks and dust. Crew takes shock, the blade wears.', 'The wall is damaged first; a breach opens at the second push.'], ['A vehicle-wide breach: cover gone, sight and path open for all.', 'Rubble at the foot: light cover for whoever stands behind it.']][stage], ['RAM (new)', 'cost: blade wear', 'result: breach'][stage]); };
+[0, 1, 2].forEach((s, i) => ramPanel(i, s));
+// ------------------------------------------------------------- row 2: the engineer's charge (warehouse)
+const WH = { ...B.warehouse, state: 1 };
+const blastPanel = (i, stage) => { const x = X0 + i * (PW + GAP), y = 110 + PH + 110 + 30; panelView(g, x, y, PW, PH, 1910, 790, 1.5, (g) => {
+  const b = { ...WH, breach: stage === 0 ? [] : [{ u: 150, w: stage === 1 ? 70 : 130, kind: 'blast' }] }; drawBuilding(g, b); const a = fa(b); const [cx2, cy2] = a.south(215, 28);
+  PR.lamp(g, 1700, 735, 1); PR.barrel(g, 2150, 765, 1, '#3a5a8a');
+  if (stage === 0) { // the charge on the wall, cable to the engineer's detonator
+    g.fillStyle = '#17161f'; g.fillRect(cx2 - 20, cy2 - 14, 40, 28); g.fillStyle = '#c83a2a'; g.fillRect(cx2 - 18, cy2 - 12, 36, 24); g.fillStyle = '#ffe28a'; g.fillRect(cx2 - 14, cy2 - 8, 12, 5); g.fillStyle = '#5fe08a'; g.fillRect(cx2 + 8, cy2 - 8, 6, 6); F.glow(g, cx2 + 11, cy2 - 5, 18, 'rgba(95,224,138,.6)');
+    g.strokeStyle = '#17161f'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx2, cy2 + 14); g.quadraticCurveTo(cx2 + 10, 790, 1996, 806); g.stroke(); g.strokeStyle = '#d8b84a'; g.lineWidth = 2; g.stroke();
+    [[1880, 770, 'crouch'], [1920, 775, 'crouch']].forEach(([ex, ey, p], k) => sol(g, co('engineer', 'shotgun', k + 1), p, 'N', ex, ey)); sol(g, co('engineer', 'shotgun', 4), 'crouch', 'W', 1990, 818); [[2040, 850], [1960, 860]].forEach(([ex, ey], k) => sol(g, co('rifleman', 'rifle', k), 'crouch', 'N', ex, ey));
+  } else if (stage === 1) { F.explosion(g, cx2, cy2 + 14, 100, 0.2, { seed: 5 }); F.wallBurst(g, cx2, cy2 + 40, 130, Math.PI / 2, 4); [[1960, 880], [2010, 870]].forEach(([ex, ey], k) => sol(g, co('rifleman', 'rifle', k), 'crouch', 'N', ex, ey)); sol(g, co('engineer', 'shotgun', 4), 'prone', 'W', 1990, 830); }
+  else { F.fire(g, cx2 + 10, cy2 - 4, 40, 60, { seed: 4, phase: 0.8 }); F.smoke(g, cx2 + 60, cy2 - 60, 260, { seed: 3, w: 30, dark: 0.9, lean: 0.7, alpha: 0.7 }); F.dust(g, cx2 - 40, cy2 + 40, 50, 6, 3);
+    [[1850, 800], [1900, 806], [1950, 800], [2000, 810]].forEach(([ex, ey], k) => sol(g, co(k === 0 ? 'officer' : 'rifleman', k === 0 ? 'pistol' : 'rifle', k), 'run', 'N', ex, ey)); sol(g, co('engineer', 'shotgun', 4), 'stand', 'W', 2060, 790); }
+ }); caption(g, x, y + PH, PW, ['4  Charge placed', '5  Detonation', '6  Open'][stage] + ' · engineers', [['Engineers plant a breaching charge (one of the Arms works stock items).', 'They need the wall for a few seconds and are exposed while they work.'], ['The wall segment blows out; bricks and splinters hurt anyone close.', 'A blast breach is smaller but instant; the interior is shaken too.'], ['Cover gone, a door where there was none, fire inside (a hazard).', 'The squad stacks up and enters; the building now has two ways in.']][stage], ['BLAST (needs charges)', 'cost: one charge', 'result: breach + fire'][stage]); };
+[0, 1, 2].forEach((s, i) => blastPanel(i, s));
+window.__done = true;
+</script>

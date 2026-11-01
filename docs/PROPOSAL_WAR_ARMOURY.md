@@ -26,9 +26,9 @@ Each entry has a **class**, a **source**, an **era** (1 traditional, 2 modern, 3
 
 **Combat meaning.** The four bars map to the stats the strategic and tactical rules already use (armour, soft/hard attack, speed, capacity) so no new combat formula is needed; perks are small modifiers and abilities are timed effects, both defined in data. Armour facing and module damage (`PROPOSAL_WAR_TACTICAL.md`) apply to all armoured types.
 
-## 2. Troops: nine classes, five weapon tiers each
+## 2. Troops: ten classes, five weapon tiers each
 
-Classes: **rifleman, machine gunner, anti-tank, marksman, medic, combat engineer, signaller, officer, recon.** A class is a role with fixed behaviour; the **weapon tier** is what you change.
+Classes: **rifleman, machine gunner, anti-tank, marksman, medic, combat engineer, signaller, officer, recon, UAV operator** (the UAV team is new: see `PROPOSAL_WAR_DETAIL.md`, section 5). A class is a role with fixed behaviour; the **weapon tier** is what you change.
 
 - **Tier 1 and 2** are items the Arms works already makes (rifles, belt MGs, RPGs, sniper rifles).
 - **Tier 3** is a new Arms-works recipe on the research tree (e.g. assault rifle with launcher, anti-materiel rifle, sensor pack).
@@ -66,8 +66,8 @@ Eras (`proposal-war-troop-eras.png`):
 
 (Slot these into the existing War release table; they replace the smaller "units" lines there, and no earlier release changes.)
 
-## 6. Questions for the owner
+## 6. Decisions from the owner
 
-1. Is the era-4 power armour **too large** to share a map with era-1 troops, or should every era scale to the same footprint?
-2. Should enemy nations also use eras 3–4, or stay modern until you reach them yourself?
-3. Should looks ever be **required** (e.g. a contract demanding a uniform), or always free choice?
+1. Era-4 power armour may be **larger** than era-1 troops; there is no footprint rule.
+2. **Only the player** fields eras 3 and 4; other nations stay modern.
+3. **Contracts never require** a type, a look or a loadout.

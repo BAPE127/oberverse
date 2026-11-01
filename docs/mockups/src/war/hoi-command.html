@@ -1,0 +1,86 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#06101c"><canvas id="c" width="2880" height="1620"></canvas>
+<script src="/docs/mockups/atlas-src/atlas-out.js"></script><script src="/docs/mockups/atlas-src/extras.js"></script>
+<script src="/docs/mockups/atlas-src/base/hf4.meta.js"></script><script src="/docs/mockups/atlas-src/base/hf4.provinces.js"></script><script src="/docs/mockups/atlas-src/base/hf4.features.js"></script>
+<script type="module">
+import * as H from './hoi.js';
+const M = window.META, P = window.PROVS, FEAT = window.FEAT, AT = ATLAS, EX = EXTRAS;
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+const ctx = H.setup(M, P, AT); const { px, py, pc } = ctx;
+const stateCountry = (sid) => AT.states.find((s) => s.id === sid)?.country || '';
+const homeOf = (i) => { const c = stateCountry(P.find((p) => p.id === i).state); return c === 'ostmark' ? 'f' : c === 'varn' ? 'e' : 'n'; };
+const side = new Map(); P.forEach((p) => { let s = homeOf(p.id); if (p.state === 'vr_coast' && p.lo < 40.4) s = 'f'; side.set(p.id, s); });
+const [img, pimg] = await Promise.all([H.load('/docs/mockups/atlas-src/base/hf4.png'), H.load('/docs/mockups/atlas-src/base/hf4.prov.png')]);
+g.fillStyle = '#06101c'; g.fillRect(0, 0, 2880, 1620);
+H.drawPolitical(g, 2880, img, pimg, ctx, side, { country: stateCountry, home: homeOf });
+H.features(g, ctx, FEAT, EX, { scale: 1.25 }); H.railsAndRoads(g, ctx, EX);
+// state and sea labels
+const S = (n) => AT.states.find((s) => s.name === n);
+[['FALKENMARK', 'Falkenmark', '#cfe2ff'], ['KESSLERAU', 'Kesslerau', '#cfe2ff'], ['RHEINHOLT', 'Rheinholt', '#cfe2ff'], ['PORT VARN COAST', 'Port Varn Coast', '#ffdcb8'], ['ORLOV HIGHLANDS', 'Orlov Highlands', '#ffdcb8'], ['WINDFEN PLAINS', 'Windfen Plains', '#e8e8f0']].forEach(([t, n, c]) => { const s = S(n); if (s) H.label(g, t, px(s.lon), py(s.lat) - 20, 34, c); });
+H.label(g, 'HALDEN GULF', px(38), py(46.0), 38, '#aed8f4', 0.7); H.label(g, 'OSTMARK SEA', px(31.5), py(54.0), 28, '#aed8f4', 0.5);
+H.towns(g, ctx);
+// supply hubs, rail convoys, a cut
+H.hub(g, px(31.8), py(51.0), 150); H.hub(g, px(35.2), py(50), 120); H.hub(g, px(42.5), py(44), 110);
+H.convoy(g, px(35.4), py(50.0), px(37.4), py(49.5), 3); H.convoy(g, px(32.2), py(50.8), px(35.0), py(50.1), 3);
+// air zone and ships
+const airZone = (la, lo, r, c, t) => { const x = px(lo), y = py(la); g.strokeStyle = c; g.lineWidth = 4; g.setLineDash([4, 12]); g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); g.setLineDash([]); g.fillStyle = c.replace('.9)', '.06)'); g.fill(); g.font = '800 16px system-ui'; g.fillStyle = c; g.textAlign = 'center'; g.fillText(t, x, y - r + 22); g.textAlign = 'left'; };
+airZone(51.2, 33.6, 270, 'rgba(120,190,255,.9)', 'AIR ZONE · Falkenhorst wing · superiority 62%'); airZone(46.3, 43.5, 200, 'rgba(255,150,90,.9)', 'CONTESTED · Varn fighters');
+const ship = (x, y, a, c, s = 1.4) => { g.save(); g.translate(x, y); g.rotate(a); g.scale(s, s); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(-3, 16); g.lineTo(0, 54); g.lineTo(3, 16); g.fill(); g.fillStyle = '#17161f'; g.beginPath(); g.moveTo(0, -24); g.lineTo(9, -6); g.lineTo(8, 22); g.lineTo(-8, 22); g.lineTo(-9, -6); g.closePath(); g.fill(); g.fillStyle = c; g.beginPath(); g.moveTo(0, -21); g.lineTo(7, -5); g.lineTo(6, 20); g.lineTo(-6, 20); g.lineTo(-7, -5); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(-6, -2, 3, 18); g.fillStyle = '#d8d8e0'; g.fillRect(-4, 2, 8, 6); g.fillRect(-1.5, -10, 3, 8); g.restore(); };
+ship(px(38.4), py(46.2), 0.9, '#6a7a8c'); ship(px(39.6), py(46.7), 0.9, '#6a7a8c', 1.2); ship(px(37.6), py(46.9), 1.1, '#8a6a5a', 1.2);
+// ---------------------------------------------------------------- orders: plans, moves, attacks, enemy intent
+const C = (la, lo, dx = 0, dy = 0) => { const [x, y] = pc(la, lo); return [x + dx, y + dy]; };
+// battle plan "Halden push": a wide thrust, a flank and a held line
+H.arrow(g, [C(49.3, 36.0, 0, 30), C(48.9, 38.6, 0, 20), C(48.2, 41.2, -40, 40), C(47.4, 43.8, -40, 60)], 'plan', { w: 26 });
+H.arrow(g, [C(48.2, 37.6, 20, 40), C(47.2, 39.8, 0, 50), C(46.2, 42.2, -60, 40)], 'plan', { w: 20 });
+H.arrow(g, [C(52.4, 37.2, 80, 0), C(50.6, 37.4, 60, 20), C(48.6, 36.9, 40, 50)], 'defend', { w: 18 });
+// the selected corps: move to the staging province, then attack
+const A1 = C(50.2, 33.8, 0, 20); const ST = C(49.5, 37.6, 20, -10); const TG = C(48.4, 41.0, -30, -10);
+H.arrow(g, [[A1[0] + 60, A1[1] - 20], C(50.2, 35.8, 0, -30), [ST[0], ST[1] - 40]], 'move', { w: 12 }); H.arrow(g, [[ST[0] + 40, ST[1] - 40], [TG[0] - 20, TG[1] - 30]], 'attack', { w: 20 });
+// waypoint dots with ETAs
+const eta = (x, y, t) => { g.fillStyle = '#17161f'; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.fillStyle = '#4aa0ff'; g.beginPath(); g.arc(x, y, 8, 0, 7); g.fill(); g.font = '800 15px system-ui'; const w = g.measureText(t).width + 16; g.fillStyle = 'rgba(12,10,36,.95)'; g.fillRect(x + 16, y - 26, w, 26); g.strokeStyle = '#4aa0ff'; g.lineWidth = 2; g.strokeRect(x + 16, y - 26, w, 26); g.fillStyle = '#fff'; g.fillText(t, x + 24, y - 7); };
+eta(...C(50.2, 35.8, 0, -30), '5 h'); eta(ST[0], ST[1] - 40, '9 h  (queued)');
+// enemy intent (what intel says they will do)
+H.arrow(g, [C(46.6, 43.4, -40, -20), C(46.3, 41.6, 0, -20), C(46.8, 39.6, 20, 0)], 'enemy', { w: 14 });
+// combat markers
+H.combatMark(g, ...C(48.9, 40.3, 0, -60), 18, 22, { share: 0.45 }); H.combatMark(g, ...C(47.3, 41.7, 40, 30), 9, 8, { share: 0.6 });
+// ---------------------------------------------------------------- counters
+const U = (la, lo, o, dx = 0, dy = 0) => { const [x, y] = C(la, lo, dx, dy); H.counter(g, x, y, o); return [x, y]; };
+U(50.2, 33.8, { nation: 'company', kind: 'arm', n: '1st', stack: 4, str: 0.84, org: 0.78, sel: true, status: 'move' }); U(50.9, 32.6, { nation: 'company', kind: 'inf', n: '2nd', stack: 3, str: 0.7, org: 0.8 }); U(52.1, 33.4, { nation: 'company', kind: 'art', n: 'ART', stack: 2, str: 0.9, org: 0.7 }); U(50.4, 33.8, { nation: 'company', kind: 'hel', n: 'AVN', stack: 3, str: 0.9, org: 0.9 }, 130, 40);
+U(51.5, 31.6, { nation: 'company', kind: 'air', n: 'WING', stack: 6, str: 0.8, org: 0.9 }); U(52.0, 37.0, { nation: 'ostmark', kind: 'hq', n: 'HQ', str: 1, org: 1 }); U(50.8, 36.4, { nation: 'ostmark', kind: 'arm', n: '12th', stack: 2, str: 0.9, org: 0.9 });
+U(49.3, 36.0, { nation: 'ostmark', kind: 'inf', n: '7th', stack: 5, str: 0.9, org: 0.88, status: 'attack' }); U(48.2, 37.6, { nation: 'ostmark', kind: 'mech', n: '3rd', stack: 3, str: 0.86, org: 0.72, status: 'attack' }); U(50.0, 36.5, { nation: 'ostmark', kind: 'eng', n: '4th', stack: 1, str: 0.9, org: 0.9 }, -30, 40);
+U(46.6, 38.1, { nation: 'ostmark', kind: 'nav', n: 'TG1', stack: 3, str: 0.8, org: 0.9 });
+U(48.4, 41.0, { nation: 'varn', kind: 'inf', n: 'I', stack: 4, str: 0.7, org: 0.6, est: '900?', status: 'defend' }, 20, 20); U(46.6, 43.4, { nation: 'varn', kind: 'arm', n: 'II', stack: 2, str: 0.9, org: 0.9, est: '40?' }); U(47.6, 46.0, { nation: 'varn', kind: 'inf', n: 'IV', stack: 3, str: 0.8, org: 0.7, est: '700?' }); U(45.2, 45.2, { nation: 'varn', kind: 'mech', n: 'V', stack: 2, str: 0.6, org: 0.7, est: '300?' });
+for (const [la, lo] of [[44.3, 42.2], [49.8, 43.4]]) { const [x, y] = C(la, lo); g.fillStyle = '#17161f'; g.fillRect(x - 40, y - 50, 80, 40); g.fillStyle = '#c83a2a'; g.fillRect(x - 38, y - 48, 76, 36); g.fillStyle = '#fff'; g.font = '800 20px system-ui'; g.textAlign = 'center'; g.fillText('? ? ?', x, y - 22); g.textAlign = 'left'; }
+// context tooltip for the attack order
+H.tag(g, ...C(48.4, 41.0, -60, -120), ['ATTACK  Varn Ford', { t: 'Odds 71%  ▲ favourable', c: '#9af0c0' }, 'ETA 14 h  ·  supply 62%', 'Terrain: plains + marsh (−15% attack)', { t: 'Planning bonus +12% (arrow plan ready)', c: '#ffe28a' }], { col: '#ff6a5a', right: true });
+// fog over the unscouted east
+const fgd = g.createLinearGradient(px(44.4), 0, px(47.2), 0); fgd.addColorStop(0, 'rgba(6,12,24,0)'); fgd.addColorStop(1, 'rgba(6,12,24,.42)'); g.fillStyle = fgd; g.fillRect(px(44.4), 0, 2880 - px(44.4), 1620);
+// ---------------------------------------------------------------- HUD at 1.5x
+g.save(); g.scale(1.5, 1.5);
+const panel = (x, y, w, h, a = 0.94) => { g.fillStyle = `rgba(10,9,32,${a})`; g.fillRect(x, y, w, h); g.strokeStyle = '#3a38a0'; g.lineWidth = 2; g.strokeRect(x + 1, y + 1, w - 2, h - 2); };
+const txt = (t, x, y, s = 13, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.letterSpacing = '0px'; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+panel(0, 0, 1920, 52, 0.96); g.save(); g.scale(0.45, 0.45); H.flag(g, 'company', 24, 14, 60, 76); g.restore();
+txt('YOUR COMPANY', 52, 20, 11, '#a09ec9', 700); txt('Ostmark contract · Falkenmark theatre', 52, 40, 13, '#fff', 800);
+[['Manpower', '2,140', '+36', '#e8e6ff'], ['Fuel', '41,200', '−1,900', '#f2c14e'], ['Ammo', '18,650', '−2,400', '#f2c14e'], ['Supplies', '9,320', '+800', '#5fe08a'], ['Tanks', '6 / 9', '', '#e8e6ff'], ['Helis', '3 / 4', '', '#e8e6ff'], ['Aircraft', '6', '', '#e8e6ff'], ['Missiles', '2 + 1', '', '#e8e6ff']].forEach(([n, v, d, c], i) => { const x = 330 + i * 168; txt(n.toUpperCase(), x, 20, 10.5, '#a09ec9', 700); txt(v, x, 42, 19, c, 800); txt(d, x + 82, 42, 11, d.startsWith('−') ? '#ff9a8a' : '#9af0c0', 700); });
+txt('Day 44 · 08:00', 1700, 22, 14, '#ffe28a', 800); [0, 1, 2, 3, 4].forEach((i) => { g.fillStyle = i < 3 ? '#f2c14e' : '#3a38a0'; g.fillRect(1700 + i * 18, 32, 14, 12); }); txt('⏸', 1800, 44, 15, '#fff', 800); txt('Clear', 1830, 44, 12, '#a09ec9', 600);
+// event ticker
+['⚔  Combat at Varn Ford: attackers +12%', '⚠  Bridge down at Halden Crossing: supply −30%', '✈  Air zone: we hold 62%'].forEach((t, i) => { panel(330, 62 + i * 30, 360, 26, 0.88); txt(t, 342, 80 + i * 30, 12, i === 1 ? '#ffb08a' : '#e8e6ff', 700); });
+// left: order of battle tree
+panel(12, 62, 300, 700); txt('ORDER OF BATTLE', 26, 88, 14, '#ffe28a', 800); txt('drag a division onto an army, a front or a plan', 26, 106, 11, '#a09ec9', 600);
+const rows = [[0, 'ARMY GROUP FALKENMARK', 'ostmark', 'hq', 1, 1, 0], [1, '1st Company Corps', 'company', 'arm', 0.84, 0.78, 1], [2, '1st Armoured  ×4', 'company', 'arm', 0.84, 0.78, 1], [2, '2nd Infantry  ×3', 'company', 'inf', 0.7, 0.8, 0], [2, 'Artillery  ×2', 'company', 'art', 0.9, 0.7, 0], [2, 'Aviation  ×3', 'company', 'hel', 0.9, 0.9, 0], [1, 'Ostmark 2nd Army', 'ostmark', 'inf', 0.88, 0.8, 0], [2, '7th Infantry  ×5', 'ostmark', 'inf', 0.9, 0.88, 0], [2, '3rd Mechanised  ×3', 'ostmark', 'mech', 0.86, 0.72, 0], [2, '12th Armoured  ×2 (reserve)', 'ostmark', 'arm', 0.9, 0.9, 0], [1, 'Air Wing (Aerospace)', 'company', 'air', 0.8, 0.9, 0], [1, 'Task Group 1', 'ostmark', 'nav', 0.8, 0.9, 0]];
+rows.forEach(([lv, n, nat, k, st, og, sel], i) => { const y = 120 + i * 50; const x = 22 + lv * 14; g.fillStyle = sel ? '#2a2870' : '#16143c'; g.fillRect(x, y, 290 - lv * 14 - 8, 42); g.strokeStyle = sel ? '#ffe28a' : '#3a38a0'; g.lineWidth = sel ? 2.5 : 1.5; g.strokeRect(x, y, 290 - lv * 14 - 8, 42); H.flag(g, nat, x + 5, y + 6, 18, 14); g.fillStyle = '#fff'; txt(n, x + 30, y + 17, 12.5, '#fff', 800); g.fillStyle = '#26264a'; g.fillRect(x + 30, y + 24, 100, 5); g.fillRect(x + 30, y + 32, 100, 5); g.fillStyle = '#5fe08a'; g.fillRect(x + 30, y + 24, 100 * st, 5); g.fillStyle = '#6ab0ff'; g.fillRect(x + 30, y + 32, 100 * og, 5); txt('⠿', x + 262 - lv * 14, y + 26, 16, '#6a68b0', 700); });
+panel(12, 724, 300, 40, 0.0);
+// right: selected divisions
+panel(1608, 62, 300, 780); txt('1st COMPANY CORPS', 1624, 90, 16, '#ffe28a', 800); txt('4 armoured divisions · Gen. Pell Rostrov', 1624, 110, 11, '#c9c7ee', 600);
+[['1st Armoured, 1st Bn', 0.88, 0.8], ['1st Armoured, 2nd Bn', 0.84, 0.78], ['1st Armoured, 3rd Bn', 0.8, 0.74], ['1st Armoured, Recon', 0.9, 0.9]].forEach(([n, s, o], i) => { const y = 124 + i * 52; g.fillStyle = '#16143c'; g.fillRect(1624, y, 268, 46); g.strokeStyle = '#3a38a0'; g.strokeRect(1624, y, 268, 46); g.fillStyle = '#2a2d3c'; g.fillRect(1630, y + 6, 42, 32); g.save(); g.scale(1, 1); g.restore(); txt('◍', 1642, y + 29, 20, '#f4f2ea', 700); txt(n, 1680, y + 19, 12.5, '#fff', 800); g.fillStyle = '#26264a'; g.fillRect(1680, y + 26, 130, 5); g.fillRect(1680, y + 35, 130, 5); g.fillStyle = '#5fe08a'; g.fillRect(1680, y + 26, 130 * s, 5); g.fillStyle = '#6ab0ff'; g.fillRect(1680, y + 35, 130 * o, 5); txt(Math.round(s * 100) + '%', 1822, y + 32, 11, '#9af0c0', 700); txt(Math.round(o * 100) + '%', 1822, y + 41, 11, '#9ac8ff', 700); });
+txt('COMBINED', 1624, 348, 12, '#ffe28a', 800); [['Strength', 0.84, '#5fe08a'], ['Organisation', 0.78, '#7ab8ff'], ['Supply', 0.62, '#f2c14e'], ['Fuel', 0.55, '#f2c14e'], ['Entrenchment', 0.3, '#c9a24a']].forEach(([n, v, c], i) => { txt(n, 1624, 372 + i * 22, 12, '#c9c7ee', 700); g.fillStyle = '#26264a'; g.fillRect(1720, 362 + i * 22, 170, 9); g.fillStyle = c; g.fillRect(1720, 362 + i * 22, 170 * v, 9); });
+txt('ORDERS  (right-click to order, Shift to queue)', 1624, 500, 11, '#ffe28a', 800); [['Move', 1], ['Attack', 2], ['Defend', 1], ['Hold', 0], ['Retreat', 0], ['Plan…', 0]].forEach(([n, k], i) => { const x = 1624 + (i % 3) * 92, y = 510 + Math.floor(i / 3) * 40; g.fillStyle = k === 2 ? '#f2c14e' : k === 1 ? '#3a3aa8' : '#25254a'; g.fillRect(x, y, 86, 34); g.strokeStyle = '#4a47b0'; g.strokeRect(x, y, 86, 34); txt(n, x + 43, y + 22, 13, k === 2 ? '#2a1a00' : '#fff', 800, 'center'); });
+txt('QUEUE', 1624, 612, 11, '#ffe28a', 800); [['1', 'Move → Halden Ford', '5 h', '#4aa0ff'], ['2', 'Move → Staging (Kesslerau)', '9 h', '#4aa0ff'], ['3', 'Attack → Varn Ford', '14 h', '#ff6a5a']].forEach(([n, t, e, c], i) => { const y = 622 + i * 34; g.fillStyle = '#16143c'; g.fillRect(1624, y, 268, 28); g.fillStyle = c; g.fillRect(1624, y, 5, 28); txt(n + '  ' + t, 1636, y + 19, 12, '#fff', 700); txt(e, 1880, y + 19, 12, c, 800, 'right'); });
+txt('Stance', 1624, 740, 11, '#ffe28a', 800); ['Cautious', 'Balanced', 'Aggressive'].forEach((n, i) => { g.fillStyle = i === 1 ? '#f2c14e' : '#25254a'; g.fillRect(1624 + i * 90, 748, 86, 28); txt(n, 1624 + i * 90 + 43, 767, 12, i === 1 ? '#2a1a00' : '#fff', 800, 'center'); });
+g.fillStyle = '#f2c14e'; g.fillRect(1624, 790, 268, 36); txt('Play battle when it opens', 1758, 813, 14, '#2a1a00', 800, 'center');
+// bottom: map modes and plans
+panel(12, 1040, 1100, 36); ['Terrain', 'Control', 'Supply', 'Weather', 'Air', 'Naval', 'Intel', 'Contracts'].forEach((t, i) => { const x = 20 + i * 134; g.fillStyle = i === 1 ? '#f2c14e' : '#25254a'; g.fillRect(x, 1044, 126, 28); txt(t, x + 63, 1063, 13, i === 1 ? '#2a1a00' : '#fff', 800, 'center'); });
+panel(1124, 1040, 784, 36); txt('PLANS ▸ "Halden push" 3 arrows · execute 08:00 · planning 71% · supply need 62%', 1138, 1063, 13, '#e8e6ff', 700);
+panel(1700, 880, 208, 150, 0.0); g.drawImage(img, 0, 0, 2886, 1612, 1700, 892, 208, 116); g.strokeStyle = '#ffe28a'; g.lineWidth = 2; g.strokeRect(1700, 892, 208, 116); g.strokeStyle = '#3a38a0'; g.strokeRect(1699, 891, 210, 118);
+g.restore();
+window.__done = true;
+</script>
