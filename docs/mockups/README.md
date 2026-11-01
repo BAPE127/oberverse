@@ -65,5 +65,9 @@ These are drawn by the game's own code (people, weapons, aircraft, ground, atlas
 | `proposal-war-strategic-map.png`, `proposal-war-supply.png` | the strategic map (provinces, figurines, plans, combat icons) and its supply mode |
 | `proposal-war-designer.png`, `proposal-war-combat.png`, `proposal-war-oob.png` | battalion template designer, combat overview, order of battle with a soldier's record |
 | `proposal-war-flow.png` | the six-step loop |
+| `proposal-war-vehicles-1.png`, `-2.png`, `-3.png` | the vehicle catalog: seven classes (five or more types each) with perks and abilities, 7 helicopters, the 7 real Aerospace aircraft |
+| `proposal-war-troop-eras.png` | four armour eras (field uniform to power armour) across seven roles |
+| `proposal-war-troop-loadouts-1.png`, `-2.png` | nine troop classes, five weapon tiers each, with stats, perks and where each unlocks |
+| `proposal-war-troop-customizer.png` | the armoury screen: class, look (colours, pattern, insignia, crest, band), loadout and tier, squad lineup |
 
 Sources: `src/war/` (served by `node server.js`, then open `http://127.0.0.1:8080/docs/mockups/src/war/battle.html` and the others) and `atlas-src/` (`node render.mjs hf 40 58 22 58 52 provinces` makes the strategic base).

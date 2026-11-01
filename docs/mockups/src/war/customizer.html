@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#07061a"><canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+import { drawTrooper, ARMOUR, PAT } from './trooper.js';
+import { CLASSES } from './arsenal.js';
+import { INK } from './warart.js';
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+g.fillStyle = '#07061a'; g.fillRect(0, 0, 1920, 1080);
+const panel = (x, y, w, h, a = 0.96, hl) => { g.fillStyle = `rgba(16,14,48,${a})`; g.fillRect(x, y, w, h); g.strokeStyle = hl || '#3a38a0'; g.lineWidth = 2; g.strokeRect(x + 1, y + 1, w - 2, h - 2); };
+const txt = (t, x, y, s = 13, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+const btn = (x, y, w, t, pri) => { g.fillStyle = pri ? '#f2c14e' : '#2d2a70'; g.fillRect(x, y, w, 38); g.strokeStyle = pri ? '#ffe08a' : '#4a47b0'; g.strokeRect(x, y, w, 38); txt(t, x + w / 2, y + 25, 13, pri ? '#2a1a00' : '#fff', 800, 'center'); };
+const sw = (x, y, c, on) => { g.fillStyle = INK; g.fillRect(x - 1, y - 1, 30, 30); g.fillStyle = c; g.fillRect(x, y, 28, 28); if (on) { g.strokeStyle = '#ffe28a'; g.lineWidth = 3; g.strokeRect(x - 3, y - 3, 34, 34); } };
+panel(0, 0, 1920, 64, 0.98); txt('ARMOURY — customise your troops: class, weapons and look', 24, 30, 22, '#ffe28a', 800); txt('Same class, better weapons (right). The look is separate: era, colours, pattern, insignia, crest, squad band (centre). TARGET ART on the game\'s real sprites; not in the game.', 24, 52, 13, '#a09ec9', 600);
+// left: class list
+panel(12, 76, 270, 780); txt('CLASS', 28, 102, 13, '#ffe28a', 800); const roles = CLASSES; roles.forEach((cl, i) => { const y = 114 + i * 82; g.fillStyle = i === 0 ? '#2a2870' : '#16143c'; g.fillRect(22, y, 250, 74); g.strokeStyle = i === 0 ? '#ffe28a' : '#3a38a0'; g.strokeRect(22, y, 250, 74); g.save(); g.beginPath(); g.rect(24, y + 2, 70, 70); g.clip(); g.fillStyle = '#24244a'; g.fillRect(24, y + 2, 70, 70); drawTrooper(g, { era: 3, role: cl.id, colors: { primary: '#d8dce4', secondary: '#4a5266', trim: '#e8c84a', visor: '#4ad8e8', glow: '#4ad8e8' }, pattern: 'plain', crest: null, insignia: null, band: '#e8764a', weapon: cl.tiers[3][1], facing: 'right', pack: false }, 58, y + 66, 1.5); g.restore(); txt(cl.name, 102, y + 30, 14, '#fff', 800); txt(cl.role, 102, y + 50, 11.5, '#a09ec9', 600); txt(['40 soldiers', '8 gunners', '6 launchers', '3 marksmen', '6 medics', '5 engineers', '3 signallers', '4 officers', '4 recon'][i], 102, y + 66, 11, '#9af0c0', 700); });
+// centre: the big preview
+panel(294, 76, 800, 780); txt('LOOK', 310, 102, 13, '#ffe28a', 800);
+['1 Field uniform', '2 Plate carrier', '3 Phalanx hardsuit', '4 Bastion power armour'].forEach((t, i) => { g.fillStyle = i === 2 ? '#f2c14e' : '#25254a'; g.fillRect(310 + i * 192, 114, 184, 34); txt(t, 402 + i * 192, 136, 12.5, i === 2 ? '#2a1a00' : '#fff', 800, 'center'); });
+g.fillStyle = '#394462'; g.fillRect(310, 160, 768, 360); for (let k = 0; k < 12; k++) for (let j = 0; j < 6; j++) if ((k + j) % 2) { g.fillStyle = 'rgba(0,0,0,.06)'; g.fillRect(310 + k * 64, 160 + j * 64, 64, 64); }
+const LOOK = { era: 3, role: 'rifleman', colors: { primary: '#d8dce4', secondary: '#4a5266', trim: '#e8c84a', visor: '#4ad8e8', glow: '#4ad8e8' }, pattern: 'stripes', insignia: 'star', crest: 'antenna', band: '#e8764a', weapon: CLASSES[0].tiers[3][1], pack: true };
+['down', 'right', 'left'].forEach((f, i) => { drawTrooper(g, { ...LOOK, facing: f }, 430 + i * 240, 500, 7.2); txt(['front', 'side', 'other side'][i], 430 + i * 240, 512, 11, '#fff', 700, 'center'); });
+// swatches
+const row = (label, y, cols, on) => { txt(label, 310, y + 19, 12.5, '#c9c7ee', 700); cols.forEach((c, i) => sw(430 + i * 40, y, c, i === on)); };
+row('Primary', 540, ['#d8dce4', '#516b3e', '#a08a5a', '#3a4a6a', '#7a2a2a', '#2a2a32', '#e8e6dc', '#4a5a78', '#c9a24a', '#5a3a6a'], 0); row('Secondary', 582, ['#4a5266', '#3c4a2c', '#6e5e38', '#2e3446', '#4a1a1a', '#16161c', '#8e96a6', '#2e3446'], 0); row('Trim', 624, ['#e8c84a', '#f2f0e4', '#c8402a', '#4ad8e8', '#5fe08a', '#c58aff', '#ff8a3a'], 0); row('Visor / glow', 666, ['#4ad8e8', '#ff8a3a', '#5fe08a', '#c58aff', '#e8c84a', '#ff5a5a'], 0);
+txt('Pattern', 310, 725, 12.5, '#c9c7ee', 700); ['plain', 'stripes', 'camo', 'chevron', 'checks'].forEach((p, i) => { g.fillStyle = i === 1 ? '#f2c14e' : '#25254a'; g.fillRect(430 + i * 96, 704, 90, 30); txt(p, 475 + i * 96, 724, 12, i === 1 ? '#2a1a00' : '#fff', 800, 'center'); });
+txt('Insignia', 310, 767, 12.5, '#c9c7ee', 700); ['none', 'star', 'bar', 'wing', 'dots'].forEach((p, i) => { g.fillStyle = i === 1 ? '#f2c14e' : '#25254a'; g.fillRect(430 + i * 96, 746, 90, 30); txt(p, 475 + i * 96, 766, 12, i === 1 ? '#2a1a00' : '#fff', 800, 'center'); });
+txt('Crest', 310, 809, 12.5, '#c9c7ee', 700); ['none', 'crest', 'antenna', 'fin'].forEach((p, i) => { g.fillStyle = i === 2 ? '#f2c14e' : '#25254a'; g.fillRect(430 + i * 96, 788, 90, 30); txt(p, 475 + i * 96, 808, 12, i === 2 ? '#2a1a00' : '#fff', 800, 'center'); });
+txt('Squad band', 310, 845, 12.5, '#c9c7ee', 700); ['#e8764a', '#e8c84a', '#5fe08a', '#4ad8e8', '#c58aff'].forEach((c, i) => sw(430 + i * 40, 826, c, i === 0));
+// right: loadout slots
+panel(1106, 76, 800, 780); txt('LOADOUT  ·  Rifleman (40 soldiers)', 1122, 102, 13, '#ffe28a', 800);
+const slots = [['Primary weapon', 'Pulse rifle', 'Tier 4 of 5 · no ammunition · heat limits bursts', '#4ad8e8'], ['Sidearm', 'Heavy pistol', 'Tier 2 · 12 rounds', '#8a8a92'], ['Support', 'Grenades ×4', 'smoke, frag, flash', '#c8a02a'], ['Armour set', 'Phalanx hardsuit', 'Era 3 · protection ▲▲▲ · speed ▼ · cost 3,100 each', '#d8dce4'], ['Gadget', 'Shield emitter', 'absorbs 4 s of fire, 40 s cooldown', '#4ad8e8']];
+slots.forEach(([n, v, d, c], i) => { const y = 118 + i * 74; g.fillStyle = '#16143c'; g.fillRect(1122, y, 768, 66); g.strokeStyle = '#3a38a0'; g.strokeRect(1122, y, 768, 66); g.fillStyle = c; g.fillRect(1130, y + 8, 48, 50); txt(n.toUpperCase(), 1192, y + 22, 10.5, '#a09ec9', 800); txt(v, 1192, y + 42, 16, '#fff', 800); txt(d, 1192, y + 58, 11.5, '#c9c7ee', 600); btn(1780, y + 14, 100, 'Change', false); });
+txt('WEAPON TIER FOR THE WHOLE CLASS', 1122, 510, 13, '#ffe28a', 800);
+CLASSES[0].tiers.forEach(([n], i) => { const x = 1122 + i * 154; g.fillStyle = i === 3 ? '#f2c14e' : i > 3 ? '#2a1a40' : '#25254a'; g.fillRect(x, 522, 148, 52); g.strokeStyle = i > 3 ? '#7a4aa8' : '#4a47b0'; g.strokeRect(x, 522, 148, 52); txt('TIER ' + (i + 1), x + 74, 540, 11, i === 3 ? '#2a1a00' : '#a09ec9', 800, 'center'); txt(n.length > 17 ? n.slice(0, 16) + '…' : n, x + 74, 562, 12, i === 3 ? '#2a1a00' : '#fff', 800, 'center'); });
+txt('Upgrading the class re-equips everyone: 40 pulse rifles from the Arms works store (14 in stock, 26 on order, 4 days).', 1122, 604, 12, '#e8e6ff', 600); txt('Per-person overrides: Mo Tarr keeps a marksman rifle; Wren Doyle carries the medic kit.', 1122, 624, 12, '#e8e6ff', 600);
+txt('WHAT A LOOK COSTS AND DOES', 1122, 662, 13, '#ffe28a', 800); [['Colours, pattern, insignia, crest, band', 'free, cosmetic only'], ['Armour set (era)', 'protection, speed, cost and training time change; needs research'], ['Weapon tier', 'damage, range, rate and cost; tiers 4 and 5 need research'], ['Squad band', 'lets you tell squads apart at a glance in the field']].forEach(([a, b], i) => { txt(a, 1122, 690 + i * 28, 12.5, '#fff', 800); txt(b, 1400, 690 + i * 28, 12, '#c9c7ee', 600); });
+btn(1122, 806, 200, 'Apply to all riflemen', true); btn(1336, 806, 220, 'Apply to selected squad', false); btn(1570, 806, 140, 'Save as preset', false);
+// bottom: the squad lineup
+panel(12, 868, 1894, 200); txt('YOUR SQUAD, IN THIS LOOK  (same class, mixed weapons, one identity)', 28, 894, 13, '#ffe28a', 800);
+const lineup = [['rifleman', 3], ['rifleman', 3], ['rifleman', 3], ['mg', 3], ['at', 3], ['marksman', 3], ['medic', 3], ['engineer', 3], ['officer', 3], ['recon', 3]];
+lineup.forEach(([r, t], i) => { const cl = CLASSES.find((c) => c.id === r); drawTrooper(g, { ...LOOK, role: r, weapon: cl.tiers[Math.min(4, t + (r === 'medic' ? 0 : 0))][1], facing: 'right', crest: r === 'officer' ? 'crest' : LOOK.crest, band: r === 'medic' ? '#e8e6dc' : LOOK.band, pack: r === 'medic' || r === 'engineer' }, 90 + i * 150, 1040, 2.7); txt(cl.name, 90 + i * 150, 1058, 11.5, '#fff', 700, 'center'); });
+window.__done = true;
+</script>

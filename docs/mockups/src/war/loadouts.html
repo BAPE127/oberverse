@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0e1020"><canvas id="c" width="1920" height="1500"></canvas>
+<script type="module">
+import { CLASSES, UNLOCK } from './arsenal.js';
+import { drawTrooper, drawGun } from './trooper.js';
+const Q = new URLSearchParams(location.search); const PART = +(Q.get('p') || 1);
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+const txt = (t, x, y, s = 12, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+const wrap = (t, x, y, w, s = 11.5, c = '#e8e6ff', lh = 14) => { g.font = `600 ${s}px system-ui`; g.fillStyle = c; const ws = t.split(' '); let line = '', yy = y; ws.forEach((wd) => { const test = line ? line + ' ' + wd : wd; if (g.measureText(test).width > w) { g.fillText(line, x, yy); line = wd; yy += lh; } else line = test; }); if (line) g.fillText(line, x, yy); };
+g.fillStyle = '#0e1020'; g.fillRect(0, 0, 1920, 1500);
+const list = PART === 1 ? CLASSES.slice(0, 5) : CLASSES.slice(5); const CELL_W = 370, CELL_H = 262;
+txt(`WEAPON LOADOUTS — five tiers for every class (${PART === 1 ? 'part 1: rifleman, machine gunner, anti-tank, marksman, medic' : 'part 2: engineer, signaller, officer, recon'})`, 20, 32, 21, '#ffe28a', 800);
+txt('Same class, better weapons: you equip a tier on a whole class at once, or on single people. The look (armour era, colours) is chosen separately, so any weapon can be carried by any look. Tiers 1 and 2 are items the Arms works makes today.', 20, 54, 12.5, '#a09ec9', 600);
+let y = 70;
+list.forEach((cl) => { g.fillStyle = '#1a1840'; g.fillRect(14, y, 1892, 26); txt(cl.name.toUpperCase() + '  ·  ' + cl.role, 24, y + 18, 14, '#ffe28a', 800); y += 30;
+  cl.tiers.forEach(([name, spec, st, perk], i) => { const x0 = 14 + i * 380; g.fillStyle = '#14123a'; g.fillRect(x0, y, CELL_W, CELL_H); g.strokeStyle = i >= 3 ? '#7a4aa8' : '#3a38a0'; g.strokeRect(x0 + .5, y + .5, CELL_W - 1, CELL_H - 1);
+    g.fillStyle = i >= 3 ? '#3a4260' : '#5d7a52'; g.fillRect(x0 + 3, y + 3, CELL_W - 6, 120); txt('TIER ' + (i + 1), x0 + 10, y + 20, 11, '#fff', 800);
+    drawTrooper(g, { era: i >= 3 ? 3 : 2, role: cl.id, colors: i >= 3 ? { primary: '#d8dce4', secondary: '#4a5266', trim: '#e8c84a', visor: '#4ad8e8', glow: '#4ad8e8' } : { primary: '#6a7550', secondary: '#4a5640', helmet: '#4a5a3e', trim: '#f2f0e4' }, pattern: 'plain', weapon: spec, facing: 'right', pack: true, env: 'forest', band: i >= 3 ? '#e8c84a' : null }, x0 + 80, y + 112, i >= 3 ? 2.6 : 3.2);
+    if (spec.real) { g.save(); g.translate(x0 + 250, y + 70); g.scale(5, 5); drawGun(g, spec, 0, 0, 0, 1); g.restore(); } else { g.save(); g.translate(x0 + 215, y + 60); g.scale(3.6, 3.6); drawGun(g, spec, 0, 0, 0, 1); g.restore(); }
+    txt(name, x0 + 10, y + 144, 15, '#fff', 800);
+    [['Damage', st[0], '#e0805a'], ['Range', st[1], '#7a9ae0'], ['Fire rate', st[2], '#6fd0a4']].forEach(([n, v, c], k) => { const yy = y + 156 + k * 14; txt(n, x0 + 10, yy + 9, 10, '#a09ec9', 600); g.fillStyle = '#25254a'; g.fillRect(x0 + 70, yy, 120, 8); g.fillStyle = c; g.fillRect(x0 + 70, yy, 120 * v / 5, 8); });
+    txt('PERK', x0 + 10, y + 214, 10, '#f2c14e', 800); wrap(perk, x0 + 46, y + 214, 310, 11.5, '#e8e6ff', 13); txt(UNLOCK[i], x0 + 10, y + 250, 10.5, i >= 3 ? '#c58aff' : i === 2 ? '#7fe8ff' : '#7a9ae0', 700); });
+  y += CELL_H + 12; });
+window.__h = y + 6; window.__done = true;
+</script>

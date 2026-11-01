@@ -1,0 +1,43 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0e1020"><canvas id="c" width="1920" height="1560"></canvas>
+<script type="module">
+import { CATALOG, HELIS, drawVeh, drawHelo } from './fleet.js';
+import { INK } from './warart.js';
+const Q = new URLSearchParams(location.search); const GROUP = Q.get('g') || 'ground';
+const cv = document.getElementById('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+const txt = (t, x, y, s = 12, c = '#e8e6ff', w = 600, al = 'left') => { g.font = `${w} ${s}px system-ui`; g.fillStyle = c; g.textAlign = al; g.fillText(t, x, y); g.textAlign = 'left'; };
+const wrap = (t, x, y, w, s = 11.5, c = '#c9c7ee', lh = 14) => { g.font = `600 ${s}px system-ui`; g.fillStyle = c; const words = t.split(' '); let line = ''; let yy = y; words.forEach((wd) => { const test = line ? line + ' ' + wd : wd; if (g.measureText(test).width > w) { g.fillText(line, x, yy); line = wd; yy += lh; } else line = test; }); if (line) { g.fillText(line, x, yy); yy += lh; } return yy; };
+const SRC = { works: ['YOUR WORKS', '#5fe08a'], buy: ['BOUGHT / TRANSFERRED', '#7ab8ff'], arms: ['ARMS WORKS', '#f2c14e'], aero: ['AEROSPACE', '#c58aff'] };
+const ERA = ['', 'TRADITIONAL', 'MODERN', 'FUTURE'];
+const CW = 270, CH = 350, WH = 170;
+const classes = { ground: [['Battle tank', 'BATTLE TANKS — built by your own works', 'works'], ['Armoured carrier', 'ARMOURED CARRIERS — bought or transferred (never built by you)'], ['Recon', 'RECON'], ['Artillery', 'ARTILLERY']], support: [['Anti-air', 'ANTI-AIR'], ['Logistics', 'LOGISTICS'], ['Medical & engineers', 'MEDICAL AND ENGINEERING']], air: [['Helicopter', 'HELICOPTERS — built by your own works']] }[GROUP];
+const all = CATALOG.concat(HELIS);
+g.fillStyle = '#0e1020'; g.fillRect(0, 0, 1920, 1560);
+let y = 8; let first = true;
+const title = { ground: 'VEHICLE CATALOG 1 of 3 — fighting vehicles (five or more in every class, each with a perk and an ability)', support: 'VEHICLE CATALOG 2 of 3 — support vehicles', air: 'VEHICLE CATALOG 3 of 3 — helicopters (new) and aircraft (the game\'s own, transferred from Aerospace)' }[GROUP];
+txt(title, 20, 30, 22, '#ffe28a', 800); txt('Target art, drawn in the game\'s style by a parametric painter. Stat bars: armour · firepower · speed · capacity (relative). Era: traditional, modern or future decides the look and what research unlocks it.', 20, 52, 12.5, '#a09ec9', 600); y = 64;
+classes.forEach(([cls, head]) => {
+  const items = all.filter((v) => v.cls === cls); const rows = Math.ceil(items.length / 7);
+  g.fillStyle = '#1a1840'; g.fillRect(14, y + 4, 1892, 26); txt(head + `  ·  ${items.length} types`, 24, y + 22, 14, '#ffe28a', 800); y += 36;
+  items.forEach((v, i) => { const col = i % 7, row = Math.floor(i / 7); const x0 = 14 + col * (CW + 0), y0 = y + row * (CH + 6); g.fillStyle = '#14123a'; g.fillRect(x0, y0, CW - 6, CH); g.strokeStyle = '#3a38a0'; g.strokeRect(x0 + 0.5, y0 + 0.5, CW - 7, CH - 1);
+    // art well
+    g.save(); g.beginPath(); g.rect(x0 + 3, y0 + 3, CW - 12, WH); g.clip(); g.fillStyle = v.era === 3 ? '#35405a' : v.era === 2 ? '#5d7a52' : '#6f8f55'; g.fillRect(x0 + 3, y0 + 3, CW - 12, WH); for (let k = 0; k < 8; k++) for (let j = 0; j < 5; j++) if ((k + j) % 2) { g.fillStyle = 'rgba(0,0,0,.04)'; g.fillRect(x0 + 3 + k * 32, y0 + 3 + j * 32, 32, 32); }
+    const T0 = v.spec.turret; const topExt = Math.max(v.spec.L / 2 + 12, T0 && T0.type !== 'none' ? (T0.r || 11) + (T0.gun || 0) - (T0.dy || 0) + 4 : 0), total = topExt + v.spec.L / 2 + 8; const cx = x0 + CW / 2 - 3, cy = y0 + 3 + 10 + topExt * Math.min(2.4, 150 / total); const sc = v.cls === 'Helicopter' ? 1.25 : Math.max(1, Math.min(2.4, 150 / total));
+    if (v.cls === 'Helicopter') drawHelo(g, v.spec, x0 + CW / 2 - 3, y0 + 3 + WH / 2 + 8, 0, { altitude: 20, scale: sc * 0.95, phase: 0.4 + i * 0.7, paint: v.era === 3 ? 'future' : 'company' }); else drawVeh(g, v.spec, cx, cy, Math.PI / 2 * 0 + 0, { scale: sc, paint: v.era === 3 ? 'future' : 'company', turret: -0.25 });
+    g.restore();
+    // tags
+    const [s, sc2] = SRC[v.src]; g.fillStyle = sc2; g.fillRect(x0 + 8, y0 + 179, 6, 6); txt(s, x0 + 18, y0 + 186, 10, sc2, 800); txt(ERA[v.era], x0 + CW - 14, y0 + 186, 10, '#a09ec9', 800, 'right');
+    txt(v.name, x0 + 8, y0 + 208, 16, '#fff', 800);
+    ['Armour', 'Firepower', 'Speed', 'Capacity'].forEach((n, k) => { const yy = y0 + 226 + k * 13; txt(n, x0 + 8, yy + 8, 10, '#a09ec9', 600); g.fillStyle = '#25254a'; g.fillRect(x0 + 74, yy, 120, 8); g.fillStyle = ['#7a9ae0', '#e0805a', '#6fd0a4', '#c8b060'][k]; g.fillRect(x0 + 74, yy, 120 * (v.stat[k] / 5), 8); });
+    txt('PERK', x0 + 8, y0 + 288, 10, '#f2c14e', 800); wrap(v.perk, x0 + 44, y0 + 288, CW - 62, 11, '#e8e6ff', 13);
+    txt('ABILITY', x0 + 8, y0 + 326, 10, '#7fe8ff', 800); wrap(v.ability, x0 + 56, y0 + 326, CW - 74, 11, '#e8e6ff', 13); });
+  y += rows * (CH + 6) + 4;
+});
+if (GROUP === 'air') { // the game's own aircraft, transferred from Aerospace
+  const { drawAircraft } = await import('/src/engine/drawAero.js'); const { PRODUCTS } = await import('/src/content/aerospace.js');
+  g.fillStyle = '#1a1840'; g.fillRect(14, y + 4, 1892, 26); txt('AIRCRAFT — the game\'s own types from Aerospace (free transfers). Roles come from what the aircraft is; nothing is invented.  ·  9 military types', 24, y + 22, 14, '#ffe28a', 800); y += 36;
+  const ac = [['af_kestrel', 'Kestrel T-3 trainer / light combat', 'Cheap; light strafing run.', 'Strafe: one gun pass.'], ['af_falcon', 'Falcon F-9 multirole', 'Close air support and interception.', 'Rocket pass or intercept.'], ['af_gyrfalcon', 'Gyrfalcon F-11 air superiority', 'Wins the air zone; hunts helicopters.', 'Sweep: clears an air zone.'], ['af_wraith', 'Wraith F-14 stealth fighter', 'Hard to detect; precision strike.', 'Silent strike: one guided hit.'], ['ab_harrow', 'Harrow B-5 tactical bomber', 'Carpet bombing of a target area.', 'Bomb run: a line of blasts.'], ['ab_thunderhead', 'Thunderhead B-8 strategic bomber', 'Heavy load; breaks fortifications.', 'Heavy run: demolishes a block.'], ['ab_nightjar', 'Nightjar B-10 stealth bomber', 'Bombs a defended target unseen.', 'Unseen run.']];
+  ac.forEach(([id, name, perk, ab], i) => { const x0 = 14 + i * 270, y0 = y; g.fillStyle = '#14123a'; g.fillRect(x0, y0, 264, 290); g.strokeStyle = '#3a38a0'; g.strokeRect(x0 + 0.5, y0 + 0.5, 263, 289); g.save(); g.beginPath(); g.rect(x0 + 3, y0 + 3, 258, 150); g.clip(); g.fillStyle = '#7fa6c8'; g.fillRect(x0 + 3, y0 + 3, 258, 150); const ks = Math.min(0.42, 120 / Math.max(PRODUCTS[id].look.len * 8, PRODUCTS[id].look.span * 8)); g.scale(ks, ks); drawAircraft(g, PRODUCTS[id].look, (x0 + 132) / ks, (y0 + 80) / ks, 0, { altitude: 40 }); g.restore(); txt('AEROSPACE', x0 + 18, y0 + 168, 10, '#c58aff', 800); txt(name, x0 + 8, y0 + 192, 13.5, '#fff', 800); txt('PERK', x0 + 8, y0 + 224, 10, '#f2c14e', 800); wrap(perk, x0 + 44, y0 + 224, 210, 11, '#e8e6ff', 13); txt('ABILITY', x0 + 8, y0 + 262, 10, '#7fe8ff', 800); wrap(ab, x0 + 56, y0 + 262, 198, 11, '#e8e6ff', 13); });
+}
+window.__h = Math.min(1560, y + (GROUP === 'air' ? 310 : 20));
+window.__done = true;
+</script>
