@@ -2648,6 +2648,11 @@ export class Aerospace {
       co.books.months ||= []; co.books.lines ||= {}; co.books.products ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
+    // v0.91.2: a supplier added since the save was made starts with a full shelf (and a new material on an old supplier's shelf is stocked)
+    for (const [id, sp] of Object.entries(this.cfg.suppliers)) {
+      const ss = (s.suppliers[id] ||= { stock: {} });
+      for (const m of Object.keys(sp.sells)) ss.stock[m] ??= sp.stock;
+    }
     this.migrateHalls();
     migrateField(this);
     // v0.59.0: satellites from before the services carry what they need to earn (support fees for a customer's)

@@ -30,3 +30,25 @@ test('build the complex, then fit a secure bay in each slot (paid from the firm,
   assert.equal(co.bays.filter((b) => b.type === 'secure').length, 2);
   assert.equal(A.buildBay(co, 'light', 'hx_a').ok, false, 'a light bay does not fit a secure slot');
 });
+
+// Carbon fibre had one supplier (50 lots, 9 a day): a fighter takes up to 27 lots, so standing orders drained it and the Supply page could only say "0 in stock".
+test('carbon fibre has two suppliers, one near; a save from before gets the new shelf filled', () => {
+  const g = newGame(9922); g.player.money = 20_000_000;
+  assert.ok(g.aero.buyFirm().ok);
+  const A = g.aero;
+  const sellers = Object.entries(A.cfg.suppliers).filter(([, sp]) => sp.sells.composite);
+  assert.ok(sellers.length >= 2 && sellers.some(([, sp]) => sp.where === 'local'));
+  for (const [, sp] of sellers) assert.ok(sp.stock * 1 >= 60 && sp.restock >= 12 - 0, 'a real shelf and a real restock');
+  const fighter = Object.values(A.cfg.products).filter((p) => p.bom.composite).sort((a, b) => a.bom.composite - b.bom.composite).find((p) => p.line === 'aircraft' && p.bay === 'secure');
+  assert.ok(sellers.reduce((t, [, sp]) => t + sp.stock, 0) >= 2 * fighter.bom.composite, 'two fighters\' worth on the shelves at once');
+  // an old save: the new supplier is missing from the world's state
+  delete A.state.suppliers.sup_halver_composites;
+  A.afterLoad();
+  assert.equal(A.state.suppliers.sup_halver_composites.stock.composite, A.cfg.suppliers.sup_halver_composites.stock);
+  // and the new shelf can be bought from, and the stock ordered is taken from that shelf only
+  const co = A.roost;
+  const before = A.state.suppliers.sup_halver_composites.stock.composite;
+  const r = A.order(co, 'sup_halver_composites', 'composite', 5, {}, {});
+  assert.ok(r.ok, r.text);
+  assert.equal(A.state.suppliers.sup_halver_composites.stock.composite, before - 5);
+});
