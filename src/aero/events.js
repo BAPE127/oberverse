@@ -215,7 +215,7 @@ export function eventContractDone(A, co, c) {
   if (!c.event || c.status !== 'complete') return;
   const E = A.cfg.events[c.event];
   if (!E) return;
-  if (c.failed || c.penalties) { A.report(co, 'event', `The ${c.event === 'government' ? 'government order' : 'constellation'} for ${A.cfg.customers[c.customer].name} is complete — late or incomplete, so no standing to show for it.`, co.kind === 'player' ? 'warn' : null); return; }
+  if (c.failed || c.late || c.penalties) { A.report(co, 'event', `The ${c.event === 'government' ? 'government order' : 'constellation'} for ${A.cfg.customers[c.customer].name} is complete — late or incomplete, so no standing to show for it.`, co.kind === 'player' ? 'warn' : null); return; }
   A.repChange(co, E.reward, c.event === 'government' ? `Government order delivered in full (${A.cfg.customers[c.customer].name})` : `Constellation delivered on time (${A.cfg.customers[c.customer].name})`);
   milestone(A, co, c.event === 'government' ? 'first_government' : 'first_constellation', A.cfg.customers[c.customer].name);
 }

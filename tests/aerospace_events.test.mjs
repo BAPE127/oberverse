@@ -53,7 +53,7 @@ test('repeated failures cost more each time, up to a cap; success resets them', 
   assert.equal(A.streakMult(9), E.rep.cap);
 });
 
-test('late deliveries in a row cost 4, 6, 8…; a delivery on time resets the run and starts a streak that earns a bonus', () => {
+test('late deliveries in a row cost nothing now (v0.91.5) but count as a run; a delivery on time resets the run and starts a streak that earns a bonus', () => {
   const { g, A, co } = own(72, { stock: true });
   const deliver = (days) => {
     const P = C.products.ap_skylark;
@@ -65,8 +65,7 @@ test('late deliveries in a row cost 4, 6, 8…; a delivery on time resets the ru
   };
   deliver(0.2); deliver(0.2); deliver(0.2);
   const late = co.repLog.filter((e) => /^Late delivery/.test(e.why)).map((e) => e.delta).reverse();
-  assert.deepEqual(late, [-4, -6, -8]);
-  assert.match(co.repLog.find((e) => /3 late in a row/.test(e.why)).why, /3 late in a row/);
+  assert.deepEqual(late, [], 'v0.91.5: a late delivery loses no standing');
   assert.equal(co.streaks.late, 3);
   for (let i = 0; i < 3; i++) deliver(30);
   assert.equal(co.streaks.late, 0);

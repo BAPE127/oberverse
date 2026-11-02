@@ -124,7 +124,7 @@ test('a configured contract builds the configured product: its units carry it, e
   assert.deepEqual(ac.config, c.config);
   assert.equal(ac.spec.range, P.spec.range);
   assert.ok(ac.spec.range > C.products.ap_skylark.spec.range, 'the aircraft the flight update reads has the longer range');
-  assert.equal(c.revenue, P.price, 'paid the configured price');
+  assert.equal(c.revenue, P.price + (c.bonus || 0), 'paid the configured price (and the delivery-day bonus, v0.91.5, if it was met)');
 });
 
 test('an option that needs research can only be bid on once you have it, and the answer says which', () => {

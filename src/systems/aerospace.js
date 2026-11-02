@@ -2342,6 +2342,7 @@ export class Aerospace {
     co.streaks ||= { late: 0, onTime: 0 };
     if (lateDays) {
       co.stats.late += 1;
+      c.late = (c.late || 0) + 1;
       co.streaks.late += 1; co.streaks.onTime = 0; // (v0.91.5: no money or standing is lost for it; the streak of on-time deliveries is)
     } else {
       co.stats.onTime += 1;

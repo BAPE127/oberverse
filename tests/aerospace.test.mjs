@@ -144,7 +144,7 @@ test('Billie\'s Skylarks are built, inspected, parked, collected and paid for â€
   assert.equal(c.status, 'complete');
   assert.equal(Object.keys(c.settled).length, 2);
   const rev = A.statement(co, null).acc.rev_aircraft;
-  assert.equal(rev, c.unitPrice * 2, 'revenue booked once per unit');
+  assert.equal(rev, c.unitPrice * 2 + (c.bonus || 0), 'revenue booked once per unit (and the delivery-day bonus, v0.91.5, when it was met)');
   // settling a delivered unit again changes nothing
   const u = A.state.units[c.units[0]];
   if (u) A.settle(co, u);
