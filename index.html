@@ -969,6 +969,7 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao-tile small { font-size: 9.5px; letter-spacing: 1.5px; opacity: .55; }
 .ao-tile.off { opacity: .5; border-style: dashed; }
 .ao-tile b { font-size: 13px; color: #fff; }
+.ao-field { display: flex; flex-direction: column; gap: 2px; width: 100%; } .ao-field .ao-input { width: 100%; }
 .ao-unlocks { display: flex; gap: 8px; flex-wrap: wrap; }
 .ao-unlocks span { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; opacity: .85; }
 .ao-chart { width: 100%; height: auto; background: rgba(0,0,0,.28); border-radius: 10px; border: 1px solid var(--ao-line2); }
@@ -3468,6 +3469,10 @@ __m["src/content/aerospace.js"] = (function () {
 
 /** The industry's rules and the two companies. */
 const AERO = {
+  /** v0.91.1: planes built for the hangar's standing order sell at the market, not to a customer: list price times this share, softened by what the market took of that model in the last days. */
+  stock: { listShare: 0.92, windowDays: 12, softening: 0.045, floor: 0.7, pauseBelow: 0.78, perBay: 2 },
+  /** v0.91.1: refitting a bay to another type its slot takes: a share of the new type's build price (less a share of the old one's back) and of its build days. */
+  convert: { share: 0.4, refund: 0.3, daysShare: 0.4 },
   park: 'Starling Flats Aerospace Park',
   map: 'starling_flats',
   /** The ground station's place on the globe (degrees) — what it sees overhead (src/aero/orbit.js). */
@@ -4717,13 +4722,15 @@ const INCOME = {
   business: {
     wholesaleShare: 0.715, // Lucas buys your arms at this share of an item's value (was 0.5; 0.65 before v0.91.0)
     crops: 1.65, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0)
-    contracts: 1.65, // what shipping clients pay for a delivery (1.5 before v0.91.0)
+    contracts: 6.6, // what shipping clients pay for a delivery (1.5 before v0.91.0, 1.65 before v0.91.1: a ship with a manager now out-earns a small arms line)
   },
   /** v0.91.0: what a business pays to run — wages, parts and materials, upkeep, port and freight charges, repairs — as a multiplier (it was 1). Buying a business or its big assets is not in it. */
   cost: 0.5,
   /** v0.91.0: more for what a business sells that has no figure above (arms export orders, aerospace deliveries and services). The figures above already carry the same +10%. */
   revenue: 1.1,
   /** v0.91.0: with a shipping line of your own, supplies and exports travel without a freight charge (the line's own running costs are still the line's). */
+  /** v0.91.1: on top of `revenue`, what the aerospace firm's own sales (contracts, planes built for stock) are multiplied by, so a bay with a standing plane out-earns a small arms line. */
+  aerospace: 1.6,
   ownShippingFree: true,
 };
 
@@ -16536,7 +16543,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.91.0';
+const GAME_VERSION = '0.91.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -25884,9 +25891,12 @@ const PERM_NAMES = {
   research: { name: 'Research', text: 'Starts the next research when none is under way.' },
   expand: { name: 'Expand', text: 'Proposes buying or building more. It always asks you first.' },
   transfer: { name: 'Move cash', text: 'Tops a company up from the parent, or brings its extra cash back.' },
+  contracts: { name: 'Run the fleet', text: 'Every hour, sends each idle ship on the best contract it can carry on time at a profit, within a safe risk.' }, // v0.91.1
+  land: { name: 'Work the land', text: 'Every morning: tills, plants the best crop, fertilises, harvests and sells at the Co-op; feeds herds, collects and sells eggs and milk.' }, // v0.91.1
+  hangars: { name: 'Keep the hangars busy', text: 'Every morning: each bay builds its standing plane (set on the Hangar page), buys what it needs and sells what is finished.' }, // v0.91.1
 };
 /** Which of them each job has at each place. */
-const PERMS = { manager: { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
+const PERMS = { manager: { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'hangars', 'expand'], shipping: ['contracts', 'expand'], farming: ['land', 'expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
 const permsFor = (role, employer) => PERMS[role]?.[employer] || [];
 
 const MARKET = {
@@ -37467,7 +37477,7 @@ class Aerospace {
 
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
   receive(co, amount, account, flow = null) {
-    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue : 1)); // v0.91.0: +10% on what your firm sells
+    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue * INCOME.aerospace : 1)); // v0.91.0: +10% on what your firm sells (v0.91.1: and INCOME.aerospace)
     if (amount <= 0) return;
     if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
     else co.cash += amount;
@@ -37901,6 +37911,128 @@ class Aerospace {
     this.report(co, 'facility', `🏗 ${co.name} is fitting ${B.name.toLowerCase()} No. ${n}${where} (ready in ${B.buildDays} days).`, co.kind === 'player' ? 'info' : null);
     if (co.kind === 'rival') this.news(`Meridian breaks ground on a new ${B.name.toLowerCase()} at Starling Flats.`);
     return { ok: true, text: `${B.name} No. ${n}${where} is being fitted: ready in ${B.buildDays} days.` };
+  }
+
+  // ------------------------------------------------------------- hangar settings (v0.91.1): a standing plane for each bay, and bays that change type
+  /** The aircraft this bay can build for stock: the products its type builds that the company has the research for. */
+  bayProducts(co, bay) {
+    const C = this.cfg;
+    return Object.entries(C.products).filter(([, p]) => p.line === 'aircraft' && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
+  }
+
+  /** Set (or clear, with null) the plane a bay builds on its own, again and again, and sells. */
+  setBayAuto(co, bayId, productId, { feed = true } = {}) {
+    const bay = co.bays.find((b) => b.id === bayId);
+    if (!bay) return { ok: false, text: 'No such bay.' };
+    if (co.kind !== 'player') return { ok: false, text: 'Only your own firm sets standing orders.' };
+    if (!productId) { bay.auto = null; return { ok: true, text: `${this.cfg.bays[bay.type].name} (${bay.id}): no standing plane.` }; }
+    if (!this.bayProducts(co, bay).includes(productId)) return { ok: false, text: `That bay can't build the ${this.cfg.products[productId]?.name || 'plane'} (wrong bay type, or the research is missing).` };
+    bay.auto = productId;
+    let extra = '';
+    if (feed && !co.autoProcure) { co.autoProcure = true; extra = ' Auto-buy is on now, so the hangars are fed.'; }
+    return { ok: true, text: `${this.cfg.bays[bay.type].name} (${bay.id}) will build ${this.cfg.products[productId].name} on its own and sell them.${extra}` };
+  }
+
+  /** What changing a bay's type costs and takes: a share of building the new type, and a share of its build time out of service. */
+  convertQuote(co, bay, type) {
+    const C = this.cfg;
+    const to = C.bays[type];
+    const from = C.bays[bay.type];
+    if (!to) return { ok: false, text: 'No such bay type.' };
+    if (type === bay.type) return { ok: false, text: 'It already is that type.' };
+    if (co.kind !== 'player') return { ok: false, text: 'Only your own halls are refitted.' };
+    if (bay.unit) return { ok: false, text: `The ${from.name.toLowerCase()} is busy: wait until its aircraft is out.` };
+    if (bay.ready > this.now) return { ok: false, text: 'It is still being fitted.' };
+    const slot = bay.slot ? this.slotsOf(co).find((sl) => sl.id === bay.slot) : null;
+    if (slot && !slot.fits.includes(type)) return { ok: false, text: `The slot it stands in takes ${slot.fits.map((t) => C.bays[t].name.toLowerCase()).join(' or ')}, not a ${to.name.toLowerCase()}.` };
+    if (!slot) return { ok: false, text: 'That bay has no slot to refit.' };
+    const refund = Math.round(from.build * this.A.convert.refund);
+    const cost = Math.max(0, Math.round(to.build * this.A.convert.share) - refund);
+    const days = Math.max(1, Math.round(to.buildDays * this.A.convert.daysShare));
+    return { ok: true, cost, days, text: `Refit as a ${to.name.toLowerCase()}: ${cost.toLocaleString()} obols and ${days} day${days === 1 ? '' : 's'} out of service.` };
+  }
+
+  /** Change an empty bay to another type its slot takes. */
+  convertBay(co, bayId, type) {
+    const bay = co.bays.find((b) => b.id === bayId);
+    if (!bay) return { ok: false, text: 'No such bay.' };
+    const q = this.convertQuote(co, bay, type);
+    if (!q.ok) return q;
+    if (!this.canAfford(co, q.cost)) return { ok: false, text: `The refit costs ${q.cost.toLocaleString()} obols.` };
+    this.pay(co, q.cost, null, 'capital');
+    co.books.capex += q.cost;
+    const was = this.cfg.bays[bay.type].name;
+    const n = Math.max(0, ...co.bays.filter((b) => b.type === type).map((b) => Number(String(b.id).split('_').pop()) || 0)) + 1;
+    bay.type = type;
+    bay.id = `${type}_${n}`;
+    bay.ready = this.now + q.days * DAY;
+    if (bay.auto && !this.bayProducts(co, bay).includes(bay.auto)) bay.auto = null; // the standing plane no longer fits
+    this.report(co, 'facility', `🔧 ${co.name} refits its ${was.toLowerCase()} as a ${this.cfg.bays[type].name.toLowerCase()} (${q.days} day${q.days === 1 ? '' : 's'}).`, 'info');
+    return { ok: true, text: `${was} refitted as ${this.cfg.bays[type].name.toLowerCase()} ${bay.id}: ready in ${q.days} day${q.days === 1 ? '' : 's'}.` };
+  }
+
+  /** What a plane built for stock fetches: the list price, softened by what the market has already taken of that model lately. */
+  stockPrice(co, productId) {
+    const p = this.cfg.products[productId];
+    const S = this.A.stock;
+    const sold = (this.state.stockSales?.[productId] || []).filter((d) => d > this.day - S.windowDays).length;
+    const f = Math.max(S.floor, 1 - sold * S.softening);
+    return Math.round(p.price * S.listShare * f);
+  }
+
+  /** What a unit built for stock earns on handover (the model's market price now), and what it cost. */
+  sellStock(co, u) {
+    const p = this.pOf(u);
+    const price = this.stockPrice(co, u.product);
+    (this.state.stockSales ||= {})[u.product] = [...(this.state.stockSales[u.product] || []).filter((d) => d > this.day - this.A.stock.windowDays), this.day];
+    this.receive(co, price, revenueAccount(p.line));
+    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1));
+    const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
+    for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += net; bucket.cost += direct; }
+    post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
+    post(co.books, this.day, 'cogs_freight', Math.round(u.cost.freight), this.A.historyDays);
+    post(co.books, this.day, 'cogs_freight_internal', Math.round(u.cost.freightInt || 0), this.A.historyDays);
+    co.stats.delivered += 1;
+    (co.stats.byProduct ||= {})[u.product] = (co.stats.byProduct[u.product] || 0) + 1;
+    co.stats.stock = (co.stats.stock || 0) + 1;
+    this.report(co, 'delivery', `✈ ${p.name} sold from stock for ${net.toLocaleString()} obols.`, null);
+    this.retire(u, 'delivered');
+  }
+
+  /** Every morning: each bay with a standing plane keeps one on the way (never more units open than bays set to that plane). */
+  runStandingOrders(co) {
+    if (co.kind !== 'player') return 0;
+    let made = 0;
+    const open = (pid) => this.unitsOf(co).filter((u) => u.purpose === 'stock' && u.product === pid).length;
+    const per = {};
+    for (const b of co.bays) if (b.auto && b.ready <= this.now) per[b.auto] = (per[b.auto] || 0) + 1;
+    for (const [pid, bays] of Object.entries(per)) {
+      const p = this.cfg.products[pid];
+      if (!p || missingTech(this.cfg, co, p).length) continue;
+      let have = open(pid);
+      while (have < bays * this.A.stock.perBay) {
+        // paused when the market is saturated for that model (it would sell below the floor price) or the firm cannot afford the next batch
+        if (this.stockPrice(co, pid) < p.price * this.A.stock.listShare * this.A.stock.pauseBelow) break;
+        const u = newUnit(this.cfg, { id: this.nextId('U'), company: co.id, contract: null, productId: pid, n: have + 1, purpose: 'stock', rng: this.rng, at: this.now });
+        this.state.units[u.id] = u;
+        have++; made++;
+      }
+    }
+    if (made) { this.syncRng(); if (co.autoProcure) this.autoProcure(co); }
+    return made;
+  }
+
+  /** The manager's job (the "Keep the hangars busy" box): give each bay with no standing plane the one that earns the most a day there. */
+  keepHangarsBusy(coId = 'roost') {
+    const co = this.company(coId);
+    if (!co || co.kind !== 'player') return 0;
+    let set = 0;
+    for (const b of co.bays) {
+      if (b.auto || b.ready > this.now) continue;
+      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
+      if (options.length && this.setBayAuto(co, b.id, options[0].id, { feed: false }).ok) set++; // (the manager's own "buy supplies" box feeds it)
+    }
+    return set;
   }
 
   /** Fixed facilities: the engine test cell, inspection equipment, a launch pad. Paid now, ready after their build days. */
@@ -39284,6 +39416,7 @@ class Aerospace {
     const C = this.cfg;
     const c = this.contract(u.contract);
     const p = this.pOf(u);
+    if (u.purpose === 'stock') return this.sellStock(co, u); // v0.91.1: built for the hangar's standing order, sold at the market
     if (u.purpose === 'own') {
       // a satellite for yourself: its cost is an asset now (the fleet), not a cost of sales
       this.retire(u, 'delivered');
@@ -39301,7 +39434,7 @@ class Aerospace {
     const partial = u.commissioning?.partial;
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
     const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue : 1)); // (+10% for you: v0.91.0)
+    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1)); // (+10% for you: v0.91.0)
     const penalty = Math.round(price * penaltyShare);
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';
@@ -39428,6 +39561,7 @@ class Aerospace {
     }
     // each company's day: wages, upkeep, overhead, interest; research and bays finish
     for (const co of this.companies()) this.companyDay(co);
+    if (this.roost) this.runStandingOrders(this.roost); // v0.91.1: each bay's standing plane
     this.closeTenders();
     this.postTenders();
     if (this.roost) { eventsMorning(this, this.roost); checkAchievements(this, this.roost); } // v0.57.0: what the books and the floor say today
@@ -42395,6 +42529,243 @@ class Todo {
 return { Todo };
 })();
 
+// ---- src/content/operations.js
+__m["src/content/operations.js"] = (function () {
+// What managers do to run a business, and how careful they are (v0.91.1). Data only: src/systems/operations.js carries it out.
+const OPS = {
+  reserveDays: 7, // cash a manager always leaves in the business: this many days of its running costs
+  shipping: {
+    perPass: 6, // contracts sent in one hour, at most
+    minProfit: 150, // obols a voyage must clear, at the least
+    minMargin: 0.25, // ...and this share of what it costs to send
+    maxRisk: 0.12, // the chance of trouble a manager will accept without being told
+    insureAbove: 0.04, // above this chance of trouble, the voyage is insured
+  },
+  arms: {
+    wholesaleDaily: 1500, // obols of the cage's output a manager sells to Lucas in a day, after export orders are filled (you, at his counter, can sell up to his own limit)
+  },
+  farming: {
+    priceSoftening: 0.88, // a harvest sold into the Co-op fetches about this share of the day's price (the price softens as the bins fill)
+    turnaroundDays: 1, // days a field stands empty between crops
+    labourPerTile: 2.5, // field hands: obols per tile per job (tilling and planting are two jobs, harvest one), before the cost factor
+    fertiliseIfGainOver: 2.5, // fertilise when the extra yield is worth this many times the fertiliser
+    feedDays: 4, // days of feed a manager keeps in a feeder
+  },
+};
+
+return { OPS };
+})();
+
+// ---- src/systems/operations.js
+__m["src/systems/operations.js"] = (function () {
+// What a manager does to run the business (v0.91.1). Until now only the arms works' manager ran anything: the shipping and farming managers
+// were paid a wage and "asked about expansion", so they cost money and brought none in. Now each manager runs their business's day-to-day, through
+// the business's own services and from its own account (never your wallet), at the business's own prices and with the business's own costs:
+//
+//   shipping   "Run the fleet"    every hour: each idle ship takes the best contract it can carry on time at a profit, within a safe risk
+//   farming    "Work the land"    every morning: till, plant the best crop, fertilise, harvest and sell at the Co-op; feed herds, collect and sell
+//   aerospace  "Keep the hangars busy" every morning: each bay builds its standing plane, and finished stock is sold (see the hangar settings)
+//
+// Each is one box on the manager's card (ticked by default, like the others). Nothing here runs until someone is hired and the business has an account of its own.
+const { INCOME } = __m["src/content/income.js"];
+const { OPS } = __m["src/content/operations.js"];
+
+class Operations {
+  constructor(corp) { this.K = corp; }
+  get g() { return this.K.game; }
+
+  /** The manager who may do this and is at work, or null. */
+  worker(target, perm) {
+    if (!this.K.established(target) || !this.K.account(target).funded) return null;
+    const people = this.K.personnel.peek();
+    if (!people) return null;
+    return Object.values(people.staff).find((x) => x.role === 'manager' && x.employer === target && this.K.management.atWork(x) && this.K.personnel.may(x, perm)) || null;
+  }
+
+  note(target, text) { this.K.management.log({ type: 'operation', employer: target, text }); }
+
+  /** Cash the business keeps whatever the manager does: a week of its running costs. */
+  reserve(target) { return Math.round(this.K.group.runningPerDay(target) * OPS.reserveDays); }
+
+  // ------------------------------------------------------------------ shipping: every hour
+  hourlyTick() {
+    if (!this.worker('shipping', 'contracts')) return;
+    this.runFleet();
+  }
+
+  /** Each idle ship, the best contract it can do on time, at a profit, with an acceptable chance of trouble. Returns the number sent. */
+  runFleet() {
+    const L = this.g.logistics;
+    let sent = 0;
+    for (let guard = 0; guard < OPS.shipping.perPass; guard++) {
+      const best = L.opportunities(12).find((o) => {
+        const q = o.quote;
+        return q.onTime && q.profit >= OPS.shipping.minProfit && q.profit >= q.cost * OPS.shipping.minMargin && q.risk.chance <= OPS.shipping.maxRisk
+          && this.K.canAfford('shipping', q.cost + this.reserve('shipping'));
+      });
+      if (!best) break;
+      const c = best.contract;
+      if (c.status === 'available') { const a = L.accept(c.id); if (!a.ok) break; }
+      const insure = best.quote.risk.chance > OPS.shipping.insureAbove;
+      const r = L.assign(c.id, best.vessel.id, { insure });
+      if (!r.ok) break;
+      sent++;
+      this.note('shipping', `Sent the ${best.vessel.name} with ${c.units} units to ${L.port(c.to).name} (expected profit ${Math.round(best.quote.profit).toLocaleString()}).`);
+    }
+    return sent + this.bringHome();
+  }
+
+  /** A ship that finished a delivery stands at the client's port, where nobody offers it work: the manager sails it to the owned port with the best work it can carry. */
+  bringHome() {
+    const L = this.g.logistics;
+    let moved = 0;
+    for (const v of L.idle()) {
+      if (v.kind !== 'cargo' || !v.port) continue;
+      const st = L.stats(v);
+      const board = L.contracts('available').filter((c) => st.capacity >= c.units && (!L.cfg.contractTypes[c.type].needs || st.tags.includes(L.cfg.contractTypes[c.type].needs)));
+      if (board.some((c) => c.from === v.port)) continue; // work here: the pass above takes it if it is worth it
+      const ports = [...new Set(L.ownedPorts())].filter((p) => p !== v.port);
+      const options = ports.map((p) => {
+        const pl = L.plan(v, p);
+        const pay = board.filter((c) => c.from === p).reduce((a, c) => a + c.pay, 0);
+        return { p, pl, score: pay - pl.cost - pl.hours * 2 };
+      }).filter((o) => o.pl.ok && this.K.canAfford('shipping', o.pl.cost + this.reserve('shipping'))).sort((a, b) => b.score - a.score || (a.p < b.p ? -1 : 1));
+      const go = options[0];
+      if (!go) continue;
+      if (L.sail(v.id, go.p).ok) { moved++; this.note('shipping', `The ${v.name} sails to ${L.port(go.p).name} to pick up work.`); }
+    }
+    return moved;
+  }
+
+  // ------------------------------------------------------------------ farming: every morning
+  dailyTick() {
+    if (this.worker('arms', 'bid')) this.sellOutput();
+    if (this.worker('farming', 'land')) this.workLand();
+    if (this.worker('aerospace', 'hangars')) this.g.aero.keepHangarsBusy?.('roost');
+  }
+
+  // ------------------------------------------------------------------ arms: the cage's surplus
+  /** What export orders do not need, sold to Lucas at his wholesale price from the cage (up to a day's limit), into the arms account. Returns obols received. */
+  sellOutput() {
+    const A = this.g.arms;
+    if (!A.licensed()) return 0;
+    const need = {};
+    for (const o of this.g.market.openOrders()) need[o.item] = Math.max(need[o.item] || 0, o.qty); // stock an open order may still call for stays in the cage
+    let got = 0;
+    let room = OPS.arms.wholesaleDaily;
+    for (const wh of A.ownedIds()) {
+      const cage = this.g.world.containers[A.def(wh)?.outCrate];
+      if (!cage) continue;
+      const list = Object.keys(cage.items).filter((id) => this.g.content.items[id]?.arms).sort((a, b) => A.wholesale(b) - A.wholesale(a) || (a < b ? -1 : 1));
+      for (const id of list) {
+        const price = A.wholesale(id);
+        while (cage.items[id] > (need[id] || 0) && price > 0 && price <= room && A.sellToLucas(id, price).ok) {
+          cage.items[id]--; room -= price; got += price;
+          this.K.receive('arms', price, { cat: 'wholesale' });
+        }
+        if (!cage.items[id]) delete cage.items[id];
+      }
+      if (got) this.g.bus.emit('container:changed', { id: A.def(wh).outCrate });
+    }
+    if (got) this.note('arms', `Sold the cage's surplus to Lucas for ${got.toLocaleString()}.`);
+    return got;
+  }
+
+  /** What one planting of a crop earns per tile per day, after seed (what a manager picks the crop by). */
+  cropScore(cid) {
+    const F = this.g.farm;
+    const c = F.def.crops[cid];
+    const seedItem = this.g.content.items[c.seed];
+    const income = (c.price * INCOME.business.crops) / c.yieldPer; // per tile, at an average day's price
+    const seed = (seedItem.price * INCOME.cost) / c.seedPer;
+    return (income * OPS.farming.priceSoftening - seed) / (c.days + OPS.farming.turnaroundDays);
+  }
+
+  bestCrop() {
+    const crops = Object.keys(this.g.farm.def.crops);
+    return crops.sort((a, b) => this.cropScore(b) - this.cropScore(a))[0];
+  }
+
+  /** The hands: what the day's work on a field costs (so a field is never free to work). */
+  labour(tiles, jobs) { return Math.round(tiles * jobs * OPS.farming.labourPerTile * INCOME.cost); }
+
+  workLand() {
+    const F = this.g.farm;
+    const K = this.K;
+    if (!F.def) return { harvested: 0, planted: 0, sold: 0 };
+    const out = { harvested: 0, planted: 0, sold: 0, fed: 0 };
+    const keep = () => this.reserve('farming');
+    for (const id of F.owned()) {
+      const st = F.plot(id);
+      const d = F.plotDef(id);
+      // --- fields
+      if (st.state === 'planted' && st.stage >= 3) {
+        const c = F.def.crops[st.crop];
+        const n = F.expectedYield(id);
+        const wage = this.labour(d.tiles, 1);
+        if (K.canAfford('farming', wage)) {
+          K.pay('farming', wage, { cat: 'labour' });
+          const total = F.sellUnits(c.crop, c.price, n);
+          K.receive('farming', total, { cat: 'crops' });
+          F.record(this.g.content.items[c.crop].name, total);
+          Object.assign(st, { state: 'fallow', crop: null, plantedDay: null, stage: 0, fertilized: false, readyDay: null });
+          st.harvests = (st.harvests || 0) + 1;
+          this.g.bus.emit('farm:harvest', { plot: id, crop: c.crop, count: n });
+          out.harvested++; out.sold += total;
+          this.note('farming', `Harvested ${d.name}: ${n} × ${this.g.content.items[c.crop].name} sold at the Co-op for ${total.toLocaleString()}.`);
+        }
+      }
+      if (st.state === 'fallow') {
+        const cid = this.bestCrop();
+        const bags = F.seedBags(id, cid);
+        const seedCost = Math.round(bags * this.g.content.items[F.def.crops[cid].seed].price * INCOME.cost);
+        const wage = this.labour(d.tiles, 2); // tilling and planting
+        if (K.canAfford('farming', seedCost + wage + keep())) {
+          K.pay('farming', seedCost, { cat: 'seed' }); K.pay('farming', wage, { cat: 'labour' });
+          Object.assign(st, { state: 'planted', crop: cid, plantedDay: this.g.clock.day, stage: 0, readyDay: null });
+          out.planted++;
+          this.note('farming', `Planted ${d.name} with ${F.def.crops[cid].name.toLowerCase()} (seed ${seedCost.toLocaleString()}).`);
+        }
+      }
+      if (st.state === 'planted' && st.stage < 3 && !st.fertilized) {
+        const bags = F.fertBags(id);
+        const cost = Math.round(bags * this.g.content.items[F.def.config.fertilizer.item].price * INCOME.cost);
+        const c = F.def.crops[st.crop];
+        const gain = (d.tiles / c.yieldPer) * F.def.config.fertilizer.bonus * c.price * INCOME.business.crops * OPS.farming.priceSoftening;
+        if (gain > cost * OPS.farming.fertiliseIfGainOver && K.canAfford('farming', cost + keep())) {
+          K.pay('farming', cost, { cat: 'fertiliser' });
+          st.fertilized = true;
+        }
+      }
+      // --- pasture
+      if (st.state === 'pasture' && st.herd?.count) {
+        const L = F.def.livestock[st.herd.kind];
+        const feedItem = this.g.content.items.item_feed;
+        const wantFeed = st.herd.count * L.feed * OPS.farming.feedDays - (st.feed || 0);
+        if (wantFeed >= 1) {
+          const bags = Math.ceil(wantFeed);
+          const cost = Math.round(bags * feedItem.price * INCOME.cost);
+          if (K.canAfford('farming', cost)) { K.pay('farming', cost, { cat: 'feed' }); st.feed = (st.feed || 0) + bags; out.fed++; }
+        }
+        if (L.product && (st.produce || 0) >= 1) {
+          const n = Math.floor(st.produce);
+          const total = F.sellUnits(L.product.item, F.coopBase(L.product.item), n);
+          st.produce -= n;
+          K.receive('farming', total, { cat: 'crops' });
+          F.record(this.g.content.items[L.product.item].name, total);
+          out.sold += total;
+        }
+        if (L.grow && this.g.clock.day - st.herd.day >= L.maxDays) F.sellAnimals(id, st.herd.count); // beef are sold when fully grown
+      }
+    }
+    F.sync();
+    return out;
+  }
+}
+
+return { Operations };
+})();
+
 // ---- src/content/management.js
 __m["src/content/management.js"] = (function () {
 // What managers may decide on their own (v0.63.0, simplified in v0.89.0). Data only: src/corp/management.js judges a decision against it,
@@ -44717,6 +45088,7 @@ const { figures, growth, value: worth, rank: rankBy, shares } = __m["src/corp/me
 const { Group } = __m["src/systems/group.js"];
 const { Personnel } = __m["src/systems/personnel.js"];
 const { Todo } = __m["src/systems/todo.js"];
+const { Operations } = __m["src/systems/operations.js"];
 const { Management } = __m["src/systems/management.js"];
 const { Exchange } = __m["src/systems/exchange.js"];
 const { CentralBank } = __m["src/systems/centralBank.js"];
@@ -44748,6 +45120,7 @@ class Corporate {
     this.milestones = new Milestones(this); // v0.80.0: milestones from the records
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.todo = new Todo(this); // v0.90.0: what to do next, and the inbox
+    this.operations = new Operations(this); // v0.91.1: what managers do to run the business
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
 
@@ -45117,6 +45490,7 @@ class Corporate {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once someone is hired)
+    this.operations.dailyTick(); // v0.91.1: managers run the land and the hangars (only once someone is hired)
     this.todo.dailyTick(); // each business's result of the day, for the little charts
     this.geo.dailyTick(); // what the arms market says has begun or ended, recorded (before the world's day reads it)
     this.generatedDay();
@@ -46076,6 +46450,7 @@ class Game {
     if (hour !== this.world.lastHour) {
       this.world.lastHour = hour;
       this.events.hourly();
+      this.corp?.operations?.hourlyTick(); // v0.91.1: the shipping manager sends idle ships
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
@@ -47175,6 +47550,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.91.1',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Managers Who Work, Hangars That Build',
+    notes: [
+      'Shipping and farming managers now do the work: ships take paying contracts and sail back to where the work is, fields are tilled, planted, harvested and sold. Arms managers sell the cage\'s surplus. All from the business\'s own account.',
+      'Aerospace hangars can build a chosen plane on their own and sell it from stock, and an empty bay can change type.',
+      'Businesses now earn in the order Aerospace, Ships, Arms, Farm.',
+    ],
+  },
   {
     version: '0.91.0',
     date: '2026-10-31',
@@ -70676,7 +71062,15 @@ function aerospacePanel(ui, body, opts = {}) {
       const types = [...new Set(sl.fits)];
       if (bay) {
         const u = unitOf(bay.unit);
-        return h('div', { class: 'ao-tile' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, C.bays[bay.type].name), bay.ready > A.now ? pill(`fitted ${A.when(bay.ready).replace('Day ', 'D')}`, COL.blue) : u ? pill(`${C.products[u.product].name} #${u.n}`, COL.green) : pill('idle', 'rgba(223,233,245,0.5)'));
+        const own = c.kind === 'player';
+        const made = own && bay.ready <= A.now ? A.bayProducts(c, bay) : [];
+        const swaps = own && bay.ready <= A.now && !bay.unit ? types.filter((t) => t !== bay.type) : [];
+        return h('div', { class: 'ao-tile' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, C.bays[bay.type].name), bay.ready > A.now ? pill(`fitted ${A.when(bay.ready).replace('Day ', 'D')}`, COL.blue) : u ? pill(`${C.products[u.product].name} #${u.n}${u.purpose === 'stock' ? ' · stock' : ''}`, COL.green) : pill('idle', 'rgba(223,233,245,0.5)'),
+          made.length ? h('label', { class: 'ao-field' }, h('small', {}, 'Makes by itself'),
+            h('select', { class: 'ao-input', onchange: (e) => act(() => A.setBayAuto(c, bay.id, e.target.value || null)) },
+              h('option', { value: '', selected: !bay.auto }, 'Only for contracts'),
+              ...made.map((id) => h('option', { value: id, selected: bay.auto === id }, `${C.products[id].name} · sells ${fmtMoney(A.stockPrice(c, id))}`)))) : null,
+          ...swaps.map((t) => { const q = A.convertQuote(c, bay, t); return btn(`Change to ${C.bays[t].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(q.cost || 0)} · ${q.days || 0} d`, () => act(() => A.convertBay(c, bay.id, t)), 'tiny', !q.ok || !A.canAfford(c, q.cost), q.text); }));
       }
       if (st.state !== 'built') return h('div', { class: 'ao-tile off' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, 'after the hall opens'));
       return h('div', { class: 'ao-tile' }, h('small', {}, `FREE SLOT · ${sl.fits[0].toUpperCase()}`), h('div', { class: 'ao-row-inline' }, ...types.map((type) => btn(`Fit ${C.bays[type].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(C.bays[type].build)}`, () => act(() => A.buildBay(c, type, sl.id)), 'tiny', !A.canAfford(c, C.bays[type].build)))));

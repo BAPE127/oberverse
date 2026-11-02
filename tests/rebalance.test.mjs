@@ -13,7 +13,7 @@ test('the knobs: costs are half, revenue is up a tenth, your own shipping line f
   assert.equal(INCOME.cost, 0.5); assert.equal(INCOME.revenue, 1.1); assert.equal(INCOME.ownShippingFree, true);
   assert.deepEqual(INCOME.shift, { construction: 330, coffee: 330, refineryPerLevel: 275, refineryPerCorner: 110 });
   assert.deepEqual(INCOME.quest, { darkLamp: 660, sealOfM: 1100 });
-  assert.deepEqual([INCOME.business.wholesaleShare, INCOME.business.crops, INCOME.business.contracts], [0.715, 1.65, 1.65]);
+  assert.deepEqual([INCOME.business.wholesaleShare, INCOME.business.crops, INCOME.business.contracts], [0.715, 1.65, 6.6]); // (contracts: 1.65 until v0.91.1)
   assert.ok(QUESTS, 'the quests read these figures');
   assert.deepEqual(WAGES, { manager: { arms: 110, shipping: 110, aerospace: 135, farming: 90 }, group_manager: { parent: 200 }, office: { parent: 30 } });
 });
@@ -59,7 +59,7 @@ test('aerospace: for you, materials, wages, upkeep and overhead cost half and de
   assert.deepEqual(F(rival, 0.5), F(rival, 1), 'a rival\'s fixed costs are its own');
   const cash = g.corp.cashOf('aerospace');
   A.receive(co, 1000, 'rev_services');
-  assert.equal(g.corp.cashOf('aerospace') - cash, 1100, 'satellite services pay a tenth more');
+  assert.equal(g.corp.cashOf('aerospace') - cash, Math.round(1000 * 1.1 * INCOME.aerospace), 'satellite services pay a tenth more (and the aerospace firm\'s own multiplier, 1.6 from v0.91.1)');
   const c2 = g.corp.cashOf('aerospace'); A.receive(co, 1000, null);
   assert.equal(g.corp.cashOf('aerospace') - c2, 1000, 'a deposit or refund is not revenue');
 });

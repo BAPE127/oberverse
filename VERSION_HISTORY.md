@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.91.1 | 2026-11-02 | development | 1 | Managers who work and hangars that build: shipping, farming and arms managers run their business from its own account; aerospace bays build a chosen plane on their own and can change type; profit now runs Aerospace, Ships, Arms, Farm. |
 | 0.91.0 | 2026-10-31 | development | 1 | Quick fixes: the arms tab is labelled Arms and its manager can hire staff, keep the line running and fill export orders; what businesses pay to run is halved, what they sell is up 10%, and your own shipping line frees freight; a big bottom-left notice lets you watch a finished aircraft take off. |
 | 0.90.0 | 2026-10-31 | development | 1 | The OberPad's businesses made simple: every business screen is one shape (result, three figures, Do next, manager, one fold); a Needs-you inbox on Home; plant, harvest, sell and send-a-ship in one tap; counting numbers and small feedback. |
 | 0.89.0 | 2026-10-31 | development | 1 | Managers, simplified: no skills, no candidates, no budgets by category. One-tap hire at a flat wage; tick-boxes for what a manager may do on their own; one monthly limit per business; expansion is always asked first; a group manager and office staff at the parent. Saves from before are converted. |

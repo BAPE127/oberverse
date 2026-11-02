@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.1',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Managers Who Work, Hangars That Build',
+    notes: [
+      'Shipping and farming managers now do the work: ships take paying contracts and sail back to where the work is, fields are tilled, planted, harvested and sold. Arms managers sell the cage\'s surplus. All from the business\'s own account.',
+      'Aerospace hangars can build a chosen plane on their own and sell it from stock, and an empty bay can change type.',
+      'Businesses now earn in the order Aerospace, Ships, Arms, Farm.',
+    ],
+  },
+  {
     version: '0.91.0',
     date: '2026-10-31',
     channel: 'development',

@@ -42,7 +42,7 @@ test('a shipping manager sends the idle ship on a paying contract, from the line
   const x = hire(g, 'shipping');
   const wallet = g.player.money;
   g.corp.personnel.setPerm(x.id, 'contracts', false);
-  at6(g); g.clock.day++; g.clock.total += 1440; g.corp.operations.hourlyTick();
+  at6(g); g.corp.operations.hourlyTick();
   assert.equal(g.logistics.vessels()[0].status, 'docked', 'unticked: the ship stays in port');
   g.corp.personnel.setPerm(x.id, 'contracts', true);
   const before = cash(g, 'shipping');
@@ -101,18 +101,21 @@ test('an arms manager sells the cage\'s surplus to Lucas, up to its daily limit,
   const g = group(9906);
   const x = hire(g, 'arms');
   const cage = g.world.containers[g.arms.def('aw1').outCrate];
-  cage.items.item_crate_pistol = 10; // 500 each wholesale
+  const wanted = new Set(g.market.openOrders().map((o) => o.item));
+  const crate = Object.keys(g.content.items).find((id) => g.content.items[id].arms?.crate && !wanted.has(id) && g.arms.wholesale(id) > 0 && g.arms.wholesale(id) * 2 <= OPS.arms.wholesaleDaily);
+  assert.ok(crate, 'a crate no order wants');
+  cage.items[crate] = 10;
   const wallet = g.player.money;
   g.corp.personnel.setPerm(x.id, 'bid', false);
   assert.equal(g.corp.operations.sellOutput() >= 0, true);
   g.corp.operations.dailyTick();
-  assert.equal(cage.items.item_crate_pistol, 10, 'unticked: nothing sold');
+  assert.equal(cage.items[crate], 10, 'unticked: nothing sold');
   g.corp.personnel.setPerm(x.id, 'bid', true);
   const a0 = cash(g, 'arms');
   const got = g.corp.operations.sellOutput();
   assert.ok(got > 0 && got <= OPS.arms.wholesaleDaily, `sold ${got}`);
   assert.equal(cash(g, 'arms') - a0, got);
-  assert.equal(cage.items.item_crate_pistol, 10 - got / g.arms.wholesale('item_crate_pistol'));
+  assert.equal(cage.items[crate], 10 - got / g.arms.wholesale(crate));
   assert.equal(g.player.money, wallet);
   assert.equal(g.corp.operations.sellOutput(), got === 0 ? 0 : g.corp.operations.sellOutput(), 'idempotent shape');
 });
