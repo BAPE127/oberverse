@@ -144,7 +144,7 @@ try {
   record('Managers: hiring shows the wage and the fee and spends nothing until confirmed', hireText.includes('a day, and') && hireText.includes('to sign') && (await page.evaluate(() => window.oberverse.ui.game.corp.cashOf('aerospace'))) === aero0);
   await page.click('.tb-terms .tb-btn.pri'); await wait(300);
   const hired = await page.evaluate(() => { const g = window.oberverse.ui.game; const x = g.corp.personnel.holders('aerospace', 'manager')[0]; return { x: Boolean(x), fee: x ? x.salary * 10 : 0, paid: 0 }; });
-  record('Managers: the manager is hired at the flat wage with every box ticked', hired.x && (await page.$$('.tb-check.on')).length === 4);
+  record('Managers: the manager is hired at the flat wage with every box ticked', hired.x && (await page.$$('.tb-check.on')).length === 5);
   await page.click('.tb-check:nth-child(1)'); await wait(250);
   record('Managers: unticking a box is one tap and takes effect', await page.evaluate(() => { const g = window.oberverse.ui.game; const x = g.corp.personnel.holders('aerospace', 'manager')[0]; return g.corp.personnel.may(x, 'reorder') === false; }));
   // The business screens and the inbox (v0.90.0)
