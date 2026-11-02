@@ -92,7 +92,9 @@ export class Operations {
     const need = {};
     for (const o of this.g.market.openOrders()) need[o.item] = Math.max(need[o.item] || 0, o.qty); // stock an open order may still call for stays in the cage
     let got = 0;
-    let room = OPS.arms.wholesaleDaily;
+    const day = this.g.clock.day;
+    const sold = (A.state.managerSold = A.state.managerSold?.day === day ? A.state.managerSold : { day, spent: 0 });
+    let room = OPS.arms.wholesaleDaily - sold.spent;
     for (const wh of A.ownedIds()) {
       const cage = this.g.world.containers[A.def(wh)?.outCrate];
       if (!cage) continue;
@@ -100,7 +102,7 @@ export class Operations {
       for (const id of list) {
         const price = A.wholesale(id);
         while (cage.items[id] > (need[id] || 0) && price > 0 && price <= room && A.sellToLucas(id, price).ok) {
-          cage.items[id]--; room -= price; got += price;
+          cage.items[id]--; room -= price; got += price; sold.spent += price;
           this.K.receive('arms', price, { cat: 'wholesale' });
         }
         if (!cage.items[id]) delete cage.items[id];

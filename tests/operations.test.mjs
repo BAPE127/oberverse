@@ -107,7 +107,6 @@ test('an arms manager sells the cage\'s surplus to Lucas, up to its daily limit,
   cage.items[crate] = 10;
   const wallet = g.player.money;
   g.corp.personnel.setPerm(x.id, 'bid', false);
-  assert.equal(g.corp.operations.sellOutput() >= 0, true);
   g.corp.operations.dailyTick();
   assert.equal(cage.items[crate], 10, 'unticked: nothing sold');
   g.corp.personnel.setPerm(x.id, 'bid', true);
@@ -117,7 +116,7 @@ test('an arms manager sells the cage\'s surplus to Lucas, up to its daily limit,
   assert.equal(cash(g, 'arms') - a0, got);
   assert.equal(cage.items[crate], 10 - got / g.arms.wholesale(crate));
   assert.equal(g.player.money, wallet);
-  assert.equal(g.corp.operations.sellOutput(), got === 0 ? 0 : g.corp.operations.sellOutput(), 'idempotent shape');
+  assert.equal(g.corp.operations.sellOutput(), 0, 'the day\'s limit is spent: a second go sells nothing more');
 });
 
 // ------------------------------------------------------------------ hangars
