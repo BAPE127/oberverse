@@ -91,7 +91,7 @@ export class Aerospace {
     const s = {
       v: 1, rng: { state: 0x5717a } , seq: {}, lastDay: this.game.clock.day,
       owned: false, boughtDay: null,
-      companies: {}, tenders: [], contracts: {}, units: {}, pos: {}, satellites: {}, jobs: {},
+      companies: {}, tenders: [], contracts: {}, units: {}, pos: {}, satellites: {}, jobs: {}, storage: [],
       customers: Object.fromEntries(Object.entries(C.customers).map(([id, cu]) => [id, { budget: Math.round(cu.budget * C.budgetStart), spent: 0, won: {} }])),
       suppliers: Object.fromEntries(Object.entries(C.suppliers).map(([id, sp]) => [id, { stock: Object.fromEntries(Object.keys(sp.sells).map((m) => [m, sp.stock])) }])),
       market: { price: C.aero.exchange.startPrice, history: [], sharesOwned: 0, dividendsPaid: 0, lastDividendDay: 0, ema: null, weekProfit: 0, costBasis: 0 },
@@ -706,13 +706,13 @@ export class Aerospace {
   }
 
   // ------------------------------------------------------------- hangar settings (v0.91.1): a standing plane for each bay, and bays that change type
-  /** The aircraft this bay can build for stock: the products its type builds that the company has the research for. */
+  /** What this bay can build for storage: the aircraft and satellites its type builds that the company has the research for. */
   bayProducts(co, bay) {
     const C = this.cfg;
-    return Object.entries(C.products).filter(([, p]) => p.line === 'aircraft' && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
+    return Object.entries(C.products).filter(([, p]) => (p.line === 'aircraft' || p.line === 'satellite') && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
   }
 
-  /** Set (or clear, with null) the plane a bay builds on its own, again and again, and sells. */
+  /** Set (or clear, with null) the aircraft or satellite a bay builds on its own, again and again, into storage (until the goal for that model is stored). */
   setBayAuto(co, bayId, productId, { feed = true } = {}) {
     const bay = co.bays.find((b) => b.id === bayId);
     if (!bay) return { ok: false, text: 'No such bay.' };
@@ -763,35 +763,108 @@ export class Aerospace {
     return { ok: true, text: `${was} refitted as ${this.cfg.bays[type].name.toLowerCase()} ${bay.id}: ready in ${q.days} day${q.days === 1 ? '' : 's'}.` };
   }
 
-  /** What a plane built for stock fetches: the list price, softened by what the market has already taken of that model lately. */
-  stockPrice(co, productId) {
-    const p = this.cfg.products[productId];
-    const S = this.A.stock;
-    const sold = (this.state.stockSales?.[productId] || []).filter((d) => d > this.day - S.windowDays).length;
-    const f = Math.max(S.floor, 1 - sold * S.softening);
-    return Math.round(p.price * S.listShare * f);
+  // ------------------------------------------------------------- storage (v0.91.5): off the map, without limit
+  /** The stored aircraft and satellites (all of them, or one model's). */
+  storedOf(productId = null) {
+    return (this.state.storage || []).filter((r) => !productId || r.product === productId);
   }
 
-  /** What a unit built for stock earns on handover (the model's market price now), and what it cost. */
-  sellStock(co, u) {
+  /** How many of a model the firm keeps building into storage before a standing order pauses. */
+  storageGoal(co, productId) {
+    return co.storageGoal?.[productId] ?? this.A.stock.goal;
+  }
+
+  setStorageGoal(co, productId, n) {
+    if (!this.cfg.products[productId]) return { ok: false, text: 'No such model.' };
+    (co.storageGoal ||= {})[productId] = Math.max(0, Math.min(this.A.stock.goalMax, Math.floor(Number(n) || 0)));
+    return { ok: true, text: `${this.cfg.products[productId].name}: the bay keeps building until ${co.storageGoal[productId]} are stored.` };
+  }
+
+  /** A finished unit built for a standing order goes into storage (an aircraft before it reaches the apron, a satellite before it needs a rocket). */
+  storeUnit(co, u) {
     const p = this.pOf(u);
-    const price = Math.round(this.stockPrice(co, u.product) * this.saleBonus(co, p));
-    (this.state.stockSales ||= {})[u.product] = [...(this.state.stockSales[u.product] || []).filter((d) => d > this.day - this.A.stock.windowDays), this.day];
-    this.receive(co, price, revenueAccount(p.line));
-    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue : 1));
-    const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
-    for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += net; bucket.cost += direct; }
-    post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
-    post(co.books, this.day, 'cogs_freight', Math.round(u.cost.freight), this.A.historyDays);
-    post(co.books, this.day, 'cogs_freight_internal', Math.round(u.cost.freightInt || 0), this.A.historyDays);
-    co.stats.delivered += 1;
-    (co.stats.byProduct ||= {})[u.product] = (co.stats.byProduct[u.product] || 0) + 1;
-    co.stats.stock = (co.stats.stock || 0) + 1;
-    this.report(co, 'delivery', `✈ ${p.name} sold from stock for ${net.toLocaleString()} obols.`, null);
-    this.retire(u, 'delivered');
+    (this.state.storage ||= []).push({ id: this.nextId('S'), product: u.product, line: p.line, cost: { materials: u.cost.materials || 0, freight: u.cost.freight || 0, freightInt: u.cost.freightInt || 0 }, quality: Math.round(this.qualityOf(co) * 10) / 10, day: this.day, config: u.config || null });
+    this.retire(u, 'stored');
+    this.report(co, 'delivery', `📦 ${p.name} #${u.n} is built and goes into storage (${this.storedOf(u.product).length} of that model now).`, null);
   }
 
-  /** Every morning: each bay with a standing plane keeps one on the way (never more units open than bays set to that plane). */
+  /** Stored aircraft that could fill this contract right now: a plain model (a contract that asks for a special addition has to be built), good enough for the customer. */
+  storedFor(co, c) {
+    if (!c || c.status !== 'active' || c.config || co.kind !== 'player') return [];
+    return this.storedOf(c.product).filter((r) => !r.config && r.quality >= (c.quality || 0));
+  }
+
+  /** The contract's units that nothing has been done to yet: these are the ones a stored aircraft can stand in for. */
+  openUnitsFor(c) {
+    return c.units.map((id) => this.state.units[id]).filter((u) => u && !u.finished && !u.bay && ['queued', 'waiting', 'blocked', 'engineering'].includes(u.status) && !this.settledUnit(c, u));
+  }
+
+  settledUnit(c, u) { return Boolean(c.settled[u.id]); }
+
+  /** What storage could do for a contract: how many of its units, and what they would pay now (with the on-time bonus). */
+  storageOffer(co, c) {
+    const have = this.storedFor(co, c).length;
+    const open = this.openUnitsFor(c).length;
+    const n = Math.min(have, open);
+    if (!n) return null;
+    const p = this.cfg.products[c.product];
+    const each = Math.round(c.unitPrice * INCOME.revenue * this.saleBonus(co, p) * (this.now <= c.due ? 1 + this.A.onTimeBonus : 1));
+    return { n, have, open, each, total: each * n };
+  }
+
+  /** The player's choice: use stored aircraft for a contract's units instead of building new ones. Delivered at once, so the bonus day is met. */
+  fulfilFromStorage(co, contractId, n = Infinity) {
+    const c = this.contract(contractId);
+    if (!c || c.company !== co.id) return { ok: false, text: 'No such contract.' };
+    if (c.config) return { ok: false, text: 'That contract asks for a special addition: it has to be built new.' };
+    const offer = this.storageOffer(co, c);
+    if (!offer) return { ok: false, text: this.storedFor(co, c).length ? 'Every unit of that contract is already being built.' : 'Nothing suitable in storage.' };
+    const take = Math.min(offer.n, Math.max(1, Math.floor(n)));
+    const units = this.openUnitsFor(c).slice(0, take);
+    let paid = 0;
+    for (const u of units) {
+      const rec = this.storedFor(co, c)[0];
+      this.state.storage = this.state.storage.filter((r) => r !== rec);
+      this.retire(u, 'replaced'); // (no materials stay reserved for a plane that is already built)
+      u.cost = { ...rec.cost }; u.inspections = []; u.rework = 0; u.fromStorage = true;
+      const before = this.game.corp.cashOf('aerospace');
+      this.settle(co, u);
+      paid += Math.max(0, this.game.corp.cashOf('aerospace') - before);
+    }
+    this.report(co, 'delivery', `📦 ${take} stored ${this.cfg.products[c.product].name}${take === 1 ? '' : 's'} delivered at once for ${this.cfg.customers[c.customer].name}.`, 'good');
+    return { ok: true, count: take, paid, text: `${take} stored ${this.cfg.products[c.product].name}${take === 1 ? '' : 's'} delivered for ${this.cfg.customers[c.customer].name}: ${fmtMoney(paid)} (the delivery-day bonus included if it was met).` };
+  }
+
+  /** What stops a stored satellite being launched now (empty when nothing does). */
+  launchBlockers(co, p) {
+    const out = [];
+    if (!co.bays.some((b) => b.type === 'rocket')) out.push('a rocket bay (Space annex)');
+    if (!co.pad) out.push('a launch pad');
+    if (!Object.values(this.cfg.products).some((r) => r.line === 'rocket' && !r.crew && r.lift >= p.mass && !missingTech(this.cfg, co, r).length)) out.push('research for a rocket big enough to lift it');
+    return out;
+  }
+
+  /** The player's choice: send a stored satellite up. It goes back on the floor at the point where it waits for a rocket; a launcher is built for it at cost like any other. */
+  launchStored(co, recordId) {
+    const rec = (this.state.storage || []).find((r) => r.id === recordId);
+    if (!rec || rec.line !== 'satellite') return { ok: false, text: 'No such satellite in storage.' };
+    const p = this.cfg.products[rec.product];
+    const why = this.launchBlockers(co, p);
+    if (why.length) return { ok: false, text: `Not yet: it needs ${why.join(', ')}.` };
+    const open = this.unitsOf(co).filter((u) => u.purpose === 'own').length;
+    if (open + 1 > this.cfg.services.maxOpenOrders) return { ok: false, text: `At most ${this.cfg.services.maxOpenOrders} of your own satellites can be on the floor at once.` };
+    const u = newUnit(this.cfg, { id: this.nextId('U'), company: co.id, contract: null, productId: rec.product, n: 1, purpose: 'own', rng: this.rng, at: this.now });
+    u.stage = stagesOf(this.cfg, p).findIndex((x) => x.wait === 'rocket');
+    u.status = 'waiting'; u.started = this.now; u.cost = { ...rec.cost }; u.fromStorage = true;
+    if (rec.config) u.config = rec.config;
+    this.state.units[u.id] = u;
+    this.state.storage = this.state.storage.filter((r) => r !== rec);
+    this.syncRng();
+    this.report(co, 'orbit', `🛰 ${p.name} leaves storage for the next launch.`, 'info');
+    return { ok: true, text: `${p.name} will go up on the next launcher.` };
+  }
+
+  /** Every morning: each bay with a standing order keeps one going (never more open than the bays set to that model allow, and not past the goal stored). */
   runStandingOrders(co) {
     if (co.kind !== 'player') return 0;
     let made = 0;
@@ -802,9 +875,7 @@ export class Aerospace {
       const p = this.cfg.products[pid];
       if (!p || missingTech(this.cfg, co, p).length) continue;
       let have = open(pid);
-      while (have < bays * this.A.stock.perBay) {
-        // paused when the market is saturated for that model (it would sell below the floor price) or the firm cannot afford the next batch
-        if (this.stockPrice(co, pid) < p.price * this.A.stock.listShare * this.A.stock.pauseBelow) break;
+      while (have < bays * this.A.stock.perBay && this.storedOf(pid).length + have < this.storageGoal(co, pid)) {
         const u = newUnit(this.cfg, { id: this.nextId('U'), company: co.id, contract: null, productId: pid, n: have + 1, purpose: 'stock', rng: this.rng, at: this.now });
         this.state.units[u.id] = u;
         have++; made++;
@@ -814,14 +885,14 @@ export class Aerospace {
     return made;
   }
 
-  /** The manager's job (the "Keep the hangars busy" box): give each bay with no standing plane the one that earns the most a day there. */
+  /** The manager's job (the "Keep the hangars busy" box): give each bay with no standing order the model that is worth most a day there. */
   keepHangarsBusy(coId = 'roost') {
     const co = this.company(coId);
     if (!co || co.kind !== 'player') return 0;
     let set = 0;
     for (const b of co.bays) {
       if (b.auto || b.ready > this.now) continue;
-      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare * this.saleBonus(co, p) - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
+      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.saleBonus(co, p) - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - a.perDay);
       if (options.length && this.setBayAuto(co, b.id, options[0].id, { feed: false }).ok) set++; // (the manager's own "buy supplies" box feeds it)
     }
     return set;
@@ -1824,6 +1895,8 @@ export class Aerospace {
       }
       return this.advance(co, u);
     }
+    if (s.wait === 'apron' && u.purpose === 'stock') return this.storeUnit(co, u); // (v0.91.5: built for storage: no apron, no customer's crew)
+    if (s.wait === 'rocket' && u.purpose === 'stock') return this.storeUnit(co, u); // (a satellite for storage waits for you to launch it)
     if (s.wait === 'apron') {
       const used = this.apronUsed(co);
       if (used + apronSize(p) > co.apron) { u.status = 'blocked'; u.blocker = { kind: 'apron', text: `the apron is full (${used}/${co.apron} slots) — the aircraft waits in its bay` }; return; }
@@ -2217,7 +2290,7 @@ export class Aerospace {
     const C = this.cfg;
     const c = this.contract(u.contract);
     const p = this.pOf(u);
-    if (u.purpose === 'stock') return this.sellStock(co, u); // v0.91.1: built for the hangar's standing order, sold at the market
+    if (u.purpose === 'stock') return this.storeUnit(co, u); // v0.91.5: built for a standing order: into storage, never sold
     if (u.purpose === 'own') {
       // a satellite for yourself: its cost is an asset now (the fleet), not a cost of sales
       this.retire(u, 'delivered');
@@ -2233,17 +2306,19 @@ export class Aerospace {
     }
     if (c.settled[u.id]) { this.retire(u, 'delivered'); return; }
     const partial = u.commissioning?.partial;
+    // v0.91.5: the delivery day no longer costs anything when it is missed; meeting it pays a bonus of a quarter of the price
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
-    const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * this.saleBonus(co, p) : 1)); // (+10% for you: v0.91.0; and the bonus of v0.91.4)
-    const penalty = Math.round(price * penaltyShare);
+    const base = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * this.saleBonus(co, p) : 1)); // (+10% for you: v0.91.0; and the bonus of v0.91.4)
+    const bonus = lateDays ? 0 : Math.round(base * this.A.onTimeBonus);
+    const price = base + bonus;
+    const penalty = 0;
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';
-    // cash: the price, less the deposit share already received, less any penalty
-    this.receive(co, price - share - penalty, null);
+    // cash: the price (and bonus), less the deposit share already received
+    this.receive(co, price - share, null);
     co.books.deferred -= share;
     post(co.books, this.day, revenueAccount(p.line), price, this.A.historyDays);
-    if (penalty) post(co.books, this.day, 'penalties', penalty, this.A.historyDays);
+    if (bonus) { post(co.books, this.day, 'bonus', bonus, this.A.historyDays); c.bonus = (c.bonus || 0) + bonus; }
     // by line and by product, for the segment report
     const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
     for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += price - penalty; bucket.cost += direct; if (lateDays) bucket.late += 1; }
@@ -2261,8 +2336,7 @@ export class Aerospace {
     co.streaks ||= { late: 0, onTime: 0 };
     if (lateDays) {
       co.stats.late += 1;
-      co.streaks.late += 1; co.streaks.onTime = 0;
-      this.repChange(co, this.A.reputation.late * this.streakMult(co.streaks.late), `Late delivery: ${p.name} #${u.n} for ${who} (${lateDays} day${lateDays === 1 ? '' : 's'}${co.streaks.late > 1 ? `, ${co.streaks.late} late in a row` : ''})`);
+      co.streaks.late += 1; co.streaks.onTime = 0; // (v0.91.5: no money or standing is lost for it; the streak of on-time deliveries is)
     } else {
       co.stats.onTime += 1;
       co.streaks.late = 0; co.streaks.onTime += 1;
@@ -2274,11 +2348,11 @@ export class Aerospace {
     milestone(this, co, 'first_delivery', `${p.name} for ${who}`);
     if (p.line === 'aircraft') milestone(this, co, 'first_aircraft', `${p.name} for ${who}`);
     if (C.customers[c.customer].kind === 'defence') milestone(this, co, 'first_defence', who);
-    c.history.push({ at: this.now, text: `Unit ${u.n} delivered${lateDays ? ` ${lateDays} day${lateDays === 1 ? '' : 's'} late (−${fmtMoney(penalty)})` : ''}${partial ? ' with reduced capability (half price)' : ''}.` });
+    c.history.push({ at: this.now, text: `Unit ${u.n} delivered${lateDays ? ` ${lateDays} day${lateDays === 1 ? '' : 's'} after the delivery day (no bonus)` : ` by the delivery day (+${fmtMoney(bonus)} bonus)`}${partial ? ' with reduced capability (half price)' : ''}${u.fromStorage ? ', from storage' : ''}.` });
     this.retire(u, 'delivered');
     u.status = 'delivered';
     const verb = p.line === 'aircraft' ? 'took off for its new owner' : p.line === 'missile' ? 'was handed over at the agency\'s depot' : p.line === 'satellite' ? 'is operational in orbit' : 'completed its mission';
-    this.report(co, 'delivery', `✅ ${p.name} #${u.n} for ${C.customers[c.customer].name} ${verb}: ${fmtMoney(price - penalty)}.`, co.kind === 'player' ? 'good' : null);
+    this.report(co, 'delivery', `✅ ${p.name} #${u.n} for ${C.customers[c.customer].name} ${verb}: ${fmtMoney(price)}${bonus ? ` (with a ${fmtMoney(bonus)} bonus for meeting the delivery day)` : ''}.`, co.kind === 'player' ? 'good' : null);
     this.closeIfDone(c);
     checkAchievements(this, co);
   }
@@ -2668,6 +2742,8 @@ export class Aerospace {
       co.books.months ||= []; co.books.lines ||= {}; co.books.products ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
+    s.storage ||= []; // v0.91.5: the stored aircraft and satellites
+    for (const co of Object.values(s.companies)) for (const b of co.bays) if (b.auto === undefined) b.auto = null;
     // v0.91.2: a supplier added since the save was made starts with a full shelf (and a new material on an old supplier's shelf is stocked)
     for (const [id, sp] of Object.entries(this.cfg.suppliers)) {
       const ss = (s.suppliers[id] ||= { stock: {} });

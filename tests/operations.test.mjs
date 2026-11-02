@@ -135,34 +135,6 @@ test('a bay can be told to build one plane on its own; only a plane its type and
   assert.equal(bay(g).auto, null);
 });
 
-test('standing orders: the firm builds planes for stock, sells them, and the money is the firm\'s', () => {
-  const g = group(9908);
-  const co = g.aero.roost;
-  g.aero.setBayAuto(co, bay(g).id, 'ap_skylark');
-  const c0 = cash(g, 'aerospace');
-  const wallet = g.player.money;
-  at6(g);
-  run(g, 18);
-  assert.ok(co.stats.stock >= 3, `planes were sold from stock (${co.stats.stock})`);
-  const sold = g.aero.state.stockSales.ap_skylark;
-  assert.ok(sold.length >= 3);
-  assert.ok(g.aero.stockPrice(co, 'ap_skylark') <= Math.round(g.aero.cfg.products.ap_skylark.price * g.aero.A.stock.listShare), 'the list share is a ceiling');
-  assert.ok(cash(g, 'aerospace') - c0 > 0, 'a firm with a standing plane makes money');
-  assert.equal(g.player.money, wallet);
-  assert.ok(g.aero.unitsOf(co).filter((u) => u.purpose === 'stock').length <= g.aero.A.stock.perBay, 'never more open than the bay allows');
-});
-
-test('flooding the market softens the price, down to the floor; the order pauses below the pause line', () => {
-  const g = group(9909);
-  const co = g.aero.roost;
-  const list = Math.round(g.aero.cfg.products.ap_skylark.price * g.aero.A.stock.listShare);
-  assert.equal(g.aero.stockPrice(co, 'ap_skylark'), list);
-  g.aero.state.stockSales = { ap_skylark: Array(20).fill(g.aero.day) };
-  assert.equal(g.aero.stockPrice(co, 'ap_skylark'), Math.round(list * g.aero.A.stock.floor));
-  g.aero.setBayAuto(co, bay(g).id, 'ap_skylark');
-  assert.equal(g.aero.runStandingOrders(co), 0, 'paused while the market is full');
-});
-
 test('refit: an empty bay changes type for a share of the new one\'s price (less a refund on the old), in days; busy or wrong-slot refused', () => {
   const g = group(9910);
   const co = g.aero.roost;

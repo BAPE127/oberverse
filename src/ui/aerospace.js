@@ -574,7 +574,7 @@ export function aerospacePanel(ui, body, opts = {}) {
     const alerts = [];
     for (const e of (c.events || []).filter((x) => !x.resolved)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('standing') }, `🔍 ${e.title} — decide by Day ${e.expires} ›`));
     for (const o of (c.offers || []).filter((x) => x.until >= A.day)) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `🏗 ${Math.round(o.pct * 100)}% off the ${C.halls[o.hall].name} until Day ${o.until} — ${o.reason} ›`));
-    for (const x of late) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => go('contracts') }, `⏰ ${x.qty} × ${C.products[x.product].name} for ${C.customers[x.customer].name} is late — ${Math.round(A.A.latePerDay * 100)}% a day withheld ›`));
+    for (const x of late) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('contracts') }, `⏰ ${x.qty} × ${C.products[x.product].name} for ${C.customers[x.customer].name} is past its delivery day: no bonus now, no penalty ›`));
     for (const u of blocked.slice(0, 3)) alerts.push(h('button', { class: 'ao-alert bad', onclick: () => { AO.sel = { kind: 'unit', id: u.id }; renderDrawer(); } }, `⚠ ${C.products[u.product].name} #${u.n}: ${u.blocker?.text || 'blocked'} ›`));
     if (short.length) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('supply') }, `📦 ${plural(short.length, 'material')} short for the work in hand${c.autoProcure ? '' : ' (automatic ordering is off)'} ›`));
     if (c.workforce < crew) alerts.push(h('button', { class: 'ao-alert', onclick: () => go('hangar') }, `👷 ${crew - c.workforce} technicians short — every bay is slower ›`));
@@ -794,20 +794,31 @@ export function aerospacePanel(ui, body, opts = {}) {
     const card = h('div', { class: `ao-card${ct.status !== 'active' ? ' off' : ''}` },
       h('div', { class: 'ao-card-head' }, pic(productLook(C, ct.product), 132, 64),
         h('div', { class: 'grow' }, h('b', {}, `${ct.qty} × ${p.name}`), h('small', {}, C.customers[ct.customer].name),
-          h('div', { class: 'ao-pills' }, ct.status === 'active' ? pill(left < 0 ? `${fmtDays(-left)} late` : `due in ${fmtDays(left)}`, left < 0 ? COL.red : COL.green) : pill(ct.status, 'rgba(223,233,245,0.6)'), pill(`${ct.delivered}/${ct.qty} delivered`, COL.blue), ct.failed ? pill(`${ct.failed} lost`, COL.red) : null)),
+          h('div', { class: 'ao-pills' }, ct.status === 'active' ? pill(left < 0 ? 'delivery day passed' : `bonus if delivered in ${fmtDays(left)}`, left < 0 ? 'rgba(223,233,245,0.5)' : COL.green) : pill(ct.status, 'rgba(223,233,245,0.6)'), pill(`${ct.delivered}/${ct.qty} delivered`, COL.blue), ct.failed ? pill(`${ct.failed} lost`, COL.red) : null)),
         h('div', { class: 'ao-pay' }, fmtMoney(ct.total), h('small', {}, `${fmtMoney(ct.unitPrice)} a unit`))),
       configRow(ct, { compact: true }),
       h('div', { class: 'ao-facts' },
         h('div', {}, h('small', {}, 'Deposit'), h('b', {}, fmtMoney(ct.depositPaid))),
         h('div', {}, h('small', {}, 'Earned'), h('b', {}, fmtMoney(ct.revenue))),
-        h('div', {}, h('small', {}, 'Penalties'), h('b', { class: ct.penalties ? 'neg' : '' }, fmtMoney(ct.penalties || 0))),
-        h('div', {}, h('small', {}, 'Due'), h('b', {}, A.when(ct.due).replace('Day ', 'D')))),
+        h('div', {}, h('small', {}, 'Bonuses'), h('b', { class: ct.bonus ? 'pos' : '' }, fmtMoney(ct.bonus || 0))),
+        h('div', {}, h('small', {}, `Delivery day (+${Math.round(A.A.onTimeBonus * 100)}%)`), h('b', {}, A.when(ct.due).replace('Day ', 'D')))),
+      storageRow(ct),
       ...units.filter((u) => !u.finished).map((u) => h('button', { class: 'ao-unit', onclick: () => go('floor', { kind: 'unit', id: u.id }) },
         h('b', {}, `#${u.n}`), h('div', { class: 'grow' }, stageStrip(u), h('small', { class: u.status === 'blocked' ? 'neg' : '' }, `${A.stageOf(u)?.name || STATUS[u.status]}${u.blocker && u.status !== 'building' ? ` — ${u.blocker.text}` : ''}`)), h('small', {}, fmtDays(A.unitDaysLeft(u))))),
       ct.note ? muted(ct.note) : null,
       h('details', { class: 'ao-details' }, h('summary', {}, 'History'), h('div', { class: 'ao-log' }, ...ct.history.map((x) => h('div', {}, h('i', {}, A.when(x.at)), ' ', x.text)))),
       ct.status === 'active' ? h('button', { class: 'ao-link danger', onclick: () => { if (confirm(`Cancel this contract? The deposit for undelivered units goes back and you pay a ${Math.round(A.A.cancelPenalty * 100)}% penalty.`)) act(() => A.cancelContract(c.id, ct.id)); } }, 'Cancel contract…') : null);
     return card;
+  };
+
+  /** v0.91.5: stored aircraft that could fill this contract, if the player would rather use them than build new ones. */
+  const storageRow = (ct) => {
+    if (ct.status !== 'active') return null;
+    const o = A.storageOffer(co(), ct);
+    if (!o) return ct.config && A.storedOf(ct.product).length ? muted('This contract asks for a special addition: stored aircraft cannot fill it; it has to be built.') : null;
+    return h('div', { class: 'ao-row-inline' }, h('b', {}, `📦 ${o.n} in storage`), h('small', {}, `deliver at once: about ${fmtMoney(o.total)}${A.now <= ct.due ? ' with the bonus' : ''}`),
+      btn(`Use ${o.n === 1 ? 'the stored plane' : `${o.n} stored planes`}`, () => act(() => A.fulfilFromStorage(co(), ct.id)), 'primary'),
+      o.n > 1 ? btn('Use one', () => act(() => A.fulfilFromStorage(co(), ct.id, 1)), 'tiny') : null);
   };
 
   // ------------------------------------------------------------------ supply
@@ -969,7 +980,10 @@ export function aerospacePanel(ui, body, opts = {}) {
           made.length ? h('label', { class: 'ao-field' }, h('small', {}, 'Makes by itself'),
             h('select', { class: 'ao-input', onchange: (e) => act(() => A.setBayAuto(c, bay.id, e.target.value || null)) },
               h('option', { value: '', selected: !bay.auto }, 'Only for contracts'),
-              ...made.map((id) => h('option', { value: id, selected: bay.auto === id }, `${C.products[id].name} · sells ${fmtMoney(A.stockPrice(c, id))}`)))) : null,
+              ...made.map((id) => h('option', { value: id, selected: bay.auto === id }, `${C.products[id].name} · ${A.storedOf(id).length} stored`)))) : null,
+          made.length && bay.auto ? h('label', { class: 'ao-field' }, h('small', {}, `Build until ${A.storageGoal(c, bay.auto)} are stored`),
+            h('select', { class: 'ao-input', onchange: (e) => act(() => A.setStorageGoal(c, bay.auto, e.target.value)) },
+              ...[...new Set([1, 2, 4, 6, 10, 20, 40, 99, A.storageGoal(c, bay.auto)])].sort((x, y) => x - y).map((n) => h('option', { value: n, selected: n === A.storageGoal(c, bay.auto) }, String(n))))) : null,
           ...swaps.map((t) => { const q = A.convertQuote(c, bay, t); return btn(`Change to ${C.bays[t].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(q.cost || 0)} · ${q.days || 0} d`, () => act(() => A.convertBay(c, bay.id, t)), 'tiny', !q.ok || !A.canAfford(c, q.cost), q.text); }));
       }
       if (st.state !== 'built') return h('div', { class: 'ao-tile off' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, 'after the hall opens'));
@@ -1030,6 +1044,25 @@ export function aerospacePanel(ui, body, opts = {}) {
   };
 
   // ------------------------------------------------------------------ hangar (workforce, bays, facilities, research)
+  /** v0.91.5: the storage (off the map, without limit): what the standing orders have built. Planes wait for a contract you choose to fill from them; satellites wait for you to launch them. */
+  const storageSection = (c) => {
+    const rec = A.storedOf();
+    const planes = {};
+    for (const r of rec.filter((x) => x.line === 'aircraft')) planes[r.product] = (planes[r.product] || 0) + 1;
+    const sats = rec.filter((x) => x.line === 'satellite');
+    const fillable = A.contractsOf(c, 'active').map((ct) => ({ ct, o: A.storageOffer(c, ct) })).filter((x) => x.o);
+    const pad = A.launchBlockers(c, { mass: 1 });
+    return section('Storage — off the map, no limit',
+      muted('Aircraft and satellites that your bays build on their own wait here. A stored aircraft is never sold: you choose, contract by contract, to use one (it is delivered at once, so the delivery-day bonus is met) or to build a new one (needed when a contract asks for a special addition).'),
+      Object.keys(planes).length ? h('div', { class: 'ao-list' }, ...Object.entries(planes).map(([pid, n]) => h('div', { class: 'ao-row static' }, pic(productLook(C, pid), 96, 46), h('div', { class: 'grow' }, h('b', {}, `${n} × ${C.products[pid].name}`), h('small', {}, `worth ${fmtMoney(C.products[pid].price)} each on a contract`))))) : muted('No aircraft in storage. Pick "Makes by itself" on a bay below to start filling it.'),
+      fillable.length ? h('div', { class: 'ao-alert' }, `📦 ${plural(fillable.length, 'contract')} could be filled from storage — open `, h('button', { class: 'ao-link', onclick: () => go('contracts') }, 'Contracts ›')) : null,
+      h('h4', {}, 'Satellites to launch'),
+      sats.length ? h('div', { class: 'ao-list' }, ...sats.map((r) => { const p = C.products[r.product]; const why = A.launchBlockers(c, p); return h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, p.name), h('small', {}, `built Day ${r.day} · ${p.role || p.cls}`)), btn('Launch', () => act(() => A.launchStored(c, r.id)), 'primary', why.length > 0, why.length ? `Needs ${why.join(', ')}` : 'Send it up on the next launcher')); })) : muted('No satellite in storage.'),
+      h('div', { class: 'ao-checks' },
+        h('small', {}, 'To build satellites you need:'),
+        ...[['a clean room', c.bays.some((b) => b.type === 'clean'), 'Space annex hall, then a clean room in a slot'], ['a rocket bay', c.bays.some((b) => b.type === 'rocket'), 'Space annex hall, then the rocket bay'], ['a launch pad', Boolean(c.pad), 'Facilities, below'], ['research for a rocket', pad.every((x) => !/research/.test(x)), 'the research tree (orbital rockets)']].map(([name, ok, where]) => h('small', { class: ok ? 'pos' : 'neg' }, `${ok ? '✔' : '✖'} ${name}${ok ? '' : ` — ${where}`}`))));
+  };
+
   const hangarSheet = () => {
     const c = co();
     const need = A.crewNeeded(c, { all: true });
@@ -1044,6 +1077,7 @@ export function aerospacePanel(ui, body, opts = {}) {
           h('div', { class: 'ao-grid small' },
             h('div', { class: 'ao-tile' }, h('small', {}, 'APRON'), h('b', {}, `${c.apron} stands`), pill(`${A.apronUsed(c)} in use`, COL.blue)),
             ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => { const have = id === 'pad' ? c.pad : c.facilities[id]; const b = c.building?.[id]; return h('div', { class: 'ao-tile' }, h('small', {}, 'FACILITY'), h('b', {}, f.name), have ? pill('built', COL.green) : b ? pill(`ready ${A.when(b).replace('Day ', 'D')}`, COL.blue) : pill('not built', 'rgba(223,233,245,0.5)')); }))))),
+      storageSection(c),
       section('Halls — where your bays stand', muted('Each hall is a building on Starling Flats: build it (the site on the map becomes the hall), then fit bays into its slots. A free slot takes only the bay types listed.'),
         h('div', { class: 'ao-grid wide' }, ...Object.entries(C.halls).map(([hid, H]) => hallCard(c, hid, H)))),
       section('Facilities', h('div', { class: 'ao-grid' }, ...Object.entries(C.facilities).filter(([, f]) => f.build).map(([id, f]) => {

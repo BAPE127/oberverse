@@ -45,6 +45,7 @@ function audit(id) {
   let componentCost = 0;
   g.clock.total = 6 * 60; g.world.lastHour = 6;
   for (let i = 0; i < days * 1440; i++) {
+    if (i % 1440 === 60) for (const q of [...(g.corp.management.peek()?.pending || [])]) g.corp.management.approve(q.id); // the owner says yes to what the manager asks (v0.91.5: using stored aircraft, expanding)
     if (AB && i % 1440 === 0) { // the morning's components for CRATES crates (5 receivers, 5 barrels, 5 furniture a crate), paid from the arms account at half price
       const cost = Math.round(CRATES * (5 * 17 + 5 * 12 + 5 * 8) * 0.5);
       if (g.corp.canAfford('arms', cost)) { g.corp.pay('arms', cost, { cat: 'parts' }); componentCost += cost; g.arms.findEntity(AB.id).in = { item_ai_receiver: CRATES * 5, item_ai_barrel: CRATES * 5, item_ai_furniture: CRATES * 5 }; }

@@ -14,7 +14,7 @@ import { judge, armsPar, planArmsOrders, nextPlot, nextPort, bidPrice, treasuryM
 import { monthOf } from '../corp/ledger.js';
 
 const BUSINESSES = ['arms', 'shipping', 'aerospace', 'farming'];
-const KIND_PERM = { reorder: 'reorder', hire: 'hire', automation: 'automation', bid: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
+const KIND_PERM = { reorder: 'reorder', hire: 'hire', automation: 'automation', bid: 'bid', stored: 'bid', research: 'research', expand: 'expand', transfer: 'transfer' };
 
 export class Management {
   constructor(corp) {
@@ -204,6 +204,21 @@ export class Management {
     return out.sort((x, y) => y.profit - x.profit || (x.item < y.item ? -1 : 1));
   }
 
+  /** Aerospace: the contracts that stored aircraft could fill now, at once and with the delivery-day bonus. Always asked about: you choose between a stored plane and a new build. */
+  planStored() {
+    const A = this.g.aero;
+    const co = A.roost;
+    if (!A.owned || !co) return [];
+    const out = [];
+    for (const c of A.contractsOf(co, 'active')) {
+      const o = A.storageOffer(co, c);
+      if (!o) continue;
+      const p = A.cfg.products[c.product];
+      out.push({ item: c.id, cost: 0, desc: `${o.n} × ${p.name} for ${A.cfg.customers[c.customer].name}, about ${o.total.toLocaleString()}`, ask: `Stored aircraft can fill this now${A.now <= c.due ? ', and the delivery-day bonus would be earned' : ''}. Or it can be built new.`, run: () => { const r = A.fulfilFromStorage(co, c.id); return { ok: r.ok, paid: 0, text: r.text }; } });
+    }
+    return out.sort((x, y) => (x.item < y.item ? -1 : 1));
+  }
+
   /** What the policy would move for a subsidiary now. Nothing changes. */
   planTreasury(target) {
     const G = this.K.group;
@@ -343,6 +358,7 @@ export class Management {
   candidates(kind, target) {
     if (kind === 'reorder') { const c = (target === 'arms' ? this.planArms() : this.planAero()).reduce((a, o) => a + o.cost, 0); return c > 0 ? [{ item: null, cost: c }] : []; }
     if (kind === 'bid') return target === 'arms' ? this.planExports() : this.planBids();
+    if (kind === 'stored') return this.planStored();
     if (kind === 'hire') return this.planStaff();
     if (kind === 'automation') return this.planAutomation();
     if (kind === 'research') return this.planResearch(target);
@@ -351,7 +367,7 @@ export class Management {
   }
 
   /** The text of what was done or asked, by kind. */
-  verb(kind) { return { reorder: 'buy supplies', hire: 'hire staff', automation: 'keep the line running', bid: 'take a contract', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
+  verb(kind) { return { reorder: 'buy supplies', hire: 'hire staff', automation: 'keep the line running', bid: 'take a contract', stored: 'use stored planes', research: 'start research', expand: 'expand', transfer: 'move cash' }[kind]; }
 
   /** Make a decision: execute, queue or refuse. `item` picks one candidate (an approval); without it the first the person may do, else the first. */
   decide(kind, target, x, { owner = false, item = undefined } = {}) {

@@ -960,6 +960,7 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .ao-tile.off { opacity: .5; border-style: dashed; }
 .ao-tile b { font-size: 13px; color: #fff; }
 .ao-field { display: flex; flex-direction: column; gap: 2px; width: 100%; } .ao-field .ao-input { width: 100%; }
+.ao-checks { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; } .ao-checks small.pos { color: #7be0a0; } .ao-checks small.neg { color: #ff9a8a; }
 .ao-unlocks { display: flex; gap: 8px; flex-wrap: wrap; }
 .ao-unlocks span { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; opacity: .85; }
 .ao-chart { width: 100%; height: auto; background: rgba(0,0,0,.28); border-radius: 10px; border: 1px solid var(--ao-line2); }

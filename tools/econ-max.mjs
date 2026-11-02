@@ -32,7 +32,7 @@ const net = (a, b) => {
   for (const [k, v] of Object.entries(b.out)) { const d = v - (a.out[k] || 0); if (!CAPEX.includes(k) && d) { cost += d; cats.out[k] = Math.round(d); } }
   return { rev: Math.round(rev), cost: Math.round(cost), net: Math.round(rev - cost), cats };
 };
-const skip = (days) => { for (let i = 0; i < days; i++) g.skipTime(DAY); };
+const skip = (days) => { for (let i = 0; i < days; i++) { g.skipTime(DAY); for (const q of [...(g.corp.management.peek()?.pending || [])]) if (q.kind === 'stored') g.corp.management.approve(q.id); } };
 
 if (id === 'aerospace') {
   chk(g.aero.buyFirm(), 'firm');

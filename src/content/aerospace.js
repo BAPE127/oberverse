@@ -18,7 +18,10 @@ export const AERO = {
   /** v0.91.1: planes built for the hangar's standing order sell at the market, not to a customer: list price times this share, softened by what the market took of that model in the last days. */
   /** v0.91.4: the bonus INCOME.aerospace gives fades with a product's price: (ref ÷ price) ^ power (never more than 1). */
   tier: { ref: 26000, power: 0.33 },
-  stock: { listShare: 0.92, windowDays: 12, softening: 0.045, floor: 0.7, pauseBelow: 0.78, perBay: 2 },
+  /** v0.91.5: the delivery day pays this share of the price on top when it is met; missing it costs nothing. */
+  onTimeBonus: 0.25,
+  /** v0.91.5: standing orders build into storage (off the map, no limit): at most `perBay` units open per bay, stopping at `goal` stored of a model unless you set another (up to `goalMax`). */
+  stock: { perBay: 2, goal: 6, goalMax: 99 },
   /** v0.91.1: refitting a bay to another type its slot takes: a share of the new type's build price (less a share of the old one's back) and of its build days. */
   convert: { share: 0.4, refund: 0.3, daysShare: 0.4 },
   park: 'Starling Flats Aerospace Park',
@@ -39,8 +42,6 @@ export const AERO = {
   inspectionFailAtRequired: 0.24,
   /** Rework after a failed inspection: this share of the product's days again. */
   reworkShare: 0.18,
-  /** Late delivery: the customer withholds this share of the unit's price per day late (max `lateCap`). */
-  latePerDay: 0.04, lateCap: 0.4,
   /** Cancelling an accepted contract forfeits the deposit and costs this share of its value. */
   cancelPenalty: 0.1,
   /** Reputation (0–100): on time +2, late −4, failed inspection −1, cancelled −8. */
