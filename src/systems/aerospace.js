@@ -256,9 +256,20 @@ export class Aerospace {
     post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
   }
 
+  /**
+   * v0.91.4: what a sale of this product earns on top of INCOME.revenue: 1 + (INCOME.aerospace − 1) × a share that fades with the price
+   * ((reference price ÷ price) ^ power), so the cheap aircraft a new firm builds pay well and the million-obol ones are not ruinously rich.
+   * 1 for a rival, and 1 when INCOME.aerospace is 1.
+   */
+  saleBonus(co, p) {
+    if (co.kind !== 'player' || !p) return 1;
+    const T = this.A.tier;
+    return 1 + (INCOME.aerospace - 1) * Math.min(1, Math.pow(T.ref / Math.max(1, p.price), T.power));
+  }
+
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
   receive(co, amount, account, flow = null) {
-    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue * INCOME.aerospace : 1)); // v0.91.0: +10% on what your firm sells (v0.91.1: and INCOME.aerospace)
+    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue : 1)); // v0.91.0: +10% on what your firm sells (the bonus on aircraft sales is saleBonus(), below)
     if (amount <= 0) return;
     if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
     else co.cash += amount;
@@ -764,10 +775,10 @@ export class Aerospace {
   /** What a unit built for stock earns on handover (the model's market price now), and what it cost. */
   sellStock(co, u) {
     const p = this.pOf(u);
-    const price = this.stockPrice(co, u.product);
+    const price = Math.round(this.stockPrice(co, u.product) * this.saleBonus(co, p));
     (this.state.stockSales ||= {})[u.product] = [...(this.state.stockSales[u.product] || []).filter((d) => d > this.day - this.A.stock.windowDays), this.day];
     this.receive(co, price, revenueAccount(p.line));
-    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1));
+    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue : 1));
     const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
     for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += net; bucket.cost += direct; }
     post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
@@ -810,7 +821,7 @@ export class Aerospace {
     let set = 0;
     for (const b of co.bays) {
       if (b.auto || b.ready > this.now) continue;
-      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
+      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare * this.saleBonus(co, p) - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
       if (options.length && this.setBayAuto(co, b.id, options[0].id, { feed: false }).ok) set++; // (the manager's own "buy supplies" box feeds it)
     }
     return set;
@@ -2224,7 +2235,7 @@ export class Aerospace {
     const partial = u.commissioning?.partial;
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
     const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1)); // (+10% for you: v0.91.0)
+    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * this.saleBonus(co, p) : 1)); // (+10% for you: v0.91.0; and the bonus of v0.91.4)
     const penalty = Math.round(price * penaltyShare);
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';

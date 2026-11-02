@@ -59,7 +59,7 @@ test('aerospace: for you, materials, wages, upkeep and overhead cost half and de
   assert.deepEqual(F(rival, 0.5), F(rival, 1), 'a rival\'s fixed costs are its own');
   const cash = g.corp.cashOf('aerospace');
   A.receive(co, 1000, 'rev_services');
-  assert.equal(g.corp.cashOf('aerospace') - cash, Math.round(1000 * 1.1 * INCOME.aerospace), 'satellite services pay a tenth more (and the aerospace firm\'s own multiplier, 1.6 from v0.91.1)');
+  assert.equal(g.corp.cashOf('aerospace') - cash, 1100, 'satellite services pay a tenth more (the aerospace bonus is on aircraft sales, which fades with price: tests/operations.test.mjs)');
   const c2 = g.corp.cashOf('aerospace'); A.receive(co, 1000, null);
   assert.equal(g.corp.cashOf('aerospace') - c2, 1000, 'a deposit or refund is not revenue');
 });
