@@ -64,3 +64,23 @@ if (id === 'aerospace') {
   console.log(`aerospace, fully built: ${WINDOW} days → revenue ${r.rev.toLocaleString()}, costs ${r.cost.toLocaleString()}, NET ${r.net.toLocaleString()}`, JSON.stringify(r.cats));
   console.log('stock sold', co.stats.stock, 'delivered', co.stats.delivered);
 }
+
+if (id === 'shipping') {
+  chk(g.logistics.buyCompany(), 'company');
+  g.corp.ensureWorld(); chk(g.corp.group.form(), 'form'); chk(g.corp.group.join('shipping'), 'join'); chk(g.corp.contribute('parent', 2e9), 'parent'); chk(g.corp.group.capitalise('shipping', 1.5e9), 'cap');
+  const L = g.logistics;
+  const PORTS = (process.env.PORTS || 'port_lanternside,port_gullwing,port_kingsfjord,port_lirre,port_ostmark,port_varn').split(',');
+  for (const p of PORTS) chk(L.buyPort(p), 'port ' + p);
+  const SHIPS = Number(process.env.SHIPS || 8);
+  const model = process.env.MODEL || 'bluecap_container';
+  const owned = L.ownedPorts();
+  for (let i = 0; i < SHIPS; i++) chk(L.buyShip(model, owned[i % owned.length], `Max ${i + 1}`), 'ship ' + i);
+  chk(g.corp.personnel.hire('manager', 'shipping'), 'manager').person.startDay = 1;
+  console.log('ports', owned.length, 'ships', L.vessels().length);
+  g.clock.total = Math.floor(g.clock.total / DAY) * DAY + 6 * 60;
+  const t0 = () => flows(g.corp.account('shipping'));
+  skip(SETTLE);
+  const a = t0(); skip(WINDOW); const b = t0();
+  const r = net(a, b);
+  console.log(`shipping, fully built (${owned.length} ports, ${SHIPS} × ${model}): ${WINDOW} days → revenue ${r.rev.toLocaleString()}, costs ${r.cost.toLocaleString()}, NET ${r.net.toLocaleString()}`, JSON.stringify(r.cats));
+}
