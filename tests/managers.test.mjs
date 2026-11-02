@@ -402,7 +402,7 @@ test('a save from v0.62–v0.88 is converted on first read: one manager a busine
 });
 
 test('the kinds of decision each business can have, and where only the group manager acts', () => {
-  assert.deepEqual(KINDS.farming, ['expand', 'transfer']); assert.deepEqual(KINDS.arms, ['reorder', 'hire', 'automation', 'bid', 'research', 'expand', 'transfer']); assert.deepEqual(KINDS.aerospace, ['reorder', 'bid', 'research', 'expand', 'transfer']);
+  assert.deepEqual(KINDS.farming, ['expand', 'transfer']); assert.deepEqual(KINDS.arms, ['reorder', 'hire', 'automation', 'bid', 'research', 'expand', 'transfer']); assert.deepEqual(KINDS.aerospace, ['reorder', 'bid', 'stored', 'research', 'expand', 'transfer']);
   const g = group(9190);
   const M = g.corp.management; const gm = hire(g, 'group_manager', 'parent'); const m = hire(g, 'manager', 'farming');
   assert.equal(M.mayDecide(gm, 'transfer', 'farming'), true); assert.equal(M.mayDecide(gm, 'expand', 'farming'), false, 'the group manager moves cash, nothing else');

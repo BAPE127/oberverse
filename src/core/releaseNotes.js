@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.5',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Delivery-Day Bonus, Unlimited Storage, and Satellites to Launch',
+    notes: [
+      'A late delivery no longer costs anything. Meeting the delivery day pays a 25% bonus on top of the contract price.',
+      'Aircraft and satellites that a bay builds on its own go into unlimited off-map storage and are never sold. You choose, contract by contract, to fill it from storage (delivered at once, so the bonus is met) or to build a new one (needed when a contract asks for a special addition). A manager may ask you to use stored aircraft.',
+      'A clean room can build satellites into storage too, and a Launch button on the Hangar page sends them up on your own rocket. The page lists what you are missing: a clean room, a rocket bay, a launch pad, rocket research.',
+    ],
+  },
+  {
     version: '0.91.4',
     date: '2026-11-02',
     channel: 'development',

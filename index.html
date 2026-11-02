@@ -3472,7 +3472,7 @@ __m["src/content/aerospace.js"] = (function () {
 const AERO = {
   /** v0.91.1: planes built for the hangar's standing order sell at the market, not to a customer: list price times this share, softened by what the market took of that model in the last days. */
   /** v0.91.4: the bonus INCOME.aerospace gives fades with a product's price: (ref ÷ price) ^ power (never more than 1). */
-  tier: { ref: 26000, power: 0.33 },
+  tier: { ref: 26000, power: 0.25 },
   /** v0.91.5: the delivery day pays this share of the price on top when it is met; missing it costs nothing. */
   onTimeBonus: 0.25,
   /** v0.91.5: standing orders build into storage (off the map, no limit): at most `perBay` units open per bay, stopping at `goal` stored of a model unless you set another (up to `goalMax`). */
@@ -4740,7 +4740,7 @@ const INCOME = {
   revenue: 1.1,
   /** v0.91.0, widened in v0.92.0: owning the shipping company is enough for everything you buy to arrive free: no freight, no handling, no duty, and no ship needed. You pay for the goods only. */
   /** v0.91.1: on top of `revenue`, what the aerospace firm's own sales (contracts, planes built for stock) are multiplied by, so a bay with a standing plane out-earns a small arms line. */
-  aerospace: 20,
+  aerospace: 27,
   /** v0.91.4: on top of `revenue`, what the arms export market pays for your crates (the figures a country pays are already in obols of that size; this scales them to what a works makes in a day). */
   arms: 7.4,
   /** v0.91.4: how much of each country's daily budget growth the arms market keeps (1 = all of it). It caps what a works can sell in a day: the eight countries' growth is 182,000 a day at 1. */
@@ -16560,7 +16560,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.91.4';
+const GAME_VERSION = '0.91.5';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -38047,12 +38047,18 @@ class Aerospace {
     return this.storedOf(c.product).filter((r) => !r.config && r.quality >= (c.quality || 0));
   }
 
-  /** The contract's units that nothing has been done to yet: these are the ones a stored aircraft can stand in for. */
+  /** The contract's units that no real work has been done on: these are the ones a stored aircraft can stand in for (paperwork, ordering, and a bay only just taken). */
   openUnitsFor(c) {
-    return c.units.map((id) => this.state.units[id]).filter((u) => u && !u.finished && !u.bay && ['queued', 'waiting', 'blocked', 'engineering'].includes(u.status) && !this.settledUnit(c, u));
+    return c.units.map((id) => this.state.units[id]).filter((u) => u && !u.finished && !c.settled[u.id] && this.untouched(u));
   }
 
-  settledUnit(c, u) { return Boolean(c.settled[u.id]); }
+  untouched(u) {
+    if (u.purpose && u.purpose !== 'contract') return false;
+    const st = stagesOf(this.cfg, this.pOf(u));
+    const first = st.findIndex((x) => x.bay);
+    if (first < 0) return false;
+    return u.stage < first || (u.stage === first && (u.work || 0) <= 0.25 * (u.need || 1));
+  }
 
   /** What storage could do for a contract: how many of its units, and what they would pay now (with the on-time bonus). */
   storageOffer(co, c) {
@@ -43136,7 +43142,9 @@ class Management {
       const p = A.pOf(t);
       out.push({ item: t.id, cost: Math.round(q.cost * t.qty), price: bp.price, days: q.days, profit: q.profit, ask: bp.below ? `The most this customer pays is below the usual margin of ${margin}%.` : null, desc: `${t.qty} × ${p.name} at ${bp.price.toLocaleString()} each` });
     }
-    return out.sort((x, y) => y.profit - x.profit || (x.item < y.item ? -1 : 1));
+    // v0.91.5: a plain tender for a model that is already in storage is worth most: it is delivered at once, with the delivery-day bonus
+    const ready = (o) => { const t = A.tender(o.item); return t && !t.config && A.storedOf(t.product).length > 0 ? 1 : 0; };
+    return out.sort((x, y) => ready(y) - ready(x) || y.profit - x.profit || (x.item < y.item ? -1 : 1));
   }
 
   /** Aerospace: the contracts that stored aircraft could fill now, at once and with the delivery-day bonus. Always asked about: you choose between a stored plane and a new build. */
@@ -47703,6 +47711,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.91.5',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Delivery-Day Bonus, Unlimited Storage, and Satellites to Launch',
+    notes: [
+      'A late delivery no longer costs anything. Meeting the delivery day pays a 25% bonus on top of the contract price.',
+      'Aircraft and satellites that a bay builds on its own go into unlimited off-map storage and are never sold. You choose, contract by contract, to fill it from storage (delivered at once, so the bonus is met) or to build a new one (needed when a contract asks for a special addition). A manager may ask you to use stored aircraft.',
+      'A clean room can build satellites into storage too, and a Launch button on the Hangar page sends them up on your own rocket. The page lists what you are missing: a clean room, a rocket bay, a launch pad, rocket research.',
+    ],
+  },
   {
     version: '0.91.4',
     date: '2026-11-02',
