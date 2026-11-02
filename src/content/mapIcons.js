@@ -46,6 +46,7 @@ export const BUILDING_ICONS = {
   sf_roost_hangar: { icon: '🛩️', kind: 'Roost Aeroworks — hangar' },
   sf_roost_hangar2: { icon: '🛩️', kind: 'Roost Aeroworks — Hangar 2 (light assembly)' },
   sf_roost_heavy: { icon: '✈️', kind: 'Roost Aeroworks — assembly hall (heavy bays)' },
+  sf_roost_secure: { icon: '🛡️', kind: 'Roost Aeroworks — secure integration complex' },
   sf_roost_wide: { icon: '🛫', kind: 'Roost Aeroworks — widebody & secure hall' },
   sf_roost_space: { icon: '🚀', kind: 'Roost Aeroworks — space systems annex' },
   sf_roost_lab: { icon: '🔬', kind: 'Roost Aeroworks — research laboratory' },

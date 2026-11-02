@@ -2,6 +2,15 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.91.2] — 2026-11-02 — More Secure Integration Halls (development build)
+
+You said the hangar needs more secure integration halls. Only one slot in the whole works took a secure bay (in the Widebody hall), so Roost could build one fighter, bomber or strategic product at a time.
+
+- **New hall: the Secure integration complex** (900,000 to build, 12 days, 1,100 a day upkeep before the halved running costs), on the plot south of Flight Ops (x 43, y 85, 22 × 11 tiles) with its own door, room and site like the other halls. It has **two secure slots** that take nothing else; each secure bay is built in it as before (420,000, 8 days). Roost now has three secure slots in all.
+- This is data in `src/content/aerospace.js` (`HALLS.secure`); the map building, room, door, site, map icon and the hall card in the aerospace terminal come from it. Old saves keep what they had; the new hall starts as a site.
+- **Tests:** `aerospace_secure.test.mjs` (2): where the secure slots are; building the hall and fitting the two bays. `aerospace_halls.test.mjs` (unedited) covers that the new hall is on the map. **No existing test edited** except the smoke check count is unchanged.
+- **Not done / to know:** I took "more secure integration halls" to mean more places to fit the *Secure integration hall bay* (its name in the game). The new complex is 22 × 11 tiles; say if you wanted it somewhere else, bigger, or more than two bays. It is not looked at in a browser yet.
+
 ## [0.91.1] — 2026-11-02 — Managers Who Work, Hangars That Build, and a New Profit Order (development build)
 
 You said businesses were still losing money, that the shipping and farming managers did nothing and brought in no sales, that aerospace hangars should build a chosen plane by themselves and change type, and that profit should run Aerospace, Ships, Arms, Farm.

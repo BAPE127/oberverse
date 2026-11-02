@@ -211,6 +211,11 @@ export const HALLS = {
     text: 'The biggest roof in the west works: one widebody bay, and a fenced, guarded secure integration bay for defence work.',
     slots: [{ id: 'hw_a', fits: ['wide', 'heavy', 'light'], x: 1, y: 1, w: 11, h: 10 }, { id: 'hw_b', fits: ['secure'], x: 12, y: 2, w: 9, h: 7 }],
   },
+  secure: {
+    name: 'Secure integration complex', short: 'Secure complex', build: 900000, buildDays: 12, upkeep: 1100, at: { x: 43, y: 85 }, w: 22, h: 11, building: 'sf_roost_secure', room: 'roost_secure', sign: 'ROOST · SECURE INTEGRATION', hours: ['06:00', '20:00'],
+    text: 'A fenced, guarded complex apart from the other halls: two secure integration bays for fighters, bombers and strategic products (v0.91.2: the widebody hall has only one).',
+    slots: [{ id: 'hx_a', fits: ['secure'], x: 1, y: 2, w: 9, h: 7 }, { id: 'hx_b', fits: ['secure'], x: 11, y: 2, w: 9, h: 7 }],
+  },
   space: {
     name: 'Space systems annex', short: 'Space annex', build: 650000, buildDays: 10, upkeep: 700, at: { x: 2, y: 66 }, w: 22, h: 10, building: 'sf_roost_space', room: 'roost_space', sign: 'ROOST · SPACE SYSTEMS', hours: ['06:00', '20:00'],
     text: 'A rocket integration bay with its cradles and overhead crane, and two clean rooms for satellites.',

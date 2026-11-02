@@ -2,6 +2,15 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.2',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'More Secure Integration Halls',
+    notes: [
+      'Roost can now build a Secure integration complex south of Flight Ops: two more secure bays for fighters, bombers and strategic products (before, only the Widebody hall had a secure bay).',
+    ],
+  },
+  {
     version: '0.91.1',
     date: '2026-11-02',
     channel: 'development',

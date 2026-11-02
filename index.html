@@ -3665,6 +3665,11 @@ const HALLS = {
     text: 'The biggest roof in the west works: one widebody bay, and a fenced, guarded secure integration bay for defence work.',
     slots: [{ id: 'hw_a', fits: ['wide', 'heavy', 'light'], x: 1, y: 1, w: 11, h: 10 }, { id: 'hw_b', fits: ['secure'], x: 12, y: 2, w: 9, h: 7 }],
   },
+  secure: {
+    name: 'Secure integration complex', short: 'Secure complex', build: 900000, buildDays: 12, upkeep: 1100, at: { x: 43, y: 85 }, w: 22, h: 11, building: 'sf_roost_secure', room: 'roost_secure', sign: 'ROOST · SECURE INTEGRATION', hours: ['06:00', '20:00'],
+    text: 'A fenced, guarded complex apart from the other halls: two secure integration bays for fighters, bombers and strategic products (v0.91.2: the widebody hall has only one).',
+    slots: [{ id: 'hx_a', fits: ['secure'], x: 1, y: 2, w: 9, h: 7 }, { id: 'hx_b', fits: ['secure'], x: 11, y: 2, w: 9, h: 7 }],
+  },
   space: {
     name: 'Space systems annex', short: 'Space annex', build: 650000, buildDays: 10, upkeep: 700, at: { x: 2, y: 66 }, w: 22, h: 10, building: 'sf_roost_space', room: 'roost_space', sign: 'ROOST · SPACE SYSTEMS', hours: ['06:00', '20:00'],
     text: 'A rocket integration bay with its cradles and overhead crane, and two clean rooms for satellites.',
@@ -16543,7 +16548,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.91.1';
+const GAME_VERSION = '0.91.2';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -47553,6 +47558,15 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.91.2',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'More Secure Integration Halls',
+    notes: [
+      'Roost can now build a Secure integration complex south of Flight Ops: two more secure bays for fighters, bombers and strategic products (before, only the Widebody hall had a secure bay).',
+    ],
+  },
+  {
     version: '0.91.1',
     date: '2026-11-02',
     channel: 'development',
@@ -61950,6 +61964,7 @@ const BUILDING_ICONS = {
   sf_roost_hangar: { icon: '🛩️', kind: 'Roost Aeroworks — hangar' },
   sf_roost_hangar2: { icon: '🛩️', kind: 'Roost Aeroworks — Hangar 2 (light assembly)' },
   sf_roost_heavy: { icon: '✈️', kind: 'Roost Aeroworks — assembly hall (heavy bays)' },
+  sf_roost_secure: { icon: '🛡️', kind: 'Roost Aeroworks — secure integration complex' },
   sf_roost_wide: { icon: '🛫', kind: 'Roost Aeroworks — widebody & secure hall' },
   sf_roost_space: { icon: '🚀', kind: 'Roost Aeroworks — space systems annex' },
   sf_roost_lab: { icon: '🔬', kind: 'Roost Aeroworks — research laboratory' },
