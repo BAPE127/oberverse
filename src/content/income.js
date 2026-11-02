@@ -22,7 +22,7 @@ export const INCOME = {
   revenue: 1.1,
   /** v0.91.0, widened in v0.92.0: owning the shipping company is enough for everything you buy to arrive free: no freight, no handling, no duty, and no ship needed. You pay for the goods only. */
   /** v0.91.1: on top of `revenue`, what the aerospace firm's own sales (contracts, planes built for stock) are multiplied by, so a bay with a standing plane out-earns a small arms line. */
-  aerospace: 130,
+  aerospace: 27,
   /** v0.91.4: on top of `revenue`, what the arms export market pays for your crates (the figures a country pays are already in obols of that size; this scales them to what a works makes in a day). */
   arms: 7.4,
   /** v0.91.4: how much of each country's daily budget growth the arms market keeps (1 = all of it). It caps what a works can sell in a day: the eight countries' growth is 182,000 a day at 1. */
