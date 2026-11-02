@@ -676,13 +676,26 @@ export class Logistics {
   }
 
   /** What the client pays for a delivery at a given time. */
+  /**
+   * v0.91.4: freight rates fall as you flood the lanes. What a contract pays is multiplied by 1 ÷ (1 + n ÷ n0), n being the contracts you put a ship on
+   * in the last `windowDays` days (INCOME.freightSaturation = n0, 0 switches it off). The rate is fixed when a ship is put on the contract.
+   */
+  currentRate() {
+    const n0 = INCOME.freightSaturation;
+    if (!(n0 > 0)) return 1;
+    const day = this.game.clock.day;
+    const n = (this.state.assigned || []).filter((d) => d > day - this.L.rateWindowDays).length;
+    return 1 / (1 + n / n0);
+  }
+
   payFor(c, at) {
     const T = this.cfg.contractTypes[c.type];
     const lateDays = Math.max(0, (at - c.deadline) / 1440);
     if (lateDays > this.L.lateGraceDays) return 0;
-    if (lateDays > 0) return Math.round(c.pay * Math.max(0, 1 - Math.ceil(lateDays) * this.L.latePenaltyPerDay));
+    const rate = c.rate ?? this.currentRate();
+    if (lateDays > 0) return Math.round(c.pay * rate * Math.max(0, 1 - Math.ceil(lateDays) * this.L.latePenaltyPerDay));
     const early = T.earlyBonus && at < c.deadline - 12 * 60 ? T.earlyBonus : 0;
-    return Math.round(c.pay * (1 + early));
+    return Math.round(c.pay * rate * (1 + early));
   }
 
   /** Put a ship on a contract: it loads, then sails (with any escorts). Running costs, fees and services are paid now. */
@@ -695,6 +708,10 @@ export class Logistics {
     if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
     this.spend(q.cost, 'voyage');
     c.status = 'loading';
+    c.rate = this.currentRate();
+    const s = this.state;
+    (s.assigned ||= []).push(g.clock.day);
+    s.assigned = s.assigned.filter((d) => d > g.clock.day - this.L.rateWindowDays);
     c.vessel = v.id;
     c.insured = Boolean(opts.insure);
     c.guards = Boolean(opts.guards);

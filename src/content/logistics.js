@@ -23,6 +23,7 @@ export const LOGISTICS = {
   /** Delay chance per 1,000 km = (1 − reliability) × this, more when worn; each delay adds 6–18 hours. */
   delayPerKkm: 0.35, delayHours: [6, 18],
   /** Contracts: how many each owned port offers a day, how long an offer stands, late rules. */
+  rateWindowDays: 10, // v0.91.4: how far back INCOME.freightSaturation counts the contracts you have put ships on
   contractsPerPort: 2, maxAvailable: 14, offerDays: 2, lateGraceDays: 2, latePenaltyPerDay: 0.15, failPenalty: 0.1, cancelPenalty: 0.1,
   /** A ship's own daily upkeep is charged at 06:00 with the ports'; unpaid upkeep becomes arrears and holds sailings. */
   upkeepHour: 6,

@@ -70,7 +70,7 @@ if (id === 'shipping') {
   g.corp.ensureWorld(); chk(g.corp.group.form(), 'form'); chk(g.corp.group.join('shipping'), 'join'); chk(g.corp.contribute('parent', 2e9), 'parent'); chk(g.corp.group.capitalise('shipping', 1.5e9), 'cap');
   const L = g.logistics;
   const PORTS = (process.env.PORTS || 'port_lanternside,port_gullwing,port_kingsfjord,port_lirre,port_ostmark,port_varn').split(',');
-  for (const p of PORTS) chk(L.buyPort(p), 'port ' + p);
+  for (const p of PORTS) if (!L.ownsPort(p)) chk(L.buyPort(p), 'port ' + p);
   const SHIPS = Number(process.env.SHIPS || 8);
   const model = process.env.MODEL || 'bluecap_container';
   const owned = L.ownedPorts();
