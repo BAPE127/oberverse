@@ -93,6 +93,11 @@ Press ` in game (or Pause → *Debug menu*). Useful recipes: `weapons` then `tp 
 - `npm run check` — **686/686 tests passed** (2 new in `corporate_group`); `npm run smoke` — 26/26.
 - Parity re-run on the current code (Node, 20 game days, all four businesses): identical to v0.59.0 line for line.
 
+## Verification record — v0.91.1 (2026-11-02)
+
+- New: `operations.test.mjs`. Existing tests edited: eight files that pin the old prices set `INCOME.aerospace = 1` as well (`aerospace`, `aerospace_config`, `aerospace_shipping`, `aerospace_staff`, `aerospace_supply`, `corporate_accounts`, `corporate_consolidation`, `geo_effects`); `managers.test.mjs` (new boxes) and `corporate_integration.test.mjs` (allowed categories). Assertions about money are unchanged.
+- `node tools/econ-audit.mjs 24 4242`: aerospace 7,782 > shipping 5,917 > arms 2,483 > farming 590 obols a day with a manager each.
+
 ## Verification record — v0.91.0 (2026-10-31)
 
 - New: `aero_watch.test.mjs` (4), `arms_manager.test.mjs` (7), `rebalance.test.mjs` (6). Smoke 50/50 (+3: the Arms label, the take-off card, Watch it).

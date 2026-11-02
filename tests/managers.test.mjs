@@ -71,8 +71,8 @@ test('hiring is one tap: the fee is ten days of the wage, from the business\'s o
   assert.ok(r.ok, r.text);
   assert.equal(cash0 - g.corp.cashOf('farming'), 900); assert.equal(g.player.money, me, 'never your wallet');
   assert.equal(r.person.startDay, g.clock.day, 'no notice period');
-  assert.deepEqual(r.person.perm, { expand: true }, 'a farm manager may only be asked to expand');
-  assert.deepEqual(hire(g, 'manager', 'aerospace').perm, { reorder: true, bid: true, research: true, expand: true });
+  assert.deepEqual(r.person.perm, { land: true, expand: true }, 'a farm manager works the land and may be asked to expand');
+  assert.deepEqual(hire(g, 'manager', 'aerospace').perm, { reorder: true, bid: true, research: true, hangars: true, expand: true });
   assert.deepEqual(hire(g, 'group_manager', 'parent').perm, { transfer: true });
   assert.deepEqual(hire(g, 'office', 'parent').perm, {});
   assert.equal(MARKET.fee, 10);
@@ -139,7 +139,7 @@ test('every manager does exactly the same small good for their business — 3% �
 
 test('the boxes: each job has its own, you tick and untick them, and a box that is off is never used', () => {
   assert.deepEqual(permsFor('manager', 'arms'), ['reorder', 'hire', 'automation', 'bid', 'research', 'expand']);
-  assert.deepEqual(permsFor('manager', 'shipping'), ['expand']);
+  assert.deepEqual(permsFor('manager', 'shipping'), ['contracts', 'expand']);
   assert.deepEqual(PERMS.group_manager, { parent: ['transfer'] });
   const g = group(9120);
   const pe = g.corp.personnel; const M = g.corp.management;
@@ -386,7 +386,7 @@ test('a save from v0.62–v0.88 is converted on first read: one manager a busine
   assert.deepEqual([by('per_1').role, by('per_1').salary], ['manager', WAGES.manager.arms], 'the longest-serving manager keeps the job at the flat wage');
   assert.equal(by('per_2').status, 'let go'); assert.equal(by('per_5').status, 'let go', 'a staff job at a business goes');
   assert.equal(by('per_3').role, 'group_manager'); assert.equal(by('per_4').role, 'office');
-  assert.equal(by('per_6').role, 'manager'); assert.deepEqual(by('per_6').perm, { expand: true }, 'what they could do before is what is ticked');
+  assert.equal(by('per_6').role, 'manager'); assert.deepEqual(by('per_6').perm, { land: true, expand: true }, 'what they could do before is what is ticked (and the new box for the land)');
   assert.equal(by('per_1').skills, undefined); assert.equal(by('per_1').authority, undefined);
   assert.equal(pe.holders('arms').length, 1);
   const m = M.peek();

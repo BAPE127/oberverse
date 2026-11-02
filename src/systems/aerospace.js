@@ -702,7 +702,7 @@ export class Aerospace {
   }
 
   /** Set (or clear, with null) the plane a bay builds on its own, again and again, and sells. */
-  setBayAuto(co, bayId, productId) {
+  setBayAuto(co, bayId, productId, { feed = true } = {}) {
     const bay = co.bays.find((b) => b.id === bayId);
     if (!bay) return { ok: false, text: 'No such bay.' };
     if (co.kind !== 'player') return { ok: false, text: 'Only your own firm sets standing orders.' };
@@ -710,7 +710,7 @@ export class Aerospace {
     if (!this.bayProducts(co, bay).includes(productId)) return { ok: false, text: `That bay can't build the ${this.cfg.products[productId]?.name || 'plane'} (wrong bay type, or the research is missing).` };
     bay.auto = productId;
     let extra = '';
-    if (!co.autoProcure) { co.autoProcure = true; extra = ' Auto-buy is on now, so the hangars are fed.'; }
+    if (feed && !co.autoProcure) { co.autoProcure = true; extra = ' Auto-buy is on now, so the hangars are fed.'; }
     return { ok: true, text: `${this.cfg.bays[bay.type].name} (${bay.id}) will build ${this.cfg.products[productId].name} on its own and sell them.${extra}` };
   }
 
@@ -811,7 +811,7 @@ export class Aerospace {
     for (const b of co.bays) {
       if (b.auto || b.ready > this.now) continue;
       const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
-      if (options.length && this.setBayAuto(co, b.id, options[0].id).ok) set++;
+      if (options.length && this.setBayAuto(co, b.id, options[0].id, { feed: false }).ok) set++; // (the manager's own "buy supplies" box feeds it)
     }
     return set;
   }

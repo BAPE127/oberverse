@@ -50,10 +50,10 @@ const allCats = (a, dir) => [...new Set(Object.values(a.months).flatMap((m) => O
 test('1–2: each subsidiary did real, industry-specific things, and every revenue and expense category is one a game mechanic posts', () => {
   assert.equal(g.clock.day, 1 + DAYS);
   const allowed = {
-    arms: { out: ['wages', 'hiring', 'parts', 'equipment', 'machines'], in: ['sales', 'wholesale', 'orders', 'internal'] },
-    shipping: { out: ['wages', 'hiring', 'upkeep', 'voyage', 'port', 'ship', 'fuel', 'insurance'], in: ['internal', 'freight', 'contracts', 'sales'] },
+    arms: { out: ['wages', 'hiring', 'parts', 'equipment', 'machines'], in: ['sales', 'wholesale', 'orders', 'internal', 'exports'] },
+    shipping: { out: ['wages', 'hiring', 'upkeep', 'voyage', 'port', 'ship', 'fuel', 'insurance'], in: ['internal', 'freight', 'contracts', 'contract', 'sales'] },
     aerospace: { out: ['people', 'running', 'materials', 'hiring', 'facility', 'research', 'capex', 'hall', 'freight', 'duty', 'internal', 'launch', 'wages'], in: ['customers', 'deposits', 'sales', 'contracts'] },
-    farming: { out: ['land', 'wages', 'hiring', 'seed', 'feed', 'equipment', 'fencing', 'animals', 'upkeep'], in: ['crops', 'sales', 'milk', 'market'] },
+    farming: { out: ['land', 'wages', 'hiring', 'seed', 'feed', 'equipment', 'fencing', 'animals', 'upkeep', 'labour', 'fertiliser'], in: ['crops', 'sales', 'milk', 'market'] },
   };
   const doing = {};
   for (const id of IDS) {
