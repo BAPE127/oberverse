@@ -794,12 +794,18 @@ export class Aerospace {
     return this.storedOf(c.product).filter((r) => !r.config && r.quality >= (c.quality || 0));
   }
 
-  /** The contract's units that nothing has been done to yet: these are the ones a stored aircraft can stand in for. */
+  /** The contract's units that no real work has been done on: these are the ones a stored aircraft can stand in for (paperwork, ordering, and a bay only just taken). */
   openUnitsFor(c) {
-    return c.units.map((id) => this.state.units[id]).filter((u) => u && !u.finished && !u.bay && ['queued', 'waiting', 'blocked', 'engineering'].includes(u.status) && !this.settledUnit(c, u));
+    return c.units.map((id) => this.state.units[id]).filter((u) => u && !u.finished && !c.settled[u.id] && this.untouched(u));
   }
 
-  settledUnit(c, u) { return Boolean(c.settled[u.id]); }
+  untouched(u) {
+    if (u.purpose && u.purpose !== 'contract') return false;
+    const st = stagesOf(this.cfg, this.pOf(u));
+    const first = st.findIndex((x) => x.bay);
+    if (first < 0) return false;
+    return u.stage < first || (u.stage === first && (u.work || 0) <= 0.25 * (u.need || 1));
+  }
 
   /** What storage could do for a contract: how many of its units, and what they would pay now (with the on-time bonus). */
   storageOffer(co, c) {

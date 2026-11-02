@@ -83,12 +83,14 @@ test('a contract that asks for a special addition has to be built new, and stora
   assert.equal(A.storageOffer(co, configured), null);
 });
 
-test('stored aircraft are not used for a unit that is already in a bay', () => {
+test('stored aircraft are not used for a unit that is already in a bay', async () => {
   const { A, co } = firm(9945);
   stored(A, 'ap_skylark', 2);
   const c = contract(A, co, { qty: 2 });
   const [u1] = c.units.map((id) => A.state.units[id]);
-  u1.bay = 'light_1'; u1.status = 'building';
+  u1.bay = 'light_1'; u1.status = 'building'; u1.stage = C.pipelines ? 0 : 0;
+  const { stagesOf } = await import('../src/aero/pipeline.js');
+  u1.stage = stagesOf(C, C.products.ap_skylark).findIndex((x) => x.id === 'wings'); // past the first bay stage: real work has been done
   assert.equal(A.storageOffer(co, c).n, 1, 'only the unit nobody has started');
 });
 

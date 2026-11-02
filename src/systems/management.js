@@ -201,7 +201,9 @@ export class Management {
       const p = A.pOf(t);
       out.push({ item: t.id, cost: Math.round(q.cost * t.qty), price: bp.price, days: q.days, profit: q.profit, ask: bp.below ? `The most this customer pays is below the usual margin of ${margin}%.` : null, desc: `${t.qty} × ${p.name} at ${bp.price.toLocaleString()} each` });
     }
-    return out.sort((x, y) => y.profit - x.profit || (x.item < y.item ? -1 : 1));
+    // v0.91.5: a plain tender for a model that is already in storage is worth most: it is delivered at once, with the delivery-day bonus
+    const ready = (o) => { const t = A.tender(o.item); return t && !t.config && A.storedOf(t.product).length > 0 ? 1 : 0; };
+    return out.sort((x, y) => ready(y) - ready(x) || y.profit - x.profit || (x.item < y.item ? -1 : 1));
   }
 
   /** Aerospace: the contracts that stored aircraft could fill now, at once and with the delivery-day bonus. Always asked about: you choose between a stored plane and a new build. */
