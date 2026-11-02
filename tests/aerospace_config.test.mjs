@@ -11,7 +11,7 @@ import { remainingMaterials, stageMaterials, stagesOf } from '../src/aero/pipeli
 import { makeTender } from '../src/aero/tenders.js';
 import { Rng } from '../src/core/rng.js';
 import { INCOME } from '../src/content/income.js';
-INCOME.cost = 1; INCOME.revenue = 1; INCOME.aerospace = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.arms = 1; INCOME.aerospace = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const C = CONTENT.aerospace;
 const O = C.options;

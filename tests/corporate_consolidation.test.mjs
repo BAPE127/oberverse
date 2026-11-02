@@ -8,7 +8,7 @@ import { Game } from '../src/game/game.js';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { icStep } from '../src/corp/consolidate.js';
 import { INCOME } from '../src/content/income.js';
-INCOME.cost = 1; INCOME.revenue = 1; INCOME.aerospace = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.arms = 1; INCOME.aerospace = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const atDay = (g, d) => { g.clock.total = (d - 1) * 1440 + 8 * 60; };
 const total = (g) => g.player.money + Object.values(g.corp.state.accounts).reduce((a, x) => a + (x.funded ? x.cash : 0), 0);

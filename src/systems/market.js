@@ -132,7 +132,7 @@ export class Market {
     const fam = it.arms.family;
     const war = this.warOf(countryId) ? this.cfg.market.warMult[fam] : 1;
     const v = g.arms.value(itemId) * (def.wants[fam] ?? 1) * war * (1 - (c.sat[fam] || 0)) * (1 - c.hostility / 200);
-    return Math.max(1, Math.round(v * INCOME.revenue)); // (+10%: v0.91.0)
+    return Math.max(1, Math.round(v * INCOME.revenue * INCOME.arms)); // (+10%: v0.91.0; INCOME.arms: v0.91.4)
   }
 
   quote(countryId, items) {
