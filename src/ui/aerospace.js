@@ -949,7 +949,15 @@ export function aerospacePanel(ui, body, opts = {}) {
       const types = [...new Set(sl.fits)];
       if (bay) {
         const u = unitOf(bay.unit);
-        return h('div', { class: 'ao-tile' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, C.bays[bay.type].name), bay.ready > A.now ? pill(`fitted ${A.when(bay.ready).replace('Day ', 'D')}`, COL.blue) : u ? pill(`${C.products[u.product].name} #${u.n}`, COL.green) : pill('idle', 'rgba(223,233,245,0.5)'));
+        const own = c.kind === 'player';
+        const made = own && bay.ready <= A.now ? A.bayProducts(c, bay) : [];
+        const swaps = own && bay.ready <= A.now && !bay.unit ? types.filter((t) => t !== bay.type) : [];
+        return h('div', { class: 'ao-tile' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, C.bays[bay.type].name), bay.ready > A.now ? pill(`fitted ${A.when(bay.ready).replace('Day ', 'D')}`, COL.blue) : u ? pill(`${C.products[u.product].name} #${u.n}${u.purpose === 'stock' ? ' · stock' : ''}`, COL.green) : pill('idle', 'rgba(223,233,245,0.5)'),
+          made.length ? h('label', { class: 'ao-field' }, h('small', {}, 'Makes by itself'),
+            h('select', { class: 'ao-input', onchange: (e) => act(() => A.setBayAuto(c, bay.id, e.target.value || null)) },
+              h('option', { value: '', selected: !bay.auto }, 'Only for contracts'),
+              ...made.map((id) => h('option', { value: id, selected: bay.auto === id }, `${C.products[id].name} · sells ${fmtMoney(A.stockPrice(c, id))}`)))) : null,
+          ...swaps.map((t) => { const q = A.convertQuote(c, bay, t); return btn(`Change to ${C.bays[t].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(q.cost || 0)} · ${q.days || 0} d`, () => act(() => A.convertBay(c, bay.id, t)), 'tiny', !q.ok || !A.canAfford(c, q.cost), q.text); }));
       }
       if (st.state !== 'built') return h('div', { class: 'ao-tile off' }, h('small', {}, `SLOT · ${sl.fits[0].toUpperCase()}`), h('b', {}, 'after the hall opens'));
       return h('div', { class: 'ao-tile' }, h('small', {}, `FREE SLOT · ${sl.fits[0].toUpperCase()}`), h('div', { class: 'ao-row-inline' }, ...types.map((type) => btn(`Fit ${C.bays[type].name.replace(/ bay| hall| building| room/i, '').toLowerCase()} · ${fmtMoney(C.bays[type].build)}`, () => act(() => A.buildBay(c, type, sl.id)), 'tiny', !A.canAfford(c, C.bays[type].build)))));

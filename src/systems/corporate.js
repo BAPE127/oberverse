@@ -24,6 +24,7 @@ import { figures, growth, value as worth, rank as rankBy, shares } from '../corp
 import { Group } from './group.js';
 import { Personnel } from './personnel.js';
 import { Todo } from './todo.js';
+import { Operations } from './operations.js';
 import { Management } from './management.js';
 import { Exchange } from './exchange.js';
 import { CentralBank } from './centralBank.js';
@@ -55,6 +56,7 @@ export class Corporate {
     this.milestones = new Milestones(this); // v0.80.0: milestones from the records
     this.exchange = new Exchange(this); // v0.66.0: every listed company on one board
     this.todo = new Todo(this); // v0.90.0: what to do next, and the inbox
+    this.operations = new Operations(this); // v0.91.1: what managers do to run the business
     this.management = new Management(this); // v0.63.0: what they decide for themselves (nothing until a budget is set)
   }
 
@@ -424,6 +426,7 @@ export class Corporate {
     this.group.dailyTick(); // the group's monthly jobs (not held up by anything else)
     this.personnel.dailyTick(); // the market's week and the months' reviews (only once the market has been opened)
     this.management.dailyTick(); // managers' decisions (only once someone is hired)
+    this.operations.dailyTick(); // v0.91.1: managers run the land and the hangars (only once someone is hired)
     this.todo.dailyTick(); // each business's result of the day, for the little charts
     this.geo.dailyTick(); // what the arms market says has begun or ended, recorded (before the world's day reads it)
     this.generatedDay();

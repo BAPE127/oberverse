@@ -27,9 +27,12 @@ export const PERM_NAMES = {
   research: { name: 'Research', text: 'Starts the next research when none is under way.' },
   expand: { name: 'Expand', text: 'Proposes buying or building more. It always asks you first.' },
   transfer: { name: 'Move cash', text: 'Tops a company up from the parent, or brings its extra cash back.' },
+  contracts: { name: 'Run the fleet', text: 'Every hour, sends each idle ship on the best contract it can carry on time at a profit, within a safe risk.' }, // v0.91.1
+  land: { name: 'Work the land', text: 'Every morning: tills, plants the best crop, fertilises, harvests and sells at the Co-op; feeds herds, collects and sells eggs and milk.' }, // v0.91.1
+  hangars: { name: 'Keep the hangars busy', text: 'Every morning: each bay builds its standing plane (set on the Hangar page), buys what it needs and sells what is finished.' }, // v0.91.1
 };
 /** Which of them each job has at each place. */
-export const PERMS = { manager: { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'expand'], shipping: ['expand'], farming: ['expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
+export const PERMS = { manager: { arms: ['reorder', 'hire', 'automation', 'bid', 'research', 'expand'], aerospace: ['reorder', 'bid', 'research', 'hangars', 'expand'], shipping: ['contracts', 'expand'], farming: ['land', 'expand'] }, group_manager: { parent: ['transfer'] }, office: { parent: [] } };
 export const permsFor = (role, employer) => PERMS[role]?.[employer] || [];
 
 export const MARKET = {

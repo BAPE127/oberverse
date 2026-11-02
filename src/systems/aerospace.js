@@ -258,7 +258,7 @@ export class Aerospace {
 
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
   receive(co, amount, account, flow = null) {
-    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue : 1)); // v0.91.0: +10% on what your firm sells
+    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue * INCOME.aerospace : 1)); // v0.91.0: +10% on what your firm sells (v0.91.1: and INCOME.aerospace)
     if (amount <= 0) return;
     if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
     else co.cash += amount;
@@ -692,6 +692,128 @@ export class Aerospace {
     this.report(co, 'facility', `🏗 ${co.name} is fitting ${B.name.toLowerCase()} No. ${n}${where} (ready in ${B.buildDays} days).`, co.kind === 'player' ? 'info' : null);
     if (co.kind === 'rival') this.news(`Meridian breaks ground on a new ${B.name.toLowerCase()} at Starling Flats.`);
     return { ok: true, text: `${B.name} No. ${n}${where} is being fitted: ready in ${B.buildDays} days.` };
+  }
+
+  // ------------------------------------------------------------- hangar settings (v0.91.1): a standing plane for each bay, and bays that change type
+  /** The aircraft this bay can build for stock: the products its type builds that the company has the research for. */
+  bayProducts(co, bay) {
+    const C = this.cfg;
+    return Object.entries(C.products).filter(([, p]) => p.line === 'aircraft' && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
+  }
+
+  /** Set (or clear, with null) the plane a bay builds on its own, again and again, and sells. */
+  setBayAuto(co, bayId, productId) {
+    const bay = co.bays.find((b) => b.id === bayId);
+    if (!bay) return { ok: false, text: 'No such bay.' };
+    if (co.kind !== 'player') return { ok: false, text: 'Only your own firm sets standing orders.' };
+    if (!productId) { bay.auto = null; return { ok: true, text: `${this.cfg.bays[bay.type].name} (${bay.id}): no standing plane.` }; }
+    if (!this.bayProducts(co, bay).includes(productId)) return { ok: false, text: `That bay can't build the ${this.cfg.products[productId]?.name || 'plane'} (wrong bay type, or the research is missing).` };
+    bay.auto = productId;
+    let extra = '';
+    if (!co.autoProcure) { co.autoProcure = true; extra = ' Auto-buy is on now, so the hangars are fed.'; }
+    return { ok: true, text: `${this.cfg.bays[bay.type].name} (${bay.id}) will build ${this.cfg.products[productId].name} on its own and sell them.${extra}` };
+  }
+
+  /** What changing a bay's type costs and takes: a share of building the new type, and a share of its build time out of service. */
+  convertQuote(co, bay, type) {
+    const C = this.cfg;
+    const to = C.bays[type];
+    const from = C.bays[bay.type];
+    if (!to) return { ok: false, text: 'No such bay type.' };
+    if (type === bay.type) return { ok: false, text: 'It already is that type.' };
+    if (co.kind !== 'player') return { ok: false, text: 'Only your own halls are refitted.' };
+    if (bay.unit) return { ok: false, text: `The ${from.name.toLowerCase()} is busy: wait until its aircraft is out.` };
+    if (bay.ready > this.now) return { ok: false, text: 'It is still being fitted.' };
+    const slot = bay.slot ? this.slotsOf(co).find((sl) => sl.id === bay.slot) : null;
+    if (slot && !slot.fits.includes(type)) return { ok: false, text: `The slot it stands in takes ${slot.fits.map((t) => C.bays[t].name.toLowerCase()).join(' or ')}, not a ${to.name.toLowerCase()}.` };
+    if (!slot) return { ok: false, text: 'That bay has no slot to refit.' };
+    const refund = Math.round(from.build * this.A.convert.refund);
+    const cost = Math.max(0, Math.round(to.build * this.A.convert.share) - refund);
+    const days = Math.max(1, Math.round(to.buildDays * this.A.convert.daysShare));
+    return { ok: true, cost, days, text: `Refit as a ${to.name.toLowerCase()}: ${cost.toLocaleString()} obols and ${days} day${days === 1 ? '' : 's'} out of service.` };
+  }
+
+  /** Change an empty bay to another type its slot takes. */
+  convertBay(co, bayId, type) {
+    const bay = co.bays.find((b) => b.id === bayId);
+    if (!bay) return { ok: false, text: 'No such bay.' };
+    const q = this.convertQuote(co, bay, type);
+    if (!q.ok) return q;
+    if (!this.canAfford(co, q.cost)) return { ok: false, text: `The refit costs ${q.cost.toLocaleString()} obols.` };
+    this.pay(co, q.cost, null, 'capital');
+    co.books.capex += q.cost;
+    const was = this.cfg.bays[bay.type].name;
+    const n = Math.max(0, ...co.bays.filter((b) => b.type === type).map((b) => Number(String(b.id).split('_').pop()) || 0)) + 1;
+    bay.type = type;
+    bay.id = `${type}_${n}`;
+    bay.ready = this.now + q.days * DAY;
+    if (bay.auto && !this.bayProducts(co, bay).includes(bay.auto)) bay.auto = null; // the standing plane no longer fits
+    this.report(co, 'facility', `🔧 ${co.name} refits its ${was.toLowerCase()} as a ${this.cfg.bays[type].name.toLowerCase()} (${q.days} day${q.days === 1 ? '' : 's'}).`, 'info');
+    return { ok: true, text: `${was} refitted as ${this.cfg.bays[type].name.toLowerCase()} ${bay.id}: ready in ${q.days} day${q.days === 1 ? '' : 's'}.` };
+  }
+
+  /** What a plane built for stock fetches: the list price, softened by what the market has already taken of that model lately. */
+  stockPrice(co, productId) {
+    const p = this.cfg.products[productId];
+    const S = this.A.stock;
+    const sold = (this.state.stockSales?.[productId] || []).filter((d) => d > this.day - S.windowDays).length;
+    const f = Math.max(S.floor, 1 - sold * S.softening);
+    return Math.round(p.price * S.listShare * f);
+  }
+
+  /** What a unit built for stock earns on handover (the model's market price now), and what it cost. */
+  sellStock(co, u) {
+    const p = this.pOf(u);
+    const price = this.stockPrice(co, u.product);
+    (this.state.stockSales ||= {})[u.product] = [...(this.state.stockSales[u.product] || []).filter((d) => d > this.day - this.A.stock.windowDays), this.day];
+    this.receive(co, price, revenueAccount(p.line));
+    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1));
+    const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
+    for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += net; bucket.cost += direct; }
+    post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
+    post(co.books, this.day, 'cogs_freight', Math.round(u.cost.freight), this.A.historyDays);
+    post(co.books, this.day, 'cogs_freight_internal', Math.round(u.cost.freightInt || 0), this.A.historyDays);
+    co.stats.delivered += 1;
+    (co.stats.byProduct ||= {})[u.product] = (co.stats.byProduct[u.product] || 0) + 1;
+    co.stats.stock = (co.stats.stock || 0) + 1;
+    this.report(co, 'delivery', `✈ ${p.name} sold from stock for ${net.toLocaleString()} obols.`, null);
+    this.retire(u, 'delivered');
+  }
+
+  /** Every morning: each bay with a standing plane keeps one on the way (never more units open than bays set to that plane). */
+  runStandingOrders(co) {
+    if (co.kind !== 'player') return 0;
+    let made = 0;
+    const open = (pid) => this.unitsOf(co).filter((u) => u.purpose === 'stock' && u.product === pid).length;
+    const per = {};
+    for (const b of co.bays) if (b.auto && b.ready <= this.now) per[b.auto] = (per[b.auto] || 0) + 1;
+    for (const [pid, bays] of Object.entries(per)) {
+      const p = this.cfg.products[pid];
+      if (!p || missingTech(this.cfg, co, p).length) continue;
+      let have = open(pid);
+      while (have < bays * this.A.stock.perBay) {
+        // paused when the market is saturated for that model (it would sell below the floor price) or the firm cannot afford the next batch
+        if (this.stockPrice(co, pid) < p.price * this.A.stock.listShare * this.A.stock.pauseBelow) break;
+        const u = newUnit(this.cfg, { id: this.nextId('U'), company: co.id, contract: null, productId: pid, n: have + 1, purpose: 'stock', rng: this.rng, at: this.now });
+        this.state.units[u.id] = u;
+        have++; made++;
+      }
+    }
+    if (made) { this.syncRng(); if (co.autoProcure) this.autoProcure(co); }
+    return made;
+  }
+
+  /** The manager's job (the "Keep the hangars busy" box): give each bay with no standing plane the one that earns the most a day there. */
+  keepHangarsBusy(coId = 'roost') {
+    const co = this.company(coId);
+    if (!co || co.kind !== 'player') return 0;
+    let set = 0;
+    for (const b of co.bays) {
+      if (b.auto || b.ready > this.now) continue;
+      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
+      if (options.length && this.setBayAuto(co, b.id, options[0].id).ok) set++;
+    }
+    return set;
   }
 
   /** Fixed facilities: the engine test cell, inspection equipment, a launch pad. Paid now, ready after their build days. */
@@ -2075,6 +2197,7 @@ export class Aerospace {
     const C = this.cfg;
     const c = this.contract(u.contract);
     const p = this.pOf(u);
+    if (u.purpose === 'stock') return this.sellStock(co, u); // v0.91.1: built for the hangar's standing order, sold at the market
     if (u.purpose === 'own') {
       // a satellite for yourself: its cost is an asset now (the fleet), not a cost of sales
       this.retire(u, 'delivered');
@@ -2092,7 +2215,7 @@ export class Aerospace {
     const partial = u.commissioning?.partial;
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
     const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue : 1)); // (+10% for you: v0.91.0)
+    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1)); // (+10% for you: v0.91.0)
     const penalty = Math.round(price * penaltyShare);
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';
@@ -2219,6 +2342,7 @@ export class Aerospace {
     }
     // each company's day: wages, upkeep, overhead, interest; research and bays finish
     for (const co of this.companies()) this.companyDay(co);
+    if (this.roost) this.runStandingOrders(this.roost); // v0.91.1: each bay's standing plane
     this.closeTenders();
     this.postTenders();
     if (this.roost) { eventsMorning(this, this.roost); checkAchievements(this, this.roost); } // v0.57.0: what the books and the floor say today

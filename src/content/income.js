@@ -14,12 +14,14 @@ export const INCOME = {
   business: {
     wholesaleShare: 0.715, // Lucas buys your arms at this share of an item's value (was 0.5; 0.65 before v0.91.0)
     crops: 1.65, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0)
-    contracts: 1.65, // what shipping clients pay for a delivery (1.5 before v0.91.0)
+    contracts: 6.6, // what shipping clients pay for a delivery (1.5 before v0.91.0, 1.65 before v0.91.1: a ship with a manager now out-earns a small arms line)
   },
   /** v0.91.0: what a business pays to run — wages, parts and materials, upkeep, port and freight charges, repairs — as a multiplier (it was 1). Buying a business or its big assets is not in it. */
   cost: 0.5,
   /** v0.91.0: more for what a business sells that has no figure above (arms export orders, aerospace deliveries and services). The figures above already carry the same +10%. */
   revenue: 1.1,
   /** v0.91.0: with a shipping line of your own, supplies and exports travel without a freight charge (the line's own running costs are still the line's). */
+  /** v0.91.1: on top of `revenue`, what the aerospace firm's own sales (contracts, planes built for stock) are multiplied by, so a bay with a standing plane out-earns a small arms line. */
+  aerospace: 1.6,
   ownShippingFree: true,
 };

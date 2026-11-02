@@ -14,7 +14,7 @@ import { bondPremium } from '../src/corp/geo.js';
 import { judge } from '../src/corp/management.js';
 import { valueOf } from '../src/corp/bonds.js';
 import { INCOME } from '../src/content/income.js';
-INCOME.cost = 1; INCOME.revenue = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.aerospace = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const day = (g, d) => { g.clock.total = (d - 1) * 1440 + 8 * 60; };
 const war = (parties, extra = {}) => ({ id: 'w', kind: 'war', parties, start: 1, registered: 1, end: null, status: 'active', severity: 0.6, goods: [], ...extra });

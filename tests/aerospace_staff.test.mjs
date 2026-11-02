@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { newGame, CONTENT, Game } from './helpers.mjs';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { INCOME } from '../src/content/income.js';
-INCOME.cost = 1; INCOME.revenue = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
+INCOME.cost = 1; INCOME.revenue = 1; INCOME.aerospace = 1; INCOME.ownShippingFree = false; // (this file pins the mechanics at the old prices; tests/rebalance.test.mjs covers the v0.91.0 figures)
 
 const S = CONTENT.aerospace.staff;
 const DAY = 1440;
