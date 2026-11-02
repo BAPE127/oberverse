@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.91.4 | 2026-11-02 | development | 1 | Free delivery with a shipping company (no freight, handling, duty or ship needed) and a new income scale for every business (farm 20k, arms 100k, ship 500k, aerospace 1M per 5 days to start), with price-fading aerospace bonus and freight-rate saturation. |
 | 0.91.3 | 2026-11-02 | development | 1 | Carbon fibre supply (a second supplier, a bigger shelf) and an aerospace terminal whose fast-forward cannot freeze without saying why. |
 | 0.91.2 | 2026-11-02 | development | 1 | More secure integration halls: a new Secure integration complex for Roost with two secure bays (the Widebody hall had the only one). |
 | 0.91.1 | 2026-11-02 | development | 1 | Managers who work and hangars that build: shipping, farming and arms managers run their business from its own account; aerospace bays build a chosen plane on their own and can change type; profit now runs Aerospace, Ships, Arms, Farm. |

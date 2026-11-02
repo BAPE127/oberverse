@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.4',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Free Delivery and a New Scale for Every Business',
+    notes: [
+      'Owning the shipping company means everything you buy arrives free: no freight, no handling, no duty, and no ship needed. You pay for the goods only.',
+      'Every business now earns on a much bigger scale. In 5 days a new farm makes about 20,000, a small arms line about 100,000, one ship about 500,000 and the Roost aerospace firm about 1,000,000; fully built, about 9,000,000 for aerospace and 1,600,000 for a fleet. Freight rates fall as you flood the lanes.',
+    ],
+  },
+  {
     version: '0.91.3',
     date: '2026-11-02',
     channel: 'development',

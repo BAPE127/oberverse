@@ -3470,6 +3470,8 @@ __m["src/content/aerospace.js"] = (function () {
 /** The industry's rules and the two companies. */
 const AERO = {
   /** v0.91.1: planes built for the hangar's standing order sell at the market, not to a customer: list price times this share, softened by what the market took of that model in the last days. */
+  /** v0.91.4: the bonus INCOME.aerospace gives fades with a product's price: (ref ÷ price) ^ power (never more than 1). */
+  tier: { ref: 26000, power: 0.33 },
   stock: { listShare: 0.92, windowDays: 12, softening: 0.045, floor: 0.7, pauseBelow: 0.78, perBay: 2 },
   /** v0.91.1: refitting a bay to another type its slot takes: a share of the new type's build price (less a share of the old one's back) and of its build days. */
   convert: { share: 0.4, refund: 0.3, daysShare: 0.4 },
@@ -4727,16 +4729,22 @@ const INCOME = {
   /** What the first businesses pay, as a multiplier on what they paid before. */
   business: {
     wholesaleShare: 0.715, // Lucas buys your arms at this share of an item's value (was 0.5; 0.65 before v0.91.0)
-    crops: 1.65, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0)
-    contracts: 6.6, // what shipping clients pay for a delivery (1.5 before v0.91.0, 1.65 before v0.91.1: a ship with a manager now out-earns a small arms line)
+    crops: 5.1, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0, 1.65 until v0.91.3)
+    contracts: 140, // what shipping clients pay for a delivery (1.5 before v0.91.0, 1.65 until v0.91.0, 6.6 until v0.91.3; v0.91.4: sized so one ship earns ~500,000 in 5 days, see tools/econ-audit.mjs)
   },
   /** v0.91.0: what a business pays to run — wages, parts and materials, upkeep, port and freight charges, repairs — as a multiplier (it was 1). Buying a business or its big assets is not in it. */
   cost: 0.5,
   /** v0.91.0: more for what a business sells that has no figure above (arms export orders, aerospace deliveries and services). The figures above already carry the same +10%. */
   revenue: 1.1,
-  /** v0.91.0: with a shipping line of your own, supplies and exports travel without a freight charge (the line's own running costs are still the line's). */
+  /** v0.91.0, widened in v0.92.0: owning the shipping company is enough for everything you buy to arrive free: no freight, no handling, no duty, and no ship needed. You pay for the goods only. */
   /** v0.91.1: on top of `revenue`, what the aerospace firm's own sales (contracts, planes built for stock) are multiplied by, so a bay with a standing plane out-earns a small arms line. */
-  aerospace: 1.6,
+  aerospace: 20,
+  /** v0.91.4: on top of `revenue`, what the arms export market pays for your crates (the figures a country pays are already in obols of that size; this scales them to what a works makes in a day). */
+  arms: 7.4,
+  /** v0.91.4: how much of each country's daily budget growth the arms market keeps (1 = all of it). It caps what a works can sell in a day: the eight countries' growth is 182,000 a day at 1. */
+  armsDemand: 0.45,
+  /** v0.91.4: freight rates fall as you flood the lanes: a contract pays 1 ÷ (1 + n ÷ this) of its price, n = contracts you sent a ship on in the last 10 days. 0 switches it off. */
+  freightSaturation: 4,
   ownShippingFree: true,
 };
 
@@ -6412,6 +6420,7 @@ const LOGISTICS = {
   /** Delay chance per 1,000 km = (1 − reliability) × this, more when worn; each delay adds 6–18 hours. */
   delayPerKkm: 0.35, delayHours: [6, 18],
   /** Contracts: how many each owned port offers a day, how long an offer stands, late rules. */
+  rateWindowDays: 10, // v0.91.4: how far back INCOME.freightSaturation counts the contracts you have put ships on
   contractsPerPort: 2, maxAvailable: 14, offerDays: 2, lateGraceDays: 2, latePenaltyPerDay: 0.15, failPenalty: 0.1, cancelPenalty: 0.1,
   /** A ship's own daily upkeep is charged at 06:00 with the ports'; unpaid upkeep becomes arrears and holds sailings. */
   upkeepHour: 6,
@@ -16549,7 +16558,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.91.3';
+const GAME_VERSION = '0.91.4';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -25271,7 +25280,7 @@ class Market {
     const fam = it.arms.family;
     const war = this.warOf(countryId) ? this.cfg.market.warMult[fam] : 1;
     const v = g.arms.value(itemId) * (def.wants[fam] ?? 1) * war * (1 - (c.sat[fam] || 0)) * (1 - c.hostility / 200);
-    return Math.max(1, Math.round(v * INCOME.revenue)); // (+10%: v0.91.0)
+    return Math.max(1, Math.round(v * INCOME.revenue * INCOME.arms)); // (+10%: v0.91.0; INCOME.arms: v0.91.4)
   }
 
   quote(countryId, items) {
@@ -25443,7 +25452,7 @@ class Market {
     s.orders = s.orders.filter((o) => (o.status === 'open' ? o.expires >= g.clock.day : g.clock.day - o.posted < 7));
     for (const [id, c] of Object.entries(s.countries)) {
       const def = this.cfg.countries[id];
-      c.budget = Math.min(def.budget * 3, c.budget + def.income * (this.warOf(id) ? 1.5 : 1));
+      c.budget = Math.min(def.budget * 3, c.budget + def.income * INCOME.armsDemand * (this.warOf(id) ? 1.5 : 1)); // (INCOME.armsDemand: v0.91.4)
       for (const k of Object.keys(c.sat)) c.sat[k] = Math.max(0, c.sat[k] * (1 - m.saturationDecay));
       c.hostility = Math.max(0, c.hostility - 5);
     }
@@ -34245,13 +34254,26 @@ class Logistics {
   }
 
   /** What the client pays for a delivery at a given time. */
+  /**
+   * v0.91.4: freight rates fall as you flood the lanes. What a contract pays is multiplied by 1 ÷ (1 + n ÷ n0), n being the contracts you put a ship on
+   * in the last `windowDays` days (INCOME.freightSaturation = n0, 0 switches it off). The rate is fixed when a ship is put on the contract.
+   */
+  currentRate() {
+    const n0 = INCOME.freightSaturation;
+    if (!(n0 > 0)) return 1;
+    const day = this.game.clock.day;
+    const n = (this.state.assigned || []).filter((d) => d > day - this.L.rateWindowDays).length;
+    return 1 / (1 + n / n0);
+  }
+
   payFor(c, at) {
     const T = this.cfg.contractTypes[c.type];
     const lateDays = Math.max(0, (at - c.deadline) / 1440);
     if (lateDays > this.L.lateGraceDays) return 0;
-    if (lateDays > 0) return Math.round(c.pay * Math.max(0, 1 - Math.ceil(lateDays) * this.L.latePenaltyPerDay));
+    const rate = c.rate ?? this.currentRate();
+    if (lateDays > 0) return Math.round(c.pay * rate * Math.max(0, 1 - Math.ceil(lateDays) * this.L.latePenaltyPerDay));
     const early = T.earlyBonus && at < c.deadline - 12 * 60 ? T.earlyBonus : 0;
-    return Math.round(c.pay * (1 + early));
+    return Math.round(c.pay * rate * (1 + early));
   }
 
   /** Put a ship on a contract: it loads, then sails (with any escorts). Running costs, fees and services are paid now. */
@@ -34264,6 +34286,10 @@ class Logistics {
     if (!g.corp.canAfford('shipping', q.cost)) return { ok: false, text: `The voyage costs ${q.cost} obols up front (running costs, fees${q.escortCost ? ', escorts' : ''}${q.services ? ', services' : ''}).` };
     this.spend(q.cost, 'voyage');
     c.status = 'loading';
+    c.rate = this.currentRate();
+    const s = this.state;
+    (s.assigned ||= []).push(g.clock.day);
+    s.assigned = s.assigned.filter((d) => d > g.clock.day - this.L.rateWindowDays);
     c.vessel = v.id;
     c.insured = Boolean(opts.insure);
     c.guards = Boolean(opts.guards);
@@ -37481,9 +37507,20 @@ class Aerospace {
     post(co.books, this.day, `cf_out_${flow || flowOf(account, 'out')}`, amount, this.A.historyDays);
   }
 
+  /**
+   * v0.91.4: what a sale of this product earns on top of INCOME.revenue: 1 + (INCOME.aerospace − 1) × a share that fades with the price
+   * ((reference price ÷ price) ^ power), so the cheap aircraft a new firm builds pay well and the million-obol ones are not ruinously rich.
+   * 1 for a rival, and 1 when INCOME.aerospace is 1.
+   */
+  saleBonus(co, p) {
+    if (co.kind !== 'player' || !p) return 1;
+    const T = this.A.tier;
+    return 1 + (INCOME.aerospace - 1) * Math.min(1, Math.pow(T.ref / Math.max(1, p.price), T.power));
+  }
+
   /** Money in, booked to an account (null: not revenue — a deposit, a refund). */
   receive(co, amount, account, flow = null) {
-    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue * INCOME.aerospace : 1)); // v0.91.0: +10% on what your firm sells (v0.91.1: and INCOME.aerospace)
+    amount = Math.round(amount * (co.kind === 'player' && typeof account === 'string' && account.startsWith('rev_') ? INCOME.revenue : 1)); // v0.91.0: +10% on what your firm sells (the bonus on aircraft sales is saleBonus(), below)
     if (amount <= 0) return;
     if (co.kind === 'player') this.game.corp.receive('aerospace', amount, { cat: flow || flowOf(account, 'in') });
     else co.cash += amount;
@@ -37989,10 +38026,10 @@ class Aerospace {
   /** What a unit built for stock earns on handover (the model's market price now), and what it cost. */
   sellStock(co, u) {
     const p = this.pOf(u);
-    const price = this.stockPrice(co, u.product);
+    const price = Math.round(this.stockPrice(co, u.product) * this.saleBonus(co, p));
     (this.state.stockSales ||= {})[u.product] = [...(this.state.stockSales[u.product] || []).filter((d) => d > this.day - this.A.stock.windowDays), this.day];
     this.receive(co, price, revenueAccount(p.line));
-    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1));
+    const net = Math.round(price * (co.kind === 'player' ? INCOME.revenue : 1));
     const direct = Math.round(u.cost.materials + u.cost.freight + (u.cost.freightInt || 0));
     for (const bucket of [(co.books.lines ||= {})[p.line] ||= { units: 0, revenue: 0, cost: 0, late: 0 }, (co.books.products ||= {})[u.product] ||= { units: 0, revenue: 0, cost: 0, late: 0 }]) { bucket.units += 1; bucket.revenue += net; bucket.cost += direct; }
     post(co.books, this.day, 'cogs_materials', Math.round(u.cost.materials), this.A.historyDays);
@@ -38035,7 +38072,7 @@ class Aerospace {
     let set = 0;
     for (const b of co.bays) {
       if (b.auto || b.ready > this.now) continue;
-      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
+      const options = this.bayProducts(co, b).map((id) => { const p = this.cfg.products[id]; return { id, perDay: (p.price * this.A.stock.listShare * this.saleBonus(co, p) - unitCost(this.cfg, p).total) / Math.max(1, p.days) }; }).filter((o) => o.perDay > 0).sort((a, c) => c.perDay - o.perDay);
       if (options.length && this.setBayAuto(co, b.id, options[0].id, { feed: false }).ok) set++; // (the manager's own "buy supplies" box feeds it)
     }
     return set;
@@ -38312,7 +38349,7 @@ class Aerospace {
     const sf = this.game.corp?.geo.costFactor('shipping') ?? 1; // …and of freight
     const freight = own ? 0 : Math.max(Math.round(F.minimum * k), Math.round(((goods / k) * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf * k));
     const country = L.port(sp.where)?.country;
-    const duty = country ? Math.round(goods * F.duty) : 0;
+    const duty = country && !own ? Math.round(goods * F.duty) : 0; // v0.92.0: with a shipping line of your own you pay for the goods and nothing else
     const hours = lead / 60 + sea + F.truckHours + 2;
     return { goods, unitPrice: unit, freight, duty, handling: own ? 0 : Math.round(F.handling * k), mode: 'carrier', km, hours, sea, arrive: this.now + Math.round(hours * 60), volume };
   }
@@ -38332,7 +38369,16 @@ class Aerospace {
 
   /** Internal shipping needs the player's company and Ober & Sons Maritime. */
   canShipInternal(co) {
-    return co.kind === 'player' && this.game.logistics.owned;
+    return co.kind === 'player' && this.game.logistics.owned && !this.freeDelivery(co);
+  }
+
+  /**
+   * v0.92.0: owning the shipping company is all it takes for your materials to arrive free: no freight, no handling, no duty, and no ship
+   * needed (a ship's voyages are for contracts). You pay for the goods. (INCOME.ownShippingFree switches it; with it off the old own-ship
+   * consignments and their intercompany charge are back.)
+   */
+  freeDelivery(co) {
+    return co.kind === 'player' && INCOME.ownShippingFree && Boolean(this.game.logistics.owned);
   }
 
   /** What an order would cost now, and how it would travel. Nothing changes (the managers of v0.63 quote with it before they buy). */
@@ -39440,7 +39486,7 @@ class Aerospace {
     const partial = u.commissioning?.partial;
     const lateDays = Math.max(0, Math.ceil((this.now - c.due) / DAY));
     const penaltyShare = Math.min(this.A.lateCap, lateDays * this.A.latePerDay);
-    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * INCOME.aerospace : 1)); // (+10% for you: v0.91.0)
+    const price = Math.round(c.unitPrice * (partial ? 0.5 : 1) * (co.kind === 'player' ? INCOME.revenue * this.saleBonus(co, p) : 1)); // (+10% for you: v0.91.0; and the bonus of v0.91.4)
     const penalty = Math.round(price * penaltyShare);
     const share = Math.round(c.depositPaid / c.qty);
     c.settled[u.id] = 'delivered';
@@ -47563,6 +47609,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.91.4',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Free Delivery and a New Scale for Every Business',
+    notes: [
+      'Owning the shipping company means everything you buy arrives free: no freight, no handling, no duty, and no ship needed. You pay for the goods only.',
+      'Every business now earns on a much bigger scale. In 5 days a new farm makes about 20,000, a small arms line about 100,000, one ship about 500,000 and the Roost aerospace firm about 1,000,000; fully built, about 9,000,000 for aerospace and 1,600,000 for a fleet. Freight rates fall as you flood the lanes.',
+    ],
+  },
   {
     version: '0.91.3',
     date: '2026-11-02',
@@ -70979,7 +71035,10 @@ function aerospacePanel(ui, body, opts = {}) {
     const free = fleet.filter((v) => v.status === 'docked' && !v.contract && !v.cargo && !v.convoyOf);
     const pos = A.ordersOf(c);
 
-    const fleetStrip = own
+    const freeDel = A.freeDelivery(c);
+    const fleetStrip = freeDel
+      ? h('div', { class: 'ao-fleet' }, h('span', { class: 'ico' }, '⚓'), h('div', { class: 'grow' }, h('b', {}, 'Delivery is free'), h('small', {}, 'You own Ober & Sons Maritime, so your materials reach you with no freight, handling or duty. You pay for the goods only; no ship of yours is needed.')), pill('free', COL.green))
+      : own
       ? h('div', { class: 'ao-fleet' }, h('span', { class: 'ico' }, '⚓'),
         h('div', { class: 'grow' }, h('b', {}, fleet.length ? `Your fleet: ${plural(fleet.length, 'ship')}` : 'You have no ship yet'),
           h('small', {}, fleet.length ? `biggest holds ${A.maxHold()} · ${free.length} free now · freight to your own line is at most ${C.internal.maxChargePerOrder.toLocaleString()} ◎ an order` : 'Orders go by carrier until Ober & Sons Maritime has a ship')),
@@ -71027,7 +71086,7 @@ function aerospacePanel(ui, body, opts = {}) {
         h('div', { class: 'ao-stepper' }, btn('−', () => set({ qty: Math.max(1, qty - 1) }), 'tiny', qty <= 1), readout, btn('＋', () => set({ qty: Math.min(stock, qty + 1) }), 'tiny', qty >= stock), h('small', {}, 'lots')),
         local
           ? h('div', { class: 'ao-routes' }, routeCard('truck', '🚚', 'By truck', carTotal, `up the Cut in ~${hrs(qCar.hours * 60)}`))
-          : h('div', { class: 'ao-routes' }, own ? routeCard('own', '⚓', 'Your ship', ownTotal, ownLine, ownOk && qOwn.own.ok) : null, routeCard('carrier', '🚢', 'Carrier', carTotal, `${hrs(qCar.hours * 60)} · no wait`)),
+          : h('div', { class: 'ao-routes' }, own ? routeCard('own', '⚓', 'Your ship', ownTotal, ownLine, ownOk && qOwn.own.ok) : null, routeCard('carrier', freeDel ? '⚓' : '🚢', freeDel ? 'Free delivery' : 'Carrier', carTotal, `${hrs(qCar.hours * 60)} · no wait${freeDel ? ' · no freight' : ''}`)),
         h('div', { class: 'ao-row-inline' },
           btn(`Order ${qty} · ${money(total)}`, () => { const r = act(() => A.order(c, pick.id, m, qty, {}, route === 'truck' ? {} : { mode: route === 'own' ? 'internal' : 'carrier' })); if (r.ok) { delete S.qty[m]; delete S.route[m]; if (S.more === m) S.more = null; refresh(); } }, 'primary', stock < 1 || !A.canAfford(c, q.payNow)),
           btn(open ? 'Details ▴' : 'Details ▾', () => { (S.open ||= {})[m] = !open; refresh(); }, 'ghost')),

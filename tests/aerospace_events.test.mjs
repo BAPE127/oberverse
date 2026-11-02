@@ -7,6 +7,8 @@ import { newGame, CONTENT, Game } from './helpers.mjs';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { eventsMorning, rollBreakthrough } from '../src/aero/events.js';
 import { quantityError } from '../src/aero/catalog.js';
+import { INCOME } from '../src/content/income.js';
+INCOME.aerospace = 1; // (v0.91.4: this file checks the offers and their discount at list prices; the firm's own sales are 20 times richer by default)
 
 const C = CONTENT.aerospace;
 const E = C.events;

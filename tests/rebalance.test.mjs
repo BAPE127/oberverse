@@ -64,7 +64,7 @@ test('aerospace: for you, materials, wages, upkeep and overhead cost half and de
   assert.equal(g.corp.cashOf('aerospace') - c2, 1000, 'a deposit or refund is not revenue');
 });
 
-test('aerospace supplies with a shipping line of your own: no freight, no handling — duty stays; without one, freight and handling are charged (at half)', () => {
+test('aerospace supplies with a shipping line of your own: no freight, no handling, no duty (v0.91.4); without one, freight and handling are charged (at half)', () => {
   const g = newGame(9904); g.player.money = 9e7; assert.ok(g.aero.buyFirm().ok);
   const A = g.aero; const co = A.roost;
   const m = Object.keys(A.cfg.materials)[0];
@@ -77,9 +77,9 @@ test('aerospace supplies with a shipping line of your own: no freight, no handli
   if (local) assert.ok(A.freightQuote(co, local, m, 10).freight > 0);
   g.player.money = 9e7; assert.ok(g.logistics.buyCompany().ok);
   const own = A.freightQuote(co, far, m, 10);
-  assert.equal(own.freight, 0); assert.equal(own.handling, 0); assert.equal(own.duty, noLine.duty, 'duty is a tax, not shipping');
+  assert.equal(own.freight, 0); assert.equal(own.handling, 0); assert.equal(own.duty, 0, 'v0.91.4: owning the shipping company waives the duty too: you pay for the goods only');
   if (local) assert.equal(A.freightQuote(co, local, m, 10).freight, 0, 'the truck is free too');
-  assert.equal(A.orderCost(co, far, m, 10).total, own.goods + own.duty, 'the order costs the goods and the duty');
+  assert.equal(A.orderCost(co, far, m, 10).total, own.goods + own.duty, 'the order costs the goods and nothing else');
   // a rival is charged as ever
   const r = A.freightQuote(A.meridian, far, m, 10); assert.ok(r.freight > 0 && r.handling > 0);
   withKnob('ownShippingFree', false, () => assert.ok(A.freightQuote(co, far, m, 10).freight > 0));

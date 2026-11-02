@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, setTime, run, CONTENT, Game, TILE } from './helpers.mjs';
+import { Rng } from '../src/core/rng.js';
 import { errandFor, regionOfSpot } from '../src/sim/errands.js';
 import { blockAt } from '../src/sim/schedule.js';
 import { validateContent } from '../tools/validate-content.mjs';
@@ -53,6 +54,7 @@ test('friends meet up: on a meet day Rosa and Lorna pick the same place, and bot
 
 test('a call becomes an incident: officers sent, witnesses questioned at the scene, the all-clear, back to the beat — and it survives a save', () => {
   const g = newGame();
+  g.rng = new Rng(0x0b3e); // (v0.91.4: this is about the police; what the world's dice have been used for before (the arms market's orders, say) must not decide whether the officer gets there in time)
   setTime(g, 1, '10:00');
   g.changeMap('lanternside', 'start'); // the player is nowhere near
   const P = g.police;
