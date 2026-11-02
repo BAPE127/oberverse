@@ -1087,7 +1087,7 @@ export class Aerospace {
     const sf = this.game.corp?.geo.costFactor('shipping') ?? 1; // …and of freight
     const freight = own ? 0 : Math.max(Math.round(F.minimum * k), Math.round(((goods / k) * F.valueShare + volume * F.perUnitPerKkm * (km / 1000)) * sf * k));
     const country = L.port(sp.where)?.country;
-    const duty = country ? Math.round(goods * F.duty) : 0;
+    const duty = country && !own ? Math.round(goods * F.duty) : 0; // v0.92.0: with a shipping line of your own you pay for the goods and nothing else
     const hours = lead / 60 + sea + F.truckHours + 2;
     return { goods, unitPrice: unit, freight, duty, handling: own ? 0 : Math.round(F.handling * k), mode: 'carrier', km, hours, sea, arrive: this.now + Math.round(hours * 60), volume };
   }
@@ -1107,7 +1107,16 @@ export class Aerospace {
 
   /** Internal shipping needs the player's company and Ober & Sons Maritime. */
   canShipInternal(co) {
-    return co.kind === 'player' && this.game.logistics.owned;
+    return co.kind === 'player' && this.game.logistics.owned && !this.freeDelivery(co);
+  }
+
+  /**
+   * v0.92.0: owning the shipping company is all it takes for your materials to arrive free: no freight, no handling, no duty, and no ship
+   * needed (a ship's voyages are for contracts). You pay for the goods. (INCOME.ownShippingFree switches it; with it off the old own-ship
+   * consignments and their intercompany charge are back.)
+   */
+  freeDelivery(co) {
+    return co.kind === 'player' && INCOME.ownShippingFree && Boolean(this.game.logistics.owned);
   }
 
   /** What an order would cost now, and how it would travel. Nothing changes (the managers of v0.63 quote with it before they buy). */

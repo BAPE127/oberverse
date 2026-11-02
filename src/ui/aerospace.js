@@ -833,7 +833,10 @@ export function aerospacePanel(ui, body, opts = {}) {
     const free = fleet.filter((v) => v.status === 'docked' && !v.contract && !v.cargo && !v.convoyOf);
     const pos = A.ordersOf(c);
 
-    const fleetStrip = own
+    const freeDel = A.freeDelivery(c);
+    const fleetStrip = freeDel
+      ? h('div', { class: 'ao-fleet' }, h('span', { class: 'ico' }, '⚓'), h('div', { class: 'grow' }, h('b', {}, 'Delivery is free'), h('small', {}, 'You own Ober & Sons Maritime, so your materials reach you with no freight, handling or duty. You pay for the goods only; no ship of yours is needed.')), pill('free', COL.green))
+      : own
       ? h('div', { class: 'ao-fleet' }, h('span', { class: 'ico' }, '⚓'),
         h('div', { class: 'grow' }, h('b', {}, fleet.length ? `Your fleet: ${plural(fleet.length, 'ship')}` : 'You have no ship yet'),
           h('small', {}, fleet.length ? `biggest holds ${A.maxHold()} · ${free.length} free now · freight to your own line is at most ${C.internal.maxChargePerOrder.toLocaleString()} ◎ an order` : 'Orders go by carrier until Ober & Sons Maritime has a ship')),
@@ -881,7 +884,7 @@ export function aerospacePanel(ui, body, opts = {}) {
         h('div', { class: 'ao-stepper' }, btn('−', () => set({ qty: Math.max(1, qty - 1) }), 'tiny', qty <= 1), readout, btn('＋', () => set({ qty: Math.min(stock, qty + 1) }), 'tiny', qty >= stock), h('small', {}, 'lots')),
         local
           ? h('div', { class: 'ao-routes' }, routeCard('truck', '🚚', 'By truck', carTotal, `up the Cut in ~${hrs(qCar.hours * 60)}`))
-          : h('div', { class: 'ao-routes' }, own ? routeCard('own', '⚓', 'Your ship', ownTotal, ownLine, ownOk && qOwn.own.ok) : null, routeCard('carrier', '🚢', 'Carrier', carTotal, `${hrs(qCar.hours * 60)} · no wait`)),
+          : h('div', { class: 'ao-routes' }, own ? routeCard('own', '⚓', 'Your ship', ownTotal, ownLine, ownOk && qOwn.own.ok) : null, routeCard('carrier', freeDel ? '⚓' : '🚢', freeDel ? 'Free delivery' : 'Carrier', carTotal, `${hrs(qCar.hours * 60)} · no wait${freeDel ? ' · no freight' : ''}`)),
         h('div', { class: 'ao-row-inline' },
           btn(`Order ${qty} · ${money(total)}`, () => { const r = act(() => A.order(c, pick.id, m, qty, {}, route === 'truck' ? {} : { mode: route === 'own' ? 'internal' : 'carrier' })); if (r.ok) { delete S.qty[m]; delete S.route[m]; if (S.more === m) S.more = null; refresh(); } }, 'primary', stock < 1 || !A.canAfford(c, q.payNow)),
           btn(open ? 'Details ▴' : 'Details ▾', () => { (S.open ||= {})[m] = !open; refresh(); }, 'ghost')),

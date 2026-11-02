@@ -20,7 +20,7 @@ export const INCOME = {
   cost: 0.5,
   /** v0.91.0: more for what a business sells that has no figure above (arms export orders, aerospace deliveries and services). The figures above already carry the same +10%. */
   revenue: 1.1,
-  /** v0.91.0: with a shipping line of your own, supplies and exports travel without a freight charge (the line's own running costs are still the line's). */
+  /** v0.91.0, widened in v0.92.0: owning the shipping company is enough for everything you buy to arrive free: no freight, no handling, no duty, and no ship needed. You pay for the goods only. */
   /** v0.91.1: on top of `revenue`, what the aerospace firm's own sales (contracts, planes built for stock) are multiplied by, so a bay with a standing plane out-earns a small arms line. */
   aerospace: 1.6,
   ownShippingFree: true,

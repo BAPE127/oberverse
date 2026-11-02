@@ -4,6 +4,14 @@
 //   env CRATES=n   the arms line's output in crates a day (default 6: one assembly bench fed by a lathe)
 import { newGame } from '../tests/helpers.mjs';
 import { runCommand } from '../src/game/debugCommands.js';
+import { INCOME } from '../src/content/income.js';
+import { OPS } from '../src/content/operations.js';
+// KNOBS='{"business.contracts":100,"aerospace":10,"ops.arms.wholesaleDaily":9000}' node tools/econ-audit.mjs ...   (try a figure without editing the files)
+for (const [path, v] of Object.entries(JSON.parse(process.env.KNOBS || '{}'))) {
+  const parts = path.split('.'); let o = parts[0] === 'ops' ? OPS : INCOME; if (parts[0] === 'ops') parts.shift();
+  while (parts.length > 1) o = o[parts.shift()];
+  o[parts[0]] = v;
+}
 const days = Number(process.argv[2] || 24), seed = Number(process.argv[3] || 4242);
 const only = process.argv[4];
 const chk = (r, what) => { if (!r?.ok) throw new Error(`${what}: ${r?.text}`); return r; };
@@ -47,9 +55,9 @@ function audit(id) {
   for (const m of Object.values(a.months)) { for (const [k, v] of Object.entries(m.in)) tot.in[k] = (tot.in[k] || 0) + v; for (const [k, v] of Object.entries(m.out)) tot.out[k] = (tot.out[k] || 0) + v; }
   const revenue = Object.entries(tot.in).filter(([k]) => !['transfer', 'loan', 'refund', 'deposit', 'internal', 'grant'].includes(k)).reduce((s, [, v]) => s + v, 0);
   const opex = Object.entries(tot.out).filter(([k]) => !['machines', 'ship', 'port', 'works', 'land', 'capital', 'equipment', 'transfer', 'hall', 'facility', 'animals', 'fencing', 'hiring'].includes(k)).reduce((s, [, v]) => s + v, 0);
-  return { id, revenue: Math.round(revenue), opex: Math.round(opex), profitPerDay: Math.round((revenue - opex) / days), cash: Math.round(a.cash - start), in: tot.in, out: tot.out };
+  return { id, revenue: Math.round(revenue), opex: Math.round(opex), profitPerDay: Math.round((revenue - opex) / days), fiveDay: Math.round(((revenue - opex) / days) * 5), cash: Math.round(a.cash - start), in: tot.in, out: tot.out };
 }
 
 const rows = (only ? [only] : ['aerospace', 'shipping', 'arms', 'farming']).map(audit);
-for (const o of rows) console.log(o.id.padEnd(10), 'revenue', String(o.revenue).padStart(9), 'costs', String(o.opex).padStart(9), 'profit/day', String(o.profitPerDay).padStart(7), '\n   in ', JSON.stringify(o.in), '\n   out', JSON.stringify(o.out));
+for (const o of rows) console.log(o.id.padEnd(10), 'revenue', String(o.revenue).padStart(9), 'costs', String(o.opex).padStart(9), 'profit/day', String(o.profitPerDay).padStart(7), '  5 days', String(o.fiveDay).padStart(8), '\n   in ', JSON.stringify(o.in), '\n   out', JSON.stringify(o.out));
 if (!only) console.log('\norder by profit a day:', [...rows].sort((a, b) => b.profitPerDay - a.profitPerDay).map((o) => `${o.id} ${o.profitPerDay}`).join(' > '));
