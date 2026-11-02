@@ -419,14 +419,24 @@ export function aerospacePanel(ui, body, opts = {}) {
 
   // ------------------------------------------------------------------ the live loop and fast-forward
   let lastUi = 0;
+  let lastErr = '';
+  /** v0.91.2: a thrown error must not freeze the clock. It ends the fast-forward, says what went wrong on screen, and the loop carries on. */
+  const fail = (what, e) => {
+    AO.ff = null;
+    const msg = `${what}: ${e?.message || e}`;
+    if (msg !== lastErr) { lastErr = msg; console.error(e); say({ ok: false, text: `⚠ ${msg}` }); }
+    try { renderTop(); } catch { /* the top bar is the last thing to give up */ }
+  };
   const loop = (ms) => {
     if (!canvas.isConnected) { AO.ff = null; return; }
-    if (AO.ff) {
-      const left = AO.ff.until - g.clock.total;
-      if (left <= 0) { AO.ff = null; refresh(); } else g.skipTime(Math.min(left, Math.max(4, Math.ceil(left / 50))));
-    }
-    drawFloor(ms / 1000);
-    if (AO.ff && ms - lastUi > 450) { lastUi = ms; renderTop(); renderFeed(); if (AO.mode === 'floor') renderDrawer(); }
+    try {
+      if (AO.ff) {
+        const left = AO.ff.until - g.clock.total;
+        if (left <= 0) { AO.ff = null; refresh(); } else g.skipTime(Math.min(left, Math.max(4, Math.ceil(left / 50))));
+      }
+    } catch (e) { g.skipping = false; fail('Time stopped by an error', e); }
+    try { drawFloor(ms / 1000); } catch (e) { fail('The floor could not be drawn', e); }
+    try { if (AO.ff && ms - lastUi > 450) { lastUi = ms; renderTop(); renderFeed(); if (AO.mode === 'floor') renderDrawer(); } } catch (e) { fail('The screen could not be updated', e); }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -866,7 +876,7 @@ export function aerospacePanel(ui, body, opts = {}) {
       const open = S.open?.[m];
       return h('div', { class: `ao-card ao-supply${x?.short ? ' short' : ''}` },
         h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, mat.name), h('small', {}, x ? `have ${x.r.qty} · need ${x.need} · ${x.onOrder} on order` : `have ${(c.inv[m] || {}).qty || 0} in stores`)),
-          h('div', { class: 'ao-from' }, h('small', {}, `${pick.sp.name}${local ? ' · local' : ` · ${g.logistics.port(pick.sp.where)?.name || ''}`}`), pill(`${stock} in stock`, stock >= want ? COL.green : COL.red))),
+          h('div', { class: 'ao-from' }, h('small', {}, `${pick.sp.name}${local ? ' · local' : ` · ${g.logistics.port(pick.sp.where)?.name || ''}`}`), pill(`${stock} in stock`, stock >= want ? COL.green : COL.red), stock < want ? h('small', { class: 'warn' }, `restocks about ${pick.sp.restock} a day${sellers.length > 1 ? ' — or try another supplier' : ''}`) : null)),
         h('div', { class: 'ao-slide' }, slider, h('div', { class: 'ao-marks' }, ...marks.map(([t, v]) => h('button', { class: 'tiny', onclick: () => set({ qty: v }) }, t)))),
         h('div', { class: 'ao-stepper' }, btn('−', () => set({ qty: Math.max(1, qty - 1) }), 'tiny', qty <= 1), readout, btn('＋', () => set({ qty: Math.min(stock, qty + 1) }), 'tiny', qty >= stock), h('small', {}, 'lots')),
         local
@@ -1154,11 +1164,13 @@ export function aerospacePanel(ui, body, opts = {}) {
 
   // ================================================================== refresh
   const refresh = () => {
-    renderTop();
-    renderRail();
-    renderDrawer();
-    renderSheet();
-    renderFeed();
+    for (const [name, f] of [['top bar', renderTop], ['menu', renderRail], ['floor panel', renderDrawer], ['page', renderSheet], ['log', renderFeed]]) {
+      try { f(); } catch (e) {
+        console.error(e);
+        if (name === 'page') { try { sheet.replaceChildren(h('div', { class: 'ao-card' }, h('b', {}, 'This page could not be drawn'), h('small', { class: 'warn' }, String(e?.message || e)), btn('◂ Back to the floor', () => go('floor')))); } catch { /* nothing more to try */ } }
+        else fail(`The ${name} could not be drawn`, e);
+      }
+    }
   };
   if (AO.msg) { say({ ok: true, text: AO.msg }); AO.msg = null; }
   refresh();

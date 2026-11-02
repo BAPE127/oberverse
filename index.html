@@ -3912,7 +3912,8 @@ const SUPPLIERS = {
   sup_sal: { name: 'Sal\'s Surplus Electronics', where: 'local', lead: 0.25, reliability: 0.9, sells: { electronics: 0.92 }, stock: 20, restock: 4, text: 'Sal sells looms and connectors by the box. Mostly the right ones.' },
   sup_ostmark_turbine: { name: 'Ostmark Turbine Works', where: 'port_ostmark_east', lead: 1.5, reliability: 0.96, sells: { engine_light: 0.95, engine_jet: 0.96, engine_large: 0.97, engine_mil: 1.0, titanium: 0.92 }, stock: 24, restock: 5, text: 'Seven factories, one turbine design, eight instruction manuals.' },
   sup_sund_alloys: { name: 'Royal Sund Aluminium', where: 'port_kingsfjord', lead: 1, reliability: 0.97, sells: { alu: 0.86, steel: 0.9 }, stock: 120, restock: 30, text: 'Hydro-powered smelters up the fjord. The cheapest aluminium on the sea lanes.' },
-  sup_lirre_composites: { name: 'Lirre Advanced Composites', where: 'port_lirre', lead: 1.5, reliability: 0.95, sells: { composite: 0.9, glazing: 0.95, stealth: 1.1 }, stock: 50, restock: 9, text: 'Neutral, precise, and happy to sell carbon fibre to anybody with a permit.' },
+  sup_lirre_composites: { name: 'Lirre Advanced Composites', where: 'port_lirre', lead: 1.5, reliability: 0.95, sells: { composite: 0.9, glazing: 0.95, stealth: 1.1 }, stock: 120, restock: 20, text: 'Neutral, precise, and happy to sell carbon fibre to anybody with a permit.' },
+  sup_halver_composites: { name: 'Iron Row Composites Loft', where: 'local', lead: 0.75, reliability: 0.92, sells: { composite: 1.12 }, stock: 60, restock: 12, text: 'A loft over a Halvermouth boat-builder that sells off-cuts and short rolls of carbon fibre by the lot. A little dear, close by, and the only fibre that is ever in stock when the Lirre order is late. (v0.91.2: carbon fibre had one supplier, and fighters, bombers and the big satellites drained it.)' },
   sup_teshvar_avionics: { name: 'Golden Quay Avionics', where: 'port_teshvar_gold', lead: 1.5, reliability: 0.93, sells: { avionics: 0.92, instruments: 0.95, electronics: 0.9 }, stock: 40, restock: 7, text: 'Flight computers in gold-leaf crates. The crates cost extra.' },
   sup_meridian_sciences: { name: 'Meridian Applied Sciences', where: 'port_meridian', lead: 2, reliability: 0.98, sells: { sensors: 0.94, comms: 0.95, solar: 0.96, instruments: 0.92, engine_rocket: 1.0 }, stock: 28, restock: 5, rivalOwned: true, text: 'Meridian\'s own research arm, at the Free Port. It sells to competitors — at a premium, and its own company comes first.' },
   sup_halver_engines: { name: 'Halvermouth Aero Engines (Iron Row)', where: 'local', lead: 1, reliability: 0.93, sells: { engine_light: 1.05, engine_jet: 1.1, engine_large: 1.12 }, stock: 6, restock: 1, text: 'A licensed overhaul shop on Iron Row with a few new engines on the floor. Close by, never cheap, never many.' },
@@ -16548,7 +16549,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.91.2';
+const GAME_VERSION = '0.91.3';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -39872,6 +39873,11 @@ class Aerospace {
       co.books.months ||= []; co.books.lines ||= {}; co.books.products ||= {};
       co.books.fleet ??= 0; co.insured ??= false; co.autoReplace ??= false; co.queue ||= [];
     }
+    // v0.91.2: a supplier added since the save was made starts with a full shelf (and a new material on an old supplier's shelf is stocked)
+    for (const [id, sp] of Object.entries(this.cfg.suppliers)) {
+      const ss = (s.suppliers[id] ||= { stock: {} });
+      for (const m of Object.keys(sp.sells)) ss.stock[m] ??= sp.stock;
+    }
     this.migrateHalls();
     migrateField(this);
     // v0.59.0: satellites from before the services carry what they need to earn (support fees for a customer's)
@@ -47557,6 +47563,16 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.91.3',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Carbon Fibre and a Clock That Cannot Freeze',
+    notes: [
+      'Carbon fibre has a second supplier (Iron Row Composites Loft, close by) and a bigger shelf at Lirre, so fighters, bombers and big satellites can be supplied.',
+      'The aerospace terminal can no longer freeze the clock silently: if something goes wrong while time is passing, it stops, says what happened on screen, and the Next morning button comes back. A page that cannot be drawn says so instead of going blank.',
+    ],
+  },
   {
     version: '0.91.2',
     date: '2026-11-02',
@@ -70549,14 +70565,24 @@ function aerospacePanel(ui, body, opts = {}) {
 
   // ------------------------------------------------------------------ the live loop and fast-forward
   let lastUi = 0;
+  let lastErr = '';
+  /** v0.91.2: a thrown error must not freeze the clock. It ends the fast-forward, says what went wrong on screen, and the loop carries on. */
+  const fail = (what, e) => {
+    AO.ff = null;
+    const msg = `${what}: ${e?.message || e}`;
+    if (msg !== lastErr) { lastErr = msg; console.error(e); say({ ok: false, text: `⚠ ${msg}` }); }
+    try { renderTop(); } catch { /* the top bar is the last thing to give up */ }
+  };
   const loop = (ms) => {
     if (!canvas.isConnected) { AO.ff = null; return; }
-    if (AO.ff) {
-      const left = AO.ff.until - g.clock.total;
-      if (left <= 0) { AO.ff = null; refresh(); } else g.skipTime(Math.min(left, Math.max(4, Math.ceil(left / 50))));
-    }
-    drawFloor(ms / 1000);
-    if (AO.ff && ms - lastUi > 450) { lastUi = ms; renderTop(); renderFeed(); if (AO.mode === 'floor') renderDrawer(); }
+    try {
+      if (AO.ff) {
+        const left = AO.ff.until - g.clock.total;
+        if (left <= 0) { AO.ff = null; refresh(); } else g.skipTime(Math.min(left, Math.max(4, Math.ceil(left / 50))));
+      }
+    } catch (e) { g.skipping = false; fail('Time stopped by an error', e); }
+    try { drawFloor(ms / 1000); } catch (e) { fail('The floor could not be drawn', e); }
+    try { if (AO.ff && ms - lastUi > 450) { lastUi = ms; renderTop(); renderFeed(); if (AO.mode === 'floor') renderDrawer(); } } catch (e) { fail('The screen could not be updated', e); }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -70996,7 +71022,7 @@ function aerospacePanel(ui, body, opts = {}) {
       const open = S.open?.[m];
       return h('div', { class: `ao-card ao-supply${x?.short ? ' short' : ''}` },
         h('div', { class: 'ao-card-head' }, h('div', { class: 'grow' }, h('b', {}, mat.name), h('small', {}, x ? `have ${x.r.qty} · need ${x.need} · ${x.onOrder} on order` : `have ${(c.inv[m] || {}).qty || 0} in stores`)),
-          h('div', { class: 'ao-from' }, h('small', {}, `${pick.sp.name}${local ? ' · local' : ` · ${g.logistics.port(pick.sp.where)?.name || ''}`}`), pill(`${stock} in stock`, stock >= want ? COL.green : COL.red))),
+          h('div', { class: 'ao-from' }, h('small', {}, `${pick.sp.name}${local ? ' · local' : ` · ${g.logistics.port(pick.sp.where)?.name || ''}`}`), pill(`${stock} in stock`, stock >= want ? COL.green : COL.red), stock < want ? h('small', { class: 'warn' }, `restocks about ${pick.sp.restock} a day${sellers.length > 1 ? ' — or try another supplier' : ''}`) : null)),
         h('div', { class: 'ao-slide' }, slider, h('div', { class: 'ao-marks' }, ...marks.map(([t, v]) => h('button', { class: 'tiny', onclick: () => set({ qty: v }) }, t)))),
         h('div', { class: 'ao-stepper' }, btn('−', () => set({ qty: Math.max(1, qty - 1) }), 'tiny', qty <= 1), readout, btn('＋', () => set({ qty: Math.min(stock, qty + 1) }), 'tiny', qty >= stock), h('small', {}, 'lots')),
         local
@@ -71284,11 +71310,13 @@ function aerospacePanel(ui, body, opts = {}) {
 
   // ================================================================== refresh
   const refresh = () => {
-    renderTop();
-    renderRail();
-    renderDrawer();
-    renderSheet();
-    renderFeed();
+    for (const [name, f] of [['top bar', renderTop], ['menu', renderRail], ['floor panel', renderDrawer], ['page', renderSheet], ['log', renderFeed]]) {
+      try { f(); } catch (e) {
+        console.error(e);
+        if (name === 'page') { try { sheet.replaceChildren(h('div', { class: 'ao-card' }, h('b', {}, 'This page could not be drawn'), h('small', { class: 'warn' }, String(e?.message || e)), btn('◂ Back to the floor', () => go('floor')))); } catch { /* nothing more to try */ } }
+        else fail(`The ${name} could not be drawn`, e);
+      }
+    }
   };
   if (AO.msg) { say({ ok: true, text: AO.msg }); AO.msg = null; }
   refresh();

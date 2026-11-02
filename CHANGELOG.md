@@ -2,6 +2,16 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.91.3] — 2026-11-02 — Carbon Fibre, and a Clock That Cannot Freeze (development build)
+
+You reported two things on the Supply screen: *Next morning* could not be pressed and the time would not move, and carbon fibre could not be ordered.
+
+- **Carbon fibre (the part I found).** It had **one supplier**, Lirre Advanced Composites, with 50 lots and 9 restocked a day. A fighter takes up to 27 lots, a bomber's wings and the big satellites more (up to 76), so a standing order, auto-buy or one big order drained it and the Supply page could only say "0 in stock". Now Lirre holds 120 and restocks 20 a day, and there is a **second, near supplier: Iron Row Composites Loft** (60 lots, 12 a day, 12% dearer, trucked in a day). The card says when a shelf is short and how fast it restocks. A save from before gets the new supplier's shelf filled when it loads.
+- **The clock (the part I could not reproduce).** I ran the aerospace terminal in a headless browser on a plain game, a group with four businesses and four managers, a standing plane, and three secure bays building fighters: about 90 *Next morning* presses across the Floor, Supply, Hangar and Contracts pages, 30 of them on Supply, with no error and the clock moving to 06:00 every time. So I do not know what stopped yours. What I know: the fast-forward runs inside one animation loop, and if anything in it **threw an error, the loop died, the fast-forward stayed "on" (hiding the Next morning button) and the clock stopped.** That matches what you saw. Now each step of the loop is guarded: an error ends the fast-forward, the loop carries on, the Next morning button comes back, and **a red message at the top says what went wrong** (also in the browser console). A page that cannot be drawn shows a card saying so (and the error) instead of going blank, and one part of the screen failing no longer stops the rest redrawing.
+- **If it happens again, please tell me the red message.** That is what I need to find the cause.
+- **Tests:** `aerospace_secure.test.mjs` (+1: two suppliers, one near; the old-save shelf; ordering from the new shelf). The terminal guard is browser code and is checked by the smoke run (50/50 checks) and the headless runs above, not by a unit test.
+- **Not done / to know:** with three secure bays and only 30 technicians, 3 engineers and 2 inspectors, Roost builds fighters very slowly: each bay wants 140 crew and the work slows to the share of the crew you have. That is the existing staffing rule, not a bug, but a standing plane does not hire people for you.
+
 ## [0.91.2] — 2026-11-02 — More Secure Integration Halls (development build)
 
 You said the hangar needs more secure integration halls. Only one slot in the whole works took a secure bay (in the Widebody hall), so Roost could build one fighter, bomber or strategic product at a time.

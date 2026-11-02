@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.3',
+    date: '2026-11-02',
+    channel: 'development',
+    title: 'Carbon Fibre and a Clock That Cannot Freeze',
+    notes: [
+      'Carbon fibre has a second supplier (Iron Row Composites Loft, close by) and a bigger shelf at Lirre, so fighters, bombers and big satellites can be supplied.',
+      'The aerospace terminal can no longer freeze the clock silently: if something goes wrong while time is passing, it stops, says what happened on screen, and the Next morning button comes back. A page that cannot be drawn says so instead of going blank.',
+    ],
+  },
+  {
     version: '0.91.2',
     date: '2026-11-02',
     channel: 'development',
