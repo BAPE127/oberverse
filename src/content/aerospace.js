@@ -17,7 +17,7 @@
 export const AERO = {
   /** v0.91.1: planes built for the hangar's standing order sell at the market, not to a customer: list price times this share, softened by what the market took of that model in the last days. */
   /** v0.91.4: the bonus INCOME.aerospace gives fades with a product's price: (ref ÷ price) ^ power (never more than 1). */
-  tier: { ref: 26000, power: 0.45 },
+  tier: { ref: 26000, power: 0.25 },
   /** v0.91.5: the delivery day pays this share of the price on top when it is met; missing it costs nothing. */
   onTimeBonus: 0.25,
   /** v0.91.5: standing orders build into storage (off the map, no limit): at most `perBay` units open per bay, stopping at `goal` stored of a model unless you set another (up to `goalMax`). */
