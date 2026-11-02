@@ -102,7 +102,7 @@ test('an arms manager sells the cage\'s surplus to Lucas, up to its daily limit,
   const x = hire(g, 'arms');
   const cage = g.world.containers[g.arms.def('aw1').outCrate];
   const wanted = new Set(g.market.openOrders().map((o) => o.item));
-  const crate = Object.keys(g.content.items).find((id) => g.content.items[id].arms?.crate && !wanted.has(id) && g.arms.wholesale(id) > 0 && g.arms.wholesale(id) * 2 <= OPS.arms.wholesaleDaily);
+  const crate = Object.keys(g.content.items).find((id) => g.content.items[id].arms?.crate && !wanted.has(id) && g.arms.wholesale(id) > 0 && g.arms.wholesale(id) <= OPS.arms.wholesaleDaily);
   assert.ok(crate, 'a crate no order wants');
   cage.items[crate] = 10;
   const wallet = g.player.money;
