@@ -14,7 +14,7 @@ export const INCOME = {
   business: {
     wholesaleShare: 0.715, // Lucas buys your arms at this share of an item's value (was 0.5; 0.65 before v0.91.0)
     crops: 5.1, // the Co-op's price for crops (the index still moves it day to day) (1.5 before v0.91.0, 1.65 until v0.91.3)
-    contracts: 100, // what shipping clients pay for a delivery (1.5 before v0.91.0, 1.65 until v0.91.0, 6.6 until v0.91.3; v0.91.4: sized so one ship earns ~500,000 in 5 days, see tools/econ-audit.mjs)
+    contracts: 140, // what shipping clients pay for a delivery (1.5 before v0.91.0, 1.65 until v0.91.0, 6.6 until v0.91.3; v0.91.4: sized so one ship earns ~500,000 in 5 days, see tools/econ-audit.mjs)
   },
   /** v0.91.0: what a business pays to run — wages, parts and materials, upkeep, port and freight charges, repairs — as a multiplier (it was 1). Buying a business or its big assets is not in it. */
   cost: 0.5,
@@ -28,6 +28,6 @@ export const INCOME = {
   /** v0.91.4: how much of each country's daily budget growth the arms market keeps (1 = all of it). It caps what a works can sell in a day: the eight countries' growth is 182,000 a day at 1. */
   armsDemand: 0.45,
   /** v0.91.4: freight rates fall as you flood the lanes: a contract pays 1 ÷ (1 + n ÷ this) of its price, n = contracts you sent a ship on in the last 10 days. 0 switches it off. */
-  freightSaturation: 11,
+  freightSaturation: 4,
   ownShippingFree: true,
 };

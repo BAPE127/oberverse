@@ -17,7 +17,7 @@
 export const AERO = {
   /** v0.91.1: planes built for the hangar's standing order sell at the market, not to a customer: list price times this share, softened by what the market took of that model in the last days. */
   /** v0.91.4: the bonus INCOME.aerospace gives fades with a product's price: (ref ÷ price) ^ power (never more than 1). */
-  tier: { ref: 26000, power: 0.4 },
+  tier: { ref: 26000, power: 0.35 },
   stock: { listShare: 0.92, windowDays: 12, softening: 0.045, floor: 0.7, pauseBelow: 0.78, perBay: 2 },
   /** v0.91.1: refitting a bay to another type its slot takes: a share of the new type's build price (less a share of the old one's back) and of its build days. */
   convert: { share: 0.4, refund: 0.3, daysShare: 0.4 },
