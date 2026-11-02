@@ -13,7 +13,7 @@ test('the knobs: costs are half, revenue is up a tenth, your own shipping line f
   assert.equal(INCOME.cost, 0.5); assert.equal(INCOME.revenue, 1.1); assert.equal(INCOME.ownShippingFree, true);
   assert.deepEqual(INCOME.shift, { construction: 330, coffee: 330, refineryPerLevel: 275, refineryPerCorner: 110 });
   assert.deepEqual(INCOME.quest, { darkLamp: 660, sealOfM: 1100 });
-  assert.deepEqual([INCOME.business.wholesaleShare, INCOME.business.crops, INCOME.business.contracts], [0.715, 1.65, 6.6]); // (contracts: 1.65 until v0.91.1)
+  assert.deepEqual([INCOME.business.wholesaleShare, INCOME.business.crops, INCOME.business.contracts], [0.715, 5.1, 140]); // (crops 1.65 and contracts 1.65 until v0.91.0, 6.6 until v0.91.3: the scale of v0.91.4)
   assert.ok(QUESTS, 'the quests read these figures');
   assert.deepEqual(WAGES, { manager: { arms: 110, shipping: 110, aerospace: 135, farming: 90 }, group_manager: { parent: 200 }, office: { parent: 30 } });
 });
