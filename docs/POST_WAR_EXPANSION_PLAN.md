@@ -4,37 +4,26 @@ Status: **plan only. Nothing in `src/` has changed**; the code is still v0.91.5.
 
 Rules for every release below are the standing ones: ask before guessing, accuracy over speed, `node tools/build.mjs`, `npm run check` and `npm run smoke` before each code release, every edited existing test listed, existing saves load and **migrations grant nothing**, no money from nothing, commits end with the attribution lines, push only to `claude/funny-mayer-52dll8`, and the paused casino tasks stay paused.
 
-## 1. The pictures (layout mock-ups, not final art)
+## 1. The pictures (drawn by the game's own engine)
 
-| Picture | What it shows |
+An earlier set of pictures was drawn in my own style and did not look like the game; they have been **deleted**. These are made by running the **real game** (the dev build, headless) with two **mock-only map files** loaded into it in the game's own map format, so the tiles, buildings, lamps, night lighting, cars, people and HUD are exactly the game's art. Nothing in `src/` was changed.
+
+| Picture (all in `mockups/`) | What it shows |
 | --- | --- |
-| `mockups/proposal-postwar-neumina-city.png` | **Neumina, whole city (3200 x 2000)**: curved boulevards, a ring road, diagonals and plazas; about 290 buildings of mixed shapes (towers with setbacks, chamfered blocks, silos, a fenced lab compound, a night bazaar); crowds, hover traffic, pink palms; **all levels drawn together**: sky bridges, the maglev viaduct, elevated decks, flying-car lanes with shadows on the street, rooftop landing pads, drones and a blimp |
-| `mockups/proposal-postwar-neumina-levels.png` | the **four levels as separate map layers**: +2 sky lanes, +1 sky bridges, maglev and decks, 0 street, -1 service tunnels, metro, black-market chamber and the sealed Halcyon server vault |
-| `mockups/proposal-postwar-neumina-section.png` | a **side cross-section** of the levels (towers, bridges, flying lanes, the blimp, hatches, tunnels, the deep bazaar) |
-| `mockups/proposal-postwar-neumina-detail.png` | a close crop of Glass Mile and Convergence Plaza to show the detail |
-| `mockups/proposal-postwar-noir-city.png` | **Saint Halloran, whole city (3000 x 2000)**: a curved harbour with piers, ships, cranes, containers and a lighthouse; a river; a roundabout with a fountain; winding Old Town lanes under lantern strings; a tram on Halloran Avenue; rain, umbrellas, wet-street glow; about 290 buildings; the three mobs' zones and nine numbered landmarks |
-| `mockups/proposal-postwar-noir-detail.png` | a close crop of the Velvet Strip (casino, hotel, marquees, blade signs) |
-| `mockups/proposal-postwar-atlas-and-instances.png` | the four Atlas zoom levels, the mission lifecycle (template, instance, play, extract, drop, return), and what is **kept** and what is **thrown away** |
+| `proposal-postwar-game-neumina-street.png` | Neumina at night outside the Neon Lotus Club: concrete (not brick) pavement, neon pools, a sky bridge crossing the avenue, flying cars over the road, hover traffic, residents with neon hair |
+| `proposal-postwar-game-neumina-plaza.png` | Convergence Plaza: fountain, statue, ad wall, crowds |
+| `proposal-postwar-game-neumina-underground.png` | level -1: the service tunnel, black-market stalls, pump and grid rooms (a separate interior map, as the plan says) |
+| `proposal-postwar-game-neumina-map.png` | the whole Neumina map (150 x 96 tiles), with the neon sign pools |
+| `proposal-postwar-game-noir-street.png` | Saint Halloran in the rain outside the Gilded Ace Casino |
+| `proposal-postwar-game-noir-docks.png` | the docks at night: Pier 3 warehouse, cranes, fire barrel, piers, harbour |
+| `proposal-postwar-game-noir-map.png` | the whole Saint Halloran map: harbour with piers, a river with bridges, Founders Square, the three mobs' districts |
+| `proposal-postwar-atlas-and-instances.png` | the four Atlas zoom levels and the mission lifecycle (a diagram, not a game view) |
 
-Sources in `mockups/postwar-src/`: `neumina2.py`, `neumina_levels.py`, `noir2.py` (with `citykit.py`) and `maps.py` (the Atlas and instance schematic). Run each with `python3 file.py` (needs Pillow); `neumina2.py` must run before `neumina_levels.py` (Python with Pillow; `python3 -I maps.py` rebuilds all three).
+**How the two cities are made different from Halvermouth and from each other:** Neumina uses grey concrete pavement, purple and steel buildings, neon sign colours, many towers (with the game's own tower and helipad types), denser small buildings with narrow lanes, a canal on the west edge, and the proposed sky layer. Saint Halloran keeps brick paving but uses red-brown and gold buildings, awnings, rain, a harbour, a river with bridges and a square. **A limit I want to be honest about:** the game's map engine is a tile grid, so both cities still have mostly straight streets. Curved boulevards, diagonal streets and real elevated streets would need engine work (decision for you).
 
-### In-game screenshot mock-ups (the player camera, with a HUD)
+**What is the game's own and what is a proposed addition.** Everything is the real renderer **except** these mock-only extras, which would be new engine features: coloured neon light pools (the game only has warm lamp light today), the sky bridge, flying cars (drawn with the game's own car art plus a shadow and glow), and the rain streaks. Their look is in the game's stepped, dithered pixel style so they can be built on the same renderer.
 
-Composed from the city maps at game zoom (a 428 x 240 world window at 3x, pixel-sharp). They show what the camera, HUD and key systems are meant to look like. **They are not the game**; the HUD layout is a stand-in.
-
-| Picture | What it shows |
-| --- | --- |
-| `mockups/proposal-postwar-shot-neumina-street.png` | street level at the Neon Lotus Club: a queue, bouncers with implants (the "neural link: locked" tag), hover traffic and a flying car in its lane |
-| `mockups/proposal-postwar-shot-neumina-skybridge.png` | crossing a sky bridge on level +1, the street dimmed below, lifts at the ends |
-| `mockups/proposal-postwar-shot-neumina-hacking.png` | the neural-link menu on a gate guard: every action has a chance, a tool cost, a trace risk and an intel requirement |
-| `mockups/proposal-postwar-shot-neumina-rooftop.png` | a tower rooftop landing pad with flying cars (air-taxi route, hijack option) |
-| `mockups/proposal-postwar-shot-noir-disguise.png` | the Velvet Strip in the rain wearing a stolen Vantelli coat, with the recognition and suspicion readout |
-| `mockups/proposal-postwar-shot-noir-docks.png` | stealth at Pier 3: vision cones, patrols, contract objectives with optional goals |
-| `mockups/proposal-postwar-shot-noir-mobwar.png` | stage 3 "Street Conflict" in Founders Square: the three-mob tension meters, a firefight, fleeing civilians, police on the way |
-
-Source: `mockups/postwar-src/scenes.py` with `shots.py` (needs the map images that `neumina2.py` and `noir2.py` write to `/tmp`, so run those first).
-
-**Reference image:** received afterwards. It shows a top-down pixel street: dark purple pavement, raised walls and rooftops with vents and red pipes, a neon-signed night club, a METRO stair entrance, a pink-neon armoury, pink neon palms, cyan hover-cars, a holographic statue and street lamps. The building plans copy that mood (palette, signs, palms, hover-cars, hologram) with original names and layout.
+Sources: `mockups/postwar-src/` (`pwmaps.js` the city generator, `neumina.js`, `halloran.js`, `pwscene.js` the placement helpers, `dress.js` the extras, `screens.mjs` the screenshot run, `ingame.mjs` the browser driver; `maps.py` is the Atlas diagram). To rebuild: `PORT=8431 node server.js`, then `node docs/mockups/postwar-src/screens.mjs` (needs Playwright). **Neumina reference image:** it shows a top-down pixel street with a neon club sign, a METRO stair, pink palms and hover cars; the screenshots follow that mood with original names.
 
 ## 2. What already exists and gets reused (nothing is rebuilt)
 

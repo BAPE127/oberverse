@@ -89,6 +89,6 @@ The `hoi-*.html` pages read atlas base layers that are not committed (they are g
 ### Post-War Expansion (plan only)
 `proposal-postwar-atlas-and-instances.png`: Atlas zoom levels and the mission lifecycle (source `postwar-src/maps.py`).
 
-`proposal-postwar-neumina-city/levels/section/detail.png` and `proposal-postwar-noir-city/detail.png`: organic building-level maps of both cities, Neumina with its four levels (sources `postwar-src/neumina2.py`, `neumina_levels.py`, `noir2.py`).
 
-In-game screenshot mock-ups: `proposal-postwar-shot-neumina-{street,skybridge,hacking,rooftop}.png` and `proposal-postwar-shot-noir-{disguise,docks,mobwar}.png` (source `postwar-src/scenes.py`, `shots.py`).
+
+Post-War cities, drawn by the game's own engine: `proposal-postwar-game-{neumina-street,neumina-plaza,neumina-underground,neumina-map,noir-street,noir-docks,noir-map}.png` (sources `postwar-src/*.js`, run `postwar-src/screens.mjs`).
