@@ -92,3 +92,5 @@ The `hoi-*.html` pages read atlas base layers that are not committed (they are g
 
 
 Post-War Neumina (the game's own painters, multi-storey): `proposal-postwar-levels-neumina-{street,bridge,inside,roof}.png`, sources `postwar-src/levels/`. Saint Halloran (drawn by the game's own engine): `proposal-postwar-game-noir-{street,docks,map}.png`.
+
+Neumina class-divided city (game painters): `proposal-postwar-class-neumina-{terrace,street,under,stack}.png`, sources `postwar-src/levels/city.js`, `scenes2.js`.
