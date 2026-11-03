@@ -4718,6 +4718,226 @@ const __default = [starlingFlats, roostOffice, roostHangar, ...hallRooms, meridi
 return { starlingFlats, roostOffice, roostHangar, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl, default: __default };
 })();
 
+// ---- src/content/capital.js
+__m["src/content/capital.js"] = (function () {
+// The people of the capital (v0.94.0): the eleven ambassadors, both parties' ten staff, the government's household and the six ministers —
+// 43 people, each a persistent minor character with a home, a bed, a schedule, a dialogue and a job that follows from the political record.
+// They are generated from this one table (stable ids; nothing here is random): appearances and voices are picked by hashing the id.
+//
+// Where they live: Staff Flats A and B, the Civil Service Residences and the new Diplomatic Residences (src/content/homes.js, `CAPITAL_HOMES`).
+// Where they work: the embassies, the party headquarters, Halver House and the ministries (rooms generated on their footprints; the doors
+// let the staff in at any hour, and the public in opening hours where the building is open to it).
+// The two leaders (src/content/characters/politics.js) live here too, in Staff Flats A, until their own residences are built.
+
+/** A stable pick from a list by the id (no randomness). */
+const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const pick = (arr, id, salt = '') => arr[hash(id + salt) % arr.length];
+
+const BLDG = { staff_a: 'cq_staff_a', staff_b: 'cq_staff_b', civil: 'cq_civil_service', diplo: 'cq_diplomatic' };
+
+/** Roles: kind, what they do, their occupation, where they work (a building id), their hours. */
+// [id, name, shortName, role, kind, work building, group, home key, line]
+const P = (id, name, role, kind, work, home, line, o = {}) => ({ id, name, shortName: o.short || name.split(' ').slice(-1)[0], role, kind, work, home, line, ...o });
+
+const AMBASSADORS = [
+  P('npc_amb_ostmark', 'Konrad Falkenstein', 'Ambassador of the Ostmark Union. Seven provinces, one signature: his.', 'ambassador', 'cq_embassy_ostmark', 'diplo', 'Ostmark has seven provinces and one opinion, which is whichever the Chancellor had at breakfast. I am here to be polite about it.', { country: 'ostmark', short: 'Falkenstein' }),
+  P('npc_amb_varn', 'Dovran Kestrel', 'Ambassador of Varnistan. About to hold elections for nineteen years.', 'ambassador', 'cq_embassy_varn', 'diplo', 'Varnistan will hold its elections very soon. I say this with great confidence, because I have said it for nineteen years.', { country: 'varn', short: 'Kestrel' }),
+  P('npc_amb_teshvar', 'Amir Khoral', 'Ambassador of Teshvar. Speaks softly; his government\'s oil does the shouting.', 'ambassador', 'cq_embassy_teshvar', 'diplo', 'Teshvar sells what the world burns. We are very patient people: the world will always be cold in the evenings.', { country: 'teshvar', short: 'Khoral' }),
+  P('npc_amb_caldera', 'Lucía Corvane', 'Ambassador of Caldera. Her government changes with the ash; she does not.', 'ambassador', 'cq_embassy_caldera', 'diplo', 'My president has changed four times since I took this post. The ambassador, you will notice, has not. That is called diplomacy, or luck.', { country: 'caldera', short: 'Corvane' }),
+  P('npc_amb_pallas', 'Nikos Thessal', 'Ambassador of the Free State of Pallas, under embargo and very cheerful about it.', 'ambassador', 'cq_embassy_pallas', 'diplo', 'Free, as the name says. Embargoed, as the newspapers say. Between the two, we trade. Quietly. Please do not tell the Ostmarkers.', { country: 'pallas', short: 'Thessal' }),
+  P('npc_amb_morrow', 'Marina Kauri', 'Ambassador of the Morrow Isles, speaking for two hundred islands and, she says, about forty of them.', 'ambassador', 'cq_embassy_morrow', 'diplo', 'Two hundred islands, two hundred navies, one ambassador. I represent the ones that remembered to send me instructions.', { country: 'morrow', short: 'Kauri' }),
+  P('npc_amb_lirre', 'Étienne Valmont', 'Ambassador of the Grand Duchy of Lirre. Neutral, vigorously.', 'ambassador', 'cq_embassy_lirre', 'diplo', 'Lirre is neutral. We are neutral the way other nations are armed. Do sit down. Everyone does. It is part of the policy.', { country: 'lirre', short: 'Valmont' }),
+  P('npc_amb_westreach', 'Dorrie Brass', 'Ambassador of the Westreach League, whose ports each keep their own prices.', 'ambassador', 'cq_embassy_westreach', 'diplo', 'The League is a handful of free ports with one flag between them and nine harbour masters. Ask me the price of anything: it depends which port.', { country: 'westreach', short: 'Brass' }),
+  P('npc_amb_sunmouth', 'Cassius Zenith', 'Ambassador of the Sunmouth Isthmus Compact. The canal is almost finished.', 'ambassador', 'cq_embassy_sunmouth', 'diplo', 'The canal will be finished next year. I have been told next year for eleven years, so I am confident in the schedule.', { country: 'sunmouth', short: 'Zenith' }),
+  P('npc_amb_dunmere', 'Piers Midpoint', 'Ambassador of the Free Harbour of Dunmere. Everybody passes through; he stays.', 'ambassador', 'cq_embassy_dunmere', 'diplo', 'Dunmere is where the continents meet. Nobody admits to staying. I stay. That is the whole of my embassy, and a sandwich.', { country: 'dunmere', short: 'Midpoint' }),
+  P('npc_envoy_free', 'Hester Greyfen', 'Envoy of the Free Ports Mission: the free territories\' one office, no flag.', 'ambassador', 'cq_free_ports', 'staff_b', 'I speak for every free territory that is not a country. That is a great many people, and not one of them has asked me to. It is freeing.', { country: 'free', short: 'Greyfen' }),
+];
+
+const ROLES = {
+  chief_of_staff: 'Chief of staff', campaign_manager: 'Campaign manager', policy_adviser: 'Policy adviser', communications: 'Communications director', press_secretary: 'Press secretary',
+  fundraising: 'Fundraising director', polling: 'Polling and research adviser', legal: 'Legal adviser', security: 'Security coordinator', organiser: 'Political organiser',
+};
+/** What each role says about the job (the party's name is added). */
+const ROLE_LINE = {
+  chief_of_staff: 'I keep the diary, the temper and the door. In that order of difficulty.', campaign_manager: 'A campaign is arithmetic with feelings. I do the arithmetic.',
+  policy_adviser: 'A policy is a promise with a cost. My job is to find the cost before the voters do.', communications: 'I decide what the leader said. Then I tell the leader.',
+  press_secretary: 'I am paid to say "no comment" in forty-one different ways.', fundraising: 'Donations are capped, public and recorded. I mention this so often it has become a lullaby.',
+  polling: 'A poll is a photograph with an error bar. I am the one who reads the error bar out loud.', legal: 'Everything we do is legal. I know, because I check, and then I check again.',
+  security: 'Nothing has happened to the leader. That is my entire achievement, and I would like it noted.', organiser: 'Someone has to put the chairs out. For nineteen years, that has been me.',
+};
+const STAFF = {
+  order: [['chief_of_staff', 'Marcus Steele'], ['campaign_manager', 'Dolores Hartwell'], ['policy_adviser', 'Edmund Pike'], ['communications', 'Vivian Crane'], ['press_secretary', 'Barnaby Flint'],
+    ['fundraising', 'Reginald Gold'], ['polling', 'Ada Quill'], ['legal', 'Judith Mallory'], ['security', 'Roth Kessler'], ['organiser', 'Tobias Weld']],
+  liberty: [['chief_of_staff', 'Imelda Frost'], ['campaign_manager', 'Theo Marsh'], ['policy_adviser', 'Lena Orchard'], ['communications', 'Felix Bright'], ['press_secretary', 'Nell Parry'],
+    ['fundraising', 'Gus Penhallow'], ['polling', 'Priya Sondergaard'], ['legal', 'Solomon Wray'], ['security', 'Maeve Dunlop'], ['organiser', 'Ozzie Fairweather']],
+};
+const PARTY_VIEW = {
+  order: 'Order is not a slogan, it is a method: laws that are kept, streets that are safe, a state that arrives when it is called.',
+  liberty: 'Liberty is not the absence of rules, it is knowing whose rules they are. We would like the state to ask permission more often.',
+};
+const PARTY_STAFF = Object.entries(STAFF).flatMap(([party, rows]) => rows.map(([role, name], i) => P(`npc_${party === 'order' ? 'ord' : 'lib'}_${role}`, name,
+  `${ROLES[role]} of ${party === 'order' ? 'the Order Party' : 'the Liberty League'}.`, 'party', party === 'order' ? 'cq_order_hq' : 'cq_liberty_hq', 'civil', `${ROLE_LINE[role]} ${PARTY_VIEW[party]}`, { party, partyRole: role, pair: Math.floor(i / 2) })));
+
+/** Party → role → person (the party's staff records are filled from this). */
+const STAFF_BY_PARTY = PARTY_STAFF.reduce((o, p) => { (o[p.party] ||= {})[p.partyRole] = p.id; return o; }, {});
+
+const HOUSEHOLD = [
+  P('npc_hh_chief', 'Alistair Penn', 'Chief of Staff to the President. Runs Halver House; the President, he says, runs the country, "in a general way".', 'house', 'halver_chief', 'staff_a', 'The President decides. I make sure the President has something to decide. It is a more honest way of running a country than most.', { short: 'Penn', room: 'halver_chief' }),
+  P('npc_hh_reception', 'Rosamund Vale', 'Receptionist at Halver House. Knows everyone\'s name, and the name of everyone they would rather not meet.', 'house', 'halver_house', 'staff_a', 'The visitors\' book is on the desk. Sign it, please, in your own hand. We do check. Gently.', { short: 'Vale', spot: 'halver_house:reception' }),
+  P('npc_hh_press', 'Quentin Aird', 'Press Secretary to the President. Briefs at noon on Thorndays.', 'house', 'halver_press', 'staff_a', 'I brief at noon. Questions are welcome; answers are scheduled. If you have a quarrel with the President, I am the polite end of it.', { short: 'Aird', room: 'halver_press' }),
+  P('npc_hh_guard1', 'Hobb Tamsin', 'Sergeant of the Guard at Halver House. Checks bags, hats and intentions.', 'house', 'halver_house', 'staff_a', 'Bags on the table, please. It is not that I suspect you. It is that I am paid to look as if I might.', { short: 'Tamsin', spot: 'halver_house:screening', armed: true }),
+  P('npc_hh_guard2', 'Fenwick Rudge', 'Guard at Halver House. Silent, large and very fond of the pigeon on the barrier.', 'house', 'halver_house', 'staff_b', '...Mm. The pigeon is named Admiral. Do not tell the Sergeant.', { short: 'Rudge', spot: 'halver_house:screening', armed: true }),
+  P('npc_hh_records', 'Ursula Page', 'Records clerk of the Public Records Hall. Everything is in here somewhere.', 'house', 'halver_records', 'staff_b', 'Laws, budgets and the poll archive, by year. Ask. It is in here somewhere, and I know approximately where.', { short: 'Page', room: 'halver_records' }),
+];
+
+const MINISTERS = [
+  P('npc_min_treasury', 'Ophelia Strand', 'Minister of the Treasury. Balances the budget on paper and, mostly, in fact.', 'minister', 'cq_min_treasury', 'staff_a', 'The budget balances. It balances because I have asked it to nicely, twice a year, and stood over it.', { short: 'Strand', ministry: 'treasury' }),
+  P('npc_min_defence', 'General Ambrose Kell', 'Minister of Defence & Security. A general with a gentle voice and no illusions.', 'minister', 'cq_min_defence', 'staff_b', 'A country cannot choose its neighbours. It can only choose how loudly to keep its own door. I would prefer to keep it quietly.', { short: 'Kell', ministry: 'defence' }),
+  P('npc_min_interior', 'Hector Lyle', 'Minister of the Interior & Police. Believes in the police as other men believe in the weather: with respect.', 'minister', 'cq_min_interior', 'civil', 'The Chief of Police is a loyal servant and a collector of mugs. I have decided to find that reassuring.', { short: 'Lyle', ministry: 'interior' }),
+  P('npc_min_agriculture', 'Marigold Tench', 'Minister of Agriculture & Trade. Farmer\'s daughter; has never once been fooled by a cow.', 'minister', 'cq_min_agriculture', 'civil', 'Farms are inspected twice a year and loved all year. I am the only minister who has been bitten by her own department.', { short: 'Tench', ministry: 'agriculture' }),
+  P('npc_min_foreign', 'Percival Lorne', 'Minister of Foreign Affairs. Eleven countries, and a view on each that he will share with nobody.', 'minister', 'cq_min_foreign', 'diplo', 'Eleven embassies, one Free Ports Mission, and a dossier on each that I would be delighted to discuss, but will not.', { short: 'Lorne', ministry: 'foreign' }),
+  P('npc_min_records', 'Cornelius Ink', 'Minister of Public Records. Believes a thing that is not written down did not happen, and vice versa.', 'minister', 'cq_min_records', 'diplo', 'Whatever happened, it is in the Records. If it is not in the Records, it is about to be, and you will want to check the spelling.', { short: 'Ink', ministry: 'records' }),
+];
+
+const CAPITAL_PEOPLE = [...AMBASSADORS, ...PARTY_STAFF, ...HOUSEHOLD, ...MINISTERS];
+const CAPITAL_HOME_BUILDINGS = BLDG;
+
+// ------------------------------------------------------------------ appearance, schedule, dialogue
+const SKIN = ['#f0d0b0', '#e0b898', '#d8b090', '#c89a78', '#b88868', '#a07050', '#8a5e44'];
+const HAIR = ['#1e1a16', '#2a2622', '#4a3626', '#6a3a24', '#8a6a3a', '#c8c4bc', '#a8a49c', '#d8b870'];
+const OUTFIT = { ambassador: ['#2a3a5a', '#3a2a4a', '#4a3a2a', '#2a4a3a', '#5a2a34', '#2a2a3a'], party: ['#2a3a5a', '#4a2a34', '#2a4a4a', '#5a4a2a', '#3a3a4a'], house: ['#2a2e36', '#2a3040', '#3a3a3a'], minister: ['#1e2a3a', '#2a2a2a', '#3a2a3a', '#2a3a2a'] };
+const STYLE = ['short', 'parted', 'bun', 'curly', 'ponytail', 'long', 'messy'];
+
+function appearanceOf(p) {
+  const female = ['Lucía', 'Marina', 'Dorrie', 'Hester', 'Dolores', 'Vivian', 'Ada', 'Judith', 'Imelda', 'Lena', 'Nell', 'Priya', 'Maeve', 'Rosamund', 'Ursula', 'Ophelia', 'Marigold'].some((n) => p.name.startsWith(n));
+  const outfit = pick(OUTFIT[p.kind], p.id, 'o');
+  const base = { skin: pick(SKIN, p.id, 's'), hair: pick(HAIR, p.id, 'h'), hairStyle: female ? pick(['bun', 'long', 'ponytail', 'curly', 'parted'], p.id, 'st') : pick(['short', 'parted', 'messy', 'curly'], p.id, 'st'), outfit, undershirt: '#f4f2ee',
+    tie: female && p.kind !== 'house' ? null : pick(['#7a2a34', '#2a4a7a', '#4a6a2a', '#8a6a2a', '#3a3a5a'], p.id, 't'), legs: '#1e2230', shoes: '#141418', accessories: [], accent: p.party === 'order' ? '#b8962e' : p.party === 'liberty' ? '#e8b040' : '#c9a24a',
+    build: pick(['average', 'thin', 'broad', 'round', 'wiry'], p.id, 'b'), height: 0.96 + (hash(p.id + 'ht') % 12) / 100 };
+  if (p.armed) base.build = 'broad';
+  if (p.kind === 'ambassador') base.accessories = [pick(['lapelpin', 'watchchain', 'scarf', 'monocle'], p.id, 'a')];
+  return base;
+}
+
+/** The workplace spot and the hours of a person's day. `where` is a spot string for the person's work. */
+function scheduleOf(p, homeMap) {
+  const work = p.spot || (p.room ? `${p.room}:entry` : `crown_quarter__${p.work}:desk`);
+  const sleep = `${homeMap}:bed`;
+  const chair = `${homeMap}:chair`;
+  const late = hash(p.id) % 3; // a little variety: some start at eight, some at nine, some at half past
+  const start = ['08:00', '08:30', '09:00'][late];
+  return [
+    { from: '23:00', to: '06:30', activity: 'sleep', spot: sleep },
+    { from: '06:30', to: start, activity: 'eat', spot: chair, label: 'breakfast and the papers' },
+    { from: start, to: '12:30', activity: 'work', spot: work, label: p.kind === 'ambassador' ? 'at the embassy' : p.kind === 'party' ? 'at party headquarters' : p.kind === 'minister' ? 'at the ministry' : 'at Halver House' },
+    { from: '12:30', to: '13:30', activity: 'eat', spot: 'crown_quarter:square_fountain', label: 'lunch by the fountain' },
+    { from: '13:30', to: '17:30', activity: 'work', spot: work, label: p.kind === 'ambassador' ? 'at the embassy' : p.kind === 'party' ? 'at party headquarters' : p.kind === 'minister' ? 'at the ministry' : 'at Halver House' },
+    { from: '17:30', to: '19:30', activity: 'leisure', spot: pick(['crown_quarter:park_bench', 'crown_quarter:embassy_row', 'crown_quarter:press_line'], p.id, 'l'), label: 'a walk and a word with whoever is about' },
+    { from: '19:30', to: '23:00', activity: 'relax', spot: chair, label: 'at home' },
+  ];
+}
+
+const FLAT_NAME = { diplo: 'Diplomatic Residences', staff_a: 'Staff Flats A', staff_b: 'Staff Flats B', civil: 'Civil Service Residences' };
+
+const BEDS = ['#5a6a8a', '#8a4a4a', '#4a7a5a', '#7a6a3a', '#5a4a7a', '#3a6a7a', '#8a5a3a', '#6a6a6a'];
+const RUGS = ['#c9a24a', '#7a2a34', '#2a6a4a', '#5a5a7a', '#8a6a4a', '#2a4a6a'];
+const flat = (key, who, name, o = {}) => ({ who, name, bed: o.bed || pick(BEDS, who[0], 'bed'), rug: o.rug || pick(RUGS, who[0], 'rug'), loot: o.loot || { items: { item_pocket_watch: 1 }, money: 20 + (hash(who[0] + 'm') % 60) },
+  props: o.props || [{ type: 'shelf', x: 1, y: 4, examine: 'Briefing papers, a kettle and a framed photograph of someone who is not in the room.' }, { type: 'plant', x: 7, y: 4 }] });
+
+/** Every flat of the capital's homes, built from who lives where: ambassadors one to a flat; colleagues of a party, the household and the ministers two to a flat; the two leaders a flat each. */
+function capitalFlats() {
+  const out = { diplo: [], staff_a: [], staff_b: [], civil: [] };
+  const add = (key, who, name, o) => out[key].push(flat(key, who, name, o));
+  for (const p of AMBASSADORS) add(p.home, [p.id], p.name);
+  for (const party of ['order', 'liberty']) {
+    const rows = PARTY_STAFF.filter((p) => p.party === party);
+    for (let i = 0; i < rows.length; i += 2) add('civil', rows.slice(i, i + 2).map((p) => p.id), rows.slice(i, i + 2).map((p) => p.name).join(' & '));
+  }
+  for (const key of ['staff_a', 'staff_b', 'civil', 'diplo']) {
+    const list = [...HOUSEHOLD, ...MINISTERS].filter((p) => p.home === key);
+    for (let i = 0; i < list.length; i += 2) { const c = list.slice(i, i + 2); add(key, c.map((p) => p.id), c.map((p) => p.name).join(' & ')); }
+  }
+  // the two leaders, until their own residences are built (v0.94.0 moved them here from Crown Court so they live where they work)
+  add('staff_b', ['npc_vegas'], 'Josiah Vegas', { bed: '#1e2a44', rug: '#8a1a24', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 120 }, props: [
+    { type: 'desk', x: 1, y: 4, w: 2, examine: 'Speeches in three drafts, each marked in red: "TOO KIND", "TOO LONG", "JUST RIGHT (SAY IT TWICE)".' },
+    { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed election poster: a stern face, a clenched jaw and the single word ORDER. Underneath, in pencil, someone has written "bless you".' }] });
+  add('staff_a', ['npc_susan'], 'Susan', { bed: '#2a6a5a', rug: '#e8b040', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 90 }, props: [
+    { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three speeches, all headed "FINAL". A mug that says WORLD\'S MOST OVERCOMMITTED. A bus ticket to somewhere she has not had time to visit.' },
+    { type: 'shelf', x: 7, y: 4, examine: 'Books on constitutions, two on gardening, and a very worn paperback with the cover torn off. It is, she says, "research".' }] });
+  return out;
+}
+
+/** Where each person sleeps: id → 'res_<building>/flat_N' (the residence ids follow src/content/homes.js: res_<home id>). */
+function capitalLife() {
+  const flats = capitalFlats();
+  const life = {};
+  for (const [key, list] of Object.entries(flats)) list.forEach((f, i) => { for (const id of f.who) life[id] = { home: `res_${BLDG[key]}/flat_${i + 1}`, occupation: 'official' }; });
+  delete life.npc_vegas.occupation; delete life.npc_susan.occupation; // (the leaders' LIFE entries are in life.js)
+  return life;
+}
+
+const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
+
+/** The character records. */
+function capitalCharacters() {
+  const life = capitalLife();
+  return CAPITAL_PEOPLE.map((p) => {
+    const homeMap = `${life[p.id].home.replace('res_', '').replace('/flat_', '_')}`;
+    return local({
+      id: p.id, name: p.name, shortName: p.shortName, combat: p.armed ? { maxHealth: 110, weapon: 'item_baton' } : { never: true, maxHealth: 80 }, role: p.role, dialogue: `dlg_${p.id.slice(4)}`,
+      voice: { wave: pick(['sine', 'triangle', 'sawtooth'], p.id, 'v'), pitch: 90 + (hash(p.id + 'p') % 110), variance: 6 + (hash(p.id + 'q') % 10), rate: 0.85 + (hash(p.id + 'r') % 15) / 100 },
+      appearance: appearanceOf(p),
+      personality: { traits: [pick(['careful', 'dry', 'warm', 'brisk', 'patient', 'wry'], p.id, 'tr1'), pick(['discreet', 'tireless', 'gossipy', 'exact', 'diplomatic'], p.id, 'tr2')], sociability: 0.4 + (hash(p.id + 'so') % 50) / 100, conscientiousness: 0.6 + (hash(p.id + 'co') % 40) / 100, impulsiveness: 0.1 + (hash(p.id + 'im') % 25) / 100, discretion: 0.5 + (hash(p.id + 'di') % 45) / 100, honesty: 0.5 + (hash(p.id + 'ho') % 45) / 100, empathy: 0.4 + (hash(p.id + 'em') % 50) / 100, confidence: 0.5 + (hash(p.id + 'cf') % 45) / 100, humor: 0.2 + (hash(p.id + 'hu') % 60) / 100 },
+      speech: { rumorPrefix: 'Between ourselves,', factPrefix: 'For the record,', refuse: 'I could not possibly say.' },
+      schedule: scheduleOf(p, homeMap),
+      relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 5 } },
+      giftPrefs: { item_coffee: 4 + (hash(p.id + 'g') % 6), tags: { food: 2 } },
+      opinions: {},
+    });
+  });
+}
+
+/** The dialogue records: a greeting, what they do, what they think of the two parties, and where the Politics page is. */
+function capitalDialogues() {
+  const open = (tab) => ({ panel: { name: 'tablet', opts: { tab } } });
+  return CAPITAL_PEOPLE.map((p) => {
+    const kindIntro = { ambassador: `${p.name}, ${p.role.split('.')[0]}.`, party: `${p.name}. ${p.role.split('.')[0]}.`, house: `${p.name}. ${p.role.split('.')[0]}.`, minister: `${p.name}. ${p.role.split('.')[0]}.` }[p.kind];
+    return {
+      id: `dlg_${p.id.slice(4)}`,
+      greetings: [
+        { if: { activity: 'sleep' }, say: ['*asleep, a briefing folder open on the blanket*'] },
+        { if: { firstMeeting: true }, say: [kindIntro, 'Do come in. Most people do not, so it is a pleasant change.'] },
+        { if: { rel: { affection: '>=30' } }, variants: [['Ah, a friendly face. Sit down. The kettle is on, which is the most political thing I do.']] },
+        { if: {}, variants: [['Good day.'], ['Yes? One moment.'], ['Welcome. Mind the carpet; it has opinions.']] },
+      ],
+      farewells: [{ if: {}, variants: [['Good day.'], ['Do come again. Everyone does, eventually.']] }],
+      topics: [
+        { id: `t_${p.id.slice(4)}_job`, label: '"What do you do?"', keywords: ['do', 'job', 'work', 'role', 'what'], say: [p.line] },
+        { id: `t_${p.id.slice(4)}_gov`, label: '"Who governs Sund?"', keywords: ['government', 'president', 'governs', 'sund', 'politics'], say: ['Look at the Politics page on your tablet: who governs, the term, the date of the vote, and where the parties differ. I would only add colour, and colour is cheap.'], effects: [open('Politics')] },
+        { id: `t_${p.id.slice(4)}_leaders`, label: '"What do you make of Vegas and Susan?"', keywords: ['vegas', 'susan', 'josiah', 'leader', 'leaders', 'party', 'parties'], say: [p.party === 'order' ? 'Josiah is the most serious man in Sund. Susan is the cleverest person he has ever disliked. I say this with the greatest respect for both.' : p.party === 'liberty' ? 'Susan is the best reason to vote I know. Josiah is the best reason not to leave it to chance. We say that to each other, over the wall.' : 'Both are very good at what they do. I have found it unwise to say which of them is more so, in a building where either might be President.'] },
+      ],
+      askPrompt: [['Ask what you like. I will tell you what I can.']],
+      unknown: [['That is not my department.'], ['I could not possibly say, and I will not say it twice.']],
+      gift: { loved: [['Coffee. You understand me.']], liked: [['Thank you. Noted.']], neutral: [['Thank you.']], disliked: [['I will find it a home.']], tooMany: [['That is plenty.']], ownStolen: [['That is mine.']] },
+      barks: { greet: ['Good day.'], work: ['Mm.', 'Noted.'], chat: ['Quite.'], argue: ['That is not what the minutes say.'], sleep: ['zzz'], moods: {} },
+    };
+  });
+}
+
+/** Who may walk through a building's door at any hour (its own people). */
+const OWNERS = (() => {
+  const o = {};
+  for (const p of CAPITAL_PEOPLE) { if (p.kind === 'house') continue; (o[p.work] ||= []).push(p.id); }
+  o.cq_order_hq = [...(o.cq_order_hq || []), 'npc_vegas'];
+  o.cq_liberty_hq = [...(o.cq_liberty_hq || []), 'npc_susan'];
+  return o;
+})();
+/** Halver House's own people and the two leaders (whichever is President works there): they may use every door of the House. */
+const HOUSE_OWNERS = [...HOUSEHOLD.map((p) => p.id), 'npc_vegas', 'npc_susan'];
+
+return { AMBASSADORS, PARTY_STAFF, STAFF_BY_PARTY, HOUSEHOLD, MINISTERS, CAPITAL_PEOPLE, CAPITAL_HOME_BUILDINGS, capitalFlats, capitalLife, capitalCharacters, capitalDialogues, OWNERS, HOUSE_OWNERS };
+})();
+
 // ---- src/content/maps/halverHouse.js
 __m["src/content/maps/halverHouse.js"] = (function () {
 // Halver House, the Office of the President (v0.93.1). The main hall is laid over the building's footprint (40 × 32, so the street does not move);
@@ -4731,6 +4951,7 @@ __m["src/content/maps/halverHouse.js"] = (function () {
 //
 // Nobody is inside yet: the President, the staff, the guards and the ambassadors arrive with the People release. The zones are enforced by the doors.
 const { roomTiles } = __m["src/world/mapBuilder.js"];
+const { HOUSE_OWNERS } = __m["src/content/capital.js"];
 
 const HALVER_HOUSE = { w: 40, h: 32, dx: 19 };
 const { w: W, h: H, dx: DX } = HALVER_HOUSE;
@@ -4790,7 +5011,7 @@ const halverHouse = {
   tiles: roomTiles(W, H, 't', DX, [...ROOMS.map((r) => [r.x, 0, 1, 1, 'D']), [DX - 2, 2, 5, H - 4, 'c']]),
   doors: [
     { id: 'door_halver_exit', x: DX, y: H - 1, to: { map: 'crown_quarter', spot: 'cq_halver_house_out' } },
-    ...ROOMS.map((r) => ({ id: `door_halver_${r.key}`, x: r.x, y: 0, label: `${r.name} (${r.zone === 'public' ? 'public' : r.zone === 'appointment' ? 'by appointment' : 'restricted'})`, to: { map: `halver_${r.key}`, spot: 'entry' }, lock: { ...ZONES[r.zone] } })),
+    ...ROOMS.map((r) => ({ id: `door_halver_${r.key}`, x: r.x, y: 0, label: `${r.name} (${r.zone === 'public' ? 'public' : r.zone === 'appointment' ? 'by appointment' : 'restricted'})`, to: { map: `halver_${r.key}`, spot: 'entry' }, lock: { ...ZONES[r.zone], owners: HOUSE_OWNERS } })),
   ],
   spots: {
     entry: { x: DX, y: H - 2, facing: 'up' },
@@ -4840,6 +5061,7 @@ __m["src/content/maps/crownQuarter.js"] = (function () {
 // plain room behind it, generated on its footprint, and a sign that says what it is: they open with the People release (ambassadors and staff).
 const { MapBuilder } = __m["src/world/mapBuilder.js"];
 const { HALVER_HOUSE } = __m["src/content/maps/halverHouse.js"];
+const { OWNERS, HOUSE_OWNERS } = __m["src/content/capital.js"];
 
 const W = 180;
 const H = 120;
@@ -4873,14 +5095,17 @@ m.rect(30, 14, 1, 21, ':').rect(10, 24, 40, 1, ':').rect(14, 14, 1, 11, ':');
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
   roof: o.roof || '#8a8478', wall: o.wall || '#d8d2c4', trim: o.trim || '#4a4438', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, columns: o.columns, tower: o.tower, trade: o.trade,
-  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', message: o.closed || `${name}: the doors are locked. "Not yet open to visitors."` } },
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: doorLock(id, o.hours, o.closed || `${name}: the doors are locked. "Not yet open to visitors."`) },
 });
+/** A door's lock: its own people at any hour, and the public in `hours` where the place is open to it. */
+const doorLock = (id, hours, message) => ({ key: 'item_none', ...(OWNERS[id] ? { owners: OWNERS[id] } : {}), ...(hours ? { hours } : {}), message });
+const OPEN = { embassy: { from: '09:00', to: '17:00' }, party: { from: '09:00', to: '18:00' }, cafe: { from: '07:00', to: '21:00' }, hotel: { from: '06:00', to: '23:00' } };
 const shut = (name, what) => `${name.toUpperCase()}. ${what} The doors are locked: it opens when its staff arrive.`;
-const embassy = (id, name, country, x, y, w, h, o = {}) => B(`cq_embassy_${id}`, name, x, y, w, h, { label: country, sign: country.toUpperCase(), trade: 'office', roof: o.roof || '#6a7a9a', wall: o.wall || '#d8dce6', signColor: o.signColor || '#e8e8f0', closed: shut(name, 'A flag, a brass plate, a camera and a very polite silence.'), ...o });
+const embassy = (id, name, country, x, y, w, h, o = {}) => B(`cq_embassy_${id}`, name, x, y, w, h, { label: country, sign: country.toUpperCase(), trade: 'office', roof: o.roof || '#6a7a9a', wall: o.wall || '#d8dce6', signColor: o.signColor || '#e8e8f0', hours: OPEN.embassy, closed: shut(name, 'A flag, a brass plate, a camera and a very polite silence. Open to visitors 09:00–17:00.'), ...o });
 const buildings = [
   // --- the north side of Palace Road
   { ...B('cq_halver_house', 'Halver House', 80, 3, HALVER_HOUSE.w, HALVER_HOUSE.h, { label: 'Halver House', sign: 'HALVER HOUSE · OFFICE OF THE PRESIDENT', signColor: '#e8d8a8', roof: '#8a7a5a', wall: '#ece2c8', trim: '#4a3e28', columns: true, flatRoof: false, tower: 4,
-    door: { x: 80 + HALVER_HOUSE.dx, y: 3 + HALVER_HOUSE.h - 1, to: { map: 'halver_house', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '08:00', to: '18:00' }, message: 'HALVER HOUSE. Public hours 08:00–18:00. A guard behind glass: "Come back in the morning."' } } }) },
+    door: { x: 80 + HALVER_HOUSE.dx, y: 3 + HALVER_HOUSE.h - 1, to: { map: 'halver_house', spot: 'entry' }, lock: { key: 'item_none', owners: HOUSE_OWNERS, hours: { from: '08:00', to: '18:00' }, message: 'HALVER HOUSE. Public hours 08:00–18:00. A guard behind glass: "Come back in the morning."' } } }) },
   B('cq_assembly', 'The Assembly', 126, 5, 36, 30, { sign: 'THE ASSEMBLY', signColor: '#e8d8a8', roof: '#8a7a3a', wall: '#e4d49a', trim: '#4a4020', columns: true, trade: 'office', closed: shut('The Assembly', 'The chamber where a hundred seats say yes or no.') }),
   B('cq_pavilion', 'The Royal Pavilion', 30, 15, 20, 20, { sign: 'ROYAL PAVILION', signColor: '#f0e0f0', roof: '#9a7aa0', wall: '#ece0ee', trim: '#5a3a60', flatRoof: false, trade: 'office', closed: shut('The Royal Pavilion', 'Where the boy king stays when he visits the capital (he is eleven and very serious).') }),
   // --- the west of Sovereign Square: staff flats and the civil service
@@ -4901,15 +5126,16 @@ const buildings = [
   embassy('caldera', 'The Republic of Caldera — Embassy', 'Caldera', 4, 94, 12, 12, { roof: '#b85a4a', wall: '#f0d4cc' }),
   embassy('pallas', 'The Free State of Pallas — Embassy', 'Pallas', 19, 94, 12, 12, { roof: '#9a5ab0', wall: '#e8d4f0' }),
   embassy('morrow', 'The Morrow Isles — Embassy', 'Morrow Isles', 34, 94, 12, 12, { roof: '#3aa898', wall: '#cce8e4' }),
-  B('cq_free_ports', 'The Free Ports Mission', 49, 94, 18, 12, { label: 'Free Ports Mission', sign: 'FREE PORTS MISSION', trade: 'office', roof: '#7a7e86', wall: '#d8dade', closed: shut('The Free Ports Mission', 'One office for every free territory that is not a country: no flag, no army, plenty of contracts.') }),
+  B('cq_free_ports', 'The Free Ports Mission', 49, 94, 18, 12, { label: 'Free Ports Mission', sign: 'FREE PORTS MISSION', trade: 'office', hours: OPEN.embassy, roof: '#7a7e86', wall: '#d8dade', closed: shut('The Free Ports Mission', 'One office for every free territory that is not a country: no flag, no army, plenty of contracts.') }),
   embassy('sunmouth', 'The Sunmouth Isthmus Compact — Embassy', 'Sunmouth', 69, 94, 11, 12, { roof: '#9ab83a', wall: '#e8f0cc' }),
   embassy('dunmere', 'The Free Harbour of Dunmere — Embassy', 'Dunmere', 82, 94, 8, 12, { roof: '#b89a6a', wall: '#f0e4d0' }),
   // --- east of Sovereign Way: parties, the press and the hotel
-  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
-  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
+  B('cq_diplomatic', 'Diplomatic Residences', 153, 76, 24, 12, { sign: 'DIPLOMATIC RESIDENCES', wall: '#d0c0d8', roof: '#6a5a7a', trade: 'house' }),
+  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { hours: OPEN.party, sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
+  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { hours: OPEN.party, sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
   B('cq_press_hall', 'The Press Hall', 134, 76, 17, 12, { sign: 'PRESS HALL · BRIEFINGS · NEWSROOM', roof: '#7a5a90', wall: '#d8c8e4', trade: 'office', closed: shut('The Press Hall', 'Briefings at noon and a newsroom that never closes.') }),
-  B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
-  B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
+  B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { hours: OPEN.hotel, sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
+  B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { hours: OPEN.cafe, sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
   B('cq_club', 'The Diplomats\' Club & Tourist Shops', 142, 94, 20, 12, { sign: 'DIPLOMATS\' CLUB', roof: '#c8782a', wall: '#f0d8b0', trade: 'shop', closed: shut('The Diplomats\' Club', 'Members only, and the tourist shops on the ground floor, which are shut for the same reason.') }),
 ];
 
@@ -13590,7 +13816,7 @@ __m["src/content/characters/politics.js"] = (function () {
 // They are persistent NPCs for the whole game, in or out of office, with a home, a bed, a sleep block, a schedule and a dialogue. Each is a person
 // with supporters and weak points, never a villain or a saint; neither is "good" or "bad" for the player (see docs/PROPOSAL_POLITICS.md).
 //
-// For now each has a flat in Crown Court (Vegas the fourth, Susan the fifth: rivals on one stairwell) and spends the day in public places; the Crown Quarter,
+// For now each has a flat in the Staff Flats beside the Crown Quarter's square (Vegas in B, Susan in A) and works the capital by day (v0.94.0 moved them from Crown Court); the Crown Quarter,
 // Halver House, party offices and the mansions come with the next releases, which replace these homes and schedules (ids never change).
 // No leader changes any price, cost or law in this release.
 const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
@@ -13605,12 +13831,12 @@ const vegas = local({
   personality: { traits: ['stern', 'disciplined', 'persuasive', 'believes his own speeches'], sociability: 0.6, conscientiousness: 0.95, impulsiveness: 0.1, discretion: 0.8, honesty: 0.55, empathy: 0.4, confidence: 0.95, humor: 0.2 },
   speech: { rumorPrefix: 'Between ourselves, and not for the cameras,', factPrefix: 'The record is clear:', refuse: 'That is not a matter for public discussion.' },
   schedule: [
-    { from: '23:00', to: '06:30', activity: 'sleep', spot: 'crown_court_4:bed' },
-    { from: '06:30', to: '08:00', activity: 'eat', spot: 'crown_court_4:chair', label: 'breakfast and the overnight briefing papers' },
-    { from: '08:00', to: '12:00', activity: 'work', spot: 'halvermouth:hall_door_out', label: 'meetings at the Hall of Justice' },
-    { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'a working lunch on the bank steps' },
-    { from: '13:00', to: '17:00', activity: 'work', spot: 'halvermouth:plaza_center', label: 'a public appearance in the Plaza' },
-    { from: '17:00', to: '23:00', activity: 'relax', spot: 'crown_court_4:chair', label: 'rehearsing tomorrow\'s speech' },
+    { from: '23:00', to: '06:30', activity: 'sleep', spot: 'cq_staff_b_4:bed' },
+    { from: '06:30', to: '08:00', activity: 'eat', spot: 'cq_staff_b_4:chair', label: 'breakfast and the overnight briefing papers' },
+    { from: '08:00', to: '12:00', activity: 'work', spot: 'crown_quarter__cq_order_hq:desk', label: 'meetings at party headquarters' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'crown_quarter:square_fountain', label: 'a working lunch by the fountain' },
+    { from: '13:00', to: '17:00', activity: 'work', spot: 'crown_quarter:press_line', label: 'a public appearance on the Square' },
+    { from: '17:00', to: '23:00', activity: 'relax', spot: 'cq_staff_b_4:chair', label: 'rehearsing tomorrow\'s speech' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 5, suspicion: 10 }, npc_susan: { trust: 5, affection: 0, respect: 30, suspicion: 40 }, npc_lawrence: { trust: 45, affection: 20, respect: 25, suspicion: 5 } },
   giftPrefs: { item_cigar: 8, item_coffee: 4, tags: { food: 1 } },
@@ -13630,12 +13856,12 @@ const susan = local({
   personality: { traits: ['quick', 'warm in public', 'sceptical of power', 'overcommitted'], sociability: 0.85, conscientiousness: 0.7, impulsiveness: 0.35, discretion: 0.5, honesty: 0.7, empathy: 0.75, confidence: 0.85, humor: 0.65 },
   speech: { rumorPrefix: 'I shouldn\'t say this, but', factPrefix: 'Look at the numbers:', refuse: 'Ask me that when the cameras are off.' },
   schedule: [
-    { from: '23:30', to: '07:00', activity: 'sleep', spot: 'crown_court_5:bed' },
-    { from: '07:00', to: '08:30', activity: 'eat', spot: 'crown_court_5:chair', label: 'coffee, three newspapers and a phone call' },
-    { from: '08:30', to: '12:00', activity: 'work', spot: 'halvermouth:plaza_center', label: 'meeting voters in the Plaza' },
-    { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'lunch on the bank steps' },
-    { from: '13:00', to: '17:00', activity: 'work', spot: 'halvermouth:hall_door_out', label: 'committee work at the Hall of Justice' },
-    { from: '17:00', to: '23:30', activity: 'relax', spot: 'crown_court_5:chair', label: 'drafting a speech she will rewrite twice' },
+    { from: '23:30', to: '07:00', activity: 'sleep', spot: 'cq_staff_a_4:bed' },
+    { from: '07:00', to: '08:30', activity: 'eat', spot: 'cq_staff_a_4:chair', label: 'coffee, three newspapers and a phone call' },
+    { from: '08:30', to: '12:00', activity: 'work', spot: 'crown_quarter:demonstration', label: 'meeting voters on the Square' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'crown_quarter:square_fountain', label: 'lunch by the fountain' },
+    { from: '13:00', to: '17:00', activity: 'work', spot: 'crown_quarter__cq_liberty_hq:desk', label: 'committee work at party headquarters' },
+    { from: '17:00', to: '23:30', activity: 'relax', spot: 'cq_staff_a_4:chair', label: 'drafting a speech she will rewrite twice' },
   ],
   relationships: { player: { trust: 0, affection: 5, respect: 5, suspicion: 5 }, npc_vegas: { trust: 5, affection: 0, respect: 30, suspicion: 40 }, npc_lawrence: { trust: 10, affection: 0, respect: 10, suspicion: 30 } },
   giftPrefs: { item_coffee: 10, item_honey_bun: 6, tags: { food: 3 } },
@@ -14849,6 +15075,8 @@ __m["src/content/life.js"] = (function () {
 // exists — or a documented exception in LIFE_EXCEPTIONS. New characters,
 // buildings, towns and jobs plug in here; see docs/WORLD_SIMULATION.md.
 
+const { capitalLife } = __m["src/content/capital.js"]; // v0.94.0
+
 /**
  * Occupations: reusable behaviour profiles.
  *   transport  'walk' | 'transit' (walks, takes the bus for long trips) | 'drive' | 'patrol'
@@ -14856,6 +15084,7 @@ __m["src/content/life.js"] = (function () {
  *   persist    'persistent' (saved, never despawned)
  */
 const OCCUPATIONS = {
+  official: { name: 'Official / diplomat', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.94.0: the capital's people live and work in the Crown Quarter
   shopkeeper: { name: 'Shopkeeper', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   clerk: { name: 'Clerk / office worker', transport: 'transit', interrupt: 'resume', persist: 'persistent' },
   tradesperson: { name: 'Tradesperson', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
@@ -14989,8 +15218,9 @@ const LIFE = {
   npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
   npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
   // v0.93.0: the two party leaders (temporary flats until their own residences are built)
-  npc_vegas: { home: 'res_crown_court/flat_4', occupation: 'executive' },
-  npc_susan: { home: 'res_crown_court/flat_5', occupation: 'executive' },
+  npc_vegas: { home: 'res_cq_staff_b/flat_4', occupation: 'official' },
+  npc_susan: { home: 'res_cq_staff_a/flat_4', occupation: 'official' },
+  ...Object.fromEntries(Object.entries(capitalLife()).filter(([id]) => !['npc_vegas', 'npc_susan'].includes(id))),
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -15601,6 +15831,7 @@ __m["src/content/homes.js"] = (function () {
 //
 // Applied after the roads are widened, in final tile coordinates.
 const { roomTiles } = __m["src/world/mapBuilder.js"];
+const { capitalFlats, CAPITAL_HOME_BUILDINGS } = __m["src/content/capital.js"];
 
 /**
  * A home: `building` on `map` (an existing building id) becomes its front
@@ -15711,7 +15942,7 @@ const HOMES = [
     ] },
   // v0.78.0: the First Bank of Halvermouth's four (the chief teller, the Governor, and the bond clerk and vault guard as flatmates) lease the old Crown Insurance
   // tower on Crown Street (the insurers moved out; the flats were always upstairs). The hall is made the size of the tower's old footprint (15×9), so the street does not move.
-  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9, xs: [2, 5, 8, 11, 13] },
+  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9 },
     flats: [
       { who: ['npc_prudence'], name: 'Prudence Tally', bed: '#5a6a8a', rug: '#c9a24a', loot: { items: { item_silver_spoons: 1 }, money: 48 }, props: [
         { type: 'shelf', x: 1, y: 4, examine: 'Knitting needles, a basket of wool, and a ledger-shaped notebook labelled "WHERE I WAS RIGHT". It is a large notebook.' },
@@ -15724,16 +15955,6 @@ const HOMES = [
       // two flatmates: the bond clerk and the vault guard share the third flat (a four-flat hall would be wider than the tower, and the street would have to move)
       { who: ['npc_cyrus', 'npc_bertram'], name: 'Cyrus Coupon & Bertram Locke', bed: '#6a3a28', rug: '#2a6a4a', loot: { items: { item_pocket_watch: 1, item_cigar: 1 }, money: 52 }, props: [
         { type: 'desk', x: 1, y: 4, w: 2, examine: 'Yield curves pinned all over one wall, in three colours of string; the five-year has a small gold star. On the other wall, a shoebox of poems, tidily filed by month. Every one is about doors. Some are very good.' },
-      ] },
-      // v0.93.0: Josiah Vegas, leader of the Order Party, rents the fourth flat (the hall keeps its size: its doors are spaced by hallSize.xs) until his own residence is built (a temporary home; his id never changes)
-      { who: ['npc_vegas'], name: 'Josiah Vegas', bed: '#1e2a44', rug: '#8a1a24', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 120 }, props: [
-        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Speeches in three drafts, each marked in red: "TOO KIND", "TOO LONG", "JUST RIGHT (SAY IT TWICE)".' },
-        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed election poster: a stern face, a clenched jaw and the single word ORDER. Underneath, in pencil, someone has written "bless you".' },
-      ] },
-      // v0.93.0: Susan, leader of the Liberty League, rents the fifth flat (next door to Vegas) until her own residence is built (a temporary home; her id never changes)
-      { who: ['npc_susan'], name: 'Susan', bed: '#2a6a5a', rug: '#e8b040', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 90 }, props: [
-        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three speeches, all headed "FINAL". A mug that says WORLD\'S MOST OVERCOMMITTED. A bus ticket to somewhere she has not had time to visit.' },
-        { type: 'shelf', x: 7, y: 4, examine: 'Books on constitutions, two on gardening, and a very worn paperback with the cover torn off. It is, she says, "research".' },
       ] },
     ] },
   // v0.55.0: Moneybucks Manor's staff, a flat each in the estate cottages (they used to sleep along the manor's back corridor)
@@ -15811,6 +16032,21 @@ const HOMES = [
       { type: 'shelf', x: 1, y: 4, examine: 'Saddle soap, hoof picks, and a well-thumbed book: "Cows And What They\'re Thinking".' },
     ] }] },
 ];
+
+// v0.94.0: the capital's homes (the people are generated in src/content/capital.js): the staff flats, the civil service residences and the diplomatic residences.
+// Each hall is exactly the size of its building and its flat doors are spaced by `xs`, so nothing in the street moves.
+const CAPITAL_BUILDINGS = {
+  staff_a: { name: 'Staff Flats A', label: 'Staff Flats A', w: 11, h: 12, n: 4 },
+  staff_b: { name: 'Staff Flats B', label: 'Staff Flats B', w: 11, h: 12, n: 4 },
+  civil: { name: 'Civil Service Residences', label: 'Civil Service Residences', w: 25, h: 14, n: 11 },
+  diplo: { name: 'Diplomatic Residences', label: 'Diplomatic Residences', w: 24, h: 12, n: 11 },
+};
+const capital = capitalFlats();
+for (const [key, B] of Object.entries(CAPITAL_BUILDINGS)) {
+  if (capital[key].length > B.n) throw new Error(`homes: ${B.name} has ${capital[key].length} flats but room for ${B.n}`);
+  HOMES.push({ id: CAPITAL_HOME_BUILDINGS[key], map: 'crown_quarter', building: CAPITAL_HOME_BUILDINGS[key], name: B.name, mapLabel: B.label, type: 'apartment',
+    hallSize: { w: B.w, h: B.h, door: Math.floor(B.w / 2), xs: Array.from({ length: B.n }, (_, i) => 2 + i * 2) }, flats: capital[key] });
+}
 
 /** Marty takes a fifth flat at the Plumb Line (Mason is his landlord). Built in maps/westbrook.js. */
 const PLUMB_FIVE = { who: ['npc_marty'], map: 'plumb_unit_5' };
@@ -16583,6 +16819,10 @@ function generatedInterior(S, b) {
   let entry = dx >= 0 ? { x: dx, y: H - 2, facing: 'up' } : null;
   for (let y = 1; !entry && y < H - 1; y++) for (let x = 1; !entry && x < W - 1; x++) if (!covered(x, y)) entry = { x, y, facing: 'down' };
   def.spots.entry = entry || { x: 1, y: 1, facing: 'down' };
+  // v0.94.0: where someone works: the free tile nearest the middle of the room (not the doorway)
+  let desk = null; let best = 1e9;
+  for (let y = 1; y < H - 2; y++) for (let x = 1; x < W - 1; x++) { if (covered(x, y)) continue; const d = Math.hypot(x - W / 2, y - H / 2.5); if (d < best) { best = d; desk = { x, y, facing: 'down' }; } }
+  if (desk) def.spots.desk = desk;
   return { def, exit: def.doors[0] || null };
 }
 
@@ -16854,6 +17094,7 @@ const bankChars = __m["src/content/characters/banks.js"].default; // v0.78.0
 const dlgBanks = __m["src/content/dialogue/banks.js"].default;
 const politicsChars = __m["src/content/characters/politics.js"].default; // v0.93.0: the two leaders
 const dlgPolitics = __m["src/content/dialogue/politics.js"].default;
+const { capitalCharacters, capitalDialogues } = __m["src/content/capital.js"]; // v0.94.0: the capital's 43 people
 const casinoChars = __m["src/content/characters/casino.js"].default;
 const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
@@ -16912,7 +17153,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars, ...capitalCharacters()]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -16937,7 +17178,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues()]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -26576,6 +26817,25 @@ const { POLITICS: P } = __m["src/content/politics.js"];
 const { termOf, phaseOf, daysTo } = __m["src/politics/calendar.js"];
 const { freshPolitics, OTHER_PARTY, stanceDistance, PARTY_IDS } = __m["src/politics/model.js"];
 const { hashUnit } = __m["src/aero/config.js"];
+const { STAFF_BY_PARTY } = __m["src/content/capital.js"];
+
+const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
+
+/** The leader's day as President: the same home life, and the working day in Halver House (the President's office, the cabinet room, the steps for a public appearance). */
+function presidentSchedule(base) {
+  if (PRESIDENT.has(base)) return PRESIDENT.get(base);
+  const sleep = base[0]; const breakfast = base[1]; const lunch = base[3]; const evening = base[base.length - 1];
+  const out = [
+    sleep, breakfast,
+    { from: breakfast.to, to: '12:00', activity: 'work', spot: 'halver_president:entry', label: 'at the President\'s desk' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: lunch.spot, label: 'a working lunch by the fountain' },
+    { from: '13:00', to: '15:00', activity: 'work', spot: 'halver_cabinet:entry', label: 'in the cabinet room' },
+    { from: '15:00', to: evening.from, activity: 'work', spot: 'crown_quarter:halver_house_steps', label: 'a public appearance on the steps of Halver House' },
+    evening,
+  ];
+  PRESIDENT.set(base, out);
+  return out;
+}
 
 class Politics {
   constructor(game) {
@@ -26594,12 +26854,32 @@ class Politics {
       const governs = hashUnit(`politics|first|${this.g.rng.state}`) < 0.5 ? 'order' : 'liberty';
       w.politics = freshPolitics(P, { day: this.day, governs });
     }
+    this.fillStaff(w.politics);
     return w.politics;
+  }
+
+  /** The leader in office works at Halver House; the other works the capital from party headquarters. Each game keeps its own copy of a leader's profile (the content is shared). Idempotent. */
+  syncLeaders() {
+    const s = this.ensure();
+    for (const pid of PARTY_IDS) {
+      const id = P.parties[pid].leader;
+      const npc = this.g.npcs.get(id);
+      const base = this.g.content.characters[id];
+      if (!npc || !base) continue;
+      const want = pid === s.government.partyId ? presidentSchedule(base.schedule) : base.schedule;
+      if (npc.profile.schedule !== want) npc.profile = want === base.schedule ? base : { ...base, schedule: want };
+    }
+  }
+
+  /** The parties' staff records name their people (v0.94.0): a vacant record gains the person the content gives that role. Idempotent; a record a later release has filled is left alone. */
+  fillStaff(s) {
+    for (const [pid, party] of Object.entries(s.parties)) for (const rec of party.staff) if (!rec.personId && STAFF_BY_PARTY[pid]?.[rec.role]) rec.personId = STAFF_BY_PARTY[pid][rec.role];
   }
 
   /** Once a day: the term rolls over when its last day has passed (the same government continues until elections exist). Idempotent. */
   dailyTick() {
     const s = this.ensure();
+    this.syncLeaders();
     const t = termOf(this.day, s.constitution);
     if (t.index !== s.government.term) {
       s.government.term = t.index; s.government.termStart = t.start; s.government.termEnd = t.end;
@@ -47146,6 +47426,7 @@ class Game {
     this.questState = {};
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) this.npcs.set(profile.id, this.createNpc(profile));
+    this.politics.syncLeaders(); // v0.94.0: the leader in office works at Halver House
     this.afterLoad();
     this.notify(`Day ${this.clock.day}, ${this.clock.weekday}. Welcome to Lanternside, ${this.player.name}.`, 'info');
     return this;
@@ -48340,6 +48621,7 @@ class Game {
       npc.path = null;
       this.npcs.set(profile.id, npc);
     }
+    this.politics.syncLeaders(); // v0.94.0
     if (!this.maps.has(this.player.map)) {
       this.warn(`Saved map ${this.player.map} no longer exists; moving player home.`);
       const s = this.maps.get(this.content.startingMap).spotPx(this.content.startingSpot);

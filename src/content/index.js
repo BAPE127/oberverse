@@ -65,6 +65,7 @@ import bankChars from './characters/banks.js'; // v0.78.0
 import dlgBanks from './dialogue/banks.js';
 import politicsChars from './characters/politics.js'; // v0.93.0: the two leaders
 import dlgPolitics from './dialogue/politics.js';
+import { capitalCharacters, capitalDialogues } from './capital.js'; // v0.94.0: the capital's 43 people
 import casinoChars from './characters/casino.js';
 import dlgCasino from './dialogue/casino.js';
 import aeroChars from './characters/aerospace.js';
@@ -123,7 +124,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars, ...capitalCharacters()]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -148,7 +149,7 @@ export const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues()]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,

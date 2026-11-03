@@ -134,6 +134,10 @@ function generatedInterior(S, b) {
   let entry = dx >= 0 ? { x: dx, y: H - 2, facing: 'up' } : null;
   for (let y = 1; !entry && y < H - 1; y++) for (let x = 1; !entry && x < W - 1; x++) if (!covered(x, y)) entry = { x, y, facing: 'down' };
   def.spots.entry = entry || { x: 1, y: 1, facing: 'down' };
+  // v0.94.0: where someone works: the free tile nearest the middle of the room (not the doorway)
+  let desk = null; let best = 1e9;
+  for (let y = 1; y < H - 2; y++) for (let x = 1; x < W - 1; x++) { if (covered(x, y)) continue; const d = Math.hypot(x - W / 2, y - H / 2.5); if (d < best) { best = d; desk = { x, y, facing: 'down' }; } }
+  if (desk) def.spots.desk = desk;
   return { def, exit: def.doors[0] || null };
 }
 

@@ -9,6 +9,7 @@
 //
 // Nobody is inside yet: the President, the staff, the guards and the ambassadors arrive with the People release. The zones are enforced by the doors.
 import { roomTiles } from '../../world/mapBuilder.js';
+import { HOUSE_OWNERS } from '../capital.js';
 
 export const HALVER_HOUSE = { w: 40, h: 32, dx: 19 };
 const { w: W, h: H, dx: DX } = HALVER_HOUSE;
@@ -68,7 +69,7 @@ export const halverHouse = {
   tiles: roomTiles(W, H, 't', DX, [...ROOMS.map((r) => [r.x, 0, 1, 1, 'D']), [DX - 2, 2, 5, H - 4, 'c']]),
   doors: [
     { id: 'door_halver_exit', x: DX, y: H - 1, to: { map: 'crown_quarter', spot: 'cq_halver_house_out' } },
-    ...ROOMS.map((r) => ({ id: `door_halver_${r.key}`, x: r.x, y: 0, label: `${r.name} (${r.zone === 'public' ? 'public' : r.zone === 'appointment' ? 'by appointment' : 'restricted'})`, to: { map: `halver_${r.key}`, spot: 'entry' }, lock: { ...ZONES[r.zone] } })),
+    ...ROOMS.map((r) => ({ id: `door_halver_${r.key}`, x: r.x, y: 0, label: `${r.name} (${r.zone === 'public' ? 'public' : r.zone === 'appointment' ? 'by appointment' : 'restricted'})`, to: { map: `halver_${r.key}`, spot: 'entry' }, lock: { ...ZONES[r.zone], owners: HOUSE_OWNERS } })),
   ],
   spots: {
     entry: { x: DX, y: H - 2, facing: 'up' },

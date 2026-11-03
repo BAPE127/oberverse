@@ -8,6 +8,25 @@ import { POLITICS as P } from '../content/politics.js';
 import { termOf, phaseOf, daysTo } from '../politics/calendar.js';
 import { freshPolitics, OTHER_PARTY, stanceDistance, PARTY_IDS } from '../politics/model.js';
 import { hashUnit } from '../aero/config.js';
+import { STAFF_BY_PARTY } from '../content/capital.js';
+
+const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
+
+/** The leader's day as President: the same home life, and the working day in Halver House (the President's office, the cabinet room, the steps for a public appearance). */
+function presidentSchedule(base) {
+  if (PRESIDENT.has(base)) return PRESIDENT.get(base);
+  const sleep = base[0]; const breakfast = base[1]; const lunch = base[3]; const evening = base[base.length - 1];
+  const out = [
+    sleep, breakfast,
+    { from: breakfast.to, to: '12:00', activity: 'work', spot: 'halver_president:entry', label: 'at the President\'s desk' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: lunch.spot, label: 'a working lunch by the fountain' },
+    { from: '13:00', to: '15:00', activity: 'work', spot: 'halver_cabinet:entry', label: 'in the cabinet room' },
+    { from: '15:00', to: evening.from, activity: 'work', spot: 'crown_quarter:halver_house_steps', label: 'a public appearance on the steps of Halver House' },
+    evening,
+  ];
+  PRESIDENT.set(base, out);
+  return out;
+}
 
 export class Politics {
   constructor(game) {
@@ -26,12 +45,32 @@ export class Politics {
       const governs = hashUnit(`politics|first|${this.g.rng.state}`) < 0.5 ? 'order' : 'liberty';
       w.politics = freshPolitics(P, { day: this.day, governs });
     }
+    this.fillStaff(w.politics);
     return w.politics;
+  }
+
+  /** The leader in office works at Halver House; the other works the capital from party headquarters. Each game keeps its own copy of a leader's profile (the content is shared). Idempotent. */
+  syncLeaders() {
+    const s = this.ensure();
+    for (const pid of PARTY_IDS) {
+      const id = P.parties[pid].leader;
+      const npc = this.g.npcs.get(id);
+      const base = this.g.content.characters[id];
+      if (!npc || !base) continue;
+      const want = pid === s.government.partyId ? presidentSchedule(base.schedule) : base.schedule;
+      if (npc.profile.schedule !== want) npc.profile = want === base.schedule ? base : { ...base, schedule: want };
+    }
+  }
+
+  /** The parties' staff records name their people (v0.94.0): a vacant record gains the person the content gives that role. Idempotent; a record a later release has filled is left alone. */
+  fillStaff(s) {
+    for (const [pid, party] of Object.entries(s.parties)) for (const rec of party.staff) if (!rec.personId && STAFF_BY_PARTY[pid]?.[rec.role]) rec.personId = STAFF_BY_PARTY[pid][rec.role];
   }
 
   /** Once a day: the term rolls over when its last day has passed (the same government continues until elections exist). Idempotent. */
   dailyTick() {
     const s = this.ensure();
+    this.syncLeaders();
     const t = termOf(this.day, s.constitution);
     if (t.index !== s.government.term) {
       s.government.term = t.index; s.government.termStart = t.start; s.government.termEnd = t.end;

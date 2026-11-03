@@ -48,12 +48,12 @@ test('two parties with the two leaders, platforms that differ, staff roles as va
   assert.equal(JSON.stringify(P).match(/"(crime|war|cost|price)Mod/), null);
 });
 
-test('the record is made on first use, from the world, with no change to anything else; both leaders persist and have homes, beds and dialogue', () => {
+test('the record is made with the world, from the world, with no change to anything else; both leaders persist and have homes, beds and dialogue', () => {
   const g = newGame(7);
-  assert.equal(g.world.politics, undefined, 'nothing made until it is read');
+  assert.ok(g.world.politics, 'made when the world is (v0.94.0: the leaders\' schedules depend on who governs)');
   const money = g.player.money;
   const O = g.politics.overview();
-  assert.ok(g.world.politics && g.world.politics.v === 1);
+  assert.ok(g.world.politics.v === 1);
   assert.equal(g.player.money, money, 'reading changes nothing');
   assert.ok(['order', 'liberty'].includes(O.governing.id) && O.opposition.id !== O.governing.id);
   assert.equal(O.governing.leader, O.governing.id === 'order' ? 'Josiah Vegas' : 'Susan');
@@ -67,8 +67,8 @@ test('the record is made on first use, from the world, with no change to anythin
     assert.ok(c.schedule.some((b) => b.activity === 'sleep'), `${id} sleeps`);
     assert.ok(g.npcs.has(id), `${id} is in the world`);
   }
-  assert.equal(LIFE.npc_vegas.home, 'res_crown_court/flat_4'); assert.equal(LIFE.npc_susan.home, 'res_crown_court/flat_5');
-  assert.ok(CONTENT.maps.crown_court_4 && CONTENT.maps.crown_court_5, 'their flats exist');
+  assert.equal(LIFE.npc_vegas.home, 'res_cq_staff_b/flat_4'); assert.equal(LIFE.npc_susan.home, 'res_cq_staff_a/flat_4'); // v0.94.0: they live in the capital now
+  assert.ok(CONTENT.maps.cq_staff_b_4 && CONTENT.maps.cq_staff_a_4, 'their flats exist');
 });
 
 test('which party governs first is a fixed function of the world: the same world, the same answer; and it survives a save and a reload', () => {
@@ -102,7 +102,7 @@ test('the term rolls over once, on its day, and the same government continues un
 
 test('the leaders keep to their schedules: asleep at night in their own flat, out in the city by day', () => {
   const g = newGame(3);
-  for (const [id, flat] of [['npc_vegas', 'crown_court_4'], ['npc_susan', 'crown_court_5']]) {
+  for (const [id, flat] of [['npc_vegas', 'cq_staff_b_4'], ['npc_susan', 'cq_staff_a_4']]) {
     setTime(g, 2, '03:00'); g.update(0.5, { x: 0, y: 0 });
     const n = g.npcs.get(id);
     assert.equal(n.activity, 'sleep', `${id} sleeps at 03:00`);
@@ -120,7 +120,6 @@ test('the Politics app: on the tablet, readable by anyone, changes nothing; an o
   const g2 = new Game(CONTENT, { seed: 1 });
   assert.ok(sm.load('slot1', g2).ok);
   const money = g2.player.money;
-  assert.equal(g2.world.politics, undefined);
   const O = g2.politics.overview();
   assert.ok(O.governing && O.calendar.phase);
   assert.equal(g2.player.money, money);

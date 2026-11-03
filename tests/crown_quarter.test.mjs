@@ -32,7 +32,7 @@ test('what is in it: ten embassies and the Free Ports Mission, the parties, the 
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('every building has its room laid over it, exactly its size; only Halver House has a real interior and an open door in office hours', () => {
+test('every building has its room laid over it, exactly its size; Halver House and the four homes have real interiors', () => {
   for (const b of Q.buildings) {
     assert.ok(b.interior, `${b.id} has a room`);
     const I = CONTENT.maps[b.interior];
@@ -41,7 +41,9 @@ test('every building has its room laid over it, exactly its size; only Halver Ho
   }
   const hh = Q.buildings.find((b) => b.id === 'cq_halver_house');
   assert.equal(hh.interior, 'halver_house'); assert.equal(hh.w, HALVER_HOUSE.w); assert.equal(hh.h, HALVER_HOUSE.h);
-  assert.ok(Q.buildings.filter((b) => b.id !== 'cq_halver_house').every((b) => CONTENT.maps[b.interior].generated), 'the rest are plain rooms, generated on their footprint');
+  const homes = ['cq_staff_a', 'cq_staff_b', 'cq_civil_service', 'cq_diplomatic']; // v0.94.0: these four are homes, with a stairwell hall of their own
+  assert.ok(Q.buildings.filter((b) => b.id !== 'cq_halver_house' && !homes.includes(b.id)).every((b) => CONTENT.maps[b.interior].generated), 'the rest are plain rooms, generated on their footprint');
+  for (const id of homes) assert.ok(CONTENT.maps[Q.buildings.find((b) => b.id === id).interior].id.endsWith('_hall'), `${id} is a home with a hall`);
 });
 
 test('Halver House: a main hall, ten doors in three zones, and each room leads back to the hall', () => {

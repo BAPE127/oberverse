@@ -142,6 +142,7 @@ export class Game {
     this.questState = {};
     this.npcs = new Map();
     for (const profile of Object.values(this.content.characters)) this.npcs.set(profile.id, this.createNpc(profile));
+    this.politics.syncLeaders(); // v0.94.0: the leader in office works at Halver House
     this.afterLoad();
     this.notify(`Day ${this.clock.day}, ${this.clock.weekday}. Welcome to Lanternside, ${this.player.name}.`, 'info');
     return this;
@@ -1336,6 +1337,7 @@ export class Game {
       npc.path = null;
       this.npcs.set(profile.id, npc);
     }
+    this.politics.syncLeaders(); // v0.94.0
     if (!this.maps.has(this.player.map)) {
       this.warn(`Saved map ${this.player.map} no longer exists; moving player home.`);
       const s = this.maps.get(this.content.startingMap).spotPx(this.content.startingSpot);

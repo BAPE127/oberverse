@@ -9,6 +9,8 @@
 // exists — or a documented exception in LIFE_EXCEPTIONS. New characters,
 // buildings, towns and jobs plug in here; see docs/WORLD_SIMULATION.md.
 
+import { capitalLife } from './capital.js'; // v0.94.0
+
 /**
  * Occupations: reusable behaviour profiles.
  *   transport  'walk' | 'transit' (walks, takes the bus for long trips) | 'drive' | 'patrol'
@@ -16,6 +18,7 @@
  *   persist    'persistent' (saved, never despawned)
  */
 export const OCCUPATIONS = {
+  official: { name: 'Official / diplomat', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.94.0: the capital's people live and work in the Crown Quarter
   shopkeeper: { name: 'Shopkeeper', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   clerk: { name: 'Clerk / office worker', transport: 'transit', interrupt: 'resume', persist: 'persistent' },
   tradesperson: { name: 'Tradesperson', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
@@ -149,8 +152,9 @@ export const LIFE = {
   npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
   npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
   // v0.93.0: the two party leaders (temporary flats until their own residences are built)
-  npc_vegas: { home: 'res_crown_court/flat_4', occupation: 'executive' },
-  npc_susan: { home: 'res_crown_court/flat_5', occupation: 'executive' },
+  npc_vegas: { home: 'res_cq_staff_b/flat_4', occupation: 'official' },
+  npc_susan: { home: 'res_cq_staff_a/flat_4', occupation: 'official' },
+  ...Object.fromEntries(Object.entries(capitalLife()).filter(([id]) => !['npc_vegas', 'npc_susan'].includes(id))),
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },

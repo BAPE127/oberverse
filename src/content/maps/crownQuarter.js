@@ -10,6 +10,7 @@
 // plain room behind it, generated on its footprint, and a sign that says what it is: they open with the People release (ambassadors and staff).
 import { MapBuilder } from '../../world/mapBuilder.js';
 import { HALVER_HOUSE } from './halverHouse.js';
+import { OWNERS, HOUSE_OWNERS } from '../capital.js';
 
 const W = 180;
 const H = 120;
@@ -43,14 +44,17 @@ m.rect(30, 14, 1, 21, ':').rect(10, 24, 40, 1, ':').rect(14, 14, 1, 11, ':');
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
   roof: o.roof || '#8a8478', wall: o.wall || '#d8d2c4', trim: o.trim || '#4a4438', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, columns: o.columns, tower: o.tower, trade: o.trade,
-  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', message: o.closed || `${name}: the doors are locked. "Not yet open to visitors."` } },
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: doorLock(id, o.hours, o.closed || `${name}: the doors are locked. "Not yet open to visitors."`) },
 });
+/** A door's lock: its own people at any hour, and the public in `hours` where the place is open to it. */
+const doorLock = (id, hours, message) => ({ key: 'item_none', ...(OWNERS[id] ? { owners: OWNERS[id] } : {}), ...(hours ? { hours } : {}), message });
+const OPEN = { embassy: { from: '09:00', to: '17:00' }, party: { from: '09:00', to: '18:00' }, cafe: { from: '07:00', to: '21:00' }, hotel: { from: '06:00', to: '23:00' } };
 const shut = (name, what) => `${name.toUpperCase()}. ${what} The doors are locked: it opens when its staff arrive.`;
-const embassy = (id, name, country, x, y, w, h, o = {}) => B(`cq_embassy_${id}`, name, x, y, w, h, { label: country, sign: country.toUpperCase(), trade: 'office', roof: o.roof || '#6a7a9a', wall: o.wall || '#d8dce6', signColor: o.signColor || '#e8e8f0', closed: shut(name, 'A flag, a brass plate, a camera and a very polite silence.'), ...o });
+const embassy = (id, name, country, x, y, w, h, o = {}) => B(`cq_embassy_${id}`, name, x, y, w, h, { label: country, sign: country.toUpperCase(), trade: 'office', roof: o.roof || '#6a7a9a', wall: o.wall || '#d8dce6', signColor: o.signColor || '#e8e8f0', hours: OPEN.embassy, closed: shut(name, 'A flag, a brass plate, a camera and a very polite silence. Open to visitors 09:00–17:00.'), ...o });
 const buildings = [
   // --- the north side of Palace Road
   { ...B('cq_halver_house', 'Halver House', 80, 3, HALVER_HOUSE.w, HALVER_HOUSE.h, { label: 'Halver House', sign: 'HALVER HOUSE · OFFICE OF THE PRESIDENT', signColor: '#e8d8a8', roof: '#8a7a5a', wall: '#ece2c8', trim: '#4a3e28', columns: true, flatRoof: false, tower: 4,
-    door: { x: 80 + HALVER_HOUSE.dx, y: 3 + HALVER_HOUSE.h - 1, to: { map: 'halver_house', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '08:00', to: '18:00' }, message: 'HALVER HOUSE. Public hours 08:00–18:00. A guard behind glass: "Come back in the morning."' } } }) },
+    door: { x: 80 + HALVER_HOUSE.dx, y: 3 + HALVER_HOUSE.h - 1, to: { map: 'halver_house', spot: 'entry' }, lock: { key: 'item_none', owners: HOUSE_OWNERS, hours: { from: '08:00', to: '18:00' }, message: 'HALVER HOUSE. Public hours 08:00–18:00. A guard behind glass: "Come back in the morning."' } } }) },
   B('cq_assembly', 'The Assembly', 126, 5, 36, 30, { sign: 'THE ASSEMBLY', signColor: '#e8d8a8', roof: '#8a7a3a', wall: '#e4d49a', trim: '#4a4020', columns: true, trade: 'office', closed: shut('The Assembly', 'The chamber where a hundred seats say yes or no.') }),
   B('cq_pavilion', 'The Royal Pavilion', 30, 15, 20, 20, { sign: 'ROYAL PAVILION', signColor: '#f0e0f0', roof: '#9a7aa0', wall: '#ece0ee', trim: '#5a3a60', flatRoof: false, trade: 'office', closed: shut('The Royal Pavilion', 'Where the boy king stays when he visits the capital (he is eleven and very serious).') }),
   // --- the west of Sovereign Square: staff flats and the civil service
@@ -71,15 +75,16 @@ const buildings = [
   embassy('caldera', 'The Republic of Caldera — Embassy', 'Caldera', 4, 94, 12, 12, { roof: '#b85a4a', wall: '#f0d4cc' }),
   embassy('pallas', 'The Free State of Pallas — Embassy', 'Pallas', 19, 94, 12, 12, { roof: '#9a5ab0', wall: '#e8d4f0' }),
   embassy('morrow', 'The Morrow Isles — Embassy', 'Morrow Isles', 34, 94, 12, 12, { roof: '#3aa898', wall: '#cce8e4' }),
-  B('cq_free_ports', 'The Free Ports Mission', 49, 94, 18, 12, { label: 'Free Ports Mission', sign: 'FREE PORTS MISSION', trade: 'office', roof: '#7a7e86', wall: '#d8dade', closed: shut('The Free Ports Mission', 'One office for every free territory that is not a country: no flag, no army, plenty of contracts.') }),
+  B('cq_free_ports', 'The Free Ports Mission', 49, 94, 18, 12, { label: 'Free Ports Mission', sign: 'FREE PORTS MISSION', trade: 'office', hours: OPEN.embassy, roof: '#7a7e86', wall: '#d8dade', closed: shut('The Free Ports Mission', 'One office for every free territory that is not a country: no flag, no army, plenty of contracts.') }),
   embassy('sunmouth', 'The Sunmouth Isthmus Compact — Embassy', 'Sunmouth', 69, 94, 11, 12, { roof: '#9ab83a', wall: '#e8f0cc' }),
   embassy('dunmere', 'The Free Harbour of Dunmere — Embassy', 'Dunmere', 82, 94, 8, 12, { roof: '#b89a6a', wall: '#f0e4d0' }),
   // --- east of Sovereign Way: parties, the press and the hotel
-  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
-  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
+  B('cq_diplomatic', 'Diplomatic Residences', 153, 76, 24, 12, { sign: 'DIPLOMATIC RESIDENCES', wall: '#d0c0d8', roof: '#6a5a7a', trade: 'house' }),
+  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { hours: OPEN.party, sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
+  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { hours: OPEN.party, sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
   B('cq_press_hall', 'The Press Hall', 134, 76, 17, 12, { sign: 'PRESS HALL · BRIEFINGS · NEWSROOM', roof: '#7a5a90', wall: '#d8c8e4', trade: 'office', closed: shut('The Press Hall', 'Briefings at noon and a newsroom that never closes.') }),
-  B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
-  B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
+  B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { hours: OPEN.hotel, sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
+  B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { hours: OPEN.cafe, sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
   B('cq_club', 'The Diplomats\' Club & Tourist Shops', 142, 94, 20, 12, { sign: 'DIPLOMATS\' CLUB', roof: '#c8782a', wall: '#f0d8b0', trade: 'shop', closed: shut('The Diplomats\' Club', 'Members only, and the tourist shops on the ground floor, which are shut for the same reason.') }),
 ];
 
