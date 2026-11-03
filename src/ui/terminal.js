@@ -595,13 +595,15 @@ export function terminalScreen(ui, body, opts, go) {
     sect.append(grid);
   } else if (tab === 'Market') {
     // v0.19.0: countries post orders of 5–50 crates; you fill them from the export cage
-    const cage = g.world.containers[def.outCrate].items;
-    const C = cfg.crate;
     const ship = opts.ship || {};
+    const owned = A.ownedIds();
+    const from = ship.from && A.owns(ship.from) ? ship.from : wh; // v0.92.0: ship from any of your works, from any terminal
+    const cage = g.world.containers[A.def(from).outCrate].items;
+    const C = cfg.crate;
     const focus = opts.country || null;
     const orders = M.openOrders().filter((o) => !focus || o.country === focus).sort((a, b) => a.expires - b.expires);
     sect.append(H3(focus ? `Orders from ${cfg.countries[focus].name}` : 'Open orders'));
-    sect.append(h('p', { class: 'os-dim' }, `COUNTRIES ORDER ${C.minOrder}–${C.maxOrder} CRATES OF ONE WEAPON AT A FIXED PRICE PER CRATE. FILL AN ORDER FROM THIS WORKS' EXPORT CAGE; PAYMENT ON ARRIVAL. ${focus ? '' : 'CLICK A COUNTRY ON THE GLOBE TO SEE ONLY ITS ORDERS.'}`),
+    sect.append(h('p', { class: 'os-dim' }, `COUNTRIES ORDER ${C.minOrder}–${C.maxOrder} CRATES OF ONE WEAPON AT A FIXED PRICE PER CRATE. FILL AN ORDER FROM ANY OF YOUR WORKS' EXPORT CAGES (PICK ONE IN THE FILL FORM); PAYMENT ON ARRIVAL. ${focus ? '' : 'CLICK A COUNTRY ON THE GLOBE TO SEE ONLY ITS ORDERS.'}`),
       ...(focus ? [h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('ALL ORDERS', () => go('Market', {})))] : []));
     if (!orders.length) sect.append(h('p', { class: 'os-dim' }, 'NO OPEN ORDERS. NEW ORDERS COME IN EVERY DAY — MORE FROM COUNTRIES AT WAR.'));
     for (const o of orders) {
@@ -613,7 +615,7 @@ export function terminalScreen(ui, body, opts, go) {
       const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : null, st.embargo ? '⚠ EMBARGOED' : null, `EXPIRES DAY ${o.expires}`].filter(Boolean).join(' · ');
       const open = ship.order === o.id;
       const rowEl = row(st.embargo ? '⛔' : enemy ? '⚔️' : '📦', `#${o.id} ${c.name} — ${o.qty}× ${it.name}`, `${o.price.toLocaleString()} OB/CRATE · ${(o.qty * o.price).toLocaleString()} OB TOTAL · ${tags} · CAGE ${have}/${o.qty}`,
-        btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
+        btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, from, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
       sect.append(rowEl);
       if (open) {
         const value = o.qty * o.price;
@@ -634,6 +636,7 @@ export function terminalScreen(ui, body, opts, go) {
             return h('option', { value: `v:${v.id}`, selected: own?.id === v.id }, `⚓ ${v.name} (${Lg.model(v.model).name}) — ${vq.ok ? `${(vq.hours / 24).toFixed(1)}d · costs ${vq.cost}` : vq.reasons[0]}`);
           }))] : []));
         const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
+          owned.length > 1 ? h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px;margin-bottom:6px' }, h('span', {}, 'SHIP FROM'), h('select', { onchange: (e) => upd({ from: e.target.value }) }, ...owned.map((id) => h('option', { value: id, selected: id === from }, `${A.def(id).name} — ${(g.world.containers[A.def(id).outCrate].items[o.item] || 0)} IN CAGE`)))) : null,
           h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' }, pick,
             own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : null,
             own ? h('label', {}, h('input', { type: 'checkbox', checked: Boolean(ship.guards), onchange: (e) => upd({ guards: e.target.checked }) }), ' HIRE GUARDS') : null,
@@ -644,7 +647,7 @@ export function terminalScreen(ui, body, opts, go) {
           h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
           h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
             have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
-              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null, escorts, guards: Boolean(ship.guards) });
+              const res = M.ship({ wh: from, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null, escorts, guards: Boolean(ship.guards) });
               ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
               go('Market', { msg: res.text, country: focus });
             }, own && !q.ok ? 'small' : 'small primary')));
@@ -653,7 +656,8 @@ export function terminalScreen(ui, body, opts, go) {
     }
     // the cage
     const crates = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms?.crate);
-    sect.append(H3('Export cage'));
+    if (owned.length > 1) sect.append(H3('Your manager ships from'), h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px' }, h('select', { onchange: (e) => go('Market', { country: focus, msg: A.setExportFrom(e.target.value).text }) }, h('option', { value: 'auto', selected: A.exportFrom() === 'auto' }, 'Whichever works holds the most'), ...owned.map((id) => h('option', { value: id, selected: A.exportFrom() === id }, A.def(id).name)))), h('p', { class: 'os-dim' }, 'THE MANAGER FILLS EXPORT ORDERS ONLY FROM THE WORKS YOU PICK (OR THE FULLEST CAGE).'));
+    sect.append(H3(`Export cage — ${A.def(from).name}`));
     sect.append(h('p', { class: 'os-dim' }, crates.length ? crates.map(([id, n]) => `${n}× ${items[id].name}`).join(' · ') : 'EMPTY. STAFFED STATIONS SET TO A WEAPON RECIPE MAKE WHOLE CRATES; BELT THEM (OR CARRY THEM) INTO THE CAGE.'));
     // buyers at a glance
     sect.append(H3('Buyers'));

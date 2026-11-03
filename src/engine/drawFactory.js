@@ -200,6 +200,23 @@ export function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       break;
     }
     case 'storage': {
+      if (p.drone) { // v0.92.0: a drone pad — orange for the launch station, blue for its receiving station — with the drone's ID
+        const launch = p.drone.role === 'launch';
+        const c1 = launch ? '#e8903a' : '#4aa0d8';
+        ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(x + 3, y + h - 5, w - 6, 4);
+        ctx.fillStyle = '#3a3e4a'; rrect(ctx, x + 2, y + 4, w - 4, h - 8, 4); ctx.fill();
+        ctx.strokeStyle = c1; ctx.lineWidth = 2; ctx.strokeRect(x + 5, y + 7, w - 10, h - 14);
+        const cx = x + w / 2; const cy = y + h / 2 - 1;
+        const away = Boolean(p.flight); // the drone is out
+        if (!away || !launch) { ctx.fillStyle = '#c9ced8'; ctx.fillRect(cx - 1, cy - 1, 3, 3); for (const [dx, dy] of [[-5, -4], [5, -4], [-5, 4], [5, 4]]) { ctx.fillStyle = '#8a909c'; ctx.fillRect(cx + dx - 2, cy + dy - 1, 4, 3); ctx.fillStyle = c1; ctx.fillRect(cx + dx - 1, cy + dy - 2, 2, 1); } }
+        ctx.fillStyle = c1;
+        ctx.beginPath(); if (launch) { ctx.moveTo(cx, y + 3); ctx.lineTo(cx - 4, y + 8); ctx.lineTo(cx + 4, y + 8); } else { ctx.moveTo(cx, y + h - 3); ctx.lineTo(cx - 4, y + h - 8); ctx.lineTo(cx + 4, y + h - 8); }
+        ctx.closePath(); ctx.fill();
+        ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#10121a'; ctx.fillText(p.drone.id, cx + 0.5, y + h - 1.5); ctx.fillStyle = '#f2f4f8'; ctx.fillText(p.drone.id, cx, y + h - 2.5); ctx.textAlign = 'left';
+        const n = Object.values(opts.containerItems?.(p.container) || {}).reduce((a, b) => a + b, 0);
+        ctx.fillStyle = '#1e1e22'; ctx.fillRect(x + 5, y + 5, w - 10, 2); ctx.fillStyle = n >= p.cap ? '#d8604a' : '#7ac86a'; ctx.fillRect(x + 5, y + 5, Math.round((w - 10) * Math.min(1, n / (p.cap || 1))), 2);
+        break;
+      }
       // v0.37.0: placeable storage — wooden (100) or iron (300), with a fill gauge
       const iron = p.cap > 100;
       ctx.fillStyle = 'rgba(0,0,0,0.25)';

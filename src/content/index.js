@@ -8,7 +8,7 @@ import halvermouthMaps from './maps/halvermouth.js';
 import yardsMaps from './maps/yards.js';
 import lariatMaps from './maps/lariat.js';
 import starlingMaps from './maps/starling.js';
-import { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } from './arms.js';
+import { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } from './arms.js';
 import { PROP_TYPES } from './props.js';
 import { ITEMS } from './items.js';
 import { FACTS } from './facts.js';
@@ -150,7 +150,7 @@ export const BASE_CONTENT = {
   recipes: RECIPES,
   deliveries: DELIVERIES,
   unlocks: UNLOCKS,
-  arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
+  arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET, drones: DRONES },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: TRANSIT,
   logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES, shipyard: SHIPYARD, tech: TECH, hulls: HULLS, components: COMPONENTS, colours: SHIP_COLOURS },

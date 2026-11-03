@@ -164,6 +164,7 @@ export class Market {
     const sh = this.cfg.shippers[shipper];
     if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    if (!g.arms.owns(wh)) return { ok: false, text: 'You don\'t own that works.' };
     const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
     if (!cage) return { ok: false, text: 'No export cage.' };
     const list = [[order.item, order.qty]];
@@ -197,6 +198,7 @@ export class Market {
     const c = this.country(country);
     const def = this.cfg.countries[country];
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    if (!g.arms.owns(wh)) return { ok: false, text: 'You don\'t own that works.' };
     const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
     if (!cage) return { ok: false, text: 'No export cage.' };
     if ((cage[order.item] || 0) < order.qty) return { ok: false, text: `This order is for ${order.qty} crates; the export cage has ${cage[order.item] || 0}.` };

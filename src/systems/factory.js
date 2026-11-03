@@ -199,7 +199,7 @@ export class Factory {
   }
 
   /** Place a machine/belt/inserter/generator item from your inventory. */
-  place(whId, itemId, x, y, dir = 0, from = null) {
+  place(whId, itemId, x, y, dir = 0, from = null, extra = {}) {
     const g = this.game;
     const item = g.content.items[itemId];
     if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
@@ -208,6 +208,12 @@ export class Factory {
     const source = from ? g.world.containers[from] : null;
     if (from ? !(source?.items[itemId] > 0) : !g.inventory.count(itemId)) return { ok: false, text: from ? `There is no ${item.name} on the dock.` : `You don't have a ${item.name}.` };
     const { type, kind, w = 1, h = 1, cap, filter } = item.build;
+    let drone = null;
+    if (item.build.drone) {
+      const chk = this.droneCheck(item.build.drone, extra.droneId);
+      if (!chk.ok) return chk;
+      drone = { role: item.build.drone, id: chk.id };
+    }
     const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
     if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
     const why = this.blockReason(whId, x, y, w, h);
@@ -220,6 +226,7 @@ export class Factory {
     };
     if (type === 'storage') {
       Object.assign(e, { chest: true, container: `ct_${e.id}`, cap, interact: { kind: 'container', container: `ct_${e.id}` } });
+      if (drone) Object.assign(e, { drone, label: `${item.name} ${drone.id}`, flight: null });
       g.world.containers[e.container] = { items: {}, money: 0 };
     }
     if (filter || type === 'sorter') Object.assign(e, { filter: null, filterable: true, interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
@@ -251,6 +258,7 @@ export class Factory {
     g.inventory.add(e.item, 1, { silent: true });
     const back = [];
     if (e.carry) back.push([e.carry, 1]);
+    if (e.flight) for (const [id, n] of Object.entries(e.flight.items)) if (n > 0) back.push([id, n]);
     if (e.chest) { for (const [id, n] of Object.entries(g.world.containers[e.container]?.items || {})) if (n > 0) back.push([id, n]); delete g.world.containers[e.container]; }
     for (const buf of [e.in, e.out]) for (const [id, n] of Object.entries(buf || {})) if (n > 0) back.push([id, n]);
     for (const [id, n] of back) g.inventory.add(id, n, { silent: true });
@@ -307,6 +315,7 @@ export class Factory {
   accepts(target, itemId) {
     if (!target) return false;
     if (target.chest) {
+      if (target.drone?.role === 'recv') return false; // only its own drone lands here
       if (!target.cap) return true;
       const items = this.game.world.containers[target.container]?.items || {};
       return Object.values(items).reduce((a, b) => a + b, 0) < target.cap;
@@ -333,6 +342,7 @@ export class Factory {
   offers(src) {
     const g = this.game;
     if (!src) return [];
+    if (src.drone?.role === 'launch') return []; // the drone takes from it; nothing else does
     if (src.chest) return Object.entries(g.world.containers[src.container]?.items || {}).filter(([, n]) => n > 0).map(([id]) => id);
     if (src.type === 'belt' || src.type === 'sorter') return src.carry ? [src.carry] : [];
     if (src.type === 'machine') return Object.entries(src.out).filter(([, n]) => n > 0).map(([id]) => id);
@@ -443,7 +453,72 @@ export class Factory {
     const g = this.game;
     const s = this.state;
     for (const id of this.ownedIds()) if (s.warehouses[id].entities.length) this.step(id);
+    this.droneTick();
     if (this.domain === 'calc' && s.contract && g.clock.minuteOfDay === DELIVERY_MINUTE && s.lastDelivery < g.clock.day) this.deliver();
+  }
+
+
+  // ------------------------------------------------------------- drones (v0.92.0)
+  /** Every drone station in the works you own: [{ wh, e }]. */
+  droneStations() {
+    const out = [];
+    for (const wh of this.ownedIds()) for (const e of this.state.warehouses[wh].entities) if (e.drone) out.push({ wh, e });
+    return out;
+  }
+
+  /** Drone IDs in use, with where each one's launch and receiving stations stand. */
+  drones() {
+    const by = {};
+    for (const { wh, e } of this.droneStations()) { const d = (by[e.drone.id] ||= { id: e.drone.id, launch: null, recv: null }); d[e.drone.role === 'launch' ? 'launch' : 'recv'] = { wh, e }; }
+    return Object.values(by).sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+
+  /** The cleaned-up ID, or why it won't do. A launch station needs a new unique ID; a receiving station needs a drone that has none yet. */
+  droneCheck(role, raw) {
+    const max = this.game.content.arms?.drones?.idMax || 12;
+    const id = String(raw ?? '').trim().toUpperCase().replace(/\s+/g, '-');
+    if (!id) return { ok: false, text: role === 'launch' ? 'Give the drone a unique ID first.' : 'Choose which drone this station belongs to.' };
+    if (!/^[A-Z0-9][A-Z0-9-]*$/.test(id) || id.length > max) return { ok: false, text: `A drone ID is 1 to ${max} letters, numbers or dashes.` };
+    const d = this.drones().find((x) => x.id === id);
+    if (role === 'launch') return d?.launch ? { ok: false, text: `A drone called ${id} already exists. Every drone needs its own ID.` } : { ok: true, id };
+    if (!d?.launch) return { ok: false, text: `There is no drone ${id}: place its launch station first.` };
+    if (d.recv) return { ok: false, text: `Drone ${id} already has a receiving station.` };
+    return { ok: true, id };
+  }
+
+  /** One game minute of every drone: land what has arrived, then fly the next load. Drone A only ever flies between A's two stations. */
+  droneTick() {
+    const g = this.game;
+    const cfg = g.content.arms?.drones;
+    if (!cfg) return;
+    const now = g.clock.total;
+    const total = (c) => Object.values(c.items).reduce((a, b) => a + b, 0);
+    for (const d of this.drones()) {
+      const L = d.launch?.e;
+      if (!L) continue;
+      const from = g.world.containers[L.container];
+      if (L.flight && now >= L.flight.arrive) {
+        const to = d.recv ? g.world.containers[d.recv.e.container] : from; // its receiving station was taken away: it flies home
+        for (const [id, n] of Object.entries(L.flight.items)) to.items[id] = (to.items[id] || 0) + n;
+        L.flight = null;
+        L.lastArrive = now;
+      }
+      if (L.flight || !d.recv || !from) continue;
+      const dest = g.world.containers[d.recv.e.container];
+      let room = Math.min(cfg.perTrip, (d.recv.e.cap || Infinity) - total(dest));
+      if (room <= 0) continue;
+      const load = {};
+      for (const id of Object.keys(from.items).sort()) {
+        const n = Math.min(from.items[id], room);
+        if (n <= 0) continue;
+        load[id] = n; from.items[id] -= n; room -= n;
+        if (!from.items[id]) delete from.items[id];
+        if (room <= 0) break;
+      }
+      if (!Object.keys(load).length) continue;
+      L.flight = { items: load, arrive: now + (d.launch.wh === d.recv.wh ? cfg.sameWorksMinutes : cfg.otherWorksMinutes) };
+      g.bus.emit('drone:launched', { id: d.id, items: load });
+    }
   }
 
   deliver() {

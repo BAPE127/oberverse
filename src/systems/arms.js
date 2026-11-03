@@ -50,6 +50,18 @@ export class Arms extends Factory {
     return this.game.content.arms;
   }
 
+  /** Which works the manager ships export orders from: 'auto' (whichever cage holds the most of it) or one works' id. */
+  exportFrom() {
+    const v = this.state.exportFrom;
+    return v && this.owns(v) ? v : 'auto';
+  }
+
+  setExportFrom(id) {
+    if (id !== 'auto' && !this.owns(id)) return { ok: false, text: 'You don\'t own that works.' };
+    this.state.exportFrom = id;
+    return { ok: true, text: id === 'auto' ? 'The manager ships each order from the works whose cage holds the most of it.' : `The manager ships export orders from ${this.def(id).name}.` };
+  }
+
   licensed() {
     return Boolean(this.game.getFlag(LICENCE_FLAG));
   }
@@ -250,8 +262,8 @@ export class Arms extends Factory {
     for (const id of Object.keys(this.defs())) if (this.game.maps.get(this.def(id).map)) this.refreshSpots(id);
   }
 
-  place(whId, itemId, x, y, dir, from = null) {
-    const r = super.place(whId, itemId, x, y, dir, from);
+  place(whId, itemId, x, y, dir, from = null, extra = {}) {
+    const r = super.place(whId, itemId, x, y, dir, from, extra);
     if (r.ok) this.refreshSpots(whId);
     return r;
   }

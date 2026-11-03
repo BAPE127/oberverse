@@ -137,3 +137,14 @@ Projectiles, drones and scorch marks are runtime-only and dropped when you chang
 ### Your own ships (v0.22.0)
 
 Once you own Ober & Sons Maritime, the FILL form lists your cargo ships beside the shipping companies. A ship docked at Mill Road Docks carries the crates to the buyer's main port: no freight fee, no insurance, running costs and port fees only. Embargo runs risk seizure by customs (22%, decided at departure). See `docs/LOGISTICS.md`.
+
+## Shipping from the works you choose, and drone freight (v0.91.6)
+
+- **Ship from any works.** With more than one works, the fill form on the terminal's Market tab has a **SHIP FROM** list of your works (each with how many crates of that order's weapon its cage holds). You can fill an order from a works whose terminal you are not standing at.
+- **The manager's works.** Under the order list the Market tab has **Your manager ships from**: *whichever works holds the most* (the default) or one works. With one chosen the manager fills export orders only from that works' cage and never quietly uses another. Stored as `arms.state.exportFrom` (`Arms.exportFrom()`, `setExportFrom()`); used by `Management.planExports()`.
+- **Drones.** Two arms-works items (buy under Equipment): the **Drone Launch Station** (420) and the **Drone Receiving Station** (260). Both are 1×1, hold 60 items, and are placed with B like a chest.
+  - Placing a launch station opens a panel that asks for the drone's **unique ID** (1 to 12 letters, numbers or dashes; tidied to capitals). No two drones can share an ID.
+  - A receiving station asks **which drone** it belongs to (only drones with no receiver are listed). Each drone has exactly one launch station and one receiving station, so drone A can only ever fly between A's two stations. The receiver can be in a different works.
+  - Belts and arms feed a launch station; the drone takes up to **12 items a trip** (a belt or arm moves 1 a minute) and lands them **1 minute** later in the same works or **3 minutes** later in another. Arms and belts take from the receiving station; nothing else can put items into it, and nothing else takes from a launch station. If the receiver is full the drone waits; if the receiver is picked up the drone flies home with its load.
+  - Picking up a station returns what it held (and anything in flight). A removed launch station frees its ID.
+  - Saved in the entity list (`drone: { role, id }`, `flight`). Content: `DRONES` in `src/content/arms.js`. Code: `Factory.droneCheck`, `droneTick` in `src/systems/factory.js`; the ID panel `src/ui/droneId.js`.

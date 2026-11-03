@@ -339,10 +339,13 @@ export class Management {
     const g = this.g; const A = g.arms; const Mk = g.market;
     if (!A.licensed()) return [];
     const out = [];
+    const pref = A.exportFrom();
     for (const wh of A.ownedIds()) {
+      if (pref !== 'auto' && wh !== pref) continue; // the owner picked the works the manager ships from
       const cage = g.world.containers[A.def(wh)?.outCrate]?.items || {};
       for (const o of Mk.openOrders()) {
         if ((cage[o.item] || 0) < o.qty) continue;
+        if (pref === 'auto' && A.ownedIds().some((w) => w !== wh && ((g.world.containers[A.def(w)?.outCrate]?.items || {})[o.item] || 0) > (cage[o.item] || 0))) continue; // auto: the fullest cage ships it
         const c = Mk.country(o.country);
         if (!c || c.hostility >= Mk.cfg.market.refuseHostility) continue;
         const value = o.qty * o.price;

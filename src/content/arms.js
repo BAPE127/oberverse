@@ -263,3 +263,11 @@ export const MARKET = {
   initialWars: [['varn', 'caldera']],
   initialEmbargoes: ['pallas'],
 };
+
+/** v0.92.0: drone freight. A drone is a launch station plus its own receiving station; nothing else can use either. */
+export const DRONES = {
+  perTrip: 12, // items a drone carries each flight (a belt or an arm moves 1 a minute)
+  sameWorksMinutes: 1, // flight time to a receiving station in the same works
+  otherWorksMinutes: 3, // ... in another of your works
+  idMax: 12,
+};

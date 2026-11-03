@@ -21,6 +21,7 @@ import { cashierPanel, casinoTablePanel } from './casino.js';
 import { spadeTablePanel } from './spadeTable.js';
 import { aerospacePanel, aeroSalePanel } from './aerospace.js';
 import { corpNamePanel } from './corpApp.js';
+import { droneIdPanel } from './droneId.js';
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -38,6 +39,7 @@ PANELS.casinoTable = casinoTablePanel;
 PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
 PANELS.aerospace = aerospacePanel; // v0.55.0: Starling Flats
 PANELS.aerospace_sale = aeroSalePanel;
+PANELS.droneid = droneIdPanel; // v0.92.0: a drone's unique ID when its station is placed
 PANELS.corpname = corpNamePanel; // v0.60.0: name a business when it is founded
 import { saveSettings } from '../save/saveManager.js';
 
@@ -658,6 +660,12 @@ export class UI {
     }
     if (action === 'attack') {
       if (!c) return true;
+      const dd = g.content.items[b.tool]?.build;
+      if (dd?.drone) { // v0.92.0: a drone station asks for its drone's ID first
+        const why = b.sys.blockReason(b.wh, c.x, c.y, dd.w || 1, dd.h || 1);
+        if (why) { this.audio.sfx('sfx_fail'); this.toast(why, 'info', 2); } else this.openPanel('droneid', { sys: b.sys, wh: b.wh, item: b.tool, x: c.x, y: c.y, dir: b.dir });
+        return true;
+      }
       const r = b.sys.place(b.wh, b.tool, c.x, c.y, b.dir);
       if (r.ok) this.audio.sfx('sfx_door'); else { this.audio.sfx('sfx_fail'); this.toast(r.text, 'info', 2); }
       if (!g.inventory.count(b.tool)) b.tool = this.buildTools()[0] || 'remove';
