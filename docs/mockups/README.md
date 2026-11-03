@@ -88,3 +88,5 @@ The `hoi-*.html` pages read atlas base layers that are not committed (they are g
 
 ### Post-War Expansion (plan only)
 `proposal-postwar-neumina-map.png`, `proposal-postwar-noir-map.png`, `proposal-postwar-atlas-and-instances.png`: simple layouts for `docs/POST_WAR_EXPANSION_PLAN.md`. Source `postwar-src/maps.py` (`python3 -I maps.py`, needs Pillow; writes into `docs/mockups/`).
+
+`proposal-postwar-neumina-buildings.png` and `proposal-postwar-noir-buildings.png`: building-level plans of both cities (source `postwar-src/cities.py`).

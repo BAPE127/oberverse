@@ -117,7 +117,7 @@ Sund redrawn to the home island (shape approved); government district is a new *
 
 ## 6b. The Post-War Expansion (planned, not placed)
 
-`POST_WAR_EXPANSION_PLAN.md` (twelve stages PW-1 to PW-12, mock-ups `proposal-postwar-*.png`, prompt `prompt-bank/21-post-war-expansion.md`). **Its release numbers are not in the list above** until you answer its Question 1 (interleave after the Atlas, or after the War). Its Atlas part builds on v0.92.0 as a v0.92.1 city layer.
+`POST_WAR_EXPANSION_PLAN.md` (twelve stages PW-1 to PW-12, mock-ups `proposal-postwar-*.png`, prompt `prompt-bank/21-post-war-expansion.md`). **You decided it comes after the War update**, so its releases would start at v0.121.0 (not yet numbered stage by stage). Its Atlas part builds on v0.92.0 as a v0.92.1 city layer.
 
 ## 7. Still to do before the war art is final
 

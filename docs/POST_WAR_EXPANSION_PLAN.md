@@ -10,11 +10,13 @@ Rules for every release below are the standing ones: ask before guessing, accura
 | --- | --- |
 | `mockups/proposal-postwar-neumina-map.png` | Neumina: seven districts (residential, corporate, restricted lab, entertainment, criminal, industrial, transit), the avenues, the elevated walkways, the rooftop routes, the service tunnels, the mission landmarks and the agency entry point |
 | `mockups/proposal-postwar-noir-map.png` | the noir city, **Saint Halloran** (Westreach): the three mob territories, the neutral police and city-hall district, the docks and piers, the landmarks, and the routes along which a staged attack could start a war |
+| `mockups/proposal-postwar-neumina-buildings.png` | **Neumina, building by building** (12 blocks, about 130 named buildings, elevated walkways, tunnel hatches, hover-cars), in the pixel style of your reference |
+| `mockups/proposal-postwar-noir-buildings.png` | **Saint Halloran, building by building** (9 blocks, the three mobs' zones, docks, piers, rain), with numbered landmarks |
 | `mockups/proposal-postwar-atlas-and-instances.png` | the four Atlas zoom levels, the mission lifecycle (template, instance, play, extract, drop, return), and what is **kept** and what is **thrown away** |
 
-Source: `mockups/postwar-src/maps.py` (Python with Pillow; `python3 -I maps.py` rebuilds all three).
+Source: `mockups/postwar-src/maps.py` (district schematics) and `cities.py` (building plans) (Python with Pillow; `python3 -I maps.py` rebuilds all three).
 
-**What I could not do:** the brief says a Neumina reference image was attached. **I cannot see it.** The Neumina picture is layout only and its names and colours are my own. Before any Neumina art is made I need you to describe the image, or tell me which parts matter (tile size, how the multi-level streets are drawn, the palette).
+**Reference image:** received afterwards. It shows a top-down pixel street: dark purple pavement, raised walls and rooftops with vents and red pipes, a neon-signed night club, a METRO stair entrance, a pink-neon armoury, pink neon palms, cyan hover-cars, a holographic statue and street lamps. The building plans copy that mood (palette, signs, palms, hover-cars, hologram) with original names and layout.
 
 ## 2. What already exists and gets reused (nothing is rebuilt)
 
@@ -147,5 +149,7 @@ Reuses the OberPad pattern from v0.83 to v0.90 (home icons, back arrow, minimal 
 6. **A mission you abandon or lose:** nothing paid and a small designed reputation cost, or nothing paid and no cost?
 7. **The noir city:** is **Saint Halloran** in **Westreach** with the three mobs named above acceptable (all names are mine and can change)?
 8. **First batch:** build Stage PW-1 (the audit document, no code) first? It is the cheapest step and sets the baseline, the empty-building count and the performance budget that every later stage is tested against.
+
+**Answered (2026-11-03):** Q1 after the War update; Q4 Neumina in a country of my choosing (Windfen League stays); Q5 separate map layers are fine; Q6 abandoning a mission costs nothing; Q3 four levels with crossfade; Q7 Saint Halloran and the three mobs accepted. Q2 (v0.92.1 on top of v0.92.0) and Q8 (audit first) are still open. So the release numbers become **after v0.120.0**, from v0.121.0.
 
 Until you say "go" for a named stage, nothing here is built.
