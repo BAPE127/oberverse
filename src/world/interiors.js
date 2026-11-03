@@ -25,6 +25,7 @@ export function realInterior(maps, S, b) {
 
 /** What kind of room a building without an interior gets. */
 function trade(b) {
+  if (b.trade && FLOOR[b.trade]) return b.trade; // v0.93.1: a building may say what its room is
   const name = `${b.sign || ''} ${b.name || ''} ${b.mapLabel || ''} ${b.id}`;
   if (b.shabby) return 'shack';
   if (/house|home|residence|cottage|boarding/i.test(name)) return 'house';

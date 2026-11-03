@@ -367,6 +367,21 @@ try {
     return { text: text.slice(0, 300), ok: /Government of Sund/.test(text) && /Josiah Vegas|Susan/.test(text) };
   });
   record('the Politics app opens on the tablet and names the government and its leader', pol.ok, pol.text.slice(0, 120));
+  // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
+  const crown = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game;
+    while (ui.panelStack.length) ui.closePanel();
+    const out = {};
+    g.clock.total = (g.clock.day - 1) * 1440 + 10 * 60;
+    for (const [map, spot] of [['halvermouth', 'crown_gate'], ['crown_quarter', 'west_gate'], ['crown_quarter', 'halver_house_steps'], ['halver_house', 'entry'], ['halver_president', 'entry']]) {
+      g.changeMap(map, spot);
+      await new Promise((r) => setTimeout(r, 250));
+      out[map] = g.player.map === map;
+    }
+    g.changeMap('halvermouth', 'north_gate');
+    return out;
+  });
+  record('the Crown Quarter and Halver House load and draw (gate, district, lobby, the President\'s office)', Object.values(crown).every(Boolean), JSON.stringify(crown));
   await closeAll();
   s = await state();
   record('no game warnings', s.warnings.length === 0, s.warnings.join('; '));

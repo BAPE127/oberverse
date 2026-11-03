@@ -129,4 +129,15 @@ export const BUILDING_ICONS = {
   b_hollister_house: { icon: '🏡', kind: 'Farmhouse' },
   b_hollister_barn: { icon: '🛖', kind: 'Barn' },
   b_old_barn: { icon: '🛖', kind: 'Old barn' },
+  // The Crown Quarter (v0.93.1)
+  cq_halver_house: { icon: '🏛️', kind: 'Halver House: the Office of the President' },
+  cq_assembly: { icon: '🗳️', kind: 'The Assembly' },
+  cq_pavilion: { icon: '👑', kind: 'The Royal Pavilion' },
+  cq_staff_a: { icon: '🏢', kind: 'Staff flats' }, cq_staff_b: { icon: '🏢', kind: 'Staff flats' }, cq_civil_service: { icon: '🏢', kind: 'Civil service residences' },
+  cq_min_treasury: { icon: '💰', kind: 'Ministry of the Treasury' }, cq_min_defence: { icon: '🛡️', kind: 'Ministry of Defence & Security' }, cq_min_interior: { icon: '🚓', kind: 'Ministry of the Interior & Police' },
+  cq_min_agriculture: { icon: '🌾', kind: 'Ministry of Agriculture & Trade' }, cq_min_foreign: { icon: '🌐', kind: 'Ministry of Foreign Affairs' }, cq_min_records: { icon: '📚', kind: 'The Public Records Office' },
+  cq_free_ports: { icon: '⚓', kind: 'The Free Ports Mission' },
+  cq_order_hq: { icon: '🗳️', kind: 'Order Party headquarters' }, cq_liberty_hq: { icon: '🗳️', kind: 'Liberty League headquarters' }, cq_press_hall: { icon: '📰', kind: 'The Press Hall' },
+  cq_hotel: { icon: '🏨', kind: 'The Crown Hotel' }, cq_cafe: { icon: '☕', kind: 'Café Concord & The Sitting Room' }, cq_club: { icon: '🎩', kind: 'The Diplomats\' Club & tourist shops' },
+  ...Object.fromEntries(['ostmark', 'varn', 'teshvar', 'caldera', 'pallas', 'morrow', 'lirre', 'westreach', 'sunmouth', 'dunmere'].map((c) => [`cq_embassy_${c}`, { icon: '🚩', kind: `Embassy (${c[0].toUpperCase()}${c.slice(1)})` }])),
 };

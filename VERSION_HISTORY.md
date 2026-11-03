@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.93.1 | 2026-11-03 | development | 1 | Politics, the capital: the Crown Quarter (a new district through the Crown Gate off Crown Street), Embassy Row (ten embassies and the Free Ports Mission), the party headquarters, ministries, the Assembly, and Halver House with a real interior in three zones. Nobody works inside yet. |
 | 0.93.0 | 2026-11-03 | development | 1 | Politics, foundations: two parties (the Order Party, the Liberty League) and their leaders Josiah Vegas and Susan as persistent people with homes; a government, a 120-day term and an election date; a read-only Politics app on the tablet. Changes no price, cost, police or war. |
 | 0.92.0 | 2026-11-03 | development | 1 | The World Atlas: eleven countries (Westreach, Sunmouth and Dunmere promoted), 77 states, 131 places, bases, theatres, rivers and roads laid on the world's own coastlines; the Hald Reach joins Halvermouth to Sund; an Atlas page on the arms terminal globe and Fleet Command. No other gameplay changes. |
 | 0.91.7 | 2026-11-03 | development | 1 | Factory update, part two: choose which works a delivery of parts and equipment goes to (and a central depot for the manager's deliveries); arms and belts can feed a drone's launch station and empty its receiving station. |

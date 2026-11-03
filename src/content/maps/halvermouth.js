@@ -46,6 +46,7 @@ m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
 m.rect(38, 0, 2, 1, '='); // v0.29.0: the North Gate — FM 38 up to Lariat
 m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
 m.rect(111, 0, 1, 36, 'r').rect(111, 38, 1, 36, 'r'); // the eastern cliffs (the East Gate at rows 36–37)
+m.rect(111, 12, 1, 2, '=').rect(108, 12, 3, 2, '='); // v0.93.1: the Crown Gate, off Crown Street's turning circle — through the cliffs to the Crown Quarter
 m.rect(1, 12, 1, 2, ',').rect(1, 36, 1, 2, ','); // Crown St and Grand Ave end at the car park
 m.rect(5, 14, 4, 1, 'g').rect(5, 35, 4, 1, 'g'); // the Harbourline car park's two entrances
 m.rect(104, 10, 7, 6, 'm'); // Crown Street's turning circle
@@ -265,12 +266,15 @@ export const halvermouth = {
     { id: 'door_hv_east_gate_b', x: 111, y: 37, keepTile: true, gateway: 'Westbrook & the Coast', label: 'The Coast Road east', to: { map: 'westbrook', spot: 'west_gate' } },
     { id: 'door_hv_north_a', x: 38, y: 0, keepTile: true, gateway: 'Lariat', label: 'FM 38 north, to Lariat', to: { map: 'lariat', spot: 'south_gate' } },
     { id: 'door_hv_north_b', x: 39, y: 0, keepTile: true, gateway: 'Lariat', label: 'FM 38 north, to Lariat', to: { map: 'lariat', spot: 'south_gate' } },
+    { id: 'door_hv_crown_a', x: 111, y: 12, keepTile: true, gateway: 'The Crown Quarter', label: 'The Crown Gate, east to the Crown Quarter', to: { map: 'crown_quarter', spot: 'west_gate' } },
+    { id: 'door_hv_crown_b', x: 111, y: 13, keepTile: true, gateway: 'The Crown Quarter', label: 'The Crown Gate, east to the Crown Quarter', to: { map: 'crown_quarter', spot: 'west_gate' } },
     { id: 'door_hv_yards_a', x: 0, y: 60, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
     { id: 'door_hv_yards_b', x: 0, y: 61, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
   ],
   spots: {
     north_gate: { x: 38, y: 2, facing: 'down' }, // v0.29.0: just inside the North Gate
     east_gate: { x: 109, y: 36, facing: 'left' },
+    crown_gate: { x: 109, y: 12, facing: 'left' }, // v0.93.1: just inside the Crown Gate, on Crown Street's turning circle
     plaza_center: { x: 51, y: 31, facing: 'up' },
     hall_door_out: { x: 50, y: 24, facing: 'down' },
     police_door_out: { x: 71, y: 34, facing: 'down' },

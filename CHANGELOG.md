@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.93.1] — 2026-11-03 — Politics: The Capital (development build)
+
+The Crown Quarter and Halver House (stage 3 of the political system, split out of 0.93.0). Plan: `docs/PROPOSAL_POLITICS.md`; mock-ups: `proposal-pol-crown-quarter.png`, `proposal-pol-presidency.png`; reference: `docs/CROWN_QUARTER.md`.
+
+- **The Crown Gate.** A new gate at the east end of Crown Street's turning circle in Halvermouth leads to the **Crown Quarter**, a district of 180 × 120 tiles of its own (a new region, `crown`). Nothing in Halvermouth moved or was demolished.
+- **The district.** Crown Park (a fountain, a statue of the first President, paths), the Royal Pavilion, **Halver House** and the Assembly north of **Palace Road** (with a palace checkpoint); **Sovereign Square** (a fountain, flagpoles, a demonstration ground and a press line), staff flats and civil service residences to the west and six ministries to the east; **Sovereign Way** south to **Embassy Row**: **ten embassies** (Ostmark, Varnistan, Teshvar, Caldera, Pallas, Morrow, Lirre, Westreach, Sunmouth, Dunmere) and a **Free Ports Mission**, and east of the Way the two **party headquarters**, the **press hall**, the **Crown Hotel**, **Café Concord & The Sitting Room** and the **Diplomats' Club**; the **Crown Gate Road** along the south with its checkpoint.
+- **Halver House.** A real interior laid over its footprint (40 × 32, like the First Bank's): a grand lobby (reception, visitors' book, information desk, the security arch and bag table, a portrait of the king aged eleven, columns, a public terminal that opens the Politics page) and **ten rooms in three zones**. **Public** (08:00–18:00): the press briefing room and the public records hall. **By appointment** (08:00–18:00 and the appointment flag): the waiting gallery, the chief of staff, the cabinet room, the staff offices. **Restricted** (the pass flag, any hour): the President's office, two private negotiation rooms and security control. The doors enforce the zones; the front door follows the public hours.
+- **Not yet inside:** the President, the staff, the guards and the ambassadors are the People release (v0.94.0). Guards are therefore not here yet; only the doors keep the zones, and nothing grants the appointment or pass flags yet, so those rooms stay shut. Every other building has a locked door with a sign and a plain room behind it.
+- **Small engine changes:** a building may name what its room is (`trade`); a prop may open the tablet at an app (`interact: { kind: 'bank', tab }`, now also spelled `'tablet'`); a home's hall may place its flat doors (`hallSize.xs`, from 0.93.0).
+- Tests: `tests/crown_quarter.test.mjs` (8 new). **Existing tests edited (1):** `tests/worldmap.test.mjs` (the world has five gateway roads, not four). Also added: map icons for every new building (`src/content/mapIcons.js`).
+- Code: `src/content/maps/crownQuarter.js`, `src/content/maps/halverHouse.js`, the `crown` region in `src/content/world.js`, the Crown Gate in `src/content/maps/halvermouth.js`.
+
 ## [0.93.0] — 2026-11-03 — Politics: Foundations (development build)
 
 The first part of the political system (plan: `docs/PROPOSAL_POLITICS.md`, audit: `docs/POLITICS_AUDIT.md`). It is **foundations only**: it changes no price, cost, police or war.

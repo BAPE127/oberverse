@@ -2271,6 +2271,7 @@ m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
 m.rect(38, 0, 2, 1, '='); // v0.29.0: the North Gate — FM 38 up to Lariat
 m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
 m.rect(111, 0, 1, 36, 'r').rect(111, 38, 1, 36, 'r'); // the eastern cliffs (the East Gate at rows 36–37)
+m.rect(111, 12, 1, 2, '=').rect(108, 12, 3, 2, '='); // v0.93.1: the Crown Gate, off Crown Street's turning circle — through the cliffs to the Crown Quarter
 m.rect(1, 12, 1, 2, ',').rect(1, 36, 1, 2, ','); // Crown St and Grand Ave end at the car park
 m.rect(5, 14, 4, 1, 'g').rect(5, 35, 4, 1, 'g'); // the Harbourline car park's two entrances
 m.rect(104, 10, 7, 6, 'm'); // Crown Street's turning circle
@@ -2490,12 +2491,15 @@ const halvermouth = {
     { id: 'door_hv_east_gate_b', x: 111, y: 37, keepTile: true, gateway: 'Westbrook & the Coast', label: 'The Coast Road east', to: { map: 'westbrook', spot: 'west_gate' } },
     { id: 'door_hv_north_a', x: 38, y: 0, keepTile: true, gateway: 'Lariat', label: 'FM 38 north, to Lariat', to: { map: 'lariat', spot: 'south_gate' } },
     { id: 'door_hv_north_b', x: 39, y: 0, keepTile: true, gateway: 'Lariat', label: 'FM 38 north, to Lariat', to: { map: 'lariat', spot: 'south_gate' } },
+    { id: 'door_hv_crown_a', x: 111, y: 12, keepTile: true, gateway: 'The Crown Quarter', label: 'The Crown Gate, east to the Crown Quarter', to: { map: 'crown_quarter', spot: 'west_gate' } },
+    { id: 'door_hv_crown_b', x: 111, y: 13, keepTile: true, gateway: 'The Crown Quarter', label: 'The Crown Gate, east to the Crown Quarter', to: { map: 'crown_quarter', spot: 'west_gate' } },
     { id: 'door_hv_yards_a', x: 0, y: 60, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
     { id: 'door_hv_yards_b', x: 0, y: 61, keepTile: true, gateway: 'Mill Road Yards', label: 'Mill Road west, to the Yards', to: { map: 'yards', spot: 'east_gate' } },
   ],
   spots: {
     north_gate: { x: 38, y: 2, facing: 'down' }, // v0.29.0: just inside the North Gate
     east_gate: { x: 109, y: 36, facing: 'left' },
+    crown_gate: { x: 109, y: 12, facing: 'left' }, // v0.93.1: just inside the Crown Gate, on Crown Street's turning circle
     plaza_center: { x: 51, y: 31, facing: 'up' },
     hall_door_out: { x: 50, y: 24, facing: 'down' },
     police_door_out: { x: 71, y: 34, facing: 'down' },
@@ -4714,6 +4718,285 @@ const __default = [starlingFlats, roostOffice, roostHangar, ...hallRooms, meridi
 return { starlingFlats, roostOffice, roostHangar, meridianLobby, meridianAssembly, meridianFlightline, meridianSpace, meridianVib, launchControl, default: __default };
 })();
 
+// ---- src/content/maps/halverHouse.js
+__m["src/content/maps/halverHouse.js"] = (function () {
+// Halver House, the Office of the President (v0.93.1). The main hall is laid over the building's footprint (40 × 32, so the street does not move);
+// ten rooms open off it, each its own small map, in three zones:
+//
+//   PUBLIC        open to anyone in office hours (08:00–18:00): the press briefing room and the public records hall; the lobby, the visitors' book and the
+//                 security screening are in the hall itself.
+//   APPOINTMENT   the waiting gallery, the chief of staff, the cabinet room and the staff offices: locked until you are on the list (the `halver_appointment` flag,
+//                 which a later release grants when someone arranges a meeting).
+//   RESTRICTED    the President's office, two private negotiation rooms and security control: locked (the `halver_pass` flag, a pass or a persuaded aide).
+//
+// Nobody is inside yet: the President, the staff, the guards and the ambassadors arrive with the People release. The zones are enforced by the doors.
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+
+const HALVER_HOUSE = { w: 40, h: 32, dx: 19 };
+const { w: W, h: H, dx: DX } = HALVER_HOUSE;
+
+const HOURS = { from: '08:00', to: '18:00' };
+const ZONES = {
+  public: { key: 'item_none', hours: HOURS, message: 'Open to the public, 08:00–18:00.' },
+  appointment: { key: 'item_none', flag: 'halver_appointment', hours: HOURS, message: 'BY APPOINTMENT. The aide at reception checks a list you are not yet on.' },
+  restricted: { key: 'item_none', flag: 'halver_pass', message: 'RESTRICTED. A guard, a camera and a sign: "PASS REQUIRED. A PASS IS NOT A SMILE."' },
+};
+
+/** The ten rooms: door x on the hall's north wall, zone, size, floor, and what is in them. */
+const ROOMS = [
+  { key: 'press', x: 2, zone: 'public', name: 'The Press Briefing Room', w: 17, h: 11, floor: 't', note: 'A podium, forty seats and a camera pit. The Press Secretary briefs here at noon on Thorndays.',
+    props: [['desk', 6, 1, 5, 'The podium: a seal, a glass of water nobody has ever drunk and a card that says "SAY LESS".'], ['bench', 2, 4, 6, 'Forty folding seats in rows. Some have a name taped on: the reporters\' places.'], ['bench', 9, 4, 6], ['bench', 2, 6, 6], ['bench', 9, 6, 6], ['monitor_wall', 3, 0, 5, 'A wall of screens, all showing the same politician from different angles.'], ['plant', 14, 8], ['noticeboard', 14, 0, 1, 'BRIEFINGS: "Noon, Thornday. Questions will be taken. Answers will be given. They will not be the same."']] },
+  { key: 'waiting', x: 6, zone: 'appointment', name: 'The Waiting Gallery', w: 15, h: 9, floor: 'c', note: 'Chairs along the walls and a clock. Appointments are called by name.',
+    props: [['bench', 1, 2, 5, 'Hard chairs, in a row. The cushions have been removed "for the comfort of the speed of meetings".'], ['bench', 1, 5, 5], ['bench', 9, 2, 5], ['bench', 9, 5, 5], ['painting', 6, 0, 3, 'A portrait of a former President looking at his watch.'], ['plant', 13, 1], ['desk', 6, 3, 2, 'The aides\' desk: a list of names, a bell and a mug labelled "DO NOT ASK ABOUT THE LIST".']] },
+  { key: 'chief', x: 10, zone: 'appointment', name: 'The Chief of Staff\'s Office', w: 11, h: 9, floor: 'c', note: 'A tidy desk, a wall planner and a door that is open exactly as far as the Chief of Staff wants.',
+    props: [['desk', 3, 2, 5, 'The Chief of Staff\'s desk: three phones, one of which rings.'], ['shelf', 1, 1, 2, 'Binders by month. Every spine is labelled in the same careful hand: "HANDLED".'], ['painting', 6, 0, 3, 'A planner of the whole term, 120 days in a grid. A third of it is already crossed out.'], ['plant', 9, 6]] },
+  { key: 'cabinet', x: 14, zone: 'appointment', name: 'The Cabinet Room', w: 17, h: 11, floor: 'c', note: 'A long table and a chair for each minister. The cabinet meets here on Thorndays.',
+    props: [['table', 4, 3, 9, 'The cabinet table: oak, long, and ringed by chairs with name cards. The cards are turned over when the minister is out of favour.'], ['painting', 6, 0, 5, 'A map of Sund, the whole chain from Kingsfjord down to Halvermouth, with the Hald Reach pencilled over in blue.'], ['chair', 3, 5], ['chair', 13, 5], ['plant', 1, 8], ['plant', 14, 8]] },
+  { key: 'staff', x: 18, zone: 'appointment', name: 'The Staff Offices', w: 19, h: 11, floor: 'c', note: 'Speechwriters, analysts and a printer that is always out of paper.',
+    props: [['desk', 2, 2, 4, 'Speechwriters\' desks: drafts with the adjectives crossed out.'], ['desk', 8, 2, 4, 'Analysts\' desks: three spreadsheets and a rubber duck.'], ['desk', 14, 2, 4, 'The communications desk: a mock-up of a poster that says "STEADY".'], ['shelf', 1, 7, 3], ['crate', 16, 8], ['plant', 17, 8]] },
+  { key: 'security', x: 22, zone: 'restricted', name: 'Security Control', w: 11, h: 9, floor: 't', note: 'Cameras, a radio rack and a chair that has been sat in for nineteen years.',
+    props: [['monitor_wall', 1, 0, 9, 'A wall of cameras: every door, every corridor, the Square, the Gate. In one, a pigeon is asleep on the barrier.'], ['desk', 3, 3, 5, 'The control desk: a radio, a logbook and a sticker: "IF YOU SEE SOMETHING, YOU ARE ON CAMERA".'], ['chair', 5, 4], ['cabinet', 9, 5]] },
+  { key: 'president', x: 26, zone: 'restricted', name: 'The President\'s Office', w: 21, h: 13, floor: 'c', note: 'A desk, a map table and a private door. Whoever holds this room is the one the country argues about.',
+    props: [['desk', 7, 3, 7, 'The President\'s desk: a blotter, a seal and a drawer that sticks.'], ['chair', 10, 4], ['table', 3, 7, 5, 'The map table: Sund laid out with coloured pins for every embassy, every embargo and every war.'], ['painting', 5, 0, 5, 'The President\'s portrait gallery of predecessors. The last two frames are empty, pending the vote.'], ['painting', 14, 0, 4, 'A framed photograph of the King at seven, saluting a fish.'], ['flagpole', 18, 2], ['plant', 1, 3], ['plant', 19, 9], ['rug', 6, 6, 9, 'A crimson rug the size of a small garden.']] },
+  { key: 'negotiation_a', x: 30, zone: 'restricted', name: 'Private Negotiation Room A', w: 11, h: 9, floor: 'c', note: 'Two chairs, one table, no windows. For ambassadors.',
+    props: [['table', 3, 3, 5, 'A table and two chairs, exactly opposite each other. The legs are bolted down so no one can move closer.'], ['chair', 2, 3], ['chair', 8, 3], ['plant', 9, 1]] },
+  { key: 'negotiation_b', x: 34, zone: 'restricted', name: 'Private Negotiation Room B', w: 11, h: 9, floor: 'c', note: 'The same room, with a better chair for whoever is losing.',
+    props: [['table', 3, 3, 5, 'A table, two chairs, and a cupboard holding a very good bottle of something for whoever agrees.'], ['chair', 2, 3], ['chair', 8, 3], ['cabinet', 9, 1]] },
+  { key: 'records', x: 37, zone: 'public', name: 'The Public Records Hall', w: 15, h: 11, floor: 't', note: 'Laws, budgets and the poll archive, on shelves anyone may read in office hours.',
+    props: [['shelf', 1, 1, 5, 'The laws of Sund, bound by year. The thinnest volume is the year nothing was passed.'], ['shelf', 8, 1, 5, 'Budgets: every one balanced on paper, and several in fact.'], ['desk', 5, 5, 4, 'The records clerk\'s desk: a stamp, a bell and a sign: "ASK. IT IS IN HERE SOMEWHERE."'], ['terminal', 11, 5, 1, 'The poll archive terminal. The Politics page on your tablet reads the same record.', { interact: { kind: 'bank', tab: 'Politics' } }], ['bench', 2, 8, 4], ['plant', 13, 8]] },
+];
+
+const prop = (roomKey, i, [type, x, y, w, examine, extra]) => ({ id: `hh_${roomKey}_${i}`, type, x, y, ...(w > 1 ? { w } : {}), ...(examine ? { examine } : {}), ...(extra || {}) });
+
+function sideRoom(r) {
+  const cx = Math.floor(r.w / 2);
+  return {
+    id: `halver_${r.key}`, name: `Halver House — ${r.name}`, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTiles(r.w, r.h, r.floor, cx),
+    doors: [{ id: `door_halver_${r.key}_exit`, x: cx, y: r.h - 1, to: { map: 'halver_house', spot: `d_${r.key}` } }],
+    spots: { entry: { x: cx, y: r.h - 2, facing: 'up' } },
+    keepClear: [[cx, r.h - 2]],
+    zone: r.zone,
+    props: [
+      { id: `hh_${r.key}_note`, type: 'sign', x: r.w - 2, y: 1, examine: r.note },
+      ...r.props.map((p, i) => prop(r.key, i, p)),
+    ],
+  };
+}
+
+/** The main hall: the lobby with its reception, visitors' book and security screening; the ten doors along the north wall. */
+const halverHouse = {
+  id: 'halver_house', name: 'Halver House — the Grand Lobby', kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+  tiles: roomTiles(W, H, 't', DX, [...ROOMS.map((r) => [r.x, 0, 1, 1, 'D']), [DX - 2, 2, 5, H - 4, 'c']]),
+  doors: [
+    { id: 'door_halver_exit', x: DX, y: H - 1, to: { map: 'crown_quarter', spot: 'cq_halver_house_out' } },
+    ...ROOMS.map((r) => ({ id: `door_halver_${r.key}`, x: r.x, y: 0, label: `${r.name} (${r.zone === 'public' ? 'public' : r.zone === 'appointment' ? 'by appointment' : 'restricted'})`, to: { map: `halver_${r.key}`, spot: 'entry' }, lock: { ...ZONES[r.zone] } })),
+  ],
+  spots: {
+    entry: { x: DX, y: H - 2, facing: 'up' },
+    reception: { x: DX, y: 20, facing: 'up' },
+    screening: { x: DX - 6, y: H - 4, facing: 'right' },
+    visitors_book: { x: DX + 5, y: 20, facing: 'left' },
+    ...Object.fromEntries(ROOMS.map((r) => [`d_${r.key}`, { x: r.x, y: 1, facing: 'down' }])),
+  },
+  keepClear: [[DX, H - 2], ...ROOMS.map((r) => [r.x, 1])],
+  props: [
+    { id: 'hh_reception', type: 'desk', x: DX - 3, y: 18, w: 7, color: '#4a3a2e', examine: 'The reception desk: a bell, a visitors\' book, a lamp with a green shade and a receptionist\'s coffee that has gone cold on principle.' },
+    { id: 'hh_book', type: 'noticeboard', x: DX + 4, y: 20, examine: 'THE VISITORS\' BOOK. Every visitor signs. The last page says "A. NONYMOUS (HE WAS NOT)". Under it: "WELCOME TO HALVER HOUSE — PUBLIC HOURS 08:00–18:00".' },
+    { id: 'hh_info', type: 'display', x: DX - 8, y: 20, w: 3, examine: 'The information desk: a map of the building (with the president\'s office marked "NO"), pamphlets on how the Assembly works and a rack of postcards of the King at seven.' },
+    { id: 'hh_arch_l', type: 'gatepost', x: DX - 3, y: H - 6, examine: 'The security arch: a metal frame with a red light that is always, fractionally, about to be amber. Guards will stand here when the staff arrive.' },
+    { id: 'hh_arch_r', type: 'gatepost', x: DX + 3, y: H - 6, examine: 'The other side of the security arch. Bags go on the table to the left; opinions go through free.' },
+    { id: 'hh_bags', type: 'table', x: DX - 8, y: H - 6, w: 3, examine: 'The bag-check table: a tray, a tray and a third tray. A sign: "PLEASE DO NOT PLACE THE KING\'S PORTRAIT ON THE BELT".' },
+    { id: 'hh_rope_l', type: 'velvet_rope', x: DX - 3, y: 12, w: 2, examine: 'A velvet rope along the carpet: the visitors\' way. Beyond it, the doors to the rooms.' },
+    { id: 'hh_rope_r', type: 'velvet_rope', x: DX + 2, y: 12, w: 2, examine: 'A velvet rope along the carpet.' },
+    { id: 'hh_king', type: 'painting', x: DX - 6, y: 0, w: 4, examine: 'A portrait of the King of Sund, aged eleven, on a very large chair. His feet do not reach the floor. He has been asked to look dignified and has settled on "worried".' },
+    { id: 'hh_crest', type: 'painting', x: DX + 2, y: 0, w: 4, examine: 'The crest of Sund: a fish, a crown and a very small motto: "WE WILL SEE".' },
+    { id: 'hh_col_1', type: 'column', x: 6, y: 8 }, { id: 'hh_col_2', type: 'column', x: 12, y: 8 }, { id: 'hh_col_3', type: 'column', x: 27, y: 8 }, { id: 'hh_col_4', type: 'column', x: 33, y: 8 },
+    { id: 'hh_col_5', type: 'column', x: 6, y: 20 }, { id: 'hh_col_6', type: 'column', x: 33, y: 20 },
+    { id: 'hh_bench_1', type: 'bench', x: 3, y: 15, w: 4 }, { id: 'hh_bench_2', type: 'bench', x: 31, y: 15, w: 4 }, { id: 'hh_bench_3', type: 'bench', x: 3, y: 26, w: 4 }, { id: 'hh_bench_4', type: 'bench', x: 33, y: 26, w: 4 },
+    { id: 'hh_flag_l', type: 'flagpole', x: 2, y: 20 }, { id: 'hh_flag_r', type: 'flagpole', x: 37, y: 20 },
+    { id: 'hh_plant_1', type: 'plant', x: 1, y: H - 2 }, { id: 'hh_plant_2', type: 'plant', x: W - 2, y: H - 2 },
+    { id: 'hh_politics', type: 'terminal', x: 33, y: 11, interact: { kind: 'bank', tab: 'Politics' }, examine: 'A public terminal by the records hall: who governs, the term and where the parties differ. The same page your tablet shows.' },
+    { id: 'hh_zones', type: 'noticeboard', x: 8, y: 11, examine: 'HALVER HOUSE. PUBLIC (green): the press room and the records hall, 08:00–18:00. BY APPOINTMENT (amber): waiting gallery, chief of staff, cabinet room, staff offices. RESTRICTED (red): the President\'s office, negotiation rooms A and B, security control. Doors are locked as shown.' },
+  ],
+};
+
+const __default = [halverHouse, ...ROOMS.map(sideRoom)];
+
+return { HALVER_HOUSE, halverHouse, default: __default };
+})();
+
+// ---- src/content/maps/crownQuarter.js
+__m["src/content/maps/crownQuarter.js"] = (function () {
+// The Crown Quarter (v0.93.1) — Sund's capital district, a new region through the Crown Gate off Crown Street in Halvermouth
+// (Halvermouth keeps every shop and road; nothing is demolished). Coordinates are final (roads 4 wide). Preview: `npm run map -- crown_quarter`.
+//
+//   Palace Road (y 36–39) runs across the map; north of it Crown Park and the Royal Pavilion, Halver House (the Presidency) and the Assembly.
+//   South of it Sovereign Square (fountain, flagpoles, a demonstration ground), staff flats to the west and the six ministries to the east.
+//   Sovereign Way (x 92–95) runs south from the square to Embassy Row (y 89–92) and the Crown Gate Road (y 107–110), which leaves west by the gate.
+//   Embassy Row's two blocks: ten embassies and the Free Ports Mission (west); the party headquarters, the press hall, a hotel, a café and a club (east).
+//
+// Halver House is the one building here with a real interior (src/content/maps/halverHouse.js). Every other building has a locked door and a
+// plain room behind it, generated on its footprint, and a sign that says what it is: they open with the People release (ambassadors and staff).
+const { MapBuilder } = __m["src/world/mapBuilder.js"];
+const { HALVER_HOUSE } = __m["src/content/maps/halverHouse.js"];
+
+const W = 180;
+const H = 120;
+const m = new MapBuilder(W, H, ',');
+
+// ---------------------------------------------------------------- the ground
+m.rect(2, 2, 58, 32, '.'); // Crown Park
+m.rect(36, 41, 104, 34, 'm'); // Sovereign Square
+m.rect(0, 35, W, 1, ',').rect(0, 40, W, 1, ','); // Palace Road's pavements
+m.rect(0, 36, W, 4, '='); // Palace Road
+m.rect(91, 75, 1, 36, ',').rect(96, 75, 1, 36, ','); // Sovereign Way's pavements
+m.rect(92, 75, 4, 36, '='); // Sovereign Way, up to the square
+m.rect(0, 88, W, 1, ',').rect(0, 93, W, 1, ','); // Embassy Row's pavements
+m.rect(0, 89, W, 4, '='); // Embassy Row
+m.rect(0, 106, W, 1, ',').rect(0, 111, W, 1, ','); // the Crown Gate Road's pavements
+m.rect(0, 107, W, 4, '='); // the Crown Gate Road
+m.rect(0, 0, 1, 107, 'r').rect(0, 111, 1, 9, 'r'); // the district wall (the Crown Gate at rows 107–110)
+m.rect(W - 1, 0, 1, H, 'r');
+m.rect(0, 0, W, 1, 'R');
+m.rect(0, H - 1, W, 1, 'R');
+// the demonstration ground in front of the Assembly, and the paths of the park
+m.rect(120, 41, 19, 2, ',');
+m.rect(30, 14, 1, 21, ':').rect(10, 24, 40, 1, ':').rect(14, 14, 1, 11, ':');
+
+// ---------------------------------------------------------------- buildings
+const B = (id, name, x, y, w, h, o = {}) => ({
+  id, name, mapLabel: o.label ?? name, x, y, w, h,
+  roof: o.roof || '#8a8478', wall: o.wall || '#d8d2c4', trim: o.trim || '#4a4438', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, columns: o.columns, tower: o.tower, trade: o.trade,
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', message: o.closed || `${name}: the doors are locked. "Not yet open to visitors."` } },
+});
+const shut = (name, what) => `${name.toUpperCase()}. ${what} The doors are locked: it opens when its staff arrive.`;
+const embassy = (id, name, country, x, y, w, h, o = {}) => B(`cq_embassy_${id}`, name, x, y, w, h, { label: country, sign: country.toUpperCase(), trade: 'office', roof: o.roof || '#6a7a9a', wall: o.wall || '#d8dce6', signColor: o.signColor || '#e8e8f0', closed: shut(name, 'A flag, a brass plate, a camera and a very polite silence.'), ...o });
+const buildings = [
+  // --- the north side of Palace Road
+  { ...B('cq_halver_house', 'Halver House', 80, 3, HALVER_HOUSE.w, HALVER_HOUSE.h, { label: 'Halver House', sign: 'HALVER HOUSE · OFFICE OF THE PRESIDENT', signColor: '#e8d8a8', roof: '#8a7a5a', wall: '#ece2c8', trim: '#4a3e28', columns: true, flatRoof: false, tower: 4,
+    door: { x: 80 + HALVER_HOUSE.dx, y: 3 + HALVER_HOUSE.h - 1, to: { map: 'halver_house', spot: 'entry' }, lock: { key: 'item_none', hours: { from: '08:00', to: '18:00' }, message: 'HALVER HOUSE. Public hours 08:00–18:00. A guard behind glass: "Come back in the morning."' } } }) },
+  B('cq_assembly', 'The Assembly', 126, 5, 36, 30, { sign: 'THE ASSEMBLY', signColor: '#e8d8a8', roof: '#8a7a3a', wall: '#e4d49a', trim: '#4a4020', columns: true, trade: 'office', closed: shut('The Assembly', 'The chamber where a hundred seats say yes or no.') }),
+  B('cq_pavilion', 'The Royal Pavilion', 30, 15, 20, 20, { sign: 'ROYAL PAVILION', signColor: '#f0e0f0', roof: '#9a7aa0', wall: '#ece0ee', trim: '#5a3a60', flatRoof: false, trade: 'office', closed: shut('The Royal Pavilion', 'Where the boy king stays when he visits the capital (he is eleven and very serious).') }),
+  // --- the west of Sovereign Square: staff flats and the civil service
+  B('cq_staff_a', 'Staff Flats (A block)', 4, 42, 11, 12, { sign: 'STAFF FLATS A', wall: '#dcc2a0', roof: '#8a6a4a', trade: 'house', closed: shut('Staff Flats A', 'Homes of the government\'s staff.') }),
+  B('cq_staff_b', 'Staff Flats (B block)', 18, 42, 11, 12, { sign: 'STAFF FLATS B', wall: '#dcc2a0', roof: '#8a6a4a', trade: 'house', closed: shut('Staff Flats B', 'Homes of the government\'s staff.') }),
+  B('cq_civil_service', 'Civil Service Residences', 4, 57, 25, 14, { sign: 'CIVIL SERVICE RESIDENCES', wall: '#d8b898', roof: '#7a5a3a', trade: 'house', closed: shut('The Civil Service Residences', 'Long corridors, small rooms, and a notice about the kettle.') }),
+  // --- the ministries (east of the square)
+  ...[['treasury', 'Ministry of the Treasury', 'TREASURY', 142, 42], ['defence', 'Ministry of Defence & Security', 'DEFENCE & SECURITY', 155, 42], ['interior', 'Ministry of the Interior & Police', 'INTERIOR & POLICE', 168, 42],
+    ['agriculture', 'Ministry of Agriculture & Trade', 'AGRICULTURE & TRADE', 142, 58], ['foreign', 'Ministry of Foreign Affairs', 'FOREIGN AFFAIRS', 155, 58], ['records', 'The Public Records Office', 'PUBLIC RECORDS', 168, 58],
+  ].map(([id, name, sign, x, y]) => B(`cq_min_${id}`, name, x, y, 11, 12, { sign, wall: '#d8cfa8', roof: '#7a7048', trim: '#4a4228', trade: 'office', closed: shut(name, 'Behind the door: forms, stamps and a queue that has not formed yet.') })),
+  // --- Embassy Row, west of Sovereign Way: the first block
+  embassy('ostmark', 'The Ostmark Union — Embassy', 'Ostmark Union', 4, 76, 18, 12, { roof: '#5a7ab8', wall: '#c8d8f0' }),
+  embassy('varn', 'Varnistan — Embassy', 'Varnistan', 25, 76, 14, 12, { roof: '#a87a3a', wall: '#e8d4b0' }),
+  embassy('teshvar', 'Teshvar — Embassy', 'Teshvar', 42, 76, 16, 12, { roof: '#c8a830', wall: '#f0e4a8', signColor: '#5a4a10' }),
+  embassy('lirre', 'The Grand Duchy of Lirre — Embassy', 'Lirre (neutral)', 61, 76, 13, 12, { roof: '#9a9ab8', wall: '#e4e4f0' }),
+  embassy('westreach', 'The Westreach League — Embassy', 'Westreach', 76, 76, 11, 12, { roof: '#b87a9a', wall: '#f0d8e4' }),
+  // --- Embassy Row, the second block
+  embassy('caldera', 'The Republic of Caldera — Embassy', 'Caldera', 4, 94, 12, 12, { roof: '#b85a4a', wall: '#f0d4cc' }),
+  embassy('pallas', 'The Free State of Pallas — Embassy', 'Pallas', 19, 94, 12, 12, { roof: '#9a5ab0', wall: '#e8d4f0' }),
+  embassy('morrow', 'The Morrow Isles — Embassy', 'Morrow Isles', 34, 94, 12, 12, { roof: '#3aa898', wall: '#cce8e4' }),
+  B('cq_free_ports', 'The Free Ports Mission', 49, 94, 18, 12, { label: 'Free Ports Mission', sign: 'FREE PORTS MISSION', trade: 'office', roof: '#7a7e86', wall: '#d8dade', closed: shut('The Free Ports Mission', 'One office for every free territory that is not a country: no flag, no army, plenty of contracts.') }),
+  embassy('sunmouth', 'The Sunmouth Isthmus Compact — Embassy', 'Sunmouth', 69, 94, 11, 12, { roof: '#9ab83a', wall: '#e8f0cc' }),
+  embassy('dunmere', 'The Free Harbour of Dunmere — Embassy', 'Dunmere', 82, 94, 8, 12, { roof: '#b89a6a', wall: '#f0e4d0' }),
+  // --- east of Sovereign Way: parties, the press and the hotel
+  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
+  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
+  B('cq_press_hall', 'The Press Hall', 134, 76, 17, 12, { sign: 'PRESS HALL · BRIEFINGS · NEWSROOM', roof: '#7a5a90', wall: '#d8c8e4', trade: 'office', closed: shut('The Press Hall', 'Briefings at noon and a newsroom that never closes.') }),
+  B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
+  B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
+  B('cq_club', 'The Diplomats\' Club & Tourist Shops', 142, 94, 20, 12, { sign: 'DIPLOMATS\' CLUB', roof: '#c8782a', wall: '#f0d8b0', trade: 'shop', closed: shut('The Diplomats\' Club', 'Members only, and the tourist shops on the ground floor, which are shut for the same reason.') }),
+];
+
+// ---------------------------------------------------------------- props
+const props = [];
+let n = 0;
+const P = (type, x, y, o = {}) => props.push({ id: `cq_${type}_${n++}`, type, x, y, ...o });
+// --- the way in: the Crown Gate and the district
+P('bigsign', 5, 103, { w: 3, h: 2, text: 'THE CROWN QUARTER', sub: 'SUND · SEAT OF GOVERNMENT', examine: 'THE CROWN QUARTER. "Seat of government. Please have your business ready. Photography of the Presidency is permitted from the Square."' });
+P('booth', 12, 105, { examine: 'The Crown Gate checkpoint. A guard in a very clean cap, a logbook, and a notice: "ALL VISITORS WELCOME. ALL VISITORS COUNTED."' });
+P('boom_barrier', 10, 107, { w: 1, h: 4, raised: true, solid: false, examine: 'The Crown Gate barrier. It lifts for anyone who is going somewhere sensible. For now, that is everyone.' });
+P('sign', 14, 111, { examine: 'CROWN GATE. "Halvermouth, west. Sovereign Square, ahead. Embassy Row, left and right. The hotel does not have a lift."' });
+P('roadsign', 3, 105, { w: 4, h: 2, text: '← HALVERMOUTH', sub: 'CROWN STREET · THE COAST', examine: 'WEST — THE CROWN GATE, CROWN STREET AND HALVERMOUTH.' });
+// --- the palace checkpoint
+P('booth', 100, 40, { examine: 'The palace checkpoint: a booth, a camera on a pole and a sign pointing at Halver House: "PUBLIC HOURS 08:00–18:00. NO PHOTOGRAPHY OF THE GUARDS (THEY ARE SHY)".' });
+P('boom_barrier', 97, 36, { w: 1, h: 4, raised: true, solid: false, examine: 'The palace checkpoint barrier. Raised in the day; the guards say it "reflects the mood of the nation".' });
+// --- Crown Park
+for (const [x, y] of [[6, 5], [12, 8], [20, 4], [26, 10], [8, 18], [16, 20], [24, 28], [34, 6], [40, 4], [46, 9], [52, 6], [56, 14], [54, 26], [44, 30], [6, 30], [36, 31]]) P('tree', x, y);
+P('fountain', 20, 14, { w: 3, h: 3, examine: 'A fountain in Crown Park. A plaque: "Presented by the Grateful Fishermen of Kingsfjord, who were told it was a boat."' });
+for (const [x, y] of [[13, 23], [27, 23], [31, 22], [45, 23]]) P('bench', x, y);
+P('statue', 54, 18, { w: 2, h: 3, label: 'THE FIRST PRESIDENT', examine: 'A bronze of the first President of Sund, one hand raised, the other holding a speech that is turned the wrong way up. The plaque says "ORDER", underneath, in chalk, "LIBERTY".' });
+P('flowerbed', 12, 33); P('flowerbed', 16, 33); P('flowerbed', 20, 33);
+P('noticeboard', 6, 24, { examine: 'CROWN PARK. "Dogs on leads. The King\'s Walk is open to the public on Thornday afternoons. Do not feed the guards."' });
+// --- the Royal Pavilion
+P('flagpole', 34, 36, { color: '#9a7aa0' }); P('flagpole', 46, 36, { color: '#9a7aa0' });
+P('sign', 38, 36, { examine: 'THE ROYAL PAVILION. "The King of Sund stays here when he is in the capital. He is eleven. He has asked that visitors wipe their feet."' });
+// --- Halver House and the Assembly
+for (const x of [84, 90, 108, 114]) P('flagpole', x, 36, { color: '#8a2a30' });
+for (const x of [130, 136, 152, 158]) P('flagpole', x, 36, { color: '#8a7a3a' });
+P('bigsign', 100, 37, { w: 2, h: 1, text: 'HALVER HOUSE', sub: 'OFFICE OF THE PRESIDENT', examine: 'HALVER HOUSE — the Office of the President. Public hall open 08:00–18:00.' });
+P('bench', 128, 38); P('bench', 134, 38);
+P('noticeboard', 126, 36, { examine: 'THE ASSEMBLY: "Bills this week: none. The Assembly will sit when a bill exists. (A hundred seats, one yes, one no.)"' });
+// --- Sovereign Square
+P('fountain', 85, 56, { w: 4, h: 4, examine: 'The fountain of Sovereign Square: four stone fish spitting at one another. The Square is where the capital argues, celebrates and, occasionally, sits down.' });
+for (const [x, y] of [[44, 44], [60, 44], [76, 44], [100, 44], [116, 44], [132, 44], [44, 70], [60, 70], [76, 70], [100, 70], [116, 70], [132, 70]]) P('flagpole', x, y, { color: '#c8c0a8' });
+for (const [x, y] of [[50, 58], [70, 52], [102, 52], [122, 58], [108, 66], [64, 66]]) P('bench', x, y);
+P('noticeboard', 90, 45, { examine: 'SOVEREIGN SQUARE: "Demonstrations permitted on the north-east ground, 10:00–16:00, with a form. Pigeons permitted everywhere."' });
+P('sign', 120, 44, { examine: 'THE DEMONSTRATION GROUND. "Peaceful assembly: yes. Fireworks: no. Whistling at the guards: discouraged."' });
+P('sign', 38, 72, { examine: 'THE PRESS LINE. A rope, a row of chalk marks and a sign: "REPORTERS WAIT HERE. WE KNOW YOU WON\'T."' });
+// --- Embassy Row
+for (let x = 6; x < 166; x += 14) { P('streetlamp', x, 88); P('streetlamp', x + 7, 93); }
+for (let x = 6; x < 166; x += 14) { P('streetlamp', x, 35); P('streetlamp', x + 7, 40); }
+for (let x = 14; x < 170; x += 14) { P('streetlamp', x, 106); P('streetlamp', x + 7, 111); }
+for (let y = 44; y < 106; y += 9) { P('streetlamp', 91, y > 75 ? y : 76); P('streetlamp', 96, y > 75 ? y + 4 : 80); }
+for (const [x, y, c] of [[6, 88, '#5a7ab8'], [27, 88, '#a87a3a'], [44, 88, '#c8a830'], [63, 88, '#9a9ab8'], [78, 88, '#b87a9a']]) P('flagpole', x, y, { color: c });
+for (const [x, y, c] of [[6, 106, '#b85a4a'], [21, 106, '#9a5ab0'], [36, 106, '#3aa898'], [71, 106, '#9ab83a'], [84, 106, '#b89a6a']]) P('flagpole', x, y, { color: c });
+P('sign', 48, 93, { examine: 'EMBASSY ROW. "Ten embassies and a Free Ports Mission. The Lirre embassy is neutral. It would like you to know it is neutral."' });
+P('sign', 98, 106, { examine: 'CROWN GATE ROAD, WEST. THE CROWN HOTEL, EAST. "Tourists: the Diplomats\' Club sells postcards of buildings that are all the same."' });
+for (const [x, y] of [[100, 90], [127, 90], [146, 90], [112, 108]]) P('bench', x, y);
+
+/** Spots used by schedules and doors: the front step of each building is `<id>_out`, made when the interiors are laid. */
+const crownQuarter = {
+  id: 'crown_quarter',
+  name: 'The Crown Quarter',
+  kind: 'outdoor',
+  music: { day: 'mus_civic', night: 'mus_civic' },
+  ambience: 'amb_city',
+  tiles: m.rows(),
+  areas: [
+    { id: 'area_cq_park', name: 'Crown Park', x: 1, y: 1, w: 59, h: 34 },
+    { id: 'area_cq_palace', name: 'Palace Road', x: 0, y: 35, w: 180, h: 6 },
+    { id: 'area_cq_square', name: 'Sovereign Square', x: 36, y: 41, w: 104, h: 34 },
+    { id: 'area_cq_ministries', name: 'The Ministries', x: 140, y: 41, w: 39, h: 33 },
+    { id: 'area_cq_staff', name: 'Staff Quarter', x: 1, y: 41, w: 35, h: 34 },
+    { id: 'area_cq_embassy', name: 'Embassy Row', x: 1, y: 75, w: 90, h: 36 },
+    { id: 'area_cq_parties', name: 'Party Row', x: 97, y: 75, w: 82, h: 36 },
+    { id: 'area_cq_gate', name: 'The Crown Gate', x: 1, y: 106, w: 179, h: 14 },
+  ],
+  buildings,
+  doors: [
+    ...[107, 108, 109, 110].map((y, i) => ({ id: `door_cq_gate_${i}`, x: 0, y, keepTile: true, gateway: 'Halvermouth', label: 'The Crown Gate, west to Halvermouth', to: { map: 'halvermouth', spot: 'crown_gate' } })),
+  ],
+  spots: {
+    west_gate: { x: 2, y: 108, facing: 'right' },
+    gate_booth: { x: 12, y: 106, facing: 'down' },
+    palace_checkpoint: { x: 99, y: 41, facing: 'up' },
+    halver_house_steps: { x: 99, y: 35, facing: 'up' },
+    square_fountain: { x: 88, y: 61, facing: 'up' },
+    press_line: { x: 40, y: 73, facing: 'right' },
+    demonstration: { x: 128, y: 46, facing: 'left' },
+    embassy_row: { x: 48, y: 90, facing: 'down' },
+    park_bench: { x: 28, y: 24, facing: 'down' },
+  },
+  props,
+};
+
+const CROWN_QUARTER_REGION = { name: 'The Crown Quarter', maps: { crown_quarter: { x: 0, y: 0, fallbackSpot: 'west_gate' } } };
+const __default = [crownQuarter];
+
+return { crownQuarter, CROWN_QUARTER_REGION, default: __default };
+})();
+
 // ---- src/content/income.js
 __m["src/content/income.js"] = (function () {
 // What the game pays (v0.82.0). One place for the figures that decide how fast a new player gets from 12 obols to a
@@ -6396,6 +6679,11 @@ const REGIONS = {
   starling: {
     name: 'Starling Flats',
     maps: { starling_flats: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
+  },
+  // The Crown Quarter (v0.93.1): through the Crown Gate off Crown Street — the capital district, Halver House and Embassy Row.
+  crown: {
+    name: 'The Crown Quarter',
+    maps: { crown_quarter: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
   },
   coast: {
     name: 'Lanternside & surrounds',
@@ -16179,6 +16467,7 @@ function realInterior(maps, S, b) {
 
 /** What kind of room a building without an interior gets. */
 function trade(b) {
+  if (b.trade && FLOOR[b.trade]) return b.trade; // v0.93.1: a building may say what its room is
   const name = `${b.sign || ''} ${b.name || ''} ${b.mapLabel || ''} ${b.id}`;
   if (b.shabby) return 'shack';
   if (/house|home|residence|cottage|boarding/i.test(name)) return 'house';
@@ -16501,6 +16790,8 @@ const halvermouthMaps = __m["src/content/maps/halvermouth.js"].default;
 const yardsMaps = __m["src/content/maps/yards.js"].default;
 const lariatMaps = __m["src/content/maps/lariat.js"].default;
 const starlingMaps = __m["src/content/maps/starling.js"].default;
+const crownQuarterMaps = __m["src/content/maps/crownQuarter.js"].default; // v0.93.1: the capital district
+const halverHouseMaps = __m["src/content/maps/halverHouse.js"].default;
 const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } = __m["src/content/arms.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
 const { ITEMS } = __m["src/content/items.js"];
@@ -16588,7 +16879,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -16665,7 +16956,7 @@ const BASE_CONTENT = {
 // v0.47.0: seamless buildings. The towns grow so every building holds its interior; every
 // street coordinate in the content moves with them (once — everything above is in the widened
 // coordinates); then each interior is laid over its building and the seams are re-stitched.
-const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats'];
+const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats', 'crown_quarter'];
 const GROWTH = growStreets(MAPS, REGIONS, (id, b) => {
   const I = realInterior(MAPS, MAPS[id], b);
   return I ? { W: I.def.tiles[0].length, H: I.def.tiles.length, ex: I.exit.x } : null;
@@ -16712,7 +17003,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.93.0';
+const GAME_VERSION = '0.93.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -47628,7 +47919,7 @@ class Game {
       }
       case 'vault': return this.robbery.vault(act.bank); // v0.79.0
       case 'teller': return this.robbery.armed() && this.robbery.inHours(act.bank) && this.robbery.inHall(act.bank) ? { type: 'message', text: this.robbery.holdup(act.bank).text } : { type: 'message', text: prop.examine };
-      case 'bank': return { type: 'panel', panel: 'tablet', opts: { tab: act.tab } }; // v0.70.0: the First Bank's desks open the tablet at that app
+      case 'bank': case 'tablet': return { type: 'panel', panel: 'tablet', opts: { tab: act.tab } }; // v0.70.0: the First Bank's desks open the tablet at that app
       case 'casino_cashier': return this.casino.cashier() ? { type: 'panel', panel: 'cashier' } : { type: 'message', text: 'The cage is shut: a brass bell, a sign — "BACK SHORTLY. — V." — and nobody behind the bars.' };
       case 'container': {
         const cdef = this.containerDef(act.container);
@@ -48185,6 +48476,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.93.1',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Politics: The Capital',
+    notes: [
+      'A new district, the Crown Quarter, through the Crown Gate at the end of Crown Street in Halvermouth: Crown Park, the Royal Pavilion, the Assembly, Sovereign Square, six ministries, ten embassies and a Free Ports Mission on Embassy Row, the two party headquarters, the press hall and a hotel.',
+      'Halver House, the Office of the President, has a real interior: a grand lobby and ten rooms in three zones. The press room and the records hall are open to anyone in office hours (08:00 to 18:00); the cabinet and staff rooms need an appointment; the President\'s office, the negotiation rooms and security control are restricted.',
+      'The other buildings have locked doors and plain rooms for now. The President, staff, guards and ambassadors arrive in the next update.',
+    ],
+  },
   {
     version: '0.93.0',
     date: '2026-11-03',
@@ -62767,6 +63069,17 @@ const BUILDING_ICONS = {
   b_hollister_house: { icon: '🏡', kind: 'Farmhouse' },
   b_hollister_barn: { icon: '🛖', kind: 'Barn' },
   b_old_barn: { icon: '🛖', kind: 'Old barn' },
+  // The Crown Quarter (v0.93.1)
+  cq_halver_house: { icon: '🏛️', kind: 'Halver House: the Office of the President' },
+  cq_assembly: { icon: '🗳️', kind: 'The Assembly' },
+  cq_pavilion: { icon: '👑', kind: 'The Royal Pavilion' },
+  cq_staff_a: { icon: '🏢', kind: 'Staff flats' }, cq_staff_b: { icon: '🏢', kind: 'Staff flats' }, cq_civil_service: { icon: '🏢', kind: 'Civil service residences' },
+  cq_min_treasury: { icon: '💰', kind: 'Ministry of the Treasury' }, cq_min_defence: { icon: '🛡️', kind: 'Ministry of Defence & Security' }, cq_min_interior: { icon: '🚓', kind: 'Ministry of the Interior & Police' },
+  cq_min_agriculture: { icon: '🌾', kind: 'Ministry of Agriculture & Trade' }, cq_min_foreign: { icon: '🌐', kind: 'Ministry of Foreign Affairs' }, cq_min_records: { icon: '📚', kind: 'The Public Records Office' },
+  cq_free_ports: { icon: '⚓', kind: 'The Free Ports Mission' },
+  cq_order_hq: { icon: '🗳️', kind: 'Order Party headquarters' }, cq_liberty_hq: { icon: '🗳️', kind: 'Liberty League headquarters' }, cq_press_hall: { icon: '📰', kind: 'The Press Hall' },
+  cq_hotel: { icon: '🏨', kind: 'The Crown Hotel' }, cq_cafe: { icon: '☕', kind: 'Café Concord & The Sitting Room' }, cq_club: { icon: '🎩', kind: 'The Diplomats\' Club & tourist shops' },
+  ...Object.fromEntries(['ostmark', 'varn', 'teshvar', 'caldera', 'pallas', 'morrow', 'lirre', 'westreach', 'sunmouth', 'dunmere'].map((c) => [`cq_embassy_${c}`, { icon: '🚩', kind: `Embassy (${c[0].toUpperCase()}${c.slice(1)})` }])),
 };
 
 return { BUILDING_ICONS };

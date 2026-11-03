@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.93.1',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Politics: The Capital',
+    notes: [
+      'A new district, the Crown Quarter, through the Crown Gate at the end of Crown Street in Halvermouth: Crown Park, the Royal Pavilion, the Assembly, Sovereign Square, six ministries, ten embassies and a Free Ports Mission on Embassy Row, the two party headquarters, the press hall and a hotel.',
+      'Halver House, the Office of the President, has a real interior: a grand lobby and ten rooms in three zones. The press room and the records hall are open to anyone in office hours (08:00 to 18:00); the cabinet and staff rooms need an appointment; the President\'s office, the negotiation rooms and security control are restricted.',
+      'The other buildings have locked doors and plain rooms for now. The President, staff, guards and ambassadors arrive in the next update.',
+    ],
+  },
+  {
     version: '0.93.0',
     date: '2026-11-03',
     channel: 'development',

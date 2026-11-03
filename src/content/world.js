@@ -24,6 +24,11 @@ export const REGIONS = {
     name: 'Starling Flats',
     maps: { starling_flats: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
   },
+  // The Crown Quarter (v0.93.1): through the Crown Gate off Crown Street — the capital district, Halver House and Embassy Row.
+  crown: {
+    name: 'The Crown Quarter',
+    maps: { crown_quarter: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
+  },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {

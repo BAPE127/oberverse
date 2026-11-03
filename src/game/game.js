@@ -922,7 +922,7 @@ export class Game {
       }
       case 'vault': return this.robbery.vault(act.bank); // v0.79.0
       case 'teller': return this.robbery.armed() && this.robbery.inHours(act.bank) && this.robbery.inHall(act.bank) ? { type: 'message', text: this.robbery.holdup(act.bank).text } : { type: 'message', text: prop.examine };
-      case 'bank': return { type: 'panel', panel: 'tablet', opts: { tab: act.tab } }; // v0.70.0: the First Bank's desks open the tablet at that app
+      case 'bank': case 'tablet': return { type: 'panel', panel: 'tablet', opts: { tab: act.tab } }; // v0.70.0: the First Bank's desks open the tablet at that app
       case 'casino_cashier': return this.casino.cashier() ? { type: 'panel', panel: 'cashier' } : { type: 'message', text: 'The cage is shut: a brass bell, a sign — "BACK SHORTLY. — V." — and nobody behind the bars.' };
       case 'container': {
         const cdef = this.containerDef(act.container);
