@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.91.6] — 2026-11-03 — The Factory Update: Choose Where Goods Ship From, and Drone Freight (development build)
+
+You asked for two things in the arms works: a way to choose where goods are shipped from when you own more than one works, for you and for the manager; and drones that carry items like belts but much faster, each with its own launch and receiving station and a unique ID.
+
+- **Ship from any works.** On the terminal's Market tab, the fill form has a **SHIP FROM** list of your works, each showing how many crates of that weapon its cage holds. Fill an order from any cage, from any works' terminal. A works you do not own is refused.
+- **The manager's works.** Under the orders, **Your manager ships from** is either *whichever works holds the most* (the default) or one chosen works. With one chosen, the manager fills export orders only from that works and never quietly uses another (`Arms.exportFrom()`, `setExportFrom()`, `Management.planExports()`).
+- **Drones.** Two new arms-works items (Equipment tab): the **Drone Launch Station** (420) and the **Drone Receiving Station** (260), 1x1, 60 items each, placed with B. Placing a launch station opens a panel asking for a **unique drone ID** (1 to 12 letters, numbers or dashes; no two drones may share one). A receiving station asks which drone it belongs to; each drone has exactly one of each, so drone A only flies between A's own two stations. The receiving station may be in another of your works.
+- **How a drone flies.** Belts and arms feed a launch station. Each minute an idle drone takes up to **12 items** (a belt or arm moves 1 a minute) and lands them **1 minute** later in the same works, **3 minutes** later in another. Nothing but its own drone can put items in a receiving station, and nothing takes from a launch station. A full receiver makes the drone wait; if the receiver is picked up the drone flies home with its load. Picking up a launch station returns what it held (and any load in flight) and frees its ID. Saved with the works.
+- Tests: `tests/drones.test.mjs` (9 new). No existing test was edited. The manager does not place drone stations (they need an ID); only you do.
+- Docs: `docs/ARMS.md`. Code: `Factory.droneCheck/droneTick`, `src/ui/droneId.js`, `DRONES` in `src/content/arms.js`.
+
 ## [0.91.5] — 2026-11-02 — The Delivery-Day Bonus, Unlimited Storage, and Satellites to Launch (development build)
 
 You asked for three things in aerospace: the delivery day should stop being a penalty and be a 25% bonus when met; planes built automatically should go to off-map storage (no limit) and be usable to complete a contract instead of building a new one; and there should be a way to build your own satellites to launch. You decided: extra planes are **never sold** except through a contract; you choose when to use a stored plane or make a new one (a contract that asks for a special addition needs a new one); the manager may *ask* you to use stored planes; and satellites work like planes.

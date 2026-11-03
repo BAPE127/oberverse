@@ -5021,7 +5021,15 @@ const MARKET = {
   initialEmbargoes: ['pallas'],
 };
 
-return { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, BENCH_RECIPES, CRATE, CRATE_ITEMS, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET };
+/** v0.92.0: drone freight. A drone is a launch station plus its own receiving station; nothing else can use either. */
+const DRONES = {
+  perTrip: 12, // items a drone carries each flight (a belt or an arm moves 1 a minute)
+  sameWorksMinutes: 1, // flight time to a receiving station in the same works
+  otherWorksMinutes: 3, // ... in another of your works
+  idMax: 12,
+};
+
+return { ARMS_ITEMS, ARMS_STATIONS, ARMS_RECIPES, BENCH_RECIPES, CRATE, CRATE_ITEMS, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES };
 })();
 
 // ---- src/content/props.js
@@ -5361,6 +5369,9 @@ const ITEMS = {
   // v0.37.0: storage and sorting (both kinds of works)
   item_chest_wood: { name: 'Wooden Chest', category: 'machine', price: 12, tags: ['machine'], icon: 'machine', build: { type: 'storage', w: 1, h: 1, cap: 100 }, description: 'Place in your works (B). Holds 100 items. Inserters and belts fill and empty it; E to open it yourself.' },
   item_chest_iron: { name: 'Iron Chest', category: 'machine', price: 40, tags: ['machine'], icon: 'machine', build: { type: 'storage', w: 1, h: 1, cap: 300 }, description: 'Place in your works. Holds 300 items — a proper buffer between lines.' },
+  // v0.92.0: drone freight between stations (arms works)
+  item_drone_launch: { name: 'Drone Launch Station', category: 'machine', price: 420, tags: ['machine'], icon: 'machine', build: { type: 'storage', domain: 'arms', w: 1, h: 1, cap: 60, drone: 'launch' }, description: 'Place in an arms works (B) and give its drone a unique ID. Feed it with belts or arms; its drone flies up to 12 items at a time to the drone\'s own receiving station.' },
+  item_drone_dock: { name: 'Drone Receiving Station', category: 'machine', price: 260, tags: ['machine'], icon: 'machine', build: { type: 'storage', domain: 'arms', w: 1, h: 1, cap: 60, drone: 'recv' }, description: 'Place in any of your arms works and pick which drone ID it belongs to. Only that drone lands here. Arms and belts take from it.' },
   item_filter_inserter: { name: 'Filter Inserter', category: 'machine', price: 30, tags: ['machine'], icon: 'arm', build: { type: 'inserter', w: 1, h: 1, filter: true }, description: 'An inserter that moves only the item you set (E). R rotates. Pick one part off a mixed belt, or one product out of a chest.' },
   item_sorter: { name: 'Belt Sorter', category: 'machine', price: 25, tags: ['machine'], icon: 'belt', build: { type: 'sorter', w: 1, h: 1 }, description: 'Goes in a belt line; R rotates. Items matching its filter (E) turn off to its right; the rest carry straight on. With no filter it splits a line in two.' },
   item_generator: { name: 'Generator', category: 'machine', price: 250, tags: ['machine'], icon: 'machine', build: { type: 'generator', w: 2, h: 2 }, description: 'Place in your warehouse. Powers four more machines. (Every warehouse\'s wall socket powers the first two.)' },
@@ -16351,7 +16362,7 @@ const halvermouthMaps = __m["src/content/maps/halvermouth.js"].default;
 const yardsMaps = __m["src/content/maps/yards.js"].default;
 const lariatMaps = __m["src/content/maps/lariat.js"].default;
 const starlingMaps = __m["src/content/maps/starling.js"].default;
-const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET } = __m["src/content/arms.js"];
+const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } = __m["src/content/arms.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
 const { ITEMS } = __m["src/content/items.js"];
 const { FACTS } = __m["src/content/facts.js"];
@@ -16493,7 +16504,7 @@ const BASE_CONTENT = {
   recipes: RECIPES,
   deliveries: DELIVERIES,
   unlocks: UNLOCKS,
-  arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET },
+  arms: { crate: CRATE, bench: BENCH_RECIPES, stations: ARMS_STATIONS, recipes: ARMS_RECIPES, research: ARMS_RESEARCH, branches: RESEARCH_BRANCHES, licencePrice: ARMS_LICENCE_PRICE, wholesale: WHOLESALE, staffNames: STAFF_NAMES, staffSkills: STAFF_SKILLS, quirks: STAFF_QUIRKS, countries: COUNTRIES, hq: HQ, shippers: SHIPPERS, market: MARKET, drones: DRONES },
   armsWarehouses: ARMS_WAREHOUSES,
   transit: TRANSIT,
   logistics: { rules: LOGISTICS, ports: PORTS, portTypes: PORT_TYPES, classes: CARGO_CLASSES, ships: { ...CARGO_SHIPS, ...WARSHIPS }, dealership: Object.keys(CARGO_SHIPS), warshipDealership: Object.keys(WARSHIPS), warshipClasses: WARSHIP_CLASSES, clients: CLIENTS, contractTypes: CONTRACT_TYPES, pirateWaters: PIRATE_WATERS, risk: RISK, bonuses: BONUSES, missionTypes: MISSION_TYPES, shipyard: SHIPYARD, tech: TECH, hulls: HULLS, components: COMPONENTS, colours: SHIP_COLOURS },
@@ -16560,7 +16571,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.91.5';
+const GAME_VERSION = '0.91.6';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -24013,7 +24024,7 @@ class Factory {
   }
 
   /** Place a machine/belt/inserter/generator item from your inventory. */
-  place(whId, itemId, x, y, dir = 0, from = null) {
+  place(whId, itemId, x, y, dir = 0, from = null, extra = {}) {
     const g = this.game;
     const item = g.content.items[itemId];
     if (!item?.build) return { ok: false, text: 'You can\'t build that.' };
@@ -24022,6 +24033,12 @@ class Factory {
     const source = from ? g.world.containers[from] : null;
     if (from ? !(source?.items[itemId] > 0) : !g.inventory.count(itemId)) return { ok: false, text: from ? `There is no ${item.name} on the dock.` : `You don't have a ${item.name}.` };
     const { type, kind, w = 1, h = 1, cap, filter } = item.build;
+    let drone = null;
+    if (item.build.drone) {
+      const chk = this.droneCheck(item.build.drone, extra.droneId);
+      if (!chk.ok) return chk;
+      drone = { role: item.build.drone, id: chk.id };
+    }
     const domain = item.build.domain || (type === 'machine' ? 'calc' : null);
     if (domain && domain !== this.domain) return { ok: false, text: domain === 'arms' ? 'Arms machinery goes in an arms works.' : 'That belongs in a calculator warehouse.' };
     const why = this.blockReason(whId, x, y, w, h);
@@ -24034,6 +24051,7 @@ class Factory {
     };
     if (type === 'storage') {
       Object.assign(e, { chest: true, container: `ct_${e.id}`, cap, interact: { kind: 'container', container: `ct_${e.id}` } });
+      if (drone) Object.assign(e, { drone, label: `${item.name} ${drone.id}`, flight: null });
       g.world.containers[e.container] = { items: {}, money: 0 };
     }
     if (filter || type === 'sorter') Object.assign(e, { filter: null, filterable: true, interact: { kind: this.kind, action: 'entity', warehouse: whId, name: item.name.toLowerCase() } });
@@ -24065,6 +24083,7 @@ class Factory {
     g.inventory.add(e.item, 1, { silent: true });
     const back = [];
     if (e.carry) back.push([e.carry, 1]);
+    if (e.flight) for (const [id, n] of Object.entries(e.flight.items)) if (n > 0) back.push([id, n]);
     if (e.chest) { for (const [id, n] of Object.entries(g.world.containers[e.container]?.items || {})) if (n > 0) back.push([id, n]); delete g.world.containers[e.container]; }
     for (const buf of [e.in, e.out]) for (const [id, n] of Object.entries(buf || {})) if (n > 0) back.push([id, n]);
     for (const [id, n] of back) g.inventory.add(id, n, { silent: true });
@@ -24121,6 +24140,7 @@ class Factory {
   accepts(target, itemId) {
     if (!target) return false;
     if (target.chest) {
+      if (target.drone?.role === 'recv') return false; // only its own drone lands here
       if (!target.cap) return true;
       const items = this.game.world.containers[target.container]?.items || {};
       return Object.values(items).reduce((a, b) => a + b, 0) < target.cap;
@@ -24147,6 +24167,7 @@ class Factory {
   offers(src) {
     const g = this.game;
     if (!src) return [];
+    if (src.drone?.role === 'launch') return []; // the drone takes from it; nothing else does
     if (src.chest) return Object.entries(g.world.containers[src.container]?.items || {}).filter(([, n]) => n > 0).map(([id]) => id);
     if (src.type === 'belt' || src.type === 'sorter') return src.carry ? [src.carry] : [];
     if (src.type === 'machine') return Object.entries(src.out).filter(([, n]) => n > 0).map(([id]) => id);
@@ -24257,7 +24278,72 @@ class Factory {
     const g = this.game;
     const s = this.state;
     for (const id of this.ownedIds()) if (s.warehouses[id].entities.length) this.step(id);
+    this.droneTick();
     if (this.domain === 'calc' && s.contract && g.clock.minuteOfDay === DELIVERY_MINUTE && s.lastDelivery < g.clock.day) this.deliver();
+  }
+
+
+  // ------------------------------------------------------------- drones (v0.92.0)
+  /** Every drone station in the works you own: [{ wh, e }]. */
+  droneStations() {
+    const out = [];
+    for (const wh of this.ownedIds()) for (const e of this.state.warehouses[wh].entities) if (e.drone) out.push({ wh, e });
+    return out;
+  }
+
+  /** Drone IDs in use, with where each one's launch and receiving stations stand. */
+  drones() {
+    const by = {};
+    for (const { wh, e } of this.droneStations()) { const d = (by[e.drone.id] ||= { id: e.drone.id, launch: null, recv: null }); d[e.drone.role === 'launch' ? 'launch' : 'recv'] = { wh, e }; }
+    return Object.values(by).sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+
+  /** The cleaned-up ID, or why it won't do. A launch station needs a new unique ID; a receiving station needs a drone that has none yet. */
+  droneCheck(role, raw) {
+    const max = this.game.content.arms?.drones?.idMax || 12;
+    const id = String(raw ?? '').trim().toUpperCase().replace(/\s+/g, '-');
+    if (!id) return { ok: false, text: role === 'launch' ? 'Give the drone a unique ID first.' : 'Choose which drone this station belongs to.' };
+    if (!/^[A-Z0-9][A-Z0-9-]*$/.test(id) || id.length > max) return { ok: false, text: `A drone ID is 1 to ${max} letters, numbers or dashes.` };
+    const d = this.drones().find((x) => x.id === id);
+    if (role === 'launch') return d?.launch ? { ok: false, text: `A drone called ${id} already exists. Every drone needs its own ID.` } : { ok: true, id };
+    if (!d?.launch) return { ok: false, text: `There is no drone ${id}: place its launch station first.` };
+    if (d.recv) return { ok: false, text: `Drone ${id} already has a receiving station.` };
+    return { ok: true, id };
+  }
+
+  /** One game minute of every drone: land what has arrived, then fly the next load. Drone A only ever flies between A's two stations. */
+  droneTick() {
+    const g = this.game;
+    const cfg = g.content.arms?.drones;
+    if (!cfg) return;
+    const now = g.clock.total;
+    const total = (c) => Object.values(c.items).reduce((a, b) => a + b, 0);
+    for (const d of this.drones()) {
+      const L = d.launch?.e;
+      if (!L) continue;
+      const from = g.world.containers[L.container];
+      if (L.flight && now >= L.flight.arrive) {
+        const to = d.recv ? g.world.containers[d.recv.e.container] : from; // its receiving station was taken away: it flies home
+        for (const [id, n] of Object.entries(L.flight.items)) to.items[id] = (to.items[id] || 0) + n;
+        L.flight = null;
+        L.lastArrive = now;
+      }
+      if (L.flight || !d.recv || !from) continue;
+      const dest = g.world.containers[d.recv.e.container];
+      let room = Math.min(cfg.perTrip, (d.recv.e.cap || Infinity) - total(dest));
+      if (room <= 0) continue;
+      const load = {};
+      for (const id of Object.keys(from.items).sort()) {
+        const n = Math.min(from.items[id], room);
+        if (n <= 0) continue;
+        load[id] = n; from.items[id] -= n; room -= n;
+        if (!from.items[id]) delete from.items[id];
+        if (room <= 0) break;
+      }
+      if (!Object.keys(load).length) continue;
+      L.flight = { items: load, arrive: now + (d.launch.wh === d.recv.wh ? cfg.sameWorksMinutes : cfg.otherWorksMinutes) };
+      g.bus.emit('drone:launched', { id: d.id, items: load });
+    }
   }
 
   deliver() {
@@ -24562,6 +24648,18 @@ class Arms extends Factory {
     return this.game.content.arms;
   }
 
+  /** Which works the manager ships export orders from: 'auto' (whichever cage holds the most of it) or one works' id. */
+  exportFrom() {
+    const v = this.state.exportFrom;
+    return v && this.owns(v) ? v : 'auto';
+  }
+
+  setExportFrom(id) {
+    if (id !== 'auto' && !this.owns(id)) return { ok: false, text: 'You don\'t own that works.' };
+    this.state.exportFrom = id;
+    return { ok: true, text: id === 'auto' ? 'The manager ships each order from the works whose cage holds the most of it.' : `The manager ships export orders from ${this.def(id).name}.` };
+  }
+
   licensed() {
     return Boolean(this.game.getFlag(LICENCE_FLAG));
   }
@@ -24762,8 +24860,8 @@ class Arms extends Factory {
     for (const id of Object.keys(this.defs())) if (this.game.maps.get(this.def(id).map)) this.refreshSpots(id);
   }
 
-  place(whId, itemId, x, y, dir, from = null) {
-    const r = super.place(whId, itemId, x, y, dir, from);
+  place(whId, itemId, x, y, dir, from = null, extra = {}) {
+    const r = super.place(whId, itemId, x, y, dir, from, extra);
     if (r.ok) this.refreshSpots(whId);
     return r;
   }
@@ -25314,6 +25412,7 @@ class Market {
     const sh = this.cfg.shippers[shipper];
     if (!c || !sh) return { ok: false, text: 'Pick a shipper.' };
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    if (!g.arms.owns(wh)) return { ok: false, text: 'You don\'t own that works.' };
     const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
     if (!cage) return { ok: false, text: 'No export cage.' };
     const list = [[order.item, order.qty]];
@@ -25347,6 +25446,7 @@ class Market {
     const c = this.country(country);
     const def = this.cfg.countries[country];
     if (!g.arms.licensed()) return { ok: false, text: 'You need an arms licence to export.' };
+    if (!g.arms.owns(wh)) return { ok: false, text: 'You don\'t own that works.' };
     const cage = g.world.containers[g.arms.def(wh)?.outCrate]?.items;
     if (!cage) return { ok: false, text: 'No export cage.' };
     if ((cage[order.item] || 0) < order.qty) return { ok: false, text: `This order is for ${order.qty} crates; the export cage has ${cage[order.item] || 0}.` };
@@ -43281,10 +43381,13 @@ class Management {
     const g = this.g; const A = g.arms; const Mk = g.market;
     if (!A.licensed()) return [];
     const out = [];
+    const pref = A.exportFrom();
     for (const wh of A.ownedIds()) {
+      if (pref !== 'auto' && wh !== pref) continue; // the owner picked the works the manager ships from
       const cage = g.world.containers[A.def(wh)?.outCrate]?.items || {};
       for (const o of Mk.openOrders()) {
         if ((cage[o.item] || 0) < o.qty) continue;
+        if (pref === 'auto' && A.ownedIds().some((w) => w !== wh && ((g.world.containers[A.def(w)?.outCrate]?.items || {})[o.item] || 0) > (cage[o.item] || 0))) continue; // auto: the fullest cage ships it
         const c = Mk.country(o.country);
         if (!c || c.hostility >= Mk.cfg.market.refuseHostility) continue;
         const value = o.qty * o.price;
@@ -47712,6 +47815,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.91.6',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'The Factory Update: Ship From Any Works, and Drone Freight',
+    notes: [
+      'With more than one arms works you can now choose which works an export order ships from (a SHIP FROM list on the Market tab), and choose which works your manager ships from.',
+      'Drones: a Drone Launch Station and a Drone Receiving Station. Each drone gets its own unique ID when you place its launch station, and only that drone flies to its own receiving station, in the same works or another.',
+      'A drone carries up to 12 items a trip, far faster than a belt. A full station makes it wait, and picking up a station returns what it held.',
+    ],
+  },
   {
     version: '0.91.5',
     date: '2026-11-02',
@@ -54405,6 +54519,23 @@ function drawFactoryProp(ctx, p, x, y, w, h, opts) {
       break;
     }
     case 'storage': {
+      if (p.drone) { // v0.92.0: a drone pad — orange for the launch station, blue for its receiving station — with the drone's ID
+        const launch = p.drone.role === 'launch';
+        const c1 = launch ? '#e8903a' : '#4aa0d8';
+        ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(x + 3, y + h - 5, w - 6, 4);
+        ctx.fillStyle = '#3a3e4a'; rrect(ctx, x + 2, y + 4, w - 4, h - 8, 4); ctx.fill();
+        ctx.strokeStyle = c1; ctx.lineWidth = 2; ctx.strokeRect(x + 5, y + 7, w - 10, h - 14);
+        const cx = x + w / 2; const cy = y + h / 2 - 1;
+        const away = Boolean(p.flight); // the drone is out
+        if (!away || !launch) { ctx.fillStyle = '#c9ced8'; ctx.fillRect(cx - 1, cy - 1, 3, 3); for (const [dx, dy] of [[-5, -4], [5, -4], [-5, 4], [5, 4]]) { ctx.fillStyle = '#8a909c'; ctx.fillRect(cx + dx - 2, cy + dy - 1, 4, 3); ctx.fillStyle = c1; ctx.fillRect(cx + dx - 1, cy + dy - 2, 2, 1); } }
+        ctx.fillStyle = c1;
+        ctx.beginPath(); if (launch) { ctx.moveTo(cx, y + 3); ctx.lineTo(cx - 4, y + 8); ctx.lineTo(cx + 4, y + 8); } else { ctx.moveTo(cx, y + h - 3); ctx.lineTo(cx - 4, y + h - 8); ctx.lineTo(cx + 4, y + h - 8); }
+        ctx.closePath(); ctx.fill();
+        ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#10121a'; ctx.fillText(p.drone.id, cx + 0.5, y + h - 1.5); ctx.fillStyle = '#f2f4f8'; ctx.fillText(p.drone.id, cx, y + h - 2.5); ctx.textAlign = 'left';
+        const n = Object.values(opts.containerItems?.(p.container) || {}).reduce((a, b) => a + b, 0);
+        ctx.fillStyle = '#1e1e22'; ctx.fillRect(x + 5, y + 5, w - 10, 2); ctx.fillStyle = n >= p.cap ? '#d8604a' : '#7ac86a'; ctx.fillRect(x + 5, y + 5, Math.round((w - 10) * Math.min(1, n / (p.cap || 1))), 2);
+        break;
+      }
       // v0.37.0: placeable storage — wooden (100) or iron (300), with a fill gauge
       const iron = p.cap > 100;
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -64817,13 +64948,15 @@ function terminalScreen(ui, body, opts, go) {
     sect.append(grid);
   } else if (tab === 'Market') {
     // v0.19.0: countries post orders of 5–50 crates; you fill them from the export cage
-    const cage = g.world.containers[def.outCrate].items;
-    const C = cfg.crate;
     const ship = opts.ship || {};
+    const owned = A.ownedIds();
+    const from = ship.from && A.owns(ship.from) ? ship.from : wh; // v0.92.0: ship from any of your works, from any terminal
+    const cage = g.world.containers[A.def(from).outCrate].items;
+    const C = cfg.crate;
     const focus = opts.country || null;
     const orders = M.openOrders().filter((o) => !focus || o.country === focus).sort((a, b) => a.expires - b.expires);
     sect.append(H3(focus ? `Orders from ${cfg.countries[focus].name}` : 'Open orders'));
-    sect.append(h('p', { class: 'os-dim' }, `COUNTRIES ORDER ${C.minOrder}–${C.maxOrder} CRATES OF ONE WEAPON AT A FIXED PRICE PER CRATE. FILL AN ORDER FROM THIS WORKS' EXPORT CAGE; PAYMENT ON ARRIVAL. ${focus ? '' : 'CLICK A COUNTRY ON THE GLOBE TO SEE ONLY ITS ORDERS.'}`),
+    sect.append(h('p', { class: 'os-dim' }, `COUNTRIES ORDER ${C.minOrder}–${C.maxOrder} CRATES OF ONE WEAPON AT A FIXED PRICE PER CRATE. FILL AN ORDER FROM ANY OF YOUR WORKS' EXPORT CAGES (PICK ONE IN THE FILL FORM); PAYMENT ON ARRIVAL. ${focus ? '' : 'CLICK A COUNTRY ON THE GLOBE TO SEE ONLY ITS ORDERS.'}`),
       ...(focus ? [h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('ALL ORDERS', () => go('Market', {})))] : []));
     if (!orders.length) sect.append(h('p', { class: 'os-dim' }, 'NO OPEN ORDERS. NEW ORDERS COME IN EVERY DAY — MORE FROM COUNTRIES AT WAR.'));
     for (const o of orders) {
@@ -64835,7 +64968,7 @@ function terminalScreen(ui, body, opts, go) {
       const tags = [enemy ? `AT WAR WITH ${cfg.countries[enemy].name.toUpperCase()}` : null, st.embargo ? '⚠ EMBARGOED' : null, `EXPIRES DAY ${o.expires}`].filter(Boolean).join(' · ');
       const open = ship.order === o.id;
       const rowEl = row(st.embargo ? '⛔' : enemy ? '⚔️' : '📦', `#${o.id} ${c.name} — ${o.qty}× ${it.name}`, `${o.price.toLocaleString()} OB/CRATE · ${(o.qty * o.price).toLocaleString()} OB TOTAL · ${tags} · CAGE ${have}/${o.qty}`,
-        btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
+        btn(open ? 'CANCEL' : 'FILL', () => go('Market', { country: focus, ship: open ? {} : { order: o.id, from, shipper: st.embargo ? 'ghost' : 'morrow', insured: false } }), have >= o.qty && !open ? 'small primary' : 'small'));
       sect.append(rowEl);
       if (open) {
         const value = o.qty * o.price;
@@ -64856,6 +64989,7 @@ function terminalScreen(ui, body, opts, go) {
             return h('option', { value: `v:${v.id}`, selected: own?.id === v.id }, `⚓ ${v.name} (${Lg.model(v.model).name}) — ${vq.ok ? `${(vq.hours / 24).toFixed(1)}d · costs ${vq.cost}` : vq.reasons[0]}`);
           }))] : []));
         const form = h('div', { class: 'os-box', style: 'margin:-4px 0 10px' },
+          owned.length > 1 ? h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px;margin-bottom:6px' }, h('span', {}, 'SHIP FROM'), h('select', { onchange: (e) => upd({ from: e.target.value }) }, ...owned.map((id) => h('option', { value: id, selected: id === from }, `${A.def(id).name} — ${(g.world.containers[A.def(id).outCrate].items[o.item] || 0)} IN CAGE`)))) : null,
           h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;justify-content:flex-start' }, pick,
             own ? h('span', { class: 'os-dim' }, 'OWN SHIPS CAN\'T BE INSURED.') : null,
             own ? h('label', {}, h('input', { type: 'checkbox', checked: Boolean(ship.guards), onchange: (e) => upd({ guards: e.target.checked }) }), ' HIRE GUARDS') : null,
@@ -64866,7 +65000,7 @@ function terminalScreen(ui, body, opts, go) {
           h('div', {}, h('b', {}, `SHIPPING NOW: ${fee.toLocaleString()} OB · ON ARRIVAL: ${value.toLocaleString()} OB`), st.embargo ? ' · ⚠ EMBARGO RUN: ILLEGAL. IF CUSTOMS SEIZE IT, THEY\'LL TRACE IT TO YOU.' : ''),
           h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:6px' },
             have < o.qty ? h('span', { class: 'os-msg' }, `NEED ${o.qty - have} MORE CRATES IN THE CAGE.`) : btn(`SHIP ${o.qty} CRATES`, () => {
-              const res = M.ship({ wh, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null, escorts, guards: Boolean(ship.guards) });
+              const res = M.ship({ wh: from, order: o.id, shipper: ship.shipper, insured: ship.insured, vessel: own?.id || null, escorts, guards: Boolean(ship.guards) });
               ui.audio.sfx(res.ok ? 'sfx_coin' : 'sfx_fail');
               go('Market', { msg: res.text, country: focus });
             }, own && !q.ok ? 'small' : 'small primary')));
@@ -64875,7 +65009,8 @@ function terminalScreen(ui, body, opts, go) {
     }
     // the cage
     const crates = Object.entries(cage).filter(([id, n]) => n > 0 && items[id]?.arms?.crate);
-    sect.append(H3('Export cage'));
+    if (owned.length > 1) sect.append(H3('Your manager ships from'), h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px' }, h('select', { onchange: (e) => go('Market', { country: focus, msg: A.setExportFrom(e.target.value).text }) }, h('option', { value: 'auto', selected: A.exportFrom() === 'auto' }, 'Whichever works holds the most'), ...owned.map((id) => h('option', { value: id, selected: A.exportFrom() === id }, A.def(id).name)))), h('p', { class: 'os-dim' }, 'THE MANAGER FILLS EXPORT ORDERS ONLY FROM THE WORKS YOU PICK (OR THE FULLEST CAGE).'));
+    sect.append(H3(`Export cage — ${A.def(from).name}`));
     sect.append(h('p', { class: 'os-dim' }, crates.length ? crates.map(([id, n]) => `${n}× ${items[id].name}`).join(' · ') : 'EMPTY. STAFFED STATIONS SET TO A WEAPON RECIPE MAKE WHOLE CRATES; BELT THEM (OR CARRY THEM) INTO THE CAGE.'));
     // buyers at a glance
     sect.append(H3('Buyers'));
@@ -71533,6 +71668,44 @@ function aerospacePanel(ui, body, opts = {}) {
 return { aeroSalePanel, aerospacePanel };
 })();
 
+// ---- src/ui/droneId.js
+__m["src/ui/droneId.js"] = (function () {
+// The drone ID panel (v0.92.0): every drone launch station gets its own unique ID when you place it, and every receiving station is
+// tied to one drone. Nothing is placed until this panel says so, through the works' own place().
+const { h } = __m["src/ui/panels.js"];
+
+function droneIdPanel(ui, body, opts) {
+  const { sys, wh, item, x, y, dir } = opts;
+  const g = ui.game;
+  const it = g.content.items[item];
+  const role = it.build.drone;
+  const max = g.content.arms.drones.idMax;
+  const msg = h('p', { class: 'muted' }, role === 'launch' ? `Every drone has a unique ID (1 to ${max} letters, numbers or dashes). Its launch station and its receiving station belong only to it.` : 'A receiving station belongs to one drone. Choose the drone that lands here. Only that drone can.');
+  const say = (r) => { msg.textContent = r.text; msg.className = r.ok ? '' : 'neg'; };
+  const done = (r) => {
+    ui.audio.sfx(r.ok ? 'sfx_door' : 'sfx_fail');
+    if (r.ok) { ui.buildBarKey = null; ui.closePanel(); ui.toast(r.text, 'info', 3); } else say(r);
+  };
+  const place = (droneId) => done(sys.place(wh, item, x, y, dir, null, { droneId }));
+  if (role === 'launch') {
+    const input = h('input', { type: 'text', class: 'debug-input', maxlength: max, placeholder: 'e.g. A1', style: 'width:100%;font-size:18px;text-transform:uppercase' });
+    input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') place(input.value); });
+    const taken = sys.drones().map((d) => d.id);
+    body.append(h('p', { class: 'doc' }, `Name this drone. ${taken.length ? `In use: ${taken.join(', ')}.` : 'You have no drones yet.'}`), input, msg,
+      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' }, h('button', { class: 'primary', onclick: () => place(input.value) }, 'Place launch station'), h('button', { class: 'ghost', onclick: () => ui.closePanel() }, 'Cancel')));
+    setTimeout(() => input.focus(), 0);
+  } else {
+    const free = sys.drones().filter((d) => d.launch && !d.recv);
+    body.append(h('p', { class: 'doc' }, free.length ? 'Which drone lands here?' : 'Every drone already has a receiving station, or you have no drones. Place a launch station first.'), msg);
+    for (const d of free) body.append(h('div', { class: 'item-row' }, h('div', { class: 'icon' }, '🛸'), h('div', { class: 'grow' }, h('div', { class: 'name' }, `Drone ${d.id}`), h('div', { class: 'desc' }, `Launches from ${sys.def(d.launch.wh).name} at ${d.launch.e.x},${d.launch.e.y}`)), h('button', { class: 'small primary', onclick: () => place(d.id) }, 'Land here')));
+    body.append(h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' }, h('button', { class: 'ghost', onclick: () => ui.closePanel() }, 'Cancel')));
+  }
+  return { title: role === 'launch' ? 'New drone' : 'Receiving station' };
+}
+
+return { droneIdPanel };
+})();
+
 // ---- src/ui/ui.js
 __m["src/ui/ui.js"] = (function () {
 // UI controller: title/new-game screens, HUD, modal panels, dialogue, and the
@@ -71558,6 +71731,7 @@ const { cashierPanel, casinoTablePanel } = __m["src/ui/casino.js"];
 const { spadeTablePanel } = __m["src/ui/spadeTable.js"];
 const { aerospacePanel, aeroSalePanel } = __m["src/ui/aerospace.js"];
 const { corpNamePanel } = __m["src/ui/corpApp.js"];
+const { droneIdPanel } = __m["src/ui/droneId.js"];
 
 PANELS.terminal = terminalPanel;
 PANELS.tablet = tabletPanel;
@@ -71575,6 +71749,7 @@ PANELS.casinoTable = casinoTablePanel;
 PANELS.spadeTable = spadeTablePanel; // v0.53.0: Morganius's table
 PANELS.aerospace = aerospacePanel; // v0.55.0: Starling Flats
 PANELS.aerospace_sale = aeroSalePanel;
+PANELS.droneid = droneIdPanel; // v0.92.0: a drone's unique ID when its station is placed
 PANELS.corpname = corpNamePanel; // v0.60.0: name a business when it is founded
 const { saveSettings } = __m["src/save/saveManager.js"];
 
@@ -72195,6 +72370,12 @@ class UI {
     }
     if (action === 'attack') {
       if (!c) return true;
+      const dd = g.content.items[b.tool]?.build;
+      if (dd?.drone) { // v0.92.0: a drone station asks for its drone's ID first
+        const why = b.sys.blockReason(b.wh, c.x, c.y, dd.w || 1, dd.h || 1);
+        if (why) { this.audio.sfx('sfx_fail'); this.toast(why, 'info', 2); } else this.openPanel('droneid', { sys: b.sys, wh: b.wh, item: b.tool, x: c.x, y: c.y, dir: b.dir });
+        return true;
+      }
       const r = b.sys.place(b.wh, b.tool, c.x, c.y, b.dir);
       if (r.ok) this.audio.sfx('sfx_door'); else { this.audio.sfx('sfx_fail'); this.toast(r.text, 'info', 2); }
       if (!g.inventory.count(b.tool)) b.tool = this.buildTools()[0] || 'remove';

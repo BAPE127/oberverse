@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.6',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'The Factory Update: Ship From Any Works, and Drone Freight',
+    notes: [
+      'With more than one arms works you can now choose which works an export order ships from (a SHIP FROM list on the Market tab), and choose which works your manager ships from.',
+      'Drones: a Drone Launch Station and a Drone Receiving Station. Each drone gets its own unique ID when you place its launch station, and only that drone flies to its own receiving station, in the same works or another.',
+      'A drone carries up to 12 items a trip, far faster than a belt. A full station makes it wait, and picking up a station returns what it held.',
+    ],
+  },
+  {
     version: '0.91.5',
     date: '2026-11-02',
     channel: 'development',
