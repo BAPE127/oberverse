@@ -6,7 +6,7 @@
 
 **Read first.** `docs/POST_WAR_EXPANSION_PLAN.md`, `docs/ROADMAP.md` (the single master release list; this expansion is placed in it), `docs/WORLD_ATLAS_PROPOSAL.md` (the Atlas this brief's Part II overlaps), `docs/ARCHITECTURE.md`, `docs/prompt-bank/05-world-expansion.md`, `19-world-simulation.md` and `06-quest-and-minigame.md`.
 
-**Mockups.** `docs/mockups/proposal-postwar-neumina-map.png`, `proposal-postwar-noir-map.png`, `proposal-postwar-atlas-and-instances.png` (source `docs/mockups/postwar-src/maps.py`). They are simple layouts, not art.
+**Mockups.** `docs/mockups/proposal-postwar-neumina-city.png`, `-neumina-levels.png`, `-neumina-section.png`, `-neumina-detail.png`, `-noir-city.png`, `-noir-detail.png` and `-atlas-and-instances.png` (sources in `docs/mockups/postwar-src/`). Layout mock-ups, not final art.
 
 **Note on the reference image.** The brief says a Neumina reference image was supplied (a dense pixel-art cyberpunk street). It was attached to the owner's message but the assistant could not see it. Neumina's look must be confirmed against that image before any art is made; the mockup is layout only.
 
