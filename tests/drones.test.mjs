@@ -221,3 +221,45 @@ test('the manager only ships from the works the owner picked (or the fullest cag
   Mk.state.orders.push({ id: 8003, country, item: crate, qty: 5, price: Mk.price(country, crate), posted: 1, expires: 40, status: 'open' });
   assert.equal(M.planExports().filter((q) => q.item === 'order:8003').length, 0, 'aw1 is empty: the manager does not quietly use aw2');
 });
+
+test('arms feed a launch station and empty a receiving station, so a drone joins two lines', () => {
+  const g = works();
+  const { x, y } = spot(g, 'aw1', 12);
+  // source chest -> arm -> launch ... receiving -> arm -> sink chest
+  const src = A(g).place('aw1', 'item_chest_wood', x, y, 0).entity;
+  A(g).place('aw1', 'item_inserter', x + 1, y, 0); // dir 0: east
+  const L = A(g).place('aw1', 'item_drone_launch', x + 2, y, 0, null, { droneId: 'LINE' }).entity;
+  const R = A(g).place('aw1', 'item_drone_dock', x + 6, y, 0, null, { droneId: 'LINE' }).entity;
+  A(g).place('aw1', 'item_inserter', x + 7, y, 0);
+  const sink = A(g).place('aw1', 'item_chest_wood', x + 8, y, 0).entity;
+  box(g, src)['item_ap_steel'] = 20;
+  minutes(g, 3);
+  assert.ok((box(g, L).item_ap_steel || 0) + (L.flight ? 1 : 0) > 0 || (box(g, R).item_ap_steel || 0) > 0 || (box(g, sink).item_ap_steel || 0) > 0, 'the arm put steel into the launch station');
+  minutes(g, 40);
+  assert.equal(box(g, sink).item_ap_steel, 20, 'all twenty came out of the far end');
+  assert.equal(box(g, src).item_ap_steel || 0, 0);
+});
+
+test('you choose which works a delivery goes to, and the manager can have every delivery land at one depot', () => {
+  const g = newGame(9812); setTime(g, 1, '07:30'); noImpulses(g);
+  g.player.money = 5e6;
+  runCommand(g, 'works aw1'); runCommand(g, 'works aw2'); g.inventory.add('item_st_lathe', 4, { silent: true });
+  assert.ok(g.corp.contribute('arms', 500000).ok);
+  g.corp.ensureWorld(); g.market.state;
+  const A_ = g.arms;
+  const r = A_.order('aw2', 'item_ap_steel', 3);
+  assert.ok(r.ok); assert.match(r.text, /Yard 2 Works/);
+  g.clock.total += 61; g.minuteTick();
+  assert.equal(g.world.containers[A_.def('aw2').inBay].items.item_ap_steel, 3, 'it landed on aw2\'s dock');
+  assert.equal(g.world.containers[A_.def('aw1').inBay].items.item_ap_steel || 0, 0);
+  // two works with stations; with a depot chosen, the manager's plan puts every order at that works
+  for (const wh of ['aw1', 'aw2']) { const sp = spot(g, wh, 3); const pr = A_.place(wh, 'item_st_lathe', sp.x, sp.y, 0); assert.ok(pr.ok, pr.text); }
+  const M = g.corp.management;
+  for (const wh of ['aw1', 'aw2']) { const m = A_.cells(wh).machines[0]; m.setting = Object.keys(A_.cfg.recipes).find((id) => A_.cfg.recipes[id].station === m.kind && A_.recipeUnlocked(id)); assert.ok(A_.hire(0, wh).ok); A_.state.staff[A_.state.staff.length - 1].assigned = m.id; }
+  const auto = M.planArms();
+  assert.ok(auto.some((o) => o.wh === 'aw1') && auto.some((o) => o.wh === 'aw2'), 'auto: each works orders for itself');
+  assert.equal(A_.setDeliverTo('aw2').ok, true);
+  assert.equal(A_.setDeliverTo('aw3').ok, false);
+  const depot = M.planArms();
+  assert.ok(depot.length > 0 && depot.every((o) => o.wh === 'aw2'), 'depot: everything lands at aw2');
+});

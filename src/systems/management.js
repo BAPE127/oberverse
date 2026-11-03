@@ -127,13 +127,18 @@ export class Management {
     const A = this.g.arms;
     const items = this.g.content.items;
     const out = [];
+    const depot = A.deliverTo(); // v0.91.7: the owner may have every delivery land at one works' dock
+    const pooled = { par: {}, held: {} };
     for (const wh of A.ownedIds()) {
       const stations = A.cells(wh).machines.map((m) => { const r = A.recipeOf(m); return r ? { in: r.in, minutes: r.minutes, staffed: Boolean(A.workerAt(m)) } : null; }).filter(Boolean);
       const par = armsPar(stations, (id) => items[id]?.category === 'arms_part', MGMT);
       const held = { ...(this.g.world.containers[A.def(wh).inBay]?.items || {}) };
       for (const o of A.state.orders) if (o.wh === wh) held[o.item] = (held[o.item] || 0) + o.qty;
-      for (const o of planArmsOrders(par, held, (id) => A.partPrice(id), MGMT)) out.push({ wh, ...o });
+      if (depot === 'auto') { for (const o of planArmsOrders(par, held, (id) => A.partPrice(id), MGMT)) out.push({ wh, ...o }); continue; }
+      for (const [id, n] of Object.entries(par)) pooled.par[id] = (pooled.par[id] || 0) + n;
+      for (const [id, n] of Object.entries(held)) pooled.held[id] = (pooled.held[id] || 0) + n;
     }
+    if (depot !== 'auto') for (const o of planArmsOrders(pooled.par, pooled.held, (id) => A.partPrice(id), MGMT)) out.push({ wh: depot, ...o });
     return out;
   }
 

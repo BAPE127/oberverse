@@ -62,6 +62,18 @@ export class Arms extends Factory {
     return { ok: true, text: id === 'auto' ? 'The manager ships each order from the works whose cage holds the most of it.' : `The manager ships export orders from ${this.def(id).name}.` };
   }
 
+  /** Where the manager has bought materials delivered: 'auto' (each works' own loading dock) or one works' id (a central depot; drones can carry it on). */
+  deliverTo() {
+    const v = this.state.deliverTo;
+    return v && this.owns(v) ? v : 'auto';
+  }
+
+  setDeliverTo(id) {
+    if (id !== 'auto' && !this.owns(id)) return { ok: false, text: 'You don\'t own that works.' };
+    this.state.deliverTo = id;
+    return { ok: true, text: id === 'auto' ? 'The manager has each works\' supplies delivered to that works\' own loading dock.' : `The manager has all supplies delivered to ${this.def(id).name}\'s loading dock.` };
+  }
+
   licensed() {
     return Boolean(this.game.getFlag(LICENCE_FLAG));
   }
@@ -500,7 +512,7 @@ export class Arms extends Factory {
     if (!g.corp.canAfford('arms', cost)) return { ok: false, text: `${qty}× ${it.name} costs ${cost} obols. You have ${g.corp.cashOf('arms')}.` };
     g.corp.pay('arms', cost, { cat: it.category === 'arms_part' ? 'parts' : 'equipment' });
     this.state.orders.push({ wh: whId, item: itemId, qty, at: g.clock.total + DELIVERY_MINUTES });
-    return { ok: true, text: `Ordered ${qty}× ${it.name} (${cost} obols). Arriving at the loading dock within the hour.` };
+    return { ok: true, text: `Ordered ${qty}× ${it.name} (${cost} obols). Arriving at ${this.def(whId).name}'s loading dock within the hour.` };
   }
 
   // ----------------------------------------------------------- per minute

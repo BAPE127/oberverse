@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.91.7 | 2026-11-03 | development | 1 | Factory update, part two: choose which works a delivery of parts and equipment goes to (and a central depot for the manager's deliveries); arms and belts can feed a drone's launch station and empty its receiving station. |
 | 0.91.6 | 2026-11-03 | development | 1 | The factory update: choose which works ships an export order (and which works the manager ships from); drone freight between arms works with launch and receiving stations, each drone with its own unique ID. |
 | 0.91.5 | 2026-11-02 | development | 1 | Aerospace: the delivery day pays a 25% bonus instead of a penalty; standing orders build aircraft and satellites into unlimited off-map storage (never sold) that contracts can be filled from by your choice or a manager's request; satellites stored and launched on demand. |
 | 0.91.4 | 2026-11-02 | development | 1 | Free delivery with a shipping company (no freight, handling, duty or ship needed) and a new income scale for every business (farm 20k, arms 100k, ship 500k, aerospace 1M per 5 days to start), with price-fading aerospace bonus and freight-rate saturation. |

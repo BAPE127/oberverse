@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.91.7',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Factory Update, Part Two: Where Materials Are Delivered',
+    notes: [
+      'With more than one arms works you can choose which works parts and equipment are delivered to (a DELIVER TO list on the Parts and Equipment tabs).',
+      'Your manager can have every delivery land at one depot works, buying for all your works together.',
+      'Inserter arms feed a drone launch station and empty its receiving station, so a drone can join two production lines.',
+    ],
+  },
+  {
     version: '0.91.6',
     date: '2026-11-03',
     channel: 'development',

@@ -336,7 +336,7 @@ export function terminalScreen(ui, body, opts, go) {
   const tab = opts.tab || 'Overview';
   const items = g.content.items;
   const cfg = A.cfg;
-  const say = (r) => { ui.audio.sfx(r.ok ? 'sfx_ui_click' : 'sfx_fail'); go(tab, { msg: r.text }); };
+  const say = (r) => { ui.audio.sfx(r.ok ? 'sfx_ui_click' : 'sfx_fail'); go(tab, { msg: r.text, deliver: opts.deliver }); };
   const p = A.power(wh);
   const staff = A.staffOf(wh);
   const r = A.state.research;
@@ -551,13 +551,22 @@ export function terminalScreen(ui, body, opts, go) {
     const list = Object.entries(items).filter(([, it]) => (tab === 'Parts' ? it.category === 'arms_part' && it.price > 0 : it.build && (it.build.domain === 'arms' || ['belt', 'inserter', 'generator'].includes(it.build.type))));
     sect.append(H3(tab === 'Parts' ? 'Supplier catalogue — parts' : 'Supplier catalogue — equipment'));
     if (tab === 'Parts' && A.partsMult() < 1) sect.append(h('p', { class: 'os-dim' }, `LEAN SUPPLY ACTIVE: PARTS −${Math.round((1 - A.partsMult()) * 100)}%`));
+    // v0.91.7: choose which of your works the delivery goes to, and where your manager has supplies delivered
+    const owned = A.ownedIds();
+    const to = opts.deliver && A.owns(opts.deliver) ? opts.deliver : wh;
+    if (owned.length > 1) {
+      sect.append(h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px;margin-bottom:6px' }, h('span', {}, 'DELIVER TO'),
+        h('select', { onchange: (e) => go(tab, { deliver: e.target.value }) }, ...owned.map((id) => h('option', { value: id, selected: id === to }, `${A.def(id).name} — LOADING DOCK`)))));
+      sect.append(h('div', { class: 'row', style: 'justify-content:flex-start;gap:8px;margin-bottom:6px' }, h('span', {}, 'MANAGER\'S DELIVERIES'),
+        h('select', { onchange: (e) => go(tab, { deliver: opts.deliver, msg: A.setDeliverTo(e.target.value).text }) }, h('option', { value: 'auto', selected: A.deliverTo() === 'auto' }, 'Each works\' own dock'), ...owned.map((id) => h('option', { value: id, selected: A.deliverTo() === id }, `All to ${A.def(id).name}`)))));
+    }
     for (const [id, it] of list) {
       const price = A.partPrice(id);
       const qs = tab === 'Parts' ? [1, 10, 50] : it.build.type === 'belt' ? [10, 50] : [1];
-      sect.append(row(itemIcon(it), `${it.name} — ${price} OB`, it.description, ...qs.map((q) => btn(`×${q}`, () => say(A.order(wh, id, q))))));
+      sect.append(row(itemIcon(it), `${it.name} — ${price} OB`, it.description, ...qs.map((q) => btn(`×${q}`, () => say(A.order(to, id, q))))));
     }
-    const pending = A.state.orders.filter((o) => o.wh === wh);
-    if (pending.length) sect.append(h('p', { class: 'os-dim' }, `INBOUND: ${pending.map((o) => `${o.qty}× ${items[o.item].name}`).join(', ')}.`));
+    const pending = A.state.orders.filter((o) => o.wh === to);
+    if (pending.length) sect.append(h('p', { class: 'os-dim' }, `INBOUND AT ${A.def(to).name.toUpperCase()}: ${pending.map((o) => `${o.qty}× ${items[o.item].name}`).join(', ')}.`));
   } else if (tab === 'Staff') {
     const stations = A.cells(wh).machines;
     sect.append(H3('Personnel'), h('div', { class: 'row', style: 'justify-content:flex-start' }, btn('AUTO-ASSIGN FREE STAFF', () => say(A.autoAssign(wh)), 'small primary')));

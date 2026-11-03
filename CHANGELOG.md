@@ -2,6 +2,16 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.91.7] — 2026-11-03 — Factory Update, Part Two: Where Materials Are Delivered (development build)
+
+You asked whether an inserter can feed goods in and out of drone stations, and clarified that "where goods are shipped" meant where **materials are delivered**.
+
+- **Arms into and out of drones.** An inserter arm already filled a launch station and emptied a receiving station (the drone's own stations are chests with one-way rules); this is now covered by a test (`tests/drones.test.mjs`: a chest, an arm, a launch station, a drone, a receiving station, an arm and a chest move twenty items end to end). Arms cannot push items *into* a receiving station or pull *from* a launch station, because only the drone moves goods between them.
+- **Choose where a delivery goes.** On the terminal's **Parts** and **Equipment** tabs, with more than one works, a **DELIVER TO** list picks the loading dock the order arrives at (any of your works, from any terminal); the order's message and the INBOUND line name that works.
+- **The manager's deliveries.** **MANAGER'S DELIVERIES** is either *each works' own dock* (as before) or *All to* one works. With one chosen the manager pools every works' needs and buys for them together, delivered to that works' dock (a central depot); drone stations can carry the goods on from there. (`Arms.deliverTo()`, `setDeliverTo()`, `Management.planArms()`.)
+- The 0.91.6 release's "ship from" choice for export orders is unchanged.
+- Tests: two new in `tests/drones.test.mjs` (11 in all). No existing test was edited.
+
 ## [0.91.6] — 2026-11-03 — The Factory Update: Choose Where Goods Ship From, and Drone Freight (development build)
 
 You asked for two things in the arms works: a way to choose where goods are shipped from when you own more than one works, for you and for the manager; and drones that carry items like belts but much faster, each with its own launch and receiving station and a unique ID.
