@@ -46,10 +46,10 @@ m.rect(14, 1, 74, 2, '='); // Ridge Road: the tops of all four streets
 m.rect(38, 0, 2, 1, '='); // v0.29.0: the North Gate — FM 38 up to Lariat
 m.rect(0, 0, 1, 60, 'r').rect(0, 62, 1, 12, 'r'); // the sea wall (Mill Road's gate at rows 60–61)
 m.rect(111, 0, 1, 36, 'r').rect(111, 38, 1, 36, 'r'); // the eastern cliffs (the East Gate at rows 36–37)
-m.rect(111, 12, 1, 2, '=').rect(108, 12, 3, 2, '='); // v0.93.1: the Crown Gate, off Crown Street's turning circle — through the cliffs to the Crown Quarter
 m.rect(1, 12, 1, 2, ',').rect(1, 36, 1, 2, ','); // Crown St and Grand Ave end at the car park
 m.rect(5, 14, 4, 1, 'g').rect(5, 35, 4, 1, 'g'); // the Harbourline car park's two entrances
 m.rect(104, 10, 7, 6, 'm'); // Crown Street's turning circle
+m.rect(104, 12, 8, 2, '=').rect(104, 11, 7, 1, ',').rect(104, 14, 7, 1, ','); // v0.93.2: Grand Avenue runs on across the circle to the Crown Gate (a real road, pavements either side, through the cliffs to the Crown Quarter)
 m.rect(104, 58, 7, 6, 'm'); // Mill Road's turning circle, at the park gates
 m.rect(38, 71, 73, 2, '='); // Quay Road, along the docks
 m.rect(104, 69, 7, 4, 'm'); // the quay's turning circle
@@ -226,7 +226,7 @@ P('boat', 74, 75, { w: 3, h: 2 }); P('boat', 100, 75, { w: 3, h: 2 });
 for (const [id, wh, x] of [['hv_wh7_sale', 'wh7', 48], ['hv_wh9_sale', 'wh9', 58], ['hv_wh12_sale', 'wh12', 108]]) props.push({ id, type: 'sign', x, y: 69, interact: { kind: 'factory', action: 'buy', warehouse: wh, name: 'FOR SALE sign' }, examine: 'FOR SALE.' });
 P('sign', 64, 70, { examine: '"PORT OF HALVERMOUTH. Authorised personnel only beyond this point. Unauthorised personnel: please be discreet."' });
 // v0.20.0: the turning circles' monuments, and signs that say where roads go
-P('statue', 106, 12, { label: 'A. HALVER', examine: 'A bronze of the city\'s founder, pointing sternly at the cliffs. Crown Street ends here; the ridge stairs climb to nowhere you can go.' });
+P('statue', 106, 15, { label: 'A. HALVER', examine: 'A bronze of the city\'s founder, pointing sternly at the cliffs. Grand Avenue runs on here, east through the Crown Gate to the capital; the ridge stairs climb to nowhere you can go.' });
 P('fountain', 106, 60, { examine: 'The Mill Road fountain, at the gates of Founders Park. Turn round here.' });
 P('statue', 106, 70, { label: 'FISHERMAN', examine: 'A fisherman in bronze, staring out to sea. The Quay Road turns round at his feet.' });
 P('sign', 2, 11, { examine: '"HARBOURLINE CAR PARK — entrance on the left. Crown Street ends at the sea wall."' });

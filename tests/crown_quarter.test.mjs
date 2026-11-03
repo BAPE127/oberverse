@@ -126,3 +126,31 @@ test('the Politics terminal and records hall open the tablet at the Politics app
   assert.equal(rec.interact.tab, 'Politics');
   assert.ok(g.tablet);
 });
+
+test('map logic: nothing stands in a road, a building or a wall (barriers across a road excepted); every door step is clear; roads end in a gate or a paved circle, never a wall', () => {
+  const T = (x, y) => Q.tiles[y]?.[x];
+  const across = new Set(['boom_barrier']);
+  for (const p of Q.props) {
+    const w = p.w || 1; const h = p.h || 1;
+    assert.ok(p.x >= 0 && p.y >= 0 && p.x + w <= Q.tiles[0].length && p.y + h <= Q.tiles.length, `${p.id} is on the map`);
+    for (let y = p.y; y < p.y + h; y++) for (let x = p.x; x < p.x + w; x++) {
+      const t = T(x, y);
+      if (!across.has(p.type)) assert.notEqual(t, '=', `${p.id} (${p.type}) stands in a road at ${x},${y}`);
+      assert.ok(!['B', 'r', 'R', 'W'].includes(t), `${p.id} (${p.type}) is inside a building or a wall at ${x},${y}`);
+    }
+  }
+  const blocked = (x, y) => Q.props.some((p) => !across.has(p.type) && p.type !== 'streetlamp' && x >= p.x && x < p.x + (p.w || 1) && y >= p.y && y < p.y + (p.h || 1));
+  for (const b of Q.buildings) assert.ok(!blocked(b.door.x, b.door.y + 1) && T(b.door.x, b.door.y + 1) !== '=', `${b.id}: the step below its door is clear and off the road`);
+  const Wd = Q.tiles[0].length;
+  for (let y = 1; y < Q.tiles.length - 1; y++) {
+    if (!(y >= 107 && y <= 110)) assert.notEqual(T(1, y), '=', `a road runs into the west wall at row ${y}`);
+    assert.notEqual(T(Wd - 2, y), '=', `a road runs into the east wall at row ${y}`);
+  }
+  // the connection from Halvermouth: Grand Avenue runs on as a road, pavements either side, right to the gate
+  const H = CONTENT.maps.halvermouth;
+  const gate = H.doors.filter((d) => d.to.map === 'crown_quarter');
+  const ys = gate.map((d) => d.y); const gx = gate[0].x;
+  for (const y of ys) for (let x = gx - 14; x <= gx; x++) assert.equal(H.tiles[y][x], '=', `the road to the Crown Gate is a road at ${x},${y}`);
+  for (const y of [Math.min(...ys) - 1, Math.max(...ys) + 1]) for (let x = gx - 14; x < gx; x++) assert.equal(H.tiles[y][x], ',', `with a pavement at ${x},${y}`);
+  for (const p of H.props) for (let y = p.y; y < p.y + (p.h || 1); y++) for (let x = p.x; x < p.x + (p.w || 1); x++) if (ys.includes(y) && x >= gx - 14 && x <= gx) assert.ok(['crosswalk', 'boom_barrier'].includes(p.type), `${p.id} (${p.type}) stands in the road to the Crown Gate`);
+});
