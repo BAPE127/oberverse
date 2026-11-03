@@ -10,14 +10,12 @@ An earlier set of pictures was drawn in my own style and did not look like the g
 
 | Picture (all in `mockups/`) | What it shows |
 | --- | --- |
-| `proposal-postwar-game-neumina-street.png` | Neumina at night outside the Neon Lotus Club: concrete (not brick) pavement, neon pools, a sky bridge crossing the avenue, flying cars over the road, hover traffic, residents with neon hair |
-| `proposal-postwar-game-neumina-plaza.png` | Convergence Plaza: fountain, statue, ad wall, crowds |
-| `proposal-postwar-game-neumina-underground.png` | level -1: the service tunnel, black-market stalls, pump and grid rooms (a separate interior map, as the plan says) |
-| `proposal-postwar-game-neumina-map.png` | the whole Neumina map (150 x 96 tiles), with the neon sign pools |
 | `proposal-postwar-game-noir-street.png` | Saint Halloran in the rain outside the Gilded Ace Casino |
 | `proposal-postwar-game-noir-docks.png` | the docks at night: Pier 3 warehouse, cranes, fire barrel, piers, harbour |
 | `proposal-postwar-game-noir-map.png` | the whole Saint Halloran map: harbour with piers, a river with bridges, Founders Square, the three mobs' districts |
 | `proposal-postwar-atlas-and-instances.png` | the four Atlas zoom levels and the mission lifecycle (a diagram, not a game view) |
+
+**Neumina pictures (the current set): `proposal-postwar-pixel-neumina-*.png`.** These are the six pictures you chose, redone in the game's pixel look (limited palette, ordered dithering instead of smooth glow, dark pixel outlines, chunky pixels; the HUD and labels stay crisp, as the game's own HUD does): `-street` (the Neon Lotus Club), `-skybridge` (level +1), `-hacking` (the neural-link menu), `-map` (the whole city, all levels together), `-levels` (the four levels as separate layers) and `-section` (the side cross-section). Sources: `mockups/postwar-src/pixel-photos/` (`pixel.py` is the filter; run `neumina2.py`, then `neumina_levels.py`, then `scenes.py`). The earlier engine-rendered Neumina pictures were dropped at your request.
 
 **How the two cities are made different from Halvermouth and from each other:** Halvermouth is a square grid. **Neumina** is a hub-and-spoke city: six avenues radiate from a central plaza, a wobbling ring road circles it, lanes branch off, a canal cuts across the south-west with bridges, the ground is grey concrete (not brick), buildings are purple and steel with neon sign colours, many towers (the game's own tower and helipad types) and small dense blocks. **Saint Halloran** is a curved harbour town: a wavy coastline with piers, a river with bridges, a diagonal boulevard running into a roundabout square, winding Old Town lanes, brick paving, red-brown and gold buildings with awnings, and rain. The roads are curves stamped onto the game's tile grid, so they step diagonally the way a pixel-art game does; the buildings are placed wherever a door can reach a street. **A limit I want to be honest about:** buildings are still axis-aligned rectangles and every door faces south (the game's building rule), so the blocks are not as free-form as the roads. Truly rotated buildings or real elevated streets would need engine work (a decision for you).
 

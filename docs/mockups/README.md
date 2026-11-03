@@ -91,4 +91,4 @@ The `hoi-*.html` pages read atlas base layers that are not committed (they are g
 
 
 
-Post-War cities, drawn by the game's own engine: `proposal-postwar-game-{neumina-street,neumina-plaza,neumina-underground,neumina-map,noir-street,noir-docks,noir-map}.png` (sources `postwar-src/*.js`, run `postwar-src/screens.mjs`).
+Post-War Neumina (pixelated pictures): `proposal-postwar-pixel-neumina-{street,skybridge,hacking,map,levels,section}.png`, sources in `postwar-src/pixel-photos/`. Saint Halloran (drawn by the game's own engine): `proposal-postwar-game-noir-{street,docks,map}.png`.
