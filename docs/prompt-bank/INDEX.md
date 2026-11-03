@@ -35,6 +35,7 @@ Then run `npm run check` before changing anything.
 | 18 | [Extend the Shipping Business](18-shipping-extension.md) | Ships, ports, contracts, or the later shipping stages (own-fleet exports, piracy, warships, missions, the shipyard). |
 | 20 | [Extend the Corporate Empire](20-corporate-empire.md) | Companies and their accounts, groups, managers, markets, the central bank, bonds, loans, wars — anything that moves a business's money or compares companies. |
 | 19 | [Extend the Living World](19-world-simulation.md) | Residents, homes, jobs, police beats and incidents, bus lines, errands and meet-ups, signature cars — or NPC driving. |
+| 21 | [The Post-War Expansion](21-post-war-expansion.md) | The owner's full brief for the Atlas, a living Sund, quests and events, the intelligence agency, mission instances, Neumina and the noir mob city. Plan only until the owner says "go"; start from `docs/POST_WAR_EXPANSION_PLAN.md`. |
 
 ## Universal rules (apply to every prompt)
 

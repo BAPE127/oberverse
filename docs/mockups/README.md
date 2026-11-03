@@ -85,3 +85,6 @@ Sources: `src/war/` (served by `node server.js`, then open `http://127.0.0.1:808
 ### Regenerating the command-map pictures
 The `hoi-*.html` pages read atlas base layers that are not committed (they are generated). From `docs/mockups/atlas-src/` run
 `node render.mjs hf4 42.2 54.6 28.3 50.5 130 provinces` (command and army screens) and `node render.mjs hf5 47.3 50.9 35.2 42.2 300 provinces` (zoomed orders screen), then serve the repo with `PORT=8099 node server.js` and screenshot with `node docs/mockups/src/war/shot.mjs <page> <out.png> <width> <height>`.
+
+### Post-War Expansion (plan only)
+`proposal-postwar-neumina-map.png`, `proposal-postwar-noir-map.png`, `proposal-postwar-atlas-and-instances.png`: simple layouts for `docs/POST_WAR_EXPANSION_PLAN.md`. Source `postwar-src/maps.py` (`python3 -I maps.py`, needs Pillow; writes into `docs/mockups/`).

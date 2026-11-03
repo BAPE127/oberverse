@@ -115,6 +115,10 @@ Sund redrawn to the home island (shape approved); government district is a new *
 6. Which other countries get their own architecture first?
 7. Small atlas names and extra states (one data file, `atlas.mjs`); an island for the Marrow Strait port.
 
+## 6b. The Post-War Expansion (planned, not placed)
+
+`POST_WAR_EXPANSION_PLAN.md` (twelve stages PW-1 to PW-12, mock-ups `proposal-postwar-*.png`, prompt `prompt-bank/21-post-war-expansion.md`). **Its release numbers are not in the list above** until you answer its Question 1 (interleave after the Atlas, or after the War). Its Atlas part builds on v0.92.0 as a v0.92.1 city layer.
+
 ## 7. Still to do before the war art is final
 
 - Redraw the UAV and fire-mission pictures on the current (game-style) look.
