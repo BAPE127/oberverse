@@ -17251,7 +17251,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.93.1';
+const GAME_VERSION = '0.94.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -26805,6 +26805,311 @@ function stanceDistance(a, b, issues) {
 return { PARTY_IDS, OTHER_PARTY, freshPolitics, stanceDistance };
 })();
 
+// ---- src/content/policies.js
+__m["src/content/policies.js"] = (function () {
+// The government's policy catalogue and budget (v0.94.0). Pure data. A policy is a move on one of the political issues (src/content/politics.js):
+// it costs (or saves) money every month in the state's budget, the parties lean for or against it by their stance on its issue, and it names the
+// variable it will move once the Economy release wires it in. In 0.94.0 a policy changes only the government's books and the public's opinion: it
+// does not yet change any price, cost, the police or any war you play with. Neither direction is good: each has a cost and a risk.
+//
+// Costs are in thousands of obols a month of the STATE's money (never yours): positive spends, negative saves.
+const P = (id, name, issue, dir, cost, opposes, blurb, moves, blocs) => ({ id, name, issue, dir, cost, opposes, blurb, moves, blocs });
+
+const POLICIES = {
+  police_up: P('police_up', 'Raise police funding', 'police_funding', 1, 120, 'police_down', 'More officers, better training and equipment.', 'police staffing and response time', { public_servants: 1, workers: 0, civil_liberties: -1, business: 0 }),
+  police_down: P('police_down', 'Cut police funding', 'police_funding', -1, -80, 'police_up', 'Fewer officers; the savings go to the treasury.', 'police staffing and response time', { public_servants: -1, civil_liberties: 1, business: 0 }),
+  enforce_strict: P('enforce_strict', 'Stricter enforcement', 'enforcement', 1, 60, 'enforce_light', 'Tougher penalties and every offence chased.', 'which offences the police chase, and the penalties', { urban: 1, civil_liberties: -2, workers: -1 }),
+  enforce_light: P('enforce_light', 'Lighter enforcement', 'enforcement', -1, -30, 'enforce_strict', 'Minor offences overlooked; resources kept for serious ones.', 'which offences the police chase, and the penalties', { urban: -1, civil_liberties: 2, workers: 1 }),
+  surveil_up: P('surveil_up', 'Expand surveillance powers', 'surveillance', 1, 90, 'surveil_down', 'More cameras, more records, more warrants.', 'how much the state can watch (and the risk of exposure)', { urban: 1, civil_liberties: -2, business: 0 }),
+  surveil_down: P('surveil_down', 'Limit surveillance powers', 'surveillance', -1, -20, 'surveil_up', 'Fewer cameras and a judge for every warrant.', 'how much the state can watch (and the risk of exposure)', { civil_liberties: 2, urban: -1 }),
+  defence_up: P('defence_up', 'Raise defence spending', 'defence_budget', 1, 220, 'defence_down', 'Procurement, readiness and a busy arms industry.', 'defence procurement and arms-company demand', { defence: 2, public_servants: 1, workers: 0, business: 1 }),
+  defence_down: P('defence_down', 'Cut defence spending', 'defence_budget', -1, -140, 'defence_up', 'A smaller forces budget and a smaller order book.', 'defence procurement and arms-company demand', { defence: -2, business: -1 }),
+  abroad_up: P('abroad_up', 'More military commitments abroad', 'intervention', 1, 160, 'abroad_down', 'A sharper foreign policy: ships, advisers, guarantees.', 'the risk and intensity of conflicts abroad', { defence: 1, ports: 1, civil_liberties: -1 }),
+  abroad_down: P('abroad_down', 'Fewer commitments abroad', 'intervention', -1, -60, 'abroad_up', 'Bring the ships home; send diplomats instead.', 'the risk and intensity of conflicts abroad', { defence: -1, ports: -1, civil_liberties: 1 }),
+  reg_up: P('reg_up', 'More inspections and licences', 'regulation', 1, 40, 'reg_down', 'More compliance in selected industries.', 'compliance costs and risks for businesses', { business: -2, public_servants: 1, urban: 1 }),
+  reg_down: P('reg_down', 'Cut business regulation', 'regulation', -1, -20, 'reg_up', 'Fewer forms, fewer inspectors, more risk.', 'compliance costs and risks for businesses', { business: 2, public_servants: -1 }),
+  farm_up: P('farm_up', 'Stricter farm inspection', 'farm_inspection', 1, 30, 'farm_down', 'More inspections and licensing of farms.', 'farm running costs and compliance days', { farmers: -2, urban: 1, public_servants: 1 }),
+  farm_down: P('farm_down', 'Lighter farm inspection', 'farm_inspection', -1, -10, 'farm_up', 'Fewer inspections; trust the farmers.', 'farm running costs and compliance days', { farmers: 2, urban: -1 }),
+  spend_up: P('spend_up', 'Expand public spending', 'public_spending', 1, 250, 'spend_down', 'More schools, clinics and roads.', 'services, jobs and the deficit', { public_servants: 2, workers: 1, business: -1, urban: 1 }),
+  spend_down: P('spend_down', 'Cut public spending', 'public_spending', -1, -200, 'spend_up', 'A leaner state, a smaller deficit.', 'services, jobs and the deficit', { public_servants: -2, workers: -1, business: 1 }),
+};
+
+const GOVERNMENT = {
+  /** The seven states of a policy, in order (the Assembly vote sits between review and approved). */
+  states: ['proposed', 'review', 'approved', 'implementing', 'active', 'suspended', 'ended'],
+  /** Days a policy waits in each state before it moves on (the Assembly votes when review ends). */
+  days: { proposed: 3, review: 5, approved: 2, implementing: 6 },
+  /** The cabinet meets every `cabinet` days (Thornday) and the budget every `budget` days (the monthly window); at most `proposals` new policies a cabinet. */
+  cabinetEvery: 7, budgetEvery: 30, proposals: 1, maxActive: 7,
+  /** Party discipline: the share of its seats the governing party can always count on, on top of how its members lean. */
+  discipline: 0.15,
+  /** The state's money: thousands of obols a month. Revenue is modelled from the country; it is never taken from the player's wallet. */
+  budget: {
+    revenue: 3000,
+    standing: { administration: 700, services: 900, infrastructure: 600 },
+    warPenalty: 0.04, embargoPenalty: 0.03,
+    /** A government may run a deficit up to this much of a month's revenue before the administration must cut or raise revenue. */
+    deficitLimit: 0.25,
+    /** The state's debt stock at the start (thousands) and the premium its interest pays over the policy rate. */
+    startingDebt: 9000, premium: 0.01,
+  },
+  /** How a government rates a candidate policy at a cabinet window (all bounded; see src/politics/policy.js). */
+  weights: { fit: 1.0, affordability: 0.6, election: 0.4, approval: 0.5 },
+  starting: 3,
+};
+
+return { POLICIES, GOVERNMENT };
+})();
+
+// ---- src/politics/assembly.js
+__m["src/politics/assembly.js"] = (function () {
+// The Assembly's vote (v0.94.0): a tally of seats, not a simulated chamber. Pure; no randomness.
+//
+// Each party's seats vote yes in proportion to how far the policy's direction fits the party's stance on its issue (a party strongly for the
+// issue's direction votes nearly all yes; strongly against, nearly all no); the governing party's discipline adds to its own; the independents
+// follow the average of the two. A bill passes on more than half of all seats.
+const { PARTY_IDS } = __m["src/politics/model.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** The share (0..1) of a party's seats voting yes. */
+function yesShare(stance, dir, governing, discipline) {
+  const fit = (stance || 0) * dir; // -2 … +2
+  return clamp(0.5 + 0.22 * fit + (governing ? discipline : 0), 0.04, 0.97);
+}
+
+/** The vote on `policy` ({ issue, dir }): { yes, no, seats, passed, byParty }. */
+function vote(policy, { seats, platforms, governing, discipline }) {
+  const by = {};
+  let yes = 0;
+  for (const id of PARTY_IDS) {
+    const s = seats[id];
+    const y = Math.round(s * yesShare(platforms[id][policy.issue], policy.dir, id === governing, discipline));
+    by[id] = { seats: s, yes: y, no: s - y }; yes += y;
+  }
+  const avg = PARTY_IDS.reduce((a, id) => a + (platforms[id][policy.issue] || 0), 0) / PARTY_IDS.length;
+  const oy = Math.round(seats.other * yesShare(avg, policy.dir, false, 0));
+  by.other = { seats: seats.other, yes: oy, no: seats.other - oy }; yes += oy;
+  const total = PARTY_IDS.reduce((a, id) => a + seats[id], 0) + seats.other;
+  return { yes, no: total - yes, seats: total, passed: yes * 2 > total, byParty: by };
+}
+
+return { yesShare, vote };
+})();
+
+// ---- src/politics/budget.js
+__m["src/politics/budget.js"] = (function () {
+// The state's budget (v0.94.0): one month's revenue and spending, from the active policies. Pure.
+//
+//   monthly(B, { policies, wars, embargoes, debt, rate })  → { revenue, spending: { …lines, policies, interest }, deficit, headroom }
+// Revenue is a model of the country (a fixed base reduced by wars and embargoes); it is never taken from the player. A positive policy cost spends,
+// a negative one saves. Interest is the policy rate plus a premium on the debt stock, a twelfth a month.
+function monthly(B, { policies, wars = 0, embargoes = 0, debt = 0, rate = 0.03 }) {
+  const revenue = Math.round(B.revenue * Math.max(0.6, 1 - B.warPenalty * wars - B.embargoPenalty * embargoes));
+  const standing = Object.values(B.standing).reduce((a, b) => a + b, 0);
+  const policy = policies.reduce((a, p) => a + p.cost, 0);
+  const interest = Math.round((debt * (rate + B.premium)) / 12);
+  const total = standing + policy + interest;
+  const deficit = total - revenue;
+  return { revenue, spending: { ...B.standing, policies: policy, interest, total }, deficit, headroom: Math.round(B.revenue * B.deficitLimit) - deficit };
+}
+
+return { monthly };
+})();
+
+// ---- src/politics/policy.js
+__m["src/politics/policy.js"] = (function () {
+// Policies and the administration (v0.94.0): how the government picks what to propose, and how a policy moves through its seven states. Pure.
+//
+//   fitOf(party platform, policy)            how well a policy suits a party's platform (-2 … +2)
+//   score(policy, ctx)                       the administration's score for proposing it at a cabinet window: platform fit, affordability, election timing
+//   chooseProposals(ctx, n)                  the best `n` candidates not already in progress, ties broken by id (no randomness)
+//   advance(p, day, G)                       the next state of a policy in progress, if its wait is over: 'review' | 'vote' | 'implementing' | 'active'
+const { POLICIES } = __m["src/content/policies.js"];
+
+const fitOf = (platform, policy) => (platform[policy.issue] || 0) * policy.dir;
+
+/** ctx: { platform, headroom (the budget's, in thousands), campaign (bool: the election is near), approval (0..1, default .5), weights } */
+function score(policy, ctx) {
+  const w = ctx.weights;
+  const fit = fitOf(ctx.platform, policy);
+  const afford = policy.cost <= 0 ? 0.4 : ctx.headroom >= policy.cost ? 0.2 : -Math.min(2, (policy.cost - ctx.headroom) / 150);
+  const election = ctx.campaign ? (policy.cost > 0 ? -0.5 : 0.3) : 0; // before a vote a government avoids new spending and likes savings
+  const approval = (ctx.approval - 0.5) * 2 * (fit > 0 ? 0.5 : -0.5);
+  return fit * w.fit + afford * w.affordability + election * w.election + approval * w.approval;
+}
+
+const INPROGRESS = new Set(['proposed', 'review', 'approved', 'implementing', 'active', 'suspended']);
+const inProgress = (p) => INPROGRESS.has(p.state);
+
+/** The best candidates. `held` is the list of policies in progress (including the active ones). A candidate whose opposite is active is a repeal: allowed only if it scores clearly better than keeping the old one. */
+function chooseProposals(ctx, held, n = 1) {
+  const heldIds = new Set(held.filter(inProgress).map((p) => p.key));
+  const rows = [];
+  for (const policy of Object.values(POLICIES)) {
+    if (heldIds.has(policy.id)) continue;
+    const s = score(policy, ctx);
+    const opp = held.find((p) => p.key === policy.opposes && inProgress(p));
+    if (opp && s < score(POLICIES[opp.key], ctx) + 1) continue; // not worth reversing yet
+    if (s <= 0.3) continue; // a government proposes only what it believes in
+    rows.push({ policy, score: s, repeals: opp?.key || null });
+  }
+  rows.sort((a, b) => b.score - a.score || (a.policy.id < b.policy.id ? -1 : 1));
+  return rows.slice(0, n);
+}
+
+/** What a policy in progress does today. */
+function advance(p, day, G) {
+  const waited = day - p.since;
+  if (p.state === 'proposed' && waited >= G.days.proposed) return 'review';
+  if (p.state === 'review' && waited >= G.days.review) return 'vote';
+  if (p.state === 'approved' && waited >= G.days.approved) return 'implementing';
+  if (p.state === 'implementing' && waited >= G.days.implementing) return 'active';
+  return null;
+}
+
+return { fitOf, score, inProgress, chooseProposals, advance };
+})();
+
+// ---- src/content/opinion.js
+__m["src/content/opinion.js"] = (function () {
+// Public opinion (v0.94.0): nine blocs of voters across the nine states of Sund (from the Atlas), never individual voters. Pure data.
+//
+// A bloc leans on each issue (-2 … +2: how strongly it wants the issue pushed in the + direction) and has a regional share of every state's people;
+// a state has a weight (its share of Sund's people) and a small tilt towards one party (a local loyalty, from its character). Opinion is worked out
+// from these, from the government's policies and from measured drivers (the deficit, wars, embargoes): see src/politics/opinion.js.
+// Polls ask a sample of it, with a stated margin, a house effect and a reporting delay.
+
+const BLOCS = {
+  workers: { name: 'Workers and tradespeople', lean: { police_funding: 0, enforcement: -1, surveillance: -1, defence_budget: -1, intervention: -1, regulation: 1, farm_inspection: 0, public_spending: 2 } },
+  farmers: { name: 'Farmers and rural voters', lean: { police_funding: 0, enforcement: 0, surveillance: -1, defence_budget: 0, intervention: -1, regulation: -2, farm_inspection: -2, public_spending: 0 } },
+  business: { name: 'Business owners', lean: { police_funding: 1, enforcement: 1, surveillance: 0, defence_budget: 1, intervention: 0, regulation: -2, farm_inspection: -1, public_spending: -2 } },
+  ports: { name: 'Port and shipping workers', lean: { police_funding: 0, enforcement: 0, surveillance: -1, defence_budget: 1, intervention: 1, regulation: 0, farm_inspection: 0, public_spending: 1 } },
+  defence: { name: 'Defence and arms workers', lean: { police_funding: 1, enforcement: 1, surveillance: 1, defence_budget: 2, intervention: 2, regulation: -1, farm_inspection: 0, public_spending: 0 } },
+  public_servants: { name: 'Public servants', lean: { police_funding: 1, enforcement: 0, surveillance: 0, defence_budget: 0, intervention: 0, regulation: 1, farm_inspection: 1, public_spending: 2 } },
+  urban: { name: 'Urban middle class', lean: { police_funding: 1, enforcement: 1, surveillance: 1, defence_budget: 0, intervention: 0, regulation: 1, farm_inspection: 1, public_spending: 0 } },
+  civil_liberties: { name: 'Civil-liberties voters', lean: { police_funding: -1, enforcement: -2, surveillance: -2, defence_budget: -1, intervention: -2, regulation: 0, farm_inspection: 0, public_spending: 1 } },
+  coastal: { name: 'Coastal and fishing communities', lean: { police_funding: 0, enforcement: 0, surveillance: -1, defence_budget: 1, intervention: 0, regulation: -1, farm_inspection: 0, public_spending: 0 } },
+};
+
+/** Sund's nine states (the Atlas ids): weight (share of the people), the blocs' shares there (sum 1), and a tilt (+ Order, − Liberty) in points of support. */
+const R = (weight, tilt, shares) => ({ weight, tilt, shares });
+const REGIONS = {
+  sd_crown: R(0.30, 0.00, { workers: 0.22, farmers: 0.01, business: 0.14, ports: 0.14, defence: 0.05, public_servants: 0.16, urban: 0.22, civil_liberties: 0.05, coastal: 0.01 }),
+  sd_lariat: R(0.14, 0.03, { workers: 0.16, farmers: 0.36, business: 0.06, ports: 0.01, defence: 0.04, public_servants: 0.07, urban: 0.14, civil_liberties: 0.06, coastal: 0.10 }),
+  sd_gullwing: R(0.07, -0.02, { workers: 0.14, farmers: 0.06, business: 0.06, ports: 0.18, defence: 0.02, public_servants: 0.05, urban: 0.08, civil_liberties: 0.07, coastal: 0.34 }),
+  sd_hald: R(0.09, 0.04, { workers: 0.22, farmers: 0.12, business: 0.05, ports: 0.04, defence: 0.20, public_servants: 0.08, urban: 0.14, civil_liberties: 0.03, coastal: 0.12 }),
+  sd_gull_isles: R(0.02, -0.03, { workers: 0.08, farmers: 0.04, business: 0.03, ports: 0.10, defence: 0.01, public_servants: 0.04, urban: 0.04, civil_liberties: 0.08, coastal: 0.58 }),
+  sd_sundholm: R(0.13, 0.05, { workers: 0.16, farmers: 0.05, business: 0.09, ports: 0.16, defence: 0.14, public_servants: 0.11, urban: 0.15, civil_liberties: 0.04, coastal: 0.10 }),
+  sd_fjords: R(0.12, -0.02, { workers: 0.18, farmers: 0.10, business: 0.05, ports: 0.08, defence: 0.03, public_servants: 0.08, urban: 0.07, civil_liberties: 0.10, coastal: 0.31 }),
+  sd_skarn: R(0.08, 0.02, { workers: 0.40, farmers: 0.06, business: 0.07, ports: 0.01, defence: 0.12, public_servants: 0.05, urban: 0.06, civil_liberties: 0.08, coastal: 0.15 }),
+  sd_kings: R(0.05, 0.06, { workers: 0.12, farmers: 0.05, business: 0.05, ports: 0.12, defence: 0.14, public_servants: 0.08, urban: 0.06, civil_liberties: 0.04, coastal: 0.34 }),
+};
+
+const POLLSTERS = {
+  courier: { name: 'The Halver Courier Poll', house: { order: 0.012, liberty: -0.008 }, sample: [900, 1300], every: 14, offset: 3, delay: 2 },
+  research: { name: 'Sund Research Group', house: { order: -0.006, liberty: 0.01 }, sample: [1000, 1500], every: 14, offset: 10, delay: 3 },
+  panel: { name: 'The Fishermen\'s Panel', house: { order: 0.004, liberty: 0.004 }, sample: [500, 800], every: 21, offset: 6, delay: 1 },
+};
+
+const OPINION = {
+  /** How strongly each thing moves approval and support; every figure bounded. */
+  weights: { affinityGov: 0.18, affinityOpp: 0.08, policy: 0.06, policyCap: 0.3, deficit: 0.5, war: 0.03, embargo: 0.015, tilt: 1, softmax: 2.2, mood: 2.5, other: 0.35, undecided: 0.5 },
+  logKept: 60, seriesKept: 120,
+};
+
+return { BLOCS, REGIONS, POLLSTERS, OPINION };
+})();
+
+// ---- src/politics/opinion.js
+__m["src/politics/opinion.js"] = (function () {
+// Public opinion (v0.94.0): blocs × the nine states of Sund; polls with margins. Pure; no randomness (a poll's noise comes from hashing its id).
+//
+//   affinity(bloc, platform)                        how well a platform suits a bloc (-1 … +1)
+//   compute(ctx)                                    the truth: { approval, support, indices, regions, drivers }  — never shown to the player directly
+//   poll(truth, { pollster, sample, salt, id })     a poll of it: results with sampling error, a house effect and a stated margin
+const { BLOCS, REGIONS, OPINION: O } = __m["src/content/opinion.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+/** An approximately normal deviate with sd 1, from a hash (sum of four uniforms). */
+const normal = (key) => ((unit(`${key}|a`) + unit(`${key}|b`) + unit(`${key}|c`) + unit(`${key}|d`)) - 2) * 1.732;
+
+function affinity(bloc, platform) {
+  const lean = BLOCS[bloc].lean;
+  let num = 0; let den = 0;
+  for (const [issue, l] of Object.entries(lean)) { num += l * (platform[issue] || 0); den += Math.abs(l) * 2; }
+  return den ? num / den : 0;
+}
+
+/**
+ * ctx: { gov, platforms: { order, liberty }, policies: [policy defs in force], deficitRatio (deficit ÷ revenue), wars, embargoes }
+ * Returns approval and party support overall and by state, and the twelve indices.
+ */
+function compute(ctx) {
+  const W = O.weights;
+  const opp = ctx.gov === 'order' ? 'liberty' : 'order';
+  const sat = {};
+  for (const b of Object.keys(BLOCS)) sat[b] = clamp(ctx.policies.reduce((a, p) => a + (p.blocs[b] || 0), 0) * W.policy, -W.policyCap, W.policyCap);
+  const macro = -clamp(ctx.deficitRatio, -0.5, 1) * W.deficit * 0.5 - ctx.wars * W.war - ctx.embargoes * W.embargo;
+  const regions = {};
+  const tot = { approval: 0, order: 0, liberty: 0, other: 0, undecided: 0, w: 0 };
+  for (const [rid, R] of Object.entries(REGIONS)) {
+    const acc = { approval: 0, order: 0, liberty: 0, other: 0, undecided: 0 };
+    for (const [b, share] of Object.entries(R.shares)) {
+      const aG = affinity(b, ctx.platforms[ctx.gov]); const aO = affinity(b, ctx.platforms[opp]);
+      const approval = clamp(0.5 + W.affinityGov * aG - W.affinityOpp * aO + sat[b] + macro + (ctx.gov === 'order' ? R.tilt : -R.tilt) * W.tilt, 0.05, 0.95);
+      const raw = { order: 0, liberty: 0, other: W.other, undecided: W.undecided };
+      for (const p of ['order', 'liberty']) raw[p] = Math.exp(W.softmax * affinity(b, ctx.platforms[p]) + (p === ctx.gov ? (approval - 0.5) * W.mood : 0) + (p === 'order' ? R.tilt : -R.tilt) * 4);
+      const sum = raw.order + raw.liberty + raw.other + raw.undecided;
+      acc.approval += share * approval;
+      for (const k of ['order', 'liberty', 'other', 'undecided']) acc[k] += (share * raw[k]) / sum;
+    }
+    regions[rid] = acc;
+    for (const k of Object.keys(acc)) tot[k] += R.weight * acc[k];
+    tot.w += R.weight;
+  }
+  const p = (k) => tot[k] / tot.w;
+  const has = (key) => (ctx.policies.some((x) => x.id === key) ? 1 : 0);
+  const deficitRatio = clamp(ctx.deficitRatio, -0.5, 1);
+  const approval = p('approval');
+  const indices = {
+    trust: clamp(approval * 0.8 + 0.1 - 0.1 * Math.max(0, deficitRatio), 0, 1),
+    crimeConcern: clamp(0.5 - 0.08 * has('police_up') + 0.05 * has('enforce_light') + 0.03 * has('police_down') - 0.03 * has('enforce_strict'), 0, 1),
+    economicConfidence: clamp(0.55 - 0.5 * deficitRatio - 0.03 * ctx.wars - 0.02 * ctx.embargoes + 0.05 * has('spend_up'), 0, 1),
+    priceConcern: clamp(0.4 + 0.05 * ctx.wars + 0.04 * ctx.embargoes, 0, 1),
+    warSupport: clamp(0.35 + 0.1 * has('abroad_up') - 0.1 * has('abroad_down') + 0.05 * has('defence_up'), 0, 1),
+    employment: clamp(0.55 + 0.05 * has('spend_up') - 0.04 * has('spend_down') - 0.03 * has('defence_down'), 0, 1),
+    regulationSupport: clamp(0.5 + 0.06 * has('reg_up') - 0.06 * has('reg_down'), 0, 1),
+    services: clamp(0.5 + 0.08 * has('spend_up') - 0.08 * has('spend_down') + 0.04 * has('police_up'), 0, 1),
+    scandal: 0,
+  };
+  return { gov: ctx.gov, approval, disapproval: (1 - approval) * 0.85, support: { order: p('order'), liberty: p('liberty'), other: p('other'), undecided: p('undecided') }, regions, indices,
+    drivers: [{ id: 'policies', name: 'Policies in force', value: ctx.policies.length }, { id: 'deficit', name: 'The deficit (share of revenue)', value: Math.round(deficitRatio * 100) / 100 }, { id: 'wars', name: 'Wars', value: ctx.wars }, { id: 'embargoes', name: 'Embargoes', value: ctx.embargoes }] };
+}
+
+/** One poll of the truth: sampling error from the sample size, a house effect, and the margin the player is shown. `key` makes the noise (no randomness). */
+function poll(truth, { pollster, sample, key }) {
+  const se = (v) => Math.sqrt((v * (1 - v)) / sample);
+  const noisy = (v, tag, house = 0) => clamp(v + house + normal(`${key}|${tag}`) * se(clamp(v, 0.02, 0.98)), 0, 1);
+  const h = pollster.house;
+  const results = { order: noisy(truth.support.order, 'order', h.order), liberty: noisy(truth.support.liberty, 'liberty', h.liberty), other: noisy(truth.support.other, 'other'), undecided: noisy(truth.support.undecided, 'undecided') };
+  const sum = results.order + results.liberty + results.other + results.undecided;
+  for (const k of Object.keys(results)) results[k] /= sum;
+  const approval = noisy(truth.approval, 'approval', truth.gov === 'order' ? h.order : h.liberty);
+  const regional = {};
+  for (const [rid, R] of Object.entries(truth.regions)) {
+    const n = Math.max(60, Math.round(sample * REGIONS[rid].weight));
+    const f = (v, tag) => clamp(v + normal(`${key}|${rid}|${tag}`) * Math.sqrt((v * (1 - v)) / n), 0, 1);
+    regional[rid] = { order: f(R.order, 'o'), liberty: f(R.liberty, 'l'), n };
+  }
+  const indices = Object.fromEntries(Object.entries(truth.indices).map(([k, v]) => [k, k === 'scandal' ? 0 : noisy(v, k)]));
+  return { results, approval, disapproval: clamp((1 - approval) * 0.85, 0, 1), regional, indices, sample, margin: 1.96 * Math.sqrt(0.25 / sample) };
+}
+
+return { affinity, compute, poll };
+})();
+
 // ---- src/systems/politics.js
 __m["src/systems/politics.js"] = (function () {
 // The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
@@ -26818,6 +27123,12 @@ const { termOf, phaseOf, daysTo } = __m["src/politics/calendar.js"];
 const { freshPolitics, OTHER_PARTY, stanceDistance, PARTY_IDS } = __m["src/politics/model.js"];
 const { hashUnit } = __m["src/aero/config.js"];
 const { STAFF_BY_PARTY } = __m["src/content/capital.js"];
+const { POLICIES, GOVERNMENT: G } = __m["src/content/policies.js"];
+const { vote } = __m["src/politics/assembly.js"];
+const { monthly } = __m["src/politics/budget.js"];
+const { chooseProposals, advance, inProgress } = __m["src/politics/policy.js"];
+const { compute, poll: takePoll } = __m["src/politics/opinion.js"];
+const { POLLSTERS, OPINION: OP } = __m["src/content/opinion.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -26843,7 +27154,7 @@ class Politics {
   }
 
   get g() { return this.game; }
-  get day() { return this.g.clock.day; }
+  get day() { return this.dayOverride ?? this.g.clock.day; }
   cfg() { return P; }
   peek() { return this.g.world.politics || null; }
 
@@ -26855,7 +27166,155 @@ class Politics {
       w.politics = freshPolitics(P, { day: this.day, governs });
     }
     this.fillStaff(w.politics);
+    this.ensureGovernment(w.politics);
     return w.politics;
+  }
+
+  // ------------------------------------------------------------- the government (v0.94.0)
+  /** The government's records (policies, books, decisions) with their defaults; a record made by 0.93.x gains them. The governing party starts with its best-fitting policies in force. */
+  ensureGovernment(s) {
+    if (s.policies) return;
+    Object.assign(s, { policies: [], budget: { debt: G.budget.startingDebt, last: null, lastWindow: 0, squeeze: false }, decisions: [], polls: [], series: [], nextPoll: 1, pollSalt: String(this.g.rng.state), lastGovDay: Math.max(0, this.day - 1), lastCabinet: 0, nextPolicy: 1 });
+    const ctx = this.context(s);
+    for (const r of chooseProposals({ ...ctx, headroom: 9999 }, [], G.starting)) {
+      s.policies.push({ id: s.nextPolicy++, key: r.policy.id, state: 'active', since: this.day, by: s.government.partyId, votes: null, note: 'in force from the start of the game' });
+    }
+    this.log(s, `${this.party(s.government.partyId).name} begins with ${s.policies.length} policies in force.`);
+    this.takePoll(s, 'courier', this.day);
+  }
+
+  // ------------------------------------------------------------- opinion and polls (v0.94.0)
+  /** The truth of public opinion today, from the policies in force, the books and the world. Internal: the player sees only polls of it. */
+  opinionTruth(s = this.ensure()) {
+    const m = this.budgetNow(s);
+    return compute({ gov: s.government.partyId, platforms: this.platforms(s), policies: s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]), deficitRatio: m.deficit / m.revenue, wars: this.wars(), embargoes: this.embargoes() });
+  }
+
+  /** What the administration believes about its standing: the latest poll's approval (it reads polls, not the truth); 0.5 before any. */
+  approval(s) { return s.polls?.length ? s.polls[s.polls.length - 1].approval : 0.5; }
+
+  /** One poll by `pollsterId`, published today (fieldwork a few days earlier), of the truth now, with the pollster's house effect and sampling error. Keyed by its number, so a reload cannot change it. */
+  takePoll(s, pollsterId, day) {
+    const P_ = POLLSTERS[pollsterId];
+    const id = s.nextPoll++;
+    const key = `${s.pollSalt}|poll|${id}`;
+    const sample = P_.sample[0] + Math.floor(hashUnit(`${key}|n`) * (P_.sample[1] - P_.sample[0]));
+    const r = takePoll(this.opinionTruth(s), { pollster: P_, sample, key });
+    s.polls.push({ id, day, fieldwork: day - P_.delay, pollster: pollsterId, name: P_.name, ...r, gov: s.government.partyId });
+    while (s.polls.length > OP.logKept) s.polls.shift();
+  }
+
+  /** Each pollster publishes on its own rhythm; the truth is also kept as a short series for the systems that follow (never shown). */
+  pollDay(s, day) {
+    for (const [id, P_] of Object.entries(POLLSTERS)) if (day >= P_.offset && (day - P_.offset) % P_.every === 0 && !s.polls.some((p) => p.day === day && p.pollster === id)) this.takePoll(s, id, day);
+    const t = this.opinionTruth(s);
+    s.series.push({ day, approval: Math.round(t.approval * 1000) / 1000, order: Math.round(t.support.order * 1000) / 1000, liberty: Math.round(t.support.liberty * 1000) / 1000 });
+    while (s.series.length > OP.seriesKept) s.series.shift();
+  }
+
+  /** What the Polls page shows: the newest poll in full, the history, and the state-by-state picture of the newest. Dates and margins always. */
+  polls() {
+    const s = this.ensure();
+    const list = [...s.polls].reverse();
+    const latest = list[0] || null;
+    return { latest, list: list.slice(0, 8), count: s.polls.length, govName: this.party(s.government.partyId).name };
+  }
+
+  log(s, text) { s.decisions.push({ day: this.day, text }); while (s.decisions.length > 80) s.decisions.shift(); }
+  platforms(s) { return Object.fromEntries(Object.entries(s.parties).map(([id, p]) => [id, p.platform])); }
+  wars() { return this.g.world.market?.wars?.length || 0; }
+  embargoes() { return Object.values(this.g.world.market?.countries || {}).filter((c) => c.embargo).length; }
+  rate() { try { return this.g.corp.bank.rate(); } catch { return 0.03; } }
+
+  /** What the administration weighs at a window: its platform, the budget's headroom, the calendar, and (when opinion exists) the President's approval. */
+  context(s) {
+    const gov = s.government.partyId;
+    const month = this.budgetNow(s);
+    const cal = phaseOf(this.day, s.constitution);
+    return { platform: s.parties[gov].platform, headroom: month.headroom, campaign: cal !== 'term', approval: this.approval ? this.approval(s) : 0.5, weights: G.weights };
+  }
+
+  /** This month's budget from what is in force today. */
+  budgetNow(s) {
+    const active = s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]);
+    return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate() });
+  }
+
+  /** One government day: policies in progress move on (the Assembly votes when review ends); every seventh day the cabinet proposes; every thirtieth the budget window closes. Idempotent per day. */
+  governmentDay(s) {
+    const day = this.day;
+    if (s.lastGovDay >= day) return;
+    for (let d = s.lastGovDay + 1; d <= day && d <= s.lastGovDay + 150; d++) this.governmentStep(s, d);
+    s.lastGovDay = day;
+  }
+
+  governmentStep(s, day) {
+    const saved = this.dayOverride; this.dayOverride = day;
+    for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
+      const next = advance(p, day, G);
+      if (!next) continue;
+      const def = POLICIES[p.key];
+      if (next === 'review') { p.state = 'review'; p.since = day; this.log(s, `${def.name}: sent to the Assembly's committee.`); }
+      else if (next === 'vote') {
+        const v = vote(def, { seats: s.constitution.assemblySeats, platforms: this.platforms(s), governing: s.government.partyId, discipline: G.discipline });
+        p.votes = { yes: v.yes, no: v.no, seats: v.seats, day, byParty: v.byParty };
+        if (v.passed) { p.state = 'approved'; p.since = day; this.log(s, `${def.name}: the Assembly passed it, ${v.yes} to ${v.no}.`); }
+        else { p.state = 'ended'; p.since = day; p.note = 'rejected by the Assembly'; this.log(s, `${def.name}: the Assembly rejected it, ${v.no} to ${v.yes}.`); }
+      } else if (next === 'implementing') { p.state = 'implementing'; p.since = day; }
+      else if (next === 'active') this.activate(s, p, day);
+    }
+    this.pollDay(s, day);
+    if (day - s.lastCabinet >= G.cabinetEvery) { s.lastCabinet = day; this.cabinet(s, day); }
+    if (day - s.budget.lastWindow >= G.budgetEvery) { s.budget.lastWindow = day; this.budgetWindow(s, day); }
+    this.dayOverride = saved;
+  }
+
+  /** A policy comes into force: its opposite (if in force) is repealed, and the least-fitting is retired if the government would hold more than it may. */
+  activate(s, p, day) {
+    const def = POLICIES[p.key];
+    p.state = 'active'; p.since = day;
+    const opp = s.policies.find((q) => q.key === def.opposes && inProgress(q));
+    if (opp) { opp.state = 'ended'; opp.since = day; opp.note = `repealed by "${def.name}"`; }
+    this.log(s, `${def.name} comes into force${opp ? `, repealing "${POLICIES[opp.key].name}"` : ''}.`);
+    const active = s.policies.filter((q) => q.state === 'active');
+    if (active.length > G.maxActive) {
+      const plat = s.parties[s.government.partyId].platform;
+      const weakest = active.filter((q) => q !== p).sort((a, b) => (plat[POLICIES[a.key].issue] || 0) * POLICIES[a.key].dir - (plat[POLICIES[b.key].issue] || 0) * POLICIES[b.key].dir || a.id - b.id)[0];
+      if (weakest) { weakest.state = 'ended'; weakest.since = day; weakest.note = 'lapsed: the government may hold only so many programmes'; this.log(s, `${POLICIES[weakest.key].name} lapses.`); }
+    }
+  }
+
+  /** The cabinet (every seventh day, a Thornday): the administration weighs the catalogue and proposes the best it believes in. */
+  cabinet(s, day) {
+    const ctx = this.context(s);
+    const picks = chooseProposals(ctx, s.policies, G.proposals);
+    for (const r of picks) {
+      s.policies.push({ id: s.nextPolicy++, key: r.policy.id, state: 'proposed', since: day, by: s.government.partyId, votes: null, score: Math.round(r.score * 100) / 100 });
+      this.log(s, `The cabinet proposes "${r.policy.name}"${r.repeals ? ` (it would repeal "${POLICIES[r.repeals].name}")` : ''}.`);
+    }
+    if (!picks.length) this.log(s, 'The cabinet meets and proposes nothing: nothing it believes in is affordable or worth the fight.');
+  }
+
+  /** The monthly window: the books close, the deficit joins (or the surplus pays down) the debt, and a deficit above the limit puts the Treasury on notice. */
+  budgetWindow(s, day) {
+    const m = this.budgetNow(s);
+    s.budget.debt = Math.max(0, s.budget.debt + m.deficit);
+    s.budget.last = { day, revenue: m.revenue, spending: m.spending.total, deficit: m.deficit, debt: s.budget.debt };
+    s.budget.squeeze = m.headroom < 0;
+    this.log(s, m.deficit > 0 ? `The month closes ${m.deficit}k in deficit; the debt stands at ${s.budget.debt}k.${s.budget.squeeze ? ' That is over the limit: the Treasury asks for savings.' : ''}` : `The month closes ${-m.deficit}k in surplus; the debt stands at ${s.budget.debt}k.`);
+  }
+
+  /** What the Government page shows. */
+  government() {
+    const s = this.ensure();
+    const now = this.budgetNow(s);
+    const row = (p) => ({ ...p, def: POLICIES[p.key], daysLeft: p.state === 'active' || p.state === 'ended' ? null : Math.max(0, (G.days[p.state] || 0) - (this.day - p.since)) });
+    const mine = s.policies.map(row);
+    return {
+      governing: s.government.partyId, budget: { ...now, debt: s.budget.debt, last: s.budget.last, squeeze: s.budget.squeeze },
+      active: mine.filter((p) => p.state === 'active'), coming: mine.filter((p) => ['proposed', 'review', 'approved', 'implementing'].includes(p.state)),
+      ended: mine.filter((p) => p.state === 'ended').slice(-6).reverse(), decisions: s.decisions.slice(-10).reverse(), cabinetIn: Math.max(0, G.cabinetEvery - (this.day - s.lastCabinet)),
+    };
   }
 
   /** The leader in office works at Halver House; the other works the capital from party headquarters. Each game keeps its own copy of a leader's profile (the content is shared). Idempotent. */
@@ -26880,6 +27339,7 @@ class Politics {
   dailyTick() {
     const s = this.ensure();
     this.syncLeaders();
+    this.governmentDay(s);
     const t = termOf(this.day, s.constitution);
     if (t.index !== s.government.term) {
       s.government.term = t.index; s.government.termStart = t.start; s.government.termEnd = t.end;
@@ -48766,6 +49226,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.94.0',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Politics: People and Government',
+    notes: [
+      'The capital has people now: ambassadors in their embassies, both parties\' staff at their headquarters, the household of Halver House, the ministers and the guards. The embassies, the party headquarters, the café and the hotel are open to visitors in their hours. Whoever governs works in Halver House; the other leader works the capital.',
+      'The Politics page on the tablet has two new sections. Government: the policies in force and on their way (each goes to a committee, then to a vote of the Assembly, then comes into force), the state\'s monthly books and its debt, and the cabinet\'s decisions. Polls: what the pollsters found, with their dates, samples and margins of error.',
+      'Parties govern differently: each proposes the policies it believes in and can afford. For now a policy changes only the state\'s books and what the public thinks: nothing in it changes a price, a cost, the police or a war yet. You never have to take part.',
+    ],
+  },
+  {
     version: '0.93.1',
     date: '2026-11-03',
     channel: 'development',
@@ -63362,6 +63833,7 @@ const BUILDING_ICONS = {
   cq_halver_house: { icon: '🏛️', kind: 'Halver House: the Office of the President' },
   cq_assembly: { icon: '🗳️', kind: 'The Assembly' },
   cq_pavilion: { icon: '👑', kind: 'The Royal Pavilion' },
+  cq_diplomatic: { icon: '🏢', kind: 'Diplomatic residences' },
   cq_staff_a: { icon: '🏢', kind: 'Staff flats' }, cq_staff_b: { icon: '🏢', kind: 'Staff flats' }, cq_civil_service: { icon: '🏢', kind: 'Civil service residences' },
   cq_min_treasury: { icon: '💰', kind: 'Ministry of the Treasury' }, cq_min_defence: { icon: '🛡️', kind: 'Ministry of Defence & Security' }, cq_min_interior: { icon: '🚓', kind: 'Ministry of the Interior & Police' },
   cq_min_agriculture: { icon: '🌾', kind: 'Ministry of Agriculture & Trade' }, cq_min_foreign: { icon: '🌐', kind: 'Ministry of Foreign Affairs' }, cq_min_records: { icon: '📚', kind: 'The Public Records Office' },
@@ -67511,13 +67983,69 @@ __m["src/ui/politicsApp.js"] = (function () {
 // The Politics app (v0.93.0): read-only. Who governs Sund, the term and the date of the vote, the opposition and where the two parties differ.
 // Nothing here changes anything: policies, polls, elections and influence come in later releases. Follows the OberPad pattern: one hero, three tiles, a list, a fold.
 const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold } = __m["src/ui/tabletKit.js"];
+const { hero, tiles, row, help, fold, segments, n } = __m["src/ui/tabletKit.js"];
+const { atlasStates } = __m["src/world/atlas.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const LEAN = { '-2': 'strongly against', '-1': 'against', 0: 'neutral', 1: 'for', 2: 'strongly for' };
 const PHASE = { term: 'In term', campaign: 'Campaign season', polling: 'Polling day' };
 
+const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }];
+
+/** The Politics app: an overview, and the government (v0.94.0). */
 function politicsApp(ui, body, open) {
+  const tab = SEGMENTS.some((x) => x.id === ui.polTab) ? ui.polTab : 'Overview';
+  const seg = segments(SEGMENTS, tab, (t) => { ui.polTab = t; open('Politics'); });
+  if (seg) body.append(seg);
+  if (tab === 'Government') governmentTab(ui, body);
+  else if (tab === 'Polls') pollsTab(ui, body);
+  else overviewTab(ui, body, open);
+}
+
+const k = (v) => `${v < 0 ? '−' : ''}${n(Math.abs(v))}k`;
+const STATE = { proposed: 'proposed', review: 'in committee', approved: 'approved', implementing: 'being set up', active: 'in force', suspended: 'suspended', ended: 'ended' };
+
+function governmentTab(ui, body) {
+  const g = ui.game;
+  const G = g.politics.government();
+  const b = G.budget;
+  const party = g.politics.party(G.governing);
+  const policy = (p) => row({ icon: p.state === 'active' ? '📜' : '📝', title: p.def.name, sub: `${p.def.blurb} ${p.state === 'active' ? `In force since day ${p.since}.` : p.daysLeft != null ? `${STATE[p.state]}, about ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} to go.` : ''}${p.votes ? ` Assembly: ${p.votes.yes}–${p.votes.no}.` : ''}`, tag: `${p.def.cost >= 0 ? '+' : '−'}${Math.abs(p.def.cost)}k/mo`, tone: p.def.cost < 0 ? 'good' : '' });
+  body.append(
+    hero({ label: `The state's books · ${party.name}`, value: b.deficit > 0 ? `${k(b.deficit)} deficit a month` : `${k(-b.deficit)} surplus a month`, tone: b.squeeze || b.headroom < 0 ? 'neg' : '', sub: `Revenue ${k(b.revenue)} · spending ${k(b.spending.total)} (policies ${k(b.spending.policies)}, interest ${k(b.spending.interest)}). This is the state's money, not yours.` }),
+    tiles([{ n: String(G.active.length), t: 'policies in force' }, { n: String(G.coming.length), t: 'on their way' }, { n: k(b.debt), t: 'state debt' }]),
+    list(...(G.active.length ? G.active.map(policy) : [row({ icon: '—', title: 'Nothing in force', sub: 'The government has no programmes yet.' })])));
+  if (G.coming.length) body.append(list(...G.coming.map(policy)));
+  body.append(help('How the government works', 'The cabinet meets every seventh day and proposes the one policy it most believes in and can afford. A policy goes to the Assembly\'s committee, then to a vote (a hundred seats; a bill passes on more than fifty), then is set up and comes into force. A new policy repeals its opposite.', 'In this update a policy changes only the state\'s books and, later, what the public thinks. It does not yet change any price, cost, the police or any war you play with; that comes with the economy update. You never have to take part.'));
+  body.append(fold(ui, 'PoliticsGov', 'The decisions, and what ended ›', (box) => {
+    box.append(list(...G.decisions.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text }))));
+    if (G.ended.length) box.append(list(...G.ended.map((p) => row({ icon: '✖', title: p.def.name, sub: p.note || 'ended', tag: 'ended' }))));
+  }));
+}
+
+const pc = (v) => `${Math.round(v * 100)}%`;
+const INDEX = { trust: 'Trust in government', crimeConcern: 'Concern about crime', economicConfidence: 'Confidence in the economy', priceConcern: 'Concern about prices', warSupport: 'Support for military action', employment: 'Satisfaction with jobs', regulationSupport: 'Support for regulation', services: 'Satisfaction with public services' };
+
+/** The Polls page (v0.94.0): what pollsters found. Every poll shows its date, its pollster, its sample and its margin; the true figure is never shown. */
+function pollsTab(ui, body) {
+  const g = ui.game;
+  const P = g.politics.polls();
+  const L = P.latest;
+  if (!L) { body.append(hero({ label: 'Polls', value: 'No polls yet', sub: 'The pollsters publish every few weeks.' })); return; }
+  const m = Math.round(L.margin * 1000) / 10;
+  body.append(
+    hero({ label: `Approval of the government (${P.govName})`, value: `${pc(L.approval)} ± ${m}`, sub: `${L.name} · fieldwork day ${L.fieldwork}, published day ${L.day} · ${n(L.sample)} people · ${pc(L.disapproval)} disapprove` }),
+    tiles([{ n: pc(L.results.order), t: 'Order' }, { n: pc(L.results.liberty), t: 'Liberty' }, { n: pc(L.results.undecided), t: 'undecided' }]),
+    list(...P.list.map((p) => row({ icon: '📊', title: p.name, sub: `Order ${pc(p.results.order)} · Liberty ${pc(p.results.liberty)} · others ${pc(p.results.other)} · undecided ${pc(p.results.undecided)} · approval ${pc(p.approval)} (± ${Math.round(p.margin * 1000) / 10}, ${n(p.sample)} people)`, tag: `day ${p.day}` }))),
+    help('How to read a poll', 'A poll asks a sample of people, so it has a margin of error (the ± above, at 95% confidence): two parties within the margin are level. Each pollster also has a lean of its own (its "house effect") and publishes a few days after it asks. No poll shows the truth; several polls together show it better.'));
+  body.append(fold(ui, 'PoliticsPolls', 'By state, and what people say ›', (box) => {
+    const names = Object.fromEntries(atlasStates().map((x) => [x.id, x.name]));
+    box.append(list(...Object.entries(L.regional).map(([rid, r]) => row({ icon: '🗺️', title: names[rid] || rid.replace('sd_', '').replace(/_/g, ' '), sub: `Order ${pc(r.order)} · Liberty ${pc(r.liberty)} (about ${r.n} people: a wide margin)`, tag: pc(r.order - r.liberty >= 0 ? r.order : r.liberty) }))));
+    box.append(list(...Object.entries(INDEX).map(([k, name]) => row({ icon: '💬', title: name, sub: 'asked in the latest poll', tag: pc(L.indices[k]) }))));
+  }));
+}
+
+function overviewTab(ui, body, open) {
   const g = ui.game;
   const O = g.politics.overview();
   const gov = O.governing;

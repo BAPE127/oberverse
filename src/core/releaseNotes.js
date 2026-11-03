@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.94.0',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Politics: People and Government',
+    notes: [
+      'The capital has people now: ambassadors in their embassies, both parties\' staff at their headquarters, the household of Halver House, the ministers and the guards. The embassies, the party headquarters, the café and the hotel are open to visitors in their hours. Whoever governs works in Halver House; the other leader works the capital.',
+      'The Politics page on the tablet has two new sections. Government: the policies in force and on their way (each goes to a committee, then to a vote of the Assembly, then comes into force), the state\'s monthly books and its debt, and the cabinet\'s decisions. Polls: what the pollsters found, with their dates, samples and margins of error.',
+      'Parties govern differently: each proposes the policies it believes in and can afford. For now a policy changes only the state\'s books and what the public thinks: nothing in it changes a price, a cost, the police or a war yet. You never have to take part.',
+    ],
+  },
+  {
     version: '0.93.1',
     date: '2026-11-03',
     channel: 'development',

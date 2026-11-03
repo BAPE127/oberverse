@@ -133,6 +133,7 @@ export const BUILDING_ICONS = {
   cq_halver_house: { icon: '🏛️', kind: 'Halver House: the Office of the President' },
   cq_assembly: { icon: '🗳️', kind: 'The Assembly' },
   cq_pavilion: { icon: '👑', kind: 'The Royal Pavilion' },
+  cq_diplomatic: { icon: '🏢', kind: 'Diplomatic residences' },
   cq_staff_a: { icon: '🏢', kind: 'Staff flats' }, cq_staff_b: { icon: '🏢', kind: 'Staff flats' }, cq_civil_service: { icon: '🏢', kind: 'Civil service residences' },
   cq_min_treasury: { icon: '💰', kind: 'Ministry of the Treasury' }, cq_min_defence: { icon: '🛡️', kind: 'Ministry of Defence & Security' }, cq_min_interior: { icon: '🚓', kind: 'Ministry of the Interior & Police' },
   cq_min_agriculture: { icon: '🌾', kind: 'Ministry of Agriculture & Trade' }, cq_min_foreign: { icon: '🌐', kind: 'Ministry of Foreign Affairs' }, cq_min_records: { icon: '📚', kind: 'The Public Records Office' },

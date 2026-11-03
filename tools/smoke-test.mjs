@@ -367,6 +367,19 @@ try {
     return { text: text.slice(0, 300), ok: /Government of Sund/.test(text) && /Josiah Vegas|Susan/.test(text) };
   });
   record('the Politics app opens on the tablet and names the government and its leader', pol.ok, pol.text.slice(0, 120));
+  // v0.94.0: the Government and Polls sections of the Politics app
+  const pol2 = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const out = {};
+    for (const t of ['Government', 'Polls']) {
+      ui.polTab = t; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Politics' });
+      await new Promise((r) => setTimeout(r, 250));
+      const text = document.querySelector('#modal-body')?.textContent || '';
+      out[t] = t === 'Government' ? /policies in force/.test(text) && /state's books/.test(text) : /Approval of the government/.test(text) && /±/.test(text);
+    }
+    ui.polTab = 'Overview';
+    return out;
+  });
+  record('the Politics app shows the Government (policies, the state\'s books) and the Polls (with margins)', pol2.Government && pol2.Polls, JSON.stringify(pol2));
   // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
   const crown = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game;

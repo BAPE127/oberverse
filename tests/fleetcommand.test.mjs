@@ -99,6 +99,8 @@ test('nextEvent is the next arrival/departure, and skipping to it changes the fl
   const t2 = Lg.nextEvent();
   assert.equal(t2, Lg.vessel(v.id).voyage.arrive);
   g.skipTime(t2 - g.clock.total + 1);
+  // v0.94.0: an event en route (a random draw, shifted by the capital's 43 new people) may push the arrival back; skip to each new next event until she is in
+  for (let k = 0; k < 5 && Lg.vessel(v.id).status === 'underway'; k++) g.skipTime(Math.max(1, Lg.nextEvent() - g.clock.total + 1));
   assert.equal(Lg.vessel(v.id).status, 'docked');
   assert.equal(c.status, 'delivered');
 });
