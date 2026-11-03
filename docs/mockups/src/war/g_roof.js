@@ -100,7 +100,7 @@ export function drawFloor(ctx, b, floor, o = {}) {
   drawBuilding(ctx, nb, { lit: !!o.lit, night: false, time: 0, doorLocked: false, inside: null, people: null }); if (floor === 0 && (b.sign || b.awning)) drawShopFront(ctx, nb, 0, false);
   // the stairwell in the corner, and a floor badge
   const x0 = b.x * 32, y0 = b.y * 32; ctx.fillStyle = INK; ctx.fillRect(x0 + 22, y0 + 40, 34, 40); ctx.fillStyle = '#8a8478'; ctx.fillRect(x0 + 24, y0 + 42, 30, 36); for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#a8a298' : '#948e82'; ctx.fillRect(x0 + 24, y0 + 44 + i * 6, 30, 5); } ctx.fillStyle = '#e8c84a'; ctx.fillRect(x0 + 36, y0 + 40, 6, 3);
-  const tag = `FLOOR ${floor + 1} OF ${b.floors}`; ctx.font = '800 13px system-ui'; const w = ctx.measureText(tag).width + 18; ctx.fillStyle = 'rgba(8,7,26,0.94)'; ctx.fillRect(x0 + 8, y0 - 24, w, 22); ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 8, y0 - 24, w, 22); ctx.fillStyle = '#ffe28a'; ctx.textBaseline = 'alphabetic'; ctx.fillText(tag, x0 + 17, y0 - 8);
+  if (!o.noTag) {const tag = `FLOOR ${floor + 1} OF ${b.floors}`; ctx.font = '800 13px system-ui'; const w = ctx.measureText(tag).width + 18; ctx.fillStyle = 'rgba(8,7,26,0.94)'; ctx.fillRect(x0 + 8, y0 - 24, w, 22); ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 8, y0 - 24, w, 22); ctx.fillStyle = '#ffe28a'; ctx.textBaseline = 'alphabetic'; ctx.fillText(tag, x0 + 17, y0 - 8);}
 }
 /** the building in section: floors stacked, the player's floor marked, with the height advantage drawn as sight lines to the street */
 export function drawSection(g, x, y, fl, at, o = {}) {

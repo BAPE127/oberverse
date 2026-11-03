@@ -91,4 +91,4 @@ The `hoi-*.html` pages read atlas base layers that are not committed (they are g
 
 
 
-Post-War Neumina (pixelated pictures): `proposal-postwar-pixel-neumina-{street,skybridge,hacking,map,levels,section}.png`, sources in `postwar-src/pixel-photos/`. Saint Halloran (drawn by the game's own engine): `proposal-postwar-game-noir-{street,docks,map}.png`.
+Post-War Neumina (the game's own painters, multi-storey): `proposal-postwar-levels-neumina-{street,bridge,inside,roof}.png`, sources `postwar-src/levels/`. Saint Halloran (drawn by the game's own engine): `proposal-postwar-game-noir-{street,docks,map}.png`.
