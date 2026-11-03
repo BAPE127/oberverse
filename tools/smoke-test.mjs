@@ -357,6 +357,16 @@ try {
     return out;
   });
   record('the Atlas switches on in the arms terminal globe and in Fleet Command without errors', atlas.terminalButton && atlas.terminalOn && atlas.fleetButton && atlas.fleetOn, JSON.stringify(atlas));
+  // v0.93.0: the Politics app (read-only) opens from the tablet and shows who governs
+  const pol = await page.evaluate(async () => {
+    const ui = window.oberverse.ui;
+    while (ui.panelStack.length) ui.closePanel();
+    ui.openPanel('tablet', { tab: 'Politics' });
+    await new Promise((r) => setTimeout(r, 300));
+    const text = document.querySelector('#modal-body')?.textContent || '';
+    return { text: text.slice(0, 300), ok: /Government of Sund/.test(text) && /Josiah Vegas|Susan/.test(text) };
+  });
+  record('the Politics app opens on the tablet and names the government and its leader', pol.ok, pol.text.slice(0, 120));
   await closeAll();
   s = await state();
   record('no game warnings', s.warnings.length === 0, s.warnings.join('; '));

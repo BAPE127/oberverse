@@ -10,7 +10,7 @@ export const APP_LABELS = { Business: 'Arms' };
 export const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-export const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
+export const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆', Politics: '🗳️' };
 
 export function tabletGroups(g) {
   const T = g.tablet;
@@ -20,7 +20,7 @@ export function tabletGroups(g) {
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },
-    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence'] },
+    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence', 'Politics'] }, // v0.93.0: Politics (read-only) lives with the world news
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
   return groups.filter((x) => x.apps.length).map((x) => ({ ...x, icon: ICONS[x.id] }));

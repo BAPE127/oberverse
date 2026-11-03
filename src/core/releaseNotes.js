@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.93.0',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Politics: Foundations',
+    notes: [
+      'Sund now has two parties: the Order Party (leader Josiah Vegas) and the Liberty League (leader Susan). Both leaders live in Crown Court and walk the city; you may meet either.',
+      'A new Politics page on the tablet (with the Markets apps) shows who governs, the 120-day term, the date of the vote and where the two parties differ. It only reads: nothing about it changes prices, costs, the police or any war yet.',
+      'Elections, policies, polls and the Crown Quarter come in later updates. You never have to take part.',
+    ],
+  },
+  {
     version: '0.92.0',
     date: '2026-11-03',
     channel: 'development',

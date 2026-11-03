@@ -148,6 +148,9 @@ export const LIFE = {
   npc_hollis: { home: 'res_bluebonnet/room_hollis', occupation: 'shopkeeper' },
   npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
   npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
+  // v0.93.0: the two party leaders (temporary flats until their own residences are built)
+  npc_vegas: { home: 'res_crown_court/flat_4', occupation: 'executive' },
+  npc_susan: { home: 'res_crown_court/flat_5', occupation: 'executive' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },

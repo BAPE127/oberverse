@@ -1,6 +1,6 @@
 # Roadmap: the Atlas, the Presidency and the War, stage by stage
 
-Status: **the code is at v0.92.0** (the World Atlas, v0.92.0, is released; 946 tests pass, smoke 51/51); the Politics, War and Post-War updates below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
+Status: **the code is at v0.93.0** (the World Atlas, v0.92.0, and Politics: Foundations, v0.93.0, are released; 953 tests pass, smoke 52/52); the Politics, War and Post-War updates below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
 
 Rules for every release (from the standing instructions): ask before guessing; accuracy over speed; `node tools/build.mjs`, `npm run check` and `npm run smoke` before each code release; every edited existing test is listed; commits end with the two attribution lines; push to `claude/funny-mayer-52dll8`; no money from nothing; the casino tasks (#33, #35) stay paused.
 
@@ -13,7 +13,8 @@ Order (yours): Atlas, then Politics, then War, then the Post-War Expansion. Betw
 | Release | Name | Stages it contains |
 | --- | --- | --- |
 | **v0.92.0** ✅ | World Atlas | **Released 2026-11-03.** The redrawn world, 11 countries, 77 states, 131 places, rivers and roads as data, the Atlas page on both maps. *Not done: the Sund bond merge (see section 6). The Post-War city layer stays in v0.106.0.* |
-| **v0.93.0** | Politics: Foundations and the Capital | 1 Baseline, 2 Data model (parties, Vegas and Susan, term, migrations, read-only overview), 3 Capital (Crown Quarter map) |
+| **v0.93.0** ✅ | Politics: Foundations | **Released 2026-11-03.** 1 Baseline (`docs/POLITICS_AUDIT.md`), 2 Data model (parties, Vegas and Susan, term, read-only overview). *The Crown Quarter was split out:* |
+| **v0.93.1** | Politics: The Capital | 3 Capital (the Crown Quarter map, Halver House, gate, zones, guards) |
 | **v0.94.0** | Politics: People and Government | 4 People (embassies, ambassadors, mansions, party offices), 5 Government (policies, Assembly vote, budget), 6 Opinion (bloc and region model, polls) |
 | **v0.95.0** | Politics: Elections and Influence | 7 Elections (calendar, campaigns, results, election night), 8 Influence (relationships, donations, lobbying, promises) |
 | **v0.96.0** | Politics: Economy and Diplomacy | 9 Economy (policies reach farms, arms, aerospace, shipping, exchange, bonds), 10 Diplomacy (relations, disputes, the one writer for wars and embargoes) |

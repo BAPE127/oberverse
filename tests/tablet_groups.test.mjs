@@ -10,7 +10,7 @@ test('a new game has the journal, the markets and the bank; owning businesses ad
   let groups = tabletGroups(g);
   assert.deepEqual(groups.map((x) => x.id), ['Home', 'Journal', 'Markets', 'Bank']);
   assert.deepEqual(groups.find((x) => x.id === 'Journal').apps, JOURNAL);
-  assert.deepEqual(groups.find((x) => x.id === 'Markets').apps, ['Exchange', 'Stocks', 'Economy', 'Intelligence']);
+  assert.deepEqual(groups.find((x) => x.id === 'Markets').apps, ['Exchange', 'Stocks', 'Economy', 'Intelligence', 'Politics']); // v0.93.0: Politics joins the Markets group (the home screen keeps its eight icons)
   g.player.money = 5e6; g.aero.buyFirm(); g.farm.buy('plot_east_1');
   groups = tabletGroups(g);
   assert.deepEqual(groups.map((x) => x.id), ['Home', 'Journal', 'Businesses', 'Group', 'Markets', 'Bank']);
@@ -42,5 +42,5 @@ test('search finds an app by its name or its group, ignoring case, and nothing f
   assert.deepEqual(searchApps(groups, 'BANK').map((x) => x.app), ['Bank', 'Bonds', 'Loans']);
   assert.deepEqual(searchApps(groups, 'ex').map((x) => x.app), ['Exchange']);
   assert.deepEqual(searchApps(groups, ''), []); assert.deepEqual(searchApps(groups, '   '), []); assert.deepEqual(searchApps(groups, 'zzz'), []);
-  assert.ok(searchApps(groups, 'markets').length === 4, 'by group');
+  assert.ok(searchApps(groups, 'markets').length === 5, 'by group'); // v0.93.0: four apps became five (Politics joined Markets)
 });

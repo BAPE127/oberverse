@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.93.0] — 2026-11-03 — Politics: Foundations (development build)
+
+The first part of the political system (plan: `docs/PROPOSAL_POLITICS.md`, audit: `docs/POLITICS_AUDIT.md`). It is **foundations only**: it changes no price, cost, police or war.
+
+- **Two parties and their leaders.** The **Order Party** (strict law enforcement, public order, defence, a strong executive) led by **Josiah Vegas**, and the **Liberty League** (lighter enforcement, individual freedom, less regulation and less intervention abroad) led by **Susan**. Names exactly as you gave them. Both are persistent people with a home, a bed, a schedule and a dialogue, in or out of office; each lives in a flat of Crown Court (Vegas the fourth, Susan the fifth) until their own residences are built. You can meet either in the city (the Plaza and the Hall of Justice by day).
+- **A government and a term.** `world.politics` (made the first time it is read): the constitution (a term of **120 game days**, the vote in its last 30, a 100-seat Assembly of 46 / 44 / 10), the parties with their platforms (eight issues, each -2 to +2, none "good" or "bad"), their own funds, ten **vacant** staff records each (people arrive with the People release), and the government. Which party governs first comes from the world's own seed state and never changes on reload. At the end of a term the term number rolls over once; **no election is held yet**, so the same government continues until the Elections release.
+- **A Politics app** on the tablet, in the Markets group: who governs, the term as a ring, days to the vote, the seats, the king, the President and the opposition; **Where the parties differ** and the record's history in a fold. Read-only.
+- **Dialogue:** both leaders speak for their side without being villains; either can open the Politics page.
+- **Not in this release:** the Crown Quarter and Halver House (now **v0.93.1**), staff people, policies, the Assembly vote, opinion, elections, influence, diplomacy, unrest.
+- Tests: `tests/politics.test.mjs` (7 new). **Existing tests edited (2):** `tests/tablet_groups.test.mjs` (the Markets group lists Politics; a search for "markets" finds five apps, not four). The tablet keeps its eight home icons.
+- Code: `src/content/politics.js`, `src/politics/{calendar,model}.js`, `src/systems/politics.js` (`game.politics`), `src/ui/politicsApp.js`, `src/content/characters/politics.js`, `src/content/dialogue/politics.js`; Crown Court's hall takes five flats (`hallSize.xs` in `src/content/homes.js`).
+
 ## [0.92.0] — 2026-11-03 — The World Atlas (development build)
 
 The first of the batched releases: the world gets states, cities, rivers and roads, and the maps get an Atlas page to show them. Plan: `docs/WORLD_ATLAS_PROPOSAL.md`; reference: `docs/ATLAS.md`.

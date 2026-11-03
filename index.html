@@ -13289,6 +13289,127 @@ const __default = [dlgAugustus, dlgPrudence, dlgCyrus, dlgBertram, dlgHollis, dl
 return { dlgAugustus, dlgPrudence, dlgCyrus, dlgBertram, dlgHollis, dlgDottie, dlgClint, default: __default };
 })();
 
+// ---- src/content/characters/politics.js
+__m["src/content/characters/politics.js"] = (function () {
+// The two political leaders (v0.93.0). Josiah Vegas leads the Order Party; Susan leads the Liberty League. Names exactly as the owner gave them.
+// They are persistent NPCs for the whole game, in or out of office, with a home, a bed, a sleep block, a schedule and a dialogue. Each is a person
+// with supporters and weak points, never a villain or a saint; neither is "good" or "bad" for the player (see docs/PROPOSAL_POLITICS.md).
+//
+// For now each has a flat in Crown Court (Vegas the fourth, Susan the fifth: rivals on one stairwell) and spends the day in public places; the Crown Quarter,
+// Halver House, party offices and the mansions come with the next releases, which replace these homes and schedules (ids never change).
+// No leader changes any price, cost or law in this release.
+const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
+
+const vegas = local({
+  id: 'npc_vegas', name: 'Josiah Vegas', shortName: 'Vegas',
+  combat: { never: true, maxHealth: 110 },
+  role: 'Leader of the Order Party: strict law enforcement, public order, national security and a strong executive. Sometimes President of Sund, always in the papers.',
+  dialogue: 'dlg_vegas',
+  voice: { wave: 'sawtooth', pitch: 95, variance: 6, rate: 0.82 },
+  appearance: { skin: '#c89a78', hair: '#2a2622', hairStyle: 'parted', outfit: '#1e2a44', undershirt: '#f0eee8', tie: '#8a1a24', legs: '#181c2a', shoes: '#101014', accessories: ['lapelpin'], accent: '#b8962e', build: 'broad', height: 1.08 },
+  personality: { traits: ['stern', 'disciplined', 'persuasive', 'believes his own speeches'], sociability: 0.6, conscientiousness: 0.95, impulsiveness: 0.1, discretion: 0.8, honesty: 0.55, empathy: 0.4, confidence: 0.95, humor: 0.2 },
+  speech: { rumorPrefix: 'Between ourselves, and not for the cameras,', factPrefix: 'The record is clear:', refuse: 'That is not a matter for public discussion.' },
+  schedule: [
+    { from: '23:00', to: '06:30', activity: 'sleep', spot: 'crown_court_4:bed' },
+    { from: '06:30', to: '08:00', activity: 'eat', spot: 'crown_court_4:chair', label: 'breakfast and the overnight briefing papers' },
+    { from: '08:00', to: '12:00', activity: 'work', spot: 'halvermouth:hall_door_out', label: 'meetings at the Hall of Justice' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'a working lunch on the bank steps' },
+    { from: '13:00', to: '17:00', activity: 'work', spot: 'halvermouth:plaza_center', label: 'a public appearance in the Plaza' },
+    { from: '17:00', to: '23:00', activity: 'relax', spot: 'crown_court_4:chair', label: 'rehearsing tomorrow\'s speech' },
+  ],
+  relationships: { player: { trust: 0, affection: 0, respect: 5, suspicion: 10 }, npc_susan: { trust: 5, affection: 0, respect: 30, suspicion: 40 }, npc_lawrence: { trust: 45, affection: 20, respect: 25, suspicion: 5 } },
+  giftPrefs: { item_cigar: 8, item_coffee: 4, tags: { food: 1 } },
+  opinions: {
+    npc_susan: { warm: 'Susan is the only person in Sund who has ever out-argued me in public. I have not forgiven her. I do respect her.', cool: 'Susan\'s League would leave the doors unlocked and call it a philosophy.' },
+    npc_lawrence: { warm: 'Chief Order is a loyal servant of the law. I would be glad of more like him.', cool: 'Chief Order\'s department is under-funded. That is a fact, and a policy.' },
+  },
+});
+
+const susan = local({
+  id: 'npc_susan', name: 'Susan', shortName: 'Susan',
+  combat: { never: true, maxHealth: 90 },
+  role: 'Leader of the Liberty League: lighter enforcement, individual freedom, less regulation and less foreign intervention. Sometimes President of Sund, always in the papers.',
+  dialogue: 'dlg_susan',
+  voice: { wave: 'triangle', pitch: 190, variance: 14, rate: 0.95 },
+  appearance: { skin: '#e0b898', hair: '#6a3a24', hairStyle: 'long', outfit: '#2a6a5a', undershirt: '#f8f4ec', tie: null, legs: '#1e3a34', shoes: '#2a1e18', accessories: ['scarf'], accent: '#e8b040', build: 'average', height: 1.0 },
+  personality: { traits: ['quick', 'warm in public', 'sceptical of power', 'overcommitted'], sociability: 0.85, conscientiousness: 0.7, impulsiveness: 0.35, discretion: 0.5, honesty: 0.7, empathy: 0.75, confidence: 0.85, humor: 0.65 },
+  speech: { rumorPrefix: 'I shouldn\'t say this, but', factPrefix: 'Look at the numbers:', refuse: 'Ask me that when the cameras are off.' },
+  schedule: [
+    { from: '23:30', to: '07:00', activity: 'sleep', spot: 'crown_court_5:bed' },
+    { from: '07:00', to: '08:30', activity: 'eat', spot: 'crown_court_5:chair', label: 'coffee, three newspapers and a phone call' },
+    { from: '08:30', to: '12:00', activity: 'work', spot: 'halvermouth:plaza_center', label: 'meeting voters in the Plaza' },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: 'halvermouth:b_bank_out', label: 'lunch on the bank steps' },
+    { from: '13:00', to: '17:00', activity: 'work', spot: 'halvermouth:hall_door_out', label: 'committee work at the Hall of Justice' },
+    { from: '17:00', to: '23:30', activity: 'relax', spot: 'crown_court_5:chair', label: 'drafting a speech she will rewrite twice' },
+  ],
+  relationships: { player: { trust: 0, affection: 5, respect: 5, suspicion: 5 }, npc_vegas: { trust: 5, affection: 0, respect: 30, suspicion: 40 }, npc_lawrence: { trust: 10, affection: 0, respect: 10, suspicion: 30 } },
+  giftPrefs: { item_coffee: 10, item_honey_bun: 6, tags: { food: 3 } },
+  opinions: {
+    npc_vegas: { warm: 'Josiah believes every word. That is what makes him dangerous, and what makes him good at it.', cool: 'Josiah would arrest the weather if it had a manifesto.' },
+    npc_lawrence: { warm: 'Chief Order is not a bad man. He is a man in a very particular chair.', cool: 'Chief Order\'s mugs are not a policing strategy.' },
+  },
+});
+
+const __default = [vegas, susan];
+
+return { vegas, susan, default: __default };
+})();
+
+// ---- src/content/dialogue/politics.js
+__m["src/content/dialogue/politics.js"] = (function () {
+// The two leaders' dialogue (v0.93.0). Each speaks for a party and a view; neither is a villain. Nothing they say changes any price or law yet.
+const open = (tab) => ({ panel: { name: 'tablet', opts: { tab } } });
+const gifts = (loved, liked, neutral, disliked) => ({ loved: [[loved]], liked: [[liked]], neutral: [[neutral]], disliked: [[disliked]], tooMany: [['That is generous. Enough, now.']], ownStolen: [['That is mine. I shall not ask how you came by it.']] });
+
+const dlgVegas = {
+  id: 'dlg_vegas',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep on his back, hands folded, a speech open on the quilt*'] },
+    { if: { firstMeeting: true }, say: ['Josiah Vegas. The Order Party.', 'You may have seen my face on a wall. It is a good wall. I put a great deal of work into the wall.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['Ah. A friend of order. Sit. Tell me what the city needs.']] },
+    { if: {}, variants: [['Good day. Make it brief; the country does not govern itself.'], ['Yes? If it is about the police, I am for them.'], ['A citizen. Excellent. A vote is a vote.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Good day. Obey the speed limits.'], ['Order be with you.']] }],
+  topics: [
+    { id: 't_veg_party', label: '"What does the Order Party want?"', keywords: ['party', 'order', 'want', 'platform', 'believe'], say: ['Safe streets, a police force that can arrive, and a state that is not embarrassed to have one. Crime is not weather. It is a choice, and choices have consequences.', 'We are also for a strong defence. A country that cannot defend itself is a country that discusses being defended.'] },
+    { id: 't_veg_cost', label: '"Who pays for all that?"', keywords: ['pay', 'cost', 'costs', 'tax', 'budget', 'afford'], say: ['Everyone, in the end. Police and defence are not free, and I will not pretend they are. That is the difference between us and the League: I put the bill on the table.', 'I would say that. You may say it is a weakness. A budget is a promise with a number on it.'] },
+    { id: 't_veg_susan', label: '"What do you make of Susan?"', keywords: ['susan', 'league', 'liberty', 'opponent', 'rival'], say: ['Susan is clever, warm and wrong, in that order. She would leave the doors unlocked and call it a philosophy.', 'She is also the only person who has ever out-argued me in public. I have not forgiven her. I do respect her.'] },
+    { id: 't_veg_who', label: '"Are you President?"', keywords: ['president', 'government', 'power', 'office', 'halver'], say: ['Sund has a king of eleven, who is admirable, and a President, who governs. I have been the second, and I intend to be it again. Whoever holds Halver House holds the country\'s ear.', 'You can see who governs now in your tablet. I will say only that it is a temporary arrangement; the voters decide in the end.'] },
+    { id: 't_veg_tablet', label: '"Where can I read about the government?"', keywords: ['tablet', 'read', 'overview', 'politics', 'government', 'app'], say: ['There is an app for it, I am told. Everything is an app. The Politics page shows who governs, the term, and where the two parties stand.'], effects: [open('Politics')] },
+  ],
+  askPrompt: [['Ask what you like. I will answer what I like.']],
+  unknown: [['That is not a matter for public discussion.'], ['I will have my staff look into it. I will not.']],
+  gift: gifts('A cigar. Cuban? No matter. You have taste.', 'Thank you. I shall keep it for a good occasion.', 'Noted. And appreciated.', 'I have a rule about gifts. I shall not tell you what it is.'),
+  barks: { greet: ['Good day.', 'Order.'], work: ['Next.', 'Noted.'], chat: ['Quite so.'], argue: ['That is wrong, and I can show you why.'], sleep: ['zzz… order… zzz'], moods: {} },
+};
+
+const dlgSusan = {
+  id: 'dlg_susan',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*asleep with a pen in her hand and three speeches on the floor*'] },
+    { if: { firstMeeting: true }, say: ['Susan. The Liberty League. Hello!', 'You have the look of someone with an opinion. I am collecting opinions. They are cheaper than votes and nearly as useful.'] },
+    { if: { rel: { affection: '>=30' } }, variants: [['There you are! I was just telling someone you\'d be sensible. Tea?']] },
+    { if: {}, variants: [['Hello! Walk with me, I have eleven minutes.'], ['Yes? Ask me anything. Well. Almost anything.'], ['A voter! Or a journalist. Or both. Welcome.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Lovely to meet you. Do vote, if you can bear it.'], ['Bye! Think about it. Properly.']] }],
+  topics: [
+    { id: 't_sus_party', label: '"What does the Liberty League want?"', keywords: ['party', 'league', 'liberty', 'want', 'platform', 'believe'], say: ['A state that is strong enough to protect people and modest enough not to follow them home. Lighter enforcement of small offences, fewer powers to watch, less regulation where it only costs.', 'And fewer wars. I would like the next war not to be our idea.'] },
+    { id: 't_sus_risk', label: '"Isn\'t that risky?"', keywords: ['risk', 'risky', 'crime', 'safe', 'safety', 'danger'], say: ['Of course it is. Everything is. Lower enforcement could save money and lose response time. Less regulation could cut costs and let someone cut corners. I do not pretend otherwise.', 'The honest argument is not "no risk". It is whose risk, and who decides.'] },
+    { id: 't_sus_vegas', label: '"What do you make of Josiah Vegas?"', keywords: ['vegas', 'josiah', 'order', 'rival', 'opponent'], say: ['Josiah believes every word. That is what makes him dangerous, and what makes him good at it.', 'I would rather lose to him on the argument than win on a technicality. I say that now. Ask me again after the count.'] },
+    { id: 't_sus_who', label: '"Are you the President?"', keywords: ['president', 'government', 'power', 'office', 'halver'], say: ['Sometimes. Sund has a king who is eleven and a President who governs. Whoever sits in Halver House for a term, the other of us does the shouting. It keeps us both honest.'] },
+    { id: 't_sus_tablet', label: '"Where can I read about the government?"', keywords: ['tablet', 'read', 'overview', 'politics', 'government', 'app'], say: ['Your tablet has a Politics page: who governs, the term, the date of the vote, where we differ. I wrote none of it, which is why it is fair.'], effects: [open('Politics')] },
+  ],
+  askPrompt: [['Ask me anything. Well. Almost anything.']],
+  unknown: [['Ask me that when the cameras are off.'], ['Honestly? I do not know. I will find out, and then I will tell you something different.']],
+  gift: gifts('Coffee! Strong. You are a person of judgement.', 'Oh, thank you. That is kind.', 'Thank you. Truly.', 'I... will find it a home. Possibly not mine.'),
+  barks: { greet: ['Hello!', 'Hi.'], work: ['Right. Next.', 'Mm, yes.'], chat: ['Really? Go on.'], argue: ['No, look at the numbers.'], sleep: ['zzz… amendments… zzz'], moods: {} },
+};
+
+const __default = [dlgVegas, dlgSusan];
+
+return { dlgVegas, dlgSusan, default: __default };
+})();
+
 // ---- src/content/characters/casino.js
 __m["src/content/characters/casino.js"] = (function () {
 // The Phonograph Grand (v0.52.0): the people of the casino resort on Market Street.
@@ -14572,6 +14693,9 @@ const LIFE = {
   npc_hollis: { home: 'res_bluebonnet/room_hollis', occupation: 'shopkeeper' },
   npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
   npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
+  // v0.93.0: the two party leaders (temporary flats until their own residences are built)
+  npc_vegas: { home: 'res_crown_court/flat_4', occupation: 'executive' },
+  npc_susan: { home: 'res_crown_court/flat_5', occupation: 'executive' },
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -15292,7 +15416,7 @@ const HOMES = [
     ] },
   // v0.78.0: the First Bank of Halvermouth's four (the chief teller, the Governor, and the bond clerk and vault guard as flatmates) lease the old Crown Insurance
   // tower on Crown Street (the insurers moved out; the flats were always upstairs). The hall is made the size of the tower's old footprint (15×9), so the street does not move.
-  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9 },
+  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9, xs: [2, 5, 8, 11, 13] },
     flats: [
       { who: ['npc_prudence'], name: 'Prudence Tally', bed: '#5a6a8a', rug: '#c9a24a', loot: { items: { item_silver_spoons: 1 }, money: 48 }, props: [
         { type: 'shelf', x: 1, y: 4, examine: 'Knitting needles, a basket of wool, and a ledger-shaped notebook labelled "WHERE I WAS RIGHT". It is a large notebook.' },
@@ -15305,6 +15429,16 @@ const HOMES = [
       // two flatmates: the bond clerk and the vault guard share the third flat (a four-flat hall would be wider than the tower, and the street would have to move)
       { who: ['npc_cyrus', 'npc_bertram'], name: 'Cyrus Coupon & Bertram Locke', bed: '#6a3a28', rug: '#2a6a4a', loot: { items: { item_pocket_watch: 1, item_cigar: 1 }, money: 52 }, props: [
         { type: 'desk', x: 1, y: 4, w: 2, examine: 'Yield curves pinned all over one wall, in three colours of string; the five-year has a small gold star. On the other wall, a shoebox of poems, tidily filed by month. Every one is about doors. Some are very good.' },
+      ] },
+      // v0.93.0: Josiah Vegas, leader of the Order Party, rents the fourth flat (the hall keeps its size: its doors are spaced by hallSize.xs) until his own residence is built (a temporary home; his id never changes)
+      { who: ['npc_vegas'], name: 'Josiah Vegas', bed: '#1e2a44', rug: '#8a1a24', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 120 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Speeches in three drafts, each marked in red: "TOO KIND", "TOO LONG", "JUST RIGHT (SAY IT TWICE)".' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed election poster: a stern face, a clenched jaw and the single word ORDER. Underneath, in pencil, someone has written "bless you".' },
+      ] },
+      // v0.93.0: Susan, leader of the Liberty League, rents the fifth flat (next door to Vegas) until her own residence is built (a temporary home; her id never changes)
+      { who: ['npc_susan'], name: 'Susan', bed: '#2a6a5a', rug: '#e8b040', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 90 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three speeches, all headed "FINAL". A mug that says WORLD\'S MOST OVERCOMMITTED. A bus ticket to somewhere she has not had time to visit.' },
+        { type: 'shelf', x: 7, y: 4, examine: 'Books on constitutions, two on gardening, and a very worn paperback with the cover torn off. It is, she says, "research".' },
       ] },
     ] },
   // v0.55.0: Moneybucks Manor's staff, a flat each in the estate cottages (they used to sleep along the manor's back corridor)
@@ -15423,7 +15557,7 @@ function hallMap(h) {
   const w = h.hallSize?.w ?? Math.max(9, n * 3 + 3); // hallSize: a hall made the size of the building it replaces, so the street does not move (v0.78.0)
   const H = h.hallSize?.h ?? 7;
   const door = h.hallSize?.door ?? Math.floor(w / 2);
-  const xs = h.flats.map((_, i) => 2 + i * 3);
+  const xs = h.hallSize?.xs ?? h.flats.map((_, i) => 2 + i * 3); // hallSize.xs: where the flats' doors are, for a hall that must stay the size of its building (Crown Court holds five)
   return {
     id: hallId(h), name: `${h.name} — stairwell`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
     tiles: roomTiles(w, H, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
@@ -16420,6 +16554,8 @@ const lariatChars = __m["src/content/characters/lariat.js"].default;
 const dlgLariat = __m["src/content/dialogue/lariat.js"].default;
 const bankChars = __m["src/content/characters/banks.js"].default; // v0.78.0
 const dlgBanks = __m["src/content/dialogue/banks.js"].default;
+const politicsChars = __m["src/content/characters/politics.js"].default; // v0.93.0: the two leaders
+const dlgPolitics = __m["src/content/dialogue/politics.js"].default;
 const casinoChars = __m["src/content/characters/casino.js"].default;
 const dlgCasino = __m["src/content/dialogue/casino.js"].default;
 const aeroChars = __m["src/content/characters/aerospace.js"].default;
@@ -16478,7 +16614,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -16503,7 +16639,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -16576,7 +16712,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.92.0';
+const GAME_VERSION = '0.93.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -25996,6 +26132,218 @@ class Robbery {
 }
 
 return { Robbery };
+})();
+
+// ---- src/content/politics.js
+__m["src/content/politics.js"] = (function () {
+// The political system's content (v0.93.0): the constitution, the two parties and the issues they differ on. Pure data; every figure that a later
+// release tunes lives here (the same idea as src/content/income.js). The rules are in src/politics/*.js and the service is src/systems/politics.js.
+//
+// Sund is a constitutional monarchy. The king (eleven) is head of state; an elected President is head of government; one Assembly gives a
+// yes/no on bills (a tally of seats, not a simulated chamber). A term is 120 game days and the election falls in its last 30.
+
+const POLITICS = {
+  /** A term lasts `termDays`; its election is in the last `electionDays` of it (the last day is polling day). */
+  constitution: {
+    termDays: 120,
+    electionDays: 30,
+    assemblySeats: { order: 46, liberty: 44, other: 10 },
+    king: { name: 'the King of Sund', age: 11, seat: 'Kingsfjord Castle', note: 'Head of state: opens the Assembly, signs laws, reviews the fishing fleet on Mondays.' },
+    president: { seat: 'Halver House', note: 'Head of government, elected for one term at a time.' },
+  },
+
+  /** The issues the parties differ on. Each stance is -2 (strongly against) … +2 (strongly for). A policy later moves a named variable; the stance is only what the party leans to. */
+  issues: {
+    police_funding: { name: 'Police funding', blurb: 'Staffing, training and equipment for the police.' },
+    enforcement: { name: 'Enforcement strictness', blurb: 'Penalties, and how hard minor offences are chased.' },
+    surveillance: { name: 'Surveillance powers', blurb: 'What the state may watch.' },
+    defence_budget: { name: 'Defence spending', blurb: 'Procurement, readiness and the arms industry.' },
+    intervention: { name: 'Foreign intervention', blurb: 'Military commitments abroad; how sharp the foreign policy is.' },
+    regulation: { name: 'Business regulation', blurb: 'Inspections, licences and compliance.' },
+    farm_inspection: { name: 'Farm inspection', blurb: 'How often and how hard farms are inspected.' },
+    public_spending: { name: 'Public spending', blurb: 'The size of the state and how it is paid for.' },
+  },
+
+  /** The two parties. The leaders keep exactly the names the owner gave. Party names are working names the player may rename later. */
+  parties: {
+    order: {
+      name: 'the Order Party', short: 'Order', colour: '#3a5a9a', leader: 'npc_vegas',
+      blurb: 'Strict law enforcement, public order, national security and a strong executive.',
+      platform: { police_funding: 2, enforcement: 2, surveillance: 1, defence_budget: 2, intervention: 1, regulation: 1, farm_inspection: 1, public_spending: 0 },
+    },
+    liberty: {
+      name: 'the Liberty League', short: 'Liberty', colour: '#c8803a', leader: 'npc_susan',
+      blurb: 'Lighter enforcement, individual freedom, less regulation and less intervention abroad.',
+      platform: { police_funding: -1, enforcement: -2, surveillance: -2, defence_budget: -1, intervention: -2, regulation: -1, farm_inspection: -1, public_spending: 1 },
+    },
+  },
+
+  /** The roles a party's staff fill (ten; some are combined in a small party). Records exist from the start; people arrive with the People release. */
+  staffRoles: [
+    { id: 'chief_of_staff', name: 'Chief of staff' },
+    { id: 'campaign_manager', name: 'Campaign manager' },
+    { id: 'policy_adviser', name: 'Policy adviser' },
+    { id: 'communications', name: 'Communications director' },
+    { id: 'press_secretary', name: 'Press secretary' },
+    { id: 'fundraising', name: 'Fundraising director' },
+    { id: 'polling', name: 'Polling and research adviser' },
+    { id: 'legal', name: 'Legal adviser' },
+    { id: 'security', name: 'Security coordinator' },
+    { id: 'organiser', name: 'Political organiser' },
+  ],
+
+  /** Starting funds of each party, in obols (a party's own money, never the player's). */
+  funds: { order: 180000, liberty: 150000 },
+};
+
+return { POLITICS };
+})();
+
+// ---- src/politics/calendar.js
+__m["src/politics/calendar.js"] = (function () {
+// The political calendar (v0.93.0): pure functions of the day and the constitution. No saved state, no randomness.
+//
+//   termOf(day, C)    → { index, start, end, electionFrom, electionDay }  the term a day falls in (terms are consecutive, from day 1)
+//   phaseOf(day, C)   → 'term' | 'campaign' | 'polling'                   what the political year is doing that day
+//   daysTo(day, C)    → days until polling day (0 on it)
+
+function termOf(day, C) {
+  const d = Math.max(1, Math.floor(day));
+  const index = Math.floor((d - 1) / C.termDays);
+  const start = index * C.termDays + 1;
+  const end = start + C.termDays - 1;
+  return { index, start, end, electionFrom: end - C.electionDays + 1, electionDay: end };
+}
+
+function phaseOf(day, C) {
+  const t = termOf(day, C);
+  if (Math.floor(day) === t.electionDay) return 'polling';
+  return day >= t.electionFrom ? 'campaign' : 'term';
+}
+
+const daysTo = (day, C) => termOf(day, C).electionDay - Math.floor(day);
+
+return { termOf, phaseOf, daysTo };
+})();
+
+// ---- src/politics/model.js
+__m["src/politics/model.js"] = (function () {
+// The political record (v0.93.0): what `world.politics` holds when it is made, and the checks every later release relies on. Pure.
+//
+//   freshPolitics(P, { day, governs })  → the record: constitution, two parties with funds and vacant staff records, the government and its term
+//   OTHER_PARTY(id)                    → the other of the two parties
+//   stanceDistance(a, b, issues)       → how far apart two platforms are (0 = identical), a number the later systems can read
+const { termOf } = __m["src/politics/calendar.js"];
+
+const PARTY_IDS = ['order', 'liberty'];
+const OTHER_PARTY = (id) => (id === 'order' ? 'liberty' : 'order');
+
+function freshPolitics(P, { day = 1, governs = 'order' } = {}) {
+  const C = P.constitution;
+  const t = termOf(day, C);
+  const parties = {};
+  for (const id of PARTY_IDS) {
+    const def = P.parties[id];
+    parties[id] = {
+      id, name: def.name, leaderId: def.leader, platform: { ...def.platform }, funds: P.funds[id], support: 0,
+      staff: P.staffRoles.map((r) => ({ role: r.id, personId: null })),
+    };
+  }
+  return {
+    v: 1,
+    constitution: { termDays: C.termDays, electionDays: C.electionDays, assemblySeats: { ...C.assemblySeats }, electionsHeld: false },
+    government: { partyId: governs, presidentId: P.parties[governs].leader, term: t.index, termStart: t.start, termEnd: t.end },
+    parties,
+    history: [{ day, kind: 'government', text: `${P.parties[governs].name} governs: ${P.parties[governs].short} leader in Halver House.` }],
+  };
+}
+
+function stanceDistance(a, b, issues) {
+  const keys = Object.keys(issues);
+  return keys.reduce((s, k) => s + Math.abs((a[k] ?? 0) - (b[k] ?? 0)), 0) / keys.length;
+}
+
+return { PARTY_IDS, OTHER_PARTY, freshPolitics, stanceDistance };
+})();
+
+// ---- src/systems/politics.js
+__m["src/systems/politics.js"] = (function () {
+// The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
+//
+// This release is foundations only: two parties and their leaders (Josiah Vegas for the Order Party, Susan for the Liberty League), a government,
+// a term of 120 game days with an election date, and an overview. Nothing here changes any price, cost, police or war: policies, the Assembly,
+// opinion, elections and influence come in later releases. The record is made the first time anything reads it (no random draw: which party
+// governs first comes from the world's own seed state), saved with the game, and an older save simply gains it.
+const { POLITICS: P } = __m["src/content/politics.js"];
+const { termOf, phaseOf, daysTo } = __m["src/politics/calendar.js"];
+const { freshPolitics, OTHER_PARTY, stanceDistance, PARTY_IDS } = __m["src/politics/model.js"];
+const { hashUnit } = __m["src/aero/config.js"];
+
+class Politics {
+  constructor(game) {
+    this.game = game;
+  }
+
+  get g() { return this.game; }
+  get day() { return this.g.clock.day; }
+  cfg() { return P; }
+  peek() { return this.g.world.politics || null; }
+
+  /** The record, made on first use. Which party governs first is a fixed function of the world's seed state, so a reload never changes it. */
+  ensure() {
+    const w = this.g.world;
+    if (!w.politics) {
+      const governs = hashUnit(`politics|first|${this.g.rng.state}`) < 0.5 ? 'order' : 'liberty';
+      w.politics = freshPolitics(P, { day: this.day, governs });
+    }
+    return w.politics;
+  }
+
+  /** Once a day: the term rolls over when its last day has passed (the same government continues until elections exist). Idempotent. */
+  dailyTick() {
+    const s = this.ensure();
+    const t = termOf(this.day, s.constitution);
+    if (t.index !== s.government.term) {
+      s.government.term = t.index; s.government.termStart = t.start; s.government.termEnd = t.end;
+      s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office (no election is held yet).` });
+      while (s.history.length > 60) s.history.shift();
+    }
+  }
+
+  party(id) { return P.parties[id]; }
+  partyRecord(id) { return this.ensure().parties[id]; }
+  governingId() { return this.ensure().government.partyId; }
+  oppositionId() { return OTHER_PARTY(this.governingId()); }
+  calendar() { const c = this.ensure().constitution; return { ...termOf(this.day, c), phase: phaseOf(this.day, c), daysToPolling: daysTo(this.day, c) }; }
+  leaderName(id) { return this.g.content.characters[P.parties[id].leader]?.name || P.parties[id].leader; }
+  leader(id) { return this.g.content.characters[P.parties[id].leader] || null; }
+
+  /** The read-only overview the tablet shows: who governs, the term, the opposition and where the platforms differ most. */
+  overview() {
+    const s = this.ensure();
+    const gov = this.governingId();
+    const opp = this.oppositionId();
+    const cal = this.calendar();
+    const a = P.parties[gov].platform;
+    const b = P.parties[opp].platform;
+    const issues = Object.entries(P.issues).map(([id, def]) => ({ id, name: def.name, blurb: def.blurb, gov: a[id], opp: b[id], gap: Math.abs(a[id] - b[id]) })).sort((x, y) => y.gap - x.gap);
+    const row = (id) => ({ id, name: P.parties[id].name, short: P.parties[id].short, colour: P.parties[id].colour, leaderId: P.parties[id].leader, leader: this.leaderName(id), blurb: P.parties[id].blurb, seats: s.constitution.assemblySeats[id], funds: s.parties[id].funds, staffFilled: s.parties[id].staff.filter((x) => x.personId).length, staffRoles: s.parties[id].staff.length });
+    return {
+      king: P.constitution.king,
+      governing: row(gov), opposition: row(opp),
+      seats: { ...s.constitution.assemblySeats },
+      calendar: cal,
+      termDay: this.day - cal.start + 1, termDays: s.constitution.termDays,
+      electionsHeld: s.constitution.electionsHeld,
+      issues, apart: stanceDistance(a, b, P.issues),
+      history: s.history.slice(-8).reverse(),
+    };
+  }
+}
+
+
+
+return { Politics, PARTY_IDS };
 })();
 
 // ---- src/content/personnel.js
@@ -46385,6 +46733,7 @@ const { Factory, freshFactory } = __m["src/systems/factory.js"];
 const { Arms, freshArms } = __m["src/systems/arms.js"];
 const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Robbery } = __m["src/systems/robbery.js"]; // v0.79.0
+const { Politics } = __m["src/systems/politics.js"]; // v0.93.0
 const { Headquarters } = __m["src/systems/hq.js"]; // v0.86.0
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
@@ -46435,6 +46784,7 @@ class Game {
     this.market = new Market(this);
     this.hq = new Headquarters(this); // v0.86.0: the parent company's offices
     this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
+    this.politics = new Politics(this); // v0.93.0: the parties, the government and the term (read-only foundations; changes no price or cost)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
@@ -46719,6 +47069,7 @@ class Game {
     this.aero.minuteTick();
     this.farm.minuteTick();
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
+    if (this.clock.minuteOfDay === 6 * 60 + 9) this.politics.dailyTick(); // v0.93.0: the political term
     if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
@@ -47834,6 +48185,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.93.0',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'Politics: Foundations',
+    notes: [
+      'Sund now has two parties: the Order Party (leader Josiah Vegas) and the Liberty League (leader Susan). Both leaders live in Crown Court and walk the city; you may meet either.',
+      'A new Politics page on the tablet (with the Markets apps) shows who governs, the 120-day term, the date of the vote and where the two parties differ. It only reads: nothing about it changes prices, costs, the police or any war yet.',
+      'Elections, policies, polls and the Crown Quarter come in later updates. You never have to take part.',
+    ],
+  },
   {
     version: '0.92.0',
     date: '2026-11-03',
@@ -66542,6 +66904,42 @@ function intelApp(ui, body, open) {
 return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
+// ---- src/ui/politicsApp.js
+__m["src/ui/politicsApp.js"] = (function () {
+// The Politics app (v0.93.0): read-only. Who governs Sund, the term and the date of the vote, the opposition and where the two parties differ.
+// Nothing here changes anything: policies, polls, elections and influence come in later releases. Follows the OberPad pattern: one hero, three tiles, a list, a fold.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold } = __m["src/ui/tabletKit.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const LEAN = { '-2': 'strongly against', '-1': 'against', 0: 'neutral', 1: 'for', 2: 'strongly for' };
+const PHASE = { term: 'In term', campaign: 'Campaign season', polling: 'Polling day' };
+
+function politicsApp(ui, body, open) {
+  const g = ui.game;
+  const O = g.politics.overview();
+  const gov = O.governing;
+  const opp = O.opposition;
+  const c = O.calendar;
+  body.append(
+    hero({ label: 'Government of Sund', value: `${gov.short} — ${gov.leader}`, sub: `${gov.name} governs · term day ${O.termDay} of ${O.termDays}`, ring: O.termDay / O.termDays }),
+    tiles([{ n: String(c.daysToPolling), t: c.phase === 'polling' ? 'polling day' : 'days to the vote' }, { n: `${gov.seats}–${opp.seats}`, t: `seats, ${gov.short} v ${opp.short}` }, { n: PHASE[c.phase], t: 'the political year' }]),
+    list(
+      row({ icon: '👑', title: O.king.name, sub: `${O.king.seat} · age ${O.king.age} · ${O.king.note}`, tag: 'head of state' }),
+      row({ icon: '🏛️', title: gov.leader, sub: `${gov.blurb}`, tag: 'President', tone: 'good' }),
+      row({ icon: '🗣️', title: opp.leader, sub: `${opp.blurb}`, tag: 'opposition' })),
+    help('How politics works here (so far)', 'Sund is a constitutional monarchy: the king is head of state and an elected President governs. A term is 120 game days and the vote falls in its last 30.', 'This page only reads the record. It does not change any price, police or war yet; policies, polls, elections and influence arrive in later updates. You never have to take part.', 'Whoever the voters pick, the other leader stays in the world and keeps working: you may meet either in the city.'));
+  body.append(fold(ui, 'Politics', 'Where the parties differ ›', (box) => {
+    box.append(list(...O.issues.map((i) => row({
+      icon: i.gap >= 3 ? '⚡' : i.gap >= 2 ? '↔️' : '＝', title: i.name, sub: `${gov.short}: ${LEAN[i.gov]} · ${opp.short}: ${LEAN[i.opp]}`, tag: i.gap >= 3 ? 'far apart' : i.gap >= 2 ? 'differ' : 'close', tone: i.gap >= 3 ? 'warn' : '',
+    }))));
+    box.append(list(...O.history.map((e) => row({ icon: '📰', title: `Day ${e.day}`, sub: e.text }))));
+  }));
+}
+
+return { politicsApp };
+})();
+
 // ---- src/ui/corpBonds.js
 __m["src/ui/corpBonds.js"] = (function () {
 // The Bonds app (v0.69.0; v0.83.0 in the OberPad's pattern): what your bonds are worth and pay as the one figure, then one switch for the
@@ -66626,7 +67024,7 @@ const APP_LABELS = { Business: 'Arms' };
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆' };
+const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆', Politics: '🗳️' };
 
 function tabletGroups(g) {
   const T = g.tablet;
@@ -66636,7 +67034,7 @@ function tabletGroups(g) {
     { id: 'Journal', apps: [...JOURNAL] },
     { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
     { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },
-    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence'] },
+    { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence', 'Politics'] }, // v0.93.0: Politics (read-only) lives with the world news
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
   ];
   return groups.filter((x) => x.apps.length).map((x) => ({ ...x, icon: ICONS[x.id] }));
@@ -66737,7 +67135,8 @@ const { bankApp } = __m["src/ui/corpBank.js"]; // v0.68.0
 const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
 const { managersApp } = __m["src/ui/tabletManagers.js"];
 const { bizScreen, needsApp } = __m["src/ui/tabletBiz.js"]; // v0.90.0
-const { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"]; // v0.84.0: the summaries
+const { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"];
+const { politicsApp } = __m["src/ui/politicsApp.js"]; // v0.93.0 // v0.84.0: the summaries
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS, APP_LABELS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
 const { statusBar, navBar, segments, hero, tiles, row, fold, openFold, n: fmt } = __m["src/ui/tabletKit.js"]; // v0.83.0
@@ -66784,6 +67183,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Bonds') bondsApp(ui, body, open); // v0.69.0
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
+  else if (tab === 'Politics') politicsApp(ui, body, open); // v0.93.0: read-only
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab === 'Customers') customersApp(ui, body, open); // v0.84.0: a summary, the list one tap down
   else if (tab === 'Standing') standingApp(ui, body); // v0.85.0

@@ -27,6 +27,7 @@ import { Factory, freshFactory } from '../systems/factory.js';
 import { Arms, freshArms } from '../systems/arms.js';
 import { Market, freshMarket } from '../systems/market.js';
 import { Robbery } from '../systems/robbery.js'; // v0.79.0
+import { Politics } from '../systems/politics.js'; // v0.93.0
 import { Headquarters } from '../systems/hq.js'; // v0.86.0
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
@@ -77,6 +78,7 @@ export class Game {
     this.market = new Market(this);
     this.hq = new Headquarters(this); // v0.86.0: the parent company's offices
     this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
+    this.politics = new Politics(this); // v0.93.0: the parties, the government and the term (read-only foundations; changes no price or cost)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
@@ -361,6 +363,7 @@ export class Game {
     this.aero.minuteTick();
     this.farm.minuteTick();
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
+    if (this.clock.minuteOfDay === 6 * 60 + 9) this.politics.dailyTick(); // v0.93.0: the political term
     if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {

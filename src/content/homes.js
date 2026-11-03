@@ -124,7 +124,7 @@ export const HOMES = [
     ] },
   // v0.78.0: the First Bank of Halvermouth's four (the chief teller, the Governor, and the bond clerk and vault guard as flatmates) lease the old Crown Insurance
   // tower on Crown Street (the insurers moved out; the flats were always upstairs). The hall is made the size of the tower's old footprint (15×9), so the street does not move.
-  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9 },
+  { id: 'crown_court', map: 'halvermouth', building: 't_crown', name: 'Crown Court', mapLabel: 'Crown Court', type: 'apartment', hallSize: { w: 15, h: 9, door: 9, xs: [2, 5, 8, 11, 13] },
     flats: [
       { who: ['npc_prudence'], name: 'Prudence Tally', bed: '#5a6a8a', rug: '#c9a24a', loot: { items: { item_silver_spoons: 1 }, money: 48 }, props: [
         { type: 'shelf', x: 1, y: 4, examine: 'Knitting needles, a basket of wool, and a ledger-shaped notebook labelled "WHERE I WAS RIGHT". It is a large notebook.' },
@@ -137,6 +137,16 @@ export const HOMES = [
       // two flatmates: the bond clerk and the vault guard share the third flat (a four-flat hall would be wider than the tower, and the street would have to move)
       { who: ['npc_cyrus', 'npc_bertram'], name: 'Cyrus Coupon & Bertram Locke', bed: '#6a3a28', rug: '#2a6a4a', loot: { items: { item_pocket_watch: 1, item_cigar: 1 }, money: 52 }, props: [
         { type: 'desk', x: 1, y: 4, w: 2, examine: 'Yield curves pinned all over one wall, in three colours of string; the five-year has a small gold star. On the other wall, a shoebox of poems, tidily filed by month. Every one is about doors. Some are very good.' },
+      ] },
+      // v0.93.0: Josiah Vegas, leader of the Order Party, rents the fourth flat (the hall keeps its size: its doors are spaced by hallSize.xs) until his own residence is built (a temporary home; his id never changes)
+      { who: ['npc_vegas'], name: 'Josiah Vegas', bed: '#1e2a44', rug: '#8a1a24', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 120 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Speeches in three drafts, each marked in red: "TOO KIND", "TOO LONG", "JUST RIGHT (SAY IT TWICE)".' },
+        { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed election poster: a stern face, a clenched jaw and the single word ORDER. Underneath, in pencil, someone has written "bless you".' },
+      ] },
+      // v0.93.0: Susan, leader of the Liberty League, rents the fifth flat (next door to Vegas) until her own residence is built (a temporary home; her id never changes)
+      { who: ['npc_susan'], name: 'Susan', bed: '#2a6a5a', rug: '#e8b040', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 90 }, props: [
+        { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three speeches, all headed "FINAL". A mug that says WORLD\'S MOST OVERCOMMITTED. A bus ticket to somewhere she has not had time to visit.' },
+        { type: 'shelf', x: 7, y: 4, examine: 'Books on constitutions, two on gardening, and a very worn paperback with the cover torn off. It is, she says, "research".' },
       ] },
     ] },
   // v0.55.0: Moneybucks Manor's staff, a flat each in the estate cottages (they used to sleep along the manor's back corridor)
@@ -255,7 +265,7 @@ function hallMap(h) {
   const w = h.hallSize?.w ?? Math.max(9, n * 3 + 3); // hallSize: a hall made the size of the building it replaces, so the street does not move (v0.78.0)
   const H = h.hallSize?.h ?? 7;
   const door = h.hallSize?.door ?? Math.floor(w / 2);
-  const xs = h.flats.map((_, i) => 2 + i * 3);
+  const xs = h.hallSize?.xs ?? h.flats.map((_, i) => 2 + i * 3); // hallSize.xs: where the flats' doors are, for a hall that must stay the size of its building (Crown Court holds five)
   return {
     id: hallId(h), name: `${h.name} — stairwell`, kind: 'interior', music: 'mus_home', ambience: 'amb_indoor',
     tiles: roomTiles(w, H, 'f', door, xs.map((x) => [x, 0, 1, 1, 'D'])),
