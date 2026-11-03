@@ -162,7 +162,8 @@ test('a contract: accept, assign, load, sail, deliver — paid exactly once; shi
   assert.equal(v.status, 'docked');
   assert.equal(v.port, c.to);
   assert.equal(c.status, 'delivered');
-  assert.ok(c.result.paid >= c.pay, 'paid in full');
+  // v0.92.0: an event en route (a random draw, shifted by the three added countries' market rolls) may make her late; a late contract pays its reduced rate, never nothing
+  assert.ok(c.result.late ? c.result.paid > 0 && c.result.paid < c.pay : c.result.paid >= c.pay, 'paid in full (or the late rate)');
   assert.equal(Lg.state.ledger.revenue - rev0, c.result.paid, 'and booked once');
   // it never pays again
   const m2 = g.player.money;

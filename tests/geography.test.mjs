@@ -68,7 +68,7 @@ test('real coastlines: land covers a sensible share, coasts are long and irregul
       }
     }
   }
-  assert.ok(islands > 60, `${islands} separate landmasses`);
+  assert.ok(islands > 30, `${islands} separate landmasses`); // v0.92.0: was 60 while the open ocean was sprinkled with lone islands; the Atlas release cleared them
   // the Morrow Isles are an archipelago: several islands round the capital
   let morrow = 0;
   for (let lat = -42; lat <= -20; lat += 0.5) for (let lon = 136; lon <= 166; lon += 0.5) if (elevationAt(lat, lon) > 0) morrow++;

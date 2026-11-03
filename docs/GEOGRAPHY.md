@@ -20,3 +20,10 @@ Code: `src/world/geography.js` (the shapes, pure), `src/world/globe.js` (the hal
 ## Ports
 
 Every port was moved onto the new coast nearest its old position (most by under 300 km); each is tested to be on land, on the coast, within 30° of its country's capital, and reachable by sea from Mill Road Docks.
+
+## v0.92.0: the Atlas changes
+
+- The **Hald Reach** (a chain `[[53,-6],[52.5,-12],[51.5,-19],[52,-27]]`) joins Sund's southern tip to the home island.
+- **Removed:** the open-ocean scatter of lone islands, and the Spice Isles, Lantern Keys, Marrow reefs and Ice Teeth archipelagos (only the Morrow Isles keep theirs). **Added:** a forced island at 21°S 132.5°W for the Marrow Strait. Separate landmasses fell from over 60 to about 36.
+- **Ports:** Sund Harbour moved to 53.5°N 4°W and Marrow Strait to 21.5°S 133.5°W (they were inland / at sea after the change). Every port now has an Atlas `state`.
+- See `docs/ATLAS.md` for states, places, rivers and roads.

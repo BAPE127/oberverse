@@ -9,6 +9,8 @@ import { h, itemIcon } from './panels.js';
 import { D2R, wrapLon } from '../world/globe.js';
 import { surfaceTexture, drawSphere } from '../engine/drawGlobeSurface.js';
 import { pointAlong } from '../world/seaRoutes.js';
+import { drawAtlasLayer, atlasLines } from '../engine/drawAtlasLayer.js';
+import { atlasAt, BIOME_NAMES } from '../world/atlas.js';
 
 // --------------------------------------------------------------- the globe
 
@@ -96,7 +98,9 @@ function reticle(ctx, x, y, r, color) {
  */
 export function drawGlobe(ctx, size, time, countries, opts = {}) {
   // v0.28.0: the real coastlines, on a lit sphere (src/engine/drawGlobeSurface.js), in the terminal's green
-  const tex = surfaceTexture('terminal', { deep: [2, 14, 11], shelf: [9, 52, 40], low: [34, 136, 88], high: [104, 206, 136], coast: [140, 255, 196], border: [62, 196, 136], ice: [150, 214, 190] }, countries);
+  const tex = opts.atlas
+    ? surfaceTexture('terminal-atlas', { deep: [2, 14, 11], shelf: [9, 52, 40], low: [34, 136, 88], high: [104, 206, 136], coast: [140, 255, 196], border: [190, 255, 220], stateBorder: [30, 120, 84], ice: [150, 214, 190], tint: 0.34 }, countries, 1, true)
+    : surfaceTexture('terminal', { deep: [2, 14, 11], shelf: [9, 52, 40], low: [34, 136, 88], high: [104, 206, 136], coast: [140, 255, 196], border: [62, 196, 136], ice: [150, 214, 190] }, countries);
   const hits = [];
   const zoom = opts.zoom || 1;
   const r = size * 0.42 * zoom;
@@ -141,6 +145,11 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
   };
   for (let la = -60; la <= 60; la += 30) line(Array.from({ length: 73 }, (_, i) => [la, -180 + i * 5]));
   for (let lo = -180; lo < 180; lo += 30) line(Array.from({ length: 37 }, (_, i) => [-90 + i * 5, lo]));
+  // v0.92.0: the Atlas — rivers, roads, places, bases and state names, more of them the closer you look
+  if (opts.atlas) {
+    hits.push(...drawAtlasLayer(ctx, P, { level: zoom, scale: Math.max(0.8, size / 420), font: Math.max(9, size / 46), hover: opts.hover, skipCapitals: true,
+      theme: { river: 'rgba(110,200,255,0.55)', road: 'rgba(255,214,120,0.28)', roadMain: 'rgba(255,214,120,0.55)', text: 'rgba(220,255,236,0.95)', dim: 'rgba(170,236,205,0.78)', place: '#eafff3', port: '#7fe8ff', mil: '#ff6a5a', state: 'rgba(150,230,190,0.5)' } }));
+  }
   // shipping lanes and traffic
   const at = (pts, t) => {
     const f = Math.max(0, Math.min(1, t)) * (pts.length - 1);
@@ -286,9 +295,8 @@ export function drawGlobe(ctx, size, time, countries, opts = {}) {
   return hits;
 }
 
-/** Which country's land is under a screen point (for hovering the land, not only the capital). */
-function countryAtPoint(x, y, size, view, countries) {
-  const tex = surfaceTexture('terminal', null, countries);
+/** The latitude and longitude under a screen point on the globe, or null off the globe. */
+function latLonAtPoint(x, y, size, view) {
   const r = size * 0.42 * view.zoom;
   const nx = (x - size / 2) / r;
   const ny = (size / 2 - y) / r;
@@ -298,8 +306,15 @@ function countryAtPoint(x, y, size, view, countries) {
   const t = view.tilt * D2R;
   const y0 = ny * Math.cos(t) + z * Math.sin(t);
   const z0 = -ny * Math.sin(t) + z * Math.cos(t);
-  const lat = Math.asin(y0) / D2R;
-  const lon = wrapLon(Math.atan2(nx, z0) / D2R - view.rot);
+  return { lat: Math.asin(y0) / D2R, lon: wrapLon(Math.atan2(nx, z0) / D2R - view.rot) };
+}
+
+/** Which country's land is under a screen point (for hovering the land, not only the capital). */
+function countryAtPoint(x, y, size, view, countries) {
+  const tex = view.atlas ? surfaceTexture('terminal-atlas', null, countries, 1, true) : surfaceTexture('terminal', null, countries);
+  const ll = latLonAtPoint(x, y, size, view);
+  if (!ll) return null;
+  const { lat, lon } = ll;
   const j = Math.max(0, Math.min(tex.h - 1, Math.round((90 - lat) * tex.perDeg)));
   const i = ((Math.round((lon + 180) * tex.perDeg) % tex.w) + tex.w) % tex.w;
   const k = tex.country[j * tex.w + i];
@@ -310,7 +325,7 @@ function countryAtPoint(x, y, size, view, countries) {
 export const TERMINAL_TABS = ['Overview', 'Parts', 'Equipment', 'Staff', 'Research', 'Market'];
 
 /** The globe's camera survives re-renders (each button press redraws the panel). */
-const VIEW = { rot: 40, tilt: 22, zoom: 1, auto: true, hover: null };
+const VIEW = { rot: 40, tilt: 22, zoom: 1, auto: true, hover: null, atlas: false };
 
 /** The terminal at the works itself: a monitor on the desk. */
 export function terminalPanel(ui, body, opts) {
@@ -365,9 +380,11 @@ export function terminalScreen(ui, body, opts, go) {
       ctrl('+', () => { VIEW.zoom = Math.min(2.6, VIEW.zoom * 1.25); }, 'Zoom in'),
       ctrl('−', () => { VIEW.zoom = Math.max(0.8, VIEW.zoom / 1.25); }, 'Zoom out'),
       ctrl('HQ', () => { VIEW.rot = -cfg.hq.lon; VIEW.tilt = Math.max(-60, Math.min(60, cfg.hq.lat * 0.8)); VIEW.auto = false; }, 'Centre on Halvermouth'),
+      ctrl('ATLAS', (e) => { VIEW.atlas = !VIEW.atlas; VIEW.hover = null; e.currentTarget.classList.toggle('on', VIEW.atlas); }, 'The world atlas: states, rivers, roads, cities and bases (zoom in for more)'),
       ctrl('AUTO', (e) => { VIEW.auto = !VIEW.auto; e.currentTarget.classList.toggle('on', VIEW.auto); }, 'Auto-rotate')),
     h('div', { class: 'os-globe-help' }, 'DRAG: ROTATE · WHEEL: ZOOM · HOVER: INSPECT'));
   globeBox.querySelector('.os-mini:last-child').classList.toggle('on', VIEW.auto);
+  globeBox.querySelectorAll('.os-mini')[4].classList.toggle('on', VIEW.atlas);
 
   const status = h('div', { class: 'os-box' },
     h('div', { class: 'os-label' }, '▌STATUS'),
@@ -435,7 +452,7 @@ export function terminalScreen(ui, body, opts, go) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const m = M.state;
     hits = drawGlobe(ctx, SIZE, Math.max(0, ts - t0) / 1000, cfg.countries, {
-      rot: VIEW.rot, tilt: VIEW.tilt, zoom: VIEW.zoom, hover: VIEW.hover,
+      rot: VIEW.rot, tilt: VIEW.tilt, zoom: VIEW.zoom, hover: VIEW.hover, atlas: VIEW.atlas,
       wars: m.wars.map((w) => [w.a, w.b]), hq: cfg.hq,
       embargoed: Object.entries(m.countries).filter(([, c]) => c.embargo).map(([id]) => id),
       shipments: m.shipments.map((x) => ({ id: x.id, country: x.country, air: x.shipper === 'stork', progress: x.vessel ? fleetProgress(x.vessel) : Math.min(1, (g.clock.total - x.departs) / Math.max(1, x.arrives - x.departs)), pts: x.vessel ? fleetPts(x.vessel) : null, data: shipInfo(x) })),
@@ -490,12 +507,18 @@ export function terminalScreen(ui, body, opts, go) {
       return;
     }
     // craft first (they sit on top), then capitals, then any land
-    const order = { ship: 0, traffic: 1, hq: 2, country: 3 };
+    const order = { ship: 0, traffic: 1, hq: 2, military: 2.5, place: 2.6, country: 3 };
     const hit = hits.filter((x) => Math.hypot(x.x - pt.x, x.y - pt.y) <= x.r).sort((a, b) => order[a.kind] - order[b.kind])[0]
-      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW, cfg.countries); return id ? { key: `c:${id}`, kind: 'country', data: { id } } : null; })();
+      || (() => { const id = countryAtPoint(pt.x, pt.y, SIZE, VIEW, cfg.countries); return id ? (cfg.countries[id] ? { key: `c:${id}`, kind: 'country', data: { id } } : { key: `a:${id}`, kind: 'land', data: { id } }) : null; })();
     VIEW.hover = hit?.key || null;
     if (!hit) { tip.classList.add('hidden'); return; }
-    tip.replaceChildren(...describe(hit).map((t, i) => h('div', { class: i ? '' : 'os-tip-title' }, t)));
+    // in the Atlas, anything on land also says which state, country and climate it stands in
+    const ll = VIEW.atlas ? latLonAtPoint(pt.x, pt.y, SIZE, VIEW) : null;
+    const here = ll ? atlasAt(ll.lat, ll.lon) : null;
+    const lines = hit.kind === 'place' || hit.kind === 'military' || hit.kind === 'land'
+      ? atlasLines(hit.kind === 'land' ? null : hit, here && { ...here, biomeName: BIOME_NAMES[here.biome] })
+      : hit.kind === 'country' && here ? ((d) => [d[0], ...atlasLines(null, { ...here, biomeName: BIOME_NAMES[here.biome] }).filter((l) => !l.startsWith('COUNTRY')).slice(0, 2), ...d.slice(1)])(describe(hit)) : describe(hit);
+    tip.replaceChildren(...lines.map((t, i) => h('div', { class: i ? '' : 'os-tip-title' }, t)));
     tip.classList.remove('hidden');
     const b = canvas.getBoundingClientRect();
     const box = globeBox.getBoundingClientRect();

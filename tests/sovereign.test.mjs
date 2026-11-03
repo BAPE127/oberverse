@@ -1,4 +1,4 @@
-// Foreign government bonds (v0.77.0): a three-year bond from each of the eight countries, rated from its own finances and quarrels, priced
+// Foreign government bonds (v0.77.0): a three-year bond from each of the eleven countries, rated from its own finances and quarrels, priced
 // by the rating, paying coupons and the face; delayed payments and restructuring only after weeks at the top of the strain, never by chance.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,7 +40,7 @@ test('pure: the trait is fixed and lower for a rich country; strain grows with e
   assert.equal(issueFace(1000, S), 1000000); assert.equal(issueFace(48000, S), 24000000);
 });
 
-test('nothing is made before the arms market runs; then each of the eight countries has one issue, rated by its own finances and quarrels', () => {
+test('nothing is made before the arms market runs; then each of the eleven countries has one issue, rated by its own finances and quarrels', () => {
   const g = newGame(2701); g.corp.ensureWorld(); day(g, 2);
   delete g.world.market; // as a game that has never opened the arms market
   g.corp.sovereign.dailyTick();
@@ -48,8 +48,8 @@ test('nothing is made before the arms market runs; then each of the eight countr
   assert.equal(g.world.market, undefined, 'and it did not start the market');
   const w = open(2701);
   const offers = w.corp.sovereign.offers();
-  assert.equal(offers.length, 8);
-  assert.equal(new Set(offers.map((o) => o.country)).size, 8);
+  assert.equal(offers.length, 11); // v0.92.0: eight, plus Westreach, Sunmouth and Dunmere
+  assert.equal(new Set(offers.map((o) => o.country)).size, 11);
   const by = Object.fromEntries(offers.map((o) => [o.country, o]));
   assert.ok(by.varn.rating !== 'AA' && by.teshvar.rating === 'AA', 'the oil sheikdom is the safest, a country at war is not');
   assert.ok(by.varn.coupon > by.teshvar.coupon, 'a worse rating pays a higher coupon');

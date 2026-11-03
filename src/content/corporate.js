@@ -40,6 +40,9 @@ export const CORP = {
     teshvar: ['Teshvar', 'Zhan', 'Orun', 'Khoral', 'Bai-Dun', 'Sarkhan'],
     morrow: ['Morrow', 'Coralline', 'Tideline', 'Palmer', 'Reefgate', 'Kauri'],
     lirre: ['Lirre', 'Valmont', 'Duchess', 'Aubrac', 'Montclair', 'Lorrain'],
+    westreach: ['Westreach', 'Brass', 'Saltgate', 'Harbourmaster', 'Farwater', 'Coldwater'],
+    sunmouth: ['Sunmouth', 'Isthmus', 'Canalside', 'Meridian Gate', 'Lockhaven', 'Zenith'],
+    dunmere: ['Dunmere', 'Crossways', 'Passage', 'Wayfarer', 'Tollgate', 'Midpoint'],
   },
   suffix: {
     arms: ['Arms', 'Ordnance', 'Defence Systems', 'Munitions', 'Armaments'],

@@ -4,6 +4,7 @@
 // either on a lit sphere (the arms terminal's globe; rendered per pixel, so
 // coasts are true shapes, not dots) or flat (Fleet Command's chart).
 import { landGrid, D2R, wrapLon } from '../world/globe.js';
+import { atlasGrids, atlasCountries } from '../world/atlas.js';
 
 const TEX = new Map(); // palette key → texture
 
@@ -39,16 +40,22 @@ function countryMap(countries) {
  * The surface texture for a palette:
  *   { deep, shelf, low, high, coast, border, ice } — [r, g, b] each.
  * Returns { w, h, rgba: Uint8ClampedArray, country: Int8Array, ids }.
+ * v0.92.0: `atlas` true draws the Atlas instead — the country of every land cell comes from the world atlas (src/world/atlas.js),
+ * land is tinted by its country's colour, country borders are `border` and state borders the fainter `stateBorder`;
+ * the texture also carries `state` (Uint8Array, 255 for none).
  */
-export function surfaceTexture(key, pal, countries, sub = 1) {
+export function surfaceTexture(key, pal, countries, sub = 1, atlas = false) {
   if (TEX.has(key)) return TEX.get(key);
   const G = landGrid();
-  const base = countries ? countryMap(countries) : { ids: [], map: new Int8Array(G.w * G.h).fill(-1) };
+  const A = atlas ? atlasGrids() : null;
+  const base = A ? { ids: A.ids, map: A.country } : countries ? countryMap(countries) : { ids: [], map: new Int8Array(G.w * G.h).fill(-1) };
   // `sub` samples per grid cell, bilinear between them (smoother coasts for a zoomable chart)
   const w = G.w * sub;
   const h = (G.h - 1) * sub + 1;
   const data = new Float32Array(w * h);
   const cmap = new Int8Array(w * h);
+  const smap = A ? new Uint8Array(w * h).fill(255) : null;
+  const tints = A ? A.ids.map((id) => { const hex = atlasCountries()[id].color; return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]; }) : null;
   for (let j = 0; j < h; j++) {
     const fy = j / sub;
     const j0 = Math.min(G.h - 2, Math.floor(fy));
@@ -63,6 +70,7 @@ export function surfaceTexture(key, pal, countries, sub = 1) {
       const b = g[(j0 + 1) * G.w + i0] + (g[(j0 + 1) * G.w + i1] - g[(j0 + 1) * G.w + i0]) * tx;
       data[j * w + i] = a + (b - a) * ty;
       cmap[j * w + i] = base.map[Math.round(fy) * G.w + (Math.round(fx) % G.w)];
+      if (smap) smap[j * w + i] = A.state[Math.round(fy) * G.w + (Math.round(fx) % G.w)];
     }
   }
   const rgba = new Uint8ClampedArray(w * h * 4);
@@ -87,14 +95,19 @@ export function surfaceTexture(key, pal, countries, sub = 1) {
         c = c.map((x) => x * (1 + Math.max(-0.22, Math.min(0.28, shadeV))));
         if (Math.abs(lat) > 66 && pal.ice) c = mix(c, pal.ice, Math.min(1, (Math.abs(lat) - 66) / 6));
         const me = C.map[j * w + i];
+        if (A && me >= 0) c = mix(c, tints[me], pal.tint ?? 0.3);
         const border = me >= 0 && pal.border && [[0, 1], [1, 0]].some(([dj, di]) => { const o = C.map[Math.min(h - 1, j + dj) * w + ((i + di) % w)]; return o >= 0 && o !== me; });
+        if (A && !border && pal.stateBorder) {
+          const ms = smap[j * w + i];
+          if (ms !== 255 && [[0, 1], [1, 0]].some(([dj, di]) => { const o = smap[Math.min(h - 1, j + dj) * w + ((i + di) % w)]; return o !== 255 && o !== ms; })) c = pal.stateBorder;
+        }
         if (border) c = pal.border;
         if (coast) c = pal.coast;
       }
       rgba[k] = c[0]; rgba[k + 1] = c[1]; rgba[k + 2] = c[2]; rgba[k + 3] = 255;
     }
   }
-  const t = { w, h, rgba, country: C.map, ids: C.ids, perDeg: 2 * sub };
+  const t = { w, h, rgba, country: C.map, ids: C.ids, perDeg: 2 * sub, state: smap };
   TEX.set(key, t);
   return t;
 }

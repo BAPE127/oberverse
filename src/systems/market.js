@@ -1,4 +1,4 @@
-// The global arms market (v0.14.0): eight fictional countries with budgets,
+// The global arms market (v0.14.0): fictional countries (eight; eleven since v0.92.0) with budgets,
 // wants and rivals; wars that break out and end over weeks; embargoes;
 // shipping companies that don't always deliver; insurance; heat.
 //
@@ -47,6 +47,7 @@ export class Market {
     if (!g.world.market) g.world.market = freshMarket(g.content);
     const s = g.world.market;
     if (!s.orders) Object.assign(s, { orders: [], nextOrder: 1, lastOrderDay: 0 }); // saves from before v0.19
+    for (const [id, def] of Object.entries(g.content.arms.countries)) if (!s.countries[id]) s.countries[id] = { budget: def.budget, sat: {}, hostility: 0, embargo: false, embargoReason: null }; // v0.92.0: a save from before the Atlas gains Westreach, Sunmouth and Dunmere
     if (s.lastOrderDay < g.clock.day && !this.posting) {
       this.posting = true;
       s.lastOrderDay = g.clock.day;

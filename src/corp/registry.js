@@ -18,7 +18,7 @@ export function countryName(content, id) {
   return content.arms.countries[id]?.name || id;
 }
 
-/** Every country a company can be from: home and the eight on the globe. */
+/** Every country a company can be from: home and every country on the globe. */
 export function countryIds(content) {
   return [HOME.id, ...Object.keys(content.arms.countries)];
 }

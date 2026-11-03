@@ -15,6 +15,8 @@
 import { h } from './panels.js';
 import { wrapLon } from '../world/globe.js';
 import { surfaceTexture, flatCanvas } from '../engine/drawGlobeSurface.js';
+import { drawAtlasLayer, atlasLines } from '../engine/drawAtlasLayer.js';
+import { atlasAt, BIOME_NAMES } from '../world/atlas.js';
 import { pointAlong } from '../world/seaRoutes.js';
 import { drawShip } from '../engine/drawShips.js';
 import { shipyardSheet } from './shipBuilder.js';
@@ -37,12 +39,17 @@ const num = (n) => Math.round(n).toLocaleString();
 const hrs = (m) => { const x = m / 60; return x >= 36 ? `${(x / 24).toFixed(1)} days` : `${Math.max(1, Math.round(x))} h`; };
 
 /** Fleet Command's own state survives re-opening (the camera, what's selected, folded-out cards). */
-const FC = { mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, open: {}, protect: {}, sending: null, buyTab: 'cargo', yard: {}, ff: null, msg: null };
+const FC = { atlas: false, mode: 'map', sel: null, view: { lon: -20, lat: 25, zoom: 1.25 }, open: {}, protect: {}, sending: null, buyTab: 'cargo', yard: {}, ff: null, msg: null };
 
 let LAND_IMG = null;
+let ATLAS_IMG = null;
 
-/** The world, once: the shared surface texture in the ops-room palette, at a quarter degree, smoothed. */
-function landImage(countries) {
+/** The world, once: the shared surface texture in the ops-room palette, at a quarter degree, smoothed. v0.92.0: `atlas` draws the Atlas version (country tints, state borders). */
+function landImage(countries, atlas = false) {
+  if (atlas) {
+    if (!ATLAS_IMG) ATLAS_IMG = flatCanvas(surfaceTexture('fleet-atlas', { deep: [3, 12, 24], shelf: [10, 46, 72], low: [18, 50, 66], high: [52, 92, 104], coast: [80, 225, 255], border: [150, 215, 240], stateBorder: [48, 110, 136], ice: [130, 176, 196], tint: 0.4 }, countries, 2, true), 2);
+    return ATLAS_IMG;
+  }
   if (LAND_IMG) return LAND_IMG;
   const tex = surfaceTexture('fleet', { deep: [3, 12, 24], shelf: [10, 46, 72], low: [18, 50, 66], high: [52, 92, 104], coast: [80, 225, 255], border: [34, 84, 104], ice: [130, 176, 196] }, countries, 2);
   LAND_IMG = flatCanvas(tex, 2);
@@ -78,6 +85,8 @@ export function fleetPanel(ui, body, opts = {}) {
   const ctx = canvas.getContext('2d');
   const view = FC.view;
   let hits = [];
+  let atlasHits = [];
+  let atlasHover = null;
   let hover = null;
   let preview = null; // a route to show: { from, to, colour }
 
@@ -104,7 +113,7 @@ export function fleetPanel(ui, body, opts = {}) {
     ctx.strokeStyle = 'rgba(80,180,255,0.07)';
     ctx.lineWidth = 1;
     // the land (three copies for the wrap)
-    const land = landImage(g.content.arms.countries);
+    const land = landImage(g.content.arms.countries, FC.atlas);
     const x0 = W / 2 + (-180 - view.lon) * ppd;
     const y0 = H / 2 - (90 - view.lat) * ppd;
     ctx.imageSmoothingEnabled = true;
@@ -113,6 +122,12 @@ export function fleetPanel(ui, body, opts = {}) {
     ctx.lineWidth = 1;
     for (let lon = -180; lon < 180; lon += 15) { const p = toScreen(0, lon); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke(); }
     for (let lat = -75; lat <= 75; lat += 15) { const p = toScreen(lat, 0); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke(); }
+    // v0.92.0: the Atlas — rivers, roads, places, bases and state names; more of them as you zoom in
+    atlasHits = [];
+    if (FC.atlas) {
+      atlasHits = drawAtlasLayer(ctx, (la, lo) => ({ ...toScreen(la, lo), z: 1 }), { level: ppd / (4 * (window.devicePixelRatio || 1)), scale: Math.max(1, window.devicePixelRatio || 1), font: 10 * (window.devicePixelRatio || 1), wrapJump: W * 0.5, hover: atlasHover?.key, skipPorts: true, // Fleet Command already draws and names every port
+        theme: { river: 'rgba(90,190,255,0.6)', road: 'rgba(255,214,140,0.25)', roadMain: 'rgba(255,214,140,0.5)', text: 'rgba(230,246,255,0.95)', dim: 'rgba(170,205,225,0.8)', place: '#ffffff', port: '#80eaff', mil: '#ff6a5a', state: 'rgba(150,200,225,0.5)' } });
+    }
     // danger
     for (const z of Lg.zones()) {
       const p = toScreen(z.lat, z.lon);
@@ -286,6 +301,23 @@ export function fleetPanel(ui, body, opts = {}) {
       return;
     }
     hover = hitAt(local(e));
+    atlasHover = null;
+    if (!hover && FC.atlas) {
+      const p = local(e);
+      atlasHover = atlasHits.filter((k) => Math.hypot(k.x - p.x, k.y - p.y) < k.r + 4)[0] || null;
+      const { W, H, ppd } = size();
+      const here = atlasAt(view.lat - (p.y - H / 2) / ppd, wrapLon(view.lon + (p.x - W / 2) / ppd));
+      const lines = atlasHover || here ? atlasLines(atlasHover, here && { ...here, biomeName: BIOME_NAMES[here.biome] }) : [];
+      canvas.style.cursor = 'grab';
+      if (lines.length) {
+        tip.replaceChildren(...lines.map((l, i) => (i ? h('div', {}, l) : h('b', {}, l))));
+        tip.classList.remove('hidden');
+        const b = body.getBoundingClientRect();
+        tip.style.left = `${e.clientX - b.left + 14}px`;
+        tip.style.top = `${e.clientY - b.top + 14}px`;
+      } else tip.classList.add('hidden');
+      return;
+    }
     canvas.style.cursor = hover ? 'pointer' : 'grab';
     if (hover?.kind === 'port' && FC.sending) preview = { from: Lg.vessel(FC.sending)?.port, to: hover.id };
     else if (FC.sending) preview = null;
@@ -363,6 +395,7 @@ export function fleetPanel(ui, body, opts = {}) {
     const ff = (mins) => { FC.ff = { until: g.clock.total + mins }; refresh(); };
     top.replaceChildren(
       h('div', { class: 'fc-brand' }, h('b', {}, '⚓ OBER & SONS'), h('span', {}, 'FLEET COMMAND')),
+      h('button', { class: `fc-btn${FC.atlas ? ' on' : ''}`, title: 'The world atlas: states, rivers, roads, cities and bases (zoom in for more)', onclick: () => { FC.atlas = !FC.atlas; atlasHover = null; tip.classList.add('hidden'); renderTop(); } }, '🗺 Atlas'),
       h('div', { class: 'fc-time' },
         h('div', { class: 'fc-clock' }, `${g.clock.weekday} · Day ${g.clock.day} · ${g.clock.timeString}`),
         Lg.owned ? h('div', { class: 'fc-ff' },

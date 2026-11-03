@@ -39,9 +39,9 @@ const put = (g, id, x, y) => {
   return n;
 };
 
-test('content: eight countries with economies, five shippers (two run embargoes), a war and an embargo at the start', () => {
+test('content: eleven countries with economies, five shippers (two run embargoes), a war and an embargo at the start', () => {
   const c = CONTENT.arms;
-  assert.equal(Object.keys(c.countries).length, 8);
+  assert.equal(Object.keys(c.countries).length, 11); // v0.92.0: eight, plus Westreach, Sunmouth and Dunmere
   for (const [id, x] of Object.entries(c.countries)) {
     assert.ok(x.budget > 0 && x.income > 0, id);
     for (const f of ['small', 'heavy', 'missile', 'drone']) assert.ok(x.wants[f] > 0, `${id} ${f}`);

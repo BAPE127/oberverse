@@ -60,6 +60,8 @@ const LAND = [
   [[-8, -100, 7], [-14, -114, 5], [-18, -124, 3]],
   // the home island (Halvermouth) and its neighbour
   [[52, -27, 3.4], [49, -25, 3], [46, -23, 2.2]],
+  // the Hald Reach: a narrow neck of land from Sund's southern tip to the home island, so the capital sits at the end of one kingdom
+  [[53, -6, 2.2], [52.5, -12, 2.1], [51.5, -19, 2.3], [52, -27, 3.4]],
   [[55, -34, 1.6], [56, -31, 1.2]],
   // Sund: a long northern island of fjords
   [[53, -6, 2.2], [57, -9, 3], [62, -12, 4], [67, -10, 3.5], [71, -7, 2.4]],
@@ -99,14 +101,10 @@ const SEAS = [
 ];
 // archipelagos: [lat0, lat1, lon0, lon1, density]
 const ARCHIPELAGOS = [
-  [-44, -18, 134, 168, 0.62], // the Morrow Isles
-  [-12, 8, 96, 140, 0.68], // the Spice Isles
-  [14, 30, -78, -56, 0.7], // the Lantern Keys
-  [-30, -8, -150, -118, 0.74], // the Marrow reefs
-  [56, 70, -60, -36, 0.74], // the Ice Teeth
+  [-44, -18, 134, 168, 0.62], // the Morrow Isles (the only archipelago kept: the open ocean is otherwise clear)
 ];
-// islands that must exist (the Morrow capital and harbours)
-const ISLANDS = [[-32, 148, 2.2], [-29.5, 137, 1.6], [-39, 158, 1.8], [-24, 155.5, 1.6], [-27, 142, 1.3], [-35, 153, 1.4], [-30, 160, 1.2], [-41, 150, 1.2]];
+// islands that must exist (the Morrow capital and harbours; the lone island of Marrow Strait)
+const ISLANDS = [[-32, 148, 2.2], [-29.5, 137, 1.6], [-39, 158, 1.8], [-24, 155.5, 1.6], [-27, 142, 1.3], [-35, 153, 1.4], [-30, 160, 1.2], [-41, 150, 1.2], [-21, -132.5, 2.6]];
 
 const segs = (chains) => {
   const out = [];
@@ -175,11 +173,6 @@ export function elevation(lat, lon) {
     const n = fbm(x, y, z, 26, 4, 5) * 0.8 + fbm(x, y, z, 9, 2, 6) * 0.4;
     const isle = n - dens + 0.12 - Math.max(0, 1 - edge) * 0.5;
     if (isle > 0) h = Math.max(h, isle * 1.4);
-  }
-  // a scatter of lone islands in the open ocean
-  if (h < -0.15) {
-    const n = fbm(x, y, z, 31, 3, 7);
-    if (n > 0.64) h = Math.max(h, (n - 0.64) * 2.6);
   }
   // the poles: ice
   if (lat < -70) h = Math.max(h, (-70 - lat) / 6 + rough * 0.6);

@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.92.0',
+    date: '2026-11-03',
+    channel: 'development',
+    title: 'The World Atlas',
+    notes: [
+      'A new Atlas view on the arms terminal globe (ATLAS button) and in Fleet Command: eleven countries tinted on the land, 77 states with borders and names, cities, ports and bases, rivers and roads. Zoom in for more; hover for the state, country and climate.',
+      'Three small countries joined the world: the Westreach League, the Sunmouth Isthmus Compact and the Free Harbour of Dunmere. Each is a new buyer for arms and a new issuer of government bonds.',
+      'The geography changed a little: a narrow neck of land (the Hald Reach) now joins Halvermouth to the rest of Sund, the open ocean is clear of lone islands, and the Marrow Strait has its island.',
+    ],
+  },
+  {
     version: '0.91.7',
     date: '2026-11-03',
     channel: 'development',

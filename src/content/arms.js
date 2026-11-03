@@ -238,6 +238,10 @@ export const COUNTRIES = {
   teshvar: { name: 'Teshvar', color: '#e8d84a', lat: 28, lon: 96, budget: 720000, income: 48000, wants: { small: 0.8, heavy: 1.0, missile: 1.5, drone: 1.4 }, aggression: 0.4, rivals: ['morrow'], blurb: 'Desert oil sheikdom; its sheikh owns a yacht shaped like a smaller yacht.' },
   morrow: { name: 'Morrow Isles', color: '#4ad8c8', lat: -32, lon: 148, budget: 210000, income: 18000, wants: { small: 1.0, heavy: 1.1, missile: 1.2, drone: 1.3 }, aggression: 0.5, rivals: ['teshvar'], blurb: 'Two hundred islands, two hundred navies.' },
   lirre: { name: 'Grand Duchy of Lirre', color: '#c8c8e8', lat: 46, lon: -72, budget: 360000, income: 24000, wants: { small: 1.0, heavy: 1.0, missile: 1.0, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Neutral. Aggressively, belligerently neutral. Buys from everyone.' },
+  // v0.92.0 (the Atlas): three small countries promoted from the free ports. Low budgets and no rivals, so the arms trade keeps its character.
+  westreach: { name: 'Westreach League', color: '#e8a0c8', lat: 33, lon: -147.5, budget: 54000, income: 4800, wants: { small: 1.1, heavy: 0.7, missile: 0.7, drone: 0.9 }, aggression: 0.05, rivals: [], blurb: 'A league of free ports on the far western coast. Each port keeps its own harbour master, and its own prices.' },
+  sunmouth: { name: 'Sunmouth Isthmus Compact', color: '#c8e84a', lat: 12, lon: -124, budget: 66000, income: 6000, wants: { small: 1.0, heavy: 0.9, missile: 0.8, drone: 1.0 }, aggression: 0.05, rivals: [], blurb: 'Canal towns around an equatorial megaport. Everything is licensed and nothing is finished.' },
+  dunmere: { name: 'Free Harbour of Dunmere', color: '#e8c8a0', lat: 20.5, lon: -6.5, budget: 36000, income: 3000, wants: { small: 1.0, heavy: 0.6, missile: 0.6, drone: 0.8 }, aggression: 0.05, rivals: [], blurb: 'A crossroads harbour republic. Everybody passes through; nobody admits to staying.' },
 };
 /** Where your shipments leave from on the globe. */
 export const HQ = { name: 'Halvermouth', lat: 49, lon: -30 };

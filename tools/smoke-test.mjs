@@ -328,6 +328,35 @@ try {
     return seen;
   });
   record('the aerospace terminal draws every page (floor, tenders, research, orbit, books…)', pages.every(([, n]) => n > 300), JSON.stringify(pages.filter(([, n]) => n <= 300)));
+  // v0.92.0: the Atlas on the arms terminal's globe and in Fleet Command
+  const atlas = await page.evaluate(async () => {
+    const ui = window.oberverse.ui;
+    const g = ui.game;
+    g.player.money = Math.max(g.player.money, 5e6);
+    if (!g.getFlag('arms_licence')) g.arms.buyLicence();
+    if (!g.arms.ownedIds().length) g.arms.buy('aw1');
+    const out = {};
+    ui.openPanel('terminal', { warehouse: g.arms.ownedIds()[0], tab: 'Overview' });
+    await new Promise((r) => setTimeout(r, 300));
+    const btn = document.querySelector('.os-mini[title^="The world atlas"]');
+    out.terminalButton = Boolean(btn);
+    btn?.click();
+    for (let i = 0; i < 3; i++) document.querySelector('.os-mini[title="Zoom in"]')?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    out.terminalOn = Boolean(btn?.classList.contains('on'));
+    btn?.click(); // leave it as it was
+    ui.closeAllPanels();
+    ui.openPanel('fleet', {});
+    await new Promise((r) => setTimeout(r, 400));
+    const fb = [...document.querySelectorAll('.fc-btn')].find((b) => /Atlas/.test(b.textContent));
+    out.fleetButton = Boolean(fb);
+    fb?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    out.fleetOn = Boolean([...document.querySelectorAll('.fc-btn')].find((b) => /Atlas/.test(b.textContent))?.classList.contains('on'));
+    [...document.querySelectorAll('.fc-btn')].find((b) => /Atlas/.test(b.textContent))?.click();
+    return out;
+  });
+  record('the Atlas switches on in the arms terminal globe and in Fleet Command without errors', atlas.terminalButton && atlas.terminalOn && atlas.fleetButton && atlas.fleetOn, JSON.stringify(atlas));
   await closeAll();
   s = await state();
   record('no game warnings', s.warnings.length === 0, s.warnings.join('; '));

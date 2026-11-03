@@ -1,5 +1,5 @@
 // The Bonds app (v0.69.0; v0.83.0 in the OberPad's pattern): what your bonds are worth and pay as the one figure, then one switch for the
-// three kinds — the First Bank's government bonds, listed companies' bonds, and the eight countries' bonds. An offer is one line with a Buy
+// three kinds — the First Bank's government bonds, listed companies' bonds, and the eleven countries' bonds. An offer is one line with a Buy
 // button that opens the amounts; every explanation is behind a "?". Read from game.corp.bonds, .credit and .sovereign; every button calls them.
 import { h } from './panels.js';
 import { hero, tiles, row, help, note, n, pc } from './tabletKit.js';

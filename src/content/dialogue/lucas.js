@@ -87,7 +87,7 @@ export const dlgLucas = {
   askAbout: [
     { keywords: ['rook', 'old owner'], say: ['Rook? Moved away. Very suddenly. Lovely man. Left his reading glasses. I wear them now. *taps them*'] },
     { keywords: ['moon'], say: ['Don\'t get me started on the moon. *gets himself started on the moon*'] },
-    { keywords: ['countries', 'war', 'wars', 'varnistan', 'caldera', 'ostmark', 'morrow', 'pallas', 'teshvar', 'lirre', 'sund'], say: ['Eight countries worth knowing, and every one of them wants something that goes bang. The terminal in your works shows the lot. Spinning. Beautiful. Like a roulette wheel that pays in blood. And obols.'] },
+    { keywords: ['countries', 'war', 'wars', 'varnistan', 'caldera', 'ostmark', 'morrow', 'pallas', 'teshvar', 'lirre', 'sund'], say: ['Eleven countries worth knowing, and every one of them wants something that goes bang. The terminal in your works shows the lot. Spinning. Beautiful. Like a roulette wheel that pays in blood. And obols.'] },
   ],
   unknown: [['That\'s classified. By me.'], ['I don\'t know. Which means THEY don\'t want me to know.']],
   gift: { loved: [['For me? *sniffs it* You remembered. I never told you. You just knew. We\'re connected.']], liked: [['Ooh. Thank you. I\'ll keep it next to your photo.']], neutral: [['How thoughtful. I\'ll catalogue it.']], disliked: [['…I\'ll find a use for it. I always do.']], tooMany: [['Stop, stop. People will talk. Let them.']], ownStolen: [['That\'s mine, darling. I have the serial numbers. Of everything.']] },
