@@ -4,17 +4,19 @@ Status: **plan only. Nothing in `src/` has changed**; the code is still v0.91.5.
 
 Rules for every release below are the standing ones: ask before guessing, accuracy over speed, `node tools/build.mjs`, `npm run check` and `npm run smoke` before each code release, every edited existing test listed, existing saves load and **migrations grant nothing**, no money from nothing, commits end with the attribution lines, push only to `claude/funny-mayer-52dll8`, and the paused casino tasks stay paused.
 
-## 1. The pictures (simple layouts, not art)
+## 1. The pictures (layout mock-ups, not final art)
 
 | Picture | What it shows |
 | --- | --- |
-| `mockups/proposal-postwar-neumina-map.png` | Neumina: seven districts (residential, corporate, restricted lab, entertainment, criminal, industrial, transit), the avenues, the elevated walkways, the rooftop routes, the service tunnels, the mission landmarks and the agency entry point |
-| `mockups/proposal-postwar-noir-map.png` | the noir city, **Saint Halloran** (Westreach): the three mob territories, the neutral police and city-hall district, the docks and piers, the landmarks, and the routes along which a staged attack could start a war |
-| `mockups/proposal-postwar-neumina-buildings.png` | **Neumina, building by building** (12 blocks, about 130 named buildings, elevated walkways, tunnel hatches, hover-cars), in the pixel style of your reference |
-| `mockups/proposal-postwar-noir-buildings.png` | **Saint Halloran, building by building** (9 blocks, the three mobs' zones, docks, piers, rain), with numbered landmarks |
+| `mockups/proposal-postwar-neumina-city.png` | **Neumina, whole city (3200 x 2000)**: curved boulevards, a ring road, diagonals and plazas; about 290 buildings of mixed shapes (towers with setbacks, chamfered blocks, silos, a fenced lab compound, a night bazaar); crowds, hover traffic, pink palms; **all levels drawn together**: sky bridges, the maglev viaduct, elevated decks, flying-car lanes with shadows on the street, rooftop landing pads, drones and a blimp |
+| `mockups/proposal-postwar-neumina-levels.png` | the **four levels as separate map layers**: +2 sky lanes, +1 sky bridges, maglev and decks, 0 street, -1 service tunnels, metro, black-market chamber and the sealed Halcyon server vault |
+| `mockups/proposal-postwar-neumina-section.png` | a **side cross-section** of the levels (towers, bridges, flying lanes, the blimp, hatches, tunnels, the deep bazaar) |
+| `mockups/proposal-postwar-neumina-detail.png` | a close crop of Glass Mile and Convergence Plaza to show the detail |
+| `mockups/proposal-postwar-noir-city.png` | **Saint Halloran, whole city (3000 x 2000)**: a curved harbour with piers, ships, cranes, containers and a lighthouse; a river; a roundabout with a fountain; winding Old Town lanes under lantern strings; a tram on Halloran Avenue; rain, umbrellas, wet-street glow; about 290 buildings; the three mobs' zones and nine numbered landmarks |
+| `mockups/proposal-postwar-noir-detail.png` | a close crop of the Velvet Strip (casino, hotel, marquees, blade signs) |
 | `mockups/proposal-postwar-atlas-and-instances.png` | the four Atlas zoom levels, the mission lifecycle (template, instance, play, extract, drop, return), and what is **kept** and what is **thrown away** |
 
-Source: `mockups/postwar-src/maps.py` (district schematics) and `cities.py` (building plans) (Python with Pillow; `python3 -I maps.py` rebuilds all three).
+Sources in `mockups/postwar-src/`: `neumina2.py`, `neumina_levels.py`, `noir2.py` (with `citykit.py`) and `maps.py` (the Atlas and instance schematic). Run each with `python3 file.py` (needs Pillow); `neumina2.py` must run before `neumina_levels.py` (Python with Pillow; `python3 -I maps.py` rebuilds all three).
 
 **Reference image:** received afterwards. It shows a top-down pixel street: dark purple pavement, raised walls and rooftops with vents and red pipes, a neon-signed night club, a METRO stair entrance, a pink-neon armoury, pink neon palms, cyan hover-cars, a holographic statue and street lamps. The building plans copy that mood (palette, signs, palms, hover-cars, hologram) with original names and layout.
 
