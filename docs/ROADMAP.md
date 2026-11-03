@@ -1,6 +1,6 @@
 # Roadmap: the Atlas, the Presidency and the War, stage by stage
 
-Status: **the code is at v0.92.0** (the World Atlas, v0.92.0, is released); the Politics, War and Post-War updates below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
+Status: **the code is at v0.92.0** (the World Atlas, v0.92.0, is released; 946 tests pass, smoke 51/51); the Politics, War and Post-War updates below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
 
 Rules for every release (from the standing instructions): ask before guessing; accuracy over speed; `node tools/build.mjs`, `npm run check` and `npm run smoke` before each code release; every edited existing test is listed; commits end with the two attribution lines; push to `claude/funny-mayer-52dll8`; no money from nothing; the casino tasks (#33, #35) stay paused.
 
