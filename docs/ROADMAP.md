@@ -1,8 +1,44 @@
 # Roadmap: the Atlas, the Presidency and the War, stage by stage
 
-Status: **plan only; nothing in `src/` has changed since v0.91.0** (897 tests pass, smoke 50/50). This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
+Status: **the code is at v0.91.7** (936 tests pass, smoke 50/50); the Atlas, Politics, War and Post-War updates below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
 
 Rules for every release (from the standing instructions): ask before guessing; accuracy over speed; `node tools/build.mjs`, `npm run check` and `npm run smoke` before each code release; every edited existing test is listed; commits end with the two attribution lines; push to `claude/funny-mayer-52dll8`; no money from nothing; the casino tasks (#33, #35) stay paused.
+
+## 0. The batched schedule (decided 2026-11-03: smaller stages are combined into full releases)
+
+**This section is the current schedule and wins over every release number in sections 2 to 6**, which still describe the *stages* (what each contains); their old one-stage-per-release numbers are superseded. A batched release still builds its stages in order, each tested before the next, but ships, runs the full suite, rebuilds `index.html` and updates the release files **once**. 23 releases instead of about 53.
+
+Order (yours): Atlas, then Politics, then War, then the Post-War Expansion. Between them small fix releases (0.91.x style) are still allowed.
+
+| Release | Name | Stages it contains |
+| --- | --- | --- |
+| **v0.92.0** | World Atlas | the redrawn world, 11 countries, 76 states, about 130 places, rivers and roads as data, the Sund bond merge. *Open question: also fold in the Post-War Atlas city layer (zoom levels, city records) here, instead of a separate v0.92.1.* |
+| **v0.93.0** | Politics: Foundations and the Capital | 1 Baseline, 2 Data model (parties, Vegas and Susan, term, migrations, read-only overview), 3 Capital (Crown Quarter map) |
+| **v0.94.0** | Politics: People and Government | 4 People (embassies, ambassadors, mansions, party offices), 5 Government (policies, Assembly vote, budget), 6 Opinion (bloc and region model, polls) |
+| **v0.95.0** | Politics: Elections and Influence | 7 Elections (calendar, campaigns, results, election night), 8 Influence (relationships, donations, lobbying, promises) |
+| **v0.96.0** | Politics: Economy and Diplomacy | 9 Economy (policies reach farms, arms, aerospace, shipping, exchange, bonds), 10 Diplomacy (relations, disputes, the one writer for wars and embargoes) |
+| **v0.97.0** | Politics: Unrest, Your Party and Release | 11 Unrest, 12 Your party, 13 Emergence (optional quests and ambient events), 14 Release (balance, migrations, regression) |
+| **v0.98.0** | War: Base and Company | 1 Audit and skeleton (damage gate and base-protection flag first), 2 Places and construction (Fort Gullcrest, Hollowmoor Lot), 3 Company and state |
+| **v0.99.0** | War: Supplies, Factories and Contracts | 4 Procurement, 5 Manufacturing (tank and helicopter works), 6 Early contracts |
+| **v0.100.0** | War: People, Base Life and Generals | 7 People, squads and armoury (troop classes, UAV class), 8 Living base, 9 Generals |
+| **v0.101.0** | War: The New Look and Battles | 9b Look renderer (fire and smoke layer, car models, roofed multi-floor buildings), 10a Tactical engine (camera tiers, squad orders, City and Fields recipes) |
+| **v0.102.0** | War: Battle Depth | 10b Vehicles, air, missiles, artillery, breaches, 10c More maps, medics, UAV and FPV drones |
+| **v0.103.0** | War: Strategic Command | 11a Strategic war (command map, fronts, battalions), 11b Air, sea and international contracts |
+| **v0.104.0** | War: Destruction, Government Response and Coup | 12a Destruction, 12b Government response and the coup (needs Politics, done by here) |
+| **v0.105.0** | War: Migration and Release | 13 Migration and regression, 14 Polish |
+| **v0.106.0** | Post-War: Audit and the Atlas Layer | PW-1 Audit document, PW-2 city layer (unless folded into v0.92.0) |
+| **v0.107.0** | Post-War: Living Sund I | PW-3 populated buildings, named NPCs with stories and schedules |
+| **v0.108.0** | Post-War: Quests and Events | PW-4 quest framework and journal, PW-5 dynamic events |
+| **v0.109.0** | Post-War: The Agency and Mission Instances | PW-6 agency and contracts, PW-7 template and instance architecture |
+| **v0.110.0** | Post-War: Neumina City | PW-8 part 1: the class-divided map (skyline terraces, Glass Mile, under-levels), people, factions, implants |
+| **v0.111.0** | Post-War: Neumina Operations | PW-8 part 2: hacking with limits, the intelligence contracts |
+| **v0.112.0** | Post-War: Saint Halloran City | PW-9 part 1: the map, the three mobs, disguises, recognition |
+| **v0.113.0** | Post-War: Mob War and Contracts | PW-9 part 2: the five escalation stages, the contracts |
+| **v0.114.0** | Post-War: Content, Polish and Release | PW-10 content, PW-11 test and polish, PW-12 documentation and release |
+
+**Rough size (tokens processed, an estimate to within 2x):** Atlas 2 to 4M; Politics 5 releases at 2 to 4M (10 to 20M); War 8 at 3 to 6M (24 to 48M); Post-War 9 at 3 to 6M (27 to 54M). About **63 to 126M** in all, 15 to 20% under the unbatched schedule, mainly from fewer full-suite runs and fewer release rounds.
+
+**Cost of batching:** a bigger release is a bigger thing to review and to roll back, and a failure late in a batch holds up everything in it. Where a stage touches the payment layer or saves (Politics 9, War 1), its tests still gate it **inside** the batch before the next stage starts.
 
 ## 1. The three updates
 
@@ -117,7 +153,7 @@ Sund redrawn to the home island (shape approved); government district is a new *
 
 ## 6b. The Post-War Expansion (planned, not placed)
 
-`POST_WAR_EXPANSION_PLAN.md` (twelve stages PW-1 to PW-12, mock-ups `proposal-postwar-*.png`, prompt `prompt-bank/21-post-war-expansion.md`). **You decided it comes after the War update**, so its releases would start at v0.121.0 (not yet numbered stage by stage). Its Atlas part builds on v0.92.0 as a v0.92.1 city layer.
+`POST_WAR_EXPANSION_PLAN.md` (twelve stages PW-1 to PW-12, mock-ups `proposal-postwar-*.png`, prompt `prompt-bank/21-post-war-expansion.md`). **You decided it comes after the War update**; with the batched schedule (section 0) its nine releases are v0.106.0 to v0.114.0. Its Atlas part builds on v0.92.0 as a v0.92.1 city layer.
 
 ## 7. Still to do before the war art is final
 
