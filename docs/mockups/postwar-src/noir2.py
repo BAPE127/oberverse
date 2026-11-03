@@ -234,6 +234,7 @@ for _ in range(9000): x, y = r2.randint(0, W), r2.randint(0, H); od.line([x, y, 
 fog = Image.new('RGBA', im.size, (0, 0, 0, 0)); fd = ImageDraw.Draw(fog)
 for y in range(1450, 1700, 4): fd.line([0, y, W, y], fill=(110, 130, 160, int(34 * (1 - abs(y - 1560) / 140)) if abs(y - 1560) < 140 else 0))
 S.out = Image.alpha_composite(Image.alpha_composite(im, fog), ov).convert('RGB')
+S.out.save('/tmp/noir_clean.png')
 d = ImageDraw.Draw(S.out)
 dl = {'lan': 'OLD TOWN (Black Lantern)', 'van': 'THE VELVET STRIP (Vantelli)', 'kes': 'PIER ROW & THE DOCKS (Kestrel Union)', 'civ': 'DOWNTOWN (neutral: city hall, courts, Station 6)', 'ten': 'HUSH LANE (tenements)', 'mhe': 'MAPLE HEIGHTS', 'sta': 'CENTRAL RAIL'}
 for (x, y, t) in [(520, 250, 'lan'), (1280, 220, 'van'), (1260, 1190, 'kes'), (2350, 150, 'civ'), (480, 1080, 'ten'), (2480, 770, 'mhe'), (2560, 1130, 'sta')]:
@@ -246,3 +247,5 @@ items = [(1, 'Lantern Hall', 'Black Lantern Society HQ; protection and politics'
 img = legend_panel(S.out, items, 'SAINT HALLORAN, Westreach', ['Organic city plan (mock). Rain, wet streets, brick, neon.', 'Black Lantern (Old Town lanes, lantern strings),', 'Vantelli (Velvet Strip, marquees), Kestrel (docks, rail yard),', 'neutral civic core, tenements, Maple Heights, harbour.'], [(GOLD, 'Black Lantern: gold and red lanterns'), (RED, 'Vantelli: velvet red, marquee bulbs'), (BLUE, 'Kestrel: dock blue, cranes, containers'), (WHT, 'police and civic: cold white-blue'), ((255, 225, 150), 'tram line on Halloran Avenue'), ((255, 235, 80), 'numbered landmark')])
 S.out.save('/tmp/noir_raw_final.png')
 img.save(os.path.join(OUT, 'proposal-postwar-noir-city.png')); print('done')
+import pickle
+pickle.dump(dict(roads=[(m['path'].p, m['w'], m['tag']) for m in S.roads], blds=[(b['x'], b['y'], b['w'], b['d'], b['fh'], b['dk'], b.get('name')) for b in S.blds], named=S.named), open('/tmp/noir_data.pkl', 'wb'))

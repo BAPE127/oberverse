@@ -18,6 +18,22 @@ Rules for every release below are the standing ones: ask before guessing, accura
 
 Sources in `mockups/postwar-src/`: `neumina2.py`, `neumina_levels.py`, `noir2.py` (with `citykit.py`) and `maps.py` (the Atlas and instance schematic). Run each with `python3 file.py` (needs Pillow); `neumina2.py` must run before `neumina_levels.py` (Python with Pillow; `python3 -I maps.py` rebuilds all three).
 
+### In-game screenshot mock-ups (the player camera, with a HUD)
+
+Composed from the city maps at game zoom (a 428 x 240 world window at 3x, pixel-sharp). They show what the camera, HUD and key systems are meant to look like. **They are not the game**; the HUD layout is a stand-in.
+
+| Picture | What it shows |
+| --- | --- |
+| `mockups/proposal-postwar-shot-neumina-street.png` | street level at the Neon Lotus Club: a queue, bouncers with implants (the "neural link: locked" tag), hover traffic and a flying car in its lane |
+| `mockups/proposal-postwar-shot-neumina-skybridge.png` | crossing a sky bridge on level +1, the street dimmed below, lifts at the ends |
+| `mockups/proposal-postwar-shot-neumina-hacking.png` | the neural-link menu on a gate guard: every action has a chance, a tool cost, a trace risk and an intel requirement |
+| `mockups/proposal-postwar-shot-neumina-rooftop.png` | a tower rooftop landing pad with flying cars (air-taxi route, hijack option) |
+| `mockups/proposal-postwar-shot-noir-disguise.png` | the Velvet Strip in the rain wearing a stolen Vantelli coat, with the recognition and suspicion readout |
+| `mockups/proposal-postwar-shot-noir-docks.png` | stealth at Pier 3: vision cones, patrols, contract objectives with optional goals |
+| `mockups/proposal-postwar-shot-noir-mobwar.png` | stage 3 "Street Conflict" in Founders Square: the three-mob tension meters, a firefight, fleeing civilians, police on the way |
+
+Source: `mockups/postwar-src/scenes.py` with `shots.py` (needs the map images that `neumina2.py` and `noir2.py` write to `/tmp`, so run those first).
+
 **Reference image:** received afterwards. It shows a top-down pixel street: dark purple pavement, raised walls and rooftops with vents and red pipes, a neon-signed night club, a METRO stair entrance, a pink-neon armoury, pink neon palms, cyan hover-cars, a holographic statue and street lamps. The building plans copy that mood (palette, signs, palms, hover-cars, hologram) with original names and layout.
 
 ## 2. What already exists and gets reused (nothing is rebuilt)
