@@ -67,8 +67,8 @@ test('the record is made with the world, from the world, with no change to anyth
     assert.ok(c.schedule.some((b) => b.activity === 'sleep'), `${id} sleeps`);
     assert.ok(g.npcs.has(id), `${id} is in the world`);
   }
-  assert.equal(LIFE.npc_vegas.home, 'res_cq_staff_b/flat_4'); assert.equal(LIFE.npc_susan.home, 'res_cq_staff_a/flat_4'); // v0.94.0: they live in the capital now
-  assert.ok(CONTENT.maps.cq_staff_b_4 && CONTENT.maps.cq_staff_a_4, 'their flats exist');
+  assert.equal(LIFE.npc_vegas.home, 'res_ironcrest/master'); assert.equal(LIFE.npc_susan.home, 'res_willowmere/master'); // v0.94.1: they live in their own mansions
+  assert.ok(CONTENT.maps.ironcrest_quarters && CONTENT.maps.willowmere_quarters, 'their quarters exist');
 });
 
 test('which party governs first is a fixed function of the world: the same world, the same answer; and it survives a save and a reload', () => {
@@ -102,7 +102,7 @@ test('the term rolls over once, on its day, and the same government continues un
 
 test('the leaders keep to their schedules: asleep at night in their own flat, out in the city by day', () => {
   const g = newGame(3);
-  for (const [id, flat] of [['npc_vegas', 'cq_staff_b_4'], ['npc_susan', 'cq_staff_a_4']]) {
+  for (const [id, flat] of [['npc_vegas', 'ironcrest_quarters'], ['npc_susan', 'willowmere_quarters']]) {
     setTime(g, 2, '03:00'); g.update(0.5, { x: 0, y: 0 });
     const n = g.npcs.get(id);
     assert.equal(n.activity, 'sleep', `${id} sleeps at 03:00`);

@@ -33,7 +33,7 @@ m.rect(0, 88, 8, 6, 'm').rect(172, 88, 7, 6, 'm'); // Embassy Row's circles
 m.rect(172, 106, 7, 6, 'm'); // the Gate Road's east circle
 for (const [x0, x1, y] of [[0, 7, 36], [172, 178, 36], [0, 7, 89], [172, 178, 89], [172, 178, 107]]) m.rect(x0, y, x1 - x0 + 1, 4, 'm'); // the road itself gives way to the circle
 m.rect(0, 0, 1, 107, 'r').rect(0, 111, 1, 9, 'r'); // the district wall (the Crown Gate at rows 107–110)
-m.rect(W - 1, 0, 1, H, 'r');
+m.rect(W - 1, 0, 1, H, 'r').rect(W - 1, 36, 1, 4, '=').rect(W - 1, 107, 1, 4, '='); // the east wall, with Palace Road's gate (to Ironcrest) and the Gate Road's (to Willowmere)
 m.rect(0, 0, W, 1, 'R');
 m.rect(0, H - 1, W, 1, 'R');
 // the demonstration ground in front of the Assembly, and the paths of the park
@@ -44,7 +44,7 @@ m.rect(30, 14, 1, 21, ':').rect(10, 24, 40, 1, ':').rect(14, 14, 1, 11, ':');
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
   roof: o.roof || '#8a8478', wall: o.wall || '#d8d2c4', trim: o.trim || '#4a4438', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, columns: o.columns, tower: o.tower, trade: o.trade,
-  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: doorLock(id, o.hours, o.closed || `${name}: the doors are locked. "Not yet open to visitors."`) },
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, ...(o.interior ? { to: { map: o.interior, spot: 'entry' } } : {}), lock: doorLock(id, o.hours, o.closed || `${name}: the doors are locked. "Not yet open to visitors."`) },
 });
 /** A door's lock: its own people at any hour, and the public in `hours` where the place is open to it. */
 const doorLock = (id, hours, message) => ({ key: 'item_none', ...(OWNERS[id] ? { owners: OWNERS[id] } : {}), ...(hours ? { hours } : {}), message });
@@ -80,8 +80,8 @@ const buildings = [
   embassy('dunmere', 'The Free Harbour of Dunmere — Embassy', 'Dunmere', 82, 94, 8, 12, { roof: '#b89a6a', wall: '#f0e4d0' }),
   // --- east of Sovereign Way: parties, the press and the hotel
   B('cq_diplomatic', 'Diplomatic Residences', 153, 76, 24, 12, { sign: 'DIPLOMATIC RESIDENCES', wall: '#d0c0d8', roof: '#6a5a7a', trade: 'house' }),
-  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { hours: OPEN.party, sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
-  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { hours: OPEN.party, sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
+  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { hours: OPEN.party, interior: 'order_hq', sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
+  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { hours: OPEN.party, interior: 'liberty_hq', sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
   B('cq_press_hall', 'The Press Hall', 134, 76, 17, 12, { sign: 'PRESS HALL · BRIEFINGS · NEWSROOM', roof: '#7a5a90', wall: '#d8c8e4', trade: 'office', closed: shut('The Press Hall', 'Briefings at noon and a newsroom that never closes.') }),
   B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { hours: OPEN.hotel, sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
   B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { hours: OPEN.cafe, sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
@@ -157,10 +157,14 @@ export const crownQuarter = {
   ],
   buildings,
   doors: [
+    ...[36, 37, 38, 39].map((y, i) => ({ id: `door_cq_ironcrest_${i}`, x: W - 1, y, keepTile: true, gateway: 'Ironcrest Hall', label: 'Palace Road east, to Ironcrest Hall', to: { map: 'ironcrest_grounds', spot: 'west_gate' } })),
+    ...[107, 108, 109, 110].map((y, i) => ({ id: `door_cq_willowmere_${i}`, x: W - 1, y, keepTile: true, gateway: 'Willowmere', label: 'The Gate Road east, to Willowmere', to: { map: 'willowmere_grounds', spot: 'west_gate' } })),
     ...[107, 108, 109, 110].map((y, i) => ({ id: `door_cq_gate_${i}`, x: 0, y, keepTile: true, gateway: 'Halvermouth', label: 'The Crown Gate, west to Halvermouth', to: { map: 'halvermouth', spot: 'crown_gate' } })),
   ],
   spots: {
     west_gate: { x: 2, y: 108, facing: 'right' },
+    ironcrest_gate: { x: 177, y: 37, facing: 'left' },
+    willowmere_gate: { x: 177, y: 108, facing: 'left' },
     gate_booth: { x: 12, y: 106, facing: 'down' },
     palace_checkpoint: { x: 99, y: 41, facing: 'up' },
     halver_house_steps: { x: 99, y: 35, facing: 'up' },

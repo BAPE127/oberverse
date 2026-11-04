@@ -380,6 +380,18 @@ try {
     return out;
   });
   record('the Politics app shows the Government (policies, the state\'s books) and the Polls (with margins)', pol2.Government && pol2.Polls, JSON.stringify(pol2));
+  // v0.94.1: the estates and the party offices load and draw
+  const est = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {};
+    while (ui.panelStack.length) ui.closePanel();
+    g.clock.total = (g.clock.day - 1) * 1440 + 10 * 60;
+    for (const [map, spot] of [['crown_quarter', 'ironcrest_gate'], ['ironcrest_grounds', 'west_gate'], ['ironcrest_hall', 'entry'], ['ironcrest_war', 'entry'], ['willowmere_grounds', 'wm_lake'], ['willowmere_hall', 'entry'], ['order_hq', 'entry'], ['liberty_hq', 'entry']]) {
+      g.changeMap(map, spot); await new Promise((r) => setTimeout(r, 200)); out[map] = g.player.map === map;
+    }
+    g.changeMap('halvermouth', 'north_gate');
+    return out;
+  });
+  record('the estates and both party offices load and draw (gates, grounds, halls, the war room, the lake)', Object.values(est).every(Boolean), JSON.stringify(est));
   // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
   const crown = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game;

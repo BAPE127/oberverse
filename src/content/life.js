@@ -10,6 +10,7 @@
 // buildings, towns and jobs plug in here; see docs/WORLD_SIMULATION.md.
 
 import { capitalLife } from './capital.js'; // v0.94.0
+import { estateLife } from './estates.js'; // v0.94.1
 
 /**
  * Occupations: reusable behaviour profiles.
@@ -54,6 +55,9 @@ export const RESIDENCES = {
   res_osric_house: { name: 'Osric Vane\'s house', type: 'house', units: { house: { map: 'osric_house', beds: ['bed'], capacity: 1 } } },
   // v0.55.0: the staff have flats of their own in the estate cottages, and the crew houses on Derrick Row
   // in Starling (src/content/homes.js) — nobody shares a dormitory or a staff corridor any more
+  // v0.94.1: the leaders' mansions (private quarters; type 'estate', so nobody breaks in or is invited like a house: the steward keeps the book)
+  res_ironcrest: { name: 'Ironcrest Hall', type: 'estate', units: { master: { map: 'ironcrest_quarters', beds: ['bed'], capacity: 1 } } },
+  res_willowmere: { name: 'Willowmere', type: 'estate', units: { master: { map: 'willowmere_quarters', beds: ['bed'], capacity: 1 } } },
   res_manor: {
     name: 'Moneybucks Manor', type: 'estate',
     units: {
@@ -152,9 +156,9 @@ export const LIFE = {
   npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
   npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
   // v0.93.0: the two party leaders (temporary flats until their own residences are built)
-  npc_vegas: { home: 'res_cq_staff_b/flat_4', occupation: 'official' },
-  npc_susan: { home: 'res_cq_staff_a/flat_4', occupation: 'official' },
-  ...Object.fromEntries(Object.entries(capitalLife()).filter(([id]) => !['npc_vegas', 'npc_susan'].includes(id))),
+  npc_vegas: { home: 'res_ironcrest/master', occupation: 'official' }, // v0.94.1: the leaders live in their own mansions
+  npc_susan: { home: 'res_willowmere/master', occupation: 'official' },
+  ...capitalLife(), ...estateLife(),
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },

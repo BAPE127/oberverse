@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.94.1',
+    date: '2026-11-04',
+    channel: 'development',
+    title: 'Politics: The Mansions and the Party Offices',
+    notes: [
+      'Josiah Vegas lives at Ironcrest Hall, a walled compound with a gatehouse, guards\' cottages and a range, through the east gate of Palace Road. Susan lives at Willowmere, an open garden by a lake, through the east gate of the Gate Road. Each is a small map of its own; each house has a great hall and rooms for the leader, the household and, by invitation, visitors.',
+      'Access is by invitation: the steward of each house keeps the book. Talk to the household; someone who is known to the house, or who has an appointment, is received between nine and nine. Money alone is no key. The private rooms and the staff rooms stay shut to guests.',
+      'The two party headquarters are real offices now, with a desk for each of the party\'s ten staff, the leader\'s office and a war room with the polling wall, and the staff sit at their own desks.',
+    ],
+  },
+  {
     version: '0.94.0',
     date: '2026-11-03',
     channel: 'development',

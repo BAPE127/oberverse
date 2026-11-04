@@ -29,6 +29,10 @@ Plan: `docs/PROPOSAL_POLITICS.md`. Audit: `docs/POLITICS_AUDIT.md`. The capital:
 
 Each of the 43 is a minor, generated character (never a villain or a saint) with a flat in Staff Flats A or B, the Civil Service Residences or the Diplomatic Residences, a schedule (home, work, lunch by the fountain, a walk, home) and a dialogue. Embassies, the party headquarters, the café and the hotel are open to visitors in their hours; their own people may enter at any hour; ministries are for their ministers; Halver House's rooms for its household and the two leaders. The leader in office works at Halver House (`Politics.syncLeaders`); the other works the capital from party headquarters.
 
+## The estates (v0.94.1)
+
+**Ironcrest Hall** (Josiah Vegas) lies through the east gate of Palace Road: a walled compound with a gatehouse, the guards' cottages, a range and armoury, and the Hall (a great hall; private quarters, study and war room; security and kitchen). **Willowmere** (Susan) lies through the east gate of the Gate Road: an open garden by a lake, the house (a great hall and long library; private quarters; the open study where she holds her surgeries; security and kitchen), a glass conservatory for fundraising dinners and a garden pavilion for meetings. Each has a household of three living in its own cottages. **Access is by invitation**: each front door opens 09:00–21:00 once the house has invited you (`ironcrest_invited` / `willowmere_invited`), which the steward grants to someone known to the house (trust) or with an appointment (`halver_appointment`); the private rooms need `…_trusted`; the staff rooms are the household's. The leaders sleep in their private quarters and commute on foot. The two **party headquarters** are real offices with a desk for each of the ten staff roles, the leader's office and a war room.
+
 ## Not yet
 
-Elections and campaigns (v0.95.0), influence and donations, diplomacy and the single writer for wars and embargoes, unrest, the player's own party, the two mansions and the party offices as real interiors (v0.94.1), and every effect of a policy on the world.
+Elections and campaigns (v0.95.0), influence and donations, diplomacy and the single writer for wars and embargoes, unrest, the player's own party, and every effect of a policy on the world.

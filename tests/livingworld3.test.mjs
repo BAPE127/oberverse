@@ -70,6 +70,8 @@ test('a call becomes an incident: officers sent, witnesses questioned at the sce
   P.placeCall(3, { map: 'halvermouth', x: (sp.x + 0.5) * TILE, y: (sp.y + 0.5) * TILE }, { fact: 'fact_player_car_theft', witnesses: [w.id] });
   const inc = P.state.incidents.at(-1);
   assert.equal(inc.status, 'reported');
+  // (v0.94.1: this is about the incident, not about being caught — the call raises Wanted, and where a cruiser spawns in the far town is a matter of the world's dice, so it could cuff the player before the officer had finished at the scene; no cruisers here)
+  g.pursuit.lostMark = Infinity;
   const seen = new Set();
   let g2 = g;
   for (let t = 0; t < 240; t++) {
@@ -80,6 +82,7 @@ test('a call becomes an incident: officers sent, witnesses questioned at the sce
       seen.add('saved');
       g2 = new Game(CONTENT, { seed: 3 });
       g2.loadState(JSON.parse(JSON.stringify(g.serialize())));
+      g2.pursuit.lostMark = Infinity;
     }
     if (cur.status === 'closed') break;
   }

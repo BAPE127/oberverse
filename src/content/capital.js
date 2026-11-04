@@ -8,8 +8,8 @@
 // The two leaders (src/content/characters/politics.js) live here too, in Staff Flats A, until their own residences are built.
 
 /** A stable pick from a list by the id (no randomness). */
-const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
-const pick = (arr, id, salt = '') => arr[hash(id + salt) % arr.length];
+export const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+export const pick = (arr, id, salt = '') => arr[hash(id + salt) % arr.length];
 
 const BLDG = { staff_a: 'cq_staff_a', staff_b: 'cq_staff_b', civil: 'cq_civil_service', diplo: 'cq_diplomatic' };
 
@@ -86,7 +86,7 @@ const HAIR = ['#1e1a16', '#2a2622', '#4a3626', '#6a3a24', '#8a6a3a', '#c8c4bc', 
 const OUTFIT = { ambassador: ['#2a3a5a', '#3a2a4a', '#4a3a2a', '#2a4a3a', '#5a2a34', '#2a2a3a'], party: ['#2a3a5a', '#4a2a34', '#2a4a4a', '#5a4a2a', '#3a3a4a'], house: ['#2a2e36', '#2a3040', '#3a3a3a'], minister: ['#1e2a3a', '#2a2a2a', '#3a2a3a', '#2a3a2a'] };
 const STYLE = ['short', 'parted', 'bun', 'curly', 'ponytail', 'long', 'messy'];
 
-function appearanceOf(p) {
+export function appearanceOf(p) {
   const female = ['Lucía', 'Marina', 'Dorrie', 'Hester', 'Dolores', 'Vivian', 'Ada', 'Judith', 'Imelda', 'Lena', 'Nell', 'Priya', 'Maeve', 'Rosamund', 'Ursula', 'Ophelia', 'Marigold'].some((n) => p.name.startsWith(n));
   const outfit = pick(OUTFIT[p.kind], p.id, 'o');
   const base = { skin: pick(SKIN, p.id, 's'), hair: pick(HAIR, p.id, 'h'), hairStyle: female ? pick(['bun', 'long', 'ponytail', 'curly', 'parted'], p.id, 'st') : pick(['short', 'parted', 'messy', 'curly'], p.id, 'st'), outfit, undershirt: '#f4f2ee',
@@ -99,7 +99,7 @@ function appearanceOf(p) {
 
 /** The workplace spot and the hours of a person's day. `where` is a spot string for the person's work. */
 function scheduleOf(p, homeMap) {
-  const work = p.spot || (p.room ? `${p.room}:entry` : `crown_quarter__${p.work}:desk`);
+  const work = p.spot || (p.room ? `${p.room}:entry` : p.party ? `${p.party}_hq:desk_${p.partyRole}` : `crown_quarter__${p.work}:desk`); // v0.94.1: party staff have a desk each in their real office
   const sleep = `${homeMap}:bed`;
   const chair = `${homeMap}:chair`;
   const late = hash(p.id) % 3; // a little variety: some start at eight, some at nine, some at half past
@@ -135,13 +135,6 @@ export function capitalFlats() {
     const list = [...HOUSEHOLD, ...MINISTERS].filter((p) => p.home === key);
     for (let i = 0; i < list.length; i += 2) { const c = list.slice(i, i + 2); add(key, c.map((p) => p.id), c.map((p) => p.name).join(' & ')); }
   }
-  // the two leaders, until their own residences are built (v0.94.0 moved them here from Crown Court so they live where they work)
-  add('staff_b', ['npc_vegas'], 'Josiah Vegas', { bed: '#1e2a44', rug: '#8a1a24', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 120 }, props: [
-    { type: 'desk', x: 1, y: 4, w: 2, examine: 'Speeches in three drafts, each marked in red: "TOO KIND", "TOO LONG", "JUST RIGHT (SAY IT TWICE)".' },
-    { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed election poster: a stern face, a clenched jaw and the single word ORDER. Underneath, in pencil, someone has written "bless you".' }] });
-  add('staff_a', ['npc_susan'], 'Susan', { bed: '#2a6a5a', rug: '#e8b040', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 90 }, props: [
-    { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three speeches, all headed "FINAL". A mug that says WORLD\'S MOST OVERCOMMITTED. A bus ticket to somewhere she has not had time to visit.' },
-    { type: 'shelf', x: 7, y: 4, examine: 'Books on constitutions, two on gardening, and a very worn paperback with the cover torn off. It is, she says, "research".' }] });
   return out;
 }
 
@@ -150,35 +143,36 @@ export function capitalLife() {
   const flats = capitalFlats();
   const life = {};
   for (const [key, list] of Object.entries(flats)) list.forEach((f, i) => { for (const id of f.who) life[id] = { home: `res_${BLDG[key]}/flat_${i + 1}`, occupation: 'official' }; });
-  delete life.npc_vegas.occupation; delete life.npc_susan.occupation; // (the leaders' LIFE entries are in life.js)
   return life;
 }
 
-const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
+export const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
+
+/** One person's character record (shared by the capital and the estates): home map and a schedule are given. */
+export function personRecord(p, schedule) {
+  return local({
+    id: p.id, name: p.name, shortName: p.shortName, combat: p.armed ? { maxHealth: 110, weapon: 'item_baton' } : { never: true, maxHealth: 80 }, role: p.role, dialogue: `dlg_${p.id.slice(4)}`,
+    voice: { wave: pick(['sine', 'triangle', 'sawtooth'], p.id, 'v'), pitch: 90 + (hash(p.id + 'p') % 110), variance: 6 + (hash(p.id + 'q') % 10), rate: 0.85 + (hash(p.id + 'r') % 15) / 100 },
+    appearance: appearanceOf(p),
+    personality: { traits: [pick(['careful', 'dry', 'warm', 'brisk', 'patient', 'wry'], p.id, 'tr1'), pick(['discreet', 'tireless', 'gossipy', 'exact', 'diplomatic'], p.id, 'tr2')], sociability: 0.4 + (hash(p.id + 'so') % 50) / 100, conscientiousness: 0.6 + (hash(p.id + 'co') % 40) / 100, impulsiveness: 0.1 + (hash(p.id + 'im') % 25) / 100, discretion: 0.5 + (hash(p.id + 'di') % 45) / 100, honesty: 0.5 + (hash(p.id + 'ho') % 45) / 100, empathy: 0.4 + (hash(p.id + 'em') % 50) / 100, confidence: 0.5 + (hash(p.id + 'cf') % 45) / 100, humor: 0.2 + (hash(p.id + 'hu') % 60) / 100 },
+    speech: { rumorPrefix: 'Between ourselves,', factPrefix: 'For the record,', refuse: 'I could not possibly say.' },
+    schedule,
+    relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 5 } },
+    giftPrefs: { item_coffee: 4 + (hash(p.id + 'g') % 6), tags: { food: 2 } },
+    opinions: {},
+  });
+}
 
 /** The character records. */
 export function capitalCharacters() {
   const life = capitalLife();
-  return CAPITAL_PEOPLE.map((p) => {
-    const homeMap = `${life[p.id].home.replace('res_', '').replace('/flat_', '_')}`;
-    return local({
-      id: p.id, name: p.name, shortName: p.shortName, combat: p.armed ? { maxHealth: 110, weapon: 'item_baton' } : { never: true, maxHealth: 80 }, role: p.role, dialogue: `dlg_${p.id.slice(4)}`,
-      voice: { wave: pick(['sine', 'triangle', 'sawtooth'], p.id, 'v'), pitch: 90 + (hash(p.id + 'p') % 110), variance: 6 + (hash(p.id + 'q') % 10), rate: 0.85 + (hash(p.id + 'r') % 15) / 100 },
-      appearance: appearanceOf(p),
-      personality: { traits: [pick(['careful', 'dry', 'warm', 'brisk', 'patient', 'wry'], p.id, 'tr1'), pick(['discreet', 'tireless', 'gossipy', 'exact', 'diplomatic'], p.id, 'tr2')], sociability: 0.4 + (hash(p.id + 'so') % 50) / 100, conscientiousness: 0.6 + (hash(p.id + 'co') % 40) / 100, impulsiveness: 0.1 + (hash(p.id + 'im') % 25) / 100, discretion: 0.5 + (hash(p.id + 'di') % 45) / 100, honesty: 0.5 + (hash(p.id + 'ho') % 45) / 100, empathy: 0.4 + (hash(p.id + 'em') % 50) / 100, confidence: 0.5 + (hash(p.id + 'cf') % 45) / 100, humor: 0.2 + (hash(p.id + 'hu') % 60) / 100 },
-      speech: { rumorPrefix: 'Between ourselves,', factPrefix: 'For the record,', refuse: 'I could not possibly say.' },
-      schedule: scheduleOf(p, homeMap),
-      relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 5 } },
-      giftPrefs: { item_coffee: 4 + (hash(p.id + 'g') % 6), tags: { food: 2 } },
-      opinions: {},
-    });
-  });
+  return CAPITAL_PEOPLE.map((p) => personRecord(p, scheduleOf(p, life[p.id].home.replace('res_', '').replace('/flat_', '_'))));
 }
 
 /** The dialogue records: a greeting, what they do, what they think of the two parties, and where the Politics page is. */
-export function capitalDialogues() {
+export function personDialogue(p) {
   const open = (tab) => ({ panel: { name: 'tablet', opts: { tab } } });
-  return CAPITAL_PEOPLE.map((p) => {
+  {
     const kindIntro = { ambassador: `${p.name}, ${p.role.split('.')[0]}.`, party: `${p.name}. ${p.role.split('.')[0]}.`, house: `${p.name}. ${p.role.split('.')[0]}.`, minister: `${p.name}. ${p.role.split('.')[0]}.` }[p.kind];
     return {
       id: `dlg_${p.id.slice(4)}`,
@@ -199,8 +193,11 @@ export function capitalDialogues() {
       gift: { loved: [['Coffee. You understand me.']], liked: [['Thank you. Noted.']], neutral: [['Thank you.']], disliked: [['I will find it a home.']], tooMany: [['That is plenty.']], ownStolen: [['That is mine.']] },
       barks: { greet: ['Good day.'], work: ['Mm.', 'Noted.'], chat: ['Quite.'], argue: ['That is not what the minutes say.'], sleep: ['zzz'], moods: {} },
     };
-  });
+  }
 }
+
+/** The dialogue records. */
+export function capitalDialogues() { return CAPITAL_PEOPLE.map(personDialogue); }
 
 /** Who may walk through a building's door at any hour (its own people). */
 export const OWNERS = (() => {

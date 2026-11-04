@@ -141,4 +141,7 @@ export const BUILDING_ICONS = {
   cq_order_hq: { icon: '🗳️', kind: 'Order Party headquarters' }, cq_liberty_hq: { icon: '🗳️', kind: 'Liberty League headquarters' }, cq_press_hall: { icon: '📰', kind: 'The Press Hall' },
   cq_hotel: { icon: '🏨', kind: 'The Crown Hotel' }, cq_cafe: { icon: '☕', kind: 'Café Concord & The Sitting Room' }, cq_club: { icon: '🎩', kind: 'The Diplomats\' Club & tourist shops' },
   ...Object.fromEntries(['ostmark', 'varn', 'teshvar', 'caldera', 'pallas', 'morrow', 'lirre', 'westreach', 'sunmouth', 'dunmere'].map((c) => [`cq_embassy_${c}`, { icon: '🚩', kind: `Embassy (${c[0].toUpperCase()}${c.slice(1)})` }])),
+  // The estates (v0.94.1)
+  ic_hall: { icon: '🏰', kind: 'Ironcrest Hall (Josiah Vegas)' }, ih_cottages: { icon: '🏠', kind: 'The guards\' cottages' }, ic_gatehouse: { icon: '🛡️', kind: 'The gatehouse' }, ic_range: { icon: '🎯', kind: 'The range & armoury' },
+  wm_hall: { icon: '🏡', kind: 'Willowmere (Susan)' }, wm_cottages: { icon: '🏠', kind: 'The staff cottages' }, wm_conservatory: { icon: '🌿', kind: 'The glass conservatory' }, wm_pavilion: { icon: '⛱️', kind: 'The garden pavilion' },
 };

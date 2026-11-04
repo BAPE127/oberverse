@@ -15,6 +15,7 @@
 // Applied after the roads are widened, in final tile coordinates.
 import { roomTiles } from '../world/mapBuilder.js';
 import { capitalFlats, CAPITAL_HOME_BUILDINGS } from './capital.js';
+import { estateFlats, ESTATE_DEFS } from './estates.js';
 
 /**
  * A home: `building` on `map` (an existing building id) becomes its front
@@ -228,7 +229,15 @@ const capital = capitalFlats();
 for (const [key, B] of Object.entries(CAPITAL_BUILDINGS)) {
   if (capital[key].length > B.n) throw new Error(`homes: ${B.name} has ${capital[key].length} flats but room for ${B.n}`);
   HOMES.push({ id: CAPITAL_HOME_BUILDINGS[key], map: 'crown_quarter', building: CAPITAL_HOME_BUILDINGS[key], name: B.name, mapLabel: B.label, type: 'apartment',
-    hallSize: { w: B.w, h: B.h, door: Math.floor(B.w / 2), xs: Array.from({ length: B.n }, (_, i) => 2 + i * 2) }, flats: capital[key] });
+    hallSize: { w: B.w, h: B.h, door: Math.floor(B.w / 2), xs: Array.from({ length: capital[key].length }, (_, i) => 2 + i * 2) }, flats: capital[key] });
+}
+
+// v0.94.1: the estates' staff cottages (Ironcrest's guards and household, Willowmere's), each hall the size of its building.
+for (const [estate, E] of Object.entries(ESTATE_DEFS)) {
+  const grounds = `${estate}_grounds`;
+  const flats = estateFlats(estate);
+  HOMES.push({ id: E.homeId, map: grounds, building: E.homeId, name: estate === 'ironcrest' ? 'The Guards\' Cottages' : 'The Staff Cottages', mapLabel: estate === 'ironcrest' ? 'Guards\' Cottages' : 'Staff Cottages', type: 'apartment',
+    hallSize: { w: 11, h: 12, door: 5, xs: flats.map((_, i) => 2 + i * 2) }, flats });
 }
 
 /** Marty takes a fifth flat at the Plumb Line (Mason is his landlord). Built in maps/westbrook.js. */

@@ -4821,7 +4821,7 @@ function appearanceOf(p) {
 
 /** The workplace spot and the hours of a person's day. `where` is a spot string for the person's work. */
 function scheduleOf(p, homeMap) {
-  const work = p.spot || (p.room ? `${p.room}:entry` : `crown_quarter__${p.work}:desk`);
+  const work = p.spot || (p.room ? `${p.room}:entry` : p.party ? `${p.party}_hq:desk_${p.partyRole}` : `crown_quarter__${p.work}:desk`); // v0.94.1: party staff have a desk each in their real office
   const sleep = `${homeMap}:bed`;
   const chair = `${homeMap}:chair`;
   const late = hash(p.id) % 3; // a little variety: some start at eight, some at nine, some at half past
@@ -4857,13 +4857,6 @@ function capitalFlats() {
     const list = [...HOUSEHOLD, ...MINISTERS].filter((p) => p.home === key);
     for (let i = 0; i < list.length; i += 2) { const c = list.slice(i, i + 2); add(key, c.map((p) => p.id), c.map((p) => p.name).join(' & ')); }
   }
-  // the two leaders, until their own residences are built (v0.94.0 moved them here from Crown Court so they live where they work)
-  add('staff_b', ['npc_vegas'], 'Josiah Vegas', { bed: '#1e2a44', rug: '#8a1a24', loot: { items: { item_gold_watch: 1, item_cigar: 2 }, money: 120 }, props: [
-    { type: 'desk', x: 1, y: 4, w: 2, examine: 'Speeches in three drafts, each marked in red: "TOO KIND", "TOO LONG", "JUST RIGHT (SAY IT TWICE)".' },
-    { type: 'painting', x: 3, y: 0, w: 2, examine: 'A framed election poster: a stern face, a clenched jaw and the single word ORDER. Underneath, in pencil, someone has written "bless you".' }] });
-  add('staff_a', ['npc_susan'], 'Susan', { bed: '#2a6a5a', rug: '#e8b040', loot: { items: { item_gold_ring: 1, item_pocket_watch: 1 }, money: 90 }, props: [
-    { type: 'desk', x: 1, y: 4, w: 2, examine: 'Three speeches, all headed "FINAL". A mug that says WORLD\'S MOST OVERCOMMITTED. A bus ticket to somewhere she has not had time to visit.' },
-    { type: 'shelf', x: 7, y: 4, examine: 'Books on constitutions, two on gardening, and a very worn paperback with the cover torn off. It is, she says, "research".' }] });
   return out;
 }
 
@@ -4872,35 +4865,36 @@ function capitalLife() {
   const flats = capitalFlats();
   const life = {};
   for (const [key, list] of Object.entries(flats)) list.forEach((f, i) => { for (const id of f.who) life[id] = { home: `res_${BLDG[key]}/flat_${i + 1}`, occupation: 'official' }; });
-  delete life.npc_vegas.occupation; delete life.npc_susan.occupation; // (the leaders' LIFE entries are in life.js)
   return life;
 }
 
 const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
 
-/** The character records. */
-function capitalCharacters() {
-  const life = capitalLife();
-  return CAPITAL_PEOPLE.map((p) => {
-    const homeMap = `${life[p.id].home.replace('res_', '').replace('/flat_', '_')}`;
-    return local({
-      id: p.id, name: p.name, shortName: p.shortName, combat: p.armed ? { maxHealth: 110, weapon: 'item_baton' } : { never: true, maxHealth: 80 }, role: p.role, dialogue: `dlg_${p.id.slice(4)}`,
-      voice: { wave: pick(['sine', 'triangle', 'sawtooth'], p.id, 'v'), pitch: 90 + (hash(p.id + 'p') % 110), variance: 6 + (hash(p.id + 'q') % 10), rate: 0.85 + (hash(p.id + 'r') % 15) / 100 },
-      appearance: appearanceOf(p),
-      personality: { traits: [pick(['careful', 'dry', 'warm', 'brisk', 'patient', 'wry'], p.id, 'tr1'), pick(['discreet', 'tireless', 'gossipy', 'exact', 'diplomatic'], p.id, 'tr2')], sociability: 0.4 + (hash(p.id + 'so') % 50) / 100, conscientiousness: 0.6 + (hash(p.id + 'co') % 40) / 100, impulsiveness: 0.1 + (hash(p.id + 'im') % 25) / 100, discretion: 0.5 + (hash(p.id + 'di') % 45) / 100, honesty: 0.5 + (hash(p.id + 'ho') % 45) / 100, empathy: 0.4 + (hash(p.id + 'em') % 50) / 100, confidence: 0.5 + (hash(p.id + 'cf') % 45) / 100, humor: 0.2 + (hash(p.id + 'hu') % 60) / 100 },
-      speech: { rumorPrefix: 'Between ourselves,', factPrefix: 'For the record,', refuse: 'I could not possibly say.' },
-      schedule: scheduleOf(p, homeMap),
-      relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 5 } },
-      giftPrefs: { item_coffee: 4 + (hash(p.id + 'g') % 6), tags: { food: 2 } },
-      opinions: {},
-    });
+/** One person's character record (shared by the capital and the estates): home map and a schedule are given. */
+function personRecord(p, schedule) {
+  return local({
+    id: p.id, name: p.name, shortName: p.shortName, combat: p.armed ? { maxHealth: 110, weapon: 'item_baton' } : { never: true, maxHealth: 80 }, role: p.role, dialogue: `dlg_${p.id.slice(4)}`,
+    voice: { wave: pick(['sine', 'triangle', 'sawtooth'], p.id, 'v'), pitch: 90 + (hash(p.id + 'p') % 110), variance: 6 + (hash(p.id + 'q') % 10), rate: 0.85 + (hash(p.id + 'r') % 15) / 100 },
+    appearance: appearanceOf(p),
+    personality: { traits: [pick(['careful', 'dry', 'warm', 'brisk', 'patient', 'wry'], p.id, 'tr1'), pick(['discreet', 'tireless', 'gossipy', 'exact', 'diplomatic'], p.id, 'tr2')], sociability: 0.4 + (hash(p.id + 'so') % 50) / 100, conscientiousness: 0.6 + (hash(p.id + 'co') % 40) / 100, impulsiveness: 0.1 + (hash(p.id + 'im') % 25) / 100, discretion: 0.5 + (hash(p.id + 'di') % 45) / 100, honesty: 0.5 + (hash(p.id + 'ho') % 45) / 100, empathy: 0.4 + (hash(p.id + 'em') % 50) / 100, confidence: 0.5 + (hash(p.id + 'cf') % 45) / 100, humor: 0.2 + (hash(p.id + 'hu') % 60) / 100 },
+    speech: { rumorPrefix: 'Between ourselves,', factPrefix: 'For the record,', refuse: 'I could not possibly say.' },
+    schedule,
+    relationships: { player: { trust: 0, affection: 0, respect: 0, suspicion: 5 } },
+    giftPrefs: { item_coffee: 4 + (hash(p.id + 'g') % 6), tags: { food: 2 } },
+    opinions: {},
   });
 }
 
+/** The character records. */
+function capitalCharacters() {
+  const life = capitalLife();
+  return CAPITAL_PEOPLE.map((p) => personRecord(p, scheduleOf(p, life[p.id].home.replace('res_', '').replace('/flat_', '_'))));
+}
+
 /** The dialogue records: a greeting, what they do, what they think of the two parties, and where the Politics page is. */
-function capitalDialogues() {
+function personDialogue(p) {
   const open = (tab) => ({ panel: { name: 'tablet', opts: { tab } } });
-  return CAPITAL_PEOPLE.map((p) => {
+  {
     const kindIntro = { ambassador: `${p.name}, ${p.role.split('.')[0]}.`, party: `${p.name}. ${p.role.split('.')[0]}.`, house: `${p.name}. ${p.role.split('.')[0]}.`, minister: `${p.name}. ${p.role.split('.')[0]}.` }[p.kind];
     return {
       id: `dlg_${p.id.slice(4)}`,
@@ -4921,8 +4915,11 @@ function capitalDialogues() {
       gift: { loved: [['Coffee. You understand me.']], liked: [['Thank you. Noted.']], neutral: [['Thank you.']], disliked: [['I will find it a home.']], tooMany: [['That is plenty.']], ownStolen: [['That is mine.']] },
       barks: { greet: ['Good day.'], work: ['Mm.', 'Noted.'], chat: ['Quite.'], argue: ['That is not what the minutes say.'], sleep: ['zzz'], moods: {} },
     };
-  });
+  }
 }
+
+/** The dialogue records. */
+function capitalDialogues() { return CAPITAL_PEOPLE.map(personDialogue); }
 
 /** Who may walk through a building's door at any hour (its own people). */
 const OWNERS = (() => {
@@ -4935,7 +4932,7 @@ const OWNERS = (() => {
 /** Halver House's own people and the two leaders (whichever is President works there): they may use every door of the House. */
 const HOUSE_OWNERS = [...HOUSEHOLD.map((p) => p.id), 'npc_vegas', 'npc_susan'];
 
-return { AMBASSADORS, PARTY_STAFF, STAFF_BY_PARTY, HOUSEHOLD, MINISTERS, CAPITAL_PEOPLE, CAPITAL_HOME_BUILDINGS, capitalFlats, capitalLife, capitalCharacters, capitalDialogues, OWNERS, HOUSE_OWNERS };
+return { hash, pick, AMBASSADORS, PARTY_STAFF, STAFF_BY_PARTY, HOUSEHOLD, MINISTERS, CAPITAL_PEOPLE, CAPITAL_HOME_BUILDINGS, appearanceOf, capitalFlats, capitalLife, local, personRecord, capitalCharacters, personDialogue, capitalDialogues, OWNERS, HOUSE_OWNERS };
 })();
 
 // ---- src/content/maps/halverHouse.js
@@ -5084,7 +5081,7 @@ m.rect(0, 88, 8, 6, 'm').rect(172, 88, 7, 6, 'm'); // Embassy Row's circles
 m.rect(172, 106, 7, 6, 'm'); // the Gate Road's east circle
 for (const [x0, x1, y] of [[0, 7, 36], [172, 178, 36], [0, 7, 89], [172, 178, 89], [172, 178, 107]]) m.rect(x0, y, x1 - x0 + 1, 4, 'm'); // the road itself gives way to the circle
 m.rect(0, 0, 1, 107, 'r').rect(0, 111, 1, 9, 'r'); // the district wall (the Crown Gate at rows 107–110)
-m.rect(W - 1, 0, 1, H, 'r');
+m.rect(W - 1, 0, 1, H, 'r').rect(W - 1, 36, 1, 4, '=').rect(W - 1, 107, 1, 4, '='); // the east wall, with Palace Road's gate (to Ironcrest) and the Gate Road's (to Willowmere)
 m.rect(0, 0, W, 1, 'R');
 m.rect(0, H - 1, W, 1, 'R');
 // the demonstration ground in front of the Assembly, and the paths of the park
@@ -5095,7 +5092,7 @@ m.rect(30, 14, 1, 21, ':').rect(10, 24, 40, 1, ':').rect(14, 14, 1, 11, ':');
 const B = (id, name, x, y, w, h, o = {}) => ({
   id, name, mapLabel: o.label ?? name, x, y, w, h,
   roof: o.roof || '#8a8478', wall: o.wall || '#d8d2c4', trim: o.trim || '#4a4438', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, columns: o.columns, tower: o.tower, trade: o.trade,
-  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: doorLock(id, o.hours, o.closed || `${name}: the doors are locked. "Not yet open to visitors."`) },
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, ...(o.interior ? { to: { map: o.interior, spot: 'entry' } } : {}), lock: doorLock(id, o.hours, o.closed || `${name}: the doors are locked. "Not yet open to visitors."`) },
 });
 /** A door's lock: its own people at any hour, and the public in `hours` where the place is open to it. */
 const doorLock = (id, hours, message) => ({ key: 'item_none', ...(OWNERS[id] ? { owners: OWNERS[id] } : {}), ...(hours ? { hours } : {}), message });
@@ -5131,8 +5128,8 @@ const buildings = [
   embassy('dunmere', 'The Free Harbour of Dunmere — Embassy', 'Dunmere', 82, 94, 8, 12, { roof: '#b89a6a', wall: '#f0e4d0' }),
   // --- east of Sovereign Way: parties, the press and the hotel
   B('cq_diplomatic', 'Diplomatic Residences', 153, 76, 24, 12, { sign: 'DIPLOMATIC RESIDENCES', wall: '#d0c0d8', roof: '#6a5a7a', trade: 'house' }),
-  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { hours: OPEN.party, sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
-  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { hours: OPEN.party, sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
+  B('cq_order_hq', 'Order Party Headquarters', 100, 76, 14, 12, { hours: OPEN.party, interior: 'order_hq', sign: 'THE ORDER PARTY', signColor: '#f0e0e0', roof: '#8a2a30', wall: '#d8a8a8', trade: 'office', closed: shut('The Order Party headquarters', 'Posters of a stern face, and a clenched jaw on every one.') }),
+  B('cq_liberty_hq', 'Liberty League Headquarters', 117, 76, 14, 12, { hours: OPEN.party, interior: 'liberty_hq', sign: 'THE LIBERTY LEAGUE', signColor: '#e0eef8', roof: '#2a5a9a', wall: '#a8c4e0', trade: 'office', closed: shut('The Liberty League headquarters', 'Posters of a smiling face and an unlocked door.') }),
   B('cq_press_hall', 'The Press Hall', 134, 76, 17, 12, { sign: 'PRESS HALL · BRIEFINGS · NEWSROOM', roof: '#7a5a90', wall: '#d8c8e4', trade: 'office', closed: shut('The Press Hall', 'Briefings at noon and a newsroom that never closes.') }),
   B('cq_hotel', 'The Crown Hotel', 100, 94, 22, 12, { hours: OPEN.hotel, sign: 'THE CROWN HOTEL', signColor: '#f0e8c8', roof: '#4a7a58', wall: '#c8e0c8', trade: 'hotel', closed: shut('The Crown Hotel', 'Lobby, bar and rooms for visiting delegations.') }),
   B('cq_cafe', 'Café Concord & The Sitting Room', 125, 94, 14, 12, { hours: OPEN.cafe, sign: 'CAFÉ CONCORD', signColor: '#f8ead0', roof: '#c8782a', wall: '#f0d8b0', trade: 'diner', closed: shut('Café Concord', 'Where the two parties are never seen at the same table. The Sitting Room (restaurant) is behind.') }),
@@ -5208,10 +5205,14 @@ const crownQuarter = {
   ],
   buildings,
   doors: [
+    ...[36, 37, 38, 39].map((y, i) => ({ id: `door_cq_ironcrest_${i}`, x: W - 1, y, keepTile: true, gateway: 'Ironcrest Hall', label: 'Palace Road east, to Ironcrest Hall', to: { map: 'ironcrest_grounds', spot: 'west_gate' } })),
+    ...[107, 108, 109, 110].map((y, i) => ({ id: `door_cq_willowmere_${i}`, x: W - 1, y, keepTile: true, gateway: 'Willowmere', label: 'The Gate Road east, to Willowmere', to: { map: 'willowmere_grounds', spot: 'west_gate' } })),
     ...[107, 108, 109, 110].map((y, i) => ({ id: `door_cq_gate_${i}`, x: 0, y, keepTile: true, gateway: 'Halvermouth', label: 'The Crown Gate, west to Halvermouth', to: { map: 'halvermouth', spot: 'crown_gate' } })),
   ],
   spots: {
     west_gate: { x: 2, y: 108, facing: 'right' },
+    ironcrest_gate: { x: 177, y: 37, facing: 'left' },
+    willowmere_gate: { x: 177, y: 108, facing: 'left' },
     gate_booth: { x: 12, y: 106, facing: 'down' },
     palace_checkpoint: { x: 99, y: 41, facing: 'up' },
     halver_house_steps: { x: 99, y: 35, facing: 'up' },
@@ -5228,6 +5229,455 @@ const CROWN_QUARTER_REGION = { name: 'The Crown Quarter', maps: { crown_quarter:
 const __default = [crownQuarter];
 
 return { crownQuarter, CROWN_QUARTER_REGION, default: __default };
+})();
+
+// ---- src/content/politics.js
+__m["src/content/politics.js"] = (function () {
+// The political system's content (v0.93.0): the constitution, the two parties and the issues they differ on. Pure data; every figure that a later
+// release tunes lives here (the same idea as src/content/income.js). The rules are in src/politics/*.js and the service is src/systems/politics.js.
+//
+// Sund is a constitutional monarchy. The king (eleven) is head of state; an elected President is head of government; one Assembly gives a
+// yes/no on bills (a tally of seats, not a simulated chamber). A term is 120 game days and the election falls in its last 30.
+
+const POLITICS = {
+  /** A term lasts `termDays`; its election is in the last `electionDays` of it (the last day is polling day). */
+  constitution: {
+    termDays: 120,
+    electionDays: 30,
+    assemblySeats: { order: 46, liberty: 44, other: 10 },
+    king: { name: 'the King of Sund', age: 11, seat: 'Kingsfjord Castle', note: 'Head of state: opens the Assembly, signs laws, reviews the fishing fleet on Mondays.' },
+    president: { seat: 'Halver House', note: 'Head of government, elected for one term at a time.' },
+  },
+
+  /** The issues the parties differ on. Each stance is -2 (strongly against) … +2 (strongly for). A policy later moves a named variable; the stance is only what the party leans to. */
+  issues: {
+    police_funding: { name: 'Police funding', blurb: 'Staffing, training and equipment for the police.' },
+    enforcement: { name: 'Enforcement strictness', blurb: 'Penalties, and how hard minor offences are chased.' },
+    surveillance: { name: 'Surveillance powers', blurb: 'What the state may watch.' },
+    defence_budget: { name: 'Defence spending', blurb: 'Procurement, readiness and the arms industry.' },
+    intervention: { name: 'Foreign intervention', blurb: 'Military commitments abroad; how sharp the foreign policy is.' },
+    regulation: { name: 'Business regulation', blurb: 'Inspections, licences and compliance.' },
+    farm_inspection: { name: 'Farm inspection', blurb: 'How often and how hard farms are inspected.' },
+    public_spending: { name: 'Public spending', blurb: 'The size of the state and how it is paid for.' },
+  },
+
+  /** The two parties. The leaders keep exactly the names the owner gave. Party names are working names the player may rename later. */
+  parties: {
+    order: {
+      name: 'the Order Party', short: 'Order', colour: '#3a5a9a', leader: 'npc_vegas',
+      blurb: 'Strict law enforcement, public order, national security and a strong executive.',
+      platform: { police_funding: 2, enforcement: 2, surveillance: 1, defence_budget: 2, intervention: 1, regulation: 1, farm_inspection: 1, public_spending: 0 },
+    },
+    liberty: {
+      name: 'the Liberty League', short: 'Liberty', colour: '#c8803a', leader: 'npc_susan',
+      blurb: 'Lighter enforcement, individual freedom, less regulation and less intervention abroad.',
+      platform: { police_funding: -1, enforcement: -2, surveillance: -2, defence_budget: -1, intervention: -2, regulation: -1, farm_inspection: -1, public_spending: 1 },
+    },
+  },
+
+  /** The roles a party's staff fill (ten; some are combined in a small party). Records exist from the start; people arrive with the People release. */
+  staffRoles: [
+    { id: 'chief_of_staff', name: 'Chief of staff' },
+    { id: 'campaign_manager', name: 'Campaign manager' },
+    { id: 'policy_adviser', name: 'Policy adviser' },
+    { id: 'communications', name: 'Communications director' },
+    { id: 'press_secretary', name: 'Press secretary' },
+    { id: 'fundraising', name: 'Fundraising director' },
+    { id: 'polling', name: 'Polling and research adviser' },
+    { id: 'legal', name: 'Legal adviser' },
+    { id: 'security', name: 'Security coordinator' },
+    { id: 'organiser', name: 'Political organiser' },
+  ],
+
+  /** Starting funds of each party, in obols (a party's own money, never the player's). */
+  funds: { order: 180000, liberty: 150000 },
+};
+
+return { POLITICS };
+})();
+
+// ---- src/content/maps/partyHQ.js
+__m["src/content/maps/partyHQ.js"] = (function () {
+// The two party headquarters as real offices (v0.94.1). Each is laid over its building's footprint (14 × 12): a reception, the leader's office in
+// the north-west corner, the war room (a table and the polling wall) in the north-east, and an open-plan floor with one desk for each of the party's
+// ten staff roles. Staff work at their own desk (`desk_<role>`); anyone may walk in during the party's opening hours.
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+const { POLITICS } = __m["src/content/politics.js"];
+
+const PARTY_HQ = { w: 14, h: 12, dx: 7 };
+const { w: W, h: H, dx: DX } = PARTY_HQ;
+// the ten desks: two rows of five
+const DESKS = [
+  ['chief_of_staff', 2, 5], ['campaign_manager', 4, 5], ['policy_adviser', 6, 5], ['communications', 8, 5], ['press_secretary', 10, 5],
+  ['fundraising', 2, 8], ['polling', 4, 8], ['legal', 6, 8], ['security', 8, 8], ['organiser', 10, 8],
+];
+const ROLE_NAME = Object.fromEntries(POLITICS.staffRoles.map((r) => [r.id, r.name]));
+const EXAMINE = {
+  order: {
+    chief_of_staff: 'The chief of staff\'s desk: the leader\'s diary in four colours, and a clock set eleven minutes fast on purpose.', campaign_manager: 'A wall planner of the next term\'s vote, with a column labelled "ORDER" and no column labelled "LUCK".',
+    policy_adviser: 'Bills in neat piles, each with a cost tab in red. The thinnest pile is labelled "WILL NOT BE POPULAR".', communications: 'Mock-ups of posters: a stern face, a clenched jaw, one word: ORDER. One has been marked "TOO FRIENDLY".',
+    press_secretary: 'A phone, a list of forty-one ways to say "no comment", and a cold cup of tea.', fundraising: 'A ledger of donations: capped, public and recorded. A sign: "WE THANK EVERY DONOR. WE DECLINE TO NAME THE UNHAPPY ONES."',
+    polling: 'Poll sheets pinned in date order, error bars circled in green. A note: "A POLL IS A PHOTOGRAPH, NOT A PROMISE".', legal: 'Statute books with sticky tabs, and a framed sentence: "EVERYTHING WE DO IS LEGAL. WE CHECK."',
+    security: 'A radio, a floor plan of every venue the leader has ever spoken at, and a tidy row of keys.', organiser: 'A stack of folding chairs, a tin of drawing pins and a clipboard that has outlasted three leaders.',
+  },
+  liberty: {
+    chief_of_staff: 'The chief of staff\'s desk: three diaries, a jug of water and a sign that says "ASK BEFORE YOU ASSUME".', campaign_manager: 'A planner of the vote on the wall, with a hand-drawn arrow labelled "HOPE (ESTIMATED)".',
+    policy_adviser: 'Bills with comment bubbles in the margin: "WHO CHECKS THIS?" appears on every one.', communications: 'Poster drafts: a smiling face, an open door, the word LIBERTY. A sticky note: "SMILE LESS TEETH".',
+    press_secretary: 'A phone, a notebook of difficult questions and a mug that says "NO COMMENT (TODAY)".', fundraising: 'A ledger of small donations, each with a name and a thank-you card. The thank-you cards are the budget.',
+    polling: 'Poll sheets with the error bars drawn very, very large. A note: "NEVER BELIEVE THE SECOND DECIMAL".', legal: 'A shelf of civil-liberties cases and a framed warrant, voided, with a coffee ring on it.',
+    security: 'A radio, a bicycle lock and a nervous note: "THE LEADER WILL NOT WEAR THE VEST".', organiser: 'Banners rolled in a corner, a megaphone with a flat battery and a map of every church hall in Sund.',
+  },
+};
+
+/** One headquarters. `party`: 'order' | 'liberty'. */
+function partyHQ(party) {
+  const id = `${party}_hq`;
+  const order = party === 'order';
+  const E = EXAMINE[party];
+  const props = [
+    { id: `${id}_poster`, type: 'painting', x: 5, y: 0, w: 4, examine: order ? 'A banner: a stern face, a clenched jaw and the single word ORDER. It is a good banner. They have eleven.' : 'A banner: a smiling face, an unlocked door and the single word LIBERTY. Someone has added, in pencil, "(PLEASE KNOCK)".' },
+    { id: `${id}_flag`, type: 'flagpole', x: 12, y: 1, color: order ? '#8a2a30' : '#2a5a9a' },
+    { id: `${id}_reception`, type: 'counter', x: 8, y: 9, w: 3, examine: 'The reception counter: a visitors\' book, a bell and a bowl of badges. Take one; they are free. The leaflets are not entirely free: they ask for your vote.' },
+    { id: `${id}_chair`, type: 'chair', x: 9, y: 10 },
+    { id: `${id}_plant1`, type: 'plant', x: 1, y: 10 }, { id: `${id}_plant2`, type: 'plant', x: 12, y: 10 },
+    { id: `${id}_bench`, type: 'bench', x: 1, y: 9, w: 2, examine: 'Chairs for supporters waiting to see someone. Some have been waiting a while; there is a mug on the floor beside each.' },
+    // the leader's office (north-west corner)
+    { id: `${id}_leader_desk`, type: 'desk', x: 2, y: 1, w: 3, color: order ? '#2a1a14' : '#6a4a2a', examine: order ? 'Josiah Vegas\'s desk: a blotter, a seal and a single pen, aligned with the edge.' : 'Susan\'s desk: seven open files, a half-eaten apple and a speech marked "FINAL (4)".' },
+    { id: `${id}_leader_chair`, type: 'chair', x: 3, y: 2 },
+    { id: `${id}_leader_shelf`, type: 'shelf', x: 1, y: 1, examine: order ? 'Bound volumes of speeches, alphabetical, each marked "DELIVERED".' : 'Books on constitutions and two on gardening; one is clearly read more than the other.' },
+    // the war room (north-east): the table and the polling wall
+    { id: `${id}_war_table`, type: 'table', x: 9, y: 2, w: 3, color: '#3a3a44', examine: 'The war-room table: a map of Sund\'s nine states, a pile of poll sheets, coloured pins. The pins are the staff\'s whole religion.' },
+    { id: `${id}_war_wall`, type: 'monitor_wall', x: 9, y: 0, w: 3, examine: 'The polling wall: the latest polls by state, the party\'s lines in the party\'s colour. Whoever is losing stands furthest from it.' },
+    { id: `${id}_terminal`, type: 'terminal', x: 6, y: 1, interact: { kind: 'bank', tab: 'Politics' }, examine: 'A terminal showing the Politics page: who governs, the books, the latest polls. The same page your tablet shows.' },
+    { id: `${id}_board`, type: 'noticeboard', x: 7, y: 0, examine: order ? 'THE ORDER PARTY: "Meetings Thornday evening. Bring a friend. Do not bring a protest sign: it will be handed back, folded."' : 'THE LIBERTY LEAGUE: "Open meeting every Thornday. Bring a friend. Bring a protest sign. We have a sign-painting corner."' },
+  ];
+  const spots = { entry: { x: DX, y: H - 2, facing: 'up' }, reception: { x: 9, y: 10, facing: 'up' }, leader: { x: 3, y: 3, facing: 'down' }, war_table: { x: 10, y: 4, facing: 'up' } };
+  DESKS.forEach(([role, x, y]) => {
+    props.push({ id: `${id}_desk_${role}`, type: 'desk', x, y, examine: `${ROLE_NAME[role]}. ${E[role]}` }, { id: `${id}_chair_${role}`, type: 'chair', x, y: y + 1 });
+    spots[`desk_${role}`] = { x, y: y + 2, facing: 'up' };
+  });
+  return {
+    id, name: order ? 'The Order Party — headquarters' : 'The Liberty League — headquarters', kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTiles(W, H, order ? 'c' : 't', DX, [[1, 5, 1, 1, order ? 'c' : 't']]),
+    doors: [{ id: `door_${id}_exit`, x: DX, y: H - 1, to: { map: 'crown_quarter', spot: `cq_${party}_hq_out` } }],
+    spots, keepClear: [[DX, H - 2]], props,
+  };
+}
+
+const __default = [partyHQ('order'), partyHQ('liberty')];
+
+return { PARTY_HQ, partyHQ, default: __default };
+})();
+
+// ---- src/content/estates.js
+__m["src/content/estates.js"] = (function () {
+// The two leaders' estates (v0.94.1): Ironcrest Hall (Josiah Vegas: stone, a gatehouse, a war room, a range) and Willowmere (Susan: lakeside, glass,
+// an open study). Each has a small household that lives in its own staff cottages: a steward who keeps the door, a cook, and the grounds. The
+// leaders live in their mansion's private quarters (src/content/maps/mansions.js). Access is by invitation: the steward receives callers who
+// are known to the house, or who have an appointment; nothing is open to money alone.
+const { personRecord, personDialogue } = __m["src/content/capital.js"];
+
+const P = (id, name, role, estate, job, line, o = {}) => ({ id, name, shortName: name.split(' ').slice(-1)[0], role, kind: 'house', estate, job, line, ...o });
+
+const ESTATE_DEFS = {
+  ironcrest: { name: 'Ironcrest Hall', leader: 'npc_vegas', party: 'order', flag: 'ironcrest_invited', trusted: 'ironcrest_trusted', steward: 'npc_ih_steward', cottages: 'ih_cottages', homeId: 'ih_cottages' },
+  willowmere: { name: 'Willowmere', leader: 'npc_susan', party: 'liberty', flag: 'willowmere_invited', trusted: 'willowmere_trusted', steward: 'npc_wm_steward', cottages: 'wm_cottages', homeId: 'wm_cottages' },
+};
+
+const ESTATE_PEOPLE = [
+  P('npc_ih_steward', 'Edmund Blackwood', 'Steward of Ironcrest Hall. Keeps the door, the diary and the silence.', 'ironcrest', 'steward', 'Mr Vegas receives by invitation. I keep the book. I read it twice before I write in it, and three times before I strike something out.', { short: 'Blackwood' }),
+  P('npc_ih_cook', 'Agatha Alder', 'Cook at Ironcrest Hall. Feeds a household, a war room and, once a month, a range.', 'ironcrest', 'cook', 'Mr Vegas eats what is put in front of him at the hour it is put there. I have found this a restful arrangement for both of us.', { short: 'Alder' }),
+  P('npc_ih_guard', 'Bram Dagger', 'Gatekeeper and groundsman at Ironcrest Hall. Large, polite and never off duty.', 'ironcrest', 'gate', 'The gate is open when I say and shut when I say. If you have a complaint, I am the one to take it to, and I will take it exactly nowhere.', { short: 'Dagger', armed: true }),
+  P('npc_wm_steward', 'Philippa Reed', 'Steward of Willowmere. Warm, brisk and unshockable.', 'willowmere', 'steward', 'Miss Susan likes visitors, so I decide which. It is a kindness she does not know she is receiving.', { short: 'Reed' }),
+  P('npc_wm_cook', 'Mirabel Thorne', 'Cook at Willowmere. Cooks for twelve and is asked to feed forty.', 'willowmere', 'cook', 'Miss Susan invites everyone and tells me afterwards. The soup has learned to stretch. So, I find, have I.', { short: 'Thorne' }),
+  P('npc_wm_gardener', 'Jonas Fenn', 'Gardener and boatman at Willowmere. Knows every reed on the lake by name.', 'willowmere', 'garden', 'The lake keeps its own counsel. The reeds do the talking, if you stand still long enough.', { short: 'Fenn' }),
+];
+
+const SPOTS = { ironcrest: { steward: 'ironcrest_hall:steward', cook: 'ironcrest_staff:entry', gate: 'ironcrest_grounds:ih_gate' }, willowmere: { steward: 'willowmere_hall:steward', cook: 'willowmere_staff:entry', garden: 'willowmere_grounds:wm_lake' } };
+
+/** One estate worker's day: asleep in the cottage flat, then the household's hours. */
+function scheduleOf(p, home) {
+  const work = SPOTS[p.estate][p.job];
+  return [
+    { from: '22:30', to: '06:30', activity: 'sleep', spot: `${home}:bed` },
+    { from: '06:30', to: '07:30', activity: 'eat', spot: `${home}:chair`, label: 'breakfast' },
+    { from: '07:30', to: '12:30', activity: 'work', spot: work, label: p.job === 'steward' ? 'keeping the house' : p.job === 'cook' ? 'in the kitchen' : p.job === 'gate' ? 'at the gate' : 'in the grounds' },
+    { from: '12:30', to: '13:30', activity: 'eat', spot: `${home}:chair`, label: 'lunch at home' },
+    { from: '13:30', to: '19:00', activity: 'work', spot: work, label: p.job === 'steward' ? 'keeping the house' : p.job === 'cook' ? 'in the kitchen' : p.job === 'gate' ? 'at the gate' : 'in the grounds' },
+    { from: '19:00', to: '22:30', activity: 'relax', spot: `${home}:chair`, label: 'at home' },
+  ];
+}
+
+/** The cottages' flats: one person each. */
+function estateFlats(estate) {
+  return ESTATE_PEOPLE.filter((p) => p.estate === estate).map((p, i) => ({ who: [p.id], name: p.name, bed: ['#5a4a3a', '#4a5a6a', '#6a4a4a'][i % 3], rug: ['#8a6a4a', '#4a6a5a', '#6a5a7a'][i % 3], loot: { items: { item_pocket_watch: 1 }, money: 25 + i * 11 }, props: [
+    { type: 'shelf', x: 1, y: 4, examine: 'A kettle, a calendar of the household\'s duties and a photograph of someone who has been given the day off.' }, { type: 'plant', x: 7, y: 4 }] }));
+}
+const estateLife = () => Object.fromEntries(['ironcrest', 'willowmere'].flatMap((e) => ESTATE_PEOPLE.filter((p) => p.estate === e).map((p, i) => [p.id, { home: `res_${ESTATE_DEFS[e].homeId}/flat_${i + 1}`, occupation: 'official' }])));
+
+function estateCharacters() {
+  const life = estateLife();
+  return ESTATE_PEOPLE.map((p) => personRecord(p, scheduleOf(p, life[p.id].home.replace('res_', '').replace('/flat_', '_'))));
+}
+
+/** The dialogues; each steward also decides who may call (the invitation flag): the house's own acquaintances, or an appointment. */
+function estateDialogues() {
+  return ESTATE_PEOPLE.map((p) => {
+    const d = personDialogue(p);
+    d.topics = d.topics.filter((t) => !t.id.endsWith('_leaders'));
+    const E = ESTATE_DEFS[p.estate];
+    if (p.job === 'steward') {
+      d.topics.unshift({
+        id: `t_${p.id.slice(4)}_call`, label: `"I'd like to call on ${p.estate === 'ironcrest' ? 'Mr Vegas' : 'Susan'}."`, tag: 'quest', keywords: ['call', 'visit', 'invite', 'see', 'meet', 'house'],
+        if: { notFlag: E.flag },
+        say: [`${E.name} receives callers by invitation, and by appointment. I keep the book.`],
+        choices: [
+          { id: `c_${p.id.slice(4)}_known`, label: '"We have met. I think I am known here." (Be known to the house)', if: { rel: { trust: '>=5' } }, say: ['You are known, yes. Your name is in the book of callers. The house receives from nine in the morning until nine at night. Do knock.'], effects: [{ flag: { [E.flag]: true } }, { rel: { respect: 2 } }] },
+          { id: `c_${p.id.slice(4)}_appt`, label: '"I have an appointment." (Show your standing)', if: { flag: 'halver_appointment' }, say: ['The Presidency has written. Very good. Your name is in the book, and the house receives from nine until nine.'], effects: [{ flag: { [E.flag]: true } }] },
+        ],
+      });
+      d.topics.push({ id: `t_${p.id.slice(4)}_known`, label: '"How does someone become known to the house?"', keywords: ['known', 'trust', 'become', 'how'], if: { notFlag: E.flag }, say: ['By being worth knowing. Speak to the household; be useful; be discreet. A gift is noticed, though never mentioned. And money, I should say, is not a reference.'] });
+    }
+    return d;
+  });
+}
+
+/** Who may walk through the estate's doors at any hour: its leader and its household. */
+const ESTATE_OWNERS = Object.fromEntries(Object.entries(ESTATE_DEFS).map(([k, E]) => [k, [E.leader, ...ESTATE_PEOPLE.filter((p) => p.estate === k).map((p) => p.id)]]));
+
+return { ESTATE_DEFS, ESTATE_PEOPLE, estateFlats, estateLife, estateCharacters, estateDialogues, ESTATE_OWNERS };
+})();
+
+// ---- src/content/maps/mansions.js
+__m["src/content/maps/mansions.js"] = (function () {
+// Ironcrest Hall and Willowmere (v0.94.1): each mansion's main hall is laid over its building's footprint (so the grounds do not move); rooms open off
+// its north wall, each its own small map, in three zones:
+//   VISITOR   the hall itself and (at Willowmere) the open study: open once the house has invited you (the estate's `_invited` flag), 09:00–21:00.
+//   PRIVATE   the quarters, the study, the war room: the leader, the household, and those the leader trusts (the `_trusted` flag, later releases).
+//   STAFF     the kitchen, the security room: the household only.
+// Josiah Vegas sleeps in Ironcrest's private quarters and Susan in Willowmere's: they are their homes.
+const { roomTiles } = __m["src/world/mapBuilder.js"];
+const { ESTATE_DEFS, ESTATE_OWNERS } = __m["src/content/estates.js"];
+
+const IRONCREST = { w: 36, h: 24, dx: 17, steward: { x: 20, y: 20, facing: 'right' } };
+const WILLOWMERE = { w: 34, h: 22, dx: 17, steward: { x: 19, y: 18, facing: 'right' } };
+
+const HOURS = { from: '09:00', to: '21:00' };
+const lockOf = (estate, zone) => {
+  const E = ESTATE_DEFS[estate]; const owners = ESTATE_OWNERS[estate];
+  if (zone === 'visitor') return { key: 'item_none', owners, flag: E.flag, hours: HOURS, flagMessage: `${E.name} receives callers by invitation. The steward keeps the book.` };
+  if (zone === 'private') return { key: 'item_none', owners, flag: E.trusted, message: 'PRIVATE. The family\'s rooms. A closed door, a good lock and a very polite silence.' };
+  return { key: 'item_none', owners, message: 'STAFF ONLY. The household\'s own.' };
+};
+
+// [key, door x, zone, name, w, h, floor, note, props]  — props: [type, x, y, w, examine, extra]
+const IRON_ROOMS = [
+  ['quarters', 3, 'private', 'Private quarters', 15, 10, 'c', 'A bed made with a ruler, a wardrobe of identical suits and a window that looks at the gate.', [['bed', 2, 1, 1, 'A bed made so tightly a coin would bounce. The pillow has been struck level.', { color: '#1e2a44' }], ['wardrobe', 5, 1, 1, 'Eleven dark suits, one light one, kept "for emergencies of a social kind".'], ['desk', 9, 1, 3, 'A bedside desk: a lamp, a pen and tomorrow\'s speech, face down.'], ['chair', 10, 2, 1], ['painting', 6, 0, 3, 'A framed photograph of Vegas as a young officer, saluting a sandbag.'], ['rug', 3, 5, 6, 'A plain grey rug, dead centre.'], ['plant', 13, 7]]],
+  ['study', 8, 'private', 'The study', 13, 10, 'c', 'Books on law, strategy and one on gardening, never opened. A desk with nothing out of place.', [['desk', 3, 2, 5, 'The leader\'s desk: a blotter, a seal, a single pen. A drawer that is not locked, because nobody would dare.'], ['chair', 5, 3, 1], ['shelf', 1, 1, 3, 'Bound laws of Sund, with the amendments tabbed in red.'], ['shelf', 9, 1, 3, 'Military histories. Several are about winning by waiting. He does not seem to have noticed.'], ['painting', 5, 0, 3, 'A map of Sund, the whole chain, with the capital circled twice.'], ['plant', 11, 7]]],
+  ['war', 13, 'private', 'The war room', 17, 11, 't', 'A big table, a bigger map and a polling wall. Here the party fights the next election and, in rehearsal, every other kind.', [['table', 4, 3, 9, 'The war-room table: Sund\'s nine states in coloured pins, a pile of poll sheets, a compass nobody needs.'], ['monitor_wall', 3, 0, 11, 'The polling wall: the latest polls by state. The Order line is red; whoever is behind stands furthest from it.', { interact: { kind: 'bank', tab: 'Politics' } }], ['chair', 3, 6, 1], ['chair', 13, 6, 1], ['cabinet', 15, 1, 1, 'A locked cabinet of "contingencies". The key is on Blackwood\'s ring, and Blackwood has never used it.'], ['plant', 1, 8]]],
+  ['security', 26, 'staff', 'Security room', 11, 9, 't', 'Cameras on the gate, the wall, the road and the armoury. Dagger has a chair here that has never been sat in by anyone else.', [['monitor_wall', 1, 0, 9, 'Every camera on the estate: the gate, the road, the wall and the range. In one, a hare is sitting on the lawn, unchallenged.'], ['desk', 3, 3, 5, 'The control desk: a radio, a rota and a sticker that says WE SEE YOU, in a tone that suggests apology.'], ['chair', 5, 4, 1], ['cabinet', 9, 5]]],
+  ['staff', 31, 'staff', 'Kitchen and staff room', 16, 10, 't', 'A scrubbed table, a range that is never allowed to go out, and a roster on the wall in four colours.', [['stove', 2, 1, 2, 'Agatha Alder\'s range. It has fed a household, a war room and a firing squad of sandwiches.'], ['table', 5, 4, 6, 'A long scrubbed table; places laid for the household. Nobody sits in Dagger\'s place.'], ['cabinet', 12, 1, 1, 'A larder, orderly to the point of menace.'], ['shelf', 1, 6, 3, 'Preserves in jars, labelled by year and temper.'], ['plant', 14, 7]]],
+];
+const WILLOW_ROOMS = [
+  ['quarters', 3, 'private', 'Private quarters', 15, 10, 'c', 'A bed that is never quite made, a window onto the lake and a chair with three newspapers on it.', [['bed', 2, 1, 1, 'A bed with the covers thrown back and a speech under the pillow.', { color: '#2a6a5a' }], ['wardrobe', 5, 1, 1, 'Coats in every colour but grey. A scarf hangs on every hook, and none on its own.'], ['desk', 9, 1, 3, 'A bedside desk with a lamp, a pen without a lid and a phone off the hook.'], ['chair', 10, 2, 1], ['painting', 6, 0, 3, 'A watercolour of the lake at dawn, signed "S." in a hurry.'], ['rug', 3, 5, 6, 'A hand-woven rug in nine colours that do not go together and somehow do.'], ['plant', 13, 7]]],
+  ['study', 8, 'visitor', 'The open study', 15, 10, 'f', 'A big desk, a bigger window, a door that is never closed. Susan holds her surgeries here; the sign on the door says "PLEASE KNOCK. THEN COME IN."', [['desk', 4, 2, 5, 'Susan\'s desk: seven open files, a half-eaten apple and a speech marked "FINAL (5)". A mug: WORLD\'S MOST OVERCOMMITTED.'], ['chair', 6, 3, 1], ['chair', 5, 5, 1], ['chair', 8, 5, 1], ['shelf', 1, 1, 3, 'Constitutions, two books on gardening, and a paperback with its cover torn off: "research".'], ['painting', 6, 0, 4, 'A map of every church hall in Sund where Liberty has ever held a meeting. There are a great many.'], ['plant', 13, 7]]],
+  ['security', 27, 'staff', 'Discreet security', 11, 9, 't', 'The cameras are in the reeds, the trellis and the weathervane. Nobody can see them, which is the whole idea.', [['monitor_wall', 1, 0, 9, 'A wall of cameras you cannot see in the garden: the gate, the lake, the lane. One shows a heron looking back at it.'], ['desk', 3, 3, 5, 'A control desk with a rota and a bicycle bell, which is the alarm.'], ['chair', 5, 4, 1]]],
+  ['staff', 31, 'staff', 'Kitchen and staff room', 16, 10, 't', 'A kitchen that cooks for twelve and is asked to feed forty. A roster on the wall in three colours and a hopeful biscuit tin.', [['stove', 2, 1, 2, 'Mirabel Thorne\'s range. The soup has learned to stretch.'], ['table', 5, 4, 6, 'A long table with a place laid for the household and, always, a spare for whoever turns up.'], ['cabinet', 12, 1, 1, 'A larder of jars, each labelled in a cheerful hand.'], ['plant', 14, 7]]],
+];
+
+function side(estate, [key, x, zone, name, w, h, floor, note, props]) {
+  const cx = Math.floor(w / 2);
+  const id = `${estate}_${key}`;
+  const E = ESTATE_DEFS[estate];
+  const out = {
+    id, name: `${E.name} — ${name}`, kind: 'interior', music: 'mus_civic', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 },
+    tiles: roomTiles(w, h, floor, cx),
+    doors: [{ id: `door_${id}_exit`, x: cx, y: h - 1, to: { map: `${estate}_hall`, spot: `d_${key}` } }],
+    spots: { entry: { x: cx, y: h - 2, facing: 'up' } }, keepClear: [[cx, h - 2]], zone,
+    props: [{ id: `${id}_note`, type: 'sign', x: w - 2, y: 1, examine: note }, ...props.map(([type, px, py, pw, examine, extra], i) => ({ id: `${id}_${i}`, type, x: px, y: py, ...(pw > 1 ? { w: pw } : {}), ...(examine ? { examine } : {}), ...(extra || {}) }))],
+  };
+  if (key === 'quarters') Object.assign(out.spots, { bed: { x: 3, y: 1, facing: 'down' }, chair: { x: 10, y: 3, facing: 'left' } });
+  if (key === 'staff') out.spots.entry = { x: cx, y: h - 2, facing: 'up' };
+  return out;
+}
+
+function hall(estate, D, rooms, hallProps, spots) {
+  const E = ESTATE_DEFS[estate];
+  const { w: W, h: H, dx: DX } = D;
+  return {
+    id: `${estate}_hall`, name: `${E.name} — the great hall`, kind: 'interior', music: 'mus_manor', ambience: 'amb_indoor', wallStyle: 'grand', floorStyle: { t: 4 }, owner: E.leader,
+    tiles: roomTiles(W, H, 't', DX, [...rooms.map((r) => [r[1], 0, 1, 1, 'D']), [DX - 2, 2, 5, H - 4, 'c']]),
+    doors: [
+      { id: `door_${estate}_exit`, x: DX, y: H - 1, to: { map: `${estate}_grounds`, spot: `${estate}_hall_out` } },
+      ...rooms.map((r) => ({ id: `door_${estate}_${r[0]}`, x: r[1], y: 0, label: `${r[3]} (${r[2] === 'visitor' ? 'visitors, by invitation' : r[2] === 'private' ? 'private' : 'staff only'})`, to: { map: `${estate}_${r[0]}`, spot: 'entry' }, lock: lockOf(estate, r[2]) })),
+    ],
+    spots: { entry: { x: DX, y: H - 2, facing: 'up' }, steward: D.steward, ...spots, ...Object.fromEntries(rooms.map((r) => [`d_${r[0]}`, { x: r[1], y: 1, facing: 'down' }])) },
+    keepClear: [[DX, H - 2], ...rooms.map((r) => [r[1], 1])],
+    props: hallProps,
+  };
+}
+
+const ironProps = [
+  { id: 'ic_hearth', type: 'stove', x: 28, y: 12, w: 2, examine: 'A stone hearth you could roast a sentry in. A fire is laid and has been since the day it was built; it is lit only for visitors who are known.' },
+  { id: 'ic_table', type: 'table', x: 6, y: 13, w: 9, color: '#2a1a14', examine: 'A dining table for twenty: iron-grey cloth, plain silver and a place card for each guest in the same hand. Nobody sits in the wrong place twice.' },
+  ...[6, 8, 10, 12, 14].flatMap((x, i) => [{ id: `ic_chair_a${i}`, type: 'chair', x, y: 12 }, { id: `ic_chair_b${i}`, type: 'chair', x, y: 14 }]),
+  { id: 'ic_trophy', type: 'display', x: 4, y: 20, w: 6, examine: 'A trophy gallery: marksmanship cups, a ceremonial sword, and a framed letter of thanks from a grateful fire brigade. Under it, in pencil: "(NOT FOR THE FIRE)".' },
+  { id: 'ic_trophy2', type: 'display', x: 24, y: 20, w: 6, examine: 'More cups. The engraved dates stop in the same year, the year Vegas was first elected, and the cups after it are all for the party.' },
+  { id: 'ic_portrait', type: 'painting', x: 14, y: 0, w: 5, examine: 'A portrait of Josiah Vegas in dress uniform, looking at the viewer as though checking their papers.' },
+  { id: 'ic_crest', type: 'painting', x: 22, y: 0, w: 4, examine: 'The crest of the Order Party: a closed gate on a field of grey. The motto is one word, "ORDER", and under it, smaller, "(PLEASE)".' },
+  { id: 'ic_flag1', type: 'flagpole', x: 2, y: 3, color: '#8a2a30' }, { id: 'ic_flag2', type: 'flagpole', x: 33, y: 3, color: '#8a2a30' },
+  { id: 'ic_col1', type: 'column', x: 8, y: 8 }, { id: 'ic_col2', type: 'column', x: 26, y: 8 }, { id: 'ic_col3', type: 'column', x: 8, y: 18 }, { id: 'ic_col4', type: 'column', x: 26, y: 18 },
+  { id: 'ic_book', type: 'noticeboard', x: 21, y: 21, examine: 'THE BOOK OF CALLERS. Every visitor is entered, with the hour, the purpose and the hour they left. The last page is blank. Mr Blackwood prefers it that way.' },
+  { id: 'ic_steward', type: 'desk', x: 21, y: 20, w: 2, color: '#2a1a14', examine: 'The steward\'s desk: the diary, the keys and a bell that is never rung because Blackwood is already there.' },
+  { id: 'ic_plant1', type: 'plant', x: 1, y: 22 }, { id: 'ic_plant2', type: 'plant', x: 34, y: 22 },
+  { id: 'ic_politics', type: 'terminal', x: 30, y: 4, interact: { kind: 'bank', tab: 'Politics' }, examine: 'A terminal in the hall: who governs, the books, the latest polls. The same page your tablet shows.' },
+];
+const willowProps = [
+  { id: 'wm_shelf1', type: 'shelf', x: 2, y: 5, w: 8, examine: 'The long library: eight metres of books, none shelved in any order the household can explain. "It is by when I read them," says Susan.' },
+  { id: 'wm_shelf2', type: 'shelf', x: 24, y: 5, w: 8, examine: 'More of the long library, with a ladder, a cat and a note: "PLEASE RETURN BOOKS TO WHERE THEY WERE. (NOBODY KNOWS.)"' },
+  { id: 'wm_table', type: 'table', x: 6, y: 11, w: 8, color: '#8a6a4a', examine: 'A long oak table with no cloth and thirty mismatched chairs, set for however many come.' },
+  ...[6, 8, 10, 12].flatMap((x, i) => [{ id: `wm_chair_a${i}`, type: 'chair', x, y: 10 }, { id: `wm_chair_b${i}`, type: 'chair', x, y: 12 }]),
+  { id: 'wm_piano', type: 'piano', x: 26, y: 12, examine: 'A grand piano with a speech on the music stand. Susan plays it badly and with great confidence.' },
+  { id: 'wm_window1', type: 'window', x: 4, y: 0 }, { id: 'wm_window2', type: 'window', x: 29, y: 0 },
+  { id: 'wm_portrait', type: 'painting', x: 13, y: 0, w: 5, examine: 'A portrait of Susan at her desk, laughing at something out of frame. The painter has noted: "(SITTER MOVED THROUGHOUT)".' },
+  { id: 'wm_crest', type: 'painting', x: 21, y: 0, w: 4, examine: 'The Liberty League\'s crest: an open door on a field of blue. The motto is "LIBERTY", and below it, hand-lettered, "(KNOCK)".' },
+  { id: 'wm_flag1', type: 'flagpole', x: 2, y: 3, color: '#2a5a9a' }, { id: 'wm_flag2', type: 'flagpole', x: 31, y: 3, color: '#2a5a9a' },
+  { id: 'wm_book', type: 'noticeboard', x: 21, y: 19, examine: 'THE VISITORS\' BOOK. Everyone signs; Susan reads every name and writes back on a postcard. Some are still waiting for a reply.' },
+  { id: 'wm_steward', type: 'desk', x: 20, y: 18, w: 2, color: '#8a6a4a', examine: 'The steward\'s desk: a diary, a ring of keys, a tin of biscuits and a note: "TELL HER SHE HAS A MEETING".' },
+  { id: 'wm_plant1', type: 'plant', x: 1, y: 20 }, { id: 'wm_plant2', type: 'plant', x: 32, y: 20 }, { id: 'wm_plant3', type: 'plant', x: 15, y: 20 },
+  { id: 'wm_politics', type: 'terminal', x: 27, y: 4, interact: { kind: 'bank', tab: 'Politics' }, examine: 'A terminal in the long library: who governs, the books, the latest polls. The same page your tablet shows.' },
+];
+
+const __default = [
+  hall('ironcrest', IRONCREST, IRON_ROOMS, ironProps, { fireside: { x: 27, y: 14, facing: 'right' } }),
+  ...IRON_ROOMS.map((r) => side('ironcrest', r)),
+  hall('willowmere', WILLOWMERE, WILLOW_ROOMS, willowProps, { window: { x: 4, y: 3, facing: 'down' } }),
+  ...WILLOW_ROOMS.map((r) => side('willowmere', r)),
+];
+
+return { IRONCREST, WILLOWMERE, default: __default };
+})();
+
+// ---- src/content/maps/estateGrounds.js
+__m["src/content/maps/estateGrounds.js"] = (function () {
+// The grounds of Ironcrest Hall and of Willowmere (v0.94.1): each a small map of its own, reached by road from the Crown Quarter's east gates (Palace
+// Road to Ironcrest, the Crown Gate Road to Willowmere). Coordinates are final. Preview: `npm run map -- ironcrest_grounds`.
+//
+//   IRONCREST: a walled compound ("discipline, hard stone, one road in, guards at every turn"): the gate in the west wall with its gatehouse, the guards'
+//   cottages, the Hall in the north and the range and armoury in the north-east; lawns, hedges and a statue south of the drive.
+//   WILLOWMERE: "light, lake, glass, an open garden gate": no wall; the house, the staff cottages, a glass conservatory and a garden pavilion along the
+//   north side of the drive, the lake and a pier to the south.
+const { MapBuilder } = __m["src/world/mapBuilder.js"];
+const { IRONCREST, WILLOWMERE } = __m["src/content/maps/mansions.js"];
+const { ESTATE_DEFS, ESTATE_OWNERS } = __m["src/content/estates.js"];
+
+const W = 110;
+const H = 72;
+
+const B = (id, name, x, y, w, h, o = {}) => ({
+  id, name, mapLabel: o.label ?? name, x, y, w, h, roof: o.roof || '#8a8478', wall: o.wall || '#d8d2c4', trim: o.trim || '#4a4438', sign: o.sign, signColor: o.signColor, flatRoof: o.flatRoof ?? true, columns: o.columns, tower: o.tower, trade: o.trade,
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', ...(o.owners ? { owners: o.owners } : {}), message: o.closed || `${name}: the door is shut.` } },
+});
+
+function edges(m) {
+  m.rect(0, 0, W, 1, 'R').rect(0, H - 1, W, 1, 'R').rect(W - 1, 0, 1, H, 'r');
+  m.rect(0, 0, 1, 34, 'r').rect(0, 38, 1, H - 38, 'r'); // the edge of the map (the road leaves at rows 34–37)
+}
+function drive(m) {
+  m.rect(0, 33, 100, 1, ',').rect(0, 38, 100, 1, ','); // the drive's pavements
+  m.rect(0, 34, 100, 4, '='); // the drive
+  m.rect(100, 32, 6, 8, 'm'); // the turning circle at the end
+}
+const doorsWest = (to, label) => [34, 35, 36, 37].map((y, i) => ({ id: `door_${to.map}_${i}`, x: 0, y, keepTile: true, gateway: 'The Crown Quarter', label, to }));
+
+// ================================================================== IRONCREST
+const im = new MapBuilder(W, H, '.');
+edges(im);
+im.rect(14, 4, 93, 63, 'r').rect(15, 5, 91, 61, '.'); // the compound wall
+drive(im); // (after the wall: the drive runs through the gate in it)
+im.rect(50, 33, 36, 1, 'm'); // the forecourt along the Hall's front
+im.rect(23, 20, 1, 12, ',').rect(98, 26, 1, 6, ','); // the paths to the cottages and the range
+im.rect(26, 47, 32, 10, 'g'); // the parade ground
+im.rect(20, 40, 76, 1, ':').rect(66, 40, 1, 24, ':').rect(30, 52, 56, 1, ':'); // garden paths south of the drive
+const IRON_OWN = ESTATE_OWNERS.ironcrest;
+const ironBuildings = [
+  B('ic_hall', 'Ironcrest Hall', 50, 9, IRONCREST.w, IRONCREST.h, { label: 'Ironcrest Hall', sign: 'IRONCREST HALL', signColor: '#e8e0d0', roof: '#4a4a52', wall: '#a8a49c', trim: '#2a2a30', columns: true, flatRoof: false, tower: 3,
+    door: { x: 50 + IRONCREST.dx, y: 9 + IRONCREST.h - 1, to: { map: 'ironcrest_hall', spot: 'entry' }, lock: { key: 'item_none', owners: IRON_OWN, flag: ESTATE_DEFS.ironcrest.flag, hours: { from: '09:00', to: '21:00' }, flagMessage: 'IRONCREST HALL. Callers are received by invitation. The steward keeps the book; the guards keep the steward.' } } }),
+  B('ih_cottages', 'The Guards\' Cottages', 18, 21, 11, 12, { sign: 'GUARDS\' COTTAGES', wall: '#8a867e', roof: '#4a4a52', trade: 'house' }),
+  B('ic_gatehouse', 'The Gatehouse', 30, 27, 8, 6, { sign: 'GATEHOUSE', wall: '#8a867e', roof: '#4a4a52', trade: 'office', owners: IRON_OWN, closed: 'THE GATEHOUSE. Guards only.' }),
+  B('ic_range', 'The Range & Armoury', 92, 17, 12, 16, { sign: 'RANGE & ARMOURY', wall: '#7a766e', roof: '#3a3a40', trade: 'storage', owners: IRON_OWN, closed: 'THE RANGE & ARMOURY. A steel door, a red light and a sign: "LIVE FIRE. THE GUARDS WILL SAY WHEN."' }),
+];
+const ip = []; let n = 0;
+const IP = (type, x, y, o = {}) => ip.push({ id: `ig_${type}_${n++}`, type, x, y, ...o });
+IP('bigsign', 5, 31, { w: 3, h: 2, text: 'IRONCREST HALL', sub: 'PRIVATE ROAD · BY INVITATION', examine: 'IRONCREST HALL. "Private road. Callers are received by invitation, between nine and nine. The gate is attended."' });
+IP('boom_barrier', 20, 34, { w: 1, h: 4, raised: true, solid: false, examine: 'The gate\'s boom barrier. It is up. Dagger is watching it. It would be very wise to go on being up.' });
+IP('sign', 22, 33, { examine: 'GATE. "Visitors report to the gatehouse. Photography of the guards is permitted; of the armoury, regrettable."' });
+IP('booth', 28, 33, { examine: 'The gate booth: a chair, a flask, a radio and a log in which every vehicle since the wall was built is entered in pencil.' });
+for (let x = 22; x < 98; x += 12) { IP('streetlamp', x, 33); IP('streetlamp', x + 6, 38); }
+for (const [x, y] of [[20, 8], [28, 12], [36, 8], [22, 17], [92, 8], [96, 12], [100, 8], [20, 44], [26, 56], [34, 62], [86, 46], [92, 56], [98, 62], [44, 60], [78, 60], [58, 62]]) IP('tree', x, y);
+for (let x = 18; x < 48; x += 2) IP('bush', x, 6); for (let x = 88; x < 104; x += 2) IP('bush', x, 6);
+IP('fountain', 62, 44, { w: 3, h: 3, examine: 'A cold stone fountain in the shape of a fist holding a trowel. Water comes out of the wrist. Nobody has ever seen it dry.' });
+IP('statue', 38, 44, { w: 2, h: 3, label: 'THE FIRST SENTRY', examine: 'A bronze sentry with a rifle, standing very straight. The plaque: "He Held The Line." Beneath it, in smaller letters, "(He Was Not Asked To Move.)"' });
+for (const [x, y] of [[44, 41], [76, 41], [50, 56], [74, 56]]) IP('bench', x, y);
+IP('flowerbed', 54, 42); IP('flowerbed', 58, 42); IP('flowerbed', 70, 42); IP('flowerbed', 74, 42);
+for (let x = 26; x < 58; x += 2) IP('bush', x, 58); // a clipped hedge along the parade ground
+IP('flagpole', 42, 46, { color: '#8a2a30' });
+IP('flagpole', 48, 33, { color: '#8a2a30' }); IP('flagpole', 87, 33, { color: '#8a2a30' });
+IP('noticeboard', 94, 33, { examine: 'RANGE NOTICE: "Live fire Monday and Thornday, 14:00 to 16:00. Hearing protection is not optional. Neither is silence."' });
+IP('crate', 89, 24); IP('barrel', 89, 26); IP('crate', 89, 28);
+IP('bollard', 100, 34); IP('bollard', 100, 37);
+const ironcrestGrounds = {
+  id: 'ironcrest_grounds', name: 'Ironcrest Hall', kind: 'outdoor', music: { day: 'mus_civic', night: 'mus_civic' }, ambience: 'amb_city', tiles: im.rows(),
+  areas: [{ id: 'area_ic_road', name: 'The Ironcrest Road', x: 0, y: 30, w: 14, h: 10 }, { id: 'area_ic_compound', name: 'Ironcrest Compound', x: 14, y: 4, w: 93, h: 62 }],
+  buildings: ironBuildings,
+  doors: doorsWest({ map: 'crown_quarter', spot: 'ironcrest_gate' }, 'Palace Road west, to the Crown Quarter'),
+  spots: { west_gate: { x: 2, y: 35, facing: 'right' }, ih_gate: { x: 21, y: 33, facing: 'right' }, ironcrest_hall_out: { x: 50 + IRONCREST.dx, y: 33, facing: 'down' }, forecourt: { x: 60, y: 34, facing: 'up' } },
+  props: ip,
+};
+
+// ================================================================== WILLOWMERE
+const wm = new MapBuilder(W, H, '.');
+edges(wm);
+drive(wm);
+wm.rect(30, 42, 60, 24, '~'); // the lake
+wm.rect(58, 39, 3, 11, 'p'); // the pier, out from the drive's pavement
+wm.rect(30, 39, 28, 3, ':').rect(61, 39, 29, 3, ':'); // the shore path
+wm.rect(14, 33, 1, 1, ',');
+const WM_OWN = ESTATE_OWNERS.willowmere;
+const willowBuildings = [
+  B('wm_hall', 'Willowmere', 40, 11, WILLOWMERE.w, WILLOWMERE.h, { label: 'Willowmere', sign: 'WILLOWMERE', signColor: '#2a5a4a', roof: '#4a6a5a', wall: '#ece4d0', trim: '#2a4a3a', columns: true, flatRoof: false, tower: 2,
+    door: { x: 40 + WILLOWMERE.dx, y: 11 + WILLOWMERE.h - 1, to: { map: 'willowmere_hall', spot: 'entry' }, lock: { key: 'item_none', owners: WM_OWN, flag: ESTATE_DEFS.willowmere.flag, hours: { from: '09:00', to: '21:00' }, flagMessage: 'WILLOWMERE. Susan likes visitors; the steward decides which, and when. She keeps the book.' } } }),
+  B('wm_cottages', 'The Staff Cottages', 14, 21, 11, 12, { sign: 'STAFF COTTAGES', wall: '#d8d0b8', roof: '#6a7a5a', trade: 'house' }),
+  B('wm_conservatory', 'The Glass Conservatory', 76, 21, 14, 12, { sign: 'THE CONSERVATORY', wall: '#c8e0dc', roof: '#8ab8b0', trade: 'hotel', owners: WM_OWN, closed: 'THE CONSERVATORY. Fundraising dinners, by invitation. The glass is the point; the door is locked.' }),
+  B('wm_pavilion', 'The Garden Pavilion', 93, 23, 11, 10, { sign: 'GARDEN PAVILION', wall: '#e4dcc4', roof: '#7a8a6a', trade: 'office', owners: WM_OWN, closed: 'THE GARDEN PAVILION. Meetings, by arrangement with the steward.' }),
+];
+const wp = []; n = 0;
+const WP = (type, x, y, o = {}) => wp.push({ id: `wg_${type}_${n++}`, type, x, y, ...o });
+WP('bigsign', 5, 31, { w: 3, h: 2, text: 'WILLOWMERE', sub: 'THE GATE IS OPEN', examine: 'WILLOWMERE. "The gate is open. The cameras, regrettably, are also open. Callers are received by arrangement."' });
+WP('boom_barrier', 22, 34, { w: 1, h: 4, raised: true, solid: false, examine: 'A garden gate that is a boom barrier in disguise. It is up. It has never been seen down. Susan says this is a statement.' });
+WP('sign', 24, 33, { examine: 'WILLOWMERE. "Walk in. Wipe your feet. Mind the geese."' });
+for (let x = 22; x < 98; x += 12) { WP('streetlamp', x, 33); WP('streetlamp', x + 6, 38); }
+for (const [x, y] of [[10, 8], [18, 12], [28, 6], [32, 14], [80, 8], [88, 6], [96, 10], [104, 14], [10, 44], [18, 58], [26, 62], [94, 46], [100, 58], [96, 64], [8, 31]]) WP('tree', x, y);
+for (const [x, y] of [[34, 40], [44, 40], [72, 40], [86, 40], [30, 46], [90, 50], [28, 58], [92, 62]]) WP('bush', x, y); // reeds
+WP('boat', 64, 54, { w: 3, h: 2, examine: 'A rowing boat tied to nothing, drifting about the lake with a lazy air. Fenn says it goes where it likes and returns when it is hungry.' });
+WP('bench', 62, 39, { examine: 'A bench at the end of the shore path, facing the water. A cushion sits on it that nobody remembers buying.' }); WP('bench', 56, 39);
+WP('flowerbed', 44, 33); WP('flowerbed', 50, 33); WP('flowerbed', 66, 33);
+for (const [x, y] of [[32, 18], [36, 24], [74, 14]]) WP('tree', x, y);
+WP('flagpole', 38, 33, { color: '#2a5a9a' }); WP('flagpole', 75, 33, { color: '#2a5a9a' });
+WP('noticeboard', 96, 33, { examine: 'THE GARDEN: "Open to the neighbours on Moonday afternoons. Please do not feed the ducks the leaflets."' });
+WP('bollard', 100, 34); WP('bollard', 100, 37);
+const willowmereGrounds = {
+  id: 'willowmere_grounds', name: 'Willowmere', kind: 'outdoor', music: { day: 'mus_fields', night: 'mus_fields' }, ambience: 'amb_fields', tiles: wm.rows(),
+  areas: [{ id: 'area_wm_drive', name: 'The Willowmere Drive', x: 0, y: 30, w: 106, h: 10 }, { id: 'area_wm_lake', name: 'Willowmere Lake', x: 30, y: 39, w: 62, h: 28 }, { id: 'area_wm_garden', name: 'Willowmere Gardens', x: 1, y: 4, w: 105, h: 28 }],
+  buildings: willowBuildings,
+  doors: doorsWest({ map: 'crown_quarter', spot: 'willowmere_gate' }, 'The Gate Road west, to the Crown Quarter'),
+  spots: { west_gate: { x: 2, y: 35, facing: 'right' }, wm_lake: { x: 59, y: 39, facing: 'down' }, willowmere_hall_out: { x: 40 + WILLOWMERE.dx, y: 33, facing: 'down' }, garden: { x: 70, y: 33, facing: 'up' } },
+  props: wp,
+};
+
+const __default = [ironcrestGrounds, willowmereGrounds];
+
+return { ironcrestGrounds, willowmereGrounds, default: __default };
 })();
 
 // ---- src/content/income.js
@@ -6918,6 +7368,9 @@ const REGIONS = {
     name: 'The Crown Quarter',
     maps: { crown_quarter: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
   },
+  // The two estates (v0.94.1): each its own small map, through the Crown Quarter's east gates.
+  ironcrest: { name: 'Ironcrest Hall', maps: { ironcrest_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
+  willowmere: { name: 'Willowmere', maps: { willowmere_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {
@@ -13816,7 +14269,7 @@ __m["src/content/characters/politics.js"] = (function () {
 // They are persistent NPCs for the whole game, in or out of office, with a home, a bed, a sleep block, a schedule and a dialogue. Each is a person
 // with supporters and weak points, never a villain or a saint; neither is "good" or "bad" for the player (see docs/PROPOSAL_POLITICS.md).
 //
-// For now each has a flat in the Staff Flats beside the Crown Quarter's square (Vegas in B, Susan in A) and works the capital by day (v0.94.0 moved them from Crown Court); the Crown Quarter,
+// For now each lives in a mansion of their own (v0.94.1: Ironcrest Hall and Willowmere; v0.94.0 had them in the Staff Flats, v0.93 in Crown Court) and works the capital by day; the Crown Quarter,
 // Halver House, party offices and the mansions come with the next releases, which replace these homes and schedules (ids never change).
 // No leader changes any price, cost or law in this release.
 const local = (o) => ({ tier: 'minor', origin: 'generated', faction: null, walkSpeed: 1, punctuality: 2, impulses: [], notices: [], reactions: {}, knowledge: [], noSnitch: false, ...o });
@@ -13831,12 +14284,12 @@ const vegas = local({
   personality: { traits: ['stern', 'disciplined', 'persuasive', 'believes his own speeches'], sociability: 0.6, conscientiousness: 0.95, impulsiveness: 0.1, discretion: 0.8, honesty: 0.55, empathy: 0.4, confidence: 0.95, humor: 0.2 },
   speech: { rumorPrefix: 'Between ourselves, and not for the cameras,', factPrefix: 'The record is clear:', refuse: 'That is not a matter for public discussion.' },
   schedule: [
-    { from: '23:00', to: '06:30', activity: 'sleep', spot: 'cq_staff_b_4:bed' },
-    { from: '06:30', to: '08:00', activity: 'eat', spot: 'cq_staff_b_4:chair', label: 'breakfast and the overnight briefing papers' },
-    { from: '08:00', to: '12:00', activity: 'work', spot: 'crown_quarter__cq_order_hq:desk', label: 'meetings at party headquarters' },
+    { from: '23:00', to: '06:30', activity: 'sleep', spot: 'ironcrest_quarters:bed' },
+    { from: '06:30', to: '08:00', activity: 'eat', spot: 'ironcrest_quarters:chair', label: 'breakfast and the overnight briefing papers' },
+    { from: '08:00', to: '12:00', activity: 'work', spot: 'order_hq:leader', label: 'meetings at party headquarters' },
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'crown_quarter:square_fountain', label: 'a working lunch by the fountain' },
     { from: '13:00', to: '17:00', activity: 'work', spot: 'crown_quarter:press_line', label: 'a public appearance on the Square' },
-    { from: '17:00', to: '23:00', activity: 'relax', spot: 'cq_staff_b_4:chair', label: 'rehearsing tomorrow\'s speech' },
+    { from: '17:00', to: '23:00', activity: 'relax', spot: 'ironcrest_quarters:chair', label: 'rehearsing tomorrow\'s speech' },
   ],
   relationships: { player: { trust: 0, affection: 0, respect: 5, suspicion: 10 }, npc_susan: { trust: 5, affection: 0, respect: 30, suspicion: 40 }, npc_lawrence: { trust: 45, affection: 20, respect: 25, suspicion: 5 } },
   giftPrefs: { item_cigar: 8, item_coffee: 4, tags: { food: 1 } },
@@ -13856,12 +14309,12 @@ const susan = local({
   personality: { traits: ['quick', 'warm in public', 'sceptical of power', 'overcommitted'], sociability: 0.85, conscientiousness: 0.7, impulsiveness: 0.35, discretion: 0.5, honesty: 0.7, empathy: 0.75, confidence: 0.85, humor: 0.65 },
   speech: { rumorPrefix: 'I shouldn\'t say this, but', factPrefix: 'Look at the numbers:', refuse: 'Ask me that when the cameras are off.' },
   schedule: [
-    { from: '23:30', to: '07:00', activity: 'sleep', spot: 'cq_staff_a_4:bed' },
-    { from: '07:00', to: '08:30', activity: 'eat', spot: 'cq_staff_a_4:chair', label: 'coffee, three newspapers and a phone call' },
+    { from: '23:30', to: '07:00', activity: 'sleep', spot: 'willowmere_quarters:bed' },
+    { from: '07:00', to: '08:30', activity: 'eat', spot: 'willowmere_quarters:chair', label: 'coffee, three newspapers and a phone call' },
     { from: '08:30', to: '12:00', activity: 'work', spot: 'crown_quarter:demonstration', label: 'meeting voters on the Square' },
     { from: '12:00', to: '13:00', activity: 'eat', spot: 'crown_quarter:square_fountain', label: 'lunch by the fountain' },
-    { from: '13:00', to: '17:00', activity: 'work', spot: 'crown_quarter__cq_liberty_hq:desk', label: 'committee work at party headquarters' },
-    { from: '17:00', to: '23:30', activity: 'relax', spot: 'cq_staff_a_4:chair', label: 'drafting a speech she will rewrite twice' },
+    { from: '13:00', to: '17:00', activity: 'work', spot: 'liberty_hq:leader', label: 'committee work at party headquarters' },
+    { from: '17:00', to: '23:30', activity: 'relax', spot: 'willowmere_quarters:chair', label: 'drafting a speech she will rewrite twice' },
   ],
   relationships: { player: { trust: 0, affection: 5, respect: 5, suspicion: 5 }, npc_vegas: { trust: 5, affection: 0, respect: 30, suspicion: 40 }, npc_lawrence: { trust: 10, affection: 0, respect: 10, suspicion: 30 } },
   giftPrefs: { item_coffee: 10, item_honey_bun: 6, tags: { food: 3 } },
@@ -15076,6 +15529,7 @@ __m["src/content/life.js"] = (function () {
 // buildings, towns and jobs plug in here; see docs/WORLD_SIMULATION.md.
 
 const { capitalLife } = __m["src/content/capital.js"]; // v0.94.0
+const { estateLife } = __m["src/content/estates.js"]; // v0.94.1
 
 /**
  * Occupations: reusable behaviour profiles.
@@ -15120,6 +15574,9 @@ const RESIDENCES = {
   res_osric_house: { name: 'Osric Vane\'s house', type: 'house', units: { house: { map: 'osric_house', beds: ['bed'], capacity: 1 } } },
   // v0.55.0: the staff have flats of their own in the estate cottages, and the crew houses on Derrick Row
   // in Starling (src/content/homes.js) — nobody shares a dormitory or a staff corridor any more
+  // v0.94.1: the leaders' mansions (private quarters; type 'estate', so nobody breaks in or is invited like a house: the steward keeps the book)
+  res_ironcrest: { name: 'Ironcrest Hall', type: 'estate', units: { master: { map: 'ironcrest_quarters', beds: ['bed'], capacity: 1 } } },
+  res_willowmere: { name: 'Willowmere', type: 'estate', units: { master: { map: 'willowmere_quarters', beds: ['bed'], capacity: 1 } } },
   res_manor: {
     name: 'Moneybucks Manor', type: 'estate',
     units: {
@@ -15218,9 +15675,9 @@ const LIFE = {
   npc_dottie: { home: 'res_bluebonnet/room_dottie', occupation: 'shopkeeper' },
   npc_clint: { home: 'res_bluebonnet/room_clint', occupation: 'security' },
   // v0.93.0: the two party leaders (temporary flats until their own residences are built)
-  npc_vegas: { home: 'res_cq_staff_b/flat_4', occupation: 'official' },
-  npc_susan: { home: 'res_cq_staff_a/flat_4', occupation: 'official' },
-  ...Object.fromEntries(Object.entries(capitalLife()).filter(([id]) => !['npc_vegas', 'npc_susan'].includes(id))),
+  npc_vegas: { home: 'res_ironcrest/master', occupation: 'official' }, // v0.94.1: the leaders live in their own mansions
+  npc_susan: { home: 'res_willowmere/master', occupation: 'official' },
+  ...capitalLife(), ...estateLife(),
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -15832,6 +16289,7 @@ __m["src/content/homes.js"] = (function () {
 // Applied after the roads are widened, in final tile coordinates.
 const { roomTiles } = __m["src/world/mapBuilder.js"];
 const { capitalFlats, CAPITAL_HOME_BUILDINGS } = __m["src/content/capital.js"];
+const { estateFlats, ESTATE_DEFS } = __m["src/content/estates.js"];
 
 /**
  * A home: `building` on `map` (an existing building id) becomes its front
@@ -16045,7 +16503,15 @@ const capital = capitalFlats();
 for (const [key, B] of Object.entries(CAPITAL_BUILDINGS)) {
   if (capital[key].length > B.n) throw new Error(`homes: ${B.name} has ${capital[key].length} flats but room for ${B.n}`);
   HOMES.push({ id: CAPITAL_HOME_BUILDINGS[key], map: 'crown_quarter', building: CAPITAL_HOME_BUILDINGS[key], name: B.name, mapLabel: B.label, type: 'apartment',
-    hallSize: { w: B.w, h: B.h, door: Math.floor(B.w / 2), xs: Array.from({ length: B.n }, (_, i) => 2 + i * 2) }, flats: capital[key] });
+    hallSize: { w: B.w, h: B.h, door: Math.floor(B.w / 2), xs: Array.from({ length: capital[key].length }, (_, i) => 2 + i * 2) }, flats: capital[key] });
+}
+
+// v0.94.1: the estates' staff cottages (Ironcrest's guards and household, Willowmere's), each hall the size of its building.
+for (const [estate, E] of Object.entries(ESTATE_DEFS)) {
+  const grounds = `${estate}_grounds`;
+  const flats = estateFlats(estate);
+  HOMES.push({ id: E.homeId, map: grounds, building: E.homeId, name: estate === 'ironcrest' ? 'The Guards\' Cottages' : 'The Staff Cottages', mapLabel: estate === 'ironcrest' ? 'Guards\' Cottages' : 'Staff Cottages', type: 'apartment',
+    hallSize: { w: 11, h: 12, door: 5, xs: flats.map((_, i) => 2 + i * 2) }, flats });
 }
 
 /** Marty takes a fifth flat at the Plumb Line (Mason is his landlord). Built in maps/westbrook.js. */
@@ -17039,6 +17505,10 @@ const lariatMaps = __m["src/content/maps/lariat.js"].default;
 const starlingMaps = __m["src/content/maps/starling.js"].default;
 const crownQuarterMaps = __m["src/content/maps/crownQuarter.js"].default; // v0.93.1: the capital district
 const halverHouseMaps = __m["src/content/maps/halverHouse.js"].default;
+const partyHQMaps = __m["src/content/maps/partyHQ.js"].default; // v0.94.1: the two party headquarters as real offices
+const estateGroundsMaps = __m["src/content/maps/estateGrounds.js"].default; // v0.94.1: Ironcrest Hall and Willowmere
+const mansionMaps = __m["src/content/maps/mansions.js"].default;
+const { estateCharacters, estateDialogues } = __m["src/content/estates.js"];
 const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } = __m["src/content/arms.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
 const { ITEMS } = __m["src/content/items.js"];
@@ -17127,7 +17597,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -17153,7 +17623,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars, ...capitalCharacters()]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars, ...capitalCharacters(), ...estateCharacters()]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -17178,7 +17648,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues()]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues()]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -17204,7 +17674,7 @@ const BASE_CONTENT = {
 // v0.47.0: seamless buildings. The towns grow so every building holds its interior; every
 // street coordinate in the content moves with them (once — everything above is in the widened
 // coordinates); then each interior is laid over its building and the seams are re-stitched.
-const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats', 'crown_quarter'];
+const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats', 'crown_quarter', 'ironcrest_grounds', 'willowmere_grounds'];
 const GROWTH = growStreets(MAPS, REGIONS, (id, b) => {
   const I = realInterior(MAPS, MAPS[id], b);
   return I ? { W: I.def.tiles[0].length, H: I.def.tiles.length, ex: I.exit.x } : null;
@@ -17251,7 +17721,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.94.0';
+const GAME_VERSION = '0.94.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -19823,6 +20293,18 @@ function worldLayout(g) {
     const o = r.maps[anchorMap];
     for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
   };
+  /** v0.94.1: would region `rr` placed with map `T` at (tx, ty) overlap a map already placed? (Streets only: rooms lie inside their streets.) */
+  const fits = (rr, T, tx, ty) => {
+    if (!rr) return true;
+    const r = g.content.regions[rr[0]];
+    const o = r.maps[T.id];
+    return Object.entries(r.maps).every(([id, m]) => {
+      const M2 = g.maps.get(id);
+      if (!M2 || M2.kind === 'interior') return true;
+      const x = tx + m.x - o.x; const y = ty + m.y - o.y;
+      return !Object.entries(pos).some(([pid, p]) => { const PM = g.maps.get(pid); return PM && PM.kind !== 'interior' && x < p.x + PM.width && x + M2.width > p.x && y < p.y + PM.height && y + M2.height > p.y; });
+    });
+  };
   const start = regionOf(g.content.startingMap) || regions[0];
   placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
   const queue = Object.keys(pos);
@@ -19845,8 +20327,9 @@ function worldLayout(g) {
         roads.push({ x1: pos[id].x + d.x + 1, y1: pos[id].y + d.y + (north ? 0 : 1), x2: tx + back.x + 1, y2: ty + back.y + (north ? 1 : 0) });
       } else {
         const west = d.x === 0;
-        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+        let tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
         const ty = pos[id].y + d.y - back.y;
+        for (let guard = 0; guard < 40 && !fits(rr, T, tx, ty); guard++) tx += west ? -12 : 12; // v0.94.1: a region that would land on another is set further out along its road
         if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
         roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
       }
@@ -26671,71 +27154,6 @@ class Robbery {
 }
 
 return { Robbery };
-})();
-
-// ---- src/content/politics.js
-__m["src/content/politics.js"] = (function () {
-// The political system's content (v0.93.0): the constitution, the two parties and the issues they differ on. Pure data; every figure that a later
-// release tunes lives here (the same idea as src/content/income.js). The rules are in src/politics/*.js and the service is src/systems/politics.js.
-//
-// Sund is a constitutional monarchy. The king (eleven) is head of state; an elected President is head of government; one Assembly gives a
-// yes/no on bills (a tally of seats, not a simulated chamber). A term is 120 game days and the election falls in its last 30.
-
-const POLITICS = {
-  /** A term lasts `termDays`; its election is in the last `electionDays` of it (the last day is polling day). */
-  constitution: {
-    termDays: 120,
-    electionDays: 30,
-    assemblySeats: { order: 46, liberty: 44, other: 10 },
-    king: { name: 'the King of Sund', age: 11, seat: 'Kingsfjord Castle', note: 'Head of state: opens the Assembly, signs laws, reviews the fishing fleet on Mondays.' },
-    president: { seat: 'Halver House', note: 'Head of government, elected for one term at a time.' },
-  },
-
-  /** The issues the parties differ on. Each stance is -2 (strongly against) … +2 (strongly for). A policy later moves a named variable; the stance is only what the party leans to. */
-  issues: {
-    police_funding: { name: 'Police funding', blurb: 'Staffing, training and equipment for the police.' },
-    enforcement: { name: 'Enforcement strictness', blurb: 'Penalties, and how hard minor offences are chased.' },
-    surveillance: { name: 'Surveillance powers', blurb: 'What the state may watch.' },
-    defence_budget: { name: 'Defence spending', blurb: 'Procurement, readiness and the arms industry.' },
-    intervention: { name: 'Foreign intervention', blurb: 'Military commitments abroad; how sharp the foreign policy is.' },
-    regulation: { name: 'Business regulation', blurb: 'Inspections, licences and compliance.' },
-    farm_inspection: { name: 'Farm inspection', blurb: 'How often and how hard farms are inspected.' },
-    public_spending: { name: 'Public spending', blurb: 'The size of the state and how it is paid for.' },
-  },
-
-  /** The two parties. The leaders keep exactly the names the owner gave. Party names are working names the player may rename later. */
-  parties: {
-    order: {
-      name: 'the Order Party', short: 'Order', colour: '#3a5a9a', leader: 'npc_vegas',
-      blurb: 'Strict law enforcement, public order, national security and a strong executive.',
-      platform: { police_funding: 2, enforcement: 2, surveillance: 1, defence_budget: 2, intervention: 1, regulation: 1, farm_inspection: 1, public_spending: 0 },
-    },
-    liberty: {
-      name: 'the Liberty League', short: 'Liberty', colour: '#c8803a', leader: 'npc_susan',
-      blurb: 'Lighter enforcement, individual freedom, less regulation and less intervention abroad.',
-      platform: { police_funding: -1, enforcement: -2, surveillance: -2, defence_budget: -1, intervention: -2, regulation: -1, farm_inspection: -1, public_spending: 1 },
-    },
-  },
-
-  /** The roles a party's staff fill (ten; some are combined in a small party). Records exist from the start; people arrive with the People release. */
-  staffRoles: [
-    { id: 'chief_of_staff', name: 'Chief of staff' },
-    { id: 'campaign_manager', name: 'Campaign manager' },
-    { id: 'policy_adviser', name: 'Policy adviser' },
-    { id: 'communications', name: 'Communications director' },
-    { id: 'press_secretary', name: 'Press secretary' },
-    { id: 'fundraising', name: 'Fundraising director' },
-    { id: 'polling', name: 'Polling and research adviser' },
-    { id: 'legal', name: 'Legal adviser' },
-    { id: 'security', name: 'Security coordinator' },
-    { id: 'organiser', name: 'Political organiser' },
-  ],
-
-  /** Starting funds of each party, in obols (a party's own money, never the player's). */
-  funds: { order: 180000, liberty: 150000 },
-};
-
-return { POLITICS };
 })();
 
 // ---- src/politics/calendar.js
@@ -49226,6 +49644,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.94.1',
+    date: '2026-11-04',
+    channel: 'development',
+    title: 'Politics: The Mansions and the Party Offices',
+    notes: [
+      'Josiah Vegas lives at Ironcrest Hall, a walled compound with a gatehouse, guards\' cottages and a range, through the east gate of Palace Road. Susan lives at Willowmere, an open garden by a lake, through the east gate of the Gate Road. Each is a small map of its own; each house has a great hall and rooms for the leader, the household and, by invitation, visitors.',
+      'Access is by invitation: the steward of each house keeps the book. Talk to the household; someone who is known to the house, or who has an appointment, is received between nine and nine. Money alone is no key. The private rooms and the staff rooms stay shut to guests.',
+      'The two party headquarters are real offices now, with a desk for each of the party\'s ten staff, the leader\'s office and a war room with the polling wall, and the staff sit at their own desks.',
+    ],
+  },
+  {
     version: '0.94.0',
     date: '2026-11-03',
     channel: 'development',
@@ -63841,6 +64270,9 @@ const BUILDING_ICONS = {
   cq_order_hq: { icon: '🗳️', kind: 'Order Party headquarters' }, cq_liberty_hq: { icon: '🗳️', kind: 'Liberty League headquarters' }, cq_press_hall: { icon: '📰', kind: 'The Press Hall' },
   cq_hotel: { icon: '🏨', kind: 'The Crown Hotel' }, cq_cafe: { icon: '☕', kind: 'Café Concord & The Sitting Room' }, cq_club: { icon: '🎩', kind: 'The Diplomats\' Club & tourist shops' },
   ...Object.fromEntries(['ostmark', 'varn', 'teshvar', 'caldera', 'pallas', 'morrow', 'lirre', 'westreach', 'sunmouth', 'dunmere'].map((c) => [`cq_embassy_${c}`, { icon: '🚩', kind: `Embassy (${c[0].toUpperCase()}${c.slice(1)})` }])),
+  // The estates (v0.94.1)
+  ic_hall: { icon: '🏰', kind: 'Ironcrest Hall (Josiah Vegas)' }, ih_cottages: { icon: '🏠', kind: 'The guards\' cottages' }, ic_gatehouse: { icon: '🛡️', kind: 'The gatehouse' }, ic_range: { icon: '🎯', kind: 'The range & armoury' },
+  wm_hall: { icon: '🏡', kind: 'Willowmere (Susan)' }, wm_cottages: { icon: '🏠', kind: 'The staff cottages' }, wm_conservatory: { icon: '🌿', kind: 'The glass conservatory' }, wm_pavilion: { icon: '⛱️', kind: 'The garden pavilion' },
 };
 
 return { BUILDING_ICONS };

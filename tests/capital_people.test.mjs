@@ -49,7 +49,7 @@ test('in office hours the people are at work: ambassadors in their embassies, pa
   const g = newGame(62); noImpulses(g);
   setTime(g, 2, '10:30');
   for (const a of AMBASSADORS) assert.equal(at(g, a.id).map, `crown_quarter__${a.work}`, `${a.id} at the embassy`);
-  for (const p of PARTY_STAFF) assert.equal(at(g, p.id).map, `crown_quarter__${p.work}`, `${p.id} at headquarters`);
+  for (const p of PARTY_STAFF) assert.equal(at(g, p.id).map, `${p.party}_hq`, `${p.id} at their desk in the headquarters`);
   for (const m of MINISTERS) assert.equal(at(g, m.id).map, `crown_quarter__${m.work}`, `${m.id} at the ministry`);
   for (const h of HOUSEHOLD) assert.ok(at(g, h.id).map.startsWith('halver_'), `${h.id} in Halver House (${at(g, h.id).map})`);
   setTime(g, 2, '23:45');
@@ -94,7 +94,7 @@ test('the leader in office works at Halver House; the other works the capital fr
     setTime(g, 2, '10:00');
     assert.equal(at(g, leaders[gov]).map, 'halver_president', `seed ${seed}: the President is in the President's office`);
     const opp = gov === 'order' ? 'liberty' : 'order';
-    assert.match(at(g, leaders[opp]).map, /^crown_quarter(__cq_(order|liberty)_hq)?$/, `seed ${seed}: the other is out in the capital`);
+    assert.match(at(g, leaders[opp]).map, /^(crown_quarter|order_hq|liberty_hq)$/, `seed ${seed}: the other is out in the capital`);
   }
   // when the government changes, the schedules swap (and the shared content is never mutated)
   const g = newGame(7);

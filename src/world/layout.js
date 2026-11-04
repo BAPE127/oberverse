@@ -23,6 +23,18 @@ export function worldLayout(g) {
     const o = r.maps[anchorMap];
     for (const [id, m] of Object.entries(r.maps)) if (g.maps.has(id)) pos[id] = { x: ax + m.x - o.x, y: ay + m.y - o.y };
   };
+  /** v0.94.1: would region `rr` placed with map `T` at (tx, ty) overlap a map already placed? (Streets only: rooms lie inside their streets.) */
+  const fits = (rr, T, tx, ty) => {
+    if (!rr) return true;
+    const r = g.content.regions[rr[0]];
+    const o = r.maps[T.id];
+    return Object.entries(r.maps).every(([id, m]) => {
+      const M2 = g.maps.get(id);
+      if (!M2 || M2.kind === 'interior') return true;
+      const x = tx + m.x - o.x; const y = ty + m.y - o.y;
+      return !Object.entries(pos).some(([pid, p]) => { const PM = g.maps.get(pid); return PM && PM.kind !== 'interior' && x < p.x + PM.width && x + M2.width > p.x && y < p.y + PM.height && y + M2.height > p.y; });
+    });
+  };
   const start = regionOf(g.content.startingMap) || regions[0];
   placeRegion(start[0], Object.keys(start[1].maps)[0], 0, 0);
   const queue = Object.keys(pos);
@@ -45,8 +57,9 @@ export function worldLayout(g) {
         roads.push({ x1: pos[id].x + d.x + 1, y1: pos[id].y + d.y + (north ? 0 : 1), x2: tx + back.x + 1, y2: ty + back.y + (north ? 1 : 0) });
       } else {
         const west = d.x === 0;
-        const tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
+        let tx = west ? pos[id].x - T.width - ROAD_GAP : pos[id].x + M.width + ROAD_GAP;
         const ty = pos[id].y + d.y - back.y;
+        for (let guard = 0; guard < 40 && !fits(rr, T, tx, ty); guard++) tx += west ? -12 : 12; // v0.94.1: a region that would land on another is set further out along its road
         if (rr) placeRegion(rr[0], T.id, tx, ty); else pos[T.id] = { x: tx, y: ty };
         roads.push({ x1: pos[id].x + d.x + (west ? 0 : 1), y1: pos[id].y + d.y + 1, x2: tx + back.x + (west ? 1 : 0), y2: ty + back.y + 1 });
       }

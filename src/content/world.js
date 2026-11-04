@@ -29,6 +29,9 @@ export const REGIONS = {
     name: 'The Crown Quarter',
     maps: { crown_quarter: { x: 0, y: 0, fallbackSpot: 'west_gate' } },
   },
+  // The two estates (v0.94.1): each its own small map, through the Crown Quarter's east gates.
+  ironcrest: { name: 'Ironcrest Hall', maps: { ironcrest_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
+  willowmere: { name: 'Willowmere', maps: { willowmere_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {
