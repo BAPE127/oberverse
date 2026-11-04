@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.95.0',
+    date: '2026-11-04',
+    channel: 'development',
+    title: 'Politics: Elections and Influence',
+    notes: [
+      'Every 120 days Sund votes. The last thirty days are the campaign: the parties raise money and spend it on advertising, rallies and organisers (with sharply diminishing returns: money cannot buy a win), there is one debate, and scandals come and go. The result is sealed on polling day and announced at 22:00 on election night, when the leaders and their staff gather in Sovereign Square. A new government takes office on the first day of the next term, with a new Assembly; the loser stays in the world.',
+      'The Politics app has two new pages. "Vote" shows the election, what each campaign has bought and public donations (capped each term, recorded). "Influence" shows your standing, who will see you and what it takes (never money alone), and lets you ask for a meeting, lobby for or against a policy (it costs favours that a donation earns), or make an offer. An offer shows its price, odds and what happens if it is found out before any money moves; it is recorded whether it works or not, repeats cost more, and investigators can find it.',
+      'A cabinet no longer brings back a bill the Assembly has just thrown out, or one it can see it would lose.',
+    ],
+  },
+  {
     version: '0.94.1',
     date: '2026-11-04',
     channel: 'development',

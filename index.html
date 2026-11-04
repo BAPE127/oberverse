@@ -17721,7 +17721,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.94.1';
+const GAME_VERSION = '0.95.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -27261,6 +27261,8 @@ const GOVERNMENT = {
   cabinetEvery: 7, budgetEvery: 30, proposals: 1, maxActive: 7,
   /** Party discipline: the share of its seats the governing party can always count on, on top of how its members lean. */
   discipline: 0.15,
+  /** v0.95.0: a cabinet does not bring back a bill the Assembly has just thrown out, or one it can see it would lose: days to wait after a rejection. */
+  cooldown: 45,
   /** The state's money: thousands of obols a month. Revenue is modelled from the country; it is never taken from the player's wallet. */
   budget: {
     revenue: 3000,
@@ -27347,14 +27349,14 @@ const { POLICIES } = __m["src/content/policies.js"];
 
 const fitOf = (platform, policy) => (platform[policy.issue] || 0) * policy.dir;
 
-/** ctx: { platform, headroom (the budget's, in thousands), campaign (bool: the election is near), approval (0..1, default .5), weights } */
+/** ctx: { platform, headroom (the budget's, in thousands), campaign (bool: the election is near), approval (0..1, default .5), weights, bonus? (lobbying: policy id → score), cool? (Set of policy ids rejected lately), passes? (policy → would the Assembly pass it) } */
 function score(policy, ctx) {
   const w = ctx.weights;
   const fit = fitOf(ctx.platform, policy);
   const afford = policy.cost <= 0 ? 0.4 : ctx.headroom >= policy.cost ? 0.2 : -Math.min(2, (policy.cost - ctx.headroom) / 150);
   const election = ctx.campaign ? (policy.cost > 0 ? -0.5 : 0.3) : 0; // before a vote a government avoids new spending and likes savings
   const approval = (ctx.approval - 0.5) * 2 * (fit > 0 ? 0.5 : -0.5);
-  return fit * w.fit + afford * w.affordability + election * w.election + approval * w.approval;
+  return fit * w.fit + afford * w.affordability + election * w.election + approval * w.approval + (ctx.bonus?.[policy.id] || 0);
 }
 
 const INPROGRESS = new Set(['proposed', 'review', 'approved', 'implementing', 'active', 'suspended']);
@@ -27366,6 +27368,8 @@ function chooseProposals(ctx, held, n = 1) {
   const rows = [];
   for (const policy of Object.values(POLICIES)) {
     if (heldIds.has(policy.id)) continue;
+    if (ctx.cool?.has(policy.id)) continue; // thrown out lately
+    if (ctx.passes && !ctx.passes(policy)) continue; // the administration counts its seats first
     const s = score(policy, ctx);
     const opp = held.find((p) => p.key === policy.opposes && inProgress(p));
     if (opp && s < score(POLICIES[opp.key], ctx) + 1) continue; // not worth reversing yet
@@ -27528,6 +27532,974 @@ function poll(truth, { pollster, sample, key }) {
 return { affinity, compute, poll };
 })();
 
+// ---- src/content/elections.js
+__m["src/content/elections.js"] = (function () {
+// Elections and campaigns (v0.95.0): every figure the election model uses, in one place (the same idea as src/content/income.js).
+// Shares are fractions of the vote (0.01 = one point). The rules are in src/politics/election.js; the daily steps are in src/systems/politicsElections.js.
+//
+// Calibration: the figures were set by running hundreds of seeded elections (tests/elections.test.mjs): each side wins a healthy share,
+// no side holds the presidency for ever, and no amount of money buys a win (the effect of spending is a saturating curve with a hard cap).
+
+const ELECTIONS = {
+  /** A party's own money: it raises funds each day (the fundraising director raises more), and in the campaign it spends a share of what it holds every day. */
+  funds: { perDay: 900, fundraiser: 700, governing: 300, spendRate: 0.045, split: { ads: 0.4, rallies: 0.3, ground: 0.3 } },
+
+  /**
+   * What spending buys. Each channel's effect is cap × (1 − e^(−spent ÷ scale)): the first obols count most, and no channel can pass its cap.
+   * `staff` is the role that makes the channel work (a vacant role is a visible weakness: it works at `vacant` of its strength).
+   */
+  channels: {
+    ads: { name: 'Advertising', scale: 70000, cap: 0.020, staff: ['communications', 'press_secretary'] },
+    rallies: { name: 'Rallies and appearances', scale: 45000, cap: 0.014, staff: ['campaign_manager'] },
+    ground: { name: 'Organisers on the ground', scale: 55000, cap: 0.016, staff: ['organiser', 'campaign_manager'] },
+  },
+  vacant: 0.6,
+
+  /** The one debate, a few days before the vote: the leader's standing and the communications staff decide it; the winner gains a little. */
+  debate: { daysBefore: 6, swing: 0.008 },
+
+  /** How a result is worked out (see election.js). */
+  weights: {
+    undecidedToLeader: 0.35, // how far the undecided lean to the party already ahead among those who have decided
+    fatigue: 0.011,          // a government loses this much (as a swing) for every term it has already held, on top of …
+    fatigueLate: 0.012,      // … this much more for each term after the second
+    promises: 0.020,         // a government that kept its manifesto gains up to this; one that broke it loses as much
+    scandal: 0.060,          // a scandal's full weight (severity × credibility × attention) moves the vote by this much at most
+    national: 0.010,         // a seeded national swing (sd), fixed by the election's id
+    regional: 0.012,         // a seeded swing in each state (sd)
+    swingCap: 0.12,          // however it adds up, no one is moved more than this
+  },
+  turnout: { base: 0.58, campaign: 0.08, close: 0.06, noise: 0.015 },
+  seats: 100,
+
+  /** Scandals: the press find one now and then (chance per party per day); each has a severity and credibility, fades with a half-life, and the press secretary shortens it. */
+  scandals: { chance: 0.006, severity: [0.25, 0.85], credibility: [0.45, 1], attention: [0.4, 1], halfLife: 16, pressCut: 0.45, kept: 24 },
+
+  /** The party manifesto: how many policies each party promises, taken from the ones it likes best. */
+  manifesto: 3,
+
+  /** Election night: results are announced at this hour on polling day; the leaders gather at the fountain in Sovereign Square, each party's staff on its own side of it. */
+  night: { announce: '22:00', gather: '19:30', crowdMinutes: 210, spots: { leaders: 'crown_quarter:square_fountain', order: 'crown_quarter:demonstration', liberty: 'crown_quarter:press_line' } },
+  logKept: 12,
+};
+
+return { ELECTIONS };
+})();
+
+// ---- src/politics/election.js
+__m["src/politics/election.js"] = (function () {
+// The election model (v0.95.0). Pure: every function is a function of its arguments (a "key" string stands in for chance, so a result can never be re-rolled).
+//
+//   staffStrength(party, roles)           how well a party's staff work a role (a vacant role works at `vacant` of its strength)
+//   campaignEffect(spent, party, E)       the swing that a party's spending bought, by channel: cap × (1 − e^(−spent ÷ scale)), times its staff's strength
+//   scandalWeight(list, party, day, ...)  what the scandals of a party still weigh on the vote today (severity × credibility × attention, fading)
+//   manifestoOf(platform, policies, n)    the policies a party promises: the ones it believes in most
+//   promisesKept(manifesto, active)       the share of a manifesto that is in force
+//   debate(...)                           the one debate: who won, from the leaders' standing and the communications staff
+//   tally(input)                          the result: each state's vote and turnout, the national vote, the seats (D'Hondt) and the winner
+//   dhondt(votes, seats)                  seats from votes
+const { ELECTIONS: E } = __m["src/content/elections.js"];
+const { REGIONS } = __m["src/content/opinion.js"];
+const { fitOf } = __m["src/politics/policy.js"];
+const { PARTY_IDS } = __m["src/politics/model.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+/** An approximately normal deviate (sd 1) from a hash. */
+const normal = (key) => ((unit(`${key}|a`) + unit(`${key}|b`) + unit(`${key}|c`) + unit(`${key}|d`)) - 2) * 1.732;
+const hashUnit = unit;
+
+/** How well a party's staff work a set of roles (0.6 … 1): each filled role counts, a vacant one works at `vacant`. */
+function staffStrength(party, roles) {
+  if (!roles.length) return 1;
+  const filled = (r) => (party.staff.some((s) => s.role === r && s.personId) ? 1 : E.vacant);
+  return roles.reduce((a, r) => a + filled(r), 0) / roles.length;
+}
+
+/** The swing a party's spending bought: { ads, rallies, ground, total }. `spent` is what it spent on each channel. */
+function campaignEffect(spent, party) {
+  const out = { total: 0 };
+  for (const [ch, def] of Object.entries(E.channels)) {
+    const eff = def.cap * (1 - Math.exp(-(spent?.[ch] || 0) / def.scale)) * staffStrength(party, def.staff);
+    out[ch] = eff; out.total += eff;
+  }
+  return out;
+}
+
+/** What a party's scandals weigh today (0 … about 1): each fades with a half-life that the press secretary shortens. */
+function scandalWeight(scandals, party, day, pressStrength = E.vacant) {
+  const half = E.scandals.halfLife * (1 - E.scandals.pressCut * (pressStrength - E.vacant) / (1 - E.vacant));
+  let w = 0;
+  for (const s of scandals) {
+    if (s.party !== party || s.day > day) continue;
+    w += s.severity * s.credibility * s.attention * Math.pow(0.5, (day - s.day) / half) * (s.quieted ? 0.5 : 1);
+  }
+  return Math.min(1.2, w);
+}
+
+/** A party's manifesto for a term: the `n` policies it believes in most that are not already in force or on their way (platform fit, then the cheaper, then by id). Fixed when the term begins. */
+function manifestoOf(platform, policies, n = E.manifesto, exclude = []) {
+  const skip = new Set(exclude);
+  return Object.values(policies)
+    .map((p) => ({ id: p.id, fit: fitOf(platform, p), cost: p.cost }))
+    .filter((r) => r.fit > 0 && !skip.has(r.id))
+    .sort((a, b) => b.fit - a.fit || a.cost - b.cost || (a.id < b.id ? -1 : 1))
+    .slice(0, n).map((r) => r.id);
+}
+
+/** The share of a manifesto in force (or on its way: approved or being set up counts half). */
+function promisesKept(manifesto, policies) {
+  if (!manifesto.length) return 0.5;
+  const got = (id) => { const p = policies.find((q) => q.key === id && q.state !== 'ended'); return !p ? 0 : p.state === 'active' ? 1 : p.state === 'approved' || p.state === 'implementing' ? 0.5 : 0; };
+  return manifesto.reduce((a, id) => a + got(id), 0) / manifesto.length;
+}
+
+/** The debate: each leader's standing (the approval they carry) and their communications staff decide it, with a seeded flourish. Returns { winner, margin }. */
+function debate({ standing, comms, key }) {
+  const score = (p) => standing[p] * 0.6 + comms[p] * 0.25 + normal(`${key}|${p}`) * 0.12;
+  const [a, b] = PARTY_IDS;
+  const d = score(a) - score(b);
+  return { winner: d >= 0 ? a : b, margin: Math.abs(d) };
+}
+
+/** Seats by the D'Hondt method from the votes of each list. Ties go to the larger list, then by id. */
+function dhondt(votes, seats) {
+  const out = Object.fromEntries(Object.keys(votes).map((k) => [k, 0]));
+  for (let i = 0; i < seats; i++) {
+    let best = null; let bq = -1;
+    for (const k of Object.keys(votes).sort()) { const q = votes[k] / (out[k] + 1); if (q > bq + 1e-12) { bq = q; best = k; } }
+    out[best]++;
+  }
+  return out;
+}
+
+/**
+ * The result of a vote.
+ *   input: {
+ *     key                  the election's own key (its id and the world's salt): all of the "chance" in the result is hashed from it
+ *     truth                opinion today (src/politics/opinion.js compute): { regions, support, approval, gov }
+ *     campaign             { order: effect, liberty: effect }  the swings that spending bought (campaignEffect().total, plus the debate's)
+ *     scandals             { order, liberty }  scandalWeight today
+ *     promises             how much of the governing manifesto was kept (0 … 1)
+ *     terms                how many terms the governing party has already held in a row (1 = its first)
+ *   }
+ * Returns { regions: { id: { order, liberty, other, turnout } }, national: { order, liberty, other }, turnout, seats, winner, margin, swing }.
+ * A swing moves votes between the two parties only (the independents hold): positive favours Order.
+ */
+function tally({ key, truth, campaign, scandals, promises, terms }) {
+  const W = E.weights;
+  const gov = truth.gov;
+  const sign = gov === 'order' ? 1 : -1; // + favours Order
+  const fatigue = -sign * (W.fatigue * terms + W.fatigueLate * Math.max(0, terms - 2)); // a long-serving government wears out
+  const kept = sign * (promises - 0.5) * 2 * W.promises;
+  const camp = (campaign.order || 0) - (campaign.liberty || 0);
+  const scand = (scandals.liberty || 0) - (scandals.order || 0);
+  const nationalNoise = normal(`${key}|national`) * W.national;
+  const base = camp + scand * W.scandal + fatigue + kept + nationalNoise;
+  const regions = {};
+  const tot = { order: 0, liberty: 0, other: 0, w: 0 };
+  let turnoutSum = 0;
+  const intensity = clamp((Math.abs(campaign.order || 0) + Math.abs(campaign.liberty || 0)) / 0.05, 0, 1);
+  for (const [rid, R] of Object.entries(REGIONS)) {
+    const t = truth.regions[rid];
+    const decided = t.order + t.liberty;
+    const lean = decided > 0 ? t.order / decided : 0.5; // among those who have decided
+    // the undecided who vote lean to the party ahead among the decided, a little
+    const ahead = (lean - 0.5) * 2 * W.undecidedToLeader;
+    const share = clamp(lean + ahead * 0.5, 0.02, 0.98);
+    const pool = t.undecided;
+    let order = t.order + pool * share;
+    let liberty = t.liberty + pool * (1 - share);
+    const swing = clamp(base + normal(`${key}|${rid}`) * W.regional, -W.swingCap, W.swingCap);
+    order = Math.max(0.01, order + swing / 2);
+    liberty = Math.max(0.01, liberty - swing / 2);
+    const other = t.other;
+    const sum = order + liberty + other;
+    const close = 1 - clamp(Math.abs(order - liberty) / sum * 4, 0, 1);
+    const turnout = clamp(E.turnout.base + E.turnout.campaign * intensity + E.turnout.close * close + normal(`${key}|turn|${rid}`) * E.turnout.noise, 0.3, 0.9);
+    regions[rid] = { order: order / sum, liberty: liberty / sum, other: other / sum, turnout };
+    tot.order += R.weight * turnout * regions[rid].order; tot.liberty += R.weight * turnout * regions[rid].liberty; tot.other += R.weight * turnout * regions[rid].other; tot.w += R.weight * turnout;
+    turnoutSum += R.weight * turnout;
+  }
+  const national = { order: tot.order / tot.w, liberty: tot.liberty / tot.w, other: tot.other / tot.w };
+  const seats = dhondt(national, E.seats);
+  const winner = national.order === national.liberty ? gov : national.order > national.liberty ? 'order' : 'liberty';
+  const wr = Object.values(REGIONS).reduce((a, R) => a + R.weight, 0);
+  return { regions, national, turnout: turnoutSum / wr, seats, winner, margin: Math.abs(national.order - national.liberty), swing: base, parts: { campaign: camp, scandal: scand * W.scandal, fatigue, promises: kept, chance: nationalNoise } };
+}
+
+return { hashUnit, staffStrength, campaignEffect, scandalWeight, manifestoOf, promisesKept, debate, dhondt, tally };
+})();
+
+// ---- src/systems/politicsElections.js
+__m["src/systems/politicsElections.js"] = (function () {
+// Elections and campaigns (v0.95.0): the daily steps and the views, added to the Politics service (src/systems/politics.js).
+//
+// A term is 120 days; the election falls in its last 30 (the campaign) and the last day is polling day. Each day of the government's step (idempotent per day):
+//   · each party raises funds; in the campaign each spends a share of what it holds, by channel (advertising, rallies, organisers), with diminishing returns;
+//   · the press may find a scandal (a hash of the day, never a random draw);
+//   · the one debate is held a few days before the vote;
+//   · on polling day the vote is worked out from opinion, the campaign, scandals, promises kept and how long the government has held office, and sealed;
+//   · results are announced at 22:00 that night (election night: the leaders and their staff gather in Sovereign Square);
+//   · on the first day of the next term the winner takes office: President, Assembly seats, the policies on their way, the leaders' schedules.
+// Everything is keyed by the term, so a reload can neither repeat a result nor re-roll it, and nothing here reads a random number.
+const { ELECTIONS: E } = __m["src/content/elections.js"];
+const { POLICIES } = __m["src/content/policies.js"];
+const { POLITICS: P } = __m["src/content/politics.js"];
+const { termOf, phaseOf } = __m["src/politics/calendar.js"];
+const { OTHER_PARTY, PARTY_IDS } = __m["src/politics/model.js"];
+const { inProgress } = __m["src/politics/policy.js"];
+const { staffStrength, campaignEffect, scandalWeight, manifestoOf, promisesKept, debate, tally, hashUnit } = __m["src/politics/election.js"];
+
+const round = (v) => Math.round(v * 10000) / 10000;
+const range = (a, u) => a[0] + u * (a[1] - a[0]);
+const emptySpend = () => ({ ads: 0, rallies: 0, ground: 0 });
+const minutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+
+const electionMethods = {
+  /** The election record, made on first use (a save from 0.94.x gains it): the manifestos, the scandal log and who has held office for how long. */
+  ensureElections(s) {
+    if (s.elections) return s.elections;
+    s.elections = { salt: String(this.g.rng.state), history: [], pending: null, campaign: null, scandals: [], nextScandal: 1, manifesto: {}, holder: { party: s.government.partyId, terms: 1 } };
+    this.setManifestos(s);
+    return s.elections;
+  },
+
+  /** Each party's promises for the term that is beginning: the policies it believes in most that are not already in force or on their way. Fixed for the term. */
+  setManifestos(s) {
+    const have = s.policies.filter(inProgress).map((p) => p.key);
+    for (const id of PARTY_IDS) s.elections.manifesto[id] = manifestoOf(s.parties[id].platform, POLICIES, E.manifesto, have);
+  },
+
+  staff(s, party, roles) { return staffStrength(s.parties[party], roles); },
+  pressStrength(s, party) { return this.staff(s, party, ['press_secretary']); },
+
+  /** The campaign of the term whose election is next: spending by channel, funds raised, the debate. Made on the first campaign day. */
+  campaignOf(s) {
+    const el = this.ensureElections(s);
+    const t = termOf(this.day, s.constitution);
+    if (!el.campaign || el.campaign.term !== t.index) {
+      el.campaign = { term: t.index, spent: { order: emptySpend(), liberty: emptySpend() }, raised: { order: 0, liberty: 0 }, debate: null, started: this.day };
+    }
+    return el.campaign;
+  },
+
+  // ---------------------------------------------------------------- the daily steps
+  electionStep(s, day) {
+    const el = this.ensureElections(s);
+    this.raiseFunds(s);
+    this.scandalStep(s, el, day);
+    const phase = phaseOf(day, s.constitution);
+    const t = termOf(day, s.constitution);
+    if (phase !== 'term') {
+      const camp = this.campaignOf(s);
+      if (phase === 'campaign') {
+        this.spendCampaign(s, camp);
+        if (day === t.electionDay - E.debate.daysBefore && !camp.debate) this.holdDebate(s, el, camp, day);
+      }
+      if (phase === 'polling' && !el.pending) this.conclude(s, el, camp, day, t);
+    }
+    if (day === t.start && t.index > 0 && el.pending) this.transition(s, el, day, t);
+  },
+
+  /** Each party raises money every day (a fundraising director raises more; the governing party a little more still). */
+  raiseFunds(s) {
+    for (const id of PARTY_IDS) {
+      const party = s.parties[id];
+      const gain = E.funds.perDay + (party.staff.some((x) => x.role === 'fundraising' && x.personId) ? E.funds.fundraiser : 0) + (id === s.government.partyId ? E.funds.governing : 0);
+      party.funds += gain;
+      if (s.elections.campaign && phaseOf(this.day, s.constitution) !== 'term') s.elections.campaign.raised[id] += gain;
+    }
+  },
+
+  /** In the campaign each party spends a share of what it holds every day, split by channel. */
+  spendCampaign(s, camp) {
+    for (const id of PARTY_IDS) {
+      const party = s.parties[id];
+      const amount = Math.floor(party.funds * E.funds.spendRate);
+      if (amount <= 0) continue;
+      party.funds -= amount;
+      for (const [ch, share] of Object.entries(E.funds.split)) camp.spent[id][ch] += Math.round(amount * share);
+    }
+  },
+
+  /** The press find a scandal now and then (a hash of the day and the party). It has a severity, a credibility and the attention it gets; it fades. */
+  scandalStep(s, el, day) {
+    for (const id of PARTY_IDS) {
+      const key = `${el.salt}|scandal|${day}|${id}`;
+      if (hashUnit(key) >= E.scandals.chance) continue;
+      if (el.scandals.some((x) => x.day === day && x.party === id)) continue;
+      this.addScandal(s, el, { party: id, day, severity: range(E.scandals.severity, hashUnit(`${key}|s`)), credibility: range(E.scandals.credibility, hashUnit(`${key}|c`)), attention: range(E.scandals.attention, hashUnit(`${key}|a`)), source: 'press', text: SCANDALS[Math.floor(hashUnit(`${key}|t`) * SCANDALS.length)] });
+    }
+  },
+
+  addScandal(s, el, x) {
+    const row = { id: el.nextScandal++, quieted: false, ...x, severity: round(x.severity), credibility: round(x.credibility), attention: round(x.attention) };
+    el.scandals.push(row);
+    while (el.scandals.length > E.scandals.kept) el.scandals.shift();
+    const name = this.party(row.party).name;
+    this.log(s, `A scandal for ${name}: ${row.text}`);
+    if (row.day >= this.day - 1) this.news(`📰 ${name}: ${row.text}`);
+    return row;
+  },
+
+  /** What a party's scandals weigh on the vote today. */
+  scandalNow(s, party, day = this.day) {
+    return scandalWeight(this.ensureElections(s).scandals, party, day, this.pressStrength(s, party));
+  },
+
+  /** The one debate: who won, and a small swing to the winner (it counts in the campaign's total). */
+  holdDebate(s, el, camp, day) {
+    const standing = {}; const comms = {};
+    const truth = this.opinionTruth(s);
+    for (const id of PARTY_IDS) { standing[id] = id === s.government.partyId ? truth.approval : 1 - truth.approval * 0.85; comms[id] = this.staff(s, id, ['communications', 'press_secretary']); }
+    const r = debate({ standing, comms, key: `${el.salt}|debate|${camp.term}` });
+    camp.debate = { day, winner: r.winner, margin: round(r.margin) };
+    this.log(s, `The debate: ${this.party(r.winner).name} was judged to have won it.`);
+    this.news(`🎙️ The debate: ${this.leaderName(r.winner)} (${this.party(r.winner).short}) was judged the winner.`);
+  },
+
+  /** What each party's campaign has bought so far: the swing of its spending (with its staff) and the debate. */
+  campaignSwing(s, camp) {
+    const out = {};
+    for (const id of PARTY_IDS) {
+      const e = campaignEffect(camp.spent[id], s.parties[id]);
+      out[id] = { ...e, debate: camp.debate?.winner === id ? E.debate.swing : 0 };
+      out[id].sum = e.total + out[id].debate;
+    }
+    return out;
+  },
+
+  /** Polling day: the vote is worked out and sealed until the announcement. */
+  conclude(s, el, camp, day, t) {
+    const truth = this.opinionTruth(s);
+    const swing = this.campaignSwing(s, camp);
+    const gov = s.government.partyId;
+    const promises = promisesKept(el.manifesto[gov], s.policies);
+    const scandals = { order: this.scandalNow(s, 'order', day), liberty: this.scandalNow(s, 'liberty', day) };
+    const r = tally({ key: `${el.salt}|election|${t.index}`, truth, campaign: { order: swing.order.sum, liberty: swing.liberty.sum }, scandals, promises, terms: el.holder.terms });
+    el.pending = {
+      id: t.index + 1, term: t.index, day, gov, incumbentTerms: el.holder.terms, announced: false,
+      winner: r.winner, national: roundAll(r.national), turnout: round(r.turnout), seats: r.seats, margin: round(r.margin),
+      regions: Object.fromEntries(Object.entries(r.regions).map(([k, v]) => [k, roundAll(v)])),
+      parts: roundAll(r.parts), promises: round(promises), scandals: roundAll(scandals),
+      campaign: { order: { spent: sum(camp.spent.order), swing: round(swing.order.sum) }, liberty: { spent: sum(camp.spent.liberty), swing: round(swing.liberty.sum) } },
+      debate: camp.debate,
+    };
+  },
+
+  /** 22:00 on polling day (or the first moment after it): the result is announced. Idempotent. */
+  announce(s, el) {
+    const r = el.pending;
+    if (!r || r.announced) return;
+    r.announced = true;
+    const win = this.party(r.winner);
+    const pct = (v) => `${(v * 100).toFixed(1)}%`;
+    const changed = r.winner !== r.gov;
+    const text = `${win.name} wins the election${changed ? ', and the government changes hands' : ' and stays in office'}: Order ${pct(r.national.order)}, Liberty ${pct(r.national.liberty)}, others ${pct(r.national.other)}; turnout ${pct(r.turnout)}. Seats: Order ${r.seats.order}, Liberty ${r.seats.liberty}, others ${r.seats.other}.`;
+    this.log(s, text);
+    s.history.push({ day: r.day, kind: 'election', text });
+    while (s.history.length > 60) s.history.shift();
+    for (const old of el.history) delete old.regions; // the by-state figures are kept for the latest vote only
+    el.history.push({ ...r, announcedDay: this.day });
+    while (el.history.length > E.logKept) el.history.shift();
+    this.news(`🗳️ ELECTION NIGHT — ${text}`);
+    const g = this.g;
+    g.bus.emit('politics:election', { id: r.id, winner: r.winner, changed });
+    g.notify(`🗳️ Election night: ${win.name} wins${changed ? ' — a change of government' : ''}.`, 'event');
+    const leader = g.npcs.get(P.parties[r.winner].leader);
+    if (leader) g.bark(leader, changed ? 'We did it. Thank you, Sund.' : 'Thank you. Back to work in the morning.');
+    const loser = g.npcs.get(P.parties[OTHER_PARTY(r.winner)].leader);
+    if (loser) g.bark(loser, 'The people have spoken. We will be back.');
+  },
+
+  /** Taking office on the first day of the term: President, Assembly, the policies on their way, the leaders' schedules. Idempotent (the result is spent). */
+  transition(s, el, day, t) {
+    if (!el.pending.announced) this.announce(s, el);
+    const r = el.pending;
+    const changed = r.winner !== s.government.partyId;
+    s.government = { partyId: r.winner, presidentId: P.parties[r.winner].leader, term: t.index, termStart: t.start, termEnd: t.end };
+    s.constitution.assemblySeats = { ...r.seats };
+    s.constitution.electionsHeld = true;
+    el.holder = changed ? { party: r.winner, terms: 1 } : { party: r.winner, terms: el.holder.terms + 1 };
+    for (const p of s.policies) {
+      if (p.state === 'active') p.owner = r.winner;
+      else if (changed && ['proposed', 'review', 'approved', 'implementing'].includes(p.state)) { p.state = 'ended'; p.since = day; p.note = 'withdrawn by the new government'; }
+    }
+    const win = this.party(r.winner);
+    s.history.push({ day, kind: 'term', text: changed ? `A new term begins: ${win.name} take office; ${this.leaderName(r.winner)} is President.` : `A new term begins: ${win.name} continue in office (term ${el.holder.terms}).` });
+    while (s.history.length > 60) s.history.shift();
+    this.log(s, changed ? `${win.name} take office. The new government withdraws the programmes still on their way.` : `${win.name} are returned to office.`);
+    el.pending = null;
+    this.setManifestos(s);
+    this.syncLeaders();
+  },
+
+  // ---------------------------------------------------------------- election night
+  /** Each minute: the night's crowd gathers at 19:30 and the announcement comes at 22:00 on polling day (or at once if the day has gone by). */
+  minuteTick() {
+    const s = this.peek();
+    const el = s?.elections;
+    if (!el?.pending) return;
+    const r = el.pending;
+    const now = this.g.clock;
+    if (!r.announced && (now.day > r.day || (now.day === r.day && now.minuteOfDay >= minutes(E.night.announce)))) this.announce(s, el);
+    if (now.day === r.day && now.minuteOfDay === minutes(E.night.gather)) this.gatherCrowd(s);
+  },
+
+  gatherCrowd(s) {
+    const g = this.g;
+    for (const pid of PARTY_IDS) {
+      const people = [P.parties[pid].leader, ...s.parties[pid].staff.map((x) => x.personId)].filter(Boolean);
+      for (const id of people) {
+        const npc = g.npcs.get(id);
+        if (!npc || npc.pursuit) continue;
+        g.sendOnErrand(npc, { spot: id === P.parties[pid].leader ? E.night.spots.leaders : E.night.spots[pid], activity: 'election night', minutes: E.night.crowdMinutes });
+      }
+    }
+  },
+
+  news(text) { try { this.g.tablet.post('news', text, 'event'); } catch { /* the tablet may not exist in a bare test game */ } },
+
+  // ---------------------------------------------------------------- views
+  /** What the Campaign page shows. The sealed result is never shown before the announcement. */
+  campaign() {
+    const s = this.ensure();
+    const el = this.ensureElections(s);
+    const cal = this.calendar();
+    const gov = s.government.partyId;
+    const camp = cal.phase === 'term' ? null : this.campaignOf(s);
+    const swing = camp ? this.campaignSwing(s, camp) : null;
+    const party = (id) => ({
+      id, name: this.party(id).name, short: this.party(id).short, leader: this.leaderName(id), funds: s.parties[id].funds,
+      spent: camp ? sum(camp.spent[id]) : 0, swing: swing ? round(swing[id].sum) : 0, byChannel: camp ? camp.spent[id] : emptySpend(),
+      staff: { communications: this.staff(s, id, ['communications', 'press_secretary']), organisers: this.staff(s, id, ['organiser', 'campaign_manager']), rallies: this.staff(s, id, ['campaign_manager']), press: this.pressStrength(s, id), fundraising: s.parties[id].staff.some((x) => x.role === 'fundraising' && x.personId) },
+      scandal: round(this.scandalNow(s, id)), manifesto: el.manifesto[id].map((k) => ({ id: k, name: POLICIES[k].name, kept: gov === id ? promisesKept([k], s.policies) : null })),
+    });
+    const last = el.history[el.history.length - 1] || null;
+    return {
+      calendar: cal, phase: cal.phase, governing: gov, parties: PARTY_IDS.map(party), debate: camp?.debate || null,
+      pending: Boolean(el.pending && !el.pending.announced), last, history: [...el.history].reverse(),
+      scandals: el.scandals.filter((x) => this.day - x.day <= 60).reverse().slice(0, 6), holder: el.holder, channels: E.channels,
+    };
+  },
+};
+
+const SCANDALS = [
+  'a donor list that was not meant to be read aloud', 'an expenses claim for a boat that nobody can find', 'a leaked memo about "managing" the polls',
+  'a minister caught with a ledger and no explanation', 'a candidate\'s old speech, newly discovered and badly aged', 'a campaign bus that charged the taxpayer for the driver\'s holiday',
+  'a staffer who sold the party\'s schedule to a newspaper', 'a contract awarded, on a napkin, to a cousin',
+];
+
+function sum(o) { return Object.values(o).reduce((a, v) => a + v, 0); }
+function roundAll(o) { return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'number' ? round(v) : v])); }
+
+return { electionMethods };
+})();
+
+// ---- src/content/influence.js
+__m["src/content/influence.js"] = (function () {
+// Influence (v0.95.0): who will see you, what you may ask, what it costs, and what happens when it is found out. Pure data.
+//
+// Fictional game mechanics. Four things are kept apart and none converts into another: the money you hold, your reputation (the Civic Guild's
+// opinion of you), your relationships (each person's own view of you) and your political support (what you have given to a party in the open).
+// A door needs the right mix. Money alone does not open one. Every offer is recorded, successful or not.
+
+const INFLUENCE = {
+  /** Donations to a party are public, recorded and capped per donor per term. They are the party's money (a transfer), they buy support and a hearing, never a vote. */
+  donation: { min: 1000, cap: 50000, supportPer: 1000, favourPer: 12000, favourCap: 4, trustPer: 6000, trustCap: 10 },
+  /** How standing reads: a score from reputation, support, relationships and exposure. */
+  tiers: [{ id: 'unknown', label: 'Unknown', from: -999 }, { id: 'known', label: 'Known', from: 12 }, { id: 'trusted', label: 'Trusted', from: 35 }, { id: 'inner', label: 'Inner circle', from: 70 }],
+
+  /** The contacts. `side` says whose people they are; `needs` is what opens the door: a relationship of `rel`, OR support of `support` for the party together with a reputation of `rep`. */
+  contacts: {
+    president: { id: 'president', side: 'gov', role: 'The President', needs: { rel: 25, support: 40, rep: 5 }, integrity: 0.30, likes: 'A good reason, from someone who is known.', issues: null, price: 1.6, favours: 2 },
+    chief: { id: 'npc_hh_chief', side: 'gov', role: 'Chief of Staff to the President', needs: { rel: 8, support: 10, rep: 0 }, integrity: 0.12, likes: 'Tidy requests, made in good time.', issues: null, price: 1, favours: 3 },
+    npc_min_treasury: { id: 'npc_min_treasury', side: 'gov', role: 'Minister of the Treasury', needs: { rel: 12, support: 20, rep: 0 }, integrity: 0.22, likes: 'Savings. Anything that arrives with a way to pay for it.', issues: ['public_spending'], price: 1.2, favours: 2 },
+    npc_min_defence: { id: 'npc_min_defence', side: 'gov', role: 'Minister of Defence & Security', needs: { rel: 12, support: 20, rep: 0 }, integrity: 0.30, likes: 'Readiness; a shipyard that delivers on time.', issues: ['defence_budget', 'intervention', 'surveillance'], price: 1.4, favours: 2 },
+    npc_min_interior: { id: 'npc_min_interior', side: 'gov', role: 'Minister of the Interior & Police', needs: { rel: 12, support: 20, rep: 0 }, integrity: 0.25, likes: 'Order. A quiet word before a loud one.', issues: ['police_funding', 'enforcement'], price: 1.2, favours: 2 },
+    npc_min_agriculture: { id: 'npc_min_agriculture', side: 'gov', role: 'Minister of Agriculture & Trade', needs: { rel: 10, support: 15, rep: 0 }, integrity: 0.35, likes: 'Farmers, and anyone who has been near a cow.', issues: ['farm_inspection', 'regulation'], price: 1, favours: 2 },
+    opposition: { id: 'opposition', side: 'opp', role: 'Leader of the opposition', needs: { rel: 10, support: 15, rep: 0 }, integrity: 0.30, likes: 'A promise she can repeat on the steps.', issues: null, price: 1.3, favours: 2 },
+    opposition_chief: { id: 'opposition_chief', side: 'opp', role: 'Opposition chief of staff', needs: { rel: 6, support: 8, rep: 0 }, integrity: 0.14, likes: 'Anything that makes the government look worse.', issues: null, price: 0.9, favours: 3 },
+  },
+
+  /**
+   * What you may ask. `worth` is what it is worth to the asker (obols); a bribe's price is worth × the contact's price × (1 + repeats). `legit` requests are lobbying (they cost favours, not money); `illicit` ones are offers.
+   */
+  requests: {
+    meeting: { name: 'Ask for a meeting', blurb: 'Costs nothing. May be refused; a refusal is explained.', legit: true, illicit: false, worth: 0, favours: 0, sides: ['gov', 'opp'] },
+    push: { name: 'Ask them to take up a policy', blurb: 'The cabinet is asked to weigh it at its next window. It will not take up what the party stands against.', legit: true, illicit: true, worth: 60000, favours: 1, sides: ['gov'], needsPolicy: true },
+    stall: { name: 'Ask for a delay', blurb: 'A policy on its way waits a while longer: two weeks, or one.', legit: true, illicit: true, worth: 40000, favours: 1, sides: ['gov'], needsPolicy: true },
+    quiet: { name: 'Have a scandal kept quiet', blurb: 'The government\'s worst story of the moment gets less attention. Never legitimate.', legit: false, illicit: true, worth: 50000, favours: 0, sides: ['gov'] },
+    leak: { name: 'Pass them something on the government', blurb: 'A story, passed to the opposition, about the party in office. Never legitimate; nobody can say how true it is.', legit: false, illicit: true, worth: 30000, favours: 0, sides: ['opp'] },
+  },
+
+  /** The odds of an offer (see src/politics/influence.js). Every figure bounded. */
+  odds: { base: 0.58, perRel: 0.004, perSupport: 0.003, perRep: 0.003, repeat: 0.30, pressure: 0.28, gatekeeper: 0.14, floor: 0.06, ceiling: 0.88, favour: 0.06, lobbyBase: 0.50 },
+  /** Of those who take it: accepted / half done / delayed. Of those who do not: refused / counter-offer / reported (a bribe only). */
+  split: { take: { accepted: 0.55, half: 0.25, delayed: 0.20 }, refuse: { refused: 0.55, counter: 0.25, reported: 0.20 }, counterRise: 1.5, counterDays: 3 },
+
+  /** What is remembered, and what is found. */
+  ledger: { kept: 60 },
+  heat: { illicit: 4, reported: 7, decay: 0.35, exposeFrom: 5, chancePer: 0.035, cap: 0.5, after: 0.4 },
+  exposure: { fineTimes: 2, fineMin: 5000, repLoss: 8, trustLoss: 10, severity: { taken: 0.6, tried: 0.35 }, attention: 0.8 },
+  repeatWindow: 60, repeatCap: 3,
+  meeting: { rel: 2, daysOpen: 2 },
+  obligation: { days: 30, extend: 20 },
+  /** The faction whose opinion is your reputation in the capital. */
+  repFaction: 'fac_civic',
+};
+
+return { INFLUENCE };
+})();
+
+// ---- src/politics/influence.js
+__m["src/politics/influence.js"] = (function () {
+// Influence (v0.95.0): the rules, pure. Chance comes only from a hash of the offer's own key, so an offer's outcome is fixed when it is made and cannot be re-rolled.
+//
+//   standingScore(x)                  one number for how you read to the capital (reputation, support, relationships, minus exposure)
+//   tierOf(score)                     Unknown / Known / Trusted / Inner circle
+//   accessOpen(contact, x)            does the door open? a relationship of `rel`, or the support AND reputation (never money alone)
+//   priceOf(request, contact, n)      what a bribe costs: its worth × the contact's price × (1 + repeats)
+//   takeOdds(x)                       the chance the contact takes the offer (bounded)
+//   outcomes(p, illicit)              the chances of each outcome
+//   pickOutcome(outcomes, u)          one outcome from a number in [0,1)
+//   band(p)                           'low' | 'medium' | 'high' for the screen
+const { INFLUENCE: I } = __m["src/content/influence.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+
+function standingScore({ rep, support, rel, heat }) {
+  return rep * 0.6 + support * 0.5 + rel * 0.5 - heat * 1.5;
+}
+
+function tierOf(score) {
+  let t = I.tiers[0];
+  for (const x of I.tiers) if (score >= x.from) t = x;
+  return t;
+}
+
+/** x: { rel (the person's disposition toward you), support (your support for their party), rep }. A relationship alone, or support together with reputation. Never money alone. */
+function accessOpen(contact, x) {
+  const n = contact.needs;
+  return x.rel >= n.rel || (x.support >= n.support && x.rep >= n.rep);
+}
+
+/** What stands between you and the door, in words. */
+function needsText(contact) {
+  const n = contact.needs;
+  const rep = n.rep > 0 ? ` and a reputation of ${n.rep}` : '';
+  return `a friendship (${n.rel}), or ${n.support} points of support${rep}`;
+}
+
+/** The price of a bribe: the request's worth × the contact's price × (1 + 0.35 per earlier offer to them in the last two months), rounded to a hundred. */
+function priceOf(request, contact, repeats) {
+  const mult = 1 + Math.min(I.repeatCap, repeats) * 0.35;
+  return Math.max(500, Math.round((request.worth * contact.price * mult) / 100) * 100);
+}
+
+/**
+ * x: { rel, support, rep, repeats, pressure (0..1), gatekeeper (0..1), favours (what you have in credit), illicit, contact }
+ * The chance that the contact takes it up (accepted, half done or delayed). Bounded.
+ */
+function takeOdds(x) {
+  const O = I.odds;
+  const base = x.illicit ? O.base : O.lobbyBase;
+  const p = base - x.contact.integrity * (x.illicit ? 1 : 0.4) + O.perRel * x.rel + O.perSupport * x.support + O.perRep * x.rep + (x.illicit ? 0 : O.favour * x.favours) - O.repeat * Math.min(I.repeatCap, x.repeats) * (x.illicit ? 1 : 0.5) - O.pressure * x.pressure - O.gatekeeper * x.gatekeeper;
+  return clamp(p, O.floor, O.ceiling);
+}
+
+/** Every outcome and its chance. A request that is not a bribe cannot be "reported": its share is a plain refusal. */
+function outcomes(p, illicit) {
+  const S = I.split;
+  const out = {};
+  for (const [k, v] of Object.entries(S.take)) out[k] = p * v;
+  for (const [k, v] of Object.entries(S.refuse)) out[k] = (1 - p) * v;
+  if (!illicit) { out.refused += out.reported; out.reported = 0; }
+  return out;
+}
+
+function pickOutcome(o, u) {
+  let acc = 0;
+  const keys = Object.keys(o);
+  for (const k of keys) { acc += o[k]; if (u < acc) return k; }
+  return keys[keys.length - 1];
+}
+
+const band = (p) => (p >= 0.55 ? 'high' : p >= 0.3 ? 'medium' : 'low');
+
+/** What a request is allowed to touch: a contact's issues bound the policies that can be asked of them (null = any). */
+const mayAsk = (contact, policy) => !contact.issues || contact.issues.includes(policy.issue);
+
+return { unit, standingScore, tierOf, accessOpen, needsText, priceOf, takeOdds, outcomes, pickOutcome, band, mayAsk };
+})();
+
+// ---- src/systems/politicsInfluence.js
+__m["src/systems/politicsInfluence.js"] = (function () {
+// Influence (v0.95.0): relationships and access, donations, lobbying, promises, offers and the record of them all. Added to the Politics service.
+//
+// Fictional game mechanics, with costs. Money, reputation, relationships and political support are four separate things; a door needs the right mix and
+// money alone opens none. A donation is public, capped and recorded; it buys support and a hearing (a favour), never a vote. Lobbying costs favours. An offer
+// (a bribe) is shown with its price and its odds before any money moves, charged before it resolves, and recorded whatever the outcome; repeats cost more, and
+// an official's favours for a term are finite. The record feeds a "heat" that investigators and journalists can find: exposure means a scandal for the recipient's
+// party, a fine for you (paid to the state, which reduces its debt), a hit to your reputation and the trust of those you dealt with.
+// Every outcome is fixed by a hash of the offer's own number, so a reload can neither repeat an offer nor re-roll it.
+const { INFLUENCE: I } = __m["src/content/influence.js"];
+const { POLICIES } = __m["src/content/policies.js"];
+const { ESTATE_DEFS } = __m["src/content/estates.js"];
+const { STAFF_BY_PARTY } = __m["src/content/capital.js"];
+const { POLITICS: P } = __m["src/content/politics.js"];
+const { phaseOf, termOf } = __m["src/politics/calendar.js"];
+const { OTHER_PARTY, PARTY_IDS } = __m["src/politics/model.js"];
+const { fitOf, inProgress } = __m["src/politics/policy.js"];
+const { standingScore, tierOf, accessOpen, needsText, priceOf, takeOdds, outcomes, pickOutcome, band, unit, mayAsk } = __m["src/politics/influence.js"];
+
+const ESTATE_OF = Object.fromEntries(Object.values(ESTATE_DEFS).map((e) => [e.party, e]));
+const FLAGS = ['halver_appointment', ...Object.values(ESTATE_DEFS).map((e) => e.flag)];
+const round = (v) => Math.round(v * 100) / 100;
+const OUTCOME_TEXT = {
+  accepted: 'accepted', half: 'half done', delayed: 'delayed', refused: 'refused', counter: 'a counter-offer', reported: 'reported',
+};
+
+const influenceMethods = {
+  /** The influence record (a save from 0.94.x gains it). */
+  ensureInfluence(s) {
+    if (s.influence) return s.influence;
+    s.influence = { nextId: 1, ledger: [], heat: 0, support: { order: 0, liberty: 0 }, favours: { order: 0, liberty: 0 }, donated: {}, used: {}, obligations: [], counters: [], pushes: [], meetings: {}, exposures: 0 };
+    return s.influence;
+  },
+
+  // ---------------------------------------------------------------- who is who
+  /** The people behind the contacts, today (the President and the opposition change with the vote). */
+  contactDefs(s = this.ensure()) {
+    const gov = s.government.partyId;
+    const opp = OTHER_PARTY(gov);
+    return Object.entries(I.contacts).map(([key, c]) => {
+      const party = c.side === 'gov' ? gov : opp;
+      const npcId = key === 'president' ? P.parties[gov].leader : key === 'opposition' ? P.parties[opp].leader : key === 'opposition_chief' ? STAFF_BY_PARTY[opp]?.chief_of_staff : c.id;
+      return { ...c, key, party, npcId };
+    });
+  },
+  contact(key, s = this.ensure()) { return this.contactDefs(s).find((c) => c.key === key) || null; },
+  npcOf(c) { return this.g.npcs.get(c.npcId) || null; },
+  relOf(c) { const npc = this.npcOf(c); return npc ? this.g.relationships.disposition(npc, 'player') : 0; },
+  repNow() { return this.g.player.reputation?.[I.repFaction] || 0; },
+
+  /** Your standing: one reading from four things kept apart. */
+  standing() {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const cs = this.contactDefs(s);
+    const rel = cs.length ? cs.reduce((a, c) => a + Math.max(0, this.relOf(c)), 0) / cs.length : 0;
+    const support = Math.max(inf.support.order, inf.support.liberty);
+    const rep = this.repNow();
+    const score = standingScore({ rep, support, rel, heat: inf.heat });
+    const term = termOf(this.day, s.constitution).index;
+    return { score: round(score), tier: tierOf(score), rep, support: { ...inf.support }, favours: { ...inf.favours }, relations: round(rel), heat: round(inf.heat), donated: { order: inf.donated[`${term}|order`] || 0, liberty: inf.donated[`${term}|liberty`] || 0 }, cap: I.donation.cap, term };
+  },
+
+  // ---------------------------------------------------------------- donations and promises
+  /** A donation to a party: public, capped per term, recorded. The money is the party's; it earns support, a hearing (favours) and the leader's trust. */
+  donate(partyId, amount) {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const D = I.donation;
+    amount = Math.floor(Number(amount) || 0);
+    if (!PARTY_IDS.includes(partyId)) return { ok: false, text: 'Nobody by that name is standing.' };
+    if (amount < D.min) return { ok: false, text: `The smallest donation the party will record is ${D.min} obols.` };
+    const key = `${termOf(this.day, s.constitution).index}|${partyId}`;
+    const given = inf.donated[key] || 0;
+    if (given + amount > D.cap) return { ok: false, text: `Donations are capped at ${D.cap.toLocaleString('en-US')} obols per donor each term. You have given ${given.toLocaleString('en-US')} to ${this.party(partyId).name}.` };
+    if (this.g.player.money < amount) return { ok: false, text: 'You can\'t afford that.' };
+    this.charge(amount);
+    inf.donated[key] = given + amount;
+    s.parties[partyId].funds += amount;
+    if (s.elections?.campaign && phaseOf(this.day, s.constitution) !== 'term') s.elections.campaign.raised[partyId] += amount;
+    inf.support[partyId] += amount / D.supportPer;
+    inf.favours[partyId] = Math.min(D.favourCap, inf.favours[partyId] + amount / D.favourPer);
+    const leader = this.g.npcs.get(P.parties[partyId].leader);
+    if (leader) this.g.relationships.adjust(leader, 'player', { trust: Math.min(D.trustCap, amount / D.trustPer) }, 'donation');
+    const entry = this.record(inf, { kind: 'donation', party: partyId, amount, outcome: 'recorded', public: true });
+    inf.obligations.push({ id: entry.id, party: partyId, day: this.day, amount, due: this.day + I.obligation.days, status: 'open', extended: false });
+    return { ok: true, text: `You gave ${amount.toLocaleString('en-US')} obols to ${this.party(partyId).name}. It is public and recorded. A donation earns a hearing, never a vote.` };
+  },
+
+  /** Pay out of your own cash. */
+  charge(amount) {
+    const g = this.g;
+    g.player.money -= amount;
+    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+  },
+
+  record(inf, row) {
+    const entry = { id: inf.nextId++, day: this.day, exposed: false, ...row };
+    inf.ledger.push(entry);
+    while (inf.ledger.length > I.ledger.kept) inf.ledger.shift();
+    return entry;
+  },
+
+  // ---------------------------------------------------------------- access
+  /** The door: open or closed, and what it needs. */
+  access(c) {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const x = { rel: this.relOf(c), support: inf.support[c.party] || 0, rep: this.repNow() };
+    return { open: accessOpen(c, x), needs: needsText(c), x };
+  },
+
+  /** Ask for a meeting. Free; may be refused, and a refusal says why. Once a day per person. A meeting is the appointment the door lists ask for. */
+  askMeeting(key) {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const c = this.contact(key, s);
+    if (!c) return { ok: false, text: 'Nobody by that name.' };
+    const a = this.access(c);
+    if (!a.open) return { ok: false, text: `${this.nameOf(c)}\'s office says there is no space in the diary: it takes ${a.needs}.` };
+    if (inf.meetings[key]?.day === this.day) return { ok: inf.meetings[key].ok, text: inf.meetings[key].text };
+    const campaign = phaseOf(this.day, s.constitution) !== 'term' ? 0.15 : 0;
+    const p = Math.max(0.1, Math.min(0.95, 0.55 + 0.01 * a.x.rel + 0.004 * a.x.support + 0.01 * a.x.rep - campaign - (inf.heat > 6 ? 0.2 : 0)));
+    const yes = unit(`${s.elections?.salt || s.pollSalt}|meet|${key}|${this.day}`) < p;
+    const why = inf.heat > 6 ? 'There are questions about you, and the diary is full.' : campaign ? 'The campaign has eaten the diary.' : 'The diary is full this week.';
+    const res = yes
+      ? { ok: true, text: `${this.nameOf(c)} will see you.${c.side === 'gov' ? ' You are on the list at Halver House for two days.' : ' You are expected at the house.'}` }
+      : { ok: false, text: `${this.nameOf(c)} cannot see you. ${why}` };
+    inf.meetings[key] = { day: this.day, ok: res.ok, text: res.text };
+    if (yes) {
+      if (c.side === 'gov') this.g.setFlag('halver_appointment', this.day);
+      else if (key === 'opposition' && ESTATE_OF[c.party]) this.g.setFlag(ESTATE_OF[c.party].flag, this.day);
+      const npc = this.npcOf(c);
+      if (npc) this.g.relationships.adjust(npc, 'player', { trust: I.meeting.rel }, 'meeting');
+    }
+    this.record(inf, { kind: 'meeting', contact: key, party: c.party, amount: 0, outcome: yes ? 'granted' : 'refused', public: false });
+    return res;
+  },
+
+  nameOf(c) { return this.npcOf(c)?.profile.name || c.role; },
+
+  // ---------------------------------------------------------------- offers
+  /** The offers made to a contact in the last two months (they make the next one cost more). */
+  repeats(inf, key) { return inf.ledger.filter((e) => e.contact === key && e.kind === 'offer' && e.illicit && this.day - e.day <= I.repeatWindow).length; },
+
+  /** An offer, quoted plainly before any money moves: the request, the price, the odds, and what happens if it is found out. Changes nothing. */
+  quote(key, requestId, { policy = null, illicit = false } = {}) {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const c = this.contact(key, s);
+    const r = I.requests[requestId];
+    if (!c || !r) return { ok: false, text: 'No such request.' };
+    if (!r.sides.includes(c.side)) return { ok: false, text: 'That is not something they can do.' };
+    if (illicit ? !r.illicit : !r.legit) return { ok: false, text: illicit ? 'There is no offer to make for that.' : 'That cannot be asked for openly.' };
+    const a = this.access(c);
+    if (!a.open) return { ok: false, text: `The door is closed: it takes ${a.needs}.` };
+    const def = policy ? POLICIES[policy] : null;
+    if (r.needsPolicy && !def) return { ok: false, text: 'Name the policy.' };
+    if (def && !mayAsk(c, def)) return { ok: false, text: `${this.nameOf(c)} has nothing to do with ${def.name.toLowerCase()}.` };
+    const gov = s.government.partyId;
+    if (requestId === 'push') {
+      if (s.policies.some((p) => p.key === policy && inProgress(p))) return { ok: false, text: 'It is already in progress.' };
+      if (inf.pushes.some((p) => p.policy === policy && p.until >= this.day)) return { ok: false, text: 'The cabinet has already been asked.' };
+    }
+    if (requestId === 'stall' && !s.policies.some((p) => p.key === policy && ['proposed', 'review', 'approved', 'implementing'].includes(p.state))) return { ok: false, text: 'It is not on its way: there is nothing to delay.' };
+    const term = termOf(this.day, s.constitution).index;
+    const used = inf.used[`${term}|${key}`] || 0;
+    if (used >= c.favours) return { ok: false, text: `${this.nameOf(c)} has no favours left this term.` };
+    const repeats = this.repeats(inf, key);
+    const price = illicit ? priceOf(r, c, repeats) : 0;
+    const favours = illicit ? 0 : r.favours;
+    if (!illicit && favours > (inf.favours[c.party] || 0)) return { ok: false, text: `Lobbying costs a favour with ${this.party(c.party).name}, and you have none. A donation earns them.` };
+    const fit = def && c.side === 'gov' ? fitOf(s.parties[gov].platform, def) : 0;
+    const approval = this.approval(s);
+    const pressure = Math.max(0, Math.min(1, (c.side === 'gov' ? (0.5 - approval) * 1.2 : 0) + (phaseOf(this.day, s.constitution) !== 'term' ? 0.2 : 0) + inf.heat / 25));
+    const chief = this.contactDefs(s).find((x) => x.side === c.side && (x.key === 'chief' || x.key === 'opposition_chief'));
+    const gatekeeper = c.key === chief?.key ? 0 : chief && !this.access(chief).open ? 1 : 0;
+    let p = takeOdds({ rel: a.x.rel, support: a.x.support, rep: a.x.rep, repeats, pressure, gatekeeper, favours: inf.favours[c.party] || 0, illicit, contact: c });
+    if ((requestId === 'push') && fit < 0) p = 0.06; // never against everything the party stands for
+    return {
+      ok: true, contact: c, request: r, requestId, policy, policyName: def?.name || null, illicit, price, favours, p: round(p), band: band(p), odds: outcomes(p, illicit), repeats, fit, against: requestId === 'push' && fit < 0,
+      found: illicit ? 'If it is found out: an investigation, a scandal for them, a fine of twice the sum and your name in the papers.' : null,
+      text: `${r.name}${def ? `: ${def.name}` : ''}`,
+    };
+  },
+
+  /** Make the offer. Charged first, recorded whatever the outcome, resolved by a hash of its number. */
+  offer(key, requestId, opts = {}) {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const q = this.quote(key, requestId, opts);
+    if (!q.ok) return q;
+    const { contact: c, request: r, illicit } = q;
+    if (illicit && this.g.player.money < q.price) return { ok: false, text: `You haven\'t got ${q.price.toLocaleString('en-US')} obols.` };
+    const id = inf.nextId;
+    if (illicit) this.charge(q.price);
+    else inf.favours[c.party] = Math.max(0, inf.favours[c.party] - q.favours);
+    const term = termOf(this.day, s.constitution).index;
+    const roll = unit(`${s.elections?.salt || s.pollSalt}|offer|${id}`);
+    const o = pickOutcome(q.odds, roll);
+    const entry = this.record(inf, { kind: 'offer', contact: key, party: c.party, request: requestId, policy: q.policy, amount: q.price, illicit, outcome: o, public: false });
+    if (illicit) inf.heat += I.heat.illicit + (o === 'reported' ? I.heat.reported : 0);
+    let note = '';
+    if (['accepted', 'half', 'delayed'].includes(o)) {
+      inf.used[`${term}|${key}`] = (inf.used[`${term}|${key}`] || 0) + 1;
+      note = this.apply(s, inf, c, requestId, q.policy, o);
+    } else if (o === 'counter') {
+      const price = illicit ? Math.round((q.price * I.split.counterRise) / 100) * 100 : 0;
+      inf.counters.push({ id: entry.id, contact: key, request: requestId, policy: q.policy, illicit, price, favours: illicit ? 0 : q.favours + 1, until: this.day + I.split.counterDays });
+      note = illicit ? `They want ${price.toLocaleString('en-US')} instead. The offer stands for ${I.split.counterDays} days.` : 'They would do it for one more favour. The offer stands for three days.';
+    } else if (o === 'reported') {
+      this.expose(s, inf, entry, 'reported');
+      note = 'They reported it.';
+    }
+    const who = this.nameOf(c);
+    const text = o === 'accepted' ? `${who} agrees. ${note}` : o === 'half' ? `${who} will do part of it. ${note}` : o === 'delayed' ? `${who} will see to it, in time. ${note}` : o === 'counter' ? `${who}: "Not at that price." ${note}` : o === 'reported' ? `${who} has reported you. ${note}` : `${who} refuses.`;
+    return { ok: true, outcome: o, label: OUTCOME_TEXT[o], text: `${text}${illicit ? ' (It is recorded, whether it works or not.)' : ''}`.trim(), price: q.price, entry };
+  },
+
+  /** Accept a counter-offer: charged at its new price, and it resolves as agreed (no second roll). */
+  acceptCounter(id) {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const k = inf.counters.find((x) => x.id === id);
+    if (!k || k.until < this.day) return { ok: false, text: 'That offer has lapsed.' };
+    const c = this.contact(k.contact, s);
+    if (!c) return { ok: false, text: 'They are gone.' };
+    if (k.illicit && this.g.player.money < k.price) return { ok: false, text: `You haven\'t got ${k.price.toLocaleString('en-US')} obols.` };
+    if (!k.illicit && (inf.favours[c.party] || 0) < k.favours) return { ok: false, text: 'You have not the favours.' };
+    inf.counters = inf.counters.filter((x) => x !== k);
+    if (k.illicit) this.charge(k.price); else inf.favours[c.party] -= k.favours;
+    const term = termOf(this.day, s.constitution).index;
+    inf.used[`${term}|${k.contact}`] = (inf.used[`${term}|${k.contact}`] || 0) + 1;
+    if (k.illicit) inf.heat += I.heat.illicit;
+    const entry = this.record(inf, { kind: 'offer', contact: k.contact, party: c.party, request: k.request, policy: k.policy, amount: k.price, illicit: k.illicit, outcome: 'accepted', public: false, counter: true });
+    const note = this.apply(s, inf, c, k.request, k.policy, 'accepted');
+    return { ok: true, outcome: 'accepted', label: 'accepted', text: `${this.nameOf(c)} agrees at the new price. ${note}`, price: k.price, entry };
+  },
+
+  /** What an accepted request does. Only what exists: a policy asked of the cabinet, a delay, a story given less attention or more. */
+  apply(s, inf, c, requestId, policy, outcome) {
+    const day = this.day;
+    const k = outcome === 'accepted' ? 1 : outcome === 'half' ? 0.5 : 1;
+    const wait = outcome === 'delayed' ? 7 : 0;
+    if (requestId === 'push') {
+      inf.pushes.push({ policy, from: day + wait, until: day + wait + 21, bonus: k * 2.2, by: c.key });
+      this.log(s, `${POLICIES[policy].name} has been put to the cabinet by someone with a hearing.`);
+      return `The cabinet will weigh "${POLICIES[policy].name}" at its next window${wait ? ' after next week' : ''}${outcome === 'half' ? ' (with less weight than you hoped)' : ''}.`;
+    }
+    if (requestId === 'stall') {
+      const days = outcome === 'half' ? 7 : 14;
+      for (const p of s.policies.filter((q) => q.key === policy && ['proposed', 'review', 'approved', 'implementing'].includes(q.state))) { p.since += days; p.note = `delayed ${days} days at a request`; }
+      this.log(s, `${POLICIES[policy].name} is delayed.`);
+      return `"${POLICIES[policy].name}" waits ${days} more days.`;
+    }
+    if (requestId === 'quiet') {
+      const el = this.ensureElections(s);
+      const target = [...el.scandals].reverse().find((x) => x.party === c.party && !x.quieted);
+      if (!target) return 'There is nothing to keep quiet at the moment; they take the money anyway.';
+      target.quieted = true; target.attention = round(target.attention * (outcome === 'half' ? 0.8 : 0.5));
+      return 'The story gets less attention.';
+    }
+    if (requestId === 'leak') {
+      const el = this.ensureElections(s);
+      const target = OTHER_PARTY(c.party);
+      const sev = outcome === 'half' ? 0.2 : 0.35;
+      this.addScandal(s, el, { party: target, day: day + wait, severity: sev, credibility: 0.55, attention: 0.7, source: 'leak', text: 'a leaked file nobody will own, and everybody has read' });
+      return 'The story is out. Nobody says where it came from.';
+    }
+    return '';
+  },
+
+  // ---------------------------------------------------------------- the daily step
+  /** Heat fades; donors' expectations come due; the investigators may find something; appointments lapse. Idempotent per day (called once per government day). */
+  influenceStep(s, day) {
+    const inf = this.ensureInfluence(s);
+    inf.heat = Math.max(0, inf.heat - I.heat.decay);
+    inf.pushes = inf.pushes.filter((p) => p.until >= day);
+    inf.counters = inf.counters.filter((c) => c.until >= day);
+    for (const o of inf.obligations.filter((x) => x.status === 'open' && x.due <= day)) this.settle(s, inf, o, day);
+    inf.obligations = inf.obligations.filter((o) => o.status === 'open' || day - o.due < 30);
+    if (inf.heat >= I.heat.exposeFrom) {
+      const p = Math.min(I.heat.cap, (inf.heat - I.heat.exposeFrom + 1) * I.heat.chancePer);
+      const entry = inf.ledger.find((e) => e.illicit && !e.exposed);
+      if (entry && unit(`${s.elections?.salt || s.pollSalt}|expose|${day}`) < p) this.expose(s, inf, entry, 'investigators');
+    }
+  },
+
+  /** A donor's expectation comes due: honoured (the favour stays), delayed once, reinterpreted (half the favour) or broken (the favour is gone and the leader's trust with you drops). Keyed by the donation. */
+  settle(s, inf, o, day) {
+    const u = unit(`${s.elections?.salt || s.pollSalt}|promise|${o.id}`);
+    const gov = o.party === s.government.partyId;
+    const honour = 0.55 + (gov ? 0.1 : 0) - Math.min(0.2, o.amount / 400000);
+    if (u < honour) { o.status = 'honoured'; return; }
+    if (u < honour + 0.15 && !o.extended) { o.extended = true; o.due = day + I.obligation.extend; return; }
+    if (u < honour + 0.3) { o.status = 'reinterpreted'; inf.favours[o.party] = Math.max(0, inf.favours[o.party] * 0.5); return; }
+    o.status = 'broken';
+    inf.favours[o.party] = Math.max(0, inf.favours[o.party] - o.amount / I.donation.favourPer);
+    const leader = this.g.npcs.get(P.parties[o.party].leader);
+    if (leader) this.g.relationships.adjust(leader, 'player', { trust: -4 }, 'broken promise');
+    this.news(`🗞️ ${this.party(o.party).name} are said to have forgotten a donor. It is not the first time.`);
+  },
+
+  /** An offer comes out: a scandal for the recipient's party, a fine for you (paid to the state), a hit to your reputation and the trust of those you dealt with. */
+  expose(s, inf, entry, how) {
+    const el = this.ensureElections(s);
+    entry.exposed = true; inf.exposures++;
+    const E = I.exposure;
+    const taken = ['accepted', 'half', 'delayed'].includes(entry.outcome);
+    this.addScandal(s, el, { party: entry.party, day: this.day, severity: taken ? E.severity.taken : E.severity.tried, credibility: 1, attention: E.attention, source: 'exposure', text: `an offer to ${this.nameOf(this.contact(entry.contact, s) || { role: 'an official' })} comes out: "${I.requests[entry.request]?.name || 'a favour'}"` });
+    const fine = Math.max(E.fineMin, entry.amount * E.fineTimes);
+    const paid = Math.min(fine, Math.max(0, this.g.player.money));
+    if (paid > 0) { this.charge(paid); s.budget.debt = Math.max(0, s.budget.debt - paid / 1000); }
+    this.g.adjustReputation(I.repFaction, -E.repLoss * (paid < fine ? 1.5 : 1));
+    for (const c of this.contactDefs(s)) { const npc = this.npcOf(c); if (npc && c.key === entry.contact) this.g.relationships.adjust(npc, 'player', { trust: -E.trustLoss, suspicion: 8 }, 'exposed'); }
+    inf.heat *= I.heat.after;
+    this.log(s, `Investigators found an offer: ${how}.`);
+    this.news(`🔎 ${how === 'reported' ? 'An official reported an offer' : 'Investigators have found an offer'} made to ${this.nameOf(this.contact(entry.contact, s) || { role: 'a minister' })}. A fine of ${paid.toLocaleString('en-US')} obols has been paid to the state. The party concerned says it knew nothing.`);
+  },
+
+  /** Appointments and invitations made by meetings lapse after a couple of days (the steward's own invitations, set once, stay). */
+  expireAppointments() {
+    for (const f of FLAGS) {
+      const v = this.g.getFlag(f);
+      if (typeof v === 'number' && this.day - v > I.meeting.daysOpen) this.g.setFlag(f, false);
+    }
+  },
+
+  /** The bonus the cabinet gives a policy it has been lobbied for (read by the cabinet's score). */
+  pushBonus(s) {
+    const out = {};
+    for (const p of this.ensureInfluence(s).pushes) if (p.from <= this.day && p.until >= this.day) out[p.policy] = Math.max(out[p.policy] || 0, p.bonus);
+    return out;
+  },
+
+  // ---------------------------------------------------------------- views
+  /** What the Influence page shows. */
+  influence() {
+    const s = this.ensure();
+    const inf = this.ensureInfluence(s);
+    const term = termOf(this.day, s.constitution).index;
+    const rows = this.contactDefs(s).map((c) => {
+      const a = this.access(c);
+      const requests = Object.entries(I.requests).filter(([, r]) => r.sides.includes(c.side)).map(([id, r]) => ({ id, name: r.name, blurb: r.blurb, legit: r.legit, illicit: r.illicit, needsPolicy: Boolean(r.needsPolicy) }));
+      return { key: c.key, npcId: c.npcId, name: this.nameOf(c), role: c.role, party: c.party, side: c.side, open: a.open, needs: a.needs, likes: c.likes, favoursLeft: c.favours - (inf.used[`${term}|${c.key}`] || 0), requests, rel: Math.round(a.x.rel) };
+    });
+    return {
+      standing: this.standing(), contacts: rows, ledger: [...inf.ledger].reverse().slice(0, 12), counters: inf.counters.map((k) => ({ ...k, contactName: this.nameOf(this.contact(k.contact, s) || { role: '?' }), policyName: k.policy ? POLICIES[k.policy].name : null })),
+      obligations: inf.obligations.filter((o) => o.status === 'open'), pushes: inf.pushes.filter((p) => p.until >= this.day), exposures: inf.exposures,
+    };
+  },
+
+  /** Policies that may be asked of a contact (for the offer screen). */
+  askable(key, requestId) {
+    const s = this.ensure();
+    const c = this.contact(key, s);
+    if (!c) return [];
+    return Object.values(POLICIES).filter((p) => mayAsk(c, p)).filter((p) => (requestId === 'push' ? !s.policies.some((q) => q.key === p.id && inProgress(q)) : s.policies.some((q) => q.key === p.id && ['proposed', 'review', 'approved', 'implementing'].includes(q.state))));
+  },
+};
+
+return { influenceMethods };
+})();
+
 // ---- src/systems/politics.js
 __m["src/systems/politics.js"] = (function () {
 // The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
@@ -27547,6 +28519,8 @@ const { monthly } = __m["src/politics/budget.js"];
 const { chooseProposals, advance, inProgress } = __m["src/politics/policy.js"];
 const { compute, poll: takePoll } = __m["src/politics/opinion.js"];
 const { POLLSTERS, OPINION: OP } = __m["src/content/opinion.js"];
+const { electionMethods } = __m["src/systems/politicsElections.js"];
+const { influenceMethods } = __m["src/systems/politicsInfluence.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -27649,7 +28623,7 @@ class Politics {
     const gov = s.government.partyId;
     const month = this.budgetNow(s);
     const cal = phaseOf(this.day, s.constitution);
-    return { platform: s.parties[gov].platform, headroom: month.headroom, campaign: cal !== 'term', approval: this.approval ? this.approval(s) : 0.5, weights: G.weights };
+    return { platform: s.parties[gov].platform, headroom: month.headroom, campaign: cal !== 'term', approval: this.approval ? this.approval(s) : 0.5, weights: G.weights, bonus: s.influence ? this.pushBonus(s) : {} };
   }
 
   /** This month's budget from what is in force today. */
@@ -27668,6 +28642,8 @@ class Politics {
 
   governmentStep(s, day) {
     const saved = this.dayOverride; this.dayOverride = day;
+    this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
+    this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -27705,9 +28681,13 @@ class Politics {
   /** The cabinet (every seventh day, a Thornday): the administration weighs the catalogue and proposes the best it believes in. */
   cabinet(s, day) {
     const ctx = this.context(s);
-    const picks = chooseProposals(ctx, s.policies, G.proposals);
+    const cool = new Set(s.policies.filter((p) => p.state === 'ended' && p.note === 'rejected by the Assembly' && day - p.since < G.cooldown).map((p) => p.key));
+    const seats = s.constitution.assemblySeats;
+    const passes = (def) => vote(def, { seats, platforms: this.platforms(s), governing: s.government.partyId, discipline: G.discipline }).passed;
+    const picks = chooseProposals({ ...ctx, cool, passes }, s.policies, G.proposals);
     for (const r of picks) {
       s.policies.push({ id: s.nextPolicy++, key: r.policy.id, state: 'proposed', since: day, by: s.government.partyId, votes: null, score: Math.round(r.score * 100) / 100 });
+      if (s.influence) s.influence.pushes = s.influence.pushes.filter((q) => q.policy !== r.policy.id); // the cabinet has taken it up
       this.log(s, `The cabinet proposes "${r.policy.name}"${r.repeals ? ` (it would repeal "${POLICIES[r.repeals].name}")` : ''}.`);
     }
     if (!picks.length) this.log(s, 'The cabinet meets and proposes nothing: nothing it believes in is affordable or worth the fight.');
@@ -27757,11 +28737,12 @@ class Politics {
   dailyTick() {
     const s = this.ensure();
     this.syncLeaders();
+    this.expireAppointments(); // v0.95.0
     this.governmentDay(s);
     const t = termOf(this.day, s.constitution);
     if (t.index !== s.government.term) {
       s.government.term = t.index; s.government.termStart = t.start; s.government.termEnd = t.end;
-      s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office (no election is held yet).` });
+      s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office.` });
       while (s.history.length > 60) s.history.shift();
     }
   }
@@ -27796,6 +28777,8 @@ class Politics {
     };
   }
 }
+
+Object.assign(Politics.prototype, electionMethods, influenceMethods); // v0.95.0: elections and campaigns; influence
 
 
 
@@ -48525,6 +49508,7 @@ class Game {
     this.dairy.minuteTick();
     this.aero.minuteTick();
     this.farm.minuteTick();
+    this.politics.minuteTick(); // v0.95.0: election night
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
     if (this.clock.minuteOfDay === 6 * 60 + 9) this.politics.dailyTick(); // v0.93.0: the political term
     if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
@@ -49643,6 +50627,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.95.0',
+    date: '2026-11-04',
+    channel: 'development',
+    title: 'Politics: Elections and Influence',
+    notes: [
+      'Every 120 days Sund votes. The last thirty days are the campaign: the parties raise money and spend it on advertising, rallies and organisers (with sharply diminishing returns: money cannot buy a win), there is one debate, and scandals come and go. The result is sealed on polling day and announced at 22:00 on election night, when the leaders and their staff gather in Sovereign Square. A new government takes office on the first day of the next term, with a new Assembly; the loser stays in the world.',
+      'The Politics app has two new pages. "Vote" shows the election, what each campaign has bought and public donations (capped each term, recorded). "Influence" shows your standing, who will see you and what it takes (never money alone), and lets you ask for a meeting, lobby for or against a policy (it costs favours that a donation earns), or make an offer. An offer shows its price, odds and what happens if it is found out before any money moves; it is recorded whether it works or not, repeats cost more, and investigators can find it.',
+      'A cabinet no longer brings back a bill the Assembly has just thrown out, or one it can see it would lose.',
+    ],
+  },
   {
     version: '0.94.1',
     date: '2026-11-04',
@@ -68410,19 +69405,160 @@ function intelApp(ui, body, open) {
 return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
+// ---- src/ui/politicsInfluence.js
+__m["src/ui/politicsInfluence.js"] = (function () {
+// The Campaign and Influence pages of the Politics app (v0.95.0), in the OberPad pattern: one hero, three tiles, a list, a fold.
+// Campaign: the election (the date, the funds and what spending has bought, the debate, scandals, the last result) and public donations.
+// Influence: your standing, who will see you and what it takes, and an offer shown plainly before any money moves (mock-up proposal-pol-oberpad-influence.png).
+// Every button calls game.politics; nothing here decides anything.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, note, fold, buttons, big, n } = __m["src/ui/tabletKit.js"];
+const { atlasStates } = __m["src/world/atlas.js"];
+const { INFLUENCE: I } = __m["src/content/influence.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const pc = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
+const pts = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}`;
+const PHASE = { term: 'In term', campaign: 'Campaign season', polling: 'Polling day' };
+const BAND = { low: 'low', medium: 'medium', high: 'good' };
+
+function campaignTab(ui, body, open) {
+  const g = ui.game;
+  const P = g.politics;
+  const C = P.campaign();
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const cal = C.calendar;
+  const last = C.last;
+  const head = cal.phase === 'term'
+    ? { label: 'The next election', value: `${cal.daysToPolling} days`, sub: `Polling day is day ${cal.electionDay}; the campaign opens on day ${cal.electionFrom}. ${last ? `Last time: ${P.party(last.winner).name} won.` : 'No election has been held yet.'}` }
+    : { label: cal.phase === 'polling' ? 'Polling day' : 'The campaign', value: cal.phase === 'polling' ? (C.pending ? 'Votes cast' : 'Today') : `${cal.daysToPolling} days to go`, sub: cal.phase === 'polling' ? 'The count is overnight. Results are announced at 22:00; on election night the leaders gather in Sovereign Square.' : `Polling day is day ${cal.electionDay}. The parties are spending what they have raised.` };
+  body.append(
+    hero(head),
+    tiles(C.parties.map((p) => ({ n: n(p.funds), t: `${p.short} funds` })).concat([{ n: PHASE[C.phase], t: 'the political year' }])));
+  body.append(list(...C.parties.map((p) => row({
+    icon: p.id === C.governing ? '🏛️' : '🗣️', title: `${p.name} — ${p.leader}`,
+    sub: `${C.phase === 'term' ? 'Raising funds.' : `Spent ${n(p.spent)} (ads ${n(p.byChannel.ads)}, rallies ${n(p.byChannel.rallies)}, organisers ${n(p.byChannel.ground)}) — worth ${pts(p.swing)} points.`} Promised: ${p.manifesto.map((m) => `${m.name}${m.kept == null ? '' : m.kept >= 1 ? ' ✓' : m.kept > 0 ? ' …' : ' ✗'}`).join(', ')}.${p.scandal > 0.05 ? ` A scandal weighs on them (${Math.round(p.scandal * 100)}%).` : ''}`,
+    tag: p.id === C.governing ? 'in office' : 'opposition', tone: p.id === C.governing ? 'good' : '',
+  }))));
+  if (C.debate) body.append(list(row({ icon: '🎙️', title: 'The debate', sub: `Day ${C.debate.day}: ${P.party(C.debate.winner).name} were judged the winners.`, tag: 'held' })));
+  if (last) {
+    body.append(list(
+      row({ icon: '🗳️', title: `Election ${last.id}: ${P.party(last.winner).name} won`, sub: `Order ${pc(last.national.order)} · Liberty ${pc(last.national.liberty)} · others ${pc(last.national.other)} · turnout ${pc(last.turnout)}. Seats: Order ${last.seats.order}, Liberty ${last.seats.liberty}, others ${last.seats.other}.`, tag: last.winner !== last.gov ? 'a change' : 'returned', tone: last.winner !== last.gov ? 'warn' : '' }),
+      row({ icon: '⚖️', title: 'What decided it', sub: `Campaign ${pts(last.parts.campaign)} · scandals ${pts(last.parts.scandal)} · time in office ${pts(last.parts.fatigue)} · promises ${pts(last.parts.promises)} · chance ${pts(last.parts.chance)} points (positive favours Order).` })));
+  }
+  body.append(donations(ui, g, C, go));
+  if (C.scandals.length) body.append(list(...C.scandals.map((s) => row({ icon: '📰', title: `${P.party(s.party).short}: ${s.text}`, sub: `Day ${s.day} · ${s.source === 'press' ? 'the press found it' : s.source === 'leak' ? 'a leak' : 'it came out in an inquiry'}${s.quieted ? ' · kept quieter' : ''}`, tag: `${Math.round(s.severity * s.credibility * s.attention * 100)}%` }))));
+  body.append(help('How an election is decided', 'Opinion is the base: the parties\' support among nine kinds of voters in nine states, and how well the government is thought to be doing. On top of it: the campaign (money spent on advertising, rallies and organisers, with sharply diminishing returns, worked by the party\'s staff: a vacant role works at sixty per cent), the debate, scandals (severity × credibility × attention, fading), whether the government kept its manifesto, and how long it has been in office (governments wear out). A seeded swing in each state is fixed by the election\'s number, so reloading cannot change it. Money cannot buy a win: each channel has a ceiling.'));
+  body.append(fold(ui, 'PoliticsElect', 'The results by state, and earlier elections ›', (box) => {
+    if (!last) { box.append(list(row({ icon: '—', title: 'No election yet', sub: 'The first vote is on polling day of the first term.' }))); return; }
+    const names = Object.fromEntries(atlasStates().map((x) => [x.id, x.name]));
+    box.append(list(...C.history.map((e) => row({ icon: '🗳️', title: `Election ${e.id}, day ${e.day}`, sub: `${P.party(e.winner).name} won: Order ${pc(e.national.order)}, Liberty ${pc(e.national.liberty)} · seats ${e.seats.order}–${e.seats.liberty}–${e.seats.other} · turnout ${pc(e.turnout)}`, tag: e.winner === 'order' ? 'Order' : 'Liberty' }))));
+    if (last.regions) box.append(list(...Object.entries(last.regions).map(([rid, r]) => row({ icon: '🗺️', title: names[rid] || rid.replace('sd_', '').replace(/_/g, ' '), sub: `Order ${pc(r.order)} · Liberty ${pc(r.liberty)} · others ${pc(r.other)} · turnout ${pc(r.turnout)}`, tag: r.order > r.liberty ? 'Order' : 'Liberty' }))));
+    box.append(help('Notes', 'By-state results are kept for the latest vote; the national figures and seats for the last twelve.'));
+  }));
+}
+
+/** Public donations: capped per donor per term; recorded; they buy support and a hearing, never a vote. */
+function donations(ui, g, C, go) {
+  const st = g.politics.standing();
+  const D = I.donation;
+  const amounts = [5000, 10000, 25000];
+  return list(...C.parties.map((p) => [
+    row({ icon: '💷', title: `Donate to ${p.name}`, sub: `Public and recorded. You have given ${n(st.donated[p.id])} of ${n(D.cap)} this term. It earns support and a hearing — never a vote.`, tag: `support ${Math.round(st.support[p.id])}` }),
+    h('div', { class: 'tb-chips tb-sheet' }, ...amounts.map((a) => h('button', { class: 'tb-chip', disabled: g.player.money < a || st.donated[p.id] + a > D.cap, onclick: () => go(g.politics.donate(p.id, a)) }, n(a)))),
+  ]));
+}
+
+// ------------------------------------------------------------------ Influence
+function influenceTab(ui, body, open) {
+  const g = ui.game;
+  const P = g.politics;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  if (ui.polOffer) { offerScreen(ui, body, open, go); return; }
+  const V = P.influence();
+  const S = V.standing;
+  body.append(
+    hero({ label: 'Your standing', value: S.tier.label, tone: S.tier.id === 'unknown' ? '' : 'pos', sub: `Reputation ${S.rep} · support ${Math.round(S.support.order)} Order, ${Math.round(S.support.liberty)} Liberty · friendships ${S.relations.toFixed(0)} · exposure ${S.heat.toFixed(0)}${V.exposures ? ` · found out ${V.exposures}×` : ''}` }),
+    tiles([{ n: n(g.player.money), t: 'your obols' }, { n: `${S.favours.order.toFixed(1)} · ${S.favours.liberty.toFixed(1)}`, t: 'favours (Order · Liberty)' }, { n: String(V.contacts.filter((c) => c.open).length), t: 'doors open' }]));
+  for (const k of V.counters) body.append(list(row({ icon: '🤝', title: `${k.contactName}: a counter-offer`, sub: `${k.policyName ? `${k.policyName} — ` : ''}${k.illicit ? `${n(k.price)} obols` : `${k.favours} favours`}. Open until day ${k.until}.`, action: h('button', { class: 'tb-mini pri', onclick: () => go(P.acceptCounter(k.id)) }, 'Accept') })));
+  body.append(list(...V.contacts.map((c) => row({
+    icon: c.side === 'gov' ? '🏛️' : '🗣️', title: `${c.name}${c.side === 'opp' ? ' (opposition)' : ''}`,
+    sub: c.open ? `${c.role}. Likes: ${c.likes} ${c.favoursLeft > 0 ? '' : 'Has no favours left this term.'}` : `${c.role}. Needs: ${c.needs}.`,
+    tag: c.open ? 'Open' : 'Closed', tone: c.open ? 'good' : '',
+    action: c.open ? h('button', { class: 'tb-mini pri', onclick: () => { ui.polOffer = { contact: c.key }; open('Politics'); } }, 'Ask ›') : null,
+  }))));
+  body.append(h('div', { class: 'tb-note' }, 'Money, reputation, relationships and support are separate things. Money alone does not open a door.'));
+  body.append(help('How influence works', 'Four things are kept apart: the money you hold, your reputation, what each person thinks of you, and what you have given in the open. A door opens on a friendship, or on support together with a reputation. Lobbying costs favours (a donation earns them), not money, and a government will not take up what it stands against. An offer is a request with a price: you see the price, the odds and what happens if it is found out before any money moves; it is recorded whether it works or not; repeats cost more; an official has only so many favours to give in a term. Investigators find offers: the result is a scandal for them, a fine of twice the sum paid to the state, your reputation and the trust of those you dealt with. A donor\'s expectation is never a guarantee.'));
+  body.append(fold(ui, 'PoliticsInfl', 'The record of what you have done ›', (box) => {
+    box.append(list(...(V.ledger.length ? V.ledger.map((e) => row({ icon: e.kind === 'donation' ? '💷' : e.kind === 'meeting' ? '📅' : e.illicit ? '🕶️' : '📜', title: `Day ${e.day} · ${e.kind === 'donation' ? `donation to ${P.party(e.party).short}` : e.kind === 'meeting' ? `meeting with ${P.nameOf(P.contact(e.contact) || { role: '?' })}` : `${I.requests[e.request]?.name || e.request}${e.policy ? `: ${e.policy}` : ''}`}`, sub: `${e.amount ? `${n(e.amount)} obols · ` : ''}${e.outcome}${e.exposed ? ' · FOUND OUT' : ''}${e.public ? ' · public' : ''}` })) : [row({ icon: '—', title: 'Nothing yet', sub: 'Everything you do here is recorded.' })])));
+    if (V.obligations.length) box.append(list(...V.obligations.map((o) => row({ icon: '⏳', title: `Your donation of ${n(o.amount)} to ${P.party(o.party).short}`, sub: `The party owes you a hearing; it decides by day ${o.due} whether it honours that.` }))));
+  }));
+}
+
+/** An offer, plainly: the request, the price, the odds, what happens if found out; and two buttons. */
+function offerScreen(ui, body, open, go) {
+  const g = ui.game;
+  const P = g.politics;
+  const o = ui.polOffer;
+  const V = P.influence();
+  const c = V.contacts.find((x) => x.key === o.contact);
+  const back = () => { ui.polOffer = null; open('Politics'); };
+  if (!c) { back(); return; }
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: back }, '‹ Back')));
+  if (!o.request) {
+    body.append(hero({ label: c.role, value: c.name, sub: `Likes: ${c.likes}` }));
+    body.append(list(...c.requests.map((r) => row({
+      icon: r.id === 'meeting' ? '📅' : r.legit ? '📜' : '🕶️', title: r.name, sub: r.blurb,
+      tag: r.id === 'meeting' ? 'free' : r.legit ? 'favours' : 'an offer',
+      action: h('button', { class: 'tb-mini pri', onclick: () => { if (r.id === 'meeting') { go(P.askMeeting(c.key)); } else { ui.polOffer = { contact: c.key, request: r.id, illicit: !r.legit }; open('Politics'); } } }, r.id === 'meeting' ? 'Ask' : 'Choose ›'),
+    }))));
+    body.append(h('div', { class: 'tb-note' }, 'Money, reputation, relationships and support are separate things. Money alone does not open a door.'));
+    return;
+  }
+  const r = I.requests[o.request];
+  if (r.needsPolicy && !o.policy) {
+    const pols = P.askable(c.key, o.request);
+    body.append(hero({ label: r.name, value: c.name, sub: r.blurb }));
+    body.append(list(...(pols.length ? pols.map((p) => row({ icon: '📜', title: p.name, sub: p.blurb, action: h('button', { class: 'tb-mini pri', onclick: () => { ui.polOffer = { ...o, policy: p.id }; open('Politics'); } }, 'Choose') })) : [row({ icon: '—', title: 'Nothing to ask for', sub: 'There is nothing on this subject that they could take up or delay.' })])));
+    if (r.legit && r.illicit) body.append(h('div', { class: 'tb-btns' }, ...[['Ask openly (a favour)', false], ['Make an offer (a price)', true]].map(([l, ill]) => h('button', { class: `tb-mini${o.illicit === ill ? ' pri' : ''}`, onclick: () => { ui.polOffer = { ...o, illicit: ill }; open('Politics'); } }, l))));
+    return;
+  }
+  const mode = r.legit && r.illicit ? o.illicit : !r.legit;
+  const q = P.quote(c.key, o.request, { policy: o.policy, illicit: mode });
+  body.append(hero({ label: `Offer to ${c.name}`, value: r.name, sub: `${o.policy ? `${q.policyName || o.policy}. ` : ''}${r.blurb}` }));
+  if (r.legit && r.illicit) body.append(h('div', { class: 'tb-btns' }, ...[['Ask openly (a favour)', false], ['Make an offer (a price)', true]].map(([l, ill]) => h('button', { class: `tb-mini${mode === ill ? ' pri' : ''}`, onclick: () => { ui.polOffer = { ...o, illicit: ill }; open('Politics'); } }, l))));
+  if (!q.ok) { body.append(h('div', { class: 'tb-note' }, q.text)); return; }
+  body.append(h('div', { class: `tb-card ${mode ? 'warn' : ''}`, style: 'padding:12px' },
+    h('b', {}, mode ? `You pay ${n(q.price)} from your own cash` : `It costs ${q.favours} favour${q.favours === 1 ? '' : 's'} with ${P.party(c.party).name}`),
+    h('p', {}, `Odds: ${q.band} (${Math.round(q.p * 100)}% that they take it up)${q.repeats ? ` · repeats cost more (${q.repeats} before)` : ''}`),
+    q.against ? h('p', {}, `${P.party(c.party).name} stand against this. They will almost certainly refuse.`) : null,
+    mode ? h('p', {}, q.found, ' It is recorded whether it works or not.') : h('p', {}, 'Asked openly: no money moves, and nothing here can be found out.'),
+    h('p', {}, 'Possible results: accepted · half done · delayed · refused · a counter-offer', mode ? ' · reported.' : '.')));
+  body.append(buttons(big(mode ? 'Offer it' : 'Ask', () => { const res = P.offer(c.key, o.request, { policy: o.policy, illicit: mode }); ui.polOffer = null; go(res); }, 'pri', mode && g.player.money < q.price), big('Not now', back)));
+  body.append(h('div', { class: 'tb-note' }, 'A possible result is not a promise: it is not a guaranteed purchase.'));
+}
+
+return { campaignTab, influenceTab };
+})();
+
 // ---- src/ui/politicsApp.js
 __m["src/ui/politicsApp.js"] = (function () {
-// The Politics app (v0.93.0): read-only. Who governs Sund, the term and the date of the vote, the opposition and where the two parties differ.
-// Nothing here changes anything: policies, polls, elections and influence come in later releases. Follows the OberPad pattern: one hero, three tiles, a list, a fold.
+// The Politics app (v0.93.0): who governs Sund, the term and the date of the vote, the opposition and where the two parties differ; the government (v0.94.0), the polls (v0.94.0),
+// the election and campaign (v0.95.0, "Vote") and your influence (v0.95.0). Only the last two do anything: donations, meetings and offers. Follows the OberPad pattern: one hero, three tiles, a list, a fold.
 const { h } = __m["src/ui/panels.js"];
 const { hero, tiles, row, help, fold, segments, n } = __m["src/ui/tabletKit.js"];
 const { atlasStates } = __m["src/world/atlas.js"];
+const { campaignTab, influenceTab } = __m["src/ui/politicsInfluence.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const LEAN = { '-2': 'strongly against', '-1': 'against', 0: 'neutral', 1: 'for', 2: 'strongly for' };
 const PHASE = { term: 'In term', campaign: 'Campaign season', polling: 'Polling day' };
 
-const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }];
+const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }, { id: 'Campaign', label: 'Vote' }, { id: 'Influence', label: 'Influence' }];
 
 /** The Politics app: an overview, and the government (v0.94.0). */
 function politicsApp(ui, body, open) {
@@ -68431,6 +69567,8 @@ function politicsApp(ui, body, open) {
   if (seg) body.append(seg);
   if (tab === 'Government') governmentTab(ui, body);
   else if (tab === 'Polls') pollsTab(ui, body);
+  else if (tab === 'Campaign') campaignTab(ui, body, open);
+  else if (tab === 'Influence') influenceTab(ui, body, open);
   else overviewTab(ui, body, open);
 }
 
@@ -68490,7 +69628,7 @@ function overviewTab(ui, body, open) {
       row({ icon: '👑', title: O.king.name, sub: `${O.king.seat} · age ${O.king.age} · ${O.king.note}`, tag: 'head of state' }),
       row({ icon: '🏛️', title: gov.leader, sub: `${gov.blurb}`, tag: 'President', tone: 'good' }),
       row({ icon: '🗣️', title: opp.leader, sub: `${opp.blurb}`, tag: 'opposition' })),
-    help('How politics works here (so far)', 'Sund is a constitutional monarchy: the king is head of state and an elected President governs. A term is 120 game days and the vote falls in its last 30.', 'This page only reads the record. It does not change any price, police or war yet; policies, polls, elections and influence arrive in later updates. You never have to take part.', 'Whoever the voters pick, the other leader stays in the world and keeps working: you may meet either in the city.'));
+    help('How politics works here', 'Sund is a constitutional monarchy: the king is head of state and an elected President governs. A term is 120 game days and the vote falls in its last 30.', 'Government, Polls and this page only read the record. They do not change any price, police or war yet (the economy and diplomacy come in later updates). "Vote" shows the election and takes public donations; "Influence" is who will see you and what you may ask. You never have to take part.', 'Whoever the voters pick, the other leader stays in the world and keeps working: you may meet either in the city.'));
   body.append(fold(ui, 'Politics', 'Where the parties differ ›', (box) => {
     box.append(list(...O.issues.map((i) => row({
       icon: i.gap >= 3 ? '⚡' : i.gap >= 2 ? '↔️' : '＝', title: i.name, sub: `${gov.short}: ${LEAN[i.gov]} · ${opp.short}: ${LEAN[i.opp]}`, tag: i.gap >= 3 ? 'far apart' : i.gap >= 2 ? 'differ' : 'close', tone: i.gap >= 3 ? 'warn' : '',

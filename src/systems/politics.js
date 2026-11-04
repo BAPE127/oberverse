@@ -15,6 +15,8 @@ import { monthly } from '../politics/budget.js';
 import { chooseProposals, advance, inProgress } from '../politics/policy.js';
 import { compute, poll as takePoll } from '../politics/opinion.js';
 import { POLLSTERS, OPINION as OP } from '../content/opinion.js';
+import { electionMethods } from './politicsElections.js';
+import { influenceMethods } from './politicsInfluence.js';
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -117,7 +119,7 @@ export class Politics {
     const gov = s.government.partyId;
     const month = this.budgetNow(s);
     const cal = phaseOf(this.day, s.constitution);
-    return { platform: s.parties[gov].platform, headroom: month.headroom, campaign: cal !== 'term', approval: this.approval ? this.approval(s) : 0.5, weights: G.weights };
+    return { platform: s.parties[gov].platform, headroom: month.headroom, campaign: cal !== 'term', approval: this.approval ? this.approval(s) : 0.5, weights: G.weights, bonus: s.influence ? this.pushBonus(s) : {} };
   }
 
   /** This month's budget from what is in force today. */
@@ -136,6 +138,8 @@ export class Politics {
 
   governmentStep(s, day) {
     const saved = this.dayOverride; this.dayOverride = day;
+    this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
+    this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -173,9 +177,13 @@ export class Politics {
   /** The cabinet (every seventh day, a Thornday): the administration weighs the catalogue and proposes the best it believes in. */
   cabinet(s, day) {
     const ctx = this.context(s);
-    const picks = chooseProposals(ctx, s.policies, G.proposals);
+    const cool = new Set(s.policies.filter((p) => p.state === 'ended' && p.note === 'rejected by the Assembly' && day - p.since < G.cooldown).map((p) => p.key));
+    const seats = s.constitution.assemblySeats;
+    const passes = (def) => vote(def, { seats, platforms: this.platforms(s), governing: s.government.partyId, discipline: G.discipline }).passed;
+    const picks = chooseProposals({ ...ctx, cool, passes }, s.policies, G.proposals);
     for (const r of picks) {
       s.policies.push({ id: s.nextPolicy++, key: r.policy.id, state: 'proposed', since: day, by: s.government.partyId, votes: null, score: Math.round(r.score * 100) / 100 });
+      if (s.influence) s.influence.pushes = s.influence.pushes.filter((q) => q.policy !== r.policy.id); // the cabinet has taken it up
       this.log(s, `The cabinet proposes "${r.policy.name}"${r.repeals ? ` (it would repeal "${POLICIES[r.repeals].name}")` : ''}.`);
     }
     if (!picks.length) this.log(s, 'The cabinet meets and proposes nothing: nothing it believes in is affordable or worth the fight.');
@@ -225,11 +233,12 @@ export class Politics {
   dailyTick() {
     const s = this.ensure();
     this.syncLeaders();
+    this.expireAppointments(); // v0.95.0
     this.governmentDay(s);
     const t = termOf(this.day, s.constitution);
     if (t.index !== s.government.term) {
       s.government.term = t.index; s.government.termStart = t.start; s.government.termEnd = t.end;
-      s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office (no election is held yet).` });
+      s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office.` });
       while (s.history.length > 60) s.history.shift();
     }
   }
@@ -264,5 +273,7 @@ export class Politics {
     };
   }
 }
+
+Object.assign(Politics.prototype, electionMethods, influenceMethods); // v0.95.0: elections and campaigns; influence
 
 export { PARTY_IDS };

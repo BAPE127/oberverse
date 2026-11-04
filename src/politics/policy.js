@@ -8,14 +8,14 @@ import { POLICIES } from '../content/policies.js';
 
 export const fitOf = (platform, policy) => (platform[policy.issue] || 0) * policy.dir;
 
-/** ctx: { platform, headroom (the budget's, in thousands), campaign (bool: the election is near), approval (0..1, default .5), weights } */
+/** ctx: { platform, headroom (the budget's, in thousands), campaign (bool: the election is near), approval (0..1, default .5), weights, bonus? (lobbying: policy id → score), cool? (Set of policy ids rejected lately), passes? (policy → would the Assembly pass it) } */
 export function score(policy, ctx) {
   const w = ctx.weights;
   const fit = fitOf(ctx.platform, policy);
   const afford = policy.cost <= 0 ? 0.4 : ctx.headroom >= policy.cost ? 0.2 : -Math.min(2, (policy.cost - ctx.headroom) / 150);
   const election = ctx.campaign ? (policy.cost > 0 ? -0.5 : 0.3) : 0; // before a vote a government avoids new spending and likes savings
   const approval = (ctx.approval - 0.5) * 2 * (fit > 0 ? 0.5 : -0.5);
-  return fit * w.fit + afford * w.affordability + election * w.election + approval * w.approval;
+  return fit * w.fit + afford * w.affordability + election * w.election + approval * w.approval + (ctx.bonus?.[policy.id] || 0);
 }
 
 const INPROGRESS = new Set(['proposed', 'review', 'approved', 'implementing', 'active', 'suspended']);
@@ -27,6 +27,8 @@ export function chooseProposals(ctx, held, n = 1) {
   const rows = [];
   for (const policy of Object.values(POLICIES)) {
     if (heldIds.has(policy.id)) continue;
+    if (ctx.cool?.has(policy.id)) continue; // thrown out lately
+    if (ctx.passes && !ctx.passes(policy)) continue; // the administration counts its seats first
     const s = score(policy, ctx);
     const opp = held.find((p) => p.key === policy.opposes && inProgress(p));
     if (opp && s < score(POLICIES[opp.key], ctx) + 1) continue; // not worth reversing yet

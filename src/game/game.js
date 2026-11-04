@@ -363,6 +363,7 @@ export class Game {
     this.dairy.minuteTick();
     this.aero.minuteTick();
     this.farm.minuteTick();
+    this.politics.minuteTick(); // v0.95.0: election night
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
     if (this.clock.minuteOfDay === 6 * 60 + 9) this.politics.dailyTick(); // v0.93.0: the political term
     if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day

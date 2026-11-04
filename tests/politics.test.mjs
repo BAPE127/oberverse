@@ -81,7 +81,7 @@ test('which party governs first is a fixed function of the world: the same world
   assert.equal(g2.world.politics.parties.order.funds, a.world.politics.parties.order.funds);
 });
 
-test('the term rolls over once, on its day, and the same government continues until elections exist; a reload cannot repeat it', () => {
+test('the term rolls over once, on its day, and whoever won the election governs it (v0.95.0: the vote is held); a reload cannot repeat it', () => {
   const g = newGame(5); noImpulses(g);
   g.politics.ensure();
   const gov = g.politics.governingId();
@@ -89,7 +89,8 @@ test('the term rolls over once, on its day, and the same government continues un
   morning(g, 121);
   const s = g.world.politics;
   assert.equal(s.government.term, 1); assert.equal(s.government.termStart, 121); assert.equal(s.government.termEnd, 240);
-  assert.equal(s.government.partyId, gov, 'nobody is voted out yet: elections are a later release');
+  assert.equal(s.government.partyId, s.elections.history[0].winner, 'the winner of the election governs the new term (v0.95.0; before it, the same government carried on)');
+  void gov;
   const rolls = s.history.filter((e) => e.kind === 'term').length;
   assert.equal(rolls, 1);
   g.politics.dailyTick(); g.politics.dailyTick();

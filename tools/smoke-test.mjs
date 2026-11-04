@@ -380,6 +380,26 @@ try {
     return out;
   });
   record('the Politics app shows the Government (policies, the state\'s books) and the Polls (with margins)', pol2.Government && pol2.Polls, JSON.stringify(pol2));
+
+  // v0.95.0: the Vote (election and donations) and Influence (standing, doors, an offer shown plainly) sections
+  const pol3 = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {};
+    const see = async (tab) => { ui.polTab = tab; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Politics' }); await new Promise((r) => setTimeout(r, 250)); return document.querySelector('#modal-body')?.textContent || ''; };
+    g.player.money = Math.max(g.player.money, 200000);
+    out.vote = /The next election/.test(await see('Campaign')) && /Donate to/.test(document.querySelector('#modal-body').textContent);
+    const before = g.player.money;
+    document.querySelectorAll('#modal-body .tb-chip')[1]?.click(); await new Promise((r) => setTimeout(r, 250));
+    out.donated = g.player.money < before && /public and recorded|Public and recorded/.test(document.querySelector('#modal-body')?.textContent || '');
+    out.influence = /Your standing/.test(await see('Influence')) && /Money alone does not open a door/.test(document.querySelector('#modal-body').textContent);
+    const ask = [...document.querySelectorAll('#modal-body .tb-mini')].find((b) => /Ask/.test(b.textContent));
+    if (ask) { ask.click(); await new Promise((r) => setTimeout(r, 250)); }
+    out.contact = /Ask for a meeting/.test(document.querySelector('#modal-body')?.textContent || '');
+    const choose = [...document.querySelectorAll('#modal-body .tb-mini')].find((b) => /Choose/.test(b.textContent));
+    if (choose) { choose.click(); await new Promise((r) => setTimeout(r, 250)); }
+    ui.polOffer = null; ui.polTab = 'Overview';
+    return out;
+  });
+  record('the Politics app shows the Vote (the election, public donations) and Influence (your standing, who will see you, an offer before any money moves)', Object.values(pol3).every(Boolean), JSON.stringify(pol3));
   // v0.94.1: the estates and the party offices load and draw
   const est = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {};

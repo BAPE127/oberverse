@@ -34,6 +34,8 @@ export const GOVERNMENT = {
   cabinetEvery: 7, budgetEvery: 30, proposals: 1, maxActive: 7,
   /** Party discipline: the share of its seats the governing party can always count on, on top of how its members lean. */
   discipline: 0.15,
+  /** v0.95.0: a cabinet does not bring back a bill the Assembly has just thrown out, or one it can see it would lose: days to wait after a rejection. */
+  cooldown: 45,
   /** The state's money: thousands of obols a month. Revenue is modelled from the country; it is never taken from the player's wallet. */
   budget: {
     revenue: 3000,
