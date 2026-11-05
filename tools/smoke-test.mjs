@@ -460,7 +460,7 @@ try {
     }
     // v0.100.0: the People, Squads and Armoury screens open from the Company page
     ui.milTab = 'Company';
-    for (const [sub, re] of [['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/]]) {
+    for (const [sub, re] of [['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/], ['Base', /Capacity is real|ready/]]) {
       ui.milSub = sub; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
       out[sub] = re.test(document.querySelector('#modal-body')?.textContent || '');
     }

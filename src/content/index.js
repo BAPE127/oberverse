@@ -56,6 +56,7 @@ import { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } from './warehouses.js';
 import lucasChars from './characters/lucas.js';
 import dlgLucas from './dialogue/lucas.js';
 import dlgOfficer from './dialogue/officer.js'; // v0.87.0
+import dlgSoldier from './dialogue/soldier.js'; // v0.100.0
 import captainOber from './characters/ober.js';
 import dlgCaptainOber from './dialogue/ober.js';
 import { PLOTS, BLUEPRINTS } from './properties.js';
@@ -156,7 +157,7 @@ export const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues(), ...fortDialogues()]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgSoldier, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues(), ...fortDialogues()]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,

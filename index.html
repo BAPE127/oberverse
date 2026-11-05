@@ -12436,6 +12436,40 @@ const __default = [dlgOfficer];
 return { dlgOfficer, default: __default };
 })();
 
+// ---- src/content/dialogue/soldier.js
+__m["src/content/dialogue/soldier.js"] = (function () {
+// The company's soldiers (v0.100.0): generated people (src/war/bodies.js), so these lines are generic: they know their post, their hours and who pays them.
+const dlgSoldier = {
+  id: 'dlg_soldier',
+  greetings: [
+    { if: { activity: 'sleep' }, say: ['*turns over, boots still on the bunk* …Lights were out an hour ago, Boss…'] },
+    { if: { activity: 'work' }, variants: [['Boss. At your orders.'], ['*straightens* Boss. All quiet on the lot.'], ['Morning, Boss. The sergeant says we are ahead.']] },
+    { if: { activity: 'leisure' }, variants: [['Boss. Off duty, but within earshot.'], ['*cleaning a mug with a rag* Boss. Mess is serving, if you are hungry.']] },
+    { if: {}, variants: [['Boss.'], ['Good day, Boss.']] },
+  ],
+  farewells: [{ if: {}, variants: [['Back to it.'], ['Boss.']] }],
+  topics: [
+    { id: 't_soldier_job', label: '"How is the work?"', keywords: ['work', 'job', 'duty', 'post'], say: ['Drill, a post, a shift on the line if they are short of hands. The pay comes when it should, and that is more than the last outfit managed.'] },
+    { id: 't_soldier_food', label: '"Are you fed?"', keywords: ['food', 'mess', 'eat', 'rations'], say: ['Rations every day, and a hot meal when the mess is open. When the stores run short, you will hear about it first from the cook.'] },
+    { id: 't_soldier_bed', label: '"Where do you sleep?"', keywords: ['sleep', 'bed', 'bunk', 'barracks'], say: ['In the barracks: a bunk, a locker and a lamp. There is a bed for everyone, as long as you keep building them.'] },
+  ],
+  askAbout: [],
+  unknown: [['Above my pay, Boss.'], ['You would have to ask the sergeant.']],
+  gift: { loved: [['For me? Boss, that is decent of you.']], liked: [['Thanks, Boss.']], neutral: [['Appreciated.']], disliked: [['I will find a use for it.']] },
+  barks: {
+    greet: ['Boss.', 'Sir.'],
+    work: ['*checks a strap*', '*scans the fence line*', 'All quiet.', '*counts rounds twice*'],
+    leisure: ['*stirs a mug*', 'Mess is hot.', '*laughs at something*'],
+    sleep: ['…zzz…'],
+    chat: ['Indeed.', 'Mm.', 'Fair enough.'],
+    argue: ['With respect, Boss, no.'],
+  },
+};
+const __default = [dlgSoldier];
+
+return { dlgSoldier, default: __default };
+})();
+
 // ---- src/content/characters/ober.js
 __m["src/content/characters/ober.js"] = (function () {
 // Captain Ober, of Ober & Sons Maritime. IMPORTED character (player-supplied
@@ -17879,6 +17913,7 @@ const { WAREHOUSES, RECIPES, DELIVERIES, UNLOCKS } = __m["src/content/warehouses
 const lucasChars = __m["src/content/characters/lucas.js"].default;
 const dlgLucas = __m["src/content/dialogue/lucas.js"].default;
 const dlgOfficer = __m["src/content/dialogue/officer.js"].default; // v0.87.0
+const dlgSoldier = __m["src/content/dialogue/soldier.js"].default; // v0.100.0
 const captainOber = __m["src/content/characters/ober.js"].default;
 const dlgCaptainOber = __m["src/content/dialogue/ober.js"].default;
 const { PLOTS, BLUEPRINTS } = __m["src/content/properties.js"];
@@ -17979,7 +18014,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues(), ...fortDialogues()]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgSoldier, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues(), ...fortDialogues()]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -31646,6 +31681,7 @@ const CONTRACTS = {
   repGuards: 10,        // jobs may ask for one more guard for each this much reputation
   repBonus: 0.002,      // success chance for each point of reputation (to a cap)
   repBonusMax: 0.1,
+  moraleBonus: 0.002,   // success chance for each point of the crew's morale above or below 70 (v0.100.0)
   penalty: 0.4,         // a failure costs this share of the pay
   repWin: 3, repLose: -6,
   ban: 30,              // days a client who was let down will not offer
@@ -31731,7 +31767,10 @@ function release(game, C, c) {
 function chance(game, c) {
   const R = RISK[c.risk];
   const extra = Math.max(0, (c.crew?.length ?? c.guards) - c.needs);
-  return Math.max(0.3, Math.min(0.97, R.success + extra * K.extraHand + Math.min(K.repBonusMax, Math.max(0, reputation(game)) * K.repBonus)));
+  const C = peekMilitary(game)?.company;
+  const crew = (c.crew || []).map((id) => C?.personnel.find((p) => p.id === id)).filter(Boolean);
+  const morale = crew.length ? crew.reduce((a, p) => a + (p.morale ?? 70), 0) / crew.length : 70; // v0.100.0: a hungry, tired crew does worse
+  return Math.max(0.3, Math.min(0.97, R.success + extra * K.extraHand + Math.min(K.repBonusMax, Math.max(0, reputation(game)) * K.repBonus) + (morale - 70) * K.moraleBonus));
 }
 
 /** Whether a job ends well: a hash of the game and the job against its chance (never a dice roll, so a reload cannot change it). */
@@ -31806,6 +31845,154 @@ function view(game) {
 return { reputation, missing, accept, decline, chance, outcome, dayTick, view };
 })();
 
+// ---- src/content/base.js
+__m["src/content/base.js"] = (function () {
+// The living base (v0.100.0 stage 8): pure data. What a day on the base does to the people on it, and how they spend their hours. Every figure is a starting figure to calibrate against
+// the wages and prices (a ration is 6 obols, a day's wage for a rifleman 150). Capacity is the test: beds, meals, treatment places and stores are real, and a base that is too small loses
+// morale and readiness; it does not magically hold more (docs/PROPOSAL_WAR.md 3.2).
+const BASE = {
+  /** A person eats one ration a day from the stores. Without a mess hall nobody has a hot meal; with one, as many as it seats. */
+  food: { perPerson: 1, hungry: -20, hot: 8 },
+  /** A person's morale drifts a share of the way to its target each day; the target starts at `start` and each condition moves it. */
+  morale: { start: 70, overcrowded: -10, unpaid: -15, wounded: -10, tired: -8, rested: 4, settle: 0.15 },
+  /** Fatigue (0 to 100) rises with work and falls with rest. */
+  fatigue: { post: 8, training: 4, rest: -10, tired: 70, rested: 30 },
+  /** Treatment: each treatment place heals one point of wounds a day, with a medicine from the stores; a medic on the books adds one. The untreated heal a point every `slow` days. */
+  medical: { perPlace: 1, medicBonus: 1, slow: 4, medicine: 1 },
+  /** What readiness is made of (shares add to 1); it is shown with its parts so it can be explained. */
+  readiness: { strength: 0.35, morale: 0.25, armed: 0.2, fed: 0.1, housed: 0.1 },
+  /** Notices are made at most this often (days) for the same shortage. */
+  noticeEvery: 10,
+  log: 12,
+};
+
+/** The bodies you can see (v0.100.0): at most this many people are drawn at once (the rest are records, doing the same day as counts). Officers and squad leaders are always drawn. */
+const BODIES = { cap: 40 };
+
+/**
+ * A soldier's day. `at` is a spot on Hollowmoor Lot (`hm_<slot>_out` is the step outside a facility's door); the first block that covers the time wins. A facility that is not built
+ * is skipped: the soldier stands at the gate instead. `sleep` is in the barracks (or the bunkhouse) itself.
+ */
+const ROUTINE = [
+  { from: '06:00', to: '07:00', activity: 'leisure', at: 'mess' },
+  { from: '07:00', to: '12:00', activity: 'work', at: 'duty' },
+  { from: '12:00', to: '13:00', activity: 'leisure', at: 'mess' },
+  { from: '13:00', to: '17:00', activity: 'work', at: 'duty' },
+  { from: '17:00', to: '18:00', activity: 'leisure', at: 'mess' },
+  { from: '18:00', to: '22:00', activity: 'leisure', at: 'barracks' },
+  { from: '22:00', to: '06:00', activity: 'sleep', at: 'bed' },
+];
+
+/** Where a class does its duty hours: the first of these facilities that is built (else the gate). */
+const DUTY = {
+  guard: ['site_office'], technician: ['tank_factory', 'helicopter_works'], rifleman: ['range', 'training'], machine_gunner: ['range', 'training'], anti_tank: ['range', 'training'], marksman: ['range', 'training'],
+  medic: ['medical', 'hospital'], engineer: ['motor_pool'], signaller: ['command'], officer: ['command'], recon: ['range', 'training'], uav: ['command'],
+};
+
+return { BASE, BODIES, ROUTINE, DUTY };
+})();
+
+// ---- src/war/base.js
+__m["src/war/base.js"] = (function () {
+// The living base (v0.100.0 stage 8): what each day does to the company's people, from what the base really has. Beds, meals, treatment places and stores are real capacity; a base that is too
+// small loses morale and readiness. It runs the same whether or not you are there (it is records and counts, not bodies: the bodies in src/war/bodies.js follow the records).
+//   dayTick(game)   once a day: rations eaten, meals served, morale and fatigue, the wounded treated, readiness worked out and explained
+//   view(game)      what the Base screen shows
+const { peekMilitary } = __m["src/war/state.js"];
+const { capacity } = __m["src/war/facilities.js"];
+const { stockOf, takeStock } = __m["src/war/equipment.js"];
+const { BASE } = __m["src/content/base.js"];
+const { CLASSES } = __m["src/content/troops.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const alive = (C) => C.personnel.filter((p) => p.status !== 'dead' && p.status !== 'captured').sort((a, b) => (a.id < b.id ? -1 : 1));
+
+function note(game, C, key, text, kind = 'warn') {
+  C.base.noticed ||= {};
+  const day = game.clock.day;
+  if (day - (C.base.noticed[key] ?? -99) < BASE.noticeEvery) return;
+  C.base.noticed[key] = day;
+  C.log.push({ day, text });
+  game.notify?.(text, kind);
+}
+
+function dayTick(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return;
+  C.days ||= {};
+  const day = game.clock.day;
+  if ((C.days.base || 0) >= day) return;
+  C.days.base = day;
+  C.base ||= { day: 0, readiness: 0, factors: {}, noticed: {} };
+  const people = alive(C);
+  if (!people.length) { C.base = { ...C.base, day, readiness: 0, factors: {}, short: [] }; return; }
+  const cap = capacity(game);
+  const acct = game.corp.account('security');
+  // beds and meals go to people in order; rations come out of the stores one each while they last
+  const housed = new Set(people.slice(0, cap.beds).map((p) => p.id));
+  const hot = new Set(people.slice(0, cap.meals).map((p) => p.id));
+  const fed = new Set();
+  for (const p of people) if (takeStock(game, 'supply:rations', BASE.food.perPerson)) fed.add(p.id);
+  // the wounded: treatment places, a medicine each, a medic on the books heals one point more
+  const wounded = people.filter((p) => (p.wounds || 0) > 0).sort((a, b) => b.wounds - a.wounds || (a.id < b.id ? -1 : 1));
+  const medic = people.some((p) => p.role === 'medic' && p.status === 'active') ? BASE.medical.medicBonus : 0;
+  let treated = 0;
+  wounded.forEach((p, i) => {
+    if (i < cap.treat && takeStock(game, 'supply:medicine', BASE.medical.medicine)) { p.wounds = Math.max(0, p.wounds - BASE.medical.perPlace - medic); treated++; }
+    else if (day % BASE.medical.slow === 0) p.wounds = Math.max(0, p.wounds - 1);
+    if (p.wounds <= 0 && p.status === 'wounded') p.status = 'active';
+    else if (p.wounds > 0 && p.status === 'active') p.status = 'wounded';
+  });
+  // morale and fatigue, one person at a time
+  for (const p of people) {
+    const M = BASE.morale;
+    let target = M.start;
+    if (!housed.has(p.id)) target += M.overcrowded;
+    target += fed.has(p.id) ? (hot.has(p.id) ? BASE.food.hot : 0) : BASE.food.hungry;
+    if (acct.arrears > 0) target += M.unpaid;
+    if ((p.wounds || 0) > 0) target += M.wounded;
+    const tired = (p.fatigue ?? 0) > BASE.fatigue.tired;
+    if (tired) target += M.tired; else if ((p.fatigue ?? 0) < BASE.fatigue.rested) target += M.rested;
+    p.morale = clamp(Math.round((p.morale ?? M.start) + (target - (p.morale ?? M.start)) * M.settle), 0, 100);
+    const working = p.post || (p.status === 'active' && p.assignedTo != null && p.role !== 'guard' && p.role !== 'technician');
+    const d = p.status === 'training' ? BASE.fatigue.training : p.post ? BASE.fatigue.post : (p.wounds || 0) > 0 ? BASE.fatigue.rest : working ? BASE.fatigue.post / 2 : BASE.fatigue.rest;
+    p.fatigue = clamp((p.fatigue ?? 0) + d, 0, 100);
+  }
+  // readiness, with its parts
+  const active = people.filter((p) => p.status === 'active').length;
+  const armedKinds = people.filter((p) => CLASSES[p.role]?.tiers && Object.keys(CLASSES[p.role].tiers).length);
+  const f = {
+    strength: active / people.length,
+    morale: people.reduce((a, p) => a + p.morale, 0) / people.length / 100,
+    armed: armedKinds.length ? armedKinds.filter((p) => p.weapon).length / armedKinds.length : 1,
+    fed: fed.size / people.length,
+    housed: housed.size / people.length,
+  };
+  const R = BASE.readiness;
+  const readiness = Math.round(100 * (f.strength * R.strength + f.morale * R.morale + f.armed * R.armed + f.fed * R.fed + f.housed * R.housed));
+  const short = [];
+  if (fed.size < people.length) short.push(`${people.length - fed.size} unfed: ${stockOf(game, 'supply:rations') ? '' : 'no rations in the stores'}`.trim());
+  if (housed.size < people.length) short.push(`${people.length - housed.size} without a bed (${cap.beds} beds)`);
+  if (wounded.length > cap.treat) short.push(`${wounded.length - cap.treat} wounded beyond the ${cap.treat} treatment places`);
+  C.base = { ...C.base, day, readiness, factors: Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * 100) / 100])), fedCount: fed.size, hotCount: hot.size, housedCount: housed.size, treated, wounded: wounded.length, short };
+  if (fed.size < people.length) note(game, C, 'hunger', `The base is short of rations: ${people.length - fed.size} went hungry today. Buy rations from the suppliers.`);
+  if (housed.size < people.length) note(game, C, 'beds', `The base is overcrowded: ${people.length - housed.size} of ${people.length} have no bed. Build another barracks.`);
+  if (readiness < 40) note(game, C, 'readiness', `The company's readiness has fallen to ${readiness}%.`);
+}
+
+/** What the Base screen shows (null when there is no company). */
+function view(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return null;
+  const B = C.base || {};
+  const cap = capacity(game);
+  return { readiness: B.readiness ?? 0, factors: B.factors || {}, short: B.short || [], people: alive(C).length, beds: cap.beds, meals: cap.meals, treat: cap.treat, training: cap.training, stores: cap.stores, treated: B.treated || 0, wounded: B.wounded || 0,
+    rations: stockOf(game, 'supply:rations'), medicine: stockOf(game, 'supply:medicine'), morale: alive(C).length ? Math.round(alive(C).reduce((a, p) => a + (p.morale ?? 70), 0) / alive(C).length) : 0, day: B.day || 0 };
+}
+
+return { dayTick, view };
+})();
+
 // ---- src/war/day.js
 __m["src/war/day.js"] = (function () {
 // The company's day (v0.99.0): what happens at 06:11 once the company exists, in one order, each part once per day: construction, wages, the works, contracts.
@@ -31815,6 +32002,7 @@ const { dailyTick: construction } = __m["src/war/facilities.js"];
 const { payroll, trainTick, normalise } = __m["src/war/people.js"];
 const { dayTick: works } = __m["src/war/production.js"];
 const { dayTick: jobs } = __m["src/war/contracts.js"];
+const { dayTick: living } = __m["src/war/base.js"];
 
 function runDay(game) {
   construction(game);
@@ -31827,12 +32015,101 @@ function runDay(game) {
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   works(game);
   jobs(game);
+  living(game);
   while (C.log.length > 40) C.log.shift(); // the company's log stays short
   const m = peekMilitary(game);
   while (m.log.length > 40) m.log.shift();
 }
 
 return { runDay };
+})();
+
+// ---- src/war/bodies.js
+__m["src/war/bodies.js"] = (function () {
+// The bodies on Hollowmoor Lot (v0.100.0 stage 8): the company's people are records; the ones you can see are drawn from the records, at most `BODIES.cap` at a time (officers and squad leaders
+// first, always). The books are the truth, as for the headquarters' officers (src/systems/hq.js): bodies are made and removed to match them, never saved as the source. Anyone on a contract
+// post is away and not drawn; a person who is let go or dead loses their body. Each follows the day in src/content/base.js, at spots on the lot (the step outside each building's door).
+//   sync(game)   make the bodies match the books
+//   wanted(game) who is drawn, in order
+const { peekMilitary } = __m["src/war/state.js"];
+const { hash2, hashString } = __m["src/core/rng.js"];
+const { FACILITIES } = __m["src/content/facilities.js"];
+const { CLASSES, LOOKS, DEFAULT_LOOK } = __m["src/content/troops.js"];
+const { BODIES, ROUTINE, DUTY } = __m["src/content/base.js"];
+
+const MAP = 'hollowmoor_lot';
+const built = (C, id) => C.facilities.some((f) => f.id === id && f.state === 'built');
+const out = (id) => `${MAP}:hm_${FACILITIES[id].slot}_out`;
+const gate = `${MAP}:gate_inside`;
+
+/** Who is drawn: working or training people at home (not on a contract post), officers and squad leaders first, then by id; no more than the cap. */
+function wanted(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity || !C.lot?.owned || !built(C, 'bunkhouse') && !C.facilities.some((f) => /^barracks/.test(f.id) && f.state === 'built')) return [];
+  const leaders = new Set(C.squads.map((s) => s.leader).filter(Boolean));
+  const people = C.personnel.filter((p) => ['active', 'training', 'wounded'].includes(p.status) && !p.post);
+  const rank = (p) => (leaders.has(p.id) ? 0 : CLASSES[p.role]?.leads ? 1 : 2);
+  return people.sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1)).slice(0, BODIES.cap);
+}
+
+const homeFacility = (C, p) => { const id = String(p.location || '').replace('facility:', ''); return built(C, id) ? id : (C.facilities.find((f) => f.state === 'built' && /^barracks|^bunkhouse$/.test(f.id))?.id || null); };
+
+function spotFor(C, p, at) {
+  if (at === 'mess') return built(C, 'mess') ? out('mess') : gate;
+  if (at === 'barracks') { const h = homeFacility(C, p); return h ? out(h) : gate; }
+  if (at === 'bed') { const h = homeFacility(C, p); return h ? `${MAP}__hm_${FACILITIES[h].slot}:entry` : gate; }
+  // duty: training recruits at the range, the rest where their class works
+  if (p.status === 'training') { const r = ['range', 'training'].find((id) => built(C, id)); return r ? out(r) : gate; }
+  if (p.status === 'wounded') { const r = ['medical', 'hospital'].find((id) => built(C, id)); return r ? out(r) : gate; }
+  const d = (DUTY[p.role] || []).find((id) => built(C, id));
+  return d ? out(d) : gate;
+}
+
+function profileOf(game, C, p) {
+  const h = (k) => hash2(hashString(p.id), k);
+  const pick = (a, k) => a[Math.floor(h(k) * a.length)];
+  const squad = C.squads.find((s) => s.id === p.assignedTo);
+  const look = { ...DEFAULT_LOOK, ...(squad?.look || {}) };
+  const colour = LOOKS.primary[look.primary] || '#4a5a3a';
+  const K = CLASSES[p.role];
+  return {
+    id: `war_${p.id}`, warId: p.id, name: p.name, shortName: p.name.split(' ')[0], tier: 'minor', origin: 'generated', faction: null, noSnitch: true, warStaff: true,
+    role: `${K?.name || 'Soldier'} at ${C.identity.name}.`,
+    dialogue: 'dlg_soldier', voice: { wave: pick(['triangle', 'square', 'sine'], 1), pitch: 90 + Math.floor(h(2) * 200), variance: 20, rate: 0.95 + h(3) * 0.3 },
+    appearance: { skin: pick(['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'], 4), hair: pick(['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a', '#e8e2d4', '#8a7a6a', '#2a1e1a'], 5), hairStyle: 'cap', hatColor: colour,
+      outfit: colour, legs: '#2a2e22', build: pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.96 + h(9) * 0.12, accessories: [], accent: LOOKS.band[look.band] || '#e8c84a' },
+    personality: { traits: ['disciplined', 'steady'], sociability: 0.4, conscientiousness: 0.9, impulsiveness: 0.15, discretion: 0.85, honesty: 0.7, empathy: 0.4 },
+    speech: { rumorPrefix: 'In the barracks they say', factPrefix: 'Boss,', refuse: 'That is not something I can discuss, Boss.' },
+    combat: { never: true, maxHealth: 120 }, walkSpeed: 1, punctuality: 10,
+    schedule: ROUTINE.map((b) => ({ from: b.from, to: b.to, activity: b.activity, spot: spotFor(C, p, b.at) })),
+    impulses: [], notices: [], knowledge: [], relationships: { player: { trust: 10, affection: 0, respect: 15, suspicion: 0 } }, giftPrefs: { item_coffee: 5, tags: { food: 3 } }, opinions: {},
+  };
+}
+
+/** A short signature of everything a body depends on: when it changes, the bodies are made again. */
+function signature(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return '';
+  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location]), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
+}
+
+function sync(game) {
+  const C = peekMilitary(game)?.company;
+  const want = new Map(wanted(game).map((p) => [`war_${p.id}`, p]));
+  for (const [id, npc] of [...game.npcs]) if (npc.profile?.warStaff) game.npcs.delete(id);
+  if (C) for (const [id, p] of want) game.npcs.set(id, game.createNpc(profileOf(game, C, p)));
+  return want.size;
+}
+
+/** Called every game minute; looks at the books every few minutes and makes the bodies match when anything changed. */
+function tick(game, st) {
+  if (!peekMilitary(game)?.company?.identity) { if (st.sig) { sync(game); st.sig = ''; } return; }
+  if (game.clock.minuteOfDay % 5 !== 0 && st.sig !== undefined) return;
+  const sig = signature(game);
+  if (sig !== st.sig) { st.sig = sig; sync(game); }
+}
+
+return { wanted, sync, tick };
 })();
 
 // ---- src/war/squads.js
@@ -32030,11 +32307,13 @@ const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } =
 const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
 const { housing: housingOf } = __m["src/war/equipment.js"];
 const { runDay } = __m["src/war/day.js"];
+const { tick: bodiesStep, sync: bodiesSync } = __m["src/war/bodies.js"];
 const { hire: hireIn, dismiss: dismissOut } = __m["src/war/people.js"];
 const { order: orderUnit, cancel: cancelOrder, setShifts: setLineShifts, upgrade: upgradeWorks, maintain: maintainWorks, view: productionView } = __m["src/war/production.js"];
 const { accept: acceptJob, decline: declineJob, view: contractsView, missing: jobMissing } = __m["src/war/contracts.js"];
 const { equip: equipPerson, equipClass: equipTheClass, setTier: setClassTier, setArmour: setPersonArmour } = __m["src/war/loadout.js"];
 const { create: createSquad, assign: assignSquad, unassign: unassignSquad, setLeader: leadSquad, assignVehicle: squadGetsVehicle, disband: disbandSquad, setLook: lookSquad, view: squadsView } = __m["src/war/squads.js"];
+const { view: baseViewOf } = __m["src/war/base.js"];
 const { checkMilitary } = __m["src/war/check.js"];
 const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -32068,6 +32347,10 @@ class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  /** Every game minute: the soldiers drawn on Hollowmoor Lot follow the books (src/war/bodies.js). */
+  bodiesTick() { this._bodies ||= {}; bodiesStep(this.g, this._bodies); }
+  afterLoad() { this._bodies = {}; if (this.peek()?.company?.identity) bodiesSync(this.g); }
+  bodies() { return [...this.g.npcs.values()].filter((n) => n.profile?.warStaff); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
   rename(name) { return renameCompany(this.g, name); }
@@ -32101,6 +32384,8 @@ class War {
   upgrade(works) { return upgradeWorks(this.g, works); }
   maintain(works) { return maintainWorks(this.g, works); }
   production() { return productionView(this.g); }
+
+  baseView() { return baseViewOf(this.g); }
 
   // ---- people, squads and loadouts (v0.100.0 stage 7)
   equip(pid) { return equipPerson(this.g, pid); }
@@ -52779,7 +53064,7 @@ class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
-    if (door.lock?.facility && this.war.facilityState(door.lock.facility) !== 'built') return false; // v0.98.0
+    if (door.lock?.facility) return this.war.facilityState(door.lock.facility) === 'built' && Boolean(npc.profile.warStaff); // v0.98.0: shut until built; v0.100.0: then the company's own people may use it
     if (door.lock?.hq) return this.hq.owns(door.lock.hq) && Boolean(npc.profile.hqStaff); // v0.86.0: an owned office is for its officers (v0.87.0: they have bodies)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
@@ -52849,6 +53134,7 @@ class Game {
     this.market.minuteTick();
     this.robbery.minuteTick();
     this.hq.minuteTick(); // v0.87.0: officers' bodies follow the books
+    this.war.bodiesTick(); // v0.100.0: the company's soldiers follow the books
     this.transit.minuteTick();
     this.logistics.minuteTick();
     this.dairy.minuteTick();
@@ -53846,6 +54132,7 @@ class Game {
     }
     this.arms.spawnStaff();
     this.hq.afterLoad(); // v0.87.0
+    this.war.afterLoad(); // v0.100.0
     this.dairy.afterLoad();
     this.farm.sync();
     this.casino.afterLoad(); // v0.52.0: nobody is still at a table after a load
@@ -73029,7 +73316,24 @@ function armouryScreen(ui, body, go, open) {
   body.append(help('What changes a number', 'The tier (weapon) and the armour era are real: they change what the soldier can do and what they cost. Colours, pattern, insignia, crest and band are free and change nothing.'));
 }
 
-return { peopleScreen, squadsScreen, armouryScreen };
+const PART = { strength: 'at work (not training or wounded)', morale: 'morale', armed: 'armed', fed: 'fed today', housed: 'with a bed' };
+
+/** The Base screen (v0.100.0 stage 8): what the base has, what it lacks, and what readiness is made of. */
+function baseScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const B = W.baseView(); const H = W.housing();
+  body.append(back(ui, open),
+    hero({ label: 'The base', value: `${B.readiness}% ready`, tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : 'pos', sub: B.short.length ? B.short.join(' · ') : 'Everyone is fed, housed and treated.' }),
+    tiles([{ n: `${B.people}/${B.beds}`, t: 'people / beds' }, { n: `${B.rations}`, t: 'rations left' }, { n: `${B.morale}`, t: 'average morale' }]));
+  body.append(list(...Object.entries(B.factors).map(([k, v]) => row({ icon: '▪', title: PART[k] || k, sub: `${Math.round(v * 100)}%`, tag: `${Math.round(v * 100)}%`, tone: v >= 0.8 ? 'good' : v >= 0.5 ? '' : 'warn' }))));
+  body.append(list(
+    row({ icon: '🍲', title: 'Meals', sub: `${B.meals} hot meals a day from the mess; everyone eats a ration a day from the stores.`, action: h('button', { class: 'tb-mini pri', onclick: () => go(W.buySupply('rations', 50)) }, 'Rations ×50') }),
+    row({ icon: '🏥', title: 'Medical', sub: `${B.treat} treatment places · ${B.wounded} wounded · ${B.medicine} medicine in the stores.`, action: h('button', { class: 'tb-mini', onclick: () => go(W.buySupply('medicine', 10)) }, 'Medicine ×10') }),
+    row({ icon: '🛏️', title: 'Beds', sub: `${B.beds} beds for ${B.people} people.` }),
+    row({ icon: '📦', title: 'Stores', sub: `${H.stores.used} of ${H.stores.total} places used.` })));
+  body.append(help('Capacity is real', 'A base that is too small loses morale and readiness: people without a bed or a meal, and wounded beyond the treatment places, drag it down. Nothing here is free: rations and medicine are bought, and wages are paid every day.'));
+}
+
+return { peopleScreen, squadsScreen, armouryScreen, baseScreen };
 })();
 
 // ---- src/ui/militaryApp.js
@@ -73041,7 +73345,7 @@ const { hero, tiles, row, help, fold, note, n, segments } = __m["src/ui/tabletKi
 const { transfersTab } = __m["src/ui/militaryTransfers.js"];
 const { productionTab } = __m["src/ui/militaryProduction.js"];
 const { contractsTab } = __m["src/ui/militaryContracts.js"];
-const { peopleScreen, squadsScreen, armouryScreen } = __m["src/ui/militaryPeople.js"];
+const { peopleScreen, squadsScreen, armouryScreen, baseScreen } = __m["src/ui/militaryPeople.js"];
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -73064,6 +73368,7 @@ function militaryApp(ui, body, open) {
   if (tab === 'Contracts') { contractsTab(ui, body, go, open); return; }
   if (ui.milSub === 'People') { peopleScreen(ui, body, go, open); return; }
   if (ui.milSub === 'Squads') { squadsScreen(ui, body, go, open); return; }
+  if (ui.milSub === 'Base') { baseScreen(ui, body, go, open); return; }
   if (ui.milSub === 'Armoury') { armouryScreen(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
@@ -73095,7 +73400,7 @@ function militaryApp(ui, body, open) {
     }
   }
   const sub = (id, icon, title, text) => row({ icon, title, sub: text, tag: '›', onclick: () => { ui.milSub = id; open('Military'); } });
-  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.')));
+  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.'), sub('Base', '🏕️', `The base · ${W.baseView().readiness}% ready`, 'Beds, meals, medical, morale and what readiness is made of.')));
   body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
     'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
   body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));

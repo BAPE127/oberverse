@@ -71,7 +71,10 @@ function release(game, C, c) {
 export function chance(game, c) {
   const R = RISK[c.risk];
   const extra = Math.max(0, (c.crew?.length ?? c.guards) - c.needs);
-  return Math.max(0.3, Math.min(0.97, R.success + extra * K.extraHand + Math.min(K.repBonusMax, Math.max(0, reputation(game)) * K.repBonus)));
+  const C = peekMilitary(game)?.company;
+  const crew = (c.crew || []).map((id) => C?.personnel.find((p) => p.id === id)).filter(Boolean);
+  const morale = crew.length ? crew.reduce((a, p) => a + (p.morale ?? 70), 0) / crew.length : 70; // v0.100.0: a hungry, tired crew does worse
+  return Math.max(0.3, Math.min(0.97, R.success + extra * K.extraHand + Math.min(K.repBonusMax, Math.max(0, reputation(game)) * K.repBonus) + (morale - 70) * K.moraleBonus));
 }
 
 /** Whether a job ends well: a hash of the game and the job against its chance (never a dice roll, so a reload cannot change it). */

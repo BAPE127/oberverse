@@ -36,6 +36,7 @@ export const CONTRACTS = {
   repGuards: 10,        // jobs may ask for one more guard for each this much reputation
   repBonus: 0.002,      // success chance for each point of reputation (to a cap)
   repBonusMax: 0.1,
+  moraleBonus: 0.002,   // success chance for each point of the crew's morale above or below 70 (v0.100.0)
   penalty: 0.4,         // a failure costs this share of the pay
   repWin: 3, repLose: -6,
   ban: 30,              // days a client who was let down will not offer

@@ -8,11 +8,13 @@ import { offers as transferOffers, transfer as transferIn, giveBack as transferB
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { housing as housingOf } from './equipment.js';
 import { runDay } from './day.js';
+import { tick as bodiesStep, sync as bodiesSync } from './bodies.js';
 import { hire as hireIn, dismiss as dismissOut } from './people.js';
 import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
 import { accept as acceptJob, decline as declineJob, view as contractsView, missing as jobMissing } from './contracts.js';
 import { equip as equipPerson, equipClass as equipTheClass, setTier as setClassTier, setArmour as setPersonArmour } from './loadout.js';
 import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
+import { view as baseViewOf } from './base.js';
 import { checkMilitary } from './check.js';
 import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -46,6 +48,10 @@ export class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  /** Every game minute: the soldiers drawn on Hollowmoor Lot follow the books (src/war/bodies.js). */
+  bodiesTick() { this._bodies ||= {}; bodiesStep(this.g, this._bodies); }
+  afterLoad() { this._bodies = {}; if (this.peek()?.company?.identity) bodiesSync(this.g); }
+  bodies() { return [...this.g.npcs.values()].filter((n) => n.profile?.warStaff); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
   rename(name) { return renameCompany(this.g, name); }
@@ -79,6 +85,8 @@ export class War {
   upgrade(works) { return upgradeWorks(this.g, works); }
   maintain(works) { return maintainWorks(this.g, works); }
   production() { return productionView(this.g); }
+
+  baseView() { return baseViewOf(this.g); }
 
   // ---- people, squads and loadouts (v0.100.0 stage 7)
   equip(pid) { return equipPerson(this.g, pid); }

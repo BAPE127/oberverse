@@ -73,3 +73,20 @@ export function armouryScreen(ui, body, go, open) {
   }));
   body.append(help('What changes a number', 'The tier (weapon) and the armour era are real: they change what the soldier can do and what they cost. Colours, pattern, insignia, crest and band are free and change nothing.'));
 }
+
+const PART = { strength: 'at work (not training or wounded)', morale: 'morale', armed: 'armed', fed: 'fed today', housed: 'with a bed' };
+
+/** The Base screen (v0.100.0 stage 8): what the base has, what it lacks, and what readiness is made of. */
+export function baseScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const B = W.baseView(); const H = W.housing();
+  body.append(back(ui, open),
+    hero({ label: 'The base', value: `${B.readiness}% ready`, tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : 'pos', sub: B.short.length ? B.short.join(' · ') : 'Everyone is fed, housed and treated.' }),
+    tiles([{ n: `${B.people}/${B.beds}`, t: 'people / beds' }, { n: `${B.rations}`, t: 'rations left' }, { n: `${B.morale}`, t: 'average morale' }]));
+  body.append(list(...Object.entries(B.factors).map(([k, v]) => row({ icon: '▪', title: PART[k] || k, sub: `${Math.round(v * 100)}%`, tag: `${Math.round(v * 100)}%`, tone: v >= 0.8 ? 'good' : v >= 0.5 ? '' : 'warn' }))));
+  body.append(list(
+    row({ icon: '🍲', title: 'Meals', sub: `${B.meals} hot meals a day from the mess; everyone eats a ration a day from the stores.`, action: h('button', { class: 'tb-mini pri', onclick: () => go(W.buySupply('rations', 50)) }, 'Rations ×50') }),
+    row({ icon: '🏥', title: 'Medical', sub: `${B.treat} treatment places · ${B.wounded} wounded · ${B.medicine} medicine in the stores.`, action: h('button', { class: 'tb-mini', onclick: () => go(W.buySupply('medicine', 10)) }, 'Medicine ×10') }),
+    row({ icon: '🛏️', title: 'Beds', sub: `${B.beds} beds for ${B.people} people.` }),
+    row({ icon: '📦', title: 'Stores', sub: `${H.stores.used} of ${H.stores.total} places used.` })));
+  body.append(help('Capacity is real', 'A base that is too small loses morale and readiness: people without a bed or a meal, and wounded beyond the treatment places, drag it down. Nothing here is free: rations and medicine are bought, and wages are paid every day.'));
+}

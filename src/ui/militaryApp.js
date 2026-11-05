@@ -5,7 +5,7 @@ import { hero, tiles, row, help, fold, note, n, segments } from './tabletKit.js'
 import { transfersTab } from './militaryTransfers.js';
 import { productionTab } from './militaryProduction.js';
 import { contractsTab } from './militaryContracts.js';
-import { peopleScreen, squadsScreen, armouryScreen } from './militaryPeople.js';
+import { peopleScreen, squadsScreen, armouryScreen, baseScreen } from './militaryPeople.js';
 import { LOT } from '../content/facilities.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -28,6 +28,7 @@ export function militaryApp(ui, body, open) {
   if (tab === 'Contracts') { contractsTab(ui, body, go, open); return; }
   if (ui.milSub === 'People') { peopleScreen(ui, body, go, open); return; }
   if (ui.milSub === 'Squads') { squadsScreen(ui, body, go, open); return; }
+  if (ui.milSub === 'Base') { baseScreen(ui, body, go, open); return; }
   if (ui.milSub === 'Armoury') { armouryScreen(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
@@ -59,7 +60,7 @@ export function militaryApp(ui, body, open) {
     }
   }
   const sub = (id, icon, title, text) => row({ icon, title, sub: text, tag: '›', onclick: () => { ui.milSub = id; open('Military'); } });
-  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.')));
+  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.'), sub('Base', '🏕️', `The base · ${W.baseView().readiness}% ready`, 'Beds, meals, medical, morale and what readiness is made of.')));
   body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
     'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
   body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));
