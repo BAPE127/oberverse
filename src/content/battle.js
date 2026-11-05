@@ -80,7 +80,11 @@ export const SUPPORT = {
   strategic: { name: 'Strategic missile', delay: 20, r: 7, dmg: 1800, group: 'strategic' },
 };
 /** A breaching charge (an Arms works item): an engineer plants it on a wall (a few seconds, exposed) and it goes off after its fuse; it breaches the segment and hurts what is next to it. */
-export const CHARGE = { name: 'Breaching charge', plant: 3, fuse: 4, r: 1.3, dmg: 220, perEngineer: 2, cap: 6 };
+export const CHARGE = { name: 'Breaching charge', plant: 3, fuse: 4, r: 1.3, dmg: 300, cap: 6 };
+/** A medic stabilises a downed soldier in `seconds` (then he is wounded, not dead, when the battle is counted), looking within `reach` tiles when idle; a medevac helicopter over him does it at once and takes him off the field. */
+export const TEND = { seconds: 6, reach: 9, orderReach: 30, pickup: 2.2 };
+/** The UAV team: a scout drone flies where it is sent for `battery` seconds (it spots whatever comes within `r` tiles, and what it spotted stays spotted for `memory`); an operator can send it again `recharge` seconds after. An FPV strike drone is one of the Arms works' drones, steers onto the nearest enemy near its point and goes off. */
+export const UAV = { speed: 7, battery: 180, r: 12, memory: 120, recharge: 30, hp: 40, fpvSpeed: 9, fpvSeek: 7, fpvBlast: { item_drone_attack: { r: 1.6, dmg: 180 }, item_drone_strike: { r: 2.2, dmg: 280 } } };
 /**
  * Fire missions (v0.102.1): a mortar carrier, a self-propelled gun and a howitzer fire shells (an Arms works item, one shell a round) at a point, indirectly, over the heads of everything between. A shell
  * takes `flight` seconds a tile of range's worth to land; where it lands is scattered (a spotter who sees the point cuts the scatter to a little); a blast hurts everyone in it.

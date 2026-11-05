@@ -8,7 +8,7 @@ import { drawCar } from './drawBattleCars.js';
 import { bakeGround, gameMapOf } from './battleGround.js';
 import { drawProp, setPixelProps } from './drawWorld.js';
 import { PROP_TYPES } from '../content/props.js';
-import { TILE, ART_STYLE, SUPPORT } from '../content/battle.js';
+import { TILE, ART_STYLE, SUPPORT, UAV } from '../content/battle.js';
 import { drawJet } from './drawBattleFx.js';
 import { LOOKS, DEFAULT_LOOK } from '../content/troops.js';
 import { unit } from '../battle/hash.js';
@@ -128,6 +128,9 @@ export class BattleView {
       else if (e.k === 'module') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: { tracks: 'TRACKS OUT', gun: 'GUN OUT', engine: 'ENGINE ON FIRE', crew: 'CREW OUT' }[e.module] || e.module, age: 0 }); }
       else if (e.k === 'breach') { this.fx.blast((e.x + 0.5) * T, (e.y + 0.5) * T, false); for (let i = 0; i < 6; i++) this.fx.hit((e.x + unit(`br|${i}`)) * T, (e.y + unit(`bs|${i}`)) * T); }
       else if (e.k === 'shell') { const u = B.byId.get(e.id); if (u) { const a = Math.atan2(e.y - u.y, e.x - u.x); this.fx.muzzle(u.x * T, u.y * T - 10, Math.cos(a), Math.sin(a)); this.fx.smoke(u.x * T + Math.cos(a) * 18, u.y * T - 10); this.fx.smoke(u.x * T + Math.cos(a) * 26, u.y * T - 14); } }
+      else if (e.k === 'stabilised' || e.k === 'evac') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 30, text: e.k === 'evac' ? 'EVACUATED' : 'STABILISED', age: 0 }); }
+      else if (e.k === 'plant') this.labels.push({ x: e.x * T, y: e.y * T - 20, text: 'CHARGE SET', age: 0 });
+      else if (e.k === 'dronedown') { this.fx.blast(e.x * T, e.y * T - 20, false); this.labels.push({ x: e.x * T, y: e.y * T - 40, text: 'DRONE DOWN', age: 0 }); }
       else if (e.k === 'shotdown') { this.air = this.air.filter((a) => a.id !== e.id); this.labels.push({ x: e.x * T, y: e.y * T - 30, text: 'SHOT DOWN', age: 0 }); for (let i = 0; i < 4; i++) this.fx.blast(e.x * T + (unit(`sd|${i}`) - 0.5) * 40, e.y * T - 20 + i * 8, i < 2); }
       else if (e.k === 'bingo') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 50, text: 'BINGO FUEL', age: 0 }); }
       else if (e.k === 'noshells') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF SHELLS', age: 0 }); }
@@ -172,12 +175,22 @@ export class BattleView {
     g.setTransform(1, 0, 0, 1, 0, 0);
   }
 
+  /** A small quadcopter seen from above: four rotors that blur, a body, a shadow; an FPV one is red. */
+  drone(g, x, y, fpv = false) {
+    x = Math.round(x); y = Math.round(y); const INKC = '#1b1a24'; g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(x - 7, y + 26, 14, 5);
+    for (const [dx, dy] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) { g.fillStyle = INKC; g.fillRect(x + dx - 4, y + dy - 4, 9, 9); g.fillStyle = (Math.floor(this.t * 30) % 2) ? '#b8c4d0' : '#8a98a8'; g.fillRect(x + dx - 3, y + dy - 3, 7, 7); }
+    g.fillStyle = INKC; g.fillRect(x - 5, y - 5, 11, 11); g.fillStyle = fpv ? '#d8402e' : '#4a5a6a'; g.fillRect(x - 4, y - 4, 9, 9); g.fillStyle = fpv ? '#ff9a7a' : '#8ab6d0'; g.fillRect(x - 2, y - 2, 3, 3);
+  }
+
   /** What is in the air and what is about to land: the passes, the rings round the targets of strikes that are on their way, the shock rings and the labels. */
   overlay(g, B) {
     const T = TP;
     for (const p of B.pend) { const S = SUPPORT[p.kind]; if ((!S && p.kind !== 'shell') || S?.group === 'smoke') continue; const r = (p.r || S?.r || 1.5) * T; const left = Math.max(0, p.at - B.tick); g.strokeStyle = `rgba(255,${80 + (left % 6) * 20},60,0.9)`; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(p.x * T, p.y * T, r, r * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,90,60,0.12)'; g.fill(); }
     for (const r of B.runs) { const S = SUPPORT[r.kind]; g.strokeStyle = 'rgba(255,200,90,0.5)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(r.x0 * T, r.y * T); g.lineTo(r.x1 * T, r.y * T); g.stroke(); g.setLineDash([]); void S; }
     this.rings = this.rings.filter((q) => q.age < 14); for (const q of this.rings) { q.age++; g.strokeStyle = `rgba(255,230,180,${1 - q.age / 14})`; g.lineWidth = 3; g.beginPath(); g.ellipse(q.x, q.y, q.r * (0.3 + q.age / 14), q.r * 0.8 * (0.3 + q.age / 14), 0, 0, Math.PI * 2); g.stroke(); }
+    for (const p of B.pend) if (p.kind === 'charge') { const x = Math.floor(p.x * T) - 8; const y = Math.floor(p.y * T) - 6; g.fillStyle = INK; g.fillRect(x - 1, y - 1, 18, 14); g.fillStyle = '#b8382a'; g.fillRect(x, y, 16, 12); g.fillStyle = '#e8e0c8'; g.fillRect(x + 2, y + 2, 5, 3); g.fillStyle = (B.tick % 6 < 3) ? '#ff5a3a' : '#4a1a12'; g.fillRect(x + 11, y + 3, 3, 3); }
+    for (const d of B.drones) { g.strokeStyle = 'rgba(120,230,255,0.45)'; g.lineWidth = 2; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(d.x * T, d.y * T, UAV.r * T, UAV.r * T * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); this.drone(g, d.x * T, d.y * T - 24); }
+    for (const f of B.fpvs) this.drone(g, f.x * T, f.y * T - 20, true);
     this.air = this.air.filter((a) => B.tick - a.t0 <= a.dur + 30);
     for (const a of this.air) {
       const f = (B.tick - a.t0) / a.dur; const x = a.x0 + (a.x1 - a.x0) * f; const bomber = a.kind === 'bomber';

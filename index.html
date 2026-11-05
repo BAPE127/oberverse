@@ -32306,7 +32306,11 @@ const SUPPORT = {
   strategic: { name: 'Strategic missile', delay: 20, r: 7, dmg: 1800, group: 'strategic' },
 };
 /** A breaching charge (an Arms works item): an engineer plants it on a wall (a few seconds, exposed) and it goes off after its fuse; it breaches the segment and hurts what is next to it. */
-const CHARGE = { name: 'Breaching charge', plant: 3, fuse: 4, r: 1.3, dmg: 220, perEngineer: 2, cap: 6 };
+const CHARGE = { name: 'Breaching charge', plant: 3, fuse: 4, r: 1.3, dmg: 300, cap: 6 };
+/** A medic stabilises a downed soldier in `seconds` (then he is wounded, not dead, when the battle is counted), looking within `reach` tiles when idle; a medevac helicopter over him does it at once and takes him off the field. */
+const TEND = { seconds: 6, reach: 9, orderReach: 30, pickup: 2.2 };
+/** The UAV team: a scout drone flies where it is sent for `battery` seconds (it spots whatever comes within `r` tiles, and what it spotted stays spotted for `memory`); an operator can send it again `recharge` seconds after. An FPV strike drone is one of the Arms works' drones, steers onto the nearest enemy near its point and goes off. */
+const UAV = { speed: 7, battery: 180, r: 12, memory: 120, recharge: 30, hp: 40, fpvSpeed: 9, fpvSeek: 7, fpvBlast: { item_drone_attack: { r: 1.6, dmg: 180 }, item_drone_strike: { r: 2.2, dmg: 280 } } };
 /**
  * Fire missions (v0.102.1): a mortar carrier, a self-propelled gun and a howitzer fire shells (an Arms works item, one shell a round) at a point, indirectly, over the heads of everything between. A shell
  * takes `flight` seconds a tile of range's worth to land; where it lands is scattered (a spotter who sees the point cuts the scatter to a little); a blast hurts everyone in it.
@@ -32356,7 +32360,7 @@ const ART_BIOME = { rural: 'temperate', taiga: 'snow', tundra: 'snow', snow: 'sn
 const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
 const styleOf = (country) => STYLE_OF[country] || 'halvermouth';
 
-return { TICK, TILE, WIRE_SLOW, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, FACING, MODULES, MODULE, SUPPORT, CHARGE, ARTY, SCATTER, STATION, FLAK, BREACH, DOWN, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, RULES, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
+return { TICK, TILE, WIRE_SLOW, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, FACING, MODULES, MODULE, SUPPORT, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, BREACH, DOWN, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, RULES, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
 })();
 
 // ---- src/war/combat.js
@@ -76754,7 +76758,7 @@ __m["src/battle/sim.js"] = (function () {
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-const { ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } = __m["src/content/battle.js"];
+const { CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } = __m["src/content/battle.js"];
 const { OUTCOMES } = __m["src/war/combat.js"];
 const { generate, idx, inb, tileAt, walkable } = __m["src/battle/map.js"];
 const { findPath, los, canStand } = __m["src/battle/nav.js"];
@@ -76768,7 +76772,7 @@ function createBattle(setup) {
   const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const rules = setup.rules ?? (setup.map.ver >= 2 ? 2 : 1); // 1: v0.101.0; 2: v0.102.0 (modules and facing); 3: v0.102.1 (what runs without an order): a setup says which rules it was made under, and replays under them
   const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
-    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], wall: new Map(), rubble: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
+    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
     const s = side === 'p' ? map.spawns.p : map.spawns.e;
     const taken = new Set();
@@ -76790,12 +76794,12 @@ function createBattle(setup) {
   return B;
 }
 
-function makeUnit(spec, side, x, y, rules = 2) {
+function makeUnit(spec, side, x, y, rules = 2) { // (spec.vtype: which vehicle it is, from rules 3)
   const W = WEAPONS[spec.weapon] || WEAPONS.none; const ground = spec.kind !== 'inf' && spec.kind !== 'helicopter' && rules >= 2;
-  return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
+  return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, vtype: spec.vtype || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
     fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
     moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0,
-    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
+    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
 }
 
 // ---- orders
@@ -76809,6 +76813,9 @@ function setOrder(B, u, order) {
   if (order.type === 'move' || order.type === 'amove') u.path = findPath(B.map, u, order, kind);
   else if (order.type === 'retreat') { const s = u.side === 'p' ? B.map.spawns.p : B.map.spawns.e; u.order.x = s.x < B.map.w / 2 ? 1 : B.map.w - 2; u.order.y = Math.floor(u.y); u.path = findPath(B.map, u, u.order, kind); }
   else if (order.type === 'fire') { if (!u.arty) u.order = { type: 'hold' }; }
+  else if (order.type === 'tend') { if (u.role !== 'medic') u.order = { type: 'hold' }; }
+  else if (order.type === 'charge') { if (u.role !== 'engineer' || !(B.sup.items.item_breach_charge > 0)) u.order = { type: 'hold' }; u.plantT = 0; }
+  else if (order.type === 'scout' || order.type === 'fpv') { if (u.role !== 'uav') u.order = { type: 'hold' }; }
   else if (order.type === 'smoke' || order.type === 'suppress' || order.type === 'breach') { if (order.type === 'smoke' && !u.smokes) u.order = { type: 'hold' }; else if (order.type === 'breach' && !(u.weapon === 'tank_gun' || u.W.rocket)) u.order = { type: 'hold' }; else if (order.type === 'suppress' && !(u.W.range > 0)) u.order = { type: 'hold' }; }
   else if (order.type === 'garrison') { const b = B.map.buildings[order.b]; if (b && u.kind === 'inf') { u.gstage = 'go'; u.path = findPath(B.map, u, { x: b.stairs.x + 0.5, y: b.stairs.y + 0.5 }, 'inf'); u.order.floor = Math.min(order.floor ?? b.floors - 1, b.floors - 1); } else u.order = { type: 'hold' }; }
 }
@@ -76938,6 +76945,7 @@ function applySupport(B, spec) {
 function tickSupport(B) {
   for (const p of B.pend.filter((q) => q.at <= B.tick)) {
     if (p.kind === 'shell') { blast(B, p.x, p.y, p.r, p.dmg, 'shell'); continue; }
+    if (p.kind === 'charge') { blast(B, p.x, p.y, p.r, p.dmg, 'charge'); continue; }
     const S = SUPPORT[p.kind];
     if (S.group === 'air') { const dur = Math.round(S.seconds * TICK.perSecond); B.runs.push({ kind: p.kind, id: p.id, x0: p.x - S.len / 2, x1: p.x + S.len / 2, y: p.y, t0: B.tick, dur, bx: Array.from({ length: S.bombs || 0 }, (_, i) => p.x + (i - ((S.bombs || 0) - 1) / 2) * 3), dropped: 0 }); B.events.push({ t: B.tick, k: 'pass', id: p.id, kind: p.kind, x0: p.x - S.len / 2, x1: p.x + S.len / 2, y: p.y, dur }); }
     else if (S.group === 'smoke') { B.smoke.push({ x: p.x, y: p.y, r: S.r, until: B.tick + S.seconds * TICK.perSecond }); B.events.push({ t: B.tick, k: 'smoke', x: p.x, y: p.y, r: S.r }); }
@@ -76953,7 +76961,29 @@ function tickSupport(B) {
     else if (run.dropped < run.bx.length && x >= run.bx[run.dropped]) { blast(B, run.bx[run.dropped], run.y, S.r, S.dmg, 'bomber'); run.dropped++; }
   }
   B.runs = B.runs.filter((r) => !r.down && B.tick - r.t0 <= r.dur);
+  tickDrones(B);
   if (B.smoke.length) B.smoke = B.smoke.filter((c) => c.until > B.tick);
+}
+
+// ---- the UAV team: scout drones that spot, FPV drones that dive
+const flak = (B, d) => (B.rules >= 3 ? B.units.filter((g) => g.alive && !g.fled && g.side !== d.side && g.W.airOnly && Math.hypot(g.x - d.x, g.y - d.y) <= g.W.range).length : 0);
+function tickDrones(B) {
+  const sp = (UAV.speed / TICK.perSecond); const fsp = (UAV.fpvSpeed / TICK.perSecond);
+  for (const d of B.drones) {
+    const dx = d.tx - d.x; const dy = d.ty - d.y; const l = Math.hypot(dx, dy); if (l > sp) { d.x += (dx / l) * sp; d.y += (dy / l) * sp; } else { d.x = d.tx; d.y = d.ty; }
+    d.left--; if (B.tick % 5 === 0 && d.side === 'p') for (const e of B.units) if (e.alive && !e.fled && e.side !== d.side && Math.hypot(e.x - d.x, e.y - d.y) <= UAV.r) B.spotted[e.id] = B.tick;
+    const g = flak(B, d); if (g && chance(`${B.key}|${B.tick}|${d.id}|dz`) < 1 - (1 - 0.03) ** g) { d.left = 0; d.shot = true; B.events.push({ t: B.tick, k: 'dronedown', x: d.x, y: d.y }); }
+    if (d.left <= 0) { const o = B.byId.get(d.owner); if (o) o.recharge = UAV.recharge * TICK.perSecond; d.gone = true; }
+  }
+  B.drones = B.drones.filter((d) => !d.gone);
+  for (const f of B.fpvs) {
+    let tx = f.tx; let ty = f.ty; let best = null; let bd = UAV.fpvSeek; for (const e of B.units) if (e.alive && !e.fled && e.side !== f.side) { const k = Math.hypot(e.x - f.tx, e.y - f.ty); if (k < bd) { bd = k; best = e; } }
+    if (best) { tx = best.x; ty = best.y; }
+    const dx = tx - f.x; const dy = ty - f.y; const l = Math.hypot(dx, dy); const bl = UAV.fpvBlast[f.item];
+    const g = flak(B, f); if (g && chance(`${B.key}|${B.tick}|${f.id}|fz`) < 1 - (1 - 0.03) ** g) { f.gone = true; B.events.push({ t: B.tick, k: 'dronedown', x: f.x, y: f.y }); continue; }
+    if (l <= 0.8 || l <= fsp) { f.x = tx; f.y = ty; blast(B, f.x, f.y, bl.r, bl.dmg, 'fpv'); f.gone = true; } else { f.x += (dx / l) * fsp; f.y += (dy / l) * fsp; }
+  }
+  B.fpvs = B.fpvs.filter((f) => !f.gone);
 }
 
 // ---- moving
@@ -76989,9 +77019,18 @@ function garrisonStep(B, u) {
   // 'post': stands at the window and holds
 }
 
+/** The nearest downed friend nobody has stabilised yet (for a medic), within reach. */
+function downedNear(B, u, reach) {
+  let best = null; let bd = reach;
+  for (const d of B.units) { if (d.alive || d.fled || d.side !== u.side || d.kind !== 'inf' || d.stab || d.evac || d.id === u.id) continue; const k = dist(u, d); if (k < bd) { bd = k; best = d; } }
+  return best;
+}
+function standBeside(B, d) { return standNear(B, d.x, d.y, 'inf'); }
+
 function step1(B, u, idxU) {
   if (!u.alive || u.fled) return;
   if (u.burning && B.tick % 10 === 0) { u.hp -= MODULE.burn; if (u.hp <= 0) { u.alive = false; u.hp = 0; B.events.push({ t: B.tick, k: 'down', id: u.id, by: 'fire' }); return; } }
+  if (u.recharge > 0) u.recharge--;
   if (u.fuelT != null && u.alive && !u.fled) { u.fuelT--; if (u.fuelT === 0) { B.events.push({ t: B.tick, k: 'bingo', id: u.id }); setOrder(B, u, { type: 'retreat' }); } }
   u.supp = Math.max(0, u.supp - SUPPRESS.decay);
   const ns = stateOf(u);
@@ -77001,6 +77040,7 @@ function step1(B, u, idxU) {
   u.fatigueP = Math.min(0.3, (u.fatigue || 0) / 400);
   if (u.role === 'medic' && B.tick % 10 === 0) for (const n of B.units) if (n.alive && n.side === u.side && n !== u && n.hp < n.hpMax && !isVeh(n) && dist(n, u) <= ROLE.medic.radius) n.hp = Math.min(n.hpMax, n.hp + ROLE.medic.heal);
   if (u.role === 'officer' && B.tick % 10 === 0) for (const n of B.units) if (n.alive && n.side === u.side && n.supp > 0 && dist(n, u) <= ROLE.officer.rally) n.supp = Math.max(0, n.supp - 2);
+  if (B.rules >= 3 && u.kind === 'helicopter' && u.vtype === 'mercy' && u.alive && B.tick % 10 === 0) { for (const d of B.units) if (!d.alive && !d.fled && d.side === u.side && d.kind === 'inf' && !d.evac && dist(u, d) <= TEND.pickup) { d.stab = true; d.evac = true; d.fled = true; B.events.push({ t: B.tick, k: 'evac', id: d.id, by: u.id }); } }
   u.cd--;
   if (u.W.range > 0 && B.tick % TICK.decide === idxU % TICK.decide) u.target = (() => { const t = pickTarget(B, u); return t ? t.id : null; })();
   const tgt = u.target ? B.byId.get(u.target) : null;
@@ -77021,6 +77061,22 @@ function step1(B, u, idxU) {
   if (o.type === 'smoke') {
     if (Math.hypot(o.x - u.x, o.y - u.y) <= SUPPORT.smoke.throw) { if (u.smokes > 0) { u.smokes--; B.pend.push({ at: B.tick + Math.round(SUPPORT.smoke.delay * TICK.perSecond), kind: 'smoke', x: o.x, y: o.y }); B.events.push({ t: B.tick, k: 'throw', id: u.id, x: o.x, y: o.y }); } u.order = { type: 'hold' }; u.path = []; }
     else { if (!u.path.length) u.path = findPath(B.map, u, { x: o.x, y: o.y }, 'inf'); moves = !u.broken; }
+  } else if ((o.type === 'tend' || (B.rules >= 3 && u.role === 'medic' && o.type === 'hold' && !tgt)) && u.role === 'medic' && !u.broken) {
+    const d = downedNear(B, u, o.type === 'tend' ? TEND.orderReach : TEND.reach);
+    if (!d) { if (o.type === 'tend') u.order = { type: 'hold' }; u.tendT = 0; }
+    else if (dist(u, d) > 1.3) { special = true; u.tendT = 0; if (!u.path.length || B.tick % 20 === 0) { const sp = standBeside(B, d); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; } moves = true; }
+    else { special = true; moves = false; u.tendT++; if (u.tendT >= TEND.seconds * TICK.perSecond) { d.stab = true; u.tendT = 0; B.events.push({ t: B.tick, k: 'stabilised', id: d.id, by: u.id }); } }
+  } else if (o.type === 'charge' && u.role === 'engineer' && !u.broken) {
+    const wx = Math.floor(o.x); const wy = Math.floor(o.y); const dd = Math.hypot(wx + 0.5 - u.x, wy + 0.5 - u.y);
+    if (dd > 1.9) { if (!u.path.length) { const sp = standNear(B, o.x, o.y, 'inf'); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; if (!u.path.length) u.order = { type: 'hold' }; } moves = true; }
+    else { special = true; moves = false; u.plantT++; if (u.plantT >= CHARGE.plant * TICK.perSecond) { if (B.sup.items.item_breach_charge > 0) { B.sup.items.item_breach_charge--; B.counts.items.item_breach_charge = (B.counts.items.item_breach_charge || 0) + 1; B.pend.push({ at: B.tick + CHARGE.fuse * TICK.perSecond, kind: 'charge', x: wx + 0.5, y: wy + 0.5, r: CHARGE.r, dmg: CHARGE.dmg }); B.events.push({ t: B.tick, k: 'plant', id: u.id, x: wx + 0.5, y: wy + 0.5 }); } u.order = { type: 'move', x: u.x - Math.sign(wx + 0.5 - u.x) * 5, y: u.y - Math.sign(wy + 0.5 - u.y) * 5 }; u.path = findPath(B.map, u, u.order, 'inf'); u.plantT = 0; } }
+  } else if (o.type === 'scout' && u.role === 'uav' && !u.broken) {
+    if (u.recharge <= 0 && !B.drones.some((q) => q.owner === u.id)) { B.drones.push({ id: `D${B.tick}${u.id}`, owner: u.id, side: u.side, x: u.x, y: u.y, tx: o.x, ty: o.y, left: UAV.battery * TICK.perSecond }); B.events.push({ t: B.tick, k: 'launch', id: u.id, kind: 'scout' }); }
+    u.order = { type: 'hold' };
+  } else if (o.type === 'fpv' && u.role === 'uav' && !u.broken) {
+    const item = B.sup.items.item_drone_attack > 0 ? 'item_drone_attack' : B.sup.items.item_drone_strike > 0 ? 'item_drone_strike' : null;
+    if (item) { B.sup.items[item]--; B.counts.items[item] = (B.counts.items[item] || 0) + 1; B.fpvs.push({ id: `F${B.tick}${u.id}`, item, side: u.side, x: u.x, y: u.y, tx: o.x, ty: o.y }); B.events.push({ t: B.tick, k: 'launch', id: u.id, kind: 'fpv' }); }
+    u.order = { type: 'hold' };
   } else if (o.type === 'fire' && u.arty && !u.broken) {
     const dd = Math.hypot(o.x - u.x, o.y - u.y); special = true; moves = false; u.aim = { x: o.x, y: o.y };
     if (dd > u.arty.range) { u.order = { type: 'hold' }; B.events.push({ t: B.tick, k: 'outofrange', id: u.id }); }
@@ -77028,7 +77084,7 @@ function step1(B, u, idxU) {
       if (!(B.sup.items.item_artillery_shell > 0)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
       else {
         B.sup.items.item_artillery_shell--; B.counts.items.item_artillery_shell = (B.counts.items.item_artillery_shell || 0) + 1; u.shots++; u.cd = Math.round(u.arty.interval * TICK.perSecond);
-        const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)); const sc = spotted ? SCATTER.spotted : SCATTER.blind;
+        const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)) || B.drones.some((d) => d.side === u.side && dist(d, o) <= UAV.r); const sc = spotted ? SCATTER.spotted : SCATTER.blind;
         const a = chance(`${B.key}|${B.tick}|${u.id}|sa`) * Math.PI * 2; const r = Math.sqrt(chance(`${B.key}|${B.tick}|${u.id}|sr`)) * sc; const lx = o.x + Math.cos(a) * r; const ly = o.y + Math.sin(a) * r;
         B.pend.push({ at: B.tick + Math.max(10, Math.round((dd / u.arty.speed) * TICK.perSecond)), kind: 'shell', x: lx, y: ly, r: u.arty.r, dmg: u.arty.dmg }); B.events.push({ t: B.tick, k: 'shell', id: u.id, x: o.x, y: o.y });
       }
@@ -77121,7 +77177,8 @@ function outcome(B) {
     if (!u.alive) {
       if (u.rec.t !== 'person') { lost.push(u.rec.id); continue; }
       // put out of action: dead with a chance (less with plate armour), else badly wounded; a hash, so a replay agrees
-      if (chance(`${B.key}|down|${u.id}`) < Math.min(0.8, DOWN.dead / u.prot)) dead.push(u.rec.id);
+      if (u.stab) wounded.push({ id: u.rec.id, wounds: DOWN.woundsLow }); // a medic got to him
+      else if (chance(`${B.key}|down|${u.id}`) < Math.min(0.8, DOWN.dead / u.prot)) dead.push(u.rec.id);
       else wounded.push({ id: u.rec.id, wounds: DOWN.woundsLow + Math.floor(chance(`${B.key}|dw|${u.id}`) * (DOWN.woundsHigh - DOWN.woundsLow + 1)) });
       continue;
     }
@@ -77676,7 +77733,7 @@ const { drawCar } = __m["src/engine/drawBattleCars.js"];
 const { bakeGround, gameMapOf } = __m["src/engine/battleGround.js"];
 const { drawProp, setPixelProps } = __m["src/engine/drawWorld.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
-const { TILE, ART_STYLE, SUPPORT } = __m["src/content/battle.js"];
+const { TILE, ART_STYLE, SUPPORT, UAV } = __m["src/content/battle.js"];
 const { drawJet } = __m["src/engine/drawBattleFx.js"];
 const { LOOKS, DEFAULT_LOOK } = __m["src/content/troops.js"];
 const { unit } = __m["src/battle/hash.js"];
@@ -77796,6 +77853,9 @@ class BattleView {
       else if (e.k === 'module') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: { tracks: 'TRACKS OUT', gun: 'GUN OUT', engine: 'ENGINE ON FIRE', crew: 'CREW OUT' }[e.module] || e.module, age: 0 }); }
       else if (e.k === 'breach') { this.fx.blast((e.x + 0.5) * T, (e.y + 0.5) * T, false); for (let i = 0; i < 6; i++) this.fx.hit((e.x + unit(`br|${i}`)) * T, (e.y + unit(`bs|${i}`)) * T); }
       else if (e.k === 'shell') { const u = B.byId.get(e.id); if (u) { const a = Math.atan2(e.y - u.y, e.x - u.x); this.fx.muzzle(u.x * T, u.y * T - 10, Math.cos(a), Math.sin(a)); this.fx.smoke(u.x * T + Math.cos(a) * 18, u.y * T - 10); this.fx.smoke(u.x * T + Math.cos(a) * 26, u.y * T - 14); } }
+      else if (e.k === 'stabilised' || e.k === 'evac') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 30, text: e.k === 'evac' ? 'EVACUATED' : 'STABILISED', age: 0 }); }
+      else if (e.k === 'plant') this.labels.push({ x: e.x * T, y: e.y * T - 20, text: 'CHARGE SET', age: 0 });
+      else if (e.k === 'dronedown') { this.fx.blast(e.x * T, e.y * T - 20, false); this.labels.push({ x: e.x * T, y: e.y * T - 40, text: 'DRONE DOWN', age: 0 }); }
       else if (e.k === 'shotdown') { this.air = this.air.filter((a) => a.id !== e.id); this.labels.push({ x: e.x * T, y: e.y * T - 30, text: 'SHOT DOWN', age: 0 }); for (let i = 0; i < 4; i++) this.fx.blast(e.x * T + (unit(`sd|${i}`) - 0.5) * 40, e.y * T - 20 + i * 8, i < 2); }
       else if (e.k === 'bingo') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 50, text: 'BINGO FUEL', age: 0 }); }
       else if (e.k === 'noshells') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF SHELLS', age: 0 }); }
@@ -77840,12 +77900,22 @@ class BattleView {
     g.setTransform(1, 0, 0, 1, 0, 0);
   }
 
+  /** A small quadcopter seen from above: four rotors that blur, a body, a shadow; an FPV one is red. */
+  drone(g, x, y, fpv = false) {
+    x = Math.round(x); y = Math.round(y); const INKC = '#1b1a24'; g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(x - 7, y + 26, 14, 5);
+    for (const [dx, dy] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) { g.fillStyle = INKC; g.fillRect(x + dx - 4, y + dy - 4, 9, 9); g.fillStyle = (Math.floor(this.t * 30) % 2) ? '#b8c4d0' : '#8a98a8'; g.fillRect(x + dx - 3, y + dy - 3, 7, 7); }
+    g.fillStyle = INKC; g.fillRect(x - 5, y - 5, 11, 11); g.fillStyle = fpv ? '#d8402e' : '#4a5a6a'; g.fillRect(x - 4, y - 4, 9, 9); g.fillStyle = fpv ? '#ff9a7a' : '#8ab6d0'; g.fillRect(x - 2, y - 2, 3, 3);
+  }
+
   /** What is in the air and what is about to land: the passes, the rings round the targets of strikes that are on their way, the shock rings and the labels. */
   overlay(g, B) {
     const T = TP;
     for (const p of B.pend) { const S = SUPPORT[p.kind]; if ((!S && p.kind !== 'shell') || S?.group === 'smoke') continue; const r = (p.r || S?.r || 1.5) * T; const left = Math.max(0, p.at - B.tick); g.strokeStyle = `rgba(255,${80 + (left % 6) * 20},60,0.9)`; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(p.x * T, p.y * T, r, r * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,90,60,0.12)'; g.fill(); }
     for (const r of B.runs) { const S = SUPPORT[r.kind]; g.strokeStyle = 'rgba(255,200,90,0.5)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(r.x0 * T, r.y * T); g.lineTo(r.x1 * T, r.y * T); g.stroke(); g.setLineDash([]); void S; }
     this.rings = this.rings.filter((q) => q.age < 14); for (const q of this.rings) { q.age++; g.strokeStyle = `rgba(255,230,180,${1 - q.age / 14})`; g.lineWidth = 3; g.beginPath(); g.ellipse(q.x, q.y, q.r * (0.3 + q.age / 14), q.r * 0.8 * (0.3 + q.age / 14), 0, 0, Math.PI * 2); g.stroke(); }
+    for (const p of B.pend) if (p.kind === 'charge') { const x = Math.floor(p.x * T) - 8; const y = Math.floor(p.y * T) - 6; g.fillStyle = INK; g.fillRect(x - 1, y - 1, 18, 14); g.fillStyle = '#b8382a'; g.fillRect(x, y, 16, 12); g.fillStyle = '#e8e0c8'; g.fillRect(x + 2, y + 2, 5, 3); g.fillStyle = (B.tick % 6 < 3) ? '#ff5a3a' : '#4a1a12'; g.fillRect(x + 11, y + 3, 3, 3); }
+    for (const d of B.drones) { g.strokeStyle = 'rgba(120,230,255,0.45)'; g.lineWidth = 2; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(d.x * T, d.y * T, UAV.r * T, UAV.r * T * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); this.drone(g, d.x * T, d.y * T - 24); }
+    for (const f of B.fpvs) this.drone(g, f.x * T, f.y * T - 20, true);
     this.air = this.air.filter((a) => B.tick - a.t0 <= a.dur + 30);
     for (const a of this.air) {
       const f = (B.tick - a.t0) / a.dur; const x = a.x0 + (a.x1 - a.x0) * f; const bomber = a.kind === 'bomber';
@@ -77922,7 +77992,7 @@ const { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport 
 const { los } = __m["src/battle/nav.js"];
 const { BattleView, TP } = __m["src/engine/drawBattle.js"];
 const { FxLayer } = __m["src/engine/drawBattleFx.js"];
-const { TICK, SUPPORT } = __m["src/content/battle.js"];
+const { TICK, SUPPORT, UAV } = __m["src/content/battle.js"];
 
 const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
 const mmss = (ticks) => { const s = Math.floor(ticks / TICK.perSecond); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -77959,6 +78029,7 @@ function battlePanel(ui, body, opts = {}) {
     if (!B) return new Set();
     if (B.tick - S.visTick < 5) return S.vis;
     S.visTick = B.tick; const out = new Set();
+    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled && B.spotted[e.id] && B.tick - B.spotted[e.id] < UAV.memory * TICK.perSecond) out.add(e.id);
     for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled) for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; if (Math.hypot(u.x - e.x, u.y - e.y) <= sightOf(u) && los(B.map, u.x, u.y, u.z, e.x, e.y, e.z)) { out.add(e.id); break; } }
     for (const e of S.vis) if (!out.has(e) && B.tick - (view.seenAt.get(e) ?? -99) < 20 && B.byId.get(e)?.alive) out.add(e);
     for (const e of out) view.seenAt.set(e, B.tick);
@@ -77981,6 +78052,7 @@ function battlePanel(ui, body, opts = {}) {
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
     if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'charge' || mode === 'scout' || mode === 'fpv') { const want = { charge: 'engineer', scout: 'uav', fpv: 'uav' }[mode]; const ids = [...S.sel].filter((x) => B.byId.get(x)?.role === want && B.byId.get(x).alive); if (!ids.length) { say(`Select ${want === 'uav' ? 'a UAV operator' : 'an engineer'} first.`); S.mode = null; paintBar(); return; } issue(B, ids, { type: mode, x: t.x, y: t.y }); save(); say({ charge: 'plant a charge', scout: 'send the scout drone', fpv: 'launch an FPV drone' }[mode] + '.'); S.mode = null; paintBar(); return; }
     if (mode === 'smoke' || mode === 'suppress' || mode === 'breach' || mode === 'fire') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall', fire: 'fire at the point' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
     else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
@@ -78039,6 +78111,9 @@ function battlePanel(ui, body, opts = {}) {
     for (const [item, n] of Object.entries(B.sup.items)) if (n > 0 && SUPPORT[item]) out.push(mk(`${SUPPORT[item].name} ×${n}`, `support:${item}`, () => { S.mode = S.mode === `support:${item}` ? null : `support:${item}`; paintBar(); }));
     for (const a of B.sup.air) if (!a.used) out.push(mk(`✈ ${a.name || SUPPORT[a.kind].name} (${a.kind})`, `support:${a.kind}:${a.id}`, () => { const m = `support:${a.kind}:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
     for (const a of B.sup.strategic) if (!a.used) out.push(mk(`☢ ${a.name || 'Strategic missile'}`, `support:strategic:${a.id}`, () => { const m = `support:strategic:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.role === 'medic')) out.push(mk('Tend', 'tend', () => give({ type: 'tend' }, 'tend the wounded')));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.role === 'engineer')) out.push(mk(`Plant charge (${B.sup.items.item_breach_charge || 0})`, 'charge', () => { S.mode = S.mode === 'charge' ? null : 'charge'; paintBar(); }));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.role === 'uav')) out.push(mk('Scout drone', 'scout', () => { S.mode = S.mode === 'scout' ? null : 'scout'; paintBar(); }), mk(`FPV strike (${(B.sup.items.item_drone_attack || 0) + (B.sup.items.item_drone_strike || 0)})`, 'fpv', () => { S.mode = S.mode === 'fpv' ? null : 'fpv'; paintBar(); }));
     if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.arty)) out.push(mk(`Fire mission (${B.sup.items.item_artillery_shell || 0} shells)`, 'fire', () => { S.mode = S.mode === 'fire' ? null : 'fire'; paintBar(); }));
     return out;
   };

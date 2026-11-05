@@ -7,7 +7,7 @@ import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
 import { FxLayer } from '../engine/drawBattleFx.js';
-import { TICK, SUPPORT } from '../content/battle.js';
+import { TICK, SUPPORT, UAV } from '../content/battle.js';
 
 const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
 const mmss = (ticks) => { const s = Math.floor(ticks / TICK.perSecond); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -44,6 +44,7 @@ export function battlePanel(ui, body, opts = {}) {
     if (!B) return new Set();
     if (B.tick - S.visTick < 5) return S.vis;
     S.visTick = B.tick; const out = new Set();
+    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled && B.spotted[e.id] && B.tick - B.spotted[e.id] < UAV.memory * TICK.perSecond) out.add(e.id);
     for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled) for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; if (Math.hypot(u.x - e.x, u.y - e.y) <= sightOf(u) && los(B.map, u.x, u.y, u.z, e.x, e.y, e.z)) { out.add(e.id); break; } }
     for (const e of S.vis) if (!out.has(e) && B.tick - (view.seenAt.get(e) ?? -99) < 20 && B.byId.get(e)?.alive) out.add(e);
     for (const e of out) view.seenAt.set(e, B.tick);
@@ -66,6 +67,7 @@ export function battlePanel(ui, body, opts = {}) {
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
     if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'charge' || mode === 'scout' || mode === 'fpv') { const want = { charge: 'engineer', scout: 'uav', fpv: 'uav' }[mode]; const ids = [...S.sel].filter((x) => B.byId.get(x)?.role === want && B.byId.get(x).alive); if (!ids.length) { say(`Select ${want === 'uav' ? 'a UAV operator' : 'an engineer'} first.`); S.mode = null; paintBar(); return; } issue(B, ids, { type: mode, x: t.x, y: t.y }); save(); say({ charge: 'plant a charge', scout: 'send the scout drone', fpv: 'launch an FPV drone' }[mode] + '.'); S.mode = null; paintBar(); return; }
     if (mode === 'smoke' || mode === 'suppress' || mode === 'breach' || mode === 'fire') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall', fire: 'fire at the point' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
     else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
@@ -124,6 +126,9 @@ export function battlePanel(ui, body, opts = {}) {
     for (const [item, n] of Object.entries(B.sup.items)) if (n > 0 && SUPPORT[item]) out.push(mk(`${SUPPORT[item].name} ×${n}`, `support:${item}`, () => { S.mode = S.mode === `support:${item}` ? null : `support:${item}`; paintBar(); }));
     for (const a of B.sup.air) if (!a.used) out.push(mk(`✈ ${a.name || SUPPORT[a.kind].name} (${a.kind})`, `support:${a.kind}:${a.id}`, () => { const m = `support:${a.kind}:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
     for (const a of B.sup.strategic) if (!a.used) out.push(mk(`☢ ${a.name || 'Strategic missile'}`, `support:strategic:${a.id}`, () => { const m = `support:strategic:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.role === 'medic')) out.push(mk('Tend', 'tend', () => give({ type: 'tend' }, 'tend the wounded')));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.role === 'engineer')) out.push(mk(`Plant charge (${B.sup.items.item_breach_charge || 0})`, 'charge', () => { S.mode = S.mode === 'charge' ? null : 'charge'; paintBar(); }));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.role === 'uav')) out.push(mk('Scout drone', 'scout', () => { S.mode = S.mode === 'scout' ? null : 'scout'; paintBar(); }), mk(`FPV strike (${(B.sup.items.item_drone_attack || 0) + (B.sup.items.item_drone_strike || 0)})`, 'fpv', () => { S.mode = S.mode === 'fpv' ? null : 'fpv'; paintBar(); }));
     if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.arty)) out.push(mk(`Fire mission (${B.sup.items.item_artillery_shell || 0} shells)`, 'fire', () => { S.mode = S.mode === 'fire' ? null : 'fire'; paintBar(); }));
     return out;
   };

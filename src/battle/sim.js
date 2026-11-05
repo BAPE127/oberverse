@@ -6,7 +6,7 @@
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-import { ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
+import { CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
 import { OUTCOMES } from '../war/combat.js';
 import { generate, idx, inb, tileAt, walkable } from './map.js';
 import { findPath, los, canStand } from './nav.js';
@@ -20,7 +20,7 @@ export function createBattle(setup) {
   const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const rules = setup.rules ?? (setup.map.ver >= 2 ? 2 : 1); // 1: v0.101.0; 2: v0.102.0 (modules and facing); 3: v0.102.1 (what runs without an order): a setup says which rules it was made under, and replays under them
   const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
-    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], wall: new Map(), rubble: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
+    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
     const s = side === 'p' ? map.spawns.p : map.spawns.e;
     const taken = new Set();
@@ -42,12 +42,12 @@ export function createBattle(setup) {
   return B;
 }
 
-function makeUnit(spec, side, x, y, rules = 2) {
+function makeUnit(spec, side, x, y, rules = 2) { // (spec.vtype: which vehicle it is, from rules 3)
   const W = WEAPONS[spec.weapon] || WEAPONS.none; const ground = spec.kind !== 'inf' && spec.kind !== 'helicopter' && rules >= 2;
-  return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
+  return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, vtype: spec.vtype || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
     fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
     moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0,
-    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
+    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
 }
 
 // ---- orders
@@ -61,6 +61,9 @@ function setOrder(B, u, order) {
   if (order.type === 'move' || order.type === 'amove') u.path = findPath(B.map, u, order, kind);
   else if (order.type === 'retreat') { const s = u.side === 'p' ? B.map.spawns.p : B.map.spawns.e; u.order.x = s.x < B.map.w / 2 ? 1 : B.map.w - 2; u.order.y = Math.floor(u.y); u.path = findPath(B.map, u, u.order, kind); }
   else if (order.type === 'fire') { if (!u.arty) u.order = { type: 'hold' }; }
+  else if (order.type === 'tend') { if (u.role !== 'medic') u.order = { type: 'hold' }; }
+  else if (order.type === 'charge') { if (u.role !== 'engineer' || !(B.sup.items.item_breach_charge > 0)) u.order = { type: 'hold' }; u.plantT = 0; }
+  else if (order.type === 'scout' || order.type === 'fpv') { if (u.role !== 'uav') u.order = { type: 'hold' }; }
   else if (order.type === 'smoke' || order.type === 'suppress' || order.type === 'breach') { if (order.type === 'smoke' && !u.smokes) u.order = { type: 'hold' }; else if (order.type === 'breach' && !(u.weapon === 'tank_gun' || u.W.rocket)) u.order = { type: 'hold' }; else if (order.type === 'suppress' && !(u.W.range > 0)) u.order = { type: 'hold' }; }
   else if (order.type === 'garrison') { const b = B.map.buildings[order.b]; if (b && u.kind === 'inf') { u.gstage = 'go'; u.path = findPath(B.map, u, { x: b.stairs.x + 0.5, y: b.stairs.y + 0.5 }, 'inf'); u.order.floor = Math.min(order.floor ?? b.floors - 1, b.floors - 1); } else u.order = { type: 'hold' }; }
 }
@@ -190,6 +193,7 @@ function applySupport(B, spec) {
 function tickSupport(B) {
   for (const p of B.pend.filter((q) => q.at <= B.tick)) {
     if (p.kind === 'shell') { blast(B, p.x, p.y, p.r, p.dmg, 'shell'); continue; }
+    if (p.kind === 'charge') { blast(B, p.x, p.y, p.r, p.dmg, 'charge'); continue; }
     const S = SUPPORT[p.kind];
     if (S.group === 'air') { const dur = Math.round(S.seconds * TICK.perSecond); B.runs.push({ kind: p.kind, id: p.id, x0: p.x - S.len / 2, x1: p.x + S.len / 2, y: p.y, t0: B.tick, dur, bx: Array.from({ length: S.bombs || 0 }, (_, i) => p.x + (i - ((S.bombs || 0) - 1) / 2) * 3), dropped: 0 }); B.events.push({ t: B.tick, k: 'pass', id: p.id, kind: p.kind, x0: p.x - S.len / 2, x1: p.x + S.len / 2, y: p.y, dur }); }
     else if (S.group === 'smoke') { B.smoke.push({ x: p.x, y: p.y, r: S.r, until: B.tick + S.seconds * TICK.perSecond }); B.events.push({ t: B.tick, k: 'smoke', x: p.x, y: p.y, r: S.r }); }
@@ -205,7 +209,29 @@ function tickSupport(B) {
     else if (run.dropped < run.bx.length && x >= run.bx[run.dropped]) { blast(B, run.bx[run.dropped], run.y, S.r, S.dmg, 'bomber'); run.dropped++; }
   }
   B.runs = B.runs.filter((r) => !r.down && B.tick - r.t0 <= r.dur);
+  tickDrones(B);
   if (B.smoke.length) B.smoke = B.smoke.filter((c) => c.until > B.tick);
+}
+
+// ---- the UAV team: scout drones that spot, FPV drones that dive
+const flak = (B, d) => (B.rules >= 3 ? B.units.filter((g) => g.alive && !g.fled && g.side !== d.side && g.W.airOnly && Math.hypot(g.x - d.x, g.y - d.y) <= g.W.range).length : 0);
+function tickDrones(B) {
+  const sp = (UAV.speed / TICK.perSecond); const fsp = (UAV.fpvSpeed / TICK.perSecond);
+  for (const d of B.drones) {
+    const dx = d.tx - d.x; const dy = d.ty - d.y; const l = Math.hypot(dx, dy); if (l > sp) { d.x += (dx / l) * sp; d.y += (dy / l) * sp; } else { d.x = d.tx; d.y = d.ty; }
+    d.left--; if (B.tick % 5 === 0 && d.side === 'p') for (const e of B.units) if (e.alive && !e.fled && e.side !== d.side && Math.hypot(e.x - d.x, e.y - d.y) <= UAV.r) B.spotted[e.id] = B.tick;
+    const g = flak(B, d); if (g && chance(`${B.key}|${B.tick}|${d.id}|dz`) < 1 - (1 - 0.03) ** g) { d.left = 0; d.shot = true; B.events.push({ t: B.tick, k: 'dronedown', x: d.x, y: d.y }); }
+    if (d.left <= 0) { const o = B.byId.get(d.owner); if (o) o.recharge = UAV.recharge * TICK.perSecond; d.gone = true; }
+  }
+  B.drones = B.drones.filter((d) => !d.gone);
+  for (const f of B.fpvs) {
+    let tx = f.tx; let ty = f.ty; let best = null; let bd = UAV.fpvSeek; for (const e of B.units) if (e.alive && !e.fled && e.side !== f.side) { const k = Math.hypot(e.x - f.tx, e.y - f.ty); if (k < bd) { bd = k; best = e; } }
+    if (best) { tx = best.x; ty = best.y; }
+    const dx = tx - f.x; const dy = ty - f.y; const l = Math.hypot(dx, dy); const bl = UAV.fpvBlast[f.item];
+    const g = flak(B, f); if (g && chance(`${B.key}|${B.tick}|${f.id}|fz`) < 1 - (1 - 0.03) ** g) { f.gone = true; B.events.push({ t: B.tick, k: 'dronedown', x: f.x, y: f.y }); continue; }
+    if (l <= 0.8 || l <= fsp) { f.x = tx; f.y = ty; blast(B, f.x, f.y, bl.r, bl.dmg, 'fpv'); f.gone = true; } else { f.x += (dx / l) * fsp; f.y += (dy / l) * fsp; }
+  }
+  B.fpvs = B.fpvs.filter((f) => !f.gone);
 }
 
 // ---- moving
@@ -241,9 +267,18 @@ function garrisonStep(B, u) {
   // 'post': stands at the window and holds
 }
 
+/** The nearest downed friend nobody has stabilised yet (for a medic), within reach. */
+function downedNear(B, u, reach) {
+  let best = null; let bd = reach;
+  for (const d of B.units) { if (d.alive || d.fled || d.side !== u.side || d.kind !== 'inf' || d.stab || d.evac || d.id === u.id) continue; const k = dist(u, d); if (k < bd) { bd = k; best = d; } }
+  return best;
+}
+function standBeside(B, d) { return standNear(B, d.x, d.y, 'inf'); }
+
 function step1(B, u, idxU) {
   if (!u.alive || u.fled) return;
   if (u.burning && B.tick % 10 === 0) { u.hp -= MODULE.burn; if (u.hp <= 0) { u.alive = false; u.hp = 0; B.events.push({ t: B.tick, k: 'down', id: u.id, by: 'fire' }); return; } }
+  if (u.recharge > 0) u.recharge--;
   if (u.fuelT != null && u.alive && !u.fled) { u.fuelT--; if (u.fuelT === 0) { B.events.push({ t: B.tick, k: 'bingo', id: u.id }); setOrder(B, u, { type: 'retreat' }); } }
   u.supp = Math.max(0, u.supp - SUPPRESS.decay);
   const ns = stateOf(u);
@@ -253,6 +288,7 @@ function step1(B, u, idxU) {
   u.fatigueP = Math.min(0.3, (u.fatigue || 0) / 400);
   if (u.role === 'medic' && B.tick % 10 === 0) for (const n of B.units) if (n.alive && n.side === u.side && n !== u && n.hp < n.hpMax && !isVeh(n) && dist(n, u) <= ROLE.medic.radius) n.hp = Math.min(n.hpMax, n.hp + ROLE.medic.heal);
   if (u.role === 'officer' && B.tick % 10 === 0) for (const n of B.units) if (n.alive && n.side === u.side && n.supp > 0 && dist(n, u) <= ROLE.officer.rally) n.supp = Math.max(0, n.supp - 2);
+  if (B.rules >= 3 && u.kind === 'helicopter' && u.vtype === 'mercy' && u.alive && B.tick % 10 === 0) { for (const d of B.units) if (!d.alive && !d.fled && d.side === u.side && d.kind === 'inf' && !d.evac && dist(u, d) <= TEND.pickup) { d.stab = true; d.evac = true; d.fled = true; B.events.push({ t: B.tick, k: 'evac', id: d.id, by: u.id }); } }
   u.cd--;
   if (u.W.range > 0 && B.tick % TICK.decide === idxU % TICK.decide) u.target = (() => { const t = pickTarget(B, u); return t ? t.id : null; })();
   const tgt = u.target ? B.byId.get(u.target) : null;
@@ -273,6 +309,22 @@ function step1(B, u, idxU) {
   if (o.type === 'smoke') {
     if (Math.hypot(o.x - u.x, o.y - u.y) <= SUPPORT.smoke.throw) { if (u.smokes > 0) { u.smokes--; B.pend.push({ at: B.tick + Math.round(SUPPORT.smoke.delay * TICK.perSecond), kind: 'smoke', x: o.x, y: o.y }); B.events.push({ t: B.tick, k: 'throw', id: u.id, x: o.x, y: o.y }); } u.order = { type: 'hold' }; u.path = []; }
     else { if (!u.path.length) u.path = findPath(B.map, u, { x: o.x, y: o.y }, 'inf'); moves = !u.broken; }
+  } else if ((o.type === 'tend' || (B.rules >= 3 && u.role === 'medic' && o.type === 'hold' && !tgt)) && u.role === 'medic' && !u.broken) {
+    const d = downedNear(B, u, o.type === 'tend' ? TEND.orderReach : TEND.reach);
+    if (!d) { if (o.type === 'tend') u.order = { type: 'hold' }; u.tendT = 0; }
+    else if (dist(u, d) > 1.3) { special = true; u.tendT = 0; if (!u.path.length || B.tick % 20 === 0) { const sp = standBeside(B, d); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; } moves = true; }
+    else { special = true; moves = false; u.tendT++; if (u.tendT >= TEND.seconds * TICK.perSecond) { d.stab = true; u.tendT = 0; B.events.push({ t: B.tick, k: 'stabilised', id: d.id, by: u.id }); } }
+  } else if (o.type === 'charge' && u.role === 'engineer' && !u.broken) {
+    const wx = Math.floor(o.x); const wy = Math.floor(o.y); const dd = Math.hypot(wx + 0.5 - u.x, wy + 0.5 - u.y);
+    if (dd > 1.9) { if (!u.path.length) { const sp = standNear(B, o.x, o.y, 'inf'); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; if (!u.path.length) u.order = { type: 'hold' }; } moves = true; }
+    else { special = true; moves = false; u.plantT++; if (u.plantT >= CHARGE.plant * TICK.perSecond) { if (B.sup.items.item_breach_charge > 0) { B.sup.items.item_breach_charge--; B.counts.items.item_breach_charge = (B.counts.items.item_breach_charge || 0) + 1; B.pend.push({ at: B.tick + CHARGE.fuse * TICK.perSecond, kind: 'charge', x: wx + 0.5, y: wy + 0.5, r: CHARGE.r, dmg: CHARGE.dmg }); B.events.push({ t: B.tick, k: 'plant', id: u.id, x: wx + 0.5, y: wy + 0.5 }); } u.order = { type: 'move', x: u.x - Math.sign(wx + 0.5 - u.x) * 5, y: u.y - Math.sign(wy + 0.5 - u.y) * 5 }; u.path = findPath(B.map, u, u.order, 'inf'); u.plantT = 0; } }
+  } else if (o.type === 'scout' && u.role === 'uav' && !u.broken) {
+    if (u.recharge <= 0 && !B.drones.some((q) => q.owner === u.id)) { B.drones.push({ id: `D${B.tick}${u.id}`, owner: u.id, side: u.side, x: u.x, y: u.y, tx: o.x, ty: o.y, left: UAV.battery * TICK.perSecond }); B.events.push({ t: B.tick, k: 'launch', id: u.id, kind: 'scout' }); }
+    u.order = { type: 'hold' };
+  } else if (o.type === 'fpv' && u.role === 'uav' && !u.broken) {
+    const item = B.sup.items.item_drone_attack > 0 ? 'item_drone_attack' : B.sup.items.item_drone_strike > 0 ? 'item_drone_strike' : null;
+    if (item) { B.sup.items[item]--; B.counts.items[item] = (B.counts.items[item] || 0) + 1; B.fpvs.push({ id: `F${B.tick}${u.id}`, item, side: u.side, x: u.x, y: u.y, tx: o.x, ty: o.y }); B.events.push({ t: B.tick, k: 'launch', id: u.id, kind: 'fpv' }); }
+    u.order = { type: 'hold' };
   } else if (o.type === 'fire' && u.arty && !u.broken) {
     const dd = Math.hypot(o.x - u.x, o.y - u.y); special = true; moves = false; u.aim = { x: o.x, y: o.y };
     if (dd > u.arty.range) { u.order = { type: 'hold' }; B.events.push({ t: B.tick, k: 'outofrange', id: u.id }); }
@@ -280,7 +332,7 @@ function step1(B, u, idxU) {
       if (!(B.sup.items.item_artillery_shell > 0)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
       else {
         B.sup.items.item_artillery_shell--; B.counts.items.item_artillery_shell = (B.counts.items.item_artillery_shell || 0) + 1; u.shots++; u.cd = Math.round(u.arty.interval * TICK.perSecond);
-        const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)); const sc = spotted ? SCATTER.spotted : SCATTER.blind;
+        const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)) || B.drones.some((d) => d.side === u.side && dist(d, o) <= UAV.r); const sc = spotted ? SCATTER.spotted : SCATTER.blind;
         const a = chance(`${B.key}|${B.tick}|${u.id}|sa`) * Math.PI * 2; const r = Math.sqrt(chance(`${B.key}|${B.tick}|${u.id}|sr`)) * sc; const lx = o.x + Math.cos(a) * r; const ly = o.y + Math.sin(a) * r;
         B.pend.push({ at: B.tick + Math.max(10, Math.round((dd / u.arty.speed) * TICK.perSecond)), kind: 'shell', x: lx, y: ly, r: u.arty.r, dmg: u.arty.dmg }); B.events.push({ t: B.tick, k: 'shell', id: u.id, x: o.x, y: o.y });
       }
@@ -373,7 +425,8 @@ export function outcome(B) {
     if (!u.alive) {
       if (u.rec.t !== 'person') { lost.push(u.rec.id); continue; }
       // put out of action: dead with a chance (less with plate armour), else badly wounded; a hash, so a replay agrees
-      if (chance(`${B.key}|down|${u.id}`) < Math.min(0.8, DOWN.dead / u.prot)) dead.push(u.rec.id);
+      if (u.stab) wounded.push({ id: u.rec.id, wounds: DOWN.woundsLow }); // a medic got to him
+      else if (chance(`${B.key}|down|${u.id}`) < Math.min(0.8, DOWN.dead / u.prot)) dead.push(u.rec.id);
       else wounded.push({ id: u.rec.id, wounds: DOWN.woundsLow + Math.floor(chance(`${B.key}|dw|${u.id}`) * (DOWN.woundsHigh - DOWN.woundsLow + 1)) });
       continue;
     }
