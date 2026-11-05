@@ -93,7 +93,7 @@ test('what the company can call comes from what it really holds: missiles and dr
   const C = { stock: { 'arms:aw1:item_missile_guided': 5, 'arms:aw1:item_drone_strike': 2, 'supply:fuel': 12, 'arms:aw1:item_smg': 30 }, equipment: [
     { id: 'E1', kind: 'aircraft', type: 'af_kestrel', name: 'Kestrel', status: 'stored', assignedTo: null }, { id: 'E2', kind: 'aircraft', type: 'bm_hammer_bomber', name: 'Hammer', status: 'stored', assignedTo: null }, { id: 'E3', kind: 'aircraft', type: 'af_kestrel', name: 'Away', status: 'deployed', assignedTo: null }, { id: 'E4', kind: 'vehicle', type: 'anvil', name: 'Tank', status: 'stored', assignedTo: null }] };
   const S = supportOf(C); assert.deepEqual(S.items, { item_missile_guided: 3, item_drone_strike: 2 }); assert.deepEqual(S.air.map((a) => a.id), ['E1'], 'fuel for one pass of 6, and the bomber needs 10 more');
-  assert.deepEqual(supportOf({ stock: {}, equipment: [] }), { items: {}, air: [] });
+  assert.deepEqual(supportOf({ stock: {}, equipment: [] }), { items: {}, air: [], strategic: [] });
 });
 
 test('a battle with support in its order log replays exactly: the missile, the pass and the smoke are all in the log', () => {
