@@ -76,17 +76,22 @@ export function delegate(game, id, { squads, general }) {
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
   // every check passed: now the changes
-  const F = forces(game, squads);
-  for (const s of chosen) { s.status = 'away'; }
-  for (const p of F.people) C.personnel.find((x) => x.id === p.id).post = `engagement:${eng.id}`;
-  for (const v of F.vehicles) C.equipment.find((x) => x.id === v.id).status = 'deployed';
-  gen.status = 'away';
+  const F = commitForces(game, C, eng, squads, gen);
   eng.state = 'delegated'; eng.order = { squads: [...squads], general: gen.id, generalName: gen.name, day: game.clock.day, end: game.clock.day + eng.days };
   C.log.push({ day: game.clock.day, text: `${gen.name} takes ${eng.title} for ${eng.client}.` });
   return { ok: true, text: `${gen.name} will fight it with ${F.people.length} soldiers and ${F.vehicles.length} vehicles. The result comes in ${eng.days} days.` };
 }
 
-/** Playing it yourself is the overhead battle (v0.101.0). Until then it is not on offer; once an engagement is given to a general it can never be. */
+/** Hold everything an engagement sends: the squads go away, their people are on a post, the vehicles are deployed and the general (if any) is away. Both ways of fighting use this. */
+function commitForces(game, C, eng, squads, gen) {
+  const F = forces(game, squads);
+  for (const s of F.squads) s.status = 'away';
+  for (const p of F.people) C.personnel.find((x) => x.id === p.id).post = `engagement:${eng.id}`;
+  for (const v of F.vehicles) C.equipment.find((x) => x.id === v.id).status = 'deployed';
+  if (gen) gen.status = 'away';
+  return F;
+}
+
 export function play(game, id) {
   const eng = find(game, id);
   if (!eng) return { ok: false, text: 'No such engagement.' };
@@ -103,13 +108,13 @@ export function decline(game, id) {
 
 const rocketKeys = (C) => Object.keys(C.stock).filter((k) => k.endsWith(':item_rpg_rocket')).sort();
 
-/** Fight it, once, and apply the result to the real records. Returns the report. */
-function finish(game, C, eng) {
+/**
+ * Apply an outcome to the real records, ONCE, and write the after-action report from what was applied. Both ways of fighting end here: a general's aggregate result (resolve) and a played
+ * battle's (src/battle/sim.js); they return the same shape: { objectives, outcome, ratio, parts, dead:[ids], wounded:[{id,wounds}], lost:[ids], used:{fuel,rockets} }.
+ */
+export function applyOutcome(game, C, eng, R) {
   if (eng.result || eng.state === 'resolved') return eng.result;
   const squadIds = eng.order.squads;
-  const { F, input } = inputFor(game, eng, squadIds, eng.order.general);
-  // the forces now are the forces that were sent: posts and 'deployed' are what held them, so read them with the status they were given
-  const R = resolve({ ...input, people: F.people.length ? F.people : input.people });
   const day = game.clock.day;
   const lines = [];
   const name = (id) => C.personnel.find((p) => p.id === id)?.name || id;
@@ -129,7 +134,7 @@ function finish(game, C, eng) {
   if (R.used.fuel) { let left = R.used.fuel; const k = 'supply:fuel'; const t = Math.min(left, C.stock[k] || 0); if (t) { takeStock(game, k, t); used[SUPPLIES.fuel.name] = t; } }
   if (R.used.rockets) { let left = R.used.rockets; for (const k of rocketKeys(C)) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; used['RPG rockets'] = (used['RPG rockets'] || 0) + t; } if (!left) break; } }
   // the general and the money
-  const gen = C.generals.find((x) => x.id === eng.order.general);
+  const gen = eng.order.general ? C.generals.find((x) => x.id === eng.order.general) : null;
   if (gen) { gen.status = 'home'; if (R.objectives >= 2) gen.wins++; else if (R.objectives === 0) gen.losses++; }
   const rep = C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} };
   const share = [0, 0.45, 0.9, 1][R.objectives];
@@ -142,11 +147,19 @@ function finish(game, C, eng) {
   lines.push(`${R.objectives} of 3 objectives. ${dead.length} killed, ${hurt.length} wounded, ${lostV.length} vehicle${lostV.length === 1 ? '' : 's'} lost.`);
   if (Object.keys(used).length) lines.push(`Used: ${Object.entries(used).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ')}.`);
   lines.push(R.objectives ? `Paid ${paid.toLocaleString('en-US')} of ${eng.pay.toLocaleString('en-US')} obols.` : `Failed: fined ${fine.toLocaleString('en-US')} obols; ${eng.client} will not call for ${E.ban} days.`);
-  eng.result = { day, outcome: R.outcome, objectives: R.objectives, ratio: Math.round(R.ratio * 100) / 100, parts: R.parts, dead, wounded: hurt, lost: lostV, used, general: eng.order.generalName, paid, fine, lines };
+  eng.result = { day, outcome: R.outcome, objectives: R.objectives, ratio: Math.round((R.ratio || 0) * 100) / 100, parts: R.parts || null, how: R.how || 'general', dead, wounded: hurt, lost: lostV, used, general: eng.order.generalName || null, paid, fine, lines };
   eng.state = 'resolved'; eng.ended = day;
   C.log.push({ day, text: `${eng.title}: ${R.outcome.replace('_', ' ')} (${R.objectives} of 3). ${dead.length} killed.` });
   game.notify?.(`${eng.title} is over: ${R.outcome.replace('_', ' ')}. ${dead.length} killed, ${hurt.length} wounded.`, R.objectives >= 2 ? 'good' : 'warn');
   return eng.result;
+}
+
+/** The end day of a delegated engagement (or a played one): the result is worked out by the general, or the one the played battle filed is used, and applied. */
+function finish(game, C, eng) {
+  if (eng.result || eng.state === 'resolved') return eng.result;
+  const { F, input } = inputFor(game, eng, eng.order.squads, eng.order.general);
+  const R = eng.battle?.result ? { ...eng.battle.result, how: 'played' } : resolve({ ...input, people: F.people.length ? F.people : input.people });
+  return applyOutcome(game, C, eng, R);
 }
 
 function offerOne(game, C, day) {
@@ -179,7 +192,7 @@ export function dayTick(game) {
   const list = ensure(C);
   for (const eng of list) {
     if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = 'The client found someone else.'; }
-    else if (eng.state === 'delegated' && eng.order.end <= day) finish(game, C, eng);
+    else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');
   const open = list.filter((x) => x.state === 'open').length;

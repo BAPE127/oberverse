@@ -7,6 +7,7 @@
 //   input: { key, days, terrain, goal, enemy:{troops,armour,air,skill}, people:[{id,role,tier,armour,exp,morale,fatigue,armed}], vehicles:[{id,cls,armour,firepower,speed}],
 //            general: null | {offence,defence,logistics,air,intel,risk,bonus}, supplies:{fuel,rockets} }
 import { ENGAGE } from '../content/generals.js';
+import { DOWN } from '../content/battle.js';
 import { ARMOUR } from '../content/troops.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -58,10 +59,10 @@ export function resolve(input, { expected = false } = {}) {
   // losses: a share of the people, more when the odds are bad, scaled by days and by how readily the general accepts them; medics save some; armour stops some
   const r = 1 / Math.max(0.2, ratio);
   const risk = general ? general.risk : 0.5;
-  const rate = clamp((0.03 + 0.06 * r) * (1 + 0.4 * (risk - 0.5)) * Math.sqrt(days / 14), 0.02, 0.45);
+  const rate = clamp((0.10 + 0.36 * r) * (1 + 0.4 * (risk - 0.5)) * Math.sqrt(days / 14), 0.05, 0.6); // (v0.101.0: set against the played battle, tests/battle_calibration.test.mjs)
   const medics = people.filter((p) => p.role === 'medic').length;
-  const deadShare = rate * 0.35 * (1 - Math.min(0.4, 0.08 * medics));
-  const woundShare = rate * 0.65;
+  const deadShare = rate * DOWN.dead * (1 - Math.min(0.4, 0.08 * medics));
+  const woundShare = rate * (1 - DOWN.dead);
   const dead = []; const wounded = [];
   let eDead = 0; let eWounded = 0;
   for (const p of people) {
