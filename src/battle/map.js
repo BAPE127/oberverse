@@ -197,7 +197,7 @@ function fieldsV2(m) {
   const rx = Math.floor(W / 2) - 1; const ty = 38; const blocks = [];
   const track = (x, y, w, h) => { rect(m, x, y, w, h, ':'); blocks.push({ x, y, w, h }); };
   // tracks first, so the fields sit between them: the main track through both villages, a north and a south track, and three that run down the map
-  track(0, ty, W, 3); track(0, 60, W, 2); track(0, 2, W, 2); for (const x of [3, 92]) track(x, 0, 2, H);
+  track(0, ty, W, 3); track(0, 60, W, 2); track(0, 2, W, 2); for (const x of [3, W - 5]) track(x, 0, 2, H);
   // the river runs down the middle; a bridge on the main track and another on the south track
   for (let j = 0; j < H; j++) { const off = Math.round(1.6 * Math.sin(j / 7)); rect(m, rx + off, j, 3, 1, '~'); } blocks.push({ x: rx - 2, y: 0, w: 8, h: H });
   rect(m, rx - 2, ty, 7, 3, 'b'); rect(m, rx - 2, 60, 7, 2, 'b');
@@ -209,14 +209,14 @@ function fieldsV2(m) {
     [[-1, 7], [16, 7]].forEach(([dx, w], k) => plan(m, vx + dx, vy - 10, w, 6, floors(k + 1), { shop: false }));
     plan(m, vx + 7, vy - 11, 8, 7, 2, { name: 'Church', roofKind: A.style === 'varn' || A.style === 'halver' ? 'dome' : 'gable', wall: '#efe8d8' });
     [[-1, 8], [8, 7], [16, 7]].forEach(([dx, w], k) => plan(m, vx + dx, vy + 13, w, 6, floors(k), { shop: false }));
-    prop(m, 'fountain', vx + 10, vy + 4); for (let i = 0; i < 6; i++) prop(m, 'tree', vx + 2 + i * 3, vy + 8, { color: tc }); prop(m, 'bench', vx + 5, vy + 5); prop(m, 'bench', vx + 15, vy + 5);
+    prop(m, 'fountain', vx + 10, vy + 4); for (let i = 0; i < 6; i++) prop(m, 'tree', vx + 2 + i * 3, vy + 8, { color: tc }); prop(m, 'bench', vx + 5, vy + 5); prop(m, 'bench', vx + 15, vy + 5); for (const [dx, dy] of [[2, 2], [4, 2], [18, 3], [20, 2]]) prop(m, 'pine', vx + dx, vy + dy, { color: '#3a6a46' });
     if (tag === 'b') prop(m, 'watertower', vx + 23, vy + 3, { w: 4, h: 5 }); else { prop(m, 'haybale', vx - 2, vy + 20); prop(m, 'tractor', vx + 17, vy + 21, { w: 3, h: 2 }); }
   };
-  village(10, 28, 'a'); village(62, 28, 'b');
+  village(26, 28, 'a'); village(72, 28, 'b');
   // fields between: patches of crop with a bush hedgerow round each
   const crops = A.biome === 'desert' ? ['fallow', 'sorghum'] : ['wheat', 'corn', 'cotton', 'sorghum', 'fallow'];
   const hit = (x, y, w, h, o) => x < o.x + o.w + 1 && x + w > o.x - 1 && y < o.y + o.h + 1 && y + h > o.y - 1;
-  for (let tries = 0; tries < 220 && m.fields.length < 14; tries++) {
+  for (let tries = 0; tries < 400 && m.fields.length < 18; tries++) {
     const w = 10 + Math.floor(R() * 8); const h = 6 + Math.floor(R() * 7); const x = 2 + Math.floor(R() * (W - w - 4)); const y = 5 + Math.floor(R() * (H - h - 6));
     if (blocks.some((o) => hit(x, y, w, h, o)) || m.fields.some((f) => hit(x, y, w, h, f))) continue;
     m.fields.push({ x, y, w, h, crop: crops[Math.floor(R() * crops.length)] }); rect(m, x, y, w, h, 'k');

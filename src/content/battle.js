@@ -59,7 +59,7 @@ export const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
 export const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
 
 /** The two battle recipes of this release (the other recipes come with the later sub-releases). */
-export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 96, h: 64 } };
+export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 120, h: 64 } };
 /** The sizes of the first generation of maps (v0.101.0), kept so a battle saved mid-way replays on the map it began on (setup.map.ver absent). */
 export const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
 /** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */
