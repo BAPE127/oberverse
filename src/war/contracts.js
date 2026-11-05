@@ -8,6 +8,7 @@
 import { peekMilitary } from './state.js';
 import { nextId } from './equipment.js';
 import { idle } from './people.js';
+import { equip, inStores } from './loadout.js';
 import { CLIENTS, KINDS, RISK, CONTRACTS as K } from '../content/contracts.js';
 
 const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
@@ -19,22 +20,19 @@ function ensure(C) { C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban:
 export const reputation = (game) => peekMilitary(game)?.company?.rep?.score || 0;
 const maxOpen = (rep) => Math.min(K.maxOpen, K.open + Math.floor(Math.max(0, rep) / K.perRep));
 
-/** Pistols and radios in the stores: the keys they sit under. */
-function kitKeys(C) {
-  const pistols = Object.keys(C.stock).filter((k) => /^arms:[^:]+:item_pistol$/.test(k)).sort();
-  return { pistols, radio: 'supply:radio' };
-}
-const pistolCount = (C) => kitKeys(C).pistols.reduce((a, k) => a + C.stock[k], 0);
+/** The guards a job would use: the ones already armed first (a guard keeps their own pistol), then the rest. */
+const crewFor = (game, n) => idle(game, 'guard').sort((x, y) => Number(Boolean(y.weapon)) - Number(Boolean(x.weapon)) || (x.id < y.id ? -1 : 1)).slice(0, n);
 
-/** What a job still needs the company does not have (an empty list = it can take it). */
+/** What a job still needs the company does not have (an empty list = it can take it). A guard carries their own pistol, so only the unarmed ones need one from the stores. */
 export function missing(game, c) {
   const C = peekMilitary(game)?.company;
   const out = [];
   const guards = idle(game, 'guard').length;
   if (guards < c.guards) out.push(`${c.guards - guards} more guard${c.guards - guards === 1 ? '' : 's'}`);
-  const p = pistolCount(C);
-  if (p < c.guards) out.push(`${c.guards - p} more pistol${c.guards - p === 1 ? '' : 's'}`);
-  if ((C.stock[kitKeys(C).radio] || 0) < K.radio) out.push('a radio');
+  const unarmed = crewFor(game, c.guards).filter((p) => !p.weapon).length;
+  const p = inStores(game, 'item_pistol');
+  if (p < unarmed) out.push(`${unarmed - p} more pistol${unarmed - p === 1 ? '' : 's'}`);
+  if ((C.stock['supply:radio'] || 0) < K.radio) out.push('a radio');
   return out;
 }
 
@@ -45,12 +43,10 @@ export function accept(game, id) {
   const lack = missing(game, c);
   if (lack.length) return { ok: false, text: `Your forces do not meet this one: you need ${lack.join(', ')}.` };
   // every check passed: now the changes
-  const crew = idle(game, 'guard').slice(0, c.guards);
-  for (const p of crew) p.post = `contract:${c.id}`;
+  const crew = crewFor(game, c.guards);
+  for (const p of crew) { const e = equip(game, p.id); if (!e.ok) return { ok: false, text: e.text }; p.post = `contract:${c.id}`; } // (the stores were checked above: a guard without a pistol is given one, once)
   c.crew = crew.map((p) => p.id);
   c.kit = {};
-  let need = c.guards;
-  for (const key of kitKeys(C).pistols) { const t = Math.min(need, C.stock[key]); if (t > 0) { C.stock[key] -= t; if (!C.stock[key]) delete C.stock[key]; c.kit[key] = t; need -= t; } if (!need) break; }
   C.stock['supply:radio'] -= K.radio; if (!C.stock['supply:radio']) delete C.stock['supply:radio']; c.kit['supply:radio'] = K.radio;
   c.state = 'active'; c.start = game.clock.day; c.end = game.clock.day + c.days;
   C.log.push({ day: game.clock.day, text: `Took the job: ${c.title} for ${c.clientName}.` });

@@ -11,6 +11,8 @@ import { runDay } from './day.js';
 import { hire as hireIn, dismiss as dismissOut } from './people.js';
 import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
 import { accept as acceptJob, decline as declineJob, view as contractsView, missing as jobMissing } from './contracts.js';
+import { equip as equipPerson, equipClass as equipTheClass, setTier as setClassTier, setArmour as setPersonArmour } from './loadout.js';
+import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
 import { checkMilitary } from './check.js';
 import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -77,6 +79,29 @@ export class War {
   upgrade(works) { return upgradeWorks(this.g, works); }
   maintain(works) { return maintainWorks(this.g, works); }
   production() { return productionView(this.g); }
+
+  // ---- people, squads and loadouts (v0.100.0 stage 7)
+  equip(pid) { return equipPerson(this.g, pid); }
+  equipClass(role) { return equipTheClass(this.g, role); }
+  setTier(role, tier) { return setClassTier(this.g, role, tier); }
+  armour(pid, era) { return setPersonArmour(this.g, pid, era); }
+  armourClass(role, era) {
+    const C = this.peek()?.company;
+    if (!C) return { ok: false, text: 'You have no company.' };
+    const people = C.personnel.filter((p) => p.role === role && p.status !== 'dead');
+    if (!people.length) return { ok: false, text: 'No one of that class.' };
+    let done = 0; let last = null;
+    for (const p of people) { const r = setPersonArmour(this.g, p.id, era); if (r.ok) done++; else last = r; }
+    return done ? { ok: true, text: `${done} changed their armour.${last ? ` ${last.text}` : ''}` } : last;
+  }
+  squads() { return squadsView(this.g); }
+  squadCreate(name) { return createSquad(this.g, name); }
+  squadAssign(squadId, pid) { return assignSquad(this.g, squadId, pid); }
+  squadRemove(pid) { return unassignSquad(this.g, pid); }
+  squadLeader(squadId, pid) { return leadSquad(this.g, squadId, pid); }
+  squadVehicle(squadId, eid) { return squadGetsVehicle(this.g, squadId, eid); }
+  squadDisband(squadId) { return disbandSquad(this.g, squadId); }
+  squadLook(squadId, look) { return lookSquad(this.g, squadId, look); }
 
   contracts() { return contractsView(this.g); }
   accept(id) { return acceptJob(this.g, id); }

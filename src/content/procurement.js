@@ -63,6 +63,7 @@ export const SUPPLIES = {
   uniform: { name: 'Uniform and kit', price: 90, group: 'issue', text: 'Boots, a vest and a helmet.' },
   radio: { name: 'Field radio', price: 260, group: 'issue', text: 'Two kilometres on a good day.' },
   medicine: { name: 'Medical supplies', price: 140, group: 'issue', text: 'Bandages, morphine and a lot of tape.' },
+  plate_carrier: { name: 'Plate carrier', price: 1800, group: 'issue', text: 'Plates, night-vision helmet and knee pads: armour era 2.' },
   rations: { name: 'Rations (a day for one)', price: 6, group: 'issue', text: 'Food that keeps.' },
   spares: { name: 'Vehicle spares', price: 450, group: 'issue', text: 'Filters, belts and track links.' },
   fuel: { name: 'Fuel (a drum)', price: 180, group: 'issue', text: 'Diesel by the drum.' },

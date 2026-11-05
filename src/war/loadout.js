@@ -21,6 +21,8 @@ export function itemFor(role, tier) {
 /** The stock keys that hold an item, in a steady order (`arms:aw1:item_smg`). A key for a supply is itself. */
 const keysFor = (C, item) => (item.startsWith('supply:') ? [item] : Object.keys(C.stock).filter((k) => k.endsWith(`:${item}`) && k.startsWith('arms:')).sort());
 const have = (C, item) => keysFor(C, item).reduce((a, k) => a + (C.stock[k] || 0), 0);
+/** How many of an item (a weapon, or a supply key) the stores hold. */
+export const inStores = (game, item) => have(peekMilitary(game).company, item);
 const itemOfKey = (key) => (key.startsWith('supply:') ? key : key.split(':')[2]);
 
 function takeOne(game, C, item) {

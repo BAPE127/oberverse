@@ -5,6 +5,7 @@
 //   MODELS     what each model needs and how long a line takes at one shift
 //   UPGRADE / WEAR   the works' own condition and the money to improve it
 import { VEHICLES, SUPPLIES } from './procurement.js';
+import { CLASSES } from './troops.js';
 
 export const WORKS = {
   tank_factory: { name: 'Tank factory', makes: 'tank', crewPerShift: 6, maxShifts: 3 },
@@ -37,4 +38,4 @@ export const UPGRADE = { max: 2, cost: [150000, 300000], boost: 0.15 };
 export const WEAR = { perLine: 2, slow: 30, bad: 60, slowMult: 0.8, badMult: 0.5, fixPerPoint: 1500 };
 
 /** The people the company employs (v0.99.0: a recruit is a record with a wage and a bed; v0.100.0 adds roles, training and squads). Wages are obols a day. */
-export const PEOPLE = { guard: { name: 'Guard', wage: 120, text: 'Stands a post and watches a door.' }, technician: { name: 'Technician', wage: 160, text: 'Works a line at the tank factory or the helicopter works.' } };
+export const PEOPLE = { guard: CLASSES.guard, technician: CLASSES.technician };

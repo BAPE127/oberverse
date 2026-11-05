@@ -458,6 +458,13 @@ try {
       ui.milTab = tab; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
       out[tab] = re.test(document.querySelector('#modal-body')?.textContent || '');
     }
+    // v0.100.0: the People, Squads and Armoury screens open from the Company page
+    ui.milTab = 'Company';
+    for (const [sub, re] of [['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/]]) {
+      ui.milSub = sub; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
+      out[sub] = re.test(document.querySelector('#modal-body')?.textContent || '');
+    }
+    ui.milSub = null;
     ui.milTab = 'Company';
     return out;
   });

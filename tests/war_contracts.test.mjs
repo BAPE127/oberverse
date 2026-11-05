@@ -62,7 +62,7 @@ test('a new firm with guards and pistols and nothing heavy takes a job and compl
   days(g, 1);
   const fin = g.war.contracts().done[0];
   assert.ok(['done', 'failed'].includes(fin.state), fin.state);
-  assert.equal(g.war.stock()['arms:aw1:item_pistol'], 6, 'the pistols are back'); assert.equal(g.war.stock()['supply:radio'], 1);
+  assert.equal(g.war.stock()['arms:aw1:item_pistol'], 6 - o.guards, 'the guards keep their pistols (v0.100.0: a guard carries their own)'); assert.equal(g.war.people().filter((p) => p.weapon === 'arms:aw1:item_pistol').length, o.guards); assert.equal(g.war.stock()['supply:radio'], 1);
   assert.deepEqual(g.war.people().filter((p) => p.post), []);
   assert.equal(g.player.money, w0, 'your wallet never moved');
   if (fin.state === 'done') assert.equal(g.war.cash(), cash0 + o.pay - wages * o.days, 'the pay, less the days\' wages');
@@ -129,7 +129,7 @@ test('a long run stays small, consistent and honest: 300 days of a working firm 
   const w1 = g.player.money; const size = JSON.stringify(g.world.military).length;
   assert.ok(size < sizeAt100 * 1.4 && size < 60_000, `the record is ${size} bytes (${sizeAt100} at day 100)`);
   assert.ok(g.war.contracts().wins + g.war.contracts().losses >= 10, 'it worked a good many jobs');
-  assert.equal(g.war.stock()['arms:aw1:item_pistol'] + g.war.contracts().active.reduce((a, c) => a + c.guards, 0), 40, 'every pistol is either in the stores or with a guard on a post');
+  assert.equal((g.war.stock()['arms:aw1:item_pistol'] || 0) + g.war.people().filter((p) => p.weapon === 'arms:aw1:item_pistol').length, 40, 'every pistol is either in the stores or in a guard\'s hand');
   assert.ok(g.war.transfers().length <= 80);
   // an older save's account
   const old = warGame(521); old.corp.account('security').funded = false; old.war.dailyTick(); days(old, 1); assert.ok(old.corp.account('security').funded);

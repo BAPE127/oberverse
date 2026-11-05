@@ -30881,6 +30881,7 @@ const SUPPLIES = {
   uniform: { name: 'Uniform and kit', price: 90, group: 'issue', text: 'Boots, a vest and a helmet.' },
   radio: { name: 'Field radio', price: 260, group: 'issue', text: 'Two kilometres on a good day.' },
   medicine: { name: 'Medical supplies', price: 140, group: 'issue', text: 'Bandages, morphine and a lot of tape.' },
+  plate_carrier: { name: 'Plate carrier', price: 1800, group: 'issue', text: 'Plates, night-vision helmet and knee pads: armour era 2.' },
   rations: { name: 'Rations (a day for one)', price: 6, group: 'issue', text: 'Food that keeps.' },
   spares: { name: 'Vehicle spares', price: 450, group: 'issue', text: 'Filters, belts and track links.' },
   fuel: { name: 'Fuel (a drum)', price: 180, group: 'issue', text: 'Diesel by the drum.' },
@@ -31136,6 +31137,262 @@ function buySupply(game, id, qty) {
 return { buyVehicle, buySupply };
 })();
 
+// ---- src/content/troops.js
+__m["src/content/troops.js"] = (function () {
+// The company's people (v0.100.0 stage 7): pure data. Ten troop classes (as in docs/PROPOSAL_WAR_ARMOURY.md), the two working roles of v0.99.0 (guard, technician), what a class
+// carries at each weapon tier, the two armour eras the company can field, and the looks. Tiers 1 and 2 are items the Arms works already makes; tiers 3 to 5 (a new Arms recipe, then
+// energy weapons) and armour eras 3 and 4 are future research and are NOT here.
+//
+//   CLASSES    name, wage a day, days of training (a place at the range or training ground for each), the weapon each tier carries, the gadget, what the class does
+//   ARMOUR     era 1 (field uniform: issued from the stores) and era 2 (plate carrier: bought, stops rifle rounds)
+//   LOOKS      colours, patterns, insignia, crests and squad bands: free and cosmetic
+//   SQUAD      the limits of a squad
+const CLASSES = {
+  guard: { name: 'Guard', group: 'work', wage: 120, train: 0, tiers: { 1: 'item_pistol' }, text: 'Stands a post and watches a door.' },
+  technician: { name: 'Technician', group: 'work', wage: 160, train: 0, tiers: {}, text: 'Works a line at the tank factory or the helicopter works.' },
+  rifleman: { name: 'Rifleman', group: 'troop', wage: 150, train: 5, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' }, text: 'The line: carries the fight.' },
+  machine_gunner: { name: 'Machine gunner', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_lmg' }, text: 'Suppresses what the gun points at.' },
+  anti_tank: { name: 'Anti-tank', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_rpg' }, ammo: { 1: 'item_rpg_rocket' }, text: 'Armour killers: one rocket, then reload.' },
+  marksman: { name: 'Marksman', group: 'troop', wage: 180, train: 8, tiers: { 1: 'item_sniper_rifle' }, text: 'Precision at a distance.' },
+  medic: { name: 'Medic', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_pistol', 2: 'item_smg' }, gadget: 'supply:medicine', text: 'Keeps the wounded alive until the clinic.' },
+  engineer: { name: 'Combat engineer', group: 'troop', wage: 170, train: 7, tiers: { 1: 'item_shotgun', 2: 'item_smg' }, text: 'Builds, breaks and clears.' },
+  signaller: { name: 'Signaller', group: 'troop', wage: 160, train: 6, tiers: { 1: 'item_pistol', 2: 'item_smg' }, gadget: 'supply:radio', text: 'Sees and calls: what the squad knows, the command knows.' },
+  officer: { name: 'Officer', group: 'troop', wage: 260, train: 10, tiers: { 1: 'item_pistol', 2: 'item_smg' }, leads: true, text: 'Leads a squad. A squad has one.' },
+  recon: { name: 'Recon', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' }, text: 'Eyes ahead.' },
+  uav: { name: 'UAV operator', group: 'troop', wage: 190, train: 8, tiers: { 1: 'item_pistol' }, gadget: 'item_drone_attack', text: 'Flies a drone and calls what it sees.' },
+};
+
+const TROOP_CLASSES = Object.keys(CLASSES).filter((id) => CLASSES[id].group === 'troop');
+
+/** What a soldier wears. Era 1 is the issue uniform (a uniform from the stores, once); era 2 adds a plate carrier (bought, one each). `protection` is what the resolver multiplies a soldier's survival by. */
+const ARMOUR = {
+  1: { name: 'Field uniform', protection: 1, supply: 'supply:uniform', text: 'Cloth, a helmet and a vest. Cheap, quick to train.' },
+  2: { name: 'Plate carrier', protection: 1.35, supply: 'supply:plate_carrier', text: 'Plates, night-vision helmet, knee pads. Stops rifle rounds; heavier.' },
+};
+
+const SQUAD = { max: 12, names: ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima'] };
+
+/** Cosmetic only: a squad's colours, pattern, insignia, crest and band. Nothing here changes a number. */
+const LOOKS = {
+  primary: { field_green: '#4a5a3a', desert: '#a8946a', urban_grey: '#6a6e74', navy: '#2a3550', crimson: '#6a2a2e', black: '#2a2a2e' },
+  pattern: ['plain', 'stripes', 'camo', 'chevron', 'checks'],
+  insignia: ['none', 'star', 'bar', 'wing', 'dots'],
+  crest: ['none', 'crest', 'antenna', 'fin'],
+  band: { orange: '#e08a3a', gold: '#e8c84a', green: '#5ad18a', cyan: '#4ad8e8', violet: '#b57af0' },
+};
+const DEFAULT_LOOK = { primary: 'field_green', pattern: 'plain', insignia: 'none', crest: 'none', band: 'gold' };
+
+return { CLASSES, TROOP_CLASSES, ARMOUR, SQUAD, LOOKS, DEFAULT_LOOK };
+})();
+
+// ---- src/war/loadout.js
+__m["src/war/loadout.js"] = (function () {
+// What a soldier carries (v0.100.0 stage 7): a weapon (by the class's tier), a gadget, and armour (era 1 or 2). Everything comes from the stores, one item to one pair of hands: a weapon in a
+// soldier's hand is not in the stores, and a weapon is never in two hands. Items keep their origin in the stock key (`arms:<works>:<item>`) so a return goes where it came from.
+//
+//   equip(game, pid)            take the weapon and gadget for the class's tier from the stores (swapping the old one back first)
+//   equipClass(game, role)      everyone of a class: how many were equipped and how many are still short of stock
+//   setTier(game, role, tier)   the tier for a whole class (re-equips them, from the stores); a person may be set apart with `tierOf`
+//   setArmour(game, pid, era)   era 1 (the uniform they were issued) or era 2 (a plate carrier from the stores)
+//   release(game, person)       everything they hold goes back to the stores (a person let go, or a squad stood down)
+//   carried(game)               a count of what is in hands, by stock key (for the conservation tests)
+const { peekMilitary } = __m["src/war/state.js"];
+const { addStock, takeStock } = __m["src/war/equipment.js"];
+const { CLASSES, ARMOUR } = __m["src/content/troops.js"];
+
+const tierOf = (C, p) => p.tier ?? C.tiers?.[p.role] ?? 1;
+/** The best item a class has at or below a tier. */
+function itemFor(role, tier) {
+  const T = CLASSES[role]?.tiers || {};
+  for (let t = tier; t >= 1; t--) if (T[t]) return T[t];
+  return null;
+}
+/** The stock keys that hold an item, in a steady order (`arms:aw1:item_smg`). A key for a supply is itself. */
+const keysFor = (C, item) => (item.startsWith('supply:') ? [item] : Object.keys(C.stock).filter((k) => k.endsWith(`:${item}`) && k.startsWith('arms:')).sort());
+const have = (C, item) => keysFor(C, item).reduce((a, k) => a + (C.stock[k] || 0), 0);
+/** How many of an item (a weapon, or a supply key) the stores hold. */
+const inStores = (game, item) => have(peekMilitary(game).company, item);
+const itemOfKey = (key) => (key.startsWith('supply:') ? key : key.split(':')[2]);
+
+function takeOne(game, C, item) {
+  const key = keysFor(C, item).find((k) => (C.stock[k] || 0) > 0);
+  if (!key) return null;
+  takeStock(game, key, 1);
+  return key;
+}
+
+function give(game, p) {
+  for (const slot of ['weapon', 'gadget']) if (p[slot]) { addStock(game, p[slot], 1); p[slot] = null; }
+}
+function release(game, p) {
+  give(game, p);
+  if (p.armour === 2) { addStock(game, ARMOUR[2].supply, 1); p.armour = 1; }
+}
+
+/** What this person is missing for their class and tier: the items, in order. */
+function wanted(C, p) {
+  const K = CLASSES[p.role];
+  if (!K) return [];
+  const w = itemFor(p.role, tierOf(C, p));
+  return [w && { slot: 'weapon', item: w }, K.gadget && { slot: 'gadget', item: K.gadget }].filter(Boolean);
+}
+
+function equip(game, pid) {
+  const C = peekMilitary(game)?.company;
+  const p = C?.personnel.find((x) => x.id === pid);
+  if (!p) return { ok: false, text: 'No such person.' };
+  if (p.status === 'dead' || p.status === 'captured') return { ok: false, text: `${p.name} cannot be equipped.` };
+  const want = wanted(C, p);
+  if (!want.length) return { ok: true, text: `${p.name} carries nothing in this job.`, short: 0 };
+  // work out everything first: what is already right stays, what is wrong goes back, what is missing must be in the stores
+  const need = [];
+  for (const { slot, item } of want) {
+    if (p[slot] && itemOfKey(p[slot]) === item) continue;
+    need.push({ slot, item });
+  }
+  const counts = {};
+  for (const n of need) counts[n.item] = (counts[n.item] || 0) + 1;
+  const short = Object.entries(counts).filter(([item, q]) => have(C, item) < q).map(([item]) => item);
+  if (short.length) return { ok: false, text: `${p.name} has to wait: the stores have no ${short.map((i) => nameOf(game, i)).join(' or ')}.`, short: short.length };
+  for (const { slot, item } of need) {
+    if (p[slot]) addStock(game, p[slot], 1);
+    p[slot] = takeOne(game, C, item);
+  }
+  return { ok: true, text: `${p.name} is equipped.`, short: 0 };
+}
+
+const nameOf = (game, item) => (item.startsWith('supply:') ? item.slice(7) : game.content.items[item]?.name || item);
+
+function equipClass(game, role) {
+  const C = peekMilitary(game)?.company;
+  if (!C || !CLASSES[role]) return { ok: false, text: 'No such class.' };
+  const people = C.personnel.filter((p) => p.role === role && p.status !== 'dead');
+  let done = 0; let short = 0;
+  for (const p of people) { const r = equip(game, p.id); if (r.ok) done++; else short++; }
+  return { ok: true, equipped: done, short, text: `${CLASSES[role].name}: ${done} equipped${short ? `, ${short} waiting for stock` : ''}.` };
+}
+
+function setTier(game, role, tier) {
+  const C = peekMilitary(game)?.company;
+  const K = CLASSES[role];
+  if (!C || !K) return { ok: false, text: 'No such class.' };
+  tier = Math.floor(Number(tier) || 0);
+  if (!K.tiers[tier]) return { ok: false, text: `${K.name} has no tier ${tier} yet: tiers 3 to 5 are future research.` };
+  C.tiers ||= {};
+  C.tiers[role] = tier;
+  const r = equipClass(game, role);
+  return { ok: true, text: `${K.name}: tier ${tier}. ${r.text}` };
+}
+
+function setArmour(game, pid, era) {
+  const C = peekMilitary(game)?.company;
+  const p = C?.personnel.find((x) => x.id === pid);
+  if (!p) return { ok: false, text: 'No such person.' };
+  if (CLASSES[p.role]?.group !== 'troop') return { ok: false, text: `${p.name} wears no armour.` };
+  if (!ARMOUR[era]) return { ok: false, text: 'Armour eras 3 and 4 are future research.' };
+  if ((p.armour || 1) === era) return { ok: false, text: `${p.name} already wears that.` };
+  if (era === 2) { if (!takeStock(game, ARMOUR[2].supply, 1)) return { ok: false, text: 'There is no plate carrier in the stores: buy one from the suppliers.' }; }
+  else addStock(game, ARMOUR[2].supply, 1);
+  p.armour = era;
+  return { ok: true, text: `${p.name} wears the ${ARMOUR[era].name.toLowerCase()}.` };
+}
+
+function carried(game) {
+  const C = peekMilitary(game)?.company;
+  const out = {};
+  for (const p of C?.personnel || []) for (const slot of ['weapon', 'gadget']) if (p[slot]) out[p[slot]] = (out[p[slot]] || 0) + 1;
+  return out;
+}
+
+return { tierOf, itemFor, inStores, release, wanted, equip, equipClass, setTier, setArmour, carried };
+})();
+
+// ---- src/war/people.js
+__m["src/war/people.js"] = (function () {
+// The company's people (v0.99.0, classes from v0.100.0): a recruit is a record (id, name, class, wage, a bed in a barracks). Guards and technicians start at once; a soldier of a troop class
+// first trains (a place at the range or the training ground for the class's days) and is issued a uniform from the stores. Wages are paid each day from the company's own account (what
+// it cannot cover is owed, never taken from your wallet). Squads are in src/war/squads.js and what a person carries in src/war/loadout.js.
+//
+//   hire(game, role) / dismiss(game, id)    every check first, then the change
+//   trainTick(game)                         recruits whose days are done start work
+//   payroll(game)                           one day's wages
+//   normalise(C)                            gives older records (v0.99.0) the newer fields
+const { peekMilitary } = __m["src/war/state.js"];
+const { capacity } = __m["src/war/facilities.js"];
+const { nextId, takeStock, stockOf } = __m["src/war/equipment.js"];
+const { release } = __m["src/war/loadout.js"];
+const { CLASSES } = __m["src/content/troops.js"];
+
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+
+const headcount = (game) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.status !== 'dead').length;
+const bedsFree = (game) => Math.max(0, capacity(game).beds - headcount(game));
+const inTraining = (game) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.status === 'training').length;
+const ofRole = (game, role) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.role === role && p.status === 'active');
+/** Guards and technicians (or any class) not on a post and not in a squad. */
+const idle = (game, role) => ofRole(game, role).filter((p) => !p.post && p.assignedTo == null);
+
+/** The newer fields, for a record made before they existed (idempotent; changes nothing that is already set). */
+function normalise(C) {
+  for (const p of C?.personnel || []) {
+    p.exp ??= 0; p.morale ??= 70; p.fatigue ??= 0; p.wounds ??= 0; p.armour ??= 1; p.weapon ??= null; p.gadget ??= null;
+  }
+}
+
+function barracks(game) {
+  const C = peekMilitary(game)?.company;
+  return (C?.facilities || []).find((f) => f.state === 'built' && /^barracks|^bunkhouse$/.test(f.id))?.id || null;
+}
+
+function hire(game, role) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  const K = CLASSES[role];
+  if (!K) return { ok: false, text: 'No such job.' };
+  if (!C.licensed) return { ok: false, text: 'A private security company needs its licence before it employs anyone.' };
+  if (bedsFree(game) < 1) return { ok: false, text: capacity(game).beds ? `Every bed is taken (${headcount(game)} of ${capacity(game).beds}).` : 'Build the bunkhouse first: there is nowhere for anyone to sleep.' };
+  if (K.train > 0 && inTraining(game) >= capacity(game).training) return { ok: false, text: `Every training place is in use (${inTraining(game)} of ${capacity(game).training}): finish the range or wait for a course to end.` };
+  if (K.group === 'troop' && stockOf(game, 'supply:uniform') < 1) return { ok: false, text: 'There is no uniform in the stores: buy some from the suppliers.' };
+  // every check passed
+  if (K.group === 'troop') takeStock(game, 'supply:uniform', 1);
+  const id = nextId(C, 'P');
+  const N = game.content.arms.staffNames;
+  const key = `${game.world.salt || game.rng?.state || 0}|${id}`;
+  const name = `${N.first[Math.floor(unit(`${key}|f`) * N.first.length)]} ${N.last[Math.floor(unit(`${key}|l`) * N.last.length)]}`;
+  C.personnel.push({ id, name, role, wage: K.wage, status: K.train ? 'training' : 'active', trainedDay: game.clock.day + K.train, hired: game.clock.day, location: `facility:${barracks(game)}`, assignedTo: null, post: null, exp: 0, morale: 70, fatigue: 0, wounds: 0, armour: 1, weapon: null, gadget: null });
+  return { ok: true, text: `${name} joins as ${/^[aeiou]/i.test(K.name) ? 'an' : 'a'} ${K.name.toLowerCase()} (${K.wage} obols a day${K.train ? `, ${K.train} days of training` : ''}).`, id };
+}
+
+function dismiss(game, id) {
+  const C = peekMilitary(game)?.company;
+  const p = C?.personnel.find((x) => x.id === id);
+  if (!p) return { ok: false, text: 'No such person.' };
+  if (p.post || p.assignedTo != null) return { ok: false, text: `${p.name} is ${p.post ? 'on a post' : 'in a squad'}: ${p.post ? 'finish the job first' : 'take them out of it first'}.` };
+  release(game, p);
+  C.personnel = C.personnel.filter((x) => x !== p);
+  return { ok: true, text: `${p.name} is let go.` };
+}
+
+/** Recruits whose training is done start work. */
+function trainTick(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C) return;
+  const day = game.clock.day;
+  for (const p of C.personnel) if (p.status === 'training' && (p.trainedDay ?? 0) <= day) { p.status = 'active'; p.exp = Math.max(p.exp, 1); }
+}
+
+/** One day's wages for everyone, from the company's own account; whatever it cannot cover is owed. */
+function payroll(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.personnel.length) return 0;
+  const total = C.personnel.filter((p) => p.status !== 'dead').reduce((a, p) => a + p.wage, 0);
+  if (total > 0) game.corp.pay('security', total, { cat: 'wages', owe: true, quiet: true });
+  return total;
+}
+
+return { headcount, bedsFree, inTraining, ofRole, idle, normalise, hire, dismiss, trainTick, payroll };
+})();
+
 // ---- src/content/production.js
 __m["src/content/production.js"] = (function () {
 // The company's works (v0.99.0 stage 5): pure data. The company builds TANKS and HELICOPTERS and nothing else: the catalog below is the whole of it, and a test looks for anything more.
@@ -31145,6 +31402,7 @@ __m["src/content/production.js"] = (function () {
 //   MODELS     what each model needs and how long a line takes at one shift
 //   UPGRADE / WEAR   the works' own condition and the money to improve it
 const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
+const { CLASSES } = __m["src/content/troops.js"];
 
 const WORKS = {
   tank_factory: { name: 'Tank factory', makes: 'tank', crewPerShift: 6, maxShifts: 3 },
@@ -31177,67 +31435,9 @@ const UPGRADE = { max: 2, cost: [150000, 300000], boost: 0.15 };
 const WEAR = { perLine: 2, slow: 30, bad: 60, slowMult: 0.8, badMult: 0.5, fixPerPoint: 1500 };
 
 /** The people the company employs (v0.99.0: a recruit is a record with a wage and a bed; v0.100.0 adds roles, training and squads). Wages are obols a day. */
-const PEOPLE = { guard: { name: 'Guard', wage: 120, text: 'Stands a post and watches a door.' }, technician: { name: 'Technician', wage: 160, text: 'Works a line at the tank factory or the helicopter works.' } };
+const PEOPLE = { guard: CLASSES.guard, technician: CLASSES.technician };
 
 return { WORKS, MODELS, partsValue, feeOf, worksOf, UPGRADE, WEAR, PEOPLE };
-})();
-
-// ---- src/war/people.js
-__m["src/war/people.js"] = (function () {
-// The company's people (v0.99.0): a recruit is a record (id, name, role, wage, a bed in a barracks); guards stand contracts, technicians crew the works' lines. Wages are paid each day from
-// the company's own account (what it cannot cover becomes arrears, never your wallet). v0.100.0 adds roles with training, squads and the people drawn on the map.
-const { peekMilitary } = __m["src/war/state.js"];
-const { capacity } = __m["src/war/facilities.js"];
-const { nextId } = __m["src/war/equipment.js"];
-const { PEOPLE } = __m["src/content/production.js"];
-
-const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
-
-const headcount = (game) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.status !== 'dead').length;
-const bedsFree = (game) => Math.max(0, capacity(game).beds - headcount(game));
-const ofRole = (game, role) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.role === role && p.status === 'active');
-/** Guards and technicians not on a post. */
-const idle = (game, role) => ofRole(game, role).filter((p) => !p.post && p.assignedTo == null);
-
-function barracks(game) {
-  const C = peekMilitary(game)?.company;
-  return (C?.facilities || []).find((f) => f.state === 'built' && /^barracks|^bunkhouse$/.test(f.id))?.id || null;
-}
-
-function hire(game, role) {
-  const C = peekMilitary(game)?.company;
-  if (!C?.identity) return { ok: false, text: 'You have no company.' };
-  const P = PEOPLE[role];
-  if (!P) return { ok: false, text: 'No such job.' };
-  if (!C.licensed) return { ok: false, text: 'A private security company needs its licence before it employs anyone.' };
-  if (bedsFree(game) < 1) return { ok: false, text: capacity(game).beds ? `Every bed is taken (${headcount(game)} of ${capacity(game).beds}).` : 'Build the bunkhouse first: there is nowhere for anyone to sleep.' };
-  const id = nextId(C, 'P');
-  const N = game.content.arms.staffNames;
-  const key = `${game.world.salt || game.rng?.state || 0}|${id}`;
-  const name = `${N.first[Math.floor(unit(`${key}|f`) * N.first.length)]} ${N.last[Math.floor(unit(`${key}|l`) * N.last.length)]}`;
-  C.personnel.push({ id, name, role, wage: P.wage, status: 'active', hired: game.clock.day, location: `facility:${barracks(game)}`, assignedTo: null, post: null });
-  return { ok: true, text: `${name} joins as a ${P.name.toLowerCase()} (${P.wage} obols a day).`, id };
-}
-
-function dismiss(game, id) {
-  const C = peekMilitary(game)?.company;
-  const p = C?.personnel.find((x) => x.id === id);
-  if (!p) return { ok: false, text: 'No such person.' };
-  if (p.post || p.assignedTo != null) return { ok: false, text: `${p.name} is on a post: finish the job first.` };
-  C.personnel = C.personnel.filter((x) => x !== p);
-  return { ok: true, text: `${p.name} is let go.` };
-}
-
-/** One day's wages for everyone, from the company's own account; whatever it cannot cover is owed. */
-function payroll(game) {
-  const C = peekMilitary(game)?.company;
-  if (!C?.personnel.length) return 0;
-  const total = C.personnel.filter((p) => p.status !== 'dead').reduce((a, p) => a + p.wage, 0);
-  if (total > 0) game.corp.pay('security', total, { cat: 'wages', owe: true, quiet: true });
-  return total;
-}
-
-return { headcount, bedsFree, ofRole, idle, hire, dismiss, payroll };
 })();
 
 // ---- src/war/production.js
@@ -31468,6 +31668,7 @@ __m["src/war/contracts.js"] = (function () {
 const { peekMilitary } = __m["src/war/state.js"];
 const { nextId } = __m["src/war/equipment.js"];
 const { idle } = __m["src/war/people.js"];
+const { equip, inStores } = __m["src/war/loadout.js"];
 const { CLIENTS, KINDS, RISK, CONTRACTS: K } = __m["src/content/contracts.js"];
 
 const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
@@ -31479,22 +31680,19 @@ function ensure(C) { C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban:
 const reputation = (game) => peekMilitary(game)?.company?.rep?.score || 0;
 const maxOpen = (rep) => Math.min(K.maxOpen, K.open + Math.floor(Math.max(0, rep) / K.perRep));
 
-/** Pistols and radios in the stores: the keys they sit under. */
-function kitKeys(C) {
-  const pistols = Object.keys(C.stock).filter((k) => /^arms:[^:]+:item_pistol$/.test(k)).sort();
-  return { pistols, radio: 'supply:radio' };
-}
-const pistolCount = (C) => kitKeys(C).pistols.reduce((a, k) => a + C.stock[k], 0);
+/** The guards a job would use: the ones already armed first (a guard keeps their own pistol), then the rest. */
+const crewFor = (game, n) => idle(game, 'guard').sort((x, y) => Number(Boolean(y.weapon)) - Number(Boolean(x.weapon)) || (x.id < y.id ? -1 : 1)).slice(0, n);
 
-/** What a job still needs the company does not have (an empty list = it can take it). */
+/** What a job still needs the company does not have (an empty list = it can take it). A guard carries their own pistol, so only the unarmed ones need one from the stores. */
 function missing(game, c) {
   const C = peekMilitary(game)?.company;
   const out = [];
   const guards = idle(game, 'guard').length;
   if (guards < c.guards) out.push(`${c.guards - guards} more guard${c.guards - guards === 1 ? '' : 's'}`);
-  const p = pistolCount(C);
-  if (p < c.guards) out.push(`${c.guards - p} more pistol${c.guards - p === 1 ? '' : 's'}`);
-  if ((C.stock[kitKeys(C).radio] || 0) < K.radio) out.push('a radio');
+  const unarmed = crewFor(game, c.guards).filter((p) => !p.weapon).length;
+  const p = inStores(game, 'item_pistol');
+  if (p < unarmed) out.push(`${unarmed - p} more pistol${unarmed - p === 1 ? '' : 's'}`);
+  if ((C.stock['supply:radio'] || 0) < K.radio) out.push('a radio');
   return out;
 }
 
@@ -31505,12 +31703,10 @@ function accept(game, id) {
   const lack = missing(game, c);
   if (lack.length) return { ok: false, text: `Your forces do not meet this one: you need ${lack.join(', ')}.` };
   // every check passed: now the changes
-  const crew = idle(game, 'guard').slice(0, c.guards);
-  for (const p of crew) p.post = `contract:${c.id}`;
+  const crew = crewFor(game, c.guards);
+  for (const p of crew) { const e = equip(game, p.id); if (!e.ok) return { ok: false, text: e.text }; p.post = `contract:${c.id}`; } // (the stores were checked above: a guard without a pistol is given one, once)
   c.crew = crew.map((p) => p.id);
   c.kit = {};
-  let need = c.guards;
-  for (const key of kitKeys(C).pistols) { const t = Math.min(need, C.stock[key]); if (t > 0) { C.stock[key] -= t; if (!C.stock[key]) delete C.stock[key]; c.kit[key] = t; need -= t; } if (!need) break; }
   C.stock['supply:radio'] -= K.radio; if (!C.stock['supply:radio']) delete C.stock['supply:radio']; c.kit['supply:radio'] = K.radio;
   c.state = 'active'; c.start = game.clock.day; c.end = game.clock.day + c.days;
   C.log.push({ day: game.clock.day, text: `Took the job: ${c.title} for ${c.clientName}.` });
@@ -31616,7 +31812,7 @@ __m["src/war/day.js"] = (function () {
 // Every part keeps its own "done today" mark, so a day that is run twice changes nothing.
 const { peekMilitary } = __m["src/war/state.js"];
 const { dailyTick: construction } = __m["src/war/facilities.js"];
-const { payroll } = __m["src/war/people.js"];
+const { payroll, trainTick, normalise } = __m["src/war/people.js"];
 const { dayTick: works } = __m["src/war/production.js"];
 const { dayTick: jobs } = __m["src/war/contracts.js"];
 
@@ -31627,7 +31823,8 @@ function runDay(game) {
   game.corp.account('security').funded = true; // (a company registered in v0.98.0 may have an unfunded account: its income must never reach the wallet)
   C.days ||= {};
   const day = game.clock.day;
-  if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); }
+  normalise(C);
+  if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   works(game);
   jobs(game);
   while (C.log.length > 40) C.log.shift(); // the company's log stays short
@@ -31636,6 +31833,128 @@ function runDay(game) {
 }
 
 return { runDay };
+})();
+
+// ---- src/war/squads.js
+__m["src/war/squads.js"] = (function () {
+// Squads (v0.100.0 stage 7): a leader (an officer), members of the troop classes, the vehicles and helicopters assigned to them, a name and a look. One assignment each: putting someone in
+// a squad takes them out of their last one, and a vehicle is in one squad or none. Guards and technicians are not in squads: guards stand contract posts and technicians crew the lines.
+const { peekMilitary } = __m["src/war/state.js"];
+const { nextId } = __m["src/war/equipment.js"];
+const { CLASSES, SQUAD, LOOKS, DEFAULT_LOOK } = __m["src/content/troops.js"];
+
+const personOf = (C, id) => C.personnel.find((p) => p.id === id);
+const squadOf = (C, id) => C.squads.find((s) => s.id === id);
+const eligible = (p) => CLASSES[p.role]?.group === 'troop' && p.status === 'active';
+
+function leave(C, p) {
+  const s = p.assignedTo != null ? squadOf(C, p.assignedTo) : null;
+  if (s) { s.members = s.members.filter((m) => m !== p.id); if (s.leader === p.id) s.leader = null; }
+  p.assignedTo = null;
+}
+
+function create(game, name = null) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (C.squads.length >= SQUAD.names.length) return { ok: false, text: `The company fields at most ${SQUAD.names.length} squads.` };
+  const used = new Set(C.squads.map((s) => s.name));
+  const nm = name?.trim() || SQUAD.names.find((n) => !used.has(n));
+  if (!nm || nm.length > 24) return { ok: false, text: 'Give the squad a name of up to 24 letters.' };
+  if (used.has(nm)) return { ok: false, text: 'There is already a squad with that name.' };
+  const s = { id: nextId(C, 'Q'), name: nm, leader: null, members: [], equipment: [], look: { ...DEFAULT_LOOK }, status: 'home', founded: game.clock.day };
+  C.squads.push(s);
+  return { ok: true, text: `Squad ${nm} is formed. Give it a leader.`, id: s.id };
+}
+
+function assign(game, squadId, pid) {
+  const C = peekMilitary(game)?.company;
+  const s = C && squadOf(C, squadId);
+  const p = C && personOf(C, pid);
+  if (!s || !p) return { ok: false, text: 'No such squad or person.' };
+  if (!eligible(p)) return { ok: false, text: CLASSES[p.role]?.group === 'troop' ? `${p.name} is ${p.status}: only a trained soldier can join a squad.` : `${p.name} is a ${CLASSES[p.role]?.name.toLowerCase()}: only troops join squads.` };
+  if (p.assignedTo === s.id) return { ok: false, text: `${p.name} is already in ${s.name}.` };
+  if (s.members.length >= SQUAD.max) return { ok: false, text: `${s.name} is full (${SQUAD.max}).` };
+  leave(C, p);
+  s.members.push(p.id); p.assignedTo = s.id;
+  return { ok: true, text: `${p.name} joins ${s.name}.` };
+}
+
+function unassign(game, pid) {
+  const C = peekMilitary(game)?.company;
+  const p = C && personOf(C, pid);
+  if (!p || p.assignedTo == null) return { ok: false, text: 'They are in no squad.' };
+  leave(C, p);
+  return { ok: true, text: `${p.name} is out of the squad.` };
+}
+
+function setLeader(game, squadId, pid) {
+  const C = peekMilitary(game)?.company;
+  const s = C && squadOf(C, squadId);
+  const p = C && personOf(C, pid);
+  if (!s || !p) return { ok: false, text: 'No such squad or person.' };
+  if (!CLASSES[p.role]?.leads) return { ok: false, text: 'A squad is led by an officer.' };
+  if (p.assignedTo !== s.id) { const r = assign(game, squadId, pid); if (!r.ok) return r; }
+  s.leader = p.id;
+  return { ok: true, text: `${p.name} leads ${s.name}.` };
+}
+
+function assignVehicle(game, squadId, eid) {
+  const C = peekMilitary(game)?.company;
+  const s = C && squadOf(C, squadId);
+  const x = C?.equipment.find((e) => e.id === eid);
+  if (!s || !x) return { ok: false, text: 'No such squad or vehicle.' };
+  if (!['vehicle', 'helicopter'].includes(x.kind)) return { ok: false, text: `${x.name} is not for a squad.` };
+  if (x.status !== 'stored') return { ok: false, text: `${x.name} is ${x.status}.` };
+  x.status = 'assigned'; x.assignedTo = s.id; s.equipment.push(x.id);
+  return { ok: true, text: `${x.name} goes to ${s.name}.` };
+}
+
+function unassignVehicle(game, eid) {
+  const C = peekMilitary(game)?.company;
+  const x = C?.equipment.find((e) => e.id === eid);
+  if (!x || x.assignedTo == null) return { ok: false, text: 'That vehicle is with no squad.' };
+  if (x.status !== 'assigned') return { ok: false, text: `${x.name} is ${x.status}: it cannot be taken back now.` };
+  const s = squadOf(C, x.assignedTo);
+  if (s) s.equipment = s.equipment.filter((e) => e !== x.id);
+  x.assignedTo = null; x.status = 'stored';
+  return { ok: true, text: `${x.name} is back in the pool.` };
+}
+
+function disband(game, squadId) {
+  const C = peekMilitary(game)?.company;
+  const s = C && squadOf(C, squadId);
+  if (!s) return { ok: false, text: 'No such squad.' };
+  if (s.status !== 'home') return { ok: false, text: `${s.name} is away: it cannot be stood down.` };
+  for (const m of [...s.members]) { const p = personOf(C, m); if (p) p.assignedTo = null; }
+  for (const e of [...s.equipment]) { const x = C.equipment.find((q) => q.id === e); if (x) { x.assignedTo = null; if (x.status === 'assigned') x.status = 'stored'; } }
+  C.squads = C.squads.filter((q) => q !== s);
+  return { ok: true, text: `${s.name} is stood down.` };
+}
+
+function setLook(game, squadId, look) {
+  const C = peekMilitary(game)?.company;
+  const s = C && squadOf(C, squadId);
+  if (!s) return { ok: false, text: 'No such squad.' };
+  const next = { ...s.look, ...look };
+  if (!LOOKS.primary[next.primary] || !LOOKS.pattern.includes(next.pattern) || !LOOKS.insignia.includes(next.insignia) || !LOOKS.crest.includes(next.crest) || !LOOKS.band[next.band]) return { ok: false, text: 'That is not a look the company has.' };
+  s.look = next;
+  return { ok: true, text: `${s.name}'s look is set. It is free: colours change no number.` };
+}
+
+/** What the Squads screen shows. */
+function view(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return [];
+  return C.squads.map((s) => {
+    const people = s.members.map((m) => personOf(C, m)).filter(Boolean);
+    const by = {};
+    for (const p of people) by[p.role] = (by[p.role] || 0) + 1;
+    return { ...s, size: people.length, byClass: by, armed: people.filter((p) => p.weapon).length, leaderName: personOf(C, s.leader)?.name || null, vehicles: s.equipment.map((e) => C.equipment.find((x) => x.id === e)).filter(Boolean).map((x) => x.name),
+      morale: people.length ? Math.round(people.reduce((a, p) => a + (p.morale ?? 70), 0) / people.length) : 0 };
+  });
+}
+
+return { create, assign, unassign, setLeader, assignVehicle, unassignVehicle, disband, setLook, view };
 })();
 
 // ---- src/war/check.js
@@ -31714,6 +32033,8 @@ const { runDay } = __m["src/war/day.js"];
 const { hire: hireIn, dismiss: dismissOut } = __m["src/war/people.js"];
 const { order: orderUnit, cancel: cancelOrder, setShifts: setLineShifts, upgrade: upgradeWorks, maintain: maintainWorks, view: productionView } = __m["src/war/production.js"];
 const { accept: acceptJob, decline: declineJob, view: contractsView, missing: jobMissing } = __m["src/war/contracts.js"];
+const { equip: equipPerson, equipClass: equipTheClass, setTier: setClassTier, setArmour: setPersonArmour } = __m["src/war/loadout.js"];
+const { create: createSquad, assign: assignSquad, unassign: unassignSquad, setLeader: leadSquad, assignVehicle: squadGetsVehicle, disband: disbandSquad, setLook: lookSquad, view: squadsView } = __m["src/war/squads.js"];
 const { checkMilitary } = __m["src/war/check.js"];
 const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -31780,6 +32101,29 @@ class War {
   upgrade(works) { return upgradeWorks(this.g, works); }
   maintain(works) { return maintainWorks(this.g, works); }
   production() { return productionView(this.g); }
+
+  // ---- people, squads and loadouts (v0.100.0 stage 7)
+  equip(pid) { return equipPerson(this.g, pid); }
+  equipClass(role) { return equipTheClass(this.g, role); }
+  setTier(role, tier) { return setClassTier(this.g, role, tier); }
+  armour(pid, era) { return setPersonArmour(this.g, pid, era); }
+  armourClass(role, era) {
+    const C = this.peek()?.company;
+    if (!C) return { ok: false, text: 'You have no company.' };
+    const people = C.personnel.filter((p) => p.role === role && p.status !== 'dead');
+    if (!people.length) return { ok: false, text: 'No one of that class.' };
+    let done = 0; let last = null;
+    for (const p of people) { const r = setPersonArmour(this.g, p.id, era); if (r.ok) done++; else last = r; }
+    return done ? { ok: true, text: `${done} changed their armour.${last ? ` ${last.text}` : ''}` } : last;
+  }
+  squads() { return squadsView(this.g); }
+  squadCreate(name) { return createSquad(this.g, name); }
+  squadAssign(squadId, pid) { return assignSquad(this.g, squadId, pid); }
+  squadRemove(pid) { return unassignSquad(this.g, pid); }
+  squadLeader(squadId, pid) { return leadSquad(this.g, squadId, pid); }
+  squadVehicle(squadId, eid) { return squadGetsVehicle(this.g, squadId, eid); }
+  squadDisband(squadId) { return disbandSquad(this.g, squadId); }
+  squadLook(squadId, look) { return lookSquad(this.g, squadId, look); }
 
   contracts() { return contractsView(this.g); }
   accept(id) { return acceptJob(this.g, id); }
@@ -72607,6 +72951,87 @@ function contractsTab(ui, body, go, open) {
 return { contractsTab };
 })();
 
+// ---- src/ui/militaryPeople.js
+__m["src/ui/militaryPeople.js"] = (function () {
+// The Military app's People, Squads and Armoury screens (v0.100.0; mock-ups proposal-war-troop-customizer.png and -loadouts-1/2.png): who works for the company, who is in which squad, and what
+// each class carries. Reached from the Company page. Every button calls game.war; nothing here changes a record.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
+const { CLASSES, TROOP_CLASSES, ARMOUR, LOOKS, SQUAD } = __m["src/content/troops.js"];
+const { ARMS_TRANSFERABLE } = __m["src/content/procurement.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+const back = (ui, open) => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = null; open('Military'); } }, '‹ Company'));
+const select = (opts, value, onchange) => h('select', { style: 'padding:6px;border-radius:8px;background:#15133e;color:inherit;border:2px solid #3a3794', onchange: (e) => onchange(e.target.value) }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
+
+function peopleScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const P = W.people(); const H = W.housing(); const cap = W.capacity();
+  body.append(back(ui, open),
+    hero({ label: 'People', value: `${P.length} on the books`, sub: `${cap.beds} beds · ${P.filter((p) => p.status === 'training').length} of ${cap.training} training places in use. Every person costs a daily wage and needs a bed; a soldier needs a uniform from the stores and days of training.` }),
+    tiles([{ n: String(P.filter((p) => p.status === 'active').length), t: 'working' }, { n: String(P.filter((p) => p.status === 'training').length), t: 'training' }, { n: String(Math.max(0, cap.beds - P.length)), t: 'beds free' }]));
+  body.append(list(...Object.entries(CLASSES).map(([id, K]) => {
+    const mine = P.filter((p) => p.role === id);
+    return row({ icon: K.group === 'troop' ? '🪖' : id === 'guard' ? '💂' : '🧑‍🏭', title: `${K.name} · ${mine.length}`, sub: `${K.text} ${K.wage} a day${K.train ? ` · ${K.train} days of training` : ''}${mine.some((p) => p.status === 'training') ? ` · ${mine.filter((p) => p.status === 'training').length} training` : ''}`,
+      action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire(id)) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !mine.some((p) => !p.post && p.assignedTo == null), onclick: () => go(W.dismiss(mine.filter((p) => !p.post && p.assignedTo == null).slice(-1)[0]?.id)) }, 'Let go')) });
+  })));
+  body.append(fold(ui, 'MilRoll', 'The roll — everyone by name ›', (box) => box.append(list(...(P.length ? P.map((p) => row({ icon: '👤', title: `${p.name} · ${CLASSES[p.role]?.name}`, sub: `${p.status}${p.status === 'training' ? ` until day ${p.trainedDay}` : ''}${p.assignedTo ? ` · squad ${p.assignedTo}` : ''}${p.post ? ` · ${p.post}` : ''} · morale ${p.morale ?? 70}` })) : [row({ icon: '—', title: 'Nobody yet', sub: 'Build the bunkhouse, then hire.' })])))));
+  body.append(help('Training and uniforms', 'A soldier trains for a few days at the range or the training ground (each takes a place while they train) and needs a uniform from the stores; guards and technicians start at once. Wages are paid every day from the company\'s own money.'));
+}
+
+function squadsScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const S = W.squads(); const P = W.people();
+  const free = P.filter((p) => TROOP_CLASSES.includes(p.role) && p.status === 'active' && p.assignedTo == null);
+  const officers = P.filter((p) => CLASSES[p.role]?.leads && p.status === 'active');
+  const vehicles = W.equipment().filter((e) => ['vehicle', 'helicopter'].includes(e.kind) && e.status === 'stored');
+  body.append(back(ui, open),
+    hero({ label: 'Squads', value: `${S.length} squad${S.length === 1 ? '' : 's'}`, sub: `A squad has an officer for a leader, up to ${SQUAD.max} soldiers and the vehicles you give it. Each soldier and vehicle is in one squad or none.` }),
+    tiles([{ n: String(free.length), t: 'soldiers free' }, { n: String(vehicles.length), t: 'vehicles free' }, { n: String(officers.length), t: 'officers' }]),
+    h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(W.squadCreate()) }, 'Form a squad')));
+  for (const s of S) {
+    body.append(h('div', { class: 'tb-card', style: 'padding:10px 12px' },
+      h('div', { class: 'tb-row' }, h('div', { class: 'grow' }, h('b', {}, `${s.name} · ${s.size}`), h('small', {}, `Leader: ${s.leaderName || 'none yet'} · ${s.armed} armed · morale ${s.morale}${s.vehicles.length ? ` · ${s.vehicles.join(', ')}` : ''}`)), h('button', { class: 'tb-mini', onclick: () => go(W.squadDisband(s.id)) }, 'Stand down')),
+      h('small', {}, Object.entries(s.byClass).map(([k, q]) => `${q} ${CLASSES[k].name.toLowerCase()}`).join(', ') || 'No one yet'),
+      h('div', { class: 'tb-btns', style: 'margin-top:6px;flex-wrap:wrap' },
+        free.length ? select([['', 'Add a soldier…'], ...free.map((p) => [p.id, `${p.name} (${CLASSES[p.role].name})`])], '', (v) => v && go(W.squadAssign(s.id, v))) : null,
+        officers.length ? select([['', 'Leader…'], ...officers.map((p) => [p.id, p.name])], s.leader || '', (v) => v && go(W.squadLeader(s.id, v))) : null,
+        vehicles.length ? select([['', 'Give a vehicle…'], ...vehicles.map((x) => [x.id, `${x.name} ${x.id}`])], '', (v) => v && go(W.squadVehicle(s.id, v))) : null),
+      s.members.length ? fold(ui, `MilSq${s.id}`, 'Members ›', (box) => box.append(list(...s.members.map((m) => { const p = P.find((x) => x.id === m); return row({ icon: s.leader === m ? '⭐' : '🪖', title: `${p.name} · ${CLASSES[p.role].name}`, sub: p.weapon ? 'armed' : 'unarmed', action: h('button', { class: 'tb-mini', onclick: () => go(W.squadRemove(m)) }, 'Out') }); })))) : null));
+  }
+}
+
+function armouryScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const P = W.people(); const st = W.stock(); const C = W.company();
+  const stockOf = (item) => Object.entries(st).filter(([k]) => k.endsWith(`:${item}`) || k === item).reduce((a, [, q]) => a + q, 0);
+  body.append(back(ui, open),
+    hero({ label: 'Armoury', value: 'Class, weapons and look', sub: 'A class carries the weapon of its tier, taken from the stores: a weapon in a soldier\'s hands is not in the stores. Tiers 3 to 5 and armour eras 3 and 4 are future research.' }),
+    tiles([{ n: String(stockOf(ARMS_TRANSFERABLE[0]) + 0), t: 'pistols in stores' }, { n: String(st['supply:uniform'] || 0), t: 'uniforms' }, { n: String(st['supply:plate_carrier'] || 0), t: 'plate carriers' }]));
+  body.append(list(...TROOP_CLASSES.concat(['guard']).map((id) => {
+    const K = CLASSES[id]; const mine = P.filter((p) => p.role === id); const tier = C?.tiers?.[id] ?? 1;
+    const armed = mine.filter((p) => p.weapon).length;
+    const tiers = Object.keys(K.tiers).map(Number);
+    return h('div', {}, row({ icon: '🔫', title: `${K.name} · ${armed}/${mine.length} armed`, sub: `${tiers.map((t) => `T${t}: ${g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])} in stores)`).join(' · ')}${K.gadget ? ` · carries ${K.gadget.replace('supply:', '')}` : ''}`,
+      action: h('span', {}, ...tiers.map((t) => h('button', { class: `tb-mini${t === tier ? ' pri' : ''}`, onclick: () => go(W.setTier(id, t)) }, `T${t}`)), ' ', h('button', { class: 'tb-mini', disabled: !mine.length, onclick: () => go(W.equipClass(id)) }, 'Equip all'), ' ', K.group === 'troop' ? h('button', { class: 'tb-mini', disabled: !mine.length, onclick: () => go(W.armourClass(id, mine.every((p) => p.armour === 2) ? 1 : 2)) }, mine.length && mine.every((p) => p.armour === 2) ? 'Plates off' : 'Plates on') : null) }));
+  })));
+  body.append(fold(ui, 'MilLook', 'Looks — colours for a squad (free, cosmetic) ›', (box) => {
+    const S = W.squads();
+    if (!S.length) { box.append(list(row({ icon: '—', title: 'No squads yet', sub: 'Form a squad first, then give it a look.' }))); return; }
+    const pick = ui.milLookSquad && S.find((s) => s.id === ui.milLookSquad) ? ui.milLookSquad : S[0].id;
+    const s = S.find((x) => x.id === pick);
+    const set = (k) => (v) => go(W.squadLook(pick, { [k]: v }));
+    box.append(list(row({ icon: '🎨', title: 'Squad', sub: 'Choose one', action: select(S.map((x) => [x.id, x.name]), pick, (v) => { ui.milLookSquad = v; open('Military'); }) }),
+      row({ icon: '▪', title: 'Colour', action: select(Object.keys(LOOKS.primary).map((k) => [k, k.replace('_', ' ')]), s.look.primary, set('primary')) }),
+      row({ icon: '▦', title: 'Pattern', action: select(LOOKS.pattern.map((k) => [k, k]), s.look.pattern, set('pattern')) }),
+      row({ icon: '★', title: 'Insignia', action: select(LOOKS.insignia.map((k) => [k, k]), s.look.insignia, set('insignia')) }),
+      row({ icon: '⛑', title: 'Crest', action: select(LOOKS.crest.map((k) => [k, k]), s.look.crest, set('crest')) }),
+      row({ icon: '🎗', title: 'Band', action: select(Object.keys(LOOKS.band).map((k) => [k, k]), s.look.band, set('band')) })));
+  }));
+  body.append(help('What changes a number', 'The tier (weapon) and the armour era are real: they change what the soldier can do and what they cost. Colours, pattern, insignia, crest and band are free and change nothing.'));
+}
+
+return { peopleScreen, squadsScreen, armouryScreen };
+})();
+
 // ---- src/ui/militaryApp.js
 __m["src/ui/militaryApp.js"] = (function () {
 // The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
@@ -72616,6 +73041,7 @@ const { hero, tiles, row, help, fold, note, n, segments } = __m["src/ui/tabletKi
 const { transfersTab } = __m["src/ui/militaryTransfers.js"];
 const { productionTab } = __m["src/ui/militaryProduction.js"];
 const { contractsTab } = __m["src/ui/militaryContracts.js"];
+const { peopleScreen, squadsScreen, armouryScreen } = __m["src/ui/militaryPeople.js"];
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -72636,6 +73062,9 @@ function militaryApp(ui, body, open) {
   if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
   if (tab === 'Production') { productionTab(ui, body, go, open); return; }
   if (tab === 'Contracts') { contractsTab(ui, body, go, open); return; }
+  if (ui.milSub === 'People') { peopleScreen(ui, body, go, open); return; }
+  if (ui.milSub === 'Squads') { squadsScreen(ui, body, go, open); return; }
+  if (ui.milSub === 'Armoury') { armouryScreen(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(
@@ -72665,6 +73094,8 @@ function militaryApp(ui, body, open) {
           : f.repair ? h('button', { class: 'tb-mini pri', onclick: () => go(W.repairFacility(f.id)) }, f.state === 'ruin' ? 'Rebuild' : 'Repair') : null }))));
     }
   }
+  const sub = (id, icon, title, text) => row({ icon, title, sub: text, tag: '›', onclick: () => { ui.milSub = id; open('Military'); } });
+  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.')));
   body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
     'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
   body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));

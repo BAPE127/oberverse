@@ -2,7 +2,7 @@
 // Every part keeps its own "done today" mark, so a day that is run twice changes nothing.
 import { peekMilitary } from './state.js';
 import { dailyTick as construction } from './facilities.js';
-import { payroll } from './people.js';
+import { payroll, trainTick, normalise } from './people.js';
 import { dayTick as works } from './production.js';
 import { dayTick as jobs } from './contracts.js';
 
@@ -13,7 +13,8 @@ export function runDay(game) {
   game.corp.account('security').funded = true; // (a company registered in v0.98.0 may have an unfunded account: its income must never reach the wallet)
   C.days ||= {};
   const day = game.clock.day;
-  if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); }
+  normalise(C);
+  if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   works(game);
   jobs(game);
   while (C.log.length > 40) C.log.shift(); // the company's log stays short

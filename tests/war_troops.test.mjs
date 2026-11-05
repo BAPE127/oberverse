@@ -15,7 +15,7 @@ function base(seed, { uniforms = 40, items = {} } = {}) {
   if (uniforms) assert.ok(g.war.buySupply('uniform', uniforms).ok);
   const goods = { item_smg: 30, item_assault_rifle: 20, item_pistol: 30, item_lmg: 6, item_rpg: 6, item_sniper_rifle: 4, item_shotgun: 6, item_drone_attack: 3, ...items };
   cageGoods(g, 'aw1', goods);
-  for (const [item, n] of Object.entries(goods)) assert.ok(g.war.transfer({ source: 'arms', works: 'aw1', item, qty: n }).ok, item);
+  for (const [item, n] of Object.entries(goods)) if (n) assert.ok(g.war.transfer({ source: 'arms', works: 'aw1', item, qty: n }).ok, item);
   return g;
 }
 const total = (g, key) => (g.war.stock()[key] || 0) + g.war.people().filter((p) => p.weapon === key || p.gadget === key).length;
@@ -23,7 +23,7 @@ const trained = (g, n = 6) => days(g, n);
 
 test('the classes: ten troop classes and the two working roles; every weapon is an item the Arms works makes, tiers stop at 2, nothing needs a look or era beyond 2', () => {
   assert.equal(TROOP_CLASSES.length, 10); assert.ok(CLASSES.guard && CLASSES.technician);
-  const made = new Set(Object.values(ARMS_RECIPES).map((r) => r.out));
+  const made = new Set(Object.values(ARMS_RECIPES).flatMap((r) => [r.out, r.single].filter(Boolean)));
   for (const [id, K] of Object.entries(CLASSES)) {
     for (const [t, item] of Object.entries(K.tiers)) { assert.ok(Number(t) <= 2, `${id}: tier ${t}`); assert.ok(made.has(item) && ARMS_TRANSFERABLE.includes(item), `${id}: ${item} is an Arms works item the company can take`); }
     if (K.gadget && !K.gadget.startsWith('supply:')) assert.ok(made.has(K.gadget) && ARMS_TRANSFERABLE.includes(K.gadget));
@@ -42,7 +42,7 @@ test('recruits train before they work: each takes a training place for their day
   assert.equal(g.war.stock()['supply:uniform'], u0 - 1, 'a uniform was issued');
   const gu = g.war.hire('guard'); assert.equal(g.war.people().find((x) => x.id === gu.id).status, 'active'); assert.equal(g.war.stock()['supply:uniform'], u0 - 1, 'a guard needs none');
   for (let i = 0; i < 5; i++) assert.ok(g.war.hire('rifleman').ok);
-  assert.ok(!g.war.hire('rifleman').ok && /training places/.test(g.war.hire('rifleman').text), 'the range has six');
+  assert.ok(!g.war.hire('rifleman').ok && /training place/.test(g.war.hire('rifleman').text), 'the range has six');
   days(g, CLASSES.rifleman.train); assert.ok(g.war.people().filter((x) => x.role === 'rifleman').every((x) => x.status === 'active'));
   assert.ok(g.war.hire('rifleman').ok, 'the places are free again');
   const none = base(702, { uniforms: 0 }); assert.ok(!none.war.hire('rifleman').ok && /uniform/.test(none.war.hire('rifleman').text), 'no uniform, no recruit');
