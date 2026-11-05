@@ -4,12 +4,13 @@ import { h } from './panels.js';
 import { hero, tiles, row, help, fold, segments, n } from './tabletKit.js';
 import { atlasStates } from '../world/atlas.js';
 import { campaignTab, influenceTab } from './politicsInfluence.js';
+import { diplomacyTab } from './politicsDiplomacy.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const LEAN = { '-2': 'strongly against', '-1': 'against', 0: 'neutral', 1: 'for', 2: 'strongly for' };
 const PHASE = { term: 'In term', campaign: 'Campaign season', polling: 'Polling day' };
 
-const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }, { id: 'Campaign', label: 'Vote' }, { id: 'Influence', label: 'Influence' }];
+const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }, { id: 'Campaign', label: 'Vote' }, { id: 'Influence', label: 'Influence' }, { id: 'Diplomacy', label: 'World' }];
 
 /** The Politics app: an overview, and the government (v0.94.0). */
 export function politicsApp(ui, body, open) {
@@ -20,6 +21,7 @@ export function politicsApp(ui, body, open) {
   else if (tab === 'Polls') pollsTab(ui, body);
   else if (tab === 'Campaign') campaignTab(ui, body, open);
   else if (tab === 'Influence') influenceTab(ui, body, open);
+  else if (tab === 'Diplomacy') diplomacyTab(ui, body);
   else overviewTab(ui, body, open);
 }
 

@@ -1,4 +1,4 @@
-# Politics in Sund (v0.93.0 – v0.95.0)
+# Politics in Sund (v0.93.0 – v0.96.0)
 
 Plan: `docs/PROPOSAL_POLITICS.md`. Audit: `docs/POLITICS_AUDIT.md`. The capital: `docs/CROWN_QUARTER.md`. Nothing in the political system changes a price, a cost, the police or any war you play with yet; the Economy release (v0.96.0) wires policies in. You never have to take part.
 
@@ -16,6 +16,8 @@ Plan: `docs/PROPOSAL_POLITICS.md`. Audit: `docs/POLITICS_AUDIT.md`. The capital:
 | Policy scoring and the administration's proposals | `src/politics/policy.js` |
 | Public opinion: nine blocs × Sund's nine states; polls | `src/content/opinion.js`, `src/politics/opinion.js` |
 | The Politics app (Overview, Government, Polls, Vote, Influence) | `src/ui/politicsApp.js`, `src/ui/politicsInfluence.js` |
+| Effects on the economy: the bounded hooks, the named lines | `src/content/effects.js`, `src/politics/effects.js`, `src/systems/politicsEconomy.js` |
+| Diplomacy: relations, quarrels, the one writer of wars and embargoes | `src/content/diplomacy.js`, `src/politics/diplomacy.js`, `src/systems/politicsDiplomacy.js` |
 | Elections: the campaign, the debate, scandals, the result and the change of term | `src/content/elections.js`, `src/politics/election.js`, `src/systems/politicsElections.js` |
 | Influence: access, donations, lobbying, offers, the record, heat | `src/content/influence.js`, `src/politics/influence.js`, `src/systems/politicsInfluence.js` |
 
@@ -45,6 +47,14 @@ The **result** takes, for each of the nine states, opinion (each party's support
 
 Money, reputation, relationships and support are four numbers that never convert. **Standing** reads Unknown / Known / Trusted / Inner circle. A door (eight contacts: the President, the chief of staff, five ministers, the opposition leader and chief) opens on a friendship, or on support together with a reputation. **Donations**: public, recorded, 50,000 per donor per party per term, a transfer; they earn support, favours and a little trust; the donor's expectation comes due at 30 days (honoured, delayed, reinterpreted, broken). **Lobbying** costs favours. **Offers** show the price and the odds before any money moves, are charged first, recorded whatever happens, cost 35% more each time they are repeated, and draw on an official's finite favours for the term. **Heat** from illicit offers fades by 0.35 a day; above 5 investigators may find the oldest; exposure costs a scandal for the recipient's party, a fine of twice the sum (paid to the state's debt), 8 reputation and 10 trust.
 
+## The economy (v0.96.0)
+
+Each active policy can carry a bounded effect, read where a price or cost is already worked out: **farm inspection** (farm_up: a 4% fee on farm sales), **port and licensing fees** (reg_up +15%, reg_down −10%), **Sund's arms budget** (defence_up +50% refill, defence_down −40%), **Sund's public tender customers** (spend_up +40%, spend_down −30%), **sector sentiment** (a point or two, bounded at 5%), and **the state's bond** (debt over a year's revenue and the month's deficit add up to 1.5 points to what it pays). A fee you pay is the state's revenue (its debt falls by it, in thousands): no money from nowhere, and nothing pays you. Everything is listed on Government → "What the policies mean for you". `EFFECTS.enabled` (env `OBERVERSE_POLITICS=off` under Node) switches all of it off for parity. **Sund has one bond:** the First Bank's government bond; the old foreign Sund issue's holdings were moved onto it.
+
+## Diplomacy (v0.96.0)
+
+The arms market's daily tick calls `diplomacyDay()`, the **one writer** of `world.market.wars` and the embargo flags. Each pair of rivals (from the arms market's rival lists, with the countries' aggression as the input) moves peace → dispute → tension → sanctions (the aggressor is embargoed) → war → ceasefire; at each step before war talks may settle it (28% / 20% / 10%, better with good relations when Sund is party); a country has one quarrel at a time; ten days' cooling-off. A hash of the day and the pair decides every chance, so no random number is drawn and a reload cannot change a quarrel. The President's stance is a modifier: more commitments abroad make disputes that Sund is party to 60% likelier (fewer: 50% rarer). Relations with Sund (−100 … +100) move a point a day toward a baseline plus what the quarrels, embargoes and the stance make of them. Measured over 3,000 days (6 worlds): wars on 59% of days (was 86%), 0.8 at once (was 1.4), a new war every 14 days (was 9), embargoes 1.1 at a time.
+
 ## Not yet
 
-Diplomacy and the single writer for wars and embargoes, unrest, the player's own party, and every effect of a policy on the world.
+Unrest, the player's own party, embassy quests and trade talks you can play, the News page, and the effects of the police, enforcement and surveillance policies.

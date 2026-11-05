@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.96.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'Politics: The Economy and Diplomacy',
+    notes: [
+      'What the government does now reaches you, a little and in the open. Stricter farm inspection takes a 4% fee from your farm sales; more inspections and licences raise port fees on your voyages 15% (fewer lower them 10%); defence spending changes how fast Sund\'s own arms budget refills; public spending changes what Sund\'s Space Office and Met Office have to spend on tenders; each policy shifts what the market expects some sectors to earn by a point or two. Every effect is listed on Politics → Government. A fee you pay is the state\'s revenue; nothing ever pays you.',
+      'Sund has one bond. The old foreign Sund bond is gone: if you held it, your holding moved onto the First Bank\'s government bonds with the same coupon, dates and cost. The state\'s debt and deficit now add a little to what that bond pays.',
+      'Wars and embargoes now come from diplomacy, not a daily dice roll. Rivals fall out (a dispute), tension rises, the aggressor is put under sanctions (an arms embargo), and only then is there war, unless talks settle it; wars end in a ceasefire. The new "World" page shows every country\'s relation with Sund, the quarrels and the wars. More commitments abroad make disputes that Sund is party to likelier; fewer make them rarer. The page\'s segment bar no longer vanishes on a long page.',
+    ],
+  },
+  {
     version: '0.95.0',
     date: '2026-11-04',
     channel: 'development',

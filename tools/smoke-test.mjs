@@ -400,6 +400,21 @@ try {
     return out;
   });
   record('the Politics app shows the Vote (the election, public donations) and Influence (your standing, who will see you, an offer before any money moves)', Object.values(pol3).every(Boolean), JSON.stringify(pol3));
+
+  // v0.96.0: the World (diplomacy) section, with six segments in the bar
+  const pol4 = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const out = {};
+    ui.polTab = 'Diplomacy'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Politics' });
+    await new Promise((r) => setTimeout(r, 300));
+    const text = document.querySelector('#modal-body')?.textContent || '';
+    out.world = /The world today/.test(text) && /Kingdom of Sund|Varnistan/.test(text) && /Hostile|Tense|Cool|Neutral|Warm|Friendly/.test(text);
+    const bars = [...document.querySelectorAll('#modal-body .tb-seg')];
+    const seg = bars.find((b) => b.children.length === 6);
+    out.sixSegments = Boolean(seg) && seg.getBoundingClientRect().height > 30; // not squeezed away by a long page
+    ui.polTab = 'Overview';
+    return out;
+  });
+  record('the Politics app shows the World (relations, quarrels, wars) and its six-segment bar is not squeezed away', Object.values(pol4).every(Boolean), JSON.stringify(pol4));
   // v0.94.1: the estates and the party offices load and draw
   const est = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {};

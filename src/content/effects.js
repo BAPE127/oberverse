@@ -2,7 +2,7 @@
 // already worked out; nothing is a new tax on your wallet. A levy you pay is the state's revenue (it reduces the state's debt: no money from nowhere), and every
 // effect is shown to you as a named line (Politics → Government).
 //
-// Policies that name no effect here (police, enforcement, surveillance, commitments abroad) reach the world in later releases (unrest, diplomacy). The knob
+// Policies that name no effect here (police, enforcement, surveillance) reach the world in later releases (unrest). Commitments abroad reach diplomacy (src/systems/politicsDiplomacy.js). The knob
 // `enabled` switches every effect off for a parity check: with it off, the game behaves exactly as it did at v0.95.0.
 
 const off = typeof process !== 'undefined' && process.env && process.env.OBERVERSE_POLITICS === 'off';
@@ -18,12 +18,14 @@ export const EFFECTS = {
     reg_down: { portFees: -0.10, sentiment: { _all: 0.008 }, line: 'Less business regulation: port and licensing fees on your voyages are 10% lower, and companies expect slightly higher profits.' },
     defence_up: { sundArms: 0.5, sentiment: { arms: 0.03, aerospace: 0.01 }, line: 'Raised defence spending: Sund buys more from the arms trade (its arms budget refills 50% faster) and arms companies are expected to earn more.' },
     defence_down: { sundArms: -0.4, sentiment: { arms: -0.03, aerospace: -0.01 }, line: 'Cut defence spending: Sund buys less (its arms budget refills 40% slower) and arms companies are expected to earn less.' },
+    abroad_up: { sundDisputes: 0.6, worldTension: 0.08, relations: -4, line: 'More commitments abroad: disputes that Sund is party to are 60% likelier to start, the world is a little tenser, and other countries think a little less of Sund.' },
+    abroad_down: { sundDisputes: -0.5, worldTension: -0.05, relations: 6, line: 'Fewer commitments abroad: disputes that Sund is party to are half as likely to start, the world is a little calmer, and other countries think a little better of Sund.' },
     spend_up: { publicBudgets: 0.4, sentiment: { industrial: 0.01, transport: 0.01 }, line: 'Expanded public spending: Sund\'s public customers (the Space Office, the Met Office) have 40% more to spend on tenders.' },
     spend_down: { publicBudgets: -0.3, sentiment: { industrial: -0.01, transport: -0.01 }, line: 'Cut public spending: Sund\'s public customers have 30% less to spend on tenders.' },
   },
 
   /** Bounds on the sum of every policy's effect, per hook. */
-  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sentiment: 0.05 },
+  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sundDisputes: [-0.6, 1], worldTension: [-0.2, 0.3], relations: [-15, 15], sentiment: 0.05 },
 
   /** The tender customers that are Sund's own public bodies. */
   publicCustomers: ['cu_sund_space', 'cu_halver_weather'],

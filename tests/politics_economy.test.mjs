@@ -17,7 +17,7 @@ const withKnob = (on, fn) => { const was = E.enabled; E.enabled = on; try { retu
 test('the effects: every policy named has a line that says what it does; the sum of each hook is bounded; neutral with nothing in force or the knob off', () => {
   for (const [id, p] of Object.entries(E.policies)) { assert.ok(POLICIES[id], `${id} is a policy`); assert.ok(p.line && p.line.length > 20, `${id} says what it does`); }
   const none = effectsOf([], E);
-  assert.deepEqual([none.farmFee, none.portFees, none.sundArms, none.publicBudgets, none.lines.length], [0, 0, 0, 0, 0]);
+  assert.deepEqual([none.farmFee, none.portFees, none.sundArms, none.publicBudgets, none.sundDisputes, none.worldTension, none.relations, none.lines.length], [0, 0, 0, 0, 0, 0, 0, 0]);
   const all = effectsOf(Object.keys(E.policies), E);
   assert.ok(all.farmFee >= 0 && all.farmFee <= 0.08 && all.portFees >= -0.2 && all.portFees <= 0.3 && all.sundArms >= -0.6 && all.sundArms <= 1);
   for (const s of Object.keys(all.sentiment)) assert.ok(Math.abs(all.sentiment[s]) <= 0.05);
@@ -26,7 +26,8 @@ test('the effects: every policy named has a line that says what it does; the sum
   assert.ok(effectsOf(['reg_up'], E).portFees > 0 && effectsOf(['reg_down'], E).portFees < 0, 'opposed policies pull opposite ways');
   assert.ok(effectsOf(['defence_up'], E).sundArms > 0 && effectsOf(['defence_down'], E).sundArms < 0);
   // policies the effects do not reach yet say nothing
-  assert.equal(effectsOf(['police_up', 'enforce_strict', 'surveil_up', 'abroad_up'], E).lines.length, 0);
+  assert.equal(effectsOf(['police_up', 'enforce_strict', 'surveil_up'], E).lines.length, 0);
+  assert.ok(effectsOf(['abroad_up'], E).sundDisputes > 0 && effectsOf(['abroad_down'], E).sundDisputes < 0 && effectsOf(['abroad_down'], E).relations > 0, 'commitments abroad reach diplomacy');
 });
 
 test('a farm inspection fee: named, taken from the sale, and it is the state\'s revenue (its debt falls by exactly that, in thousands); none without the policy', () => {

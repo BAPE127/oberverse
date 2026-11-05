@@ -38,6 +38,6 @@ Place kinds: `c` capital · `t` city or town · `p` port · `a` airfield · `b` 
 
 ## Known limits
 
-- The **Sund bond merge** from the proposal is not done: Halvermouth's government bond and Sund's foreign bond remain two instruments.
+- The **Sund bond merge** was done in v0.96.0: Sund's debt is the First Bank's government bond; the old foreign issue's holdings were moved onto it.
 - States are a nearest-heart cut, not hand-drawn borders: a few places near a border lie in the neighbouring state (the generator assigns each place the state it stands in).
 - The city layer (street maps per city, zoom-level city records) is the Post-War update's, v0.106.0.

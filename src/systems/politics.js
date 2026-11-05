@@ -18,6 +18,7 @@ import { POLLSTERS, OPINION as OP } from '../content/opinion.js';
 import { electionMethods } from './politicsElections.js';
 import { influenceMethods } from './politicsInfluence.js';
 import { economyMethods } from './politicsEconomy.js';
+import { diplomacyMethods } from './politicsDiplomacy.js';
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -275,6 +276,6 @@ export class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 export { PARTY_IDS };

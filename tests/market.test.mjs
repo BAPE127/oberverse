@@ -77,6 +77,7 @@ test('crates: one standard lot each, made by the stations; orders are 5–50 cra
   for (const r of Object.values(CONTENT.arms.recipes)) if (r.single) assert.ok(CONTENT.items[r.out].arms.crate, `${r.out} is a crate`);
   // countries post orders within the limits and their budgets
   const g = fresh(12);
+  g.market.state.wars = [{ a: 'varn', b: 'caldera', since: 1000 }]; g.politics.ensureDiplomacy(g.politics.ensure()); // (v0.96.0: a war is on for the whole of the five days; which wars come and go is diplomacy's now, not a dice roll)
   for (let d = 0; d < 5; d++) { g.clock.total += 1440; g.market.minuteTick(); }
   const os = g.market.state.orders;
   assert.ok(os.length > 0, 'orders come in');
@@ -160,25 +161,35 @@ test('losses: insurance pays part of it back; seized embargo runs are traced to 
   assert.ok(g3.market.country('caldera').hostility >= 35, 'Caldera seized it and is furious');
 });
 
-test('the world turns: wars end after a while, rivals start new ones, aggressors get embargoed, budgets recover', () => {
+test('the world turns: budgets recover; quarrels run their chain (dispute, tension, sanctions, war), the aggressor is embargoed and a ceasefire lifts that embargo — all written by diplomacy (v0.96.0), none by the market\'s dice', () => {
   const g = fresh(9);
   runCommand(g, 'peace');
   g.market.country('varn').budget = 0;
-  g.rng.next = () => 0; // every roll lands
   g.market.dailyTick();
-  assert.ok(g.market.state.wars.length >= 1, 'war breaks out');
-  const w = g.market.state.wars[0];
-  assert.ok(CONTENT.arms.countries[w.a].rivals.includes(w.b));
-  assert.ok(g.market.country(w.a).embargo, 'the aggressor is embargoed');
-  assert.ok(g.market.country('varn').budget > 0);
+  assert.ok(g.market.country('varn').budget > 0, 'budgets recover');
+  const d = g.politics.ensureDiplomacy(g.politics.ensure());
+  const events = []; const orig = g.politics.applyEvent.bind(g.politics);
+  g.politics.applyEvent = (dd, p, e, day) => { events.push({ key: p.key, kind: e.kind }); return orig(dd, p, e, day); };
+  let war = null; let ceasefire = false;
+  const embargoedAtWar = [];
+  for (let day = g.clock.day + 1; day < g.clock.day + 600 && !ceasefire; day++) {
+    g.clock.total = (day - 1) * 1440 + 7 * 60;
+    g.market.dailyTick();
+    const w = g.market.state.wars[0];
+    if (w && !war) { war = { ...w }; embargoedAtWar.push(g.market.country(w.a).embargo, g.market.country(w.a).embargoReason); }
+    if (war && !g.market.state.wars.some((x) => x.a === war.a && x.b === war.b)) ceasefire = true;
+  }
+  assert.ok(war, 'a war breaks out within a year and a half');
+  assert.ok(CONTENT.arms.countries[war.a].rivals.includes(war.b) || CONTENT.arms.countries[war.b].rivals.includes(war.a), 'between rivals');
+  assert.deepEqual(embargoedAtWar, [true, 'war'], 'the aggressor is embargoed for war');
+  const key = war.a < war.b ? `${war.a}|${war.b}` : `${war.b}|${war.a}`;
+  const chain = events.filter((e) => e.key === key).map((e) => e.kind);
+  const at = chain.indexOf('war');
+  if (at >= 0) assert.deepEqual(chain.slice(Math.max(0, at - 3), at + 1), ['dispute', 'tension', 'sanctions', 'war'], 'dispute, then tension, then sanctions, then war');
+  else assert.ok(d.pairs[key].stage === 'war', 'the war was already on at the start (an old quarrel)');
+  assert.ok(ceasefire, 'and the war ends');
+  assert.ok(!g.market.country(war.a).embargo || g.market.country(war.a).embargoReason !== 'war', 'war embargo lifted');
   assert.ok(g.market.state.news[0].text.length > 0);
-  g.clock.total += 10 * 1440;
-  void g.market.state; // the day's new orders are posted first (they roll dice too)
-  let k = 0;
-  g.rng.next = () => (k++ === 0 ? 0 : 0.999); // the war ends; nothing new starts
-  g.market.dailyTick();
-  assert.ok(!g.market.state.wars.includes(w), 'ceasefire');
-  assert.ok(!g.market.country(w.a).embargo, 'war embargo lifted');
 });
 
 test('market state survives save/load', () => {

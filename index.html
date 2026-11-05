@@ -1129,7 +1129,7 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .tb-nav { display: flex; align-items: center; gap: 10px; padding: 4px 0 8px; padding-right: 40px; }
 .tb-title { font: 700 22px/1.1 system-ui; color: #fff; }
 .tb-back { width: 40px; height: 40px; border-radius: 13px; font-size: 22px; padding: 0; background: #2d2a70; border: 2px solid var(--line); }
-.tb-seg { display: flex; gap: 4px; background: #15133e; border: 2px solid #3a3794; border-radius: 14px; padding: 4px; margin: 0 0 10px; overflow-x: auto; }
+.tb-seg { display: flex; gap: 4px; background: #15133e; border: 2px solid #3a3794; border-radius: 14px; padding: 4px; margin: 0 0 10px; overflow-x: auto; flex-shrink: 0; }
 #modal-panel.tablet2 .tb-seg button { flex: 1; white-space: nowrap; border: 0; border-radius: 10px; background: transparent; color: var(--ink-soft); font-weight: 700; padding: 8px 10px; position: relative; box-shadow: none; }
 #modal-panel.tablet2 .tb-seg button.on { background: #f2c14e; color: #2a1a00; }
 .tb-dot { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; line-height: 22px; border-radius: 11px; background: #ff4d5e; color: #fff; font: 700 12px/22px system-ui; text-align: center; border: 2px solid #1a1650; padding: 0 5px; font-style: normal; }
@@ -17721,7 +17721,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.95.0';
+const GAME_VERSION = '0.96.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -26737,36 +26737,8 @@ class Market {
       for (const k of Object.keys(c.sat)) c.sat[k] = Math.max(0, c.sat[k] * (1 - m.saturationDecay));
       c.hostility = Math.max(0, c.hostility - 5);
     }
-    // wars end…
-    for (const w of [...s.wars]) {
-      if (g.clock.day - w.since >= m.minWarDays && g.rng.next() < m.warEndChance) {
-        s.wars = s.wars.filter((x) => x !== w);
-        const A = this.cfg.countries[w.a].name;
-        const B = this.cfg.countries[w.b].name;
-        this.news(`Ceasefire: ${A} and ${B} sign a truce.`);
-        for (const id of [w.a, w.b]) if (s.countries[id].embargoReason === 'war') { s.countries[id].embargo = false; s.countries[id].embargoReason = null; this.news(`The embargo on ${this.cfg.countries[id].name} is lifted.`); }
-      }
-    }
-    // …and start
-    for (const [id, def] of Object.entries(this.cfg.countries)) {
-      if (this.warOf(id)) continue;
-      for (const r of def.rivals) {
-        if (this.warOf(r) || this.warOf(id)) continue;
-        if (g.rng.next() < m.warStartChance * def.aggression) {
-          s.wars.push({ a: id, b: r, since: g.clock.day });
-          this.news(`WAR: ${def.name} attacks ${this.cfg.countries[r].name}.`);
-          if (!s.countries[id].embargo && g.rng.next() < m.embargoOnAggressor) {
-            s.countries[id].embargo = true;
-            s.countries[id].embargoReason = 'war';
-            this.news(`${def.name} is placed under an arms embargo.`);
-          }
-        }
-      }
-    }
-    // standing sanctions are occasionally lifted
-    for (const [id, c] of Object.entries(s.countries)) {
-      if (c.embargo && c.embargoReason !== 'war' && g.rng.next() < 0.02) { c.embargo = false; c.embargoReason = null; this.news(`Sanctions on ${this.cfg.countries[id].name} are lifted.`); }
-    }
+    // v0.96.0: wars, ceasefires and embargoes are written by diplomacy (the quarrels of the world's rivals, and the President's stance), not decided here
+    g.politics.diplomacyDay();
   }
 
   minuteTick() {
@@ -28506,7 +28478,7 @@ __m["src/content/effects.js"] = (function () {
 // already worked out; nothing is a new tax on your wallet. A levy you pay is the state's revenue (it reduces the state's debt: no money from nowhere), and every
 // effect is shown to you as a named line (Politics → Government).
 //
-// Policies that name no effect here (police, enforcement, surveillance, commitments abroad) reach the world in later releases (unrest, diplomacy). The knob
+// Policies that name no effect here (police, enforcement, surveillance) reach the world in later releases (unrest). Commitments abroad reach diplomacy (src/systems/politicsDiplomacy.js). The knob
 // `enabled` switches every effect off for a parity check: with it off, the game behaves exactly as it did at v0.95.0.
 
 const off = typeof process !== 'undefined' && process.env && process.env.OBERVERSE_POLITICS === 'off';
@@ -28522,12 +28494,14 @@ const EFFECTS = {
     reg_down: { portFees: -0.10, sentiment: { _all: 0.008 }, line: 'Less business regulation: port and licensing fees on your voyages are 10% lower, and companies expect slightly higher profits.' },
     defence_up: { sundArms: 0.5, sentiment: { arms: 0.03, aerospace: 0.01 }, line: 'Raised defence spending: Sund buys more from the arms trade (its arms budget refills 50% faster) and arms companies are expected to earn more.' },
     defence_down: { sundArms: -0.4, sentiment: { arms: -0.03, aerospace: -0.01 }, line: 'Cut defence spending: Sund buys less (its arms budget refills 40% slower) and arms companies are expected to earn less.' },
+    abroad_up: { sundDisputes: 0.6, worldTension: 0.08, relations: -4, line: 'More commitments abroad: disputes that Sund is party to are 60% likelier to start, the world is a little tenser, and other countries think a little less of Sund.' },
+    abroad_down: { sundDisputes: -0.5, worldTension: -0.05, relations: 6, line: 'Fewer commitments abroad: disputes that Sund is party to are half as likely to start, the world is a little calmer, and other countries think a little better of Sund.' },
     spend_up: { publicBudgets: 0.4, sentiment: { industrial: 0.01, transport: 0.01 }, line: 'Expanded public spending: Sund\'s public customers (the Space Office, the Met Office) have 40% more to spend on tenders.' },
     spend_down: { publicBudgets: -0.3, sentiment: { industrial: -0.01, transport: -0.01 }, line: 'Cut public spending: Sund\'s public customers have 30% less to spend on tenders.' },
   },
 
   /** Bounds on the sum of every policy's effect, per hook. */
-  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sentiment: 0.05 },
+  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sundDisputes: [-0.6, 1], worldTension: [-0.2, 0.3], relations: [-15, 15], sentiment: 0.05 },
 
   /** The tender customers that are Sund's own public bodies. */
   publicCustomers: ['cu_sund_space', 'cu_halver_weather'],
@@ -28543,23 +28517,24 @@ return { EFFECTS };
 __m["src/politics/effects.js"] = (function () {
 // What the policies in force do (v0.96.0). Pure: from the ids of the policies in force, the bounded multipliers and levies, and the lines that say so.
 //
-//   effectsOf(active, E)        → { farmFee, portFees, sundArms, publicBudgets, sentiment: { sector: share }, lines: [{ policy, text }] }  (neutral when E.enabled is false)
+//   effectsOf(active, E)        → { farmFee, portFees, sundArms, publicBudgets, sundDisputes, worldTension, relations, sentiment: { sector: share }, lines: [{ policy, text }] }  (neutral when E.enabled is false)
 //   sentimentFor(fx, sector)    the policy's share of a sector's expected earnings (bounded)
 //   debtPremium(debt, revenue, deficit, E)   what the state's debt and deficit add to the yield of its bond (a rate; 0 when comfortable)
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function effectsOf(active, E) {
-  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sentiment: {}, lines: [] };
+  const KEYS = ['farmFee', 'portFees', 'sundArms', 'publicBudgets', 'sundDisputes', 'worldTension', 'relations'];
+  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sundDisputes: 0, worldTension: 0, relations: 0, sentiment: {}, lines: [] };
   if (!E.enabled) return out;
   for (const id of [...active].sort()) {
     const p = E.policies[id];
     if (!p) continue;
-    for (const k of ['farmFee', 'portFees', 'sundArms', 'publicBudgets']) out[k] += p[k] || 0;
+    for (const k of KEYS) out[k] += p[k] || 0;
     for (const [s, v] of Object.entries(p.sentiment || {})) out.sentiment[s] = (out.sentiment[s] || 0) + v;
     if (p.line) out.lines.push({ policy: id, text: p.line });
   }
   const B = E.bounds;
-  for (const k of ['farmFee', 'portFees', 'sundArms', 'publicBudgets']) out[k] = clamp(out[k], B[k][0], B[k][1]);
+  for (const k of KEYS) out[k] = clamp(out[k], B[k][0], B[k][1]);
   for (const s of Object.keys(out.sentiment)) out.sentiment[s] = clamp(out.sentiment[s], -B.sentiment, B.sentiment);
   return out;
 }
@@ -28654,6 +28629,282 @@ const economyMethods = {
 return { economyMethods };
 })();
 
+// ---- src/content/diplomacy.js
+__m["src/content/diplomacy.js"] = (function () {
+// Diplomacy (v0.96.0): the one writer of wars and embargoes. Pure data; every figure the model uses is here (calibrated by simulation, tests/diplomacy.test.mjs).
+//
+// A quarrel between two countries that the arms market lists as rivals moves along a chain, never by a single roll:
+//   peace → dispute → tension → sanctions (the aggressor is embargoed) → war → ceasefire → peace.
+// At the end of each stage before war the quarrel may be settled by talks. Every "chance" is a hash of the day and the pair, so a reload cannot change it.
+// The arms market's rival list and aggression values are the INPUT; the President's stance (commitments abroad) and the state of the world are modifiers.
+
+const DIPLOMACY = {
+  /** Chance a pair of rivals starts a dispute on a day of peace: base × the pair's mean aggression ÷ 0.3, × what the world and the President's stance add. */
+  start: { base: 0.12, cooldown: 10, perWar: 0.12, worldCap: 0.4 },
+  /** Days in each stage before it ends (inclusive range, hashed): dispute, tension, sanctions. */
+  stage: { dispute: [3, 7], tension: [3, 6], sanctions: [2, 5] },
+  /** At the end of a stage: the chance that talks settle the quarrel (before war). Better relations with Sund help when Sund is party to it. */
+  talks: { dispute: 0.28, tension: 0.20, sanctions: 0.10, perRelation: 0.003, cap: 0.75 },
+  /** The war: the least it lasts, and the daily chance of a ceasefire after that. */
+  war: { minDays: 5, endChance: 0.15 },
+  /** Sanctions on an aggressor are lifted when the quarrel ends; a standing embargo (international sanctions) may be lifted now and then. */
+  standingLift: 0.02,
+  /** Relations with Sund (−100 … +100): each country's own baseline from a hash, moved toward a target by a point a day. */
+  relations: { baseline: [-22, 28], step: 1, trade: 25, military: 45, perDispute: -14, perSanction: -22, perWar: -30, embargoOnThem: -12, lirre: 8 },
+  /** Names for a relation score, from the worst: [upper bound (exclusive), label]. */
+  bands: [[-60, 'Hostile'], [-30, 'Tense'], [-8, 'Cool'], [12, 'Neutral'], [40, 'Warm'], [101, 'Friendly']],
+  /** What the quarrels are about (a hash picks one; it is only a name). */
+  causes: ['a border incident', 'a fishing-rights dispute', 'a failed round of trade talks', 'a sunk patrol boat', 'an expelled attaché', 'a shipping toll nobody agreed', 'a disputed island', 'a leaked cable'],
+  log: 14, historyKept: 6,
+};
+
+return { DIPLOMACY };
+})();
+
+// ---- src/politics/diplomacy.js
+__m["src/politics/diplomacy.js"] = (function () {
+// Diplomacy (v0.96.0): the rules, pure. Chance comes only from a hash of the day and the pair (never a random draw), so a reload cannot change a quarrel.
+//
+//   pairKey(a, b)                       the unordered key of two countries
+//   bandOf(score)                       the word for a relation score
+//   baseline(id, salt)                  a country's own starting relation with Sund (a hash)
+//   startChance(a, b, agg, ctx)         the chance a pair of rivals falls out on a day of peace
+//   stepPair(pair, day, ctx)            one day of a quarrel: { pair, events }, events being what to announce and what to write
+//   targetScore(...)                    the relation a country drifts toward
+const { DIPLOMACY: D } = __m["src/content/diplomacy.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+
+const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+function bandOf(score) {
+  for (const [hi, label] of D.bands) if (score < hi) return label;
+  return D.bands[D.bands.length - 1][1];
+}
+
+const baseline = (id, salt) => Math.round(D.relations.baseline[0] + unit(`${salt}|base|${id}`) * (D.relations.baseline[1] - D.relations.baseline[0]));
+
+/** ctx: { salt, wars (how many are on in the world), sundMod (the policies' change in disputes that Sund is party to), worldMod }. agg: { [id]: aggression }. */
+function startChance(a, b, agg, ctx) {
+  const S = D.start;
+  const mean = ((agg[a] ?? 0.2) + (agg[b] ?? 0.2)) / 2;
+  const sund = a === 'sund' || b === 'sund' ? (ctx.sundMod || 0) : 0;
+  const world = clamp(S.perWar * ctx.wars + (ctx.worldMod || 0), -S.worldCap, S.worldCap);
+  return clamp((S.base * mean) / 0.3 * (1 + world + sund), 0, 0.5);
+}
+
+const range = ([lo, hi], u) => lo + Math.floor(u * (hi - lo + 1));
+const cause = (key, day, salt) => D.causes[Math.floor(unit(`${salt}|cause|${key}|${day}`) * D.causes.length)];
+
+/**
+ * One day of a quarrel between a and b (a is the aggressor of a dispute: the one whose hash of the day is the lower). pair: { key, a, b, stage, since, until, cause, settledDay }.
+ * ctx: { salt, wars, sundMod, worldMod, agg, relation (the relation with Sund of the other party when Sund is in the pair: -100..100) }.
+ * Returns { pair, events: [{ kind: 'dispute' | 'tension' | 'sanctions' | 'war' | 'ceasefire' | 'settled' | 'lift', text, aggressor? }] }.
+ */
+function stepPair(pair, day, ctx) {
+  const p = { ...pair };
+  const events = [];
+  const key = p.key;
+  const u = (tag) => unit(`${ctx.salt}|${tag}|${key}|${day}`);
+  const sundIn = p.a === 'sund' || p.b === 'sund';
+  const talksBonus = sundIn ? (ctx.relation || 0) * D.talks.perRelation : 0;
+  if (p.stage === 'peace') {
+    if (p.settledDay != null && day - p.settledDay < D.start.cooldown) return { pair: p, events };
+    if (u('start') < startChance(p.a, p.b, ctx.agg, ctx)) {
+      const aggressor = unit(`${ctx.salt}|aggressor|${key}|${day}`) * ((ctx.agg[p.a] ?? 0.2) + (ctx.agg[p.b] ?? 0.2)) < (ctx.agg[p.a] ?? 0.2) ? p.a : p.b;
+      Object.assign(p, { stage: 'dispute', since: day, until: day + range(D.stage.dispute, u('len')), cause: cause(key, day, ctx.salt), aggressor });
+      events.push({ kind: 'dispute', aggressor, text: `A dispute: ${ctx.name(p.a)} and ${ctx.name(p.b)} fall out over ${p.cause}.` });
+    }
+    return { pair: p, events };
+  }
+  if (p.stage === 'war') {
+    if (day - p.since >= D.war.minDays && u('end') < D.war.endChance) {
+      Object.assign(p, { stage: 'peace', settledDay: day, until: null });
+      events.push({ kind: 'ceasefire', text: `Ceasefire: ${ctx.name(p.a)} and ${ctx.name(p.b)} sign a truce.` });
+    }
+    return { pair: p, events };
+  }
+  // dispute, tension, sanctions: at the end of the stage, talks may settle it, or it escalates
+  if (day < p.until) return { pair: p, events };
+  const settle = clamp(D.talks[p.stage] + talksBonus, 0, D.talks.cap);
+  if (u('talks') < settle) {
+    Object.assign(p, { stage: 'peace', settledDay: day, until: null });
+    events.push({ kind: 'settled', text: `Talks succeed: the quarrel between ${ctx.name(p.a)} and ${ctx.name(p.b)} over ${p.cause} is settled.` });
+    return { pair: p, events };
+  }
+  if (p.stage === 'dispute') {
+    Object.assign(p, { stage: 'tension', since: day, until: day + range(D.stage.tension, u('len')) });
+    events.push({ kind: 'tension', text: `Tension: ${ctx.name(p.a)} and ${ctx.name(p.b)} recall their ambassadors over ${p.cause}.` });
+  } else if (p.stage === 'tension') {
+    Object.assign(p, { stage: 'sanctions', since: day, until: day + range(D.stage.sanctions, u('len')) });
+    events.push({ kind: 'sanctions', aggressor: p.aggressor, text: `Sanctions: ${ctx.name(p.aggressor)} is placed under an arms embargo as the quarrel with ${ctx.name(p.aggressor === p.a ? p.b : p.a)} deepens.` });
+  } else {
+    Object.assign(p, { stage: 'war', since: day, until: null });
+    events.push({ kind: 'war', aggressor: p.aggressor, text: `WAR: ${ctx.name(p.aggressor)} attacks ${ctx.name(p.aggressor === p.a ? p.b : p.a)}.` });
+  }
+  return { pair: p, events };
+}
+
+/**
+ * The relation a country drifts toward (with Sund): its own baseline, what the policies add, a trade agreement or military cooperation when it is warm enough
+ * (flags, not a cause), minus what the quarrels it is in do. quarrels: { dispute, sanctions, war } counts of its pairs in each stage that involve Sund or that put it under embargo.
+ */
+function targetScore({ base, policy = 0, quarrels = { dispute: 0, sanctions: 0, war: 0 }, embargoed = false, neutral = false }) {
+  const R = D.relations;
+  let t = base + policy + quarrels.dispute * R.perDispute + quarrels.sanctions * R.perSanction + quarrels.war * R.perWar + (embargoed ? R.embargoOnThem : 0) + (neutral ? R.lirre : 0);
+  return clamp(Math.round(t), -100, 100);
+}
+
+const stepToward = (score, target) => score + clamp(target - score, -D.relations.step, D.relations.step);
+
+return { unit, pairKey, bandOf, baseline, startChance, stepPair, targetScore, stepToward };
+})();
+
+// ---- src/systems/politicsDiplomacy.js
+__m["src/systems/politicsDiplomacy.js"] = (function () {
+// Diplomacy (v0.96.0): relations with the ten other countries, the quarrels between them, and the one writer of wars and embargoes. Added to the Politics service.
+//
+// The arms market (src/systems/market.js) no longer decides when a war starts or ends: its daily tick calls diplomacyDay(), which moves each pair of rivals along
+// the chain peace → dispute → tension → sanctions → war → ceasefire (src/politics/diplomacy.js) and writes `world.market.wars` and the embargo flags. Everything that reads
+// them (geo, the arms market's demand, shipping, bonds, the exchange) is unchanged. Every chance is a hash of the day and the pair: a reload cannot change a quarrel.
+const { DIPLOMACY: D } = __m["src/content/diplomacy.js"];
+const { AMBASSADORS } = __m["src/content/capital.js"];
+const { pairKey, bandOf, baseline, stepPair, targetScore, stepToward, unit } = __m["src/politics/diplomacy.js"];
+
+const diplomacyMethods = {
+  /** The diplomatic record, made on first use from what the world already holds (a running game keeps its wars and embargoes). */
+  ensureDiplomacy(s) {
+    if (s.diplomacy) return s.diplomacy;
+    const g = this.g;
+    const countries = g.content.arms.countries;
+    const salt = String(g.rng.state);
+    const pairs = {};
+    for (const [id, def] of Object.entries(countries)) for (const r of def.rivals || []) {
+      const key = pairKey(id, r);
+      if (!pairs[key]) { const [a, b] = key.split('|'); pairs[key] = { key, a, b, stage: 'peace', since: 0, until: null, cause: null, aggressor: null, settledDay: null }; }
+    }
+    const market = g.market.state;
+    for (const w of market.wars) {
+      const key = pairKey(w.a, w.b);
+      pairs[key] ||= { key, a: w.a < w.b ? w.a : w.b, b: w.a < w.b ? w.b : w.a, stage: 'peace', since: 0, until: null, cause: null, aggressor: null, settledDay: null };
+      Object.assign(pairs[key], { stage: 'war', since: w.since ?? this.day, aggressor: w.a, cause: 'an old quarrel' });
+    }
+    const relations = {};
+    for (const id of Object.keys(countries)) if (id !== 'sund') relations[id] = { score: baseline(id, salt) };
+    s.diplomacy = { v: 1, salt, pairs, relations, log: [], lastDay: this.day - 1 };
+    return s.diplomacy;
+  },
+
+  name(id) { return this.g.content.arms.countries[id]?.name || id; },
+  note(d, text) { d.log.unshift({ day: this.day, text }); d.log = d.log.slice(0, D.log); },
+  countryState(id) { return this.g.market.state.countries[id]; },
+
+  /** Once a day, from the arms market's daily tick: the quarrels move on. Idempotent per day. */
+  diplomacyDay() {
+    const s = this.ensure();
+    const d = this.ensureDiplomacy(s);
+    const day = this.g.clock.day;
+    if (d.lastDay >= day) return;
+    for (let k = Math.max(d.lastDay + 1, day - 9); k <= day; k++) this.diplomacyStep(s, d, k);
+    d.lastDay = day;
+  },
+
+  diplomacyStep(s, d, day) {
+    const g = this.g;
+    const M = g.market;
+    const ms = M.state;
+    const agg = Object.fromEntries(Object.entries(g.content.arms.countries).map(([id, c]) => [id, c.aggression]));
+    const saved = this.dayOverride; this.dayOverride = day;
+    // what the market holds is the truth readers see: a war added or removed from outside (a debug command) is taken as it stands
+    for (const p of Object.values(d.pairs)) {
+      const live = ms.wars.some((w) => pairKey(w.a, w.b) === p.key);
+      if (live && p.stage !== 'war') Object.assign(p, { stage: 'war', since: day, until: null, aggressor: ms.wars.find((w) => pairKey(w.a, w.b) === p.key).a });
+      if (!live && p.stage === 'war') Object.assign(p, { stage: 'peace', settledDay: day, until: null });
+    }
+    // a standing embargo is lifted now and then
+    for (const [id, c] of Object.entries(ms.countries)) {
+      if (c.embargo && c.embargoReason !== 'war' && c.embargoReason !== 'sanctions' && unit(`${d.salt}|lift|${id}|${day}`) < D.standingLift) { c.embargo = false; c.embargoReason = null; M.news(`Sanctions on ${this.name(id)} are lifted.`); this.note(d, `Sanctions on ${this.name(id)} are lifted.`); }
+    }
+    const fx = this.fx();
+    const wars = ms.wars.length;
+    const busy = (p) => Object.values(d.pairs).some((q) => q !== p && q.stage !== 'peace' && (q.a === p.a || q.b === p.a || q.a === p.b || q.b === p.b));
+    for (const key of Object.keys(d.pairs).sort()) {
+      const p = d.pairs[key];
+      if (p.stage === 'peace' && busy(p)) continue; // a country has one quarrel at a time
+      const other = p.a === 'sund' ? p.b : p.b === 'sund' ? p.a : null;
+      const ctx = { salt: d.salt, wars, sundMod: fx.sundDisputes, worldMod: fx.worldTension, agg, relation: other ? d.relations[other]?.score || 0 : 0, name: (id) => this.name(id) };
+      const r = stepPair(p, day, ctx);
+      d.pairs[key] = r.pair;
+      for (const e of r.events) this.applyEvent(d, r.pair, e, day);
+    }
+    // relations drift toward what the quarrels and the policies make of them
+    for (const [id, rel] of Object.entries(d.relations)) {
+      const quarrels = { dispute: 0, sanctions: 0, war: 0 };
+      for (const p of Object.values(d.pairs)) if ((p.a === 'sund' && p.b === id) || (p.b === 'sund' && p.a === id)) { if (p.stage === 'dispute' || p.stage === 'tension') quarrels.dispute++; else if (p.stage === 'sanctions') quarrels.sanctions++; else if (p.stage === 'war') quarrels.war++; }
+      const target = targetScore({ base: baseline(id, d.salt), policy: fx.relations, quarrels, embargoed: Boolean(ms.countries[id]?.embargo), neutral: id === 'lirre' });
+      rel.score = stepToward(rel.score, target);
+    }
+    this.dayOverride = saved;
+  },
+
+  /** What a step of a quarrel does to the world: the one writer. */
+  applyEvent(d, p, e, day) {
+    const M = this.g.market;
+    const ms = M.state;
+    const other = (id) => (id === p.a ? p.b : p.a);
+    const lift = (id, reason) => {
+      const c = ms.countries[id];
+      if (c?.embargo && c.embargoReason === reason && !Object.values(d.pairs).some((q) => q !== p && q.stage !== 'peace' && (q.aggressor === id) && (reason === 'war' ? q.stage === 'war' : q.stage === 'sanctions' || q.stage === 'war'))) { c.embargo = false; c.embargoReason = null; M.news(`The embargo on ${this.name(id)} is lifted.`); }
+    };
+    this.note(d, e.text);
+    if (e.kind === 'sanctions') {
+      const c = ms.countries[e.aggressor];
+      if (c && !c.embargo) { c.embargo = true; c.embargoReason = 'sanctions'; }
+      M.news(e.text);
+    } else if (e.kind === 'war') {
+      ms.wars.push({ a: e.aggressor, b: other(e.aggressor), since: day });
+      const c = ms.countries[e.aggressor];
+      if (c) { c.embargo = true; c.embargoReason = 'war'; }
+      M.news(e.text);
+    } else if (e.kind === 'ceasefire') {
+      ms.wars = ms.wars.filter((w) => pairKey(w.a, w.b) !== p.key);
+      M.news(e.text);
+      for (const id of [p.a, p.b]) lift(id, 'war');
+    } else if (e.kind === 'settled') {
+      M.news(e.text);
+      lift(p.aggressor, 'sanctions');
+    }
+  },
+
+  // ---------------------------------------------------------------- views
+  /** What the Diplomacy page shows. */
+  diplomacy() {
+    const s = this.ensure();
+    const d = this.ensureDiplomacy(s);
+    const ms = this.g.market.state;
+    const fx = this.fx();
+    const amb = Object.fromEntries(AMBASSADORS.map((a) => [a.id.replace('npc_amb_', ''), a.name]));
+    const rows = Object.entries(d.relations).map(([id, rel]) => {
+      const c = ms.countries[id];
+      const def = this.g.content.arms.countries[id];
+      const quarrel = Object.values(d.pairs).find((p) => p.stage !== 'peace' && (p.a === id || p.b === id));
+      const flags = [];
+      if (rel.score >= D.relations.trade && !c?.embargo) flags.push('trade agreement');
+      if (rel.score >= D.relations.military) flags.push('military cooperation');
+      if (c?.embargo) flags.push(c.embargoReason === 'war' ? 'embargo (for war)' : c.embargoReason === 'sanctions' ? 'sanctions' : 'embargo');
+      if (quarrel) flags.push(quarrel.stage === 'war' ? 'at war' : quarrel.stage === 'sanctions' ? 'sanctions talks' : `dispute (${quarrel.stage})`);
+      return { id, name: def.name, color: def.color, score: rel.score, band: bandOf(rel.score), flags, ambassador: amb[id] || null, note: quarrel ? (quarrel.stage === 'war' ? `At war with ${this.name(quarrel.a === id ? quarrel.b : quarrel.a)}` : `${quarrel.cause} with ${this.name(quarrel.a === id ? quarrel.b : quarrel.a)}`) : (c?.embargo ? 'Embargoed' : 'Embassy open') };
+    }).sort((a, b) => (a.name < b.name ? -1 : 1));
+    const wars = ms.wars.map((w) => ({ a: w.a, b: w.b, names: [this.name(w.a), this.name(w.b)], since: w.since, days: this.g.clock.day - w.since }));
+    const disputes = Object.values(d.pairs).filter((p) => p.stage !== 'peace' && p.stage !== 'war').map((p) => ({ a: p.a, b: p.b, names: [this.name(p.a), this.name(p.b)], stage: p.stage, cause: p.cause, since: p.since, until: p.until }));
+    return { countries: rows, wars, disputes, log: d.log, stance: { sundDisputes: fx.sundDisputes, relations: fx.relations, worldTension: fx.worldTension } };
+  },
+};
+
+return { diplomacyMethods };
+})();
+
 // ---- src/systems/politics.js
 __m["src/systems/politics.js"] = (function () {
 // The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
@@ -28676,6 +28927,7 @@ const { POLLSTERS, OPINION: OP } = __m["src/content/opinion.js"];
 const { electionMethods } = __m["src/systems/politicsElections.js"];
 const { influenceMethods } = __m["src/systems/politicsInfluence.js"];
 const { economyMethods } = __m["src/systems/politicsEconomy.js"];
+const { diplomacyMethods } = __m["src/systems/politicsDiplomacy.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -28933,7 +29185,7 @@ class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 
 
@@ -50821,6 +51073,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.96.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'Politics: The Economy and Diplomacy',
+    notes: [
+      'What the government does now reaches you, a little and in the open. Stricter farm inspection takes a 4% fee from your farm sales; more inspections and licences raise port fees on your voyages 15% (fewer lower them 10%); defence spending changes how fast Sund\'s own arms budget refills; public spending changes what Sund\'s Space Office and Met Office have to spend on tenders; each policy shifts what the market expects some sectors to earn by a point or two. Every effect is listed on Politics → Government. A fee you pay is the state\'s revenue; nothing ever pays you.',
+      'Sund has one bond. The old foreign Sund bond is gone: if you held it, your holding moved onto the First Bank\'s government bonds with the same coupon, dates and cost. The state\'s debt and deficit now add a little to what that bond pays.',
+      'Wars and embargoes now come from diplomacy, not a daily dice roll. Rivals fall out (a dispute), tension rises, the aggressor is put under sanctions (an arms embargo), and only then is there war, unless talks settle it; wars end in a ceasefire. The new "World" page shows every country\'s relation with Sund, the quarrels and the wars. More commitments abroad make disputes that Sund is party to likelier; fewer make them rarer. The page\'s segment bar no longer vanishes on a long page.',
+    ],
+  },
+  {
     version: '0.95.0',
     date: '2026-11-04',
     channel: 'development',
@@ -69738,6 +70001,48 @@ function offerScreen(ui, body, open, go) {
 return { campaignTab, influenceTab };
 })();
 
+// ---- src/ui/politicsDiplomacy.js
+__m["src/ui/politicsDiplomacy.js"] = (function () {
+// The Diplomacy page of the Politics app (v0.96.0), in the OberPad pattern (mock-up proposal-pol-oberpad-diplomacy.png): who Sund trades with and who is fighting whom.
+// One row per country with its relation (a band and a score), the quarrels in progress and the wars on, and a fold with the embassies and the recent history.
+// It reads game.politics.diplomacy(); the wars and embargoes it shows are the same ones the arms market, geo, shipping, bonds and the exchange read. Nothing here decides anything.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold } = __m["src/ui/tabletKit.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const TONE = { Hostile: 'bad', Tense: 'warn', Cool: 'warn', Neutral: '', Warm: 'good', Friendly: 'good' };
+const STAGE = { dispute: 'a dispute', tension: 'rising tension', sanctions: 'sanctions talks' };
+const sign = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}`;
+const swatch = (c) => h('span', { style: `display:inline-block;width:14px;height:14px;border-radius:3px;background:${c};vertical-align:-2px` });
+
+function diplomacyTab(ui, body) {
+  const g = ui.game;
+  const V = g.politics.diplomacy();
+  const wars = V.wars;
+  const embargoes = V.countries.filter((c) => c.flags.some((f) => /embargo|sanctions/.test(f))).length;
+  body.append(
+    hero({ label: 'The world today', value: wars.length ? `${wars.length} war${wars.length === 1 ? '' : 's'} on` : 'At peace', tone: wars.length ? 'neg' : 'pos', sub: `${V.disputes.length} quarrel${V.disputes.length === 1 ? '' : 's'} brewing · ${embargoes} under sanctions or an embargo` }),
+    tiles([{ n: String(V.countries.filter((c) => c.score >= 12).length), t: 'friendly or warm' }, { n: String(V.disputes.length), t: 'quarrels' }, { n: String(wars.length), t: 'wars' }]));
+  body.append(list(...V.countries.map((c) => row({
+    icon: swatch(c.color), title: c.name, sub: `${c.note}${c.flags.length ? ` · ${c.flags.join(' · ')}` : ''}`, tag: `${c.band} ${sign(c.score)}`, tone: TONE[c.band],
+  }))));
+  if (wars.length || V.disputes.length) {
+    body.append(h('div', { class: 'tb-label', style: 'margin:6px 4px' }, 'Active'));
+    body.append(list(
+      ...wars.map((w) => row({ icon: '⚔️', title: `${w.names[0]} – ${w.names[1]} war`, sub: `Day ${w.days} · arms demand up, shipping risk up`, tag: 'war', tone: 'bad' })),
+      ...V.disputes.map((d) => row({ icon: '🕊️', title: `${d.names[0]} and ${d.names[1]}`, sub: `${STAGE[d.stage]} over ${d.cause}${d.until ? ` · a decision about day ${d.until}` : ''}`, tag: d.stage, tone: 'warn' }))));
+  }
+  const st = V.stance;
+  body.append(help('How it works', 'Quarrels between rivals move along a chain: a dispute, rising tension, sanctions on the aggressor (an arms embargo), and only then war; at each step talks may settle it. A war ends in a ceasefire after a few days, when the embargo for it is lifted. Nothing here is a dice roll on the day: the same world gives the same quarrels, and a reload cannot change them. The President\'s stance matters but guarantees nothing: more commitments abroad make a dispute that Sund is party to likelier, fewer make it rarer, and other countries think better or worse of Sund. These are the wars and embargoes that the arms market, shipping, bonds and the exchange already react to.', st.sundDisputes || st.relations ? `The government\'s stance today: disputes involving Sund ${st.sundDisputes > 0 ? `${Math.round(st.sundDisputes * 100)}% likelier` : st.sundDisputes < 0 ? `${Math.round(-st.sundDisputes * 100)}% rarer` : 'as usual'}; relations ${sign(st.relations)} points.` : 'The government\'s stance abroad is neutral.'));
+  body.append(fold(ui, 'PoliticsDip', 'Embassies · trade · the record ›', (box) => {
+    box.append(list(...V.countries.map((c) => row({ icon: '🏛️', title: `${c.name}`, sub: `${c.ambassador ? `Ambassador ${c.ambassador}` : 'Embassy'} · ${c.flags.length ? c.flags.join(', ') : 'no agreement'}` }))));
+    box.append(list(...(V.log.length ? V.log.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'No quarrel has begun since the record was made.' })])));
+  }));
+}
+
+return { diplomacyTab };
+})();
+
 // ---- src/ui/politicsApp.js
 __m["src/ui/politicsApp.js"] = (function () {
 // The Politics app (v0.93.0): who governs Sund, the term and the date of the vote, the opposition and where the two parties differ; the government (v0.94.0), the polls (v0.94.0),
@@ -69746,12 +70051,13 @@ const { h } = __m["src/ui/panels.js"];
 const { hero, tiles, row, help, fold, segments, n } = __m["src/ui/tabletKit.js"];
 const { atlasStates } = __m["src/world/atlas.js"];
 const { campaignTab, influenceTab } = __m["src/ui/politicsInfluence.js"];
+const { diplomacyTab } = __m["src/ui/politicsDiplomacy.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const LEAN = { '-2': 'strongly against', '-1': 'against', 0: 'neutral', 1: 'for', 2: 'strongly for' };
 const PHASE = { term: 'In term', campaign: 'Campaign season', polling: 'Polling day' };
 
-const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }, { id: 'Campaign', label: 'Vote' }, { id: 'Influence', label: 'Influence' }];
+const SEGMENTS = [{ id: 'Overview', label: 'Overview' }, { id: 'Government', label: 'Government' }, { id: 'Polls', label: 'Polls' }, { id: 'Campaign', label: 'Vote' }, { id: 'Influence', label: 'Influence' }, { id: 'Diplomacy', label: 'World' }];
 
 /** The Politics app: an overview, and the government (v0.94.0). */
 function politicsApp(ui, body, open) {
@@ -69762,6 +70068,7 @@ function politicsApp(ui, body, open) {
   else if (tab === 'Polls') pollsTab(ui, body);
   else if (tab === 'Campaign') campaignTab(ui, body, open);
   else if (tab === 'Influence') influenceTab(ui, body, open);
+  else if (tab === 'Diplomacy') diplomacyTab(ui, body);
   else overviewTab(ui, body, open);
 }
 
@@ -69879,7 +70186,7 @@ function bondsApp(ui, body, open) {
       row({ icon: '📜', title: `${o.years}-year bond`, sub: `${n((100000 * o.coupon) / 12)} a month on 100,000 · you may still buy ${n(o.room)}`, tag: `${pc(o.coupon)}`, action: buyer(`g${o.years}`)[0] }),
       amountsRow(`g${o.years}`, [1000, 10000, 100000], (f) => g.player.money >= f && o.room >= f, (f) => B.buy(o.years, f))])));
     if (P.rows.length) body.append(list(...P.rows.map((r) => row({ icon: '💼', title: `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, sub: `${n(r.perMonth)} a month · ${n(r.daysLeft)} days left · worth ${n(r.value)} (paid ${n(r.cost)})`, action: h('button', { class: 'tb-mini', onclick: () => go(B.sell(r.id)) }, `Sell ${n(r.sale)}`) }))));
-    body.append(help('How government bonds work ›', 'Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. This is the one bond of the Kingdom of Sund: its coupon is the policy rate plus a premium for the term, plus what the state's debt and deficit add (see Politics → Government) and what wars add, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'), ...logHelp(B.peek()?.log || [], 'Recent ›'));
+    body.append(help('How government bonds work ›', 'Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. This is the one bond of the Kingdom of Sund: its coupon is the policy rate plus a premium for the term, plus what the state\'s debt and deficit add (see Politics → Government) and what wars add, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'), ...logHelp(B.peek()?.log || [], 'Recent ›'));
   } else if (view === 'corp') {
     const all = C.offers();
     const offers = ui.bondAll ? all : all.slice(0, 5);

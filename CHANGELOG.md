@@ -2,6 +2,27 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.96.0] — 2026-11-05 — Politics: The Economy and Diplomacy (development build)
+
+Plan: `docs/PROPOSAL_POLITICS.md` (§5.6, §6), mock-up `proposal-pol-oberpad-diplomacy.png`; reference: `docs/POLITICS.md`. Built in three parts, each tested and pushed (effects, the bond merge, diplomacy).
+
+**The economy.** Each policy in force can carry a bounded effect (`src/content/effects.js`), read where a price or a cost is already worked out and shown as a named line on Politics → Government. A levy you pay is the state's revenue: it reduces the state's debt (in thousands), so nothing is made from nowhere; nothing ever pays you.
+- **Farms:** stricter farm inspection takes a 4% inspection fee from farm sales (the co-op, auctions and the farm manager's sales).
+- **Shipping:** more inspections and licences raise the port and licensing fees of a voyage by 15%; less regulation lowers them by 10%.
+- **Arms:** defence spending changes how fast Sund's own arms budget refills (+50% / −40%): Sund as a buyer.
+- **Aerospace:** public spending changes the daily refill of Sund's public tender customers, the Royal Sund Space Office and the Halvermouth Meteorological Office (+40% / −30%).
+- **The exchange:** policies move what the market expects a sector's companies to earn, by a point or two (bounded at 5%), through the same sentiment geo already uses.
+- **The bond:** the state's debt over a year's revenue and a month's deficit add up to 1.5 points to what the government bond pays (`bondPremium`); the state's interest bill pays it too.
+- Policies on police, enforcement and surveillance name no effect yet (the unrest release). **Politics-off knob:** `EFFECTS.enabled` (env `OBERVERSE_POLITICS=off` in Node) switches every effect off; with it off the whole suite passes with the two bond tests unedited.
+
+**One bond for Sund.** Sund's rated three-year foreign issue is gone; Sund's debt is the First Bank's government bond. A save that holds the old issue moves each holding, once, onto the First Bank's lots as a three-year bond with its own coupon, dates, cost and coupons paid (a lot of a distressed issue is paid out at its value instead). The foreign list is now ten countries.
+
+**Diplomacy.** The arms market no longer rolls for wars: its daily tick calls `diplomacyDay()`, which is the one writer of `world.market.wars` and the embargo flags (geo, the arms market's demand, shipping, bonds and the exchange read them unchanged). Each pair of rivals moves peace → dispute → tension → sanctions (the aggressor is embargoed) → war → ceasefire; at each step before war talks may settle it (better relations with Sund help when Sund is party); a country has one quarrel at a time; a quarrel cools off for ten days after. Every chance is a hash of the day and the pair, so there is no random draw and a reload cannot change a quarrel. A running game keeps its wars and embargoes (the record is made from them). Each of the ten other countries has a relation with Sund (−100 … +100: Hostile, Tense, Cool, Neutral, Warm, Friendly) that moves a point a day toward its baseline, the quarrels it is in with Sund, any embargo on it and the government's stance; commitments abroad make disputes that Sund is party to 60% likelier (fewer: 50% rarer), nudge the world's tension and every relation.
+- **Calibrated against the old model:** wars were on 86% of days (1.4 at once, a new one every 9 days); now about 60% (0.8 at once, one every 14 days), each with weeks of warning. Embargoes about 1.1 at a time. The arms trade still has wars to sell into, a little less often.
+- **The Politics app** gains **World** (a relation for each country, the quarrels, the wars, the government's stance, embassies and the record; as in the mock-up) and, on Government, **What the policies mean for you** and the bond premium. The segment bar was squeezed to nothing on a long page: fixed for every app (`flex-shrink: 0`).
+- **Not done (honest):** no embassy quests or trade talks to play (the roadmap places them with Emergence, 0.105.0); relations do not yet change what you pay or earn beyond the quarrels themselves; the News page of the mock-up is not built; police, enforcement and surveillance policies have no effect yet.
+- Tests: `tests/politics_economy.test.mjs` (8 new), `tests/diplomacy.test.mjs` (10 new), one migration test in `tests/sovereign.test.mjs`. **Existing tests edited:** `tests/geo_effects.test.mjs` and `tests/robbery.test.mjs` (the bond yield now includes the state's debt premium), `tests/sovereign.test.mjs` (ten foreign issues, not eleven), `tests/market.test.mjs` ("crates": a war is put on for the five days instead of relying on a dice roll; "the world turns": rewritten to follow a quarrel's chain through diplomacy). Code: `src/content/{effects,diplomacy}.js`, `src/politics/{effects,diplomacy}.js`, `src/systems/{politicsEconomy,politicsDiplomacy}.js`, `src/ui/politicsDiplomacy.js`; one-line hooks in `farm.js`, `logistics.js`, `market.js`, `aerospace.js`, `geo.js`, `bonds.js`, `sovereign.js`, `corporate.js`.
+
 ## [0.95.0] — 2026-11-04 — Politics: Elections and Influence (development build)
 
 Plan: `docs/PROPOSAL_POLITICS.md` (§5.4, §5.5), mock-up `proposal-pol-oberpad-influence.png`; reference: `docs/POLITICS.md`. Nothing here changes a price, a cost, the police or a war: the economy comes in 0.96.0.

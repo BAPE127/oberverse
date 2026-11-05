@@ -311,36 +311,8 @@ export class Market {
       for (const k of Object.keys(c.sat)) c.sat[k] = Math.max(0, c.sat[k] * (1 - m.saturationDecay));
       c.hostility = Math.max(0, c.hostility - 5);
     }
-    // wars end…
-    for (const w of [...s.wars]) {
-      if (g.clock.day - w.since >= m.minWarDays && g.rng.next() < m.warEndChance) {
-        s.wars = s.wars.filter((x) => x !== w);
-        const A = this.cfg.countries[w.a].name;
-        const B = this.cfg.countries[w.b].name;
-        this.news(`Ceasefire: ${A} and ${B} sign a truce.`);
-        for (const id of [w.a, w.b]) if (s.countries[id].embargoReason === 'war') { s.countries[id].embargo = false; s.countries[id].embargoReason = null; this.news(`The embargo on ${this.cfg.countries[id].name} is lifted.`); }
-      }
-    }
-    // …and start
-    for (const [id, def] of Object.entries(this.cfg.countries)) {
-      if (this.warOf(id)) continue;
-      for (const r of def.rivals) {
-        if (this.warOf(r) || this.warOf(id)) continue;
-        if (g.rng.next() < m.warStartChance * def.aggression) {
-          s.wars.push({ a: id, b: r, since: g.clock.day });
-          this.news(`WAR: ${def.name} attacks ${this.cfg.countries[r].name}.`);
-          if (!s.countries[id].embargo && g.rng.next() < m.embargoOnAggressor) {
-            s.countries[id].embargo = true;
-            s.countries[id].embargoReason = 'war';
-            this.news(`${def.name} is placed under an arms embargo.`);
-          }
-        }
-      }
-    }
-    // standing sanctions are occasionally lifted
-    for (const [id, c] of Object.entries(s.countries)) {
-      if (c.embargo && c.embargoReason !== 'war' && g.rng.next() < 0.02) { c.embargo = false; c.embargoReason = null; this.news(`Sanctions on ${this.cfg.countries[id].name} are lifted.`); }
-    }
+    // v0.96.0: wars, ceasefires and embargoes are written by diplomacy (the quarrels of the world's rivals, and the President's stance), not decided here
+    g.politics.diplomacyDay();
   }
 
   minuteTick() {
