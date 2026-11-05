@@ -10,9 +10,13 @@ export function runDay(game) {
   construction(game);
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return;
+  game.corp.account('security').funded = true; // (a company registered in v0.98.0 may have an unfunded account: its income must never reach the wallet)
   C.days ||= {};
   const day = game.clock.day;
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); }
   works(game);
   jobs(game);
+  while (C.log.length > 40) C.log.shift(); // the company's log stays short
+  const m = peekMilitary(game);
+  while (m.log.length > 40) m.log.shift();
 }

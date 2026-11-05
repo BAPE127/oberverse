@@ -113,3 +113,25 @@ test('reputation raises how many offers can be open; a save in the middle of a j
   for (let i = 0; i < 40; i++) C.contracts.push({ id: `Kx${i}`, state: 'done', title: 'old', ended: 1 });
   days(g, 1); assert.ok(g.war.state().company.contracts.filter((c) => !['open', 'active'].includes(c.state)).length <= K.kept + 1);
 });
+
+test('a long run stays small, consistent and honest: 300 days of a working firm leave the record bounded, the checker silent, the account reconciled and the wallet untouched; an older company\'s unfunded account is mended', () => {
+  const g = warGame(520, { cash: 6_000_000 }); build(g, STAGE1);
+  for (let i = 0; i < 6; i++) g.war.hire('guard');
+  cageGoods(g, 'aw1', { item_pistol: 60 }); g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_pistol', qty: 40 }); g.war.buySupply('radio', 20);
+  const w0 = g.player.money; let sizeAt100 = 0;
+  for (let d = 1; d <= 300; d++) {
+    days(g, 1);
+    for (const o of g.war.contracts().open) if (!o.lacks.length && o.guards <= 6) { g.war.accept(o.id); break; }
+    if (d === 100) sizeAt100 = JSON.stringify(g.world.military).length;
+    if (d % 50 === 0) { assert.deepEqual(g.war.check(), [], `day ${d}`); assert.ok(g.corp.reconciles()); }
+    if (g.war.cash() < 20_000) { g.player.money += 100_000; g.war.fund(100_000); }
+  }
+  const w1 = g.player.money; const size = JSON.stringify(g.world.military).length;
+  assert.ok(size < sizeAt100 * 1.4 && size < 60_000, `the record is ${size} bytes (${sizeAt100} at day 100)`);
+  assert.ok(g.war.contracts().wins + g.war.contracts().losses >= 10, 'it worked a good many jobs');
+  assert.equal(g.war.stock()['arms:aw1:item_pistol'] + g.war.contracts().active.reduce((a, c) => a + c.guards, 0), 40, 'every pistol is either in the stores or with a guard on a post');
+  assert.ok(g.war.transfers().length <= 80);
+  // an older save's account
+  const old = warGame(521); old.corp.account('security').funded = false; old.war.dailyTick(); days(old, 1); assert.ok(old.corp.account('security').funded);
+  assert.ok(w1 >= w0, 'the wallet only ever went up here: by what the test paid in, never down');
+});

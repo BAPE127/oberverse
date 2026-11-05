@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.99.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Supplies, Factories and Contracts',
+    notes: [
+      'Transfers (Military → Transfers): move stored military aircraft from Aerospace, and weapons, rockets, missiles and drones from an Arms works\' export cage, to your company for free, in one step. What moves is gone from where it was and can go back to where it came from. Vehicles need a bay in the motor pool, aircraft and helicopters a bay in the hangars, and goods a place in the stores.',
+      'Suppliers sell carriers, recon, artillery, anti-air, logistics and medical vehicles, supplies and the parts the works use, all paid from the company\'s own money. Tanks and helicopters are never for sale.',
+      'Production (Military → Production): the tank factory and the helicopter works build tanks and helicopters, and nothing else. Orders go to lines; a unit needs its parts in the stores, the works\' fee and technicians; more shifts build faster and need more crew. A line that cannot go says why. The works wear and can be mended and upgraded.',
+      'Contracts (Military → Contracts): clients offer jobs to guards with a pistol each and a radio, nothing heavier. The pay comes only when a job ends well and goes to the company; a failure is a fine the company owes, a loss of reputation and a client who will not call for a month. Guards and technicians are hired for a daily wage and a bed.',
+    ],
+  },
+  {
     version: '0.98.0',
     date: '2026-11-05',
     channel: 'development',
