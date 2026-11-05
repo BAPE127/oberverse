@@ -13,6 +13,7 @@ import { ATLAS } from '../content/atlas.js';
 import { styleOf, SUPPORT, CHARGE } from '../content/battle.js';
 import { buildSetup } from '../battle/setup.js';
 import { reserved } from './reserve.js';
+import { hooks } from './hooks.js';
 import { ENGAGEMENTS as KINDS, ENGAGE as E, GENERALS, terrainOf } from '../content/generals.js';
 import { VEHICLES } from '../content/procurement.js';
 import { CLASSES } from '../content/troops.js';
@@ -24,6 +25,8 @@ const pick = (arr, u) => arr[Math.min(arr.length - 1, Math.floor(u * arr.length)
 const between = ([a, b], u) => a + Math.floor(u * (b - a + 1));
 const ensure = (C) => { C.engagements ||= []; return C.engagements; };
 const find = (game, id) => ensure(peekMilitary(game).company).find((x) => x.id === id);
+/** A strategic engagement is fought only by the battalion that made contact: its squads are "in a battalion", which is how they are allowed here. */
+const ownSquad = (eng, s) => Boolean(eng.strategic && s.status === 'battalion' && s.battalion === eng.strategic.bn);
 const maxOpen = (rep) => Math.min(E.maxOpen, E.open + Math.floor(Math.max(0, rep) / E.perRep));
 
 // ---- the real forces behind an assignment
@@ -75,7 +78,7 @@ export function delegate(game, id, { squads, general }) {
   if (!squads?.length) return { ok: false, text: 'Choose at least one squad.' };
   const chosen = squads.map((sid) => C.squads.find((s) => s.id === sid));
   if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
-  const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
+  const away = chosen.find((s) => s.status !== 'home' && !ownSquad(eng, s)); if (away) return { ok: false, text: `${away.name} is away.` };
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
   // every check passed: now the changes
@@ -109,7 +112,7 @@ export function play(game, id, squads, reserves = []) {
   if (!squads?.length) return { ok: false, text: 'Choose at least one squad.' };
   const chosen = squads.map((sid) => C.squads.find((s) => s.id === sid));
   if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
-  const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
+  const away = chosen.find((s) => s.status !== 'home' && !ownSquad(eng, s)); if (away) return { ok: false, text: `${away.name} is away.` };
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
   const held = (reserves || []).filter((sid) => squads.includes(sid));
@@ -156,7 +159,20 @@ export function decline(game, id) {
   const eng = find(game, id);
   if (!eng || eng.state !== 'open') return { ok: false, text: 'That offer is no longer open.' };
   eng.state = 'declined'; eng.ended = game.clock.day;
+  if (eng.strategic) { hooks.strategicWithdrawn?.(game, peekMilitary(game).company, eng); return { ok: true, text: 'Your battalion breaks off.' }; }
   return { ok: true, text: 'Turned down.' };
+}
+
+/**
+ * A battle on the strategic map (v0.103.0): a battalion has made contact with an enemy-held province. It is an engagement like any other (play it, give it to a general, or break off), with
+ * the battalion's squads as the force, the province's garrison as the enemy, and no pay of its own (the employer's retainer and bonus pay for the war). Returns its id.
+ */
+export function openStrategic(game, { battalion, province, enemy, recipe, terrain, style, title }) {
+  const C = peekMilitary(game)?.company; if (!C?.identity) return null;
+  const day = game.clock.day; const st = ATLAS.states.find((x) => x.id === province.state);
+  const id = nextId(C, 'N');
+  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.id}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.id, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
+  return id;
 }
 
 /** What the company can call in a played battle, from what it really holds: missiles and drones in the stores (at most three of each kind), and the aircraft in its hangars (as many as the fuel allows). */
@@ -209,20 +225,23 @@ export function applyOutcome(game, C, eng, R) {
   const gen = eng.order.general ? C.generals.find((x) => x.id === eng.order.general) : null;
   if (gen) { gen.status = 'home'; if (R.objectives >= 2) gen.wins++; else if (R.objectives === 0) gen.losses++; }
   const rep = C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} };
-  const share = [0, 0.45, 0.9, 1][R.objectives];
+  const share = eng.strategic ? 0 : [0, 0.45, 0.9, 1][R.objectives]; // (a battle on the map pays through the employer's retainer and bonus, not a contract)
   let paid = 0; let fine = 0;
   if (share > 0) { paid = Math.round(eng.pay * share); game.corp.receive('security', paid, { cat: 'contract' }); }
-  if (R.objectives === 0) { fine = Math.round(eng.pay * E.penalty); game.corp.pay('security', fine, { cat: 'penalty', owe: true }); rep.ban[eng.client] = day + E.ban; }
-  rep.score += R.objectives === 3 ? E.repWin : R.objectives === 2 ? E.repHold : R.objectives === 0 ? E.repLose : 0;
-  const cl = (rep.clients[eng.client] ||= { done: 0, failed: 0 });
-  if (R.objectives >= 1) { rep.done++; cl.done++; } else { rep.failed++; cl.failed++; }
+  if (R.objectives === 0 && !eng.strategic) { fine = Math.round(eng.pay * E.penalty); game.corp.pay('security', fine, { cat: 'penalty', owe: true }); rep.ban[eng.client] = day + E.ban; }
+  if (!eng.strategic) {
+    rep.score += R.objectives === 3 ? E.repWin : R.objectives === 2 ? E.repHold : R.objectives === 0 ? E.repLose : 0;
+    const cl = (rep.clients[eng.client] ||= { done: 0, failed: 0 });
+    if (R.objectives >= 1) { rep.done++; cl.done++; } else { rep.failed++; cl.failed++; }
+  }
   lines.push(`${R.objectives} of 3 objectives. ${dead.length} killed, ${hurt.length} wounded, ${lostV.length} vehicle${lostV.length === 1 ? '' : 's'} lost.`);
   if (Object.keys(used).length) lines.push(`Used: ${Object.entries(used).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ')}.`);
-  lines.push(R.objectives ? `Paid ${paid.toLocaleString('en-US')} of ${eng.pay.toLocaleString('en-US')} obols.` : `Failed: fined ${fine.toLocaleString('en-US')} obols; ${eng.client} will not call for ${E.ban} days.`);
+  lines.push(eng.strategic ? 'Paid through the retainer.' : R.objectives ? `Paid ${paid.toLocaleString('en-US')} of ${eng.pay.toLocaleString('en-US')} obols.` : `Failed: fined ${fine.toLocaleString('en-US')} obols; ${eng.client} will not call for ${E.ban} days.`);
   eng.result = { day, outcome: R.outcome, objectives: R.objectives, ratio: Math.round((R.ratio || 0) * 100) / 100, parts: R.parts || null, how: R.how || 'general', dead, wounded: hurt, lost: lostV, used, general: eng.order.generalName || null, paid, fine, lines };
   eng.state = 'resolved'; eng.ended = day;
   C.log.push({ day, text: `${eng.title}: ${R.outcome.replace('_', ' ')} (${R.objectives} of 3). ${dead.length} killed.` });
   game.notify?.(`${eng.title} is over: ${R.outcome.replace('_', ' ')}. ${dead.length} killed, ${hurt.length} wounded.`, R.objectives >= 2 ? 'good' : 'warn');
+  if (eng.strategic) hooks.strategicResolved?.(game, C, eng, R);
   return eng.result;
 }
 
@@ -269,7 +288,7 @@ export function dayTick(game) {
   C.days.eng = day;
   const list = ensure(C);
   for (const eng of list) {
-    if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = 'The client found someone else.'; }
+    if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = eng.strategic ? 'The battalion broke off while nobody decided.' : 'The client found someone else.'; if (eng.strategic) hooks.strategicWithdrawn?.(game, C, eng); }
     else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');

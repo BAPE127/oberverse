@@ -46,6 +46,7 @@ export function unassign(game, pid) {
   const C = peekMilitary(game)?.company;
   const p = C && personOf(C, pid);
   if (!p || p.assignedTo == null) return { ok: false, text: 'They are in no squad.' };
+  if (squadOf(C, p.assignedTo)?.status === 'battalion') return { ok: false, text: `${p.name} is in a battalion: stand the battalion down first.` };
   leave(C, p);
   return { ok: true, text: `${p.name} is out of the squad.` };
 }
@@ -68,6 +69,7 @@ export function assignVehicle(game, squadId, eid) {
   if (!s || !x) return { ok: false, text: 'No such squad or vehicle.' };
   if (!['vehicle', 'helicopter'].includes(x.kind)) return { ok: false, text: `${x.name} is not for a squad.` };
   if (x.status !== 'stored') return { ok: false, text: `${x.name} is ${x.status}.` };
+  if (s.status === 'battalion') return { ok: false, text: `${s.name} is in a battalion: stand the battalion down first.` };
   x.status = 'assigned'; x.assignedTo = s.id; s.equipment.push(x.id);
   return { ok: true, text: `${x.name} goes to ${s.name}.` };
 }

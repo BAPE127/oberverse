@@ -48,6 +48,12 @@ export function checkMilitary(m) {
   // what is gone cannot be used
   const gone = (x) => x.status === 'destroyed' || x.status === 'dead' || x.status === 'captured';
   for (const x of [...people, ...items]) if (gone(x) && (x.assignedTo != null || listed.has(x.id) || x.status === 'deployed')) add('destroyed_deployable', x.id, `${x.id} is ${x.status} but is still assigned or deployed`);
+  // battalions: their squads exist, are theirs alone and are locked to them; their places are real provinces
+  for (const b of m.war?.battalions || []) {
+    for (const sid of b.squads || []) { const s = squads.find((q) => q.id === sid); if (!s) add('missing_reference', b.id, `battalion ${b.id} lists squad ${sid}, which does not exist`); else if (s.battalion !== b.id) add('double_assignment', sid, `squad ${sid} is in battalion ${b.id} but says ${s.battalion ?? 'none'}`); }
+    if (b.commander != null && !people.some((p) => p.id === b.commander)) add('missing_reference', b.id, `battalion ${b.id} has a commander ${b.commander} who is not in the personnel`);
+  }
+  for (const s of squads) if (s.battalion && !(m.war?.battalions || []).some((b) => b.id === s.battalion && b.squads.includes(s.id))) add('missing_reference', s.id, `squad ${s.id} says it is in battalion ${s.battalion}, which does not list it`);
   // the coup flag and what is derived from it
   if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
   else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);

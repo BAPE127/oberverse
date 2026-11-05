@@ -32095,6 +32095,7 @@ function unassign(game, pid) {
   const C = peekMilitary(game)?.company;
   const p = C && personOf(C, pid);
   if (!p || p.assignedTo == null) return { ok: false, text: 'They are in no squad.' };
+  if (squadOf(C, p.assignedTo)?.status === 'battalion') return { ok: false, text: `${p.name} is in a battalion: stand the battalion down first.` };
   leave(C, p);
   return { ok: true, text: `${p.name} is out of the squad.` };
 }
@@ -32117,6 +32118,7 @@ function assignVehicle(game, squadId, eid) {
   if (!s || !x) return { ok: false, text: 'No such squad or vehicle.' };
   if (!['vehicle', 'helicopter'].includes(x.kind)) return { ok: false, text: `${x.name} is not for a squad.` };
   if (x.status !== 'stored') return { ok: false, text: `${x.name} is ${x.status}.` };
+  if (s.status === 'battalion') return { ok: false, text: `${s.name} is in a battalion: stand the battalion down first.` };
   x.status = 'assigned'; x.assignedTo = s.id; s.equipment.push(x.id);
   return { ok: true, text: `${x.name} goes to ${s.name}.` };
 }
@@ -32566,6 +32568,15 @@ function buildSetup({ key, eng, people, vehicles, support = null, ai = {}, reser
 return { buildSetup, STYLES, pick };
 })();
 
+// ---- src/war/hooks.js
+__m["src/war/hooks.js"] = (function () {
+// Late-bound hooks between the engagement code and the strategic layer (v0.103.0), so neither imports the other (the bundler joins modules in order and a cycle would break it).
+// src/war/strategic.js fills these in when it loads; src/war/engagements.js calls them if they are there.
+const hooks = { strategicResolved: null, strategicWithdrawn: null };
+
+return { hooks };
+})();
+
 // ---- src/war/engagements.js
 __m["src/war/engagements.js"] = (function () {
 // Engagements (v0.100.0 stage 9): heavy contracts. A client offers a job that needs squads, tanks and medics you really own (nothing is spawned to meet it); you assign squads and a general,
@@ -32583,6 +32594,7 @@ const { ATLAS } = __m["src/content/atlas.js"];
 const { styleOf, SUPPORT, CHARGE } = __m["src/content/battle.js"];
 const { buildSetup } = __m["src/battle/setup.js"];
 const { reserved } = __m["src/war/reserve.js"];
+const { hooks } = __m["src/war/hooks.js"];
 const { ENGAGEMENTS: KINDS, ENGAGE: E, GENERALS, terrainOf } = __m["src/content/generals.js"];
 const { VEHICLES } = __m["src/content/procurement.js"];
 const { CLASSES } = __m["src/content/troops.js"];
@@ -32594,6 +32606,8 @@ const pick = (arr, u) => arr[Math.min(arr.length - 1, Math.floor(u * arr.length)
 const between = ([a, b], u) => a + Math.floor(u * (b - a + 1));
 const ensure = (C) => { C.engagements ||= []; return C.engagements; };
 const find = (game, id) => ensure(peekMilitary(game).company).find((x) => x.id === id);
+/** A strategic engagement is fought only by the battalion that made contact: its squads are "in a battalion", which is how they are allowed here. */
+const ownSquad = (eng, s) => Boolean(eng.strategic && s.status === 'battalion' && s.battalion === eng.strategic.bn);
 const maxOpen = (rep) => Math.min(E.maxOpen, E.open + Math.floor(Math.max(0, rep) / E.perRep));
 
 // ---- the real forces behind an assignment
@@ -32645,7 +32659,7 @@ function delegate(game, id, { squads, general }) {
   if (!squads?.length) return { ok: false, text: 'Choose at least one squad.' };
   const chosen = squads.map((sid) => C.squads.find((s) => s.id === sid));
   if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
-  const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
+  const away = chosen.find((s) => s.status !== 'home' && !ownSquad(eng, s)); if (away) return { ok: false, text: `${away.name} is away.` };
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
   // every check passed: now the changes
@@ -32679,7 +32693,7 @@ function play(game, id, squads, reserves = []) {
   if (!squads?.length) return { ok: false, text: 'Choose at least one squad.' };
   const chosen = squads.map((sid) => C.squads.find((s) => s.id === sid));
   if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
-  const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
+  const away = chosen.find((s) => s.status !== 'home' && !ownSquad(eng, s)); if (away) return { ok: false, text: `${away.name} is away.` };
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
   const held = (reserves || []).filter((sid) => squads.includes(sid));
@@ -32726,7 +32740,20 @@ function decline(game, id) {
   const eng = find(game, id);
   if (!eng || eng.state !== 'open') return { ok: false, text: 'That offer is no longer open.' };
   eng.state = 'declined'; eng.ended = game.clock.day;
+  if (eng.strategic) { hooks.strategicWithdrawn?.(game, peekMilitary(game).company, eng); return { ok: true, text: 'Your battalion breaks off.' }; }
   return { ok: true, text: 'Turned down.' };
+}
+
+/**
+ * A battle on the strategic map (v0.103.0): a battalion has made contact with an enemy-held province. It is an engagement like any other (play it, give it to a general, or break off), with
+ * the battalion's squads as the force, the province's garrison as the enemy, and no pay of its own (the employer's retainer and bonus pay for the war). Returns its id.
+ */
+function openStrategic(game, { battalion, province, enemy, recipe, terrain, style, title }) {
+  const C = peekMilitary(game)?.company; if (!C?.identity) return null;
+  const day = game.clock.day; const st = ATLAS.states.find((x) => x.id === province.state);
+  const id = nextId(C, 'N');
+  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.id}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.id, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
+  return id;
 }
 
 /** What the company can call in a played battle, from what it really holds: missiles and drones in the stores (at most three of each kind), and the aircraft in its hangars (as many as the fuel allows). */
@@ -32779,20 +32806,23 @@ function applyOutcome(game, C, eng, R) {
   const gen = eng.order.general ? C.generals.find((x) => x.id === eng.order.general) : null;
   if (gen) { gen.status = 'home'; if (R.objectives >= 2) gen.wins++; else if (R.objectives === 0) gen.losses++; }
   const rep = C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} };
-  const share = [0, 0.45, 0.9, 1][R.objectives];
+  const share = eng.strategic ? 0 : [0, 0.45, 0.9, 1][R.objectives]; // (a battle on the map pays through the employer's retainer and bonus, not a contract)
   let paid = 0; let fine = 0;
   if (share > 0) { paid = Math.round(eng.pay * share); game.corp.receive('security', paid, { cat: 'contract' }); }
-  if (R.objectives === 0) { fine = Math.round(eng.pay * E.penalty); game.corp.pay('security', fine, { cat: 'penalty', owe: true }); rep.ban[eng.client] = day + E.ban; }
-  rep.score += R.objectives === 3 ? E.repWin : R.objectives === 2 ? E.repHold : R.objectives === 0 ? E.repLose : 0;
-  const cl = (rep.clients[eng.client] ||= { done: 0, failed: 0 });
-  if (R.objectives >= 1) { rep.done++; cl.done++; } else { rep.failed++; cl.failed++; }
+  if (R.objectives === 0 && !eng.strategic) { fine = Math.round(eng.pay * E.penalty); game.corp.pay('security', fine, { cat: 'penalty', owe: true }); rep.ban[eng.client] = day + E.ban; }
+  if (!eng.strategic) {
+    rep.score += R.objectives === 3 ? E.repWin : R.objectives === 2 ? E.repHold : R.objectives === 0 ? E.repLose : 0;
+    const cl = (rep.clients[eng.client] ||= { done: 0, failed: 0 });
+    if (R.objectives >= 1) { rep.done++; cl.done++; } else { rep.failed++; cl.failed++; }
+  }
   lines.push(`${R.objectives} of 3 objectives. ${dead.length} killed, ${hurt.length} wounded, ${lostV.length} vehicle${lostV.length === 1 ? '' : 's'} lost.`);
   if (Object.keys(used).length) lines.push(`Used: ${Object.entries(used).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ')}.`);
-  lines.push(R.objectives ? `Paid ${paid.toLocaleString('en-US')} of ${eng.pay.toLocaleString('en-US')} obols.` : `Failed: fined ${fine.toLocaleString('en-US')} obols; ${eng.client} will not call for ${E.ban} days.`);
+  lines.push(eng.strategic ? 'Paid through the retainer.' : R.objectives ? `Paid ${paid.toLocaleString('en-US')} of ${eng.pay.toLocaleString('en-US')} obols.` : `Failed: fined ${fine.toLocaleString('en-US')} obols; ${eng.client} will not call for ${E.ban} days.`);
   eng.result = { day, outcome: R.outcome, objectives: R.objectives, ratio: Math.round((R.ratio || 0) * 100) / 100, parts: R.parts || null, how: R.how || 'general', dead, wounded: hurt, lost: lostV, used, general: eng.order.generalName || null, paid, fine, lines };
   eng.state = 'resolved'; eng.ended = day;
   C.log.push({ day, text: `${eng.title}: ${R.outcome.replace('_', ' ')} (${R.objectives} of 3). ${dead.length} killed.` });
   game.notify?.(`${eng.title} is over: ${R.outcome.replace('_', ' ')}. ${dead.length} killed, ${hurt.length} wounded.`, R.objectives >= 2 ? 'good' : 'warn');
+  if (eng.strategic) hooks.strategicResolved?.(game, C, eng, R);
   return eng.result;
 }
 
@@ -32839,7 +32869,7 @@ function dayTick(game) {
   C.days.eng = day;
   const list = ensure(C);
   for (const eng of list) {
-    if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = 'The client found someone else.'; }
+    if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = eng.strategic ? 'The battalion broke off while nobody decided.' : 'The client found someone else.'; if (eng.strategic) hooks.strategicWithdrawn?.(game, C, eng); }
     else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');
@@ -32857,7 +32887,929 @@ function view(game) {
 }
 const get = (game, id) => (peekMilitary(game)?.company ? find(game, id) || null : null);
 
-return { lacks, assess, delegate, play, skirmish, battleOf, saveBattle, fileBattle, decline, supportOf, applyOutcome, dayTick, view, get };
+return { lacks, assess, delegate, play, skirmish, battleOf, saveBattle, fileBattle, decline, openStrategic, supportOf, applyOutcome, dayTick, view, get };
+})();
+
+// ---- src/world/geography.js
+__m["src/world/geography.js"] = (function () {
+// The world's geography (v0.28.0): fictional continents and islands with
+// real-looking coastlines. Each landmass is a skeleton — chains of
+// [lat, lon, radius°] nodes — "inflated" around its lines, then pushed about
+// by domain-warping noise and roughened by fractal noise, so the coasts get
+// bays, capes, peninsulas and offshore islands instead of round blobs. Inland
+// seas and straits are carved the same way. Archipelagos and scattered ocean
+// islands come from high-frequency noise in their own regions. Pure and
+// deterministic: the same point always gives the same answer.
+//
+// elevation(lat, lon) → a signed height: > 0 is land (higher inland and in
+// the mountains), < 0 is sea (deeper offshore).
+
+const D2R = Math.PI / 180;
+const wrapLon = (d) => ((d + 540) % 360) - 180;
+
+// ------------------------------------------------------------------ noise
+const PERM = new Uint8Array(512);
+{
+  let s = 1337;
+  const p = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) { s = (s * 1103515245 + 12345) & 0x7fffffff; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+}
+const hash = (x, y, z) => PERM[(PERM[(PERM[x & 255] + y) & 255] + z) & 255] / 255;
+const fade = (t) => t * t * (3 - 2 * t);
+/** Smooth 3D value noise in [0, 1]. */
+function vnoise(x, y, z) {
+  const xi = Math.floor(x); const yi = Math.floor(y); const zi = Math.floor(z);
+  const xf = fade(x - xi); const yf = fade(y - yi); const zf = fade(z - zi);
+  const l = (a, b, t) => a + (b - a) * t;
+  return l(
+    l(l(hash(xi, yi, zi), hash(xi + 1, yi, zi), xf), l(hash(xi, yi + 1, zi), hash(xi + 1, yi + 1, zi), xf), yf),
+    l(l(hash(xi, yi, zi + 1), hash(xi + 1, yi, zi + 1), xf), l(hash(xi, yi + 1, zi + 1), hash(xi + 1, yi + 1, zi + 1), xf), yf),
+    zf,
+  );
+}
+/** Fractal noise in about [−1, 1] at a point on the unit sphere. */
+function fbm(x, y, z, freq, octaves, seed = 0) {
+  let sum = 0;
+  let amp = 1;
+  let norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    sum += (vnoise(x * freq + seed * 17.1, y * freq + seed * 3.7, z * freq + seed * 9.3) * 2 - 1) * amp;
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2.03;
+  }
+  return sum / norm;
+}
+
+// ------------------------------------------------------------------ the landmasses
+// [lat, lon, radius in degrees of the coast from the line]; chains are joined node to node.
+const LAND = [
+  // the western continent (Westreach to Lirre, down the isthmus to Cape Low and Greyhook)
+  [[64, -162, 7], [58, -150, 9], [50, -138, 9], [44, -122, 11], [46, -104, 12], [52, -88, 10], [58, -72, 7], [62, -60, 4]],
+  [[44, -158, 5], [50, -150, 6]],
+  [[46, -104, 12], [38, -92, 9], [38, -80, 6], [44, -72, 5], [48, -64, 3]],
+  [[34, -144, 4], [38, -134, 7], [44, -122, 11]],
+  [[38, -112, 9], [28, -114, 7], [18, -120, 5], [12, -118, 4], [6, -110, 2.6], [0, -102, 3.5], [-8, -100, 7], [-18, -96, 9], [-28, -96, 8], [-36, -90, 5], [-42, -80, 3.5], [-47, -73, 2]],
+  [[-8, -100, 7], [-14, -114, 5], [-18, -124, 3]],
+  // the home island (Halvermouth) and its neighbour
+  [[52, -27, 3.4], [49, -25, 3], [46, -23, 2.2]],
+  // the Hald Reach: a narrow neck of land from Sund's southern tip to the home island, so the capital sits at the end of one kingdom
+  [[53, -6, 2.2], [52.5, -12, 2.1], [51.5, -19, 2.3], [52, -27, 3.4]],
+  [[55, -34, 1.6], [56, -31, 1.2]],
+  // Sund: a long northern island of fjords
+  [[53, -6, 2.2], [57, -9, 3], [62, -12, 4], [67, -10, 3.5], [71, -7, 2.4]],
+  // Pallas
+  [[16, -31, 3.5], [11, -35, 4], [5, -38, 2.6], [1, -40, 1.4]],
+  // the eastern continent (Ostmark, the northern plains, Varn, Teshvar)
+  [[50, 4, 4.5], [55, 14, 7], [58, 24, 7], [66, 36, 9], [64, 54, 11], [60, 76, 13], [56, 100, 12], [50, 118, 9], [44, 128, 6], [38, 132, 3]],
+  [[55, 14, 7], [50, 22, 6], [50, 34, 5], [46, 46, 6], [42, 56, 7], [40, 70, 8], [44, 90, 10], [56, 100, 12]],
+  [[42, 56, 7], [36, 52, 5], [32, 58, 3.6]],
+  [[40, 70, 8], [34, 82, 6], [28, 92, 7], [22, 98, 5], [17, 102, 3]],
+  [[44, 90, 10], [36, 108, 7], [28, 112, 4]],
+  [[72, 70, 4], [74, 90, 5], [72, 110, 4]],
+  // the southern continent (Caldera)
+  [[12, 22, 6], [10, 34, 8], [3, 38, 9], [-6, 34, 10], [-14, 30, 8], [-24, 28, 7], [-32, 24, 5], [-36, 20, 2.5]],
+  [[10, 34, 8], [10, 44, 4], [9, 50, 2]],
+  [[3, 38, 9], [-4, 42, 4]],
+  [[-14, 30, 8], [-16, 22, 3.5]],
+  // Meridian: a long island
+  [[-14, 63, 2], [-19, 64, 2.6], [-24, 62, 1.8]],
+  // the south-eastern continent (Coral Sound)
+  [[-18, 120, 5], [-24, 126, 7], [-30, 124, 6.5], [-34, 116, 4], [-33, 132, 4], [-28, 134, 3.5]],
+  // Southwind Isle, Dunmere's island, Coldwater's cape, Frostbay's arctic island, odd rocks
+  [[-54, -6, 1.1]],
+  [[22, -5, 2.2], [19, -8, 1.6]],
+  [[44, -158, 5], [41, -165, 2.6]],
+  [[73, -112, 3.5], [75, -98, 4], [73, -86, 2.5]],
+  [[76, -40, 4], [78, -20, 3]],
+  [[-74, -120, 6], [-74, -60, 7], [-74, 0, 7], [-74, 60, 7], [-74, 120, 7], [-74, 180, 6]],
+];
+// inland seas, gulfs and straits carved out of the land
+const SEAS = [
+  [[63, 30, 3.5], [60, 34, 2.4], [62, 22, 1.6], [66, 18, 1.3], [70, 16, 1.4]], // the Ostmark Sea, out to the north
+  [[47, 32, 2.6], [46, 40, 2.8], [42, 38, 2], [38, 34, 1.6], [34, 32, 2]], // the Halden Gulf and Port Varn's sea, to the south
+  [[30, 70, 2.4], [32, 64, 2], [28, 76, 2]], // the Kestrel Gulf
+  [[-6, 108, 0.1]],
+  [[-21, -132, 1.4], [-22, -128, 1]], // Marrow Strait
+];
+// archipelagos: [lat0, lat1, lon0, lon1, density]
+const ARCHIPELAGOS = [
+  [-44, -18, 134, 168, 0.62], // the Morrow Isles (the only archipelago kept: the open ocean is otherwise clear)
+];
+// islands that must exist (the Morrow capital and harbours; the lone island of Marrow Strait)
+const ISLANDS = [[-32, 148, 2.2], [-29.5, 137, 1.6], [-39, 158, 1.8], [-24, 155.5, 1.6], [-27, 142, 1.3], [-35, 153, 1.4], [-30, 160, 1.2], [-41, 150, 1.2], [-21, -132.5, 2.6]];
+
+const segs = (chains) => {
+  const out = [];
+  const add = (a, b) => {
+    const pad = Math.max(a[2], b[2]) * 2 + 1;
+    const s = [a, b];
+    s.lat0 = Math.min(a[0], b[0]) - pad; s.lat1 = Math.max(a[0], b[0]) + pad;
+    out.push(s);
+  };
+  for (const c of chains) {
+    if (c.length === 1) add(c[0], c[0]);
+    for (let i = 0; i + 1 < c.length; i++) add(c[i], c[i + 1]);
+  }
+  return out;
+};
+const LAND_SEGS = segs(LAND);
+const SEA_SEGS = segs(SEAS);
+const ISLE_SEGS = segs(ISLANDS.map((n) => [n]));
+
+/** 1 at a skeleton line, 0 at twice its coast radius, below 0 beyond. */
+function skeletonField(lat, lon, list) {
+  const cl = Math.cos(lat * D2R);
+  let best = -1;
+  for (const s of list) {
+    if (lat < s.lat0 || lat > s.lat1) continue;
+    const [a, b] = s;
+    // in local degrees (longitude shrunk by latitude)
+    const ax = wrapLon(a[1] - lon) * cl; const ay = a[0] - lat;
+    const bx = ax + wrapLon(b[1] - a[1]) * cl; const by = b[0] - lat;
+    const dx = bx - ax; const dy = by - ay;
+    const L2 = dx * dx + dy * dy;
+    const t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+    const px = ax + dx * t; const py = ay + dy * t;
+    const d = Math.sqrt(px * px + py * py);
+    const R = (a[2] + (b[2] - a[2]) * t) * 2;
+    const f = 1 - d / R;
+    if (f > best) best = f;
+  }
+  return best;
+}
+
+/** The height of the world at a point: > 0 is land, < 0 is sea. */
+function elevation(lat, lon) {
+  const la = lat * D2R;
+  const lo = lon * D2R;
+  const x = Math.cos(la) * Math.cos(lo);
+  const y = Math.cos(la) * Math.sin(lo);
+  const z = Math.sin(la);
+  // push the shapes about so no coast follows a circle
+  const wl = lat + fbm(x, y, z, 3.1, 4, 1) * 6;
+  const wo = lon + (fbm(x, y, z, 3.1, 4, 2) * 6) / Math.max(0.25, Math.cos(la));
+  let f = skeletonField(wl, wo, LAND_SEGS);
+  f = Math.max(f, skeletonField(lat, lon, ISLE_SEGS) - 0.05);
+  // roughen the coast: big bays and capes, then the fine fractal edge
+  const rough = fbm(x, y, z, 6, 6, 3) * 0.42 + fbm(x, y, z, 22, 3, 4) * 0.12;
+  let h = (f - 0.5) + rough;
+  // inland seas and straits
+  const sea = skeletonField(wl * 0.3 + lat * 0.7, wo * 0.3 + lon * 0.7, SEA_SEGS);
+  if (sea > 0) h = Math.min(h, (0.5 - sea) * 1.6 + rough * 0.25);
+  // archipelagos: many small islands where the noise peaks
+  for (const [a0, a1, o0, o1, dens] of ARCHIPELAGOS) {
+    if (lat < a0 || lat > a1) continue;
+    const dl = wrapLon(lon - o0);
+    if (dl < 0 || dl > wrapLon(o1 - o0)) continue;
+    const edge = Math.min(lat - a0, a1 - lat, dl, wrapLon(o1 - o0) - dl) / 4;
+    const n = fbm(x, y, z, 26, 4, 5) * 0.8 + fbm(x, y, z, 9, 2, 6) * 0.4;
+    const isle = n - dens + 0.12 - Math.max(0, 1 - edge) * 0.5;
+    if (isle > 0) h = Math.max(h, isle * 1.4);
+  }
+  // the poles: ice
+  if (lat < -70) h = Math.max(h, (-70 - lat) / 6 + rough * 0.6);
+  return h;
+}
+
+/** Mountain height (0–1) for shading: ridged noise, strongest deep inland. */
+function relief(lat, lon, h = elevation(lat, lon)) {
+  if (h <= 0) return 0;
+  const la = lat * D2R;
+  const lo = lon * D2R;
+  const x = Math.cos(la) * Math.cos(lo);
+  const y = Math.cos(la) * Math.sin(lo);
+  const z = Math.sin(la);
+  const ridge = 1 - Math.abs(fbm(x, y, z, 7, 5, 8));
+  return Math.max(0, Math.min(1, (ridge - 0.55) * 2.6 * Math.min(1, h * 2.5)));
+}
+
+/** Climate for colouring: 'ice' | 'desert' | 'forest' | 'grass' | 'tundra'. */
+function biome(lat, lon, h = elevation(lat, lon)) {
+  const a = Math.abs(lat);
+  if (a > 70) return 'ice';
+  if (a > 60) return 'tundra';
+  const la = lat * D2R;
+  const lo = lon * D2R;
+  const wet = fbm(Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la), 4, 3, 9) + (a < 12 ? 0.35 : 0) - (a > 16 && a < 34 ? 0.3 : 0) - Math.min(0.3, h * 0.15);
+  if (wet < -0.18) return 'desert';
+  if (wet > 0.12) return 'forest';
+  return 'grass';
+}
+
+return { elevation, relief, biome };
+})();
+
+// ---- src/world/globe.js
+__m["src/world/globe.js"] = (function () {
+// The world globe's geography (v0.15.1; shared since v0.21.0; real-looking
+// continents since v0.28.0 — src/world/geography.js). Used by the arms
+// terminal's globe, Fleet Command's chart (src/engine/drawGlobeSurface.js) and
+// the sea routes ships follow (src/world/seaRoutes.js). Pure functions.
+const { elevation } = __m["src/world/geography.js"];
+
+const D2R = Math.PI / 180;
+const wrapLon = (d) => ((d + 540) % 360) - 180;
+
+/**
+ * v0.28.0: the world's land comes from src/world/geography.js — fictional
+ * continents and islands with real coastlines — sampled once onto a
+ * half-degree grid (720 × 361) that everything reads: the terminals' globe
+ * and chart, sea routes, ports. `countries` is kept in the signatures for
+ * compatibility; capitals are on land by design (tested).
+ */
+const GRID_RES = 2; // samples per degree
+const GW = 360 * GRID_RES;
+const GH = 180 * GRID_RES + 1;
+let GRID = null;
+
+/** The elevation grid: rows from 90°N (row 0) to 90°S, columns from 180°W. */
+function landGrid() {
+  if (!GRID) {
+    GRID = new Float32Array(GW * GH);
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) GRID[j * GW + i] = elevation(90 - j / GRID_RES, i / GRID_RES - 180);
+  }
+  return { data: GRID, w: GW, h: GH, res: GRID_RES };
+}
+
+/** Elevation at any point, smoothly between grid samples (> 0 is land). */
+function elevationAt(lat, lon) {
+  const g = landGrid().data;
+  const fy = Math.max(0, Math.min(GH - 1.001, (90 - lat) * GRID_RES));
+  const fx = (wrapLon(lon) + 180) * GRID_RES;
+  const j = Math.floor(fy);
+  const i = Math.floor(fx);
+  const ty = fy - j;
+  const tx = fx - i;
+  const i0 = ((i % GW) + GW) % GW;
+  const i1 = (i0 + 1) % GW;
+  const a = g[j * GW + i0] + (g[j * GW + i1] - g[j * GW + i0]) * tx;
+  const b = g[(j + 1) * GW + i0] + (g[(j + 1) * GW + i1] - g[(j + 1) * GW + i0]) * tx;
+  return a + (b - a) * ty;
+}
+
+/** Old name, same idea: land strength at a point (land from LAND_AT up). */
+function landNoise(lat, lon) {
+  return elevationAt(lat, lon) + LAND_AT;
+}
+
+const LAND_AT = 0.12;
+
+/** Land strength at a point (land from LAND_AT up). */
+function landValue(lat, lon) {
+  return elevationAt(lat, lon) + LAND_AT;
+}
+
+const isLand = (lat, lon, countries) => landValue(lat, lon, countries) >= LAND_AT;
+
+/** Great-circle distance in km between [lat, lon] points (globe radius 6371 km). */
+function gcKm(a, b) {
+  const p1 = a[0] * D2R;
+  const p2 = b[0] * D2R;
+  const dp = p2 - p1;
+  const dl = wrapLon(b[1] - a[1]) * D2R;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+return { D2R, wrapLon, GRID_RES, landGrid, elevationAt, landNoise, landValue, isLand, gcKm };
+})();
+
+// ---- src/world/atlas.js
+__m["src/world/atlas.js"] = (function () {
+// The world atlas (v0.92.0): which country and state any point of land belongs to, its climate, and where the named places, rivers and roads are.
+// Pure functions over src/content/atlas.js and the world's own geography. Nothing here is stored in a save: it is the shape of the world.
+const { ATLAS } = __m["src/content/atlas.js"];
+const { landGrid, GRID_RES } = __m["src/world/globe.js"];
+const { relief: reliefAt, biome: climateAt, elevation } = __m["src/world/geography.js"];
+
+const BIOMES = ['sea', 'ice', 'tundra', 'taiga', 'forest', 'grassland', 'steppe', 'desert', 'savanna', 'jungle', 'mountain', 'volcanic'];
+const BIOME_NAMES = { sea: 'Open sea', ice: 'Ice sheet', tundra: 'Tundra', taiga: 'Taiga', forest: 'Forest', grassland: 'Grassland', steppe: 'Steppe', desert: 'Desert', savanna: 'Savanna', jungle: 'Jungle', mountain: 'Mountains', volcanic: 'Volcanic' };
+const D = Math.PI / 180;
+const MAXD = 22; // a state claims land only within this many degrees (÷ its weight) of its heart
+const GW = 360 * GRID_RES;
+const GH = 180 * GRID_RES + 1;
+
+const STATES = ATLAS.states;
+const STATE_INDEX = Object.fromEntries(STATES.map((s, k) => [s.id, k]));
+const ICE = STATE_INDEX.fr_southern_ice;
+
+const dist = (a, b, c, d) => { const x = ((((b - d) + 540) % 360) - 180) * Math.cos(((a + c) / 2) * D); return Math.hypot(a - c, x); };
+
+/** The state (an index into ATLAS.states) of a point of land, or -1 where no state claims it. */
+function stateIndexAt(lat, lon) {
+  if (lat < -64) return ICE;
+  let best = -1; let bd = 1e9;
+  for (let k = 0; k < STATES.length; k++) {
+    if (k === ICE) continue;
+    const s = STATES[k];
+    const d = dist(lat, lon, s.seed[0], s.seed[1]) / s.w;
+    if (d < bd) { bd = d; best = k; }
+  }
+  return bd < MAXD ? best : -1;
+}
+
+let GRID = null; // per half-degree cell: 255 = sea, 254 = land no state claims, else the state's index
+function stateGrid() {
+  if (GRID) return GRID;
+  const el = landGrid().data;
+  GRID = new Uint8Array(GW * GH).fill(255);
+  for (let j = 0; j < GH; j++) {
+    const lat = 90 - j / GRID_RES;
+    for (let i = 0; i < GW; i++) {
+      if (el[j * GW + i] < 0) continue;
+      const k = stateIndexAt(lat, i / GRID_RES - 180);
+      GRID[j * GW + i] = k < 0 ? 254 : k;
+    }
+  }
+  return GRID;
+}
+
+const cellOf = (lat, lon) => {
+  const j = Math.max(0, Math.min(GH - 1, Math.round((90 - lat) * GRID_RES)));
+  const i = ((Math.round((((lon + 180) % 360) + 360) % 360 * GRID_RES)) % GW + GW) % GW;
+  return j * GW + i;
+};
+
+/** The state at a point (its record, with `index`), or null at sea. The half-degree grid answers; a point the grid calls sea but the world's exact shape calls land (a narrow spit, a small island) is answered by the same rule. */
+function stateAt(lat, lon) {
+  let k = stateGrid()[cellOf(lat, lon)];
+  if (k === 255 && elevation(lat, lon) >= 0.02) k = stateIndexAt(lat, lon) < 0 ? 254 : stateIndexAt(lat, lon);
+  return k >= 254 ? null : { ...STATES[k], index: k };
+}
+/** The country id at a point, or null at sea / unclaimed. */
+function countryAt(lat, lon) { return stateAt(lat, lon)?.country ?? null; }
+
+/** Land's climate at a point: the world's own (ice, tundra, desert, forest, grass) refined by relief, latitude and the state's character. */
+function biomeAt(lat, lon) {
+  let el = landGrid().data[cellOf(lat, lon)];
+  if (el < 0) { el = elevation(lat, lon); if (el < 0.02) return 'sea'; }
+  const a = Math.abs(lat);
+  const st = stateAt(lat, lon);
+  const rel = reliefAt(lat, lon, el);
+  if (a > 72) return 'ice';
+  if ((el > 2.1 || (rel > 0.95 && el > 1.1)) && a < 70) return 'mountain';
+  let b;
+  if (st?.biome && !(st.biome === 'mountain' && rel < 0.12)) b = st.biome;
+  else {
+    const g = climateAt(lat, lon, el);
+    b = g === 'ice' ? 'ice' : g === 'tundra' ? 'tundra' : g === 'desert' ? 'desert' : g === 'forest' ? (a > 48 ? 'taiga' : a < 14 ? 'jungle' : 'forest') : (a < 22 ? 'savanna' : 'grassland');
+  }
+  if (st?.biome === 'volcanic' && rel <= 0.25) b = 'savanna';
+  if (b === 'steppe' && st?.biome !== 'steppe') b = 'grassland';
+  return b;
+}
+
+/** Per half-degree cell (same grid as landGrid): the country (index into `ids`, -1 where none) and the state (index into atlasStates(), 255 where none). */
+let MAPS = null;
+function atlasGrids() {
+  if (MAPS) return MAPS;
+  const ids = Object.keys(ATLAS.countries);
+  const of = STATES.map((s) => ids.indexOf(s.country));
+  const sg = stateGrid();
+  const country = new Int8Array(sg.length);
+  const state = new Uint8Array(sg.length);
+  for (let n = 0; n < sg.length; n++) { const k = sg[n]; country[n] = k >= 254 ? -1 : of[k]; state[n] = k >= 254 ? 255 : k; }
+  MAPS = { ids, country, state, w: GW, h: GH };
+  return MAPS;
+}
+
+const atlasCountries = () => ATLAS.countries;
+const atlasStates = () => STATES;
+const statesOf = (country) => STATES.filter((s) => s.country === country);
+const atlasPlaces = () => ATLAS.places;
+const placesOf = (stateId) => ATLAS.places.filter((p) => p.state === stateId);
+const atlasMilitary = () => ATLAS.military;
+const atlasTheatres = () => ATLAS.theatres;
+const atlasRivers = () => ATLAS.rivers;
+/** Roads as pairs of places: { a, b, main } */
+function atlasRoads() { return ATLAS.roads.map(([a, b, kind]) => ({ a: ATLAS.places[a], b: ATLAS.places[b], main: kind === 1 })); }
+
+/** The nearest named place to a point (within `within` degrees), or null. */
+function nearestPlace(lat, lon, within = 4) {
+  let best = null; let bd = within;
+  for (const p of ATLAS.places) { const d = dist(lat, lon, p.lat, p.lon); if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+
+/** Everything the Atlas can say about one point of the world. */
+function atlasAt(lat, lon) {
+  const st = stateAt(lat, lon);
+  if (!st) return null;
+  return { state: st, country: ATLAS.countries[st.country], countryId: st.country, biome: biomeAt(lat, lon), place: nearestPlace(lat, lon, 1.2) };
+}
+
+return { BIOMES, BIOME_NAMES, stateAt, countryAt, biomeAt, atlasGrids, atlasCountries, atlasStates, statesOf, atlasPlaces, placesOf, atlasMilitary, atlasTheatres, atlasRivers, atlasRoads, nearestPlace, atlasAt };
+})();
+
+// ---- src/world/provinces.js
+__m["src/world/provinces.js"] = (function () {
+// The provinces of the world (v0.103.0): the strategic layer's ground. Each atlas state is cut into provinces by a jittered lattice of seeds about 1.7 degrees apart (the mock-up's cut:
+// docs/mockups/atlas-src/render.mjs), each half-degree cell of land going to the nearest seed of its own state. Pure and deterministic: nothing here is saved, and a province's id never
+// changes (it is the lattice cell it grew from, or `H_<state>` for a state too small to catch a seed).
+//
+//   provinces()            every province, in id order: { id, n, state, country, lat, lon, cells, terrain, coast, infra, vp, port, airfield, fort, capital, rail, road, places, neighbours, width } (rail and road list the provinces joined by a main road or any road)
+//   provinceById(id)       one province or null
+//   provinceAt(lat, lon)   the province of a point of land, or null at sea / unclaimed / the southern ice
+//   provinceGrid()         { w, h, grid: Int16Array of province index per half-degree cell (-1 none) }
+//   provinceOfPlace(name)  the province a named place of the atlas is in
+//   TERRAIN                the nine ground kinds with names (a province also carries a `coast` flag; src/content/strategic.js owns the numbers they give)
+const { ATLAS } = __m["src/content/atlas.js"];
+const { atlasGrids, atlasStates, atlasPlaces, biomeAt } = __m["src/world/atlas.js"];
+const { GRID_RES } = __m["src/world/globe.js"];
+const { relief: reliefAt, elevation } = __m["src/world/geography.js"];
+
+const SP = 1.7; // degrees between seeds
+const D = Math.PI / 180;
+const hsh = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+
+let CACHE = null;
+
+function build() {
+  const G = atlasGrids(); const W = G.w; const H = G.h; const STATES = atlasStates();
+  const ICE = STATES.findIndex((s) => s.id === 'fr_southern_ice');
+  const stateAtCell = (i, j) => G.state[j * W + i];
+  const cellLat = (j) => 90 - j / GRID_RES; const cellLon = (i) => i / GRID_RES - 180;
+  const cellIdx = (lat, lon) => { const j = Math.max(0, Math.min(H - 1, Math.round((90 - lat) * GRID_RES))); const i = ((Math.round((((lon + 180) % 360) + 360) % 360 * GRID_RES)) % W + W) % W; return [i, j]; };
+
+  // ---- seeds: the lattice, jittered; a seed counts if it falls on a state's land
+  const seeds = [];
+  for (let a = Math.floor(-64 / SP); a <= Math.ceil(84 / SP); a++) for (let b = Math.floor(-180 / SP); b < Math.ceil(180 / SP); b++) {
+    const lat = a * SP + (hsh(a, b, 1) - 0.5) * SP * 0.8; const lon = b * SP + (hsh(a, b, 2) - 0.5) * SP * 0.8;
+    if (lat > 89 || lat < -64) continue;
+    const [i, j] = cellIdx(lat, lon); const k = stateAtCell(i, j); if (k === 255 || k === ICE) continue;
+    seeds.push({ id: `P${a}_${b}`, lat, lon, k });
+  }
+  // a state too small for the lattice gets one province at its heart (snapped to its own land)
+  const have = new Set(seeds.map((s) => s.k));
+  STATES.forEach((s, k) => {
+    if (k === ICE || have.has(k)) return;
+    let best = null; let bd = 1e9;
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (stateAtCell(i, j) === k) { const d = Math.hypot(cellLat(j) - s.seed[0], (cellLon(i) - s.seed[1]) * Math.cos(cellLat(j) * D)); if (d < bd) { bd = d; best = [cellLat(j), cellLon(i)]; } }
+    if (best) seeds.push({ id: `H_${s.id}`, lat: best[0], lon: best[1], k });
+  });
+  seeds.sort((x, y) => (x.id < y.id ? -1 : 1));
+  seeds.forEach((s, n) => { s.n = n; });
+  const byState = new Map(); for (const s of seeds) { if (!byState.has(s.k)) byState.set(s.k, []); byState.get(s.k).push(s); }
+
+  // ---- each cell of land to the nearest seed of its own state
+  const grid = new Int16Array(W * H).fill(-1);
+  const cells = new Int32Array(seeds.length);
+  for (let j = 0; j < H; j++) { const lat = cellLat(j); const cl = Math.cos(lat * D);
+    for (let i = 0; i < W; i++) {
+      const k = stateAtCell(i, j); if (k === 255 || k === ICE) continue;
+      const lon = cellLon(i); let best = -1; let bd = 1e9;
+      for (const s of byState.get(k) || []) { const dl = ((((lon - s.lon) + 540) % 360) - 180) * cl; const d = Math.hypot(lat - s.lat, dl); if (d < bd) { bd = d; best = s.n; } }
+      if (best >= 0) { grid[j * W + i] = best; cells[best]++; }
+    } }
+
+  // ---- what each province is made of: its climate, its relief, the sea beside it, the places in it
+  const stat = seeds.map(() => ({ bio: {}, rel: 0, el: 0, n: 0, sea: 0 }));
+  for (let j = 0; j < H; j += 2) { const lat = cellLat(j);
+    for (let i = 0; i < W; i += 2) {
+      const p = grid[j * W + i]; if (p < 0) continue; const lon = cellLon(i); const st = stat[p]; const b = biomeAt(lat, lon); st.bio[b] = (st.bio[b] || 0) + 1; const el = elevation(lat, lon); st.rel += reliefAt(lat, lon, el); st.el += el; st.n++;
+      const jn = Math.min(H - 1, j + 2); const jp = Math.max(0, j - 2); const ie = (i + 2) % W; const iw = (i - 2 + W) % W;
+      if (G.state[jn * W + i] === 255 || G.state[jp * W + i] === 255 || G.state[j * W + ie] === 255 || G.state[j * W + iw] === 255) st.sea++;
+    } }
+  const placeOf = new Map(); // name -> province n
+  const inProv = seeds.map(() => []);
+  for (const pl of atlasPlaces()) { const [i, j] = cellIdx(pl.lat, pl.lon); let p = grid[j * W + i]; if (p < 0) { let bd = 1e9; for (const s of seeds) { const d = Math.hypot(pl.lat - s.lat, (pl.lon - s.lon) * Math.cos(pl.lat * D)); if (d < bd) { bd = d; p = s.n; } } } placeOf.set(pl.name, p); inProv[p].push(pl); }
+  const milIn = seeds.map(() => []);
+  for (const m of ATLAS.military) { const [i, j] = cellIdx(m.lat, m.lon); let p = grid[j * W + i]; if (p < 0) { let bd = 1e9; for (const s of seeds) { const d = Math.hypot(m.lat - s.lat, (m.lon - s.lon) * Math.cos(m.lat * D)); if (d < bd) { bd = d; p = s.n; } } } milIn[p].push(m); }
+
+  // ---- neighbours: provinces whose cells touch
+  const nb = seeds.map(() => new Set());
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const p = grid[j * W + i]; if (p < 0) continue; const ie = (i + 1) % W; const q1 = grid[j * W + ie]; if (q1 >= 0 && q1 !== p) { nb[p].add(q1); nb[q1].add(p); } if (j + 1 < H) { const q2 = grid[(j + 1) * W + i]; if (q2 >= 0 && q2 !== p) { nb[p].add(q2); nb[q2].add(p); } } }
+
+  const pv = seeds.map((s, n) => {
+    const st = stat[n]; const state = STATES[s.k]; const total = st.n || 1; const places = inProv[n]; const mil = milIn[n];
+    const topBio = Object.entries(st.bio).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0] || 'grassland';
+    const rel = st.rel / total; const el = st.el / total; const coastShare = st.sea / total;
+    const city = places.some((p) => p.kind === 'c' || p.kind === 't');
+    let terrain = topBio === 'mountain' || topBio === 'volcanic' ? 'mountains' : topBio === 'forest' || topBio === 'taiga' ? 'forest' : topBio === 'jungle' ? 'jungle' : topBio === 'desert' ? 'desert' : 'plains';
+    if ((terrain === 'plains' || terrain === 'forest') && rel > 0.38) terrain = 'hills';
+    else if (terrain === 'plains' && (topBio === 'grassland' || topBio === 'savanna') && state.wet >= 0.5 && rel < 0.2) terrain = 'farmland';
+    else if (terrain === 'plains' && el < 0.12 && coastShare > 0.35 && (topBio === 'grassland' || topBio === 'tundra')) terrain = 'marsh';
+    if (city) terrain = 'urban';
+    const port = places.some((p) => p.kind === 'p') || mil.some((m) => m.kind === 'naval');
+    const airfield = places.some((p) => p.kind === 'a') || mil.some((m) => m.kind === 'air');
+    const capital = places.some((p) => p.kind === 'c');
+    const fort = Math.min(5, mil.reduce((a, m) => a + (m.kind === 'fort' ? 3 : m.kind === 'hq' ? 3 : m.kind === 'army' ? 2 : 1), 0) + (places.some((p) => p.kind === 'f') ? 2 : 0));
+    const vp = places.reduce((a, p) => a + (p.kind === 'c' ? 3 : p.kind === 't' ? 1 : p.kind === 'p' ? 2 : p.kind === 'r' || p.kind === 'm' ? 1 : 0), 0);
+    return { id: s.id, n, state: state.id, country: state.country, lat: +s.lat.toFixed(2), lon: +s.lon.toFixed(2), cells: cells[n], terrain, coast: coastShare > 0.12, infra: 1, vp, port, airfield, fort, capital, rail: [], road: [], places: places.map((p) => p.name), neighbours: [...nb[n]].sort((a, b) => a - b), width: Math.max(8, Math.round(Math.sqrt(cells[n]) * 6)) };
+  });
+  // infrastructure: a town or a port lifts it, a capital more; a main road between two places puts a rail line between their provinces (and lifts both)
+  for (const p of pv) { const here = p.places.map((nm) => ATLAS.places.find((q) => q.name === nm)); p.infra = Math.min(5, 1 + (here.some((q) => q.kind === 't') ? 1 : 0) + (p.port ? 1 : 0) + (p.capital ? 2 : 0) + (p.airfield ? 1 : 0)); }
+  for (const p of pv) p.road = [];
+  for (const [a, b, kind] of ATLAS.roads) { // walk the road's line: every province it crosses is joined to the next (a main road is a railway), and lifted
+    const A = ATLAS.places[a]; const B = ATLAS.places[b]; const steps = Math.max(2, Math.ceil(Math.hypot(B.lat - A.lat, (B.lon - A.lon) * Math.cos(((A.lat + B.lat) / 2) * D)) / 0.25)); const seq = [];
+    for (let k = 0; k <= steps; k++) { const lat = A.lat + ((B.lat - A.lat) * k) / steps; const lon = A.lon + ((B.lon - A.lon) * k) / steps; const [i, j] = cellIdx(lat, lon); const q = grid[j * W + i]; if (q >= 0 && q !== seq[seq.length - 1]) seq.push(q); }
+    for (let k = 0; k < seq.length; k++) { const P = pv[seq[k]]; P.infra = Math.min(5, Math.max(P.infra, kind === 1 ? 3 : 2)); if (k) { const Q = pv[seq[k - 1]]; if (!P.road.includes(Q.n)) P.road.push(Q.n); if (!Q.road.includes(P.n)) Q.road.push(P.n); if (kind === 1) { if (!P.rail.includes(Q.n)) P.rail.push(Q.n); if (!Q.rail.includes(P.n)) Q.rail.push(P.n); } } }
+  }
+  const index = new Map(pv.map((p) => [p.id, p]));
+  return { list: pv, index, grid, w: W, h: H, placeOf };
+}
+
+const cache = () => (CACHE ||= build());
+const provinces = () => cache().list;
+const provinceById = (id) => cache().index.get(id) || null;
+const provinceGrid = () => { const c = cache(); return { w: c.w, h: c.h, grid: c.grid }; };
+function provinceAt(lat, lon) {
+  const c = cache(); const j = Math.max(0, Math.min(c.h - 1, Math.round((90 - lat) * GRID_RES))); const i = ((Math.round((((lon + 180) % 360) + 360) % 360 * GRID_RES)) % c.w + c.w) % c.w;
+  const p = c.grid[j * c.w + i]; return p < 0 ? null : c.list[p];
+}
+const provinceOfPlace = (name) => { const c = cache(); const n = c.placeOf.get(name); return n === undefined ? null : c.list[n]; };
+
+const TERRAIN = {
+  plains: { name: 'Plains' }, farmland: { name: 'Farmland' }, forest: { name: 'Forest' }, hills: { name: 'Hills' }, mountains: { name: 'Mountains' }, marsh: { name: 'Marsh' },
+  urban: { name: 'Urban' }, desert: { name: 'Desert' }, jungle: { name: 'Jungle' },
+};
+
+return { provinces, provinceById, provinceGrid, provinceAt, provinceOfPlace, TERRAIN };
+})();
+
+// ---- src/content/strategic.js
+__m["src/content/strategic.js"] = (function () {
+// The strategic war's numbers (v0.103.0): pure data, all starting figures to calibrate (docs/PROPOSAL_WAR_STRATEGIC.md). The rules that read them are in src/war/strategic.js.
+//
+//   TERRAIN_FX     what ground does to a march and to a defender
+//   INFRA_SPEED    what a province's infrastructure (1 to 5) does to a march
+//   MARCH          speeds on foot and by vehicle, the detour of a road over a straight line, the bonus along a railway
+//   SEALIFT        the employer carries your battalions to the theatre and home: days by distance
+//   RETAINER       what the employer pays while you serve, and for ground taken
+//   BATTALION      organisation (cohesion): what it costs to move and attack, what a day's rest gives back, what a battle takes
+//   GARRISON       the force an enemy-held province holds, from what is in it
+//   SLOTS          what each slot of a battalion template asks the chosen squads to bring
+const TERRAIN_FX = {
+  plains: { speed: 1, def: 1 }, farmland: { speed: 1, def: 1 }, forest: { speed: 0.7, def: 1.12 }, hills: { speed: 0.7, def: 1.1 }, mountains: { speed: 0.4, def: 1.25 },
+  marsh: { speed: 0.5, def: 1 }, urban: { speed: 0.8, def: 1.15 }, desert: { speed: 0.8, def: 0.95 }, jungle: { speed: 0.5, def: 1.12 },
+};
+const INFRA_SPEED = [0, 0.6, 0.75, 0.9, 1.05, 1.2];
+const MARCH = { foot: 6, perBar: 3, base: 6, detour: 1.25, rail: 1.5 }; // km an hour: a vehicle with speed bar b does base + perBar * b
+const SEALIFT = { kmPerDay: 700, minDays: 2 };
+const RETAINER = { perTrooper: 170, perVehicle: { tank: 1400, helicopter: 1800, artillery: 900, antiair: 500, carrier: 400, recon: 250, logistics: 100, medical: 100 }, perVP: 25000, rep: 1 };
+const BATTALION = { orgMax: 100, moveCost: 2, attackMin: 30, restPerDay: 12, afterBattle: { 3: 12, 2: 22, 1: 40, 0: 65 }, entrenchHours: 12, entrenchMax: 5, expiresDays: 3 };
+const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3 };
+
+/** A template slot: `line` slots are the battalion's body, `support` and `attach` its companies. Each asks what the chosen squads must hold between them. */
+const SLOTS = {
+  line: {
+    inf: { name: 'Rifle section', icon: '🪖', need: { squads: 1 } },
+    at: { name: 'Anti-tank', icon: '🚀', need: { role: 'anti_tank' } },
+    tank: { name: 'Tank', icon: '🛡️', need: { cls: 'tank' } },
+    apc: { name: 'Carrier', icon: '🚙', need: { cls: 'carrier' } },
+  },
+  support: {
+    recon: { name: 'Recon', icon: '🔭', need: { either: [{ cls: 'recon' }, { role: 'recon' }] } },
+    antiair: { name: 'Anti-air', icon: '🎯', need: { cls: 'antiair' } },
+    engineers: { name: 'Engineers', icon: '🛠️', need: { role: 'engineer' } },
+    medical: { name: 'Medical', icon: '➕', need: { role: 'medic' } },
+    signals: { name: 'Signals', icon: '📡', need: { role: 'signaller' } },
+    logistics: { name: 'Logistics', icon: '🚚', need: { cls: 'logistics' } },
+  },
+  attach: {
+    spg: { name: 'Artillery', icon: '💥', need: { cls: 'artillery' } },
+    heli: { name: 'Helicopter', icon: '🚁', need: { cls: 'helicopter' } },
+  },
+};
+const MAX_LINE = 25;
+
+return { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE };
+})();
+
+// ---- src/war/strategic.js
+__m["src/war/strategic.js"] = (function () {
+// The strategic war (v0.103.0): battalions raised from the company's real squads and vehicles, enlisted for one side in a theatre, carried there by the employer's sealift, and ordered across
+// the provinces of src/world/provinces.js. Attacking an enemy-held province opens an engagement (src/war/engagements.js), played or fought by a general like any other; its result is written
+// once and moves the front. The saved record is `world.military.war`:
+//     { v, control: { provinceId: country } (only provinces that changed hands), templates, battalions, employer, hour, battles, log, next }
+// Pure rules over that record and the game's clock. Nothing is spawned: a battalion is the squads and vehicles it was raised from, and they are locked to it while it stands.
+//
+//   templates(game) / saveTemplate / removeTemplate     the recipes (built-in and your own)
+//   needsOf(template) / providedBy(game, squadIds)      what a recipe asks and what chosen squads bring
+//   raise(game, {template, name, squads}) / disband(game, id)
+//   theatres(game) / enlist(game, {theatre, side}) / discharge(game)
+//   deploy(game, id) / recall(game, id)                 sealift out and home
+//   order(game, id, {type, to})                         move, attack, defend, hold, withdraw
+//   advance(game)                                       the hours since last time (orders, marches, sealift, contact)
+//   dayTick(game)                                       retainer, rest
+//   view(game)                                          everything the map screen shows
+const { peekMilitary } = __m["src/war/state.js"];
+const { provinces, provinceById, provinceAt } = __m["src/world/provinces.js"];
+const { atlasTheatres } = __m["src/world/atlas.js"];
+const { ATLAS } = __m["src/content/atlas.js"];
+const { VEHICLES } = __m["src/content/procurement.js"];
+const { CLASSES } = __m["src/content/troops.js"];
+const { CARRY, styleOf } = __m["src/content/battle.js"];
+const { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE } = __m["src/content/strategic.js"];
+const { CLASS_POWER } = __m["src/war/combat.js"];
+const { hooks } = __m["src/war/hooks.js"];
+const { openStrategic } = __m["src/war/engagements.js"];
+
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+const nowHour = (game) => Math.floor(game.clock.total / 60);
+const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
+const countryName = (id) => ATLAS.countries[id]?.name || id;
+
+/** The war record, with its defaults (an older save simply gains them). */
+function warOf(game) {
+  const m = peekMilitary(game); if (!m) return null;
+  const w = (m.war ||= {});
+  w.v ||= 1; w.control ||= {}; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  return w;
+}
+const nextId = (w, kind) => { w.next[kind] = (w.next[kind] || 0) + 1; return `${kind}${w.next[kind]}`; };
+const note = (w, game, text) => { w.log.push({ day: game.clock.day, text }); while (w.log.length > 60) w.log.shift(); };
+
+// ---- the ground: who holds what
+const controllerOf = (game, p) => warOf(game)?.control?.[p.id] ?? p.country;
+const homeProvince = () => provinceAt(52.6, -21.5); // Fort Gullcrest's province: where a battalion is raised
+const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.sin(((b.lat - a.lat) * D) / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(((b.lon - a.lon) * D) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+
+/** What an enemy-held province holds: from its fort, its victory points, its size and its infrastructure, with a spread by the province's own hash. Taken ground holds nothing. */
+function garrisonOf(game, p) {
+  const w = warOf(game); const e = w?.employer; if (!e || controllerOf(game, p) === e.side) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 };
+  const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
+  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread));
+  const armour = (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
+  return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
+}
+
+// ---- templates
+const DEFAULT_TEMPLATES = [
+  { id: 'tpl_rifle', name: 'Rifle Bn', line: ['inf', 'inf', 'inf', 'inf', 'at'], support: ['medical', 'signals'], attach: [], builtin: true },
+  { id: 'tpl_armour', name: 'Armoured Bn', line: ['tank', 'tank', 'tank', 'tank', 'apc', 'apc', 'inf', 'inf'], support: ['recon', 'engineers', 'medical', 'logistics'], attach: ['spg'], builtin: true },
+  { id: 'tpl_combined', name: 'Combined Arms Bn', line: ['tank', 'tank', 'apc', 'inf', 'inf', 'inf', 'at'], support: ['recon', 'antiair', 'engineers', 'medical', 'signals', 'logistics'], attach: ['spg', 'heli'], builtin: true },
+];
+const templates = (game) => [...DEFAULT_TEMPLATES, ...(warOf(game)?.templates || [])];
+const slotOk = (t) => Array.isArray(t.line) && t.line.length >= 1 && t.line.length <= MAX_LINE && t.line.every((s) => SLOTS.line[s]) && (t.support || []).every((s) => SLOTS.support[s]) && (t.attach || []).every((s) => SLOTS.attach[s]);
+function saveTemplate(game, t) {
+  const w = warOf(game); if (!w) return { ok: false, text: 'You have no company.' };
+  const name = String(t?.name || '').trim(); if (!name || name.length > 24) return { ok: false, text: 'Give the template a name of up to 24 letters.' };
+  const tpl = { name, line: [...(t.line || [])], support: [...(t.support || [])], attach: [...(t.attach || [])] };
+  if (!slotOk(tpl)) return { ok: false, text: `A template has one to ${MAX_LINE} line slots, and only slots the company may field.` };
+  if (templates(game).some((x) => x.name === name && x.id !== t.id)) return { ok: false, text: 'There is already a template with that name.' };
+  const old = t.id && w.templates.find((x) => x.id === t.id);
+  if (old) { Object.assign(old, tpl); return { ok: true, text: `${name} is saved.`, id: old.id }; }
+  tpl.id = nextId(w, 'T'); w.templates.push(tpl); return { ok: true, text: `${name} is saved.`, id: tpl.id };
+}
+function removeTemplate(game, id) {
+  const w = warOf(game); const t = w?.templates.find((x) => x.id === id); if (!t) return { ok: false, text: 'No such template of yours.' };
+  if (w.battalions.some((b) => b.template === id)) return { ok: false, text: 'A battalion stands on it.' };
+  w.templates = w.templates.filter((x) => x !== t); return { ok: true, text: 'Removed.' };
+}
+
+/** What a recipe asks, as rows: { key, label, icon, need }. */
+function needsOf(t) {
+  const rows = new Map(); const add = (key, label, icon, n = 1) => { const r = rows.get(key) || { key, label, icon, need: 0 }; r.need += n; rows.set(key, r); };
+  for (const s of t.line) { const d = SLOTS.line[s]; if (s === 'inf') add('squads', 'Squads with soldiers', d.icon); else if (d.need.role) add(`role:${d.need.role}`, CLASSES[d.need.role]?.name || d.name, d.icon); else add(`cls:${d.need.cls}`, d.need.cls === 'tank' ? 'Tanks' : 'Armoured carriers', d.icon); }
+  for (const [group, list] of [['support', t.support || []], ['attach', t.attach || []]]) for (const s of list) {
+    const d = SLOTS[group][s]; const nd = d.need;
+    if (nd.either) add('recon', 'Recon (vehicle or soldier)', d.icon); else if (nd.role) add(`role:${nd.role}`, CLASSES[nd.role]?.name || d.name, d.icon); else add(`cls:${nd.cls}`, { antiair: 'Anti-air vehicles', logistics: 'Supply trucks', artillery: 'Artillery', helicopter: 'Helicopters', carrier: 'Armoured carriers', tank: 'Tanks' }[nd.cls] || d.name, d.icon);
+  }
+  return [...rows.values()];
+}
+const clsOf = (x) => VEHICLES[x.type]?.class || null;
+/** What squads really bring: counts of soldiers by role, vehicles by class, and squads with someone in them. */
+function providedBy(game, squadIds) {
+  const C = peekMilitary(game)?.company; const out = { squads: 0, role: {}, cls: {}, people: 0, vehicles: 0, carriage: 0, hulls: [] };
+  for (const sid of squadIds) {
+    const s = C?.squads.find((q) => q.id === sid); if (!s) continue;
+    const ppl = s.members.map((m) => C.personnel.find((p) => p.id === m)).filter((p) => p && p.status === 'active');
+    if (ppl.length) out.squads++;
+    for (const p of ppl) { out.role[p.role] = (out.role[p.role] || 0) + 1; out.people++; }
+    for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (!x || x.status === 'destroyed') continue; const c = clsOf(x); if (c) out.cls[c] = (out.cls[c] || 0) + 1; out.vehicles++; if (c === 'carrier') out.carriage += CARRY[x.type] || 6; out.hulls.push(x); }
+  }
+  return out;
+}
+const supplyOf = (key, P) => (key === 'squads' ? P.squads : key === 'recon' ? (P.cls.recon || 0) + (P.role.recon || 0) : key.startsWith('role:') ? P.role[key.slice(5)] || 0 : P.cls[key.slice(4)] || 0);
+
+// ---- raising a battalion
+function raise(game, { template, name, squads }) {
+  const w = warOf(game); const C = peekMilitary(game)?.company;
+  if (!w || !C?.identity) return { ok: false, text: 'You have no company.' };
+  const tpl = templates(game).find((t) => t.id === template); if (!tpl) return { ok: false, text: 'Choose a template.' };
+  if (!squads?.length) return { ok: false, text: 'Choose the squads it is made of.' };
+  const chosen = squads.map((id) => C.squads.find((s) => s.id === id));
+  if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
+  const busy = chosen.find((s) => s.status !== 'home'); if (busy) return { ok: false, text: busy.battalion ? `${busy.name} is already in a battalion.` : `${busy.name} is away.` };
+  const P = providedBy(game, squads); const short = needsOf(tpl).filter((r) => supplyOf(r.key, P) < r.need).map((r) => `${r.need - supplyOf(r.key, P)} more of ${r.label.toLowerCase()} (${r.need} needed, ${supplyOf(r.key, P)} in these squads)`);
+  if (short.length) return { ok: false, text: `These squads do not make a ${tpl.name}: ${short.join('; ')}. Nothing is invented to make up the difference.` };
+  const leader = chosen.map((s) => C.personnel.find((p) => p.id === s.leader)).find((p) => p && p.status === 'active' && CLASSES[p.role]?.leads);
+  if (!leader) return { ok: false, text: 'A battalion needs a commander: an officer who leads one of its squads.' };
+  const id = nextId(w, 'B'); const n = w.battalions.length + 1;
+  const bn = { id, name: String(name || '').trim().slice(0, 28) || `${ordinal(n)} ${tpl.name}`, template: tpl.id, squads: [...squads], commander: leader.id, home: homeProvince().id, pos: homeProvince().id, status: 'home', org: BATTALION.orgMax, entrench: 0, start: { people: P.people, vehicles: P.vehicles }, order: { type: 'hold' }, moving: null, path: [], engaged: null, arrive: null, since: game.clock.day };
+  for (const s of chosen) { s.status = 'battalion'; s.battalion = id; for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (x && x.status === 'assigned') x.status = 'deployed'; } }
+  w.battalions.push(bn); note(w, game, `${bn.name} is raised: ${P.people} soldiers, ${P.vehicles} vehicles, ${leader.name} commanding.`);
+  return { ok: true, text: `${bn.name} is raised under ${leader.name}.`, id };
+}
+function release(game, bn) {
+  const C = peekMilitary(game)?.company; if (!C) return;
+  for (const sid of bn.squads) { const s = C.squads.find((q) => q.id === sid); if (!s) continue; s.status = 'home'; delete s.battalion; for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (x && x.status === 'deployed') x.status = 'assigned'; } }
+}
+function disband(game, id) {
+  const w = warOf(game); const bn = w?.battalions.find((b) => b.id === id); if (!bn) return { ok: false, text: 'No such battalion.' };
+  if (bn.status !== 'home') return { ok: false, text: `${bn.name} is ${bn.status === 'theatre' ? 'in the theatre' : bn.status}: bring it home first.` };
+  release(game, bn); w.battalions = w.battalions.filter((b) => b !== bn); note(w, game, `${bn.name} is stood down.`); return { ok: true, text: `${bn.name} is stood down; its squads and vehicles are free.` };
+}
+
+/** What a battalion is, from what it is made of now. */
+function statsOf(game, bn) {
+  const C = peekMilitary(game)?.company; const P = providedBy(game, bn.squads); const people = []; const hulls = P.hulls;
+  for (const sid of bn.squads) { const s = C?.squads.find((q) => q.id === sid); for (const m of s?.members || []) { const p = C.personnel.find((q) => q.id === m); if (p && p.status === 'active') people.push(p); } }
+  const soft = Math.round(people.reduce((a, p) => a + (CLASS_POWER[p.role] ?? 0.8) * 10, 0) + hulls.reduce((a, x) => a + ((VEHICLES[x.type]?.firepower || 0) * 8), 0));
+  const hard = Math.round(people.filter((p) => p.role === 'anti_tank').length * 40 + hulls.reduce((a, x) => a + (['tank', 'artillery'].includes(clsOf(x)) ? (VEHICLES[x.type]?.firepower || 0) * 40 : clsOf(x) === 'helicopter' ? (VEHICLES[x.type]?.firepower || 0) * 25 : 0), 0));
+  const armour = hulls.length ? Math.round(hulls.reduce((a, x) => a + (VEHICLES[x.type]?.armour || 0), 0) / hulls.length * 20) : 0;
+  const mounted = P.carriage >= people.length; const speeds = hulls.map((x) => MARCH.base + MARCH.perBar * (VEHICLES[x.type]?.speed || 2));
+  let speed = Math.min(mounted ? Infinity : MARCH.foot, speeds.length ? Math.min(...speeds) : Infinity); if (!Number.isFinite(speed)) speed = MARCH.foot; speed = Math.round(speed);
+  const parts = P.people + P.vehicles; const start = bn.start.people + bn.start.vehicles;
+  return { strength: Math.round(100 * Math.min(1, parts / Math.max(1, start))), org: Math.round(bn.org), soft, hard, defence: Math.round(people.length * 3 + armour), armour, speed, width: Math.min(60, P.squads * 4 + P.vehicles * 2), people: people.length, vehicles: P.vehicles, mounted, entrench: bn.entrench, hardness: parts ? Math.round((100 * P.vehicles) / parts) : 0 };
+}
+
+// ---- theatres and employers
+const warBetween = (game, a, b) => (game.corp?.geo?.peek?.()?.events || []).some((e) => e.kind === 'war' && e.status === 'active' && e.parties.includes(a) && e.parties.includes(b));
+function theatres(game) {
+  return atlasTheatres().filter((t) => t.between.length === 2).map((t) => ({ id: t.id, name: t.name, between: t.between, kind: t.kind, note: t.note, states: t.states, hot: t.kind.includes('land') || warBetween(game, t.between[0], t.between[1]), provinces: provinces().filter((p) => t.states.includes(p.state)).length }));
+}
+const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
+const inTheatre = (th) => (p) => th.states.includes(p.state);
+function staging(game, th, side) {
+  const here = provinces().filter((p) => inTheatre(th)(p) && controllerOf(game, p) === side && p.country === side);
+  here.sort((a, b) => ((b.port ? 2 : 0) + (b.capital ? 2 : 0) + b.infra) - ((a.port ? 2 : 0) + (a.capital ? 2 : 0) + a.infra) || (a.id < b.id ? -1 : 1));
+  return here[0] || null;
+}
+function enlist(game, { theatre, side }) {
+  const w = warOf(game); const C = peekMilitary(game)?.company;
+  if (!w || !C?.identity) return { ok: false, text: 'You have no company.' };
+  if (!C.licensed) return { ok: false, text: 'A private security company needs the Civic Office\'s licence before it takes a flag\'s coin.' };
+  if (w.employer) return { ok: false, text: `You already serve ${countryName(w.employer.side)} in ${theatreOf(game, w.employer.theatre)?.name}. Discharge first.` };
+  const th = theatreOf(game, theatre); if (!th) return { ok: false, text: 'No such theatre.' };
+  if (!th.between.includes(side)) return { ok: false, text: 'That nation is not fighting there.' };
+  if (!th.hot) return { ok: false, text: `${th.name}: nobody is fighting there yet.` };
+  const st = staging(game, th, side); if (!st) return { ok: false, text: `${countryName(side)} holds no ground in ${th.name} to land you on.` };
+  const enemy = th.between.find((c) => c !== side);
+  w.employer = { theatre: th.id, side, enemy, since: game.clock.day, staging: st.id }; note(w, game, `You enlist with ${countryName(side)} in ${th.name} (against ${countryName(enemy)}).`);
+  return { ok: true, text: `You serve ${countryName(side)} against ${countryName(enemy)} in ${th.name}. Landing at ${st.id}.` };
+}
+function discharge(game) {
+  const w = warOf(game); if (!w?.employer) return { ok: false, text: 'You serve no one.' };
+  if (w.battalions.some((b) => b.status !== 'home')) return { ok: false, text: 'Bring every battalion home first.' };
+  const e = w.employer; w.employer = null; note(w, game, `You leave ${countryName(e.side)}'s service.`); return { ok: true, text: `You leave ${countryName(e.side)}'s service. The ground keeps the owners it has now.` };
+}
+
+// ---- sealift
+const sealDays = (from, to) => Math.max(SEALIFT.minDays, Math.ceil(km(from, to) / SEALIFT.kmPerDay));
+function deploy(game, id) {
+  const w = warOf(game); const bn = w?.battalions.find((b) => b.id === id); if (!bn) return { ok: false, text: 'No such battalion.' };
+  if (!w.employer) return { ok: false, text: 'Enlist in a theatre first.' };
+  if (bn.status !== 'home') return { ok: false, text: `${bn.name} is ${bn.status}.` };
+  const to = provinceById(w.employer.staging); const days = sealDays(provinceById(bn.home), to);
+  bn.status = 'deploying'; bn.arrive = nowHour(game) + days * 24; bn.target = to.id; note(w, game, `${bn.name} sails for ${to.id}: ${days} days.`);
+  return { ok: true, text: `${countryName(w.employer.side)}'s ships carry ${bn.name}: ${days} days.`, days };
+}
+function recall(game, id) {
+  const w = warOf(game); const bn = w?.battalions.find((b) => b.id === id); if (!bn) return { ok: false, text: 'No such battalion.' };
+  if (bn.status !== 'theatre' || bn.engaged || bn.moving) return { ok: false, text: bn.status !== 'theatre' ? `${bn.name} is ${bn.status}.` : `${bn.name} is busy.` };
+  const days = sealDays(provinceById(bn.pos), provinceById(bn.home)); bn.status = 'returning'; bn.arrive = nowHour(game) + days * 24; bn.target = bn.home; bn.order = { type: 'hold' };
+  return { ok: true, text: `${bn.name} is on its way home: ${days} days.`, days };
+}
+
+// ---- orders and marches
+const friendly = (game, p) => controllerOf(game, p) === warOf(game).employer.side;
+function legHours(game, bn, from, to) {
+  const st = statsOf(game, bn); const d = km(from, to) * MARCH.detour; const fx = TERRAIN_FX[to.terrain]?.speed ?? 1; const infra = INFRA_SPEED[Math.min(from.infra, to.infra)] ?? 0.6; const rail = from.rail.includes(to.n) ? MARCH.rail : 1;
+  return Math.max(1, d / (Math.max(1, st.speed) * fx * infra * rail));
+}
+function route(game, bn, to) { // the cheapest way through ground the employer holds, inside the theatre
+  const w = warOf(game); const th = theatreOf(game, w.employer.theatre); const P = provinces(); const here = provinceById(bn.pos);
+  const dist = new Map([[here.n, 0]]); const prev = new Map(); const open = [here.n];
+  while (open.length) {
+    open.sort((a, b) => dist.get(a) - dist.get(b)); const c = open.shift(); if (c === to.n) break;
+    for (const q of P[c].neighbours) { const Q = P[q]; if (!inTheatre(th)(Q) || !friendly(game, Q)) continue; const d = dist.get(c) + legHours(game, bn, P[c], Q); if (d < (dist.get(q) ?? 1e9)) { dist.set(q, d); prev.set(q, c); open.push(q); } }
+  }
+  if (!dist.has(to.n)) return null; const path = []; for (let c = to.n; c !== here.n; c = prev.get(c)) path.unshift(P[c].id); return { path, hours: Math.round(dist.get(to.n)) };
+}
+function order(game, id, o) {
+  const w = warOf(game); const bn = w?.battalions.find((b) => b.id === id); if (!bn) return { ok: false, text: 'No such battalion.' };
+  if (bn.status !== 'theatre') return { ok: false, text: bn.status === 'home' ? `${bn.name} is at home: send it to the theatre first.` : `${bn.name} is at sea.` };
+  if (bn.engaged) return { ok: false, text: `${bn.name} is in a battle: choose how to fight it first.` };
+  const e = w.employer; const here = provinceById(bn.pos);
+  if (o.type === 'hold' || o.type === 'defend') { bn.order = { type: o.type }; bn.moving = null; bn.path = []; return { ok: true, text: o.type === 'defend' ? `${bn.name} digs in at ${here.id}.` : `${bn.name} holds.` }; }
+  if (o.type === 'withdraw') o = { type: 'move', to: e.staging };
+  if (o.type === 'move') {
+    const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
+    if (to.id === bn.pos) return { ok: false, text: 'It is already there.' };
+    if (!friendly(game, to)) return { ok: false, text: 'That ground is not yours: attack it from a province next to it.' };
+    const r = route(game, bn, to); if (!r) return { ok: false, text: 'There is no way there through ground you hold.' };
+    bn.order = { type: 'move', to: to.id }; bn.path = r.path.slice(1); const first = provinceById(r.path[0]); bn.moving = { to: first.id, left: legHours(game, bn, here, first), attack: false }; bn.entrench = 0;
+    return { ok: true, text: `${bn.name} sets out for ${to.id}: about ${r.hours} hours.`, hours: r.hours };
+  }
+  if (o.type === 'attack') {
+    const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
+    if (friendly(game, to)) return { ok: false, text: 'That ground is already yours.' };
+    if (controllerOf(game, to) !== e.enemy) return { ok: false, text: 'You fight only the nation you came to fight.' };
+    if (!here.neighbours.includes(to.n)) return { ok: false, text: 'Move next to it first: an attack goes into the next province.' };
+    if (bn.org < BATTALION.attackMin) return { ok: false, text: `${bn.name} has no stomach for it: its organisation is ${Math.round(bn.org)} (it needs ${BATTALION.attackMin}).` };
+    bn.order = { type: 'attack', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: legHours(game, bn, here, to), attack: true }; bn.entrench = 0;
+    return { ok: true, text: `${bn.name} moves on ${to.id}: contact in about ${Math.round(bn.moving.left)} hours.` };
+  }
+  return { ok: false, text: 'No such order.' };
+}
+
+// ---- time
+function arrive(game, w, bn, hour) {
+  if (bn.status === 'deploying') { bn.status = 'theatre'; bn.pos = bn.target; bn.arrive = null; bn.order = { type: 'hold' }; note(w, game, `${bn.name} lands at ${bn.pos}.`); game.notify?.(`${bn.name} has landed at ${bn.pos}.`, 'info'); }
+  else if (bn.status === 'returning') { bn.status = 'home'; bn.pos = bn.home; bn.arrive = null; note(w, game, `${bn.name} is home.`); game.notify?.(`${bn.name} is home.`, 'info'); }
+  void hour;
+}
+function contact(game, w, bn, prov) {
+  const C = peekMilitary(game)?.company; const g = garrisonOf(game, prov);
+  bn.moving = null; bn.order = { type: 'hold' };
+  const id = openStrategic(game, { battalion: bn, province: prov, enemy: g, recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.id}` });
+  if (id) { bn.engaged = id; note(w, game, `${bn.name} meets the enemy at ${prov.id}.`); game.notify?.(`${bn.name} is in contact at ${prov.id}: choose how to fight it.`, 'warn'); }
+  void C;
+}
+const recipeOf = (p) => (p.terrain === 'urban' ? 'city' : p.fort >= 3 ? 'compound' : p.fort >= 2 ? 'trench' : p.terrain === 'forest' || p.terrain === 'jungle' ? 'forest' : 'fields');
+const battleTerrain = (p) => (p.terrain === 'forest' || p.terrain === 'jungle' ? 'forest' : p.terrain === 'hills' || p.terrain === 'mountains' ? 'mountain' : p.terrain === 'desert' ? 'desert' : p.terrain === 'urban' ? 'urban' : 'rural');
+/** Catch up the hours since last time: sealift lands, marches finish, contact opens battles, digging in builds up. */
+function advance(game) {
+  const w = warOf(game); if (!w) return;
+  const now = nowHour(game); if (w.hour === null) { w.hour = now; return; }
+  const to = Math.min(now, w.hour + 24 * 40);
+  for (let h = w.hour + 1; h <= to; h++) {
+    for (const bn of w.battalions) {
+      if ((bn.status === 'deploying' || bn.status === 'returning') && bn.arrive !== null && h >= bn.arrive) arrive(game, w, bn, h);
+      else if (bn.status === 'theatre' && !bn.engaged) {
+        if (bn.moving) {
+          bn.moving.left -= 1;
+          if (bn.moving.left <= 0) {
+            const dest = provinceById(bn.moving.to);
+            if (bn.moving.attack) contact(game, w, bn, dest);
+            else { bn.pos = dest.id; bn.org = Math.max(0, bn.org - BATTALION.moveCost); const nx = bn.path.shift(); if (nx) { const nxt = provinceById(nx); bn.moving = { to: nx, left: legHours(game, bn, dest, nxt), attack: false }; } else { bn.moving = null; bn.order = { type: 'hold' }; game.notify?.(`${bn.name} has arrived at ${dest.id}.`, 'info'); } }
+          }
+        } else if (bn.order.type === 'defend' && h % BATTALION.entrenchHours === 0) bn.entrench = Math.min(BATTALION.entrenchMax, bn.entrench + 1);
+      }
+    }
+  }
+  w.hour = to;
+}
+
+/** Once a day: the employer's retainer for every battalion in the theatre, and rest for those not on the move. */
+function dayTick(game) {
+  const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return;
+  advance(game);
+  const day = game.clock.day; w.day ||= 0; if (w.day >= day) return; w.day = day;
+  let pay = 0;
+  for (const bn of w.battalions) {
+    if (bn.status === 'theatre' && w.employer) { const P = providedBy(game, bn.squads); pay += P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); }
+    if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
+  }
+  if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
+}
+
+// ---- a battle on the map ends (called from src/war/engagements.js)
+function resolved(game, C, eng, R) {
+  const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
+  const prov = provinceById(eng.strategic.prov); const obj = R.objectives; bn.engaged = null; bn.order = { type: 'hold' }; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[obj]);
+  let line = `${bn.name} at ${prov.id}: `;
+  if (obj >= 2) {
+    w.control[prov.id] = w.employer.side; bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
+    if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
+    const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); rep.score += RETAINER.rep * Math.max(1, prov.vp);
+    line += `taken${bonus ? `; ${countryName(w.employer.side)} pays ${bonus.toLocaleString('en-US')} for it` : ''}.`;
+  } else line += obj === 1 ? 'a stalemate: the enemy still holds.' : 'repulsed.';
+  // the squads came back from the field: they belong to the battalion again
+  const live = []; for (const sid of bn.squads) { const s = C.squads.find((q) => q.id === sid); if (!s) continue; if (!s.members.length && !s.equipment.length) { C.squads = C.squads.filter((q) => q !== s); continue; } live.push(sid); s.status = 'battalion'; s.battalion = bn.id; for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (x && x.status === 'assigned') x.status = 'deployed'; } }
+  bn.squads = live; const cmd = C.personnel.find((p) => p.id === bn.commander);
+  if (!cmd || cmd.status !== 'active') { const next = bn.squads.map((sid) => C.personnel.find((p) => p.id === C.squads.find((q) => q.id === sid)?.leader)).find((p) => p && p.status === 'active'); bn.commander = next?.id || null; if (!next) line += ' It has lost its commander.'; }
+  if (!bn.squads.length) { w.battalions = w.battalions.filter((b) => b !== bn); line += ' Nothing is left of it.'; }
+  note(w, game, line);
+}
+function withdrawn(game, C, eng) {
+  const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
+  bn.engaged = null; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[1] / 2); bn.order = { type: 'hold' }; note(w, game, `${bn.name} breaks off at ${eng.strategic.prov}.`);
+}
+hooks.strategicResolved = resolved; hooks.strategicWithdrawn = withdrawn;
+
+// ---- what the screen shows
+function view(game) {
+  const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return null;
+  advance(game);
+  const th = w.employer ? theatreOf(game, w.employer.theatre) : null; const P = provinces();
+  const area = th ? P.filter(inTheatre(th)) : []; const ids = new Set(area.map((p) => p.id));
+  const bns = w.battalions.map((b) => ({ ...b, stats: statsOf(game, b), commanderName: C.personnel.find((p) => p.id === b.commander)?.name || null, template: templates(game).find((t) => t.id === b.template) || null, squadNames: b.squads.map((s) => C.squads.find((q) => q.id === s)?.name).filter(Boolean) }));
+  return {
+    hour: nowHour(game), employer: w.employer ? { ...w.employer, sideName: countryName(w.employer.side), enemyName: countryName(w.employer.enemy), theatreName: th?.name } : null, theatre: th, theatres: theatres(game),
+    provinces: area.map((p) => ({ ...p, controller: controllerOf(game, p), garrison: garrisonOf(game, p) })), neighbourIds: ids,
+    battalions: bns, templates: templates(game), log: w.log.slice(-12).reverse(), paid: w.paid || 0,
+    squadsFree: C.squads.filter((s) => s.status === 'home').map((s) => ({ id: s.id, name: s.name, size: s.members.length, vehicles: s.equipment.length })),
+  };
+}
+
+const SOLDIER_RETAINER = (game, bn) => { const P = providedBy(game, bn.squads); return P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); };
+
+return { warOf, controllerOf, garrisonOf, DEFAULT_TEMPLATES, templates, saveTemplate, removeTemplate, needsOf, providedBy, raise, disband, statsOf, theatres, enlist, discharge, deploy, recall, order, recipeOf, battleTerrain, advance, dayTick, view, SOLDIER_RETAINER };
 })();
 
 // ---- src/war/day.js
@@ -32871,6 +33823,7 @@ const { dayTick: works } = __m["src/war/production.js"];
 const { dayTick: jobs } = __m["src/war/contracts.js"];
 const { dayTick: living } = __m["src/war/base.js"];
 const { dayTick: battles } = __m["src/war/engagements.js"];
+const { dayTick: strategic } = __m["src/war/strategic.js"];
 
 function runDay(game) {
   construction(game);
@@ -32884,6 +33837,7 @@ function runDay(game) {
   works(game);
   jobs(game);
   battles(game);
+  strategic(game);
   living(game);
   while (C.log.length > 40) C.log.shift(); // the company's log stays short
   const m = peekMilitary(game);
@@ -33087,6 +34041,12 @@ function checkMilitary(m) {
   // what is gone cannot be used
   const gone = (x) => x.status === 'destroyed' || x.status === 'dead' || x.status === 'captured';
   for (const x of [...people, ...items]) if (gone(x) && (x.assignedTo != null || listed.has(x.id) || x.status === 'deployed')) add('destroyed_deployable', x.id, `${x.id} is ${x.status} but is still assigned or deployed`);
+  // battalions: their squads exist, are theirs alone and are locked to them; their places are real provinces
+  for (const b of m.war?.battalions || []) {
+    for (const sid of b.squads || []) { const s = squads.find((q) => q.id === sid); if (!s) add('missing_reference', b.id, `battalion ${b.id} lists squad ${sid}, which does not exist`); else if (s.battalion !== b.id) add('double_assignment', sid, `squad ${sid} is in battalion ${b.id} but says ${s.battalion ?? 'none'}`); }
+    if (b.commander != null && !people.some((p) => p.id === b.commander)) add('missing_reference', b.id, `battalion ${b.id} has a commander ${b.commander} who is not in the personnel`);
+  }
+  for (const s of squads) if (s.battalion && !(m.war?.battalions || []).some((b) => b.id === s.battalion && b.squads.includes(s.id))) add('missing_reference', s.id, `squad ${s.id} says it is in battalion ${s.battalion}, which does not list it`);
   // the coup flag and what is derived from it
   if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
   else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);
@@ -33118,6 +34078,7 @@ const { equip: equipPerson, equipClass: equipTheClass, setTier: setClassTier, se
 const { create: createSquad, assign: assignSquad, unassign: unassignSquad, setLeader: leadSquad, assignVehicle: squadGetsVehicle, disband: disbandSquad, setLook: lookSquad, view: squadsView } = __m["src/war/squads.js"];
 const { view: baseViewOf } = __m["src/war/base.js"];
 const { checkMilitary } = __m["src/war/check.js"];
+const { view: stView, advance: stAdvance, templates: stTemplates, saveTemplate: stSave, removeTemplate: stRemove, needsOf: stNeeds, providedBy: stProvided, raise: stRaise, disband: stDisband, theatres: stTheatres, enlist: stEnlist, discharge: stDischarge, deploy: stDeploy, recall: stRecall, order: stOrder } = __m["src/war/strategic.js"];
 const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
 class War {
@@ -33228,6 +34189,23 @@ class War {
   saveBattle(id, tick, log) { return saveBattleOf(this.g, id, tick, log); }
   fileBattle(id, result) { return fileBattleOf(this.g, id, result); }
   declineEngagement(id) { return declineEngagement(this.g, id); }
+
+  // ---- the strategic war (v0.103.0)
+  strategic() { return stView(this.g); }
+  strategicTick() { stAdvance(this.g); }
+  templates() { return stTemplates(this.g); }
+  saveTemplate(t) { return stSave(this.g, t); }
+  removeTemplate(id) { return stRemove(this.g, id); }
+  needs(template) { return stNeeds(template); }
+  provided(squads) { return stProvided(this.g, squads); }
+  raise(o) { return stRaise(this.g, o); }
+  standDown(id) { return stDisband(this.g, id); }
+  theatres() { return stTheatres(this.g); }
+  enlist(o) { return stEnlist(this.g, o); }
+  discharge() { return stDischarge(this.g); }
+  deploy(id) { return stDeploy(this.g, id); }
+  recall(id) { return stRecall(this.g, id); }
+  battalionOrder(id, o) { return stOrder(this.g, id, o); }
 
   contracts() { return contractsView(this.g); }
   accept(id) { return acceptJob(this.g, id); }
@@ -37241,292 +38219,6 @@ class Pursuit {
 }
 
 return { Pursuit };
-})();
-
-// ---- src/world/geography.js
-__m["src/world/geography.js"] = (function () {
-// The world's geography (v0.28.0): fictional continents and islands with
-// real-looking coastlines. Each landmass is a skeleton — chains of
-// [lat, lon, radius°] nodes — "inflated" around its lines, then pushed about
-// by domain-warping noise and roughened by fractal noise, so the coasts get
-// bays, capes, peninsulas and offshore islands instead of round blobs. Inland
-// seas and straits are carved the same way. Archipelagos and scattered ocean
-// islands come from high-frequency noise in their own regions. Pure and
-// deterministic: the same point always gives the same answer.
-//
-// elevation(lat, lon) → a signed height: > 0 is land (higher inland and in
-// the mountains), < 0 is sea (deeper offshore).
-
-const D2R = Math.PI / 180;
-const wrapLon = (d) => ((d + 540) % 360) - 180;
-
-// ------------------------------------------------------------------ noise
-const PERM = new Uint8Array(512);
-{
-  let s = 1337;
-  const p = Array.from({ length: 256 }, (_, i) => i);
-  for (let i = 255; i > 0; i--) { s = (s * 1103515245 + 12345) & 0x7fffffff; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
-  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
-}
-const hash = (x, y, z) => PERM[(PERM[(PERM[x & 255] + y) & 255] + z) & 255] / 255;
-const fade = (t) => t * t * (3 - 2 * t);
-/** Smooth 3D value noise in [0, 1]. */
-function vnoise(x, y, z) {
-  const xi = Math.floor(x); const yi = Math.floor(y); const zi = Math.floor(z);
-  const xf = fade(x - xi); const yf = fade(y - yi); const zf = fade(z - zi);
-  const l = (a, b, t) => a + (b - a) * t;
-  return l(
-    l(l(hash(xi, yi, zi), hash(xi + 1, yi, zi), xf), l(hash(xi, yi + 1, zi), hash(xi + 1, yi + 1, zi), xf), yf),
-    l(l(hash(xi, yi, zi + 1), hash(xi + 1, yi, zi + 1), xf), l(hash(xi, yi + 1, zi + 1), hash(xi + 1, yi + 1, zi + 1), xf), yf),
-    zf,
-  );
-}
-/** Fractal noise in about [−1, 1] at a point on the unit sphere. */
-function fbm(x, y, z, freq, octaves, seed = 0) {
-  let sum = 0;
-  let amp = 1;
-  let norm = 0;
-  for (let o = 0; o < octaves; o++) {
-    sum += (vnoise(x * freq + seed * 17.1, y * freq + seed * 3.7, z * freq + seed * 9.3) * 2 - 1) * amp;
-    norm += amp;
-    amp *= 0.5;
-    freq *= 2.03;
-  }
-  return sum / norm;
-}
-
-// ------------------------------------------------------------------ the landmasses
-// [lat, lon, radius in degrees of the coast from the line]; chains are joined node to node.
-const LAND = [
-  // the western continent (Westreach to Lirre, down the isthmus to Cape Low and Greyhook)
-  [[64, -162, 7], [58, -150, 9], [50, -138, 9], [44, -122, 11], [46, -104, 12], [52, -88, 10], [58, -72, 7], [62, -60, 4]],
-  [[44, -158, 5], [50, -150, 6]],
-  [[46, -104, 12], [38, -92, 9], [38, -80, 6], [44, -72, 5], [48, -64, 3]],
-  [[34, -144, 4], [38, -134, 7], [44, -122, 11]],
-  [[38, -112, 9], [28, -114, 7], [18, -120, 5], [12, -118, 4], [6, -110, 2.6], [0, -102, 3.5], [-8, -100, 7], [-18, -96, 9], [-28, -96, 8], [-36, -90, 5], [-42, -80, 3.5], [-47, -73, 2]],
-  [[-8, -100, 7], [-14, -114, 5], [-18, -124, 3]],
-  // the home island (Halvermouth) and its neighbour
-  [[52, -27, 3.4], [49, -25, 3], [46, -23, 2.2]],
-  // the Hald Reach: a narrow neck of land from Sund's southern tip to the home island, so the capital sits at the end of one kingdom
-  [[53, -6, 2.2], [52.5, -12, 2.1], [51.5, -19, 2.3], [52, -27, 3.4]],
-  [[55, -34, 1.6], [56, -31, 1.2]],
-  // Sund: a long northern island of fjords
-  [[53, -6, 2.2], [57, -9, 3], [62, -12, 4], [67, -10, 3.5], [71, -7, 2.4]],
-  // Pallas
-  [[16, -31, 3.5], [11, -35, 4], [5, -38, 2.6], [1, -40, 1.4]],
-  // the eastern continent (Ostmark, the northern plains, Varn, Teshvar)
-  [[50, 4, 4.5], [55, 14, 7], [58, 24, 7], [66, 36, 9], [64, 54, 11], [60, 76, 13], [56, 100, 12], [50, 118, 9], [44, 128, 6], [38, 132, 3]],
-  [[55, 14, 7], [50, 22, 6], [50, 34, 5], [46, 46, 6], [42, 56, 7], [40, 70, 8], [44, 90, 10], [56, 100, 12]],
-  [[42, 56, 7], [36, 52, 5], [32, 58, 3.6]],
-  [[40, 70, 8], [34, 82, 6], [28, 92, 7], [22, 98, 5], [17, 102, 3]],
-  [[44, 90, 10], [36, 108, 7], [28, 112, 4]],
-  [[72, 70, 4], [74, 90, 5], [72, 110, 4]],
-  // the southern continent (Caldera)
-  [[12, 22, 6], [10, 34, 8], [3, 38, 9], [-6, 34, 10], [-14, 30, 8], [-24, 28, 7], [-32, 24, 5], [-36, 20, 2.5]],
-  [[10, 34, 8], [10, 44, 4], [9, 50, 2]],
-  [[3, 38, 9], [-4, 42, 4]],
-  [[-14, 30, 8], [-16, 22, 3.5]],
-  // Meridian: a long island
-  [[-14, 63, 2], [-19, 64, 2.6], [-24, 62, 1.8]],
-  // the south-eastern continent (Coral Sound)
-  [[-18, 120, 5], [-24, 126, 7], [-30, 124, 6.5], [-34, 116, 4], [-33, 132, 4], [-28, 134, 3.5]],
-  // Southwind Isle, Dunmere's island, Coldwater's cape, Frostbay's arctic island, odd rocks
-  [[-54, -6, 1.1]],
-  [[22, -5, 2.2], [19, -8, 1.6]],
-  [[44, -158, 5], [41, -165, 2.6]],
-  [[73, -112, 3.5], [75, -98, 4], [73, -86, 2.5]],
-  [[76, -40, 4], [78, -20, 3]],
-  [[-74, -120, 6], [-74, -60, 7], [-74, 0, 7], [-74, 60, 7], [-74, 120, 7], [-74, 180, 6]],
-];
-// inland seas, gulfs and straits carved out of the land
-const SEAS = [
-  [[63, 30, 3.5], [60, 34, 2.4], [62, 22, 1.6], [66, 18, 1.3], [70, 16, 1.4]], // the Ostmark Sea, out to the north
-  [[47, 32, 2.6], [46, 40, 2.8], [42, 38, 2], [38, 34, 1.6], [34, 32, 2]], // the Halden Gulf and Port Varn's sea, to the south
-  [[30, 70, 2.4], [32, 64, 2], [28, 76, 2]], // the Kestrel Gulf
-  [[-6, 108, 0.1]],
-  [[-21, -132, 1.4], [-22, -128, 1]], // Marrow Strait
-];
-// archipelagos: [lat0, lat1, lon0, lon1, density]
-const ARCHIPELAGOS = [
-  [-44, -18, 134, 168, 0.62], // the Morrow Isles (the only archipelago kept: the open ocean is otherwise clear)
-];
-// islands that must exist (the Morrow capital and harbours; the lone island of Marrow Strait)
-const ISLANDS = [[-32, 148, 2.2], [-29.5, 137, 1.6], [-39, 158, 1.8], [-24, 155.5, 1.6], [-27, 142, 1.3], [-35, 153, 1.4], [-30, 160, 1.2], [-41, 150, 1.2], [-21, -132.5, 2.6]];
-
-const segs = (chains) => {
-  const out = [];
-  const add = (a, b) => {
-    const pad = Math.max(a[2], b[2]) * 2 + 1;
-    const s = [a, b];
-    s.lat0 = Math.min(a[0], b[0]) - pad; s.lat1 = Math.max(a[0], b[0]) + pad;
-    out.push(s);
-  };
-  for (const c of chains) {
-    if (c.length === 1) add(c[0], c[0]);
-    for (let i = 0; i + 1 < c.length; i++) add(c[i], c[i + 1]);
-  }
-  return out;
-};
-const LAND_SEGS = segs(LAND);
-const SEA_SEGS = segs(SEAS);
-const ISLE_SEGS = segs(ISLANDS.map((n) => [n]));
-
-/** 1 at a skeleton line, 0 at twice its coast radius, below 0 beyond. */
-function skeletonField(lat, lon, list) {
-  const cl = Math.cos(lat * D2R);
-  let best = -1;
-  for (const s of list) {
-    if (lat < s.lat0 || lat > s.lat1) continue;
-    const [a, b] = s;
-    // in local degrees (longitude shrunk by latitude)
-    const ax = wrapLon(a[1] - lon) * cl; const ay = a[0] - lat;
-    const bx = ax + wrapLon(b[1] - a[1]) * cl; const by = b[0] - lat;
-    const dx = bx - ax; const dy = by - ay;
-    const L2 = dx * dx + dy * dy;
-    const t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
-    const px = ax + dx * t; const py = ay + dy * t;
-    const d = Math.sqrt(px * px + py * py);
-    const R = (a[2] + (b[2] - a[2]) * t) * 2;
-    const f = 1 - d / R;
-    if (f > best) best = f;
-  }
-  return best;
-}
-
-/** The height of the world at a point: > 0 is land, < 0 is sea. */
-function elevation(lat, lon) {
-  const la = lat * D2R;
-  const lo = lon * D2R;
-  const x = Math.cos(la) * Math.cos(lo);
-  const y = Math.cos(la) * Math.sin(lo);
-  const z = Math.sin(la);
-  // push the shapes about so no coast follows a circle
-  const wl = lat + fbm(x, y, z, 3.1, 4, 1) * 6;
-  const wo = lon + (fbm(x, y, z, 3.1, 4, 2) * 6) / Math.max(0.25, Math.cos(la));
-  let f = skeletonField(wl, wo, LAND_SEGS);
-  f = Math.max(f, skeletonField(lat, lon, ISLE_SEGS) - 0.05);
-  // roughen the coast: big bays and capes, then the fine fractal edge
-  const rough = fbm(x, y, z, 6, 6, 3) * 0.42 + fbm(x, y, z, 22, 3, 4) * 0.12;
-  let h = (f - 0.5) + rough;
-  // inland seas and straits
-  const sea = skeletonField(wl * 0.3 + lat * 0.7, wo * 0.3 + lon * 0.7, SEA_SEGS);
-  if (sea > 0) h = Math.min(h, (0.5 - sea) * 1.6 + rough * 0.25);
-  // archipelagos: many small islands where the noise peaks
-  for (const [a0, a1, o0, o1, dens] of ARCHIPELAGOS) {
-    if (lat < a0 || lat > a1) continue;
-    const dl = wrapLon(lon - o0);
-    if (dl < 0 || dl > wrapLon(o1 - o0)) continue;
-    const edge = Math.min(lat - a0, a1 - lat, dl, wrapLon(o1 - o0) - dl) / 4;
-    const n = fbm(x, y, z, 26, 4, 5) * 0.8 + fbm(x, y, z, 9, 2, 6) * 0.4;
-    const isle = n - dens + 0.12 - Math.max(0, 1 - edge) * 0.5;
-    if (isle > 0) h = Math.max(h, isle * 1.4);
-  }
-  // the poles: ice
-  if (lat < -70) h = Math.max(h, (-70 - lat) / 6 + rough * 0.6);
-  return h;
-}
-
-/** Mountain height (0–1) for shading: ridged noise, strongest deep inland. */
-function relief(lat, lon, h = elevation(lat, lon)) {
-  if (h <= 0) return 0;
-  const la = lat * D2R;
-  const lo = lon * D2R;
-  const x = Math.cos(la) * Math.cos(lo);
-  const y = Math.cos(la) * Math.sin(lo);
-  const z = Math.sin(la);
-  const ridge = 1 - Math.abs(fbm(x, y, z, 7, 5, 8));
-  return Math.max(0, Math.min(1, (ridge - 0.55) * 2.6 * Math.min(1, h * 2.5)));
-}
-
-/** Climate for colouring: 'ice' | 'desert' | 'forest' | 'grass' | 'tundra'. */
-function biome(lat, lon, h = elevation(lat, lon)) {
-  const a = Math.abs(lat);
-  if (a > 70) return 'ice';
-  if (a > 60) return 'tundra';
-  const la = lat * D2R;
-  const lo = lon * D2R;
-  const wet = fbm(Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la), 4, 3, 9) + (a < 12 ? 0.35 : 0) - (a > 16 && a < 34 ? 0.3 : 0) - Math.min(0.3, h * 0.15);
-  if (wet < -0.18) return 'desert';
-  if (wet > 0.12) return 'forest';
-  return 'grass';
-}
-
-return { elevation, relief, biome };
-})();
-
-// ---- src/world/globe.js
-__m["src/world/globe.js"] = (function () {
-// The world globe's geography (v0.15.1; shared since v0.21.0; real-looking
-// continents since v0.28.0 — src/world/geography.js). Used by the arms
-// terminal's globe, Fleet Command's chart (src/engine/drawGlobeSurface.js) and
-// the sea routes ships follow (src/world/seaRoutes.js). Pure functions.
-const { elevation } = __m["src/world/geography.js"];
-
-const D2R = Math.PI / 180;
-const wrapLon = (d) => ((d + 540) % 360) - 180;
-
-/**
- * v0.28.0: the world's land comes from src/world/geography.js — fictional
- * continents and islands with real coastlines — sampled once onto a
- * half-degree grid (720 × 361) that everything reads: the terminals' globe
- * and chart, sea routes, ports. `countries` is kept in the signatures for
- * compatibility; capitals are on land by design (tested).
- */
-const GRID_RES = 2; // samples per degree
-const GW = 360 * GRID_RES;
-const GH = 180 * GRID_RES + 1;
-let GRID = null;
-
-/** The elevation grid: rows from 90°N (row 0) to 90°S, columns from 180°W. */
-function landGrid() {
-  if (!GRID) {
-    GRID = new Float32Array(GW * GH);
-    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) GRID[j * GW + i] = elevation(90 - j / GRID_RES, i / GRID_RES - 180);
-  }
-  return { data: GRID, w: GW, h: GH, res: GRID_RES };
-}
-
-/** Elevation at any point, smoothly between grid samples (> 0 is land). */
-function elevationAt(lat, lon) {
-  const g = landGrid().data;
-  const fy = Math.max(0, Math.min(GH - 1.001, (90 - lat) * GRID_RES));
-  const fx = (wrapLon(lon) + 180) * GRID_RES;
-  const j = Math.floor(fy);
-  const i = Math.floor(fx);
-  const ty = fy - j;
-  const tx = fx - i;
-  const i0 = ((i % GW) + GW) % GW;
-  const i1 = (i0 + 1) % GW;
-  const a = g[j * GW + i0] + (g[j * GW + i1] - g[j * GW + i0]) * tx;
-  const b = g[(j + 1) * GW + i0] + (g[(j + 1) * GW + i1] - g[(j + 1) * GW + i0]) * tx;
-  return a + (b - a) * ty;
-}
-
-/** Old name, same idea: land strength at a point (land from LAND_AT up). */
-function landNoise(lat, lon) {
-  return elevationAt(lat, lon) + LAND_AT;
-}
-
-const LAND_AT = 0.12;
-
-/** Land strength at a point (land from LAND_AT up). */
-function landValue(lat, lon) {
-  return elevationAt(lat, lon) + LAND_AT;
-}
-
-const isLand = (lat, lon, countries) => landValue(lat, lon, countries) >= LAND_AT;
-
-/** Great-circle distance in km between [lat, lon] points (globe radius 6371 km). */
-function gcKm(a, b) {
-  const p1 = a[0] * D2R;
-  const p2 = b[0] * D2R;
-  const dp = p2 - p1;
-  const dl = wrapLon(b[1] - a[1]) * D2R;
-  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-return { D2R, wrapLon, GRID_RES, landGrid, elevationAt, landNoise, landValue, isLand, gcKm };
 })();
 
 // ---- src/world/seaRoutes.js
@@ -53984,6 +54676,7 @@ class Game {
       this.world.lastHour = hour;
       this.events.hourly();
       this.corp?.operations?.hourlyTick(); // v0.91.1: the shipping manager sends idle ships
+      this.war?.strategicTick?.(); // v0.103.0: sealift, marches and contact on the strategic map
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();
@@ -71664,133 +72357,6 @@ const PANELS = {
 
 
 return { h, itemIcon, pausePanel, inventoryPanel, JOURNAL_TABS, journalTab, mapPanel, containerPanel, shopPanel, readPanel, messagePanel, debugPanel, struckDownPanel, settingsPanel, savesPanel, aboutPanel, choicesPanel, investPanel, stocksScreen, priceChart, mrdnScreen, exchangePanel, contractsPanel, ledgerPanel, PANELS, SLOTS };
-})();
-
-// ---- src/world/atlas.js
-__m["src/world/atlas.js"] = (function () {
-// The world atlas (v0.92.0): which country and state any point of land belongs to, its climate, and where the named places, rivers and roads are.
-// Pure functions over src/content/atlas.js and the world's own geography. Nothing here is stored in a save: it is the shape of the world.
-const { ATLAS } = __m["src/content/atlas.js"];
-const { landGrid, GRID_RES } = __m["src/world/globe.js"];
-const { relief: reliefAt, biome: climateAt, elevation } = __m["src/world/geography.js"];
-
-const BIOMES = ['sea', 'ice', 'tundra', 'taiga', 'forest', 'grassland', 'steppe', 'desert', 'savanna', 'jungle', 'mountain', 'volcanic'];
-const BIOME_NAMES = { sea: 'Open sea', ice: 'Ice sheet', tundra: 'Tundra', taiga: 'Taiga', forest: 'Forest', grassland: 'Grassland', steppe: 'Steppe', desert: 'Desert', savanna: 'Savanna', jungle: 'Jungle', mountain: 'Mountains', volcanic: 'Volcanic' };
-const D = Math.PI / 180;
-const MAXD = 22; // a state claims land only within this many degrees (÷ its weight) of its heart
-const GW = 360 * GRID_RES;
-const GH = 180 * GRID_RES + 1;
-
-const STATES = ATLAS.states;
-const STATE_INDEX = Object.fromEntries(STATES.map((s, k) => [s.id, k]));
-const ICE = STATE_INDEX.fr_southern_ice;
-
-const dist = (a, b, c, d) => { const x = ((((b - d) + 540) % 360) - 180) * Math.cos(((a + c) / 2) * D); return Math.hypot(a - c, x); };
-
-/** The state (an index into ATLAS.states) of a point of land, or -1 where no state claims it. */
-function stateIndexAt(lat, lon) {
-  if (lat < -64) return ICE;
-  let best = -1; let bd = 1e9;
-  for (let k = 0; k < STATES.length; k++) {
-    if (k === ICE) continue;
-    const s = STATES[k];
-    const d = dist(lat, lon, s.seed[0], s.seed[1]) / s.w;
-    if (d < bd) { bd = d; best = k; }
-  }
-  return bd < MAXD ? best : -1;
-}
-
-let GRID = null; // per half-degree cell: 255 = sea, 254 = land no state claims, else the state's index
-function stateGrid() {
-  if (GRID) return GRID;
-  const el = landGrid().data;
-  GRID = new Uint8Array(GW * GH).fill(255);
-  for (let j = 0; j < GH; j++) {
-    const lat = 90 - j / GRID_RES;
-    for (let i = 0; i < GW; i++) {
-      if (el[j * GW + i] < 0) continue;
-      const k = stateIndexAt(lat, i / GRID_RES - 180);
-      GRID[j * GW + i] = k < 0 ? 254 : k;
-    }
-  }
-  return GRID;
-}
-
-const cellOf = (lat, lon) => {
-  const j = Math.max(0, Math.min(GH - 1, Math.round((90 - lat) * GRID_RES)));
-  const i = ((Math.round((((lon + 180) % 360) + 360) % 360 * GRID_RES)) % GW + GW) % GW;
-  return j * GW + i;
-};
-
-/** The state at a point (its record, with `index`), or null at sea. The half-degree grid answers; a point the grid calls sea but the world's exact shape calls land (a narrow spit, a small island) is answered by the same rule. */
-function stateAt(lat, lon) {
-  let k = stateGrid()[cellOf(lat, lon)];
-  if (k === 255 && elevation(lat, lon) >= 0.02) k = stateIndexAt(lat, lon) < 0 ? 254 : stateIndexAt(lat, lon);
-  return k >= 254 ? null : { ...STATES[k], index: k };
-}
-/** The country id at a point, or null at sea / unclaimed. */
-function countryAt(lat, lon) { return stateAt(lat, lon)?.country ?? null; }
-
-/** Land's climate at a point: the world's own (ice, tundra, desert, forest, grass) refined by relief, latitude and the state's character. */
-function biomeAt(lat, lon) {
-  let el = landGrid().data[cellOf(lat, lon)];
-  if (el < 0) { el = elevation(lat, lon); if (el < 0.02) return 'sea'; }
-  const a = Math.abs(lat);
-  const st = stateAt(lat, lon);
-  const rel = reliefAt(lat, lon, el);
-  if (a > 72) return 'ice';
-  if ((el > 2.1 || (rel > 0.95 && el > 1.1)) && a < 70) return 'mountain';
-  let b;
-  if (st?.biome && !(st.biome === 'mountain' && rel < 0.12)) b = st.biome;
-  else {
-    const g = climateAt(lat, lon, el);
-    b = g === 'ice' ? 'ice' : g === 'tundra' ? 'tundra' : g === 'desert' ? 'desert' : g === 'forest' ? (a > 48 ? 'taiga' : a < 14 ? 'jungle' : 'forest') : (a < 22 ? 'savanna' : 'grassland');
-  }
-  if (st?.biome === 'volcanic' && rel <= 0.25) b = 'savanna';
-  if (b === 'steppe' && st?.biome !== 'steppe') b = 'grassland';
-  return b;
-}
-
-/** Per half-degree cell (same grid as landGrid): the country (index into `ids`, -1 where none) and the state (index into atlasStates(), 255 where none). */
-let MAPS = null;
-function atlasGrids() {
-  if (MAPS) return MAPS;
-  const ids = Object.keys(ATLAS.countries);
-  const of = STATES.map((s) => ids.indexOf(s.country));
-  const sg = stateGrid();
-  const country = new Int8Array(sg.length);
-  const state = new Uint8Array(sg.length);
-  for (let n = 0; n < sg.length; n++) { const k = sg[n]; country[n] = k >= 254 ? -1 : of[k]; state[n] = k >= 254 ? 255 : k; }
-  MAPS = { ids, country, state, w: GW, h: GH };
-  return MAPS;
-}
-
-const atlasCountries = () => ATLAS.countries;
-const atlasStates = () => STATES;
-const statesOf = (country) => STATES.filter((s) => s.country === country);
-const atlasPlaces = () => ATLAS.places;
-const placesOf = (stateId) => ATLAS.places.filter((p) => p.state === stateId);
-const atlasMilitary = () => ATLAS.military;
-const atlasTheatres = () => ATLAS.theatres;
-const atlasRivers = () => ATLAS.rivers;
-/** Roads as pairs of places: { a, b, main } */
-function atlasRoads() { return ATLAS.roads.map(([a, b, kind]) => ({ a: ATLAS.places[a], b: ATLAS.places[b], main: kind === 1 })); }
-
-/** The nearest named place to a point (within `within` degrees), or null. */
-function nearestPlace(lat, lon, within = 4) {
-  let best = null; let bd = within;
-  for (const p of ATLAS.places) { const d = dist(lat, lon, p.lat, p.lon); if (d < bd) { bd = d; best = p; } }
-  return best;
-}
-
-/** Everything the Atlas can say about one point of the world. */
-function atlasAt(lat, lon) {
-  const st = stateAt(lat, lon);
-  if (!st) return null;
-  return { state: st, country: ATLAS.countries[st.country], countryId: st.country, biome: biomeAt(lat, lon), place: nearestPlace(lat, lon, 1.2) };
-}
-
-return { BIOMES, BIOME_NAMES, stateAt, countryAt, biomeAt, atlasGrids, atlasCountries, atlasStates, statesOf, atlasPlaces, placesOf, atlasMilitary, atlasTheatres, atlasRivers, atlasRoads, nearestPlace, atlasAt };
 })();
 
 // ---- src/engine/drawGlobeSurface.js

@@ -18,6 +18,7 @@ import { equip as equipPerson, equipClass as equipTheClass, setTier as setClassT
 import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
 import { view as baseViewOf } from './base.js';
 import { checkMilitary } from './check.js';
+import { view as stView, advance as stAdvance, templates as stTemplates, saveTemplate as stSave, removeTemplate as stRemove, needsOf as stNeeds, providedBy as stProvided, raise as stRaise, disband as stDisband, theatres as stTheatres, enlist as stEnlist, discharge as stDischarge, deploy as stDeploy, recall as stRecall, order as stOrder } from './strategic.js';
 import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
 export class War {
@@ -128,6 +129,23 @@ export class War {
   saveBattle(id, tick, log) { return saveBattleOf(this.g, id, tick, log); }
   fileBattle(id, result) { return fileBattleOf(this.g, id, result); }
   declineEngagement(id) { return declineEngagement(this.g, id); }
+
+  // ---- the strategic war (v0.103.0)
+  strategic() { return stView(this.g); }
+  strategicTick() { stAdvance(this.g); }
+  templates() { return stTemplates(this.g); }
+  saveTemplate(t) { return stSave(this.g, t); }
+  removeTemplate(id) { return stRemove(this.g, id); }
+  needs(template) { return stNeeds(template); }
+  provided(squads) { return stProvided(this.g, squads); }
+  raise(o) { return stRaise(this.g, o); }
+  standDown(id) { return stDisband(this.g, id); }
+  theatres() { return stTheatres(this.g); }
+  enlist(o) { return stEnlist(this.g, o); }
+  discharge() { return stDischarge(this.g); }
+  deploy(id) { return stDeploy(this.g, id); }
+  recall(id) { return stRecall(this.g, id); }
+  battalionOrder(id, o) { return stOrder(this.g, id, o); }
 
   contracts() { return contractsView(this.g); }
   accept(id) { return acceptJob(this.g, id); }

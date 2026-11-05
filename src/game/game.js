@@ -388,6 +388,7 @@ export class Game {
       this.world.lastHour = hour;
       this.events.hourly();
       this.corp?.operations?.hourlyTick(); // v0.91.1: the shipping manager sends idle ships
+      this.war?.strategicTick?.(); // v0.103.0: sealift, marches and contact on the strategic map
     }
     if (Math.floor(this.clock.total) % 1440 === 18 * 60 && this.world.oil.lastDividendDay !== this.clock.day) this.oil.dailyTick();
     if (Math.floor(this.clock.total) % 1440 === 18 * 60) this.properties.dailyTick();

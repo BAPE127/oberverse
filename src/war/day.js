@@ -7,6 +7,7 @@ import { dayTick as works } from './production.js';
 import { dayTick as jobs } from './contracts.js';
 import { dayTick as living } from './base.js';
 import { dayTick as battles } from './engagements.js';
+import { dayTick as strategic } from './strategic.js';
 
 export function runDay(game) {
   construction(game);
@@ -20,6 +21,7 @@ export function runDay(game) {
   works(game);
   jobs(game);
   battles(game);
+  strategic(game);
   living(game);
   while (C.log.length > 40) C.log.shift(); // the company's log stays short
   const m = peekMilitary(game);
