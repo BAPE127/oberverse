@@ -6,6 +6,7 @@ import { h } from './panels.js';
 import { hero, tiles, row, help, note, fold, buttons, big, n } from './tabletKit.js';
 import { atlasStates } from '../world/atlas.js';
 import { INFLUENCE as I } from '../content/influence.js';
+import { partyScreen } from './politicsParty.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const pc = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
@@ -70,6 +71,7 @@ export function influenceTab(ui, body, open) {
   const nt = note(ui);
   if (nt) body.append(nt);
   if (ui.polOffer) { offerScreen(ui, body, open, go); return; }
+  if (ui.polParty) { partyScreen(ui, body, open); return; }
   const V = P.influence();
   const S = V.standing;
   body.append(
@@ -82,6 +84,8 @@ export function influenceTab(ui, body, open) {
     tag: c.open ? 'Open' : 'Closed', tone: c.open ? 'good' : '',
     action: c.open ? h('button', { class: 'tb-mini pri', onclick: () => { ui.polOffer = { contact: c.key }; open('Politics'); } }, 'Ask ›') : null,
   }))));
+  const my = P.myParty();
+  body.append(list(row({ icon: '🏳️', title: my ? my.name : 'Your own party', sub: my ? (my.registered ? 'Registered. A foundation: it cannot stand in an election yet.' : 'Not yet registered.') : 'Optional. Found a party, choose a platform, hire staff. It changes no election.', tag: my ? (my.registered ? 'registered' : 'draft') : 'optional', onclick: () => { ui.polParty = true; open('Politics'); } })));
   body.append(h('div', { class: 'tb-note' }, 'Money, reputation, relationships and support are separate things. Money alone does not open a door.'));
   body.append(help('How influence works', 'Four things are kept apart: the money you hold, your reputation, what each person thinks of you, and what you have given in the open. A door opens on a friendship, or on support together with a reputation. Lobbying costs favours (a donation earns them), not money, and a government will not take up what it stands against. An offer is a request with a price: you see the price, the odds and what happens if it is found out before any money moves; it is recorded whether it works or not; repeats cost more; an official has only so many favours to give in a term. Investigators find offers: the result is a scandal for them, a fine of twice the sum paid to the state, your reputation and the trust of those you dealt with. A donor\'s expectation is never a guarantee.'));
   body.append(fold(ui, 'PoliticsInfl', 'The record of what you have done ›', (box) => {

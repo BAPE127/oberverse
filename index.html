@@ -29245,6 +29245,285 @@ const unrestMethods = {
 return { unrestMethods };
 })();
 
+// ---- src/content/party.js
+__m["src/content/party.js"] = (function () {
+// Your own party (v0.97.0): what it takes to found one, and what it is. Pure data. A foundation, not a destination: the party is a record with a name, colours, a platform, funds
+// of its own, staff and a registration. It is kept entirely out of the election and the opinion model (candidacy is a later release), so it can change no result.
+// Its funds come only from what you put in; wages come out of its funds; the registration fee is paid to the state.
+
+const PARTY = {
+  name: { taken: ['the Order Party', 'the Liberty League', 'Order Party', 'Liberty League', 'Order', 'Liberty'] },
+  colours: ['#c0504d', '#4f81bd', '#9bbb59', '#8064a2', '#f79646', '#2aa198'],
+  /** The five founding needs. The office is the company's own headquarters (the Corporate Centre or the Tower), shared. */
+  needs: { offices: ['mid', 'tower'], reputation: 10, priorities: 3, staff: 3, fee: 50000 },
+  platform: { maxIssues: 4 },
+  /** Staff are records, not people on the map: a role, a name, a wage out of the party's funds, a fee to take them on. */
+  staff: { hire: 5000, wage: 120, roles: [
+    { id: 'campaign_manager', name: 'Campaign manager' }, { id: 'polling', name: 'Pollster' }, { id: 'fundraising', name: 'Fundraiser' }, { id: 'legal', name: 'Legal adviser' }, { id: 'organiser', name: 'Organiser' },
+  ], names: ['Ines Harrow', 'Caspian Vole', 'Marta Quill', 'Osric Teal', 'Beatrix Lund', 'Joachim Fenn', 'Wilhelmina Cray', 'Tobias Marl', 'Odette Brandt', 'Ansel Pike', 'Greta Voss', 'Lucan Ashe'] },
+  give: { min: 1000 },
+  /** How many would consider the party (a share of voters, at most this): from how well its platform suits each bloc. Read-only; never enters an election. */
+  consider: { max: 0.25 },
+  candidacy: 'Standing for election is a later release. A registered party with a platform, staff and funds is the foundation it will need.',
+};
+
+return { PARTY };
+})();
+
+// ---- src/corp/identity.js
+__m["src/corp/identity.js"] = (function () {
+// Company identity (v0.60.0). Pure functions — no game state, no DOM.
+//
+//   validateName(raw, taken)   a company name: trimmed, sensible length and characters, not taken
+//   SECTORS                    the sectors a company can belong to
+//   DEFAULT_NAMES              what a business is called until its owner names it
+//
+// A name is the one thing about a company the player may change; its id, sector and founding
+// day never change. Every name ever used stays in the company's history.
+
+const NAME_MIN = 3;
+const NAME_MAX = 40;
+
+const SECTORS = {
+  arms: { name: 'Arms manufacturing' },
+  shipping: { name: 'Shipping and logistics' },
+  aerospace: { name: 'Aerospace engineering' },
+  agriculture: { name: 'Farming and agriculture' },
+  energy: { name: 'Energy' },
+  industrial: { name: 'Industrial manufacturing' },
+  transport: { name: 'Transportation' },
+  communications: { name: 'Communications' },
+  satellites: { name: 'Satellite services' },
+  finance: { name: 'Finance' },
+};
+
+/** The player's four businesses, their sectors, and the name each carries until it is renamed. */
+const PLAYER_COMPANIES = {
+  arms: { sector: 'arms', defaultName: 'Mill Road Arms Works', icon: '🏭', kind: 'Arms manufacturer' },
+  shipping: { sector: 'shipping', defaultName: 'Ober & Sons Maritime', icon: '🚢', kind: 'Shipping company' },
+  aerospace: { sector: 'aerospace', defaultName: 'Roost Aeroworks', icon: '✈️', kind: 'Aerospace engineer' },
+  farming: { sector: 'agriculture', defaultName: 'East Plot Farms', icon: '🌾', kind: 'Farming business' },
+};
+
+// letters (any script), digits, spaces and a few marks a firm's name needs
+const ALLOWED = /^[\p{L}\p{N}][\p{L}\p{N} &'.,\-]*$/u;
+
+/**
+ * Check a proposed name. `taken` are the names already in use (any case). Returns
+ * { ok: true, name } with the name tidied, or { ok: false, error }.
+ */
+function validateName(raw, taken = []) {
+  if (typeof raw !== 'string') return { ok: false, error: 'Enter a name.' };
+  const name = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!name) return { ok: false, error: 'A company needs a name.' };
+  if (name.length < NAME_MIN) return { ok: false, error: `Use at least ${NAME_MIN} characters.` };
+  if (name.length > NAME_MAX) return { ok: false, error: `Use at most ${NAME_MAX} characters.` };
+  if (!ALLOWED.test(name)) return { ok: false, error: 'Use letters, numbers, spaces and & \' . , - only, starting with a letter or number.' };
+  if ((name.match(/\p{L}/gu) || []).length < 2) return { ok: false, error: 'A name needs at least two letters.' };
+  if (/[&'.,\-]{2,}/.test(name)) return { ok: false, error: 'Too much punctuation in a row.' };
+  const lc = name.toLowerCase();
+  if (taken.some((t) => String(t).toLowerCase() === lc)) return { ok: false, error: 'Another company already has that name.' };
+  return { ok: true, name };
+}
+
+return { NAME_MIN, NAME_MAX, SECTORS, PLAYER_COMPANIES, validateName };
+})();
+
+// ---- src/politics/party.js
+__m["src/politics/party.js"] = (function () {
+// Your own party (v0.97.0): the rules, pure.
+//
+//   needsOf(x)                 the five founding needs with whether each is met
+//   considerShare(platform)    how many voters would consider a platform (0 … PARTY.consider.max): read-only, never enters an election
+//   staffName(i, salt)         a name for the next staff record (a hash)
+const { PARTY: P } = __m["src/content/party.js"];
+const { BLOCS, REGIONS } = __m["src/content/opinion.js"];
+const { affinity } = __m["src/politics/opinion.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** x: { office (the tier owned, or null), rep, platform, staff (count), paidFee }. */
+function needsOf(x) {
+  const N = P.needs;
+  const prio = Object.values(x.platform || {}).filter((v) => v).length;
+  const list = [
+    { id: 'office', name: 'An office', met: Boolean(x.office), text: x.office ? `Your company's ${x.office === 'tower' ? 'Tower' : 'Corporate Centre'} serves.` : 'The Corporate Centre or the Tower, bought by your company (Group → Headquarters).' },
+    { id: 'fee', name: 'Registration fee', met: Boolean(x.paidFee), text: `${N.fee.toLocaleString('en-US')} obols, paid to the state.` },
+    { id: 'reputation', name: 'Reputation', met: x.rep >= N.reputation, text: `${N.reputation} with the Civic Office (you have ${x.rep}).` },
+    { id: 'platform', name: 'Platform', met: prio >= N.priorities, text: `At least ${N.priorities} priorities (you have ${prio}).` },
+    { id: 'staff', name: `${N.staff} staff`, met: x.staff >= N.staff, text: `You have ${x.staff}.` },
+  ];
+  return { list, met: list.filter((n) => n.met).length, total: list.length, ready: list.every((n) => n.met) };
+}
+
+/** Voters who would consider the platform: each bloc's share of Sund times how well the platform suits it (only where it suits), up to `consider.max`. */
+function considerShare(platform) {
+  const share = {};
+  let wsum = 0;
+  for (const R of Object.values(REGIONS)) { wsum += R.weight; for (const [b, v] of Object.entries(R.shares)) share[b] = (share[b] || 0) + R.weight * v; }
+  let t = 0;
+  for (const b of Object.keys(BLOCS)) t += (share[b] / wsum) * clamp(affinity(b, platform || {}), 0, 1);
+  return Math.round(clamp(t, 0, 1) * P.consider.max * 1000) / 1000;
+}
+
+const staffName = (i, salt) => { let h = 2166136261; const s = `${salt}|staff|${i}`; for (let k = 0; k < s.length; k++) { h ^= s.charCodeAt(k); h = Math.imul(h, 16777619); } return P.staff.names[(h >>> 0) % P.staff.names.length]; };
+
+return { needsOf, considerShare, staffName };
+})();
+
+// ---- src/systems/politicsParty.js
+__m["src/systems/politicsParty.js"] = (function () {
+// Your own party (v0.97.0): the record and what you may do with it. Added to the Politics service.
+//
+// A foundation, not a destination (src/content/party.js): the record lives in `world.politics.myParty`, never in `parties`, and it is read by nothing in the election or in
+// opinion, so it cannot change a result. Its funds come only from what you give it; wages come out of its funds (staff leave when it cannot pay); the registration fee is paid
+// to the state (`collectLevy`). One party per player. Its name is checked like a company's, against every company and party name.
+const { PARTY: P } = __m["src/content/party.js"];
+const { POLITICS: POL } = __m["src/content/politics.js"];
+const { validateName } = __m["src/corp/identity.js"];
+const { needsOf, considerShare, staffName } = __m["src/politics/party.js"];
+
+const partyMethods = {
+  myParty() { return this.peek()?.myParty || null; },
+
+  taken() {
+    const a = [...P.name.taken, ...Object.values(POL.parties).flatMap((p) => [p.name, p.short])];
+    try { a.push(...this.g.corp.takenNames()); } catch { /* a bare game has no companies */ }
+    return a;
+  },
+
+  officeTier() { const h = this.g.hq; return h?.owns('tower') ? 'tower' : h?.owns('mid') ? 'mid' : null; },
+
+  /** Found a party record (a name and a colour): one per player. It is not registered until every need is met. */
+  foundParty(raw, colour) {
+    const s = this.ensure();
+    if (s.myParty) return { ok: false, text: `You already lead ${s.myParty.name}. One party each.` };
+    const v = validateName(raw, this.taken());
+    if (!v.ok) return { ok: false, text: v.error };
+    s.myParty = { name: v.name, colour: P.colours.includes(colour) ? colour : P.colours[0], platform: {}, funds: 0, staff: [], paidFee: false, registered: false, foundedDay: this.day, registeredDay: null, log: [], nextStaff: 1 };
+    this.partyNote(s.myParty, `${v.name} is founded.`);
+    return { ok: true, text: `${v.name} is founded. It is not registered yet: see what it needs.` };
+  },
+
+  partyNote(m, text) { m.log.unshift({ day: this.day, text }); m.log = m.log.slice(0, 10); },
+
+  /** Put your own money into the party's funds (its only income). */
+  fundParty(amount) {
+    const m = this.myParty();
+    if (!m) return { ok: false, text: 'You have no party.' };
+    amount = Math.floor(Number(amount) || 0);
+    if (amount < P.give.min) return { ok: false, text: `Give at least ${P.give.min} obols.` };
+    if (this.g.player.money < amount) return { ok: false, text: 'You can\'t afford that.' };
+    this.charge(amount); m.funds += amount;
+    this.partyNote(m, `You gave the party ${amount.toLocaleString('en-US')} obols.`);
+    return { ok: true, text: `${amount.toLocaleString('en-US')} obols are the party's now. They come back only if you disband it.` };
+  },
+
+  /** Choose a priority: a stance on an issue (−2 … +2, 0 to drop it). At most four. Each choice pleases some voters and costs you others (see the voters' reaction in the view). */
+  setPlatform(issue, stance) {
+    const m = this.myParty();
+    if (!m) return { ok: false, text: 'You have no party.' };
+    if (!POL.issues[issue]) return { ok: false, text: 'No such issue.' };
+    stance = Math.max(-2, Math.min(2, Math.round(Number(stance) || 0)));
+    const others = Object.entries(m.platform).filter(([k, v]) => v && k !== issue).length;
+    if (stance && others >= P.platform.maxIssues) return { ok: false, text: `A platform has at most ${P.platform.maxIssues} priorities.` };
+    if (stance) m.platform[issue] = stance; else delete m.platform[issue];
+    if (m.registered) return { ok: true, text: 'The platform is changed; the party stays registered.' };
+    return { ok: true, text: stance ? `${POL.issues[issue].name}: ${stance > 0 ? 'for' : 'against'}.` : `${POL.issues[issue].name} is no longer a priority.` };
+  },
+
+  /** Take someone on: a fee and then a daily wage out of the party's funds. */
+  hireStaff(role) {
+    const m = this.myParty();
+    if (!m) return { ok: false, text: 'You have no party.' };
+    const def = P.staff.roles.find((r) => r.id === role);
+    if (!def) return { ok: false, text: 'No such role.' };
+    if (m.staff.some((x) => x.role === role)) return { ok: false, text: `${def.name} is already filled.` };
+    if (m.funds < P.staff.hire) return { ok: false, text: `The party needs ${P.staff.hire.toLocaleString('en-US')} obols in its funds to take someone on.` };
+    m.funds -= P.staff.hire;
+    const name = staffName(m.nextStaff++, `${this.ensureElections(this.ensure()).salt}|${m.foundedDay}`);
+    m.staff.push({ role, name, since: this.day });
+    this.partyNote(m, `${name} joins as ${def.name.toLowerCase()}.`);
+    return { ok: true, text: `${name} joins as ${def.name.toLowerCase()}: ${P.staff.wage} obols a day from the party's funds.` };
+  },
+
+  dismissStaff(role) {
+    const m = this.myParty();
+    const i = m?.staff.findIndex((x) => x.role === role) ?? -1;
+    if (i < 0) return { ok: false, text: 'Nobody holds that role.' };
+    const [x] = m.staff.splice(i, 1);
+    this.partyNote(m, `${x.name} leaves.`);
+    return { ok: true, text: `${x.name} leaves the party's service.` };
+  },
+
+  /** The registration fee: paid by you, to the state (its debt falls by it). */
+  payFee() {
+    const m = this.myParty();
+    if (!m) return { ok: false, text: 'You have no party.' };
+    if (m.paidFee) return { ok: false, text: 'The fee is paid.' };
+    const fee = P.needs.fee;
+    if (this.g.player.money < fee) return { ok: false, text: `The fee is ${fee.toLocaleString('en-US')} obols.` };
+    this.charge(fee); this.collectLevy(fee, 'party registration'); m.paidFee = true;
+    this.partyNote(m, 'The registration fee is paid.');
+    return { ok: true, text: `You paid the ${fee.toLocaleString('en-US')} obol registration fee to the state.` };
+  },
+
+  /** The founding needs, and whether the party can be registered. */
+  partyNeeds() {
+    const m = this.myParty();
+    return needsOf({ office: this.officeTier(), rep: this.repNow(), platform: m?.platform, staff: m?.staff.length || 0, paidFee: m?.paidFee });
+  },
+
+  register() {
+    const m = this.myParty();
+    if (!m) return { ok: false, text: 'You have no party.' };
+    if (m.registered) return { ok: false, text: 'It is registered.' };
+    const n = this.partyNeeds();
+    if (!n.ready) return { ok: false, text: `${n.total - n.met} of the five needs are still unmet.` };
+    m.registered = true; m.registeredDay = this.day;
+    this.partyNote(m, 'The party is registered.');
+    this.news(`🏳️ ${m.name} is registered as a political party.`, 'verified');
+    return { ok: true, text: `${m.name} is registered. It cannot stand in an election yet: that is a later release.` };
+  },
+
+  /** Wind it up: what is left in its funds comes back to you (the fee does not). The name is free again. */
+  disbandParty() {
+    const s = this.ensure(); const m = s.myParty;
+    if (!m) return { ok: false, text: 'You have no party.' };
+    const back = m.funds;
+    this.g.player.money += back; this.g.bus.emit('money:changed', { delta: back, total: this.g.player.money });
+    s.myParty = null;
+    return { ok: true, text: `The party is wound up. ${back.toLocaleString('en-US')} obols come back to you.` };
+  },
+
+  /** Each day: staff are paid out of the party's funds; if it cannot pay, the last hired leaves. Called from the government's day. */
+  partyDay(s) {
+    const m = s.myParty;
+    if (!m) return;
+    for (let i = m.staff.length - 1; i >= 0; i--) {
+      if (m.funds >= P.staff.wage * (m.staff.length)) break;
+      const [x] = m.staff.splice(i, 1);
+      this.partyNote(m, `${x.name} leaves: the party could not pay.`);
+    }
+    m.funds -= Math.min(m.funds, P.staff.wage * m.staff.length);
+  },
+
+  /** What the party screen shows. */
+  party() {
+    const m = this.myParty();
+    const needs = this.partyNeeds();
+    const issues = Object.entries(POL.issues).map(([id, d]) => ({ id, name: d.name, stance: m?.platform[id] || 0 }));
+    return {
+      has: Boolean(m), name: m?.name || null, colour: m?.colour || null, registered: Boolean(m?.registered), funds: m?.funds || 0, platform: m?.platform || {}, issues,
+      staff: P.staff.roles.map((r) => ({ ...r, held: m?.staff.find((x) => x.role === r.id) || null })), needs, log: m?.log || [],
+      consider: m ? considerShare(m.platform) : 0, wage: P.staff.wage, hire: P.staff.hire, fee: P.needs.fee, candidacy: P.candidacy, colours: P.colours,
+    };
+  },
+};
+
+return { partyMethods };
+})();
+
 // ---- src/systems/politics.js
 __m["src/systems/politics.js"] = (function () {
 // The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
@@ -29269,6 +29548,7 @@ const { influenceMethods } = __m["src/systems/politicsInfluence.js"];
 const { economyMethods } = __m["src/systems/politicsEconomy.js"];
 const { diplomacyMethods } = __m["src/systems/politicsDiplomacy.js"];
 const { unrestMethods } = __m["src/systems/politicsUnrest.js"];
+const { partyMethods } = __m["src/systems/politicsParty.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -29393,6 +29673,7 @@ class Politics {
     this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     this.unrestStep(s, day); // v0.97.0: demonstrations
+    this.partyDay(s); // v0.97.0: your party's wages
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -29527,7 +29808,7 @@ class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods, partyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 
 
@@ -44377,65 +44658,6 @@ function icTotals(acct, month) {
 const balanceOk = (acct) => !acct.funded || Math.abs(acct.cash - (acct.contributed - acct.distributed + acct.flowIn - acct.flowOut + (acct.xferIn || 0) - (acct.xferOut || 0))) < 0.5;
 
 return { MONTH_DAYS, MONTHS_KEPT, LOG_KEPT, monthOf, kindOf, freshAccount, post, logLine, monthTotals, icTotals, balanceOk };
-})();
-
-// ---- src/corp/identity.js
-__m["src/corp/identity.js"] = (function () {
-// Company identity (v0.60.0). Pure functions — no game state, no DOM.
-//
-//   validateName(raw, taken)   a company name: trimmed, sensible length and characters, not taken
-//   SECTORS                    the sectors a company can belong to
-//   DEFAULT_NAMES              what a business is called until its owner names it
-//
-// A name is the one thing about a company the player may change; its id, sector and founding
-// day never change. Every name ever used stays in the company's history.
-
-const NAME_MIN = 3;
-const NAME_MAX = 40;
-
-const SECTORS = {
-  arms: { name: 'Arms manufacturing' },
-  shipping: { name: 'Shipping and logistics' },
-  aerospace: { name: 'Aerospace engineering' },
-  agriculture: { name: 'Farming and agriculture' },
-  energy: { name: 'Energy' },
-  industrial: { name: 'Industrial manufacturing' },
-  transport: { name: 'Transportation' },
-  communications: { name: 'Communications' },
-  satellites: { name: 'Satellite services' },
-  finance: { name: 'Finance' },
-};
-
-/** The player's four businesses, their sectors, and the name each carries until it is renamed. */
-const PLAYER_COMPANIES = {
-  arms: { sector: 'arms', defaultName: 'Mill Road Arms Works', icon: '🏭', kind: 'Arms manufacturer' },
-  shipping: { sector: 'shipping', defaultName: 'Ober & Sons Maritime', icon: '🚢', kind: 'Shipping company' },
-  aerospace: { sector: 'aerospace', defaultName: 'Roost Aeroworks', icon: '✈️', kind: 'Aerospace engineer' },
-  farming: { sector: 'agriculture', defaultName: 'East Plot Farms', icon: '🌾', kind: 'Farming business' },
-};
-
-// letters (any script), digits, spaces and a few marks a firm's name needs
-const ALLOWED = /^[\p{L}\p{N}][\p{L}\p{N} &'.,\-]*$/u;
-
-/**
- * Check a proposed name. `taken` are the names already in use (any case). Returns
- * { ok: true, name } with the name tidied, or { ok: false, error }.
- */
-function validateName(raw, taken = []) {
-  if (typeof raw !== 'string') return { ok: false, error: 'Enter a name.' };
-  const name = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
-  if (!name) return { ok: false, error: 'A company needs a name.' };
-  if (name.length < NAME_MIN) return { ok: false, error: `Use at least ${NAME_MIN} characters.` };
-  if (name.length > NAME_MAX) return { ok: false, error: `Use at most ${NAME_MAX} characters.` };
-  if (!ALLOWED.test(name)) return { ok: false, error: 'Use letters, numbers, spaces and & \' . , - only, starting with a letter or number.' };
-  if ((name.match(/\p{L}/gu) || []).length < 2) return { ok: false, error: 'A name needs at least two letters.' };
-  if (/[&'.,\-]{2,}/.test(name)) return { ok: false, error: 'Too much punctuation in a row.' };
-  const lc = name.toLowerCase();
-  if (taken.some((t) => String(t).toLowerCase() === lc)) return { ok: false, error: 'Another company already has that name.' };
-  return { ok: true, name };
-}
-
-return { NAME_MIN, NAME_MAX, SECTORS, PLAYER_COMPANIES, validateName };
 })();
 
 // ---- src/corp/registry.js
@@ -70203,6 +70425,81 @@ function intelApp(ui, body, open) {
 return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
+// ---- src/ui/politicsParty.js
+__m["src/ui/politicsParty.js"] = (function () {
+// Your party (v0.97.0): a screen inside Influence (mock-up proposal-pol-oberpad-influence.png, panel 9): the founding needs, the headquarters, staff, platform, and the fold
+// with registration, support and candidacy. A foundation: it takes no part in any election. Every button calls game.politics.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, note, n } = __m["src/ui/tabletKit.js"];
+const { BLOCS } = __m["src/content/opinion.js"];
+const { POLITICS: POL } = __m["src/content/politics.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const STANCE = { '-2': 'strongly against', '-1': 'against', 0: 'no view', 1: 'for', 2: 'strongly for' };
+
+/** The voters a stance on an issue pleases and costs: the blocs whose lean agrees or disagrees. */
+function reaction(issue, stance) {
+  const rows = Object.entries(BLOCS).map(([id, b]) => ({ id, name: b.name, v: (b.lean[issue] || 0) * stance })).filter((r) => r.v !== 0);
+  const pleased = rows.filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 2).map((r) => r.name);
+  const cost = rows.filter((r) => r.v < 0).sort((a, b) => a.v - b.v).slice(0, 2).map((r) => r.name);
+  return { pleased, cost };
+}
+
+function partyScreen(ui, body, open) {
+  const g = ui.game;
+  const P = g.politics;
+  const V = P.party();
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.polParty = false; ui.polPlat = false; open('Politics'); } }, '‹ Back')));
+  if (!V.has) {
+    const draft = ui.polPartyName || '';
+    body.append(hero({ label: 'Your own party (optional)', value: 'Found one', sub: 'A foundation, not a destination: a name, a platform, staff and funds. It cannot stand in an election yet, and it changes no result.' }));
+    const input = h('input', { type: 'text', value: draft, placeholder: 'A name for the party', maxlength: '40', style: 'width:100%;padding:10px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px', oninput: (e) => { ui.polPartyName = e.target.value; } });
+    body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, input));
+    body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(P.foundParty(ui.polPartyName || '', V.colours[0])) }, 'Found the party')));
+    body.append(help('What a party is here', V.candidacy, 'You need an office (your company\'s Corporate Centre or Tower), a registration fee paid to the state, a reputation, a platform of at least three priorities and three staff. Its funds are only what you give it.'));
+    return;
+  }
+  const N = V.needs;
+  body.append(
+    hero({ label: V.registered ? `${V.name} · registered` : 'Founding needs', value: V.registered ? 'Registered' : `${N.met} of ${N.total} met`, tone: V.registered ? 'pos' : 'warn', sub: N.list.map((x) => `${x.name} ${x.met ? '✓' : '✗'}`).join(' · ') }),
+    tiles([{ n: n(V.funds), t: 'party funds' }, { n: `${(V.consider * 100).toFixed(1)}%`, t: 'would consider it' }, { n: String(V.staff.filter((x) => x.held).length), t: 'staff' }]));
+  if (ui.polPlat) { platform(ui, body, open, V, go); return; }
+  body.append(list(
+    row({ icon: '🏢', title: 'Party headquarters', sub: N.list[0].met ? `${N.list[0].text} Furnish it from Group → Headquarters.` : N.list[0].text, tag: N.list[0].met ? '✓' : '✗', tone: N.list[0].met ? 'good' : 'warn' }),
+    row({ icon: '📜', title: 'Platform', sub: Object.entries(V.platform).length ? Object.entries(V.platform).map(([k, v]) => `${POL.issues[k].name}: ${STANCE[v]}`).join(' · ') : 'Choose priorities. Each choice pleases some voters and costs you others.', tag: N.list[3].met ? '✓' : '✗', tone: N.list[3].met ? 'good' : 'warn', action: h('button', { class: 'tb-mini pri', onclick: () => { ui.polPlat = true; open('Politics'); } }, 'Edit') }),
+    row({ icon: '🏦', title: 'Registration fee', sub: N.list[1].text, tag: N.list[1].met ? 'paid' : 'unpaid', tone: N.list[1].met ? 'good' : 'warn', action: N.list[1].met ? null : h('button', { class: 'tb-mini pri', disabled: g.player.money < V.fee, onclick: () => go(P.payFee()) }, 'Pay') }),
+    row({ icon: '⭐', title: 'Reputation', sub: N.list[2].text, tag: N.list[2].met ? '✓' : '✗', tone: N.list[2].met ? 'good' : 'warn' })));
+  body.append(list(
+    row({ icon: '💷', title: 'Party funds', sub: `Only what you put in. Wages are ${n(V.wage)} a day each; taking someone on costs ${n(V.hire)}.` }),
+    h('div', { class: 'tb-chips tb-sheet' }, ...[5000, 25000, 100000].map((a) => h('button', { class: 'tb-chip', disabled: g.player.money < a, onclick: () => go(P.fundParty(a)) }, n(a))))));
+  body.append(list(...V.staff.map((x) => row({ icon: '🧑‍💼', title: x.name, sub: x.held ? `${x.held.name} · since day ${x.held.since}` : 'Vacant', tag: x.held ? 'hired' : null, tone: 'good',
+    action: x.held ? h('button', { class: 'tb-mini', onclick: () => go(P.dismissStaff(x.id)) }, 'Let go') : h('button', { class: 'tb-mini pri', disabled: V.funds < V.hire, onclick: () => go(P.hireStaff(x.id)) }, 'Hire') }))));
+  if (!V.registered) body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !N.ready, onclick: () => go(P.register()) }, N.ready ? 'Register the party' : `${N.total - N.met} needs unmet`)));
+  body.append(fold(ui, 'PoliticsParty', 'Registration, support and candidacy ›', (box) => {
+    box.append(list(
+      row({ icon: '🗳️', title: 'Candidacy', sub: V.candidacy }),
+      row({ icon: '📊', title: 'Support', sub: 'The share of voters whose views suit your platform and who might consider you: a reading, not a poll. It enters no election.', tag: `${(V.consider * 100).toFixed(1)}%` }),
+      ...V.log.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text }))));
+    box.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => go(P.disbandParty()) }, 'Wind the party up (funds come back)')));
+  }));
+}
+
+function platform(ui, body, open, V, go) {
+  const P = ui.game.politics;
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.polPlat = false; open('Politics'); } }, '‹ Done')));
+  body.append(list(...V.issues.map((i) => {
+    const r = i.stance ? reaction(i.id, i.stance) : null;
+    return [row({ icon: '📌', title: i.name, sub: i.stance ? `${STANCE[i.stance]}. Pleases ${r.pleased.join(' and ') || 'nobody in particular'}; costs you ${r.cost.join(' and ') || 'nobody in particular'}.` : POL.issues[i.id].blurb, tag: i.stance ? STANCE[i.stance] : null }),
+      h('div', { class: 'tb-chips tb-sheet' }, ...[-2, -1, 0, 1, 2].map((v) => h('button', { class: `tb-chip${i.stance === v ? ' on' : ''}`, onclick: () => go(P.setPlatform(i.id, v)) }, v === 0 ? 'none' : v > 0 ? `+${v}` : String(v))))];
+  })));
+}
+
+return { partyScreen };
+})();
+
 // ---- src/ui/politicsInfluence.js
 __m["src/ui/politicsInfluence.js"] = (function () {
 // The Campaign and Influence pages of the Politics app (v0.95.0), in the OberPad pattern: one hero, three tiles, a list, a fold.
@@ -70213,6 +70510,7 @@ const { h } = __m["src/ui/panels.js"];
 const { hero, tiles, row, help, note, fold, buttons, big, n } = __m["src/ui/tabletKit.js"];
 const { atlasStates } = __m["src/world/atlas.js"];
 const { INFLUENCE: I } = __m["src/content/influence.js"];
+const { partyScreen } = __m["src/ui/politicsParty.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const pc = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
@@ -70277,6 +70575,7 @@ function influenceTab(ui, body, open) {
   const nt = note(ui);
   if (nt) body.append(nt);
   if (ui.polOffer) { offerScreen(ui, body, open, go); return; }
+  if (ui.polParty) { partyScreen(ui, body, open); return; }
   const V = P.influence();
   const S = V.standing;
   body.append(
@@ -70289,6 +70588,8 @@ function influenceTab(ui, body, open) {
     tag: c.open ? 'Open' : 'Closed', tone: c.open ? 'good' : '',
     action: c.open ? h('button', { class: 'tb-mini pri', onclick: () => { ui.polOffer = { contact: c.key }; open('Politics'); } }, 'Ask ›') : null,
   }))));
+  const my = P.myParty();
+  body.append(list(row({ icon: '🏳️', title: my ? my.name : 'Your own party', sub: my ? (my.registered ? 'Registered. A foundation: it cannot stand in an election yet.' : 'Not yet registered.') : 'Optional. Found a party, choose a platform, hire staff. It changes no election.', tag: my ? (my.registered ? 'registered' : 'draft') : 'optional', onclick: () => { ui.polParty = true; open('Politics'); } })));
   body.append(h('div', { class: 'tb-note' }, 'Money, reputation, relationships and support are separate things. Money alone does not open a door.'));
   body.append(help('How influence works', 'Four things are kept apart: the money you hold, your reputation, what each person thinks of you, and what you have given in the open. A door opens on a friendship, or on support together with a reputation. Lobbying costs favours (a donation earns them), not money, and a government will not take up what it stands against. An offer is a request with a price: you see the price, the odds and what happens if it is found out before any money moves; it is recorded whether it works or not; repeats cost more; an official has only so many favours to give in a term. Investigators find offers: the result is a scandal for them, a fine of twice the sum paid to the state, your reputation and the trust of those you dealt with. A donor\'s expectation is never a guarantee.'));
   body.append(fold(ui, 'PoliticsInfl', 'The record of what you have done ›', (box) => {
