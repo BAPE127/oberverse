@@ -17721,7 +17721,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.96.0';
+const GAME_VERSION = '0.97.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -29868,6 +29868,21 @@ class Politics {
     return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate(), extra: this.bondPremium() });
   }
 
+  /** The record stays bounded over any number of terms: old ended policies and the donation/favour keys of past terms are dropped (what is in force, on its way or recent is kept). */
+  prune(s, day) {
+    const ended = s.policies.filter((p) => p.state === 'ended');
+    if (ended.length > 30) {
+      const old = new Set(ended.filter((p) => day - p.since > 160).sort((a, b) => a.since - b.since).slice(0, ended.length - 30).map((p) => p.id));
+      if (old.size) s.policies = s.policies.filter((p) => !old.has(p.id));
+    }
+    const inf = s.influence;
+    if (inf && day % 30 === 0) {
+      const term = termOf(day, s.constitution).index;
+      for (const k of Object.keys(inf.donated)) if (Number(k.split('|')[0]) < term - 1) delete inf.donated[k];
+      for (const k of Object.keys(inf.used)) if (Number(k.split('|')[0]) < term - 1) delete inf.used[k];
+    }
+  }
+
   /** One government day: policies in progress move on (the Assembly votes when review ends); every seventh day the cabinet proposes; every thirtieth the budget window closes. Idempotent per day. */
   governmentDay(s) {
     const day = this.day;
@@ -29883,6 +29898,7 @@ class Politics {
     this.unrestStep(s, day); // v0.97.0: demonstrations
     this.partyDay(s); // v0.97.0: your party's wages
     this.emergenceStep(s, day); // v0.97.0: optional offers, a weekly forecast or opinion piece
+    this.prune(s, day); // v0.97.0: the record stays small however long the game runs
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -51845,6 +51861,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.97.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'Politics: Unrest, Your Party and What Turns Up',
+    notes: [
+      'Unrest. Now and then a bloc takes to Sovereign Square against a policy in force, the war or the cuts. Most demonstrations end peacefully; the police clear some; a few turn into riots, more likely when the crowd is angry and the police are heavy-handed. How the police respond comes from the policies in force and the officers on duty. You may speak for talks, support the organisers in the open, or pay them in secret (an illicit offer, found out like the others). You are never wanted for standing in the square. The World page shows it all.',
+      'Police, enforcement and surveillance policies now do something: more police funding answers a call sooner, stricter enforcement raises fines and sentences, expanded surveillance makes illicit offers leave more heat (the opposites do the opposite). They are listed on Government.',
+      'Your own party (Influence → Your own party): found one, choose a platform of at least three priorities, hire staff, pay the registration fee to the state, and register it once you have an office (the Corporate Centre or the Tower) and the reputation. A foundation only: it cannot stand in an election yet and changes no result.',
+      'What turns up. A few optional offers appear because of the world (the farmers about the inspection fee, a contractor who wants a meeting, a journalist\'s lead, trade talks at an embassy, the organisers\' invitation); each ends with a reason if you leave it, and pays reputation or trust, never cash. Every politics news item now says whether it is verified, alleged, a forecast or an opinion. The President\'s own word opens the restricted rooms of Halver House for a day.',
+    ],
+  },
   {
     version: '0.96.0',
     date: '2026-11-05',

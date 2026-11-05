@@ -1,4 +1,4 @@
-# Politics in Sund (v0.93.0 – v0.96.0)
+# Politics in Sund (v0.93.0 – v0.97.0)
 
 Plan: `docs/PROPOSAL_POLITICS.md`. Audit: `docs/POLITICS_AUDIT.md`. The capital: `docs/CROWN_QUARTER.md`. Nothing in the political system changes a price, a cost, the police or any war you play with yet; the Economy release (v0.96.0) wires policies in. You never have to take part.
 
@@ -18,6 +18,9 @@ Plan: `docs/PROPOSAL_POLITICS.md`. Audit: `docs/POLITICS_AUDIT.md`. The capital:
 | The Politics app (Overview, Government, Polls, Vote, Influence) | `src/ui/politicsApp.js`, `src/ui/politicsInfluence.js` |
 | Effects on the economy: the bounded hooks, the named lines | `src/content/effects.js`, `src/politics/effects.js`, `src/systems/politicsEconomy.js` |
 | Diplomacy: relations, quarrels, the one writer of wars and embargoes | `src/content/diplomacy.js`, `src/politics/diplomacy.js`, `src/systems/politicsDiplomacy.js` |
+| Unrest: demonstrations, the police response, what you may do, the hooks | `src/content/unrest.js`, `src/politics/unrest.js`, `src/systems/politicsUnrest.js` |
+| Your own party | `src/content/party.js`, `src/politics/party.js`, `src/systems/politicsParty.js`, `src/ui/politicsParty.js` |
+| Emergence: optional offers, truth-labelled news | `src/content/emergence.js`, `src/systems/politicsEmergence.js` |
 | Elections: the campaign, the debate, scandals, the result and the change of term | `src/content/elections.js`, `src/politics/election.js`, `src/systems/politicsElections.js` |
 | Influence: access, donations, lobbying, offers, the record, heat | `src/content/influence.js`, `src/politics/influence.js`, `src/systems/politicsInfluence.js` |
 
@@ -49,12 +52,28 @@ Money, reputation, relationships and support are four numbers that never convert
 
 ## The economy (v0.96.0)
 
-Each active policy can carry a bounded effect, read where a price or cost is already worked out: **farm inspection** (farm_up: a 4% fee on farm sales), **port and licensing fees** (reg_up +15%, reg_down −10%), **Sund's arms budget** (defence_up +50% refill, defence_down −40%), **Sund's public tender customers** (spend_up +40%, spend_down −30%), **sector sentiment** (a point or two, bounded at 5%), and **the state's bond** (debt over a year's revenue and the month's deficit add up to 1.5 points to what it pays). A fee you pay is the state's revenue (its debt falls by it, in thousands): no money from nowhere, and nothing pays you. Everything is listed on Government → "What the policies mean for you". `EFFECTS.enabled` (env `OBERVERSE_POLITICS=off` under Node) switches all of it off for parity. **Sund has one bond:** the First Bank's government bond; the old foreign Sund issue's holdings were moved onto it.
+Each active policy can carry a bounded effect, read where a price or cost is already worked out: **farm inspection** (farm_up: a 4% fee on farm sales), **port and licensing fees** (reg_up +15%, reg_down −10%), **Sund's arms budget** (defence_up +50% refill, defence_down −40%), **Sund's public tender customers** (spend_up +40%, spend_down −30%), **sector sentiment** (a point or two, bounded at 5%), and **the state's bond** (debt over a year's revenue and the month's deficit add up to 1.5 points to what it pays). A fee you pay is the state's revenue (its debt falls by it, in thousands): no money from nowhere, and nothing pays you. Everything is listed on Government → "What the policies mean for you". `EFFECTS.enabled` (env `OBERVERSE_POLITICS=off` under Node) switches the economy and police effects off for parity; it does not undo diplomacy or the bond merge, which are not effects. **Sund has one bond:** the First Bank's government bond; the old foreign Sund issue's holdings were moved onto it.
 
 ## Diplomacy (v0.96.0)
 
 The arms market's daily tick calls `diplomacyDay()`, the **one writer** of `world.market.wars` and the embargo flags. Each pair of rivals (from the arms market's rival lists, with the countries' aggression as the input) moves peace → dispute → tension → sanctions (the aggressor is embargoed) → war → ceasefire; at each step before war talks may settle it (28% / 20% / 10%, better with good relations when Sund is party); a country has one quarrel at a time; ten days' cooling-off. A hash of the day and the pair decides every chance, so no random number is drawn and a reload cannot change a quarrel. The President's stance is a modifier: more commitments abroad make disputes that Sund is party to 60% likelier (fewer: 50% rarer). Relations with Sund (−100 … +100) move a point a day toward a baseline plus what the quarrels, embargoes and the stance make of them. Measured over 3,000 days (6 worlds): wars on 59% of days (was 86%), 0.8 at once (was 1.4), a new war every 14 days (was 9), embargoes 1.1 at a time.
 
+## Unrest (v0.97.0)
+
+A demonstration is a record in Sovereign Square. A hash chance each day (a base plus 9% per point of tension over 0.2, at most 9%, a pause of six days, two at once at most) starts one; the cause is a bloc against a policy in force (weighted by how much it dislikes it), the war or the cuts. Each day: anger drifts with the country's tension and a heavy police hand; a riot is a hash chance (0.6% + 20% per point of anger over 0.55 + a heavy-handed response on an angry crowd + size, less with surveillance; at most 30%); the police clear a modest crowd on a heavy response (30% a day); otherwise it ends peacefully when its time is up or its anger is spent. Measured over 5,700 days (8 worlds): about one a month, 75% peaceful, 9% cleared, 16% riots. The police response is light below 0.35, heavy from 0.65: 0.45 + police funding ±0.2 + enforcement ±0.2 + officers on duty ±0.1. The visible crowd comes only while you are on the Crown Quarter 10:00–18:00; no call is placed and Wanted is never raised on you. You may speak for talks, support the organisers openly (capped 20,000), or pay in secret (30,000, an illicit offer). Heat from demonstrations and riots weighs on approval by at most 5 points. **Police effects:** police_up/down change how long a call takes to be answered (−25% / +30%); enforce_strict/light change fines (+25% / −20%) and sentences (+25% / −25%); surveil_up/down change the heat illicit offers leave (+25% / −20%). **Hooks** (read-only, for a coup): legitimacy, stability, factions, emergency powers (none), succession.
+
+## Your party (v0.97.0)
+
+Five founding needs: an office (the Corporate Centre or the Tower, bought by your company), the 50,000 obol registration fee (paid to the state), a reputation of 10 with the Civic Office, a platform of at least three priorities (at most four; each shows which voters it pleases and costs), and three staff (of five roles: records with a name and a wage of 120 a day out of the party's funds; hiring costs 5,000; they leave if it cannot pay). The party's funds are only what you put in (they come back if you wind it up). It is kept out of the election and opinion models entirely: candidacy is a later release. "Would consider it" is a reading of how many voters' views suit the platform; it enters no election.
+
+## Emergence (v0.97.0)
+
+On day % 7 == 3 the world may offer you something, at most two open, each kind at most every 40 days (hash 60%), open for 12 days: the farmers (a farm fee and a farm of yours), a contractor (an aerospace firm), a journalist's lead (a live scandal), trade talks (a warm country; success raises its regard by 10 and it fades by a quarter a day), the organisers' invitation (a demonstration on). Each ends with a stated reason; rewards are reputation, trust or regard, never cash. Weekly (day % 7 == 5) at most one forecast (the deficit, the campaign's polls) or opinion piece (a columnist on a policy in force). Every politics news item carries a truth label.
+
+## Known limits
+
+Staff of your own party are records, not people on the map. The crowd in the square is a few real people plus a number. Unrest's effect on opinion is small. The steward's invitations are permanent once granted, and the estates' guards rely on the door locks. Standing for election as your own party, and the News page of the original mock-up, are not built.
+
 ## Not yet
 
-Unrest, the player's own party, embassy quests and trade talks you can play, the News page, and the effects of the police, enforcement and surveillance policies.
+Everything in the Politics plan is built. The War update follows (v0.107.0 onward in `docs/ROADMAP.md`); the Post-War update after it.

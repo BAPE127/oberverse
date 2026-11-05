@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.97.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'Politics: Unrest, Your Party and What Turns Up',
+    notes: [
+      'Unrest. Now and then a bloc takes to Sovereign Square against a policy in force, the war or the cuts. Most demonstrations end peacefully; the police clear some; a few turn into riots, more likely when the crowd is angry and the police are heavy-handed. How the police respond comes from the policies in force and the officers on duty. You may speak for talks, support the organisers in the open, or pay them in secret (an illicit offer, found out like the others). You are never wanted for standing in the square. The World page shows it all.',
+      'Police, enforcement and surveillance policies now do something: more police funding answers a call sooner, stricter enforcement raises fines and sentences, expanded surveillance makes illicit offers leave more heat (the opposites do the opposite). They are listed on Government.',
+      'Your own party (Influence → Your own party): found one, choose a platform of at least three priorities, hire staff, pay the registration fee to the state, and register it once you have an office (the Corporate Centre or the Tower) and the reputation. A foundation only: it cannot stand in an election yet and changes no result.',
+      'What turns up. A few optional offers appear because of the world (the farmers about the inspection fee, a contractor who wants a meeting, a journalist\'s lead, trade talks at an embassy, the organisers\' invitation); each ends with a reason if you leave it, and pays reputation or trust, never cash. Every politics news item now says whether it is verified, alleged, a forecast or an opinion. The President\'s own word opens the restricted rooms of Halver House for a day.',
+    ],
+  },
+  {
     version: '0.96.0',
     date: '2026-11-05',
     channel: 'development',

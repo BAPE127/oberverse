@@ -411,10 +411,18 @@ try {
     const bars = [...document.querySelectorAll('#modal-body .tb-seg')];
     const seg = bars.find((b) => b.children.length === 6);
     out.sixSegments = Boolean(seg) && seg.getBoundingClientRect().height > 30; // not squeezed away by a long page
+    out.atHome = /At home/.test(text); // v0.97.0: unrest
+    ui.polTab = 'Influence'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Politics' });
+    await new Promise((r) => setTimeout(r, 300));
+    out.partyRow = /Your own party/.test(document.querySelector('#modal-body')?.textContent || '');
+    ui.polParty = true; ui.polTab = 'Influence'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Politics' });
+    await new Promise((r) => setTimeout(r, 300));
+    out.partyScreen = /Found one/.test(document.querySelector('#modal-body')?.textContent || '');
+    ui.polParty = false;
     ui.polTab = 'Overview';
     return out;
   });
-  record('the Politics app shows the World (relations, quarrels, wars) and its six-segment bar is not squeezed away', Object.values(pol4).every(Boolean), JSON.stringify(pol4));
+  record('the Politics app shows the World (relations, quarrels, wars, unrest at home), its six-segment bar is not squeezed away, and your own party can be founded from Influence', Object.values(pol4).every(Boolean), JSON.stringify(pol4));
   // v0.94.1: the estates and the party offices load and draw
   const est = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {};

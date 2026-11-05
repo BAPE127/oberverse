@@ -133,6 +133,21 @@ export class Politics {
     return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate(), extra: this.bondPremium() });
   }
 
+  /** The record stays bounded over any number of terms: old ended policies and the donation/favour keys of past terms are dropped (what is in force, on its way or recent is kept). */
+  prune(s, day) {
+    const ended = s.policies.filter((p) => p.state === 'ended');
+    if (ended.length > 30) {
+      const old = new Set(ended.filter((p) => day - p.since > 160).sort((a, b) => a.since - b.since).slice(0, ended.length - 30).map((p) => p.id));
+      if (old.size) s.policies = s.policies.filter((p) => !old.has(p.id));
+    }
+    const inf = s.influence;
+    if (inf && day % 30 === 0) {
+      const term = termOf(day, s.constitution).index;
+      for (const k of Object.keys(inf.donated)) if (Number(k.split('|')[0]) < term - 1) delete inf.donated[k];
+      for (const k of Object.keys(inf.used)) if (Number(k.split('|')[0]) < term - 1) delete inf.used[k];
+    }
+  }
+
   /** One government day: policies in progress move on (the Assembly votes when review ends); every seventh day the cabinet proposes; every thirtieth the budget window closes. Idempotent per day. */
   governmentDay(s) {
     const day = this.day;
@@ -148,6 +163,7 @@ export class Politics {
     this.unrestStep(s, day); // v0.97.0: demonstrations
     this.partyDay(s); // v0.97.0: your party's wages
     this.emergenceStep(s, day); // v0.97.0: optional offers, a weekly forecast or opinion piece
+    this.prune(s, day); // v0.97.0: the record stays small however long the game runs
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
