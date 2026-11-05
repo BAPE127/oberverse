@@ -62,6 +62,7 @@ export function militaryApp(ui, body, open) {
           : f.repair ? h('button', { class: 'tb-mini pri', onclick: () => go(W.repairFacility(f.id)) }, f.state === 'ruin' ? 'Rebuild' : 'Repair') : null }))));
     }
   }
+  body.append(list(row({ icon: '🗺️', title: 'Strategic map', sub: 'Raise battalions from your squads, enlist in a theatre, and give them orders on the provinces.', tag: '›', onclick: () => ui.openPanel('strategic') })));
   const sub = (id, icon, title, text) => row({ icon, title, sub: text, tag: '›', onclick: () => { ui.milSub = id; open('Military'); } });
   body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.'), sub('Generals', '🎖️', `Generals · ${W.generals().hired.length}`, 'Hire generals and give them engagements.'), sub('Base', '🏕️', `The base · ${W.baseView().readiness}% ready`, 'Beds, meals, medical, morale and what readiness is made of.')));
   body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',

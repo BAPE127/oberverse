@@ -479,6 +479,14 @@ try {
       out[`battle_${recipe}_end`] = H.B.over && Boolean(g.war.battle(sk.id)?.result) && /battle|field|lost|hard-won/i.test(document.querySelector('.bt-over')?.textContent || '');
       ui.closePanel();
     }
+    // v0.103.0: the strategic map opens with no theatre, lists the order of battle, and its enlist and raise screens open
+    while (ui.panelStack.length) ui.closePanel(); ui.openPanel('strategic'); await new Promise((r) => setTimeout(r, 300));
+    out.strategic = Boolean(document.querySelector('.stc-canvas')) && /ORDER OF BATTLE/.test(document.querySelector('.stc-left')?.textContent || '');
+    [...document.querySelectorAll('.stc-left button')].find((b) => /Enlist/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 150));
+    out.strategic_enlist = /ENLIST IN A THEATRE/.test(document.querySelector('.stc-modal')?.textContent || '') && /Halden Front/.test(document.querySelector('.stc-modal')?.textContent || '');
+    [...document.querySelectorAll('.stc-modal button')].find((b) => /Close/.test(b.textContent))?.click(); [...document.querySelectorAll('.stc-left button')].find((b) => /Raise a battalion/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 150));
+    out.strategic_raise = /RAISE A BATTALION/.test(document.querySelector('.stc-modal')?.textContent || '') && /WHAT THIS NEEDS/.test(document.querySelector('.stc-modal')?.textContent || '');
+    ui.closePanel();
     ui.milSub = null;
     ui.milTab = 'Company';
     return out;

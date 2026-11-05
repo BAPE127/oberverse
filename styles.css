@@ -1255,3 +1255,36 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .bt-over.hidden { display: none; }
 .bt-msg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; }
 @media (max-width: 700px) { .bt-feed { display: none; } .bt-card { bottom: 74px; max-width: 70vw; } }
+
+/* ---- the strategic map (v0.103.0) ---- */
+.stc { height: 100%; position: relative; user-select: none; color: #e8eaf6; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.stc button { background: #23224f; color: #e8eaf6; border: 2px solid #3a3794; border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.stc button.on, .stc button.pri { background: #f3c342; color: #1a1630; border-color: #f3c342; font-weight: 700; }
+.stc button:disabled { opacity: .45; cursor: default; }
+.stc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+.stc-top { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 22px; align-items: center; padding: 8px 14px; background: rgba(12,10,36,.92); border-bottom: 2px solid #2d2a6e; }
+.stc-res small { display: block; font-size: 10px; letter-spacing: .08em; color: #a8a6d8; } .stc-res b { font-size: 20px; color: #ffe27a; } .stc-res em { display: block; font-size: 11px; color: #8fd9a8; font-style: normal; }
+.stc-clock { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; } .stc-clock b { font-size: 15px; } .stc-clock button { margin-left: 4px; padding: 3px 8px; }
+.grow { flex: 1; }
+.stc-left, .stc-right { position: absolute; top: 64px; bottom: 74px; width: 300px; overflow-y: auto; padding: 10px 12px; background: rgba(12,10,36,.9); border: 2px solid #2d2a6e; border-radius: 10px; }
+.stc-left { left: 10px; } .stc-right { right: 10px; width: 330px; }
+.stc h3 { margin: 0 0 4px; font-size: 14px; letter-spacing: .06em; color: #ffd966; } .stc h4 { margin: 12px 0 4px; font-size: 11px; letter-spacing: .08em; color: #ffd966; }
+.stc small { color: #a8a6d8; font-size: 11px; } .stc-note { font-size: 12px; color: #b9b7e6; margin: 6px 0; }
+.stc-bn { margin: 8px 0; padding: 8px; border: 2px solid #3a3794; border-radius: 8px; cursor: pointer; display: grid; gap: 3px; } .stc-bn.on { border-color: #ffe066; background: #1c1a52; } .stc-bn span { font-size: 12px; color: #c9c7f0; }
+.stc-bar { height: 7px; background: #0a0924; border-radius: 4px; overflow: hidden; } .stc-bar i { display: block; height: 100%; }
+.stc-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.stc-meters { display: grid; gap: 6px; margin: 8px 0; } .stc-meters > div { display: grid; grid-template-columns: 90px 1fr 56px; gap: 6px; align-items: center; font-size: 12px; } .stc-meters b { text-align: right; }
+.stc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; } .stc-stat { display: flex; justify-content: space-between; font-size: 12px; } .stc-stat span { color: #a8a6d8; }
+.stc ul { margin: 0; padding-left: 16px; font-size: 12px; color: #c9c7f0; }
+.stc-alert { margin-top: 10px; padding: 8px; border: 2px solid #e03a3a; border-radius: 8px; display: grid; gap: 6px; background: #2a1020; }
+.stc-bottom { position: absolute; left: 10px; right: 10px; bottom: 8px; display: flex; gap: 10px; align-items: center; padding: 6px; background: rgba(12,10,36,.92); border: 2px solid #2d2a6e; border-radius: 10px; } .stc-modes { display: flex; gap: 4px; } .stc-plans { flex: 1; font-size: 12px; color: #c9c7f0; padding-left: 8px; }
+.stc-tip { position: absolute; z-index: 5; width: 300px; padding: 8px 10px; background: rgba(8,8,26,.95); border: 2px solid #3a3794; border-radius: 8px; font-size: 12px; pointer-events: none; } .stc-tip b { color: #ffd966; display: block; margin-bottom: 3px; } .stc-tip.hidden, .stc-modal.hidden, .stc-wait.hidden { display: none; }
+.stc-feed { position: absolute; left: 330px; bottom: 76px; display: grid; gap: 2px; font-size: 12px; text-shadow: 0 1px 2px #000; pointer-events: none; max-width: 40%; }
+.stc-wait { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; color: #c8d0e8; background: #0b1220; }
+.stc-modal { position: absolute; inset: 0; z-index: 10; background: rgba(4,4,18,.72); display: grid; place-items: center; }
+.stc-card { width: min(760px, 94vw); max-height: 88vh; overflow-y: auto; padding: 16px 18px; background: #131238; border: 2px solid #3a3794; border-radius: 12px; }
+.stc-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px; margin: 6px 0; border: 2px solid #2d2a6e; border-radius: 8px; } .stc-row small { display: block; } .stc-row.off { opacity: .55; }
+.stc-form { display: flex; gap: 14px; margin: 8px 0; flex-wrap: wrap; } .stc-form label { display: grid; gap: 3px; font-size: 12px; color: #a8a6d8; } .stc-form input, .stc-form select { padding: 6px; border-radius: 8px; background: #15133e; color: #e8eaf6; border: 2px solid #3a3794; }
+.stc-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0; }
+.stc-needs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; } .stc-needs > div { padding: 7px 9px; border: 2px solid #2f7a4a; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-needs > div.short { border-color: #e0553a; background: #2a1420; } .stc-needs small { display: block; }
+.stc-slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .stc-slot { width: 64px; height: 56px; border: 2px solid #3a3794; border-radius: 8px; display: grid; place-items: center; text-align: center; cursor: pointer; background: #1c1a52; } .stc-slot span { font-size: 20px; } .stc-slot small { font-size: 10px; } .stc-add { font-size: 11px !important; }
