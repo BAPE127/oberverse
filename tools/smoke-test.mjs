@@ -435,6 +435,25 @@ try {
     return out;
   });
   record('the estates and both party offices load and draw (gates, grounds, halls, the war room, the lake)', Object.values(est).every(Boolean), JSON.stringify(est));
+  // v0.98.0: Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company, takes money in, and shows the base
+  const war = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {};
+    while (ui.panelStack.length) ui.closePanel();
+    g.clock.total = (g.clock.day - 1) * 1440 + 10 * 60;
+    for (const [map, spot] of [['fort_gullcrest', 'south_gate'], ['hollowmoor_lot', 'east_gate'], ['hollowmoor_lot', 'site_office']]) {
+      g.changeMap(map, spot); await new Promise((r) => setTimeout(r, 250)); out[`${map}:${spot}`] = g.player.map === map;
+    }
+    g.changeMap('halvermouth', 'north_gate');
+    g.setFlag('arms_licence', true); g.player.money += 400000;
+    ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 300));
+    out.register = /Register one/.test(document.querySelector('#modal-body')?.textContent || '');
+    g.war.found('Smoke Test Company'); g.war.fund(300000); g.war.buyLicence(); g.war.buyLot();
+    while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 300));
+    const text = document.querySelector('#modal-body')?.textContent || '';
+    out.company = /Smoke Test Company/.test(text) && /Site office/.test(text) && /Stage 1/.test(text);
+    return out;
+  });
+  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company and lists the base\'s buildings', Object.values(war).every(Boolean), JSON.stringify(war));
   // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
   const crown = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game;

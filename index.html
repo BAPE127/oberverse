@@ -18052,7 +18052,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.97.0';
+const GAME_VERSION = '0.98.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -30559,6 +30559,116 @@ const view = (game) => Object.values(peekMilitary(game)?.damage.structures || {}
 return { register, apply, repair, stateOf, hpOf, view };
 })();
 
+// ---- src/war/company.js
+__m["src/war/company.js"] = (function () {
+// The player's war company (v0.98.0, stage 3): its identity, its own money, its licence and its ground.
+//
+//   found(game, rawName)      register the company (a name through the same rules as every company's: validateName); costs nothing but starts the record
+//   fund(game, amount)        the owner pays money in: out of the wallet, into the company's own account (game.corp 'security') — the one way money crosses
+//   take(game, amount)        the owner takes money out (never while it owes)
+//   pay(game, amount, note)   what the company buys, paid from its OWN account only (never the wallet); refused when it cannot cover it
+//   buyLicence / buyLot       the Civic Office's licence and Hollowmoor Lot: paid by the company, the lot only once licensed; the fence and gate join the damage gate
+//   view(game)                what the Military app shows
+// The company is not one of the player's four businesses (COMPANY_IDS): it has an account in the corporate ledger (ACCOUNT_IDS) so its cash reconciles like theirs, and the
+// government's treasury (`gov`) is another thing entirely: nothing here ever reads or writes it (tests/war_company.test.mjs scans for that).
+const { ensureMilitary, peekMilitary, freshCompany } = __m["src/war/state.js"];
+const { register } = __m["src/war/damage.js"];
+const { LOT } = __m["src/content/facilities.js"];
+const { validateName } = __m["src/corp/identity.js"];
+
+const ACCOUNT = 'security';
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+
+const founded = (game) => Boolean(peekMilitary(game)?.company?.identity);
+const licensed = (game) => Boolean(peekMilitary(game)?.company?.licensed);
+
+/** Every name already in use apart from this company's own (the one rule for naming: the same as a business's). */
+const taken = (game, own) => game.corp.takenNames().filter((n) => String(n).toLowerCase() !== String(own || '').toLowerCase());
+
+function found(game, rawName) {
+  const m = ensureMilitary(game);
+  if (m.company?.identity) return { ok: false, text: `${m.company.identity.name} is already registered.` };
+  const v = validateName(rawName, taken(game));
+  if (!v.ok) return { ok: false, text: v.error };
+  m.company = m.company || freshCompany();
+  m.company.identity = { name: v.name, founded: game.clock.day, names: [{ day: game.clock.day, name: v.name }] };
+  m.company.log.push({ day: game.clock.day, text: `${v.name} registered as a private security company.` });
+  m.log.push({ day: game.clock.day, text: `${v.name} registered.` });
+  game.corp.account(ACCOUNT);
+  return { ok: true, text: `${v.name} is registered. Pay money in, then buy the Civic Office's licence and the lot at Hollowmoor.` };
+}
+
+function rename(game, rawName) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  const v = validateName(rawName, taken(game, C.identity.name));
+  if (!v.ok) return { ok: false, text: v.error };
+  if (v.name !== C.identity.name) { C.identity.name = v.name; C.identity.names.push({ day: game.clock.day, name: v.name }); }
+  return { ok: true, text: `The company is ${v.name}.` };
+}
+
+const cash = (game) => (founded(game) ? game.corp.account(ACCOUNT).cash : 0);
+
+function fund(game, amount) {
+  if (!founded(game)) return { ok: false, text: 'Register the company first.' };
+  return game.corp.contribute(ACCOUNT, amount, 'Capital for the security company');
+}
+
+function take(game, amount) {
+  if (!founded(game)) return { ok: false, text: 'Register the company first.' };
+  return game.corp.distribute(ACCOUNT, amount, 'Taken out of the security company');
+}
+
+/** The company pays from its own account alone: never the wallet. Returns { ok, text }. */
+function pay(game, amount, note = 'Purchase') {
+  if (!founded(game)) return { ok: false, text: 'You have no company.' };
+  amount = Math.round(amount);
+  if (!(amount >= 0)) return { ok: false, text: 'That is not an amount.' };
+  const a = game.corp.account(ACCOUNT);
+  if (!a.funded || a.cash < amount) return { ok: false, text: `${peekMilitary(game).company.identity.name} holds ${fmt(a.funded ? a.cash : 0)} obols; this needs ${fmt(amount)}. Pay money in from the Military app.` };
+  game.corp.pay(ACCOUNT, amount, { cat: 'facility' });
+  return { ok: true, note };
+}
+
+function buyLicence(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'Register the company first.' };
+  if (C.licensed) return { ok: false, text: 'The company is already licensed.' };
+  const r = pay(game, LOT.licence, 'Civic Office licence');
+  if (!r.ok) return r;
+  C.licensed = true;
+  C.log.push({ day: game.clock.day, text: `The Civic Office licensed the company (${LOT.licence} obols).` });
+  return { ok: true, text: `Licensed as a private security company (${fmt(LOT.licence)} obols).` };
+}
+
+function buyLot(game) {
+  const m = peekMilitary(game);
+  const C = m?.company;
+  if (!C?.identity) return { ok: false, text: 'Register the company first.' };
+  if (!C.licensed) return { ok: false, text: 'The Land Registry sells to licensed companies only: buy the licence first.' };
+  if (C.lot.owned) return { ok: false, text: 'The company already owns Hollowmoor Lot.' };
+  const r = pay(game, LOT.price, 'Hollowmoor Lot');
+  if (!r.ok) return r;
+  C.lot = { owned: true, day: game.clock.day, price: LOT.price };
+  register(game, 'hm_fence', { owner: 'company', core: true, hp: LOT.fenceHp, name: 'Hollowmoor fence' });
+  register(game, 'hm_gate', { owner: 'company', core: true, hp: LOT.gateHp, name: 'Hollowmoor gate' });
+  C.log.push({ day: game.clock.day, text: `Bought Hollowmoor Lot (${LOT.price} obols).` });
+  game.bus.emit('war:lot', { day: game.clock.day });
+  return { ok: true, text: `Hollowmoor Lot is yours (${fmt(LOT.price)} obols). Mason's Os can start on the site office.` };
+}
+
+/** What the app shows: null when there is no company. */
+function view(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return null;
+  const a = game.corp.account(ACCOUNT);
+  return { name: C.identity.name, founded: C.identity.founded, licensed: C.licensed, lotOwned: C.lot.owned, cash: a.funded ? a.cash : 0, funded: a.funded, arrears: a.arrears, contributed: a.contributed, distributed: a.distributed,
+    people: C.personnel.length, squads: C.squads.length, items: C.equipment.length, log: C.log.slice(-8) };
+}
+
+return { ACCOUNT, founded, licensed, found, rename, cash, fund, take, pay, buyLicence, buyLot, view };
+})();
+
 // ---- src/war/check.js
 __m["src/war/check.js"] = (function () {
 // The consistency checker (v0.98.0): every soldier, vehicle, aircraft, missile and building exists once, in one place, with one status. This finds the ways that can go wrong.
@@ -30771,6 +30881,7 @@ __m["src/war/api.js"] = (function () {
 const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { baseProtected, setCoupState, settle } = __m["src/war/protection.js"];
 const { register: registerStructure, apply: applyDamage, repair: repairStructure, view: structureView } = __m["src/war/damage.js"];
+const { found: foundCompany, rename: renameCompany, fund: fundCompany, take: takeFromCompany, pay: companyPay, buyLicence: licenceBuy, buyLot: lotBuy, view: companyView, cash: companyCash } = __m["src/war/company.js"];
 const { checkMilitary } = __m["src/war/check.js"];
 const { commission: commissionFacility, dailyTick: facilityDay, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -30804,14 +30915,17 @@ class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity() { return baseCapacity(this.g); }
   dailyTick() { facilityDay(this.g); }
-  /** Pay for something the company buys. (Stage 3 of this release moves it to the company's own account; until then, your wallet.) */
-  pay(amount, note) {
-    const g = this.g;
-    if (g.player.money < amount) return { ok: false, text: `That costs ${amount.toLocaleString('en-US')} obols.` };
-    g.player.money -= amount;
-    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
-    return { ok: true };
-  }
+  // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
+  found(name) { return foundCompany(this.g, name); }
+  rename(name) { return renameCompany(this.g, name); }
+  fund(amount) { return fundCompany(this.g, amount); }
+  take(amount) { return takeFromCompany(this.g, amount); }
+  cash() { return companyCash(this.g); }
+  buyLicence() { return licenceBuy(this.g); }
+  buyLot() { return lotBuy(this.g); }
+  companyView() { return companyView(this.g); }
+  /** Pay for something the company buys: from the company's own account only. */
+  pay(amount, note) { return companyPay(this.g, amount, note); }
 
   summary() {
     const m = this.peek();
@@ -50191,7 +50305,7 @@ const { valuationFactor } = __m["src/corp/bank.js"];
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
-const ACCOUNT_IDS = [...COMPANY_IDS, 'parent'];
+const ACCOUNT_IDS = [...COMPANY_IDS, 'parent', 'security']; // 'security' (v0.98.0): the war company's own account — it is not a business (not in COMPANY_IDS), so groups, valuation and rankings never see it
 
 class Corporate {
   constructor(game) {
@@ -50335,6 +50449,7 @@ class Corporate {
       case 'aerospace': return g.aero.owned;
       case 'farming': return g.farm.owned().length > 0;
       case 'parent': return Boolean(this.state.parent);
+      case 'security': return Boolean(this.game.world.military?.company?.identity);
       default: return false;
     }
   }
@@ -50482,6 +50597,8 @@ class Corporate {
     const names = existingRows(this.game.content).map((r) => r.name);
     for (const c of Object.values(this.state.companies)) if (c.id !== exceptId) names.push(c.name);
     if (this.state.parent && exceptId !== 'parent') names.push(this.state.parent.name);
+    const sec = this.game.world.military?.company?.identity?.name; // v0.98.0: the war company's name is taken too
+    if (sec && exceptId !== 'security') names.push(sec);
     for (const c of this.state.generated || []) names.push(c.name);
     return names;
   }
@@ -52650,6 +52767,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.98.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Base and Company',
+    notes: [
+      'The Military app (Businesses group, once you hold an arms licence): register a private security company, pay money into it, buy the Civic Office\'s licence and the lot at Hollowmoor, and order the base\'s buildings. The company has its own money and pays for everything from it, never from your wallet.',
+      'Hollowmoor Lot: a fenced lot on the shore road west of Mill Road Yards, with a gate. Mason\'s Os builds nineteen buildings there in three stages (a security firm, a small army, a military company); each has a real capacity (beds, meals, stores, hangar bays), halved when damaged.',
+      'Fort Gullcrest: the government\'s own base on FM 38 north of Lariat, with a garrison of six who keep its gate, its patrol and its command post. It is the state\'s, and separate from your company.',
+      'The one rule: before a coup, nothing at your base can be damaged. Nothing fights yet; this release lays the ground for the rest of the war update.',
+    ],
+  },
   {
     version: '0.97.0',
     date: '2026-11-05',
@@ -71472,6 +71601,72 @@ function intelApp(ui, body, open) {
 return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
+// ---- src/ui/militaryApp.js
+__m["src/ui/militaryApp.js"] = (function () {
+// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
+// the lot, order the base's buildings, and see what the base can hold. Every button calls game.war; nothing here writes the record.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, note, n } = __m["src/ui/tabletKit.js"];
+const { LOT } = __m["src/content/facilities.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const STATE = { none: 'not ordered', permit: 'waiting on the permit', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
+const STAGES = { 1: 'Stage 1 · a security firm', 2: 'Stage 2 · a small army', 3: 'Stage 3 · a military company' };
+
+function militaryApp(ui, body, open) {
+  const g = ui.game;
+  const W = g.war;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Military'); };
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  const V = W.companyView();
+  if (!V) { register(ui, body, go); return; }
+  const cap = W.capacity();
+  const prot = W.baseProtected();
+  body.append(
+    hero({ label: V.name, value: `${n(V.cash)} obols`, sub: `The company's own money. ${V.licensed ? 'Licensed' : 'Not licensed yet'} · ${V.lotOwned ? 'Hollowmoor Lot owned' : 'no ground yet'}.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
+    tiles([{ n: String(n(cap.beds)), t: 'beds' }, { n: String(n(cap.stores)), t: 'stores' }, { n: prot ? 'safe' : 'at risk', t: 'the base', tone: prot ? '' : 'warn' }]));
+  // money in and out: the only two acts that cross between you and the company
+  const amount = h('input', { type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px;padding:8px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px' });
+  const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));
+  body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, h('div', { class: 'tb-btns', style: 'align-items:center' }, amount,
+    h('button', { class: 'tb-btn pri', onclick: () => go(W.fund(amt())) }, 'Pay in'),
+    h('button', { class: 'tb-btn', disabled: V.cash <= 0 || V.arrears > 0, onclick: () => go(W.take(amt())) }, 'Take out'))),
+  h('div', { class: 'tb-sub', style: 'padding:0 6px 6px' }, `You hold ${n(g.player.money)} obols. The company pays only from its own money, never from yours.`));
+  body.append(list(
+    row({ icon: '📜', title: 'Civic Office licence', sub: V.licensed ? 'A private security company, in good standing.' : 'Without it, Mason\'s Os cannot get a building permit.', tag: V.licensed ? '✓' : `${n(LOT.licence)}`, tone: V.licensed ? 'good' : 'warn',
+      action: V.licensed ? null : h('button', { class: 'tb-mini pri', disabled: V.cash < LOT.licence, onclick: () => go(W.buyLicence()) }, 'Buy') }),
+    row({ icon: '🗺️', title: LOT.name, sub: V.lotOwned ? 'Fenced, with a gate. Walk there from the Yards\' west road.' : 'Ground for the base, with a fence and a gate. Needs the licence first.', tag: V.lotOwned ? '✓' : `${n(LOT.price)}`, tone: V.lotOwned ? 'good' : 'warn',
+      action: V.lotOwned ? null : h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < LOT.price, onclick: () => go(W.buyLot()) }, 'Buy') })));
+  if (V.lotOwned) {
+    const fac = W.facilities();
+    for (const stage of [1, 2, 3]) {
+      const rows = fac.filter((f) => f.stage === stage);
+      if (!rows.length) continue;
+      body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, STAGES[stage] + (rows[0].open ? '' : ' (opens when the stage before is built)')));
+      body.append(list(...rows.map((f) => row({ icon: f.state === 'built' ? '🏠' : f.state === 'none' ? '📐' : '🚧', title: f.name, sub: f.state === 'none' ? `${f.text || ''} ${n(f.cost)} obols.` : `${STATE[f.state]}${f.daysLeft != null && f.state !== 'built' && f.state !== 'ruin' ? ` · ${f.daysLeft} days` : ''}${f.state === 'built' && f.gate === 'damaged' ? ' · damaged' : ''}`,
+        tag: f.state === 'built' ? '✓' : f.state === 'none' ? '' : '…', tone: f.state === 'built' ? 'good' : '',
+        action: f.state === 'none' ? h('button', { class: 'tb-mini pri', disabled: !f.canOrder || V.cash < f.cost, onclick: () => go(W.commission(f.id)) }, 'Order')
+          : f.repair ? h('button', { class: 'tb-mini pri', onclick: () => go(W.repairFacility(f.id)) }, f.state === 'ruin' ? 'Rebuild' : 'Repair') : null }))));
+    }
+  }
+  body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
+    'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
+  body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));
+}
+
+function register(ui, body, go) {
+  const draft = ui.milName || '';
+  body.append(hero({ label: 'A private security company', value: 'Register one', sub: 'A name first. Then pay money in, buy a licence from the Civic Office, and a lot at Hollowmoor where Mason\'s Os builds your base.' }));
+  const input = h('input', { type: 'text', value: draft, placeholder: 'A name for the company', maxlength: '40', style: 'width:100%;padding:10px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px', oninput: (e) => { ui.milName = e.target.value; } });
+  body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, input));
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(ui.game.war.found(ui.milName || '')) }, 'Register the company')));
+  body.append(help('What it will take', `The licence is ${LOT.licence.toLocaleString('en-US')} obols and Hollowmoor Lot ${LOT.price.toLocaleString('en-US')}, then the buildings. Registering costs nothing.`));
+}
+
+return { militaryApp };
+})();
+
 // ---- src/ui/politicsParty.js
 __m["src/ui/politicsParty.js"] = (function () {
 // Your party (v0.97.0): a screen inside Influence (mock-up proposal-pol-oberpad-influence.png, panel 9): the founding needs, the headquarters, staff, platform, and the fold
@@ -71975,7 +72170,7 @@ const APP_LABELS = { Business: 'Arms' };
 const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆', Politics: '🗳️' };
+const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆', Politics: '🗳️', Military: '🪖' };
 
 function tabletGroups(g) {
   const T = g.tablet;
@@ -71983,7 +72178,7 @@ function tabletGroups(g) {
   const groups = [
     { id: 'Home', apps: ['Home', 'Needs'] },
     { id: 'Journal', apps: [...JOURNAL] },
-    { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
+    { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : []), ...(g.getFlag('arms_licence') || g.war.company() ? ['Military'] : [])] }, // v0.98.0: the war company, for an arms dealer or anyone who has registered one
     { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },
     { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence', 'Politics'] }, // v0.93.0: Politics (read-only) lives with the world news
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },
@@ -72087,6 +72282,7 @@ const { loansApp } = __m["src/ui/corpLoans.js"]; // v0.73.0
 const { managersApp } = __m["src/ui/tabletManagers.js"];
 const { bizScreen, needsApp } = __m["src/ui/tabletBiz.js"]; // v0.90.0
 const { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } = __m["src/ui/tabletSummaries.js"];
+const { militaryApp } = __m["src/ui/militaryApp.js"]; // v0.98.0
 const { politicsApp } = __m["src/ui/politicsApp.js"]; // v0.93.0 // v0.84.0: the summaries
 const { bondsApp } = __m["src/ui/corpBonds.js"]; // v0.69.0
 const { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS, APP_LABELS } = __m["src/ui/tabletGroups.js"]; // v0.72.0
@@ -72135,6 +72331,7 @@ function tabletPanel(ui, body, opts) {
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab === 'Politics') politicsApp(ui, body, open); // v0.93.0: read-only
+  else if (tab === 'Military') militaryApp(ui, body, open); // v0.98.0
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab === 'Customers') customersApp(ui, body, open); // v0.84.0: a summary, the list one tap down
   else if (tab === 'Standing') standingApp(ui, body); // v0.85.0

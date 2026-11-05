@@ -39,7 +39,7 @@ import { valuationFactor } from '../corp/bank.js';
 
 /** The player's four businesses. (The parent company, when there is one, has an account too — see ACCOUNT_IDS — but is not a business.) */
 export const COMPANY_IDS = ['arms', 'shipping', 'aerospace', 'farming'];
-export const ACCOUNT_IDS = [...COMPANY_IDS, 'parent'];
+export const ACCOUNT_IDS = [...COMPANY_IDS, 'parent', 'security']; // 'security' (v0.98.0): the war company's own account — it is not a business (not in COMPANY_IDS), so groups, valuation and rankings never see it
 
 export class Corporate {
   constructor(game) {
@@ -183,6 +183,7 @@ export class Corporate {
       case 'aerospace': return g.aero.owned;
       case 'farming': return g.farm.owned().length > 0;
       case 'parent': return Boolean(this.state.parent);
+      case 'security': return Boolean(this.game.world.military?.company?.identity);
       default: return false;
     }
   }
@@ -330,6 +331,8 @@ export class Corporate {
     const names = existingRows(this.game.content).map((r) => r.name);
     for (const c of Object.values(this.state.companies)) if (c.id !== exceptId) names.push(c.name);
     if (this.state.parent && exceptId !== 'parent') names.push(this.state.parent.name);
+    const sec = this.game.world.military?.company?.identity?.name; // v0.98.0: the war company's name is taken too
+    if (sec && exceptId !== 'security') names.push(sec);
     for (const c of this.state.generated || []) names.push(c.name);
     return names;
   }

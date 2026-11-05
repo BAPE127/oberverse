@@ -3,6 +3,7 @@
 import { ensureMilitary, peekMilitary } from './state.js';
 import { baseProtected, setCoupState, settle } from './protection.js';
 import { register as registerStructure, apply as applyDamage, repair as repairStructure, view as structureView } from './damage.js';
+import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash } from './company.js';
 import { checkMilitary } from './check.js';
 import { commission as commissionFacility, dailyTick as facilityDay, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -36,14 +37,17 @@ export class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity() { return baseCapacity(this.g); }
   dailyTick() { facilityDay(this.g); }
-  /** Pay for something the company buys. (Stage 3 of this release moves it to the company's own account; until then, your wallet.) */
-  pay(amount, note) {
-    const g = this.g;
-    if (g.player.money < amount) return { ok: false, text: `That costs ${amount.toLocaleString('en-US')} obols.` };
-    g.player.money -= amount;
-    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
-    return { ok: true };
-  }
+  // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
+  found(name) { return foundCompany(this.g, name); }
+  rename(name) { return renameCompany(this.g, name); }
+  fund(amount) { return fundCompany(this.g, amount); }
+  take(amount) { return takeFromCompany(this.g, amount); }
+  cash() { return companyCash(this.g); }
+  buyLicence() { return licenceBuy(this.g); }
+  buyLot() { return lotBuy(this.g); }
+  companyView() { return companyView(this.g); }
+  /** Pay for something the company buys: from the company's own account only. */
+  pay(amount, note) { return companyPay(this.g, amount, note); }
 
   summary() {
     const m = this.peek();

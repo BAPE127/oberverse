@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.98.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Base and Company',
+    notes: [
+      'The Military app (Businesses group, once you hold an arms licence): register a private security company, pay money into it, buy the Civic Office\'s licence and the lot at Hollowmoor, and order the base\'s buildings. The company has its own money and pays for everything from it, never from your wallet.',
+      'Hollowmoor Lot: a fenced lot on the shore road west of Mill Road Yards, with a gate. Mason\'s Os builds nineteen buildings there in three stages (a security firm, a small army, a military company); each has a real capacity (beds, meals, stores, hangar bays), halved when damaged.',
+      'Fort Gullcrest: the government\'s own base on FM 38 north of Lariat, with a garrison of six who keep its gate, its patrol and its command post. It is the state\'s, and separate from your company.',
+      'The one rule: before a coup, nothing at your base can be damaged. Nothing fights yet; this release lays the ground for the rest of the war update.',
+    ],
+  },
+  {
     version: '0.97.0',
     date: '2026-11-05',
     channel: 'development',

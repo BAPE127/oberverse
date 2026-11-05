@@ -10,7 +10,7 @@ export const APP_LABELS = { Business: 'Arms' };
 export const JOURNAL = ['Quests', 'People', 'Customers', 'Notes', 'Standing'];
 
 const ICONS = { Home: '🏠', Journal: '📓', Businesses: '🏭', Group: '🏛️', Markets: '📈', Bank: '🏦' };
-export const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆', Politics: '🗳️' };
+export const APP_ICONS = { Home: '🏠', Needs: '📥', Quests: '🧭', People: '👥', Customers: '🛒', Notes: '📝', Standing: '⭐', Business: '🏭', Ships: '⚓', Farm: '🌾', Aerospace: '✈️', Companies: '🏢', Group: '🏛️', Managers: '🧑‍💼', Intelligence: '🔎', Exchange: '📊', Stocks: '📈', Bank: '🏦', Bonds: '📜', Loans: '🏛️', Economy: '🌐', Milestones: '🏆', Politics: '🗳️', Military: '🪖' };
 
 export function tabletGroups(g) {
   const T = g.tablet;
@@ -18,7 +18,7 @@ export function tabletGroups(g) {
   const groups = [
     { id: 'Home', apps: ['Home', 'Needs'] },
     { id: 'Journal', apps: [...JOURNAL] },
-    { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : [])] },
+    { id: 'Businesses', apps: [...(T.hasBusiness() ? ['Business'] : []), ...(g.logistics.owned ? ['Ships'] : []), ...(g.farm.owned().length ? ['Farm'] : []), ...(g.aero.owned ? ['Aerospace'] : []), ...(own ? ['Companies'] : []), ...(g.getFlag('arms_licence') || g.war.company() ? ['Military'] : [])] }, // v0.98.0: the war company, for an arms dealer or anyone who has registered one
     { id: 'Group', apps: own ? ['Group', 'Managers', 'Milestones'] : [] },
     { id: 'Markets', apps: ['Exchange', 'Stocks', 'Economy', 'Intelligence', 'Politics'] }, // v0.93.0: Politics (read-only) lives with the world news
     { id: 'Bank', apps: ['Bank', 'Bonds', 'Loans'] },

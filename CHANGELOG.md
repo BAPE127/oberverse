@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.98.0] — 2026-11-05 — War: Base and Company (development build)
+
+The first release of the War update: stages 1 to 3 of `docs/PROPOSAL_WAR.md` (the skeleton and its rules, the places and construction, the company and the state). Nothing fights yet. Built in three parts, each tested and pushed. Reference: `docs/WAR.md`; mock-ups `proposal-war-merc-hq.png`, `proposal-war-oberpad-company.png`, `proposal-war-national-base.png`.
+
+**The one rule.** `world.military` (saved, made on first use) holds the coup flag, the government's side, the company, a damage record and a log. **Before a coup nothing the company owns at its base can be damaged:** `baseProtected` reads only `coup.state`; `setCoupState` is the only writer; `damage.apply` and `repair` are the only writers of structure hit points and refuse a core company structure while protected (and any source not on the list). A consistency checker (`game.war.check()`) finds every way a soldier, vehicle, aircraft or building could exist twice, in two places, destroyed but still in a squad, and so on. Tests scan the source so a later release cannot write around the gate. Debug command `mil`.
+
+**Two places.** *Fort Gullcrest* (the government's base on FM 38 north of Lariat: a command post, barracks, hangars, a guardhouse, a perimeter, a garrison of six with beds, duties and a night watch) and *Hollowmoor Lot* (your fenced ground on the shore road west of Mill Road Yards, with a gate and a slot for every building). Each is its own region map joined to the world by a four-wide road both ways.
+
+**The company.** Register one in the new Military app (Businesses group, shown once you hold an arms licence): the name goes through the same rules as every company's and no business can take it afterwards. It has **its own money** (an account in the corporate ledger, `security`, not one of the four businesses, so groups, valuation and rankings never see it); you pay in and take out, and everything it buys comes from that account, never from your wallet. The licence (5,000 obols) comes first, then Hollowmoor Lot (60,000), which puts the fence and gate under the damage gate.
+
+**Building.** Mason's Os builds nineteen facilities in three stages (a security firm, a small army, a military company) on the contract model: permit, foundation, frame, fitting-out, built. A stage opens when the one before stands. Each has a real capacity (beds, meals, treatment places, stores, lines, bays), halved when damaged and none for a ruin; repair and rebuilding go through the gate and are paid by the company. Unbuilt buildings show as stakes and then scaffolding.
+
+- **Honest limits:** nothing is hired or produced yet (people, squads and equipment have record shapes and are checked, but arrive in v0.99.0–v0.100.0); the licence and permit are granted on payment, with no inspection; facility interiors are generated rooms; Fort Gullcrest has its garrison and nothing else, and its structures are not under the damage gate; the company is not a business in the corporate sense (no valuation, ranking or group membership).
+- Tests: `tests/war_gate.test.mjs` (7), `tests/hollowmoor.test.mjs` (8), `tests/war_company.test.mjs` (6). **Existing tests edited:** `tests/worldmap.test.mjs` (the count of gateway roads from 7 to 9: the two new regions); `tests/hollowmoor.test.mjs`, written earlier in this same release (its company helper now registers and funds the company, and the payment checks read the company's cash instead of your wallet). Smoke: one new check (both places load; the Military app registers a company and lists the buildings).
+
 ## [0.97.0] — 2026-11-05 — Politics: Unrest, Your Party and What Turns Up (development build)
 
 The last politics release: stages 11 to 14 of `docs/PROPOSAL_POLITICS.md` (unrest, your party, emergence, the release checks). Built in four parts, each tested and pushed. Reference: `docs/POLITICS.md`.

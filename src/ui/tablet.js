@@ -12,6 +12,7 @@ import { loansApp } from './corpLoans.js'; // v0.73.0
 import { managersApp } from './tabletManagers.js';
 import { bizScreen, needsApp } from './tabletBiz.js'; // v0.90.0
 import { groupApp, exchangeApp, economyApp, milestonesApp, companiesApp, intelApp } from './tabletSummaries.js';
+import { militaryApp } from './militaryApp.js'; // v0.98.0
 import { politicsApp } from './politicsApp.js'; // v0.93.0 // v0.84.0: the summaries
 import { bondsApp } from './corpBonds.js'; // v0.69.0
 import { tabletGroups, allApps, groupOf, badges, searchApps, APP_ICONS, APP_LABELS } from './tabletGroups.js'; // v0.72.0
@@ -60,6 +61,7 @@ export function tabletPanel(ui, body, opts) {
   else if (tab === 'Loans') loansApp(ui, body, open); // v0.73.0
   else if (tab === 'Economy') economyApp(ui, body); // v0.75.0
   else if (tab === 'Politics') politicsApp(ui, body, open); // v0.93.0: read-only
+  else if (tab === 'Military') militaryApp(ui, body, open); // v0.98.0
   else if (tab === 'Milestones') milestonesApp(ui, body); // v0.80.0
   else if (tab === 'Customers') customersApp(ui, body, open); // v0.84.0: a summary, the list one tap down
   else if (tab === 'Standing') standingApp(ui, body); // v0.85.0

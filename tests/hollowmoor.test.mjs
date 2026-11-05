@@ -13,9 +13,18 @@ import { check } from '../src/sim/conditions.js';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 
 const roundtrip = (g) => { const sm = new SaveManager(new MemoryStorage()); assert.ok(sm.save('slot1', g).ok); const g2 = new Game(CONTENT, { seed: 5 }); assert.ok(sm.load('slot1', g2).ok); return g2; };
-const company = (g, o = {}) => { const m = g.war.state(); m.company = { ...freshCompany(), licensed: true, lot: { owned: true, day: 1, price: LOT.price }, ...o }; return m.company; };
+// (v0.98.0 stage 3: the company is registered and pays from its own account, so the helper founds it, flags the licence and lot, and pays `cash` in out of the wallet)
+const company = (g, o = {}) => {
+  const { cash = 5e6, ...rest } = o;
+  const m = g.war.state(); const had = m.company?.identity;
+  if (!had) { m.company = { ...freshCompany(), licensed: true, lot: { owned: true, day: 1, price: LOT.price } }; assert.ok(g.war.found('Ironclad Company').ok); }
+  Object.assign(m.company, rest);
+  if (!had) { g.player.money += cash; assert.ok(g.war.fund(cash).ok); }
+  return m.company;
+};
+const topUp = (g, n) => { g.player.money += n; assert.ok(g.war.fund(n).ok); };
 const days = (g, n) => { for (let i = 0; i < n; i++) { g.clock.total += 1440; g.war.dailyTick(); } };
-const buildAll = (g, ids) => { for (const id of ids) { g.player.money += FACILITIES[id].cost * 2; assert.ok(g.war.commission(id).ok, id); } days(g, 60); };
+const buildAll = (g, ids) => { for (const id of ids) { topUp(g, FACILITIES[id].cost * 2); assert.ok(g.war.commission(id).ok, id); } days(g, 60); };
 
 test('two new regions, each joined to the world by a four-wide road both ways: FM 38 north from Lariat to Fort Gullcrest, and the shore road west of the Yards to Hollowmoor Lot', () => {
   for (const [region, map, from, door] of [['fort', 'fort_gullcrest', 'lariat', 'north_gate'], ['hollowmoor', 'hollowmoor_lot', 'yards', 'hollowmoor_gate']]) {
@@ -99,12 +108,12 @@ test('construction: nothing without a company and a lot; a stage opens when the 
   const g = newGame(94); g.player.money = 5_000_000;
   assert.ok(!g.war.commission('site_office').ok && /no company/.test(g.war.commission('site_office').text));
   company(g, { lot: { owned: false } }); assert.ok(/no ground/.test(g.war.commission('site_office').text));
-  const C = company(g);
+  const C = company(g, { lot: { owned: true, day: 1, price: LOT.price } });
   assert.ok(/stage 1/.test(g.war.commission('command').text), 'stage 2 is not open yet');
   assert.equal(g.war.facilityState('site_office'), 'none');
-  const m0 = g.player.money; const q = g.war.quote('site_office');
+  const m0 = g.war.cash(); const w0 = g.player.money; const q = g.war.quote('site_office');
   const r = g.war.commission('site_office'); assert.ok(r.ok, r.text);
-  assert.equal(g.player.money, m0 - q.cost); assert.ok(!g.war.commission('site_office').ok, 'once'); assert.equal(g.player.money, m0 - q.cost, 'charged once');
+  assert.equal(g.war.cash(), m0 - q.cost); assert.equal(g.player.money, w0, 'the wallet is never touched'); assert.ok(!g.war.commission('site_office').ok, 'once'); assert.equal(g.war.cash(), m0 - q.cost, 'charged once');
   assert.equal(g.war.facilityState('site_office'), 'permit');
   const seen = [g.war.facilityState('site_office')];
   const F = FACILITIES.site_office; let day = 0;
@@ -116,7 +125,7 @@ test('construction: nothing without a company and a lot; a stage opens when the 
   assert.equal(g2.war.facilityState('site_office'), 'permit', 'no licence, no permit');
   g2.war.state().company.licensed = true; days(g2, 10); assert.notEqual(g2.war.facilityState('site_office'), 'permit');
   // too poor
-  const g3 = newGame(96); company(g3); g3.player.money = 100; const before = JSON.stringify(g3.world.military); assert.ok(!g3.war.commission('site_office').ok); assert.equal(JSON.stringify(g3.world.military), before, 'a refusal changes nothing');
+  const g3 = newGame(96); company(g3, { cash: 100 }); g3.player.money = 9e9; const before = JSON.stringify(g3.world.military); assert.ok(!g3.war.commission('site_office').ok); assert.equal(JSON.stringify(g3.world.military), before, 'a refusal changes nothing');
   // stage 2 opens when stage 1 is built
   buildAll(g, ['bunkhouse', 'range', 'cage']);
   assert.ok(g.war.commission('command').ok, 'stage 2 is open once stage 1 stands');
@@ -157,8 +166,8 @@ test('capacity is real and the gate guards what is built: a built facility is re
   g.war.hit('fac_bunkhouse', 60, 'artillery'); assert.equal(g.war.capacity().beds, 6, 'a damaged barracks holds half');
   // repair: through the gate, paid
   const rc = g.war.repairCost('bunkhouse'); assert.equal(rc.kind, 'repair'); assert.ok(rc.cost > 0 && rc.cost < FACILITIES.bunkhouse.cost);
-  const m0 = g.player.money; assert.ok(g.war.repairFacility('bunkhouse').ok);
-  assert.equal(g.player.money, m0 - rc.cost); assert.equal(gate('bunkhouse').state, 'intact'); assert.equal(g.war.capacity().beds, 12);
+  const m0 = g.war.cash(); assert.ok(g.war.repairFacility('bunkhouse').ok);
+  assert.equal(g.war.cash(), m0 - rc.cost); assert.equal(gate('bunkhouse').state, 'intact'); assert.equal(g.war.capacity().beds, 12);
   assert.ok(!g.war.repairFacility('bunkhouse').ok, 'nothing more to repair');
   // a ruin
   g.war.hit('fac_bunkhouse', 500, 'bombing');
