@@ -34,6 +34,12 @@ test('modules: tracks out, it cannot move; the engine out, it burns until it is 
   assert.ok(B.events.some((e) => e.k === 'module'), 'a module went out'); assert.ok(T.mod.tracks < 1);
   const B2 = createBattle(mk()); const T2 = B2.byId.get('T1'); calm(B2); T2.mod.engine = 0.1; hitModule(B2, T2, 1e6, { id: 'x' });
   const T3 = B2.byId.get('T1'); T3.burning = true; T3.hp = 20; run(B2, 100); assert.equal(T3.alive, false, 'a burning tank is lost'); assert.ok(B2.events.some((e) => e.k === 'down' && e.by === 'fire'));
+  // the gun out: it does not fire although an enemy is in range and in sight
+  const Bg = createBattle(mk({ enemy: { troops: 1, armour: 0, air: 0, skill: 1 } })); const Tg = Bg.byId.get('T1'); const sg = stretch(Bg); put(Tg, sg.x0 + 3.5, sg.y + 0.5); const eg = Bg.units.find((u) => u.side === 'e'); put(eg, sg.x0 + 10.5, sg.y + 0.5); eg.W = { ...eg.W, range: 0 }; for (const u of Bg.units) if (u !== Tg && u !== eg) { u.alive = false; u.fled = true; }
+  Tg.mod.gun = MODULE.down; run(Bg, 80); assert.equal(Tg.shots, 0, 'a tank with its gun out does not fire'); Tg.mod.gun = 1; run(Bg, 80); assert.ok(Tg.shots > 0, 'and with it, it does');
+  // the crew out: it is abandoned and lost, and the event says so
+  const Bc = createBattle(mk()); const Tc = Bc.byId.get('T1'); for (let i = 0; i < 300 && Tc.alive; i++) { Bc.tick++; hitModule(Bc, Tc, 1e5, { id: 'z' }); }
+  assert.equal(Tc.alive, false); assert.ok(Bc.events.some((e) => e.k === 'down' && e.abandoned && e.id === 'T1') || Tc.mod.crew > MODULE.down || Bc.events.some((e) => e.k === 'fire'), 'lost to a module');
   const B3 = createBattle(mk()); const T4 = B3.byId.get('T1'); for (let i = 0; i < 600 && T4.alive; i++) { B3.tick++; hitModule(B3, T4, 200, { id: 'y' }); } assert.ok(T4.mod.crew <= MODULE.down || T4.alive === false);
   assert.ok(!B3.events.some((e) => e.k === 'down' && e.abandoned) || T4.alive === false, 'an abandoned tank is lost');
 });
@@ -73,6 +79,12 @@ test('smoke from an engineer blocks the look for its seconds; a gun opens a wall
   const C = createBattle(mk({ recipe: 'city' })); const T = C.byId.get('T1'); const b = C.map.buildings[0]; const wx = b.x + 2; const wy = b.y; assert.equal(C.map.tiles[idx(C.map, wx, wy)] === TILE.WALL || C.map.tiles[idx(C.map, wx, wy)] === TILE.WINDOW, true);
   const wall = [...Array(b.w).keys()].map((i) => ({ x: b.x + i, y: b.y })).find((p) => C.map.tiles[idx(C.map, p.x, p.y)] === TILE.WALL); put(T, wall.x + 0.5, wall.y - 8); C.units.forEach((u) => { if (u !== T) { u.W = { ...u.W, range: 0 }; if (u.side === 'p') { u.alive = false; u.fled = true; } } });
   issue(C, ['T1'], { type: 'breach', x: wall.x + 0.5, y: wall.y + 0.5 }); run(C, 80); assert.equal(C.map.tiles[idx(C.map, wall.x, wall.y)], TILE.FLOOR, 'the wall is rubble'); assert.equal(C.rubble.length, 1); assert.ok(C.events.some((e) => e.k === 'breach'));
+  // only a gun or a rocket opens a wall: a marksman's rifle does not, an anti-tank soldier's rocket does and is counted
+  const M = createBattle(mk({ recipe: 'city', people: people(6).map((p, i) => ({ ...p, role: i === 1 ? 'marksman' : i === 2 ? 'anti_tank' : p.role })) })); const wall2 = [...Array(b.w).keys()].map((i) => ({ x: b.x + i, y: b.y })).find((p) => M.map.tiles[idx(M.map, p.x, p.y)] === TILE.WALL);
+  M.units.forEach((u) => { if (u.side === 'e') u.W = { ...u.W, range: 0 }; }); const mm = M.byId.get('p1'); const at = M.byId.get('p2'); assert.equal(mm.role, 'marksman'); assert.equal(at.role, 'anti_tank');
+  issue(M, ['p1'], { type: 'breach', x: wall2.x + 0.5, y: wall2.y + 0.5 }); assert.equal(mm.order.type, 'hold', 'a marksman cannot breach');
+  put(at, wall2.x + 0.5, wall2.y - 8); issue(M, ['p2'], { type: 'breach', x: wall2.x + 0.5, y: wall2.y + 0.5 }); assert.equal(at.order.type, 'breach'); run(M, 400);
+  assert.ok(M.counts.rockets >= 1, 'the rockets fired at the wall are counted'); assert.equal(outcome(M).used.rockets, M.counts.rockets);
   const D = createBattle(mk({ recipe: 'city' })); const lmg = D.byId.get('p2'); lmg.W = { ...lmg.W, range: 14, suppress: 1.6, interval: 0.5 }; const f2 = D.units.find((u) => u.side === 'e'); const s2 = stretch(D, 24); put(lmg, s2.x0 + 2, s2.y + 0.5); put(f2, s2.x0 + 10, s2.y + 0.5); f2.supp = 0;
   issue(D, ['p2'], { type: 'suppress', x: s2.x0 + 10, y: s2.y + 0.5 }); run(D, 40); assert.ok(f2.supp > 20 || !f2.alive, `the point is under fire (supp ${f2.supp})`);
 });
@@ -98,6 +110,15 @@ test('a played battle that called a missile uses it up once, on the end day, and
   assert.ok(g.war.playEngagement(eng.id, squads).ok); const setup = eng.battle.setup; assert.deepEqual(setup.support.items, { item_missile_guided: 2 }); assert.deepEqual(setup.support.air, []);
   const B = createBattle({ ...setup, ai: { p: true, e: true } }); const foe = B.units.find((u) => u.side === 'e'); assert.ok(callSupport(B, { kind: 'item_missile_guided', x: foe.x, y: foe.y }).ok); assert.ok(!callSupport(B, { kind: 'item_missile_cruise', x: 5, y: 5 }).ok, 'no cruise missile in the stores');
   while (!B.over) step(B); const o = outcome(B); assert.deepEqual(o.used.items, { item_missile_guided: 1 });
-  assert.ok(g.war.fileBattle(eng.id, o).ok); assert.equal(stock(), 2, 'nothing is used until the end day'); days(g, 8); assert.equal(eng.state, 'resolved'); assert.equal(stock(), 1, 'one missile is gone, once');
+  assert.deepEqual(supportOf(C, 'Nother').items, {}, 'a second battle is not offered the same missiles'); const key = Object.keys(C.stock).find((k) => k.endsWith(':item_missile_guided'));
+  const back = g.war.giveBack({ key, qty: 1 }); assert.ok(!back.ok && /set aside/.test(back.text), 'and they cannot be handed back to the Arms works meanwhile'); assert.equal(stock(), 2);
+  assert.ok(g.war.fileBattle(eng.id, o).ok); assert.equal(stock(), 2, 'nothing is used until the end day'); days(g, 8); assert.equal(eng.state, 'resolved'); assert.equal(stock(), 1, 'one missile is gone, once'); assert.ok(g.war.giveBack({ key, qty: 1 }).ok, 'and the reservation is gone with the battle'); assert.equal(stock(), 0);
   assert.equal(eng.result.used['Skylance guided missile'], 1); assert.ok(eng.result.lines.some((l) => /Skylance guided missile/i.test(l)), 'the report says so'); assert.deepEqual(g.war.check(), []);
+});
+
+test('what one battle was offered is held for it: a second battle is offered neither the same missiles nor the same aircraft', () => {
+  const C = { stock: { 'arms:aw1:item_missile_guided': 3, 'supply:fuel': 40 }, equipment: [{ id: 'E1', kind: 'aircraft', type: 'af_kestrel', name: 'Kestrel', status: 'stored', assignedTo: null }, { id: 'E2', kind: 'aircraft', type: 'af_kestrel', name: 'Second', status: 'stored', assignedTo: null }],
+    engagements: [{ id: 'Na', state: 'tactical', battle: { setup: { support: { items: { item_missile_guided: 2 }, air: [{ id: 'E1' }] } } } }, { id: 'Nb', state: 'resolved', battle: { setup: { support: { items: { item_missile_guided: 3 }, air: [{ id: 'E2' }] } } } }] };
+  const S = supportOf(C, 'Nc'); assert.deepEqual(S.items, { item_missile_guided: 1 }); assert.deepEqual(S.air.map((a) => a.id), ['E2'], 'a resolved battle holds nothing');
+  assert.deepEqual(supportOf(C, 'Na').items, { item_missile_guided: 3 }, 'its own offer is not held against itself');
 });

@@ -9,6 +9,7 @@
 import { ensureMilitary, peekMilitary } from './state.js';
 import { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } from './equipment.js';
 import { ARMS_TRANSFERABLE, TRANSFER_LOG } from '../content/procurement.js';
+import { reserved, heldOf } from './reserve.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const cageOf = (game, works) => { const def = game.arms?.def?.(works); return def ? game.world.containers[def.outCrate] || null : null; };
@@ -87,6 +88,7 @@ export function giveBack(game, spec) {
     if (!x) return { ok: false, text: 'No such item.' };
     if (!x.origin) return { ok: false, text: `${x.name} was bought or built here: it has nowhere to go back to.` };
     if (x.status !== 'stored' || x.assignedTo != null) return { ok: false, text: `${x.name} is ${x.status === 'stored' ? 'assigned' : x.status}: only a free item can be returned.` };
+    if (reserved(C).air.has(x.id)) return { ok: false, text: `${x.name} is set aside for a battle in progress: it can go back when the battle is over.` };
     const A = game.aero;
     if ((A.state.storage || []).some((r) => r.id === x.origin.rec.id)) return { ok: false, text: 'Aerospace already has a record with that number.' };
     (A.state.storage ||= []).push(clone(x.origin.rec));
@@ -99,6 +101,7 @@ export function giveBack(game, spec) {
   if (!m) return { ok: false, text: 'Only what came from the Arms works goes back.' };
   if (qty < 1) return { ok: false, text: 'Move at least one.' };
   if (stockOf(game, spec.key) < qty) return { ok: false, text: `The company holds ${stockOf(game, spec.key)}.` };
+  const hold = reserved(C).items[m[2]] || 0; if (hold && heldOf(C, m[2]) - qty < hold) return { ok: false, text: `${hold} of those are set aside for a battle in progress: ${Math.max(0, heldOf(C, m[2]) - hold)} can go back now.` };
   if (!game.arms.ownedIds().includes(m[1])) return { ok: false, text: 'You no longer own the works it came from.' };
   const cage = cageOf(game, m[1]);
   if (!cage) return { ok: false, text: 'That works has no export cage.' };

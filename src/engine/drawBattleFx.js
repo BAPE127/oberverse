@@ -11,6 +11,22 @@ const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]].map
 const CAP = 600;
 const PX = 2; // one art pixel is two screen pixels
 
+const STAMPS = new Map();
+/** One particle painted once to a small canvas and reused: a disc of art pixels on the ramp, a dark rim, the dither by the phase of its centre on the 4 by 4 pattern. (Thousands of one-pixel fills a frame were too slow.) */
+function stamp(kind, ramp, level, r, alpha, ph, pv) {
+  const key = `${kind}|${level}|${r}|${alpha}|${ph}|${pv}`; let c = STAMPS.get(key); if (c) return c;
+  const n = (2 * r + 1) * PX; c = document.createElement('canvas'); c.width = n; c.height = n; const g = c.getContext('2d');
+  for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+    if (i * i + j * j > r * r + 1) continue;
+    if (alpha < 1 && alpha < BAYER[(pv + j) & 3][(ph + i) & 3]) continue;
+    const rim = i * i + j * j > (r - 1) * (r - 1);
+    g.fillStyle = rim && kind !== 'spark' && kind !== 'flash' ? ramp[Math.min(ramp.length - 1, level + 2)] : ramp[level];
+    g.fillRect((i + r) * PX, (j + r) * PX, PX, PX);
+  }
+  if (STAMPS.size > 4000) STAMPS.clear();
+  STAMPS.set(key, c); return c;
+}
+
 export class FxLayer {
   constructor(seed = 'fx') { this.seed = seed; this.p = []; this.lines = []; this.n = 0; }
   h(k) { return unit(`${this.seed}|${this.n}|${k}`); }
@@ -45,14 +61,9 @@ export class FxLayer {
       else if (q.k === 'screen') { ramp = SCREEN; level = Math.min(3, Math.floor(f * 4)); }
       else if (q.k === 'dust') { ramp = DUST; level = Math.min(4, Math.floor(f * 5)); } else { ramp = SMOKE; level = Math.min(4, Math.floor(0.4 * 5 + f * 2)); }
       const alpha = q.k === 'screen' ? Math.min(0.9, 2.2 * (1 - f)) : q.k === 'smoke' || q.k === 'dust' ? 1 - f : 1;
-      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
-        if (i * i + j * j > r * r + 1) continue;
-        const px = Math.round(q.x / PX) * PX + i * PX; const py = Math.round(q.y / PX) * PX + j * PX;
-        if (alpha < 1 && alpha < BAYER[(py / PX) & 3 & 3][(px / PX) & 3 & 3]) continue;
-        const rim = i * i + j * j > (r - 1) * (r - 1);
-        ctx.fillStyle = rim && q.k !== 'spark' && q.k !== 'flash' ? ramp[Math.min(ramp.length - 1, level + 2)] : ramp[level];
-        ctx.fillRect(px, py, PX, PX);
-      }
+      const cx = Math.round(q.x / PX) * PX; const cy = Math.round(q.y / PX) * PX;
+      const st = stamp(q.k, ramp, level, r, Math.round(alpha * 8) / 8, (cx / PX) & 3, (cy / PX) & 3);
+      ctx.drawImage(st, cx - r * PX, cy - r * PX);
     }
   }
 }

@@ -129,7 +129,8 @@ const GROUND = { halver: ',', ostmark: 'm', varn: ':', sund: '.', windfen: 'g' }
 const WIDTHS = { halver: [5, 9], ostmark: [5, 8], varn: [5, 9], sund: [5, 7], windfen: [7, 11] };
 const SHOPS = ['BAKERY', 'MARKET', 'CAFE', 'PHARMACY', 'BOOKS', 'TAILOR', 'DELI', 'HARDWARE'];
 const AWNINGS = ['#c8402a', '#e8c04a', '#3a8a4a', '#3a6a8a'];
-const CAR_KINDS = ['sedan', 'hatch', 'van', 'pickup', 'taxi', 'sedan'];
+const CAR_KINDS = ['sedan', 'hatch', 'van', 'pickup', 'taxi', 'sedan', 'sedan', 'hatch', 'police', 'ambulance', 'jeep', 'truck', 'bus'];
+const KIND_COLOUR = { police: '#1f2f56', ambulance: '#f4f2ee', jeep: '#566a3e', taxi: '#e8c02a', bus: '#4a8a6a', truck: '#3a5a8a' };
 const CAR_COLOURS = ['#b8483a', '#3a5a8a', '#2a2a2e', '#4a7a4a', '#c8b848', '#e8e2d4', '#a8a8a8'];
 const rngOf = (str) => { let s = Math.floor(unit(`${str}|rng`) * 4294967296) >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; };
 const ch = (c) => c.charCodeAt(0);
@@ -182,7 +183,7 @@ function cityV2(m) {
   // street furniture and traffic
   for (const y of AV) for (let x = 6; x < W - 4; x += 8) {
     if (A.style !== 'varn') prop(m, 'streetlamp', x, y - 1); if (x % 16 === 6) prop(m, 'streetlamp', x + 4, y + 4);
-    car(m, CAR_KINDS[Math.floor(R() * CAR_KINDS.length)], CAR_COLOURS[Math.floor(R() * CAR_COLOURS.length)], R() < 0.5 ? 'E' : 'W', x * 32 + 20, (y + (R() < 0.5 ? 0.9 : 2.9)) * 32);
+    const kind = CAR_KINDS[Math.floor(R() * CAR_KINDS.length)]; car(m, kind, KIND_COLOUR[kind] || CAR_COLOURS[Math.floor(R() * CAR_COLOURS.length)], R() < 0.5 ? 'E' : 'W', x * 32 + 20, (y + (R() < 0.5 ? 0.9 : 2.9)) * 32);
   }
   for (const x of ST) for (let y = 12; y < H - 6; y += 12) if (R() < 0.6) car(m, 'sedan', CAR_COLOURS[Math.floor(R() * 3)], R() < 0.5 ? 'N' : 'S', (x + (R() < 0.5 ? 0.9 : 2.9)) * 32, y * 32);
   for (const y of AV) for (const x of ST) { prop(m, 'crosswalk', x, y - 2, { w: 4, h: 1 }); prop(m, 'crosswalk', x, y + 5, { w: 4, h: 1 }); }

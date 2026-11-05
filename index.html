@@ -31034,6 +31034,26 @@ const typeOf = (id) => VEHICLES[id] || null;
 return { nextId, MISSILE_STORES, isAir, housing, roomFor, addRecord, stockOf, addStock, takeStock, stockName, typeOf };
 })();
 
+// ---- src/war/reserve.js
+__m["src/war/reserve.js"] = (function () {
+// What a battle in progress has set aside (v0.102.0): the missiles, drones and aircraft a played battle was offered when it began are held for it until it is resolved, so two battles cannot be
+// offered the same missile, and the player cannot call a missile in a battle and then hand it back to the Arms works before the end day (where it would be taken from nothing).
+// Reads the company only.
+function reserved(C, exceptId = null) {
+  const items = {}; const air = new Set();
+  for (const e of C?.engagements || []) {
+    if (e.state !== 'tactical' || e.id === exceptId || !e.battle?.setup?.support) continue;
+    for (const [k, n] of Object.entries(e.battle.setup.support.items || {})) items[k] = (items[k] || 0) + n;
+    for (const a of e.battle.setup.support.air || []) air.add(a.id);
+  }
+  return { items, air };
+}
+/** How many of an item the company holds in all, over every works it came from. */
+const heldOf = (C, item) => Object.keys(C?.stock || {}).filter((k) => k.endsWith(`:${item}`)).reduce((a, k) => a + C.stock[k], 0);
+
+return { reserved, heldOf };
+})();
+
 // ---- src/war/transfers.js
 __m["src/war/transfers.js"] = (function () {
 // Transfers (v0.99.0 stage 4): moving real things between your other companies and the war company. The rules, all of them tested:
@@ -31047,6 +31067,7 @@ __m["src/war/transfers.js"] = (function () {
 const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } = __m["src/war/equipment.js"];
 const { ARMS_TRANSFERABLE, TRANSFER_LOG } = __m["src/content/procurement.js"];
+const { reserved, heldOf } = __m["src/war/reserve.js"];
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const cageOf = (game, works) => { const def = game.arms?.def?.(works); return def ? game.world.containers[def.outCrate] || null : null; };
@@ -31125,6 +31146,7 @@ function giveBack(game, spec) {
     if (!x) return { ok: false, text: 'No such item.' };
     if (!x.origin) return { ok: false, text: `${x.name} was bought or built here: it has nowhere to go back to.` };
     if (x.status !== 'stored' || x.assignedTo != null) return { ok: false, text: `${x.name} is ${x.status === 'stored' ? 'assigned' : x.status}: only a free item can be returned.` };
+    if (reserved(C).air.has(x.id)) return { ok: false, text: `${x.name} is set aside for a battle in progress: it can go back when the battle is over.` };
     const A = game.aero;
     if ((A.state.storage || []).some((r) => r.id === x.origin.rec.id)) return { ok: false, text: 'Aerospace already has a record with that number.' };
     (A.state.storage ||= []).push(clone(x.origin.rec));
@@ -31137,6 +31159,7 @@ function giveBack(game, spec) {
   if (!m) return { ok: false, text: 'Only what came from the Arms works goes back.' };
   if (qty < 1) return { ok: false, text: 'Move at least one.' };
   if (stockOf(game, spec.key) < qty) return { ok: false, text: `The company holds ${stockOf(game, spec.key)}.` };
+  const hold = reserved(C).items[m[2]] || 0; if (hold && heldOf(C, m[2]) - qty < hold) return { ok: false, text: `${hold} of those are set aside for a battle in progress: ${Math.max(0, heldOf(C, m[2]) - hold)} can go back now.` };
   if (!game.arms.ownedIds().includes(m[1])) return { ok: false, text: 'You no longer own the works it came from.' };
   const cage = cageOf(game, m[1]);
   if (!cage) return { ok: false, text: 'That works has no export cage.' };
@@ -32490,6 +32513,7 @@ const { resolve, estimate } = __m["src/war/combat.js"];
 const { ATLAS } = __m["src/content/atlas.js"];
 const { styleOf, SUPPORT } = __m["src/content/battle.js"];
 const { buildSetup } = __m["src/battle/setup.js"];
+const { reserved } = __m["src/war/reserve.js"];
 const { ENGAGEMENTS: KINDS, ENGAGE: E, GENERALS, terrainOf } = __m["src/content/generals.js"];
 const { VEHICLES } = __m["src/content/procurement.js"];
 const { CLASSES } = __m["src/content/troops.js"];
@@ -32592,7 +32616,7 @@ function play(game, id, squads) {
   const F = commitForces(game, C, eng, squads, null);
   const key = `${eng.id}|${salt(game)}`;
   eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
-  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C), ai: { p: false, e: true } }), tick: 0, log: [], result: null };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true } }), tick: 0, log: [], result: null };
   C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
   return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
 }
@@ -32634,12 +32658,13 @@ function decline(game, id) {
 }
 
 /** What the company can call in a played battle, from what it really holds: missiles and drones in the stores (at most three of each kind), and the aircraft in its hangars (as many as the fuel allows). */
-function supportOf(C) {
-  const items = {};
-  for (const k of Object.keys(C.stock)) { const m = /:(item_missile_guided|item_missile_cruise|item_drone_attack|item_drone_strike)$/.exec(k); if (m && C.stock[k] > 0) items[m[1]] = Math.min(3, (items[m[1]] || 0) + C.stock[k]); }
+function supportOf(C, exceptId = null) {
+  const items = {}; const held = reserved(C, exceptId);
+  const stock = {}; for (const k of Object.keys(C.stock)) { const m = /:(item_missile_guided|item_missile_cruise|item_drone_attack|item_drone_strike)$/.exec(k); if (m) stock[m[1]] = (stock[m[1]] || 0) + C.stock[k]; }
+  for (const [item, n] of Object.entries(stock)) { const free = n - (held.items[item] || 0); if (free > 0) items[item] = Math.min(3, free); }
   let fuel = C.stock['supply:fuel'] || 0; const air = [];
   for (const x of C.equipment || []) {
-    if (x.kind !== 'aircraft' || x.status !== 'stored' || x.assignedTo != null || air.length >= 3) continue;
+    if (x.kind !== 'aircraft' || x.status !== 'stored' || x.assignedTo != null || air.length >= 3 || held.air.has(x.id)) continue;
     const kind = /bomb/i.test(x.type) ? 'bomber' : 'fighter'; if (fuel < SUPPORT[kind].fuel) continue; fuel -= SUPPORT[kind].fuel; air.push({ id: x.id, name: x.name, kind });
   }
   return { items, air };
@@ -76404,7 +76429,8 @@ const GROUND = { halver: ',', ostmark: 'm', varn: ':', sund: '.', windfen: 'g' }
 const WIDTHS = { halver: [5, 9], ostmark: [5, 8], varn: [5, 9], sund: [5, 7], windfen: [7, 11] };
 const SHOPS = ['BAKERY', 'MARKET', 'CAFE', 'PHARMACY', 'BOOKS', 'TAILOR', 'DELI', 'HARDWARE'];
 const AWNINGS = ['#c8402a', '#e8c04a', '#3a8a4a', '#3a6a8a'];
-const CAR_KINDS = ['sedan', 'hatch', 'van', 'pickup', 'taxi', 'sedan'];
+const CAR_KINDS = ['sedan', 'hatch', 'van', 'pickup', 'taxi', 'sedan', 'sedan', 'hatch', 'police', 'ambulance', 'jeep', 'truck', 'bus'];
+const KIND_COLOUR = { police: '#1f2f56', ambulance: '#f4f2ee', jeep: '#566a3e', taxi: '#e8c02a', bus: '#4a8a6a', truck: '#3a5a8a' };
 const CAR_COLOURS = ['#b8483a', '#3a5a8a', '#2a2a2e', '#4a7a4a', '#c8b848', '#e8e2d4', '#a8a8a8'];
 const rngOf = (str) => { let s = Math.floor(unit(`${str}|rng`) * 4294967296) >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; };
 const ch = (c) => c.charCodeAt(0);
@@ -76457,7 +76483,7 @@ function cityV2(m) {
   // street furniture and traffic
   for (const y of AV) for (let x = 6; x < W - 4; x += 8) {
     if (A.style !== 'varn') prop(m, 'streetlamp', x, y - 1); if (x % 16 === 6) prop(m, 'streetlamp', x + 4, y + 4);
-    car(m, CAR_KINDS[Math.floor(R() * CAR_KINDS.length)], CAR_COLOURS[Math.floor(R() * CAR_COLOURS.length)], R() < 0.5 ? 'E' : 'W', x * 32 + 20, (y + (R() < 0.5 ? 0.9 : 2.9)) * 32);
+    const kind = CAR_KINDS[Math.floor(R() * CAR_KINDS.length)]; car(m, kind, KIND_COLOUR[kind] || CAR_COLOURS[Math.floor(R() * CAR_COLOURS.length)], R() < 0.5 ? 'E' : 'W', x * 32 + 20, (y + (R() < 0.5 ? 0.9 : 2.9)) * 32);
   }
   for (const x of ST) for (let y = 12; y < H - 6; y += 12) if (R() < 0.6) car(m, 'sedan', CAR_COLOURS[Math.floor(R() * 3)], R() < 0.5 ? 'N' : 'S', (x + (R() < 0.5 ? 0.9 : 2.9)) * 32, y * 32);
   for (const y of AV) for (const x of ST) { prop(m, 'crosswalk', x, y - 2, { w: 4, h: 1 }); prop(m, 'crosswalk', x, y + 5, { w: 4, h: 1 }); }
@@ -76674,7 +76700,7 @@ function setOrder(B, u, order) {
   const kind = u.kind === 'inf' ? 'inf' : u.kind === 'helicopter' ? 'heli' : 'veh';
   if (order.type === 'move' || order.type === 'amove') u.path = findPath(B.map, u, order, kind);
   else if (order.type === 'retreat') { const s = u.side === 'p' ? B.map.spawns.p : B.map.spawns.e; u.order.x = s.x < B.map.w / 2 ? 1 : B.map.w - 2; u.order.y = Math.floor(u.y); u.path = findPath(B.map, u, u.order, kind); }
-  else if (order.type === 'smoke' || order.type === 'suppress' || order.type === 'breach') { if (order.type === 'smoke' && !u.smokes) u.order = { type: 'hold' }; else if (order.type === 'breach' && !(u.W.rocket || u.W.range >= 16)) u.order = { type: 'hold' }; else if (order.type === 'suppress' && !(u.W.range > 0)) u.order = { type: 'hold' }; }
+  else if (order.type === 'smoke' || order.type === 'suppress' || order.type === 'breach') { if (order.type === 'smoke' && !u.smokes) u.order = { type: 'hold' }; else if (order.type === 'breach' && !(u.weapon === 'tank_gun' || u.W.rocket)) u.order = { type: 'hold' }; else if (order.type === 'suppress' && !(u.W.range > 0)) u.order = { type: 'hold' }; }
   else if (order.type === 'garrison') { const b = B.map.buildings[order.b]; if (b && u.kind === 'inf') { u.gstage = 'go'; u.path = findPath(B.map, u, { x: b.stairs.x + 0.5, y: b.stairs.y + 0.5 }, 'inf'); u.order.floor = Math.min(order.floor ?? b.floors - 1, b.floors - 1); } else u.order = { type: 'hold' }; }
 }
 
@@ -76883,7 +76909,7 @@ function step1(B, u, idxU) {
     if (dd > reach - 1) { if (!u.path.length) { const k = isVeh(u) ? 'veh' : 'inf'; const a = Math.atan2(u.y - o.y, u.x - o.x); const spot = standNear(B, o.x + Math.cos(a) * (reach - 3), o.y + Math.sin(a) * (reach - 3), k); u.path = spot ? findPath(B.map, u, spot, k) : []; if (!u.path.length) u.order = { type: 'hold' }; } moves = true; }
     else { special = true; moves = false; u.aim = { x: o.x, y: o.y };
       if (u.cd <= 0 && u.W.range > 0 && !gunOut(u)) {
-        u.shots++; u.cd = Math.max(1, Math.round(u.W.interval * TICK.perSecond));
+        u.shots++; if (u.W.rocket && u.side === 'p') B.counts.rockets++; u.cd = Math.max(1, Math.round(u.W.interval * TICK.perSecond));
         if (o.type === 'suppress') { for (const n of B.units) if (n.alive && n.side !== u.side && !n.fled && Math.hypot(n.x - o.x, n.y - o.y) < 2.5) n.supp = Math.min(100, n.supp + u.W.suppress * 1.5); }
         else { const key = `${Math.floor(o.x)},${Math.floor(o.y)}`; const hp = (B.wall.get(key) || 0) + u.W.damage; B.wall.set(key, hp); B.events.push({ t: B.tick, k: 'wallhit', x: Math.floor(o.x), y: Math.floor(o.y) }); if (hp >= BREACH.wall) { breachTile(B, Math.floor(o.x), Math.floor(o.y)); u.order = { type: 'hold' }; u.aim = null; } }
       } }
@@ -77406,6 +77432,22 @@ const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]].map
 const CAP = 600;
 const PX = 2; // one art pixel is two screen pixels
 
+const STAMPS = new Map();
+/** One particle painted once to a small canvas and reused: a disc of art pixels on the ramp, a dark rim, the dither by the phase of its centre on the 4 by 4 pattern. (Thousands of one-pixel fills a frame were too slow.) */
+function stamp(kind, ramp, level, r, alpha, ph, pv) {
+  const key = `${kind}|${level}|${r}|${alpha}|${ph}|${pv}`; let c = STAMPS.get(key); if (c) return c;
+  const n = (2 * r + 1) * PX; c = document.createElement('canvas'); c.width = n; c.height = n; const g = c.getContext('2d');
+  for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+    if (i * i + j * j > r * r + 1) continue;
+    if (alpha < 1 && alpha < BAYER[(pv + j) & 3][(ph + i) & 3]) continue;
+    const rim = i * i + j * j > (r - 1) * (r - 1);
+    g.fillStyle = rim && kind !== 'spark' && kind !== 'flash' ? ramp[Math.min(ramp.length - 1, level + 2)] : ramp[level];
+    g.fillRect((i + r) * PX, (j + r) * PX, PX, PX);
+  }
+  if (STAMPS.size > 4000) STAMPS.clear();
+  STAMPS.set(key, c); return c;
+}
+
 class FxLayer {
   constructor(seed = 'fx') { this.seed = seed; this.p = []; this.lines = []; this.n = 0; }
   h(k) { return unit(`${this.seed}|${this.n}|${k}`); }
@@ -77440,14 +77482,9 @@ class FxLayer {
       else if (q.k === 'screen') { ramp = SCREEN; level = Math.min(3, Math.floor(f * 4)); }
       else if (q.k === 'dust') { ramp = DUST; level = Math.min(4, Math.floor(f * 5)); } else { ramp = SMOKE; level = Math.min(4, Math.floor(0.4 * 5 + f * 2)); }
       const alpha = q.k === 'screen' ? Math.min(0.9, 2.2 * (1 - f)) : q.k === 'smoke' || q.k === 'dust' ? 1 - f : 1;
-      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
-        if (i * i + j * j > r * r + 1) continue;
-        const px = Math.round(q.x / PX) * PX + i * PX; const py = Math.round(q.y / PX) * PX + j * PX;
-        if (alpha < 1 && alpha < BAYER[(py / PX) & 3 & 3][(px / PX) & 3 & 3]) continue;
-        const rim = i * i + j * j > (r - 1) * (r - 1);
-        ctx.fillStyle = rim && q.k !== 'spark' && q.k !== 'flash' ? ramp[Math.min(ramp.length - 1, level + 2)] : ramp[level];
-        ctx.fillRect(px, py, PX, PX);
-      }
+      const cx = Math.round(q.x / PX) * PX; const cy = Math.round(q.y / PX) * PX;
+      const st = stamp(q.k, ramp, level, r, Math.round(alpha * 8) / 8, (cx / PX) & 3, (cy / PX) & 3);
+      ctx.drawImage(st, cx - r * PX, cy - r * PX);
     }
   }
 }
