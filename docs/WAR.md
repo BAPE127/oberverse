@@ -136,6 +136,41 @@ Release 5 of the war update, "War: Battle Depth": vehicles with modules and faci
 
 **Orders added:** `smoke`, `suppress` (a point; no target needed; pins whoever stands within two and a half tiles) and `breach` (a tank or an anti-tank soldier (a rocket or the tank gun, not a rifle) opens a wall segment: two tank shells, and the wall becomes rubble that does not stop a look or a person). Orders and support are in the log, so a save replays them.
 
+## Battle depth II (v0.102.1)
+
+Release 5b of the war update: what v0.102.0's roadmap row promised and did not ship, plus a repair of how saved battles are kept.
+
+| Piece | Where |
+| --- | --- |
+| Rules and map versions pinned; replays of the two earlier generations | `src/battle/sim.js` (`B.rules`), `src/content/battle.js` (`RULES`), `tests/battle_frozen.test.mjs` |
+| Trench line, compound, forest | `src/battle/map.js` (`trenchV2`, `compoundV2`, `forestV2`), `src/engine/battleGround.js` (`paintTrench`, `paintWire`, `paintCrater`) |
+| Fire missions, strategic missile, anti-air, station time | `src/battle/sim.js`, `src/content/battle.js` (`ARTY`, `SCATTER`, `FLAK`, `STATION`, `SUPPORT.strategic`) |
+| Tending, evacuation, charges, scout and FPV drones | `src/battle/sim.js` (`TEND`, `CHARGE`, `UAV` in the content file) |
+| Flank, regroup, escort, recon; formations | `src/battle/sim.js` (`issueFormation`, `formationSpots`) |
+| What a battle is offered, held and spent | `src/war/reserve.js`, `src/war/engagements.js` (`supportOf`, `applyOutcome`) |
+| Shells and breaching charges | `src/content/arms.js` (`item_artillery_shell`, `item_breach_charge`, recipes `shell` and `charge` at the Explosives Bay) |
+
+**Decisions made first** (the owner answered the three that were his to make):
+- **A saved battle replays as it was played.** A setup carries `rules` (3 from this release; absent means 1 or 2 by its map version) as well as `map.ver`. Maps of the earlier generations and replays of battles made under them are pinned by numbers that the v0.101.0 and v0.102.0 code produced themselves. Everything that happens without an order (a medic tending, a helicopter's station time, anti-air, the anti-air weapon on your own AA vehicles) is on only under rules 3; modules and facing (v0.102.0) are gated on rules 2. The existing city and fields generators are not touched.
+- **Shells and charges are Arms works items** (the proposal's answer, and the owner's): two new items with recipes at the Explosives Bay, transferable like missiles and drones; at most 24 shells and 6 charges are offered to a battle.
+- **Anti-air can destroy the aircraft record** (the owner's answer): a pass inside a live enemy gun's reach has a chance each tick; a shot-down aircraft is lost through `applyOutcome` with a line in the report. The panel warns when an enemy AA gun is in sight.
+- **FPV is an automatic dive** (the owner's answer), not a flown window.
+- **Held for the battle, spent once.** `reserve.js` now also holds shells, charges, strategic missile records, and the aircraft record; none can be offered to a second battle or handed back to the Arms works or Aerospace until the engagement is resolved.
+
+**Maps.** The three recipes come from the mock-up generator; new tile types are appended (a trench: people walk in it and get sandbag cover 0.75; wire: people cross it at 40 percent speed, vehicles cannot). Trenches have crossings so a tank can get over a line. A compound's wall is a wall tile (a charge, a shell or a rocket breaches it). The forest's trees are tree tiles (they stop sight); reachability is checked on every seed, style and biome.
+
+**Fire.** A shell is a pending blast with a flight time (distance over the gun's shell speed) and a scatter (3.6 tiles blind, 0.8 when a soldier of yours sees the point or a scout drone of yours is within 12 tiles). A strategic missile lands after 20 seconds with a 7-tile, 1,800-damage blast. Enemy anti-air guns (`enemy.aa`, set by offers that have helicopters) fire at helicopters only and bring a pass down by chance each tick (1.2 percent a gun).
+
+**Team.** Medics: idle and unengaged, a medic goes to the nearest downed friend within 9 tiles and stabilises him in 6 seconds; a stabilised soldier counts as wounded, never dead. A medevac helicopter within 2.2 tiles of a downed soldier lifts him off the field. An engineer's `charge` order walks to the wall, plants (3 s), steps back, and the charge goes off after 4 s. UAV: a scout drone flies where it is sent at 7 tiles a second, spots enemies within 12 tiles, runs a 3-minute battery and then the operator waits 30 seconds; an FPV drone takes one attack or strike drone from the stores, steers onto the nearest enemy within 7 tiles of its point and goes off. Anti-air shoots both down (3 percent a tick a gun).
+
+## Honest limits (v0.102.1)
+
+- **The aggregate resolver is not changed.** Played battles under rules 3 are a little kinder to a force with medics than the estimate says (medics tending on their own lowers deaths); the calibration test still holds. A general's result is exactly what it was.
+- **Not here:** counter-battery fire; MLRS and the missile launcher (not in the company's vehicle list); stances (aggressive, defensive, hold fire); vehicle orders (reverse, deploy, load and unload, repair); designation of targets for strikes (the strikes shipped in v0.102.0 need none); reinforcements and the other mission types (extract an officer, rescue a pilot, raid); a flown FPV window; fog of war from strategic intel (v0.103.0); destructible trenches.
+- **Drones and aircraft are small procedural sprites**, not the mock-up's detailed ones; there is no posture for a soldier in a trench; skirmish lines do not widen under fire; a medevac helicopter has to be flown over the wounded by hand.
+- **Enemy:** it calls no support, uses no drones, and its medics tend under the same rules as yours. Anti-air appears only in offers that include helicopters.
+- **Forest and trench battles are large (120 by 76 and 120 by 74 tiles):** crossing one takes a minute or two.
+
 ## Honest limits (v0.102.0)
 
 - **Not here yet from the 10b/10c plan:** artillery and mortar fire missions, strategic missiles in a battle, helicopters on station for support, evacuation of the wounded, engineers' breaching charges (a gun or a rocket breaches this release), the UAV and FPV team, fog of war from strategic intel (it comes with the strategic layer in v0.103.0), and the other map recipes (trench line, compound, forest, industrial, port, airfield: the mock-up generator for trench, compound and forest exists in `docs/mockups/src/war/g_gen.js` but is not ported). The other orders (flank, regroup, escort, recon) and formations are not here.

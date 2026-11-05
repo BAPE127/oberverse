@@ -2,6 +2,24 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.102.1] — 2026-11-05 — War: Battle Depth II (development build)
+
+Finishes what v0.102.0's roadmap row promised and did not ship. Reference: `docs/WAR.md`. **Saved battles first:** a setup now carries `rules` (3 from this release) as well as the map version; the maps and the rules of the two earlier generations are pinned by `tests/battle_frozen.test.mjs` (the numbers in it were produced by the v0.101.0 and v0.102.0 code themselves), and everything that runs without an order (a medic tending, a helicopter's station time, anti-air) is on only under rules 3. v0.102.0 modules and facing are now gated the same way (a v0.101.0 battle replays without them).
+
+**Maps.** Trench line (two front lines with firing bays, support lines, communication trenches, saps, dugouts, wire with gaps, craters, a ruined farm), compound (a walled yard with a main house, barracks, a garage, guard towers, a gatehouse and one gate) and forest (a stream and a bridge, trails, clearings, cabins, a lodge, dense trees), ported from the mock-up's generator. New tile types: a trench (walkable, sandbag cover 0.75) and wire (people at a crawl, vehicles stopped). Places choose: a city or town a street fight, a base or works a compound, a fort or pass a trench line, forest states a forest.
+
+**Fire support.** Artillery (a Thump mortar carrier, a Hammer SP gun, a Siege howitzer) fires missions at a point with shells from the stores: each shell takes its flight, lands scattered (a spotter, or a drone overhead, cuts the scatter to a fraction) and hurts everyone in the blast. A strategic missile product from the company's stores can be launched (20 seconds, a 7-tile blast), and the record is destroyed on the end day. An enemy engagement can have anti-air guns: a pass inside a live gun's reach can be shot down, and **the real aircraft is lost** (reported); the guns fire at helicopters and aircraft only. A helicopter has its station time, then goes home (a medevac helicopter stays longer).
+
+**The team.** A medic beside a downed soldier stabilises him in six seconds (he is then wounded, not dead when the battle is counted); a medevac helicopter over a downed soldier lifts him off the field. Engineers plant breaching charges (three seconds exposed, a four-second fuse, a wall segment opened). The UAV operator sends a scout drone (reach 12 tiles, 3 minutes of battery; what it sees stays spotted for two minutes) or launches an FPV drone from the stores that steers onto the nearest enemy near its point (automatic dive: a flown FPV window is not here). Anti-air can bring either down.
+
+**Orders.** Flank (round to one side and in), regroup (suppression recovers faster), escort (stay with a friendly unit), recon (move, stop at first sight and mark what it saw), and formations (line, column, wedge, skirmish) for a group of three or more.
+
+**New Arms works items** (owner's answer): the artillery shell and the breaching charge, with recipes at the Explosives Bay, transferable to the company like missiles and drones. What a battle was offered is held for it (reserve.js: shells, charges, drones, missiles, aircraft and strategic missile records) and spent once on the end day.
+
+**Calibration.** The calibration test still holds. Medics tending on their own lowers deaths in played battles under rules 3; the aggregate resolver is **not** changed (so a general's result is the same as before), and the played battle is a little kinder to a force with medics than the estimate says; stated here and in the limits.
+
+**Tests.** `battle_frozen` (2), `battle_fire` (6), `battle_team` (5), `battle_orders` (5); `battle_map` gained two. **Existing tests edited:** `war_battle` and `war_generals` (the recipes an engagement can have now include the three new ones), `battle_depth` (supportOf now also lists strategic missiles).
+
 ## [0.102.0] — 2026-11-05 — War: Battle Depth (development build)
 
 The fifth release of the War update: the part of 10b (vehicles with module damage, support from real stock, smoke) and 10c (breaches) that fits one release, **and the battle look brought up to the approved mock-ups**. Reference: `docs/WAR.md`. **A correction first:** v0.101.0 said its look renderer was ported from the mock-ups; it was a simplified one (flat grass, grey roofs, plain tank shapes). The mock-ups are painted with the game's own ground, building and prop painters plus a roofed-building painter, a car painter, a vehicle painter and a soldier painter; this release ports all of them, so the battle maps now look like the mock-up pictures (`docs/mockups/proposal-war-map-city-ostmark.png`, `-map-village.png`).

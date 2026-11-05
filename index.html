@@ -18112,7 +18112,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.102.0';
+const GAME_VERSION = '0.102.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -32786,7 +32786,7 @@ function offerOne(game, C, day) {
   const scale = 1 + Math.max(0, rep) * E.repScale;
   const needs = { troops: Math.min(60, Math.round(between(K.troops, unit(`${s}|t`)) * scale)), tanks: Math.min(6, Math.round(between(K.tanks, unit(`${s}|tk`)) * Math.sqrt(scale))), helicopters: Math.min(4, Math.round(between(K.helicopters, unit(`${s}|h`)) * Math.sqrt(scale))), medics: Math.min(4, between(K.medics, unit(`${s}|m`))) };
   const mult = K.enemy[0] + unit(`${s}|e`) * (K.enemy[1] - K.enemy[0]);
-  const enemy = { troops: Math.round(needs.troops * mult * 1.1), armour: Math.round(needs.tanks * mult * 0.9 * 10) / 10, air: needs.helicopters ? Math.round(needs.helicopters * 0.5 * 10) / 10 : 0, skill: Math.round((0.9 + 0.3 * unit(`${s}|sk`)) * 100) / 100 };
+  const enemy = { troops: Math.round(needs.troops * mult * 1.1), armour: Math.round(needs.tanks * mult * 0.9 * 10) / 10, air: needs.helicopters ? Math.round(needs.helicopters * 0.5 * 10) / 10 : 0, aa: needs.helicopters ? (needs.helicopters >= 2 ? 2 : 1) : 0, skill: Math.round((0.9 + 0.3 * unit(`${s}|sk`)) * 100) / 100 };
   const days = between(K.days, unit(`${s}|d`));
   const pay = Math.round((needs.troops * days * E.payPerTroopDay + needs.tanks * days * E.payTank + needs.helicopters * days * E.payHelicopter) / 500) * 500;
   const client = ATLAS.countries[st.country]?.name || 'A client';
@@ -55048,6 +55048,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.102.1',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Battle Depth II',
+    notes: [
+      'Three more battle maps: a trench line (trenches, wire, craters, a ruined farm), a compound (a walled yard with a gate, barracks, towers and a main house) and a forest (a stream, trails, clearings, a lodge and dense trees). Forts and passes make trench lines, bases and works make compounds, forest states make forests.',
+      'Fire support: mortar carriers, self-propelled guns and howitzers fire missions at a point with shells from your stores (a spotter or a drone overhead makes them land close); a strategic missile from your stores can be launched; enemy anti-air can shoot a pass down, and then the aircraft is really lost. Helicopters have a station time.',
+      'Medics stabilise the downed so they are wounded rather than dead, and a medevac helicopter lifts them off; engineers plant breaching charges; the UAV team sends scout drones that spot and FPV drones that dive. New orders: flank, regroup, escort, recon, and formations (line, column, wedge, skirmish).',
+      'Two new Arms works items: the artillery shell and the breaching charge (made at the Explosives Bay; transfer them to the company like missiles).',
+      'A battle saved before this release replays as it was played.',
+    ],
+  },
   {
     version: '0.102.0',
     date: '2026-11-05',

@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.102.1',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Battle Depth II',
+    notes: [
+      'Three more battle maps: a trench line (trenches, wire, craters, a ruined farm), a compound (a walled yard with a gate, barracks, towers and a main house) and a forest (a stream, trails, clearings, a lodge and dense trees). Forts and passes make trench lines, bases and works make compounds, forest states make forests.',
+      'Fire support: mortar carriers, self-propelled guns and howitzers fire missions at a point with shells from your stores (a spotter or a drone overhead makes them land close); a strategic missile from your stores can be launched; enemy anti-air can shoot a pass down, and then the aircraft is really lost. Helicopters have a station time.',
+      'Medics stabilise the downed so they are wounded rather than dead, and a medevac helicopter lifts them off; engineers plant breaching charges; the UAV team sends scout drones that spot and FPV drones that dive. New orders: flank, regroup, escort, recon, and formations (line, column, wedge, skirmish).',
+      'Two new Arms works items: the artillery shell and the breaching charge (made at the Explosives Bay; transfer them to the company like missiles).',
+      'A battle saved before this release replays as it was played.',
+    ],
+  },
+  {
     version: '0.102.0',
     date: '2026-11-05',
     channel: 'development',
