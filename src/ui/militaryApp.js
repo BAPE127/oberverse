@@ -1,7 +1,8 @@
 // The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
 // the lot, order the base's buildings, and see what the base can hold. Every button calls game.war; nothing here writes the record.
 import { h } from './panels.js';
-import { hero, tiles, row, help, fold, note, n } from './tabletKit.js';
+import { hero, tiles, row, help, fold, note, n, segments } from './tabletKit.js';
+import { transfersTab } from './militaryTransfers.js';
 import { LOT } from '../content/facilities.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -16,6 +17,10 @@ export function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
+  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }];
+  const tab = SEG.some((x) => x.id === ui.milTab) ? ui.milTab : 'Company';
+  body.append(segments(SEG, tab, (t) => { ui.milTab = t; open('Military'); }));
+  if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(

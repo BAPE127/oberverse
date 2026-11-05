@@ -114,11 +114,12 @@ export function repair(game, id, pay) {
 }
 
 /** What the base can hold, from the facilities that stand: a damaged one gives half, a ruin none. */
-export function capacity(game) {
+export function capacity(game, onlyKind = null) {
   const out = { beds: 0, meals: 0, treat: 0, stores: 0, desks: 0, lines: 0, bays: 0, training: 0, repair: 0, racks: 0, surgery: 0, briefing: 0 };
   const m = peekMilitary(game);
   for (const f of m?.company?.facilities || []) {
     if (f.state !== 'built') continue;
+    if (onlyKind && FACILITIES[f.id].kind !== onlyKind) continue; // (v0.99.0: the motor pool's bays are not the hangars')
     const st = stateOf(game, sid(f.id));
     const k = st === 'destroyed' ? 0 : st === 'damaged' ? 0.5 : 1;
     for (const [key, v] of Object.entries(FACILITIES[f.id].capacity)) out[key] = (out[key] || 0) + Math.floor(v * k);

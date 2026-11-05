@@ -4,6 +4,9 @@ import { ensureMilitary, peekMilitary } from './state.js';
 import { baseProtected, setCoupState, settle } from './protection.js';
 import { register as registerStructure, apply as applyDamage, repair as repairStructure, view as structureView } from './damage.js';
 import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash } from './company.js';
+import { offers as transferOffers, transfer as transferIn, giveBack as transferBack } from './transfers.js';
+import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
+import { housing as housingOf } from './equipment.js';
 import { checkMilitary } from './check.js';
 import { commission as commissionFacility, dailyTick as facilityDay, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -35,7 +38,7 @@ export class War {
   commission(id) { return commissionFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
   repairFacility(id) { return repairFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
   repairCost(id) { return facilityRepairCost(this.g, id); }
-  capacity() { return baseCapacity(this.g); }
+  capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { facilityDay(this.g); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
@@ -48,6 +51,17 @@ export class War {
   companyView() { return companyView(this.g); }
   /** Pay for something the company buys: from the company's own account only. */
   pay(amount, note) { return companyPay(this.g, amount, note); }
+
+  // ---- procurement (v0.99.0 stage 4): free transfers from your other companies, and what suppliers sell
+  offers() { return transferOffers(this.g); }
+  transfer(spec) { return transferIn(this.g, spec); }
+  giveBack(spec) { return transferBack(this.g, spec); }
+  buyVehicle(id) { return vehicleBuy(this.g, id); }
+  buySupply(id, qty) { return supplyBuy(this.g, id, qty); }
+  housing() { return housingOf(this.g); }
+  equipment() { return this.peek()?.company?.equipment || []; }
+  stock() { return this.peek()?.company?.stock || {}; }
+  transfers() { return this.peek()?.transfers || []; }
 
   summary() {
     const m = this.peek();

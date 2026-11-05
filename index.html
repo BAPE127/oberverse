@@ -30594,7 +30594,7 @@ function found(game, rawName) {
   m.company.identity = { name: v.name, founded: game.clock.day, names: [{ day: game.clock.day, name: v.name }] };
   m.company.log.push({ day: game.clock.day, text: `${v.name} registered as a private security company.` });
   m.log.push({ day: game.clock.day, text: `${v.name} registered.` });
-  game.corp.account(ACCOUNT);
+  game.corp.account(ACCOUNT).funded = true; // its own account from the first day (zero cash): money coming in (a contract's pay) must never fall into your wallet
   return { ok: true, text: `${v.name} is registered. Pay money in, then buy the Civic Office's licence and the lot at Hollowmoor.` };
 }
 
@@ -30667,67 +30667,6 @@ function view(game) {
 }
 
 return { ACCOUNT, founded, licensed, found, rename, cash, fund, take, pay, buyLicence, buyLot, view };
-})();
-
-// ---- src/war/check.js
-__m["src/war/check.js"] = (function () {
-// The consistency checker (v0.98.0): every soldier, vehicle, aircraft, missile and building exists once, in one place, with one status. This finds the ways that can go wrong.
-//
-//   checkMilitary(military)   → [{ kind, id, text }]   (empty when the record is consistent)
-// Kinds are in src/content/military.js (PROBLEMS). Pure: it reads a record, changes nothing. A test plants each kind of corruption and expects exactly it.
-const { ITEM_STATUS, PERSON_STATUS, STRUCTURE_STATES, COUP_STATES } = __m["src/content/military.js"];
-
-const finite = (v) => typeof v === 'number' && Number.isFinite(v);
-
-function checkMilitary(m) {
-  const out = [];
-  const add = (kind, id, text) => out.push({ kind, id, text });
-  if (!m) return out;
-  const C = m.company;
-  const people = C?.personnel || []; const items = C?.equipment || []; const squads = C?.squads || []; const facilities = C?.facilities || [];
-  const units = m.gov?.units || [];
-  // ids exist once, across everything that has one
-  const seen = new Map();
-  const note = (id, where) => { if (id == null) return; if (seen.has(id)) add('duplicate_id', id, `${id} is in ${seen.get(id)} and in ${where}`); else seen.set(id, where); };
-  for (const p of people) note(p.id, 'personnel');
-  for (const i of items) note(i.id, 'equipment');
-  for (const s of squads) note(s.id, 'squads');
-  for (const f of facilities) note(f.id, 'facilities');
-  for (const u of units) note(u.id, 'the government\'s units');
-  // counts
-  const counts = { ...(C?.stock || {}) };
-  for (const [k, v] of Object.entries(m.gov?.inventory || {})) counts[`gov:${k}`] = v;
-  for (const [k, v] of Object.entries(counts)) if (!finite(v) || v < 0) add('negative_count', k, `${k} is ${v}`);
-  for (const s of Object.values(m.damage?.structures || {})) { if (!finite(s.hp) || s.hp < 0) add('negative_count', s.id, `${s.id} has ${s.hp} hit points`); if (!STRUCTURE_STATES.includes(s.state)) add('bad_status', s.id, `${s.id} is "${s.state}"`); }
-  // statuses
-  for (const i of items) if (!ITEM_STATUS.includes(i.status)) add('bad_status', i.id, `${i.id} is "${i.status}"`);
-  for (const p of people) if (!PERSON_STATUS.includes(p.status)) add('bad_status', p.id, `${p.id} is "${p.status}"`);
-  // references
-  const ids = new Set([...people.map((p) => p.id), ...items.map((i) => i.id)]);
-  const facIds = new Set(facilities.map((f) => f.id));
-  const squadIds = new Set(squads.map((s) => s.id));
-  for (const s of squads) {
-    if (s.leader != null && !people.some((p) => p.id === s.leader)) add('missing_reference', s.id, `squad ${s.id} has a leader ${s.leader} who is not in the personnel`);
-    for (const x of [...(s.members || []), ...(s.equipment || [])]) if (!ids.has(x)) add('missing_reference', s.id, `squad ${s.id} lists ${x}, which does not exist`);
-  }
-  for (const x of [...people, ...items]) {
-    if (typeof x.location === 'string' && x.location.startsWith('facility:') && !facIds.has(x.location.slice(9))) add('missing_reference', x.id, `${x.id} is at ${x.location}, which is not a facility`);
-    if (x.assignedTo != null && !squadIds.has(x.assignedTo)) add('missing_reference', x.id, `${x.id} is assigned to ${x.assignedTo}, which is not a squad`);
-  }
-  // one assignment each, and the item and the squad agree
-  const listed = new Map();
-  for (const s of squads) for (const x of [...(s.members || []), ...(s.equipment || [])]) { if (listed.has(x) && listed.get(x) !== s.id) add('double_assignment', x, `${x} is in squads ${listed.get(x)} and ${s.id}`); else if (listed.has(x)) add('double_assignment', x, `${x} is listed twice in ${s.id}`); listed.set(x, s.id); }
-  for (const x of [...people, ...items]) if (x.assignedTo != null && listed.has(x.id) && listed.get(x.id) !== x.assignedTo) add('double_assignment', x.id, `${x.id} says ${x.assignedTo} but ${listed.get(x.id)} lists it`);
-  // what is gone cannot be used
-  const gone = (x) => x.status === 'destroyed' || x.status === 'dead' || x.status === 'captured';
-  for (const x of [...people, ...items]) if (gone(x) && (x.assignedTo != null || listed.has(x.id) || x.status === 'deployed')) add('destroyed_deployable', x.id, `${x.id} is ${x.status} but is still assigned or deployed`);
-  // the coup flag and what is derived from it
-  if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
-  else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);
-  return out;
-}
-
-return { checkMilitary };
 })();
 
 // ---- src/war/facilities.js
@@ -30848,11 +30787,12 @@ function repair(game, id, pay) {
 }
 
 /** What the base can hold, from the facilities that stand: a damaged one gives half, a ruin none. */
-function capacity(game) {
+function capacity(game, onlyKind = null) {
   const out = { beds: 0, meals: 0, treat: 0, stores: 0, desks: 0, lines: 0, bays: 0, training: 0, repair: 0, racks: 0, surgery: 0, briefing: 0 };
   const m = peekMilitary(game);
   for (const f of m?.company?.facilities || []) {
     if (f.state !== 'built') continue;
+    if (onlyKind && FACILITIES[f.id].kind !== onlyKind) continue; // (v0.99.0: the motor pool's bays are not the hangars')
     const st = stateOf(game, sid(f.id));
     const k = st === 'destroyed' ? 0 : st === 'damaged' ? 0.5 : 1;
     for (const [key, v] of Object.entries(FACILITIES[f.id].capacity)) out[key] = (out[key] || 0) + Math.floor(v * k);
@@ -30874,6 +30814,382 @@ function view(game) {
 return { lotOwned, facilityState, stageOpen, quote, commission, dailyTick, repairCost, repair, capacity, view };
 })();
 
+// ---- src/content/procurement.js
+__m["src/content/procurement.js"] = (function () {
+// What the company can hold and where it comes from (v0.99.0): pure data. Prices are starting figures to calibrate (docs/PROPOSAL_WAR_ARMOURY.md), set against the Aerospace ladder
+// (fighters 210,000 to 2,600,000 obols). Three ways to get something, and only three:
+//   works     made at the company's own tank factory or helicopter works (src/content/production.js): tanks and helicopters ONLY
+//   bought    from a supplier, paid by the company: carriers, recon, artillery, anti-air, logistics, medical and engineer vehicles, and the supplies (uniforms, medicine, spares, parts)
+//   transfer  moved free from your other companies: stored military aircraft from Aerospace, guns, ammunition, rockets, missiles and drones from the Arms works (never built here)
+// Only eras 1 and 2 exist; era 3 (hover, stealth, laser) is future research. Perks and abilities are written on the cards in the proposal and do nothing yet.
+
+/** Armour, firepower, speed and capacity, 1 to 5 (the four bars the combat rules will read). */
+const V = (id, name, cls, source, era, price, bars, text) => ({ id, name, class: cls, source, era, price, armour: bars[0], firepower: bars[1], speed: bars[2], capacity: bars[3], text });
+
+const VEHICLE_CLASSES = {
+  tank: 'Battle tank', helicopter: 'Helicopter', carrier: 'Armoured carrier', recon: 'Recon', artillery: 'Artillery', antiair: 'Anti-air', logistics: 'Logistics', medical: 'Medical and engineers',
+};
+
+const VEHICLES = Object.fromEntries([
+  // ---- built at the company's own works (price is the whole cost of one: the fee plus the parts, see production.js)
+  V('lancer', 'Lancer light tank', 'tank', 'works', 1, 380000, [2, 2, 4, 2], 'Quick and cheap: a gun that will stop a truck and not much else.'),
+  V('anvil', 'Anvil Mk1 tank', 'tank', 'works', 1, 560000, [3, 3, 3, 3], 'The company\'s main tank: fires on the move at a price in accuracy.'),
+  V('hound', 'Hound tank destroyer', 'tank', 'works', 2, 720000, [2, 5, 3, 2], 'A long gun on a low hull: out-ranges tanks.'),
+  V('breacher', 'Breacher dozer tank', 'tank', 'works', 2, 690000, [4, 2, 2, 3], 'A plough and a short gun: pushes through rubble and light walls.'),
+  V('cinder', 'Cinder assault tank', 'tank', 'works', 2, 780000, [4, 4, 2, 3], 'Heavy, with a flame projector for buildings.'),
+  V('bulwark', 'Bulwark heavy tank', 'tank', 'works', 2, 840000, [5, 4, 2, 3], 'Frontal plate that ignores the first hit.'),
+  V('wren', 'Wren scout helicopter', 'helicopter', 'works', 1, 450000, [1, 1, 5, 1], 'Two seats and a camera: the eyes of a column.'),
+  V('drover', 'Drover transport helicopter', 'helicopter', 'works', 1, 620000, [2, 1, 4, 5], 'Carries a squad.'),
+  V('mercy', 'Mercy medevac helicopter', 'helicopter', 'works', 1, 700000, [2, 1, 4, 4], 'Takes the wounded to a hospital before they stop being wounded.'),
+  V('viper', 'Viper attack helicopter', 'helicopter', 'works', 2, 980000, [2, 5, 4, 1], 'Rockets and a chin gun.'),
+  V('ox', 'Ox heavy-lift helicopter', 'helicopter', 'works', 2, 1100000, [3, 1, 3, 5], 'Lifts a vehicle or a hundred crates.'),
+  V('talon', 'Talon gunship', 'helicopter', 'works', 2, 1350000, [3, 5, 4, 3], 'An attack helicopter with armour and a cabin of riflemen.'),
+  // ---- bought from suppliers
+  V('marten', 'Marten light carrier', 'carrier', 'bought', 1, 140000, [2, 1, 4, 3], 'Carries four, protects them from rifles.'),
+  V('wolf', 'Wolf APC', 'carrier', 'bought', 1, 220000, [3, 1, 3, 4], 'A squad and a machine gun.'),
+  V('badger', 'Badger IFV', 'carrier', 'bought', 2, 340000, [3, 3, 3, 4], 'Carries a squad and fires a gun while they stay inside.'),
+  V('mule', 'Mule heavy carrier', 'carrier', 'bought', 2, 410000, [4, 1, 2, 5], 'A slab of armour on wheels.'),
+  V('buggy', 'Scout buggy', 'recon', 'bought', 1, 40000, [1, 1, 5, 1], 'Fast, open and very easy to hit.'),
+  V('armoured_car', 'Armoured car', 'recon', 'bought', 2, 120000, [2, 2, 5, 2], 'A light cannon and a radio.'),
+  V('sensor_van', 'Sensor van', 'recon', 'bought', 2, 160000, [1, 1, 3, 2], 'Sees further than anyone else on the road.'),
+  V('thump', 'Thump mortar carrier', 'artillery', 'bought', 1, 150000, [1, 3, 3, 2], 'Drops shells over a hill.'),
+  V('hammer', 'Hammer self-propelled gun', 'artillery', 'bought', 2, 520000, [2, 5, 3, 2], 'A gun that moves after it fires.'),
+  V('howitzer', 'Siege howitzer', 'artillery', 'bought', 2, 600000, [1, 5, 1, 2], 'For walls.'),
+  V('skyguard', 'Skyguard twin gun', 'antiair', 'bought', 1, 190000, [1, 3, 3, 1], 'Two barrels pointed at the sky.'),
+  V('falconer', 'Falconer missile AA', 'antiair', 'bought', 2, 410000, [2, 4, 3, 1], 'Missiles for aircraft that think they are safe.'),
+  V('whirl', 'Whirl gatling', 'antiair', 'bought', 2, 360000, [2, 4, 3, 1], 'A wall of small shells.'),
+  V('supply_truck', 'Supply truck', 'logistics', 'bought', 1, 45000, [1, 0, 3, 5], 'Food, ammunition and spares.'),
+  V('fuel_tanker', 'Fuel tanker', 'logistics', 'bought', 1, 60000, [1, 0, 2, 5], 'Do not hit it.'),
+  V('ammo_carrier', 'Ammo carrier', 'logistics', 'bought', 2, 90000, [1, 0, 3, 5], 'Shells for the guns.'),
+  V('command_vehicle', 'Command vehicle', 'logistics', 'bought', 2, 180000, [2, 0, 3, 2], 'Maps, radios and a table.'),
+  V('recovery', 'Recovery vehicle', 'logistics', 'bought', 2, 130000, [2, 0, 2, 2], 'Tows what is left.'),
+  V('ambulance', 'Medevac ambulance', 'medical', 'bought', 1, 70000, [1, 0, 4, 3], 'A stretcher and a driver who does not stop.'),
+  V('field_hospital', 'Field hospital', 'medical', 'bought', 2, 260000, [1, 0, 1, 4], 'Tents, a generator and a surgeon.'),
+  V('bridgelayer', 'Bridgelayer', 'medical', 'bought', 2, 220000, [2, 0, 2, 2], 'Spans a ditch in a minute.'),
+  V('mine_sweeper', 'Mine sweeper', 'medical', 'bought', 2, 190000, [3, 0, 2, 2], 'A flail and a brave crew.'),
+  V('repair_crane', 'Repair crane', 'medical', 'bought', 2, 150000, [2, 0, 2, 2], 'Lifts engines out of vehicles.'),
+].map((v) => [v.id, v]));
+
+/** The classes the company never builds and never buys here: they come from your other companies or not at all. */
+const NEVER_BUILT = ['aircraft', 'missile', 'gun', 'ship', 'satellite'];
+
+/**
+ * What a supplier sells by the unit. `store` is how many places in the stores one unit takes (1 each). `parts` are what the tank factory and helicopter works consume
+ * (src/content/production.js). Prices in obols.
+ */
+const SUPPLIES = {
+  uniform: { name: 'Uniform and kit', price: 90, group: 'issue', text: 'Boots, a vest and a helmet.' },
+  radio: { name: 'Field radio', price: 260, group: 'issue', text: 'Two kilometres on a good day.' },
+  medicine: { name: 'Medical supplies', price: 140, group: 'issue', text: 'Bandages, morphine and a lot of tape.' },
+  rations: { name: 'Rations (a day for one)', price: 6, group: 'issue', text: 'Food that keeps.' },
+  spares: { name: 'Vehicle spares', price: 450, group: 'issue', text: 'Filters, belts and track links.' },
+  fuel: { name: 'Fuel (a drum)', price: 180, group: 'issue', text: 'Diesel by the drum.' },
+  plate: { name: 'Armour plate', price: 6000, group: 'part', text: 'Rolled steel armour, cut to the tank factory\'s patterns.' },
+  engine: { name: 'Engine', price: 90000, group: 'part', text: 'A diesel for a tank, a turboshaft for a helicopter: sold as one line, fitted by the works.' },
+  optics: { name: 'Optics and sights', price: 22000, group: 'part', text: 'Gun sights, periscopes and a camera.' },
+  rotor: { name: 'Rotor set', price: 48000, group: 'part', text: 'Blades, hub and gearbox.' },
+  avionics: { name: 'Avionics', price: 36000, group: 'part', text: 'Radios, instruments and a flight computer.' },
+  hardpoint: { name: 'Weapon mounts', price: 14000, group: 'part', text: 'Pylons, rails and a ring for a gun.' },
+};
+
+/** The Arms works items the company may take: whatever its recipes make that is a weapon, a round, a missile or a drone. (Parts and machines never move.) */
+const ARMS_TRANSFERABLE = ['item_pistol', 'item_smg', 'item_shotgun', 'item_assault_rifle', 'item_sniper_rifle', 'item_lmg', 'item_rpg', 'item_rpg_rocket', 'item_missile_guided', 'item_missile_cruise', 'item_drone_attack', 'item_drone_strike'];
+
+/** What a transfer leaves behind: the trail (never money) keeps this many entries. */
+const TRANSFER_LOG = 80;
+
+return { VEHICLE_CLASSES, VEHICLES, NEVER_BUILT, SUPPLIES, ARMS_TRANSFERABLE, TRANSFER_LOG };
+})();
+
+// ---- src/war/equipment.js
+__m["src/war/equipment.js"] = (function () {
+// What the company holds (v0.99.0): vehicles, helicopters and aircraft are RECORDS with ids (one location, one status, a remembered origin); guns, rounds, supplies and parts are
+// COUNTS in `company.stock`, keyed by where they came from (`arms:<works>:<item>`, `supply:<id>`). Housing is real: a vehicle needs a bay in the motor pool, an aircraft or a helicopter
+// a bay in the hangars, and stock a place in the stores. The consistency checker (src/war/check.js) reads all of it.
+//
+//   housing(game)                   { ground, air, stores }: places in total, used and free
+//   addRecord(game, spec)           a new record, housed (or refused); the caller has already paid or moved the thing
+//   stockOf(game, key) / addStock / takeStock
+//   view(game)                      what the Equipment screen lists
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { capacity } = __m["src/war/facilities.js"];
+const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
+
+const nextId = (C, kind) => { C.next ||= {}; C.next[kind] = (C.next[kind] || 0) + 1; return `${kind}${C.next[kind]}`; };
+
+const AIR = new Set(['helicopter', 'aircraft']);
+const isAir = (kind) => AIR.has(kind);
+const where = (kind) => (isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
+
+function housing(game) {
+  const C = peekMilitary(game)?.company;
+  const used = { ground: 0, air: 0 };
+  for (const x of C?.equipment || []) if (x.status !== 'destroyed') used[isAir(x.kind) ? 'air' : 'ground']++;
+  const stock = Object.values(C?.stock || {}).reduce((a, b) => a + b, 0);
+  const cap = { ground: capacity(game, 'motor_pool').bays, air: capacity(game, 'hangar').bays, stores: capacity(game).stores };
+  return { ground: { total: cap.ground, used: used.ground, free: Math.max(0, cap.ground - used.ground) }, air: { total: cap.air, used: used.air, free: Math.max(0, cap.air - used.air) }, stores: { total: cap.stores, used: stock, free: Math.max(0, cap.stores - stock) } };
+}
+
+/** Whether there is room for one more of this kind of thing (`null` = yes, otherwise the reason). */
+function roomFor(game, kind, qty = 1) {
+  const h = housing(game);
+  if (kind === 'stock') return h.stores.free >= qty ? null : `The stores have room for ${h.stores.free} more${h.stores.total ? '' : ' (build the armoury cage)'}.`;
+  const side = isAir(kind) ? h.air : h.ground;
+  if (side.free >= qty) return null;
+  return isAir(kind) ? `No free bay in the hangars (${side.used} of ${side.total}).` : `No free bay in the motor pool (${side.used} of ${side.total}).`;
+}
+
+function addRecord(game, { kind, type, name, source, origin = null }) {
+  const m = ensureMilitary(game);
+  const C = m.company;
+  const why = roomFor(game, kind);
+  if (why) return { ok: false, text: why };
+  const rec = { id: nextId(C, 'E'), kind, type, name, source, origin, location: where(kind), status: 'stored', assignedTo: null, day: game.clock.day };
+  C.equipment.push(rec);
+  return { ok: true, rec };
+}
+
+const stockOf = (game, key) => peekMilitary(game)?.company?.stock?.[key] || 0;
+function addStock(game, key, qty) { const C = ensureMilitary(game).company; C.stock[key] = (C.stock[key] || 0) + qty; }
+function takeStock(game, key, qty) {
+  const C = peekMilitary(game)?.company;
+  if (!C || (C.stock[key] || 0) < qty) return false;
+  C.stock[key] -= qty;
+  if (C.stock[key] === 0) delete C.stock[key];
+  return true;
+}
+
+/** The name of a stock key: `arms:aw1:item_rpg` (an Arms works item), `supply:plate`. */
+function stockName(game, key) {
+  const [kind, a, b] = key.split(':');
+  if (kind === 'supply') return SUPPLY_NAME(a);
+  const item = game.content?.items?.[b];
+  return `${item?.name || b}${a ? ` (from ${game.arms?.def?.(a)?.name || a})` : ''}`;
+}
+let SUPPLIES_CACHE = SUPPLIES;
+function SUPPLY_NAME(id) { return SUPPLIES_CACHE?.[id]?.name || id; }
+
+const typeOf = (id) => VEHICLES[id] || null;
+
+return { nextId, isAir, housing, roomFor, addRecord, stockOf, addStock, takeStock, stockName, typeOf };
+})();
+
+// ---- src/war/transfers.js
+__m["src/war/transfers.js"] = (function () {
+// Transfers (v0.99.0 stage 4): moving real things between your other companies and the war company. The rules, all of them tested:
+//   free         no money moves: not your wallet, not any company's account, not Aerospace's or the Arms works' books
+//   atomic       every check first, then the change; a refusal leaves every system exactly as it was
+//   real stock   what leaves a source is gone from it (a stored jet cannot also fill an Aerospace contract; a rifle cannot also be sold), and what comes back goes to where it came from
+//   audited      each move is a line in `world.military.transfers` (capped), never a money entry
+//   only free    an item that is assigned, deployed or destroyed cannot be returned
+// Sources: Aerospace (aircraft kept in storage that are military products), the Arms works (guns, rounds, rockets, missiles and drones, from a named works' export cage).
+// Ships stay with the shipping company this release (see docs/WAR.md). The strategic missiles are built to contract and never stored, so there is nothing to move.
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } = __m["src/war/equipment.js"];
+const { ARMS_TRANSFERABLE, TRANSFER_LOG } = __m["src/content/procurement.js"];
+
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const cageOf = (game, works) => { const def = game.arms?.def?.(works); return def ? game.world.containers[def.outCrate] || null : null; };
+
+function note(game, entry) {
+  const m = ensureMilitary(game);
+  m.transfers.push({ id: nextId(m.company, 'T'), day: game.clock.day, ...entry });
+  while (m.transfers.length > TRANSFER_LOG) m.transfers.shift();
+}
+
+/** The military aircraft Aerospace keeps in storage. */
+function aeroStored(game) {
+  const A = game.aero;
+  return (A.state.storage || []).filter((r) => A.cfg.products[r.product]?.spec?.military && A.cfg.products[r.product]?.line === 'aircraft').map((r) => ({ source: 'aero', ref: r.id, name: A.cfg.products[r.product].name, product: r.product, quality: r.quality }));
+}
+
+/** What could move now, by source. */
+function offers(game) {
+  const out = { aero: aeroStored(game), arms: [], ships: [] };
+  for (const works of game.arms.ownedIds()) {
+    const cage = cageOf(game, works);
+    for (const item of ARMS_TRANSFERABLE) {
+      const have = cage?.items?.[item] || 0;
+      if (have > 0) out.arms.push({ source: 'arms', works, item, name: game.content.items[item]?.name || item, have, from: game.arms.def(works).name });
+    }
+  }
+  return out;
+}
+
+/** Take something in. `spec`: { source:'aero', ref } or { source:'arms', works, item, qty }. */
+function transfer(game, spec) {
+  const m = peekMilitary(game);
+  const C = m?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (spec.source === 'aero') {
+    const A = game.aero;
+    const rec = (A.state.storage || []).find((r) => r.id === spec.ref);
+    if (!rec) return { ok: false, text: 'That aircraft is not in Aerospace\'s storage.' };
+    const P = A.cfg.products[rec.product];
+    if (!P?.spec?.military || P.line !== 'aircraft') return { ok: false, text: 'Only military aircraft move to the company.' };
+    const why = roomFor(game, 'aircraft');
+    if (why) return { ok: false, text: why };
+    A.state.storage = A.state.storage.filter((r) => r !== rec);
+    const r = addRecord(game, { kind: 'aircraft', type: rec.product, name: P.name, source: 'aero', origin: { system: 'aero', rec: clone(rec) } });
+    note(game, { from: 'aerospace', to: 'company', what: rec.product, name: P.name, qty: 1, ref: r.rec.id, status: 'done' });
+    return { ok: true, text: `${P.name} moves from Aerospace to the company's hangars. Free: no sale, no entry.`, id: r.rec.id };
+  }
+  if (spec.source === 'arms') {
+    const qty = Math.floor(Number(spec.qty) || 0);
+    if (qty < 1) return { ok: false, text: 'Move at least one.' };
+    if (!ARMS_TRANSFERABLE.includes(spec.item)) return { ok: false, text: 'The company takes weapons, rounds, missiles and drones from the Arms works, nothing else.' };
+    if (!game.arms.ownedIds().includes(spec.works)) return { ok: false, text: 'You do not own that works.' };
+    const cage = cageOf(game, spec.works);
+    const have = cage?.items?.[spec.item] || 0;
+    if (have < qty) return { ok: false, text: `The export cage holds ${have}.` };
+    const why = roomFor(game, 'stock', qty);
+    if (why) return { ok: false, text: why };
+    cage.items[spec.item] -= qty;
+    addStock(game, `arms:${spec.works}:${spec.item}`, qty);
+    game.bus.emit('container:changed', { id: game.arms.def(spec.works).outCrate });
+    const name = game.content.items[spec.item]?.name || spec.item;
+    note(game, { from: `arms:${spec.works}`, to: 'company', what: spec.item, name, qty, status: 'done' });
+    return { ok: true, text: `${qty} × ${name} move from ${game.arms.def(spec.works).name} to the company's stores. Free.` };
+  }
+  return { ok: false, text: 'Ships stay with the shipping company this release; the strategic missiles are built to contract and never stored.' };
+}
+
+/** Send something back to where it came from. `spec`: { id } for a record, { key, qty } for stock. */
+function giveBack(game, spec) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (spec.id) {
+    const x = C.equipment.find((e) => e.id === spec.id);
+    if (!x) return { ok: false, text: 'No such item.' };
+    if (!x.origin) return { ok: false, text: `${x.name} was bought or built here: it has nowhere to go back to.` };
+    if (x.status !== 'stored' || x.assignedTo != null) return { ok: false, text: `${x.name} is ${x.status === 'stored' ? 'assigned' : x.status}: only a free item can be returned.` };
+    const A = game.aero;
+    if ((A.state.storage || []).some((r) => r.id === x.origin.rec.id)) return { ok: false, text: 'Aerospace already has a record with that number.' };
+    (A.state.storage ||= []).push(clone(x.origin.rec));
+    C.equipment = C.equipment.filter((e) => e !== x);
+    note(game, { from: 'company', to: 'aerospace', what: x.type, name: x.name, qty: 1, ref: x.id, status: 'returned' });
+    return { ok: true, text: `${x.name} is back in Aerospace's storage.` };
+  }
+  const qty = Math.floor(Number(spec.qty) || 0);
+  const m = /^arms:([^:]+):(.+)$/.exec(spec.key || '');
+  if (!m) return { ok: false, text: 'Only what came from the Arms works goes back.' };
+  if (qty < 1) return { ok: false, text: 'Move at least one.' };
+  if (stockOf(game, spec.key) < qty) return { ok: false, text: `The company holds ${stockOf(game, spec.key)}.` };
+  if (!game.arms.ownedIds().includes(m[1])) return { ok: false, text: 'You no longer own the works it came from.' };
+  const cage = cageOf(game, m[1]);
+  if (!cage) return { ok: false, text: 'That works has no export cage.' };
+  takeStock(game, spec.key, qty);
+  cage.items[m[2]] = (cage.items[m[2]] || 0) + qty;
+  game.bus.emit('container:changed', { id: game.arms.def(m[1]).outCrate });
+  note(game, { from: 'company', to: `arms:${m[1]}`, what: m[2], name: stockName(game, spec.key), qty, status: 'returned' });
+  return { ok: true, text: `${qty} × ${game.content.items[m[2]]?.name || m[2]} go back to ${game.arms.def(m[1]).name}.` };
+}
+
+return { offers, transfer, giveBack };
+})();
+
+// ---- src/war/purchase.js
+__m["src/war/purchase.js"] = (function () {
+// Buying from suppliers (v0.99.0): carriers, recon, artillery, anti-air, logistics and medical vehicles, and the supplies and parts. Paid by the company from its own account; the
+// vehicle or the goods arrive at once (a supplier's lead time is a later refinement). Tanks and helicopters are NOT on this list: they are made at the company's own works.
+const { peekMilitary } = __m["src/war/state.js"];
+const { addRecord, addStock, roomFor } = __m["src/war/equipment.js"];
+const { pay } = __m["src/war/company.js"];
+const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
+
+function buyVehicle(game, id) {
+  const V = VEHICLES[id];
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (!V || V.source !== 'bought') return { ok: false, text: V ? `${V.name} is built at the company's own works, not bought.` : 'No such vehicle.' };
+  const why = roomFor(game, 'vehicle');
+  if (why) return { ok: false, text: why };
+  const r = pay(game, V.price, `Supplier: ${V.name}`);
+  if (!r.ok) return r;
+  const a = addRecord(game, { kind: 'vehicle', type: id, name: V.name, source: 'bought' });
+  C.log.push({ day: game.clock.day, text: `Bought a ${V.name} (${V.price} obols).` });
+  return { ok: true, text: `A ${V.name} arrives at the motor pool (${V.price.toLocaleString('en-US')} obols).`, id: a.rec.id };
+}
+
+function buySupply(game, id, qty) {
+  const S = SUPPLIES[id];
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (!S) return { ok: false, text: 'No such supply.' };
+  qty = Math.floor(Number(qty) || 0);
+  if (qty < 1) return { ok: false, text: 'Order at least one.' };
+  const why = roomFor(game, 'stock', qty);
+  if (why) return { ok: false, text: why };
+  const r = pay(game, S.price * qty, `Supplier: ${qty} × ${S.name}`);
+  if (!r.ok) return r;
+  addStock(game, `supply:${id}`, qty);
+  return { ok: true, text: `${qty} × ${S.name} go into the stores (${(S.price * qty).toLocaleString('en-US')} obols).` };
+}
+
+return { buyVehicle, buySupply };
+})();
+
+// ---- src/war/check.js
+__m["src/war/check.js"] = (function () {
+// The consistency checker (v0.98.0): every soldier, vehicle, aircraft, missile and building exists once, in one place, with one status. This finds the ways that can go wrong.
+//
+//   checkMilitary(military)   → [{ kind, id, text }]   (empty when the record is consistent)
+// Kinds are in src/content/military.js (PROBLEMS). Pure: it reads a record, changes nothing. A test plants each kind of corruption and expects exactly it.
+const { ITEM_STATUS, PERSON_STATUS, STRUCTURE_STATES, COUP_STATES } = __m["src/content/military.js"];
+
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+
+function checkMilitary(m) {
+  const out = [];
+  const add = (kind, id, text) => out.push({ kind, id, text });
+  if (!m) return out;
+  const C = m.company;
+  const people = C?.personnel || []; const items = C?.equipment || []; const squads = C?.squads || []; const facilities = C?.facilities || [];
+  const units = m.gov?.units || [];
+  // ids exist once, across everything that has one
+  const seen = new Map();
+  const note = (id, where) => { if (id == null) return; if (seen.has(id)) add('duplicate_id', id, `${id} is in ${seen.get(id)} and in ${where}`); else seen.set(id, where); };
+  for (const p of people) note(p.id, 'personnel');
+  for (const i of items) note(i.id, 'equipment');
+  for (const s of squads) note(s.id, 'squads');
+  for (const f of facilities) note(f.id, 'facilities');
+  for (const u of units) note(u.id, 'the government\'s units');
+  // counts
+  const counts = { ...(C?.stock || {}) };
+  for (const [k, v] of Object.entries(m.gov?.inventory || {})) counts[`gov:${k}`] = v;
+  for (const [k, v] of Object.entries(counts)) if (!finite(v) || v < 0) add('negative_count', k, `${k} is ${v}`);
+  for (const s of Object.values(m.damage?.structures || {})) { if (!finite(s.hp) || s.hp < 0) add('negative_count', s.id, `${s.id} has ${s.hp} hit points`); if (!STRUCTURE_STATES.includes(s.state)) add('bad_status', s.id, `${s.id} is "${s.state}"`); }
+  // statuses
+  for (const i of items) if (!ITEM_STATUS.includes(i.status)) add('bad_status', i.id, `${i.id} is "${i.status}"`);
+  for (const p of people) if (!PERSON_STATUS.includes(p.status)) add('bad_status', p.id, `${p.id} is "${p.status}"`);
+  // references
+  const ids = new Set([...people.map((p) => p.id), ...items.map((i) => i.id)]);
+  const facIds = new Set(facilities.map((f) => f.id));
+  const squadIds = new Set(squads.map((s) => s.id));
+  for (const s of squads) {
+    if (s.leader != null && !people.some((p) => p.id === s.leader)) add('missing_reference', s.id, `squad ${s.id} has a leader ${s.leader} who is not in the personnel`);
+    for (const x of [...(s.members || []), ...(s.equipment || [])]) if (!ids.has(x)) add('missing_reference', s.id, `squad ${s.id} lists ${x}, which does not exist`);
+  }
+  for (const x of [...people, ...items]) {
+    if (typeof x.location === 'string' && x.location.startsWith('facility:') && !facIds.has(x.location.slice(9))) add('missing_reference', x.id, `${x.id} is at ${x.location}, which is not a facility`);
+    if (x.assignedTo != null && !squadIds.has(x.assignedTo)) add('missing_reference', x.id, `${x.id} is assigned to ${x.assignedTo}, which is not a squad`);
+  }
+  // one assignment each, and the item and the squad agree
+  const listed = new Map();
+  for (const s of squads) for (const x of [...(s.members || []), ...(s.equipment || [])]) { if (listed.has(x) && listed.get(x) !== s.id) add('double_assignment', x, `${x} is in squads ${listed.get(x)} and ${s.id}`); else if (listed.has(x)) add('double_assignment', x, `${x} is listed twice in ${s.id}`); listed.set(x, s.id); }
+  for (const x of [...people, ...items]) if (x.assignedTo != null && listed.has(x.id) && listed.get(x.id) !== x.assignedTo) add('double_assignment', x.id, `${x.id} says ${x.assignedTo} but ${listed.get(x.id)} lists it`);
+  // what is gone cannot be used
+  const gone = (x) => x.status === 'destroyed' || x.status === 'dead' || x.status === 'captured';
+  for (const x of [...people, ...items]) if (gone(x) && (x.assignedTo != null || listed.has(x.id) || x.status === 'deployed')) add('destroyed_deployable', x.id, `${x.id} is ${x.status} but is still assigned or deployed`);
+  // the coup flag and what is derived from it
+  if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
+  else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);
+  return out;
+}
+
+return { checkMilitary };
+})();
+
 // ---- src/war/api.js
 __m["src/war/api.js"] = (function () {
 // The war update's service (v0.98.0): game.war. A thin facade over the record (src/war/state.js), the protection gate (protection.js), the damage gate (damage.js) and the
@@ -30882,6 +31198,9 @@ const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { baseProtected, setCoupState, settle } = __m["src/war/protection.js"];
 const { register: registerStructure, apply: applyDamage, repair: repairStructure, view: structureView } = __m["src/war/damage.js"];
 const { found: foundCompany, rename: renameCompany, fund: fundCompany, take: takeFromCompany, pay: companyPay, buyLicence: licenceBuy, buyLot: lotBuy, view: companyView, cash: companyCash } = __m["src/war/company.js"];
+const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } = __m["src/war/transfers.js"];
+const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
+const { housing: housingOf } = __m["src/war/equipment.js"];
 const { checkMilitary } = __m["src/war/check.js"];
 const { commission: commissionFacility, dailyTick: facilityDay, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -30913,7 +31232,7 @@ class War {
   commission(id) { return commissionFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
   repairFacility(id) { return repairFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
   repairCost(id) { return facilityRepairCost(this.g, id); }
-  capacity() { return baseCapacity(this.g); }
+  capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { facilityDay(this.g); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
@@ -30926,6 +31245,17 @@ class War {
   companyView() { return companyView(this.g); }
   /** Pay for something the company buys: from the company's own account only. */
   pay(amount, note) { return companyPay(this.g, amount, note); }
+
+  // ---- procurement (v0.99.0 stage 4): free transfers from your other companies, and what suppliers sell
+  offers() { return transferOffers(this.g); }
+  transfer(spec) { return transferIn(this.g, spec); }
+  giveBack(spec) { return transferBack(this.g, spec); }
+  buyVehicle(id) { return vehicleBuy(this.g, id); }
+  buySupply(id, qty) { return supplyBuy(this.g, id, qty); }
+  housing() { return housingOf(this.g); }
+  equipment() { return this.peek()?.company?.equipment || []; }
+  stock() { return this.peek()?.company?.stock || {}; }
+  transfers() { return this.peek()?.transfers || []; }
 
   summary() {
     const m = this.peek();
@@ -71601,12 +71931,55 @@ function intelApp(ui, body, open) {
 return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
+// ---- src/ui/militaryTransfers.js
+__m["src/ui/militaryTransfers.js"] = (function () {
+// The Military app's Transfers page (v0.99.0; mock-up proposal-war-oberpad-company.png page 2): what can move free from your other companies, what the company holds, and what suppliers sell.
+// Every button calls game.war; nothing here changes a record.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
+const { VEHICLES, VEHICLE_CLASSES, SUPPLIES } = __m["src/content/procurement.js"];
+const { stockName } = __m["src/war/equipment.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+
+function transfersTab(ui, body, go) {
+  const g = ui.game; const W = g.war;
+  const O = W.offers(); const H = W.housing(); const eq = W.equipment(); const st = Object.entries(W.stock());
+  const free = O.aero.length + O.arms.reduce((a, x) => a + x.have, 0);
+  body.append(
+    hero({ label: 'Free between your companies', value: `${n(free)} to move`, sub: 'Moving an item is not a sale: no money, no fee, no entry. What moves is gone from where it was.' }),
+    tiles([{ n: `${H.ground.used}/${H.ground.total}`, t: 'vehicle bays' }, { n: `${H.air.used}/${H.air.total}`, t: 'hangar bays' }, { n: `${n(H.stores.used)}/${n(H.stores.total)}`, t: 'stores' }]));
+  if (O.aero.length) body.append(label('From Aerospace · stored military aircraft'), list(...O.aero.map((a) => row({ icon: '✈️', title: a.name, sub: `Finished, in storage · quality ${a.quality}`, tag: 'free', tone: 'good', action: h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'aero', ref: a.ref })) }, 'Move') }))));
+  if (O.arms.length) body.append(label('From the Arms works · export cages'), list(...O.arms.map((a) => row({ icon: '🔫', title: `${a.name} · ${a.have}`, sub: a.from, tag: 'free', tone: 'good',
+    action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: 1 })) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: a.have })) }, 'All')) }))));
+  if (!O.aero.length && !O.arms.length) body.append(list(row({ icon: '—', title: 'Nothing waiting', sub: 'Stored military aircraft from Aerospace and weapons, rockets, missiles and drones from an Arms works\' export cage can move here.' })));
+  body.append(label('What the company holds'));
+  body.append(list(...(eq.length || st.length ? [
+    ...eq.map((x) => row({ icon: x.kind === 'aircraft' ? '✈️' : x.kind === 'helicopter' ? '🚁' : '🚙', title: `${x.name} · ${x.id}`, sub: `${x.location.replace('facility:', '').replace('_', ' ')} · ${x.status}${x.assignedTo ? ` · ${x.assignedTo}` : ''}`, tag: x.source === 'aero' ? 'from Aerospace' : x.source,
+      action: x.origin && x.status === 'stored' && !x.assignedTo ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ id: x.id })) }, 'Return') : null })),
+    ...st.map(([key, q]) => row({ icon: key.startsWith('arms:') ? '🔫' : '📦', title: `${stockName(g, key)} · ${n(q)}`, sub: key.startsWith('arms:') ? 'from the Arms works' : 'bought', action: key.startsWith('arms:') ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ key, qty: q })) }, 'Return all') : null })),
+  ] : [row({ icon: '—', title: 'Nothing yet', sub: 'Build the armoury cage for stores, a motor pool for vehicles and hangars for aircraft.' })])));
+  body.append(fold(ui, 'MilBuy', 'Buy from suppliers ›', (box) => {
+    const byClass = {};
+    for (const v of Object.values(VEHICLES)) if (v.source === 'bought') (byClass[v.class] ||= []).push(v);
+    for (const [cls, vs] of Object.entries(byClass)) box.append(label(VEHICLE_CLASSES[cls]), list(...vs.map((v) => row({ icon: '🚙', title: v.name, sub: v.text, tag: `${n(v.price)}`, action: h('button', { class: 'tb-mini pri', disabled: W.cash() < v.price, onclick: () => go(W.buyVehicle(v.id)) }, 'Buy') }))));
+    box.append(label('Supplies and parts'), list(...Object.entries(SUPPLIES).map(([id, s]) => row({ icon: s.group === 'part' ? '⚙️' : '📦', title: s.name, sub: s.text, tag: `${n(s.price)}`, action: h('span', {}, h('button', { class: 'tb-mini pri', disabled: W.cash() < s.price, onclick: () => go(W.buySupply(id, 1)) }, '1'), ' ', h('button', { class: 'tb-mini pri', disabled: W.cash() < s.price * 10, onclick: () => go(W.buySupply(id, 10)) }, '10')) }))));
+  }));
+  body.append(fold(ui, 'MilTrail', 'The trail of moves ›', (box) => box.append(list(...(W.transfers().length ? W.transfers().slice().reverse().map((t) => row({ icon: t.status === 'returned' ? '↩️' : '➡️', title: `${t.qty} × ${t.name}`, sub: `Day ${t.day} · ${t.from} → ${t.to}` })) : [row({ icon: '—', title: 'No moves yet', sub: 'A transfer is a line here, never a money entry.' })])))));
+  body.append(help('Rules of a transfer', 'It is free and happens in one step: it is either done or nothing changes. An item that is assigned, in use or destroyed cannot be returned, and what was bought or built here has nowhere to go back to. The company never builds planes, missiles, guns or ships.'));
+}
+
+return { transfersTab };
+})();
+
 // ---- src/ui/militaryApp.js
 __m["src/ui/militaryApp.js"] = (function () {
 // The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
 // the lot, order the base's buildings, and see what the base can hold. Every button calls game.war; nothing here writes the record.
 const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, note, n } = __m["src/ui/tabletKit.js"];
+const { hero, tiles, row, help, fold, note, n, segments } = __m["src/ui/tabletKit.js"];
+const { transfersTab } = __m["src/ui/militaryTransfers.js"];
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -71621,6 +71994,10 @@ function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
+  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }];
+  const tab = SEG.some((x) => x.id === ui.milTab) ? ui.milTab : 'Company';
+  body.append(segments(SEG, tab, (t) => { ui.milTab = t; open('Military'); }));
+  if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(

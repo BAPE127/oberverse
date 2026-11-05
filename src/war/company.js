@@ -31,7 +31,7 @@ export function found(game, rawName) {
   m.company.identity = { name: v.name, founded: game.clock.day, names: [{ day: game.clock.day, name: v.name }] };
   m.company.log.push({ day: game.clock.day, text: `${v.name} registered as a private security company.` });
   m.log.push({ day: game.clock.day, text: `${v.name} registered.` });
-  game.corp.account(ACCOUNT);
+  game.corp.account(ACCOUNT).funded = true; // its own account from the first day (zero cash): money coming in (a contract's pay) must never fall into your wallet
   return { ok: true, text: `${v.name} is registered. Pay money in, then buy the Civic Office's licence and the lot at Hollowmoor.` };
 }
 
