@@ -87,6 +87,8 @@ export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 120, h: 64 } };
 export const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
 /** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */
 export const MAP_VER = 2;
+/** The rules version of the simulation: a setup carries the one it was made under, and anything that runs without an order (a medic tending, a helicopter's station time, anti-air) is on only from rules 3, so a battle saved earlier replays the way it was played. */
+export const RULES = 3;
 
 /** National architecture, as data (docs/PROPOSAL_WAR_MAPS.md): floors a building has, and the colours the roof painter uses. Other countries map to the nearest of the five. */
 export const STYLES = {

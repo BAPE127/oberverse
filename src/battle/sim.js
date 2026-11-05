@@ -18,7 +18,8 @@ export const isVeh = (u) => u.kind !== 'inf';
 
 export function createBattle(setup) {
   const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
-  const B = { key: setup.key, setup, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
+  const rules = setup.rules ?? (setup.map.ver >= 2 ? 2 : 1); // 1: v0.101.0; 2: v0.102.0 (modules and facing); 3: v0.102.1 (what runs without an order): a setup says which rules it was made under, and replays under them
+  const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
     ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], wall: new Map(), rubble: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
     const s = side === 'p' ? map.spawns.p : map.spawns.e;
@@ -31,7 +32,7 @@ export function createBattle(setup) {
         if (!taken.has(k) && canStand(map, x, y, spec.kind === 'inf' ? 'inf' : spec.kind === 'helicopter' ? 'heli' : 'veh') && map.bid[idx(map, x, y)] < 0) spot = { x, y, k };
       }
       spot ||= { x: s.x, y: s.y, k: 'x' }; taken.add(spot.k);
-      const u = makeUnit(spec, side, spot.x + 0.5, spot.y + 0.5);
+      const u = makeUnit(spec, side, spot.x + 0.5, spot.y + 0.5, rules);
       B.units.push(u); B.byId.set(u.id, u);
     });
   };
@@ -41,8 +42,8 @@ export function createBattle(setup) {
   return B;
 }
 
-function makeUnit(spec, side, x, y) {
-  const W = WEAPONS[spec.weapon] || WEAPONS.none; const ground = spec.kind !== 'inf' && spec.kind !== 'helicopter';
+function makeUnit(spec, side, x, y, rules = 2) {
+  const W = WEAPONS[spec.weapon] || WEAPONS.none; const ground = spec.kind !== 'inf' && spec.kind !== 'helicopter' && rules >= 2;
   return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
     fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
     moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0,
