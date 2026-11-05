@@ -4,10 +4,12 @@
 export const TICK = { perSecond: 10, maxSeconds: 480, decide: 5 };
 
 /** Tile kinds on a battle map. Walls block sight and movement; windows pass sight and shots but not people; trees block sight; hedges and crops give cover. */
-export const TILE = { GROUND: 0, ROAD: 1, WALL: 2, WATER: 3, TREE: 4, HEDGE: 5, FLOOR: 6, DOOR: 7, WINDOW: 8, STAIRS: 9, CROP: 10 };
+export const TILE = { GROUND: 0, ROAD: 1, WALL: 2, WATER: 3, TREE: 4, HEDGE: 5, FLOOR: 6, DOOR: 7, WINDOW: 8, STAIRS: 9, CROP: 10, TRENCH: 11, WIRE: 12 };
+/** Trenches (v0.102.1) are walkable by people and give sandbag cover; wire is walkable by people at a crawl (a fraction of their speed) and stops vehicles. */
+export const WIRE_SLOW = 0.4;
 
 /** The chance a shot is absorbed by what the target stands in or behind (docs/PROPOSAL_WAR_TACTICAL.md section 5). */
-export const COVER = { open: 0, hedge: 0.25, crop: 0.25, tree: 0.25, building: 0.75, window: 0.85 };
+export const COVER = { open: 0, hedge: 0.25, crop: 0.25, tree: 0.25, building: 0.75, window: 0.85, trench: 0.75 };
 
 /** Each floor above the ground adds this much sight and reach (tiles); roofs and low walls stop blocking from above. */
 export const HEIGHT = { sight: 3, reach: 1 };
@@ -82,7 +84,7 @@ export const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
 export const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
 
 /** The two battle recipes of this release (the other recipes come with the later sub-releases). */
-export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 120, h: 64 } };
+export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 120, h: 64 }, trench: { w: 120, h: 74 }, compound: { w: 96, h: 72 }, forest: { w: 120, h: 76 } };
 /** The sizes of the first generation of maps (v0.101.0), kept so a battle saved mid-way replays on the map it began on (setup.map.ver absent). */
 export const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
 /** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */

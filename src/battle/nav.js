@@ -7,10 +7,10 @@ export function canStand(m, x, y, kind) {
   if (!inb(m, x, y)) return false;
   const t = m.tiles[idx(m, x, y)];
   if (kind === 'heli') return true;
-  if (kind === 'inf') return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS;
+  if (kind === 'inf') return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS || t === TILE.TRENCH || t === TILE.WIRE;
   return t === TILE.GROUND || t === TILE.ROAD || t === TILE.CROP;
 }
-const cost = (t) => (t === TILE.ROAD ? 1 : t === TILE.HEDGE ? 1.8 : t === TILE.CROP ? 1.3 : t === TILE.DOOR ? 1.4 : 1.1);
+const cost = (t) => (t === TILE.WIRE ? 2.6 : t === TILE.TRENCH ? 1.2 : t === TILE.ROAD ? 1 : t === TILE.HEDGE ? 1.8 : t === TILE.CROP ? 1.3 : t === TILE.DOOR ? 1.4 : 1.1);
 
 /** A* (eight directions; no cutting a corner past a wall). Returns [{x,y}...] from the next tile to the goal, or [] when there is no way. `kind` is 'inf', 'veh' or 'heli'. */
 export function findPath(m, from, to, kind = 'inf') {

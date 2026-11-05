@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generate, reachable, idx, walkable } from '../src/battle/map.js';
-import { createBattle } from '../src/battle/sim.js';
+import { createBattle, step } from '../src/battle/sim.js';
 import { buildSetup } from '../src/battle/setup.js';
 import { canStand } from '../src/battle/nav.js';
 import { TILE, STYLES, RECIPES, styleOf } from '../src/content/battle.js';
@@ -69,4 +69,22 @@ test('a map carries its ground glyphs, props and cars (v0.102.0), and a battle s
   }
   const setup = buildSetup({ key: 'K|ver', eng: eng({ recipe: 'city' }), people: people(4), vehicles: [] }); assert.equal(setup.map.ver, 2);
   const saved = JSON.parse(JSON.stringify(setup)); delete saved.map.ver; assert.equal(createBattle(saved).map.w, 72); assert.equal(createBattle(setup).map.w, RECIPES.city.w);
+});
+
+test('the trench line, the compound and the forest (v0.102.1): every building and the objective can be walked to on every seed, style and biome; trenches give cover, wire slows people and stops vehicles, a compound has one gate', () => {
+  for (const recipe of ['trench', 'compound', 'forest']) for (const style of Object.keys(STYLES)) for (const biome of ['rural', 'desert', 'tundra', 'jungle']) for (const sd of ['a', 'b']) {
+    const m = generate({ recipe, seed: `${recipe}-${sd}`, style, biome }); assert.equal(m.w, RECIPES[recipe].w); assert.ok(reachable(m).ok, `${recipe}/${style}/${biome}/${sd}`);
+    assert.ok(m.buildings.length >= 4, `${recipe}: ${m.buildings.length} buildings`);
+  }
+  const t = generate({ recipe: 'trench', seed: 'cover', style: 'halvermouth' }); const kinds = new Set(t.tiles); assert.ok(kinds.has(TILE.TRENCH) && kinds.has(TILE.WIRE), 'trenches and wire'); assert.ok(t.decor.trench.length > 200 && t.decor.craters.length > 100 && t.decor.wires.length === 4);
+  assert.ok(canStand(t, t.decor.trench[0].split(',')[0] | 0, t.decor.trench[0].split(',')[1] | 0, 'inf'), 'a person stands in a trench'); const wi = Array.from(t.tiles).indexOf(TILE.WIRE); assert.ok(canStand(t, wi % t.w, Math.floor(wi / t.w), 'inf') && !canStand(t, wi % t.w, Math.floor(wi / t.w), 'veh'), 'wire: people yes, vehicles no');
+  const tile = Array.from(t.tiles).indexOf(TILE.TRENCH); assert.ok(tile >= 0); const c = generate({ recipe: 'compound', seed: 'gate', style: 'varnistan', biome: 'desert' }); assert.ok(Array.from(c.tiles).filter((v) => v === TILE.WALL).length > 100, 'a wall round the compound');
+});
+
+test('a played battle on each new recipe runs to its end and every unit starts on something it can stand on', () => {
+  for (const recipe of ['trench', 'compound', 'forest']) {
+    const B = createBattle(buildSetup({ key: `K|${recipe}`, eng: eng({ recipe, style: recipe === 'compound' ? 'varnistan' : 'sund' }), people: people(10), vehicles: [{ id: 'T1', name: 'Anvil', cls: 'tank', armour: 3, firepower: 3, speed: 3 }], ai: { p: true, e: true } }));
+    for (const u of B.units) assert.ok(canStand(B.map, Math.floor(u.x), Math.floor(u.y), u.kind === 'inf' ? 'inf' : u.kind === 'helicopter' ? 'heli' : 'veh'), `${recipe}: ${u.id} stands`);
+    for (let i = 0; i < 4800 && !B.over; i++) step(B); assert.ok(B.tick > 100, recipe);
+  }
 });

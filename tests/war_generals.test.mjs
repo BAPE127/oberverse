@@ -165,7 +165,7 @@ test('engagements are offered once a command post stands, by hash, with needs th
   let first = null; for (let i = 0; i < 120 && !first; i++) { days(a, 1); days(none, 1); first = a.war.engagements().open[0]; }
   assert.ok(first, 'an offer turns up'); const twin = none.war.engagements().open.find((x) => x.title === first.title); assert.ok(twin, 'and it is the same game, so the same offer');
   assert.ok(first.needs.troops >= 6 && first.pay > 0 && first.enemy.troops > 0 && first.expires > first.offered);
-  const st = ATLAS.states.find((x) => x.name === first.region); assert.ok(st, 'it is in a state of the atlas'); assert.ok(first.place === first.region || ATLAS.places.some((pl) => pl.name === first.place && pl.state === st.id), 'at a real place in it'); assert.ok(['city', 'fields'].includes(first.recipe) && first.style); assert.ok(Object.values(ATLAS.countries).some((c) => c.name === first.client));
+  const st = ATLAS.states.find((x) => x.name === first.region); assert.ok(st, 'it is in a state of the atlas'); assert.ok(first.place === first.region || ATLAS.places.some((pl) => pl.name === first.place && pl.state === st.id), 'at a real place in it'); assert.ok(['city', 'fields', 'trench', 'compound', 'forest'].includes(first.recipe) && first.style); assert.ok(Object.values(ATLAS.countries).some((c) => c.name === first.client));
   assert.ok(['forest', 'mountain', 'urban', 'industrial', 'rural', 'desert'].includes(first.terrain));
   for (const [b, t] of [['taiga', 'forest'], ['desert', 'desert'], [null, 'rural']]) assert.equal(terrainOf(b), t);
   for (let i = 0; i < 40; i++) days(a, 1);

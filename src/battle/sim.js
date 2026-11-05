@@ -6,7 +6,7 @@
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-import { TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
+import { WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
 import { OUTCOMES } from '../war/combat.js';
 import { generate, idx, inb, tileAt, walkable } from './map.js';
 import { findPath, los, canStand } from './nav.js';
@@ -80,6 +80,7 @@ function coverFor(B, t, from) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (tileAt(B.map, x + dx, y + dy) === TILE.WINDOW) return COVER.window;
     return COVER.building;
   }
+  if (tile === TILE.TRENCH) return COVER.trench;
   if (tile === TILE.HEDGE) return COVER.hedge; if (tile === TILE.CROP) return COVER.crop;
   const x = Math.floor(t.x); const y = Math.floor(t.y); const sx = Math.sign(from.x - t.x); const sy = Math.sign(from.y - t.y);
   const n = tileAt(B.map, x + sx, y + sy); const n2 = tileAt(B.map, x + sx, y); const n3 = tileAt(B.map, x, y + sy);
@@ -212,7 +213,7 @@ function moveAlong(B, u, speed) {
   }
   return u.moving;
 }
-const speedOf = (B, u) => (u.kind === 'inf' ? (B.map.bid[idx(B.map, Math.floor(u.x), Math.floor(u.y))] >= 0 ? SPEED.indoors : SPEED.infantry) * (1 - 0.3 * (u.fatigueP || 0)) : u.speed * trackFactor(u));
+const speedOf = (B, u) => (u.kind === 'inf' ? (B.map.bid[idx(B.map, Math.floor(u.x), Math.floor(u.y))] >= 0 ? SPEED.indoors : SPEED.infantry) * (1 - 0.3 * (u.fatigueP || 0)) * (tileAt(B.map, Math.floor(u.x), Math.floor(u.y)) === TILE.WIRE ? WIRE_SLOW : 1) : u.speed * trackFactor(u));
 
 /** A standable tile near a point (nearest first), or null. */
 function standNear(B, x, y, kind) { for (let r = 0; r < 6; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue; const tx = Math.floor(x) + i; const ty = Math.floor(y) + j; if (canStand(B.map, tx, ty, kind) && B.map.bid[idx(B.map, tx, ty)] < 0) return { x: tx + 0.5, y: ty + 0.5 }; } return null; }

@@ -13,7 +13,7 @@ const W = TILE.WALL;
 export const idx = (m, x, y) => y * m.w + x;
 export const inb = (m, x, y) => x >= 0 && y >= 0 && x < m.w && y < m.h;
 export const tileAt = (m, x, y) => (inb(m, x, y) ? m.tiles[idx(m, x, y)] : TILE.WALL);
-export const walkable = (m, x, y) => { const t = tileAt(m, Math.floor(x), Math.floor(y)); return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS; };
+export const walkable = (m, x, y) => { const t = tileAt(m, Math.floor(x), Math.floor(y)); return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS || t === TILE.TRENCH || t === TILE.WIRE; };
 /** A wall (or a tree) stops a look unless the viewer is above it: a building of f floors blocks a look from any floor below f. */
 export function blocksSight(m, x, y, z) {
   const i = idx(m, x, y); const t = m.tiles[i];
@@ -229,10 +229,78 @@ function fieldsV2(m) {
   m.objective = { x: rx + 1, y: ty + 1 }; m.spawns = { p: { x: 3, y: ty + 1 }, e: { x: W - 4, y: ty + 1 } }; m.exit = { x: W - 2, y: ty + 1 };
 }
 
+
+// ------------------------------------------------------------------------------------------------- the other recipes (v0.102.1): the trench line, the compound and the forest, from the mock-up's generator
+// New functions: the city and the fields above are never touched (a saved map must stay what it was; see tests/battle_frozen.test.mjs).
+const ih = (a, b = 0, c = 0) => { let h = ((a | 0) * 374761393 + (b | 0) * 668265263 + (c | 0) * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const vnoise = (x, y, sd) => { const xi = Math.floor(x); const yi = Math.floor(y); const xf = x - xi; const yf = y - yi; const sm = (t) => t * t * (3 - 2 * t); const a = ih(xi, yi, sd); const b = ih(xi + 1, yi, sd); const c = ih(xi, yi + 1, sd); const d = ih(xi + 1, yi + 1, sd); const u = sm(xf); const v = sm(yf); return (a + (b - a) * u) + ((c + (d - c) * u) - (a + (b - a) * u)) * v; };
+const fbm = (x, y, sd) => 0.55 * vnoise(x, y, sd) + 0.3 * vnoise(x * 2.1, y * 2.1, sd + 5) + 0.15 * vnoise(x * 4.3, y * 4.3, sd + 9);
+const seedOf = (m) => Math.floor(unit(`${m.seed}|n`) * 1e6);
+
+function trenchV2(m) {
+  const R = rngOf(`${m.seed}|trench`); const { w: W, h: H } = m; const A = m.art; const base = BASE[A.biome]; const sd = seedOf(m);
+  rect(m, 0, 0, W, H, base); if (A.biome === 'mud') rect(m, 0, 0, W, H, 'u');
+  const cells = new Set(); const gap = (y) => (y >= 18 && y <= 21) || (y >= 52 && y <= 55); // crossings, so a tank can get over a line
+  const add = (x, y) => { if (x >= 0 && y >= 0 && x < W && y < H && !(gap(y) && (x === 36 || x === 37 || x === 82 || x === 83 || x === 33 || x === 39 || x === 81 || x === 85 || x === 14 || x === 106))) cells.add(`${x},${y}`); };
+  for (const [X, dir] of [[36, 1], [84, -1]]) { let x = X; for (let y = 6; y < H - 6; y++) { add(x, y); add(x + dir, y); if ((y - 6) % 8 === 7) { const jog = (Math.floor((y - 6) / 8) % 2) ? -3 : 3; for (let k = 0; k <= 3; k++) add(x + (jog > 0 ? k : -k) * dir, y); x += jog * dir; } } } // front lines with bays
+  for (const X of [14, 106]) for (let y = 6; y < H - 6; y++) add(X, y); // support lines
+  for (const y of [14, 30, 44, 60]) { for (let x = 14; x <= 36; x++) add(x, y); for (let x = 84; x <= 106; x++) add(x, y); } // communication trenches
+  for (const y of [22, 38, 52]) { for (let x = 36; x <= 44; x++) add(x, y); for (let x = 76; x <= 84; x++) add(x, y); } // saps into no man's land
+  for (const k of cells) { const [cx, cy] = k.split(',').map(Number); for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) { const x = cx + dx; const y = cy + dy; if (inb(m, x, y) && sget(m, x, y) === base && ih(x, y, sd) < 0.9 - (Math.abs(dx) + Math.abs(dy)) * 0.12) sset(m, x, y, A.biome === 'snow' ? 'u' : ':'); } }
+  for (let y = 0; y < H; y++) for (let x = 36; x < 86; x++) if (sget(m, x, y) === base && fbm(x / 6, y / 6, sd) > 0.56) sset(m, x, y, 'u');
+  rect(m, 4, 36, 4, 3, ':'); rect(m, 0, 36, 14, 2, ':'); rect(m, 110, 36, 10, 2, ':');
+  // wire across no man's land (with two gaps in each line) and craters
+  const wires = []; for (const X of [48, 52, 68, 72]) { const pts = []; for (let y = 2; y < H - 2; y += 5.5) pts.push([X + Math.round(Math.sin(y + X) * 0.6), y]); wires.push(pts); for (let y = 2; y < H - 2; y++) if (!((y >= 17 && y <= 21) || (y >= 54 && y <= 58))) m.wire.push([X, y]); }
+  const crater = (x0, x1, n, k0, rmax) => Array.from({ length: n }, (_, i) => [Math.round((x0 + R() * (x1 - x0)) * 16) * 2, Math.round((3 + R() * (H - 6)) * 16) * 2, rmax > 12 ? 8 + Math.floor(R() * 14) : 6 + Math.floor(R() * 8), k0 + i]);
+  m.decor = { trench: [...cells], wires, craters: [...crater(40, 80, 90, 0, 22), ...crater(18, 38, 40, 100, 14)], seed: sd };
+  // dugouts, a ruined farm in no man's land, dead trees, supply
+  for (const [x, y] of [[8, 20], [8, 48], [108, 22], [108, 50]]) plan(m, x, y, 4, 4, 1, { wall: '#5a4a34', roof: '#5a4a34', roofKind: 'flat', name: 'Dugout', astyle: 'halver' });
+  plan(m, 56, 30, 7, 6, 1, { wall: '#a09070', roofKind: 'gable', dmg: 'hole', astyle: 'ostmark' }); plan(m, 62, 42, 5, 5, 1, { wall: '#8a7e66', roofKind: 'gable', dmg: 'burn', astyle: 'ostmark' });
+  for (let i = 0; i < 26; i++) prop(m, 'tree', 42 + Math.floor(R() * 36), 3 + Math.floor(R() * (H - 8)), { color: '#6a5a48' });
+  for (let i = 0; i < 8; i++) prop(m, i % 2 ? 'barrel' : 'crate', 8 + i, 40); for (let i = 0; i < 10; i++) prop(m, 'barrel', 104 + (i % 5), 56 + Math.floor(i / 5));
+  prop(m, 'tent', 6, 30, { color: '#5a7a6a' }); prop(m, 'tent', 8, 33, { color: '#5a7a6a' }); prop(m, 'tent', 112, 32, { color: '#7a6a5a' });
+  m.objective = { x: 60, y: 37 }; m.spawns = { p: { x: 10, y: 37 }, e: { x: W - 11, y: 37 } }; m.exit = { x: W - 2, y: 37 };
+}
+
+function compoundV2(m) {
+  const R = rngOf(`${m.seed}|compound`); const { w: W, h: H } = m; const A = m.art; const base = BASE[A.biome]; const tc = TREES[A.biome][0]?.[1] || '#4f7a4a';
+  rect(m, 0, 0, W, H, base); const cx0 = 26; const cy0 = 14; const cw = 44; const ch = 34;
+  rect(m, cx0 - 3, cy0 - 3, cw + 6, ch + 6, A.biome === 'desert' ? 's' : '.'); rect(m, cx0, cy0, cw, ch, 'g'); rect(m, cx0 + 18, cy0 + ch, 6, H - cy0 - ch, ':'); rect(m, cx0 + 20, cy0 + ch, 2, H - cy0 - ch, ':');
+  for (let x = 0; x < cw; x++) if (x < 20 || x > 23) { sset(m, cx0 + x, cy0, 'W'); sset(m, cx0 + x, cy0 + ch - 1, 'W'); } for (let y = 0; y < ch; y++) { sset(m, cx0, cy0 + y, 'W'); sset(m, cx0 + cw - 1, cy0 + y, 'W'); }
+  const B = (x, y, w, h, floors, e = {}) => plan(m, x, y, w, h, floors, { astyle: A.style, ...e });
+  B(cx0 + 14, cy0 + 5, 10, 11, 3, { name: 'Main house' }); B(cx0 + 2, cy0 + 8, 9, 7, 1, { name: 'Barracks' }); B(cx0 + 2, cy0 + 18, 9, 7, 1, { name: 'Barracks' }); B(cx0 + 32, cy0 + 8, 9, 7, 2, { name: 'Garage' }); B(cx0 + 24, cy0 + 19, 11, 7, 1, { name: 'Store' }); B(cx0 + 14, cy0 + 21, 6, 6, 1, { name: 'Generator' });
+  for (const [bx, by] of [[cx0 + 1, cy0 + 1], [cx0 + cw - 6, cy0 + 1], [cx0 + 1, cy0 + ch - 9], [cx0 + cw - 6, cy0 + ch - 9]]) B(bx, by, 5, 5, 2, { roofKind: 'flat', wall: '#a8a498', astyle: 'halver', name: 'Guard tower' });
+  B(cx0 + 24, cy0 + ch + 2, 4, 5, 1, { wall: '#a8a498', astyle: 'halver', name: 'Gatehouse' });
+  for (let i = 0; i < 4; i++) prop(m, 'streetlamp', cx0 + 4 + i * 11, cy0 + 16); prop(m, 'helipad', cx0 + 32, cy0 + 12, { w: 4, h: 4 }); prop(m, 'watertower', cx0 + 40, cy0 + 28, { w: 4, h: 5 }); for (let i = 0; i < 5; i++) prop(m, i % 2 ? 'crate' : 'barrel', cx0 + 31 + i, cy0 + 28); prop(m, 'flagpole', cx0 + 17, cy0 + 17, { color: '#8a2a2a' });
+  rect(m, 0, 62, W, 4, '='); rect(m, cx0 + 18, cy0 + ch + 6, 6, 62 - cy0 - ch - 6, '=');
+  for (let x = cx0 - 6; x < cx0 + cw + 6; x += 2) prop(m, 'chainfence', x, cy0 - 6); for (let y = cy0 - 6; y < cy0 + ch + 6; y += 2) { prop(m, 'chainfence', cx0 - 6, y); prop(m, 'chainfence', cx0 + cw + 5, y); } for (let x = cx0 - 6; x < cx0 + cw + 6; x += 2) if (x < cx0 + 17 || x > cx0 + 28) prop(m, 'chainfence', x, cy0 + ch + 5);
+  scatter(m, R, 120, (x, y) => sget(m, x, y) === base && (x < cx0 - 8 || x > cx0 + cw + 8 || y < cy0 - 8)); for (let i = 0; i < 12; i++) prop(m, 'rock', Math.floor(R() * W), Math.floor(R() * H));
+  void tc; for (let i = 0; i < 4; i++) car(m, ['jeep', 'truck', 'sedan', 'van'][i], ['#566a3e', '#3a5a8a', '#2a2a2e', '#a8a8a8'][i], ['E', 'E', 'W', 'N'][i], (cx0 + 34 + (i % 3) * 3) * 32, (cy0 + 11 + Math.floor(i / 3) * 3 + (i === 3 ? 6 : 0)) * 32);
+  m.objective = { x: cx0 + 19, y: cy0 + 17 }; m.spawns = { p: { x: cx0 + 21, y: 67 }, e: { x: W - 4, y: 63 } }; m.exit = { x: W - 2, y: 63 };
+}
+
+function forestV2(m) {
+  const R = rngOf(`${m.seed}|forest`); const { w: W, h: H } = m; const A = m.art; const base = BASE[A.biome]; const sd = seedOf(m); const B = TREES[A.biome].length ? TREES[A.biome] : [['pine', '#4f7a4a']];
+  rect(m, 0, 0, W, H, base); if (A.biome === 'mud') rect(m, 0, 0, W, H, 'u');
+  const sy = (x) => 34 + Math.round(8 * Math.sin(x / 11) + 3 * Math.sin(x / 4)); for (let x = 0; x < W; x++) rect(m, x, sy(x) - 1, 1, 3, '~'); for (let x = 54; x < 60; x++) rect(m, x, sy(x) - 1, 1, 3, 'b');
+  const trail = (pts) => { for (let i = 0; i < pts.length - 1; i++) { const [x1, y1] = pts[i]; const [x2, y2] = pts[i + 1]; const n = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)); for (let k = 0; k <= n; k++) { const x = Math.round(x1 + ((x2 - x1) * k) / n); const y = Math.round(y1 + ((y2 - y1) * k) / n); const c = sget(m, x, y); if (c !== '~' && c !== 'b') rect(m, x, y, 2, 2, ':'); } } };
+  trail([[0, 62], [30, 56], [56, 46], [57, 36], [60, 20], [90, 12], [119, 8]]); trail([[56, 46], [80, 58], [119, 62]]); trail([[60, 20], [40, 10], [10, 6]]);
+  rect(m, 16, 54, 14, 10, ':'); rect(m, 86, 14, 12, 9, ':');
+  for (const [bx, by, w, h] of [[18, 52, 5, 5], [24, 56, 5, 5], [88, 14, 6, 5], [93, 19, 5, 5]]) plan(m, bx, by, w, h, 1, { wall: '#7a5a3a', roof: '#3a3436', roofKind: 'gable', astyle: 'sund', name: 'Cabin' });
+  plan(m, 58, 8, 9, 7, 2, { wall: '#6a4a2a', roofKind: 'gable', roof: '#3a3436', astyle: 'sund', name: 'Lodge' });
+  const clear = (x, y) => (x > 14 && x < 32 && y > 50 && y < 66) || (x > 84 && x < 100 && y > 12 && y < 26) || (x > 55 && x < 70 && y > 5 && y < 17) || (x > 54 && x < 62 && y > 32 && y < 42);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = sget(m, x, y); if (c !== base && c !== 'u') continue; if (clear(x, y)) continue; const d = fbm(x / 9, y / 9, sd); if (d > 0.36 && ih(x, y, sd) < (d - 0.22) * 1.25) { const [type, color] = B[Math.floor(ih(x, y, 9) * B.length)]; prop(m, type, x, y, { color }); } }
+  for (let i = 0; i < 40; i++) { const x = Math.floor(R() * W); const y = Math.floor(R() * H); const c = sget(m, x, y); if (c === base || c === 'u') prop(m, ['bush', 'rock', 'lumber'][i % 3], x, y, i % 3 === 2 ? { w: 2 } : {}); }
+  for (let i = 0; i < 5; i++) prop(m, 'lumber', 18 + i * 2, 51, { w: 2 }); prop(m, 'barrelfire', 25, 54); prop(m, 'tent', 30, 55, { color: '#5a7a6a' });
+  m.objective = { x: 57, y: 38 }; m.spawns = { p: { x: 3, y: 62 }, e: { x: W - 4, y: 8 } }; m.exit = { x: W - 2, y: 8 };
+}
+
 /** The sim's tiles from the glyph ground, the props and the planned buildings; props that sit on a wall, a road or the water are dropped. */
 function finish2(m) {
   const { w, h } = m;
-  for (let i = 0; i < w * h; i++) { const c = String.fromCharCode(m.surf[i]); m.tiles[i] = c === '=' || c === 'b' ? TILE.ROAD : c === '~' ? TILE.WATER : c === 'k' ? TILE.CROP : TILE.GROUND; }
+  for (let i = 0; i < w * h; i++) { const c = String.fromCharCode(m.surf[i]); m.tiles[i] = c === '=' || c === 'b' ? TILE.ROAD : c === '~' ? TILE.WATER : c === 'k' ? TILE.CROP : c === 'W' ? TILE.WALL : TILE.GROUND; if (c === 'W') m.bfloors[i] = 1; }
+  for (const k of m.decor?.trench || []) { const [x, y] = k.split(',').map(Number); if (inb(m, x, y) && m.tiles[idx(m, x, y)] === TILE.GROUND) m.tiles[idx(m, x, y)] = TILE.TRENCH; }
+  for (const [x, y] of m.wire) if (inb(m, x, y) && m.tiles[idx(m, x, y)] === TILE.GROUND) m.tiles[idx(m, x, y)] = TILE.WIRE;
   for (const p of m.plans) building(m, p.x, p.y, p.w, p.h, p.floors, { astyle: m.art.style, ...p.extra }, 0);
   const keep = [];
   for (const p of m.props) {
@@ -242,14 +310,15 @@ function finish2(m) {
     const big = (p.w || 1) > 1 || (p.h || 1) > 1; if (big && !flat) { let ok = true; for (let j = 0; j < (p.h || 1); j++) for (let k = 0; k < (p.w || 1); k++) if (!inb(m, p.x + k, p.y + j) || m.bid[idx(m, p.x + k, p.y + j)] >= 0) ok = false; if (!ok) continue; }
     if (p.type === 'tree' || p.type === 'pine') { if (m.tiles[i] === TILE.GROUND) m.tiles[i] = TILE.TREE; else continue; }
     else if (p.type === 'bush') { if (m.tiles[i] === TILE.GROUND) m.tiles[i] = TILE.HEDGE; else continue; }
+    else if (p.type === 'chainfence') { if (m.tiles[i] === TILE.GROUND) m.tiles[i] = TILE.WIRE; else continue; }
     keep.push({ id: `p${keep.length}`, ...p });
   }
-  m.props = keep; delete m.plans;
+  m.props = keep; delete m.plans; delete m.wire;
 }
 
 export function generate({ recipe = 'fields', biome = 'rural', style = 'sund', seed = 'seed', ver = MAP_VER } = {}) {
   const m = blank(recipe, biome, style, String(seed), ver);
-  if (ver >= 2) { m.surf = new Uint8Array(m.w * m.h).fill(46); m.props = []; m.cars = []; m.fields = []; m.plans = []; m.art = { style: ART_STYLE[style] || 'halver', biome: ART_BIOME[biome] || 'temperate' }; if (recipe === 'city') cityV2(m); else fieldsV2(m); finish2(m); }
+  if (ver >= 2) { m.surf = new Uint8Array(m.w * m.h).fill(46); m.props = []; m.cars = []; m.fields = []; m.plans = []; m.wire = []; m.art = { style: ART_STYLE[style] || 'halver', biome: ART_BIOME[biome] || 'temperate' }; ({ city: cityV2, trench: trenchV2, compound: compoundV2, forest: forestV2 }[recipe] || fieldsV2)(m); finish2(m); }
   else if (recipe === 'city') cityV1(m); else fieldsV1(m);
   // make sure nothing is cut off: link any building whose door cannot be reached to the objective by a road
   for (let pass = 0; pass < 3; pass++) {

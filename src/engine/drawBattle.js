@@ -33,7 +33,7 @@ function legacyDecor(map) {
 /** A building's roof-and-facade, painted once to its own canvas (with room for its shadow): the painter makes thousands of strokes, far too many to repeat sixty times a second. */
 function bakeBuilding(b) {
   const c = mkCanvas(b.w * TP + 24, b.h * TP + 22); const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  drawRoofed(g, { ...b, x: 0, y: 0, style: b.astyle, door: { x: b.door.x - b.x, y: b.door.y - b.y } }, {});
+  drawRoofed(g, { ...b, x: 0, y: 0, style: b.astyle, door: { x: b.door.x - b.x, y: b.door.y - b.y } }, { damage: b.dmg });
   return c;
 }
 

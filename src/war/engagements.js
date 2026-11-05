@@ -239,7 +239,9 @@ function offerOne(game, C, day) {
   // a place inside that state: a city or a town makes a street fight, anything else the open country (docs/WAR.md: Battles)
   const here = ATLAS.places.filter((pl) => pl.state === st.id);
   const spot = here.length ? pick(here, unit(`${s}|spot`)) : null;
-  const recipe = spot && (spot.kind === 'c' || spot.kind === 't') ? 'city' : 'fields';
+  const terrain = terrainOf(st.biome); const pk = spot?.kind;
+  // a city or a town is a street fight; a base or a works a compound; a fort or a pass the trench line; the forest of a forest state; open country otherwise (and now and then the trench line for a post that is held or retaken)
+  const recipe = pk === 'c' || pk === 't' ? 'city' : pk === 'b' || pk === 'r' ? 'compound' : pk === 'f' ? 'trench' : terrain === 'forest' ? 'forest' : (kindId === 'hold' || kindId === 'retake') && terrain === 'rural' && unit(`${s}|rc`) < 0.3 ? 'trench' : 'fields';
   const scale = 1 + Math.max(0, rep) * E.repScale;
   const needs = { troops: Math.min(60, Math.round(between(K.troops, unit(`${s}|t`)) * scale)), tanks: Math.min(6, Math.round(between(K.tanks, unit(`${s}|tk`)) * Math.sqrt(scale))), helicopters: Math.min(4, Math.round(between(K.helicopters, unit(`${s}|h`)) * Math.sqrt(scale))), medics: Math.min(4, between(K.medics, unit(`${s}|m`))) };
   const mult = K.enemy[0] + unit(`${s}|e`) * (K.enemy[1] - K.enemy[0]);

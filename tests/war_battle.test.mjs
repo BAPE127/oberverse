@@ -61,10 +61,10 @@ test('a battle nobody fights by the last day is fought by the aggregate function
 });
 
 test('the place of an engagement is a real place in the atlas: a city or a town makes a street fight and anywhere else open country, and both come up from real offers', () => {
-  const seen = { city: 0, fields: 0 }; const kinds = new Set();
+  const seen = { city: 0, fields: 0, trench: 0, compound: 0, forest: 0 }; const kinds = new Set();
   for (let seed = 1100; seed < 1106 && (seen.city < 2 || seen.fields < 2); seed++) {
     const g = warGame(seed, { cash: 8_000_000 }); buildAll(g, 2);
-    for (let d = 0; d < 260; d++) { days(g, 1); for (const e of g.war.engagements().open) { if (e._seen) continue; e._seen = true; seen[e.recipe]++; kinds.add(`${e.recipe}:${e.placeKind}`); assert.ok(['city', 'fields'].includes(e.recipe)); if (e.recipe === 'city') assert.ok(['c', 't'].includes(e.placeKind), `a ${e.placeKind} is not a city`); else assert.ok(!['c', 't'].includes(e.placeKind)); assert.ok(['rural', 'forest', 'mountain', 'desert'].includes(e.terrain)); } }
+    for (let d = 0; d < 260; d++) { days(g, 1); for (const e of g.war.engagements().open) { if (e._seen) continue; e._seen = true; seen[e.recipe]++; kinds.add(`${e.recipe}:${e.placeKind}`); assert.ok(['city', 'fields', 'trench', 'compound', 'forest'].includes(e.recipe)); if (e.recipe === 'city') assert.ok(['c', 't'].includes(e.placeKind), `a ${e.placeKind} is not a city`); else assert.ok(!['c', 't'].includes(e.placeKind)); if (e.recipe === 'compound') assert.ok(['b', 'r'].includes(e.placeKind)); if (e.recipe === 'forest') assert.equal(e.terrain, 'forest'); assert.ok(['rural', 'forest', 'mountain', 'desert'].includes(e.terrain)); } }
   }
   assert.ok(seen.city >= 1 && seen.fields >= 1, `both recipes: ${JSON.stringify(seen)} ${[...kinds]}`);
 });
