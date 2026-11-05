@@ -57,3 +57,16 @@ test('the enemy is exactly what the engagement says and your side is exactly you
   }
   assert.ok(walkable(generate({ recipe: 'fields', seed: 'w' }), 3, 24) !== undefined);
 });
+
+test('a map carries its ground glyphs, props and cars (v0.102.0), and a battle saved without a map version replays on the first generation', () => {
+  for (const recipe of ['city', 'fields']) {
+    const m = generate({ recipe, seed: 'glyph', style: 'ostmark' });
+    assert.equal(m.ver, 2); assert.equal(m.surf.length, m.w * m.h); assert.ok(m.props.length > 20, 'props'); assert.ok(m.props.every((p) => p.id && p.type));
+    assert.ok(recipe === 'fields' ? m.fields.length >= 1 : m.cars.length >= 10, 'fields or cars');
+    for (const b of m.buildings) assert.ok(b.astyle && typeof b.seed === 'number', 'a building knows how to be painted');
+    assert.ok(m.props.filter((p) => p.type === 'tree' || p.type === 'pine').every((p) => m.tiles[idx(m, p.x, p.y)] === TILE.TREE), 'a tree is a tile that stops sight');
+    const old = generate({ recipe, seed: 'glyph', style: 'ostmark', ver: 1 }); assert.equal(old.ver, 1); assert.equal(old.w, { city: 72, fields: 80 }[recipe]); assert.equal(old.surf, undefined);
+  }
+  const setup = buildSetup({ key: 'K|ver', eng: eng({ recipe: 'city' }), people: people(4), vehicles: [] }); assert.equal(setup.map.ver, 2);
+  const saved = JSON.parse(JSON.stringify(setup)); delete saved.map.ver; assert.equal(createBattle(saved).map.w, 72); assert.equal(createBattle(setup).map.w, RECIPES.city.w);
+});

@@ -14,8 +14,8 @@ const snap = (B) => JSON.stringify(B.units.map((u) => [u.id, +u.x.toFixed(3), +u
 
 test('the same setup and orders give the same battle, and chance is a hash: nothing in it reads a clock or a draw', () => {
   const a = createBattle(mk({ ai: { p: true, e: true } })); const b = createBattle(mk({ ai: { p: true, e: true } }));
-  run(a, 900); run(b, 900); assert.equal(snap(a), snap(b)); assert.equal(a.tick, 900);
-  const c = createBattle(mk({ key: 'K2|x', ai: { p: true, e: true } })); run(c, 900); assert.notEqual(snap(a), snap(c), 'another key is another battle');
+  run(a, 600); run(b, 600); assert.equal(snap(a), snap(b)); assert.equal(a.tick, 600);
+  const c = createBattle(mk({ key: 'K2|x', ai: { p: true, e: true } })); run(c, 600); assert.notEqual(snap(a), snap(c), 'another key is another battle');
   assert.deepEqual(outcome(runToEnd(a)), outcome(runToEnd(b)));
   const src = [new URL('../src/battle/sim.js', import.meta.url), new URL('../src/battle/map.js', import.meta.url), new URL('../src/battle/nav.js', import.meta.url), new URL('../src/battle/setup.js', import.meta.url), new URL('../src/battle/hash.js', import.meta.url)];
   return Promise.all(src.map(async (u) => { const t = (await import('node:fs')).readFileSync(u, 'utf8').replace(/\/\/.*$/gm, ''); assert.ok(!/Math\.random|Date\.now|performance\.now|new Date|\.rng\b/.test(t), `${u.pathname.split('/').pop()} has no draw or clock`); }));

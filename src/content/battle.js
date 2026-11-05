@@ -59,7 +59,11 @@ export const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
 export const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
 
 /** The two battle recipes of this release (the other recipes come with the later sub-releases). */
-export const RECIPES = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
+export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 96, h: 64 } };
+/** The sizes of the first generation of maps (v0.101.0), kept so a battle saved mid-way replays on the map it began on (setup.map.ver absent). */
+export const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
+/** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */
+export const MAP_VER = 2;
 
 /** National architecture, as data (docs/PROPOSAL_WAR_MAPS.md): floors a building has, and the colours the roof painter uses. Other countries map to the nearest of the five. */
 export const STYLES = {
@@ -69,6 +73,13 @@ export const STYLES = {
   sund: { floors: [1, 3], roof: '#4a4a52', wall: '#a8503e', trim: '#e8e0d0', window: 'crossbar', note: 'steep tarred gables, painted planks' },
   windfen: { floors: [4, 6], roof: '#8a8e94', wall: '#b8bcc0', trim: '#4a8aa8', window: 'ribbon', note: 'concrete panels, ribbon windows, balconies' },
 };
+/** How tall a building's front face is drawn: 12 art pixels (a tile is 16) a floor and 4 more, with at least 14 art pixels of roof above it; a building must be tall enough on the map to show its floors. */
+export const FACADE = { floor: 12, base: 4, roofMin: 14 };
+export const faceH = (floors) => floors * FACADE.floor + FACADE.base;
+export const minTiles = (floors) => Math.ceil((faceH(floors) + FACADE.roofMin) / 16);
+/** The painter's own names for the five styles, and for the biomes (the atlas's seven land kinds fall on five palettes). */
+export const ART_STYLE = { halvermouth: 'halver', ostmark: 'ostmark', varnistan: 'varn', sund: 'sund', windfen: 'windfen' };
+export const ART_BIOME = { rural: 'temperate', taiga: 'snow', tundra: 'snow', snow: 'snow', desert: 'desert', steppe: 'steppe', jungle: 'mud' };
 /** The style an atlas country's places use (the others take the nearest of the five until they get their own). */
 export const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
 export const styleOf = (country) => STYLE_OF[country] || 'halvermouth';

@@ -32255,7 +32255,11 @@ const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
 const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
 
 /** The two battle recipes of this release (the other recipes come with the later sub-releases). */
-const RECIPES = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
+const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 96, h: 64 } };
+/** The sizes of the first generation of maps (v0.101.0), kept so a battle saved mid-way replays on the map it began on (setup.map.ver absent). */
+const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
+/** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */
+const MAP_VER = 2;
 
 /** National architecture, as data (docs/PROPOSAL_WAR_MAPS.md): floors a building has, and the colours the roof painter uses. Other countries map to the nearest of the five. */
 const STYLES = {
@@ -32265,11 +32269,18 @@ const STYLES = {
   sund: { floors: [1, 3], roof: '#4a4a52', wall: '#a8503e', trim: '#e8e0d0', window: 'crossbar', note: 'steep tarred gables, painted planks' },
   windfen: { floors: [4, 6], roof: '#8a8e94', wall: '#b8bcc0', trim: '#4a8aa8', window: 'ribbon', note: 'concrete panels, ribbon windows, balconies' },
 };
+/** How tall a building's front face is drawn: 12 art pixels (a tile is 16) a floor and 4 more, with at least 14 art pixels of roof above it; a building must be tall enough on the map to show its floors. */
+const FACADE = { floor: 12, base: 4, roofMin: 14 };
+const faceH = (floors) => floors * FACADE.floor + FACADE.base;
+const minTiles = (floors) => Math.ceil((faceH(floors) + FACADE.roofMin) / 16);
+/** The painter's own names for the five styles, and for the biomes (the atlas's seven land kinds fall on five palettes). */
+const ART_STYLE = { halvermouth: 'halver', ostmark: 'ostmark', varnistan: 'varn', sund: 'sund', windfen: 'windfen' };
+const ART_BIOME = { rural: 'temperate', taiga: 'snow', tundra: 'snow', snow: 'snow', desert: 'desert', steppe: 'steppe', jungle: 'mud' };
 /** The style an atlas country's places use (the others take the nearest of the five until they get their own). */
 const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
 const styleOf = (country) => STYLE_OF[country] || 'halvermouth';
 
-return { TICK, TILE, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, DOWN, OBJECTIVE, RECIPES, STYLES, STYLE_OF, styleOf };
+return { TICK, TILE, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, DOWN, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
 })();
 
 // ---- src/war/combat.js
@@ -32404,7 +32415,7 @@ __m["src/battle/setup.js"] = (function () {
 // A battle's setup (v0.101.0): everything a battle needs, as plain data, made once when an engagement is taken to the field and kept with it. The battle is a pure function of this, the
 // order log and the tick, so nothing that happens to the company's records afterwards (a day's wages, a morale drift) can change it, and a reload replays it.
 //   buildSetup({ key, eng, people, vehicles, ai })
-const { UNITS, SPEED, STYLES } = __m["src/content/battle.js"];
+const { UNITS, SPEED, STYLES, MAP_VER } = __m["src/content/battle.js"];
 const { CLASSES, ARMOUR } = __m["src/content/troops.js"];
 const { unit, pick } = __m["src/battle/hash.js"];
 
@@ -32433,7 +32444,7 @@ function buildSetup({ key, eng, people, vehicles, ai = {} }) {
   }
   for (let i = 0; i < Math.round(E.armour); i++) units.push({ id: `et${i}`, side: 'e', kind: 'tank', role: 'tank', name: 'Enemy tank', rec: null, weapon: 'tank_gun', hp: UNITS.tank.hp + UNITS.tank.perArmour * 3, accMult: skill, armourBar: 3, morale: 80, sight: UNITS.tank.sight, speed: SPEED.vehicleBase + SPEED.vehiclePerBar * 3 });
   for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
-  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key }, goal: eng.goal, units, ai: { p: Boolean(ai.p), e: ai.e !== false } };
+  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, units, ai: { p: Boolean(ai.p), e: ai.e !== false } };
 }
 
 
@@ -76213,13 +76224,15 @@ return { fleetPanel };
 
 // ---- src/battle/map.js
 __m["src/battle/map.js"] = (function () {
-// Battle maps (v0.101.0): a grid made from a seed, never from chance. Two recipes this release: CITY (avenues, blocks of buildings with floors, a plaza) and FIELDS (a patchwork of fields
-// with hedgerows, a river and a ford, two villages). A building has a wall all round, windows, one door and a stair; its floors are all the same plan (the stair is how you change floor).
-// Every building is reachable on foot from where the player starts; a test checks it.
-//   generate({ recipe, biome, style, seed })   → the map
+// Battle maps (v0.101.0, remade in v0.102.0 on the mock-up's look): a grid made from a seed, never from chance. Two recipes: CITY (avenues and streets with pavements, blocks of shops and flats,
+// a plaza with a fountain, lamps, crossings and parked cars) and FIELDS (a patchwork of fields with bush hedgerows, dirt tracks, a river with a bridge, two villages round their greens).
+// A building has a wall all round, windows, one door and a stair; its floors are all the same plan (the stair is how you change floor). Every building is reachable on foot from where the player
+// starts; a test checks it. The map is a ground-glyph grid (`surf`, the characters the game's own ground painter reads) plus props and cars; the sim's tiles are derived from them.
+// A map's `ver` is 2 from v0.102.0: a battle saved by v0.101.0 has no `ver` in its setup and is replayed on the first generation of maps, kept here (cityV1, fieldsV1).
+//   generate({ recipe, biome, style, seed, ver })   → the map
 //   walkable(map, x, y)                        whether a person can stand on the tile
 //   blocksSight(map, x, y, z)                  whether the tile stops a look from floor z
-const { TILE, RECIPES, STYLES } = __m["src/content/battle.js"];
+const { TILE, RECIPES, RECIPES_V1, STYLES, ART_STYLE, ART_BIOME, minTiles, MAP_VER } = __m["src/content/battle.js"];
 const { unit, pick, between } = __m["src/battle/hash.js"];
 
 const W = TILE.WALL;
@@ -76235,32 +76248,32 @@ function blocksSight(m, x, y, z) {
   return false;
 }
 
-function blank(recipe, biome, style, seed) {
-  const { w, h } = RECIPES[recipe];
-  return { recipe, biome, style, seed, w, h, tiles: new Uint8Array(w * h), bfloors: new Uint8Array(w * h), bid: new Int16Array(w * h).fill(-1), buildings: [], objective: null, exit: null, spawns: { p: null, e: null } };
+function blank(recipe, biome, style, seed, ver = 1) {
+  const { w, h } = (ver >= 2 ? RECIPES : RECIPES_V1)[recipe];
+  return { ver, recipe, biome, style, seed, w, h, tiles: new Uint8Array(w * h), bfloors: new Uint8Array(w * h), bid: new Int16Array(w * h).fill(-1), buildings: [], objective: null, exit: null, spawns: { p: null, e: null } };
 }
 const free = (m, x, y, w, h, pad = 1) => { for (let j = y - pad; j < y + h + pad; j++) for (let i = x - pad; i < x + w + pad; i++) { if (!inb(m, i, j)) return false; const t = m.tiles[idx(m, i, j)]; if (t !== TILE.GROUND || m.bid[idx(m, i, j)] >= 0) return false; } return true; };
 
 /** A building: wall all round, windows every third tile, a door in the middle of the south wall, a stair inside, `floors` floors. */
-function building(m, x, y, w, h, floors) {
-  if (!free(m, x, y, w, h)) return null;
+function building(m, x, y, w, h, floors, extra = null, pad = 1) {
+  if (!free(m, x, y, w, h, pad)) return null;
   const id = m.buildings.length;
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) {
     const n = idx(m, i, j); m.bid[n] = id; m.bfloors[n] = floors;
     const edge = i === x || j === y || i === x + w - 1 || j === y + h - 1;
     m.tiles[n] = edge ? W : TILE.FLOOR;
-    if (edge && (i - x + j - y) % 3 === 1 && i !== x && i !== x + w - 1 && !(j === y + h - 1 && i === x + Math.floor(w / 2))) m.tiles[n] = TILE.WINDOW;
+    if (edge && (i - x + j - y) % (m.ver >= 2 && w < 7 ? 2 : 3) === 1 && i !== x && i !== x + w - 1 && !(j === y + h - 1 && i === x + Math.floor(w / 2))) m.tiles[n] = TILE.WINDOW;
   }
   const door = { x: x + Math.floor(w / 2), y: y + h - 1 };
   m.tiles[idx(m, door.x, door.y)] = TILE.DOOR;
   const stairs = { x: x + 1, y: y + 1 };
   if (w >= 5 && h >= 4) m.tiles[idx(m, stairs.x, stairs.y)] = TILE.STAIRS;
-  m.buildings.push({ id, x, y, w, h, floors, door, stairs, style: m.style });
+  m.buildings.push({ id, x, y, w, h, floors, door, stairs, style: m.style, ...(extra || {}) });
   return id;
 }
 const road = (m, x0, y0, x1, y1) => { for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) if (inb(m, i, j) && m.tiles[idx(m, i, j)] !== TILE.WALL && m.bid[idx(m, i, j)] < 0) m.tiles[idx(m, i, j)] = TILE.ROAD; };
 
-function city(m) {
+function cityV1(m) {
   const u = (tag, i = 0) => unit(`${m.seed}|city|${tag}|${i}`);
   const S = STYLES[m.style] || STYLES.halvermouth;
   const xs = [Math.floor(m.w * 0.25), Math.floor(m.w * 0.5), Math.floor(m.w * 0.75)];
@@ -76287,7 +76300,7 @@ function city(m) {
   m.exit = { x: m.w - 2, y: ys[0] };
 }
 
-function fields(m) {
+function fieldsV1(m) {
   const u = (tag, i = 0) => unit(`${m.seed}|fields|${tag}|${i}`);
   const S = STYLES[m.style] || STYLES.sund;
   // fields: vertical strips of crop and bare ground, a hedgerow between each with a gap every few tiles
@@ -76335,9 +76348,134 @@ function carve(m, a, b) {
   while (x !== b.x || y !== b.y) { if (x !== b.x) x += Math.sign(b.x - x); else y += Math.sign(b.y - y); const i = idx(m, x, y); if (m.tiles[i] === TILE.WALL || m.tiles[i] === TILE.WINDOW || m.tiles[i] === TILE.TREE || m.tiles[i] === TILE.WATER) { if (m.bid[i] < 0) m.tiles[i] = TILE.ROAD; } }
 }
 
-function generate({ recipe = 'fields', biome = 'rural', style = 'sund', seed = 'seed' } = {}) {
-  const m = blank(recipe, biome, style, String(seed));
-  if (recipe === 'city') city(m); else fields(m);
+// ------------------------------------------------------------------------------------------------- generation 2 (v0.102.0): the mock-up's maps
+const BASE = { temperate: '.', snow: '.', desert: 's', steppe: '.', mud: '.' };
+const TREES = { temperate: [['tree', '#4f7a4a'], ['pine', '#4f7a4a'], ['tree', '#5a8a4a'], ['tree', '#468a52']], snow: [['pine', '#2f5a46']], desert: [], steppe: [['tree', '#8a9a3a'], ['tree', '#9aa04a']], mud: [['tree', '#2f6a3a'], ['tree', '#3a7a3a'], ['pine', '#276028']] };
+const GROUND = { halver: ',', ostmark: 'm', varn: ':', sund: '.', windfen: 'g' };
+const WIDTHS = { halver: [5, 9], ostmark: [5, 8], varn: [5, 9], sund: [5, 7], windfen: [7, 11] };
+const SHOPS = ['BAKERY', 'MARKET', 'CAFE', 'PHARMACY', 'BOOKS', 'TAILOR', 'DELI', 'HARDWARE'];
+const AWNINGS = ['#c8402a', '#e8c04a', '#3a8a4a', '#3a6a8a'];
+const CAR_KINDS = ['sedan', 'hatch', 'van', 'pickup', 'taxi', 'sedan'];
+const CAR_COLOURS = ['#b8483a', '#3a5a8a', '#2a2a2e', '#4a7a4a', '#c8b848', '#e8e2d4', '#a8a8a8'];
+const rngOf = (str) => { let s = Math.floor(unit(`${str}|rng`) * 4294967296) >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; };
+const ch = (c) => c.charCodeAt(0);
+const sset = (m, x, y, c) => { if (inb(m, x, y)) m.surf[idx(m, x, y)] = ch(c); };
+const rect = (m, x, y, w, h, c) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) sset(m, i, j, c); };
+const sget = (m, x, y) => (inb(m, x, y) ? String.fromCharCode(m.surf[idx(m, x, y)]) : 'x');
+const prop = (m, type, x, y, extra = {}) => { if (inb(m, x, y)) m.props.push({ type, x, y, ...extra }); };
+/** A building plan: placed once the ground is laid (the sim's `building` puts walls, windows, door and stair on the tiles). */
+const plan = (m, x, y, w, h, floors, extra = {}) => { m.plans.push({ x, y, w, h, floors, extra: { seed: Math.floor(unit(`${m.seed}|b|${x}|${y}`) * 1e6), ...extra } }); };
+const car = (m, kind, color, dir, x, y) => m.cars.push({ kind, color, dir, x, y });
+
+/** A row of buildings along a line (the mock-up's `row`): widths by style, floors by style but no taller than the depth allows. */
+function row(m, R, x0, x1, yb, maxH, o = {}) {
+  const S = STYLES[m.style] || STYLES.halvermouth; const [wa, wb] = WIDTHS[m.art.style]; let x = x0;
+  while (x + wa <= x1) {
+    let w = wa + Math.floor(R() * (wb - wa + 1)); if (x + w > x1) w = x1 - x; if (w < wa) break;
+    let floors = S.floors[0] + Math.floor(R() * (Math.min(S.floors[1], 6) - S.floors[0] + 1)); let h = Math.max(4, minTiles(floors) + 1 + Math.floor(R() * 3));
+    while (minTiles(floors) > maxH && floors > 1) floors--; if (h > maxH) h = maxH;
+    const shop = o.shops && floors <= 3 && R() < 0.6;
+    plan(m, x, yb - h, w, h, floors, { sign: shop ? SHOPS[Math.floor(R() * SHOPS.length)] : undefined, awning: shop && R() < 0.7 ? AWNINGS[Math.floor(R() * 4)] : undefined, shop });
+    x += w + (m.art.style === 'sund' ? 2 : m.art.style === 'windfen' ? 3 : 0);
+  }
+}
+const scatter = (m, R, count, test) => { const T = TREES[m.art.biome]; if (!T.length) return; for (let i = 0; i < count; i++) { const x = Math.floor(R() * m.w); const y = Math.floor(R() * m.h); if (!test(x, y)) continue; const [type, color] = T[Math.floor(R() * T.length)]; prop(m, type, x, y, { color }); } };
+
+function cityV2(m) {
+  const R = rngOf(`${m.seed}|city`); const { w: W, h: H } = m; const A = m.art; const base = BASE[A.biome];
+  const AV = [4, 30]; const ST = [6, 28, 50, 72]; const BG = GROUND[A.style];
+  rect(m, 0, 0, W, H, base); rect(m, 4, 0, 80, H, ',');
+  for (const y of AV) rect(m, 0, y, W, 4, '='); for (const x of ST) rect(m, x, 0, 4, H, '=');
+  if (A.style === 'varn') { for (const x of ST) rect(m, x, 0, 4, H, ':'); rect(m, 0, AV[1], W, 4, '='); rect(m, 0, AV[0], W, 4, ':'); }
+  if (A.style === 'ostmark') { for (const y of AV) rect(m, 0, y, W, 4, 'm'); for (const x of ST) rect(m, x, 0, 4, H, 'm'); rect(m, 0, AV[1], W, 4, '='); }
+  let plaza = null;
+  for (let r = 0; r < AV.length; r++) for (let c = 0; c < ST.length - 1; c++) {
+    const x0 = ST[c] + 5; const x1 = ST[c + 1] - 1; const y0 = AV[r] + 5; const y1 = (AV[r + 1] ?? H) - 1; const bh = y1 - y0; if (bh < 16) continue;
+    rect(m, x0, y0, x1 - x0, bh, BG); const mid = y0 + Math.min(12, Math.floor(bh / 2));
+    row(m, R, x0 + 1, x1 - 1, mid, 12);
+    if (r === 0 && c === 1) { // the plaza: a stone square with a fountain, benches and trees, where the objective is
+      rect(m, x0, mid, x1 - x0, y1 - mid, 'm'); const cx = Math.floor((x0 + x1) / 2); const cy = mid + 4;
+      prop(m, 'fountain', cx - 1, cy - 1); prop(m, 'bench', cx - 5, cy + 3); prop(m, 'bench', cx + 4, cy + 3); prop(m, 'bench', cx - 5, cy - 3); prop(m, 'bench', cx + 4, cy - 3);
+      for (let i = 0; i < 5; i++) { prop(m, 'tree', x0 + 1 + i * 4, y1 - 2, { color: TREES[A.biome][0]?.[1] || '#4f7a4a' }); } prop(m, 'flowerbed', cx - 2, cy + 6, { w: 4 });
+      plaza = { x: cx, y: cy + 3 };
+    } else {
+      row(m, R, x0 + 1, x1 - 1, y1 - 1, bh - (mid - y0) - 3, { shops: true });
+      for (let i = 0; i < 3; i++) { const px = x0 + 3 + Math.floor(R() * (x1 - x0 - 8)); prop(m, A.style === 'varn' ? 'booth' : R() < 0.4 ? 'bench' : 'tree', px, mid + 1, { color: TREES[A.biome][0]?.[1] || '#4f7a4a' }); }
+      if (A.style === 'windfen') { rect(m, x0 + 2, mid, x1 - x0 - 4, 2, '.'); for (let i = 0; i < 4; i++) prop(m, 'tree', x0 + 3 + i * 4, mid, { color: '#4f7a4a' }); }
+      if (A.style === 'ostmark' && R() < 0.6) prop(m, 'fountain', Math.floor((x0 + x1) / 2), mid + 1);
+    }
+  }
+  // street furniture and traffic
+  for (const y of AV) for (let x = 6; x < W - 4; x += 8) {
+    if (A.style !== 'varn') prop(m, 'streetlamp', x, y - 1); if (x % 16 === 6) prop(m, 'streetlamp', x + 4, y + 4);
+    car(m, CAR_KINDS[Math.floor(R() * CAR_KINDS.length)], CAR_COLOURS[Math.floor(R() * CAR_COLOURS.length)], R() < 0.5 ? 'E' : 'W', x * 32 + 20, (y + (R() < 0.5 ? 0.9 : 2.9)) * 32);
+  }
+  for (const x of ST) for (let y = 12; y < H - 6; y += 12) if (R() < 0.6) car(m, 'sedan', CAR_COLOURS[Math.floor(R() * 3)], R() < 0.5 ? 'N' : 'S', (x + (R() < 0.5 ? 0.9 : 2.9)) * 32, y * 32);
+  for (const y of AV) for (const x of ST) { prop(m, 'crosswalk', x, y - 2, { w: 4, h: 1 }); prop(m, 'crosswalk', x, y + 5, { w: 4, h: 1 }); }
+  for (let i = 0; i < 16; i++) { const x = 1 + Math.floor(R() * (W - 2)); const y = 1 + Math.floor(R() * (H - 2)); if ((x < 4 || x > 82) && sget(m, x, y) === base) { const T = TREES[A.biome]; if (T.length) { const [type, color] = T[Math.floor(R() * T.length)]; prop(m, type, x, y, { color }); } } }
+  m.objective = plaza || { x: ST[1] + 6, y: AV[0] + 12 };
+  m.spawns = { p: { x: 3, y: AV[0] + 2 }, e: { x: W - 4, y: AV[1] + 2 } }; m.exit = { x: W - 2, y: AV[0] + 2 };
+}
+
+function fieldsV2(m) {
+  const R = rngOf(`${m.seed}|fields`); const { w: W, h: H } = m; const A = m.art; const base = BASE[A.biome]; const B = TREES[A.biome]; const tc = B[0]?.[1] || '#4f7a4a';
+  rect(m, 0, 0, W, H, base);
+  const rx = Math.floor(W / 2) - 1; const ty = 38; const blocks = [];
+  const track = (x, y, w, h) => { rect(m, x, y, w, h, ':'); blocks.push({ x, y, w, h }); };
+  // tracks first, so the fields sit between them: the main track through both villages, a north and a south track, and three that run down the map
+  track(0, ty, W, 3); track(0, 60, W, 2); track(0, 2, W, 2); for (const x of [3, 92]) track(x, 0, 2, H);
+  // the river runs down the middle; a bridge on the main track and another on the south track
+  for (let j = 0; j < H; j++) { const off = Math.round(1.6 * Math.sin(j / 7)); rect(m, rx + off, j, 3, 1, '~'); } blocks.push({ x: rx - 2, y: 0, w: 8, h: H });
+  rect(m, rx - 2, ty, 7, 3, 'b'); rect(m, rx - 2, 60, 7, 2, 'b');
+  // the villages: a green with a fountain, trees and benches, a ring of houses and a church on the north side
+  const village = (vx, vy, tag) => {
+    blocks.push({ x: vx - 3, y: vy - 12, w: 30, h: 32 });
+    rect(m, vx - 3, vy - 4, 29, 24, ':'); rect(m, vx, vy, 22, 10, '.');
+    const floors = (k) => Math.min(1 + (k % 2), STYLES[m.style].floors[1]);
+    [[-1, 7], [16, 7]].forEach(([dx, w], k) => plan(m, vx + dx, vy - 10, w, 6, floors(k + 1), { shop: false }));
+    plan(m, vx + 7, vy - 11, 8, 7, 2, { name: 'Church', roofKind: A.style === 'varn' || A.style === 'halver' ? 'dome' : 'gable', wall: '#efe8d8' });
+    [[-1, 8], [8, 7], [16, 7]].forEach(([dx, w], k) => plan(m, vx + dx, vy + 13, w, 6, floors(k), { shop: false }));
+    prop(m, 'fountain', vx + 10, vy + 4); for (let i = 0; i < 6; i++) prop(m, 'tree', vx + 2 + i * 3, vy + 8, { color: tc }); prop(m, 'bench', vx + 5, vy + 5); prop(m, 'bench', vx + 15, vy + 5);
+    if (tag === 'b') prop(m, 'watertower', vx + 23, vy + 3, { w: 4, h: 5 }); else { prop(m, 'haybale', vx - 2, vy + 20); prop(m, 'tractor', vx + 17, vy + 21, { w: 3, h: 2 }); }
+  };
+  village(10, 28, 'a'); village(62, 28, 'b');
+  // fields between: patches of crop with a bush hedgerow round each
+  const crops = A.biome === 'desert' ? ['fallow', 'sorghum'] : ['wheat', 'corn', 'cotton', 'sorghum', 'fallow'];
+  const hit = (x, y, w, h, o) => x < o.x + o.w + 1 && x + w > o.x - 1 && y < o.y + o.h + 1 && y + h > o.y - 1;
+  for (let tries = 0; tries < 220 && m.fields.length < 14; tries++) {
+    const w = 10 + Math.floor(R() * 8); const h = 6 + Math.floor(R() * 7); const x = 2 + Math.floor(R() * (W - w - 4)); const y = 5 + Math.floor(R() * (H - h - 6));
+    if (blocks.some((o) => hit(x, y, w, h, o)) || m.fields.some((f) => hit(x, y, w, h, f))) continue;
+    m.fields.push({ x, y, w, h, crop: crops[Math.floor(R() * crops.length)] }); rect(m, x, y, w, h, 'k');
+    for (let i = x; i < x + w; i += 2) { prop(m, 'bush', i, y - 1); prop(m, 'bush', i, y + h); } for (let j = y; j < y + h; j += 2) { prop(m, 'bush', x - 1, j); prop(m, 'bush', x + w, j); }
+  }
+  scatter(m, R, 120, (x, y) => sget(m, x, y) === base && !m.fields.some((f) => hit(x, y, 1, 1, f)) && !blocks.some((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h));
+  for (const [kind, color, dir, x, y] of [['pickup', '#4a6a4a', 'E', 22, ty + 1.2], ['truck', '#3a5a8a', 'W', 74, ty + 1.8], ['sedan', '#b8483a', 'E', 30, 60.7]]) car(m, kind, color, dir, x * 32, y * 32);
+  prop(m, 'windmill', 24, 50, { w: 4, h: 5 });
+  m.objective = { x: rx + 1, y: ty + 1 }; m.spawns = { p: { x: 3, y: ty + 1 }, e: { x: W - 4, y: ty + 1 } }; m.exit = { x: W - 2, y: ty + 1 };
+}
+
+/** The sim's tiles from the glyph ground, the props and the planned buildings; props that sit on a wall, a road or the water are dropped. */
+function finish2(m) {
+  const { w, h } = m;
+  for (let i = 0; i < w * h; i++) { const c = String.fromCharCode(m.surf[i]); m.tiles[i] = c === '=' || c === 'b' ? TILE.ROAD : c === '~' ? TILE.WATER : c === 'k' ? TILE.CROP : TILE.GROUND; }
+  for (const p of m.plans) building(m, p.x, p.y, p.w, p.h, p.floors, { astyle: m.art.style, ...p.extra }, 0);
+  const keep = [];
+  for (const p of m.props) {
+    const i = idx(m, p.x, p.y); const c = sget(m, p.x, p.y); const flat = p.type === 'crosswalk';
+    if (m.bid[i] >= 0 || c === '~') continue;
+    if (!flat && (c === '=' || c === 'b')) continue;
+    const big = (p.w || 1) > 1 || (p.h || 1) > 1; if (big && !flat) { let ok = true; for (let j = 0; j < (p.h || 1); j++) for (let k = 0; k < (p.w || 1); k++) if (!inb(m, p.x + k, p.y + j) || m.bid[idx(m, p.x + k, p.y + j)] >= 0) ok = false; if (!ok) continue; }
+    if (p.type === 'tree' || p.type === 'pine') { if (m.tiles[i] === TILE.GROUND) m.tiles[i] = TILE.TREE; else continue; }
+    else if (p.type === 'bush') { if (m.tiles[i] === TILE.GROUND) m.tiles[i] = TILE.HEDGE; else continue; }
+    keep.push({ id: `p${keep.length}`, ...p });
+  }
+  m.props = keep; delete m.plans;
+}
+
+function generate({ recipe = 'fields', biome = 'rural', style = 'sund', seed = 'seed', ver = MAP_VER } = {}) {
+  const m = blank(recipe, biome, style, String(seed), ver);
+  if (ver >= 2) { m.surf = new Uint8Array(m.w * m.h).fill(46); m.props = []; m.cars = []; m.fields = []; m.plans = []; m.art = { style: ART_STYLE[style] || 'halver', biome: ART_BIOME[biome] || 'temperate' }; if (recipe === 'city') cityV2(m); else fieldsV2(m); finish2(m); }
+  else if (recipe === 'city') cityV1(m); else fieldsV1(m);
   // make sure nothing is cut off: link any building whose door cannot be reached to the objective by a road
   for (let pass = 0; pass < 3; pass++) {
     const r = reachable(m); if (r.ok) break;
@@ -76346,10 +76484,11 @@ function generate({ recipe = 'fields', biome = 'rural', style = 'sund', seed = '
   }
   // the spawn tiles themselves are ground
   for (const s of [m.spawns.p, m.spawns.e, m.objective]) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const n = idx(m, s.x + i, s.y + j); if (inb(m, s.x + i, s.y + j) && m.bid[n] < 0 && m.tiles[n] !== TILE.ROAD) m.tiles[n] = TILE.GROUND; }
+  if (m.props) m.props = m.props.filter((p) => !((p.type === 'tree' || p.type === 'pine') && m.tiles[idx(m, p.x, p.y)] !== TILE.TREE) && !(p.type === 'bush' && m.tiles[idx(m, p.x, p.y)] !== TILE.HEDGE)); // a road carved or a start cleared took the tile
   return m;
 }
 
-return { idx, inb, tileAt, walkable, blocksSight, reachable, generate };
+return { idx, inb, tileAt, walkable, blocksSight, free, reachable, generate };
 })();
 
 // ---- src/battle/nav.js
@@ -76444,7 +76583,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const isVeh = (u) => u.kind !== 'inf';
 
 function createBattle(setup) {
-  const map = generate(setup.map);
+  const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const B = { key: setup.key, setup, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
     ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0 }, hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
@@ -76789,6 +76928,193 @@ function drawVehicle(ctx, kind, side, x, y, heading, { wreck = false, time = 0 }
 return { PALETTE, vehicleSprite, drawVehicle };
 })();
 
+// ---- src/engine/drawRoofed.js
+__m["src/engine/drawRoofed.js"] = (function () {
+// The roofed building painter (v0.102.0, the battle look): a building seen from above in the game's pixel idiom: a roof you look down on (gable, hip, mansard, flat or dome, with tiles, chimneys and
+// dormers), a front face with one row of windows per floor, a door, an awning and a shop sign, a 1-px ink outline and light from the upper left. One art pixel is two screen pixels, and a tile is 16
+// art pixels, as in drawPixelBuildings.js. Five national styles are data. Ported from the approved mock-up (docs/mockups/src/war/g_roof.js). Browser only; paint, never state.
+const { FACADE, faceH } = __m["src/content/battle.js"];
+const INK = '#1b1a24';
+const FLOOR = FACADE.floor;
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const shade = (h, k) => { const c = hex(h).map((v) => Math.max(0, Math.min(255, v + k))); return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+const hash = (a, b = 0, c = 0) => { let h = ((a | 0) * 374761393 + (b | 0) * 668265263 + (c | 0) * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const pick = (a, k) => a[Math.floor(hash(k, a.length, 5) * a.length) % a.length];
+
+// ------------------------------------------------------------------------------------------------- the five national styles (data)
+const STYLES = {
+  halver: { name: 'Halvermouth', roofs: ['flat', 'flat', 'mansard'], walls: ['#a8604a', '#b8765a', '#c8a888', '#8a5a4a', '#c8b8a0'], trims: ['#e8e0d0'], roofCol: ['#6a6e78', '#5a5a62', '#4a5260'], win: 'square', floors: [2, 6], parapet: true, cornice: true, chimney: false },
+  ostmark: { name: 'Ostmark Union', roofs: ['gable', 'gable', 'hip'], walls: ['#efe4cc', '#e8dcc0', '#f0e8d4', '#d8c8a8'], trims: ['#4a3224'], roofCol: ['#a8503a', '#9a4838', '#7a4a3a', '#6a3a30'], win: 'shutters', floors: [2, 4], timber: true, chimney: true, shutterCol: ['#3a5a3a', '#5a3a2a', '#3a4a6a'] },
+  varn: { name: 'Varnistan', roofs: ['flat', 'flat', 'dome'], walls: ['#d8bc8a', '#e0cfae', '#cfae7a', '#e8d8b8'], trims: ['#8a6a3a'], roofCol: ['#c8a878', '#d8bc8a', '#b89868'], win: 'arched', floors: [1, 3], crenel: true, domeCol: ['#4a8a8a', '#e8e4d8', '#3a7a9a'], chimney: false },
+  sund: { name: 'Sund', roofs: ['gable', 'gable'], walls: ['#9a3a2a', '#d8a84a', '#e8e4d8', '#6a8a9a', '#7a5a8a', '#4a7a5a'], trims: ['#f4f0e4'], roofCol: ['#3a3436', '#4a4044', '#2e2a2c', '#6a3a2a'], win: 'cross', floors: [1, 3], chimney: true, planks: true },
+  windfen: { name: 'Windfen League', roofs: ['flat', 'flat'], walls: ['#a8a8a0', '#98989a', '#b8b4aa', '#8a8e90'], trims: ['#dcdcd4'], roofCol: ['#4a4e54', '#3a3e44'], win: 'ribbon', floors: [4, 9], panels: true, balcony: true, antenna: true },
+};
+
+// ------------------------------------------------------------------------------------------------- the painter
+/** b: { x, y, w, h (tiles), floors, style: key, seed, sign, awning, door:{x,y}, wall, roof, roofKind, dome, tall } */
+function drawRoofed(ctx, b, o = {}) {
+  const S = STYLES[b.style] || STYLES.halver; const x0 = b.x * 32, y0 = b.y * 32; const W = b.w * 16, H = b.h * 16; const fl = b.floors || 2; const F = faceH(fl); const RH = H - F; const seed = b.seed || (b.x * 31 + b.y);
+  const R = (ax, ay, aw, ah, c) => { ctx.fillStyle = c; ctx.fillRect(x0 + ax * 2, y0 + ay * 2, aw * 2, ah * 2); };
+  const wall = b.wall || pick(S.walls, seed), trim = b.trim || S.trims[0], roofC = b.roof || pick(S.roofCol, seed + 3); const kind = b.roofKind || pick(S.roofs, seed + 7);
+  // shadow cast over the street (longer for taller buildings)
+  const sl = Math.min(10, 3 + fl * 1.4); ctx.fillStyle = 'rgba(15,15,35,0.26)'; ctx.fillRect(x0 + W * 2, y0 + 10, sl * 2, H * 2 - 6); ctx.fillRect(x0 + 8, y0 + H * 2, W * 2 + sl * 2, Math.min(18, 6 + fl * 2));
+  // ---------------- roof (area 0..RH)
+  const tiles = (ax, ay, aw, ah, base, rowH = 3) => { R(ax, ay, aw, ah, base); for (let r = 0; r < ah; r += rowH) { R(ax, ay + r + rowH - 1, aw, 1, shade(base, -26)); R(ax, ay + r, aw, 1, shade(base, 14)); for (let c = ((r / rowH) % 2) * 3; c < aw; c += 6) R(ax + c, ay + r, 1, rowH - 1, shade(base, -16)); } };
+  const slate = (ax, ay, aw, ah, base) => { R(ax, ay, aw, ah, base); for (let r = 0; r < ah; r += 2) { R(ax, ay + r + 1, aw, 1, shade(base, -20)); for (let c = (r % 4) ; c < aw; c += 4) R(ax + c, ay + r, 1, 1, shade(base, 16)); } };
+  const brickChimney = (cx, cy) => { R(cx - 1, cy - 1, 6, 8, INK); R(cx, cy, 4, 6, '#8a4a3a'); R(cx, cy, 1, 6, '#b06a52'); R(cx + 3, cy, 1, 6, '#6a3428'); R(cx, cy + 2, 4, 1, '#5a2a20'); R(cx - 1, cy - 2, 6, 2, INK); R(cx, cy - 1, 4, 1, '#c8c0b0'); R(cx + 5, cy + 1, 2, 7, 'rgba(0,0,0,0.2)'); };
+  const dormer = (cx, cy, c) => { R(cx - 1, cy - 1, 8, 8, INK); R(cx, cy, 6, 6, wall); R(cx + 1, cy + 1, 4, 4, '#7aa3b8'); R(cx + 1, cy + 1, 1, 3, '#b8d8e6'); R(cx + 2, cy + 1, 1, 4, trim); R(cx - 1, cy - 2, 8, 2, c); R(cx - 1, cy - 2, 8, 1, shade(c, 24)); };
+  if (kind === 'gable' || kind === 'hip') {
+    const ry = Math.max(4, Math.round(RH * 0.4)); const back = shade(roofC, -18), front = roofC;
+    tiles(0, 0, W, ry, back); tiles(0, ry, W, RH - ry, front);
+    R(0, ry - 1, W, 2, shade(roofC, 34)); R(0, ry + 1, W, 1, shade(roofC, -34)); // ridge
+    if (kind === 'hip') { for (let i = 0; i < ry; i++) { R(0, i, Math.max(0, ry - i - 1) + 1, 1, shade(roofC, -34)); R(W - Math.max(0, ry - i - 1) - 1, i, Math.max(0, ry - i - 1) + 1, 1, shade(roofC, -40)); } for (let i = 0; i < RH - ry; i++) { R(0, ry + i, Math.max(0, 5 - i), 1, shade(roofC, -26)); R(W - Math.max(0, 5 - i), ry + i, Math.max(0, 5 - i), 1, shade(roofC, -34)); } }
+    R(0, RH - 2, W, 2, shade(roofC, -44)); R(0, RH - 1, W, 1, 'rgba(0,0,0,0.3)'); // eave shadow onto the wall
+    if (S.chimney && b.w >= 6) brickChimney(Math.floor(W * 0.68), 2 + Math.floor(ry * 0.3));
+    if (RH > 22 && b.w >= 8) { dormer(Math.floor(W * 0.22), ry + 3, roofC); dormer(Math.floor(W * 0.5), ry + 3, roofC); }
+  } else if (kind === 'mansard') {
+    slate(0, 0, W, RH, roofC); R(0, 0, W, 2, shade(roofC, 30)); R(2, 3, W - 4, 1, shade(roofC, -26)); R(0, RH - 3, W, 3, shade(roofC, -34)); R(0, RH - 3, W, 1, shade(roofC, 20)); for (let dx = 6; dx + 8 < W; dx += 12) dormer(dx, 5, roofC); R(0, RH - 1, W, 1, 'rgba(0,0,0,0.3)');
+  } else if (kind === 'dome') {
+    const c = b.domeCol || pick(S.domeCol || ['#4a8a8a'], seed); R(0, 0, W, RH, b.roof || pick(S.roofCol, seed)); for (let i = 0; i < 40; i++) R(Math.floor(hash(seed, i) * W), Math.floor(hash(seed, i + 9) * RH), 2, 1, 'rgba(60,40,20,0.2)');
+    const r = Math.max(4, Math.min(Math.floor(RH / 2) - 3, Math.floor(W / 5))); const cx = Math.floor(W / 2), cy = Math.floor(RH / 2); for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) { const d = Math.sqrt(xx * xx + yy * yy); if (d <= r) { const lit = (-xx - yy) / (r * 1.4); R(cx + xx, cy + yy, 1, 1, shade(c, Math.round(lit * 46) - 8)); } else if (d <= r + 1) R(cx + xx, cy + yy, 1, 1, INK); } R(cx - Math.floor(r * 0.45), cy - Math.floor(r * 0.5), 2, 2, shade(c, 72)); R(cx - 1, cy - r - 4, 2, 4, '#d8b04a'); R(cx - 2, cy - r - 5, 4, 1, '#d8b04a');
+    for (const [qx, qy] of [[2, 2], [W - 5, 2], [2, RH - 5], [W - 5, RH - 5]]) { R(qx, qy, 3, 3, shade(wall, -10)); R(qx, qy, 3, 1, shade(wall, 20)); }
+  } else { // flat
+    const base = b.roof || roofC; R(0, 0, W, RH, base); for (let i = 0; i < W * RH / 7; i++) R(Math.floor(hash(seed, i) * W), Math.floor(hash(seed, i + 91) * RH), 1 + (i % 3 === 0 ? 1 : 0), 1, i % 2 ? shade(base, -10) : shade(base, 10));
+    if (S.panels) for (let px = 8; px < W; px += 12) R(px, 0, 1, RH, shade(base, -14));
+    const kit = Math.max(1, Math.floor(W / 20)); for (let k = 0; k < kit; k++) { const kx = 4 + Math.floor(hash(seed, k, 3) * (W - 14)), ky = 3 + Math.floor(hash(seed, k, 4) * Math.max(1, RH - 10)); const t = hash(seed, k, 5); if (t < 0.4) { R(kx + 2, ky + 2, 7, 5, 'rgba(0,0,0,0.25)'); R(kx, ky, 7, 5, '#8a9298'); R(kx, ky, 7, 1, '#b8c0c6'); R(kx + 5, ky, 2, 5, '#6a7278'); for (let q = 0; q < 3; q++) R(kx + 1 + q * 2, ky + 1, 1, 3, '#4a5258'); } else if (t < 0.7) { R(kx + 2, ky + 2, 7, 5, 'rgba(0,0,0,0.25)'); R(kx, ky, 7, 5, '#6a7a8a'); R(kx + 1, ky + 1, 5, 3, '#a8d8e8'); R(kx + 1, ky + 1, 2, 1, '#e8f8ff'); } else { R(kx + 2, ky + 2, 5, 5, 'rgba(0,0,0,0.25)'); R(kx, ky, 5, 5, '#c8c4b8'); R(kx, ky, 5, 1, '#e8e4d8'); R(kx + 4, ky, 1, 5, '#8a867a'); } }
+    if (S.antenna && fl > 5) { R(W - 8, 3, 1, 8, '#2a2a30'); R(W - 10, 5, 5, 1, '#2a2a30'); R(W - 9, 2, 1, 1, '#e83a2a'); }
+    const pc = S.parapet || S.crenel || S.panels; R(0, 0, W, 2, shade(wall, 26)); R(0, 0, 2, RH, shade(wall, 14)); R(W - 2, 0, 2, RH, shade(wall, -24)); R(0, RH - 3, W, 3, shade(wall, -14)); R(0, RH - 3, W, 1, shade(wall, 22));
+    if (S.crenel) for (let cx = 0; cx < W; cx += 4) { R(cx, RH - 5, 2, 2, shade(wall, 14)); R(cx, 0, 2, 2, shade(wall, 30)); }
+  }
+  // ---------------- facade (area RH..H)
+  R(0, RH, W, F, wall); const tone = S.planks ? 'plank' : S.timber ? 'plaster' : S.panels ? 'panel' : 'wall';
+  for (let yy = 0; yy < F; yy++) if (yy % 3 === 0 && tone === 'plank') R(0, RH + yy, W, 1, shade(wall, -14)); // planks
+  if (tone === 'panel') { for (let px = 0; px < W; px += 12) R(px, RH, 1, F, shade(wall, -16)); for (let fy = 0; fy < fl; fy++) R(0, RH + 2 + fy * FLOOR, W, 1, shade(wall, -16)); }
+  if (S.walls === undefined) {} const brick = b.style === 'halver' && wall !== '#c8b8a0' && wall !== '#c8a888'; if (brick) for (let yy = 0; yy < F; yy += 3) { R(0, RH + yy + 2, W, 1, shade(wall, -22)); for (let c = ((yy / 3) % 2) * 4; c < W; c += 8) R(c, RH + yy, 1, 3, shade(wall, -18)); }
+  R(0, RH, W, 2, 'rgba(0,0,0,0.34)'); R(0, RH + 2, W, 1, 'rgba(0,0,0,0.14)'); // eaves' shadow
+  if (S.cornice) { R(0, RH + 2, W, 2, shade(wall, 28)); R(0, RH + 4, W, 1, shade(wall, -30)); }
+  R(0, H - 3, W, 3, shade(wall, -34)); R(0, H - 3, W, 1, shade(wall, -8)); // plinth
+  const winCol = o.lit ? '#ffd88a' : '#7aa3b8', glint = '#cfe6f0';
+  const doorAx = b.door ? (b.door.x - b.x) * 16 : Math.floor(W / 2) - 6;
+  const win = (wx, wy, ww = 8, wh = 6, fl2 = 0) => {
+    if (S.win === 'ribbon') { R(wx - 1, wy - 1, ww + 2, wh + 2, shade(wall, -34)); R(wx, wy, ww, wh, winCol); R(wx, wy, 2, wh, glint); R(wx + 3, wy, 1, wh, shade(wall, -10)); R(wx + 6, wy, 1, wh, shade(wall, -10)); return; }
+    if (S.win === 'arched') { R(wx - 1, wy, ww + 2, wh + 1, S.trims[0]); R(wx, wy + 1, ww, wh - 1, '#2a3a4a'); R(wx + 1, wy + 1, ww - 2, wh - 2, winCol); R(wx, wy, 1, 2, wall); R(wx + ww - 1, wy, 1, 2, wall); R(wx + 1, wy + 1, 2, 1, glint); R(wx + ww / 2 | 0, wy + 1, 1, wh - 1, S.trims[0]); return; }
+    R(wx - 1, wy - 1, ww + 2, wh + 2, trim === '#f4f0e4' || trim === '#e8e0d0' || trim === '#dcdcd4' ? shade(trim, -30) : trim); R(wx, wy, ww, wh, winCol); R(wx, wy, 2, 2, glint); R(wx + (ww >> 1), wy, 1, wh, shade(trim, b.style === 'ostmark' ? 0 : -20)); if (S.win === 'cross') R(wx, wy + (wh >> 1), ww, 1, shade(trim, -20));
+    if (S.win === 'shutters') { const sc = pick(S.shutterCol, seed + wx); R(wx - 3, wy - 1, 2, wh + 2, sc); R(wx + ww + 1, wy - 1, 2, wh + 2, sc); R(wx - 3, wy + 1, 2, 1, shade(sc, -26)); R(wx + ww + 1, wy + 1, 2, 1, shade(sc, -26)); }
+    R(wx - 1, wy + wh + 1, ww + 2, 1, shade(wall, -34)); // sill
+  };
+  for (let f = 0; f < fl; f++) { const fy = RH + 2 + (fl - 1 - f) * FLOOR; const ground = f === 0; const cell = b.style === 'windfen' ? 13 : b.style === 'varn' ? 11 : 12; for (let wx = 5; wx + 9 < W - 3; wx += cell) { if (ground && b.door && wx + 10 > doorAx - 2 && wx < doorAx + 18) continue; if (!ground || b.shop || true) win(wx, fy + (ground ? 3 : 2), b.style === 'windfen' ? 9 : 8, 7); } if (S.balcony && !ground) { R(2, fy + 10, W - 4, 1, shade(wall, 30)); for (let c = 3; c < W - 3; c += 3) R(c, fy + 9, 1, 1, shade(wall, -30)); } if (b.style === 'halver' && !ground && fl > 3) R(0, fy + 11, W, 1, shade(wall, 16)); }
+  if (S.timber) { for (let f = 1; f < fl; f++) { const fy = RH + 2 + (fl - 1 - f) * FLOOR; R(0, fy - 1, W, 1, S.trims[0]); for (let px = 3; px < W; px += 12) R(px, fy, 1, FLOOR - 1, S.trims[0]); } R(0, RH + 2, W, 1, S.trims[0]); for (let px = 3; px < W; px += 12) for (let k = 1; k < 4; k++) { R(px + k, RH + 2 + (fl - 1) * FLOOR + 3 + k, 1, 1, S.trims[0]); } }
+  if (b.door) { R(doorAx + 2, H - 12, 12, 10, trim === '#4a3224' ? '#2a1a12' : INK); R(doorAx + 3, H - 11, 10, 9, b.style === 'varn' ? '#5a3a22' : '#6b4a32'); R(doorAx + 4, H - 10, 8, 3, o.lit ? '#ffd68c' : 'rgba(255,255,255,0.22)'); R(doorAx + 10, H - 7, 1, 1, '#e8c35a'); R(doorAx + 1, H - 2, 14, 1, 'rgba(160,150,140,0.9)'); if (b.style === 'varn') { R(doorAx + 2, H - 13, 12, 1, INK); R(doorAx + 3, H - 12, 10, 1, wall); } }
+  if (b.awning) for (let i = 0; i * 5 < W; i++) { R(i * 5, H - 14, 5, 3, i % 2 ? '#f3e5c6' : b.awning); R(i * 5 + 1, H - 11, 3, 1, i % 2 ? '#f3e5c6' : b.awning); }
+  if (b.sign) { const tw = Math.min(W - 8, b.sign.length * 3 + 6); R(Math.floor((W - tw) / 2) - 1, H - 17, tw + 2, 5, INK); R(Math.floor((W - tw) / 2), H - 16, tw, 3, '#3a2c25'); R(Math.floor((W - tw) / 2) + 2, H - 15, Math.max(2, tw - 4), 1, '#f6e7c1'); }
+  // sides and outline: the left wall catches light, the right is in shade; the whole building gets the game's 1-px ink
+  R(0, 0, 1, H, INK); R(W - 1, 0, 1, H, INK); R(0, 0, W, 1, INK); R(0, H - 1, W, 1, INK); R(1, 1, 1, H - 2, 'rgba(255,255,255,0.22)'); R(W - 2, 2, 1, H - 3, 'rgba(0,0,30,0.24)');
+  if (b.sign) { ctx.font = 'bold 9px "Trebuchet MS", "Segoe UI", sans-serif'; const tw = Math.ceil(ctx.measureText(b.sign).width + 10); const sx = x0 + (W * 2 - tw) / 2, sy = y0 + (H - 18) * 2; ctx.fillStyle = INK; ctx.fillRect(Math.round(sx) - 2, sy - 2, tw + 4, 17); ctx.fillStyle = '#3a2c25'; ctx.fillRect(Math.round(sx), sy, tw, 13); ctx.fillStyle = '#f6e7c1'; ctx.textBaseline = 'middle'; ctx.fillText(b.sign, Math.round(sx) + 5, sy + 7); }
+  if (o.damage === 'burn') { R(Math.floor(W * 0.4), 2, 14, 8, 'rgba(10,8,12,0.5)'); R(Math.floor(W * 0.4) + 3, 4, 8, 4, '#14101a'); }
+  if (o.damage === 'hole') { const hx = Math.floor(W * 0.45); R(hx, 1, 14, RH - 4, '#14101a'); for (let i = 0; i < 6; i++) R(hx + 1 + i * 2, 2 + (i % 3) * 3, 2, 1, '#6a4a2a'); R(hx - 1, 1, 1, RH - 4, INK); R(hx + 14, 1, 1, RH - 4, INK); }
+}
+
+
+
+return { shade, STYLES, drawRoofed, hash, pick };
+})();
+
+// ---- src/engine/drawBattleCars.js
+__m["src/engine/drawBattleCars.js"] = (function () {
+// Car models for the battle maps (v0.102.0): ten models (sedan, hatchback, taxi, police, van, ambulance, pickup, jeep, box truck, bus) painted on an art-pixel grid with a 1-px ink outline, glass with a
+// glint, lights and a hard shadow; painted once facing east, then turned by whole quarter turns. Ported from the approved mock-up (docs/mockups/src/war/g_cars.js). Browser only.
+const INK = '#1b1a24';
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const sh = (h, k) => { const c = hex(h).map((v) => Math.max(0, Math.min(255, v + k))); return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return [c, g]; };
+const cache = new Map();
+function ink(src) { const [c, g] = mk(src.width + 2, src.height + 2); const [s, sg] = mk(src.width, src.height); sg.drawImage(src, 0, 0); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = INK; sg.fillRect(0, 0, s.width, s.height); for (const [dx, dy] of [[0, 1], [2, 1], [1, 0], [1, 2]]) g.drawImage(s, dx, dy); g.drawImage(src, 1, 1); return c; }
+const GLASS = '#33506a', GLASS_L = '#8ab6d0';
+/** model: { kind, color, L (art px length), roof } */
+function paint(kind, color) {
+  const L = { bus: 62, truck: 44, van: 34, ambulance: 34, pickup: 34, jeep: 30 }[kind] || 32; const Wd = 16; const [c, g] = mk(L, Wd); const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+  const body = color, lo = sh(color, -34), hi = sh(color, 30), dk = sh(color, -60);
+  const wheel = (x) => { R(x, 0, 5, 3, '#14141a'); R(x, 13, 5, 3, '#14141a'); R(x + 1, 0, 3, 1, '#3a3a44'); R(x + 1, 13, 3, 1, '#3a3a44'); };
+  const bodyBox = (x0, x1, y0 = 2, y1 = 14) => { R(x0, y0, x1 - x0, y1 - y0, body); R(x0, y0, x1 - x0, 1, hi); R(x0, y1 - 1, x1 - x0, 1, lo); R(x0 + 1, y0 + 1, x1 - x0 - 2, 1, sh(color, 12)); R(x0, y0, 1, 1, dk); R(x0, y1 - 1, 1, 1, dk); R(x1 - 1, y0, 1, 1, dk); R(x1 - 1, y1 - 1, 1, 1, dk); };
+  const lights = (xf, xr) => { R(xf - 1, 3, 1, 2, '#fff3b0'); R(xf - 1, 11, 1, 2, '#fff3b0'); R(xf - 2, 3, 1, 1, '#ffe27a'); R(xf - 2, 12, 1, 1, '#ffe27a'); R(xr, 3, 1, 2, '#e83a2a'); R(xr, 11, 1, 2, '#e83a2a'); };
+  const mirror = (x) => { R(x, 1, 2, 1, dk); R(x, 14, 2, 1, dk); };
+  if (kind === 'sedan' || kind === 'taxi' || kind === 'police') {
+    wheel(5); wheel(22); bodyBox(1, 31); R(21, 3, 9, 10, sh(color, 6)); R(22, 7, 7, 1, hi); // hood
+    R(16, 3, 5, 10, GLASS); R(17, 4, 3, 1, GLASS_L); R(17, 5, 2, 1, '#6a96b2'); R(15, 3, 1, 10, dk); // windscreen
+    R(7, 3, 8, 10, kind === 'police' ? '#e8ecf0' : sh(color, 16)); R(8, 4, 6, 1, sh(color, 40)); R(7, 12, 8, 1, lo); // roof
+    R(4, 3, 3, 10, GLASS); R(4, 4, 2, 1, GLASS_L); R(3, 3, 1, 10, dk); // rear window
+    R(11, 2, 1, 12, lo); // door seam
+    lights(31, 1); mirror(18); R(1, 7, 1, 2, '#e8e2d4'); R(30, 7, 1, 2, '#e8e2d4'); // plates
+    if (kind === 'taxi') { R(10, 6, 4, 4, '#fff3b0'); R(10, 6, 4, 1, '#ffe27a'); R(7, 2, 8, 1, '#17161f'); R(12, 12, 2, 1, '#17161f'); for (let i = 0; i < 4; i++) { R(12 + i * 2, 13, 1, 1, '#17161f'); R(13 + i * 2, 2, 1, 1, '#17161f'); } }
+    if (kind === 'police') { R(7, 3, 8, 10, '#e8ecf0'); R(21, 3, 9, 10, '#1f2f56'); R(7, 2, 9, 1, '#1f2f56'); R(9, 6, 2, 4, '#e83a2a'); R(11, 6, 2, 4, '#3a6ae8'); R(9, 5, 4, 1, '#14141a'); R(9, 10, 4, 1, '#14141a'); R(2, 4, 4, 8, '#1f2f56'); }
+  } else if (kind === 'hatch') {
+    wheel(5); wheel(21); bodyBox(2, 30); R(22, 3, 8, 10, sh(color, 6)); R(22, 7, 6, 1, hi); R(17, 3, 4, 10, GLASS); R(18, 4, 2, 1, GLASS_L); R(16, 3, 1, 10, dk); R(6, 3, 10, 10, sh(color, 16)); R(7, 4, 8, 1, sh(color, 40)); R(3, 3, 3, 10, GLASS); R(4, 4, 1, 1, GLASS_L); R(11, 2, 1, 12, lo); lights(30, 2); mirror(19);
+  } else if (kind === 'van' || kind === 'ambulance') {
+    wheel(5); wheel(24); bodyBox(1, 33); R(26, 3, 6, 10, sh(color, 6)); R(24, 3, 3, 10, GLASS); R(25, 4, 1, 1, GLASS_L); R(23, 3, 1, 10, dk); R(3, 3, 20, 10, sh(color, 18)); R(4, 4, 18, 1, sh(color, 44)); R(3, 12, 20, 1, lo); for (let x = 7; x < 22; x += 5) R(x, 3, 1, 10, sh(color, -6)); R(3, 7, 2, 2, sh(color, -20)); lights(33, 1); mirror(25);
+    if (kind === 'ambulance') { R(8, 6, 8, 4, '#e83a2a'); R(11, 4, 2, 8, '#e83a2a'); R(23, 3, 1, 10, '#e83a2a'); R(4, 3, 3, 2, '#e83a2a'); R(4, 11, 3, 2, '#3a6ae8'); R(1, 6, 2, 4, '#fff'); }
+  } else if (kind === 'pickup') {
+    wheel(5); wheel(24); bodyBox(1, 33); R(26, 3, 6, 10, sh(color, 6)); R(21, 3, 5, 10, GLASS); R(22, 4, 2, 1, GLASS_L); R(20, 3, 1, 10, dk); R(13, 3, 7, 10, sh(color, 16)); R(14, 4, 5, 1, sh(color, 40)); R(2, 3, 11, 10, '#2a2a30'); R(3, 4, 9, 8, '#3a3a42'); R(2, 3, 11, 1, lo); R(4, 5, 4, 3, '#8a6a3a'); R(5, 6, 2, 1, '#b08a50'); R(8, 8, 3, 3, '#6a7a52'); R(9, 8, 1, 3, '#8a9a6a'); lights(33, 1); mirror(22);
+  } else if (kind === 'jeep') {
+    wheel(4); wheel(21); bodyBox(1, 29); R(20, 3, 8, 10, sh(color, 4)); R(17, 3, 2, 10, GLASS); R(17, 4, 1, 1, GLASS_L); R(16, 3, 1, 10, dk); R(4, 3, 12, 10, '#2e2e34'); R(5, 4, 10, 8, '#44444c'); R(7, 5, 3, 2, '#5a5a62'); R(11, 9, 4, 2, '#5a5a62'); R(3, 3, 1, 10, dk); R(10, 7, 6, 2, '#1a1a20'); R(14, 7, 6, 1, '#6a6a72'); R(27, 5, 2, 6, '#8a8a92'); lights(29, 1); R(1, 6, 1, 4, '#8a8a92'); // seats, mounted MG, bull bar
+  } else if (kind === 'truck') {
+    wheel(4); wheel(12); wheel(34); bodyBox(1, 43); R(33, 3, 9, 10, sh(color, 4)); R(36, 3, 4, 10, GLASS); R(37, 4, 2, 1, GLASS_L); R(35, 3, 1, 10, dk); R(2, 2, 29, 12, '#d8d4c8'); R(2, 2, 29, 1, '#f4f0e4'); R(2, 13, 29, 1, '#a8a498'); for (let x = 6; x < 30; x += 6) R(x, 2, 1, 12, '#a8a498'); R(8, 6, 14, 4, color); R(10, 7, 10, 2, sh(color, 30)); R(31, 3, 2, 10, dk); lights(43, 1); mirror(37);
+  } else if (kind === 'bus') {
+    wheel(6); wheel(14); wheel(46); bodyBox(1, 61); R(53, 3, 7, 10, sh(color, 4)); R(55, 3, 4, 10, GLASS); R(56, 4, 2, 1, GLASS_L); R(52, 3, 1, 10, dk); R(3, 3, 48, 10, sh(color, 14)); R(4, 4, 46, 1, sh(color, 40)); R(3, 12, 48, 1, lo); for (let x = 8; x < 48; x += 10) { R(x, 5, 6, 6, sh(color, 26)); R(x + 1, 6, 4, 4, sh(color, 6)); R(x + 2, 7, 2, 2, '#c8c4b8'); } R(3, 7, 48, 2, '#f4f0e4'); R(3, 7, 48, 1, '#fff'); lights(61, 1); mirror(55);
+  }
+  // wheels get a hub highlight
+  return c;
+}
+/** a sprite facing dir ('E' | 'W' | 'N' | 'S'), outlined and scaled to world pixels (x2), with a hard 2-px shadow below-right */
+function car(kind, color, dir = 'E') {
+  const key = `${kind}|${color}|${dir}`; if (cache.has(key)) return cache.get(key); const base = ink(paint(kind, color)); const w = base.width, h = base.height; let r;
+  if (dir === 'E' || dir === 'W') { const [c, g] = mk(w * 2, h * 2); g.imageSmoothingEnabled = false; if (dir === 'W') { g.translate(w * 2, 0); g.scale(-1, 1); } g.drawImage(base, 0, 0, w * 2, h * 2); r = c; }
+  else { const [c, g] = mk(h * 2, w * 2); g.imageSmoothingEnabled = false; g.translate(h * 2 / 2, w * 2 / 2); g.rotate(dir === 'S' ? Math.PI / 2 : -Math.PI / 2); g.drawImage(base, -w, -h, w * 2, h * 2); r = c; }
+  // shadow
+  const [o, og] = mk(r.width + 6, r.height + 6); og.imageSmoothingEnabled = false; const [s, sg] = mk(r.width, r.height); sg.drawImage(r, 0, 0); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = 'rgba(15,15,35,0.32)'; sg.fillRect(0, 0, s.width, s.height); og.drawImage(s, 4, 4); og.drawImage(r, 0, 0); cache.set(key, o); return o;
+}
+const MODELS = [['sedan', '#b8483a'], ['sedan', '#3a5a8a'], ['sedan', '#2a2a2e'], ['hatch', '#4a7a4a'], ['hatch', '#c8b848'], ['sedan', '#e8e2d4'], ['taxi', '#e8c02a'], ['police', '#1f2f56'], ['van', '#a8a8a8'], ['van', '#6a4a8a'], ['ambulance', '#f4f2ee'], ['pickup', '#c8683a'], ['pickup', '#4a6a4a'], ['truck', '#3a5a8a'], ['bus', '#4a8a6a'], ['jeep', '#566a3e']];
+function drawCar(g, kind, color, dir, x, y) { const s = car(kind, color, dir); g.drawImage(s, Math.round(x - (s.width - 6) / 2), Math.round(y - (s.height - 6) / 2)); }
+
+return { car, MODELS, drawCar };
+})();
+
+// ---- src/engine/battleGround.js
+__m["src/engine/battleGround.js"] = (function () {
+// The ground of a battle map (v0.102.0): the game's own ground painter (the one every street map uses) run over the map's glyph grid, graded to the biome (snow, desert, steppe, wet), so a battle
+// field has the same paving, kerbs, grass, dirt tracks, furrows and water as the rest of the game. Baked once per battle. Browser only. Ported from docs/mockups/src/war/g_gen.js.
+const { GameMap } = __m["src/world/gameMap.js"];
+const { buildPixelGround } = __m["src/engine/drawPixelGround.js"];
+const { PROP_TYPES } = __m["src/content/props.js"];
+const { ART_BIOME } = __m["src/content/battle.js"];
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+
+/** The game's own map object for a battle map: the glyph grid as rows, with its props and fields (the props are painted separately; the ground painter reads them for what lies under). */
+function gameMapOf(map) {
+  const rows = []; for (let y = 0; y < map.h; y++) { let r = ''; for (let x = 0; x < map.w; x++) r += String.fromCharCode(map.surf[y * map.w + x]); rows.push(r); }
+  return new GameMap({ id: 'battle', name: 'battle', kind: 'outdoor', tiles: rows, buildings: [], props: map.props, doors: [], spots: {}, fields: map.fields }, PROP_TYPES);
+}
+
+// ------------------------------------------------------------------------------------------------- biome grading of the painted ground
+function grade(canvas, biome) {
+  if (biome === 'temperate') return canvas; const g = canvas.getContext('2d'); const w = canvas.width, h = canvas.height; const img = g.getImageData(0, 0, w, h); const d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const r = d[i], gg = d[i + 1], b = d[i + 2]; const sat = Math.max(r, gg, b) - Math.min(r, gg, b); const lum = (r + gg + b) / 3; const road = sat < 22 && lum < 105; const paved = sat < 26 && lum >= 105; const greenish = gg > r + 6 && gg > b + 6; const dirt = r > b + 26 && r >= gg; const water = b > r + 26 && b > gg + 6; const n = (i / 4) % 7;
+    if (biome === 'snow') { if (greenish || dirt) { const k = 0.84; d[i] = r + (222 - r + (n - 3)) * k; d[i + 1] = gg + (230 - gg + (n - 3)) * k; d[i + 2] = b + (242 - b) * k; } else if (water) { d[i] = r + (176 - r) * 0.45; d[i + 1] = gg + (206 - gg) * 0.45; d[i + 2] = b + (226 - b) * 0.3; } else if (paved) { d[i] = r + (214 - r) * 0.35; d[i + 1] = gg + (222 - gg) * 0.35; d[i + 2] = b + (236 - b) * 0.35; } else if (road) { d[i] = r * 0.96 + 6; d[i + 1] = gg * 0.96 + 8; d[i + 2] = b * 0.98 + 12; } }
+    else if (biome === 'desert') { if (!road) { d[i] = Math.min(255, r * 1.05 + 4); d[i + 1] = gg * 0.99; d[i + 2] = b * 0.88; } else { d[i] = r * 1.04; d[i + 1] = gg; d[i + 2] = b * 0.92; } }
+    else if (biome === 'steppe') { if (greenish) { const k = 0.6; d[i] = r + (186 - r) * k; d[i + 1] = gg + (170 - gg) * k; d[i + 2] = b + (92 - b) * k; } }
+    else if (biome === 'mud') { if (greenish) { d[i] = r * 0.72; d[i + 1] = gg * 0.88; d[i + 2] = b * 0.7; } else if (dirt) { d[i] = r * 0.78; d[i + 1] = gg * 0.74; d[i + 2] = b * 0.7; } } }
+  g.putImageData(img, 0, 0); return canvas;
+}
+
+
+/** The whole ground, painted once: the game's painter, then the biome grade. */
+function bakeGround(map, gm = gameMapOf(map)) {
+  const raw = buildPixelGround(gm, mk); const ground = mk(raw.width, raw.height); ground.getContext('2d').drawImage(raw, 0, 0);
+  grade(ground, ART_BIOME[map.biome] || 'temperate'); return ground;
+}
+
+return { gameMapOf, grade, bakeGround };
+})();
+
 // ---- src/engine/drawBattle.js
 __m["src/engine/drawBattle.js"] = (function () {
 // The battle on the screen (v0.101.0, the look renderer + the tactical engine's drawing): the ground baked once, buildings seen from above with a roof (or opened to one floor's plan), people on the
@@ -76797,66 +77123,87 @@ __m["src/engine/drawBattle.js"] = (function () {
 const { drawPerson } = __m["src/engine/drawPeople.js"];
 const { drawWeaponSprite } = __m["src/engine/drawPixelWeapons.js"];
 const { drawVehicle } = __m["src/engine/drawWarVehicles.js"];
-const { TILE, STYLES } = __m["src/content/battle.js"];
+const { drawRoofed, STYLES: ART_STYLES, shade } = __m["src/engine/drawRoofed.js"];
+const { drawCar } = __m["src/engine/drawBattleCars.js"];
+const { bakeGround, gameMapOf } = __m["src/engine/battleGround.js"];
+const { drawProp, setPixelProps } = __m["src/engine/drawWorld.js"];
+const { PROP_TYPES } = __m["src/content/props.js"];
+const { TILE, ART_STYLE } = __m["src/content/battle.js"];
 const { LOOKS, DEFAULT_LOOK } = __m["src/content/troops.js"];
 const { unit } = __m["src/battle/hash.js"];
 
 const TP = 32; // pixels a tile is drawn at, at command zoom
 const INK = '#1b1a24';
-const GROUND = {
-  rural: ['#6b8b4b', '#5f7f43', '#779657'], taiga: ['#5d7d58', '#527250', '#6b8a64'], desert: ['#c9b27a', '#bda56e', '#d6c08a'], steppe: ['#9aa35a', '#8d9650', '#a8b068'], tundra: ['#8fa0a0', '#839494', '#9bacac'], jungle: ['#3f6f3a', '#376433', '#497d44'], snow: ['#dfe6ea', '#d0d9de', '#eaf0f2'],
-};
-const palFor = (biome) => GROUND[biome] || GROUND.rural;
-const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v + k))); return `#${[f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
 const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 const WLOOK = { item_assault_rifle: 'ar', item_smg: 'smg', item_lmg: 'lmg', item_rpg: 'rpg', item_sniper_rifle: 'sniper', item_pistol: 'pistol', item_shotgun: 'shotgun' };
 
-/** The ground, painted once for a map: grass with a little grain, roads, water, crops in rows, hedges, trees. (Building tiles are painted over by the building pass.) */
-function bakeGround(map) {
-  const c = mkCanvas(map.w * TP, map.h * TP); const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  const pal = palFor(map.biome === 'rural' ? 'rural' : map.biome);
-  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
-    const t = map.tiles[y * map.w + x]; const X = x * TP; const Y = y * TP; const u = unit(`${map.seed}|g|${x}|${y}`);
-    g.fillStyle = pal[Math.floor(u * 3)]; g.fillRect(X, Y, TP, TP);
-    for (let k = 0; k < 4; k++) { g.fillStyle = shade(pal[(Math.floor(u * 3) + 1) % 3], k * 3 - 4); g.fillRect(X + Math.floor(unit(`${map.seed}|n${k}|${x}|${y}`) * 28) + 2, Y + Math.floor(unit(`${map.seed}|m${k}|${x}|${y}`) * 28) + 2, 2, 2); }
-    if (t === TILE.ROAD) { g.fillStyle = '#5a5a60'; g.fillRect(X, Y, TP, TP); g.fillStyle = '#66666c'; g.fillRect(X + 4, Y + 6, 3, 2); g.fillRect(X + 18, Y + 20, 3, 2); g.fillStyle = '#4c4c52'; g.fillRect(X, Y + TP - 2, TP, 2); }
-    else if (t === TILE.WATER) { g.fillStyle = '#3d6f9e'; g.fillRect(X, Y, TP, TP); g.fillStyle = '#5a92c2'; g.fillRect(X + 4 + (y % 3) * 4, Y + 8, 10, 2); g.fillRect(X + 14, Y + 22, 12, 2); }
-    else if (t === TILE.CROP) { g.fillStyle = '#9aa83c'; g.fillRect(X, Y, TP, TP); g.fillStyle = '#7e8c2e'; for (let r = 3; r < TP; r += 6) g.fillRect(X, Y + r, TP, 2); g.fillStyle = '#b8c456'; for (let r = 1; r < TP; r += 6) g.fillRect(X + 3, Y + r, 4, 1); }
-    else if (t === TILE.HEDGE) { g.fillStyle = '#3d5a30'; g.fillRect(X, Y + 6, TP, 22); g.fillStyle = '#4f7040'; g.fillRect(X, Y + 6, TP, 4); g.fillStyle = INK; g.fillRect(X, Y + 4, TP, 2); g.fillRect(X, Y + 28, TP, 2); g.fillStyle = '#6a8e52'; g.fillRect(X + 4, Y + 10, 3, 3); g.fillRect(X + 16, Y + 16, 3, 3); }
+/** A battle begun under v0.101.0 has no ground glyphs, props or cars: make them from its tiles so it is painted in the new look too (a road, water, crops, trees, hedges, building footprints). */
+function legacyDecor(map) {
+  const surf = new Uint8Array(map.w * map.h); const props = [];
+  for (let i = 0; i < surf.length; i++) {
+    const t = map.tiles[i]; const x = i % map.w; const y = Math.floor(i / map.w);
+    surf[i] = (t === TILE.ROAD ? '=' : t === TILE.WATER ? '~' : t === TILE.CROP ? 'k' : map.bid[i] >= 0 ? ',' : '.').charCodeAt(0);
+    if (t === TILE.TREE) props.push({ id: `l${props.length}`, type: 'tree', x, y, color: '#4f7a4a' }); else if (t === TILE.HEDGE) props.push({ id: `l${props.length}`, type: 'bush', x, y });
   }
-  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) if (map.tiles[y * map.w + x] === TILE.TREE) {
-    const X = x * TP + 16; const Y = y * TP + 20; g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(X - 10, Y + 6, 24, 8);
-    g.fillStyle = INK; g.fillRect(X - 12, Y - 16, 24, 24); g.fillRect(X - 10, Y - 18, 20, 28); g.fillStyle = '#35592e'; g.fillRect(X - 11, Y - 15, 22, 22); g.fillStyle = '#4a7a3c'; g.fillRect(X - 10, Y - 16, 14, 12); g.fillStyle = '#6a9a52'; g.fillRect(X - 8, Y - 14, 6, 4); g.fillStyle = '#26421f'; g.fillRect(X + 2, Y - 4, 8, 8);
-  }
+  const buildings = map.buildings.map((b) => ({ ...b, astyle: b.astyle || ART_STYLE[b.style] || 'halver', seed: b.seed ?? b.id * 977 }));
+  return { ...map, surf, props, cars: [], fields: [], buildings };
+}
+
+/** A building's roof-and-facade, painted once to its own canvas (with room for its shadow): the painter makes thousands of strokes, far too many to repeat sixty times a second. */
+function bakeBuilding(b) {
+  const c = mkCanvas(b.w * TP + 24, b.h * TP + 22); const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  drawRoofed(g, { ...b, x: 0, y: 0, style: b.astyle, door: { x: b.door.x - b.x, y: b.door.y - b.y } }, {});
   return c;
 }
 
-/** A building from above: its roof in its style's colours, a facade strip with a row of windows per floor, a door, and a shadow. */
-function roof(g, b, style) {
-  const S = STYLES[style] || STYLES.halvermouth; const X = b.x * TP; const Y = b.y * TP; const W = b.w * TP; const H = b.h * TP;
-  g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(X + 6, Y + 6, W, H);
-  g.fillStyle = INK; g.fillRect(X - 1, Y - 1, W + 2, H + 2);
-  g.fillStyle = S.roof; g.fillRect(X, Y, W, H - 12);
-  g.fillStyle = shade(S.roof, 26); g.fillRect(X, Y, W, 4); g.fillStyle = shade(S.roof, -22); g.fillRect(X, Y + H - 16, W, 4);
-  g.fillStyle = shade(S.roof, -12); for (let i = 8; i < W - 6; i += 12) g.fillRect(X + i, Y + 6, 2, H - 24); // ridges/tiles
-  g.fillStyle = S.trim; g.fillRect(X, Y, 4, H - 12); g.fillRect(X + W - 4, Y, 4, H - 12);
-  // facade: a wall strip with a row of windows for each floor, then the door
-  g.fillStyle = S.wall; g.fillRect(X, Y + H - 12, W, 12); g.fillStyle = shade(S.wall, -26); g.fillRect(X, Y + H - 3, W, 3);
-  for (let f = 0; f < Math.min(b.floors, 3); f++) { g.fillStyle = '#2a3a50'; for (let i = 6; i < W - 10; i += 14) g.fillRect(X + i, Y + H - 10 + f * 3, 6, 2); }
-  g.fillStyle = '#5a3a24'; g.fillRect(X + Math.floor(b.w / 2) * TP + 8, Y + H - 14, 14, 14);
-  g.fillStyle = INK; g.font = 'bold 12px monospace'; g.textAlign = 'center'; g.fillText(String(b.floors), X + W / 2, Y + (H - 12) / 2 + 4);
+/** Everything about a map that does not change in a battle, built once: the ground, and the things that stand on it in the order they are drawn (back to front). */
+function bakeScene(map0) {
+  setPixelProps(true);
+  const map = map0.surf ? map0 : legacyDecor(map0); const gm = gameMapOf(map); const ground = bakeGround(map, gm); const gg = ground.getContext('2d'); gg.imageSmoothingEnabled = false;
+  const items = [];
+  for (const p of map.props) {
+    const pp = { w: 1, h: 1, ...(PROP_TYPES[p.type]?.defaults || {}), ...p };
+    if (p.type === 'crosswalk') { drawProp(gg, pp, { wind: 0, map: gm, time: 0, night: false }); continue; }
+    items.push({ y: (p.y + (pp.h || 1)) * TP - 4, x0: p.x * TP - 48, x1: (p.x + (pp.w || 1)) * TP + 48, y0: p.y * TP - 120, y1: (p.y + (pp.h || 1)) * TP + 24, draw: (g, t) => drawProp(g, pp, { wind: 0, map: gm, time: t, night: false }) });
+  }
+  for (const b of map.buildings) { const sprite = bakeBuilding(b); items.push({ y: (b.y + b.h) * TP, b, x0: b.x * TP, x1: b.x * TP + sprite.width, y0: b.y * TP, y1: b.y * TP + sprite.height, draw: (g) => g.drawImage(sprite, b.x * TP, b.y * TP) }); }
+  for (const c of map.cars || []) items.push({ y: c.y + 10, x0: c.x - 70, x1: c.x + 70, y0: c.y - 40, y1: c.y + 40, draw: (g) => drawCar(g, c.kind, c.color, c.dir, c.x, c.y) });
+  items.sort((a, b) => a.y - b.y);
+  return { map, gm, ground, items };
 }
 
-/** One floor of a building as a plan: walls, boards, windows, the stair, and a label. */
-function plan(g, map, b, floor) {
-  const X = b.x * TP; const Y = b.y * TP;
+/** One floor of a building as a plan, in the game's roofless look: plank floors with a shadow under the north wall, brick or plaster walls with framed windows, furniture on the boards, the stair and a label. */
+function plan(g, map, b, floor, gm) {
+  const X = b.x * TP; const Y = b.y * TP; const S = ART_STYLES[b.astyle] || ART_STYLES.halver; const wall = S.walls[0]; const wlo = shade(wall, -30); const whi = shade(wall, 22);
+  const at = (i, j) => (i < b.x || j < b.y || i >= b.x + b.w || j >= b.y + b.h ? TILE.WALL : map.tiles[j * map.w + i]);
+  const solid = (t) => t === TILE.WALL || t === TILE.WINDOW;
   for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) {
     const t = map.tiles[j * map.w + i]; const x = i * TP; const y = j * TP;
-    if (t === TILE.WALL) { g.fillStyle = INK; g.fillRect(x, y, TP, TP); g.fillStyle = '#7a6a5c'; g.fillRect(x + 2, y + 2, TP - 4, TP - 4); g.fillStyle = '#9a8a78'; g.fillRect(x + 2, y + 2, TP - 4, 3); }
-    else if (t === TILE.WINDOW) { g.fillStyle = INK; g.fillRect(x, y, TP, TP); g.fillStyle = '#7a6a5c'; g.fillRect(x + 2, y + 2, TP - 4, TP - 4); g.fillStyle = '#8ad0e8'; g.fillRect(x + 6, y + 8, TP - 12, TP - 16); g.fillStyle = '#d6f2ff'; g.fillRect(x + 6, y + 8, TP - 12, 3); }
-    else { g.fillStyle = (i + j) % 2 ? '#b9a07a' : '#c4ab84'; g.fillRect(x, y, TP, TP); g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(x, y + TP - 2, TP, 2); if (t === TILE.DOOR) { g.fillStyle = '#5a3a24'; g.fillRect(x + 2, y + 4, TP - 4, TP - 8); } if (t === TILE.STAIRS) { g.fillStyle = '#6a5a48'; for (let k = 0; k < 5; k++) g.fillRect(x + 4, y + 4 + k * 5, TP - 8, 3); g.fillStyle = '#e8c84a'; g.font = 'bold 14px monospace'; g.textAlign = 'center'; g.fillText(floor < b.floors - 1 ? '▲' : '▼', x + TP / 2, y + TP / 2 + 5); } }
+    if (t === TILE.WALL || t === TILE.WINDOW) {
+      g.fillStyle = INK; g.fillRect(x, y, TP, TP); g.fillStyle = wall; g.fillRect(x + 2, y + 2, TP - 4, TP - 4);
+      g.fillStyle = wlo; for (let r = 4; r < TP - 2; r += 6) { g.fillRect(x + 2, y + r + 4, TP - 4, 1); g.fillRect(x + 2 + ((r / 6 + i) % 2) * 8 + 4, y + r - 2, 1, 6); }
+      g.fillStyle = whi; g.fillRect(x + 2, y + 2, TP - 4, 2); g.fillRect(x + 2, y + 2, 2, TP - 4);
+      if (t === TILE.WINDOW) { const horiz = solid(at(i - 1, j)) && solid(at(i + 1, j)); g.fillStyle = INK; g.fillRect(x + (horiz ? 4 : 8), y + (horiz ? 8 : 4), horiz ? TP - 8 : TP - 16, horiz ? TP - 16 : TP - 8); g.fillStyle = '#7aa3b8'; g.fillRect(x + (horiz ? 5 : 9), y + (horiz ? 9 : 5), horiz ? TP - 10 : TP - 18, horiz ? TP - 18 : TP - 10); g.fillStyle = '#cfe6f0'; g.fillRect(x + (horiz ? 5 : 9), y + (horiz ? 9 : 5), horiz ? 8 : 3, horiz ? 3 : 8); }
+    } else {
+      const k = (i * 7 + j * 13) % 3; g.fillStyle = ['#b98a5e', '#b08157', '#c0925f'][k]; g.fillRect(x, y, TP, TP);
+      g.fillStyle = 'rgba(70,40,20,0.35)'; for (let r = 0; r < TP; r += 8) g.fillRect(x, y + r + 7, TP, 1); g.fillStyle = 'rgba(255,230,190,0.16)'; for (let r = 0; r < TP; r += 8) g.fillRect(x, y + r, TP, 1);
+      if (solid(at(i, j - 1))) { g.fillStyle = 'rgba(30,18,10,0.38)'; g.fillRect(x, y, TP, 7); } if (solid(at(i - 1, j))) { g.fillStyle = 'rgba(30,18,10,0.22)'; g.fillRect(x, y, 5, TP); }
+      if (t === TILE.DOOR) { g.fillStyle = INK; g.fillRect(x + 2, y + 6, TP - 4, TP - 10); g.fillStyle = '#6b4a32'; g.fillRect(x + 4, y + 8, TP - 8, TP - 14); g.fillStyle = '#e8c35a'; g.fillRect(x + TP - 10, y + 16, 3, 3); }
+      if (t === TILE.STAIRS) { g.fillStyle = INK; g.fillRect(x + 1, y + 1, TP - 2, TP - 2); g.fillStyle = '#8a8478'; g.fillRect(x + 3, y + 3, TP - 6, TP - 6); for (let q = 0; q < 6; q++) { g.fillStyle = q % 2 ? '#a8a298' : '#948e82'; g.fillRect(x + 3, y + 4 + q * 4, TP - 6, 3); } g.fillStyle = '#e8c84a'; g.font = 'bold 14px monospace'; g.textAlign = 'center'; g.fillText(floor < b.floors - 1 ? '\u25b2' : '\u25bc', x + TP / 2, y + TP / 2 + 5); }
+    }
   }
-  g.fillStyle = 'rgba(16,14,36,0.78)'; g.fillRect(X, Y - 18, 118, 16); g.fillStyle = '#ffe8a0'; g.font = 'bold 11px monospace'; g.textAlign = 'left'; g.fillText(`FLOOR ${floor + 1} OF ${b.floors}`, X + 4, Y - 6);
+  // furniture, from the game's own props, laid by a hash of the building: shelves and cabinets along the north wall, tables with chairs inside, a counter and a plant on the ground floor of a shop
+  const open = (i, j) => map.tiles[j * map.w + i] === TILE.FLOOR && map.bid[j * map.w + i] === b.id;
+  const put = (type, i, j, extra = {}) => { const pp = { w: 1, h: 1, ...(PROP_TYPES[type]?.defaults || {}), type, x: i, y: j, ...extra }; drawProp(g, pp, { wind: 0, map: gm, time: 0, night: false }); };
+  const clearish = (i, j) => open(i, j) && Math.abs(i - b.door.x) + Math.abs(j - b.door.y) > 2 && !(i <= b.x + 2 && j <= b.y + 2);
+  for (let j = b.y + 1; j < b.y + b.h - 1; j++) for (let i = b.x + 1; i < b.x + b.w - 1; i++) {
+    if (!clearish(i, j)) continue; const u = unit(`${b.id}|f${floor}|${i}|${j}`);
+    if (j === b.y + 1 && u < 0.45) put(u < 0.2 ? 'shelf' : 'cabinet', i, j);
+    else if (j > b.y + 1 && j < b.y + b.h - 2 && u < 0.1 && clearish(i + 1, j)) { put('table', i, j); put('chair', i + 1, j); }
+    else if (u > 0.96) put('plant', i, j);
+  }
+  if (floor === 0 && b.sign) { const cj = b.y + 2; for (let i = b.x + 3; i < b.x + b.w - 2; i++) if (clearish(i, cj + 1)) put('counter', i, cj + 1); }
+  g.fillStyle = 'rgba(16,14,36,0.9)'; g.fillRect(X, Y - 20, 132, 18); g.strokeStyle = '#ffe28a'; g.lineWidth = 2; g.strokeRect(X, Y - 20, 132, 18); g.fillStyle = '#ffe28a'; g.font = 'bold 12px system-ui'; g.textAlign = 'left'; g.fillText(`FLOOR ${floor + 1} OF ${b.floors}`, X + 8, Y - 6);
 }
 
 const dirOf = (u, to) => { const dx = to.x - u.x; const dy = to.y - u.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'; };
@@ -76868,8 +77215,8 @@ const appearance = (u, side, look) => {
 
 /** The view: owns a canvas, a camera and the effects; `draw(B, ui)` paints a frame. */
 class BattleView {
-  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.ground = null; this.map = null; this.t = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
-  attach(B, looks = {}) { this.B = B; this.map = B.map; this.ground = bakeGround(B.map); this.looks = looks; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); }
+  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
+  attach(B, looks = {}) { this.B = B; this.map = B.map; this.scene = bakeScene(B.map); this.looks = looks; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); }
   tier() { return this.cam.zoom < 0.55 ? 'far' : this.cam.zoom > 1.8 ? 'close' : 'command'; }
   toWorld(sx, sy) { const r = this.cv.getBoundingClientRect(); return { x: (sx - r.left) / this.cam.zoom + this.cam.x, y: (sy - r.top) / this.cam.zoom + this.cam.y }; }
   toTile(sx, sy) { const w = this.toWorld(sx, sy); return { x: w.x / TP, y: w.y / TP }; }
@@ -76902,25 +77249,38 @@ class BattleView {
     const g = this.ctx; const cam = this.cam; this.t += 1 / 60; const tier = this.tier();
     g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#10101c'; g.fillRect(0, 0, this.cv.width, this.cv.height);
     g.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom, -cam.y * cam.zoom);
-    g.drawImage(this.ground, 0, 0);
+    g.drawImage(this.scene.ground, 0, 0);
     // the objective and the way out
     const o = B.map.objective; g.strokeStyle = 'rgba(255,224,120,0.9)'; g.lineWidth = 3; g.setLineDash([8, 6]); g.beginPath(); g.arc(o.x * TP + 16, o.y * TP + 16, 4 * TP, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
     if (B.goal === 'logistics') { g.strokeStyle = 'rgba(120,255,160,0.9)'; g.strokeRect(B.map.exit.x * TP - 20, B.map.exit.y * TP - 60, 40, 120); }
     const seen = ui.seen || new Set(B.units.filter((u) => u.side === 'e').map((u) => u.id));
-    // buildings: a roof, unless one is opened to a floor plan
     const open = ui.open || {};
-    for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor); else roof(g, b, b.style); }
-    if (tier === 'far') { this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
-    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y);
-    for (const u of list) {
+    // a building opened to a floor plan lies flat on the ground; the rest stand, in order from back to front, with the people between them
+    for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor, this.scene.gm); }
+    if (tier === 'far') { this.drawItems(g, [], open); this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
+    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y).filter((u) => {
       const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
       const inside = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)] >= 0 && u.kind === 'inf';
-      if (inside && !v) continue; // inside a roofed building: not seen
-      if (inside && v && v.floor !== u.z && !(v.ground && u.z === 0)) continue; // on a floor that is not the one shown
-      this.unit(g, u, B, ui);
-    }
+      if (inside && !v) return false; // inside a roofed building: not seen
+      if (inside && v && v.floor !== u.z && !(v.ground && u.z === 0)) return false; // on a floor that is not the one shown
+      return true;
+    });
+    this.drawItems(g, list, open, B, ui);
     this.fx.draw(g);
     g.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** The standing things and the people, merged in order of how far down the screen they are, so a soldier behind a tree is behind it. */
+  drawItems(g, units, open, B, ui) {
+    const cam = this.cam; const vx0 = cam.x; const vy0 = cam.y; const vx1 = cam.x + this.cv.width / cam.zoom; const vy1 = cam.y + this.cv.height / cam.zoom; let k = 0;
+    const flush = (limit) => { while (k < units.length && units[k].y * TP <= limit) { this.unit(g, units[k], B, ui); k++; } };
+    for (const it of this.scene.items) {
+      flush(it.y);
+      if (it.x1 < vx0 || it.x0 > vx1 || it.y1 < vy0 || it.y0 > vy1) continue;
+      if (it.b && open[it.b.id]) continue;
+      it.draw(g, this.t);
+    }
+    flush(Infinity);
   }
 
   unit(g, u, B, ui) {
@@ -76956,8 +77316,7 @@ class BattleView {
   }
 }
 
-
-return { TP, bakeGround, BattleView, GROUND };
+return { TP, bakeScene, BattleView };
 })();
 
 // ---- src/engine/drawBattleFx.js

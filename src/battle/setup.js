@@ -1,7 +1,7 @@
 // A battle's setup (v0.101.0): everything a battle needs, as plain data, made once when an engagement is taken to the field and kept with it. The battle is a pure function of this, the
 // order log and the tick, so nothing that happens to the company's records afterwards (a day's wages, a morale drift) can change it, and a reload replays it.
 //   buildSetup({ key, eng, people, vehicles, ai })
-import { UNITS, SPEED, STYLES } from '../content/battle.js';
+import { UNITS, SPEED, STYLES, MAP_VER } from '../content/battle.js';
 import { CLASSES, ARMOUR } from '../content/troops.js';
 import { unit, pick } from './hash.js';
 
@@ -30,6 +30,6 @@ export function buildSetup({ key, eng, people, vehicles, ai = {} }) {
   }
   for (let i = 0; i < Math.round(E.armour); i++) units.push({ id: `et${i}`, side: 'e', kind: 'tank', role: 'tank', name: 'Enemy tank', rec: null, weapon: 'tank_gun', hp: UNITS.tank.hp + UNITS.tank.perArmour * 3, accMult: skill, armourBar: 3, morale: 80, sight: UNITS.tank.sight, speed: SPEED.vehicleBase + SPEED.vehiclePerBar * 3 });
   for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
-  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key }, goal: eng.goal, units, ai: { p: Boolean(ai.p), e: ai.e !== false } };
+  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, units, ai: { p: Boolean(ai.p), e: ai.e !== false } };
 }
 export { STYLES, pick };

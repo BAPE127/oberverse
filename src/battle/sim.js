@@ -17,7 +17,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const isVeh = (u) => u.kind !== 'inf';
 
 export function createBattle(setup) {
-  const map = generate(setup.map);
+  const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const B = { key: setup.key, setup, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
     ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0 }, hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
