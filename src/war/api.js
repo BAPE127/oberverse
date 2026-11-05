@@ -10,6 +10,7 @@ import { housing as housingOf } from './equipment.js';
 import { runDay } from './day.js';
 import { hire as hireIn, dismiss as dismissOut } from './people.js';
 import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
+import { accept as acceptJob, decline as declineJob, view as contractsView, missing as jobMissing } from './contracts.js';
 import { checkMilitary } from './check.js';
 import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -76,6 +77,10 @@ export class War {
   upgrade(works) { return upgradeWorks(this.g, works); }
   maintain(works) { return maintainWorks(this.g, works); }
   production() { return productionView(this.g); }
+
+  contracts() { return contractsView(this.g); }
+  accept(id) { return acceptJob(this.g, id); }
+  decline(id) { return declineJob(this.g, id); }
 
   summary() {
     const m = this.peek();

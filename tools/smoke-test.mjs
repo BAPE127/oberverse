@@ -451,9 +451,17 @@ try {
     while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 300));
     const text = document.querySelector('#modal-body')?.textContent || '';
     out.company = /Smoke Test Company/.test(text) && /Site office/.test(text) && /Stage 1/.test(text);
+    // v0.99.0: the Military app's four pages (Company, Transfers, Production, Contracts) and a segment bar that is not squeezed away
+    const bar = [...document.querySelectorAll('#modal-body .tb-seg')].find((x) => x.children.length === 4);
+    out.fourSegments = Boolean(bar) && bar.getBoundingClientRect().height > 30;
+    for (const [tab, re] of [['Transfers', /Free between your companies/], ['Production', /tanks and helicopters only/], ['Contracts', /Security contracts/]]) {
+      ui.milTab = tab; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
+      out[tab] = re.test(document.querySelector('#modal-body')?.textContent || '');
+    }
+    ui.milTab = 'Company';
     return out;
   });
-  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company and lists the base\'s buildings', Object.values(war).every(Boolean), JSON.stringify(war));
+  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company, lists the base\'s buildings and shows its four pages', Object.values(war).every(Boolean), JSON.stringify(war));
   // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
   const crown = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game;

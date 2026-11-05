@@ -31399,14 +31399,219 @@ function view(game) {
 return { order, cancel, setShifts, efficiency, upgrade, maintainCost, maintain, dayTick, view };
 })();
 
+// ---- src/content/contracts.js
+__m["src/content/contracts.js"] = (function () {
+// Early contracts (v0.99.0 stage 6): the ordinary work of a security firm. Pure data. A contract asks for guards (and nothing heavy: never a tank, a helicopter or a loadout), a pistol each
+// and a radio, for a few days; it pays only when it ends well, and a failure costs money (owed, never taken from you) and a client. Figures are starting figures to calibrate against
+// the wages (120 obols a day for a guard) and what a guard shift earns.
+const CLIENTS = {
+  fish_coop: { name: 'Lanternside Fish Co-op', place: 'the cold store on the quay' },
+  oil: { name: 'Ober\'s Oil', place: 'the refinery gate' },
+  masons: { name: 'Mason\'s Os', place: 'a building site' },
+  cheese: { name: 'Chuckie\'s Cheese', place: 'the Lariat dairy' },
+  grand: { name: 'The Phonograph Grand', place: 'the resort' },
+  treasury: { name: 'The Sund Treasury', place: 'Halvermouth' },
+};
+
+/** What a kind of job is: how many guards, how long, how risky, and the words. `rate` is obols per guard per day at the risk's rate. */
+const KINDS = {
+  watch: { title: 'Guard {place}', guards: [2, 4], days: [3, 6], risk: ['low', 'low', 'medium'], clients: ['fish_coop', 'masons', 'cheese'], text: 'Stand the post, walk the fence and call someone if anything moves.' },
+  patrol: { title: 'Patrol {place}', guards: [2, 3], days: [4, 7], risk: ['low', 'medium'], clients: ['oil', 'masons', 'cheese'], text: 'Walk the same circuit all night. It is the walking that keeps people away.' },
+  event: { title: 'Secure an event at {place}', guards: [3, 5], days: [1, 2], risk: ['low', 'medium'], clients: ['grand', 'treasury'], text: 'Stand at the doors, look at the guests and say very little.' },
+  escort: { title: 'Escort a cargo from {place}', guards: [3, 4], days: [2, 3], risk: ['medium', 'medium', 'high'], clients: ['oil', 'treasury', 'fish_coop'], text: 'A van, a route and a client who would like it to arrive.' },
+  recover: { title: 'Recover stolen goods near {place}', guards: [3, 5], days: [2, 4], risk: ['medium', 'high'], clients: ['masons', 'cheese', 'oil'], text: 'Someone took something. Someone knows who.' },
+};
+
+/** Obols per guard per day by risk, the chance of success before extra hands and reputation, and what a failure costs (a share of the pay). */
+const RISK = {
+  low: { rate: 400, success: 0.9 },
+  medium: { rate: 550, success: 0.78 },
+  high: { rate: 800, success: 0.62 },
+};
+
+const CONTRACTS = {
+  open: 3,              // offers open at once, before reputation
+  perRep: 15,           // one more open offer for each this much reputation (to a cap)
+  maxOpen: 6,
+  chance: 0.4,          // the chance, each day, that a new offer turns up while there is room
+  lasts: [4, 8],        // days an offer stays open
+  extraHand: 0.04,      // success chance for each guard beyond what the job needs
+  repGuards: 10,        // jobs may ask for one more guard for each this much reputation
+  repBonus: 0.002,      // success chance for each point of reputation (to a cap)
+  repBonusMax: 0.1,
+  penalty: 0.4,         // a failure costs this share of the pay
+  repWin: 3, repLose: -6,
+  ban: 30,              // days a client who was let down will not offer
+  kept: 30,             // finished contracts kept in the record
+  radio: 1,             // radios a job needs (one per contract)
+};
+
+return { CLIENTS, KINDS, RISK, CONTRACTS };
+})();
+
+// ---- src/war/contracts.js
+__m["src/war/contracts.js"] = (function () {
+// Early contracts (v0.99.0 stage 6): offers turn up by hash (no dice drawn), expire with a reason, and are taken by guards with a pistol each and a radio. The pay arrives only when the job
+// ends well, into the company's own account; a failure costs money owed (arrears, never your wallet), reputation and a client. A new company completes one with guards and pistols alone.
+//
+//   dayTick(game)        offers appear and lapse; jobs that reach their last day are resolved (idempotent per day)
+//   accept(game, id)     guards go on the post and the kit is reserved; `check(game, id)` says what is missing without changing anything
+//   decline(game, id)    turn an offer down
+//   view(game)           what the Contracts page shows
+const { peekMilitary } = __m["src/war/state.js"];
+const { nextId } = __m["src/war/equipment.js"];
+const { idle } = __m["src/war/people.js"];
+const { CLIENTS, KINDS, RISK, CONTRACTS: K } = __m["src/content/contracts.js"];
+
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+const salt = (game) => String(game.world.salt || game.rng?.state || 0);
+const pick = (arr, u) => arr[Math.min(arr.length - 1, Math.floor(u * arr.length))];
+const between = ([a, b], u) => a + Math.floor(u * (b - a + 1));
+
+function ensure(C) { C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }; C.contracts ||= []; return C.rep; }
+const reputation = (game) => peekMilitary(game)?.company?.rep?.score || 0;
+const maxOpen = (rep) => Math.min(K.maxOpen, K.open + Math.floor(Math.max(0, rep) / K.perRep));
+
+/** Pistols and radios in the stores: the keys they sit under. */
+function kitKeys(C) {
+  const pistols = Object.keys(C.stock).filter((k) => /^arms:[^:]+:item_pistol$/.test(k)).sort();
+  return { pistols, radio: 'supply:radio' };
+}
+const pistolCount = (C) => kitKeys(C).pistols.reduce((a, k) => a + C.stock[k], 0);
+
+/** What a job still needs the company does not have (an empty list = it can take it). */
+function missing(game, c) {
+  const C = peekMilitary(game)?.company;
+  const out = [];
+  const guards = idle(game, 'guard').length;
+  if (guards < c.guards) out.push(`${c.guards - guards} more guard${c.guards - guards === 1 ? '' : 's'}`);
+  const p = pistolCount(C);
+  if (p < c.guards) out.push(`${c.guards - p} more pistol${c.guards - p === 1 ? '' : 's'}`);
+  if ((C.stock[kitKeys(C).radio] || 0) < K.radio) out.push('a radio');
+  return out;
+}
+
+function accept(game, id) {
+  const C = peekMilitary(game)?.company;
+  const c = C?.contracts?.find((x) => x.id === id);
+  if (!c || c.state !== 'open') return { ok: false, text: 'That offer is no longer open.' };
+  const lack = missing(game, c);
+  if (lack.length) return { ok: false, text: `Your forces do not meet this one: you need ${lack.join(', ')}.` };
+  // every check passed: now the changes
+  const crew = idle(game, 'guard').slice(0, c.guards);
+  for (const p of crew) p.post = `contract:${c.id}`;
+  c.crew = crew.map((p) => p.id);
+  c.kit = {};
+  let need = c.guards;
+  for (const key of kitKeys(C).pistols) { const t = Math.min(need, C.stock[key]); if (t > 0) { C.stock[key] -= t; if (!C.stock[key]) delete C.stock[key]; c.kit[key] = t; need -= t; } if (!need) break; }
+  C.stock['supply:radio'] -= K.radio; if (!C.stock['supply:radio']) delete C.stock['supply:radio']; c.kit['supply:radio'] = K.radio;
+  c.state = 'active'; c.start = game.clock.day; c.end = game.clock.day + c.days;
+  C.log.push({ day: game.clock.day, text: `Took the job: ${c.title} for ${c.clientName}.` });
+  return { ok: true, text: `${c.title}: ${c.guards} guards on the post for ${c.days} days.` };
+}
+
+function decline(game, id) {
+  const C = peekMilitary(game)?.company;
+  const c = C?.contracts?.find((x) => x.id === id);
+  if (!c || c.state !== 'open') return { ok: false, text: 'That offer is no longer open.' };
+  c.state = 'declined'; c.ended = game.clock.day;
+  return { ok: true, text: 'Turned down.' };
+}
+
+function release(game, C, c) {
+  for (const p of C.personnel) if (c.crew?.includes(p.id) && p.post === `contract:${c.id}`) p.post = null;
+  for (const [key, n] of Object.entries(c.kit || {})) C.stock[key] = (C.stock[key] || 0) + n; // the kit comes back, whatever happened
+  c.kit = {};
+}
+
+/** The chance a job ends well: its risk, extra hands, and the company's name. */
+function chance(game, c) {
+  const R = RISK[c.risk];
+  const extra = Math.max(0, (c.crew?.length ?? c.guards) - c.needs);
+  return Math.max(0.3, Math.min(0.97, R.success + extra * K.extraHand + Math.min(K.repBonusMax, Math.max(0, reputation(game)) * K.repBonus)));
+}
+
+/** Whether a job ends well: a hash of the game and the job against its chance (never a dice roll, so a reload cannot change it). */
+const outcome = (game, c) => unit(`${salt(game)}|resolve|${c.id}`) < chance(game, c);
+
+function resolve(game, C, c) {
+  const rep = ensure(C);
+  const ok = outcome(game, c);
+  release(game, C, c);
+  c.ended = game.clock.day;
+  const cl = (rep.clients[c.client] ||= { done: 0, failed: 0 });
+  if (ok) {
+    game.corp.receive('security', c.pay, { cat: 'contract' });
+    rep.score += K.repWin; rep.done++; cl.done++; c.state = 'done';
+    C.log.push({ day: game.clock.day, text: `${c.title}: done, ${c.pay} obols from ${c.clientName}.` });
+    game.notify?.(`${c.title} ends well. ${c.clientName} pays ${c.pay.toLocaleString('en-US')} obols.`, 'good');
+  } else {
+    const fine = Math.round(c.pay * K.penalty);
+    game.corp.pay('security', fine, { cat: 'penalty', owe: true });
+    rep.score += K.repLose; rep.failed++; cl.failed++; c.state = 'failed'; c.fine = fine;
+    rep.ban[c.client] = game.clock.day + K.ban;
+    C.log.push({ day: game.clock.day, text: `${c.title}: it went wrong. ${c.clientName} wants ${fine} obols back and will not call for ${K.ban} days.` });
+    game.notify?.(`${c.title} went wrong: a fine of ${fine.toLocaleString('en-US')} obols, and ${c.clientName} will look elsewhere for a while.`, 'warn');
+  }
+}
+
+function offerOne(game, C, day) {
+  const rep = ensure(C);
+  const s = `${salt(game)}|offer|${day}`;
+  const kind = pick(Object.keys(KINDS), unit(`${s}|kind`));
+  const Kd = KINDS[kind];
+  const clients = Kd.clients.filter((id) => (rep.ban[CLIENTS[id].name] || 0) <= day);
+  if (!clients.length) return;
+  const clientId = pick(clients, unit(`${s}|client`));
+  const R = pick(Kd.risk, unit(`${s}|risk`));
+  const needs = Math.min(between(Kd.guards, unit(`${s}|g`)) + (unit(`${s}|up`) < 0.3 ? Math.floor(Math.max(0, rep.score) / K.repGuards) : 0), 8);
+  const days = between(Kd.days, unit(`${s}|d`));
+  const pay = Math.round(needs * days * RISK[R].rate * (0.9 + 0.2 * unit(`${s}|pay`)) / 50) * 50;
+  const client = CLIENTS[clientId];
+  C.contracts.push({ id: nextId(C, 'K'), kind, title: Kd.title.replace('{place}', client.place), text: Kd.text, client: client.name, clientName: client.name, place: client.place, guards: needs, needs, days, risk: R, pay, state: 'open', offered: day, expires: day + between(K.lasts, unit(`${s}|exp`)) });
+}
+
+function dayTick(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity || !C.licensed) return;
+  const day = game.clock.day;
+  C.days ||= {};
+  if ((C.days.con || 0) >= day) return;
+  C.days.con = day;
+  const rep = ensure(C);
+  for (const c of C.contracts) {
+    if (c.state === 'open' && c.expires <= day) { c.state = 'expired'; c.ended = day; c.why = 'No one answered in time: the client hired someone else.'; }
+    else if (c.state === 'active' && c.end <= day) resolve(game, C, c);
+  }
+  const open = C.contracts.filter((c) => c.state === 'open').length;
+  if (open < maxOpen(rep.score) && unit(`${salt(game)}|con|${day}`) < K.chance) offerOne(game, C, day);
+  // the record stays small: the oldest finished jobs drop off
+  const ended = C.contracts.filter((c) => !['open', 'active'].includes(c.state));
+  if (ended.length > K.kept) { const drop = new Set(ended.slice(0, ended.length - K.kept)); C.contracts = C.contracts.filter((c) => !drop.has(c)); }
+}
+
+function view(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return null;
+  const rep = ensure(C);
+  const row = (c) => ({ ...c, lacks: c.state === 'open' ? missing(game, c) : [], chance: c.state === 'open' ? null : undefined });
+  return { reputation: rep.score, wins: rep.done, losses: rep.failed, clients: Object.entries(rep.clients).map(([name, v]) => ({ name, ...v, banned: (rep.ban[name] || 0) > game.clock.day })), maxOpen: maxOpen(rep.score),
+    open: C.contracts.filter((c) => c.state === 'open').map(row), active: C.contracts.filter((c) => c.state === 'active').map((c) => ({ ...c, chance: chance(game, c), daysLeft: Math.max(0, c.end - game.clock.day) })),
+    done: C.contracts.filter((c) => !['open', 'active'].includes(c.state)).slice().reverse() };
+}
+
+return { reputation, missing, accept, decline, chance, outcome, dayTick, view };
+})();
+
 // ---- src/war/day.js
 __m["src/war/day.js"] = (function () {
-// The company's day (v0.99.0): what happens at 06:11 once the company exists, in one order, each part once per day: construction, wages, the works.
-// (v0.99.0 stage 6 adds contracts.) Every part keeps its own "done today" mark, so a day that is run twice changes nothing.
+// The company's day (v0.99.0): what happens at 06:11 once the company exists, in one order, each part once per day: construction, wages, the works, contracts.
+// Every part keeps its own "done today" mark, so a day that is run twice changes nothing.
 const { peekMilitary } = __m["src/war/state.js"];
 const { dailyTick: construction } = __m["src/war/facilities.js"];
 const { payroll } = __m["src/war/people.js"];
 const { dayTick: works } = __m["src/war/production.js"];
+const { dayTick: jobs } = __m["src/war/contracts.js"];
 
 function runDay(game) {
   construction(game);
@@ -31416,6 +31621,7 @@ function runDay(game) {
   const day = game.clock.day;
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); }
   works(game);
+  jobs(game);
 }
 
 return { runDay };
@@ -31496,6 +31702,7 @@ const { housing: housingOf } = __m["src/war/equipment.js"];
 const { runDay } = __m["src/war/day.js"];
 const { hire: hireIn, dismiss: dismissOut } = __m["src/war/people.js"];
 const { order: orderUnit, cancel: cancelOrder, setShifts: setLineShifts, upgrade: upgradeWorks, maintain: maintainWorks, view: productionView } = __m["src/war/production.js"];
+const { accept: acceptJob, decline: declineJob, view: contractsView, missing: jobMissing } = __m["src/war/contracts.js"];
 const { checkMilitary } = __m["src/war/check.js"];
 const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -31562,6 +31769,10 @@ class War {
   upgrade(works) { return upgradeWorks(this.g, works); }
   maintain(works) { return maintainWorks(this.g, works); }
   production() { return productionView(this.g); }
+
+  contracts() { return contractsView(this.g); }
+  accept(id) { return acceptJob(this.g, id); }
+  decline(id) { return declineJob(this.g, id); }
 
   summary() {
     const m = this.peek();
@@ -72331,6 +72542,43 @@ function queue(ui, body, go, P, W) {
 return { productionTab };
 })();
 
+// ---- src/ui/militaryContracts.js
+__m["src/ui/militaryContracts.js"] = (function () {
+// The Military app's Contracts page (v0.99.0; mock-up proposal-war-oberpad-command.png page 5): open offers, jobs under way, and the record. A job the firm cannot staff or equip says so.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n, segments } = __m["src/ui/tabletKit.js"];
+const { PEOPLE } = __m["src/content/production.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const RISK = { low: 'low risk', medium: 'medium', high: 'high' };
+
+function contractsTab(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const V = W.contracts();
+  const guards = W.people().filter((p) => p.role === 'guard');
+  const SEG = [{ id: 'open', label: 'Open', badge: V.open.length || 0 }, { id: 'active', label: 'Active' }, { id: 'done', label: 'Done' }];
+  const tab = SEG.some((x) => x.id === ui.milCon) ? ui.milCon : 'open';
+  body.append(
+    hero({ label: 'Security contracts', value: `${V.reputation} reputation`, sub: `${V.wins} won, ${V.losses} lost. A good name brings more offers and bigger jobs; a failure costs money and a client.`, tone: V.reputation < 0 ? 'neg' : '' }),
+    tiles([{ n: String(guards.length), t: 'guards' }, { n: String(guards.filter((p) => !p.post).length), t: 'free' }, { n: String(V.active.length), t: 'under way' }]),
+    list(row({ icon: '💂', title: 'Guards', sub: `${PEOPLE.guard.wage} obols a day each. Each takes a pistol and the job a radio, from your stores.`, action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire('guard')) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !guards.some((p) => !p.post), onclick: () => go(W.dismiss(guards.filter((p) => !p.post).slice(-1)[0]?.id)) }, 'Let one go')) })));
+  body.append(segments(SEG, tab, (t) => { ui.milCon = t; open('Military'); }));
+  if (tab === 'open') {
+    body.append(list(...(V.open.length ? V.open.map((c) => h('div', {},
+      row({ icon: '📑', title: c.title, sub: `${c.days} days · ${c.guards} guards · client: ${c.clientName}. ${c.text} Offer closes day ${c.expires}.`, tag: `${n(c.pay)} · ${RISK[c.risk]}`,
+        action: h('span', {}, h('button', { class: 'tb-mini pri', disabled: c.lacks.length > 0, onclick: () => go(W.accept(c.id)) }, 'Take'), ' ', h('button', { class: 'tb-mini', onclick: () => go(W.decline(c.id)) }, 'No')) }),
+      c.lacks.length ? h('div', { class: 'tb-note', style: 'margin:0 8px 8px' }, `⚠ Your forces do not meet this one. Needs ${c.lacks.join(', ')}.`) : null)) : [row({ icon: '—', title: 'No offers just now', sub: 'Clients call now and then. A licensed company with a good name hears more often.' })])));
+  } else if (tab === 'active') {
+    body.append(list(...(V.active.length ? V.active.map((c) => row({ icon: '🛡️', title: c.title, sub: `${c.guards} guards on the post for ${c.daysLeft} more day${c.daysLeft === 1 ? '' : 's'} · ${Math.round(c.chance * 100)}% to end well · client: ${c.clientName}`, tag: n(c.pay) })) : [row({ icon: '—', title: 'Nothing under way', sub: 'Take a job from Open. The pay comes only when it ends well.' })])));
+  } else {
+    body.append(list(...(V.done.length ? V.done.map((c) => row({ icon: c.state === 'done' ? '✅' : c.state === 'failed' ? '❌' : '⌛', title: c.title, sub: c.state === 'done' ? `Done · paid ${n(c.pay)}` : c.state === 'failed' ? `It went wrong · fined ${n(c.fine)}` : c.state === 'declined' ? 'Turned down' : c.why || 'Lapsed', tag: `day ${c.ended}` })) : [row({ icon: '—', title: 'No finished jobs', sub: 'Done, lost and lapsed jobs are kept here.' })])));
+  }
+  body.append(fold(ui, 'MilClients', 'Reputation · clients · lost jobs ›', (box) => box.append(list(...(V.clients.length ? V.clients.map((c) => row({ icon: '🏢', title: c.name, sub: `${c.done} done, ${c.failed} lost${c.banned ? ' · will not call for now' : ''}` })) : [row({ icon: '—', title: 'No clients yet', sub: 'Every job you finish or lose is counted here.' })])))));
+  body.append(help('How contracts work', 'Each job asks for guards, a pistol each and a radio, and nothing heavy. The pay arrives only when the job ends well and goes to the company\'s account. If it goes wrong the company owes a fine and the client looks elsewhere for a month. You can run the whole company as a guard firm.'));
+}
+
+return { contractsTab };
+})();
+
 // ---- src/ui/militaryApp.js
 __m["src/ui/militaryApp.js"] = (function () {
 // The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
@@ -72339,6 +72587,7 @@ const { h } = __m["src/ui/panels.js"];
 const { hero, tiles, row, help, fold, note, n, segments } = __m["src/ui/tabletKit.js"];
 const { transfersTab } = __m["src/ui/militaryTransfers.js"];
 const { productionTab } = __m["src/ui/militaryProduction.js"];
+const { contractsTab } = __m["src/ui/militaryContracts.js"];
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -72353,11 +72602,12 @@ function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
-  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }, { id: 'Production', label: 'Production' }];
+  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }, { id: 'Production', label: 'Production' }, { id: 'Contracts', label: 'Contracts' }];
   const tab = SEG.some((x) => x.id === ui.milTab) ? ui.milTab : 'Company';
   body.append(segments(SEG, tab, (t) => { ui.milTab = t; open('Military'); }));
   if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
   if (tab === 'Production') { productionTab(ui, body, go, open); return; }
+  if (tab === 'Contracts') { contractsTab(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(
