@@ -7,8 +7,11 @@ import { found as foundCompany, rename as renameCompany, fund as fundCompany, ta
 import { offers as transferOffers, transfer as transferIn, giveBack as transferBack } from './transfers.js';
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { housing as housingOf } from './equipment.js';
+import { runDay } from './day.js';
+import { hire as hireIn, dismiss as dismissOut } from './people.js';
+import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
 import { checkMilitary } from './check.js';
-import { commission as commissionFacility, dailyTick as facilityDay, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
+import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
 export class War {
   constructor(game) { this.game = game; }
@@ -39,7 +42,7 @@ export class War {
   repairFacility(id) { return repairFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
-  dailyTick() { facilityDay(this.g); }
+  dailyTick() { runDay(this.g); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
   rename(name) { return renameCompany(this.g, name); }
@@ -62,6 +65,17 @@ export class War {
   equipment() { return this.peek()?.company?.equipment || []; }
   stock() { return this.peek()?.company?.stock || {}; }
   transfers() { return this.peek()?.transfers || []; }
+
+  // ---- people and the works (v0.99.0 stages 5 and 6)
+  hire(role) { return hireIn(this.g, role); }
+  dismiss(id) { return dismissOut(this.g, id); }
+  people() { return this.peek()?.company?.personnel || []; }
+  order(model, qty) { return orderUnit(this.g, model, qty); }
+  cancelOrder(id) { return cancelOrder(this.g, id); }
+  shifts(lineId, n) { return setLineShifts(this.g, lineId, n); }
+  upgrade(works) { return upgradeWorks(this.g, works); }
+  maintain(works) { return maintainWorks(this.g, works); }
+  production() { return productionView(this.g); }
 
   summary() {
     const m = this.peek();

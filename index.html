@@ -31129,6 +31129,298 @@ function buySupply(game, id, qty) {
 return { buyVehicle, buySupply };
 })();
 
+// ---- src/content/production.js
+__m["src/content/production.js"] = (function () {
+// The company's works (v0.99.0 stage 5): pure data. The company builds TANKS and HELICOPTERS and nothing else: the catalog below is the whole of it, and a test looks for anything more.
+// A model's price in src/content/procurement.js is the whole cost of one: the parts (bought, in the stores) plus the works' fee (paid when the unit is started).
+//
+//   WORKS      the two buildings that make things, and what a shift of crew is
+//   MODELS     what each model needs and how long a line takes at one shift
+//   UPGRADE / WEAR   the works' own condition and the money to improve it
+const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
+
+const WORKS = {
+  tank_factory: { name: 'Tank factory', makes: 'tank', crewPerShift: 6, maxShifts: 3 },
+  helicopter_works: { name: 'Helicopter works', makes: 'helicopter', crewPerShift: 5, maxShifts: 3 },
+};
+
+const M = (id, days, parts) => ({ id, days, parts });
+const MODELS = Object.fromEntries([
+  M('lancer', 3, { plate: 8, engine: 1, optics: 1 }),
+  M('anvil', 4, { plate: 12, engine: 1, optics: 1 }),
+  M('hound', 5, { plate: 9, engine: 1, optics: 2 }),
+  M('breacher', 5, { plate: 18, engine: 1, optics: 1 }),
+  M('cinder', 6, { plate: 16, engine: 1, optics: 1, hardpoint: 1 }),
+  M('bulwark', 7, { plate: 22, engine: 1, optics: 2 }),
+  M('wren', 4, { plate: 2, engine: 1, rotor: 1, avionics: 1 }),
+  M('drover', 5, { plate: 4, engine: 2, rotor: 1, avionics: 1 }),
+  M('mercy', 5, { plate: 4, engine: 2, rotor: 1, avionics: 1 }),
+  M('viper', 7, { plate: 6, engine: 2, rotor: 1, avionics: 2, hardpoint: 2 }),
+  M('ox', 7, { plate: 4, engine: 2, rotor: 2, avionics: 1 }),
+  M('talon', 8, { plate: 8, engine: 2, rotor: 1, avionics: 2, hardpoint: 3 }),
+].map((m) => [m.id, m]));
+
+const partsValue = (id) => Object.entries(MODELS[id].parts).reduce((a, [k, n]) => a + SUPPLIES[k].price * n, 0);
+/** The works' fee for one unit: the model's whole cost less its parts. */
+const feeOf = (id) => VEHICLES[id].price - partsValue(id);
+const worksOf = (id) => (VEHICLES[id].class === 'tank' ? 'tank_factory' : 'helicopter_works');
+
+/** A works can be improved twice (each level builds 15% faster) and wears with use: slower when worn, and mending costs by the point of wear. */
+const UPGRADE = { max: 2, cost: [150000, 300000], boost: 0.15 };
+const WEAR = { perLine: 2, slow: 30, bad: 60, slowMult: 0.8, badMult: 0.5, fixPerPoint: 1500 };
+
+/** The people the company employs (v0.99.0: a recruit is a record with a wage and a bed; v0.100.0 adds roles, training and squads). Wages are obols a day. */
+const PEOPLE = { guard: { name: 'Guard', wage: 120, text: 'Stands a post and watches a door.' }, technician: { name: 'Technician', wage: 160, text: 'Works a line at the tank factory or the helicopter works.' } };
+
+return { WORKS, MODELS, partsValue, feeOf, worksOf, UPGRADE, WEAR, PEOPLE };
+})();
+
+// ---- src/war/people.js
+__m["src/war/people.js"] = (function () {
+// The company's people (v0.99.0): a recruit is a record (id, name, role, wage, a bed in a barracks); guards stand contracts, technicians crew the works' lines. Wages are paid each day from
+// the company's own account (what it cannot cover becomes arrears, never your wallet). v0.100.0 adds roles with training, squads and the people drawn on the map.
+const { peekMilitary } = __m["src/war/state.js"];
+const { capacity } = __m["src/war/facilities.js"];
+const { nextId } = __m["src/war/equipment.js"];
+const { PEOPLE } = __m["src/content/production.js"];
+
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+
+const headcount = (game) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.status !== 'dead').length;
+const bedsFree = (game) => Math.max(0, capacity(game).beds - headcount(game));
+const ofRole = (game, role) => (peekMilitary(game)?.company?.personnel || []).filter((p) => p.role === role && p.status === 'active');
+/** Guards and technicians not on a post. */
+const idle = (game, role) => ofRole(game, role).filter((p) => !p.post && p.assignedTo == null);
+
+function barracks(game) {
+  const C = peekMilitary(game)?.company;
+  return (C?.facilities || []).find((f) => f.state === 'built' && /^barracks|^bunkhouse$/.test(f.id))?.id || null;
+}
+
+function hire(game, role) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  const P = PEOPLE[role];
+  if (!P) return { ok: false, text: 'No such job.' };
+  if (!C.licensed) return { ok: false, text: 'A private security company needs its licence before it employs anyone.' };
+  if (bedsFree(game) < 1) return { ok: false, text: capacity(game).beds ? `Every bed is taken (${headcount(game)} of ${capacity(game).beds}).` : 'Build the bunkhouse first: there is nowhere for anyone to sleep.' };
+  const id = nextId(C, 'P');
+  const N = game.content.arms.staffNames;
+  const key = `${game.world.salt || game.rng?.state || 0}|${id}`;
+  const name = `${N.first[Math.floor(unit(`${key}|f`) * N.first.length)]} ${N.last[Math.floor(unit(`${key}|l`) * N.last.length)]}`;
+  C.personnel.push({ id, name, role, wage: P.wage, status: 'active', hired: game.clock.day, location: `facility:${barracks(game)}`, assignedTo: null, post: null });
+  return { ok: true, text: `${name} joins as a ${P.name.toLowerCase()} (${P.wage} obols a day).`, id };
+}
+
+function dismiss(game, id) {
+  const C = peekMilitary(game)?.company;
+  const p = C?.personnel.find((x) => x.id === id);
+  if (!p) return { ok: false, text: 'No such person.' };
+  if (p.post || p.assignedTo != null) return { ok: false, text: `${p.name} is on a post: finish the job first.` };
+  C.personnel = C.personnel.filter((x) => x !== p);
+  return { ok: true, text: `${p.name} is let go.` };
+}
+
+/** One day's wages for everyone, from the company's own account; whatever it cannot cover is owed. */
+function payroll(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.personnel.length) return 0;
+  const total = C.personnel.filter((p) => p.status !== 'dead').reduce((a, p) => a + p.wage, 0);
+  if (total > 0) game.corp.pay('security', total, { cat: 'wages', owe: true, quiet: true });
+  return total;
+}
+
+return { headcount, bedsFree, ofRole, idle, hire, dismiss, payroll };
+})();
+
+// ---- src/war/production.js
+__m["src/war/production.js"] = (function () {
+// The works (v0.99.0 stage 5): the tank factory and the helicopter works. What they do and what stops them:
+//   order(model, qty)      queue units of a model (only tanks and helicopters exist; nothing else is buildable)
+//   a line builds one unit at a time: it starts when the parts are in the stores, the works' fee can be paid and the crew is there; it takes the model's days at one shift
+//   shifts (1 to 3)        more shifts finish a unit sooner and need more technicians; wages are paid either way
+//   blocked                a line that cannot start or finish says WHY (parts, cash, crew, a free bay, a damaged works) and is saved
+//   upgrade / maintain     a works builds 15% faster per upgrade; it wears with use and slows when worn; mending costs by the point of wear
+// The number of lines comes from the works' capacity (src/war/facilities.js): a damaged works has half its lines, a ruin none.
+const { peekMilitary } = __m["src/war/state.js"];
+const { capacity } = __m["src/war/facilities.js"];
+const { addRecord, nextId, stockOf, takeStock } = __m["src/war/equipment.js"];
+const { ofRole } = __m["src/war/people.js"];
+const { pay } = __m["src/war/company.js"];
+const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
+const { WORKS, MODELS, UPGRADE, WEAR, feeOf, worksOf } = __m["src/content/production.js"];
+const { FACILITIES } = __m["src/content/facilities.js"];
+
+const built = (C, id) => C.facilities.some((f) => f.id === id && f.state === 'built');
+
+function ensure(C) {
+  C.lines ||= []; C.works ||= {};
+  for (const w of Object.keys(WORKS)) {
+    C.works[w] ||= { level: 0, wear: 0 };
+    if (built(C, w)) for (let i = 0; i < FACILITIES[w].capacity.lines; i++) if (!C.lines.some((l) => l.works === w && l.n === i)) C.lines.push({ id: `${w === 'tank_factory' ? 'T' : 'H'}${i + 1}`, works: w, n: i, shifts: 1, unit: null, blocked: null });
+  }
+}
+
+/** Why a model cannot start right now (or null). */
+function startBlock(game, C, model, crewLeft, need) {
+  const fee = feeOf(model);
+  const missing = Object.entries(MODELS[model].parts).filter(([k, n]) => stockOf(game, `supply:${k}`) < n).map(([k, n]) => `${n - stockOf(game, `supply:${k}`)} ${SUPPLIES[k].name.toLowerCase()}`);
+  if (missing.length) return `waiting for parts: ${missing.join(', ')}`;
+  if (crewLeft < need) return `needs ${need} technicians (${crewLeft} free)`;
+  if (game.corp.account('security').cash < fee) return `cannot pay the works' fee (${fee.toLocaleString('en-US')} obols)`;
+  return null;
+}
+
+function order(game, model, qty) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  const V = VEHICLES[model];
+  if (!V || !MODELS[model]) return { ok: false, text: 'The company builds tanks and helicopters, and nothing else.' };
+  qty = Math.floor(Number(qty) || 0);
+  if (qty < 1 || qty > 20) return { ok: false, text: 'Order between 1 and 20.' };
+  const w = worksOf(model);
+  if (!built(C, w)) return { ok: false, text: `Build the ${WORKS[w].name.toLowerCase()} first.` };
+  const o = { id: nextId(C, 'O'), works: w, model, qty, left: qty, done: 0, day: game.clock.day };
+  C.production.push(o);
+  return { ok: true, text: `${qty} × ${V.name} on order at the ${WORKS[w].name.toLowerCase()}.`, id: o.id };
+}
+
+function cancel(game, id) {
+  const C = peekMilitary(game)?.company;
+  const o = C?.production.find((x) => x.id === id);
+  if (!o) return { ok: false, text: 'No such order.' };
+  if (o.left < 1) return { ok: false, text: 'Everything on that order has been started.' };
+  o.qty -= o.left; o.left = 0; // what is already on a line is finished
+  if (o.qty === 0) C.production = C.production.filter((x) => x !== o);
+  return { ok: true, text: 'The rest of that order is cancelled. Nothing had been paid for it.' };
+}
+
+function setShifts(game, lineId, shifts) {
+  const C = peekMilitary(game)?.company;
+  const l = C?.lines?.find((x) => x.id === lineId);
+  if (!l) return { ok: false, text: 'No such line.' };
+  shifts = Math.floor(Number(shifts) || 0);
+  if (shifts < 1 || shifts > WORKS[l.works].maxShifts) return { ok: false, text: `A line runs 1 to ${WORKS[l.works].maxShifts} shifts.` };
+  l.shifts = shifts;
+  return { ok: true, text: `Line ${l.id} runs ${shifts} shift${shifts > 1 ? 's' : ''}: it needs ${shifts * WORKS[l.works].crewPerShift} technicians.` };
+}
+
+const efficiency = (C, works) => {
+  const W = C.works?.[works] || { level: 0, wear: 0 };
+  return (1 + UPGRADE.boost * W.level) * (W.wear >= WEAR.bad ? WEAR.badMult : W.wear >= WEAR.slow ? WEAR.slowMult : 1);
+};
+
+function upgrade(game, works) {
+  const C = peekMilitary(game)?.company;
+  if (!C || !WORKS[works] || !built(C, works)) return { ok: false, text: 'Build it first.' };
+  ensure(C);
+  const W = C.works[works];
+  if (W.level >= UPGRADE.max) return { ok: false, text: 'It is as good as it gets.' };
+  const cost = UPGRADE.cost[W.level];
+  const r = pay(game, cost, `Upgrade: ${WORKS[works].name}`);
+  if (!r.ok) return r;
+  W.level++;
+  return { ok: true, text: `The ${WORKS[works].name.toLowerCase()} is upgraded (level ${W.level}, ${cost.toLocaleString('en-US')} obols): ${Math.round(UPGRADE.boost * W.level * 100)}% faster.` };
+}
+
+const maintainCost = (C, works) => Math.round((C.works?.[works]?.wear || 0) * WEAR.fixPerPoint);
+function maintain(game, works) {
+  const C = peekMilitary(game)?.company;
+  if (!C || !WORKS[works] || !built(C, works)) return { ok: false, text: 'Build it first.' };
+  ensure(C);
+  const cost = maintainCost(C, works);
+  if (C.works[works].wear < 5) return { ok: false, text: 'It is in good order.' };
+  const r = pay(game, cost, `Maintenance: ${WORKS[works].name}`);
+  if (!r.ok) return r;
+  C.works[works].wear = 0;
+  return { ok: true, text: `The ${WORKS[works].name.toLowerCase()} is overhauled (${cost.toLocaleString('en-US')} obols).` };
+}
+
+/** One day on every line. Idempotent per day. */
+function dayTick(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return;
+  const day = game.clock.day;
+  C.days ||= {};
+  if ((C.days.prod || 0) >= day) return;
+  C.days.prod = day;
+  ensure(C);
+  let crewLeft = ofRole(game, 'technician').length; // technicians are not tied to a line: each day, crew goes to the lines in order
+  for (const l of C.lines) {
+    const cap = capacity(game, l.works).lines;
+    const per = WORKS[l.works].crewPerShift * l.shifts;
+    if (l.n >= cap) { l.blocked = cap ? 'the works is damaged: this line is down' : 'the works is a ruin'; continue; }
+    if (!l.unit) {
+      const o = C.production.find((x) => x.works === l.works && x.left > 0);
+      if (!o) { l.blocked = null; continue; }
+      const why = startBlock(game, C, o.model, crewLeft, per);
+      if (why) { l.blocked = why; continue; }
+      for (const [k, n] of Object.entries(MODELS[o.model].parts)) takeStock(game, `supply:${k}`, n);
+      pay(game, feeOf(o.model), `Fee: ${VEHICLES[o.model].name}`);
+      o.left--;
+      l.unit = { order: o.id, model: o.model, progress: 0, started: day };
+    } else if (crewLeft < per) { l.blocked = `needs ${per} technicians (${crewLeft} free)`; continue; }
+    crewLeft -= per;
+    l.blocked = null;
+    if (l.unit.progress < 1) {
+      l.unit.progress += (l.shifts / MODELS[l.unit.model].days) * efficiency(C, l.works);
+      C.works[l.works].wear = Math.min(100, C.works[l.works].wear + WEAR.perLine);
+    }
+    if (l.unit.progress >= 1) {
+      const V = VEHICLES[l.unit.model];
+      const r = addRecord(game, { kind: V.class === 'tank' ? 'vehicle' : 'helicopter', type: V.id, name: V.name, source: 'works' });
+      if (!r.ok) { l.blocked = `finished, but ${r.text.charAt(0).toLowerCase()}${r.text.slice(1)}`; continue; }
+      const o = C.production.find((x) => x.id === l.unit.order);
+      if (o) { o.done++; if (o.done >= o.qty) C.production = C.production.filter((x) => x !== o); }
+      C.log.push({ day, text: `${V.name} ${r.rec.id} rolls out of the ${WORKS[l.works].name.toLowerCase()}.` });
+      game.notify?.(`Your ${V.name} ${r.rec.id} is finished.`, 'good');
+      l.unit = null;
+    }
+  }
+}
+
+/** What the Production page shows. */
+function view(game) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return null;
+  ensure(C);
+  const needs = {};
+  for (const o of C.production) for (const [k, n] of Object.entries(MODELS[o.model].parts)) needs[k] = (needs[k] || 0) + n * o.left;
+  return {
+    works: Object.entries(WORKS).map(([id, W]) => ({ id, name: W.name, built: built(C, id), lines: capacity(game, id).lines, level: C.works[id].level, wear: C.works[id].wear, eff: efficiency(C, id), maintain: maintainCost(C, id), upgrade: C.works[id].level < UPGRADE.max ? UPGRADE.cost[C.works[id].level] : null, crewPerShift: W.crewPerShift })),
+    lines: C.lines.map((l) => ({ ...l, progress: l.unit ? l.unit.progress : 0, model: l.unit?.model || null, crew: WORKS[l.works].crewPerShift * l.shifts })),
+    orders: C.production.map((o) => ({ ...o, name: VEHICLES[o.model].name })),
+    needs: Object.entries(needs).map(([k, n]) => ({ id: k, name: SUPPLIES[k].name, need: n, have: stockOf(game, `supply:${k}`) })),
+    technicians: ofRole(game, 'technician').length,
+    models: Object.values(MODELS).map((m) => ({ ...m, name: VEHICLES[m.id].name, class: VEHICLES[m.id].class, price: VEHICLES[m.id].price, fee: feeOf(m.id), works: worksOf(m.id) })),
+  };
+}
+
+return { order, cancel, setShifts, efficiency, upgrade, maintainCost, maintain, dayTick, view };
+})();
+
+// ---- src/war/day.js
+__m["src/war/day.js"] = (function () {
+// The company's day (v0.99.0): what happens at 06:11 once the company exists, in one order, each part once per day: construction, wages, the works.
+// (v0.99.0 stage 6 adds contracts.) Every part keeps its own "done today" mark, so a day that is run twice changes nothing.
+const { peekMilitary } = __m["src/war/state.js"];
+const { dailyTick: construction } = __m["src/war/facilities.js"];
+const { payroll } = __m["src/war/people.js"];
+const { dayTick: works } = __m["src/war/production.js"];
+
+function runDay(game) {
+  construction(game);
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return;
+  C.days ||= {};
+  const day = game.clock.day;
+  if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); }
+  works(game);
+}
+
+return { runDay };
+})();
+
 // ---- src/war/check.js
 __m["src/war/check.js"] = (function () {
 // The consistency checker (v0.98.0): every soldier, vehicle, aircraft, missile and building exists once, in one place, with one status. This finds the ways that can go wrong.
@@ -31201,8 +31493,11 @@ const { found: foundCompany, rename: renameCompany, fund: fundCompany, take: tak
 const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } = __m["src/war/transfers.js"];
 const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
 const { housing: housingOf } = __m["src/war/equipment.js"];
+const { runDay } = __m["src/war/day.js"];
+const { hire: hireIn, dismiss: dismissOut } = __m["src/war/people.js"];
+const { order: orderUnit, cancel: cancelOrder, setShifts: setLineShifts, upgrade: upgradeWorks, maintain: maintainWorks, view: productionView } = __m["src/war/production.js"];
 const { checkMilitary } = __m["src/war/check.js"];
-const { commission: commissionFacility, dailyTick: facilityDay, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
+const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
 class War {
   constructor(game) { this.game = game; }
@@ -31233,7 +31528,7 @@ class War {
   repairFacility(id) { return repairFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
-  dailyTick() { facilityDay(this.g); }
+  dailyTick() { runDay(this.g); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
   rename(name) { return renameCompany(this.g, name); }
@@ -31256,6 +31551,17 @@ class War {
   equipment() { return this.peek()?.company?.equipment || []; }
   stock() { return this.peek()?.company?.stock || {}; }
   transfers() { return this.peek()?.transfers || []; }
+
+  // ---- people and the works (v0.99.0 stages 5 and 6)
+  hire(role) { return hireIn(this.g, role); }
+  dismiss(id) { return dismissOut(this.g, id); }
+  people() { return this.peek()?.company?.personnel || []; }
+  order(model, qty) { return orderUnit(this.g, model, qty); }
+  cancelOrder(id) { return cancelOrder(this.g, id); }
+  shifts(lineId, n) { return setLineShifts(this.g, lineId, n); }
+  upgrade(works) { return upgradeWorks(this.g, works); }
+  maintain(works) { return maintainWorks(this.g, works); }
+  production() { return productionView(this.g); }
 
   summary() {
     const m = this.peek();
@@ -71973,6 +72279,58 @@ function transfersTab(ui, body, go) {
 return { transfersTab };
 })();
 
+// ---- src/ui/militaryProduction.js
+__m["src/ui/militaryProduction.js"] = (function () {
+// The Military app's Production page (v0.99.0; mock-up proposal-war-oberpad-company.png page 3): tanks and helicopters only. Lines and why one is blocked, the queue, the parts the queue needs,
+// the crew, and the works' own condition. Every button calls game.war.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n, segments } = __m["src/ui/tabletKit.js"];
+const { PEOPLE } = __m["src/content/production.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+const bar = (f, bad) => h('div', { style: 'height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:4px 0' }, h('div', { style: `height:6px;border-radius:3px;width:${Math.round(Math.max(0, Math.min(1, f)) * 100)}%;background:${bad ? '#e0705a' : '#8fd18f'}` }));
+
+function productionTab(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const P = W.production();
+  const SEG = [{ id: 'tank', label: 'Tanks' }, { id: 'helicopter', label: 'Helicopters' }, { id: 'queue', label: 'Queue' }];
+  const tab = SEG.some((x) => x.id === ui.milProd) ? ui.milProd : 'tank';
+  const running = P.lines.filter((l) => l.model).length;
+  body.append(
+    hero({ label: 'Production · tanks and helicopters only', value: `${running} line${running === 1 ? '' : 's'} working`, sub: `${P.technicians} technician${P.technicians === 1 ? '' : 's'} on the books. Planes, missiles, guns and ships are never made here: they come from your other companies.` }),
+    tiles([{ n: String(P.orders.reduce((a, o) => a + o.left, 0)), t: 'units waiting' }, { n: String(P.lines.filter((l) => l.blocked).length), t: 'blocked' }, { n: n(g.war.cash()), t: 'company cash' }]));
+  body.append(segments(SEG, tab, (t) => { ui.milProd = t; open('Military'); }));
+  if (tab === 'queue') { queue(ui, body, go, P, W); return; }
+  const works = tab === 'tank' ? 'tank_factory' : 'helicopter_works';
+  const WK = P.works.find((x) => x.id === works);
+  if (!WK.built) { body.append(list(row({ icon: '🏭', title: `No ${WK.name.toLowerCase()} yet`, sub: 'Build it from the Company page (stage 3: it needs the stage before it).' }))); return; }
+  for (const l of P.lines.filter((x) => x.works === works)) {
+    body.append(h('div', { class: 'tb-card', style: 'padding:10px 12px' },
+      h('div', { class: 'tb-row' }, h('div', { class: 'grow' }, h('b', {}, `Line ${l.id} · ${l.blocked && !l.model ? 'blocked' : l.model ? 'working' : 'idle'}`), h('small', {}, l.model ? `${P.models.find((m) => m.id === l.model).name} · ${Math.round(l.progress * 100)}%` : l.blocked || 'Waiting for an order')),
+        h('span', {}, h('button', { class: 'tb-mini', disabled: l.shifts <= 1, onclick: () => go(W.shifts(l.id, l.shifts - 1)) }, '−'), ` Shifts: ${l.shifts} `, h('button', { class: 'tb-mini', disabled: l.shifts >= 3, onclick: () => go(W.shifts(l.id, l.shifts + 1)) }, '+'))),
+      bar(l.progress, Boolean(l.blocked)), l.blocked && l.model ? h('small', { style: 'color:#e0a070' }, l.blocked) : null, h('small', {}, `Crew needed: ${l.crew} technicians`)));
+  }
+  body.append(list(row({ icon: '🛠️', title: `${WK.name} · level ${WK.level}`, sub: `Wear ${WK.wear}% · builds at ${Math.round(WK.eff * 100)}% speed`,
+    action: h('span', {}, WK.upgrade != null ? h('button', { class: 'tb-mini pri', disabled: g.war.cash() < WK.upgrade, onclick: () => go(W.upgrade(works)) }, `Upgrade ${n(WK.upgrade)}`) : null, ' ', WK.wear >= 5 ? h('button', { class: 'tb-mini', disabled: g.war.cash() < WK.maintain, onclick: () => go(W.maintain(works)) }, `Mend ${n(WK.maintain)}`) : null) })));
+  body.append(label('Order'));
+  body.append(list(...P.models.filter((m) => m.works === works).map((m) => row({ icon: works === 'tank_factory' ? '🛡️' : '🚁', title: `${m.name}`, sub: `${m.days} days · ${Object.entries(m.parts).map(([k, q]) => `${q} ${k}`).join(', ')} · fee ${n(m.fee)}`, tag: n(m.price),
+    action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.order(m.id, 1)) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.order(m.id, 3)) }, '3')) }))));
+  body.append(help('How a line works', 'A line starts a unit when its parts are in the stores, its fee can be paid and its technicians are free; the fee and the parts are spent then. More shifts finish a unit sooner and need more technicians. A line that cannot start, or cannot house what it made, says why.'));
+}
+
+function queue(ui, body, go, P, W) {
+  body.append(label('Orders'));
+  body.append(list(...(P.orders.length ? P.orders.map((o) => row({ icon: '📋', title: `${o.name} · ${o.done}/${o.qty} done`, sub: `${o.left} not yet started`, action: o.left ? h('button', { class: 'tb-mini', onclick: () => go(W.cancelOrder(o.id)) }, 'Cancel the rest') : null })) : [row({ icon: '—', title: 'No orders', sub: 'Order tanks or helicopters on their pages.' })])));
+  body.append(label('Parts this queue needs'));
+  body.append(list(...(P.needs.length ? P.needs.map((x) => row({ icon: '⚙️', title: x.name, sub: `${x.have} in the stores, ${x.need} needed`, tag: x.have >= x.need ? '✓' : `short ${x.need - x.have}`, tone: x.have >= x.need ? 'good' : 'warn' })) : [row({ icon: '—', title: 'Nothing needed', sub: 'Parts are bought on the Transfers page (Buy from suppliers).' })])));
+  body.append(label('The crew'));
+  const people = W.people();
+  body.append(list(...Object.entries(PEOPLE).map(([role, def]) => row({ icon: role === 'guard' ? '💂' : '🧑‍🏭', title: `${def.name}s · ${people.filter((p) => p.role === role).length}`, sub: `${def.text} ${def.wage} obols a day each.`, action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire(role)) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !people.some((p) => p.role === role && !p.post && p.assignedTo == null), onclick: () => go(W.dismiss(people.filter((p) => p.role === role && !p.post && p.assignedTo == null).slice(-1)[0]?.id)) }, 'Let one go')) }))));
+}
+
+return { productionTab };
+})();
+
 // ---- src/ui/militaryApp.js
 __m["src/ui/militaryApp.js"] = (function () {
 // The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
@@ -71980,6 +72338,7 @@ __m["src/ui/militaryApp.js"] = (function () {
 const { h } = __m["src/ui/panels.js"];
 const { hero, tiles, row, help, fold, note, n, segments } = __m["src/ui/tabletKit.js"];
 const { transfersTab } = __m["src/ui/militaryTransfers.js"];
+const { productionTab } = __m["src/ui/militaryProduction.js"];
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
@@ -71994,10 +72353,11 @@ function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
-  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }];
+  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }, { id: 'Production', label: 'Production' }];
   const tab = SEG.some((x) => x.id === ui.milTab) ? ui.milTab : 'Company';
   body.append(segments(SEG, tab, (t) => { ui.milTab = t; open('Military'); }));
   if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
+  if (tab === 'Production') { productionTab(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(
