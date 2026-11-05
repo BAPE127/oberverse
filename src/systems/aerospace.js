@@ -790,10 +790,13 @@ export class Aerospace {
     this.report(co, 'delivery', `📦 ${p.name} #${u.n} is built and goes into storage (${this.storedOf(u.product).length} of that model now).`, null);
   }
 
+  /** Whether a contract for this product may be filled from storage: everything but a strategic product, which is delivered by its secure convoy and never from the store. */
+  deliverableFromStorage(productId) { return this.cfg.products[productId]?.line !== 'missile'; }
+
   /** Stored aircraft that could fill this contract right now: a plain model (a contract that asks for a special addition has to be built), good enough for the customer. */
   storedFor(co, c) {
     if (!c || c.status !== 'active' || c.config || co.kind !== 'player') return [];
-    if (this.cfg.products[c.product]?.line !== 'aircraft') return []; // (a strategic product is delivered by its secure convoy, never from the store)
+    if (!this.deliverableFromStorage(c.product)) return [];
     return this.storedOf(c.product).filter((r) => !r.config && r.quality >= (c.quality || 0));
   }
 

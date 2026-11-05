@@ -165,4 +165,5 @@ test('a secure hall can build a strategic missile product for storage: it stops 
   // a contract for the product is not filled from the store: it is delivered by its own convoy
   const ct = A.makeContract(co, { customer: 'cu_ostmark_air', product: 'ms_sentinel', qty: 1, unitPrice: C.products.ms_sentinel.price, days: 60, quality: 40, depositShare: 0.2 });
   assert.deepEqual(A.storedFor(co, ct), []); assert.equal(A.storageOffer(co, ct), null);
+  assert.equal(A.deliverableFromStorage('ms_sentinel'), false); assert.equal(A.deliverableFromStorage('af_kestrel'), true); assert.equal(A.deliverableFromStorage('st_relay'), true, 'a satellite can still be delivered from storage, as before');
 });
