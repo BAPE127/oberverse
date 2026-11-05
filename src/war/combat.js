@@ -17,6 +17,7 @@ const cdf = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z
 
 export const CLASS_POWER = { rifleman: 1, machine_gunner: 1.6, anti_tank: 1.2, marksman: 1.4, medic: 0.4, engineer: 0.9, signaller: 0.7, officer: 0.9, recon: 0.9, uav: 0.9 };
 const TERRAIN_DEFENCE = { forest: 1.12, mountain: 1.2, urban: 1.15, industrial: 1.1, rural: 1, desert: 0.95 };
+const AGG_GOAL = { raid: 'offence', extract: 'logistics', rescue: 'logistics' };
 const VEHICLE_WEIGHT = { tank: 1.4, helicopter: 1.55, artillery: 1.0, antiair: 0.5, carrier: 0.45, recon: 0.25, logistics: 0.1, medical: 0.1 };
 const VEHICLE_LOSS = { tank: 1, helicopter: 1.3, artillery: 0.7, antiair: 0.6, carrier: 0.6, recon: 0.5, logistics: 0.4, medical: 0.4 };
 export const THRESHOLDS = [0.55, 0.15, -0.2]; // the score for 3, 2 and 1 objectives; below the last is a loss
@@ -30,7 +31,7 @@ const personPower = (p, sup) => {
 const vehiclePower = (v, sup) => (v.firepower * 1.6 + v.armour * 0.9 + v.speed * 0.2) * (VEHICLE_WEIGHT[v.cls] ?? 0.2) * (1 - 0.4 * sup.fuelShort);
 
 function parts(input) {
-  const { days, terrain, goal, enemy, people, vehicles, general, supplies } = input;
+  const { days, terrain, enemy, people, vehicles, general, supplies } = input; const goal = AGG_GOAL[input.goal] || input.goal; // (a raid is weighed as an attack, an extraction or a rescue as a convoy: the estimate knows three kinds of fight, the battle knows six)
   const fuelNeed = Math.ceil(vehicles.length * days * 0.3);
   const rocketNeed = Math.ceil(people.filter((p) => p.role === 'anti_tank').length * Math.min(days, 6) * 0.5);
   const sup = { fuelNeed, rocketNeed, fuelShort: fuelNeed ? clamp(1 - (supplies?.fuel ?? 0) / fuelNeed, 0, 1) : 0, rocketShort: rocketNeed ? clamp(1 - (supplies?.rockets ?? 0) / rocketNeed, 0, 1) : 0 };

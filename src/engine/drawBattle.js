@@ -168,6 +168,7 @@ export class BattleView {
     g.drawImage(this.scene.ground, 0, 0);
     // the objective and the way out
     const o = B.map.objective; g.strokeStyle = 'rgba(255,224,120,0.9)'; g.lineWidth = 3; g.setLineDash([8, 6]); g.beginPath(); g.arc(o.x * TP + 16, o.y * TP + 16, 4 * TP, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+    if (B.goal === 'extract' || B.goal === 'rescue') { const h0 = B.map.spawns.p; g.strokeStyle = 'rgba(120,255,160,0.9)'; g.lineWidth = 3; g.setLineDash([6, 5]); g.beginPath(); g.arc(h0.x * TP + 16, h0.y * TP + 16, 4 * TP, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
     if (B.goal === 'logistics') { g.strokeStyle = 'rgba(120,255,160,0.9)'; g.strokeRect(B.map.exit.x * TP - 20, B.map.exit.y * TP - 60, 40, 120); }
     const seen = ui.seen || new Set(B.units.filter((u) => u.side === 'e').map((u) => u.id));
     const open = ui.open || {};

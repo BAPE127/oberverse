@@ -32199,6 +32199,9 @@ const ENGAGEMENTS = {
   hold: { title: 'Hold {place}', text: 'A crossing the other side wants. Stay on it until the time is up.', days: [14, 24], troops: [10, 24], tanks: [0, 2], helicopters: [0, 1], medics: [1, 2], enemy: [0.8, 1.15], terrains: ['rural', 'forest', 'mountain'], goal: 'defence' },
   defend: { title: 'Defend {place}', text: 'A depot, a port or a pumping station, and a client who would like to keep it.', days: [10, 20], troops: [8, 20], tanks: [0, 1], helicopters: [0, 1], medics: [1, 2], enemy: [0.7, 1.05], terrains: ['rural', 'forest'], goal: 'defence' },
   retake: { title: 'Retake {place}', text: 'A post that was lost last month. The client wants it back.', days: [8, 16], troops: [14, 30], tanks: [1, 3], helicopters: [0, 2], medics: [2, 3], enemy: [0.9, 1.25], terrains: ['rural', 'desert', 'mountain'], goal: 'offence' },
+  raid: { title: 'Raid {place}', text: 'Get in, hit the marked ground, hold it a few seconds, and the client is satisfied. Nobody is asking you to keep it.', days: [3, 6], troops: [6, 14], tanks: [0, 1], helicopters: [0, 1], medics: [0, 1], enemy: [0.7, 1.0], terrains: ['rural', 'forest', 'desert', 'mountain'], goal: 'raid' },
+  extract: { title: 'Bring an officer out of {place}', text: 'A friendly officer is cut off at the marked ground. Reach them and bring them back to your lines alive.', days: [3, 7], troops: [6, 12], tanks: [0, 1], helicopters: [0, 1], medics: [1, 1], enemy: [0.6, 0.95], terrains: ['rural', 'forest', 'mountain', 'desert'], goal: 'extract' },
+  rescue: { title: 'Recover a downed pilot near {place}', text: 'A pilot is down, hurt, and walking slowly. The other side knows where.', days: [2, 5], troops: [5, 10], tanks: [0, 0], helicopters: [0, 1], medics: [1, 2], enemy: [0.5, 0.85], terrains: ['rural', 'forest', 'mountain', 'desert'], goal: 'rescue' },
   escort: { title: 'Escort a heavy convoy through {place}', text: 'Fuel, shells and a long road with other people on it.', days: [6, 12], troops: [8, 16], tanks: [1, 2], helicopters: [0, 1], medics: [1, 1], enemy: [0.6, 0.95], terrains: ['rural', 'desert', 'forest'], goal: 'logistics' },
 };
 
@@ -32352,6 +32355,11 @@ const BREACH = { wall: 260, blast: 1.4 };
 /** A soldier put out of action (hit points gone) is dead with this chance (less with plate armour), else badly wounded: the same split the aggregate resolver uses (src/war/combat.js, a third of the casualties dead). */
 const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
 
+/** Reserves and the new missions (rules 4). A reserve is held off the map until called, then comes on at your edge after `seconds`. A raid is a hold of the marked ground for `seconds` with the enemy still there, on a shorter clock; an extraction (an officer) or a rescue (a downed pilot, hurt and slow) is won when the person is carried back to within `home` tiles of your edge. */
+const RESERVE = { seconds: 20 };
+const RAID = { seconds: 12, maxSeconds: 300 };
+const VIPS = { officer: { name: 'The officer', hp: 1, speed: 1, weapon: 'item_pistol' }, pilot: { name: 'The downed pilot', hp: 0.6, speed: 0.65, weapon: 'item_pistol' } };
+const VIP_HOME = 4;
 const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
 
 /** The two battle recipes of this release (the other recipes come with the later sub-releases). */
@@ -32382,7 +32390,7 @@ const ART_BIOME = { rural: 'temperate', taiga: 'snow', tundra: 'snow', snow: 'sn
 const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
 const styleOf = (country) => STYLE_OF[country] || 'halvermouth';
 
-return { TICK, TILE, WIRE_SLOW, TRENCH_COLLAPSE, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, FACING, MODULES, MODULE, SUPPORT, CHARGE, TEND, UAV, ARTY, DESIGNATE, SCATTER, STATION, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, FLAK, BREACH, DOWN, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, RULES, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
+return { TICK, TILE, WIRE_SLOW, TRENCH_COLLAPSE, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, FACING, MODULES, MODULE, SUPPORT, CHARGE, TEND, UAV, ARTY, DESIGNATE, SCATTER, STATION, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, FLAK, BREACH, DOWN, RESERVE, RAID, VIPS, VIP_HOME, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, RULES, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
 })();
 
 // ---- src/war/combat.js
@@ -32406,6 +32414,7 @@ const cdf = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z
 
 const CLASS_POWER = { rifleman: 1, machine_gunner: 1.6, anti_tank: 1.2, marksman: 1.4, medic: 0.4, engineer: 0.9, signaller: 0.7, officer: 0.9, recon: 0.9, uav: 0.9 };
 const TERRAIN_DEFENCE = { forest: 1.12, mountain: 1.2, urban: 1.15, industrial: 1.1, rural: 1, desert: 0.95 };
+const AGG_GOAL = { raid: 'offence', extract: 'logistics', rescue: 'logistics' };
 const VEHICLE_WEIGHT = { tank: 1.4, helicopter: 1.55, artillery: 1.0, antiair: 0.5, carrier: 0.45, recon: 0.25, logistics: 0.1, medical: 0.1 };
 const VEHICLE_LOSS = { tank: 1, helicopter: 1.3, artillery: 0.7, antiair: 0.6, carrier: 0.6, recon: 0.5, logistics: 0.4, medical: 0.4 };
 const THRESHOLDS = [0.55, 0.15, -0.2]; // the score for 3, 2 and 1 objectives; below the last is a loss
@@ -32419,7 +32428,7 @@ const personPower = (p, sup) => {
 const vehiclePower = (v, sup) => (v.firepower * 1.6 + v.armour * 0.9 + v.speed * 0.2) * (VEHICLE_WEIGHT[v.cls] ?? 0.2) * (1 - 0.4 * sup.fuelShort);
 
 function parts(input) {
-  const { days, terrain, goal, enemy, people, vehicles, general, supplies } = input;
+  const { days, terrain, enemy, people, vehicles, general, supplies } = input; const goal = AGG_GOAL[input.goal] || input.goal; // (a raid is weighed as an attack, an extraction or a rescue as a convoy: the estimate knows three kinds of fight, the battle knows six)
   const fuelNeed = Math.ceil(vehicles.length * days * 0.3);
   const rocketNeed = Math.ceil(people.filter((p) => p.role === 'anti_tank').length * Math.min(days, 6) * 0.5);
   const sup = { fuelNeed, rocketNeed, fuelShort: fuelNeed ? clamp(1 - (supplies?.fuel ?? 0) / fuelNeed, 0, 1) : 0, rocketShort: rocketNeed ? clamp(1 - (supplies?.rockets ?? 0) / rocketNeed, 0, 1) : 0 };
@@ -32517,7 +32526,7 @@ __m["src/battle/setup.js"] = (function () {
 // A battle's setup (v0.101.0): everything a battle needs, as plain data, made once when an engagement is taken to the field and kept with it. The battle is a pure function of this, the
 // order log and the tick, so nothing that happens to the company's records afterwards (a day's wages, a morale drift) can change it, and a reload replays it.
 //   buildSetup({ key, eng, people, vehicles, ai })
-const { UNITS, SPEED, STYLES, MAP_VER, RULES } = __m["src/content/battle.js"];
+const { UNITS, SPEED, STYLES, MAP_VER, RULES, VIPS } = __m["src/content/battle.js"];
 const { CLASSES, ARMOUR } = __m["src/content/troops.js"];
 const { unit, pick } = __m["src/battle/hash.js"];
 
@@ -32525,7 +32534,7 @@ const KIND = { tank: 'tank', helicopter: 'helicopter', carrier: 'carrier' };
 const VWEAPON = { tank: 'tank_gun', helicopter: 'heli_gun', carrier: 'vehicle_mg', recon: 'vehicle_mg', artillery: 'tank_gun', antiair: 'aa_gun' }; // (rules 3: anti-air fires at aircraft; under rules 1 and 2 it was a machine gun, and a saved setup keeps its own weapon string)
 
 /** `eng`: { id, goal, enemy:{troops,armour,air,skill}, recipe, biome, style }. `people`: [{id,name,role,tier,armour,exp,morale,fatigue,armed}]. `vehicles`: [{id,name,cls,armour,firepower,speed}]. */
-function buildSetup({ key, eng, people, vehicles, support = null, ai = {} }) {
+function buildSetup({ key, eng, people, vehicles, support = null, ai = {}, reserve = [] }) {
   const units = [];
   for (const p of people) {
     const tiers = CLASSES[p.role]?.tiers || {};
@@ -32548,6 +32557,8 @@ function buildSetup({ key, eng, people, vehicles, support = null, ai = {} }) {
   for (let i = 0; i < Math.round(E.aa || 0); i++) units.push({ id: `ea${i}`, side: 'e', kind: 'other', role: 'antiair', name: 'Enemy anti-air gun', rec: null, weapon: 'aa_gun', hp: UNITS.other.hp + UNITS.other.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.other.sight, speed: SPEED.vehicleBase });
   for (let i = 0; i < Math.round(E.battery || 0); i++) units.push({ id: `eb${i}`, side: 'e', kind: 'other', role: 'artillery', vtype: 'battery', battery: true, name: 'Enemy battery', rec: null, weapon: 'none', hp: UNITS.other.hp + UNITS.other.perArmour * 2, accMult: skill, armourBar: 2, morale: 90, sight: UNITS.other.sight, speed: 0 });
   for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
+  const held = new Set(reserve); if (held.size) for (const u of units) if (u.side === 'p' && held.has(u.id)) u.reserve = true;
+  if (eng.goal === 'extract' || eng.goal === 'rescue') { const V = VIPS[eng.goal === 'extract' ? 'officer' : 'pilot']; units.push({ id: 'vip', side: 'p', kind: 'inf', role: 'officer', vip: eng.goal === 'extract' ? 'officer' : 'pilot', name: V.name, rec: null, weapon: V.weapon, hp: Math.round(UNITS.infantry.hp * V.hp), accMult: 0.8, prot: 1, morale: 60, sight: UNITS.infantry.sight, speed: SPEED.infantry * V.speed }); }
   return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, rules: RULES, units, support: support || { items: {}, air: [] }, ai: { p: Boolean(ai.p), e: ai.e !== false } };
 }
 
@@ -32659,7 +32670,7 @@ function commitForces(game, C, eng, squads, gen) {
  * and the engagement. The battle itself runs in the panel (src/ui/battle.js) and files its result here; the result is applied on the end day, like a delegated one (playing it is not a shortcut
  * to the money). Until then the battle is saved as its setup, its order log and its tick, and a reload replays it.
  */
-function play(game, id, squads) {
+function play(game, id, squads, reserves = []) {
   const C = peekMilitary(game)?.company;
   const eng = C && find(game, id);
   if (!eng) return { ok: false, text: 'No such engagement.' };
@@ -32671,10 +32682,13 @@ function play(game, id, squads) {
   const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
+  const held = (reserves || []).filter((sid) => squads.includes(sid));
+  if (held.length >= squads.length) return { ok: false, text: 'Keep at least one squad on the field: the reserve comes on afterwards.' };
+  const RF = held.length ? forces(game, held) : null; const reserve = RF ? [...RF.people.map((p) => p.id), ...RF.vehicles.map((v) => v.id)] : [];
   const F = commitForces(game, C, eng, squads, null);
   const key = `${eng.id}|${salt(game)}`;
   eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
-  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true } }), tick: 0, log: [], result: null };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true }, reserve }), tick: 0, log: [], result: null };
   C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
   return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
 }
@@ -33208,7 +33222,7 @@ class War {
   engagementLacks(id, squads) { const e = engagementOf(this.g, id); return e ? engagementLacks(this.g, e, squads) : []; }
   assess(id, squads, general) { return assessEngagement(this.g, id, squads, general); }
   delegate(id, order) { return delegateEngagement(this.g, id, order); }
-  playEngagement(id, squads) { return playEngagement(this.g, id, squads); }
+  playEngagement(id, squads, reserves = []) { return playEngagement(this.g, id, squads, reserves); }
   battle(id) { return battleOf(this.g, id); }
   skirmish(recipe, enemy) { return skirmishOf(this.g, recipe, enemy); }
   saveBattle(id, tick, log) { return saveBattleOf(this.g, id, tick, log); }
@@ -74134,6 +74148,7 @@ function engagementScreen(ui, body, go, open) {
     list(row({ icon: '👁️', title: 'What is known of the enemy', sub: `About ${e.enemy.troops} troops${e.enemy.armour ? `, ${e.enemy.armour} armour` : ''}${e.enemy.air ? `, air cover` : ''}. Reports are rough: the estimate below is not a promise.` })));
   body.append(label('Squads to send'), list(...(S.length ? S.map((s) => row({ icon: chosen.includes(s.id) ? '☑️' : '⬜', title: `${s.name} · ${s.size} soldiers`, sub: `${s.leaderName ? `Led by ${s.leaderName}` : 'No leader'}${s.vehicles.length ? ` · ${s.vehicles.join(', ')}` : ''}${s.status !== 'home' ? ' · away' : ''}`,
     onclick: s.status === 'home' ? () => { ui.milEngSquads = chosen.includes(s.id) ? chosen.filter((x) => x !== s.id) : [...chosen, s.id]; open('Military'); } : null })) : [row({ icon: '—', title: 'No squads', sub: 'Form squads from People and Squads first. Nothing is spawned for you.' })])));
+  if (chosen.length > 1) { const held = (ui.milEngReserve || []).filter((x) => chosen.includes(x)); body.append(label('Hold back in reserve (when you lead it yourself)'), list(...chosen.map((sid) => row({ icon: held.includes(sid) ? '☑️' : '⬜', title: S.find((s) => s.id === sid)?.name || sid, sub: held.includes(sid) ? 'Kept off the field until you call it; takes no losses if never called' : 'Goes in with the rest', onclick: () => { ui.milEngReserve = held.includes(sid) ? held.filter((x) => x !== sid) : [...held, sid]; open('Military'); } })))); }
   body.append(label('General'), list(row({ icon: '🎖️', title: G.length ? 'Assign' : 'No general at home', sub: G.length ? 'Who fights it' : 'Hire one from Generals.', action: G.length ? select(G.map((g) => [g.id, `${g.name}`]), gen, (v) => { ui.milEngGen = v; open('Military'); }) : null })));
   if (lacks.length) body.append(h('div', { class: 'tb-note', style: 'margin:0 8px 8px' }, `⚠ Your forces do not meet this one: ${lacks.join('; ')}. Nothing is spawned to make up the difference.`));
   if (chosen.length && gen) {
@@ -74143,7 +74158,7 @@ function engagementScreen(ui, body, go, open) {
       row({ icon: '🎯', title: `${pct(es.chance.atLeast[1])} to meet at least one objective`, sub: `${pct(es.chance.atLeast[2])} for two, ${pct(es.chance.atLeast[3])} for all three, ${pct(es.chance.lose)} to fail` }),
       row({ icon: '🔧', title: 'What it is made of', sub: `Your force ${es.parts.ours.toFixed(1)} against ${es.parts.theirs.toFixed(1)} · ground ×${es.parts.terrain.toFixed(2)} · general ×${es.parts.general.toFixed(2)}${es.parts.fuelShort ? ' · short of fuel' : ''}${es.parts.rocketShort ? ' · short of rockets' : ''}` })));
   }
-  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, 'Turn it down')));
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen, (ui.milEngReserve || []).filter((x) => chosen.includes(x))); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, 'Turn it down')));
   body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. Leading it yourself takes your squads into a battle you command; the result is filed and your people come home on the engagement\'s last day.'));
 }
 
@@ -76794,7 +76809,7 @@ __m["src/battle/sim.js"] = (function () {
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-const { DESIGNATE, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } = __m["src/content/battle.js"];
+const { RESERVE, RAID, VIPS, VIP_HOME, DESIGNATE, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } = __m["src/content/battle.js"];
 const { OUTCOMES } = __m["src/war/combat.js"];
 const { generate, idx, inb, tileAt, walkable } = __m["src/battle/map.js"];
 const { findPath, los, canStand } = __m["src/battle/nav.js"];
@@ -76807,35 +76822,39 @@ const isVeh = (u) => u.kind !== 'inf';
 function createBattle(setup) {
   const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const rules = setup.rules ?? (setup.map.ver >= 2 ? 2 : 1); // 1: v0.101.0; 2: v0.102.0 (modules and facing); 3: v0.102.1 (what runs without an order): a setup says which rules it was made under, and replays under them
-  const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
-    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], collapsed: [], located: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
-  const place = (side, specs) => {
-    const s = side === 'p' ? map.spawns.p : map.spawns.e;
-    const taken = new Set();
-    specs.forEach((spec) => {
-      let spot = null;
-      for (let r = 0; r < 14 && !spot; r++) for (let j = -r; j <= r && !spot; j++) for (let i = -r; i <= r && !spot; i++) {
-        if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
-        const x = s.x + i; const y = s.y + j; const k = `${x},${y}`;
-        if (!taken.has(k) && canStand(map, x, y, spec.kind === 'inf' ? 'inf' : spec.kind === 'helicopter' ? 'heli' : 'veh') && map.bid[idx(map, x, y)] < 0) spot = { x, y, k };
-      }
-      spot ||= { x: s.x, y: s.y, k: 'x' }; taken.add(spot.k);
-      const u = makeUnit(spec, side, spot.x + 0.5, spot.y + 0.5, rules);
-      B.units.push(u); B.byId.set(u.id, u);
-    });
-  };
-  place('p', setup.units.filter((x) => x.side === 'p')); place('e', setup.units.filter((x) => x.side === 'e'));
+  const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || (setup.goal === 'raid' ? RAID.maxSeconds : TICK.maxSeconds) * TICK.perSecond,
+    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], collapsed: [], located: [], reserve: [], reserveAt: null, raid: 0, raided: false, vipOut: false, hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
+  const mine = setup.units.filter((x) => x.side === 'p');
+  B.reserve = mine.filter((x) => x.reserve); // (held off the map until called: rules 4)
+  placeUnits(B, 'p', mine.filter((x) => !x.reserve)); placeUnits(B, 'e', setup.units.filter((x) => x.side === 'e'));
+  for (const v of B.units) if (v.vip) { const at = standNear(B, map.objective.x, map.objective.y, 'inf'); if (at) { v.x = at.x; v.y = at.y; } } // (a person to be got out starts at the marked ground)
   B.start.p = B.units.filter((u) => u.side === 'p').length; B.start.e = B.units.filter((u) => u.side === 'e').length;
   B.startAcc = { p: B.units.filter((u) => u.side === 'p' && u.rec).length };
   return B;
 }
 
+/** Put units on free ground round their side's start (the first of them first); also how a called reserve arrives. */
+function placeUnits(B, side, specs) {
+  const map = B.map; const s = side === 'p' ? map.spawns.p : map.spawns.e;
+  const taken = new Set(B.units.filter((u) => u.alive && u.side === side).map((u) => `${Math.floor(u.x)},${Math.floor(u.y)}`));
+  specs.forEach((spec) => {
+    let spot = null;
+    for (let r = 0; r < 14 && !spot; r++) for (let j = -r; j <= r && !spot; j++) for (let i = -r; i <= r && !spot; i++) {
+      if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
+      const x = s.x + i; const y = s.y + j; const k = `${x},${y}`;
+      if (!taken.has(k) && canStand(map, x, y, spec.kind === 'inf' ? 'inf' : spec.kind === 'helicopter' ? 'heli' : 'veh') && map.bid[idx(map, x, y)] < 0) spot = { x, y, k };
+    }
+    spot ||= { x: s.x, y: s.y, k: 'x' }; taken.add(spot.k);
+    const u = makeUnit(spec, side, spot.x + 0.5, spot.y + 0.5, B.rules);
+    B.units.push(u); B.byId.set(u.id, u);
+  });
+}
 function makeUnit(spec, side, x, y, rules = 2) { // (spec.vtype: which vehicle it is, from rules 3)
   const W = WEAPONS[spec.weapon] || WEAPONS.none; const ground = spec.kind !== 'inf' && spec.kind !== 'helicopter' && rules >= 2;
   return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, vtype: spec.vtype || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
     fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
     moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0,
-    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, battery: Boolean(spec.battery), fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stance: 'aggressive', hidden: false, inside: null, pax: [], bailed: false, dep: 0, deployed: Boolean(spec.battery), stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
+    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, battery: Boolean(spec.battery), vip: spec.vip || null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stance: 'aggressive', hidden: false, inside: null, pax: [], bailed: false, dep: 0, deployed: Boolean(spec.battery), stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
 }
 
 // ---- orders
@@ -77005,6 +77024,13 @@ function designated(B, side, x, y) {
   return false;
 }
 const NOT_DESIGNATED = 'Nothing is designated there: put eyes on the enemy first (a squad in sight, a scout drone or a recon order).';
+/** Call the reserve (rules 4): it comes on at your edge after RESERVE.seconds. A manual call is logged for the replay; the automatic one (nothing of yours left on the field, or a headless battle) follows from the state. */
+function callReserve(B, auto = false) {
+  if (B.over || !B.reserve.length || B.reserveAt !== null) return { ok: false, text: 'There is no reserve to call.' };
+  B.reserveAt = B.tick + RESERVE.seconds * TICK.perSecond; B.events.push({ t: B.tick, k: 'reserve' });
+  if (!auto) B.log.push({ t: B.tick, ids: [], order: { type: 'reserve' } });
+  return { ok: true, text: `The reserve is on its way (${RESERVE.seconds} s).` };
+}
 /** Call support: a missile or a drone from the stock, an aircraft pass, or smoke. Validated against what the setup says the company has; logged for the replay. */
 function callSupport(B, spec) {
   const r = applySupport(B, spec); if (r.ok) B.log.push({ t: B.tick, ids: [], order: { type: 'support', ...spec } }); return r;
@@ -77249,10 +77275,18 @@ function step1(B, u, idxU) {
 // ---- the enemy's (and, for a headless battle, your) mind: simple, by goal
 function ai(B, side) {
   const mine = B.units.filter((u) => u.side === side && u.alive && !u.fled);
-  const attacking = (B.goal === 'offence' && side === 'p') || (B.goal === 'defence' && side === 'e');
+  const attacking = ((B.goal === 'offence' || B.goal === 'raid') && side === 'p') || (B.goal === 'defence' && side === 'e');
   const obj = B.map.objective; const exit = B.map.exit;
   mine.forEach((u, i) => {
     if (u.broken || u.battery || u.order.type === 'retreat') return;
+    if ((B.goal === 'extract' || B.goal === 'rescue') && side === 'p') { // go to the person, then bring them home (a headless battle, or a force you left to its own devices)
+      const v = B.units.find((q) => q.vip && q.alive);
+      if (u.vip) { if (u.order.type === 'hold' && mine.some((q) => !q.vip && Math.hypot(q.x - u.x, q.y - u.y) < 7)) setOrder(B, u, { type: 'move', x: B.map.spawns.p.x, y: B.map.spawns.p.y }); return; }
+      if (v && v.order.type === 'move') { if (u.order.type !== 'escort' && !isVeh(u)) setOrder(B, u, { type: 'escort', target: v.id }); }
+      else if (u.order.type === 'hold' && !(u.target && B.byId.get(u.target)?.alive)) setOrder(B, u, { type: 'amove', x: B.map.objective.x + ((i % 5) - 2), y: B.map.objective.y + ((i % 3) - 1) });
+      return;
+    }
+    if (side === 'p' && B.reserve.length && B.reserveAt === null && B.tick >= 300) callReserve(B, true);
     if (B.goal === 'logistics' && side === 'p') { if (isVeh(u) && u.kind !== 'helicopter' && u.order.type === 'hold' && !u.path.length) setOrder(B, u, { type: 'move', x: exit.x, y: exit.y }); else if (!isVeh(u) && u.order.type === 'hold') setOrder(B, u, { type: 'amove', x: exit.x, y: exit.y }); return; }
     if (attacking) {
       if (u.order.type === 'hold' && !(u.target && B.byId.get(u.target)?.alive)) {
@@ -77273,7 +77307,7 @@ function ai(B, side) {
 }
 
 /** An anti-air gun (rules 3) is a threat to aircraft and helicopters, not a force on the ground: it does not hold a zone, and beating the enemy does not mean putting it out. */
-const onGround = (u) => !u.W?.airOnly && !u.battery;
+const onGround = (u) => !u.W?.airOnly && !u.battery && !u.vip;
 function zoneCount(B, side) {
   const o = B.map.objective; let n = 0;
   for (const u of B.units) if (u.side === side && u.alive && !u.fled && onGround(u) && dist(u, o) <= OBJECTIVE.zone) n++;
@@ -77292,11 +77326,19 @@ function step(B) {
   const pz = zoneCount(B, 'p'); const ez = zoneCount(B, 'e');
   if (B.goal === 'defence') { if (pz > 0 || ez === 0) B.hold++; else B.hold = Math.max(0, B.hold - 1); }
   if (B.goal === 'offence') { if (pz > 0 && ez === 0) B.cap++; else B.cap = Math.max(0, B.cap - 1); if (B.cap >= OBJECTIVE.captureSeconds * TICK.perSecond) B.captured = true; }
+  if (B.goal === 'raid') { if (pz > 0) B.raid++; else B.raid = Math.max(0, B.raid - 1); if (B.raid >= RAID.seconds * TICK.perSecond) B.raided = true; }
+  if (B.goal === 'extract' || B.goal === 'rescue') { const v = B.units.find((q) => q.vip); if (v && v.alive && Math.hypot(v.x - B.map.spawns.p.x, v.y - B.map.spawns.p.y) < VIP_HOME) B.vipOut = true; }
   if (B.goal === 'logistics') for (const u of B.units) if (u.side === 'p' && u.alive && isVeh(u) && u.kind !== 'helicopter' && Math.hypot(u.x - B.map.exit.x, u.y - B.map.exit.y) < 3) B.convoyOut = true;
   const live = (s) => B.units.filter((u) => u.side === s && u.alive && !u.fled && onGround(u)).length;
-  if (!live('p')) { B.over = true; B.why = 'your force is gone'; }
+  if (B.reserveAt !== null && B.tick >= B.reserveAt && B.reserve.length) { placeUnits(B, 'p', B.reserve); B.start.p += B.reserve.length; B.startAcc.p += B.reserve.filter((r) => r.rec).length; B.events.push({ t: B.tick, k: 'arrive', n: B.reserve.length }); B.reserve = []; }
+  if (!live('p') && B.reserve.length && B.reserveAt === null) callReserve(B, true); // (the last of your force is down: the reserve is not left standing at the edge)
+  const vip = B.units.find((u) => u.vip);
+  if (vip && !vip.alive && !B.vipOut) { B.over = true; B.why = `${VIPS[vip.vip].name.toLowerCase()} is dead`; }
+  else if (!live('p') && !(B.reserve.length)) { B.over = true; B.why = 'your force is gone'; }
   else if (!live('e')) { B.over = true; B.why = 'the enemy is beaten'; }
   else if (B.captured) { B.over = true; B.why = 'the objective is taken'; }
+  else if (B.raided) { B.over = true; B.why = 'the raid is done'; }
+  else if (B.vipOut) { B.over = true; B.why = `${VIPS[vip.vip].name.toLowerCase()} is home`; }
   else if (B.convoyOut) { B.over = true; B.why = 'the convoy is through'; }
   else if (B.tick >= B.maxTicks) { B.over = true; B.why = 'time'; }
   return B;
@@ -77311,6 +77353,8 @@ function outcome(B) {
   let primary;
   if (B.goal === 'defence') primary = B.hold >= OBJECTIVE.holdSeconds * TICK.perSecond || (B.over && B.why !== 'your force is gone' && zoneCount(B, 'e') === 0 && B.units.some((u) => u.side === 'p' && u.alive && !u.fled)) || (B.over && B.why === 'time' && B.units.some((u) => u.side === 'p' && u.alive && !u.fled) && zoneCount(B, 'e') <= zoneCount(B, 'p'));
   else if (B.goal === 'offence') primary = B.captured;
+  else if (B.goal === 'raid') primary = B.raided || (B.over && B.why === 'the enemy is beaten' && B.units.some((u) => u.side === 'p' && u.alive && !u.fled && !u.vip));
+  else if (B.goal === 'extract' || B.goal === 'rescue') primary = B.vipOut || (B.over && B.why === 'the enemy is beaten' && B.units.some((u) => u.vip && u.alive));
   else primary = B.convoyOut;
   const ob = [primary, foes.length ? downFoes / foes.length >= OBJECTIVE.enemyShare : true, mine.length ? downMine / mine.length <= OBJECTIVE.ownLossCeiling : true];
   const objectives = ob.filter(Boolean).length;
@@ -77335,15 +77379,15 @@ function replay(setup, log, tick) {
   const B = createBattle(setup);
   const q = log.slice().sort((a, b) => a.t - b.t); let i = 0;
   while (B.tick < tick && !B.over) {
-    while (i < q.length && q[i].t <= B.tick) { if (q[i].order.type === 'support') applySupport(B, q[i].order); else for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
+    while (i < q.length && q[i].t <= B.tick) { if (q[i].order.type === 'support') applySupport(B, q[i].order); else if (q[i].order.type === 'reserve') callReserve(B, true); else for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
     step(B);
   }
-  while (i < q.length && q[i].t <= B.tick) { if (q[i].order.type === 'support') applySupport(B, q[i].order); else for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
+  while (i < q.length && q[i].t <= B.tick) { if (q[i].order.type === 'support') applySupport(B, q[i].order); else if (q[i].order.type === 'reserve') callReserve(B, true); else for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
   return B;
 }
 
 
-return { isVeh, createBattle, formationSpots, issueFormation, issue, designated, callSupport, step, run, runToEnd, outcome, replay, standNear, inb, walkable, sightOf, coverFor, stateOf, reachOf, faceOf, hitModule };
+return { isVeh, createBattle, formationSpots, issueFormation, issue, designated, callReserve, callSupport, step, run, runToEnd, outcome, replay, standNear, inb, walkable, sightOf, coverFor, stateOf, reachOf, faceOf, hitModule };
 })();
 
 // ---- src/engine/drawFleet.js
@@ -78036,6 +78080,7 @@ class BattleView {
     g.drawImage(this.scene.ground, 0, 0);
     // the objective and the way out
     const o = B.map.objective; g.strokeStyle = 'rgba(255,224,120,0.9)'; g.lineWidth = 3; g.setLineDash([8, 6]); g.beginPath(); g.arc(o.x * TP + 16, o.y * TP + 16, 4 * TP, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+    if (B.goal === 'extract' || B.goal === 'rescue') { const h0 = B.map.spawns.p; g.strokeStyle = 'rgba(120,255,160,0.9)'; g.lineWidth = 3; g.setLineDash([6, 5]); g.beginPath(); g.arc(h0.x * TP + 16, h0.y * TP + 16, 4 * TP, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
     if (B.goal === 'logistics') { g.strokeStyle = 'rgba(120,255,160,0.9)'; g.strokeRect(B.map.exit.x * TP - 20, B.map.exit.y * TP - 60, 40, 120); }
     const seen = ui.seen || new Set(B.units.filter((u) => u.side === 'e').map((u) => u.id));
     const open = ui.open || {};
@@ -78147,11 +78192,11 @@ __m["src/ui/battle.js"] = (function () {
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 const { h } = __m["src/ui/panels.js"];
-const { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, issueFormation, designated } = __m["src/battle/sim.js"];
+const { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated } = __m["src/battle/sim.js"];
 const { los } = __m["src/battle/nav.js"];
 const { BattleView, TP } = __m["src/engine/drawBattle.js"];
 const { FxLayer } = __m["src/engine/drawBattleFx.js"];
-const { TICK, SUPPORT, UAV } = __m["src/content/battle.js"];
+const { TICK, SUPPORT, UAV, RAID } = __m["src/content/battle.js"];
 
 const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
 const mmss = (ticks) => { const s = Math.floor(ticks / TICK.perSecond); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -78266,7 +78311,7 @@ function battlePanel(ui, body, opts = {}) {
   const paintTop = () => {
     if (!B) { top.replaceChildren(h('b', {}, eng.title), h('span', {}, 'Battle filed'), h('span', { class: 'grow' }), h('button', { onclick: () => close() }, '✕')); return; }
     const mine = B.units.filter((u) => u.side === 'p'); const alive = mine.filter((u) => u.alive && !u.fled).length; const foes = B.units.filter((u) => u.side === 'e' && u.alive && !u.fled).length;
-    const goal = { defence: `Hold the marked ground (${Math.min(100, Math.round((B.hold / (60 * TICK.perSecond)) * 100))}%)`, offence: `Take the marked ground (${Math.min(100, Math.round((B.cap / (40 * TICK.perSecond)) * 100))}%)`, logistics: 'Get a vehicle through to the green gate' }[B.goal];
+    const goal = { defence: `Hold the marked ground (${Math.min(100, Math.round((B.hold / (60 * TICK.perSecond)) * 100))}%)`, offence: `Take the marked ground (${Math.min(100, Math.round((B.cap / (40 * TICK.perSecond)) * 100))}%)`, logistics: 'Get a vehicle through to the green gate', raid: `Raid the marked ground: hold it ${RAID.seconds} s (${Math.min(100, Math.round((B.raid / (RAID.seconds * TICK.perSecond)) * 100))}%)`, extract: 'Reach the officer and bring them back to the green mark', rescue: 'Reach the downed pilot and bring them back to the green mark' }[B.goal];
     top.replaceChildren(h('b', {}, eng.title), h('span', {}, goal), h('span', {}, `⏱ ${mmss(B.tick)} / ${mmss(B.maxTicks)}`), h('span', { class: 'grow' }), h('span', { class: 'bt-p' }, `Yours ${alive}/${mine.length}`), h('span', { class: 'bt-e' }, `Enemy in sight ${[...seenSet()].length}`), h('span', { title: 'the camera tier' }, `🔭 ${view.tier()}`), h('button', { onclick: () => close() }, '✕ Leave'));
   };
   /** What can be called from the real stock, as buttons: each item left, each aircraft not yet used. Then a click on the map. */
@@ -78292,6 +78337,7 @@ function battlePanel(ui, body, opts = {}) {
       h('button', { title: 'hold fire / defensive / aggressive, for those selected', onclick: () => { const ss = ['aggressive', 'defensive', 'holdfire']; S.stance = ss[(ss.indexOf(S.stance || 'aggressive') + 1) % 3]; if (S.sel.size) give({ type: 'stance', stance: S.stance }, `${S.stance}`); paintBar(); } }, `Stance: ${S.stance || 'aggressive'}`),
       mk('Reverse', 'reverse', () => { S.mode = S.mode === 'reverse' ? null : 'reverse'; paintBar(); }), mk('Repair', 'repair', () => { S.mode = S.mode === 'repair' ? null : 'repair'; paintBar(); }), mk('Board', 'load', () => { S.mode = S.mode === 'load' ? null : 'load'; paintBar(); }), h('button', { onclick: () => { const ids = [...S.sel].filter((x) => B.byId.get(x)?.pax?.length); if (!ids.length) say('Select a carrier with people aboard.'); else { issue(B, ids, { type: 'unload' }); save(); say('unload.'); } } }, 'Unload'),
       mk('Smoke', 'smoke', () => { S.mode = S.mode === 'smoke' ? null : 'smoke'; paintBar(); }), mk('Suppress', 'suppress', () => { S.mode = S.mode === 'suppress' ? null : 'suppress'; paintBar(); }), mk('Breach', 'breach', () => { S.mode = S.mode === 'breach' ? null : 'breach'; paintBar(); }),
+      ...(B && B.reserve.length ? [h('button', { class: B.reserveAt !== null ? 'on' : '', title: 'the squads you held back come on at your edge after twenty seconds', onclick: () => { const r = callReserve(B); say(r.text); if (r.ok) save(); paintBar(); } }, B.reserveAt !== null ? 'Reserve coming…' : `Call the reserve (${B.reserve.length})`)] : []),
       ...(B ? supportButtons(mk) : []), ...(B && B.rules >= 3 && B.units.some((u) => u.side === 'e' && u.W.airOnly && u.alive && seenSet().has(u.id)) ? [h('span', { class: 'bt-warn', title: 'an anti-air gun in sight: an aircraft pass in its reach can be shot down' }, '⚠ enemy AA in sight')] : []), h('span', { class: 'sep' }),
       h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),
       ...(B ? Object.entries(opened()).map(([b, v]) => h('button', { class: S.ground.has(Number(b)) ? 'on' : '', title: 'what to show of this building', onclick: () => { const n = Number(b); if (S.ground.has(n)) S.ground.delete(n); else S.ground.add(n); paintBar(); } }, `🏢${Number(b) + 1}: ${S.ground.has(Number(b)) ? 'ground floor' : `floor ${v.floor + 1}`}`)) : []));

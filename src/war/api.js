@@ -122,7 +122,7 @@ export class War {
   engagementLacks(id, squads) { const e = engagementOf(this.g, id); return e ? engagementLacks(this.g, e, squads) : []; }
   assess(id, squads, general) { return assessEngagement(this.g, id, squads, general); }
   delegate(id, order) { return delegateEngagement(this.g, id, order); }
-  playEngagement(id, squads) { return playEngagement(this.g, id, squads); }
+  playEngagement(id, squads, reserves = []) { return playEngagement(this.g, id, squads, reserves); }
   battle(id) { return battleOf(this.g, id); }
   skirmish(recipe, enemy) { return skirmishOf(this.g, recipe, enemy); }
   saveBattle(id, tick, log) { return saveBattleOf(this.g, id, tick, log); }

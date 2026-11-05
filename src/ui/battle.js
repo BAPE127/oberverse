@@ -3,11 +3,11 @@
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 import { h } from './panels.js';
-import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, issueFormation, designated } from '../battle/sim.js';
+import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated } from '../battle/sim.js';
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
 import { FxLayer } from '../engine/drawBattleFx.js';
-import { TICK, SUPPORT, UAV } from '../content/battle.js';
+import { TICK, SUPPORT, UAV, RAID } from '../content/battle.js';
 
 const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
 const mmss = (ticks) => { const s = Math.floor(ticks / TICK.perSecond); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -122,7 +122,7 @@ export function battlePanel(ui, body, opts = {}) {
   const paintTop = () => {
     if (!B) { top.replaceChildren(h('b', {}, eng.title), h('span', {}, 'Battle filed'), h('span', { class: 'grow' }), h('button', { onclick: () => close() }, '✕')); return; }
     const mine = B.units.filter((u) => u.side === 'p'); const alive = mine.filter((u) => u.alive && !u.fled).length; const foes = B.units.filter((u) => u.side === 'e' && u.alive && !u.fled).length;
-    const goal = { defence: `Hold the marked ground (${Math.min(100, Math.round((B.hold / (60 * TICK.perSecond)) * 100))}%)`, offence: `Take the marked ground (${Math.min(100, Math.round((B.cap / (40 * TICK.perSecond)) * 100))}%)`, logistics: 'Get a vehicle through to the green gate' }[B.goal];
+    const goal = { defence: `Hold the marked ground (${Math.min(100, Math.round((B.hold / (60 * TICK.perSecond)) * 100))}%)`, offence: `Take the marked ground (${Math.min(100, Math.round((B.cap / (40 * TICK.perSecond)) * 100))}%)`, logistics: 'Get a vehicle through to the green gate', raid: `Raid the marked ground: hold it ${RAID.seconds} s (${Math.min(100, Math.round((B.raid / (RAID.seconds * TICK.perSecond)) * 100))}%)`, extract: 'Reach the officer and bring them back to the green mark', rescue: 'Reach the downed pilot and bring them back to the green mark' }[B.goal];
     top.replaceChildren(h('b', {}, eng.title), h('span', {}, goal), h('span', {}, `⏱ ${mmss(B.tick)} / ${mmss(B.maxTicks)}`), h('span', { class: 'grow' }), h('span', { class: 'bt-p' }, `Yours ${alive}/${mine.length}`), h('span', { class: 'bt-e' }, `Enemy in sight ${[...seenSet()].length}`), h('span', { title: 'the camera tier' }, `🔭 ${view.tier()}`), h('button', { onclick: () => close() }, '✕ Leave'));
   };
   /** What can be called from the real stock, as buttons: each item left, each aircraft not yet used. Then a click on the map. */
@@ -148,6 +148,7 @@ export function battlePanel(ui, body, opts = {}) {
       h('button', { title: 'hold fire / defensive / aggressive, for those selected', onclick: () => { const ss = ['aggressive', 'defensive', 'holdfire']; S.stance = ss[(ss.indexOf(S.stance || 'aggressive') + 1) % 3]; if (S.sel.size) give({ type: 'stance', stance: S.stance }, `${S.stance}`); paintBar(); } }, `Stance: ${S.stance || 'aggressive'}`),
       mk('Reverse', 'reverse', () => { S.mode = S.mode === 'reverse' ? null : 'reverse'; paintBar(); }), mk('Repair', 'repair', () => { S.mode = S.mode === 'repair' ? null : 'repair'; paintBar(); }), mk('Board', 'load', () => { S.mode = S.mode === 'load' ? null : 'load'; paintBar(); }), h('button', { onclick: () => { const ids = [...S.sel].filter((x) => B.byId.get(x)?.pax?.length); if (!ids.length) say('Select a carrier with people aboard.'); else { issue(B, ids, { type: 'unload' }); save(); say('unload.'); } } }, 'Unload'),
       mk('Smoke', 'smoke', () => { S.mode = S.mode === 'smoke' ? null : 'smoke'; paintBar(); }), mk('Suppress', 'suppress', () => { S.mode = S.mode === 'suppress' ? null : 'suppress'; paintBar(); }), mk('Breach', 'breach', () => { S.mode = S.mode === 'breach' ? null : 'breach'; paintBar(); }),
+      ...(B && B.reserve.length ? [h('button', { class: B.reserveAt !== null ? 'on' : '', title: 'the squads you held back come on at your edge after twenty seconds', onclick: () => { const r = callReserve(B); say(r.text); if (r.ok) save(); paintBar(); } }, B.reserveAt !== null ? 'Reserve coming…' : `Call the reserve (${B.reserve.length})`)] : []),
       ...(B ? supportButtons(mk) : []), ...(B && B.rules >= 3 && B.units.some((u) => u.side === 'e' && u.W.airOnly && u.alive && seenSet().has(u.id)) ? [h('span', { class: 'bt-warn', title: 'an anti-air gun in sight: an aircraft pass in its reach can be shot down' }, '⚠ enemy AA in sight')] : []), h('span', { class: 'sep' }),
       h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),
       ...(B ? Object.entries(opened()).map(([b, v]) => h('button', { class: S.ground.has(Number(b)) ? 'on' : '', title: 'what to show of this building', onclick: () => { const n = Number(b); if (S.ground.has(n)) S.ground.delete(n); else S.ground.add(n); paintBar(); } }, `🏢${Number(b) + 1}: ${S.ground.has(Number(b)) ? 'ground floor' : `floor ${v.floor + 1}`}`)) : []));

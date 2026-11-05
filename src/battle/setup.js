@@ -1,7 +1,7 @@
 // A battle's setup (v0.101.0): everything a battle needs, as plain data, made once when an engagement is taken to the field and kept with it. The battle is a pure function of this, the
 // order log and the tick, so nothing that happens to the company's records afterwards (a day's wages, a morale drift) can change it, and a reload replays it.
 //   buildSetup({ key, eng, people, vehicles, ai })
-import { UNITS, SPEED, STYLES, MAP_VER, RULES } from '../content/battle.js';
+import { UNITS, SPEED, STYLES, MAP_VER, RULES, VIPS } from '../content/battle.js';
 import { CLASSES, ARMOUR } from '../content/troops.js';
 import { unit, pick } from './hash.js';
 
@@ -9,7 +9,7 @@ const KIND = { tank: 'tank', helicopter: 'helicopter', carrier: 'carrier' };
 const VWEAPON = { tank: 'tank_gun', helicopter: 'heli_gun', carrier: 'vehicle_mg', recon: 'vehicle_mg', artillery: 'tank_gun', antiair: 'aa_gun' }; // (rules 3: anti-air fires at aircraft; under rules 1 and 2 it was a machine gun, and a saved setup keeps its own weapon string)
 
 /** `eng`: { id, goal, enemy:{troops,armour,air,skill}, recipe, biome, style }. `people`: [{id,name,role,tier,armour,exp,morale,fatigue,armed}]. `vehicles`: [{id,name,cls,armour,firepower,speed}]. */
-export function buildSetup({ key, eng, people, vehicles, support = null, ai = {} }) {
+export function buildSetup({ key, eng, people, vehicles, support = null, ai = {}, reserve = [] }) {
   const units = [];
   for (const p of people) {
     const tiers = CLASSES[p.role]?.tiers || {};
@@ -32,6 +32,8 @@ export function buildSetup({ key, eng, people, vehicles, support = null, ai = {}
   for (let i = 0; i < Math.round(E.aa || 0); i++) units.push({ id: `ea${i}`, side: 'e', kind: 'other', role: 'antiair', name: 'Enemy anti-air gun', rec: null, weapon: 'aa_gun', hp: UNITS.other.hp + UNITS.other.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.other.sight, speed: SPEED.vehicleBase });
   for (let i = 0; i < Math.round(E.battery || 0); i++) units.push({ id: `eb${i}`, side: 'e', kind: 'other', role: 'artillery', vtype: 'battery', battery: true, name: 'Enemy battery', rec: null, weapon: 'none', hp: UNITS.other.hp + UNITS.other.perArmour * 2, accMult: skill, armourBar: 2, morale: 90, sight: UNITS.other.sight, speed: 0 });
   for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
+  const held = new Set(reserve); if (held.size) for (const u of units) if (u.side === 'p' && held.has(u.id)) u.reserve = true;
+  if (eng.goal === 'extract' || eng.goal === 'rescue') { const V = VIPS[eng.goal === 'extract' ? 'officer' : 'pilot']; units.push({ id: 'vip', side: 'p', kind: 'inf', role: 'officer', vip: eng.goal === 'extract' ? 'officer' : 'pilot', name: V.name, rec: null, weapon: V.weapon, hp: Math.round(UNITS.infantry.hp * V.hp), accMult: 0.8, prot: 1, morale: 60, sight: UNITS.infantry.sight, speed: SPEED.infantry * V.speed }); }
   return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, rules: RULES, units, support: support || { items: {}, air: [] }, ai: { p: Boolean(ai.p), e: ai.e !== false } };
 }
 export { STYLES, pick };

@@ -123,6 +123,11 @@ export const BREACH = { wall: 260, blast: 1.4 };
 /** A soldier put out of action (hit points gone) is dead with this chance (less with plate armour), else badly wounded: the same split the aggregate resolver uses (src/war/combat.js, a third of the casualties dead). */
 export const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
 
+/** Reserves and the new missions (rules 4). A reserve is held off the map until called, then comes on at your edge after `seconds`. A raid is a hold of the marked ground for `seconds` with the enemy still there, on a shorter clock; an extraction (an officer) or a rescue (a downed pilot, hurt and slow) is won when the person is carried back to within `home` tiles of your edge. */
+export const RESERVE = { seconds: 20 };
+export const RAID = { seconds: 12, maxSeconds: 300 };
+export const VIPS = { officer: { name: 'The officer', hp: 1, speed: 1, weapon: 'item_pistol' }, pilot: { name: 'The downed pilot', hp: 0.6, speed: 0.65, weapon: 'item_pistol' } };
+export const VIP_HOME = 4;
 export const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
 
 /** The two battle recipes of this release (the other recipes come with the later sub-releases). */

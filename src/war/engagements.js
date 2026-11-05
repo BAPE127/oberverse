@@ -100,7 +100,7 @@ function commitForces(game, C, eng, squads, gen) {
  * and the engagement. The battle itself runs in the panel (src/ui/battle.js) and files its result here; the result is applied on the end day, like a delegated one (playing it is not a shortcut
  * to the money). Until then the battle is saved as its setup, its order log and its tick, and a reload replays it.
  */
-export function play(game, id, squads) {
+export function play(game, id, squads, reserves = []) {
   const C = peekMilitary(game)?.company;
   const eng = C && find(game, id);
   if (!eng) return { ok: false, text: 'No such engagement.' };
@@ -112,10 +112,13 @@ export function play(game, id, squads) {
   const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
+  const held = (reserves || []).filter((sid) => squads.includes(sid));
+  if (held.length >= squads.length) return { ok: false, text: 'Keep at least one squad on the field: the reserve comes on afterwards.' };
+  const RF = held.length ? forces(game, held) : null; const reserve = RF ? [...RF.people.map((p) => p.id), ...RF.vehicles.map((v) => v.id)] : [];
   const F = commitForces(game, C, eng, squads, null);
   const key = `${eng.id}|${salt(game)}`;
   eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
-  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true } }), tick: 0, log: [], result: null };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true }, reserve }), tick: 0, log: [], result: null };
   C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
   return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
 }
