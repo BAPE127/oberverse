@@ -28,6 +28,7 @@ import { Arms, freshArms } from '../systems/arms.js';
 import { Market, freshMarket } from '../systems/market.js';
 import { Robbery } from '../systems/robbery.js'; // v0.79.0
 import { Politics } from '../systems/politics.js'; // v0.93.0
+import { War } from '../war/api.js'; // v0.98.0
 import { Headquarters } from '../systems/hq.js'; // v0.86.0
 import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
@@ -78,6 +79,7 @@ export class Game {
     this.market = new Market(this);
     this.hq = new Headquarters(this); // v0.86.0: the parent company's offices
     this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
+    this.war = new War(this); // v0.98.0: the military record, the protection gate, the damage gate
     this.politics = new Politics(this); // v0.93.0: the parties, the government and the term (read-only foundations; changes no price or cost)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);

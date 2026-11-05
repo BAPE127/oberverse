@@ -429,6 +429,17 @@ export function runCommand(game, line) {
       game.market.news(`WAR: ${cs[a].name} attacks ${cs[b].name}.`);
       return out('War.');
     }
+    case 'mil': {
+      // v0.98.0: the military record. mil | mil check | mil coup <staged|ended> | mil settle <how> | mil hit <structure> <amount> <source>
+      const W = game.war;
+      const [sub, a, b, c] = args;
+      if (!sub) return out(W.summary());
+      if (sub === 'check') { const p = W.check(); return out(p.length ? p.map((x) => `${x.kind}: ${x.text}`).join('\n') : 'The military record is consistent.', !p.length); }
+      if (sub === 'coup') return out(W.setCoup(a, b).text);
+      if (sub === 'settle') return out(W.settle(a).text);
+      if (sub === 'hit') return out(W.hit(a, Number(b), c || 'debug').text);
+      return out('Usage: mil [check | coup <staged|ended> | settle <how> | hit <structure> <amount> [source]]', false);
+    }
     case 'peace': {
       game.market.state.wars = [];
       return out('Every war is over. For now.');
