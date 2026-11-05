@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.101.0] — 2026-11-05 — War: The New Look and Battles (development build)
+
+The fourth release of the War update: 9b (the look renderer) and 10a (the tactical engine) of `docs/PROPOSAL_WAR.md`, with `PROPOSAL_WAR_TACTICAL.md` and `PROPOSAL_WAR_MAPS.md`. Built in four parts, each tested and pushed. Reference: `docs/WAR.md`.
+
+**The battle.** *Lead it yourself* takes the real forces of an engagement to a full-screen battle: a map made from the engagement's key (City for a city or a town, Fields and villages elsewhere; every building reachable on foot), sight stopped by walls and trees unless you are above them, cover, suppression through four states, floors that add sight and reach and are changed only on a stair, orders (move, attack-move, hold, garrison a building and a floor, retreat), three objectives scored like the aggregate result, and three camera tiers (far banners, command, close). The simulation is pure and runs ten steps a second; **every chance is a hash** of the engagement's key, the tick and the unit (a test reads the sources for any draw or clock). A battle in progress is saved as its setup, its order log and its tick, and a reload replays it. The result is filed when the battle ends and **applied once on the engagement's last day** by the same `applyOutcome` a general's result uses (the apply path was split out of the general's, and the commit of forces out of the delegation); a battle nobody fought by then is fought by the aggregate function. The one state field is `open → delegated | tactical → resolved` and only moves forward. Your tank is a unit with hit points: it can be lost.
+
+**The same rules.** The aggregate resolver (`src/war/combat.js`) and the played battle share their tables, and `tests/battle_calibration.test.mjs` holds the played battle to the estimate on about a hundred headless battles at four odds and both goals. The aggregate's casualty rate was raised to match the played battle (a third of those put out of action dead, as before; the rest badly wounded).
+
+**The look.** The pixel fire and smoke layer (hard art pixels on a seven-colour fire ramp, five greys, five browns, ordered dither, a dark rim, capped at 600 particles), war vehicles (tank, helicopter with a live rotor, carrier, truck) in the game's idiom turned by sixteenths, roofs with a row of windows per floor and one-floor plans for occupied buildings (with a switch per building between your floor and the ground floor, as the owner chose), five national architecture styles as data, and an additive `helmet` hat style on the game's own people sprites (the Hollowmoor soldiers wear it).
+
+**Places.** An engagement is now at a real place in an atlas state (a city or a town: City; anywhere else: Fields). Debug: `mil skirmish [city|fields]` makes a sandbox battle.
+
+- **Honest limits:** only the order subset above; no support from stock, smoke, fog of war from intel, engineers or module damage (v0.102.0); only two map recipes (forest, mountain and desert use Fields with a tint); no destructible walls, rubble or craters; the four extra car models are not added (battle maps carry no traffic); vehicles are one sprite each; the enemy's AI is simple.
+- Tests: `tests/battle_map.test.mjs` (4), `tests/battle_sim.test.mjs` (9), `tests/battle_calibration.test.mjs` (1), `tests/war_battle.test.mjs` (6). **Existing tests edited:** `tests/war_generals.test.mjs` (one assertion: an engagement's place is now a real place in an atlas state, not the state itself). Smoke: the war check now opens a battle on each recipe, issues an order, draws the three camera tiers, runs it to its end and checks its result is filed.
+
 ## [0.100.0] — 2026-11-05 — War: People, Base Life and Generals (development build)
 
 The third release of the War update: stages 7 to 9 of `docs/PROPOSAL_WAR.md` (people, the living base, generals), with the strategic missile storage asked for alongside. Built in four parts, each tested and pushed. Reference: `docs/WAR.md`; mock-ups `proposal-war-troop-customizer.png`, `proposal-war-troop-loadouts-1.png`/`-2.png` and `proposal-war-oberpad-command.png`.

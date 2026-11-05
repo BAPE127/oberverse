@@ -79,6 +79,42 @@ Release 3 of the war update, "War: People, Base Life and Generals".
 
 **Generals.** Eight generals, each with offence, defence, logistics, air and intelligence, a readiness to accept losses, and ground they know. The command post has a desk for one general per five desks. An **engagement** is a heavy contract (hold a crossing, defend a depot, retake a post, escort a convoy) in a real atlas state, from a client country; it needs soldiers, tanks, helicopters and medics **you really own**, in squads you choose (nothing is spawned; the screen says what is missing). You see an **estimate** from the same function that will decide it (`src/war/combat.js`): the odds, the chance of each result, the expected losses and what the odds are made of. The one state field moves only forward: `open → delegated (or the overhead battle, in a later release) → resolved`. When the days are up the result is worked out once from the real forces (a hash of the engagement's key stands in for chance, so a reload cannot re-roll it) and **applied once** to the records: the dead leave their squads, the wounded are hurt, lost vehicles are destroyed, fuel and rockets are used, pay arrives in the company's account (a share of it if only some objectives were met; a failure is a fine owed and a client lost). The after-action report is built from what was applied.
 
+## The new look and battles (v0.101.0)
+
+Release 4 of the war update, "War: The New Look and Battles": the look renderer (9b) and the first tactical engine (10a).
+
+| Piece | Where |
+| --- | --- |
+| The one combat function behind both ways of fighting | `src/war/combat.js` (aggregate), `src/battle/sim.js` (played) |
+| Battle maps: City and Fields-and-villages, from a seed | `src/battle/map.js`, `src/content/battle.js` |
+| Sight, moving, A* | `src/battle/nav.js` |
+| A battle's setup, made once from the real forces and the engagement | `src/battle/setup.js` |
+| The pixel fire and smoke layer; war vehicles; roofs and one-floor plans; the helmet | `src/engine/drawBattleFx.js`, `drawWarVehicles.js`, `drawBattle.js`, `drawPeople.js` |
+| The battle panel (camera tiers, selection, orders, floors) | `src/ui/battle.js` |
+| Leading an engagement yourself; the apply-once path | `src/war/engagements.js` (`play`, `applyOutcome`) |
+
+**Decisions made first** (the design the code follows):
+- **Chance is a hash.** The battle runs at ten steps a second, and every roll is a hash of (the engagement's key, the tick, the unit); nothing reads a clock or a draw (a test reads the sources for `Math.random`, `Date.now`, `performance.now` and `.rng`).
+- **A save is a setup, an order log and a tick.** A battle in progress is stored on its engagement (small) and a reload replays it to where it was and on to the same end: it can never be re-rolled. A test replays a battle with orders and compares every unit.
+- **Playing it is not a shortcut to the money.** Like a delegated engagement, a played one keeps your forces away for its days; the result is filed when the battle ends and **applied once, on the last day**, through the same `applyOutcome` a general's result uses (the dead leave their squads, the wounded are hurt, lost vehicles are destroyed, stock is used, the pay arrives). A battle nobody fought by then is fought by the aggregate function, with no general.
+- **One state field, forward only:** `open → delegated | tactical → resolved`. Taking it to the field and giving it to a general close each other.
+- **Vehicles are units with hit points** (a tank can be destroyed and is reported lost; small arms barely scratch it): no module damage yet.
+- **The aggregate and the played battle agree.** Their tables are shared (armour eras, class power, cover), and a calibration test runs about 100 headless battles (AI against AI, both ways a fight can go, four odds) and holds the chance of success and the losses to the aggregate estimate's. Losses in the aggregate were raised to match.
+- **Where an engagement is:** a real place in an atlas state; a city or a town makes a **City** map, anywhere else **Fields and villages** (forest, mountain and desert use Fields with the biome's ground colour for now).
+- **The owner's answer on floors:** when a force is upstairs the building opens to one floor's plan, and a switch per building shows the ground floor instead.
+
+**The battle.** A map is a grid made from the engagement's key: roads, hedges, crops, trees, a river with a ford, buildings with a wall all round, windows, a door and a stair, in the style of the place's country (five styles as data). Every building is reachable on foot from where you start (a test checks it on every seed of both recipes and every style). **Sight** is a line that walls and trees stop, unless you are above them (a building of f floors blocks a look from any floor below f); each floor adds three tiles of sight and a tile of reach; **cover** takes a share of shots (a hedge or crop a quarter, a building three quarters, a window most); **suppression** builds from shots and moves a soldier through steady, shaken, pinned and broken (a broken soldier runs, a rallied one stops; higher morale resists longer); a soldier put out of action is dead with a chance (less with plate armour) or badly wounded. **Orders:** move, attack-move, hold, garrison (a building and a floor: the soldiers go in by the door, change floor only on the stair, and take a window) and retreat. **Objectives** are three, as in the aggregate result: the ground held (or taken, or a convoy through), the enemy put out of action, your own losses kept under a third.
+
+**The look.** The pixel fire and smoke layer draws every particle as hard art pixels on a seven-colour fire ramp, five greys and five browns, with an ordered dither and a dark rim, capped at 600; war vehicles are painted on the game's pixel idiom (outline, light from the upper left) and turned by sixteenths; people are the game's own sprites with a new additive `helmet` hat style (the company's soldiers on Hollowmoor now wear it). **Three camera tiers:** far (a banner per group), command (everything at the game's own scale) and close (the same sprites, enlarged by whole numbers). Buildings are seen from above with a roof and a row of windows per floor; an occupied building opens to one floor's plan with its label.
+
+## Honest limits (v0.101.0)
+
+- **Orders:** the rest of the order list (flank, suppress, regroup, escort, recon, smoke) and formations are not here; neither are support from real stock (air strikes, missiles, mortars), smoke screens, fog of war from strategic intel, engineers and evacuation, or module damage and armour facing (v0.102.0).
+- **Maps:** only City and Fields (the other recipes, the trench line, compound, forest and the industrial, port and airfield maps, come later). Forest, mountain and desert engagements use Fields with a biome tint; the ground has no destructible walls, rubble or craters yet (v0.104.0).
+- **Look:** the four extra car models (van, ambulance, box truck, jeep) are not added; battle maps carry no civilian traffic. The car painter and the world's traffic are untouched. Vehicles are one sprite each (no separate turret). Wrecks are drawn but do not block movement.
+- **The enemy** is a strength turned into units, not a drawn force; its AI is simple (attackers go for the objective and then for the nearest enemy; defenders take a nearby building or hold round the objective).
+- **Cover** is read from the tile and its neighbours; there is no cover from vehicles or rubble. Sight and fire between floors of a building use the height rule above, not individual floors' walls.
+
 ## Honest limits (v0.100.0)
 
 - Bodies are the existing person sprite in a cap (the helmet and the overhead look come with the look release); vehicles and aircraft are not drawn on the lot yet.

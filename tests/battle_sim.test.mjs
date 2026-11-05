@@ -110,3 +110,19 @@ test('a played battle commits tanks and helicopters as units with hit points: a 
   assert.ok(lost > 0 && alive > 0, `the tank is neither invulnerable nor made of paper: ${lost} lost, ${alive} came home`);
   const B = createBattle(mk({ vehicles: [T] })); const t = B.units.find((u) => u.id === 'T1'); assert.ok(t.hpMax > 400);
 });
+
+test('nobody ever stands in a wall or a tree, at any time in a whole battle, on either recipe, and no one changes floor except on a stair', () => {
+  for (const [recipe, key] of [['city', 'W1|x'], ['city', 'W2|x'], ['fields', 'W3|x'], ['fields', 'W4|x']]) {
+    const B = createBattle(mk({ recipe, key, ai: { p: true, e: true }, vehicles: [{ id: 'T1', name: 'Anvil', cls: 'tank', armour: 3, firepower: 3, speed: 3 }] }));
+    const z = new Map(B.units.map((u) => [u.id, u.z]));
+    while (!B.over) {
+      step(B);
+      for (const u of B.units) {
+        if (!u.alive || u.fled) continue;
+        const t = B.map.tiles[idx(B.map, Math.floor(u.x), Math.floor(u.y))];
+        if (u.z !== z.get(u.id)) { assert.ok(t === TILE.STAIRS, `${u.id} changed floor off a stair`); z.set(u.id, u.z); }
+        if (B.tick % 25 === 0) assert.ok(u.kind === 'helicopter' || ![TILE.WALL, TILE.TREE, TILE.WINDOW, TILE.WATER].includes(t), `${recipe}: ${u.id} is on tile ${t} at tick ${B.tick}`);
+      }
+    }
+  }
+});

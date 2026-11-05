@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.101.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: The New Look and Battles',
+    notes: [
+      'Lead it yourself (Military → Generals → an engagement): instead of giving an engagement to a general you can take your squads into the battle. It opens full screen on a map made from the place: a street fight in a city or a town, open country with hedges, fields, a river and villages elsewhere. Click or drag to select, right-click to move (Shift: attack-move), and use the bar to hold, garrison a building on a floor, or retreat. Space pauses; the buttons speed it up; the wheel zooms through three camera tiers.',
+      'Walls and trees stop sight, hedges and buildings give cover, fire pins soldiers and can break them, and each floor of a building adds sight and reach. A building with your people in it opens to a plan of the floor they are on; a switch shows the ground floor instead.',
+      'The result is filed when the battle ends and applied on the engagement\'s last day, exactly as a general\'s would be: your dead, wounded and lost vehicles are real, and the pay arrives then. Leave in the middle and the battle waits for you, even across a save.',
+      'The look: the battle is drawn with pixel fire, smoke and tracers, war vehicles and soldiers in helmets (your soldiers on Hollowmoor wear them too).',
+    ],
+  },
+  {
     version: '0.100.0',
     date: '2026-11-05',
     channel: 'development',
