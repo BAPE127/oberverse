@@ -2,6 +2,21 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.100.0] — 2026-11-05 — War: People, Base Life and Generals (development build)
+
+The third release of the War update: stages 7 to 9 of `docs/PROPOSAL_WAR.md` (people, the living base, generals), with the strategic missile storage asked for alongside. Built in four parts, each tested and pushed. Reference: `docs/WAR.md`; mock-ups `proposal-war-troop-customizer.png`, `proposal-war-troop-loadouts-1.png`/`-2.png` and `proposal-war-oberpad-command.png`.
+
+**Strategic missile storage.** A secure integration hall can build a strategic missile product for storage (a standing order stops at the secure store: never a convoy, never a sale). A contract for one is still delivered by its convoy and the manager agrees (a shared predicate, `deliverableFromStorage`). The war company takes stored missiles into the stores (twenty places each), free, and can return the same record.
+
+**People.** Ten troop classes plus guard and technician. A recruit trains for the class's days in a place at the range or the training ground and is issued a uniform from the stores; squads (troops only; an officer leads; twelve at most) keep one assignment each; a weapon is taken from the stores into one pair of hands and goes back on a change of tier or a dismissal; plate carriers are bought (armour era 2); looks are free data. A guard on a contract now carries their own pistol (the contract no longer reserves a second one). Tiers 3 to 5 and armour eras 3 and 4 are not here.
+
+**The living base.** Rations, hot meals, beds, treatment places and medicine are real; morale, fatigue and wounds are per person; readiness is shown with its five parts and the shortages in words; a crew's morale moves a contract's chance of success. The soldiers are drawn as bodies on Hollowmoor Lot from the books (at most forty; officers and leaders first; none for anyone away or dead), follow a day of meals, duty and sleep to places that exist, and may use the company's doors.
+
+**Generals.** Eight generals with real differences, one desk per five command-post desks, a daily fee. Engagements are heavy contracts in a real atlas state that need soldiers, tanks, helicopters and medics you own; an estimate comes from the same pure function that decides the result (`src/war/combat.js`; a hash of the engagement's key stands in for chance, so a reload cannot re-roll it); the state moves only forward (`open → delegated → resolved`); the result is applied once to the real records and the after-action report is built from what was applied.
+
+- **Honest limits:** bodies use the existing person sprite (no helmet yet) and vehicles are not drawn on the lot; a soldier's ammunition is not tracked person by person; vehicle upkeep is not in the base; the overhead battle is not on offer (a general fights every engagement); the enemy is a strength, not a drawn force; ships still stay with the shipping company.
+- Tests: `tests/war_troops.test.mjs` (8), `tests/war_base.test.mjs` (9), `tests/war_generals.test.mjs` (10), and the storage and transfer tests below. **Existing tests edited:** `tests/storage.test.mjs` (a test appended for the missile storage, and one assertion added that a satellite is still deliverable from storage); `tests/war_contracts.test.mjs`, written in v0.99.0 (two assertions: a guard now keeps their own pistol after a job, and the pistol count is stores plus guards' hands); `tests/war_transfers.test.mjs` (a missile-transfer test appended). Smoke: the war check also opens People, Squads, Armoury, Base, Generals and an engagement.
+
 ## [0.99.0] — 2026-11-05 — War: Supplies, Factories and Contracts (development build)
 
 The second release of the War update: stages 4 to 6 of `docs/PROPOSAL_WAR.md` (procurement, manufacturing, early contracts). Built in three parts, each tested and pushed. Reference: `docs/WAR.md`; mock-ups `proposal-war-oberpad-company.png` (Transfers, Production) and `proposal-war-oberpad-command.png` (Contracts).

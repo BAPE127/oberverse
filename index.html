@@ -18087,7 +18087,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.99.0';
+const GAME_VERSION = '0.100.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -54703,6 +54703,18 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.100.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: People, Base Life and Generals',
+    notes: [
+      'People (Military → Company → People, Squads, Armoury): hire riflemen, machine gunners, anti-tank, marksmen, medics, engineers, signallers, officers, recon and UAV operators. A soldier trains for a few days at the range and is issued a uniform; squads have an officer for a leader. Weapons come from the stores and are in one pair of hands; plate carriers are bought. Squad looks are free.',
+      'The base (Company → The base): everyone eats a ration a day, a mess hall gives hot meals, beds and treatment places are real, the wounded heal only as fast as the clinic and the medicine allow, and morale and readiness fall when the base is too small. Readiness is shown with what it is made of. Your soldiers walk about Hollowmoor Lot, at most forty at a time.',
+      'Generals (Company → Generals): eight generals with real strengths. Engagements (a crossing to hold, a depot to defend) need soldiers, tanks and medics you really own and are fought by the general you give them to; you see an estimate first, and once given out they cannot also be played. The result is applied once to your people and vehicles, with an after-action report.',
+      'Strategic missile products can now be built for storage in a secure hall, and the war company can take them into its stores.',
+    ],
+  },
   {
     version: '0.99.0',
     date: '2026-11-05',

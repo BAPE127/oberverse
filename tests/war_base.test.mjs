@@ -117,3 +117,25 @@ test('the bodies follow the day to places that exist: at night in their barracks
   const stranger = [...g.npcs.values()].find((n) => !n.profile.warStaff && !n.profile.hqStaff); assert.ok(!g.npcCanPass(stranger, door), 'a stranger does not');
   assert.equal(ROUTINE.length, 7);
 });
+
+test('a long run stays small and consistent: 300 days of a working company with people, squads, jobs, a general and rations leave the record bounded, the checker silent, the account reconciled and the wallet untouched', () => {
+  const g = warGame(820, { cash: 9_000_000 }); buildAll(g, 3); g.war.buySupply('uniform', 30); g.war.buySupply('rations', 2000); hireN(g, 'guard', 6);
+  cageGoods(g, 'aw1', { item_pistol: 20, item_smg: 20 }); g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_pistol', qty: 20 }); g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_smg', qty: 20 }); g.war.buySupply('radio', 30);
+  for (let i = 0; i < 6; i++) g.war.hire('rifleman'); g.war.hire('officer'); days(g, 12);
+  g.war.equipClass('rifleman'); g.war.hireGeneral('odalys');
+  const sq = g.war.squadCreate().id; for (const p of g.war.people().filter((x) => x.role === 'rifleman')) g.war.squadAssign(sq, p.id); g.war.squadLeader(sq, g.war.people().find((p) => p.role === 'officer').id);
+  const w0 = g.player.money; let at100 = 0;
+  for (let d = 1; d <= 300; d++) {
+    days(g, 1);
+    for (const o of g.war.contracts().open) if (!o.lacks.length && o.guards <= 6) { g.war.accept(o.id); break; }
+    if (d % 20 === 0) { g.war.buySupply('rations', 60); g.player.money += 50_000; g.war.fund(50_000); }
+    if (d === 100) at100 = JSON.stringify(g.world.military).length;
+    if (d % 75 === 0) { assert.deepEqual(g.war.check(), [], `day ${d}`); assert.ok(g.corp.reconciles()); }
+  }
+  const size = JSON.stringify(g.world.military).length;
+  assert.ok(size < at100 * 1.35 && size < 90_000, `the record is ${size} bytes (${at100} at day 100)`);
+  assert.ok(g.war.contracts().wins + g.war.contracts().losses > 10);
+  assert.ok(g.war.engagements().open.length + g.war.engagements().done.length <= 20);
+  assert.ok(g.war.bodies().length <= BODIES.cap + 2);
+  assert.ok(g.player.money >= w0, 'the wallet only ever went up here, by what the test paid in');
+});
