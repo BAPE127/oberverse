@@ -1,4 +1,4 @@
-// Foreign government bonds (v0.77.0): a three-year bond from each of the eleven countries, rated from its own finances and quarrels, priced
+// Foreign government bonds (v0.77.0): a three-year bond from each of the ten foreign countries (Sund's own debt is the First Bank's bond, v0.96.0), rated from its own finances and quarrels, priced
 // by the rating, paying coupons and the face; delayed payments and restructuring only after weeks at the top of the strain, never by chance.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,7 +40,7 @@ test('pure: the trait is fixed and lower for a rich country; strain grows with e
   assert.equal(issueFace(1000, S), 1000000); assert.equal(issueFace(48000, S), 24000000);
 });
 
-test('nothing is made before the arms market runs; then each of the eleven countries has one issue, rated by its own finances and quarrels', () => {
+test('nothing is made before the arms market runs; then each of the ten foreign countries has one issue (Sund debt is the First Bank one bond), rated by its own finances and quarrels', () => {
   const g = newGame(2701); g.corp.ensureWorld(); day(g, 2);
   delete g.world.market; // as a game that has never opened the arms market
   g.corp.sovereign.dailyTick();
@@ -48,8 +48,9 @@ test('nothing is made before the arms market runs; then each of the eleven count
   assert.equal(g.world.market, undefined, 'and it did not start the market');
   const w = open(2701);
   const offers = w.corp.sovereign.offers();
-  assert.equal(offers.length, 11); // v0.92.0: eight, plus Westreach, Sunmouth and Dunmere
-  assert.equal(new Set(offers.map((o) => o.country)).size, 11);
+  assert.equal(offers.length, 10); // v0.92.0: eleven; v0.96.0: not Sund, whose debt is the First Bank's government bond (one bond)
+  assert.equal(new Set(offers.map((o) => o.country)).size, 10);
+  assert.ok(!offers.some((o) => o.country === 'sund'), 'Sund has no foreign issue');
   const by = Object.fromEntries(offers.map((o) => [o.country, o]));
   assert.ok(by.varn.rating !== 'AA' && by.teshvar.rating === 'AA', 'the oil sheikdom is the safest, a country at war is not');
   assert.ok(by.varn.coupon > by.teshvar.coupon, 'a worse rating pays a higher coupon');
@@ -185,4 +186,32 @@ test('a delayed bond is not collateral, so selling it is never refused for want 
   assert.ok(r.ok, `the bond nobody lends against can be sold: ${r.text}`);
   const teshvar = g.corp.sovereign.lots().find((l) => l.issue === 'teshvar');
   assert.equal(g.corp.sovereign.sell(teshvar.id).ok, false, 'the one that is collateral cannot');
+});
+
+test('one bond for Sund (v0.96.0): a save that holds the old Sund issue moves each holding onto the First Bank\'s government bonds, once, with its own coupon, dates and cost; a distressed one is paid out at its value', () => {
+  const g = open(2701);
+  const sv = g.corp.sovereign.ensure();
+  assert.ok(!sv.issues.sund && !g.corp.sovereign.offers().some((o) => o.country === 'sund'), 'the new game never issues a Sund bond');
+  const today = g.clock.day;
+  const issue = { id: 'sund', country: 'sund', name: 'Kingdom of Sund', face: 6000000, years: 3, coupon: 0.04, rating: 'A', strain: 0.2, issued: today - 30, end: today + 1050, status: 'open', distressDays: 0, serial: 1 };
+  sv.issues.sund = issue;
+  sv.lots.push({ id: 'sb_901', issue: 'sund', face: 50000, coupon: 0.04, bought: today - 30, due: today, end: today + 1050, cost: 49000, coupons: 1, owed: 0, status: 'open' });
+  const money = g.player.money; const bonds0 = g.corp.bonds.lots().length;
+  g.corp.sovereign.mergeSund();
+  assert.equal(sv.lots.filter((l) => l.issue === 'sund').length, 0); assert.ok(!sv.issues.sund);
+  const lots = g.corp.bonds.lots();
+  assert.equal(lots.length, bonds0 + 1);
+  const lot = lots.find((l) => l.from === 'sund-foreign');
+  assert.deepEqual([lot.face, lot.coupon, lot.end, lot.cost, lot.coupons, lot.years], [50000, 0.04, today + 1050, 49000, 1, 3]);
+  assert.equal(g.player.money, money, 'nothing paid or taken');
+  assert.ok(g.corp.bonds.view(lot).value > 0 && g.corp.bonds.portfolio().rows.length === lots.length);
+  g.corp.sovereign.mergeSund(); assert.equal(g.corp.bonds.lots().length, bonds0 + 1, 'once');
+  // a lot of a distressed issue is paid out at what it was worth, no spread
+  sv.issues.sund = { ...issue, status: 'delayed', recoveryNow: 0.5 };
+  sv.lots.push({ id: 'sb_902', issue: 'sund', face: 20000, coupon: 0.04, bought: today - 60, due: today + 5, end: today + 900, cost: 20000, coupons: 2, owed: 800, status: 'open' });
+  const m2 = g.player.money;
+  g.corp.sovereign.mergeSund();
+  assert.ok(g.player.money > m2 && g.player.money < m2 + 20000 + 800, 'paid out near its (recovery) value');
+  assert.equal(g.corp.bonds.lots().length, bonds0 + 1, 'and not moved');
+  assert.ok(!sv.issues.sund);
 });

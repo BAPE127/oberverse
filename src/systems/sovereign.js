@@ -13,6 +13,8 @@ import { debtTrait, strainOf, ratingOf, distressStep, recoveryOf, issueFace } fr
 import { hashUnit } from '../aero/config.js';
 
 const money = (n) => Math.round(n).toLocaleString();
+/** Sund's own debt is not a foreign bond (v0.96.0): it is the First Bank's government bond, whose yield follows the state's finances. */
+export const HOME = 'sund';
 
 export class Sovereign {
   constructor(corp) {
@@ -114,6 +116,37 @@ export class Sovereign {
     return { ok: true, text: `Sold for ${money(v.sale)} obols (${v.sale >= l.cost ? 'a gain' : 'a loss'} of ${money(Math.abs(v.sale - l.cost))} on what you paid, not counting coupons).` };
   }
 
+  // ------------------------------------------------------------- the one bond for Sund (v0.96.0)
+  /**
+   * Sund had two instruments: this rated three-year issue and the First Bank's government bonds. It has one: the First Bank's. A save from before holds Sund lots here;
+   * each moves, once, onto the First Bank's record as a three-year government bond with its own coupon, dates, cost and coupons already paid (nothing is made or lost).
+   * A lot that was not paying normally (its issue delayed or restructured) is paid out at what it was worth, with no spread, instead. Idempotent.
+   */
+  mergeSund() {
+    const s = this.peek();
+    if (!s) return;
+    const mine = s.lots.filter((l) => l.issue === HOME);
+    const issue = s.issues[HOME];
+    if (mine.length) {
+      const bs = this.K.bonds.ensure();
+      let moved = 0; let paidOut = 0;
+      for (const l of mine) {
+        if (issue && (issue.status !== 'open' || l.owed > 0)) {
+          const value = Math.round(this.lotView(l).value);
+          this.g.player.money += value; paidOut += value;
+          this.g.bus.emit('money:changed', { delta: value, total: this.g.player.money });
+          continue;
+        }
+        bs.lots.push({ id: `bond_${bs.nextId++}`, years: 3, face: l.face, coupon: l.coupon, issued: l.bought, due: l.due, end: l.end, cost: l.cost, coupons: l.coupons, from: 'sund-foreign' });
+        moved++;
+      }
+      s.lots = s.lots.filter((l) => l.issue !== HOME);
+      this.note(`Sund's bond is now the First Bank's government bond: ${moved} holding${moved === 1 ? '' : 's'} moved${paidOut ? `, ${money(paidOut)} paid out for the rest` : ''}.`);
+      this.K.bonds.note(`${moved} holding${moved === 1 ? '' : 's'} of the old Sund bond joined the government bonds.`);
+    }
+    if (issue) delete s.issues[HOME];
+  }
+
   // ------------------------------------------------------------- each day
   dailyTick() {
     if (!this.g.world.market?.countries) return; // the arms market has not started: there is no world to lend to
@@ -122,7 +155,9 @@ export class Sovereign {
     s.lastDay = this.day;
     const g = this.g;
     const policy = this.policy();
+    this.mergeSund();
     for (const id of Object.keys(g.content.arms.countries)) {
+      if (id === HOME) continue; // v0.96.0: one bond for Sund
       const def = this.cfg(id);
       const strain = this.strain(id);
       const rating = ratingOf(strain, S);

@@ -272,6 +272,7 @@ export class Corporate {
   afterLoad() {
     this.ensureCompanies();
     this.ensureWorld();
+    this.sovereign.mergeSund(); // v0.96.0: one bond for Sund
   }
 
   // ------------------------------------------------------------- identity

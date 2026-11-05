@@ -1,5 +1,5 @@
 // The Bonds app (v0.69.0; v0.83.0 in the OberPad's pattern): what your bonds are worth and pay as the one figure, then one switch for the
-// three kinds — the First Bank's government bonds, listed companies' bonds, and the eleven countries' bonds. An offer is one line with a Buy
+// three kinds — the First Bank's government bonds, listed companies' bonds, and the ten other countries' bonds (Sund's debt is the First Bank's bond). An offer is one line with a Buy
 // button that opens the amounts; every explanation is behind a "?". Read from game.corp.bonds, .credit and .sovereign; every button calls them.
 import { h } from './panels.js';
 import { hero, tiles, row, help, note, n, pc } from './tabletKit.js';
@@ -37,7 +37,7 @@ export function bondsApp(ui, body, open) {
       row({ icon: '📜', title: `${o.years}-year bond`, sub: `${n((100000 * o.coupon) / 12)} a month on 100,000 · you may still buy ${n(o.room)}`, tag: `${pc(o.coupon)}`, action: buyer(`g${o.years}`)[0] }),
       amountsRow(`g${o.years}`, [1000, 10000, 100000], (f) => g.player.money >= f && o.room >= f, (f) => B.buy(o.years, f))])));
     if (P.rows.length) body.append(list(...P.rows.map((r) => row({ icon: '💼', title: `${n(r.face)} · ${r.years}-year at ${pc(r.coupon)}`, sub: `${n(r.perMonth)} a month · ${n(r.daysLeft)} days left · worth ${n(r.value)} (paid ${n(r.cost)})`, action: h('button', { class: 'tb-mini', onclick: () => go(B.sell(r.id)) }, `Sell ${n(r.sale)}`) }))));
-    body.append(help('How government bonds work ›', 'Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. Its coupon is the policy rate plus a premium for the term, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'), ...logHelp(B.peek()?.log || [], 'Recent ›'));
+    body.append(help('How government bonds work ›', 'Government bonds, sold at par by the First Bank of Halvermouth. A bond pays a month\'s coupon every thirty days and its face at the end. This is the one bond of the Kingdom of Sund: its coupon is the policy rate plus a premium for the term, plus what the state's debt and deficit add (see Politics → Government) and what wars add, fixed when you buy. Sell it back at any time for what it is worth at today\'s yield, less a half-percent spread: when rates rise, bonds you hold are worth less; when they fall, more. They are your own investment, paid for from your wallet.'), ...logHelp(B.peek()?.log || [], 'Recent ›'));
   } else if (view === 'corp') {
     const all = C.offers();
     const offers = ui.bondAll ? all : all.slice(0, 5);
