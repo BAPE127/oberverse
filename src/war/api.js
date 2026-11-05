@@ -8,6 +8,8 @@ import { offers as transferOffers, transfer as transferIn, giveBack as transferB
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { housing as housingOf } from './equipment.js';
 import { runDay } from './day.js';
+import { hire as hireGeneral, dismiss as dismissGeneral, view as generalsView } from './generals.js';
+import { assess as assessEngagement, delegate as delegateEngagement, play as playEngagement, decline as declineEngagement, view as engagementsView, get as engagementOf, lacks as engagementLacks } from './engagements.js';
 import { tick as bodiesStep, sync as bodiesSync } from './bodies.js';
 import { hire as hireIn, dismiss as dismissOut } from './people.js';
 import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
@@ -110,6 +112,18 @@ export class War {
   squadVehicle(squadId, eid) { return squadGetsVehicle(this.g, squadId, eid); }
   squadDisband(squadId) { return disbandSquad(this.g, squadId); }
   squadLook(squadId, look) { return lookSquad(this.g, squadId, look); }
+
+  // ---- generals and engagements (v0.100.0 stage 9)
+  generals() { return generalsView(this.g); }
+  hireGeneral(id) { return hireGeneral(this.g, id); }
+  dismissGeneral(id) { return dismissGeneral(this.g, id); }
+  engagements() { return engagementsView(this.g); }
+  engagement(id) { return engagementOf(this.g, id); }
+  engagementLacks(id, squads) { const e = engagementOf(this.g, id); return e ? engagementLacks(this.g, e, squads) : []; }
+  assess(id, squads, general) { return assessEngagement(this.g, id, squads, general); }
+  delegate(id, order) { return delegateEngagement(this.g, id, order); }
+  playEngagement(id) { return playEngagement(this.g, id); }
+  declineEngagement(id) { return declineEngagement(this.g, id); }
 
   contracts() { return contractsView(this.g); }
   accept(id) { return acceptJob(this.g, id); }

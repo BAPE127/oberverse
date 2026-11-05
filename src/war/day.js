@@ -6,6 +6,7 @@ import { payroll, trainTick, normalise } from './people.js';
 import { dayTick as works } from './production.js';
 import { dayTick as jobs } from './contracts.js';
 import { dayTick as living } from './base.js';
+import { dayTick as battles } from './engagements.js';
 
 export function runDay(game) {
   construction(game);
@@ -18,6 +19,7 @@ export function runDay(game) {
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   works(game);
   jobs(game);
+  battles(game);
   living(game);
   while (C.log.length > 40) C.log.shift(); // the company's log stays short
   const m = peekMilitary(game);

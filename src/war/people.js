@@ -73,8 +73,8 @@ export function trainTick(game) {
 /** One day's wages for everyone, from the company's own account; whatever it cannot cover is owed. */
 export function payroll(game) {
   const C = peekMilitary(game)?.company;
-  if (!C?.personnel.length) return 0;
-  const total = C.personnel.filter((p) => p.status !== 'dead').reduce((a, p) => a + p.wage, 0);
+  if (!C?.personnel.length && !C?.generals?.length) return 0;
+  const total = C.personnel.filter((p) => p.status !== 'dead').reduce((a, p) => a + p.wage, 0) + (C.generals || []).reduce((a, g) => a + g.fee, 0); // (generals are paid every day they are on the books)
   if (total > 0) game.corp.pay('security', total, { cat: 'wages', owe: true, quiet: true });
   return total;
 }

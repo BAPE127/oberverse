@@ -8,7 +8,7 @@ const personOf = (C, id) => C.personnel.find((p) => p.id === id);
 const squadOf = (C, id) => C.squads.find((s) => s.id === id);
 const eligible = (p) => CLASSES[p.role]?.group === 'troop' && p.status === 'active';
 
-function leave(C, p) {
+export function leave(C, p) {
   const s = p.assignedTo != null ? squadOf(C, p.assignedTo) : null;
   if (s) { s.members = s.members.filter((m) => m !== p.id); if (s.leader === p.id) s.leader = null; }
   p.assignedTo = null;
@@ -33,7 +33,9 @@ export function assign(game, squadId, pid) {
   const p = C && personOf(C, pid);
   if (!s || !p) return { ok: false, text: 'No such squad or person.' };
   if (!eligible(p)) return { ok: false, text: CLASSES[p.role]?.group === 'troop' ? `${p.name} is ${p.status}: only a trained soldier can join a squad.` : `${p.name} is a ${CLASSES[p.role]?.name.toLowerCase()}: only troops join squads.` };
+  if (s.status !== 'home') return { ok: false, text: `${s.name} is away: it cannot take anyone new now.` };
   if (p.assignedTo === s.id) return { ok: false, text: `${p.name} is already in ${s.name}.` };
+  const from = C.squads.find((q) => q.id === p.assignedTo); if (from && from.status !== 'home') return { ok: false, text: `${p.name} is with ${from.name}, which is away.` };
   if (s.members.length >= SQUAD.max) return { ok: false, text: `${s.name} is full (${SQUAD.max}).` };
   leave(C, p);
   s.members.push(p.id); p.assignedTo = s.id;

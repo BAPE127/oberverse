@@ -26,6 +26,10 @@ export function contractsTab(ui, body, go, open) {
   } else {
     body.append(list(...(V.done.length ? V.done.map((c) => row({ icon: c.state === 'done' ? '✅' : c.state === 'failed' ? '❌' : '⌛', title: c.title, sub: c.state === 'done' ? `Done · paid ${n(c.pay)}` : c.state === 'failed' ? `It went wrong · fined ${n(c.fine)}` : c.state === 'declined' ? 'Turned down' : c.why || 'Lapsed', tag: `day ${c.ended}` })) : [row({ icon: '—', title: 'No finished jobs', sub: 'Done, lost and lapsed jobs are kept here.' })])));
   }
+  const Eg = W.engagements();
+  const eg = tab === 'open' ? Eg.open : tab === 'active' ? Eg.active : Eg.done;
+  if (eg.length) body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'Engagements — fought by a general'), list(...eg.map((x) => row({ icon: '🗺️', title: x.title, sub: tab === 'open' ? `${x.client} · ${x.days} days · needs ${x.needs.troops} soldiers${x.needs.tanks ? `, ${x.needs.tanks} tanks` : ''}` : tab === 'active' ? `${x.order.generalName} · ${x.daysLeft} days to go` : x.result ? `${x.result.outcome.replace('_', ' ')} · ${x.result.objectives} of 3` : x.why || x.state, tag: n(x.pay),
+    action: h('button', { class: 'tb-mini pri', onclick: () => { ui.milEng = x.id; ui.milSub = 'Engagement'; ui.milTab = 'Company'; open('Military'); } }, tab === 'open' ? 'Plan' : 'Report') }))));
   body.append(fold(ui, 'MilClients', 'Reputation · clients · lost jobs ›', (box) => box.append(list(...(V.clients.length ? V.clients.map((c) => row({ icon: '🏢', title: c.name, sub: `${c.done} done, ${c.failed} lost${c.banned ? ' · will not call for now' : ''}` })) : [row({ icon: '—', title: 'No clients yet', sub: 'Every job you finish or lose is counted here.' })])))));
   body.append(help('How contracts work', 'Each job asks for guards, a pistol each and a radio, and nothing heavy. The pay arrives only when the job ends well and goes to the company\'s account. If it goes wrong the company owes a fine and the client looks elsewhere for a month. You can run the whole company as a guard firm.'));
 }

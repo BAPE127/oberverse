@@ -58,11 +58,20 @@ function profileOf(game, C, p) {
   };
 }
 
+/** The generals at home, who sit in the command post (a general away with a force is not drawn). */
+const homeGenerals = (C) => (built(C, 'command') ? C.generals.filter((g) => g.status === 'home') : []);
+
+function generalProfile(game, C, g) {
+  const p = { id: g.id, name: g.name, role: 'officer', status: 'active', location: null };
+  const base = profileOf(game, C, { ...p, assignedTo: null });
+  return { ...base, id: `war_${g.id}`, warId: g.id, role: `${g.name}, general of ${C.identity.name}.`, appearance: { ...base.appearance, outfit: '#3a3a44', hatColor: '#2a2a30', accent: '#c9a24a', height: 1.02 } };
+}
+
 /** A short signature of everything a body depends on: when it changes, the bodies are made again. */
 function signature(game) {
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return '';
-  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location]), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
+  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location]), homeGenerals(C).map((g) => g.id), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
 }
 
 export function sync(game) {
@@ -70,7 +79,8 @@ export function sync(game) {
   const want = new Map(wanted(game).map((p) => [`war_${p.id}`, p]));
   for (const [id, npc] of [...game.npcs]) if (npc.profile?.warStaff) game.npcs.delete(id);
   if (C) for (const [id, p] of want) game.npcs.set(id, game.createNpc(profileOf(game, C, p)));
-  return want.size;
+  if (C?.identity && C.lot?.owned) for (const g of homeGenerals(C)) game.npcs.set(`war_${g.id}`, game.createNpc(generalProfile(game, C, g)));
+  return want.size + (C ? homeGenerals(C).length : 0);
 }
 
 /** Called every game minute; looks at the books every few minutes and makes the bodies match when anything changed. */

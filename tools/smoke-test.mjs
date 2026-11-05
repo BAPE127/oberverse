@@ -460,10 +460,14 @@ try {
     }
     // v0.100.0: the People, Squads and Armoury screens open from the Company page
     ui.milTab = 'Company';
-    for (const [sub, re] of [['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/], ['Base', /Capacity is real|ready/]]) {
+    for (const [sub, re] of [['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/], ['Base', /Capacity is real|ready/], ['Generals', /Available to hire/]]) {
       ui.milSub = sub; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
       out[sub] = re.test(document.querySelector('#modal-body')?.textContent || '');
     }
+    // v0.100.0: an engagement is planned from a screen that says what is missing (nothing is spawned)
+    const Cmp = g.war.state().company; (Cmp.engagements ||= []).push({ id: 'Nsmoke', kind: 'hold', title: 'Hold Smoke Crossing', text: 'x', client: 'The Ostmark Union', place: 'Smoke Crossing', terrain: 'rural', goal: 'defence', days: 6, needs: { troops: 12, tanks: 1, helicopters: 0, medics: 2 }, enemy: { troops: 12, armour: 1, air: 0, skill: 1 }, pay: 90000, state: 'open', offered: g.clock.day, expires: g.clock.day + 20, order: null, result: null });
+    ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
+    out.Engagement = /One way or the other/.test(document.querySelector('#modal-body')?.textContent || '');
     ui.milSub = null;
     ui.milTab = 'Company';
     return out;
