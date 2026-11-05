@@ -30917,15 +30917,19 @@ const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
 
 const nextId = (C, kind) => { C.next ||= {}; C.next[kind] = (C.next[kind] || 0) + 1; return `${kind}${C.next[kind]}`; };
 
+/** A strategic missile product takes this many places in the stores (it is kept in the armoury or the depot, not a bay). */
+const MISSILE_STORES = 20;
 const AIR = new Set(['helicopter', 'aircraft']);
 const isAir = (kind) => AIR.has(kind);
-const where = (kind) => (isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
+const storeFacility = (C) => (['armoury', 'depot', 'cage'].map((id) => C.facilities.find((f) => f.id === id && f.state === 'built')).find(Boolean) || {}).id;
+const where = (kind, C) => (kind === 'missile' ? `facility:${storeFacility(C)}` : isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
 
 function housing(game) {
   const C = peekMilitary(game)?.company;
   const used = { ground: 0, air: 0 };
-  for (const x of C?.equipment || []) if (x.status !== 'destroyed') used[isAir(x.kind) ? 'air' : 'ground']++;
-  const stock = Object.values(C?.stock || {}).reduce((a, b) => a + b, 0);
+  let missiles = 0;
+  for (const x of C?.equipment || []) if (x.status !== 'destroyed') { if (x.kind === 'missile') missiles++; else used[isAir(x.kind) ? 'air' : 'ground']++; }
+  const stock = Object.values(C?.stock || {}).reduce((a, b) => a + b, 0) + missiles * MISSILE_STORES;
   const cap = { ground: capacity(game, 'motor_pool').bays, air: capacity(game, 'hangar').bays, stores: capacity(game).stores };
   return { ground: { total: cap.ground, used: used.ground, free: Math.max(0, cap.ground - used.ground) }, air: { total: cap.air, used: used.air, free: Math.max(0, cap.air - used.air) }, stores: { total: cap.stores, used: stock, free: Math.max(0, cap.stores - stock) } };
 }
@@ -30933,6 +30937,7 @@ function housing(game) {
 /** Whether there is room for one more of this kind of thing (`null` = yes, otherwise the reason). */
 function roomFor(game, kind, qty = 1) {
   const h = housing(game);
+  if (kind === 'missile') return h.stores.free >= MISSILE_STORES * qty ? null : `A strategic missile product takes ${MISSILE_STORES} places in the stores; ${h.stores.free} are free.`;
   if (kind === 'stock') return h.stores.free >= qty ? null : `The stores have room for ${h.stores.free} more${h.stores.total ? '' : ' (build the armoury cage)'}.`;
   const side = isAir(kind) ? h.air : h.ground;
   if (side.free >= qty) return null;
@@ -30944,7 +30949,7 @@ function addRecord(game, { kind, type, name, source, origin = null }) {
   const C = m.company;
   const why = roomFor(game, kind);
   if (why) return { ok: false, text: why };
-  const rec = { id: nextId(C, 'E'), kind, type, name, source, origin, location: where(kind), status: 'stored', assignedTo: null, day: game.clock.day };
+  const rec = { id: nextId(C, 'E'), kind, type, name, source, origin, location: where(kind, C), status: 'stored', assignedTo: null, day: game.clock.day };
   C.equipment.push(rec);
   return { ok: true, rec };
 }
@@ -30971,7 +30976,7 @@ function SUPPLY_NAME(id) { return SUPPLIES_CACHE?.[id]?.name || id; }
 
 const typeOf = (id) => VEHICLES[id] || null;
 
-return { nextId, isAir, housing, roomFor, addRecord, stockOf, addStock, takeStock, stockName, typeOf };
+return { nextId, MISSILE_STORES, isAir, housing, roomFor, addRecord, stockOf, addStock, takeStock, stockName, typeOf };
 })();
 
 // ---- src/war/transfers.js
@@ -30982,8 +30987,8 @@ __m["src/war/transfers.js"] = (function () {
 //   real stock   what leaves a source is gone from it (a stored jet cannot also fill an Aerospace contract; a rifle cannot also be sold), and what comes back goes to where it came from
 //   audited      each move is a line in `world.military.transfers` (capped), never a money entry
 //   only free    an item that is assigned, deployed or destroyed cannot be returned
-// Sources: Aerospace (aircraft kept in storage that are military products), the Arms works (guns, rounds, rockets, missiles and drones, from a named works' export cage).
-// Ships stay with the shipping company this release (see docs/WAR.md). The strategic missiles are built to contract and never stored, so there is nothing to move.
+// Sources: Aerospace (military aircraft and strategic missile products kept in storage), the Arms works (guns, rounds, rockets, missiles and drones, from a named works' export cage).
+// Ships stay with the shipping company (see docs/WAR.md).
 const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } = __m["src/war/equipment.js"];
 const { ARMS_TRANSFERABLE, TRANSFER_LOG } = __m["src/content/procurement.js"];
@@ -30997,10 +31002,11 @@ function note(game, entry) {
   while (m.transfers.length > TRANSFER_LOG) m.transfers.shift();
 }
 
-/** The military aircraft Aerospace keeps in storage. */
+/** What of Aerospace's storage may move: military aircraft, and strategic missile products. */
+const movable = (A, r) => { const P = A.cfg.products[r.product]; return P && ((P.line === 'aircraft' && P.spec?.military) || P.line === 'missile'); };
 function aeroStored(game) {
   const A = game.aero;
-  return (A.state.storage || []).filter((r) => A.cfg.products[r.product]?.spec?.military && A.cfg.products[r.product]?.line === 'aircraft').map((r) => ({ source: 'aero', ref: r.id, name: A.cfg.products[r.product].name, product: r.product, quality: r.quality }));
+  return (A.state.storage || []).filter((r) => movable(A, r)).map((r) => ({ source: 'aero', ref: r.id, name: A.cfg.products[r.product].name, product: r.product, quality: r.quality, line: A.cfg.products[r.product].line }));
 }
 
 /** What could move now, by source. */
@@ -31026,13 +31032,14 @@ function transfer(game, spec) {
     const rec = (A.state.storage || []).find((r) => r.id === spec.ref);
     if (!rec) return { ok: false, text: 'That aircraft is not in Aerospace\'s storage.' };
     const P = A.cfg.products[rec.product];
-    if (!P?.spec?.military || P.line !== 'aircraft') return { ok: false, text: 'Only military aircraft move to the company.' };
-    const why = roomFor(game, 'aircraft');
+    if (!movable(A, rec)) return { ok: false, text: 'Only military aircraft and strategic missile products move to the company.' };
+    const kind = P.line === 'missile' ? 'missile' : 'aircraft';
+    const why = roomFor(game, kind);
     if (why) return { ok: false, text: why };
     A.state.storage = A.state.storage.filter((r) => r !== rec);
-    const r = addRecord(game, { kind: 'aircraft', type: rec.product, name: P.name, source: 'aero', origin: { system: 'aero', rec: clone(rec) } });
+    const r = addRecord(game, { kind, type: rec.product, name: P.name, source: 'aero', origin: { system: 'aero', rec: clone(rec) } });
     note(game, { from: 'aerospace', to: 'company', what: rec.product, name: P.name, qty: 1, ref: r.rec.id, status: 'done' });
-    return { ok: true, text: `${P.name} moves from Aerospace to the company's hangars. Free: no sale, no entry.`, id: r.rec.id };
+    return { ok: true, text: `${P.name} moves from Aerospace to the company's ${kind === 'missile' ? 'secure stores' : 'hangars'}. Free: no sale, no entry.`, id: r.rec.id };
   }
   if (spec.source === 'arms') {
     const qty = Math.floor(Number(spec.qty) || 0);
@@ -31051,7 +31058,7 @@ function transfer(game, spec) {
     note(game, { from: `arms:${spec.works}`, to: 'company', what: spec.item, name, qty, status: 'done' });
     return { ok: true, text: `${qty} × ${name} move from ${game.arms.def(spec.works).name} to the company's stores. Free.` };
   }
-  return { ok: false, text: 'Ships stay with the shipping company this release; the strategic missiles are built to contract and never stored.' };
+  return { ok: false, text: 'Ships stay with the shipping company this release.' };
 }
 
 /** Send something back to where it came from. `spec`: { id } for a record, { key, qty } for stock. */
@@ -43866,10 +43873,10 @@ class Aerospace {
   }
 
   // ------------------------------------------------------------- hangar settings (v0.91.1): a standing plane for each bay, and bays that change type
-  /** What this bay can build for storage: the aircraft and satellites its type builds that the company has the research for. */
+  /** What this bay can build for storage: the aircraft, satellites and (v0.100.0) strategic missile products its type builds that the company has the research for. */
   bayProducts(co, bay) {
     const C = this.cfg;
-    return Object.entries(C.products).filter(([, p]) => (p.line === 'aircraft' || p.line === 'satellite') && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
+    return Object.entries(C.products).filter(([, p]) => (p.line === 'aircraft' || p.line === 'satellite' || p.line === 'missile') && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
   }
 
   /** Set (or clear, with null) the aircraft or satellite a bay builds on its own, again and again, into storage (until the goal for that model is stored). */
@@ -43951,6 +43958,7 @@ class Aerospace {
   /** Stored aircraft that could fill this contract right now: a plain model (a contract that asks for a special addition has to be built), good enough for the customer. */
   storedFor(co, c) {
     if (!c || c.status !== 'active' || c.config || co.kind !== 'player') return [];
+    if (this.cfg.products[c.product]?.line !== 'aircraft') return []; // (a strategic product is delivered by its secure convoy, never from the store)
     return this.storedOf(c.product).filter((r) => !r.config && r.quality >= (c.quality || 0));
   }
 
@@ -45039,6 +45047,7 @@ class Aerospace {
     if (u.work + 1e-9 < u.need) return;
     if (s.kind === 'inspect') return this.inspect(co, u, s);
     if (s.kind === 'commission') return this.commission(co, u);
+    if (s.id === 'secure_storage' && u.purpose === 'stock') return this.storeUnit(co, u); // v0.100.0: a strategic product built for storage stops here: in the secure store, never on a convoy, never sold
     this.advance(co, u);
   }
 
@@ -72483,13 +72492,13 @@ function transfersTab(ui, body, go) {
   body.append(
     hero({ label: 'Free between your companies', value: `${n(free)} to move`, sub: 'Moving an item is not a sale: no money, no fee, no entry. What moves is gone from where it was.' }),
     tiles([{ n: `${H.ground.used}/${H.ground.total}`, t: 'vehicle bays' }, { n: `${H.air.used}/${H.air.total}`, t: 'hangar bays' }, { n: `${n(H.stores.used)}/${n(H.stores.total)}`, t: 'stores' }]));
-  if (O.aero.length) body.append(label('From Aerospace · stored military aircraft'), list(...O.aero.map((a) => row({ icon: '✈️', title: a.name, sub: `Finished, in storage · quality ${a.quality}`, tag: 'free', tone: 'good', action: h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'aero', ref: a.ref })) }, 'Move') }))));
+  if (O.aero.length) body.append(label('From Aerospace · stored military aircraft and strategic products'), list(...O.aero.map((a) => row({ icon: a.line === 'missile' ? '🚀' : '✈️', title: a.name, sub: a.line === 'missile' ? `Strategic product, in the secure store · takes 20 places in the stores` : `Finished, in storage · quality ${a.quality}`, tag: 'free', tone: 'good', action: h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'aero', ref: a.ref })) }, 'Move') }))));
   if (O.arms.length) body.append(label('From the Arms works · export cages'), list(...O.arms.map((a) => row({ icon: '🔫', title: `${a.name} · ${a.have}`, sub: a.from, tag: 'free', tone: 'good',
     action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: 1 })) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: a.have })) }, 'All')) }))));
   if (!O.aero.length && !O.arms.length) body.append(list(row({ icon: '—', title: 'Nothing waiting', sub: 'Stored military aircraft from Aerospace and weapons, rockets, missiles and drones from an Arms works\' export cage can move here.' })));
   body.append(label('What the company holds'));
   body.append(list(...(eq.length || st.length ? [
-    ...eq.map((x) => row({ icon: x.kind === 'aircraft' ? '✈️' : x.kind === 'helicopter' ? '🚁' : '🚙', title: `${x.name} · ${x.id}`, sub: `${x.location.replace('facility:', '').replace('_', ' ')} · ${x.status}${x.assignedTo ? ` · ${x.assignedTo}` : ''}`, tag: x.source === 'aero' ? 'from Aerospace' : x.source,
+    ...eq.map((x) => row({ icon: x.kind === 'aircraft' ? '✈️' : x.kind === 'missile' ? '🚀' : x.kind === 'helicopter' ? '🚁' : '🚙', title: `${x.name} · ${x.id}`, sub: `${x.location.replace('facility:', '').replace('_', ' ')} · ${x.status}${x.assignedTo ? ` · ${x.assignedTo}` : ''}`, tag: x.source === 'aero' ? 'from Aerospace' : x.source,
       action: x.origin && x.status === 'stored' && !x.assignedTo ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ id: x.id })) }, 'Return') : null })),
     ...st.map(([key, q]) => row({ icon: key.startsWith('arms:') ? '🔫' : '📦', title: `${stockName(g, key)} · ${n(q)}`, sub: key.startsWith('arms:') ? 'from the Arms works' : 'bought', action: key.startsWith('arms:') ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ key, qty: q })) }, 'Return all') : null })),
   ] : [row({ icon: '—', title: 'Nothing yet', sub: 'Build the armoury cage for stores, a motor pool for vehicles and hangars for aircraft.' })])));
@@ -78430,11 +78439,14 @@ function aerospacePanel(ui, body, opts = {}) {
     const planes = {};
     for (const r of rec.filter((x) => x.line === 'aircraft')) planes[r.product] = (planes[r.product] || 0) + 1;
     const sats = rec.filter((x) => x.line === 'satellite');
+    const missiles = {};
+    for (const r of rec.filter((x) => x.line === 'missile')) missiles[r.product] = (missiles[r.product] || 0) + 1; // v0.100.0: strategic products built for storage
     const fillable = A.contractsOf(c, 'active').map((ct) => ({ ct, o: A.storageOffer(c, ct) })).filter((x) => x.o);
     const pad = A.launchBlockers(c, { mass: 1 });
     return section('Storage — off the map, no limit',
       muted('Aircraft and satellites that your bays build on their own wait here. A stored aircraft is never sold: you choose, contract by contract, to use one (it is delivered at once, so the delivery-day bonus is met) or to build a new one (needed when a contract asks for a special addition).'),
       Object.keys(planes).length ? h('div', { class: 'ao-list' }, ...Object.entries(planes).map(([pid, n]) => h('div', { class: 'ao-row static' }, pic(productLook(C, pid), 96, 46), h('div', { class: 'grow' }, h('b', {}, `${n} × ${C.products[pid].name}`), h('small', {}, `worth ${fmtMoney(C.products[pid].price)} each on a contract`))))) : muted('No aircraft in storage. Pick "Makes by itself" on a bay below to start filling it.'),
+      Object.keys(missiles).length ? h('div', { class: 'ao-list' }, h('h4', {}, 'Strategic products in secure storage'), ...Object.entries(missiles).map(([pid, n]) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, `${n} × ${C.products[pid].name}`), h('small', {}, 'Inert, unfuelled, in the secure store. Never sold from here and never put on a convoy by this page: the war company can take them (Military → Transfers).')))) ) : null,
       fillable.length ? h('div', { class: 'ao-alert' }, `📦 ${plural(fillable.length, 'contract')} could be filled from storage — open `, h('button', { class: 'ao-link', onclick: () => go('contracts') }, 'Contracts ›')) : null,
       h('h4', {}, 'Satellites to launch'),
       sats.length ? h('div', { class: 'ao-list' }, ...sats.map((r) => { const p = C.products[r.product]; const why = A.launchBlockers(c, p); return h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, p.name), h('small', {}, `built Day ${r.day} · ${p.role || p.cls}`)), btn('Launch', () => act(() => A.launchStored(c, r.id)), 'primary', why.length > 0, why.length ? `Needs ${why.join(', ')}` : 'Send it up on the next launcher')); })) : muted('No satellite in storage.'),

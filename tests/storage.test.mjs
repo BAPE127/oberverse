@@ -145,3 +145,24 @@ test('a bay can be told to build satellites for storage (a clean room takes a sa
   assert.ok(opts.length > 0 && opts.every((id) => C.products[id].line === 'satellite'));
   assert.ok(A.setBayAuto(co, 'clean_1', opts[0]).ok);
 });
+
+test('a secure hall can build a strategic missile product for storage: it stops in the secure store, is never put on a convoy or sold, and a contract cannot be filled from it (v0.100.0)', () => {
+  const { g, A, co } = firm(9950);
+  co.bays.push({ id: 'secure_1', type: 'secure', unit: null, ready: 0, slot: null });
+  for (const r of Object.keys(C.research)) if (!co.research.includes(r)) co.research.push(r);
+  const bay = co.bays.find((b) => b.type === 'secure');
+  const opts = A.bayProducts(co, bay);
+  assert.ok(opts.includes('ms_sentinel') && opts.includes('af_kestrel'), 'a secure hall builds fighters and strategic products');
+  assert.ok(A.setBayAuto(co, 'secure_1', 'ms_sentinel').ok);
+  assert.ok(A.setStorageGoal(co, 'ms_sentinel', 1).ok);
+  g.player.money = 200_000_000;
+  assert.ok(A.hire(co, 20, 'inspector').ok); assert.ok(A.hire(co, 20, 'engineer').ok); // (a strategic product is inspected hard)
+  run(g, 70);
+  assert.equal(A.storedOf('ms_sentinel').length, 1, 'one is in the secure store');
+  assert.equal(A.storedOf('ms_sentinel')[0].line, 'missile');
+  assert.equal(A.convoys().length, 0, 'it never went on a convoy');
+  assert.ok(A.unitsOf(co).every((u) => u.purpose !== 'stock' || u.product !== 'ms_sentinel'), 'built once, then it stops');
+  // a contract for the product is not filled from the store: it is delivered by its own convoy
+  const ct = A.makeContract(co, { customer: 'cu_ostmark_air', product: 'ms_sentinel', qty: 1, unitPrice: C.products.ms_sentinel.price, days: 60, quality: 40, depositShare: 0.2 });
+  assert.deepEqual(A.storedFor(co, ct), []); assert.equal(A.storageOffer(co, ct), null);
+});

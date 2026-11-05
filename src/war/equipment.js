@@ -12,15 +12,19 @@ import { VEHICLES, SUPPLIES } from '../content/procurement.js';
 
 export const nextId = (C, kind) => { C.next ||= {}; C.next[kind] = (C.next[kind] || 0) + 1; return `${kind}${C.next[kind]}`; };
 
+/** A strategic missile product takes this many places in the stores (it is kept in the armoury or the depot, not a bay). */
+export const MISSILE_STORES = 20;
 const AIR = new Set(['helicopter', 'aircraft']);
 export const isAir = (kind) => AIR.has(kind);
-const where = (kind) => (isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
+const storeFacility = (C) => (['armoury', 'depot', 'cage'].map((id) => C.facilities.find((f) => f.id === id && f.state === 'built')).find(Boolean) || {}).id;
+const where = (kind, C) => (kind === 'missile' ? `facility:${storeFacility(C)}` : isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
 
 export function housing(game) {
   const C = peekMilitary(game)?.company;
   const used = { ground: 0, air: 0 };
-  for (const x of C?.equipment || []) if (x.status !== 'destroyed') used[isAir(x.kind) ? 'air' : 'ground']++;
-  const stock = Object.values(C?.stock || {}).reduce((a, b) => a + b, 0);
+  let missiles = 0;
+  for (const x of C?.equipment || []) if (x.status !== 'destroyed') { if (x.kind === 'missile') missiles++; else used[isAir(x.kind) ? 'air' : 'ground']++; }
+  const stock = Object.values(C?.stock || {}).reduce((a, b) => a + b, 0) + missiles * MISSILE_STORES;
   const cap = { ground: capacity(game, 'motor_pool').bays, air: capacity(game, 'hangar').bays, stores: capacity(game).stores };
   return { ground: { total: cap.ground, used: used.ground, free: Math.max(0, cap.ground - used.ground) }, air: { total: cap.air, used: used.air, free: Math.max(0, cap.air - used.air) }, stores: { total: cap.stores, used: stock, free: Math.max(0, cap.stores - stock) } };
 }
@@ -28,6 +32,7 @@ export function housing(game) {
 /** Whether there is room for one more of this kind of thing (`null` = yes, otherwise the reason). */
 export function roomFor(game, kind, qty = 1) {
   const h = housing(game);
+  if (kind === 'missile') return h.stores.free >= MISSILE_STORES * qty ? null : `A strategic missile product takes ${MISSILE_STORES} places in the stores; ${h.stores.free} are free.`;
   if (kind === 'stock') return h.stores.free >= qty ? null : `The stores have room for ${h.stores.free} more${h.stores.total ? '' : ' (build the armoury cage)'}.`;
   const side = isAir(kind) ? h.air : h.ground;
   if (side.free >= qty) return null;
@@ -39,7 +44,7 @@ export function addRecord(game, { kind, type, name, source, origin = null }) {
   const C = m.company;
   const why = roomFor(game, kind);
   if (why) return { ok: false, text: why };
-  const rec = { id: nextId(C, 'E'), kind, type, name, source, origin, location: where(kind), status: 'stored', assignedTo: null, day: game.clock.day };
+  const rec = { id: nextId(C, 'E'), kind, type, name, source, origin, location: where(kind, C), status: 'stored', assignedTo: null, day: game.clock.day };
   C.equipment.push(rec);
   return { ok: true, rec };
 }

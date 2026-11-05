@@ -40,3 +40,11 @@ export function storeJet(g, pid = 'af_kestrel') {
   A.state.storage.push(rec);
   return rec;
 }
+
+/** A strategic missile product in Aerospace's storage. */
+export function storeMissile(g, pid = 'ms_sentinel') {
+  const A = g.aero;
+  const rec = { id: A.nextId('S'), product: pid, line: 'missile', cost: { materials: 1000, freight: 0, freightInt: 0 }, quality: 70, day: A.day, config: null };
+  A.state.storage.push(rec);
+  return rec;
+}

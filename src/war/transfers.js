@@ -4,8 +4,8 @@
 //   real stock   what leaves a source is gone from it (a stored jet cannot also fill an Aerospace contract; a rifle cannot also be sold), and what comes back goes to where it came from
 //   audited      each move is a line in `world.military.transfers` (capped), never a money entry
 //   only free    an item that is assigned, deployed or destroyed cannot be returned
-// Sources: Aerospace (aircraft kept in storage that are military products), the Arms works (guns, rounds, rockets, missiles and drones, from a named works' export cage).
-// Ships stay with the shipping company this release (see docs/WAR.md). The strategic missiles are built to contract and never stored, so there is nothing to move.
+// Sources: Aerospace (military aircraft and strategic missile products kept in storage), the Arms works (guns, rounds, rockets, missiles and drones, from a named works' export cage).
+// Ships stay with the shipping company (see docs/WAR.md).
 import { ensureMilitary, peekMilitary } from './state.js';
 import { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } from './equipment.js';
 import { ARMS_TRANSFERABLE, TRANSFER_LOG } from '../content/procurement.js';
@@ -19,10 +19,11 @@ function note(game, entry) {
   while (m.transfers.length > TRANSFER_LOG) m.transfers.shift();
 }
 
-/** The military aircraft Aerospace keeps in storage. */
+/** What of Aerospace's storage may move: military aircraft, and strategic missile products. */
+const movable = (A, r) => { const P = A.cfg.products[r.product]; return P && ((P.line === 'aircraft' && P.spec?.military) || P.line === 'missile'); };
 function aeroStored(game) {
   const A = game.aero;
-  return (A.state.storage || []).filter((r) => A.cfg.products[r.product]?.spec?.military && A.cfg.products[r.product]?.line === 'aircraft').map((r) => ({ source: 'aero', ref: r.id, name: A.cfg.products[r.product].name, product: r.product, quality: r.quality }));
+  return (A.state.storage || []).filter((r) => movable(A, r)).map((r) => ({ source: 'aero', ref: r.id, name: A.cfg.products[r.product].name, product: r.product, quality: r.quality, line: A.cfg.products[r.product].line }));
 }
 
 /** What could move now, by source. */
@@ -48,13 +49,14 @@ export function transfer(game, spec) {
     const rec = (A.state.storage || []).find((r) => r.id === spec.ref);
     if (!rec) return { ok: false, text: 'That aircraft is not in Aerospace\'s storage.' };
     const P = A.cfg.products[rec.product];
-    if (!P?.spec?.military || P.line !== 'aircraft') return { ok: false, text: 'Only military aircraft move to the company.' };
-    const why = roomFor(game, 'aircraft');
+    if (!movable(A, rec)) return { ok: false, text: 'Only military aircraft and strategic missile products move to the company.' };
+    const kind = P.line === 'missile' ? 'missile' : 'aircraft';
+    const why = roomFor(game, kind);
     if (why) return { ok: false, text: why };
     A.state.storage = A.state.storage.filter((r) => r !== rec);
-    const r = addRecord(game, { kind: 'aircraft', type: rec.product, name: P.name, source: 'aero', origin: { system: 'aero', rec: clone(rec) } });
+    const r = addRecord(game, { kind, type: rec.product, name: P.name, source: 'aero', origin: { system: 'aero', rec: clone(rec) } });
     note(game, { from: 'aerospace', to: 'company', what: rec.product, name: P.name, qty: 1, ref: r.rec.id, status: 'done' });
-    return { ok: true, text: `${P.name} moves from Aerospace to the company's hangars. Free: no sale, no entry.`, id: r.rec.id };
+    return { ok: true, text: `${P.name} moves from Aerospace to the company's ${kind === 'missile' ? 'secure stores' : 'hangars'}. Free: no sale, no entry.`, id: r.rec.id };
   }
   if (spec.source === 'arms') {
     const qty = Math.floor(Number(spec.qty) || 0);
@@ -73,7 +75,7 @@ export function transfer(game, spec) {
     note(game, { from: `arms:${spec.works}`, to: 'company', what: spec.item, name, qty, status: 'done' });
     return { ok: true, text: `${qty} × ${name} move from ${game.arms.def(spec.works).name} to the company's stores. Free.` };
   }
-  return { ok: false, text: 'Ships stay with the shipping company this release; the strategic missiles are built to contract and never stored.' };
+  return { ok: false, text: 'Ships stay with the shipping company this release.' };
 }
 
 /** Send something back to where it came from. `spec`: { id } for a record, { key, qty } for stock. */

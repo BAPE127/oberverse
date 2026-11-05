@@ -1050,11 +1050,14 @@ export function aerospacePanel(ui, body, opts = {}) {
     const planes = {};
     for (const r of rec.filter((x) => x.line === 'aircraft')) planes[r.product] = (planes[r.product] || 0) + 1;
     const sats = rec.filter((x) => x.line === 'satellite');
+    const missiles = {};
+    for (const r of rec.filter((x) => x.line === 'missile')) missiles[r.product] = (missiles[r.product] || 0) + 1; // v0.100.0: strategic products built for storage
     const fillable = A.contractsOf(c, 'active').map((ct) => ({ ct, o: A.storageOffer(c, ct) })).filter((x) => x.o);
     const pad = A.launchBlockers(c, { mass: 1 });
     return section('Storage — off the map, no limit',
       muted('Aircraft and satellites that your bays build on their own wait here. A stored aircraft is never sold: you choose, contract by contract, to use one (it is delivered at once, so the delivery-day bonus is met) or to build a new one (needed when a contract asks for a special addition).'),
       Object.keys(planes).length ? h('div', { class: 'ao-list' }, ...Object.entries(planes).map(([pid, n]) => h('div', { class: 'ao-row static' }, pic(productLook(C, pid), 96, 46), h('div', { class: 'grow' }, h('b', {}, `${n} × ${C.products[pid].name}`), h('small', {}, `worth ${fmtMoney(C.products[pid].price)} each on a contract`))))) : muted('No aircraft in storage. Pick "Makes by itself" on a bay below to start filling it.'),
+      Object.keys(missiles).length ? h('div', { class: 'ao-list' }, h('h4', {}, 'Strategic products in secure storage'), ...Object.entries(missiles).map(([pid, n]) => h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, `${n} × ${C.products[pid].name}`), h('small', {}, 'Inert, unfuelled, in the secure store. Never sold from here and never put on a convoy by this page: the war company can take them (Military → Transfers).')))) ) : null,
       fillable.length ? h('div', { class: 'ao-alert' }, `📦 ${plural(fillable.length, 'contract')} could be filled from storage — open `, h('button', { class: 'ao-link', onclick: () => go('contracts') }, 'Contracts ›')) : null,
       h('h4', {}, 'Satellites to launch'),
       sats.length ? h('div', { class: 'ao-list' }, ...sats.map((r) => { const p = C.products[r.product]; const why = A.launchBlockers(c, p); return h('div', { class: 'ao-row static' }, h('div', { class: 'grow' }, h('b', {}, p.name), h('small', {}, `built Day ${r.day} · ${p.role || p.cls}`)), btn('Launch', () => act(() => A.launchStored(c, r.id)), 'primary', why.length > 0, why.length ? `Needs ${why.join(', ')}` : 'Send it up on the next launcher')); })) : muted('No satellite in storage.'),

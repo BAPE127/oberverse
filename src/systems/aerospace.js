@@ -708,10 +708,10 @@ export class Aerospace {
   }
 
   // ------------------------------------------------------------- hangar settings (v0.91.1): a standing plane for each bay, and bays that change type
-  /** What this bay can build for storage: the aircraft and satellites its type builds that the company has the research for. */
+  /** What this bay can build for storage: the aircraft, satellites and (v0.100.0) strategic missile products its type builds that the company has the research for. */
   bayProducts(co, bay) {
     const C = this.cfg;
-    return Object.entries(C.products).filter(([, p]) => (p.line === 'aircraft' || p.line === 'satellite') && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
+    return Object.entries(C.products).filter(([, p]) => (p.line === 'aircraft' || p.line === 'satellite' || p.line === 'missile') && baysFor(C, p).includes(bay.type) && !missingTech(C, co, p).length).map(([id]) => id);
   }
 
   /** Set (or clear, with null) the aircraft or satellite a bay builds on its own, again and again, into storage (until the goal for that model is stored). */
@@ -793,6 +793,7 @@ export class Aerospace {
   /** Stored aircraft that could fill this contract right now: a plain model (a contract that asks for a special addition has to be built), good enough for the customer. */
   storedFor(co, c) {
     if (!c || c.status !== 'active' || c.config || co.kind !== 'player') return [];
+    if (this.cfg.products[c.product]?.line !== 'aircraft') return []; // (a strategic product is delivered by its secure convoy, never from the store)
     return this.storedOf(c.product).filter((r) => !r.config && r.quality >= (c.quality || 0));
   }
 
@@ -1881,6 +1882,7 @@ export class Aerospace {
     if (u.work + 1e-9 < u.need) return;
     if (s.kind === 'inspect') return this.inspect(co, u, s);
     if (s.kind === 'commission') return this.commission(co, u);
+    if (s.id === 'secure_storage' && u.purpose === 'stock') return this.storeUnit(co, u); // v0.100.0: a strategic product built for storage stops here: in the secure store, never on a convoy, never sold
     this.advance(co, u);
   }
 
