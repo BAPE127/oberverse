@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSetup } from '../src/battle/setup.js';
-import { createBattle, run, issue, outcome, replay } from '../src/battle/sim.js';
+import { createBattle, run, issue, issueFormation, callSupport, outcome, replay } from '../src/battle/sim.js';
 import { TILE, TEND, CHARGE, UAV } from '../src/content/battle.js';
 import { idx } from '../src/battle/map.js';
 
@@ -62,4 +62,30 @@ test('the new Arms works items (shells, breaching charges) go to the company, ar
   const held = (item) => Object.entries(C.stock).filter(([k]) => k.endsWith(`:${item}`)).reduce((a, [, n]) => a + n, 0); assert.ok(g.war.fileBattle(eng.id, o).ok); days(g, 8); assert.equal(eng.state, 'resolved');
   assert.equal(held('item_artillery_shell'), 25); assert.equal(held('item_breach_charge'), 4); assert.equal(eng.result.used['Artillery Shell'], 5); assert.equal(eng.result.used['Breaching Charge'], 2); assert.deepEqual(g.war.check(), []);
   void iss; void rn;
+});
+
+test('a compound\'s wall can be breached (by a charge, a gun or a blast), and the manager of an Arms works never picks the new items for an idle station', async () => {
+  const B = createBattle(mk({ recipe: 'compound', roles: ['engineer'], vehicles: [{ id: 'T1', name: 'Anvil', cls: 'tank', armour: 3, firepower: 3, speed: 3 }], support: { items: { item_breach_charge: 2 }, air: [] } })); calm(B); far(B); const m = B.map;
+  let wx = -1; let wy = -1; for (let j = 0; j < m.h && wx < 0; j++) for (let i = 0; i < m.w; i++) if (m.tiles[idx(m, i, j)] === TILE.WALL && m.bid[idx(m, i, j)] < 0 && m.tiles[idx(m, i, j + 1)] === TILE.WALL) { wx = i; wy = j; break; } assert.ok(wx >= 0, 'a compound wall');
+  const E = B.byId.get('p0'); const south = m.tiles[idx(m, wx, wy - 1)] === TILE.GROUND ? -1 : 1; put(E, wx + 0.5, wy + 0.5 + south * 5); issue(B, ['p0'], { type: 'charge', x: wx + 0.5, y: wy + 0.5 }); run(B, 140); assert.equal(m.tiles[idx(m, wx, wy)], TILE.FLOOR, 'the wall round the compound is breached'); assert.equal(B.rubble.length >= 1, true);
+  const { CONTENT } = await import('./helpers.mjs'); const picks = Object.entries(CONTENT.arms.recipes).filter(([, r]) => r.station === 'explosives' && !r.manual).map(([id]) => id); assert.deepEqual(picks, ['warhead'], 'the manager still keeps the warheads coming'); assert.ok(CONTENT.arms.recipes.shell.manual && CONTENT.arms.recipes.charge.manual);
+});
+
+test('a vehicle can find its way from either start to the objective on every recipe (trenches and wire do not seal a map)', async () => {
+  const { generate } = await import('../src/battle/map.js'); const { findPath } = await import('../src/battle/nav.js');
+  for (const recipe of ['city', 'fields', 'trench', 'compound', 'forest']) for (const sd of ['a', 'b', 'c']) for (const style of ['halvermouth', 'varnistan']) {
+    const m = generate({ recipe, seed: `v-${sd}`, style, biome: 'rural' }); const at = (p) => ({ x: p.x + 0.5, y: p.y + 0.5, z: 0 });
+    assert.ok(findPath(m, at(m.spawns.p), m.objective, 'veh').length > 0, `${recipe}/${sd}: from your start`); assert.ok(findPath(m, at(m.spawns.e), m.objective, 'veh').length > 0, `${recipe}/${sd}: from theirs`);
+  }
+});
+
+test('a whole battle of the new orders replays exactly from an unmodified setup: tend, charge, scout, fpv, flank, escort, recon and a formation, with shells and a missile, in the log', () => {
+  const setup = mk({ key: 'T9|replay', recipe: 'city', roles: ['medic', 'engineer', 'uav', 'rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman'], vehicles: [{ id: 'T1', name: 'Anvil', cls: 'tank', armour: 3, firepower: 3, speed: 3 }, { id: 'G1', name: 'Hammer', cls: 'artillery', type: 'hammer', armour: 2, firepower: 5, speed: 3 }],
+    support: { items: { item_breach_charge: 2, item_artillery_shell: 5, item_drone_attack: 1, item_missile_guided: 1 }, air: [], strategic: [] }, enemy: { troops: 12, armour: 1, air: 0, aa: 1, skill: 1 } });
+  const B = createBattle(setup); const sp = B.map.spawns.p; const ob = B.map.objective; const b = B.map.buildings[0]; const wall = [...Array(b.w).keys()].map((i) => ({ x: b.x + i, y: b.y })).find((p) => B.map.tiles[idx(B.map, p.x, p.y)] === TILE.WALL);
+  run(B, 20); issue(B, ['p0'], { type: 'tend' }); issue(B, ['p1'], { type: 'charge', x: wall.x + 0.5, y: wall.y + 0.5 }); issue(B, ['p2'], { type: 'scout', x: ob.x, y: ob.y }); run(B, 60); issue(B, ['p2'], { type: 'fpv', x: ob.x, y: ob.y });
+  issue(B, ['p3'], { type: 'flank', x: ob.x, y: ob.y }); issue(B, ['p4'], { type: 'escort', target: 'T1' }); issue(B, ['p5'], { type: 'recon', x: ob.x, y: ob.y }); issueFormation(B, ['p6', 'p7'], 'amove', sp.x + 12, sp.y, 'column'); issue(B, ['G1'], { type: 'fire', x: sp.x + 30, y: sp.y }); issue(B, ['T1'], { type: 'amove', x: ob.x, y: ob.y });
+  run(B, 400); callSupport(B, { kind: 'item_missile_guided', x: ob.x, y: ob.y }); run(B, 300); assert.ok(B.log.length >= 11);
+  const snap = (X) => JSON.stringify([X.units.map((u) => [u.id, +u.x.toFixed(3), +u.y.toFixed(3), u.z, Math.round(u.hp), u.alive, u.fled, u.stab, u.evac]), X.drones.length, X.fpvs.length, Object.keys(X.spotted).length, X.rubble.length, X.counts.items, X.tick]);
+  const R = replay(setup, B.log, B.tick); assert.equal(snap(R), snap(B));
 });

@@ -323,7 +323,7 @@ export class Management {
     for (const wh of A.ownedIds()) {
       const machines = A.cells(wh).machines.filter((e) => e.kind !== 'lab');
       for (const e of machines.filter((x) => !A.recipeOf(x))) {
-        const best = Object.entries(A.cfg.recipes).filter(([rid, r]) => r.station === e.kind && A.recipeUnlocked(rid)).sort((a, b) => A.value(b[1].out) - A.value(a[1].out) || (a[0] < b[0] ? -1 : 1))[0];
+        const best = Object.entries(A.cfg.recipes).filter(([rid, r]) => r.station === e.kind && !r.manual && A.recipeUnlocked(rid)).sort((a, b) => A.value(b[1].out) - A.value(a[1].out) || (a[0] < b[0] ? -1 : 1))[0];
         if (best) { plan.push([e.id, best[0]]); idle++; }
       }
       const free = A.staffOf(wh).filter((x) => !x.assigned).length;

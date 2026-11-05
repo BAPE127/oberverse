@@ -66,3 +66,9 @@ test('fire missions are in the log and replay exactly', () => {
   const setup = mk({ key: 'F9|r', support: { items: { item_artillery_shell: 6 }, air: [] }, enemy: { troops: 10, armour: 0, air: 0, skill: 1 } }); const B = createBattle(setup); const e = B.map.spawns.e;
   run(B, 30); issue(B, ['G1'], { type: 'fire', x: B.map.spawns.p.x + 30, y: B.map.spawns.p.y }); run(B, 300); assert.ok(B.counts.items.item_artillery_shell >= 1); const R = replay(setup, B.log, B.tick); const snap = (X) => JSON.stringify(X.units.map((u) => [u.id, +u.x.toFixed(3), +u.y.toFixed(3), Math.round(u.hp), u.alive])); assert.equal(snap(R), snap(B)); assert.deepEqual(R.counts.items, B.counts.items);
 });
+
+test('anti-air is not a force on the ground: a battle with enemy guns ends as it would without them (they do not hold a zone and need not be put out)', () => {
+  const people = (n) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}`, role: i % 8 === 0 ? 'machine_gunner' : i % 9 === 0 ? 'anti_tank' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
+  const wins = (aa) => { let w = 0; for (let k = 0; k < 8; k++) for (const goal of ['offence', 'defence']) { const B = createBattle(buildSetup({ key: `AAx${k}|${goal}`, eng: { goal, recipe: k % 2 ? 'city' : 'fields', biome: 'rural', style: 'halvermouth', enemy: { troops: 10, armour: 0, air: 0, aa, skill: 1 } }, people: people(12), vehicles: [], ai: { p: true, e: true } })); while (!B.over) step(B); assert.notEqual(B.why, 'time', `${goal}/${k}: it does not drag on to the clock for want of killing a gun`); if (outcome(B).objectives >= 2) w++; } return w; };
+  assert.ok(Math.abs(wins(2) - wins(0)) <= 1, 'the same fights are won');
+});

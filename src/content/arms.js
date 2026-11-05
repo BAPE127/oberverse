@@ -102,8 +102,9 @@ export const ARMS_RECIPES = {
   lmg: R('assembly', { item_ai_receiver: 2, item_ai_barrel: 2, item_ai_furniture: 1, item_ap_springs: 3 }, 'item_lmg', 16, 'lmg'),
   rpg: R('assembly', { item_ai_barrel: 2, item_ai_furniture: 1, item_ap_optics: 1 }, 'item_rpg', 12, 'rpg'),
   rpg_rocket: R('rocket', { item_ai_warhead: 1, item_ap_propellant: 2, item_ap_steel: 1 }, 'item_rpg_rocket', 8, 'rpg'),
-  shell: R('explosives', { item_ai_warhead: 1, item_ap_propellant: 1, item_ap_steel: 1 }, 'item_artillery_shell', 8),
-  charge: R('explosives', { item_ap_explosive: 2, item_ap_steel: 1 }, 'item_breach_charge', 6),
+  // (manual: made only when the player sets a station to them; an arms manager's "keep the line running" never picks them, or it would stop the warheads the Rocket Bay needs)
+  shell: { ...R('explosives', { item_ai_warhead: 1, item_ap_propellant: 1, item_ap_steel: 1 }, 'item_artillery_shell', 8), manual: true },
+  charge: { ...R('explosives', { item_ap_explosive: 2, item_ap_steel: 1 }, 'item_breach_charge', 6), manual: true },
   guided: R('rocket', { item_ap_motor: 1, item_ai_warhead: 1, item_ai_seeker: 1, item_ap_airframe: 1 }, 'item_missile_guided', 20, 'guided'),
   cruise: R('rocket', { item_ap_motor: 2, item_ai_warhead: 2, item_ai_seeker: 2, item_ap_airframe: 2 }, 'item_missile_cruise', 40, 'cruise'),
   drone_attack: R('drone', { item_ap_airframe: 1, item_ai_flightctl: 1, item_ai_warhead: 1, item_ap_battery: 1 }, 'item_drone_attack', 18, 'drone_attack'),

@@ -196,7 +196,7 @@ function blast(B, x, y, r, dmg, by) {
   for (let j = Math.floor(y - r); j <= Math.ceil(y + r); j++) for (let i = Math.floor(x - r); i <= Math.ceil(x + r); i++) if (Math.hypot(i + 0.5 - x, j + 0.5 - y) <= r * BREACH.blast / 2 + 0.6 && dmg >= BREACH.wall) breachTile(B, i, j);
 }
 function breachTile(B, i, j) {
-  if (!inb(B.map, i, j) || B.map.tiles[idx(B.map, i, j)] !== TILE.WALL || B.map.bid[idx(B.map, i, j)] < 0) return false;
+  if (!inb(B.map, i, j) || B.map.tiles[idx(B.map, i, j)] !== TILE.WALL) return false; // (a building's wall, or the wall round a compound)
   B.map.tiles[idx(B.map, i, j)] = TILE.FLOOR; B.rubble.push({ x: i, y: j, t: B.tick }); B.events.push({ t: B.tick, k: 'breach', x: i, y: j }); return true;
 }
 /** Call support: a missile or a drone from the stock, an aircraft pass, or smoke. Validated against what the setup says the company has; logged for the replay. */
@@ -416,9 +416,11 @@ function ai(B, side) {
   });
 }
 
+/** An anti-air gun (rules 3) is a threat to aircraft and helicopters, not a force on the ground: it does not hold a zone, and beating the enemy does not mean putting it out. */
+const onGround = (u) => !u.W?.airOnly;
 function zoneCount(B, side) {
   const o = B.map.objective; let n = 0;
-  for (const u of B.units) if (u.side === side && u.alive && !u.fled && dist(u, o) <= OBJECTIVE.zone) n++;
+  for (const u of B.units) if (u.side === side && u.alive && !u.fled && onGround(u) && dist(u, o) <= OBJECTIVE.zone) n++;
   return n;
 }
 
@@ -433,7 +435,7 @@ export function step(B) {
   if (B.goal === 'defence') { if (pz > 0 || ez === 0) B.hold++; else B.hold = Math.max(0, B.hold - 1); }
   if (B.goal === 'offence') { if (pz > 0 && ez === 0) B.cap++; else B.cap = Math.max(0, B.cap - 1); if (B.cap >= OBJECTIVE.captureSeconds * TICK.perSecond) B.captured = true; }
   if (B.goal === 'logistics') for (const u of B.units) if (u.side === 'p' && u.alive && isVeh(u) && u.kind !== 'helicopter' && Math.hypot(u.x - B.map.exit.x, u.y - B.map.exit.y) < 3) B.convoyOut = true;
-  const live = (s) => B.units.filter((u) => u.side === s && u.alive && !u.fled).length;
+  const live = (s) => B.units.filter((u) => u.side === s && u.alive && !u.fled && onGround(u)).length;
   if (!live('p')) { B.over = true; B.why = 'your force is gone'; }
   else if (!live('e')) { B.over = true; B.why = 'the enemy is beaten'; }
   else if (B.captured) { B.over = true; B.why = 'the objective is taken'; }
@@ -446,7 +448,7 @@ export function runToEnd(B) { while (!B.over) step(B); return B; }
 
 /** The result, in the shape the engagement's apply step takes. Valid once the battle is over (or at any moment, as it stands). */
 export function outcome(B) {
-  const mine = B.units.filter((u) => u.side === 'p' && u.rec); const foes = B.units.filter((u) => u.side === 'e');
+  const mine = B.units.filter((u) => u.side === 'p' && u.rec); const foes = B.units.filter((u) => u.side === 'e' && onGround(u));
   const downFoes = foes.filter((u) => !u.alive || u.fled).length; const downMine = mine.filter((u) => !u.alive).length; // (put out of action: dead or wounded)
   let primary;
   if (B.goal === 'defence') primary = B.hold >= OBJECTIVE.holdSeconds * TICK.perSecond || (B.over && B.why !== 'your force is gone' && zoneCount(B, 'e') === 0 && B.units.some((u) => u.side === 'p' && u.alive && !u.fled)) || (B.over && B.why === 'time' && B.units.some((u) => u.side === 'p' && u.alive && !u.fled) && zoneCount(B, 'e') <= zoneCount(B, 'p'));

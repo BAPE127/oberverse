@@ -18,7 +18,9 @@ Finishes what v0.102.0's roadmap row promised and did not ship. Reference: `docs
 
 **Calibration.** The calibration test still holds. Medics tending on their own lowers deaths in played battles under rules 3; the aggregate resolver is **not** changed (so a general's result is the same as before), and the played battle is a little kinder to a force with medics than the estimate says; stated here and in the limits.
 
-**Tests.** `battle_frozen` (2), `battle_fire` (6), `battle_team` (5), `battle_orders` (5); `battle_map` gained two. **Existing tests edited:** `war_battle` and `war_generals` (the recipes an engagement can have now include the three new ones), `battle_depth` (supportOf now also lists strategic missiles).
+**Found in review and fixed:** the wall round a compound could not be breached (it now can); the Arms manager would have picked the new charge for an idle Explosives Bay and stopped the warheads (the new recipes are manual only); an enemy anti-air gun counted as a force to put out, so battles with one dragged to the clock (it is no longer counted); forests drew thousands of sprites from the far tier (trees are blots there).
+
+**Tests.** `battle_frozen` (2), `battle_fire` (7), `battle_team` (8), `battle_orders` (5); `battle_map` gained two. **Existing tests edited:** `war_battle` and `war_generals` (the recipes an engagement can have now include the three new ones), `battle_depth` (supportOf now also lists strategic missiles).
 
 ## [0.102.0] — 2026-11-05 — War: Battle Depth (development build)
 

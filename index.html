@@ -6159,8 +6159,9 @@ const ARMS_RECIPES = {
   lmg: R('assembly', { item_ai_receiver: 2, item_ai_barrel: 2, item_ai_furniture: 1, item_ap_springs: 3 }, 'item_lmg', 16, 'lmg'),
   rpg: R('assembly', { item_ai_barrel: 2, item_ai_furniture: 1, item_ap_optics: 1 }, 'item_rpg', 12, 'rpg'),
   rpg_rocket: R('rocket', { item_ai_warhead: 1, item_ap_propellant: 2, item_ap_steel: 1 }, 'item_rpg_rocket', 8, 'rpg'),
-  shell: R('explosives', { item_ai_warhead: 1, item_ap_propellant: 1, item_ap_steel: 1 }, 'item_artillery_shell', 8),
-  charge: R('explosives', { item_ap_explosive: 2, item_ap_steel: 1 }, 'item_breach_charge', 6),
+  // (manual: made only when the player sets a station to them; an arms manager's "keep the line running" never picks them, or it would stop the warheads the Rocket Bay needs)
+  shell: { ...R('explosives', { item_ai_warhead: 1, item_ap_propellant: 1, item_ap_steel: 1 }, 'item_artillery_shell', 8), manual: true },
+  charge: { ...R('explosives', { item_ap_explosive: 2, item_ap_steel: 1 }, 'item_breach_charge', 6), manual: true },
   guided: R('rocket', { item_ap_motor: 1, item_ai_warhead: 1, item_ai_seeker: 1, item_ap_airframe: 1 }, 'item_missile_guided', 20, 'guided'),
   cruise: R('rocket', { item_ap_motor: 2, item_ai_warhead: 2, item_ai_seeker: 2, item_ap_airframe: 2 }, 'item_missile_cruise', 40, 'cruise'),
   drone_attack: R('drone', { item_ap_airframe: 1, item_ai_flightctl: 1, item_ai_warhead: 1, item_ap_battery: 1 }, 'item_drone_attack', 18, 'drone_attack'),
@@ -50541,7 +50542,7 @@ class Management {
     for (const wh of A.ownedIds()) {
       const machines = A.cells(wh).machines.filter((e) => e.kind !== 'lab');
       for (const e of machines.filter((x) => !A.recipeOf(x))) {
-        const best = Object.entries(A.cfg.recipes).filter(([rid, r]) => r.station === e.kind && A.recipeUnlocked(rid)).sort((a, b) => A.value(b[1].out) - A.value(a[1].out) || (a[0] < b[0] ? -1 : 1))[0];
+        const best = Object.entries(A.cfg.recipes).filter(([rid, r]) => r.station === e.kind && !r.manual && A.recipeUnlocked(rid)).sort((a, b) => A.value(b[1].out) - A.value(a[1].out) || (a[0] < b[0] ? -1 : 1))[0];
         if (best) { plan.push([e.id, best[0]]); idle++; }
       }
       const free = A.staffOf(wh).filter((x) => !x.assigned).length;
@@ -76961,7 +76962,7 @@ function blast(B, x, y, r, dmg, by) {
   for (let j = Math.floor(y - r); j <= Math.ceil(y + r); j++) for (let i = Math.floor(x - r); i <= Math.ceil(x + r); i++) if (Math.hypot(i + 0.5 - x, j + 0.5 - y) <= r * BREACH.blast / 2 + 0.6 && dmg >= BREACH.wall) breachTile(B, i, j);
 }
 function breachTile(B, i, j) {
-  if (!inb(B.map, i, j) || B.map.tiles[idx(B.map, i, j)] !== TILE.WALL || B.map.bid[idx(B.map, i, j)] < 0) return false;
+  if (!inb(B.map, i, j) || B.map.tiles[idx(B.map, i, j)] !== TILE.WALL) return false; // (a building's wall, or the wall round a compound)
   B.map.tiles[idx(B.map, i, j)] = TILE.FLOOR; B.rubble.push({ x: i, y: j, t: B.tick }); B.events.push({ t: B.tick, k: 'breach', x: i, y: j }); return true;
 }
 /** Call support: a missile or a drone from the stock, an aircraft pass, or smoke. Validated against what the setup says the company has; logged for the replay. */
@@ -77181,9 +77182,11 @@ function ai(B, side) {
   });
 }
 
+/** An anti-air gun (rules 3) is a threat to aircraft and helicopters, not a force on the ground: it does not hold a zone, and beating the enemy does not mean putting it out. */
+const onGround = (u) => !u.W?.airOnly;
 function zoneCount(B, side) {
   const o = B.map.objective; let n = 0;
-  for (const u of B.units) if (u.side === side && u.alive && !u.fled && dist(u, o) <= OBJECTIVE.zone) n++;
+  for (const u of B.units) if (u.side === side && u.alive && !u.fled && onGround(u) && dist(u, o) <= OBJECTIVE.zone) n++;
   return n;
 }
 
@@ -77198,7 +77201,7 @@ function step(B) {
   if (B.goal === 'defence') { if (pz > 0 || ez === 0) B.hold++; else B.hold = Math.max(0, B.hold - 1); }
   if (B.goal === 'offence') { if (pz > 0 && ez === 0) B.cap++; else B.cap = Math.max(0, B.cap - 1); if (B.cap >= OBJECTIVE.captureSeconds * TICK.perSecond) B.captured = true; }
   if (B.goal === 'logistics') for (const u of B.units) if (u.side === 'p' && u.alive && isVeh(u) && u.kind !== 'helicopter' && Math.hypot(u.x - B.map.exit.x, u.y - B.map.exit.y) < 3) B.convoyOut = true;
-  const live = (s) => B.units.filter((u) => u.side === s && u.alive && !u.fled).length;
+  const live = (s) => B.units.filter((u) => u.side === s && u.alive && !u.fled && onGround(u)).length;
   if (!live('p')) { B.over = true; B.why = 'your force is gone'; }
   else if (!live('e')) { B.over = true; B.why = 'the enemy is beaten'; }
   else if (B.captured) { B.over = true; B.why = 'the objective is taken'; }
@@ -77211,7 +77214,7 @@ function runToEnd(B) { while (!B.over) step(B); return B; }
 
 /** The result, in the shape the engagement's apply step takes. Valid once the battle is over (or at any moment, as it stands). */
 function outcome(B) {
-  const mine = B.units.filter((u) => u.side === 'p' && u.rec); const foes = B.units.filter((u) => u.side === 'e');
+  const mine = B.units.filter((u) => u.side === 'p' && u.rec); const foes = B.units.filter((u) => u.side === 'e' && onGround(u));
   const downFoes = foes.filter((u) => !u.alive || u.fled).length; const downMine = mine.filter((u) => !u.alive).length; // (put out of action: dead or wounded)
   let primary;
   if (B.goal === 'defence') primary = B.hold >= OBJECTIVE.holdSeconds * TICK.perSecond || (B.over && B.why !== 'your force is gone' && zoneCount(B, 'e') === 0 && B.units.some((u) => u.side === 'p' && u.alive && !u.fled)) || (B.over && B.why === 'time' && B.units.some((u) => u.side === 'p' && u.alive && !u.fled) && zoneCount(B, 'e') <= zoneCount(B, 'p'));
@@ -77817,7 +77820,8 @@ function bakeScene(map0) {
   for (const p of map.props) {
     const pp = { w: 1, h: 1, ...(PROP_TYPES[p.type]?.defaults || {}), ...p };
     if (p.type === 'crosswalk') { drawProp(gg, pp, { wind: 0, map: gm, time: 0, night: false }); continue; }
-    items.push({ y: (p.y + (pp.h || 1)) * TP - 4, x0: p.x * TP - 48, x1: (p.x + (pp.w || 1)) * TP + 48, y0: p.y * TP - 120, y1: (p.y + (pp.h || 1)) * TP + 24, draw: (g, t) => drawProp(g, pp, { wind: 0, map: gm, time: t, night: false }) });
+    const leafy = p.type === 'tree' || p.type === 'pine' || p.type === 'bush';
+    items.push({ leaf: leafy ? { x: p.x * TP + 16, y: p.y * TP + 14, c: p.type === 'pine' ? '#2f5a46' : p.type === 'bush' ? '#5a7a4a' : (p.color || '#4f7a4a') } : null, y: (p.y + (pp.h || 1)) * TP - 4, x0: p.x * TP - 48, x1: (p.x + (pp.w || 1)) * TP + 48, y0: p.y * TP - 120, y1: (p.y + (pp.h || 1)) * TP + 24, draw: (g, t) => drawProp(g, pp, { wind: 0, map: gm, time: t, night: false }) });
   }
   for (const b of map.buildings) { const sprite = bakeBuilding(b); items.push({ y: (b.y + b.h) * TP, b, x0: b.x * TP, x1: b.x * TP + sprite.width, y0: b.y * TP, y1: b.y * TP + sprite.height, draw: (g, t, B) => { g.drawImage(sprite, b.x * TP, b.y * TP); if (B) for (const r of B.rubble) if (r.x >= b.x && r.x < b.x + b.w && r.y >= b.y && r.y < b.y + b.h) rubble(g, r.x, r.y); } }); }
   for (const c of map.cars || []) items.push({ y: c.y + 10, x0: c.x - 70, x1: c.x + 70, y0: c.y - 40, y1: c.y + 40, draw: (g) => drawCar(g, c.kind, c.color, c.dir, c.x, c.y) });
@@ -77933,6 +77937,7 @@ class BattleView {
     const open = ui.open || {};
     // a building opened to a floor plan lies flat on the ground; the rest stand, in order from back to front, with the people between them
     for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor, this.scene.gm); }
+    for (const r of B.rubble) if (B.map.bid[r.y * B.map.w + r.x] < 0) rubble(g, r.x, r.y); // (a breach in a wall that is not a building's, as round a compound)
     if (tier === 'far') { this.drawItems(g, [], open); this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
     const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y).filter((u) => {
       const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
@@ -77976,10 +77981,12 @@ class BattleView {
   drawItems(g, units, open, B, ui) {
     const cam = this.cam; const vx0 = cam.x; const vy0 = cam.y; const vx1 = cam.x + this.cv.width / cam.zoom; const vy1 = cam.y + this.cv.height / cam.zoom; let k = 0;
     const flush = (limit) => { while (k < units.length && units[k].y * TP <= limit) { this.unit(g, units[k], B, ui); k++; } };
+    const far = this.tier() === 'far';
     for (const it of this.scene.items) {
       flush(it.y);
       if (it.x1 < vx0 || it.x0 > vx1 || it.y1 < vy0 || it.y0 > vy1) continue;
       if (it.b && open[it.b.id]) continue;
+      if (far && it.leaf) { g.fillStyle = it.leaf.c; g.fillRect(it.leaf.x - 12, it.leaf.y - 14, 24, 22); continue; } // (seen from far, a tree is a green blot: the whole forest in view is thousands of sprites)
       it.draw(g, this.t, this.B);
     }
     flush(Infinity);

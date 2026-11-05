@@ -45,7 +45,8 @@ export function bakeScene(map0) {
   for (const p of map.props) {
     const pp = { w: 1, h: 1, ...(PROP_TYPES[p.type]?.defaults || {}), ...p };
     if (p.type === 'crosswalk') { drawProp(gg, pp, { wind: 0, map: gm, time: 0, night: false }); continue; }
-    items.push({ y: (p.y + (pp.h || 1)) * TP - 4, x0: p.x * TP - 48, x1: (p.x + (pp.w || 1)) * TP + 48, y0: p.y * TP - 120, y1: (p.y + (pp.h || 1)) * TP + 24, draw: (g, t) => drawProp(g, pp, { wind: 0, map: gm, time: t, night: false }) });
+    const leafy = p.type === 'tree' || p.type === 'pine' || p.type === 'bush';
+    items.push({ leaf: leafy ? { x: p.x * TP + 16, y: p.y * TP + 14, c: p.type === 'pine' ? '#2f5a46' : p.type === 'bush' ? '#5a7a4a' : (p.color || '#4f7a4a') } : null, y: (p.y + (pp.h || 1)) * TP - 4, x0: p.x * TP - 48, x1: (p.x + (pp.w || 1)) * TP + 48, y0: p.y * TP - 120, y1: (p.y + (pp.h || 1)) * TP + 24, draw: (g, t) => drawProp(g, pp, { wind: 0, map: gm, time: t, night: false }) });
   }
   for (const b of map.buildings) { const sprite = bakeBuilding(b); items.push({ y: (b.y + b.h) * TP, b, x0: b.x * TP, x1: b.x * TP + sprite.width, y0: b.y * TP, y1: b.y * TP + sprite.height, draw: (g, t, B) => { g.drawImage(sprite, b.x * TP, b.y * TP); if (B) for (const r of B.rubble) if (r.x >= b.x && r.x < b.x + b.w && r.y >= b.y && r.y < b.y + b.h) rubble(g, r.x, r.y); } }); }
   for (const c of map.cars || []) items.push({ y: c.y + 10, x0: c.x - 70, x1: c.x + 70, y0: c.y - 40, y1: c.y + 40, draw: (g) => drawCar(g, c.kind, c.color, c.dir, c.x, c.y) });
@@ -161,6 +162,7 @@ export class BattleView {
     const open = ui.open || {};
     // a building opened to a floor plan lies flat on the ground; the rest stand, in order from back to front, with the people between them
     for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor, this.scene.gm); }
+    for (const r of B.rubble) if (B.map.bid[r.y * B.map.w + r.x] < 0) rubble(g, r.x, r.y); // (a breach in a wall that is not a building's, as round a compound)
     if (tier === 'far') { this.drawItems(g, [], open); this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
     const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y).filter((u) => {
       const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
@@ -204,10 +206,12 @@ export class BattleView {
   drawItems(g, units, open, B, ui) {
     const cam = this.cam; const vx0 = cam.x; const vy0 = cam.y; const vx1 = cam.x + this.cv.width / cam.zoom; const vy1 = cam.y + this.cv.height / cam.zoom; let k = 0;
     const flush = (limit) => { while (k < units.length && units[k].y * TP <= limit) { this.unit(g, units[k], B, ui); k++; } };
+    const far = this.tier() === 'far';
     for (const it of this.scene.items) {
       flush(it.y);
       if (it.x1 < vx0 || it.x0 > vx1 || it.y1 < vy0 || it.y0 > vy1) continue;
       if (it.b && open[it.b.id]) continue;
+      if (far && it.leaf) { g.fillStyle = it.leaf.c; g.fillRect(it.leaf.x - 12, it.leaf.y - 14, 24, 22); continue; } // (seen from far, a tree is a green blot: the whole forest in view is thousands of sprites)
       it.draw(g, this.t, this.B);
     }
     flush(Infinity);
