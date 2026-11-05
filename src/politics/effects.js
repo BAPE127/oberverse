@@ -6,8 +6,8 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 export function effectsOf(active, E) {
-  const KEYS = ['farmFee', 'portFees', 'sundArms', 'publicBudgets', 'sundDisputes', 'worldTension', 'relations'];
-  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sundDisputes: 0, worldTension: 0, relations: 0, sentiment: {}, lines: [] };
+  const KEYS = ['farmFee', 'portFees', 'sundArms', 'publicBudgets', 'sundDisputes', 'worldTension', 'relations', 'policeDelay', 'fineFactor', 'sentenceFactor', 'heatFactor'];
+  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sundDisputes: 0, worldTension: 0, relations: 0, policeDelay: 0, fineFactor: 0, sentenceFactor: 0, heatFactor: 0, sentiment: {}, lines: [] };
   if (!E.enabled) return out;
   for (const id of [...active].sort()) {
     const p = E.policies[id];

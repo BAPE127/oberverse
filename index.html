@@ -23900,7 +23900,7 @@ class Police {
       if (inc) { inc.sev = open.sev; inc.witnesses = [...new Set([...inc.witnesses, ...(about.witnesses || [])])]; }
       return;
     }
-    const delay = this.bribed() ? 240 : 8 + g.rng.int(0, 10);
+    const delay = this.bribed() ? 240 : Math.round((8 + g.rng.int(0, 10)) * (g.politics?.policeDelayFactor() ?? 1)); // v0.97.0: police funding changes how soon a call is answered
     // v0.35.0: every call is an incident, kept (and saved) from the report to the all-clear
     const inc = { id: `inc${s.nextIncident++}`, reported: g.clock.total, sev, ...pos, fact: about.fact || null, witnesses: about.witnesses || [], status: 'reported', officers: [], closed: null };
     s.incidents.push(inc);
@@ -24127,7 +24127,7 @@ class Police {
   }
 
   finePrice() {
-    return 20 * this.state.wanted + this.state.record * 3;
+    return Math.round((20 * this.state.wanted + this.state.record * 3) * (this.game.politics?.fineFactor() ?? 1)); // v0.97.0: enforcement
   }
 
   bribe() {
@@ -24177,7 +24177,7 @@ class Police {
   }
 
   sentenceHours() {
-    return clamp(Math.round(4 + this.state.record * 2), 4, 168);
+    return clamp(Math.round((4 + this.state.record * 2) * (this.game.politics?.sentenceFactor() ?? 1)), 4, 168); // v0.97.0: enforcement
   }
 
   /** Arrested, beaten, or struck down: everything ends in a cell. */
@@ -27408,7 +27408,7 @@ const POLLSTERS = {
 
 const OPINION = {
   /** How strongly each thing moves approval and support; every figure bounded. */
-  weights: { affinityGov: 0.18, affinityOpp: 0.08, policy: 0.06, policyCap: 0.3, deficit: 0.5, war: 0.03, embargo: 0.015, tilt: 1, softmax: 2.2, mood: 2.5, other: 0.35, undecided: 0.5 },
+  weights: { unrest: 0.05, affinityGov: 0.18, affinityOpp: 0.08, policy: 0.06, policyCap: 0.3, deficit: 0.5, war: 0.03, embargo: 0.015, tilt: 1, softmax: 2.2, mood: 2.5, other: 0.35, undecided: 0.5 },
   logKept: 60, seriesKept: 120,
 };
 
@@ -27445,7 +27445,7 @@ function compute(ctx) {
   const opp = ctx.gov === 'order' ? 'liberty' : 'order';
   const sat = {};
   for (const b of Object.keys(BLOCS)) sat[b] = clamp(ctx.policies.reduce((a, p) => a + (p.blocs[b] || 0), 0) * W.policy, -W.policyCap, W.policyCap);
-  const macro = -clamp(ctx.deficitRatio, -0.5, 1) * W.deficit * 0.5 - ctx.wars * W.war - ctx.embargoes * W.embargo;
+  const macro = -clamp(ctx.deficitRatio, -0.5, 1) * W.deficit * 0.5 - ctx.wars * W.war - ctx.embargoes * W.embargo - clamp(ctx.unrest || 0, 0, 1) * W.unrest; // (v0.97.0: demonstrations and riots weigh on the government)
   const regions = {};
   const tot = { approval: 0, order: 0, liberty: 0, other: 0, undecided: 0, w: 0 };
   for (const [rid, R] of Object.entries(REGIONS)) {
@@ -27911,6 +27911,7 @@ const electionMethods = {
   /** Each minute: the night's crowd gathers at 19:30 and the announcement comes at 22:00 on polling day (or at once if the day has gone by). */
   minuteTick() {
     const s = this.peek();
+    this.crowdTick(); // v0.97.0: the demonstration ground, while you are there
     const el = s?.elections;
     if (!el?.pending) return;
     const r = el.pending;
@@ -28309,7 +28310,7 @@ const influenceMethods = {
     const roll = unit(`${s.elections?.salt || s.pollSalt}|offer|${id}`);
     const o = pickOutcome(q.odds, roll);
     const entry = this.record(inf, { kind: 'offer', contact: key, party: c.party, request: requestId, policy: q.policy, amount: q.price, illicit, outcome: o, public: false });
-    if (illicit) inf.heat += I.heat.illicit + (o === 'reported' ? I.heat.reported : 0);
+    if (illicit) inf.heat += (I.heat.illicit + (o === 'reported' ? I.heat.reported : 0)) * this.heatFactor(); // (v0.97.0: surveillance)
     let note = '';
     if (['accepted', 'half', 'delayed'].includes(o)) {
       inf.used[`${term}|${key}`] = (inf.used[`${term}|${key}`] || 0) + 1;
@@ -28341,7 +28342,7 @@ const influenceMethods = {
     if (k.illicit) this.charge(k.price); else inf.favours[c.party] -= k.favours;
     const term = termOf(this.day, s.constitution).index;
     inf.used[`${term}|${k.contact}`] = (inf.used[`${term}|${k.contact}`] || 0) + 1;
-    if (k.illicit) inf.heat += I.heat.illicit;
+    if (k.illicit) inf.heat += I.heat.illicit * this.heatFactor();
     const entry = this.record(inf, { kind: 'offer', contact: k.contact, party: c.party, request: k.request, policy: k.policy, amount: k.price, illicit: k.illicit, outcome: 'accepted', public: false, counter: true });
     const note = this.apply(s, inf, c, k.request, k.policy, 'accepted');
     return { ok: true, outcome: 'accepted', label: 'accepted', text: `${this.nameOf(c)} agrees at the new price. ${note}`, price: k.price, entry };
@@ -28417,7 +28418,7 @@ const influenceMethods = {
     entry.exposed = true; inf.exposures++;
     const E = I.exposure;
     const taken = ['accepted', 'half', 'delayed'].includes(entry.outcome);
-    this.addScandal(s, el, { party: entry.party, day: this.day, severity: taken ? E.severity.taken : E.severity.tried, credibility: 1, attention: E.attention, source: 'exposure', text: `an offer to ${this.nameOf(this.contact(entry.contact, s) || { role: 'an official' })} comes out: "${I.requests[entry.request]?.name || 'a favour'}"` });
+    this.addScandal(s, el, { party: entry.party, day: this.day, severity: taken ? E.severity.taken : E.severity.tried, credibility: 1, attention: E.attention, source: 'exposure', text: entry.kind === 'unrest' ? `secret payments to the organisers of ${entry.note || 'a demonstration'} come out` : `an offer to ${this.nameOf(this.contact(entry.contact, s) || { role: 'an official' })} comes out: "${I.requests[entry.request]?.name || 'a favour'}"` });
     const fine = Math.max(E.fineMin, entry.amount * E.fineTimes);
     const paid = Math.min(fine, Math.max(0, this.g.player.money));
     if (paid > 0) { this.charge(paid); s.budget.debt = Math.max(0, s.budget.debt - paid / 1000); }
@@ -28425,7 +28426,7 @@ const influenceMethods = {
     for (const c of this.contactDefs(s)) { const npc = this.npcOf(c); if (npc && c.key === entry.contact) this.g.relationships.adjust(npc, 'player', { trust: -E.trustLoss, suspicion: 8 }, 'exposed'); }
     inf.heat *= I.heat.after;
     this.log(s, `Investigators found an offer: ${how}.`);
-    this.news(`🔎 ${how === 'reported' ? 'An official reported an offer' : 'Investigators have found an offer'} made to ${this.nameOf(this.contact(entry.contact, s) || { role: 'a minister' })}. A fine of ${paid.toLocaleString('en-US')} obols has been paid to the state. The party concerned says it knew nothing.`);
+    this.news(`🔎 ${how === 'reported' ? 'An official reported an offer' : 'Investigators have found an offer'}${entry.kind === 'unrest' ? ' of secret money to demonstrators' : ` made to ${this.nameOf(this.contact(entry.contact, s) || { role: 'a minister' })}`}. A fine of ${paid.toLocaleString('en-US')} obols has been paid to the state. The party concerned says it knew nothing.`);
   },
 
   /** Appointments and invitations made by meetings lapse after a couple of days (the steward's own invitations, set once, stay). */
@@ -28478,8 +28479,8 @@ __m["src/content/effects.js"] = (function () {
 // already worked out; nothing is a new tax on your wallet. A levy you pay is the state's revenue (it reduces the state's debt: no money from nowhere), and every
 // effect is shown to you as a named line (Politics → Government).
 //
-// Policies that name no effect here (police, enforcement, surveillance) reach the world in later releases (unrest). Commitments abroad reach diplomacy (src/systems/politicsDiplomacy.js). The knob
-// `enabled` switches every effect off for a parity check: with it off, the game behaves exactly as it did at v0.95.0.
+// Police, enforcement and surveillance reach the police and the influence ledger (v0.97.0); commitments abroad reach diplomacy (src/systems/politicsDiplomacy.js). The knob
+// `enabled` switches the ECONOMY AND POLICE effects in this file off for a parity check (the farm fee, port fees, Sund's budgets, sentiment, the bond's debt premium, police delay, fines, sentences and heat). It does not undo diplomacy (the one writer of wars and embargoes, v0.96.0) or the merge of Sund's bond, which are not effects.
 
 const off = typeof process !== 'undefined' && process.env && process.env.OBERVERSE_POLITICS === 'off';
 
@@ -28496,12 +28497,18 @@ const EFFECTS = {
     defence_down: { sundArms: -0.4, sentiment: { arms: -0.03, aerospace: -0.01 }, line: 'Cut defence spending: Sund buys less (its arms budget refills 40% slower) and arms companies are expected to earn less.' },
     abroad_up: { sundDisputes: 0.6, worldTension: 0.08, relations: -4, line: 'More commitments abroad: disputes that Sund is party to are 60% likelier to start, the world is a little tenser, and other countries think a little less of Sund.' },
     abroad_down: { sundDisputes: -0.5, worldTension: -0.05, relations: 6, line: 'Fewer commitments abroad: disputes that Sund is party to are half as likely to start, the world is a little calmer, and other countries think a little better of Sund.' },
+    police_up: { policeDelay: -0.25, line: 'Raised police funding: a call to the police is answered about a quarter sooner, and a demonstration is policed more firmly.' },
+    police_down: { policeDelay: 0.3, line: 'Cut police funding: a call to the police takes about 30% longer to be answered, and demonstrations are policed more lightly.' },
+    enforce_strict: { fineFactor: 0.25, sentenceFactor: 0.25, line: 'Stricter enforcement: fines to get out of trouble are 25% higher and sentences 25% longer.' },
+    enforce_light: { fineFactor: -0.2, sentenceFactor: -0.25, line: 'Lighter enforcement: fines are 20% lower and sentences 25% shorter.' },
+    surveil_up: { heatFactor: 0.25, line: 'Expanded surveillance: illicit offers leave 25% more heat, so investigators find them sooner.' },
+    surveil_down: { heatFactor: -0.2, line: 'Limited surveillance: illicit offers leave 20% less heat.' },
     spend_up: { publicBudgets: 0.4, sentiment: { industrial: 0.01, transport: 0.01 }, line: 'Expanded public spending: Sund\'s public customers (the Space Office, the Met Office) have 40% more to spend on tenders.' },
     spend_down: { publicBudgets: -0.3, sentiment: { industrial: -0.01, transport: -0.01 }, line: 'Cut public spending: Sund\'s public customers have 30% less to spend on tenders.' },
   },
 
   /** Bounds on the sum of every policy's effect, per hook. */
-  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sundDisputes: [-0.6, 1], worldTension: [-0.2, 0.3], relations: [-15, 15], sentiment: 0.05 },
+  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sundDisputes: [-0.6, 1], worldTension: [-0.2, 0.3], relations: [-15, 15], policeDelay: [-0.4, 0.5], fineFactor: [-0.3, 0.4], sentenceFactor: [-0.4, 0.5], heatFactor: [-0.3, 0.4], sentiment: 0.05 },
 
   /** The tender customers that are Sund's own public bodies. */
   publicCustomers: ['cu_sund_space', 'cu_halver_weather'],
@@ -28523,8 +28530,8 @@ __m["src/politics/effects.js"] = (function () {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function effectsOf(active, E) {
-  const KEYS = ['farmFee', 'portFees', 'sundArms', 'publicBudgets', 'sundDisputes', 'worldTension', 'relations'];
-  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sundDisputes: 0, worldTension: 0, relations: 0, sentiment: {}, lines: [] };
+  const KEYS = ['farmFee', 'portFees', 'sundArms', 'publicBudgets', 'sundDisputes', 'worldTension', 'relations', 'policeDelay', 'fineFactor', 'sentenceFactor', 'heatFactor'];
+  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sundDisputes: 0, worldTension: 0, relations: 0, policeDelay: 0, fineFactor: 0, sentenceFactor: 0, heatFactor: 0, sentiment: {}, lines: [] };
   if (!E.enabled) return out;
   for (const id of [...active].sort()) {
     const p = E.policies[id];
@@ -28595,6 +28602,12 @@ const economyMethods = {
 
   /** The multiplier on how fast Sund's own arms budget refills. */
   sundArmsFactor() { return 1 + this.fx().sundArms; },
+
+  /** Police (v0.97.0): the multiplier on how long a call takes to be answered, on fines and on sentences; and on the heat illicit offers leave. */
+  policeDelayFactor() { return 1 + this.fx().policeDelay; },
+  fineFactor() { return 1 + this.fx().fineFactor; },
+  sentenceFactor() { return 1 + this.fx().sentenceFactor; },
+  heatFactor() { return 1 + this.fx().heatFactor; },
 
   /** The multiplier on how fast Sund's public customers' tender budgets refill. */
   publicBudgetFactor() { return 1 + this.fx().publicBudgets; },
@@ -28905,6 +28918,333 @@ const diplomacyMethods = {
 return { diplomacyMethods };
 })();
 
+// ---- src/content/unrest.js
+__m["src/content/unrest.js"] = (function () {
+// Unrest (v0.97.0): demonstrations as records, the police response, and what the player may do. Pure data; every figure the model uses is here.
+//
+// A demonstration is a record (a cause, a place, a size, an anger, organisers) with a small visible crowd when the player is on the Crown Quarter. It ends peacefully,
+// is cleared by the police, or escalates, according to its anger, its size, how the police are set to respond (policies and how many officers are on duty) and what the player does.
+// It never means every protest is a riot: nearly all end peacefully. Every chance is a hash of the day and the demonstration, never a random draw.
+
+const UNREST = {
+  /** Tension (0..1) from the state of the country. */
+  tension: { disapproval: 0.55, deficit: 0.25, war: 0.04, embargo: 0.02, scandal: 0.15, dislike: 0.30, heatWeight: 0.1 },
+  /** The chance a demonstration begins on a day: base + per point of tension above `from`, hashed; at most `max` at once; a pause of `cooldown` days between starts. */
+  start: { base: 0.006, from: 0.2, perTension: 0.09, cap: 0.09, max: 2, cooldown: 6 },
+  /** A demonstration: its size (people, aggregate), its starting anger (0..1), and its length. */
+  size: [30, 380], anger: [0.25, 0.6], days: { min: 2, max: 9 },
+  /** How anger moves each day (0..1): pressure from the country's tension, a calming decay, and what the police response does. */
+  drift: { pressure: 0.06, decay: 0.035, heavy: 0.05, light: -0.015 },
+  /** The police response level (0..1) from the base, the policies and the officers on duty; below `light` the police only watch, above `heavy` they disperse. */
+  police: { base: 0.45, up: 0.2, down: -0.2, strict: 0.2, light: -0.2, staffing: 0.1, staffBaseline: 6, lightBelow: 0.35, heavyFrom: 0.65 },
+  /** Escalation (a riot): a daily hash chance, base + anger above 0.55 + a heavy-handed response against an angry crowd + size, less with surveillance; never above `cap`. */
+  riot: { base: 0.006, perAnger: 0.2, heavy: 0.14, perSize: 0.05, cap: 0.3, intelligence: 0.3, days: [1, 2] },
+  /** The police clear a modest crowd on a heavy response: a daily chance. */
+  clear: { chance: 0.3, angerBelow: 0.6, sizeBelow: 220 },
+  /** After a riot or a clearing the anger falls to this share. */
+  after: { riot: 0.5, cleared: 0.4 },
+  /** What a demonstration does to the country (opinion): heat is `perDemo` × size share while it lasts, `perRiot` for a riot, and fades by `fade` a day. */
+  heat: { perDemo: 0.08, perRiot: 0.6, fade: 0.12, cap: 1 },
+  /** What the player may do. */
+  support: { min: 1000, cap: 20000, sizePer: 0.5, angerPer: 0.05 },        // an open donation to the organisers: size +0.5 per 1,000 (as a share of size / 100 each), anger a little
+  speak: { base: 0.35, perRep: 0.01, perRel: 0.004, anger: -0.15, fail: 0.03, rep: 1 },
+  fund: { price: 30000, size: 1.25, anger: 0.12, heat: 6 },                  // secret money: recorded as an illicit offer, found out like one
+  /** The crowd you can see: the real people who come (party organisers and press), and how many officers are sent, on a firm or heavy response. */
+  crowd: { from: 10, to: 18, errandMinutes: 40, officers: { light: 0, firm: 1, heavy: 2 }, spot: 'demonstration' },
+  kept: 14, log: 12,
+  /** Hooks left for later systems (a coup): read-only. */
+  hooks: { legitimacyApproval: 0.5, legitimacyCalm: 0.3, legitimacyMandate: 0.2 },
+};
+
+return { UNREST };
+})();
+
+// ---- src/politics/unrest.js
+__m["src/politics/unrest.js"] = (function () {
+// Unrest (v0.97.0): the rules, pure. Chance comes only from a hash of the demonstration and the day.
+//
+//   tensionOf(x)                    0..1: how much of the country is angry
+//   startChance(tension, U)         the daily chance a demonstration begins
+//   causeOf(policies, key)          what this one is about: a bloc against a policy in force (or the war, or the state's books)
+//   policeLevel(x)                  0..1 and its name ('light' | 'firm' | 'heavy')
+//   newDemo(...)                    a demonstration record
+//   stepDemo(d, day, ctx)           one day: { demo, events }  events: peaceful | cleared | riot | ended
+//   hooksOf(x)                      read-only state for later systems: legitimacy, stability, factions, emergency powers, succession
+const { UNREST: U } = __m["src/content/unrest.js"];
+const { BLOCS } = __m["src/content/opinion.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+
+/** x: { approval, deficitRatio, wars, embargoes, scandal (0..1), dislike (0..1: the worst a bloc thinks of a policy in force), heat }. */
+function tensionOf(x) {
+  const T = U.tension;
+  return clamp(T.disapproval * (1 - x.approval) + T.deficit * clamp(x.deficitRatio, 0, 1) + T.war * x.wars + T.embargo * x.embargoes + T.scandal * clamp(x.scandal, 0, 1) + T.dislike * clamp(x.dislike, 0, 1) + T.heatWeight * (x.heat || 0), 0, 1);
+}
+
+const startChance = (tension) => clamp(U.start.base + U.start.perTension * Math.max(0, tension - U.start.from), 0, U.start.cap);
+
+/** policies: the definitions in force ({ id, name, blocs }). Returns { kind, bloc, policy?, text } — weighted by how much a bloc dislikes a policy; the war or the books if none. */
+function causeOf(policies, key, ctx = {}) {
+  const cands = [];
+  for (const p of policies) for (const [b, v] of Object.entries(p.blocs || {})) if (v < 0) cands.push({ kind: 'policy', bloc: b, policy: p.id, w: -v, text: `${BLOCS[b].name} against "${p.name}"` });
+  if (ctx.wars) cands.push({ kind: 'war', bloc: 'civil_liberties', w: 0.8 * ctx.wars, text: `${BLOCS.civil_liberties.name} against the war abroad` });
+  if (ctx.deficit > 0.15) cands.push({ kind: 'books', bloc: 'public_servants', w: 1.2, text: `${BLOCS.public_servants.name} against the cuts the deficit brings` });
+  if (!cands.length) cands.push({ kind: 'mood', bloc: 'urban', w: 1, text: `${BLOCS.urban.name} on a general discontent` });
+  cands.sort((a, b) => (a.text < b.text ? -1 : 1));
+  const total = cands.reduce((a, c) => a + c.w, 0);
+  let r = unit(`${key}|cause`) * total;
+  for (const c of cands) { r -= c.w; if (r <= 0) { const { w, ...rest } = c; return rest; } }
+  const { w, ...rest } = cands[cands.length - 1];
+  return rest;
+}
+
+/** x: { active: ids of policies in force, officers (on duty) }. */
+function policeLevel(x) {
+  const P = U.police;
+  const has = (id) => (x.active.includes(id) ? 1 : 0);
+  const level = clamp(P.base + P.up * has('police_up') + P.down * has('police_down') + P.strict * has('enforce_strict') + P.light * has('enforce_light') + P.staffing * clamp(x.officers / P.staffBaseline - 1, -1, 1), 0, 1);
+  return { level, name: level < P.lightBelow ? 'light' : level >= P.heavyFrom ? 'heavy' : 'firm' };
+}
+
+function newDemo({ id, day, key, cause, tension }) {
+  const size = Math.round(U.size[0] + unit(`${key}|size`) * (U.size[1] - U.size[0]) * (0.5 + tension));
+  const anger = U.anger[0] + unit(`${key}|anger`) * (U.anger[1] - U.anger[0]);
+  const days = U.days.min + Math.floor(unit(`${key}|days`) * (U.days.max - U.days.min + 1));
+  return { id, day, cause, size: Math.min(900, size), anger: Math.round(anger * 1000) / 1000, days, stage: 'gathering', organisers: BLOCS[cause.bloc].name, spot: U.crowd.spot, supported: 0, spoke: -1, funded: false, riotUntil: null };
+}
+
+/**
+ * One day of a demonstration. ctx: { salt, tension, police: { level, name }, intelligence (0..1: surveillance) }.
+ * Anger drifts with the country's tension, decays, and rises under a heavy response and falls under a light one. A riot is a hash chance that grows with anger, a heavy hand on an
+ * angry crowd and size; the police may clear a modest crowd; otherwise it ends peacefully when its time is up or its anger spent. Most end peacefully.
+ */
+function stepDemo(d, day, ctx) {
+  const D = { ...d };
+  const events = [];
+  const key = `${ctx.salt}|demo|${d.id}|${day}`;
+  if (D.stage === 'riot') {
+    if (day >= D.riotUntil) { D.stage = 'ended'; D.anger = Math.round(D.anger * U.after.riot * 1000) / 1000; events.push({ kind: 'ended', how: 'the riot burns out' }); }
+    return { demo: D, events };
+  }
+  const age = day - D.day;
+  const heavy = ctx.police.name === 'heavy' ? 1 : 0; const light = ctx.police.name === 'light' ? 1 : 0;
+  D.anger = clamp(D.anger + U.drift.pressure * (ctx.tension - 0.3) - U.drift.decay + U.drift.heavy * heavy * (D.anger > 0.4 ? 1 : 0) + U.drift.light * light, 0, 1);
+  D.anger = Math.round(D.anger * 1000) / 1000;
+  if (D.stage === 'gathering' && age >= 1) D.stage = 'march';
+  const R = U.riot;
+  const p = clamp((R.base + R.perAnger * Math.max(0, D.anger - 0.55) + R.heavy * heavy * Math.max(0, D.anger - 0.4) + R.perSize * (D.size / 400) * (D.anger > 0.5 ? 1 : 0.3)) * (1 - R.intelligence * (ctx.intelligence || 0)), 0, R.cap);
+  if (age >= 1 && unit(`${key}|riot`) < p) {
+    D.stage = 'riot'; D.riotUntil = day + R.days[0] + Math.floor(unit(`${key}|rlen`) * (R.days[1] - R.days[0] + 1));
+    events.push({ kind: 'riot' });
+    return { demo: D, events };
+  }
+  if (heavy && age >= 1 && D.anger < U.clear.angerBelow && D.size < U.clear.sizeBelow && unit(`${key}|clear`) < U.clear.chance) {
+    D.stage = 'ended'; D.anger = Math.round(D.anger * U.after.cleared * 1000) / 1000;
+    events.push({ kind: 'cleared' });
+    return { demo: D, events };
+  }
+  if (age >= D.days || (age >= U.days.min && D.anger < 0.12)) { D.stage = 'ended'; events.push({ kind: 'peaceful' }); }
+  return { demo: D, events };
+}
+
+/** x: { approval, tension, heat, margin (the last election's, 0..1), demos (active count), wars }. Read-only: later systems may use it; nothing here acts on it. */
+function hooksOf(x) {
+  const H = U.hooks;
+  const legitimacy = clamp(H.legitimacyApproval * x.approval + H.legitimacyCalm * (1 - clamp(x.heat, 0, 1)) + H.legitimacyMandate * clamp(0.5 + x.margin * 4, 0, 1), 0, 1);
+  const stability = clamp(1 - x.tension * 0.6 - clamp(x.heat, 0, 1) * 0.3 - 0.03 * x.wars - 0.04 * x.demos, 0, 1);
+  return { legitimacy: Math.round(legitimacy * 1000) / 1000, stability: Math.round(stability * 1000) / 1000, factions: ['the Order Party', 'the Liberty League', 'the Assembly\'s independents', 'the crown'], emergencyPowers: false, succession: { head: 'the king', age: 11, heir: null, note: 'a regency would be the Assembly\'s to name' } };
+}
+
+return { unit, tensionOf, startChance, causeOf, policeLevel, newDemo, stepDemo, hooksOf };
+})();
+
+// ---- src/systems/politicsUnrest.js
+__m["src/systems/politicsUnrest.js"] = (function () {
+// Unrest (v0.97.0): demonstrations, the police response and what you may do about them. Added to the Politics service.
+//
+// A demonstration is a record (src/politics/unrest.js): a cause (a bloc against a policy in force, the war, or the cuts), a size, an anger, organisers. Each government day it
+// may begin (a hash chance that grows with the country's tension), and each active one moves a step: it ends peacefully (most do), is cleared by the police, or escalates into a
+// riot. The police response comes from the policies in force and the officers on duty. The visible crowd (the opposition's organiser and press, a couple of officers) appears on the
+// Crown Quarter's demonstration ground only while you are there; elsewhere a demonstration is only a record. Nothing here raises Wanted on you: you are never wanted for being there;
+// funding it in secret is an illicit offer, recorded and found out like the others. No random draw anywhere.
+const { UNREST: U } = __m["src/content/unrest.js"];
+const { POLICIES } = __m["src/content/policies.js"];
+const { STAFF_BY_PARTY } = __m["src/content/capital.js"];
+const { tensionOf, startChance, causeOf, policeLevel, newDemo, stepDemo, hooksOf, unit } = __m["src/politics/unrest.js"];
+const { INFLUENCE: I } = __m["src/content/influence.js"];
+const { OTHER_PARTY } = __m["src/politics/model.js"];
+
+const unrestMethods = {
+  ensureUnrest(s) {
+    if (s.unrest) return s.unrest;
+    s.unrest = { v: 1, salt: String(this.g.rng.state), demos: [], history: [], nextId: 1, lastStart: -99, heat: 0, lastDay: this.day - 1 };
+    return s.unrest;
+  },
+
+  /** What the country's tension is made of, today (read from polls and the books: no hidden number is shown). */
+  tensionNow(s, u = this.ensureUnrest(s)) {
+    const m = this.budgetNow(s);
+    const active = s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]);
+    let dislike = 0;
+    for (const p of active) for (const v of Object.values(p.blocs || {})) if (v < 0) dislike = Math.max(dislike, -v / 2);
+    return tensionOf({ approval: this.approval(s), deficitRatio: m.deficit / m.revenue, wars: this.wars(), embargoes: this.embargoes(), scandal: this.scandalNow(s, s.government.partyId), dislike, heat: u.heat });
+  },
+
+  /** How the police are set to respond today: the level and its name, and how much surveillance helps them see it coming. */
+  policing(s) {
+    const active = s.policies.filter((p) => p.state === 'active').map((p) => p.key);
+    const officers = this.g.police?.activeOfficers?.().length ?? U.police.staffBaseline;
+    return { ...policeLevel({ active, officers }), intelligence: active.includes('surveil_up') ? 1 : active.includes('surveil_down') ? -0.5 : 0 };
+  },
+
+  activeDemos(s = this.ensure()) { return (s.unrest?.demos || []).filter((d) => d.stage !== 'ended'); },
+
+  /** One government day: demonstrations begin and move on. Idempotent per day (called from governmentStep). */
+  unrestStep(s, day) {
+    const u = this.ensureUnrest(s);
+    const tension = this.tensionNow(s, u);
+    const police = this.policing(s);
+    // the heat the country feels from what is going on (opinion reads it)
+    let heat = u.heat * (1 - U.heat.fade);
+    for (const d of this.activeDemos(s)) heat += d.stage === 'riot' ? 0 : U.heat.perDemo * Math.min(1, d.size / 400) * (0.5 + d.anger);
+    for (const d of this.activeDemos(s)) {
+      const r = stepDemo(d, day, { salt: u.salt, tension, police, intelligence: police.intelligence });
+      Object.assign(d, r.demo);
+      for (const e of r.events) this.unrestEvent(s, u, d, e, day);
+      if (r.events.some((e) => e.kind === 'riot')) heat += U.heat.perRiot;
+    }
+    u.heat = Math.round(Math.min(U.heat.cap, heat) * 1000) / 1000;
+    // a new one?
+    if (this.activeDemos(s).length < U.start.max && day - u.lastStart >= U.start.cooldown && unit(`${u.salt}|start|${day}`) < startChance(tension)) {
+      const active = s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]);
+      const m = this.budgetNow(s);
+      const key = `${u.salt}|new|${u.nextId}`;
+      const cause = causeOf(active, key, { wars: this.wars(), deficit: m.deficit / m.revenue });
+      const d = newDemo({ id: u.nextId++, day, key, cause, tension });
+      u.demos.push(d); u.lastStart = day;
+      this.log(s, `A demonstration in Sovereign Square: ${cause.text} (about ${d.size} people).`);
+      this.news(`📣 Demonstration in Sovereign Square: ${cause.text}. About ${d.size} people.`, 'verified');
+    }
+    // keep the record small: the newest, plus anything still going
+    u.history = u.history.slice(-U.log);
+    const done = u.demos.filter((d) => d.stage === 'ended');
+    if (done.length > U.kept) u.demos = u.demos.filter((d) => d.stage !== 'ended' || done.indexOf(d) >= done.length - U.kept);
+    u.lastDay = day;
+  },
+
+  unrestEvent(s, u, d, e, day) {
+    const where = 'in Sovereign Square';
+    let text;
+    if (e.kind === 'riot') {
+      text = `Trouble ${where}: the demonstration (${d.cause.text}) has turned into a riot.`;
+      this.news(`🔥 ${text}`, 'verified');
+      this.g.bus.emit('politics:riot', { id: d.id });
+    } else if (e.kind === 'cleared') {
+      text = `The police clear the demonstration ${where} (${d.cause.text}).`;
+      this.news(`🚔 ${text}`, 'verified');
+    } else if (e.kind === 'ended') {
+      text = `The riot ${where} burns out.`;
+      this.news(`📰 ${text}`, 'verified');
+    } else {
+      text = `The demonstration ${where} ends peacefully (${d.cause.text}).`;
+    }
+    u.history.push({ day, id: d.id, kind: e.kind, text });
+    this.log(s, text);
+  },
+
+  // ---------------------------------------------------------------- the visible crowd
+  /** Every half hour, while you are on the Crown Quarter in the afternoon, the organisers and the press come to the demonstration ground and officers are sent. Never otherwise. */
+  crowdTick() {
+    const s = this.peek();
+    const g = this.g;
+    if (!s?.unrest || g.player.map !== 'crown_quarter') return;
+    const m = g.clock.minuteOfDay;
+    if (m % 30 !== 0 || m < U.crowd.from * 60 || m >= U.crowd.to * 60) return;
+    const demos = this.activeDemos(s);
+    if (!demos.length) return;
+    const map = g.maps.get('crown_quarter');
+    const spot = map?.spotPx(U.crowd.spot);
+    if (!spot) return;
+    const opp = OTHER_PARTY(s.government.partyId);
+    const gov = s.government.partyId;
+    const who = [STAFF_BY_PARTY[opp]?.organiser, STAFF_BY_PARTY[opp]?.communications, STAFF_BY_PARTY[opp]?.press_secretary, STAFF_BY_PARTY[gov]?.press_secretary].filter(Boolean);
+    for (const id of who) { const npc = g.npcs.get(id); if (npc && !npc.pursuit && npc.map === 'crown_quarter') g.sendOnErrand(npc, { spot: `crown_quarter:${U.crowd.spot}`, activity: 'demonstration', minutes: U.crowd.errandMinutes }); }
+    const level = this.policing(s).name;
+    const want = U.crowd.officers[level] || 0;
+    let sent = 0;
+    for (const o of (g.police?.activeOfficers?.() || [])) {
+      if (sent >= want) break;
+      if (o.intent?.source === 'dispatch' || o.pursuit || o.activity === 'sleep') continue;
+      g.police.dispatch(o, 'crown_quarter', spot.x, spot.y, null); sent++;
+    }
+  },
+
+  // ---------------------------------------------------------------- what you may do
+  /** An open donation to the organisers: it swells the crowd and sharpens the mood a little; public and recorded. */
+  supportDemo(id, amount) {
+    const s = this.ensure(); const u = this.ensureUnrest(s); const inf = this.ensureInfluence(s);
+    const d = u.demos.find((x) => x.id === id);
+    if (!d || d.stage === 'ended') return { ok: false, text: 'That demonstration is over.' };
+    amount = Math.floor(Number(amount) || 0);
+    const S = U.support;
+    if (amount < S.min) return { ok: false, text: `The organisers will take at least ${S.min} obols.` };
+    if (d.supported + amount > S.cap) return { ok: false, text: `The organisers cannot take more than ${S.cap.toLocaleString('en-US')} obols from one person for this.` };
+    if (this.g.player.money < amount) return { ok: false, text: 'You can\'t afford that.' };
+    this.charge(amount);
+    d.supported += amount;
+    d.size = Math.round(d.size * (1 + (amount / 1000) * S.sizePer / 100));
+    d.anger = Math.min(1, Math.round((d.anger + S.angerPer * (amount / S.cap)) * 1000) / 1000);
+    this.record(inf, { kind: 'support', party: OTHER_PARTY(s.government.partyId), amount, outcome: 'given', public: true, note: d.cause.text });
+    return { ok: true, text: `You gave ${amount.toLocaleString('en-US')} obols to the organisers (${d.cause.text}). It is public and recorded; it will not make the government think better of you.` };
+  },
+
+  /** Speak for talks: free, once a day per demonstration; may calm it, may make you look like a meddler. Decided by a hash of the demonstration and the day. */
+  speakDemo(id) {
+    const s = this.ensure(); const u = this.ensureUnrest(s);
+    const d = u.demos.find((x) => x.id === id);
+    if (!d || d.stage === 'ended') return { ok: false, text: 'That demonstration is over.' };
+    if (d.spoke === this.day) return { ok: false, text: 'You have said your piece today.' };
+    d.spoke = this.day;
+    const Sp = U.speak;
+    const rel = this.standing().relations;
+    const p = Math.max(0.1, Math.min(0.85, Sp.base + Sp.perRep * this.repNow() + Sp.perRel * rel));
+    const yes = unit(`${u.salt}|speak|${d.id}|${this.day}`) < p;
+    if (yes) { d.anger = Math.max(0, Math.round((d.anger + Sp.anger) * 1000) / 1000); this.g.adjustReputation(I.repFaction, Sp.rep); return { ok: true, text: 'You speak for talks and the crowd listens. The mood eases.' }; }
+    d.anger = Math.min(1, Math.round((d.anger + Sp.fail) * 1000) / 1000); this.g.adjustReputation(I.repFaction, -Sp.rep);
+    return { ok: true, text: 'You speak for talks. Nobody wants a stranger\'s advice: the crowd mutters and you are marked as a meddler.' };
+  },
+
+  /** Secret money to the organisers: swells and angers the crowd; recorded as an illicit offer and found out like one. */
+  fundDemo(id) {
+    const s = this.ensure(); const u = this.ensureUnrest(s); const inf = this.ensureInfluence(s);
+    const d = u.demos.find((x) => x.id === id);
+    if (!d || d.stage === 'ended') return { ok: false, text: 'That demonstration is over.' };
+    if (d.funded) return { ok: false, text: 'You have already paid them.' };
+    const F = U.fund;
+    if (this.g.player.money < F.price) return { ok: false, text: `They want ${F.price.toLocaleString('en-US')} obols, in cash.` };
+    this.charge(F.price);
+    d.funded = true; d.size = Math.round(d.size * F.size); d.anger = Math.min(1, Math.round((d.anger + F.anger) * 1000) / 1000);
+    inf.heat += F.heat * this.heatFactor();
+    this.record(inf, { kind: 'unrest', party: OTHER_PARTY(s.government.partyId), amount: F.price, illicit: true, outcome: 'accepted', public: false, note: d.cause.text });
+    return { ok: true, text: `The organisers take ${F.price.toLocaleString('en-US')} obols and say nothing. It is recorded, whether or not anyone ever finds out.` };
+  },
+
+  // ---------------------------------------------------------------- views
+  /** What the World page's "at home" section shows, and the read-only hooks. */
+  unrest() {
+    const s = this.ensure(); const u = this.ensureUnrest(s);
+    const t = this.tensionNow(s, u); const pol = this.policing(s);
+    const el = s.elections?.history?.at(-1);
+    const hooks = hooksOf({ approval: this.approval(s), tension: t, heat: u.heat, margin: el ? el.margin : 0, demos: this.activeDemos(s).length, wars: this.wars() });
+    const view = (d) => ({ id: d.id, day: d.day, cause: d.cause.text, size: d.size, anger: d.anger, stage: d.stage, organisers: d.organisers, supported: d.supported, funded: d.funded, canSpeak: d.spoke !== this.day, days: this.day - d.day });
+    return { tension: Math.round(t * 100) / 100, police: pol.name, active: this.activeDemos(s).map(view), recent: [...u.history].reverse().slice(0, 6), heat: u.heat, hooks, supportCap: U.support.cap, fundPrice: U.fund.price };
+  },
+};
+
+return { unrestMethods };
+})();
+
 // ---- src/systems/politics.js
 __m["src/systems/politics.js"] = (function () {
 // The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
@@ -28928,6 +29268,7 @@ const { electionMethods } = __m["src/systems/politicsElections.js"];
 const { influenceMethods } = __m["src/systems/politicsInfluence.js"];
 const { economyMethods } = __m["src/systems/politicsEconomy.js"];
 const { diplomacyMethods } = __m["src/systems/politicsDiplomacy.js"];
+const { unrestMethods } = __m["src/systems/politicsUnrest.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -28986,7 +29327,7 @@ class Politics {
   /** The truth of public opinion today, from the policies in force, the books and the world. Internal: the player sees only polls of it. */
   opinionTruth(s = this.ensure()) {
     const m = this.budgetNow(s);
-    return compute({ gov: s.government.partyId, platforms: this.platforms(s), policies: s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]), deficitRatio: m.deficit / m.revenue, wars: this.wars(), embargoes: this.embargoes() });
+    return compute({ gov: s.government.partyId, platforms: this.platforms(s), policies: s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]), deficitRatio: m.deficit / m.revenue, wars: this.wars(), embargoes: this.embargoes(), unrest: s.unrest?.heat || 0 });
   }
 
   /** What the administration believes about its standing: the latest poll's approval (it reads polls, not the truth); 0.5 before any. */
@@ -29051,6 +29392,7 @@ class Politics {
     const saved = this.dayOverride; this.dayOverride = day;
     this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
+    this.unrestStep(s, day); // v0.97.0: demonstrations
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -29185,7 +29527,7 @@ class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 
 
@@ -70007,7 +70349,7 @@ __m["src/ui/politicsDiplomacy.js"] = (function () {
 // One row per country with its relation (a band and a score), the quarrels in progress and the wars on, and a fold with the embassies and the recent history.
 // It reads game.politics.diplomacy(); the wars and embargoes it shows are the same ones the arms market, geo, shipping, bonds and the exchange read. Nothing here decides anything.
 const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold } = __m["src/ui/tabletKit.js"];
+const { hero, tiles, row, help, fold, note, n } = __m["src/ui/tabletKit.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const TONE = { Hostile: 'bad', Tense: 'warn', Cool: 'warn', Neutral: '', Warm: 'good', Friendly: 'good' };
@@ -70015,8 +70357,37 @@ const STAGE = { dispute: 'a dispute', tension: 'rising tension', sanctions: 'san
 const sign = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}`;
 const swatch = (c) => h('span', { style: `display:inline-block;width:14px;height:14px;border-radius:3px;background:${c};vertical-align:-2px` });
 
-function diplomacyTab(ui, body) {
+const STAGE_DEMO = { gathering: 'gathering', march: 'marching', riot: 'a riot' };
+const mood = (a) => (a < 0.25 ? 'calm' : a < 0.5 ? 'restless' : a < 0.75 ? 'angry' : 'furious');
+
+/** Unrest at home (v0.97.0): the demonstrations, what you may do, and the read-only hooks. */
+function unrestSection(ui, body, open) {
   const g = ui.game;
+  const U = g.politics.unrest();
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
+  const d = ui.polDemo != null ? U.active.find((x) => x.id === ui.polDemo) : null;
+  if (ui.polDemo != null && !d) ui.polDemo = null;
+  if (d) {
+    body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.polDemo = null; open('Politics'); } }, '‹ Back')));
+    body.append(hero({ label: 'A demonstration in Sovereign Square', value: d.cause, sub: `About ${n(d.size)} people · ${mood(d.anger)} · ${STAGE_DEMO[d.stage]} · day ${d.days + 1} · organised by ${d.organisers}. The police are set to respond ${U.police === 'light' ? 'lightly (they watch)' : U.police === 'heavy' ? 'firmly (they will disperse it)' : 'with some firmness'}.` }));
+    body.append(h('div', { class: 'tb-card list' },
+      row({ icon: '🗣️', title: 'Speak for talks', sub: 'Free. May calm the crowd; a stranger\'s advice may also be resented. Once a day.', action: h('button', { class: 'tb-mini pri', disabled: !d.canSpeak, onclick: () => go(g.politics.speakDemo(d.id)) }, 'Speak') }),
+      row({ icon: '💷', title: 'Support the organisers', sub: `Open and recorded. ${n(d.supported)} of ${n(U.supportCap)} given. It swells the crowd and sharpens the mood.`, action: h('button', { class: 'tb-mini', disabled: g.player.money < 5000 || d.supported + 5000 > U.supportCap, onclick: () => go(g.politics.supportDemo(d.id, 5000)) }, '5,000') }),
+      row({ icon: '🕶️', title: 'Pay them in secret', sub: `${n(U.fundPrice)} in cash. Swells and angers the crowd. Recorded as an illicit offer: investigators may find it.`, action: h('button', { class: 'tb-mini', disabled: d.funded || g.player.money < U.fundPrice, onclick: () => go(g.politics.fundDemo(d.id)) }, d.funded ? 'Paid' : 'Pay') })));
+    body.append(h('div', { class: 'tb-note' }, "You are never wanted for standing in the square. A riot is for the police and the Assembly to deal with."));
+    return;
+  }
+  body.append(h('div', { class: 'tb-label', style: 'margin:6px 4px' }, 'At home'));
+  body.append(h('div', { class: 'tb-card list' },
+    ...(U.active.length ? U.active.map((x) => row({ icon: x.stage === 'riot' ? '🔥' : '📣', title: x.cause, sub: `About ${n(x.size)} people · ${mood(x.anger)} · ${STAGE_DEMO[x.stage]}`, tag: x.stage === 'riot' ? 'riot' : 'open', tone: x.stage === 'riot' ? 'bad' : 'warn', onclick: () => { ui.polDemo = x.id; open('Politics'); } })) : [row({ icon: '🕊️', title: 'Quiet at home', sub: `No demonstration today. The country's tension is ${U.tension < 0.25 ? 'low' : U.tension < 0.45 ? 'moderate' : 'high'}; the police are set to respond ${U.police === 'light' ? 'lightly' : U.police === 'heavy' ? 'firmly' : 'with some firmness'}.` })]),
+    ...U.recent.slice(0, 3).map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text }))));
+}
+
+function diplomacyTab(ui, body, open) {
+  const g = ui.game;
+  const nt = note(ui);
+  if (nt) body.append(nt);
+  if (ui.polDemo != null) { unrestSection(ui, body, open); return; }
   const V = g.politics.diplomacy();
   const wars = V.wars;
   const embargoes = V.countries.filter((c) => c.flags.some((f) => /embargo|sanctions/.test(f))).length;
@@ -70032,8 +70403,16 @@ function diplomacyTab(ui, body) {
       ...wars.map((w) => row({ icon: '⚔️', title: `${w.names[0]} – ${w.names[1]} war`, sub: `Day ${w.days} · arms demand up, shipping risk up`, tag: 'war', tone: 'bad' })),
       ...V.disputes.map((d) => row({ icon: '🕊️', title: `${d.names[0]} and ${d.names[1]}`, sub: `${STAGE[d.stage]} over ${d.cause}${d.until ? ` · a decision about day ${d.until}` : ''}`, tag: d.stage, tone: 'warn' }))));
   }
+  unrestSection(ui, body, open);
   const st = V.stance;
   body.append(help('How it works', 'Quarrels between rivals move along a chain: a dispute, rising tension, sanctions on the aggressor (an arms embargo), and only then war; at each step talks may settle it. A war ends in a ceasefire after a few days, when the embargo for it is lifted. Nothing here is a dice roll on the day: the same world gives the same quarrels, and a reload cannot change them. The President\'s stance matters but guarantees nothing: more commitments abroad make a dispute that Sund is party to likelier, fewer make it rarer, and other countries think better or worse of Sund. These are the wars and embargoes that the arms market, shipping, bonds and the exchange already react to.', st.sundDisputes || st.relations ? `The government\'s stance today: disputes involving Sund ${st.sundDisputes > 0 ? `${Math.round(st.sundDisputes * 100)}% likelier` : st.sundDisputes < 0 ? `${Math.round(-st.sundDisputes * 100)}% rarer` : 'as usual'}; relations ${sign(st.relations)} points.` : 'The government\'s stance abroad is neutral.'));
+  body.append(fold(ui, 'PoliticsHooks', 'The state of the country ›', (box) => {
+    const U = g.politics.unrest();
+    box.append(list(
+      row({ icon: '🏛️', title: 'Legitimacy', sub: 'How far the government is thought to have the right to govern: approval, calm and the last mandate.', tag: `${Math.round(U.hooks.legitimacy * 100)}%` }),
+      row({ icon: '⚖️', title: 'Stability', sub: 'How steady the country is: tension, unrest and war.', tag: `${Math.round(U.hooks.stability * 100)}%` }),
+      row({ icon: '👑', title: 'The crown', sub: `${U.hooks.succession.head} is ${U.hooks.succession.age}; ${U.hooks.succession.note}. Emergency powers: ${U.hooks.emergencyPowers ? 'in force' : 'none'}.` })));
+  }));
   body.append(fold(ui, 'PoliticsDip', 'Embassies · trade · the record ›', (box) => {
     box.append(list(...V.countries.map((c) => row({ icon: '🏛️', title: `${c.name}`, sub: `${c.ambassador ? `Ambassador ${c.ambassador}` : 'Embassy'} · ${c.flags.length ? c.flags.join(', ') : 'no agreement'}` }))));
     box.append(list(...(V.log.length ? V.log.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'No quarrel has begun since the record was made.' })])));
@@ -70068,7 +70447,7 @@ function politicsApp(ui, body, open) {
   else if (tab === 'Polls') pollsTab(ui, body);
   else if (tab === 'Campaign') campaignTab(ui, body, open);
   else if (tab === 'Influence') influenceTab(ui, body, open);
-  else if (tab === 'Diplomacy') diplomacyTab(ui, body);
+  else if (tab === 'Diplomacy') diplomacyTab(ui, body, open);
   else overviewTab(ui, body, open);
 }
 

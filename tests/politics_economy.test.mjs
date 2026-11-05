@@ -25,8 +25,9 @@ test('the effects: every policy named has a line that says what it does; the sum
   assert.deepEqual(effectsOf(Object.keys(E.policies), { ...E, enabled: false }).lines, [], 'the knob off: neutral');
   assert.ok(effectsOf(['reg_up'], E).portFees > 0 && effectsOf(['reg_down'], E).portFees < 0, 'opposed policies pull opposite ways');
   assert.ok(effectsOf(['defence_up'], E).sundArms > 0 && effectsOf(['defence_down'], E).sundArms < 0);
-  // policies the effects do not reach yet say nothing
-  assert.equal(effectsOf(['police_up', 'enforce_strict', 'surveil_up'], E).lines.length, 0);
+  // v0.97.0: police, enforcement and surveillance reach the police and the influence ledger
+  assert.ok(effectsOf(['police_up'], E).policeDelay < 0 && effectsOf(['police_down'], E).policeDelay > 0);
+  assert.ok(effectsOf(['enforce_strict'], E).fineFactor > 0 && effectsOf(['enforce_light'], E).sentenceFactor < 0 && effectsOf(['surveil_up'], E).heatFactor > 0 && effectsOf(['surveil_down'], E).heatFactor < 0);
   assert.ok(effectsOf(['abroad_up'], E).sundDisputes > 0 && effectsOf(['abroad_down'], E).sundDisputes < 0 && effectsOf(['abroad_down'], E).relations > 0, 'commitments abroad reach diplomacy');
 });
 

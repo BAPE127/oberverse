@@ -26,7 +26,7 @@ export function compute(ctx) {
   const opp = ctx.gov === 'order' ? 'liberty' : 'order';
   const sat = {};
   for (const b of Object.keys(BLOCS)) sat[b] = clamp(ctx.policies.reduce((a, p) => a + (p.blocs[b] || 0), 0) * W.policy, -W.policyCap, W.policyCap);
-  const macro = -clamp(ctx.deficitRatio, -0.5, 1) * W.deficit * 0.5 - ctx.wars * W.war - ctx.embargoes * W.embargo;
+  const macro = -clamp(ctx.deficitRatio, -0.5, 1) * W.deficit * 0.5 - ctx.wars * W.war - ctx.embargoes * W.embargo - clamp(ctx.unrest || 0, 0, 1) * W.unrest; // (v0.97.0: demonstrations and riots weigh on the government)
   const regions = {};
   const tot = { approval: 0, order: 0, liberty: 0, other: 0, undecided: 0, w: 0 };
   for (const [rid, R] of Object.entries(REGIONS)) {

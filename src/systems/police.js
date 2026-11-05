@@ -142,7 +142,7 @@ export class Police {
       if (inc) { inc.sev = open.sev; inc.witnesses = [...new Set([...inc.witnesses, ...(about.witnesses || [])])]; }
       return;
     }
-    const delay = this.bribed() ? 240 : 8 + g.rng.int(0, 10);
+    const delay = this.bribed() ? 240 : Math.round((8 + g.rng.int(0, 10)) * (g.politics?.policeDelayFactor() ?? 1)); // v0.97.0: police funding changes how soon a call is answered
     // v0.35.0: every call is an incident, kept (and saved) from the report to the all-clear
     const inc = { id: `inc${s.nextIncident++}`, reported: g.clock.total, sev, ...pos, fact: about.fact || null, witnesses: about.witnesses || [], status: 'reported', officers: [], closed: null };
     s.incidents.push(inc);
@@ -369,7 +369,7 @@ export class Police {
   }
 
   finePrice() {
-    return 20 * this.state.wanted + this.state.record * 3;
+    return Math.round((20 * this.state.wanted + this.state.record * 3) * (this.game.politics?.fineFactor() ?? 1)); // v0.97.0: enforcement
   }
 
   bribe() {
@@ -419,7 +419,7 @@ export class Police {
   }
 
   sentenceHours() {
-    return clamp(Math.round(4 + this.state.record * 2), 4, 168);
+    return clamp(Math.round((4 + this.state.record * 2) * (this.game.politics?.sentenceFactor() ?? 1)), 4, 168); // v0.97.0: enforcement
   }
 
   /** Arrested, beaten, or struck down: everything ends in a cell. */

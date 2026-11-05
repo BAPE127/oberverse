@@ -198,7 +198,7 @@ export const influenceMethods = {
     const roll = unit(`${s.elections?.salt || s.pollSalt}|offer|${id}`);
     const o = pickOutcome(q.odds, roll);
     const entry = this.record(inf, { kind: 'offer', contact: key, party: c.party, request: requestId, policy: q.policy, amount: q.price, illicit, outcome: o, public: false });
-    if (illicit) inf.heat += I.heat.illicit + (o === 'reported' ? I.heat.reported : 0);
+    if (illicit) inf.heat += (I.heat.illicit + (o === 'reported' ? I.heat.reported : 0)) * this.heatFactor(); // (v0.97.0: surveillance)
     let note = '';
     if (['accepted', 'half', 'delayed'].includes(o)) {
       inf.used[`${term}|${key}`] = (inf.used[`${term}|${key}`] || 0) + 1;
@@ -230,7 +230,7 @@ export const influenceMethods = {
     if (k.illicit) this.charge(k.price); else inf.favours[c.party] -= k.favours;
     const term = termOf(this.day, s.constitution).index;
     inf.used[`${term}|${k.contact}`] = (inf.used[`${term}|${k.contact}`] || 0) + 1;
-    if (k.illicit) inf.heat += I.heat.illicit;
+    if (k.illicit) inf.heat += I.heat.illicit * this.heatFactor();
     const entry = this.record(inf, { kind: 'offer', contact: k.contact, party: c.party, request: k.request, policy: k.policy, amount: k.price, illicit: k.illicit, outcome: 'accepted', public: false, counter: true });
     const note = this.apply(s, inf, c, k.request, k.policy, 'accepted');
     return { ok: true, outcome: 'accepted', label: 'accepted', text: `${this.nameOf(c)} agrees at the new price. ${note}`, price: k.price, entry };
@@ -306,7 +306,7 @@ export const influenceMethods = {
     entry.exposed = true; inf.exposures++;
     const E = I.exposure;
     const taken = ['accepted', 'half', 'delayed'].includes(entry.outcome);
-    this.addScandal(s, el, { party: entry.party, day: this.day, severity: taken ? E.severity.taken : E.severity.tried, credibility: 1, attention: E.attention, source: 'exposure', text: `an offer to ${this.nameOf(this.contact(entry.contact, s) || { role: 'an official' })} comes out: "${I.requests[entry.request]?.name || 'a favour'}"` });
+    this.addScandal(s, el, { party: entry.party, day: this.day, severity: taken ? E.severity.taken : E.severity.tried, credibility: 1, attention: E.attention, source: 'exposure', text: entry.kind === 'unrest' ? `secret payments to the organisers of ${entry.note || 'a demonstration'} come out` : `an offer to ${this.nameOf(this.contact(entry.contact, s) || { role: 'an official' })} comes out: "${I.requests[entry.request]?.name || 'a favour'}"` });
     const fine = Math.max(E.fineMin, entry.amount * E.fineTimes);
     const paid = Math.min(fine, Math.max(0, this.g.player.money));
     if (paid > 0) { this.charge(paid); s.budget.debt = Math.max(0, s.budget.debt - paid / 1000); }
@@ -314,7 +314,7 @@ export const influenceMethods = {
     for (const c of this.contactDefs(s)) { const npc = this.npcOf(c); if (npc && c.key === entry.contact) this.g.relationships.adjust(npc, 'player', { trust: -E.trustLoss, suspicion: 8 }, 'exposed'); }
     inf.heat *= I.heat.after;
     this.log(s, `Investigators found an offer: ${how}.`);
-    this.news(`🔎 ${how === 'reported' ? 'An official reported an offer' : 'Investigators have found an offer'} made to ${this.nameOf(this.contact(entry.contact, s) || { role: 'a minister' })}. A fine of ${paid.toLocaleString('en-US')} obols has been paid to the state. The party concerned says it knew nothing.`);
+    this.news(`🔎 ${how === 'reported' ? 'An official reported an offer' : 'Investigators have found an offer'}${entry.kind === 'unrest' ? ' of secret money to demonstrators' : ` made to ${this.nameOf(this.contact(entry.contact, s) || { role: 'a minister' })}`}. A fine of ${paid.toLocaleString('en-US')} obols has been paid to the state. The party concerned says it knew nothing.`);
   },
 
   /** Appointments and invitations made by meetings lapse after a couple of days (the steward's own invitations, set once, stay). */

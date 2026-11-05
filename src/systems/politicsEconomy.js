@@ -37,6 +37,12 @@ export const economyMethods = {
   /** The multiplier on how fast Sund's own arms budget refills. */
   sundArmsFactor() { return 1 + this.fx().sundArms; },
 
+  /** Police (v0.97.0): the multiplier on how long a call takes to be answered, on fines and on sentences; and on the heat illicit offers leave. */
+  policeDelayFactor() { return 1 + this.fx().policeDelay; },
+  fineFactor() { return 1 + this.fx().fineFactor; },
+  sentenceFactor() { return 1 + this.fx().sentenceFactor; },
+  heatFactor() { return 1 + this.fx().heatFactor; },
+
   /** The multiplier on how fast Sund's public customers' tender budgets refill. */
   publicBudgetFactor() { return 1 + this.fx().publicBudgets; },
 

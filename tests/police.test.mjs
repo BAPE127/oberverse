@@ -157,7 +157,7 @@ test('killed: you wake up in a cell; serving the sentence gives your weapons bac
   assert.equal(g.player.map, 'jail');
   assert.equal(g.world.police.jail.reason, 'killed');
   const hours = g.police.hoursLeft();
-  assert.equal(hours, 4 + 10 * 2);
+  assert.equal(hours, Math.round((4 + 10 * 2) * g.politics.sentenceFactor())); // (v0.97.0: the sentence follows the government's enforcement policy)
   const day = g.clock.total;
   const r = g.police.jailAction('serve');
   assert.ok(r.ok);

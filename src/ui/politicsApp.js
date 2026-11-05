@@ -21,7 +21,7 @@ export function politicsApp(ui, body, open) {
   else if (tab === 'Polls') pollsTab(ui, body);
   else if (tab === 'Campaign') campaignTab(ui, body, open);
   else if (tab === 'Influence') influenceTab(ui, body, open);
-  else if (tab === 'Diplomacy') diplomacyTab(ui, body);
+  else if (tab === 'Diplomacy') diplomacyTab(ui, body, open);
   else overviewTab(ui, body, open);
 }
 

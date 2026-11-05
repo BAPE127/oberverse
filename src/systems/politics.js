@@ -19,6 +19,7 @@ import { electionMethods } from './politicsElections.js';
 import { influenceMethods } from './politicsInfluence.js';
 import { economyMethods } from './politicsEconomy.js';
 import { diplomacyMethods } from './politicsDiplomacy.js';
+import { unrestMethods } from './politicsUnrest.js';
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -77,7 +78,7 @@ export class Politics {
   /** The truth of public opinion today, from the policies in force, the books and the world. Internal: the player sees only polls of it. */
   opinionTruth(s = this.ensure()) {
     const m = this.budgetNow(s);
-    return compute({ gov: s.government.partyId, platforms: this.platforms(s), policies: s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]), deficitRatio: m.deficit / m.revenue, wars: this.wars(), embargoes: this.embargoes() });
+    return compute({ gov: s.government.partyId, platforms: this.platforms(s), policies: s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]), deficitRatio: m.deficit / m.revenue, wars: this.wars(), embargoes: this.embargoes(), unrest: s.unrest?.heat || 0 });
   }
 
   /** What the administration believes about its standing: the latest poll's approval (it reads polls, not the truth); 0.5 before any. */
@@ -142,6 +143,7 @@ export class Politics {
     const saved = this.dayOverride; this.dayOverride = day;
     this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
+    this.unrestStep(s, day); // v0.97.0: demonstrations
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -276,6 +278,6 @@ export class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 export { PARTY_IDS };

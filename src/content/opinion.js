@@ -39,6 +39,6 @@ export const POLLSTERS = {
 
 export const OPINION = {
   /** How strongly each thing moves approval and support; every figure bounded. */
-  weights: { affinityGov: 0.18, affinityOpp: 0.08, policy: 0.06, policyCap: 0.3, deficit: 0.5, war: 0.03, embargo: 0.015, tilt: 1, softmax: 2.2, mood: 2.5, other: 0.35, undecided: 0.5 },
+  weights: { unrest: 0.05, affinityGov: 0.18, affinityOpp: 0.08, policy: 0.06, policyCap: 0.3, deficit: 0.5, war: 0.03, embargo: 0.015, tilt: 1, softmax: 2.2, mood: 2.5, other: 0.35, undecided: 0.5 },
   logKept: 60, seriesKept: 120,
 };

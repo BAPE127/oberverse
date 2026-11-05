@@ -204,6 +204,7 @@ export const electionMethods = {
   /** Each minute: the night's crowd gathers at 19:30 and the announcement comes at 22:00 on polling day (or at once if the day has gone by). */
   minuteTick() {
     const s = this.peek();
+    this.crowdTick(); // v0.97.0: the demonstration ground, while you are there
     const el = s?.elections;
     if (!el?.pending) return;
     const r = el.pending;
