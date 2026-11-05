@@ -76844,88 +76844,216 @@ function replay(setup, log, tick) {
 return { isVeh, createBattle, issue, step, run, runToEnd, outcome, replay, inb, walkable, sightOf, coverFor, stateOf, reachOf };
 })();
 
-// ---- src/engine/drawWarVehicles.js
-__m["src/engine/drawWarVehicles.js"] = (function () {
-// War vehicles on the game's own pixel idiom (v0.101.0, the look renderer): a tank, a helicopter, a carrier and a plain truck, painted once facing east on a small canvas with a 1-px ink outline, lit
-// from the upper left, shaded on the right, and turned by sixteenths of a turn (cached by kind, palette, state and heading, as src/engine/carSprites.js does). Sized to the game's tile (32 px):
-// a tank is about a tile and a half long, a person is about one tile tall. Browser only (it makes canvases); nothing here is read by the simulation.
+// ---- src/engine/drawFleet.js
+__m["src/engine/drawFleet.js"] = (function () {
+// The war vehicles (v0.102.0): a parametric painter in the game's idiom (1-px ink outline, lit left, shaded right, one cached sprite per spec, paint and state): running gear (tracks, wheels, half-tracks,
+// hover), hull, features (hatches, vents, skirts, antennas, a dozer blade, crosses), an optional turret on its own canvas that turns on its own, and helicopters with spinning rotors. Ported from the approved
+// mock-up (docs/mockups/src/war/fleet.js and warart.js). A tank is about 1.8 tiles long. Browser only; paint, never state.
 const INK = '#1b1a24';
-const STEPS = 16;
-const cache = new Map();
+const hexRgb = (h) => { const n = parseInt(h.slice(1, 7), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const shade = (h, k) => { const [r, g, b] = hexRgb(h); const f = (v) => Math.max(0, Math.min(255, Math.round(v + k))); return `#${[f(r), f(g), f(b)].map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+const mixc = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')}`; };
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return [c, g]; };
+const hash = (a, b, c = 0) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-const PALETTE = {
-  p: { hull: '#5e7a46', hull2: '#46603a', dark: '#2e3e26', light: '#8aa264', track: '#2a2a30', accent: '#e8c84a' },
-  e: { hull: '#8a5a48', hull2: '#6e4438', dark: '#3e2822', light: '#b08068', track: '#2a2628', accent: '#d8402e' },
-};
-const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v + k))); return `#${[f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
-const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-
-/** A 1-px ink outline round whatever is painted on the canvas (the game's sprites all have one). */
 function outlined(src) {
-  const w = src.width; const h = src.height; const out = mkCanvas(w, h); const g = out.getContext('2d'); g.imageSmoothingEnabled = false;
-  const tmp = mkCanvas(w, h); const t = tmp.getContext('2d'); t.drawImage(src, 0, 0); t.globalCompositeOperation = 'source-in'; t.fillStyle = INK; t.fillRect(0, 0, w, h);
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) g.drawImage(tmp, dx, dy);
-  g.drawImage(src, 0, 0);
-  return out;
+  const [c, g] = mk(src.width + 2, src.height + 2);
+  const [s, sg] = mk(src.width, src.height); sg.drawImage(src, 0, 0); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = INK; sg.fillRect(0, 0, src.width, src.height);
+  for (const [dx, dy] of [[0, 1], [2, 1], [1, 0], [1, 2]]) g.drawImage(s, dx, dy);
+  g.drawImage(src, 1, 1); return c;
 }
-const R = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+const silhouette = (c, col = 'rgba(10,8,20,0.34)') => { const [s, g] = mk(c.width, c.height); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); return s; };
+const cache = new Map();
+const sil = (c) => { const [s, g] = mk(c.width, c.height); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = 'rgba(10,8,20,0.34)'; g.fillRect(0, 0, c.width, c.height); return s; };
+const PAINT = {
+  company: { hull: '#4f6a3e', hull2: '#3c5430', accent: '#f2f0e4', glass: '#26384e', track: '#26262c' },
+  sund: { hull: '#6c7a8c', hull2: '#55627a', accent: '#e8c84a', glass: '#26384e', track: '#2a2a32' },
+  varn: { hull: '#a08a5a', hull2: '#85703f', accent: '#b83a2a', glass: '#26384e', track: '#2c2824' },
+  future: { hull: '#c9ced6', hull2: '#8e96a6', accent: '#4ad8e8', glass: '#173a52', track: '#2a2e38' },
+};
+const plate = (R, x, y, w, h, c, k = 2) => { R(x + k, y, w - 2 * k, h, c); R(x + 1, y + 1, w - 2, h - 2, c); R(x, y + k, w, h - 2 * k, c); R(x + 1, y + 1, 1, h - 3, shade(c, 38)); R(x + w - 2, y + 2, 1, h - 4, shade(c, -34)); R(x + 2, y, w - 4, 1, shade(c, 26)); R(x + 2, y + h - 1, w - 4, 1, shade(c, -44)); };
 
-/** Painted facing east, centred on a 56 x 56 canvas. */
-function paint(kind, P, state) {
-  const c = mkCanvas(56, 56); const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  const dead = state === 'wreck';
-  const hull = dead ? '#3a3638' : P.hull; const hull2 = dead ? '#2a2628' : P.hull2; const hi = dead ? '#4e4a4c' : P.light;
-  if (kind === 'tank') {
-    R(g, 8, 17, 38, 5, P.track); R(g, 8, 34, 38, 5, P.track); for (let x = 9; x < 46; x += 3) { R(g, x, 18, 1, 3, shade(P.track, 24)); R(g, x, 35, 1, 3, shade(P.track, 24)); }
-    R(g, 10, 21, 34, 14, hull); R(g, 10, 21, 34, 2, hi); R(g, 10, 33, 34, 2, hull2); R(g, 40, 22, 4, 12, hull2); R(g, 12, 24, 4, 8, shade(hull, -14)); R(g, 41, 25, 2, 6, shade(hull, 18));
-    if (!dead) { R(g, 21, 23, 14, 10, hull2); R(g, 22, 24, 12, 8, hull); R(g, 22, 24, 12, 2, hi); R(g, 24, 26, 4, 4, P.dark); R(g, 33, 27, 18, 2, P.dark); R(g, 33, 27, 18, 1, shade(P.dark, 30)); R(g, 28, 25, 2, 2, P.accent); }
-    else { R(g, 22, 24, 12, 9, '#2c282a'); R(g, 30, 30, 14, 2, '#26222a'); R(g, 14, 25, 3, 3, '#c8541a'); }
-  } else if (kind === 'carrier') {
-    for (let k = 0; k < 3; k++) { R(g, 12 + k * 11, 15, 6, 3, P.track); R(g, 12 + k * 11, 38, 6, 3, P.track); }
-    R(g, 10, 18, 36, 20, hull); R(g, 10, 18, 36, 2, hi); R(g, 10, 36, 36, 2, hull2); R(g, 40, 19, 6, 18, hull2); R(g, 14, 22, 18, 12, shade(hull, -10)); R(g, 20, 24, 8, 8, P.dark); R(g, 28, 27, 10, 2, P.dark); R(g, 42, 21, 3, 3, '#e8e4c0'); R(g, 42, 33, 3, 3, '#e8e4c0');
-    if (dead) { R(g, 14, 22, 18, 12, '#2a2628'); }
-  } else if (kind === 'helicopter') {
-    R(g, 10, 25, 20, 6, hull); R(g, 8, 26, 4, 4, hull2); R(g, 28, 22, 14, 12, hull); R(g, 28, 22, 14, 2, hi); R(g, 32, 24, 8, 6, '#6ec8e8'); R(g, 32, 24, 8, 1, '#c8f0ff'); R(g, 10, 24, 2, 8, P.accent);
-    R(g, 14, 21, 12, 14, hull2); R(g, 14, 21, 12, 1, hi); R(g, 24, 20, 6, 2, P.dark); R(g, 24, 34, 6, 2, P.dark); R(g, 6, 24, 2, 8, hull2); // skids/tail rotor
-    if (dead) { R(g, 14, 21, 28, 14, '#3a3638'); R(g, 22, 25, 10, 6, '#c8541a'); }
-  } else { // a truck or jeep
-    R(g, 12, 18, 30, 20, hull); R(g, 12, 18, 30, 2, hi); R(g, 12, 36, 30, 2, hull2); R(g, 34, 20, 8, 16, shade(hull, -8)); R(g, 36, 22, 4, 12, '#6ec8e8'); R(g, 13, 21, 18, 14, hull2); R(g, 14, 22, 16, 12, shade(hull, -22));
-    for (const [x, y] of [[14, 16], [14, 38], [34, 16], [34, 38]]) R(g, x, y, 6, 3, P.track);
-    if (dead) R(g, 13, 21, 28, 14, '#2a2628');
+/** vehicle sprite: returns { hull, turret|null } canvases (nose up) */
+function vehicleSprite(spec, paintKey = 'company', state = 'ok') {
+  const key = `v|${spec.id}|${paintKey}|${state}`; if (cache.has(key)) return cache.get(key);
+  const P = PAINT[paintKey] || PAINT.company; const wreck = state === 'wreck', dmg = state === 'damaged';
+  const L = spec.L, Wd = spec.W; const [c, g] = mk(140, 170); const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(70 + x, 85 + y, w, h); };
+  const base = wreck ? '#2c2a2a' : (spec.hull ? spec.hull : P.hull), dark = wreck ? '#1c1a1a' : P.hull2;
+  const hl = L / 2, hw = Wd / 2;
+  // ---- running gear
+  if (spec.gear === 'tracked' || spec.gear === 'half') { for (const sx of [-1, 1]) { const x0 = sx < 0 ? -hw - 5 : hw - 2; const l = spec.gear === 'half' ? L * 0.62 : L + 4; const y0 = spec.gear === 'half' ? hl - l + 2 : -hl - 2; plate(R, x0, y0, 7, l, wreck ? '#1a1818' : P.track, 2); for (let y = y0 + 1; y < y0 + l; y += 3) R(x0 + 1, y, 5, 1, wreck ? '#2a2626' : '#4a4a52'); R(x0 + 2, y0 + 1, 3, 3, '#5a5a62'); R(x0 + 2, y0 + l - 4, 3, 3, '#5a5a62'); }
+    if (spec.gear === 'half') for (const sx of [-1, 1]) { R(sx * (hw - 1) - 3, -hl + 6, 6, 9, '#16161c'); R(sx * (hw - 1) - 2, -hl + 7, 4, 7, '#3a3a44'); } }
+  else if (spec.gear === 'wheeled') { const n = spec.wheels || 3; for (const sx of [-1, 1]) for (let i = 0; i < n; i++) { const y = -hl + 4 + (L - 14) * (n === 1 ? 0 : i / (n - 1)); const x0 = sx < 0 ? -hw - 5 : hw - 1; R(x0, y, 6, 11, '#16161c'); R(x0 + 1, y + 1, 4, 9, '#2c2c36'); R(x0 + (sx < 0 ? 4 : 1), y + 3, 1, 5, '#5a5a62'); } }
+  else if (spec.gear === 'hover') { for (const sx of [-1, 1]) { const x0 = sx < 0 ? -hw - 8 : hw - 3; plate(R, x0, -hl + 4, 11, L - 8, wreck ? '#1a1818' : shade(P.hull2, -18), 4); R(x0 + 2, -hl + 8, 7, 7, wreck ? '#111' : '#0e1c24'); R(x0 + 3, -hl + 9, 5, 5, wreck ? '#222' : P.accent); R(x0 + 2, hl - 16, 7, 7, wreck ? '#111' : '#0e1c24'); R(x0 + 3, hl - 15, 5, 5, wreck ? '#222' : P.accent); } }
+  if (spec.skirts && !wreck) { plate(R, -hw - 1, -hl + 8, 3, L - 14, shade(base, -16), 1); plate(R, hw - 2, -hl + 8, 3, L - 14, shade(base, -24), 1); }
+  // ---- hull
+  const ang = spec.shape === 'angular';
+  plate(R, -hw + 1, -hl, Wd - 2, L, base, ang ? 6 : 4);
+  if (ang) { R(-hw + 5, -hl + 1, Wd - 10, 7, shade(base, 30)); R(-hw + 3, -hl + 8, Wd - 6, 1, shade(base, -40)); R(-hw + 1, -hl + 20, 3, 1, shade(base, -50)); }
+  else { R(-hw + 4, -hl + 1, Wd - 8, 6, shade(base, 28)); R(-hw + 3, -hl + 7, Wd - 6, 1, shade(base, -40)); }
+  if (spec.gear !== 'hover') for (let y = hl - 16; y < hl - 3; y += 2) R(-hw + 5, y, Wd - 10, 1, shade(base, -34));
+  R(-3, -hl + 9, 6, 3, shade(base, -30)); R(-2, -hl + 10, 4, 1, INK);
+  if (spec.cab) { // truck / van cab
+    R(-hw + 2, -hl + 1, Wd - 4, 14, wreck ? '#2a2828' : shade(base, 10)); R(-hw + 4, -hl + 3, Wd - 8, 6, wreck ? '#111' : P.glass); R(-hw + 5, -hl + 4, 4, 3, shade(P.glass, 40)); }
+  if (!wreck && spec.camo) for (let i = 0; i < Math.floor(L * Wd / 24); i++) R(-hw + 2 + Math.floor(hash(spec.id.length, i, 1) * (Wd - 6)), -hl + 8 + Math.floor(hash(spec.id.length, i, 2) * (L - 18)), 3 + Math.floor(hash(i, 3) * 4), 2 + Math.floor(hash(i, 4) * 3), i % 2 ? shade(base, -26) : shade(base, 20));
+  // ---- features
+  const f = new Set(spec.feats || []);
+  if (!wreck) {
+    if (f.has('era')) for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { R(-hw + 4 + i * ((Wd - 8) / 4), -hl + 2 + j * 3, 5, 2, shade(base, -22)); R(-hw + 4 + i * ((Wd - 8) / 4), -hl + 2 + j * 3, 5, 1, shade(base, 14)); }
+    if (f.has('dozer')) { plate(R, -hw - 3, -hl - 6, Wd + 6, 7, shade('#8a8a92', -10), 1); R(-hw - 3, -hl - 6, Wd + 6, 1, '#c8c8d0'); R(-hw - 1, -hl + 1, 3, 4, '#3a3a42'); R(hw - 2, -hl + 1, 3, 4, '#3a3a42'); }
+    if (f.has('roller')) for (const sx of [-1, 1]) { plate(R, sx * (hw * 0.45) - 5, -hl - 12, 10, 8, '#6a6a72', 3); for (let k = -4; k < 5; k += 2) R(sx * (hw * 0.45) + k, -hl - 11, 1, 6, '#2a2a30'); }
+    if (f.has('ramp')) { R(-hw + 4, hl - 4, Wd - 8, 6, shade(base, -34)); R(-hw + 4, hl + 2, Wd - 8, 1, '#16161c'); }
+    if (f.has('bridge')) { plate(R, -hw + 2, -hl + 2, Wd - 4, L - 6, '#7a7a56', 1); for (let y = -hl + 4; y < hl - 4; y += 4) R(-hw + 3, y, Wd - 6, 1, '#4a4a30'); R(-hw + 2, -hl + 2, 2, L - 6, '#9a9a6a'); R(hw - 4, -hl + 2, 2, L - 6, '#5a5a3a'); }
+    if (f.has('crane')) { R(-3, -hl + 10, 6, 6, '#2a2a30'); R(-1, -hl - 2, 3, 20, '#c8a02a'); R(-1, -hl - 2, 1, 20, '#e8c04a'); R(-3, -hl - 4, 7, 3, '#8a8a92'); R(0, -hl - 8, 1, 5, '#16161c'); }
+    if (f.has('radar')) { g.fillStyle = INK; g.beginPath(); g.ellipse(70, 85 + 6, 12, 7, 0, 0, 7); g.fill(); g.fillStyle = shade(P.hull2, 24); g.beginPath(); g.ellipse(70, 85 + 6, 10.5, 5.8, 0, 0, 7); g.fill(); R(-1, 5, 2, 8, '#2a2a30'); R(-5, 4, 10, 1, shade(P.hull2, 50)); }
+    if (f.has('antenna')) { R(hw - 6, hl - 16, 1, 22, '#3a3a42'); R(-hw + 5, hl - 18, 1, 24, '#3a3a42'); R(-hw + 3, hl - 20, 5, 1, '#6a6a72'); }
+    if (f.has('cross')) { R(-2, -2, 4, 12, '#c82a2a'); R(-6, 2, 12, 4, '#c82a2a'); R(-hw + 3, -hl + 15, Wd - 6, 2, '#c82a2a'); }
+    if (f.has('tank')) { for (let i = 0; i < 3; i++) { plate(R, -hw + 4, -hl + 16 + i * 9, Wd - 8, 8, '#8a8a92', 3); R(-hw + 5, -hl + 17 + i * 9, Wd - 10, 1, '#c8c8d0'); } R(hw - 8, -hl + 14, 2, 30, '#c8a02a'); }
+    if (f.has('crates')) { for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) { R(-hw + 4 + j * ((Wd - 8) / 2), -hl + 17 + i * 11, (Wd - 8) / 2 - 1, 10, '#8a6a3a'); R(-hw + 4 + j * ((Wd - 8) / 2), -hl + 17 + i * 11, (Wd - 8) / 2 - 1, 2, '#b08a4a'); R(-hw + 4 + j * ((Wd - 8) / 2) + 3, -hl + 17 + i * 11 + 3, 3, 4, '#c8402a'); } }
+    if (f.has('tarp')) { plate(R, -hw + 3, -hl + 16, Wd - 6, L - 22, shade(base, -10), 2); for (let y = -hl + 18; y < hl - 8; y += 5) R(-hw + 4, y, Wd - 8, 1, shade(base, -34)); }
+    if (f.has('pods')) { for (const sx of [-1, 1]) { plate(R, sx * (hw - 5) - 4, -hl + 14, 8, 22, '#3a3a42', 2); for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) R(sx * (hw - 5) - 3 + j * 4, -hl + 16 + i * 6, 3, 4, '#101014'); } }
+    if (f.has('shield')) { g.strokeStyle = 'rgba(80,220,255,.55)'; g.lineWidth = 2; g.beginPath(); g.ellipse(70, 85, hw + 14, hl + 10, 0, 0, 7); g.stroke(); g.fillStyle = 'rgba(80,220,255,.1)'; g.fill(); }
+    if (f.has('dome')) { g.fillStyle = INK; g.beginPath(); g.arc(70, 85 + 2, 9, 0, 7); g.fill(); g.fillStyle = shade(P.hull2, 30); g.beginPath(); g.arc(70, 85 + 2, 7.5, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(68, 85, 3, 0, 7); g.fill(); }
+    if (f.has('stripe')) R(-hw + 5, hl - 11, Wd - 10, 2, P.accent);
+    if (f.has('lights')) { R(-hw + 4, -hl + 1, 3, 2, '#fff4c0'); R(hw - 7, -hl + 1, 3, 2, '#fff4c0'); R(-hw + 4, hl - 3, 3, 2, '#b8281e'); R(hw - 7, hl - 3, 3, 2, '#b8281e'); }
+    if (f.has('hatch')) { R(-6, -2, 5, 5, '#16161c'); R(-5, -1, 3, 3, '#2c2c36'); R(2, 4, 5, 5, '#16161c'); R(3, 5, 3, 3, '#2c2c36'); }
+    if (f.has('vents')) for (let i = 0; i < 4; i++) R(-hw + 5 + i * 5, hl - 11, 3, 6, shade(base, -38));
+    if (f.has('sandbags')) for (let i = 0; i < 5; i++) R(-hw + 4 + i * ((Wd - 8) / 5), -hl + 9, (Wd - 8) / 5 - 1, 5, '#a89260');
+  } else { R(-hw + 6, -4, Wd - 12, 14, '#121010'); R(-3, 0, 6, 5, '#8a3a10'); }
+  if (dmg) { R(-6, 6, 8, 6, '#1a1818'); R(-5, 7, 4, 3, '#7a3a14'); R(hw - 8, -8, 4, 4, '#1c1a1a'); }
+  const hull = outlined(c);
+  // ---- turret (own canvas, centre at (40,50))
+  let turret = null; const T0 = spec.turret;
+  if (T0 && T0.type !== 'none') {
+    const [tc, tg] = mk(90, 130); const T = (x, y, w, h, col) => { tg.fillStyle = col; tg.fillRect(45 + x, 65 + y, w, h); }; const tr = T0.r || 11;
+    if (wreck) { T(-tr + 2, -tr + 2, tr * 2 - 4, tr * 2 - 4, '#201e1e'); T(-4, -4, 8, 8, '#0e0c0c'); T(-3, -tr - 6, 3, 7, '#282626'); }
+    else {
+      const gl = T0.gun ?? 30, nb = T0.barrels || 1, ty = T0.type;
+      if (ty === 'flame') { T(-1, -tr - gl + 2, 3, gl, '#3a3a42'); T(-3, -tr - gl, 7, 5, '#c8402a'); T(-2, -tr - gl - 3, 5, 3, '#ff9a2a'); }
+      else if (ty === 'launcher') { for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { T(-tr + 2 + j * (tr - 1), -tr - 12 + i * 4, tr - 3, 4, '#2a2a32'); T(-tr + 3 + j * (tr - 1), -tr - 11 + i * 4, tr - 5, 2, '#d8d8e0'); } }
+      else if (ty === 'twin' || nb > 1) { for (let i = 0; i < nb; i++) { const bx = -((nb - 1) * 4) / 2 + i * 4 - 1; T(bx, -tr - gl + 2, 2, gl, shade(P.hull2, -32)); T(bx, -tr - gl + 2, 1, gl, shade(P.hull2, 6)); T(bx - 1, -tr - gl, 4, 3, shade(P.hull2, -40)); } }
+      else if (ty === 'mortar') { T(-3, -tr - 6, 6, 14, '#2a2a30'); T(-4, -tr - 8, 8, 3, '#16161c'); }
+      else if (ty !== 'radar' && ty !== 'dome' && gl > 0) { T(-1, -tr - gl + 2, 3, gl, shade(P.hull2, -30)); T(-1, -tr - gl + 2, 1, gl, shade(P.hull2, 6)); T(-2, -tr - gl, 5, 4, shade(P.hull2, -40)); if (T0.brake) T(-3, -tr - gl + 3, 7, 2, shade(P.hull2, -52)); if (T0.sleeve) T(-2, -tr - 8, 5, 12, shade(P.hull2, -14)); }
+      if (ty === 'boxy' || ty === 'launcher' || ty === 'twin') plate(T, -tr, -tr + 2, tr * 2, tr * 2 - 2, P.hull, 2); else plate(T, -tr, -tr + 2, tr * 2, tr * 2 - 2, P.hull, 4);
+      T(-tr + 3, -tr + 1, tr * 2 - 6, 3, shade(P.hull, 34));
+      if (ty === 'radar') { tg.fillStyle = INK; tg.beginPath(); tg.ellipse(45, 65 - 2, tr + 3, tr * 0.7, 0, 0, 7); tg.fill(); tg.fillStyle = shade(P.hull2, 26); tg.beginPath(); tg.ellipse(45, 65 - 2, tr + 1.5, tr * 0.7 - 1.5, 0, 0, 7); tg.fill(); T(-1, -3, 2, 6, '#2a2a30'); }
+      T(3, 3, 6, 6, shade(P.hull, -26)); T(4, 4, 4, 4, '#0e0c10'); T(5, 5, 2, 2, P.glass);
+      if (T0.num) { tg.fillStyle = P.accent; tg.font = 'bold 8px monospace'; tg.textAlign = 'center'; tg.fillText(String(T0.num), 45 - 3, 65 + 9); }
+      T(-tr + 2, tr - 5, tr * 2 - 4, 1, P.accent);
+    }
+    turret = outlined(tc);
   }
-  return outlined(c);
+  const out = { hull, turret }; cache.set(key, out); return out;
+}
+function drawVeh(ctx, spec, x, y, heading, o = {}) {
+  const S = vehicleSprite(spec, o.paint || 'company', o.state || 'ok'); ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(Math.round(x), Math.round(y)); const sc = o.scale || 1; if (sc !== 1) ctx.scale(sc, sc);
+  ctx.save(); ctx.rotate(heading); ctx.globalAlpha = 0.34; ctx.drawImage(sil(S.hull), -S.hull.width / 2 + 4, -S.hull.height / 2 + 4); ctx.globalAlpha = 1; ctx.drawImage(S.hull, -S.hull.width / 2, -S.hull.height / 2);
+  if (S.turret) { ctx.rotate(o.turret || 0); ctx.drawImage(S.turret, -S.turret.width / 2, -S.turret.height / 2 - (spec.turret.dy || 0)); } ctx.restore(); ctx.restore();
 }
 
-/** A vehicle's sprite at a heading (radians, 0 = east), cached. `state`: 'ok' or 'wreck'. */
-function vehicleSprite(kind, side, heading, state = 'ok') {
-  const step = ((Math.round(heading / (Math.PI * 2) * STEPS) % STEPS) + STEPS) % STEPS;
-  const key = `${kind}|${side}|${state}|${step}`;
-  let s = cache.get(key);
-  if (!s) {
-    const base = paint(kind === 'other' ? 'truck' : kind, PALETTE[side] || PALETTE.p, state);
-    s = mkCanvas(64, 64); const g = s.getContext('2d'); g.imageSmoothingEnabled = false;
-    g.translate(32, 32); g.rotate((step / STEPS) * Math.PI * 2); g.drawImage(base, -28, -28);
-    cache.set(key, s);
+// ---------------------------------------------------------------------------------------------------- helicopters (nose up)
+function heliSprite(spec, paintKey = 'company') {
+  const key = `h|${spec.id}|${paintKey}`; if (cache.has(key)) return cache.get(key); const P = PAINT[paintKey] || PAINT.company; const [c, g] = mk(150, 170); const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(75 + x, 85 + y, w, h); }; const base = spec.hull || P.hull; const L = spec.L, W = spec.W;
+  // tail
+  if (spec.tail !== 'none') { R(-1, L / 2 - 6, 2, spec.tailL || 26, shade(base, -34)); R(-1, L / 2 + (spec.tailL || 26) - 12, 2, 12, base); R(-5, L / 2 + (spec.tailL || 26) - 6, 10, 2, shade(base, -20)); }
+  // stub wings and weapons
+  if (spec.wings) for (const sx of [-1, 1]) { R(sx * (W / 2 + 7) - 6, -6, 12, 8, shade(base, -16)); if (spec.pods) { R(sx * (W / 2 + 7) - 2, 2, 4, 8, '#16161c'); for (let i = 0; i < 4; i++) R(sx * (W / 2 + 7) - 3 + i * 2 - 1, 10, 1, 3, '#e8903a'); } }
+  if (spec.tandem) { R(-W / 2 - 1, -L / 2 + 2, W + 2, 6, shade(base, -22)); }
+  plate(R, -W / 2, -L / 2, W, L, base, Math.min(7, W / 2.2)); R(-W / 2 + 3, -L / 2 + 1, W - 6, 4, shade(base, 28));
+  if (spec.canopy !== 'none') { R(-W / 2 + 2, -L / 2 + 2, W - 4, spec.canopyL || 10, P.glass); R(-W / 2 + 3, -L / 2 + 3, 3, (spec.canopyL || 10) - 3, shade(P.glass, 46)); }
+  if (spec.door) { R(W / 2 - 1, -4, 3, 16, '#16161c'); R(-W / 2 - 2, -4, 3, 16, '#2a2a32'); }
+  if (spec.cross) { R(-2, 2, 4, 10, '#c82a2a'); R(-5, 5, 10, 4, '#c82a2a'); }
+  if (spec.nose) { R(-1, -L / 2 - 6, 2, 8, '#26262c'); R(-2, -L / 2 - 8, 4, 3, '#16161c'); }
+  if (spec.skids) { R(-W / 2 - 4, -4, 2, L * 0.6, '#1c1c22'); R(W / 2 + 2, -4, 2, L * 0.6, '#1c1c22'); }
+  if (spec.stealth) { R(-W / 2 + 2, L / 4, W - 4, 2, shade(base, -50)); }
+  if (spec.sling) { R(-6, L / 2 - 6, 12, 14, '#8a6a3a'); R(-6, L / 2 - 6, 12, 2, '#b08a4a'); }
+  const o = { body: outlined(c) }; cache.set(key, o); return o;
+}
+function drawHelo(ctx, spec, x, y, heading, o = {}) {
+  const b = heliSprite(spec, o.paint || 'company').body; const alt = o.altitude ?? 24, sc = o.scale || 1, R0 = spec.rotor || 40; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(Math.round(x), Math.round(y)); if (sc !== 1) ctx.scale(sc, sc);
+  ctx.save(); ctx.translate(alt * 0.55, alt * 0.9); ctx.rotate(heading); ctx.globalAlpha = 0.3; ctx.drawImage(sil(b), -b.width / 2, -b.height / 2); ctx.fillStyle = 'rgba(10,8,20,.2)'; (spec.tandem ? [[0, -spec.L / 2 + 6], [0, spec.L / 2 - 8]] : [[0, 0]]).forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(dx, dy, R0, 0, 7); ctx.fill(); }); ctx.restore();
+  ctx.save(); ctx.translate(0, -alt * 0.35); ctx.rotate(heading); ctx.drawImage(b, -b.width / 2, -b.height / 2);
+  const rotor = (cx, cy, r, ph, n = 4) => { ctx.fillStyle = 'rgba(210,214,222,.16)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(30,30,38,.55)'; ctx.lineWidth = 2; for (let i = 0; i < n; i++) { const a = ph + (i * Math.PI * 2) / n; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.stroke(); } ctx.fillStyle = '#26262c'; ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, 7); ctx.fill(); };
+  const ph = o.phase ?? 0.6; if (spec.tandem) { rotor(0, -spec.L / 2 + 6, R0, ph, 3); rotor(0, spec.L / 2 - 8, R0, ph + 0.5, 3); } else if (spec.coax) { rotor(0, 0, R0, ph, 3); ctx.strokeStyle = 'rgba(240,240,248,.3)'; ctx.beginPath(); ctx.arc(0, 0, R0 * 0.8, 0, 7); ctx.stroke(); } else rotor(0, 0, R0, ph, spec.blades || 4);
+  if (spec.tail !== 'none' && !spec.coax) { const t = spec.L / 2 + (spec.tailL || 26) - 4; ctx.fillStyle = 'rgba(210,214,222,.2)'; ctx.beginPath(); ctx.arc(0, t, 7, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(30,30,38,.6)'; ctx.beginPath(); ctx.moveTo(-6, t - 2); ctx.lineTo(6, t + 2); ctx.stroke(); }
+  ctx.restore(); ctx.restore();
+}
+
+const V = (id, name, cls, src, era, spec, stat, perk, ability) => ({ id, name, cls, src, era, spec: { id, ...spec } });
+const ALL = [
+  V('anvil', 'Anvil Mk1', 'Battle tank', 'works', 1, { gear: 'tracked', L: 58, W: 30, shape: 'round', skirts: false, turret: { type: 'round', r: 12, gun: 36, brake: true, num: 11 }, feats: ['hatch', 'vents', 'camo', 'stripe'], camo: true }, [3, 3, 3, 3], 'Stabilised gun: fires on the move at −25% accuracy.', 'Smoke screen (20 s cooldown): hides it and nearby squads.'),
+  V('lancer', 'Lancer Light', 'Battle tank', 'works', 1, { gear: 'tracked', L: 46, W: 24, shape: 'round', turret: { type: 'round', r: 9, gun: 26 }, feats: ['hatch', 'vents', 'camo', 'stripe'], camo: true }, [2, 2, 5, 2], 'Quiet engine: spotted at half the range.', 'Sprint: +60% speed for 6 s, then the engine is hot.'),
+  V('bulwark', 'Bulwark Heavy', 'Battle tank', 'works', 2, { gear: 'tracked', L: 64, W: 38, shape: 'angular', skirts: true, turret: { type: 'round', r: 14, gun: 38, brake: true, sleeve: true, num: 7 }, feats: ['era', 'hatch', 'vents', 'stripe'] }, [5, 4, 1, 4], 'Reactive plates: the first anti-tank hit does half damage.', 'Brace: cannot move, +40% frontal armour for 12 s.'),
+  V('wolf', 'Wolf APC', 'Armoured carrier', 'buy', 1, { gear: 'wheeled', wheels: 3, L: 46, W: 24, shape: 'round', turret: { type: 'none' }, feats: ['hatch', 'ramp', 'camo', 'stripe'], camo: true }, [2, 1, 4, 3], 'Carries 8; troops inside are safe from small arms.', 'Dismount: all troops out in 2 s.'),
+  V('badger', 'Badger IFV', 'Armoured carrier', 'buy', 2, { gear: 'tracked', L: 48, W: 28, shape: 'angular', skirts: true, turret: { type: 'round', r: 8, gun: 22 }, feats: ['hatch', 'ramp', 'stripe'] }, [3, 3, 3, 2], 'Autocannon: fights light vehicles; carries 6.', 'Fire from ports: troops shoot out while it moves.'),
+  V('marten', 'Marten Light Carrier', 'Armoured carrier', 'buy', 1, { gear: 'wheeled', wheels: 2, L: 38, W: 20, shape: 'round', turret: { type: 'none' }, feats: ['hatch', 'lights', 'stripe'] }, [1, 1, 5, 1], 'Fast; carries 4; cheap.', 'Dash: fast move out of danger.'),
+  V('scout', 'Scout Buggy', 'Recon', 'buy', 1, { gear: 'wheeled', wheels: 2, L: 30, W: 16, shape: 'round', turret: { type: 'none' }, feats: ['antenna', 'lights'] }, [0, 1, 5, 1], 'Fast and quiet; sees 25% farther.', 'Flare: reveals an area for 10 s.'),
+  V('armcar', 'Armoured Car', 'Recon', 'buy', 2, { gear: 'wheeled', wheels: 2, L: 38, W: 20, shape: 'round', turret: { type: 'round', r: 7, gun: 16 }, feats: ['hatch', 'antenna', 'camo'], camo: true }, [2, 2, 4, 1], 'Light cannon; carries a scout team.', 'Probe: draws fire to mark enemy positions.'),
+  V('hammer', 'Hammer SP Gun', 'Artillery', 'buy', 2, { gear: 'tracked', L: 56, W: 30, shape: 'angular', skirts: true, turret: { type: 'round', r: 11, gun: 46, brake: true, sleeve: true }, feats: ['hatch', 'vents', 'stripe'] }, [3, 5, 2, 2], 'Long range; ignores line of sight.', 'Barrage: 6 rounds on a marked area.'),
+  V('rainmaker', 'Rainmaker Rockets', 'Artillery', 'arms', 2, { gear: 'wheeled', wheels: 3, L: 54, W: 26, shape: 'round', cab: true, turret: { type: 'launcher', r: 11, gun: 0 }, feats: ['antenna'] }, [1, 5, 3, 1], 'Saturates an area from far away.', 'Salvo: 12 rockets in 5 s (reload 40 s).'),
+  V('thump', 'Thump Mortar Carrier', 'Artillery', 'buy', 1, { gear: 'tracked', L: 40, W: 24, shape: 'round', turret: { type: 'mortar', r: 9 }, feats: ['hatch', 'crates'] }, [2, 3, 3, 2], 'Indirect fire from behind cover; cheap.', 'Smoke and illumination rounds.'),
+  V('skyguard', 'Skyguard Twin Gun', 'Anti-air', 'buy', 1, { gear: 'tracked', L: 44, W: 26, shape: 'round', turret: { type: 'twin', r: 9, gun: 28, barrels: 2 }, feats: ['hatch'] }, [2, 3, 3, 1], 'Cheap and good against helicopters and low aircraft.', 'Flak burst: area damage at altitude.'),
+  V('falconer', 'Falconer Missile AA', 'Anti-air', 'buy', 2, { gear: 'wheeled', wheels: 3, L: 48, W: 24, shape: 'round', cab: true, turret: { type: 'launcher', r: 10, gun: 0 }, feats: ['antenna'] }, [1, 4, 3, 1], 'Long-range missiles; needs radar.', 'Lock: 4 missiles on one aircraft.'),
+  V('truck', 'Supply Truck', 'Logistics', 'buy', 1, { gear: 'wheeled', wheels: 3, L: 52, W: 24, shape: 'round', cab: true, feats: ['tarp', 'lights'] }, [0, 0, 3, 3], 'Carries stores to a hub or a squad.', 'Resupply: ammo and rations to everyone nearby.'),
+  V('command', 'Command Vehicle', 'Logistics', 'buy', 2, { gear: 'wheeled', wheels: 3, L: 50, W: 24, shape: 'angular', cab: true, feats: ['antenna', 'radar', 'stripe'] }, [1, 0, 3, 2], 'Extends sight and radio range; morale aura.', 'Rally: brings broken squads back.'),
+  V('medevac', 'Medevac Ambulance', 'Medical & engineers', 'buy', 1, { gear: 'wheeled', wheels: 3, L: 48, W: 24, shape: 'round', cab: true, hull: '#e8e6dc', feats: ['cross', 'lights'] }, [0, 0, 4, 2], 'Carries 4 wounded to the clinic; keeps them alive.', 'Stabilise: wounded stop bleeding.'),
+  V('wren', 'Wren Scout', 'Helicopter', 'works', 1, { L: 30, W: 14, tailL: 22, rotor: 30, canopyL: 11, skids: true }, [0, 1, 5, 1], 'Fast and quiet; sees 40% farther.', 'Flare: reveals an area for 10 s.'),
+  V('drover', 'Drover Transport', 'Helicopter', 'works', 1, { L: 52, W: 18, tailL: 30, rotor: 46, canopyL: 10, door: true, skids: true }, [1, 1, 3, 5], 'Carries 8; lands anywhere flat.', 'Fast rope: drops troops without landing.'),
+  V('viper', 'Viper Attack', 'Helicopter', 'works', 2, { L: 46, W: 11, tailL: 26, rotor: 42, canopyL: 10, wings: true, pods: true, nose: true }, [2, 4, 4, 0], 'Rockets and a nose gun; strong against vehicles.', 'Rocket run: 12 rockets on a line.'),
+  V('talon', 'Talon Gunship', 'Helicopter', 'works', 2, { L: 56, W: 16, tailL: 28, rotor: 48, canopyL: 12, wings: true, pods: true, nose: true, door: true, blades: 5 }, [3, 5, 2, 3], 'Heavy guns and rockets; carries 4.', 'Strafe: a long cannon run on a squad.'),
+  V('mercy', 'Mercy Medevac', 'Helicopter', 'works', 1, { L: 50, W: 18, tailL: 30, rotor: 44, canopyL: 10, door: true, cross: true, skids: true, hull: '#e8e6dc' }, [1, 0, 4, 4], 'Carries 4 wounded; flies into fire.', 'Evacuate: wounded reach the clinic in minutes.'),
+  V('ox', 'Ox Heavy Lift', 'Helicopter', 'works', 2, { L: 64, W: 20, tandem: true, tailL: 6, rotor: 38, canopyL: 10, door: true, sling: true }, [2, 0, 2, 5], 'Lifts a vehicle or 14 troops.', 'Sling load: carries a tank-sized load.'),
+];
+/** a vehicle spec by id */
+const SPEC = Object.fromEntries(ALL.map((v) => [v.id, v.spec]));
+
+return { INK, hexRgb, shade, mixc, outlined, PAINT, vehicleSprite, drawVeh, heliSprite, drawHelo, SPEC };
+})();
+
+// ---- src/engine/drawSoldiers.js
+__m["src/engine/drawSoldiers.js"] = (function () {
+// Soldiers for the battle (v0.102.0): the game's own people sprites and weapon sprites with the war pieces added on: a helmet in the side's colour, a pack behind the body for the role (radio and
+// antenna for a signaller, rockets for anti-tank, a ghillie cloak for a marksman, a medic's cross, an officer's braid, a leader's band). Ported from the approved mock-up
+// (docs/mockups/src/war/soldiers.js). Browser only; paint, never state.
+const { drawPerson } = __m["src/engine/drawPeople.js"];
+const { drawWeaponSprite } = __m["src/engine/drawPixelWeapons.js"];
+const { shade, INK } = __m["src/engine/drawFleet.js"];
+
+/** The pieces a role adds: a pack, a build, and what is worn. The weapon comes from the soldier's real loadout, not from here. */
+const ROLE_LOOK = {
+  rifleman: { pack: 'small' }, mg: { pack: 'ammo', build: 'broad' }, at: { pack: 'rockets' }, medic: { pack: 'medic', cross: true }, marksman: { pack: 'ghillie', build: 'thin' },
+  engineer: { pack: 'tools' }, signaller: { pack: 'radio', antenna: true }, officer: { cap: true, band: true }, recon: { pack: 'ghillie', build: 'thin' },
+};
+const ROLE_OF = { machine_gunner: 'mg', anti_tank: 'at', guard: 'rifleman', uav: 'signaller' };
+/** The enemy's uniform (the player's comes from the squad's look). */
+const ENEMY = { cloth: '#9a8456', legs: '#6e5e38', helm: '#7a6a42', accent: '#b83a2a' };
+
+/** x, y = feet. facing: left | right | up | down. o: { cloth, helm, legs, accent, gun, t, moving, scale, skin }. */
+function drawSoldier(ctx, role, x, y, facing = 'right', o = {}) {
+  const key = ROLE_OF[role] || role; const R = ROLE_LOOK[key] || ROLE_LOOK.rifleman; const cloth = o.cloth || '#516b3e';
+  const a = { skin: o.skin || '#e0b088', hair: '#3a2a1a', hairStyle: R.cap ? 'cap' : 'helmet', hatColor: R.cap ? shade(cloth, -10) : (o.helm || shade(cloth, -18)), hatBand: o.accent, outfit: cloth, sleeves: shade(cloth, -6), legs: o.legs || shade(cloth, -30), shoes: '#2a2418', build: R.build || 'average', accessories: ['vest'], vestColor: shade(cloth, -26) };
+  const s = { x, y, facing, animTime: o.t ?? 0, moving: Boolean(o.moving), scale: o.scale || 1 };
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  const dir = facing === 'left' ? 1 : -1; const side = facing === 'left' || facing === 'right';
+  if (R.pack && facing !== 'down') {
+    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(s.scale, s.scale); const px = side ? dir * 5 : 0; const py = -19; const P = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(px + dx, py + dy, w, h); }; const packC = R.pack === 'medic' ? '#e8e6dc' : shade(cloth, -22);
+    if (R.pack === 'ghillie') { for (let i = 0; i < 9; i++) P(-4 + (i % 3) * 3, i * 1.5, 4, 3, i % 2 ? '#5a6a3a' : '#44562c'); } else { P(-3, 0, 6, 9, INK); P(-2, 1, 4, 7, packC); P(-2, 1, 1, 7, shade(packC, 24)); }
+    if (R.pack === 'medic') { P(-1, 3, 2, 4, '#c82a2a'); P(-2, 4, 4, 2, '#c82a2a'); }
+    if (R.pack === 'radio' || R.antenna) { P(2, -10, 1, 11, '#2a2a30'); P(-2, 1, 4, 2, '#1c1c22'); }
+    if (R.pack === 'rockets') { P(-4, -1, 2, 8, '#6a6a3a'); P(2, -1, 2, 8, '#6a6a3a'); }
+    if (R.pack === 'tools') { P(-3, 8, 6, 2, '#8a6a2a'); P(-1, -2, 2, 4, '#a0a0a8'); }
+    ctx.restore();
   }
-  return s;
+  const gun = o.gun;
+  drawPerson(ctx, a, s, gun ? (c) => { c.save(); c.translate(facing === 'left' ? -3 : 3, -8); if (facing === 'left') c.scale(-1, 1); if (facing === 'up') c.translate(0, -2); drawWeaponSprite(c, gun, 1, { hand: a.skin }); c.restore(); } : null);
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(s.scale, s.scale);
+  if (R.cross && facing !== 'up') { ctx.fillStyle = '#f0eee4'; ctx.fillRect(-6, -17, 4, 5); ctx.fillStyle = '#c82a2a'; ctx.fillRect(-5, -16, 2, 3); ctx.fillRect(-6, -15, 4, 1); ctx.fillStyle = '#f0eee4'; ctx.fillRect(-4, -26, 8, 3); ctx.fillStyle = '#c82a2a'; ctx.fillRect(-1, -26, 2, 3); }
+  if (R.band && o.accent) { ctx.fillStyle = o.accent; ctx.fillRect(-5, -14, 4, 2); ctx.fillRect(-5, -12, 2, 1); }
+  if (key === 'officer') { ctx.fillStyle = '#d8b04a'; ctx.fillRect(-4, -16, 8, 1); ctx.fillRect(-3, -14, 6, 1); }
+  ctx.restore(); ctx.restore();
 }
 
-/** A tank's turret turns on its own: the sprite above has it fixed; this draws a thin barrel line toward the target for emphasis. */
-function drawVehicle(ctx, kind, side, x, y, heading, { wreck = false, time = 0 } = {}) {
-  const spr = vehicleSprite(kind, side, heading, wreck ? 'wreck' : 'ok');
-  ctx.fillStyle = 'rgba(16,14,36,0.28)'; ctx.fillRect(Math.round(x) - 14, Math.round(y) + 4, 28, 6); // a flat shadow under it
-  if (kind === 'helicopter' && !wreck) {
-    ctx.fillStyle = 'rgba(16,14,36,0.22)'; ctx.fillRect(Math.round(x) - 10, Math.round(y) + 12, 22, 5); // the shadow falls away from it
-    ctx.drawImage(spr, Math.round(x) - 32, Math.round(y) - 40);
-    // the rotor: a live disc with two blades
-    const a = time * 22; ctx.save(); ctx.translate(Math.round(x), Math.round(y) - 12); ctx.fillStyle = 'rgba(30,28,40,0.18)'; ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 17, Math.sin(a) * 17); ctx.lineTo(-Math.cos(a) * 17, -Math.sin(a) * 17); ctx.moveTo(Math.cos(a + 1.57) * 17, Math.sin(a + 1.57) * 17); ctx.lineTo(-Math.cos(a + 1.57) * 17, -Math.sin(a + 1.57) * 17); ctx.stroke(); ctx.restore();
-    return;
-  }
-  ctx.drawImage(spr, Math.round(x) - 32, Math.round(y) - 32);
-}
-
-return { PALETTE, vehicleSprite, drawVehicle };
+return { ROLE_LOOK, ENEMY, drawSoldier };
 })();
 
 // ---- src/engine/drawRoofed.js
@@ -77120,10 +77248,9 @@ __m["src/engine/drawBattle.js"] = (function () {
 // The battle on the screen (v0.101.0, the look renderer + the tactical engine's drawing): the ground baked once, buildings seen from above with a roof (or opened to one floor's plan), people on the
 // game's own people sprites (with the new helmet), vehicles, effects, and three camera tiers: far (banners), command (everything at the game's own scale) and close (the same sprites, enlarged by
 // whole numbers). Browser only. It reads a battle (src/battle/sim.js) and never changes it.
-const { drawPerson } = __m["src/engine/drawPeople.js"];
-const { drawWeaponSprite } = __m["src/engine/drawPixelWeapons.js"];
-const { drawVehicle } = __m["src/engine/drawWarVehicles.js"];
-const { drawRoofed, STYLES: ART_STYLES, shade } = __m["src/engine/drawRoofed.js"];
+const { drawVeh, drawHelo, SPEC: FLEET, shade } = __m["src/engine/drawFleet.js"];
+const { drawSoldier, ENEMY } = __m["src/engine/drawSoldiers.js"];
+const { drawRoofed, STYLES: ART_STYLES } = __m["src/engine/drawRoofed.js"];
 const { drawCar } = __m["src/engine/drawBattleCars.js"];
 const { bakeGround, gameMapOf } = __m["src/engine/battleGround.js"];
 const { drawProp, setPixelProps } = __m["src/engine/drawWorld.js"];
@@ -77207,15 +77334,12 @@ function plan(g, map, b, floor, gm) {
 }
 
 const dirOf = (u, to) => { const dx = to.x - u.x; const dy = to.y - u.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'; };
-const appearance = (u, side, look) => {
-  const h = (k) => unit(`${u.id}|ap|${k}`); const skin = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430'][Math.floor(h(1) * 5)];
-  const cloth = side === 'p' ? (LOOKS.primary[look.primary] || '#5e7a46') : '#8a5a48';
-  return { skin, hair: ['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a'][Math.floor(h(2) * 4)], hairStyle: 'helmet', hatColor: cloth, outfit: cloth, legs: '#2a2e22', build: ['thin', 'average', 'broad', 'wiry'][Math.floor(h(3) * 4)], height: 0.97 + h(4) * 0.1, accessories: [], accent: side === 'p' ? (LOOKS.band[look.band] || '#e8c84a') : '#d8402e' };
-};
+/** Which spec of the fleet a battle unit is drawn as (its kind and class; a helicopter's armour tells an attack helicopter from a scout). */
+const specOf = (u) => (u.kind === 'tank' ? (u.armourBar >= 3 ? 'bulwark' : 'anvil') : u.kind === 'helicopter' ? (u.armourBar >= 2 ? 'talon' : 'viper') : u.kind === 'carrier' ? 'wolf' : u.role === 'recon' ? 'scout' : u.role === 'artillery' ? 'hammer' : u.role === 'antiair' ? 'skyguard' : 'truck');
 
 /** The view: owns a canvas, a camera and the effects; `draw(B, ui)` paints a frame. */
 class BattleView {
-  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
+  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.hdg = new Map(); this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
   attach(B, looks = {}) { this.B = B; this.map = B.map; this.scene = bakeScene(B.map); this.looks = looks; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); }
   tier() { return this.cam.zoom < 0.55 ? 'far' : this.cam.zoom > 1.8 ? 'close' : 'command'; }
   toWorld(sx, sy) { const r = this.cv.getBoundingClientRect(); return { x: (sx - r.left) / this.cam.zoom + this.cam.x, y: (sy - r.top) / this.cam.zoom + this.cam.y }; }
@@ -77284,22 +77408,29 @@ class BattleView {
   }
 
   unit(g, u, B, ui) {
-    const px = u.x * TP; const py = u.y * TP;
-    if (ui.selected?.has(u.id)) { g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.beginPath(); g.ellipse(px, py + 2, u.kind === 'inf' ? 11 : 20, u.kind === 'inf' ? 5 : 8, 0, 0, Math.PI * 2); g.stroke(); }
-    if (u.kind === 'inf') {
+    const px = u.x * TP; const py = u.y * TP; const inf = u.kind === 'inf';
+    if (ui.selected?.has(u.id)) { g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.beginPath(); g.ellipse(px, py + 2, inf ? 11 : 24, inf ? 5 : 10, 0, 0, Math.PI * 2); g.stroke(); }
+    if (inf) {
       const t = u.target ? B.byId.get(u.target) : null; const ang = u.path?.[0] ? dirOf(u, u.path[0]) : t ? dirOf(u, t) : (u.side === 'p' ? 'right' : 'left');
-      if (!u.alive) { g.save(); g.translate(px, py); g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(-9, -1, 18, 3); g.fillStyle = u.side === 'p' ? '#5e7a46' : '#8a5a48'; g.fillRect(-9, -4, 16, 5); g.fillStyle = INK; g.fillRect(-10, -5, 2, 7); g.restore(); return; }
-      const look = { ...DEFAULT_LOOK, ...(this.looks?.[u.id] || {}) };
-      const dir = ang === 'left' ? -1 : 1; const wl = WLOOK[u.weapon];
-      const held = wl ? (c) => { c.save(); c.translate(ang === 'left' ? -14 : ang === 'right' ? 2 : -6, -13); if (ang === 'left') { c.scale(-1, 1); c.translate(-12, 0); } drawWeaponSprite(c, wl, 1); c.restore(); } : null;
-      drawPerson(g, appearance(u, u.side, look), { x: px, y: py, facing: ang, animTime: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, scale: 1 }, held);
-      void dir;
+      if (!u.alive) { g.save(); g.translate(px, py); const c = u.side === 'p' ? '#516b3e' : ENEMY.cloth; g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(-11, 1, 22, 4); g.fillStyle = INK; g.fillRect(-11, -5, 22, 9); g.fillStyle = c; g.fillRect(-9, -4, 14, 7); g.fillStyle = shade(c, 20); g.fillRect(-9, -4, 14, 2); g.fillStyle = shade(c, -34); g.fillRect(5, -3, 5, 5); g.fillStyle = u.side === 'p' ? '#3a5030' : ENEMY.helm; g.fillRect(-12, -4, 5, 6); g.fillStyle = '#e0b088'; g.fillRect(-8, -2, 2, 2); g.restore(); return; }
+      const look = { ...DEFAULT_LOOK, ...(this.looks?.[u.id] || {}) }; const mine = u.side === 'p'; const cloth = mine ? (LOOKS.primary[look.primary] || '#5e7a46') : ENEMY.cloth;
+      const skin = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430'][Math.floor(unit(`${u.id}|skin`) * 5)];
+      drawSoldier(g, u.role, px, py, ang, { cloth, helm: mine ? shade(cloth, -18) : ENEMY.helm, legs: mine ? shade(cloth, -34) : ENEMY.legs, accent: mine ? (LOOKS.band[look.band] || '#e8c84a') : ENEMY.accent, gun: WLOOK[u.weapon], skin, t: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, moving: Boolean(u.moving), scale: 0.95 });
       if (u.state !== 'steady') { g.fillStyle = u.state === 'broken' ? '#ff5a4a' : u.state === 'pinned' ? '#ffb43a' : '#ffe86a'; g.fillRect(px - 3, py - 36, 6, 3); }
-    } else {
-      const heading = u.path?.[0] ? Math.atan2(u.path[0].y - u.y, u.path[0].x - u.x) : u.target && B.byId.get(u.target) ? Math.atan2(B.byId.get(u.target).y - u.y, B.byId.get(u.target).x - u.x) : (u.side === 'p' ? 0 : Math.PI);
-      drawVehicle(g, u.kind, u.side, px, py, heading, { wreck: !u.alive, time: this.t });
-    }
-    if (u.alive && (u.hp < u.hpMax || ui.selected?.has(u.id))) { const w = u.kind === 'inf' ? 16 : 30; const y = py - (u.kind === 'inf' ? 32 : u.kind === 'helicopter' ? 52 : 26); g.fillStyle = INK; g.fillRect(px - w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(px - w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(px - w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
+    } else this.vehicle(g, u, B, px, py);
+    if (u.alive && (u.hp < u.hpMax || ui.selected?.has(u.id))) { const w = inf ? 16 : 30; const y = py - (inf ? 32 : u.kind === 'helicopter' ? 60 : 30); g.fillStyle = INK; g.fillRect(px - w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(px - w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(px - w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
+  }
+
+  /** A war vehicle: the spec for what it is, the paint for whose it is, a hull that turns toward where it goes and a turret that turns toward what it shoots at. */
+  vehicle(g, u, B, px, py) {
+    const target = u.target ? B.byId.get(u.target) : null; const step = u.path?.[0];
+    const want = step ? Math.atan2(step.y - u.y, step.x - u.x) : target ? Math.atan2(target.y - u.y, target.x - u.x) : (u.side === 'p' ? 0 : Math.PI);
+    const had = this.hdg.get(u.id) ?? want; let d = want - had; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; const hd = u.alive ? had + d * 0.12 : had; this.hdg.set(u.id, hd);
+    const spec = FLEET[specOf(u)]; const paint = u.side === 'p' ? 'company' : 'varn'; const state = !u.alive ? 'wreck' : u.hp < u.hpMax * 0.45 ? 'damaged' : 'ok';
+    const nose = hd + Math.PI / 2; // the sprites point up; the battle's east is zero
+    if (u.kind === 'helicopter') { drawHelo(g, spec, px, py - 14, nose, { paint, altitude: u.alive ? 26 : 0, phase: this.t * 40 }); return; }
+    const aim = target && u.alive ? Math.atan2(target.y - u.y, target.x - u.x) + Math.PI / 2 - nose : 0;
+    drawVeh(g, spec, px, py, nose, { paint, state, turret: aim, scale: 0.9 });
   }
 
   /** The far tier: a banner for each group of units (a flag, a number, a bar). */
