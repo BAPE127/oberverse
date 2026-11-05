@@ -250,7 +250,7 @@ function offerOne(game, C, day) {
   const scale = 1 + Math.max(0, rep) * E.repScale;
   const needs = { troops: Math.min(60, Math.round(between(K.troops, unit(`${s}|t`)) * scale)), tanks: Math.min(6, Math.round(between(K.tanks, unit(`${s}|tk`)) * Math.sqrt(scale))), helicopters: Math.min(4, Math.round(between(K.helicopters, unit(`${s}|h`)) * Math.sqrt(scale))), medics: Math.min(4, between(K.medics, unit(`${s}|m`))) };
   const mult = K.enemy[0] + unit(`${s}|e`) * (K.enemy[1] - K.enemy[0]);
-  const enemy = { troops: Math.round(needs.troops * mult * 1.1), armour: Math.round(needs.tanks * mult * 0.9 * 10) / 10, air: needs.helicopters ? Math.round(needs.helicopters * 0.5 * 10) / 10 : 0, aa: needs.helicopters ? (needs.helicopters >= 2 ? 2 : 1) : 0, skill: Math.round((0.9 + 0.3 * unit(`${s}|sk`)) * 100) / 100 };
+  const enemy = { troops: Math.round(needs.troops * mult * 1.1), armour: Math.round(needs.tanks * mult * 0.9 * 10) / 10, air: needs.helicopters ? Math.round(needs.helicopters * 0.5 * 10) / 10 : 0, aa: needs.helicopters ? (needs.helicopters >= 2 ? 2 : 1) : 0, battery: Math.round(needs.troops * mult * 1.1) >= 28 ? 2 : Math.round(needs.troops * mult * 1.1) >= 16 ? 1 : 0, skill: Math.round((0.9 + 0.3 * unit(`${s}|sk`)) * 100) / 100 };
   const days = between(K.days, unit(`${s}|d`));
   const pay = Math.round((needs.troops * days * E.payPerTroopDay + needs.tanks * days * E.payTank + needs.helicopters * days * E.payHelicopter) / 500) * 500;
   const client = ATLAS.countries[st.country]?.name || 'A client';

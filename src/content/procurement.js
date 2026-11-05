@@ -36,6 +36,8 @@ export const VEHICLES = Object.fromEntries([
   V('sensor_van', 'Sensor van', 'recon', 'bought', 2, 160000, [1, 1, 3, 2], 'Sees further than anyone else on the road.'),
   V('thump', 'Thump mortar carrier', 'artillery', 'bought', 1, 150000, [1, 3, 3, 2], 'Drops shells over a hill.'),
   V('hammer', 'Hammer self-propelled gun', 'artillery', 'bought', 2, 520000, [2, 5, 3, 2], 'A gun that moves after it fires.'),
+  V('rainmaker', 'Rainmaker rocket launcher', 'artillery', 'bought', 2, 480000, [2, 5, 3, 2], 'Twelve rockets over a field: for an enemy that stands together. Needs a designated point.'),
+  V('longbow', 'Longbow missile launcher', 'artillery', 'bought', 2, 650000, [2, 5, 2, 1], 'Fires the Arms works\' missiles from the stores, from far back. Needs a designated point.'),
   V('howitzer', 'Siege howitzer', 'artillery', 'bought', 2, 600000, [1, 5, 1, 2], 'For walls.'),
   V('skyguard', 'Skyguard twin gun', 'antiair', 'bought', 1, 190000, [1, 3, 3, 1], 'Two barrels pointed at the sky.'),
   V('falconer', 'Falconer missile AA', 'antiair', 'bought', 2, 410000, [2, 4, 3, 1], 'Missiles for aircraft that think they are safe.'),

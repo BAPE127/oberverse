@@ -6,7 +6,7 @@
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-import { STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
+import { DESIGNATE, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
 import { OUTCOMES } from '../war/combat.js';
 import { generate, idx, inb, tileAt, walkable } from './map.js';
 import { findPath, los, canStand } from './nav.js';
@@ -20,7 +20,7 @@ export function createBattle(setup) {
   const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const rules = setup.rules ?? (setup.map.ver >= 2 ? 2 : 1); // 1: v0.101.0; 2: v0.102.0 (modules and facing); 3: v0.102.1 (what runs without an order): a setup says which rules it was made under, and replays under them
   const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
-    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], collapsed: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
+    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], collapsed: [], located: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
     const s = side === 'p' ? map.spawns.p : map.spawns.e;
     const taken = new Set();
@@ -47,7 +47,7 @@ function makeUnit(spec, side, x, y, rules = 2) { // (spec.vtype: which vehicle i
   return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, vtype: spec.vtype || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
     fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
     moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0,
-    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stance: 'aggressive', hidden: false, inside: null, pax: [], bailed: false, dep: 0, deployed: false, stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
+    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, battery: Boolean(spec.battery), fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stance: 'aggressive', hidden: false, inside: null, pax: [], bailed: false, dep: 0, deployed: Boolean(spec.battery), stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
 }
 
 // ---- orders
@@ -205,6 +205,18 @@ function breachTile(B, i, j) {
   if (!inb(B.map, i, j) || B.map.tiles[idx(B.map, i, j)] !== TILE.WALL) return false; // (a building's wall, or the wall round a compound)
   B.map.tiles[idx(B.map, i, j)] = TILE.FLOOR; B.rubble.push({ x: i, y: j, t: B.tick }); B.events.push({ t: B.tick, k: 'breach', x: i, y: j }); return true;
 }
+/** Is a point designated for `side` (rules 4)? An enemy within DESIGNATE.r of it is in sight of one of that side's units or under a scout drone now, or (the player) was spotted within the drone's memory. */
+export function designated(B, side, x, y) {
+  const mem = UAV.memory * TICK.perSecond; const near = (e) => e.alive && !e.fled && e.side !== side && !e.hidden && Math.hypot(e.x - x, e.y - y) <= DESIGNATE.r;
+  for (const e of B.units) {
+    if (!near(e)) continue;
+    if (side === 'p' && B.spotted[e.id] !== undefined && B.tick - B.spotted[e.id] < mem) return true;
+    if (B.drones.some((d) => d.side === side && Math.hypot(d.x - e.x, d.y - e.y) <= UAV.r)) return true;
+    if (B.units.some((p) => p.side === side && p.alive && !p.fled && !p.inside && visible(B, p, e))) return true;
+  }
+  return false;
+}
+const NOT_DESIGNATED = 'Nothing is designated there: put eyes on the enemy first (a squad in sight, a scout drone or a recon order).';
 /** Call support: a missile or a drone from the stock, an aircraft pass, or smoke. Validated against what the setup says the company has; logged for the replay. */
 export function callSupport(B, spec) {
   const r = applySupport(B, spec); if (r.ok) B.log.push({ t: B.tick, ids: [], order: { type: 'support', ...spec } }); return r;
@@ -212,6 +224,7 @@ export function callSupport(B, spec) {
 function applySupport(B, spec) {
   const S = SUPPORT[spec.kind]; if (!S || B.over) return { ok: false, text: 'No such support.' };
   if (!inb(B.map, Math.floor(spec.x), Math.floor(spec.y))) return { ok: false, text: 'Off the map.' };
+  if (B.rules >= 4 && S.group !== 'smoke' && !designated(B, 'p', spec.x, spec.y)) return { ok: false, text: NOT_DESIGNATED };
   if (S.group === 'air') { const a = B.sup.air.find((q) => !q.used && q.kind === spec.kind && (!spec.id || q.id === spec.id)); if (!a) return { ok: false, text: 'No such aircraft is free.' }; a.used = true; B.counts.air.push({ id: a.id, kind: a.kind }); B.counts.fuel += S.fuel; B.pend.push({ at: B.tick + Math.round(S.delay * TICK.perSecond), kind: spec.kind, x: spec.x, y: spec.y, id: a.id }); B.events.push({ t: B.tick, k: 'call', kind: spec.kind, x: spec.x, y: spec.y }); return { ok: true, text: `${a.name || S.name} is inbound.` }; }
   if (S.group === 'smoke') return { ok: false, text: 'Smoke is thrown by an engineer or an officer.' };
   if (S.group === 'strategic') { const a = B.sup.strategic.find((q) => !q.used && (!spec.id || q.id === spec.id)); if (!a) return { ok: false, text: 'There is no strategic missile in the stores.' }; a.used = true; B.counts.strategic.push(a.id); B.pend.push({ at: B.tick + Math.round(S.delay * TICK.perSecond), kind: 'strategic', x: spec.x, y: spec.y }); B.events.push({ t: B.tick, k: 'call', kind: 'strategic', x: spec.x, y: spec.y }); return { ok: true, text: `${a.name || S.name} is launched (${S.delay} s).` }; }
@@ -242,6 +255,20 @@ function tickSupport(B) {
   B.runs = B.runs.filter((r) => !r.down && B.tick - r.t0 <= r.dur);
   tickDrones(B);
   if (B.smoke.length) B.smoke = B.smoke.filter((c) => c.until > B.tick);
+}
+
+/** The enemy battery (rules 4): it answers the place a gun of yours fired from, once, after `answer` seconds; while it fires it can be seen, and shot back at. */
+function tickBattery(B) {
+  for (const q of B.located) {
+    if (q.done || q.at > B.tick) continue;
+    const bat = B.units.filter((b) => b.battery && b.alive && !b.fled && b.cd <= 0 && Math.hypot(b.x - q.x, b.y - q.y) <= b.arty.range).sort((a, c) => Math.hypot(a.x - q.x, a.y - q.y) - Math.hypot(c.x - q.x, c.y - q.y))[0];
+    if (!bat) { if (!B.units.some((b) => b.battery && b.alive && !b.fled)) q.done = true; continue; }
+    q.done = true; const A = bat.arty; bat.cd = Math.round(A.interval * A.shells * TICK.perSecond); bat.shots++; B.spotted[bat.id] = B.tick;
+    const fly = Math.max(10, Math.round((Math.hypot(bat.x - q.x, bat.y - q.y) / A.speed) * TICK.perSecond));
+    for (let i = 0; i < A.shells; i++) { const a = chance(`${B.key}|${B.tick}|${bat.id}|ba${i}`) * Math.PI * 2; const r = Math.sqrt(chance(`${B.key}|${B.tick}|${bat.id}|br${i}`)) * A.scatter; B.pend.push({ at: B.tick + fly + i * 6, kind: 'shell', x: q.x + Math.cos(a) * r, y: q.y + Math.sin(a) * r, r: A.r, dmg: A.dmg }); }
+    B.events.push({ t: B.tick, k: 'battery', id: bat.id, x: q.x, y: q.y });
+  }
+  if (B.located.length > 40) B.located = B.located.filter((q) => !q.done);
 }
 
 // ---- the UAV team: scout drones that spot, FPV drones that dive
@@ -387,7 +414,7 @@ function step1(B, u, idxU) {
     if (u.recharge <= 0 && !B.drones.some((q) => q.owner === u.id)) { B.drones.push({ id: `D${B.tick}${u.id}`, owner: u.id, side: u.side, x: u.x, y: u.y, tx: o.x, ty: o.y, left: UAV.battery * TICK.perSecond }); B.events.push({ t: B.tick, k: 'launch', id: u.id, kind: 'scout' }); }
     u.order = { type: 'hold' };
   } else if (o.type === 'fpv' && u.role === 'uav' && !u.broken) {
-    const item = B.sup.items.item_drone_attack > 0 ? 'item_drone_attack' : B.sup.items.item_drone_strike > 0 ? 'item_drone_strike' : null;
+    const item = B.rules >= 4 && !designated(B, u.side, o.x, o.y) ? (B.events.push({ t: B.tick, k: 'nodesignate', id: u.id }), null) : B.sup.items.item_drone_attack > 0 ? 'item_drone_attack' : B.sup.items.item_drone_strike > 0 ? 'item_drone_strike' : null;
     if (item) { B.sup.items[item]--; B.counts.items[item] = (B.counts.items[item] || 0) + 1; B.fpvs.push({ id: `F${B.tick}${u.id}`, item, side: u.side, x: u.x, y: u.y, tx: o.x, ty: o.y }); B.events.push({ t: B.tick, k: 'launch', id: u.id, kind: 'fpv' }); }
     u.order = { type: 'hold' };
   } else if (o.type === 'fire' && u.arty && !u.broken) {
@@ -395,12 +422,19 @@ function step1(B, u, idxU) {
     if (dd > u.arty.range) { u.order = { type: 'hold' }; B.events.push({ t: B.tick, k: 'outofrange', id: u.id }); }
     else if (B.rules >= 4 && !u.deployed) { if (u.dep === 0) B.events.push({ t: B.tick, k: 'deploying', id: u.id }); u.dep++; if (u.dep >= DEPLOY.seconds * TICK.perSecond) { u.deployed = true; B.events.push({ t: B.tick, k: 'deployed', id: u.id }); } }
     else if (u.cd <= 0) {
-      if (!(B.sup.items.item_artillery_shell > 0)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
+      const A = u.arty; const missile = A.missile ? (B.sup.items.item_missile_guided > 0 ? 'item_missile_guided' : B.sup.items.item_missile_cruise > 0 ? 'item_missile_cruise' : null) : null; const need = A.shells || 1;
+      if (B.rules >= 4 && A.designate && !designated(B, u.side, o.x, o.y)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'nodesignate', id: u.id }); }
+      else if (A.missile ? !missile : !(B.sup.items.item_artillery_shell >= need)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
       else {
-        B.sup.items.item_artillery_shell--; B.counts.items.item_artillery_shell = (B.counts.items.item_artillery_shell || 0) + 1; u.shots++; u.cd = Math.round(u.arty.interval * TICK.perSecond);
+        const used = missile || 'item_artillery_shell'; const n = missile ? 1 : need; B.sup.items[used] -= n; B.counts.items[used] = (B.counts.items[used] || 0) + n; u.shots++; u.cd = Math.round(A.interval * TICK.perSecond);
         const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)) || B.drones.some((d) => d.side === u.side && dist(d, o) <= UAV.r); const sc = spotted ? SCATTER.spotted : SCATTER.blind;
         const a = chance(`${B.key}|${B.tick}|${u.id}|sa`) * Math.PI * 2; const r = Math.sqrt(chance(`${B.key}|${B.tick}|${u.id}|sr`)) * sc; const lx = o.x + Math.cos(a) * r; const ly = o.y + Math.sin(a) * r;
-        B.pend.push({ at: B.tick + Math.max(10, Math.round((dd / u.arty.speed) * TICK.perSecond)), kind: 'shell', x: lx, y: ly, r: u.arty.r, dmg: u.arty.dmg }); B.events.push({ t: B.tick, k: 'shell', id: u.id, x: o.x, y: o.y });
+        const fly = Math.max(10, Math.round((dd / A.speed) * TICK.perSecond));
+        if (missile) B.pend.push({ at: B.tick + Math.max(fly, Math.round(SUPPORT[missile].delay * TICK.perSecond)), kind: missile, x: lx, y: ly });
+        else if (A.salvo) for (let i = 0; i < A.salvo; i++) { const ra = chance(`${B.key}|${B.tick}|${u.id}|ra${i}`) * Math.PI * 2; const rr = Math.sqrt(chance(`${B.key}|${B.tick}|${u.id}|rr${i}`)) * A.area; B.pend.push({ at: B.tick + fly + i * 2, kind: 'shell', x: lx + Math.cos(ra) * rr, y: ly + Math.sin(ra) * rr, r: A.r, dmg: A.dmg }); }
+        else B.pend.push({ at: B.tick + fly, kind: 'shell', x: lx, y: ly, r: A.r, dmg: A.dmg });
+        B.events.push({ t: B.tick, k: A.salvo ? 'salvo' : 'shell', id: u.id, x: o.x, y: o.y });
+        if (B.rules >= 4 && u.side === 'p' && B.units.some((q) => q.battery && q.alive) && !B.located.some((q) => !q.done && Math.hypot(q.x - u.x, q.y - u.y) < 3)) B.located.push({ x: u.x, y: u.y, at: B.tick + Math.round(ARTY.battery.answer * TICK.perSecond), done: false });
       }
     }
   } else if ((o.type === 'suppress' || o.type === 'breach') && !u.broken) {
@@ -430,7 +464,7 @@ function ai(B, side) {
   const attacking = (B.goal === 'offence' && side === 'p') || (B.goal === 'defence' && side === 'e');
   const obj = B.map.objective; const exit = B.map.exit;
   mine.forEach((u, i) => {
-    if (u.broken || u.order.type === 'retreat') return;
+    if (u.broken || u.battery || u.order.type === 'retreat') return;
     if (B.goal === 'logistics' && side === 'p') { if (isVeh(u) && u.kind !== 'helicopter' && u.order.type === 'hold' && !u.path.length) setOrder(B, u, { type: 'move', x: exit.x, y: exit.y }); else if (!isVeh(u) && u.order.type === 'hold') setOrder(B, u, { type: 'amove', x: exit.x, y: exit.y }); return; }
     if (attacking) {
       if (u.order.type === 'hold' && !(u.target && B.byId.get(u.target)?.alive)) {
@@ -451,7 +485,7 @@ function ai(B, side) {
 }
 
 /** An anti-air gun (rules 3) is a threat to aircraft and helicopters, not a force on the ground: it does not hold a zone, and beating the enemy does not mean putting it out. */
-const onGround = (u) => !u.W?.airOnly;
+const onGround = (u) => !u.W?.airOnly && !u.battery;
 function zoneCount(B, side) {
   const o = B.map.objective; let n = 0;
   for (const u of B.units) if (u.side === side && u.alive && !u.fled && onGround(u) && dist(u, o) <= OBJECTIVE.zone) n++;
@@ -463,6 +497,7 @@ export function step(B) {
   if (B.tick % 20 === 0) { if (B.ai.e) ai(B, 'e'); if (B.ai.p) ai(B, 'p'); }
   B.units.forEach((u, i) => step1(B, u, i));
   tickSupport(B);
+  if (B.rules >= 4) tickBattery(B);
   for (const c of B.units) if (!c.alive && c.pax.length && !c.bailed) bail(B, c);
   B.tick++;
   // objectives

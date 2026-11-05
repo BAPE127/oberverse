@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSetup } from '../src/battle/setup.js';
-import { createBattle, step, run, issue, callSupport, outcome, replay, faceOf, hitModule } from '../src/battle/sim.js';
+import { createBattle, step, run, issue, callSupport, designated, outcome, replay, faceOf, hitModule } from '../src/battle/sim.js';
 import { TILE, MODULE, SUPPORT } from '../src/content/battle.js';
 import { idx } from '../src/battle/map.js';
 import { supportOf } from '../src/war/engagements.js';
@@ -60,6 +60,7 @@ test('an aircraft pass: needs an aircraft the company keeps, burns fuel, is not 
   const support = { items: {}, air: [{ id: 'E7', name: 'Kestrel', kind: 'fighter' }, { id: 'E8', name: 'Anvil bomber', kind: 'bomber' }] };
   const setup = mk({ support, enemy: { troops: 10, armour: 0, air: 0, skill: 1 } }); const B = createBattle(setup); const s = stretch(B); calm(B);
   B.units.filter((u) => u.side === 'e').forEach((u, i) => put(u, s.x0 + 10 + (i % 5) * 0.8, s.y + 0.5 + Math.floor(i / 5) * 0.8));
+  B.units.filter((u) => u.side === 'e').forEach((u) => { B.spotted[u.id] = B.tick; }); // (rules 4: a strike needs a designated point)
   assert.ok(!callSupport(B, { kind: 'bomber', x: s.x0 + 12, y: s.y + 0.5, id: 'E7' }).ok, 'a fighter is not a bomber');
   const a = callSupport(B, { kind: 'bomber', x: s.x0 + 12, y: s.y + 1, id: 'E8' }); assert.ok(a.ok, a.text); assert.ok(!callSupport(B, { kind: 'bomber', x: 5, y: 5 }).ok, 'the bomber is used');
   const f = callSupport(B, { kind: 'fighter', x: s.x0 + 12, y: s.y + 0.8 }); assert.ok(f.ok, f.text);
@@ -97,8 +98,10 @@ test('what the company can call comes from what it really holds: missiles and dr
 });
 
 test('a battle with support in its order log replays exactly: the missile, the pass and the smoke are all in the log', () => {
-  const setup = mk({ key: 'D1|replay', support: { items: { item_drone_attack: 1 }, air: [{ id: 'E7', name: 'Kestrel', kind: 'fighter' }] }, enemy: { troops: 10, armour: 1, air: 0, skill: 1 } }); const B = createBattle(setup); const e = B.map.spawns.e;
-  run(B, 40); assert.ok(callSupport(B, { kind: 'item_drone_attack', x: e.x - 2, y: e.y }).ok); run(B, 30); assert.ok(callSupport(B, { kind: 'fighter', x: e.x - 6, y: e.y }).ok); issue(B, ['p0'], { type: 'smoke', x: B.map.spawns.p.x + 6, y: B.map.spawns.p.y }); run(B, 200);
+  const setup = mk({ key: 'D1|replay', support: { items: { item_drone_attack: 1 }, air: [{ id: 'E7', name: 'Kestrel', kind: 'fighter' }] }, enemy: { troops: 10, armour: 1, air: 0, skill: 1 } }); setup.ai = { p: true, e: true }; const B = createBattle(setup); const foe = B.units.find((u) => u.side === 'e');
+  // (rules 4: a strike needs a designated point, and nothing in a replay can be set by hand: let both sides move until the enemy is really in sight)
+  const seen = () => { for (let i = 0; i < 900 && !designated(B, 'p', foe.x, foe.y); i++) run(B, 5); assert.ok(designated(B, 'p', foe.x, foe.y), 'the enemy came into sight'); };
+  seen(); assert.ok(callSupport(B, { kind: 'item_drone_attack', x: foe.x, y: foe.y }).ok); run(B, 30); seen(); assert.ok(callSupport(B, { kind: 'fighter', x: foe.x, y: foe.y }).ok); issue(B, ['p0'], { type: 'smoke', x: B.map.spawns.p.x + 6, y: B.map.spawns.p.y }); run(B, 200);
   assert.equal(B.log.length, 3); const R = replay(setup, B.log, B.tick); assert.equal(snap(R), snap(B)); assert.equal(R.smoke.length, B.smoke.length); assert.deepEqual(R.counts.items, B.counts.items); assert.equal(R.counts.fuel, B.counts.fuel);
 });
 
@@ -108,7 +111,7 @@ test('a played battle that called a missile uses it up once, on the end day, and
   cageGoods(g, 'aw1', { item_missile_guided: 2 }); assert.ok(g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_missile_guided', qty: 2 }).ok);
   const stock = () => Object.entries(C.stock).filter(([k]) => k.endsWith(':item_missile_guided')).reduce((a, [, n]) => a + n, 0); assert.equal(stock(), 2);
   assert.ok(g.war.playEngagement(eng.id, squads).ok); const setup = eng.battle.setup; assert.deepEqual(setup.support.items, { item_missile_guided: 2 }); assert.deepEqual(setup.support.air, []);
-  const B = createBattle({ ...setup, ai: { p: true, e: true } }); const foe = B.units.find((u) => u.side === 'e'); assert.ok(callSupport(B, { kind: 'item_missile_guided', x: foe.x, y: foe.y }).ok); assert.ok(!callSupport(B, { kind: 'item_missile_cruise', x: 5, y: 5 }).ok, 'no cruise missile in the stores');
+  const B = createBattle({ ...setup, ai: { p: true, e: true } }); const foe = B.units.find((u) => u.side === 'e'); B.spotted[foe.id] = B.tick; assert.ok(callSupport(B, { kind: 'item_missile_guided', x: foe.x, y: foe.y }).ok); assert.ok(!callSupport(B, { kind: 'item_missile_cruise', x: 5, y: 5 }).ok, 'no cruise missile in the stores');
   while (!B.over) step(B); const o = outcome(B); assert.deepEqual(o.used.items, { item_missile_guided: 1 });
   assert.deepEqual(supportOf(C, 'Nother').items, {}, 'a second battle is not offered the same missiles'); const key = Object.keys(C.stock).find((k) => k.endsWith(':item_missile_guided'));
   const back = g.war.giveBack({ key, qty: 1 }); assert.ok(!back.ok && /set aside/.test(back.text), 'and they cannot be handed back to the Arms works meanwhile'); assert.equal(stock(), 2);
