@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.102.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Battle Depth',
+    notes: [
+      'The battle maps now look like the approved pictures: paved city streets with kerbs, crossings, lamps and parked cars, shops with signs and awnings under tiled roofs with chimneys and dormers, a plaza with a fountain, and fields, hedgerows, dirt tracks, a river with a bridge and two villages round their greens. Five national styles and five biome palettes; floor plans are furnished. (The first battle release shipped a plainer look than the mock-ups; this is the real one.)',
+      'Tanks, carriers, guns and helicopters are drawn in detail (a turret that turns, rotors that spin, wrecks that burn), and soldiers carry the pack, helmet and markings of their role.',
+      'A tank is a hull and four modules, and has a front, sides and a rear: tracks out and it cannot move, the engine out and it burns, the crew out and it is abandoned, the gun out and it cannot fire. Hit it from behind.',
+      'Call support from what you really own: a battlefield missile or a drone from your stores (used up once), or a fighter\'s strafing run or a bomber\'s run from an aircraft in your hangars (not lost; it burns fuel). Strikes land after a few seconds with a ring on the ground, and hurt your own people too. Engineers and officers throw smoke; a tank or an anti-tank soldier can breach a wall; any gunner can suppress a point.',
+      'A battle saved before this release replays on its first map.',
+    ],
+  },
+  {
     version: '0.101.0',
     date: '2026-11-05',
     channel: 'development',

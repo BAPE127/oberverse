@@ -99,7 +99,7 @@ Hold a point for a time; capture; destroy a depot; escort a convoy; extract an o
 | Item | Status in the mock | What the engine needs |
 | --- | --- | --- |
 | Soldiers, weapons, aircraft, ground | **real** (the game's code) | a `helmet` style, role/uniform data, camouflage patterns, packs and armbands as small overlays |
-| Tanks, vehicles, helicopters | mock-only module | `src/engine/drawWarVehicles.js`, heading-bucket cache (as `carSprites.js`), turret layer, rotor animation |
+| Tanks, vehicles, helicopters | mock-only module | `src/engine/drawFleet.js` (v0.102.0; was `drawWarVehicles.js`), heading-bucket cache (as `carSprites.js`), turret layer, rotor animation |
 | Roofed buildings in four states | mock-only | a building painter with a roof and a cutaway; state sprites cached per building |
 | Fire, smoke, explosions, tracers | simple canvas shapes | a small particle system with a cap |
 | Segment-level collapse animation | **not drawn** (the picture shows before, impact and after) | a short state animation (a reach goal; the rules do not need it) |
