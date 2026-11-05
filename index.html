@@ -30040,6 +30040,277 @@ Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMeth
 return { Politics, PARTY_IDS };
 })();
 
+// ---- src/war/state.js
+__m["src/war/state.js"] = (function () {
+// The one saved record of the war update (v0.98.0): `world.military`. Made lazily (an old save simply gains it); read through here, never built elsewhere.
+//
+//   ensureMilitary(game)   the record, with its defaults
+//   peekMilitary(game)     the record or null (a read that must not create it)
+// Protection and damage are written only by src/war/protection.js and src/war/damage.js.
+function freshMilitary() {
+  return {
+    v: 1,
+    coup: { state: 'none', since: null, outcome: null },        // the ONE flag base protection reads
+    protection: { baseProtected: true, reason: 'no coup', since: 0 }, // derived from coup.state by src/war/protection.js
+    gov: { id: 'sund', units: [], inventory: {}, bases: ['fort_gullcrest'], readiness: 0.7, orders: [] }, // the national military, separate from the company
+    company: null,                                               // the player's company (v0.98.0 stage 3): identity, facilities, personnel, squads, equipment
+    transfers: [],                                               // an audit trail, never money
+    war: { theatres: {}, provinces: {}, battles: [], orders: [], reports: [] },
+    damage: { structures: {}, log: [] },                         // written only by src/war/damage.js
+    log: [],
+  };
+}
+
+const peekMilitary = (game) => game.world?.military || null;
+
+function ensureMilitary(game) {
+  if (!game.world.military) game.world.military = freshMilitary();
+  return game.world.military;
+}
+
+return { freshMilitary, peekMilitary, ensureMilitary };
+})();
+
+// ---- src/content/military.js
+__m["src/content/military.js"] = (function () {
+// The military (v0.98.0): pure data. The war update's one saved record is `world.military` (src/war/state.js); this file names its parts.
+//
+// Statuses and locations are closed lists so the consistency checker (src/war/check.js) can say exactly what is wrong. Nothing here creates a unit or a facility.
+
+/** Every way a structure can be hurt. The damage gate (src/war/damage.js) takes one of these and nothing else: an unknown source is refused. */
+const DAMAGE_SOURCES = ['gunfire', 'explosion', 'vehicle', 'missile', 'bombing', 'artillery', 'tactical', 'strategic', 'scripted', 'environment', 'debug'];
+
+/** Sources that repair (the same gate: a repair is the only way a structure gets better). */
+const REPAIR_SOURCES = ['repair', 'rebuild', 'debug'];
+
+const STRUCTURE_STATES = ['intact', 'damaged', 'destroyed'];
+const COUP_STATES = ['none', 'staged', 'ended'];
+/** The lifecycle of any item or person the company holds. */
+const ITEM_STATUS = ['stored', 'assigned', 'deployed', 'damaged', 'destroyed', 'captured'];
+const PERSON_STATUS = ['active', 'wounded', 'training', 'leave', 'dead', 'captured'];
+
+/** A structure at or below this share of its hit points is "damaged"; at zero it is destroyed. */
+const DAMAGE = { damagedBelow: 0.7, log: 40 };
+
+/** The consistency checker's findings, by kind (so a test can say which corruption it planted). */
+const PROBLEMS = ['duplicate_id', 'negative_count', 'missing_reference', 'double_assignment', 'destroyed_deployable', 'bad_status', 'bad_coup', 'protection_mismatch'];
+
+return { DAMAGE_SOURCES, REPAIR_SOURCES, STRUCTURE_STATES, COUP_STATES, ITEM_STATUS, PERSON_STATUS, DAMAGE, PROBLEMS };
+})();
+
+// ---- src/war/protection.js
+__m["src/war/protection.js"] = (function () {
+// Base protection (v0.98.0): the invariant. One function answers "is the company's base protected?", and it reads one flag.
+//
+//   baseProtected(game)            true while world.military.coup.state === 'none'   (the only place that answers the question)
+//   setCoupState(game, state, why) the ONLY writer of the flag: none → staged → ended
+//   settle(game, how)              the ONLY way protection comes back: an explicit settlement after a coup has ended
+//
+// Staging a coup makes the base vulnerable by that one flag; it damages nothing. Ending a coup does NOT restore protection and does NOT undo damage.
+// Equipment and people away from the base are never protected (the gate only ever asks about structures).
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { COUP_STATES } = __m["src/content/military.js"];
+
+function baseProtected(game) {
+  return (peekMilitary(game)?.coup?.state ?? 'none') === 'none';
+}
+
+const NEXT = { none: ['staged'], staged: ['ended'], ended: [] };
+
+/** none → staged → ended. Returns { ok, text }. Any other move is refused (a coup cannot be un-staged, and ending one does not restore anything). */
+function setCoupState(game, state, why = '') {
+  const m = ensureMilitary(game);
+  if (!COUP_STATES.includes(state)) return { ok: false, text: `No such coup state "${state}".` };
+  if (m.coup.state === state) return { ok: true, text: `Already ${state}.` };
+  if (!NEXT[m.coup.state].includes(state)) return { ok: false, text: `A coup cannot go from ${m.coup.state} to ${state}.` };
+  const day = game.clock?.day ?? 0;
+  m.coup = { state, since: day, outcome: state === 'ended' ? (why || 'ended') : null };
+  m.protection = { baseProtected: state === 'none', reason: state === 'staged' ? `a coup is staged (${why || 'no reason given'})` : 'the coup has ended, but protection is not restored until a settlement', since: day };
+  m.log.push({ day, text: `Coup ${state}${why ? `: ${why}` : ''}.` });
+  return { ok: true, text: `Coup ${state}.` };
+}
+
+/** An explicit settlement (you win and govern, or you surrender and are granted terms) restores protection. Never automatic; damage stays. */
+function settle(game, how) {
+  const m = ensureMilitary(game);
+  if (m.coup.state !== 'ended') return { ok: false, text: 'There is nothing to settle: no coup has ended.' };
+  if (!how) return { ok: false, text: 'A settlement says how it was settled.' };
+  const day = game.clock?.day ?? 0;
+  m.coup = { state: 'none', since: day, outcome: `settled: ${how}` };
+  m.protection = { baseProtected: true, reason: `settled: ${how}`, since: day };
+  m.log.push({ day, text: `Settlement (${how}): the base is protected again; what was destroyed stays destroyed until rebuilt.` });
+  return { ok: true, text: 'Settled. The base is protected again.' };
+}
+
+return { baseProtected, setCoupState, settle };
+})();
+
+// ---- src/war/damage.js
+__m["src/war/damage.js"] = (function () {
+// The damage gate (v0.98.0): the ONLY writer of a structure's state. Every way a structure can be hurt (gunfire, explosions, vehicles, missiles, bombing, artillery, a tactical
+// or strategic result, a script, the weather, a debug command) is a named source passed to `apply`; nothing else may change `damage.structures`.
+//
+//   register(game, id, { owner, core, hp, name })   a structure becomes known to the gate (the company's base buildings; later the fort's)
+//   apply(game, id, amount, source)                  hurt it: refused for a core structure of the company's base while the base is protected
+//   repair(game, id, amount, source)                 the only way it gets better (a repair contract's work); same gate
+//   stateOf(game, id) / view(game)                   reads
+// The gate protects a structure when owner === 'company' and core === true and baseProtected(game). Everything else (the national fort, a company's outbuildings that are not
+// core, equipment, people) is not the gate's business. A source that is not on the list is refused outright.
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { baseProtected } = __m["src/war/protection.js"];
+const { DAMAGE_SOURCES, REPAIR_SOURCES, DAMAGE } = __m["src/content/military.js"];
+
+const rec = (game, id) => peekMilitary(game)?.damage.structures[id] || null;
+
+function register(game, id, { owner = 'company', core = false, hp = 100, name = id } = {}) {
+  const m = ensureMilitary(game);
+  if (m.damage.structures[id]) return m.damage.structures[id];
+  m.damage.structures[id] = { id, owner, core: Boolean(core), name, hpMax: hp, hp, state: 'intact', since: game.clock?.day ?? 0 };
+  return m.damage.structures[id];
+}
+
+const stateFor = (s) => (s.hp <= 0 ? 'destroyed' : s.hp < s.hpMax * DAMAGE.damagedBelow ? 'damaged' : 'intact');
+
+function note(game, text) {
+  const m = peekMilitary(game);
+  m.damage.log.push({ day: game.clock?.day ?? 0, text });
+  while (m.damage.log.length > DAMAGE.log) m.damage.log.shift();
+}
+
+/** Hurt a structure. Returns { ok, refused?, text, state }. */
+function apply(game, id, amount, source) {
+  const s = rec(game, id);
+  if (!s) return { ok: false, refused: false, text: `${id} is not a known structure.`, state: null };
+  if (!DAMAGE_SOURCES.includes(source)) return { ok: false, refused: true, text: `"${source}" is not a way a structure can be damaged.`, state: s.state };
+  if (!(amount > 0)) return { ok: false, refused: false, text: 'No damage.', state: s.state };
+  if (s.owner === 'company' && s.core && baseProtected(game)) return { ok: false, refused: true, text: `${s.name} is protected: nothing can damage the core of your base until a coup is staged.`, state: s.state };
+  const before = s.state;
+  s.hp = Math.max(0, s.hp - amount);
+  s.state = stateFor(s);
+  if (s.state !== before) { s.since = game.clock?.day ?? 0; note(game, `${s.name}: ${before} → ${s.state} (${source}).`); }
+  return { ok: true, refused: false, text: `${s.name} is ${s.state}.`, state: s.state };
+}
+
+/** Mend a structure (a repair contract's work). A destroyed structure is rebuilt, not repaired: it takes 'rebuild'. */
+function repair(game, id, amount, source = 'repair') {
+  const s = rec(game, id);
+  if (!s) return { ok: false, text: `${id} is not a known structure.`, state: null };
+  if (!REPAIR_SOURCES.includes(source)) return { ok: false, text: `"${source}" cannot repair.`, state: s.state };
+  if (s.state === 'destroyed' && source === 'repair') return { ok: false, text: `${s.name} is destroyed: it has to be rebuilt.`, state: s.state };
+  const before = s.state;
+  s.hp = Math.min(s.hpMax, s.hp + Math.max(0, amount));
+  s.state = stateFor(s);
+  if (s.state !== before) { s.since = game.clock?.day ?? 0; note(game, `${s.name}: ${before} → ${s.state} (${source}).`); }
+  return { ok: true, text: `${s.name} is ${s.state}.`, state: s.state };
+}
+
+const stateOf = (game, id) => rec(game, id)?.state || null;
+const hpOf = (game, id) => { const s = rec(game, id); return s ? { hp: s.hp, hpMax: s.hpMax } : null; };
+const view = (game) => Object.values(peekMilitary(game)?.damage.structures || {}).map((s) => ({ ...s, protected: s.owner === 'company' && s.core && baseProtected(game) }));
+
+return { register, apply, repair, stateOf, hpOf, view };
+})();
+
+// ---- src/war/check.js
+__m["src/war/check.js"] = (function () {
+// The consistency checker (v0.98.0): every soldier, vehicle, aircraft, missile and building exists once, in one place, with one status. This finds the ways that can go wrong.
+//
+//   checkMilitary(military)   → [{ kind, id, text }]   (empty when the record is consistent)
+// Kinds are in src/content/military.js (PROBLEMS). Pure: it reads a record, changes nothing. A test plants each kind of corruption and expects exactly it.
+const { ITEM_STATUS, PERSON_STATUS, STRUCTURE_STATES, COUP_STATES } = __m["src/content/military.js"];
+
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+
+function checkMilitary(m) {
+  const out = [];
+  const add = (kind, id, text) => out.push({ kind, id, text });
+  if (!m) return out;
+  const C = m.company;
+  const people = C?.personnel || []; const items = C?.equipment || []; const squads = C?.squads || []; const facilities = C?.facilities || [];
+  const units = m.gov?.units || [];
+  // ids exist once, across everything that has one
+  const seen = new Map();
+  const note = (id, where) => { if (id == null) return; if (seen.has(id)) add('duplicate_id', id, `${id} is in ${seen.get(id)} and in ${where}`); else seen.set(id, where); };
+  for (const p of people) note(p.id, 'personnel');
+  for (const i of items) note(i.id, 'equipment');
+  for (const s of squads) note(s.id, 'squads');
+  for (const f of facilities) note(f.id, 'facilities');
+  for (const u of units) note(u.id, 'the government\'s units');
+  // counts
+  const counts = { ...(C?.stock || {}) };
+  for (const [k, v] of Object.entries(m.gov?.inventory || {})) counts[`gov:${k}`] = v;
+  for (const [k, v] of Object.entries(counts)) if (!finite(v) || v < 0) add('negative_count', k, `${k} is ${v}`);
+  for (const s of Object.values(m.damage?.structures || {})) { if (!finite(s.hp) || s.hp < 0) add('negative_count', s.id, `${s.id} has ${s.hp} hit points`); if (!STRUCTURE_STATES.includes(s.state)) add('bad_status', s.id, `${s.id} is "${s.state}"`); }
+  // statuses
+  for (const i of items) if (!ITEM_STATUS.includes(i.status)) add('bad_status', i.id, `${i.id} is "${i.status}"`);
+  for (const p of people) if (!PERSON_STATUS.includes(p.status)) add('bad_status', p.id, `${p.id} is "${p.status}"`);
+  // references
+  const ids = new Set([...people.map((p) => p.id), ...items.map((i) => i.id)]);
+  const facIds = new Set(facilities.map((f) => f.id));
+  const squadIds = new Set(squads.map((s) => s.id));
+  for (const s of squads) {
+    if (s.leader != null && !people.some((p) => p.id === s.leader)) add('missing_reference', s.id, `squad ${s.id} has a leader ${s.leader} who is not in the personnel`);
+    for (const x of [...(s.members || []), ...(s.equipment || [])]) if (!ids.has(x)) add('missing_reference', s.id, `squad ${s.id} lists ${x}, which does not exist`);
+  }
+  for (const x of [...people, ...items]) {
+    if (typeof x.location === 'string' && x.location.startsWith('facility:') && !facIds.has(x.location.slice(9))) add('missing_reference', x.id, `${x.id} is at ${x.location}, which is not a facility`);
+    if (x.assignedTo != null && !squadIds.has(x.assignedTo)) add('missing_reference', x.id, `${x.id} is assigned to ${x.assignedTo}, which is not a squad`);
+  }
+  // one assignment each, and the item and the squad agree
+  const listed = new Map();
+  for (const s of squads) for (const x of [...(s.members || []), ...(s.equipment || [])]) { if (listed.has(x) && listed.get(x) !== s.id) add('double_assignment', x, `${x} is in squads ${listed.get(x)} and ${s.id}`); else if (listed.has(x)) add('double_assignment', x, `${x} is listed twice in ${s.id}`); listed.set(x, s.id); }
+  for (const x of [...people, ...items]) if (x.assignedTo != null && listed.has(x.id) && listed.get(x.id) !== x.assignedTo) add('double_assignment', x.id, `${x.id} says ${x.assignedTo} but ${listed.get(x.id)} lists it`);
+  // what is gone cannot be used
+  const gone = (x) => x.status === 'destroyed' || x.status === 'dead' || x.status === 'captured';
+  for (const x of [...people, ...items]) if (gone(x) && (x.assignedTo != null || listed.has(x.id) || x.status === 'deployed')) add('destroyed_deployable', x.id, `${x.id} is ${x.status} but is still assigned or deployed`);
+  // the coup flag and what is derived from it
+  if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
+  else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);
+  return out;
+}
+
+return { checkMilitary };
+})();
+
+// ---- src/war/api.js
+__m["src/war/api.js"] = (function () {
+// The war update's service (v0.98.0): game.war. A thin facade over the record (src/war/state.js), the protection gate (protection.js), the damage gate (damage.js) and the
+// checker (check.js). Later releases add the company, construction, transfers and battles here; none of them may write what the gates guard.
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { baseProtected, setCoupState, settle } = __m["src/war/protection.js"];
+const { register: registerStructure, apply: applyDamage, repair: repairStructure, view: structureView } = __m["src/war/damage.js"];
+const { checkMilitary } = __m["src/war/check.js"];
+
+class War {
+  constructor(game) { this.game = game; }
+  get g() { return this.game; }
+
+  /** The record, made on first use. */
+  state() { return ensureMilitary(this.g); }
+  peek() { return peekMilitary(this.g); }
+
+  baseProtected() { return baseProtected(this.g); }
+  setCoup(state, why) { return setCoupState(this.g, state, why); }
+  settle(how) { return settle(this.g, how); }
+
+  register(id, o) { return registerStructure(this.g, id, o); }
+  hit(id, amount, source) { return applyDamage(this.g, id, amount, source); }
+  repair(id, amount, source) { return repairStructure(this.g, id, amount, source); }
+  structures() { return structureView(this.g); }
+
+  check() { return checkMilitary(this.peek()); }
+
+  summary() {
+    const m = this.peek();
+    if (!m) return 'No military record yet (nothing has made one). The base is protected.';
+    const s = this.structures();
+    return `Coup: ${m.coup.state}. Base ${baseProtected(this.g) ? 'PROTECTED' : 'VULNERABLE'} (${m.protection.reason}). ${s.length} structures (${s.filter((x) => x.state !== 'intact').length} hurt). ${this.check().length} problems.`;
+  }
+}
+
+return { War };
+})();
+
 // ---- src/content/personnel.js
 __m["src/content/personnel.js"] = (function () {
 // The people who run your companies (v0.89.0). Three jobs, one flat wage each, no skills and no candidates: you hire, they work.
@@ -50407,6 +50678,7 @@ const { Arms, freshArms } = __m["src/systems/arms.js"];
 const { Market, freshMarket } = __m["src/systems/market.js"];
 const { Robbery } = __m["src/systems/robbery.js"]; // v0.79.0
 const { Politics } = __m["src/systems/politics.js"]; // v0.93.0
+const { War } = __m["src/war/api.js"]; // v0.98.0
 const { Headquarters } = __m["src/systems/hq.js"]; // v0.86.0
 const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
@@ -50457,6 +50729,7 @@ class Game {
     this.market = new Market(this);
     this.hq = new Headquarters(this); // v0.86.0: the parent company's offices
     this.robbery = new Robbery(this); // v0.79.0: bank robbery (its own state machine; touches nobody's finances)
+    this.war = new War(this); // v0.98.0: the military record, the protection gate, the damage gate
     this.politics = new Politics(this); // v0.93.0: the parties, the government and the term (read-only foundations; changes no price or cost)
     this.heavy = new Heavy(this);
     this.tablet = new Tablet(this);
@@ -67449,6 +67722,17 @@ function runCommand(game, line) {
       game.market.state.wars.push({ a, b, since: game.clock.day });
       game.market.news(`WAR: ${cs[a].name} attacks ${cs[b].name}.`);
       return out('War.');
+    }
+    case 'mil': {
+      // v0.98.0: the military record. mil | mil check | mil coup <staged|ended> | mil settle <how> | mil hit <structure> <amount> <source>
+      const W = game.war;
+      const [sub, a, b, c] = args;
+      if (!sub) return out(W.summary());
+      if (sub === 'check') { const p = W.check(); return out(p.length ? p.map((x) => `${x.kind}: ${x.text}`).join('\n') : 'The military record is consistent.', !p.length); }
+      if (sub === 'coup') return out(W.setCoup(a, b).text);
+      if (sub === 'settle') return out(W.settle(a).text);
+      if (sub === 'hit') return out(W.hit(a, Number(b), c || 'debug').text);
+      return out('Usage: mil [check | coup <staged|ended> | settle <how> | hit <structure> <amount> [source]]', false);
     }
     case 'peace': {
       game.market.state.wars = [];

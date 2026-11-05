@@ -2,7 +2,7 @@
 // checker (check.js). Later releases add the company, construction, transfers and battles here; none of them may write what the gates guard.
 import { ensureMilitary, peekMilitary } from './state.js';
 import { baseProtected, setCoupState, settle } from './protection.js';
-import * as damage from './damage.js';
+import { register as registerStructure, apply as applyDamage, repair as repairStructure, view as structureView } from './damage.js';
 import { checkMilitary } from './check.js';
 
 export class War {
@@ -17,10 +17,10 @@ export class War {
   setCoup(state, why) { return setCoupState(this.g, state, why); }
   settle(how) { return settle(this.g, how); }
 
-  register(id, o) { return damage.register(this.g, id, o); }
-  hit(id, amount, source) { return damage.apply(this.g, id, amount, source); }
-  repair(id, amount, source) { return damage.repair(this.g, id, amount, source); }
-  structures() { return damage.view(this.g); }
+  register(id, o) { return registerStructure(this.g, id, o); }
+  hit(id, amount, source) { return applyDamage(this.g, id, amount, source); }
+  repair(id, amount, source) { return repairStructure(this.g, id, amount, source); }
+  structures() { return structureView(this.g); }
 
   check() { return checkMilitary(this.peek()); }
 
