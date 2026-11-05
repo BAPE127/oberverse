@@ -89,3 +89,15 @@ test('a battle with support in its order log replays exactly: the missile, the p
   run(B, 40); assert.ok(callSupport(B, { kind: 'item_drone_attack', x: e.x - 2, y: e.y }).ok); run(B, 30); assert.ok(callSupport(B, { kind: 'fighter', x: e.x - 6, y: e.y }).ok); issue(B, ['p0'], { type: 'smoke', x: B.map.spawns.p.x + 6, y: B.map.spawns.p.y }); run(B, 200);
   assert.equal(B.log.length, 3); const R = replay(setup, B.log, B.tick); assert.equal(snap(R), snap(B)); assert.equal(R.smoke.length, B.smoke.length); assert.deepEqual(R.counts.items, B.counts.items); assert.equal(R.counts.fuel, B.counts.fuel);
 });
+
+test('a played battle that called a missile uses it up once, on the end day, and the company\'s stock shows it: nothing is spawned and nothing is used twice', async () => {
+  const { armedCompany, days, cageGoods } = await import('./war_helpers.mjs');
+  const { g, C, eng, squads } = armedCompany(1101, { rocket: 0 });
+  cageGoods(g, 'aw1', { item_missile_guided: 2 }); assert.ok(g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_missile_guided', qty: 2 }).ok);
+  const stock = () => Object.entries(C.stock).filter(([k]) => k.endsWith(':item_missile_guided')).reduce((a, [, n]) => a + n, 0); assert.equal(stock(), 2);
+  assert.ok(g.war.playEngagement(eng.id, squads).ok); const setup = eng.battle.setup; assert.deepEqual(setup.support.items, { item_missile_guided: 2 }); assert.deepEqual(setup.support.air, []);
+  const B = createBattle({ ...setup, ai: { p: true, e: true } }); const foe = B.units.find((u) => u.side === 'e'); assert.ok(callSupport(B, { kind: 'item_missile_guided', x: foe.x, y: foe.y }).ok); assert.ok(!callSupport(B, { kind: 'item_missile_cruise', x: 5, y: 5 }).ok, 'no cruise missile in the stores');
+  while (!B.over) step(B); const o = outcome(B); assert.deepEqual(o.used.items, { item_missile_guided: 1 });
+  assert.ok(g.war.fileBattle(eng.id, o).ok); assert.equal(stock(), 2, 'nothing is used until the end day'); days(g, 8); assert.equal(eng.state, 'resolved'); assert.equal(stock(), 1, 'one missile is gone, once');
+  assert.equal(eng.result.used['Skylance guided missile'], 1); assert.ok(eng.result.lines.some((l) => /Skylance guided missile/i.test(l)), 'the report says so'); assert.deepEqual(g.war.check(), []);
+});
